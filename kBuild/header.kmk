@@ -1,4 +1,4 @@
-# $Id: header.kmk 216 2005-01-22 00:20:09Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 230 2005-02-09 12:30:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -183,10 +183,8 @@ MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 #
 # Get rid of the GNU Make default stuff
 #
-ifneq ($(MAKE_COMMAND),kmk)
-ifneq ($(MAKE_COMMAND),kmk.exe)
+ifndef KMK_VERSION
 include $(PATH_KBUILD)/StampOutPredefines.kmk
-endif
 endif
 
 #
@@ -253,9 +251,17 @@ else
 DEP_CCXX            := echo $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
 endif
 # Standard Unix shell utils.
+ifdef KMK_BUILTIN
+ECHO                := kmk_builtin_echo
+MKDIR               := kmk_builtin_mkdir
+RM                  := kmk_builtin_rm
+CP                  := kmk_builtin_cp
+else
+ECHO                := echo
 MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
 RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
 CP                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
+endif
 MV                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
 SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
 CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
@@ -273,16 +279,16 @@ ifndef BUILD_QUIET
 ifdef BUILD_DEBUG
 BUILD_VERBOSE := 9
 endif
-MSG_L1		= @echo "kBuild: $1"
+MSG_L1		= @$(ECHO) "kBuild: $1"
 ifdef BUILD_VERBOSE
-MSG_L2		= @echo "kBuild: $1"
+MSG_L2		= @$(ECHO) "kBuild: $1"
 QUIET		:=
 else
 QUIET		:= @
 MSG_L2		=
 endif
 ifdef BUILD_DEBUG
-MSG_L3      = @echo "kBuild: $1"
+MSG_L3      = @$(ECHO) "kBuild: $1"
 else
 MSG_L3      =
 endif
