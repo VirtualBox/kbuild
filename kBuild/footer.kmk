@@ -1,4 +1,4 @@
-# $Id: footer.kmk 247 2005-04-03 00:08:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 250 2005-04-05 12:46:40Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -819,10 +819,11 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
 
-_BLDPROGS   += $(pubexe)
+_BLDPROGS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
+_DIRS      += $(dir $(pubexe))
 else
-_BLDPROGS   += $(exe)
+_BLDPROGS  += $(exe)
 _OUT_FILES += $(exe)
 endif
 _OBJS += $(_OBJS_$(target))
@@ -890,9 +891,10 @@ $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(RM) -f $(publib)
 	$(CP) $(lib) $(publib)
-
-_LIBS += $(publib)
+	
+_LIBS      += $(publib)
 _OUT_FILES += $(lib) $(publib)
+_DIRS      += $(dir $(publib))
 else
 _LIBS += $(lib)
 _OUT_FILES += $(lib)
@@ -1064,10 +1066,11 @@ $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(CP) $(dll) $(pubdll)
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
-_DLLS += $(pubdll)
+_DLLS      += $(pubdll)
 _OUT_FILES += $(dll) $(pubdll)
+_DIRS      += $(dir $(pubdll))
 else
-_DLLS += $(dll)
+_DLLS      += $(dll)
 _OUT_FILES += $(dll)
 endif
 _OBJS += $(_OBJS_$(target))
@@ -1237,6 +1240,7 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 
 _PROGRAMS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
+_DIRS      += $(dir $(pubexe))
 else
 _PROGRAMS  += $(exe)
 _OUT_FILES += $(exe)
@@ -1408,6 +1412,7 @@ $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 
 $(eval _SYSMODS += $(pubsys))
 $(eval _OUT_FILES += $(sys) $(pubsys))
+_DIRS      += $(dir $(pubsys))
 else
 $(eval _SYSMODS += $(sys))
 $(eval _OUT_FILES += $(sys))
