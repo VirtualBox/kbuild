@@ -807,10 +807,6 @@ reap_children (int block, int err)
       else
         lastc->next = c->next;
 
-      /* update not_parallel if the file was flagged for that. */
-      if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
-        --not_parallel;
-
       free_child (c);
 
       unblock_sigs ();
@@ -1398,15 +1394,29 @@ start_waiting_job (struct child *c)
       (not_parallel || (c->file->command_flags & COMMANDS_NOTPARALLEL) || load_too_high ()))
     {
       /* Put this child on the chain of children waiting for the load average
-         to go down.  */
+         to go down. if not paralell, put it last.  */
       set_command_state (f, cs_running);
       c->next = waiting_jobs;
-      waiting_jobs = c;
+      if (c->next && (c->file->command_flags & COMMANDS_NOTPARALLEL))
+        { 
+          struct child *prev = waiting_jobs;
+          while (prev->next)
+            prev = prev->next;
+          c->next = 0;
+          prev->next = c;
+        }
+      else
+        waiting_jobs = c;
       return 0;
     }
 
   if (c->file->command_flags & COMMANDS_NOTPARALLEL)
-    ++not_parallel;
+    {
+      assert(not_parallel == 0);
+      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel + 1, c->file, c->file->name));
+      ++not_parallel;
+    }
+
 
   /* Start the first command; reap_children will run later command lines.  */
   start_job_command (c);
@@ -1431,8 +1441,6 @@ start_waiting_job (struct child *c)
 
     case cs_finished:
       notice_finished_file (f);
-      if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
-        --not_parallel;
       free_child (c);
       break;
 
@@ -1680,7 +1688,7 @@ new_job (struct file *file)
      (This will notice if there are in fact no commands.)  */
   (void) start_waiting_job (c);
 
-  if (job_slots == 1 || not_parallel)
+  if (job_slots == 1 || not_parallel < 0)
     /* Since there is only one job slot, make things run linearly.
        Wait for the child to die, setting the state to `cs_finished'.  */
     while (file->command_state == cs_running)
@@ -1925,10 +1933,6 @@ int vmsHandleChildTerm(struct child *child)
     /* There is now another slot open.  */
     if (job_slots_used > 0)
       --job_slots_used;
-
-    /* update not_parallel if the file was flagged for that. */
-    if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
-      --not_parallel;
 
     /* If the job failed, and the -k flag was not given, die.  */
     if (child_failed && !keep_going_flag)

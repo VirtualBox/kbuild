@@ -523,7 +523,10 @@ snap_deps (void)
   if (f != 0 && f->is_target)
     {
       if (f->deps == 0)
-        not_parallel = 1;
+        {
+          DB (DB_KMK, (_("not_parallel -1\n")));
+          not_parallel = -1;
+        }
       else
         for (d = f->deps; d != 0; d = d->next)
           for (f2 = d->file; f2 != 0; f2 = f2->prev)

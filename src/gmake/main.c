@@ -454,9 +454,10 @@ struct file *default_file;
 
 int posix_pedantic;
 
-/* Nonzero if we have seen the `.NOTPARALLEL' target with empty dependency list.
-   Incremented while executing targets `.NOTPARALLEL' is depending on.
-   This temporarily or permanently turns off parallel builds. */
+/* Negative if we have seen the `.NOTPARALLEL' target with empty dependency list.
+   Zero if no `.NOTPARALLEL' or no file in the dependency list is being executed.
+   Positive when a file in `.NOTPARALLEL' is being made.
+   Nonzero values have the effect of disabeling parallel building. */
 
 int not_parallel;
 
@@ -587,6 +588,9 @@ decode_debug_flags (void)
               break;
             case 'v':
               db_level |= DB_BASIC | DB_VERBOSE;
+              break;
+            case 'k':
+              db_level |= DB_KMK;
               break;
             default:
               fatal (NILF, _("unknown debug level specification `%s'"), p);

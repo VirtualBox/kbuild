@@ -721,9 +721,17 @@ notice_finished_file (struct file *file)
   struct dep *d;
   int ran = file->command_state == cs_running;
   int touched = 0;
-
+DB (DB_JOBS, (_("notice_finished_file - entering: file=%p `%s' update_status=%d command_state=%d\n"), file, file->name, file->update_status, file->command_state));
   file->command_state = cs_finished;
   file->updated = 1;
+  
+  /* update not_parallel if the file was flagged for that. */
+  if (ran && (file->command_flags & COMMANDS_NOTPARALLEL))
+    {
+      assert(not_parallel == 1);
+      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel - 1, file, file->name));
+      --not_parallel;
+    }
 
   if (touch_flag
       /* The update status will be:
@@ -821,6 +829,8 @@ notice_finished_file (struct file *file)
     /* Nothing was done for FILE, but it needed nothing done.
        So mark it now as "succeeded".  */
     file->update_status = 0;
+
+DB (DB_JOBS, (_("notice_finished_file - leaving: file=%p `%s' update_status=%d command_state=%d\n"), file, file->name, file->update_status, file->command_state));
 }
 
 /* Check whether another file (whose mtime is THIS_MTIME)

@@ -24,6 +24,7 @@ Boston, MA 02111-1307, USA.  */
 #define DB_JOBS         (0x004)
 #define DB_IMPLICIT     (0x008)
 #define DB_MAKEFILES    (0x100)
+#define DB_KMK          (0x800)
 
 #define DB_ALL          (0xfff)
 
