@@ -1,4 +1,4 @@
-# $Id: footer.kmk 111 2004-06-24 22:28:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 120 2004-06-25 17:01:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -272,7 +272,8 @@ $(foreach tool,\
 	$($(target)_LDTOOL.$(BUILD_TARGET))\
 	$($(target)_LDTOOL)\
 	,$(eval _TOOLS += $(tool)))
-$(foreach source, $($(target)_SOURCES), $(eval $(def_tools_target_source)))
+$(foreach source, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE)) \
+	, $(eval $(def_tools_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
 _TOOLS := $(sort $(_TOOLS))
@@ -295,7 +296,8 @@ $(foreach sdk, $($(source)_SDKS) $($(target)_$(source)_SDKS), \
 endef
 define def_sdks_target
 $(foreach sdk, $($(target)_SDKS), $(eval _SDKS += $(sdk)))
-$(foreach source, $($(target)_SOURCES), $(eval $(def_sdks_target_source)))
+$(foreach source, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))\
+	, $(eval $(def_sdks_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_sdks_target)))
 _SDKS := $(sort $(_SDKS))
@@ -594,15 +596,15 @@ endef
 define def_target_sources
 #$ (warning def_target_sources)
 # C sources
-$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES))\
+$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # C++ sources
-$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES))\
+$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # ASM sources
-$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES))\
+$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 endef
 
@@ -642,7 +644,7 @@ $(eval libsuff     := $(firstword\
 	$(SUFF_LIB)\
 ))
 $(eval objs         = $(_OBJS_$(target)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 $(eval dirdep      := $(dir $(lib)).dir_created)
 ## @todo fix dependencies on makefiles an such
 $(eval deps        := )
@@ -758,7 +760,7 @@ $(eval custom_post    := $(strip $(firstword
 	$(CUSTOM_POST.$(BUILD_TYPE))\
 	$(CUSTOM_POST)\
 )))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
@@ -877,7 +879,7 @@ $(eval custom_post    := $(strip $(firstword
 	$(CUSTOM_POST.$(BUILD_TYPE))\
 	$(CUSTOM_POST)\
 )))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 
 ifndef TOOL_$(tool)_LINK_SYSMOD
 $$(warning kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
@@ -1071,7 +1073,8 @@ nothing: pass_nothing
 #
 all_recursive: $(foreach pass,$(PASSES),pass_$(pass))
 
-rebuild: clean all_recursive
+rebuild: clean 
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) all_recursive
 
 
 # misc shortcuts.
