@@ -1,3 +1,19 @@
+2004-02-21  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/functions/origin: Set our own environment variable
+	rather than relying on $HOME.
+
+2004-01-21  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/features/conditionals: Test arguments to ifn?def which
+	contain whitespace (such as a function that is evaluated).  Bug
+	#7257.
+
+2004-01-07  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/features/order_only: Test order-only prerequisites in
+	pattern rules (patch #2349).
+
 2003-11-02  Paul D. Smith  <psmith@gnu.org>
 
 	* scripts/functions/if: Test if on conditionals with trailing

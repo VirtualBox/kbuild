@@ -210,6 +210,7 @@ extern unsigned int get_path_max PARAMS ((void));
 #  define __printf__ printf
 # endif
 #endif
+#define UNUSED  __attribute__ ((unused))
 
 #if defined (STDC_HEADERS) || defined (__GNU_LIBRARY__)
 # include <stdlib.h>
@@ -386,9 +387,16 @@ struct floc
 #define STRING_SIZE_TUPLE(_s) (_s), (sizeof (_s)-1)
 
 
-/* Fancy processing for variadic functions in both ANSI and pre-ANSI
-   compilers.  */
-#if defined __STDC__ && __STDC__
+/* We have to have stdarg.h or varargs.h AND v*printf or doprnt to use
+   variadic versions of these functions.  */
+
+#if HAVE_STDARG_H || HAVE_VARARGS_H
+# if HAVE_VPRINTF || HAVE_DOPRNT
+#  define USE_VARIADIC 1
+# endif
+#endif
+
+#if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
 extern void message (int prefix, const char *fmt, ...)
                      __attribute__ ((__format__ (__printf__, 2, 3)));
 extern void error (const struct floc *flocp, const char *fmt, ...)
@@ -446,7 +454,7 @@ extern void install_default_implicit_rules PARAMS ((void));
 extern void build_vpath_lists PARAMS ((void));
 extern void construct_vpath_list PARAMS ((char *pattern, char *dirpath));
 extern int vpath_search PARAMS ((char **file, FILE_TIMESTAMP *mtime_ptr));
-extern int gpath_search PARAMS ((char *file, int len));
+extern int gpath_search PARAMS ((char *file, unsigned int len));
 
 extern void construct_include_path PARAMS ((char **arg_dirs));
 

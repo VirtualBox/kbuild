@@ -1,6 +1,6 @@
 # This is a -*-Makefile-*-, or close enough
 
-AUTOMAKE_OPTIONS = 1.7.6 dist-bzip2 check-news ansi2knr
+AUTOMAKE_OPTIONS = 1.8 dist-bzip2 check-news ansi2knr
 ACLOCAL_AMFLAGS	=  -I config
 
 SUBDIRS =	glob config po doc
@@ -60,13 +60,6 @@ html:
 # --------------- Internationalization Section
 
 localedir =	$(datadir)/locale
-
-# We need this due to a bug in gettext 0.12.1 Makefile.in.in: without this I
-# can't run distcheck because this file is created but not removed during
-# distclean.
-
-distclean-local:
-	test "$(srcdir)" = . || rm -f po/stamp-po
 
 # --------------- Local INSTALL Section
 
@@ -152,8 +145,8 @@ check-regression:
 		     rm -f tests/$$f; ln -s ../srctests/$$f tests; \
 		   done; fi ;; \
 	    esac; \
-	    echo "cd tests && $(PERL) ./run_make_tests.pl -make ../make $(MAKETESTFLAGS)"; \
-	    cd tests && $(PERL) ./run_make_tests.pl -make ../make $(MAKETESTFLAGS); \
+	    echo "cd tests && $(PERL) ./run_make_tests.pl -make ../make$(EXEEXT) $(MAKETESTFLAGS)"; \
+	    cd tests && $(PERL) ./run_make_tests.pl -make ../make$(EXEEXT) $(MAKETESTFLAGS); \
 	  else \
 	    echo "Can't find a working Perl ($(PERL)); the test suite requires Perl."; \
 	  fi; \

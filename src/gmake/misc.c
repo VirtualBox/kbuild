@@ -30,9 +30,8 @@ Boston, MA 02111-1307, USA.  */
    This fancy stuff all came from GNU fileutils, except for the VA_PRINTF and
    VA_END macros used here since we have multiple print functions.  */
 
-#if HAVE_VPRINTF || HAVE_DOPRNT
-# define HAVE_STDVARARGS 1
-# if __STDC__
+#if USE_VARIADIC
+# if HAVE_STDARG_H
 #  include <stdarg.h>
 #  define VA_START(args, lastarg) va_start(args, lastarg)
 # else
@@ -46,7 +45,7 @@ Boston, MA 02111-1307, USA.  */
 # endif
 # define VA_END(args) va_end(args)
 #else
-/* # undef HAVE_STDVARARGS */
+/* We can't use any variadic interface! */
 # define va_alist a1, a2, a3, a4, a5, a6, a7, a8
 # define va_dcl char *a1, *a2, *a3, *a4, *a5, *a6, *a7, *a8;
 # define VA_START(args, lastarg)
@@ -206,7 +205,7 @@ concat (const char *s1, const char *s2, const char *s3)
 /* Print a message on stdout.  */
 
 void
-#if __STDC__ && HAVE_STDVARARGS
+#if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
 message (int prefix, const char *fmt, ...)
 #else
 message (prefix, fmt, va_alist)
@@ -215,7 +214,7 @@ message (prefix, fmt, va_alist)
      va_dcl
 #endif
 {
-#if HAVE_STDVARARGS
+#if USE_VARIADIC
   va_list args;
 #endif
 
@@ -242,7 +241,7 @@ message (prefix, fmt, va_alist)
 /* Print an error message.  */
 
 void
-#if __STDC__ && HAVE_STDVARARGS
+#if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
 error (const struct floc *flocp, const char *fmt, ...)
 #else
 error (flocp, fmt, va_alist)
@@ -251,7 +250,7 @@ error (flocp, fmt, va_alist)
      va_dcl
 #endif
 {
-#if HAVE_STDVARARGS
+#if USE_VARIADIC
   va_list args;
 #endif
 
@@ -275,7 +274,7 @@ error (flocp, fmt, va_alist)
 /* Print an error message and exit.  */
 
 void
-#if __STDC__ && HAVE_STDVARARGS
+#if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
 fatal (const struct floc *flocp, const char *fmt, ...)
 #else
 fatal (flocp, fmt, va_alist)
@@ -284,7 +283,7 @@ fatal (flocp, fmt, va_alist)
      va_dcl
 #endif
 {
-#if HAVE_STDVARARGS
+#if USE_VARIADIC
   va_list args;
 #endif
 
@@ -357,7 +356,8 @@ pfatal_with_name (const char *name)
 char *
 xmalloc (unsigned int size)
 {
-  char *result = (char *) malloc (size);
+  /* Make sure we don't allocate 0, for pre-ANSI libraries.  */
+  char *result = (char *) malloc (size ? size : 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
   return result;
@@ -370,6 +370,8 @@ xrealloc (char *ptr, unsigned int size)
   char *result;
 
   /* Some older implementations of realloc() don't conform to ANSI.  */
+  if (! size)
+    size = 1;
   result = ptr ? realloc (ptr, size) : malloc (size);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
