@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 93 2004-06-08 13:00:26Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 94 2004-06-08 14:48:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -24,8 +24,7 @@
 #
 #
 
-
-TOOL_GCC3                   := Generic GCC v3
+TOOL_GCC3                    := Generic GCC v3
 
 TOOL_GCC3_CC                 := gcc$(HOSTSUFF_EXE)
 TOOL_GCC3_COBJSUFF           := .o
@@ -72,7 +71,7 @@ TOOL_GCC3_LDFLAGS.release    := -s
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_GCC3_COMPILE_C
-#$ (warning dbg: TOOL_GCC_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+#$ (warning dbg: TOOL_GCC3_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
 $(obj): $(dirdep) $(PATH_CURRENT)/$(source)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3_CC) -c\
@@ -118,12 +117,14 @@ endef
 # @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-define TOOL_GCC_LINK_LIBRARY
+define TOOL_GCC3_LINK_LIBRARY
 #$ (warning dbg: TOOL_GCC3_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) outbase=$(outbase))
 $(lib): $(dirdep) $(objs) $(deps)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(TOOL_GCC3_AR) $(flags) $$@ $(objs)
+	$(MKDIR) -p $(PATH_LIB)
+	$(CP) $$@ $(PATH_LIB)/
 	
 endef
 
@@ -154,6 +155,8 @@ endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif	
+	$(MKDIR) -p $(PATH_BIN)
+	$(CP) $$@ $(PATH_BIN)/
 	
 endef
 
