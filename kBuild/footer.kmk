@@ -1,4 +1,4 @@
-# $Id: footer.kmk 223 2005-02-08 18:57:02Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 238 2005-02-14 13:09:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -105,8 +105,8 @@ _TARGET_TOOL = $(strip $(firstword \
 	$($(target)_$(source)TOOL) \
 	$($(target)_TOOL.$(bld_trg)) \
 	$($(target)_TOOL) \
-	$($(source)TOOL) \
 	$($(source)TOOL.$(bld_trg)) \
+	$($(source)TOOL) \
 	$(TOOL.$(bld_trg)) \
 	$(TOOL) \
 	))
