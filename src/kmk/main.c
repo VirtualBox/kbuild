@@ -513,7 +513,11 @@ chdir_verify_path(path, obpath)
  *	The program exits when done. Targets are created. etc. etc. etc.
  */
 int
+#ifdef KMK
+main_kMk(argc, argv)
+#else
 main(argc, argv)
+#endif
 	int argc;
 	char **argv;
 {
