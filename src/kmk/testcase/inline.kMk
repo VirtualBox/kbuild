@@ -14,6 +14,12 @@ line 3
 <<KEEP
 	echo done
 
+.if 1
+BadLine
+.else
+Another Badline
+.endif
+
 
 inlinefile.nokeep:
 	echo Creating <<$@
