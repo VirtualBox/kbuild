@@ -62,6 +62,7 @@ struct child
                                    Another thread might set this. */
     char dllshell_done;         /* Nonzero if executed thru a dll shell.
                                    Another thread might set this. */
+    unsigned int dllshelled:1;  /* Nonzero if executed thru dllshell. */
 #endif
     unsigned int remote:1;	/* Nonzero if executing remotely.  */
 
@@ -105,6 +106,10 @@ extern int fatal_signal_mask;
 #else
 #define	unblock_sigs()
 #endif
+#endif
+
+#ifdef MAKE_DLLSHELL
+extern pid_t wait_jobs PARAMS ((int *status, int block));
 #endif
 
 #endif /* SEEN_JOB_H */

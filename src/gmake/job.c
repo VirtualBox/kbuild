@@ -574,6 +574,8 @@ reap_children (int block, int err)
 #ifdef VMS
 	      vmsWaitForChildren (&status);
 	      pid = c->pid;
+#elif MAKE_DLLSHELL
+              pid = wait_jobs((int*)&status, block);
 #else
 #ifdef WAIT_NOHANG
 	      if (!block)
@@ -2429,6 +2431,14 @@ child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
 #endif /* !WINDOWS32 */
 
 #ifdef MAKE_DLLSHELL
+/* Globals for the currently loaded dllshell. */
+char   *dllshell_spec;
+void   *dllshell_dl;
+void   *dllshell_instance;
+void *(*dllshell_init) PARAMS ((const char *spec));
+pid_t (*dllshell_spawn) PARAMS ((void *instance, char **argv, char **envp, int *status, char *done));
+pid_t (*dllshell_wait) PARAMS ((void *instance, int *status, int block));
+
 /* This is called when all pipes and such are configured for the
    child process. The child argument may be null, see child_execute_job. */
 static int spawn_command (char **argv, char **envp, struct child *c)
@@ -2437,49 +2447,46 @@ static int spawn_command (char **argv, char **envp, struct child *c)
      first argument. */
   if (!strncmp(argv[0], "dllshell://", 11))
     {
-      static void *cur_dll;             /* current loaded dll. */
-      static char *cur_dllspec;         /* dllshell without shell arg. */
-      /* pointer to the entrypoint. */
-      static pid_t (*cur_spawn) PARAMS ((char **argv, char **envp, int *status, char *done));
-
-      /* dllshell://<dllname>!<exec>[!<realshell>] */
-      char *name, *name_end, *symbol, *symbol_end;
-      int   len_basespec;
+      /* dllshell://<dllname>[!<realshell>[!whatever]] */
+      char *name, *name_end;
       int   insert_child = 0;
 
       /* parse it */
       name = argv[0] + 11;
       name_end = strchr (name, '!');
       if (!name_end)
+        name_end = strchr (name, '\0');
+      if (name_end == name)
         fatal (NILF, _("%s : malformed specifier!\n"), argv[0]);
-      symbol = name_end + 1;
-      symbol_end = strchr (symbol, '!');
-      if (symbol == symbol_end)
-        fatal (NILF, _("%s : malformed specifier!\n"), argv[0]);
-      if (symbol_end)
-        symbol_end = strchr (symbol, 0);
-      len_basespec = symbol_end - name;
 
       /* need loading? */
-      if (   !cur_dllspec
-          || strncmp (name, cur_dllspec, len_basespec)
-          || argv[len_basespec])
+      if (!dllshell_spec || strcmp (argv[0], dllshell_spec))
         {
-          if (cur_dll)
-            {
-              dlclose (cur_dll);
-              free (cur_dllspec);
-            }
-          cur_dllspec = strdup (name);
-          cur_dllspec[len_basespec] = '\0';
-          cur_dllspec[name_end - name] = '\0';
-          cur_dll = dlopen (cur_dllspec, RTLD_LOCAL);
-          if (!cur_dll)
+          if (dllshell_spec)
+            fatal (NILF, _("cannot change the dllshell!!!\n"));
+
+          dllshell_spec = strdup (argv[0]);
+          dllshell_spec[name_end - argv[0]] = '\0';
+          dllshell_dl = dlopen (dllshell_spec + (name - argv[0]), RTLD_LOCAL);
+          if (!dllshell_dl)
             fatal (NILF, _("%s : failed to load! dlerror: '%s'\n"), argv[0], dlerror());
-          cur_dllspec[name_end - name] = '!';
-          cur_spawn = dlsym (cur_dll, cur_dllspec + (symbol - name));
-          if (!cur_spawn)
-            fatal (NILF, _("%s : failed to find symbol! dlerror: %s\n"), argv[0], dlerror());
+          dllshell_spec[name_end - name] = '!';
+
+          /* get symbols */
+          dllshell_init  = dlsym (dllshell_dl, "dllshell_init");
+          if (!dllshell_init)
+            fatal (NILF, _("%s : failed to find symbols 'dllshell_init' dlerror: %s\n"), argv[0], dlerror());
+          dllshell_spawn = dlsym (dllshell_dl, "dllshell_spawn");
+          if (!dllshell_spawn)
+            fatal (NILF, _("%s : failed to find symbols 'dllshell_spawn' dlerror: %s\n"), argv[0], dlerror());
+          dllshell_wait  = dlsym (dllshell_dl, "dllshell_wait");
+          if (!dllshell_wait)
+            fatal (NILF, _("%s : failed to find symbols 'dllshell_wait' dlerror: %s\n"), argv[0], dlerror());
+
+          /* init */
+          dllshell_instance = dllshell_init(dllshell_spec);
+          if (!dllshell_instance)
+            fatal (NILF, _("%s : init failed!!!\n"), argv[0]);
         }
 
       /* make child struct? */
@@ -2491,8 +2498,8 @@ static int spawn_command (char **argv, char **envp, struct child *c)
         }
 
       /* call it. return value is 0 on succes, -1 on failure. */
-      c->pid = cur_spawn (argv, envp, &c->status, &c->dllshell_done);
-      DB (DB_JOBS, (_("dllshell pid=%x"), c->pid));
+      c->pid = dllshell_spawn (dllshell_instance, argv, envp, &c->status, &c->dllshell_done);
+      DB (DB_JOBS, (_("dllshell pid=%x\n"), c->pid));
 
       if (insert_child && c->pid > 0)
         {
@@ -2513,11 +2520,33 @@ static int spawn_command (char **argv, char **envp, struct child *c)
 #else
 # error MAKE_DLLSHELL is not ported to your platform yet.
 #endif
-      DB (DB_JOBS, (_("spawn pid=%x"), c->pid));
+      DB (DB_JOBS, (_("spawn pid=%x\n"), c->pid));
     }
 
   return c->pid;
 }
+
+/* Waits or pools for a job to finish.
+   If the block argument the the function will not return
+   till a job is completed (if there are any jobs).
+   Returns pid of completed job.
+   Returns 0 if no jobs are finished.
+   Returns -1 if no jobs are running. */
+pid_t  wait_jobs (int *status, int block)
+{
+  pid_t pid;
+  if (dllshell_wait)
+    pid = dllshell_wait(dllshell_instance, status, block);
+  else
+    {
+      if (block)
+        pid = WAIT_NOHANG(status);
+      else
+        pid = wait(status);
+    }
+  return pid;
+}
+
 #endif /* MAKE_DLLSHELL */
 
 #ifndef _AMIGA
