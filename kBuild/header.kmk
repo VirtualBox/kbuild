@@ -1,4 +1,4 @@
-# $Id: header.kmk 204 2004-12-29 19:42:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 216 2005-01-22 00:20:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -183,8 +183,11 @@ MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 #
 # Get rid of the GNU Make default stuff
 #
+ifneq ($(MAKE_COMMAND),kmk)
+ifneq ($(MAKE_COMMAND),kmk.exe)
 include $(PATH_KBUILD)/StampOutPredefines.kmk
-
+endif
+endif
 
 #
 # Build platform setup.
