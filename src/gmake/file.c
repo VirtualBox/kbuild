@@ -526,7 +526,7 @@ snap_deps (void)
 /* Set the `command_state' member of FILE and all its `also_make's.  */
 
 void
-set_command_state (struct file *file, int state)
+set_command_state (struct file *file, enum cmd_state state)
 {
   struct dep *d;
 
@@ -751,6 +751,9 @@ print_file (const void *item)
 
   if (f->cmds != 0)
     print_commands (f->cmds);
+
+  if (f->prev)
+    print_file ((const void *) f->prev);
 }
 
 void

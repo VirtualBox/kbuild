@@ -1,10 +1,9 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([GNU make],[3.81rc1],[bug-make@gnu.org])
+AC_INIT([GNU make],[3.81beta1],[bug-make@gnu.org])
 
-AC_PREREQ(2.57)
-
-AC_REVISION([[$Id: configure.in,v 1.120 2003/07/31 13:04:32 psmith Exp $]])
+AC_PREREQ(2.59)
+AC_REVISION([[$Id: configure.in,v 1.125 2004/03/06 08:05:19 psmith Exp $]])
 
 # Autoconf setup
 AC_CONFIG_AUX_DIR(config)
@@ -12,7 +11,7 @@ AC_CONFIG_SRCDIR(vpath.c)
 AC_CONFIG_HEADERS(config.h)
 
 # Automake setup
-AM_INIT_AUTOMAKE([1.7.6])
+AM_INIT_AUTOMAKE([1.8.2])
 
 # Checks for programs.
 AC_PROG_CC
@@ -34,7 +33,7 @@ AM_C_PROTOTYPES
 
 # Enable gettext, in "external" mode.
 
-AM_GNU_GETTEXT_VERSION(0.12.1)
+AM_GNU_GETTEXT_VERSION(0.14.1)
 AM_GNU_GETTEXT([external])
 
 # This test must come as early as possible after the compiler configuration
@@ -53,8 +52,17 @@ AC_HEADER_TIME
 AC_CHECK_HEADERS(stdlib.h locale.h unistd.h limits.h fcntl.h string.h \
 		 memory.h sys/param.h sys/time.h sys/timeb.h)
 
+# Set a flag if we have an ANSI C compiler
+if test "$ac_cv_prog_cc_stdc" != no; then
+  AC_DEFINE(HAVE_ANSI_COMPILER, 1,
+	      [Define if your compiler conforms to the ANSI C standard.])
+fi
+
+
+# Determine what kind of variadic function calls we support
+AC_CHECK_HEADERS(stdarg.h varargs.h, break)
+
 AM_PROG_CC_C_O
-AM_PROG_CC_STDC
 AC_C_CONST
 AC_TYPE_SIGNAL
 AC_TYPE_UID_T
@@ -130,7 +138,7 @@ AC_CHECK_FUNCS(	memcpy memmove strchr strdup mkstemp mktemp fdopen \
 		seteuid setegid setlinebuf setreuid setregid setvbuf pipe \
 		strerror strsignal)
 
-make_FUNC_SETVBUF_REVERSED
+AC_FUNC_SETVBUF_REVERSED
 
 # strcoll() is used by the GNU glob library
 AC_FUNC_STRCOLL
@@ -245,6 +253,12 @@ AC_CACHE_CHECK(for SA_RESTART, make_cv_sa_restart, [
       [[return SA_RESTART;]])],
     [make_cv_sa_restart=yes],
     [make_cv_sa_restart=no])])
+
+# enable make_cv_sa_restart for OS/2
+case "$host_os" in
+  os2*) make_cv_sa_restart=yes ;;
+esac
+
 if test "$make_cv_sa_restart" != no; then
   AC_DEFINE(HAVE_SA_RESTART, 1,
      [Define if <signal.h> defines the SA_RESTART constant.])
@@ -327,6 +341,9 @@ AC_SUBST_FILE(MAINT_MAKEFILE)
 # Allow building with dmalloc
 AM_WITH_DMALLOC
 
+# Forcibly disable SET_MAKE.  If it's set it breaks things like the test
+# scripts, etc.
+SET_MAKE=
 
 # Sanity check and inform the user of what we found
 
