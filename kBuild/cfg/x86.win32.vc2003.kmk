@@ -1,4 +1,4 @@
-# $Id: x86.win32.vc2003.kmk 65 2004-05-13 00:01:39Z knut.osmundsen@oracle.com $
+# $Id: x86.win32.vc2003.kmk 66 2004-05-13 00:03:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - x86 Win32 Visual C++ Toolkit 2003
@@ -24,10 +24,10 @@
 #
 #
 
-PATH_X86_WIN32_VC2003   ?= $(PATH_DEV)/x86.win32/VC2003
+PATH_X86_WIN32_VC2003               ?= $(PATH_DEV)/x86.win32/VC2003
 
 # C compiler
-X86_WIN32_VC2003_CC	    := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TC -c -nologo
+X86_WIN32_VC2003_CC	                := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TC -c -nologo
 X86_WIN32_VC2003_CC_RELEASE         := -Ogitb2 -Oy-
 X86_WIN32_VC2003_CC_DEBUG           := -DDEBUG=1 -Od
 X86_WIN32_VC2003_CC_WARN            := -W4
@@ -36,7 +36,7 @@ X86_WIN32_VC2003_CC_WARN_ALL        := -Wall
 X86_WIN32_VC2003_CCINCS             := $(PATH_VC2003)/include
 
 # C++ compiler			
-X86_WIN32_VC2003_CXX    := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TD -c -nologo
+X86_WIN32_VC2003_CXX                := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TD -c -nologo
 X86_WIN32_VC2003_CXX_RELEASE        := -Ogitb2 -Oy-
 X86_WIN32_VC2003_CXX_DEBUG          := -DDEBUG=1 -Od
 X86_WIN32_VC2003_CXX_WARN           := -W4
@@ -45,7 +45,7 @@ X86_WIN32_VC2003_CXX_WARN_ALL       := -Wall
 X86_WIN32_VC2003_CXXINCS            := $(PATH_VC2003)/include
 
 # Link editor
-X86_WIN32_VC2003_LD     := $(EXEC_X86_WIN32) $(PATH_VC2003)/bin/link.exe -nologo
+X86_WIN32_VC2003_LD                 := $(EXEC_X86_WIN32) $(PATH_VC2003)/bin/link.exe -nologo
 
 # Lib directories and libraries
 PATH_X86_WIN32_VC2003_LIB           := $(PATH_X86_WIN32_VC2003)/lib
