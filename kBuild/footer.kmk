@@ -1,16 +1,16 @@
-# $Id: footer.kmk 105 2004-06-24 20:05:26Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 106 2004-06-24 20:38:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) source004 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
 #
 # kBuild is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version source of the License, or
 # (at your option) any later version.
 #
 # kBuild is distributed in the hope that it will be useful,
@@ -20,7 +20,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 59 Temple Place, Suite typetype0, Boston, MA  0sourcetargettargettarget-targettype07  USA
 #
 #
 
@@ -53,7 +53,7 @@ _DIRS   :=
 
 # all objs of a specific target
 define def_objs_var
-_OBJS_$1 :=
+_OBJS_$target :=
 endef
 $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 
@@ -63,38 +63,60 @@ $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 #
 
 ## Figure out the tool for a source
-# @param    $1      source file
-# @param    $2      normalized main target
-# @param    $3      tooltype
+# @param    $target      source file
+# @param    $source      normalized main target
+# @param    $type      tooltype
 _SOURCE_TOOL = $(strip $(firstword \
-	$($(1)_$(2)_$(3)TOOL.$(BUILD_TARGET)) $($(1)_$(2)_TOOL.$(BUILD_TARGET)) \
-	$($(1)_$(2)_$(3)TOOL) $($1_$2_TOOL) \
-	$($(1)_$(3)TOOL.$(BUILD_TARGET)) $($(1)_TOOL.$(BUILD_TARGET)) \
-	$($(1)_$(3)TOOL) $($1_TOOL) \
-	$($(2)_$(3)TOOL.$(BUILD_TARGET)) $($(2)_TOOL.$(BUILD_TARGET)) \
-	$($(2)_$(3)TOOL) $($(2)_TOOL) \
-	$($(3)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
-	$($(3)TOOL) $(TOOL) ))
+	$($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)_$(type)TOOL) \
+	$($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)_TOOL) \
+	$($(target)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(type)TOOL) \
+	$($(target)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_TOOL) \
+	$($(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(source)_$(type)TOOL) \
+	$($(source)_TOOL.$(BUILD_TARGET)) \
+	$($(source)_TOOL) \
+	$($(type)TOOL.$(BUILD_TARGET)) \
+	$($(type)TOOL) \
+	$(TOOL.$(BUILD_TARGET)) \
+	$(TOOL) ))
 
+_SOURCE_TOOL_OLD = $(strip $(firstword \
+	$($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)_$(type)TOOL) $($target_$source_TOOL) \
+	$($(target)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(type)TOOL) $($target_TOOL) \
+	$($(source)_$(type)TOOL.$(BUILD_TARGET)) $($(source)_TOOL.$(BUILD_TARGET)) \
+	$($(source)_$(type)TOOL) $($(source)_TOOL) \
+	$($(type)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
+	$($(type)TOOL) $(TOOL) ))
+		
 ## Figure out the tool for a target.
-# @param    $1 		normalized target.
-# @param    $2      tooltype.
+# @param    $target 		normalized target.
+# @param    $source      tooltype.
 _TARGET_TOOL = $(strip $(firstword \
-	$($(1)_$(2)TOOL.$(BUILD_TARGET)) $($(1)_$(2)TOOL) \
-	$($(1)_TOOL.$(BUILD_TARGET)) $($(1)_TOOL) \
-	$($(2)TOOL) $($(2)TOOL.$(BUILD_TARGET)) \
-	$(TOOL.$(BUILD_TARGET)) $(TOOL) \
+	$($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)TOOL) \
+	$($(target)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_TOOL) \
+	$($(source)TOOL) \
+	$($(source)TOOL.$(BUILD_TARGET)) \
+	$(TOOL.$(BUILD_TARGET)) \
+	$(TOOL) \
 	))
 
 ## Figure out where to put object files.
-# @param    $1      source file
-# @param    $2      normalized main target
-_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+# @param    $target      source file
+# @param    $source      normalized main target
+_OBJECT_BASE = $(PATH_TARGET)/$(source)/$(basename $(target))
 
 ## Figure out where to put object files.
-# @param    $1      real target name.
-# @param    $2      normalized main target
-_TARGET_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+# @param    $target      real target name.
+# @param    $source      normalized main target
+_TARGET_BASE = $(PATH_TARGET)/$(source)/$(basename $(target))
 
 
 #
@@ -140,14 +162,15 @@ endef
 #
 define def_inherit_defaults
 ifdef $(target)_TEMPLATE
-ifndef TEMPLATE_$($(target)_TEMPLATE)_TOOL
-$$(foreach prop,TOOL, $$(eval $$(def_inherit_defaults_one)))
+ifneq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_TOOL) $(TEMPLATE_$($(target)_TEMPLATE)_TOOL.$(BUILD_TARGET))),)
+$$(foreach prop,TOOL TOOL.$(BUILD_TARGET), $$(eval $$(def_inherit_defaults_one)))
 endif
-ifndef TEMPLATE_$($(target)_TEMPLATE)_SDKS
-$$(foreach prop,SDKS, $$(eval $$(def_inherit_defaults_one)))
+ifneq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_SDKS) $(TEMPLATE_$($(target)_TEMPLATE)_SDKS.$(BUILD_TARGET))),)
+$$(foreach prop,SDKS SDKS.$(BUILD_TARGET), $$(eval $$(def_inherit_defaults_one)))
 endif
 else
-$$(foreach prop,TEMPLATE TOOL SDKS, $$(eval $$(def_inherit_defaults_one)))
+$$(foreach prop,TEMPLATE TOOL TOOL.$(BUILD_TARGET) SDKS SDKS.$(BUILD_TARGET) \
+	,$$(eval $$(def_inherit_defaults_one)))
 endif
 endef
 # Inherit default properties.
@@ -161,13 +184,13 @@ $(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_defaults)))
 define def_inherit_template_one
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 ifndef $(target)_$(prop)
-#$$ (warning dbg1: $(target)_$(prop):='$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$$ (warning dbgtarget: $(target)_$(prop):='$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 $$(target)_$$(prop) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 ifndef $(target)_$(prop).$(BUILD_TARGET)
-#$$ (warning dbg2: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+#$$ (warning dbgsource: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
 $$(target)_$$(prop).$$(BUILD_TARGET) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop).$$(BUILD_TARGET))
 endif
 endif
@@ -178,9 +201,9 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-#$$ (warning dbg3: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+#$$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 $$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
-#$$ (warning dbg3: $(target)_$(prop)=$($(target)_$(prop)))
+#$$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 #$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
@@ -195,6 +218,7 @@ ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)
 $$(eval $(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)))
 endif
 endef
+
 
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
@@ -535,14 +559,22 @@ $(eval dep         := $(outbase)$(SUFF_DEP))
 ifndef TOOL_$(tool)_COMPILE_$(type)
 $$(warning kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
 $$(warning kBuild: tools: \
-	1 $($(source)_$(target)_$(type)TOOL.$(BUILD_TARGET)) 	$($(source)_$(target)_TOOL.$(BUILD_TARGET)) \
-	2 $($(source)_$(target)_$(type)TOOL) $($(source)_$(target)_TOOL) \
-	3 $($(source)_$(type)TOOL.$(BUILD_TARGET)) $($(source)_TOOL.$(BUILD_TARGET)) \
-	4 $($(source)_$(type)TOOL) $($(source)_TOOL) \
-	5 $($(target)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_TOOL.$(BUILD_TARGET)) \
-	6 $($(target)_$(type)TOOL) $($(target)_TOOL) \
-	7 $($(type)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
-	8 $($(type)TOOL) $(TOOL))
+	1 $($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	2 $($(target)_$(source)_$(type)TOOL) \
+	3 $($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
+	4 $($(target)_$(source)_TOOL) \
+	5 $($(target)_$(type)TOOL.$(BUILD_TARGET)) \
+	6 $($(target)_$(type)TOOL) \
+	7 $($(target)_TOOL.$(BUILD_TARGET)) \
+	8 $($(target)_TOOL) \
+	9 $($(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	10 $($(source)_$(type)TOOL) \
+	11 $($(source)_TOOL.$(BUILD_TARGET)) \
+	12 $($(source)_TOOL) \
+	13 $($(type)TOOL.$(BUILD_TARGET)) \
+	14 $($(type)TOOL) \
+	15 $(TOOL.$(BUILD_TARGET)) \
+	16 $(TOOL) )
 endif
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
 
@@ -838,6 +870,19 @@ $(eval custom_post    := $(strip $(firstword
 )))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
 
+ifndef TOOL_$(tool)_LINK_SYSMOD
+$$(warning kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
+$$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(BUILD_TARGET)) \
+	4 $($(target)_TOOL) \
+	5 $($(source)TOOL) \
+	6 $($(source)TOOL.$(BUILD_TARGET)) \
+	7 $(TOOL.$(BUILD_TARGET)) \
+	8 $(TOOL) )
+endif	
+
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
 _OBJS += $(_OBJS_$(target))
@@ -869,7 +914,7 @@ _DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created
 
 define def_createdir
 $(dirfile):
-	$(call MSG_L1,Creating directory $$(@D))
+	$(call MSG_Ltarget,Creating directory $$(@D))
 	$(MKDIR) -p $$(@D)
 	@echo dir_created > $$@
 endef
@@ -1004,7 +1049,7 @@ clean: pass_clean
 ## PASS: nothing
 # This pass just walks the tree.
 pass_nothing_doit:
-	$(call MSG_L1,Did nothing in $(CURDIR))
+	$(call MSG_Ltarget,Did nothing in $(CURDIR))
 pass := nothing
 PASS := NOTHING
 $(eval $(def_pass))
@@ -1029,5 +1074,5 @@ sysmods:   $(_SYSMODS)
 
 
 # end-of-file-content
-__footer_kmk__ := 1
+__footer_kmk__ := target
 endif # __footer_kmk__
