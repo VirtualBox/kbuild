@@ -617,6 +617,44 @@ MakeAddAllSrc (cgnp, pgnp)
     return (0);
 }
 
+#ifdef KMK
+/*-
+ *-----------------------------------------------------------------------
+ * MakeAddAllSrc --
+ *
+ * Results:
+ *	Always returns 0
+ *
+ * Side Effects:
+ *	The PARENTS variable for the given node is extended.
+ *-----------------------------------------------------------------------
+ */
+static int
+MakeAddParents (cgnp, pgnp)
+    ClientData	pgnp;	/* The parent to add to add */
+    ClientData	cgnp;	/* The child to whose PARENTS variable it should be */
+{
+    GNode	*pgn = (GNode *) pgnp;
+    GNode	*cgn = (GNode *) cgnp;
+    if ((pgn->type & (OP_EXEC|OP_USE|OP_INVISIBLE)) == 0) {
+	char *parent;
+	char *p1 = NULL;
+
+	if (OP_NOP(pgn->type)) {
+	    /*
+	     * this node is only source; use the specific pathname for it
+	     */
+	    parent = pgn->path ? pgn->path : pgn->name;
+	}
+	else
+	    parent = Var_Value(TARGET, pgn, &p1);
+	Var_Append(PARENTS, parent, cgn);
+	efree(p1);
+    }
+    return (0);
+}
+#endif
+
 /*-
  *-----------------------------------------------------------------------
  * Make_DoAllVar --
@@ -644,6 +682,9 @@ Make_DoAllVar (gn)
     GNode	*gn;
 {
     Lst_ForEach (gn->children, MakeAddAllSrc, (ClientData) gn);
+    #ifdef KMK
+    Lst_ForEach (gn->parents, MakeAddParents, (ClientData) gn);
+    #endif
 
     if (!Var_Exists (OODATE, gn)) {
 	Var_Set (OODATE, "", gn);

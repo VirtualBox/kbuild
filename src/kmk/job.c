@@ -45,7 +45,7 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
 #define OLD_JOKE 1
 #endif
 
@@ -189,7 +189,7 @@ static int     	  numCommands; 	    /* The number of commands actually printed
  */
 static char     tfile[sizeof(TMPPAT)];
 
-
+#ifndef KMK
 /*
  * Descriptions for various shells.
  */
@@ -236,6 +236,7 @@ static Shell 	*commandShell = &shells[DEFSHELL];/* this is the shell to
 static char   	*shellPath = NULL,		  /* full pathname of
 						   * executable image */
                	*shellName;	      	      	  /* last component of shell */
+#endif /*!KMK*/
 
 
 static int  	maxJobs;    	/* The most children we can run at once */
@@ -325,7 +326,9 @@ static void JobLocalInput __P((int, Job *));
 static void JobFinish __P((Job *, int *));
 static void JobExec __P((Job *, char **));
 #endif
+#ifndef KMK
 static void JobMakeArgv __P((Job *, char **));
+#endif
 static void JobRestart __P((Job *));
 static int JobStart __P((GNode *, int, Job *));
 static char *JobOutput __P((Job *, char *, char *, int));
@@ -593,6 +596,7 @@ JobPrintCommand(cmdp, jobp)
     while (isspace((unsigned char) *cmd))
 	cmd++;
 
+    #ifndef KMK
     if (shutUp) {
 	if (!(job->flags & JOB_SILENT) && !noSpecials &&
 	    commandShell->hasEchoCtl) {
@@ -601,9 +605,13 @@ JobPrintCommand(cmdp, jobp)
 	    shutUp = FALSE;
 	}
     }
+    #endif
 
     if (errOff) {
 	if ( !(job->flags & JOB_IGNERR) && !noSpecials) {
+            #ifdef KMK
+            errOff = FALSE;
+            #else
 	    if (commandShell->hasErrCtl) {
 		/*
 		 * we don't want the error-control commands showing
@@ -649,6 +657,7 @@ JobPrintCommand(cmdp, jobp)
 	    } else {
 		errOff = FALSE;
 	    }
+            #endif
 	} else {
 	    errOff = FALSE;
 	}
@@ -656,6 +665,7 @@ JobPrintCommand(cmdp, jobp)
 
     DBPRINTF(cmdTemplate, cmd);
 
+    #ifndef KMK /*todo*/
     if (errOff) {
 	/*
 	 * If echoing is already off, there's no point in issuing the
@@ -671,6 +681,7 @@ JobPrintCommand(cmdp, jobp)
     if (shutUp) {
 	DBPRINTF("%s\n", commandShell->echoOn);
     }
+    #endif
     return 0;
 }
 
@@ -1149,7 +1160,7 @@ Job_CheckCommands(gn, abortProc)
 #if OLD_JOKE
 		if (strcmp(gn->name,"love") == 0)
 		    (*abortProc)("Not war.");
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
         else if (strcmp(gn->name,"fire") == 0)
 		    (*abortProc)("No match.");
 #endif
@@ -1301,7 +1312,11 @@ JobExec(job, argv)
 	    Rmt_Exec(shellPath, argv, FALSE);
 	} else
 #endif /* REMOTE */
+#ifdef KMK
+	   (void) execv(argv[0], argv);
+#else
 	   (void) execv(shellPath, argv);
+#endif
 
 	(void) write(2, "Could not execute shell\n",
 		     sizeof("Could not execute shell"));
@@ -1361,6 +1376,7 @@ jobExecFinish:
     }
 }
 
+
 /*-
  *-----------------------------------------------------------------------
  * JobMakeArgv --
@@ -1381,6 +1397,11 @@ JobMakeArgv(job, argv)
     int	    	  argc;
     static char	  args[10]; 	/* For merged arguments */
 
+#ifndef _PATH_DEFSHELLDIR
+    /* @todo! */
+    argv[0] = "c:\\os2\\cmd.exe";
+    argc = 1;
+#else
     argv[0] = shellName;
     argc = 1;
 
@@ -1414,7 +1435,9 @@ JobMakeArgv(job, argv)
 	}
     }
     argv[argc] = NULL;
+#endif
 }
+
 
 /*-
  *-----------------------------------------------------------------------
@@ -1987,6 +2010,7 @@ JobOutput(job, cp, endp, msg)
 {
     register char *ecp;
 
+    #ifndef KMK /* @Todo */
     if (commandShell->noPrint) {
 	ecp = Str_FindSubstring(cp, commandShell->noPrint);
 	while (ecp != NULL) {
@@ -2022,6 +2046,7 @@ JobOutput(job, cp, endp, msg)
 	    }
 	}
     }
+    #endif /*!KMK*/
     return cp;
 }
 
@@ -2461,6 +2486,7 @@ Job_Init(maxproc, maxlocal)
 	targFmt = TARG_FMT;
     }
 
+#ifndef KMK
     if (shellPath == NULL) {
 	/*
 	 * The user didn't specify a shell to use, so we are using the
@@ -2479,6 +2505,7 @@ Job_Init(maxproc, maxlocal)
     if (commandShell->echo == NULL) {
 	commandShell->echo = "";
     }
+#endif
 
     /*
      * Catch the four signals that POSIX specifies if they aren't ignored.
@@ -2587,6 +2614,7 @@ Job_Empty()
     }
 }
 
+#ifndef KMK
 /*-
  *-----------------------------------------------------------------------
  * JobMatchShell --
@@ -2628,7 +2656,9 @@ JobMatchShell(name)
     }
     return(match == NULL ? sh : match);
 }
+#endif /*!KMK*/
 
+#ifndef KMK
 /*-
  *-----------------------------------------------------------------------
  * Job_ParseShell --
@@ -2792,6 +2822,7 @@ Job_ParseShell(line)
     efree(words);
     return SUCCESS;
 }
+#endif /*!KMK*/
 
 /*-
  *-----------------------------------------------------------------------

@@ -34,6 +34,14 @@
  * $FreeBSD: src/usr.bin/make/pathnames.h,v 1.9 1999/08/28 01:03:36 peter Exp $
  */
 
+#ifdef KMK
+    #undef _PATH_OBJDIR
+    #undef _PATH_OBJDIRPREFIX
+    #undef _PATH_DEFSHELLDIR
+    #define _PATH_DEFSYSMK      "Config.kMk"
+    #undef _PATH_DEFSYSPATH
+
+#else
 #ifndef _PATH_OBJDIR
 #define	_PATH_OBJDIR		"obj"
 #endif /* ! _PATH_OBJDIR */
@@ -49,3 +57,4 @@
 #ifndef _PATH_DEFSYSPATH
 #define	_PATH_DEFSYSPATH	"/usr/share/mk"
 #endif /* ! _PATH_DEFSYSPATH */
+#endif

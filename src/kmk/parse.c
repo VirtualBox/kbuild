@@ -1087,10 +1087,15 @@ ParseDoDependency (line)
 	Main_ParseArgLine (line);
 	*line = '\0';
     } else if (specType == ExShell) {
+    #ifdef KMK
+        Parse_Error(PARSE_FATAL, "specification not supported by kMk!");
+        return;
+    #else
 	if (Job_ParseShell (line) != SUCCESS) {
 	    Parse_Error (PARSE_FATAL, "improper shell specification");
 	    return;
 	}
+    #endif
 	*line = '\0';
     } else if ((specType == NotParallel) || (specType == SingleShell)) {
 	*line = '\0';

@@ -290,6 +290,9 @@ typedef struct GNode {
 #define ALLSRC	  	  ">" 	/* All sources */
 #define IMPSRC	  	  "<" 	/* Source implied by transformation */
 #define PREFIX	  	  "*" 	/* Common prefix */
+#ifdef KMK
+#define PARENTS           "^"   /* Parent of this target (if any) (long name .PARENTS) */
+#endif
 #define ARCHIVE	  	  "!" 	/* Archive in "archive(member)" syntax */
 #define MEMBER	  	  "%" 	/* Member in "archive(member)" syntax */
 
