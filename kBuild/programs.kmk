@@ -1,0 +1,144 @@
+# $Id: programs.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+## @file
+# This file deals with TARGET_PROGRAMS.
+# It should only be included from rules.kMk.
+#
+# Copyright (c) 2003 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+# Assert correct context
+.ifndef __RULES_KMK__
+.error $(MAKEFILE) can only be included from rules.kMk.
+.endif
+
+
+## @page Makefile           Makefile
+#
+# A makefile defines a context. The context consists of a .CURDIR, .OBJDIR,
+# and stuff done by the config.kMk. Sources for instance is always relative
+# to .CURDIR, while objects and other output files are relative to .OBJDIR.
+#
+#
+# @todo move this page
+
+
+
+## @page TARGET_PROGRAMS    TARGET_PROGRAMS
+#
+# Programs to be made. On platforms which enforces extensions for programs
+# the default extension is added.
+# Modules listed in TARGET_PROGRAMS should NOT be listed TARGETS.
+#
+# Let's say TARGET_PROGRAMS = foo. Then you can configure the executable foo
+# using the following macros:
+#
+# foo_SOURCES   - The sources files which object files foo is linked to
+#                 together of.
+#
+# foo_TEMPLATE  - Compiler, linker, and more setup.
+#
+#
+# foo_DEFINES   - Defines used by all tools which support it. No -D should be
+#                 used as this is tool specific. Defines which have a value
+#                 must use '=' as assignment, foo_DEFINES=VER=1 for instance.
+#
+# foo_INCLUDES  - Include directories used by all tools which support it. No -I
+#                 or similar should be used as this is tool specific. Directories
+#                 are separated by ';'.
+#
+# foo_LIBS      - Libraries to link with.
+#
+#
+# C Compilers:
+# foo_CTOOL     - The C compiler tool to use.
+# foo_CDEFS     - C compiler defines.
+# foo_CINCS     - C compiler include directories.
+# foo_COPTS     - C compiler options. This is somewhat compiler independant.
+# foo_CFLAGS    - C compiler flags. Specifying compiler specific flags.
+#
+#
+# C++ Compilers:
+# foo_CXXTOOL   - The C++ compiler tool to use.
+# foo_CXXDEFS   - C++ compiler defines.
+# foo_CXXINCS   - C++ compiler include directories.
+# foo_CXXOPTS   - C++ compiler options. This is somewhat compiler independant.
+# foo_CXXFLAGS  - C++ compiler flags. Specifying compiler specific flags.
+#
+#
+# Assemblers:
+# foo_ASTOOL    - The assembler tool to use.
+# foo_ASDEFS    - Assembler defines.
+# foo_ASINCS    - Assembler include directories.
+# foo_ASOPTS    - Assembler options. This is somewhat assembler independant.
+# foo_ASFLAGS   - Assembler flags. Specifying compiler specific flags.
+#
+#
+# Resource Compilers:
+# foo_RCTOOL    - The Resource compiler tool to use.
+# foo_RCDEFS    - Resource compiler defines.
+# foo_RCINCS    - Resource compiler include directories.
+# foo_RCOPTS    - Resource compiler options. This is somewhat compiler independant.
+# foo_RCFLAGS   - Resource compiler flags. Specifying compiler specific flags.
+#
+#
+# Link Editors:
+# foo_LDTOOL    - The link editor tool to use.
+# foo_LDOPTS    - Link editor options. This is somewhat link editor independant.
+# foo_LDFLAGS   - Link editor flags. Specifying link editor specific flags.
+# foo_LDDEFFILE - Link editor definition file. (PC thingy)
+# foo_LDLIBS    - Link editor . (PC thingy)
+#
+#
+#
+
+
+#
+# Generate program rules.
+#
+.for trgt in ${TARGET_PROGRAMS}
+
+${trgt}_int_objects     :=
+TARGETS                 += ${trgt}${SFX_EXE}
+
+
+# rules for each of the C source files.
+.for src in ${${trgt}_SOURCES:M*.c}
+int_object              := ${src}
+${trgt}_int_objects     += ${int_object}
+
+.endfor
+
+#.for csrc in ${${trgt}_SOURCES:M${SFXS_C:S@^@*@}}
+.for csrc in ${${trgt}_SOURCES:M*.c}
+${trgt}__OBJECTS        += ${csrc:S@.${csrc:E}@${SFX_OBJ}@}
+${csrc:S@.${csrc:E}@${SFX_OBJ}@}: ${csrc}
+    echo "compiling ${.ALLSRC} -> $@"
+.endfor
+
+
+# linking rule
+${trgt}${SFX_EXE}: ${trgt}_int_objects
+    echo "$@"
+
+.endfor
+
+# clean up := variables we've used.
+

@@ -1,0 +1,57 @@
+# $Id: GCC.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild Tool Config - Generic GCC.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+TOOL_GCC                := Generic GCC
+TOOL_GCC_CC             := gcc$(HOSTSUFF_EXE)
+TOOL_GCC_CFLAGS         := -g
+TOOL_GCC_CFLAGS.debug   := -O0
+TOOL_GCC_CFLAGS.release := -O2
+TOOL_GCC_CFLAGS.profile := -pg
+TOOL_GCC_CINCS          :=
+
+
+## Compile C source.
+# @param    $1  Output basename (full).
+# @param    $2  Source filename (relative).
+# @param    $3  Normalized main target name.
+define TOOL_GCC_COMPILE_C
+#$ (warning dbg GCC: 1=$1 2=$2 3=$3 4=$4 5=$5)
+$1.o: $(PATH_CURRENT)/$2 $(dir $1).dir_created
+	$(TOOL_GCC_CC) -c \
+		$($3_$2_CFLAGS) $($3_$2_CFLAGS.$(BUILD_TYPE)) \
+		$($2_CFLAGS) $($2_CFLAGS.$(BUILD_TYPE)) \
+		$($3_CFLAGS) $($3_CFLAGS.$(BUILD_TYPE)) \
+		$(TOOL_GCC_CFLAGS) $(TOOL_GCC_CFLAGS.$(BUILD_TYPE)) \
+		$(addprefix -I, $($3_$2_CINCS) $($3_$2_INCS) $($2_CINCS) $($2_INCS) $($3_CINCS) $($3_INCS) $(INCS) \
+						$(TOOL_GCC_CINCS)) \
+		$(addprefix -D, $($3_$2_CDEFS) $($3_$2_DEFS) $($2_CDEFS) $($2_DEFS) $($3_CDEFS) $($3_DEFS) $(DEFS) $(TOOL_GCC_CDEFS)) \
+		-o $$@ -Wp,-MT,$1$(SUFF_DEP) -Wp,-MD,$$@ \
+        $(PATH_CURRENT)/$2		
+_OBJS_$(3) += $1.o
+_DEPFILES += $1$(SUFF_DEP)
+endef
+

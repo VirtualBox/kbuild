@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 68 2004-05-29 06:16:13Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
 
 #
 # This is an example makefile.
@@ -14,7 +14,7 @@ world_SOURCES = hello.c
 
 LIBRARIES = helloworld
 
-#include $(DEPTH)/kBuild/footer.kMk
+include $(DEPTH)/kBuild/footer.kMk
 	
 ok:
 	@echo _CFGFILES: $(_CFGFILES)
