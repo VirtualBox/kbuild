@@ -1,4 +1,4 @@
-/* $Id: docdesign.c 14 2002-10-16 22:22:21Z knut.osmundsen@oracle.com $
+/* $Id: docdesign.c 15 2002-10-16 23:09:44Z knut.osmundsen@oracle.com $
  *
  * Documentation generator.
  *
@@ -83,19 +83,10 @@ int ParseFile(const char *pszFilename)
             char   *psz = szLine;
             char   *pszEnd = &szLine[strlen(szLine) - 1];
             /*
-             * Strip off any ' ', '\t', '\/\*', '*' and '//' from start.
              * Strip off any ' ', '\t', '\n', '\r', '\*\/' and '*' from end
+             * Strip off any ' ', '\t', '\/\*', '*' and '//' from start.
              * Need to check for closing comment too.
              */
-            while (   *psz == '*'
-                   || *psz == ' '
-                   || *psz == '\t'
-                   || (*psz == '/' && (psz[1] == '*' || psz[1] == '/')))
-            {
-                if (*psz++ == '/')
-                    psz++;
-            }
-
             while (     pszEnd >= psz
                    && (   *pszEnd == '*'
                        || *pszEnd == ' '
@@ -119,9 +110,18 @@ int ParseFile(const char *pszFilename)
                         )
                     )
             {
-                if (*pszEnd != '/')
-                    pszEnd--;
+                if (*pszEnd == '/')
+                    *pszEnd-- = '\0';
                 *pszEnd-- = '\0';
+            }
+
+            while (   *psz == '*'
+                   || *psz == ' '
+                   || *psz == '\t'
+                   || (*psz == '/' && (psz[1] == '*' || psz[1] == '/')))
+            {
+                if (*psz++ == '/')
+                    psz++;
             }
 
 
@@ -219,6 +219,91 @@ int ParseFile(const char *pszFilename)
 
 
 /**
+ * Checks if psz is point to a tag we pass thru.
+ * @returns length of tag if pass thru tag.
+ * @returns 0 if not.
+ * @param   psz     Pointer to text string.
+ */
+int isTag(const char *psz)
+{
+    int     i;
+    static char *  apszTags[] =
+    {
+        "<b>",  "</b>",
+        "<i>",  "</i>",
+        "<ul>",  "</ul>",
+        "<ol>",  "</ol>",
+        "<pre>", "</pre>",
+        "<h1>",  "</h1>",
+        "<h2>",  "</h2>",
+        "<h3>",  "</h3>",
+        "<h4>",  "</h4>",
+        "<h5>",  "</h5>",
+        "<h6>",  "</h6>",
+        "<li>",
+        "<p>",
+        "<br>"
+    };
+
+    if (*psz == '<')
+    {
+        for (i = 0; i < sizeof(apszTags) / sizeof(apszTags[0]); i++)
+        {
+            int cch = strlen(apszTags[i]);
+            if (!strnicmp(apszTags[i], psz, cch))
+                return cch;
+        }
+    }
+
+    return 0;
+}
+
+
+/**
+ * HTMLify text and print it.
+ * @param   pszText     Text in question.
+ */
+void PutHtmlText(const char *pszText)
+{
+    while (*pszText)
+    {
+        char ch = *pszText;
+        char sz[256];
+        sz[0] = '\0';
+        switch (ch)
+        {
+            case '<':
+            {
+                int cch = isTag(pszText);
+                if (cch)
+                {
+                    strncat(sz, pszText, cch);
+                    pszText += cch - 1;
+                }
+                else
+                    strcpy(sz, "&lt;");
+                break;
+            }
+
+            case '>':
+                strcpy(sz, "&gt;");
+                break;
+
+            case '&':
+                strcpy(sz, "&amp;");
+                break;
+
+            default:
+                sz[0] = ch;
+                sz[1] = '\0';
+        }
+        printf("%s", sz);
+        pszText++;
+    }
+}
+
+
+/**
  * Keep track and formats section level.
  */
 void SectionNumber(int iLevel, int *paiSections, char *pszSection)
@@ -261,7 +346,7 @@ int MakeHTML(void)
      */
     printf("<!-- Generate by docdesign -->\n"
            "<head>\n"
-           "<title></title>\n"
+           "<title>Design Document</title>\n"
            "\n"
            "<body>\n"
            );
@@ -292,10 +377,10 @@ int MakeHTML(void)
         SectionNumber(pCurSection->iLevel, &aiSections[0], szSection);
         printf("<p><br><p>\n"
                "<a href=#content><a name=%s><h%d>%s %s</h%d></a></a>\n"
-               "\n"
-               "%s",
-               szSection, iHNumber, szSection, pCurSection->pszHeader, iHNumber,
-               pCurSection->pszText);
+               "\n",
+               szSection, iHNumber, szSection, pCurSection->pszHeader, iHNumber);
+        if (pCurSection->pszText)
+            PutHtmlText(pCurSection->pszText);
     }
     printf("</ul>\n"
            "\n");
