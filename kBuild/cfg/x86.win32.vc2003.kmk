@@ -1,0 +1,102 @@
+# $Id: x86.win32.vc2003.kmk 65 2004-05-13 00:01:39Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild - x86 Win32 Visual C++ Toolkit 2003
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+PATH_X86_WIN32_VC2003   ?= $(PATH_DEV)/x86.win32/VC2003
+
+# C compiler
+X86_WIN32_VC2003_CC	    := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TC -c -nologo
+X86_WIN32_VC2003_CC_RELEASE         := -Ogitb2 -Oy-
+X86_WIN32_VC2003_CC_DEBUG           := -DDEBUG=1 -Od
+X86_WIN32_VC2003_CC_WARN            := -W4
+X86_WIN32_VC2003_CC_WARN_LOW        := -W2
+X86_WIN32_VC2003_CC_WARN_ALL        := -Wall
+X86_WIN32_VC2003_CCINCS             := $(PATH_VC2003)/include
+
+# C++ compiler			
+X86_WIN32_VC2003_CXX    := $(EXEC_X86_WIN32) $(PATH_X86_WIN32_VC2003)/bin/cl.exe -TD -c -nologo
+X86_WIN32_VC2003_CXX_RELEASE        := -Ogitb2 -Oy-
+X86_WIN32_VC2003_CXX_DEBUG          := -DDEBUG=1 -Od
+X86_WIN32_VC2003_CXX_WARN           := -W4
+X86_WIN32_VC2003_CXX_WARN_LOW       := -W2
+X86_WIN32_VC2003_CXX_WARN_ALL       := -Wall
+X86_WIN32_VC2003_CXXINCS            := $(PATH_VC2003)/include
+
+# Link editor
+X86_WIN32_VC2003_LD     := $(EXEC_X86_WIN32) $(PATH_VC2003)/bin/link.exe -nologo
+
+# Lib directories and libraries
+PATH_X86_WIN32_VC2003_LIB           := $(PATH_X86_WIN32_VC2003)/lib
+LIB_X86_WIN32_VC2003_KERNEL32       := $(PATH_X86_WIN32_VC2003_LIB)/lib/kernel32.lib
+LIB_X86_WIN32_VC2003_LIBC           := $(PATH_X86_WIN32_VC2003_LIB)/lib/libc.lib
+LIB_X86_WIN32_VC2003_LIBCD          := $(PATH_X86_WIN32_VC2003_LIB)/lib/libcd.lib
+LIB_X86_WIN32_VC2003_LIBCMT         := $(PATH_X86_WIN32_VC2003_LIB)/lib/libcmt.lib
+LIB_X86_WIN32_VC2003_LIBCP          := $(PATH_X86_WIN32_VC2003_LIB)/lib/libcpt.lib
+LIB_X86_WIN32_VC2003_LIBCPD         := $(PATH_X86_WIN32_VC2003_LIB)/lib/libcpd.lib
+LIB_X86_WIN32_VC2003_LIBCPMT        := $(PATH_X86_WIN32_VC2003_LIB)/lib/libcpmt.lib
+LIB_X86_WIN32_VC2003_MSCOREE        := $(PATH_X86_WIN32_VC2003_LIB)/lib/mscoree.lib
+LIB_X86_WIN32_VC2003_OLDNAMES       := $(PATH_X86_WIN32_VC2003_LIB)/lib/oldnames.lib
+			 
+
+# @todo implement options
+
+
+# C++ sources: $1 == target root dir, $2 == source, $3 == normalized main target
+define def_x86_win32_vc2003_compile_cxx
+$1/$(basename $2)$(SUFF_OBJ): $2 $(dir $1/$(basename $2))
+	$(X86_WIN32_VC2003_CXX) -c $($3_$2_CXXFLAGS) $($2_CXXFLAGS) $($3_CXXFLAGS) $(X86_WIN32_VC2003_CXXFLAGS) $(X86_WIN32_VC2003_CXXFLAGS_$(BUILD_TYPE)) \
+		$(addprefix -I, $($3_$2_CXXINCS) $($3_$2_INCS) $($2_CXXINCS) $($2_INCS) $($3_CXXINCS) $($3_INCS) $(X86_WIN32_VC2003_CXXINCS) $(INCS)) \
+		$(addprefix -D, $($3_$2_CXXDEFS) $($3_$2_DEFS) $($2_CXXDEFS) $($2_DEFS) $($3_CXXDEFS) $($3_DEFS) $(X86_WIN32_VC2003_CXXDEFS) $(DEFS)) \
+		-Fo$$@ -Fa$$@.lst $3
+
+_DIRS    += $(dir $1/$(basename $2))
+_OBJS_$3 += $1/$(basename $2)$(SUFF_OBJ)
+endef
+		
+# C sources: $1 == target root dir, $2 == source, $3 == normalized main target
+define def_x86_win32_vc2003_compile_cc
+$1/$(basename $2)$(SUFF_OBJ): $2 $(dir $1/$(basename $2))
+	$(X86_WIN32_VC2003_CC) -c $($3_$2_CCFLAGS) $($2_CCFLAGS) $($3_CCFLAGS) $(X86_WIN32_VC2003_CCFLAGS) $(X86_WIN32_VC2003_CCFLAGS_$(BUILD_TYPE)) \
+		$(addprefix -I, $($3_$2_CCINCS) $($3_$2_INCS) $($2_CCINCS) $($2_INCS) $($3_CCINCS) $($3_INCS) $(X86_WIN32_VC2003_CCINCS) $(INCS)) \
+		$(addprefix -D, $($3_$2_CCDEFS) $($3_$2_DEFS) $($2_CCDEFS) $($2_DEFS) $($3_CCDEFS) $($3_DEFS) $(X86_WIN32_VC2003_CCDEFS) $(DEFS)) \
+		-Fo$$@ -Fa$$@.lst $3
+
+_DIRS    += $(dir $1/$(basename $2))
+_OBJS_$3 += $1/$(basename $2)$(SUFF_OBJ)
+endef
+
+# LD: $1 == target root dir, $2 == target name, $3 == normalized main target
+define def_x86_win32_vc2003_link
+$1/$2: $2 $(dir $1/$2) \
+		$(_OBJS_$3) \
+		$($3_DEFFILE) \
+		$($3_LIBS)
+	$(X86_WIN32_VC2003_LD) $($3_$2_LDFLAGS) $($2_LDFLAGS) $($3_LDFLAGS) $(X86_WIN32_VC2003_LDFLAGS) $(X86_WIN32_VC2003_LDFLAGS_$(BUILD_TYPE)) \
+		-OUT:$$@ -MAP:$$@ $($3_DEFFILE) $($3_LIBS)
+
+_DIRS += $(dir $1/$2)
+_OBJS += $(_OBJS_$3)
+endef
+
