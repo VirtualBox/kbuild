@@ -2473,6 +2473,9 @@ test_char:
 	 * Do not strip a blank or tab that is preceeded by
 	 * a '\'
 	 */
+#ifdef SUPPORT_INLINEFILES
+      if (!inInlineFile) {
+#endif
 	ep = line;
 	while (*ep)
 	    ++ep;
@@ -2482,6 +2485,9 @@ test_char:
 	    --ep;
 	}
 	*ep = 0;
+#ifdef SUPPORT_INLINEFILES
+      }
+#endif
 
 #ifdef NMAKE
 	if (line[0] == '.' || line[0] == '!') {
