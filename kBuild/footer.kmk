@@ -1,4 +1,4 @@
-# $Id: footer.kmk 239 2005-02-14 13:18:32Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 243 2005-03-20 17:36:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,6 +235,10 @@ ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 #$$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 $$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 #$$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
+#$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+$$(eval $(target)_$(prop).$(BUILD_TYPE) := $($(target)_$(prop).$(BUILD_TYPE)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 #$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
