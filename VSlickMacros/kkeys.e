@@ -7,12 +7,14 @@ def  'A-d'      = delete_line
 def  'A-o'      = kkeys_duplicate_line
 def  'A-s'      = kkeys_switch_lines
 def  'A-u'      = undo_cursor           /* will cursor movement in one undo step. */
+def  'A-g'      = goto_line
 def  'INS'      = boxer_paste
 def  'S-INS'    = insert_toggle
 def  'C-UP'     = kkeys_scroll_down
 def  'C-DOWN'   = kkeys_scroll_up
 def  'C-PGUP'   = prev_proc
 def  'C-PGDN'   = next_proc
+def  'C-DEL'    = kkeys_delete_right
 
 
 
