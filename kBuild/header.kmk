@@ -1,4 +1,4 @@
-# $Id: header.kmk 69 2004-05-29 06:20:31Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 70 2004-05-29 08:53:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -50,25 +50,41 @@ endif
 
 
 #
+# .
+#
+PATH_ROOT := $(CURDIR)
+define def_root_dir
+PATH_ROOT := $(dir $(PATH_ROOT))
+endef
+PATH_ROOT
+
+#
 # Common definitions.
 #
 PATH_CURRENT        := $(CURDIR)
-PATH_ROOT           := $(DEPTH)
-ifndef PATH_KBUILD
-PATH_KBUILD         := $(PATH_ROOT)/kBuild
+# Get the real root path.
+PATH_ROOT           := $(CURDIR)
+ifneq ($(DEPTH),.)
+$(foreach d,$(subst /, ,$(DEPTH)), $(eval PATH_ROOT := $(patsubst %/,%,$(dir $(PATH_ROOT)))) )
 endif
-
+# Subdirectory relative to the root.
+DIR_DEPTH           := $(patsubst $(PATH_ROOT)/%,%,$(CURDIR))
+# Output directories.
 PATH_OUT            := $(PATH_ROOT)/out/$(BUILD_TARGET)/$(BUILD_TYPE)
 PATH_OBJ            := $(PATH_OUT)/obj
 PATH_BIN            := $(PATH_OUT)/bin
 PATH_LIB            := $(PATH_OUT)/lib
 PATH_DOC            := $(PATH_ROOT)/out/doc
+PATH_TARGET          = $(PATH_OUT)/$(DIR_DEPTH)
+
+# Usually kBuild is external to the source tree.
+ifndef PATH_KBUILD
+PATH_KBUILD         := $(PATH_ROOT)/kBuild
+endif
+# kBuild tools
 PATH_TOOLS_W32      := $(PATH_KBUILD)/bin/x86.win32
 PATH_TOOLS_LNX      := $(PATH_KBUILD)/bin/x86.linux
 PATH_TOOLS_OS2      := $(PATH_KBUILD)/bin/x86.os2
-# fixme
-PATH_TARGET          = $(PATH_OUT)
-
 # kBuild files which might be of interest.
 FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
 FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
@@ -106,7 +122,7 @@ PATH_TOOLS          := $(PATH_TOOLS_LNX)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
-	
+
 # Win32
 ifeq ($(BUILD_PLATFORM),WIN32)
 ifndef BUILD_TARGET
@@ -144,17 +160,17 @@ export SHELL MAKESHELL
 #
 # This is how we find the closest config.kmk.
 # It's a little hacky but I think it works fine.
-#		
-_CFGDIR   	:= .
-_CFGFILES 	:=
+#
+_CFGDIR     := .
+_CFGFILES   :=
 define def_include_config
-_CFGDIR   	:= $(_CFGDIR)/$(1)
-_CFGFILES 	+= $(wildcard $(_CFGDIR)/config.kmk $(_CFGDIR)/config.kMk)
+_CFGDIR     := $(_CFGDIR)/$(1)
+_CFGFILES   += $(wildcard $(_CFGDIR)/config.kmk $(_CFGDIR)/config.kMk)
 endef
 # walk down the _RELATIVE_ path specified by DEPTH.
 $(foreach d,$(subst /, ,$(DEPTH)), $(eval $(call def_include_config,$(d))) )
 # add the default config file.
-_CFGFILE  	:= $(firstword $(_CFGFILES) $(FILE_KBUILD_CONFIG))
+_CFGFILE    := $(firstword $(_CFGFILES) $(FILE_KBUILD_CONFIG))
 _CFGFILES   :=
 _CFGDIR     :=
 
