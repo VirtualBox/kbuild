@@ -1,4 +1,4 @@
-# $Id: header.kmk 102 2004-06-17 20:46:46Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 103 2004-06-17 20:47:12Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -201,7 +201,6 @@ include $(PATH_KBUILD)/StampOutPredefines.kmk
 ifeq ($(BUILD_PLATFORM),os2)
 PATH_TOOLS          := $(PATH_TOOLS_OS2)
 EXEC_X86_WIN32      := innopec.exe
-DRV_WINEROOT        :=
 HOSTSUFF_EXE        := .exe
 endif
 
@@ -210,7 +209,6 @@ ifeq ($(BUILD_PLATFORM),linux)
 PATH_TOOLS          := $(PATH_TOOLS_LNX)
 EXEC_X86_WIN32      := wine --
 HOSTSUFF_EXE        :=
-DRV_WINEROOT        := z:
 endif
 
 # Win32
@@ -218,7 +216,6 @@ ifeq ($(BUILD_PLATFORM),win32)
 PATH_TOOLS          := $(PATH_TOOLS_W32)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
-DRV_WINEROOT        :=
 endif
 
 #
