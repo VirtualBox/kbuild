@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 96 2004-06-08 19:22:53Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 99 2004-06-11 23:47:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
@@ -28,7 +28,9 @@
 TOOL_NASM                     := Netwide Assembler 0.98+
 ifndef PATH_TOOL_NASM
 PATH_TOOL_NASM                := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/nasm/v*.*))
+ifneq ($(PATH_TOOL_NASM),)
 PATH_TOOL_NASM                := $(call lastword,$(PATH_TOOL_NASM))
+endif
 endif
 		
 ifneq ($(PATH_TOOL_NASM),)
