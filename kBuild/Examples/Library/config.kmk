@@ -1,4 +1,3 @@
-
 # define template mylib
 TEMPLATE_mylib := Sample template for testing kBuild
 TEMPLATE_mylib_TOOL       := GCC
