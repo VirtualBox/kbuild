@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 206 2004-12-29 19:43:09Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 209 2004-12-30 02:46:26Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -134,7 +134,7 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 
-define TOOL_GCC3_LINK_LIBRARY_ADDMODE
+define TOOL_GCC3_LINK_LIBRARY_ADDMOD
 
 	echo "ADDMOD $(o)" >> $$@.ar-script
 endef
@@ -151,9 +151,9 @@ define TOOL_GCC3_LINK_LIBRARY
 $(lib): $(dirdep) $(objs) $(deps) $(filter %.a %.lib,$(othersrc))
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
-ifneq ($(strip $(filter %.a %.lib,$(othersrc))),,)
+ifneq ($(strip $(filter %.a %.lib,$(othersrc))),)
 	echo "CREATE $$@" > $$@.ar-script
-	$(foreach o, $(objs), $(TOOL_GCC3_LINK_LIBRARY_ADDMOD))
+	$(foreach o, $(objs),$(TOOL_GCC3_LINK_LIBRARY_ADDMOD))
 	$(foreach srclib, $(filter %.a %.lib,$(othersrc)),$(TOOL_GCC3_LINK_LIBRARY_EXPAND_LIB))
 	echo "SAVE" >> $$@.ar-script
 	echo "END" >> $$@.ar-script
