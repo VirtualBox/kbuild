@@ -1,0 +1,27 @@
+# a very simple makefile...
+
+#kmk: 
+
+PROG=	kmk
+CFLAGS+= -I${.CURDIR} -DNMAKE=1
+SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
+	make.c parse.c str.c suff.c targ.c var.c util.c
+SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
+	lstDatum.c lstDeQueue.c lstDestroy.c lstDupl.c lstEnQueue.c \
+	lstFind.c lstFindFrom.c lstFirst.c lstForEach.c lstForEachFrom.c \
+	lstInit.c lstInsert.c lstIsAtEnd.c lstIsEmpty.c lstLast.c \
+	lstMember.c lstNext.c lstOpen.c lstRemove.c lstReplace.c lstSucc.c
+.PATH:	${.CURDIR}/lst.lib
+
+NOSHARED?=YES
+
+.include <bsd.prog.mk>
+
+
+
+#pmake:
+#	@echo 'make started.'
+#	cc -I. -c *.c
+#	cd lst.lib; cc -I.. -c *.c
+#	cc *.o lst.lib/*.o -o pmake
+#	@echo 'make completed.'
