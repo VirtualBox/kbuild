@@ -27,6 +27,10 @@ Boston, MA 02111-1307, USA.  */
 #include "commands.h"
 #include "variable.h"
 #include "debug.h"
+#ifdef CONFIG_WITH_KMK_BUILTIN
+#include "kmkbuiltin.h"
+#endif
+
 
 #include <string.h>
 
@@ -958,7 +962,14 @@ start_job_command (struct child *child)
       else if (*p == '-')
 	child->noerror = 1;
       else if (!isblank ((unsigned char)*p))
-	break;
+        {
+#ifdef CONFIG_WITH_KMK_BUILTIN
+          if (   !(flags & COMMANDS_BUILTIN)
+              && !strncmp(p, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+            flags |= COMMANDS_BUILTIN;
+#endif /* CONFIG_WITH_KMK_BUILTIN */
+          break;
+        }
       ++p;
     }
 
@@ -1088,6 +1099,29 @@ start_job_command (struct child *child)
 #endif
       goto next_command;
     }
+
+#ifdef CONFIG_WITH_KMK_BUILTIN
+  /* If builtin command then pass it on to the builtin shell interpreter. */
+
+  if ((flags & COMMANDS_BUILTIN) && !just_print_flag)
+    {
+      char **p2 = argv;
+      while (*p2 && strncmp(*p2, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+          p2++;
+      assert(*p2);
+      set_command_state (child->file, cs_running);
+      int rc = kmk_builtin_command(p2);
+#ifndef VMS
+      free (argv[0]);
+      free ((char *) argv);
+#endif
+      if (!rc)
+          goto next_command;
+      child->file->update_status = 2;
+      notice_finished_file (child->file);
+      return;
+    }
+#endif /* CONFIG_WITH_KMK_BUILTIN */
 
   /* Flush the output streams so they won't have things written twice.  */
 
@@ -1381,6 +1415,7 @@ static int
 start_waiting_job (struct child *c)
 {
   struct file *f = c->file;
+  DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x\n"), c, c->file->name, c->file->command_flags));
 
   /* If we can start a job remotely, we always want to, and don't care about
      the local load average.  We record that the job should be started
@@ -1390,7 +1425,7 @@ start_waiting_job (struct child *c)
 
   /* If we are running at least one job already and the load average
      is too high, make this one wait.  */
-  if (!c->remote && job_slots_used > 0 && 
+  if (!c->remote && job_slots_used > 0 &&
       (not_parallel || (c->file->command_flags & COMMANDS_NOTPARALLEL) || load_too_high ()))
     {
       /* Put this child on the chain of children waiting for the load average
@@ -1398,7 +1433,7 @@ start_waiting_job (struct child *c)
       set_command_state (f, cs_running);
       c->next = waiting_jobs;
       if (c->next && (c->file->command_flags & COMMANDS_NOTPARALLEL))
-        { 
+        {
           struct child *prev = waiting_jobs;
           while (prev->next)
             prev = prev->next;
@@ -1407,6 +1442,7 @@ start_waiting_job (struct child *c)
         }
       else
         waiting_jobs = c;
+      DB (DB_KMK, (_("queued child %p (`%s')\n"), c, c->file->name));
       return 0;
     }
 

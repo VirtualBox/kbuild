@@ -347,6 +347,10 @@ chop_commands (struct commands *cmds)
               || sindex (p, len, "${MAKE}", 7) != 0)
             flags |= COMMANDS_RECURSE;
         }
+#ifdef CONFIG_WITH_KMK_BUILTIN
+      if (!strncmp(p, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+          flags |= COMMANDS_BUILTIN;
+#endif
 
       cmds->lines_flags[idx] = flags;
       cmds->any_recurse |= flags & COMMANDS_RECURSE;

@@ -645,6 +645,14 @@ define_automatic_variables (void)
 	   ? "" : remote_description);
   (void) define_variable ("MAKE_VERSION", 12, buf, o_default, 0);
 
+  /* Define KMK_VERSION to indicate kMk. */
+  (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
+
+#ifdef CONFIG_WITH_KMK_BUILTIN
+  /* The kMk Builtin Level. */
+  (void) define_variable ("KMK_BUILTIN", 11, "1", o_default, 0);
+#endif
+
 #ifdef  __MSDOS__
   /* Allow to specify a special shell just for Make,
      and use $COMSPEC as the default $SHELL when appropriate.  */
