@@ -3,6 +3,7 @@ def  'A-UP'     = find_prev
 def  'A-DOWN'   = find_next
 def  'A-PGUP'   = prev_window
 def  'A-PGDN'   = next_window
+def  'A-d'      = delete_line
 def  'A-o'      = kkeys_duplicate_line
 def  'A-s'      = kkeys_switch_lines
 def  'A-u'      = undo_cursor           /* will cursor movement in one undo step. */

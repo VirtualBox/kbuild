@@ -1,0 +1,24 @@
+[GNU Makefile]
+idchars=a-zA-Z 0-9_
+case-sensitive=n
+case-sensitive=y
+styles=dqbackslash sqbackslash
+ppkeywords= !else !endif !error !if !ifdef !ifndef !include !undef defined
+punctuation= ( ) : ; [ ] { }
+operators= ! # $ % & * + , - . / < = > ? ^ ` | ~
+symbol1= $ $** $< $@ :
+linecomment=#
+
+[kmk]
+idchars=a-zA-Z 0-9_
+case-sensitive=n
+keywords= $ ( ) define else endef endif ifdef ifeq ifndef ifneq
+symbol1= addprefix addsuffix dir error notdir sort warning
+styles=
+linecomment=#
+
+[def]
+idchars=a-zA-Z 0-9_
+case-sensitive=n
+linecomment=;
+
