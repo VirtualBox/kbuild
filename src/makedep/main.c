@@ -233,7 +233,6 @@ main(int argc, char *argv[])
 			break;
 		case 'D':
 			offset = 2; /* mozilla */
-Imaginary Buffer Line
 			if (argv[0][2] == '\0') {
 				argv++;
 				argc--;
@@ -791,8 +790,16 @@ redirect(char *line, char *makefile)
 	}
 	else
 	    stat(makefile, &st);
-	if ((fdin = fopen(makefile, "r")) == NULL)
-		fatalerr("cannot open \"%s\"\n", makefile);
+	if ((fdin = fopen(makefile, "r")) == NULL) { /* bird */
+		if (!stat(makefile, &st))
+			fatalerr("cannot open \"%s\"\n", makefile);
+		/* create the file */
+		if ((fdout = freopen(makefile, "w", stdout)) == NULL)
+			fatalerr("cannot create \"%s\"\n", makefile);
+		puts(line);
+		fflush(fdout);
+		return;
+	}
 	sprintf(backup, "%s.bak", makefile);
 	unlink(backup);
 #if defined(WIN32) || defined(__UNIXOS2__) || defined(__CYGWIN__)
