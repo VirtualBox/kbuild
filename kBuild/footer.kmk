@@ -1,4 +1,4 @@
-# $Id: footer.kmk 73 2004-05-31 01:11:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 74 2004-05-31 02:19:05Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -59,7 +59,7 @@ type :=
 ## Figure out the tool for a source
 # @param    $1      source file
 # @param    $2      normalized main target
-_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL) )
+_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL) $(TOOL))
 
 ## Figure out where to put object files.
 # @param    $1      source file
@@ -91,7 +91,7 @@ include $(firstword $(wildcard $(PATH_KBUILD)/templates/$(template).kmk))
 endif
 endef
 $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
-	
+
 
 #
 # Common Inheritance
@@ -101,9 +101,9 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
 # @param    $(prop)     Property name
 # @param    $(target)   Target name.
 define def_inherit_defaults_one
-ifndef $1_$(prop)
+ifndef $(target)_$(prop)
 ifdef $(prop)
-$1_$(prop) := $($(prop))
+$(target)_$(prop) := $($(prop))
 endif
 endif
 endef
@@ -214,42 +214,87 @@ define def_target_source_c_cpp_asm
 
 $(eval tool:=$(call _SOURCE_TOOL,$(source),$(target)))
 $(eval defs        :=\
-	$($(target)_$(source)_$(type)DEFS)\
-	$($(target)_$(source)_DEFS)\
-	$($(source)_$(type)DEFS)\
-	$($(source)_DEFS)\
-	$($(target)_$(type)DEFS)\
-	$($(target)_DEFS)\
-	$(DEFS)\
 	$(TOOL_$(tool)_$(type)DEFS)\
+	$(TOOL_$(tool)_$(type)DEFS.$(BUILD_TYPE))\
+	$(DEFS)\
+	$(DEFS.$(BUILD_TYPE))\
+	$($(target)_DEFS)\
+	$($(target)_DEFS.$(BUILD_TYPE))\
+	$($(target)_DEFS.$(BUILD_TARGET))\
+	$($(source)_DEFS)\
+	$($(source)_DEFS.$(BUILD_TYPE))\
+	$($(source)_DEFS.$(BUILD_TARGET))\
+	$($(source)_$(type)DEFS)\
+	$($(source)_$(type)DEFS.$(BUILD_TYPE))\
+	$($(source)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(target)_$(type)DEFS)\
+	$($(target)_$(type)DEFS.$(BUILD_TYPE))\
+	$($(target)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(target)_$(source)_DEFS)\
+	$($(target)_$(source)_DEFS.$(BUILD_TYPE))\
+	$($(target)_$(source)_DEFS.$(BUILD_TARGET))\
+	$($(target)_$(source)_$(type)DEFS)\
+	$($(target)_$(source)_$(type)DEFS.$(BUILD_TYPE))\
+	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET))\
 	)
 $(eval incs        :=\
+	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET))\
+	$($(target)_$(source)_$(type)INCS.$(BUILD_TYPE))\
 	$($(target)_$(source)_$(type)INCS)\
+	$($(target)_$(source)_INCS.$(BUILD_TARGET))\
+	$($(target)_$(source)_INCS.$(BUILD_TYPE))\
 	$($(target)_$(source)_INCS)\
+	$($(source)_$(type)INCS.$(BUILD_TARGET))\
+	$($(source)_$(type)INCS.$(BUILD_TYPE))\
 	$($(source)_$(type)INCS)\
+	$($(source)_INCS.$(BUILD_TARGET))\
+	$($(source)_INCS.$(BUILD_TYPE))\
 	$($(source)_INCS)\
+	$($(target)_$(type)INCS.$(BUILD_TARGET))\
+	$($(target)_$(type)INCS.$(BUILD_TYPE))\
 	$($(target)_$(type)INCS)\
+	$($(target)_INCS.$(BUILD_TARGET))\
+	$($(target)_INCS.$(BUILD_TYPE))\
 	$($(target)_INCS)\
+	$(INCS.$(BUILD_TARGET))\
+	$(INCS.$(BUILD_TYPE))\
 	$(INCS)\
+	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_$(type)INCS)\
 	)
 $(eval flags        :=\
 	$(TOOL_$(tool)_$(type)FLAGS)\
 	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET))\
 	$($(type)FLAGS)\
 	$($(type)FLAGS.$(BUILD_TYPE))\
+	$($(type)FLAGS.$(BUILD_TARGET))\
 	$($(target)_$(type)FLAGS)\
 	$($(target)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(target)_$(type)FLAGS.$(BUILD_TARGET))\
 	$($(source)_$(type)FLAGS)\
 	$($(source)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(source)_$(type)FLAGS.$(BUILD_TARGET))\
 	$($(target)_$(source)_$(type)FLAGS)\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET))\
 	)
 $(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
 $(eval dirdep      := $(dir $(outbase)).dir_created)
-$(eval objsuff     := $(firstword $($(target)_$(source)_OBJSUFF) $($(source)_OBJSUFF) $($(target)_OBJSUFF) $(TOOL_$(tool)_$(type)OBJSUFF) $(SUFF_OBJ)))
+$(eval objsuff     := $(firstword \
+	$($(target)_$(source)_OBJSUFF.$(BUILD_TARGET))\
+	$($(target)_$(source)_OBJSUFF)\
+	$($(source)_OBJSUFF.$(BUILD_TARGET))\
+	$($(source)_OBJSUFF)\
+	$($(target)_OBJSUFF.$(BUILD_TARGET))\
+	$($(target)_OBJSUFF)\
+	$(TOOL_$(tool)_$(type)OBJSUFF.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_$(type)OBJSUFF)\
+	$(SUFF_OBJ)\
+	))
 $(eval obj         := $(outbase)$(objsuff))
-$(eval depfile     := $(outbase)$(SUFF_DEP))
+$(eval dep         := $(outbase)$(SUFF_DEP))
 
 #$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
@@ -260,7 +305,7 @@ $(eval _DEPFILES       += $(dep))
 endef
 
 ## Generic macro for processing all target sources.
-# @param    $target     Normalized target name.
+# @param    $(target)   Normalized target name.
 define def_target_sources
 #$ (warning def_target_sources)
 # C sources
@@ -282,15 +327,28 @@ endef
 #
 
 ## Library (one).
-# @param    $(lib)  Library name
+# @param    $(target)   Normalized library (target) name.
 define def_lib
 # source -> object
 $(eval $(def_target_sources))
 
 # library
 $(eval tool        := $(firstword $($(target)_TOOL) $(TOOL)))
-$(eval flags       := $($(target)_ARFLAGS) $(ARFLAGS) $(TOOL_$(tool)_ARFLAGS))
-$(eval libsuff     := $(firstword $($(target)_LIBSUFF) $($(target)_LIBSUFF) $(TOOL_$(tool)_ARLIBSUFF) $(SUFF_LIB)))
+$(eval flags       :=\
+	$(TOOL_$(tool)_ARFLAGS)\
+	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
+	$(ARFLAGS)\
+	$(ARFLAGS.$(BUILD_TYPE))\
+	$($(target)_ARFLAGS)\
+	$($(target)_ARFLAGS.$(BUILD_TYPE))\
+	)
+$(eval libsuff     := $(firstword\
+	$($(target)_LIBSUFF.$(BUILD_TARGET))\
+	$($(target)_LIBSUFF)\
+	$(TOOL_$(tool)_ARLIBSUFF.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_ARLIBSUFF)\
+	$(SUFF_LIB)\
+))
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval lib         := $(outbase)$(libsuff))
@@ -313,6 +371,86 @@ $(foreach target, $(LIBRARIES), $(eval $(def_lib)))
 #
 # PROGRAMS
 #
+
+## Program (one).
+# @param    $(target)   Normalized target (program) name.
+define def_program
+# source -> object
+$(eval $(def_target_sources))
+
+# library
+$(eval tool        := $(firstword $($(target)_TOOL) $(TOOL)))
+$(eval flags       :=\
+	$(TOOL_$(tool)_LDFLAGS)\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
+	$(LDFLAGS)\
+	$(LDFLAGS.$(BUILD_TYPE))\
+	$($(target)_LDFLAGS)\
+	$($(target)_LDFLAGS.$(BUILD_TYPE))\
+)
+$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval exe         := $(outbase)$(exesuff))
+$(eval objs         = $(_OBJS_$(target)))
+$(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS)\
+	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS)\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS)\
+)
+$(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH)\
+	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH)\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH)\
+)
+$(eval dirdep      := $(dir $(exe)).dir_created)
+## @todo fix dependencies
+$(eval deps        := )
+#
+$(eval deffile    := $(strip $(firstword
+	$($(target)_DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_DEFFILE.$(BUILD_TARGET))\
+	$($(target)_DEFFILE.$(BUILD_TYPE))\
+	$($(target)_DEFFILE)\
+	$(DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(DEFFILE.$(BUILD_TARGET))\
+	$(DEFFILE.$(BUILD_TYPE))\
+	$(DEFFILE)\
+)))
+$(eval custom_pre    := $(strip $(firstword
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE)\
+	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(BUILD_TARGET))\
+	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE)\
+)))
+$(eval custom_post    := $(strip $(firstword
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST)\
+	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(BUILD_TARGET))\
+	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST)\
+)))
+
+$(eval $(TOOL_$(tool)_LINK_PROGRAM))
+
+_OBJS += $(_OBJS_$(target))
+_EXES += $(exe)
+endef
+
+# Process libraries
+$(foreach target, $(PROGRAMS), $(eval $(def_program)))
 
 
 
@@ -359,11 +497,14 @@ $(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
 all_recursive:
 
 
-objs: $(_OBJS)
+objects: $(_OBJS)
 	echo "dbg: _OBJS = $(_OBJS)"
 
-libs: $(_LIBS)
+libraries: $(_LIBS)
 	echo "dbg: _LIBS = $(_LIBS)"
+
+programs: $(_EXES)
+	echo "dbg: _EXES = $(_EXES)"
 
 
 # end-of-file-content
