@@ -1,0 +1,23 @@
+# $Id: Makefile.kmk 68 2004-05-29 06:16:13Z knut.osmundsen@oracle.com $
+
+#
+# This is an example makefile.
+#
+
+DEPTH = ../../..
+include $(DEPTH)/kBuild/header.kMk
+
+PROGRAMS = helloworld hello world
+helloworld_SOURCES = hello.c
+hello_SOURCES = hello.c
+world_SOURCES = hello.c
+
+LIBRARIES = helloworld
+
+#include $(DEPTH)/kBuild/footer.kMk
+	
+ok:
+	@echo _CFGFILES: $(_CFGFILES)
+	@echo _CFGFILE: $(_CFGFILE)
+#	@echo _CFGDIR: $(_CFGDIR)
+	
