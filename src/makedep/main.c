@@ -103,6 +103,8 @@ char		*includedirs[ MAXDIRS + 1 ],
 char		*notdotdot[ MAXDIRS ];
 static int	cmdinc_count = 0;
 static char	*cmdinc_list[ 2 * MAXINCFILES ];
+int		quiet = 0;		/* bird */
+char		*objname = NULL;	/* bird */
 char		*objprefix = "";
 char		*objsuffix = OBJSUFFIX;
 static char	*startat = "# DO NOT DELETE";
@@ -291,6 +293,7 @@ main(int argc, char *argv[])
 				width = atoi(argv[0]+2);
 			break;
 		case 'o':
+#if 0 /* bird: -o is output filename. */
 			if (endmarker) break;
 			if (argv[0][2] == '\0') {
 				argv++;
@@ -308,6 +311,22 @@ main(int argc, char *argv[])
 			} else
 				objprefix = argv[0]+2;
 			break;
+#else
+			if (endmarker) break;
+			if (argv[0][2] == '\0') {
+				argv++;
+				argc--;
+				objname = argv[0];
+			} else
+				objname = argv[0]+2;
+			break;
+#endif 
+		case 'q':
+			if (endmarker) break;
+			quiet = TRUE;
+			verbose = FALSE;
+			break;
+
 		case 'v':
 			if (endmarker) break;
 			verbose = TRUE;
@@ -845,7 +864,7 @@ void
 fatalerr(char *msg, ...)
 {
 	va_list args;
-	fprintf(stderr, "%s: error:  ", ProgramName);
+        fprintf(stderr, "%s: error:  ", ProgramName);
 	va_start(args, msg);
 	vfprintf(stderr, msg, args);
 	va_end(args);
@@ -855,18 +874,24 @@ fatalerr(char *msg, ...)
 void
 warning(char *msg, ...)
 {
-	va_list args;
-	fprintf(stderr, "%s: warning:  ", ProgramName);
-	va_start(args, msg);
-	vfprintf(stderr, msg, args);
-	va_end(args);
+	if (!quiet)
+	{
+		va_list args;
+		fprintf(stderr, "%s: warning:  ", ProgramName);
+		va_start(args, msg);
+		vfprintf(stderr, msg, args);
+		va_end(args);
+	}
 }
 
 void
 warning1(char *msg, ...)
 {
-	va_list args;
-	va_start(args, msg);
-	vfprintf(stderr, msg, args);
-	va_end(args);
+    	if (!quiet)
+	{
+		va_list args;
+		va_start(args, msg);
+		vfprintf(stderr, msg, args);
+		va_end(args);
+	}
 }
