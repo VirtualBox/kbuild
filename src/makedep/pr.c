@@ -30,6 +30,7 @@ in this Software without prior written authorization from The Open Group.
 
 extern struct	inclist	inclist[ MAXFILES ],
 			*inclistp;
+extern char	*objname; /* bird */
 extern char	*objprefix;
 extern char	*objsuffix;
 extern int	width;
@@ -86,8 +87,11 @@ pr(struct inclist *ip, char *file, char *base)
 	len = strlen(ip->i_file)+1;
 	if (current_len + len > width || file != lastfile) {
 		lastfile = file;
-		sprintf(buf, "\n%s%s%s: %s", objprefix, base, objsuffix,
-			ip->i_file);
+                if (objname)
+                        sprintf(buf, "\n%s: %s", objname, ip->i_file);
+                else
+                        sprintf(buf, "\n%s%s%s: %s", objprefix, base, 
+                                objsuffix, ip->i_file);
 		len = current_len = strlen(buf);
 	}
 	else {
