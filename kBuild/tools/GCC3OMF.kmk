@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 187 2004-12-12 06:43:37Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 206 2004-12-29 19:43:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -129,14 +129,15 @@ endef
 # @param    $(flags)    Flags.
 # @param	$(dirdep)   Directory creation dependency.
 # @param	$(deps)		Other dependencies.
+# @param	$(othersrc) Unhandled sources.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_LIBRARY
-#$ (warning dbg: TOOL_GCC3OMF_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) outbase=$(outbase))
-$(lib): $(dirdep) $(objs) $(deps)
+#$ (warning dbg: TOOL_GCC3OMF_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
+$(lib): $(dirdep) $(objs) $(deps) $(filter %.a %.lib,$(othersrc))
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
-	$(TOOL_GCC3OMF_AR) $(flags) $$@ $(objs)
+	$(TOOL_GCC3OMF_AR) $(flags) $$@ $(objs) $(filter %.a %.lib,$(othersrc))
 
 endef
 
@@ -157,14 +158,15 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_PROGRAM
 #$ (warning dbg: TOOL_GCC3OMF_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+$(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc))
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif
 	$(TOOL_GCC3OMF_LD) $(flags) -o $$@ $(objs) \
-	$(foreach p,$(libpath), -L$(p)) \
-	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(filter %.def, $(othersrc)) \
+		$(foreach p,$(libpath), -L$(p)) \
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
@@ -219,12 +221,13 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_SYSMOD
 #$ (warning dbg: TOOL_GCC3OMF_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(sys): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+$(sys): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc))
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif
 	$(TOOL_GCC3OMF_LD_SYSMOD) $(TOOL_GCC3OMF_LDFLAGS.sysmod) $(flags) -o $$@ $(objs) \
+		$(filter %.def, $(othersrc)) \
 		$(foreach p,$(libpath), -L$(p)) \
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
