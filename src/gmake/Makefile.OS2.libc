@@ -1,28 +1,40 @@
-# $Id: Makefile.OS2.libc 57 2003-11-23 22:38:39Z knut.osmundsen@oracle.com $
+# $Id: Makefile.OS2.libc 192 2004-12-17 03:37:43Z knut.osmundsen@oracle.com $
 
 OBJDIR = objdir/OS2.libc
-OBJDIR = .
+#OBJDIR = .
 SRC =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		function.c implicit.c job.c main.c \
 		misc.c read.c remake.c rule.c signame.c \
 		variable.c version.c vpath.c hash.c \
         getopt.c getopt1.c remote-stub.c
-CFLAGS = -Zomf -g -DMAKE_DLLSHELL -Wall
+OBJS = $(addprefix $(OBJDIR)/, $(SRC:.c=.obj))
+CFLAGS = -Zomf -g -Wall -I$(OBJDIR) -I.  -DCONFIG_NO_DEFAULT_SUFFIXES \
+    -DCONFIG_NO_DEFAULT_PATTERN_RULES -DCONFIG_NO_DEFAULT_TERMINAL_RULES \
+    -DCONFIG_NO_DEFAULT_SUFFIX_RULES
 ifndef DEBUG
 CFLAGS += -O3
 endif
+#-DMAKE_DLLSHELL
 
-all: $(OBJDIR) make-new.exe
+all: $(OBJDIR) $(OBJDIR)/make-new.exe
 
-make-new.exe: config.h $(addprefix $(OBJDIR)/, $(SRC:.c=.obj))
-	gcc -g $(CFLAGS) -Zhigh-mem -Zstack 1024 -o $@ $(SRC:.c=.obj) -ldl
+clean:
+	rm -f $(OBJS) $(OBJDIR)/make-new.exe $(OBJDIR)/config.h
 
-.c.obj:
+$(OBJDIR)/make-new.exe: $(OBJDIR)/config.h $(OBJS)
+	gcc -g $(CFLAGS) -Zhigh-mem -Zstack 1024 -o $@ $(OBJS)
+
+$(OBJDIR)/%.obj : %.c
 	gcc -c $(CFLAGS) -o $@ -DHAVE_CONFIG_H  $<
 
-config.h: config.h.OS2.libc
+$(OBJDIR)/config.h: config.h.OS2.libc
 	cp $< $@
 
 $(OBJDIR):
-	mkdir -p $@
+	mkdir.exe -p $@
 
+test:
+	echo "1"
+	echo "2"
+	echo "3"
+	echo "4"

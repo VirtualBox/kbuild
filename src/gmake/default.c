@@ -37,6 +37,7 @@ Boston, MA 02111-1307, USA.  */
    a `.c' or `.p' or ... file rather than from a .s file.  */
 
 static char default_suffixes[]
+#ifndef CONFIG_NO_DEFAULT_SUFFIXES
 #ifdef VMS
   = ".exe .olb .ln .obj .c .cxx .cc .pas .p .for .f .r .y .l .mar \
 .s .ss .i .ii .mod .sym .def .h .info .dvi .tex .texinfo .texi .txinfo \
@@ -50,9 +51,13 @@ static char default_suffixes[]
 .mod .sym .def .h .info .dvi .tex .texinfo .texi .txinfo \
 .w .ch .web .sh .elc .el";
 #endif
+#else  /* CONFIG_NO_DEFAULT_SUFFIXES */
+ = "";
+#endif /* CONFIG_NO_DEFAULT_SUFFIXES */
 
 static struct pspec default_pattern_rules[] =
   {
+#ifndef CONFIG_NO_DEFAULT_PATTERN_RULES
     { "(%)", "%",
 	"$(AR) $(ARFLAGS) $@ $<" },
 
@@ -71,12 +76,13 @@ static struct pspec default_pattern_rules[] =
 	"$(CTANGLE) $^ $@" },
     { "%.tex", "%.w %.ch",
 	"$(CWEAVE) $^ $@" },
-
+#endif /* !CONFIG_NO_DEFAULT_PATTERN_RULES */
     { 0, 0, 0 }
   };
 
 static struct pspec default_terminal_rules[] =
   {
+#ifndef CONFIG_NO_DEFAULT_TERMINAL_RULES
 #ifdef VMS
     /* RCS.  */
     { "%", "%$$5lv", /* Multinet style */
@@ -105,11 +111,13 @@ static struct pspec default_terminal_rules[] =
     { "%", "SCCS/s.%",
 	"$(GET) $(GFLAGS) $(SCCS_OUTPUT_OPTION) $<" },
 #endif /* !VMS */
+#endif /* !CONFIG_NO_DEFAULT_TERMINAL_RULES */
     { 0, 0, 0 }
   };
 
 static char *default_suffix_rules[] =
   {
+#ifndef CONFIG_NO_DEFAULT_SUFFIX_RULES
 #ifdef VMS
     ".obj.exe",
     "$(LINK.obj) $^ $(LOADLIBES) $(LDLIBS) $(CRT0) /exe=$@",
@@ -299,12 +307,13 @@ static char *default_suffix_rules[] =
     "$(WEAVE) $<",
 
 #endif /* !VMS */
-
+#endif /* !CONFIG_NO_DEFAULT_SUFFIX_RULES */
     0, 0,
   };
 
 static char *default_variables[] =
   {
+#ifndef CONFIG_NO_DEFAULT_VARIABLES
 #ifdef VMS
 #ifdef __ALPHA
     "ARCH", "ALPHA",
@@ -511,6 +520,7 @@ static char *default_variables[] =
 #endif
 
 #endif /* !VMS */
+#endif /* !CONFIG_NO_DEFAULT_VARIABLES */
     0, 0
   };
 

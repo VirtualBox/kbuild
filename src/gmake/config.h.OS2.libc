@@ -86,7 +86,7 @@
 #define HAVE_STRFTIME 1
 
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
-#undef HAVE_SYS_WAIT_H 1
+#define HAVE_SYS_WAIT_H 1
 
 /* Define if your struct tm has tm_zone.  */
 /* #undef HAVE_TM_ZONE */
@@ -215,7 +215,7 @@
 /* #undef ST_MTIM_NSEC */
 
 /* Define this if the C library defines the variable `sys_siglist'.  */
-/* #undef HAVE_SYS_SIGLIST */
+#define HAVE_SYS_SIGLIST 1
 
 /* Define this if the C library defines the variable `_sys_siglist'.  */
 /* #undef HAVE__SYS_SIGLIST */
@@ -286,10 +286,10 @@
 #define HAVE_STRERROR 1
 
 /* Define if you have the strsignal function.  */
-/* #undef HAVE_STRSIGNAL */
+#define HAVE_STRSIGNAL
 
 /* Define if you have the wait3 function.  */
-/* #undef HAVE_WAIT3 */
+#define HAVE_WAIT3 1
 
 /* Define if you have the waitpid function.  */
 #define HAVE_WAITPID 1
@@ -404,6 +404,9 @@
 #define INCLUDEDIR "."
 #define LIBDIR "."
 
+#define HAVE_SA_RESTART 1
+
+#if 0
 static inline int getloadavg(double loadavg[], int nelem)
 {
     loadavg[0] = 0.01;
@@ -413,9 +416,10 @@ static inline int getloadavg(double loadavg[], int nelem)
         loadavg[2] = 0.01;
     return 0;
 }
+#endif
 
 
-#if 1
+#if 0
 #include <string.h>
 
 static inline void *
