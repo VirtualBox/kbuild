@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)make.1	8.8 (Berkeley) 6/13/95
-.\" $FreeBSD: src/usr.bin/make/make.1,v 1.59 2002/09/27 09:21:07 ru Exp $
+.\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
+.\" $FreeBSD: src/usr.bin/make/make.1,v 1.29.2.14 2002/09/09 19:06:16 archie Exp $
 .\"
-.Dd June 13, 1995
+.Dd March 19, 1994
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -41,7 +41,6 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl BPSXeiknqrstv
-.Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl E Ar variable
@@ -62,7 +61,6 @@ Its input is a list of specifications
 describing dependency relationships between the generation of
 files and programs.
 The first of
-.Ql Pa BSDmakefile ,
 .Ql Pa makefile
 and
 .Ql Pa Makefile
@@ -89,10 +87,6 @@ by executing the commands to make the sources of a dependency line in sequence.
 This is turned on by default unless
 .Fl j
 is used.
-.It Fl C Ar directory
-Change to
-.Ar directory
-while running.
 .It Fl D Ar variable
 Define
 .Ar variable
@@ -177,9 +171,8 @@ flag is also specified.
 Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
-Specify a directory in which to search for
-.Pa sys.mk
-and makefiles included via the <...> style.
+Specify a directory in which to search for sys.mk and makefiles included
+via the <...> style.
 Multiple directories can be added to form a search path.
 This path will override the default system include path:
 .Pa /usr/share/mk .
@@ -518,13 +511,6 @@ If they are undefined and
 .Nm
 is unable to change into any of the remaining three directories,
 then the current directory is used.
-.Pp
-The
-.Nm
-utility sets
-.Va .OBJDIR
-to the canonical path given by
-.Xr getcwd 3 .
 .It Va .MAKEFLAGS
 The environment variable
 .Ev MAKEFLAGS
@@ -550,6 +536,29 @@ executes.
 A synonym for
 .Va .MAKEFLAGS
 provided for backward compatibility.
+.It Ev PWD
+Alternate path to the current directory.
+Supported if built with WANT_ENV_PWD defined.
+.Nm
+normally sets
+.Ql Va .CURDIR
+to the canonical path given by
+.Xr getcwd 3 .
+However, if the environment variable
+.Ev PWD
+is set and gives a path to the current directory, then
+.Nm
+sets
+.Ql Va .CURDIR
+to the value of
+.Ev PWD
+instead.
+.Ev PWD
+is always set to the value of
+.Ql Va .OBJDIR
+for all programs which
+.Nm
+executes.
 .It Va .TARGETS
 List of targets
 .Nm
@@ -579,7 +588,9 @@ Makefiles may assign a colon-delimited list of directories to
 .Va VPATH .
 These directories will be searched for source files by
 .Nm
-after it has finished parsing all input makefiles.
+after
+.Nm
+has finished parsing all input makefiles.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -699,6 +710,8 @@ with the single exception that a backslash is used to prevent the expansion
 of a dollar sign
 .Pq Ql \&$ ,
 not a preceding dollar sign as is usual.
+.It Cm T
+Replaces each word in the variable with its last component.
 .It Ar old_string=new_string
 This is the
 .At V
@@ -719,8 +732,6 @@ is the substring of
 .Ar old_string
 to be replaced in
 .Ar new_string
-.It Cm T
-Replaces each word in the variable with its last component.
 .It Cm U
 Converts variable to upper-case letters.
 .El
@@ -852,8 +863,7 @@ The
 may be any one of the following:
 .Bl -tag -width "Cm XX"
 .It Cm \&|\&|
-logical
-.Tn OR
+logical OR
 .It Cm \&&&
 Logical
 .Tn AND ;
@@ -1106,9 +1116,7 @@ no effect.
 .It Ic .NOTPARALLEL
 Disable parallel mode.
 .It Ic .NO_PARALLEL
-Same as above, for compatibility with other
-.Nm pmake
-variants.
+Same as above, for compatibility with other pmake variants.
 .It Ic .ORDER
 The named targets are made in sequence.
 .\" XXX: NOT YET!!!!
@@ -1190,8 +1198,9 @@ utility uses the following environment variables, if they exist:
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
 .Ev MAKEOBJDIR ,
+.Ev MAKEOBJDIRPREFIX ,
 and
-.Ev MAKEOBJDIRPREFIX .
+.Ev PWD .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend
@@ -1244,26 +1253,14 @@ For instance, you should write tests as
 not the other way around, which doesn't work.
 .Pp
 For loops are expanded before tests, so a fragment such as:
-.Bd -literal -offset indent
+.Bd -literal
 \&.for TMACHINE in ${SHARED_ARCHS}
 \&.if ${TMACHINE} = ${MACHINE}
      ...
 \&.endif
 \&.endfor
 .Ed
-.Pp
 won't work, and should be rewritten the other way around.
-.Pp
-The parsing code is broken with respect to handling a semicolon
-after a colon, so a fragment like this will fail:
-.Bd -literal -offset indent
-HDRS=   foo.h bar.h
-
-all:
-\&.for h in ${HDRS:S;^;${.CURDIR}/;}
-     ...
-\&.endfor
-.Ed
 .Sh SEE ALSO
 .Xr mkdep 1 ,
 .Xr make.conf 5
@@ -1275,4 +1272,5 @@ in
 .Sh HISTORY
 A
 .Nm
-command appeared in PWB UNIX.
+command appeared in
+.At v7 .

@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstForEach.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstForEach.c,v 1.6 1999/08/28 01:03:51 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstForEach.c,v 1.10 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstForEach.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -67,8 +66,8 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstForEach.c,v 1.10 2002/10/09 02:0
 void
 Lst_ForEach (l, proc, d)
     Lst	    	  	l;
-    register int	(*proc)(void *, void *);
-    register void *	d;
+    register int	(*proc) __P((ClientData, ClientData));
+    register ClientData	d;
 {
     Lst_ForEachFrom(l, Lst_First(l), proc, d);
 }

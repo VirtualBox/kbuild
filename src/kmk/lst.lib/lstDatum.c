@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstDatum.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstDatum.c,v 1.5 1999/08/28 01:03:48 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDatum.c,v 1.9 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstDatum.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -54,21 +53,21 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDatum.c,v 1.9 2002/10/09 02:00:2
  *	Return the datum stored in the given node.
  *
  * Results:
- *	The datum or (ick!) NULL if the node is invalid.
+ *	The datum or (ick!) NIL if the node is invalid.
  *
  * Side Effects:
  *	None.
  *
  *-----------------------------------------------------------------------
  */
-void *
+ClientData
 Lst_Datum (ln)
     LstNode	ln;
 {
-    if (ln != NULL) {
+    if (ln != NILLNODE) {
 	return (((ListNode)ln)->datum);
     } else {
-	return ((void *) NULL);
+	return ((ClientData) NIL);
     }
 }
 

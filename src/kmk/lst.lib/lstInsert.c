@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstInsert.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstInsert.c,v 1.6 1999/08/28 01:03:52 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstInsert.c,v 1.10 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstInsert.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -67,7 +66,7 @@ ReturnStatus
 Lst_Insert (l, ln, d)
     Lst	    	  	l;	/* list to manipulate */
     LstNode	  	ln;	/* node before which to insert d */
-    void *	  	d;	/* datum to be inserted */
+    ClientData	  	d;	/* datum to be inserted */
 {
     register ListNode	nLNode;	/* new lnode for d */
     register ListNode	lNode = (ListNode)ln;
@@ -77,7 +76,7 @@ Lst_Insert (l, ln, d)
     /*
      * check validity of arguments
      */
-    if (LstValid (l) && (LstIsEmpty (l) && ln == NULL))
+    if (LstValid (l) && (LstIsEmpty (l) && ln == NILLNODE))
 	goto ok;
 
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
@@ -90,18 +89,18 @@ Lst_Insert (l, ln, d)
     nLNode->datum = d;
     nLNode->useCount = nLNode->flags = 0;
 
-    if (ln == NULL) {
+    if (ln == NILLNODE) {
 	if (list->isCirc) {
 	    nLNode->prevPtr = nLNode->nextPtr = nLNode;
 	} else {
-	    nLNode->prevPtr = nLNode->nextPtr = NULL;
+	    nLNode->prevPtr = nLNode->nextPtr = NilListNode;
 	}
 	list->firstPtr = list->lastPtr = nLNode;
     } else {
 	nLNode->prevPtr = lNode->prevPtr;
 	nLNode->nextPtr = lNode;
 
-	if (nLNode->prevPtr != NULL) {
+	if (nLNode->prevPtr != NilListNode) {
 	    nLNode->prevPtr->nextPtr = nLNode;
 	}
 	lNode->prevPtr = nLNode;

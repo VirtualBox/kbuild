@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
  * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
@@ -35,12 +34,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#)buf.c	8.1 (Berkeley) 6/6/93
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett Exp $");
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)buf.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD: src/usr.bin/make/buf.c,v 1.11 1999/09/11 13:08:01 hoek Exp $";
+#endif
+#endif /* not lint */
 
 /*-
  * buf.c --
@@ -52,7 +55,7 @@ __FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett E
 #include    "buf.h"
 
 #ifndef max
-#define	max(a,b)  ((a) > (b) ? (a) : (b))
+#define max(a,b)  ((a) > (b) ? (a) : (b))
 #endif
 
 /*
@@ -62,7 +65,7 @@ __FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett E
  *	Makes sure there's room for an extra NULL byte at the end of the
  *	buffer in case it holds a string.
  */
-#define	BufExpand(bp,nb) \
+#define BufExpand(bp,nb) \
  	if (bp->left < (nb)+1) {\
 	    int newSize = (bp)->size + max((nb)+1,BUF_ADD_INC); \
 	    Byte  *newBuf = (Byte *) erealloc((bp)->buffer, newSize); \
@@ -74,9 +77,9 @@ __FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett E
 	    (bp)->left = newSize - ((bp)->inPtr - (bp)->buffer);\
 	}
 
-#define	BUF_DEF_SIZE	256 	/* Default buffer size */
-#define	BUF_ADD_INC	256 	/* Expansion increment when Adding */
-#define	BUF_UNGET_INC	16  	/* Expansion increment when Ungetting */
+#define BUF_DEF_SIZE	256 	/* Default buffer size */
+#define BUF_ADD_INC	256 	/* Expansion increment when Adding */
+#define BUF_UNGET_INC	16  	/* Expansion increment when Ungetting */
 
 /*-
  *-----------------------------------------------------------------------
@@ -92,10 +95,13 @@ __FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.18 2002/10/09 03:42:09 jmallett E
  *-----------------------------------------------------------------------
  */
 void
-Buf_OvAddByte (Buffer bp, int byte)
+Buf_OvAddByte (bp, byte)
+    register Buffer bp;
+    int    byte;
 {
+    int nbytes = 1;
     bp->left = 0;
-    BufExpand (bp, 1);
+    BufExpand (bp, nbytes);
 
     *bp->inPtr++ = byte;
     bp->left--;
@@ -120,7 +126,10 @@ Buf_OvAddByte (Buffer bp, int byte)
  *-----------------------------------------------------------------------
  */
 void
-Buf_AddBytes (Buffer bp, int numBytes, const Byte *bytesPtr)
+Buf_AddBytes (bp, numBytes, bytesPtr)
+    register Buffer bp;
+    int	    numBytes;
+    const Byte *bytesPtr;
 {
 
     BufExpand (bp, numBytes);
@@ -149,7 +158,9 @@ Buf_AddBytes (Buffer bp, int numBytes, const Byte *bytesPtr)
  *-----------------------------------------------------------------------
  */
 void
-Buf_UngetByte (Buffer bp, int byte)
+Buf_UngetByte (bp, byte)
+    register Buffer bp;
+    int    byte;
 {
 
     if (bp->outPtr != bp->buffer) {
@@ -197,7 +208,10 @@ Buf_UngetByte (Buffer bp, int byte)
  *-----------------------------------------------------------------------
  */
 void
-Buf_UngetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
+Buf_UngetBytes (bp, numBytes, bytesPtr)
+    register Buffer bp;
+    int	    numBytes;
+    Byte    *bytesPtr;
 {
 
     if (bp->outPtr - bp->buffer >= numBytes) {
@@ -239,7 +253,8 @@ Buf_UngetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
  *-----------------------------------------------------------------------
  */
 int
-Buf_GetByte (Buffer bp)
+Buf_GetByte (bp)
+    register Buffer bp;
 {
     int	    res;
 
@@ -271,7 +286,10 @@ Buf_GetByte (Buffer bp)
  *-----------------------------------------------------------------------
  */
 int
-Buf_GetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
+Buf_GetBytes (bp, numBytes, bytesPtr)
+    register Buffer bp;
+    int	    numBytes;
+    Byte    *bytesPtr;
 {
 
     if (bp->inPtr - bp->outPtr < numBytes) {
@@ -302,7 +320,9 @@ Buf_GetBytes (Buffer bp, int numBytes, Byte *bytesPtr)
  *-----------------------------------------------------------------------
  */
 Byte *
-Buf_GetAll (Buffer bp, int *numBytesPtr)
+Buf_GetAll (bp, numBytesPtr)
+    register Buffer bp;
+    int	    *numBytesPtr;
 {
 
     if (numBytesPtr != (int *)NULL) {
@@ -326,7 +346,9 @@ Buf_GetAll (Buffer bp, int *numBytesPtr)
  *-----------------------------------------------------------------------
  */
 void
-Buf_Discard (Buffer bp, int numBytes)
+Buf_Discard (bp, numBytes)
+    register Buffer bp;
+    int	    numBytes;
 {
 
     if (bp->inPtr - bp->outPtr <= numBytes) {
@@ -353,7 +375,8 @@ Buf_Discard (Buffer bp, int numBytes)
  *-----------------------------------------------------------------------
  */
 int
-Buf_Size (Buffer buf)
+Buf_Size (buf)
+    Buffer  buf;
 {
     return (buf->inPtr - buf->outPtr);
 }
@@ -374,7 +397,8 @@ Buf_Size (Buffer buf)
  *-----------------------------------------------------------------------
  */
 Buffer
-Buf_Init (int size)
+Buf_Init (size)
+    int	    size; 	/* Initial size for the buffer */
 {
     Buffer bp;	  	/* New Buffer */
 
@@ -394,7 +418,7 @@ Buf_Init (int size)
 /*-
  *-----------------------------------------------------------------------
  * Buf_Destroy --
- *	Destroy a buffer, and optionally free its data, too.
+ *	Nuke a buffer and all its resources.
  *
  * Results:
  *	None.
@@ -405,7 +429,9 @@ Buf_Init (int size)
  *-----------------------------------------------------------------------
  */
 void
-Buf_Destroy (Buffer buf, Boolean freeData)
+Buf_Destroy (buf, freeData)
+    Buffer  buf;  	/* Buffer to destroy */
+    Boolean freeData;	/* TRUE if the data should be destroyed as well */
 {
 
     if (freeData) {
@@ -429,7 +455,9 @@ Buf_Destroy (Buffer buf, Boolean freeData)
  *-----------------------------------------------------------------------
  */
 void
-Buf_ReplaceLastByte (Buffer buf, int byte)
+Buf_ReplaceLastByte (buf, byte)
+    Buffer buf;	/* buffer to augment */
+    int byte;	/* byte to be written */
 {
     if (buf->inPtr == buf->outPtr)
         Buf_AddByte(buf, byte);

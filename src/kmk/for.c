@@ -1,9 +1,6 @@
 /*
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Christos Zoulas.
+ * Copyright (c) 1992, The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,12 +29,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#)for.c	8.1 (Berkeley) 6/6/93
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/for.c,v 1.19 2002/10/09 03:42:10 jmallett Exp $");
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)for.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD: src/usr.bin/make/for.c,v 1.10 1999/09/11 13:08:01 hoek Exp $";
+#endif
+#endif /* not lint */
 
 /*-
  * for.c --
@@ -83,7 +84,7 @@ typedef struct _For {
     Lst  	  lst;			/* List of variables	*/
 } For;
 
-static int ForExec(void *, void *);
+static int ForExec	__P((ClientData, ClientData));
 
 
 
@@ -106,7 +107,8 @@ static int ForExec(void *, void *);
  *-----------------------------------------------------------------------
  */
 int
-For_Eval (char *line)
+For_Eval (line)
+    char    	    *line;    /* Line to parse */
 {
     char	    *ptr = line, *sub, *wrd;
     int	    	    level;  	/* Level at which to report errors. */
@@ -174,10 +176,10 @@ For_Eval (char *line)
 	buf = Buf_Init(0);
 	sub = Var_Subst(NULL, ptr, VAR_GLOBAL, FALSE);
 
-#define	ADDWORD() \
+#define ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
 	Buf_AddByte(buf, (Byte) '\0'), \
-	Lst_AtFront(forLst, (void *) Buf_GetAll(buf, &varlen)), \
+	Lst_AtFront(forLst, (ClientData) Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
 	for (ptr = sub; *ptr && isspace((unsigned char) *ptr); ptr++)
@@ -191,12 +193,13 @@ For_Eval (char *line)
 		    ptr++;
 		wrd = ptr--;
 	    }
-	DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
+	if (DEBUG(FOR))
+	    (void) fprintf(stderr, "For: Iterator %s List %s\n", forVar, sub);
 	if (ptr - wrd > 0)
 	    ADDWORD();
 	else
 	    Buf_Destroy(buf, TRUE);
-	free(sub);
+	free((Address) sub);
 
 	forBuf = Buf_Init(0);
 	forLevel++;
@@ -209,7 +212,8 @@ For_Eval (char *line)
 
 	if (strncmp(ptr, "endfor", 6) == 0 &&
 	    (isspace((unsigned char) ptr[6]) || !ptr[6])) {
-	    DEBUGF(FOR, ("For: end for %d\n", forLevel));
+	    if (DEBUG(FOR))
+		(void) fprintf(stderr, "For: end for %d\n", forLevel);
 	    if (--forLevel < 0) {
 		Parse_Error (level, "for-less endfor");
 		return 0;
@@ -218,7 +222,8 @@ For_Eval (char *line)
 	else if (strncmp(ptr, "for", 3) == 0 &&
 		 isspace((unsigned char) ptr[3])) {
 	    forLevel++;
-	    DEBUGF(FOR, ("For: new loop %d\n", forLevel));
+	    if (DEBUG(FOR))
+		(void) fprintf(stderr, "For: new loop %d\n", forLevel);
 	}
     }
 
@@ -246,13 +251,16 @@ For_Eval (char *line)
  *-----------------------------------------------------------------------
  */
 static int
-ForExec(void *namep, void *argp)
+ForExec(namep, argp)
+    ClientData namep;
+    ClientData argp;
 {
     char *name = (char *) namep;
     For *arg = (For *) argp;
     int len;
     Var_Set(arg->var, name, VAR_GLOBAL);
-    DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
+    if (DEBUG(FOR))
+	(void) fprintf(stderr, "--- %s = %s\n", arg->var, name);
     Parse_FromString(Var_Subst(arg->var, (char *) Buf_GetAll(arg->buf, &len),
 			       VAR_GLOBAL, FALSE));
     Var_Delete(arg->var, VAR_GLOBAL);
@@ -275,7 +283,7 @@ ForExec(void *namep, void *argp)
  *-----------------------------------------------------------------------
  */
 void
-For_Run(void)
+For_Run()
 {
     For arg;
 
@@ -288,9 +296,9 @@ For_Run(void)
     forBuf = NULL;
     forLst = NULL;
 
-    Lst_ForEach(arg.lst, ForExec, (void *) &arg);
+    Lst_ForEach(arg.lst, ForExec, (ClientData) &arg);
 
-    free(arg.var);
-    Lst_Destroy(arg.lst, (void (*)(void *)) free);
+    free((Address)arg.var);
+    Lst_Destroy(arg.lst, (void (*) __P((ClientData))) free);
     Buf_Destroy(arg.buf, TRUE);
 }

@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstDestroy.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstDestroy.c,v 1.7 1999/08/28 01:03:49 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDestroy.c,v 1.12 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstDestroy.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -66,13 +65,13 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDestroy.c,v 1.12 2002/10/09 02:0
 void
 Lst_Destroy (l, freeProc)
     Lst	    	  	l;
-    register void	(*freeProc)(void *);
+    register void	(*freeProc) __P((ClientData));
 {
     register ListNode	ln;
-    register ListNode	tln = NULL;
+    register ListNode	tln = NilListNode;
     register List 	list = (List)l;
 
-    if (l == NULL || ! l) {
+    if (l == NILLST || ! l) {
 	/*
 	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
 	 * Gross, but useful.
@@ -81,25 +80,25 @@ Lst_Destroy (l, freeProc)
     }
 
     /* To ease scanning */
-    if (list->lastPtr != NULL)
-	list->lastPtr->nextPtr = NULL;
+    if (list->lastPtr != NilListNode)
+	list->lastPtr->nextPtr = NilListNode;
     else {
-	free (l);
+	free ((Address)l);
 	return;
     }
 
     if (freeProc) {
-	for (ln = list->firstPtr; ln != NULL; ln = tln) {
+	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
 	     tln = ln->nextPtr;
 	     (*freeProc) (ln->datum);
-	     free (ln);
+	     free ((Address)ln);
 	}
     } else {
-	for (ln = list->firstPtr; ln != NULL; ln = tln) {
+	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
 	     tln = ln->nextPtr;
-	     free (ln);
+	     free ((Address)ln);
 	}
     }
 
-    free (l);
+    free ((Address)l);
 }

@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstIsEmpty.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstIsEmpty.c,v 1.5 1999/08/28 01:03:54 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstIsEmpty.c,v 1.8 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstIsEmpty.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -59,8 +58,8 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstIsEmpty.c,v 1.8 2002/10/09 02:00
  * Side Effects:
  *	None.
  *
- *	A list is considered empty if its firstPtr == NULL (or if
- *	the list itself is NULLLIST).
+ *	A list is considered empty if its firstPtr == NilListNode (or if
+ *	the list itself is NILLIST).
  *-----------------------------------------------------------------------
  */
 Boolean
