@@ -1,4 +1,4 @@
-/* $Id: helpers.c 35 2003-03-18 03:58:49Z knut.osmundsen@oracle.com $
+/* $Id: helpers.c 51 2003-04-07 01:30:32Z knut.osmundsen@oracle.com $
  *
  * Helpers.
  *
@@ -17,12 +17,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <err.h>
+
 #ifdef OS2
     #define INCL_BASE
     #include <os2.h>
 #endif
-#include <stdio.h>
-#include <err.h>
 
 
 #ifdef OS2
@@ -33,7 +34,7 @@
  */
 char *realpath(const char *pszFileName, char *pszResolvedName)
 {
-    #if 0 //def USE_KLIB //@todo
+    #ifdef USE_KLIB
     if (kPathCanonifyEx(pszFileName, NULL, '/', '/', pszResolvedName, KFILE_LENGTH))
         if (kPathExist(pszFileName))
             return pszResolvedName;
@@ -50,7 +51,7 @@ char *realpath(const char *pszFileName, char *pszResolvedName)
 #endif
 
 #ifdef OS2
-void	err(int flags, const char *pszFormat, ...)
+void    err(int flags, const char *pszFormat, ...)
 {
     va_list args;
     va_start(args, pszFormat);
@@ -59,7 +60,7 @@ void	err(int flags, const char *pszFormat, ...)
     fprintf(stderr, "\n");
 }
 
-void	errx(int flags, const char *pszFormat, ...)
+void    errx(int flags, const char *pszFormat, ...)
 {
     va_list args;
     va_start(args, pszFormat);
@@ -68,7 +69,7 @@ void	errx(int flags, const char *pszFormat, ...)
     fprintf(stderr, "\n");
 }
 
-void	warnx(const char *pszFormat, ...)
+void    warnx(const char *pszFormat, ...)
 {
     va_list args;
     va_start(args, pszFormat);
@@ -77,7 +78,7 @@ void	warnx(const char *pszFormat, ...)
     fprintf(stderr, "\n");
 }
 
-void	warn(const char *pszFormat, ...)
+void    warn(const char *pszFormat, ...)
 {
     va_list args;
     va_start(args, pszFormat);
