@@ -1,4 +1,4 @@
-# $Id: footer.kmk 120 2004-06-25 17:01:36Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 122 2004-06-25 19:41:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -291,23 +291,25 @@ $(foreach tool, $(_TOOLS), $(eval $(def_tools_include)))
 #
 _SDKS := $(SDKS)
 define def_sdks_target_source
-$(foreach sdk, $($(source)_SDKS) $($(target)_$(source)_SDKS), \
+$(foreach sdk, $($(source)_SDKS) $($(source)_SDKS.$(BUILD_TARGET)) $($(source)_SDKS.$(BUILD_MODE)) \
+			   $($(target)_$(source)_SDKS) $($(target)_$(source)_SDKS.$(BUILD_TARGET)) $($(target)_$(source)_SDKS.$(BUILD_MODE)), \
 	$(eval _SDKS += $(sdk)))
 endef
 define def_sdks_target
-$(foreach sdk, $($(target)_SDKS), $(eval _SDKS += $(sdk)))
+$(foreach sdk, $($(target)_SDKS) $($(target)_SDKS.$(BUILD_TARGET)) $($(target)_SDKS.$(BUILD_MODE))\
+	, $(eval _SDKS += $(sdk)))
 $(foreach source, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))\
 	, $(eval $(def_sdks_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_sdks_target)))
 _SDKS := $(sort $(_SDKS))
 
-define def_sdks_include
+define def_sdks_include_one
 ifndef SDK_$(sdk)
 include $(firstword $(wildcard $(PATH_KBUILD)/sdks/$(sdk).kmk))
 endif
 endef
-$(foreach sdk, $(_SDKS), $(eval $(def_sdk)))
+$(foreach sdk, $(_SDKS), $(eval $(def_sdks_include_one)))
 
 #
 # Object processing.
@@ -701,11 +703,30 @@ $(eval libs        :=\
 	$($(target)_LIBS.$(BUILD_TARGET))\
 	$($(target)_LIBS.$(BUILD_TYPE))\
 	$($(target)_LIBS)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
 	$(LIBS.$(BUILD_TARGET_CPU))\
 	$(LIBS.$(BUILD_TARGET_ARCH))\
 	$(LIBS.$(BUILD_TARGET))\
 	$(LIBS.$(BUILD_TYPE))\
 	$(LIBS)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
 	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBS)\
 )
@@ -715,11 +736,27 @@ $(eval libpath    :=\
 	$($(target)_LIBPATH.$(BUILD_TARGET))\
 	$($(target)_LIBPATH.$(BUILD_TYPE))\
 	$($(target)_LIBPATH)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
 	$(LIBPATH.$(BUILD_TARGET_CPU))\
 	$(LIBPATH.$(BUILD_TARGET_ARCH))\
 	$(LIBPATH.$(BUILD_TARGET))\
 	$(LIBPATH.$(BUILD_TYPE))\
 	$(LIBPATH)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
@@ -820,11 +857,30 @@ $(eval libs        :=\
 	$($(target)_LIBS.$(BUILD_TARGET))\
 	$($(target)_LIBS.$(BUILD_TYPE))\
 	$($(target)_LIBS)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
 	$(LIBS.$(BUILD_TARGET_CPU))\
 	$(LIBS.$(BUILD_TARGET_ARCH))\
 	$(LIBS.$(BUILD_TARGET))\
 	$(LIBS.$(BUILD_TYPE))\
 	$(LIBS)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
 	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBS)\
 )
@@ -834,11 +890,27 @@ $(eval libpath    :=\
 	$($(target)_LIBPATH.$(BUILD_TARGET))\
 	$($(target)_LIBPATH.$(BUILD_TYPE))\
 	$($(target)_LIBPATH)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
 	$(LIBPATH.$(BUILD_TARGET_CPU))\
 	$(LIBPATH.$(BUILD_TARGET_ARCH))\
 	$(LIBPATH.$(BUILD_TARGET))\
 	$(LIBPATH.$(BUILD_TYPE))\
 	$(LIBPATH)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
