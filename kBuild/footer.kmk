@@ -1,4 +1,4 @@
-# $Id: footer.kmk 81 2004-06-01 01:42:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 83 2004-06-01 14:36:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -33,7 +33,7 @@ ifndef __footer_kmk__
 #
 
 # all targets.
-ALL_TARGETS := $(LIBRARIES) $(PROGRAMS) $(DLLS) $(DRIVERS) $(OTHERS)
+ALL_TARGETS := $(LIBRARIES) $(PROGRAMS) $(DLLS) $(SYSMODS) $(OTHERS)
 
 # dependency files.
 _DEPFILES :=
@@ -48,6 +48,7 @@ _OBJS   :=
 _LIBS   :=
 _DLLS   :=
 _EXES   :=
+_SYSMODS:=
 _DIRS   :=
 
 # all objs of a specific target
@@ -693,8 +694,89 @@ $(foreach target, $(PROGRAMS), $(eval $(def_program)))
 
 
 #
-# DRIVERS
+# SYSMODS
 #
+
+## System moduler (one).
+# @param    $(target)   Normalized target (program) name.
+define def_sysmod
+# source -> object
+$(eval $(def_target_sources))
+
+# library
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval flags       :=\
+	$(TOOL_$(tool)_LDFLAGS)\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
+	$(LDFLAGS)\
+	$(LDFLAGS.$(BUILD_TYPE))\
+	$($(target)_LDFLAGS)\
+	$($(target)_LDFLAGS.$(BUILD_TYPE))\
+)
+$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval sys         := $(outbase)$(syssuff))
+$(eval objs         = $(_OBJS_$(target)))
+$(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS)\
+	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS)\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS)\
+)
+$(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH)\
+	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH)\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH)\
+)
+$(eval dirdep      := $(dir $(sys)).dir_created)
+## @todo fix dependencies
+$(eval deps        := )
+#
+$(eval deffile    := $(strip $(firstword
+	$($(target)_DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_DEFFILE.$(BUILD_TARGET))\
+	$($(target)_DEFFILE.$(BUILD_TYPE))\
+	$($(target)_DEFFILE)\
+	$(DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(DEFFILE.$(BUILD_TARGET))\
+	$(DEFFILE.$(BUILD_TYPE))\
+	$(DEFFILE)\
+)))
+$(eval custom_pre    := $(strip $(firstword
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE)\
+	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(BUILD_TARGET))\
+	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE)\
+)))
+$(eval custom_post    := $(strip $(firstword
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST)\
+	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(BUILD_TARGET))\
+	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST)\
+)))
+
+$(eval $(TOOL_$(tool)_LINK_SYSMOD))
+
+_OBJS += $(_OBJS_$(target))
+_SYSMODS += $(sys)
+_OUT_FILES += $(sys)
+endef
+
+# Process libraries
+$(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
 
 
 
@@ -712,7 +794,7 @@ $(foreach target, $(PROGRAMS), $(eval $(def_program)))
 #
 # Directories.
 #
-_OUTPUT_FILES := $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS)
+_OUTPUT_FILES := $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS) $(_SYSMODS)
 _DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUTPUT_FILES))))
 
 define def_createdir
@@ -804,14 +886,14 @@ PASS := LIBRARIES
 $(eval $(def_pass))
 
 ## PASS: binaries
-# This pass builds binary targets, i.e. programs, dlls, drivers and stuff.
-pass_binaries_doit: $(_DLLS) $(_EXES) $(_KMODS) $(_OTHER_BINARIES)
+# This pass builds binary targets, i.e. programs, dlls, system modules and stuff.
+pass_binaries_doit: $(_DLLS) $(_EXES) $(_SYSMODS) $(_OTHER_BINARIES)
 pass := binaries
 PASS := BINARIES
 $(eval $(def_pass))
 
 ## PASS: others
-# This pass builds binary targets, i.e. programs, dlls, drivers and stuff.
+# This pass builds other targets.
 pass_others_doit: $(_OTHERS)
 pass := others
 PASS := OTHERS
@@ -871,7 +953,7 @@ target:    needed libraries binaries others
 objects:   $(_OBJS)
 programs:  $(_EXES)
 dlls:      $(_DLLS)	
-kernelmodules: $(_KMODS)
+sysmods:   $(_SYSMODS)
 
 
 # end-of-file-content
