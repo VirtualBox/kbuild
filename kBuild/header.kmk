@@ -1,4 +1,4 @@
-# $Id: header.kmk 88 2004-06-04 16:14:30Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 95 2004-06-08 16:53:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -37,6 +37,16 @@ all: all_recursive
 #
 .SUFFIXES:
 SUFFIXES :=
+
+
+#
+# General purpose macros.
+#
+ 		
+## get last word in a list.
+# @returns  last word in $1.
+# @param    $1	Word list.
+lastword = $(word $(words $(1)), $(1))
 
 
 #
@@ -90,6 +100,8 @@ endif
 ifeq ($(_BUILD_PLATFORM_OK),0)
 $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
 endif
+BUILD_PLATFORM_ARCH   := x86
+BUILD_PLATFORM_CPU    := i586
 
 
 #
