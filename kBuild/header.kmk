@@ -1,4 +1,4 @@
-# $Id: header.kmk 125 2004-06-25 20:26:16Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -143,15 +143,6 @@ endif
 BUILD_TARGET_ARCH   := x86
 BUILD_TARGET_CPU    := i586
 
-#
-# Cygwin kludge.
-#
-ifneq ($(patsubst /cygdrive/%,%,$(CURDIR)),$(CURDIR))
-CYGPATHMIXED = $(foreach path,$(1)\
-   ,$(if $(patsubst /cygdrive/%,,$(path)),$(path),$(patsubst $(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path)))))/%,$(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path))))):/%,$(patsubst /cygdrive/%,%,$(path)))))
-else
-CYGPATHMIXED = $(1)
-endif
 
 #
 # Common definitions.
@@ -291,6 +282,27 @@ QUIET		:=
 MSG_L1		=
 MSG_L2      =
 MSG_L3      =
+endif
+
+## ABSPATH - makes a path absolute.
+# This implementation is clumsy and doesn't resolve '..' and '.' components.
+#
+# @param	$1	The paths to make absolute.
+ABSPATH = $(foreach path,$(1)\
+            ,$(strip $(if $(subst <,,$(firstword $(subst /, ,<$(path)))),\
+                      $(if $(patsubst %:,,$(firstword $(subst :,: ,$(path)))),$(PATH_CURRENT)/$(path),$(path)),\
+                      $(path))))
+
+## Cygwin kludge.
+# This converts /cygdrive/x/% to x:%.
+#
+# @param	$1	The paths to make native.
+# @remark	This macro is pretty much obsolete since we don't use cygwin base make.
+ifneq ($(patsubst /cygdrive/%,%,$(CURDIR)),$(CURDIR))
+CYGPATHMIXED = $(foreach path,$(1)\
+   ,$(if $(patsubst /cygdrive/%,,$(path)),$(path),$(patsubst $(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path)))))/%,$(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path))))):/%,$(patsubst /cygdrive/%,%,$(path)))))
+else
+CYGPATHMIXED = $(1)
 endif
 
 #
