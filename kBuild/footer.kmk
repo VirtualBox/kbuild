@@ -1,4 +1,4 @@
-# $Id: footer.kmk 131 2004-06-30 16:01:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 133 2004-06-30 20:44:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -56,7 +56,6 @@ define def_objs_var
 _OBJS_$target :=
 endef
 $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
-
 
 #
 # Basic macros
@@ -344,7 +343,7 @@ $(eval defs        :=\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
 	$(SDK_$(sdk)_$(type)DEFS)\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
@@ -367,7 +366,7 @@ $(eval defs        :=\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
 	$(SDK_$(sdk)_$(type)DEFS)\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
@@ -390,7 +389,7 @@ $(eval defs        :=\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
 	$(SDK_$(sdk)_$(type)DEFS)\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
@@ -413,7 +412,7 @@ $(eval defs        :=\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
 	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
 	$(SDK_$(sdk)_$(type)DEFS)\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
 	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
@@ -443,7 +442,7 @@ $(eval incs        :=\
 	$($(target)_$(source)_INCS)\
 	$(foreach sdk, $($(target)_$(source)_SDKS.$(BUILD_TARGET)) \
 				   $($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
-				   $($(target)_$(source)_SDKS),
+				   $($(target)_$(source)_SDKS),\
 	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
 	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
 	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
