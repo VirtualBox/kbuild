@@ -1,4 +1,4 @@
-/* $Id: kShell.h 19 2002-10-17 23:02:18Z knut.osmundsen@oracle.com $
+/* $Id: kShell.h 44 2003-03-28 11:22:18Z knut.osmundsen@oracle.com $
  *
  * kShell - Public interface.
  *
@@ -30,7 +30,7 @@
  * Return codes.
  */
 #define KSHELL_ERROR_SYNTAX_ERROR           1700
-#define KSHELL_ERROR_NOT_ENOUGHT_MEMORY     1708
+#define KSHELL_ERROR_NOT_ENOUGH_MEMORY      1708
 #define KSHELL_ERROR_PROGRAM_NOT_FOUND      1742
 #define KSHELL_ERROR_COMMAND_TOO_LONG       1743
 
