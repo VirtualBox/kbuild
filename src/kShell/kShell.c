@@ -1,4 +1,4 @@
-/* $Id: kShell.c 19 2002-10-17 23:02:18Z knut.osmundsen@oracle.com $
+/* $Id: kShell.c 23 2002-11-22 04:00:46Z knut.osmundsen@oracle.com $
  *
  * kShell - A mini shell.
  *
@@ -23,6 +23,204 @@
  *
  */
 
+/** @design             kShell (Micro Shell)
+ *
+ * The micro shell provides the basic shell functionality kBuild need - no more,
+ * no less. It is intended to be as simple as possible.
+ *
+ * The shell commands are case sensitive - all lowercase.
+ *
+ * The shell environment variables are case sensitive or insensitive according to
+ * host os.
+ *
+ *
+ *
+ * @subsection         Command Separators
+ *
+ * There is one command separator '&&'. This works like splitting the command line
+ * into several makefile lines. This splitting isn't done by the micro shell but
+ * the makefile interpreter.
+ *
+ * You might thing this is limiting, but no, you can use all the makefile command
+ * prefixes.
+ *
+ *
+ *
+ * @subsection          Path Component Separator (/)
+ *
+ * The shell uses '/' as path component separator.
+ * For host OSes  with the notion of drive letters or similar, ':' is
+ * used to separate the drive letter and the path.
+ *
+ *
+ *
+ * @subsection          UNC paths
+ *
+ * For host OSes which supports UNC paths these are supported but for the chdir
+ * command.
+ *
+ * The Path Component Separator is still '/' for UNC paths.
+ *
+ *
+ *
+ * @subsection          Wildchars
+ *
+ * '*' and '?' are accepted as wildchars.
+ *
+ * '*' means 0 or more characters. <br>
+ * '?' means 1 character.
+ *
+ * When the term 'pattern' is use in command description this means that
+ * wildchars are accepted.
+ *
+ *
+ *
+ * @subsection          Quoting
+ *
+ * Use double quotes (") to quote filenames or executables containing spaces.
+ *
+ *
+ *
+ * @subsection          Execute Program
+ *
+ * If the first, possibly quoted, word of a commandline if not found as an
+ * internal command will be tried executed. If no path it will be searched
+ * for in the PATH environment variable.
+ *
+ *
+ *
+ * @subsection          Commands
+ *
+ * This section will describe the commands implemented by the shell.
+ *
+ *
+ *
+ * @subsubsection       copy
+ * Copies one or more files to a target file or directory.
+ *
+ * <b>Syntax: copy <source file pattern> [more sources] <target> </b>
+ *
+ * Specify one or more source file patterns.
+ *
+ * Specify exactly one target. The target may be a directory or a file.
+ * If it's a file and multiple source files specified either thru pattern or
+ * multiple source file specifications, the target file will be a copy of the
+ * last one.
+ *
+ * The command fails if a source file isn't found. It also fails on read or
+ * write errors.
+ *
+ *
+ *
+ * @subsubsection       copytree
+ * Copies one or more files to a target file or directory.
+ *
+ * <b>Syntax: copytree <source directory> <target directory> </b>
+ *
+ * Specify exactly one source directory.
+ *
+ * Specify exactly one target directory. The target directory path will be
+ * created if doesn't exist.
+ *
+ * The command fails if source directory isn't found. It also fails on read or
+ * write errors.
+ *
+ *
+ *
+ * @subsubsection       rm
+ * Deletes one or more files.
+ *
+ * <b>Syntax: rm [file pattern] [more files] </b>
+ *
+ * Specify 0 or more file patterns for deletion.
+ *
+ * This command fails if it cannot delete a file. It will not fail if a file
+ * doesn't exist. It will neither fail if no files are specified.
+ *
+ *
+ *
+ * @subsubsection       rmtree
+ * Deletes one or more directory trees.
+ *
+ * <b>Syntax: rmtree [directory pattern] [directories] </b>
+ *
+ * Specify 0 or more directory patterns for deletion.
+ *
+ * This command fails if it cannot delete a file or directory. It will not fail
+ * if a directory doesn't exist. It will neither fail if no files are specified.
+ *
+ *
+ *
+ * @subsubsection       chdir
+ * Changes the current directory.
+ *
+ * This updates the .CWD macro to the new current directory path.
+ *
+ * <b>Syntax: chdir <directory> </b>
+ *
+ *
+ *
+ * @subsubsection       mkdir
+ * Create directory.
+ *
+ * <b>Syntax:  mkdir <directory> </b>
+ *
+ * Specify one directory to create.
+ *
+ *
+ *
+ * @subsubsection       rmdir
+ * Remove directory.
+ *
+ * <b>Syntax: rmdir <directory> </b>
+ *
+ * Specify one directory to remove. The directory must be empty.
+ *
+ * This command failes if directory isn't empty. It will not fail if
+ * the directory doesn't exist.
+ *
+ *
+ *
+ * @subsubsection       set
+ * Set environment variable.
+ *
+ * <b>Syntax: set <envvar>=<value> </b>
+ *
+ *
+ *
+ * @subsubsection       unset
+ * Unset enviornment variable(s).
+ *
+ * <b>Syntax: unset <envvar pattern> [more envvars] </b>
+ *
+ * Specify on or more environment variable patterns.
+ *
+ *
+ *
+ * @subsubsection       pushenv
+ * Pushes a set of environment variables onto the environment stack. The
+ * variables can later be popped back using the popenv command.
+ *
+ * If '*' is specified as pattern the complete enviornment is pushed and
+ * when popped it will <b>replace</b> the enviornment.
+ *
+ * <b>Syntax: pushenv <envvar pattern> [more envvars] </b>
+ * <b>Syntax: pushenv * </b>
+ *
+ *
+ *
+ * @subsubsection       popenv
+ * Pop a set of environment variables from the environment stack. If a '*'
+ * push was done, we'll replace the enviornment with the variables poped off
+ * the stack.
+ *
+ * <b>Syntax: popenv </b>
+ *
+ *
+ *
+ */
+
+
 /*******************************************************************************
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
@@ -32,10 +230,38 @@
 
 #define KSHELL_MAX_COMMAND      4096
 
+/**
+ * Test if this is an escapable character or not.
+ */
+#define KSHELL_ESCAPABLE(ch)    (   (ch) == '"' \
+                                 || (ch) == '\'' \
+                                 || (ch) == '`' \
+                                 || (ch) == 'ï' \
+                                 )
+
+/**
+ * Test if this is a quote character or not.
+ */
+#define KSHELL_QUOTE(ch)        (   (ch) == '"' \
+                                 || (ch) == '\'' \
+                                 || (ch) == '`' \
+                                 || (ch) == 'ï' \
+                                 )
+
+/**
+ * Test if this is a wildchar character or not.
+ */
+#define KSHELL_WILDCHAR(ch)     ( (ch) == '*' || (ch) == '?' )
+
+
+
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
 #include "kShell.h"
+#include <kLib/kLib.h>
+#include <kLib/kString.h>
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -62,25 +288,35 @@ typedef struct _kshellWords
 
 
 /*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+static const char *pszkshellCurDir = NULL;
+
+/*******************************************************************************
 *   Internal Functions                                                         *
 *******************************************************************************/
 PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS pPrevWords);
 void            kshellWordsDestroy(PKSHELLWORDS pWords);
 
-int             kshellCmdcopy(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdcopytree(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdrm(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdrmtree(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdchdir(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdmkdir(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdrmdir(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdset(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdunset(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdpushenv(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdpopenv(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdecho(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdwrite(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmdExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellSyntaxError(const char *pszCmd, const char *pszMessage);
+int             kshellError(const char *pszCmd, const char *pszMessage);
+
+int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_copytree(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_sync(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_synctree(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_rm(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_rmtree(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_chdir(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_mkdir(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_rmdir(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_set(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_unset(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_pushenv(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_popenv(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_write(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_ExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords);
 
 
 
@@ -164,22 +400,24 @@ int     kshellExecute(const char *pszCmd)
         int       (*pfnCmd)(const char *, PKSHELLWORDS);
     } aCmds[] =
     {
-        {"copy",        MAX_WORDS,  kshellCmdcopy},
-        {"copytree",    3,          kshellCmdcopytree},
-        {"rm",          MAX_WORDS,  kshellCmdrm},
-        {"rmtree",      MAX_WORDS,  kshellCmdrmtree},
-        {"chdir",       2,          kshellCmdchdir},
-        {"mkdir",       MAX_WORDS,  kshellCmdmkdir},
-        {"rmdir",       MAX_WORDS,  kshellCmdrmdir},
-        {"set",         1,          kshellCmdset},
-        {"unset",       MAX_WORDS,  kshellCmdunset},
-        {"pushenv",     MAX_WORDS,  kshellCmdpushenv},
-        {"popenv",      1,          kshellCmdpopenv},
-        {"echo",        2,          kshellCmdecho},
-        {"write",       2,          kshellCmdwrite},
+        {"copy",        MAX_WORDS,  kshellCmd_copy},
+        {"copytree",    3,          kshellCmd_copytree},
+        {"sync",        MAX_WORDS,  kshellCmd_sync},
+        {"synctree",    3,          kshellCmd_synctree},
+        {"rm",          MAX_WORDS,  kshellCmd_rm},
+        {"rmtree",      MAX_WORDS,  kshellCmd_rmtree},
+        {"chdir",       2,          kshellCmd_chdir},
+        {"mkdir",       MAX_WORDS,  kshellCmd_mkdir},
+        {"rmdir",       MAX_WORDS,  kshellCmd_rmdir},
+        {"set",         1,          kshellCmd_set},
+        {"unset",       MAX_WORDS,  kshellCmd_unset},
+        {"pushenv",     MAX_WORDS,  kshellCmd_pushenv},
+        {"popenv",      1,          kshellCmd_popenv},
+        {"echo",        2,          kshellCmd_echo},
+        {"write",       2,          kshellCmd_write},
 
         /* last entry */
-        {"",            1,          kshellCmdExecuteProgram}
+        {"",            1,          kshellCmd_ExecuteProgram}
     };
 #undef MAX_WORDS
 
@@ -255,10 +493,11 @@ PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS p
     /*
      * Parse loop
      */
-    while (cWords > 0)
+    while (cWords-- > 0)
     {
         KSHELLWORD  word = {0,0,0,0,0};
         char        chEnd = ' ';
+        char        ch;
 
         /*
          * Skip blanks to find start of word.
@@ -269,27 +508,30 @@ PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS p
             break;
         word.pszWordOrg = pszText;
 
+
         /*
          * Quoted?
+         * Any possible quote!
          */
-        if (*pszText == '"')
+        if (KSHELL_QUOTE(*pszText))
         {
-            pszText++;
+            chEnd = *pszText++;
             word.fFlags |= KSWORD_FLAGS_QUOTED;
-            chEnd = '"';
         }
+
 
         /*
          * Find end of word and look for escape and pattern characters.
+         * We escape by doubling the character, not by slashing!
          */
-        while (*pszText != '\0' && *pszText != chEnd)
+        while ((ch = *pszText) != '\0' && (ch != chEnd || pszText[1] == chEnd))
         {
-            if (*pszText == '\\')
+            if (ch == pszText[1] && KSHELL_ESCAPABLE(ch))
             {
                 word.fFlags |= KSWORD_FLAGS_ESCAPE;
                 pszText++;
             }
-            if (*pszText == '*' || *pszText == '?')
+            if (KSHELL_WILDCHAR(ch))
                 word.fFlags |= KSWORD_FLAGS_PATTERN;
             pszText++;
         }
@@ -297,8 +539,9 @@ PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS p
             pszText++;
         word.cchWordOrg = pszText - word.pszWordOrg;
 
+
         /*
-         * Make a copy of the word and unescape (if required).
+         * Make a copy of the word and unescape (if needed).
          */
         word.pszWord = malloc(word.cchWordOrg + 1);
         if (!word.pszWord)
@@ -314,9 +557,11 @@ PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS p
             char *      pszTrg = word.pszWord;
             while (cch)
             {
-                if (*pszSrc == '\\')
+                char ch;
+                if ((ch = *pszSrc) == pszSrc[1] && KSHELL_ESCAPABLE(ch))
                     pszSrc++;
-                *pszTrg++ = *pszSrc++;
+                *pszTrg++ = ch;
+                pszSrc++;
             }
             word.cchWord = pszTrg - word.pszWord;
             *pszTrg = '\0';
@@ -389,6 +634,34 @@ void            kshellWordsDestroy(PKSHELLWORDS pWords)
 
 
 /**
+ * Display an syntax message.
+ * @returns KSHELL_ERROR_SYNTAX_ERROR
+ * @param   pszCmd      The command name.
+ * @param   pszMessage  Message text.
+ */
+int             kshellSyntaxError(const char *pszCmd, const char *pszMessage)
+{
+    fflush(stdout);
+    fprintf(stderr, "Syntax error while executing command '%s': %s\n", pszCmd, pszMessage);
+    return KSHELL_ERROR_SYNTAX_ERROR;
+}
+
+
+/**
+ * Display an generic message.
+ * @returns KSHELL_ERROR_SYNTAX_ERROR
+ * @param   pszCmd      The command name.
+ * @param   pszMessage  Message text.
+ */
+int             kshellError(const char *pszCmd, const char *pszMessage)
+{
+    fflush(stdout);
+    fprintf(stderr, "Error while executing command '%s': %s\n", pszCmd, pszMessage);
+    return -1;
+}
+
+
+/**
  * Execute program.
  *
  * @returns program return code.
@@ -398,7 +671,7 @@ void            kshellWordsDestroy(PKSHELLWORDS pWords)
  * @param   pszCmd  Pointer to commandline.
  * @param   pWords  Pointer to 1st word in pszCmd.
  */
-int             kshellCmdExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_ExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
@@ -412,80 +685,140 @@ int             kshellCmdExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords)
  */
 
 
-int             kshellCmdcopy(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdcopytree(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_copytree(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdrm(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_sync(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdrmtree(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_synctree(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdchdir(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_rm(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdmkdir(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_rmtree(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdrmdir(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_chdir(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdset(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_mkdir(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdunset(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_rmdir(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdpushenv(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_set(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdpopenv(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_unset(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdecho(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_pushenv(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
 
 
-int             kshellCmdwrite(const char *pszCmd, PKSHELLWORDS pWords)
+int             kshellCmd_popenv(const char *pszCmd, PKSHELLWORDS pWords)
 {
     return -1;
 }
+
+
+/** @subsubsection      echo
+ * Prints a message to stdout.
+ *
+ * <b>Syntax: echo <level> <message>
+ *
+ * Level is verbosity level of the message. This is compared with the
+ * KBUILD_MSG_LEVEL environment variable. The message is suppressed if the
+ * level is lower that KBUILD_MSG_LEVEL.
+ *
+ * The message is printed word for word normalize with a single space between
+ * the words. It's therefore a good thing to quote the message.
+ *
+ * The message can be empty. Then a blank line will be printed.
+ */
+int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords)
+{
+    int         rc = KSHELL_ERROR_SYNTAX_ERROR;
+
+    /*
+     * Get the message level from the message.
+     */
+    if (pWords->cWords >= 2)
+    {
+        unsigned uMsgLevel = kStrToUnsigned(pWords->aWords[1].pszWord, -2);
+        if (uMsgLevel != -2)
+        {
+            if (uMsgLevel <= kEnvGetUnsigned("KBUILD_MSG_LEVEL", 0))
+            {
+                /* output all the words forcing one space separation */
+                pWords = kshellWordsParse(pszCmd, -1, pWords);
+                if (pWords)
+                {
+                    int i;
+                    for (i = 2; i < pWords->cWords; i++)
+                        fwrite(pWords->aWords[i].pszWord, pWords->aWords[i].cchWord, 1, stdout);
+                }
+
+                /* new line */
+                fputc('\n', stdout);
+                fflush(stdout);
+            }
+        }
+        else
+            kshellSyntaxError("echo", "invalid message level!");
+    }
+    else
+        kshellSyntaxError("echo", "requires at least one argument!");
+
+    return -1;
+}
+
+
+int             kshellCmd_write(const char *pszCmd, PKSHELLWORDS pWords)
+{
+    return -1;
+}
+
+
 
