@@ -1,4 +1,4 @@
-# $Id: footer.kmk 98 2004-06-11 23:47:19Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 105 2004-06-24 20:05:26Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -67,12 +67,12 @@ $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 # @param    $2      normalized main target
 # @param    $3      tooltype
 _SOURCE_TOOL = $(strip $(firstword \
-	$($1_$2_$(3)TOOL.$(BUILD_TARGET)) 	$($1_$2_TOOL.$(BUILD_TARGET)) \
-	$($1_$2_$(3)TOOL) $($1_$2_TOOL) \
-	$($1_$(3)TOOL.$(BUILD_TARGET)) $($1_TOOL.$(BUILD_TARGET)) \
-	$($1_$(3)TOOL) $($1_TOOL) \
-	$($2_$(3)TOOL.$(BUILD_TARGET)) $($2_TOOL.$(BUILD_TARGET)) \
-	$($2_$(3)TOOL) $($2_TOOL) \
+	$($(1)_$(2)_$(3)TOOL.$(BUILD_TARGET)) $($(1)_$(2)_TOOL.$(BUILD_TARGET)) \
+	$($(1)_$(2)_$(3)TOOL) $($1_$2_TOOL) \
+	$($(1)_$(3)TOOL.$(BUILD_TARGET)) $($(1)_TOOL.$(BUILD_TARGET)) \
+	$($(1)_$(3)TOOL) $($1_TOOL) \
+	$($(2)_$(3)TOOL.$(BUILD_TARGET)) $($(2)_TOOL.$(BUILD_TARGET)) \
+	$($(2)_$(3)TOOL) $($(2)_TOOL) \
 	$($(3)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
 	$($(3)TOOL) $(TOOL) ))
 
@@ -128,7 +128,7 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
 define def_inherit_defaults_one
 ifndef $(target)_$(prop)
 ifdef $(prop)
-$(target)_$(prop) := $($(prop))
+$$(eval $(target)_$(prop) := $($(prop)))
 endif
 endif
 endef
@@ -141,17 +141,17 @@ endef
 define def_inherit_defaults
 ifdef $(target)_TEMPLATE
 ifndef TEMPLATE_$($(target)_TEMPLATE)_TOOL
-$(foreach prop,TOOL, $(eval $(def_inherit_defaults_one)))
+$$(foreach prop,TOOL, $$(eval $$(def_inherit_defaults_one)))
 endif
 ifndef TEMPLATE_$($(target)_TEMPLATE)_SDKS
-$(foreach prop,SDKS, $(eval $(def_inherit_defaults_one)))
+$$(foreach prop,SDKS, $$(eval $$(def_inherit_defaults_one)))
 endif
 else
-$(foreach prop,TEMPLATE TOOL SDKS,$(eval $(def_inherit_defaults_one)))
+$$(foreach prop,TEMPLATE TOOL SDKS, $$(eval $$(def_inherit_defaults_one)))
 endif
 endef
 # Inherit default properties.
-$(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_defaults)))
+$(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_defaults)))
 
 
 ## Inherit one template property in a accumulative manner.
@@ -161,12 +161,14 @@ $(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_defaults)))
 define def_inherit_template_one
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 ifndef $(target)_$(prop)
-$(eval $(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+#$$ (warning dbg1: $(target)_$(prop):='$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+$$(target)_$$(prop) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 ifndef $(target)_$(prop).$(BUILD_TARGET)
-$(eval $(target)_$(prop).$(BUILD_TARGET) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
+#$$ (warning dbg2: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$$(target)_$$(prop).$$(BUILD_TARGET) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop).$$(BUILD_TARGET))
 endif
 endif
 endef
@@ -176,30 +178,34 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+#$$ (warning dbg3: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+$$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+#$$ (warning dbg3: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
-$(eval $(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
+#$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$$(eval $(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)
-$(eval $(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)))
+#$$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
+$$(eval $(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)
-$(eval $(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)))
+#$$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
+$$(eval $(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)))
 endif
 endef
 
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
-$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL\
-	,$(eval $(def_inherit_template_one)))
-$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS LDFLAGS LIBS LIBPATH \
-	,$(eval $(def_inherit_template_one_accumulate)))
+$$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL\
+	,$$(eval $$(def_inherit_template_one)))
+$$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS LDFLAGS LIBS LIBPATH \
+	,$$(eval $$(def_inherit_template_one_accumulate)))
 endef
 # Inherit template properties
-$(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_template)))
-
+$(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_template)))
 
 
 #
@@ -282,8 +288,9 @@ $(foreach sdk, $(_SDKS), $(eval $(def_sdk)))
 # @param    $(type)       Source type. {C,CXX,AS}
 #
 # @remark   I've no clue why I've to $(eval ..) everything in this define. MAKE bug?
+# @remark	I now have a clue. Have to use $$ if not.
 define def_target_source_c_cpp_asm
-#$ (warning dbg: def_target_source_c_cpp_asm: source=$(source) target=$(target) type=$(type))
+#$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
 
 $(eval tool:=$(call _SOURCE_TOOL,$(source),$(target),$(type)))
 $(eval defs        :=\
