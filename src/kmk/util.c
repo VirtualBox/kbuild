@@ -4,6 +4,7 @@
 
 #ifndef lint
 static char rcsid[] = "$FreeBSD: src/usr.bin/make/util.c,v 1.5.2.2 2001/02/13 03:13:58 will Exp $";
+#define KLIBFILEDEF rcsid
 #endif
 
 #include <stdio.h>
@@ -26,11 +27,11 @@ strerror(e)
 {
     static char buf[100];
     if (e < 0 || e >= sys_nerr) {
-	sprintf(buf, "Unknown error %d", e);
-	return buf;
+        sprintf(buf, "Unknown error %d", e);
+        return buf;
     }
     else
-	return sys_errlist[e];
+        return sys_errlist[e];
 }
 #endif
 
@@ -49,17 +50,18 @@ strdup(str)
     size_t len;
 
     if (str == NULL)
-	return NULL;
+        return NULL;
     len = strlen(str) + 1;
     if ((p = emalloc(len)) == NULL)
-	return NULL;
+        return NULL;
 
     return memcpy(p, str, len);
 }
 
 #endif
 
-#if defined(sun) || defined(__hpux) || defined(__sgi) || defined(__EMX__) || (defined(OS2) && defined(__IBMC__))
+#ifndef USE_KLIB
+#if defined(sun) || defined(__hpux) || defined(__sgi) || defined(__EMX__)
 
 int
 setenv(name, value, dum)
@@ -74,17 +76,17 @@ setenv(name, value, dum)
     (void) dum;
 
     if (ptr == NULL)
-	return -1;
+        return -1;
 
     p = ptr;
 
     while (*name)
-	*p++ = *name++;
+        *p++ = *name++;
 
     *p++ = '=';
 
     while (*value)
-	*p++ = *value++;
+        *p++ = *value++;
 
     *p = '\0';
 
@@ -92,6 +94,7 @@ setenv(name, value, dum)
     efree(ptr);
     return len;
 }
+#endif
 #endif
 
 #ifdef __hpux
@@ -156,7 +159,7 @@ signal(s, a)) ()
 #endif
 
 /* strrcpy():
- *	Like strcpy, going backwards and returning the new pointer
+ *      Like strcpy, going backwards and returning the new pointer
  */
 static char *
 strrcpy(ptr, str)
@@ -165,7 +168,7 @@ strrcpy(ptr, str)
     register int len = strlen(str);
 
     while (len)
-	*--ptr = str[--len];
+        *--ptr = str[--len];
 
     return (ptr);
 } /* end strrcpy */
@@ -184,9 +187,9 @@ getwd(pathname)
 
     /* find the inode of root */
     if (stat("/", &st_root) == -1) {
-	(void) sprintf(pathname,
-			"getwd: Cannot stat \"/\" (%s)", strerror(errno));
-	return (NULL);
+        (void) sprintf(pathname,
+                        "getwd: Cannot stat \"/\" (%s)", strerror(errno));
+        return (NULL);
     }
     pathbuf[MAXPATHLEN - 1] = '\0';
     pathptr = &pathbuf[MAXPATHLEN - 1];
@@ -195,75 +198,75 @@ getwd(pathname)
 
     /* find the inode of the current directory */
     if (lstat(".", &st_cur) == -1) {
-	(void) sprintf(pathname,
-			"getwd: Cannot stat \".\" (%s)", strerror(errno));
-	return (NULL);
+        (void) sprintf(pathname,
+                        "getwd: Cannot stat \".\" (%s)", strerror(errno));
+        return (NULL);
     }
     nextpathptr = strrcpy(nextpathptr, "../");
 
     /* Descend to root */
     for (;;) {
 
-	/* look if we found root yet */
-	if (st_cur.st_ino == st_root.st_ino &&
-	    DEV_DEV_COMPARE(st_cur.st_dev, st_root.st_dev)) {
-	    (void) strcpy(pathname, *pathptr != '/' ? "/" : pathptr);
-	    return (pathname);
-	}
+        /* look if we found root yet */
+        if (st_cur.st_ino == st_root.st_ino &&
+            DEV_DEV_COMPARE(st_cur.st_dev, st_root.st_dev)) {
+            (void) strcpy(pathname, *pathptr != '/' ? "/" : pathptr);
+            return (pathname);
+        }
 
-	/* open the parent directory */
-	if (stat(nextpathptr, &st_dotdot) == -1) {
-	    snprintf(pathname, sizeof(pathname),
-			    "getwd: Cannot stat directory \"%s\" (%s)",
-			    nextpathptr, strerror(errno));
-	    return (NULL);
-	}
-	if ((dp = opendir(nextpathptr)) == NULL) {
-	     snprintf(pathname, sizeof(pathname),
-			    "getwd: Cannot open directory \"%s\" (%s)",
-			    nextpathptr, strerror(errno));
-	    return (NULL);
-	}
+        /* open the parent directory */
+        if (stat(nextpathptr, &st_dotdot) == -1) {
+            snprintf(pathname, sizeof(pathname),
+                            "getwd: Cannot stat directory \"%s\" (%s)",
+                            nextpathptr, strerror(errno));
+            return (NULL);
+        }
+        if ((dp = opendir(nextpathptr)) == NULL) {
+             snprintf(pathname, sizeof(pathname),
+                            "getwd: Cannot open directory \"%s\" (%s)",
+                            nextpathptr, strerror(errno));
+            return (NULL);
+        }
 
-	/* look in the parent for the entry with the same inode */
-	if (DEV_DEV_COMPARE(st_dotdot.st_dev, st_cur.st_dev)) {
-	    /* Parent has same device. No need to stat every member */
-	    for (d = readdir(dp); d != NULL; d = readdir(dp))
-		if (d->d_fileno == st_cur.st_ino)
-		    break;
-	}
-	else {
-	    /*
-	     * Parent has a different device. This is a mount point so we
-	     * need to stat every member
-	     */
-	    for (d = readdir(dp); d != NULL; d = readdir(dp)) {
-		if (ISDOT(d->d_name) || ISDOTDOT(d->d_name))
-		    continue;
-		(void) strcpy(cur_name_add, d->d_name);
-		if (lstat(nextpathptr, &st_next) == -1) {
-		    snprintf(pathname, sizeof(pathname), "getwd: Cannot stat \"%s\" (%s)",
-				    d->d_name, strerror(errno));
-		    (void) closedir(dp);
-		    return (NULL);
-		}
-		/* check if we found it yet */
-		if (st_next.st_ino == st_cur.st_ino &&
-		    DEV_DEV_COMPARE(st_next.st_dev, st_cur.st_dev))
-		    break;
-	    }
-	}
-	if (d == NULL) {
-	    (void) sprintf(pathname, "getwd: Cannot find \".\" in \"..\"");
-	    (void) closedir(dp);
-	    return (NULL);
-	}
-	st_cur = st_dotdot;
-	pathptr = strrcpy(pathptr, d->d_name);
-	pathptr = strrcpy(pathptr, "/");
-	nextpathptr = strrcpy(nextpathptr, "../");
-	(void) closedir(dp);
-	*cur_name_add = '\0';
+        /* look in the parent for the entry with the same inode */
+        if (DEV_DEV_COMPARE(st_dotdot.st_dev, st_cur.st_dev)) {
+            /* Parent has same device. No need to stat every member */
+            for (d = readdir(dp); d != NULL; d = readdir(dp))
+                if (d->d_fileno == st_cur.st_ino)
+                    break;
+        }
+        else {
+            /*
+             * Parent has a different device. This is a mount point so we
+             * need to stat every member
+             */
+            for (d = readdir(dp); d != NULL; d = readdir(dp)) {
+                if (ISDOT(d->d_name) || ISDOTDOT(d->d_name))
+                    continue;
+                (void) strcpy(cur_name_add, d->d_name);
+                if (lstat(nextpathptr, &st_next) == -1) {
+                    snprintf(pathname, sizeof(pathname), "getwd: Cannot stat \"%s\" (%s)",
+                                    d->d_name, strerror(errno));
+                    (void) closedir(dp);
+                    return (NULL);
+                }
+                /* check if we found it yet */
+                if (st_next.st_ino == st_cur.st_ino &&
+                    DEV_DEV_COMPARE(st_next.st_dev, st_cur.st_dev))
+                    break;
+            }
+        }
+        if (d == NULL) {
+            (void) sprintf(pathname, "getwd: Cannot find \".\" in \"..\"");
+            (void) closedir(dp);
+            return (NULL);
+        }
+        st_cur = st_dotdot;
+        pathptr = strrcpy(pathptr, d->d_name);
+        pathptr = strrcpy(pathptr, "/");
+        nextpathptr = strrcpy(nextpathptr, "../");
+        (void) closedir(dp);
+        *cur_name_add = '\0';
     }
 } /* end getwd */
 
@@ -335,9 +338,9 @@ signal(s, a)) ()
     sa.sa_flags = SA_RESTART;
 
     if (sigaction(s, &sa, &osa) == -1)
-	return SIG_ERR;
+        return SIG_ERR;
     else
-	return osa.sa_handler;
+        return osa.sa_handler;
 }
 
 #endif

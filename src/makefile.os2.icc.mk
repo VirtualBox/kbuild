@@ -1,4 +1,4 @@
-# $Id: makefile.os2.icc.mk 48 2003-04-05 03:22:01Z knut.osmundsen@oracle.com $
+# $Id: makefile.os2.icc.mk 51 2003-04-07 01:30:32Z knut.osmundsen@oracle.com $
 #
 # OS/2 VAC++ v3.08 bootstrap makefile.
 #
@@ -32,23 +32,31 @@ POSTFIX     = .dbg
 !ifdef PROFILE
 POSTFIX     = .prf
 !endif
-OBJDIR      = ..\obj\os2-icc-kmk.$(POSTFIX)
+OBJDIR      = ..\obj\os2-icc-kmk$(POSTFIX)
 
 # paths
 PATH_KLIB   = g:\ktaskmgr\tree
 # PATH_TOOLKIT, PATH_VAC308,.. is defined in the environment.
 
 # compiler setup
+CC          = icc.exe
 !ifdef DEBUG
 CFLAGS_1    = /O- -DDEBUG
 !endif
 !ifdef PROFILE
 CFLAGS_1    = /O+ /Gh
 !endif
-CFLAGS      = /Q /Ti+ /Gm /Ge /Gl -DOS2 -D__i386__ -DKMK -I$(PATH_KLIB)\Generic\include -I$(PATH_TOOLKIT)\h -I$(PATH_VAC308)\include $(CFLAGS_1)
-CFLAGS_KMK  = /IkMk\include $(CFLAGS)
+CFLAGS      = /Q /Ti+ /Gm /Ge /Gl /W3 -DOS2 -D__i386__ -DKMK \
+              -I$(PATH_KLIB)\Generic\include \
+              -I$(PATH_KLIB)\Generic\include\kLibCRT \
+              -I$(PATH_TOOLKIT)\h \
+              -I$(PATH_VAC308)\include \
+              $(CFLAGS_1)
+CFLAGS_KMK  = -IkMk\include -IkMk -DUSE_KLIB $(CFLAGS) -UDEBUG  -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
 
 # linker setup
+LD          = ilink.exe
+STRIP       =
 !ifdef DEBUG
 LDFLAGS_1   = /NOEXEPACK
 !endif
@@ -56,7 +64,8 @@ LDFLAGS_1   = /NOEXEPACK
 LDFLAGS_1   =
 !endif
 !ifndef LDFLAGS_1 #releas
-LDFLAGS_1   = /EXEPACK:2 /Packcode /Packdata
+LDFLAGS_1   = /Packcode /Packdata
+STRIP       = lxlite.exe
 !endif
 LDFLAGS     = /NoLogo /NoExtDictionary /Optfunc /Base:0x10000 /Map /Linenumbers /Debug /PmType:vio $(LDFLAGS_1)
 
@@ -72,7 +81,7 @@ LDFLAGS     = /NoLogo /NoExtDictionary /Optfunc /Base:0x10000 /Map /Linenumbers 
     $(CC) -c $(CFLAGS_KMK) -Fo$(OBJDIR)\$(@F) $(MAKEDIR)\kMk\$(<F)
 
 {.\kMk\lst.lib}.c{$(OBJDIR)}.obj:
-    $(CC) -c $(CFLAGS_KMK) -Fo$(OBJDIR)\$(@F) $(MAKEDIR)\kMk\lst.lib$(<F)
+    $(CC) -c $(CFLAGS_KMK) -Fo$(OBJDIR)\$(@F) $(MAKEDIR)\kMk\lst.lib\$(<F)
 
 
 # object files
@@ -142,17 +151,17 @@ $(PATH_KLIB)\lib\debug\kLib.lib \
 $(PATH_KLIB)\lib\debug\kProfile.lib \
 !endif
 !endif
-$(PATH_TOOLKIT)\os2386.lib \
-$(VAC308_TOOLKIT)\cppom30.lib \
-                    
-                
-# the rules             
+$(PATH_TOOLKIT)\lib\os2386.lib \
+$(PATH_VAC308)\lib\cppom30.lib \
+
+
+# the rules
 all: $(OBJDIR) $(OBJDIR)\kMk.exe
 
 
 $(OBJDIR):
-    -mkdir ..\obj
-    -mkdir $(OBJDIR)
+    -if not exist ..\obj    mkdir ..\obj
+    -if not exist $(OBJDIR) mkdir $(OBJDIR)
 
 $(OBJDIR)\kMk.exe: $(OBJS)
     $(LD) $(LDFLAGS) @<<$(OBJDIR)\$(@F).lnk
@@ -161,4 +170,17 @@ $(OBJDIR)\kMk.exe: $(OBJS)
 $(OBJS)
 $(LIBS)
 <<KEEP
+!if "$(STRIP)" != ""
+    copy $(OBJDIR)\kMk.exe $(OBJDIR)\kMk.dbg
+    $(STRIP) $(OBJDIR)\kMk.exe
+!endif
 
+
+clean:
+!if "$(OBJDIR)" != "" && "$(OBJDIR)" != "\"
+!if "$(COMSPEC:CMD.EXE=sure)" != "$(COMSPEC)"
+    -del /N $(OBJDIR)\*
+!else # assume 4os2
+    -del /Y /E $(OBJDIR)\*
+!endif
+!endif
