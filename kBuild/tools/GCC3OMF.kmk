@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 186 2004-12-12 06:06:35Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 187 2004-12-12 06:43:37Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -188,12 +188,13 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_DLL
 #$ (warning dbg: TOOL_GCC3OMF_LINK_PROGRAM: target=$(target) dll=$(dll) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(dll): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+$(dll): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc))
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif
 	$(TOOL_GCC3OMF_LD) $(TOOL_GCC3OMF_LDFLAGS.dll) $(flags) -o $$@ $(objs) \
+	$(filter %.def, $(othersrc)) \
 	$(foreach p,$(libpath), -L$(p)) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
