@@ -1,4 +1,4 @@
-# $Id: footer.kmk 89 2004-06-04 18:21:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 91 2004-06-07 14:38:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -584,6 +584,7 @@ $(eval libsuff     := $(firstword\
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval lib         := $(outbase)$(libsuff))
 $(eval objs         = $(_OBJS_$(target)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
 $(eval dirdep      := $(dir $(lib)).dir_created)
 ## @todo fix dependencies on makefiles an such
 $(eval deps        := )
@@ -698,6 +699,7 @@ $(eval custom_post    := $(strip $(firstword
 	$(CUSTOM_POST.$(BUILD_TYPE))\
 	$(CUSTOM_POST)\
 )))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
@@ -815,6 +817,7 @@ $(eval custom_post    := $(strip $(firstword
 	$(CUSTOM_POST.$(BUILD_TYPE))\
 	$(CUSTOM_POST)\
 )))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
 
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
