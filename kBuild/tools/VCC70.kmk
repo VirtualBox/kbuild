@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 130 2004-06-29 17:30:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -142,13 +142,13 @@ endef
 # @param    $(flags)    Flags.
 # @param	$(dirdep)   Directory creation dependency.
 # @param	$(deps)		Other dependencies.
-# @param	$(deffile)  Definition file. (optional, PC only)
+# @param	$(othersrc) Unhandled sources.
 # @param	$(custom_pre)   Custom step invoked before linking.
 # @param	$(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_VCC70_LINK_PROGRAM
-#$ (warning dbg: TOOL_VCC70_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+#$ (warning dbg: TOOL_VCC70_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
 $(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
@@ -158,10 +158,11 @@ endif
 		/OUT:$(exe) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
 		/MAP:$(outbase).map \
+		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
+		$(filter %.exp %.res,$(othersrc)) \
+		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-	$(MKDIR) -p $(PATH_BIN)
-	$(CP) $$@ $(PATH_BIN)/
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif	
@@ -179,13 +180,13 @@ endef
 # @param    $(flags)    Flags.
 # @param	$(dirdep)   Directory creation dependency.
 # @param	$(deps)		Other dependencies.
-# @param	$(deffile)  Definition file. (optional, PC only)
+# @param	$(othersrc) Unhandled sources.
 # @param	$(custom_pre)   Custom step invoked before linking.
 # @param	$(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_VCC70_LINK_SYSMOD
-#$ (warning dbg: TOOL_VCC70_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+#$ (warning dbg: TOOL_VCC70_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
 $(sys): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
@@ -195,14 +196,58 @@ endif
 		/OUT:$(sys) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
 		/MAP:$(outbase).map \
+		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
+		$(filter %.exp %.res,$(othersrc)) \
+		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-	$(MKDIR) -p $(PATH_BIN)
-	$(CP) $$@ $(PATH_BIN)/
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif	
 _OUT_FILES += $(outbase).map
+
+endef
+
+
+## Link system module (windows aka driver, linux aka kernel module)
+# @param    $(target)   Normalized main target name.
+# @param    $(dll)		System module name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
+# @param	$(othersrc) Unhandled sources.
+# @param	$(custom_pre)   Custom step invoked before linking.
+# @param	$(custom_post)  Custom step invoked after linking.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+define TOOL_VCC70_LINK_DLL
+#$ (warning dbg: TOOL_VCC70_LINK_DLL: target=$(target) dll=$(dll) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
+$(dll): $(dirdep) $(call DIRDEP,$(PATH_LIB)) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+	$(call MSG_L1,Creating Program $$@)
+ifneq ($(custom_pre),)
+	$(eval $(custom_pre))
+endif	
+	$(TOOL_VCC70_LD) $(flags) \
+		/OUT:$(dll) \
+		/IMPLIB:$(outbase).lib \
+		/MAPINFO:EXPORTS /MAPINFO:LINES \
+		/MAP:$(outbase).map \
+		/DLL \
+		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
+		$(filter %.exp %.res,$(othersrc)) \
+		$(foreach p,$(libpath), /LIBPATH:$(p)) \
+		$(subst /,\\,$(objs)) \
+		$(subst /,\\,$(libs))
+ifeq ($(filter %.exp .def,$(othersrc)),)
+	$(CP) $(outbase).exp $(outbase).lib $(PATH_LIB)/
+endif
+ifneq ($(custom_post),)
+	$(eval $(custom_post))
+endif	
+_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp
 
 endef
 
