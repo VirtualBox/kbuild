@@ -1,4 +1,4 @@
-# $Id: footer.kmk 190 2004-12-14 18:53:05Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 205 2004-12-29 19:42:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -343,6 +343,7 @@ $(foreach sdk, $(_SDKS), $(eval $(def_sdks_include_one)))
 # Object processing.
 #
 
+
 ## Generic macro for processing C, C++ and Assembly sources.
 # @param    $(target)     Normalized target name.
 # @param    $(source)     Source file name.
@@ -628,6 +629,9 @@ $$(warning kBuild: tools: \
 	16 $(TOOL) )
 endif
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
+
+$$(notdir $$(obj))::
+	$$(MAKE) -B -f $$(MAKEFILE) $(obj)
 
 $(eval _OBJS_$(target) += $(obj))
 $(eval _DEPFILES       += $(dep))
@@ -1400,9 +1404,9 @@ rebuild: clean
 target:    needed libraries binaries others
 objects:   $(_OBJS)
 libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
-dlls:      $(_DLLS) 
-programs:  $(_EXES) 
-sysmods:   $(_SYSMODS) 
+dlls:      $(_DLLS)
+programs:  $(_EXES)
+sysmods:   $(_SYSMODS)
 
 
 # end-of-file-content
