@@ -1,8 +1,49 @@
-# $Id: Makefile.kmk 200 2004-12-17 14:05:38Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 202 2004-12-17 15:03:42Z knut.osmundsen@oracle.com $
+export KBUILD_VCC70_DEPS = 1
 
-PROGRAMS = kmk
+PROGRAMS            = kmk
+
+kmk_TOOL            = GCC3
+kmk_TOOL.os2        = GCC3OMF
+kmk_TOOL.win32      = VCC70
+
+kmk_CFLAGS.linux.release    = -O3
+kmk_CFLAGS.os2.relase       = -O3
+kmk_CFLAGS.win32            = -MT -W3
+
+kmk_DEPS            = $(PATH_TARGET)/config.h
+
+kmk_INCS            = $(PATH_TARGET) .
+kmk_INCS.win32      = \
+	w32/include \
+	glob \
+	$(PATH_DEV)/x86.win32/vcc70/include \
+	$(PATH_DEV)/x86.win32/sdk200209/include
+
+kmk_DEFS            = \
+	HAVE_CONFIG_H \
+	CONFIG_NO_DEFAULT_SUFFIXES \
+	CONFIG_NO_DEFAULT_PATTERN_RULES	\
+	CONFIG_NO_DEFAULT_TERMINAL_RULES \
+	CONFIG_NO_DEFAULT_SUFFIX_RULES \
+	CONFIG_NO_DEFAULT_VARIABLES
+kmk_DEFS.win32          = WINDOWS32 _CONSOLE WIN32
+kmk_DEFS.win32.release  = NDEBUG
+
+kmk_LDFLAGS.linux.release   = -s 
+kmk_LDFLAGS.os2             = -Zhigh-mem -Zstack=1024
+kmk_LDFLAGS.os2.release     = -s
+kmk_LDFLAGS.win32           = /SUBSYSTEM:console /INCREMENTAL:no /NOD
+
+kmk_LIBS.linux              = rt
+kmk_LIBS.win32              = \
+	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
+	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib 
 	
-kmk_SOURCES = \
+kmk_SOURCES         = \
 	main.c \
 	read.c \
 	hash.c \
@@ -29,22 +70,19 @@ kmk_SOURCES.os2 = \
 	getopt.c \
 	getopt1.c \
 
-kmk_INCS = $(PATH_TARGET)
-		
-kmk_DEFS = \
-	HAVE_CONFIG_H \
-	CONFIG_NO_DEFAULT_SUFFIXES \
-	CONFIG_NO_DEFAULT_PATTERN_RULES	\
-	CONFIG_NO_DEFAULT_TERMINAL_RULES \
-	CONFIG_NO_DEFAULT_SUFFIX_RULES \
-	CONFIG_NO_DEFAULT_VARIABLES
-#MAKE_DLLSHELL
-#HAVE_CONFIG_H
+kmk_SOURCES.win32 = \
+	getopt.c \
+	getopt1.c \
+	getloadavg.c \
+	w32/subproc/misc.c \
+	w32/subproc/sub_proc.c \
+	w32/subproc/w32err.c \
+	glob/glob.c \
+	glob/fnmatch.c \
+	w32/compat/dirent.c \
+	w32/pathstuff.c
 
-kmk_DEPS        = $(PATH_TARGET)/config.h
-kmk_TOOL.os2    = GCC3OMF
-kmk_CFLAGS.os2  =
-kmk_LDFLAGS.os2 = -Zhigh-mem -Zstack=1024
+#MAKE_DLLSHELL
 
 
 DEPTH = ../..

@@ -20,7 +20,8 @@
 
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
-#define ENABLE_NLS 1
+/* #define ENABLE_NLS 1 */
+#undef ENABLE_NLS
 
 /* Use high resolution file timestamps if nonzero. */
 #define FILE_TIMESTAMP_HI_RES 1
@@ -401,3 +402,10 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
+
+
+#define LOCALEDIR   ""
+#define ALIASPATH   ""
+#define LIBDIR      ""
+#define INCLUDEDIR  ""
+
