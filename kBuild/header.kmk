@@ -1,4 +1,4 @@
-# $Id: header.kmk 233 2005-02-09 21:47:08Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 237 2005-02-10 23:12:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -266,6 +266,7 @@ MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
 RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
 CP                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
 endif
+CP_EXT              := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
 MV                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
 SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
 CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
