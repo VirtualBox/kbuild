@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 94 2004-06-08 14:48:28Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 112 2004-06-24 22:28:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -72,13 +72,13 @@ TOOL_GCC3_LDFLAGS.release    := -s
 # @param	$(objsuff)  Object suffix.
 define TOOL_GCC3_COMPILE_C
 #$ (warning dbg: TOOL_GCC3_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+$(obj): $(dirdep) $(source)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
-		$(PATH_CURRENT)/$(source)		
+		$(source)		
 		
 endef
 
@@ -97,13 +97,13 @@ endef
 # @param	$(objsuff)  Object suffix.
 define TOOL_GCC3_COMPILE_CXX
 #$ (warning dbg: TOOL_GCC3_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+$(obj): $(dirdep) $(source)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
-		$(PATH_CURRENT)/$(source)		
+		$(source)		
 		
 endef
 
