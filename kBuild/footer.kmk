@@ -1,4 +1,4 @@
-# $Id: footer.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 185 2004-12-12 04:55:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -129,6 +129,20 @@ _OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basena
 # @param    $1      real target name.
 # @param    $2      normalized main target
 _TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(1))))
+
+
+#
+# Check syntax which leads to weird syntax errors.
+#
+
+## Check
+# @param	$(target)	Target name.
+define def_check_target
+ifneq ("$($(target)_TEMPLATE)","$(strip $($(target)_TEMPLATE))")
+$$(error $(target) have an incorrect template name. Remove any tabs!)
+endif
+endef
+$(foreach target, $(ALL_TARGETS),$(eval $(def_check_target)))
 
 
 #
