@@ -1,4 +1,4 @@
-# $Id: footer.kmk 238 2005-02-14 13:09:30Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 239 2005-02-14 13:18:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -34,6 +34,7 @@ ifndef __footer_kmk__
 
 # all targets.
 ALL_TARGETS := \
+	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM)) \
 	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET)) \
 	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) \
 	$(DLLS)        $(DLLS.$(BUILD_TARGET)) \
@@ -794,6 +795,17 @@ $(eval custom_post    := $(strip $(firstword
 	$(CUSTOM_POST)\
 )))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
+
+ifndef TOOL_$(tool)_LINK_PROGRAM
+$$(warning kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
+$$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(bld_trg)) \
+	4 $($(target)_TOOL) \
+	5 $(TOOL.$(bld_trg)) \
+	6 $(TOOL) )
+endif
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 # publish rule (still need work)
