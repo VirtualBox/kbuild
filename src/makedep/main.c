@@ -386,29 +386,33 @@ main(int argc, char *argv[])
 		fatalerr("Too many -I flags.\n");
 	    *incp++ = PREINCDIR;
 #endif
-#ifdef __UNIXOS2__
-	    {
-		char *emxinc = getenv("C_INCLUDE_PATH");
-		/* can have more than one component */
-		if (emxinc) {
-		    char *beg, *end;
-		    beg= (char*)strdup(emxinc);
-		    for (;;) {
-			end = (char*)strchr(beg,';');
-			if (end) *end = 0;
-		    	if (incp >= includedirs + MAXDIRS)
-				fatalerr("Too many include dirs\n");
-			*incp++ = beg;
-			if (!end) break;
-			beg = end+1;
-		    }
-		}
-	    }
-#else /* !__UNIXOS2__, does not use INCLUDEDIR at all */
-	    if (incp >= includedirs + MAXDIRS)
+
+// This is bull, all gcc versions use this - OS/2 is not special case.
+//#ifdef __UNIXOS2__
+//	    {
+//		char *emxinc = getenv("C_INCLUDE_PATH");
+//		/* can have more than one component */
+//		if (emxinc) {
+//		    char *beg, *end;
+//		    beg= (char*)strdup(emxinc);
+//		    for (;;) {
+//			end = (char*)strchr(beg,';');
+//			if (end) *end = 0;
+//		    	if (incp >= includedirs + MAXDIRS)
+//				fatalerr("Too many include dirs\n");
+//			*incp++ = beg;
+//			if (!end) break;
+//			beg = end+1;
+//		    }
+//		}
+//	    }
+//#else /* !__UNIXOS2__, does not use INCLUDEDIR at all */
+#ifdef INCLUDEDIR /* bird */
+            if (incp >= includedirs + MAXDIRS)
 		fatalerr("Too many -I flags.\n");
 	    *incp++ = INCLUDEDIR;
-#endif
+#endif 
+//#endif
 
 #ifdef EXTRAINCDIR
 	    if (incp >= includedirs + MAXDIRS)
