@@ -1,4 +1,4 @@
-# $Id: up.kmk 212 2005-01-08 07:23:23Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 215 2005-01-15 22:10:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a up forwarder makefile.
@@ -48,6 +48,7 @@ pass_nothing \
 pass_others \
 pass_packing \
 programs \
+rebuild \
 sysmods \
 target \
 	:
