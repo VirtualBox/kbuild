@@ -79,7 +79,8 @@ static const char rcsid[] =
  */
 
 #ifdef USE_KLIB
- #include <kLib/kLib.h>
+    #define KLIB_INSTRICT
+    #include <kLib/kLib.h>
 #endif
 
 #include <sys/types.h>
