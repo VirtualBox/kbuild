@@ -29,6 +29,11 @@ in this Software without prior written authorization from The Open Group.
 
 #include "def.h"
 
+/* mozilla: */
+#ifdef _MSC_VER
+#define S_ISDIR(m) (((m) & _S_IFDIR) == _S_IFDIR)
+#endif
+
 extern struct	inclist	inclist[ MAXFILES ],
 			*inclistp, *inclistnext;
 extern char	*includedirs[ ],
@@ -118,7 +123,7 @@ remove_dotdot(char *path)
 		    char **fp = cp + 2;
 		    char **tp = cp;
 
-		    do 
+		    do
 			*tp++ = *fp; /* move all the pointers down */
 		    while (*fp++);
 		    if (cp != components)
@@ -266,7 +271,7 @@ inc_path(char *file, char *include, int type)
 		if ((type == INCLUDEDOT) ||
 		    (type == INCLUDENEXTDOT) ||
 		    (*include == '/')) {
-			if (stat(include, &st) == 0)
+			if (stat(include, &st) == 0 && !S_ISDIR(st.st_mode)) /* mozilla */
 				return newinclude(include, include);
 			if (show_where_not)
 				warning1("\tnot in %s\n", include);
@@ -288,7 +293,7 @@ inc_path(char *file, char *include, int type)
 				strcpy(path + (p-file) + 1, include);
 			}
 			remove_dotdot(path);
-			if (stat(path, &st) == 0)
+			if (stat(path, &st) == 0 && !S_ISDIR(st.st_mode)) /* mozilla */
 				return newinclude(path, include);
 			if (show_where_not)
 				warning1("\tnot in %s\n", path);
@@ -306,7 +311,7 @@ inc_path(char *file, char *include, int type)
 	for (; *pp; pp++) {
 		sprintf(path, "%s/%s", *pp, include);
 		remove_dotdot(path);
-		if (stat(path, &st) == 0) {
+		if (stat(path, &st) == 0 && !S_ISDIR(st.st_mode)) { /* mozilla */
 			includedirsnext = pp + 1;
 			return newinclude(path, include);
 		}

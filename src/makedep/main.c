@@ -157,6 +157,7 @@ main(int argc, char *argv[])
 	char *defincdir = NULL;
 	char **undeflist = NULL;
 	int numundefs = 0, i;
+	register char offset; /* mozilla */
 
 	ProgramName = argv[0];
 
@@ -231,16 +232,22 @@ main(int argc, char *argv[])
 			if (endmarker[0] == '\0') endmarker = "--";
 			break;
 		case 'D':
+			offset = 2; /* mozilla */
+Imaginary Buffer Line
 			if (argv[0][2] == '\0') {
 				argv++;
 				argc--;
+				offset = 0;
 			}
-			for (p=argv[0] + 2; *p ; p++)
+			/* offset +1 here since first def letter
+			 * cannot be `=`
+			 */
+			for (p = argv[0] + offset + 1; *p; p++) /* mozilla */
 				if (*p == '=') {
 					*p = ' ';
 					break;
 				}
-			define(argv[0] + 2, &maininclist);
+			define(argv[0] + offset, &maininclist); /* mozilla */
 			break;
 		case 'I':
 			if (incp >= includedirs + MAXDIRS)
@@ -259,11 +266,13 @@ main(int argc, char *argv[])
 			else
 			    undeflist = realloc(undeflist,
 						numundefs * sizeof(char *));
+			offset = 2;  /* mozilla */
 			if (argv[0][2] == '\0') {
 				argv++;
 				argc--;
+				offset = 0;  /* mozilla */
 			}
-			undeflist[numundefs - 1] = argv[0] + 2;
+			undeflist[numundefs - 1] = argv[0] + offset; /* mozilla */
 			break;
 		case 'Y':
 			defincdir = argv[0]+2;
@@ -509,7 +518,7 @@ main(int argc, char *argv[])
 /*
  * eliminate \r chars from file
  */
-static int 
+static int
 elim_cr(char *buf, int sz)
 {
 	int i,wp;
@@ -633,7 +642,7 @@ char *getnextline(struct filepointer *filep)
 			}
 			whitespace = TRUE;
 		}
-        
+
 		if (*p == '/' && (p+1) < eof && *(p+1) == '*') {
 			/* Consume C comments */
 			*(p++) = ' ';
@@ -661,7 +670,7 @@ char *getnextline(struct filepointer *filep)
 					lineno++;
 				}
 				else if (*p == '?' && (p+3) < eof &&
-					 *(p+1) == '?' && 
+					 *(p+1) == '?' &&
 					 *(p+2) == '/' &&
 					 *(p+3) == '\n') {
 					*(p++) = ' ';
@@ -697,7 +706,7 @@ char *getnextline(struct filepointer *filep)
 
 				*(p++) = '\0';
 				/* punt lines with just # (yacc generated) */
-				for (cp = bol+1; 
+				for (cp = bol+1;
 				     *cp && (*cp == ' ' || *cp == '\t'); cp++);
 				if (*cp) goto done;
 				--p;
