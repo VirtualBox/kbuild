@@ -192,6 +192,7 @@ Make_OODate (gn)
 	    printf(".USE node...");
 	}
 	oodate = FALSE;
+#ifdef USE_ARCHIVES
     } else if (gn->type & OP_LIB) {
 	if (DEBUG(MAKE)) {
 	    printf("library...");
@@ -203,6 +204,7 @@ Make_OODate (gn)
 
 	oodate = Arch_LibOODate (gn) ||
 	    ((gn->cmtime == 0) && (gn->type & OP_DOUBLEDEP));
+#endif
     } else if (gn->type & OP_JOIN) {
 	/*
 	 * A target with the .JOIN attribute is only considered
@@ -617,7 +619,7 @@ MakeAddAllSrc (cgnp, pgnp)
     return (0);
 }
 
-#ifdef KMK
+#ifdef USE_PARENTS
 /*-
  *-----------------------------------------------------------------------
  * MakeAddAllSrc --
@@ -630,7 +632,7 @@ MakeAddAllSrc (cgnp, pgnp)
  *-----------------------------------------------------------------------
  */
 static int
-MakeAddParents (cgnp, pgnp)
+MakeAddParents (pgnp, cgnp)
     ClientData	pgnp;	/* The parent to add to add */
     ClientData	cgnp;	/* The child to whose PARENTS variable it should be */
 {
@@ -640,14 +642,11 @@ MakeAddParents (cgnp, pgnp)
 	char *parent;
 	char *p1 = NULL;
 
-	if (OP_NOP(pgn->type)) {
-	    /*
-	     * this node is only source; use the specific pathname for it
-	     */
+
+	if (OP_NOP(pgn->type) || !(parent = Var_Value(TARGET, pgn, &p1))) {
+	    /* this node is only source; use the specific pathname for it */
 	    parent = pgn->path ? pgn->path : pgn->name;
-	}
-	else
-	    parent = Var_Value(TARGET, pgn, &p1);
+        }
 	Var_Append(PARENTS, parent, cgn);
 	efree(p1);
     }
@@ -682,9 +681,9 @@ Make_DoAllVar (gn)
     GNode	*gn;
 {
     Lst_ForEach (gn->children, MakeAddAllSrc, (ClientData) gn);
-    #ifdef KMK
+#ifdef USE_PARENTS
     Lst_ForEach (gn->parents, MakeAddParents, (ClientData) gn);
-    #endif
+#endif
 
     if (!Var_Exists (OODATE, gn)) {
 	Var_Set (OODATE, "", gn);

@@ -274,7 +274,9 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 					debug = ~0;
 					break;
 				case 'a':
+#ifdef USE_ARCHIVES
 					debug |= DEBUG_ARCH;
+#endif /* else ignore */
 					break;
 				case 'c':
 					debug |= DEBUG_COND;
@@ -605,7 +607,7 @@ main(argc, argv)
 	    struct utsname utsname;
 
 	    if (uname(&utsname) == -1) {
-		    perror("make: uname");
+		    perror(MAKE_NAME ": uname");
 		    exit(2);
 	    }
 	    machine = utsname.machine;
@@ -774,7 +776,9 @@ main(argc, argv)
 	 * Initialize archive, target and suffix modules in preparation for
 	 * parsing the makefile(s)
 	 */
+#ifdef USE_ARCHIVES
 	Arch_Init();
+#endif
 	Targ_Init();
 	Suff_Init();
 
@@ -854,21 +858,30 @@ main(argc, argv)
 
 		sysMkPath = Lst_Init (FALSE);
 		Dir_Expand (_PATH_DEFSYSMK, sysIncPath, sysMkPath);
-                #ifdef NMAKE
+#ifdef NMAKE
 		if (!Lst_IsEmpty(sysMkPath))
                 {
                     ln = Lst_Find(sysMkPath, (ClientData)NULL, ReadMakefile);
                     if (ln != NILLNODE)
-                            Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+                            Fatal(MAKE_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
                 }
-                /* Fatal("make: no system rules (%s).", _PATH_DEFSYSMK); */
-                #else
+
+#elif defined(KMK)
+		if (!Lst_IsEmpty(sysMkPath))
+                {
+                    ln = Lst_Find(sysMkPath, (ClientData)NULL, ReadMakefile);
+                    if (ln != NILLNODE)
+                            Fatal(MAKE_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
+
+                }
+		Error(MAKE_NAME ": no config rules (%s).", _PATH_DEFSYSMK);
+#else
 		if (Lst_IsEmpty(sysMkPath))
-			Fatal("make: no system rules (%s).", _PATH_DEFSYSMK);
+			Fatal(MAKE_NAME ": no system rules (%s).", _PATH_DEFSYSMK);
 		ln = Lst_Find(sysMkPath, (ClientData)NULL, ReadMakefile);
 		if (ln != NILLNODE)
-			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
-                #endif
+			Fatal(MAKE_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
+#endif
 	}
 
 	if (!Lst_IsEmpty(makefiles)) {
@@ -876,7 +889,7 @@ main(argc, argv)
 
 		ln = Lst_Find(makefiles, (ClientData)NULL, ReadMakefile);
 		if (ln != NILLNODE)
-			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+			Fatal(MAKE_NAME ": cannot open %s.", (char *)Lst_Datum(ln));
 	} else
             #ifdef KMK
             if (    !ReadMakefile("Makefile.kMk", NULL)
@@ -1024,7 +1037,9 @@ main(argc, argv)
 
 	Suff_End();
         Targ_End();
+#ifdef USE_ARCHIVES
 	Arch_End();
+#endif
 	str_end();
 	Var_End();
 	Parse_End();
@@ -1356,7 +1371,7 @@ Punt(va_alist)
 	fmt = va_arg(ap, char *);
 #endif
 
-	(void)fprintf(stderr, "make: ");
+	(void)fprintf(stderr, MAKE_NAME ": ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	(void)fprintf(stderr, "\n");
@@ -1504,13 +1519,18 @@ usage()
 #ifdef NMAKE
 "%s\n"
 #endif
+#ifdef KMK
+"%s\n"
+#endif
     ,
 "usage: kmk [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
 "           [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "           [variable=value] [target ...]"
 #ifdef NMAKE
 ,"NMAKE compatible mode enabled."
-
+#endif
+#ifdef KMK
+,"kMk extensions enabled."
 #endif
 );
 	exit(2);

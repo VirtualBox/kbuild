@@ -977,9 +977,12 @@ Dir_MTime (gn)
     struct stat	  stb;	      /* buffer for finding the mod time */
     Hash_Entry	  *entry;
 
+    #ifdef USE_ARCHIVES
     if (gn->type & OP_ARCHV) {
 	return Arch_MTime (gn);
-    } else if (gn->path == (char *)NULL) {
+    } else
+    #endif
+        if (gn->path == (char *)NULL) {
 	fullName = Dir_FindFile (gn->name, dirSearchPath);
     } else {
 	fullName = gn->path;
@@ -1003,13 +1006,14 @@ Dir_MTime (gn)
 	stb.st_mtime = (time_t)(long)Hash_GetValue(entry);
 	Hash_DeleteEntry(&mtimes, entry);
     } else if (stat (fullName, &stb) < 0) {
+        #ifdef USE_ARCHIVES
 	if (gn->type & OP_MEMBER) {
 	    if (fullName != gn->path)
 		efree(fullName);
 	    return Arch_MemMTime (gn);
-	} else {
+	} else
+        #endif
 	    stb.st_mtime = 0;
-	}
     }
     if (fullName && gn->path == (char *)NULL) {
 	gn->path = fullName;

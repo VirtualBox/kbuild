@@ -165,11 +165,15 @@ Targ_NewGN (name)
     gn = (GNode *) emalloc (sizeof (GNode));
     gn->name = estrdup (name);
     gn->path = (char *) 0;
+#ifdef USE_ARCHIVES
     if (name[0] == '-' && name[1] == 'l') {
 	gn->type = OP_LIB;
     } else {
 	gn->type = 0;
     }
+#else
+    gn->type = 0;
+#endif
     gn->unmade =    	0;
     gn->make = 	    	FALSE;
     gn->made = 	    	UNMADE;
@@ -516,10 +520,12 @@ Targ_PrintType (type)
 	    PRINTBIT(JOIN);
 	    PRINTBIT(INVISIBLE);
 	    PRINTBIT(NOTMAIN);
+#ifdef USE_ARCHIVES
 	    PRINTDBIT(LIB);
-	    /*XXX: MEMBER is defined, so CONCAT(OP_,MEMBER) gives OP_"%" */
+            /*XXX: MEMBER is defined, so CONCAT(OP_,MEMBER) gives OP_"%" */
 	    case OP_MEMBER: if (DEBUG(TARG)) printf(".MEMBER "); break;
 	    PRINTDBIT(ARCHV);
+#endif
 	}
     }
 }

@@ -1,9 +1,11 @@
-# $Id: smoketest.kMk 45 2003-04-03 02:23:37Z knut.osmundsen@oracle.com $
+# $Id: smoketest.kMk 46 2003-04-04 00:03:50Z knut.osmundsen@oracle.com $
 
 
-notall: # comment
+notall:     # comment
     echo notall, but it's the first rule.
 
+
+#.MAIN: all
 
 all:
     echo this is all.
