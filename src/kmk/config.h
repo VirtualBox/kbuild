@@ -158,6 +158,15 @@
 
 
 /*
+ * USE_ISODATES
+ *      If defined dates and times will be outputted in ISO format.
+ */
+#if defined(KMK)
+#define USE_ISODATES 1
+#endif
+
+
+/*
  * MAKE_NAME
  *      The name of the make program as shown in the messages.
  */

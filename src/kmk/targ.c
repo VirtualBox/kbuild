@@ -472,8 +472,14 @@ Targ_FmtTime (time)
 
     parts = localtime(&time);
 
+#ifdef USE_ISODATES
+    sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d",
+            parts->tm_year + 1900, parts->tm_mon, parts->tm_mday,
+            parts->tm_hour, parts->tm_min, parts->tm_sec);
+#else
     strftime(buf, sizeof buf, "%k:%M:%S %b %d, %Y", parts);
     buf[sizeof(buf) - 1] = '\0';
+#endif
     return(buf);
 }
 
