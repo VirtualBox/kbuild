@@ -1066,11 +1066,16 @@ Job_Touch(gn, silent)
 	return;
     }
 
+#ifdef USE_ARCHIVES
     if (gn->type & OP_ARCHV) {
 	Arch_Touch(gn);
     } else if (gn->type & OP_LIB) {
 	Arch_TouchLib(gn);
     } else {
+#else
+    {
+#endif
+
 	char	*file = gn->path ? gn->path : gn->name;
 
 	times.actime = times.modtime = now;
@@ -1119,8 +1124,12 @@ Job_CheckCommands(gn, abortProc)
     void    	 (*abortProc) __P((char *, ...));
 			/* Function to abort with message */
 {
-    if (OP_NOP(gn->type) && Lst_IsEmpty(gn->commands) &&
-	(gn->type & OP_LIB) == 0) {
+    if (OP_NOP(gn->type) && Lst_IsEmpty(gn->commands)
+#ifdef USE_ARCHIVES
+        && (gn->type & OP_LIB) == 0
+#endif
+        )
+    {
 	/*
 	 * No commands. Look for .DEFAULT rule from which we might infer
 	 * commands
@@ -1147,7 +1156,7 @@ Job_CheckCommands(gn, abortProc)
 	     * given, we stop in our tracks, otherwise we just don't update
 	     * this node's parents so they never get examined.
 	     */
-	    static const char msg[] = "make: don't know how to make";
+	    static const char msg[] = MAKE_NAME ": don't know how to make";
 
 	    if (gn->type & OP_OPTIONAL) {
 		(void) fprintf(stdout, "%s %s(ignored)\n", msg, gn->name);
@@ -1161,10 +1170,10 @@ Job_CheckCommands(gn, abortProc)
 		if (strcmp(gn->name,"love") == 0)
 		    (*abortProc)("Not war.");
 #if defined(NMAKE) || defined(KMK)
-        else if (strcmp(gn->name,"fire") == 0)
+                else if (strcmp(gn->name,"fire") == 0)
 		    (*abortProc)("No match.");
 #endif
-        else
+                else
 #endif
 		    (*abortProc)("%s %s. Stop", msg, gn->name);
 		return FALSE;

@@ -102,9 +102,6 @@ static const char rcsid[] =
 #include "buf.h"
 #include "pathnames.h"
 
-#if defined(NMAKE) || defined(KMK)
-#define SUPPORT_INLINEFILES     1
-#endif
 
 /*
  * These values are returned by ParseEOF to tell Parse_File whether to
@@ -117,7 +114,7 @@ static Lst     	    targets;	/* targets we're working on */
 /*static Lst     	    targCmds; */	/* command lines for targets */
 static Boolean	    inLine;	/* true if currently in a dependency
 				 * line or its commands */
-#if defined(NMAKE) || defined(KMK)
+#if defined(USE_INLINEFILES)
 static Boolean      inInlineFile; /* true if currently in a inline file.*/
 #endif
 typedef struct {
@@ -164,7 +161,9 @@ typedef enum {
     Ignore,	    /* .IGNORE */
     Includes,	    /* .INCLUDES */
     Interrupt,	    /* .INTERRUPT */
+#ifdef USE_ARCHIVES
     Libs,	    /* .LIBS */
+#endif
     MFlags,	    /* .MFLAGS or .MAKEFLAGS */
     Main,	    /* .MAIN and we don't have anything user-specified to
 		     * make */
@@ -218,7 +217,9 @@ static struct {
 { ".INTERRUPT",	  Interrupt,	0 },
 { ".INVISIBLE",	  Attribute,   	OP_INVISIBLE },
 { ".JOIN",  	  Attribute,   	OP_JOIN },
+#ifdef USE_ARCHIVES
 { ".LIBS",  	  Libs,	    	0 },
+#endif
 { ".MAIN",	  Main,		0 },
 { ".MAKE",  	  Attribute,   	OP_MAKE },
 { ".MAKEFLAGS",	  MFlags,   	0 },
@@ -255,7 +256,7 @@ static int ParseAddDir __P((ClientData, ClientData));
 static int ParseClearPath __P((ClientData, ClientData));
 static void ParseDoDependency __P((char *));
 static int ParseAddCmd __P((ClientData, ClientData));
-#ifdef SUPPORT_INLINEFILES
+#ifdef USE_INLINEFILES
 static int ParseAppendInline __P((ClientData, ClientData));
 static Boolean ParseCmdIsComponent __P((const char *, const char *));
 #endif
@@ -739,8 +740,10 @@ ParseDoDependency (line)
     Lst    	    paths;   	/* List of search paths to alter when parsing
 				 * a list of .PATH targets */
     int	    	    tOp;    	/* operator from special target */
+#ifdef USE_ARCHIVES
     Lst	    	    sources;	/* list of archive source names after
 				 * expansion */
+#endif
     Lst 	    curTargs;	/* list of target names to be found and added
 				 * to the targets list */
     Lst		    curSrcs;	/* list of sources in order */
@@ -782,6 +785,7 @@ ParseDoDependency (line)
 	    continue;
 	}
 	if (*cp == '(') {
+#ifdef USE_ARCHIVES
 	    /*
 	     * Archives must be handled specially to make sure the OP_ARCHV
 	     * flag is set in their 'type' field, for one thing, and because
@@ -796,9 +800,12 @@ ParseDoDependency (line)
 		Parse_Error (PARSE_FATAL,
 			     "Error in archive specification: \"%s\"", line);
 		return;
-	    } else {
+	    } else
 		continue;
-	    }
+#else
+            Parse_Error(PARSE_FATAL, "Archives are not supported!", line);
+            return;
+#endif /* USE_ARCHIVES */
 	}
 	savec = *cp;
 
@@ -1088,7 +1095,7 @@ ParseDoDependency (line)
 	*line = '\0';
     } else if (specType == ExShell) {
     #ifdef KMK
-        Parse_Error(PARSE_FATAL, "specification not supported by kMk!");
+        Parse_Error(PARSE_FATAL, "shell specification not supported by kMk!");
         return;
     #else
 	if (Job_ParseShell (line) != SUCCESS) {
@@ -1105,7 +1112,10 @@ ParseDoDependency (line)
      * NOW GO FOR THE SOURCES
      */
     if ((specType == Suffixes) || (specType == ExPath) ||
-	(specType == Includes) || (specType == Libs) ||
+	(specType == Includes) ||
+#ifdef USE_ARCHIVES
+        (specType == Libs) ||
+#endif
 	(specType == Null))
     {
 	while (*line) {
@@ -1149,9 +1159,11 @@ ParseDoDependency (line)
 		case Includes:
 		    Suff_AddInclude (line);
 		    break;
+#ifdef USE_ARCHIVES
 		case Libs:
 		    Suff_AddLib (line);
 		    break;
+#endif
 		case Null:
 		    Suff_SetNull (line);
 		    break;
@@ -1192,6 +1204,7 @@ ParseDoDependency (line)
 	    }
 
 	    if (*cp == '(') {
+#ifdef USE_ARCHIVES
 		GNode	  *gn;
 
 		sources = Lst_Init (FALSE);
@@ -1207,6 +1220,10 @@ ParseDoDependency (line)
 		}
 		Lst_Destroy (sources, NOFREE);
 		cp = line;
+#else
+                Parse_Error(PARSE_FATAL, "Archives are not supported!", line);
+                return;
+#endif /* USE_ARCHIVES */
 	    } else {
 		if (*cp) {
 		    *cp = '\0';
@@ -1527,7 +1544,7 @@ ParseAddCmd(gnp, cmd)
 
 
 
-#ifdef SUPPORT_INLINEFILES
+#ifdef USE_INLINEFILES
 /*-
  * ParseAppendInline  --
  *	Lst_ForEach function to append the line to the last command
@@ -2255,7 +2272,7 @@ ParseReadLine ()
 
     semiNL = FALSE;
     ignDepOp = FALSE;
-    #ifdef SUPPORT_INLINEFILES
+    #ifdef USE_INLINEFILES
     ignComment = inInlineFile;
     #else
     ignComment = FALSE;
@@ -2270,7 +2287,7 @@ ParseReadLine ()
      */
     for (;;) {
 	c = ParseReadc();
-        #ifdef SUPPORT_INLINEFILES
+        #ifdef USE_INLINEFILES
         if (inInlineFile)
             break;
         #endif
@@ -2305,7 +2322,7 @@ ParseReadLine ()
 test_char:
 	    switch(c) {
 	    case '\n':
-                #ifdef SUPPORT_INLINEFILES
+                #ifdef USE_INLINEFILES
                 /* No newline escaping in inline files, unless it's a directive. */
                 if (inInlineFile) {
                     int cb;
@@ -2366,7 +2383,7 @@ test_char:
 /* We don't need this, and don't want it! */
 #ifndef KMK
 	    case ';':
-                #ifdef SUPPORT_INLINEFILES
+                #ifdef USE_INLINEFILES
                 if (inInlineFile)
                     break;
                 #endif
@@ -2388,7 +2405,7 @@ test_char:
 		}
 		break;
 	    case '=':
-                #ifdef SUPPORT_INLINEFILES
+                #ifdef USE_INLINEFILES
                 if (inInlineFile)
                     break;
                 #endif
@@ -2441,7 +2458,7 @@ test_char:
 		break;
 	    case ':':
 	    case '!':
-                #ifdef SUPPORT_INLINEFILES
+                #ifdef USE_INLINEFILES
                 if (inInlineFile)
                     break;
                 #endif
@@ -2478,7 +2495,7 @@ test_char:
 	 * Do not strip a blank or tab that is preceeded by
 	 * a '\'
 	 */
-#ifdef SUPPORT_INLINEFILES
+#ifdef USE_INLINEFILES
       if (!inInlineFile) {
 #endif
 	ep = line;
@@ -2490,7 +2507,7 @@ test_char:
 	    --ep;
 	}
 	*ep = 0;
-#ifdef SUPPORT_INLINEFILES
+#ifdef USE_INLINEFILES
       }
 #endif
 
@@ -2603,7 +2620,7 @@ Parse_File(name, stream)
                   *line;	/* the line we're working on */
 
     inLine = FALSE;
-    #if defined(NMAKE) || defined(KMK)
+    #if defined(USE_INLINEFILES)
     inInlineFile = FALSE;
     #endif
     fname = name;
@@ -2651,7 +2668,7 @@ Parse_File(name, stream)
 		}
 	    }
 
-            #ifdef SUPPORT_INLINEFILES
+            #ifdef USE_INLINEFILES
             if (inInlineFile)
             {
                 cp = line;
@@ -2701,7 +2718,7 @@ Parse_File(name, stream)
 		 * If a line starts with a tab, it can only hope to be
 		 * a creation command.
 		 */
-#if !defined(POSIX) || defined(NMAKE)
+#if !defined(POSIX) || defined(USE_NO_STUPID_TABS)
 	    shellCommand:
 #endif
 		for (cp = line + 1; isspace (*cp); cp++) {
@@ -2709,7 +2726,7 @@ Parse_File(name, stream)
 		}
 		if (*cp) {
 		    if (inLine) {
-                        #ifdef SUPPORT_INLINEFILES
+                        #ifdef USE_INLINEFILES
                         if (ParseCmdIsComponent(cp, "<<"))
                         {
                             inInlineFile = TRUE;
@@ -2756,7 +2773,7 @@ Parse_File(name, stream)
 		 * line's script, we assume it's actually a shell command
 		 * and add it to the current list of targets.
 		 */
-#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
+#if !defined(POSIX) || defined(USE_NO_STUPID_TABS)
 		Boolean	nonSpace = FALSE;
 #endif
 
@@ -2768,7 +2785,7 @@ Parse_File(name, stream)
 		    if (*cp == '\0') {
 			goto nextLine;
 		    }
-#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
+#if !defined(POSIX) || defined(USE_NO_STUPID_TABS)
 		    while ((*cp != ':') && (*cp != '!') && (*cp != '\0')) {
 			nonSpace = TRUE;
 			cp++;
@@ -2776,10 +2793,10 @@ Parse_File(name, stream)
 #endif
 		}
 
-#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
+#if !defined(POSIX) || defined(USE_NO_STUPID_TABS)
 		if (*cp == '\0') {
 		    if (inLine) {
-#if !defined(NMAKE) && !defined(KMK)
+#if !defined(USE_NO_STUPID_TABS)
 			Parse_Error (PARSE_WARNING,
 				     "Shell command needs a leading tab");
 #endif
@@ -2805,7 +2822,7 @@ Parse_File(name, stream)
 		    inLine = TRUE;
 
 		    ParseDoDependency (line);
-#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
+#if !defined(POSIX) || defined(USE_NO_STUPID_TABS)
 		}
 #endif
 	    }

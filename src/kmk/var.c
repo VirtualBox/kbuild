@@ -287,17 +287,21 @@ VarFind (name, ctxt, flags)
 		case 'A':
 			if (!strcmp(name, ".ALLSRC"))
 				name = ALLSRC;
+#ifdef USE_ARCHIVES
 			if (!strcmp(name, ".ARCHIVE"))
 				name = ARCHIVE;
+#endif
 			break;
 		case 'I':
 			if (!strcmp(name, ".IMPSRC"))
 				name = IMPSRC;
 			break;
+#ifdef USE_ARCHIVES
 		case 'M':
 			if (!strcmp(name, ".MEMBER"))
 				name = MEMBER;
 			break;
+#endif
 		case 'O':
 			if (!strcmp(name, ".OODATE"))
 				name = OODATE;
@@ -305,7 +309,7 @@ VarFind (name, ctxt, flags)
 		case 'P':
 			if (!strcmp(name, ".PREFIX"))
 				name = PREFIX;
-                        #ifdef KMK
+                        #ifdef USE_PARENTS
                         else if (!strcmp(name, ".PARENTS"))
                                 name = PARENTS;
                         #endif
@@ -1625,7 +1629,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			return("$(.PREFIX)");
 		    case '!':
 			return("$(.MEMBER)");
-                    #ifdef KMK
+                    #ifdef USE_PARENTS
 		    case '^':
 			return("$(.PARENTS)");
                     #endif
@@ -1779,7 +1783,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    case '%':
 		    case '*':
 		    case '!':
-                    #ifdef KMK
+                    #ifdef USE_PARENTS
 		    case '^':
                     #endif
 			dynamic = TRUE;
@@ -1795,7 +1799,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		if ((strncmp(str, ".TARGET", len) == 0) ||
 		    (strncmp(str, ".ARCHIVE", len) == 0) ||
 		    (strncmp(str, ".PREFIX", len) == 0) ||
-                    #ifdef KMK
+                    #ifdef USE_PARENTS
 		    (strncmp(str, ".PARENTS", len) == 0) ||
                     #endif
 		    (strncmp(str, ".MEMBER", len) == 0))

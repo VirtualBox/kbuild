@@ -217,9 +217,11 @@ typedef struct GNode {
 #define OP_PHONY	0x00010000  /* Not a file target; run always */
 /* Attributes applied by PMake */
 #define OP_TRANSFORM	0x80000000  /* The node is a transformation rule */
+#ifdef USE_ARCHIVES
 #define OP_MEMBER 	0x40000000  /* Target is a member of an archive */
 #define OP_LIB	  	0x20000000  /* Target is a library */
 #define OP_ARCHV  	0x10000000  /* Target is an archive construct */
+#endif
 #define OP_HAS_COMMANDS	0x08000000  /* Target has all the commands it should.
 				     * Used when parsing to catch multiple
 				     * commands for a target */
@@ -293,8 +295,10 @@ typedef struct GNode {
 #ifdef KMK
 #define PARENTS           "^"   /* Parent of this target (if any) (long name .PARENTS) */
 #endif
+#ifdef USE_ARCHIVES
 #define ARCHIVE	  	  "!" 	/* Archive in "archive(member)" syntax */
 #define MEMBER	  	  "%" 	/* Member in "archive(member)" syntax */
+#endif
 
 #define FTARGET           "@F"  /* file part of TARGET */
 #define DTARGET           "@D"  /* directory part of TARGET */
@@ -360,7 +364,9 @@ extern Lst	sysIncPath;	/* The system include path. */
  *	information to print.
  */
 extern int debug;
+#ifdef USE_ARCHIVES
 #define	DEBUG_ARCH	0x0001
+#endif
 #define	DEBUG_COND	0x0002
 #define	DEBUG_DIR	0x0004
 #define	DEBUG_GRAPH1	0x0008

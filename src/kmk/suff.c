@@ -116,7 +116,9 @@ typedef struct _Suff {
     int		 nameLen;	/* Length of the suffix */
     short	 flags;      	/* Type of suffix */
 #define SUFF_INCLUDE	  0x01	    /* One which is #include'd */
+#ifdef USE_ARCHIVES
 #define SUFF_LIBRARY	  0x02	    /* One which contains a library */
+#endif
 #define SUFF_NULL 	  0x04	    /* The empty suffix */
     Lst    	 searchPath;	/* The path along which files of this suffix
 				 * may be found */
@@ -176,7 +178,9 @@ static Src *SuffFindCmds __P((Src *, Lst));
 static int SuffExpandChildren __P((ClientData, ClientData));
 static Boolean SuffApplyTransform __P((GNode *, GNode *, Suff *, Suff *));
 static void SuffFindDeps __P((GNode *, Lst));
+#ifdef USE_ARCHIVES
 static void SuffFindArchiveDeps __P((GNode *, Lst));
+#endif
 static void SuffFindNormalDeps __P((GNode *, Lst));
 static int SuffPrintName __P((ClientData, ClientData));
 static int SuffPrintSuff __P((ClientData, ClientData));
@@ -890,11 +894,13 @@ Suff_DoPaths()
 		Dir_Concat(inIncludes, s->searchPath);
 	    }
 #endif /* INCLUDES */
+#ifdef USE_ARCHIVES
 #ifdef LIBRARIES
 	    if (s->flags & SUFF_LIBRARY) {
 		Dir_Concat(inLibs, s->searchPath);
 	    }
 #endif /* LIBRARIES */
+#endif
 	    Dir_Concat(s->searchPath, dirSearchPath);
 	} else {
 	    Lst_Destroy (s->searchPath, Dir_Destroy);
@@ -942,6 +948,7 @@ Suff_AddInclude (sname)
     }
 }
 
+#ifdef USE_ARCHIVES
 /*-
  *-----------------------------------------------------------------------
  * Suff_AddLib --
@@ -971,6 +978,7 @@ Suff_AddLib (sname)
 	s->flags |= SUFF_LIBRARY;
     }
 }
+#endif /* USE_ARCHIVES */
 
  	  /********** Implicit Source Search Functions *********/
 
@@ -1345,6 +1353,7 @@ SuffExpandChildren(cgnp, pgnp)
 	if (cp != (char *)NULL) {
 	    Lst	    members = Lst_Init(FALSE);
 
+#ifdef USE_ARCHIVES
 	    if (cgn->type & OP_ARCHV) {
 		/*
 		 * Node was an archive(member) target, so we want to call
@@ -1354,7 +1363,9 @@ SuffExpandChildren(cgnp, pgnp)
 		char	*sacrifice = cp;
 
 		(void)Arch_ParseArchive(&sacrifice, members, pgn);
-	    } else {
+	    } else
+#endif
+            {
 		/*
 		 * Break the result into a vector of strings whose nodes
 		 * we can find, then add those nodes to the members list.
@@ -1647,6 +1658,7 @@ SuffApplyTransform(tGn, sGn, t, s)
 }
 
 
+#ifdef USE_ARCHIVES
 /*-
  *-----------------------------------------------------------------------
  * SuffFindArchiveDeps --
@@ -1783,6 +1795,7 @@ SuffFindArchiveDeps(gn, slst)
      */
     mem->type |= OP_MEMBER;
 }
+#endif /* USE_ARCHIVES */
 
 /*-
  *-----------------------------------------------------------------------
@@ -2054,6 +2067,7 @@ sfnd_abort:
 	goto sfnd_return;
     }
 
+#ifdef USE_ARCHIVES
     /*
      * If the suffix indicates that the target is a library, mark that in
      * the node's type field.
@@ -2061,6 +2075,7 @@ sfnd_abort:
     if (targ->suff->flags & SUFF_LIBRARY) {
 	gn->type |= OP_LIB;
     }
+#endif
 
     /*
      * Check for overriding transformation rule implied by sources
@@ -2224,6 +2239,7 @@ SuffFindDeps (gn, slst)
 	printf ("SuffFindDeps (%s)\n", gn->name);
     }
 
+#ifdef USE_ARCHIVES
     if (gn->type & OP_ARCHV) {
 	SuffFindArchiveDeps(gn, slst);
     } else if (gn->type & OP_LIB) {
@@ -2255,9 +2271,9 @@ SuffFindDeps (gn, slst)
 	 * the thing. .PREFIX is simply made empty...
 	 */
 	Var_Set(PREFIX, "", gn);
-    } else {
+    } else
+#endif /* USE_ARCHIVES */
 	SuffFindNormalDeps(gn, slst);
-    }
 }
 
 /*-
@@ -2402,9 +2418,11 @@ SuffPrintSuff (sp, dummy)
 		case SUFF_INCLUDE:
 		    printf ("INCLUDE");
 		    break;
+#ifdef USE_ARCHIVES
 		case SUFF_LIBRARY:
 		    printf ("LIBRARY");
 		    break;
+#endif
 	    }
 	    fputc(flags ? '|' : ')', stdout);
 	}

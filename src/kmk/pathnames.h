@@ -35,10 +35,10 @@
  */
 
 #ifdef KMK
-    #undef _PATH_OBJDIR
+    #define _PATH_OBJDIR        "obj"
     #undef _PATH_OBJDIRPREFIX
     #undef _PATH_DEFSHELLDIR
-    #define _PATH_DEFSYSMK      "Config.kMk"
+    #define _PATH_DEFSYSMK      "config.kMk"
     #undef _PATH_DEFSYSPATH
 
 #else

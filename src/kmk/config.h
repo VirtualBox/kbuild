@@ -119,3 +119,53 @@
 #  define RANLIBMAG "/"
 # endif
 #endif
+
+
+
+
+
+/*
+ * Inline file support.
+ */
+#if defined(NMAKE) || defined(KMK)
+#define USE_INLINEFILES 1
+#endif
+
+
+/*
+ * No requirement to use tabs in front of commands.
+ */
+#if defined(NMAKE) || defined(KMK)
+#define USE_NO_STUPID_TABS 1
+#endif
+
+
+/*
+ * Use the archive stuff.
+ */
+#if !defined(NMAKE) && !defined(KMK)
+#define USE_ARCHIVES 1
+#endif
+
+
+/*
+ * USE_PARENTS
+ *      If defined .PARENTS (^) is defined a local variable.
+ */
+#if defined(KMK)
+#define USE_PARENTS 1
+#endif
+
+
+/*
+ * MAKE_NAME
+ *      The name of the make program as shown in the messages.
+ */
+#if defined(KMK)
+#define MAKE_NAME "kMk"
+#else
+#define MAKE_NAME "make"
+#endif
+
+
+

@@ -2,12 +2,13 @@
 # $FreeBSD: src/usr.bin/make/Makefile,v 1.13.2.1 2001/05/25 08:33:40 sobomax Exp $
 
 CC = gcc
-#CC = gcc -Zomf
+CC = gcc -Zomf
 CFLAGS = -g -I. -I./include -I../kLib/Generic/include \
 #		 -DUSE_KLIB \
          -Dregister= \
 		 -DKMK \
-         -DOS2 -D__i386__ -D__32BIT__ -DNMAKE -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
+#		 -DNMAKE \
+         -DOS2 -D__i386__ -D__32BIT__ -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
 
 OBJDIR=obj.ke
 

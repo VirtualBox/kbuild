@@ -117,6 +117,9 @@ static const char rcsid[] =
 # endif
 #endif
 
+#ifdef USE_ARCHIVES
+
+
 static Lst	  archives;   /* Lst of archives we've already examined */
 
 typedef struct Arch {
@@ -1252,3 +1255,5 @@ Arch_End ()
 {
     Lst_Destroy(archives, ArchFree);
 }
+
+#endif /* USE_ARCHIVES */

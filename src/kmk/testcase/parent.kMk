@@ -1,12 +1,22 @@
+# infernece rules.
+.SUFFIXES: .c .o .obj
+.c.obj:
+	echo compiling $< into $@ for $(.PARENTS) while .IMPSRC is $(.IMPSRC)
 
+# the rules/targets.
 all: parent
 
+parent: child child2
+    echo "parent: $(.PARENTS)"
 
-parent: child
-    echo parent: ${.PARENTS}
+child: arch.obj
+	echo "child: .PARENTS = $(.PARENTS)"
+	echo "child: .TARGET  = $(.TARGET)"
+	echo "child: .IMPSRC  = $(.IMPSRC)"
 
 
-child:
-    echo child: ${.PARENTS}
-
-
+child2: arch.obj hash.obj
+	echo "child2: .PARENTS = $(.PARENTS)"
+	echo "child2: .TARGET  = $(.TARGET)"
+	echo "child2: .IMPSRC  = $(.IMPSRC)"
+		

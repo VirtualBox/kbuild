@@ -40,6 +40,7 @@
  */
 
 /* arch.c */
+#ifdef USE_ARCHIVES
 ReturnStatus Arch_ParseArchive __P((char **, Lst, GNode *));
 void Arch_Touch __P((GNode *));
 void Arch_TouchLib __P((GNode *));
@@ -49,6 +50,7 @@ void Arch_FindLib __P((GNode *, Lst));
 Boolean Arch_LibOODate __P((GNode *));
 void Arch_Init __P((void));
 void Arch_End __P((void));
+#endif
 
 /* compat.c */
 void Compat_Run __P((Lst));
@@ -109,7 +111,9 @@ void Suff_AddSuffix __P((char *));
 Lst Suff_GetPath __P((char *));
 void Suff_DoPaths __P((void));
 void Suff_AddInclude __P((char *));
+#ifdef USE_ARCHIVES
 void Suff_AddLib __P((char *));
+#endif
 void Suff_FindDeps __P((GNode *));
 void Suff_SetNull __P((char *));
 void Suff_Init __P((void));
