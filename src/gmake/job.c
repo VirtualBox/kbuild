@@ -432,7 +432,7 @@ child_handler (int sig UNUSED)
       job_rfd = -1;
     }
 
-#ifdef __EMX__
+#if defined __EMX__ && !defined(__INNOTEK_LIBC__)
   /* The signal handler must called only once! */
   signal (SIGCHLD, SIG_DFL);
 #endif
@@ -1198,8 +1198,8 @@ start_job_command (struct child *child)
 	CLOSE_ON_EXEC (job_rfd);
 
       /* Never use fork()/exec() here! Use spawn() instead in exec_command() */
-      child_execute_job (child->good_stdin ? 0 : bad_stdin, 1,
-                         argv, child->environment, child);
+      child->pid = child_execute_job (child->good_stdin ? 0 : bad_stdin, 1,
+                                      argv, child->environment, child);
       if (child->pid < 0)
 	{
 	  /* spawn failed!  */
@@ -1642,7 +1642,7 @@ new_job (struct file *file)
 	set_child_handler_action_flags (0);
 	got_token = read (job_rfd, &token, 1);
 	saved_errno = errno;
-#ifdef __EMX__
+#if defined(__EMX__) && !defined(__INNOTEK_LIBC__)
         /* The child handler must be turned off here.  */
         signal (SIGCHLD, SIG_DFL);
 #endif
