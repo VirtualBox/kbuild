@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 123 2004-06-25 20:25:51Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 126 2004-06-25 22:13:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
@@ -147,8 +147,6 @@ $(lib): $(dirdep) $(objs) $(deps)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(TOOL_MINGW32_AR) $(flags) $$@ $(objs)
-	$(MKDIR) -p $(PATH_LIB)
-	$(CP) $$@ $(PATH_LIB)/
 	
 endef
 

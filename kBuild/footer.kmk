@@ -1,4 +1,4 @@
-# $Id: footer.kmk 122 2004-06-25 19:41:20Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 126 2004-06-25 22:13:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -629,6 +629,13 @@ endif
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval libsuff     := $(firstword\
+	$($(target)_LIBSUFF.$(BUILD_TARGET))\
+	$($(target)_LIBSUFF)\
+	$(TOOL_$(tool)_ARLIBSUFF.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_ARLIBSUFF)\
+	$(SUFF_LIB)\
+))
 $(eval lib         := $(outbase)$(libsuff))
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
@@ -638,13 +645,6 @@ $(eval flags       :=\
 	$($(target)_ARFLAGS)\
 	$($(target)_ARFLAGS.$(BUILD_TYPE))\
 	)
-$(eval libsuff     := $(firstword\
-	$($(target)_LIBSUFF.$(BUILD_TARGET))\
-	$($(target)_LIBSUFF)\
-	$(TOOL_$(tool)_ARLIBSUFF.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_ARLIBSUFF)\
-	$(SUFF_LIB)\
-))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 $(eval dirdep      := $(dir $(lib)).dir_created)
@@ -653,9 +653,19 @@ $(eval deps        := )
 
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
-_OBJS += $(_OBJS_$(target))
+# publish rule (still need work)
+ifndef $(target)_noinst
+$(eval publib := $(PATH_LIB)/$(notdir $(lib)))
+$(publib) : $(lib) $(dir $(publib)).dir_created
+	$(CP) $(lib) $(publib) 
+	
+_LIBS += $(publib)
+_OUT_FILES += $(lib) $(publib)
+else
 _LIBS += $(lib)
 _OUT_FILES += $(lib)
+endif
+_OBJS += $(_OBJS_$(target))
 endef
 
 # Process libraries
@@ -992,8 +1002,9 @@ $(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
 #
 # Directories.
 #
-_OUTPUT_FILES := $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS) $(_SYSMODS)
-_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUTPUT_FILES))))
+$(warning _OUT_FILES=$(_OUT_FILES))
+_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUT_FILES) $(_OBJS))))
+$(warning _DIRFILES=$(_DIRFILES))
 
 define def_createdir
 $(dirfile):
