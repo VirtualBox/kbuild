@@ -1,4 +1,4 @@
-/* $Id: kShell.c 49 2003-04-05 03:22:30Z knut.osmundsen@oracle.com $
+/* $Id: kShell.c 199 2004-12-17 04:51:58Z knut.osmundsen@oracle.com $
  *
  * kShell - A mini shell.
  *
@@ -160,15 +160,6 @@
  *
  *
  *
- * @subsubsection       mkdir
- * Create directory.
- *
- * <b>Syntax:  mkdir <directory> </b>
- *
- * Specify one directory to create.
- *
- *
- *
  * @subsubsection       rmdir
  * Remove directory.
  *
@@ -310,6 +301,8 @@ void            kshellWordsDestroy(PKSHELLWORDS pWords);
 int             kshellSyntaxError(const char *pszCmd, const char *pszMessage, ...);
 int             kshellError(const char *pszCmd, const char *pszMessage, ...);
 
+int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords);
+int             kshellCmd_log(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_copytree(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_sync(const char *pszCmd, PKSHELLWORDS pWords);
@@ -323,7 +316,6 @@ int             kshellCmd_set(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_unset(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_pushenv(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_popenv(const char *pszCmd, PKSHELLWORDS pWords);
-int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_write(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_ExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords);
 
@@ -409,6 +401,8 @@ int     kshellExecute(const char *pszCmd)
         int       (*pfnCmd)(const char *, PKSHELLWORDS);
     } aCmds[] =
     {
+        {"echo",        MAX_WORDS,  kshellCmd_echo},
+        {"log",         2,          kshellCmd_log},
         {"copy",        MAX_WORDS,  kshellCmd_copy},
         {"copytree",    3,          kshellCmd_copytree},
         {"sync",        MAX_WORDS,  kshellCmd_sync},
@@ -422,7 +416,6 @@ int     kshellExecute(const char *pszCmd)
         {"unset",       MAX_WORDS,  kshellCmd_unset},
         {"pushenv",     MAX_WORDS,  kshellCmd_pushenv},
         {"popenv",      1,          kshellCmd_popenv},
-        {"echo",        2,          kshellCmd_echo},
         {"write",       2,          kshellCmd_write},
 
         /* last entry */
@@ -697,12 +690,100 @@ int             kshellCmd_ExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords
 }
 
 
+
 /*
  *
  * The commands are documented externally.
  * (Bad idea btw!)
  *
  */
+
+
+/** @subsubsection      echo
+ * Prints a message to stdout.
+ *
+ * <b>Syntax: echo <level> <message>
+ *
+ * The message is printed word for word normalize with a single space between
+ * the words. It's therefore a good thing to quote the message.
+ *
+ * The message can be empty. Then a blank line will be printed.
+ */
+int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords)
+{
+    int         i;
+
+    /* output all the words forcing one space separation */
+    for (i = 2; i < pWords->cWords; i++)
+    {
+        if (i != 2)
+            fputc(' ', stdout);
+        fwrite(pWords->aWords[i].pszWord, pWords->aWords[i].cchWord, 1, stdout);
+    }
+
+    /* new line */
+    fputc('\n', stdout);
+    fflush(stdout);
+
+    return 0;
+}
+
+
+/** @subsubsection      log
+ * Prints a message to stdout.
+ *
+ * <b>Syntax: log <level> <message>
+ *
+ * Level is verbosity level of the message. This is compared with the
+ * KBUILD_MSG_LEVEL environment variable. The message is suppressed if the
+ * level is lower that KBUILD_MSG_LEVEL.
+ *
+ * The message is printed word for word normalize with a single space between
+ * the words. It's therefore a good thing to quote the message.
+ *
+ * The message can be empty. Then a blank line will be printed.
+ */
+int             kshellCmd_log(const char *pszCmd, PKSHELLWORDS pWords)
+{
+    int         rc = KSHELL_ERROR_SYNTAX_ERROR;
+
+    /*
+     * Get the message level from the message.
+     */
+    if (pWords->cWords >= 2)
+    {
+        unsigned uMsgLevel = kStrToUDef(pWords->aWords[1].pszWord, -2, 0);
+        if (uMsgLevel != -2)
+        {
+            if (uMsgLevel <= kEnvGetUDef("KBUILD_MSG_LEVEL", 0, 0))
+            {
+                /* output all the words forcing one space separation */
+                pWords = kshellWordsParse(pszCmd, -1, pWords);
+                if (pWords)
+                {
+                    int i;
+                    for (i = 2; i < pWords->cWords; i++)
+                    {
+                        if (i != 2)
+                            fputc(' ', stdout);
+                        fwrite(pWords->aWords[i].pszWord, pWords->aWords[i].cchWord, 1, stdout);
+                    }
+                }
+
+                /* new line */
+                fputc('\n', stdout);
+                fflush(stdout);
+            }
+        }
+        else
+            kshellSyntaxError("log", "invalid message level!");
+    }
+    else
+        kshellSyntaxError("log", "requires at least one argument!");
+
+    return -1;
+}
+
 
 
 int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
@@ -819,10 +900,55 @@ int             kshellCmd_chdir(const char *pszCmd, PKSHELLWORDS pWords)
     return -1;
 }
 
-
+/** @subsubsection      mkdir
+ * Create directory.
+ *
+ * <b>Syntax:  mkdir <directory> [directory2[..]] </b>
+ *
+ * Specify zero or more directories to create. Necessary parent directories
+ * will be created.
+ *
+ * If the directory exist no error is reported.
+ * The command fails on the first failure, processing directories left to right.
+ *
+ * Mkdir is hence not suitable for making locks. Should such be needed a
+ * dedicated command should be created for that purpose.
+ *
+ */
 int             kshellCmd_mkdir(const char *pszCmd, PKSHELLWORDS pWords)
 {
-    return -1;
+    int     rc = 0;
+    int     i;
+
+    for (i = 1; i < pWords->cWords; i++)
+    {
+        /*
+         * Allocate a buffer for canonizing the directory name and work in.
+         */
+        char *pszDir = kHeapAlloc(pWords->aWords[i].cchWord + KFILE_LENGTH);
+        if (pszDir)
+        {
+            /*
+             * Canonify the path to local default slash etc.
+             */
+            rc = kPathCanonifyEx(pWords->aWords[i].pszWord, NULL, KSHELL_SLASH, 0, psz);
+            if (!rc)
+            {
+                kFileState
+                /*
+                 * Now we will enumerate the path towards the root and
+                 * find the first existing directory. We need the mode
+                 * of that directory.
+                 */
+
+                char *psz =
+            }
+        }
+
+        rc = kDirCreate(
+    }
+
+    return rc;
 }
 
 
@@ -856,56 +982,6 @@ int             kshellCmd_popenv(const char *pszCmd, PKSHELLWORDS pWords)
 }
 
 
-/** @subsubsection      echo
- * Prints a message to stdout.
- *
- * <b>Syntax: echo <level> <message>
- *
- * Level is verbosity level of the message. This is compared with the
- * KBUILD_MSG_LEVEL environment variable. The message is suppressed if the
- * level is lower that KBUILD_MSG_LEVEL.
- *
- * The message is printed word for word normalize with a single space between
- * the words. It's therefore a good thing to quote the message.
- *
- * The message can be empty. Then a blank line will be printed.
- */
-int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords)
-{
-    int         rc = KSHELL_ERROR_SYNTAX_ERROR;
-
-    /*
-     * Get the message level from the message.
-     */
-    if (pWords->cWords >= 2)
-    {
-        unsigned uMsgLevel = kStrToUDef(pWords->aWords[1].pszWord, -2, 0);
-        if (uMsgLevel != -2)
-        {
-            if (uMsgLevel <= kEnvGetUDef("KBUILD_MSG_LEVEL", 0, 0))
-            {
-                /* output all the words forcing one space separation */
-                pWords = kshellWordsParse(pszCmd, -1, pWords);
-                if (pWords)
-                {
-                    int i;
-                    for (i = 2; i < pWords->cWords; i++)
-                        fwrite(pWords->aWords[i].pszWord, pWords->aWords[i].cchWord, 1, stdout);
-                }
-
-                /* new line */
-                fputc('\n', stdout);
-                fflush(stdout);
-            }
-        }
-        else
-            kshellSyntaxError("echo", "invalid message level!");
-    }
-    else
-        kshellSyntaxError("echo", "requires at least one argument!");
-
-    return -1;
-}
 
 
 int             kshellCmd_write(const char *pszCmd, PKSHELLWORDS pWords)
