@@ -1,4 +1,4 @@
-# $Id: footer.kmk 220 2005-02-08 16:47:39Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 221 2005-02-08 17:22:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -352,6 +352,10 @@ $(foreach sdk, $(_SDKS), $(eval $(def_sdks_include_one)))
 # @param    $(target)     Normalized target name.
 # @param    $(source)     Source file name.
 # @param    $(type)       Source type. {C,CXX,AS}
+# @param    bld_type      Build type.
+# @param    bld_trg       Build target.
+# @param    bld_trg_arch  Build target arch.
+# @param    bld_trg_cpu   Build target cpu.
 #
 # @remark   I've no clue why I've to $(eval ..) everything in this define. MAKE bug?
 # @remark	I now have a clue. Have to use $$ if not.
@@ -364,234 +368,234 @@ $(eval PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval dirdep      := $(dir $(outbase)).dir_created)
 $(eval defs        :=\
 	$(TOOL_$(tool)_DEFS)\
-	$(TOOL_$(tool)_DEFS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_DEFS.$(bld_type))\
+	$(TOOL_$(tool)_DEFS.$(bld_trg))\
+	$(TOOL_$(tool)_DEFS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_DEFS.$(bld_trg_cpu))\
 	$(TOOL_$(tool)_$(type)DEFS)\
-	$(TOOL_$(tool)_$(type)DEFS.$(BUILD_TYPE))\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(TOOL_$(tool)_$(type)DEFS.$(bld_type))\
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
 	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_DEFS.$(bld_type))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
 	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$(DEFS)\
-	$(DEFS.$(BUILD_TYPE))\
-	$(DEFS.$(BUILD_TARGET))\
-	$(DEFS.$(BUILD_TARGET_ARCH))\
-	$(DEFS.$(BUILD_TARGET_CPU))\
+	$(DEFS.$(bld_type))\
+	$(DEFS.$(bld_trg))\
+	$(DEFS.$(bld_trg_arch))\
+	$(DEFS.$(bld_trg_cpu))\
 	$($(type)DEFS)\
-	$($(type)DEFS.$(BUILD_TYPE))\
-	$($(type)DEFS.$(BUILD_TARGET))\
-	$($(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$($(type)DEFS.$(BUILD_TARGET_CPU))\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$($(type)DEFS.$(bld_type))\
+	$($(type)DEFS.$(bld_trg))\
+	$($(type)DEFS.$(bld_trg_arch))\
+	$($(type)DEFS.$(bld_trg_cpu))\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
 	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_DEFS.$(bld_type))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
 	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(target)_DEFS)\
-	$($(target)_DEFS.$(BUILD_TYPE))\
-	$($(target)_DEFS.$(BUILD_TARGET))\
-	$($(target)_DEFS.$(BUILD_TARGET_ARCH))\
-	$($(target)_DEFS.$(BUILD_TARGET_CPU))\
+	$($(target)_DEFS.$(bld_type))\
+	$($(target)_DEFS.$(bld_trg))\
+	$($(target)_DEFS.$(bld_trg_arch))\
+	$($(target)_DEFS.$(bld_trg_cpu))\
 	$($(target)_$(type)DEFS)\
-	$($(target)_$(type)DEFS.$(BUILD_TYPE))\
-	$($(target)_$(type)DEFS.$(BUILD_TARGET))\
-	$($(target)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(type)DEFS.$(BUILD_TARGET_CPU))\
-	$(foreach sdk, $($(source)_SDKS.$(BUILD_TARGET)) \
-				   $($(source)_SDKS.$(BUILD_TYPE)) \
+	$($(target)_$(type)DEFS.$(bld_type))\
+	$($(target)_$(type)DEFS.$(bld_trg))\
+	$($(target)_$(type)DEFS.$(bld_trg_arch))\
+	$($(target)_$(type)DEFS.$(bld_trg_cpu))\
+	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
+				   $($(source)_SDKS.$(bld_type)) \
 				   $($(source)_SDKS),\
 	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_DEFS.$(bld_type))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
 	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(source)_DEFS)\
-	$($(source)_DEFS.$(BUILD_TYPE))\
-	$($(source)_DEFS.$(BUILD_TARGET))\
-	$($(source)_DEFS.$(BUILD_TARGET_ARCH))\
-	$($(source)_DEFS.$(BUILD_TARGET_CPU))\
+	$($(source)_DEFS.$(bld_type))\
+	$($(source)_DEFS.$(bld_trg))\
+	$($(source)_DEFS.$(bld_trg_arch))\
+	$($(source)_DEFS.$(bld_trg_cpu))\
 	$($(source)_$(type)DEFS)\
-	$($(source)_$(type)DEFS.$(BUILD_TYPE))\
-	$($(source)_$(type)DEFS.$(BUILD_TARGET))\
-	$($(source)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$($(source)_$(type)DEFS.$(BUILD_TARGET_CPU))\
-	$(foreach sdk, $($(target)_$(source)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
+	$($(source)_$(type)DEFS.$(bld_type))\
+	$($(source)_$(type)DEFS.$(bld_trg))\
+	$($(source)_$(type)DEFS.$(bld_trg_arch))\
+	$($(source)_$(type)DEFS.$(bld_trg_cpu))\
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
+				   $($(target)_$(source)_SDKS.$(bld_type)) \
 				   $($(target)_$(source)_SDKS),\
 	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_DEFS.$(bld_type))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
 	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(target)_$(source)_DEFS)\
-	$($(target)_$(source)_DEFS.$(BUILD_TYPE))\
-	$($(target)_$(source)_DEFS.$(BUILD_TARGET))\
-	$($(target)_$(source)_DEFS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(source)_DEFS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(source)_DEFS.$(bld_type))\
+	$($(target)_$(source)_DEFS.$(bld_trg))\
+	$($(target)_$(source)_DEFS.$(bld_trg_arch))\
+	$($(target)_$(source)_DEFS.$(bld_trg_cpu))\
 	$($(target)_$(source)_$(type)DEFS)\
-	$($(target)_$(source)_$(type)DEFS.$(BUILD_TYPE))\
-	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET))\
-	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(source)_$(type)DEFS.$(bld_type))\
+	$($(target)_$(source)_$(type)DEFS.$(bld_trg))\
+	$($(target)_$(source)_$(type)DEFS.$(bld_trg_arch))\
+	$($(target)_$(source)_$(type)DEFS.$(bld_trg_cpu))\
 	)
 $(eval incs        :=\
-	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET))\
-	$($(target)_$(source)_$(type)INCS.$(BUILD_TYPE))\
+	$($(target)_$(source)_$(type)INCS.$(bld_trg_cpu))\
+	$($(target)_$(source)_$(type)INCS.$(bld_trg_arch))\
+	$($(target)_$(source)_$(type)INCS.$(bld_trg))\
+	$($(target)_$(source)_$(type)INCS.$(bld_type))\
 	$($(target)_$(source)_$(type)INCS)\
-	$($(target)_$(source)_INCS.$(BUILD_TARGET_CPU))\
-	$($(target)_$(source)_INCS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(source)_INCS.$(BUILD_TARGET))\
-	$($(target)_$(source)_INCS.$(BUILD_TYPE))\
+	$($(target)_$(source)_INCS.$(bld_trg_cpu))\
+	$($(target)_$(source)_INCS.$(bld_trg_arch))\
+	$($(target)_$(source)_INCS.$(bld_trg))\
+	$($(target)_$(source)_INCS.$(bld_type))\
 	$($(target)_$(source)_INCS)\
-	$(foreach sdk, $($(target)_$(source)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
+				   $($(target)_$(source)_SDKS.$(bld_type)) \
 				   $($(target)_$(source)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
 	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_INCS.$(bld_trg))\
+	$(SDK_$(sdk)_INCS.$(bld_type))\
 	$(SDK_$(sdk)_INCS))\
-	$($(source)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$($(source)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$($(source)_$(type)INCS.$(BUILD_TARGET))\
-	$($(source)_$(type)INCS.$(BUILD_TYPE))\
+	$($(source)_$(type)INCS.$(bld_trg_cpu))\
+	$($(source)_$(type)INCS.$(bld_trg_arch))\
+	$($(source)_$(type)INCS.$(bld_trg))\
+	$($(source)_$(type)INCS.$(bld_type))\
 	$($(source)_$(type)INCS)\
-	$($(source)_INCS.$(BUILD_TARGET_CPU))\
-	$($(source)_INCS.$(BUILD_TARGET_ARCH))\
-	$($(source)_INCS.$(BUILD_TARGET))\
-	$($(source)_INCS.$(BUILD_TYPE))\
+	$($(source)_INCS.$(bld_trg_cpu))\
+	$($(source)_INCS.$(bld_trg_arch))\
+	$($(source)_INCS.$(bld_trg))\
+	$($(source)_INCS.$(bld_type))\
 	$($(source)_INCS)\
-	$(foreach sdk, $($(source)_SDKS.$(BUILD_TARGET)) \
-				   $($(source)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
+				   $($(source)_SDKS.$(bld_type)) \
 				   $($(source)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
 	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_INCS.$(bld_trg))\
+	$(SDK_$(sdk)_INCS.$(bld_type))\
 	$(SDK_$(sdk)_INCS))\
-	$($(target)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$($(target)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(type)INCS.$(BUILD_TARGET))\
-	$($(target)_$(type)INCS.$(BUILD_TYPE))\
+	$($(target)_$(type)INCS.$(bld_trg_cpu))\
+	$($(target)_$(type)INCS.$(bld_trg_arch))\
+	$($(target)_$(type)INCS.$(bld_trg))\
+	$($(target)_$(type)INCS.$(bld_type))\
 	$($(target)_$(type)INCS)\
-	$($(target)_INCS.$(BUILD_TARGET_CPU))\
-	$($(target)_INCS.$(BUILD_TARGET_ARCH))\
-	$($(target)_INCS.$(BUILD_TARGET))\
-	$($(target)_INCS.$(BUILD_TYPE))\
+	$($(target)_INCS.$(bld_trg_cpu))\
+	$($(target)_INCS.$(bld_trg_arch))\
+	$($(target)_INCS.$(bld_trg))\
+	$($(target)_INCS.$(bld_type))\
 	$($(target)_INCS)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
 	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_INCS.$(bld_trg))\
+	$(SDK_$(sdk)_INCS.$(bld_type))\
 	$(SDK_$(sdk)_INCS))\
-	$(INCS.$(BUILD_TARGET_CPU))\
-	$(INCS.$(BUILD_TARGET_ARCH))\
-	$(INCS.$(BUILD_TARGET))\
-	$(INCS.$(BUILD_TYPE))\
+	$(INCS.$(bld_trg_cpu))\
+	$(INCS.$(bld_trg_arch))\
+	$(INCS.$(bld_trg))\
+	$(INCS.$(bld_type))\
 	$(INCS)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
 	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_INCS.$(bld_trg))\
+	$(SDK_$(sdk)_INCS.$(bld_type))\
 	$(SDK_$(sdk)_INCS))\
-	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_$(type)INCS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_$(type)INCS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_$(type)INCS.$(bld_trg))\
+	$(TOOL_$(tool)_$(type)INCS.$(bld_type))\
 	$(TOOL_$(tool)_$(type)INCS)\
 	)
 $(eval flags        :=\
 	$(TOOL_$(tool)_$(type)FLAGS)\
-	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(bld_type))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(bld_trg))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(bld_trg_cpu))\
 	$($(type)FLAGS)\
-	$($(type)FLAGS.$(BUILD_TYPE))\
-	$($(type)FLAGS.$(BUILD_TARGET))\
-	$($(type)FLAGS.$(BUILD_TARGET_ARCH))\
-	$($(type)FLAGS.$(BUILD_TARGET_CPU))\
+	$($(type)FLAGS.$(bld_type))\
+	$($(type)FLAGS.$(bld_trg))\
+	$($(type)FLAGS.$(bld_trg_arch))\
+	$($(type)FLAGS.$(bld_trg_cpu))\
 	$($(target)_$(type)FLAGS)\
-	$($(target)_$(type)FLAGS.$(BUILD_TYPE))\
-	$($(target)_$(type)FLAGS.$(BUILD_TARGET))\
-	$($(target)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(type)FLAGS.$(bld_type))\
+	$($(target)_$(type)FLAGS.$(bld_trg))\
+	$($(target)_$(type)FLAGS.$(bld_trg_arch))\
+	$($(target)_$(type)FLAGS.$(bld_trg_cpu))\
 	$($(source)_$(type)FLAGS)\
-	$($(source)_$(type)FLAGS.$(BUILD_TYPE))\
-	$($(source)_$(type)FLAGS.$(BUILD_TARGET))\
-	$($(source)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
-	$($(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
+	$($(source)_$(type)FLAGS.$(bld_type))\
+	$($(source)_$(type)FLAGS.$(bld_trg))\
+	$($(source)_$(type)FLAGS.$(bld_trg_arch))\
+	$($(source)_$(type)FLAGS.$(bld_trg_cpu))\
 	$($(target)_$(source)_$(type)FLAGS)\
-	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TYPE))\
-	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET))\
-	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(source)_$(type)FLAGS.$(bld_type))\
+	$($(target)_$(source)_$(type)FLAGS.$(bld_trg))\
+	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_arch))\
+	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_cpu))\
 	)
 $(eval objsuff     := $(firstword \
-	$($(target)_$(source)_OBJSUFF.$(BUILD_TARGET))\
+	$($(target)_$(source)_OBJSUFF.$(bld_trg))\
 	$($(target)_$(source)_OBJSUFF)\
-	$($(source)_OBJSUFF.$(BUILD_TARGET))\
+	$($(source)_OBJSUFF.$(bld_trg))\
 	$($(source)_OBJSUFF)\
-	$($(target)_OBJSUFF.$(BUILD_TARGET))\
+	$($(target)_OBJSUFF.$(bld_trg))\
 	$($(target)_OBJSUFF)\
-	$(TOOL_$(tool)_$(type)OBJSUFF.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg))\
 	$(TOOL_$(tool)_$(type)OBJSUFF)\
 	$(SUFF_OBJ)\
 	))
@@ -599,37 +603,37 @@ $(eval obj         := $(outbase)$(objsuff))
 $(eval dep         := $(outbase)$(SUFF_DEP))
 $(eval deps        := \
 	$($(target)_$(source)_DEPS)\
-    $($(target)_$(source)_DEPS.$(BUILD_TYPE))\
-    $($(target)_$(source)_DEPS.$(BUILD_TARGET))\
-    $($(target)_$(source)_DEPS.$(BUILD_TARGET_ARCH))\
-    $($(target)_$(source)_DEPS.$(BUILD_TARGET_CPU))\
+    $($(target)_$(source)_DEPS.$(bld_type))\
+    $($(target)_$(source)_DEPS.$(bld_trg))\
+    $($(target)_$(source)_DEPS.$(bld_trg_arch))\
+    $($(target)_$(source)_DEPS.$(bld_trg_cpu))\
 	$($(source)_DEPS)\
-	$($(source)_DEPS.$(BUILD_TYPE))\
-	$($(source)_DEPS.$(BUILD_TARGET))\
+	$($(source)_DEPS.$(bld_type))\
+	$($(source)_DEPS.$(bld_trg))\
 	$($(target)_DEPS)\
-	$($(target)_DEPS.$(BUILD_TARGET_ARCH))\
-	$($(target)_DEPS.$(BUILD_TARGET_CPU)))
+	$($(target)_DEPS.$(bld_trg_arch))\
+	$($(target)_DEPS.$(bld_trg_cpu)))
 
 
 #$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
 ifndef TOOL_$(tool)_COMPILE_$(type)
 $$(warning kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
 $$(warning kBuild: tools: \
-	1 $($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	1 $($(target)_$(source)_$(type)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)_$(type)TOOL) \
-	3 $($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
+	3 $($(target)_$(source)_TOOL.$(bld_trg)) \
 	4 $($(target)_$(source)_TOOL) \
-	5 $($(target)_$(type)TOOL.$(BUILD_TARGET)) \
+	5 $($(target)_$(type)TOOL.$(bld_trg)) \
 	6 $($(target)_$(type)TOOL) \
-	7 $($(target)_TOOL.$(BUILD_TARGET)) \
+	7 $($(target)_TOOL.$(bld_trg)) \
 	8 $($(target)_TOOL) \
-	9 $($(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	9 $($(source)_$(type)TOOL.$(bld_trg)) \
 	10 $($(source)_$(type)TOOL) \
-	11 $($(source)_TOOL.$(BUILD_TARGET)) \
+	11 $($(source)_TOOL.$(bld_trg)) \
 	12 $($(source)_TOOL) \
-	13 $($(type)TOOL.$(BUILD_TARGET)) \
+	13 $($(type)TOOL.$(bld_trg)) \
 	14 $($(type)TOOL) \
-	15 $(TOOL.$(BUILD_TARGET)) \
+	15 $(TOOL.$(bld_trg)) \
 	16 $(TOOL) )
 endif
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
@@ -649,15 +653,15 @@ endef
 define def_target_sources
 #$ (warning def_target_sources)
 # C sources
-$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE)))\
+$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # C++ sources
-$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE)))\
+$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # ASM sources
-$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE)))\
+$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 endef
 
@@ -674,9 +678,9 @@ $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
+$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_PLATFORM)))
+$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_PLATFORM_ARCH)))
+$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_PLATFORM_CPU)))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(HOSTSUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval TARGET_$(target) := $(exe))
@@ -692,81 +696,81 @@ $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
 	$(LDFLAGS)\
 	$(LDFLAGS.$(bld_type))\
 	$(LDFLAGS.$(bld_trg))\
-	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS.$(bld_trg_arch))\
+	$(LDFLAGS.$(bld_trg_cpu))\
 	$($(target)_LDFLAGS)\
 	$($(target)_LDFLAGS.$(bld_type))\
 	$($(target)_LDFLAGS.$(bld_trg))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS.$(bld_trg_arch))\
+	$($(target)_LDFLAGS.$(bld_trg_cpu))\
 )
 $(eval libs        :=\
-	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBS.$(bld_trg_cpu))\
+	$($(target)_LIBS.$(bld_trg_arch))\
 	$($(target)_LIBS.$(bld_trg))\
 	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
 	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
 				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
 	$(SDK_$(sdk)_LIBS.$(bld_trg))\
 	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(BUILD_TARGET_CPU))\
-	$(LIBS.$(BUILD_TARGET_ARCH))\
+	$(LIBS.$(bld_trg_cpu))\
+	$(LIBS.$(bld_trg_arch))\
 	$(LIBS.$(bld_trg))\
 	$(LIBS.$(bld_type))\
 	$(LIBS)\
 	$(foreach sdk, $(SDKS.$(bld_trg)) \
 				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
 	$(SDK_$(sdk)_LIBS.$(bld_trg))\
 	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
 	$(TOOL_$(tool)_LIBS.$(bld_trg))\
 	$(TOOL_$(tool)_LIBS.$(bld_type))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
-	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBPATH.$(bld_trg_cpu))\
+	$($(target)_LIBPATH.$(bld_trg_arch))\
 	$($(target)_LIBPATH.$(bld_trg))\
 	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
 	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
 				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
 	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
 	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(BUILD_TARGET_CPU))\
-	$(LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(LIBPATH.$(bld_trg_cpu))\
+	$(LIBPATH.$(bld_trg_arch))\
 	$(LIBPATH.$(bld_trg))\
 	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
 	$(foreach sdk, $(SDKS.$(bld_trg)) \
 				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
 	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
 	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
 	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
 	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)\
@@ -833,10 +837,14 @@ endif
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
+$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
+$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
+$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
 $(eval libsuff     := $(firstword\
-	$($(target)_LIBSUFF.$(BUILD_TARGET))\
+	$($(target)_LIBSUFF.$(bld_trg))\
 	$($(target)_LIBSUFF)\
-	$(TOOL_$(tool)_ARLIBSUFF.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_ARLIBSUFF.$(bld_trg))\
 	$(TOOL_$(tool)_ARLIBSUFF)\
 	$(SUFF_LIB)\
 ))
@@ -851,14 +859,14 @@ $(eval tool        := $(call _TARGET_TOOL,$(target),AR))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
-	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_ARFLAGS.$(bld_type))\
 	$(ARFLAGS)\
-	$(ARFLAGS.$(BUILD_TYPE))\
+	$(ARFLAGS.$(bld_type))\
 	$($(target)_ARFLAGS)\
-	$($(target)_ARFLAGS.$(BUILD_TYPE))\
+	$($(target)_ARFLAGS.$(bld_type))\
 	)
 $(eval objs         = $(_OBJS_$(target)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE))))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
 $(eval dirdep      := $(dir $(lib)).dir_created)
 ## @todo fix dependencies on makefiles an such
 $(eval deps        := $($(target)_DEPS))
@@ -896,6 +904,10 @@ define def_dll
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
+$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
+$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
+$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
 $(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
 $(eval dll         := $(outbase)$(dllsuff))
 $(eval TARGET_$(target) := $(dll))
@@ -909,85 +921,85 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
 	$(LDFLAGS)\
-	$(LDFLAGS.$(BUILD_TYPE))\
-	$(LDFLAGS.$(BUILD_TARGET))\
-	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS.$(bld_type))\
+	$(LDFLAGS.$(bld_trg))\
+	$(LDFLAGS.$(bld_trg_arch))\
+	$(LDFLAGS.$(bld_trg_cpu))\
 	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(BUILD_TYPE))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS.$(bld_type))\
+	$($(target)_LDFLAGS.$(bld_trg))\
+	$($(target)_LDFLAGS.$(bld_trg_arch))\
+	$($(target)_LDFLAGS.$(bld_trg_cpu))\
 )
 $(eval libs        :=\
-	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBS.$(BUILD_TARGET))\
-	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS.$(bld_trg_cpu))\
+	$($(target)_LIBS.$(bld_trg_arch))\
+	$($(target)_LIBS.$(bld_trg))\
+	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(BUILD_TARGET_CPU))\
-	$(LIBS.$(BUILD_TARGET_ARCH))\
-	$(LIBS.$(BUILD_TARGET))\
-	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS.$(bld_trg_cpu))\
+	$(LIBS.$(bld_trg_arch))\
+	$(LIBS.$(bld_trg))\
+	$(LIBS.$(bld_type))\
 	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_LIBS.$(bld_type))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
-	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBPATH.$(BUILD_TARGET))\
-	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH.$(bld_trg_cpu))\
+	$($(target)_LIBPATH.$(bld_trg_arch))\
+	$($(target)_LIBPATH.$(bld_trg))\
+	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(BUILD_TARGET_CPU))\
-	$(LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(LIBPATH.$(BUILD_TARGET))\
-	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH.$(bld_trg_cpu))\
+	$(LIBPATH.$(bld_trg_arch))\
+	$(LIBPATH.$(bld_trg))\
+	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)\
 )
 $(eval dirdep      := $(dir $(dll)).dir_created)
@@ -995,37 +1007,37 @@ $(eval dirdep      := $(dir $(dll)).dir_created)
 $(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_PRE.$(bld_trg))\
+	$($(target)_CUSTOM_PRE.$(bld_type))\
 	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_PRE.$(BUILD_TARGET))\
-	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$(CUSTOM_PRE.$(bld_trg))\
+	$(CUSTOM_PRE.$(bld_type))\
 	$(CUSTOM_PRE)\
 )))
 $(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_POST.$(bld_trg))\
+	$($(target)_CUSTOM_POST.$(bld_type))\
 	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_POST.$(BUILD_TARGET))\
-	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$(CUSTOM_POST.$(bld_trg))\
+	$(CUSTOM_POST.$(bld_type))\
 	$(CUSTOM_POST)\
 )))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE))))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
 
 ifndef TOOL_$(tool)_LINK_DLL
 $$(warning kBuild: TOOL_$(tool)_LINK_DLL is not defined. target=$(target) )
 $$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(BUILD_TARGET)) \
+	3 $($(target)_TOOL.$(bld_trg)) \
 	4 $($(target)_TOOL) \
 	5 $($(source)TOOL) \
-	6 $($(source)TOOL.$(BUILD_TARGET)) \
-	7 $(TOOL.$(BUILD_TARGET)) \
+	6 $($(source)TOOL.$(bld_trg)) \
+	7 $(TOOL.$(bld_trg)) \
 	8 $(TOOL) )
 endif
 
@@ -1078,6 +1090,10 @@ define def_program
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
+$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
+$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
+$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval TARGET_$(target) := $(exe))
@@ -1091,85 +1107,85 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
 	$(LDFLAGS)\
-	$(LDFLAGS.$(BUILD_TYPE))\
-	$(LDFLAGS.$(BUILD_TARGET))\
-	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS.$(bld_type))\
+	$(LDFLAGS.$(bld_trg))\
+	$(LDFLAGS.$(bld_trg_arch))\
+	$(LDFLAGS.$(bld_trg_cpu))\
 	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(BUILD_TYPE))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS.$(bld_type))\
+	$($(target)_LDFLAGS.$(bld_trg))\
+	$($(target)_LDFLAGS.$(bld_trg_arch))\
+	$($(target)_LDFLAGS.$(bld_trg_cpu))\
 )
 $(eval libs        :=\
-	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBS.$(BUILD_TARGET))\
-	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS.$(bld_trg_cpu))\
+	$($(target)_LIBS.$(bld_trg_arch))\
+	$($(target)_LIBS.$(bld_trg))\
+	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(BUILD_TARGET_CPU))\
-	$(LIBS.$(BUILD_TARGET_ARCH))\
-	$(LIBS.$(BUILD_TARGET))\
-	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS.$(bld_trg_cpu))\
+	$(LIBS.$(bld_trg_arch))\
+	$(LIBS.$(bld_trg))\
+	$(LIBS.$(bld_type))\
 	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_LIBS.$(bld_type))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
-	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBPATH.$(BUILD_TARGET))\
-	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH.$(bld_trg_cpu))\
+	$($(target)_LIBPATH.$(bld_trg_arch))\
+	$($(target)_LIBPATH.$(bld_trg))\
+	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(BUILD_TARGET_CPU))\
-	$(LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(LIBPATH.$(BUILD_TARGET))\
-	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH.$(bld_trg_cpu))\
+	$(LIBPATH.$(bld_trg_arch))\
+	$(LIBPATH.$(bld_trg))\
+	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)\
 )
 $(eval dirdep      := $(dir $(exe)).dir_created)
@@ -1177,26 +1193,26 @@ $(eval dirdep      := $(dir $(exe)).dir_created)
 $(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_PRE.$(bld_trg))\
+	$($(target)_CUSTOM_PRE.$(bld_type))\
 	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_PRE.$(BUILD_TARGET))\
-	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$(CUSTOM_PRE.$(bld_trg))\
+	$(CUSTOM_PRE.$(bld_type))\
 	$(CUSTOM_PRE)\
 )))
 $(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_POST.$(bld_trg))\
+	$($(target)_CUSTOM_POST.$(bld_type))\
 	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_POST.$(BUILD_TARGET))\
-	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$(CUSTOM_POST.$(bld_trg))\
+	$(CUSTOM_POST.$(bld_type))\
 	$(CUSTOM_POST)\
 )))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE))))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 # publish rule (still need work)
@@ -1230,6 +1246,10 @@ define def_sysmod
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
+$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
+$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
+$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
 $(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
 $(eval TARGET_$(target) := $(sys))
@@ -1243,85 +1263,85 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
 	$(LDFLAGS)\
-	$(LDFLAGS.$(BUILD_TYPE))\
-	$(LDFLAGS.$(BUILD_TARGET))\
-	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS.$(bld_type))\
+	$(LDFLAGS.$(bld_trg))\
+	$(LDFLAGS.$(bld_trg_arch))\
+	$(LDFLAGS.$(bld_trg_cpu))\
 	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(BUILD_TYPE))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS.$(bld_type))\
+	$($(target)_LDFLAGS.$(bld_trg))\
+	$($(target)_LDFLAGS.$(bld_trg_arch))\
+	$($(target)_LDFLAGS.$(bld_trg_cpu))\
 )
 $(eval libs        :=\
-	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBS.$(BUILD_TARGET))\
-	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS.$(bld_trg_cpu))\
+	$($(target)_LIBS.$(bld_trg_arch))\
+	$($(target)_LIBS.$(bld_trg))\
+	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(BUILD_TARGET_CPU))\
-	$(LIBS.$(BUILD_TARGET_ARCH))\
-	$(LIBS.$(BUILD_TARGET))\
-	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS.$(bld_trg_cpu))\
+	$(LIBS.$(bld_trg_arch))\
+	$(LIBS.$(bld_trg))\
+	$(LIBS.$(bld_type))\
 	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBS.$(bld_trg))\
+	$(SDK_$(sdk)_LIBS.$(bld_type))\
 	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_LIBS.$(bld_type))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
-	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBPATH.$(BUILD_TARGET))\
-	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH.$(bld_trg_cpu))\
+	$($(target)_LIBPATH.$(bld_trg_arch))\
+	$($(target)_LIBPATH.$(bld_trg))\
+	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(BUILD_TARGET_CPU))\
-	$(LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(LIBPATH.$(BUILD_TARGET))\
-	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH.$(bld_trg_cpu))\
+	$(LIBPATH.$(bld_trg_arch))\
+	$(LIBPATH.$(bld_trg))\
+	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
 	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)\
 )
 $(eval dirdep      := $(dir $(sys)).dir_created)
@@ -1329,37 +1349,37 @@ $(eval dirdep      := $(dir $(sys)).dir_created)
 $(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_PRE.$(bld_trg))\
+	$($(target)_CUSTOM_PRE.$(bld_type))\
 	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_PRE.$(BUILD_TARGET))\
-	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$(CUSTOM_PRE.$(bld_trg))\
+	$(CUSTOM_PRE.$(bld_type))\
 	$(CUSTOM_PRE)\
 )))
 $(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_POST.$(bld_trg))\
+	$($(target)_CUSTOM_POST.$(bld_type))\
 	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_POST.$(BUILD_TARGET))\
-	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$(CUSTOM_POST.$(bld_trg))\
+	$(CUSTOM_POST.$(bld_type))\
 	$(CUSTOM_POST)\
 )))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE))))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
 
 ifndef TOOL_$(tool)_LINK_SYSMOD
 $$(warning kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
 $$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(BUILD_TARGET)) \
+	3 $($(target)_TOOL.$(bld_trg)) \
 	4 $($(target)_TOOL) \
 	5 $($(source)TOOL) \
-	6 $($(source)TOOL.$(BUILD_TARGET)) \
-	7 $(TOOL.$(BUILD_TARGET)) \
+	6 $($(source)TOOL.$(bld_trg)) \
+	7 $(TOOL.$(bld_trg)) \
 	8 $(TOOL) )
 endif
 
@@ -1424,7 +1444,9 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 # Do all the default passes if it's unspecified.
 
 #PASSES ?= needed libraries binaries others publish
-PASSES ?= libraries dlls binaries others
+PASSES ?= needed libraries dlls binaries others
+
+## @todo figure out a generic way of configuring how pass works!
 
 ## Proritized list of the default makefile when walking subdirectories.
 # The user can overload this list.
