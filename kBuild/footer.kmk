@@ -1,4 +1,4 @@
-# $Id: footer.kmk 243 2005-03-20 17:36:53Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 246 2005-04-02 23:02:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -816,6 +816,7 @@ $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 ifdef $(target)_INST
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
+	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
 
 _BLDPROGS   += $(pubexe)
@@ -887,6 +888,7 @@ $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 ifndef $(target)_NOINST
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
+	$(RM) -f $(publib)
 	$(CP) $(lib) $(publib)
 
 _LIBS += $(publib)
@@ -1058,6 +1060,7 @@ $(eval $(TOOL_$(tool)_LINK_DLL))
 ifndef $(target)_NOINST
 $(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
+	$(RM) -f $(pubdll)
 	$(CP) $(dll) $(pubdll)
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
@@ -1229,6 +1232,7 @@ $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 ifndef $(target)_NOINST
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
+	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
 
 _PROGRAMS  += $(pubexe)
@@ -1399,6 +1403,7 @@ $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 ifndef $(target)_NOINST
 $(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
 $(pubsys): $(sys) $(dir $(pubsys)).dir_created
+	$(RM) -f $(pubsys)
 	$(CP) $(sys) $(pubsys)
 
 $(eval _SYSMODS += $(pubsys))
