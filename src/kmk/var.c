@@ -88,13 +88,15 @@ static const char rcsid[] =
  */
 
 #ifdef USE_KLIB
- #include <kLib/kLib.h>
+    #define KLIB_INSTRICT
+    #include <kLib/kLib.h>
 #endif
 
 #include    <ctype.h>
 #include    <sys/types.h>
 #include    <regex.h>
 #include    <stdlib.h>
+#include    <string.h>
 #include    "make.h"
 #include    "buf.h"
 
@@ -224,6 +226,29 @@ VarCmp (v, name)
 
 /*-
  *-----------------------------------------------------------------------
+ * StrCmp  --
+ *	See if the given strings matches. Called from
+ *	Lst_Find when searching for a environment-variable-overrided var.
+ *
+ * Results:
+ *	0 if they match. non-zero otherwise.
+ *
+ * Side Effects:
+ *	none
+ *-----------------------------------------------------------------------
+ */
+static int
+VarStrCmp (str1, str2)
+    ClientData     str1;
+    ClientData     str2;
+{
+    return (strcmp ((char *) str1, (char *)str2));
+}
+
+
+
+/*-
+ *-----------------------------------------------------------------------
  * VarFind --
  *	Find the given variable in the given context and any other contexts
  *	indicated.
@@ -292,7 +317,7 @@ VarFind (name, ctxt, flags)
      * the -E flag to use environment-variable-override for.
      */
     if (Lst_Find (envFirstVars, (ClientData)name,
-		  (int (*)(ClientData, ClientData)) strcmp) != NILLNODE)
+		  (int (*)(ClientData, ClientData)) VarStrCmp) != NILLNODE)
     {
 	localCheckEnvFirst = TRUE;
     } else {
