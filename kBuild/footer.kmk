@@ -1,4 +1,4 @@
-# $Id: footer.kmk 91 2004-06-07 14:38:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 94 2004-06-08 14:48:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -194,7 +194,7 @@ endef
 define def_inherit_template
 $(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL\
 	,$(eval $(def_inherit_template_one)))
-$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS\
+$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS LDFLAGS LIBS LIBPATH \
 	,$(eval $(def_inherit_template_one_accumulate)))
 endef
 # Inherit template properties
