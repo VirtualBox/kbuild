@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 224 2005-02-09 06:32:50Z knut.osmundsen@oracle.com $
+# $Id: env.sh 249 2005-04-03 00:42:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -132,7 +132,7 @@ if [ -z "$BUILD_TARGET" ]; then
     BUILD_TARGET=$BUILD_PLATFORM
 fi
 export BUILD_TARGET
-echo "dbg: BUILD_TARGET=$BUILD_TYPE"
+echo "dbg: BUILD_TARGET=$BUILD_TARGET"
 
 
 # Determin executable extension and path separator.
