@@ -1,4 +1,4 @@
-# $Id: header.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 77 2004-05-31 08:53:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -120,7 +120,7 @@ endif
 ifeq ($(BUILD_TARGET),WIN32)
 BUILD_TARGET        := win32
 endif
-ifeq ($(BUILD_TARGET),WIN32)
+ifeq ($(BUILD_TARGET),win32)
 _BUILD_TARGET_OK    := 1
 endif
 
@@ -276,8 +276,8 @@ endif
 _CFGDIR     := .
 _CFGFILES   :=
 define def_include_config
-_CFGDIR     := $(_CFGDIR)/$(1)
-_CFGFILES   += $(wildcard $(_CFGDIR)/config.kmk $(_CFGDIR)/config.kMk)
+$(eval _CFGDIR := $(_CFGDIR)/$(1))
+_CFGFILES   += $(wildcard $(_CFGDIR)/Config.kmk $(_CFGDIR)/config.kmk)
 endef
 # walk down the _RELATIVE_ path specified by DEPTH.
 $(foreach d,$(subst /, ,$(DEPTH)), $(eval $(call def_include_config,$(d))) )
