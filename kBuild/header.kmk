@@ -1,4 +1,4 @@
-# $Id: header.kmk 230 2005-02-09 12:30:09Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 233 2005-02-09 21:47:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -250,6 +250,10 @@ DEP_CCXX            := $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
 else
 DEP_CCXX            := echo $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
 endif
+ifeq ($(MAKE),kmk)
+MAKE                := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
+endif
+
 # Standard Unix shell utils.
 ifdef KMK_BUILTIN
 ECHO                := kmk_builtin_echo
