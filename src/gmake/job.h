@@ -57,6 +57,12 @@ struct child
     int cstatus;		/* Completion status */
 #endif
     char *sh_batch_file;        /* Script file for shell commands */
+#ifdef MAKE_DLLSHELL
+    int status;                 /* Status of the job.
+                                   Another thread might set this. */
+    char dllshell_done;         /* Nonzero if executed thru a dll shell.
+                                   Another thread might set this. */
+#endif
     unsigned int remote:1;	/* Nonzero if executing remotely.  */
 
     unsigned int noerror:1;	/* Nonzero if commands contained a `-'.  */
@@ -74,8 +80,8 @@ extern void start_waiting_jobs PARAMS ((void));
 extern char **construct_command_argv PARAMS ((char *line, char **restp, struct file *file, char** batch_file));
 #ifdef VMS
 extern int child_execute_job PARAMS ((char *argv, struct child *child));
-#elif defined(__EMX__)
-extern int child_execute_job PARAMS ((int stdin_fd, int stdout_fd, char **argv, char **envp));
+#elif defined(__EMX__) || defined (MAKE_DLLSHELL)
+extern int child_execute_job PARAMS ((int stdin_fd, int stdout_fd, char **argv, char **envp, struct child *child));
 #else
 extern void child_execute_job PARAMS ((int stdin_fd, int stdout_fd, char **argv, char **envp));
 #endif

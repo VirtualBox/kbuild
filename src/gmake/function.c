@@ -1493,7 +1493,7 @@ func_shell (char *o, char **argv, const char *funcname)
   CLOSE_ON_EXEC(pipedes[1]);
   CLOSE_ON_EXEC(pipedes[0]);
   /* Never use fork()/exec() here! Use spawn() instead in exec_command() */
-  pid = child_execute_job (0, pipedes[1], command_argv, envp);
+  pid = child_execute_job (0, pipedes[1], command_argv, envp, NULL);
   if (pid < 0)
     perror_with_name (error_prefix, "spawn");
 

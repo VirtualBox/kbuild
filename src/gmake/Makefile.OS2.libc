@@ -1,0 +1,28 @@
+# $Id: Makefile.OS2.libc 57 2003-11-23 22:38:39Z knut.osmundsen@oracle.com $
+
+OBJDIR = objdir/OS2.libc
+OBJDIR = .
+SRC =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
+		function.c implicit.c job.c main.c \
+		misc.c read.c remake.c rule.c signame.c \
+		variable.c version.c vpath.c hash.c \
+        getopt.c getopt1.c remote-stub.c
+CFLAGS = -Zomf -g -DMAKE_DLLSHELL -Wall
+ifndef DEBUG
+CFLAGS += -O3
+endif
+
+all: $(OBJDIR) make-new.exe
+
+make-new.exe: config.h $(addprefix $(OBJDIR)/, $(SRC:.c=.obj))
+	gcc -g $(CFLAGS) -Zhigh-mem -Zstack 1024 -o $@ $(SRC:.c=.obj) -ldl
+
+.c.obj:
+	gcc -c $(CFLAGS) -o $@ -DHAVE_CONFIG_H  $<
+
+config.h: config.h.OS2.libc
+	cp $< $@
+
+$(OBJDIR):
+	mkdir -p $@
+

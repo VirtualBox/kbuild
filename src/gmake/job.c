@@ -30,6 +30,10 @@ Boston, MA 02111-1307, USA.  */
 
 #include <string.h>
 
+#ifdef MAKE_DLLSHELL
+#include <dlfcn.h>
+#endif
+
 /* Default shell to use.  */
 #ifdef WINDOWS32
 
@@ -54,7 +58,7 @@ int batch_mode_shell = 0;
 
 #elif defined (__EMX__)
 
-const char *default_shell = "/bin/sh";
+char *default_shell = "sh.exe";
 int batch_mode_shell = 0;
 
 #elif defined (VMS)
@@ -200,6 +204,9 @@ static int job_next_command PARAMS ((struct child *));
 static int start_waiting_job PARAMS ((struct child *));
 #ifdef VMS
 static void vmsWaitForChildren PARAMS ((int *));
+#endif
+#ifdef MAKE_DLLSHELL
+static int spawn_command PARAMS ((char **argv, char **envp, struct child *child));
 #endif
 
 /* Chain of all live (or recently deceased) children.  */
@@ -429,7 +436,6 @@ handle_apos (char *p)
 
 static unsigned int dead_children = 0;
 
-#ifndef __EMX__ /* Don't use SIGCHLD handler on OS/2. */
 RETSIGTYPE
 child_handler (int sig)
 {
@@ -441,9 +447,12 @@ child_handler (int sig)
       job_rfd = -1;
     }
 
+#ifdef __EMX__
+  signal(SIGCHLD, SIG_DFL); /* The signal handler must called only once! ????*/
+#endif
+
   DB (DB_JOBS, (_("Got a SIGCHLD; %u unreaped children.\n"), dead_children));
 }
-#endif  /* !__EMX__ */
 
 extern int shell_function_pid, shell_function_completed;
 
@@ -484,6 +493,9 @@ reap_children (int block, int err)
       register struct child *lastc, *c;
       int child_failed;
       int any_remote, any_local;
+#ifdef MAKE_DLLSHELL
+      struct child *dllshelled_child = 0;
+#endif
 
       if (err && block)
 	{
@@ -518,6 +530,10 @@ reap_children (int block, int err)
 	{
 	  any_remote |= c->remote;
 	  any_local |= ! c->remote;
+#ifdef MAKE_DLLSHELL
+          if (c->dllshell_done)
+            dllshelled_child = c;
+#endif
 	  DB (DB_JOBS, (_("Live child 0x%08lx (%s) PID %ld %s\n"),
                         (unsigned long int) c, c->file->name,
                         (long) c->pid, c->remote ? _(" (remote)") : ""));
@@ -544,6 +560,14 @@ reap_children (int block, int err)
       else
 	{
 	  /* No remote children.  Check for local children.  */
+#ifdef MAKE_DLLSHELL
+          if (dllshelled_child)
+            {
+              pid = dllshelled_child->pid;
+              status = (WAIT_T)dllshelled_child->status;
+            }
+          else
+#endif
 #if !defined(__MSDOS__) && !defined(_AMIGA) && !defined(WINDOWS32)
 	  if (any_local)
 	    {
@@ -574,7 +598,7 @@ reap_children (int block, int err)
 	      exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;
 	      coredump = WCOREDUMP (status);
 
-#ifdef __EMX__
+#if 0 /*def __EMX__*/
 	      /* the SIGCHLD handler must not be used on OS/2 because, unlike
 		 on UNIX systems, it had to call wait() itself.  Therefore
 		 job_rfd has to be closed here.  */
@@ -892,10 +916,6 @@ unblock_sigs (void)
 #endif
 
 #ifdef MAKE_JOBSERVER
-# ifdef __EMX__
-/* Never install the SIGCHLD handler for EMX!!! */
-#  define set_child_handler_action_flags(x)
-# else
 /* Set the child handler action flags to FLAGS.  */
 static void
 set_child_handler_action_flags (int flags)
@@ -911,7 +931,6 @@ set_child_handler_action_flags (int flags)
   sigaction (SIGCLD, &sa, NULL);
 #endif
 }
-#endif  /* !__EMX__ */
 #endif
 
 
@@ -1197,8 +1216,8 @@ start_job_command (struct child *child)
 	CLOSE_ON_EXEC (job_rfd);
 
       /* Never use fork()/exec() here! Use spawn() instead in exec_command() */
-      child->pid = child_execute_job (child->good_stdin ? 0 : bad_stdin, 1,
-                                      argv, child->environment);
+      child_execute_job (child->good_stdin ? 0 : bad_stdin, 1,
+                         argv, child->environment, child);
       if (child->pid < 0)
 	{
 	  /* spawn failed!  */
@@ -1638,6 +1657,9 @@ new_job (struct file *file)
 	set_child_handler_action_flags (0);
 	got_token = read (job_rfd, &token, 1);
 	saved_errno = errno;
+#ifdef __EMX__
+        signal(SIGCHLD, SIG_DFL); /* The child handler must be turned off here. */
+#endif
 	set_child_handler_action_flags (SA_RESTART);
 
         /* If we got one, we're done here.  */
@@ -2317,8 +2339,16 @@ child_execute_job (char *argv, struct child *child)
 
 /* EMX: Start a child process. This function returns the new pid.  */
 # if defined __MSDOS__ ||  defined __EMX__
+/* The child argument can be NULL (that's why we return the pid), if it is
+   and the shell is a dllshell:// a child structure is created and inserted
+   into the child list so reap_children can do its job.
+
+   BTW. the name of this function in this port is very misleading, spawn_job
+   would perhaps be more appropriate. */
+
 int
-child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
+child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp,
+                   struct child *child)
 {
   int pid;
   /* stdin_fd == 0 means: nothing to do for stdin;
@@ -2351,14 +2381,24 @@ child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
   if (stdout_fd != 1)
     CLOSE_ON_EXEC (stdout_fd);
 
+#ifdef MAKE_DLLSHELL
+  pid = spawn_command(argv, envp, child);
+#else
   /* Run the command.  */
   pid = exec_command (argv, envp);
+#endif
 
   /* Restore stdout/stdin of the parent process.  */
   if (stdin_fd != 0 && dup2 (save_stdin, 0) != 0)
     fatal (NILF, _("restoring of stdin failed\n"));
   if (stdout_fd != 1 && dup2 (save_stdout, 1) != 1)
     fatal (NILF, _("restoring of stdout failed\n"));
+
+  /* Cleanup handles */
+  if (stdin_fd != 0)
+    close (save_stdin);
+  if (stdout_fd != 1)
+    close (save_stdout);
 
   return pid;
 }
@@ -2387,6 +2427,98 @@ child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
 #endif /* !AMIGA && !__MSDOS__ */
 #endif /* !VMS */
 #endif /* !WINDOWS32 */
+
+#ifdef MAKE_DLLSHELL
+/* This is called when all pipes and such are configured for the
+   child process. The child argument may be null, see child_execute_job. */
+static int spawn_command (char **argv, char **envp, struct child *c)
+{
+  /* Now let's see if there is a DLLSHELL specifier in the
+     first argument. */
+  if (!strncmp(argv[0], "dllshell://", 11))
+    {
+      static void *cur_dll;             /* current loaded dll. */
+      static char *cur_dllspec;         /* dllshell without shell arg. */
+      /* pointer to the entrypoint. */
+      static pid_t (*cur_spawn) PARAMS ((char **argv, char **envp, int *status, char *done));
+
+      /* dllshell://<dllname>!<exec>[!<realshell>] */
+      char *name, *name_end, *symbol, *symbol_end;
+      int   len_basespec;
+      int   insert_child = 0;
+
+      /* parse it */
+      name = argv[0] + 11;
+      name_end = strchr (name, '!');
+      if (!name_end)
+        fatal (NILF, _("%s : malformed specifier!\n"), argv[0]);
+      symbol = name_end + 1;
+      symbol_end = strchr (symbol, '!');
+      if (symbol == symbol_end)
+        fatal (NILF, _("%s : malformed specifier!\n"), argv[0]);
+      if (symbol_end)
+        symbol_end = strchr (symbol, 0);
+      len_basespec = symbol_end - name;
+
+      /* need loading? */
+      if (   !cur_dllspec
+          || strncmp (name, cur_dllspec, len_basespec)
+          || argv[len_basespec])
+        {
+          if (cur_dll)
+            {
+              dlclose (cur_dll);
+              free (cur_dllspec);
+            }
+          cur_dllspec = strdup (name);
+          cur_dllspec[len_basespec] = '\0';
+          cur_dllspec[name_end - name] = '\0';
+          cur_dll = dlopen (cur_dllspec, RTLD_LOCAL);
+          if (!cur_dll)
+            fatal (NILF, _("%s : failed to load! dlerror: '%s'\n"), argv[0], dlerror());
+          cur_dllspec[name_end - name] = '!';
+          cur_spawn = dlsym (cur_dll, cur_dllspec + (symbol - name));
+          if (!cur_spawn)
+            fatal (NILF, _("%s : failed to find symbol! dlerror: %s\n"), argv[0], dlerror());
+        }
+
+      /* make child struct? */
+      if (!c)
+        {
+          c = (struct child *) xmalloc (sizeof (struct child));
+          bzero ((char *)c, sizeof (struct child));
+          insert_child = 1;
+        }
+
+      /* call it. return value is 0 on succes, -1 on failure. */
+      c->pid = cur_spawn (argv, envp, &c->status, &c->dllshell_done);
+      DB (DB_JOBS, (_("dllshell pid=%x"), c->pid));
+
+      if (insert_child && c->pid > 0)
+        {
+          c->next = children;
+          DB (DB_JOBS, (_("Putting child 0x%08lx (-) PID %ld on the chain.\n"),
+                        (unsigned long int) c, (long) c->pid));
+          children = c;
+          /* One more job slot is in use.  */
+          ++job_slots_used;
+        }
+    }
+  else
+    {
+      /* Run the command.  */
+#ifdef __EMX__
+      c->pid =
+        exec_command (argv, envp);
+#else
+# error MAKE_DLLSHELL is not ported to your platform yet.
+#endif
+      DB (DB_JOBS, (_("spawn pid=%x"), c->pid));
+    }
+
+  return c->pid;
+}
+#endif /* MAKE_DLLSHELL */
 
 #ifndef _AMIGA
 /* Replace the current process with one running the command in ARGV,
