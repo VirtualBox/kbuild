@@ -1,4 +1,4 @@
-# $Id: rules.kmk 71 2004-05-29 09:17:15Z knut.osmundsen@oracle.com $
+# $Id: rules.kmk 77 2004-05-31 08:53:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -24,7 +24,6 @@
 #
 #
 
-		
 ifdef PATH_KBUILD
 # Usual location.
 include $(PATH_KBUILD)/header.kmk
