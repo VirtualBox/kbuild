@@ -1,4 +1,4 @@
-# $Id: footer.kmk 139 2004-08-17 14:40:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 140 2004-08-17 14:45:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1149,6 +1149,7 @@ $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(def_sysmod)))
 #
 # OTHERS
 #
+_OTHERS = $(OTHERS)
 
 
 
