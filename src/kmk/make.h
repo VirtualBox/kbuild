@@ -53,17 +53,19 @@
 #include <ctype.h>
 #include <err.h>
 
-#if !defined(MAKE_BOOTSTRAP) && defined(BSD4_4)
+#if !defined(MAKE_BOOTSTRAP) && defined(BSD4_4) && !defined(__IBMC__)
 # include <sys/cdefs.h>
 #else
 # ifndef __P
-#  if defined(__STDC__) || defined(__cplusplus)
+/*kso: #  if defined(__STDC__) || defined(__cplusplus) */
+#  if defined(__STDC__) || defined(__cplusplus) || defined(__IBMC__)
 #   define	__P(protos)	protos		/* full-blown ANSI C */
 #  else
 #   define	__P(protos)	()		/* traditional C preprocessor */
 #  endif
 # endif
-# ifndef __STDC__
+/*kso: # ifndef __STDC__*/
+# if !defined(__STDC__) && !defined(__IBMC__)
 #  ifndef const
 #   define const
 #  endif
@@ -73,10 +75,15 @@
 # endif
 #endif
 
-#ifdef __STDC__
+#if defined(__IBMC__)
+#include <stdlib.h>
+#include <time.h>
+/*#ifdef __STDC__*/
+#elif defined(__STDC__)
 #include <stdlib.h>
 #include <unistd.h>
 #endif
+
 #include "sprite.h"
 #include "lst.h"
 #include "config.h"
@@ -363,12 +370,15 @@ extern int debug;
 #define DEBUG_FOR	0x0400
 #define DEBUG_LOUD	0x0800
 
-#ifdef __STDC__
+/*#ifdef __STDC__*/
+#if defined(__STDC__) || defined(__IBMC__)
 #define CONCAT(a,b)	a##b
 #else
 #define I(a)	  	a
 #define CONCAT(a,b)	I(a)b
 #endif /* __STDC__ */
+
+
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
 #define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))

@@ -107,12 +107,22 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/file.h>
-#include <sys/time.h>
-#include <sys/wait.h>
+#if defined(__IBMC__)
+# include <io.h>
+# include <process.h>
+# include <sys/utime.h>
+#else
+# include <sys/file.h>
+#endif
+# include <sys/time.h>
+#if !defined(__IBMC__)
+# include <sys/wait.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
-#include <utime.h>
+#if !defined(__IBMC__)
+# include <utime.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -125,7 +135,11 @@ static const char rcsid[] =
 #include "rmt.h"
 # define STATIC
 #else
-# define STATIC static
+# if defined(__IBMC__)
+#  define STATIC
+# else
+#  define STATIC static
+# endif
 #endif
 
 /*
@@ -164,7 +178,7 @@ static int     	  numCommands; 	    /* The number of commands actually printed
 
 /*
  * tfile is used to build temp file names to store shell commands to
- * execute. 
+ * execute.
  */
 static char     tfile[sizeof(TMPPAT)];
 

@@ -87,7 +87,7 @@ static const char rcsid[] =
  *	Parse_MainName	    	    Returns a Lst of the main target to create.
  */
 
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -314,7 +314,7 @@ ParseFindKeyword (str)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 Parse_Error(int type, char *fmt, ...)
 #else
 Parse_Error(va_alist)
@@ -322,7 +322,7 @@ Parse_Error(va_alist)
 #endif
 {
 	va_list ap;
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 	va_start(ap, fmt);
 #else
 	int type;		/* Error type (PARSE_WARNING, PARSE_FATAL) */
@@ -2421,7 +2421,7 @@ Parse_File(name, stream)
 		    goto nextLine;
 		} else if (strncmp (cp, "error", 5) == 0) {
 		    ParseDoError(cp + 5);
-	            goto nextLine;	    
+	            goto nextLine;	
 		} else if (strncmp(cp, "undef", 5) == 0) {
 		    char *cp2;
 		    for (cp += 5; isspace((unsigned char) *cp); cp++) {

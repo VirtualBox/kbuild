@@ -78,29 +78,55 @@ static const char rcsid[] =
  *				exiting.
  */
 
+#ifdef USE_KLIB
+ #include <kLib/kLib.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#if !defined(__IBMC__)
 #include <sys/resource.h>
 #include <sys/signal.h>
+#endif
 #include <sys/stat.h>
 #if defined(__i386__)
 #include <sys/sysctl.h>
 #endif
 #ifndef MACHINE
-#include <sys/utsname.h>
+# if !defined(__IBMC__)
+#  include <sys/utsname.h>
+# endif
 #endif
+#if !defined(__IBMC__)
 #include <sys/wait.h>
 #include <err.h>
+#endif
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#if !defined(__IBMC__)
 #include <sysexits.h>
-#ifdef __STDC__
+#endif
+#if defined(__STDC__) || defined(__IBMC__)
 #include <stdarg.h>
 #else
 #include <varargs.h>
+#endif
+#if defined(__IBMC__)
+ #include <io.h>
+ #include <direct.h>
+ #ifndef MAXPATHLEN
+  #define MAXPATHLEN _MAX_PATH
+ #endif
+ #ifndef EISDIR
+  #define EISDIR 21                     /* unused in errno.h, defined like this in DDK header. */
+ #endif
+ #ifndef S_ISDIR
+  #define S_IFMT   (S_IFDIR | S_IFCHR | S_IFREG)
+  #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+ #endif
 #endif
 #include "make.h"
 #include "hash.h"
@@ -628,7 +654,11 @@ main(argc, argv)
 	}
 
 #ifdef WANT_ENV_PWD
+        #ifdef USE_KLIB
+	kEnvSet("PWD", objdir);
+        #else
 	setenv("PWD", objdir, 1);
+        #endif
 #endif
 
 	create = Lst_Init(FALSE);
@@ -790,9 +820,17 @@ main(argc, argv)
 	/* Install all the flags into the MAKE envariable. */
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
 #ifdef POSIX
+                #ifdef USE_KLIB
+                kEnvSet("MAKEFLAGS", p);
+                #else
 		setenv("MAKEFLAGS", p, 1);
+                #endif
 #else
+                #ifdef USE_KLIB
+		kEnvSet("MAKE", p);
+                #else
 		setenv("MAKE", p, 1);
+                #endif
 #endif
 	efree(p1);
 
@@ -1130,7 +1168,7 @@ bad:
  */
 /* VARARGS */
 void
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 Error(char *fmt, ...)
 #else
 Error(va_alist)
@@ -1138,7 +1176,7 @@ Error(va_alist)
 #endif
 {
 	va_list ap;
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 	va_start(ap, fmt);
 #else
 	char *fmt;
@@ -1165,7 +1203,7 @@ Error(va_alist)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 Fatal(char *fmt, ...)
 #else
 Fatal(va_alist)
@@ -1173,7 +1211,7 @@ Fatal(va_alist)
 #endif
 {
 	va_list ap;
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 	va_start(ap, fmt);
 #else
 	char *fmt;
@@ -1207,7 +1245,7 @@ Fatal(va_alist)
  */
 /* VARARGS */
 void
-#ifdef __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 Punt(char *fmt, ...)
 #else
 Punt(va_alist)
@@ -1215,7 +1253,7 @@ Punt(va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#if defined(__STDC__) || defined(__IBMC__)
 	va_start(ap, fmt);
 #else
 	char *fmt;
