@@ -1,4 +1,4 @@
-/* $Id: kdev.e 113 2004-06-25 12:53:33Z knut.osmundsen@oracle.com $
+/* $Id: kdev.e 214 2005-01-12 20:19:35Z knut.osmundsen@oracle.com $
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -78,6 +78,12 @@ def  'C-S-T' = odin32_maketagfile
 //MARKER.  Editor searches for this line!
 #pragma option(redeclvars, on)
 #include 'slick.sh'
+#ifndef VS_TAGDETAIL_context_args
+/* newer vslick version. */
+#include 'tagsdb.sh'
+//#pragma option(strict,on)
+/*#else: Version 4.0 (OS/2) */
+#endif
 
 /* Remeber to change these! */
 static _str skUserInitials  = "kso";
@@ -116,11 +122,11 @@ static _str k_date()
     date = _date('U');
     i = pos("/", date);
     j = pos("/", date, i+1);
-    month = substr(date, 1, i-1);
+    _str month = substr(date, 1, i-1);
     if (length(month) == 1) month = '0'month;
-    day   = substr(date, i+1, j-i-1);
+    _str day   = substr(date, i+1, j-i-1);
     if (length(day)   == 1) day   = '0'day;
-    year  = substr(date, j+1);
+    _str year  = substr(date, j+1);
     return year"-"month"-"day;
 }
 
@@ -131,7 +137,7 @@ static _str k_date()
  */
 static _str k_year()
 {
-    date = _date('U');
+    _str date = _date('U');
     return  substr(date, pos("/",date, pos("/",date)+1)+1, 4);
 }
 
@@ -171,9 +177,9 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
     /*
      * Get comment setup from the lexer.
      */
+    _str sLine = '';
     if (sLexer)
     {
-        sLine = '';
         /* multiline */
         rc = _ini_get_value(slick_path_search("user.vlx"), sLexer, 'mlcomment', sLine);
         if (rc)
@@ -195,7 +201,7 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
             sLeft = strip(word(sLine, 1));
             sRight = '';
             iColumn = 0;
-            sTmp = word(sLine, 2);
+            _str sTmp = word(sLine, 2);
             if (isnumber(sTmp))
                 iColumn = (int)sTmp;
             if (sLeft != '')
@@ -206,11 +212,11 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
     /*
      * Read the nonboxchars and determin user or default box.ini.
      */
-    sFile = slick_path_search("ubox.ini");
-    frc = _ini_get_value(sFile, sExt, 'nonboxchars', sLine);
+    _str sFile = slick_path_search("ubox.ini");
+    boolean frc = _ini_get_value(sFile, sExt, 'nonboxchars', sLine);
     if (frc)
     {
-        sFile = slick_path_search("box.ini")
+        sFile = slick_path_search("box.ini");
         frc = _ini_get_value(sFile, sExt, 'nonboxchars', sLine);
     }
 
@@ -251,6 +257,8 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
 static boolean k_line_comment()
 {
     _str    sRight = '';
+    _str    sLeft = '';
+    int     iColumn;
     boolean fLineComment = false;
     if (k_commentconfig(sLeft, sRight, iColumn))
         fLineComment = (sRight == '' || iColumn > 0);
@@ -283,6 +291,7 @@ void k_insert_comment(_str sStr, int iCursor, int iPosition = -1)
         sLeft = '/*'; sRight = '*/'; iColumn = 0;
     }
 
+    int iCol = 0;
     if (iColumn <= 0)
     {   /*
          * not column based source
@@ -333,7 +342,9 @@ void k_insert_comment(_str sStr, int iCursor, int iPosition = -1)
  */
 static _str k_comment(boolean fRight = false)
 {
-    sComment = '/*';
+    _str sLeft, sRight;
+    int iColumn;
+    _str sComment = '/*';
     if (k_commentconfig(sLeft, sRight, iColumn))
         sComment = (!fRight || iColumn > 0 ? sLeft : sRight);
 
@@ -351,6 +362,8 @@ static _str k_comment(boolean fRight = false)
  */
 static void k_box_start(sTag)
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     _begin_line();
@@ -358,7 +371,7 @@ static void k_box_start(sTag)
         while (p_col < iColumn)
            _insert_text(" ");
 
-    sText = sLeft;
+    _str sText = sLeft;
     if (sTag != '' && fkStyleBoxTag)
     {
         if (substr(sText, length(sText)) != '*')
@@ -366,6 +379,7 @@ static void k_box_start(sTag)
         sText = sText:+sTag;
     }
 
+    int i;
     for (i = length(sText); i <= ikStyleWidth - p_col; i++)
         sText = sText:+'*';
     sText = sText:+"\n";
@@ -380,19 +394,22 @@ static void k_box_start(sTag)
  */
 static void k_box_line(_str sStr)
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     if (iColumn >= 0)
         while (p_col < iColumn)
            _insert_text(" ");
 
-    sText = '';
+    _str sText = '';
     if (k_line_comment())
         sText = sLeft;
     if (sText == '' || substr(sText, length(sText)) != '*')
         sText = sText:+'*';
 
     sText = sText:+' ';
+    int i;
     for (i = length(sText); i < p_SyntaxIndent; i++)
         sText = sText:+' ';
 
@@ -411,13 +428,15 @@ static void k_box_line(_str sStr)
  */
 static void k_box_end()
 {
+    _str sLeft, sRight;
+    int iColumn, i;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     if (iColumn >= 0)
         while (p_col < iColumn)
            _insert_text(" ");
 
-    sText = '';
+    _str sText = '';
     if (k_line_comment())
         sText = sLeft;
     for (i = length(sText) + length(sRight); i <= ikStyleWidth - p_col; i++)
@@ -440,9 +459,10 @@ static void k_box_end()
 static int k_func_goto_nearest_function()
 {
     boolean fFix = false;               /* cursor at function fix. (last function) */
-    cur_line = p_line;
-    prev_line = -1;
-    next_line = -1;
+    int cur_line = p_line;
+    int prev_line = -1;
+    int next_line = -1;
+    typeless org_pos;
     _save_pos2(org_pos);
 
     if (!next_proc(1))
@@ -504,10 +524,11 @@ static boolean k_func_prototype()
     /*
      * Check if this is a real function implementation.
      */
+    typeless procpos;
     _save_pos2(procpos);
-    if (!k_func_goto_nearest_functions())
+    if (!k_func_goto_nearest_function())
     {
-        proc_line = p_line;
+        int proc_line = p_line;
 
         if (!k_func_searchcode("{"))
         {
@@ -531,7 +552,7 @@ static boolean k_func_prototype()
  */
 static _str k_func_getfunction_name()
 {
-    sFunctionName = current_proc();
+    _str sFunctionName = current_proc();
     if (!sFunctionName)
         sFunctionName = "";
     //say 'functionanme='sFunctionName;
@@ -545,7 +566,29 @@ static _str k_func_getfunction_name()
  */
 static _str k_func_getparams()
 {
+    typeless org_pos;
     _save_pos2(org_pos);
+
+    /*
+     * Try use the tags first.
+     */
+    _UpdateContext(true);
+    int context_id = tag_current_context();
+    if (context_id <= 0)
+    {
+        k_func_goto_nearest_function();
+        context_id = tag_current_context();
+    }
+    if (context_id > 0)
+    {
+        _str args = '';
+        _str type = '';
+       tag_get_detail2(VS_TAGDETAIL_context_args, context_id, args);
+       tag_get_detail2(VS_TAGDETAIL_context_type, context_id, type);
+       if (tag_tree_type_is_func(type))
+           return args
+           //caption = tag_tree_make_caption_fast(VS_TAGMATCH_context,context_id,true,true,false);
+    }
 
     /*
      * Go to nearest function.
@@ -557,14 +600,15 @@ static _str k_func_getparams()
         /*
          * Get parameters.
          */
+        typeless posStart;
         _save_pos2(posStart);
-        offStart = _QROffset();
+        long offStart = _QROffset();
         if (!find_matching_paren())
         {
-            offEnd = _QROffset();
+            long offEnd = _QROffset();
             _restore_pos2(posStart);
             p_col++;
-            _str sParamsRaw = strip(get_text(offEnd - offStart - 1));
+            _str sParamsRaw = strip(get_text((int)(offEnd - offStart - 1)));
 
 
             /*
@@ -573,9 +617,10 @@ static _str k_func_getparams()
             _str sParams = "";
 
             int i;
+            _str chPrev;
             for (i = 1, chPrev = ' '; i <= length(sParamsRaw); i++)
             {
-                ch = substr(sParamsRaw, i, 1);
+                _str ch = substr(sParamsRaw, i, 1);
 
                 /*
                  * Do fixups.
@@ -672,7 +717,7 @@ static int k_func_enumparams(_str sParams, int iParam, _str &sType, _str &sName,
     /* did we find the parameter? */
     if (iParam == iCurParam)
     {   /* (yeah, we did!) */
-        sArg = strip(substr(sParams, iStartParam, i - iStartParam));
+        _str sArg = strip(substr(sParams, iStartParam, i - iStartParam));
         /* remove M$ stuff */
         sArg = stranslate(sArg, "", "IN", "E");
         sArg = stranslate(sArg, "", "OUT", "E");
@@ -718,8 +763,7 @@ static int k_func_countparams(_str sParams)
     int     i;
     int     iParLevel;
     int     iCurParam;
-
-    sType = sName = sDefault = "";
+    _str    sType = "", sName = "", sDefault = "";
 
     /* check for 0 parameters */
     if (length(sParams) == 0)
@@ -748,6 +792,7 @@ static int k_func_countparams(_str sParams)
  */
 static _str k_func_getreturntype(boolean fPureType = false)
 {
+    typeless org_pos;
     _save_pos2(org_pos);
 
     /*
@@ -758,15 +803,16 @@ static _str k_func_getreturntype(boolean fPureType = false)
         /*
          * Return type is from function start to function name...
          */
+        typeless posStart;
         _save_pos2(posStart);
-        offStart = _QROffset();
+        long offStart = _QROffset();
 
         if (!k_func_searchcode("("))               /* makes some assumptions. */
         {
             prev_word();
-            offEnd = _QROffset();
+            long offEnd = _QROffset();
             _restore_pos2(posStart);
-            _str sTypeRaw = strip(get_text(offEnd - offStart));
+            _str sTypeRaw = strip(get_text((int)(offEnd - offStart)));
 
             //say 'sTypeRaw='sTypeRaw;
             /*
@@ -837,9 +883,10 @@ static _str k_func_getreturntype(boolean fPureType = false)
             _str sType = "";
 
             int i;
+            _str chPrev;
             for (i = 1, chPrev = ' '; i <= length(sTypeRaw); i++)
             {
-                ch = substr(sTypeRaw, i, 1);
+                _str ch = substr(sTypeRaw, i, 1);
 
                 /*
                  * Do fixups.
@@ -911,6 +958,7 @@ static int k_func_searchcode(_str sSearchString, _str sOptions = "E+")
  */
 static boolean k_func_in_code()
 {
+    typeless searchsave;
     _save_pos2(searchsave);
     boolean fRc = !_in_comment();
     _restore_pos2(searchsave);
@@ -923,9 +971,9 @@ static boolean k_func_in_code()
  */
 static _str k_func_get_next_code_text()
 {
-    _str ch;
+    typeless searchsave;
     _save_pos2(searchsave);
-    ch = k_func_get_next_code_text2();
+    _str ch = k_func_get_next_code_text2();
     _restore_pos2(searchsave);
     return ch;
 }
@@ -938,7 +986,7 @@ static boolean k_func_more_code_on_line()
 {
     boolean fRc;
     int     curline = p_line;
-
+    typeless searchsave;
     _save_pos2(searchsave);
     k_func_get_next_code_text2();
     fRc = curline == p_line;
@@ -957,8 +1005,8 @@ static _str k_func_get_next_code_text2()
     _str ch;
     do
     {
-        curcol = ++p_col;
-        end_line()
+        int curcol = ++p_col;
+        end_line();
         if (p_col <= curcol)
         {
             p_line++;
@@ -992,6 +1040,8 @@ static _str k_func_get_next_code_text2()
 /** starts a javadoc documentation box. */
 static void k_javadoc_box_start(_str sStr = '', boolean fDouble = true)
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     _begin_line();
@@ -999,7 +1049,7 @@ static void k_javadoc_box_start(_str sStr = '', boolean fDouble = true)
         while (p_col < iColumn)
            _insert_text(" ");
 
-    sText = sLeft;
+    _str sText = sLeft;
     if (fDouble)
         sText = sLeft:+substr(sLeft, length(sLeft), 1);
     if (sStr != '')
@@ -1012,12 +1062,15 @@ static void k_javadoc_box_start(_str sStr = '', boolean fDouble = true)
 /** inserts a new line in a javadoc documentation box. */
 static void k_javadoc_box_line(_str sStr = '', int iPadd = 0, _str sStr2 = '', int iPadd2 = 0, _str sStr3 = '')
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     if (iColumn >= 0)
         while (p_col < iColumn)
            _insert_text(" ");
 
+    _str sText;
     if (k_line_comment())
         sText = sLeft;
     else
@@ -1030,6 +1083,7 @@ static void k_javadoc_box_line(_str sStr = '', int iPadd = 0, _str sStr2 = '', i
         sText = sText:+' ':+sStr;
     if (iPadd > 0)
     {
+        int i;
         for (i = length(sText); i < iPadd; i++)
             sText = sText:+' ';
 
@@ -1053,12 +1107,15 @@ static void k_javadoc_box_line(_str sStr = '', int iPadd = 0, _str sStr2 = '', i
 /** ends a javadoc documentation box. */
 static void k_javadoc_box_end()
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (!k_commentconfig(sLeft, sRight, iColumn))
         return;
     if (iColumn >= 0)
         while (p_col < iColumn)
            _insert_text(" ");
 
+    _str sText;
     if (k_line_comment())
         sText = sLeft;
     else
@@ -1132,6 +1189,7 @@ void k_javadoc_funcbox()
          * Determin parameter description indent.
          */
         int     iPadd2 = 0;
+        int     i;
         for (i = 0; i < cArgs; i++)
         {
             _str sName, sType, sDefault;
@@ -1149,7 +1207,7 @@ void k_javadoc_funcbox()
             _str sName, sType, sDefault;
             if (!k_func_enumparams(sArgs, i, sType, sName, sDefault))
             {
-                sStr3 = '';
+                _str sStr3 = '';
                 if (sDefault != "")
                     sStr3 = '(default='sDefault')';
                 k_javadoc_box_line('@param', iPadd, sName, iPadd2, sStr3);
@@ -1168,11 +1226,10 @@ void k_javadoc_funcbox()
         k_javadoc_box_line('@equiv', iPadd);
         k_javadoc_box_line('@time', iPadd);
         k_javadoc_box_line('@sketch', iPadd);
-    }
-    k_javadoc_box_line('@status', iPadd);
-    k_javadoc_box_line('@author', iPadd, skUserName ' <' skUserEmail '>');
-    if (fkStyleFullHeaders)
+        k_javadoc_box_line('@status', iPadd);
+        k_javadoc_box_line('@author', iPadd, skUserName ' <' skUserEmail '>');
         k_javadoc_box_line('@remark', iPadd);
+    }
     k_javadoc_box_end();
 
     up(p_RLine - iCursorLine);
@@ -1221,8 +1278,8 @@ void k_javadoc_moduleheader()
             break;
 
         case 'GPL':
-            sProg = skProgram;
-            k_javadoc_box_line()
+            _str sProg = skProgram;
+            k_javadoc_box_line();
             if (sProg == '')
                 sProg = 'This program';
             else
@@ -1234,12 +1291,12 @@ void k_javadoc_moduleheader()
             k_javadoc_box_line('it under the terms of the GNU General Public License as published by');
             k_javadoc_box_line('the Free Software Foundation; either version 2 of the License, or');
             k_javadoc_box_line('(at your option) any later version.');
-            k_javadoc_box_line()
+            k_javadoc_box_line();
             k_javadoc_box_line(sProg ' is distributed in the hope that it will be useful,');
             k_javadoc_box_line('but WITHOUT ANY WARRANTY; without even the implied warranty of');
             k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
             k_javadoc_box_line('GNU General Public License for more details.');
-            k_javadoc_box_line()
+            k_javadoc_box_line();
             k_javadoc_box_line('You should have received a copy of the GNU General Public License');
             k_javadoc_box_line('along with ' sProg '; if not, write to the Free Software');
             k_javadoc_box_line('Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA');
@@ -1247,7 +1304,7 @@ void k_javadoc_moduleheader()
 
         case 'LGPL':
             sProg = skProgram;
-            k_javadoc_box_line()
+            k_javadoc_box_line();
             if (sProg == '')
                 sProg = 'This program';
             else
@@ -1259,12 +1316,12 @@ void k_javadoc_moduleheader()
             k_javadoc_box_line('it under the terms of the GNU Lesser General Public License as published');
             k_javadoc_box_line('by the Free Software Foundation; either version 2 of the License, or');
             k_javadoc_box_line('(at your option) any later version.');
-            k_javadoc_box_line()
+            k_javadoc_box_line();
             k_javadoc_box_line(sProg ' is distributed in the hope that it will be useful,');
             k_javadoc_box_line('but WITHOUT ANY WARRANTY; without even the implied warranty of');
             k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
             k_javadoc_box_line('GNU Lesser General Public License for more details.');
-            k_javadoc_box_line()
+            k_javadoc_box_line();
             k_javadoc_box_line('You should have received a copy of the GNU Lesser General Public License');
             k_javadoc_box_line('along with ' sProg '; if not, write to the Free Software');
             k_javadoc_box_line('Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA');
@@ -1347,6 +1404,8 @@ void k_box_exported()
 /** oneliner comment */
 void k_oneliner()
 {
+    _str sLeft, sRight;
+    int iColumn;
     if (    k_commentconfig(sLeft, sRight, iColumn)
         &&  iColumn > 0)
     {   /* column based needs some tricky repositioning. */
@@ -1365,10 +1424,12 @@ void k_oneliner()
 void k_mark_modified_line()
 {
     /* not supported for column based sources */
+    _str sLeft, sRight;
+    int iColumn;
     if (    !k_commentconfig(sLeft, sRight, iColumn)
         ||  iColumn > 0)
         return;
-
+    _str sStr;
     if (skChange != '')
         sStr = skChange ' (' skUserInitials ')';
     else
@@ -1385,6 +1446,7 @@ void k_mark_modified_line()
 void k_signature()
 {
     /* kso I5-10000 2002-09-10: */
+    _str sSig;
     if (skChange != '')
         sSig = skUserInitials ' ' skChange ' ' k_date() ': ';
     else
@@ -1401,6 +1463,7 @@ void k_signature()
  */
 void klib_klogentry()
 {
+    typeless org_pos;
     _save_pos2(org_pos);
 
     /*
@@ -1424,13 +1487,14 @@ void klib_klogentry()
             if (!k_func_searchcode("{"))
             {
                 p_col++;
-                cArgs = k_func_countparams(sParams);
+                int cArgs = k_func_countparams(sParams);
                 if (cArgs > 0)
                 {
-                    sArgs = "";
+                    _str sArgs = "";
+                    int i;
                     for (i = 0; i < cArgs; i++)
                     {
-                        _str sType, sName, sDefault
+                        _str sType, sName, sDefault;
                         if (!k_func_enumparams(sParams, i, sType, sName, sDefault))
                             sArgs = sArgs', 'sName;
                     }
@@ -1446,6 +1510,7 @@ void klib_klogentry()
                 next_word();
                 if (def_next_word_style == 'E')
                     prev_word();
+                int iIgnorePos = 0;
                 if (substr(cur_word(iIgnorePos), 1, 9) == "KLOGENTRY")
                     delete_line();
 
@@ -1467,6 +1532,7 @@ void klib_klogentry()
  */
 void klib_klogexit()
 {
+    typeless org_pos;
     _save_pos2(org_pos);
 
     /*
@@ -1486,9 +1552,10 @@ void klib_klogexit()
             /*
              * Insert text.
              */
-            cur_col = p_col;
+            int cur_col = p_col;
             if (sType == 'void' || sType == 'VOID')
             {   /* procedure */
+                int iIgnorePos;
                 fReturn = cur_word(iIgnorePos) == 'return';
                 if (!fReturn)
                 {
@@ -1500,6 +1567,7 @@ void klib_klogexit()
 
                 if (fReturn)
                 {
+                    int i;
                     for (i = 1; i < cur_col; i++)
                         _insert_text(" ");
                 }
@@ -1508,6 +1576,7 @@ void klib_klogexit()
             else
             {   /* function */
                 _insert_text("KLOGEXIT();\n");
+                int i;
                 for (i = 1; i < cur_col; i++)
                     _insert_text(" ");
                 search(")","E-");
@@ -1515,20 +1584,23 @@ void klib_klogexit()
                 /*
                  * Insert value if possible.
                  */
+                typeless valuepos;
                 _save_pos2(valuepos);
                 next_word();
                 if (def_next_word_style == 'E')
                     prev_word();
+                int iIgnorePos;
                 if (cur_word(iIgnorePos) == 'return')
                 {
                     p_col += length('return');
+                    typeless posStart;
                     _save_pos2(posStart);
-                    offStart = _QROffset();
+                    long offStart = _QROffset();
                     if (!k_func_searchcode(";", "E+"))
                     {
-                        offEnd = _QROffset();
+                        long offEnd = _QROffset();
                         _restore_pos2(posStart);
-                        _str sValue = strip(get_text(offEnd - offStart));
+                        _str sValue = strip(get_text((int)(offEnd - offStart)));
                         //say 'sValue = 'sValue;
                         _restore_pos2(valuepos);
                         _save_pos2(valuepos);
@@ -1541,12 +1613,14 @@ void klib_klogexit()
             /*
              * Remove old KLOGEXIT statement on previous line if any.
              */
+            typeless valuepos;
             _save_pos2(valuepos);
-            newexitline = p_line;
+            int newexitline = p_line;
             p_line--; p_col = 1;
             next_word();
             if (def_next_word_style == 'E')
                 prev_word();
+            int iIgnorePos;
             if (p_line == newexitline - 1 && substr(cur_word(iIgnorePos), 1, 8) == 'KLOGEXIT')
                 delete_line();
             _restore_pos2(valuepos);
@@ -1573,9 +1647,10 @@ void klib_klogexit()
                         _insert_text(' }');
                     else
                     {
+                        typeless returnget;
                         _save_pos2(returnget);
                         k_func_searchcode("return", "E-");
-                        return_col = p_col;
+                        int return_col = p_col;
                         _restore_pos2(returnget);
 
                         end_line();
@@ -1589,7 +1664,7 @@ void klib_klogexit()
                     _save_pos2(valuepos);
                     prev_word();
                     p_col -= p_SyntaxIndent;
-                    codecol = p_col;
+                    int codecol = p_col;
                     _insert_text("{\n");
                     while (p_col < codecol)
                         _insert_text(' ');
@@ -1612,7 +1687,7 @@ void klib_klogexit()
  */
 void klib_klog_file_ask()
 {
-    klib_klog_file_int(true)
+    klib_klog_file_int(true);
 }
 
 
@@ -1621,7 +1696,7 @@ void klib_klog_file_ask()
  */
 void klib_klog_file_no_ask()
 {
-    klib_klog_file_int(false)
+    klib_klog_file_int(false);
 }
 
 
@@ -1657,10 +1732,11 @@ static void klib_klog_file_int(boolean fAsk)
          */
         center_line();
         _refresh_scroll();
-        sFunction = k_func_getfunction_name();
+        _str sFunction = k_func_getfunction_name();
         rc = fAsk ? _message_box("Process this function ("sFunction")?", "Visual SlickEdit", MB_YESNOCANCEL | MB_ICONQUESTION) : IDYES;
         if (rc == IDYES)
         {
+            typeless procpos;
             _save_pos2(procpos);
             klib_klogentry();
             _restore_pos2(procpos);
@@ -1678,8 +1754,9 @@ static void klib_klog_file_int(boolean fAsk)
     boolean fUserCancel = false;
     while (!prev_proc() && !fUserCancel)
     {
+        typeless procpos;
         _save_pos2(procpos);
-        sCurFunction = k_func_getfunction_name();
+        _str sCurFunction = k_func_getfunction_name();
         //say 'exit main loop: ' sCurFunction
 
         /*
@@ -1700,11 +1777,12 @@ static void klib_klog_file_int(boolean fAsk)
              */
             center_line();
             _refresh_scroll();
-            sFunction = k_func_getfunction_name();
+            _str sFunction = k_func_getfunction_name();
             rc =  fAsk ? _message_box("Process this exit from "sFunction"?", "Visual SlickEdit", MB_YESNOCANCEL | MB_ICONQUESTION) : IDYES;
             deselect();
             if (rc == IDYES)
             {
+                typeless returnpos;
                 _save_pos2(returnpos);
                 klib_klogexit();
                 _restore_pos2(returnpos);
@@ -1723,14 +1801,16 @@ static void klib_klog_file_int(boolean fAsk)
          */
         _restore_pos2(procpos);
         _save_pos2(procpos);
-        sType = k_func_getreturntype(true);
+        _str sType = k_func_getreturntype(true);
         if (!fUserCancel && sType && (sType == 'void' || sType == 'VOID'))
         {
             if (    !k_func_searchcode("{", "E+")
                 &&  !find_matching_paren())
             {
+                typeless funcend;
                 _save_pos2(funcend);
                 prev_word();
+                int iIgnorePos;
                 if (cur_word(iIgnorePos) != "return")
                 {
                     /*
@@ -1739,11 +1819,12 @@ static void klib_klog_file_int(boolean fAsk)
                     _restore_pos2(funcend);
                     center_line();
                     _refresh_scroll();
-                    sFunction = k_func_getfunction_name();
+                    _str sFunction = k_func_getfunction_name();
                     rc = fAsk ? _message_box("Process this exit from "sFunction"?", "Visual SlickEdit", MB_YESNOCANCEL | MB_ICONQUESTION) : IDYES;
                     deselect();
                     if (rc == IDYES)
                     {
+                        typeless returnpos;
                         _save_pos2(returnpos);
                         klib_klogexit();
                         _restore_pos2(returnpos);
@@ -1771,7 +1852,7 @@ _command void odin32_maketagfile()
         _project_update_files_retag(false,false,false,false);
         /*
         RetagFilesInTagFile2(project_tag_file, orig_view_id, temp_view_id, rebuild_all, false,
-                             doRemove,false,true,true);*/7
+                             doRemove,false,true,true);*/
     }
     else
         _project_update_files_retag(true,false,false,true);
@@ -1988,10 +2069,10 @@ static void k_styles_create()
     /*
      * Find user format ini file.
      */
-    userini = maybe_quote_filename(_config_path():+'uformat.ini');
+    _str userini = maybe_quote_filename(_config_path():+'uformat.ini');
     if (file_match('-p 'userini, 1) == '')
     {
-        ini = maybe_quote_filename(slick_path_search('uformat.ini'));
+        _str ini = maybe_quote_filename(slick_path_search('uformat.ini'));
         if (ini != '') userini = ini;
     }
 
@@ -1999,10 +2080,11 @@ static void k_styles_create()
     /*
      * Remove any old schemes.
      */
+    int i,j,tv;
     for (i = 0; i < StyleSchemes._length(); i++)
         for (j = 0; j < StyleLanguages._length(); j++)
         {
-            sectionname = StyleLanguages[j]:+'-scheme-':+StyleSchemes[i].name;
+            _str sectionname = StyleLanguages[j]:+'-scheme-':+StyleSchemes[i].name;
             if (!_ini_get_section(userini, sectionname, tv))
             {
                 _ini_delete_section(userini, sectionname);
@@ -2018,8 +2100,9 @@ static void k_styles_create()
     {
         for (j = 0; j < StyleLanguages._length(); j++)
         {
-            sectionname = StyleLanguages[j]:+'-scheme-':+StyleSchemes[i].name;
-            orig_view_id = _create_temp_view(temp_view_id);
+            _str sectionname = StyleLanguages[j]:+'-scheme-':+StyleSchemes[i].name;
+            int temp_view_id, k;
+            _str orig_view_id = _create_temp_view(temp_view_id);
             activate_view(temp_view_id);
             for (k = 0; k < StyleSchemes[i].settings._length(); k++)
                 insert_line(StyleSchemes[i].settings[k]);
@@ -2027,7 +2110,7 @@ static void k_styles_create()
             /* Insert the scheme section. */
             _ini_replace_section(userini, sectionname, temp_view_id);
             //message(userini)
-            activate_view(orig_view_id);
+            //bogus id - activate_view(orig_view_id);
         }
     }
 
@@ -2044,16 +2127,17 @@ static k_styles_set(_str scheme)
     /*
      * Find user format ini file.
      */
-    userini = maybe_quote_filename(_config_path():+'uformat.ini');
+    _str userini = maybe_quote_filename(_config_path():+'uformat.ini');
     if (file_match('-p 'userini, 1) == '')
     {
-        ini = maybe_quote_filename(slick_path_search('uformat.ini'));
+        _str ini = maybe_quote_filename(slick_path_search('uformat.ini'));
         if (ini != '') userini = ini;
     }
 
     /*
      * Set the scheme for each language.
      */
+    int j;
     for (j = 0; j < StyleLanguages._length(); j++)
     {
         _ini_set_value(userini,
@@ -2113,16 +2197,18 @@ static _str defsetupstab8[] =
 static void k_styles_setindent(int indent, int iBraceStyle, boolean iWithTabs = false)
 {
     if (iBraceStyle < 1 || iBraceStyle > 3)
-        {
-        say 'k_styles_setindent: iBraceStyle is bad (='iBraceStyle')';
+    {
+        message('k_styles_setindent: iBraceStyle is bad (=' :+ iBraceStyle :+ ')');
         iBraceStyle = 2;
-        }
+    }
+
     /*
      * def-options for extentions known to have that info.
      */
+    int i;
     for (i = 0; i < defoptions._length(); i++)
     {
-        idx = find_index(defoptions[i], MISC_TYPE);
+        int idx = find_index(defoptions[i], MISC_TYPE);
         if (!idx)
             continue;
 
