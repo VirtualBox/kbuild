@@ -1,0 +1,65 @@
+# $Id: Makefile.kmk 197 2004-12-17 04:44:49Z knut.osmundsen@oracle.com $
+
+PROGRAMS = kmk
+	
+kmk_SOURCES = \
+	main.c \
+	read.c \
+	hash.c \
+	variable.c \
+	ar.c \
+	arscan.c \
+	commands.c \
+	default.c \
+	dir.c \
+	expand.c \
+	file.c \
+	function.c \
+	implicit.c \
+	job.c \
+	misc.c \
+	remake.c \
+	rule.c \
+	signame.c \
+	version.c \
+	vpath.c \
+	remote-stub.c
+
+kmk_SOURCES.os2 = \
+	getopt.c \
+	getopt1.c \
+
+kmk_INCS = $(PATH_TARGET)
+		
+kmk_DEFS = \
+	HAVE_CONFIG_H \
+	CONFIG_NO_DEFAULT_SUFFIXES \
+	CONFIG_NO_DEFAULT_PATTERN_RULES	\
+	CONFIG_NO_DEFAULT_TERMINAL_RULES \
+	CONFIG_NO_DEFAULT_SUFFIX_RULES \
+	CONFIG_NO_DEFAULT_VARIABLES
+#MAKE_DLLSHELL
+#HAVE_CONFIG_H
+
+kmk_DEPS        = $(PATH_TARGET)/config.h
+kmk_TOOL.os2    = GCC3OMF
+kmk_CFLAGS.os2  =
+kmk_LDFLAGS.os2 = -Zhigh-mem -Zstack=1024
+
+
+DEPTH = ../..
+include $(PATH_KBUILD)/rules.kmk
+
+$(PATH_TARGET)/config.h: config.h.OS2.libc
+	$(CP) $^ $@
+
+parallel: parallel_1 parallel_2 parallel_3 parallel_4 parallel_5
+parallel_1 parallel_2 parallel_3 parallel_4 parallel_5:
+	echo $@_start ; sleep 1; echo $@_done
+
+test:
+	echo "1"
+	echo "2"
+	echo "3"
+	echo "4"
+
