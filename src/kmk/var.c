@@ -87,6 +87,10 @@ static const char rcsid[] =
  * XXX: There's a lot of duplication in these functions.
  */
 
+#ifdef USE_KLIB
+ #include <kLib/kLib.h>
+#endif
+
 #include    <ctype.h>
 #include    <sys/types.h>
 #include    <regex.h>
@@ -162,8 +166,8 @@ typedef struct {
     int	    	  flags;
 } VarPattern;
 
-typedef struct { 
-    regex_t	   re; 
+typedef struct {
+    regex_t	   re;
     int		   nsub;
     regmatch_t	  *matches;
     char	  *replace;
@@ -308,9 +312,13 @@ VarFind (name, ctxt, flags)
 	var = Lst_Find (VAR_GLOBAL->context, (ClientData)name, VarCmp);
     }
     if ((var == NILLNODE) && (flags & FIND_ENV)) {
-	char *env;
-
+        #ifdef USE_KLIB
+	const char *env;
+	if ((env = kEnvGet (name)) != NULL) {
+        #else
+        char *env;
 	if ((env = getenv (name)) != NULL) {
+        #endif
 	    int	  	len;
 
 	    v = (Var *) emalloc(sizeof(Var));
@@ -492,7 +500,11 @@ Var_Set (name, val, ctxt)
      * to the environment (as per POSIX standard)
      */
     if (ctxt == VAR_CMD) {
+        #ifdef USE_KLIB
+        kEnvSet(name, val);
+        #else
 	setenv(name, val, 1);
+        #endif
     }
 }
 
@@ -1546,7 +1558,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			int	rlen;
 			Boolean	rfree;
 			char*	rval = Var_Parse(tstr, ctxt, err, &rlen, &rfree);
-                
+
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			} else if (rval != NULL) {

@@ -50,10 +50,17 @@
 typedef struct ListNode {
 	struct ListNode	*prevPtr;   /* previous element in list */
 	struct ListNode	*nextPtr;   /* next in list */
+#ifdef __IBMC__
+	int	    	useCount:8, /* Count of functions using the node.
+				     * node may not be deleted until count
+				     * goes to 0 */
+ 	    	    	flags:8;    /* Node status flags */
+#else
 	short	    	useCount:8, /* Count of functions using the node.
 				     * node may not be deleted until count
 				     * goes to 0 */
  	    	    	flags:8;    /* Node status flags */
+#endif
 	ClientData	datum;	    /* datum associated with this element */
 } *ListNode;
 /*

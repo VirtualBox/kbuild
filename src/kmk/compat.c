@@ -61,7 +61,10 @@ static const char rcsid[] =
 #include    <stdio.h>
 #include    <sys/types.h>
 #include    <sys/stat.h>
+#ifdef __IBMC__
+#else
 #include    <sys/wait.h>
+#endif
 #include    <ctype.h>
 #include    <errno.h>
 #include    <signal.h>
@@ -85,8 +88,8 @@ static void CompatInterrupt __P((int));
 static int CompatRunCommand __P((ClientData, ClientData));
 static int CompatMake __P((ClientData, ClientData));
 
-static char *sh_builtin[] = { 
-	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 
+static char *sh_builtin[] = {
+	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit",
 	"unalias", "umask", "unset", "wait", ":", 0};
 
 /*-
@@ -340,11 +343,11 @@ CompatRunCommand (cmdp, gnp)
 	exit(1);
     }
 
-    /* 
+    /*
      * we need to print out the command associated with this Gnode in
      * Targ_PrintCmd from Targ_PrintGraph when debugging at level g2,
      * in main(), Fatal() and DieHorribly(), therefore do not free it
-     * when debugging. 
+     * when debugging.
      */
     if (!DEBUG(GRAPH2)) {
 	free(cmdStart);

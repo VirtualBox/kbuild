@@ -97,15 +97,25 @@ static const char rcsid[] =
 #include    <sys/stat.h>
 #include    <sys/time.h>
 #include    <sys/param.h>
-#include    <ctype.h>
+# include    <ctype.h>
 #include    <ar.h>
-#include    <utime.h>
+#if defined(__IBMC__)
+# include    <limits.h>
+# include    <sys/utime.h>
+#else
+# include    <utime.h>
+#endif
 #include    <stdio.h>
 #include    <stdlib.h>
 #include    "make.h"
 #include    "hash.h"
 #include    "dir.h"
 #include    "config.h"
+#if defined(__IBMC__)
+# ifndef MAXPATHLEN
+#  define MAXPATHLEN _MAX_PATH
+# endif
+#endif
 
 static Lst	  archives;   /* Lst of archives we've already examined */
 
