@@ -1,4 +1,4 @@
-# $Id: footer.kmk 78 2004-06-01 01:07:24Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 79 2004-06-01 01:39:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -65,12 +65,25 @@ $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 # @param    $1      source file
 # @param    $2      normalized main target
 # @param    $3      tooltype
-_SOURCE_TOOL = $(strip $(firstword $($1_$2_$(3)TOOL) $($1_$2_TOOL) $($1_$(3)TOOL) $($1_TOOL) $($2_$(3)TOOL) $($2_TOOL) $($(3)TOOL) $(TOOL) ))
+_SOURCE_TOOL = $(strip $(firstword \
+	$($1_$2_$(3)TOOL.$(BUILD_TARGET)) 	$($1_$2_TOOL.$(BUILD_TARGET)) \
+	$($1_$2_$(3)TOOL) $($1_$2_TOOL) \
+	$($1_$(3)TOOL.$(BUILD_TARGET)) $($1_TOOL.$(BUILD_TARGET)) \
+	$($1_$(3)TOOL) $($1_TOOL) \
+	$($2_$(3)TOOL.$(BUILD_TARGET)) $($2_TOOL.$(BUILD_TARGET)) \
+	$($2_$(3)TOOL) $($2_TOOL) \
+	$($(3)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
+	$($(3)TOOL) $(TOOL) ))
 
 ## Figure out the tool for a target.
 # @param    $1 		normalized target.
 # @param    $2      tooltype.
-_TARGET_TOOL = $(strip $(firstword $($(1)_$(2)TOOL) $($(1)_TOOL) $($(2)TOOL) $(TOOL) ))
+_TARGET_TOOL = $(strip $(firstword \
+	$($(1)_$(2)TOOL.$(BUILD_TARGET)) $($(1)_$(2)TOOL) \
+	$($(1)_TOOL.$(BUILD_TARGET)) $($(1)_TOOL) \
+	$($(2)TOOL) $($(2)TOOL.$(BUILD_TARGET)) \
+	$(TOOL.$(BUILD_TARGET)) $(TOOL) \
+	))
 
 ## Figure out where to put object files.
 # @param    $1      source file
@@ -150,6 +163,11 @@ ifndef $(target)_$(prop)
 $(eval $(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 endif
 endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
+ifndef $(target)_$(prop).$(BUILD_TARGET)
+$(eval $(target)_$(prop).$(BUILD_TARGET) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
+endif
+endif
 endef
 
 ## Inherit one template property.		
@@ -159,13 +177,21 @@ define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 $(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 endif
-#$ (warning 1b $(target)_$(prop)=$($(target)_$(prop)) org=$(origin $(target)_$(prop))  TEMPLATE_$($(target)_TEMPLATE)_$(prop)=$(TEMPLATE_$($(target)_TEMPLATE)_$(prop)) org=$(origin TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
+$(eval $(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)
+$(eval $(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)
+$(eval $(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)))
+endif
 endef
 
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
-$(foreach prop,TOOL ARTOOL CTOOL CXXTOOL ASTOOL\
+$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL\
 	,$(eval $(def_inherit_template_one)))
 $(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS\
 	,$(eval $(def_inherit_template_one_accumulate)))
@@ -181,29 +207,42 @@ $(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_template)))
 _TOOLS := $(TOOL)
 define def_tools_target_source
 $(foreach tool,\
+	$($(source)_TOOL.$(BUILD_TARGET)) $($(target)_$(source)_TOOL.$(BUILD_TARGET))\
 	$($(source)_TOOL) $($(target)_$(source)_TOOL)\
+	$($(source)_CTOOL.$(BUILD_TARGET)) $($(target)_$(source)_CTOOL.$(BUILD_TARGET))\
 	$($(source)_CTOOL) $($(target)_$(source)_CTOOL)\
+	$($(source)_CXXTOOL.$(BUILD_TARGET)) $($(target)_$(source)_CXXTOOL.$(BUILD_TARGET))\
 	$($(source)_CXXTOOL) $($(target)_$(source)_CXXTOOL)\
+	$($(source)_ASTOOL.$(BUILD_TARGET)) $($(target)_$(source)_ASTOOL.$(BUILD_TARGET))\
 	$($(source)_ASTOOL) $($(target)_$(source)_ASTOOL)\
+	$($(source)_ARTOOL.$(BUILD_TARGET)) $($(target)_$(source)_ARTOOL.$(BUILD_TARGET))\
 	$($(source)_ARTOOL) $($(target)_$(source)_ARTOOL)\
+	$($(source)_LDTOOL.$(BUILD_TARGET)) $($(target)_$(source)_LDTOOL.$(BUILD_TARGET))\
 	$($(source)_LDTOOL) $($(target)_$(source)_LDTOOL)\
 	,$(eval _TOOLS += $(tool)))
 endef
 define def_tools_target
 $(foreach tool,\
+	$($(target)_TOOL.$(BUILD_TARGET))\
 	$($(target)_TOOL)\
+	$($(target)_CTOOL.$(BUILD_TARGET))\
 	$($(target)_CTOOL)\
+	$($(target)_CXXTOOL.$(BUILD_TARGET))\
 	$($(target)_CXXTOOL)\
+	$($(target)_ASTOOL.$(BUILD_TARGET))\
 	$($(target)_ASTOOL)\
+	$($(target)_ARTOOL.$(BUILD_TARGET))\
 	$($(target)_ARTOOL)\
+	$($(target)_LDTOOL.$(BUILD_TARGET))\
 	$($(target)_LDTOOL)\
-	, $(eval _TOOLS += $(tool)))
+	,$(eval _TOOLS += $(tool)))
 $(foreach source, $($(target)_SOURCES), $(eval $(def_tools_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
 _TOOLS := $(sort $(_TOOLS))
 
 define def_tools_include
+$(warning tool=$(tool))
 ifndef TOOL_$(tool)
 include $(firstword $(wildcard $(PATH_KBUILD)/tools/$(tool).kmk))
 endif
