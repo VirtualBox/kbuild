@@ -1,4 +1,4 @@
-# $Id: header.kmk 78 2004-06-01 01:07:24Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 83 2004-06-01 14:36:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -83,7 +83,7 @@ endif
 ifeq ($(BUILD_PLATFORM),WIN32)
 BUILD_PLATFORM      := win32
 endif
-ifeq ($(BUILD_PLATFORM),WIN32)
+ifeq ($(BUILD_PLATFORM),win32)
 _BUILD_PLATFORM_OK  := 1
 endif
 
@@ -179,7 +179,7 @@ include $(PATH_KBUILD)/StampOutPredefines.kmk
 # OS/2
 ifeq ($(BUILD_PLATFORM),os2)
 PATH_TOOLS          := $(PATH_TOOLS_OS2)
-EXEC_X86_WIN32      := $(PATH_TOOLS)/bin/innopec.exe
+EXEC_X86_WIN32      := innopec.exe
 HOSTSUFF_EXE        := .exe
 endif
 

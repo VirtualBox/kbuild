@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 82 2004-06-01 13:46:22Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 83 2004-06-01 14:36:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -49,7 +49,7 @@ TOOL_VCC70_CXXDEFS            :=
 TOOL_VCC70_AS                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC70)/bin/ml.exe
 TOOL_VCC70_ASOBJSUFF          := .obj
 
-TOOL_VCC70_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC70)/bin/ar$(HOSTSUFF_EXE)
+TOOL_VCC70_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC70)/bin/lib.exe
 TOOL_VCC70_ARFLAGS            := -nologo
 TOOL_VCC70_ARLIBSUFF          := .lib
 
@@ -77,7 +77,7 @@ $(obj): $(dirdep) $(PATH_CURRENT)/$(source)
 	$(call MSG_L2,Compiling $$@ using GCC)
 	$(TOOL_VCC70_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fo:$$@\
+		-Fo$$@\
 		$(PATH_CURRENT)/$(source)		
 		
 endef
@@ -101,7 +101,7 @@ $(obj): $(dirdep) $(PATH_CURRENT)/$(source)
 	$(call MSG_L2,Compiling $$@ using GCC)
 	$(TOOL_VCC70_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fo:$$@\
+		-Fo$$@\
 		$(PATH_CURRENT)/$(source)		
 		
 endef
@@ -149,6 +149,37 @@ ifneq ($(custom_pre),)
 endif	
 	$(TOOL_VCC70_LD) $(flags) /OUT:$$@ $(objs) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+ifneq ($(custom_post),)
+	$(eval $(custom_post))
+endif	
+	
+endef
+
+
+## Link system module (windows aka driver, linux aka kernel module)
+# @param    $(target)   Normalized main target name.
+# @param    $(sys)		System module name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
+# @param	$(deffile)  Definition file. (optional, PC only)
+# @param	$(custom_pre)   Custom step invoked before linking.
+# @param	$(custom_post)  Custom step invoked after linking.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+define TOOL_VCC70_LINK_SYSMOD
+$(warning dbg: TOOL_VCC70_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+$(sys): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+	$(call MSG_L1,Creating Program $$@)
+ifneq ($(custom_pre),)
+	$(eval $(custom_pre))
+endif	
+	$(TOOL_VCC70_LD) $(flags) \
+		/OUT:$$@ $(objs) \
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif	
