@@ -145,6 +145,9 @@ static const char rcsid[] =
 #  define STATIC static
 # endif
 #endif
+#if defined(__EMX__) && !defined(SIGCONT)
+#define SIGCONT SIGALRM                 /* just trying... */
+#endif
 
 /*
  * error handling variables
