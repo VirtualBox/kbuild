@@ -485,8 +485,8 @@ reap_children (int block, int err)
       register struct child *lastc, *c;
       int child_failed;
       int any_remote, any_local;
-#ifdef MAKE_DLLSHELL
-      struct child *dllshelled_child = 0;
+#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
+      struct child *completed_child = 0;
 #endif
 
       if (err && block)
@@ -522,9 +522,9 @@ reap_children (int block, int err)
 	{
 	  any_remote |= c->remote;
 	  any_local |= ! c->remote;
-#ifdef MAKE_DLLSHELL
-          if (c->dllshell_done)
-            dllshelled_child = c;
+#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
+          if (c->have_status)
+              completed_child = c;
 #endif
 	  DB (DB_JOBS, (_("Live child 0x%08lx (%s) PID %ld %s\n"),
                         (unsigned long int) c, c->file->name,
@@ -552,11 +552,11 @@ reap_children (int block, int err)
       else
 	{
 	  /* No remote children.  Check for local children.  */
-#ifdef MAKE_DLLSHELL
-          if (dllshelled_child)
+#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
+          if (completed_child)
             {
-              pid = dllshelled_child->pid;
-              status = (WAIT_T)dllshelled_child->status;
+              pid = completed_child->pid;
+              status = (WAIT_T)completed_child->status;
             }
           else
 #endif
@@ -1105,20 +1105,31 @@ start_job_command (struct child *child)
 
   if ((flags & COMMANDS_BUILTIN) && !just_print_flag)
     {
+      int    rc;
       char **p2 = argv;
       while (*p2 && strncmp(*p2, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
           p2++;
       assert(*p2);
       set_command_state (child->file, cs_running);
-      int rc = kmk_builtin_command(p2);
+      if (p2 != argv)
+          rc = kmk_builtin_command(*p2);
+      else
+      {
+          int argc = 1;
+          while (argv[argc])
+              argc++;
+          rc = kmk_builtin_command_parsed(argc, argv);
+      }
+      printf("rc=%d\n", rc);
 #ifndef VMS
       free (argv[0]);
       free ((char *) argv);
 #endif
       if (!rc)
           goto next_command;
-      child->file->update_status = 2;
-      notice_finished_file (child->file);
+      child->pid = (pid_t)42424242;
+      child->status = rc << 8;
+      child->have_status = 1;
       return;
     }
 #endif /* CONFIG_WITH_KMK_BUILTIN */

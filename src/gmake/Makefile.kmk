@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 225 2005-02-09 08:31:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 227 2005-02-09 10:21:34Z knut.osmundsen@oracle.com $
 export KBUILD_VCC70_DEPS = 1
 
 PROGRAMS            = kmk
@@ -66,7 +66,10 @@ kmk_SOURCES         = \
 	version.c \
 	vpath.c \
 	remote-stub.c \
-	kmkbuiltin.c
+	kmkbuiltin.c \
+	kmkbuiltin/echo.c \
+	kmkbuiltin/mkdir.c \
+	kmkbuiltin/setmode.c
 
 kmk_SOURCES.os2 = \
 	getopt.c \
