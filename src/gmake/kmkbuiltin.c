@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 227 2005-02-09 10:21:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 228 2005-02-09 11:30:52Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -95,8 +95,8 @@ int kmk_builtin_command(const char *pszCmd)
         }
         else
         {
-            pszEnd = pszCmd + 1;
-            while (!isspace(*pszEnd))
+            pszEnd = pszCmd;
+            while (!isspace(*pszEnd) && *pszEnd)
                 pszEnd++;
             pszNext = pszEnd;
         }
@@ -145,7 +145,7 @@ int kmk_builtin_command(const char *pszCmd)
          * Next
          */
         pszCmd = pszNext;
-        if (isspace(*pszCmd))
+        if (isspace(*pszCmd) && *pszCmd)
             pszCmd++;
     }
 
@@ -187,17 +187,17 @@ int kmk_builtin_command_parsed(int argc, char **argv)
     //if (!strcmp(pszCmd, "cp"))
     //    rc = kmk_builtin_cp(argc, argv, environ);
     //else if (!strcmp(pszCmd, "chmod"))
-    //    rc = kmk_builtin_chmod(argv);
+    //    rc = kmk_builtin_chmod(argc, argv, environ);
     else if (!strcmp(pszCmd, "echo"))
         rc = kmk_builtin_echo(argc, argv, environ);
     else if (!strcmp(pszCmd, "mkdir"))
         rc = kmk_builtin_mkdir(argc, argv, environ);
     //else if (!strcmp(pszCmd, "mv"))
-    //    rc = kmk_builtin_mv(argv);
-    //else if (!strcmp(pszCmd, "rm"))
-    //    rc = kmk_builtin_rm(argv);
+    //    rc = kmk_builtin_mv(argc, argv, environ);
+    else if (!strcmp(pszCmd, "rm"))
+        rc = kmk_builtin_rm(argc, argv, environ);
     //else if (!strcmp(pszCmd, "rmdir"))
-    //    rc = kmk_builtin_rmdir(argv);
+    //    rc = kmk_builtin_rmdir(argc, argv, environ);
     else
     {
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);
