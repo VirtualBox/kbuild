@@ -25,3 +25,5 @@
 # can be useful for creating a module that consists of many directories
 # spread out over the entire source repository.
 kBuild kBuild
+VSlickMacros VSlickMacros
+
