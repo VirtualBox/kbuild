@@ -1,4 +1,4 @@
-# $Id: header.kmk 179 2004-10-13 20:32:27Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 204 2004-12-29 19:42:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -42,7 +42,7 @@ SUFFIXES :=
 #
 # General purpose macros.
 #
- 		
+
 ## get last word in a list.
 # @returns  last word in $1.
 # @param    $1	Word list.
@@ -177,6 +177,7 @@ FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
 FILE_KBUILD_FOOTER  := $(PATH_KBUILD)/footer.kmk
 
 SUFF_DEP            := .dep
+MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 
 
 #
@@ -263,8 +264,8 @@ export SHELL MAKESHELL
 
 #
 # Message macros.
-#			
- 	
+#
+
 ifndef BUILD_QUIET
 ifdef BUILD_DEBUG
 BUILD_VERBOSE := 9
@@ -301,7 +302,7 @@ ABSPATH = $(foreach path,$(1)\
 #
 # @param	$1	The paths to the directories which must be created.
 DIRDEP = $(foreach path,$(1),$(path)/.dir_created)
-		
+
 
 ## Cygwin kludge.
 # This converts /cygdrive/x/% to x:%.
