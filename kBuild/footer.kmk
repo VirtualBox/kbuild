@@ -1,4 +1,4 @@
-# $Id: footer.kmk 79 2004-06-01 01:39:33Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 81 2004-06-01 01:42:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -242,7 +242,6 @@ $(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
 _TOOLS := $(sort $(_TOOLS))
 
 define def_tools_include
-$(warning tool=$(tool))
 ifndef TOOL_$(tool)
 include $(firstword $(wildcard $(PATH_KBUILD)/tools/$(tool).kmk))
 endif
