@@ -2176,8 +2176,11 @@ ParseReadLine ()
 	lastc = c;
 	buf = Buf_Init(MAKE_BSIZE);
 
-	while (((c = ParseReadc ()) != '\n' || (lastc == '\\')) &&
-	       (c != EOF))
+        #ifdef NMAKE
+	while (((c = ParseReadc ()) != '\n' || (lastc == '\\') || (lastc == '^')) && (c != EOF))
+        #else
+	while (((c = ParseReadc ()) != '\n' || (lastc == '\\')) && (c != EOF))
+        #endif
 	{
 test_char:
 	    switch(c) {
@@ -2193,6 +2196,9 @@ test_char:
 		lineno++;
 		lastc = ' ';
 #ifdef NMAKE
+                if (lastc == '^')
+		    lastc = '\n';
+
                 do {
                         while ((c = ParseReadc ()) == ' ' || c == '\t') {
         		    continue;

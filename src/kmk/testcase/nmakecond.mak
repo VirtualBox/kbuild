@@ -23,6 +23,12 @@
 !if [echo ok]
 !endif
 
+			
+!ifdef MAKE
+!   include nmakeinclude.mak
+!else
+!   include nonexistinginclude.mak
+!endif			
 
 
 

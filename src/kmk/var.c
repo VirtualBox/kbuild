@@ -186,7 +186,7 @@ static Boolean VarRoot __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarBase __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarMatch __P((char *, Boolean, Buffer, ClientData));
-#ifdef SYSVVARSUB
+#if defined(SYSVVARSUB) || defined(NMAKE)
 static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarNoMatch __P((char *, Boolean, Buffer, ClientData));
@@ -893,7 +893,7 @@ VarMatch (word, addSpace, buf, pattern)
     return(addSpace);
 }
 
-#ifdef SYSVVARSUB
+#if defined(SYSVVARSUB) || defined(NMAKE)
 /*-
  *-----------------------------------------------------------------------
  * VarSYSVMatch --
@@ -2241,7 +2241,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 #endif
 		default:
 		{
-#ifdef SYSVVARSUB
+#if defined(SYSVVARSUB) || defined(NMAKE)
 		    /*
 		     * This can either be a bogus modifier or a System-V
 		     * substitution command.
@@ -2270,6 +2270,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			if (cnt)
 			    cp++;
 		    }
+fprintf(stderr, "debug: cp=\"%s\" endc=%c eqFound=%d tstr=\"%s\"\n", cp, endc, eqFound, tstr);
 		    if (*cp == endc && eqFound) {
 
 			/*
