@@ -1,4 +1,4 @@
-# $Id: header.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 130 2004-06-29 17:30:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -284,7 +284,7 @@ MSG_L2      =
 MSG_L3      =
 endif
 
-## ABSPATH - makes a path absolute.
+## ABSPATH - make paths absolute.
 # This implementation is clumsy and doesn't resolve '..' and '.' components.
 #
 # @param	$1	The paths to make absolute.
@@ -292,6 +292,11 @@ ABSPATH = $(foreach path,$(1)\
             ,$(strip $(if $(subst <,,$(firstword $(subst /, ,<$(path)))),\
                       $(if $(patsubst %:,,$(firstword $(subst :,: ,$(path)))),$(PATH_CURRENT)/$(path),$(path)),\
                       $(path))))
+## DIRDEP - make create directory dependencies.
+#
+# @param	$1	The paths to the directories which must be created.
+DIRDEP = $(foreach path,$(1),$(path)/.dir_created)
+		
 
 ## Cygwin kludge.
 # This converts /cygdrive/x/% to x:%.

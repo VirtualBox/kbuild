@@ -1,4 +1,4 @@
-# $Id: footer.kmk 127 2004-06-27 21:20:37Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 130 2004-06-29 17:30:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -657,7 +657,7 @@ $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 ifndef $(target)_noinst
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
-	$(CP) $(lib) $(publib) 
+	$(CP) $(lib) $(publib)
 	
 _LIBS += $(publib)
 _OUT_FILES += $(lib) $(publib)
@@ -777,16 +777,6 @@ $(eval dirdep      := $(dir $(exe)).dir_created)
 ## @todo fix dependencies
 $(eval deps        := )
 #
-$(eval deffile    := $(strip $(firstword
-	$($(target)_DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_DEFFILE.$(BUILD_TARGET))\
-	$($(target)_DEFFILE.$(BUILD_TYPE))\
-	$($(target)_DEFFILE)\
-	$(DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(DEFFILE.$(BUILD_TARGET))\
-	$(DEFFILE.$(BUILD_TYPE))\
-	$(DEFFILE)\
-)))
 $(eval custom_pre    := $(strip $(firstword
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
@@ -810,10 +800,19 @@ $(eval custom_post    := $(strip $(firstword
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
-
-_OBJS += $(_OBJS_$(target))
-_EXES += $(exe)
+# publish rule (still need work)
+ifndef $(target)_noinst
+$(eval pubexe := $(PATH_LIB)/$(notdir $(exe)))
+$(pubexe) : $(exe) $(dir $(pubexe)).dir_created
+	$(CP) $(exe) $(pubexe)
+	
+_DLLS += $(pubexe)
+_OUT_FILES += $(exe) $(pubexe)
+else
+_DLLS += $(exe)
 _OUT_FILES += $(exe)
+endif
+_OBJS += $(_OBJS_$(target))
 endef
 
 # Process libraries
@@ -825,13 +824,168 @@ $(foreach target, $(PROGRAMS), $(eval $(def_program)))
 # DLLS
 #
 
+## DLL (one).
+# @param    $(target)   Normalized target (program) name.
+define def_dll
+# source -> object
+$(eval $(def_target_sources))
+
+# dllmod
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
+$(eval dll         := $(outbase)$(dllsuff))
+$(eval objs         = $(_OBJS_$(target)))
+$(eval flags       :=\
+	$(TOOL_$(tool)_LDFLAGS)\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS)\
+	$(LDFLAGS.$(BUILD_TYPE))\
+	$(LDFLAGS.$(BUILD_TARGET))\
+	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS)\
+	$($(target)_LDFLAGS.$(BUILD_TYPE))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+)
+$(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBS.$(BUILD_TARGET))\
+	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(LIBS.$(BUILD_TARGET_CPU))\
+	$(LIBS.$(BUILD_TARGET_ARCH))\
+	$(LIBS.$(BUILD_TARGET))\
+	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS)\
+)
+$(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBPATH.$(BUILD_TARGET))\
+	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
+	$(LIBPATH.$(BUILD_TARGET_CPU))\
+	$(LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(LIBPATH.$(BUILD_TARGET))\
+	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH)\
+)
+$(eval dirdep      := $(dir $(dll)).dir_created)
+## @todo fix dependencies
+$(eval deps        := )
+#
+$(eval custom_pre    := $(strip $(firstword
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE)\
+	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(BUILD_TARGET))\
+	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE)\
+)))
+$(eval custom_post    := $(strip $(firstword
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST)\
+	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(BUILD_TARGET))\
+	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST)\
+)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
+
+ifndef TOOL_$(tool)_LINK_DLL
+$$(warning kBuild: TOOL_$(tool)_LINK_DLL is not defined. target=$(target) )
+$$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(BUILD_TARGET)) \
+	4 $($(target)_TOOL) \
+	5 $($(source)TOOL) \
+	6 $($(source)TOOL.$(BUILD_TARGET)) \
+	7 $(TOOL.$(BUILD_TARGET)) \
+	8 $(TOOL) )
+endif	
+
+$(eval $(TOOL_$(tool)_LINK_DLL))
+
+					
+# publish rule (still need work)
+ifndef $(target)_noinst
+$(eval pubdll := $(PATH_LIB)/$(notdir $(dll)))
+$(pubdll) : $(dll) $(dir $(pubdll)).dir_created
+	$(CP) $(dll) $(pubdll)
+	
+_DLLS += $(pubdll)
+_OUT_FILES += $(dll) $(pubdll)
+else
+_DLLS += $(dll)
+_OUT_FILES += $(dll)
+endif
+_OBJS += $(_OBJS_$(target))
+endef
+
+# Process dlls
+$(foreach target, $(DLLS), $(eval $(def_dll)))
 
 
 #
 # SYSMODS
 #
 
-## System moduler (one).
+## System module (one).
 # @param    $(target)   Normalized target (program) name.
 define def_sysmod
 # source -> object
@@ -931,16 +1085,6 @@ $(eval dirdep      := $(dir $(sys)).dir_created)
 ## @todo fix dependencies
 $(eval deps        := )
 #
-$(eval deffile    := $(strip $(firstword
-	$($(target)_DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_DEFFILE.$(BUILD_TARGET))\
-	$($(target)_DEFFILE.$(BUILD_TYPE))\
-	$($(target)_DEFFILE)\
-	$(DEFFILE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(DEFFILE.$(BUILD_TARGET))\
-	$(DEFFILE.$(BUILD_TYPE))\
-	$(DEFFILE)\
-)))
 $(eval custom_pre    := $(strip $(firstword
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
@@ -978,12 +1122,22 @@ endif
 
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
-_OBJS += $(_OBJS_$(target))
+# publish rule (still need work)
+ifndef $(target)_noinst
+$(eval pubsys := $(PATH_LIB)/$(notdir $(sys)))
+$(pubsys) : $(sys) $(dir $(pubsys)).dir_created
+	$(CP) $(sys) $(pubsys)
+	
+_SYSMODS += $(pubsys)
+_OUT_FILES += $(sys) $(pubsys)
+else
 _SYSMODS += $(sys)
 _OUT_FILES += $(sys)
+endif
+_OBJS += $(_OBJS_$(target))
 endef
 
-# Process libraries
+# Process sysmods
 $(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
 
 
@@ -1002,7 +1156,7 @@ $(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
 #
 # Directories.
 #
-_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUT_FILES) $(_OBJS))))
+_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(sort $(dir $(_OUT_FILES) $(_OBJS)))))
 
 define def_createdir
 $(dirfile):
@@ -1154,7 +1308,7 @@ nothing: pass_nothing
 #
 all_recursive: $(foreach pass,$(PASSES),pass_$(pass))
 
-rebuild: clean 
+rebuild: clean
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) all_recursive
 
 
