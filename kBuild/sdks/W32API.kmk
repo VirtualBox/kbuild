@@ -1,4 +1,4 @@
-# $Id: W32API.kmk 121 2004-06-25 19:40:41Z knut.osmundsen@oracle.com $
+# $Id: W32API.kmk 132 2004-06-30 20:29:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - MinGW Windows API.
@@ -30,6 +30,6 @@ PATH_SDK_W32API             ?= $(PATH_DEV)/x86.win32/w32api/v2.5
 PATH_SDK_W32API_INC         := $(PATH_SDK_W32API)/include
 PATH_SDK_W32API_LIB         := $(PATH_SDK_W32API)/lib
 
-SDK_W32API_INCS		        := $(PATH_SDK_W32API_INC) eye-catcher
+SDK_W32API_INCS		        := $(PATH_SDK_W32API_INC)
 SDK_W32API_LIBPATH          := $(PATH_SDK_W32API_LIB)
 
