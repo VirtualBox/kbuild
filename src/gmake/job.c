@@ -3050,7 +3050,14 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     }
 #else  /* !__MSDOS__ */
   else if (strcmp (shell, default_shell))
-    goto slow;
+    {
+      /* Allow ash from kBuild. */
+      const char *psz = strstr(shell, "/ash");
+      if (   !psz
+          || (!psz[4] && psz[4] == '.')
+          || !strstr(shell, "/kBuild/bin/"))
+          goto slow;
+    }
 #endif /* !__MSDOS__ && !__EMX__ */
 #endif /* not WINDOWS32 */
 
