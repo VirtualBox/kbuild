@@ -1,4 +1,4 @@
-# $Id: header.kmk 240 2005-02-17 22:45:47Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 242 2005-03-01 03:16:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -156,8 +156,11 @@ endif
 # Subdirectory relative to the root.
 CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(CURDIR))
 # Output directories.
+ifndef PATH_OUT_BASE
+PATH_OUT_BASE       := $(PATH_ROOT)/out
+endif
 ifndef PATH_OUT
-PATH_OUT            := $(PATH_ROOT)/out/$(BUILD_TARGET)/$(BUILD_TYPE)
+PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TYPE)
 endif
 PATH_OBJ            := $(PATH_OUT)/obj
 PATH_BIN            := $(PATH_OUT)/bin
