@@ -1911,7 +1911,7 @@ main (int argc, char **argv, char **envp)
 	       termination. */
 	    int pid;
 	    int status;
-	    pid = child_execute_job(0, 1, nargv, environ);
+	    pid = child_execute_job(0, 1, nargv, environ, NULL);
 
 	    /* is this loop really necessary? */
 	    do {

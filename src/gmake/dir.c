@@ -1186,6 +1186,9 @@ dir_setup_glob (glob_t *gl)
   gl->gl_readdir = read_dirstream;
   gl->gl_closedir = ansi_free;
   gl->gl_stat = local_stat;
+#ifdef __EMX__ /* The FreeBSD implemenation actually uses gl_lstat!! */
+  gl->gl_lstat = local_stat;
+#endif
   /* We don't bother setting gl_lstat, since glob never calls it.
      The slot is only there for compatibility with 4.4 BSD.  */
 }
