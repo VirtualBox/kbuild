@@ -229,6 +229,10 @@ static struct child *waiting_jobs = 0;
 
 int unixy_shell = 1;
 
+/* Number of jobs started in the current second.  */
+
+unsigned long job_counter = 0;
+
 
 #ifdef WINDOWS32
 /*
@@ -365,53 +369,34 @@ vms_redirect (struct dsc$descriptor_s *desc, char *fname, char *ibuf)
 }
 
 
-/*
-   found apostrophe at (p-1)
-
-   inc p until after closing apostrophe.  */
+/* found apostrophe at (p-1)
+   inc p until after closing apostrophe.
+ */
 
 static char *
-handle_apos (char *p)
+vms_handle_apos (char *p)
 {
   int alast;
-  int inside;
 
 #define SEPCHARS ",/()= "
 
-  inside = 0;
+  alast = 0;
 
   while (*p != 0)
     {
       if (*p == '"')
 	{
-	  if (inside)
-	    {
-	      while ((alast > 0)
-		    && (*p == '"'))
-		{
-		  p++;
-		  alast--;
-		}
-	      if (alast == 0)
-		inside = 0;
-	      else
-		{
-		  fprintf (stderr, _("Syntax error, still inside '\"'\n"));
-		  exit (3);
-		}
+          if (alast)
+            {
+              alast = 0;
+              p++;
 	    }
 	  else
 	    {
 	      p++;
 	      if (strchr (SEPCHARS, *p))
 		break;
-	      inside = 1;
 	      alast = 1;
-	      while (*p == '"')
-		{
-		  alast++;
-		  p++;
-		}
 	    }
 	}
       else
@@ -437,7 +422,7 @@ handle_apos (char *p)
 static unsigned int dead_children = 0;
 
 RETSIGTYPE
-child_handler (int sig)
+child_handler (int sig UNUSED)
 {
   ++dead_children;
 
@@ -448,10 +433,13 @@ child_handler (int sig)
     }
 
 #ifdef __EMX__
-  signal(SIGCHLD, SIG_DFL); /* The signal handler must called only once! ????*/
+  /* The signal handler must called only once! */
+  signal (SIGCHLD, SIG_DFL);
 #endif
 
+  /* This causes problems if the SIGCHLD interrupts a printf().
   DB (DB_JOBS, (_("Got a SIGCHLD; %u unreaped children.\n"), dead_children));
+  */
 }
 
 extern int shell_function_pid, shell_function_completed;
@@ -600,17 +588,9 @@ reap_children (int block, int err)
 	      exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;
 	      coredump = WCOREDUMP (status);
 
-#if 0 /*def __EMX__*/
-	      /* the SIGCHLD handler must not be used on OS/2 because, unlike
-		 on UNIX systems, it had to call wait() itself.  Therefore
-		 job_rfd has to be closed here.  */
-	      if (job_rfd >= 0)
-		{
-		  close (job_rfd);
-		  job_rfd = -1;
-		}
-#endif
-
+              /* If we have started jobs in this second, remove one.  */
+              if (job_counter)
+                --job_counter;
 	    }
 	  else
 	    {
@@ -1371,6 +1351,9 @@ start_job_command (struct child *child)
 #endif /* WINDOWS32 */
 #endif	/* __MSDOS__ or Amiga or WINDOWS32 */
 
+  /* Bump the number of jobs started in this second.  */
+  ++job_counter;
+
   /* We are the parent side.  Set the state to
      say the commands are running and return.  */
 
@@ -1660,7 +1643,8 @@ new_job (struct file *file)
 	got_token = read (job_rfd, &token, 1);
 	saved_errno = errno;
 #ifdef __EMX__
-        signal(SIGCHLD, SIG_DFL); /* The child handler must be turned off here. */
+        /* The child handler must be turned off here.  */
+        signal (SIGCHLD, SIG_DFL);
 #endif
 	set_child_handler_action_flags (SA_RESTART);
 
@@ -1717,17 +1701,61 @@ job_next_command (struct child *child)
   return 1;
 }
 
+/* Determine if the load average on the system is too high to start a new job.
+   The real system load average is only recomputed once a second.  However, a
+   very parallel make can easily start tens or even hundreds of jobs in a
+   second, which brings the system to its knees for a while until that first
+   batch of jobs clears out.
+
+   To avoid this we use a weighted algorithm to try to account for jobs which
+   have been started since the last second, and guess what the load average
+   would be now if it were computed.
+
+   This algorithm was provided by Thomas Riedl <thomas.riedl@siemens.com>,
+   who writes:
+
+!      calculate something load-oid and add to the observed sys.load,
+!      so that latter can catch up:
+!      - every job started increases jobctr;
+!      - every dying job decreases a positive jobctr;
+!      - the jobctr value gets zeroed every change of seconds,
+!        after its value*weight_b is stored into the 'backlog' value last_sec
+!      - weight_a times the sum of jobctr and last_sec gets
+!        added to the observed sys.load.
+!
+!      The two weights have been tried out on 24 and 48 proc. Sun Solaris-9
+!      machines, using a several-thousand-jobs-mix of cpp, cc, cxx and smallish
+!      sub-shelled commands (rm, echo, sed...) for tests.
+!      lowering the 'direct influence' factor weight_a (e.g. to 0.1)
+!      resulted in significant excession of the load limit, raising it
+!      (e.g. to 0.5) took bad to small, fast-executing jobs and didn't
+!      reach the limit in most test cases.
+!
+!      lowering the 'history influence' weight_b (e.g. to 0.1) resulted in
+!      exceeding the limit for longer-running stuff (compile jobs in
+!      the .5 to 1.5 sec. range),raising it (e.g. to 0.5) overrepresented
+!      small jobs' effects.
+
+ */
+
+#define LOAD_WEIGHT_A           0.25
+#define LOAD_WEIGHT_B           0.25
+
 static int
 load_too_high (void)
 {
 #if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA)
   return 1;
 #else
-  double load;
+  static double last_sec;
+  static time_t last_now;
+  double load, guess;
+  time_t now;
 
   if (max_load_average < 0)
     return 0;
 
+  /* Find the real system load average.  */
   make_access ();
   if (getloadavg (&load, 1) != 1)
     {
@@ -1747,9 +1775,27 @@ load_too_high (void)
     }
   user_access ();
 
-  DB (DB_JOBS, ("Current system load = %f (max requested = %f)\n",
-                load, max_load_average));
-  return load >= max_load_average;
+  /* If we're in a new second zero the counter and correct the backlog
+     value.  Only keep the backlog for one extra second; after that it's 0.  */
+  now = time (NULL);
+  if (last_now < now)
+    {
+      if (last_now == now - 1)
+        last_sec = LOAD_WEIGHT_B * job_counter;
+      else
+        last_sec = 0.0;
+
+      job_counter = 0;
+      last_now = now;
+    }
+
+  /* Try to guess what the load would be right now.  */
+  guess = load + (LOAD_WEIGHT_A * (job_counter + last_sec));
+
+  DB (DB_JOBS, ("Estimated system load = %f (actual = %f) (max requested = %f)\n",
+                guess, load, max_load_average));
+
+  return guess >= max_load_average;
 #endif
 }
 
@@ -2184,7 +2230,7 @@ child_execute_job (char *argv, struct child *child)
 	      /* Nice places for line breaks are after strings, after
 		 comma or space and before slash. */
             case '"':
-              q = handle_apos (q + 1);
+              q = vms_handle_apos (q);
               sep = q;
               break;
             case ',':
@@ -2856,13 +2902,13 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
   char*  sh_chars;
   char** sh_cmds;
 #else  /* must be UNIX-ish */
-  static char sh_chars[] = "#;\"*?[]&|<>(){}$`^~";
-  static char *sh_cmds[] = { "cd", "eval", "exec", "exit", "login",
-			     "logout", "set", "umask", "wait", "while", "for",
-			     "case", "if", ":", ".", "break", "continue",
-			     "export", "read", "readonly", "shift", "times",
-			     "trap", "switch", 0 };
-#endif /* __MSDOS__ */
+  static char sh_chars[] = "#;\"*?[]&|<>(){}$`^~!";
+  static char *sh_cmds[] = { ".", ":", "break", "case", "cd", "continue",
+                             "eval", "exec", "exit", "export", "for", "if",
+                             "login", "logout", "read", "readonly", "set",
+                             "shift", "switch", "test", "times", "trap",
+                             "umask", "wait", "while", 0 };
+#endif
   register int i;
   register char *p;
   register char *ap;
