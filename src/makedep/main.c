@@ -628,11 +628,11 @@ match(char *str, char **list)
  */
 char *getnextline(struct filepointer *filep)
 {
-	char	*p,	/* walking pointer */
-		*eof,	/* end of file pointer */
-		*bol;	/* beginning of line pointer */
+	register char	*p;	/* walking pointer */
+	char		*eof;	/* end of file pointer */
+	register char	*bol;	/* beginning of line pointer */
 	int	lineno;	/* line number */
-	boolean whitespace = FALSE;
+	//boolean whitespace = FALSE; /* bird: we don't care, C++ certainly doesn't */
 
 	/*
 	 * Fake the "-include" line files in form of #include to the
@@ -662,7 +662,7 @@ char *getnextline(struct filepointer *filep)
 				p++;
 				bol++;
 			}
-			whitespace = TRUE;
+			//whitespace = TRUE;
 		}
 
 		if (*p == '/' && (p+1) < eof && *(p+1) == '*') {
@@ -734,16 +734,16 @@ char *getnextline(struct filepointer *filep)
 				--p;
 			}
 			bol = p+1;
-			whitespace = FALSE;
+			//whitespace = FALSE;
 		}
 	}
 	if (*bol != '#')
 		bol = NULL;
 done:
-	if (bol && whitespace) {
-		warning("%s:  non-portable whitespace encountered at line %d\n",
-			filep->f_name, lineno);
-	}
+	//if (bol && whitespace) {
+	//	warning("%s:  non-portable whitespace encountered at line %d\n",
+	//		filep->f_name, lineno);
+	//}
 	filep->f_p = p;
 	filep->f_line = lineno;
 #ifdef DEBUG_DUMP
