@@ -102,6 +102,10 @@ static const char rcsid[] =
 #include "buf.h"
 #include "pathnames.h"
 
+#if defined(NMAKE) || defined(KMK)
+#define SUPPORT_INLINEFILES     1
+#endif
+
 /*
  * These values are returned by ParseEOF to tell Parse_File whether to
  * CONTINUE parsing, i.e. it had only reached the end of an include file,
@@ -110,9 +114,12 @@ static const char rcsid[] =
 #define	CONTINUE	1
 #define	DONE		0
 static Lst     	    targets;	/* targets we're working on */
-static Lst     	    targCmds;	/* command lines for targets */
+/*static Lst     	    targCmds; */	/* command lines for targets */
 static Boolean	    inLine;	/* true if currently in a dependency
 				 * line or its commands */
+#if defined(NMAKE) || defined(KMK)
+static Boolean      inInlineFile; /* true if currently in a inline file.*/
+#endif
 typedef struct {
     char *str;
     char *ptr;
@@ -248,6 +255,10 @@ static int ParseAddDir __P((ClientData, ClientData));
 static int ParseClearPath __P((ClientData, ClientData));
 static void ParseDoDependency __P((char *));
 static int ParseAddCmd __P((ClientData, ClientData));
+#ifdef SUPPORT_INLINEFILES
+static int ParseAppendInline __P((ClientData, ClientData));
+static Boolean ParseCmdIsComponent __P((const char *, const char *));
+#endif
 static int ParseReadc __P((void));
 static void ParseUnreadc __P((int));
 static void ParseHasCommands __P((ClientData));
@@ -1509,6 +1520,101 @@ ParseAddCmd(gnp, cmd)
     return(0);
 }
 
+
+
+#ifdef SUPPORT_INLINEFILES
+/*-
+ * ParseAppendInline  --
+ *	Lst_ForEach function to append the line to the last command
+ *
+ * Results:
+ *	Always 0
+ *
+ * Side Effects:
+ *	A new element is added to the last commands list of the node.
+ */
+static int
+ParseAppendInline(gnp, line)
+    ClientData gnp;	/* the node to which the command is to be added */
+    ClientData line;	/* the command to add */
+{
+    GNode *gn = (GNode *)gnp;
+    /* if target already supplied, ignore commands */
+    if (!(gn->type & OP_HAS_COMMANDS))
+    {
+        unsigned cch;
+        char *  cmd;
+        unsigned cchNew;
+        cmd = (char*)Lst_Datum(Lst_Last(gn->commands));
+        cch = strlen(cmd);
+        cchNew = strlen(line);
+        cmd = erealloc(cmd, cch + 1 + cchNew + 1);
+        cmd[cch] = '\n';
+        memcpy(&cmd[cch + 1], line, cchNew + 1);
+        Lst_Replace(Lst_Last(gn->commands), cmd);
+    }
+    return(0);
+}
+
+/*-
+ *-----------------------------------------------------------------------
+ * ParseCmdIsComponent --
+ *      Checks if the comp is a component in the cmdline.
+ *
+ * Results:
+ *	returns TRUE if it is, FALSE if not.
+ *
+ * Side Effects:
+ *	OP_HAS_COMMANDS may be set for the target.
+ *
+ *-----------------------------------------------------------------------
+ */
+static Boolean
+ParseCmdIsComponent(cmdline, comp)
+    const char *cmdline;
+    const char *comp;
+{
+#if 0 /* @todo FIX THIS */
+    const char *    psz;
+    char            chQuote;
+    int             cchComp;
+    register char   ch;
+
+    /** ASSUMES NOT ESCAPED (but then the shell doesn't support escaping anyway) */
+    if (!strstr(cmdline, comp))
+        return FALSE;
+
+    cchComp = strlen(comp);
+    for (chQuote = '\0', ch = *cmdline, psz = NULL; ch; ch = *++cmdline)
+    {
+        if (ch == '\'' || ch == '\"')
+        {
+            if (chQuote)
+            {   /* end of story */
+                if (cmdline - psz == cchComp && !strncmp(psz, comp, cchComp))
+                    return TRUE;
+                chQuote = '\0';
+                psz = NULL;
+            }
+            else
+            {
+                chQuote = ch;
+                if (!psz)
+                    psz = cmdline + 1;
+            }
+        } else if (!chQuote && !psz && !isspace(ch))
+            psz = cmdline;
+    }
+
+    return FALSE;
+
+#else
+    return strstr(cmdline, comp) != NULL;
+
+#endif
+}
+#endif
+
 /*-
  *-----------------------------------------------------------------------
  * ParseHasCommands --
@@ -2144,7 +2250,11 @@ ParseReadLine ()
 
     semiNL = FALSE;
     ignDepOp = FALSE;
+    #ifdef SUPPORT_INLINEFILES
+    ignComment = inInlineFile;
+    #else
     ignComment = FALSE;
+    #endif
 
     /*
      * Handle special-characters at the beginning of the line. Either a
@@ -2155,6 +2265,10 @@ ParseReadLine ()
      */
     for (;;) {
 	c = ParseReadc();
+        #ifdef SUPPORT_INLINEFILES
+        if (inInlineFile)
+            break;
+        #endif
 
 	if (c == '\t') {
 	    ignComment = ignDepOp = TRUE;
@@ -2176,6 +2290,7 @@ ParseReadLine ()
 	lastc = c;
 	buf = Buf_Init(MAKE_BSIZE);
 
+        /* @todo any inline changes here? */
         #ifdef NMAKE
 	while (((c = ParseReadc ()) != '\n' || (lastc == '\\') || (lastc == '^')) && (c != EOF))
         #else
@@ -2185,7 +2300,21 @@ ParseReadLine ()
 test_char:
 	    switch(c) {
 	    case '\n':
-		/*
+                #ifdef SUPPORT_INLINEFILES
+                /* No newline escaping in inline files, unless it's a directive. */
+                if (inInlineFile) {
+                    int cb;
+                    char *psz = Buf_GetAll(buf, &cb);
+                    #ifdef NMAKE
+                    if (cb > 0 && *psz != '.' && *psz != '!')
+                    #else
+                    if (cb > 0 && *psz != '.')
+                    #endif
+                        break;
+                }
+                #endif
+		
+                /*
 		 * Escaped newline: read characters until a non-space or an
 		 * unescaped newline and replace them all by a single space.
 		 * This is done by storing the space over the backslash and
@@ -2229,7 +2358,13 @@ test_char:
 		/*NOTREACHED*/
 		break;
 
+/* We don't need this, and don't want it! */
+#ifndef KMK
 	    case ';':
+                #ifdef SUPPORT_INLINEFILES
+                if (inInlineFile)
+                    break;
+                #endif
 		/*
 		 * Semi-colon: Need to see if it should be interpreted as a
 		 * newline
@@ -2248,7 +2383,11 @@ test_char:
 		}
 		break;
 	    case '=':
-		if (!semiNL) {
+                #ifdef SUPPORT_INLINEFILES
+                if (inInlineFile)
+                    break;
+                #endif
+                if (!semiNL) {
 		    /*
 		     * Haven't seen a dependency operator before this, so this
 		     * must be a variable assignment -- don't pay attention to
@@ -2297,6 +2436,10 @@ test_char:
 		break;
 	    case ':':
 	    case '!':
+                #ifdef SUPPORT_INLINEFILES
+                if (inInlineFile)
+                    break;
+                #endif
 		if (!ignDepOp && (c == ':' || c == '!')) {
 		    /*
 		     * A semi-colon is recognized as a newline only on
@@ -2306,6 +2449,7 @@ test_char:
 		    semiNL = TRUE;
 		}
 		break;
+#endif /* !KMK */
 	    }
 	    /*
 	     * Copy in the previous character and save this one in lastc.
@@ -2365,7 +2509,7 @@ test_char:
 		line = ParseReadLine();
 		break;
 	    case COND_INVALID:
-		if (For_Eval(line)) {
+         	if (For_Eval(line)) {
 		    int ok;
 		    efree(line);
 		    do {
@@ -2448,6 +2592,9 @@ Parse_File(name, stream)
                   *line;	/* the line we're working on */
 
     inLine = FALSE;
+    #if defined(NMAKE) || defined(KMK)
+    inInlineFile = FALSE;
+    #endif
     fname = name;
     curFILE = stream;
     lineno = 0;
@@ -2455,7 +2602,8 @@ Parse_File(name, stream)
 
     do {
 	while ((line = ParseReadLine ()) != NULL) {
-//debugkso: fprintf(stderr, "%s(%d): inLine=%d line=%s\n", fname, lineno, inLine, line);
+            if (DEBUG(PARSE))
+                printf("%s(%d): inLine=%d inInlineFile=%d\n%s\n", fname, lineno, inLine, inInlineFile, line);
             #ifdef NMAKE
 	    if (*line == '.' || *line == '!') {
             #else
@@ -2491,6 +2639,47 @@ Parse_File(name, stream)
 		    goto nextLine;
 		}
 	    }
+
+            #ifdef SUPPORT_INLINEFILES
+            if (inInlineFile)
+            {
+                cp = line;
+                if (*cp == '<' && cp[1] == '<')
+                {
+                    inInlineFile = FALSE;
+                    for (cp = line + 2; isspace(*cp); cp++) {
+                        continue;
+                    }
+                    if (!*cp || *cp == '#') { /* no flag */
+                        line[2] = '\0';
+                        cp = line;
+                    } else if (!strncmp(cp, "KEEP", 4) &&
+                               (!cp[4] || isspace(cp[4]) || cp[4] == '#')) {
+                        cp[4] = '\0';
+                        *--cp = '<';
+                        *--cp = '<';
+                    } else if (!strncmp(cp, "NOKEEP", 6) &&
+                               (!cp[6] || isspace(cp[6]) || cp[6] == '#')) {
+                        cp[6] = '\0';
+                        *--cp = '<';
+                        *--cp = '<';
+                    }
+                    else
+                    {
+                        Parse_Error(PARSE_FATAL, "Invalid termination of inline file \"%s\"", cp);
+                        cp = NULL;
+                    }
+                }
+                /* Append to last command */
+                if (cp)
+                {
+                    Lst_ForEach(targets, ParseAppendInline, cp);
+                    /*Lst_AtEnd(targCmds, (ClientData) line); */
+                }
+		goto nextLine;
+            }
+            #endif
+
 	    if (*line == '#') {
 		/* If we're this far, the line must be a comment. */
 		goto nextLine;
@@ -2509,13 +2698,22 @@ Parse_File(name, stream)
 		}
 		if (*cp) {
 		    if (inLine) {
+                        #ifdef SUPPORT_INLINEFILES
+                        if (ParseCmdIsComponent(cp, "<<"))
+                        {
+                            inInlineFile = TRUE;
+                            Lst_ForEach(targets, ParseAddCmd, estrdup(cp));
+                            /*Lst_AtEnd(targCmds, (ClientData) line);*/
+                            goto nextLine;
+                        }
+                        #endif
 			/*
 			 * So long as it's not a blank line and we're actually
 			 * in a dependency spec, add the command to the list of
 			 * commands of all targets in the dependency spec
 			 */
 			Lst_ForEach (targets, ParseAddCmd, cp);
-			Lst_AtEnd(targCmds, (ClientData) line);
+			/*Lst_AtEnd(targCmds, (ClientData) line);*/
 			continue;
 		    } else {
 			Parse_Error (PARSE_FATAL,
@@ -2547,7 +2745,7 @@ Parse_File(name, stream)
 		 * line's script, we assume it's actually a shell command
 		 * and add it to the current list of targets.
 		 */
-#if !defined(POSIX) || defined(NMAKE)
+#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
 		Boolean	nonSpace = FALSE;
 #endif
 
@@ -2559,7 +2757,7 @@ Parse_File(name, stream)
 		    if (*cp == '\0') {
 			goto nextLine;
 		    }
-#if !defined(POSIX) || defined(NMAKE)
+#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
 		    while ((*cp != ':') && (*cp != '!') && (*cp != '\0')) {
 			nonSpace = TRUE;
 			cp++;
@@ -2567,10 +2765,10 @@ Parse_File(name, stream)
 #endif
 		}
 
-#if !defined(POSIX) || defined(NMAKE)
+#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
 		if (*cp == '\0') {
 		    if (inLine) {
-#ifndef NMAKE
+#if !defined(NMAKE) && !defined(KMK)
 			Parse_Error (PARSE_WARNING,
 				     "Shell command needs a leading tab");
 #endif
@@ -2596,7 +2794,7 @@ Parse_File(name, stream)
 		    inLine = TRUE;
 
 		    ParseDoDependency (line);
-#if !defined(POSIX) || defined(NMAKE)
+#if !defined(POSIX) || defined(NMAKE) || defined(KMK)
 		}
 #endif
 	    }
@@ -2638,13 +2836,13 @@ Parse_Init ()
     parseIncPath = Lst_Init (FALSE);
     sysIncPath = Lst_Init (FALSE);
     includes = Lst_Init (FALSE);
-    targCmds = Lst_Init (FALSE);
+    /*targCmds = Lst_Init (FALSE);*/
 }
 
 void
 Parse_End()
 {
-    Lst_Destroy(targCmds, (void (*) __P((ClientData))) efree);
+    /*Lst_Destroy(targCmds, (void (*) __P((ClientData))) efree);*/
     if (targets)
 	Lst_Destroy(targets, NOFREE);
     Lst_Destroy(sysIncPath, Dir_Destroy);
