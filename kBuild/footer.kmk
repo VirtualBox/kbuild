@@ -1,4 +1,4 @@
-# $Id: footer.kmk 94 2004-06-08 14:48:28Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 95 2004-06-08 16:53:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -541,11 +541,11 @@ $(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # C++ sources
-$(foreach type,CXX,$(foreach source, $(filter %.cpp, $($(target)_SOURCES)) $(filter %.cxx, $($(target)_SOURCES)) $(filter %.cc, $($(target)_SOURCES))\
+$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 
 # ASM sources
-$(foreach type,AS,$(foreach source, $(filter %.asm, $($(target)_SOURCES)) $(filter %.s, $($(target)_SOURCES)) $(filter %.S, $($(target)_SOURCES))\
+$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES))\
 	,$(eval $(def_target_source_c_cpp_asm)) ))
 endef
 
