@@ -1,4 +1,4 @@
-# $Id: header.kmk 86 2004-06-03 21:36:29Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 87 2004-06-04 15:29:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -242,8 +242,8 @@ DEP                 := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
 # Standard Unix shell utils.
 MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
 RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
-CP                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
-MV                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
+CP                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
+MV                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
 SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
 CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
 # Bourn shell clone.
