@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 188 2004-12-14 13:45:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -63,6 +63,7 @@ else
 TOOL_GCC3_LDFLAGS.dll        := $(TOOL_GCC3_LDFLAGS.$(BUILD_TARGET))
 endif
 TOOL_GCC3_LDFLAGS.sysmod     := -r
+TOOL_GCC3_LD_SONAME           = -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 
 ifdef SLKRUNS
 TOOL_GCC3_CC  += -fmessage-length=0
@@ -193,7 +194,9 @@ $(dll): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif
-	$(TOOL_GCC3_LD) $(TOOL_GCC3_LDFLAGS.dll) $(flags) -o $$@ $(objs) \
+	$(TOOL_GCC3_LD) $(TOOL_GCC3_LDFLAGS.dll) $(flags) -o $$@ \
+	$(if $(filter linux, $(BUILD_TARGET)),$(call TOOL_GCC3_LD_SONAME,$(target),$(dll))) \
+	$(objs) \
 	$(foreach p,$(libpath), -L$(p)) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
