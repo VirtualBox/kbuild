@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 213 2005-01-10 02:04:44Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 231 2005-02-09 13:55:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -65,9 +65,14 @@ endif
 TOOL_GCC3_LDFLAGS.sysmod     := -r
 TOOL_GCC3_LD_SONAME           = -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 ifeq ($(BUILD_TARGET),os2)
-TOOL_GCC3_LD_MAP			  = -Zmap $(1)
+TOOL_GCC3_LD_MAP              = -Zmap $(1)
 else
-TOOL_GCC3_LD_MAP			  = -Wl,-Map -Wl,$(1).map -Wl,--cref
+TOOL_GCC3_LD_MAP              = -Wl,-Map -Wl,$(1) -Wl,--cref
+endif
+ifeq ($(BUILD_TARGET),os2)
+TOOL_GCC3_LD_SYSMOD_MAP       = -Zmap $(1)
+else
+TOOL_GCC3_LD_SYSMOD_MAP       = -Map $(1) --cref
 endif
 ifdef SLKRUNS
 TOOL_GCC3_CC  += -fmessage-length=0
@@ -194,10 +199,11 @@ endif
 	$(TOOL_GCC3_LD) $(flags) -o $$@ $(objs) \
 		$(foreach p,$(libpath), -L$(p)) \
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib))) \
-		$(call TOOL_GCC3_LD_MAP,$(outbase))
+		$(call TOOL_GCC3_LD_MAP,$(outbase).map)
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
+_OUT_FILES += $(outbase).map
 
 endef
 
@@ -228,10 +234,11 @@ endif
 		$(objs) \
 		$(foreach p,$(libpath), -L$(p)) \
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib))) \
-		$(call TOOL_GCC3_LD_MAP,$(outbase))
+		$(call TOOL_GCC3_LD_MAP,$(outbase).map)
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
+_OUT_FILES += $(outbase).map
 
 endef
 
@@ -258,10 +265,12 @@ ifneq ($(custom_pre),)
 endif
 	$(TOOL_GCC3_LD_SYSMOD) $(TOOL_GCC3_LDFLAGS.sysmod) $(flags) -o $$@ $(objs) \
 		$(foreach p,$(libpath), -L$(p)) \
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib))) 
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib))) \
+		$(call TOOL_GCC3_LD_SYSMOD_MAP,$(outbase).map)
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
+_OUT_FILES += $(outbase).map
 
 endef
 
