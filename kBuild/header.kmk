@@ -1,4 +1,4 @@
-# $Id: header.kmk 103 2004-06-17 20:47:12Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 125 2004-06-25 20:26:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -217,6 +217,7 @@ PATH_TOOLS          := $(PATH_TOOLS_W32)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
+
 
 #
 # Build target setup.
