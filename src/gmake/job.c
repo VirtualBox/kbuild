@@ -807,6 +807,10 @@ reap_children (int block, int err)
       else
         lastc->next = c->next;
 
+      /* update not_parallel if the file was flagged for that. */
+      if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
+        --not_parallel;
+
       free_child (c);
 
       unblock_sigs ();
@@ -1390,7 +1394,8 @@ start_waiting_job (struct child *c)
 
   /* If we are running at least one job already and the load average
      is too high, make this one wait.  */
-  if (!c->remote && job_slots_used > 0 && load_too_high ())
+  if (!c->remote && job_slots_used > 0 && 
+      (not_parallel || (c->file->command_flags & COMMANDS_NOTPARALLEL) || load_too_high ()))
     {
       /* Put this child on the chain of children waiting for the load average
          to go down.  */
@@ -1399,6 +1404,9 @@ start_waiting_job (struct child *c)
       waiting_jobs = c;
       return 0;
     }
+
+  if (c->file->command_flags & COMMANDS_NOTPARALLEL)
+    ++not_parallel;
 
   /* Start the first command; reap_children will run later command lines.  */
   start_job_command (c);
@@ -1423,6 +1431,8 @@ start_waiting_job (struct child *c)
 
     case cs_finished:
       notice_finished_file (f);
+      if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
+        --not_parallel;
       free_child (c);
       break;
 
@@ -1915,6 +1925,10 @@ int vmsHandleChildTerm(struct child *child)
     /* There is now another slot open.  */
     if (job_slots_used > 0)
       --job_slots_used;
+
+    /* update not_parallel if the file was flagged for that. */
+    if ((c->file->command_flags & COMMANDS_NOTPARALLEL) && not_parallel >= 1)
+      --not_parallel;
 
     /* If the job failed, and the -k flag was not given, die.  */
     if (child_failed && !keep_going_flag)

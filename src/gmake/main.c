@@ -454,8 +454,9 @@ struct file *default_file;
 
 int posix_pedantic;
 
-/* Nonzero if we have seen the `.NOTPARALLEL' target.
-   This turns off parallel builds for this invocation of make.  */
+/* Nonzero if we have seen the `.NOTPARALLEL' target with empty dependency list.
+   Incremented while executing targets `.NOTPARALLEL' is depending on.
+   This temporarily or permanently turns off parallel builds. */
 
 int not_parallel;
 
