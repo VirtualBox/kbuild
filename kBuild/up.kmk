@@ -1,4 +1,4 @@
-# $Id: up.kmk 211 2005-01-08 07:12:06Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 212 2005-01-08 07:23:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a up forwarder makefile.
@@ -38,7 +38,6 @@ libraries \
 needed \
 nothing \
 objects \
-others \
 others \
 packing \
 pass_binaries \
