@@ -369,6 +369,7 @@ extern int debug;
 #define	DEBUG_VAR	0x0200
 #define DEBUG_FOR	0x0400
 #define DEBUG_LOUD	0x0800
+#define DEBUG_PARSE     0x8000 /*kso*/
 
 /*#ifdef __STDC__*/
 #if defined(__STDC__) || defined(__IBMC__)

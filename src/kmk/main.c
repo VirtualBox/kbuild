@@ -304,7 +304,10 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 				case 'm':
 					debug |= DEBUG_MAKE;
 					break;
-				case 's':
+                                case 'p':     /*kso*/
+				        debug |= DEBUG_PARSE;
+                                        break;
+                                case 's':
 					debug |= DEBUG_SUFF;
 					break;
 				case 't':
