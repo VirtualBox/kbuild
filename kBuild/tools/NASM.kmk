@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 99 2004-06-11 23:47:39Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
@@ -55,13 +55,13 @@ TOOL_NASM_ASFLAGS             :=
 # @param	$(objsuff)  Object suffix.
 define TOOL_NASM_COMPILE_AS
 #$ (warning dbg: TOOL_NASM_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+$(obj): $(dirdep) $(source)
 	$(call MSG_L2,Compiling $$@ using NASM)
 	$(TOOL_NASM_AS) \
-		$(flags) $(addsuffix /,$(addprefix -i, $(call CYGPATHMIXED,$(incs)))) $(addprefix -D, $(defs))\
-		-l $(call CYGPATHMIXED,$(outbase).lst) \
-		-o $(call CYGPATHMIXED,$(obj)) \
-		$(call CYGPATHMIXED,$(PATH_CURRENT)/$(source))
+		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
+		-l $(outbase).lst \
+		-o $(obj) \
+		$(call ABSPATH,$(source))
 _OUT_FILES += $(outbase).lst
 		
 endef

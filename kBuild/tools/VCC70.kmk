@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 126 2004-06-25 22:13:54Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -74,13 +74,13 @@ TOOL_VCC70_LDFLAGS.release    :=
 # @param	$(objsuff)  Object suffix.
 define TOOL_VCC70_COMPILE_C
 #$ (warning dbg: TOOL_VCC70_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+$(obj): $(dirdep) $(source)
 	$(call MSG_L2,Compiling $$@ using VCC70)
 	$(TOOL_VCC70_CC) -c\
-		$(flags) $(addprefix -I, $(call CYGPATHMIXED,$(incs))) $(addprefix -D, $(defs))\
-		-Fd$(call CYGPATHMIXED,$(outbase).pdb) \
-		-Fo$(call CYGPATHMIXED,$(obj))\
-		$(subst /,\\,$(call CYGPATHMIXED,$(DRV_WINEROOT)$(PATH_CURRENT)/$(source)))
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Fd$(outbase).pdb \
+		-Fo$(obj)\
+		$(subst /,\\,$(call ABSPATH,$(source)))
 _OUT_FILES += $(outbase).pdb
 		
 endef
@@ -100,13 +100,13 @@ endef
 # @param	$(objsuff)  Object suffix.
 define TOOL_VCC70_COMPILE_CXX
 #$ (warning dbg: TOOL_VCC70_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+$(obj): $(dirdep) $(source)
 	$(call MSG_L2,Compiling $$@ using VCC70)
 	$(TOOL_VCC70_CXX) -c\
-		$(flags) $(addprefix -I, $(call CYGPATHMIXED,$(incs))) $(addprefix -D, $(defs))\
-		-Fd$(call CYGPATHMIXED,$(outbase).pdb) \
-		-Fo$(call CYGPATHMIXED,$(obj))\
-		$(subst /,\\,$(call CYGPATHMIXED,$(DRV_WINEROOT)$(PATH_CURRENT)/$(source)))
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Fd$(outbase).pdb \
+		-Fo$(obj)\
+		$(subst /,\\,$(call ABSPATH,$(source)))
 _OUT_FILES += $(outbase).pdb
 		
 endef
@@ -127,8 +127,8 @@ define TOOL_VCC70_LINK_LIBRARY
 $(lib): $(dirdep) $(objs) $(deps) $(othersrc)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
-	$(TOOL_VCC70_AR) $(flags) /OUT:$(call CYGPATHMIXED,$(lib)) $(subst /,\\,$(call CYGPATHMIXED,$(objs))) \
-		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(call CYGPATHMIXED,$(def)))
+	$(TOOL_VCC70_AR) $(flags) /OUT:$(lib) $(subst /,\\,$(objs)) \
+		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
 	
 endef
 
@@ -155,11 +155,11 @@ ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif	
 	$(TOOL_VCC70_LD) $(flags) \
-		/OUT:$(call CYGPATHMIXED,$(exe)) \
+		/OUT:$(exe) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
-		/MAP:$(call CYGPATHMIXED,$(outbase).map) \
-		$(subst /,\\,$(call CYGPATHMIXED,$(objs))) \
-		$(subst /,\\,$(call CYGPATHMIXED,$(libs)))
+		/MAP:$(outbase).map \
+		$(subst /,\\,$(objs)) \
+		$(subst /,\\,$(libs))
 	$(MKDIR) -p $(PATH_BIN)
 	$(CP) $$@ $(PATH_BIN)/
 ifneq ($(custom_post),)
@@ -192,11 +192,11 @@ ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif	
 	$(TOOL_VCC70_LD) $(flags) \
-		/OUT:$(call CYGPATHMIXED,$(sys)) \
+		/OUT:$(sys) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
-		/MAP:$(call CYGPATHMIXED,$(outbase).map) \
-		$(subst /,\\,$(call CYGPATHMIXED,$(objs))) \
-		$(subst /,\\,$(call CYGPATHMIXED,$(libs)))
+		/MAP:$(outbase).map \
+		$(subst /,\\,$(objs)) \
+		$(subst /,\\,$(libs))
 	$(MKDIR) -p $(PATH_BIN)
 	$(CP) $$@ $(PATH_BIN)/
 ifneq ($(custom_post),)
