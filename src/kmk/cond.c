@@ -234,7 +234,7 @@ CondGetArg (linePtr, argPtr, func, parens)
 
 	    Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
 	    if (doFree) {
-		free(cp2);
+		efree(cp2);
 	    }
 	    cp += len;
 	} else {
@@ -377,7 +377,7 @@ CondDoExists (argLen, arg)
     path = Dir_FindFile(arg, dirSearchPath);
     if (path != (char *)NULL) {
 	result = TRUE;
-	free(path);
+	efree(path);
     } else {
 	result = FALSE;
     }
@@ -520,12 +520,30 @@ CondToken(doEval)
 	    case '\0':
 		t = EndOfFile;
 		break;
+
+            #ifdef NMAKE
+            case '[':
+                //@todo execute this command!!!
+                t = False;
+                condExpr += strlen(condExpr);
+                break;
+            #endif
+
+
+            #ifdef NMAKE
+            case '"':
+            #endif
 	    case '$': {
 		char	*lhs;
 		char	*rhs;
 		char	*op;
 		int	varSpecLen;
 		Boolean	doFree;
+                #ifdef NMAKE
+                Boolean fQuoted = (*condExpr == '"');
+                if (fQuoted)
+                    condExpr++;
+                #endif
 
 		/*
 		 * Parse the variable spec and skip over it, saving its
@@ -533,6 +551,13 @@ CondToken(doEval)
 		 */
 		t = Err;
 		lhs = Var_Parse(condExpr, VAR_CMD, doEval,&varSpecLen,&doFree);
+                #ifdef NMAKE
+                if (lhs == var_Error)
+                {
+                    //@todo check if actually parsed correctly.
+                    doFree = 0;
+                }
+                #else
 		if (lhs == var_Error) {
 		    /*
 		     * Even if !doEval, we still report syntax errors, which
@@ -540,10 +565,18 @@ CondToken(doEval)
 		     */
 		    return(Err);
 		}
+                #endif
 		condExpr += varSpecLen;
 
+                #ifdef NMAKE
+                if (    (fQuoted && *condExpr != '"')
+                    ||  (!fQuoted && !isspace((unsigned char) *condExpr) && strchr("!=><", *condExpr) == NULL)
+                    )
+                #else
 		if (!isspace((unsigned char) *condExpr) &&
-		    strchr("!=><", *condExpr) == NULL) {
+		    strchr("!=><", *condExpr) == NULL)
+                #endif
+                {
 		    Buffer buf;
 		    char *cp;
 
@@ -553,10 +586,13 @@ CondToken(doEval)
 			Buf_AddByte(buf, (Byte)*cp);
 
 		    if (doFree)
-			free(lhs);
+			efree(lhs);
 
-		    for (;*condExpr && !isspace((unsigned char) *condExpr);
-			 condExpr++)
+                    #ifdef NMAKE
+		    for (;*condExpr && (fQuoted ? *condExpr != '"' : !isspace((unsigned char) *condExpr)); condExpr++)
+                    #else
+		    for (;*condExpr && !isspace((unsigned char) *condExpr); condExpr++)
+                    #endif
 			Buf_AddByte(buf, (Byte)*condExpr);
 
 		    Buf_AddByte(buf, (Byte)'\0');
@@ -569,6 +605,10 @@ CondToken(doEval)
 		/*
 		 * Skip whitespace to get to the operator
 		 */
+                #ifdef NMAKE
+                if (fQuoted && *condExpr == '"')
+                    condExpr++;
+                #endif
 		while (isspace((unsigned char) *condExpr))
 		    condExpr++;
 
@@ -644,7 +684,7 @@ do_string_compare:
 			    if (cp2 != var_Error) {
 				Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
 				if (freeIt) {
-				    free(cp2);
+				    efree(cp2);
 				}
 				cp += len - 1;
 			    } else {
@@ -673,7 +713,7 @@ do_string_compare:
 		    } else {
 			t = strcmp(lhs, string) ? True : False;
 		    }
-		    free(string);
+		    efree(string);
 		    if (rhs == condExpr) {
 		    	if (!qt && *cp == ')')
 			    condExpr = cp;
@@ -700,11 +740,11 @@ do_string_compare:
 			} else {
 			    if (*CondCvtArg(string, &right) != '\0') {
 				if (freeIt)
-				    free(string);
+				    efree(string);
 				goto do_string_compare;
 			    }
 			    if (freeIt)
-				free(string);
+				efree(string);
 			    if (rhs == condExpr)
 				condExpr += len;
 			}
@@ -762,7 +802,7 @@ do_string_compare:
 		}
 error:
 		if (doFree)
-		    free(lhs);
+		    efree(lhs);
 		break;
 	    }
 	    default: {
@@ -842,7 +882,7 @@ error:
 			    t = (*p == '\0') ? True : False;
 			}
 			if (doFree) {
-			    free(val);
+			    efree(val);
 			}
 			/*
 			 * Advance condExpr to beyond the closing ). Note that
@@ -889,7 +929,7 @@ error:
 		t = (!doEval || (* evalProc) (arglen, arg) ?
 		     (invert ? False : True) :
 		     (invert ? True : False));
-		free(arg);
+		efree(arg);
 		break;
 	    }
 	}

@@ -74,11 +74,11 @@ str_end()
 {
     if (argv) {
 	if (argv[0])
-	    free(argv[0]);
-	free((Address) argv);
+	    efree(argv[0]);
+	efree((Address) argv);
     }
     if (buffer)
-	free(buffer);
+	efree(buffer);
 }
 
 /*-
@@ -119,10 +119,10 @@ str_concat(s1, s2, flags)
 	/* copy second string plus EOS into place */
 	memcpy(result + len1, s2, len2 + 1);
 
-	/* free original strings */
+	/* efree original strings */
 	if (flags & STR_DOFREE) {
-		(void)free(s1);
-		(void)free(s2);
+		(void)efree(s1);
+		(void)efree(s2);
 	}
 	return(result);
 }
@@ -154,7 +154,7 @@ brk_string(str, store_argc, expand)
 	/* allocate room for a copy of the string */
 	if ((len = strlen(str) + 1) > curlen) {
 		if (buffer)
-		    free(buffer);
+		    efree(buffer);
 		buffer = emalloc(curlen = len);
 	}
 

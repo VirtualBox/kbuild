@@ -105,7 +105,7 @@ Lst_ForEachFrom (l, ln, proc, d)
 	next = tln->nextPtr;
 
 	if (tln->flags & LN_DELETED) {
-	    free((char *)tln);
+	    efree((char *)tln);
 	}
 	tln = next;
     } while (!result && !LstIsEmpty(list) && !done);

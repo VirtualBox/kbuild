@@ -1,9 +1,14 @@
-/*
- * Copyright (c) 1988, 1989, 1990, 1993
+/*-
+ * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
  *
  * This code is derived from software contributed to Berkeley by
- * Adam de Boor.
+ * Hugh Smith at The University of Guelph.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,71 +38,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/make/lst.lib/lstDestroy.c,v 1.7 1999/08/28 01:03:49 peter Exp $
+ *	@(#)ar.h	8.2 (Berkeley) 1/21/94
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)lstDestroy.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+#ifndef _AR_H_
+#define	_AR_H_
 
-/*-
- * LstDestroy.c --
- *	Nuke a list and all its resources
- */
-#include	"lstInt.h"
+/* Pre-4BSD archives had these magic numbers in them. */
+#define	OARMAG1	0177555
+#define	OARMAG2	0177545
 
-/*-
- *-----------------------------------------------------------------------
- * Lst_Destroy --
- *	Destroy a list and free all its resources. If the freeProc is
- *	given, it is called with the datum from each node in turn before
- *	the node is freed.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The given list is freed in its entirety.
- *
- *-----------------------------------------------------------------------
- */
-void
-Lst_Destroy (l, freeProc)
-    Lst	    	  	l;
-    register void	(*freeProc) __P((ClientData));
-{
-    register ListNode	ln;
-    register ListNode	tln = NilListNode;
-    register List 	list = (List)l;
+#define	ARMAG		"!<arch>\n"	/* ar "magic number" */
+#define	SARMAG		8		/* strlen(ARMAG); */
 
-    if (l == NILLST || ! l) {
-	/*
-	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
-	 * Gross, but useful.
-	 */
-	return;
-    }
+#define	AR_EFMT1	"#1/"		/* extended format #1 */
 
-    /* To ease scanning */
-    if (list->lastPtr != NilListNode)
-	list->lastPtr->nextPtr = NilListNode;
-    else {
-	efree ((Address)l);
-	return;
-    }
+struct ar_hdr {
+	char ar_name[16];		/* name */
+	char ar_date[12];		/* modification time */
+	char ar_uid[6];			/* user id */
+	char ar_gid[6];			/* group id */
+	char ar_mode[8];		/* octal file permissions */
+	char ar_size[10];		/* size in bytes */
+#define	ARFMAG	"`\n"
+	char ar_fmag[2];		/* consistency check */
+};
 
-    if (freeProc) {
-	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
-	     tln = ln->nextPtr;
-	     (*freeProc) (ln->datum);
-	     efree ((Address)ln);
-	}
-    } else {
-	for (ln = list->firstPtr; ln != NilListNode; ln = tln) {
-	     tln = ln->nextPtr;
-	     efree ((Address)ln);
-	}
-    }
-
-    efree ((Address)l);
-}
+#endif /* !_AR_H_ */

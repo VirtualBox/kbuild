@@ -185,7 +185,7 @@ Buf_UngetByte (bp, byte)
 	memcpy ((char *)(newBuf+BUF_UNGET_INC), (char *)bp->outPtr, numBytes+1);
 	bp->outPtr = newBuf + BUF_UNGET_INC;
 	bp->inPtr = bp->outPtr + numBytes;
-	free ((char *)bp->buffer);
+	efree ((char *)bp->buffer);
 	bp->buffer = newBuf;
 	bp->size += BUF_UNGET_INC;
 	bp->left = bp->size - (bp->inPtr - bp->buffer);
@@ -228,7 +228,7 @@ Buf_UngetBytes (bp, numBytes, bytesPtr)
 	memcpy((char *)(newBuf+newBytes), (char *)bp->outPtr, curNumBytes+1);
 	bp->outPtr = newBuf + newBytes;
 	bp->inPtr = bp->outPtr + curNumBytes;
-	free ((char *)bp->buffer);
+	efree ((char *)bp->buffer);
 	bp->buffer = newBuf;
 	bp->size += newBytes;
 	bp->left = bp->size - (bp->inPtr - bp->buffer);
@@ -435,9 +435,9 @@ Buf_Destroy (buf, freeData)
 {
 
     if (freeData) {
-	free ((char *)buf->buffer);
+	efree ((char *)buf->buffer);
     }
-    free ((char *)buf);
+    efree ((char *)buf);
 }
 
 /*-

@@ -2,9 +2,9 @@
 # $FreeBSD: src/usr.bin/make/Makefile,v 1.13.2.1 2001/05/25 08:33:40 sobomax Exp $
 
 CC = gcc
-CFLAGS = -I. -I./include -I../kLib/Generic/include \
+CFLAGS = -g -I. -I./include -I../kLib/Generic/include \
 #         -DUSE_KLIB \
-         -DOS2 -D__i386__ -D__32BIT__ -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
+         -DOS2 -D__i386__ -D__32BIT__ -DNMAKE -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
 
 OBJDIR=obj.emx
 
@@ -53,6 +53,7 @@ $(OBJDIR)\suff.o\
 $(OBJDIR)\targ.o\
 $(OBJDIR)\var.o\
 $(OBJDIR)\util.o\
+$(OBJDIR)\helpers.o\
 
 INCOBJS=\
 $(OBJDIR)\dirent.o\
@@ -61,7 +62,7 @@ $(OBJDIR)\dirent.o\
 all: kmk.exe
 
 kmk.exe: $(BASEOBJS) $(LSTOBJS) $(INCOBJS)
-    $(CC) $(CFLAGS) $** -o $@ -lregexp
+    $(CC) $(CFLAGS) -Zmap $** -o $@ -lregex
 
 $(LSTOBJS): lst.lib\$(@B).c list.h lst.h
     @if not exist $(OBJDIR) mkdir $(OBJDIR)

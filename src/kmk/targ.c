@@ -212,7 +212,7 @@ TargFreeGN (gnp)
     GNode *gn = (GNode *) gnp;
 
 
-    free(gn->name);
+    efree(gn->name);
     efree(gn->path);
 
     Lst_Destroy(gn->iParents, NOFREE);
@@ -223,7 +223,7 @@ TargFreeGN (gnp)
     Lst_Destroy(gn->preds, NOFREE);
     Lst_Destroy(gn->context, NOFREE);
     Lst_Destroy(gn->commands, NOFREE);
-    free((Address)gn);
+    efree((Address)gn);
 }
 
 

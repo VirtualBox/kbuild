@@ -73,9 +73,7 @@ int PrintAddr __P((ClientData, ClientData));
 void Finish __P((int));
 char *estrdup __P((const char *));
 void *emalloc __P((size_t));
-/* efree(x) works when x==NULL. STDC behavior, may need some different
- * definition for cross-builds on deficient systems */
-#define efree	free
+void efree __P((void *));
 void *erealloc __P((void *, size_t));
 void enomem __P((void));
 int eunlink __P((const char *));

@@ -2,8 +2,8 @@
 # $FreeBSD: src/usr.bin/make/Makefile,v 1.13.2.1 2001/05/25 08:33:40 sobomax Exp $
 
 CC = icc
-CFLAGS = /Q     /Ti+ /Ss+ /Ge+ /I. /I./include /I../kLib/Generic/include \
-         -DUSE_KLIB -DOS2 -D__i386__ -D__32BIT__ -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
+CFLAGS = /Q /Ti+ /Ss+ /Ge+ /I. /I./include /I../kLib/Generic/include \
+         -DUSE_KLIB -DOS2 -D__i386__ -D__32BIT__ -DNMAKE=1 -DMACHINE=\"ibmos2\" -DMACHINE_ARCH=\"x86\" -DMACHINE_CPU=\"386\" \
 
 OBJDIR=obj.icc
 
@@ -38,12 +38,12 @@ $(OBJDIR)\lstSucc.obj
 BASEOBJS=\
 $(OBJDIR)\arch.obj\
 $(OBJDIR)\buf.obj\
-#$(OBJDIR)\compat.obj\
+$(OBJDIR)\compat.obj\
 $(OBJDIR)\cond.obj\
 $(OBJDIR)\dir.obj\
 $(OBJDIR)\for.obj\
 $(OBJDIR)\hash.obj\
-#$(OBJDIR)\job.obj\
+$(OBJDIR)\job.obj\
 $(OBJDIR)\main.obj\
 $(OBJDIR)\make.obj\
 $(OBJDIR)\parse.obj\
@@ -52,6 +52,7 @@ $(OBJDIR)\suff.obj\
 $(OBJDIR)\targ.obj\
 $(OBJDIR)\var.obj\
 $(OBJDIR)\util.obj\
+$(OBJDIR)\helpers.obj\
 
 INCOBJS=\
 $(OBJDIR)\dirent.obj\
@@ -60,7 +61,9 @@ $(OBJDIR)\dirent.obj\
 all: kmk.exe
 
 kmk.exe: $(BASEOBJS) $(LSTOBJS) $(INCOBJS)
-    $(CC) $(CFLAGS) $** /Fm$(@F).map /Fe$@
+    $(CC) @<<
+$(CFLAGS) $** /Fm$(@F).map /Fe$@ ..\klib\lib\debug\klib.lib
+<<
 
 $(LSTOBJS): lst.lib\$(@B).c list.h lst.h
     @if not exist $(OBJDIR) mkdir $(OBJDIR)

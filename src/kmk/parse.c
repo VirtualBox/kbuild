@@ -251,7 +251,7 @@ static int ParseAddCmd __P((ClientData, ClientData));
 static int ParseReadc __P((void));
 static void ParseUnreadc __P((int));
 static void ParseHasCommands __P((ClientData));
-static void ParseDoInclude __P((char *));
+static void ParseDoInclude __P((char *, char));
 static void ParseDoError __P((char *));
 #ifdef SYSVINCLUDE
 static void ParseTraditionalInclude __P((char *));
@@ -539,7 +539,7 @@ ParseDoSrc (tOp, src, allsrc)
 	/*
 	 * If we have noted the existence of a .MAIN, it means we need
 	 * to add the sources of said target to the list of things
-	 * to create. The string 'src' is likely to be free, so we
+	 * to create. The string 'src' is likely to be efree, so we
 	 * must make a new copy of it. Note that this will only be
 	 * invoked if the user didn't specify a target on the command
 	 * line. This is to allow #ifmake's to succeed, or something...
@@ -764,7 +764,7 @@ ParseDoDependency (line)
 		result=Var_Parse(cp, VAR_CMD, TRUE, &length, &freeIt);
 
 		if (freeIt) {
-		    free(result);
+		    efree(result);
 		}
 		cp += length-1;
 	    }
@@ -1453,7 +1453,7 @@ Parse_DoVar (line, ctxt)
 	oldVars = oldOldVars;
 
 	Var_Set(line, cp, ctxt);
-	free(cp);
+	efree(cp);
     } else if (type == VAR_SHELL) {
 	Boolean	freeCmd = FALSE; /* TRUE if the command needs to be freed, i.e.
 				  * if any variable expansion was performed */
@@ -1471,13 +1471,13 @@ Parse_DoVar (line, ctxt)
 
 	res = Cmd_Exec(cp, &err);
 	Var_Set(line, res, ctxt);
-	free(res);
+	efree(res);
 
 	if (err)
 	    Parse_Error(PARSE_WARNING, err, cp);
 
 	if (freeCmd)
-	    free(cp);
+	    efree(cp);
     } else {
 	/*
 	 * Normal assignment -- just do it.
@@ -1604,8 +1604,9 @@ ParseDoError(errmsg)
  *---------------------------------------------------------------------
  */
 static void
-ParseDoInclude (file)
+ParseDoInclude (file, chPre)
     char          *file;	/* file specification */
+    char           chPre;       /* Preprocessor char */
 {
     char          *fullname;	/* full pathname of file */
     IFile         *oldFile;	/* state associated with current file */
@@ -1620,11 +1621,13 @@ ParseDoInclude (file)
 	file++;
     }
 
+    #ifndef NMAKE
     if ((*file != '"') && (*file != '<')) {
 	Parse_Error (PARSE_FATAL,
-	    ".include filename must be delimited by '\"' or '<'");
+	    "%cinclude filename must be delimited by '\"' or '<'", chPre);
 	return;
     }
+    #endif
 
     /*
      * Set the search path on which to find the include file based on the
@@ -1636,7 +1639,17 @@ ParseDoInclude (file)
 	endc = '>';
     } else {
 	isSystem = FALSE;
+        #ifdef NMAKE
+        if (*file == '"')
+	    endc = '"';
+        else
+        {
+            endc = '\0';
+            file--;
+        }
+        #else
 	endc = '"';
+        #endif
     }
 
     /*
@@ -1646,10 +1659,14 @@ ParseDoInclude (file)
 	continue;
     }
 
+    #ifdef NMAKE
+    if (endc && *cp != endc) {
+    #else
     if (*cp != endc) {
+    #endif
 	Parse_Error (PARSE_FATAL,
 		     "Unclosed %cinclude filename. '%c' expected",
-		     '.', endc);
+		     chPre, endc);
 	return;
     }
     *cp = '\0';
@@ -1691,12 +1708,12 @@ ParseDoInclude (file)
 	    if (fullname == (char *)NULL) {
 		fullname = Dir_FindFile(newName, dirSearchPath);
 	    }
-	    free (newName);
+	    efree (newName);
 	    *prefEnd = '/';
 	} else {
 	    fullname = (char *)NULL;
 	}
-	free (Fname);
+	efree (Fname);
     } else {
 	fullname = (char *)NULL;
     }
@@ -1724,11 +1741,11 @@ ParseDoInclude (file)
 
     if (fullname == (char *) NULL) {
 	*cp = endc;
-	Parse_Error (PARSE_FATAL, "Could not find %s", file);
+	Parse_Error (PARSE_FATAL, "Could not find '%s'", file);
 	return;
     }
 
-    free(file);
+    efree(file);
 
     /*
      * Once we find the absolute path to the file, we get to save all the
@@ -1881,7 +1898,7 @@ ParseTraditionalInclude (file)
 	if (fullname == (char *)NULL) {
 	    fullname = Dir_FindFile(newName, dirSearchPath);
 	}
-	free (newName);
+	efree (newName);
 	*prefEnd = '/';
     } else {
 	fullname = (char *)NULL;
@@ -1976,18 +1993,18 @@ ParseEOF (opened)
     }
 
     ifile = (IFile *) Lst_DeQueue (includes);
-    free ((Address) fname);
+    efree ((Address) fname);
     fname = ifile->fname;
     lineno = ifile->lineno;
     if (opened && curFILE)
 	(void) fclose (curFILE);
     if (curPTR) {
-	free((Address) curPTR->str);
-	free((Address) curPTR);
+	efree((Address) curPTR->str);
+	efree((Address) curPTR);
     }
     curFILE = ifile->F;
     curPTR = ifile->p;
-    free ((Address)ifile);
+    efree ((Address)ifile);
     return (CONTINUE);
 }
 
@@ -2082,7 +2099,11 @@ ParseSkipLine(skip)
         lineno++;
         Buf_AddByte(buf, (Byte)'\0');
         line = (char *)Buf_GetAll(buf, &lineLength);
+    #ifdef NMAKE
+    } while (skip == 1 && line[0] != '.' && line[0] != '!');
+    #else
     } while (skip == 1 && line[0] != '.');
+    #endif
 
     Buf_Destroy(buf, FALSE);
     return line;
@@ -2327,20 +2348,20 @@ test_char:
 		 * Skip to next conditional that evaluates to COND_PARSE.
 		 */
 		do {
-		    free (line);
+		    efree (line);
 		    line = ParseSkipLine(1);
 		} while (line && Cond_Eval(line) != COND_PARSE);
 		if (line == NULL)
 		    break;
 		/*FALLTHRU*/
 	    case COND_PARSE:
-		free ((Address) line);
+		efree ((Address) line);
 		line = ParseReadLine();
 		break;
 	    case COND_INVALID:
 		if (For_Eval(line)) {
 		    int ok;
-		    free(line);
+		    efree(line);
 		    do {
 			/*
 			 * Skip after the matching end
@@ -2352,7 +2373,7 @@ test_char:
 			    break;
 			}
 			ok = For_Eval(line);
-			free(line);
+			efree(line);
 		    }
 		    while (ok);
 		    if (line != NULL)
@@ -2429,7 +2450,11 @@ Parse_File(name, stream)
     do {
 	while ((line = ParseReadLine ()) != NULL) {
 //debugkso: fprintf(stderr, "%s(%d): inLine=%d line=%s\n", fname, lineno, inLine, line);
+            #ifdef NMAKE
+	    if (*line == '.' || *line == '!') {
+            #else
 	    if (*line == '.') {
+            #endif
 		/*
 		 * Lines that begin with the special character are either
 		 * include or undef directives.
@@ -2438,7 +2463,7 @@ Parse_File(name, stream)
 		    continue;
 		}
 		if (strncmp (cp, "include", 7) == 0) {
-		    ParseDoInclude (cp + 7);
+		    ParseDoInclude (cp + 7, *line);
 		    goto nextLine;
 		} else if (strncmp (cp, "error", 5) == 0) {
 		    ParseDoError(cp + 5);
@@ -2552,7 +2577,7 @@ Parse_File(name, stream)
 		    ParseFinishLine();
 
 		    cp = Var_Subst (NULL, line, VAR_CMD, TRUE);
-		    free (line);
+		    efree (line);
 		    line = cp;
 
 		    /*
@@ -2572,7 +2597,7 @@ Parse_File(name, stream)
 
 	    nextLine:
 
-	    free (line);
+	    efree (line);
 	}
 	/*
 	 * Reached EOF, but it may be just EOF of an include file...
@@ -2613,7 +2638,7 @@ Parse_Init ()
 void
 Parse_End()
 {
-    Lst_Destroy(targCmds, (void (*) __P((ClientData))) free);
+    Lst_Destroy(targCmds, (void (*) __P((ClientData))) efree);
     if (targets)
 	Lst_Destroy(targets, NOFREE);
     Lst_Destroy(sysIncPath, Dir_Destroy);
