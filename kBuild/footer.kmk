@@ -1,4 +1,4 @@
-# $Id: footer.kmk 83 2004-06-01 14:36:56Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 87 2004-06-04 15:29:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -625,18 +625,33 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBS.$(BUILD_TARGET))\
 	$($(target)_LIBS.$(BUILD_TYPE))\
 	$($(target)_LIBS)\
+	$(LIBS.$(BUILD_TARGET_CPU))\
+	$(LIBS.$(BUILD_TARGET_ARCH))\
+	$(LIBS.$(BUILD_TARGET))\
 	$(LIBS.$(BUILD_TYPE))\
 	$(LIBS)\
 	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBPATH.$(BUILD_TARGET))\
 	$($(target)_LIBPATH.$(BUILD_TYPE))\
 	$($(target)_LIBPATH)\
+	$(LIBPATH.$(BUILD_TARGET_CPU))\
+	$(LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(LIBPATH.$(BUILD_TARGET))\
 	$(LIBPATH.$(BUILD_TYPE))\
 	$(LIBPATH)\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBPATH)\
 )
@@ -718,18 +733,33 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval sys         := $(outbase)$(syssuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBS.$(BUILD_TARGET))\
 	$($(target)_LIBS.$(BUILD_TYPE))\
 	$($(target)_LIBS)\
+	$(LIBS.$(BUILD_TARGET_CPU))\
+	$(LIBS.$(BUILD_TARGET_ARCH))\
+	$(LIBS.$(BUILD_TARGET))\
 	$(LIBS.$(BUILD_TYPE))\
 	$(LIBS)\
 	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBS)\
 )
 $(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBPATH.$(BUILD_TARGET))\
 	$($(target)_LIBPATH.$(BUILD_TYPE))\
 	$($(target)_LIBPATH)\
+	$(LIBPATH.$(BUILD_TARGET_CPU))\
+	$(LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(LIBPATH.$(BUILD_TARGET))\
 	$(LIBPATH.$(BUILD_TYPE))\
 	$(LIBPATH)\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
 	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_LIBPATH)\
 )

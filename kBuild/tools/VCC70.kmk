@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 86 2004-06-03 21:36:29Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 87 2004-06-04 15:29:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -127,6 +127,8 @@ $(lib): $(dirdep) $(objs) $(deps)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(TOOL_VCC70_AR) $(flags) /OUT:$(call CYGPATHMIXED,$(lib)) $(call CYGPATHMIXED,$(objs))
+	$(MKDIR) -p $(PATH_LIB)
+	$(CP) $$@ $(PATH_LIB)/
 	
 endef
 
