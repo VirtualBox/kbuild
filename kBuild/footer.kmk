@@ -1,4 +1,4 @@
-# $Id: footer.kmk 148 2004-09-07 20:16:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 183 2004-12-02 20:39:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -97,7 +97,7 @@ _SOURCE_TOOL_OLD = $(strip $(firstword \
 	$($(source)_$(type)TOOL) $($(source)_TOOL) \
 	$($(type)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
 	$($(type)TOOL) $(TOOL) ))
-		
+
 ## Figure out the tool for a target.
 # @param    $target 		normalized target.
 # @param    $source      tooltype.
@@ -111,7 +111,7 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(BUILD_TARGET)) \
 	$(TOOL) \
 	))
-	
+
 ## Removes the drive letter from a path (if it has one)
 # @param	$1 		the path
 no-drive=$(word $(words	$(subst :, ,$(1))),$(subst :, ,$(1)))
@@ -213,7 +213,7 @@ endif
 endif
 endef
 
-## Inherit one template property.		
+## Inherit one template property.
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate
@@ -251,7 +251,7 @@ $(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_template)))
 
 #
 # Include tools
-# 			
+#
 _TOOLS := $(TOOL)
 define def_tools_target_source
 $(foreach tool,\
@@ -646,6 +646,7 @@ $(eval libsuff     := $(firstword\
 	$(SUFF_LIB)\
 ))
 $(eval lib         := $(outbase)$(libsuff))
+$(eval TARGET_$(target) := $(lib))
 
 # source -> object
 $(eval $(def_target_sources))
@@ -674,7 +675,7 @@ ifndef $(target)_NOINST
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(CP) $(lib) $(publib)
-	
+
 _LIBS += $(publib)
 _OUT_FILES += $(lib) $(publib)
 else
@@ -702,6 +703,7 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
+$(eval TARGET_$(target) := $(exe))
 
 # source -> object
 $(eval $(def_target_sources))
@@ -825,7 +827,7 @@ ifndef $(target)_NOINST
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(CP) $(exe) $(pubexe)
-	
+
 _DLLS += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
 else
@@ -853,11 +855,12 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
 $(eval dll         := $(outbase)$(dllsuff))
+$(eval TARGET_$(target) := $(dll))
 
 # source -> object
 $(eval $(def_target_sources))
 
-# dllmod linking. 
+# dllmod linking.
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
@@ -981,17 +984,17 @@ $$(warning kBuild: tools: \
 	6 $($(source)TOOL.$(BUILD_TARGET)) \
 	7 $(TOOL.$(BUILD_TARGET)) \
 	8 $(TOOL) )
-endif	
+endif
 
 $(eval $(TOOL_$(tool)_LINK_DLL))
 
-					
+
 # publish rule (still need work)
 ifndef $(target)_NOINST
 $(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(CP) $(dll) $(pubdll)
-	
+
 _DLLS += $(pubdll)
 _OUT_FILES += $(dll) $(pubdll)
 else
@@ -1018,6 +1021,7 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
+$(eval TARGET_$(target) := $(sys))
 
 # source -> object
 $(eval $(def_target_sources))
@@ -1146,7 +1150,7 @@ $$(warning kBuild: tools: \
 	6 $($(source)TOOL.$(BUILD_TARGET)) \
 	7 $(TOOL.$(BUILD_TARGET)) \
 	8 $(TOOL) )
-endif	
+endif
 
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
@@ -1155,7 +1159,7 @@ ifndef $(target)_NOINST
 $(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
 $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 	$(CP) $(sys) $(pubsys)
-	
+
 $(eval _SYSMODS += $(pubsys))
 $(eval _OUT_FILES += $(sys) $(pubsys))
 else
@@ -1196,13 +1200,13 @@ endef
 
 $(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
 
-		
+
 #
 # Include dependency files.
 #
 $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 
-		
+
 #
 # PASSES (including directory and makefile walking)
 #
@@ -1240,18 +1244,18 @@ endef
 # @param	$(pass)		Lowercase pass name.
 # @param	$(PASS)		Uppercase pass name.
 define def_pass
-$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS))
-$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER))
-$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE))
-$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER))
+$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET)))
+$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET)))
+$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)))
+$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET)))
 
 $(eval tag:=_before)
-$(foreach subdir,$(SUBDIRS_$(PASS)),$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)),$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(BUILD_TARGET))         ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET)),$(eval $(def_pass_makefile)))
 
 $(eval tag:=_after)
-$(foreach subdir,$(SUBDIRS_AFTER_$(PASS)),$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_AFTER_$(PASS)),$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET))   ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET)) ,$(eval $(def_pass_makefile)))
 
 .NOTPARALLEL: pass_$(pass)_before pass_$(pass)_after
 .PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
@@ -1259,10 +1263,10 @@ pass_$(pass): \
 	pass_$(pass)_before \
 	pass_$(pass)_doit \
 	pass_$(pass)_after
-	
-endef	
 
-					
+endef
+
+
 ## PASS: needed
 # This pass builds targets which are required for building the rest.
 pass_needed_doit: $(_NEEDEDS)
@@ -1298,10 +1302,10 @@ publish::
 pass := publish
 PASS := PUBLISH
 # $(sort).. not nice.
-SUBDIRS_PUBLISH         ?= $(sort $(SUBDIRS) $(SUBDIRS_LIBRARIES) $(SUBDIRS_BINARIES) $(SUBDIRS_OTHERS))
-SUBDIRS_AFTER_PUBLISH   ?= $(sort $(SUBDIRS_AFTER) $(SUBDIRS_AFTER_LIBRARIES) $(SUBDIRS_AFTER_BINARIES) $(SUBDIRS_AFTER_OTHERS))
-MAKEFILES_BEFORE_PUBLISH?= $(sort $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE_LIBRARIES) $(MAKEFILES_BEFORE_BINARIES) $(MAKEFILES_BEFORE_OTHERS))
-MAKEFILES_AFTER_PUBLISH ?= $(sort $(MAKEFILES_AFTER) $(MAKEFILES_AFTER_LIBRARIES) $(MAKEFILES_AFTER_BINARIES) $(MAKEFILES_AFTER_OTHERS))
+SUBDIRS_PUBLISH         ?= $(sort $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET))          $(SUBDIRS_LIBRARIES)          $(SUBDIRS_LIBRARIES.$(BUILD_TARGET))          $(SUBDIRS_BINARIES)          $(SUBDIRS_BINARIES.$(BUILD_TARGET))          $(SUBDIRS_OTHERS)          $(SUBDIRS_OTHERS.$(BUILD_TARGET)))
+SUBDIRS_AFTER_PUBLISH   ?= $(sort $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET))    $(SUBDIRS_AFTER_LIBRARIES)    $(SUBDIRS_AFTER_LIBRARIES.$(BUILD_TARGET))    $(SUBDIRS_AFTER_BINARIES)    $(SUBDIRS_AFTER_BINARIES.$(BUILD_TARGET))    $(SUBDIRS_AFTER_OTHERS)    $(SUBDIRS_AFTER_OTHERS.$(BUILD_TARGET)))
+MAKEFILES_BEFORE_PUBLISH?= $(sort $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_LIBRARIES) $(MAKEFILES_BEFORE_LIBRARIES.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_BINARIES) $(MAKEFILES_BEFORE_BINARIES.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_OTHERS) $(MAKEFILES_BEFORE_OTHERS.$(BUILD_TARGET)))
+MAKEFILES_AFTER_PUBLISH ?= $(sort $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET))  $(MAKEFILES_AFTER_LIBRARIES)  $(MAKEFILES_AFTER_LIBRARIES.$(BUILD_TARGET))  $(MAKEFILES_AFTER_BINARIES)  $(MAKEFILES_AFTER_BINARIES.$(BUILD_TARGET))  $(MAKEFILES_AFTER_OTHERS)  $(MAKEFILES_AFTER_OTHERS.$(BUILD_TARGET)))
 $(eval $(def_pass))
 
 ## PASS: packing
@@ -1320,7 +1324,7 @@ pass := clean
 PASS := CLEAN
 $(eval $(def_pass))
 clean: pass_clean
-		
+
 ## PASS: nothing
 # This pass just walks the tree.
 pass_nothing_doit:
@@ -1330,7 +1334,7 @@ PASS := NOTHING
 $(eval $(def_pass))
 nothing: pass_nothing
 
-					
+
 
 #
 # THE MAIN RULES
@@ -1345,7 +1349,7 @@ rebuild: clean
 target:    needed libraries binaries others
 objects:   $(_OBJS)
 programs:  $(_EXES)
-dlls:      $(_DLLS)	
+dlls:      $(_DLLS)
 sysmods:   $(_SYSMODS)
 
 
