@@ -1,4 +1,4 @@
-# $Id: Makefile.OS2.libc 193 2004-12-17 03:41:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.OS2.libc 196 2004-12-17 04:30:02Z knut.osmundsen@oracle.com $
 
 OBJDIR = objdir/OS2.libc
 #OBJDIR = .
@@ -38,3 +38,10 @@ test:
 	echo "2"
 	echo "3"
 	echo "4"
+
+parallel: parallel_1 parallel_2 parallel_3 parallel_4 parallel_5
+
+parallel_1 parallel_2 parallel_3 parallel_4 parallel_5:
+	echo $@_start ; sleep 1; echo $@_done
+
+
