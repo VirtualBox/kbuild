@@ -1,0 +1,60 @@
+# $Id: up.kmk 211 2005-01-08 07:12:06Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild - File included at top of a up forwarder makefile.
+#
+# Copyright (c) 2005 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version source of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite typetype0, Boston, MA  0sourcetargettargettarget-targettype07  USA
+#
+#
+
+# inlucde the header to get the right MAKE and to include config.kmk
+# files since these may contain global goals.
+include $(PATH_KBUILD)/header.kmk
+
+	
+# typical kbuild goals.		
+all_recursive \
+binaries \
+clean \
+dlls \
+libraries \
+needed \
+nothing \
+objects \
+others \
+others \
+packing \
+pass_binaries \
+pass_clean \
+pass_dlls \
+pass_needed \
+pass_nothing \
+pass_others \
+pass_packing \
+programs \
+sysmods \
+target \
+	:
+	$(MAKE) -C .. $@
+
+# the syntax checkers.
+%.o %.obj:
+	$(MAKE) -C .. $@
+
