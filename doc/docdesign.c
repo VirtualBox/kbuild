@@ -1,4 +1,4 @@
-/* $Id: docdesign.c 15 2002-10-16 23:09:44Z knut.osmundsen@oracle.com $
+/* $Id: docdesign.c 16 2002-10-16 23:21:04Z knut.osmundsen@oracle.com $
  *
  * Documentation generator.
  *
@@ -404,7 +404,25 @@ int main(int argc, char **argv)
      */
     for (argi = 1, rc = 0; !rc && argi < argc; argi++)
     {
-        rc = ParseFile(argv[argi]);
+        if (argv[argi][0] == '@')
+        {
+            FILE *phFile = fopen(&argv[argi][1], "r");
+            if (phFile)
+            {
+                char szFilename[1024];
+                while (!rc && fgets(szFilename, sizeof(szFilename), phFile))
+                {
+                    char *psz = szFilename;
+                    char *pszEnd = &psz[strlen(psz)] - 1;
+                    while (*psz == '\t' || *psz == ' ') psz++;
+                    while (pszEnd >= psz && (*pszEnd == '\t' || *pszEnd == ' ' || *pszEnd == '\n' || *pszEnd == '\r'))
+                        *pszEnd-- = '\0';
+                    rc = ParseFile(psz);
+                }
+            }
+        }
+        else
+            rc = ParseFile(argv[argi]);
     }
 
     if (!rc)
