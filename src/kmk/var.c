@@ -184,7 +184,7 @@ static Boolean VarHead __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarTail __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSuffix __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarRoot __P((char *, Boolean, Buffer, ClientData));
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
 static Boolean VarBase __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarMatch __P((char *, Boolean, Buffer, ClientData));
@@ -823,7 +823,7 @@ VarRoot (word, addSpace, buf, dummy)
     return (dummy ? TRUE : TRUE);
 }
 
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
 /*-
  *-----------------------------------------------------------------------
  * VarBase --
@@ -1679,7 +1679,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 
 	v = VarFind (str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if ((v == (Var *)NIL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D' || str[1] == 'B' || str[1] == 'R'))
 #else
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
@@ -1715,7 +1715,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			 */
 			val = (char *)Buf_GetAll(v->val, (int *)NULL);
 
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
 			switch (str[1])
                         {
                         case 'D': val = VarModify(val, VarHead, (ClientData)0); break;
@@ -1750,7 +1750,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 
 	    if (((vlen == 1) ||
 		 (((vlen == 2) && (str[1] == 'F' ||
-#ifdef NMAKE
+#if defined(NMAKE) || defined(KMK)
                                          str[1] == 'D' || str[1] == 'B' || str[1] == 'R')))) &&
 #else
 					 str[1] == 'D')))) &&
