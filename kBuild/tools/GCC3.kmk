@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 143 2004-09-02 14:57:05Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 181 2004-10-15 09:09:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -31,7 +31,7 @@ TOOL_GCC3_COBJSUFF           := .o
 TOOL_GCC3_CFLAGS             := -g
 TOOL_GCC3_CFLAGS.debug       := -O0
 TOOL_GCC3_CFLAGS.release     := -O2
-TOOL_GCC3_CFLAGS.profile     := -pg
+TOOL_GCC3_CFLAGS.profile     := -O2 #-pg
 TOOL_GCC3_CINCS              :=
 TOOL_GCC3_CDEFS              :=
 
@@ -41,7 +41,7 @@ TOOL_GCC3_CXXOBJSUFF         := .o
 TOOL_GCC3_CXXFLAGS           := -g
 TOOL_GCC3_CXXFLAGS.debug     := -O0
 TOOL_GCC3_CXXFLAGS.release   := -O2
-TOOL_GCC3_CXXFLAGS.profile   := -pg
+TOOL_GCC3_CXXFLAGS.profile   := -O2 #-pg
 TOOL_GCC3_CXXINCS            :=
 TOOL_GCC3_CXXDEFS            :=
 

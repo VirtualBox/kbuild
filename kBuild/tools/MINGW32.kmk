@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 142 2004-08-18 13:37:31Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 181 2004-10-15 09:09:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
@@ -60,7 +60,7 @@ TOOL_MINGW32_COBJSUFF           := .o
 TOOL_MINGW32_CFLAGS             := -g
 TOOL_MINGW32_CFLAGS.debug       := -O0
 TOOL_MINGW32_CFLAGS.release     := -O2
-TOOL_MINGW32_CFLAGS.profile     := -pg
+TOOL_MINGW32_CFLAGS.profile     := -O2 #-pg
 TOOL_MINGW32_CINCS              :=
 TOOL_MINGW32_CDEFS              :=
 
@@ -70,7 +70,7 @@ TOOL_MINGW32_CXXOBJSUFF         := .o
 TOOL_MINGW32_CXXFLAGS           := -g
 TOOL_MINGW32_CXXFLAGS.debug     := -O0
 TOOL_MINGW32_CXXFLAGS.release   := -O2
-TOOL_MINGW32_CXXFLAGS.profile   := -pg
+TOOL_MINGW32_CXXFLAGS.profile   := -O2 #-pg
 TOOL_MINGW32_CXXINCS            :=
 TOOL_MINGW32_CXXDEFS            :=
 
