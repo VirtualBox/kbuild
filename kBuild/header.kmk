@@ -1,4 +1,4 @@
-# $Id: header.kmk 95 2004-06-08 16:53:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 101 2004-06-16 17:47:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -207,7 +207,7 @@ endif
 # Linux
 ifeq ($(BUILD_PLATFORM),linux)
 PATH_TOOLS          := $(PATH_TOOLS_LNX)
-EXEC_X86_WIN32      := wine
+EXEC_X86_WIN32      := wine --
 HOSTSUFF_EXE        :=
 endif
 
