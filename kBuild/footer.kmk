@@ -1,4 +1,4 @@
-# $Id: footer.kmk 110 2004-06-24 22:04:23Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 111 2004-06-24 22:28:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -322,6 +322,9 @@ define def_target_source_c_cpp_asm
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
 
 $(eval tool:=$(call _SOURCE_TOOL,$(source),$(target),$(type)))
+$(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
+$(eval PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval dirdep      := $(dir $(outbase)).dir_created)
 $(eval defs        :=\
 	$(TOOL_$(tool)_DEFS)\
 	$(TOOL_$(tool)_DEFS.$(BUILD_TYPE))\
@@ -544,9 +547,6 @@ $(eval flags        :=\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	)
-$(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
-$(eval PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval dirdep      := $(dir $(outbase)).dir_created)
 $(eval objsuff     := $(firstword \
 	$($(target)_$(source)_OBJSUFF.$(BUILD_TARGET))\
 	$($(target)_$(source)_OBJSUFF)\
@@ -622,6 +622,10 @@ $(eval tool        := $(call _TARGET_TOOL,$(target),AR))
 ifeq ($(tool),)
 $$(error kBuild: Library target $(target) doesn't have a tool defined!)
 endif
+## @todo prefix
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval lib         := $(outbase)$(libsuff))
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
@@ -637,10 +641,6 @@ $(eval libsuff     := $(firstword\
 	$(TOOL_$(tool)_ARLIBSUFF)\
 	$(SUFF_LIB)\
 ))
-## @todo prefix
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval lib         := $(outbase)$(libsuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
 $(eval dirdep      := $(dir $(lib)).dir_created)
@@ -671,6 +671,11 @@ $(eval $(def_target_sources))
 
 # library
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
+$(eval exe         := $(outbase)$(exesuff))
+$(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
@@ -688,11 +693,6 @@ $(eval flags       :=\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
 )
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
-$(eval exe         := $(outbase)$(exesuff))
-$(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
 	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
 	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
@@ -790,6 +790,11 @@ $(eval $(def_target_sources))
 
 # sysmod
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
+$(eval sys         := $(outbase)$(syssuff))
+$(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
@@ -807,11 +812,6 @@ $(eval flags       :=\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
 )
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
-$(eval sys         := $(outbase)$(syssuff))
-$(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
 	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
 	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
