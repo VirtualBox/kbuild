@@ -1,0 +1,7 @@
+# $Id: Makefile.kmk 198 2004-12-17 04:51:47Z knut.osmundsen@oracle.com $
+
+SUBDIRS = gmake makedep
+
+DEPTH = ..
+include $(PATH_KBUILD)/rules.kmk
+
