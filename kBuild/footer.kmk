@@ -1,4 +1,4 @@
-# $Id: footer.kmk 183 2004-12-02 20:39:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -576,8 +576,21 @@ $(eval objsuff     := $(firstword \
 	))
 $(eval obj         := $(outbase)$(objsuff))
 $(eval dep         := $(outbase)$(SUFF_DEP))
+$(eval deps        := \
+	$($(target)_$(source)_DEPS)\
+    $($(target)_$(source)_DEPS.$(BUILD_TYPE))\
+    $($(target)_$(source)_DEPS.$(BUILD_TARGET))\
+    $($(target)_$(source)_DEPS.$(BUILD_TARGET_ARCH))\
+    $($(target)_$(source)_DEPS.$(BUILD_TARGET_CPU))\
+	$($(source)_DEPS)\
+	$($(source)_DEPS.$(BUILD_TYPE))\
+	$($(source)_DEPS.$(BUILD_TARGET))\
+	$($(target)_DEPS)\
+	$($(target)_DEPS.$(BUILD_TARGET_ARCH))\
+	$($(target)_DEPS.$(BUILD_TARGET_CPU)))
 
-#$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+
+#$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
 ifndef TOOL_$(tool)_COMPILE_$(type)
 $$(warning kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
 $$(warning kBuild: tools: \
@@ -666,7 +679,7 @@ $(eval objs         = $(_OBJS_$(target)))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
 $(eval dirdep      := $(dir $(lib)).dir_created)
 ## @todo fix dependencies on makefiles an such
-$(eval deps        := )
+$(eval deps        := $($(target)_DEPS))
 
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
@@ -797,7 +810,7 @@ $(eval libpath    :=\
 )
 $(eval dirdep      := $(dir $(exe)).dir_created)
 ## @todo fix dependencies
-$(eval deps        := )
+$(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
@@ -949,7 +962,7 @@ $(eval libpath    :=\
 )
 $(eval dirdep      := $(dir $(dll)).dir_created)
 ## @todo fix dependencies
-$(eval deps        := )
+$(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
@@ -1115,7 +1128,7 @@ $(eval libpath    :=\
 )
 $(eval dirdep      := $(dir $(sys)).dir_created)
 ## @todo fix dependencies
-$(eval deps        := )
+$(eval deps        := $($(target)_DEPS))
 #
 $(eval custom_pre    := $(strip $(firstword
 	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\

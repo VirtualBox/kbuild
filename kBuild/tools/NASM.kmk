@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 129 2004-06-29 11:55:07Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
@@ -32,7 +32,7 @@ ifneq ($(PATH_TOOL_NASM),)
 PATH_TOOL_NASM                := $(call lastword,$(PATH_TOOL_NASM))
 endif
 endif
-		
+
 ifneq ($(PATH_TOOL_NASM),)
 TOOL_NASM_AS                  := $(PATH_TOOL_NASM)/nasm$(HOSTSUFF_EXE)
 else
@@ -50,12 +50,13 @@ TOOL_NASM_ASFLAGS             :=
 # @param    $(defs)     Definitions. No -D or something.
 # @param    $(incs)     Includes. No -I or something.
 # @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_NASM_COMPILE_AS
-#$ (warning dbg: TOOL_NASM_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(source)
+#$ (warning dbg: TOOL_NASM_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
+$(obj): $(dirdep) $(source) $(deps)
 	$(call MSG_L2,Compiling $$@ using NASM)
 	$(TOOL_NASM_AS) \
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
@@ -63,7 +64,7 @@ $(obj): $(dirdep) $(source)
 		-o $(obj) \
 		$(call ABSPATH,$(source))
 _OUT_FILES += $(outbase).lst
-		
+
 endef
 
 
