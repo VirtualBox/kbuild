@@ -1,4 +1,4 @@
-# $Id: header.kmk 83 2004-06-01 14:36:56Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 85 2004-06-02 13:09:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -131,13 +131,22 @@ endif
 BUILD_TARGET_ARCH   := x86
 BUILD_TARGET_CPU    := i586
 
+#
+# Cygwin kludge.
+#
+ifneq ($(patsubst /cygdrive/%,%,$(CURDIR)),$(CURDIR))
+CYGPATHMIXED = $(foreach path,$(1)\
+   ,$(if $(patsubst /cygdrive/%,,$(path)),$(path),$(patsubst $(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path)))))/%,$(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path))))):/%,$(patsubst /cygdrive/%,%,$(path)))))
+else
+CYGPATHMIXED = $(1)
+endif
 
 #
 # Common definitions.
 #
 PATH_CURRENT        := $(CURDIR)
 # Get the real root path.
-PATH_ROOT           := $(CURDIR)
+PATH_ROOT           := $(PATH_CURRENT)
 ifneq ($(DEPTH),.)
 $(foreach d,$(subst /, ,$(DEPTH)), $(eval PATH_ROOT := $(patsubst %/,%,$(dir $(PATH_ROOT)))) )
 endif
