@@ -1,4 +1,4 @@
-# $Id: footer.kmk 133 2004-06-30 20:44:24Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 136 2004-07-12 11:46:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1285,7 +1285,7 @@ $(eval $(def_pass))
 ## PASS: clean
 # This pass removes all generated files.
 pass_clean_doit:
-	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DIRFILES)
+	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DIRFILES) $(OTHER_CLEAN)
 pass := clean
 PASS := CLEAN
 $(eval $(def_pass))
