@@ -523,7 +523,8 @@ CondToken(doEval)
 
             #ifdef NMAKE
             case '[':
-                //@todo execute this command!!!
+                /* @todo execute this command!!! */
+		Parse_Error(PARSE_WARNING, "Unsupported NMAKE construct ([])");
                 t = False;
                 condExpr += strlen(condExpr);
                 break;
@@ -589,11 +590,15 @@ CondToken(doEval)
 			efree(lhs);
 
                     #ifdef NMAKE
+                    //@todo entirely support escaped quotes and such nitty pick.
 		    for (;*condExpr && (fQuoted ? *condExpr != '"' : !isspace((unsigned char) *condExpr)); condExpr++)
+			Buf_AddByte(buf, (Byte)*condExpr);
+                    if (fQuoted && *condExpr == '"')
+                        condExpr++;
                     #else
 		    for (;*condExpr && !isspace((unsigned char) *condExpr); condExpr++)
-                    #endif
 			Buf_AddByte(buf, (Byte)*condExpr);
+                    #endif
 
 		    Buf_AddByte(buf, (Byte)'\0');
 		    lhs = (char *)Buf_GetAll(buf, &varSpecLen);

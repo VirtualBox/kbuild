@@ -78,7 +78,7 @@ static const char rcsid[] =
  *				exiting.
  */
 
-#if defined(USE_KLIB) || defined(KMK)
+#if defined(USE_KLIB) //|| defined(KMK)
     #define KLIB_INSTRICT
     #include <kLib/kLib.h>
 #endif
@@ -532,7 +532,9 @@ main(argc, argv)
 	Lst sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
+        #ifndef KMK
 	static char syspath[] = _PATH_DEFSYSPATH;
+        #endif
 
 #ifdef RLIMIT_NOFILE
 	/*
@@ -633,6 +635,9 @@ main(argc, argv)
 			machine_cpu = "unknown";
 	}
 	
+        #ifdef KMK
+        /* @todo figure out how to set object directory! */
+        #else
 	/*
 	 * The object directory location is determined using the
 	 * following order of preference:
@@ -674,6 +679,7 @@ main(argc, argv)
 		if (!(objdir = chdir_verify_path(mdpath, obpath)))
 			objdir = curdir;
 	}
+        #endif
 
 #ifdef WANT_ENV_PWD
         #ifdef USE_KLIB
@@ -793,6 +799,32 @@ main(argc, argv)
 		Var_Set(".TARGETS", "", VAR_GLOBAL);
 
 
+        #ifdef KMK
+	/*
+	 * Add current directory tree to system include path all levels up to the root.
+         * ASSUMES that curdir is absolute.
+	 */
+        {
+            char *  psz = estrdup(curdir);
+            char *  pszEnd = psz + strlen(psz);
+            while (psz < pszEnd)
+            {
+                Dir_AddDir(sysIncPath, psz);
+
+                /* Trim of the last directory component. */
+                while (pszEnd-- > psz)
+                    if (*pszEnd == '/' || *pszEnd == ':')
+                    {
+                        if (*pszEnd == ':') /*Drive letter means end of story */
+                            pszEnd = psz;
+                        *pszEnd = '\0';
+                        break;
+                    }
+            }
+            efree(psz);
+        }
+
+        #else
 	/*
 	 * If no user-supplied system path was given (through the -m option)
 	 * add the directories from the DEFSYSPATH (more than one may be given
@@ -810,6 +842,7 @@ main(argc, argv)
 			}
 		}
 	}
+        #endif
 
 	/*
 	 * Read in the built-in rules first, followed by the specified

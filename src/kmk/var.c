@@ -305,6 +305,10 @@ VarFind (name, ctxt, flags)
 		case 'P':
 			if (!strcmp(name, ".PREFIX"))
 				name = PREFIX;
+                        #ifdef KMK
+                        else if (!strcmp(name, ".PARENTS"))
+                                name = PARENTS;
+                        #endif
 			break;
 		case 'T':
 			if (!strcmp(name, ".TARGET"))
@@ -1621,6 +1625,10 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			return("$(.PREFIX)");
 		    case '!':
 			return("$(.MEMBER)");
+                    #ifdef KMK
+		    case '^':
+			return("$(.PARENTS)");
+                    #endif
 		}
 	    }
 	    /*
@@ -1771,6 +1779,9 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    case '%':
 		    case '*':
 		    case '!':
+                    #ifdef KMK
+		    case '^':
+                    #endif
 			dynamic = TRUE;
 			break;
 		}
@@ -1784,6 +1795,9 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		if ((strncmp(str, ".TARGET", len) == 0) ||
 		    (strncmp(str, ".ARCHIVE", len) == 0) ||
 		    (strncmp(str, ".PREFIX", len) == 0) ||
+                    #ifdef KMK
+		    (strncmp(str, ".PARENTS", len) == 0) ||
+                    #endif
 		    (strncmp(str, ".MEMBER", len) == 0))
 		{
 		    dynamic = TRUE;
