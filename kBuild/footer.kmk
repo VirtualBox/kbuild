@@ -1,4 +1,4 @@
-# $Id: footer.kmk 74 2004-05-31 02:19:05Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -35,6 +35,14 @@ ifndef __footer_kmk__
 # all targets.
 ALL_TARGETS := $(LIBRARIES) $(PROGRAMS) $(DLLS) $(DRIVERS) $(OTHERS)
 
+# dependency files.
+_DEPFILES :=
+
+# All kind of output files except for _OBJS and _DEPFILES.
+# Compiling or linking definition outputting other things that $@ and any
+# required dependency file must add those output files to this variable.
+_OUT_FILES :=
+
 # all of a type
 _OBJS   :=
 _LIBS   :=
@@ -47,9 +55,6 @@ define def_objs_var
 _OBJS_$1 :=
 endef
 $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
-
-# misc
-type :=
 
 
 #
@@ -361,6 +366,7 @@ $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
 _OBJS += $(_OBJS_$(target))
 _LIBS += $(lib)
+_OUT_FILES += $(lib)
 endef
 
 # Process libraries
@@ -447,6 +453,7 @@ $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
 _OBJS += $(_OBJS_$(target))
 _EXES += $(exe)
+_OUT_FILES += $(exe)
 endef
 
 # Process libraries
@@ -480,7 +487,8 @@ $(foreach target, $(PROGRAMS), $(eval $(def_program)))
 #
 # Directories.
 #
-_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS))))
+_OUTPUT_FILES := $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS)
+_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUTPUT_FILES))))
 
 define def_createdir
 $(dirfile):
@@ -491,20 +499,150 @@ endef
 
 $(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
 
+		
+#
+# Include dependency files.
+#
+$(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
+
+		
+#
+# PASSES (including directory and makefile walking)
+#
+# Do all the default passes if it's unspecified.
+PASSES ?= needed libraries binaries others publish
+
+## Proritized list of the default makefile when walking subdirectories.
+# The user can overload this list.
+DEFAULT_MAKEFILE ?= Makefile.kmk makefile.kmk Makefile makefile
+
+## Subdir
+# @param	$(pass)		Lowercase pass name.
+# @param	$(PASS)		Uppercase pass name.
+# @param	$(subdir)	Subdirectory
+# @param	$(tag)		tag to attach to the rule name.
+define def_pass_subdir
+pass_$(pass)$(tag)::
+	$(QUIET)$$(MAKE) -C $(subdir) -f $$(notdir $$(firstword $$(wildcard $$(addprefix $(subdir)/,$$(DEFAULT_MAKEFILE))))) pass_$(pass)
+endef
+
+## Submakefile
+# @param	$(pass)		Lowercase pass name.
+# @param	$(PASS)		Uppercase pass name.
+# @param	$(makefile) Makefile.
+# @param	$(tag)		tag to attach to the rule name.
+define def_pass_makefile
+pass_$(pass)$(tag)::
+	$(QUIET)$$(MAKE) -C $(patsubst %/,%,$(dir $(makefile))) -f $(notdir $(makefile)) pass_$(pass)
+endef
+
+
+## Execute a pass.
+# @param	$(pass)		Lowercase pass name.
+# @param	$(PASS)		Uppercase pass name.
+define def_pass
+$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS))
+$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER))
+$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE))
+$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER))
+
+$(eval tag:=_before)
+$(foreach subdir,$(SUBDIRS_$(PASS)),$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)),$(eval $(def_pass_makefile)))
+
+$(eval tag:=_after)
+$(foreach subdir,$(SUBDIRS_AFTER_$(PASS)),$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS)),$(eval $(def_pass_makefile)))
+
+.NOTPARALLEL: pass_$(pass)_before pass_$(pass)_after
+.PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
+pass_$(pass): \
+	pass_$(pass)_before \
+	pass_$(pass)_doit \
+	pass_$(pass)_after
+	
+endef	
+
+
+## PASS: needed
+# This pass builds targets which are required for building the rest.
+pass_needed_doit: $(_NEEDEDS)
+pass := needed
+PASS := NEEDED
+$(eval $(def_pass))
+
+## PASS: libraries
+# This pass builds library targets.
+pass_libraries_doit: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
+pass := libraries
+PASS := LIBRARIES
+$(eval $(def_pass))
+
+## PASS: binaries
+# This pass builds binary targets, i.e. programs, dlls, drivers and stuff.
+pass_binaries_doit: $(_DLLS) $(_EXES) $(_KMODS) $(_OTHER_BINARIES)
+pass := binaries
+PASS := BINARIES
+$(eval $(def_pass))
+
+## PASS: others
+# This pass builds binary targets, i.e. programs, dlls, drivers and stuff.
+pass_others_doit: $(_OTHERS)
+pass := others
+PASS := OTHERS
+$(eval $(def_pass))
+
+## PASS: publish
+# This pass installs the built entities to a sandbox area.
+pass_publish_doit: publish
+publish::
+pass := publish
+PASS := PUBLISH
+SUBDIRS_PUBLISH         ?= $(sort $(SUBDIRS) $(SUBDIRS_LIBRARIES) $(SUBDIRS_BINARIES) $(SUBDIRS_OTHERS))
+SUBDIRS_AFTER_PUBLISH   ?= $(sort $(SUBDIRS_AFTER) $(SUBDIRS_AFTER_LIBRARIES) $(SUBDIRS_AFTER_BINARIES) $(SUBDIRS_AFTER_OTHERS))
+MAKEFILES_BEFORE_PUBLISH?= $(sort $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE_LIBRARIES) $(MAKEFILES_BEFORE_BINARIES) $(MAKEFILES_BEFORE_OTHERS))
+MAKEFILES_AFTER_PUBLISH ?= $(sort $(MAKEFILES_AFTER) $(MAKEFILES_AFTER_LIBRARIES) $(MAKEFILES_AFTER_BINARIES) $(MAKEFILES_AFTER_OTHERS))
+$(eval $(def_pass))
+
+## PASS: packing
+# This pass processes custom packing rules.
+pass_packing_doit: packing
+packing::
+pass := packing
+PASS := PACKING
+$(eval $(def_pass))
+
+## PASS: clean
+# This pass removes all generated files.
+pass_clean_doit:
+	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DIRFILES)
+pass := clean
+PASS := CLEAN
+$(eval $(def_pass))
+clean: pass_clean
+		
+## PASS: nothing
+# This pass just walks the tree.
+pass_nothing_doit:
+	$(call MSG_L1,Did nothing in $(CURDIR))
+pass := nothing
+PASS := NOTHING
+$(eval $(def_pass))
+nothing: pass_nothing
+
+		
+			
 #
 # THE MAIN RULES
 #
-all_recursive:
+all_recursive: $(foreach pass,$(PASSES),pass_$(pass))
 
-
-objects: $(_OBJS)
-	echo "dbg: _OBJS = $(_OBJS)"
-
-libraries: $(_LIBS)
-	echo "dbg: _LIBS = $(_LIBS)"
-
-programs: $(_EXES)
-	echo "dbg: _EXES = $(_EXES)"
+# misc shortcuts.
+target:    needed libraries binaries others
+objects:   $(_OBJS)
+programs:  $(_EXES)
+dlls:      $(_DLLS)	
+kernelmodules: $(_KMODS)
 
 
 # end-of-file-content

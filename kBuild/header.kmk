@@ -1,4 +1,4 @@
-# $Id: header.kmk 73 2004-05-31 01:11:52Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -243,12 +243,18 @@ export SHELL MAKESHELL
 
 #
 # Message macros.
-#					
+#			
+ 	
 ifndef BUILD_QUIET
+ifdef BUILD_DEBUG
+BUILD_VERBOSE := 9
+endif
 MSG_L1		= @echo "kBuild: $1"
 ifdef BUILD_VERBOSE
 MSG_L2		= @echo "kBuild: $1"
+QUIET		:=
 else
+QUIET		:= @
 MSG_L2		=
 endif
 ifdef BUILD_DEBUG
@@ -257,6 +263,7 @@ else
 MSG_L3      =
 endif
 else
+QUIET		:=
 MSG_L1		=
 MSG_L2      =
 MSG_L3      =
