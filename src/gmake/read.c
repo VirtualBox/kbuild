@@ -222,12 +222,13 @@ read_all_makefiles (char **makefiles)
       static char *default_makefiles[] =
 #ifdef VMS
 	/* all lower case since readdir() (the vms version) 'lowercasifies' */
-	{ "makefile.vms", "gnumakefile.", "makefile.", 0 };
+	{ "makefile.kmk", "makefile.vms", "gnumakefile.", "makefile.", 0 };
 #else
 #ifdef _AMIGA
-	{ "GNUmakefile", "Makefile", "SMakefile", 0 };
+        /* what's the deal here? no dots? */
+	{ "Makefile.kmk", "makefile.kmk", "GNUmakefile", "Makefile", "SMakefile", 0 };
 #else /* !Amiga && !VMS */
-	{ "GNUmakefile", "makefile", "Makefile", 0 };
+	{ "Makefile.kmk", "makefile.kmk", "GNUmakefile", "makefile", "Makefile", 0 };
 #endif /* AMIGA */
 #endif /* VMS */
       register char **p = default_makefiles;
