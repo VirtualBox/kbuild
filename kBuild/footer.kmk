@@ -1,9 +1,9 @@
-# $Id: footer.kmk 185 2004-12-12 04:55:17Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 189 2004-12-14 17:36:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) source004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -34,11 +34,12 @@ ifndef __footer_kmk__
 
 # all targets.
 ALL_TARGETS := \
-	$(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) \
-	$(PROGRAMS)  $(PROGRAMS.$(BUILD_TARGET)) \
-	$(DLLS)      $(DLLS.$(BUILD_TARGET)) \
-	$(SYSMODS)   $(SYSMODS.$(BUILD_TARGET)) \
-	$(OTHERS)    $(OTHERS.$(BUILD_TARGET))
+	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET)) \
+	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) \
+	$(DLLS)        $(DLLS.$(BUILD_TARGET)) \
+	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET)) \
+	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET)) \
+	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))
 
 # dependency files.
 _DEPFILES :=
@@ -55,6 +56,7 @@ _DLLS   :=
 _EXES   :=
 _SYSMODS:=
 _DIRS   :=
+_IMPORT_LIBS :=
 
 # all objs of a specific target
 define def_objs_var
@@ -718,158 +720,6 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
 
 
 #
-# PROGRAMS
-#
-
-## Program (one).
-# @param    $(target)   Normalized target (program) name.
-define def_program
-# basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
-$(eval exe         := $(outbase)$(exesuff))
-$(eval TARGET_$(target) := $(exe))
-
-# source -> object
-$(eval $(def_target_sources))
-
-# more library stuff.
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval objs         = $(_OBJS_$(target)))
-$(eval flags       :=\
-	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
-	$(LDFLAGS)\
-	$(LDFLAGS.$(BUILD_TYPE))\
-	$(LDFLAGS.$(BUILD_TARGET))\
-	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$(LDFLAGS.$(BUILD_TARGET_CPU))\
-	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(BUILD_TYPE))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
-)
-$(eval libs        :=\
-	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBS.$(BUILD_TARGET))\
-	$($(target)_LIBS.$(BUILD_TYPE))\
-	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(BUILD_TARGET_CPU))\
-	$(LIBS.$(BUILD_TARGET_ARCH))\
-	$(LIBS.$(BUILD_TARGET))\
-	$(LIBS.$(BUILD_TYPE))\
-	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LIBS)\
-)
-$(eval libpath    :=\
-	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$($(target)_LIBPATH.$(BUILD_TARGET))\
-	$($(target)_LIBPATH.$(BUILD_TYPE))\
-	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
-				   $($(target)_SDKS.$(BUILD_TYPE)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(BUILD_TARGET_CPU))\
-	$(LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(LIBPATH.$(BUILD_TARGET))\
-	$(LIBPATH.$(BUILD_TYPE))\
-	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
-				   $(SDKS.$(BUILD_TYPE)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
-	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
-	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
-	$(TOOL_$(tool)_LIBPATH)\
-)
-$(eval dirdep      := $(dir $(exe)).dir_created)
-## @todo fix dependencies
-$(eval deps        := $($(target)_DEPS))
-#
-$(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_PRE.$(BUILD_TARGET))\
-	$(CUSTOM_PRE.$(BUILD_TYPE))\
-	$(CUSTOM_PRE)\
-)))
-$(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
-	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
-	$(CUSTOM_POST.$(BUILD_TARGET))\
-	$(CUSTOM_POST.$(BUILD_TYPE))\
-	$(CUSTOM_POST)\
-)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
-
-$(eval $(TOOL_$(tool)_LINK_PROGRAM))
-# publish rule (still need work)
-ifndef $(target)_NOINST
-$(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
-$(pubexe) : $(exe) $(dir $(pubexe)).dir_created
-	$(CP) $(exe) $(pubexe)
-
-_DLLS += $(pubexe)
-_OUT_FILES += $(exe) $(pubexe)
-else
-_DLLS += $(exe)
-_OUT_FILES += $(exe)
-endif
-_OBJS += $(_OBJS_$(target))
-endef
-
-# Process libraries
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)))
-
-
-
-#
 # DLLS
 #
 
@@ -1022,6 +872,7 @@ $(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(CP) $(dll) $(pubdll)
 
+$(eval TARGET_PUB_$(target) := $(pubdll))
 _DLLS += $(pubdll)
 _OUT_FILES += $(dll) $(pubdll)
 else
@@ -1033,6 +884,172 @@ endef
 
 # Process dlls
 $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(def_dll)))
+
+
+
+#
+# Process import libraries.
+#
+#	- On OS/2 and windows these are libraries.
+#   - On other platforms they are fake DLLs.
+ifeq ($(subst win32,os2,$(BUILD_TARGET)),os2)
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(def_lib)))
+else
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(def_dll)))
+endif
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval _IMPORT_LIBS += $(firstword $(TARGET_PUB_$(target)) $(TARGET_$(target)))))
+
+
+#
+# PROGRAMS
+#
+
+## Program (one).
+# @param    $(target)   Normalized target (program) name.
+define def_program
+# basics
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
+$(eval exe         := $(outbase)$(exesuff))
+$(eval TARGET_$(target) := $(exe))
+
+# source -> object
+$(eval $(def_target_sources))
+
+# more library stuff.
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval objs         = $(_OBJS_$(target)))
+$(eval flags       :=\
+	$(TOOL_$(tool)_LDFLAGS)\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TARGET_CPU))\
+	$(LDFLAGS)\
+	$(LDFLAGS.$(BUILD_TYPE))\
+	$(LDFLAGS.$(BUILD_TARGET))\
+	$(LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$(LDFLAGS.$(BUILD_TARGET_CPU))\
+	$($(target)_LDFLAGS)\
+	$($(target)_LDFLAGS.$(BUILD_TYPE))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
+)
+$(eval libs        :=\
+	$($(target)_LIBS.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBS.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBS.$(BUILD_TARGET))\
+	$($(target)_LIBS.$(BUILD_TYPE))\
+	$($(target)_LIBS)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(LIBS.$(BUILD_TARGET_CPU))\
+	$(LIBS.$(BUILD_TARGET_ARCH))\
+	$(LIBS.$(BUILD_TARGET))\
+	$(LIBS.$(BUILD_TYPE))\
+	$(LIBS)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBS))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LIBS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBS)\
+)
+$(eval libpath    :=\
+	$($(target)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$($(target)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$($(target)_LIBPATH.$(BUILD_TARGET))\
+	$($(target)_LIBPATH.$(BUILD_TYPE))\
+	$($(target)_LIBPATH)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
+	$(LIBPATH.$(BUILD_TARGET_CPU))\
+	$(LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(LIBPATH.$(BUILD_TARGET))\
+	$(LIBPATH.$(BUILD_TYPE))\
+	$(LIBPATH)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_LIBPATH.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_LIBPATH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_LIBPATH.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_LIBPATH)\
+)
+$(eval dirdep      := $(dir $(exe)).dir_created)
+## @todo fix dependencies
+$(eval deps        := $($(target)_DEPS))
+#
+$(eval custom_pre    := $(strip $(firstword
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_PRE.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_PRE)\
+	$(CUSTOM_PRE.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_PRE.$(BUILD_TARGET))\
+	$(CUSTOM_PRE.$(BUILD_TYPE))\
+	$(CUSTOM_PRE)\
+)))
+$(eval custom_post    := $(strip $(firstword
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST.$(BUILD_TARGET))\
+	$($(target)_CUSTOM_POST.$(BUILD_TYPE))\
+	$($(target)_CUSTOM_POST)\
+	$(CUSTOM_POST.$(BUILD_TARGET).$(BUILD_TYPE))\
+	$(CUSTOM_POST.$(BUILD_TARGET))\
+	$(CUSTOM_POST.$(BUILD_TYPE))\
+	$(CUSTOM_POST)\
+)))
+$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_MODE))))
+
+$(eval $(TOOL_$(tool)_LINK_PROGRAM))
+# publish rule (still need work)
+ifndef $(target)_NOINST
+$(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
+$(pubexe) : $(exe) $(dir $(pubexe)).dir_created
+	$(CP) $(exe) $(pubexe)
+
+_DLLS += $(pubexe)
+_OUT_FILES += $(exe) $(pubexe)
+else
+_DLLS += $(exe)
+_OUT_FILES += $(exe)
+endif
+_OBJS += $(_OBJS_$(target))
+endef
+
+# Process libraries
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)))
+
 
 
 #
@@ -1240,7 +1257,7 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 # Do all the default passes if it's unspecified.
 
 #PASSES ?= needed libraries binaries others publish
-PASSES ?= libraries binaries others
+PASSES ?= libraries dlls binaries others
 
 ## Proritized list of the default makefile when walking subdirectories.
 # The user can overload this list.
@@ -1309,8 +1326,15 @@ PASS := LIBRARIES
 $(eval $(def_pass))
 
 ## PASS: binaries
-# This pass builds binary targets, i.e. programs, dlls, system modules and stuff.
-pass_binaries_doit: $(_DLLS) $(_EXES) $(_SYSMODS) $(_OTHER_BINARIES)
+# This pass builds dll targets.
+pass_dlls_doit: $(_DLLS) $(_OTHER_DLLS)
+pass := dlls
+PASS := DLLS
+$(eval $(def_pass))
+
+## PASS: binaries
+# This pass builds binary targets, i.e. programs, system modules and stuff.
+pass_binaries_doit: $(_EXES) $(_SYSMODS) $(_OTHER_BINARIES)
 pass := binaries
 PASS := BINARIES
 $(eval $(def_pass))
@@ -1375,9 +1399,10 @@ rebuild: clean
 # misc shortcuts.
 target:    needed libraries binaries others
 objects:   $(_OBJS)
-programs:  $(_EXES)
-dlls:      $(_DLLS)
-sysmods:   $(_SYSMODS)
+libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
+dlls:      $(_DLLS) 
+programs:  $(_EXES) 
+sysmods:   $(_SYSMODS) 
 
 
 # end-of-file-content
