@@ -1,4 +1,4 @@
-# $Id: footer.kmk 107 2004-06-24 20:45:28Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 109 2004-06-24 20:58:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -149,8 +149,13 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
 # @param    $(target)   Target name.
 define def_inherit_defaults_one
 ifndef $(target)_$(prop)
+ifndef $(target)_$(prop).$(BUILD_TARGET)
 ifdef $(prop)
 $$(eval $(target)_$(prop) := $($(prop)))
+endif
+ifdef $(prop).$(BUILD_TARGET)
+$$(eval $(target)_$(prop).$(BUILD_TARGET) := $($(prop).$(BUILD_TARGET)))
+endif
 endif
 endif
 endef
@@ -163,17 +168,17 @@ endef
 define def_inherit_defaults
 ifdef $(target)_TEMPLATE
 ifeq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_TOOL) $(TEMPLATE_$($(target)_TEMPLATE)_TOOL.$(BUILD_TARGET))),)
-$$(foreach prop,TOOL TOOL.$(BUILD_TARGET), $$(eval $$(def_inherit_defaults_one)))
+$$(foreach prop,TOOL, $$(eval $$(def_inherit_defaults_one)))
 endif
 ifeq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_SDKS) $(TEMPLATE_$($(target)_TEMPLATE)_SDKS.$(BUILD_TARGET))),)
-$$(foreach prop,SDKS SDKS.$(BUILD_TARGET), $$(eval $$(def_inherit_defaults_one)))
+$$(foreach prop,SDKS, $$(eval $$(def_inherit_defaults_one)))
 endif
 else
-$$(foreach prop,TEMPLATE TOOL TOOL.$(BUILD_TARGET) SDKS SDKS.$(BUILD_TARGET) \
-	,$$(eval $$(def_inherit_defaults_one)))
+$$(foreach prop,TEMPLATE TOOL SDKS, $$(eval $$(def_inherit_defaults_one)))
 endif
 endef
 # Inherit default properties.
+# !!!!!!THIS IS MESSY AND NOT NECESSARY!!!!!!
 $(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_defaults)))
 
 
