@@ -1,4 +1,4 @@
-# $Id: footer.kmk 136 2004-07-12 11:46:47Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 138 2004-08-03 20:08:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -33,7 +33,12 @@ ifndef __footer_kmk__
 #
 
 # all targets.
-ALL_TARGETS := $(LIBRARIES) $(PROGRAMS) $(DLLS) $(SYSMODS) $(OTHERS)
+ALL_TARGETS := \
+	$(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) \
+	$(PROGRAMS)  $(PROGRAMS.$(BUILD_TARGET)) \
+	$(DLLS)      $(DLLS.$(BUILD_TARGET)) \
+	$(SYSMODS)   $(SYSMODS.$(BUILD_TARGET)) \
+	$(OTHERS)    $(OTHERS.$(BUILD_TARGET))
 
 # dependency files.
 _DEPFILES :=
@@ -668,7 +673,7 @@ _OBJS += $(_OBJS_$(target))
 endef
 
 # Process libraries
-$(foreach target, $(LIBRARIES), $(eval $(def_lib)))
+$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
 
 
 
@@ -815,7 +820,7 @@ _OBJS += $(_OBJS_$(target))
 endef
 
 # Process libraries
-$(foreach target, $(PROGRAMS), $(eval $(def_program)))
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)))
 
 
 
@@ -977,7 +982,7 @@ _OBJS += $(_OBJS_$(target))
 endef
 
 # Process dlls
-$(foreach target, $(DLLS), $(eval $(def_dll)))
+$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(def_dll)))
 
 
 #
@@ -1137,7 +1142,7 @@ _OBJS += $(_OBJS_$(target))
 endef
 
 # Process sysmods
-$(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
+$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(def_sysmod)))
 
 
 
