@@ -1,0 +1,167 @@
+# $Id: header.kmk 69 2004-05-29 06:20:31Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild - File included at top of makefile.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+ifndef __header_kmk__
+# start-of-file-content
+
+#
+# default rule
+#
+all: all_recursive
+
+#
+# Try avoid inference rules.
+#
+.SUFFIXES:
+SUFFIXES :=
+
+#
+# Environment unifications
+#
+ifndef BUILD_TYPE
+ifndef BUILD_MODE
+$(error "define BUILD_TYPE you moron!")
+endif
+BUILD_TYPE          := $(BUILD_MODE)
+endif
+
+
+#
+# Common definitions.
+#
+PATH_CURRENT        := $(CURDIR)
+PATH_ROOT           := $(DEPTH)
+ifndef PATH_KBUILD
+PATH_KBUILD         := $(PATH_ROOT)/kBuild
+endif
+
+PATH_OUT            := $(PATH_ROOT)/out/$(BUILD_TARGET)/$(BUILD_TYPE)
+PATH_OBJ            := $(PATH_OUT)/obj
+PATH_BIN            := $(PATH_OUT)/bin
+PATH_LIB            := $(PATH_OUT)/lib
+PATH_DOC            := $(PATH_ROOT)/out/doc
+PATH_TOOLS_W32      := $(PATH_KBUILD)/bin/x86.win32
+PATH_TOOLS_LNX      := $(PATH_KBUILD)/bin/x86.linux
+PATH_TOOLS_OS2      := $(PATH_KBUILD)/bin/x86.os2
+# fixme
+PATH_TARGET          = $(PATH_OUT)
+
+# kBuild files which might be of interest.
+FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
+FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
+FILE_KBUILD_FOOTER  := $(PATH_KBUILD)/footer.kmk
+
+
+#
+# Get rid of the GNU Make default stuff
+#
+include $(PATH_KBUILD)/StampOutPredefines.kmk
+
+
+#
+# PLATFORMS (host)
+#
+_BUILD_PLATFORM_OK  := 0
+# OS/2
+ifeq ($(BUILD_PLATFORM),OS2)
+_BUILD_PLATFORM_OK  := 1
+ifndef BUILD_TARGET
+BUILD_TARGET        := OS2
+endif
+PATH_TOOLS          := $(PATH_TOOLS_OS2)
+EXEC_X86_WIN32      := $(PATH_TOOLS)/bin/innopec.exe
+HOSTSUFF_EXE        := .exe
+endif
+
+# Linux
+ifeq ($(BUILD_PLATFORM),LINUX)
+_BUILD_PLATFORM_OK  := 1
+ifndef BUILD_TARGET
+BUILD_TARGET        := LINUX
+endif
+PATH_TOOLS          := $(PATH_TOOLS_LNX)
+EXEC_X86_WIN32      := wine
+HOSTSUFF_EXE        :=
+endif
+	
+# Win32
+ifeq ($(BUILD_PLATFORM),WIN32)
+ifndef BUILD_TARGET
+BUILD_TARGET        := WIN32
+endif
+_BUILD_PLATFORM_OK  := 1
+PATH_TOOLS          := $(PATH_TOOLS_W32)
+EXEC_X86_WIN32      :=
+HOSTSUFF_EXE        := .exe
+endif
+
+# assert build platform
+ifeq ($(_BUILD_PLATFORM_OK),0)
+$(error "BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized")
+endif
+
+
+#
+# Standard kBuild tools.
+#
+DEP                 := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
+# Standard Unix shell utils.
+MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
+RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
+CP                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
+MV                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
+SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
+CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
+# Bourn shell clone.
+MAKESHELL           := $(PATH_TOOLS)/ash$(HOSTSUFF_EXE)
+SHELL               := $(MAKESHELL)
+export SHELL MAKESHELL
+
+
+#
+# This is how we find the closest config.kmk.
+# It's a little hacky but I think it works fine.
+#		
+_CFGDIR   	:= .
+_CFGFILES 	:=
+define def_include_config
+_CFGDIR   	:= $(_CFGDIR)/$(1)
+_CFGFILES 	+= $(wildcard $(_CFGDIR)/config.kmk $(_CFGDIR)/config.kMk)
+endef
+# walk down the _RELATIVE_ path specified by DEPTH.
+$(foreach d,$(subst /, ,$(DEPTH)), $(eval $(call def_include_config,$(d))) )
+# add the default config file.
+_CFGFILE  	:= $(firstword $(_CFGFILES) $(FILE_KBUILD_CONFIG))
+_CFGFILES   :=
+_CFGDIR     :=
+
+# Include the config.kmk we found file (or the default one).
+include $(_CFGFILE)
+
+
+# end-of-file-content
+__header_kmk__  := 1
+endif # __header_kmk__

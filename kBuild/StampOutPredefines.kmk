@@ -1,0 +1,151 @@
+# $Id: StampOutPredefines.kmk 69 2004-05-29 06:20:31Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild - Stamp out GNU Make predefines.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+#
+# Default variables.
+#
+ifeq ($(MAKEFLAGS),$(MAKEFLAGS:R=x))
+# add the -R makeflag to avoid doing this for submakes
+MAKEFLAGS := R$(MAKEFLAGS)
+
+define def_undefine_default
+ifeq ($(origin $1), default)
+$1:=
+endif
+endef
+									
+_DEFAULT_VARIABLES := .LIBPATTERNS .VARIABLES AR ARFLAGS AS CC CHECKOUT,v CO COFLAGS COMPILE.C COMPILE.F COMPILE.S COMPILE.c COMPILE.cc COMPILE.cpp COMPILE.def COMPILE.f COMPILE.mod COMPILE.p COMPILE.r COMPILE.s CPP CTANGLE CWEAVE CXX F77 F77FLAGS FC GET LD LEX LEX.l LINK.C LINK.F LINK.S LINK.c LINK.cc LINK.cpp LINK.f LINK.o LINK.p LINK.r LINK.s LINT LINT.c M2C MAKEINFO OUTPUT_OPTION PC PREPROCESS.F PREPROCESS.S PREPROCESS.r RM TANGLE TEX TEXI2DVI WEAVE YACC YACC.y
+$(foreach i, $(_DEFAULT_VARIABLES), $(eval $(call def_undefine_default,$(i))))
+_DEFAULT_VARIABLES :=
+def_undefine_default :=
+endif
+
+#
+# Suffixes.
+#
+.SUFFIXES:
+SUFFIXES :=
+
+#
+# Implicit rules
+#
+ifeq ($(MAKEFLAGS),$(MAKEFLAGS:r=x))
+MAKEFLAGS := r$(MAKEFLAGS)
+# add the -r makeflag to avoid doing this for submakes
+
+%.C:
+%.F:
+%.S:
+%.a:
+%.c:
+%.c: %.l
+%.c: %.w
+%.c: %.w %.ch
+%.c: %.y
+%.cc:
+%.ch:
+%.cpp:
+%.def:
+%.dll:
+%.dvi:
+%.dvi: %.tex
+%.dvi: %.texi
+%.dvi: %.texinfo
+%.dvi: %.txinfo
+%.el:
+%.elc:
+%.exe:
+%.f:
+%.f: %.F
+%.f: %.r
+%.h:
+%.info:
+%.info: %.texi
+%.info: %.texinfo
+%.info: %.txinfo
+%.l:
+%.lib:
+%.ln:
+%.ln: %.c
+%.ln: %.l
+%.ln: %.y
+%.mod:
+%.o:
+%.o: %.C
+%.o: %.F
+%.o: %.S
+%.o: %.c
+%.o: %.cc
+%.o: %.cpp
+%.o: %.f
+%.o: %.mod
+%.o: %.p
+%.o: %.r
+%.o: %.s
+%.obj:
+%.out:
+%.out: %
+%.p:
+%.p: %.web
+%.r:
+%.r: %.l
+%.s:
+%.s: %.S
+%.sh:
+%.sym:
+%.sym: %.def
+%.tex:
+%.tex: %.w
+%.tex: %.w %.ch
+%.tex: %.web
+%.texi:
+%.texinfo:
+%.txinfo:
+%.w:
+%.web:
+%.y:
+%: %.C
+%: %.F
+%: %.S
+%: %.c
+%: %.cc
+%: %.cpp
+%: %.f
+%: %.mod
+%: %.o
+%: %.p
+%: %.r
+%: %.s
+%: %.sh
+%:: %,v
+%:: RCS/%
+%:: RCS/%,v
+%:: SCCS/s.%
+%:: s.%
+(%): %
+endif
+
+
