@@ -1,4 +1,4 @@
-# $Id: footer.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 73 2004-05-31 01:11:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -29,6 +29,7 @@ ifndef __footer_kmk__
 
 #
 # Variables.
+# (Some of these need initialization before including definitions using them.)
 #
 
 # all targets.
@@ -46,6 +47,30 @@ define def_objs_var
 _OBJS_$1 :=
 endef
 $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
+
+# misc
+type :=
+
+
+#
+# Basic macros
+#
+
+## Figure out the tool for a source
+# @param    $1      source file
+# @param    $2      normalized main target
+_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL) )
+
+## Figure out where to put object files.
+# @param    $1      source file
+# @param    $2      normalized main target
+_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+
+## Figure out where to put object files.
+# @param    $1      real target name.
+# @param    $2      normalized main target
+_TARGET_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+
 
 #
 # Include templates
@@ -153,7 +178,7 @@ $(foreach tool, $(_TOOLS), $(eval $(def_tools_include)))
 
 #
 # Include SDKs
-# 			
+#
 _SDKS := $(SDKS)
 define def_sdks_target_source
 $(foreach sdk, $($(source)_SDKS) $($(target)_$(source)_SDKS), \
@@ -174,45 +199,110 @@ endif
 endef
 $(foreach sdk, $(_SDKS), $(eval $(def_sdk)))
 
+#
+# Object processing.
+#
+
+## Generic macro for processing C, C++ and Assembly sources.
+# @param    $(target)     Normalized target name.
+# @param    $(source)     Source file name.
+# @param    $(type)       Source type. {C,CXX,AS}
+#
+# @remark   I've no clue why I've to $(eval ..) everything in this define. MAKE bug?
+define def_target_source_c_cpp_asm
+#$ (warning dbg: def_target_source_c_cpp_asm: source=$(source) target=$(target) type=$(type))
+
+$(eval tool:=$(call _SOURCE_TOOL,$(source),$(target)))
+$(eval defs        :=\
+	$($(target)_$(source)_$(type)DEFS)\
+	$($(target)_$(source)_DEFS)\
+	$($(source)_$(type)DEFS)\
+	$($(source)_DEFS)\
+	$($(target)_$(type)DEFS)\
+	$($(target)_DEFS)\
+	$(DEFS)\
+	$(TOOL_$(tool)_$(type)DEFS)\
+	)
+$(eval incs        :=\
+	$($(target)_$(source)_$(type)INCS)\
+	$($(target)_$(source)_INCS)\
+	$($(source)_$(type)INCS)\
+	$($(source)_INCS)\
+	$($(target)_$(type)INCS)\
+	$($(target)_INCS)\
+	$(INCS)\
+	$(TOOL_$(tool)_$(type)INCS)\
+	)
+$(eval flags        :=\
+	$(TOOL_$(tool)_$(type)FLAGS)\
+	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(type)FLAGS)\
+	$($(type)FLAGS.$(BUILD_TYPE))\
+	$($(target)_$(type)FLAGS)\
+	$($(target)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(source)_$(type)FLAGS)\
+	$($(source)_$(type)FLAGS.$(BUILD_TYPE))\
+	$($(target)_$(source)_$(type)FLAGS)\
+	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TYPE))\
+	)
+$(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
+$(eval dirdep      := $(dir $(outbase)).dir_created)
+$(eval objsuff     := $(firstword $($(target)_$(source)_OBJSUFF) $($(source)_OBJSUFF) $($(target)_OBJSUFF) $(TOOL_$(tool)_$(type)OBJSUFF) $(SUFF_OBJ)))
+$(eval obj         := $(outbase)$(objsuff))
+$(eval depfile     := $(outbase)$(SUFF_DEP))
+
+#$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+$(eval $(TOOL_$(tool)_COMPILE_$(type)))
+
+$(eval _OBJS_$(target) += $(obj))
+$(eval _DEPFILES       += $(dep))
+
+endef
+
+## Generic macro for processing all target sources.
+# @param    $target     Normalized target name.
+define def_target_sources
+#$ (warning def_target_sources)
+# C sources
+$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES))\
+	,$(eval $(def_target_source_c_cpp_asm)) ))
+
+# C++ sources
+$(foreach type,CXX,$(foreach source, $(filter %.cpp, $($(target)_SOURCES)) $(filter %.cxx, $($(target)_SOURCES)) $(filter %.cc, $($(target)_SOURCES))\
+	,$(eval $(def_target_source_c_cpp_asm)) ))
+
+# ASM sources
+$(foreach type,AS,$(foreach source, $(filter %.asm, $($(target)_SOURCES)) $(filter %.s, $($(target)_SOURCES)) $(filter %.S, $($(target)_SOURCES))\
+	,$(eval $(def_target_source_c_cpp_asm)) ))
+endef
+
 
 #
 # LIBRARIES
-#		
+#
 
-## Figure out the tool for a source
-# @param    $1      source file
-# @param    $2      normalized main target
-_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL))
-## Figure out where to put object files.
-# @param    $1      source file
-# @param    $2      normalized main target
-_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $1)
-	
 ## Library (one).
 # @param    $(lib)  Library name
 define def_lib
-#$ (warning dbg: Processing library $(target))
+# source -> object
+$(eval $(def_target_sources))
 
-# C++ sources
-#$(foreach o, $(filter %.cpp,$($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
-#$(foreach o, $(filter %.cxx,$($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
-#$(foreach o, $(filter %.cc, $($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
-
-# C sources
-$(foreach source, $(filter %.c, $($(target)_SOURCES)), \
-	$(eval $(call TOOL_$(call _SOURCE_TOOL,$(source),$(target))_COMPILE_C,$(call _OBJECT_BASE,$(source),$(target)),$(source),$(target)) ) )
-
-## ASM sources
-#$(foreach o, $(filter %.asm,$($1_SOURCES)), $(eval $(call def_lib_asm,$1,$o)))
-						
 # library
-#$$(PATH_TARGET)/$1$(SUFF_LIB): \
-#		$$(PATH_TARGET) \
-#		$$(_OBJS_$1)
-#	$$(AR) $($1_ARFLAGS) $(ARFLAGS) $(AROUT)$$(@:/=\) $$(_OBJS_$1)
-#
-_OBJS += $(_OBJS_$(target))		
-_LIBS += $(PATH_TARGET)/$1$(SUFF_LIB)
+$(eval tool        := $(firstword $($(target)_TOOL) $(TOOL)))
+$(eval flags       := $($(target)_ARFLAGS) $(ARFLAGS) $(TOOL_$(tool)_ARFLAGS))
+$(eval libsuff     := $(firstword $($(target)_LIBSUFF) $($(target)_LIBSUFF) $(TOOL_$(tool)_ARLIBSUFF) $(SUFF_LIB)))
+## @todo prefix
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval lib         := $(outbase)$(libsuff))
+$(eval objs         = $(_OBJS_$(target)))
+$(eval dirdep      := $(dir $(lib)).dir_created)
+## @todo fix dependencies
+$(eval deps        := )
+
+$(eval $(TOOL_$(tool)_LINK_LIBRARY))
+
+_OBJS += $(_OBJS_$(target))
+_LIBS += $(lib)
 endef
 
 # Process libraries
@@ -256,8 +346,9 @@ _DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created
 
 define def_createdir
 $(dirfile):
+	$(call MSG_L1,Creating directory $$(@D))
 	$(MKDIR) -p $$(@D)
-	echo dir_created > $$@
+	@echo dir_created > $$@
 endef
 
 $(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
@@ -269,6 +360,10 @@ all_recursive:
 
 
 objs: $(_OBJS)
+	echo "dbg: _OBJS = $(_OBJS)"
+
+libs: $(_LIBS)
+	echo "dbg: _LIBS = $(_LIBS)"
 
 
 # end-of-file-content

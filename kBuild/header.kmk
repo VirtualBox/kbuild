@@ -1,4 +1,4 @@
-# $Id: header.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 73 2004-05-31 01:11:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -195,6 +195,34 @@ EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
 
+#
+# Build target setup.
+#
+ifeq ($(BUILD_TARGET),os2)
+SUFF_OBJ            := .obj
+SUFF_LIB            := .lib
+SUFF_DLL            := .dll
+SUFF_EXE            := .exe
+SUFF_DRV            := .sys
+SUFF_RES            := .res
+endif
+ifeq ($(BUILD_TARGET),win32)
+SUFF_OBJ            := .obj
+SUFF_LIB            := .lib
+SUFF_DLL            := .dll
+SUFF_EXE            := .exe
+SUFF_DRV            := .sys
+SUFF_RES            := .res
+endif
+ifeq ($(BUILD_TARGET),linux)
+SUFF_OBJ            := .o
+SUFF_LIB            := .a
+SUFF_DLL            := .so
+SUFF_EXE            :=
+SUFF_DRV            := .a
+SUFF_RES            :=
+endif
+
 
 #
 # Standard kBuild tools.
@@ -212,6 +240,27 @@ MAKESHELL           := $(PATH_TOOLS)/ash$(HOSTSUFF_EXE)
 SHELL               := $(MAKESHELL)
 export SHELL MAKESHELL
 
+
+#
+# Message macros.
+#					
+ifndef BUILD_QUIET
+MSG_L1		= @echo "kBuild: $1"
+ifdef BUILD_VERBOSE
+MSG_L2		= @echo "kBuild: $1"
+else
+MSG_L2		=
+endif
+ifdef BUILD_DEBUG
+MSG_L3      = @echo "kBuild: $1"
+else
+MSG_L3      =
+endif
+else
+MSG_L1		=
+MSG_L2      =
+MSG_L3      =
+endif
 
 #
 # This is how we find the closest config.kmk.
