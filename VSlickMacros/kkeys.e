@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 119 2004-06-25 15:52:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 134 2004-07-02 18:54:46Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Birds key additions to Visual Slickedit.
@@ -27,8 +27,8 @@
 defeventtab default_keys
 def  'A-UP'     = find_prev
 def  'A-DOWN'   = find_next
-def  'A-PGUP'   = prev_window
-def  'A-PGDN'   = next_window
+def  'A-PGUP'   = prev_proc
+def  'A-PGDN'   = next_proc
 def  'A-d'      = delete_line
 def  'A-o'      = kkeys_duplicate_line
 def  'A-s'      = kkeys_switch_lines
@@ -38,8 +38,8 @@ def  'INS'      = boxer_paste
 def  'S-INS'    = insert_toggle
 def  'C-UP'     = kkeys_scroll_down
 def  'C-DOWN'   = kkeys_scroll_up
-def  'C-PGUP'   = prev_proc
-def  'C-PGDN'   = next_proc
+def  'C-PGUP'   = prev_window
+def  'C-PGDN'   = next_window
 def  'C-DEL'    = kkeys_delete_right
 
 
