@@ -1,4 +1,4 @@
-# $Id: Makefile.OS2.libc 196 2004-12-17 04:30:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.os2 200 2004-12-17 14:05:38Z knut.osmundsen@oracle.com $
 
 OBJDIR = objdir/OS2.libc
 #OBJDIR = .
@@ -27,7 +27,7 @@ $(OBJDIR)/make-new.exe: $(OBJDIR)/config.h $(OBJS)
 $(OBJDIR)/%.obj : %.c
 	gcc -c $(CFLAGS) -o $@ -DHAVE_CONFIG_H  $<
 
-$(OBJDIR)/config.h: config.h.OS2.libc
+$(OBJDIR)/config.h: config.h.os2
 	cp $< $@
 
 $(OBJDIR):
