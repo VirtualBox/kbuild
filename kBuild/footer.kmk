@@ -1,0 +1,276 @@
+# $Id: footer.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild - File included at top of makefile.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+ifndef __footer_kmk__
+# start-of-file-content
+
+#
+# Variables.
+#
+
+# all targets.
+ALL_TARGETS := $(LIBRARIES) $(PROGRAMS) $(DLLS) $(DRIVERS) $(OTHERS)
+
+# all of a type
+_OBJS   :=
+_LIBS   :=
+_DLLS   :=
+_EXES   :=
+_DIRS   :=
+
+# all objs of a specific target
+define def_objs_var
+_OBJS_$1 :=
+endef
+$(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
+
+#
+# Include templates
+#
+_TEMPLATES := $(TEMPLATE)
+define def_templates
+ifdef $(target)_TEMPLATE
+_TEMPLATES += $($(target)_TEMPLATE)
+endif
+endef
+$(foreach target, $(ALL_TARGETS), $(eval $(def_templates)))
+_TEMPLATES := $(sort $(_TEMPLATES))
+# $ (warning dbg: _TEMPLATES=$(_TEMPLATES))
+
+define def_templates_include
+ifndef TEMPLATE_$(template)
+include $(firstword $(wildcard $(PATH_KBUILD)/templates/$(template).kmk))
+endif
+endef
+$(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
+	
+
+#
+# Common Inheritance
+#
+
+## Inherit defaults property
+# @param    $(prop)     Property name
+# @param    $(target)   Target name.
+define def_inherit_defaults_one
+ifndef $1_$(prop)
+ifdef $(prop)
+$1_$(prop) := $($(prop))
+endif
+endif
+endef
+
+## Inherit default properties for one target.
+# A bit tricky this one, but it depends a bit on whether or not TEMPLATE
+# is inherited from the default properties.
+# @param    $(target)	Target name
+define def_inherit_defaults
+ifdef $(target)_TEMPLATE
+ifndef TEMPLATE_$($(target)_TEMPLATE)_TOOL
+$(foreach prop, TOOL, $(eval $(def_inherit_defaults_one)))
+endif
+ifndef TEMPLATE_$($(target)_TEMPLATE)_SDKS
+$(foreach prop, SDKS, $(eval $(def_inherit_defaults_one)))
+endif
+else
+$(foreach prop, TEMPLATE TOOL SDKS, $(eval $(def_inherit_defaults_one)))
+endif
+endef
+# Inherit default properties.
+$(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_defaults)))
+
+
+## Inherit one template property.		
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+define def_inherit_template_one
+ifndef $(target)_$(prop)
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+$(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+endif
+endef
+
+## Inherit template properties for on target.
+# @param    $(target)    Target name.
+define def_inherit_template
+$(foreach prop,TOOL SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS, \
+	$(eval $(def_inherit_template_one)))
+endef
+# Inherit template properties
+$(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_template)))
+
+
+
+#
+# Include tools
+# 			
+_TOOLS := $(TOOL)
+define def_tools_target_source
+#$ (warning dbg: src=$(source))
+$(foreach tool,$($(source)_TOOL) $($(target)_$(source)_TOOL),\
+	$(eval _TOOLS += $(tool)))
+endef
+define def_tools_target
+#$ (warning dbg: trg=$(target))
+$(foreach tool, $($(target)_TOOL), $(eval _TOOLS += $(tool)))
+$(foreach source, $($(target)_SOURCES), $(eval $(def_tools_target_source)))
+endef
+$(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
+_TOOLS := $(sort $(_TOOLS))
+#$ (warning dbg: _TOOLS=$(_TOOLS))
+
+define def_tools_include
+ifndef TOOL_$(tool)
+include $(firstword $(wildcard $(PATH_KBUILD)/tools/$(tool).kmk))
+endif
+endef
+$(foreach tool, $(_TOOLS), $(eval $(def_tools_include)))
+
+
+#
+# Include SDKs
+# 			
+_SDKS := $(SDKS)
+define def_sdks_target_source
+$(foreach sdk, $($(source)_SDKS) $($(target)_$(source)_SDKS), \
+	$(eval _SDKS += $(sdk)))
+endef
+define def_sdks_target
+$(foreach sdk, $($(target)_SDKS), $(eval _SDKS += $(sdk)))
+$(foreach source, $($(target)_SOURCES), $(eval $(def_sdks_target_source)))
+endef
+$(foreach target, $(ALL_TARGETS), $(eval $(def_sdks_target)))
+_SDKS := $(sort $(_SDKS))
+#$ (warning dbg: _SDKS=$(_SDKS))
+
+define def_sdks_include
+ifndef SDK_$(sdk)
+include $(firstword $(wildcard $(PATH_KBUILD)/sdks/$(sdk).kmk))
+endif
+endef
+$(foreach sdk, $(_SDKS), $(eval $(def_sdk)))
+
+
+#
+# LIBRARIES
+#		
+
+## Figure out the tool for a source
+# @param    $1      source file
+# @param    $2      normalized main target
+_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL))
+## Figure out where to put object files.
+# @param    $1      source file
+# @param    $2      normalized main target
+_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $1)
+	
+## Library (one).
+# @param    $(lib)  Library name
+define def_lib
+#$ (warning dbg: Processing library $(target))
+
+# C++ sources
+#$(foreach o, $(filter %.cpp,$($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
+#$(foreach o, $(filter %.cxx,$($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
+#$(foreach o, $(filter %.cc, $($1_SOURCES)), $(eval $(call def_lib_cxx,$1,$o)))
+
+# C sources
+$(foreach source, $(filter %.c, $($(target)_SOURCES)), \
+	$(eval $(call TOOL_$(call _SOURCE_TOOL,$(source),$(target))_COMPILE_C,$(call _OBJECT_BASE,$(source),$(target)),$(source),$(target)) ) )
+
+## ASM sources
+#$(foreach o, $(filter %.asm,$($1_SOURCES)), $(eval $(call def_lib_asm,$1,$o)))
+						
+# library
+#$$(PATH_TARGET)/$1$(SUFF_LIB): \
+#		$$(PATH_TARGET) \
+#		$$(_OBJS_$1)
+#	$$(AR) $($1_ARFLAGS) $(ARFLAGS) $(AROUT)$$(@:/=\) $$(_OBJS_$1)
+#
+_OBJS += $(_OBJS_$(target))		
+_LIBS += $(PATH_TARGET)/$1$(SUFF_LIB)
+endef
+
+# Process libraries
+$(foreach target, $(LIBRARIES), $(eval $(def_lib)))
+
+
+
+#
+# PROGRAMS
+#
+
+
+
+#
+# DLLS
+#
+
+
+
+#
+# DRIVERS
+#
+
+
+
+#
+# OTHERS
+#
+
+
+
+#
+# DOCS
+#
+
+
+#
+# Directories.
+#
+_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OBJS) $(_LIBS) $(_EXES) $(_DLLS))))
+
+define def_createdir
+$(dirfile):
+	$(MKDIR) -p $$(@D)
+	echo dir_created > $$@
+endef
+
+$(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
+
+#
+# THE MAIN RULES
+#
+all_recursive:
+
+
+objs: $(_OBJS)
+
+
+# end-of-file-content
+__footer_kmk__ := 1
+endif # __footer_kmk__

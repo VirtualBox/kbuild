@@ -1,4 +1,4 @@
-# $Id: header.kmk 70 2004-05-29 08:53:13Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -38,25 +38,97 @@ all: all_recursive
 .SUFFIXES:
 SUFFIXES :=
 
+
 #
-# Environment unifications
+# Assert build type.
 #
 ifndef BUILD_TYPE
 ifndef BUILD_MODE
-$(error "define BUILD_TYPE you moron!")
+$(error kBuild: You must define BUILD_TYPE!)
 endif
 BUILD_TYPE          := $(BUILD_MODE)
 endif
+ifeq ($(BUILD_TYPE),DEBUG)
+BUILD_TYPE          := debug
+endif
+ifeq ($(BUILD_TYPE),RELEASE)
+BUILD_TYPE          := release
+endif
+ifeq ($(BUILD_TYPE),PROFILE)
+BUILD_TYPE          := profile
+endif
 
 
 #
-# .
+# Assert build platform.
 #
-PATH_ROOT := $(CURDIR)
-define def_root_dir
-PATH_ROOT := $(dir $(PATH_ROOT))
-endef
-PATH_ROOT
+_BUILD_PLATFORM_OK  := 0
+# OS/2
+ifeq ($(BUILD_PLATFORM),OS2)
+BUILD_PLATFORM      := os2
+endif
+ifeq ($(BUILD_PLATFORM),os2)
+_BUILD_PLATFORM_OK  := 1
+endif
+
+# Linux
+ifeq ($(BUILD_PLATFORM),LINUX)
+BUILD_PLATFORM      := linux
+endif
+ifeq ($(BUILD_PLATFORM),linux)
+_BUILD_PLATFORM_OK  := 1
+endif
+
+# Win32
+ifeq ($(BUILD_PLATFORM),WIN32)
+BUILD_PLATFORM      := win32
+endif
+ifeq ($(BUILD_PLATFORM),WIN32)
+_BUILD_PLATFORM_OK  := 1
+endif
+
+ifeq ($(_BUILD_PLATFORM_OK),0)
+$(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
+endif
+
+
+#
+# Assert target platform.
+#
+ifndef BUILD_TARGET
+# not defined, set to the same as build platform
+BUILD_TARGET        := $(BUILD_PLATFORM)
+else
+_BUILD_TARGET_OK    := 0
+# OS/2
+ifeq ($(BUILD_TARGET),OS2)
+BUILD_TARGET        := os2
+endif
+ifeq ($(BUILD_TARGET),os2)
+_BUILD_TARGET_OK    := 1
+endif
+
+# Linux
+ifeq ($(BUILD_TARGET),LINUX)
+BUILD_TARGET        := linux
+endif
+ifeq ($(BUILD_TARGET),linux)
+_BUILD_TARGET_OK    := 1
+endif
+
+# Win32
+ifeq ($(BUILD_TARGET),WIN32)
+BUILD_TARGET        := win32
+endif
+ifeq ($(BUILD_TARGET),WIN32)
+_BUILD_TARGET_OK    := 1
+endif
+
+ifeq ($(_BUILD_TARGET_OK),0)
+$(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' was not recongized!)
+endif
+endif
+
 
 #
 # Common definitions.
@@ -68,14 +140,14 @@ ifneq ($(DEPTH),.)
 $(foreach d,$(subst /, ,$(DEPTH)), $(eval PATH_ROOT := $(patsubst %/,%,$(dir $(PATH_ROOT)))) )
 endif
 # Subdirectory relative to the root.
-DIR_DEPTH           := $(patsubst $(PATH_ROOT)/%,%,$(CURDIR))
+CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(CURDIR))
 # Output directories.
 PATH_OUT            := $(PATH_ROOT)/out/$(BUILD_TARGET)/$(BUILD_TYPE)
 PATH_OBJ            := $(PATH_OUT)/obj
 PATH_BIN            := $(PATH_OUT)/bin
 PATH_LIB            := $(PATH_OUT)/lib
 PATH_DOC            := $(PATH_ROOT)/out/doc
-PATH_TARGET          = $(PATH_OUT)/$(DIR_DEPTH)
+PATH_TARGET         := $(PATH_OBJ)/$(CURSUBDIR)
 
 # Usually kBuild is external to the source tree.
 ifndef PATH_KBUILD
@@ -90,6 +162,8 @@ FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
 FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
 FILE_KBUILD_FOOTER  := $(PATH_KBUILD)/footer.kmk
 
+SUFF_DEP            := .dep
+
 
 #
 # Get rid of the GNU Make default stuff
@@ -98,45 +172,27 @@ include $(PATH_KBUILD)/StampOutPredefines.kmk
 
 
 #
-# PLATFORMS (host)
+# Build platform setup.
 #
-_BUILD_PLATFORM_OK  := 0
 # OS/2
-ifeq ($(BUILD_PLATFORM),OS2)
-_BUILD_PLATFORM_OK  := 1
-ifndef BUILD_TARGET
-BUILD_TARGET        := OS2
-endif
+ifeq ($(BUILD_PLATFORM),os2)
 PATH_TOOLS          := $(PATH_TOOLS_OS2)
 EXEC_X86_WIN32      := $(PATH_TOOLS)/bin/innopec.exe
 HOSTSUFF_EXE        := .exe
 endif
 
 # Linux
-ifeq ($(BUILD_PLATFORM),LINUX)
-_BUILD_PLATFORM_OK  := 1
-ifndef BUILD_TARGET
-BUILD_TARGET        := LINUX
-endif
+ifeq ($(BUILD_PLATFORM),linux)
 PATH_TOOLS          := $(PATH_TOOLS_LNX)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
 # Win32
-ifeq ($(BUILD_PLATFORM),WIN32)
-ifndef BUILD_TARGET
-BUILD_TARGET        := WIN32
-endif
-_BUILD_PLATFORM_OK  := 1
+ifeq ($(BUILD_PLATFORM),win32)
 PATH_TOOLS          := $(PATH_TOOLS_W32)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
-endif
-
-# assert build platform
-ifeq ($(_BUILD_PLATFORM_OK),0)
-$(error "BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized")
 endif
 
 
@@ -179,5 +235,5 @@ include $(_CFGFILE)
 
 
 # end-of-file-content
-__header_kmk__  := 1
+__header_kmk__ := 1
 endif # __header_kmk__

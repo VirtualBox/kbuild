@@ -1,0 +1,117 @@
+# $Id: config.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+#
+# Base config for kBuild
+#
+# It is recommended to include this file in your config.kMk file and then
+# override any default options defined there. In addition you will have to
+# decide the location of the object directory in your config.kMk file, and
+# of course manage to find this file.
+#
+#
+# Copyright (c) 2003 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+ifdef skipme
+
+.ifndef __KBLD_config_kMk_
+__KBLD_config_kMk_ = 1
+
+#
+# Determin default target (if not set) / Check default target (if set)
+#
+.ifndef TARGET_MACHINE_TYPE
+## The TARGET_MACHINE_TYPE is a generalized machine type for the
+# default target machine. Current types are "UX" for UNIX like systems
+# and "PC" for PC like systems. PC like systems are DOS, OS/2, and Win32.
+# While the rest is UNIX like at the moment.
+.if ${MACHINE} == "ibmos2" || ${MACHINE} == "win32" || ${MACHINE} == "dos"
+TARGET_MACHINE_TYPE := PC
+.else
+TARGET_MACHINE_TYPE := UX
+.endif
+
+.elif ${TARGET_MACHINE_TYPE} != "UX" && ${TARGET_MACHINE_TYPE} != "PC"
+.error Invalid TARGET_MACHINE_TYPE define. Must be either UX or PC.
+.endif
+
+## @group Typical PC Suffixes
+# Note that suffixes includes the '.' if present.
+# @{
+SFX_EXE_PC      := .exe
+SFX_DLL_PC      := .dll
+SFX_DEF_PC      := .def
+SFX_RES_PC      := .res
+SFX_OBJ_PC      := .obj
+SFX_CLS_PC      := .class
+# @}
+
+## @group Typical UNIX Suffixes
+# Note that suffixes includes the '.' if present.
+# @{
+SFX_EXE_UX      :=
+SFX_DLL_UX      := .so
+SFX_OBJ_UX      := .o
+SFX_CLS_UX      := .class
+# @}
+
+
+## @group Default Target Suffixes.
+# @{
+## Executable Program.
+SFX_EXE         = ${SFX_EXE_${TARGET_MACHINE_TYPE}}
+## DLL/Shared Library.
+SFX_DLL         = ${SFX_DLL_${TARGET_MACHINE_TYPE}}
+## Object file.
+SFX_OBJ         = ${SFX_OBJ_${TARGET_MACHINE_TYPE}}
+## Resource object file (PC thingy).
+SFX_RES         = ${SFX_RES_${TARGET_MACHINE_TYPE}}
+## Definition (~=linkerscript) file (PC thingy).
+SFX_DEF         = ${SFX_RES_${TARGET_MACHINE_TYPE}}
+## Java class files
+SFX_CLS         = ${SFX_RES_${TARGET_MACHINE_TYPE}}
+## @}
+
+
+## @group Suffix lists used for transformations
+# @{
+## C source file suffixes
+SFXS_C          := .c
+## C++ source file suffixes
+SFXS_CXX        := .cpp .cxx .cc .c++
+## C/C++ header file suffixes (list)
+SFXS_H          := .h .hpp
+## Java source file suffixes
+SFXS_JAVA       := .java .jav
+## IDL source file suffixes
+SFXS_IDL        := .idl
+## @}
+
+
+## @group kBuild helper defines.
+# @{
+## The kBuild path.
+KBUILD_PATH     := $(MAKEFILE:H)
+## The rules file.
+KBUILD_RULEZ    := $(KBUILD_PATH)/rules.kMk
+## @}
+
+.endif
+endif
