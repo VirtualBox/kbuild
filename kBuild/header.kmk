@@ -1,4 +1,4 @@
-# $Id: header.kmk 77 2004-05-31 08:53:24Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 78 2004-06-01 01:07:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -128,6 +128,8 @@ ifeq ($(_BUILD_TARGET_OK),0)
 $(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' was not recongized!)
 endif
 endif
+BUILD_TARGET_ARCH   := x86
+BUILD_TARGET_CPU    := i586
 
 
 #
@@ -274,15 +276,15 @@ endif
 # It's a little hacky but I think it works fine.
 #
 _CFGDIR     := .
-_CFGFILES   :=
+_CFGFILES   := ./Config.kmk ./config.kmk
 define def_include_config
-$(eval _CFGDIR := $(_CFGDIR)/$(1))
-_CFGFILES   += $(wildcard $(_CFGDIR)/Config.kmk $(_CFGDIR)/config.kmk)
+$(eval _CFGDIR := $(_CFGDIR)/$(dir))
+_CFGFILES   += $(_CFGDIR)/Config.kmk $(_CFGDIR)/config.kmk
 endef
 # walk down the _RELATIVE_ path specified by DEPTH.
-$(foreach d,$(subst /, ,$(DEPTH)), $(eval $(call def_include_config,$(d))) )
+$(foreach dir,$(subst /, ,$(DEPTH)), $(eval $(def_include_config)) )
 # add the default config file.
-_CFGFILE    := $(firstword $(_CFGFILES) $(FILE_KBUILD_CONFIG))
+_CFGFILE    := $(firstword $(wildcard $(_CFGFILES) $(FILE_KBUILD_CONFIG)))
 _CFGFILES   :=
 _CFGDIR     :=
 

@@ -1,4 +1,4 @@
-# $Id: footer.kmk 76 2004-05-31 08:12:08Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 78 2004-06-01 01:07:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -64,7 +64,13 @@ $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 ## Figure out the tool for a source
 # @param    $1      source file
 # @param    $2      normalized main target
-_SOURCE_TOOL = $(firstword $($1_$2_TOOL) $($1_TOOL) $($2_TOOL) $(TOOL))
+# @param    $3      tooltype
+_SOURCE_TOOL = $(strip $(firstword $($1_$2_$(3)TOOL) $($1_$2_TOOL) $($1_$(3)TOOL) $($1_TOOL) $($2_$(3)TOOL) $($2_TOOL) $($(3)TOOL) $(TOOL) ))
+
+## Figure out the tool for a target.
+# @param    $1 		normalized target.
+# @param    $2      tooltype.
+_TARGET_TOOL = $(strip $(firstword $($(1)_$(2)TOOL) $($(1)_TOOL) $($(2)TOOL) $(TOOL) ))
 
 ## Figure out where to put object files.
 # @param    $1      source file
@@ -117,38 +123,52 @@ endef
 # A bit tricky this one, but it depends a bit on whether or not TEMPLATE
 # is inherited from the default properties.
 # @param    $(target)	Target name
+#
 define def_inherit_defaults
 ifdef $(target)_TEMPLATE
 ifndef TEMPLATE_$($(target)_TEMPLATE)_TOOL
-$(foreach prop, TOOL, $(eval $(def_inherit_defaults_one)))
+$(foreach prop,TOOL, $(eval $(def_inherit_defaults_one)))
 endif
 ifndef TEMPLATE_$($(target)_TEMPLATE)_SDKS
-$(foreach prop, SDKS, $(eval $(def_inherit_defaults_one)))
+$(foreach prop,SDKS, $(eval $(def_inherit_defaults_one)))
 endif
 else
-$(foreach prop, TEMPLATE TOOL SDKS, $(eval $(def_inherit_defaults_one)))
+$(foreach prop,TEMPLATE TOOL SDKS,$(eval $(def_inherit_defaults_one)))
 endif
 endef
 # Inherit default properties.
 $(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_defaults)))
 
 
+## Inherit one template property in a accumulative manner.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+# @todo fix the precedence order for some properties.
+define def_inherit_template_one
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ifndef $(target)_$(prop)
+$(eval $(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+endif
+endif
+endef
+
 ## Inherit one template property.		
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
-define def_inherit_template_one
-ifndef $(target)_$(prop)
+define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-$(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 endif
-endif
+#$ (warning 1b $(target)_$(prop)=$($(target)_$(prop)) org=$(origin $(target)_$(prop))  TEMPLATE_$($(target)_TEMPLATE)_$(prop)=$(TEMPLATE_$($(target)_TEMPLATE)_$(prop)) org=$(origin TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 endef
 
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
-$(foreach prop,TOOL SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS, \
-	$(eval $(def_inherit_template_one)))
+$(foreach prop,TOOL ARTOOL CTOOL CXXTOOL ASTOOL\
+	,$(eval $(def_inherit_template_one)))
+$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS\
+	,$(eval $(def_inherit_template_one_accumulate)))
 endef
 # Inherit template properties
 $(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_template)))
@@ -160,18 +180,28 @@ $(foreach target, $(ALL_TARGETS), $(eval $(def_inherit_template)))
 # 			
 _TOOLS := $(TOOL)
 define def_tools_target_source
-#$ (warning dbg: src=$(source))
-$(foreach tool,$($(source)_TOOL) $($(target)_$(source)_TOOL),\
-	$(eval _TOOLS += $(tool)))
+$(foreach tool,\
+	$($(source)_TOOL) $($(target)_$(source)_TOOL)\
+	$($(source)_CTOOL) $($(target)_$(source)_CTOOL)\
+	$($(source)_CXXTOOL) $($(target)_$(source)_CXXTOOL)\
+	$($(source)_ASTOOL) $($(target)_$(source)_ASTOOL)\
+	$($(source)_ARTOOL) $($(target)_$(source)_ARTOOL)\
+	$($(source)_LDTOOL) $($(target)_$(source)_LDTOOL)\
+	,$(eval _TOOLS += $(tool)))
 endef
 define def_tools_target
-#$ (warning dbg: trg=$(target))
-$(foreach tool, $($(target)_TOOL), $(eval _TOOLS += $(tool)))
+$(foreach tool,\
+	$($(target)_TOOL)\
+	$($(target)_CTOOL)\
+	$($(target)_CXXTOOL)\
+	$($(target)_ASTOOL)\
+	$($(target)_ARTOOL)\
+	$($(target)_LDTOOL)\
+	, $(eval _TOOLS += $(tool)))
 $(foreach source, $($(target)_SOURCES), $(eval $(def_tools_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
 _TOOLS := $(sort $(_TOOLS))
-#$ (warning dbg: _TOOLS=$(_TOOLS))
 
 define def_tools_include
 ifndef TOOL_$(tool)
@@ -195,7 +225,6 @@ $(foreach source, $($(target)_SOURCES), $(eval $(def_sdks_target_source)))
 endef
 $(foreach target, $(ALL_TARGETS), $(eval $(def_sdks_target)))
 _SDKS := $(sort $(_SDKS))
-#$ (warning dbg: _SDKS=$(_SDKS))
 
 define def_sdks_include
 ifndef SDK_$(sdk)
@@ -217,53 +246,198 @@ $(foreach sdk, $(_SDKS), $(eval $(def_sdk)))
 define def_target_source_c_cpp_asm
 #$ (warning dbg: def_target_source_c_cpp_asm: source=$(source) target=$(target) type=$(type))
 
-$(eval tool:=$(call _SOURCE_TOOL,$(source),$(target)))
+$(eval tool:=$(call _SOURCE_TOOL,$(source),$(target),$(type)))
 $(eval defs        :=\
+	$(TOOL_$(tool)_DEFS)\
+	$(TOOL_$(tool)_DEFS.$(BUILD_TYPE))\
+	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_DEFS.$(BUILD_TARGET_CPU))\
 	$(TOOL_$(tool)_$(type)DEFS)\
 	$(TOOL_$(tool)_$(type)DEFS.$(BUILD_TYPE))\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_DEFS)\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_$(type)DEFS)\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
 	$(DEFS)\
 	$(DEFS.$(BUILD_TYPE))\
+	$(DEFS.$(BUILD_TARGET))\
+	$(DEFS.$(BUILD_TARGET_ARCH))\
+	$(DEFS.$(BUILD_TARGET_CPU))\
+	$($(type)DEFS)\
+	$($(type)DEFS.$(BUILD_TYPE))\
+	$($(type)DEFS.$(BUILD_TARGET))\
+	$($(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$($(type)DEFS.$(BUILD_TARGET_CPU))\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_DEFS)\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_$(type)DEFS)\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
 	$($(target)_DEFS)\
 	$($(target)_DEFS.$(BUILD_TYPE))\
 	$($(target)_DEFS.$(BUILD_TARGET))\
-	$($(source)_DEFS)\
-	$($(source)_DEFS.$(BUILD_TYPE))\
-	$($(source)_DEFS.$(BUILD_TARGET))\
-	$($(source)_$(type)DEFS)\
-	$($(source)_$(type)DEFS.$(BUILD_TYPE))\
-	$($(source)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(target)_DEFS.$(BUILD_TARGET_ARCH))\
+	$($(target)_DEFS.$(BUILD_TARGET_CPU))\
 	$($(target)_$(type)DEFS)\
 	$($(target)_$(type)DEFS.$(BUILD_TYPE))\
 	$($(target)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(target)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$($(target)_$(type)DEFS.$(BUILD_TARGET_CPU))\
+	$(foreach sdk, $($(source)_SDKS.$(BUILD_TARGET)) \
+				   $($(source)_SDKS.$(BUILD_TYPE)) \
+				   $($(source)_SDKS),\
+	$(SDK_$(sdk)_DEFS)\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_$(type)DEFS)\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
+	$($(source)_DEFS)\
+	$($(source)_DEFS.$(BUILD_TYPE))\
+	$($(source)_DEFS.$(BUILD_TARGET))\
+	$($(source)_DEFS.$(BUILD_TARGET_ARCH))\
+	$($(source)_DEFS.$(BUILD_TARGET_CPU))\
+	$($(source)_$(type)DEFS)\
+	$($(source)_$(type)DEFS.$(BUILD_TYPE))\
+	$($(source)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(source)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$($(source)_$(type)DEFS.$(BUILD_TARGET_CPU))\
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_$(source)_SDKS),\
+	$(SDK_$(sdk)_DEFS)\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_DEFS.$(BUILD_TARGET_CPU))
+	$(SDK_$(sdk)_$(type)DEFS)\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)DEFS.$(BUILD_TARGET_CPU)))\
 	$($(target)_$(source)_DEFS)\
 	$($(target)_$(source)_DEFS.$(BUILD_TYPE))\
 	$($(target)_$(source)_DEFS.$(BUILD_TARGET))\
+	$($(target)_$(source)_DEFS.$(BUILD_TARGET_ARCH))\
+	$($(target)_$(source)_DEFS.$(BUILD_TARGET_CPU))\
 	$($(target)_$(source)_$(type)DEFS)\
 	$($(target)_$(source)_$(type)DEFS.$(BUILD_TYPE))\
 	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET))\
+	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET_ARCH))\
+	$($(target)_$(source)_$(type)DEFS.$(BUILD_TARGET_CPU))\
 	)
 $(eval incs        :=\
+	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET_ARCH))\
 	$($(target)_$(source)_$(type)INCS.$(BUILD_TARGET))\
 	$($(target)_$(source)_$(type)INCS.$(BUILD_TYPE))\
 	$($(target)_$(source)_$(type)INCS)\
+	$($(target)_$(source)_INCS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(source)_INCS.$(BUILD_TARGET_ARCH))\
 	$($(target)_$(source)_INCS.$(BUILD_TARGET))\
 	$($(target)_$(source)_INCS.$(BUILD_TYPE))\
 	$($(target)_$(source)_INCS)\
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_$(source)_SDKS),
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS)\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS))\
+	$($(source)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$($(source)_$(type)INCS.$(BUILD_TARGET_ARCH))\
 	$($(source)_$(type)INCS.$(BUILD_TARGET))\
 	$($(source)_$(type)INCS.$(BUILD_TYPE))\
 	$($(source)_$(type)INCS)\
+	$($(source)_INCS.$(BUILD_TARGET_CPU))\
+	$($(source)_INCS.$(BUILD_TARGET_ARCH))\
 	$($(source)_INCS.$(BUILD_TARGET))\
 	$($(source)_INCS.$(BUILD_TYPE))\
 	$($(source)_INCS)\
+	$(foreach sdk, $($(source)_SDKS.$(BUILD_TARGET)) \
+				   $($(source)_SDKS.$(BUILD_TYPE)) \
+				   $($(source)_SDKS),\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS)\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS))\
+	$($(target)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$($(target)_$(type)INCS.$(BUILD_TARGET_ARCH))\
 	$($(target)_$(type)INCS.$(BUILD_TARGET))\
 	$($(target)_$(type)INCS.$(BUILD_TYPE))\
 	$($(target)_$(type)INCS)\
+	$($(target)_INCS.$(BUILD_TARGET_CPU))\
+	$($(target)_INCS.$(BUILD_TARGET_ARCH))\
 	$($(target)_INCS.$(BUILD_TARGET))\
 	$($(target)_INCS.$(BUILD_TYPE))\
 	$($(target)_INCS)\
+	$(foreach sdk, $($(target)_SDKS.$(BUILD_TARGET)) \
+				   $($(target)_SDKS.$(BUILD_TYPE)) \
+				   $($(target)_SDKS),\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS)\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS))\
+	$(INCS.$(BUILD_TARGET_CPU))\
+	$(INCS.$(BUILD_TARGET_ARCH))\
 	$(INCS.$(BUILD_TARGET))\
 	$(INCS.$(BUILD_TYPE))\
 	$(INCS)\
+	$(foreach sdk, $(SDKS.$(BUILD_TARGET)) \
+				   $(SDKS.$(BUILD_TYPE)) \
+				   $(SDKS),\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_$(type)INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_$(type)INCS)\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_CPU))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET_ARCH))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TARGET))\
+	$(SDK_$(sdk)_INCS.$(BUILD_TYPE))\
+	$(SDK_$(sdk)_INCS))\
+	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET_CPU))\
+	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET_ARCH))\
 	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TARGET))\
 	$(TOOL_$(tool)_$(type)INCS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_$(type)INCS)\
@@ -272,18 +446,28 @@ $(eval flags        :=\
 	$(TOOL_$(tool)_$(type)FLAGS)\
 	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TYPE))\
 	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
+	$(TOOL_$(tool)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	$($(type)FLAGS)\
 	$($(type)FLAGS.$(BUILD_TYPE))\
 	$($(type)FLAGS.$(BUILD_TARGET))\
+	$($(type)FLAGS.$(BUILD_TARGET_ARCH))\
+	$($(type)FLAGS.$(BUILD_TARGET_CPU))\
 	$($(target)_$(type)FLAGS)\
 	$($(target)_$(type)FLAGS.$(BUILD_TYPE))\
 	$($(target)_$(type)FLAGS.$(BUILD_TARGET))\
+	$($(target)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
+	$($(target)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	$($(source)_$(type)FLAGS)\
 	$($(source)_$(type)FLAGS.$(BUILD_TYPE))\
 	$($(source)_$(type)FLAGS.$(BUILD_TARGET))\
+	$($(source)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
+	$($(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	$($(target)_$(source)_$(type)FLAGS)\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TYPE))\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET))\
+	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_ARCH))\
+	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	)
 $(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
 $(eval dirdep      := $(dir $(outbase)).dir_created)
@@ -338,7 +522,10 @@ define def_lib
 $(eval $(def_target_sources))
 
 # library
-$(eval tool        := $(firstword $($(target)_TOOL) $(TOOL)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
+ifeq ($(tool),)
+$$(error kBuild: Library target $(target) doesn't have a tool defined!)
+endif
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
@@ -359,7 +546,7 @@ $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval lib         := $(outbase)$(libsuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval dirdep      := $(dir $(lib)).dir_created)
-## @todo fix dependencies
+## @todo fix dependencies on makefiles an such
 $(eval deps        := )
 
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
@@ -385,7 +572,7 @@ define def_program
 $(eval $(def_target_sources))
 
 # library
-$(eval tool        := $(firstword $($(target)_TOOL) $(TOOL)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(BUILD_TYPE))\
@@ -631,12 +818,15 @@ PASS := NOTHING
 $(eval $(def_pass))
 nothing: pass_nothing
 
-		
-			
+					
+
 #
 # THE MAIN RULES
 #
 all_recursive: $(foreach pass,$(PASSES),pass_$(pass))
+
+rebuild: clean all_recursive
+
 
 # misc shortcuts.
 target:    needed libraries binaries others
