@@ -1,4 +1,4 @@
-# $Id: header.kmk 135 2004-07-11 03:34:20Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 175 2004-10-13 16:02:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -243,6 +243,7 @@ endif
 # Standard kBuild tools.
 #
 DEP                 := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
+DEP_CCXX            := $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
 # Standard Unix shell utils.
 MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
 RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
