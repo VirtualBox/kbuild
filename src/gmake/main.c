@@ -389,7 +389,7 @@ static const struct command_switch switches[] =
     { 'W', string, (char *) &new_files, 0, 0, 0, 0, 0, "what-if" },
     { CHAR_MAX+4, flag, (char *) &warn_undefined_variables_flag, 1, 1, 0, 0, 0,
 	"warn-undefined-variables" },
-    { '\0', }
+    { 0 }
   };
 
 /* Secondary long names for options.  */
@@ -545,7 +545,7 @@ enter_command_line_file (char *name)
 /* Toggle -d on receipt of SIGUSR1.  */
 
 static RETSIGTYPE
-debug_signal_handler (int sig)
+debug_signal_handler (int sig UNUSED)
 {
   db_level = db_level ? DB_NONE : DB_BASIC;
 }
@@ -834,8 +834,8 @@ main (int argc, char **argv, char **envp)
 #endif
 {
   static char *stdin_nm = 0;
-  register struct file *f;
-  register unsigned int i;
+  struct file *f;
+  int i;
   char **p;
   struct dep *read_makefiles;
   PATH_VAR (current_directory);
@@ -1158,7 +1158,12 @@ main (int argc, char **argv, char **envp)
      program that uses a non-absolute name.  */
   if (current_directory[0] != '\0'
       && argv[0] != 0
-      && (argv[0][0] != '/' && (argv[0][0] == '\0' || argv[0][1] != ':')))
+      && (argv[0][0] != '/' && (argv[0][0] == '\0' || argv[0][1] != ':'))
+#ifdef __EMX__
+      /* do not prepend cwd if argv[0] contains no '/', e.g. "make" */
+      && (strchr (argv[0], '/') != 0 || strchr (argv[0], '\\') != 0)
+# endif
+      )
     argv[0] = concat (current_directory, "/", argv[0]);
 #else  /* !__MSDOS__ */
   if (current_directory[0] != '\0'
@@ -1505,9 +1510,10 @@ main (int argc, char **argv, char **envp)
   if (jobserver_fds)
   {
     char *cp;
+    unsigned int ui;
 
-    for (i=1; i < jobserver_fds->idx; ++i)
-      if (!streq (jobserver_fds->list[0], jobserver_fds->list[i]))
+    for (ui=1; ui < jobserver_fds->idx; ++ui)
+      if (!streq (jobserver_fds->list[0], jobserver_fds->list[ui]))
         fatal (NILF, _("internal error: multiple --jobserver-fds options"));
 
     /* Now parse the fds string and make sure it has the proper format.  */
@@ -1738,7 +1744,7 @@ main (int argc, char **argv, char **envp)
 	    /* Nonzero if any makefile we care about failed
 	       in updating or could not be found at all.  */
 	    int any_failed = 0;
-	    register unsigned int i;
+	    unsigned int i;
             struct dep *d;
 
 	    for (i = 0, d = read_makefiles; d != 0; ++i, d = d->next)
@@ -1812,7 +1818,7 @@ main (int argc, char **argv, char **envp)
 	  if (makefiles != 0)
 	    {
 	      /* These names might have changed.  */
-	      register unsigned int i, j = 0;
+	      int i, j = 0;
 	      for (i = 1; i < argc; ++i)
 		if (strneq (argv[i], "-f", 2)) /* XXX */
 		  {
@@ -2016,9 +2022,9 @@ static struct option long_options[(sizeof (switches) / sizeof (switches[0])) +
 static void
 init_switches (void)
 {
-  register char *p;
-  register int c;
-  register unsigned int i;
+  char *p;
+  unsigned int c;
+  unsigned int i;
 
   if (options[0] != '\0')
     /* Already done.  */
@@ -2230,6 +2236,12 @@ decode_switches (int argc, char **argv, int env)
 
 		  if (optarg == 0)
 		    optarg = cs->noarg_value;
+                  else if (*optarg == '\0')
+                    {
+                      error (NILF, _("the `-%c' option requires a non-empty string argument"),
+                             cs->c);
+                      bad = 1;
+                    }
 
 		  sl = *(struct stringlist **) cs->value_ptr;
 		  if (sl == 0)
