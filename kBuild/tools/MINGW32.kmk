@@ -1,0 +1,187 @@
+# $Id: MINGW32.kmk 123 2004-06-25 20:25:51Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild Tool Config - MINGW32 GCC.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+TOOL_MINGW32                 := MinGW32 GCC v3.3+
+
+# find latest installed version
+ifndef PATH_TOOL_MINGW32								  
+PATH_TOOL_MINGW32            := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/36mingw32/v*.*))
+ifeq ($(PATH_TOOL_MINGW32),)
+PATH_TOOL_MINGW32            := $(sort $(wildcard $(PATH_DEV)/x86.win32/mingw32/v*.*))
+endif
+ifneq ($(PATH_TOOL_MINGW32),)
+PATH_TOOL_MINGW32            := $(call lastword,$(PATH_TOOL_MINGW32))
+endif
+endif
+
+# figure out if it's native or needs a win32 launcher
+_TOOL_MINGW32_PREFIX            := 
+ifneq ($(PATH_TOOL_MINGW32),)
+_TOOL_MINGW32_PREFIX            := $(PATH_TOOL_MINGW32)/bin/
+endif
+_TOOL_MINGW32_SUFF_EXE          := $(HOSTSUFF_EXE)
+ifneq ($(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM),x86.win32)
+ifneq ($(PATH_TOOL_MINGW32),$(subst x86.win32,,$(PATH_TOOL_MINGW32)))
+_TOOL_MINGW32_PREFIX            := $(EXEC_X86_WIN32) $(_TOOL_MINGW32_PREFIX)
+_TOOL_MINGW32_SUFF_EXE          := .exe
+endif
+endif
+								
+TOOL_MINGW32_CC                 := $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_COBJSUFF           := .o
+TOOL_MINGW32_CFLAGS             := -g
+TOOL_MINGW32_CFLAGS.debug       := -O0
+TOOL_MINGW32_CFLAGS.release     := -O2
+TOOL_MINGW32_CFLAGS.profile     := -pg
+TOOL_MINGW32_CINCS              :=
+TOOL_MINGW32_CDEFS              :=
+
+TOOL_MINGW32_CXX                := $(_TOOL_MINGW32_PREFIX)g++$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_CXXOBJSUFF         := .o
+TOOL_MINGW32_CXXOBJSUFF         := .o
+TOOL_MINGW32_CXXFLAGS           := -g
+TOOL_MINGW32_CXXFLAGS.debug     := -O0
+TOOL_MINGW32_CXXFLAGS.release   := -O2
+TOOL_MINGW32_CXXFLAGS.profile   := -pg
+TOOL_MINGW32_CXXINCS            :=
+TOOL_MINGW32_CXXDEFS            :=
+
+TOOL_MINGW32_AS                 := $(_TOOL_MINGW32_PREFIX)as$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_ASOBJSUFF          := .o
+
+TOOL_MINGW32_AR                 := $(_TOOL_MINGW32_PREFIX)ar$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_ARFLAGS            := cr
+TOOL_MINGW32_ARLIBSUFF          := .a
+
+TOOL_MINGW32_LD                 := $(_TOOL_MINGW32_PREFIX)g++$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_LDFLAGS            :=
+TOOL_MINGW32_LDFLAGS.debug      := -g
+TOOL_MINGW32_LDFLAGS.release    := -s
+
+
+## Compile C source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param	$(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param	$(dirdep)   Directory creation dependency.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param	$(objsuff)  Object suffix.
+define TOOL_MINGW32_COMPILE_C
+#$ (warning dbg: TOOL_MINGW32_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+$(obj): $(dirdep) $(source)
+	$(call MSG_L2,Compiling $$@ using MINGW32)
+	$(TOOL_MINGW32_CC) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
+		-o $$@\
+		$(source)		
+		
+endef
+
+
+## Compile C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param	$(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param	$(dirdep)   Directory creation dependency.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param	$(objsuff)  Object suffix.
+define TOOL_MINGW32_COMPILE_CXX
+#$ (warning dbg: TOOL_MINGW32_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+$(obj): $(dirdep) $(source)
+	$(call MSG_L2,Compiling $$@ using MINGW32)
+	$(TOOL_MINGW32_CXX) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
+		-o $$@\
+		$(source)		
+		
+endef
+
+
+## Link library
+# @param    $(target)   Normalized main target name.
+# @param    $(lib)		Library name.
+# @param    $(objs)     Object files to put in the library.
+# @param    $(flags)    Flags.
+# @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+define TOOL_MINGW32_LINK_LIBRARY
+#$ (warning dbg: TOOL_MINGW32_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) outbase=$(outbase))
+$(lib): $(dirdep) $(objs) $(deps)
+	$(call MSG_L1,Creating Library $$@)
+	$(RM) -f $$@
+	$(TOOL_MINGW32_AR) $(flags) $$@ $(objs)
+	$(MKDIR) -p $(PATH_LIB)
+	$(CP) $$@ $(PATH_LIB)/
+	
+endef
+
+
+## Link program
+# @param    $(target)   Normalized main target name.
+# @param    $(exe)		Program name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
+# @param	$(deffile)  Definition file. (optional, PC only)
+# @param	$(custom_pre)   Custom step invoked before linking.
+# @param	$(custom_post)  Custom step invoked after linking.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+define TOOL_MINGW32_LINK_PROGRAM
+#$ (warning dbg: TOOL_MINGW32_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+$(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps)
+	$(call MSG_L1,Creating Program $$@)
+ifneq ($(custom_pre),)
+	$(eval $(custom_pre))
+endif	
+	$(TOOL_MINGW32_LD) $(flags) -o $$@ $(objs) \
+	$(foreach p,$(libpath), -L$(p)) \
+	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+ifneq ($(custom_post),)
+	$(eval $(custom_post))
+endif	
+	$(MKDIR) -p $(PATH_BIN)
+	$(CP) $$@ $(PATH_BIN)/
+	
+endef
+
