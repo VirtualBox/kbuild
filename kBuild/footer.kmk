@@ -1,4 +1,4 @@
-# $Id: footer.kmk 130 2004-06-29 17:30:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 131 2004-06-30 16:01:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -654,7 +654,7 @@ $(eval deps        := )
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
 # publish rule (still need work)
-ifndef $(target)_noinst
+ifndef $(target)_NOINST
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(CP) $(lib) $(publib)
@@ -801,8 +801,8 @@ $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 # publish rule (still need work)
-ifndef $(target)_noinst
-$(eval pubexe := $(PATH_LIB)/$(notdir $(exe)))
+ifndef $(target)_NOINST
+$(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(CP) $(exe) $(pubexe)
 	
@@ -963,8 +963,8 @@ $(eval $(TOOL_$(tool)_LINK_DLL))
 
 					
 # publish rule (still need work)
-ifndef $(target)_noinst
-$(eval pubdll := $(PATH_LIB)/$(notdir $(dll)))
+ifndef $(target)_NOINST
+$(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(CP) $(dll) $(pubdll)
 	
@@ -1123,16 +1123,16 @@ endif
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
 # publish rule (still need work)
-ifndef $(target)_noinst
-$(eval pubsys := $(PATH_LIB)/$(notdir $(sys)))
-$(pubsys) : $(sys) $(dir $(pubsys)).dir_created
+ifndef $(target)_NOINST
+$(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
+$(pubsys): $(sys) $(dir $(pubsys)).dir_created
 	$(CP) $(sys) $(pubsys)
 	
-_SYSMODS += $(pubsys)
-_OUT_FILES += $(sys) $(pubsys)
+$(eval _SYSMODS += $(pubsys))
+$(eval _OUT_FILES += $(sys) $(pubsys))
 else
-_SYSMODS += $(sys)
-_OUT_FILES += $(sys)
+$(eval _SYSMODS += $(sys))
+$(eval _OUT_FILES += $(sys))
 endif
 _OBJS += $(_OBJS_$(target))
 endef
