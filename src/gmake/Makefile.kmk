@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 202 2004-12-17 15:03:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 225 2005-02-09 08:31:14Z knut.osmundsen@oracle.com $
 export KBUILD_VCC70_DEPS = 1
 
 PROGRAMS            = kmk
@@ -26,11 +26,12 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_PATTERN_RULES	\
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
-	CONFIG_NO_DEFAULT_VARIABLES
+	CONFIG_NO_DEFAULT_VARIABLES \
+	CONFIG_WITH_KMK_BUILTIN
 kmk_DEFS.win32          = WINDOWS32 _CONSOLE WIN32
 kmk_DEFS.win32.release  = NDEBUG
 
-kmk_LDFLAGS.linux.release   = -s 
+kmk_LDFLAGS.linux.release   = -s
 kmk_LDFLAGS.os2             = -Zhigh-mem -Zstack=1024
 kmk_LDFLAGS.os2.release     = -s
 kmk_LDFLAGS.win32           = /SUBSYSTEM:console /INCREMENTAL:no /NOD
@@ -41,7 +42,7 @@ kmk_LIBS.win32              = \
 	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib 
+	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
 	
 kmk_SOURCES         = \
 	main.c \
@@ -64,7 +65,8 @@ kmk_SOURCES         = \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c \
+	kmkbuiltin.c
 
 kmk_SOURCES.os2 = \
 	getopt.c \
