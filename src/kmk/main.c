@@ -78,7 +78,7 @@ static const char rcsid[] =
  *				exiting.
  */
 
-#ifdef USE_KLIB
+#if defined(USE_KLIB) || defined(KMK)
     #define KLIB_INSTRICT
     #include <kLib/kLib.h>
 #endif
@@ -818,11 +818,21 @@ main(argc, argv)
 
 		sysMkPath = Lst_Init (FALSE);
 		Dir_Expand (_PATH_DEFSYSMK, sysIncPath, sysMkPath);
+                #ifdef NMAKE
+		if (!Lst_IsEmpty(sysMkPath))
+                {
+                    ln = Lst_Find(sysMkPath, (ClientData)NULL, ReadMakefile);
+                    if (ln != NILLNODE)
+                            Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+                }
+                /* Fatal("make: no system rules (%s).", _PATH_DEFSYSMK); */
+                #else
 		if (Lst_IsEmpty(sysMkPath))
 			Fatal("make: no system rules (%s).", _PATH_DEFSYSMK);
 		ln = Lst_Find(sysMkPath, (ClientData)NULL, ReadMakefile);
 		if (ln != NILLNODE)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
+                #endif
 	}
 
 	if (!Lst_IsEmpty(makefiles)) {
@@ -831,8 +841,21 @@ main(argc, argv)
 		ln = Lst_Find(makefiles, (ClientData)NULL, ReadMakefile);
 		if (ln != NILLNODE)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
-	} else if (!ReadMakefile("makefile", NULL))
-		(void)ReadMakefile("Makefile", NULL);
+	} else
+            #ifdef KMK
+            if (    !ReadMakefile("Makefile.kMk", NULL)
+                #if KFILE_CASE
+                ||  !ReadMakefile("makefile.kMk", NULL)
+                ||  !ReadMakefile("Makefile.kmk", NULL)
+                ||  !ReadMakefile("makefile.kmk", NULL)
+                ||  !ReadMakefile("makefile", NULL)
+                #endif
+                )
+                (void)ReadMakefile("Makefile", NULL);
+            #else
+            if (!ReadMakefile("makefile", NULL))
+                (void)ReadMakefile("Makefile", NULL);
+            #endif
 
 	(void)ReadMakefile(".depend", NULL);
 
