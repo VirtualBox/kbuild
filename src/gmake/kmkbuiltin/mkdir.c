@@ -39,12 +39,12 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
+//__FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <err.h>
+//#include <err.h>
 #include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -53,13 +53,16 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #include <sysexits.h>
 #include <unistd.h>
 
+extern void * setmode(const char *p);
+extern mode_t getmode(const void *bbox, mode_t omode);
+
 static int	build(char *, mode_t);
-static void	usage(void);
+static int	usage(void);
 
 int vflag;
 
 int
-main(int argc, char *argv[])
+kmk_builtin_mkdir(int argc, char *argv[])
 {
 	int ch, exitval, success, pflag;
 	mode_t omode, *set = (mode_t *)NULL;
@@ -67,6 +70,10 @@ main(int argc, char *argv[])
 
 	omode = pflag = 0;
 	mode = NULL;
+        opterr = 1;
+        optarg = NULL;
+        optopt = 0;
+        optind = 0; /* init */
 	while ((ch = getopt(argc, argv, "m:pv")) != -1)
 		switch(ch) {
 		case 'm':
@@ -79,20 +86,22 @@ main(int argc, char *argv[])
 			vflag = 1;
 			break;
 		case '?':
-		default:
-			usage();
+                default:
+			return usage();
 		}
 
 	argc -= optind;
 	argv += optind;
 	if (argv[0] == NULL)
-		usage();
+		return usage();
 
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
 	} else {
-		if ((set = setmode(mode)) == NULL)
-			errx(1, "invalid file mode: %s", mode);
+		if ((set = setmode(mode)) == NULL) {
+			fprintf(stderr, "%s: invalid file mode: %s", mode, argv[0]);
+                        return 1;
+                }
 		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 		free(set);
 	}
@@ -104,9 +113,9 @@ main(int argc, char *argv[])
 				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
 			if (errno == ENOTDIR || errno == ENOENT)
-				warn("%s", dirname(*argv));
+				fprintf(stderr, "%s: %s", argv[0], dirname(*argv));
 			else
-				warn("%s", *argv);
+				fprintf(stderr, "%s: %s", argv[0], *argv);
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
@@ -121,11 +130,11 @@ main(int argc, char *argv[])
 		 * as chmod will (obviously) ignore the umask.
 		 */
 		if (success && mode != NULL && chmod(*argv, omode) == -1) {
-			warn("%s", *argv);
+			fprintf(stderr, "%s: %s", argv[0], *argv);
 			exitval = 1;
 		}
 	}
-	exit(exitval);
+	return exitval;
 }
 
 int
@@ -199,10 +208,10 @@ build(char *path, mode_t omode)
 	return (retval);
 }
 
-void
+int
 usage(void)
 {
 
 	(void)fprintf(stderr, "usage: mkdir [-pv] [-m mode] directory ...\n");
-	exit (EX_USAGE);
+	return EX_USAGE;
 }

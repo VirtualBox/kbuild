@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 225 2005-02-09 08:31:14Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 227 2005-02-09 10:21:34Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command handling.
@@ -24,4 +24,6 @@
  *
  */
 
-int kmk_builtin_command(char **argv);
+int kmk_builtin_command(const char *pszCmd);
+int kmk_builtin_command_parsed(int argc, char **argv);
+

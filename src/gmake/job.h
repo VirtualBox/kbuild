@@ -57,11 +57,11 @@ struct child
     int cstatus;		/* Completion status */
 #endif
     char *sh_batch_file;        /* Script file for shell commands */
+#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
+    int status;                 /* Status of the job. */
+    unsigned int have_status:1; /* Nonzero if status is available. */
+#endif
 #ifdef MAKE_DLLSHELL
-    int status;                 /* Status of the job.
-                                   Another thread might set this. */
-    char dllshell_done;         /* Nonzero if executed thru a dll shell.
-                                   Another thread might set this. */
     unsigned int dllshelled:1;  /* Nonzero if executed thru dllshell. */
 #endif
     unsigned int remote:1;	/* Nonzero if executing remotely.  */
