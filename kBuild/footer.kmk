@@ -1,4 +1,4 @@
-# $Id: footer.kmk 95 2004-06-08 16:53:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 97 2004-06-09 17:17:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -525,6 +525,18 @@ $(eval obj         := $(outbase)$(objsuff))
 $(eval dep         := $(outbase)$(SUFF_DEP))
 
 #$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
+ifndef TOOL_$(tool)_COMPILE_$(type)
+$$(warning kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
+$$(warning kBuild: tools: \
+	1 $($(source)_$(target)_$(type)TOOL.$(BUILD_TARGET)) 	$($(source)_$(target)_TOOL.$(BUILD_TARGET)) \
+	2 $($(source)_$(target)_$(type)TOOL) $($(source)_$(target)_TOOL) \
+	3 $($(source)_$(type)TOOL.$(BUILD_TARGET)) $($(source)_TOOL.$(BUILD_TARGET)) \
+	4 $($(source)_$(type)TOOL) $($(source)_TOOL) \
+	5 $($(target)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_TOOL.$(BUILD_TARGET)) \
+	6 $($(target)_$(type)TOOL) $($(target)_TOOL) \
+	7 $($(type)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
+	8 $($(type)TOOL) $(TOOL))
+endif
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
 
 $(eval _OBJS_$(target) += $(obj))
