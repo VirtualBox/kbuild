@@ -1,4 +1,4 @@
-/* $Id: kmkdocs.c 17 2002-10-16 23:21:16Z knut.osmundsen@oracle.com $
+/* $Id: kmkdocs.c 19 2002-10-17 23:02:18Z knut.osmundsen@oracle.com $
  *
  * kmk design and documentation.
  *
@@ -136,6 +136,21 @@
  *
  *
  *
+ * @subsubsubsection    copytree
+ * Copies one or more files to a target file or directory.
+ *
+ * <b>Syntax: copytree <source directory> <target directory> </b>
+ *
+ * Specify exactly one source directory.
+ *
+ * Specify exactly one target directory. The target directory path will be
+ * created if doesn't exist.
+ *
+ * The command fails if source directory isn't found. It also fails on read or
+ * write errors.
+ *
+ *
+ *
  * @subsubsubsection    rm
  * Deletes one or more files.
  *
@@ -145,6 +160,18 @@
  *
  * This command fails if it cannot delete a file. It will not fail if a file
  * doesn't exist. It will neither fail if no files are specified.
+ *
+ *
+ *
+ * @subsubsubsection    rmtree
+ * Deletes one or more directory trees.
+ *
+ * <b>Syntax: rmtree [directory pattern] [directories] </b>
+ *
+ * Specify 0 or more directory patterns for deletion.
+ *
+ * This command fails if it cannot delete a file or directory. It will not fail
+ * if a directory doesn't exist. It will neither fail if no files are specified.
  *
  *
  *
@@ -212,6 +239,20 @@
  * the stack.
  *
  * <b>Syntax: popenv </b>
+ *
+ *
+ *
+ * @subsubsubsection    echo
+ * Prints a message to stdout.
+ *
+ * <b>Syntax: echo <level> <message>
+ *
+ * Level is verbosity level of the message. This is compared with the
+ * KBUILD_MSG_LEVEL environment variable. The message is suppressed if the
+ * level is lower that KBUILD_MSG_LEVEL.
+ *
+ * The message can be empty. Then a blank line will be printed.
+ *
  *
  *
  */
