@@ -1,4 +1,4 @@
-# $Id: header.kmk 85 2004-06-02 13:09:58Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 86 2004-06-03 21:36:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -214,7 +214,7 @@ SUFF_OBJ            := .obj
 SUFF_LIB            := .lib
 SUFF_DLL            := .dll
 SUFF_EXE            := .exe
-SUFF_DRV            := .sys
+SUFF_SYS            := .sys
 SUFF_RES            := .res
 endif
 ifeq ($(BUILD_TARGET),win32)
@@ -222,7 +222,7 @@ SUFF_OBJ            := .obj
 SUFF_LIB            := .lib
 SUFF_DLL            := .dll
 SUFF_EXE            := .exe
-SUFF_DRV            := .sys
+SUFF_SYS            := .sys
 SUFF_RES            := .res
 endif
 ifeq ($(BUILD_TARGET),linux)
@@ -230,7 +230,7 @@ SUFF_OBJ            := .o
 SUFF_LIB            := .a
 SUFF_DLL            := .so
 SUFF_EXE            :=
-SUFF_DRV            := .a
+SUFF_SYS            := .a
 SUFF_RES            :=
 endif
 
