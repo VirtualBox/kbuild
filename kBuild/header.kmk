@@ -1,4 +1,4 @@
-# $Id: header.kmk 87 2004-06-04 15:29:04Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 88 2004-06-04 16:14:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -65,7 +65,7 @@ endif
 _BUILD_PLATFORM_OK  := 0
 # OS/2
 ifeq ($(BUILD_PLATFORM),OS2)
-BUILD_PLATFORM      := os2
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
 endif
 ifeq ($(BUILD_PLATFORM),os2)
 _BUILD_PLATFORM_OK  := 1
@@ -73,7 +73,7 @@ endif
 
 # Linux
 ifeq ($(BUILD_PLATFORM),LINUX)
-BUILD_PLATFORM      := linux
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
 endif
 ifeq ($(BUILD_PLATFORM),linux)
 _BUILD_PLATFORM_OK  := 1
@@ -81,7 +81,7 @@ endif
 
 # Win32
 ifeq ($(BUILD_PLATFORM),WIN32)
-BUILD_PLATFORM      := win32
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
 endif
 ifeq ($(BUILD_PLATFORM),win32)
 _BUILD_PLATFORM_OK  := 1
@@ -102,7 +102,7 @@ else
 _BUILD_TARGET_OK    := 0
 # OS/2
 ifeq ($(BUILD_TARGET),OS2)
-BUILD_TARGET        := os2
+$(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),os2)
 _BUILD_TARGET_OK    := 1
@@ -110,7 +110,7 @@ endif
 
 # Linux
 ifeq ($(BUILD_TARGET),LINUX)
-BUILD_TARGET        := linux
+$(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),linux)
 _BUILD_TARGET_OK    := 1
@@ -118,7 +118,7 @@ endif
 
 # Win32
 ifeq ($(BUILD_TARGET),WIN32)
-BUILD_TARGET        := win32
+$(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),win32)
 _BUILD_TARGET_OK    := 1
