@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 74 2004-05-31 02:19:05Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -77,7 +77,7 @@ $(obj): $(dirdep) $(PATH_CURRENT)/$(source)
 	$(call MSG_L2,Compiling $$@ using GCC)
 	$(TOOL_GCC_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MT,$(dep) -Wp,-MD,$$@\
+		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
 		$(PATH_CURRENT)/$(source)		
 		

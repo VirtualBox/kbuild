@@ -1,4 +1,4 @@
-# $Id: config.kmk 72 2004-05-30 06:16:41Z knut.osmundsen@oracle.com $
+# $Id: config.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
 #
 # Base config for kBuild
 #
@@ -29,7 +29,7 @@
 #
 #
 
-ifdef skipme
+ifdef rewrite_me
 
 .ifndef __KBLD_config_kMk_
 __KBLD_config_kMk_ = 1
