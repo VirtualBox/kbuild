@@ -90,7 +90,7 @@ static const char rcsid[] =
 #include <sys/signal.h>
 #endif
 #include <sys/stat.h>
-#if defined(__i386__)
+#if defined(__i386__) && !defined(__EMX__)
 #include <sys/sysctl.h>
 #endif
 #ifndef MACHINE
@@ -106,7 +106,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#if !defined(__IBMC__)
+#if !defined(__IBMC__) && !defined(__EMX__)
 #include <sysexits.h>
 #endif
 #if defined(__STDC__) || defined(__IBMC__)
