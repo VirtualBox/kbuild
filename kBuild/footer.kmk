@@ -1,4 +1,4 @@
-# $Id: footer.kmk 145 2004-09-07 15:26:23Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 146 2004-09-07 15:40:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -646,6 +646,7 @@ $(eval $(def_target_sources))
 
 # library linking
 $(eval tool        := $(call _TARGET_TOOL,$(target),AR))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
@@ -703,6 +704,7 @@ $(eval $(def_target_sources))
 
 # more library stuff.
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
@@ -855,6 +857,7 @@ $(eval $(def_target_sources))
 
 # dllmod linking. 
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
@@ -1021,6 +1024,7 @@ $(eval $(def_target_sources))
 
 # sysmod linking
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
