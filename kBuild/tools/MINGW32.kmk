@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 181 2004-10-15 09:09:36Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
@@ -27,7 +27,7 @@
 TOOL_MINGW32                 := MinGW32 GCC v3.3+
 
 # find latest installed version
-ifndef PATH_TOOL_MINGW32								
+ifndef PATH_TOOL_MINGW32
 PATH_TOOL_MINGW32            := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/mingw32/v*.*))
 ifeq ($(PATH_TOOL_MINGW32),)
 PATH_TOOL_MINGW32            := $(sort $(wildcard $(PATH_DEV)/x86.win32/mingw32/v*.*))
@@ -54,7 +54,7 @@ _TOOL_MINGW32_SUFF_EXE          :=
 _TOOL_MINGW32_XCOMPILE          := 1
 endif
 endif
-								
+
 TOOL_MINGW32_CC                 := $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
 TOOL_MINGW32_COBJSUFF           := .o
 TOOL_MINGW32_CFLAGS             := -g
@@ -104,19 +104,20 @@ TOOL_MINGW32_DLLTOOL            := $(_TOOL_MINGW32_PREFIX)dlltool$(_TOOL_MINGW32
 # @param    $(defs)     Definitions. No -D or something.
 # @param    $(incs)     Includes. No -I or something.
 # @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_MINGW32_COMPILE_C
-#$ (warning dbg: TOOL_MINGW32_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(source)
+#$ (warning dbg: TOOL_MINGW32_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
+$(obj): $(dirdep) $(source) $(deps)
 	$(call MSG_L2,Compiling $$@ using MINGW32)
 	$(TOOL_MINGW32_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
 		$(call ABSPATH,$(source))
-		
+
 endef
 
 
@@ -129,19 +130,20 @@ endef
 # @param    $(defs)     Definitions. No -D or something.
 # @param    $(incs)     Includes. No -I or something.
 # @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_MINGW32_COMPILE_CXX
-#$ (warning dbg: TOOL_MINGW32_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(source)
+#$ (warning dbg: TOOL_MINGW32_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
+$(obj): $(dirdep) $(source) $(deps)
 	$(call MSG_L2,Compiling $$@ using MINGW32)
 	$(TOOL_MINGW32_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
 		$(call ABSPATH,$(source))
-		
+
 endef
 
 
@@ -160,7 +162,7 @@ $(lib): $(dirdep) $(objs) $(deps)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(TOOL_MINGW32_AR) $(flags) $$@ $(objs)
-	
+
 endef
 
 
@@ -184,14 +186,14 @@ $(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_MINGW32_LD) $(flags) -o $$@ $(objs) \
 	$(foreach p,$(libpath), -L$(p)) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
-	
+endif
+
 endef
 
 
@@ -215,7 +217,7 @@ $(dll): $(dirdep) $(call DIRDEP,$(PATH_LIB)) $(objs) $(foreach lib,$(libs),$(if 
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_MINGW32_DLLWRAP) $(flags) \
 		--dllname=$(dll) \
 		--output-exp=$(outbase).exp \
@@ -230,7 +232,7 @@ ifeq ($(filter %.exp .def,$(othersrc)),)
 endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
+endif
 _OUT_FILES += $(outbase).map $(outbase).a $(outbase).exp
 
 endef

@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 181 2004-10-15 09:09:36Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 184 2004-12-04 02:26:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -74,19 +74,20 @@ endif
 # @param    $(defs)     Definitions. No -D or something.
 # @param    $(incs)     Includes. No -I or something.
 # @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_GCC_COMPILE_C
-#$ (warning dbg: TOOL_GCC_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(PATH_CURRENT)/$(source)
+#$ (warning dbg: TOOL_GCC_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
+$(obj): $(dirdep) $(PATH_CURRENT)/$(source) $(deps)
 	$(call MSG_L2,Compiling $$@ using GCC)
 	$(TOOL_GCC_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
 		$(call ABSPATH,$(source))
-		
+
 endef
 
 
@@ -99,19 +100,20 @@ endef
 # @param    $(defs)     Definitions. No -D or something.
 # @param    $(incs)     Includes. No -I or something.
 # @param	$(dirdep)   Directory creation dependency.
+# @param	$(deps)		Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param	$(objsuff)  Object suffix.
 define TOOL_GCC_COMPILE_CXX
-#$ (warning dbg: TOOL_GCC_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(dirdep) $(source)
+#$ (warning dbg: TOOL_GCC_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
+$(obj): $(dirdep) $(source) $(deps)
 	$(call MSG_L2,Compiling $$@ using GCC)
 	$(TOOL_GCC_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
 		-o $$@\
 		$(call ABSPATH,$(source))
-		
+
 endef
 
 
@@ -130,7 +132,7 @@ $(lib): $(dirdep) $(objs) $(deps)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(TOOL_GCC_AR) $(flags) $$@ $(objs)
-	
+
 endef
 
 
@@ -154,13 +156,13 @@ $(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_GCC_LD) $(flags) -o $$@ $(objs) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
-	
+endif
+
 endef
 
 
@@ -184,12 +186,12 @@ $(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_GCC_LD) $(TOOL_GCC_LDFLAGS.dll) $(flags) -o $$@ $(objs) \
 	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
-	
+endif
+
 endef
 
