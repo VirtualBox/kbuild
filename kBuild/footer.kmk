@@ -1,4 +1,4 @@
-# $Id: footer.kmk 221 2005-02-08 17:22:53Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 222 2005-02-08 17:57:01Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -51,6 +51,7 @@ _OUT_FILES :=
 
 # all of a type
 _OBJS     :=
+_BLDPROGS :=
 _LIBS     :=
 _DLLS     :=
 _PROGRAMS :=
@@ -76,45 +77,37 @@ $(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 # @param    $target      source file
 # @param    $source      normalized main target
 # @param    $type      tooltype
+# @param    bld_trg      build target.
 _SOURCE_TOOL = $(strip $(firstword \
-	$($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)_$(type)TOOL.$(bld_trg)) \
 	$($(target)_$(source)_$(type)TOOL) \
-	$($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)_TOOL.$(bld_trg)) \
 	$($(target)_$(source)_TOOL) \
-	$($(target)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(type)TOOL.$(bld_trg)) \
 	$($(target)_$(type)TOOL) \
-	$($(target)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_TOOL.$(bld_trg)) \
 	$($(target)_TOOL) \
-	$($(source)_$(type)TOOL.$(BUILD_TARGET)) \
+	$($(source)_$(type)TOOL.$(bld_trg)) \
 	$($(source)_$(type)TOOL) \
-	$($(source)_TOOL.$(BUILD_TARGET)) \
+	$($(source)_TOOL.$(bld_trg)) \
 	$($(source)_TOOL) \
-	$($(type)TOOL.$(BUILD_TARGET)) \
+	$($(type)TOOL.$(bld_trg)) \
 	$($(type)TOOL) \
-	$(TOOL.$(BUILD_TARGET)) \
+	$(TOOL.$(bld_trg)) \
 	$(TOOL) ))
-
-_SOURCE_TOOL_OLD = $(strip $(firstword \
-	$($(target)_$(source)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_$(source)_TOOL.$(BUILD_TARGET)) \
-	$($(target)_$(source)_$(type)TOOL) $($target_$source_TOOL) \
-	$($(target)_$(type)TOOL.$(BUILD_TARGET)) $($(target)_TOOL.$(BUILD_TARGET)) \
-	$($(target)_$(type)TOOL) $($target_TOOL) \
-	$($(source)_$(type)TOOL.$(BUILD_TARGET)) $($(source)_TOOL.$(BUILD_TARGET)) \
-	$($(source)_$(type)TOOL) $($(source)_TOOL) \
-	$($(type)TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET)) \
-	$($(type)TOOL) $(TOOL) ))
 
 ## Figure out the tool for a target.
 # @param    $target 		normalized target.
 # @param    $source      tooltype.
+# @param    bld_trg      build target.
 _TARGET_TOOL = $(strip $(firstword \
-	$($(target)_$(source)TOOL.$(BUILD_TARGET)) \
+	$($(target)_$(source)TOOL.$(bld_trg)) \
 	$($(target)_$(source)TOOL) \
-	$($(target)_TOOL.$(BUILD_TARGET)) \
+	$($(target)_TOOL.$(bld_trg)) \
 	$($(target)_TOOL) \
 	$($(source)TOOL) \
-	$($(source)TOOL.$(BUILD_TARGET)) \
-	$(TOOL.$(BUILD_TARGET)) \
+	$($(source)TOOL.$(bld_trg)) \
+	$(TOOL.$(bld_trg)) \
 	$(TOOL) \
 	))
 
@@ -667,20 +660,20 @@ endef
 
 
 #
-# NEEDED
+# BLDPROGS
 #
 
-## Needed (one).
+## Build program (one).
 # @param    $(target)   Normalized target (program) name.
-define def_needed
+define def_bldprog
 # basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
 $(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_PLATFORM)))
 $(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_PLATFORM_ARCH)))
 $(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_PLATFORM_CPU)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(HOSTSUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval TARGET_$(target) := $(exe))
@@ -803,22 +796,22 @@ $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 # publish rule (still need work)
-ifndef $(target)_INST
+ifdef $(target)_INST
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(CP) $(exe) $(pubexe)
 
-_NEEDED    += $(pubexe)
+_BLDPROGS   += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
 else
-_NEEDED    += $(exe)
+_BLDPROGS   += $(exe)
 _OUT_FILES += $(exe)
 endif
 _OBJS += $(_OBJS_$(target))
 endef
 
-# Process needed.
-$(foreach target, $(NEEDED) $(NEEDED.$(BUILD_TARGET)), $(eval $(def_needed)))
+# Process build programs.
+$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(def_bldprog)))
 
 
 
@@ -830,17 +823,17 @@ $(foreach target, $(NEEDED) $(NEEDED.$(BUILD_TARGET)), $(eval $(def_needed)))
 # @param    $(target)   Normalized library (target) name.
 define def_lib
 # library basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
-ifeq ($(tool),)
-$$(error kBuild: Library target $(target) doesn't have a tool defined!)
-endif
 ## @todo prefix
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
 $(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
 $(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
 $(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
+ifeq ($(tool),)
+$$(error kBuild: Library target $(target) doesn't have a tool defined!)
+endif
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval libsuff     := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg))\
 	$($(target)_LIBSUFF)\
@@ -901,13 +894,13 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
 # @param    $(target)   Normalized target (program) name.
 define def_dll
 # dllmod basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
 $(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
 $(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
 $(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
 $(eval dll         := $(outbase)$(dllsuff))
 $(eval TARGET_$(target) := $(dll))
@@ -1087,13 +1080,13 @@ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval _IMPORT_
 # @param    $(target)   Normalized target (program) name.
 define def_program
 # basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
 $(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
 $(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
 $(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval TARGET_$(target) := $(exe))
@@ -1243,13 +1236,13 @@ $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)
 # @param    $(target)   Normalized target (program) name.
 define def_sysmod
 # sysmod basics
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
 $(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
 $(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
 $(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
+$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
 $(eval TARGET_$(target) := $(sys))
@@ -1443,8 +1436,8 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 #
 # Do all the default passes if it's unspecified.
 
-#PASSES ?= needed libraries binaries others publish
-PASSES ?= needed libraries dlls binaries others
+#PASSES ?= bldprogs libraries binaries others publish
+PASSES ?= bldprogs libraries dlls binaries others
 
 ## @todo figure out a generic way of configuring how pass works!
 
@@ -1502,11 +1495,11 @@ pass_$(pass):           pass_$(pass)_after
 endef
 
 
-## PASS: needed
+## PASS: bldprogs
 # This pass builds targets which are required for building the rest.
-pass_needed_doit: $(_NEEDEDS)
-pass := needed
-PASS := NEEDED
+pass_bldprogs_doit: $(_BLDPROGS)
+pass := bldprogs
+PASS := BLDPROGS
 $(eval $(def_pass))
 
 ## PASS: libraries
@@ -1604,8 +1597,9 @@ rebuild: clean
 
 
 # misc shortcuts.
-target:    needed libraries binaries others
+target:    bldprogs libraries binaries others
 objects:   $(_OBJS)
+bldprogs:  $(_BLDPROGS)
 libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
 dlls:      $(_DLLS)
 programs:  $(_PROGRAMS)
