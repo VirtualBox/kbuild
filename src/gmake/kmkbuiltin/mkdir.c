@@ -59,7 +59,7 @@ extern mode_t getmode(const void *bbox, mode_t omode);
 static int	build(char *, mode_t);
 static int	usage(void);
 
-int vflag;
+static int vflag;
 
 int
 kmk_builtin_mkdir(int argc, char *argv[])
@@ -70,6 +70,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 
 	omode = pflag = 0;
 	mode = NULL;
+        vflag = 0;
         opterr = 1;
         optarg = NULL;
         optopt = 0;
@@ -99,7 +100,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
 	} else {
 		if ((set = setmode(mode)) == NULL) {
-			fprintf(stderr, "%s: invalid file mode: %s", mode, argv[0]);
+			fprintf(stderr, "%s: invalid file mode: %s\n", mode, argv[0]);
                         return 1;
                 }
 		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
@@ -113,9 +114,9 @@ kmk_builtin_mkdir(int argc, char *argv[])
 				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
 			if (errno == ENOTDIR || errno == ENOENT)
-				fprintf(stderr, "%s: %s", argv[0], dirname(*argv));
+				fprintf(stderr, "%s: %s: %s\n", argv[0], dirname(*argv), strerror(errno));
 			else
-				fprintf(stderr, "%s: %s", argv[0], *argv);
+				fprintf(stderr, "%s: %s: %s\n", argv[0], *argv, strerror(errno));
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
@@ -130,14 +131,14 @@ kmk_builtin_mkdir(int argc, char *argv[])
 		 * as chmod will (obviously) ignore the umask.
 		 */
 		if (success && mode != NULL && chmod(*argv, omode) == -1) {
-			fprintf(stderr, "%s: %s", argv[0], *argv);
+			fprintf(stderr, "%s: %s: %s\n", argv[0], *argv, strerror(errno));
 			exitval = 1;
 		}
 	}
 	return exitval;
 }
 
-int
+static int
 build(char *path, mode_t omode)
 {
 	struct stat sb;
@@ -208,7 +209,7 @@ build(char *path, mode_t omode)
 	return (retval);
 }
 
-int
+static int
 usage(void)
 {
 

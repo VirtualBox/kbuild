@@ -1120,7 +1120,6 @@ start_job_command (struct child *child)
               argc++;
           rc = kmk_builtin_command_parsed(argc, argv);
       }
-      printf("rc=%d\n", rc);
 #ifndef VMS
       free (argv[0]);
       free ((char *) argv);

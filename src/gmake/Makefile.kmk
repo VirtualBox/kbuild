@@ -1,15 +1,29 @@
-# $Id: Makefile.kmk 227 2005-02-09 10:21:34Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 228 2005-02-09 11:30:52Z knut.osmundsen@oracle.com $
 export KBUILD_VCC70_DEPS = 1
 
 PROGRAMS            = kmk
+PROGRAMS           += echo mkdir rm
 
-kmk_TOOL            = GCC3
-kmk_TOOL.os2        = GCC3OMF
-kmk_TOOL.win32      = VCC70
+TOOL                = GCC3
+TOOL.os2            = GCC3OMF
+TOOL.win32          = VCC70
 
-kmk_CFLAGS.linux.release    = -O3
-kmk_CFLAGS.os2.relase       = -O3
-kmk_CFLAGS.win32            = -MT -W3
+CFLAGS.linux.release= -O3
+CFLAGS.os2.relase   = -O3
+CFLAGS.win32        = -MT -W3
+
+LDFLAGS.linux.release       = -s
+LDFLAGS.os2                 = -Zhigh-mem -Zstack=1024
+LDFLAGS.os2.release         = -s
+LDFLAGS.win32               = /SUBSYSTEM:console /INCREMENTAL:no /NOD
+
+LIBS.linux              = rt
+LIBS.win32              = \
+	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
+	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
 
 kmk_DEPS            = $(PATH_TARGET)/config.h
 
@@ -30,19 +44,6 @@ kmk_DEFS            = \
 	CONFIG_WITH_KMK_BUILTIN
 kmk_DEFS.win32          = WINDOWS32 _CONSOLE WIN32
 kmk_DEFS.win32.release  = NDEBUG
-
-kmk_LDFLAGS.linux.release   = -s
-kmk_LDFLAGS.os2             = -Zhigh-mem -Zstack=1024
-kmk_LDFLAGS.os2.release     = -s
-kmk_LDFLAGS.win32           = /SUBSYSTEM:console /INCREMENTAL:no /NOD
-
-kmk_LIBS.linux              = rt
-kmk_LIBS.win32              = \
-	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
-	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
 	
 kmk_SOURCES         = \
 	main.c \
@@ -69,7 +70,10 @@ kmk_SOURCES         = \
 	kmkbuiltin.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/mkdir.c \
-	kmkbuiltin/setmode.c
+	kmkbuiltin/rm.c \
+	\
+	kmkbuiltin/setmode.c \
+	kmkbuiltin/strmode.c
 
 kmk_SOURCES.os2 = \
 	getopt.c \
@@ -88,6 +92,22 @@ kmk_SOURCES.win32 = \
 	w32/pathstuff.c
 
 #MAKE_DLLSHELL
+
+echo_DEFS = kmk_builtin_echo=main
+echo_SOURCES = \
+	kmkbuiltin/echo.c
+
+mkdir_DEFS = kmk_builtin_mkdir=main
+mkdir_SOURCES = \
+	kmkbuiltin/mkdir.c \
+	kmkbuiltin/setmode.c
+
+rm_DEFS = kmk_builtin_rm=main
+rm_SOURCES = \
+	kmkbuiltin/rm.c \
+	kmkbuiltin/setmode.c \
+	kmkbuiltin/strmode.c
+
 
 
 DEPTH = ../..
