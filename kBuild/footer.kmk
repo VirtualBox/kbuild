@@ -1,4 +1,4 @@
-# $Id: footer.kmk 140 2004-08-17 14:45:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 145 2004-09-07 15:26:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -622,10 +622,7 @@ endef
 ## Library (one).
 # @param    $(target)   Normalized library (target) name.
 define def_lib
-# source -> object
-$(eval $(def_target_sources))
-
-# library
+# library basics
 $(eval tool        := $(call _TARGET_TOOL,$(target),AR))
 ifeq ($(tool),)
 $$(error kBuild: Library target $(target) doesn't have a tool defined!)
@@ -633,6 +630,8 @@ endif
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
+$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval libsuff     := $(firstword\
 	$($(target)_LIBSUFF.$(BUILD_TARGET))\
 	$($(target)_LIBSUFF)\
@@ -641,6 +640,12 @@ $(eval libsuff     := $(firstword\
 	$(SUFF_LIB)\
 ))
 $(eval lib         := $(outbase)$(libsuff))
+
+# source -> object
+$(eval $(def_target_sources))
+
+# library linking
+$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
 $(eval flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(BUILD_TYPE))\
@@ -684,15 +689,20 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
 ## Program (one).
 # @param    $(target)   Normalized target (program) name.
 define def_program
-# source -> object
-$(eval $(def_target_sources))
-
-# library
+# basics
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
+$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
+
+# source -> object
+$(eval $(def_target_sources))
+
+# more library stuff.
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
@@ -831,15 +841,20 @@ $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)
 ## DLL (one).
 # @param    $(target)   Normalized target (program) name.
 define def_dll
-# source -> object
-$(eval $(def_target_sources))
-
-# dllmod
+# dllmod basics
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
+$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
 $(eval dll         := $(outbase)$(dllsuff))
+
+# source -> object
+$(eval $(def_target_sources))
+
+# dllmod linking. 
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
@@ -992,15 +1007,20 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(def_dll)))
 ## System module (one).
 # @param    $(target)   Normalized target (program) name.
 define def_sysmod
-# source -> object
-$(eval $(def_target_sources))
-
-# sysmod
+# sysmod basics
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
+$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
+
+# source -> object
+$(eval $(def_target_sources))
+
+# sysmod linking
+$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
