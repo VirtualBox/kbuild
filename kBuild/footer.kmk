@@ -1,4 +1,4 @@
-# $Id: footer.kmk 109 2004-06-24 20:58:08Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 110 2004-06-24 22:04:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -109,14 +109,14 @@ _TARGET_TOOL = $(strip $(firstword \
 	))
 
 ## Figure out where to put object files.
-# @param    $target      source file
-# @param    $source      normalized main target
-_OBJECT_BASE = $(PATH_TARGET)/$(source)/$(basename $(target))
+# @param    $1      source file
+# @param    $2      normalized main target
+_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
 
 ## Figure out where to put object files.
-# @param    $target      real target name.
-# @param    $source      normalized main target
-_TARGET_BASE = $(PATH_TARGET)/$(source)/$(basename $(target))
+# @param    $1      real target name.
+# @param    $2      normalized main target
+_TARGET_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
 
 
 #
@@ -545,6 +545,7 @@ $(eval flags        :=\
 	$($(target)_$(source)_$(type)FLAGS.$(BUILD_TARGET_CPU))\
 	)
 $(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
+$(eval PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval dirdep      := $(dir $(outbase)).dir_created)
 $(eval objsuff     := $(firstword \
 	$($(target)_$(source)_OBJSUFF.$(BUILD_TARGET))\
@@ -638,6 +639,7 @@ $(eval libsuff     := $(firstword\
 ))
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
 $(eval lib         := $(outbase)$(libsuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm,$($(target)_SOURCES)))
@@ -686,8 +688,9 @@ $(eval flags       :=\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
 )
-$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
@@ -785,7 +788,7 @@ define def_sysmod
 # source -> object
 $(eval $(def_target_sources))
 
-# library
+# sysmod
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
@@ -804,8 +807,9 @@ $(eval flags       :=\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_ARCH))\
 	$($(target)_LDFLAGS.$(BUILD_TARGET_CPU))\
 )
-$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
+$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
+$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
 $(eval objs         = $(_OBJS_$(target)))
 $(eval libs        :=\
