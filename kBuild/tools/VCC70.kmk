@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 147 2004-09-07 16:49:50Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 162 2004-09-11 01:42:48Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -82,7 +82,7 @@ $(obj): $(dirdep) $(source)
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
 _OUT_FILES += $(outbase).pdb
-		
+
 endef
 
 
@@ -108,7 +108,7 @@ $(obj): $(dirdep) $(source)
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
 _OUT_FILES += $(outbase).pdb
-		
+
 endef
 
 
@@ -129,7 +129,7 @@ $(lib): $(dirdep) $(objs) $(deps) $(othersrc)
 	$(RM) -f $$@
 	$(TOOL_VCC70_AR) $(flags) /OUT:$(lib) $(subst /,\\,$(objs)) \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
-	
+
 endef
 
 
@@ -153,19 +153,19 @@ $(exe): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_VCC70_LD) $(flags) \
 		/OUT:$(exe) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
 		/MAP:$(outbase).map \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
-		$(filter %.exp %.res,$(othersrc)) \
+		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
+endif
 _OUT_FILES += $(outbase).map $(outbase).pdb $(outbase).ilk
 
 endef
@@ -191,19 +191,19 @@ $(sys): $(dirdep) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_VCC70_LD) $(flags) \
 		/OUT:$(sys) \
 		/MAPINFO:EXPORTS /MAPINFO:LINES \
 		/MAP:$(outbase).map \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
-		$(filter %.exp %.res,$(othersrc)) \
+		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
+endif
 _OUT_FILES += $(outbase).map $(outbase).pdb $(outbase).ilk
 
 endef
@@ -229,7 +229,7 @@ $(dll): $(dirdep) $(call DIRDEP,$(PATH_LIB)) $(objs) $(foreach lib,$(libs),$(if 
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
-endif	
+endif
 	$(TOOL_VCC70_LD) $(flags) \
 		/OUT:$(dll) \
 		/IMPLIB:$(outbase).lib \
@@ -237,7 +237,7 @@ endif
 		/MAP:$(outbase).map \
 		/DLL \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def)) \
-		$(filter %.exp %.res,$(othersrc)) \
+		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
@@ -247,7 +247,7 @@ ifeq ($(filter %.exp .def,$(othersrc)),)
 endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
-endif	
+endif
 _OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk
 
 endef
