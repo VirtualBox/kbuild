@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstReplace.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstReplace.c,v 1.5 1999/08/28 01:03:56 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstReplace.c,v 1.9 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstReplace.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -64,9 +63,9 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstReplace.c,v 1.9 2002/10/09 02:00
 ReturnStatus
 Lst_Replace (ln, d)
     register LstNode	ln;
-    void *	  	d;
+    ClientData	  	d;
 {
-    if (ln == NULL) {
+    if (ln == NILLNODE) {
 	return (FAILURE);
     } else {
 	((ListNode) ln)->datum = d;

@@ -34,12 +34,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#)str.c	5.8 (Berkeley) 6/1/90
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/str.c,v 1.25 2002/10/09 03:42:10 jmallett Exp $");
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
+#else
+static const char rcsid[] =
+  "$FreeBSD: src/usr.bin/make/str.c,v 1.12.2.1 2002/06/17 04:30:48 jmallett Exp $";
+#endif
+#endif /* not lint */
 
 #include "make.h"
 
@@ -52,7 +56,7 @@ static int argmax, curlen;
  *
  */
 void
-str_init(void)
+str_init()
 {
     char *p1;
     argv = (char **)emalloc(((argmax = 50) + 1) * sizeof(char *));
@@ -66,12 +70,12 @@ str_init(void)
  *
  */
 void
-str_end(void)
+str_end()
 {
     if (argv) {
 	if (argv[0])
 	    free(argv[0]);
-	free(argv);
+	free((Address) argv);
     }
     if (buffer)
 	free(buffer);
@@ -86,10 +90,12 @@ str_end(void)
  *	the resulting string in allocated space.
  */
 char *
-str_concat(char *s1, char *s2, int flags)
+str_concat(s1, s2, flags)
+	char *s1, *s2;
+	int flags;
 {
-	int len1, len2;
-	char *result;
+	register int len1, len2;
+	register char *result;
 
 	/* get the length of both strings */
 	len1 = strlen(s1);
@@ -115,8 +121,8 @@ str_concat(char *s1, char *s2, int flags)
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)efree(s1);
-		(void)efree(s2);
+		(void)free(s1);
+		(void)free(s2);
 	}
 	return(result);
 }
@@ -132,10 +138,13 @@ str_concat(char *s1, char *s2, int flags)
  *	the first word is always the value of the .MAKE variable.
  */
 char **
-brk_string(char *str, int *store_argc, Boolean expand)
+brk_string(str, store_argc, expand)
+	register char *str;
+	int *store_argc;
+	Boolean expand;
 {
-	int argc, ch;
-	char inquote, *p, *start, *t;
+	register int argc, ch;
+	register char inquote, *p, *start, *t;
 	int len;
 
 	/* skip leading space chars. */
@@ -236,11 +245,7 @@ brk_string(char *str, int *store_argc, Boolean expand)
 			case 't':
 				ch = '\t';
 				break;
-			default:
-				break;
 			}
-			break;
-		default:
 			break;
 		}
 		if (!start)
@@ -261,13 +266,13 @@ done:	argv[argc] = (char *)NULL;
  * character-for-character basis with no wildcards or special characters.
  *
  * Side effects: None.
- *
- * XXX should be strstr(3).
  */
 char *
-Str_FindSubstring(char *string, char *substring)
+Str_FindSubstring(string, substring)
+	register char *string;		/* String to search. */
+	char *substring;		/* Substring to find in string */
 {
-	char *a, *b;
+	register char *a, *b;
 
 	/*
 	 * First scan quickly through the two strings looking for a single-
@@ -302,7 +307,9 @@ Str_FindSubstring(char *string, char *substring)
  * Side effects: None.
  */
 int
-Str_Match(char *string, char *pattern)
+Str_Match(string, pattern)
+	register char *string;		/* String */
+	register char *pattern;		/* Pattern */
 {
 	char c2;
 
@@ -405,7 +412,10 @@ thisCharOK:	++pattern;
  *-----------------------------------------------------------------------
  */
 char *
-Str_SYSVMatch(char *word, char *pattern, int *len)
+Str_SYSVMatch(word, pattern, len)
+    char	*word;		/* Word to examine */
+    char	*pattern;	/* Pattern to examine against */
+    int		*len;		/* Number of characters to substitute */
 {
     char *p = pattern;
     char *w = word;
@@ -468,7 +478,11 @@ Str_SYSVMatch(char *word, char *pattern, int *len)
  *-----------------------------------------------------------------------
  */
 void
-Str_SYSVSubst(Buffer buf, char *pat, char *src, int len)
+Str_SYSVSubst(buf, pat, src, len)
+    Buffer buf;
+    char *pat;
+    char *src;
+    int   len;
 {
     char *m;
 

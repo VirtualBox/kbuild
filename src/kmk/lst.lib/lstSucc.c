@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstSucc.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstSucc.c,v 1.5 1999/08/28 01:03:57 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstSucc.c,v 1.8 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstSucc.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -67,8 +66,8 @@ LstNode
 Lst_Succ (ln)
     LstNode	ln;
 {
-    if (ln == NULL) {
-	return (NULL);
+    if (ln == NILLNODE) {
+	return (NILLNODE);
     } else {
 	return ((LstNode) ((ListNode) ln)->nextPtr);
     }

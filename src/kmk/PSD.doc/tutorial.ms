@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tutorial.ms	8.1 (Berkeley) 8/18/93
-.\" $FreeBSD: src/usr.bin/make/PSD.doc/tutorial.ms,v 1.12 2002/05/16 02:19:09 trhodes Exp $
+.\" $FreeBSD: src/usr.bin/make/PSD.doc/tutorial.ms,v 1.8.2.2 2000/11/24 10:08:45 ru Exp $
 .\"
 .so stubs
 .EH 'PSD:12-%''PMake \*- A Tutorial'
@@ -602,7 +602,7 @@ likely freeze if you execute something that produces thousands of
 bytes of output (8 Kb is the limit on many UNIX systems).
 .LP
 The value of a variable may be retrieved by enclosing the variable
-name in parentheses or curly braces and preceding the whole thing
+name in parentheses or curly braces and preceeding the whole thing
 with a dollar sign.
 .LP
 For example, to set the variable CFLAGS to the string
@@ -1243,7 +1243,7 @@ and
 .B \-L )
 and various other information on how PMake was configured.
 .Ix 0 ref configuration
-.Ix 0 ref makefilesystem
+.Ix 0 ref makefile system
 .IP \fB\-i\fP
 .Ix 0 def flags -i
 If you give this flag, PMake will ignore non-zero status returned
@@ -2400,7 +2400,7 @@ flag. This variable can then be used as an argument for the compiler
 in the normal fashion. The
 .CW .h
 suffix is already marked in this way in the system makefile.
-.Ix 0 ref makefilesystem
+.Ix 0 ref makefile system
 E.g. if you have
 .DS
 \&.SUFFIXES       : .bitmap
@@ -2640,7 +2640,7 @@ character is replaced by the
 unless it is preceded by a backslash.
 You are allowed to use any character except
 colon or exclamation point to separate the two strings. This so-called
-delimiter character may be placed in either string by preceding it
+delimiter character may be placed in either string by preceeding it
 with a backslash.
 .IP T
 .Ix 0 def :T

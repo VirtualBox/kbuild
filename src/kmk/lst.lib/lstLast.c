@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstLast.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstLast.c,v 1.5 1999/08/28 01:03:55 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstLast.c,v 1.8 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstLast.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -54,7 +53,7 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstLast.c,v 1.8 2002/10/09 02:00:22
  *	Return the last node on the list l.
  *
  * Results:
- *	The requested node or NULL if the list is empty.
+ *	The requested node or NILLNODE if the list is empty.
  *
  * Side Effects:
  *	None.
@@ -66,7 +65,7 @@ Lst_Last (l)
     Lst	    l;
 {
     if (!LstValid(l) || LstIsEmpty (l)) {
-	return (NULL);
+	return (NILLNODE);
     } else {
 	return ((LstNode)((List)l)->lastPtr);
     }

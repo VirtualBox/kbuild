@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstFindFrom.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstFindFrom.c,v 1.7 1999/08/28 01:03:50 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstFindFrom.c,v 1.12 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstFindFrom.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -56,7 +55,7 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstFindFrom.c,v 1.12 2002/10/09 02:
  *	determine when it has been found.
  *
  * Results:
- *	The found node or NULL
+ *	The found node or NILLNODE
  *
  * Side Effects:
  *	None.
@@ -67,14 +66,14 @@ LstNode
 Lst_FindFrom (l, ln, d, cProc)
     Lst		      	l;
     register LstNode    ln;
-    register void * d;
-    register int	(*cProc)(void *, void *);
+    register ClientData d;
+    register int	(*cProc) __P((ClientData, ClientData));
 {
     register ListNode	tln;
     Boolean		found = FALSE;
 
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
-	return (NULL);
+	return (NILLNODE);
     }
 
     tln = (ListNode)ln;
@@ -86,12 +85,12 @@ Lst_FindFrom (l, ln, d, cProc)
 	} else {
 	    tln = tln->nextPtr;
 	}
-    } while (tln != (ListNode)ln && tln != NULL);
+    } while (tln != (ListNode)ln && tln != NilListNode);
 
     if (found) {
 	return ((LstNode)tln);
     } else {
-	return (NULL);
+	return (NILLNODE);
     }
 }
 

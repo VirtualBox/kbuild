@@ -34,12 +34,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * @(#)make.c	8.1 (Berkeley) 6/6/93
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/make.c,v 1.23 2002/10/09 03:42:10 jmallett Exp $");
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD: src/usr.bin/make/make.c,v 1.11 1999/09/11 13:08:01 hoek Exp $";
+#endif
+#endif /* not lint */
 
 /*-
  * make.c --
@@ -87,12 +91,12 @@ static int  	numNodes;   	/* Number of nodes to be processed. If this
 				 * is non-zero when Job_Empty() returns
 				 * TRUE, there's a cycle in the graph */
 
-static int MakeAddChild(void *, void *);
-static int MakeAddAllSrc(void *, void *);
-static int MakeTimeStamp(void *, void *);
-static int MakeHandleUse(void *, void *);
-static Boolean MakeStartJobs(void);
-static int MakePrintStatus(void *, void *);
+static int MakeAddChild __P((ClientData, ClientData));
+static int MakeAddAllSrc __P((ClientData, ClientData));
+static int MakeTimeStamp __P((ClientData, ClientData));
+static int MakeHandleUse __P((ClientData, ClientData));
+static Boolean MakeStartJobs __P((void));
+static int MakePrintStatus __P((ClientData, ClientData));
 /*-
  *-----------------------------------------------------------------------
  * Make_TimeStamp --
@@ -108,7 +112,9 @@ static int MakePrintStatus(void *, void *);
  *-----------------------------------------------------------------------
  */
 int
-Make_TimeStamp (GNode *pgn, GNode *cgn)
+Make_TimeStamp (pgn, cgn)
+    GNode *pgn;	/* the current parent */
+    GNode *cgn;	/* the child we've just examined */
 {
     if (cgn->mtime > pgn->cmtime) {
 	pgn->cmtime = cgn->mtime;
@@ -117,7 +123,9 @@ Make_TimeStamp (GNode *pgn, GNode *cgn)
 }
 
 static int
-MakeTimeStamp (void *pgn, void *cgn)
+MakeTimeStamp (pgn, cgn)
+    ClientData pgn;	/* the current parent */
+    ClientData cgn;	/* the child we've just examined */
 {
     return Make_TimeStamp((GNode *) pgn, (GNode *) cgn);
 }
@@ -141,7 +149,8 @@ MakeTimeStamp (void *pgn, void *cgn)
  *-----------------------------------------------------------------------
  */
 Boolean
-Make_OODate (GNode *gn)
+Make_OODate (gn)
+    register GNode *gn;	      /* the node to check */
 {
     Boolean         oodate;
 
@@ -151,10 +160,12 @@ Make_OODate (GNode *gn)
      */
     if ((gn->type & (OP_JOIN|OP_USE|OP_EXEC)) == 0) {
 	(void) Dir_MTime (gn);
-	if (gn->mtime != 0) {
-	    DEBUGF(MAKE, ("modified %s...", Targ_FmtTime(gn->mtime)));
-	} else {
-	    DEBUGF(MAKE, ("non-existent..."));
+	if (DEBUG(MAKE)) {
+	    if (gn->mtime != 0) {
+		printf ("modified %s...", Targ_FmtTime(gn->mtime));
+	    } else {
+		printf ("non-existent...");
+	    }
 	}
     }
 
@@ -177,10 +188,14 @@ Make_OODate (GNode *gn)
 	 * If the node is a USE node it is *never* out of date
 	 * no matter *what*.
 	 */
-	DEBUGF(MAKE, (".USE node..."));
+	if (DEBUG(MAKE)) {
+	    printf(".USE node...");
+	}
 	oodate = FALSE;
     } else if (gn->type & OP_LIB) {
-	DEBUGF(MAKE, ("library..."));
+	if (DEBUG(MAKE)) {
+	    printf("library...");
+	}
 
 	/*
 	 * always out of date if no children and :: target
@@ -193,19 +208,23 @@ Make_OODate (GNode *gn)
 	 * A target with the .JOIN attribute is only considered
 	 * out-of-date if any of its children was out-of-date.
 	 */
-	DEBUGF(MAKE, (".JOIN node..."));
+	if (DEBUG(MAKE)) {
+	    printf(".JOIN node...");
+	}
 	oodate = gn->childMade;
     } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
 	 * A node which is the object of the force (!) operator or which has
 	 * the .EXEC attribute is always considered out-of-date.
 	 */
-	if (gn->type & OP_FORCE) {
-	    DEBUGF(MAKE, ("! operator..."));
-	} else if (gn->type & OP_PHONY) {
-	    DEBUGF(MAKE, (".PHONY node..."));
-	} else {
-	    DEBUGF(MAKE, (".EXEC node..."));
+	if (DEBUG(MAKE)) {
+	    if (gn->type & OP_FORCE) {
+		printf("! operator...");
+	    } else if (gn->type & OP_PHONY) {
+		printf(".PHONY node...");
+	    } else {
+		printf(".EXEC node...");
+	    }
 	}
 	oodate = TRUE;
     } else if ((gn->mtime < gn->cmtime) ||
@@ -219,16 +238,27 @@ Make_OODate (GNode *gn)
 	 * :: operator is out-of-date. Why? Because that's the way Make does
 	 * it.
 	 */
-	if (gn->mtime < gn->cmtime) {
-	    DEBUGF(MAKE, ("modified before source..."));
-	} else if (gn->mtime == 0) {
-	    DEBUGF(MAKE, ("non-existent and no sources..."));
-	} else {
-	    DEBUGF(MAKE, (":: operator and no sources..."));
+	if (DEBUG(MAKE)) {
+	    if (gn->mtime < gn->cmtime) {
+		printf("modified before source...");
+	    } else if (gn->mtime == 0) {
+		printf("non-existent and no sources...");
+	    } else {
+		printf(":: operator and no sources...");
+	    }
 	}
 	oodate = TRUE;
-    } else
+    } else {
+#if 0
+	/* WHY? */
+	if (DEBUG(MAKE)) {
+	    printf("source %smade...", gn->childMade ? "" : "not ");
+	}
+	oodate = gn->childMade;
+#else
 	oodate = FALSE;
+#endif /* 0 */
+    }
 
     /*
      * If the target isn't out-of-date, the parents need to know its
@@ -238,7 +268,7 @@ Make_OODate (GNode *gn)
      * thinking they're out-of-date.
      */
     if (!oodate) {
-	Lst_ForEach (gn->parents, MakeTimeStamp, (void *)gn);
+	Lst_ForEach (gn->parents, MakeTimeStamp, (ClientData)gn);
     }
 
     return (oodate);
@@ -258,13 +288,15 @@ Make_OODate (GNode *gn)
  *-----------------------------------------------------------------------
  */
 static int
-MakeAddChild (void *gnp, void *lp)
+MakeAddChild (gnp, lp)
+    ClientData     gnp;		/* the node to add */
+    ClientData     lp;		/* the list to which to add it */
 {
     GNode          *gn = (GNode *) gnp;
     Lst            l = (Lst) lp;
 
     if (!gn->make && !(gn->type & OP_USE)) {
-	(void)Lst_EnQueue (l, (void *)gn);
+	(void)Lst_EnQueue (l, (ClientData)gn);
     }
     return (0);
 }
@@ -293,10 +325,12 @@ MakeAddChild (void *gnp, void *lp)
  *-----------------------------------------------------------------------
  */
 int
-Make_HandleUse (GNode *cgn, GNode *pgn)
+Make_HandleUse (cgn, pgn)
+    register GNode	*cgn;	/* The .USE node */
+    register GNode   	*pgn;	/* The target of the .USE node */
 {
-    GNode	*gn;	 	/* A child of the .USE node */
-    LstNode	ln;	 	/* An element in the children list */
+    register GNode	*gn; 	/* A child of the .USE node */
+    register LstNode	ln; 	/* An element in the children list */
 
     if (cgn->type & (OP_USE|OP_TRANSFORM)) {
 	if ((cgn->type & OP_USE) || Lst_IsEmpty(pgn->commands)) {
@@ -308,10 +342,10 @@ Make_HandleUse (GNode *cgn, GNode *pgn)
 	}
 
 	if (Lst_Open (cgn->children) == SUCCESS) {
-	    while ((ln = Lst_Next (cgn->children)) != NULL) {
+	    while ((ln = Lst_Next (cgn->children)) != NILLNODE) {
 		gn = (GNode *)Lst_Datum (ln);
 
-		if (Lst_Member (pgn->children, gn) == NULL) {
+		if (Lst_Member (pgn->children, gn) == NILLNODE) {
 		    (void) Lst_AtEnd (pgn->children, gn);
 		    (void) Lst_AtEnd (gn->parents, pgn);
 		    pgn->unmade += 1;
@@ -336,7 +370,9 @@ Make_HandleUse (GNode *cgn, GNode *pgn)
     return (0);
 }
 static int
-MakeHandleUse (void *pgn, void *cgn)
+MakeHandleUse (pgn, cgn)
+    ClientData pgn;	/* the current parent */
+    ClientData cgn;	/* the child we've just examined */
 {
     return Make_HandleUse((GNode *) pgn, (GNode *) cgn);
 }
@@ -367,12 +403,13 @@ MakeHandleUse (void *pgn, void *cgn)
  *-----------------------------------------------------------------------
  */
 void
-Make_Update (GNode *cgn)
+Make_Update (cgn)
+    register GNode *cgn;	/* the child node */
 {
-    GNode 	*pgn;		/* the parent node */
-    char  	*cname;		/* the child's name */
-    LstNode	ln;	 	/* Element in parents and iParents lists */
-    char	*p1;
+    register GNode 	*pgn;	/* the parent node */
+    register char  	*cname;	/* the child's name */
+    register LstNode	ln; 	/* Element in parents and iParents lists */
+    char *p1;
 
     cname = Var_Value (TARGET, cgn, &p1);
     efree(p1);
@@ -438,12 +475,14 @@ Make_Update (GNode *cgn)
 	if (noExecute || (cgn->type & OP_SAVE_CMDS) || Dir_MTime(cgn) == 0) {
 	    cgn->mtime = now;
 	}
-	DEBUGF(MAKE, ("update time: %s\n", Targ_FmtTime(cgn->mtime)));
+	if (DEBUG(MAKE)) {
+	    printf("update time: %s\n", Targ_FmtTime(cgn->mtime));
+	}
 #endif
     }
 
     if (Lst_Open (cgn->parents) == SUCCESS) {
-	while ((ln = Lst_Next (cgn->parents)) != NULL) {
+	while ((ln = Lst_Next (cgn->parents)) != NILLNODE) {
 	    pgn = (GNode *)Lst_Datum (ln);
 	    if (pgn->make) {
 		pgn->unmade -= 1;
@@ -463,7 +502,7 @@ Make_Update (GNode *cgn)
 		     * Queue the node up -- any unmade predecessors will
 		     * be dealt with in MakeStartJobs.
 		     */
-		    (void)Lst_EnQueue (toBeMade, (void *)pgn);
+		    (void)Lst_EnQueue (toBeMade, (ClientData)pgn);
 		} else if (pgn->unmade < 0) {
 		    Error ("Graph cycles through %s", pgn->name);
 		}
@@ -477,13 +516,13 @@ Make_Update (GNode *cgn)
      * it means we need to place it in the queue as it restrained itself
      * before.
      */
-    for (ln = Lst_First(cgn->successors); ln != NULL; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(cgn->successors); ln != NILLNODE; ln = Lst_Succ(ln)) {
 	GNode	*succ = (GNode *)Lst_Datum(ln);
 
 	if (succ->make && succ->unmade == 0 && succ->made == UNMADE &&
-	    Lst_Member(toBeMade, (void *)succ) == NULL)
+	    Lst_Member(toBeMade, (ClientData)succ) == NILLNODE)
 	{
-	    (void)Lst_EnQueue(toBeMade, (void *)succ);
+	    (void)Lst_EnQueue(toBeMade, (ClientData)succ);
 	}
     }
 
@@ -492,17 +531,17 @@ Make_Update (GNode *cgn)
      * of this node.
      */
     if (Lst_Open (cgn->iParents) == SUCCESS) {
-	char    *ptr;
-	char	*cpref = Var_Value(PREFIX, cgn, &ptr);
+	char    *p1;
+	char	*cpref = Var_Value(PREFIX, cgn, &p1);
 
-	while ((ln = Lst_Next (cgn->iParents)) != NULL) {
+	while ((ln = Lst_Next (cgn->iParents)) != NILLNODE) {
 	    pgn = (GNode *)Lst_Datum (ln);
 	    if (pgn->make) {
 		Var_Set (IMPSRC, cname, pgn);
 		Var_Set (PREFIX, cpref, pgn);
 	    }
 	}
-	efree(ptr);
+	efree(p1);
 	Lst_Close (cgn->iParents);
     }
 }
@@ -528,7 +567,10 @@ Make_Update (GNode *cgn)
  *-----------------------------------------------------------------------
  */
 static int
-MakeAddAllSrc (void *cgnp, void *pgnp)
+MakeAddAllSrc (cgnp, pgnp)
+    ClientData	cgnp;	/* The child to add */
+    ClientData	pgnp;	/* The parent to whose ALLSRC variable it should be */
+			/* added */
 {
     GNode	*cgn = (GNode *) cgnp;
     GNode	*pgn = (GNode *) pgnp;
@@ -598,9 +640,10 @@ MakeAddAllSrc (void *cgnp, void *pgnp)
  *-----------------------------------------------------------------------
  */
 void
-Make_DoAllVar (GNode *gn)
+Make_DoAllVar (gn)
+    GNode	*gn;
 {
-    Lst_ForEach (gn->children, MakeAddAllSrc, (void *) gn);
+    Lst_ForEach (gn->children, MakeAddAllSrc, (ClientData) gn);
 
     if (!Var_Exists (OODATE, gn)) {
 	Var_Set (OODATE, "", gn);
@@ -633,13 +676,15 @@ Make_DoAllVar (GNode *gn)
  *-----------------------------------------------------------------------
  */
 static Boolean
-MakeStartJobs (void)
+MakeStartJobs ()
 {
-    GNode	*gn;
+    register GNode	*gn;
 
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
-	DEBUGF(MAKE, ("Examining %s...", gn->name));
+	if (DEBUG(MAKE)) {
+	    printf ("Examining %s...", gn->name);
+	}
 	/*
 	 * Make sure any and all predecessors that are going to be made,
 	 * have been.
@@ -647,35 +692,41 @@ MakeStartJobs (void)
 	if (!Lst_IsEmpty(gn->preds)) {
 	    LstNode ln;
 
-	    for (ln = Lst_First(gn->preds); ln != NULL; ln = Lst_Succ(ln)){
+	    for (ln = Lst_First(gn->preds); ln != NILLNODE; ln = Lst_Succ(ln)){
 		GNode	*pgn = (GNode *)Lst_Datum(ln);
 
 		if (pgn->make && pgn->made == UNMADE) {
-		    DEBUGF(MAKE, ("predecessor %s not made yet.\n", pgn->name));
+		    if (DEBUG(MAKE)) {
+			printf("predecessor %s not made yet.\n", pgn->name);
+		    }
 		    break;
 		}
 	    }
 	    /*
-	     * If ln isn't NULL, there's a predecessor as yet unmade, so we
+	     * If ln isn't nil, there's a predecessor as yet unmade, so we
 	     * just drop this node on the floor. When the node in question
 	     * has been made, it will notice this node as being ready to
 	     * make but as yet unmade and will place the node on the queue.
 	     */
-	    if (ln != NULL) {
+	    if (ln != NILLNODE) {
 		continue;
 	    }
 	}
 
 	numNodes--;
 	if (Make_OODate (gn)) {
-	    DEBUGF(MAKE, ("out-of-date\n"));
+	    if (DEBUG(MAKE)) {
+		printf ("out-of-date\n");
+	    }
 	    if (queryFlag) {
 		return (TRUE);
 	    }
 	    Make_DoAllVar (gn);
 	    Job_Make (gn);
 	} else {
-	    DEBUGF(MAKE, ("up-to-date\n"));
+	    if (DEBUG(MAKE)) {
+		printf ("up-to-date\n");
+	    }
 	    gn->made = UPTODATE;
 	    if (gn->type & OP_JOIN) {
 		/*
@@ -698,9 +749,7 @@ MakeStartJobs (void)
  * MakePrintStatus --
  *	Print the status of a top-level node, viz. it being up-to-date
  *	already or not created due to an error in a lower level.
- *	Callback function for Make_Run via Lst_ForEach.  If gn->unmade is
- *	nonzero and that is meant to imply a cycle in the graph, then
- *	cycle is TRUE.
+ *	Callback function for Make_Run via Lst_ForEach.
  *
  * Results:
  *	Always returns 0.
@@ -711,7 +760,11 @@ MakeStartJobs (void)
  *-----------------------------------------------------------------------
  */
 static int
-MakePrintStatus(void *gnp, void *cyclep)
+MakePrintStatus(gnp, cyclep)
+    ClientData  gnp;	    /* Node to examine */
+    ClientData 	cyclep;	    /* True if gn->unmade being non-zero implies
+			     * a cycle in the graph, not an error in an
+			     * inferior */
 {
     GNode   	*gn = (GNode *) gnp;
     Boolean 	cycle = *(Boolean *) cyclep;
@@ -733,11 +786,11 @@ MakePrintStatus(void *gnp, void *cyclep)
 	    if (gn->made == CYCLE) {
 		Error("Graph cycles through `%s'", gn->name);
 		gn->made = ENDCYCLE;
-		Lst_ForEach(gn->children, MakePrintStatus, (void *) &t);
+		Lst_ForEach(gn->children, MakePrintStatus, (ClientData) &t);
 		gn->made = UNMADE;
 	    } else if (gn->made != ENDCYCLE) {
 		gn->made = CYCLE;
-		Lst_ForEach(gn->children, MakePrintStatus, (void *) &t);
+		Lst_ForEach(gn->children, MakePrintStatus, (ClientData) &t);
 	    }
 	} else {
 	    printf ("`%s' not remade because of errors.\n", gn->name);
@@ -768,10 +821,11 @@ MakePrintStatus(void *gnp, void *cyclep)
  *-----------------------------------------------------------------------
  */
 Boolean
-Make_Run (Lst targs)
+Make_Run (targs)
+    Lst             targs;	/* the initial list of targets */
 {
-    GNode	    *gn;	/* a temporary pointer */
-    Lst		    examine; 	/* List of targets to examine */
+    register GNode  *gn;	/* a temporary pointer */
+    register Lst    examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
 
     toBeMade = Lst_Init (FALSE);
@@ -798,13 +852,13 @@ Make_Run (Lst targs)
 	     * Apply any .USE rules before looking for implicit dependencies
 	     * to make sure everything has commands that should...
 	     */
-	    Lst_ForEach (gn->children, MakeHandleUse, (void *)gn);
+	    Lst_ForEach (gn->children, MakeHandleUse, (ClientData)gn);
 	    Suff_FindDeps (gn);
 
 	    if (gn->unmade != 0) {
-		Lst_ForEach (gn->children, MakeAddChild, (void *)examine);
+		Lst_ForEach (gn->children, MakeAddChild, (ClientData)examine);
 	    } else {
-		(void)Lst_EnQueue (toBeMade, (void *)gn);
+		(void)Lst_EnQueue (toBeMade, (ClientData)gn);
 	    }
 	}
     }
@@ -845,14 +899,14 @@ Make_Run (Lst targs)
 	(void)MakeStartJobs();
     }
 
-    errors = Job_Finish();
+    errors = Job_End();
 
     /*
      * Print the final status of each target. E.g. if it wasn't made
      * because some inferior reported an error.
      */
     errors = ((errors == 0) && (numNodes != 0));
-    Lst_ForEach(targs, MakePrintStatus, (void *) &errors);
+    Lst_ForEach(targs, MakePrintStatus, (ClientData) &errors);
 
     return (TRUE);
 }

@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstDupl.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstDupl.c,v 1.7 1999/08/28 01:03:49 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDupl.c,v 1.12 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstDupl.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -52,11 +51,11 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDupl.c,v 1.12 2002/10/09 02:00:2
 /*-
  *-----------------------------------------------------------------------
  * Lst_Duplicate --
- *	Duplicate an entire list. If a function to copy a void * is
+ *	Duplicate an entire list. If a function to copy a ClientData is
  *	given, the individual client elements will be duplicated as well.
  *
  * Results:
- *	The new Lst structure or NULL if failure.
+ *	The new Lst structure or NILLST if failure.
  *
  * Side Effects:
  *	A new list is created.
@@ -65,34 +64,34 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstDupl.c,v 1.12 2002/10/09 02:00:2
 Lst
 Lst_Duplicate (l, copyProc)
     Lst     	  l;	    	 /* the list to duplicate */
-    /* A function to duplicate each void * */
-    void *	  (*copyProc)(void *);
+    /* A function to duplicate each ClientData */
+    ClientData	  (*copyProc) __P((ClientData));
 {
     register Lst 	nl;
     register ListNode  	ln;
     register List 	list = (List)l;
 
     if (!LstValid (l)) {
-	return (NULL);
+	return (NILLST);
     }
 
     nl = Lst_Init (list->isCirc);
-    if (nl == NULL) {
-	return (NULL);
+    if (nl == NILLST) {
+	return (NILLST);
     }
 
     ln = list->firstPtr;
-    while (ln != NULL) {
+    while (ln != NilListNode) {
 	if (copyProc != NOCOPY) {
 	    if (Lst_AtEnd (nl, (*copyProc) (ln->datum)) == FAILURE) {
-		return (NULL);
+		return (NILLST);
 	    }
 	} else if (Lst_AtEnd (nl, ln->datum) == FAILURE) {
-	    return (NULL);
+	    return (NILLST);
 	}
 
 	if (list->isCirc && ln == list->lastPtr) {
-	    ln = NULL;
+	    ln = NilListNode;
 	} else {
 	    ln = ln->nextPtr;
 	}

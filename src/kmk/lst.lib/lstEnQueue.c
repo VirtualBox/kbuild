@@ -33,12 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)lstEnQueue.c	8.1 (Berkeley) 6/6/93
+ * $FreeBSD: src/usr.bin/make/lst.lib/lstEnQueue.c,v 1.6 1999/08/28 01:03:50 peter Exp $
  */
 
 #ifndef lint
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstEnQueue.c,v 1.9 2002/10/09 02:00:22 jmallett Exp $");
+static char sccsid[] = "@(#)lstEnQueue.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 /*-
@@ -65,7 +64,7 @@ __FBSDID("$FreeBSD: src/usr.bin/make/lst.lib/lstEnQueue.c,v 1.9 2002/10/09 02:00
 ReturnStatus
 Lst_EnQueue (l, d)
     Lst	    	  l;
-    void *	  d;
+    ClientData	  d;
 {
     if (LstValid (l) == FALSE) {
 	return (FAILURE);
