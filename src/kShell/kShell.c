@@ -1,4 +1,4 @@
-/* $Id: kShell.c 44 2003-03-28 11:22:18Z knut.osmundsen@oracle.com $
+/* $Id: kShell.c 49 2003-04-05 03:22:30Z knut.osmundsen@oracle.com $
  *
  * kShell - A mini shell.
  *
@@ -307,8 +307,8 @@ static const char *pszkshellCurDir = NULL;
 PKSHELLWORDS    kshellWordsParse(const char *pszText, int cWords, PKSHELLWORDS pPrevWords);
 void            kshellWordsDestroy(PKSHELLWORDS pWords);
 
-int             kshellSyntaxError(const char *pszCmd, const char *pszMessage);
-int             kshellError(const char *pszCmd, const char *pszMessage);
+int             kshellSyntaxError(const char *pszCmd, const char *pszMessage, ...);
+int             kshellError(const char *pszCmd, const char *pszMessage, ...);
 
 int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords);
 int             kshellCmd_copytree(const char *pszCmd, PKSHELLWORDS pWords);
@@ -648,10 +648,15 @@ void            kshellWordsDestroy(PKSHELLWORDS pWords)
  * @param   pszCmd      The command name.
  * @param   pszMessage  Message text.
  */
-int             kshellSyntaxError(const char *pszCmd, const char *pszMessage)
+int             kshellSyntaxError(const char *pszCmd, const char *pszMessage, ...)
 {
+    va_list args;
     fflush(stdout);
-    fprintf(stderr, "Syntax error while executing command '%s': %s\n", pszCmd, pszMessage);
+    fprintf(stderr, "Syntax error in '%s': ", pszCmd);
+    va_start(args, pszMessage);
+    vfprintf(stderr, pszMessage, args);
+    va_end(args);
+    fputs("\n", stderr);
     return KSHELL_ERROR_SYNTAX_ERROR;
 }
 
@@ -662,10 +667,16 @@ int             kshellSyntaxError(const char *pszCmd, const char *pszMessage)
  * @param   pszCmd      The command name.
  * @param   pszMessage  Message text.
  */
-int             kshellError(const char *pszCmd, const char *pszMessage)
+int             kshellError(const char *pszCmd, const char *pszMessage, ...)
 {
+    va_list args;
     fflush(stdout);
-    fprintf(stderr, "Error while executing command '%s': %s\n", pszCmd, pszMessage);
+
+    fprintf(stderr, "Error while '%s': ", pszCmd);
+    va_start(args, pszMessage);
+    vfprintf(stderr, pszMessage, args);
+    va_end(args);
+    fputs("\n", stderr);
     return -1;
 }
 
@@ -699,6 +710,7 @@ int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
     int     iDst = pWords->cWords - 1;  /* Last word is destination. */
     KBOOL   fDstDir = -1;
     int     iSrc;
+    int     rc;
 
     /*
      * Syntax validation.
@@ -722,7 +734,7 @@ int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
     /*
      * Copy sources to destination.
      */
-    for (iSrc = 1; iSrc < iDst && !rc; iSrc++)
+    for (iSrc = 1, rc = 0; iSrc < iDst && !rc; iSrc++)
     {
         if (pWords->aWords[iSrc].fFlags & KSWORD_FLAGS_PATTERN)
         {
@@ -745,7 +757,7 @@ int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
                 kMemCpy(pszDst, pWords->aWords[iDst].pszWord, pWords->aWords[iDst].cchWord);
                 pszDst[pWords->aWords[iDst].cchWord] = KSHELL_SLASH;
                 kMemCpy(pszDst + pWords->aWords[iDst].cchWord + 1,
-                        pWords->aWords[iSrc].pszWord
+                        pWords->aWords[iSrc].pszWord,
                         pWords->aWords[iSrc].cchWord + 1);
             }
             else
@@ -754,12 +766,13 @@ int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
             /*
              * Do the copy.
              */
+            #if 0 /* @todo implement this */
             rc = kFileCopy(pWords->aWords[iSrc].pszWord, pszDst);
+            #endif
             if (rc)
             {
                 kshellError("copy", "failed to copy '%s' to '%s' rc=%d.",
-                            pWords->aWords[iSrc].pszWord,
-                            pDst, rc);
+                            pWords->aWords[iSrc].pszWord, pszDst, rc);
             }
 
             if (fDstFree)
