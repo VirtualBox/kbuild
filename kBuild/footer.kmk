@@ -1,4 +1,4 @@
-# $Id: footer.kmk 146 2004-09-07 15:40:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 148 2004-09-07 20:16:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -111,16 +111,24 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(BUILD_TARGET)) \
 	$(TOOL) \
 	))
+	
+## Removes the drive letter from a path (if it has one)
+# @param	$1 		the path
+no-drive=$(word $(words	$(subst :, ,$(1))),$(subst :, ,$(1)))
+
+## Removes the root slash from a path (if it has one)
+# @param	$1 		the path
+no-root-slash=$(patsubst /%,%,$(1))
 
 ## Figure out where to put object files.
 # @param    $1      source file
 # @param    $2      normalized main target
-_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))
 
 ## Figure out where to put object files.
 # @param    $1      real target name.
 # @param    $2      normalized main target
-_TARGET_BASE = $(PATH_TARGET)/$(2)/$(basename $(1))
+_TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(1))))
 
 
 #
@@ -630,8 +638,6 @@ endif
 ## @todo prefix
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
-$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval libsuff     := $(firstword\
 	$($(target)_LIBSUFF.$(BUILD_TARGET))\
 	$($(target)_LIBSUFF)\
@@ -694,8 +700,6 @@ define def_program
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
-$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
 $(eval exe         := $(outbase)$(exesuff))
 
@@ -847,8 +851,6 @@ define def_dll
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
-$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
 $(eval dll         := $(outbase)$(dllsuff))
 
@@ -1014,8 +1016,6 @@ define def_sysmod
 $(eval tool        := $(call _TARGET_TOOL,$(target),LD))
 $(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
 $(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval PATH2_$(target) := $(subst :, ,$(PATH_$(target))))
-$(eval PATH2_$(target) := $(word $(words $(PATH2_$(target))),$(PATH2_$(target))))
 $(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
 $(eval sys         := $(outbase)$(syssuff))
 
