@@ -1,0 +1,6 @@
+*.gmo *.mo *.pot *.po
+
+Makefile Makefile.in Makefile.in.in
+Rules-quot
+*.sed *.sin *.header
+POTFILES
