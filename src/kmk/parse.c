@@ -2171,9 +2171,25 @@ test_char:
 		 */
 		lineno++;
 		lastc = ' ';
+#ifdef NMAKE
+                do {
+                        while ((c = ParseReadc ()) == ' ' || c == '\t') {
+        		    continue;
+        		}
+                        if (c != '#')
+                            break;
+                        /* comment - skip line */
+                        while ((c = ParseReadc ()) != '\n' && c != EOF) {
+        		    continue;
+        		}
+                        if (c == EOF)
+                            break;
+                } while (1);
+#else
 		while ((c = ParseReadc ()) == ' ' || c == '\t') {
 		    continue;
 		}
+#endif
 		if (c == EOF || c == '\n') {
 		    goto line_read;
 		} else {
@@ -2296,7 +2312,11 @@ test_char:
 	}
 	*ep = 0;
 
+#ifdef NMAKE
+	if (line[0] == '.' || line[0] == '!') {
+#else
 	if (line[0] == '.') {
+#endif
 	    /*
 	     * The line might be a conditional. Ask the conditional module
 	     * about it and act accordingly
@@ -2408,6 +2428,7 @@ Parse_File(name, stream)
 
     do {
 	while ((line = ParseReadLine ()) != NULL) {
+//debugkso: fprintf(stderr, "%s(%d): inLine=%d line=%s\n", fname, lineno, inLine, line);
 	    if (*line == '.') {
 		/*
 		 * Lines that begin with the special character are either
@@ -2449,7 +2470,7 @@ Parse_File(name, stream)
 		 * If a line starts with a tab, it can only hope to be
 		 * a creation command.
 		 */
-#ifndef POSIX
+#if !defined(POSIX) || defined(NMAKE)
 	    shellCommand:
 #endif
 		for (cp = line + 1; isspace (*cp); cp++) {
@@ -2495,7 +2516,7 @@ Parse_File(name, stream)
 		 * line's script, we assume it's actually a shell command
 		 * and add it to the current list of targets.
 		 */
-#ifndef POSIX
+#if !defined(POSIX) || defined(NMAKE)
 		Boolean	nonSpace = FALSE;
 #endif
 
@@ -2507,7 +2528,7 @@ Parse_File(name, stream)
 		    if (*cp == '\0') {
 			goto nextLine;
 		    }
-#ifndef POSIX
+#if !defined(POSIX) || defined(NMAKE)
 		    while ((*cp != ':') && (*cp != '!') && (*cp != '\0')) {
 			nonSpace = TRUE;
 			cp++;
@@ -2515,11 +2536,13 @@ Parse_File(name, stream)
 #endif
 		}
 
-#ifndef POSIX
+#if !defined(POSIX) || defined(NMAKE)
 		if (*cp == '\0') {
 		    if (inLine) {
+#ifndef NMAKE
 			Parse_Error (PARSE_WARNING,
 				     "Shell command needs a leading tab");
+#endif
 			goto shellCommand;
 		    } else if (nonSpace) {
 			Parse_Error (PARSE_FATAL, "Missing operator");
@@ -2542,7 +2565,7 @@ Parse_File(name, stream)
 		    inLine = TRUE;
 
 		    ParseDoDependency (line);
-#ifndef POSIX
+#if !defined(POSIX) || defined(NMAKE)
 		}
 #endif
 	    }

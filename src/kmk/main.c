@@ -167,7 +167,9 @@ Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
 Lst			envFirstVars;	/* (-E) vars to override from env */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
-
+#ifdef NMAKE
+static Boolean          go_to_objdir;   /* ! -o flag */
+#endif
 static void		MainParseArgs __P((int, char **));
 char *			chdir_verify_path __P((char *, char *));
 static int		ReadMakefile __P((ClientData, ClientData));
@@ -202,9 +204,17 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
+# ifdef NMAKE
+#  define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstvo"
+# else
+#  define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
+# endif
 #else
-# define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstv"
+# ifdef NMAKE
+#  define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstvo"
+# else
+#  define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstv"
+# endif
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -360,6 +370,12 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			noExecute = TRUE;
 			Var_Append(MAKEFLAGS, "-n", VAR_GLOBAL);
 			break;
+#ifdef NMAKE
+                case 'o':
+                        go_to_objdir = TRUE;
+			Var_Append(MAKEFLAGS, "-o", VAR_GLOBAL);
+                        break;
+#endif
 		case 'q':
 			queryFlag = TRUE;
 			/* Kind of nonsensical, wot? */
@@ -449,7 +465,11 @@ chdir_verify_path(path, obpath)
 	char *path;
 	char *obpath;
 {
-	struct stat sb;
+        struct stat sb;
+#ifdef NMAKE
+        if (!go_to_objdir)
+            return NULL;
+#endif
 
 	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
 		if (chdir(path)) {
@@ -678,6 +698,9 @@ main(argc, argv)
 	usePipes = TRUE;		/* Catch child output in pipes */
 	debug = 0;			/* No debug verbosity, please. */
 	jobsRunning = FALSE;
+#ifdef NMAKE
+	go_to_objdir = FALSE;
+#endif
 
 	maxLocal = DEFMAXLOCAL;		/* Set default local max concurrency */
 #ifdef REMOTE
@@ -1390,10 +1413,19 @@ eunlink(file)
 static void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
-"            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
-"            [variable=value] [target ...]");
+	(void)fprintf(stderr, "%s\n%s\n%s\n"
+#ifdef NMAKE
+"%s\n"
+#endif
+    ,
+"usage: kmk [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
+"           [-I directory] [-j max_jobs] [-m directory] [-V variable]",
+"           [variable=value] [target ...]"
+#ifdef NMAKE
+,"NMAKE compatible mode enabled."
+
+#endif
+);
 	exit(2);
 }
 

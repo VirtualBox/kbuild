@@ -182,6 +182,9 @@ static Boolean VarHead __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarTail __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSuffix __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarRoot __P((char *, Boolean, Buffer, ClientData));
+#ifdef NMAKE
+static Boolean VarBase __P((char *, Boolean, Buffer, ClientData));
+#endif
 static Boolean VarMatch __P((char *, Boolean, Buffer, ClientData));
 #ifdef SYSVVARSUB
 static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, ClientData));
@@ -794,6 +797,67 @@ VarRoot (word, addSpace, buf, dummy)
     }
     return (dummy ? TRUE : TRUE);
 }
+
+#ifdef NMAKE
+/*-
+ *-----------------------------------------------------------------------
+ * VarBase --
+ *	Remove the head and suffix of the given word and place the result
+ *	in the given buffer.
+ *
+ * Results:
+ *	TRUE if characters were added to the buffer (a space needs to be
+ *	added to the buffer before the next word).
+ *
+ * Side Effects:
+ *	The trimmed word is added to the buffer.
+ *
+ *-----------------------------------------------------------------------
+ */
+static Boolean
+VarBase (word, addSpace, buf, dummy)
+    char    	  *word;    	/* Word to trim */
+    Boolean 	  addSpace; 	/* TRUE if need to stick a space in the
+				 * buffer before adding the tail */
+    Buffer  	  buf;	    	/* Buffer in which to store it */
+    ClientData	  dummy;
+{
+    register char *slash;
+
+    if (addSpace) {
+	Buf_AddByte (buf, (Byte)' ');
+    }
+
+    slash = strrchr (word, '/');
+    if (slash != (char *)NULL) {
+	register char *dot;
+        *slash++ = '\0';
+        dot = strrchr (slash, '.');
+        if (dot)
+        {
+            *dot = '\0';
+            Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
+            *dot = '.';
+        }
+        else
+            Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
+	slash[-1] = '/';
+    } else {
+	register char *dot;
+        dot = strrchr (slash, '.');
+        if (dot)
+        {
+            *dot = '\0';
+            Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
+            *dot = '.';
+        }
+        else
+            Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
+    }
+    return (dummy ? TRUE : TRUE);
+}
+
+#endif
 
 /*-
  *-----------------------------------------------------------------------
@@ -1495,6 +1559,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
     *freePtr = FALSE;
     dynamic = FALSE;
     start = str;
+//debugkso: fprintf(stderr, "var: str=%s\n", str);
 
     if (str[1] != '(' && str[1] != '{') {
 	/*
@@ -1589,7 +1654,11 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 
 	v = VarFind (str, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if ((v == (Var *)NIL) && (ctxt != VAR_CMD) && (ctxt != VAR_GLOBAL) &&
+#ifdef NMAKE
+	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D' || str[1] == 'B' || str[1] == 'R'))
+#else
 	    (vlen == 2) && (str[1] == 'F' || str[1] == 'D'))
+#endif
 	{
 	    /*
 	     * Check for bogus D and F forms of local variables since we're
@@ -1621,11 +1690,21 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			 */
 			val = (char *)Buf_GetAll(v->val, (int *)NULL);
 
+#ifdef NMAKE
+			switch (str[1])
+                        {
+                        case 'D': val = VarModify(val, VarHead, (ClientData)0); break;
+                        case 'B': val = VarModify(val, VarBase, (ClientData)0); break;
+                        case 'R': val = VarModify(val, VarRoot, (ClientData)0); break;
+                        default:  val = VarModify(val, VarTail, (ClientData)0); break;
+			}
+#else
 			if (str[1] == 'D') {
 			    val = VarModify(val, VarHead, (ClientData)0);
 			} else {
 			    val = VarModify(val, VarTail, (ClientData)0);
 			}
+#endif
 			/*
 			 * Resulting string is dynamically allocated, so
 			 * tell caller to free it.
@@ -1642,9 +1721,15 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	}
 
 	if (v == (Var *)NIL) {
+//debugkso: fprintf(stderr, "\tv == (Var *)NIL vlen=%d str=%s\n", vlen, str);
+
 	    if (((vlen == 1) ||
 		 (((vlen == 2) && (str[1] == 'F' ||
+#ifdef NMAKE
+                                         str[1] == 'D' || str[1] == 'B' || str[1] == 'R')))) &&
+#else
 					 str[1] == 'D')))) &&
+#endif
 		((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)))
 	    {
 		/*

@@ -45,6 +45,10 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
+#ifdef NMAKE
+#define OLD_JOKE 1
+#endif
+
 #ifndef OLD_JOKE
 #define OLD_JOKE 0
 #endif /* OLD_JOKE */
@@ -1142,7 +1146,11 @@ Job_CheckCommands(gn, abortProc)
 #if OLD_JOKE
 		if (strcmp(gn->name,"love") == 0)
 		    (*abortProc)("Not war.");
-		else
+#ifdef NMAKE
+        else if (strcmp(gn->name,"fire") == 0)
+		    (*abortProc)("No match.");
+#endif
+        else
 #endif
 		    (*abortProc)("%s %s. Stop", msg, gn->name);
 		return FALSE;
