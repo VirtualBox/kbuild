@@ -989,10 +989,10 @@ JobFinish(job, status)
 	}
 	job->node->made = MADE;
 	Make_Update(job->node);
-	free((Address)job);
+	efree((Address)job);
     } else if (*status != 0) {
 	errors += 1;
-	free((Address)job);
+	efree((Address)job);
     }
 
     JobRestartJobs();
@@ -1239,7 +1239,11 @@ JobExec(job, argv)
     }
 #endif /* RMT_NO_EXEC */
 
+#ifdef __EMX__
+    if ((cpid = fork()) == -1) {
+#else
     if ((cpid = vfork()) == -1) {
+#endif
 	Punt("Cannot fork");
     } else if (cpid == 0) {
 
@@ -1878,10 +1882,10 @@ JobStart(gn, flags, previous)
 		job->node->made = MADE;
 		Make_Update(job->node);
 	    }
-	    free((Address)job);
+	    efree((Address)job);
 	    return(JOB_FINISHED);
 	} else {
-	    free((Address)job);
+	    efree((Address)job);
 	    return(JOB_ERROR);
 	}
     } else {
@@ -2147,7 +2151,7 @@ end_loop:
 		/*
 		 * There's still more in that thar buffer. This time, though,
 		 * we know there's no newline at the end, so we add one of
-		 * our own free will.
+		 * our own efree will.
 		 */
 		if (*cp != '\0') {
 		    if (job->node != lastNode) {
@@ -2210,7 +2214,7 @@ end_loop:
 		/*
 		 * There's still more in that thar buffer. This time, though,
 		 * we know there's no newline at the end, so we add one of
-		 * our own free will.
+		 * our own efree will.
 		 */
 		(void) fprintf(stdout, "%s", cp);
 		(void) fflush(stdout);
@@ -2782,10 +2786,10 @@ Job_ParseShell(line)
     }
 
     /*
-     * Do not free up the words themselves, since they might be in use by the
+     * Do not efree up the words themselves, since they might be in use by the
      * shell specification...
      */
-    free(words);
+    efree(words);
     return SUCCESS;
 }
 

@@ -44,7 +44,6 @@ static char sccsid[] = "@(#)lstConcat.c	8.1 (Berkeley) 6/6/93";
  * listConcat.c --
  *	Function to concatentate two lists.
  */
-
 #include    "lstInt.h"
 
 /*-
@@ -118,7 +117,7 @@ Lst_Concat (l1, l2, flags)
 	    list1->firstPtr->prevPtr = list1->lastPtr;
 	    list1->lastPtr->nextPtr = list1->firstPtr;
 	}
-	free ((Address)l2);
+	efree ((Address)l2);
     } else if (list2->firstPtr != NilListNode) {
 	/*
 	 * We set the nextPtr of the last element of list 2 to be nil to make

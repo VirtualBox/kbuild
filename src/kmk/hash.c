@@ -143,10 +143,10 @@ Hash_DeleteTable(t)
 	for (hp = t->bucketPtr, i = t->size; --i >= 0;) {
 		for (h = *hp++; h != NULL; h = nexth) {
 			nexth = h->next;
-			free((char *)h);
+			efree((char *)h);
 		}
 	}
-	free((char *)t->bucketPtr);
+	efree((char *)t->bucketPtr);
 
 	/*
 	 * Set up the hash table to cause memory faults on any future access
@@ -265,7 +265,7 @@ Hash_CreateEntry(t, key, newPtr)
  *
  * Hash_DeleteEntry --
  *
- * 	Delete the given hash table entry and free memory associated with
+ * 	Delete the given hash table entry and efree memory associated with
  *	it.
  *
  * Results:
@@ -290,7 +290,7 @@ Hash_DeleteEntry(t, e)
 	     (p = *hp) != NULL; hp = &p->next) {
 		if (p == e) {
 			*hp = p->next;
-			free((char *)p);
+			efree((char *)p);
 			t->numEntries--;
 			return;
 		}
@@ -419,5 +419,5 @@ RebuildTable(t)
 			*xp = e;
 		}
 	}
-	free((char *)oldhp);
+	efree((char *)oldhp);
 }

@@ -468,7 +468,7 @@ DirExpandCurly(word, brace, path, expansions)
 	    (void)Lst_AtEnd(expansions, file);
 	} else {
 	next:
-	    free(file);
+	    efree(file);
 	}
 	start = cp+1;
     }
@@ -652,7 +652,7 @@ Dir_Expand (word, path, expansions)
  *
  * Results:
  *	The path to the file or NULL. This path is guaranteed to be in a
- *	different part of memory than name and so may be safely free'd.
+ *	different part of memory than name and so may be safely efree'd.
  *
  * Side Effects:
  *	If the file is found in a directory which is not on the path
@@ -677,6 +677,12 @@ Dir_FindFile (name, path)
     Boolean	  hasSlash; /* true if 'name' contains a / */
     struct stat	  stb;	    /* Buffer for stat, if necessary */
     Hash_Entry	  *entry;   /* Entry for mtimes table */
+
+#ifdef NMAKE
+    cp = name;
+    while ((cp = strchr(cp, '\\')) != 0)
+        *cp = '/';
+#endif
 
     /*
      * Find the final component of the name and note whether it has a
@@ -862,7 +868,7 @@ Dir_FindFile (name, path)
 		nearmisses += 1;
 		return (file);
 	    } else {
-		free (file);
+		efree (file);
 	    }
 	}
 
@@ -999,7 +1005,7 @@ Dir_MTime (gn)
     } else if (stat (fullName, &stb) < 0) {
 	if (gn->type & OP_MEMBER) {
 	    if (fullName != gn->path)
-		free(fullName);
+		efree(fullName);
 	    return Arch_MemMTime (gn);
 	} else {
 	    stb.st_mtime = 0;
@@ -1186,8 +1192,8 @@ Dir_Destroy (pp)
 	(void) Lst_Remove (openDirectories, ln);
 
 	Hash_DeleteTable (&p->files);
-	free((Address)p->name);
-	free((Address)p);
+	efree((Address)p->name);
+	efree((Address)p);
     }
 }
 

@@ -136,7 +136,7 @@ typedef struct _Src {
     Suff            *suff;	/* The suffix on the file */
     struct _Src     *parent;	/* The Src for which this is a source */
     GNode           *node;	/* The node describing the file */
-    int	    	    children;	/* Count of existing children (so we don't free
+    int	    	    children;	/* Count of existing children (so we don't efree
 				 * this thing too early or never nuke it) */
 #ifdef DEBUG_SRC
     Lst		    cp;		/* Debug; children list */
@@ -358,8 +358,8 @@ SuffFree (sp)
     Lst_Destroy (s->parents, NOFREE);
     Lst_Destroy (s->searchPath, Dir_Destroy);
 
-    free ((Address)s->name);
-    free ((Address)s);
+    efree ((Address)s->name);
+    efree ((Address)s);
 }
 
 /*-
@@ -612,7 +612,7 @@ Suff_AddTransform (line)
 	/*
 	 * New specification for transformation rule. Just nuke the old list
 	 * of commands so they can be filled in again... We don't actually
-	 * free the commands themselves, because a given command can be
+	 * efree the commands themselves, because a given command can be
 	 * attached to several different transformations.
 	 */
 	gn = (GNode *) Lst_Datum (ln);
@@ -903,9 +903,9 @@ Suff_DoPaths()
     }
 
     Var_Set(".INCLUDES", ptr = Dir_MakeFlags("-I", inIncludes), VAR_GLOBAL);
-    free(ptr);
+    efree(ptr);
     Var_Set(".LIBS", ptr = Dir_MakeFlags("-L", inLibs), VAR_GLOBAL);
-    free(ptr);
+    efree(ptr);
 
     Lst_Destroy(inIncludes, Dir_Destroy);
     Lst_Destroy(inLibs, Dir_Destroy);
@@ -1079,7 +1079,7 @@ SuffAddLevel (l, targ)
  *	Ture if an src was removed
  *
  * Side Effects:
- *	The memory is free'd.
+ *	The memory is efree'd.
  *----------------------------------------------------------------------
  */
 static int
@@ -1103,9 +1103,9 @@ SuffRemoveSrc (l)
     while ((ln = Lst_Next (l)) != NILLNODE) {
 	s = (Src *) Lst_Datum (ln);
 	if (s->children == 0) {
-	    free ((Address)s->file);
+	    efree ((Address)s->file);
 	    if (!s->parent)
-		free((Address)s->pref);
+		efree((Address)s->pref);
 	    else {
 #ifdef DEBUG_SRC
 		LstNode ln = Lst_Member(s->parent->cp, (ClientData)s);
@@ -1115,11 +1115,11 @@ SuffRemoveSrc (l)
 		--s->parent->children;
 	    }
 #ifdef DEBUG_SRC
-	    printf("free: [l=%x] p=%x %d\n", l, s, s->children);
+	    printf("efree: [l=%x] p=%x %d\n", l, s, s->children);
 	    Lst_Destroy(s->cp, NOFREE);
 #endif
 	    Lst_Remove(l, ln);
-	    free ((Address)s);
+	    efree ((Address)s);
 	    t |= 1;
 	    Lst_Close(l);
 	    return TRUE;
@@ -1185,7 +1185,7 @@ SuffFindThem (srcs, slst)
 #ifdef DEBUG_SRC
 	    printf("remove %x from %x\n", s, srcs);
 #endif
-	    free(ptr);
+	    efree(ptr);
 	    break;
 	}
 
@@ -1266,7 +1266,7 @@ SuffFindCmds (targ, slst)
 		    /*
 		     * Hot Damn! Create a new Src structure to describe
 		     * this transformation (making sure to duplicate the
-		     * source node's name so Suff_FindDeps can free it
+		     * source node's name so Suff_FindDeps can efree it
 		     * again (ick)), and return the new structure.
 		     */
 		    ret = (Src *)emalloc (sizeof (Src));
@@ -1399,7 +1399,7 @@ SuffExpandChildren(cgnp, pgnp)
 			}
 
 			if (doFree) {
-			    free(junk);
+			    efree(junk);
 			}
 		    } else if (*cp == '\\' && *cp != '\0') {
 			/*
@@ -1442,7 +1442,7 @@ SuffExpandChildren(cgnp, pgnp)
 	    /*
 	     * Free the result
 	     */
-	    free((char *)cp);
+	    efree((char *)cp);
 	}
 	/*
 	 * Now the source is expanded, remove it from the list of children to
@@ -1601,7 +1601,7 @@ SuffApplyTransform(tGn, sGn, t, s)
      */
     tname = str_concat(s->name, t->name, 0);
     ln = Lst_Find(transforms, (ClientData)tname, SuffGNHasNameP);
-    free(tname);
+    efree(tname);
 
     if (ln == NILLNODE) {
 	/*
@@ -2352,7 +2352,7 @@ Suff_Init ()
  *	None
  *
  * Side Effects:
- *	The memory is free'd.
+ *	The memory is efree'd.
  *----------------------------------------------------------------------
  */
 

@@ -199,7 +199,7 @@ For_Eval (line)
 	    ADDWORD();
 	else
 	    Buf_Destroy(buf, TRUE);
-	free((Address) sub);
+	efree((Address) sub);
 
 	forBuf = Buf_Init(0);
 	forLevel++;
@@ -298,7 +298,7 @@ For_Run()
 
     Lst_ForEach(arg.lst, ForExec, (ClientData) &arg);
 
-    free((Address)arg.var);
-    Lst_Destroy(arg.lst, (void (*) __P((ClientData))) free);
+    efree((Address)arg.var);
+    Lst_Destroy(arg.lst, (void (*) __P((ClientData))) efree);
     Buf_Destroy(arg.buf, TRUE);
 }

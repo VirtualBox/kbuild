@@ -161,12 +161,12 @@ ArchFree(ap)
     for (entry = Hash_EnumFirst(&a->members, &search);
 	 entry != NULL;
 	 entry = Hash_EnumNext(&search))
-	free((Address) Hash_GetValue (entry));
+	efree((Address) Hash_GetValue (entry));
 
-    free(a->name);
+    efree(a->name);
     efree(a->fnametab);
     Hash_DeleteTable(&a->members);
-    free((Address) a);
+    efree((Address) a);
 }
 
 
@@ -225,7 +225,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    }
 
 	    if (freeIt) {
-		free(result);
+		efree(result);
 	    }
 	    cp += length-1;
 	}
@@ -267,7 +267,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		}
 
 		if (freeIt) {
-		    free(result);
+		    efree(result);
 		}
 		cp += length;
 	    } else {
@@ -333,7 +333,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		gn = Targ_FindNode(buf, TARG_CREATE);
 
 		if (gn == NILGNODE) {
-		    free(buf);
+		    efree(buf);
 		    return(FAILURE);
 		} else {
 		    gn->type |= OP_ARCHV;
@@ -341,16 +341,16 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		}
 	    } else if (Arch_ParseArchive(&sacrifice, nodeLst, ctxt)!=SUCCESS) {
 		/*
-		 * Error in nested call -- free buffer and return FAILURE
+		 * Error in nested call -- efree buffer and return FAILURE
 		 * ourselves.
 		 */
-		free(buf);
+		efree(buf);
 		return(FAILURE);
 	    }
 	    /*
 	     * Free buffer and continue with our work.
 	     */
-	    free(buf);
+	    efree(buf);
 	} else if (Dir_HasWildcards(memName)) {
 	    Lst	  members = Lst_Init(FALSE);
 	    char  *member;
@@ -366,10 +366,10 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 			nameBuf = erealloc(nameBuf, sz = nsz * 2);
 
 		snprintf(nameBuf, sz, "%s(%s)", libName, member);
-		free(member);
+		efree(member);
 		gn = Targ_FindNode (nameBuf, TARG_CREATE);
 		if (gn == NILGNODE) {
-		    free(nameBuf);
+		    efree(nameBuf);
 		    return (FAILURE);
 		} else {
 		    /*
@@ -384,13 +384,13 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 		}
 	    }
 	    Lst_Destroy(members, NOFREE);
-	    free(nameBuf);
+	    efree(nameBuf);
 	} else {
 	    size_t sz = strlen(libName) + strlen(memName) + 3;
 	    nameBuf = emalloc(sz);
 	    snprintf(nameBuf, sz, "%s(%s)", libName, memName);
 	    gn = Targ_FindNode (nameBuf, TARG_CREATE);
-	    free(nameBuf);
+	    efree(nameBuf);
 	    if (gn == NILGNODE) {
 		return (FAILURE);
 	    } else {
@@ -406,17 +406,17 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    }
 	}
 	if (doSubst) {
-	    free(memName);
+	    efree(memName);
 	}
 
 	*cp = saveChar;
     }
 
     /*
-     * If substituted libName, free it now, since we need it no longer.
+     * If substituted libName, efree it now, since we need it no longer.
      */
     if (subLibName) {
-	free(libName);
+	efree(libName);
     }
 
     /*
@@ -667,7 +667,7 @@ badarch:
     fclose (arch);
     Hash_DeleteTable (&ar->members);
     efree(ar->fnametab);
-    free ((Address)ar);
+    efree ((Address)ar);
     return (NULL);
 }
 
@@ -1128,7 +1128,7 @@ Arch_FindLib (gn, path)
 
     gn->path = Dir_FindFile (libName, path);
 
-    free (libName);
+    efree (libName);
 
 #ifdef LIBRARIES
     Var_Set (TARGET, gn->name, gn);

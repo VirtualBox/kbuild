@@ -65,6 +65,12 @@ static const char rcsid[] =
 #else
 #include    <sys/wait.h>
 #endif
+#if defined(__EMX__)
+#include <sys/process.h>
+#endif
+#if defined(OS2) && defined(__IBMC__)
+#include <process.h>
+#endif
 #include    <ctype.h>
 #include    <errno.h>
 #include    <signal.h>
@@ -133,8 +139,10 @@ CompatInterrupt (signo)
 	}
 
     }
+    #if !(defined(OS2) && defined(__IBMC__))
     if (signo == SIGQUIT)
 	exit(signo);
+    #endif
     (void) signal(signo, SIG_DFL);
     (void) kill(getpid(), signo);
 }
@@ -225,7 +233,7 @@ CompatRunCommand (cmdp, gnp)
      */
 
     if (*cmdStart == '\0') {
-	free(cmdStart);
+	efree(cmdStart);
 	Error("%s expands to empty string", cmd);
 	return(0);
     } else {
@@ -326,6 +334,9 @@ CompatRunCommand (cmdp, gnp)
     /*
      * Fork and execute the single command. If the fork fails, we abort.
      */
+#ifdef OS2 //@todo use klib later!
+    cpid = _spawnvp(P_NOWAIT, av[0], av);
+#else
     cpid = vfork();
     if (cpid < 0) {
 	Fatal("Could not fork");
@@ -342,15 +353,16 @@ CompatRunCommand (cmdp, gnp)
 	}
 	exit(1);
     }
+#endif
 
     /*
      * we need to print out the command associated with this Gnode in
      * Targ_PrintCmd from Targ_PrintGraph when debugging at level g2,
-     * in main(), Fatal() and DieHorribly(), therefore do not free it
+     * in main(), Fatal() and DieHorribly(), therefore do not efree it
      * when debugging.
      */
     if (!DEBUG(GRAPH2)) {
-	free(cmdStart);
+	efree(cmdStart);
 	Lst_Replace (cmdNode, cmdp);
     }
 
@@ -659,12 +671,16 @@ Compat_Run(targs)
     if (signal(SIGTERM, SIG_IGN) != SIG_IGN) {
 	signal(SIGTERM, CompatInterrupt);
     }
+    #if !(defined(OS2) && defined(__IBMC__))
     if (signal(SIGHUP, SIG_IGN) != SIG_IGN) {
 	signal(SIGHUP, CompatInterrupt);
     }
+    #endif
+    #if !(defined(OS2) && defined(__IBMC__))
     if (signal(SIGQUIT, SIG_IGN) != SIG_IGN) {
 	signal(SIGQUIT, CompatInterrupt);
     }
+    #endif
 
     for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
 	meta[(unsigned char) *cp] = 1;

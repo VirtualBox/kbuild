@@ -321,9 +321,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		}
 		case 'E':
-			p = malloc(strlen(optarg) + 1);
-			if (!p)
-				Punt("make: cannot allocate memory.");
+			p = emalloc(strlen(optarg) + 1);
 			(void)strcpy(p, optarg);
 			(void)Lst_AtEnd(envFirstVars, (ClientData)p);
 			Var_Append(MAKEFLAGS, "-E", VAR_GLOBAL);
@@ -844,13 +842,13 @@ main(argc, argv)
 	if (((p = Var_Value(MAKEFLAGS, VAR_GLOBAL, &p1)) != NULL) && *p)
 #ifdef POSIX
                 #ifdef USE_KLIB
-                kEnvSet("MAKEFLAGS", p);
+                kEnvSet("MAKEFLAGS", p, TRUE);
                 #else
 		setenv("MAKEFLAGS", p, 1);
                 #endif
 #else
                 #ifdef USE_KLIB
-		kEnvSet("MAKE", p);
+		kEnvSet("MAKE", p, TRUE);
                 #else
 		setenv("MAKE", p, 1);
                 #endif
@@ -886,7 +884,7 @@ main(argc, argv)
 			*cp = savec;
 			path = cp + 1;
 		} while (savec == ':');
-		(void)free((Address)vpath);
+		(void)efree((Address)vpath);
 	}
 
 	/*
@@ -907,9 +905,7 @@ main(argc, argv)
 		    ln = Lst_Succ(ln)) {
 			char *value;
 			if (expandVars) {
-				p1 = malloc(strlen((char *)Lst_Datum(ln)) + 1 + 3);
-				if (!p1)
-					Punt("make: cannot allocate memory.");
+				p1 = emalloc(strlen((char *)Lst_Datum(ln)) + 1 + 3);
 				/* This sprintf is safe, because of the malloc above */
 				(void)sprintf(p1, "${%s}", (char *)Lst_Datum(ln));
 				value = Var_Subst(NULL, p1, VAR_GLOBAL, FALSE);
@@ -919,7 +915,7 @@ main(argc, argv)
 			}
 			printf("%s\n", value ? value : "");
 			if (p1)
-				free(p1);
+				efree(p1);
 		}
 	}
 
@@ -960,7 +956,7 @@ main(argc, argv)
 	Lst_Destroy(targs, NOFREE);
 	Lst_Destroy(variables, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
-	Lst_Destroy(create, (void (*) __P((ClientData))) free);
+	Lst_Destroy(create, (void (*) __P((ClientData))) efree);
 
 	/* print the graph now it's been processed if the user requested it */
 	if (DEBUG(GRAPH2))
@@ -1092,7 +1088,11 @@ Cmd_Exec(cmd, err)
     /*
      * Fork
      */
+#ifdef __EMX__
+    switch (cpid = fork()) {
+#else
     switch (cpid = vfork()) {
+#endif
     case 0:
 	/*
 	 * Close input side of pipe
@@ -1107,7 +1107,18 @@ Cmd_Exec(cmd, err)
 	(void) dup2(fds[1], 1);
 	(void) close(fds[1]);
 
+        #ifdef OS2
+        {
+            const char *psz = getenv("COMSPEC");
+            if (!psz)
+                psz = getenv("OS2_SHELL");
+            if (!psz)
+                psz = "c:\\os2\\cmd.exe";
+	    (void) execv(psz, args);
+        }
+        #else
 	(void) execv("/bin/sh", args);
+        #endif
 	_exit(1);
 	/*NOTREACHED*/
 
@@ -1377,6 +1388,18 @@ erealloc(ptr, size)
 }
 
 /*
+ * efree --
+ *      efree, no change.
+ */
+void
+efree(ptr)
+      void *ptr;
+{
+    if (ptr)
+        free(ptr);
+}
+
+/*
  * enomem --
  *	die when out of memory.
  */
@@ -1396,7 +1419,11 @@ eunlink(file)
 {
 	struct stat st;
 
+#ifdef __EMX__
+	if (stat(file, &st) == -1)
+#else
 	if (lstat(file, &st) == -1)
+#endif
 		return -1;
 
 	if (S_ISDIR(st.st_mode)) {

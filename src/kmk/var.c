@@ -411,9 +411,9 @@ VarDelete(vp)
     ClientData vp;
 {
     Var *v = (Var *) vp;
-    free(v->name);
+    efree(v->name);
     Buf_Destroy(v->val, TRUE);
-    free((Address) v);
+    efree((Address) v);
 }
 
 
@@ -504,7 +504,7 @@ Var_Set (name, val, ctxt)
      */
     if (ctxt == VAR_CMD) {
         #ifdef USE_KLIB
-        kEnvSet(name, val);
+        kEnvSet(name, val, TRUE);
         #else
 	setenv(name, val, 1);
         #endif
@@ -592,9 +592,9 @@ Var_Exists(name, ctxt)
     if (v == (Var *)NIL) {
 	return(FALSE);
     } else if (v->flags & VAR_FROM_ENV) {
-	free(v->name);
+	efree(v->name);
 	Buf_Destroy(v->val, TRUE);
-	free((char *)v);
+	efree((char *)v);
     }
     return(TRUE);
 }
@@ -625,7 +625,7 @@ Var_Value (name, ctxt, frp)
 	char *p = ((char *)Buf_GetAll(v->val, (int *)NULL));
 	if (v->flags & VAR_FROM_ENV) {
 	    Buf_Destroy(v->val, FALSE);
-	    free((Address) v);
+	    efree((Address) v);
 	    *frp = p;
 	}
 	return p;
@@ -1167,7 +1167,7 @@ VarREError(err, pat, str)
     errbuf = emalloc(errlen);
     regerror(err, pat, errbuf, errlen);
     Error("%s: %s", str, errbuf);
-    free(errbuf);
+    efree(errbuf);
 }
 
 
@@ -1421,7 +1421,7 @@ VarGetPattern(ctxt, err, tstr, delim, flags, length, pattern)
 		    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
 		    Buf_AddBytes(buf, strlen(cp2), (Byte *) cp2);
 		    if (freeIt)
-			free(cp2);
+			efree(cp2);
 		    cp += len - 1;
 		} else {
 		    char *cp2 = &cp[1];
@@ -1534,7 +1534,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
     GNode   	  *ctxt;    	/* The context for the variable */
     Boolean 	    err;    	/* TRUE if undefined variables are an error */
     int	    	    *lengthPtr;	/* OUT: The length of the specification */
-    Boolean 	    *freePtr; 	/* OUT: TRUE if caller should free result */
+    Boolean 	    *freePtr; 	/* OUT: TRUE if caller should efree result */
 {
     register char   *tstr;    	/* Pointer into str */
     Var	    	    *v;	    	/* Variable in invocation */
@@ -1629,7 +1629,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			} else if (rval != NULL) {
 				Buf_AddBytes(buf, strlen(rval), (Byte *) rval);
 				if (rfree)
-					free(rval);
+					efree(rval);
 			}
 			tstr += rlen - 1;
 		} else
@@ -1707,7 +1707,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 #endif
 			/*
 			 * Resulting string is dynamically allocated, so
-			 * tell caller to free it.
+			 * tell caller to efree it.
 			 */
 			*freePtr = TRUE;
 			*lengthPtr = tstr-start+1;
@@ -1935,7 +1935,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 					   (ClientData)pattern);
 		    }
 		    if (copy) {
-			free(pattern);
+			efree(pattern);
 		    }
 		    break;
 		}
@@ -1989,7 +1989,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 				cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
 				Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
 				if (freeIt) {
-				    free(cp2);
+				    efree(cp2);
 				}
 				cp += len - 1;
 			    } else {
@@ -2013,7 +2013,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    if (*cp != delim) {
 			*lengthPtr = cp - start + 1;
 			if (*freePtr) {
-			    free(str);
+			    efree(str);
 			}
 			Buf_Destroy(buf, TRUE);
 			Error("Unclosed substitution for %s (%c missing)",
@@ -2060,7 +2060,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			    Buf_AddBytes(buf, strlen(cp2), (Byte *)cp2);
 			    cp += len - 1;
 			    if (freeIt) {
-				free(cp2);
+				efree(cp2);
 			    }
 			} else if (*cp == '&') {
 			    Buf_AddBytes(buf, pattern.leftLen,
@@ -2078,7 +2078,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    if (*cp != delim) {
 			*lengthPtr = cp - start + 1;
 			if (*freePtr) {
-			    free(str);
+			    efree(str);
 			}
 			Buf_Destroy(buf, TRUE);
 			Error("Unclosed substitution for %s (%c missing)",
@@ -2107,8 +2107,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    /*
 		     * Free the two strings.
 		     */
-		    free(pattern.lhs);
-		    free(pattern.rhs);
+		    efree(pattern.lhs);
+		    efree(pattern.rhs);
 		    break;
 		}
 		case 'C':
@@ -2128,7 +2128,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 			/* was: goto cleanup */
 			*lengthPtr = cp - start + 1;
 			if (*freePtr)
-			    free(str);
+			    efree(str);
 			if (delim != '\0')
 			    Error("Unclosed substitution for %s (%c missing)",
 				  v->name, delim);
@@ -2137,12 +2137,12 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 
 		    if ((pattern.replace = VarGetPattern(ctxt, err, &cp,
 			delim, NULL, NULL, NULL)) == NULL){
-			free(re);
+			efree(re);
 
 			/* was: goto cleanup */
 			*lengthPtr = cp - start + 1;
 			if (*freePtr)
-			    free(str);
+			    efree(str);
 			if (delim != '\0')
 			    Error("Unclosed substitution for %s (%c missing)",
 				  v->name, delim);
@@ -2164,11 +2164,11 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    termc = *cp;
 
 		    error = regcomp(&pattern.re, re, REG_EXTENDED);
-		    free(re);
+		    efree(re);
 		    if (error)	{
 			*lengthPtr = cp - start + 1;
 			VarREError(error, &pattern.re, "RE substitution error");
-			free(pattern.replace);
+			efree(pattern.replace);
 			return (var_Error);
 		    }
 
@@ -2182,8 +2182,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    newStr = VarModify(str, VarRESubstitute,
 				       (ClientData) &pattern);
 		    regfree(&pattern.re);
-		    free(pattern.replace);
-		    free(pattern.matches);
+		    efree(pattern.replace);
+		    efree(pattern.matches);
 		    break;
 		}
 		case 'Q':
@@ -2326,7 +2326,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    }
 
 	    if (*freePtr) {
-		free (str);
+		efree (str);
 	    }
 	    str = newStr;
 	    if (str != var_Error) {
@@ -2356,24 +2356,24 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    destroy = TRUE;
 	} else {
 	    /*
-	     * Returning the value unmodified, so tell the caller to free
+	     * Returning the value unmodified, so tell the caller to efree
 	     * the thing.
 	     */
 	    *freePtr = TRUE;
 	}
 	Buf_Destroy(v->val, destroy);
-	free((Address)v);
+	efree((Address)v);
     } else if (v->flags & VAR_JUNK) {
 	/*
-	 * Perform any free'ing needed and set *freePtr to FALSE so the caller
-	 * doesn't try to free a static pointer.
+	 * Perform any efree'ing needed and set *freePtr to FALSE so the caller
+	 * doesn't try to efree a static pointer.
 	 */
 	if (*freePtr) {
-	    free(str);
+	    efree(str);
 	}
 	*freePtr = FALSE;
 	Buf_Destroy(v->val, TRUE);
-	free((Address)v);
+	efree((Address)v);
 	if (dynamic) {
 	    str = emalloc(*lengthPtr + 1);
 	    strncpy(str, start, *lengthPtr);
@@ -2540,7 +2540,7 @@ Var_Subst (var, str, ctxt, undefErr)
 		 */
 		Buf_AddBytes (buf, strlen (val), (Byte *)val);
 		if (doFree) {
-		    free ((Address)val);
+		    efree ((Address)val);
 		}
 	    }
 	}

@@ -51,7 +51,7 @@ strdup(str)
     if (str == NULL)
 	return NULL;
     len = strlen(str) + 1;
-    if ((p = malloc(len)) == NULL)
+    if ((p = emalloc(len)) == NULL)
 	return NULL;
 
     return memcpy(p, str, len);
@@ -59,7 +59,7 @@ strdup(str)
 
 #endif
 
-#if defined(sun) || defined(__hpux) || defined(__sgi)
+#if defined(sun) || defined(__hpux) || defined(__sgi) || defined(__EMX__) || (defined(OS2) && defined(__IBMC__))
 
 int
 setenv(name, value, dum)
@@ -69,7 +69,7 @@ setenv(name, value, dum)
 {
     register char *p;
     int len = strlen(name) + strlen(value) + 2; /* = \0 */
-    char *ptr = (char*) malloc(len);
+    char *ptr = (char*) emalloc(len);
 
     (void) dum;
 
@@ -89,7 +89,7 @@ setenv(name, value, dum)
     *p = '\0';
 
     len = putenv(ptr);
-/*    free(ptr); */
+    efree(ptr);
     return len;
 }
 #endif
