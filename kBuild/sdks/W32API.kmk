@@ -1,0 +1,35 @@
+# $Id: W32API.kmk 121 2004-06-25 19:40:41Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild SDK - MinGW Windows API.
+#
+# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+SDK_W32API                  := MinGW Windows API
+PATH_SDK_W32API             ?= $(PATH_DEV)/x86.win32/w32api/v2.5
+PATH_SDK_W32API_INC         := $(PATH_SDK_W32API)/include
+PATH_SDK_W32API_LIB         := $(PATH_SDK_W32API)/lib
+
+SDK_W32API_INCS		        := $(PATH_SDK_W32API_INC) eye-catcher
+SDK_W32API_LIBPATH          := $(PATH_SDK_W32API_LIB)
+
