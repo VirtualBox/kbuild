@@ -1,4 +1,4 @@
-/* $Id: kBuilddocs.c 61 2003-12-13 23:18:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kBuilddocs.c 62 2003-12-13 23:27:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * A kBuild Documentation file with the sole purpose of giving doxygen
  * something to chew on.
@@ -215,13 +215,20 @@
  *          using it on a target scope means that specific target and nothing
  *          else.
  *
- *  <dt>.INSDIR
- *      <dd>Which subdirectory under the installation root to put the target.
- *
  *  <dt>.PUB
  *      <dd>For targets which are by default private defining this attribute
  *          cause that target to be published.
  *          Note! Same as .INS note.
+ *
+ *  <dt>.PRIVATE
+ *      <dd>For targets which are by default published and/or installed
+ *          defining this attribute will prevent the target from being
+ *          installed and publish. This attribute overrides .INS and .PUB.
+ *          Note! Same as .INS note.
+ *
+ *
+ *  <dt>.INSDIR
+ *      <dd>Which subdirectory under the installation root to put the target.
  *
  *  <dt>.PUBDIR
  *      <dd>Which subdirectory under the publish root to put the target.
@@ -244,6 +251,12 @@
  *          instance) have a default prefix. This attribute sets or overrides
  *          the prefix.
  *          Note! Same as .INS note.
+ *
+ *
+ *  <dt>.CFG
+ *      <dd>The configuration to use when building the target. It is
+ *          mandatory that this attribute is present.
+ *
  * </dl>
  *
  *
