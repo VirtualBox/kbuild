@@ -1,4 +1,4 @@
-# $Id: footer.kmk 138 2004-08-03 20:08:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 139 2004-08-17 14:40:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1184,7 +1184,7 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 # Do all the default passes if it's unspecified.
 
 #PASSES ?= needed libraries binaries others publish
-PASSES ?= libraries binaries
+PASSES ?= libraries binaries others
 
 ## Proritized list of the default makefile when walking subdirectories.
 # The user can overload this list.
