@@ -1,4 +1,4 @@
-# $Id: footer.kmk 75 2004-05-31 08:05:15Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 76 2004-05-31 08:12:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -563,7 +563,7 @@ pass_$(pass): \
 	
 endef	
 
-
+					
 ## PASS: needed
 # This pass builds targets which are required for building the rest.
 pass_needed_doit: $(_NEEDEDS)
@@ -598,6 +598,7 @@ pass_publish_doit: publish
 publish::
 pass := publish
 PASS := PUBLISH
+# $(sort).. not nice.
 SUBDIRS_PUBLISH         ?= $(sort $(SUBDIRS) $(SUBDIRS_LIBRARIES) $(SUBDIRS_BINARIES) $(SUBDIRS_OTHERS))
 SUBDIRS_AFTER_PUBLISH   ?= $(sort $(SUBDIRS_AFTER) $(SUBDIRS_AFTER_LIBRARIES) $(SUBDIRS_AFTER_BINARIES) $(SUBDIRS_AFTER_OTHERS))
 MAKEFILES_BEFORE_PUBLISH?= $(sort $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE_LIBRARIES) $(MAKEFILES_BEFORE_BINARIES) $(MAKEFILES_BEFORE_OTHERS))
