@@ -1,4 +1,4 @@
-# $Id: footer.kmk 126 2004-06-25 22:13:54Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 127 2004-06-27 21:20:37Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1002,9 +1002,7 @@ $(foreach target, $(SYSMODS), $(eval $(def_sysmod)))
 #
 # Directories.
 #
-$(warning _OUT_FILES=$(_OUT_FILES))
 _DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(dir $(_OUT_FILES) $(_OBJS))))
-$(warning _DIRFILES=$(_DIRFILES))
 
 define def_createdir
 $(dirfile):
