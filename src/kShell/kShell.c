@@ -1,4 +1,4 @@
-/* $Id: kShell.c 23 2002-11-22 04:00:46Z knut.osmundsen@oracle.com $
+/* $Id: kShell.c 44 2003-03-28 11:22:18Z knut.osmundsen@oracle.com $
  *
  * kShell - A mini shell.
  *
@@ -253,6 +253,15 @@
  */
 #define KSHELL_WILDCHAR(ch)     ( (ch) == '*' || (ch) == '?' )
 
+/**
+ * the a default kShell slash.
+ */
+#define KSHELL_SLASH            '/'
+
+/**
+ * Checks if the character is a slash or not.
+ */
+#define KSHELL_ISSLASH(ch)      ( (ch) == KSHELL_SLASH )
 
 
 /*******************************************************************************
@@ -431,7 +440,7 @@ int     kshellExecute(const char *pszCmd)
      */
     pWords = kshellWordsParse(pszCmd, 1, NULL);
     if (!pWords)
-        return KSHELL_ERROR_NOT_ENOUGHT_MEMORY;
+        return KSHELL_ERROR_NOT_ENOUGH_MEMORY;
     if (!pWords->cWords)
         return 0;
 
@@ -454,7 +463,7 @@ int     kshellExecute(const char *pszCmd)
     {
         pWords = kshellWordsParse(pszCmd, aCmds[i].cWords, pWords);
         if (!pWords)
-            return KSHELL_ERROR_NOT_ENOUGHT_MEMORY;
+            return KSHELL_ERROR_NOT_ENOUGH_MEMORY;
     }
     rc = aCmds[i].pfnCmd(pszCmd, pWords);
 
@@ -687,6 +696,77 @@ int             kshellCmd_ExecuteProgram(const char *pszCmd, PKSHELLWORDS pWords
 
 int             kshellCmd_copy(const char *pszCmd, PKSHELLWORDS pWords)
 {
+    int     iDst = pWords->cWords - 1;  /* Last word is destination. */
+    KBOOL   fDstDir = -1;
+    int     iSrc;
+
+    /*
+     * Syntax validation.
+     */
+    if (pWords->cWords < 3)
+        return kshellSyntaxError("copy", "too few arguments.");
+
+    /*
+     * Figure out if the destion is a directory or file specification.
+     */
+    if (KSHELL_ISSLASH(pWords->aWords[iDst].pszWord[pWords->aWords[iDst].cchWord - 1]))
+    {
+        fDstDir = TRUE;
+        while (KSHELL_ISSLASH(pWords->aWords[iDst].pszWord[pWords->aWords[iDst].cchWord - 1]))
+            pWords->aWords[iDst].cchWord--;
+        pWords->aWords[iDst].pszWord[pWords->aWords[iDst].cchWord] = '\0';
+    }
+    else
+        fDstDir = kDirExist(pWords->aWords[iDst].pszWord);
+
+    /*
+     * Copy sources to destination.
+     */
+    for (iSrc = 1; iSrc < iDst && !rc; iSrc++)
+    {
+        if (pWords->aWords[iSrc].fFlags & KSWORD_FLAGS_PATTERN)
+        {
+            /*
+             *
+             */
+        }
+        else
+        {   /*
+             * Construct destination name.
+             */
+            char *pszDst;
+            KBOOL fDstFree = FALSE;
+            if (fDstDir)
+            {
+                fDstFree = TRUE;
+                pszDst = malloc(pWords->aWords[iDst].cchWord + 1 + pWords->aWords[iSrc].cchWord + 1);
+                if (pszDst)
+                    return KSHELL_ERROR_NOT_ENOUGH_MEMORY;
+                kMemCpy(pszDst, pWords->aWords[iDst].pszWord, pWords->aWords[iDst].cchWord);
+                pszDst[pWords->aWords[iDst].cchWord] = KSHELL_SLASH;
+                kMemCpy(pszDst + pWords->aWords[iDst].cchWord + 1,
+                        pWords->aWords[iSrc].pszWord
+                        pWords->aWords[iSrc].cchWord + 1);
+            }
+            else
+                pszDst = pWords->aWords[iDst].pszWord;
+
+            /*
+             * Do the copy.
+             */
+            rc = kFileCopy(pWords->aWords[iSrc].pszWord, pszDst);
+            if (rc)
+            {
+                kshellError("copy", "failed to copy '%s' to '%s' rc=%d.",
+                            pWords->aWords[iSrc].pszWord,
+                            pDst, rc);
+            }
+
+            if (fDstFree)
+                free(pszDst);
+        }
+    }
+
     return -1;
 }
 
@@ -786,10 +866,10 @@ int             kshellCmd_echo(const char *pszCmd, PKSHELLWORDS pWords)
      */
     if (pWords->cWords >= 2)
     {
-        unsigned uMsgLevel = kStrToUnsigned(pWords->aWords[1].pszWord, -2);
+        unsigned uMsgLevel = kStrToUDef(pWords->aWords[1].pszWord, -2, 0);
         if (uMsgLevel != -2)
         {
-            if (uMsgLevel <= kEnvGetUnsigned("KBUILD_MSG_LEVEL", 0))
+            if (uMsgLevel <= kEnvGetUDef("KBUILD_MSG_LEVEL", 0, 0))
             {
                 /* output all the words forcing one space separation */
                 pWords = kshellWordsParse(pszCmd, -1, pWords);
