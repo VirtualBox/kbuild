@@ -1,0 +1,29 @@
+2003-10-18  Paul D. Smith  <psmith@gnu.org>
+
+	* LINGUAS: Added a new translation for Belarusian (be).
+
+2002-12-19  Paul D. Smith  <psmith@gnu.org>
+
+	* LINGUAS: Added a new translation for Ukrainian (uk).
+
+2002-10-05  Paul D. Smith  <psmith@gnu.org>
+
+	* POTFILES.in: Add variable.h as it has a translatable string.
+
+2002-08-08  Paul D. Smith  <psmith@gnu.org>
+
+	* LINGUAS: Add a new translation for Chinese (simplified) (zh_CN).
+
+2002-08-02  Paul D. Smith  <psmith@gnu.org>
+
+	* LINGUAS: Add a new translation for Swedish (sv).
+
+2002-04-21  Paul D. Smith  <psmith@gnu.org>
+
+	* LINGUAS, hr.po: Added new translation: Croatian.
+
+	* da.po, de.po, es.po, fr.po, gl.po, he.po, ja.po, ko.po, nl.po,
+	pl.po, pt_BR.po, ru.po, tr.po: Moved from i18n to here.
+	* .cvsignore: Moved from i18n to here.
+
+	* POTFILES.in, LINGUAS, Makevars: Created.
