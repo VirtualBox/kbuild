@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 134 2004-07-02 18:54:46Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 252 2005-04-20 21:05:38Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Birds key additions to Visual Slickedit.
@@ -34,6 +34,7 @@ def  'A-o'      = kkeys_duplicate_line
 def  'A-s'      = kkeys_switch_lines
 def  'A-u'      = undo_cursor           /* will cursor movement in one undo step. */
 def  'A-g'      = goto_line
+def  'A-z'      = kkeys_fullscreen
 def  'INS'      = boxer_paste
 def  'S-INS'    = insert_toggle
 def  'C-UP'     = kkeys_scroll_down
@@ -126,13 +127,6 @@ void kkeys_scroll_down()
    set_scroll_pos(p_left_edge, p_cursor_y+p_font_height);
 }
 
-
-
-
-
-/* for later, not used yet. */
-
-
 int boxer_paste()
 {
    int rc;
@@ -142,6 +136,14 @@ int boxer_paste()
    _GoToROffset(offset);
    return rc;
 }
+
+_command kkeys_fullscreen()
+{
+    fullscreen();
+}
+
+
+/* for later, not used yet. */
 
 _command boxer_select()
 {
