@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 256 2005-04-21 01:46:39Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 259 2005-04-21 16:54:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -28,11 +28,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #ifdef HAVE_FGETC_UNLOCKED 
 # define FGETC(s)   getc_unlocked(s)
 #else
 # define FGETC(s)   fgetc(s)
+#endif 
+
+#ifdef NEED_ISBLANK
+# define isblank(ch) ( (unsigned char)(ch) == ' ' || (unsigned char)(ch) == '\t' )
 #endif 
 
 
