@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 259 2005-04-21 16:54:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 260 2005-04-21 16:58:42Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -341,7 +341,7 @@ static int ParseCPrecompiler(FILE *pInput)
 
 static void usage(const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> <-e <cmdline> | - | <filename>\n", argv0);
+    printf("syntax: %s [-l=c] -o <output> -t <target> < - | <filename> | -e <cmdline> >\n", argv0);
 }
 
 int main(int argc, char *argv[])
