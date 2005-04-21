@@ -1,0 +1,33 @@
+# $Id: Makefile.kmk 258 2005-04-21 16:53:52Z knut.osmundsen@oracle.com $
+
+PROGRAMS            = kDepPre
+
+TOOL                = GCC3
+TOOL.os2            = GCC3OMF
+TOOL.win32          = VCC70
+
+CFLAGS.linux.release= -O3
+CFLAGS.os2.relase   = -O3
+CFLAGS.win32        = -ML -W3
+
+LDFLAGS.linux.release       = -s
+LDFLAGS.os2                 = -Zhigh-mem -Zstack=1024
+LDFLAGS.os2.release         = -s
+LDFLAGS.win32               = /SUBSYSTEM:console /INCREMENTAL:no /NOD
+
+LIBS.linux              = rt
+LIBS.win32              = \
+	$(PATH_DEV)/x86.win32/vcc70/lib/libc.lib \
+	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
+	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
+
+kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
+kDepPre_DEFS.win32      = NEED_ISBLANK=1
+kDepPre_SOURCES         = kDepPre.c
+
+
+DEPTH = ../..
+include $(PATH_KBUILD)/rules.kmk
+
