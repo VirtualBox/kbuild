@@ -1,4 +1,4 @@
-# $Id: header.kmk 245 2005-03-31 21:24:39Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 262 2005-04-21 17:05:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -254,11 +254,7 @@ endif
 # Standard kBuild tools.
 #
 DEP                 := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
-ifdef KBUILD_VCC70_DEPS
-DEP_CCXX            := $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
-else
-DEP_CCXX            := echo $(PATH_TOOLS)/kDepCCxx$(HOSTSUFF_EXE)
-endif
+DEP_PRE             := $(PATH_TOOLS)/kDepPre$(HOSTSUFF_EXE)
 ifeq ($(MAKE),kmk)
 MAKE                := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
 endif
