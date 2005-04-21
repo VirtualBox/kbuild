@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 255 2005-04-21 01:38:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 256 2005-04-21 01:46:39Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -28,7 +28,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-        
+
+#ifdef HAVE_FGETC_UNLOCKED 
+# define FGETC(s)   getc_unlocked(s)
+#else
+# define FGETC(s)   fgetc(s)
+#endif 
+
+
+
 
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
@@ -151,9 +159,6 @@ static PDEP depAdd(const char *pszFilename, size_t cchFilename)
     }
     return pDep;
 }
-
-
-#define FGETC(s) fgetc(s)
 
 
 /**
