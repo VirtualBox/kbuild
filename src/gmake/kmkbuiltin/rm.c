@@ -57,6 +57,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifdef __EMX__
+#undef S_IFWHT
+#endif
 #ifndef S_IFWHT
 #define S_IFWHT 0
 #define S_ISWHT(s) 0
@@ -142,9 +145,11 @@ kmk_builtin_rm(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+#ifdef FTS_WHITEOUT
 		case 'W':
 			Wflag = 1;
 			break;
+#endif
 		default:
 			return usage();
 		}
@@ -196,8 +201,10 @@ rm_tree(char **argv)
 	flags = FTS_PHYSICAL;
 	if (!needstat)
 		flags |= FTS_NOSTAT;
+#ifdef FTS_WHITEOUT
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
+#endif
 	if (!(fts = fts_open(argv, flags, NULL)))
 		err(1, "fts_open");
 	while ((p = fts_read(fts)) != NULL) {
@@ -277,6 +284,7 @@ rm_tree(char **argv)
 				}
 				break;
 
+#ifdef FTS_W
 			case FTS_W:
 				rval = undelete(p->fts_accpath);
 				if (rval == 0 && (fflag && errno == ENOENT)) {
@@ -286,6 +294,7 @@ rm_tree(char **argv)
 					continue;
 				}
 				break;
+#endif
 
 			case FTS_NS:
 				/*
@@ -332,19 +341,25 @@ rm_file(char **argv)
 	while ((f = *argv++) != NULL) {
 		/* Assume if can't stat the file, can't unlink it. */
 		if (lstat(f, &sb)) {
+#ifdef FTS_WHITEOUT
 			if (Wflag) {
 				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
 			} else {
+#else
+			{
+#endif
 				if (!fflag || errno != ENOENT) {
 					fprintf(stderr, "%s: %s: %s\n", argv0, f, strerror(errno));
 					eval = 1;
 				}
 				continue;
 			}
+#ifdef FTS_WHITEOUT
 		} else if (Wflag) {
 			fprintf(stderr, "%s: %s: %s\n", argv0, f, strerror(EEXIST));
 			eval = 1;
 			continue;
+#endif
 		}
 
 		if (S_ISDIR(sb.st_mode) && !dflag) {
