@@ -1,5 +1,11 @@
-/* $Id: ChangeLog 13 2002-10-15 21:25:51Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 273 2005-05-06 04:08:00Z knut.osmundsen@oracle.com $ */
 
+2005-05-06: bird
+    - ALL:
+        o Working on the build system of the build system. :-)
+        o Ported the kmkbuiltin stuff to OS/2 as a prep to the win32 effort.
+
+[missing a lot!]
 
 2002-10-15: bird
     - ALL:
