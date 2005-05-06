@@ -1,33 +1,39 @@
-# $Id: Makefile.kmk 258 2005-04-21 16:53:52Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 270 2005-05-06 03:48:56Z knut.osmundsen@oracle.com $
+## @file
+#
+# kDepPre - Precompiler base dependency generator.
+#
+# Copyright (c) 2005 knut st. osmundsen <bird@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
 
-PROGRAMS            = kDepPre
+PROGRAMS += kDepPre
 
-TOOL                = GCC3
-TOOL.os2            = GCC3OMF
-TOOL.win32          = VCC70
-
-CFLAGS.linux.release= -O3
-CFLAGS.os2.relase   = -O3
-CFLAGS.win32        = -ML -W3
-
-LDFLAGS.linux.release       = -s
-LDFLAGS.os2                 = -Zhigh-mem -Zstack=1024
-LDFLAGS.os2.release         = -s
-LDFLAGS.win32               = /SUBSYSTEM:console /INCREMENTAL:no /NOD
-
-LIBS.linux              = rt
-LIBS.win32              = \
-	$(PATH_DEV)/x86.win32/vcc70/lib/libc.lib \
-	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
-
+kDepPre_TEMPLATE        = BIN
 kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
 kDepPre_DEFS.win32      = NEED_ISBLANK=1
-kDepPre_SOURCES         = kDepPre.c
+kDepPre_SOURCES         = $(PATH_CURRENT)/kDepPre.c
 
 
+ifndef DEPTH # Experiment in including stuff from the top level make.
 DEPTH = ../..
 include $(PATH_KBUILD)/rules.kmk
+endif
 
