@@ -1,4 +1,4 @@
-# $Id: footer.kmk 274 2005-05-06 10:50:31Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 275 2005-05-06 11:05:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -815,18 +815,18 @@ $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
 # installing
 ifdef $(target)_INST
-ifndef KBUILD_NEW_STUFF
+#ifndef KBUILD_NEW_STUFF
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
-else
+#else
 #$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
 #	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
 #$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
 #	$(RM) -f $$@
 #	$(CP) $(exe) $$@
-endif	
+#endif	
 
 _BLDPROGS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -896,18 +896,18 @@ $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
 # installing
 ifndef $(target)_NOINST
-ifndef KBUILD_NEW_STUFF
+#ifndef KBUILD_NEW_STUFF
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(RM) -f $(publib)
 	$(CP) $(lib) $(publib)
-else
+#else
 #$(eval publib := $(patsubst %/,%/$(notdir $(lib)), \
 #	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_LIB)/)))
 #$(publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
 #	$(RM) -f $$@
 #	$(CP) $(lib) $$@
-endif	
+#endif	
 	
 _LIBS      += $(publib)
 _OUT_FILES += $(lib) $(publib)
@@ -1078,18 +1078,18 @@ $(eval $(TOOL_$(tool)_LINK_DLL))
 
 # installing
 ifndef $(target)_NOINST
-ifndef KBUILD_NEW_STUFF
+#ifndef KBUILD_NEW_STUFF
 $(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(RM) -f $(pubdll)
 	$(CP) $(dll) $(pubdll)
-else
+#else
 #$(eval pubdll := $(patsubst %/,%/$(notdir $(dll)), \
 #	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_DLL)/)))
 #$(pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
 #	$(RM) -f $$@
 #	$(CP) $(dll) $$@
-endif	
+#endif	
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
 _DLLS      += $(pubdll)
@@ -1261,18 +1261,18 @@ $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
 # installing
 ifndef $(target)_NOINST
-ifndef KBUILD_NEW_STUFF
+#ifndef KBUILD_NEW_STUFF
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
-else
+#else
 #$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
 #	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
 #$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
 #	$(RM) -f $$@
 #	$(CP) $(exe) $$@
-endif	
+#endif	
 
 _PROGRAMS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -1442,18 +1442,18 @@ $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
 # installing
 ifndef $(target)_NOINST
-ifndef KBUILD_NEW_STUFF
+#ifndef KBUILD_NEW_STUFF
 $(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
 $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 	$(RM) -f $(pubsys)
 	$(CP) $(sys) $(pubsys)
-else
+#else
 #$(eval pubsys := $(patsubst %/,%/$(notdir $(sys)), \
 #	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_SYS)/)))
 #$(pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
 #	$(RM) -f $$@
 #	$(CP) $(sys) $$@
-endif	
+#endif	
 
 $(eval _SYSMODS += $(pubsys))
 $(eval _OUT_FILES += $(sys) $(pubsys))
