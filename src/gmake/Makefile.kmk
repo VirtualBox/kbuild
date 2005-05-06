@@ -1,38 +1,14 @@
-# $Id: Makefile.kmk 228 2005-02-09 11:30:52Z knut.osmundsen@oracle.com $
-export KBUILD_VCC70_DEPS = 1
+# $Id: Makefile.kmk 268 2005-05-06 03:48:04Z knut.osmundsen@oracle.com $
 
-PROGRAMS            = kmk
-PROGRAMS           += echo mkdir rm
 
-TOOL                = GCC3
-TOOL.os2            = GCC3OMF
-TOOL.win32          = VCC70
+#
+# kmk
+#
+PROGRAMS           += kmk
 
-CFLAGS.linux.release= -O3
-CFLAGS.os2.relase   = -O3
-CFLAGS.win32        = -MT -W3
-
-LDFLAGS.linux.release       = -s
-LDFLAGS.os2                 = -Zhigh-mem -Zstack=1024
-LDFLAGS.os2.release         = -s
-LDFLAGS.win32               = /SUBSYSTEM:console /INCREMENTAL:no /NOD
-
-LIBS.linux              = rt
-LIBS.win32              = \
-	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
-	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
-
+kmk_TEMPLATE        = BIN
 kmk_DEPS            = $(PATH_TARGET)/config.h
-
 kmk_INCS            = $(PATH_TARGET) .
-kmk_INCS.win32      = \
-	w32/include \
-	glob \
-	$(PATH_DEV)/x86.win32/vcc70/include \
-	$(PATH_DEV)/x86.win32/sdk200209/include
 
 kmk_DEFS            = \
 	HAVE_CONFIG_H \
@@ -42,8 +18,6 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
 	CONFIG_WITH_KMK_BUILTIN
-kmk_DEFS.win32          = WINDOWS32 _CONSOLE WIN32
-kmk_DEFS.win32.release  = NDEBUG
 	
 kmk_SOURCES         = \
 	main.c \
@@ -66,11 +40,15 @@ kmk_SOURCES         = \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c \
+	remote-stub.c
+
+kmk_SOURCES        += \
 	kmkbuiltin.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/rm.c \
+	kmkbuiltin/cp.c \
+	kmkbuiltin/cp_utils.c \
 	\
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c
@@ -91,17 +69,30 @@ kmk_SOURCES.win32 = \
 	w32/compat/dirent.c \
 	w32/pathstuff.c
 
-#MAKE_DLLSHELL
 
+#
+# Standalone kmkbuiltin commands.
+#
+PROGRAMS += cp echo mkdir rm
+
+cp_TEMPLATE = BIN
+cp_DEFS = kmk_builtin_cp=main
+cp_SOURCES = \
+	kmkbuiltin/cp.c \
+	kmkbuiltin/cp_utils.c
+
+echo_TEMPLATE = BIN
 echo_DEFS = kmk_builtin_echo=main
 echo_SOURCES = \
 	kmkbuiltin/echo.c
 
+mkdir_TEMPLATE = BIN
 mkdir_DEFS = kmk_builtin_mkdir=main
 mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/setmode.c
 
+rm_TEMPLATE = BIN
 rm_DEFS = kmk_builtin_rm=main
 rm_SOURCES = \
 	kmkbuiltin/rm.c \
@@ -109,13 +100,20 @@ rm_SOURCES = \
 	kmkbuiltin/strmode.c
 
 
-
 DEPTH = ../..
 include $(PATH_KBUILD)/rules.kmk
 
+			
+#
+# Use checked in config.h instead of running ./Configure for it.
+#			
 $(PATH_TARGET)/config.h: config.h.$(BUILD_TARGET)
 	$(CP) $^ $@
 
+
+#
+# Some tests.
+#
 parallel: parallel_1 parallel_2 parallel_3 parallel_4 parallel_5
 parallel_1 parallel_2 parallel_3 parallel_4 parallel_5:
 	echo $@_start ; sleep 1; echo $@_done
