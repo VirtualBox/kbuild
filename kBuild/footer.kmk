@@ -1,4 +1,4 @@
-# $Id: footer.kmk 272 2005-05-06 04:05:32Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 274 2005-05-06 10:50:31Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -821,11 +821,11 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
 else
-$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
-$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
-	$(RM) -f $$@
-	$(CP) $(exe) $$@
+#$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
+#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
+#$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
+#	$(RM) -f $$@
+#	$(CP) $(exe) $$@
 endif	
 
 _BLDPROGS  += $(pubexe)
@@ -902,11 +902,11 @@ $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(RM) -f $(publib)
 	$(CP) $(lib) $(publib)
 else
-$(eval publib := $(patsubst %/,%/$(notdir $(lib)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_LIB)/)))
-$(publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
-	$(RM) -f $$@
-	$(CP) $(lib) $$@
+#$(eval publib := $(patsubst %/,%/$(notdir $(lib)), \
+#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_LIB)/)))
+#$(publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
+#	$(RM) -f $$@
+#	$(CP) $(lib) $$@
 endif	
 	
 _LIBS      += $(publib)
@@ -1084,11 +1084,11 @@ $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(RM) -f $(pubdll)
 	$(CP) $(dll) $(pubdll)
 else
-$(eval pubdll := $(patsubst %/,%/$(notdir $(dll)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_DLL)/)))
-$(pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
-	$(RM) -f $$@
-	$(CP) $(dll) $$@
+#$(eval pubdll := $(patsubst %/,%/$(notdir $(dll)), \
+#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_DLL)/)))
+#$(pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
+#	$(RM) -f $$@
+#	$(CP) $(dll) $$@
 endif	
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
@@ -1267,11 +1267,11 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
 else
-$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
-$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
-	$(RM) -f $$@
-	$(CP) $(exe) $$@
+#$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
+#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
+#$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
+#	$(RM) -f $$@
+#	$(CP) $(exe) $$@
 endif	
 
 _PROGRAMS  += $(pubexe)
@@ -1448,11 +1448,11 @@ $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 	$(RM) -f $(pubsys)
 	$(CP) $(sys) $(pubsys)
 else
-$(eval pubsys := $(patsubst %/,%/$(notdir $(sys)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_SYS)/)))
-$(pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
-	$(RM) -f $$@
-	$(CP) $(sys) $$@
+#$(eval pubsys := $(patsubst %/,%/$(notdir $(sys)), \
+#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_SYS)/)))
+#$(pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
+#	$(RM) -f $$@
+#	$(CP) $(sys) $$@
 endif	
 
 $(eval _SYSMODS += $(pubsys))
