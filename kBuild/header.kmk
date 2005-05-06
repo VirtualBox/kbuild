@@ -1,4 +1,4 @@
-# $Id: header.kmk 266 2005-05-01 04:33:30Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 271 2005-05-06 03:50:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -73,9 +73,9 @@ endif
 # Assert build platform.
 #
 _BUILD_PLATFORM_OK  := 0
-# OS/2
+# OS/2 (have uppercase legacy)
 ifeq ($(BUILD_PLATFORM),OS2)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
+override BUILD_PLATFORM := os2
 endif
 ifeq ($(BUILD_PLATFORM),os2)
 _BUILD_PLATFORM_OK  := 1
@@ -175,10 +175,18 @@ PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TYPE)
 endif
 endif
 PATH_OBJ            := $(PATH_OUT)/obj
+PATH_TARGET         := $(PATH_OBJ)/$(CURSUBDIR)
+ifndef KBUILD_NEW_STUFF
 PATH_BIN            := $(PATH_OUT)/bin
 PATH_LIB            := $(PATH_OUT)/lib
 PATH_DOC            := $(PATH_ROOT)/out/doc
-PATH_TARGET         := $(PATH_OBJ)/$(CURSUBDIR)
+else
+PATH_INS            := $(PATH_OUT)
+PATH_BIN            := $(PATH_INS)/bin
+PATH_DLL            := $(PATH_INS)/bin
+PATH_LIB            := $(PATH_INS)/lib
+PATH_DOC            := $(PATH_INS)/doc
+endif
 
 # Usually kBuild is external to the source tree.
 ifndef PATH_KBUILD
