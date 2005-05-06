@@ -1,4 +1,4 @@
-# $Id: footer.kmk 251 2005-04-12 17:06:17Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 272 2005-05-06 04:05:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -258,7 +258,7 @@ endef
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
-$$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL\
+$$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL INST NOINST\
 	,$$(eval $$(def_inherit_template_one)))
 $$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS LDFLAGS LIBS LIBPATH \
 	        BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
@@ -812,12 +812,21 @@ $$(warning kBuild: tools: \
 endif
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
-# publish rule (still need work)
+
+# installing
 ifdef $(target)_INST
+ifndef KBUILD_NEW_STUFF
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
+else
+$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
+$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
+	$(RM) -f $$@
+	$(CP) $(exe) $$@
+endif	
 
 _BLDPROGS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -885,12 +894,20 @@ $(eval deps        := $($(target)_DEPS))
 
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
-# publish rule (still need work)
+# installing
 ifndef $(target)_NOINST
+ifndef KBUILD_NEW_STUFF
 $(eval publib := $(PATH_LIB)/$(notdir $(lib)))
 $(publib) : $(lib) $(dir $(publib)).dir_created
 	$(RM) -f $(publib)
 	$(CP) $(lib) $(publib)
+else
+$(eval publib := $(patsubst %/,%/$(notdir $(lib)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_LIB)/)))
+$(publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
+	$(RM) -f $$@
+	$(CP) $(lib) $$@
+endif	
 	
 _LIBS      += $(publib)
 _OUT_FILES += $(lib) $(publib)
@@ -1059,12 +1076,20 @@ endif
 $(eval $(TOOL_$(tool)_LINK_DLL))
 
 
-# publish rule (still need work)
+# installing
 ifndef $(target)_NOINST
+ifndef KBUILD_NEW_STUFF
 $(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
 $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 	$(RM) -f $(pubdll)
 	$(CP) $(dll) $(pubdll)
+else
+$(eval pubdll := $(patsubst %/,%/$(notdir $(dll)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_DLL)/)))
+$(pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
+	$(RM) -f $$@
+	$(CP) $(dll) $$@
+endif	
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
 _DLLS      += $(pubdll)
@@ -1094,7 +1119,7 @@ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(def_dl
 endif
 $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval _IMPORT_LIBS += $(firstword $(TARGET_PUB_$(target)) $(TARGET_$(target)))))
 
-    
+
 
 #
 # PROGRAMS
@@ -1233,12 +1258,21 @@ $(eval custom_post    := $(strip $(firstword
 $(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
 
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
-# publish rule (still need work)
+
+# installing
 ifndef $(target)_NOINST
+ifndef KBUILD_NEW_STUFF
 $(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
 $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 	$(RM) -f $(pubexe)
 	$(CP) $(exe) $(pubexe)
+else
+$(eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
+$(pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
+	$(RM) -f $$@
+	$(CP) $(exe) $$@
+endif	
 
 _PROGRAMS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -1406,12 +1440,20 @@ endif
 
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
-# publish rule (still need work)
+# installing
 ifndef $(target)_NOINST
+ifndef KBUILD_NEW_STUFF
 $(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
 $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 	$(RM) -f $(pubsys)
 	$(CP) $(sys) $(pubsys)
+else
+$(eval pubsys := $(patsubst %/,%/$(notdir $(sys)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_SYS)/)))
+$(pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
+	$(RM) -f $$@
+	$(CP) $(sys) $$@
+endif	
 
 $(eval _SYSMODS += $(pubsys))
 $(eval _OUT_FILES += $(sys) $(pubsys))
@@ -1517,7 +1559,7 @@ $(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD
 
 .NOTPARALLEL: pass_$(pass)_before pass_$(pass)_after
 .PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
-pass_$(pass)_this:      pass_$(pass)_before 
+pass_$(pass)_this:      pass_$(pass)_before
 	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
 pass_$(pass)_after::    pass_$(pass)_this
 pass_$(pass):           pass_$(pass)_after
@@ -1616,7 +1658,7 @@ endef
 pass_prev :=
 $(foreach pass,$(PASSES),$(eval $(def_pass_order)))
 
-     
+
 #
 # THE MAIN RULES
 #
