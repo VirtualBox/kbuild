@@ -1,20 +1,42 @@
 GNU make NEWS                                               -*-indented-text-*-
   History of user-visible changes.
-  06 March 2004
+  13 May 2005
 
-Copyright (C) 2002,2003,2004  Free Software Foundation, Inc.
+Copyright (C) 2002,2003,2004,2005  Free Software Foundation, Inc.
 See the end for copying conditions.
 
 All changes mentioned here are more fully described in the GNU make
 manual, which is contained in this distribution as the file doc/make.texi.
-
-Please send GNU make bug reports to <bug-make@gnu.org>.
-See the README file and the GNU make manual for details on reporting bugs.
+See the README file and the GNU make manual for instructions for
+reporting bugs.
 
-Version 3.81beta1
+Version 3.81beta3
 
 * GNU make is ported to OS/2.
-  Port provided by Andreas Buening <andreas.buening@nexgo.de>.
+
+* GNU make is ported to MinGW.
+
+* WARNING: Backward-incompatibility!
+  GNU make now implements a generic "second expansion" feature on the
+  prerequisites of both explicit and implicit (pattern) rules.  After
+  all rules have been parsed the prerequisites are expanded again, this
+  time with all the automatic variables in scope.  This means that in
+  addition to using standard SysV $$@ in prerequisites lists, you can
+  also use complex functions such as $$(notdir $$@) etc.  This behavior
+  applies to implicit rules, as well, where the second expansion occurs
+  after the rule is matched.  However, this means that you need to
+  double-quote any "$" in your filenames; instead of "foo: boo$$bar" you
+  must write "foo: foo$$$$bar"
+
+* New command-line option: -L (--check-symlink-times).  On systems that
+  support symbolic links, if this option is given then GNU make will
+  use the most recent modification time of any symbolic links that are
+  used to resolve target files.  The default behavior remains as it
+  always has: use the modification time of the actual target file only.
+
+* The "else" conditional line can now be followed by any other legal
+  conditional on the same line: this does not increase the depth of the
+  conditional nesting.
 
 * All pattern-specific variables that match a given target are now used
   (previously only the first match was used).
@@ -28,14 +50,47 @@ Version 3.81beta1
 * Implemented a solution for the "thundering herd" problem with "-j -l".
   This version of GNU make uses an algorithm suggested by Thomas Riedl
   <thomas.riedl@siemens.com> to track the number of jobs started in the
-  last second and adjust GNU make's view of the system's load average
-  accordingly.
+  last second and artificially adjust GNU make's view of the system's
+  load average accordingly.
 
-* Enhancements for POSIX compatibility:
+* New special variables available in this release:
+   - .FEATURES: Contains a list of special features available in this
+     version of GNU make.
+   - .DEFAULT_GOAL: Set the name of the default goal make will
+     use if no goals are provided on the command line.
+   - New automatic variable: $| (added in 3.80, actually): contains all
+     the order-only prerequisites defined for the target.
+
+* New functions available in this release:
+   - $(lastword ...) returns the last word in the list.  This gives
+     identical results as $(word $(words ...) ...), but is much faster.
+   - $(abspath ...) returns the absolute path (all "." and ".."
+     directories resolved, and any duplicate "/" characters removed) for
+     each path provided.
+   - $(realpath ...) returns the canonical pathname for each path
+     provided.  The canonical pathname is the absolute pathname, with
+     all symbolic links resolved as well.
+   - $(info ...) prints informative messages to stdout.  No makefile
+     name or line number info, etc. is printed, just the message.
+
+* Changes made for POSIX compatibility:
    - Only touch targets (under -t) if they have at least one command.
+   - Setting the SHELL make variable does NOT change the value of the
+     SHELL environment variable given to programs invoked by make.  As
+     an enhancement to POSIX, if you export the make variable SHELL then
+     it will be set in the environment, just as before.
+
+* On DOS and MS Windows systems, explicitly setting SHELL to a pathname
+  ending in "cmd" or "cmd.exe" (case-insensitive) will force GNU make to
+  use the DOS command interpreter in batch mode even if a UNIX-like
+  shell could be found on the system.
 
 * Updated to autoconf 2.59, automake 1.8.2, and gettext 0.14.1.  Users
   should not be impacted.
+
+* New translations for Swedish, Chinese (simplified), Ukrainian,
+  Belarusian, Finnish, Kinyarwandan, and Irish.  Many updated
+  translations.
 
 
 Version 3.80

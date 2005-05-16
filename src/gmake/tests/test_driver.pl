@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 # -*-perl-*-
 
 # Modification history:
@@ -11,6 +11,26 @@
 
 # this routine controls the whole mess; each test suite sets up a few
 # variables and then calls &toplevel, which does all the real work.
+
+# $Id: test_driver.pl,v 1.14 2005/02/28 07:48:23 psmith Exp $
+
+
+# The number of test categories we've run
+$categories_run = 0;
+# The number of test categroies that have passed
+$categories_passed = 0;
+# The total number of individual tests that have been run
+$total_tests_run = 0;
+# The total number of individual tests that have passed
+$total_tests_passed = 0;
+# The number of tests in this category that have been run
+$tests_run = 0;
+# The number of tests in this category that have passed
+$tests_passed = 0;
+
+
+# Yeesh.  This whole test environment is such a hack!
+$test_passed = 1;
 
 sub toplevel
 {
@@ -150,17 +170,24 @@ sub toplevel
 
   $| = 1;
 
-  if ($num_failed)
+  $categories_failed = $categories_run - $categories_passed;
+  $total_tests_failed = $total_tests_run - $total_tests_passed;
+
+  if ($total_tests_failed)
   {
-    print "\n$num_failed Test";
-    print "s" unless $num_failed == 1;
+    print "\n$total_tests_failed Test";
+    print "s" unless $total_tests_failed == 1;
+    print " in $categories_failed Categor";
+    print ($categories_failed == 1 ? "y" : "ies");
     print " Failed (See .$diffext files in $workdir dir for details) :-(\n\n";
     return 0;
   }
   else
   {
-    print "\n$counter Test";
-    print "s" unless $counter == 1;
+    print "\n$total_tests_passed Test";
+    print "s" unless $total_tests_passed == 1;
+    print " in $categories_passed Categor";
+    print ($categories_passed == 1 ? "y" : "ies");
     print " Complete ... No Failures :-)\n\n";
     return 1;
   }
@@ -348,16 +375,17 @@ sub print_banner
 
 sub run_each_test
 {
-  $counter = 0;
+  $categories_run = 0;
 
   foreach $testname (sort @TESTS)
   {
-    $counter++;
-    $test_passed = 1;       # reset by test on failure
+    ++$categories_run;
+    $suite_passed = 1;       # reset by test on failure
     $num_of_logfiles = 0;
     $num_of_tmpfiles = 0;
     $description = "";
     $details = "";
+    $old_makefile = undef;
     $testname =~ s/^$scriptpath$pathsep//;
     $perl_testname = "$scriptpath$pathsep$testname";
     $testname =~ s/(\.pl|\.perl)$//;
@@ -390,11 +418,17 @@ sub run_each_test
     print $output;
 
     # Run the actual test!
-    #
+    $tests_run = 0;
+    $tests_passed = 0;
     $code = do $perl_testname;
+
+    $total_tests_run += $tests_run;
+    $total_tests_passed += $tests_passed;
+
+    # How did it go?
     if (!defined($code))
     {
-      $test_passed = 0;
+      $suite_passed = 0;
       if (length ($@))
       {
         warn "\n*** Test died ($testname): $@\n";
@@ -405,33 +439,33 @@ sub run_each_test
       }
     }
     elsif ($code == -1) {
-      $test_passed = 0;
+      $suite_passed = 0;
     }
     elsif ($code != 1 && $code != -1) {
-      $test_passed = 0;
+      $suite_passed = 0;
       warn "\n*** Test returned $code\n";
     }
 
-    if ($test_passed) {
-      $status = "ok";
+    if ($suite_passed) {
+      ++$categories_passed;
+      $status = "ok     ($tests_passed passed)";
       for ($i = $num_of_tmpfiles; $i; $i--)
       {
-        &delete ($tmp_filename . &num_suffix ($i) );
+        &rmfiles ($tmp_filename . &num_suffix ($i) );
       }
 
       for ($i = $num_of_logfiles ? $num_of_logfiles : 1; $i; $i--)
       {
-        &delete ($log_filename . &num_suffix ($i) );
-        &delete ($base_filename . &num_suffix ($i) );
+        &rmfiles ($log_filename . &num_suffix ($i) );
+        &rmfiles ($base_filename . &num_suffix ($i) );
       }
     }
     elsif ($code > 0) {
-      $status = "FAILED";
-      $num_failed++;
+      $status = "FAILED ($tests_passed/$tests_run passed)";
     }
     elsif ($code < 0) {
       $status = "N/A";
-      --$counter;
+      --$categories_run;
     }
 
     # If the verbose option has been specified, then a short description
@@ -466,7 +500,7 @@ sub run_each_test
 # If the keep flag is not set, this subroutine deletes all filenames that
 # are sent to it.
 
-sub delete
+sub rmfiles
 {
   local(@files) = @_;
 
@@ -577,12 +611,9 @@ sub error
 sub compare_output
 {
   local($answer,$logfile) = @_;
-  local($slurp);
+  local($slurp, $answer_matched) = ('', 0);
 
-  if ($debug)
-  {
-    print "Comparing Output ........ ";
-  }
+  print "Comparing Output ........ " if $debug;
 
   $slurp = &read_file_into_string ($logfile);
 
@@ -591,33 +622,45 @@ sub compare_output
   $slurp =~ s/^.*modification time .*in the future.*\n//gm;
   $slurp =~ s/^.*Clock skew detected.*\n//gm;
 
-  if ($slurp eq $answer)
+  ++$tests_run;
+
+  if ($slurp eq $answer) {
+    $answer_matched = 1;
+  } else {
+    # See if it is a slash or CRLF problem
+    local ($answer_mod) = $answer;
+
+    $answer_mod =~ tr,\\,/,;
+    $answer_mod =~ s,\r\n,\n,gs;
+
+    $slurp =~ tr,\\,/,;
+    $slurp =~ s,\r\n,\n,gs;
+
+    $answer_matched = ($slurp eq $answer_mod);
+  }
+
+  if ($answer_matched && $test_passed)
   {
-    if ($debug)
-    {
-      print "ok\n";
-    }
+    print "ok\n" if $debug;
+    ++$tests_passed;
     return 1;
   }
-  else
-  {
-    if ($debug)
-    {
-      print "DIFFERENT OUTPUT\n";
-    }
-    $test_passed = 0;
+
+  if (! $answer_matched) {
+    print "DIFFERENT OUTPUT\n" if $debug;
+
     &create_file (&get_basefile, $answer);
 
-    if ($debug)
-    {
-      print "\nCreating Difference File ...\n";
-    }
+    print "\nCreating Difference File ...\n" if $debug;
+
     # Create the difference file
+
     local($command) = "diff -c " . &get_basefile . " " . $logfile;
     &run_command_with_output(&get_difffile,$command);
-
-    return 0;
   }
+
+  $suite_passed = 0;
+  return 0;
 }
 
 sub read_file_into_string
@@ -701,15 +744,11 @@ sub run_command
 {
   local ($code);
 
-  if ($debug)
-  {
-    print "\nrun_command: @_\n";
-    $code = system @_;
-    print "run_command: \"@_\" returned $code.\n";
-    return $code;
-  }
+  print "\nrun_command: @_\n" if $debug;
+  $code = system @_;
+  print "run_command: \"@_\" returned $code.\n" if $debug;
 
-  return system @_;
+  return $code;
 }
 
 # run one command (passed as a list of arg 0 - n, with arg 0 being the
@@ -725,10 +764,8 @@ sub run_command_with_output
   &attach_default_output ($filename);
   $code = system @_;
   &detach_default_output;
-  if ($debug)
-  {
-    print "run_command_with_output: \"@_\" returned $code.\n";
-  }
+
+  print "run_command_with_output: '@_' returned $code.\n" if $debug;
 
   return $code;
 }

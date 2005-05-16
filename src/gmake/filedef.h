@@ -100,6 +100,7 @@ struct file
 
 
 extern struct file *default_goal_file, *suffix_file, *default_file;
+extern char **default_goal_name;
 
 
 extern struct file *lookup_file PARAMS ((char *name));
@@ -197,3 +198,6 @@ extern FILE_TIMESTAMP f_mtime PARAMS ((struct file *file, int search));
 
 #define check_renamed(file) \
   while ((file)->renamed != 0) (file) = (file)->renamed /* No ; here.  */
+
+/* Have we snapped deps yet?  */
+extern int snapped_deps;
