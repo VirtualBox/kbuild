@@ -3,7 +3,14 @@
 AUTOMAKE_OPTIONS = 1.8 dist-bzip2 check-news ansi2knr
 ACLOCAL_AMFLAGS	=  -I config
 
-SUBDIRS =	glob config po doc
+# Only process if target is MS-Windows
+if WINDOWSENV
+  MAYBE_W32 =	w32
+  W32INC =	-I $(top_srcdir)/w32/include
+  W32LIB =	-Lw32 -lw32
+endif
+
+SUBDIRS =	glob config po doc $(MAYBE_W32)
 
 bin_PROGRAMS =	make
 
@@ -19,18 +26,26 @@ make_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		misc.c read.c remake.c $(remote) rule.c signame.c \
 		variable.c version.c vpath.c hash.c
 
-EXTRA_make_SOURCES = remote-stub.c remote-cstms.c
+EXTRA_make_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
 noinst_HEADERS = commands.h dep.h filedef.h job.h make.h rule.h variable.h \
 		debug.h getopt.h gettext.h hash.h
 
 make_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@ @LIBINTL@
+# Only process if target is MS-Windows
+if WINDOWSENV
+    make_LDADD += $(W32LIB)
+endif
 
 man_MANS =	make.1
 
 DEFS =		-DLOCALEDIR=\"$(localedir)\" -DLIBDIR=\"$(libdir)\" -DINCLUDEDIR=\"$(includedir)\" @DEFS@
 
 AM_CPPFLAGS =	$(GLOBINC)
+# Only process if target is MS-Windows
+if WINDOWSENV
+    AM_CPPFLAGS +=	$(W32INC)
+endif
 
 
 # Extra stuff to include in the distribution.
@@ -114,11 +129,11 @@ check-local: check-regression check-loadavg
 
 .PHONY: check-loadavg check-regression
 
-check-loadavg: loadavg
+check-loadavg: loadavg$(EXEEXT)
 	@echo The system uptime program believes the load average to be:
 	-uptime
 	@echo The GNU load average checking code thinks:
-	-./loadavg
+	-./loadavg$(EXEEXT)
 
 # The loadavg function is invoked during "make check" to test getloadavg.
 noinst_PROGRAMS = loadavg
@@ -156,5 +171,11 @@ check-regression:
 
 
 # --------------- Maintainer's Section
+
+# Tell automake that I haven't forgotten about this file and it will be
+# created before we build a distribution (see maintMakefile in the CVS
+# distribution).
+
+README:
 
 @MAINT_MAKEFILE@

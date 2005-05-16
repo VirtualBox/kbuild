@@ -135,20 +135,6 @@ count_implicit_rule_limits (void)
 		 nonexistent subdirectory.  */
 
 	      dep->changed = !dir_file_exists_p (name, "");
-#ifdef VMS
-              if (dep->changed && strchr (name, ':') != 0)
-#else
-	      if (dep->changed && *name == '/')
-#endif
-		{
-		  /* The name is absolute and the directory does not exist.
-		     This rule can never possibly match, since this dependency
-		     can never possibly exist.  So just remove the rule from
-		     the list.  */
-		  freerule (rule, lastrule);
-		  --num_pattern_rules;
-		  goto end_main_loop;
-		}
 	    }
 	  else
 	    /* This dependency does not reside in a subdirectory.  */
@@ -159,7 +145,6 @@ count_implicit_rule_limits (void)
 	max_pattern_deps = ndeps;
 
       lastrule = rule;
-    end_main_loop:
       rule = next;
     }
 
@@ -221,6 +206,7 @@ convert_suffix_rule (char *target, char *source, struct commands *cmds)
       deps->next = 0;
       deps->name = depname;
       deps->ignore_mtime = 0;
+      deps->need_2nd_expansion = 0;
     }
 
   create_pattern_rule (names, percents, 0, deps, cmds, 0);

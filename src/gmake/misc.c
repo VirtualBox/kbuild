@@ -412,34 +412,6 @@ savestring (const char *str, unsigned int length)
   return out;
 }
 
-/* Search string BIG (length BLEN) for an occurrence of
-   string SMALL (length SLEN).  Return a pointer to the
-   beginning of the first occurrence, or return nil if none found.  */
-
-char *
-sindex (const char *big, unsigned int blen,
-        const char *small, unsigned int slen)
-{
-  if (!blen)
-    blen = strlen (big);
-  if (!slen)
-    slen = strlen (small);
-
-  if (slen && blen >= slen)
-    {
-      register unsigned int b;
-
-      /* Quit when there's not enough room left for the small string.  */
-      --slen;
-      blen -= slen;
-
-      for (b = 0; b < blen; ++b, ++big)
-        if (*big == *small && strneq (big + 1, small + 1, slen))
-          return (char *)big;
-    }
-
-  return 0;
-}
 
 /* Limited INDEX:
    Search through the string STRING, which ends at LIMIT, for the character C.
@@ -460,11 +432,11 @@ lindex (const char *s, const char *limit, int c)
 /* Return the address of the first whitespace or null in the string S.  */
 
 char *
-end_of_token (char *s)
+end_of_token (const char *s)
 {
   while (*s != '\0' && !isblank ((unsigned char)*s))
     ++s;
-  return s;
+  return (char *)s;
 }
 
 #ifdef WINDOWS32
@@ -553,6 +525,27 @@ copy_dep_chain (struct dep *d)
   return firstnew;
 }
 
+/* Free a chain of `struct nameseq'. Each nameseq->name is freed
+   as well.  Can be used on `struct dep' chains.*/
+
+void
+free_ns_chain (struct nameseq *n)
+{
+  register struct nameseq *tmp;
+
+  while (n != 0)
+  {
+    if (n->name != 0)
+      free (n->name);
+
+    tmp = n;
+
+    n = n->next;
+
+    free (tmp);
+  }
+
+}
 #ifdef	iAPX286
 /* The losing compiler on this machine can't handle this macro.  */
 

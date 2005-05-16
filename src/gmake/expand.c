@@ -153,7 +153,8 @@ reference_variable (char *o, char *name, unsigned int length)
   if (v == 0)
     warn_undefined (name, length);
 
-  if (v == 0 || *v->value == '\0')
+  /* If there's no variable by that name or it has no value, stop now.  */
+  if (v == 0 || (*v->value == '\0' && !v->append))
     return o;
 
   value = (v->recursive ? recursively_expand (v) : v->value);
@@ -303,51 +304,49 @@ variable_expand_string (char *line, char *string, long length)
 		    if (v == 0)
 		      warn_undefined (beg, colon - beg);
 
+                    /* If the variable is not empty, perform the
+                       substitution.  */
 		    if (v != 0 && *v->value != '\0')
 		      {
-			char *value = (v->recursive ? recursively_expand (v)
+			char *pattern, *replace, *ppercent, *rpercent;
+			char *value = (v->recursive
+                                       ? recursively_expand (v)
 				       : v->value);
-			char *pattern, *percent;
-			if (free_beg)
-			  {
-			    *subst_end = '\0';
-			    pattern = subst_beg;
-			  }
-			else
-			  {
-			    pattern = (char *) alloca (subst_end - subst_beg
-						       + 1);
-			    bcopy (subst_beg, pattern, subst_end - subst_beg);
-			    pattern[subst_end - subst_beg] = '\0';
-			  }
-			percent = find_percent (pattern);
-			if (percent != 0)
-			  {
-			    char *replace;
-			    if (free_beg)
-			      {
-				*replace_end = '\0';
-				replace = replace_beg;
-			      }
-			    else
-			      {
-				replace = (char *) alloca (replace_end
-							   - replace_beg
-							   + 1);
-				bcopy (replace_beg, replace,
-				       replace_end - replace_beg);
-				replace[replace_end - replace_beg] = '\0';
-			      }
 
-			    o = patsubst_expand (o, value, pattern, replace,
-						 percent, (char *) 0);
-			  }
+                        /* Copy the pattern and the replacement.  Add in an
+                           extra % at the beginning to use in case there
+                           isn't one in the pattern.  */
+                        pattern = (char *) alloca (subst_end - subst_beg + 2);
+                        *(pattern++) = '%';
+                        bcopy (subst_beg, pattern, subst_end - subst_beg);
+                        pattern[subst_end - subst_beg] = '\0';
+
+                        replace = (char *) alloca (replace_end
+                                                   - replace_beg + 2);
+                        *(replace++) = '%';
+                        bcopy (replace_beg, replace,
+                               replace_end - replace_beg);
+                        replace[replace_end - replace_beg] = '\0';
+
+                        /* Look for %.  Set the percent pointers properly
+                           based on whether we find one or not.  */
+			ppercent = find_percent (pattern);
+			if (ppercent)
+                          {
+                            ++ppercent;
+                            rpercent = 0;
+                          }
 			else
-			  o = subst_expand (o, value,
-					    pattern, replace_beg,
-					    strlen (pattern),
-					    end - replace_beg,
-					    0, 1);
+                          {
+                            ppercent = pattern;
+                            rpercent = replace;
+                            --pattern;
+                            --replace;
+                          }
+
+                        o = patsubst_expand (o, value, pattern, replace,
+                                             ppercent, rpercent);
+
 			if (v->recursive)
 			  free (value);
 		      }
@@ -441,7 +440,7 @@ expand_argument (const char *str, const char *end)
 /* Expand LINE for FILE.  Error messages refer to the file and line where
    FILE's commands were found.  Expansion uses FILE's variable set list.  */
 
-static char *
+char *
 variable_expand_for_file (char *line, struct file *file)
 {
   char *result;

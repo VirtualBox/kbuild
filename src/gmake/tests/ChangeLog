@@ -1,3 +1,175 @@
+2005-05-13  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/features/conditionals: Add tests for the new if... else
+	if... endif syntax.
+
+2005-05-03  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/variables/DEFAULT_GOAL: Rename DEFAULT_TARGET to
+	DEFAULT_GOAL.
+
+2005-05-02  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/features/parallelism: Add a test for exporting recursive
+	variables containing $(shell ) calls.  Rewrite this script to use
+	run_make_test() everywhere.
+
+2005-04-07  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/targets/SECONDARY: Add a test for Savannah bug #12331.
+
+2005-03-15  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/variables/automatic: Add a test for Savannah bug #12320.
+
+2005-03-10  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/patternrules: Add a test for Savannah bug #12267.
+
+2005-03-09  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/variables/DEFAULT_TARGET: Add a test for Savannah
+	bug #12266.
+
+2005-03-04  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/patternrules: Add a test for Savannah bug #12202.
+
+2005-03-03  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/se_implicit: Add a test for stem
+	termination bug. Add a test for stem triple-expansion bug.
+
+	* scripts/features/se_statpat: Add a test for stem
+	triple-expansion bug.
+
+	* scripts/features/statipattrules: Change test #4 to reflect
+	new way empty prerequisite list is handled.
+
+
+2005-03-01  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/statipattrules: Add a test for
+	Savannah bug #12180.
+
+2005-02-28  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/options/dash-q: Add a test for Savannah bug # 7144.
+
+	* scripts/options/symlinks: New file to test checking of symlink
+	timestamps.  Can't use filename dash-L because it conflicts with
+	dash-l on case-insensitive filesystems.
+
+	* scripts/variables/MAKEFILE_LIST, scripts/variables/MFILE_LIST:
+	Rename MAKEFILE_LIST test to MFILE_LIST, for systems that need 8.3
+	unique filenames.
+
+2005-02-28  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/variables/DEFAULT_TARGET: Test the .DEFAULT_TARGET
+	special variable.
+
+2005-02-27  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/se_explicit: Test the second expansion in
+	explicit rules.
+	* scripts/features/se_implicit: Test the second expansion in
+	implicit rules.
+	* scripts/features/se_statpat: Test the second expansion in
+	static pattern rules.
+	* scripts/variables/automatic: Fix to work with the second
+	expansion.
+
+	* scripts/misc/general4: Add a test for bug #12091.
+
+2005-02-27  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/functions/eval: Check that eval of targets within
+	command scripts fails.  See Savannah bug # 12124.
+
+2005-02-26  Paul D. Smith  <psmith@gnu.org>
+
+	* test_driver.pl (compare_output): If a basic comparison of the
+	log and answer doesn't match, try harder: change all backslashes
+	to slashes and all CRLF to LF.  This helps on DOS/Windows systems.
+
+2005-02-09  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/features/recursion: Test command line variable settings:
+	only one instance of a given variable should be provided.
+
+2004-11-30  Boris Kolpackov  <boris@kolpackov.net>
+
+	* tests/scripts/functions/abspath: New file: test `abspath'
+	built-in function.
+
+	* tests/scripts/functions/realpath: New file: test `realpath'
+	built-in function.
+
+2004-11-28  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/options/dash-C [WINDOWS32]: Add a test for bug #10252;
+	this doesn't really test anything useful in UNIX but...
+
+	* scripts/variables/SHELL: New file: test proper handling of SHELL
+	according to POSIX rules.  Fixes bug #1276.
+
+2004-10-21  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/functions/word: Test $(firstword ) and $(lastword ).
+
+2004-10-05  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/patspecific_vars: Test simple/recursive
+	variable expansion.
+
+2004-09-28  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/include: Test dontcare flag inheritance
+	when rebuilding makefiles.
+
+2004-09-27  Boris Kolpackov  <boris@kolpackov.net>
+
+	* scripts/features/patspecific_vars: Test exported variables.
+
+2004-09-22  Paul D. Smith  <psmith@gnu.org>
+
+	* run_make_tests.pl (run_make_test): Don't add newlines to the
+	makestring or answer if they are completely empty.
+
+	* scripts/features/patternrules: Rename from implicit_prereq_eval.
+
+	* scripts/test_template: Rework the template.
+
+2004-09-21  Boris Kolpackov  <boris@kolpackov.net>
+
+	* run_make_tests.pl: Change `#!/usr/local/bin/perl' to be
+	`#!/usr/bin/env perl'.
+
+	* scripts/features/implicit_prereq_eval: Test implicit rule
+	prerequisite evaluation code.
+
+2004-09-21  Paul D. Smith  <psmith@gnu.org>
+
+	* run_make_tests.pl (run_make_test): Enhance to allow the make
+	string to be undef: in that case it reuses the previous make
+	string.  Allows multiple tests on the same makefile.
+
+	* scripts/variables/flavors: Add some tests for prefix characters
+	interacting with define/endef variables.
+
+2004-09-20  Paul D. Smith  <psmith@gnu.org>
+
+	* scripts/functions/substitution: Rewrite to use run_make_test()
+	interface, and add test for substitution failures reported by
+	Markus Mauhart <qwe123@chello.at>.
+
+2004-03-22  Paul D. Smith  <psmith@gnu.org>
+
+	* test_driver.pl (run_each_test, toplevel, compare_output): Change
+	to track both the testing categories _AND_ the number of
+	individual tests, and report both sets of numbers.
+
 2004-02-21  Paul D. Smith  <psmith@gnu.org>
 
 	* scripts/functions/origin: Set our own environment variable
