@@ -493,10 +493,32 @@ initialize_file_variables (struct file *file, int reading)
           current_variable_set_list = file->pat_variables;
 
           do
-            /* We found one, so insert it into the set.  */
-            do_variable_definition (&p->variable.fileinfo, p->variable.name,
-                                    p->variable.value, p->variable.origin,
-                                    p->variable.flavor, 1);
+            {
+              /* We found one, so insert it into the set.  */
+
+              struct variable *v;
+
+              if (p->variable.flavor == f_simple)
+                {
+                  v = define_variable_loc (
+                    p->variable.name, strlen (p->variable.name),
+                    p->variable.value, p->variable.origin,
+                    0, &p->variable.fileinfo);
+
+                  v->flavor = f_simple;
+                }
+              else
+                {
+                  v = do_variable_definition (
+                    &p->variable.fileinfo, p->variable.name,
+                    p->variable.value, p->variable.origin,
+                    p->variable.flavor, 1);
+                }
+
+              /* Also mark it as a per-target and copy export status. */
+              v->per_target = p->variable.per_target;
+              v->export = p->variable.export;
+            }
           while ((p = lookup_pattern_var (p, file->name)) != 0);
 
           current_variable_set_list = global;
@@ -725,16 +747,14 @@ define_automatic_variables (void)
 
 #endif
 
-  /* This won't override any definition, but it
-     will provide one if there isn't one there.  */
+  /* This won't override any definition, but it will provide one if there
+     isn't one there.  */
   v = define_variable ("SHELL", 5, default_shell, o_default, 0);
-  v->export = v_export;		/* Always export SHELL.  */
 
-  /* On MSDOS we do use SHELL from environment, since
-     it isn't a standard environment variable on MSDOS,
-     so whoever sets it, does that on purpose.
-     On OS/2 we do not use SHELL from environment but
-     we have already handled that problem above. */
+  /* On MSDOS we do use SHELL from environment, since it isn't a standard
+     environment variable on MSDOS, so whoever sets it, does that on purpose.
+     On OS/2 we do not use SHELL from environment but we have already handled
+     that problem above. */
 #if !defined(__MSDOS__) && !defined(__EMX__)
   /* Don't let SHELL come from the environment.  */
   if (*v->value == '\0' || v->origin == o_env || v->origin == o_env_override)
@@ -851,7 +871,15 @@ target_environment (struct file *file)
 		break;
 
 	      case v_noexport:
-		continue;
+                /* If this is the SHELL variable and it's not exported, then
+                   add the value from our original environment.  */
+                if (streq (v->name, "SHELL"))
+                  {
+                    extern struct variable shell_var;
+                    v = &shell_var;
+                    break;
+                  }
+                continue;
 
 	      case v_ifset:
 		if (v->origin == o_default)
@@ -965,6 +993,11 @@ do_variable_definition (const struct floc *flocp, const char *varname,
             append = 1;
             v = lookup_variable_in_set (varname, strlen (varname),
                                         current_variable_set_list->set);
+
+            /* Don't append from the global set if a previous non-appending
+               target-specific variable definition exists. */
+            if (v && !v->append)
+              append = 0;
           }
         else
           v = lookup_variable (varname, strlen (varname));
@@ -1023,7 +1056,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   if ((origin == o_file || origin == o_override)
       && strcmp (varname, "SHELL") == 0)
     {
-      char shellpath[PATH_MAX];
+      PATH_VAR (shellpath);
       extern char * __dosexec_find_on_path (const char *, char *[], char *);
 
       /* See if we can find "/bin/sh.exe", "/bin/sh.com", etc.  */
@@ -1405,7 +1438,7 @@ print_file_variables (struct file *file)
 void
 sync_Path_environment (void)
 {
-  char *path = allocated_variable_expand ("$(Path)");
+  char *path = allocated_variable_expand ("$(PATH)");
   static char *environ_path = NULL;
 
   if (!path)
@@ -1422,7 +1455,7 @@ sync_Path_environment (void)
    * Create something WINDOWS32 world can grok
    */
   convert_Path_to_windows32 (path, ';');
-  environ_path = concat ("Path", "=", path);
+  environ_path = concat ("PATH", "=", path);
   putenv (environ_path);
   free (path);
 }

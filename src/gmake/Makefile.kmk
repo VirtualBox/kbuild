@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 278 2005-05-16 15:02:59Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 287 2005-05-16 23:34:55Z knut.osmundsen@oracle.com $
 
 
 #
@@ -12,6 +12,7 @@ kmk_INCS            = $(PATH_TARGET) .
 
 kmk_DEFS            = \
 	HAVE_CONFIG_H \
+    NO_ARCHIVES \
 	CONFIG_NO_DEFAULT_SUFFIXES \
 	CONFIG_NO_DEFAULT_PATTERN_RULES	\
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
@@ -110,6 +111,7 @@ include $(PATH_KBUILD)/rules.kmk
 # Use checked in config.h instead of running ./Configure for it.
 #			
 $(PATH_TARGET)/config.h: config.h.$(BUILD_TARGET)
+	$(MKDIR) -p $(dir $@)
 	$(CP) $^ $@
 
 

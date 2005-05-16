@@ -108,6 +108,8 @@ extern int fatal_signal_mask;
 #endif
 #endif
 
+extern unsigned int jobserver_tokens;
+
 #ifdef MAKE_DLLSHELL
 extern pid_t wait_jobs PARAMS ((int *status, int block));
 #endif
