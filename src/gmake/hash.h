@@ -81,22 +81,48 @@ extern void *hash_deleted_item;
 
 /* hash and comparison macros for case-sensitive string keys. */
 
+#if 0
 #define STRING_HASH_1(KEY, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   while (*++_key_) \
     (RESULT) += (*_key_ << (_key_[1] & 0xf)); \
 } while (0)
+#else
+#define STRING_HASH_1(KEY, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_; \
+  while (_ch_) \
+    { \
+      unsigned char _ch2_ = *++_key_; \
+     (RESULT) += (_ch_ << (_ch2_ & 0xf)); \
+     _ch_ = _ch2_; \
+    } \
+} while (0)
+#endif 
 #define return_STRING_HASH_1(KEY) do { \
   unsigned long _result_ = 0; \
   STRING_HASH_1 ((KEY), _result_); \
   return _result_; \
 } while (0)
 
+#if 0
 #define STRING_HASH_2(KEY, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   while (*++_key_) \
     (RESULT) += (*_key_ << (_key_[1] & 0x7)); \
 } while (0)
+#else
+#define STRING_HASH_2(KEY, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_; \
+  while (_ch_) \
+    { \
+      unsigned char _ch2_ = *++_key_; \
+     (RESULT) += (_ch_ << (_ch2_ & 0x7)); \
+     _ch_ = _ch2_; \
+    } \
+} while (0)
+#endif 
 #define return_STRING_HASH_2(KEY) do { \
   unsigned long _result_ = 0; \
   STRING_HASH_2 ((KEY), _result_); \
@@ -110,8 +136,8 @@ extern void *hash_deleted_item;
   return strcmp ((X), (Y)); \
 } while (0)
 
-
-#define STRING_N_HASH_1(KEY, N, RESULT) do { \
+#if 0
+#define _STRING_N_HASH_1(KEY, N, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   int _n_ = (N); \
   if (_n_) \
@@ -119,12 +145,38 @@ extern void *hash_deleted_item;
       (RESULT) += (*_key_ << (_key_[1] & 0xf)); \
   (RESULT) += *++_key_; \
 } while (0)
+#else
+#define STRING_N_HASH_1(KEY, N, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_; \
+  int _n_ = (N); \
+  if (_n_) \
+    { \
+      for (;;) \
+        { \
+          unsigned char _ch2_; \
+          if (!--_n_) \
+            { \
+              (RESULT) += _ch_; \
+              break; \
+            } \
+          _ch2_ = *++_key_; \
+          (RESULT) += (_ch_ << (_ch2_ & 0xf)); \
+          _ch_ = _ch2_; \
+          if (!_ch_) break; \
+        } \
+    } \
+  else \
+    (RESULT) += _ch_; \
+} while (0)
+#endif 
 #define return_STRING_N_HASH_1(KEY, N) do { \
   unsigned long _result_ = 0; \
   STRING_N_HASH_1 ((KEY), (N), _result_); \
   return _result_; \
 } while (0)
 
+#if 0
 #define STRING_N_HASH_2(KEY, N, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   int _n_ = (N); \
@@ -133,6 +185,31 @@ extern void *hash_deleted_item;
       (RESULT) += (*_key_ << (_key_[1] & 0x7)); \
   (RESULT) += *++_key_; \
 } while (0)
+#else
+#define STRING_N_HASH_2(KEY, N, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_; \
+  int _n_ = (N); \
+  if (_n_) \
+    { \
+      for (;;) \
+        { \
+          unsigned char _ch2_; \
+          if (!--_n_) \
+            { \
+              (RESULT) += _ch_; \
+              break; \
+            } \
+          _ch2_ = *++_key_; \
+          (RESULT) += (_ch_ << (_ch2_ & 0x7)); \
+          _ch_ = _ch2_; \
+          if (!_ch_) break; \
+        } \
+    } \
+  else \
+    (RESULT) += _ch_; \
+} while (0)
+#endif 
 #define return_STRING_N_HASH_2(KEY, N) do { \
   unsigned long _result_ = 0; \
   STRING_N_HASH_2 ((KEY), (N), _result_); \
@@ -150,22 +227,48 @@ extern void *hash_deleted_item;
 
 /* hash and comparison macros for case-insensitive string _key_s. */
 
+#if 1 /* testme */
 #define ISTRING_HASH_1(KEY, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   while (*++_key_) \
     (RESULT) += ((isupper (*_key_) ? tolower (*_key_) : *_key_) << (_key_[1] & 0xf)); \
 } while (0)
+#else
+#define ISTRING_HASH_1(KEY, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_;
+  while (_ch_) \
+    { \
+      unsigned _ch2_ = *++_key_; \
+      (RESULT) += ((isupper (_ch_) ? tolower (_ch_) : _ch_) << (_ch2_ & 0xf)); \
+      _ch_ = _ch2_; \
+    } \
+} while (0)
+#endif 
 #define return_ISTRING_HASH_1(KEY) do { \
   unsigned long _result_ = 0; \
   ISTRING_HASH_1 ((KEY), _result_); \
   return _result_; \
 } while (0)
 
+#if 1 /* testme */
 #define ISTRING_HASH_2(KEY, RESULT) do { \
   unsigned char const *_key_ = (unsigned char const *) (KEY) - 1; \
   while (*++_key_) \
     (RESULT) += ((isupper (*_key_) ? tolower (*_key_) : *_key_) << (_key_[1] & 0x7)); \
 } while (0)
+#else
+#define ISTRING_HASH_2(KEY, RESULT) do { \
+  unsigned char const *_key_ = (unsigned char const *) (KEY); \
+  unsigned int _ch_ = *_key_;
+  while (_ch_) \
+    { \
+      unsigned _ch2_ = *++_key_; \
+      (RESULT) += ((isupper (_ch_) ? tolower (_ch_) : _ch_) << (_ch2_ & 0x7)); \
+      _ch_ = _ch2_; \
+    } \
+} while (0)
+#endif 
 #define return_ISTRING_HASH_2(KEY) do { \
   unsigned long _result_ = 0; \
   ISTRING_HASH_2 ((KEY), _result_); \

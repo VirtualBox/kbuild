@@ -38,9 +38,10 @@ extern int getpid ();
 
 /* Set FILE's automatic variables up.  */
 
-static void
+void
 set_file_variables (struct file *file)
 {
+  struct dep *d;
   char *at, *percent, *star, *less;
 
 #ifndef	NO_ARCHIVES
@@ -105,8 +106,14 @@ set_file_variables (struct file *file)
     }
   star = file->stem;
 
-  /* $< is the first dependency.  */
-  less = file->deps != 0 ? dep_name (file->deps) : "";
+  /* $< is the first not order-only dependency.  */
+  less = "";
+  for (d = file->deps; d != 0; d = d->next)
+    if (!d->ignore_mtime)
+      {
+        less = dep_name (d);
+        break;
+      }
 
   if (file->cmds == default_file->cmds)
     /* This file got its commands from .DEFAULT.
@@ -134,7 +141,6 @@ set_file_variables (struct file *file)
     char *caret_value;
     char *qp;
     char *bp;
-    struct dep *d;
     unsigned int len;
 
     /* Compute first the value for $+, which is supposed to contain
@@ -340,16 +346,16 @@ chop_commands (struct commands *cmds)
             flags |= COMMANDS_NOERROR;
             break;
           }
-      if (!(flags & COMMANDS_RECURSE))
-        {
-          unsigned int len = strlen (p);
-          if (sindex (p, len, "$(MAKE)", 7) != 0
-              || sindex (p, len, "${MAKE}", 7) != 0)
-            flags |= COMMANDS_RECURSE;
-        }
+
+      /* If no explicit '+' was given, look for MAKE variable references.  */
+      if (!(flags & COMMANDS_RECURSE)
+          && (strstr (p, "$(MAKE)") != 0 || strstr (p, "${MAKE}") != 0))
+        flags |= COMMANDS_RECURSE;
+
 #ifdef CONFIG_WITH_KMK_BUILTIN
+      /* check if kmk builtin command */
       if (!strncmp(p, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
-          flags |= COMMANDS_BUILTIN;
+        flags |= COMMANDS_BUILTIN;
 #endif
 
       cmds->lines_flags[idx] = flags;
@@ -481,10 +487,15 @@ fatal_error_signal (int sig)
     exit (EXIT_FAILURE);
 #endif
 
+#ifdef WINDOWS32
+  /* Cannot call W32_kill with a pid (it needs a handle) */
+  exit (EXIT_FAILURE);
+#else
   /* Signal the same code; this time it will really be fatal.  The signal
      will be unblocked when we return and arrive then to kill us.  */
   if (kill (getpid (), sig) < 0)
     pfatal_with_name ("kill");
+#endif /* not WINDOWS32 */
 #endif /* not Amiga */
 #endif /* not __MSDOS__  */
 }

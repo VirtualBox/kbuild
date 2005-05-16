@@ -78,7 +78,9 @@ struct conditionals
   {
     unsigned int if_cmds;	/* Depth of conditional nesting.  */
     unsigned int allocated;	/* Elts allocated in following arrays.  */
-    char *ignoring;		/* Are we ignoring or interepreting?  */
+    char *ignoring;		/* Are we ignoring or interpreting?
+                                   0=interpreting, 1=not yet interpreted,
+                                   2=already interpreted */
     char *seen_else;		/* Have we already seen an `else'?  */
   };
 
@@ -130,12 +132,11 @@ static long readline PARAMS ((struct ebuffer *ebuf));
 static void do_define PARAMS ((char *name, unsigned int namelen,
                                enum variable_origin origin,
                                struct ebuffer *ebuf));
-static int conditional_line PARAMS ((char *line, const struct floc *flocp));
+static int conditional_line PARAMS ((char *line, int len, const struct floc *flocp));
 static void record_files PARAMS ((struct nameseq *filenames, char *pattern, char *pattern_percent,
 			struct dep *deps, unsigned int cmds_started, char *commands,
 			unsigned int commands_idx, int two_colon,
-			int have_sysv_atvar,
-                        const struct floc *flocp, int set_default));
+                        const struct floc *flocp));
 static void record_target_var PARAMS ((struct nameseq *filenames, char *defn,
                                        enum variable_origin origin,
                                        int enabled,
@@ -255,6 +256,7 @@ read_all_makefiles (char **makefiles)
 	      d->file = enter_file (*p);
 	      d->file->dontcare = 1;
               d->ignore_mtime = 0;
+              d->need_2nd_expansion = 0;
 	      /* Tell update_goal_chain to bail out as soon as this file is
 		 made, and main not to die if we can't make this file.  */
 	      d->changed = RM_DONTCARE;
@@ -368,16 +370,15 @@ eval_makefile (char *filename, int flags)
   deps->name = 0;
   deps->file = lookup_file (filename);
   if (deps->file == 0)
-    {
-      deps->file = enter_file (xstrdup (filename));
-      if (flags & RM_DONTCARE)
-	deps->file->dontcare = 1;
-    }
+    deps->file = enter_file (xstrdup (filename));
   if (filename != ebuf.floc.filenm)
     free (filename);
   filename = deps->file->name;
   deps->changed = flags;
   deps->ignore_mtime = 0;
+  deps->need_2nd_expansion = 0;
+  if (flags & RM_DONTCARE)
+    deps->file->dontcare = 1;
 
   /* If the makefile can't be found at all, give up entirely.  */
 
@@ -409,6 +410,7 @@ eval_makefile (char *filename, int flags)
   fclose (ebuf.fp);
 
   free (ebuf.bufstart);
+  alloca (0);
   return r;
 }
 
@@ -440,6 +442,7 @@ eval_buffer (char *buffer)
 
   reading_file = curfile;
 
+  alloca (0);
   return r;
 }
 
@@ -460,7 +463,6 @@ eval (struct ebuffer *ebuf, int set_default)
   unsigned int cmds_started, tgts_started;
   int ignoring = 0, in_ignored_define = 0;
   int no_targets = 0;		/* Set when reading a rule without targets.  */
-  int have_sysv_atvar = 0;
   struct nameseq *filenames = 0;
   struct dep *deps = 0;
   long nlines = 0;
@@ -477,7 +479,7 @@ eval (struct ebuffer *ebuf, int set_default)
 	  fi.lineno = tgts_started;                                           \
 	  record_files (filenames, pattern, pattern_percent, deps,            \
                         cmds_started, commands, commands_idx, two_colon,      \
-                        have_sysv_atvar, &fi, set_default);                   \
+                        &fi);                                                 \
         }                                                                     \
       filenames = 0;							      \
       commands_idx = 0;							      \
@@ -614,17 +616,17 @@ eval (struct ebuffer *ebuf, int set_default)
 	 ignoring anything, since they control what we will do with
 	 following lines.  */
 
-      if (!in_ignored_define
-	  && (word1eq ("ifdef") || word1eq ("ifndef")
-	      || word1eq ("ifeq") || word1eq ("ifneq")
-	      || word1eq ("else") || word1eq ("endif")))
+      if (!in_ignored_define)
 	{
- 	  int i = conditional_line (p, fstart);
-	  if (i < 0)
-	    fatal (fstart, _("invalid syntax in conditional"));
+ 	  int i = conditional_line (p, len, fstart);
+          if (i != -2)
+            {
+              if (i == -1)
+                fatal (fstart, _("invalid syntax in conditional"));
 
-          ignoring = i;
-	  continue;
+              ignoring = i;
+              continue;
+            }
 	}
 
       if (word1eq ("endef"))
@@ -849,21 +851,11 @@ eval (struct ebuffer *ebuf, int set_default)
 	/* This line has been dealt with.  */
 	goto rule_complete;
 
+      /* This line starts with a tab but was not caught above because there
+         was no preceding target, and the line might have been usable as a
+         variable definition.  But now we know it is definitely lossage.  */
       if (line[0] == '\t')
-	{
-	  p = collapsed;	/* Ignore comments, etc.  */
-	  while (isblank ((unsigned char)*p))
-	    ++p;
-	  if (*p == '\0')
-	    /* The line is completely blank; that is harmless.  */
-	    continue;
-
-	  /* This line starts with a tab but was not caught above
-	     because there was no preceding target, and the line
-	     might have been usable as a variable definition.
-	     But now we know it is definitely lossage.  */
-	  fatal(fstart, _("commands commence before first target"));
-	}
+        fatal(fstart, _("commands commence before first target"));
 
       /* This line describes some target files.  This is complicated by
          the existence of target-specific variables, because we can't
@@ -882,6 +874,7 @@ eval (struct ebuffer *ebuf, int set_default)
         char *cmdleft, *semip, *lb_next;
         unsigned int len, plen = 0;
         char *colonp;
+        const char *end, *beg; /* Helpers for whitespace stripping. */
 
         /* Record the previous rule.  */
 
@@ -930,6 +923,7 @@ eval (struct ebuffer *ebuf, int set_default)
           }
 
         p2 = variable_expand_string(NULL, lb_next, len);
+
         while (1)
           {
             lb_next += len;
@@ -1036,13 +1030,11 @@ eval (struct ebuffer *ebuf, int set_default)
            of the unparsed section of p2, for later.  */
         if (*lb_next != '\0')
           {
-            unsigned int l = p - variable_buffer;
-            unsigned int l2 = p2 - variable_buffer;
+            unsigned int l = p2 - variable_buffer;
             plen = strlen (p2);
             (void) variable_buffer_output (p2+plen,
                                            lb_next, strlen (lb_next)+1);
-            p = variable_buffer + l;
-            p2 = variable_buffer + l2;
+            p2 = variable_buffer + l;
           }
 
         /* See if it's an "override" or "export" keyword; if so see if what
@@ -1109,16 +1101,6 @@ eval (struct ebuffer *ebuf, int set_default)
               }
           }
 
-        /* Do any of the prerequisites appear to have $@ etc.?  */
-        have_sysv_atvar = 0;
-        if (!posix_pedantic)
-          for (p = strchr (p2, '$'); p != 0; p = strchr (p+1, '$'))
-            if (p[1] == '@' || ((p[1] == '(' || p[1] == '{') && p[2] == '@'))
-              {
-                have_sysv_atvar = 1;
-                break;
-              }
-
         /* Is this a static pattern rule: `target: %targ: %dep; ...'?  */
         p = strchr (p2, ':');
         while (p != 0 && p[-1] == '\\')
@@ -1183,26 +1165,32 @@ eval (struct ebuffer *ebuf, int set_default)
         else
           pattern = 0;
 
-        /* Parse the dependencies.  */
-        deps = (struct dep *)
-          multi_glob (parse_file_seq (&p2, '|', sizeof (struct dep), 1),
-                      sizeof (struct dep));
-        if (*p2)
+        /* Strip leading and trailing whitespaces. */
+        beg = p2;
+        end = beg + strlen (beg) - 1;
+        strip_whitespace (&beg, &end);
+
+        if (beg <= end && *beg != '\0')
           {
-            /* Files that follow '|' are special prerequisites that
-               need only exist in order to satisfy the dependency.
-               Their modification times are irrelevant.  */
-            struct dep **deps_ptr = &deps;
-            struct dep *d;
-            for (deps_ptr = &deps; *deps_ptr; deps_ptr = &(*deps_ptr)->next)
-              ;
-            ++p2;
-            *deps_ptr = (struct dep *)
-              multi_glob (parse_file_seq (&p2, '\0', sizeof (struct dep), 1),
-                          sizeof (struct dep));
-            for (d = *deps_ptr; d != 0; d = d->next)
-              d->ignore_mtime = 1;
+            char *top;
+            const char *fromp = beg;
+
+            /* Make a copy of the dependency string.  Note if we find '$'.  */
+            deps = (struct dep*) xmalloc (sizeof (struct dep));
+            deps->next = 0;
+            deps->name = top = (char *) xmalloc (end - beg + 2);
+            deps->need_2nd_expansion = 0;
+            while (fromp <= end)
+              {
+                if (*fromp == '$')
+                  deps->need_2nd_expansion = 1;
+                *(top++) = *(fromp++);
+              }
+            *top = '\0';
+            deps->file = 0;
           }
+        else
+          deps = 0;
 
         commands_idx = 0;
         if (cmdleft != 0)
@@ -1221,6 +1209,82 @@ eval (struct ebuffer *ebuf, int set_default)
             bcopy (cmdleft, commands, len);
             commands_idx += len;
             commands[commands_idx++] = '\n';
+          }
+
+        /* Determine if this target should be made default. We used to do
+           this in record_files() but because of the delayed target recording
+           and because preprocessor directives are legal in target's commands
+           it is too late. Consider this fragment for example:
+
+           foo:
+
+           ifeq ($(.DEFAULT_GOAL),foo)
+              ...
+           endif
+
+           Because the target is not recorded until after ifeq directive is
+           evaluated the .DEFAULT_GOAL does not contain foo yet as one
+           would expect. Because of this we have to move some of the logic
+           here.  */
+
+        if (**default_goal_name == '\0' && set_default)
+          {
+            char* name;
+            struct dep *d;
+            struct nameseq *t = filenames;
+
+            for (; t != 0; t = t->next)
+              {
+                int reject = 0;
+                name = t->name;
+
+                /* We have nothing to do if this is an implicit rule. */
+                if (strchr (name, '%') != 0)
+                  break;
+
+                /* See if this target's name does not start with a `.',
+                   unless it contains a slash.  */
+                if (*name == '.' && strchr (name, '/') == 0
+#ifdef HAVE_DOS_PATHS
+                    && strchr (name, '\\') == 0
+#endif
+                    )
+                  continue;
+
+
+                /* If this file is a suffix, don't let it be
+                   the default goal file.  */
+                for (d = suffix_file->deps; d != 0; d = d->next)
+                  {
+                    register struct dep *d2;
+                    if (*dep_name (d) != '.' && streq (name, dep_name (d)))
+                      {
+                        reject = 1;
+                        break;
+                      }
+                    for (d2 = suffix_file->deps; d2 != 0; d2 = d2->next)
+                      {
+                        register unsigned int len = strlen (dep_name (d2));
+                        if (!strneq (name, dep_name (d2), len))
+                          continue;
+                        if (streq (name + len, dep_name (d)))
+                          {
+                            reject = 1;
+                            break;
+                          }
+                      }
+
+                    if (reject)
+                      break;
+                  }
+
+                if (!reject)
+                  {
+                    define_variable_global (".DEFAULT_GOAL", 13, t->name,
+                                            o_file, 0, NILF);
+                    break;
+                  }
+              }
           }
 
         continue;
@@ -1278,8 +1342,8 @@ do_define (char *name, unsigned int namelen,
       unsigned int len;
       char *line;
 
-      ebuf->floc.lineno += nlines;
       nlines = readline (ebuf);
+      ebuf->floc.lineno += nlines;
 
       /* If there is nothing left to eval, we're done. */
       if (nlines < 0)
@@ -1359,67 +1423,108 @@ do_define (char *name, unsigned int namelen,
    FILENAME and LINENO are the filename and line number in the
    current makefile.  They are used for error messages.
 
-   Value is -1 if the line is invalid,
+   Value is -2 if the line is not a conditional at all,
+   -1 if the line is an invalid conditional,
    0 if following text should be interpreted,
    1 if following text should be ignored.  */
 
 static int
-conditional_line (char *line, const struct floc *flocp)
+conditional_line (char *line, int len, const struct floc *flocp)
 {
-  int notdef;
   char *cmdname;
-  register unsigned int i;
+  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, c_else, c_endif } cmdtype;
+  unsigned int i;
+  unsigned int o;
 
-  if (*line == 'i')
-    {
-      /* It's an "if..." command.  */
-      notdef = line[2] == 'n';
-      if (notdef)
-	{
-	  cmdname = line[3] == 'd' ? "ifndef" : "ifneq";
-	  line += cmdname[3] == 'd' ? 7 : 6;
-	}
-      else
-	{
-	  cmdname = line[2] == 'd' ? "ifdef" : "ifeq";
-	  line += cmdname[2] == 'd' ? 6 : 5;
-	}
-    }
+  /* Compare a word, both length and contents. */
+#define	word1eq(s)      (len == sizeof(s)-1 && strneq (s, line, sizeof(s)-1))
+#define	chkword(s, t)   if (word1eq (s)) { cmdtype = (t); cmdname = (s); }
+
+  /* Make sure this line is a conditional.  */
+  chkword ("ifdef", c_ifdef)
+  else chkword ("ifndef", c_ifndef)
+  else chkword ("ifeq", c_ifeq)
+  else chkword ("ifneq", c_ifneq)
+  else chkword ("else", c_else)
+  else chkword ("endif", c_endif)
   else
-    {
-      /* It's an "else" or "endif" command.  */
-      notdef = line[1] == 'n';
-      cmdname = notdef ? "endif" : "else";
-      line += notdef ? 5 : 4;
-    }
+    return -2;
 
-  line = next_token (line);
+  /* Found one: skip past it and any whitespace after it.  */
+  line = next_token (line + len);
 
-  if (*cmdname == 'e')
+#define EXTRANEOUS() error (flocp, _("Extraneous text after `%s' directive"), cmdname)
+
+  /* An 'endif' cannot contain extra text, and reduces the if-depth by 1  */
+  if (cmdtype == c_endif)
     {
       if (*line != '\0')
-	error (flocp, _("Extraneous text after `%s' directive"), cmdname);
-      /* "Else" or "endif".  */
-      if (conditionals->if_cmds == 0)
+	EXTRANEOUS ();
+
+      if (!conditionals->if_cmds)
 	fatal (flocp, _("extraneous `%s'"), cmdname);
-      /* NOTDEF indicates an `endif' command.  */
-      if (notdef)
-	--conditionals->if_cmds;
-      else if (conditionals->seen_else[conditionals->if_cmds - 1])
-	fatal (flocp, _("only one `else' per conditional"));
+
+      --conditionals->if_cmds;
+
+      goto DONE;
+    }
+
+  /* An 'else' statement can either be simple, or it can have another
+     conditional after it.  */
+  if (cmdtype == c_else)
+    {
+      const char *p;
+
+      if (!conditionals->if_cmds)
+	fatal (flocp, _("extraneous `%s'"), cmdname);
+
+      o = conditionals->if_cmds - 1;
+
+      if (conditionals->seen_else[o])
+        fatal (flocp, _("only one `else' per conditional"));
+
+      /* Change the state of ignorance.  */
+      switch (conditionals->ignoring[o])
+        {
+          case 0:
+            /* We've just been interpreting.  Never do it again.  */
+            conditionals->ignoring[o] = 2;
+            break;
+          case 1:
+            /* We've never interpreted yet.  Maybe this time!  */
+            conditionals->ignoring[o] = 0;
+            break;
+        }
+
+      /* It's a simple 'else'.  */
+      if (*line == '\0')
+        {
+          conditionals->seen_else[o] = 1;
+          goto DONE;
+        }
+
+      /* The 'else' has extra text.  That text must be another conditional
+         and cannot be an 'else' or 'endif'.  */
+
+      /* Find the length of the next word.  */
+      for (p = line+1; *p != '\0' && !isspace ((unsigned char)*p); ++p)
+        ;
+      len = p - line;
+
+      /* If it's 'else' or 'endif' or an illegal conditional, fail.  */
+      if (word1eq("else") || word1eq("endif")
+          || conditional_line (line, len, flocp) < 0)
+	EXTRANEOUS ();
       else
-	{
-	  /* Toggle the state of ignorance.  */
-	  conditionals->ignoring[conditionals->if_cmds - 1]
-	    = !conditionals->ignoring[conditionals->if_cmds - 1];
-	  /* Record that we have seen an `else' in this conditional.
-	     A second `else' will be erroneous.  */
-	  conditionals->seen_else[conditionals->if_cmds - 1] = 1;
-	}
-      for (i = 0; i < conditionals->if_cmds; ++i)
-	if (conditionals->ignoring[i])
-	  return 1;
-      return 0;
+        {
+          /* conditional_line() created a new level of conditional.
+             Raise it back to this level.  */
+          if (conditionals->ignoring[o] < 2)
+            conditionals->ignoring[o] = conditionals->ignoring[o+1];
+          --conditionals->if_cmds;
+        }
+
+      goto DONE;
     }
 
   if (conditionals->allocated == 0)
@@ -1429,7 +1534,7 @@ conditional_line (char *line, const struct floc *flocp)
       conditionals->seen_else = (char *) xmalloc (conditionals->allocated);
     }
 
-  ++conditionals->if_cmds;
+  o = conditionals->if_cmds++;
   if (conditionals->if_cmds > conditionals->allocated)
     {
       conditionals->allocated += 5;
@@ -1440,25 +1545,24 @@ conditional_line (char *line, const struct floc *flocp)
     }
 
   /* Record that we have seen an `if...' but no `else' so far.  */
-  conditionals->seen_else[conditionals->if_cmds - 1] = 0;
+  conditionals->seen_else[o] = 0;
 
   /* Search through the stack to see if we're already ignoring.  */
-  for (i = 0; i < conditionals->if_cmds - 1; ++i)
+  for (i = 0; i < o; ++i)
     if (conditionals->ignoring[i])
       {
-	/* We are already ignoring, so just push a level
-	   to match the next "else" or "endif", and keep ignoring.
-	   We don't want to expand variables in the condition.  */
-	conditionals->ignoring[conditionals->if_cmds - 1] = 1;
+	/* We are already ignoring, so just push a level to match the next
+	   "else" or "endif", and keep ignoring.  We don't want to expand
+	   variables in the condition.  */
+	conditionals->ignoring[o] = 1;
 	return 1;
       }
 
-  if (cmdname[notdef ? 3 : 2] == 'd')
+  if (cmdtype == c_ifdef || cmdtype == c_ifndef)
     {
-      /* "Ifdef" or "ifndef".  */
       char *var;
       struct variable *v;
-      register char *p;
+      char *p;
 
       /* Expand the thing we're looking up, so we can use indirect and
          constructed variable names.  */
@@ -1472,9 +1576,10 @@ conditional_line (char *line, const struct floc *flocp)
 	return -1;
 
       var[i] = '\0';
-      v = lookup_variable (var, strlen (var));
-      conditionals->ignoring[conditionals->if_cmds - 1]
-	= (v != 0 && *v->value != '\0') == notdef;
+      v = lookup_variable (var, i);
+
+      conditionals->ignoring[o] =
+        ((v != 0 && *v->value != '\0') == (cmdtype == c_ifndef));
 
       free (var);
     }
@@ -1492,7 +1597,7 @@ conditional_line (char *line, const struct floc *flocp)
       /* Find the end of the first string.  */
       if (termin == ',')
 	{
-	  register int count = 0;
+	  int count = 0;
 	  for (; *line != '\0'; ++line)
 	    if (*line == '(')
 	      ++count;
@@ -1566,13 +1671,13 @@ conditional_line (char *line, const struct floc *flocp)
       *line = '\0';
       line = next_token (++line);
       if (*line != '\0')
-	error (flocp, _("Extraneous text after `%s' directive"), cmdname);
+	EXTRANEOUS ();
 
       s2 = variable_expand (s2);
-      conditionals->ignoring[conditionals->if_cmds - 1]
-	= streq (s1, s2) == notdef;
+      conditionals->ignoring[o] = (streq (s1, s2) == (cmdtype == c_ifneq));
     }
 
+ DONE:
   /* Search through the stack to see if we're ignoring.  */
   for (i = 0; i < conditionals->if_cmds; ++i)
     if (conditionals->ignoring[i])
@@ -1686,10 +1791,16 @@ record_target_var (struct nameseq *filenames, char *defn,
           /* Get a reference for this pattern-specific variable struct.  */
           p = create_pattern_var (name, percent);
           p->variable.fileinfo = *flocp;
+          /* I don't think this can fail since we already determined it was a
+             variable definition.  */
           v = parse_variable_definition (&p->variable, defn);
-          v->value = xstrdup (v->value);
-          if (!v)
-            error (flocp, _("Malformed pattern-specific variable definition"));
+          assert (v != 0);
+
+          if (v->flavor == f_simple)
+            v->value = allocated_variable_expand (v->value);
+          else
+            v->value = xstrdup (v->value);
+
           fname = p->target;
         }
       else
@@ -1762,13 +1873,20 @@ static void
 record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
               struct dep *deps, unsigned int cmds_started, char *commands,
               unsigned int commands_idx, int two_colon,
-              int have_sysv_atvar, const struct floc *flocp, int set_default)
+              const struct floc *flocp)
 {
   struct nameseq *nextf;
   int implicit = 0;
   unsigned int max_targets = 0, target_idx = 0;
   char **targets = 0, **target_percents = 0;
   struct commands *cmds;
+
+  /* If we've already snapped deps, that means we're in an eval being
+     resolved after the makefiles have been read in.  We can't add more rules
+     at this time, since they won't get snapped and we'll get core dumps.
+     See Savannah bug # 12124.  */
+  if (snapped_deps)
+    fatal (flocp, _("prerequisites cannot be defined in command scripts"));
 
   if (commands_idx > 0)
     {
@@ -1834,7 +1952,7 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 
       /* If there are multiple filenames, copy the chain DEPS
 	 for all but the last one.  It is not safe for the same deps
-	 to go in more than one place in the data base.  */
+	 to go in more than one place in the database.  */
       this = nextf != 0 ? copy_dep_chain (deps) : deps;
 
       if (pattern != 0)
@@ -1851,129 +1969,21 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	      this = 0;
 	    }
 	  else
-	    {
-	      /* We use patsubst_expand to do the work of translating
-		 the target pattern, the target's name and the dependencies'
-		 patterns into plain dependency names.  */
-	      char *buffer = variable_expand ("");
+            /* We use subst_expand to do the work of translating % to $* in
+               the dependency line.  */
 
-	      for (d = this; d != 0; d = d->next)
-		{
-		  char *o;
-		  char *percent = find_percent (d->name);
-		  if (percent == 0)
-		    continue;
-		  o = patsubst_expand (buffer, name, pattern, d->name,
-				       pattern_percent, percent);
-                  /* If the name expanded to the empty string, that's
-                     illegal.  */
-                  if (o == buffer)
-                    fatal (flocp,
-                           _("target `%s' leaves prerequisite pattern empty"),
-                           name);
-		  free (d->name);
-		  d->name = savestring (buffer, o - buffer);
-		}
-	    }
-	}
-
-      /* If at least one of the dependencies uses $$@ etc. deal with that.
-         It would be very nice and very simple to just expand everything, but
-         it would break a lot of backward compatibility.  Maybe that's OK
-         since we're just emulating a SysV function, and if we do that then
-         why not emulate it completely (that's what SysV make does: it
-         re-expands the entire prerequisite list, all the time, with $@
-         etc. in scope).  But, it would be a pain indeed to document this
-         ("iff you use $$@, your prerequisite lists is expanded twice...")
-         Ouch.  Maybe better to make the code more complex.  */
-
-      if (have_sysv_atvar)
-        {
-          char *p;
-          int tlen = strlen (name);
-          char *fnp = strrchr (name, '/');
-          int dlen;
-          int flen;
-
-          if (fnp)
-            {
-              dlen = fnp - name;
-              ++fnp;
-              flen = strlen (fnp);
-            }
-          else
-            {
-              dlen = 0;
-              fnp = name;
-              flen = tlen;
-            }
-
-
-          for (d = this; d != 0; d = d->next)
-            for (p = strchr (d->name, '$'); p != 0; p = strchr (p+1, '$'))
+            if (this != 0 && find_percent (this->name) != 0)
               {
-                char *s = p;
-                char *at;
-                int atlen;
+                char *o;
+                char *buffer = variable_expand ("");
 
-                /* If it's '$@', '$(@', or '${@', it's escaped */
-                if ((++p)[0] == '$'
-                    && (p[1] == '@'
-                        || ((p[1] == '(' || p[1] == '{') && p[2] == '@')))
-                  {
-                    bcopy (p, s, strlen (p)+1);
-                    continue;
-                  }
+                o = subst_expand (buffer, this->name, "%", "$*", 1, 2, 0);
 
-                /* Maybe found one.  We like anything of any form matching @,
-                   [({]@[}):], or [({]@[DF][}):].  */
-
-                if (! (p[0] == '@'
-                       || ((p[0] == '(' || p[0] == '{') && (++p)[0] == '@'
-                           && (((++p)[0] == ')' || p[0] == '}' || p[0] == ':')
-                               || ((p[1] == ')' || p[1] == '}' || p[1] == ':')
-                                   && (p[0] == 'D' || p[0] == 'F'))))))
-                  continue;
-
-                /* Found one.  Compute the length and string ptr.  Move p
-                   past the variable reference.  */
-                switch (p[0])
-                  {
-                  case 'D':
-                    atlen = dlen;
-                    at = name;
-                    p += 2;
-                    break;
-
-                  case 'F':
-                    atlen = flen;
-                    at = fnp;
-                    p += 2;
-                    break;
-
-                  default:
-                    atlen = tlen;
-                    at = name;
-                    ++p;
-                    break;
-                  }
-
-                /* Get more space.  */
-                {
-                  int soff = s - d->name;
-                  int poff = p - d->name;
-                  d->name = (char *) xrealloc (d->name,
-                                               strlen (d->name) + atlen + 1);
-                  s = d->name + soff;
-                  p = d->name + poff;
-                }
-
-                /* Copy the string over.  */
-                bcopy(p, s+atlen, strlen (p)+1);
-                bcopy(at, s, atlen);
-                p = s + atlen - 1;
+                free (this->name);
+                this->name = savestring (buffer, o - buffer);
+                this->need_2nd_expansion = 1;
               }
-        }
+	}
 
       if (!two_colon)
 	{
@@ -2012,6 +2022,7 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	    f->cmds = 0;
 	  if (cmds != 0)
 	    f->cmds = cmds;
+
 	  /* Defining .SUFFIXES with no dependencies
 	     clears out the list of suffixes.  */
 	  if (f == suffix_file && this == 0)
@@ -2026,41 +2037,63 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 		}
 	      f->deps = 0;
 	    }
-	  else if (f->deps != 0)
+          else if (this != 0)
 	    {
 	      /* Add the file's old deps and the new ones in THIS together.  */
 
-	      struct dep *firstdeps, *moredeps;
-	      if (cmds != 0)
-		{
-		  /* This is the rule with commands, so put its deps first.
-		     The rationale behind this is that $< expands to the
-		     first dep in the chain, and commands use $< expecting
-		     to get the dep that rule specifies.  */
-		  firstdeps = this;
-		  moredeps = f->deps;
-		}
-	      else
-		{
-		  /* Append the new deps to the old ones.  */
-		  firstdeps = f->deps;
-		  moredeps = this;
-		}
+              if (f->deps != 0)
+                {
+                  struct dep **d_ptr = &f->deps;
 
-	      if (firstdeps == 0)
-		firstdeps = moredeps;
-	      else
-		{
-		  d = firstdeps;
-		  while (d->next != 0)
-		    d = d->next;
-		  d->next = moredeps;
-		}
+                  while ((*d_ptr)->next != 0)
+                    d_ptr = &(*d_ptr)->next;
 
-	      f->deps = firstdeps;
+                  if (cmds != 0)
+                    {
+                      /* This is the rule with commands, so put its deps
+                         last. The rationale behind this is that $< expands
+                         to the first dep in the chain, and commands use $<
+                         expecting to get the dep that rule specifies.
+                         However the second expansion algorithm reverses
+                         the order thus we need to make it last here.  */
+
+                      (*d_ptr)->next = this;
+                    }
+                  else
+                    {
+                      /* This is the rule without commands. Put its
+                         dependencies at the end but before dependencies
+                         from the rule with commands (if any). This way
+                         everything appears in makefile order.  */
+
+                      if (f->cmds != 0)
+                        {
+                          this->next = *d_ptr;
+                          *d_ptr = this;
+                        }
+                      else
+                        (*d_ptr)->next = this;
+                    }
+                }
+              else
+                f->deps = this;
+
+              /* This is a hack. I need a way to communicate to snap_deps()
+                 that the last dependency line in this file came with commands
+                 (so that logic in snap_deps() can put it in front and all
+                 this $< -logic works). I cannot simply rely on file->cmds
+                 being not 0 because of the cases like the following:
+
+                 foo: bar
+                 foo:
+                     ...
+
+                 I am going to temporarily "borrow" UPDATING member in
+                 `struct file' for this.   */
+
+              if (cmds != 0)
+                f->updating = 1;
 	    }
-	  else
-	    f->deps = this;
 
 	  /* If this is a static pattern rule, set the file's stem to
 	     the part of its name that matched the `%' in the pattern,
@@ -2070,7 +2103,7 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	      static char *percent = "%";
 	      char *buffer = variable_expand ("");
 	      char *o = patsubst_expand (buffer, name, pattern, percent,
-					 pattern_percent, percent);
+					 pattern_percent+1, percent+1);
 	      f->stem = savestring (buffer, o - buffer);
 	    }
 	}
@@ -2106,46 +2139,11 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	  name = f->name;
 	}
 
-      /* See if this is first target seen whose name does
-	 not start with a `.', unless it contains a slash.  */
-      if (default_goal_file == 0 && set_default
-	  && (*name != '.' || strchr (name, '/') != 0
-#ifdef HAVE_DOS_PATHS
-			   || strchr (name, '\\') != 0
-#endif
-	      ))
-	{
-	  int reject = 0;
-
-	  /* If this file is a suffix, don't
-	     let it be the default goal file.  */
-
-	  for (d = suffix_file->deps; d != 0; d = d->next)
-	    {
-	      register struct dep *d2;
-	      if (*dep_name (d) != '.' && streq (name, dep_name (d)))
-		{
-		  reject = 1;
-		  break;
-		}
-	      for (d2 = suffix_file->deps; d2 != 0; d2 = d2->next)
-		{
-		  register unsigned int len = strlen (dep_name (d2));
-		  if (!strneq (name, dep_name (d2), len))
-		    continue;
-		  if (streq (name + len, dep_name (d)))
-		    {
-		      reject = 1;
-		      break;
-		    }
-		}
-	      if (reject)
-		break;
-	    }
-
-	  if (!reject)
-	    default_goal_file = f;
-	}
+      /* If this target is a default target, update DEFAULT_GOAL_FILE.  */
+      if (strcmp (*default_goal_name, name) == 0
+          && (default_goal_file == 0
+              || strcmp (default_goal_file->name, name) != 0))
+        default_goal_file = f;
     }
 
   if (implicit)
@@ -2168,25 +2166,26 @@ find_char_unquote (char *string, int stop1, int stop2, int blank)
 {
   unsigned int string_len = 0;
   register char *p = string;
+  register int ch;
 
   while (1)
     {
       if (stop2 && blank)
-	while (*p != '\0' && *p != stop1 && *p != stop2
-	       && ! isblank ((unsigned char) *p))
+	while ((ch = *p) != '\0' && ch != stop1 && ch != stop2
+	       && ! isblank ((unsigned char) ch))
 	  ++p;
       else if (stop2)
-	while (*p != '\0' && *p != stop1 && *p != stop2)
+	while ((ch = *p) != '\0' && ch != stop1 && ch != stop2)
 	  ++p;
       else if (blank)
-	while (*p != '\0' && *p != stop1
-	       && ! isblank ((unsigned char) *p))
+	while ((ch = *p) != '\0' && ch != stop1
+	       && ! isblank ((unsigned char) ch))
 	  ++p;
       else
-	while (*p != '\0' && *p != stop1)
+	while ((ch = *p) != '\0' && ch != stop1)
 	  ++p;
 
-      if (*p == '\0')
+      if (ch == '\0')
 	break;
 
       if (p > string && p[-1] == '\\')
@@ -2486,35 +2485,42 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 static unsigned long
 readstring (struct ebuffer *ebuf)
 {
-  char *p;
+  char *eol;
 
   /* If there is nothing left in this buffer, return 0.  */
-  if (ebuf->bufnext > ebuf->bufstart + ebuf->size)
+  if (ebuf->bufnext >= ebuf->bufstart + ebuf->size)
     return -1;
 
   /* Set up a new starting point for the buffer, and find the end of the
      next logical line (taking into account backslash/newline pairs).  */
 
-  p = ebuf->buffer = ebuf->bufnext;
+  eol = ebuf->buffer = ebuf->bufnext;
 
   while (1)
     {
       int backslash = 0;
+      char *bol = eol;
+      char *p;
 
-      /* Find the next newline.  Keep track of backslashes as we look.  */
-      for (; *p != '\n' && *p != '\0'; ++p)
-        if (*p == '\\')
-          backslash = !backslash;
+      /* Find the next newline.  At EOS, stop.  */
+      eol = p = strchr (eol , '\n');
+      if (!eol)
+        {
+          ebuf->bufnext = ebuf->bufstart + ebuf->size + 1;
+          return 0;
+        }
 
-      /* If we got to the end of the string or a newline with no backslash,
-         we're done. */
-      if (*p == '\0' || !backslash)
+      /* Found a newline; if it's escaped continue; else we're done.  */
+      while (p > bol && *(--p) == '\\')
+        backslash = !backslash;
+      if (!backslash)
         break;
+      ++eol;
     }
 
   /* Overwrite the newline char.  */
-  *p = '\0';
-  ebuf->bufnext = p+1;
+  *eol = '\0';
+  ebuf->bufnext = eol+1;
 
   return 0;
 }

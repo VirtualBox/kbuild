@@ -72,22 +72,19 @@ static struct hash_table function_table;
    each occurrence of SUBST with REPLACE. TEXT is null-terminated.  SLEN is
    the length of SUBST and RLEN is the length of REPLACE.  If BY_WORD is
    nonzero, substitutions are done only on matches which are complete
-   whitespace-delimited words.  If SUFFIX_ONLY is nonzero, substitutions are
-   done only at the ends of whitespace-delimited words.  */
+   whitespace-delimited words.  */
 
 char *
 subst_expand (char *o, char *text, char *subst, char *replace,
-              unsigned int slen, unsigned int rlen,
-              int by_word, int suffix_only)
+              unsigned int slen, unsigned int rlen, int by_word)
 {
   char *t = text;
-  unsigned int tlen = strlen (text);
   char *p;
 
-  if (slen == 0 && !by_word && !suffix_only)
+  if (slen == 0 && !by_word)
     {
       /* The first occurrence of "" in any string is its end.  */
-      o = variable_buffer_output (o, t, tlen);
+      o = variable_buffer_output (o, t, strlen (t));
       if (rlen > 0)
 	o = variable_buffer_output (o, replace, rlen);
       return o;
@@ -95,17 +92,17 @@ subst_expand (char *o, char *text, char *subst, char *replace,
 
   do
     {
-      if ((by_word | suffix_only) && slen == 0)
+      if (by_word && slen == 0)
 	/* When matching by words, the empty string should match
 	   the end of each word, rather than the end of the whole text.  */
 	p = end_of_token (next_token (t));
       else
 	{
-	  p = sindex (t, tlen, subst, slen);
+	  p = strstr (t, subst);
 	  if (p == 0)
 	    {
 	      /* No more matches.  Output everything left on the end.  */
-	      o = variable_buffer_output (o, t, tlen);
+	      o = variable_buffer_output (o, t, strlen (t));
 	      return o;
 	    }
 	}
@@ -116,11 +113,9 @@ subst_expand (char *o, char *text, char *subst, char *replace,
 
       /* If we're substituting only by fully matched words,
 	 or only at the ends of words, check that this case qualifies.  */
-      if ((by_word
-	   && ((p > t && !isblank ((unsigned char)p[-1]))
-	       || (p[slen] != '\0' && !isblank ((unsigned char)p[slen]))))
-	  || (suffix_only
-	      && (p[slen] != '\0' && !isblank ((unsigned char)p[slen]))))
+      if (by_word
+          && ((p > text && !isblank ((unsigned char)p[-1]))
+              || (p[slen] != '\0' && !isblank ((unsigned char)p[slen]))))
 	/* Struck out.  Output the rest of the string that is
 	   no longer to be replaced.  */
 	o = variable_buffer_output (o, subst, slen);
@@ -128,62 +123,74 @@ subst_expand (char *o, char *text, char *subst, char *replace,
 	/* Output the replacement string.  */
 	o = variable_buffer_output (o, replace, rlen);
 
-      /* Advance T past the string to be replaced; adjust tlen.  */
+      /* Advance T past the string to be replaced.  */
       {
         char *nt = p + slen;
-        tlen -= nt - t;
         t = nt;
       }
     } while (*t != '\0');
 
   return o;
 }
-
+
 
 /* Store into VARIABLE_BUFFER at O the result of scanning TEXT
    and replacing strings matching PATTERN with REPLACE.
    If PATTERN_PERCENT is not nil, PATTERN has already been
    run through find_percent, and PATTERN_PERCENT is the result.
    If REPLACE_PERCENT is not nil, REPLACE has already been
-   run through find_percent, and REPLACE_PERCENT is the result.  */
+   run through find_percent, and REPLACE_PERCENT is the result.
+   Note that we expect PATTERN_PERCENT and REPLACE_PERCENT to point to the
+   character _AFTER_ the %, not to the % itself.
+*/
 
 char *
 patsubst_expand (char *o, char *text, char *pattern, char *replace,
                  char *pattern_percent, char *replace_percent)
 {
   unsigned int pattern_prepercent_len, pattern_postpercent_len;
-  unsigned int replace_prepercent_len, replace_postpercent_len = 0;
+  unsigned int replace_prepercent_len, replace_postpercent_len;
   char *t;
   unsigned int len;
   int doneany = 0;
 
   /* We call find_percent on REPLACE before checking PATTERN so that REPLACE
      will be collapsed before we call subst_expand if PATTERN has no %.  */
-  if (replace_percent == 0)
-    replace_percent = find_percent (replace);
-  if (replace_percent != 0)
+  if (!replace_percent)
     {
-      /* Record the length of REPLACE before and after the % so
-	 we don't have to compute these lengths more than once.  */
-      replace_prepercent_len = replace_percent - replace;
-      replace_postpercent_len = strlen (replace_percent + 1);
+      replace_percent = find_percent (replace);
+      if (replace_percent)
+        ++replace_percent;
+    }
+
+  /* Record the length of REPLACE before and after the % so we don't have to
+     compute these lengths more than once.  */
+  if (replace_percent)
+    {
+      replace_prepercent_len = replace_percent - replace - 1;
+      replace_postpercent_len = strlen (replace_percent);
     }
   else
-    /* We store the length of the replacement
-       so we only need to compute it once.  */
-    replace_prepercent_len = strlen (replace);
+    {
+      replace_prepercent_len = strlen (replace);
+      replace_postpercent_len = 0;
+    }
 
-  if (pattern_percent == 0)
-    pattern_percent = find_percent (pattern);
-  if (pattern_percent == 0)
+  if (!pattern_percent)
+    {
+      pattern_percent = find_percent (pattern);
+      if (pattern_percent)
+        ++pattern_percent;
+    }
+  if (!pattern_percent)
     /* With no % in the pattern, this is just a simple substitution.  */
     return subst_expand (o, text, pattern, replace,
-			 strlen (pattern), strlen (replace), 1, 0);
+			 strlen (pattern), strlen (replace), 1);
 
   /* Record the length of PATTERN before and after the %
      so we don't have to compute it more than once.  */
-  pattern_prepercent_len = pattern_percent - pattern;
-  pattern_postpercent_len = strlen (pattern_percent + 1);
+  pattern_prepercent_len = pattern_percent - pattern - 1;
+  pattern_postpercent_len = strlen (pattern_percent);
 
   while ((t = find_next_token (&text, &len)) != 0)
     {
@@ -196,16 +203,16 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
       /* Does the prefix match? */
       if (!fail && pattern_prepercent_len > 0
 	  && (*t != *pattern
-	      || t[pattern_prepercent_len - 1] != pattern_percent[-1]
+	      || t[pattern_prepercent_len - 1] != pattern_percent[-2]
 	      || !strneq (t + 1, pattern + 1, pattern_prepercent_len - 1)))
 	fail = 1;
 
       /* Does the suffix match? */
       if (!fail && pattern_postpercent_len > 0
-	  && (t[len - 1] != pattern_percent[pattern_postpercent_len]
-	      || t[len - pattern_postpercent_len] != pattern_percent[1]
+	  && (t[len - 1] != pattern_percent[pattern_postpercent_len - 1]
+	      || t[len - pattern_postpercent_len] != *pattern_percent
 	      || !strneq (&t[len - pattern_postpercent_len],
-			  &pattern_percent[1], pattern_postpercent_len - 1)))
+			  pattern_percent, pattern_postpercent_len - 1)))
 	fail = 1;
 
       if (fail)
@@ -226,7 +233,7 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
 					  len - (pattern_prepercent_len
 						 + pattern_postpercent_len));
 	      /* Output the part of the replacement after the %.  */
-	      o = variable_buffer_output (o, replace_percent + 1,
+	      o = variable_buffer_output (o, replace_percent,
 					  replace_postpercent_len);
 	    }
 	}
@@ -641,7 +648,7 @@ static char *
 func_subst (char *o, char **argv, const char *funcname UNUSED)
 {
   o = subst_expand (o, argv[2], argv[0], argv[1], strlen (argv[0]),
-		    strlen (argv[1]), 0, 0);
+		    strlen (argv[1]), 0);
 
   return o;
 }
@@ -660,6 +667,22 @@ func_firstword (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+static char *
+func_lastword (char *o, char **argv, const char *funcname UNUSED)
+{
+  unsigned int i;
+  char *words = argv[0];    /* Use a temp variable for find_next_token */
+  char *p = 0;
+  char *t;
+
+  while ((t = find_next_token (&words, &i)))
+    p = t;
+
+  if (p != 0)
+    o = variable_buffer_output (o, p, i);
+
+  return o;
+}
 
 static char *
 func_words (char *o, char **argv, const char *funcname UNUSED)
@@ -683,7 +706,7 @@ func_words (char *o, char **argv, const char *funcname UNUSED)
  * If the string is empty or contains nothing but whitespace, endpp will be
  * begpp-1.
  */
-static char *
+char *
 strip_whitespace (const char **begpp, const char **endpp)
 {
   while (*begpp <= *endpp && isspace ((unsigned char)**begpp))
@@ -748,6 +771,10 @@ func_wordlist (char *o, char **argv, const char *funcname UNUSED)
 		 _("non-numeric second argument to `wordlist' function"));
 
   start = atoi (argv[0]);
+  if (start < 1)
+    fatal (reading_file,
+           "invalid first argument to `wordlist' function: `%d'", start);
+
   count = atoi (argv[1]) - start + 1;
 
   if (count > 0)
@@ -777,9 +804,8 @@ static char*
 func_findstring (char *o, char **argv, const char *funcname UNUSED)
 {
   /* Find the first occurrence of the first string in the second.  */
-  int i = strlen (argv[0]);
-  if (sindex (argv[1], 0, argv[0], i) != 0)
-    o = variable_buffer_output (o, argv[0], i);
+  if (strstr (argv[1], argv[0]) != 0)
+    o = variable_buffer_output (o, argv[0], strlen (argv[0]));
 
   return o;
 }
@@ -1060,12 +1086,23 @@ func_error (char *o, char **argv, const char *funcname)
     }
   strcpy (p, *argvp);
 
-  if (*funcname == 'e')
-    fatal (reading_file, "%s", msg);
+  switch (*funcname) {
+    case 'e':
+      fatal (reading_file, "%s", msg);
+
+    case 'w':
+      error (reading_file, "%s", msg);
+      break;
+
+    case 'i':
+      printf ("%s\n", msg);
+      break;
+
+    default:
+      fatal (reading_file, "Internal error: func_error: '%s'", funcname);
+  }
 
   /* The warning function expands to the empty string.  */
-  error (reading_file, "%s", msg);
-
   return o;
 }
 
@@ -1450,7 +1487,7 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
   envp = environ;
 
   /* For error messages.  */
-  if (reading_file != 0)
+  if (reading_file && reading_file->filenm)
     {
       error_prefix = (char *) alloca (strlen (reading_file->filenm)+11+4);
       sprintf (error_prefix,
@@ -1693,7 +1730,7 @@ func_shell (char *o, char **argv, const char *funcname)
   equality. Return is string-boolean, ie, the empty string is false.
  */
 static char *
-func_eq (char* o, char **argv, char *funcname)
+func_eq (char *o, char **argv, char *funcname)
 {
   int result = ! strcmp (argv[0], argv[1]);
   o = variable_buffer_output (o,  result ? "1" : "", result);
@@ -1705,9 +1742,9 @@ func_eq (char* o, char **argv, char *funcname)
   string-boolean not operator.
  */
 static char *
-func_not (char* o, char **argv, char *funcname)
+func_not (char *o, char **argv, char *funcname)
 {
-  char * s = argv[0];
+  char *s = argv[0];
   int result = 0;
   while (isspace ((unsigned char)*s))
     s++;
@@ -1717,6 +1754,159 @@ func_not (char* o, char **argv, char *funcname)
 }
 #endif
 
+
+/* Return the absolute name of file NAME which does not contain any `.',
+   `..' components nor any repeated path separators ('/').   */
+
+static char *
+abspath (const char *name, char *apath)
+{
+  char *dest;
+  const char *start, *end, *apath_limit;
+
+  if (name[0] == '\0' || apath == NULL)
+    return NULL;
+
+  apath_limit = apath + GET_PATH_MAX;
+
+  if (name[0] != '/')
+    {
+      /* It is unlikely we would make it until here but just to make sure. */
+      if (!starting_directory)
+	return NULL;
+
+      strcpy (apath, starting_directory);
+
+      dest = strchr (apath, '\0');
+    }
+  else
+    {
+      apath[0] = '/';
+      dest = apath + 1;
+    }
+
+  for (start = end = name; *start != '\0'; start = end)
+    {
+      unsigned long len;
+
+      /* Skip sequence of multiple path-separators.  */
+      while (*start == '/')
+	++start;
+
+      /* Find end of path component.  */
+      for (end = start; *end != '\0' && *end != '/'; ++end)
+        ;
+
+      len = end - start;
+
+      if (len == 0)
+	break;
+      else if (len == 1 && start[0] == '.')
+	/* nothing */;
+      else if (len == 2 && start[0] == '.' && start[1] == '.')
+	{
+	  /* Back up to previous component, ignore if at root already.  */
+	  if (dest > apath + 1)
+	    while ((--dest)[-1] != '/');
+	}
+      else
+	{
+	  if (dest[-1] != '/')
+            *dest++ = '/';
+
+	  if (dest + len >= apath_limit)
+            return NULL;
+
+	  dest = memcpy (dest, start, len);
+          dest += len;
+	  *dest = '\0';
+	}
+    }
+
+  /* Unless it is root strip trailing separator.  */
+  if (dest > apath + 1 && dest[-1] == '/')
+    --dest;
+
+  *dest = '\0';
+
+  return apath;
+}
+
+
+static char *
+func_realpath (char *o, char **argv, const char *funcname UNUSED)
+{
+  /* Expand the argument.  */
+  char *p = argv[0];
+  char *path = 0;
+  int doneany = 0;
+  unsigned int len = 0;
+  PATH_VAR (in);
+  PATH_VAR (out);
+
+  while ((path = find_next_token (&p, &len)) != 0)
+    {
+      if (len < GET_PATH_MAX)
+        {
+          strncpy (in, path, len);
+          in[len] = '\0';
+
+          if
+          (
+#ifdef HAVE_REALPATH
+            realpath (in, out)
+#else
+            abspath (in, out)
+#endif
+          )
+            {
+              o = variable_buffer_output (o, out, strlen (out));
+              o = variable_buffer_output (o, " ", 1);
+              doneany = 1;
+            }
+        }
+    }
+
+  /* Kill last space.  */
+  if (doneany)
+    --o;
+
+ return o;
+}
+
+static char *
+func_abspath (char *o, char **argv, const char *funcname UNUSED)
+{
+  /* Expand the argument.  */
+  char *p = argv[0];
+  char *path = 0;
+  int doneany = 0;
+  unsigned int len = 0;
+  PATH_VAR (in);
+  PATH_VAR (out);
+
+  while ((path = find_next_token (&p, &len)) != 0)
+    {
+      if (len < GET_PATH_MAX)
+        {
+          strncpy (in, path, len);
+          in[len] = '\0';
+
+          if (abspath (in, out))
+            {
+              o = variable_buffer_output (o, out, strlen (out));
+              o = variable_buffer_output (o, " ", 1);
+              doneany = 1;
+            }
+        }
+    }
+
+  /* Kill last space.  */
+  if (doneany)
+    --o;
+
+ return o;
+}
 
 /* Lookup table for builtin functions.
 
@@ -1736,6 +1926,7 @@ static char *func_call PARAMS ((char *o, char **argv, const char *funcname));
 static struct function_table_entry function_table_init[] =
 {
  /* Name/size */                    /* MIN MAX EXP? Function */
+  { STRING_SIZE_TUPLE("abspath"),       0,  1,  1,  func_abspath},
   { STRING_SIZE_TUPLE("addprefix"),     2,  2,  1,  func_addsuffix_addprefix},
   { STRING_SIZE_TUPLE("addsuffix"),     2,  2,  1,  func_addsuffix_addprefix},
   { STRING_SIZE_TUPLE("basename"),      0,  1,  1,  func_basename_dir},
@@ -1748,7 +1939,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("findstring"),    2,  2,  1,  func_findstring},
   { STRING_SIZE_TUPLE("firstword"),     0,  1,  1,  func_firstword},
   { STRING_SIZE_TUPLE("join"),          2,  2,  1,  func_join},
+  { STRING_SIZE_TUPLE("lastword"),      0,  1,  1,  func_lastword},
   { STRING_SIZE_TUPLE("patsubst"),      3,  3,  1,  func_patsubst},
+  { STRING_SIZE_TUPLE("realpath"),      0,  1,  1,  func_realpath},
   { STRING_SIZE_TUPLE("shell"),         0,  1,  1,  func_shell},
   { STRING_SIZE_TUPLE("sort"),          0,  1,  1,  func_sort},
   { STRING_SIZE_TUPLE("strip"),         0,  1,  1,  func_strip},
@@ -1759,6 +1952,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("origin"),        0,  1,  1,  func_origin},
   { STRING_SIZE_TUPLE("foreach"),       3,  3,  0,  func_foreach},
   { STRING_SIZE_TUPLE("call"),          1,  0,  1,  func_call},
+  { STRING_SIZE_TUPLE("info"),          0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("error"),         0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("warning"),       0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("if"),            2,  3,  0,  func_if},
