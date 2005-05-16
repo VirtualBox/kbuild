@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 268 2005-05-06 03:48:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 278 2005-05-16 15:02:59Z knut.osmundsen@oracle.com $
 
 
 #
@@ -51,7 +51,8 @@ kmk_SOURCES        += \
 	kmkbuiltin/cp_utils.c \
 	\
 	kmkbuiltin/setmode.c \
-	kmkbuiltin/strmode.c
+	kmkbuiltin/strmode.c \
+	kmkbuiltin/strlcpy.c
 
 kmk_SOURCES.os2 = \
 	getopt.c \
@@ -79,7 +80,8 @@ cp_TEMPLATE = BIN
 cp_DEFS = kmk_builtin_cp=main
 cp_SOURCES = \
 	kmkbuiltin/cp.c \
-	kmkbuiltin/cp_utils.c
+	kmkbuiltin/cp_utils.c \
+    kmkbuiltin/strlcpy.c
 
 echo_TEMPLATE = BIN
 echo_DEFS = kmk_builtin_echo=main
