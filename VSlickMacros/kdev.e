@@ -1,4 +1,4 @@
-/* $Id: kdev.e 288 2005-05-22 23:53:51Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 289 2005-05-22 23:55:32Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -2309,7 +2309,7 @@ static void k_styles_setindent(int indent, int iBraceStyle, boolean iWithTabs = 
 static int k_style_emacs_var_integer(_str sVal)
 {
     int i = (int)sVal;
-    say 'k_style_emacs_var_integer('sVal') -> 'i;
+    //say 'k_style_emacs_var_integer('sVal') -> 'i;
     return (int)sVal;
 }
 
@@ -2322,8 +2322,8 @@ static int k_style_emacs_var(_str sVar, _str sVal)
     /* check input. */
     if (sVar == '' || sVal == '')
         return -1;
-    say 'k_style_emacs_var: 'sVar'='sVal;
-    say 'p_extension='p_extension' p_mode_name='p_mode_name;
+    //say 'k_style_emacs_var: 'sVar'='sVal;
+    //say 'p_extension='p_extension' p_mode_name='p_mode_name;
 
 
     /* prepare style changes (C) */
@@ -2377,7 +2377,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     iIndentAmount = 8;
                     p_SyntaxIndent = 8;
                     p_tabs = "+8";
-                    say 'bsd';
+                    //say 'bsd';
                     break;
 
                 case 'k&r':
@@ -2387,7 +2387,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     iIndentAmount = 4;
                     p_SyntaxIndent = 4;
                     p_tabs = "+4";
-                    say 'k&r';
+                    //say 'k&r';
                     break;
 
                 case 'linux-c':
@@ -2396,7 +2396,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     iIndentAmount = 4;
                     p_SyntaxIndent = 4;
                     p_tabs = "+4";
-                    say 'linux-c';
+                    //say 'linux-c';
                     break;
 
                 case 'yet-to-be-found':
@@ -2405,7 +2405,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     iIndentAmount = 4;
                     p_SyntaxIndent = 4;
                     p_tabs = "+4";
-                    say 'todo';
+                    //say 'todo';
                     break;
 
                 default:
@@ -2459,8 +2459,8 @@ static int k_style_emacs_var(_str sVar, _str sVal)
         _str sNewStyle = iIndentAmount' 'fExpansion' 'iMinAbbrivation' 'fIndentAfterOpenParen' 'iBeginEndStyle' 'fIndent1stLevel' 'iMainStyle' 'iSwitchStyle' 'sRest;
         if (sNewStyle != sStyle)
         {
-            say '   sStyle='sStyle;
-            say 'sNewStyle='sNewStyle;
+            //say '   sStyle='sStyle;
+            //say 'sNewStyle='sNewStyle;
             set_name_info(_edit_window().p_index, sNewStyle);
         }
     }
