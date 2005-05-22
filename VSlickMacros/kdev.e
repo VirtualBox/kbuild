@@ -1,4 +1,4 @@
-/* $Id: kdev.e 214 2005-01-12 20:19:35Z knut.osmundsen@oracle.com $
+/* $Id: kdev.e 288 2005-05-22 23:53:51Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -67,6 +67,7 @@ def  'C-S-O' = k_oneliner
 def  'C-S-P' = k_mark_modified_line
 def  'C-S-S' = k_box_structs
 def  'C-S-T' = odin32_maketagfile
+def  'C-S-L' = k_style_load
 
 //optional stuff
 //def  'C-S-Q' = odin32_klog_file_ask
@@ -2300,6 +2301,252 @@ static void k_styles_setindent(int indent, int iBraceStyle, boolean iWithTabs = 
         _update_buffers(sExt);
     }
 }
+
+
+/**
+ * Takes necessary steps to convert a string to integer.
+ */
+static int k_style_emacs_var_integer(_str sVal)
+{
+    int i = (int)sVal;
+    say 'k_style_emacs_var_integer('sVal') -> 'i;
+    return (int)sVal;
+}
+
+
+/**
+ * Sets a Emacs style variable.
+ */
+static int k_style_emacs_var(_str sVar, _str sVal)
+{
+    /* check input. */
+    if (sVar == '' || sVal == '')
+        return -1;
+    say 'k_style_emacs_var: 'sVar'='sVal;
+    say 'p_extension='p_extension' p_mode_name='p_mode_name;
+
+
+    /* prepare style changes (C) */
+    _str sStyle = name_info(_edit_window().p_index);
+    typeless iIndentAmount, fExpansion, iMinAbbrivation, fIndentAfterOpenParen, iBeginEndStyle, fIndent1stLevel, iMainStyle, iSwitchStyle, sRest;
+    parse sStyle with iIndentAmount fExpansion iMinAbbrivation fIndentAfterOpenParen iBeginEndStyle fIndent1stLevel iMainStyle iSwitchStyle sRest;
+
+    /* process the variable. */
+    switch (sVar)
+    {
+        case 'mode':
+        case 'Mode':
+        {
+            switch (sVal)
+            {
+                case 'c':
+                case 'C':
+                case 'c++':
+                case 'C++':
+                case 'cpp':
+                case 'CPP':
+                case 'cxx':
+                case 'CXX':
+                    p_extension = 'c';
+                    p_mode_name = 'C';
+                    break;
+
+                case 'e':
+                case 'slick-c':
+                case 'Slick-c':
+                case 'Slick-C':
+                    p_extension = 'e';
+                    p_mode_name = 'Slick-C';
+                    break;
+
+                default:
+                    message('emacs mode "'sVal'" is not known to us');
+                    return -3;
+            }
+            break;
+        }
+
+        case 'c-file-style':
+        case 'c-indentation-style':
+            switch (sVal)
+            {
+                case 'BSD':
+                case 'bsd':
+                    iBeginEndStyle = 1 | (iBeginEndStyle & ~3);
+                    p_indent_with_tabs = true;
+                    iIndentAmount = 8;
+                    p_SyntaxIndent = 8;
+                    p_tabs = "+8";
+                    say 'bsd';
+                    break;
+
+                case 'k&r':
+                case 'K&R':
+                    iBeginEndStyle = 0 | (iBeginEndStyle & ~3);
+                    p_indent_with_tabs = false;
+                    iIndentAmount = 4;
+                    p_SyntaxIndent = 4;
+                    p_tabs = "+4";
+                    say 'k&r';
+                    break;
+
+                case 'linux-c':
+                    iBeginEndStyle = 0 | (iBeginEndStyle & ~3);
+                    p_indent_with_tabs = true;
+                    iIndentAmount = 4;
+                    p_SyntaxIndent = 4;
+                    p_tabs = "+4";
+                    say 'linux-c';
+                    break;
+
+                case 'yet-to-be-found':
+                    iBeginEndStyle = 2 | (iBeginEndStyle & ~3);
+                    p_indent_with_tabs = false;
+                    iIndentAmount = 4;
+                    p_SyntaxIndent = 4;
+                    p_tabs = "+4";
+                    say 'todo';
+                    break;
+
+                default:
+                    message('emacs "'sVar'" value "'sVal'" is not known to us.');
+                    return -3;
+            }
+            break;
+
+        case 'indent-tabs-mode':
+            p_indent_with_tabs = sVal == 't';
+            break;
+
+        case 'c-indent-level':
+        case 'c-basic-offset':
+        {
+            int i = k_style_emacs_var_integer(sVal);
+            if (i > 0 && i <= 16)
+            {
+                iIndentAmount = i;
+                p_SyntaxIndent = i;
+            }
+            else
+            {
+                message('emacs "'sVar'" value "'sVal'" is out of range.');
+                return -4;
+            }
+            break;
+        }
+
+        case 'tab-width':
+        {
+            int i = k_style_emacs_var_integer(sVal);
+            if (i > 0 && i <= 16)
+                p_tabs = '+'i;
+            else
+            {
+                message('emacs "'sVar'" value "'sVal'" is out of range.');
+                return -4;
+            }
+            break;
+        }
+
+        default:
+            message('emacs variable "'sVar'" (value "'sVal'") is unknown to us.');
+            return -5;
+    }
+
+    /* change the style? (C only) */
+    if (p_mode_name == 'C')
+    {
+        _str sNewStyle = iIndentAmount' 'fExpansion' 'iMinAbbrivation' 'fIndentAfterOpenParen' 'iBeginEndStyle' 'fIndent1stLevel' 'iMainStyle' 'iSwitchStyle' 'sRest;
+        if (sNewStyle != sStyle)
+        {
+            say '   sStyle='sStyle;
+            say 'sNewStyle='sNewStyle;
+            set_name_info(_edit_window().p_index, sNewStyle);
+        }
+    }
+
+    return 0;
+}
+
+
+/**
+ * Parses a string with emacs variables.
+ * 
+ * The variables are separated by new line. Junk at 
+ * the start and end of the line is ignored.
+ */
+static int k_style_emac_vars(_str sVars)
+{
+    /* process them line by line */
+    int iLine = 0;
+    while (sVars != '' && iLine++ < 20)
+    {
+        int iNext, iEnd;
+        iEnd = iNext = pos("\n", sVars);
+        if (iEnd <= 0)
+            iEnd = iNext = length(sVars);
+        else
+            iEnd--;
+        iNext++; 
+
+        sLine = strip(substr(sVars, 1, iEnd), 'B', " \t\n\r");
+        sVars = strip(substr(sVars, iNext), 'L', " \t\n\r");
+        //say 'iLine='iLine' sVars='sVars'<eol>';
+        //say 'iLine='iLine' sLine='sLine'<eol>';
+        if (sLine != '')
+        {
+            rc = pos('[^a-zA-Z0-9-_]*([a-zA-Z0-9-_]+)[ \t]*:[ \t]*([^ \t]*)', sLine, 1, 'U');
+            //say '0={'pos('S0')','pos('0')',"'substr(sLine,pos('S0'),pos('0'))'"'
+            //say '1={'pos('S1')','pos('1')',"'substr(sLine,pos('S1'),pos('1'))'"'
+            //say '2={'pos('S2')','pos('2')',"'substr(sLine,pos('S2'),pos('2'))'"'
+            //say '3={'pos('S3')','pos('3')',"'substr(sLine,pos('S3'),pos('3'))'"'
+            //say '4={'pos('S4')','pos('4')',"'substr(sLine,pos('S4'),pos('4'))'"'
+            if (rc > 0)
+                k_style_emacs_var(substr(sLine,pos('S1'),pos('1')), 
+                                  substr(sLine,pos('S2'),pos('2')));
+        }
+    }
+    return 0;
+}
+
+/**
+ * Searches for Emacs style specification for the current document.
+ */
+void k_style_load()
+{
+    /* save the position before we start looking around the file. */
+    typeless saved_pos;
+    _save_pos2(saved_pos);
+    
+    int rc;
+
+    /* Check first line. */
+    top_of_buffer();
+    _str sLine;
+    get_line(sLine);
+    strip(sLine);
+    if (pos('-*-[ \t]+(.*:.*)[ \t]+-*-', sLine, 1, 'U'))
+    {
+        _str sVars;
+        sVars = substr(sLine, pos('S1'), pos('1'));
+        sVars = translate(sVars, "\n", ";");
+        k_style_emac_vars(sVars);
+    }
+
+    /* Look for the "Local Variables:" stuff from the end of the file. */
+    bottom_of_buffer();
+    rc = search('Local Variables:[ \t]*\n\om(.*)\ol\n.*End:.*\n', '-EU');
+    if (!rc)
+    {
+        /* copy the variables out to a buffer. */
+        _str sVars;
+        sVars = get_text(match_length("1"), match_length("S1"));
+        k_style_emac_vars(sVars);
+    }
+
+    _restore_pos2(saved_pos);
+}
+
 
 
 /*******************************************************************************
