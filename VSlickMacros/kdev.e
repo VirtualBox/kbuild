@@ -1,4 +1,4 @@
-/* $Id: kdev.e 290 2005-05-23 00:19:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 291 2005-05-23 00:49:53Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -2322,7 +2322,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
     /* check input. */
     if (sVar == '' || sVal == '')
         return -1;
-    say 'k_style_emacs_var: 'sVar'='sVal;
+    //say 'k_style_emacs_var: 'sVar'='sVal;
 
     /* 
      * Unpack the mode style parameters.
@@ -2381,8 +2381,9 @@ static int k_style_emacs_var(_str sVar, _str sVal)
         case 'c-indentation-style':
             switch (sVal)
             {
-                case 'BSD':
                 case 'bsd':
+                case '"bsd"':
+                case 'BSD':
                     iBeginEndStyle = 1 | (iBeginEndStyle & ~3);
                     p_indent_with_tabs = true;
                     iIndentAmount = 8;
@@ -2392,6 +2393,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     break;
 
                 case 'k&r':
+                case '"k&r"':
                 case 'K&R':
                     iBeginEndStyle = 0 | (iBeginEndStyle & ~3);
                     p_indent_with_tabs = false;
@@ -2402,6 +2404,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     break;
 
                 case 'linux-c':
+                case '"linux-c"':
                     iBeginEndStyle = 0 | (iBeginEndStyle & ~3);
                     p_indent_with_tabs = true;
                     iIndentAmount = 4;
@@ -2490,9 +2493,24 @@ static int k_style_emacs_var(_str sVar, _str sVal)
         && sNewStyle != sStyle
         && sStyleName == p_mode_name)
     {
+        _str sName = name_name(_edit_window().p_index)
         //say '   sStyle='sStyle' p_mode_name='p_mode_name;
-        //say 'sNewStyle='sNewStyle;
-        set_name_info(_edit_window().p_index, sNewStyle);
+        //say 'sNewStyle='sNewStyle' sName='sName;
+        if (pos('kstyledoc-', sName) <= 0) 
+        {
+            sName = 'def-kstyledoc-'p_buf_id;
+            int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
+            if (!idx)
+                idx = find_index(sName, MISC_TYPE);
+            if (idx)
+            {
+                if (!set_name_info(idx, sNewStyle))
+                    _edit_window().p_index = idx;
+            }
+            //say sName'='idx;
+        }             
+        else
+            set_name_info(_edit_window().p_index, sNewStyle);
     }
 
     return 0;
