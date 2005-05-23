@@ -1,4 +1,4 @@
-/* $Id: kdev.e 289 2005-05-22 23:55:32Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 290 2005-05-23 00:19:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -2322,16 +2322,27 @@ static int k_style_emacs_var(_str sVar, _str sVal)
     /* check input. */
     if (sVar == '' || sVal == '')
         return -1;
-    //say 'k_style_emacs_var: 'sVar'='sVal;
-    //say 'p_extension='p_extension' p_mode_name='p_mode_name;
+    say 'k_style_emacs_var: 'sVar'='sVal;
 
-
-    /* prepare style changes (C) */
+    /* 
+     * Unpack the mode style parameters.
+     */
     _str sStyle = name_info(_edit_window().p_index);
-    typeless iIndentAmount, fExpansion, iMinAbbrivation, fIndentAfterOpenParen, iBeginEndStyle, fIndent1stLevel, iMainStyle, iSwitchStyle, sRest;
-    parse sStyle with iIndentAmount fExpansion iMinAbbrivation fIndentAfterOpenParen iBeginEndStyle fIndent1stLevel iMainStyle iSwitchStyle sRest;
+    _str sStyleName = p_mode_name;
+    typeless iIndentAmount, fExpansion, iMinAbbrivation, fIndentAfterOpenParen, iBeginEndStyle, fIndent1stLevel, iMainStyle, iSwitchStyle, 
+             sRest, sRes0, sRes1;
+    if (sStyleName == 'Slick-C')
+    {
+         parse sStyle with iMinAbbrivation sRes0 iBeginEndStyle fIndent1stLevel sRes1 iSwitchStyle sRest;
+         iIndentAmount = p_SyntaxIndent;
+    }
+    else /* C */
+         parse sStyle with iIndentAmount fExpansion iMinAbbrivation fIndentAfterOpenParen iBeginEndStyle fIndent1stLevel iMainStyle iSwitchStyle sRest;
 
-    /* process the variable. */
+
+    /* 
+     * Process the variable. 
+     */
     switch (sVar)
     {
         case 'mode':
@@ -2414,6 +2425,20 @@ static int k_style_emacs_var(_str sVar, _str sVal)
             }
             break;
 
+        case 'c-label-offset':
+        {
+            int i = k_style_emacs_var_integer(sVal);
+            if (i >= -16 && i <= 16)
+            {
+                if (i == -p_SyntaxIndent)
+                    iSwitchStyle = 0;
+                else
+                    iSwitchStyle = 1;
+            }
+            break;
+        }
+
+
         case 'indent-tabs-mode':
             p_indent_with_tabs = sVal == 't';
             break;
@@ -2453,16 +2478,21 @@ static int k_style_emacs_var(_str sVar, _str sVal)
             return -5;
     }
 
-    /* change the style? (C only) */
-    if (p_mode_name == 'C')
+    /* 
+     * Update the style? 
+     */
+    _str sNewStyle = "";
+    if (sStyleName == 'Slick-C')
+        sNewStyle = iMinAbbrivation' 'sRes0' 'iBeginEndStyle' 'fIndent1stLevel' 'sRes1' 'iSwitchStyle' 'sRest;
+    else
+        sNewStyle = iIndentAmount' 'fExpansion' 'iMinAbbrivation' 'fIndentAfterOpenParen' 'iBeginEndStyle' 'fIndent1stLevel' 'iMainStyle' 'iSwitchStyle' 'sRest;
+    if (   sNewStyle != ""
+        && sNewStyle != sStyle
+        && sStyleName == p_mode_name)
     {
-        _str sNewStyle = iIndentAmount' 'fExpansion' 'iMinAbbrivation' 'fIndentAfterOpenParen' 'iBeginEndStyle' 'fIndent1stLevel' 'iMainStyle' 'iSwitchStyle' 'sRest;
-        if (sNewStyle != sStyle)
-        {
-            //say '   sStyle='sStyle;
-            //say 'sNewStyle='sNewStyle;
-            set_name_info(_edit_window().p_index, sNewStyle);
-        }
+        //say '   sStyle='sStyle' p_mode_name='p_mode_name;
+        //say 'sNewStyle='sNewStyle;
+        set_name_info(_edit_window().p_index, sNewStyle);
     }
 
     return 0;
