@@ -1,4 +1,4 @@
-# $Id: header.kmk 271 2005-05-06 03:50:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 292 2005-06-01 15:06:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -97,6 +97,14 @@ ifeq ($(BUILD_PLATFORM),win32)
 _BUILD_PLATFORM_OK  := 1
 endif
 
+# L4
+ifeq ($(BUILD_PLATFORM),L4)
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
+endif
+ifeq ($(BUILD_PLATFORM),l4)
+_BUILD_PLATFORM_OK  := 1
+endif
+
 ifeq ($(_BUILD_PLATFORM_OK),0)
 $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
 endif
@@ -133,6 +141,14 @@ ifeq ($(BUILD_TARGET),WIN32)
 $(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),win32)
+_BUILD_TARGET_OK    := 1
+endif
+
+# L4
+ifeq ($(BUILD_TARGET),L4)
+$(error kBuild: BUILD_TARGET must be all lowercase!)
+endif
+ifeq ($(BUILD_TARGET),l4)
 _BUILD_TARGET_OK    := 1
 endif
 
