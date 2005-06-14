@@ -1,4 +1,4 @@
-# $Id: header.kmk 292 2005-06-01 15:06:11Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 296 2005-06-14 14:01:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -280,7 +280,14 @@ SUFF_EXE            :=
 SUFF_SYS            := .a
 SUFF_RES            :=
 endif
-
+ifeq ($(BUILD_TARGET),l4)
+SUFF_OBJ            := .o
+SUFF_LIB            := .a
+SUFF_DLL            := .s.so
+SUFF_EXE            :=
+SUFF_SYS            := .a
+SUFF_RES            :=
+endif
 
 #
 # Standard kBuild tools.
