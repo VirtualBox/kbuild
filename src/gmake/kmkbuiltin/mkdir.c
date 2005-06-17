@@ -74,7 +74,12 @@ kmk_builtin_mkdir(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__)
+        optreset = 1;
+        optind = 1;
+#else
         optind = 0; /* init */
+#endif 
 	while ((ch = getopt(argc, argv, "m:pv")) != -1)
 		switch(ch) {
 		case 'm':
