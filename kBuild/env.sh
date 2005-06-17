@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 249 2005-04-03 00:42:29Z knut.osmundsen@oracle.com $
+# $Id: env.sh 299 2005-06-17 05:56:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -28,7 +28,11 @@
 
 # kBuild path.
 if [ -z "$PATH_KBUILD" ]; then
-    PATH_KBUILD=`readlink -f $0`
+    if which realpath > /dev/null 2>&1; then
+        PATH_KBUILD=`realpath $0`
+    else
+        PATH_KBUILD=`readlink -f $0`
+    fi
     PATH_KBUILD=`dirname "$PATH_KBUILD"`
 fi
 if [ ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f "$PATH_KBUILD/rules.kmk" ]; then
@@ -59,7 +63,9 @@ if [ -z "$BUILD_PLATFORM_ARCH" ]; then
         i[3456789]86|x86)
             BUILD_PLATFORM_ARCH='x86'
             ;;
-
+        amd64)
+            BUILD_PLATFORM_ARCH='amd64'
+            ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_CPU"
             sleep 1
             exit 1
@@ -72,7 +78,7 @@ echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH"
 
 
 if [ -z "$BUILD_PLATFORM" ]; then
-    BUILD_PLATFORM=`uname -o`
+    BUILD_PLATFORM=`uname`
     case "$BUILD_PLATFORM" in
         linux|Linux|GNU/Linux|LINUX)
             BUILD_PLATFORM=linux
@@ -117,7 +123,9 @@ if [ -z "$BUILD_TARGET_ARCH" ]; then
         i[3456789]86|x86)
             BUILD_TARGET_ARCH='x86'
             ;;
-
+        amd64)
+            BUILD_TARGET_ARCH='amd64'
+            ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_TARGET_CPU"
             sleep 1
             exit 1

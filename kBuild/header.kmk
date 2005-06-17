@@ -1,4 +1,4 @@
-# $Id: header.kmk 296 2005-06-14 14:01:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 299 2005-06-17 05:56:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -105,6 +105,14 @@ ifeq ($(BUILD_PLATFORM),l4)
 _BUILD_PLATFORM_OK  := 1
 endif
 
+# FreeBSD
+ifeq ($(BUILD_PLATFORM),FreeBSD)
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
+endif
+ifeq ($(BUILD_PLATFORM),freebsd)
+_BUILD_PLATFORM_OK  := 1
+endif
+
 ifeq ($(_BUILD_PLATFORM_OK),0)
 $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
 endif
@@ -149,6 +157,14 @@ ifeq ($(BUILD_TARGET),L4)
 $(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),l4)
+_BUILD_TARGET_OK    := 1
+endif
+
+# FreeBSD
+ifeq ($(BUILD_TARGET),FreeBSD)
+$(error kBuild: BUILD_TARGET must be all lowercase!)
+endif
+ifeq ($(BUILD_TARGET),freebsd)
 _BUILD_TARGET_OK    := 1
 endif
 
@@ -212,6 +228,7 @@ endif
 PATH_TOOLS_W32      := $(PATH_KBUILD)/bin/x86.win32
 PATH_TOOLS_LNX      := $(PATH_KBUILD)/bin/x86.linux
 PATH_TOOLS_OS2      := $(PATH_KBUILD)/bin/x86.os2
+PATH_TOOLS_FREEBSD  := $(PATH_KBUILD)/bin/amd64.freebsd
 # kBuild files which might be of interest.
 FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
 FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
@@ -250,6 +267,13 @@ ifeq ($(BUILD_PLATFORM),win32)
 PATH_TOOLS          := $(PATH_TOOLS_W32)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
+endif
+
+# FreeBSD
+ifeq ($(BUILD_PLATFORM),freebsd)
+PATH_TOOLS          := $(PATH_TOOLS_FREEBSD)
+EXEC_X86_WIN32      := wine
+HOSTSUFF_EXE        :=
 endif
 
 

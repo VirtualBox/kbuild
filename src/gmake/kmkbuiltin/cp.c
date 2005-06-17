@@ -130,7 +130,12 @@ kmk_builtin_cp(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__)
+        optreset = 1;
+        optind = 1;
+#else
         optind = 0; /* init */
+#endif 
 
 	Hflag = Lflag = Pflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfinprv")) != -1)

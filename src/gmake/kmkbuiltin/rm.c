@@ -101,7 +101,12 @@ kmk_builtin_rm(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__)
+        optreset = 1;
+        optind = 1;
+#else
         optind = 0; /* init */
+#endif 
 
 	/*
 	 * Test for the special case where the utility is called as

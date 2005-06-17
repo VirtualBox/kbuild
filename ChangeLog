@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 273 2005-05-06 04:08:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 299 2005-06-17 05:56:38Z knut.osmundsen@oracle.com $ */
+
+2005-06-16: bird
+    - ALL:
+        o Bootstrap and ported to FreeBSD 5.x on AMD64.
 
 2005-05-06: bird
     - ALL:
