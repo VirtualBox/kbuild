@@ -66,7 +66,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #define undelete(s) (-1)
 #endif
 
+#ifndef __FreeBSD__
 extern void strmode(mode_t mode, char *p);
+#endif
 
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 static uid_t uid;

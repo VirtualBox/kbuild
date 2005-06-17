@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 287 2005-05-16 23:34:55Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 297 2005-06-17 05:37:09Z knut.osmundsen@oracle.com $
 
 
 #
@@ -70,6 +70,10 @@ kmk_SOURCES.win32 = \
 	glob/fnmatch.c \
 	w32/compat/dirent.c \
 	w32/pathstuff.c
+
+kmk_SOURCES.freebsd = \
+	glob/glob.c \
+	glob/fnmatch.c \
 
 
 #
