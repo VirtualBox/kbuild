@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 293 2005-06-14 03:23:10Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -95,7 +95,7 @@ endif
 # @param    $(objsuff)  Object suffix.
 define TOOL_GCC3_COMPILE_C
 #$ (warning dbg: TOOL_GCC3_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(source) $(deps) | $(dirdep)
+$(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -121,7 +121,7 @@ endef
 # @param    $(objsuff)  Object suffix.
 define TOOL_GCC3_COMPILE_CXX
 #$ (warning dbg: TOOL_GCC3_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff))
-$(obj): $(source) $(deps) | $(dirdep)
+$(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -157,7 +157,7 @@ endef
 
 define TOOL_GCC3_LINK_LIBRARY
 #$ (warning dbg: TOOL_GCC3_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(lib): $(objs) $(deps) $(filter %.a %.lib,$(othersrc)) | $(dirdep)
+$(lib): $(deps) $(objs) $(filter %.a %.lib,$(othersrc)) | $(dirdep)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 ifneq ($(strip $(filter %.a %.lib,$(othersrc))),)
@@ -191,7 +191,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3_LINK_PROGRAM
 #$ (warning dbg: TOOL_GCC3_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(exe): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) | $(dirdep)
+$(exe): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
@@ -225,7 +225,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3_LINK_DLL
 #$ (warning dbg: TOOL_GCC3_LINK_PROGRAM: target=$(target) dll=$(dll) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(dll): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) | $(dirdep)
+$(dll): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
@@ -260,7 +260,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3_LINK_SYSMOD
 #$ (warning dbg: TOOL_GCC3_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(sys): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) | $(dirdep)
+$(sys): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
