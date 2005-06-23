@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 295 2005-06-14 05:10:43Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -88,7 +88,7 @@ endif
 # @param    $(objsuff)  Object suffix.
 define TOOL_GCC3OMF_COMPILE_C
 #$ (warning dbg: TOOL_GCC3OMF_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(source) $(deps) | $(dirdep)
+$(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3OMF_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -114,7 +114,7 @@ endef
 # @param    $(objsuff)  Object suffix.
 define TOOL_GCC3OMF_COMPILE_CXX
 #$ (warning dbg: TOOL_GCC3OMF_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(source) $(deps) | $(dirdep)
+$(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3OMF_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -137,7 +137,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_LIBRARY
 #$ (warning dbg: TOOL_GCC3OMF_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(lib): $(objs) $(deps) $(filter %.a %.lib %.def %.imp,$(othersrc)) | $(dirdep)
+$(lib): $(deps) $(objs) $(filter %.a %.lib %.def %.imp,$(othersrc)) | $(dirdep)
 	$(call MSG_L1,Creating Library $$@)
 	$(RM) -f $$@
 	$(if $(filter %.def %.imp,$(othersrc)),$(TOOL_GCC3OMF_AR_IMP) -o $$@ $(filter %.def %.imp,$(othersrc)),)
@@ -162,7 +162,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_PROGRAM
 #$ (warning dbg: TOOL_GCC3OMF_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(exe): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc)) | $(dirdep)
+$(exe): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(filter %.def, $(othersrc)) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
@@ -196,7 +196,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_DLL
 #$ (warning dbg: TOOL_GCC3OMF_LINK_PROGRAM: target=$(target) dll=$(dll) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(dll): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc)) | $(dirdep)
+$(dll): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(filter %.def, $(othersrc)) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
@@ -229,7 +229,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC3OMF_LINK_SYSMOD
 #$ (warning dbg: TOOL_GCC3OMF_LINK_SYSMOD: target=$(target) sys=$(sys) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(sys): $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(deps) $(filter %.def, $(othersrc)) | $(dirdep)
+$(sys): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(filter %.def, $(othersrc)) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
