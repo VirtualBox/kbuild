@@ -1155,11 +1155,11 @@ eval (struct ebuffer *ebuf, int set_default)
             if (target == 0)
               fatal (fstart, _("missing target pattern"));
             else if (target->next != 0)
-              fatal (fstart, _("multiple target patterns\ntarget: %s"), target->name);
+              fatal (fstart, _("multiple target patterns (target `%s')"), target->name);
             pattern = target->name;
             pattern_percent = find_percent (pattern);
             if (pattern_percent == 0)
-              fatal (fstart, _("target pattern contains no `%%'\ntarget: %s"), target->name);
+              fatal (fstart, _("target pattern contains no `%%' (target `%s')"), target->name);
             free((char *)target);
           }
         else
