@@ -1775,14 +1775,20 @@ abspath (const char *name, char *apath)
   dest = w32ify((char *)name, 1);
   if (!dest)
       return NULL;
+  {
+  size_t len = strlen(dest);
+  memcpy(apath, dest, len);
+  dest = apath + len;
+  }
+
   (void)end; (void)start; (void)apath_limit;
-  return strcpy(apath, dest);
 
 #elif defined __OS2__
   if (!_fullpath(apath, name, GET_PATH_MAX))
       return NULL;
+  dest = strchr(apath, '\0');
+
   (void)end; (void)start; (void)apath_limit; (void)dest;
-  return apath;
 
 #else /* !WINDOWS32 && !__OS2__ */
   apath_limit = apath + GET_PATH_MAX;
@@ -1851,15 +1857,19 @@ abspath (const char *name, char *apath)
 	  *dest = '\0';
 	}
     }
+#endif /* !WINDOWS32 && !__OS2__ */
 
   /* Unless it is root strip trailing separator.  */
+#ifdef HAVE_DOS_PATHS
+  if (dest > apath + 1 + (apath[0] != '/') && dest[-1] == '/')
+#else
   if (dest > apath + 1 && dest[-1] == '/')
+#endif
     --dest;
 
   *dest = '\0';
 
   return apath;
-#endif /* !WINDOWS32 */
 }
 
 
@@ -1938,6 +1948,30 @@ func_abspath (char *o, char **argv, const char *funcname UNUSED)
  return o;
 }
 
+#ifdef KMK
+static char *
+func_toupper_tolower (char *o, char **argv, const char *funcname)
+{
+  /* Expand the argument.  */
+  char *p = argv[0];
+  while (*p)
+    {
+      /* convert to temporary buffer */
+      char tmp[256];
+      unsigned int i;
+      if (!strcmp(funcname, "toupper"))
+        for (i = 0; i < sizeof(tmp) && tmp[i]; i++, p++)
+          tmp[i] = toupper(*p);
+      else
+        for (i = 0; i < sizeof(tmp) && tmp[i]; i++, p++)
+          tmp[i] = tolower(*p);
+      o = variable_buffer_output (o, tmp, i);
+    }
+
+  return o;
+}
+#endif 
+
 /* Lookup table for builtin functions.
 
    This doesn't have to be sorted; we use a straight lookup.  We might gain
@@ -1992,6 +2026,10 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
 #endif
+#ifdef KMK
+  { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
+  { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
+#endif 
 };
 
 #define FUNCTION_TABLE_ENTRIES (sizeof (function_table_init) / sizeof (struct function_table_entry))

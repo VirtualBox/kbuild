@@ -671,7 +671,7 @@ define_automatic_variables (void)
   (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
-  (void) define_variable ("KMK_FEATURES", 12, "abspath", o_default, 0);
+  (void) define_variable ("KMK_FEATURES", 12, "abspath toupper tolower", o_default, 0);
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* The kMk Builtin Level. */

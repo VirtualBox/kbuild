@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 302 2005-08-11 20:13:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 311 2005-08-11 21:29:40Z knut.osmundsen@oracle.com $
 
 
 #
@@ -19,6 +19,7 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
+	KMK
 	
 kmk_SOURCES         = \
 	main.c \
