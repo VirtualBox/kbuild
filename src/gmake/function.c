@@ -29,6 +29,10 @@ Boston, MA 02111-1307, USA.  */
 #include "amiga.h"
 #endif
 
+#ifdef WINDOWS32
+#include "pathstuff.h"
+#endif 
+
 
 struct function_table_entry
   {
@@ -1767,8 +1771,33 @@ abspath (const char *name, char *apath)
   if (name[0] == '\0' || apath == NULL)
     return NULL;
 
+#ifdef WINDOWS32
+  dest = w32ify((char *)name, 1);
+  if (!dest)
+      return NULL;
+  (void)end; (void)start; (void)apath_limit;
+  return strcpy(apath, dest);
+
+#elif defined __OS2__
+  if (!_fullpath(apath, name, GET_PATH_MAX))
+      return NULL;
+  (void)end; (void)start; (void)apath_limit; (void)dest;
+  return apath;
+
+#else /* !WINDOWS32 && !__OS2__ */
   apath_limit = apath + GET_PATH_MAX;
 
+#ifdef HAVE_DOS_PATHS /* bird added this */
+  if (isalpha(name[0]) && name[1] == ':')
+    {
+      /* drive spec */
+      apath[0] = toupper(name[0]);
+      apath[1] = ':';
+      apath[2] = '/';
+      name += 2;
+    }
+  else
+#endif /* HAVE_DOS_PATHS */
   if (name[0] != '/')
     {
       /* It is unlikely we would make it until here but just to make sure. */
@@ -1830,6 +1859,7 @@ abspath (const char *name, char *apath)
   *dest = '\0';
 
   return apath;
+#endif /* !WINDOWS32 */
 }
 
 
