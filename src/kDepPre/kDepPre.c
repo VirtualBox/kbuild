@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 260 2005-04-21 16:58:42Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 304 2005-08-11 20:17:17Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -29,6 +29,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifdef __WIN32__
+#include <windows.h>
+#endif 
 
 #ifdef HAVE_FGETC_UNLOCKED 
 # define FGETC(s)   getc_unlocked(s)
@@ -67,6 +70,127 @@ typedef struct DEP
 static PDEP g_pDeps = NULL;
 
 
+#ifdef __WIN32__
+/**
+ * Corrects the case of a path.
+ * Expects a fullpath!
+ * 
+ * @param   pszPath     Pointer to the path, both input and output.
+ *                      The buffer must be able to hold one more byte than the string length.
+ */
+void w32_fixcase(char *pszPath)
+{
+#define my_assert(expr) \
+    do { \
+        if (!(expr)) { \
+            printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
+                   #expr, __FILE__, __LINE__, pszPath, psz); \
+            __asm { __asm int 3 } \
+            exit(1); \
+        } \
+    } while (0)
+    
+    char *psz = pszPath;
+    if (*psz == '/' || *psz == '\\')
+    {
+        if (psz[1] == '/' || psz[1] == '\\')
+        {
+            /* UNC */
+            my_assert(psz[1] == '/' || psz[1] == '\\');
+            my_assert(psz[2] != '/' && psz[2] != '\\');
+
+            /* skip server name */
+            psz += 2;
+            while (*psz != '\\' && *psz != '/')
+            {
+                if (!*psz)
+                    return;
+                *psz++ = toupper(*psz);
+            }
+
+            /* skip the share name */
+            psz++;
+            my_assert(*psz != '/' && *psz != '\\');
+            while (*psz != '\\' && *psz != '/')
+            {
+                if (!*psz)
+                    return;
+                *psz++ = toupper(*psz);
+            }
+            my_assert(*psz == '/' || *psz == '\\');
+            psz++;
+        }
+        else
+        {
+            /* Unix spec */
+            psz++;
+        }
+    }
+    else
+    {
+        /* Drive letter */
+        my_assert(psz[1] == ':');
+        *psz = toupper(*psz);
+        my_assert(psz[0] >= 'A' && psz[0] <= 'Z');
+        my_assert(psz[2] == '/' || psz[2] == '\\');
+        psz += 3;
+    }
+
+    /*
+     * Pointing to the first char after the unc or drive specifier.
+     */
+    while (*psz)
+    {
+        WIN32_FIND_DATA FindFileData;
+        HANDLE hDir;
+        char chSaved0;
+        char chSaved1;
+        char *pszEnd;
+
+
+        /* find the end of the component. */
+        pszEnd = psz;
+        while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
+            pszEnd++;
+
+        /* replace the end with "?\0" */
+        chSaved0 = pszEnd[0];
+        chSaved1 = pszEnd[1];
+        pszEnd[0] = '?';
+        pszEnd[1] = '\0';
+
+        /* find the right filename. */
+        hDir = FindFirstFile(pszPath, &FindFileData);
+        pszEnd[1] = chSaved1;
+        if (!hDir)
+        {
+            pszEnd[0] = chSaved0;
+            return;
+        }
+        pszEnd[0] = '\0';
+        while (stricmp(FindFileData.cFileName, psz))
+        {
+            if (!FindNextFile(hDir, &FindFileData))
+            {
+                pszEnd[0] = chSaved0;
+                return;
+            }
+        }
+        strcpy(psz, FindFileData.cFileName);
+        pszEnd[0] = chSaved0;
+
+        /* advance to the next component */
+        if (!chSaved0)
+            return;
+        psz = pszEnd + 1;
+        my_assert(*psz != '/' && *psz != '\\');
+    }
+#undef my_assert
+}
+
+#endif 
+
+
 /**
  * Prints the dependency chain.
  * 
@@ -84,8 +208,16 @@ static void depPrint(FILE *pOutput)
         if (    pDep->szFilename[0] == '<'
             &&  pDep->szFilename[pDep->cchFilename - 1] == '>')
             continue;
-
+#ifdef __WIN32__
+        {
+        char szFilename[_MAX_PATH + 1];
+        if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
+            w32_fixcase(szFilename);
         fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+        }
+#else        
+        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+#endif        
     }
     fprintf(pOutput, "\n\n");
 }
@@ -104,7 +236,6 @@ static void depPrint(FILE *pOutput)
    elsewhere. */
 static unsigned sdbm(const char *str)
 {
-    const char *pszStart;
     unsigned hash = 0;
     int c;
 
