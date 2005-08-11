@@ -1,7 +1,10 @@
+#include <windows.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "make.h"
 #include "pathstuff.h"
+
 
 /*
  * Convert delimiter separated vpath to Canonical format.
@@ -63,6 +66,120 @@ convert_Path_to_windows32(char *Path, char to_delim)
 }
 
 /*
+ * Corrects the case of a path.
+ * Expects a fullpath!
+ */
+void w32_fixcase(char *pszPath)
+{
+#define my_assert(expr) \
+    do { \
+        if (!(expr)) { \
+            printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
+                   #expr, __FILE__, __LINE__, pszPath, psz); \
+            __asm { __asm int 3 } \
+            exit(1); \
+        } \
+    } while (0)
+    
+    char *psz = pszPath;
+    if (*psz == '/' || *psz == '\\')
+    {
+        if (psz[1] == '/' || psz[1] == '\\')
+        {
+            /* UNC */
+            my_assert(psz[1] == '/' || psz[1] == '\\');
+            my_assert(psz[2] != '/' && psz[2] != '\\');
+
+            /* skip server name */
+            psz += 2;
+            while (*psz != '\\' && *psz != '/')
+            {
+                if (!*psz)
+                    return;
+                *psz++ = toupper(*psz);
+            }
+
+            /* skip the share name */
+            psz++;
+            my_assert(*psz != '/' && *psz != '\\');
+            while (*psz != '\\' && *psz != '/')
+            {
+                if (!*psz)
+                    return;
+                *psz++ = toupper(*psz);
+            }
+            my_assert(*psz == '/' || *psz == '\\');
+            psz++;
+        }
+        else
+        {
+            /* Unix spec */
+            psz++;
+        }
+    }
+    else
+    {
+        /* Drive letter */
+        my_assert(psz[1] == ':');
+        *psz = toupper(*psz);
+        my_assert(psz[0] >= 'A' && psz[0] <= 'Z');
+        my_assert(psz[2] == '/' || psz[2] == '\\');
+        psz += 3;
+    }
+
+    /*
+     * Pointing to the first char after the unc or drive specifier.
+     */
+    while (*psz)
+    {
+        WIN32_FIND_DATA FindFileData;
+        HANDLE hDir;
+        char chSaved0;
+        char chSaved1;
+        char *pszEnd;
+
+
+        /* find the end of the component. */
+        pszEnd = psz;
+        while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
+            pszEnd++;
+
+        /* replace the end with "?\0" */
+        chSaved0 = pszEnd[0];
+        chSaved1 = pszEnd[1];
+        pszEnd[0] = '?';
+        pszEnd[1] = '\0';
+
+        /* find the right filename. */
+        hDir = FindFirstFile(pszPath, &FindFileData);
+        pszEnd[1] = chSaved1;
+        if (!hDir)
+        {
+            pszEnd[0] = chSaved0;
+            return;
+        }
+        pszEnd[0] = '\0';
+        while (stricmp(FindFileData.cFileName, psz))
+        {
+            if (!FindNextFile(hDir, &FindFileData))
+            {
+                pszEnd[0] = chSaved0;
+                return;
+            }
+        }
+        strcpy(psz, FindFileData.cFileName);
+        pszEnd[0] = chSaved0;
+
+        /* advance to the next component */
+        if (!chSaved0)
+            return;
+        psz = pszEnd + 1;
+        my_assert(*psz != '/' && *psz != '\\');
+    }
+#undef my_assert
+}
+
+/*
  * Convert to forward slashes. Resolve to full pathname optionally
  */
 char *
@@ -75,6 +192,8 @@ w32ify(char *filename, int resolve)
         _fullpath(w32_path, filename, sizeof (w32_path));
     else
         strncpy(w32_path, filename, sizeof (w32_path));
+
+    w32_fixcase(w32_path);
 
     for (p = w32_path; p && *p; p++)
         if (*p == '\\')
