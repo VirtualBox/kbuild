@@ -1,6 +1,9 @@
-/* $Id: ChangeLog 312 2005-08-11 21:30:32Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 314 2005-08-11 21:47:43Z knut.osmundsen@oracle.com $ */
 
 2005-08-11: bird
+    - kBuild/tools/VCC70.kmk:
+        o Use $(tolower ) to construct the right .pdb names for cleanup.
+    
     - src/gmake/read.c:
         o print target name 'target pattern' errors.
         
