@@ -1,4 +1,4 @@
-# $Id: header.kmk 299 2005-06-17 05:56:38Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 306 2005-08-11 20:24:19Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -183,18 +183,27 @@ endif
 #
 # Common definitions.
 #
+ifeq ($(filter abspath,$(KMK_FEATURES)),abspath)
+PATH_CURRENT        := $(abspath $(CURDIR))
+PATH_ROOT           := $(abspath $(PATH_CURRENT)/$(DEPTH))
+
+else
+
 PATH_CURRENT        := $(CURDIR)
 # Get the real root path.
 PATH_ROOT           := $(PATH_CURRENT)
 ifneq ($(DEPTH),.)
 $(foreach d,$(subst /, ,$(DEPTH)), $(eval PATH_ROOT := $(patsubst %/,%,$(dir $(PATH_ROOT)))) )
 endif
+
+endif
 # Subdirectory relative to the root.
-ifneq ($(DEPTH),.)
-CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(CURDIR))
+ifneq ($(PATH_ROOT),$(PATH_CURRENT))
+CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(PATH_CURRENT))
 else
 CURSUBDIR           := .
 endif
+
 # Output directories.
 ifndef PATH_OUT_BASE
 PATH_OUT_BASE       := $(PATH_ROOT)/out
@@ -223,6 +232,9 @@ endif
 # Usually kBuild is external to the source tree.
 ifndef PATH_KBUILD
 PATH_KBUILD         := $(PATH_ROOT)/kBuild
+endif
+ifeq ($(filter abspath,$(KMK_FEATURES)),abspath)
+PATH_KBUILD         := $(abspath $(PATH_KBUILD))
 endif
 # kBuild tools
 PATH_TOOLS_W32      := $(PATH_KBUILD)/bin/x86.win32
@@ -376,10 +388,15 @@ endif
 # This implementation is clumsy and doesn't resolve '..' and '.' components.
 #
 # @param	$1	The paths to make absolute.
+ifeq ($(filter abspath,$(KMK_FEATURES)),abspath)
+ABSPATH = $(abspath $(1))
+else
 ABSPATH = $(foreach path,$(1)\
             ,$(strip $(if $(subst <,,$(firstword $(subst /, ,<$(path)))),\
                       $(if $(patsubst %:,,$(firstword $(subst :,: ,$(path)))),$(PATH_CURRENT)/$(path),$(path)),\
                       $(path))))
+endif
+					  
 ## DIRDEP - make create directory dependencies.
 #
 # @param	$1	The paths to the directories which must be created.
