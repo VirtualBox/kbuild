@@ -1,4 +1,4 @@
-/* $Id: ChangeLog 309 2005-08-11 20:49:20Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 312 2005-08-11 21:30:32Z knut.osmundsen@oracle.com $ */
 
 2005-08-11: bird
     - src/gmake/read.c:
@@ -13,8 +13,9 @@
     - src/gmake/w32/pathstuff.c, src/kDepPre/kDepPre.c, src/kDepPre/Makefile.kmk:
         o Fixed casing paths on win32.
 
-    - src/gmake/function.c:
+    - src/gmake/function.c, src/gmake/Makefile.kmk:
         o Fixed $(abspath ) on Win32 and OS/2.
+        o Added $(tolower ) and $(toupper ).
 
 2005-06-16: bird
     - ALL:
