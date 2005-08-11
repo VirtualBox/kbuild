@@ -1,6 +1,9 @@
-/* $Id: ChangeLog 307 2005-08-11 20:24:37Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 309 2005-08-11 20:49:20Z knut.osmundsen@oracle.com $ */
 
 2005-08-11: bird
+    - src/gmake/read.c:
+        o print target name 'target pattern' errors.
+        
     - kBuild/header.kmk:
         o Use $(abspath ).
     
