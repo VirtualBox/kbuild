@@ -1,4 +1,4 @@
-# $Id: footer.kmk 276 2005-05-06 11:10:11Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 316 2005-08-11 22:31:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -123,7 +123,11 @@ no-root-slash=$(patsubst /%,%,$(1))
 ## Figure out where to put object files.
 # @param    $1      source file
 # @param    $2      normalized main target
-_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))
+# @remark There are two major hacks here:
+#           1. Source files in the output directory are translated into a gen/ subdir.
+#         	2. Catch anyone specifying $(PATH_CURRENT)/sourcefile.c.
+_OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename \
+	$(patsubst $(PATH_ROOT)/%,%,$(patsubst $(PATH_CURRENT)/%,%,$(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))))
 
 ## Figure out where to put object files.
 # @param    $1      real target name.
@@ -826,7 +830,7 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 #$ (pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
 #	$ (RM) -f $$@
 #	$ (CP) $(exe) $$@
-#endif	
+#endif
 
 _BLDPROGS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -907,8 +911,8 @@ $(publib) : $(lib) $(dir $(publib)).dir_created
 #$ ( publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
 #	$ ( RM) -f $$@
 #	$ ( CP) $(lib) $$@
-#endif	
-	
+#endif
+
 _LIBS      += $(publib)
 _OUT_FILES += $(lib) $(publib)
 _DIRS      += $(dir $(publib))
@@ -1089,7 +1093,7 @@ $(pubdll) : $(dll) $(dir $(pubdll)).dir_created
 #$ (pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
 #	$(RM) -f $$@
 #	$(CP) $(dll) $$@
-#endif	
+#endif
 
 $(eval TARGET_PUB_$(target) := $(pubdll))
 _DLLS      += $(pubdll)
@@ -1272,7 +1276,7 @@ $(pubexe) : $(exe) $(dir $(pubexe)).dir_created
 #$ (pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
 #	$(RM) -f $$@
 #	$(CP) $(exe) $$@
-#endif	
+#endif
 
 _PROGRAMS  += $(pubexe)
 _OUT_FILES += $(exe) $(pubexe)
@@ -1453,7 +1457,7 @@ $(pubsys): $(sys) $(dir $(pubsys)).dir_created
 #$ (pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
 #	$(RM) -f $$@
 #	$(CP) $(sys) $$@
-#endif	
+#endif
 
 $(eval _SYSMODS += $(pubsys))
 $(eval _OUT_FILES += $(sys) $(pubsys))
