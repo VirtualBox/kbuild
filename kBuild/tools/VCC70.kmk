@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 313 2005-08-11 21:46:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -59,6 +59,10 @@ TOOL_VCC70_LDFLAGS            := -nologo
 TOOL_VCC70_LDFLAGS.debug      := -debug
 TOOL_VCC70_LDFLAGS.release    :=
 
+## Constructs the correct .pdb name (the name is lowercased).
+# @param    $(1)        Base name, no extention.
+TOOL_VCC70_PDB                = $(dir $(1))$(tolower $(notdir $(1))).pdb
+
 
 ## Compile C source.
 # @param    $(target)   Normalized main target name.
@@ -86,7 +90,7 @@ $(obj): $(deps) $(source) | $(dirdep)
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(call ABSPATH,$(source)))\
 		| $(DEP_PRE) -o $(dep) -t $(obj) -
-_OUT_FILES += $(outbase).pdb
+_OUT_FILES += $(call TOOL_VCC70_PDB, $(outbase))
 
 endef
 
@@ -117,7 +121,7 @@ $(obj): $(deps) $(source) | $(dirdep)
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(call ABSPATH,$(source)))\
 		| $(DEP_PRE) -o $(dep) -t $(obj) -
-_OUT_FILES += $(outbase).pdb
+_OUT_FILES += $(call TOOL_VCC70_PDB, $(outbase))
 
 endef
 
@@ -139,7 +143,7 @@ $(lib): $(deps) $(objs) $(othersrc) | $(dirdep)
 	$(RM) -f $$@
 	$(TOOL_VCC70_AR) $(flags) /OUT:$(lib) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
-_OUT_FILES += $(outbase).lst $(outbase).exp
+_OUT_FILES += $(outbase).lst $(outbase).exp $(call TOOL_VCC70_PDB, $(outbase))
 
 endef
 
@@ -177,7 +181,7 @@ endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
-_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk
+_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(call TOOL_VCC70_PDB, $(outbase)) $(outbase).ilk
 
 endef
 
@@ -215,7 +219,7 @@ endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
-_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk
+_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(call TOOL_VCC70_PDB, $(outbase)) $(outbase).ilk
 
 endef
 
@@ -259,7 +263,7 @@ endif
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
-_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk
+_OUT_FILES += $(outbase).map $(outbase).lib $(outbase).exp $(call TOOL_VCC70_PDB, $(outbase)) $(outbase).ilk
 _DIRS += $(PATH_LIB)
 
 endef
