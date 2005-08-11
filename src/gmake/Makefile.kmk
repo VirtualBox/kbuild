@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 297 2005-06-17 05:37:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 302 2005-08-11 20:13:02Z knut.osmundsen@oracle.com $
 
 
 #
@@ -9,6 +9,7 @@ PROGRAMS           += kmk
 kmk_TEMPLATE        = BIN
 kmk_DEPS            = $(PATH_TARGET)/config.h
 kmk_INCS            = $(PATH_TARGET) .
+#kmk_INCS.win32      = kmkbuiltin/w32
 
 kmk_DEFS            = \
 	HAVE_CONFIG_H \
@@ -18,7 +19,6 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
-	CONFIG_WITH_KMK_BUILTIN
 	
 kmk_SOURCES         = \
 	main.c \
@@ -43,18 +43,6 @@ kmk_SOURCES         = \
 	vpath.c \
 	remote-stub.c
 
-kmk_SOURCES        += \
-	kmkbuiltin.c \
-	kmkbuiltin/echo.c \
-	kmkbuiltin/mkdir.c \
-	kmkbuiltin/rm.c \
-	kmkbuiltin/cp.c \
-	kmkbuiltin/cp_utils.c \
-	\
-	kmkbuiltin/setmode.c \
-	kmkbuiltin/strmode.c \
-	kmkbuiltin/strlcpy.c
-
 kmk_SOURCES.os2 = \
 	getopt.c \
 	getopt1.c \
@@ -74,6 +62,23 @@ kmk_SOURCES.win32 = \
 kmk_SOURCES.freebsd = \
 	glob/glob.c \
 	glob/fnmatch.c \
+
+ifneq ($(BUILD_TARGET),win32)
+#
+# kmkbuiltin commands
+#
+kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
+kmk_SOURCES += \
+	kmkbuiltin.c \
+	kmkbuiltin/echo.c \
+	kmkbuiltin/mkdir.c \
+	kmkbuiltin/rm.c \
+	kmkbuiltin/cp.c \
+	kmkbuiltin/cp_utils.c \
+	\
+	kmkbuiltin/setmode.c \
+	kmkbuiltin/strmode.c \
+	kmkbuiltin/strlcpy.c
 
 
 #
@@ -105,6 +110,7 @@ rm_SOURCES = \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c
+endif
 
 
 DEPTH = ../..
