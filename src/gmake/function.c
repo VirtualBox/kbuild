@@ -31,7 +31,7 @@ Boston, MA 02111-1307, USA.  */
 
 #ifdef WINDOWS32
 #include "pathstuff.h"
-#endif 
+#endif
 
 
 struct function_table_entry
@@ -1953,24 +1953,24 @@ static char *
 func_toupper_tolower (char *o, char **argv, const char *funcname)
 {
   /* Expand the argument.  */
-  char *p = argv[0];
+  const char *p = argv[0];
   while (*p)
     {
       /* convert to temporary buffer */
       char tmp[256];
       unsigned int i;
       if (!strcmp(funcname, "toupper"))
-        for (i = 0; i < sizeof(tmp) && tmp[i]; i++, p++)
+        for (i = 0; i < sizeof(tmp) && *p; i++, p++)
           tmp[i] = toupper(*p);
       else
-        for (i = 0; i < sizeof(tmp) && tmp[i]; i++, p++)
+        for (i = 0; i < sizeof(tmp) && *p; i++, p++)
           tmp[i] = tolower(*p);
       o = variable_buffer_output (o, tmp, i);
     }
 
   return o;
 }
-#endif 
+#endif
 
 /* Lookup table for builtin functions.
 
@@ -2029,7 +2029,7 @@ static struct function_table_entry function_table_init[] =
 #ifdef KMK
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
-#endif 
+#endif
 };
 
 #define FUNCTION_TABLE_ENTRIES (sizeof (function_table_init) / sizeof (struct function_table_entry))
