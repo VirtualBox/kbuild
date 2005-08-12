@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 313 2005-08-11 21:46:35Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 321 2005-08-12 02:03:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -61,7 +61,11 @@ TOOL_VCC70_LDFLAGS.release    :=
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
+ifeq ($(filter tolower,$(KMK_FEATURES)),tolower)
 TOOL_VCC70_PDB                = $(dir $(1))$(tolower $(notdir $(1))).pdb
+else # this fallback is incorrect and won't work on a case sensitive FS.
+TOOL_VCC70_PDB                = $(1).pdb
+endif
 
 
 ## Compile C source.
