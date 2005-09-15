@@ -1,4 +1,4 @@
-/* $Id: kdev.e 291 2005-05-23 00:49:53Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 323 2005-09-15 18:27:33Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -41,6 +41,7 @@
  * Ctrl+Shift+P: Mark line as change by me
  *
  * Ctrl+Shift+T: Update project tagfile.
+ * Ctrl+Shift+L: Load document variables.
  *
  * Ctrl+Shift+B: KLOGENTRYX(..)
  * Ctrl+Shift+E: KLOGEXIT(..)
@@ -70,10 +71,10 @@ def  'C-S-T' = odin32_maketagfile
 def  'C-S-L' = k_style_load
 
 //optional stuff
-//def  'C-S-Q' = odin32_klog_file_ask
-//def  'C-S-N' = odin32_klog_file_no_ask
-//def  'C-S-1' = odin32_klogentry
-//def  'C-S-3' = odin32_klogexit
+//def  'C-S-Q' = klib_klog_file_ask
+//def  'C-S-N' = klib_klog_file_no_ask
+//def  'C-S-1' = klib_klogentry
+//def  'C-S-3' = klib_klogexit
 
 
 //MARKER.  Editor searches for this line!
@@ -2324,12 +2325,12 @@ static int k_style_emacs_var(_str sVar, _str sVal)
         return -1;
     //say 'k_style_emacs_var: 'sVar'='sVal;
 
-    /* 
+    /*
      * Unpack the mode style parameters.
      */
     _str sStyle = name_info(_edit_window().p_index);
     _str sStyleName = p_mode_name;
-    typeless iIndentAmount, fExpansion, iMinAbbrivation, fIndentAfterOpenParen, iBeginEndStyle, fIndent1stLevel, iMainStyle, iSwitchStyle, 
+    typeless iIndentAmount, fExpansion, iMinAbbrivation, fIndentAfterOpenParen, iBeginEndStyle, fIndent1stLevel, iMainStyle, iSwitchStyle,
              sRest, sRes0, sRes1;
     if (sStyleName == 'Slick-C')
     {
@@ -2340,8 +2341,8 @@ static int k_style_emacs_var(_str sVar, _str sVal)
          parse sStyle with iIndentAmount fExpansion iMinAbbrivation fIndentAfterOpenParen iBeginEndStyle fIndent1stLevel iMainStyle iSwitchStyle sRest;
 
 
-    /* 
-     * Process the variable. 
+    /*
+     * Process the variable.
      */
     switch (sVar)
     {
@@ -2376,6 +2377,154 @@ static int k_style_emacs_var(_str sVar, _str sVal)
             }
             break;
         }
+/* relevant emacs code:
+(defconst c-style-alist
+  '(("gnu"
+     (c-basic-offset . 2)
+     (c-comment-only-line-offset . (0 . 0))
+     (c-offsets-alist . ((statement-block-intro . +)
+			 (knr-argdecl-intro . 5)
+			 (substatement-open . +)
+			 (label . 0)
+			 (statement-case-open . +)
+			 (statement-cont . +)
+			 (arglist-intro . c-lineup-arglist-intro-after-paren)
+			 (arglist-close . c-lineup-arglist)
+			 (inline-open . 0)
+			 (brace-list-open . +)
+			 ))
+     (c-special-indent-hook . c-gnu-impose-minimum)
+     (c-block-comment-prefix . "")
+     )
+    ("k&r"
+     (c-basic-offset . 5)
+     (c-comment-only-line-offset . 0)
+     (c-offsets-alist . ((statement-block-intro . +)
+			 (knr-argdecl-intro . 0)
+			 (substatement-open . 0)
+			 (label . 0)
+			 (statement-cont . +)
+			 ))
+     )
+    ("bsd"
+     (c-basic-offset . 8)
+     (c-comment-only-line-offset . 0)
+     (c-offsets-alist . ((statement-block-intro . +)
+			 (knr-argdecl-intro . +)
+			 (substatement-open . 0)
+			 (label . 0)
+			 (statement-cont . +)
+			 (inline-open . 0)
+			 (inexpr-class . 0)
+			 ))
+     )
+    ("stroustrup"
+     (c-basic-offset . 4)
+     (c-comment-only-line-offset . 0)
+     (c-offsets-alist . ((statement-block-intro . +)
+			 (substatement-open . 0)
+			 (label . 0)
+			 (statement-cont . +)
+			 ))
+     )
+    ("whitesmith"
+     (c-basic-offset . 4)
+     (c-comment-only-line-offset . 0)
+     (c-offsets-alist . ((knr-argdecl-intro . +)
+			 (label . 0)
+			 (statement-cont . +)
+			 (substatement-open . +)
+			 (block-open . +)
+			 (statement-block-intro . c-lineup-whitesmith-in-block)
+			 (block-close . c-lineup-whitesmith-in-block)
+			 (inline-open . +)
+			 (defun-open . +)
+			 (defun-block-intro . c-lineup-whitesmith-in-block)
+			 (defun-close . c-lineup-whitesmith-in-block)
+			 (brace-list-open . +)
+			 (brace-list-intro . c-lineup-whitesmith-in-block)
+			 (brace-entry-open . c-indent-multi-line-block)
+			 (brace-list-close . c-lineup-whitesmith-in-block)
+			 (class-open . +)
+			 (inclass . c-lineup-whitesmith-in-block)
+			 (class-close . +)
+			 (inexpr-class . 0)
+			 (extern-lang-open . +)
+			 (inextern-lang . c-lineup-whitesmith-in-block)
+			 (extern-lang-close . +)
+			 (namespace-open . +)
+			 (innamespace . c-lineup-whitesmith-in-block)
+			 (namespace-close . +)
+			 ))
+     )
+    ("ellemtel"
+     (c-basic-offset . 3)
+     (c-comment-only-line-offset . 0)
+     (c-hanging-braces-alist     . ((substatement-open before after)))
+     (c-offsets-alist . ((topmost-intro        . 0)
+                         (topmost-intro-cont   . 0)
+                         (substatement         . +)
+			 (substatement-open    . 0)
+                         (case-label           . +)
+                         (access-label         . -)
+                         (inclass              . ++)
+                         (inline-open          . 0)
+                         ))
+     )
+    ("linux"
+     (c-basic-offset  . 8)
+     (c-comment-only-line-offset . 0)
+     (c-hanging-braces-alist . ((brace-list-open)
+				(brace-entry-open)
+				(substatement-open after)
+				(block-close . c-snug-do-while)))
+     (c-cleanup-list . (brace-else-brace))
+     (c-offsets-alist . ((statement-block-intro . +)
+			 (knr-argdecl-intro     . 0)
+			 (substatement-open     . 0)
+			 (label                 . 0)
+			 (statement-cont        . +)
+			 ))
+     )
+    ("python"
+     (indent-tabs-mode . t)
+     (fill-column      . 78)
+     (c-basic-offset   . 8)
+     (c-offsets-alist  . ((substatement-open . 0)
+			  (inextern-lang . 0)
+			  (arglist-intro . +)
+			  (knr-argdecl-intro . +)
+			  ))
+     (c-hanging-braces-alist . ((brace-list-open)
+				(brace-list-intro)
+				(brace-list-close)
+				(brace-entry-open)
+				(substatement-open after)
+				(block-close . c-snug-do-while)
+				))
+     (c-block-comment-prefix . "")
+     )
+    ("java"
+     (c-basic-offset . 4)
+     (c-comment-only-line-offset . (0 . 0))
+     ;; the following preserves Javadoc starter lines
+     (c-offsets-alist . ((inline-open . 0)
+			 (topmost-intro-cont    . +)
+			 (statement-block-intro . +)
+ 			 (knr-argdecl-intro     . 5)
+ 			 (substatement-open     . +)
+ 			 (label                 . +)
+ 			 (statement-case-open   . +)
+ 			 (statement-cont        . +)
+ 			 (arglist-intro  . c-lineup-arglist-intro-after-paren)
+ 			 (arglist-close  . c-lineup-arglist)
+ 			 (access-label   . 0)
+			 (inher-cont     . c-lineup-java-inher)
+			 (func-decl-cont . c-lineup-java-throws)
+			 ))
+     )
+    )
+*/
 
         case 'c-file-style':
         case 'c-indentation-style':
@@ -2476,13 +2625,30 @@ static int k_style_emacs_var(_str sVar, _str sVal)
             break;
         }
 
+        case 'nuke-trailing-whitespace-p':
+        {
+            _str sName = 'def-koptions-'p_buf_id;
+            int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
+            if (!idx)
+                idx = find_index(sName, MISC_TYPE);
+            if (idx)
+            {
+                if (sVal == 't')
+                    set_name_info(idx, "saveoptions: +S");
+                else
+                    set_name_info(idx, "saveoptions: -S");
+                say 'sVal=' sVal;
+            }
+            break;
+        }
+
         default:
             message('emacs variable "'sVar'" (value "'sVal'") is unknown to us.');
             return -5;
     }
 
-    /* 
-     * Update the style? 
+    /*
+     * Update the style?
      */
     _str sNewStyle = "";
     if (sStyleName == 'Slick-C')
@@ -2496,7 +2662,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
         _str sName = name_name(_edit_window().p_index)
         //say '   sStyle='sStyle' p_mode_name='p_mode_name;
         //say 'sNewStyle='sNewStyle' sName='sName;
-        if (pos('kstyledoc-', sName) <= 0) 
+        if (pos('kstyledoc-', sName) <= 0)
         {
             sName = 'def-kstyledoc-'p_buf_id;
             int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
@@ -2508,7 +2674,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     _edit_window().p_index = idx;
             }
             //say sName'='idx;
-        }             
+        }
         else
             set_name_info(_edit_window().p_index, sNewStyle);
     }
@@ -2519,8 +2685,8 @@ static int k_style_emacs_var(_str sVar, _str sVal)
 
 /**
  * Parses a string with emacs variables.
- * 
- * The variables are separated by new line. Junk at 
+ *
+ * The variables are separated by new line. Junk at
  * the start and end of the line is ignored.
  */
 static int k_style_emac_vars(_str sVars)
@@ -2535,7 +2701,7 @@ static int k_style_emac_vars(_str sVars)
             iEnd = iNext = length(sVars);
         else
             iEnd--;
-        iNext++; 
+        iNext++;
 
         sLine = strip(substr(sVars, 1, iEnd), 'B', " \t\n\r");
         sVars = strip(substr(sVars, iNext), 'L', " \t\n\r");
@@ -2550,7 +2716,7 @@ static int k_style_emac_vars(_str sVars)
             //say '3={'pos('S3')','pos('3')',"'substr(sLine,pos('S3'),pos('3'))'"'
             //say '4={'pos('S4')','pos('4')',"'substr(sLine,pos('S4'),pos('4'))'"'
             if (rc > 0)
-                k_style_emacs_var(substr(sLine,pos('S1'),pos('1')), 
+                k_style_emacs_var(substr(sLine,pos('S1'),pos('1')),
                                   substr(sLine,pos('S2'),pos('2')));
         }
     }
@@ -2565,7 +2731,7 @@ void k_style_load()
     /* save the position before we start looking around the file. */
     typeless saved_pos;
     _save_pos2(saved_pos);
-    
+
     int rc;
 
     /* Check first line. */
@@ -2593,6 +2759,66 @@ void k_style_load()
     }
 
     _restore_pos2(saved_pos);
+}
+
+
+/**
+ * Callback function for the event of a new buffer.
+ *
+ * This is used to make sure there are no left over per buffer options
+ * hanging around.
+ */
+void _buffer_add_kdev(int buf_id)
+{
+    _str sName = 'def-koptions-'buf_id;
+    int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
+    if (!idx)
+        idx = find_index(sName, MISC_TYPE);
+    if (idx)
+        set_name_info(idx, "");
+    //message("_buffer_add_kdev: " idx);
+}
+
+
+/**
+ * Callback function for the event of quitting a buffer.
+ *
+ * This is used to make sure there are no left over per buffer options
+ * hanging around.
+ */
+void _cbquit2_kdev(int buf_id)
+{
+    _str sName = 'def-koptions-'buf_id;
+    int idx = find_index(sName, MISC_TYPE);
+    if (idx)
+        delete_name(idx);
+    //message("_cbquit2_kdev: " idx " " sName);
+
+    sName = 'def-kstyledoc-'buf_id;
+    idx = find_index(sName, MISC_TYPE);
+    if (idx)
+        delete_name(idx);
+}
+
+
+/**
+ * Called to get save options for the current buffer.
+ *
+ * This requires a modified loadsave.e!
+ */
+_str _buffer_save_kdev(int buf_id)
+{
+    _str sRet = ""
+    _str sName = 'def-koptions-'buf_id;
+    int idx = find_index(sName, MISC_TYPE);
+    if (idx)
+    {
+        _str sOptions = strip(name_info(idx));
+        if (sOptions != "")
+            parse sOptions with . "saveoptions:" sRet .
+        message("_buffer_save_kdev: " idx " " sName " " sOptions);
+    }
+    return sRet;
 }
 
 
