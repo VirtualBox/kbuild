@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 304 2005-08-11 20:17:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 325 2005-10-03 14:46:21Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -31,17 +31,17 @@
 #include <ctype.h>
 #ifdef __WIN32__
 #include <windows.h>
-#endif 
+#endif
 
-#ifdef HAVE_FGETC_UNLOCKED 
+#ifdef HAVE_FGETC_UNLOCKED
 # define FGETC(s)   getc_unlocked(s)
 #else
 # define FGETC(s)   fgetc(s)
-#endif 
+#endif
 
 #ifdef NEED_ISBLANK
 # define isblank(ch) ( (unsigned char)(ch) == ' ' || (unsigned char)(ch) == '\t' )
-#endif 
+#endif
 
 
 
@@ -55,9 +55,9 @@ typedef struct DEP
     /** Next dependency in the list. */
     struct DEP *pNext;
     /** The filename hash. */
-    unsigned    uHash; 
+    unsigned    uHash;
     /** The length of the filename. */
-    size_t      cchFilename;    
+    size_t      cchFilename;
     /** The filename. */
     char        szFilename[4];
 } DEP, *PDEP;
@@ -74,7 +74,7 @@ static PDEP g_pDeps = NULL;
 /**
  * Corrects the case of a path.
  * Expects a fullpath!
- * 
+ *
  * @param   pszPath     Pointer to the path, both input and output.
  *                      The buffer must be able to hold one more byte than the string length.
  */
@@ -89,7 +89,7 @@ void w32_fixcase(char *pszPath)
             exit(1); \
         } \
     } while (0)
-    
+
     char *psz = pszPath;
     if (*psz == '/' || *psz == '\\')
     {
@@ -188,12 +188,12 @@ void w32_fixcase(char *pszPath)
 #undef my_assert
 }
 
-#endif 
+#endif
 
 
 /**
  * Prints the dependency chain.
- * 
+ *
  * @returns Pointer to the allocated dependency.
  * @param   pOutput     Output stream.
  */
@@ -202,7 +202,7 @@ static void depPrint(FILE *pOutput)
     PDEP pDep = g_pDeps;
     for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
     {
-        /* 
+        /*
          * Skip some fictive names like <built-in> and <command line>.
          */
         if (    pDep->szFilename[0] == '<'
@@ -213,11 +213,11 @@ static void depPrint(FILE *pOutput)
         char szFilename[_MAX_PATH + 1];
         if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
             w32_fixcase(szFilename);
-        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+        fprintf(pOutput, " \\\n\t%s", szFilename);
         }
-#else        
+#else
         fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
-#endif        
+#endif
     }
     fprintf(pOutput, "\n\n");
 }
@@ -248,7 +248,7 @@ static unsigned sdbm(const char *str)
 
 /**
  * Adds a dependency.
- * 
+ *
  * @returns Pointer to the allocated dependency.
  * @param   pszFilename     The filename.
  * @param   cchFilename     The length of the filename.
@@ -264,7 +264,7 @@ static PDEP depAdd(const char *pszFilename, size_t cchFilename)
      */
     pDepPrev = NULL;
     for (pDep = g_pDeps; pDep; pDepPrev = pDep, pDep = pDep->pNext)
-        if (    pDep->uHash == uHash 
+        if (    pDep->uHash == uHash
             &&  pDep->cchFilename == cchFilename
             &&  !memcmp(pDep->szFilename, pszFilename, cchFilename))
             return pDep;
@@ -299,14 +299,14 @@ static PDEP depAdd(const char *pszFilename, size_t cchFilename)
 
 /**
  * Parses the output from a preprocessor of a C-style language.
- * 
+ *
  * @returns 0 on success.
  * @returns 1 or other approriate exit code on failure.
  * @param   pInput      Input stream. (probably not seekable)
  */
 static int ParseCPrecompiler(FILE *pInput)
 {
-    enum 
+    enum
     {
         C_DISCOVER = 0,
         C_SKIP_LINE,
@@ -415,7 +415,7 @@ static int ParseCPrecompiler(FILE *pInput)
             {
                 /* retreive and unescape the filename. */
                 char   *psz = &szBuf[0];
-                while (     (ch = FGETC(pInput)) != EOF 
+                while (     (ch = FGETC(pInput)) != EOF
                        &&   psz < &szBuf[sizeof(szBuf) - 1])
                 {
                     if (ch == '\\')
@@ -431,7 +431,7 @@ static int ParseCPrecompiler(FILE *pInput)
                             default:
                                 fprintf(stderr, "warning: unknown escape char '%c'\n", ch);
                                 continue;
-                                
+
                         }
                         *psz++ = ch == '\\' ? '/' : ch;
                     }
@@ -442,7 +442,7 @@ static int ParseCPrecompiler(FILE *pInput)
                         size_t cchFilename = psz - &szBuf[0];
                         *psz = '\0';
                         /* compare with current dep, add & switch on mismatch. */
-                        if (    !pDep 
+                        if (    !pDep
                             ||  pDep->cchFilename != cchFilename
                             ||  memcmp(pDep->szFilename, szBuf, cchFilename))
                             pDep = depAdd(szBuf, cchFilename);
@@ -478,7 +478,7 @@ static void usage(const char *argv0)
 int main(int argc, char *argv[])
 {
     int         i;
-    
+
     /* Arguments. */
     int         iExec = 0;
     FILE       *pOutput = NULL;
