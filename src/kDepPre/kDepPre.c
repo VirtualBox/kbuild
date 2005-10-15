@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 325 2005-10-03 14:46:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 326 2005-10-15 00:43:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -210,9 +210,13 @@ static void depPrint(FILE *pOutput)
             continue;
 #ifdef __WIN32__
         {
+        char *psz;
         char szFilename[_MAX_PATH + 1];
         if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
             w32_fixcase(szFilename);
+        psz = szFilename;
+        while ((psz = strchr(psz, '\\')) != NULL)
+            *psz++ = '/';
         fprintf(pOutput, " \\\n\t%s", szFilename);
         }
 #else
@@ -386,25 +390,12 @@ static int ParseCPrecompiler(FILE *pInput)
              * Skip past the end of the current line.
              */
             case C_SKIP_LINE:
-#           if 0
-                for (;;)
+                do
                 {
-                    if (!fgets(szBuf, sizeof(szBuf), pInput))
-                    {
-                        enmMode = C_EOF;
-                        break;
-                    }
-                    ch = szBuf[strlen(szBuf) - 1];
                     if (    ch == '\r'
                         ||  ch == '\n')
                         break;
-                }
-#           else
-                while ((ch = FGETC(pInput)) != EOF)
-                    if (    ch == '\r'
-                        ||  ch == '\n')
-                        break;
-#           endif
+                } while ((ch = FGETC(pInput)) != EOF);
                 enmMode = C_DISCOVER;
                 break;
 
@@ -612,7 +603,7 @@ int main(int argc, char *argv[])
             pInput = fopen(argv[i], "r");
             if (!pOutput)
             {
-                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
+                fprintf(stderr, "%s: error: Failed to open optput file '%s'.\n", argv[0], argv[i]);
                 return 1;
             }
             fInput = 1;
@@ -642,7 +633,7 @@ int main(int argc, char *argv[])
     }
     if (!pOutput)
     {
-        fprintf(stderr, "%s: syntax error: No input!\n", argv[0]);
+        fprintf(stderr, "%s: syntax error: No output!\n", argv[0]);
         return 1;
     }
     if (!pszTarget)
