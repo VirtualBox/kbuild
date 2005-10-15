@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 325 2005-10-03 14:46:21Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 327 2005-10-15 00:43:57Z knut.osmundsen@oracle.com $ */
+
+2005-10-14: bird
+    - src/kDepPre/kDepPre.c, kBuild/bin/x86.win32/kDepPre.exe:
+        o Corrected bug in line skipping where two lines would be skipped.
+        o Corrected slashes on win32.
 
 2005-10-03: bird
     - src/kDepPre/kDepPre.c, kBuild/bin/x86.win32/kDepPre.exe:
