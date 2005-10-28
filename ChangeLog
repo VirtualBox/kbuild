@@ -1,4 +1,10 @@
-/* $Id: ChangeLog 327 2005-10-15 00:43:57Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 328 2005-10-28 20:38:12Z knut.osmundsen@oracle.com $ */
+
+2005-10-28: bird
+    - kBuild/footer.h:
+        o Fixed a couple of defaults so it all works right on amd64.
+    - kBuild/bin/amd64.linux/:
+        o Added binaries. ash is 32-bit!
 
 2005-10-14: bird
     - src/kDepPre/kDepPre.c, kBuild/bin/x86.win32/kDepPre.exe:
