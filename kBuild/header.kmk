@@ -1,4 +1,4 @@
-# $Id: header.kmk 306 2005-08-11 20:24:19Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 329 2005-10-28 23:36:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -116,8 +116,14 @@ endif
 ifeq ($(_BUILD_PLATFORM_OK),0)
 $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
 endif
+
+# Fill in defaults if needed.
+ifndef BUILD_PLATFORM_ARCH 
 BUILD_PLATFORM_ARCH   := x86
+endif
+ifndef BUILD_PLATFORM_CPU
 BUILD_PLATFORM_CPU    := i586
+endif
 
 
 #
@@ -172,8 +178,14 @@ ifeq ($(_BUILD_TARGET_OK),0)
 $(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' was not recongized!)
 endif
 endif
+
+# Fill in defaults if needed.
+ifndef BUILD_TARGET_ARCH
 BUILD_TARGET_ARCH   := x86
+endif
+ifndef BUILD_TARGET_CPU
 BUILD_TARGET_CPU    := i586
+endif
 
 # Adjust the DEPTH definition first
 ifeq ($(strip $(DEPTH)),)
@@ -209,12 +221,20 @@ ifndef PATH_OUT_BASE
 PATH_OUT_BASE       := $(PATH_ROOT)/out
 endif
 ifndef PATH_OUT
+ifeq ($(BUILD_PLATFORM_ARCH),x86)
 ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
 PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
 else
 PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TYPE)
 endif
+else  # !x86
+ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
+PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_ARCH)/$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
+else
+PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
 endif
+endif # !x86 
+endif # !define PATH_OUT
 PATH_OBJ            := $(PATH_OUT)/obj
 PATH_TARGET         := $(PATH_OBJ)/$(CURSUBDIR)
 ifndef KBUILD_NEW_STUFF
@@ -236,11 +256,6 @@ endif
 ifeq ($(filter abspath,$(KMK_FEATURES)),abspath)
 PATH_KBUILD         := $(abspath $(PATH_KBUILD))
 endif
-# kBuild tools
-PATH_TOOLS_W32      := $(PATH_KBUILD)/bin/x86.win32
-PATH_TOOLS_LNX      := $(PATH_KBUILD)/bin/x86.linux
-PATH_TOOLS_OS2      := $(PATH_KBUILD)/bin/x86.os2
-PATH_TOOLS_FREEBSD  := $(PATH_KBUILD)/bin/amd64.freebsd
 # kBuild files which might be of interest.
 FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
 FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
@@ -260,30 +275,28 @@ endif
 #
 # Build platform setup.
 #
+PATH_TOOLS          := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+
 # OS/2
 ifeq ($(BUILD_PLATFORM),os2)
-PATH_TOOLS          := $(PATH_TOOLS_OS2)
 EXEC_X86_WIN32      := innopec.exe
 HOSTSUFF_EXE        := .exe
 endif
 
 # Linux
 ifeq ($(BUILD_PLATFORM),linux)
-PATH_TOOLS          := $(PATH_TOOLS_LNX)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
 # Win32
 ifeq ($(BUILD_PLATFORM),win32)
-PATH_TOOLS          := $(PATH_TOOLS_W32)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
 
 # FreeBSD
 ifeq ($(BUILD_PLATFORM),freebsd)
-PATH_TOOLS          := $(PATH_TOOLS_FREEBSD)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
