@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 326 2005-10-15 00:43:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 330 2005-10-29 20:38:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -208,20 +208,32 @@ static void depPrint(FILE *pOutput)
         if (    pDep->szFilename[0] == '<'
             &&  pDep->szFilename[pDep->cchFilename - 1] == '>')
             continue;
-#ifdef __WIN32__
+
+#if defined(__WIN32__)
         {
-        char *psz;
-        char szFilename[_MAX_PATH + 1];
-        if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
-            w32_fixcase(szFilename);
-        psz = szFilename;
-        while ((psz = strchr(psz, '\\')) != NULL)
-            *psz++ = '/';
-        fprintf(pOutput, " \\\n\t%s", szFilename);
+            char *psz;
+            char szFilename[_MAX_PATH + 1];
+            if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
+                w32_fixcase(szFilename);
+            psz = szFilename;
+            while ((psz = strchr(psz, '\\')) != NULL)
+                *psz++ = '/';
+            fprintf(pOutput, " \\\n\t%s", szFilename);
         }
-#else
+
+#elif !defined(__OS2__)
+        {
+            const char *psz = strchr(pDep->szFilename, ':');
+            if (psz)
+                fprintf(pOutput, " \\\n\t%s", psz + 1);
+            else
+                fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+        }
+
+#else /* __OS2__ */
         fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
-#endif
+
+#endif /* __OS2__ */
     }
     fprintf(pOutput, "\n\n");
 }
@@ -601,9 +613,9 @@ int main(int argc, char *argv[])
         else
         {
             pInput = fopen(argv[i], "r");
-            if (!pOutput)
+            if (!pInput)
             {
-                fprintf(stderr, "%s: error: Failed to open optput file '%s'.\n", argv[0], argv[i]);
+                fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
                 return 1;
             }
             fInput = 1;
