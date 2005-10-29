@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 328 2005-10-28 20:38:12Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 331 2005-10-29 20:41:03Z knut.osmundsen@oracle.com $ */
+
+2005-10-29: bird
+    - kBuild/bin/amd64.linux/kDepPre, src/kDepPre/kDepPre.c:
+        o Strip drive letters on non-PC OSes.
 
 2005-10-28: bird
     - kBuild/footer.h:
