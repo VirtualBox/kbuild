@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 299 2005-06-17 05:56:38Z knut.osmundsen@oracle.com $
+# $Id: env.sh 333 2005-10-30 19:21:48Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -54,6 +54,11 @@ echo "dbg: BUILD_TYPE=$BUILD_TYPE"
 # Host platform.
 if [ -z "$BUILD_PLATFORM_CPU" ]; then
     BUILD_PLATFORM_CPU=`uname -m`
+    case "$BUILD_PLATFORM_CPU" in
+        x86_64|AMD64)
+           BUILD_PLATFORM_CPU='amd64'
+           ;;
+    esac
 fi
 export BUILD_PLATFORM_CPU
 echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
@@ -63,7 +68,7 @@ if [ -z "$BUILD_PLATFORM_ARCH" ]; then
         i[3456789]86|x86)
             BUILD_PLATFORM_ARCH='x86'
             ;;
-        amd64)
+        amd64|AMD64|x86_64)
             BUILD_PLATFORM_ARCH='amd64'
             ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_CPU"
@@ -123,7 +128,7 @@ if [ -z "$BUILD_TARGET_ARCH" ]; then
         i[3456789]86|x86)
             BUILD_TARGET_ARCH='x86'
             ;;
-        amd64)
+        amd64|AMD64|x86_64)
             BUILD_TARGET_ARCH='amd64'
             ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_TARGET_CPU"
@@ -165,7 +170,7 @@ echo "dbg: PATH=$PATH"
 if [ ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/" ]; then
     echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/)"
 else
-    for prog in kmk kDepCCxx cat cp mkdir mv rm sed;
+    for prog in kmk kDepPre ash cat cp mkdir mv rm sed;
     do
         chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog} > /dev/null 2>&1
         if [ ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog}${_SUFF_EXE}" ]; then
