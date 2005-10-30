@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 330 2005-10-29 20:38:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 332 2005-10-30 19:20:35Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -28,10 +28,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #ifdef __WIN32__
 #include <windows.h>
 #endif
+#if !defined(__WIN32__) && !defined(__OS2__)
+# include <dirent.h>
+#endif 
 
 #ifdef HAVE_FGETC_UNLOCKED
 # define FGETC(s)   getc_unlocked(s)
@@ -68,6 +73,8 @@ typedef struct DEP
 *******************************************************************************/
 /** List of dependencies. */
 static PDEP g_pDeps = NULL;
+/** Whether or not to fixup win32 casing. */
+static int  g_fFixCase = 0;
 
 
 #ifdef __WIN32__
@@ -78,7 +85,7 @@ static PDEP g_pDeps = NULL;
  * @param   pszPath     Pointer to the path, both input and output.
  *                      The buffer must be able to hold one more byte than the string length.
  */
-void w32_fixcase(char *pszPath)
+void fixcase(char *pszPath)
 {
 #define my_assert(expr) \
     do { \
@@ -188,7 +195,118 @@ void w32_fixcase(char *pszPath)
 #undef my_assert
 }
 
+/**
+ * Corrects all slashes to unix slashes.
+ * 
+ * @returns pszFilename.
+ * @param   pszFilename     The filename to correct.
+ */
+char *fixslash(char *pszFilename)
+{
+    char *psz = pszFilename;
+    while ((psz = strchr(psz, '\\')) != NULL)
+        *psz++ = '/';
+    return pszFilename;
+}
+
+#elif defined(__OS2__)
+
+/**
+ * Corrects the case of a path.
+ *
+ * @param   pszPath     Pointer to the path, both input and output.
+ *                      The buffer must be able to hold one more byte than the string length.
+ */
+void fixcase(char *pszFilename)
+{
+    return;
+}
+
+#else
+
+/**
+ * Corrects the case of a path.
+ *
+ * @param   pszPath     Pointer to the path, both input and output.
+ */
+void fixcase(char *pszFilename)
+{
+    char *psz;
+
+    /*
+     * Skip the root.
+     */
+    psz = pszFilename;
+    while (*psz == '/')
+        psz++;
+
+    /*
+     * Iterate all the components.
+     */
+    while (*psz)
+    {
+        char  chSlash;
+        struct stat s;
+        char   *pszStart = psz;
+
+        /*
+         * Find the next slash (or end of string) and terminate the string there.
+         */
+        while (*psz != '/' && *psz)
+            *psz++;
+        chSlash = *psz;
+        *psz = '\0';
+
+        /*
+         * Does this part exist?
+         * If not we'll enumerate the directory and search for an case-insensitive match.
+         */
+        if (stat(pszFilename, &s))
+        {
+            struct dirent  *pEntry;
+            DIR            *pDir;
+            if (pszStart == pszFilename)
+                pDir = opendir(*pszFilename ? pszFilename : ".");
+            else
+            {
+                pszStart[-1] = '\0';
+                pDir = opendir(pszFilename);
+                pszStart[-1] = '/';
+            }
+            if (!pDir)
+            {
+                *psz = chSlash;
+                break; /* giving up, if we fail to open the directory. */
+            }
+
+            while ((pEntry = readdir(pDir)) != NULL)
+            {
+                if (!strcasecmp(pEntry->d_name, pszStart))
+                {
+                    strcpy(pszStart, pEntry->d_name);
+                    break;
+                }
+            }
+            closedir(pDir);
+            if (!pEntry)
+            {
+                *psz = chSlash;
+                break;  /* giving up if not found. */
+            }
+        }
+
+        /* restore the slash and press on. */
+        *psz = chSlash;
+        while (*psz == '/')
+            psz++;
+    }
+
+    return;
+}
+
+
 #endif
+
 
 
 /**
@@ -202,39 +320,59 @@ static void depPrint(FILE *pOutput)
     PDEP pDep = g_pDeps;
     for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
     {
+        struct stat s;
+#ifdef __WIN32__
+        char    szFilename[_MAX_PATH + 1];
+#else
+        char    szFilename[PATH_MAX + 1];
+#endif 
+        char   *pszFilename;
+        char   *psz;
+
         /*
          * Skip some fictive names like <built-in> and <command line>.
          */
         if (    pDep->szFilename[0] == '<'
             &&  pDep->szFilename[pDep->cchFilename - 1] == '>')
             continue;
+        pszFilename = pDep->szFilename;
 
-#if defined(__WIN32__)
-        {
-            char *psz;
-            char szFilename[_MAX_PATH + 1];
-            if (_fullpath(szFilename, pDep->szFilename, sizeof(szFilename)))
-                w32_fixcase(szFilename);
-            psz = szFilename;
-            while ((psz = strchr(psz, '\\')) != NULL)
-                *psz++ = '/';
-            fprintf(pOutput, " \\\n\t%s", szFilename);
-        }
+#if !defined(__OS2__) && !defined(__WIN32__)
+        /*
+         * Skip any drive letters from compilers running in wine.
+         */
+        if (pszFilename[1] == ':')
+            pszFilename += 2;
+#endif 
 
-#elif !defined(__OS2__)
+        /*
+         * The microsoft compilers are notoriously screwing up the casing.
+         * This will screw with kmk (/ GNU Make) on case sensitive systems, it 
+         * may even do so on win32...
+         */
+        if (g_fFixCase)
         {
-            const char *psz = strchr(pDep->szFilename, ':');
-            if (psz)
-                fprintf(pOutput, " \\\n\t%s", psz + 1);
+#ifdef __WIN32__
+            if (_fullpath(szFilename, pszFilename, sizeof(szFilename)))
+                fixslash(szFilename);
             else
-                fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+#endif
+                strcpy(szFilename, pszFilename);
+            fixcase(szFilename);
+            pszFilename = szFilename;
         }
 
-#else /* __OS2__ */
-        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
+        /*
+         * Check that the file exists before we start depending on it.
+         */
+        if (stat(pszFilename, &s))
+        {
+            fprintf(stderr, "kDepPre: Skipping '%s' - %s!\n", szFilename, strerror(errno));
+            continue;
+        }
 
-#endif /* __OS2__ */
-    }
+        fprintf(pOutput, " \\\n\t%s", pszFilename);
+    } /* foreach dependency */
     fprintf(pOutput, "\n\n");
 }
 
@@ -475,7 +613,7 @@ static int ParseCPrecompiler(FILE *pInput)
 
 static void usage(const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> < - | <filename> | -e <cmdline> >\n", argv0);
+    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] < - | <filename> | -e <cmdline> >\n", argv0);
 }
 
 int main(int argc, char *argv[])
@@ -525,7 +663,10 @@ int main(int argc, char *argv[])
                         }
                         pszOutput = argv[i];
                     }
-                    pOutput = fopen(pszOutput, "w");
+                    if (pszOutput[0] == '-' && !pszOutput[1])
+                        pOutput = stdout;
+                    else
+                        pOutput = fopen(pszOutput, "w");
                     if (!pOutput)
                     {
                         fprintf(stderr, "%s: error: Failed to create output file '%s'.\n", argv[0], pszOutput);
@@ -590,7 +731,6 @@ int main(int argc, char *argv[])
                     break;
                 }
 
-
                 /*
                  * Pipe input.
                  */
@@ -598,6 +738,15 @@ int main(int argc, char *argv[])
                 {
                     pInput = stdin;
                     fInput = 1;
+                    break;
+                }
+
+                /*
+                 * Fix case.
+                 */
+                case 'f':
+                {
+                    g_fFixCase = 1;
                     break;
                 }
 
