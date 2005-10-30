@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 331 2005-10-29 20:41:03Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 332 2005-10-30 19:20:35Z knut.osmundsen@oracle.com $ */
+
+2005-10-30: bird
+    - kBuild/bin/amd64.linux/kDepPre, src/kDepPre/kDepPre.c:
+        o Fix case option - need it on unix for cl.exe with wine.
 
 2005-10-29: bird
     - kBuild/bin/amd64.linux/kDepPre, src/kDepPre/kDepPre.c:
