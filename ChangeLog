@@ -1,5 +1,11 @@
-/* $Id: ChangeLog 333 2005-10-30 19:21:48Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 336 2005-10-31 11:12:42Z knut.osmundsen@oracle.com $ */
 
+2005-10-31: bird
+    - kBuild/tools/VCC70.kmk:
+        o Use the -f option with kDepPre to make sure nt/wine/cl doesn't
+          screw up the path casing anywhere.
+    - kBuild/bin/x86.linux/kDepPre, kBuild/bin/x86.win32/kDepPre:
+        o Rebuild with latest code.
 2005-10-30: bird
     - kBuild/env.sh:
         o amd64.
