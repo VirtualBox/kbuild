@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 337 2005-11-07 16:15:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -92,7 +92,7 @@ $(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3OMF_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
+		-Wp,-MD,$(dep) -Wp,-MT,$$@ -Wp,-MP \
 		-o $$@\
 		$(call ABSPATH,$(source))
 
@@ -118,7 +118,7 @@ $(obj): $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using GCC3)
 	$(TOOL_GCC3OMF_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
+		-Wp,-MD,$(dep) -Wp,-MT,$$@ -Wp,-MP \
 		-o $$@\
 		$(call ABSPATH,$(source))
 
