@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 338 2005-11-07 19:16:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 339 2005-11-07 19:21:04Z knut.osmundsen@oracle.com $ */
 
 2005-11-07: bird
+    - kBuild/tools/VCC70.kmk:
+        o Use the new -s option for dependencies.
     - src/kDepPre/kDepPre.c, kBuild/bin/x86.linux/kDepPre, kBuild/bin/x86.win32/kDepPre.exe:
         o Added new option -s for generating stub dependencies just like -Wp,-MP.
     - kBuild/tools/GCC3.kmk, kBuild/tools/GCC3OMF.kmk:
