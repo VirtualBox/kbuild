@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 332 2005-10-30 19:20:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 338 2005-11-07 19:16:08Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -36,7 +36,7 @@
 #endif
 #if !defined(__WIN32__) && !defined(__OS2__)
 # include <dirent.h>
-#endif 
+#endif
 
 #ifdef HAVE_FGETC_UNLOCKED
 # define FGETC(s)   getc_unlocked(s)
@@ -73,8 +73,15 @@ typedef struct DEP
 *******************************************************************************/
 /** List of dependencies. */
 static PDEP g_pDeps = NULL;
-/** Whether or not to fixup win32 casing. */
-static int  g_fFixCase = 0;
+
+
+/*******************************************************************************
+*   Internal Functions                                                         *
+*******************************************************************************/
+static PDEP depAdd(const char *pszFilename, size_t cchFilename);
+static void depOptimize(int fFixCase);
+static void depPrint(FILE *pOutput);
+static void depPrintStubs(FILE *pOutput);
 
 
 #ifdef __WIN32__
@@ -197,7 +204,7 @@ void fixcase(char *pszPath)
 
 /**
  * Corrects all slashes to unix slashes.
- * 
+ *
  * @returns pszFilename.
  * @param   pszFilename     The filename to correct.
  */
@@ -308,26 +315,26 @@ void fixcase(char *pszFilename)
 #endif
 
 
-
 /**
- * Prints the dependency chain.
- *
- * @returns Pointer to the allocated dependency.
- * @param   pOutput     Output stream.
+ * 'Optimizes' and corrects the dependencies.
  */
-static void depPrint(FILE *pOutput)
+static void depOptimize(int fFixCase)
 {
+    /*
+     * Walk the list correct the names and re-insert them.
+     */
+    PDEP pDepOrg = g_pDeps;
     PDEP pDep = g_pDeps;
-    for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
+    g_pDeps = NULL;
+    for (; pDep; pDep = pDep->pNext)
     {
-        struct stat s;
 #ifdef __WIN32__
-        char    szFilename[_MAX_PATH + 1];
+        char        szFilename[_MAX_PATH + 1];
 #else
-        char    szFilename[PATH_MAX + 1];
-#endif 
-        char   *pszFilename;
-        char   *psz;
+        char        szFilename[PATH_MAX + 1];
+#endif
+        char       *pszFilename;
+        struct stat s;
 
         /*
          * Skip some fictive names like <built-in> and <command line>.
@@ -343,14 +350,13 @@ static void depPrint(FILE *pOutput)
          */
         if (pszFilename[1] == ':')
             pszFilename += 2;
-#endif 
+#endif
 
         /*
          * The microsoft compilers are notoriously screwing up the casing.
-         * This will screw with kmk (/ GNU Make) on case sensitive systems, it 
-         * may even do so on win32...
+         * This will screw up kmk (/ GNU Make).
          */
-        if (g_fFixCase)
+        if (fFixCase)
         {
 #ifdef __WIN32__
             if (_fullpath(szFilename, pszFilename, sizeof(szFilename)))
@@ -371,9 +377,49 @@ static void depPrint(FILE *pOutput)
             continue;
         }
 
-        fprintf(pOutput, " \\\n\t%s", pszFilename);
-    } /* foreach dependency */
+        /*
+         * Insert the corrected dependency.
+         */
+        depAdd(pszFilename, strlen(pszFilename));
+    }
+
+#if 0 /* waste of time */
+    /*
+     * Free the old ones.
+     */
+    while (pDepOrg)
+    {
+        pDep = pDepOrg;
+        pDepOrg = pDepOrg->pNext;
+        free(pDep);
+    }
+#endif
+}
+
+
+/**
+ * Prints the dependency chain.
+ *
+ * @returns Pointer to the allocated dependency.
+ * @param   pOutput     Output stream.
+ */
+static void depPrint(FILE *pOutput)
+{
+    PDEP pDep;
+    for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
+        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
     fprintf(pOutput, "\n\n");
+}
+
+
+/**
+ * Prints empty dependency stubs for all dependencies.
+ */
+static void depPrintStubs(FILE *pOutput)
+{
+    PDEP pDep;
+    for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
+        fprintf(pOutput, "%s:\n\n", pDep->szFilename);
 }
 
 
@@ -613,7 +659,7 @@ static int ParseCPrecompiler(FILE *pInput)
 
 static void usage(const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] < - | <filename> | -e <cmdline> >\n", argv0);
+    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> >\n", argv0);
 }
 
 int main(int argc, char *argv[])
@@ -626,6 +672,8 @@ int main(int argc, char *argv[])
     const char *pszOutput = NULL;
     FILE       *pInput = NULL;
     const char *pszTarget = NULL;
+    int         fStubs = 0;
+    int         fFixCase = 0;
     /* Argument parsing. */
     int         fInput = 0;             /* set when we've found input argument. */
 
@@ -746,7 +794,16 @@ int main(int argc, char *argv[])
                  */
                 case 'f':
                 {
-                    g_fFixCase = 1;
+                    fFixCase = 1;
+                    break;
+                }
+
+                /*
+                 * Generate stubs.
+                 */
+                case 's':
+                {
+                    fStubs = 1;
                     break;
                 }
 
@@ -830,8 +887,11 @@ int main(int argc, char *argv[])
      */
     if (!i)
     {
+        depOptimize(fFixCase);
         fprintf(pOutput, "%s:", pszTarget);
         depPrint(pOutput);
+        if (fStubs)
+            depPrintStubs(pOutput);
     }
 
     /*
