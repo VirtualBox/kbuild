@@ -1,4 +1,4 @@
-# $Id: up.kmk 215 2005-01-15 22:10:09Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 340 2005-11-14 14:53:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a up forwarder makefile.
@@ -28,6 +28,7 @@
 # files since these may contain global goals.
 include $(PATH_KBUILD)/header.kmk
 
+UP_TO ?= ..
 	
 # typical kbuild goals.		
 all_recursive \
@@ -52,9 +53,9 @@ rebuild \
 sysmods \
 target \
 	:
-	$(MAKE) -C .. $@
+	$(MAKE) -C $(UP_TO) $@
 
 # the syntax checkers.
 %.o %.obj:
-	$(MAKE) -C .. $@
+	$(MAKE) -C $(UP_TO) $@
 
