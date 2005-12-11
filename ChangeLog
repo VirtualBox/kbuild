@@ -1,14 +1,16 @@
-/* $Id: ChangeLog 349 2005-12-11 05:16:22Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 351 2005-12-11 05:38:12Z knut.osmundsen@oracle.com $ */
 
 2005-12-11: bird
-
-    * src/gmake/kmkbuiltin/append.c, src/gmake/kmkbuiltin.h, src/gmake/kmkbuiltin.c,
-      src/gmake/Makefile.kmk, src/gmake/variables.c: New command 'append' which appends
-      text to a file, creating the file if necessary. KMK_BUILTIN is now set to 2 (was 1).
-    * src/gmake/kmkbuiltin/cp_utils.c: Add O_BINARY to all open calls.
-    * src/gmake/function.c:
-    * src/gmake/function.c: Fixed abspath on OS/2.
-    * src/kDepPre/kDepPre.c: Killed some warnings and stuff.
+    - src/gmake/kmkbuiltin/append.c, src/gmake/kmkbuiltin.h, src/gmake/kmkbuiltin.c,
+      src/gmake/Makefile.kmk, src/gmake/variables.c:
+        o New command 'append' which appends text to a file, creating the file if necessary.
+        o KMK_BUILTIN is listing the supported commands (used to be "1").
+    - src/gmake/kmkbuiltin/cp_utils.c:
+        o Add O_BINARY to all open calls.
+    - src/gmake/function.c:
+        o Fixed abspath on OS/2.
+    - src/kDepPre/kDepPre.c:
+        o Killed some warnings and made it build on OS/2 and FreeBSD.
 
 2005-11-07: bird
     - kBuild/tools/VCC70.kmk:
