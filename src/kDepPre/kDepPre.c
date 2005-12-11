@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 342 2005-12-11 03:21:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 343 2005-12-11 04:02:21Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -37,6 +37,9 @@
 #endif
 #if !defined(__WIN32__) && !defined(__OS2__)
 # include <dirent.h>
+#endif
+#ifndef __WIN32__
+# include <unistd.h>
 #endif
 
 #ifdef HAVE_FGETC_UNLOCKED
@@ -473,7 +476,7 @@ static PDEP depAdd(const char *pszFilename, size_t cchFilename)
     /*
      * Add it.
      */
-    pDep = malloc(sizeof(*pDep) + cchFilename);
+    pDep = (PDEP)malloc(sizeof(*pDep) + cchFilename);
     if (!pDep)
     {
         fprintf(stderr, "\nOut of memory! (requested %#x bytes)\n\n", sizeof(*pDep) + cchFilename);
