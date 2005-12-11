@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 338 2005-11-07 19:16:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 342 2005-12-11 03:21:03Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -30,9 +30,10 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <limits.h>
 #include <sys/stat.h>
 #ifdef __WIN32__
-#include <windows.h>
+# include <windows.h>
 #endif
 #if !defined(__WIN32__) && !defined(__OS2__)
 # include <dirent.h>
