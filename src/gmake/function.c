@@ -1784,7 +1784,7 @@ abspath (const char *name, char *apath)
   (void)end; (void)start; (void)apath_limit;
 
 #elif defined __OS2__
-  if (!_fullpath(apath, name, GET_PATH_MAX))
+  if (_abspath(apath, name, GET_PATH_MAX))
       return NULL;
   dest = strchr(apath, '\0');
 
