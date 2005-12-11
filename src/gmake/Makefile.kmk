@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 311 2005-08-11 21:29:40Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 346 2005-12-11 04:39:34Z knut.osmundsen@oracle.com $
 
 
 #
@@ -43,10 +43,6 @@ kmk_SOURCES         = \
 	version.c \
 	vpath.c \
 	remote-stub.c
-
-kmk_SOURCES.os2 = \
-	getopt.c \
-	getopt1.c \
 
 kmk_SOURCES.win32 = \
 	getopt.c \
