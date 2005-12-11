@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 
 #ifdef __EMX__
 #undef S_IFWHT
+#undef S_ISWHT
 #endif
 #ifndef S_IFWHT
 #define S_IFWHT 0
@@ -106,7 +107,7 @@ kmk_builtin_rm(int argc, char *argv[])
         optind = 1;
 #else
         optind = 0; /* init */
-#endif 
+#endif
 
 	/*
 	 * Test for the special case where the utility is called as
