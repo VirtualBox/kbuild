@@ -674,8 +674,8 @@ define_automatic_variables (void)
   (void) define_variable ("KMK_FEATURES", 12, "abspath toupper tolower", o_default, 0);
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
-  /* The kMk Builtin Level. */
-  (void) define_variable ("KMK_BUILTIN", 11, "2", o_default, 0);
+  /* The supported kMk Builtin commands. */
+  (void) define_variable ("KMK_BUILTIN", 11, "append cp echo mkdir rm", o_default, 0);
 #endif
 
 #ifdef  __MSDOS__
