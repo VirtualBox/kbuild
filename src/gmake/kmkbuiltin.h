@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 227 2005-02-09 10:21:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 348 2005-12-11 05:13:13Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command handling.
@@ -26,4 +26,13 @@
 
 int kmk_builtin_command(const char *pszCmd);
 int kmk_builtin_command_parsed(int argc, char **argv);
+
+extern int kmk_builtin_append(int argc, char **argv, char **envp);
+extern int kmk_builtin_cp(int argc, char **argv, char **envp);
+extern int kmk_builtin_chmod(int argc, char **argv, char **envp);
+extern int kmk_builtin_echo(int argc, char **argv, char **envp);
+extern int kmk_builtin_mkdir(int argc, char **argv, char **envp);
+extern int kmk_builtin_mv(int argc, char **argv, char **envp);
+extern int kmk_builtin_rm(int argc, char **argv, char **envp);
+extern int kmk_builtin_rmdir(int argc, char **argv, char **envp);
 

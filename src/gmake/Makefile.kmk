@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 346 2005-12-11 04:39:34Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 348 2005-12-11 05:13:13Z knut.osmundsen@oracle.com $
 
 
 #
@@ -67,6 +67,7 @@ ifneq ($(BUILD_TARGET),win32)
 kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
 kmk_SOURCES += \
 	kmkbuiltin.c \
+	kmkbuiltin/append.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/rm.c \
@@ -81,7 +82,13 @@ kmk_SOURCES += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += cp echo mkdir rm
+PROGRAMS += append cp echo mkdir rm
+
+append_TEMPLATE = BIN
+append_DEFS = kmk_builtin_append=main
+append_INCS = .
+append_SOURCES = \
+	kmkbuiltin/append.c \
 
 cp_TEMPLATE = BIN
 cp_DEFS = kmk_builtin_cp=main
