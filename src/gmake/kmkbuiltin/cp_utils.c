@@ -58,6 +58,9 @@ static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #ifndef MAXBSIZE
 #define MAXBSIZE (128*1024)
 #endif
+#ifndef O_BINARY
+# define O_BINARY 0
+#endif
 
 int
 copy_file(const FTSENT *entp, int dne)
@@ -73,7 +76,7 @@ copy_file(const FTSENT *entp, int dne)
 	char *p;
 #endif
 
-	if ((from_fd = open(entp->fts_path, O_RDONLY, 0)) == -1) {
+	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
 		fprintf(stderr, "%s: %s: %s\n", argv0, entp->fts_path, strerror(errno));
 		return (1);
 	}
@@ -111,13 +114,13 @@ copy_file(const FTSENT *entp, int dne)
 		    /* remove existing destination file name,
 		     * create a new file  */
 		    (void)unlink(to.p_path);
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
 				 fs->st_mode & ~(S_ISUID | S_ISGID));
 		} else
 		    /* overwrite existing destination file name */
-		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC, 0);
+		    to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_BINARY, 0);
 	} else
-		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT,
+		to_fd = open(to.p_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {
