@@ -675,7 +675,7 @@ define_automatic_variables (void)
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* The kMk Builtin Level. */
-  (void) define_variable ("KMK_BUILTIN", 11, "1", o_default, 0);
+  (void) define_variable ("KMK_BUILTIN", 11, "2", o_default, 0);
 #endif
 
 #ifdef  __MSDOS__

@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 229 2005-02-09 12:25:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 348 2005-12-11 05:13:13Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -32,6 +32,7 @@
 
 extern char **environ;
 
+extern int kmk_builtin_append(int argc, char **argv, char **envp);
 extern int kmk_builtin_cp(int argc, char **argv, char **envp);
 extern int kmk_builtin_chmod(int argc, char **argv, char **envp);
 extern int kmk_builtin_echo(int argc, char **argv, char **envp);
@@ -183,7 +184,9 @@ int kmk_builtin_command_parsed(int argc, char **argv)
     /*
      * String switch on the command.
      */
-    if (!strcmp(pszCmd, "cp"))
+    if (!strcmp(pszCmd, "append"))
+        rc = kmk_builtin_append(argc, argv, environ);
+    else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);
     //else if (!strcmp(pszCmd, "chmod"))
     //    rc = kmk_builtin_chmod(argc, argv, environ);
