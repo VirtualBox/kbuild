@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 339 2005-11-07 19:21:04Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 345 2005-12-11 04:31:18Z knut.osmundsen@oracle.com $ */
+
+2005-12-11: bird
+
+    * src/gmake/function.c: Fixed abspath on OS/2.
+    * src/kDepPre/kDepPre.c: Killed some warnings and stuff.
 
 2005-11-07: bird
     - kBuild/tools/VCC70.kmk:
