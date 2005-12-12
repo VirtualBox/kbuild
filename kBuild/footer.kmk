@@ -1,9 +1,9 @@
-# $Id: footer.kmk 316 2005-08-11 22:31:35Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -20,7 +20,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite typetype0, Boston, MA  0sourcetargettargettarget-targettype07  USA
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
 
@@ -33,13 +33,14 @@ ifndef __footer_kmk__
 #
 
 # all targets.
-ALL_TARGETS := \
+ALL_TARGETS += \
 	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM)) \
 	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET)) \
 	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) \
 	$(DLLS)        $(DLLS.$(BUILD_TARGET)) \
 	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET)) \
 	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET)) \
+	$(INSTALLS)    $(INSTALLS.$(BUILD_TARGET)) \
 	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))
 
 # dependency files.
@@ -50,6 +51,9 @@ _DEPFILES :=
 # required dependency file must add those output files to this variable.
 _OUT_FILES :=
 
+# Files which only requires cleaning up.
+_CLEAN_FILES :=
+
 # all of a type
 _OBJS     :=
 _BLDPROGS :=
@@ -57,18 +61,14 @@ _LIBS     :=
 _DLLS     :=
 _PROGRAMS :=
 _SYSMODS  :=
-_DIRS     :=
+_INSTALLS :=
+_OTHERS   :=
+_DIRS     := $(PATH_TARGET)/
 _IMPORT_LIBS :=
 
 # misc
 pass_prev :=
 
-
-# all objs of a specific target
-define def_objs_var
-_OBJS_$target :=
-endef
-$(foreach target, $(ALL_TARGETS), $(eval _OBJS_$(target) := ))
 
 #
 # Basic macros
@@ -135,6 +135,14 @@ _OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basena
 _TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(1))))
 
 
+## Figure out the actual name of an installed file.
+# @param	$1		The file to install.
+# @param	$2		The target name.
+# @param	$3		The _INST value (can be empty).
+# @param	$4		The default directory to use when $3 is empty.
+_INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/))
+
+
 #
 # Check syntax which leads to weird syntax errors.
 #
@@ -164,7 +172,7 @@ _TEMPLATES := $(sort $(_TEMPLATES))
 
 define def_templates_include
 ifndef TEMPLATE_$(template)
-include $(firstword $(wildcard $(PATH_KBUILD)/templates/$(template).kmk))
+include $(firstword $(foreach path, $(TEMPLATE_PATHS) $(PATH_KBUILD)/templates/, $(wildcard $(path)/$(template).kmk)))
 endif
 endef
 $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
@@ -212,21 +220,41 @@ endef
 $(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_defaults)))
 
 
-## Inherit one template property in a accumulative manner.
+## Inherit one template property in a non-accumulative manner.
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
 # @todo fix the precedence order for some properties.
 define def_inherit_template_one
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 ifndef $(target)_$(prop)
-#$$ (warning dbgtarget: $(target)_$(prop):='$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-$$(target)_$$(prop) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop))
+$(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$ (warning dbgtarget: $(target)_$(prop):='$(value $(target)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 ifndef $(target)_$(prop).$(BUILD_TARGET)
-#$$ (warning dbgsource: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
-$$(target)_$$(prop).$$(BUILD_TARGET) := $$(TEMPLATE_$$($$(target)_TEMPLATE)_$$(prop).$$(BUILD_TARGET))
+#$ (warning dbgsource: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$(target)_$(prop).$(BUILD_TARGET) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+endif
+endif
+endef
+
+## Inherit one template property in a non-accumulative manner, deferred expansion.
+# @param    1: $(prop)     Property name
+# @param    2: $(target)	Target name
+# @todo fix the precedence order for some properties.
+# @remark this define relies on double evaluation
+define def_inherit_template_one_deferred
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ifndef $(target)_$(prop)
+$(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$ (warning dbgtarget: $(target)_$(prop):='$(value $(target)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
+ifndef $(target)_$(prop).$(BUILD_TARGET)
+#$ (warning dbgsource: $(target)_$(prop).$(BUILD_TARGET)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$(target)_$(prop).$(BUILD_TARGET) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
 endif
 endif
 endef
@@ -236,40 +264,38 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-#$$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
-$$(eval $(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
-#$$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
+#$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+$(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-#$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
-$$(eval $(target)_$(prop).$(BUILD_TYPE) := $($(target)_$(prop).$(BUILD_TYPE)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)))
+#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+$(target)_$(prop).$(BUILD_TYPE) := $($(target)_$(prop).$(BUILD_TYPE)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
-#$$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
-$$(eval $(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)))
+#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)
-#$$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
-$$(eval $(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)))
+#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
+$(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)
-#$$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
-$$(eval $(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)))
+#$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
+$(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
 endif
 endef
-
 
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
-$$(foreach prop, TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL INST NOINST\
-	,$$(eval $$(def_inherit_template_one)))
-$$(foreach prop,SDKS DEFS INCS COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS ASOPTS ASFLAGS ASDEFS ASINCS LDFLAGS LIBS LIBPATH \
-	        BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
-	,$$(eval $$(def_inherit_template_one_accumulate)))
+$(foreach prop,$(PROPS_SINGLE),$(eval $(value def_inherit_template_one)))
+$(foreach prop,$(PROPS_DEFERRED),$(eval $(def_inherit_template_one_deferred))) # exploits the 2 evaluation, so no value!
+$(foreach prop,$(PROPS_ACCUMULATE),$(eval $(value def_inherit_template_one_accumulate)))
 endef
+
 # Inherit template properties
-$(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_template)))
+$(foreach target, $(ALL_TARGETS),$(eval $(value def_inherit_template)))
 
 
 #
@@ -277,48 +303,37 @@ $(foreach target, $(ALL_TARGETS),$(eval $(def_inherit_template)))
 #
 _TOOLS := $(TOOL)
 define def_tools_target_source
-$(foreach tool,\
-	$($(source)_TOOL.$(BUILD_TARGET)) $($(target)_$(source)_TOOL.$(BUILD_TARGET))\
-	$($(source)_TOOL) $($(target)_$(source)_TOOL)\
-	$($(source)_CTOOL.$(BUILD_TARGET)) $($(target)_$(source)_CTOOL.$(BUILD_TARGET))\
-	$($(source)_CTOOL) $($(target)_$(source)_CTOOL)\
-	$($(source)_CXXTOOL.$(BUILD_TARGET)) $($(target)_$(source)_CXXTOOL.$(BUILD_TARGET))\
-	$($(source)_CXXTOOL) $($(target)_$(source)_CXXTOOL)\
-	$($(source)_ASTOOL.$(BUILD_TARGET)) $($(target)_$(source)_ASTOOL.$(BUILD_TARGET))\
-	$($(source)_ASTOOL) $($(target)_$(source)_ASTOOL)\
-	$($(source)_ARTOOL.$(BUILD_TARGET)) $($(target)_$(source)_ARTOOL.$(BUILD_TARGET))\
-	$($(source)_ARTOOL) $($(target)_$(source)_ARTOOL)\
-	$($(source)_LDTOOL.$(BUILD_TARGET)) $($(target)_$(source)_LDTOOL.$(BUILD_TARGET))\
-	$($(source)_LDTOOL) $($(target)_$(source)_LDTOOL)\
-	,$(eval _TOOLS += $(tool)))
+$(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
+	$($(source)_$(prop).$(BUILD_TARGET)) \
+	$($(target)_$(source)_$(prop).$(BUILD_TARGET)) \
+	$($(source)_$(prop)) \
+	$($(target)_$(source)_$(prop))))
 endef
+
 define def_tools_target
-$(foreach tool,\
-	$($(target)_TOOL.$(BUILD_TARGET))\
-	$($(target)_TOOL)\
-	$($(target)_CTOOL.$(BUILD_TARGET))\
-	$($(target)_CTOOL)\
-	$($(target)_CXXTOOL.$(BUILD_TARGET))\
-	$($(target)_CXXTOOL)\
-	$($(target)_ASTOOL.$(BUILD_TARGET))\
-	$($(target)_ASTOOL)\
-	$($(target)_ARTOOL.$(BUILD_TARGET))\
-	$($(target)_ARTOOL)\
-	$($(target)_LDTOOL.$(BUILD_TARGET))\
-	$($(target)_LDTOOL)\
-	,$(eval _TOOLS += $(tool)))
-$(foreach source, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE)) \
-	, $(eval $(def_tools_target_source)))
+$(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
+	$($(target)_$(prop).$(BUILD_TARGET)) \
+	$($(target)_$(prop))))
+$(foreach source, \
+	$($(target)_SOURCES.$(BUILD_TARGET)) \
+	$($(target)_SOURCES.$(BUILD_TYPE)) \
+	$($(target)_SOURCES) \
+	, $(eval $(value def_tools_target_source)))
 endef
-$(foreach target, $(ALL_TARGETS), $(eval $(def_tools_target)))
+
+$(foreach target, $(ALL_TARGETS), $(eval $(value def_tools_target)))
 _TOOLS := $(sort $(_TOOLS))
 
 define def_tools_include
 ifndef TOOL_$(tool)
-include $(firstword $(wildcard $(PATH_KBUILD)/tools/$(tool).kmk))
+TOOL_$(tool)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(tool).kmk)))
+ifeq ($(TOOL_$(tool)_KMK_FILE),)
+$(error kBuild: Cannot find include file for the tool '$(tool)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
+endif
+include $(TOOL_$(tool)_KMK_FILE)
 endif
 endef
-$(foreach tool, $(_TOOLS), $(eval $(def_tools_include)))
+$(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
 
 
 #
@@ -341,14 +356,27 @@ _SDKS := $(sort $(_SDKS))
 
 define def_sdks_include_one
 ifndef SDK_$(sdk)
-include $(firstword $(wildcard $(PATH_KBUILD)/sdks/$(sdk).kmk))
+SDK_$(sdk)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(sdk).kmk)))
+ifeq ($(SDK_$(sdk)_KMK_FILE),)
+$(error kBuild: Cannot find include file for the SDK '$(sdk)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
+endif
+include $(SDK_$(sdk)_KMK_FILE)
 endif
 endef
-$(foreach sdk, $(_SDKS), $(eval $(def_sdks_include_one)))
+$(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 #
 # Object processing.
 #
+
+## Generates the '::' rule for building all objects of a source file.
+# @param    $(obj)    The object file.
+define def_target_obj_rule
+$(basename $(notdir $(obj))).o::
+	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
+$(basename $$(notdir $$(obj))).obj::
+	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
+endef
 
 
 ## Generic macro for processing C, C++ and Assembly sources.
@@ -365,11 +393,11 @@ $(foreach sdk, $(_SDKS), $(eval $(def_sdks_include_one)))
 define def_target_source_c_cpp_asm
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
 
-$(eval tool:=$(call _SOURCE_TOOL,$(source),$(target),$(type)))
-$(eval outbase     := $(call _OBJECT_BASE,$(source),$(target)))
-$(eval PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval dirdep      := $(dir $(outbase)).dir_created)
-$(eval defs        :=\
+tool := $(call _SOURCE_TOOL,$(source),$(target),$(type))
+outbase     := $(call _OBJECT_BASE,$(source),$(target))
+PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase)))
+dirdep      := $(call DIRDEP,$(dir $(outbase)))
+defs        :=\
 	$(TOOL_$(tool)_DEFS)\
 	$(TOOL_$(tool)_DEFS.$(bld_type))\
 	$(TOOL_$(tool)_DEFS.$(bld_trg))\
@@ -380,16 +408,16 @@ $(eval defs        :=\
 	$(foreach sdk, $(SDKS.$(bld_trg)) \
 				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(bld_type))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
+		$(SDK_$(sdk)_DEFS)\
+		$(SDK_$(sdk)_DEFS.$(bld_type))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)DEFS)\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$(DEFS)\
 	$(DEFS.$(bld_type))\
 	$(DEFS.$(bld_trg))\
@@ -403,16 +431,16 @@ $(eval defs        :=\
 	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
 				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(bld_type))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
+		$(SDK_$(sdk)_DEFS)\
+		$(SDK_$(sdk)_DEFS.$(bld_type))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)DEFS)\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(target)_DEFS)\
 	$($(target)_DEFS.$(bld_type))\
 	$($(target)_DEFS.$(bld_trg))\
@@ -426,16 +454,16 @@ $(eval defs        :=\
 	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
 				   $($(source)_SDKS.$(bld_type)) \
 				   $($(source)_SDKS),\
-	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(bld_type))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
+		$(SDK_$(sdk)_DEFS)\
+		$(SDK_$(sdk)_DEFS.$(bld_type))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)DEFS)\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(source)_DEFS)\
 	$($(source)_DEFS.$(bld_type))\
 	$($(source)_DEFS.$(bld_trg))\
@@ -449,16 +477,16 @@ $(eval defs        :=\
 	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
 				   $($(target)_$(source)_SDKS.$(bld_type)) \
 				   $($(target)_$(source)_SDKS),\
-	$(SDK_$(sdk)_DEFS)\
-	$(SDK_$(sdk)_DEFS.$(bld_type))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)DEFS)\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
+		$(SDK_$(sdk)_DEFS)\
+		$(SDK_$(sdk)_DEFS.$(bld_type))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_DEFS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)DEFS)\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)DEFS.$(bld_trg_cpu)))\
 	$($(target)_$(source)_DEFS)\
 	$($(target)_$(source)_DEFS.$(bld_type))\
 	$($(target)_$(source)_DEFS.$(bld_trg))\
@@ -468,9 +496,8 @@ $(eval defs        :=\
 	$($(target)_$(source)_$(type)DEFS.$(bld_type))\
 	$($(target)_$(source)_$(type)DEFS.$(bld_trg))\
 	$($(target)_$(source)_$(type)DEFS.$(bld_trg_arch))\
-	$($(target)_$(source)_$(type)DEFS.$(bld_trg_cpu))\
-	)
-$(eval incs        :=\
+	$($(target)_$(source)_$(type)DEFS.$(bld_trg_cpu))
+incs        :=\
 	$($(target)_$(source)_$(type)INCS.$(bld_trg_cpu))\
 	$($(target)_$(source)_$(type)INCS.$(bld_trg_arch))\
 	$($(target)_$(source)_$(type)INCS.$(bld_trg))\
@@ -484,16 +511,16 @@ $(eval incs        :=\
 	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
 				   $($(target)_$(source)_SDKS.$(bld_type)) \
 				   $($(target)_$(source)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_INCS.$(bld_trg))\
-	$(SDK_$(sdk)_INCS.$(bld_type))\
-	$(SDK_$(sdk)_INCS))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)INCS)\
+		$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_INCS.$(bld_trg))\
+		$(SDK_$(sdk)_INCS.$(bld_type))\
+		$(SDK_$(sdk)_INCS))\
 	$($(source)_$(type)INCS.$(bld_trg_cpu))\
 	$($(source)_$(type)INCS.$(bld_trg_arch))\
 	$($(source)_$(type)INCS.$(bld_trg))\
@@ -507,16 +534,16 @@ $(eval incs        :=\
 	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
 				   $($(source)_SDKS.$(bld_type)) \
 				   $($(source)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_INCS.$(bld_trg))\
-	$(SDK_$(sdk)_INCS.$(bld_type))\
-	$(SDK_$(sdk)_INCS))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)INCS)\
+		$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_INCS.$(bld_trg))\
+		$(SDK_$(sdk)_INCS.$(bld_type))\
+		$(SDK_$(sdk)_INCS))\
 	$($(target)_$(type)INCS.$(bld_trg_cpu))\
 	$($(target)_$(type)INCS.$(bld_trg_arch))\
 	$($(target)_$(type)INCS.$(bld_trg))\
@@ -530,16 +557,16 @@ $(eval incs        :=\
 	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
 				   $($(target)_SDKS.$(bld_type)) \
 				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_INCS.$(bld_trg))\
-	$(SDK_$(sdk)_INCS.$(bld_type))\
-	$(SDK_$(sdk)_INCS))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)INCS)\
+		$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_INCS.$(bld_trg))\
+		$(SDK_$(sdk)_INCS.$(bld_type))\
+		$(SDK_$(sdk)_INCS))\
 	$(INCS.$(bld_trg_cpu))\
 	$(INCS.$(bld_trg_arch))\
 	$(INCS.$(bld_trg))\
@@ -548,23 +575,22 @@ $(eval incs        :=\
 	$(foreach sdk, $(SDKS.$(bld_trg)) \
 				   $(SDKS.$(bld_type)) \
 				   $(SDKS),\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
-	$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
-	$(SDK_$(sdk)_$(type)INCS)\
-	$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_INCS.$(bld_trg))\
-	$(SDK_$(sdk)_INCS.$(bld_type))\
-	$(SDK_$(sdk)_INCS))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_trg))\
+		$(SDK_$(sdk)_$(type)INCS.$(bld_type))\
+		$(SDK_$(sdk)_$(type)INCS)\
+		$(SDK_$(sdk)_INCS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_INCS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_INCS.$(bld_trg))\
+		$(SDK_$(sdk)_INCS.$(bld_type))\
+		$(SDK_$(sdk)_INCS))\
 	$(TOOL_$(tool)_$(type)INCS.$(bld_trg_cpu))\
 	$(TOOL_$(tool)_$(type)INCS.$(bld_trg_arch))\
 	$(TOOL_$(tool)_$(type)INCS.$(bld_trg))\
 	$(TOOL_$(tool)_$(type)INCS.$(bld_type))\
-	$(TOOL_$(tool)_$(type)INCS)\
-	)
-$(eval flags        :=\
+	$(TOOL_$(tool)_$(type)INCS)
+flags        :=\
 	$(TOOL_$(tool)_$(type)FLAGS)\
 	$(TOOL_$(tool)_$(type)FLAGS.$(bld_type))\
 	$(TOOL_$(tool)_$(type)FLAGS.$(bld_trg))\
@@ -589,9 +615,8 @@ $(eval flags        :=\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_type))\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_trg))\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_arch))\
-	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_cpu))\
-	)
-$(eval objsuff     := $(firstword \
+	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_cpu))
+objsuff     := $(firstword \
 	$($(target)_$(source)_OBJSUFF.$(bld_trg))\
 	$($(target)_$(source)_OBJSUFF)\
 	$($(source)_OBJSUFF.$(bld_trg))\
@@ -600,28 +625,29 @@ $(eval objsuff     := $(firstword \
 	$($(target)_OBJSUFF)\
 	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg))\
 	$(TOOL_$(tool)_$(type)OBJSUFF)\
-	$(SUFF_OBJ)\
-	))
-$(eval obj         := $(outbase)$(objsuff))
-$(eval dep         := $(outbase)$(SUFF_DEP))
-$(eval deps        := \
+	$(SUFF_OBJ))
+obj         := $(outbase)$(objsuff)
+dep         := $(outbase)$(SUFF_DEP)
+deps        := \
 	$($(target)_$(source)_DEPS)\
-    $($(target)_$(source)_DEPS.$(bld_type))\
-    $($(target)_$(source)_DEPS.$(bld_trg))\
-    $($(target)_$(source)_DEPS.$(bld_trg_arch))\
-    $($(target)_$(source)_DEPS.$(bld_trg_cpu))\
+	$($(target)_$(source)_DEPS.$(bld_type))\
+	$($(target)_$(source)_DEPS.$(bld_trg))\
+	$($(target)_$(source)_DEPS.$(bld_trg_arch))\
+	$($(target)_$(source)_DEPS.$(bld_trg_cpu))\
 	$($(source)_DEPS)\
 	$($(source)_DEPS.$(bld_type))\
 	$($(source)_DEPS.$(bld_trg))\
+	$($(source)_DEPS.$(bld_trg_arch))\
+	$($(source)_DEPS.$(bld_trg_cpu))\
 	$($(target)_DEPS)\
+	$($(target)_DEPS.$(bld_type))\
 	$($(target)_DEPS.$(bld_trg_arch))\
-	$($(target)_DEPS.$(bld_trg_cpu)))
+	$($(target)_DEPS.$(bld_trg_cpu))
 
 
 #$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
 ifndef TOOL_$(tool)_COMPILE_$(type)
-$$(warning kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
-$$(warning kBuild: tools: \
+$(warning kBuild: tools: \
 	1 $($(target)_$(source)_$(type)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)_$(type)TOOL) \
 	3 $($(target)_$(source)_TOOL.$(bld_trg)) \
@@ -638,16 +664,16 @@ $$(warning kBuild: tools: \
 	14 $($(type)TOOL) \
 	15 $(TOOL.$(bld_trg)) \
 	16 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
 endif
+
+# generate the rules
 $(eval $(TOOL_$(tool)_COMPILE_$(type)))
 
-$$(basename $$(notdir $$(obj))).o::
-	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
-$$(basename $$(notdir $$(obj))).obj::
-	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
+$(eval $(def_target_obj_rule))
 
-$(eval _OBJS_$(target) += $(obj))
-$(eval _DEPFILES       += $(dep))
+$(target)_OBJS_ += $(obj)
+_DEPFILES       += $(dep)
 
 endef
 
@@ -656,194 +682,65 @@ endef
 define def_target_sources
 #$ (warning def_target_sources)
 # C sources
-$(foreach type,C,$(foreach source, $(filter %.c, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(def_target_source_c_cpp_asm)) ))
+type := C
+$(foreach source, $(filter %.c, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
+	,$(eval $(value def_target_source_c_cpp_asm)) )
 
 # C++ sources
-$(foreach type,CXX,$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(def_target_source_c_cpp_asm)) ))
+type := CXX
+$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
+	,$(eval $(value def_target_source_c_cpp_asm)) )
 
 # ASM sources
-$(foreach type,AS,$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(def_target_source_c_cpp_asm)) ))
+type := AS
+$(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
+	,$(eval $(value def_target_source_c_cpp_asm)) )
+
+endef
+
+## Generate the link & lib install rule
+# @param    $(target)   Normalized target name.
+# @param    $(out)      The build target.
+# @param    $(INSTARGET_$(target))  The installation targets.
+define def_link_install_rule
+$(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
+	$(RM) -f $$@
+	$(CP) $(out) $$@
 endef
 
 
+
+## Generic macro for generating the install rule(s) for a target
+# and update the globals with default out.
 #
-# BLDPROGS
-#
+# @param	$(target)   Normalized target name.
+# @param	$(out)      The output file.
+# @param	$(definst)  The default _INST value.
+# @param	$(typevar)  The name of the variable with all the root targets of its type.
+# @obsolete
+define def_target_install_pluss
+ifndef $(target)_NOINST
+INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
 
-## Build program (one).
-# @param    $(target)   Normalized target (program) name.
-define def_bldprog
-# basics
-$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_PLATFORM)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_PLATFORM_ARCH)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_PLATFORM_CPU)))
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(HOSTSUFF_EXE)))
-$(eval exe         := $(outbase)$(exesuff))
-$(eval TARGET_$(target) := $(exe))
+$(eval $(def_link_install_rule))
 
-# source -> object
-$(eval $(def_target_sources))
+_INSTALLS  += $(INSTARGET_$(target))
 
-# more library stuff.
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval objs         = $(_OBJS_$(target)) $(filter %.o %.obj, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-$(eval flags       :=\
-	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
-	$(LDFLAGS)\
-	$(LDFLAGS.$(bld_type))\
-	$(LDFLAGS.$(bld_trg))\
-	$(LDFLAGS.$(bld_trg_arch))\
-	$(LDFLAGS.$(bld_trg_cpu))\
-	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(bld_type))\
-	$($(target)_LDFLAGS.$(bld_trg))\
-	$($(target)_LDFLAGS.$(bld_trg_arch))\
-	$($(target)_LDFLAGS.$(bld_trg_cpu))\
-)
-$(eval libs        :=\
-	$($(target)_LIBS.$(bld_trg_cpu))\
-	$($(target)_LIBS.$(bld_trg_arch))\
-	$($(target)_LIBS.$(bld_trg))\
-	$($(target)_LIBS.$(bld_type))\
-	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(bld_trg_cpu))\
-	$(LIBS.$(bld_trg_arch))\
-	$(LIBS.$(bld_trg))\
-	$(LIBS.$(bld_type))\
-	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg))\
-	$(TOOL_$(tool)_LIBS.$(bld_type))\
-	$(TOOL_$(tool)_LIBS)\
-)
-$(eval libpath    :=\
-	$($(target)_LIBPATH.$(bld_trg_cpu))\
-	$($(target)_LIBPATH.$(bld_trg_arch))\
-	$($(target)_LIBPATH.$(bld_trg))\
-	$($(target)_LIBPATH.$(bld_type))\
-	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(bld_trg_cpu))\
-	$(LIBPATH.$(bld_trg_arch))\
-	$(LIBPATH.$(bld_trg))\
-	$(LIBPATH.$(bld_type))\
-	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
-	$(TOOL_$(tool)_LIBPATH)\
-)
-$(eval dirdep      := $(dir $(exe)).dir_created)
-## @todo fix dependencies
-$(eval deps        := $($(target)_DEPS))
-#
-$(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_PRE.$(bld_trg))\
-	$($(target)_CUSTOM_PRE.$(bld_type))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$(CUSTOM_PRE.$(bld_trg))\
-	$(CUSTOM_PRE.$(bld_type))\
-	$(CUSTOM_PRE)\
-)))
-$(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_POST.$(bld_trg))\
-	$($(target)_CUSTOM_POST.$(bld_type))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$(CUSTOM_POST.$(bld_trg))\
-	$(CUSTOM_POST.$(bld_type))\
-	$(CUSTOM_POST)\
-)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
-ifndef TOOL_$(tool)_LINK_PROGRAM
-$$(warning kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
-$$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(bld_trg)) \
-	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(bld_trg)) \
-	4 $($(target)_TOOL) \
-	5 $(TOOL.$(bld_trg)) \
-	6 $(TOOL) )
-endif
-
-$(eval $(TOOL_$(tool)_LINK_PROGRAM))
-
-# installing
-ifdef $(target)_INST
-#ifndef KBUILD_NEW_STUFF
-$(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
-$(pubexe) : $(exe) $(dir $(pubexe)).dir_created
-	$(RM) -f $(pubexe)
-	$(CP) $(exe) $(pubexe)
-#else
-#$ (eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
-#	$ (if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
-#$ (pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
-#	$ (RM) -f $$@
-#	$ (CP) $(exe) $$@
-#endif
-
-_BLDPROGS  += $(pubexe)
-_OUT_FILES += $(exe) $(pubexe)
-_DIRS      += $(dir $(pubexe))
+ifdef KBUILD_DO_AUTO_INSTALL
+$(typevar)  += $(INSTARGET_$(target))
 else
-_BLDPROGS  += $(exe)
-_OUT_FILES += $(exe)
+$(typevar)  += $(out)
 endif
-_OBJS += $(_OBJS_$(target))
-endef
+else # _NOINST
+$(typevar)  += $(out)
+endif
 
-# Process build programs.
-$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(def_bldprog)))
+_OUT_FILES += $(out)
+_CLEAN_FILES += $($(target)_CLEAN)
+_OBJS += $($(target)_OBJS_)
+
+endef
 
 
 
@@ -856,75 +753,300 @@ $(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(def_bldpro
 define def_lib
 # library basics
 ## @todo prefix
-$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
-$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
+bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
+bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
+bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+tool        := $(call _TARGET_TOOL,$(target),AR)
 ifeq ($(tool),)
-$$(error kBuild: Library target $(target) doesn't have a tool defined!)
+$(error kBuild: Library target $(target) does not have a tool defined!)
 endif
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval libsuff     := $(firstword\
+outbase     := $(call _TARGET_BASE,$(target),$(target))
+PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+suff        := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg))\
 	$($(target)_LIBSUFF)\
 	$(TOOL_$(tool)_ARLIBSUFF.$(bld_trg))\
 	$(TOOL_$(tool)_ARLIBSUFF)\
-	$(SUFF_LIB)\
-))
-$(eval lib         := $(outbase)$(libsuff))
-$(eval TARGET_$(target) := $(lib))
+	$(SUFF_LIB))
+out         := $(outbase)$(suff)
+TARGET_$(target) := $(out)
+$(target)_OBJS_ := $(filter %.o %.obj, \
+	$($(target)_SOURCES) \
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type)))
+
 
 # source -> object
-$(eval $(def_target_sources))
+$(eval $(value def_target_sources))
 
 # library linking
-$(eval tool        := $(call _TARGET_TOOL,$(target),AR))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval flags       :=\
+tool        := $(call _TARGET_TOOL,$(target),AR)
+outbase     := $(call _TARGET_BASE,$(target),$(target))
+flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(bld_type))\
 	$(ARFLAGS)\
 	$(ARFLAGS.$(bld_type))\
 	$($(target)_ARFLAGS)\
-	$($(target)_ARFLAGS.$(bld_type))\
-	)
-$(eval objs         = $(_OBJS_$(target)) $(filter %.o %.obj, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-$(eval dirdep      := $(dir $(lib)).dir_created)
+	$($(target)_ARFLAGS.$(bld_type))
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
+	$($(target)_SOURCES) \
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type)))
+objs         = $($(target)_OBJS_)
+dirdep      := $(call DIRDEP,$(dir $(out)))
 ## @todo fix dependencies on makefiles an such
-$(eval deps        := $($(target)_DEPS))
+deps        := $($(target)_DEPS)
 
+lib     := $(out)
+libsuff := $(suff)
 $(eval $(TOOL_$(tool)_LINK_LIBRARY))
 
-# installing
-ifndef $(target)_NOINST
-# ifndef KBUILD_NEW_STUFF
-$(eval publib := $(PATH_LIB)/$(notdir $(lib)))
-$(publib) : $(lib) $(dir $(publib)).dir_created
-	$(RM) -f $(publib)
-	$(CP) $(lib) $(publib)
-#else
-#$ ( eval publib := $(patsubst %/,%/$(notdir $(lib)), \
-#	$ ( if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_LIB)/)))
-#$ ( publib) : $(lib) $(addsuffix .dir_created, $(dir $(publib)))
-#	$ ( RM) -f $$@
-#	$ ( CP) $(lib) $$@
-#endif
-
-_LIBS      += $(publib)
-_OUT_FILES += $(lib) $(publib)
-_DIRS      += $(dir $(publib))
-else
-_LIBS += $(lib)
-_OUT_FILES += $(lib)
-endif
-_OBJS += $(_OBJS_$(target))
+# installing and globals
+definst := $(PATH_LIB)
+typevar :=_LIBS
+$(eval $(value def_target_install_pluss))
 endef
 
 # Process libraries
-$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
+$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(value def_lib)))
+
+
+#
+# Link operations.
+#
+
+##
+# Link prolog
+#
+# @param    $(target)   Normalized target name.
+# @param    $(EXT)      EXE,DLL,SYS.
+# @param    $(definst)  The default _INST value.
+# @param    $(typevar)  The name of the variable with all the root targets of its type.
+define def_link_prolog
+# basics
+bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
+bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
+bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
+
+tool        := $(call _TARGET_TOOL,$(target),LD)
+outbase     := $(call _TARGET_BASE,$(target),$(target))
+suff        := $(firstword \
+	$($(target)_$(EXT)SUFF) \
+	$($(target)_$(EXT)SUFF) \
+	$(TOOL_$(tool)_LD$(EXT)SUFF) \
+	$($(EXTPRE)SUFF_$(EXT)))
+out         := $(outbase)$(suff)
+PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
+TARGET_$(target) := $(out)
+$(target)_OBJS_  := $(filter %.o %.obj, \
+	$($(target)_SOURCES) \
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type)))
+
+# source -> object
+$(eval $(value def_target_sources))
+
+# more library stuff.
+tool        := $(call _TARGET_TOOL,$(target),LD)
+outbase     := $(call _TARGET_BASE,$(target),$(target))
+flags       :=\
+	$(TOOL_$(tool)_LDFLAGS)\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
+	$(LDFLAGS)\
+	$(LDFLAGS.$(bld_type))\
+	$(LDFLAGS.$(bld_trg))\
+	$(LDFLAGS.$(bld_trg_arch))\
+	$(LDFLAGS.$(bld_trg_cpu))\
+	$($(target)_LDFLAGS)\
+	$($(target)_LDFLAGS.$(bld_type))\
+	$($(target)_LDFLAGS.$(bld_trg))\
+	$($(target)_LDFLAGS.$(bld_trg_arch))\
+	$($(target)_LDFLAGS.$(bld_trg_cpu))
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
+	$($(target)_SOURCES)\
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type)))
+objs         = $($(target)_OBJS_)
+libs        :=\
+	$($(target)_LIBS.$(bld_trg_cpu))\
+	$($(target)_LIBS.$(bld_trg_arch))\
+	$($(target)_LIBS.$(bld_trg))\
+	$($(target)_LIBS.$(bld_type))\
+	$($(target)_LIBS)\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
+				   $($(target)_SDKS),\
+		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LIBS.$(bld_trg))\
+		$(SDK_$(sdk)_LIBS.$(bld_type))\
+		$(SDK_$(sdk)_LIBS))\
+	$(LIBS.$(bld_trg_cpu))\
+	$(LIBS.$(bld_trg_arch))\
+	$(LIBS.$(bld_trg))\
+	$(LIBS.$(bld_type))\
+	$(LIBS)\
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
+				   $(SDKS),\
+		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LIBS.$(bld_trg))\
+		$(SDK_$(sdk)_LIBS.$(bld_type))\
+		$(SDK_$(sdk)_LIBS))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBS.$(bld_trg))\
+	$(TOOL_$(tool)_LIBS.$(bld_type))\
+	$(TOOL_$(tool)_LIBS)
+libpath    :=\
+	$($(target)_LIBPATH.$(bld_trg_cpu))\
+	$($(target)_LIBPATH.$(bld_trg_arch))\
+	$($(target)_LIBPATH.$(bld_trg))\
+	$($(target)_LIBPATH.$(bld_type))\
+	$($(target)_LIBPATH)\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
+				   $($(target)_SDKS.$(bld_type)) \
+				   $($(target)_SDKS),\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_type))\
+		$(SDK_$(sdk)_LIBPATH))\
+	$(LIBPATH.$(bld_trg_cpu))\
+	$(LIBPATH.$(bld_trg_arch))\
+	$(LIBPATH.$(bld_trg))\
+	$(LIBPATH.$(bld_type))\
+	$(LIBPATH)\
+	$(foreach sdk, $(SDKS.$(bld_trg)) \
+				   $(SDKS.$(bld_type)) \
+				   $(SDKS),\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
+		$(SDK_$(sdk)_LIBPATH.$(bld_type))\
+		$(SDK_$(sdk)_LIBPATH))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
+	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
+	$(TOOL_$(tool)_LIBPATH)
+dirdep      := $(call DIRDEP,$(dir $(out)))
+## @todo fix dependencies
+deps        := $($(target)_DEPS)
+
+## @todo this stuff can't be working.
+custom_pre  := $(strip $(firstword \
+	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_PRE.$(bld_trg))\
+	$($(target)_CUSTOM_PRE.$(bld_type))\
+	$($(target)_CUSTOM_PRE)\
+	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
+	$(CUSTOM_PRE.$(bld_trg))\
+	$(CUSTOM_PRE.$(bld_type))\
+	$(CUSTOM_PRE)\
+))
+custom_post    := $(strip $(firstword \
+	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$($(target)_CUSTOM_POST.$(bld_trg))\
+	$($(target)_CUSTOM_POST.$(bld_type))\
+	$($(target)_CUSTOM_POST)\
+	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
+	$(CUSTOM_POST.$(bld_trg))\
+	$(CUSTOM_POST.$(bld_type))\
+	$(CUSTOM_POST)\
+))
+
+# installation targets
+ifndef $(target)_NOINST
+INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
+ifdef KBUILD_DO_AUTO_INSTALL
+$(typevar)  += $(INSTARGET_$(target))
+else
+$(typevar)  += $(out)
+endif
+# generate the install rule
+$(eval $(def_link_install_rule))
+
+else # NOINST
+INSTARGET_$(target) :=
+$(typevar)  += $(out)
+endif # NOINST
+
+endef
+
+
+##
+# Typical link epilog.
+#
+# @param	$(target)   Normalized target name.
+# @param	$(out)      The output file.
+define def_link_epilog
+
+_INSTALLS    += $(INSTARGET_$(target))
+_OBJS        += $($(target)_OBJS_)
+_OUT_FILES   += $(out)
+_CLEAN_FILES += $($(target)_CLEAN)
+
+endef
+
+
+#
+# BLDPROGS
+#
+
+## Build program (one).
+# @param    $(target)   Normalized target (program) name.
+define def_bldprog
+
+# set NOINST if not forced installation.
+ifndef $(target)_INST
+$(target)_NOINST := 1
+endif
+
+# prolog
+$(eval $(value def_link_prolog))
+
+# body
+ifndef TOOL_$(tool)_LINK_PROGRAM
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(bld_trg)) \
+	4 $($(target)_TOOL) \
+	5 $(TOOL.$(bld_trg)) \
+	6 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
+endif
+$(eval $(TOOL_$(tool)_LINK_PROGRAM))
+
+# epilog
+$(eval $(value def_link_epilog))
+
+endef
+
+# Process build programs.
+EXT     := EXE
+EXTPRE  := HOST
+definst := $(PATH_BIN)
+typevar := _BLDPROGS
+bld_trg_base_var := PLATFORM
+$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(value def_bldprog)))
 
 
 
@@ -935,138 +1057,13 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(def_lib)))
 ## DLL (one).
 # @param    $(target)   Normalized target (program) name.
 define def_dll
-# dllmod basics
-$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval dllsuff     := $(firstword $($(target)_DLLSUFF) $($(target)_DLLSUFF) $(TOOL_$(tool)_LDDLLSUFF) $(SUFF_DLL)))
-$(eval dll         := $(outbase)$(dllsuff))
-$(eval TARGET_$(target) := $(dll))
 
-# source -> object
-$(eval $(def_target_sources))
+# prolog
+$(eval $(value def_link_prolog))
 
-# dllmod linking.
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval objs         = $(_OBJS_$(target)) $(filter %.o %.obj, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
-$(eval flags       :=\
-	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
-	$(LDFLAGS)\
-	$(LDFLAGS.$(bld_type))\
-	$(LDFLAGS.$(bld_trg))\
-	$(LDFLAGS.$(bld_trg_arch))\
-	$(LDFLAGS.$(bld_trg_cpu))\
-	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(bld_type))\
-	$($(target)_LDFLAGS.$(bld_trg))\
-	$($(target)_LDFLAGS.$(bld_trg_arch))\
-	$($(target)_LDFLAGS.$(bld_trg_cpu))\
-)
-$(eval libs        :=\
-	$($(target)_LIBS.$(bld_trg_cpu))\
-	$($(target)_LIBS.$(bld_trg_arch))\
-	$($(target)_LIBS.$(bld_trg))\
-	$($(target)_LIBS.$(bld_type))\
-	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(bld_trg_cpu))\
-	$(LIBS.$(bld_trg_arch))\
-	$(LIBS.$(bld_trg))\
-	$(LIBS.$(bld_type))\
-	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg))\
-	$(TOOL_$(tool)_LIBS.$(bld_type))\
-	$(TOOL_$(tool)_LIBS)\
-)
-$(eval libpath    :=\
-	$($(target)_LIBPATH.$(bld_trg_cpu))\
-	$($(target)_LIBPATH.$(bld_trg_arch))\
-	$($(target)_LIBPATH.$(bld_trg))\
-	$($(target)_LIBPATH.$(bld_type))\
-	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(bld_trg_cpu))\
-	$(LIBPATH.$(bld_trg_arch))\
-	$(LIBPATH.$(bld_trg))\
-	$(LIBPATH.$(bld_type))\
-	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
-	$(TOOL_$(tool)_LIBPATH)\
-)
-$(eval dirdep      := $(dir $(dll)).dir_created)
-## @todo fix dependencies
-$(eval deps        := $($(target)_DEPS))
-#
-$(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_PRE.$(bld_trg))\
-	$($(target)_CUSTOM_PRE.$(bld_type))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$(CUSTOM_PRE.$(bld_trg))\
-	$(CUSTOM_PRE.$(bld_type))\
-	$(CUSTOM_PRE)\
-)))
-$(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_POST.$(bld_trg))\
-	$($(target)_CUSTOM_POST.$(bld_type))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$(CUSTOM_POST.$(bld_trg))\
-	$(CUSTOM_POST.$(bld_type))\
-	$(CUSTOM_POST)\
-)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
+# body
 ifndef TOOL_$(tool)_LINK_DLL
-$$(warning kBuild: TOOL_$(tool)_LINK_DLL is not defined. target=$(target) )
-$$(warning kBuild: tools: \
+$(warning kBuild: tools: \
 	1 $($(target)_$(source)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)TOOL) \
 	3 $($(target)_TOOL.$(bld_trg)) \
@@ -1075,39 +1072,22 @@ $$(warning kBuild: tools: \
 	6 $($(source)TOOL.$(bld_trg)) \
 	7 $(TOOL.$(bld_trg)) \
 	8 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_LINK_DLL is not defined. target=$(target) )
 endif
-
 $(eval $(TOOL_$(tool)_LINK_DLL))
 
+# epilog
+$(eval $(value def_link_epilog))
 
-# installing
-ifndef $(target)_NOINST
-#ifndef KBUILD_NEW_STUFF
-$(eval pubdll := $(PATH_BIN)/$(notdir $(dll)))
-$(pubdll) : $(dll) $(dir $(pubdll)).dir_created
-	$(RM) -f $(pubdll)
-	$(CP) $(dll) $(pubdll)
-#else
-#$ (eval pubdll := $(patsubst %/,%/$(notdir $(dll)), \
-#	$ (if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_DLL)/)))
-#$ (pubdll) : $(dll) $(addsuffix .dir_created, $(dir $(publib)))
-#	$(RM) -f $$@
-#	$(CP) $(dll) $$@
-#endif
-
-$(eval TARGET_PUB_$(target) := $(pubdll))
-_DLLS      += $(pubdll)
-_OUT_FILES += $(dll) $(pubdll)
-_DIRS      += $(dir $(pubdll))
-else
-_DLLS      += $(dll)
-_OUT_FILES += $(dll)
-endif
-_OBJS += $(_OBJS_$(target))
 endef
 
 # Process dlls
-$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(def_dll)))
+EXT     := DLL
+EXTPRE  :=
+definst := $(PATH_DLL)
+typevar := _DLLS
+bld_trg_base_var := TARGET
+$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(value def_dll)))
 
 
 
@@ -1117,12 +1097,12 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(def_dll)))
 #   - On OS/2 and windows these are libraries.
 #   - On other platforms they are fake DLLs.
 ifeq ($(subst win32,os2,$(BUILD_TARGET)),os2)
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(def_lib)))
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_lib)))
 else
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(def_dll)))
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_dll)))
 endif
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval _IMPORT_LIBS += $(firstword $(TARGET_PUB_$(target)) $(TARGET_$(target)))))
-
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), \
+	$(eval _IMPORT_LIBS += $(if $(INSTARGET_$(target)),$(INSTARGET_$(target)), $(TARGET_$(target)))))
 
 
 #
@@ -1132,164 +1112,37 @@ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval _IMPORT_
 ## Program (one).
 # @param    $(target)   Normalized target (program) name.
 define def_program
-# basics
-$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval exesuff     := $(firstword $($(target)_EXESUFF) $($(target)_EXESUFF) $(TOOL_$(tool)_LDEXESUFF) $(SUFF_EXE)))
-$(eval exe         := $(outbase)$(exesuff))
-$(eval TARGET_$(target) := $(exe))
 
-# source -> object
-$(eval $(def_target_sources))
+# prolog
+$(eval $(value def_link_prolog))
 
-# more library stuff.
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval objs         = $(_OBJS_$(target)) $(filter %.o %.obj, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
-$(eval flags       :=\
-	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
-	$(LDFLAGS)\
-	$(LDFLAGS.$(bld_type))\
-	$(LDFLAGS.$(bld_trg))\
-	$(LDFLAGS.$(bld_trg_arch))\
-	$(LDFLAGS.$(bld_trg_cpu))\
-	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(bld_type))\
-	$($(target)_LDFLAGS.$(bld_trg))\
-	$($(target)_LDFLAGS.$(bld_trg_arch))\
-	$($(target)_LDFLAGS.$(bld_trg_cpu))\
-)
-$(eval libs        :=\
-	$($(target)_LIBS.$(bld_trg_cpu))\
-	$($(target)_LIBS.$(bld_trg_arch))\
-	$($(target)_LIBS.$(bld_trg))\
-	$($(target)_LIBS.$(bld_type))\
-	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(bld_trg_cpu))\
-	$(LIBS.$(bld_trg_arch))\
-	$(LIBS.$(bld_trg))\
-	$(LIBS.$(bld_type))\
-	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg))\
-	$(TOOL_$(tool)_LIBS.$(bld_type))\
-	$(TOOL_$(tool)_LIBS)\
-)
-$(eval libpath    :=\
-	$($(target)_LIBPATH.$(bld_trg_cpu))\
-	$($(target)_LIBPATH.$(bld_trg_arch))\
-	$($(target)_LIBPATH.$(bld_trg))\
-	$($(target)_LIBPATH.$(bld_type))\
-	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(bld_trg_cpu))\
-	$(LIBPATH.$(bld_trg_arch))\
-	$(LIBPATH.$(bld_trg))\
-	$(LIBPATH.$(bld_type))\
-	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
-	$(TOOL_$(tool)_LIBPATH)\
-)
-$(eval dirdep      := $(dir $(exe)).dir_created)
-## @todo fix dependencies
-$(eval deps        := $($(target)_DEPS))
-#
-$(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_PRE.$(bld_trg))\
-	$($(target)_CUSTOM_PRE.$(bld_type))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$(CUSTOM_PRE.$(bld_trg))\
-	$(CUSTOM_PRE.$(bld_type))\
-	$(CUSTOM_PRE)\
-)))
-$(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_POST.$(bld_trg))\
-	$($(target)_CUSTOM_POST.$(bld_type))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$(CUSTOM_POST.$(bld_trg))\
-	$(CUSTOM_POST.$(bld_type))\
-	$(CUSTOM_POST)\
-)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
+# body
+ifndef TOOL_$(tool)_LINK_PROGRAM
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(bld_trg)) \
+	4 $($(target)_TOOL) \
+	5 $($(source)TOOL) \
+	6 $($(source)TOOL.$(bld_trg)) \
+	7 $(TOOL.$(bld_trg)) \
+	8 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
+endif
 $(eval $(TOOL_$(tool)_LINK_PROGRAM))
 
-# installing
-ifndef $(target)_NOINST
-#ifndef KBUILD_NEW_STUFF
-$(eval pubexe := $(PATH_BIN)/$(notdir $(exe)))
-$(pubexe) : $(exe) $(dir $(pubexe)).dir_created
-	$(RM) -f $(pubexe)
-	$(CP) $(exe) $(pubexe)
-#else
-#$ (eval pubexe := $(patsubst %/,%/$(notdir $(exe)), \
-#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_BIN)/)))
-#$ (pubexe) : $(exe) $(addsuffix .dir_created, $(dir $(pubexe)))
-#	$(RM) -f $$@
-#	$(CP) $(exe) $$@
-#endif
+# epilog
+$(eval $(value def_link_epilog))
 
-_PROGRAMS  += $(pubexe)
-_OUT_FILES += $(exe) $(pubexe)
-_DIRS      += $(dir $(pubexe))
-else
-_PROGRAMS  += $(exe)
-_OUT_FILES += $(exe)
-endif
-_OBJS += $(_OBJS_$(target))
 endef
 
-# Process libraries
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)))
+# Process programs
+EXT     := EXE
+EXTPRE  :=
+definst := $(PATH_BIN)
+typevar := _PROGRAMS
+bld_trg_base_var := TARGET
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(value def_program)))
 
 
 
@@ -1300,138 +1153,13 @@ $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(def_program)
 ## System module (one).
 # @param    $(target)   Normalized target (program) name.
 define def_sysmod
-# sysmod basics
-$(eval bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE)))
-$(eval bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET)))
-$(eval bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH)))
-$(eval bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU)))
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval PATH_$(target) := $(patsubst %/,%,$(dir $(outbase))))
-$(eval syssuff     := $(firstword $($(target)_SYSSUFF) $($(target)_SYSSUFF) $(TOOL_$(tool)_LDSYSSUFF) $(SUFF_SYS)))
-$(eval sys         := $(outbase)$(syssuff))
-$(eval TARGET_$(target) := $(sys))
 
-# source -> object
-$(eval $(def_target_sources))
+# prolog
+$(eval $(value def_link_prolog))
 
-# sysmod linking
-$(eval tool        := $(call _TARGET_TOOL,$(target),LD))
-$(eval outbase     := $(call _TARGET_BASE,$(target),$(target)))
-$(eval objs         = $(_OBJS_$(target)) $(filter %.o %.obj, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
-$(eval flags       :=\
-	$(TOOL_$(tool)_LDFLAGS)\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
-	$(LDFLAGS)\
-	$(LDFLAGS.$(bld_type))\
-	$(LDFLAGS.$(bld_trg))\
-	$(LDFLAGS.$(bld_trg_arch))\
-	$(LDFLAGS.$(bld_trg_cpu))\
-	$($(target)_LDFLAGS)\
-	$($(target)_LDFLAGS.$(bld_type))\
-	$($(target)_LDFLAGS.$(bld_trg))\
-	$($(target)_LDFLAGS.$(bld_trg_arch))\
-	$($(target)_LDFLAGS.$(bld_trg_cpu))\
-)
-$(eval libs        :=\
-	$($(target)_LIBS.$(bld_trg_cpu))\
-	$($(target)_LIBS.$(bld_trg_arch))\
-	$($(target)_LIBS.$(bld_trg))\
-	$($(target)_LIBS.$(bld_type))\
-	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(LIBS.$(bld_trg_cpu))\
-	$(LIBS.$(bld_trg_arch))\
-	$(LIBS.$(bld_trg))\
-	$(LIBS.$(bld_type))\
-	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBS.$(bld_trg))\
-	$(SDK_$(sdk)_LIBS.$(bld_type))\
-	$(SDK_$(sdk)_LIBS))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBS.$(bld_trg))\
-	$(TOOL_$(tool)_LIBS.$(bld_type))\
-	$(TOOL_$(tool)_LIBS)\
-)
-$(eval libpath    :=\
-	$($(target)_LIBPATH.$(bld_trg_cpu))\
-	$($(target)_LIBPATH.$(bld_trg_arch))\
-	$($(target)_LIBPATH.$(bld_trg))\
-	$($(target)_LIBPATH.$(bld_type))\
-	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(LIBPATH.$(bld_trg_cpu))\
-	$(LIBPATH.$(bld_trg_arch))\
-	$(LIBPATH.$(bld_trg))\
-	$(LIBPATH.$(bld_type))\
-	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_trg))\
-	$(SDK_$(sdk)_LIBPATH.$(bld_type))\
-	$(SDK_$(sdk)_LIBPATH))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_cpu))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg_arch))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_trg))\
-	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
-	$(TOOL_$(tool)_LIBPATH)\
-)
-$(eval dirdep      := $(dir $(sys)).dir_created)
-## @todo fix dependencies
-$(eval deps        := $($(target)_DEPS))
-#
-$(eval custom_pre    := $(strip $(firstword
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_PRE.$(bld_trg))\
-	$($(target)_CUSTOM_PRE.$(bld_type))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$(CUSTOM_PRE.$(bld_trg))\
-	$(CUSTOM_PRE.$(bld_type))\
-	$(CUSTOM_PRE)\
-)))
-$(eval custom_post    := $(strip $(firstword
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_POST.$(bld_trg))\
-	$($(target)_CUSTOM_POST.$(bld_type))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$(CUSTOM_POST.$(bld_trg))\
-	$(CUSTOM_POST.$(bld_type))\
-	$(CUSTOM_POST)\
-)))
-$(eval othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_type))))
-
+# body
 ifndef TOOL_$(tool)_LINK_SYSMOD
-$$(warning kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
-$$(warning kBuild: tools: \
+$(warning kBuild: tools: \
 	1 $($(target)_$(source)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)TOOL) \
 	3 $($(target)_TOOL.$(bld_trg)) \
@@ -1440,38 +1168,22 @@ $$(warning kBuild: tools: \
 	6 $($(source)TOOL.$(bld_trg)) \
 	7 $(TOOL.$(bld_trg)) \
 	8 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
 endif
-
 $(eval $(TOOL_$(tool)_LINK_SYSMOD))
 
-# installing
-ifndef $(target)_NOINST
-#ifndef KBUILD_NEW_STUFF
-$(eval pubsys := $(PATH_BIN)/$(notdir $(sys)))
-$(pubsys): $(sys) $(dir $(pubsys)).dir_created
-	$(RM) -f $(pubsys)
-	$(CP) $(sys) $(pubsys)
-#else
-#$ (eval pubsys := $(patsubst %/,%/$(notdir $(sys)), \
-#	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(PATH_SYS)/)))
-#$ (pubsys) : $(sys) $(addsuffix .dir_created, $(dir $(pubsys)))
-#	$(RM) -f $$@
-#	$(CP) $(sys) $$@
-#endif
+# epilog
+$(eval $(value def_link_epilog))
 
-$(eval _SYSMODS += $(pubsys))
-$(eval _OUT_FILES += $(sys) $(pubsys))
-_DIRS      += $(dir $(pubsys))
-else
-$(eval _SYSMODS += $(sys))
-$(eval _OUT_FILES += $(sys))
-endif
-_OBJS += $(_OBJS_$(target))
 endef
 
 # Process sysmods
-$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(def_sysmod)))
-
+EXT     := SYS
+EXTPRE  :=
+definst := $(PATH_SYS)
+typevar := _SYSMODS
+bld_trg_base_var := TARGET
+$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(value def_sysmod)))
 
 
 #
@@ -1480,6 +1192,139 @@ $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(def_sysmod)))
 _OTHERS = $(OTHERS) $(OTHERS.$(BUILD_TARGET))
 
 
+#
+# INSTALLS
+#
+
+## generate the install rule
+define def_install_src_rule
+# the install rule
+$(insdst) : $(srcsrc) | $(call DIRDEP,$(dir $(insdst)))
+	$$(RM) -f $$@
+	$(inscmd)
+endef
+
+## install one file
+define def_install_src
+
+# deal with '=>' in the source file name.
+srcdst := $(subst =>, ,$(src))
+srcsrc := $(firstword $(srcdst))
+srcdst := $(word $(words $(srcdst)),$(srcdst))
+
+# _INSTFUN
+ifdef $(srcsrc)_INSTFUN
+instfun := $(srcsrc)_INSTFUN
+else
+ifdef $(target)_INSTFUN
+instfun := $(target)_INSTFUN
+else
+instfun := _INSTALL_FILE
+endif
+endif
+
+# _INST
+ifdef $(srcsrc)_INST
+inst = $(srcsrc)_INST
+else
+ifdef $(target)_INST
+inst = $(target)_INST
+else
+inst =
+endif
+endif
+
+# calc target
+insdst := $(call $(instfun),$(srcdst),$(target),$($(inst)),$(PATH_INS))
+#$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) srcdst=$(srcsrc) inst=$(inst) => insdst=$(insdst))
+
+# create the command
+ifdef $(srcsrc)_INSTALLER
+inscmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(insdst),$(target))
+else
+ifdef $(target)_INSTALLER
+inscmd := $(call $(target)_INSTALLER,$(srcsrc),$(insdst),$(target))
+else
+inscmd := $$(CP) $(srcsrc) $(insdst)
+endif
+endif
+
+# generate the rule (need double evaluation here)
+$(eval $(def_install_src_rule))
+
+INSTARGET_$(target) += $(insdst)
+endef
+
+
+## generate the symlink rule
+define def_install_symlink_rule
+# the install rule
+$(insdst) : | $(call DIRDEP,$(dir $(insdst)))
+	$$(RM) -f $$@
+	$$(LN_SYMLINK) $(srcsrc) $(insdst)
+endef
+
+## create one symlink
+define def_install_symlink
+
+# deal with '=>' in the source file name.
+srcdst := $(subst =>, ,$(src))
+srcsrc := $(firstword $(srcdst))
+srcdst := $(word $(words $(srcdst)),$(srcdst))
+
+# _INSTFUN
+ifdef $(srcsrc)_INSTFUN
+instfun := $(srcsrc)_INSTFUN
+else
+ifdef $(target)_INSTFUN
+instfun := $(target)_INSTFUN
+else
+instfun := _INSTALL_FILE
+endif
+endif
+
+# _INST
+ifdef $(srcsrc)_INST
+inst = $(srcsrc)_INST
+else
+ifdef $(target)_INST
+inst = $(target)_INST
+else
+inst =
+endif
+endif
+
+# calc target
+insdst := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
+#$(warning srcsrc=$(srcsrc) srcdst=$(srcdst) insdst=$(insdst))
+
+# generate the rule (need double evaluation here)
+$(eval $(def_install_symlink_rule))
+
+INSTARGET_$(target) += $(insdst)
+endef
+
+## process one install target.
+define def_install
+bld_type  := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
+bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
+bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+
+INSTARGET_$(target) :=
+$(foreach src,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)), \
+	$(eval $(value def_install_src)))
+
+$(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)_SYMLINKS.$(bld_trg_arch)) $($(target)_SYMLINKS.$(bld_trg_cpu)) $($(target)_SYMLINKS.$(bld_type)), \
+	$(eval $(value def_install_symlink)))
+
+_INSTALLS  += $(INSTARGET_$(target))
+endef
+
+## process all install targets
+$(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)), \
+	$(eval $(value def_install)))
+
 
 #
 # DOCS
@@ -1487,39 +1332,42 @@ _OTHERS = $(OTHERS) $(OTHERS.$(BUILD_TARGET))
 
 
 #
-# Directories.
+# PACKING
 #
-_DIRFILES := $(sort $(addsuffix /.dir_created,$(_DIRS)) $(addsuffix .dir_created,$(sort $(dir $(_OUT_FILES) $(_OBJS)))))
+packing::
 
-define def_createdir
-$(dirfile):
-	$(call MSG_L1,Creating directory $$(@D))
-	$(MKDIR) -p $$(@D)
-	@echo dir_created > $$@
+
+#
+# DIRECTORIES
+#
+_DIR_ALL := $(sort $(addsuffix /,$(patsubst %/,%,$(_DIRS))) $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS)))
+
+define def_mkdir_rule
+$(directory):
+	$(call MSG_L1,Creating directory $$@)
+	$(MKDIR) -p $$@
 endef
 
-$(foreach dirfile,$(_DIRFILES),$(eval $(def_createdir)))
+$(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
 
 
 #
-# Include dependency files.
+# NOTHING
 #
-$(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
+do-nothing:
+	$(call MSG_L1,Did nothing in $(CURDIR))
+
+
+#
+# CLEAN UP
+#
+do-clean:
+	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_CLEAN_FILES) $(OTHER_CLEAN)
 
 
 #
 # PASSES (including directory and makefile walking)
 #
-# Do all the default passes if it's unspecified.
-
-#PASSES ?= bldprogs libraries binaries others publish
-PASSES ?= bldprogs libraries dlls binaries others
-
-## @todo figure out a generic way of configuring how pass works!
-
-## Proritized list of the default makefile when walking subdirectories.
-# The user can overload this list.
-DEFAULT_MAKEFILE ?= Makefile.kmk makefile.kmk Makefile makefile
 
 ## Subdir
 # @param	$(pass)		Lowercase pass name.
@@ -1541,11 +1389,10 @@ pass_$(pass)$(tag):: $(dep)
 	+ $(QUIET)$$(MAKE) -C $(patsubst %/,%,$(dir $(makefile))) -f $(notdir $(makefile)) pass_$(pass)
 endef
 
-
 ## Execute a pass.
 # @param	$(pass)		Lowercase pass name.
 # @param	$(PASS)		Uppercase pass name.
-define def_pass
+define def_pass_old
 $(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET)))
 $(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET)))
 $(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)))
@@ -1563,6 +1410,7 @@ $(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD
 
 .NOTPARALLEL: pass_$(pass)_before pass_$(pass)_after
 .PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
+pass_$(pass)_doit: 	$(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
 pass_$(pass)_this:      pass_$(pass)_before
 	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
 pass_$(pass)_after::    pass_$(pass)_this
@@ -1570,97 +1418,78 @@ pass_$(pass):           pass_$(pass)_after
 
 endef
 
+define def_pass
+$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET)))
+$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET)))
+$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)))
+$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET)))
 
-## PASS: bldprogs
-# This pass builds targets which are required for building the rest.
-pass_bldprogs_doit: $(_BLDPROGS)
-pass := bldprogs
-PASS := BLDPROGS
-$(eval $(def_pass))
+$(eval tag:=_before)
+$(eval dep:=)
+$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(BUILD_TARGET))         ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET)),$(eval $(def_pass_makefile)))
 
-## PASS: libraries
-# This pass builds library targets.
-pass_libraries_doit: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
-pass := libraries
-PASS := LIBRARIES
-$(eval $(def_pass))
+$(eval tag:=_after)
+$(eval dep:=pass_$(pass)_doit)
+$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET))   ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET)) ,$(eval $(def_pass_makefile)))
 
-## PASS: binaries
-# This pass builds dll targets.
-pass_dlls_doit: $(_DLLS) $(_OTHER_DLLS)
-pass := dlls
-PASS := DLLS
-$(eval $(def_pass))
+ifdef KBUILD_SAFE_PARALLELL
+.NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this
+.PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this pass_$(pass)_doit
+pass_$(pass)_doit: 	    $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
+pass_$(pass)_this:      pass_$(pass)_before
+	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
+pass_$(pass)_after::    pass_$(pass)_this
+pass_$(pass):           pass_$(pass)_after
+else
+.NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after
+.PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
+pass_$(pass)_doit: pass_$(pass)_before \
+		$(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var)))
+pass_$(pass): \
+		pass_$(pass)_before \
+		pass_$(pass)_doit \
+		pass_$(pass)_after
+endif
 
-## PASS: binaries
-# This pass builds binary targets, i.e. programs, system modules and stuff.
-pass_binaries_doit: $(_PROGRAMS) $(_SYSMODS) $(_OTHER_BINARIES)
-pass := binaries
-PASS := BINARIES
-$(eval $(def_pass))
+#$ (warning pass=$(pass) PASS=$(PASS): $(PASS_$(PASS)_trgs) $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var))))
+endef
 
-## PASS: others
-# This pass builds other targets.
-pass_others_doit: $(_OTHERS)
-pass := others
-PASS := OTHERS
-$(eval $(def_pass))
-
-## PASS: publish
-# This pass installs the built entities to a sandbox area.
-pass_publish_doit: publish
-publish::
-pass := publish
-PASS := PUBLISH
-# $(sort).. not nice.
-SUBDIRS_PUBLISH         ?= $(sort $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET))          $(SUBDIRS_LIBRARIES)          $(SUBDIRS_LIBRARIES.$(BUILD_TARGET))          $(SUBDIRS_BINARIES)          $(SUBDIRS_BINARIES.$(BUILD_TARGET))          $(SUBDIRS_OTHERS)          $(SUBDIRS_OTHERS.$(BUILD_TARGET)))
-SUBDIRS_AFTER_PUBLISH   ?= $(sort $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET))    $(SUBDIRS_AFTER_LIBRARIES)    $(SUBDIRS_AFTER_LIBRARIES.$(BUILD_TARGET))    $(SUBDIRS_AFTER_BINARIES)    $(SUBDIRS_AFTER_BINARIES.$(BUILD_TARGET))    $(SUBDIRS_AFTER_OTHERS)    $(SUBDIRS_AFTER_OTHERS.$(BUILD_TARGET)))
-MAKEFILES_BEFORE_PUBLISH?= $(sort $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_LIBRARIES) $(MAKEFILES_BEFORE_LIBRARIES.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_BINARIES) $(MAKEFILES_BEFORE_BINARIES.$(BUILD_TARGET)) $(MAKEFILES_BEFORE_OTHERS) $(MAKEFILES_BEFORE_OTHERS.$(BUILD_TARGET)))
-MAKEFILES_AFTER_PUBLISH ?= $(sort $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET))  $(MAKEFILES_AFTER_LIBRARIES)  $(MAKEFILES_AFTER_LIBRARIES.$(BUILD_TARGET))  $(MAKEFILES_AFTER_BINARIES)  $(MAKEFILES_AFTER_BINARIES.$(BUILD_TARGET))  $(MAKEFILES_AFTER_OTHERS)  $(MAKEFILES_AFTER_OTHERS.$(BUILD_TARGET)))
-$(eval $(def_pass))
-
-## PASS: packing
-# This pass processes custom packing rules.
-pass_packing_doit: packing
-packing::
-pass := packing
-PASS := PACKING
-$(eval $(def_pass))
-
-## PASS: clean
-# This pass removes all generated files.
-pass_clean_doit:
-	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DIRFILES) $(OTHER_CLEAN)
-pass := clean
-PASS := CLEAN
-$(eval $(def_pass))
-clean: pass_clean
-
-## PASS: nothing
-# This pass just walks the tree.
-pass_nothing_doit:
-	$(call MSG_L1,Did nothing in $(CURDIR))
-pass := nothing
-PASS := NOTHING
-$(eval $(def_pass))
-nothing: pass_nothing
-
+# Generate the defined passes.
+$(foreach PASS, $(PASSES), \
+	$(eval pass := $(PASS_$(PASS)_pass)) \
+	$(eval $(def_pass)))
 
 ## Pass order
 # @param	$(pass)		Current pass name.
 # @param	$(prev_pass)	The previous pass name.
 define def_pass_order
-pass_$(pass)_order: $(pass_prev)
-	$(call MSG_L1,Pass $(pass))
-	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
+ifdef KBUILD_SAFE_PARALLELL
 .NOTPARALLEL: pass_$(pass)_order
+.PHONY: pass_$(pass)_order
+pass_$(pass)_order: $(pass_prev)
+	$(call MSG_L1,Pass - $(if $(PASS_$(PASS)),$(PASS_$(PASS)),$(pass)))
+	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
+else
+.NOTPARALLEL: pass_$(pass)_order pass_$(pass)_banner
+.PHONY: pass_$(pass)_order pass_$(pass)_banner
+pass_$(pass)_banner:
+	$(call MSG_L1,Pass - $(if $(PASS_$(PASS)),$(PASS_$(PASS)),$(pass)))
+pass_$(pass)_order: \
+		$(pass_prev) \
+		pass_$(pass)_banner \
+		pass_$(pass)
+endif
 $(eval pass_prev := pass_$(pass)_order)
 endef
 
 ## PASS: order
 # Use dependencies to ensure correct pass order.
 pass_prev :=
-$(foreach pass,$(PASSES),$(eval $(def_pass_order)))
+$(foreach PASS,$(DEFAULT_PASSES),\
+	$(eval pass := $(PASS_$(PASS)_pass)) \
+	$(eval $(def_pass_order)))
 
 
 #
@@ -1671,15 +1500,56 @@ all_recursive: $(pass_prev)
 rebuild: clean
 	+ $(MAKE) -f $(firstword $(MAKEFILE_LIST)) all_recursive
 
+uninstall:
+	$(RM) -f $(_INSTALLS)
 
 # misc shortcuts.
-target:    bldprogs libraries binaries others
+targets:   bldprogs libraries dlls programs sysmods others install
 objects:   $(_OBJS)
 bldprogs:  $(_BLDPROGS)
 libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
 dlls:      $(_DLLS)
 programs:  $(_PROGRAMS)
 sysmods:   $(_SYSMODS)
+others:    $(_OTHERS)
+install:   $(_INSTALLS)
+
+
+#
+# kBuild debugging stuff.
+#
+_SPACE := $(subst ., ,.)
+_TAB := $(subst .,	,.)
+define _NEWLINE
+
+
+endef
+NLTAB = $(_NEWLINE)$(TAB)
+show_targets:
+	@$(foreach target, $(ALL_TARGETS),\
+	@$(ECHO) "target: $(target)" $(NLTAB)\
+	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
+	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
+	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
+$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE) OBJS_, \
+	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
+	$(if $($(target)_$(prop).$(_tmp)),\
+		@$(ECHO) "  $(target)_$(prop).$(_tmp)=$($(target)_$(prop).$(_tmp))" $(NLTAB)) \
+	$(if $($(target)_$(prop)), $(NLTAB)@$(ECHO) "  $(target)_$(prop)=$($(target)_$(prop))" $(NLTAB)) \
+)\
+$(foreach prop,$(PROPS_DEFERRED), \
+	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
+	$(if $(value $(target)_$(prop).$(_tmp)),\
+		@$(ECHO) '  $(target)_$(prop).$(_tmp)=$(value $(TARGET)_$(prop).$(_tmp))' $(NLTAB)) \
+	$(if $(value $(target)_$(prop)), $(NLTAB)@$(ECHO) '  $(target)_$(prop)=$(value $(target)_$(prop))' $(NLTAB)) \
+))
+
+
+
+#
+# Include dependency files.
+#
+$(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 
 
 # end-of-file-content
