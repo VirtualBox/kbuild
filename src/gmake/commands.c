@@ -381,6 +381,7 @@ execute_file_commands (struct file *file)
   if (*p == '\0')
     {
       /* If there are no commands, assume everything worked.  */
+      file->command_flags |= COMMANDS_NO_COMMANDS;
       set_command_state (file, cs_running);
       file->update_status = 0;
       notice_finished_file (file);

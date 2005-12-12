@@ -1486,8 +1486,8 @@ start_waiting_job (struct child *c)
 
   if (c->file->command_flags & COMMANDS_NOTPARALLEL)
     {
-      assert(not_parallel == 0);
       DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel + 1, c->file, c->file->name));
+      assert(not_parallel == 0);
       ++not_parallel;
     }
 
