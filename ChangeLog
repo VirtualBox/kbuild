@@ -1,4 +1,25 @@
-/* $Id: ChangeLog 351 2005-12-11 05:38:12Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 354 2005-12-12 03:42:10Z knut.osmundsen@oracle.com $ */
+
+2005-12-12: bird
+    - kBuild/footer.kmk, kBuild/header.kmk:
+        o Generic pass stuff.
+        o Enabled and weeded out the new target install method.
+        o Added separate install target type.
+        o Added separate installs pass.
+        o Fixed those $$$$(PATH_<target>) problems.
+        o General clean up removing lot's of duplicate stuff.
+
+    - kBuild/tools/ALP.kmk, kBuild/tools/GCC.kmk, kBuild/tools/GCC3.kmk,
+      kBuild/tools/GCC3OMF.kmk, kBuild/tools/MINGW32.kmk, kBuild/tools/NASM.kmk,
+      kBuild/tools/VCC70.kmk:
+        o Adjusted to new parameters for the link rules.
+        o List all output files as targets for the rules.
+
+    - kBuild/config.kmk, kBuild/cfg/x86.win32.va2003.kmk:
+        o Removed early attempts which isn't used anylonger.
+
+    - src/gmake/remake.c, src/gmake/commands.c, src/gmake/commands.h:
+        o Fixed not parallel assertion on targets with no commands.
 
 2005-12-11: bird
     - src/gmake/kmkbuiltin/append.c, src/gmake/kmkbuiltin.h, src/gmake/kmkbuiltin.c,
