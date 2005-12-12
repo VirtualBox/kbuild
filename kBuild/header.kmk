@@ -1,9 +1,9 @@
-# $Id: header.kmk 329 2005-10-28 23:36:23Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -118,7 +118,7 @@ $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
 endif
 
 # Fill in defaults if needed.
-ifndef BUILD_PLATFORM_ARCH 
+ifndef BUILD_PLATFORM_ARCH
 BUILD_PLATFORM_ARCH   := x86
 endif
 ifndef BUILD_PLATFORM_CPU
@@ -233,21 +233,16 @@ PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_ARCH)/$(B
 else
 PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
 endif
-endif # !x86 
+endif # !x86
 endif # !define PATH_OUT
-PATH_OBJ            := $(PATH_OUT)/obj
-PATH_TARGET         := $(PATH_OBJ)/$(CURSUBDIR)
-ifndef KBUILD_NEW_STUFF
-PATH_BIN            := $(PATH_OUT)/bin
-PATH_LIB            := $(PATH_OUT)/lib
-PATH_DOC            := $(PATH_ROOT)/out/doc
-else
-PATH_INS            := $(PATH_OUT)
-PATH_BIN            := $(PATH_INS)/bin
-PATH_DLL            := $(PATH_INS)/bin
-PATH_LIB            := $(PATH_INS)/lib
-PATH_DOC            := $(PATH_INS)/doc
-endif
+PATH_OBJ             = $(PATH_OUT)/obj
+PATH_TARGET          = $(PATH_OBJ)/$(CURSUBDIR)
+PATH_INS             = $(PATH_OUT)
+PATH_BIN             = $(PATH_INS)/bin
+PATH_DLL             = $(PATH_INS)/bin
+PATH_SYS             = $(PATH_INS)/bin
+PATH_LIB             = $(PATH_INS)/lib
+PATH_DOC             = $(PATH_INS)/doc
 
 # Usually kBuild is external to the source tree.
 ifndef PATH_KBUILD
@@ -347,7 +342,7 @@ ifeq ($(MAKE),kmk)
 MAKE                := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
 endif
 
-# Standard Unix shell utils.
+# Standard Unix shell utils
 ifdef KMK_BUILTIN
 ECHO                := kmk_builtin_echo
 MKDIR               := kmk_builtin_mkdir
@@ -358,15 +353,25 @@ ECHO                := echo
 MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
 RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
 CP                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
+APPEND              := $(PATH_TOOLS)/append$(HOSTSUFF_EXE)
 endif
 CP_EXT              := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
 MV                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
 SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
 CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
+LN_SYMLINK          := $(CP)
+#LN_SYMLINK          := ln -s
 # Bourn shell clone.
 MAKESHELL           := $(PATH_TOOLS)/ash$(HOSTSUFF_EXE)
 SHELL               := $(MAKESHELL)
 export SHELL MAKESHELL
+
+# kBuild utils.
+ifeq ($(filter append,$(KMK_BUILTIN)),append)
+APPEND              := kmk_builtin_append
+else
+APPEND              := $(PATH_TOOLS)/append$(HOSTSUFF_EXE)
+endif
 
 
 #
@@ -409,11 +414,15 @@ ABSPATH = $(foreach path,$(1)\
                       $(if $(patsubst %:,,$(firstword $(subst :,: ,$(path)))),$(PATH_CURRENT)/$(path),$(path)),\
                       $(path))))
 endif
-					  
+
 ## DIRDEP - make create directory dependencies.
 #
 # @param	$1	The paths to the directories which must be created.
-DIRDEP = $(foreach path,$(1),$(path)/.dir_created)
+ifeq ($(BUILD_PLATFORM),win32)
+DIRDEP = $(patsubst %/,%,$(1))
+else
+DIRDEP = $(foreach path,$(patsubst %/,%,$(1)),$(path)/)
+endif
 
 
 ## Cygwin kludge.
@@ -427,6 +436,145 @@ CYGPATHMIXED = $(foreach path,$(1)\
 else
 CYGPATHMIXED = $(1)
 endif
+
+#
+# Initialize some of the globals which the Config.kmk and
+# others can add stuff to if they like for processing in the footer.
+#
+
+## ALL_TARGET
+# This is the list of all targets.
+ALL_TARGETS :=
+
+## TEMPLATE_PATHS
+# List a paths (separated by space) where templates can be found.
+TEMPLATE_PATHS :=
+
+## TOOL_PATHS
+# List of paths (separated by space) where tools can be found.
+TOOL_PATHS :=
+
+## SDK_PATHS
+# List of paths (separated by space) where SDKs can be found.
+SDK_PATHS :=
+
+## Proritized list of the default makefile when walking subdirectories.
+# The user can overload this list.
+DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
+
+## PROPS_SINGLE
+# The list of non-accumulative target properties.
+# A Config.kmk file can add it's own properties to this list and kBuild
+# will do the necessary inheritance from templates to targets.
+PROPS_SINGLE := TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL INST NOINST
+
+## PROPS_DEFERRED
+# This list of non-accumulative target properties which are functions,
+# and thus should not be expanded until the very last moment.
+PROPS_DEFERRED := INSTFUN INSTALLER
+
+## PROPS_ACCUMULATE
+# The list of accumulative target properties.
+# A Config.kmk file can add it's own properties to this list and kBuild
+# will do the necessary inheritance from templates to targets.
+PROPS_ACCUMULATE := \
+	SDKS DEFS INCS SOURCES \
+	COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS \
+	ASOPTS ASFLAGS ASDEFS ASINCS \
+	LDFLAGS LIBS LIBPATH \
+	BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
+	SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
+
+
+## PROPS_TOOLS
+# This is a subset of the other PROPS
+PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL ARTOOL LDTOOL
+
+
+#
+# Pass configuration.
+#
+# The PASS_<passname>_trgs variable is listing the targets.
+# The PASS_<passname>_vars variable is listing the target variables.
+# The PASS_<passname>_pass variable is the lowercased passname.
+#
+
+## PASS: bldprogs
+# This pass builds targets which are required for building the rest.
+PASS_BLDPROGS       := Build Programs
+PASS_BLDPROGS_trgs  :=
+PASS_BLDPROGS_vars  := _BLDPROGS
+PASS_BLDPROGS_pass  := bldprogs
+
+## PASS: libraries
+# This pass builds library targets.
+PASS_LIBRARIES      := Libraries
+PASS_LIBRARIES_trgs :=
+PASS_LIBRARIES_vars := _LIBS _IMPORT_LIBS _OTHER_LIBRARIES
+PASS_LIBRARIES_pass := libraries
+
+## PASS: binaries
+# This pass builds dll targets.
+PASS_DLLS           := DLLs
+PASS_DLLS_trgs      :=
+PASS_DLLS_vars      := _DLLS _OTHER_DLLS
+PASS_DLLS_pass      := dlls
+
+## PASS: binaries
+# This pass builds binary targets, i.e. programs, system modules and stuff.
+PASS_BINARIES       := Programs
+PASS_BINARIES_trgs  :=
+PASS_BINARIES_vars  := _PROGRAMS _SYSMODS _OTHER_BINARIES
+PASS_BINARIES_pass  := binaries
+
+## PASS: others
+# This pass builds other targets.
+PASS_OTHERS         := Other Stuff
+PASS_OTHERS_trgs    :=
+PASS_OTHERS_vars    := _OTHERS
+PASS_OTHERS_pass    := others
+
+## PASS: install
+# This pass installs the built entities to a sandbox area.
+PASS_INSTALLS       := Install
+PASS_INSTALLS_trgs  :=
+PASS_INSTALLS_vars  := _INSTALLS
+PASS_INSTALLS_pass  := installs
+
+## PASS: packing
+# This pass processes custom packing rules.
+PASS_PACKING        := Packing
+PASS_PACKING_trgs   := packing
+PASS_PACKING_vars   :=
+PASS_PACKING_pass   := packing
+
+## PASS: clean
+# This pass removes all generated files.
+PASS_CLEAN          := Clean
+PASS_CLEAN_trgs     := do-clean
+PASS_CLEAN_vars     :=
+PASS_CLEAN_pass     := clean
+# alias
+clean: pass_clean
+
+## PASS: nothing
+# This pass just walks the tree.
+PASS_NOTHING        := Nothing
+PASS_NOTHING_trgs   := do-nothing
+PASS_NOTHING_vars   :=
+PASS_NOTHING_pass   := nothing
+# alias
+nothing: pass_nothing
+
+## DEFAULT_PASSES
+# The default passes and their order.
+DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
+
+## PASSES
+# The passes that should be defined. This must include
+# all passes mentioned by DEFAULT_PASSES.
+PASSES := $(DEFAULT_PASSES) NOTHING CLEAN
+
 
 #
 # This is how we find the closest config.kmk.

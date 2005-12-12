@@ -1,4 +1,4 @@
-# $Id: ALP.kmk 301 2005-07-24 04:43:32Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
@@ -56,7 +56,7 @@ TOOL_ALP_ASFLAGS             := -Mb
 # @param    $(objsuff)  Object suffix.
 define TOOL_ALP_COMPILE_AS
 #$ (warning dbg: TOOL_ALP_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(deps) $(source) | $(dirdep)
+$(obj) $(outbase).lst: $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using ALP)
 	$(TOOL_ALP_AS) \
 		$(flags) $(addsuffix /,$(addprefix -I:, $(incs))) $(addprefix -D:, $(defs))\
@@ -67,5 +67,4 @@ $(obj): $(deps) $(source) | $(dirdep)
 _OUT_FILES += $(outbase).lst
 
 endef
-
 

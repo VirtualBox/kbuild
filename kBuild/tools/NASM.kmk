@@ -1,9 +1,9 @@
-# $Id: NASM.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -56,7 +56,7 @@ TOOL_NASM_ASFLAGS             :=
 # @param    $(objsuff)  Object suffix.
 define TOOL_NASM_COMPILE_AS
 #$ (warning dbg: TOOL_NASM_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(deps) $(source) | $(dirdep)
+$(obj) $(outbase).lst: $(deps) $(source) | $(dirdep)
 	$(call MSG_L2,Compiling $$@ using NASM)
 	$(TOOL_NASM_AS) \
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
@@ -66,5 +66,4 @@ $(obj): $(deps) $(source) | $(dirdep)
 _OUT_FILES += $(outbase).lst
 
 endef
-
 

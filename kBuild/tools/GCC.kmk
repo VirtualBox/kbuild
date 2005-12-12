@@ -1,9 +1,9 @@
-# $Id: GCC.kmk 300 2005-06-23 18:36:41Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -138,7 +138,7 @@ endef
 
 ## Link program
 # @param    $(target)   Normalized main target name.
-# @param    $(exe)		Program name.
+# @param    $(out)		Program name.
 # @param    $(objs)     Object files to link together.
 # @param    $(libs)     Libraries to search.
 # @param    $(libpath)  Library search paths.
@@ -151,8 +151,8 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC_LINK_PROGRAM
-#$ (warning dbg: TOOL_GCC_LINK_PROGRAM: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(exe): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
+#$ (warning dbg: TOOL_GCC_LINK_PROGRAM: target=$(target) out=$(out) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+$(out): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
@@ -166,9 +166,9 @@ endif
 endef
 
 
-## Link program
+## Link DLL
 # @param    $(target)   Normalized main target name.
-# @param    $(exe)		Program name.
+# @param    $(out)		Program name.
 # @param    $(objs)     Object files to link together.
 # @param    $(libs)     Libraries to search.
 # @param    $(libpath)  Library search paths.
@@ -181,14 +181,14 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 define TOOL_GCC_LINK_DLL
-#$ (warning dbg: TOOL_GCC_LINK_DLL: target=$(target) exe=$(exe) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(exe): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
+#$ (warning dbg: TOOL_GCC_LINK_DLL: target=$(target) out=$(out) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
+$(out): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
 	$(call MSG_L1,Creating Program $$@)
 ifneq ($(custom_pre),)
 	$(eval $(custom_pre))
 endif
 	$(TOOL_GCC_LD) $(TOOL_GCC_LDFLAGS.dll) $(flags) -o $$@ $(objs) \
-	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 ifneq ($(custom_post),)
 	$(eval $(custom_post))
 endif
