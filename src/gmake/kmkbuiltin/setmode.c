@@ -37,7 +37,9 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
+#ifndef _MSC_VER
 #include <sys/cdefs.h>
+#endif 
 //__FBSDID("$FreeBSD: src/lib/libc/gen/setmode.c,v 1.9 2003/02/23 00:24:03 mikeh Exp $");
 
 //#include "namespace.h"
@@ -48,12 +50,38 @@ static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif 
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
 #endif
 //#include "un-namespace.h"
+
+#ifdef _MSC_VER
+#define setmode setmode_msc
+#include <io.h>
+#undef setmode
+typedef unsigned int u_int;
+typedef int mode_t;
+#define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
+#define	S_IRWXU (_S_IREAD | _S_IWRITE | _S_IEXEC)
+#define	S_IXUSR _S_IEXEC
+#define	S_IWUSR _S_IWRITE
+#define	S_IRUSR _S_IREAD
+#define S_IRWXG 0000070
+#define S_IRGRP	0000040
+#define S_IWGRP	0000020
+#define S_IXGRP 0000010
+#define S_IRWXO 0000007
+#define S_IROTH	0000004
+#define S_IWOTH	0000002
+#define S_IXOTH 0000001
+#define	S_ISUID 0004000
+#define	S_ISGID 0002000
+#endif /* _MSC_VER */
+
 
 #define	SET_LEN	6		/* initial # of bitcmd struct to malloc */
 #define	SET_LEN_INCR 4		/* # of bitcmd structs to add as needed */
@@ -186,7 +214,9 @@ setmode(p)
 	int perm, who;
 	char op, *ep;
 	BITCMD *set, *saveset, *endset;
+#ifndef _MSC_VER
 	sigset_t sigset, sigoset;
+#endif 
 	mode_t mask;
 	int equalopdone=0, permXbits, setlen;
 	long perml;
@@ -200,11 +230,15 @@ setmode(p)
 	 * the caller is opening files inside a signal handler, protect them
 	 * as best we can.
 	 */
+#ifndef _MSC_VER
 	sigfillset(&sigset);
         (void)sigprocmask(SIG_BLOCK, &sigset, &sigoset);
+#endif 
 	(void)umask(mask = umask(0));
 	mask = ~mask;
+#ifndef _MSC_VER
         (void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
+#endif 
 
 	setlen = SET_LEN + 2;
 
