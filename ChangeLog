@@ -1,4 +1,15 @@
-/* $Id: ChangeLog 355 2005-12-12 03:42:37Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 358 2005-12-13 03:34:33Z knut.osmundsen@oracle.com $ */
+
+2005-12-13: bird
+    - kBuild/bin/x86.linux/kmk,
+      kBuild/bin/x86.linux/kmk_append,
+      kBuild/bin/x86.linux/kmk_cp,
+      kBuild/bin/x86.linux/kmk_echo,
+      kBuild/bin/x86.linux/kmk_mkdir,
+      kBuild/bin/x86.linux/kmk_rm:
+        o Rebuild with current sources.
+    - src/gmake/Makefile:
+        o Prefixed external tools with kmk_.
 
 2005-12-12: bird
     - kBuild/footer.kmk, kBuild/header.kmk:
