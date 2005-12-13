@@ -215,6 +215,22 @@ build(char *path, mode_t omode)
 	p = path;
 	oumask = 0;
 	retval = 0;
+#if defined(_MSC_VER) || defined(__EMX__)
+        if (    (    (p[0] >= 'A' && p[0] <= 'Z')
+                 ||  (p[0] >= 'a' && p[0] <= 'z'))
+            && p[1] == ':')
+            p += 2;
+        else if (   (p[0] == '/' || p[0] == '\\')
+                 && (p[1] == '/' || p[1] == '\\')
+                 && (p[2] != '/' && p[2] != '\\'))
+        {
+            char *p2;
+            p += 2;
+            p2 = strpbrk(p, "\\/");
+            if (p2)
+                p = p2 + 1;
+        }
+#endif 
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
 	for (first = 1, last = 0; !last ; ++p) {
