@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 356 2005-12-13 03:20:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 362 2005-12-13 04:46:52Z knut.osmundsen@oracle.com $
 
 
 #
@@ -8,6 +8,7 @@ PROGRAMS           += kmk
 
 kmk_TEMPLATE        = BIN
 kmk_DEPS            = $(PATH_TARGET)/config.h
+kmk_DEFS.win32      = __WIN32__
 kmk_INCS            = $(PATH_TARGET) .
 #kmk_INCS.win32      = kmkbuiltin/w32
 
@@ -60,7 +61,6 @@ kmk_SOURCES.freebsd = \
 	glob/glob.c \
 	glob/fnmatch.c \
 
-ifneq ($(BUILD_TARGET),win32)
 #
 # kmkbuiltin commands
 #
@@ -70,19 +70,26 @@ kmk_SOURCES += \
 	kmkbuiltin/append.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/mkdir.c \
+	kmkbuiltin/setmode.c
+ifneq ($(BUILD_TARGET),win32)
+kmk_SOURCES += \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
 	\
-	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/strlcpy.c
+endif
 
 
 #
 # Standalone kmkbuiltin commands.
 #
+ifneq ($(BUILD_TARGET),win32)
 PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_rm
+else
+PROGRAMS += kmk_append kmk_echo kmk_mkdir
+endif
 
 kmk_append_TEMPLATE = BIN
 kmk_append_DEFS = kmk_builtin_append=main
@@ -107,6 +114,11 @@ kmk_mkdir_DEFS = kmk_builtin_mkdir=main
 kmk_mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/setmode.c
+kmk_mkdir_INCS.win32 = $(PATH_TARGET) .
+kmk_mkdir_DEFS.win32 = HAVE_CONFIG_H
+kmk_mkdir_SOURCES.win32 = \
+	getopt.c \
+	getopt1.c \
 
 kmk_rm_TEMPLATE = BIN
 kmk_rm_DEFS = kmk_builtin_rm=main
@@ -114,7 +126,6 @@ kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c
-endif
 
 
 DEPTH = ../..
