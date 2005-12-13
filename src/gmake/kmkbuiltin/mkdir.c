@@ -38,7 +38,9 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif /* not lint */
 #endif
+#ifndef _MSC_VER
 #include <sys/cdefs.h>
+#endif 
 //__FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
 
 #include <sys/types.h>
@@ -46,12 +48,71 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 
 //#include <err.h>
 #include <errno.h>
+#ifndef _MSC_VER
 #include <libgen.h>
+#endif 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
+#endif 
+
+#ifdef _MSC_VER
+#define setmode setmode_msc
+#include <stdarg.h>
+#include <io.h>
+#include <direct.h>
+#undef setmode
+#include "getopt.h"
+
+typedef int mode_t;
+#define EX_USAGE 1
+void warn(const char *fmt, ...)
+{
+    int err = errno;
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "mkdir: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, ": %s\n", strerror(err));
+    va_end(args);
+}
+
+int mkdir_msc(const char *path, mode_t mode)
+{
+    int rc = mkdir(path);
+    if (rc)
+    {
+        int len = strlen(path);
+        if (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\'))
+        {
+            char *str = strdup(path);
+            while (len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\'))
+                str[--len] = '\0';
+            rc = mkdir(str);
+            free(str);
+        }
+    }
+    return rc;
+}
+#define mkdir(a,b) mkdir_msc(a,b)
+
+char *dirname(char *path)
+{         
+    return path;
+}
+
+#define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
+#define S_IRWXG 0000070
+#define S_IRWXO 0000007
+#define	S_IRWXU (_S_IREAD | _S_IWRITE | _S_IEXEC)
+#define	S_IXUSR _S_IEXEC
+#define	S_IWUSR _S_IWRITE
+#define	S_IRUSR _S_IREAD
+
+#endif 
 
 extern void * setmode(const char *p);
 extern mode_t getmode(const void *bbox, mode_t omode);
