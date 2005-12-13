@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 348 2005-12-11 05:13:13Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 356 2005-12-13 03:20:08Z knut.osmundsen@oracle.com $
 
 
 #
@@ -82,35 +82,35 @@ kmk_SOURCES += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += append cp echo mkdir rm
+PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_rm
 
-append_TEMPLATE = BIN
-append_DEFS = kmk_builtin_append=main
-append_INCS = .
-append_SOURCES = \
+kmk_append_TEMPLATE = BIN
+kmk_append_DEFS = kmk_builtin_append=main
+kmk_append_INCS = .
+kmk_append_SOURCES = \
 	kmkbuiltin/append.c \
 
-cp_TEMPLATE = BIN
-cp_DEFS = kmk_builtin_cp=main
-cp_SOURCES = \
+kmk_cp_TEMPLATE = BIN
+kmk_cp_DEFS = kmk_builtin_cp=main
+kmk_cp_SOURCES = \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
     kmkbuiltin/strlcpy.c
 
-echo_TEMPLATE = BIN
-echo_DEFS = kmk_builtin_echo=main
-echo_SOURCES = \
+kmk_echo_TEMPLATE = BIN
+kmk_echo_DEFS = kmk_builtin_echo=main
+kmk_echo_SOURCES = \
 	kmkbuiltin/echo.c
 
-mkdir_TEMPLATE = BIN
-mkdir_DEFS = kmk_builtin_mkdir=main
-mkdir_SOURCES = \
+kmk_mkdir_TEMPLATE = BIN
+kmk_mkdir_DEFS = kmk_builtin_mkdir=main
+kmk_mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/setmode.c
 
-rm_TEMPLATE = BIN
-rm_DEFS = kmk_builtin_rm=main
-rm_SOURCES = \
+kmk_rm_TEMPLATE = BIN
+kmk_rm_DEFS = kmk_builtin_rm=main
+kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c
