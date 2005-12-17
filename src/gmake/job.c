@@ -1009,7 +1009,11 @@ start_job_command (struct child *child)
      order to really fix this, we'll have to keep a lines_flags for every
      actual line, after expansion.  */
   child->file->cmds->lines_flags[child->command_line - 1]
+#ifdef CONFIG_WITH_KMK_BUILTIN
+    |= flags & (COMMANDS_RECURSE | COMMANDS_BUILTIN);
+#else
     |= flags & COMMANDS_RECURSE;
+#endif 
 
   /* Figure out an argument list from this command line.  */
 
@@ -3192,7 +3196,22 @@ construct_command_argv (char *line, char **restp, struct file *file,
 
     warn_undefined_variables_flag = save;
   }
-
+#if defined(CONFIG_WITH_KMK_BUILTIN) && defined(WINDOWS32)
+  if (!strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+  {
+    int saved_batch_mode_shell = batch_mode_shell;
+    int saved_no_default_sh_exe = no_default_sh_exe;
+    int saved_unixy_shell = unixy_shell;
+    unixy_shell = 1;
+    batch_mode_shell = 0;
+    no_default_sh_exe = 0;
+    argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
+    no_default_sh_exe = saved_no_default_sh_exe;
+    batch_mode_shell = saved_batch_mode_shell;
+    unixy_shell = saved_unixy_shell;
+  }
+  else
+#endif
   argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
 
   free (shell);
