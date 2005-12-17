@@ -678,8 +678,8 @@ define_automatic_variables (void)
 #ifdef _MSC_VER
   (void) define_variable ("KMK_BUILTIN", 11, "append echo mkdir", o_default, 0);
 #else
-  (void) define_variable ("KMK_BUILTIN", 11, "append cp echo mkdir rm", o_default, 0);
-#endif 
+  (void) define_variable ("KMK_BUILTIN", 11, "append cp echo install ln mkdir rm", o_default, 0);
+#endif
 #endif
 
 #ifdef  __MSDOS__

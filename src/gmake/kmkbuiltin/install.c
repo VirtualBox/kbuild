@@ -78,27 +78,31 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
 #define	BACKUP_SUFFIX	".old"
 
-struct passwd *pp;
-struct group *gp;
-gid_t gid;
-uid_t uid;
-int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
-mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-const char *suffix = BACKUP_SUFFIX;
+#ifndef O_BINARY
+# define O_BINARY 0
+#endif
 
-void	copy(int, const char *, int, const char *, off_t);
-int	compare(int, const char *, size_t, int, const char *, size_t);
-int	create_newfile(const char *, int, struct stat *);
-int	create_tempfile(const char *, char *, size_t);
-void	install(const char *, const char *, u_long, u_int);
-void	install_dir(char *);
-u_long	numeric_id(const char *, const char *);
-void	strip(const char *);
-int	trymmap(int);
-void	usage(void);
+static struct passwd *pp;
+static struct group *gp;
+static gid_t gid;
+static uid_t uid;
+static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
+static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+static const char *suffix = BACKUP_SUFFIX;
+
+static void	copy(int, const char *, int, const char *, off_t);
+static int	compare(int, const char *, size_t, int, const char *, size_t);
+static int	create_newfile(const char *, int, struct stat *);
+static int	create_tempfile(const char *, char *, size_t);
+static void	install(const char *, const char *, u_long, u_int);
+static void	install_dir(char *);
+static u_long	numeric_id(const char *, const char *);
+static void	strip(const char *);
+static int	trymmap(int);
+static void	usage(void);
 
 int
-main(int argc, char *argv[])
+kmk_builtin_install(int argc, char *argv[])
 {
 	struct stat from_sb, to_sb;
 	mode_t *set;
@@ -127,11 +131,13 @@ main(int argc, char *argv[])
 		case 'd':
 			dodir = 1;
 			break;
-		case 'f':
+                    case 'f':
+#ifdef UF_IMMUTABLE
 			flags = optarg;
 			if (strtofflags(&flags, &fset, NULL))
 				errx(EX_USAGE, "%s: invalid flag", flags);
 			iflags |= SETFLAGS;
+#endif
 			break;
 		case 'g':
 			group = optarg;
@@ -139,8 +145,12 @@ main(int argc, char *argv[])
 		case 'M':
 			nommap = 1;
 			break;
-		case 'm':
+                case 'm':
+#ifdef __EMX__
+			if (!(set = bsd_setmode(optarg)))
+#else
 			if (!(set = setmode(optarg)))
+#endif
 				errx(EX_USAGE, "invalid file mode: %s",
 				     optarg);
 			mode = getmode(set, 0);
@@ -229,7 +239,7 @@ main(int argc, char *argv[])
 		}
 		if (to_sb.st_dev == from_sb.st_dev &&
 		    to_sb.st_ino == from_sb.st_ino)
-			errx(EX_USAGE, 
+			errx(EX_USAGE,
 			    "%s and %s are the same file", *argv, to_name);
 	}
 	install(*argv, to_name, fset, iflags);
@@ -305,12 +315,12 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/* Only copy safe if the target exists. */
 	tempcopy = safecopy && target;
 
-	if (!devnull && (from_fd = open(from_name, O_RDONLY, 0)) < 0)
+	if (!devnull && (from_fd = open(from_name, O_RDONLY | O_BINARY, 0)) < 0)
 		err(EX_OSERR, "%s", from_name);
 
 	/* If we don't strip, we can compare first. */
 	if (docompare && !dostrip && target) {
-		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0)
 			err(EX_OSERR, "%s", to_name);
 		if (devnull)
 			files_match = to_sb.st_size == 0;
@@ -351,7 +361,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		 * that does not work in-place -- like GNU binutils strip.
 		 */
 		close(to_fd);
-		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY, 0);
+		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY | O_BINARY, 0);
 		if (to_fd < 0)
 			err(EX_OSERR, "stripping %s", to_name);
 	}
@@ -363,7 +373,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		temp_fd = to_fd;
 
 		/* Re-open to_fd using the real target name. */
-		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0)
 			err(EX_OSERR, "%s", to_name);
 
 		if (fstat(temp_fd, &temp_sb)) {
@@ -399,9 +409,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * and the files are different (or just not compared).
 	 */
 	if (tempcopy && !files_match) {
+#ifdef UF_IMMUTABLE
 		/* Try to turn off the immutable bits. */
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
+#endif
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
@@ -431,7 +443,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 		/* Re-open to_fd so we aren't hosed by the rename(2). */
 		(void) close(to_fd);
-		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+		if ((to_fd = open(to_name, O_RDONLY | O_BINARY, 0)) < 0)
 			err(EX_OSERR, "%s", to_name);
 	}
 
@@ -457,6 +469,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * Set owner, group, mode for target; do the chown first,
 	 * chown may lose the setuid bits.
 	 */
+#ifdef UF_IMMUTABLE
 	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid) ||
 	    (mode != (to_sb.st_mode & ALLPERMS))) {
@@ -464,6 +477,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)fchflags(to_fd, to_sb.st_flags & ~NOCHANGEBITS);
 	}
+#endif
 
 	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid))
@@ -489,6 +503,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
 	 * then warn if the the fs doesn't support it, otherwise fail.
 	 */
+#ifdef UF_IMMUTABLE
 	if (!devnull && (flags & SETFLAGS ||
 	    (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags) &&
 	    fchflags(to_fd,
@@ -504,6 +519,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			}
 		}
 	}
+#endif
 
 	(void)close(to_fd);
 	if (!devnull)
@@ -527,6 +543,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		return 1;
 
 	if (from_len <= MAX_CMP_SIZE) {
+#if !defined(__EMX__) && !defined(_MSC_VER)
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
@@ -543,6 +560,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 			munmap(q, from_len);
 			done_compare = 1;
 		}
+#endif
 	out:
 		if (!done_compare) {
 			char buf1[MAXBSIZE];
@@ -611,8 +629,10 @@ create_newfile(const char *path, int target, struct stat *sbp)
 		 * off the append/immutable bits -- if we fail, go ahead,
 		 * it might work.
 		 */
+#ifdef UF_IMMUTABLE
 		if (sbp->st_flags & NOCHANGEBITS)
 			(void)chflags(path, sbp->st_flags & ~NOCHANGEBITS);
+#endif
 
 		if (dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s",
@@ -631,7 +651,7 @@ create_newfile(const char *path, int target, struct stat *sbp)
 				saved_errno = errno;
 	}
 
-	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC, S_IRUSR | S_IWUSR);
+	newfd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_BINARY, S_IRUSR | S_IWUSR);
 	if (newfd < 0 && saved_errno != 0)
 		errno = saved_errno;
 	return newfd;
@@ -662,6 +682,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	 * wins some CPU back.
 	 */
 	done_copy = 0;
+#if !defined(__EMX__) && !defined(_MSC_VER)
 	if (size <= 8 * 1048576 && trymmap(from_fd) &&
 	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
 		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
@@ -673,6 +694,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		}
 		done_copy = 1;
 	}
+#endif
 	if (!done_copy) {
 		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
 			if ((nw = write(to_fd, buf, nr)) != nr) {
