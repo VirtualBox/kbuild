@@ -52,20 +52,20 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #include <string.h>
 #include <unistd.h>
 
-int	fflag;				/* Unlink existing files. */
-int	hflag;				/* Check new name for symlink first. */
-int	iflag;				/* Interactive mode. */
-int	sflag;				/* Symbolic, not hard, link. */
-int	vflag;				/* Verbose output. */
+static int	fflag;				/* Unlink existing files. */
+static int	hflag;				/* Check new name for symlink first. */
+static int	iflag;				/* Interactive mode. */
+static int	sflag;				/* Symbolic, not hard, link. */
+static int	vflag;				/* Verbose output. */
 					/* System link call. */
-int (*linkf)(const char *, const char *);
-char	linkch;
+static int (*linkf)(const char *, const char *);
+static char	linkch;
 
-int	linkit(const char *, const char *, int);
-void	usage(void);
+static int	linkit(const char *, const char *, int);
+static void	usage(void);
 
 int
-main(int argc, char *argv[])
+kmk_builtin_ln(int argc, char *argv[])
 {
 	struct stat sb;
 	char *p, *sourcedir;
