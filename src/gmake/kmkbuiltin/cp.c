@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #else
 #include "mscfakes.h"
 #include "ftsfake.h"
-#endif 
+#endif
 
 #include "cp_extern.h"
 
@@ -135,6 +135,7 @@ kmk_builtin_cp(int argc, char *argv[])
         memset(to.p_path, 0, sizeof(to.p_path));
         fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
         info = 0;
+
         /* reset getopt and set progname. */
         g_progname = argv[0];
         opterr = 1;
@@ -145,7 +146,7 @@ kmk_builtin_cp(int argc, char *argv[])
         optind = 1;
 #else
         optind = 0; /* init */
-#endif 
+#endif
 
 	Hflag = Lflag = Pflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfinprv")) != -1)
@@ -168,7 +169,7 @@ kmk_builtin_cp(int argc, char *argv[])
 			break;
 #else
 			return errx(1, "recursive copy is not implemented!");
-#endif 
+#endif
 		case 'f':
 			fflag = 1;
 			iflag = nflag = 0;
@@ -190,7 +191,7 @@ kmk_builtin_cp(int argc, char *argv[])
 			break;
 #else
 			return errx(1, "recursive copy is not implemented!");
-#endif 
+#endif
 		case 'v':
 			vflag = 1;
 			break;
@@ -214,7 +215,7 @@ kmk_builtin_cp(int argc, char *argv[])
 #ifdef DO_CP_TREE
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
-#endif 
+#endif
 	}
 #ifdef DO_CP_TREE
 	if (Rflag) {
@@ -224,8 +225,8 @@ kmk_builtin_cp(int argc, char *argv[])
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	} else 
-#endif 
+	} else
+#endif
 	{
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;

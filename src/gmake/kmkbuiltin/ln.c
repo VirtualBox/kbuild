@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 
 #ifndef _MSC_VER
 #include <sys/param.h>
-#endif 
+#endif
 #include <sys/stat.h>
 
 #include "err.h"
@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #include <unistd.h>
 #else
 #include "mscfakes.h"
-#endif 
+#endif
 
 static int	fflag;				/* Unlink existing files. */
 static int	hflag;				/* Check new name for symlink first. */
@@ -78,6 +78,11 @@ kmk_builtin_ln(int argc, char *argv[])
 	char *p, *sourcedir;
 	int ch, exitval;
 
+        /* initialize globals. */
+        fflag = hflag = iflag = sflag = vflag = 0;
+        linkch = 0;
+        linkf = NULL;
+
         /* kmk: reset getopt() and set program name. */
         g_progname = argv[0];
         opterr = 1;
@@ -88,7 +93,7 @@ kmk_builtin_ln(int argc, char *argv[])
         optind = 1;
 #else
         optind = 0; /* init */
-#endif 
+#endif
 
 #if 0 /* kmk: we don't need this. */
 	/*
@@ -113,7 +118,7 @@ kmk_builtin_ln(int argc, char *argv[])
 #else
         (void)p;
 #endif
-        
+
 
 	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
 		switch (ch) {
