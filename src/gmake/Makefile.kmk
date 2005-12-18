@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 370 2005-12-18 03:48:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 376 2005-12-18 06:39:23Z knut.osmundsen@oracle.com $
 
 
 #
@@ -68,23 +68,22 @@ kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
 kmk_SOURCES += \
 	kmkbuiltin.c \
 	kmkbuiltin/append.c \
+	kmkbuiltin/cp.c \
+	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/echo.c \
+	kmkbuiltin/install.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/ln.c \
-	kmkbuiltin/install.c \
 	kmkbuiltin/rm.c \
 	\
 	kmkbuiltin/err.c \
 	kmkbuiltin/setmode.c \
-	kmkbuiltin/strmode.c
-ifneq ($(BUILD_TARGET),win32)
-kmk_SOURCES += \
-	kmkbuiltin/cp.c \
-	kmkbuiltin/cp_utils.c \
-	\
+	kmkbuiltin/strmode.c \
 	kmkbuiltin/strlcpy.c
-endif
-kmk_SOURCES.win32 += kmkbuiltin/mscfakes.c
+
+kmk_SOURCES.win32 += \
+	kmkbuiltin/mscfakes.c \
+	kmkbuiltin/fts.c
 
 
 #
