@@ -40,9 +40,9 @@ static char const copyright[] =
 #ifndef lint
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif /* not lint */
-#endif
 #include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
+__FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
+#endif
 
 /*
  * Cp copies source files to target files.
@@ -62,15 +62,22 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
+#ifdef DO_CP_TREE
 #include <fts.h>
+#endif 
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#include "ftsfake.h"
+#endif 
 
 #include "cp_extern.h"
 
@@ -102,7 +109,7 @@ static char emptystring[] = "";
 PATH_T to = { to.p_path, emptystring, "" };
 
 int fflag, iflag, nflag, pflag, vflag;
-int Rflag, rflag;
+static int Rflag, rflag;
 volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
@@ -121,12 +128,15 @@ kmk_builtin_cp(int argc, char *argv[])
 	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash;
 	char *target;
 
-        argv0 = argv[0];
+        /* init globals */
+        cp_argv0 = argv[0];
         to.p_end = to.p_path;
         to.target_end = emptystring;
         memset(to.p_path, 0, sizeof(to.p_path));
         fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
         info = 0;
+        /* reset getopt and set progname. */
+        g_progname = argv[0];
         opterr = 1;
         optarg = NULL;
         optopt = 0;
@@ -153,8 +163,12 @@ kmk_builtin_cp(int argc, char *argv[])
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
+#ifdef DO_CP_TREE
 			Rflag = 1;
 			break;
+#else
+			return errx(1, "recursive copy is not implemented!");
+#endif 
 		case 'f':
 			fflag = 1;
 			iflag = nflag = 0;
@@ -171,35 +185,38 @@ kmk_builtin_cp(int argc, char *argv[])
 			pflag = 1;
 			break;
 		case 'r':
+#ifdef DO_CP_TREE
 			rflag = 1;
 			break;
+#else
+			return errx(1, "recursive copy is not implemented!");
+#endif 
 		case 'v':
 			vflag = 1;
 			break;
 		default:
-			usage();
-			break;
+		        return usage();
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
-		usage();
+		return usage();
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (rflag) {
-		if (Rflag) {
-			fprintf(stderr,
-                            "%s: the -R and -r options may not be specified together.\n", argv0);
-                        return 1;
-                }
-		if (Hflag || Lflag || Pflag) {
-			fprintf(stderr, "%s: the -H, -L, and -P options may not be specified with the -r option.\n", argv0);
-                        return 1;
-                }
+		if (Rflag)
+			return errx(1,
+		    "the -R and -r options may not be specified together.");
+		if (Hflag || Lflag || Pflag)
+			errx(1,
+	"the -H, -L, and -P options may not be specified with the -r option.");
+#ifdef DO_CP_TREE
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
+#endif 
 	}
+#ifdef DO_CP_TREE
 	if (Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -207,7 +224,9 @@ kmk_builtin_cp(int argc, char *argv[])
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	} else {
+	} else 
+#endif 
+	{
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
@@ -217,10 +236,8 @@ kmk_builtin_cp(int argc, char *argv[])
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
-	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path)) {
-		fprintf(stderr, "%s: %s: name too long\n", argv0, target);
-                return 1;
-        }
+	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path))
+		return errx(1, "%s: name too long", target);
 	to.p_end = to.p_path + strlen(to.p_path);
         if (to.p_path == to.p_end) {
 		*to.p_end++ = '.';
@@ -249,17 +266,14 @@ kmk_builtin_cp(int argc, char *argv[])
 	 * In (2), the real target is not directory, but "directory/source".
 	 */
 	r = stat(to.p_path, &to_stat);
-	if (r == -1 && errno != ENOENT) {
-		fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
-        }
+	if (r == -1 && errno != ENOENT)
+		return err(1, "%s", to.p_path);
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
 		 * Case (1).  Target is not a directory.
 		 */
-		if (argc > 1) {
-			usage();
-			return 1;
-		}
+		if (argc > 1)
+			return usage();
 		/*
 		 * Need to detect the case:
 		 *	cp -R dir foo
@@ -282,11 +296,10 @@ kmk_builtin_cp(int argc, char *argv[])
 
 		if (have_trailing_slash && type == FILE_TO_FILE) {
 			if (r == -1)
-				fprintf(stderr, "%s: directory %s does not exist\n", argv0,
-				     to.p_path);
+				return errx(1, "directory %s does not exist",
+				            to.p_path);
 			else
-				fprintf(stderr, "%s: %s is not a directory\n", argv0, to.p_path);
-                        return 1;
+				return errx(1, "%s is not a directory", to.p_path);
 		}
 	} else
 		/*
@@ -315,21 +328,19 @@ copy(char *argv[], enum op type, int fts_options)
 	mask = ~umask(0777);
 	umask(~mask);
 
-	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL) {
-		fprintf(stderr, "%s: fts_open: %s\n", argv0, strerror(errno));
-                return 1;
-        }
+	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
+		return err(1, "fts_open");
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
 		switch (curr->fts_info) {
 		case FTS_NS:
 		case FTS_DNR:
 		case FTS_ERR:
-			fprintf(stderr, "%s: %s: %s\n",
-			    argv0, curr->fts_path, strerror(curr->fts_errno));
+			warnx("%s: %s",
+			    curr->fts_path, strerror(curr->fts_errno));
 			badcp = rval = 1;
 			continue;
 		case FTS_DC:			/* Warn, continue. */
-			fprintf(stderr, "%s: %s: directory causes a cycle\n", argv0, curr->fts_path);
+			warnx("%s: directory causes a cycle", curr->fts_path);
 			badcp = rval = 1;
 			continue;
 		default:
@@ -380,7 +391,7 @@ copy(char *argv[], enum op type, int fts_options)
 				*target_mid++ = '/';
 			*target_mid = 0;
 			if (target_mid - to.p_path + nlen >= PATH_MAX) {
-				fprintf(stderr, "%s: %s%s: name too long (not copied)\n", argv0,
+				warnx("%s%s: name too long (not copied)",
 				    to.p_path, p);
 				badcp = rval = 1;
 				continue;
@@ -416,7 +427,7 @@ copy(char *argv[], enum op type, int fts_options)
 				if ((mode & (S_ISUID | S_ISGID | S_ISTXT)) ||
 				    ((mode | S_IRWXU) & mask) != (mode & mask))
 					if (chmod(to.p_path, mode & mask) != 0){
-						fprintf(stderr, "%s: chmod: %s: %s\n", argv0, to.p_path, strerror(errno));
+						warn("chmod: %s", to.p_path);
 						rval = 1;
 					}
 			}
@@ -428,9 +439,11 @@ copy(char *argv[], enum op type, int fts_options)
 			dne = 1;
 		else {
 			if (to_stat.st_dev == curr->fts_statp->st_dev &&
-			    to_stat.st_ino == curr->fts_statp->st_ino) {
-				fprintf(stderr, "%s: %s and %s are identical (not copied).\n",
-				    argv0, to.p_path, curr->fts_path);
+			    to_stat.st_dev != 0 &&
+			    to_stat.st_ino == curr->fts_statp->st_ino &&
+			    to_stat.st_ino != 0) {
+				warnx("%s and %s are identical (not copied).",
+				    to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
 					(void)fts_set(ftsp, curr, FTS_SKIP);
@@ -438,10 +451,9 @@ copy(char *argv[], enum op type, int fts_options)
 			}
 			if (!S_ISDIR(curr->fts_statp->st_mode) &&
 			    S_ISDIR(to_stat.st_mode)) {
-				fprintf(stderr,
-                                    "%s: cannot overwrite directory %s with "
-				    "non-directory %s\n",
-				    argv0, to.p_path, curr->fts_path);
+				warnx("cannot overwrite directory %s with "
+				    "non-directory %s",
+				    to.p_path, curr->fts_path);
 				badcp = rval = 1;
 				continue;
 			}
@@ -449,6 +461,7 @@ copy(char *argv[], enum op type, int fts_options)
 		}
 
 		switch (curr->fts_statp->st_mode & S_IFMT) {
+#ifdef S_IFLNK
 		case S_IFLNK:
 			/* Catch special case of a non-dangling symlink */
 			if ((fts_options & FTS_LOGICAL) ||
@@ -461,10 +474,11 @@ copy(char *argv[], enum op type, int fts_options)
 					badcp = rval = 1;
 			}
 			break;
+#endif
 		case S_IFDIR:
 			if (!Rflag && !rflag) {
-				fprintf(stderr, "%s: %s is a directory (not copied).\n",
-				    argv0, curr->fts_path);
+				warnx("%s is a directory (not copied).",
+				    curr->fts_path);
 				(void)fts_set(ftsp, curr, FTS_SKIP);
 				badcp = rval = 1;
 				break;
@@ -479,13 +493,11 @@ copy(char *argv[], enum op type, int fts_options)
 			 */
 			if (dne) {
 				if (mkdir(to.p_path,
-				    curr->fts_statp->st_mode | S_IRWXU) < 0) {
-					fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
-                                        return 1;
-                                }
+				    curr->fts_statp->st_mode | S_IRWXU) < 0)
+					return err(1, "%s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
+				return err(1, "%s", to.p_path);
 			}
 			/*
 			 * Arrange to correct directory attributes later
@@ -494,7 +506,9 @@ copy(char *argv[], enum op type, int fts_options)
 			 */
 			curr->fts_number = pflag || dne;
 			break;
+#ifdef S_IFBLK
 		case S_IFBLK:
+#endif
 		case S_IFCHR:
 			if (Rflag) {
 				if (copy_special(curr->fts_statp, !dne))
@@ -504,7 +518,9 @@ copy(char *argv[], enum op type, int fts_options)
 					badcp = rval = 1;
 			}
 			break;
+#ifdef S_IFIFO
 		case S_IFIFO:
+#endif
 			if (Rflag) {
 				if (copy_fifo(curr->fts_statp, !dne))
 					badcp = rval = 1;
@@ -521,9 +537,8 @@ copy(char *argv[], enum op type, int fts_options)
 		if (vflag && !badcp)
 			(void)printf("%s -> %s\n", curr->fts_path, to.p_path);
 	}
-	if (errno) {
-		fprintf(stderr, "%s: fts_read: %s\n", argv0, strerror(errno));
-        }
+	if (errno)
+		return err(1, "fts_read");
 	return (rval);
 }
 

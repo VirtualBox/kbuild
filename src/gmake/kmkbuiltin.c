@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 368 2005-12-17 05:31:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 370 2005-12-18 03:48:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include "kmkbuiltin/err.h"
 #include "kmkbuiltin.h"
 
 extern char **environ;
@@ -177,12 +178,6 @@ int kmk_builtin_command_parsed(int argc, char **argv)
      */
     if (!strcmp(pszCmd, "append"))
         rc = kmk_builtin_append(argc, argv, environ);
-#ifndef _MSC_VER
-    else if (!strcmp(pszCmd, "cp"))
-        rc = kmk_builtin_cp(argc, argv, environ);
-    //else if (!strcmp(pszCmd, "chmod"))
-    //    rc = kmk_builtin_chmod(argc, argv, environ);
-#endif
     else if (!strcmp(pszCmd, "echo"))
         rc = kmk_builtin_echo(argc, argv, environ);
     else if (!strcmp(pszCmd, "install"))
@@ -191,19 +186,23 @@ int kmk_builtin_command_parsed(int argc, char **argv)
         rc = kmk_builtin_ln(argc, argv, environ);
     else if (!strcmp(pszCmd, "mkdir"))
         rc = kmk_builtin_mkdir(argc, argv, environ);
-#ifndef _MSC_VER
     //else if (!strcmp(pszCmd, "mv"))
     //    rc = kmk_builtin_mv(argc, argv, environ);
     else if (!strcmp(pszCmd, "rm"))
         rc = kmk_builtin_rm(argc, argv, environ);
     //else if (!strcmp(pszCmd, "rmdir"))
     //    rc = kmk_builtin_rmdir(argc, argv, environ);
+    /* obsolete */
+#ifndef _MSC_VER
+    else if (!strcmp(pszCmd, "cp"))
+        rc = kmk_builtin_cp(argc, argv, environ);
 #endif
     else
     {
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);
         return 1;
     }
+    g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
     return rc;
 }
 

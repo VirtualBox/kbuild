@@ -30,37 +30,50 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #endif
 #endif /* not lint */
-#include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 
+#ifndef _MSC_VER
 #include <sys/param.h>
+#endif 
 #include <sys/stat.h>
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 #include <sys/mman.h>
 #endif
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _MSC_VER
 #include <fts.h>
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#include <signal.h>
+#else
+#include "mscfakes.h"
+#include "ftsfake.h"
+#endif 
 
 #include "cp_extern.h"
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
 
 #ifndef MAXBSIZE
-#define MAXBSIZE (128*1024)
+# define MAXBSIZE 16384
 #endif
 #ifndef O_BINARY
 # define O_BINARY 0
 #endif
+
+#ifndef S_ISVTX
+# define S_ISVTX 0
+#endif 
 
 int
 copy_file(const FTSENT *entp, int dne)
@@ -77,7 +90,7 @@ copy_file(const FTSENT *entp, int dne)
 #endif
 
 	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
-		fprintf(stderr, "%s: %s: %s\n", argv0, entp->fts_path, strerror(errno));
+		warn("%s", entp->fts_path);
 		return (1);
 	}
 
@@ -124,7 +137,7 @@ copy_file(const FTSENT *entp, int dne)
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {
-		fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("%s", to.p_path);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -141,7 +154,7 @@ copy_file(const FTSENT *entp, int dne)
 	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-			fprintf(stderr, "%s: %s: %s\n", argv0, entp->fts_path, strerror(errno));
+			warn("%s", entp->fts_path);
 			rval = 1;
 		} else {
 			wtotal = 0;
@@ -161,12 +174,12 @@ copy_file(const FTSENT *entp, int dne)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
+				warn("%s", to.p_path);
 				rval = 1;
 			}
 			/* Some systems don't unmap on close(2). */
 			if (munmap(p, fs->st_size) < 0) {
-				fprintf(stderr, "%s: %s: %s\n", entp->fts_path, strerror(errno));
+				warn("%s", entp->fts_path);
 				rval = 1;
 			}
 		}
@@ -191,13 +204,13 @@ copy_file(const FTSENT *entp, int dne)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
+				warn("%s", to.p_path);
 				rval = 1;
 				break;
 			}
 		}
 		if (rcount < 0) {
-			fprintf(stderr, "%s: %s: %s\n", argv0, entp->fts_path, strerror(errno));
+			warn("%s", entp->fts_path);
 			rval = 1;
 		}
 	}
@@ -213,7 +226,7 @@ copy_file(const FTSENT *entp, int dne)
 		rval = 1;
 	(void)close(from_fd);
 	if (close(to_fd)) {
-		fprintf(stderr, "%s: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("%s", to.p_path);
 		rval = 1;
 	}
 	return (rval);
@@ -226,16 +239,16 @@ copy_link(const FTSENT *p, int exists)
 	char llink[PATH_MAX];
 
 	if ((len = readlink(p->fts_path, llink, sizeof(llink) - 1)) == -1) {
-		fprintf(stderr, "%s: readlink: %s: %s\n", argv0, p->fts_path, strerror(errno));
+		warn("readlink: %s", p->fts_path);
 		return (1);
 	}
 	llink[len] = '\0';
 	if (exists && unlink(to.p_path)) {
-		fprintf(stderr, "%s: unlink: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("unlink: %s", to.p_path);
 		return (1);
 	}
 	if (symlink(llink, to.p_path)) {
-		fprintf(stderr, "%s: symlink: %s: %s\n", argv0, llink, strerror(errno));
+		warn("symlink: %s", llink);
 		return (1);
 	}
 	return (pflag ? setfile(p->fts_statp, -1) : 0);
@@ -245,11 +258,11 @@ int
 copy_fifo(struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
-		fprintf(stderr, "%s: unlink: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("unlink: %s", to.p_path);
 		return (1);
 	}
 	if (mkfifo(to.p_path, from_stat->st_mode)) {
-		fprintf(stderr, "%s: mkfifo: %s\n", argv0, to.p_path, strerror(errno));
+		warn("mkfifo: %s", to.p_path);
 		return (1);
 	}
 	return (pflag ? setfile(from_stat, -1) : 0);
@@ -259,11 +272,11 @@ int
 copy_special(struct stat *from_stat, int exists)
 {
 	if (exists && unlink(to.p_path)) {
-		fprintf(stderr, "%s: unlink: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("unlink: %s", to.p_path);
 		return (1);
 	}
 	if (mknod(to.p_path, from_stat->st_mode, from_stat->st_rdev)) {
-		fprintf(stderr, "%s: mknod: %s: %s\n", argv0, to.p_path, strerror(errno));
+		warn("mknod: %s", to.p_path);
 		return (1);
 	}
 	return (pflag ? setfile(from_stat, -1) : 0);
@@ -291,7 +304,7 @@ setfile(struct stat *fs, int fd)
         tv[0].tv_usec = tv[1].tv_usec = 0;
 #endif
 	if (islink ? lutimes(to.p_path, tv) : utimes(to.p_path, tv)) {
-		fprintf(stderr, "%s: %sutimes: %s: %s\n", argv0, islink ? "l" : "", to.p_path, strerror(errno));
+		warn("%sutimes: %s", islink ? "l" : "", to.p_path);
 		rval = 1;
 	}
 	if (fdval ? fstat(fd, &ts) :
@@ -313,7 +326,7 @@ setfile(struct stat *fs, int fd)
 		    (islink ? lchown(to.p_path, fs->st_uid, fs->st_gid) :
 		    chown(to.p_path, fs->st_uid, fs->st_gid))) {
 			if (errno != EPERM) {
-				fprintf(stderr, "%s: chown: %s: %s\n", argv0, to.p_path, strerror(errno));
+				warn("chown: %s", to.p_path);
 				rval = 1;
 			}
 			fs->st_mode &= ~(S_ISUID | S_ISGID);
@@ -323,7 +336,7 @@ setfile(struct stat *fs, int fd)
 		if (fdval ? fchmod(fd, fs->st_mode) :
 		    (islink ? lchmod(to.p_path, fs->st_mode) :
 		    chmod(to.p_path, fs->st_mode))) {
-			fprintf(stderr, "%s: chmod: %s: %s\n", to.p_path, strerror(errno));
+			warn("chmod: %s", to.p_path);
 			rval = 1;
 		}
 
@@ -333,7 +346,7 @@ setfile(struct stat *fs, int fd)
 		    fchflags(fd, fs->st_flags) :
 		    (islink ? (errno = ENOSYS) :
 		    chflags(to.p_path, fs->st_flags))) {
-			fprintf(stderr, "%s: chflags: %s: %s", argv0, to.p_path, strerror(errno));
+			warn("chflags: %s", to.p_path);
 			rval = 1;
 		}
 #endif
@@ -341,12 +354,12 @@ setfile(struct stat *fs, int fd)
 	return (rval);
 }
 
-void
+int
 usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
 "usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target",
 "       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory");
-	exit(EX_USAGE);
+	return EX_USAGE;
 }

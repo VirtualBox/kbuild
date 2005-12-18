@@ -37,16 +37,14 @@ static char const copyright[] =
 #ifndef lint
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif /* not lint */
-#endif
-#ifndef _MSC_VER
 #include <sys/cdefs.h>
-#endif 
-//__FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
+__FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-//#include <err.h>
+#include "err.h"
 #include <errno.h>
 #ifndef _MSC_VER
 #include <libgen.h>
@@ -57,61 +55,8 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#endif 
-
-#ifdef _MSC_VER
-#define setmode setmode_msc
-#include <stdarg.h>
-#include <io.h>
-#include <direct.h>
-#undef setmode
-#include "getopt.h"
-
-typedef int mode_t;
-#define EX_USAGE 1
-void warn(const char *fmt, ...)
-{
-    int err = errno;
-    va_list args;
-    va_start(args, fmt);
-    fprintf(stderr, "mkdir: ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, ": %s\n", strerror(err));
-    va_end(args);
-}
-
-int mkdir_msc(const char *path, mode_t mode)
-{
-    int rc = mkdir(path);
-    if (rc)
-    {
-        int len = strlen(path);
-        if (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\'))
-        {
-            char *str = strdup(path);
-            while (len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\'))
-                str[--len] = '\0';
-            rc = mkdir(str);
-            free(str);
-        }
-    }
-    return rc;
-}
-#define mkdir(a,b) mkdir_msc(a,b)
-
-char *dirname(char *path)
-{         
-    return path;
-}
-
-#define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
-#define S_IRWXG 0000070
-#define S_IRWXO 0000007
-#define	S_IRWXU (_S_IREAD | _S_IWRITE | _S_IEXEC)
-#define	S_IXUSR _S_IEXEC
-#define	S_IWUSR _S_IWRITE
-#define	S_IRUSR _S_IREAD
-
+#else
+#include "mscfakes.h"
 #endif 
 
 extern void * setmode(const char *p);
@@ -132,6 +77,8 @@ kmk_builtin_mkdir(int argc, char *argv[])
 	omode = pflag = 0;
 	mode = NULL;
         vflag = 0;
+        /* kmk: reset getopt and set progname */
+        g_progname = argv[0];
         opterr = 1;
         optarg = NULL;
         optopt = 0;
@@ -165,10 +112,8 @@ kmk_builtin_mkdir(int argc, char *argv[])
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
 	} else {
-		if ((set = setmode(mode)) == NULL) {
-			fprintf(stderr, "%s: invalid file mode: %s\n", mode, argv[0]);
-                        return 1;
-                }
+		if ((set = setmode(mode)) == NULL)
+                        return errx(1, "invalid file mode: %s", mode);
 		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 		free(set);
 	}
@@ -180,9 +125,9 @@ kmk_builtin_mkdir(int argc, char *argv[])
 				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
 			if (errno == ENOTDIR || errno == ENOENT)
-				fprintf(stderr, "%s: %s: %s\n", argv[0], dirname(*argv), strerror(errno));
+				warn("%s", dirname(*argv));
 			else
-				fprintf(stderr, "%s: %s: %s\n", argv[0], *argv, strerror(errno));
+                                warn("%s", *argv);
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
@@ -197,7 +142,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 		 * as chmod will (obviously) ignore the umask.
 		 */
 		if (success && mode != NULL && chmod(*argv, omode) == -1) {
-			fprintf(stderr, "%s: %s: %s\n", argv[0], *argv, strerror(errno));
+			warn("%s", *argv);
 			exitval = 1;
 		}
 	}
@@ -239,7 +184,7 @@ build(char *path, mode_t omode)
 		else if (p[0] != '/')
 			continue;
 		*p = '\0';
-		if (p[1] == '\0')
+		if (!last && p[1] == '\0')
 			last = 1;
 		if (first) {
 			/*
