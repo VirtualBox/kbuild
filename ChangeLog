@@ -1,6 +1,14 @@
-/* $Id: ChangeLog 373 2005-12-18 04:10:48Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 381 2005-12-18 14:07:20Z knut.osmundsen@oracle.com $ */
 
 2005-12-18: bird
+    - kBuild/*.kmk, kBuild/tools/*.kmk:
+        o Finally I've got around to implement command dependencies.
+        o Use $(INSTALL) instead of $(RM) + $(CP).
+        o More install features.
+    - kBuild/bin/x86.[linux|win32|os2]/:
+        o Rebuilt all the utils.
+        o Renamed all unix utilites so they start with a kmk_ prefix and don't 
+          override any local unix utils.
     - src/gmake/kmkbuiltin/*, src/gmake/kmkbuiltin.c,
       src/gmake/kmkbuiltin.h, src/gmake/variables.c,
       src/gmake/Makefile.kmk:
