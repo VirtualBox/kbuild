@@ -50,12 +50,10 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include <sys/param.h>
 #ifdef USE_MMAP
 #include <sys/mman.h>
-#endif 
+#endif
 #include <sys/mount.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#else
-#include <process.h>
 #endif
 #include <sys/stat.h>
 
@@ -67,7 +65,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
-#endif 
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,18 +74,21 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include <unistd.h>
 #else
 #include "mscfakes.h"
-#endif 
+#endif
+#if defined(__EMX__) || defined(_MSC_VER)
+# include <process.h>
+#endif
 
 extern void * setmode(const char *p);
 extern mode_t getmode(const void *bbox, mode_t omode);
 
 #ifndef __unused
 # define __unused
-#endif 
+#endif
 
 #ifndef MAXBSIZE
 # define MAXBSIZE 16384
-#endif 
+#endif
 
 /* Bootstrap aid - this doesn't exist in most older releases */
 #ifndef MAP_FAILED
@@ -107,7 +108,7 @@ extern mode_t getmode(const void *bbox, mode_t omode);
 
 #ifndef EFTYPE
 # define EFTYPE EINVAL
-#endif 
+#endif
 
 static gid_t gid;
 static uid_t uid;
@@ -125,7 +126,7 @@ static u_long	numeric_id(const char *, const char *);
 static int	strip(const char *);
 #ifdef USE_MMAP
 static int	trymmap(int);
-#endif 
+#endif
 static int	usage(void);
 
 int
@@ -228,7 +229,7 @@ kmk_builtin_install(int argc, char *argv[])
 		if ((gp = getgrnam(group)) != NULL)
 			gid = gp->gr_gid;
 		else
-#endif 
+#endif
 		{
 			gid = (gid_t)numeric_id(group, "group");
 			if (gid == (gid_t)-1)
@@ -243,7 +244,7 @@ kmk_builtin_install(int argc, char *argv[])
 		if ((pp = getpwnam(owner)) != NULL)
 			uid = pp->pw_uid;
 		else
-#endif 
+#endif
 		{
 			uid = (uid_t)numeric_id(owner, "user");
 			if (uid == (uid_t)-1)
@@ -334,13 +335,13 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	temp_fd = -1;
 
 	/* If try to install NULL file to a directory, fails. */
-	if (flags & DIRECTORY 
+	if (flags & DIRECTORY
 #if defined(__EMX__) || defined(_MSC_VER)
 	    || (   stricmp(from_name, _PATH_DEVNULL)
 		&& stricmp(from_name, "nul")
 #ifdef __EMX__
 		&& stricmp(from_name, "/dev/nul")
-#endif 
+#endif
 	       )
 #else
 	    || strcmp(from_name, _PATH_DEVNULL)
@@ -426,11 +427,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	}
 
 	if (dostrip) {
-#if defined(__EMX__) || defined(_MSC_VER) 
+#if defined(__EMX__) || defined(_MSC_VER)
 		/* close before we strip. */
 		close(to_fd);
 		to_fd = -1;
-#endif 
+#endif
 		rc = strip(tempcopy ? tempfile : to_name);
 		if (rc)
 			goto l_done;
@@ -439,9 +440,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		 * Re-open our fd on the target, in case we used a strip
 		 * that does not work in-place -- like GNU binutils strip.
 		 */
-#if !defined(__EMX__) && !defined(_MSC_VER) 
+#if !defined(__EMX__) && !defined(_MSC_VER)
 		close(to_fd);
-#endif 
+#endif
 		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY | O_BINARY, 0);
 		if (to_fd < 0) {
 			rc = err(EX_OSERR, "stripping %s", to_name);
@@ -483,7 +484,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				tvb[1].tv_sec = to_sb.st_mtime;
 				tvb[1].tv_usec = 0;
 				(void)utimes(tempfile, tvb);
-			} else 
+			} else
 #endif
                         {
 
@@ -865,7 +866,7 @@ strip(const char *to_name)
 			/* NOTREACHED */
 		}
 	}
-#endif 
+#endif
 }
 
 /*
@@ -907,7 +908,7 @@ install_dir(char *path)
  * usage --
  *	print a usage message and die
  */
-static int 
+static int
 usage()
 {
 	(void)fprintf(stderr,
@@ -942,4 +943,4 @@ trymmap(int fd)
 #endif
 	return (0);
 }
-#endif 
+#endif
