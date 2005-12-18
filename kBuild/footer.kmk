@@ -1,4 +1,4 @@
-# $Id: footer.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -46,6 +46,10 @@ ALL_TARGETS += \
 # dependency files.
 _DEPFILES :=
 
+# included dependency files.
+_DEPFILES_INCLUDED :=
+
+
 # All kind of output files except for _OBJS and _DEPFILES.
 # Compiling or linking definition outputting other things that $@ and any
 # required dependency file must add those output files to this variable.
@@ -62,8 +66,9 @@ _DLLS     :=
 _PROGRAMS :=
 _SYSMODS  :=
 _INSTALLS :=
+_INSTALLS_DIRS :=
 _OTHERS   :=
-_DIRS     := $(PATH_TARGET)/
+_DIRS     := $(PATH_TARGET)/ $(PATH_TARGET)
 _IMPORT_LIBS :=
 
 # misc
@@ -365,18 +370,99 @@ endif
 endef
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
+
 #
 # Object processing.
 #
 
-## Generates the '::' rule for building all objects of a source file.
+## wrapper the compile command dependency check.
+ifndef NO_COMPILE_CMDS_DEPS
+_DEP_COMPILE_CMDS = $(if $(subst $(strip $($(target)_$(source)_CMDS_PREV_)),,$(strip $($(target)_$(source)_CMDS_))),FORCE,)
+else
+_DEP_COMPILE_CMDS =
+endif
+
+## Generates the rules for building a specific object, and the '::' aliases
+# for building a source file.
 # @param    $(obj)    The object file.
-define def_target_obj_rule
+define def_target_source_rule
+$(obj) $($(target)_$(source)_OUTPUT_): \
+		$($(target)_$(source)_DEPEND_) \
+		$(_DEP_COMPILE_CMDS) \
+		| \
+		$($(target)_$(source)_DEPORD_)
+	$(call MSG_L1,Creating $$@)
+	$(RM) -f $(dep) $(out) $($(target)_$(source)_OUTPUT_)
+	$(custom_pre)
+		
+$($(target)_$(source)_CMDS_)
+
+	$(custom_post)
+ifndef NO_COMPILE_CMDS_DEPS
+	@$(APPEND) "$(dep)"
+	@$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
+	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_$(source)_CMDS_))'
+	@$(APPEND) "$(dep)" 'endef'
+endif	
+
 $(basename $(notdir $(obj))).o::
 	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
 $(basename $$(notdir $$(obj))).obj::
 	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
 endef
+
+
+## wrapper the link command dependency check.
+ifndef NO_COMPILE_CMDS_DEPS
+_DEP_LINK_CMDS = $(if $(subst $(strip $($(target)_CMDS_PREV_)),,$(strip $($(target)_CMDS_))),FORCE,)
+else
+_DEP_LINK_CMDS =
+endif
+
+## Generate the link rule for a target.
+# @param    $(target)               The normalized target name.
+# @param    $(dirdep)               Directories we depend upon begin created before linking.
+# @param    $(dep)                  The name of the dependency file.
+# @param    $(out)
+# @param    $($(target)_OUTPUT_)    Output files from the link.
+# @param    $($(target)_DEPEND_)	Dependencies.
+# @param    $($(target)_DEPORD_)    Dependencies which should only affect build order.
+# @param    $($(target)_CMDS_)      The link commands.
+# @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
+define def_link_rule
+$(out) $($(target)_OUTPUT_): \
+		$($(target)_DEPEND_) \
+		$(_DEP_LINK_CMDS) \
+		| \
+		$($(target)_DEPORD_)
+	$(call MSG_L1,Creating $$@)
+	$(RM) -f $(dep) $($(target)_OUTPUT_)
+	$(custom_pre)
+		
+$($(target)_CMDS_)
+
+	$(custom_post)
+ifndef NO_LINK_CMDS_DEP
+	@$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
+	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
+	@$(APPEND) "$(dep)" 'endef'
+endif	
+
+$(basename $(notdir $(out)))::
+	+ $$(MAKE) -B -f $$(MAKEFILE) $(out)
+endef
+
+
+## Generate the link & lib install rule
+# @param    $(target)   Normalized target name.
+# @param    $(out)      The build target.
+# @param    $(INSTARGET_$(target))  The installation targets.
+# @param    $(mode)     The file mode (optional)
+define def_link_install_rule
+$(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
+	$(INSTALL) $$(if $(mode),-m $(mode)) $(out) $$@
+endef
+
 
 
 ## Generic macro for processing C, C++ and Assembly sources.
@@ -627,7 +713,6 @@ objsuff     := $(firstword \
 	$(TOOL_$(tool)_$(type)OBJSUFF)\
 	$(SUFF_OBJ))
 obj         := $(outbase)$(objsuff)
-dep         := $(outbase)$(SUFF_DEP)
 deps        := \
 	$($(target)_$(source)_DEPS)\
 	$($(target)_$(source)_DEPS.$(bld_type))\
@@ -644,9 +729,15 @@ deps        := \
 	$($(target)_DEPS.$(bld_trg_arch))\
 	$($(target)_DEPS.$(bld_trg_cpu))
 
+# dependencies
+dep         := $(obj)$(SUFF_DEP)
+ifndef NO_COMPILE_DEPS
+_DEPFILES_INCLUDED += $(dep)
+$(if $(wildcard $(dep)),$(eval include $(dep)))
+endif
 
 #$ (warning dbg: target=$(target) source=$(source) tool=$(tool) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-ifndef TOOL_$(tool)_COMPILE_$(type)
+ifndef TOOL_$(tool)_COMPILE_$(type)_CMDS
 $(warning kBuild: tools: \
 	1 $($(target)_$(source)_$(type)TOOL.$(bld_trg)) \
 	2 $($(target)_$(source)_$(type)TOOL) \
@@ -664,16 +755,20 @@ $(warning kBuild: tools: \
 	14 $($(type)TOOL) \
 	15 $(TOOL.$(bld_trg)) \
 	16 $(TOOL) )
-$(error kBuild: TOOL_$(tool)_COMPILE_$(type) is not defined. source=$(source) target=$(target) )
+$(error kBuild: TOOL_$(tool)_COMPILE_$(type)_CMDS is not defined. source=$(source) target=$(target) )
 endif
 
-# generate the rules
-$(eval $(TOOL_$(tool)_COMPILE_$(type)))
+# call the tool
+$(target)_$(source)_CMDS_   := $(TOOL_$(tool)_COMPILE_$(type)_CMDS)
+$(target)_$(source)_OUTPUT_ := $(TOOL_$(tool)_COMPILE_$(type)_OUTPUT)
+$(target)_$(source)_DEPEND_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPEND) $(deps) $(source)
+$(target)_$(source)_DEPORD_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPORD) $(dirdep)
 
-$(eval $(def_target_obj_rule))
+# generate the compile rule.
+$(eval $(def_target_source_rule))
 
+_OUT_FILES      += $($(target)_$(source)_OUTPUT_)
 $(target)_OBJS_ += $(obj)
-_DEPFILES       += $(dep)
 
 endef
 
@@ -696,16 +791,6 @@ type := AS
 $(foreach source, $(filter %.asm %.s %.S, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
 	,$(eval $(value def_target_source_c_cpp_asm)) )
 
-endef
-
-## Generate the link & lib install rule
-# @param    $(target)   Normalized target name.
-# @param    $(out)      The build target.
-# @param    $(INSTARGET_$(target))  The installation targets.
-define def_link_install_rule
-$(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
-	$(RM) -f $$@
-	$(CP) $(out) $$@
 endef
 
 
@@ -803,17 +888,44 @@ dirdep      := $(call DIRDEP,$(dir $(out)))
 ## @todo fix dependencies on makefiles an such
 deps        := $($(target)_DEPS)
 
-lib     := $(out)
-libsuff := $(suff)
-$(eval $(TOOL_$(tool)_LINK_LIBRARY))
+# dependency file
+dep := $(out)$(SUFF_DEP)
+ifndef NO_LINK_CMDS_DEP
+_DEPFILES_INCLUDED += $(dep)
+$(if $(wildcard $(dep)),$(eval include $(dep)))
+endif
+
+# check that the tool is defined.
+ifndef TOOL_$(tool)_LINK_LIBRARY_CMDS
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(bld_trg)) \
+	4 $($(target)_TOOL) \
+	5 $($(source)TOOL) \
+	6 $($(source)TOOL.$(bld_trg)) \
+	7 $(TOOL.$(bld_trg)) \
+	8 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_LINK_LIBRARY_CMDS isn't defined! target=$(target) )
+endif
+
+# call the tool
+$(target)_CMDS_   := $(TOOL_$(tool)_LINK_LIBRARY_CMDS)
+$(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
+$(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
+$(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep)
+
+# generate the link rule.		
+$(eval $(def_link_rule))
 
 # installing and globals
 definst := $(PATH_LIB)
-typevar :=_LIBS
+typevar := _LIBS
 $(eval $(value def_target_install_pluss))
 endef
 
 # Process libraries
+mode := 0644
 $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(value def_lib)))
 
 
@@ -828,7 +940,7 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)), $(eval $(value def_
 # @param    $(EXT)      EXE,DLL,SYS.
 # @param    $(definst)  The default _INST value.
 # @param    $(typevar)  The name of the variable with all the root targets of its type.
-define def_link_prolog
+define def_link_common
 # basics
 bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
 bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
@@ -988,20 +1100,42 @@ INSTARGET_$(target) :=
 $(typevar)  += $(out)
 endif # NOINST
 
-endef
+# dependency file
+dep := $(outbase)$(SUFF_DEP)
+ifndef NO_LINK_CMDS_DEP
+_DEPFILES_INCLUDED += $(dep)
+$(if $(wildcard $(dep)),$(eval include $(dep)))
+endif
 
+# check that the tool is defined.
+ifndef TOOL_$(tool)_$(tool_do)_CMDS
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)TOOL.$(bld_trg)) \
+	2 $($(target)_$(source)TOOL) \
+	3 $($(target)_TOOL.$(bld_trg)) \
+	4 $($(target)_TOOL) \
+	5 $($(source)TOOL) \
+	6 $($(source)TOOL.$(bld_trg)) \
+	7 $(TOOL.$(bld_trg)) \
+	8 $(TOOL) )
+$(error kBuild: TOOL_$(tool)_$(tool_do)_CMDS isn't defined! target=$(target) )
+endif
 
-##
-# Typical link epilog.
-#
-# @param	$(target)   Normalized target name.
-# @param	$(out)      The output file.
-define def_link_epilog
+# call the tool
+$(target)_CMDS_   := $(TOOL_$(tool)_$(tool_do)_CMDS)
+$(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
+$(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
+$(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep)
 
-_INSTALLS    += $(INSTARGET_$(target))
+# generate the link rule.		
+$(eval $(def_link_rule))
+
+		
+# Update globals.
 _OBJS        += $($(target)_OBJS_)
-_OUT_FILES   += $(out)
+_OUT_FILES   += $($(target)_OUTPUT_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN)
+_INSTALLS    += $(INSTARGET_$(target))
 
 endef
 
@@ -1019,32 +1153,18 @@ ifndef $(target)_INST
 $(target)_NOINST := 1
 endif
 
-# prolog
-$(eval $(value def_link_prolog))
-
-# body
-ifndef TOOL_$(tool)_LINK_PROGRAM
-$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(bld_trg)) \
-	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(bld_trg)) \
-	4 $($(target)_TOOL) \
-	5 $(TOOL.$(bld_trg)) \
-	6 $(TOOL) )
-$(error kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
-endif
-$(eval $(TOOL_$(tool)_LINK_PROGRAM))
-
-# epilog
-$(eval $(value def_link_epilog))
+# do the usual stuff.
+$(eval $(value def_link_common))
 
 endef
 
 # Process build programs.
 EXT     := EXE
 EXTPRE  := HOST
+tool_do := LINK_PROGRAM
 definst := $(PATH_BIN)
 typevar := _BLDPROGS
+mode    := 0755
 bld_trg_base_var := PLATFORM
 $(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(value def_bldprog)))
 
@@ -1054,41 +1174,15 @@ $(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)), $(eval $(value def_
 # DLLS
 #
 
-## DLL (one).
-# @param    $(target)   Normalized target (program) name.
-define def_dll
-
-# prolog
-$(eval $(value def_link_prolog))
-
-# body
-ifndef TOOL_$(tool)_LINK_DLL
-$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(bld_trg)) \
-	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(bld_trg)) \
-	4 $($(target)_TOOL) \
-	5 $($(source)TOOL) \
-	6 $($(source)TOOL.$(bld_trg)) \
-	7 $(TOOL.$(bld_trg)) \
-	8 $(TOOL) )
-$(error kBuild: TOOL_$(tool)_LINK_DLL is not defined. target=$(target) )
-endif
-$(eval $(TOOL_$(tool)_LINK_DLL))
-
-# epilog
-$(eval $(value def_link_epilog))
-
-endef
-
 # Process dlls
 EXT     := DLL
 EXTPRE  :=
+tool_do := LINK_DLL
 definst := $(PATH_DLL)
 typevar := _DLLS
+mode    := 0755
 bld_trg_base_var := TARGET
-$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(value def_dll)))
-
+$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(value def_link_common)))
 
 
 #
@@ -1099,7 +1193,7 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(value def_dll)))
 ifeq ($(subst win32,os2,$(BUILD_TARGET)),os2)
 $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_lib)))
 else
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_dll)))
+$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_link_common)))
 endif
 $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), \
 	$(eval _IMPORT_LIBS += $(if $(INSTARGET_$(target)),$(INSTARGET_$(target)), $(TARGET_$(target)))))
@@ -1109,40 +1203,15 @@ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), \
 # PROGRAMS
 #
 
-## Program (one).
-# @param    $(target)   Normalized target (program) name.
-define def_program
-
-# prolog
-$(eval $(value def_link_prolog))
-
-# body
-ifndef TOOL_$(tool)_LINK_PROGRAM
-$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(bld_trg)) \
-	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(bld_trg)) \
-	4 $($(target)_TOOL) \
-	5 $($(source)TOOL) \
-	6 $($(source)TOOL.$(bld_trg)) \
-	7 $(TOOL.$(bld_trg)) \
-	8 $(TOOL) )
-$(error kBuild: TOOL_$(tool)_LINK_PROGRAM is not defined. target=$(target) )
-endif
-$(eval $(TOOL_$(tool)_LINK_PROGRAM))
-
-# epilog
-$(eval $(value def_link_epilog))
-
-endef
-
 # Process programs
 EXT     := EXE
 EXTPRE  :=
+tool_do := LINK_PROGRAM
 definst := $(PATH_BIN)
 typevar := _PROGRAMS
+mode    := 0755
 bld_trg_base_var := TARGET
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(value def_program)))
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(value def_link_common)))
 
 
 
@@ -1150,40 +1219,15 @@ $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)), $(eval $(value def_pr
 # SYSMODS
 #
 
-## System module (one).
-# @param    $(target)   Normalized target (program) name.
-define def_sysmod
-
-# prolog
-$(eval $(value def_link_prolog))
-
-# body
-ifndef TOOL_$(tool)_LINK_SYSMOD
-$(warning kBuild: tools: \
-	1 $($(target)_$(source)TOOL.$(bld_trg)) \
-	2 $($(target)_$(source)TOOL) \
-	3 $($(target)_TOOL.$(bld_trg)) \
-	4 $($(target)_TOOL) \
-	5 $($(source)TOOL) \
-	6 $($(source)TOOL.$(bld_trg)) \
-	7 $(TOOL.$(bld_trg)) \
-	8 $(TOOL) )
-$(error kBuild: TOOL_$(tool)_LINK_SYSMOD is not defined. target=$(target) )
-endif
-$(eval $(TOOL_$(tool)_LINK_SYSMOD))
-
-# epilog
-$(eval $(value def_link_epilog))
-
-endef
-
 # Process sysmods
 EXT     := SYS
 EXTPRE  :=
+tool_do := LINK_SYSMOD
 definst := $(PATH_SYS)
 typevar := _SYSMODS
+mode    := 0644
 bld_trg_base_var := TARGET
-$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(value def_sysmod)))
+$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)), $(eval $(value def_link_common)))
 
 
 #
@@ -1200,7 +1244,7 @@ _OTHERS = $(OTHERS) $(OTHERS.$(BUILD_TARGET))
 define def_install_src_rule
 # the install rule
 $(insdst) : $(srcsrc) | $(call DIRDEP,$(dir $(insdst)))
-	$$(RM) -f $$@
+	$$(if $$(filter $(INSTALL),$(inscmd)),,$$(RM) -f $$@)
 	$(inscmd)
 endef
 
@@ -1225,17 +1269,17 @@ endif
 
 # _INST
 ifdef $(srcsrc)_INST
-inst = $(srcsrc)_INST
+inst := $(patsubst %/,%,$($(srcsrc)_INST))/$(dir $(srcdst))
 else
 ifdef $(target)_INST
-inst = $(target)_INST
+inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(srcdst))
 else
-inst =
+inst := $(dir $(srcdst))
 endif
 endif
 
 # calc target
-insdst := $(call $(instfun),$(srcdst),$(target),$($(inst)),$(PATH_INS))
+insdst := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
 #$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) srcdst=$(srcsrc) inst=$(inst) => insdst=$(insdst))
 
 # create the command
@@ -1245,7 +1289,7 @@ else
 ifdef $(target)_INSTALLER
 inscmd := $(call $(target)_INSTALLER,$(srcsrc),$(insdst),$(target))
 else
-inscmd := $$(CP) $(srcsrc) $(insdst)
+inscmd := $$(INSTALL) $(srcsrc) $(insdst)
 endif
 endif
 
@@ -1261,20 +1305,20 @@ define def_install_symlink_rule
 # the install rule
 $(insdst) : | $(call DIRDEP,$(dir $(insdst)))
 	$$(RM) -f $$@
-	$$(LN_SYMLINK) $(srcsrc) $(insdst)
+	$$(LN_SYMLINK) $(symdst) $(insdst)
 endef
 
 ## create one symlink
 define def_install_symlink
 
 # deal with '=>' in the source file name.
-srcdst := $(subst =>, ,$(src))
-srcsrc := $(firstword $(srcdst))
-srcdst := $(word $(words $(srcdst)),$(srcdst))
+symdst := $(subst =>, ,$(src))
+symlnk := $(firstword $(symdst))
+symdst := $(word $(words $(symdst)),$(symdst))
 
 # _INSTFUN
-ifdef $(srcsrc)_INSTFUN
-instfun := $(srcsrc)_INSTFUN
+ifdef $(symlnk)_INSTFUN
+instfun := $(symlnk)_INSTFUN
 else
 ifdef $(target)_INSTFUN
 instfun := $(target)_INSTFUN
@@ -1284,25 +1328,86 @@ endif
 endif
 
 # _INST
-ifdef $(srcsrc)_INST
-inst = $(srcsrc)_INST
+ifdef $(symlnk)_INST
+inst := $(patsubst %/,%,$($(symlnk)_INST))/$(dir $(symlnk))
 else
 ifdef $(target)_INST
-inst = $(target)_INST
+inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(symlnk))
 else
-inst =
+inst := $(dir $(symlnk))
 endif
 endif
 
 # calc target
-insdst := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
-#$(warning srcsrc=$(srcsrc) srcdst=$(srcdst) insdst=$(insdst))
+insdst := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
+#$(warning symlnk=$(symlnk) symdst=$(symdst) insdst=$(insdst) instfun=$(instfun) inst='$(inst)')
 
 # generate the rule (need double evaluation here)
 $(eval $(def_install_symlink_rule))
 
 INSTARGET_$(target) += $(insdst)
 endef
+
+		
+## generate the install rule
+define def_install_directory_rule
+# the install rule
+$(insdst):
+	$(INSTALL) -d \
+		$(if $(uid),-o $(uid))\
+		$(if $(gid),-g $(gid))\
+		$(if $(mode),-m $(mode))\
+		$(insdst)
+		
+.NOTPARALLEL: $(insdst)	
+endef
+		
+
+## create one directory
+define def_install_directory
+
+# _INST
+ifdef $(directory)_INST
+inst := $(PATH_INS)/$(patsubst %/,%,$($(directory)_INST))
+else
+ifdef $(target)_INST
+inst := $(PATH_INS)/$(patsubst %/,%,$($(target)_INST))
+else
+inst := $(PATH_INS)
+endif
+endif
+
+mode := $(firstword \
+	$($(target)_$(directory)_MODE.$(bld_trg)) \
+	$($(target)_$(directory)_MODE) \
+	$($(directory)_MODE.$(bld_trg)) \
+	$($(directory)_MODE) \
+	$($(target)_MODE.$(bld_trg)) \
+	$($(target)_MODE))
+uid := $(firstword \
+	$($(target)_$(directory)_UID.$(bld_trg)) \
+	$($(target)_$(directory)_UID) \
+	$($(directory)_UID.$(bld_trg)) \
+	$($(directory)_UID) \
+	$($(target)_UID.$(bld_trg)) \
+	$($(target)_UID))
+gid := $(firstword \
+	$($(target)_$(directory)_GID.$(bld_trg)) \
+	$($(target)_$(directory)_GID) \
+	$($(directory)_GID.$(bld_trg)) \
+	$($(directory)_GID) \
+	$($(target)_GID.$(bld_trg)) \
+	$($(target)_GID))
+
+insdst := $(inst)/$(directory)/
+#$(warning directory=$(directory) inst=$(inst) insdst=$(insdst) mode=$(mode) gid=$(gid) uid=$(uid))
+
+# generate the rule (need double evaluation here)
+$(eval $(def_install_directory_rule))
+
+INSTARGET_DIRS_$(target) += $(insdst)
+endef
+
 
 ## process one install target.
 define def_install
@@ -1312,13 +1417,19 @@ bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
 
 INSTARGET_$(target) :=
+INSTARGET_DIRS_$(target) :=
+
+$(foreach directory,$($(target)_DIRS) $($(target)_DIRS.$(bld_trg)) $($(target)_DIRS.$(bld_trg_arch)) $($(target)_DIRS.$(bld_trg_cpu)) $($(target)_DIRS.$(bld_type)), \
+	$(eval $(value def_install_directory)))
+
 $(foreach src,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)), \
 	$(eval $(value def_install_src)))
 
 $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)_SYMLINKS.$(bld_trg_arch)) $($(target)_SYMLINKS.$(bld_trg_cpu)) $($(target)_SYMLINKS.$(bld_type)), \
 	$(eval $(value def_install_symlink)))
 
-_INSTALLS  += $(INSTARGET_$(target))
+_INSTALLS += $(INSTARGET_$(target)) $($(target)_GOALS)
+_INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 endef
 
 ## process all install targets
@@ -1341,6 +1452,8 @@ packing::
 # DIRECTORIES
 #
 _DIR_ALL := $(sort $(addsuffix /,$(patsubst %/,%,$(_DIRS))) $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS)))
+$(foreach directory,$(_INSTALLS_DIRS), $(eval _DIR_ALL := $(filter-out $(directory),$(_DIR_ALL))))
+
 
 define def_mkdir_rule
 $(directory):
@@ -1362,7 +1475,7 @@ do-nothing:
 # CLEAN UP
 #
 do-clean:
-	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_CLEAN_FILES) $(OTHER_CLEAN)
+	$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
 
 
 #
@@ -1434,7 +1547,7 @@ $(eval dep:=pass_$(pass)_doit)
 $(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET))   ,$(eval $(def_pass_subdir)))
 $(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET)) ,$(eval $(def_pass_makefile)))
 
-ifdef KBUILD_SAFE_PARALLELL
+ifdef KBUILD_SAFE_PARALLEL
 .NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this pass_$(pass)_doit
 pass_$(pass)_doit: 	    $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
@@ -1465,7 +1578,7 @@ $(foreach PASS, $(PASSES), \
 # @param	$(pass)		Current pass name.
 # @param	$(prev_pass)	The previous pass name.
 define def_pass_order
-ifdef KBUILD_SAFE_PARALLELL
+ifdef KBUILD_SAFE_PARALLEL
 .NOTPARALLEL: pass_$(pass)_order
 .PHONY: pass_$(pass)_order
 pass_$(pass)_order: $(pass_prev)
@@ -1500,11 +1613,14 @@ all_recursive: $(pass_prev)
 rebuild: clean
 	+ $(MAKE) -f $(firstword $(MAKEFILE_LIST)) all_recursive
 
+# @todo make this a non-default pass!		
 uninstall:
 	$(RM) -f $(_INSTALLS)
+	
+install: pass_installs
 
 # misc shortcuts.
-targets:   bldprogs libraries dlls programs sysmods others install
+targets:   bldprogs libraries dlls programs sysmods others installs
 objects:   $(_OBJS)
 bldprogs:  $(_BLDPROGS)
 libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
@@ -1512,7 +1628,7 @@ dlls:      $(_DLLS)
 programs:  $(_PROGRAMS)
 sysmods:   $(_SYSMODS)
 others:    $(_OTHERS)
-install:   $(_INSTALLS)
+installs:  $(_INSTALLS_DIRS) $(_INSTALLS)
 
 
 #
@@ -1531,7 +1647,7 @@ show_targets:
 	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
 	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
-$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE) OBJS_, \
+$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE) OBJS_ CLEAN, \
 	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
 	$(if $($(target)_$(prop).$(_tmp)),\
 		@$(ECHO) "  $(target)_$(prop).$(_tmp)=$($(target)_$(prop).$(_tmp))" $(NLTAB)) \

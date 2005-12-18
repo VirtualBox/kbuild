@@ -1,4 +1,4 @@
-# $Id: header.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -33,6 +33,11 @@ ifndef __header_kmk__
 all: all_recursive
 
 #
+# The FORCE rule.
+#
+FORCE:
+				
+#
 # Try avoid inference rules.
 #
 .SUFFIXES:
@@ -48,6 +53,28 @@ SUFFIXES :=
 # @param    $1	Word list.
 lastword = $(word $(words $(1)), $(1))
 
+##
+# Newline character(s).
+define NL
+
+
+endef
+
+##
+# Tab character.
+TAB := $(subst .,	,.)
+
+##
+# Space character.
+SP := $(subst ., ,.)
+
+##
+# Checks if two strings are equal.
+# @returns	blank if equal
+# @returns	non-blank if not equal.
+# @param    $1   String 1.
+# @param    $2   String 2
+STRCMP = $(
 
 #
 # Assert build type.
@@ -336,42 +363,103 @@ endif
 #
 # Standard kBuild tools.
 #
-DEP                 := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
-DEP_PRE             := $(PATH_TOOLS)/kDepPre$(HOSTSUFF_EXE)
 ifeq ($(MAKE),kmk)
-MAKE                := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
+MAKE        := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
 endif
 
-# Standard Unix shell utils
-ifdef KMK_BUILTIN
-ECHO                := kmk_builtin_echo
-MKDIR               := kmk_builtin_mkdir
-RM                  := kmk_builtin_rm
-CP                  := kmk_builtin_cp
+DEP_EXT     := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
+ifeq ($(filter kDep,$(KMK_BUILTIN)),kDep)
+DEP         := kmk_builtin_kDepPre
 else
-ECHO                := echo
-MKDIR               := $(PATH_TOOLS)/mkdir$(HOSTSUFF_EXE)
-RM                  := $(PATH_TOOLS)/rm$(HOSTSUFF_EXE)
-CP                  := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
-APPEND              := $(PATH_TOOLS)/append$(HOSTSUFF_EXE)
+DEP         := $(DEP_EXT)
 endif
-CP_EXT              := $(PATH_TOOLS)/cp$(HOSTSUFF_EXE)
-MV                  := $(PATH_TOOLS)/mv$(HOSTSUFF_EXE)
-SED                 := $(PATH_TOOLS)/sed$(HOSTSUFF_EXE)
-CAT                 := $(PATH_TOOLS)/cat$(HOSTSUFF_EXE)
-LN_SYMLINK          := $(CP)
-#LN_SYMLINK          := ln -s
-# Bourn shell clone.
-MAKESHELL           := $(PATH_TOOLS)/ash$(HOSTSUFF_EXE)
-SHELL               := $(MAKESHELL)
+
+DEP_PRE_EXT := $(PATH_TOOLS)/kDepPre$(HOSTSUFF_EXE)
+ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepPre)
+DEP_PRE     := $(if kmk_builtin_kDepPre
+else
+DEP_PRE     := $(DEP_PRE_EXT)
+endif
+
+APPEND_EXT  := $(PATH_TOOLS)/kmk_append$(HOSTSUFF_EXE)
+ifeq ($(filter append,$(KMK_BUILTIN)),append)
+APPEND      := kmk_builtin_append
+else
+APPEND      := $(APPEND_EXT)
+endif
+
+CAT_EXT     := $(PATH_TOOLS)/kmk_cat$(HOSTSUFF_EXE)
+ifeq ($(filter cat,$(KMK_BUILTIN)),cat)
+CAT         := kmk_builtin_cat
+else
+CAT         := $(CAT_EXT)
+endif
+
+CP_EXT      := $(PATH_TOOLS)/kmk_cp$(HOSTSUFF_EXE)
+ifeq ($(filter cp,$(KMK_BUILTIN)),cp)
+CP          := kmk_builtin_cp
+else
+CP          := $(CP_EXT)
+endif
+
+ECHO_EXT    := $(PATH_TOOLS)/kmk_echo$(HOSTSUFF_EXE)
+ifeq ($(filter echo,$(KMK_BUILTIN)),echo)
+ECHO        := kmk_builtin_echo
+else
+ECHO        := $(ECHO_EXT)
+endif
+
+INSTALL_EXT := $(PATH_TOOLS)/kmk_install$(HOSTSUFF_EXE)
+ifeq ($(filter install,$(KMK_BUILTIN)),install)
+INSTALL     := kmk_builtin_install
+else
+INSTALL     := $(INSTALL_EXT)
+endif
+
+LN_EXT      := $(PATH_TOOLS)/kmk_ln$(HOSTSUFF_EXE)
+ifeq ($(filter ln,$(KMK_BUILTIN)),ln)
+LN          := kmk_builtin_ln
+else
+LN          := $(LN_EXT)
+endif
+
+MKDIR_EXT   := $(PATH_TOOLS)/kmk_mkdir$(HOSTSUFF_EXE)
+ifeq ($(filter mkdir,$(KMK_BUILTIN)),mkdir)
+MKDIR       := kmk_builtin_mkdir
+else
+MKDIR       := $(MKDIR_EXT)
+endif
+
+MV_EXT      := $(PATH_TOOLS)/kmk_mv$(HOSTSUFF_EXE)
+ifeq ($(filter mv,$(KMK_BUILTIN)),mv)
+MV          := kmk_builtin_mv
+else
+MV          := $(MV_EXT)
+endif
+
+RM_EXT      := $(PATH_TOOLS)/kmk_rm$(HOSTSUFF_EXE)
+ifeq ($(filter rm,$(KMK_BUILTIN)),rm)
+RM          := kmk_builtin_rm
+else
+RM          := $(RM_EXT)
+endif
+
+SED_EXT     := $(PATH_TOOLS)/kmk_sed$(HOSTSUFF_EXE)
+ifeq ($(filter sed,$(KMK_BUILTIN)),sed)
+SED         := kmk_builtin_sed
+else
+SED         := $(SED_EXT)
+endif
+
+# Our default shell is the Almquist shell from *BSD.
+ASH         := $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)
+MAKESHELL   := $(ASH)
+SHELL       := $(ASH)
 export SHELL MAKESHELL
 
-# kBuild utils.
-ifeq ($(filter append,$(KMK_BUILTIN)),append)
-APPEND              := kmk_builtin_append
-else
-APPEND              := $(PATH_TOOLS)/append$(HOSTSUFF_EXE)
-endif
+# Symlinking is problematic on some platforms...			
+LN_SYMLINK  := $(LN) -s
+
 
 
 #
@@ -538,7 +626,7 @@ PASS_OTHERS_pass    := others
 # This pass installs the built entities to a sandbox area.
 PASS_INSTALLS       := Install
 PASS_INSTALLS_trgs  :=
-PASS_INSTALLS_vars  := _INSTALLS
+PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS
 PASS_INSTALLS_pass  := installs
 
 ## PASS: packing
