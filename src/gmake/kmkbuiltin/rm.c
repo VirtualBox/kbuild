@@ -45,18 +45,18 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #ifndef _MSC_VER
 #include <sys/param.h>
 #include <sys/mount.h>
-#endif 
+#endif
 
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
 #ifdef DO_RMTREE
 #include <fts.h>
-#endif 
+#endif
 #ifndef _MSC_VER
 #include <grp.h>
 #include <pwd.h>
-#endif 
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,9 +108,11 @@ kmk_builtin_rm(int argc, char *argv[])
 	int ch, rflag;
 	char *p;
 
+        /* reinitialize globals */
         argv0 = argv[0];
         dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
         uid = 0;
+
         /* kmk: reset getopt and set program name. */
         g_progname = argv[0];
         opterr = 1;
@@ -143,9 +145,9 @@ kmk_builtin_rm(int argc, char *argv[])
 		rm_file(&argv[0]);
 		return eval;
 	}
-#else   
+#else
         (void)p;
-#endif 
+#endif
 	Pflag = rflag = 0;
 	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
 		switch(ch) {
@@ -349,7 +351,7 @@ rm_tree(char **argv)
     					chmod(p->fts_accpath, 0777);
 					rval = unlink(p->fts_accpath);
 				}
-#endif 
+#endif
 
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
@@ -434,7 +436,7 @@ rm_file(char **argv)
     					chmod(f, 0777);
 					rval = unlink(f);
 				}
-#endif 
+#endif
 			}
 		}
 		if (rval && (!fflag || errno != ENOENT)) {

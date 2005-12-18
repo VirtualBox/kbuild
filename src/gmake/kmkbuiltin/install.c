@@ -140,6 +140,25 @@ kmk_builtin_install(int argc, char *argv[])
 	char *flags;
 	const char *group, *owner, *to_name;
 
+        /* reinitialize globals */
+        mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+        suffix = BACKUP_SUFFIX;
+        gid = 0;
+        uid = 0;
+        dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = 0;
+
+        /* reset getopt and set progname. */
+        g_progname = argv[0];
+        opterr = 1;
+        optarg = NULL;
+        optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__)
+        optreset = 1;
+        optind = 1;
+#else
+        optind = 0; /* init */
+#endif
+
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:o:pSsv")) != -1)
