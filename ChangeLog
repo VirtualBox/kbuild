@@ -1,4 +1,4 @@
-/* $Id: ChangeLog 372 2005-12-18 03:57:36Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 373 2005-12-18 04:10:48Z knut.osmundsen@oracle.com $ */
 
 2005-12-18: bird
     - src/gmake/kmkbuiltin/*, src/gmake/kmkbuiltin.c,
@@ -6,6 +6,7 @@
       src/gmake/Makefile.kmk:
         o Ported all the builtins to windows - now rebuild works again!
         o Fixed a few error case bugs in the builtins.
+        o Disabled the -R and -r options for rm and cp.
         o Added kmk_install / kmk_builtin_install from BSD.
 
 2005-12-13: bird
