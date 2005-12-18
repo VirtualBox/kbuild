@@ -37,20 +37,26 @@ static char const copyright[] =
 #ifndef lint
 static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 #endif /* not lint */
-#endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
+#endif /* no $id */
 
+#ifndef _MSC_VER
 #include <sys/param.h>
+#endif 
 #include <sys/stat.h>
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#endif 
 
 static int	fflag;				/* Unlink existing files. */
 static int	hflag;				/* Check new name for symlink first. */
@@ -62,7 +68,8 @@ static int (*linkf)(const char *, const char *);
 static char	linkch;
 
 static int	linkit(const char *, const char *, int);
-static void	usage(void);
+static int	usage(void);
+
 
 int
 kmk_builtin_ln(int argc, char *argv[])
@@ -71,6 +78,19 @@ kmk_builtin_ln(int argc, char *argv[])
 	char *p, *sourcedir;
 	int ch, exitval;
 
+        /* kmk: reset getopt() and set program name. */
+        g_progname = argv[0];
+        opterr = 1;
+        optarg = NULL;
+        optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__)
+        optreset = 1;
+        optind = 1;
+#else
+        optind = 0; /* init */
+#endif 
+
+#if 0 /* kmk: we don't need this. */
 	/*
 	 * Test for the special case where the utility is called as
 	 * "link", for which the functionality provided is greatly
@@ -82,14 +102,18 @@ kmk_builtin_ln(int argc, char *argv[])
 		++p;
 	if (strcmp(p, "link") == 0) {
 		while (getopt(argc, argv, "") != -1)
-			usage();
+			return usage();
 		argc -= optind;
 		argv += optind;
 		if (argc != 2)
-			usage();
+			return usage();
 		linkf = link;
-		exit(linkit(argv[0], argv[1], 0));
+		return linkit(argv[0], argv[1], 0);
 	}
+#else
+        (void)p;
+#endif
+        
 
 	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
 		switch (ch) {
@@ -113,7 +137,7 @@ kmk_builtin_ln(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 
 	argv += optind;
@@ -124,12 +148,12 @@ kmk_builtin_ln(int argc, char *argv[])
 
 	switch(argc) {
 	case 0:
-		usage();
+		return usage();
 		/* NOTREACHED */
 	case 1:				/* ln target */
-		exit(linkit(argv[0], ".", 1));
+		return linkit(argv[0], ".", 1);
 	case 2:				/* ln target source */
-		exit(linkit(argv[0], argv[1], 0));
+		return linkit(argv[0], argv[1], 0);
 	default:
 		;
 	}
@@ -141,18 +165,18 @@ kmk_builtin_ln(int argc, char *argv[])
 		 * the target--simulate "not a directory" error
 		 */
 		errno = ENOTDIR;
-		err(1, "%s", sourcedir);
+		return err(1, "%s", sourcedir);
 	}
 	if (stat(sourcedir, &sb))
-		err(1, "%s", sourcedir);
+		return err(1, "%s", sourcedir);
 	if (!S_ISDIR(sb.st_mode))
-		usage();
+		return usage();
 	for (exitval = 0; *argv != sourcedir; ++argv)
 		exitval |= linkit(*argv, sourcedir, 1);
-	exit(exitval);
+	return exitval;
 }
 
-int
+static int
 linkit(const char *target, const char *source, int isdir)
 {
 	struct stat sb;
@@ -232,12 +256,12 @@ linkit(const char *target, const char *source, int isdir)
 	return (0);
 }
 
-void
+static int
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: ln [-fhinsv] source_file [target_file]",
 	    "       ln [-fhinsv] source_file ... target_dir",
 	    "       link source_file target_file");
-	exit(1);
+	return 1;
 }

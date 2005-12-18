@@ -675,11 +675,7 @@ define_automatic_variables (void)
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* The supported kMk Builtin commands. */
-#ifdef _MSC_VER
-  (void) define_variable ("KMK_BUILTIN", 11, "append echo mkdir", o_default, 0);
-#else
   (void) define_variable ("KMK_BUILTIN", 11, "append cp echo install ln mkdir rm", o_default, 0);
-#endif
 #endif
 
 #ifdef  __MSDOS__

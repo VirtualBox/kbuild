@@ -1,4 +1,4 @@
-/* $Id: append.c 348 2005-12-11 05:13:13Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 370 2005-12-18 03:48:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
+#include "err.h"
 #include "kmkbuiltin.h"
 
 /**
@@ -37,21 +37,20 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int i;
     FILE *pFile;
 
+    g_progname = argv[0];
+
     /*
      * Open the output file.
      */
     if (argc <= 1)
     {
-        fprintf(stderr, "append: missing filename!\n");
+        errx(1, "missing filename!");
         fprintf(stderr, "usage: append file [string ...]\n");
         return 1;
     }
     pFile = fopen(argv[1], "a");
     if (!pFile)
-    {
-        fprintf(stderr, "append: failed to open '%s': %s\n", argv[1], strerror(errno));
-        return 1;
-    }
+        return err(1, "failed to open '%s'.", argv[1]);
 
     /*
      * Append the argument strings to the file
@@ -71,15 +70,11 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     if (    fputc('\n', pFile) == EOF
         ||  ferror(pFile))
     {
-        fprintf(stderr, "append: error writing to '%s'!\n", argv[1]);
         fclose(pFile);
-        return 1;
+        return errx(1, "error writing to '%s'!", argv[1]);
     }
     if (fclose(pFile))
-    {
-        fprintf(stderr, "append: failed to fclose '%s': %s\n", argv[1], strerror(errno));
-        return 1;
-    }
+        return err(1, "failed to fclose '%s'!", argv[1]);
     return 0;
 }
 

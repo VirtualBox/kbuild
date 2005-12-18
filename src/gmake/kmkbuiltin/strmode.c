@@ -33,13 +33,17 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 //__FBSDID("$FreeBSD: src/lib/libc/string/strmode.c,v 1.4 2002/03/21 18:44:54 obrien Exp $");
+#endif /* LIBC_SCCS and not lint */
+
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
+#ifdef _MSC_VER
+#include "mscfakes.h"
+#endif 
 
 void
 strmode(mode, p)
@@ -54,18 +58,24 @@ strmode(mode, p)
 	case S_IFCHR:			/* character special */
 		*p++ = 'c';
 		break;
+#ifdef S_IFBLK
 	case S_IFBLK:			/* block special */
 		*p++ = 'b';
 		break;
+#endif 
 	case S_IFREG:			/* regular */
 		*p++ = '-';
 		break;
+#ifndef _MSC_VER
 	case S_IFLNK:			/* symbolic link */
 		*p++ = 'l';
 		break;
+#endif
+#ifdef S_IFSOCK
 	case S_IFSOCK:			/* socket */
 		*p++ = 's';
 		break;
+#endif 
 #ifdef S_IFIFO
 	case S_IFIFO:			/* fifo */
 		*p++ = 'p';
@@ -135,19 +145,25 @@ strmode(mode, p)
 		*p++ = 'w';
 	else
 		*p++ = '-';
+#ifdef S_ISVTX
 	switch (mode & (S_IXOTH | S_ISVTX)) {
+#else
+        switch (mode & (S_IXOTH)) {
+#endif
 	case 0:
 		*p++ = '-';
 		break;
 	case S_IXOTH:
 		*p++ = 'x';
 		break;
+#ifdef S_ISVTX
 	case S_ISVTX:
 		*p++ = 'T';
 		break;
 	case S_IXOTH | S_ISVTX:
 		*p++ = 't';
 		break;
+#endif 
 	}
 	*p++ = ' ';		/* will be a '+' if ACL's implemented */
 	*p = '\0';
