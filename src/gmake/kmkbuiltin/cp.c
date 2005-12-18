@@ -64,9 +64,9 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 
 #include "err.h"
 #include <errno.h>
-#ifdef DO_CP_TREE
+#ifndef _MSC_VER
 #include <fts.h>
-#endif 
+#endif
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>

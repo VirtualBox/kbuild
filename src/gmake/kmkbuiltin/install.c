@@ -105,6 +105,10 @@ extern mode_t getmode(const void *bbox, mode_t omode);
 # define O_BINARY 0
 #endif
 
+#ifndef EFTYPE
+# define EFTYPE EINVAL
+#endif 
+
 static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
@@ -856,7 +860,8 @@ strip(const char *to_name)
 		if (wait(&status) == -1 || status) {
 			serrno = errno;
 			(void)unlink(to_name);
-			errc(EX_SOFTWARE, serrno, "wait");
+                        errno = serrno;
+			err(EX_SOFTWARE, "wait");
 			/* NOTREACHED */
 		}
 	}
