@@ -1,4 +1,4 @@
-# $Id: ALP.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
@@ -54,17 +54,15 @@ TOOL_ALP_ASFLAGS             := -Mb
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-define TOOL_ALP_COMPILE_AS
-#$ (warning dbg: TOOL_ALP_COMPILE_AS: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj) $(outbase).lst: $(deps) $(source) | $(dirdep)
-	$(call MSG_L2,Compiling $$@ using ALP)
-	$(TOOL_ALP_AS) \
+TOOL_ALP_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_ALP_COMPILE_AS_DEPEND = 
+TOOL_ALP_COMPILE_AS_DEPORD = 
+define TOOL_ALP_COMPILE_AS_CMDS
+	$(TOOL_ALP_AS)\
 		$(flags) $(addsuffix /,$(addprefix -I:, $(incs))) $(addprefix -D:, $(defs))\
-		$(source) \
-		-Fl:$(outbase).lst \
-		-Fd:$(dep) \
+		$(source)\
+		-Fl:$(outbase).lst\
+		-Fd:$(dep)\
 		-Fo:$(obj)
-_OUT_FILES += $(outbase).lst
-
 endef
 

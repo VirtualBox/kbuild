@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 353 2005-12-12 03:36:07Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
@@ -105,19 +105,17 @@ TOOL_MINGW32_DLLTOOL            := $(_TOOL_MINGW32_PREFIX)dlltool$(_TOOL_MINGW32
 # @param    $(incs)     Includes. No -I or something.
 # @param    $(dirdep)   Directory creation dependency.
 # @param    $(deps)		Other dependencies.
-#
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-define TOOL_MINGW32_COMPILE_C
-#$ (warning dbg: TOOL_MINGW32_COMPILE_C: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(deps) $(source) | $(dirdep)
-	$(call MSG_L2,Compiling $$@ using MINGW32)
+TOOL_MINGW32_COMPILE_C_OUTPUT =
+TOOL_MINGW32_COMPILE_C_DEPEND =
+TOOL_MINGW32_COMPILE_C_DEPORD =
+define TOOL_MINGW32_COMPILE_C_CMDS
 	$(TOOL_MINGW32_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
-		-o $$@\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj)\
+		-o $(obj)\
 		$(call ABSPATH,$(source))
-
 endef
 
 
@@ -131,19 +129,17 @@ endef
 # @param    $(incs)     Includes. No -I or something.
 # @param    $(dirdep)   Directory creation dependency.
 # @param    $(deps)     Other dependencies.
-#
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-define TOOL_MINGW32_COMPILE_CXX
-#$ (warning dbg: TOOL_MINGW32_COMPILE_CXX: target=$(target) source=$(source) obj=$(obj) dep=$(dep) flags=$(flags) defs=$(defs) incs=$(incs) dirdep=$(dirdep) outbase=$(outbase) objsuff=$(objsuff) deps=$(deps))
-$(obj): $(deps) $(source) | $(dirdep)
-	$(call MSG_L2,Compiling $$@ using MINGW32)
+TOOL_MINGW32_COMPILE_CXX_OUTPUT =
+TOOL_MINGW32_COMPILE_CXX_DEPEND =
+TOOL_MINGW32_COMPILE_CXX_DEPORD =
+define TOOL_MINGW32_COMPILE_CXX_CMDS
 	$(TOOL_MINGW32_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Wp,-MD,$(dep) -Wp,-MT,$$@ \
-		-o $$@\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj)\
+		-o $(obj)\
 		$(call ABSPATH,$(source))
-
 endef
 
 
@@ -156,13 +152,18 @@ endef
 # @param    $(deps)     Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-define TOOL_MINGW32_LINK_LIBRARY
-#$ (warning dbg: TOOL_MINGW32_LINK_LIBRARY: target=$(target) lib=$(lib) objs=$(objs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) outbase=$(outbase))
-$(lib): $(deps) $(objs) | $(dirdep)
-	$(call MSG_L1,Creating Library $$@)
-	$(RM) -f $$@
-	$(TOOL_MINGW32_AR) $(flags) $$@ $(objs)
-
+TOOL_MINGW32_LINK_LIBRARY_OUTPUT = $(lib).ar-script
+TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(filter %.a %.lib,$(othersrc))
+TOOL_MINGW32_LINK_LIBRARY_DEPORD =
+define TOOL_MINGW32_LINK_LIBRARY_CMDS
+	$(APPEND) $(lib).ar-script "CREATE $(out)"
+	$(foreach o, $(objs)\
+		,$(NL)$(TAB)$(APPEND) $(lib).ar-script "ADDMOD $(o)")
+	$(foreach srclib, $(filter %.a %.lib,$(othersrc))\
+		,$(NL)$(TAB)$(APPEND) $(lib).ar-script "ADDLIB $(srclib)")
+	$(APPEND) $(lib).ar-script "SAVE"
+	$(APPEND) $(lib).ar-script "END"
+	$(TOOL_MINGW32_AR) -M < $(lib).ar-script
 endef
 
 
@@ -180,20 +181,13 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-define TOOL_MINGW32_LINK_PROGRAM
-#$ (warning dbg: TOOL_MINGW32_LINK_PROGRAM: target=$(target) out=$(out) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) deffile=$(deffile) outbase=$(outbase))
-$(out): $(deps) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
-	$(call MSG_L1,Creating Program $$@)
-ifneq ($(custom_pre),)
-	$(eval $(custom_pre))
-endif
-	$(TOOL_MINGW32_LD) $(flags) -o $$@ $(objs) \
-	$(foreach p,$(libpath), -L$(p)) \
-	$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
-ifneq ($(custom_post),)
-	$(eval $(custom_post))
-endif
-
+TOOL_MINGW32_LINK_PROGRAM_OUTPUT =
+TOOL_MINGW32_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
+TOOL_MINGW32_LINK_PROGRAM_DEPORD =
+define TOOL_MINGW32_LINK_PROGRAM_CMDS
+	$(TOOL_MINGW32_LD) $(flags) -o $(out) $(objs)\
+		$(foreach p,$(libpath), -L$(p))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 endef
 
 
@@ -209,32 +203,21 @@ endef
 # @param    $(othersrc)     Unhandled sources.
 # @param    $(custom_pre)   Custom step invoked before linking.
 # @param    $(custom_post)  Custom step invoked after linking.
-#
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-define TOOL_MINGW32_LINK_DLL
-#$ (warning dbg: TOOL_MINGW32_LINK_DLL: target=$(target) out=$(out) objs=$(objs) libs=$(libs) deps=$(deps) flags=$(flags) dirdep=$(dirdep) othersrc=$(othersrc) outbase=$(outbase))
-$(out) $(outbase).a $(outbase).exp: \
-		$(deps) $(call DIRDEP,$(PATH_LIB)) $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) | $(dirdep)
-	$(call MSG_L1,Creating Program $$@)
-ifneq ($(custom_pre),)
-	$(eval $(custom_pre))
-endif
-	$(TOOL_MINGW32_DLLWRAP) $(flags) \
-		--dllname=$(out) \
-		--output-exp=$(outbase).exp \
-		--output-lib=$(outbase).a \
-		$(foreach def,$(filter %.def,$(othersrc)), --def $(def)) \
-		$(filter %.res,$(othersrc)) \
-		$(objs) \
-		$(foreach p,$(libpath), -L$(p)) \
+TOOL_MINGW32_LINK_DLL_OUTPUT = $(outbase).a $(outbase).exp
+TOOL_MINGW32_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))\
+	$(filter %.def %.res,$(othersrc))
+TOOL_MINGW32_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB)) 
+define TOOL_MINGW32_LINK_DLL_CMDS
+	$(TOOL_MINGW32_DLLWRAP) $(flags)\
+		--dllname=$(out)\
+		--output-exp=$(outbase).exp\
+		--output-lib=$(outbase).a\
+		$(foreach def,$(filter %.def,$(othersrc)), --def $(def))\
+		$(filter %.res,$(othersrc))\
+		$(objs)\
+		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
-ifeq ($(filter %.exp .def,$(othersrc)),)
 	$(CP) $(outbase).exp $(outbase).a $(PATH_LIB)/
-endif
-ifneq ($(custom_post),)
-	$(eval $(custom_post))
-endif
-_OUT_FILES += $(outbase).a $(outbase).exp
-
 endef
-
+## @todo seperate install stuff!
