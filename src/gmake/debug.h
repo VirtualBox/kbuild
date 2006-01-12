@@ -30,13 +30,22 @@ Boston, MA 02111-1307, USA.  */
 
 extern int db_level;
 
+extern unsigned int makelevel;
+extern unsigned int job_slots;
+extern unsigned int job_slots_used;
+
+
+#define DB_HDR()    do { printf ("[%u:%u/%u]", makelevel, job_slots_used, job_slots); } while (0)
+
 #define ISDB(_l)    ((_l)&db_level)
 
-#define DBS(_l,_x)  do{ if(ISDB(_l)) {print_spaces (depth); \
+#define DBS(_l,_x)  do{ if(ISDB(_l)) {DB_HDR(); \
+                                      print_spaces (depth); \
                                       printf _x; fflush (stdout);} }while(0)
 
-#define DBF(_l,_x)  do{ if(ISDB(_l)) {print_spaces (depth); \
+#define DBF(_l,_x)  do{ if(ISDB(_l)) {DB_HDR(); \
+                                      print_spaces (depth); \
                                       printf (_x, file->name); \
                                       fflush (stdout);} }while(0)
 
-#define DB(_l,_x)   do{ if(ISDB(_l)) {printf _x; fflush (stdout);} }while(0)
+#define DB(_l,_x)   do{ if(ISDB(_l)) {DB_HDR(); printf _x; fflush (stdout);} }while(0)
