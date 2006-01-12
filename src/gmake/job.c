@@ -1457,7 +1457,7 @@ static int
 start_waiting_job (struct child *c)
 {
   struct file *f = c->file;
-  DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x\n"), c, c->file->name, c->file->command_flags));
+  DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x slots=%d/%d\n"), c, c->file->name, c->file->command_flags, job_slots_used, job_slots));
 
   /* If we can start a job remotely, we always want to, and don't care about
      the local load average.  We record that the job should be started
@@ -1471,7 +1471,7 @@ start_waiting_job (struct child *c)
       (not_parallel || (c->file->command_flags & COMMANDS_NOTPARALLEL) || load_too_high ()))
     {
       /* Put this child on the chain of children waiting for the load average
-         to go down. if not paralell, put it last.  */
+         to go down. if not parallel, put it last.  */
       set_command_state (f, cs_running);
       c->next = waiting_jobs;
       if (c->next && (c->file->command_flags & COMMANDS_NOTPARALLEL))
@@ -1503,9 +1503,9 @@ start_waiting_job (struct child *c)
     {
     case cs_running:
       c->next = children;
-      DB (DB_JOBS, (_("Putting child 0x%08lx (%s) PID %ld%s on the chain.\n"),
+      DB (DB_JOBS, (_("Putting child 0x%08lx (%s) PID %ld%s on the chain. (%u/%u)\n"),
                     (unsigned long int) c, c->file->name,
-                    (long) c->pid, c->remote ? _(" (remote)") : ""));
+                    (long) c->pid, c->remote ? _(" (remote)") : "", job_slots_used + 1, job_slots));
       children = c;
       /* One more job slot is in use.  */
       ++job_slots_used;
@@ -1774,7 +1774,7 @@ new_job (struct file *file)
      (This will notice if there are in fact no commands.)  */
   (void) start_waiting_job (c);
 
-  if (job_slots == 1 || not_parallel < 0)
+  if (job_slots == 1 || not_parallel > 0)
     /* Since there is only one job slot, make things run linearly.
        Wait for the child to die, setting the state to `cs_finished'.  */
     while (file->command_state == cs_running)
