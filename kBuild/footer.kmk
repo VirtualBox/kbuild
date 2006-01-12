@@ -1,4 +1,4 @@
-# $Id: footer.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 388 2006-01-12 04:04:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1556,14 +1556,14 @@ pass_$(pass)_this:      pass_$(pass)_before
 pass_$(pass)_after::    pass_$(pass)_this
 pass_$(pass):           pass_$(pass)_after
 else
-.NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after
+.NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
 pass_$(pass)_doit: pass_$(pass)_before \
 		$(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var)))
 pass_$(pass): \
 		pass_$(pass)_before \
 		pass_$(pass)_doit \
-		pass_$(pass)_after
+        pass_$(pass)_after
 endif
 
 #$ (warning pass=$(pass) PASS=$(PASS): $(PASS_$(PASS)_trgs) $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var))))
@@ -1586,7 +1586,7 @@ pass_$(pass)_order: $(pass_prev)
 	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
 else
 .NOTPARALLEL: pass_$(pass)_order pass_$(pass)_banner
-.PHONY: pass_$(pass)_order pass_$(pass)_banner
+.PHONY:       pass_$(pass)_order pass_$(pass)_banner
 pass_$(pass)_banner:
 	$(call MSG_L1,Pass - $(if $(PASS_$(PASS)),$(PASS_$(PASS)),$(pass)))
 pass_$(pass)_order: \
