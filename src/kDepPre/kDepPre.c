@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 343 2005-12-11 04:02:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 384 2006-01-12 04:01:09Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -661,10 +661,104 @@ static int ParseCPrecompiler(FILE *pInput)
 }
 
 
+/**
+ * Make an attempt at parsing a Visual C++ IDB file.
+ */
+static int ParseVCxxIDB(FILE *pInput, const char *argv0)
+{
+    char       *pbFile;
+    long        cbFile;
+    int         rc = 0;
+
+    /*
+     * Figure out file size.
+     */
+    if (    fseek(pInput, 0, SEEK_END) < 0
+        ||  (cbFile = ftell(pInput)) < 0
+        ||  fseek(pInput, 0, SEEK_SET))
+    {
+        fprintf(stderr, "%s: error: Failed to determin file size of the Visual C++ IDB file.\n", argv0);
+        return -1;
+    }
+
+    /*
+     * Allocate memory and read the file.
+     */
+    pbFile = (char *)malloc(cbFile + 1);
+    if (!pbFile)
+    {
+        fprintf(stderr, "%s: error: Failed to allocate %ld bytes of memory for the Visual C++ IDB file.\n", argv0, cbFile);
+        return -1;
+    }
+    if (fread(pbFile, cbFile, 1, pInput))
+    {
+        const char *pszPrefix = NULL;
+        int         cchPrefix = 0;
+        pbFile[cbFile] = '\0';
+
+        /*
+         * Check the header.
+         */
+        if (!strncmp(pbFile, "Microsoft C/C++ MSF 7.", sizeof("Microsoft C/C++ MSF 7.") - 1))
+        {
+            pszPrefix = "/mr/inversedeps/";
+            cchPrefix = sizeof("/mr/inversedeps/") - 1;
+        }
+        else if (!strncmp(pbFile, "Microsoft C/C++ program database 2.", sizeof("Microsoft C/C++ program database 2.") - 1))
+        {
+            pszPrefix = "/ipm/header/";
+            cchPrefix = sizeof("/ipm/header/") - 1;
+        }
+        if (pszPrefix)
+        {
+            /*
+             * Do a brute force scan of the file until we encounter "\0/mr/inversedeps/" (which is the 
+             * vc70 and vc80 prefix) or "\0/ipm/header/" (which is the vc60 prefix).
+             * (This is highly experimental and I've no idea about the actual format of the file.)
+             */
+            char *pb = pbFile;
+            long cbLeft = cbFile;
+            while (cbLeft > cchPrefix + 3)
+            {
+                /** @todo use memchr? */
+                if (    *pb != *pszPrefix
+                    ||   strncmp(pb, pszPrefix, cchPrefix))
+                {
+                    pb++;
+                    cbLeft--;
+                }
+                else
+                {
+                    const char *psz = &pb[cchPrefix];
+                    size_t      cch = strlen(psz);
+                    depAdd(psz, cch);
+                    //printf("dep='%s'\n", psz);
+                    pb += cch + cchPrefix;
+                    cbLeft -= cch + cchPrefix;
+                }
+            }
+        }
+        else
+        {
+            fprintf(stderr, "%s: error: Doesn't recognize the header of the Visual C++ IDB file.\n", argv0, cbFile);
+            rc = 1;
+        }
+    }
+    else
+    {
+        fprintf(stderr, "%s: error: Failed to allocate %ld bytes of memory for the Visual C++ IDB file.\n", argv0, cbFile);
+        rc = 1;
+    }
+
+    return rc;
+}
+
+
 static void usage(const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> >\n", argv0);
+    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> | -i <vc idb-file> >\n", argv0);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -680,6 +774,7 @@ int main(int argc, char *argv[])
     int         fFixCase = 0;
     /* Argument parsing. */
     int         fInput = 0;             /* set when we've found input argument. */
+    int         fIDBMode = 0;
 
     /*
      * Parse arguments.
@@ -794,6 +889,27 @@ int main(int argc, char *argv[])
                 }
 
                 /*
+                 * IDB input.
+                 */
+                case 'i':
+                {
+                    if (++i >= argc)
+                    {
+                        fprintf(stderr, "%s: syntax error: The '-i' argument is missing IDB filename.\n", argv[0]);
+                        return 1;
+                    }
+                    pInput = fopen(argv[i], "rb");
+                    if (!pInput)
+                    {
+                        fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
+                        return 1;
+                    }
+                    fInput = 1;
+                    fIDBMode = 1;
+                    break;
+                }
+
+                /*
                  * Fix case.
                  */
                 case 'f':
@@ -876,7 +992,10 @@ int main(int argc, char *argv[])
     /*
      * Do the parsing.
      */
-    i = ParseCPrecompiler(pInput);
+    if (!fIDBMode)
+        i = ParseCPrecompiler(pInput);
+    else
+        i = ParseVCxxIDB(pInput, argv[0]);
 
     /*
      * Reap child.
