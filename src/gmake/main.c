@@ -2683,9 +2683,11 @@ define_makeflags (int all, int makefile)
 		       && (*(unsigned int *) cs->value_ptr ==
 			   *(unsigned int *) cs->noarg_value))
 		ADD_FLAG ("", 0); /* Optional value omitted; see below.  */
+#if !defined(KMK) || defined(MAKE_JOBSERVER) /* Win32 doesn't have a job server, but we really do want jobs despite the risks. */
 	      else if (cs->c == 'j')
 		/* Special case for `-j'.  */
 		ADD_FLAG ("1", 1);
+#endif
 	      else
 		{
 		  char *buf = (char *) alloca (30);
