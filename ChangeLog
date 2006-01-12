@@ -1,8 +1,10 @@
-/* $Id: ChangeLog 383 2006-01-12 04:00:23Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 385 2006-01-12 04:01:57Z knut.osmundsen@oracle.com $ */
 
 2006-01-12: bird
     - src/gmake/job.c:
         o Fixed bad parallel bug.
+    - src/kDepPre/kDepPre.c:
+        o Added extremely rough support for VC++ IDB files (/FD + /Fd).
 
 2005-12-18: bird
     - kBuild/*.kmk, kBuild/tools/*.kmk:
