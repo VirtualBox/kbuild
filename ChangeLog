@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 387 2006-01-12 04:03:28Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 389 2006-01-12 04:05:41Z knut.osmundsen@oracle.com $ */
 
 2006-01-12: bird
+    - kBuild/footer.kmk:
+        o Parallel build fixing.
     - src/gmake/job.c:
         o Fixed bad parallel bug.
     - src/gmake/main.c:
