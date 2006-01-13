@@ -1,4 +1,4 @@
-# $Id: header.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 397 2006-01-13 00:51:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -369,9 +369,16 @@ endif
 
 DEP_EXT     := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
 ifeq ($(filter kDep,$(KMK_BUILTIN)),kDep)
-DEP         := kmk_builtin_kDepPre
+DEP         := kmk_builtin_kDep
 else
 DEP         := $(DEP_EXT)
+endif
+
+DEP_IDB_EXT := $(PATH_TOOLS)/kDepIDB$(HOSTSUFF_EXE)
+ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepIDB)
+DEP_IDB     := $(if kmk_builtin_kDepIDB
+else
+DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
 DEP_PRE_EXT := $(PATH_TOOLS)/kDepPre$(HOSTSUFF_EXE)
