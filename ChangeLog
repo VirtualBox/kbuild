@@ -1,6 +1,13 @@
-/* $Id: ChangeLog 392 2006-01-12 04:13:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
 
 2006-01-12: bird
+    - src/kDepIDB/kDepIDB.c:
+        o Initial coding. (This is a VC++ dependency extractor.)
+    - src/kDepPre/kDepPre.c, src/lib/kDep.h, src/lib/kDep.c, Config.kmk:
+        o Created a library for the dep*() functions.
+        o Removed the IDB hacks from kDepPre.
+
+2006-01-11: bird
     - kBuild/tools/vcc70.kmk:
         o Prepared for new IDB based dependencies.s
     - kBuild/footer.kmk:
