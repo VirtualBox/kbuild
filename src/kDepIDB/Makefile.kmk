@@ -1,9 +1,9 @@
 # $Id: Makefile.kmk 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kDepPre - Precompiler base dependency generator.
+# kDepIDB - IDB based dependency generator.
 #
-# Copyright (c) 2005 knut st. osmundsen <bird@anduin.net>
+# Copyright (c) 2006 knut st. osmundsen <bird@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -24,13 +24,12 @@
 #
 #
 
-PROGRAMS += kDepPre
+PROGRAMS += kDepIDB
 
-kDepPre_TEMPLATE        = BIN
-kDepPre_LIBS            = $(LIB_KDEP)
-kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
-kDepPre_DEFS.win32      = NEED_ISBLANK=1 __WIN32__=1
-kDepPre_SOURCES         = $(PATH_CURRENT)/kDepPre.c
+kDepIDB_TEMPLATE        = BIN
+kDepIDB_LIBS            = $(LIB_KDEP)
+kDepIDB_DEFS.win32      = NEED_ISBLANK=1 __WIN32__=1
+kDepIDB_SOURCES         = $(PATH_CURRENT)/kDepIDB.c
 
 
 ifndef DEPTH # Experiment in including stuff from the top level make.

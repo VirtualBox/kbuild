@@ -1,9 +1,9 @@
-/* $Id: kDepPre.c 384 2006-01-12 04:01:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
  *
- * Copyright (c) 2005 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2005-2006 knut st. osmundsen <bird@innotek.de>
  *
  *
  * This file is part of kBuild.
@@ -25,22 +25,13 @@
  */
 
 
+/*******************************************************************************
+*   Header Files                                                               *
+*******************************************************************************/
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <ctype.h>
-#include <limits.h>
-#include <sys/stat.h>
-#ifdef __WIN32__
-# include <windows.h>
-#endif
-#if !defined(__WIN32__) && !defined(__OS2__)
-# include <dirent.h>
-#endif
-#ifndef __WIN32__
-# include <unistd.h>
-#endif
+#include "kDep.h"
 
 #ifdef HAVE_FGETC_UNLOCKED
 # define FGETC(s)   getc_unlocked(s)
@@ -53,452 +44,6 @@
 #endif
 
 
-
-
-/*******************************************************************************
-*   Structures and Typedefs                                                    *
-*******************************************************************************/
-/** A dependency. */
-typedef struct DEP
-{
-    /** Next dependency in the list. */
-    struct DEP *pNext;
-    /** The filename hash. */
-    unsigned    uHash;
-    /** The length of the filename. */
-    size_t      cchFilename;
-    /** The filename. */
-    char        szFilename[4];
-} DEP, *PDEP;
-
-
-/*******************************************************************************
-*   Global Variables                                                           *
-*******************************************************************************/
-/** List of dependencies. */
-static PDEP g_pDeps = NULL;
-
-
-/*******************************************************************************
-*   Internal Functions                                                         *
-*******************************************************************************/
-static PDEP depAdd(const char *pszFilename, size_t cchFilename);
-static void depOptimize(int fFixCase);
-static void depPrint(FILE *pOutput);
-static void depPrintStubs(FILE *pOutput);
-
-
-#ifdef __WIN32__
-/**
- * Corrects the case of a path.
- * Expects a fullpath!
- *
- * @param   pszPath     Pointer to the path, both input and output.
- *                      The buffer must be able to hold one more byte than the string length.
- */
-void fixcase(char *pszPath)
-{
-#define my_assert(expr) \
-    do { \
-        if (!(expr)) { \
-            printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
-                   #expr, __FILE__, __LINE__, pszPath, psz); \
-            __asm { __asm int 3 } \
-            exit(1); \
-        } \
-    } while (0)
-
-    char *psz = pszPath;
-    if (*psz == '/' || *psz == '\\')
-    {
-        if (psz[1] == '/' || psz[1] == '\\')
-        {
-            /* UNC */
-            my_assert(psz[1] == '/' || psz[1] == '\\');
-            my_assert(psz[2] != '/' && psz[2] != '\\');
-
-            /* skip server name */
-            psz += 2;
-            while (*psz != '\\' && *psz != '/')
-            {
-                if (!*psz)
-                    return;
-                *psz++ = toupper(*psz);
-            }
-
-            /* skip the share name */
-            psz++;
-            my_assert(*psz != '/' && *psz != '\\');
-            while (*psz != '\\' && *psz != '/')
-            {
-                if (!*psz)
-                    return;
-                *psz++ = toupper(*psz);
-            }
-            my_assert(*psz == '/' || *psz == '\\');
-            psz++;
-        }
-        else
-        {
-            /* Unix spec */
-            psz++;
-        }
-    }
-    else
-    {
-        /* Drive letter */
-        my_assert(psz[1] == ':');
-        *psz = toupper(*psz);
-        my_assert(psz[0] >= 'A' && psz[0] <= 'Z');
-        my_assert(psz[2] == '/' || psz[2] == '\\');
-        psz += 3;
-    }
-
-    /*
-     * Pointing to the first char after the unc or drive specifier.
-     */
-    while (*psz)
-    {
-        WIN32_FIND_DATA FindFileData;
-        HANDLE hDir;
-        char chSaved0;
-        char chSaved1;
-        char *pszEnd;
-
-
-        /* find the end of the component. */
-        pszEnd = psz;
-        while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
-            pszEnd++;
-
-        /* replace the end with "?\0" */
-        chSaved0 = pszEnd[0];
-        chSaved1 = pszEnd[1];
-        pszEnd[0] = '?';
-        pszEnd[1] = '\0';
-
-        /* find the right filename. */
-        hDir = FindFirstFile(pszPath, &FindFileData);
-        pszEnd[1] = chSaved1;
-        if (!hDir)
-        {
-            pszEnd[0] = chSaved0;
-            return;
-        }
-        pszEnd[0] = '\0';
-        while (stricmp(FindFileData.cFileName, psz))
-        {
-            if (!FindNextFile(hDir, &FindFileData))
-            {
-                pszEnd[0] = chSaved0;
-                return;
-            }
-        }
-        strcpy(psz, FindFileData.cFileName);
-        pszEnd[0] = chSaved0;
-
-        /* advance to the next component */
-        if (!chSaved0)
-            return;
-        psz = pszEnd + 1;
-        my_assert(*psz != '/' && *psz != '\\');
-    }
-#undef my_assert
-}
-
-/**
- * Corrects all slashes to unix slashes.
- *
- * @returns pszFilename.
- * @param   pszFilename     The filename to correct.
- */
-char *fixslash(char *pszFilename)
-{
-    char *psz = pszFilename;
-    while ((psz = strchr(psz, '\\')) != NULL)
-        *psz++ = '/';
-    return pszFilename;
-}
-
-#elif defined(__OS2__)
-
-/**
- * Corrects the case of a path.
- *
- * @param   pszPath     Pointer to the path, both input and output.
- *                      The buffer must be able to hold one more byte than the string length.
- */
-void fixcase(char *pszFilename)
-{
-    return;
-}
-
-#else
-
-/**
- * Corrects the case of a path.
- *
- * @param   pszPath     Pointer to the path, both input and output.
- */
-void fixcase(char *pszFilename)
-{
-    char *psz;
-
-    /*
-     * Skip the root.
-     */
-    psz = pszFilename;
-    while (*psz == '/')
-        psz++;
-
-    /*
-     * Iterate all the components.
-     */
-    while (*psz)
-    {
-        char  chSlash;
-        struct stat s;
-        char   *pszStart = psz;
-
-        /*
-         * Find the next slash (or end of string) and terminate the string there.
-         */
-        while (*psz != '/' && *psz)
-            *psz++;
-        chSlash = *psz;
-        *psz = '\0';
-
-        /*
-         * Does this part exist?
-         * If not we'll enumerate the directory and search for an case-insensitive match.
-         */
-        if (stat(pszFilename, &s))
-        {
-            struct dirent  *pEntry;
-            DIR            *pDir;
-            if (pszStart == pszFilename)
-                pDir = opendir(*pszFilename ? pszFilename : ".");
-            else
-            {
-                pszStart[-1] = '\0';
-                pDir = opendir(pszFilename);
-                pszStart[-1] = '/';
-            }
-            if (!pDir)
-            {
-                *psz = chSlash;
-                break; /* giving up, if we fail to open the directory. */
-            }
-
-            while ((pEntry = readdir(pDir)) != NULL)
-            {
-                if (!strcasecmp(pEntry->d_name, pszStart))
-                {
-                    strcpy(pszStart, pEntry->d_name);
-                    break;
-                }
-            }
-            closedir(pDir);
-            if (!pEntry)
-            {
-                *psz = chSlash;
-                break;  /* giving up if not found. */
-            }
-        }
-
-        /* restore the slash and press on. */
-        *psz = chSlash;
-        while (*psz == '/')
-            psz++;
-    }
-
-    return;
-}
-
-
-#endif
-
-
-/**
- * 'Optimizes' and corrects the dependencies.
- */
-static void depOptimize(int fFixCase)
-{
-    /*
-     * Walk the list correct the names and re-insert them.
-     */
-    PDEP pDepOrg = g_pDeps;
-    PDEP pDep = g_pDeps;
-    g_pDeps = NULL;
-    for (; pDep; pDep = pDep->pNext)
-    {
-#ifdef __WIN32__
-        char        szFilename[_MAX_PATH + 1];
-#else
-        char        szFilename[PATH_MAX + 1];
-#endif
-        char       *pszFilename;
-        struct stat s;
-
-        /*
-         * Skip some fictive names like <built-in> and <command line>.
-         */
-        if (    pDep->szFilename[0] == '<'
-            &&  pDep->szFilename[pDep->cchFilename - 1] == '>')
-            continue;
-        pszFilename = pDep->szFilename;
-
-#if !defined(__OS2__) && !defined(__WIN32__)
-        /*
-         * Skip any drive letters from compilers running in wine.
-         */
-        if (pszFilename[1] == ':')
-            pszFilename += 2;
-#endif
-
-        /*
-         * The microsoft compilers are notoriously screwing up the casing.
-         * This will screw up kmk (/ GNU Make).
-         */
-        if (fFixCase)
-        {
-#ifdef __WIN32__
-            if (_fullpath(szFilename, pszFilename, sizeof(szFilename)))
-                fixslash(szFilename);
-            else
-#endif
-                strcpy(szFilename, pszFilename);
-            fixcase(szFilename);
-            pszFilename = szFilename;
-        }
-
-        /*
-         * Check that the file exists before we start depending on it.
-         */
-        if (stat(pszFilename, &s))
-        {
-            fprintf(stderr, "kDepPre: Skipping '%s' - %s!\n", szFilename, strerror(errno));
-            continue;
-        }
-
-        /*
-         * Insert the corrected dependency.
-         */
-        depAdd(pszFilename, strlen(pszFilename));
-    }
-
-#if 0 /* waste of time */
-    /*
-     * Free the old ones.
-     */
-    while (pDepOrg)
-    {
-        pDep = pDepOrg;
-        pDepOrg = pDepOrg->pNext;
-        free(pDep);
-    }
-#endif
-}
-
-
-/**
- * Prints the dependency chain.
- *
- * @returns Pointer to the allocated dependency.
- * @param   pOutput     Output stream.
- */
-static void depPrint(FILE *pOutput)
-{
-    PDEP pDep;
-    for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
-        fprintf(pOutput, " \\\n\t%s", pDep->szFilename);
-    fprintf(pOutput, "\n\n");
-}
-
-
-/**
- * Prints empty dependency stubs for all dependencies.
- */
-static void depPrintStubs(FILE *pOutput)
-{
-    PDEP pDep;
-    for (pDep = g_pDeps; pDep; pDep = pDep->pNext)
-        fprintf(pOutput, "%s:\n\n", pDep->szFilename);
-}
-
-
-/* sdbm:
-   This algorithm was created for sdbm (a public-domain reimplementation of
-   ndbm) database library. it was found to do well in scrambling bits,
-   causing better distribution of the keys and fewer splits. it also happens
-   to be a good general hashing function with good distribution. the actual
-   function is hash(i) = hash(i - 1) * 65599 + str[i]; what is included below
-   is the faster version used in gawk. [there is even a faster, duff-device
-   version] the magic constant 65599 was picked out of thin air while
-   experimenting with different constants, and turns out to be a prime.
-   this is one of the algorithms used in berkeley db (see sleepycat) and
-   elsewhere. */
-static unsigned sdbm(const char *str)
-{
-    unsigned hash = 0;
-    int c;
-
-    while ((c = *(unsigned const char *)str++))
-        hash = c + (hash << 6) + (hash << 16) - hash;
-
-    return hash;
-}
-
-
-/**
- * Adds a dependency.
- *
- * @returns Pointer to the allocated dependency.
- * @param   pszFilename     The filename.
- * @param   cchFilename     The length of the filename.
- */
-static PDEP depAdd(const char *pszFilename, size_t cchFilename)
-{
-    unsigned uHash = sdbm(pszFilename);
-    PDEP    pDep;
-    PDEP    pDepPrev;
-
-    /*
-     * Check if we've already got this one.
-     */
-    pDepPrev = NULL;
-    for (pDep = g_pDeps; pDep; pDepPrev = pDep, pDep = pDep->pNext)
-        if (    pDep->uHash == uHash
-            &&  pDep->cchFilename == cchFilename
-            &&  !memcmp(pDep->szFilename, pszFilename, cchFilename))
-            return pDep;
-
-    /*
-     * Add it.
-     */
-    pDep = (PDEP)malloc(sizeof(*pDep) + cchFilename);
-    if (!pDep)
-    {
-        fprintf(stderr, "\nOut of memory! (requested %#x bytes)\n\n", sizeof(*pDep) + cchFilename);
-        exit(1);
-    }
-
-    pDep->cchFilename = cchFilename;
-    memcpy(pDep->szFilename, pszFilename, cchFilename + 1);
-    pDep->uHash = uHash;
-
-    if (pDepPrev)
-    {
-        pDep->pNext = pDepPrev->pNext;
-        pDepPrev->pNext = pDep;
-    }
-    else
-    {
-        pDep->pNext = g_pDeps;
-        g_pDeps = pDep;
-    }
-    return pDep;
-}
 
 
 /**
@@ -661,102 +206,9 @@ static int ParseCPrecompiler(FILE *pInput)
 }
 
 
-/**
- * Make an attempt at parsing a Visual C++ IDB file.
- */
-static int ParseVCxxIDB(FILE *pInput, const char *argv0)
-{
-    char       *pbFile;
-    long        cbFile;
-    int         rc = 0;
-
-    /*
-     * Figure out file size.
-     */
-    if (    fseek(pInput, 0, SEEK_END) < 0
-        ||  (cbFile = ftell(pInput)) < 0
-        ||  fseek(pInput, 0, SEEK_SET))
-    {
-        fprintf(stderr, "%s: error: Failed to determin file size of the Visual C++ IDB file.\n", argv0);
-        return -1;
-    }
-
-    /*
-     * Allocate memory and read the file.
-     */
-    pbFile = (char *)malloc(cbFile + 1);
-    if (!pbFile)
-    {
-        fprintf(stderr, "%s: error: Failed to allocate %ld bytes of memory for the Visual C++ IDB file.\n", argv0, cbFile);
-        return -1;
-    }
-    if (fread(pbFile, cbFile, 1, pInput))
-    {
-        const char *pszPrefix = NULL;
-        int         cchPrefix = 0;
-        pbFile[cbFile] = '\0';
-
-        /*
-         * Check the header.
-         */
-        if (!strncmp(pbFile, "Microsoft C/C++ MSF 7.", sizeof("Microsoft C/C++ MSF 7.") - 1))
-        {
-            pszPrefix = "/mr/inversedeps/";
-            cchPrefix = sizeof("/mr/inversedeps/") - 1;
-        }
-        else if (!strncmp(pbFile, "Microsoft C/C++ program database 2.", sizeof("Microsoft C/C++ program database 2.") - 1))
-        {
-            pszPrefix = "/ipm/header/";
-            cchPrefix = sizeof("/ipm/header/") - 1;
-        }
-        if (pszPrefix)
-        {
-            /*
-             * Do a brute force scan of the file until we encounter "\0/mr/inversedeps/" (which is the 
-             * vc70 and vc80 prefix) or "\0/ipm/header/" (which is the vc60 prefix).
-             * (This is highly experimental and I've no idea about the actual format of the file.)
-             */
-            char *pb = pbFile;
-            long cbLeft = cbFile;
-            while (cbLeft > cchPrefix + 3)
-            {
-                /** @todo use memchr? */
-                if (    *pb != *pszPrefix
-                    ||   strncmp(pb, pszPrefix, cchPrefix))
-                {
-                    pb++;
-                    cbLeft--;
-                }
-                else
-                {
-                    const char *psz = &pb[cchPrefix];
-                    size_t      cch = strlen(psz);
-                    depAdd(psz, cch);
-                    //printf("dep='%s'\n", psz);
-                    pb += cch + cchPrefix;
-                    cbLeft -= cch + cchPrefix;
-                }
-            }
-        }
-        else
-        {
-            fprintf(stderr, "%s: error: Doesn't recognize the header of the Visual C++ IDB file.\n", argv0, cbFile);
-            rc = 1;
-        }
-    }
-    else
-    {
-        fprintf(stderr, "%s: error: Failed to allocate %ld bytes of memory for the Visual C++ IDB file.\n", argv0, cbFile);
-        rc = 1;
-    }
-
-    return rc;
-}
-
-
 static void usage(const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> | -i <vc idb-file> >\n", argv0);
+    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> >\n", argv0);
 }
 
 
@@ -774,7 +226,6 @@ int main(int argc, char *argv[])
     int         fFixCase = 0;
     /* Argument parsing. */
     int         fInput = 0;             /* set when we've found input argument. */
-    int         fIDBMode = 0;
 
     /*
      * Parse arguments.
@@ -889,27 +340,6 @@ int main(int argc, char *argv[])
                 }
 
                 /*
-                 * IDB input.
-                 */
-                case 'i':
-                {
-                    if (++i >= argc)
-                    {
-                        fprintf(stderr, "%s: syntax error: The '-i' argument is missing IDB filename.\n", argv[0]);
-                        return 1;
-                    }
-                    pInput = fopen(argv[i], "rb");
-                    if (!pInput)
-                    {
-                        fprintf(stderr, "%s: error: Failed to open input file '%s'.\n", argv[0], argv[i]);
-                        return 1;
-                    }
-                    fInput = 1;
-                    fIDBMode = 1;
-                    break;
-                }
-
-                /*
                  * Fix case.
                  */
                 case 'f':
@@ -992,10 +422,7 @@ int main(int argc, char *argv[])
     /*
      * Do the parsing.
      */
-    if (!fIDBMode)
-        i = ParseCPrecompiler(pInput);
-    else
-        i = ParseVCxxIDB(pInput, argv[0]);
+    i = ParseCPrecompiler(pInput);
 
     /*
      * Reap child.
@@ -1034,3 +461,4 @@ int main(int argc, char *argv[])
 
     return i;
 }
+

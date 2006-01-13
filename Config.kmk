@@ -1,4 +1,4 @@
-# $Id: Config.kmk 298 2005-06-17 05:37:35Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -44,6 +44,7 @@ TEMPLATE_BIN_DEFS.release       = NDEBUG
 TEMPLATE_BIN_CFLAGS             = -MT -W3
 TEMPLATE_BIN_INCS               = \
 	. \
+	$(PATH_ROOT)/src/lib \
 	$(PATH_ROOT)/src/gmake/w32/include \
 	$(PATH_ROOT)/src/gmake/glob \
 	$(PATH_DEV)/x86.win32/vcc70/include \
@@ -73,4 +74,23 @@ endif
 TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
 endif
 
+
+
+#
+# Template for building libraries for the tools.
+#
+TEMPLATE_LIB = Library for Commandline binary
+
+TEMPLATE_LIB_TOOL                   = $(TEMPLATE_BIN_TOOL)
+TEMPLATE_LIB_INST                   = lib/
+TEMPLATE_LIB_INCS                   = $(TEMPLATE_BIN_INCS)
+TEMPLATE_LIB_INCS.$(BUILD_TYPE)     = $(TEMPLATE_BIN_INCS.$(BUILD_TYPE))
+TEMPLATE_LIB_DEFS                   = $(TEMPLATE_BIN_DEFS)
+TEMPLATE_LIB_DEFS.$(BUILD_TYPE)     = $(TEMPLATE_BIN_DEFS.$(BUILD_TYPE))
+TEMPLATE_LIB_CFLAGS                 = $(TEMPLATE_BIN_CFLAGS)
+TEMPLATE_LIB_CFLAGS.$(BUILD_TYPE)   = $(TEMPLATE_BIN_CFLAGS.$(BUILD_TYPE))
+TEMPLATE_LIB_CXXFLAGS               = $(TEMPLATE_BIN_CXXFLAGS)
+TEMPLATE_LIB_CXXFLAGS.$(BUILD_TYPE) = $(TEMPLATE_BIN_CXXFLAGS.$(BUILD_TYPE))
+
+LIB_KDEP = $(PATH_OUT)/$(TEMPLATE_LIB_INST)$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 
