@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 391 2006-01-12 04:11:05Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 397 2006-01-13 00:51:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
@@ -68,6 +68,11 @@ else # this fallback is incorrect and won't work on a case sensitive FS.
 TOOL_VCC70_PDB                = $(1).$(2)
 endif
 
+ifeq ($(BUILD_PLATFORM),win32)
+VCC70_NEW_DEPS = 1
+endif
+
+
 
 ## Compile C source.
 # @param    $(target)   Normalized main target name.
@@ -93,7 +98,7 @@ define TOOL_VCC70_COMPILE_C_CMDS
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(DEP_PRE) -f -s -o $(dep) -t $(obj) -i $(outbase)-obj.idb
+	$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(outbase)-obj.idb
 endef
 else
 define TOOL_VCC70_COMPILE_C_CMDS
@@ -134,7 +139,7 @@ define TOOL_VCC70_COMPILE_CXX_CMDS
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(DEP_PRE) -f -s -o $(dep) -t $(obj) -i $(outbase)-obj.idb
+	$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(outbase)-obj.idb
 endef
 else
 define TOOL_VCC70_COMPILE_CXX_CMDS

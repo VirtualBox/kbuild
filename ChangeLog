@@ -1,6 +1,10 @@
-/* $Id: ChangeLog 396 2006-01-13 00:46:40Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 397 2006-01-13 00:51:03Z knut.osmundsen@oracle.com $ */
 
 2006-01-12: bird
+    - kBuild/tools/VCC70.kmk:
+        o Use DEP_IDB on win32.
+    - kBuild/header.kmk:
+        o Added DEP_IDB and DEP_IDB_EXT.
     - kBuild/bin/x86.win32/:
         o Rebuild with current source, adding kDepIDB.
     - src/kDepIDB/kDepIDB.c:
