@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 396 2006-01-13 00:46:40Z knut.osmundsen@oracle.com $ */
 
 2006-01-12: bird
+    - kBuild/bin/x86.win32/:
+        o Rebuild with current source, adding kDepIDB.
     - src/kDepIDB/kDepIDB.c:
         o Initial coding. (This is a VC++ dependency extractor.)
     - src/kDepPre/kDepPre.c, src/lib/kDep.h, src/lib/kDep.c, Config.kmk:
