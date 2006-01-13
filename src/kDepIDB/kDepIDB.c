@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 398 2006-01-13 04:00:35Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -44,6 +44,14 @@
 
 #define OFFSETOF(type, member)  ( (int)(void *)&( ((type *)(void *)0)->member) )
 
+/*#define DEBUG*/
+#ifdef DEBUG
+#define dprintf(a)              printf a
+#define dump(pb, cb, offBase)   hexdump(pb,cb,offBase)
+#else
+#define dprintf(a)              do {} while (0)
+#define dump(pb, cb, offBase)   do {} while (0)
+#endif 
 
 
 /*******************************************************************************
@@ -52,6 +60,38 @@
 /** the executable name. */
 static const char *argv0 = "";
 
+#ifdef DEBUG
+/**
+ * Performs a hexdump.
+ */
+static void hexdump(const uint8_t *pb, size_t cb, size_t offBase)
+{
+    static const char   szHex[16] = "0123456789abcdef";
+
+    const unsigned      cchWidth = 16;
+    size_t              off = 0;
+    while (off < cb)
+    {
+        unsigned i;
+        printf("%s%0*x %04x:", off ? "\n" : "", sizeof(pb) * 2, offBase + off, off);
+        for (i = 0; i < cchWidth && off + i < cb ; i++)
+            printf(off + i < cb ? !(i & 7) && i ? "-%02x" : " %02x" : "   ", pb[i]);
+
+        while (i++ < cchWidth)
+                printf("   ");
+        printf(" ");
+
+        for (i = 0; i < cchWidth && off + i < cb; i++)
+        {
+            const uint8_t u8 = pb[i];
+            printf("%c", u8 < 127 && u8 >= 32 ? u8 : '.', 1);
+        }
+        off += cchWidth;
+        pb  += cchWidth;
+    }
+    printf("\n");
+}
+#endif 
 
 /**
  * Scans a stream (chunk of data really) for dependencies.
@@ -65,24 +105,27 @@ static const char *argv0 = "";
  */
 static int ScanStream(uint8_t *pbStream, size_t cbStream, const char *pszPrefix, size_t cchPrefix)
 {
-    register char chFirst = *pszPrefix;
-    while (cbStream > cchPrefix + 2)
+    const uint8_t  *pbCur = pbStream;
+    size_t          cbLeft = cbStream;
+    register char   chFirst = *pszPrefix;
+    while (cbLeft > cchPrefix + 2)
     {
-        if (    *pbStream != chFirst
-            ||  memcmp(pbStream, pszPrefix, cchPrefix))
+        if (    *pbCur != chFirst
+            ||  memcmp(pbCur, pszPrefix, cchPrefix))
         {
-            pbStream++;
-            cbStream--;
+            pbCur++;
+            cbLeft--;
         }
         else
         {
             size_t cchDep;
-            pbStream += cchPrefix;
-            cchDep = strlen(pbStream);
-            depAdd(pbStream, cchDep);
+            pbCur += cchPrefix;
+            cchDep = strlen(pbCur);
+            depAdd(pbCur, cchDep);
+            dprintf(("%05x: '%s'\n", pbCur - pbStream, pbCur));
 
-            pbStream += cchDep;
-            cbStream -= cchDep + cchPrefix;
+            pbCur += cchDep;
+            cbLeft -= cchDep + cchPrefix;
         }
     }
 
@@ -205,10 +248,24 @@ static int Pdb70ValidateHeader(PPDB70HDR pHdr, size_t cbFile)
     }
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - cbPage * cPages != cbFile.\n", argv0);
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", argv0, 
+                pHdr->iStartPage, pHdr->cPages);
+        return 1;
+    }
+    if (pHdr->iRootPages >= pHdr->cPages && pHdr->iRootPages <= 0)
+    {
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iRootPages=%u cPage=%u.\n", argv0,
+                pHdr->iStartPage, pHdr->cPages);
         return 1;
     }
     return 0;
+}
+
+static size_t Pdb70Align(PPDB70HDR pHdr, size_t cb)
+{
+    if (cb == ~(uint32_t)0 || !cb)
+        return 0;
+    return ((cb + pHdr->cbPage - 1) / pHdr->cbPage) * pHdr->cbPage;
 }
 
 static size_t Pdb70Pages(PPDB70HDR pHdr, size_t cb)
@@ -220,22 +277,34 @@ static size_t Pdb70Pages(PPDB70HDR pHdr, size_t cb)
 
 static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
 {
-    size_t cPages = Pdb70Pages(pHdr, cb);
-    uint8_t *pbBuf = malloc(cPages * pHdr->cbPage + 1);
+    const size_t    cbPage = pHdr->cbPage;
+    size_t          cPages = Pdb70Pages(pHdr, cb);
+    uint8_t *pbBuf = malloc(cPages * cbPage + 1);
     if (pbBuf)
     {
         size_t iPage = 0;
         while (iPage < cPages)
         {
             size_t off = paiPageMap[iPage];
-            off *= pHdr->cbPage;
-            memcpy(pbBuf + iPage * pHdr->cbPage, (uint8_t *)pHdr + off, pHdr->cbPage);
+            if (off < pHdr->cPages)
+            {
+                off *= cbPage;
+                memcpy(pbBuf + iPage * cbPage, (uint8_t *)pHdr + off, cbPage);
+                dump(pbBuf + iPage * cbPage, cbPage, off);
+            }
+            else
+            {
+                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", argv0, 
+                        (unsigned)off, pHdr->cPages);
+                memset(pbBuf + iPage * cbPage, 0, cbPage);
+            }
+
             iPage++;
         }
-        pbBuf[cPages * pHdr->cbPage] = '\0';
+        pbBuf[cPages * cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %d bytes\n", argv0, cPages * pHdr->cbPage + 1);
+        fprintf(stderr, "%s: error: failed to allocate %u bytes\n", argv0, cPages * cbPage + 1);
     return pbBuf;
 }
 
@@ -287,7 +356,7 @@ static void *Pdb70AllocAndReadStream(PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned 
     paiPageMap = (PPDB70PAGE)&pRoot->aStreams[pRoot->cStreams];
     while (iStream-- > 0)
         if (pRoot->aStreams[iStream].cbStream != ~(uint32_t)0)
-            paiPageMap += Pdb70Pages(pHdr, pRoot->aStreams[iStream].cbStream) / pHdr->cbPage;
+            paiPageMap += Pdb70Pages(pHdr, pRoot->aStreams[iStream].cbStream);
 
     if (pcbStream)
         *pcbStream = cbStream;
@@ -300,6 +369,7 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
     PPDB70ROOT  pRoot;
     unsigned    iStream;
     int         rc = 0;
+    dprintf(("pdb70\n"));
 
     /*
      * Validate the header and read the root stream.
@@ -317,14 +387,16 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
     rc = 0;
     for (iStream = 0; iStream < pRoot->cStreams && !rc; iStream++)
     {
-        uint8_t *pbStream;
+        const size_t cbStream = Pdb70Align(pHdr, pRoot->aStreams[iStream].cbStream);
+        uint8_t     *pbStream;
         if (    pRoot->aStreams[iStream].cbStream == ~(uint32_t)0
             ||  !pRoot->aStreams[iStream].cbStream)
             continue;
+        dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream, cbStream));
         pbStream = (uint8_t *)Pdb70AllocAndReadStream(pHdr, pRoot, iStream, NULL);
         if (pbStream)
         {
-            rc = ScanStream(pbStream, pRoot->aStreams[iStream].cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
+            rc = ScanStream(pbStream, cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
             free(pbStream);
         }
         else
