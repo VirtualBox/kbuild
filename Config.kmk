@@ -1,4 +1,4 @@
-# $Id: Config.kmk 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 400 2006-01-14 23:36:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -30,6 +30,8 @@
 #					
 TEMPLATE_BIN = Commandline binary
 
+TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
+
 ifeq ($(BUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
 TEMPLATE_BIN_CFLAGS.release     = -O3
@@ -39,12 +41,11 @@ endif
 
 ifeq ($(BUILD_TARGET),win32)
 TEMPLATE_BIN_TOOL               = VCC70
-TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32
+TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
 TEMPLATE_BIN_DEFS.release       = NDEBUG
 TEMPLATE_BIN_CFLAGS             = -MT -W3
-TEMPLATE_BIN_INCS               = \
+TEMPLATE_BIN_INCS              += \
 	. \
-	$(PATH_ROOT)/src/lib \
 	$(PATH_ROOT)/src/gmake/w32/include \
 	$(PATH_ROOT)/src/gmake/glob \
 	$(PATH_DEV)/x86.win32/vcc70/include \
