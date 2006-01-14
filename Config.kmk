@@ -1,4 +1,4 @@
-# $Id: Config.kmk 400 2006-01-14 23:36:58Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 401 2006-01-14 23:38:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -63,7 +63,7 @@ endif
 ifndef TEMPLATE_BIN_TOOL
 TEMPLATE_BIN_TOOL               = GCC3
 TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            = 
+TEMPLATE_BIN_LDFLAGS            = -static
 ifeq ($(BUILD_TARGET),linux)
 TEMPLATE_BIN_LIBS              += rt
 endif
