@@ -1,4 +1,4 @@
-/* $Id: kDep.c 406 2006-01-15 00:53:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 407 2006-01-15 00:54:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code. 
@@ -64,6 +64,21 @@
 *******************************************************************************/
 /** List of dependencies. */
 static PDEP g_pDeps = NULL;
+
+
+/**
+ * Corrects all slashes to unix slashes.
+ *
+ * @returns pszFilename.
+ * @param   pszFilename     The filename to correct.
+ */
+static char *fixslash(char *pszFilename)
+{
+    char *psz = pszFilename;
+    while ((psz = strchr(psz, '\\')) != NULL)
+        *psz++ = '/';
+    return pszFilename;
+}
 
 
 #ifdef __WIN32__
@@ -364,23 +379,6 @@ void depOptimize(int fFixCase)
     }
 #endif
 }
-
-
-#ifndef __OS2__
-/**
- * Corrects all slashes to unix slashes.
- *
- * @returns pszFilename.
- * @param   pszFilename     The filename to correct.
- */
-static char *fixslash(char *pszFilename)
-{
-    char *psz = pszFilename;
-    while ((psz = strchr(psz, '\\')) != NULL)
-        *psz++ = '/';
-    return pszFilename;
-}
-#endif 
 
 
 /**
