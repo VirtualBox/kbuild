@@ -1,4 +1,4 @@
-/* $Id: kDep.c 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 404 2006-01-15 00:10:13Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code. 
@@ -342,10 +342,11 @@ void depOptimize(int fFixCase)
         {
 #ifdef __WIN32__
             if (_fullpath(szFilename, pszFilename, sizeof(szFilename)))
-                fixslash(szFilename);
+                ;
             else
 #endif
                 strcpy(szFilename, pszFilename);
+            fixslash(szFilename);
             fixcase(szFilename);
             pszFilename = szFilename;
         }
@@ -355,7 +356,7 @@ void depOptimize(int fFixCase)
          */
         if (stat(pszFilename, &s))
         {
-            fprintf(stderr, "kDepPre: Skipping '%s' - %s!\n", szFilename, strerror(errno));
+            fprintf(stderr, "kDep: Skipping '%s' - %s!\n", szFilename, strerror(errno));
             continue;
         }
 
