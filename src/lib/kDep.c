@@ -1,4 +1,4 @@
-/* $Id: kDep.c 404 2006-01-15 00:10:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 406 2006-01-15 00:53:31Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code. 
@@ -184,20 +184,6 @@ static void fixcase(char *pszPath)
 #undef my_assert
 }
 
-/**
- * Corrects all slashes to unix slashes.
- *
- * @returns pszFilename.
- * @param   pszFilename     The filename to correct.
- */
-static char *fixslash(char *pszFilename)
-{
-    char *psz = pszFilename;
-    while ((psz = strchr(psz, '\\')) != NULL)
-        *psz++ = '/';
-    return pszFilename;
-}
-
 #elif defined(__OS2__)
 
 /**
@@ -378,6 +364,23 @@ void depOptimize(int fFixCase)
     }
 #endif
 }
+
+
+#ifndef __OS2__
+/**
+ * Corrects all slashes to unix slashes.
+ *
+ * @returns pszFilename.
+ * @param   pszFilename     The filename to correct.
+ */
+static char *fixslash(char *pszFilename)
+{
+    char *psz = pszFilename;
+    while ((psz = strchr(psz, '\\')) != NULL)
+        *psz++ = '/';
+    return pszFilename;
+}
+#endif 
 
 
 /**
