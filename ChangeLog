@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 409 2006-01-15 01:05:36Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 411 2006-01-15 01:10:07Z knut.osmundsen@oracle.com $ */
 
 2006-01-14: bird
+    - kBuild/env.sh:
+        o Corrected the tool list.
     - kBuild/bin/x86.linux/:
         o Rebuild with current tree and static linage. (rhel3)
     - kBuild/tools/VCC70.kmk:
