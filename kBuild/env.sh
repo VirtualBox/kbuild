@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 333 2005-10-30 19:21:48Z knut.osmundsen@oracle.com $
+# $Id: env.sh 410 2006-01-15 01:09:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -170,7 +170,7 @@ echo "dbg: PATH=$PATH"
 if [ ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/" ]; then
     echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/)"
 else
-    for prog in kmk kDepPre ash cat cp mkdir mv rm sed;
+    for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_sed;
     do
         chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog} > /dev/null 2>&1
         if [ ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog}${_SUFF_EXE}" ]; then
