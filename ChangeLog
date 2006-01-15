@@ -1,4 +1,14 @@
-/* $Id: ChangeLog 397 2006-01-13 00:51:03Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 409 2006-01-15 01:05:36Z knut.osmundsen@oracle.com $ */
+
+2006-01-14: bird
+    - kBuild/bin/x86.linux/:
+        o Rebuild with current tree and static linage. (rhel3)
+    - kBuild/tools/VCC70.kmk:
+        o Enabled new dependcies.
+        o Must use PDB macro to get the case correct on the idb file passed to kDepIDB.
+    - src/lib/kDep.c:
+        o Fixed missing slash fixing
+        o Changed kDepPre error prefix to kDep.
 
 2006-01-12: bird
     - kBuild/tools/VCC70.kmk:
