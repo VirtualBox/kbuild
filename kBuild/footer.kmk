@@ -1,4 +1,4 @@
-# $Id: footer.kmk 412 2006-01-18 13:31:43Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 414 2006-01-18 16:51:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1308,6 +1308,41 @@ endif
 insdst := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
 #$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) srcdst=$(srcsrc) inst=$(inst) => insdst=$(insdst))
 
+# mode, uid and gid
+mode := $(firstword \
+	$($(target)_$(srcsrc)_MODE.$(bld_trg)) \
+	$($(target)_$(srcsrc)_MODE) \
+	$($(target)_$(srcdst)_MODE.$(bld_trg)) \
+	$($(target)_$(srcdst)_MODE) \
+	$($(srcsrc)_MODE.$(bld_trg)) \
+	$($(srcsrc)_MODE) \
+	$($(srcdst)_MODE.$(bld_trg)) \
+	$($(srcdst)_MODE) \
+	$($(target)_MODE.$(bld_trg)) \
+	$($(target)_MODE))
+uid := $(firstword \
+	$($(target)_$(srcsrc)_UID.$(bld_trg)) \
+	$($(target)_$(srcsrc)_UID) \
+	$($(target)_$(srcdst)_UID.$(bld_trg)) \
+	$($(target)_$(srcdst)_UID) \
+	$($(srcsrc)_UID.$(bld_trg)) \
+	$($(srcsrc)_UID) \
+	$($(srcdst)_UID.$(bld_trg)) \
+	$($(srcdst)_UID) \
+	$($(target)_UID.$(bld_trg)) \
+	$($(target)_UID))
+gid := $(firstword \
+	$($(target)_$(srcsrc)_GID.$(bld_trg)) \
+	$($(target)_$(srcsrc)_GID) \
+	$($(target)_$(srcdst)_GID.$(bld_trg)) \
+	$($(target)_$(srcdst)_GID) \
+	$($(srcsrc)_GID.$(bld_trg)) \
+	$($(srcsrc)_GID) \
+	$($(srcdst)_GID.$(bld_trg)) \
+	$($(srcdst)_GID) \
+	$($(target)_GID.$(bld_trg)) \
+	$($(target)_GID))
+
 # create the command
 ifdef $(srcsrc)_INSTALLER
 inscmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(insdst),$(target))
@@ -1315,7 +1350,11 @@ else
 ifdef $(target)_INSTALLER
 inscmd := $(call $(target)_INSTALLER,$(srcsrc),$(insdst),$(target))
 else
-inscmd := $$(INSTALL) $(srcsrc) $(insdst)
+inscmd := $$(INSTALL)\
+		$(if $(uid),-o $(uid))\
+		$(if $(gid),-g $(gid))\
+		$(if $(mode),-m $(mode))\
+		$(srcsrc) $(insdst)
 endif
 endif
 
@@ -1466,12 +1505,6 @@ $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)), \
 #
 # DOCS
 #
-
-
-#
-# PACKING
-#
-packing::
 
 
 #
