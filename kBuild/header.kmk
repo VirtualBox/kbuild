@@ -1,4 +1,4 @@
-# $Id: header.kmk 397 2006-01-13 00:51:03Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 414 2006-01-18 16:51:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -36,7 +36,7 @@ all: all_recursive
 # The FORCE rule.
 #
 FORCE:
-				
+
 #
 # Try avoid inference rules.
 #
@@ -464,7 +464,7 @@ MAKESHELL   := $(ASH)
 SHELL       := $(ASH)
 export SHELL MAKESHELL
 
-# Symlinking is problematic on some platforms...			
+# Symlinking is problematic on some platforms...
 LN_SYMLINK  := $(LN) -s
 
 
@@ -639,9 +639,11 @@ PASS_INSTALLS_pass  := installs
 ## PASS: packing
 # This pass processes custom packing rules.
 PASS_PACKING        := Packing
-PASS_PACKING_trgs   := packing
-PASS_PACKING_vars   :=
+PASS_PACKING_trgs   :=
+PASS_PACKING_vars   := PACKING
 PASS_PACKING_pass   := packing
+#alias
+packing: pass_packing
 
 ## PASS: clean
 # This pass removes all generated files.
