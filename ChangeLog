@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 411 2006-01-15 01:10:07Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 413 2006-01-18 13:34:06Z knut.osmundsen@oracle.com $ */
+
+2006-01-18: bird
+    - kBuild/footer.kmk:
+        o Implemented template inheritance (_EXTENDS).
 
 2006-01-14: bird
     - kBuild/env.sh:
@@ -44,7 +48,7 @@
         o More install features.
     - kBuild/bin/x86.[linux|win32|os2]/:
         o Rebuilt all the utils.
-        o Renamed all unix utilites so they start with a kmk_ prefix and don't 
+        o Renamed all unix utilites so they start with a kmk_ prefix and don't
           override any local unix utils.
     - src/gmake/kmkbuiltin/*, src/gmake/kmkbuiltin.c,
       src/gmake/kmkbuiltin.h, src/gmake/variables.c,
