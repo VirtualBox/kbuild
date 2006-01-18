@@ -1,7 +1,10 @@
-/* $Id: ChangeLog 413 2006-01-18 13:34:06Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 415 2006-01-18 16:53:25Z knut.osmundsen@oracle.com $ */
 
 2006-01-18: bird
+    - kBuild/footer.kmk, kBuild/header.kmk:
+        o Packing pass change - uses PACKING var instead of packing::.
     - kBuild/footer.kmk:
+        o Added mode,uid and gid to file INSTALLS.
         o Implemented template inheritance (_EXTENDS).
 
 2006-01-14: bird
