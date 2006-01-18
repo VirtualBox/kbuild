@@ -1,4 +1,4 @@
-# $Id: footer.kmk 388 2006-01-12 04:04:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 412 2006-01-18 13:31:43Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -181,6 +181,32 @@ include $(firstword $(foreach path, $(TEMPLATE_PATHS) $(PATH_KBUILD)/templates/,
 endif
 endef
 $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
+
+
+#
+# Template Inheritance.
+#
+define def_template_extends_prop
+ifndef TEMPLATE_$(template)_$(prop)
+ifdef TEMPLATE_$(parent)_$(prop)
+TEMPLATE_$(template)_$(prop) = $$(TEMPLATE_$(parent)_$(prop))
+endif
+endif
+endef
+
+define def_template_extends
+ifdef TEMPLATE_$(template)_EXTENDS
+parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
+
+$(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
+$(addsuffix .$(BUILD_TARGET), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+$(addsuffix .$(BUILD_TYPE), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
+endif
+endef
+
+# $ (foreach template, $(_TEMPLATES), $(if TEMPLATE_$(template)_EXTENDS, $(eval $(value def_template_extends))))
+$(foreach template, $(_TEMPLATES), $(eval $(value def_template_extends)))
 
 
 #
@@ -394,7 +420,7 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 	$(call MSG_L1,Creating $$@)
 	$(RM) -f $(dep) $(out) $($(target)_$(source)_OUTPUT_)
 	$(custom_pre)
-		
+
 $($(target)_$(source)_CMDS_)
 
 	$(custom_post)
@@ -403,7 +429,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	@$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
 	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_$(source)_CMDS_))'
 	@$(APPEND) "$(dep)" 'endef'
-endif	
+endif
 
 $(basename $(notdir $(obj))).o::
 	+ $$(MAKE) -B -f $$(MAKEFILE) $(obj)
@@ -438,7 +464,7 @@ $(out) $($(target)_OUTPUT_): \
 	$(call MSG_L1,Creating $$@)
 	$(RM) -f $(dep) $($(target)_OUTPUT_)
 	$(custom_pre)
-		
+
 $($(target)_CMDS_)
 
 	$(custom_post)
@@ -446,7 +472,7 @@ ifndef NO_LINK_CMDS_DEP
 	@$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
 	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
 	@$(APPEND) "$(dep)" 'endef'
-endif	
+endif
 
 $(basename $(notdir $(out)))::
 	+ $$(MAKE) -B -f $$(MAKEFILE) $(out)
@@ -915,7 +941,7 @@ $(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep)
 
-# generate the link rule.		
+# generate the link rule.
 $(eval $(def_link_rule))
 
 # installing and globals
@@ -1127,10 +1153,10 @@ $(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep)
 
-# generate the link rule.		
+# generate the link rule.
 $(eval $(def_link_rule))
 
-		
+
 # Update globals.
 _OBJS        += $($(target)_OBJS_)
 _OUT_FILES   += $($(target)_OUTPUT_) $(out)
@@ -1348,7 +1374,7 @@ $(eval $(def_install_symlink_rule))
 INSTARGET_$(target) += $(insdst)
 endef
 
-		
+
 ## generate the install rule
 define def_install_directory_rule
 # the install rule
@@ -1358,10 +1384,10 @@ $(insdst):
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
 		$(insdst)
-		
-.NOTPARALLEL: $(insdst)	
+
+.NOTPARALLEL: $(insdst)
 endef
-		
+
 
 ## create one directory
 define def_install_directory
@@ -1613,10 +1639,10 @@ all_recursive: $(pass_prev)
 rebuild: clean
 	+ $(MAKE) -f $(firstword $(MAKEFILE_LIST)) all_recursive
 
-# @todo make this a non-default pass!		
+# @todo make this a non-default pass!
 uninstall:
 	$(RM) -f $(_INSTALLS)
-	
+
 install: pass_installs
 
 # misc shortcuts.
