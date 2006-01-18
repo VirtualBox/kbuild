@@ -1,4 +1,4 @@
-# $Id: header.kmk 414 2006-01-18 16:51:23Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 416 2006-01-18 17:00:37Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -689,6 +689,9 @@ $(foreach dir,$(subst /, ,$(DEPTH)), $(eval $(def_include_config)) )
 _CFGFILE    := $(firstword $(wildcard $(_CFGFILES) $(FILE_KBUILD_CONFIG)))
 _CFGFILES   :=
 _CFGDIR     :=
+ifeq ($(_CFGFILE),)
+$(error kBuild: no Config.kmk file found! Check the DEPTH: DEPTH='$(DEPTH)' PATH_CURRENT='$(PATH_CURRENT)')
+endif
 
 # Include the config.kmk we found file (or the default one).
 include $(_CFGFILE)
