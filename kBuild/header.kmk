@@ -1,4 +1,4 @@
-# $Id: header.kmk 416 2006-01-18 17:00:37Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 417 2006-01-20 12:07:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -640,7 +640,7 @@ PASS_INSTALLS_pass  := installs
 # This pass processes custom packing rules.
 PASS_PACKING        := Packing
 PASS_PACKING_trgs   :=
-PASS_PACKING_vars   := PACKING
+PASS_PACKING_vars   := _PACKING
 PASS_PACKING_pass   := packing
 #alias
 packing: pass_packing
