@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 415 2006-01-18 16:53:25Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 418 2006-01-20 12:10:16Z knut.osmundsen@oracle.com $ */
+
+2006-01-20: bird
+    - kBuild/footer.kmk, kBuild/header.kmk:
+        o Check for PACKING.$(BUILD_TARGET) as well. Added a quick evaluation
+          of PACKING[.*] in the footer.
 
 2006-01-18: bird
     - kBuild/footer.kmk, kBuild/header.kmk:
