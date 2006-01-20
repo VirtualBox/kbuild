@@ -1,4 +1,4 @@
-# $Id: footer.kmk 414 2006-01-18 16:51:23Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 417 2006-01-20 12:07:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -68,6 +68,7 @@ _SYSMODS  :=
 _INSTALLS :=
 _INSTALLS_DIRS :=
 _OTHERS   :=
+_PACKING  :=
 _DIRS     := $(PATH_TARGET)/ $(PATH_TARGET)
 _IMPORT_LIBS :=
 
@@ -1500,6 +1501,12 @@ endef
 ## process all install targets
 $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)), \
 	$(eval $(value def_install)))
+
+
+#
+# PACKING
+#
+_PACKING += $(PACKING) $(PACKING.$(BUILD_TARGET))
 
 
 #
