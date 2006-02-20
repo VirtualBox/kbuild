@@ -1,9 +1,10 @@
-/* $Id: ChangeLog 418 2006-01-20 12:10:16Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 420 2006-02-20 16:27:10Z knut.osmundsen@oracle.com $ */
 
 2006-01-20: bird
-    - kBuild/footer.kmk, kBuild/header.kmk:
-        o Check for PACKING.$(BUILD_TARGET) as well. Added a quick evaluation
-          of PACKING[.*] in the footer.
+
+2006-02-09: bird
+    - kBuild/tools/YASM.kmk:
+        o Initial config.
 
 2006-01-18: bird
     - kBuild/footer.kmk, kBuild/header.kmk:
