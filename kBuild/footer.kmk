@@ -1,4 +1,4 @@
-# $Id: footer.kmk 417 2006-01-20 12:07:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 424 2006-03-19 05:58:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1281,6 +1281,7 @@ define def_install_src
 # deal with '=>' in the source file name.
 srcdst := $(subst =>, ,$(src))
 srcsrc := $(firstword $(srcdst))
+srcdstdir := $(dir $(word 2,$(srcdst)))
 srcdst := $(word $(words $(srcdst)),$(srcdst))
 
 # _INSTFUN
@@ -1296,18 +1297,18 @@ endif
 
 # _INST
 ifdef $(srcsrc)_INST
-inst := $(patsubst %/,%,$($(srcsrc)_INST))/$(dir $(srcdst))
+inst := $(patsubst %/,%,$($(srcsrc)_INST))/$(dir $(srcdstdir))
 else
 ifdef $(target)_INST
-inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(srcdst))
+inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(srcdstdir))
 else
-inst := $(dir $(srcdst))
+inst := $(dir $(srcdstdir))
 endif
 endif
 
 # calc target
 insdst := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
-#$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) srcdst=$(srcsrc) inst=$(inst) => insdst=$(insdst))
+#$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) inst=$(inst) => insdst=$(insdst))
 
 # mode, uid and gid
 mode := $(firstword \
@@ -1737,3 +1738,4 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 # end-of-file-content
 __footer_kmk__ := target
 endif # __footer_kmk__
+	
