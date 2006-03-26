@@ -1,4 +1,4 @@
-# $Id: Config.kmk 401 2006-01-14 23:38:45Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 427 2006-03-26 04:31:34Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -34,6 +34,7 @@ TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
 
 ifeq ($(BUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
+TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
 TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
