@@ -1,4 +1,13 @@
-/* $Id: ChangeLog 423 2006-02-22 12:47:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 428 2006-03-26 04:33:47Z knut.osmundsen@oracle.com $ */
+
+2006-03-26:
+    - src/gmake/kmkbuiltin/rm.c:
+        o OS/2 wants -R.
+    - src/gmake/read.c:
+        o Don't call glob() unless there is a wildcard pattern in the name.
+          This speed things up a bit, at least on FreeBSD and especially on OS/2.
+    - Config.kmk:
+        o Added -pg for profile builds on OS/2.
 
 2006-02-22: bird
     - kBuild/tools/MINGW32.kmk:
