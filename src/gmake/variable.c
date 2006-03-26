@@ -101,18 +101,97 @@ lookup_pattern_var (struct pattern_var *start, char *target)
 
 /* Hash table of all global variable definitions.  */
 
+#ifdef KMK
+static inline unsigned long variable_hash_b(register const unsigned char *var, register int length)
+{
+    register unsigned long hash = 0;
+    for (;;)
+    {
+        switch (length)
+        {
+            default:
+            case 16: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 15: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 14: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 13: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 12: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 11: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 10: hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 9:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 8:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 7:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 6:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 5:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 4:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 3:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 2:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 1:  hash = *var++ + (hash << 6) + (hash << 16) - hash;
+            case 0:
+                break;
+        }
+        if (length <= 16)
+            break;
+        length -= 16;
+    }
+    return hash;
+}
+
+static inline unsigned long variable_hash_a(register const unsigned char *var, register int length)
+{
+    register unsigned long hash = ((5381 << 5) + 5381) + *var;
+    switch (length)
+    {
+        default:
+        case 8: hash = ((hash << 5) + hash) + var[7];
+        case 7: hash = ((hash << 5) + hash) + var[6];
+        case 6: hash = ((hash << 5) + hash) + var[5];
+        case 5: hash = ((hash << 5) + hash) + var[4];
+        case 4: hash = ((hash << 5) + hash) + var[3];
+        case 3: hash = ((hash << 5) + hash) + var[2];
+        case 2: hash = ((hash << 5) + hash) + var[1];
+        case 1: return hash;
+        case 0: return 5381; /* shouldn't happen */
+    }
+}
+#endif /* KMK */
+
 static unsigned long
 variable_hash_1 (const void *keyv)
 {
   struct variable const *key = (struct variable const *) keyv;
+#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH_STRICT
+  if (key->hash1 != variable_hash_a (key->name, key->length))
+    __asm__("int3");
+  if (key->hash2 && key->hash2 != variable_hash_b (key->name, key->length))
+    __asm__("int3");
+#endif
+  return key->hash1;
+#else
+#ifdef KMK
+  return variable_hash_a (key->name, key->length);
+#else
   return_STRING_N_HASH_1 (key->name, key->length);
+#endif
+#endif
 }
 
 static unsigned long
 variable_hash_2 (const void *keyv)
 {
+#ifdef VARIABLE_HASH
+  struct variable *key = (struct variable *) keyv;
+  if (!key->hash2)
+    key->hash2 = variable_hash_b (key->name, key->length);
+  return key->hash2;
+#else
   struct variable const *key = (struct variable const *) keyv;
+#ifdef KMK
+  return variable_hash_b (key->name, key->length);
+#else
   return_STRING_N_HASH_2 (key->name, key->length);
+#endif
+#endif
 }
 
 static int
@@ -123,7 +202,75 @@ variable_hash_cmp (const void *xv, const void *yv)
   int result = x->length - y->length;
   if (result)
     return result;
+#ifdef KMK /* speed */
+  {
+    const char *xs = x->name;
+    const char *ys = y->name;
+    switch (x->length)
+      {
+        case 8:
+            result = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+            if (result)
+              return result;
+            return *(int32_t*)xs - *(int32_t*)ys;
+        case 7:
+            result = xs[6] - ys[6];
+            if (result)
+                return result;
+        case 6:
+            result = *(int32_t*)xs - *(int32_t*)ys;
+            if (result)
+                return result;
+            return *(int16_t*)(xs + 4) - *(int16_t*)(ys + 4);
+        case 5:
+            result = xs[4] - ys[4];
+            if (result)
+                return result;
+        case 4:
+            return *(int32_t*)xs - *(int32_t*)ys;
+        case 3:
+            result = xs[2] - ys[2];
+            if (result)
+                return result;
+        case 2:
+            return *(int16_t*)xs - *(int16_t*)ys;
+        case 1:
+            return *xs - *ys;
+        case 0:
+            return 0;
+      }
+  }
+#endif /* KMK */
+#ifdef VARIABLE_HASH_STRICT
+  if (x->hash1 != variable_hash_a (x->name, x->length))
+    __asm__("int3");
+  if (x->hash2 && x->hash2 != variable_hash_b (x->name, x->length))
+    __asm__("int3");
+  if (y->hash1 != variable_hash_a (y->name, y->length))
+    __asm__("int3");
+  if (y->hash2 && y->hash2 != variable_hash_b (y->name, y->length))
+    __asm__("int3");
+#endif
+#ifdef VARIABLE_HASH
+
+  /* hash 1 */
+  result = (int)x->hash1 - (int)y->hash1;
+  if (result)
+    return result;
+
+  /* hash 2 */
+  if (x->hash2 && y->hash2)
+    {
+      result = (int)x->hash2 - (int)y->hash2;
+      if (result)
+        return result;
+    }
+#endif
+#ifdef KMK
+  return memcmp (x->name, y->name, x->length);
+#else
   return_STRING_N_COMPARE (x->name, y->name, x->length);
+#endif
 }
 
 #ifndef	VARIABLE_BUCKETS
@@ -148,7 +295,7 @@ init_hash_global_variable_set (void)
 {
   hash_init (&global_variable_set.table,
 #ifdef KMK
-             8192,
+             8191,
 #else
              VARIABLE_BUCKETS,
 #endif
@@ -177,6 +324,10 @@ define_variable_in_set (const char *name, unsigned int length,
 
   var_key.name = (char *) name;
   var_key.length = length;
+#ifdef VARIABLE_HASH
+  var_key.hash1 = variable_hash_a (name, length);
+  var_key.hash2 = 0;
+#endif
   var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
 
   if (env_overrides && origin == o_env)
@@ -213,6 +364,10 @@ define_variable_in_set (const char *name, unsigned int length,
   v = (struct variable *) xmalloc (sizeof (struct variable));
   v->name = savestring (name, length);
   v->length = length;
+#ifdef VARIABLE_HASH
+  v->hash1 = variable_hash_a (name, length);
+  v->hash2 = 0;
+#endif
   hash_insert_at (&set->table, v, var_slot);
   v->value = xstrdup (value);
   if (flocp != 0)
@@ -348,6 +503,10 @@ lookup_variable (const char *name, unsigned int length)
 
   var_key.name = (char *) name;
   var_key.length = length;
+#ifdef VARIABLE_HASH
+  var_key.hash1 = variable_hash_a (name, length);
+  var_key.hash2 = 0;
+#endif
 
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
@@ -432,6 +591,10 @@ lookup_variable_in_set (const char *name, unsigned int length,
 
   var_key.name = (char *) name;
   var_key.length = length;
+#ifdef VARIABLE_HASH
+  var_key.hash1 = variable_hash_a (name, length);
+  var_key.hash2 = 0;
+#endif
 
   return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
 }
@@ -903,6 +1066,10 @@ target_environment (struct file *file)
 
   makelevel_key.name = MAKELEVEL_NAME;
   makelevel_key.length = MAKELEVEL_LENGTH;
+#ifdef VARIABLE_HASH
+  makelevel_key.hash1 = variable_hash_a (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
+  makelevel_key.hash2 = 0;
+#endif
   hash_delete (&table, &makelevel_key);
 
   result = result_0 = (char **) xmalloc ((table.ht_fill + 2) * sizeof (char *));

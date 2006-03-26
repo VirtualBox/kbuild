@@ -53,6 +53,10 @@ struct variable
   {
     char *name;			/* Variable name.  */
     int length;			/* strlen (name) */
+#ifdef VARIABLE_HASH
+    long hash1;                 /* the primary hash */
+    long hash2;                 /* the secondary hash */
+#endif
     char *value;		/* Variable value.  */
     struct floc fileinfo;       /* Where the variable was defined.  */
     unsigned int recursive:1;	/* Gets recursively re-evaluated.  */
