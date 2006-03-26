@@ -604,3 +604,89 @@ extern int handling_fatal_signal;
 #define ENULLLOOP(_v,_c)   do{ errno = 0; \
                                while (((_v)=_c)==0 && errno==EINTR); }while(0)
 
+#ifdef __EMX__ /* saves 40-100ms on libc. */
+#undef strchr
+#define strchr(s, c) \
+  (__extension__ (__builtin_constant_p (c)				      \
+		  ? ((c) == '\0'					      \
+		     ? (char *) __rawmemchr ((s), (c))			      \
+		     : __strchr_c ((s), ((c) & 0xff) << 8))		      \
+		  : __strchr_g ((s), (c))))
+static inline char *__strchr_c (const char *__s, int __c)
+{
+  register unsigned long int __d0;
+  register char *__res;
+  __asm__ __volatile__
+    ("1:\n\t"
+     "movb	(%0),%%al\n\t"
+     "cmpb	%%ah,%%al\n\t"
+     "je	2f\n\t"
+     "leal	1(%0),%0\n\t"
+     "testb	%%al,%%al\n\t"
+     "jne	1b\n\t"
+     "xorl	%0,%0\n"
+     "2:"
+     : "=r" (__res), "=&a" (__d0)
+     : "0" (__s), "1" (__c),
+       "m" ( *(struct { char __x[0xfffffff]; } *)__s)
+     : "cc");
+  return __res;
+}
+
+static inline char *__strchr_g (__const char *__s, int __c)
+{
+  register unsigned long int __d0;
+  register char *__res;
+  __asm__ __volatile__
+    ("movb	%%al,%%ah\n"
+     "1:\n\t"
+     "movb	(%0),%%al\n\t"
+     "cmpb	%%ah,%%al\n\t"
+     "je	2f\n\t"
+     "leal	1(%0),%0\n\t"
+     "testb	%%al,%%al\n\t"
+     "jne	1b\n\t"
+     "xorl	%0,%0\n"
+     "2:"
+     : "=r" (__res), "=&a" (__d0)
+     : "0" (__s), "1" (__c),
+       "m" ( *(struct { char __x[0xfffffff]; } *)__s)
+     : "cc");
+  return __res;
+}
+
+static inline void *__rawmemchr (const void *__s, int __c)
+{
+  register unsigned long int __d0;
+  register unsigned char *__res;
+  __asm__ __volatile__
+    ("cld\n\t"
+     "repne; scasb\n\t"
+     : "=D" (__res), "=&c" (__d0)
+     : "a" (__c), "0" (__s), "1" (0xffffffff),
+       "m" ( *(struct { char __x[0xfffffff]; } *)__s)
+     : "cc");
+  return __res - 1;
+}
+
+#undef memchr
+#define memchr(a,b,c) __memchr((a),(b),(c))
+static inline void *__memchr (__const void *__s, int __c, size_t __n)
+{
+  register unsigned long int __d0;
+  register unsigned char *__res;
+  if (__n == 0)
+    return NULL;
+  __asm__ __volatile__
+    ("repne; scasb\n\t"
+     "je	1f\n\t"
+     "movl	$1,%0\n"
+     "1:"
+     : "=D" (__res), "=&c" (__d0)
+     : "a" (__c), "0" (__s), "1" (__n),
+       "m" ( *(struct { __extension__ char __x[__n]; } *)__s)
+     : "cc");
+  return __res - 1;
+}
+
+#endif
