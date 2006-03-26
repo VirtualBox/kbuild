@@ -1,6 +1,10 @@
-/* $Id: ChangeLog 428 2006-03-26 04:33:47Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 433 2006-03-26 13:03:00Z knut.osmundsen@oracle.com $ */
 
 2006-03-26:
+    - kBuild/bin/x86.os2/:
+        o Rebuilt the OS/2 tools.
+    - src/gmake/variable.c, src/gmake/variable.h, src/gmake/make.h:
+        o Attempt at speeding up performance on OS/2.
     - src/gmake/kmkbuiltin/rm.c:
         o OS/2 wants -R.
     - src/gmake/read.c:
