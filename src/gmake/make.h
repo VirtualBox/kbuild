@@ -422,7 +422,11 @@ extern char *next_token PARAMS ((const char *));
 extern char *end_of_token PARAMS ((const char *));
 extern void collapse_continuations PARAMS ((char *));
 extern void remove_comments PARAMS((char *));
+#ifdef KMK
+#define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
+#else
 extern char *lindex PARAMS ((const char *, const char *, int));
+#endif
 extern int alpha_compare PARAMS ((const void *, const void *));
 extern void print_spaces PARAMS ((unsigned int));
 extern char *find_char_unquote PARAMS ((char *, int, int, int));

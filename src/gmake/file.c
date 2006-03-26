@@ -960,7 +960,11 @@ build_target_list (char *value)
 void
 init_hash_files (void)
 {
+#ifdef KMK
+  hash_init (&files, 8192, file_hash_1, file_hash_2, file_hash_cmp);
+#else
   hash_init (&files, 1000, file_hash_1, file_hash_2, file_hash_cmp);
+#endif
 }
 
 /* EOF */

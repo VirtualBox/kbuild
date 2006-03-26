@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 376 2005-12-18 06:39:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 429 2006-03-26 06:07:04Z knut.osmundsen@oracle.com $
 
 
 #
@@ -21,6 +21,7 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
 	KMK
+	
 	
 kmk_SOURCES         = \
 	main.c \
@@ -89,7 +90,7 @@ kmk_SOURCES.win32 += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_install kmk_ln kmk_rm 
+PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_install kmk_ln kmk_rm
 
 kmk_append_TEMPLATE = BIN
 kmk_append_DEFS = kmk_builtin_append=main
