@@ -22,6 +22,10 @@ Boston, MA 02111-1307, USA.  */
 #include "dep.h"
 #include "debug.h"
 
+#ifdef __EMX__  /* saves 5-10ms on libc */
+# define bcopy(src, dst, size)   __builtin_memcpy((dst), (src), (size))
+#endif
+
 /* Variadic functions.  We go through contortions to allow proper function
    prototypes for both ANSI and pre-ANSI C compilers, and also for those
    which support stdarg.h vs. varargs.h, and finally those which have
@@ -413,6 +417,7 @@ savestring (const char *str, unsigned int length)
 }
 
 
+#ifndef KMK /* This is really a reimplemntation of memchr. */
 /* Limited INDEX:
    Search through the string STRING, which ends at LIMIT, for the character C.
    Returns a pointer to the first occurrence, or nil if none is found.
@@ -428,6 +433,7 @@ lindex (const char *s, const char *limit, int c)
 
   return 0;
 }
+#endif
 
 /* Return the address of the first whitespace or null in the string S.  */
 

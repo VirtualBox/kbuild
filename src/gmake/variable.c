@@ -146,7 +146,12 @@ struct variable_set_list *current_variable_set_list = &global_setlist;
 void
 init_hash_global_variable_set (void)
 {
-  hash_init (&global_variable_set.table, VARIABLE_BUCKETS,
+  hash_init (&global_variable_set.table,
+#ifdef KMK
+             8192,
+#else
+             VARIABLE_BUCKETS,
+#endif
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 }
 
