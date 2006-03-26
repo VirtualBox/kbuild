@@ -295,7 +295,7 @@ init_hash_global_variable_set (void)
 {
   hash_init (&global_variable_set.table,
 #ifdef KMK
-             8191,
+             16383,
 #else
              VARIABLE_BUCKETS,
 #endif
