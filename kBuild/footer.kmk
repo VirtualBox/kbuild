@@ -1,4 +1,4 @@
-# $Id: footer.kmk 438 2006-05-27 12:48:13Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 441 2006-05-27 23:12:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -297,24 +297,24 @@ endef
 define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 #$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
-$(target)_$(prop) := $($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-#$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
+$(target)_$(prop) := $(value $(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$(warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
 #$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
-$(target)_$(prop).$(BUILD_TYPE) := $($(target)_$(prop).$(BUILD_TYPE)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+$(target)_$(prop).$(BUILD_TYPE) := $(value $(target)_$(prop).$(BUILD_TYPE)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET)
 #$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
-$(target)_$(prop).$(BUILD_TARGET) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
+$(target)_$(prop).$(BUILD_TARGET) := $(value $(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU)
 #$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
-$(target)_$(prop).$(BUILD_TARGET_CPU) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
+$(target)_$(prop).$(BUILD_TARGET_CPU) := $(value $(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_CPU))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH)
 #$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
-$(target)_$(prop).$(BUILD_TARGET_ARCH) := $($(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
+$(target)_$(prop).$(BUILD_TARGET_ARCH) := $(value $(target)_$(prop).$(BUILD_TARGET)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TARGET_ARCH))
 endif
 endef
 
