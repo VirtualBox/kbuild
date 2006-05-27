@@ -1,0 +1,56 @@
+# $Id: W32API.kmk 132 2004-06-30 20:29:28Z bird $
+## @file
+#
+# kBuild SDK - Windows Platform SDK (2002).
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+SDK_WIN32SDK2002          := Win32 Platform SDK 2002
+PATH_SDK_WIN32SDK2002     ?= $(PATH_DEV)/x86.win32/sdk200209
+PATH_SDK_WIN32SDK2002_INC := $(PATH_SDK_WIN32SDK2002)/include
+PATH_SDK_WIN32SDK2002_LIB := $(PATH_SDK_WIN32SDK2002)/lib
+
+SDK_WIN32SDK2002_INCS     := $(PATH_SDK_WIN32SDK2002_INC)
+SDK_WIN32SDK2002_LIBPATH  := $(PATH_SDK_WIN32SDK2002_LIB)
+SDK_WIN32SDK2002_LIBS     := \
+	$(PATH_SDK_WIN32SDK2002_LIB)/Kernel32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/User32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/Gdi32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/AdvAPI32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/Shell32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/ShLwApi.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/SetupAPI.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/Uuid.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/Version.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/WS2_32.Lib \
+	\
+	$(PATH_SDK_WIN32SDK2002_LIB)/Ole32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/OleAut32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/OleDlg.Lib \
+	\
+	$(PATH_SDK_WIN32SDK2002_LIB)/DbgHelp.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/ImageHlps.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/ComClt32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/ComDlg32.Lib \
+	$(PATH_SDK_WIN32SDK2002_LIB)/WinSpool.Lib \
+

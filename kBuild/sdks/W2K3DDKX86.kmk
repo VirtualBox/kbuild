@@ -1,0 +1,40 @@
+# $Id: NT4DDK.kmk 78 2004-06-01 01:07:24Z bird $
+## @file
+#
+# kBuild SDK - Windows 2003 DDK, X86.
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+SDK_W2K3DDKX86          := MicroSoft Windows 2003 DDK, X86
+PATH_SDK_W2K3DDKX86     := $(PATH_DEV)/x86.win32/ddkwin2k3
+PATH_SDK_W2K3DDKX86_INC := $(PATH_SDK_W2K3DDKX86)/inc
+PATH_SDK_W2K3DDKX86_LIB := $(PATH_SDK_W2K3DDKX86)/lib/wnet/i386
+
+SDK_W2K3DDKX86_DEFS		:= _X86_
+SDK_W2K3DDKX86_INCS		:= \
+	$(PATH_SDK_W2K3DDKX86_INC)/ddk/wnet \
+	$(PATH_SDK_W2K3DDKX86_INC)/wnet \
+	$(PATH_SDK_W2K3DDKX86_INC)/ddk/wnet
+
+SDK_W2K3DDKX86_LIBPATHS	:= $(PATH_SDK_W2K3DDKX86_LIB)
+
