@@ -1,4 +1,4 @@
-# $Id: footer.kmk 424 2006-03-19 05:58:45Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 438 2006-05-27 12:48:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1217,7 +1217,7 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)), $(eval $(value def_link_commo
 #
 #   - On OS/2 and windows these are libraries.
 #   - On other platforms they are fake DLLs.
-ifeq ($(subst win32,os2,$(BUILD_TARGET)),os2)
+ifeq ($(filter-out win64 win32 os2,$(BUILD_TARGET)),)
 $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_lib)))
 else
 $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)), $(eval $(value def_link_common)))
@@ -1738,4 +1738,4 @@ $(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
 # end-of-file-content
 __footer_kmk__ := target
 endif # __footer_kmk__
-	
+
