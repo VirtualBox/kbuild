@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 437 2006-05-27 12:45:08Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 440 2006-05-27 19:35:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005)
@@ -26,12 +26,12 @@
 
 
 TOOL_VCC80AMD64                    := Visual C++ 8.0 AMD64
-PATH_TOOL_VCC80AMD64               ?= $(PATH_DEV)/x86.win32/vcc80
-PATH_TOOL_VCC80AMD64_LIB           ?= $(PATH_DEV)/x86.win32/vcc80/lib
+PATH_TOOL_VCC80AMD64               ?= $(PATH_DEV)/x86.win32/vcc/v8
+PATH_TOOL_VCC80AMD64_LIB           ?= $(PATH_TOOL_VCC80AMD64)/lib
 ifeq ($(BUILD_PLATFORM),win64)
-PATH_TOOL_VCC80AMD64_BIN           ?= $(PATH_DEV)/x86.win32/vcc80/bin/amd64
+PATH_TOOL_VCC80AMD64_BIN           ?= $(PATH_TOOL_VCC80AMD64)/bin/amd64
 else
-PATH_TOOL_VCC80AMD64_BIN           ?= $(PATH_DEV)/x86.win32/vcc80/bin/x86_amd64
+PATH_TOOL_VCC80AMD64_BIN           ?= $(PATH_TOOL_VCC80AMD64)/bin/x86_amd64
 endif
 
 TOOL_VCC80AMD64_CC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/cl.exe
@@ -52,7 +52,7 @@ TOOL_VCC80AMD64_CXXFLAGS.profile   := -O2
 TOOL_VCC80AMD64_CXXINCS            := $(PATH_TOOL_VCC80AMD64)/include
 TOOL_VCC80AMD64_CXXDEFS            :=
 
-TOOL_VCC80AMD64_AS                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/ml.exe
+TOOL_VCC80AMD64_AS                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/ml64.exe
 TOOL_VCC80AMD64_ASOBJSUFF          := .obj
 
 TOOL_VCC80AMD64_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/lib.exe
@@ -64,7 +64,7 @@ TOOL_VCC80AMD64_LDFLAGS            := -nologo -machine:amd64
 TOOL_VCC80AMD64_LDFLAGS.debug      := -debug
 TOOL_VCC80AMD64_LDFLAGS.release    :=
 
-TOOL_VCC80AMD64_MT                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/mt.exe
+TOOL_VCC80AMD64_MT                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/../mt.exe
 
 
 ## Constructs the correct .pdb name (the name is lowercased).
