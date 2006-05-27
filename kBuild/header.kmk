@@ -1,4 +1,4 @@
-# $Id: header.kmk 417 2006-01-20 12:07:51Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 438 2006-05-27 12:48:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -124,6 +124,14 @@ ifeq ($(BUILD_PLATFORM),win32)
 _BUILD_PLATFORM_OK  := 1
 endif
 
+# Win64
+ifeq ($(BUILD_PLATFORM),WIN64)
+$(error kBuild: BUILD_PLATFORM must be all lowercase!)
+endif
+ifeq ($(BUILD_PLATFORM),win64)
+_BUILD_PLATFORM_OK  := 1
+endif
+
 # L4
 ifeq ($(BUILD_PLATFORM),L4)
 $(error kBuild: BUILD_PLATFORM must be all lowercase!)
@@ -146,10 +154,18 @@ endif
 
 # Fill in defaults if needed.
 ifndef BUILD_PLATFORM_ARCH
+ifeq ($(filter-out win64,$(BUILD_PLATFORM)),)
+BUILD_PLATFORM_ARCH   := amd64
+else
 BUILD_PLATFORM_ARCH   := x86
 endif
+endif
 ifndef BUILD_PLATFORM_CPU
+ifeq ($(filter-out amd64,$(BUILD_PLATFORM_ARCH)),)
+BUILD_PLATFORM_CPU    := k8
+else
 BUILD_PLATFORM_CPU    := i586
+endif
 endif
 
 
@@ -182,6 +198,14 @@ ifeq ($(BUILD_TARGET),WIN32)
 $(error kBuild: BUILD_TARGET must be all lowercase!)
 endif
 ifeq ($(BUILD_TARGET),win32)
+_BUILD_TARGET_OK    := 1
+endif
+
+# Win64
+ifeq ($(BUILD_TARGET),WIN64)
+$(error kBuild: BUILD_TARGET must be all lowercase!)
+endif
+ifeq ($(BUILD_TARGET),win64)
 _BUILD_TARGET_OK    := 1
 endif
 
@@ -311,8 +335,8 @@ EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
-# Win32
-ifeq ($(BUILD_PLATFORM),win32)
+# Win32 & Win64
+ifeq ($(filter-out win32 win64,$(BUILD_TARGET)),)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
@@ -335,7 +359,7 @@ SUFF_EXE            := .exe
 SUFF_SYS            := .sys
 SUFF_RES            := .res
 endif
-ifeq ($(BUILD_TARGET),win32)
+ifeq ($(filter-out win32 win64,$(BUILD_TARGET)),)
 SUFF_OBJ            := .obj
 SUFF_LIB            := .lib
 SUFF_DLL            := .dll
@@ -513,7 +537,7 @@ endif
 ## DIRDEP - make create directory dependencies.
 #
 # @param	$1	The paths to the directories which must be created.
-ifeq ($(BUILD_PLATFORM),win32)
+ifeq ($(filter-out win32 win64,$(BUILD_PLATFORM)),)
 DIRDEP = $(patsubst %/,%,$(1))
 else
 DIRDEP = $(foreach path,$(patsubst %/,%,$(1)),$(path)/)
