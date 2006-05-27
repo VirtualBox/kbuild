@@ -1,9 +1,9 @@
-# $Id: NT4DDK.kmk 78 2004-06-01 01:07:24Z knut.osmundsen@oracle.com $
+# $Id: NT4DDK.kmk 439 2006-05-27 13:23:01Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild SDK - NT4 DDK.
+# kBuild SDK - NT4 DDK, X86.
 #
-# Copyright (c) 2004 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -25,17 +25,11 @@
 #
 
 
-SDK_NT4DDK			:= MicroSoft NT 4 DDK
-PATH_SDK_NT4DDK     := $(PATH_DEV)/x86.win32/nt4ddk
+SDK_NT4DDK			:= MicroSoft NT 4 DDK, X86
+PATH_SDK_NT4DDK     := $(PATH_DEV)/x86.win32/ddknt4
 PATH_SDK_NT4DDK_INC := $(PATH_SDK_NT4DDK)/inc
-ifeq ($(BUILD_TARGET_ARCH),x86)
 PATH_SDK_NT4DDK_LIB := $(PATH_SDK_NT4DDK)/lib/i386/free
 SDK_NT4DDK_DEFS		:= _X86_
-else
-$(error NT4DDK only works targetting x86!)
-PATH_SDK_NT4DDK_LIB := $(PATH_SDK_NT4DDK)/lib/???/free
-SDK_NT4DDK_DEFS		:=
-endif
 SDK_NT4DDK_INCS		:= $(PATH_SDK_NT4DDK_INC)
 SDK_NT4DDK_LIBPATHS	:= $(PATH_SDK_NT4DDK_LIB)
 
