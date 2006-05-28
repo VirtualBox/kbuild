@@ -27,7 +27,7 @@
 
 SDK_WIN64SDK          := Win64 Platform SDK
 ifndef PATH_SDK_WIN64SDK
-PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/amd64.win64/sdk/2*)
+PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/amd64.win64/sdk/2*))
 ifeq ($(PATH_SDK_WIN64SDK),)
 PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/x86.win32/sdk/2*))
 endif
@@ -55,10 +55,13 @@ SDK_WIN64SDK_LIBS     := \
 	$(PATH_SDK_WIN64SDK_LIB)/Ole32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/OleAut32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/OleDlg.Lib \
+	$(PATH_SDK_WIN64SDK_LIB)/RpcRT4.Lib \
 	\
 	$(PATH_SDK_WIN64SDK_LIB)/DbgHelp.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/ImageHlp.Lib \
+	$(PATH_SDK_WIN64SDK_LIB)/IPHlpApi.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/ComCtl32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/ComDlg32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/WinSpool.Lib \
+	$(PATH_SDK_WIN64SDK_LIB)/WinMM.Lib
 
