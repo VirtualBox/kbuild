@@ -1,4 +1,4 @@
-# $Id: footer.kmk 442 2006-05-28 14:18:45Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 445 2006-05-28 21:03:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -434,7 +434,7 @@ endif
 
 $(basename $(notdir $(obj))).o::
 	+ $$(MAKE) -f $$(MAKEFILE) $(obj)
-$(basename $$(notdir $$(obj))).obj::
+$(basename $(notdir $(obj))).obj::
 	+ $$(MAKE) -f $$(MAKEFILE) $(obj)
 endef
 
