@@ -1,4 +1,4 @@
-# $Id: NT4DDK.kmk 439 2006-05-27 13:23:01Z knut.osmundsen@oracle.com $
+# $Id: NT4DDK.kmk 446 2006-06-04 16:03:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - NT4 DDK, X86.
@@ -25,11 +25,11 @@
 #
 
 
-SDK_NT4DDK			:= MicroSoft NT 4 DDK, X86
+SDK_NT4DDK          := MicroSoft NT 4 DDK, X86
 PATH_SDK_NT4DDK     := $(PATH_DEV)/x86.win32/ddknt4
 PATH_SDK_NT4DDK_INC := $(PATH_SDK_NT4DDK)/inc
 PATH_SDK_NT4DDK_LIB := $(PATH_SDK_NT4DDK)/lib/i386/free
-SDK_NT4DDK_DEFS		:= _X86_
-SDK_NT4DDK_INCS		:= $(PATH_SDK_NT4DDK_INC)
-SDK_NT4DDK_LIBPATHS	:= $(PATH_SDK_NT4DDK_LIB)
+SDK_NT4DDK_DEFS	    := _X86_
+SDK_NT4DDK_INCS	    := $(PATH_SDK_NT4DDK_INC)
+SDK_NT4DDK_LIBPATHS := $(PATH_SDK_NT4DDK_LIB)
 
