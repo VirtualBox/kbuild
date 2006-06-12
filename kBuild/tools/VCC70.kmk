@@ -1,9 +1,9 @@
-# $Id: VCC70.kmk 434 2006-05-08 21:42:37Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 448 2006-06-12 02:25:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual .NET)
 #
-# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -26,8 +26,13 @@
 
 
 TOOL_VCC70                    := Visual C++ 7.0
-PATH_TOOL_VCC70               ?= $(PATH_DEV)/x86.win32/vcc70
-PATH_TOOL_VCC70_LIB           ?= $(PATH_DEV)/x86.win32/vcc70/lib
+ifndef PATH_TOOL_VCC70
+PATH_TOOL_VCC70               := $(wildcard $(PATH_DEV)/x86.win32/vcc/v7)
+ifeq ($(PATH_TOOL_VCC70),)
+PATH_TOOL_VCC70               := $(PATH_DEV)/x86.win32/vcc70
+endif
+endif
+PATH_TOOL_VCC70_LIB           ?= $(PATH_TOOL_VCC70)/lib
 
 TOOL_VCC70_CC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC70)/bin/cl.exe
 TOOL_VCC70_COBJSUFF           := .obj
