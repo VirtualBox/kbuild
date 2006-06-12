@@ -33,6 +33,9 @@ PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/x86.win32/sdk/2*))
 endif
 ifneq ($(PATH_SDK_WIN64SDK),)
 PATH_SDK_WIN64SDK     := $(call lastword,$(PATH_SDK_WIN64SDK))
+else
+$(warning kBuild: PATH_SDK_WIN64SDK couldn't be determined!)
+PATH_SDK_WIN64SDK     := $(PATH_DEV)/amd64.win64/sdk/not/found
 endif
 endif
 PATH_SDK_WIN64SDK_INC := $(PATH_SDK_WIN64SDK)/include

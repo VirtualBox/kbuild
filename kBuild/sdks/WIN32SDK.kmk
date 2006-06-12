@@ -30,6 +30,9 @@ ifndef PATH_SDK_WIN32SDK
 PATH_SDK_WIN32SDK     := $(sort $(wildcard $(PATH_DEV)/x86.win32/sdk/2*))
 ifneq ($(PATH_SDK_WIN32SDK),)
 PATH_SDK_WIN32SDK     := $(call lastword,$(PATH_SDK_WIN32SDK))
+else
+$(warning kBuild: PATH_SDK_WIN32SDK couldn't be determined!)
+PATH_SDK_WIN32SDK     := $(PATH_DEV)/x86.win32/sdk/not/found
 endif
 endif
 PATH_SDK_WIN32SDK_INC := $(PATH_SDK_WIN32SDK)/include

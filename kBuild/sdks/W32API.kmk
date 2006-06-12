@@ -1,4 +1,4 @@
-# $Id: W32API.kmk 132 2004-06-30 20:29:28Z knut.osmundsen@oracle.com $
+# $Id: W32API.kmk 448 2006-06-12 02:25:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - MinGW Windows API.
@@ -26,7 +26,15 @@
 
 
 SDK_W32API                  := MinGW Windows API
-PATH_SDK_W32API             ?= $(PATH_DEV)/x86.win32/w32api/v2.5
+ifndef PATH_SDK_W32API
+PATH_SDK_W32API             := $(sort $(wildcard $(PATH_DEV)/x86.win32/w32api/v*))
+ifneq ($(PATH_SDK_W32API),)
+PATH_SDK_W32API             := $(call lastword,$(PATH_SDK_W32API))
+else
+$(warning kBuild: PATH_SDK_W32API couldn't be determined!)
+PATH_SDK_W32API             := $(PATH_DEV)/x86.win32/w32api/not/found
+endif
+endif
 PATH_SDK_W32API_INC         := $(PATH_SDK_W32API)/include
 PATH_SDK_W32API_LIB         := $(PATH_SDK_W32API)/lib
 
