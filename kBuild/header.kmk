@@ -1,4 +1,4 @@
-# $Id: header.kmk 444 2006-05-28 21:02:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 449 2006-06-13 03:19:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -272,7 +272,7 @@ ifndef PATH_OUT_BASE
 PATH_OUT_BASE       := $(PATH_ROOT)/out
 endif
 ifndef PATH_OUT
-ifeq ($(BUILD_PLATFORM_ARCH),x86)
+ifeq ($(BUILD_TARGET_ARCH),x86)
 ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
 PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET)/$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
 else
