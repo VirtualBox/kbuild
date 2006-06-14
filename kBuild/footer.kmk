@@ -1,4 +1,4 @@
-# $Id: footer.kmk 447 2006-06-05 16:22:01Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 450 2006-06-14 03:46:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -372,7 +372,7 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_temp
 #
 # Include tools
 #
-_TOOLS := $(TOOL)
+_TOOLS := $(TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_PLATFORM)) $(TOOL)
 define def_tools_target_source
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
 	$($(source)_$(prop).$(BUILD_TARGET)) \
@@ -410,7 +410,7 @@ $(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
 #
 # Include SDKs
 #
-_SDKS := $(SDKS)
+_SDKS := $(SDKS.$(BUILD_TARGET)) $(SDKS.$(BUILD_PLATFORM)) $(SDKS)
 define def_sdks_target_source
 $(foreach sdk, $($(source)_SDKS) $($(source)_SDKS.$(BUILD_TARGET)) $($(source)_SDKS.$(BUILD_TYPE)) \
 			   $($(target)_$(source)_SDKS) $($(target)_$(source)_SDKS.$(BUILD_TARGET)) $($(target)_$(source)_SDKS.$(BUILD_TYPE)), \
@@ -435,6 +435,8 @@ include $(SDK_$(sdk)_KMK_FILE)
 endif
 endef
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
+
+## @todo SDKS.<> and TOOL.<> doesn't work correctly for BLDPROGS.
 
 
 #
