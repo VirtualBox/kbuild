@@ -1,4 +1,4 @@
-# $Id: footer.kmk 450 2006-06-14 03:46:23Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 455 2006-06-20 07:03:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -216,6 +216,8 @@ parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
 
 $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
 $(addsuffix .$(BUILD_TARGET), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+$(addsuffix .$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+$(addsuffix .$(BUILD_TARGET_CPU), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
 $(addsuffix .$(BUILD_TYPE), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
 ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
 endif
@@ -228,51 +230,6 @@ $(foreach template, $(_TEMPLATES), $(eval $(value def_template_extends)))
 #
 # Common Inheritance
 #
-
-## Inherit defaults property
-# @param    $(prop)     Property name
-# @param    $(target)   Target name.
-# @param    $(bld_trg)  Build target name.
-define def_inherit_defaults_one
-ifndef $(target)_$(prop)
-ifndef $(target)_$(prop).$(bld_trg)
-ifdef $(prop)
-$$(eval $(target)_$(prop) := $($(prop)))
-#$ (warning dbg idefone: $(target)_$(prop):=$($(prop)))
-endif
-ifdef $(prop).$(bld_trg)
-$$(eval $(target)_$(prop).$(bld_trg) := $($(prop).$(bld_trg)))
-#$ (warning dbg idefone: $(target)_$(prop).$(bld_trg) := $($(prop).$(bld_trg)))
-endif
-endif
-endif
-endef
-
-## Inherit default properties for one target.
-# A bit tricky this one, but it depends a bit on whether or not TEMPLATE
-# is inherited from the default properties.
-# @param    $(target)	Target name
-# @param    $(bld_trg)  Build target name.
-#
-define def_inherit_defaults
-ifdef $(target)_TEMPLATE
-ifeq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_TOOL) $(TEMPLATE_$($(target)_TEMPLATE)_TOOL.$(bld_trg))),)
-$$(foreach prop,TOOL, $$(eval $$(def_inherit_defaults_one)))
-endif
-ifeq ($(strip $(TEMPLATE_$($(target)_TEMPLATE)_SDKS) $(TEMPLATE_$($(target)_TEMPLATE)_SDKS.$(bld_trg))),)
-$$(foreach prop,SDKS, $$(eval $$(def_inherit_defaults_one)))
-endif
-else
-$$(foreach prop,TEMPLATE TOOL SDKS, $$(eval $$(def_inherit_defaults_one)))
-endif
-endef
-# Inherit default properties.
-# !!!!!!THIS IS MESSY AND NOT NECESSARY!!!!!!
-#bld_trg := $(BUILD_TARGET)
-#$(foreach target, $(_ALL_BUILD_TARGET_TARGETS),$(eval $(def_inherit_defaults)))
-#bld_trg := $(BUILD_PLATFORM)
-#$(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(def_inherit_defaults)))
-
 
 ## Inherit one template property in a non-accumulative manner.
 # @param    $(prop)     Property name
@@ -289,6 +246,18 @@ ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 ifndef $(target)_$(prop).$(bld_trg)
 #$ (warning dbgsource: $(target)_$(prop).$(bld_trg)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg_arch)
+#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ifndef $(target)_$(prop).$(bld_trg_cpu)
+#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_cpu)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+$(target)_$(prop).$(bld_trg_cpu) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 endif
 endef
@@ -309,6 +278,18 @@ ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 ifndef $(target)_$(prop).$(bld_trg)
 #$ (warning dbgsource: $(target)_$(prop).$(bld_trg)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg_arch)
+#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ifndef $(target)_$(prop).$(bld_trg_cpu)
+#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_cpu)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+$(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 endif
 endef
