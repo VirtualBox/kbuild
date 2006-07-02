@@ -1,4 +1,4 @@
-# $Id: footer.kmk 455 2006-06-20 07:03:15Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 460 2006-07-02 22:21:59Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -351,31 +351,61 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_temp
 
 
 #
-# Include tools
+# Include tools & sdks
 #
-_TOOLS := $(TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_PLATFORM)) $(TOOL)
-define def_tools_target_source
+_TOOLS := $(TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET_ARCH)) $(TOOL.$(BUILD_PLATFORM)) $(TOOL.$(BUILD_PLATFORM_ARCH)) $(TOOL)
+_SDKS  := $(SDKS.$(BUILD_TARGET)) $(SDKS.$(BUILD_TARGET_ARCH)) $(SDKS.$(BUILD_PLATFORM)) $(SDKS.$(BUILD_PLATFORM_ARCH)) $(SDKS)
+define def_tools_sdks_target_source
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
-	$($(source)_$(prop).$(BUILD_TARGET)) \
-	$($(target)_$(source)_$(prop).$(BUILD_TARGET)) \
+	$($(source)_$(prop).$(_bld_trg)) \
+	$($(target)_$(source)_$(prop).$(_bld_trg)) \
+	$($(source)_$(prop).$(_bld_trg_arch)) \
+	$($(target)_$(source)_$(prop).$(_bld_trg_arch)) \
 	$($(source)_$(prop)) \
 	$($(target)_$(source)_$(prop))))
+$(eval _SDKS += \
+	$($(source)_SDKS.$(_bld_trg)) \
+	$($(target)_$(source)_SDKS.$(_bld_trg)) \
+	$($(source)_SDKS.$(_bld_trg_arch)) \
+	$($(target)_$(source)_SDKS.$(_bld_trg_arch)) \
+	$($(source)_SDKS) \
+	$($(target)_$(source)_SDKS))
 endef
 
-define def_tools_target
+define def_tools_sdks_target
+_bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
+_bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
+_bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
+
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
-	$($(target)_$(prop).$(BUILD_TARGET)) \
+	$($(target)_$(prop).$(_bld_trg)) \
+	$($(target)_$(prop).$(_bld_trg_arch)) \
 	$($(target)_$(prop))))
+$(eval _SDKS += \
+	$($(target)_SDKS.$(_bld_trg)) \
+	$($(target)_SDKS.$(_bld_trg_arch)) \
+	$($(target)_SDKS))
 $(foreach source, \
-	$($(target)_SOURCES.$(BUILD_TARGET)) \
+	$($(target)_SOURCES.$(_bld_trg)) \
+	$($(target)_SOURCES.$(_bld_trg_arch)) \
+	$($(target)_SOURCES.$(_bld_trg_cpu)) \
 	$($(target)_SOURCES.$(BUILD_TYPE)) \
 	$($(target)_SOURCES) \
-	, $(eval $(value def_tools_target_source)))
+	, $(eval $(value def_tools_sdks_target_source)))
 endef
 
-$(foreach target, $(ALL_TARGETS), $(eval $(value def_tools_target)))
-_TOOLS := $(sort $(_TOOLS))
+bld_trg := $(BUILD_TARGET)
+bld_trg_arch := $(BUILD_TARGET_ARCH)
+bld_trg_cpu := $(BUILD_TARGET_CPU)
+$(foreach target, $(_ALL_BUILD_TARGET_TARGETS), $(eval $(value def_tools_sdks_target)))
 
+bld_trg := $(BUILD_PLATFORM)
+bld_trg_arch := $(BUILD_PLATFORM_ARCH)
+bld_trg_cpu := $(BUILD_PLATFORM_CPU)
+$(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS), $(eval $(value def_tools_sdks_target)))
+
+
+# include TOOLS
 define def_tools_include
 ifndef TOOL_$(tool)
 TOOL_$(tool)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(tool).kmk)))
@@ -385,27 +415,12 @@ endif
 include $(TOOL_$(tool)_KMK_FILE)
 endif
 endef
+
+_TOOLS := $(sort $(_TOOLS))
 $(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
 
 
-#
-# Include SDKs
-#
-_SDKS := $(SDKS.$(BUILD_TARGET)) $(SDKS.$(BUILD_PLATFORM)) $(SDKS)
-define def_sdks_target_source
-$(foreach sdk, $($(source)_SDKS) $($(source)_SDKS.$(BUILD_TARGET)) $($(source)_SDKS.$(BUILD_TYPE)) \
-			   $($(target)_$(source)_SDKS) $($(target)_$(source)_SDKS.$(BUILD_TARGET)) $($(target)_$(source)_SDKS.$(BUILD_TYPE)), \
-	$(eval _SDKS += $(sdk)))
-endef
-define def_sdks_target
-$(foreach sdk, $($(target)_SDKS) $($(target)_SDKS.$(BUILD_TARGET)) $($(target)_SDKS.$(BUILD_TYPE))\
-	, $(eval _SDKS += $(sdk)))
-$(foreach source, $($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TYPE))\
-	, $(eval $(def_sdks_target_source)))
-endef
-$(foreach target, $(ALL_TARGETS), $(eval $(def_sdks_target)))
-_SDKS := $(sort $(_SDKS))
-
+# include SDKS
 define def_sdks_include_one
 ifndef SDK_$(sdk)
 SDK_$(sdk)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(sdk).kmk)))
@@ -415,9 +430,9 @@ endif
 include $(SDK_$(sdk)_KMK_FILE)
 endif
 endef
-$(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
-## @todo SDKS.<> and TOOL.<> doesn't work correctly for BLDPROGS.
+_SDKS := $(sort $(_SDKS))
+$(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 
 #
