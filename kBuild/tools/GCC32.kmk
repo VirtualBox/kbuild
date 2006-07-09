@@ -55,7 +55,7 @@ TOOL_GCC32_ARLIBSUFF          := .a
 
 TOOL_GCC32_LD                 := g++32$(HOSTSUFF_EXE)
 TOOL_GCC32_LD_SYSMOD          := ld$(HOSTSUFF_EXE)
-TOOL_GCC32_LDFLAGS           := -m elf_i386
+TOOL_GCC32_LDFLAGS            := 
 TOOL_GCC32_LDFLAGS.debug      := -g
 TOOL_GCC32_LDFLAGS.release    := -s
 ifndef TOOL_GCC32_LDFLAGS.$(BUILD_TARGET)
@@ -63,7 +63,7 @@ TOOL_GCC32_LDFLAGS.dll        := -shared
 else
 TOOL_GCC32_LDFLAGS.dll        := $(TOOL_GCC32_LDFLAGS.$(BUILD_TARGET))
 endif
-TOOL_GCC32_LDFLAGS.sysmod     := -r
+TOOL_GCC32_LDFLAGS.sysmod     := -r -m elf_i386
 TOOL_GCC32_LD_SONAME           = -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 ifeq ($(BUILD_TARGET),os2)
 TOOL_GCC32_LD_MAP              = -Zmap=$(1)
