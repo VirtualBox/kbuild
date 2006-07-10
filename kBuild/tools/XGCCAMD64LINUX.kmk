@@ -73,7 +73,7 @@ TOOL_XGCCAMD64LINUX_CXXFLAGS.profile   := -O2 #-pg
 TOOL_XGCCAMD64LINUX_CXXINCS            :=
 TOOL_XGCCAMD64LINUX_CXXDEFS            :=
 
-TOOL_XGCCAMD64LINUX_AS                 := $(_TOOL_XGCCAMD64LINUX_PREFIX)as$(HOSTSUFF_EXE)
+TOOL_XGCCAMD64LINUX_AS                 := $(_TOOL_XGCCAMD64LINUX_PREFIX)gcc$(HOSTSUFF_EXE)
 TOOL_XGCCAMD64LINUX_ASOBJSUFF          := .o
 
 TOOL_XGCCAMD64LINUX_AR                 := $(_TOOL_XGCCAMD64LINUX_PREFIX)ar$(HOSTSUFF_EXE)
@@ -156,6 +156,30 @@ define TOOL_XGCCAMD64LINUX_COMPILE_CXX_CMDS
 		$(call ABSPATH,$(source))
 endef
 
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_XGCCAMD64LINUX_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_XGCCAMD64LINUX_COMPILE_AS_DEPEND =
+TOOL_XGCCAMD64LINUX_COMPILE_AS_DEPORD =
+define TOOL_XGCCAMD64LINUX_COMPILE_AS_CMDS
+	$(TOOL_XGCCAMD64LINUX_AS) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(call ABSPATH,$(source))
+endef
+
 
 ## Link library
 # @param    $(target)   Normalized main target name.
@@ -196,7 +220,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_XGCCAMD64LINUX_LINK_PROGRAM_OUTPUT = $(outbase).map
 TOOL_XGCCAMD64LINUX_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
-TOOL_XGCCAMD64LINUX_LINK_PROGRAM_DEPORD = 
+TOOL_XGCCAMD64LINUX_LINK_PROGRAM_DEPORD =
 define TOOL_XGCCAMD64LINUX_LINK_PROGRAM_CMDS
 	$(TOOL_XGCCAMD64LINUX_LD) $(flags) -o $(out) $(objs)\
 		$(foreach p,$(libpath), -L$(p))\
