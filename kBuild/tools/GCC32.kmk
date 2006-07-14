@@ -45,8 +45,7 @@ TOOL_GCC32_CXXFLAGS.profile   := -O2 #-pg
 TOOL_GCC32_CXXINCS            :=
 TOOL_GCC32_CXXDEFS            :=
 
-TOOL_GCC32_AS                 := as$(HOSTSUFF_EXE)
-TOOL_GCC32_ASFLAGS            := -m32
+TOOL_GCC32_AS                 := gcc32$(HOSTSUFF_EXE)
 TOOL_GCC32_ASOBJSUFF          := .o
 
 TOOL_GCC32_AR                 := ar$(HOSTSUFF_EXE)
@@ -55,7 +54,7 @@ TOOL_GCC32_ARLIBSUFF          := .a
 
 TOOL_GCC32_LD                 := g++32$(HOSTSUFF_EXE)
 TOOL_GCC32_LD_SYSMOD          := ld$(HOSTSUFF_EXE)
-TOOL_GCC32_LDFLAGS            := 
+TOOL_GCC32_LDFLAGS            :=
 TOOL_GCC32_LDFLAGS.debug      := -g
 TOOL_GCC32_LDFLAGS.release    := -s
 ifndef TOOL_GCC32_LDFLAGS.$(BUILD_TARGET)
@@ -130,6 +129,31 @@ define TOOL_GCC32_COMPILE_CXX_CMDS
 endef
 
 
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_GCC32_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_GCC32_COMPILE_AS_DEPEND =
+TOOL_GCC32_COMPILE_AS_DEPORD =
+define TOOL_GCC32_COMPILE_AS_CMDS
+	$(TOOL_GCC32_AS) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(call ABSPATH,$(source))
+endef
+
+
 ## Link library
 # @param    $(target)   Normalized main target name.
 # @param    $(out)		Library name.
@@ -169,7 +193,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC32_LINK_PROGRAM_OUTPUT = $(outbase).map
 TOOL_GCC32_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
-TOOL_GCC32_LINK_PROGRAM_DEPORD = 
+TOOL_GCC32_LINK_PROGRAM_DEPORD =
 define TOOL_GCC32_LINK_PROGRAM_CMDS
 	$(TOOL_GCC32_LD) $(flags) -o $(out) $(objs)\
 		$(foreach p,$(libpath), -L$(p))\

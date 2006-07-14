@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 465 2006-07-14 22:14:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -45,7 +45,7 @@ TOOL_GCC3OMF_CXXFLAGS.profile   := -O2 #-pg
 TOOL_GCC3OMF_CXXINCS            :=
 TOOL_GCC3OMF_CXXDEFS            :=
 
-TOOL_GCC3OMF_AS                 := emxomfas$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_AS                 := gcc$(HOSTSUFF_EXE)
 TOOL_GCC3OMF_ASOBJSUFF          := .obj
 
 TOOL_GCC3OMF_AR                 := emxomfar$(HOSTSUFF_EXE)
@@ -118,6 +118,31 @@ define TOOL_GCC3OMF_COMPILE_CXX_CMDS
 	$(TOOL_GCC3OMF_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP \
+		-o $(obj)\
+		$(call ABSPATH,$(source))
+endef
+
+
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_GCC3OMF_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_GCC3OMF_COMPILE_AS_DEPEND =
+TOOL_GCC3OMF_COMPILE_AS_DEPORD =
+define TOOL_GCC3OMF_COMPILE_AS_CMDS
+	$(TOOL_GCC3OMF_AS) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(call ABSPATH,$(source))
 endef
