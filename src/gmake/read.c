@@ -3050,6 +3050,7 @@ multi_glob (struct nameseq *chain, unsigned int size)
         {
           gl.gl_pathc = 1;
           gl.gl_pathv = &old->name;
+          rc = 0;
         }
       else
         rc = glob (old->name, GLOB_NOCHECK|GLOB_ALTDIRFUNC, NULL, &gl);
