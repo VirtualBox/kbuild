@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 465 2006-07-14 22:14:53Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 469 2006-07-15 04:28:44Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -136,7 +136,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
 #
-TOOL_GCC3OMF_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_GCC3OMF_COMPILE_AS_OUTPUT =
 TOOL_GCC3OMF_COMPILE_AS_DEPEND =
 TOOL_GCC3OMF_COMPILE_AS_DEPORD =
 define TOOL_GCC3OMF_COMPILE_AS_CMDS

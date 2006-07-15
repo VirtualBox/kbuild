@@ -169,7 +169,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
 #
-TOOL_XGCCAMD64LINUX_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_XGCCAMD64LINUX_COMPILE_AS_OUTPUT =
 TOOL_XGCCAMD64LINUX_COMPILE_AS_DEPEND =
 TOOL_XGCCAMD64LINUX_COMPILE_AS_DEPORD =
 define TOOL_XGCCAMD64LINUX_COMPILE_AS_CMDS
