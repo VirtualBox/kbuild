@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 469 2006-07-15 04:28:44Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 471 2006-07-15 04:33:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -47,6 +47,7 @@ TOOL_GCC_CXXINCS            :=
 TOOL_GCC_CXXDEFS            :=
 
 TOOL_GCC_AS                 := gcc$(HOSTSUFF_EXE)
+TOOL_GCC_ASFLAGS            := -g -x assembler-with-cpp
 TOOL_GCC_ASOBJSUFF          := .o
 
 TOOL_GCC_AR                 := ar$(HOSTSUFF_EXE)
