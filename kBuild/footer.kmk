@@ -1,4 +1,4 @@
-# $Id: footer.kmk 460 2006-07-02 22:21:59Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 472 2006-07-15 04:33:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -146,9 +146,9 @@ no-root-slash=$(patsubst /%,%,$(1))
 # @param    $2      normalized main target
 # @remark There are two major hacks here:
 #           1. Source files in the output directory are translated into a gen/ subdir.
-#         	2. Catch anyone specifying $(PATH_CURRENT)/sourcefile.c.
+#         	2. Catch anyone specifying $(PATH_SUB_CURRENT)/sourcefile.c.
 _OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename \
-	$(patsubst $(PATH_ROOT)/%,%,$(patsubst $(PATH_CURRENT)/%,%,$(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))))
+	$(patsubst $(PATH_ROOT)/%,%,$(patsubst $(PATH_SUB_CURRENT)/%,%,$(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))))
 
 ## Figure out where to put object files.
 # @param    $1      real target name.
@@ -456,7 +456,7 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 		| \
 		$($(target)_$(source)_DEPORD_)
 	$(call MSG_L1,Creating $$@)
-	$(RM) -f $(dep) $(out) $($(target)_$(source)_OUTPUT_)
+	$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
 	$(custom_pre)
 
 $($(target)_$(source)_CMDS_)
