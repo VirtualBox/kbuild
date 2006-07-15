@@ -1,4 +1,4 @@
-# $Id: Config.kmk 427 2006-03-26 04:31:34Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 467 2006-07-15 04:25:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -24,6 +24,8 @@
 #
 #
 
+# Enable automatic installation of what's built.
+KBUILD_DO_AUTO_INSTALL := 1
 					
 #
 # Template for building commandline tools.
