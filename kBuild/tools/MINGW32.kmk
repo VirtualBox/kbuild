@@ -1,9 +1,9 @@
-# $Id: MINGW32.kmk 458 2006-07-01 23:22:07Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 470 2006-07-15 04:33:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
 #
-# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -74,7 +74,8 @@ TOOL_MINGW32_CXXFLAGS.profile   := -O2 #-pg
 TOOL_MINGW32_CXXINCS            :=
 TOOL_MINGW32_CXXDEFS            :=
 
-TOOL_MINGW32_AS                 := $(_TOOL_MINGW32_PREFIX)as$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_AS                 := $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_ASFLAGS            := -g -x assembler-with-cpp
 TOOL_MINGW32_ASOBJSUFF          := .o
 
 TOOL_MINGW32_AR                 := $(_TOOL_MINGW32_PREFIX)ar$(_TOOL_MINGW32_SUFF_EXE)
@@ -138,6 +139,31 @@ TOOL_MINGW32_COMPILE_CXX_DEPEND =
 TOOL_MINGW32_COMPILE_CXX_DEPORD =
 define TOOL_MINGW32_COMPILE_CXX_CMDS
 	$(TOOL_MINGW32_CXX) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(call ABSPATH,$(source))
+endef
+
+
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_MINGW32_COMPILE_AS_OUTPUT =
+TOOL_MINGW32_COMPILE_AS_DEPEND =
+TOOL_MINGW32_COMPILE_AS_DEPORD =
+define TOOL_MINGW32_COMPILE_AS_CMDS
+	$(TOOL_MINGW32_AS) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
