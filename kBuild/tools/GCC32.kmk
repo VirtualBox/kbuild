@@ -46,6 +46,7 @@ TOOL_GCC32_CXXINCS            :=
 TOOL_GCC32_CXXDEFS            :=
 
 TOOL_GCC32_AS                 := gcc32$(HOSTSUFF_EXE)
+TOOL_GCC32_ASFLAGS            := -g -x assembler-with-cpp
 TOOL_GCC32_ASOBJSUFF          := .o
 
 TOOL_GCC32_AR                 := ar$(HOSTSUFF_EXE)
