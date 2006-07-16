@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 410 2006-01-15 01:09:39Z knut.osmundsen@oracle.com $
+# $Id: env.sh 476 2006-07-16 05:08:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -159,7 +159,7 @@ case "$BUILD_PLATFORM" in
 esac
 
 # Make shell
-export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/ash${_SUFF_EXE}";
+export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/kmk_ash${_SUFF_EXE}";
 
 # The PATH.
 PATH="$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${_PATH_SEP}$PATH"
