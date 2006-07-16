@@ -1,4 +1,4 @@
-# $Id: footer.kmk 472 2006-07-15 04:33:50Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 473 2006-07-16 03:42:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -500,7 +500,7 @@ $(out) $($(target)_OUTPUT_): \
 		| \
 		$($(target)_DEPORD_)
 	$(call MSG_L1,Creating $$@)
-	$(RM) -f $(dep) $($(target)_OUTPUT_)
+	$(RM) -f $(dep) $(out) $($(target)_OUTPUT_)
 	$(custom_pre)
 
 $($(target)_CMDS_)
