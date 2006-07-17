@@ -25,6 +25,25 @@ REM # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 REM #
 REM # kBuild path.
 
+REM # deal with -32 and -64 options
+if ".%1" = ".-32" goto want_32_bit
+if ".%1" = ".-64" goto want_64_bit
+goto doesnt_want_anything
+
+:want_32_bit
+shift
+set BUILD_TARGET=win32
+set BUILD_PLATFORM=win32
+set BUILD_PLATFORM_ARCH=amd64
+goto doesnt_want_anything
+
+:want_64_bit
+shift
+set BUILD_TARGET=win64
+goto doesnt_want_anything
+
+:doesnt_want_anything
+
 REM # figure the current directory.
 for /f "tokens=*" %d in ('cd') do set CURDIR=%d
 
@@ -57,43 +76,66 @@ set BUILD_TYPE=debug
 echo dbg: BUILD_TYPE=%BUILD_TYPE%
 
 REM # Host platform.
-IF NOT ".%BUILD_PLATFORM_ARCH%" = "." goto have_BUILD_PLATFORM_ARCH
+IF NOT ".%BUILD_PLATFORM%" = "." goto have_2_BUILD_PLATFORM
+
+IF NOT ".%BUILD_PLATFORM_ARCH%" = "."   goto have_BUILD_PLATFORM_ARCH
 set TEST_PROCESSOR_ARCH=%PROCESSOR_ARCHITECTURE%
 IF NOT ".%PROCESSOR_ARCHITEW6432%" = "." set TEST_PROCESSOR_ARCH=%PROCESSOR_ARCHITEW6432%
-IF "%TEST_PROCESSOR_ARCH%" = "x86"   set BUILD_PLATFORM_ARCH=x86
-IF "%TEST_PROCESSOR_ARCH%" = "X86"   set BUILD_PLATFORM_ARCH=x86
-IF "%TEST_PROCESSOR_ARCH%" = "AMD64" set BUILD_PLATFORM_ARCH=amd64
-IF "%TEST_PROCESSOR_ARCH%" = "x64"   set BUILD_PLATFORM_ARCH=amd64
-IF "%TEST_PROCESSOR_ARCH%" = "X64"   set BUILD_PLATFORM_ARCH=amd64
-IF NOT ".%BUILD_PLATFORM_ARCH%" = "." goto have_BUILD_PLATFORM_ARCH
+IF "%TEST_PROCESSOR_ARCH%" = "x86"      set BUILD_PLATFORM_ARCH=x86
+IF "%TEST_PROCESSOR_ARCH%" = "X86"      set BUILD_PLATFORM_ARCH=x86
+IF "%TEST_PROCESSOR_ARCH%" = "AMD64"    set BUILD_PLATFORM_ARCH=amd64
+IF "%TEST_PROCESSOR_ARCH%" = "x64"      set BUILD_PLATFORM_ARCH=amd64
+IF "%TEST_PROCESSOR_ARCH%" = "X64"      set BUILD_PLATFORM_ARCH=amd64
+IF NOT ".%BUILD_PLATFORM_ARCH%" = "."   goto have_BUILD_PLATFORM_ARCH
 set TEST_PROCESSOR_ARCH=
 echo kBuild: Cannot figure BUILD_PLATFORM_ARCH!
 goto failed
-:have_PROCESSOR_ARCHITEW6432
 :have_BUILD_PLATFORM_ARCH
 echo dbg: BUILD_PLATFORM_ARCH=%BUILD_PLATFORM_ARCH%
 set TEST_PROCESSOR_ARCH=
 
-IF NOT ".%BUILD_PLATFORM_CPU%" = "." goto have_BUILD_PLATFORM_CPU
+IF NOT ".%BUILD_PLATFORM_CPU%" = "."    goto have_BUILD_PLATFORM_CPU
 IF "%BUILD_PLATFORM_ARCH%" = "amd64"    set BUILD_PLATFORM_CPU=k8
 IF "%BUILD_PLATFORM_ARCH%" = "x86"      set BUILD_PLATFORM_CPU=i386
-IF NOT ".%BUILD_PLATFORM_CPU%" = "." goto have_BUILD_PLATFORM_CPU
+IF NOT ".%BUILD_PLATFORM_CPU%" = "."    goto have_BUILD_PLATFORM_CPU
 echo kBuild: Cannot figure BUILD_PLATFORM_CPU!
 goto failed
 :have_BUILD_PLATFORM_CPU
 echo dbg: BUILD_PLATFORM_CPU=%BUILD_PLATFORM_CPU%
 
-IF NOT ".%BUILD_PLATFORM%" = "." goto have_BUILD_PLATFORM
 IF "%BUILD_PLATFORM_ARCH%" = "amd64"    set BUILD_PLATFORM=win64
 IF "%BUILD_PLATFORM_ARCH%" = "x86"      set BUILD_PLATFORM=win32
-IF NOT ".%BUILD_PLATFORM%" = "." goto have_BUILD_PLATFORM
+IF NOT ".%BUILD_PLATFORM%" = "."        goto have_BUILD_PLATFORM
 echo kBuild: Cannot figure BUILD_PLATFORM!
 goto failed
+
 :have_BUILD_PLATFORM
 echo dbg: BUILD_PLATFORM=%BUILD_PLATFORM%
+goto process_BUILD_TARGET
+
+
+:have_2_BUILD_PLATFORM
+echo dbg: BUILD_PLATFORM=%BUILD_PLATFORM%
+IF "%BUILD_PLATFORM%" = "win32"         set BUILD_PLATFORM_ARCH=x86
+IF "%BUILD_PLATFORM%" = "win64"         set BUILD_PLATFORM_ARCH=amd64
+IF NOT ".%BUILD_PLATFORM_ARCH%" = "."   goto have_2_BUILD_PLATFORM_ARCH
+echo kBuild: Cannot figure BUILD_PLATFORM_ARCH!
+goto failed
+:have_2_BUILD_PLATFORM_ARCH
+echo dbg: BUILD_PLATFORM_ARCH=%BUILD_PLATFORM_ARCH%
+
+IF NOT ".%BUILD_PLATFORM_CPU%" = "."    goto have_2_BUILD_PLATFORM_CPU
+IF "%BUILD_PLATFORM_ARCH%" = "amd64"    set BUILD_PLATFORM_CPU=k8
+IF "%BUILD_PLATFORM_ARCH%" = "x86"      set BUILD_PLATFORM_CPU=i386
+IF NOT ".%BUILD_PLATFORM_CPU%" = "."    goto have_2_BUILD_PLATFORM_CPU
+echo kBuild: Cannot figure BUILD_PLATFORM_CPU!
+goto failed
+:have_2_BUILD_PLATFORM_CPU
+echo dbg: BUILD_PLATFORM_CPU=%BUILD_PLATFORM_CPU%
 
 
 REM # Target platform.
+:process_BUILD_TARGET
 IF NOT ".%BUILD_TARGET%" = "." goto have_BUILD_TARGET
 set BUILD_TARGET=%BUILD_PLATFORM%
 IF NOT ".%BUILD_TARGET_ARCH%" = "." goto have_BUILD_TARGET_ARCH
@@ -117,8 +159,8 @@ IF ".%BUILD_TARGET_ARCH%" = "."         set BUILD_TARGET_ARCH=%BUILD_PLATFORM_AR
 :have_2_BUILD_TARGET_ARCH
 echo dbg: BUILD_TARGET_ARCH=%BUILD_TARGET_ARCH%
 IF NOT ".%BUILD_TARGET_CPU%" = "." goto have_2_BUILD_TARGET_CPU
-IF "%BUILD_TARGET_ARCH%" = "amd64"      set BUILD_PLATFORM_CPU=k8
-IF "%BUILD_TARGET_ARCH%" = "x86"        set BUILD_PLATFORM_CPU=i386
+IF "%BUILD_TARGET_ARCH%" = "amd64"      set BUILD_TARGET_CPU=k8
+IF "%BUILD_TARGET_ARCH%" = "x86"        set BUILD_TARGET_CPU=i386
 IF NOT ".%BUILD_TARGET_CPU%" = "." goto have_2_BUILD_TARGET_CPU
 echo kBuild: Cannot figure BUILD_TARGET_CPU!
 goto failed
@@ -140,5 +182,5 @@ IF ".%1" = "." goto end
 %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto end
 
-:failure
+:failed
 :end
