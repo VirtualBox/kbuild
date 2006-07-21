@@ -1,4 +1,4 @@
-# $Id: header.kmk 472 2006-07-15 04:33:50Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 478 2006-07-21 19:03:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -74,7 +74,7 @@ SP := $(subst ., ,.)
 # @returns	non-blank if not equal.
 # @param    $1   String 1.
 # @param    $2   String 2
-STRCMP = $(
+STRCMP = $( todo )
 
 #
 # Assert build type.
@@ -99,73 +99,33 @@ endif
 #
 # Assert build platform.
 #
-_BUILD_PLATFORM_OK  := 0
-# OS/2 (have uppercase legacy)
-ifeq ($(BUILD_PLATFORM),OS2)
-override BUILD_PLATFORM := os2
-endif
-ifeq ($(BUILD_PLATFORM),os2)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-# Linux
-ifeq ($(BUILD_PLATFORM),LINUX)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
-endif
-ifeq ($(BUILD_PLATFORM),linux)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-# Win32
-ifeq ($(BUILD_PLATFORM),WIN32)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
-endif
-ifeq ($(BUILD_PLATFORM),win32)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-# Win64
-ifeq ($(BUILD_PLATFORM),WIN64)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
-endif
-ifeq ($(BUILD_PLATFORM),win64)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-# L4
-ifeq ($(BUILD_PLATFORM),L4)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
-endif
-ifeq ($(BUILD_PLATFORM),l4)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-# FreeBSD
-ifeq ($(BUILD_PLATFORM),FreeBSD)
-$(error kBuild: BUILD_PLATFORM must be all lowercase!)
-endif
-ifeq ($(BUILD_PLATFORM),freebsd)
-_BUILD_PLATFORM_OK  := 1
-endif
-
-ifeq ($(_BUILD_PLATFORM_OK),0)
-$(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recongized!)
+ifndef BUILD_PLATFORM
+ $(error kBuild: BUILD_PLATFORM is undefined!)
+else
+ BUILD_PLATFORM     := $(strip $(BUILD_PLATFORM))
+ ifneq ($(words $(BUILD_PLATFORM))$(filter-out freebsd l4 linux nt os2 win win32 win64,$(BUILD_PLATFORM)),1)
+  # OS/2 (have uppercase legacy)
+  ifeq ($(BUILD_PLATFORM),OS2)
+   $(error kBuild: BUILD_PLATFORM must be all lowercase!)
+  endif
+  $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' was not recognized!)
+ endif
 endif
 
 # Fill in defaults if needed.
 ifndef BUILD_PLATFORM_ARCH
-ifeq ($(filter-out win64,$(BUILD_PLATFORM)),)
-BUILD_PLATFORM_ARCH   := amd64
-else
-BUILD_PLATFORM_ARCH   := x86
-endif
+ ifeq ($(filter-out win64,$(BUILD_PLATFORM)),)
+  BUILD_PLATFORM_ARCH := amd64
+ else
+  BUILD_PLATFORM_ARCH := x86
+ endif
 endif
 ifndef BUILD_PLATFORM_CPU
-ifeq ($(filter-out amd64,$(BUILD_PLATFORM_ARCH)),)
-BUILD_PLATFORM_CPU    := k8
-else
-BUILD_PLATFORM_CPU    := i586
-endif
+ ifeq ($(filter-out amd64,$(BUILD_PLATFORM_ARCH)),)
+  BUILD_PLATFORM_CPU:= k8
+ else
+  BUILD_PLATFORM_CPU:= i586
+ endif
 endif
 
 
@@ -176,66 +136,22 @@ ifndef BUILD_TARGET
 # not defined, set to the same as build platform
 BUILD_TARGET        := $(BUILD_PLATFORM)
 else
-_BUILD_TARGET_OK    := 0
-# OS/2
-ifeq ($(BUILD_TARGET),OS2)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),os2)
-_BUILD_TARGET_OK    := 1
-endif
-
-# Linux
-ifeq ($(BUILD_TARGET),LINUX)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),linux)
-_BUILD_TARGET_OK    := 1
-endif
-
-# Win32
-ifeq ($(BUILD_TARGET),WIN32)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),win32)
-_BUILD_TARGET_OK    := 1
-endif
-
-# Win64
-ifeq ($(BUILD_TARGET),WIN64)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),win64)
-_BUILD_TARGET_OK    := 1
-endif
-
-# L4
-ifeq ($(BUILD_TARGET),L4)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),l4)
-_BUILD_TARGET_OK    := 1
-endif
-
-# FreeBSD
-ifeq ($(BUILD_TARGET),FreeBSD)
-$(error kBuild: BUILD_TARGET must be all lowercase!)
-endif
-ifeq ($(BUILD_TARGET),freebsd)
-_BUILD_TARGET_OK    := 1
-endif
-
-ifeq ($(_BUILD_TARGET_OK),0)
-$(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' was not recongized!)
-endif
+ BUILD_TARGET       := $(strip $(BUILD_TARGET))
+ ifneq ($(words $(BUILD_TARGET))$(filter-out freebsd l4 linux nt os2 win win32 win64,$(BUILD_TARGET)),1)
+  # OS/2 (have uppercase legacy)
+  ifeq ($(BUILD_TARGET),OS2)
+   $(error kBuild: BUILD_TARGET must be all lowercase!)
+  endif
+  $(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' was not recognized!)
+ endif
 endif
 
 # Fill in defaults if needed.
 ifndef BUILD_TARGET_ARCH
-BUILD_TARGET_ARCH   := x86
+ BUILD_TARGET_ARCH  := x86
 endif
 ifndef BUILD_TARGET_CPU
-BUILD_TARGET_CPU    := i586
+ BUILD_TARGET_CPU   := i586
 endif
 
 # Adjust the DEPTH definition first
@@ -325,8 +241,6 @@ endif
 #
 # Build platform setup.
 #
-PATH_TOOLS          := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
-
 # OS/2
 ifeq ($(BUILD_PLATFORM),os2)
 EXEC_X86_WIN32      := innopec.exe
@@ -349,6 +263,22 @@ endif
 ifeq ($(BUILD_PLATFORM),freebsd)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
+endif
+
+PATH_TOOLS          := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
+ ifeq ($(BUILD_TARGET_ARCH),amd64)
+  PATH_TOOLS        := $(PATH_KBUILD)/bin/x86.$(BUILD_PLATFORM)
+ endif
+ ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
+  ifeq ($(filter-out win64 nt,$(BUILD_PLATFORM)),)
+   PATH_TOOLS       := $(PATH_KBUILD)/bin/x86.win32
+  endif
+ endif
+ ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
+  # give up
+  PATH_TOOLS        := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+ endif
 endif
 
 
