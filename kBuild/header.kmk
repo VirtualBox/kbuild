@@ -1,4 +1,4 @@
-# $Id: header.kmk 478 2006-07-21 19:03:13Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 479 2006-07-21 20:26:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -254,7 +254,7 @@ HOSTSUFF_EXE        :=
 endif
 
 # Win32 & Win64
-ifeq ($(filter-out win32 win64,$(BUILD_TARGET)),)
+ifeq ($(filter-out win32 win64 nt,$(BUILD_TARGET)),)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
@@ -658,3 +658,4 @@ include $(_CFGFILE)
 # end-of-file-content
 __header_kmk__ := 1
 endif # __header_kmk__
+
