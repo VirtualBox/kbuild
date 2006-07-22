@@ -1,4 +1,4 @@
-# $Id: header.kmk 479 2006-07-21 20:26:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 480 2006-07-22 20:40:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -254,7 +254,7 @@ HOSTSUFF_EXE        :=
 endif
 
 # Win32 & Win64
-ifeq ($(filter-out win32 win64 nt,$(BUILD_TARGET)),)
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
@@ -271,7 +271,7 @@ ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
   PATH_TOOLS        := $(PATH_KBUILD)/bin/x86.$(BUILD_PLATFORM)
  endif
  ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
-  ifeq ($(filter-out win64 nt,$(BUILD_PLATFORM)),)
+  ifeq ($(filter-out win64 win nt ,$(BUILD_PLATFORM)),)
    PATH_TOOLS       := $(PATH_KBUILD)/bin/x86.win32
   endif
  endif
@@ -285,34 +285,26 @@ endif
 #
 # Build target setup.
 #
-ifeq ($(BUILD_TARGET),os2)
+ifeq ($(filter-out win32 win64 win nt os2,$(BUILD_TARGET)),)
 SUFF_OBJ            := .obj
 SUFF_LIB            := .lib
 SUFF_DLL            := .dll
 SUFF_EXE            := .exe
 SUFF_SYS            := .sys
 SUFF_RES            := .res
-endif
-ifeq ($(filter-out win32 win64,$(BUILD_TARGET)),)
-SUFF_OBJ            := .obj
-SUFF_LIB            := .lib
-SUFF_DLL            := .dll
-SUFF_EXE            := .exe
-SUFF_SYS            := .sys
-SUFF_RES            := .res
-endif
-ifeq ($(BUILD_TARGET),linux)
-SUFF_OBJ            := .o
-SUFF_LIB            := .a
-SUFF_DLL            := .so
-SUFF_EXE            :=
-SUFF_SYS            := .a
-SUFF_RES            :=
 endif
 ifeq ($(BUILD_TARGET),l4)
 SUFF_OBJ            := .o
 SUFF_LIB            := .a
 SUFF_DLL            := .s.so
+SUFF_EXE            :=
+SUFF_SYS            := .a
+SUFF_RES            :=
+endif
+ifndef SUFF_OBJ
+SUFF_OBJ            := .o
+SUFF_LIB            := .a
+SUFF_DLL            := .so
 SUFF_EXE            :=
 SUFF_SYS            := .a
 SUFF_RES            :=
@@ -471,7 +463,7 @@ endif
 ## DIRDEP - make create directory dependencies.
 #
 # @param	$1	The paths to the directories which must be created.
-ifeq ($(filter-out win32 win64,$(BUILD_PLATFORM)),)
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_PLATFORM)),)
 DIRDEP = $(patsubst %/,%,$(1))
 else
 DIRDEP = $(foreach path,$(patsubst %/,%,$(1)),$(path)/)
