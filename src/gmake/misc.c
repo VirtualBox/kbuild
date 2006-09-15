@@ -1,22 +1,20 @@
 /* Miscellaneous generic support functions for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1997,
-2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "dep.h"
@@ -152,22 +150,6 @@ collapse_continuations (char *line)
     }
 
   *out = '\0';
-}
-
-
-/* Remove comments from LINE.
-   This is done by copying the text at LINE onto itself.  */
-
-void
-remove_comments (char *line)
-{
-  char *comment;
-
-  comment = find_char_unquote (line, '#', 0, 0);
-
-  if (comment != 0)
-    /* Cut off the line at the #.  */
-    *comment = '\0';
 }
 
 /* Print N spaces (used in debug for target-depth).  */
@@ -503,11 +485,37 @@ find_next_token (char **ptr, unsigned int *lengthptr)
   return p;
 }
 
+
+/* Allocate a new `struct dep' with all fields initialized to 0.   */
+
+struct dep *
+alloc_dep ()
+{
+  struct dep *d = (struct dep *) xmalloc (sizeof (struct dep));
+  bzero ((char *) d, sizeof (struct dep));
+  return d;
+}
+
+
+/* Free `struct dep' along with `name' and `stem'.   */
+
+void
+free_dep (struct dep *d)
+{
+  if (d->name != 0)
+    free (d->name);
+
+  if (d->stem != 0)
+    free (d->stem);
+
+  free ((char *)d);
+}
+
 /* Copy a chain of `struct dep', making a new chain
    with the same contents as the old one.  */
 
 struct dep *
-copy_dep_chain (struct dep *d)
+copy_dep_chain (const struct dep *d)
 {
   register struct dep *c;
   struct dep *firstnew = 0;
@@ -517,8 +525,12 @@ copy_dep_chain (struct dep *d)
     {
       c = (struct dep *) xmalloc (sizeof (struct dep));
       bcopy ((char *) d, (char *) c, sizeof (struct dep));
+
       if (c->name != 0)
 	c->name = xstrdup (c->name);
+      if (c->stem != 0)
+	c->stem = xstrdup (c->stem);
+
       c->next = 0;
       if (firstnew == 0)
 	firstnew = lastnew = c;
@@ -530,9 +542,22 @@ copy_dep_chain (struct dep *d)
 
   return firstnew;
 }
+
+/* Free a chain of 'struct dep'.  */
+
+void
+free_dep_chain (struct dep *d)
+{
+  while (d != 0)
+    {
+      struct dep *df = d;
+      d = d->next;
+      free_dep (df);
+    }
+}
 
 /* Free a chain of `struct nameseq'. Each nameseq->name is freed
-   as well.  Can be used on `struct dep' chains.*/
+   as well.  For `struct dep' chains use free_dep_chain.  */
 
 void
 free_ns_chain (struct nameseq *n)
@@ -615,7 +640,7 @@ static enum { make, user } current_access;
 /* Under -d, write a message describing the current IDs.  */
 
 static void
-log_access (char *flavor)
+log_access (const char *flavor)
 {
   if (! ISDB (DB_JOBS))
     return;
@@ -829,3 +854,50 @@ get_path_max (void)
   return value;
 }
 #endif
+
+
+/* This code is stolen from gnulib.
+   If/when we abandon the requirement to work with K&R compilers, we can
+   remove this (and perhaps other parts of GNU make!) and migrate to using
+   gnulib directly.
+
+   This is called only through atexit(), which means die() has already been
+   invoked.  So, call exit() here directly.  Apparently that works...?
+*/
+
+/* Close standard output, exiting with status 'exit_failure' on failure.
+   If a program writes *anything* to stdout, that program should close
+   stdout and make sure that it succeeds before exiting.  Otherwise,
+   suppose that you go to the extreme of checking the return status
+   of every function that does an explicit write to stdout.  The last
+   printf can succeed in writing to the internal stream buffer, and yet
+   the fclose(stdout) could still fail (due e.g., to a disk full error)
+   when it tries to write out that buffered data.  Thus, you would be
+   left with an incomplete output file and the offending program would
+   exit successfully.  Even calling fflush is not always sufficient,
+   since some file systems (NFS and CODA) buffer written/flushed data
+   until an actual close call.
+
+   Besides, it's wasteful to check the return value from every call
+   that writes to stdout -- just let the internal stream state record
+   the failure.  That's what the ferror test is checking below.
+
+   It's important to detect such failures and exit nonzero because many
+   tools (most notably `make' and other build-management systems) depend
+   on being able to detect failure in other tools via their exit status.  */
+
+void
+close_stdout (void)
+{
+  int prev_fail = ferror (stdout);
+  int fclose_fail = fclose (stdout);
+
+  if (prev_fail || fclose_fail)
+    {
+      if (fclose_fail)
+        error (NILF, _("write error: %s"), strerror (errno));
+      else
+        error (NILF, _("write error"));
+      exit (EXIT_FAILURE);
+    }
+}

@@ -1,22 +1,20 @@
 /* Definition of target file data structures for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997,
-2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 
 /* Structure that represents the info on one file
@@ -42,6 +40,7 @@ struct file
     struct file *prev;		/* Previous entry for same file name;
 				   used when there are multiple double-colon
 				   entries for the same file.  */
+    struct file *last;          /* Last entry for the same file name.  */
 
     /* File that this file was renamed to.  After any time that a
        file could be renamed, call `check_renamed' (below).  */
@@ -84,17 +83,16 @@ struct file
     unsigned int is_target:1;	/* Nonzero if file is described as target.  */
     unsigned int cmd_target:1;	/* Nonzero if file was given on cmd line.  */
     unsigned int phony:1;	/* Nonzero if this is a phony file
-				   i.e., a dependency of .PHONY.  */
+				   i.e., a prerequisite of .PHONY.  */
     unsigned int intermediate:1;/* Nonzero if this is an intermediate file.  */
-    /* Nonzero, for an intermediate file,
-       means remove_intermediates should not delete it.  */
-    unsigned int secondary:1;
+    unsigned int secondary:1;   /* Nonzero means remove_intermediates should
+                                   not delete it.  */
     unsigned int dontcare:1;	/* Nonzero if no complaint is to be made if
 				   this target cannot be remade.  */
     unsigned int ignore_vpath:1;/* Nonzero if we threw out VPATH name.  */
     unsigned int pat_searched:1;/* Nonzero if we already searched for
                                    pattern-specific variables.  */
-    unsigned int considered:1;  /* equal to `considered' if file has been
+    unsigned int considered:1;  /* equal to 'considered' if file has been
                                    considered on current scan of goal chain */
   };
 
@@ -105,6 +103,7 @@ extern char **default_goal_name;
 
 extern struct file *lookup_file PARAMS ((char *name));
 extern struct file *enter_file PARAMS ((char *name));
+extern struct dep *parse_prereqs PARAMS ((char *prereqs));
 extern void remove_intermediates PARAMS ((int sig));
 extern void snap_deps PARAMS ((void));
 extern void rename_file PARAMS ((struct file *file, char *name));

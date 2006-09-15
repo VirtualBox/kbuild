@@ -18,11 +18,9 @@ if (!$parallel_jobs) {
 }
 
 if ($vos) {
-  $delete_command = "delete_file -no_ask";
   $sleep_command = "sleep -seconds";
 }
 else {
-  $delete_command = "rm -f";
   $sleep_command = "sleep";
 }
 
@@ -82,5 +80,85 @@ all: first second
 
 first second: ; \@echo \$\@; $sleep_command 1; echo \$\@",
               '-j2', "first\nfirst\nsecond\nsecond");
+
+# Michael Matz <matz@suse.de> reported a bug where if make is running in
+# parallel without -k and two jobs die in a row, but not too close to each
+# other, then make will quit without waiting for the rest of the jobs to die.
+
+run_make_test("
+.PHONY: all fail.1 fail.2 fail.3 ok
+all: fail.1 ok fail.2 fail.3
+
+fail.1 fail.2 fail.3:
+	\@sleep \$(patsubst fail.%,%,\$\@)
+	\@echo Fail
+	\@exit 1
+
+ok:
+	\@sleep 4
+	\@echo Ok done",
+              '-rR -j5', 'Fail
+#MAKE#: *** [fail.1] Error 1
+#MAKE#: *** Waiting for unfinished jobs....
+Fail
+#MAKE#: *** [fail.2] Error 1
+Fail
+#MAKE#: *** [fail.3] Error 1
+Ok done',
+             512);
+
+
+# Test for Savannah bug #15641.
+#
+run_make_test('
+.PHONY: all
+all:; @:
+
+-include foo.d
+
+foo.d: comp
+	@echo building $@
+
+comp: mod_a.o mod_b.o; @:
+
+mod_a.o mod_b.o:
+	@exit 1
+', '-j2', '');
+
+
+# Make sure that all jobserver FDs are closed if we need to re-exec the
+# master copy.
+#
+# First, find the "default" file descriptors we normally use
+# Then make sure they're still used.
+#
+# Right now we don't have a way to run a makefile and capture the output
+# without checking it, so we can't really write this test.
+
+# run_make_test('
+# submake: ; @$(MAKE) --no-print-directory -f #MAKEFILE# fdprint 5>output
+
+# dependfile: ; @echo FOO=bar > $@
+
+# INCL := true
+
+# FOO=foo
+# ifeq ($(INCL),true)
+# -include dependfile
+# endif
+
+# fdprint: ; @echo $(filter --jobserver%,$(MAKEFLAGS))
+
+# recurse: ; @$(MAKE) --no-print-directory -f #MAKEFILE# submake INCL=true',
+#               '-j2 INCL=false fdprint',
+#               'bar');
+
+# unlink('dependfile', 'output');
+
+
+# # Do it again, this time where the include is done by the non-master make.
+# run_make_test(undef, '-j2 recurse INCL=false', 'bar');
+
+# unlink('dependfile', 'output');
 
 1;

@@ -1,22 +1,20 @@
-/* Target file hash table management for GNU Make.
+/* Target file management for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-2002 Free Software Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 
@@ -90,14 +88,15 @@ lookup_file (char *name)
      on the command line.  */
 #ifdef VMS
 # ifndef WANT_CASE_SENSITIVE_TARGETS
-  {
-    register char *n;
-    lname = (char *) malloc (strlen (name) + 1);
-    for (n = name, ln = lname; *n != '\0'; ++n, ++ln)
-      *ln = isupper ((unsigned char)*n) ? tolower ((unsigned char)*n) : *n;
-    *ln = '\0';
-    name = lname;
-  }
+  if (*name != '.')
+    {
+      register char *n;
+      lname = (char *) malloc (strlen (name) + 1);
+      for (n = name, ln = lname; *n != '\0'; ++n, ++ln)
+        *ln = isupper ((unsigned char)*n) ? tolower ((unsigned char)*n) : *n;
+      *ln = '\0';
+      name = lname;
+    }
 # endif
 
   while (name[0] == '[' && name[1] == ']' && name[2] != '\0')
@@ -126,7 +125,8 @@ lookup_file (char *name)
   file_key.hname = name;
   f = (struct file *) hash_find_item (&files, &file_key);
 #if defined(VMS) && !defined(WANT_CASE_SENSITIVE_TARGETS)
-  free (lname);
+  if (*name != '.')
+    free (lname);
 #endif
   return f;
 }
@@ -145,22 +145,23 @@ enter_file (char *name)
   assert (*name != '\0');
 
 #if defined(VMS) && !defined(WANT_CASE_SENSITIVE_TARGETS)
-  {
-    register char *n;
-    lname = (char *) malloc (strlen (name) + 1);
-    for (n = name, ln = lname; *n != '\0'; ++n, ++ln)
-      {
-        if (isupper ((unsigned char)*n))
-          *ln = tolower ((unsigned char)*n);
-        else
-          *ln = *n;
-      }
+  if (*name != '.')
+    {
+      register char *n;
+      lname = (char *) malloc (strlen (name) + 1);
+      for (n = name, ln = lname; *n != '\0'; ++n, ++ln)
+        {
+          if (isupper ((unsigned char)*n))
+            *ln = tolower ((unsigned char)*n);
+          else
+            *ln = *n;
+        }
 
-    *ln = 0;
-    /* Creates a possible leak, old value of name is unreachable, but I
-       currently don't know how to fix it. */
-    name = lname;
-  }
+      *ln = 0;
+      /* Creates a possible leak, old value of name is unreachable, but I
+         currently don't know how to fix it. */
+      name = lname;
+    }
 #endif
 
   file_key.hname = name;
@@ -169,7 +170,8 @@ enter_file (char *name)
   if (! HASH_VACANT (f) && !f->double_colon)
     {
 #if defined(VMS) && !defined(WANT_CASE_SENSITIVE_TARGETS)
-      free(lname);
+      if (*name != '.')
+        free (lname);
 #endif
       return f;
     }
@@ -180,14 +182,16 @@ enter_file (char *name)
   new->update_status = -1;
 
   if (HASH_VACANT (f))
-    hash_insert_at (&files, new, file_slot);
+    {
+      new->last = new;
+      hash_insert_at (&files, new, file_slot);
+    }
   else
     {
       /* There is already a double-colon entry for this file.  */
       new->double_colon = f;
-      while (f->prev != 0)
-	f = f->prev;
-      f->prev = new;
+      f->last->prev = new;
+      f->last = new;
     }
 
   return new;
@@ -405,6 +409,42 @@ remove_intermediates (int sig)
     }
 }
 
+struct dep *
+parse_prereqs (char *p)
+{
+  struct dep *new = (struct dep *)
+    multi_glob (parse_file_seq (&p, '|', sizeof (struct dep), 1),
+                sizeof (struct dep));
+
+  if (*p)
+    {
+      /* Files that follow '|' are "order-only" prerequisites that satisfy the
+         dependency by existing: their modification times are irrelevant.  */
+      struct dep *ood;
+
+      ++p;
+      ood = (struct dep *)
+        multi_glob (parse_file_seq (&p, '\0', sizeof (struct dep), 1),
+                    sizeof (struct dep));
+
+      if (! new)
+        new = ood;
+      else
+        {
+          struct dep *dp;
+          for (dp = new; dp->next != NULL; dp = dp->next)
+            ;
+          dp->next = ood;
+        }
+
+      for (; ood != NULL; ood = ood->next)
+        ood->ignore_mtime = 1;
+    }
+
+  return new;
+}
+
+
 /* Set the intermediate flag.  */
 
 static void
@@ -418,9 +458,9 @@ set_intermediate (const void *item)
 static void
 expand_deps (struct file *f)
 {
-  struct dep *d, *d1;
-  struct dep *new = 0;
+  struct dep *d;
   struct dep *old = f->deps;
+  char *file_stem = f->stem;
   unsigned int last_dep_has_cmds = f->updating;
   int initialized = 0;
 
@@ -429,102 +469,154 @@ expand_deps (struct file *f)
 
   for (d = old; d != 0; d = d->next)
     {
-      if (d->name != 0)
+      struct dep *new, *d1;
+      char *p;
+
+      if (! d->name)
+        continue;
+
+      /* Create the dependency list.
+         If we're not doing 2nd expansion, then it's just the name.  */
+      if (! d->need_2nd_expansion)
+        p = d->name;
+      else
         {
-          char *p;
-
-          /* If we need a second expansion on these, set up the file
-             variables, etc.  It takes a lot of extra memory and processing
-             to do this, so only do it if it's needed.  */
-          if (! d->need_2nd_expansion)
-            p = d->name;
-          else
+          /* If it's from a static pattern rule, convert the patterns into
+             "$*" so they'll expand properly.  */
+          if (d->staticpattern)
             {
-              /* We are going to do second expansion so initialize file
-                 variables for the file. */
-              if (!initialized)
-                {
-                  initialize_file_variables (f, 0);
-                  initialized = 1;
-                }
+              char *o;
+              char *buffer = variable_expand ("");
 
-              set_file_variables (f);
+              o = subst_expand (buffer, d->name, "%", "$*", 1, 2, 0);
 
-              p = variable_expand_for_file (d->name, f);
+              free (d->name);
+              d->name = savestring (buffer, o - buffer);
+              d->staticpattern = 0; /* Clear staticpattern so that we don't
+                                       re-expand %s below. */
             }
 
-          /* Parse the dependencies.  */
-          new = (struct dep *)
-            multi_glob (
-              parse_file_seq (&p, '|', sizeof (struct dep), 1),
-              sizeof (struct dep));
-
-          if (*p)
+          /* We are going to do second expansion so initialize file variables
+             for the file. Since the stem for static pattern rules comes from
+             individual dep lines, we will temporarily set f->stem to d->stem.
+          */
+          if (!initialized)
             {
-              /* Files that follow '|' are special prerequisites that
-                 need only exist in order to satisfy the dependency.
-                 Their modification times are irrelevant.  */
-              struct dep **d_ptr;
+              initialize_file_variables (f, 0);
+              initialized = 1;
+            }
 
+          if (d->stem != 0)
+            f->stem = d->stem;
+
+          set_file_variables (f);
+
+          p = variable_expand_for_file (d->name, f);
+
+          if (d->stem != 0)
+            f->stem = file_stem;
+        }
+
+      /* Parse the prerequisites.  */
+      new = parse_prereqs (p);
+
+      /* If this dep list was from a static pattern rule, expand the %s.  We
+         use patsubst_expand to translate the prerequisites' patterns into
+         plain prerequisite names.  */
+      if (new && d->staticpattern)
+        {
+          char *pattern = "%";
+          char *buffer = variable_expand ("");
+          struct dep *dp = new, *dl = 0;
+
+          while (dp != 0)
+            {
+              char *percent = find_percent (dp->name);
+              if (percent)
+                {
+                  /* We have to handle empty stems specially, because that
+                     would be equivalent to $(patsubst %,dp->name,) which
+                     will always be empty.  */
+                  if (d->stem[0] == '\0')
+                    /* This needs memmove() in ISO C.  */
+                    bcopy (percent+1, percent, strlen (percent));
+                  else
+                    {
+                      char *o = patsubst_expand (buffer, d->stem, pattern,
+                                                 dp->name, pattern+1,
+                                                 percent+1);
+                      if (o == buffer)
+                        dp->name[0] = '\0';
+                      else
+                        {
+                          free (dp->name);
+                          dp->name = savestring (buffer, o - buffer);
+                        }
+                    }
+
+                  /* If the name expanded to the empty string, ignore it.  */
+                  if (dp->name[0] == '\0')
+                    {
+                      struct dep *df = dp;
+                      if (dp == new)
+                        dp = new = new->next;
+                      else
+                        dp = dl->next = dp->next;
+                      /* @@ Are we leaking df->name here?  */
+                      df->name = 0;
+                      free_dep (df);
+                      continue;
+                    }
+                }
+              dl = dp;
+              dp = dp->next;
+            }
+        }
+
+      /* Enter them as files. */
+      for (d1 = new; d1 != 0; d1 = d1->next)
+        {
+          d1->file = lookup_file (d1->name);
+          if (d1->file == 0)
+            d1->file = enter_file (d1->name);
+          else
+            free (d1->name);
+          d1->name = 0;
+          d1->staticpattern = 0;
+          d1->need_2nd_expansion = 0;
+        }
+
+      /* Add newly parsed deps to f->deps. If this is the last dependency
+         line and this target has commands then put it in front so the
+         last dependency line (the one with commands) ends up being the
+         first. This is important because people expect $< to hold first
+         prerequisite from the rule with commands. If it is not the last
+         dependency line or the rule does not have commands then link it
+         at the end so it appears in makefile order.  */
+
+      if (new != 0)
+        {
+          if (d->next == 0 && last_dep_has_cmds)
+            {
+              struct dep **d_ptr;
               for (d_ptr = &new; *d_ptr; d_ptr = &(*d_ptr)->next)
                 ;
-              ++p;
 
-              *d_ptr = (struct dep *)
-                multi_glob (
-                  parse_file_seq (&p, '\0', sizeof (struct dep), 1),
-                  sizeof (struct dep));
-
-              for (d1 = *d_ptr; d1 != 0; d1 = d1->next)
-                d1->ignore_mtime = 1;
+              *d_ptr = f->deps;
+              f->deps = new;
             }
-
-          /* Enter them as files. */
-          for (d1 = new; d1 != 0; d1 = d1->next)
+          else
             {
-              d1->file = lookup_file (d1->name);
-              if (d1->file == 0)
-                d1->file = enter_file (d1->name);
-              else
-                free (d1->name);
-              d1->name = 0;
-              d1->need_2nd_expansion = 0;
-            }
+              struct dep **d_ptr;
+              for (d_ptr = &f->deps; *d_ptr; d_ptr = &(*d_ptr)->next)
+                ;
 
-          /* Add newly parsed deps to f->deps. If this is the last
-             dependency line and this target has commands then put
-             it in front so the last dependency line (the one with
-             commands) ends up being the first. This is important
-             because people expect $< to hold first prerequisite
-             from the rule with commands. If it is not the last
-             dependency line or the rule does not have commands
-             then link it at the end so it appears in makefile
-             order.  */
-
-          if (new != 0)
-            {
-              if (d->next == 0 && last_dep_has_cmds)
-                {
-                  struct dep **d_ptr;
-                  for (d_ptr = &new; *d_ptr; d_ptr = &(*d_ptr)->next)
-                    ;
-
-                  *d_ptr = f->deps;
-                  f->deps = new;
-                }
-              else
-                {
-                  struct dep **d_ptr;
-                  for (d_ptr = &f->deps; *d_ptr; d_ptr = &(*d_ptr)->next)
-                    ;
-
-                  *d_ptr = new;
-                }
+              *d_ptr = new;
             }
         }
     }
 
-  free_ns_chain ((struct nameseq *) old);
+  free_dep_chain (old);
 }
 
 /* For each dependency of each file, make the `struct dep' point
@@ -642,10 +734,6 @@ snap_deps (void)
 	    f2->command_flags |= COMMANDS_SILENT;
     }
 
-  f = lookup_file (".POSIX");
-  if (f != 0 && f->is_target)
-    posix_pedantic = 1;
-
   /* kmk changed */
   f = lookup_file (".NOTPARALLEL");
   if (f != 0 && f->is_target)
@@ -660,6 +748,14 @@ snap_deps (void)
           for (f2 = d->file; f2 != 0; f2 = f2->prev)
             f2->command_flags |= COMMANDS_NOTPARALLEL;
     }
+
+#ifndef NO_MINUS_C_MINUS_O
+  /* If .POSIX was defined, remove OUTPUT_OPTION to comply.  */
+  /* This needs more work: what if the user sets this in the makefile?
+  if (posix_pedantic)
+    define_variable (STRING_SIZE_TUPLE("OUTPUT_OPTION"), "", o_default, 1);
+  */
+#endif
 
   /* Remember that we've done this. */
   snapped_deps = 1;

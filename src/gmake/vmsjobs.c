@@ -1,13 +1,32 @@
-
-
 /* --------------- Moved here from job.c ---------------
    This file must be #included in job.c, as it accesses static functions.
-*/
+
+Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+2006 Free Software Foundation, Inc.
+This file is part of GNU Make.
+
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
+
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+
+#include <string.h>
+#include <descrip.h>
+#include <clidef.h>
+
+extern char *vmsify PARAMS ((char *name, int type));
 
 static int vms_jobsefnmask = 0;
 
 /* Wait for nchildren children to terminate */
-void
+static void
 vmsWaitForChildren(int *status)
 {
   while (1)
@@ -90,9 +109,6 @@ vms_handle_apos (char *p)
 
   return p;
 }
-
-#include <descrip.h>
-#include <clidef.h>
 
 /* This is called as an AST when a child process dies (it won't get
    interrupted by anything except a higher level AST).
@@ -196,6 +212,7 @@ vmsHandleChildTerm(struct child *child)
 #define MAXCMDLEN 200
 
 /* local helpers to make ctrl+c and ctrl+y working, see below */
+#include <iodef.h>
 #include <libclidef.h>
 #include <ssdef.h>
 

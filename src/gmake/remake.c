@@ -1,22 +1,20 @@
 /* Basic dependency engine for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999,
-2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "filedef.h"
@@ -159,7 +157,8 @@ update_goal_chain (struct dep *goals)
 	      /* Set the goal's `changed' flag if any commands were started
 		 by calling update_file above.  We check this flag below to
 		 decide when to give an "up to date" diagnostic.  */
-	      g->changed += commands_started - ocommands_started;
+              if (commands_started > ocommands_started)
+                g->changed = 1;
 
               /* If we updated a file and STATUS was not already 1, set it to
                  1 if updating failed, or to 0 if updating succeeded.  Leave
@@ -265,6 +264,7 @@ update_goal_chain (struct dep *goals)
       just_print_flag = n;
       job_slots = j;
     }
+
   return status;
 }
 
@@ -306,6 +306,9 @@ update_file (struct file *file, unsigned int depth)
 
       status |= update_file_1 (f, depth);
       check_renamed (f);
+
+      /* Clean up any alloca() used during the update.  */
+      alloca (0);
 
       /* If we got an error, don't bother with double_colon etc.  */
       if (status != 0 && !keep_going_flag)
@@ -530,7 +533,12 @@ update_file_1 (struct file *file, unsigned int depth)
 	break;
 
       if (!running)
-	d->changed = file_mtime (d->file) != mtime;
+        /* The prereq is considered changed if the timestamp has changed while
+           it was built, OR it doesn't exist.
+	   This causes the Linux kernel build to break.  We'll defer this
+	   fix until GNU make 3.82 to give them time to update.  */
+	d->changed = ((file_mtime (d->file) != mtime)
+                      /* || (mtime == NONEXISTENT_MTIME) */);
 
       lastd = d;
       d = d->next;
@@ -852,7 +860,6 @@ notice_finished_file (struct file *file)
 
   if ((ran && !file->phony) || touched)
     {
-      struct file *f;
       int i = 0;
 
       /* If -n, -t, or -q and all the commands are recursive, we ran them so
@@ -872,11 +879,34 @@ notice_finished_file (struct file *file)
 	i = 1;
 
       file->last_mtime = i == 0 ? UNKNOWN_MTIME : NEW_MTIME;
+    }
 
-      /* Propagate the change of modification time to all the double-colon
-	 entries for this file.  */
-      for (f = file->double_colon; f != 0; f = f->prev)
-	f->last_mtime = file->last_mtime;
+  if (file->double_colon)
+    {
+      /* If this is a double colon rule and it is the last one to be
+         updated, propagate the change of modification time to all the
+         double-colon entries for this file.
+
+         We do it on the last update because it is important to handle
+         individual entries as separate rules with separate timestamps
+         while they are treated as targets and then as one rule with the
+         unified timestamp when they are considered as a prerequisite
+         of some target.  */
+
+      struct file *f;
+      FILE_TIMESTAMP max_mtime = file->last_mtime;
+
+      /* Check that all rules were updated and at the same time find
+         the max timestamp.  We assume UNKNOWN_MTIME is newer then
+         any other value.  */
+      for (f = file->double_colon; f != 0 && f->updated; f = f->prev)
+        if (max_mtime != UNKNOWN_MTIME
+            && (f->last_mtime == UNKNOWN_MTIME || f->last_mtime > max_mtime))
+          max_mtime = f->last_mtime;
+
+      if (f == 0)
+        for (f = file->double_colon; f != 0; f = f->prev)
+          f->last_mtime = max_mtime;
     }
 
   if (ran && file->update_status != -1)
@@ -981,13 +1011,13 @@ check_dep (struct file *file, unsigned int depth,
 		  if (lastd == 0)
 		    {
 		      file->deps = d->next;
-		      free ((char *) d);
+                      free_dep (d);
 		      d = file->deps;
 		    }
 		  else
 		    {
 		      lastd->next = d->next;
-		      free ((char *) d);
+                      free_dep (d);
 		      d = lastd->next;
 		    }
 		  continue;
@@ -1235,70 +1265,71 @@ f_mtime (struct file *file, int search)
 
 	      rehash_file (file, name);
 	      check_renamed (file);
-	      mtime = name_mtime (name);
+              /* If the result of a vpath search is -o or -W, preserve it.
+                 Otherwise, find the mtime of the resulting file.  */
+              if (mtime != OLD_MTIME && mtime != NEW_MTIME)
+                mtime = name_mtime (name);
 	    }
 	}
     }
 
-  {
-    /* Files can have bogus timestamps that nothing newly made will be
-       "newer" than.  Updating their dependents could just result in loops.
-       So notify the user of the anomaly with a warning.
+  /* Files can have bogus timestamps that nothing newly made will be
+     "newer" than.  Updating their dependents could just result in loops.
+     So notify the user of the anomaly with a warning.
 
-       We only need to do this once, for now. */
+     We only need to do this once, for now. */
 
-    if (!clock_skew_detected
-	&& mtime != NONEXISTENT_MTIME
-	&& !file->updated)
-      {
-	static FILE_TIMESTAMP adjusted_now;
+  if (!clock_skew_detected
+      && mtime != NONEXISTENT_MTIME && mtime != NEW_MTIME
+      && !file->updated)
+    {
+      static FILE_TIMESTAMP adjusted_now;
 
-	FILE_TIMESTAMP adjusted_mtime = mtime;
+      FILE_TIMESTAMP adjusted_mtime = mtime;
 
 #if defined(WINDOWS32) || defined(__MSDOS__)
-	/* Experimentation has shown that FAT filesystems can set file times
-	   up to 3 seconds into the future!  Play it safe.  */
+      /* Experimentation has shown that FAT filesystems can set file times
+         up to 3 seconds into the future!  Play it safe.  */
 
 #define FAT_ADJ_OFFSET  (FILE_TIMESTAMP) 3
 
-	FILE_TIMESTAMP adjustment = FAT_ADJ_OFFSET << FILE_TIMESTAMP_LO_BITS;
-	if (ORDINARY_MTIME_MIN + adjustment <= adjusted_mtime)
-	  adjusted_mtime -= adjustment;
+      FILE_TIMESTAMP adjustment = FAT_ADJ_OFFSET << FILE_TIMESTAMP_LO_BITS;
+      if (ORDINARY_MTIME_MIN + adjustment <= adjusted_mtime)
+        adjusted_mtime -= adjustment;
 #elif defined(__EMX__)
-	/* FAT filesystems round time to the nearest even second!
-	   Allow for any file (NTFS or FAT) to perhaps suffer from this
-	   brain damage.  */
-	FILE_TIMESTAMP adjustment = (((FILE_TIMESTAMP_S (adjusted_mtime) & 1) == 0
-		       && FILE_TIMESTAMP_NS (adjusted_mtime) == 0)
-		      ? (FILE_TIMESTAMP) 1 << FILE_TIMESTAMP_LO_BITS
-		      : 0);
+      /* FAT filesystems round time to the nearest even second!
+         Allow for any file (NTFS or FAT) to perhaps suffer from this
+         brain damage.  */
+      FILE_TIMESTAMP adjustment = (((FILE_TIMESTAMP_S (adjusted_mtime) & 1) == 0
+                     && FILE_TIMESTAMP_NS (adjusted_mtime) == 0)
+                    ? (FILE_TIMESTAMP) 1 << FILE_TIMESTAMP_LO_BITS
+                    : 0);
 #endif
 
-	/* If the file's time appears to be in the future, update our
-	   concept of the present and try once more.  */
-	if (adjusted_now < adjusted_mtime)
-	  {
-	    int resolution;
-	    FILE_TIMESTAMP now = file_timestamp_now (&resolution);
-	    adjusted_now = now + (resolution - 1);
-	    if (adjusted_now < adjusted_mtime)
-	      {
+      /* If the file's time appears to be in the future, update our
+         concept of the present and try once more.  */
+      if (adjusted_now < adjusted_mtime)
+        {
+          int resolution;
+          FILE_TIMESTAMP now = file_timestamp_now (&resolution);
+          adjusted_now = now + (resolution - 1);
+          if (adjusted_now < adjusted_mtime)
+            {
 #ifdef NO_FLOAT
-		error (NILF, _("Warning: File `%s' has modification time in the future"),
-                       file->name);
+              error (NILF, _("Warning: File `%s' has modification time in the future"),
+                     file->name);
 #else
-		double from_now =
-		  (FILE_TIMESTAMP_S (mtime) - FILE_TIMESTAMP_S (now)
-		   + ((FILE_TIMESTAMP_NS (mtime) - FILE_TIMESTAMP_NS (now))
-		      / 1e9));
-		error (NILF, _("Warning: File `%s' has modification time %.2g s in the future"),
-		       file->name, from_now);
+              double from_now =
+                (FILE_TIMESTAMP_S (mtime) - FILE_TIMESTAMP_S (now)
+                 + ((FILE_TIMESTAMP_NS (mtime) - FILE_TIMESTAMP_NS (now))
+                    / 1e9));
+              error (NILF, _("Warning: File `%s' has modification time %.2g s in the future"),
+                     file->name, from_now);
 #endif
-		clock_skew_detected = 1;
-	      }
-          }
-      }
-  }
+              clock_skew_detected = 1;
+            }
+        }
+    }
 
   /* Store the mtime into all the entries for this file.  */
   if (file->double_colon)
@@ -1341,13 +1372,18 @@ name_mtime (char *name)
   int e;
 
   EINTRLOOP (e, stat (name, &st));
-  if (e != 0)
+  if (e == 0)
+    mtime = FILE_TIMESTAMP_STAT_MODTIME (name, st);
+  else if (errno == ENOENT || errno == ENOTDIR)
+    mtime = NONEXISTENT_MTIME;
+  else
     {
-      if (errno != ENOENT && errno != ENOTDIR)
-        perror_with_name ("stat: ", name);
+      perror_with_name ("stat: ", name);
       return NONEXISTENT_MTIME;
     }
-  mtime = FILE_TIMESTAMP_STAT_MODTIME (name, st);
+
+  /* If we get here we either found it, or it doesn't exist.
+     If it doesn't exist see if we can use a symlink mtime instead.  */
 
 #ifdef MAKE_SYMLINKS
 #ifndef S_ISLNK
@@ -1374,8 +1410,9 @@ name_mtime (char *name)
           EINTRLOOP (e, lstat (lpath, &st));
           if (e)
             {
-              /* Eh?  Just take what we have.  */
-              perror_with_name ("lstat: ", lpath);
+              /* Just take what we have so far.  */
+              if (errno != ENOENT && errno != ENOTDIR)
+                perror_with_name ("lstat: ", lpath);
               break;
             }
 

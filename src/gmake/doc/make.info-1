@@ -1,42 +1,61 @@
-This is ../../doc/make.info, produced by makeinfo version 4.6 from
-../../doc/make.texi.
+This is make.info, produced by makeinfo version 4.8 from make.texi.
+
+   This file documents the GNU `make' utility, which determines
+automatically which pieces of a large program need to be recompiled,
+and issues the commands to recompile them.
+
+   This is Edition 0.70, last updated 1 April 2006, of `The GNU Make
+Manual', for GNU `make' version 3.81.
+
+   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
+1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.2 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover Texts
+     being "A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     "GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: "You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
 
 INFO-DIR-SECTION GNU Packages
 START-INFO-DIR-ENTRY
 * Make: (make).            Remake files automatically.
 END-INFO-DIR-ENTRY
 
-   This file documents the GNU Make utility, which determines
-automatically which pieces of a large program need to be recompiled,
-and issues the commands to recompile them.
-
-   This is Edition 0.61, last updated 02 May 2003, of `The GNU Make
-Manual', for `make', Version 3.81.
-
-   Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
-
-   Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
-any later version published by the Free Software Foundation; with no
-Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
-Texts.  A copy of the license is included in the section entitled "GNU
-Free Documentation License".
-
 
 File: make.info,  Node: Top,  Next: Overview,  Prev: (dir),  Up: (dir)
 
-Make
-****
+GNU `make'
+**********
 
-The GNU `make' utility automatically determines which pieces of a large
-program need to be recompiled, and issues the commands to recompile
-them.
+This file documents the GNU `make' utility, which determines
+automatically which pieces of a large program need to be recompiled,
+and issues the commands to recompile them.
 
-   This edition of the `GNU Make Manual', last updated 02 May 2003,
-documents GNU `make' Version 3.81.
+   This is Edition 0.70, last updated 1 April 2006, of `The GNU Make
+Manual', for GNU `make' version 3.81.
 
-   This manual describes `make' and contains the following chapters:
+   Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
+1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.2 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover Texts
+     being "A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     "GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: "You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
 
 * Menu:
 
@@ -96,6 +115,7 @@ Writing Makefiles
 * Overriding Makefiles::        How to override part of one makefile
                                   with another makefile.
 * Reading Makefiles::           How makefiles are parsed.
+* Secondary Expansion::         How and when secondary expansion is performed.
 
 Writing Rules
 
@@ -106,8 +126,8 @@ Writing Rules
 * Directory Search::            Searching other directories for source files.
 * Phony Targets::               Using a target that is not a real file's name.
 * Force Targets::               You can use a target without commands
-                                  or prerequisites to mark other
-                                  targets as phony.
+                                  or prerequisites to mark other targets
+                                  as phony.
 * Empty Targets::               When only the date matters and the
                                   files are empty.
 * Special Targets::             Targets with special built-in meanings.
@@ -147,6 +167,7 @@ Static Pattern Rules
 
 Writing the Commands in Rules
 
+* Command Syntax::              Command syntax features and pitfalls.
 * Echoing::                     How to control when commands are echoed.
 * Execution::                   How commands are executed.
 * Parallel::                    How commands can be executed in parallel.
@@ -155,6 +176,16 @@ Writing the Commands in Rules
 * Recursion::                   Invoking `make' from makefiles.
 * Sequences::                   Defining canned sequences of commands.
 * Empty Commands::              Defining useful, do-nothing commands.
+
+Command Syntax
+
+* Splitting Lines::             Breaking long command lines for readability.
+* Variables in Commands::       Using `make' variables in commands.
+
+Command Execution
+
+* Choosing the Shell::          How `make' chooses the shell used
+                                  to run commands.
 
 Recursive Use of `make'
 
@@ -200,12 +231,13 @@ Functions for Transforming Text
 * Syntax of Functions::         How to write a function call.
 * Text Functions::              General-purpose text manipulation functions.
 * File Name Functions::         Functions for manipulating file names.
+* Conditional Functions::       Functions that implement conditions.
 * Foreach Function::            Repeat some text with controlled variation.
-* If Function::                 Conditionally expand a value.
 * Call Function::               Expand a user-defined function.
 * Value Function::              Return the un-expanded value of a variable.
 * Eval Function::               Evaluate the arguments as makefile syntax.
 * Origin Function::             Find where a variable got its value.
+* Flavor Function::             Find out the flavor of a variable.
 * Shell Function::              Substitute the output of a shell command.
 * Make Control Functions::      Functions that control how make runs.
 
@@ -233,8 +265,8 @@ Using Implicit Rules
 * Implicit Variables::          How to change what predefined rules do.
 * Chained Rules::               How to use a chain of implicit rules.
 * Pattern Rules::               How to define new implicit rules.
-* Last Resort::                 How to defining commands for rules
-                                  which cannot find any.
+* Last Resort::                 How to define commands for rules which
+                                  cannot find any.
 * Suffix Rules::                The old-fashioned style of implicit rule.
 * Implicit Rule Search::        The precise algorithm for applying
                                   implicit rules.
@@ -263,22 +295,11 @@ Implicit Rule for Archive Member Targets
 
 * Archive Symbols::             How to update archive symbol directories.
 
-Makefile Conventions
-
-* Makefile Basics::             General Conventions for Makefiles
-* Utilities in Makefiles::      Utilities in Makefiles
-* Command Variables::           Variables for Specifying Commands
-* Directory Variables::         Variables for Installation Directories
-* Standard Targets::            Standard Targets for Users
-* Install Command Categories::  Three categories of commands in the `install'
-
-Copying This Manual
-
 
 File: make.info,  Node: Overview,  Next: Introduction,  Prev: Top,  Up: Top
 
-Overview of `make'
-******************
+1 Overview of `make'
+********************
 
 The `make' utility automatically determines which pieces of a large
 program need to be recompiled, and issues commands to recompile them.
@@ -287,7 +308,7 @@ Stallman and Roland McGrath.  Development since Version 3.76 has been
 handled by Paul D. Smith.
 
    GNU `make' conforms to section 6.2 of `IEEE Standard 1003.2-1992'
-(POSIX.2).
+(POSIX.2).  
 
    Our examples show C programs, since they are most common, but you
 can use `make' with any programming language whose compiler can be run
@@ -329,8 +350,8 @@ files should be recompiled, or how.  *Note How to Run `make': Running.
 
 File: make.info,  Node: Reading,  Next: Bugs,  Prev: Preparing,  Up: Overview
 
-How to Read This Manual
-=======================
+1.1 How to Read This Manual
+===========================
 
 If you are new to `make', or are looking for a general introduction,
 read the first few sections of each chapter, skipping the later
@@ -350,8 +371,8 @@ Reference::, and *Note Special Targets::.
 
 File: make.info,  Node: Bugs,  Prev: Reading,  Up: Overview
 
-Problems and Bugs
-=================
+1.2 Problems and Bugs
+=====================
 
 If you have problems with GNU `make' or think you've found a bug,
 please report it to the developers; we cannot promise to do anything but
@@ -393,11 +414,11 @@ information is by looking at the final lines of output from the command
 
 File: make.info,  Node: Introduction,  Next: Makefiles,  Prev: Overview,  Up: Top
 
-An Introduction to Makefiles
-****************************
+2 An Introduction to Makefiles
+******************************
 
 You need a file called a "makefile" to tell `make' what to do.  Most
-often, the makefile tells `make' how to compile and link a program.
+often, the makefile tells `make' how to compile and link a program.  
 
    In this chapter, we will discuss a simple makefile that describes
 how to compile and link a text editor which consists of eight C source
@@ -412,7 +433,7 @@ includes the header file must be recompiled to be safe.  Each
 compilation produces an object file corresponding to the source file.
 Finally, if any source file has been recompiled, all the object files,
 whether newly made or saved from previous compilations, must be linked
-together to produce the new executable editor.
+together to produce the new executable editor.  
 
 * Menu:
 
@@ -427,8 +448,8 @@ together to produce the new executable editor.
 
 File: make.info,  Node: Rule Introduction,  Next: Simple Makefile,  Prev: Introduction,  Up: Introduction
 
-What a Rule Looks Like
-======================
+2.1 What a Rule Looks Like
+==========================
 
 A simple makefile consists of "rules" with the following shape:
 
@@ -470,8 +491,8 @@ or less.
 
 File: make.info,  Node: Simple Makefile,  Next: How Make Works,  Prev: Rule Introduction,  Up: Introduction
 
-A Simple Makefile
-=================
+2.2 A Simple Makefile
+=====================
 
 Here is a straightforward makefile that describes the way an executable
 file called `edit' depends on eight object files which, in turn, depend
@@ -485,7 +506,7 @@ that change the editor buffer include `buffer.h'.
             insert.o search.o files.o utils.o
              cc -o edit main.o kbd.o command.o display.o \
                         insert.o search.o files.o utils.o
-     
+
      main.o : main.c defs.h
              cc -c main.c
      kbd.o : kbd.c defs.h command.h
@@ -507,7 +528,7 @@ that change the editor buffer include `buffer.h'.
                 insert.o search.o files.o utils.o
 
 We split each long line into two lines using backslash-newline; this is
-like using one long line, but is easier to read.
+like using one long line, but is easier to read.  
 
    To use this makefile to create the executable file called `edit',
 type:
@@ -535,11 +556,11 @@ file `defs.h'.
    A shell command follows each line that contains a target and
 prerequisites.  These shell commands say how to update the target file.
 A tab character must come at the beginning of every command line to
-distinguish commands lines from other lines in the makefile.  (Bear in
+distinguish command lines from other lines in the makefile.  (Bear in
 mind that `make' does not know anything about how the commands work.
 It is up to you to supply commands that will update the target file
 properly.  All `make' does is execute the commands in the rule you have
-specified when the target file needs to be updated.)
+specified when the target file needs to be updated.)  
 
    The target `clean' is not a file, but merely the name of an action.
 Since you normally do not want to carry out the actions in this rule,
@@ -550,18 +571,20 @@ prerequisites, so the only purpose of the rule is to run the specified
 commands.  Targets that do not refer to files but are just actions are
 called "phony targets".  *Note Phony Targets::, for information about
 this kind of target.  *Note Errors in Commands: Errors, to see how to
-cause `make' to ignore errors from `rm' or any other command.
+cause `make' to ignore errors from `rm' or any other command.  
 
 
 File: make.info,  Node: How Make Works,  Next: Variables Simplify,  Prev: Simple Makefile,  Up: Introduction
 
-How `make' Processes a Makefile
-===============================
+2.3 How `make' Processes a Makefile
+===================================
 
 By default, `make' starts with the first target (not targets whose
 names start with `.').  This is called the "default goal".  ("Goals"
-are the targets that `make' strives ultimately to update.  *Note
-Arguments to Specify the Goals: Goals.)
+are the targets that `make' strives ultimately to update.    You can
+override this behavior using the command line (*note Arguments to
+Specify the Goals: Goals.) or with the `.DEFAULT_GOAL' special variable
+(*note Other Special Variables: Special Variables.).  
 
    In the simple example of the previous section, the default goal is to
 update the executable program `edit'; therefore, we put that rule first.
@@ -596,7 +619,7 @@ made by Bison or Yacc, by their own rules at this time.
 whether to relink `edit'.  This must be done if the file `edit' does
 not exist, or if any of the object files are newer than it.  If an
 object file was just recompiled, it is now newer than `edit', so `edit'
-is relinked.
+is relinked.  
 
    Thus, if we change the file `insert.c' and run `make', `make' will
 compile that file to update `insert.o', and then link `edit'.  If we
@@ -607,8 +630,8 @@ object files `kbd.o', `command.o' and `files.o' and then link the file
 
 File: make.info,  Node: Variables Simplify,  Next: make Deduces,  Prev: How Make Works,  Up: Introduction
 
-Variables Make Makefiles Simpler
-================================
+2.4 Variables Make Makefiles Simpler
+====================================
 
 In our example, we had to list all the object files twice in the rule
 for `edit' (repeated here):
@@ -641,7 +664,7 @@ variable for the object files:
 
      objects = main.o kbd.o command.o display.o \
                insert.o search.o files.o utils.o
-     
+
      edit : $(objects)
              cc -o edit $(objects)
      main.o : main.c defs.h
@@ -666,8 +689,8 @@ variable for the object files:
 
 File: make.info,  Node: make Deduces,  Next: Combine By Prerequisite,  Prev: Variables Simplify,  Up: Introduction
 
-Letting `make' Deduce the Commands
-==================================
+2.5 Letting `make' Deduce the Commands
+======================================
 
 It is not necessary to spell out the commands for compiling the
 individual C source files, because `make' can figure them out: it has an
@@ -686,10 +709,10 @@ variable `objects' as suggested above:
 
      objects = main.o kbd.o command.o display.o \
                insert.o search.o files.o utils.o
-     
+
      edit : $(objects)
              cc -o edit $(objects)
-     
+
      main.o : defs.h
      kbd.o : defs.h command.h
      command.o : defs.h command.h
@@ -698,7 +721,7 @@ variable `objects' as suggested above:
      search.o : defs.h buffer.h
      files.o : defs.h buffer.h command.h
      utils.o : defs.h
-     
+
      .PHONY : clean
      clean :
              rm edit $(objects)
@@ -713,8 +736,8 @@ will see them used frequently.
 
 File: make.info,  Node: Combine By Prerequisite,  Next: Cleanup,  Prev: make Deduces,  Up: Introduction
 
-Another Style of Makefile
-=========================
+2.6 Another Style of Makefile
+=============================
 
 When the objects of a makefile are created only by implicit rules, an
 alternative style of makefile is possible.  In this style of makefile,
@@ -723,10 +746,10 @@ Here is what one looks like:
 
      objects = main.o kbd.o command.o display.o \
                insert.o search.o files.o utils.o
-     
+
      edit : $(objects)
              cc -o edit $(objects)
-     
+
      $(objects) : defs.h
      kbd.o command.o files.o : command.h
      display.o insert.o search.o files.o : buffer.h
@@ -742,8 +765,8 @@ information about each target in one place.
 
 File: make.info,  Node: Cleanup,  Prev: Combine By Prerequisite,  Up: Introduction
 
-Rules for Cleaning the Directory
-================================
+2.7 Rules for Cleaning the Directory
+====================================
 
 Compiling a program is not the only thing you might want to write rules
 for.  Makefiles commonly tell how to do a few other things besides
@@ -781,8 +804,8 @@ to make the rule run, we have to type `make clean'.  *Note How to Run
 
 File: make.info,  Node: Makefiles,  Next: Rules,  Prev: Introduction,  Up: Top
 
-Writing Makefiles
-*****************
+3 Writing Makefiles
+*******************
 
 The information that tells `make' how to recompile a system comes from
 reading a data base called the "makefile".
@@ -799,12 +822,13 @@ reading a data base called the "makefile".
 * Overriding Makefiles::        How to override part of one makefile
                                   with another makefile.
 * Reading Makefiles::           How makefiles are parsed.
+* Secondary Expansion::         How and when secondary expansion is performed.
 
 
 File: make.info,  Node: Makefile Contents,  Next: Makefile Names,  Prev: Makefiles,  Up: Makefiles
 
-What Makefiles Contain
-======================
+3.1 What Makefiles Contain
+==========================
 
 Makefiles contain five kinds of things: "explicit rules", "implicit
 rules", "variable definitions", "directives", and "comments".  Rules,
@@ -864,11 +888,11 @@ variables, and directives are described at length in later chapters.
 
 File: make.info,  Node: Makefile Names,  Next: Include,  Prev: Makefile Contents,  Up: Makefiles
 
-What Name to Give Your Makefile
-===============================
+3.2 What Name to Give Your Makefile
+===================================
 
 By default, when `make' looks for the makefile, it tries the following
-names, in order: `GNUmakefile', `makefile' and `Makefile'.
+names, in order: `GNUmakefile', `makefile' and `Makefile'.  
 
    Normally you should call your makefile either `makefile' or
 `Makefile'.  (We recommend `Makefile' because it appears prominently
@@ -891,13 +915,13 @@ as the makefile.  If you use more than one `-f' or `--file' option, you
 can specify several makefiles.  All the makefiles are effectively
 concatenated in the order specified.  The default makefile names
 `GNUmakefile', `makefile' and `Makefile' are not checked automatically
-if you specify `-f' or `--file'.
+if you specify `-f' or `--file'.  
 
 
 File: make.info,  Node: Include,  Next: MAKEFILES Variable,  Prev: Makefile Names,  Up: Makefiles
 
-Including Other Makefiles
-=========================
+3.3 Including Other Makefiles
+=============================
 
 The `include' directive tells `make' to suspend reading the current
 makefile and read one or more other makefiles before continuing.  The
@@ -905,7 +929,8 @@ directive is a line in the makefile that looks like this:
 
      include FILENAMES...
 
-FILENAMES can contain shell file name patterns.
+FILENAMES can contain shell file name patterns.  If FILENAMES is empty,
+nothing is included and no error is printed.  
 
    Extra spaces are allowed and ignored at the beginning of the line,
 but a tab is not allowed.  (If the line begins with a tab, it will be
@@ -942,7 +967,7 @@ source files automatically; the prerequisites can be put in a file that
 is included by the main makefile.  This practice is generally cleaner
 than that of somehow appending the prerequisites to the end of the main
 makefile as has been traditionally done with other versions of `make'.
-*Note Automatic Prerequisites::.
+*Note Automatic Prerequisites::.  
 
    If the specified name does not start with a slash, and the file is
 not found in the current directory, several other directories are
@@ -980,8 +1005,8 @@ has been defined to be the root of the DJGPP tree hierarchy.
 
 File: make.info,  Node: MAKEFILES Variable,  Next: MAKEFILE_LIST Variable,  Prev: Include,  Up: Makefiles
 
-The Variable `MAKEFILES'
-========================
+3.4 The Variable `MAKEFILES'
+============================
 
 If the environment variable `MAKEFILES' is defined, `make' considers
 its value as a list of names (separated by whitespace) of additional
@@ -1009,8 +1034,8 @@ directives in the makefiles.  *Note Including Other Makefiles: Include.
 
 File: make.info,  Node: MAKEFILE_LIST Variable,  Next: Special Variables,  Prev: MAKEFILES Variable,  Up: Makefiles
 
-The Variable `MAKEFILE_LIST'
-============================
+3.5 The Variable `MAKEFILE_LIST'
+================================
 
 As `make' reads various makefiles, including any obtained from the
 `MAKEFILES' variable, the command line, the default files, or from
@@ -1025,12 +1050,12 @@ will be the just-included makefile.
 
    If a makefile named `Makefile' has this content:
 
-     name1 := $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
-     
+     name1 := $(lastword $(MAKEFILE_LIST))
+
      include inc.mk
-     
-     name2 := $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
-     
+
+     name2 := $(lastword $(MAKEFILE_LIST))
+
      all:
              @echo name1 = $(name1)
              @echo name2 = $(name2)
@@ -1048,25 +1073,111 @@ definitions.
 
 File: make.info,  Node: Special Variables,  Next: Remaking Makefiles,  Prev: MAKEFILE_LIST Variable,  Up: Makefiles
 
-Other Special Variables
-=======================
+3.6 Other Special Variables
+===========================
 
-GNU `make' also supports a special variable.  Note that any value you
-assign to this variable will be ignored; it will always return its
-special value.
+GNU `make' also supports other special variables.  Unless otherwise
+documented here, these values lose their special properties if they are
+set by a makefile or on the command line.
 
-   The first special variable is `.VARIABLES'.  When expanded, the
-value consists of a list of the _names_ of all global variables defined
-in all makefiles read up until that point.  This includes variables
-which have empty values, as well as built-in variables (*note Variables
-Used by Implicit Rules: Implicit Variables.), but does not include any
-variables which are only defined in a target-specific context.
+`.DEFAULT_GOAL'
+     Sets the default goal to be used if no targets were specified on
+     the command line (*note Arguments to Specify the Goals: Goals.).
+     The `.DEFAULT_GOAL' variable allows you to discover the current
+     default goal, restart the default goal selection algorithm by
+     clearing its value, or to explicitly set the default goal.  The
+     following example illustrates these cases:
+
+          # Query the default goal.
+          ifeq ($(.DEFAULT_GOAL),)
+            $(warning no default goal is set)
+          endif
+
+          .PHONY: foo
+          foo: ; @echo $@
+
+          $(warning default goal is $(.DEFAULT_GOAL))
+
+          # Reset the default goal.
+          .DEFAULT_GOAL :=
+
+          .PHONY: bar
+          bar: ; @echo $@
+
+          $(warning default goal is $(.DEFAULT_GOAL))
+
+          # Set our own.
+          .DEFAULT_GOAL := foo
+
+     This makefile prints:
+
+          no default goal is set
+          default goal is foo
+          default goal is bar
+          foo
+
+     Note that assigning more than one target name to `.DEFAULT_GOAL' is
+     illegal and will result in an error.
+
+`MAKE_RESTARTS'
+     This variable is set only if this instance of `make' has restarted
+     (*note How Makefiles Are Remade: Remaking Makefiles.): it will
+     contain the number of times this instance has restarted.  Note
+     this is not the same as recursion (counted by the `MAKELEVEL'
+     variable).  You should not set, modify, or export this variable.
+
+`.VARIABLES'
+     Expands to a list of the _names_ of all global variables defined
+     so far.  This includes variables which have empty values, as well
+     as built-in variables (*note Variables Used by Implicit Rules:
+     Implicit Variables.), but does not include any variables which are
+     only defined in a target-specific context.  Note that any value
+     you assign to this variable will be ignored; it will always return
+     its special value.
+
+`.FEATURES'
+     Expands to a list of special features supported by this version of
+     `make'.  Possible values include:
+
+    `archives'
+          Supports `ar' (archive) files using special filename syntax.
+          *Note Using `make' to Update Archive Files: Archives.
+
+    `check-symlink'
+          Supports the `-L' (`--check-symlink-times') flag.  *Note
+          Summary of Options: Options Summary.
+
+    `else-if'
+          Supports "else if" non-nested conditionals.  *Note Syntax of
+          Conditionals: Conditional Syntax.
+
+    `jobserver'
+          Supports "job server" enhanced parallel builds.  *Note
+          Parallel Execution: Parallel.
+
+    `second-expansion'
+          Supports secondary expansion of prerequisite lists.
+
+    `order-only'
+          Supports order-only prerequisites.  *Note Types of
+          Prerequisites: Prerequisite Types.
+
+    `target-specific'
+          Supports target-specific and pattern-specific variable
+          assignments.  *Note Target-specific Variable Values:
+          Target-specific.
+
+
+`.INCLUDE_DIRS'
+     Expands to a list of directories that `make' searches for included
+     makefiles (*note Including Other Makefiles: Include.).
+
 
 
 File: make.info,  Node: Remaking Makefiles,  Next: Overriding Makefiles,  Prev: Special Variables,  Up: Makefiles
 
-How Makefiles Are Remade
-========================
+3.7 How Makefiles Are Remade
+============================
 
 Sometimes makefiles can be remade from other files, such as RCS or SCCS
 files.  If a makefile can be remade from other files, you probably want
@@ -1103,7 +1214,7 @@ no prerequisites.
 
    If you do not specify any makefiles to be read with `-f' or `--file'
 options, `make' will try the default makefile names; *note What Name to
-Give Your Makefile: Makefile Names..  Unlike makefiles explicitly
+Give Your Makefile: Makefile Names.  Unlike makefiles explicitly
 requested with `-f' or `--file' options, `make' is not certain that
 these makefiles should exist.  However, if a default makefile does not
 exist but can be created by running `make' rules, you probably want the
@@ -1143,8 +1254,8 @@ contents of `mfile'.
 
 File: make.info,  Node: Overriding Makefiles,  Next: Reading Makefiles,  Prev: Remaking Makefiles,  Up: Makefiles
 
-Overriding Part of Another Makefile
-===================================
+3.8 Overriding Part of Another Makefile
+=======================================
 
 Sometimes it is useful to have a makefile that is mostly just like
 another makefile.  You can often use the `include' directive to include
@@ -1164,7 +1275,7 @@ called `GNUmakefile' that contains:
 
      foo:
              frobnicate > foo
-     
+
      %: force
              @$(MAKE) -f Makefile $@
      force: ;
@@ -1186,10 +1297,10 @@ it--otherwise it would apply the same match-anything rule to `force'
 itself and create a prerequisite loop!
 
 
-File: make.info,  Node: Reading Makefiles,  Prev: Overriding Makefiles,  Up: Makefiles
+File: make.info,  Node: Reading Makefiles,  Next: Secondary Expansion,  Prev: Overriding Makefiles,  Up: Makefiles
 
-How `make' Reads a Makefile
-===========================
+3.9 How `make' Reads a Makefile
+===============================
 
 GNU `make' does its work in two distinct phases.  During the first
 phase it reads all the makefiles, included makefiles, etc. and
@@ -1224,7 +1335,7 @@ Variable definitions are parsed as follows:
      IMMEDIATE ?= DEFERRED
      IMMEDIATE := IMMEDIATE
      IMMEDIATE += DEFERRED or IMMEDIATE
-     
+
      define IMMEDIATE
        DEFERRED
      endef
@@ -1238,7 +1349,11 @@ Conditional Statements
 
 All instances of conditional syntax are parsed immediately, in their
 entirety; this includes the `ifdef', `ifeq', `ifndef', and `ifneq'
-forms.
+forms.  Of course this means that automatic variables cannot be used in
+conditional statements, as automatic variables are not set until the
+command script for that rule is invoked.  If you need to use automatic
+variables in a conditional you _must_ use shell conditional syntax, in
+your command script proper, for these tests, not `make' conditionals.
 
 Rule Definition
 ---------------
@@ -1254,10 +1369,189 @@ deferred.  This general rule is true for explicit rules, pattern rules,
 suffix rules, static pattern rules, and simple prerequisite definitions.
 
 
+File: make.info,  Node: Secondary Expansion,  Prev: Reading Makefiles,  Up: Makefiles
+
+3.10 Secondary Expansion
+========================
+
+In the previous section we learned that GNU `make' works in two
+distinct phases: a read-in phase and a target-update phase (*note How
+`make' Reads a Makefile: Reading Makefiles.).  GNU make also has the
+ability to enable a _second expansion_ of the prerequisites (only) for
+some or all targets defined in the makefile.  In order for this second
+expansion to occur, the special target `.SECONDEXPANSION' must be
+defined before the first prerequisite list that makes use of this
+feature.
+
+   If that special target is defined then in between the two phases
+mentioned above, right at the end of the read-in phase, all the
+prerequisites of the targets defined after the special target are
+expanded a _second time_.  In most circumstances this secondary
+expansion will have no effect, since all variable and function
+references will have been expanded during the initial parsing of the
+makefiles.  In order to take advantage of the secondary expansion phase
+of the parser, then, it's necessary to _escape_ the variable or
+function reference in the makefile.  In this case the first expansion
+merely un-escapes the reference but doesn't expand it, and expansion is
+left to the secondary expansion phase.  For example, consider this
+makefile:
+
+     .SECONDEXPANSION:
+     ONEVAR = onefile
+     TWOVAR = twofile
+     myfile: $(ONEVAR) $$(TWOVAR)
+
+   After the first expansion phase the prerequisites list of the
+`myfile' target will be `onefile' and `$(TWOVAR)'; the first
+(unescaped) variable reference to ONEVAR is expanded, while the second
+(escaped) variable reference is simply unescaped, without being
+recognized as a variable reference.  Now during the secondary expansion
+the first word is expanded again but since it contains no variable or
+function references it remains the static value `onefile', while the
+second word is now a normal reference to the variable TWOVAR, which is
+expanded to the value `twofile'.  The final result is that there are
+two prerequisites, `onefile' and `twofile'.
+
+   Obviously, this is not a very interesting case since the same result
+could more easily have been achieved simply by having both variables
+appear, unescaped, in the prerequisites list.  One difference becomes
+apparent if the variables are reset; consider this example:
+
+     .SECONDEXPANSION:
+     AVAR = top
+     onefile: $(AVAR)
+     twofile: $$(AVAR)
+     AVAR = bottom
+
+   Here the prerequisite of `onefile' will be expanded immediately, and
+resolve to the value `top', while the prerequisite of `twofile' will
+not be full expanded until the secondary expansion and yield a value of
+`bottom'.
+
+   This is marginally more exciting, but the true power of this feature
+only becomes apparent when you discover that secondary expansions
+always take place within the scope of the automatic variables for that
+target.  This means that you can use variables such as `$@', `$*', etc.
+during the second expansion and they will have their expected values,
+just as in the command script.  All you have to do is defer the
+expansion by escaping the `$'.  Also, secondary expansion occurs for
+both explicit and implicit (pattern) rules.  Knowing this, the possible
+uses for this feature increase dramatically.  For example:
+
+     .SECONDEXPANSION:
+     main_OBJS := main.o try.o test.o
+     lib_OBJS := lib.o api.o
+
+     main lib: $$($$@_OBJS)
+
+   Here, after the initial expansion the prerequisites of both the
+`main' and `lib' targets will be `$($@_OBJS)'.  During the secondary
+expansion, the `$@' variable is set to the name of the target and so
+the expansion for the `main' target will yield `$(main_OBJS)', or
+`main.o try.o test.o', while the secondary expansion for the `lib'
+target will yield `$(lib_OBJS)', or `lib.o api.o'.
+
+   You can also mix functions here, as long as they are properly
+escaped:
+
+     main_SRCS := main.c try.c test.c
+     lib_SRCS := lib.c api.c
+
+     .SECONDEXPANSION:
+     main lib: $$(patsubst %.c,%.o,$$($$@_SRCS))
+
+   This version allows users to specify source files rather than object
+files, but gives the same resulting prerequisites list as the previous
+example.
+
+   Evaluation of automatic variables during the secondary expansion
+phase, especially of the target name variable `$$@', behaves similarly
+to evaluation within command scripts.  However, there are some subtle
+differences and "corner cases" which come into play for the different
+types of rule definitions that `make' understands.  The subtleties of
+using the different automatic variables are described below.
+
+Secondary Expansion of Explicit Rules
+-------------------------------------
+
+During the secondary expansion of explicit rules, `$$@' and `$$%'
+evaluate, respectively, to the file name of the target and, when the
+target is an archive member, the target member name.  The `$$<'
+variable evaluates to the first prerequisite in the first rule for this
+target.  `$$^' and `$$+' evaluate to the list of all prerequisites of
+rules _that have already appeared_ for the same target (`$$+' with
+repetitions and `$$^' without).  The following example will help
+illustrate these behaviors:
+
+     .SECONDEXPANSION:
+
+     foo: foo.1 bar.1 $$< $$^ $$+    # line #1
+
+     foo: foo.2 bar.2 $$< $$^ $$+    # line #2
+
+     foo: foo.3 bar.3 $$< $$^ $$+    # line #3
+
+   In the first prerequisite list, all three variables (`$$<', `$$^',
+and `$$+') expand to the empty string.  In the second, they will have
+values `foo.1', `foo.1 bar.1', and `foo.1 bar.1' respectively.  In the
+third they will have values `foo.1', `foo.1 bar.1 foo.2 bar.2', and
+`foo.1 bar.1 foo.2 bar.2' respectively.
+
+   Rules undergo secondary expansion in makefile order, except that the
+rule with the command script is always evaluated last.
+
+   The variables `$$?' and `$$*' are not available and expand to the
+empty string.
+
+Secondary Expansion of Static Pattern Rules
+-------------------------------------------
+
+Rules for secondary expansion of static pattern rules are identical to
+those for explicit rules, above, with one exception: for static pattern
+rules the `$$*' variable is set to the pattern stem.  As with explicit
+rules, `$$?' is not available and expands to the empty string.
+
+Secondary Expansion of Implicit Rules
+-------------------------------------
+
+As `make' searches for an implicit rule, it substitutes the stem and
+then performs secondary expansion for every rule with a matching target
+pattern.  The value of the automatic variables is derived in the same
+fashion as for static pattern rules.  As an example:
+
+     .SECONDEXPANSION:
+
+     foo: bar
+
+     foo foz: fo%: bo%
+
+     %oo: $$< $$^ $$+ $$*
+
+   When the implicit rule is tried for target `foo', `$$<' expands to
+`bar', `$$^' expands to `bar boo', `$$+' also expands to `bar boo', and
+`$$*' expands to `f'.
+
+   Note that the directory prefix (D), as described in *Note Implicit
+Rule Search Algorithm: Implicit Rule Search, is appended (after
+expansion) to all the patterns in the prerequisites list.  As an
+example:
+
+     .SECONDEXPANSION:
+
+     /tmp/foo.o:
+
+     %.o: $$(addsuffix /%.c,foo bar) foo.h
+
+   The prerequisite list after the secondary expansion and directory
+prefix reconstruction will be `/tmp/foo/foo.c /tmp/var/bar/foo.c
+foo.h'.  If you are not interested in this reconstruction, you can use
+`$$*' instead of `%' in the prerequisites list.
+
+
 File: make.info,  Node: Rules,  Next: Commands,  Prev: Makefiles,  Up: Top
 
-Writing Rules
-*************
+4 Writing Rules
+***************
 
 A "rule" appears in the makefile and says when and how to remake
 certain files, called the rule's "targets" (most often only one per
@@ -1288,8 +1582,8 @@ Specify the Goals: Goals.
 * Directory Search::            Searching other directories for source files.
 * Phony Targets::               Using a target that is not a real file's name.
 * Force Targets::               You can use a target without commands
-                                  or prerequisites to mark other
-                                  targets as phony.
+                                  or prerequisites to mark other targets
+                                  as phony.
 * Empty Targets::               When only the date matters and the
                                   files are empty.
 * Special Targets::             Targets with special built-in meanings.
@@ -1306,8 +1600,8 @@ Specify the Goals: Goals.
 
 File: make.info,  Node: Rule Example,  Next: Rule Syntax,  Prev: Rules,  Up: Rules
 
-Rule Example
-============
+4.1 Rule Example
+================
 
 Here is an example of a rule:
 
@@ -1332,8 +1626,8 @@ line starts with a tab to identify it as a command.
 
 File: make.info,  Node: Rule Syntax,  Next: Prerequisite Types,  Prev: Rule Example,  Up: Rules
 
-Rule Syntax
-===========
+4.2 Rule Syntax
+===============
 
 In general, a rule looks like this:
 
@@ -1358,14 +1652,19 @@ Targets.).
    The COMMAND lines start with a tab character.  The first command may
 appear on the line after the prerequisites, with a tab character, or may
 appear on the same line, with a semicolon.  Either way, the effect is
-the same.  *Note Writing the Commands in Rules: Commands.
+the same.  There are other differences in the syntax of command lines.
+*Note Writing the Commands in Rules: Commands.
 
-   Because dollar signs are used to start variable references, if you
-really want a dollar sign in a rule you must write two of them, `$$'
-(*note How to Use Variables: Using Variables.).  You may split a long
-line by inserting a backslash followed by a newline, but this is not
-required, as `make' places no limit on the length of a line in a
-makefile.
+   Because dollar signs are used to start `make' variable references,
+if you really want a dollar sign in a target or prerequisite you must
+write two of them, `$$' (*note How to Use Variables: Using Variables.).
+If you have enabled secondary expansion (*note Secondary Expansion::)
+and you want a literal dollar sign in the prerequisites lise, you must
+actually write _four_ dollar signs (`$$$$').
+
+   You may split a long line by inserting a backslash followed by a
+newline, but this is not required, as `make' places no limit on the
+length of a line in a makefile.
 
    A rule tells `make' two things: when the targets are out of date,
 and how to update them when necessary.
@@ -1387,8 +1686,8 @@ executed by the shell (normally `sh'), but with some extra features
 
 File: make.info,  Node: Prerequisite Types,  Next: Wildcards,  Prev: Rule Syntax,  Up: Rules
 
-Types of Prerequisites
-======================
+4.3 Types of Prerequisites
+==========================
 
 There are actually two different types of prerequisites understood by
 GNU `make': normal prerequisites such as described in the previous
@@ -1423,8 +1722,8 @@ behavior of an order-only prerequisite).
 
 File: make.info,  Node: Wildcards,  Next: Directory Search,  Prev: Prerequisite Types,  Up: Rules
 
-Using Wildcard Characters in File Names
-=======================================
+4.4 Using Wildcard Characters in File Names
+===========================================
 
 A single file name can specify many files using "wildcard characters".
 The wildcard characters in `make' are `*', `?' and `[...]', the same as
@@ -1440,10 +1739,10 @@ user named by that word.  For example `~john/bin' expands to
 each user (such as MS-DOS or MS-Windows), this functionality can be
 simulated by setting the environment variable HOME.
 
-   Wildcard expansion happens automatically in targets, in
-prerequisites, and in commands (where the shell does the expansion).
-In other contexts, wildcard expansion happens only if you request it
-explicitly with the `wildcard' function.
+   Wildcard expansion is performed by `make' automatically in targets
+and in prerequisites.  In commands the shell is responsible for
+wildcard expansion.  In other contexts, wildcard expansion happens only
+if you request it explicitly with the `wildcard' function.
 
    The special significance of a wildcard character can be turned off by
 preceding it with a backslash.  Thus, `foo\*bar' would refer to a
@@ -1459,8 +1758,8 @@ specific file whose name consists of `foo', an asterisk, and `bar'.
 
 File: make.info,  Node: Wildcard Examples,  Next: Wildcard Pitfall,  Prev: Wildcards,  Up: Wildcards
 
-Wildcard Examples
------------------
+4.4.1 Wildcard Examples
+-----------------------
 
 Wildcards can be used in the commands of a rule, where they are expanded
 by the shell.  For example, here is a rule to delete all the object
@@ -1499,8 +1798,8 @@ command, wildcard expansion will take place at that time.  To set
 
 File: make.info,  Node: Wildcard Pitfall,  Next: Wildcard Function,  Prev: Wildcard Examples,  Up: Wildcards
 
-Pitfalls of Using Wildcards
----------------------------
+4.4.2 Pitfalls of Using Wildcards
+---------------------------------
 
 Now here is an example of a naive way of using wildcard expansion, that
 does not do what you would intend.  Suppose you would like to say that
@@ -1508,7 +1807,7 @@ the executable file `foo' is made from all the object files in the
 directory, and you write this:
 
      objects = *.o
-     
+
      foo : $(objects)
              cc -o foo $(CFLAGS) $(objects)
 
@@ -1542,8 +1841,8 @@ you _must_ use Unix-style slashes in these cases.
 
 File: make.info,  Node: Wildcard Function,  Prev: Wildcard Pitfall,  Up: Wildcards
 
-The Function `wildcard'
------------------------
+4.4.3 The Function `wildcard'
+-----------------------------
 
 Wildcard expansion happens automatically in rules.  But wildcard
 expansion does not normally take place when a variable is set, or
@@ -1578,7 +1877,7 @@ String Substitution and Analysis: Text Functions.)
 then link them together could be written as follows:
 
      objects := $(patsubst %.c,%.o,$(wildcard *.c))
-     
+
      foo : $(objects)
              cc -o foo $(objects)
 
@@ -1590,8 +1889,8 @@ there is no need to write explicit rules for compiling the files.
 
 File: make.info,  Node: Directory Search,  Next: Phony Targets,  Prev: Wildcards,  Up: Rules
 
-Searching Directories for Prerequisites
-=======================================
+4.5 Searching Directories for Prerequisites
+===========================================
 
 For large systems, it is often desirable to put sources in a separate
 directory from the binaries.  The "directory search" features of `make'
@@ -1614,8 +1913,8 @@ do not need to change the individual rules, just the search paths.
 
 File: make.info,  Node: General Search,  Next: Selective Search,  Prev: Directory Search,  Up: Directory Search
 
-`VPATH': Search Path for All Prerequisites
-------------------------------------------
+4.5.1 `VPATH': Search Path for All Prerequisites
+------------------------------------------------
 
 The value of the `make' variable `VPATH' specifies a list of
 directories that `make' should search.  Most often, the directories are
@@ -1658,8 +1957,8 @@ is found in the directory `src'.
 
 File: make.info,  Node: Selective Search,  Next: Search Algorithm,  Prev: General Search,  Up: Directory Search
 
-The `vpath' Directive
----------------------
+4.5.2 The `vpath' Directive
+---------------------------
 
 Similar to the `VPATH' variable, but more selective, is the `vpath'
 directive (note lower case), which allows you to specify a search path
@@ -1737,8 +2036,8 @@ will look for a file ending in `.c' in `foo', then `bar', then `blish'.
 
 File: make.info,  Node: Search Algorithm,  Next: Commands/Search,  Prev: Selective Search,  Up: Directory Search
 
-How Directory Searches are Performed
-------------------------------------
+4.5.3 How Directory Searches are Performed
+------------------------------------------
 
 When a prerequisite is found through directory search, regardless of
 type (general or selective), the pathname located may not be the one
@@ -1795,8 +2094,8 @@ expanded path.
 
 File: make.info,  Node: Commands/Search,  Next: Implicit/Search,  Prev: Search Algorithm,  Up: Directory Search
 
-Writing Shell Commands with Directory Search
---------------------------------------------
+4.5.4 Writing Shell Commands with Directory Search
+--------------------------------------------------
 
 When a prerequisite is found in another directory through directory
 search, this cannot change the commands of the rule; they will execute
@@ -1816,7 +2115,7 @@ target.  Thus:
 (The variable `CFLAGS' exists so you can specify flags for C
 compilation by implicit rules; we use it here for consistency so it will
 affect all C compilations uniformly; *note Variables Used by Implicit
-Rules: Implicit Variables..)
+Rules: Implicit Variables.)
 
    Often the prerequisites include header files as well, which you do
 not want to mention in the commands.  The automatic variable `$<' is
@@ -1829,8 +2128,8 @@ just the first prerequisite:
 
 File: make.info,  Node: Implicit/Search,  Next: Libraries/Search,  Prev: Commands/Search,  Up: Directory Search
 
-Directory Search and Implicit Rules
------------------------------------
+4.5.5 Directory Search and Implicit Rules
+-----------------------------------------
 
 The search through the directories specified in `VPATH' or with `vpath'
 also happens during consideration of implicit rules (*note Using
@@ -1850,8 +2149,8 @@ directory search with no extra effort.
 
 File: make.info,  Node: Libraries/Search,  Prev: Implicit/Search,  Up: Directory Search
 
-Directory Search for Link Libraries
------------------------------------
+4.5.6 Directory Search for Link Libraries
+-----------------------------------------
 
 Directory search applies in a special way to libraries used with the
 linker.  This special feature comes into play when you write a
@@ -1889,7 +2188,7 @@ each pattern in the list with NAME and perform the above directory
 searches using that library filename.  If no library is found, the next
 word in the list will be used.
 
-   The default value for `.LIBPATTERNS' is "`lib%.so lib%.a'", which
+   The default value for `.LIBPATTERNS' is `lib%.so lib%.a', which
 provides the default behavior described above.
 
    You can turn off link library expansion completely by setting this
@@ -1898,8 +2197,8 @@ variable to an empty value.
 
 File: make.info,  Node: Phony Targets,  Next: Force Targets,  Prev: Directory Search,  Up: Rules
 
-Phony Targets
-=============
+4.6 Phony Targets
+=================
 
 A phony target is one that is not really the name of a file.  It is
 just a name for some commands to be executed when you make an explicit
@@ -1915,7 +2214,7 @@ remaking.  Here is an example:
 
 Because the `rm' command does not create a file named `clean', probably
 no such file will ever exist.  Therefore, the `rm' command will be
-executed every time you say `make clean'.
+executed every time you say `make clean'.  
 
    The phony target will cease to work if anything ever does create a
 file named `clean' in this directory.  Since it has no prerequisites,
@@ -1945,13 +2244,13 @@ target, then you write the rule, like this:
 
    Another example of the usefulness of phony targets is in conjunction
 with recursive invocations of `make' (for more information, see *Note
-Recursive Use of `make': Recursion).  In this case the makefile will
+Recursive Use of `make': Recursion.).  In this case the makefile will
 often contain a variable which lists a number of subdirectories to be
 built.  One way to handle this is with one rule whose command is a
 shell loop over the subdirectories, like this:
 
      SUBDIRS = foo bar baz
-     
+
      subdirs:
              for dir in $(SUBDIRS); do \
                $(MAKE) -C $$dir; \
@@ -1963,22 +2262,22 @@ build the rest of the directories even when one fails.  This can be
 overcome by adding shell commands to note the error and exit, but then
 it will do so even if `make' is invoked with the `-k' option, which is
 unfortunate.  Second, and perhaps more importantly, you cannot take
-advantage of the parallel build capabilities of make using this method,
-since there is only one rule.
+advantage of `make''s ability to build targets in parallel (*note
+Parallel Execution: Parallel.), since there is only one rule.
 
    By declaring the subdirectories as phony targets (you must do this as
 the subdirectory obviously always exists; otherwise it won't be built)
 you can remove these problems:
 
      SUBDIRS = foo bar baz
-     
+
      .PHONY: subdirs $(SUBDIRS)
-     
+
      subdirs: $(SUBDIRS)
-     
+
      $(SUBDIRS):
              $(MAKE) -C $@
-     
+
      foo: baz
 
    Here we've also declared that the `foo' subdirectory cannot be built
@@ -2002,39 +2301,41 @@ individual programs.  For example:
 
      all : prog1 prog2 prog3
      .PHONY : all
-     
+
      prog1 : prog1.o utils.o
              cc -o prog1 prog1.o utils.o
-     
+
      prog2 : prog2.o
              cc -o prog2 prog2.o
-     
+
      prog3 : prog3.o sort.o utils.o
              cc -o prog3 prog3.o sort.o utils.o
 
 Now you can say just `make' to remake all three programs, or specify as
-arguments the ones to remake (as in `make prog1 prog3').
+arguments the ones to remake (as in `make prog1 prog3').  Phoniness is
+not inherited: the prerequisites of a phony target are not themselves
+phony, unless explicitly declared to be so.
 
    When one phony target is a prerequisite of another, it serves as a
 subroutine of the other.  For example, here `make cleanall' will delete
 the object files, the difference files, and the file `program':
 
      .PHONY: cleanall cleanobj cleandiff
-     
+
      cleanall : cleanobj cleandiff
              rm program
-     
+
      cleanobj :
              rm *.o
-     
+
      cleandiff :
              rm *.diff
 
 
 File: make.info,  Node: Force Targets,  Next: Empty Targets,  Prev: Phony Targets,  Up: Rules
 
-Rules without Commands or Prerequisites
-=======================================
+4.7 Rules without Commands or Prerequisites
+===========================================
 
 If a rule has no prerequisites or commands, and the target of the rule
 is a nonexistent file, then `make' imagines this target to have been
@@ -2062,8 +2363,8 @@ many makefiles.  *Note Phony Targets::.
 
 File: make.info,  Node: Empty Targets,  Next: Special Targets,  Prev: Force Targets,  Up: Rules
 
-Empty Target Files to Record Events
-===================================
+4.8 Empty Target Files to Record Events
+=======================================
 
 The "empty target" is a variant of the phony target; it is used to hold
 commands for an action that you request explicitly from time to time.
@@ -2084,7 +2385,7 @@ time you remade the target.  Here is an example:
      print: foo.c bar.c
              lpr -p $?
              touch print
-
+   
 With this rule, `make print' will execute the `lpr' command if either
 source file has changed since the last `make print'.  The automatic
 variable `$?' is used to print only those files that have changed
@@ -2093,8 +2394,8 @@ variable `$?' is used to print only those files that have changed
 
 File: make.info,  Node: Special Targets,  Next: Multiple Targets,  Prev: Empty Targets,  Up: Rules
 
-Special Built-in Target Names
-=============================
+4.9 Special Built-in Target Names
+=================================
 
 Certain names have special meanings if they appear as targets.
 
@@ -2146,6 +2447,16 @@ Certain names have special meanings if they appear as targets.
      `.SECONDARY' with no prerequisites causes all targets to be treated
      as secondary (i.e., no target is removed because it is considered
      intermediate).
+
+`.SECONDEXPANSION'
+     If `.SECONDEXPANSION' is mentioned as a target anywhere in the
+     makefile, then all prerequisite lists defined _after_ it appears
+     will be expanded a second time after all makefiles have been read
+     in.  *Note Secondary Expansion: Secondary Expansion.
+
+     The prerequisites of the special target `.SUFFIXES' are the list
+     of suffixes to be used in checking for suffix rules.  *Note
+     Old-Fashioned Suffix Rules: Suffix Rules.
 
 `.DELETE_ON_ERROR'
      If `.DELETE_ON_ERROR' is mentioned as a target anywhere in the
@@ -2233,8 +2544,8 @@ begin with `.', so these special target names also begin with `.'.
 
 File: make.info,  Node: Multiple Targets,  Next: Multiple Rules,  Prev: Special Targets,  Up: Rules
 
-Multiple Targets in a Rule
-==========================
+4.10 Multiple Targets in a Rule
+===============================
 
 A rule with multiple targets is equivalent to writing many rules, each
 with one target, and all identical aside from that.  The same commands
@@ -2258,7 +2569,7 @@ rule contributes the same prerequisites to all the targets also.
 
           bigoutput littleoutput : text.g
                   generate text.g -$(subst output,,$@) > $@
-
+     
      is equivalent to
 
           bigoutput : text.g
@@ -2280,8 +2591,8 @@ Pattern.
 
 File: make.info,  Node: Multiple Rules,  Next: Static Pattern,  Prev: Multiple Targets,  Up: Rules
 
-Multiple Rules for One Target
-=============================
+4.11 Multiple Rules for One Target
+==================================
 
 One file can be the target of several rules.  All the prerequisites
 mentioned in all the rules are merged into one list of prerequisites for
@@ -2331,8 +2642,8 @@ Using Implicit Rules: Implicit Rules.).
 
 File: make.info,  Node: Static Pattern,  Next: Double-Colon,  Prev: Multiple Rules,  Up: Rules
 
-Static Pattern Rules
-====================
+4.12 Static Pattern Rules
+=========================
 
 "Static pattern rules" are rules which specify multiple targets and
 construct the prerequisite names for each target based on the target
@@ -2348,8 +2659,8 @@ prerequisites must be _analogous_, but not necessarily _identical_.
 
 File: make.info,  Node: Static Usage,  Next: Static versus Implicit,  Prev: Static Pattern,  Up: Static Pattern
 
-Syntax of Static Pattern Rules
-------------------------------
+4.12.1 Syntax of Static Pattern Rules
+-------------------------------------
 
 Here is the syntax of a static pattern rule:
 
@@ -2397,9 +2708,9 @@ cannot affect any `%' character.
 the corresponding `.c' file:
 
      objects = foo.o bar.o
-     
+
      all: $(objects)
-     
+
      $(objects): %.o: %.c
              $(CC) -c $(CFLAGS) $< -o $@
 
@@ -2414,7 +2725,7 @@ function to remove nonmatching file names (*note Functions for String
 Substitution and Analysis: Text Functions.):
 
      files = foo.elc bar.o lose.o
-     
+
      $(filter %.o,$(files)): %.o: %.c
              $(CC) -c $(CFLAGS) $< -o $@
      $(filter %.elc,$(files)): %.elc: %.el
@@ -2426,7 +2737,7 @@ files to be updated by compiling the corresponding C source file.  The
 result of `$(filter %.elc,$(files))' is `foo.elc', so that file is made
 from `foo.el'.
 
-   Another example shows how to use `$*' in static pattern rules:
+   Another example shows how to use `$*' in static pattern rules: 
 
      bigoutput littleoutput : %output : text.g
              generate text.g -$* > $@
@@ -2437,8 +2748,8 @@ either `big' or `little'.
 
 File: make.info,  Node: Static versus Implicit,  Prev: Static Usage,  Up: Static Pattern
 
-Static Pattern Rules versus Implicit Rules
-------------------------------------------
+4.12.2 Static Pattern Rules versus Implicit Rules
+-------------------------------------------------
 
 A static pattern rule has much in common with an implicit rule defined
 as a pattern rule (*note Defining and Redefining Pattern Rules: Pattern
@@ -2474,8 +2785,8 @@ reasons:
 
 File: make.info,  Node: Double-Colon,  Next: Automatic Prerequisites,  Prev: Static Pattern,  Up: Rules
 
-Double-Colon Rules
-==================
+4.13 Double-Colon Rules
+=======================
 
 "Double-colon" rules are rules written with `::' instead of `:' after
 the target names.  They are handled differently from ordinary rules
@@ -2511,8 +2822,8 @@ Implicit Rules.
 
 File: make.info,  Node: Automatic Prerequisites,  Prev: Double-Colon,  Up: Rules
 
-Generating Prerequisites Automatically
-======================================
+4.14 Generating Prerequisites Automatically
+===========================================
 
 In the makefile for a program, many of the rules you need to write often
 say only that some object file depends on some header file.  For
@@ -2524,7 +2835,7 @@ You need this rule so that `make' knows that it must remake `main.o'
 whenever `defs.h' changes.  You can see that for a large program you
 would have to write dozens of such rules in your makefile.  And, you
 must always be very careful to update the makefile every time you add
-or remove an `#include'.
+or remove an `#include'.  
 
    To avoid this hassle, most modern C compilers can write these rules
 for you, by looking at the `#include' lines in the source files.
@@ -2543,7 +2854,7 @@ compiler will do it for you.
    Note that such a prerequisite constitutes mentioning `main.o' in a
 makefile, so it can never be considered an intermediate file by implicit
 rule search.  This means that `make' won't ever remove the file after
-using it; *note Chains of Implicit Rules: Chained Rules..
+using it; *note Chains of Implicit Rules: Chained Rules.
 
    With old `make' programs, it was traditional practice to use this
 compiler feature to generate prerequisites on demand with a command like
@@ -2567,14 +2878,14 @@ prerequisites.
 a makefile) called `NAME.d' from a C source file called `NAME.c':
 
      %.d: %.c
-             
+             @set -e; rm -f $@; \
               $(CC) -M $(CPPFLAGS) $< > $@.$$$$; \
               sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
               rm -f $@.$$$$
 
 *Note Pattern Rules::, for information on defining pattern rules.  The
 `-e' flag to the shell causes it to exit immediately if the `$(CC)'
-command (or any other command) fails (exits with a nonzero status).
+command (or any other command) fails (exits with a nonzero status).  
 
    With the GNU C compiler, you may wish to use the `-MM' flag instead
 of `-M'.  This omits prerequisites on system header files.  *Note
@@ -2599,7 +2910,7 @@ the `include' directive to read them all in.  *Note Include::.  For
 example:
 
      sources = foo.c bar.c
-     
+
      include $(sources:.c=.d)
 
 (This example uses a substitution variable reference to translate the
@@ -2610,36 +2921,28 @@ makefiles like any others, `make' will remake them as necessary with no
 further work from you.  *Note Remaking Makefiles::.
 
    Note that the `.d' files contain target definitions; you should be
-sure to place the `include' directive _after_ the first, default target
+sure to place the `include' directive _after_ the first, default goal
 in your makefiles or run the risk of having a random object file become
-the default target.  *Note How Make Works::.
+the default goal.  *Note How Make Works::.
 
 
 File: make.info,  Node: Commands,  Next: Using Variables,  Prev: Rules,  Up: Top
 
-Writing the Commands in Rules
-*****************************
+5 Writing the Commands in Rules
+*******************************
 
-The commands of a rule consist of shell command lines to be executed one
-by one.  Each command line must start with a tab, except that the first
-command line may be attached to the target-and-prerequisites line with a
-semicolon in between.  Blank lines and lines of just comments may appear
-among the command lines; they are ignored.  (But beware, an apparently
-"blank" line that begins with a tab is _not_ blank!  It is an empty
-command; *note Empty Commands::.)
+The commands of a rule consist of one or more shell command lines to be
+executed, one at a time, in the order they appear.  Typically, the
+result of executing these commands is that the target of the rule is
+brought up to date.
 
    Users use many different shell programs, but commands in makefiles
 are always interpreted by `/bin/sh' unless the makefile specifies
 otherwise.  *Note Command Execution: Execution.
 
-   The shell that is in use determines whether comments can be written
-on command lines, and what syntax they use.  When the shell is
-`/bin/sh', a `#' starts a comment that extends to the end of the line.
-The `#' does not have to be at the beginning of a line.  Text on a line
-before a `#' is not part of the comment.
-
 * Menu:
 
+* Command Syntax::              Command syntax features and pitfalls.
 * Echoing::                     How to control when commands are echoed.
 * Execution::                   How commands are executed.
 * Parallel::                    How commands can be executed in parallel.
@@ -2650,10 +2953,184 @@ before a `#' is not part of the comment.
 * Empty Commands::              Defining useful, do-nothing commands.
 
 
-File: make.info,  Node: Echoing,  Next: Execution,  Prev: Commands,  Up: Commands
+File: make.info,  Node: Command Syntax,  Next: Echoing,  Prev: Commands,  Up: Commands
 
-Command Echoing
-===============
+5.1 Command Syntax
+==================
+
+Makefiles have the unusual property that there are really two distinct
+syntaxes in one file.  Most of the makefile uses `make' syntax (*note
+Writing Makefiles: Makefiles.).  However, commands are meant to be
+interpreted by the shell and so they are written using shell syntax.
+The `make' program does not try to understand shell syntax: it performs
+only a very few specific translations on the content of the command
+before handing it to the shell.
+
+   Each command line must start with a tab, except that the first
+command line may be attached to the target-and-prerequisites line with a
+semicolon in between.  _Any_ line in the makefile that begins with a
+tab and appears in a "rule context" (that is, after a rule has been
+started until another rule or variable definition) will be considered a
+command line for that rule.  Blank lines and lines of just comments may
+appear among the command lines; they are ignored.
+
+   Some consequences of these rules include:
+
+   * A blank line that begins with a tab is not blank: it's an empty
+     command (*note Empty Commands::).
+
+   * A comment in a command line is not a `make' comment; it will be
+     passed to the shell as-is.  Whether the shell treats it as a
+     comment or not depends on your shell.
+
+   * A variable definition in a "rule context" which is indented by a
+     tab as the first character on the line, will be considered a
+     command line, not a `make' variable definition, and passed to the
+     shell.
+
+   * A conditional expression (`ifdef', `ifeq', etc. *note Syntax of
+     Conditionals: Conditional Syntax.) in a "rule context" which is
+     indented by a tab as the first character on the line, will be
+     considered a command line and be passed to the shell.
+
+
+* Menu:
+
+* Splitting Lines::             Breaking long command lines for readability.
+* Variables in Commands::       Using `make' variables in commands.
+
+
+File: make.info,  Node: Splitting Lines,  Next: Variables in Commands,  Prev: Command Syntax,  Up: Command Syntax
+
+5.1.1 Splitting Command Lines
+-----------------------------
+
+One of the few ways in which `make' does interpret command lines is
+checking for a backslash just before the newline.  As in normal
+makefile syntax, a single command can be split into multiple lines in
+the makefile by placing a backslash before each newline.  A sequence of
+lines like this is considered a single command, and one instance of the
+shell will be invoked to run it.
+
+   However, in contrast to how they are treated in other places in a
+makefile, backslash-newline pairs are _not_ removed from the command.
+Both the backslash and the newline characters are preserved and passed
+to the shell.  How the backslash-newline is interpreted depends on your
+shell.  If the first character of the next line after the
+backslash-newline is a tab, then that tab (and only that tab) is
+removed.  Whitespace is never added to the command.
+
+   For example, this makefile:
+
+     all :
+             @echo no\
+     space
+             @echo no\
+             space
+             @echo one \
+             space
+             @echo one\
+              space
+
+consists of four separate shell commands where the output is:
+
+     nospace
+     nospace
+     one space
+     one space
+
+   As a more complex example, this makefile:
+
+     all : ; @echo 'hello \
+             world' ; echo "hello \
+         world"
+
+will run one shell with a command script of:
+
+     echo 'hello \
+     world' ; echo "hello \
+         world"
+
+which, according to shell quoting rules, will yield the following
+output:
+
+     hello \
+     world
+     hello     world
+
+Notice how the backslash/newline pair was removed inside the string
+quoted with double quotes (`"..."'), but not from the string quoted
+with single quotes (`'...'').  This is the way the default shell
+(`/bin/sh') handles backslash/newline pairs.  If you specify a
+different shell in your makefiles it may treat them differently.
+
+   Sometimes you want to split a long line inside of single quotes, but
+you don't want the backslash-newline to appear in the quoted content.
+This is often the case when passing scripts to languages such as Perl,
+where extraneous backslashes inside the script can change its meaning
+or even be a syntax error.  One simple way of handling this is to place
+the quoted string, or even the entire command, into a `make' variable
+then use the variable in the command.  In this situation the newline
+quoting rules for makefiles will be used, and the backslash-newline
+will be removed.  If we rewrite our example above using this method:
+
+     HELLO = 'hello \
+     world'
+
+     all : ; @echo $(HELLO)
+
+we will get output like this:
+
+     hello world
+
+   If you like, you can also use target-specific variables (*note
+Target-specific Variable Values: Target-specific.) to obtain a tighter
+correspondence between the variable and the command that uses it.
+
+
+File: make.info,  Node: Variables in Commands,  Prev: Splitting Lines,  Up: Command Syntax
+
+5.1.2 Using Variables in Commands
+---------------------------------
+
+The other way in which `make' processes commands is by expanding any
+variable references in them (*note Basics of Variable References:
+Reference.).  This occurs after make has finished reading all the
+makefiles and the target is determined to be out of date; so, the
+commands for targets which are not rebuilt are never expanded.
+
+   Variable and function references in commands have identical syntax
+and semantics to references elsewhere in the makefile.  They also have
+the same quoting rules: if you want a dollar sign to appear in your
+command, you must double it (`$$').  For shells like the default shell,
+that use dollar signs to introduce variables, it's important to keep
+clear in your mind whether the variable you want to reference is a
+`make' variable (use a single dollar sign) or a shell variable (use two
+dollar signs).  For example:
+
+     LIST = one two three
+     all:
+             for i in $(LIST); do \
+                 echo $$i; \
+             done
+
+results in the following command being passed to the shell:
+
+     for i in one two three; do \
+         echo $i; \
+     done
+
+which generates the expected result:
+
+     one
+     two
+     three
+
+
+File: make.info,  Node: Echoing,  Next: Execution,  Prev: Command Syntax,  Up: Commands
+
+5.2 Command Echoing
+===================
 
 Normally `make' prints each command line before it is executed.  We
 call this "echoing" because it gives the appearance that you are typing
@@ -2682,35 +3159,77 @@ essentially obsolete since `@' is more flexible.
 
 File: make.info,  Node: Execution,  Next: Parallel,  Prev: Echoing,  Up: Commands
 
-Command Execution
-=================
+5.3 Command Execution
+=====================
 
 When it is time to execute commands to update a target, they are
-executed by making a new subshell for each line.  (In practice, `make'
-may take shortcuts that do not affect the results.)
+executed by invoking a new subshell for each command line.  (In
+practice, `make' may take shortcuts that do not affect the results.)
 
-   *Please note:* this implies that shell commands such as `cd' that
-set variables local to each process will not affect the following
-command lines. (1)  If you want to use `cd' to affect the next command,
-put the two on a single line with a semicolon between them.  Then
-`make' will consider them a single command and pass them, together, to
-a shell which will execute them in sequence.  For example:
-
-     foo : bar/lose
-             cd bar; gobble lose > ../foo
-
-   If you would like to split a single shell command into multiple
-lines of text, you must use a backslash at the end of all but the last
-subline.  Such a sequence of lines is combined into a single line, by
-deleting the backslash-newline sequences, before passing it to the
-shell.  Thus, the following is equivalent to the preceding example:
+   *Please note:* this implies that setting shell variables and
+invoking shell commands such as `cd' that set a context local to each
+process will not affect the following command lines.(1)  If you want to
+use `cd' to affect the next statement, put both statements in a single
+command line.  Then `make' will invoke one shell to run the entire
+line, and the shell will execute the statements in sequence.  For
+example:
 
      foo : bar/lose
-             cd bar;  \
-             gobble lose > ../foo
+             cd $(@D) && gobble $(@F) > ../$@
 
-   The program used as the shell is taken from the variable `SHELL'.
-By default, the program `/bin/sh' is used.
+Here we use the shell AND operator (`&&') so that if the `cd' command
+fails, the script will fail without trying to invoke the `gobble'
+command in the wrong directory, which could cause problems (in this
+case it would certainly cause `../foo' to be truncated, at least).
+
+* Menu:
+
+* Choosing the Shell::          How `make' chooses the shell used
+                                  to run commands.
+
+   ---------- Footnotes ----------
+
+   (1) On MS-DOS, the value of current working directory is *global*, so
+changing it _will_ affect the following command lines on those systems.
+
+
+File: make.info,  Node: Choosing the Shell,  Prev: Execution,  Up: Execution
+
+5.3.1 Choosing the Shell
+------------------------
+
+The program used as the shell is taken from the variable `SHELL'.  If
+this variable is not set in your makefile, the program `/bin/sh' is
+used as the shell.
+
+   Unlike most variables, the variable `SHELL' is never set from the
+environment.  This is because the `SHELL' environment variable is used
+to specify your personal choice of shell program for interactive use.
+It would be very bad for personal choices like this to affect the
+functioning of makefiles.  *Note Variables from the Environment:
+Environment.
+
+   Furthermore, when you do set `SHELL' in your makefile that value is
+_not_ exported in the environment to commands that `make' invokes.
+Instead, the value inherited from the user's environment, if any, is
+exported.  You can override this behavior by explicitly exporting
+`SHELL' (*note Communicating Variables to a Sub-`make':
+Variables/Recursion.), forcing it to be passed in the environment to
+commands.
+
+   However, on MS-DOS and MS-Windows the value of `SHELL' in the
+environment *is* used, since on those systems most users do not set
+this variable, and therefore it is most likely set specifically to be
+used by `make'.  On MS-DOS, if the setting of `SHELL' is not suitable
+for `make', you can set the variable `MAKESHELL' to the shell that
+`make' should use; if set it will be used as the shell instead of the
+value of `SHELL'.
+
+Choosing a Shell in DOS and Windows
+...................................
+
+Choosing a shell in MS-DOS and MS-Windows is much more complex than on
+other systems.
 
    On MS-DOS, if `SHELL' is not set, the value of the variable
 `COMSPEC' (which is always set) is used instead.
@@ -2756,33 +3275,15 @@ or command line, you are expected to set it to the full pathname of the
 shell, exactly as things are on Unix.
 
    The effect of the above DOS-specific processing is that a Makefile
-that says `SHELL = /bin/sh' (as many Unix makefiles do), will work on
-MS-DOS unaltered if you have e.g. `sh.exe' installed in some directory
-along your `PATH'.
-
-   Unlike most variables, the variable `SHELL' is never set from the
-environment.  This is because the `SHELL' environment variable is used
-to specify your personal choice of shell program for interactive use.
-It would be very bad for personal choices like this to affect the
-functioning of makefiles.  *Note Variables from the Environment:
-Environment.  However, on MS-DOS and MS-Windows the value of `SHELL' in
-the environment *is* used, since on those systems most users do not set
-this variable, and therefore it is most likely set specifically to be
-used by `make'.  On MS-DOS, if the setting of `SHELL' is not suitable
-for `make', you can set the variable `MAKESHELL' to the shell that
-`make' should use; this will override the value of `SHELL'.
-
-   ---------- Footnotes ----------
-
-   (1) On MS-DOS, the value of current working directory is *global*,
-so changing it _will_ affect the following command lines on those
-systems.
+that contains `SHELL = /bin/sh' (as many Unix makefiles do), will work
+on MS-DOS unaltered if you have e.g. `sh.exe' installed in some
+directory along your `PATH'.
 
 
 File: make.info,  Node: Parallel,  Next: Errors,  Prev: Execution,  Up: Commands
 
-Parallel Execution
-==================
+5.4 Parallel Execution
+======================
 
 GNU `make' knows how to execute several commands at once.  Normally,
 `make' will execute only one command at a time, waiting for it to
@@ -2808,7 +3309,7 @@ same device; so to make sure that only one command tries to take input
 from the terminal at once, `make' will invalidate the standard input
 streams of all but one running command.  This means that attempting to
 read from standard input will usually be a fatal error (a `Broken pipe'
-signal) for most child processes if there are several.
+signal) for most child processes if there are several.  
 
    It is unpredictable which command will have a valid standard input
 stream (which will come from the terminal, or wherever you redirect the
@@ -2857,8 +3358,8 @@ average goes below that limit, or until all the other jobs finish.
 
 File: make.info,  Node: Errors,  Next: Interrupts,  Prev: Parallel,  Up: Commands
 
-Errors in Commands
-==================
+5.5 Errors in Commands
+======================
 
 After each shell command returns, `make' looks at its exit status.  If
 the command completed successfully, the next command line is executed
@@ -2916,7 +3417,7 @@ might as well report the failure immediately.  The `-k' option says
 that the real purpose is to test as many of the changes made in the
 program as possible, perhaps to find several independent problems so
 that you can correct them all before the next attempt to compile.  This
-is why Emacs' `compile' command passes the `-k' flag by default.
+is why Emacs' `compile' command passes the `-k' flag by default.  
 
    Usually when a command fails, if it has changed the target file at
 all, the file is corrupted and cannot be used--or at least it is not
@@ -2933,8 +3434,8 @@ request it.
 
 File: make.info,  Node: Interrupts,  Next: Recursion,  Prev: Errors,  Up: Commands
 
-Interrupting or Killing `make'
-==============================
+5.6 Interrupting or Killing `make'
+==================================
 
 If `make' gets a fatal signal while a command is executing, it may
 delete the target file that the command was supposed to update.  This is
@@ -2964,8 +3465,8 @@ times to prevent other sorts of trouble.
 
 File: make.info,  Node: Recursion,  Next: Sequences,  Prev: Interrupts,  Up: Commands
 
-Recursive Use of `make'
-=======================
+5.7 Recursive Use of `make'
+===========================
 
 Recursive use of `make' means using `make' as a command in a makefile.
 This technique is useful when you want separate makefiles for various
@@ -2981,7 +3482,7 @@ or, equivalently, this (*note Summary of Options: Options Summary.):
 
      subsystem:
              $(MAKE) -C subdir
-
+   
    You can write recursive `make' commands just by copying this example,
 but there are many things to know about how they work and why, and about
 how the sub-`make' relates to the top-level `make'.  You may also find
@@ -3011,8 +3512,8 @@ for example).
 
 File: make.info,  Node: MAKE Variable,  Next: Variables/Recursion,  Prev: Recursion,  Up: Recursion
 
-How the `MAKE' Variable Works
------------------------------
+5.7.1 How the `MAKE' Variable Works
+-----------------------------------
 
 Recursive `make' commands should always use the variable `MAKE', not
 the explicit command name `make', as shown here:
@@ -3024,7 +3525,7 @@ the explicit command name `make', as shown here:
 invoked.  If this file name was `/bin/make', then the command executed
 is `cd subdir && /bin/make'.  If you use a special version of `make' to
 run the top-level makefile, the same special version will be executed
-for recursive invocations.
+for recursive invocations.  
 
    As a special feature, using the variable `MAKE' in the commands of a
 rule alters the effects of the `-t' (`--touch'), `-n' (`--just-print'),
@@ -3042,7 +3543,7 @@ commands; see *Note Instead of Execution::.)  Following the usual
 definition of `-t', a `make -t' command in the example would create a
 file named `subsystem' and do nothing else.  What you really want it to
 do is run `cd subdir && make -t'; but that would require executing the
-command, and `-t' says not to execute commands.
+command, and `-t' says not to execute commands.  
 
    The special feature makes this do what you want: whenever a command
 line of a rule contains the variable `MAKE', the flags `-t', `-n' and
@@ -3056,8 +3557,8 @@ commands, is propagated to the subsystem.
 
 File: make.info,  Node: Variables/Recursion,  Next: Options/Recursion,  Prev: MAKE Variable,  Up: Recursion
 
-Communicating Variables to a Sub-`make'
----------------------------------------
+5.7.2 Communicating Variables to a Sub-`make'
+---------------------------------------------
 
 Variable values of the top-level `make' can be passed to the sub-`make'
 through the environment by explicit request.  These variables are
@@ -3076,9 +3577,14 @@ and if its name consists only of letters, numbers, and underscores.
 Some shells cannot cope with environment variable names consisting of
 characters other than letters, numbers, and underscores.
 
-   The special variables `SHELL' and `MAKEFLAGS' are always exported
-(unless you unexport them).  `MAKEFILES' is exported if you set it to
-anything.
+   The value of the `make' variable `SHELL' is not exported.  Instead,
+the value of the `SHELL' variable from the invoking environment is
+passed to the sub-`make'.  You can force `make' to export its value for
+`SHELL' by using the `export' directive, described below.  *Note
+Choosing the Shell::.
+
+   The special variable `MAKEFLAGS' is always exported (unless you
+unexport it).  `MAKEFILES' is exported if you set it to anything.
 
    `make' automatically passes down variable values that were defined
 on the command line, by putting them in the `MAKEFLAGS' variable.
@@ -3153,7 +3659,7 @@ this behavior and you want to be compatible with old versions of
 `make', you can write a rule for the special target
 `.EXPORT_ALL_VARIABLES' instead of using the `export' directive.  This
 will be ignored by old `make's, while the `export' directive will cause
-a syntax error.
+a syntax error.  
 
    Likewise, you can use `unexport' by itself to tell `make' _not_ to
 export variables by default.  Since this is the default behavior, you
@@ -3186,8 +3692,8 @@ MAKEFILES Variable.
 
 File: make.info,  Node: Options/Recursion,  Next: -w Option,  Prev: Variables/Recursion,  Up: Recursion
 
-Communicating Options to a Sub-`make'
--------------------------------------
+5.7.3 Communicating Options to a Sub-`make'
+-------------------------------------------
 
 Flags such as `-s' and `-k' are passed automatically to the sub-`make'
 through the variable `MAKEFLAGS'.  This variable is set up
@@ -3291,8 +3797,8 @@ at least surprising and probably annoying effects.
 
 File: make.info,  Node: -w Option,  Prev: Options/Recursion,  Up: Recursion
 
-The `--print-directory' Option
-------------------------------
+5.7.4 The `--print-directory' Option
+------------------------------------
 
 If you use several levels of recursive `make' invocations, the `-w' or
 `--print-directory' option can make the output a lot easier to
@@ -3317,8 +3823,8 @@ if you also use `-s', which says to be silent, or if you use
 
 File: make.info,  Node: Sequences,  Next: Empty Commands,  Prev: Recursion,  Up: Commands
 
-Defining Canned Command Sequences
-=================================
+5.8 Defining Canned Command Sequences
+=====================================
 
 When the same sequence of commands is useful in making various targets,
 you can define it as a canned sequence with the `define' directive, and
@@ -3332,7 +3838,7 @@ with other variable names.
      yacc $(firstword $^)
      mv y.tab.c $@
      endef
-
+   
 Here `run-yacc' is the name of the variable being defined; `endef'
 marks the end of the definition; the lines in between are the commands.
 The `define' directive does not expand variable references and
@@ -3392,8 +3898,8 @@ full explanation of `@'.)
 
 File: make.info,  Node: Empty Commands,  Prev: Sequences,  Up: Commands
 
-Using Empty Commands
-====================
+5.9 Using Empty Commands
+========================
 
 It is sometimes useful to define commands which do nothing.  This is
 done simply by giving a command that consists of nothing but
@@ -3421,14 +3927,14 @@ this.
 
 File: make.info,  Node: Using Variables,  Next: Conditionals,  Prev: Commands,  Up: Top
 
-How to Use Variables
-********************
+6 How to Use Variables
+**********************
 
 A "variable" is a name defined in a makefile to represent a string of
 text, called the variable's "value".  These values are substituted by
 explicit request into targets, prerequisites, commands, and other parts
 of the makefile.  (In some other versions of `make', variables are
-called "macros".)
+called "macros".)  
 
    Variables and functions in all parts of a makefile are expanded when
 read, except for the shell commands in rules, the right-hand sides of
@@ -3483,8 +3989,8 @@ have particular specialized uses.  *Note Automatic Variables::.
 
 File: make.info,  Node: Reference,  Next: Flavors,  Prev: Using Variables,  Up: Using Variables
 
-Basics of Variable References
-=============================
+6.1 Basics of Variable References
+=================================
 
 To substitute a variable's value, write a dollar sign followed by the
 name of the variable in parentheses or braces: either `$(foo)' or
@@ -3500,7 +4006,7 @@ of all the object files in a program:
      objects = program.o foo.o utils.o
      program : $(objects)
              cc -o program $(objects)
-     
+
      $(objects) : defs.h
 
    Variable references work by strict textual substitution.  Thus, the
@@ -3523,8 +4029,8 @@ the automatic variables (*note Automatic Variables::).
 
 File: make.info,  Node: Flavors,  Next: Advanced,  Prev: Reference,  Up: Using Variables
 
-The Two Flavors of Variables
-============================
+6.2 The Two Flavors of Variables
+================================
 
 There are two ways that a variable in GNU `make' can have a value; we
 call them the two "flavors" of variables.  The two flavors are
@@ -3544,7 +4050,7 @@ called "recursive expansion".
      foo = $(bar)
      bar = $(ugh)
      ugh = Huh?
-     
+
      all:;echo $(foo)
 
 will echo `Huh?': `$(foo)' expands to `$(bar)' which expands to
@@ -3564,7 +4070,7 @@ cannot append something on the end of a variable, as in
      CFLAGS = $(CFLAGS) -O
 
 because it will cause an infinite loop in the variable expansion.
-(Actually `make' detects the infinite loop and reports an error.)
+(Actually `make' detects the infinite loop and reports an error.)  
 
    Another disadvantage is that any functions (*note Functions for
 Transforming Text: Functions.)  referenced in the definition will be
@@ -3605,7 +4111,6 @@ level.  (*Note Communicating Variables to a Sub-`make':
 Variables/Recursion, for information about `MAKELEVEL'.)
 
      ifeq (0,${MAKELEVEL})
-     cur-dir   := $(shell pwd)
      whoami    := $(shell whoami)
      host-type := $(shell arch)
      MAKE := ${MAKE} host-type=${host-type} whoami=${whoami}
@@ -3615,7 +4120,7 @@ An advantage of this use of `:=' is that a typical `descend into a
 directory' command then looks like this:
 
      ${subdirs}:
-           ${MAKE} cur-dir=${cur-dir}/$@ -C $@ all
+             ${MAKE} -C $@ all
 
    Simply expanded variables generally make complicated makefile
 programming more predictable because they work like variables in most
@@ -3669,8 +4174,8 @@ will not set that variable.
 
 File: make.info,  Node: Advanced,  Next: Values,  Prev: Flavors,  Up: Using Variables
 
-Advanced Features for Reference to Variables
-============================================
+6.3 Advanced Features for Reference to Variables
+================================================
 
 This section describes some advanced features you can use to reference
 variables in more flexible ways.
@@ -3684,8 +4189,8 @@ variables in more flexible ways.
 
 File: make.info,  Node: Substitution Refs,  Next: Computed Names,  Prev: Advanced,  Up: Advanced
 
-Substitution References
------------------------
+6.3.1 Substitution References
+-----------------------------
 
 A "substitution reference" substitutes the value of a variable with
 alterations that you specify.  It has the form `$(VAR:A=B)' (or
@@ -3717,7 +4222,7 @@ String Substitution and Analysis: Text Functions, for a description of
 the `patsubst' function.
 
 For example:
-     
+
      foo := a.o b.o c.o
      bar := $(foo:%.o=%.c)
 
@@ -3726,8 +4231,8 @@ sets `bar' to `a.c b.c c.c'.
 
 File: make.info,  Node: Computed Names,  Prev: Substitution Refs,  Up: Advanced
 
-Computed Variable Names
------------------------
+6.3.2 Computed Variable Names
+-----------------------------
 
 Computed variable names are a complicated concept needed only for
 sophisticated makefile programming.  For most purposes you need not
@@ -3798,22 +4303,22 @@ well as some invariant text.  For example,
 
      a_dirs := dira dirb
      1_dirs := dir1 dir2
-     
+
      a_files := filea fileb
      1_files := file1 file2
-     
+
      ifeq "$(use_a)" "yes"
      a1 := a
      else
      a1 := 1
      endif
-     
+
      ifeq "$(use_dirs)" "yes"
      df := dirs
      else
      df := files
      endif
-     
+
      dirs := $($(a1)_$(df))
 
 will give `dirs' the same value as `a_dirs', `1_dirs', `a_files' or
@@ -3823,7 +4328,7 @@ will give `dirs' the same value as `a_dirs', `1_dirs', `a_files' or
 
      a_objects := a.o b.o c.o
      1_objects := 1.o 2.o 3.o
-     
+
      sources := $($(a1)_objects:.o=.c)
 
 defines `sources' as either `a.c b.c c.c' or `1.c 2.c 3.c', depending
@@ -3839,9 +4344,9 @@ is done before the expansion of nested references.  For example,
      else
      func := strip
      endif
-     
+
      bar := a d b g q c
-     
+
      foo := $($(func) $(bar))
 
 attempts to give `foo' the value of the variable `sort a d b g q c' or
@@ -3869,8 +4374,8 @@ makefile programming.
 
 File: make.info,  Node: Values,  Next: Setting,  Prev: Advanced,  Up: Using Variables
 
-How Variables Get Their Values
-==============================
+6.4 How Variables Get Their Values
+==================================
 
 Variables can get values in several different ways:
 
@@ -3894,8 +4399,8 @@ Variables can get values in several different ways:
 
 File: make.info,  Node: Setting,  Next: Appending,  Prev: Values,  Up: Using Variables
 
-Setting Variables
-=================
+6.5 Setting Variables
+=====================
 
 To set a variable from the makefile, write a line starting with the
 variable name followed by `=' or `:='.  Whatever follows the `=' or
@@ -3947,8 +4452,8 @@ and
 
 File: make.info,  Node: Appending,  Next: Override Directive,  Prev: Setting,  Up: Using Variables
 
-Appending More Text to Variables
-================================
+6.6 Appending More Text to Variables
+====================================
 
 Often it is useful to add more text to the value of a variable already
 defined.  You do this with a line containing `+=', like this:
@@ -3983,13 +4488,14 @@ essentially as if you had included the extra text in the initial
 definition of the variable.  If you defined it first with `:=', making
 it a simply-expanded variable, `+=' adds to that simply-expanded
 definition, and expands the new text before appending it to the old
-value just as `:=' does (*note Setting Variables: Setting., for a full
-explanation of `:=').  In fact,
+value just as `:=' does (see *Note Setting Variables: Setting, for a
+full explanation of `:=').  In fact,
 
      variable := value
      variable += more
 
 is exactly equivalent to:
+
 
      variable := value
      variable := $(variable) more
@@ -4022,7 +4528,7 @@ variable references.  Take this common example:
 
 The first line defines the `CFLAGS' variable with a reference to another
 variable, `includes'.  (`CFLAGS' is used by the rules for C
-compilation; *note Catalogue of Implicit Rules: Catalogue of Rules..)
+compilation; *note Catalogue of Implicit Rules: Catalogue of Rules.)
 Using `=' for the definition makes `CFLAGS' a recursively-expanded
 variable, meaning `$(includes) -O' is _not_ expanded when `make'
 processes the definition of `CFLAGS'.  Thus, `includes' need not be
@@ -4044,8 +4550,8 @@ point, a reference like `$(CFLAGS)' still uses its value.
 
 File: make.info,  Node: Override Directive,  Next: Defining,  Prev: Appending,  Up: Using Variables
 
-The `override' Directive
-========================
+6.7 The `override' Directive
+============================
 
 If a variable has been set with a command argument (*note Overriding
 Variables: Overriding.), then ordinary assignments in the makefile are
@@ -4088,8 +4594,8 @@ This is done as you might expect:
 
 File: make.info,  Node: Defining,  Next: Environment,  Prev: Override Directive,  Up: Using Variables
 
-Defining Variables Verbatim
-===========================
+6.8 Defining Variables Verbatim
+===============================
 
 Another way to set the value of a variable is to use the `define'
 directive.  This directive has an unusual syntax which allows newline
@@ -4147,33 +4653,33 @@ precedence over command-line variable definitions, you can use the
 
 File: make.info,  Node: Environment,  Next: Target-specific,  Prev: Defining,  Up: Using Variables
 
-Variables from the Environment
-==============================
+6.9 Variables from the Environment
+==================================
 
 Variables in `make' can come from the environment in which `make' is
 run.  Every environment variable that `make' sees when it starts up is
-transformed into a `make' variable with the same name and value.  But
-an explicit assignment in the makefile, or with a command argument,
-overrides the environment.  (If the `-e' flag is specified, then values
-from the environment override assignments in the makefile.  *Note
-Summary of Options: Options Summary.  But this is not recommended
+transformed into a `make' variable with the same name and value.
+However, an explicit assignment in the makefile, or with a command
+argument, overrides the environment.  (If the `-e' flag is specified,
+then values from the environment override assignments in the makefile.
+*Note Summary of Options: Options Summary.  But this is not recommended
 practice.)
 
    Thus, by setting the variable `CFLAGS' in your environment, you can
 cause all C compilations in most makefiles to use the compiler switches
 you prefer.  This is safe for variables with standard or conventional
 meanings because you know that no makefile will use them for other
-things.  (But this is not totally reliable; some makefiles set `CFLAGS'
-explicitly and therefore are not affected by the value in the
+things.  (Note this is not totally reliable; some makefiles set
+`CFLAGS' explicitly and therefore are not affected by the value in the
 environment.)
 
-   When `make' is invoked recursively, variables defined in the outer
-invocation can be passed to inner invocations through the environment
-(*note Recursive Use of `make': Recursion.).  By default, only
-variables that came from the environment or the command line are passed
-to recursive invocations.  You can use the `export' directive to pass
-other variables.  *Note Communicating Variables to a Sub-`make':
-Variables/Recursion, for full details.
+   When `make' runs a command script, variables defined in the makefile
+are placed into the environment of that command.  This allows you to
+pass values to sub-`make' invocations (*note Recursive Use of `make':
+Recursion.).  By default, only variables that came from the environment
+or the command line are passed to recursive invocations.  You can use
+the `export' directive to pass other variables.  *Note Communicating
+Variables to a Sub-`make': Variables/Recursion, for full details.
 
    Other use of variables from the environment is not recommended.  It
 is not wise for makefiles to depend for their functioning on
@@ -4184,15 +4690,14 @@ This is against the whole purpose of most makefiles.
    Such problems would be especially likely with the variable `SHELL',
 which is normally present in the environment to specify the user's
 choice of interactive shell.  It would be very undesirable for this
-choice to affect `make'.  So `make' ignores the environment value of
-`SHELL' (except on MS-DOS and MS-Windows, where `SHELL' is usually not
-set.  *Note Special handling of SHELL on MS-DOS: Execution.)
+choice to affect `make'; so, `make' handles the `SHELL' environment
+variable in a special way; see *Note Choosing the Shell::.
 
 
 File: make.info,  Node: Target-specific,  Next: Pattern-specific,  Prev: Environment,  Up: Using Variables
 
-Target-specific Variable Values
-===============================
+6.10 Target-specific Variable Values
+====================================
 
 Variable values in `make' are usually global; that is, they are the
 same regardless of where they are evaluated (unless they're reset, of
@@ -4261,8 +4766,8 @@ ignore the target-specific values from any other targets.
 
 File: make.info,  Node: Pattern-specific,  Prev: Target-specific,  Up: Using Variables
 
-Pattern-specific Variable Values
-================================
+6.11 Pattern-specific Variable Values
+=====================================
 
 In addition to target-specific variable values (*note Target-specific
 Variable Values: Target-specific.), GNU `make' supports
@@ -4299,8 +4804,8 @@ pattern `%.o'.
 
 File: make.info,  Node: Conditionals,  Next: Functions,  Prev: Using Variables,  Up: Top
 
-Conditional Parts of Makefiles
-******************************
+7 Conditional Parts of Makefiles
+********************************
 
 A "conditional" causes part of a makefile to be obeyed or ignored
 depending on the values of variables.  Conditionals can compare the
@@ -4318,8 +4823,8 @@ time of execution.
 
 File: make.info,  Node: Conditional Example,  Next: Conditional Syntax,  Prev: Conditionals,  Up: Conditionals
 
-Example of a Conditional
-========================
+7.1 Example of a Conditional
+============================
 
 The following example of a conditional tells `make' to use one set of
 libraries if the `CC' variable is `gcc', and a different set of
@@ -4330,7 +4835,7 @@ used but also which libraries are linked.
 
      libs_for_gcc = -lgnu
      normal_libs =
-     
+
      foo: $(objects)
      ifeq ($(CC),gcc)
              $(CC) -o foo $(objects) $(libs_for_gcc)
@@ -4380,21 +4885,21 @@ unconditionally:
 
      libs_for_gcc = -lgnu
      normal_libs =
-     
+
      ifeq ($(CC),gcc)
        libs=$(libs_for_gcc)
      else
        libs=$(normal_libs)
      endif
-     
+
      foo: $(objects)
              $(CC) -o foo $(objects) $(libs)
 
 
 File: make.info,  Node: Conditional Syntax,  Next: Testing Flags,  Prev: Conditional Example,  Up: Conditionals
 
-Syntax of Conditionals
-======================
+7.2 Syntax of Conditionals
+==========================
 
 The syntax of a simple conditional with no `else' is as follows:
 
@@ -4414,13 +4919,26 @@ text is used instead.
      TEXT-IF-FALSE
      endif
 
-If the condition is true, TEXT-IF-TRUE is used; otherwise,
-TEXT-IF-FALSE is used instead.  The TEXT-IF-FALSE can be any number of
-lines of text.
+   or:
+
+     CONDITIONAL-DIRECTIVE
+     TEXT-IF-ONE-IS-TRUE
+     else CONDITIONAL-DIRECTIVE
+     TEXT-IF-TRUE
+     else
+     TEXT-IF-FALSE
+     endif
+
+There can be as many "`else' CONDITIONAL-DIRECTIVE" clauses as
+necessary.  Once a given condition is true, TEXT-IF-TRUE is used and no
+other clause is used; if no condition is true then TEXT-IF-FALSE is
+used.  The TEXT-IF-TRUE and TEXT-IF-FALSE can be any number of lines of
+text.
 
    The syntax of the CONDITIONAL-DIRECTIVE is the same whether the
-conditional is simple or complex.  There are four different directives
-that test different conditions.  Here is a table of them:
+conditional is simple or complex; after an `else' or not.  There are
+four different directives that test different conditions.  Here is a
+table of them:
 
 `ifeq (ARG1, ARG2)'
 `ifeq 'ARG1' 'ARG2''
@@ -4456,12 +4974,24 @@ that test different conditions.  Here is a table of them:
      the TEXT-IF-FALSE, if any, is effective.
 
 `ifdef VARIABLE-NAME'
-     If the variable VARIABLE-NAME has a non-empty value, the
-     TEXT-IF-TRUE is effective; otherwise, the TEXT-IF-FALSE, if any,
-     is effective.  Variables that have never been defined have an
-     empty value.  The variable VARIABLE-NAME is itself expanded, so it
-     could be a variable or function that expands to the name of a
-     variable.
+     The `ifdef' form takes the _name_ of a variable as its argument,
+     not a reference to a variable.  The value of that variable has a
+     non-empty value, the TEXT-IF-TRUE is effective; otherwise, the
+     TEXT-IF-FALSE, if any, is effective.  Variables that have never
+     been defined have an empty value.  The text VARIABLE-NAME is
+     expanded, so it could be a variable or function that expands to
+     the name of a variable.  For example:
+
+          bar = true
+          foo = bar
+          ifdef $(foo)
+          frobozz = yes
+          endif
+
+     The variable reference `$(foo)' is expanded, yielding `bar', which
+     is considered to be the name of a variable.  The variable `bar' is
+     not expanded, but its value is examined to determine if it is
+     non-empty.
 
      Note that `ifdef' only tests whether a variable has a value.  It
      does not expand the variable to see if that value is nonempty.
@@ -4491,6 +5021,8 @@ that test different conditions.  Here is a table of them:
 `ifndef VARIABLE-NAME'
      If the variable VARIABLE-NAME has an empty value, the TEXT-IF-TRUE
      is effective; otherwise, the TEXT-IF-FALSE, if any, is effective.
+     The rules for expansion and testing of VARIABLE-NAME are identical
+     to the `ifdef' directive.
 
    Extra spaces are allowed and ignored at the beginning of the
 conditional directive line, but a tab is not allowed.  (If the line
@@ -4525,8 +5057,8 @@ attempt to terminate the conditional inside the included file.
 
 File: make.info,  Node: Testing Flags,  Prev: Conditional Syntax,  Up: Conditionals
 
-Conditionals that Test Flags
-============================
+7.3 Conditionals that Test Flags
+================================
 
 You can write a conditional that tests `make' command flags such as
 `-t' by using the variable `MAKEFLAGS' together with the `findstring'
@@ -4556,8 +5088,8 @@ will be executed despite use of the `-t' flag.  *Note Recursive Use of
 
 File: make.info,  Node: Functions,  Next: Running,  Prev: Conditionals,  Up: Top
 
-Functions for Transforming Text
-*******************************
+8 Functions for Transforming Text
+*********************************
 
 "Functions" allow you to do text processing in the makefile to compute
 the files to operate on or the commands to use.  You use a function in a
@@ -4571,20 +5103,21 @@ the call, just as a variable might be substituted.
 * Syntax of Functions::         How to write a function call.
 * Text Functions::              General-purpose text manipulation functions.
 * File Name Functions::         Functions for manipulating file names.
+* Conditional Functions::       Functions that implement conditions.
 * Foreach Function::            Repeat some text with controlled variation.
-* If Function::                 Conditionally expand a value.
 * Call Function::               Expand a user-defined function.
 * Value Function::              Return the un-expanded value of a variable.
 * Eval Function::               Evaluate the arguments as makefile syntax.
 * Origin Function::             Find where a variable got its value.
+* Flavor Function::             Find out the flavor of a variable.
 * Shell Function::              Substitute the output of a shell command.
 * Make Control Functions::      Functions that control how make runs.
 
 
 File: make.info,  Node: Syntax of Functions,  Next: Text Functions,  Prev: Functions,  Up: Functions
 
-Function Call Syntax
-====================
+8.1 Function Call Syntax
+========================
 
 A function call resembles a variable reference.  It looks like this:
 
@@ -4637,8 +5170,8 @@ value of `foo', and substitutes the result.
 
 File: make.info,  Node: Text Functions,  Next: File Name Functions,  Prev: Syntax of Functions,  Up: Functions
 
-Functions for String Substitution and Analysis
-==============================================
+8.2 Functions for String Substitution and Analysis
+==================================================
 
 Here are some functions that operate on strings:
 
@@ -4803,11 +5336,11 @@ Here are some functions that operate on strings:
 
 `$(wordlist S,E,TEXT)'
      Returns the list of words in TEXT starting with word S and ending
-     with word E (inclusive).  The legitimate values of S and E start
-     from 1.  If S is bigger than the number of words in TEXT, the
-     value is empty.  If E is bigger than the number of words in TEXT,
-     words up to the end of TEXT are returned.  If S is greater than E,
-     nothing is returned.  For example,
+     with word E (inclusive).  The legitimate values of S start from 1;
+     E may start from 0.  If S is bigger than the number of words in
+     TEXT, the value is empty.  If E is bigger than the number of words
+     in TEXT, words up to the end of TEXT are returned.  If S is
+     greater than E, nothing is returned.  For example,
 
           $(wordlist 2, 3, foo bar baz)
 
@@ -4829,6 +5362,18 @@ Here are some functions that operate on strings:
      produces the result `foo'.  Although `$(firstword TEXT)' is the
      same as `$(word 1,TEXT)', the `firstword' function is retained for
      its simplicity.
+
+`$(lastword NAMES...)'
+     The argument NAMES is regarded as a series of names, separated by
+     whitespace.  The value is the last name in the series.
+
+     For example,
+
+          $(lastword foo bar)
+
+     produces the result `bar'.  Although `$(lastword TEXT)' is the
+     same as `$(word $(words TEXT),TEXT)', the `lastword' function was
+     added for its simplicity and better performance.
 
    Here is a realistic example of the use of `subst' and `patsubst'.
 Suppose that a makefile uses the `VPATH' variable to specify a list of
@@ -4857,10 +5402,10 @@ specified with a command argument (*note The `override' Directive:
 Override Directive.).
 
 
-File: make.info,  Node: File Name Functions,  Next: Foreach Function,  Prev: Text Functions,  Up: Functions
+File: make.info,  Node: File Name Functions,  Next: Conditional Functions,  Prev: Text Functions,  Up: Functions
 
-Functions for File Names
-========================
+8.3 Functions for File Names
+============================
 
 Several of the built-in expansion functions relate specifically to
 taking apart file names or lists of file names.
@@ -4969,11 +5514,79 @@ between them.
      files that match the pattern.  *Note Using Wildcard Characters in
      File Names: Wildcards.
 
-
-File: make.info,  Node: Foreach Function,  Next: If Function,  Prev: File Name Functions,  Up: Functions
+`$(realpath NAMES...)'
+     For each file name in NAMES return the canonical absolute name.  A
+     canonical name does not contain any `.' or `..' components, nor
+     any repeated path separators (`/') or symlinks.  In case of a
+     failure the empty string is returned.  Consult the `realpath(3)'
+     documentation for a list of possible failure causes.
 
-The `foreach' Function
-======================
+`$(abspath NAMES...)'
+     For each file name in NAMES return an absolute name that does not
+     contain any `.' or `..' components, nor any repeated path
+     separators (`/').  Note that, in contrast to `realpath' function,
+     `abspath' does not resolve symlinks and does not require the file
+     names to refer to an existing file or directory.  Use the
+     `wildcard' function to test for existence.
+
+
+File: make.info,  Node: Conditional Functions,  Next: Foreach Function,  Prev: File Name Functions,  Up: Functions
+
+8.4 Functions for Conditionals
+==============================
+
+There are three functions that provide conditional expansion.  A key
+aspect of these functions is that not all of the arguments are expanded
+initially.  Only those arguments which need to be expanded, will be
+expanded.
+
+`$(if CONDITION,THEN-PART[,ELSE-PART])'
+     The `if' function provides support for conditional expansion in a
+     functional context (as opposed to the GNU `make' makefile
+     conditionals such as `ifeq' (*note Syntax of Conditionals:
+     Conditional Syntax.).
+
+     The first argument, CONDITION, first has all preceding and
+     trailing whitespace stripped, then is expanded.  If it expands to
+     any non-empty string, then the condition is considered to be true.
+     If it expands to an empty string, the condition is considered to
+     be false.
+
+     If the condition is true then the second argument, THEN-PART, is
+     evaluated and this is used as the result of the evaluation of the
+     entire `if' function.
+
+     If the condition is false then the third argument, ELSE-PART, is
+     evaluated and this is the result of the `if' function.  If there is
+     no third argument, the `if' function evaluates to nothing (the
+     empty string).
+
+     Note that only one of the THEN-PART or the ELSE-PART will be
+     evaluated, never both.  Thus, either can contain side-effects
+     (such as `shell' function calls, etc.)
+
+`$(or CONDITION1[,CONDITION2[,CONDITION3...]])'
+     The `or' function provides a "short-circuiting" OR operation.
+     Each argument is expanded, in order.  If an argument expands to a
+     non-empty string the processing stops and the result of the
+     expansion is that string.  If, after all arguments are expanded,
+     all of them are false (empty), then the result of the expansion is
+     the empty string.
+
+`$(and CONDITION1[,CONDITION2[,CONDITION3...]])'
+     The `and' function provides a "short-circuiting" AND operation.
+     Each argument is expanded, in order.  If an argument expands to an
+     empty string the processing stops and the result of the expansion
+     is the empty string.  If all arguments expand to a non-empty
+     string then the result of the expansion is the expansion of the
+     last argument.
+
+
+
+File: make.info,  Node: Foreach Function,  Next: Call Function,  Prev: Conditional Functions,  Up: Functions
+
+8.5 The `foreach' Function
+==========================
 
 The `foreach' function is very different from other functions.  It
 causes one piece of text to be used repeatedly, each time with a
@@ -5045,42 +5658,10 @@ whose name is `Esta escrito en espanol!' (es un nombre bastante largo,
 no?), but it is more likely to be a mistake.
 
 
-File: make.info,  Node: If Function,  Next: Call Function,  Prev: Foreach Function,  Up: Functions
+File: make.info,  Node: Call Function,  Next: Value Function,  Prev: Foreach Function,  Up: Functions
 
-The `if' Function
-=================
-
-The `if' function provides support for conditional expansion in a
-functional context (as opposed to the GNU `make' makefile conditionals
-such as `ifeq' (*note Syntax of Conditionals: Conditional Syntax.).
-
-   An `if' function call can contain either two or three arguments:
-
-     $(if CONDITION,THEN-PART[,ELSE-PART])
-
-   The first argument, CONDITION, first has all preceding and trailing
-whitespace stripped, then is expanded.  If it expands to any non-empty
-string, then the condition is considered to be true.  If it expands to
-an empty string, the condition is considered to be false.
-
-   If the condition is true then the second argument, THEN-PART, is
-evaluated and this is used as the result of the evaluation of the entire
-`if' function.
-
-   If the condition is false then the third argument, ELSE-PART, is
-evaluated and this is the result of the `if' function.  If there is no
-third argument, the `if' function evaluates to nothing (the empty
-string).
-
-   Note that only one of the THEN-PART or the ELSE-PART will be
-evaluated, never both.  Thus, either can contain side-effects (such as
-`shell' function calls, etc.)
-
-
-File: make.info,  Node: Call Function,  Next: Value Function,  Prev: If Function,  Up: Functions
-
-The `call' Function
-===================
+8.6 The `call' Function
+=======================
 
 The `call' function is unique in that it can be used to create new
 parameterized functions.  You can write a complex expression as the
@@ -5119,7 +5700,7 @@ rules, like `foreach' or `if', may not work as you expect.
    This macro simply reverses its arguments:
 
      reverse = $(2) $(1)
-     
+
      foo = $(call reverse,a,b)
 
 Here FOO will contain `b a'.
@@ -5128,7 +5709,7 @@ Here FOO will contain `b a'.
 for the first instance of a program in `PATH':
 
      pathsearch = $(firstword $(wildcard $(addsuffix /$(1),$(subst :, ,$(PATH)))))
-     
+
      LS := $(call pathsearch,ls)
 
 Now the variable LS contains `/bin/ls' or similar.
@@ -5156,8 +5737,8 @@ providing parameters to `call'.
 
 File: make.info,  Node: Value Function,  Next: Eval Function,  Prev: Call Function,  Up: Functions
 
-The `value' Function
-====================
+8.7 The `value' Function
+========================
 
 The `value' function provides a way for you to use the value of a
 variable _without_ having it expanded.  Please note that this does not
@@ -5180,7 +5761,7 @@ VARIABLE, without any expansion occurring.  For example, in this
 makefile:
 
      FOO = $PATH
-     
+
      all:
              @echo $(FOO)
              @echo $(value FOO)
@@ -5196,8 +5777,8 @@ avoided the expansion.
 
 File: make.info,  Node: Eval Function,  Next: Origin Function,  Prev: Value Function,  Up: Functions
 
-The `eval' Function
-===================
+8.8 The `eval' Function
+=======================
 
 The `eval' function is very special: it allows you to define new
 makefile constructs that are not constant; which are the result of
@@ -5228,36 +5809,36 @@ into another makefile, then include it in all the individual makefiles.
 Now your individual makefiles are quite straightforward.
 
      PROGRAMS    = server client
-     
+
      server_OBJS = server.o server_priv.o server_access.o
      server_LIBS = priv protocol
-     
+
      client_OBJS = client.o client_api.o client_mem.o
      client_LIBS = protocol
-     
+
      # Everything after this is generic
-     
+
      .PHONY: all
      all: $(PROGRAMS)
-     
+
      define PROGRAM_template
       $(1): $$($(1)_OBJS) $$($(1)_LIBS:%=-l%)
       ALL_OBJS   += $$($(1)_OBJS)
      endef
-     
+
      $(foreach prog,$(PROGRAMS),$(eval $(call PROGRAM_template,$(prog))))
-     
+
      $(PROGRAMS):
              $(LINK.o) $^ $(LDLIBS) -o $@
-     
+
      clean:
              rm -f $(ALL_OBJS) $(PROGRAMS)
 
 
-File: make.info,  Node: Origin Function,  Next: Shell Function,  Prev: Eval Function,  Up: Functions
+File: make.info,  Node: Origin Function,  Next: Flavor Function,  Prev: Eval Function,  Up: Functions
 
-The `origin' Function
-=====================
+8.9 The `origin' Function
+=========================
 
 The `origin' function is unlike most other functions in that it does
 not operate on the values of variables; it tells you something _about_
@@ -5340,10 +5921,43 @@ either `environment' or `environment override'.  *Note Functions for
 String Substitution and Analysis: Text Functions.
 
 
-File: make.info,  Node: Shell Function,  Next: Make Control Functions,  Prev: Origin Function,  Up: Functions
+File: make.info,  Node: Flavor Function,  Next: Shell Function,  Prev: Origin Function,  Up: Functions
 
-The `shell' Function
-====================
+8.10 The `flavor' Function
+==========================
+
+The `flavor' function is unlike most other functions (and like `origin'
+function) in that it does not operate on the values of variables; it
+tells you something _about_ a variable.  Specifically, it tells you the
+flavor of a variable (*note The Two Flavors of Variables: Flavors.).
+
+   The syntax of the `flavor' function is:
+
+     $(flavor VARIABLE)
+
+   Note that VARIABLE is the _name_ of a variable to inquire about; not
+a _reference_ to that variable.  Therefore you would not normally use a
+`$' or parentheses when writing it.  (You can, however, use a variable
+reference in the name if you want the name not to be a constant.)
+
+   The result of this function is a string that identifies the flavor
+of the variable VARIABLE:
+
+`undefined'
+     if VARIABLE was never defined.
+
+`recursive'
+     if VARIABLE is a recursively expanded variable.
+
+`simple'
+     if VARIABLE is a simply expanded variable.
+
+
+
+File: make.info,  Node: Shell Function,  Next: Make Control Functions,  Prev: Flavor Function,  Up: Functions
+
+8.11 The `shell' Function
+=========================
 
 The `shell' function is unlike any other function other than the
 `wildcard' function (*note The Function `wildcard': Wildcard Function.)
@@ -5374,13 +5988,14 @@ than a newline) separating each line.
      files := $(shell echo *.c)
 
 sets `files' to the expansion of `*.c'.  Unless `make' is using a very
-strange shell, this has the same result as `$(wildcard *.c)'.
+strange shell, this has the same result as `$(wildcard *.c)' (as long
+as at least one `.c' file exists).
 
 
 File: make.info,  Node: Make Control Functions,  Prev: Shell Function,  Up: Functions
 
-Functions That Control Make
-===========================
+8.12 Functions That Control Make
+================================
 
 These functions control the way make runs.  Generally, they are used to
 provide information to the user of the makefile or to cause make to stop
@@ -5403,7 +6018,7 @@ if some sort of environmental error is detected.
      `make' variable `ERROR1' is defined.  Or,
 
           ERR = $(error found an error!)
-          
+
           .PHONY: err
           err: ; $(ERR)
 
@@ -5418,11 +6033,17 @@ if some sort of environmental error is detected.
 
      The result of the expansion of this function is the empty string.
 
+`$(info TEXT...)'
+     This function does nothing more than print its (expanded)
+     argument(s) to standard output.  No makefile name or line number
+     is added.  The result of the expansion of this function is the
+     empty string.
+
 
 File: make.info,  Node: Running,  Next: Implicit Rules,  Prev: Functions,  Up: Top
 
-How to Run `make'
-*****************
+9 How to Run `make'
+*******************
 
 A makefile that says how to recompile a program can be used in more
 than one way.  The simplest use is to recompile every file that is out
@@ -5468,8 +6089,8 @@ things and many others.
 
 File: make.info,  Node: Makefile Arguments,  Next: Goals,  Prev: Running,  Up: Running
 
-Arguments to Specify the Makefile
-=================================
+9.1 Arguments to Specify the Makefile
+=====================================
 
 The way to specify the name of the makefile is with the `-f' or
 `--file' option (`--makefile' also works).  For example, `-f altmake'
@@ -5486,8 +6107,8 @@ Makefiles: Makefiles.).
 
 File: make.info,  Node: Goals,  Next: Instead of Execution,  Prev: Makefile Arguments,  Up: Running
 
-Arguments to Specify the Goals
-==============================
+9.2 Arguments to Specify the Goals
+==================================
 
 The "goals" are the targets that `make' should strive ultimately to
 update.  Other targets are updated as well if they appear as
@@ -5498,11 +6119,14 @@ counting targets that start with a period).  Therefore, makefiles are
 usually written so that the first target is for compiling the entire
 program or programs they describe.  If the first rule in the makefile
 has several targets, only the first target in the rule becomes the
-default goal, not the whole list.
+default goal, not the whole list.  You can manage the selection of the
+default goal from within your makefile using the `.DEFAULT_GOAL'
+variable (*note Other Special Variables: Special Variables.).
 
-   You can specify a different goal or goals with arguments to `make'.
-Use the name of the goal as an argument.  If you specify several goals,
-`make' processes each of them in turn, in the order you name them.
+   You can also specify a different goal or goals with command-line
+arguments to `make'.  Use the name of the goal as an argument.  If you
+specify several goals, `make' processes each of them in turn, in the
+order you name them.
 
    Any target in the makefile may be specified as a goal (unless it
 starts with `-' or contains an `=', in which case it will be parsed as
@@ -5520,7 +6144,7 @@ during `clean' rules (*note Automatic Prerequisites::), so `make' won't
 create them only to immediately remove them again:
 
      sources = foo.c bar.c
-     
+
      ifneq ($(MAKECMDGOALS),clean)
      include $(sources:.c=.d)
      endif
@@ -5600,8 +6224,8 @@ all the standard target names which GNU software packages use.
 
 File: make.info,  Node: Instead of Execution,  Next: Avoiding Compilation,  Prev: Goals,  Up: Running
 
-Instead of Executing the Commands
-=================================
+9.3 Instead of Executing the Commands
+=====================================
 
 The makefile tells `make' how to tell whether a target is up to date,
 and how to update each target.  But updating the targets is not always
@@ -5679,8 +6303,8 @@ of Options: Options Summary.).
 
 File: make.info,  Node: Avoiding Compilation,  Next: Overriding,  Prev: Instead of Execution,  Up: Running
 
-Avoiding Recompilation of Some Files
-====================================
+9.4 Avoiding Recompilation of Some Files
+========================================
 
 Sometimes you may have changed a source file but you do not want to
 recompile all the files that depend on it.  For example, suppose you add
@@ -5722,8 +6346,8 @@ Follow this procedure:
 
 File: make.info,  Node: Overriding,  Next: Testing,  Prev: Avoiding Compilation,  Up: Running
 
-Overriding Variables
-====================
+9.5 Overriding Variables
+========================
 
 An argument that contains `=' specifies the value of a variable: `V=X'
 sets the value of the variable V to X.  If you specify a value in this
@@ -5774,8 +6398,8 @@ line that looks like this: `override VARIABLE = VALUE' (*note The
 
 File: make.info,  Node: Testing,  Next: Options Summary,  Prev: Overriding,  Up: Running
 
-Testing the Compilation of a Program
-====================================
+9.6 Testing the Compilation of a Program
+========================================
 
 Normally, when an error happens in executing a shell command, `make'
 gives up immediately, returning a nonzero status.  No further commands
@@ -5810,8 +6434,8 @@ correct them all before the next attempt to compile.  This is why Emacs'
 
 File: make.info,  Node: Options Summary,  Prev: Testing,  Up: Running
 
-Summary of Options
-==================
+9.7 Summary of Options
+======================
 
 Here is a table of all the options `make' understands:
 
@@ -5824,8 +6448,12 @@ Here is a table of all the options `make' understands:
 `--always-make'
      Consider all targets out-of-date.  GNU `make' proceeds to consider
      targets and their prerequisites using the normal algorithms;
-     however, all these targets are remade, regardless of the status of
-     their prerequisites.
+     however, all targets so considered are always remade regardless of
+     the status of their prerequisites.  To avoid infinite recursion, if
+     `MAKE_RESTARTS' (*note Other Special Variables: Special
+     Variables.) is set to a number greater than 0 this option is
+     disabled when considering whether to remake makefiles (*note How
+     Makefiles Are Remade: Remaking Makefiles.).
 
 `-C DIR'
 `--directory=DIR'
@@ -5930,6 +6558,15 @@ Here is a table of all the options `make' understands:
      are other jobs running and the load average is at least LOAD (a
      floating-point number).  With no argument, removes a previous load
      limit.  *Note Parallel Execution: Parallel.
+
+`-L'
+`--check-symlink-times'
+     On systems that support symbolic links, this option causes `make'
+     to consider the timestamps on any symbolic links in addition to the
+     timestamp on the file referenced by those links.  When this option
+     is provided, the most recent timestamp among the file and the
+     symbolic links is taken as the modification time for this target
+     file.
 
 `-n'
 `--just-print'
@@ -6052,8 +6689,8 @@ Here is a table of all the options `make' understands:
 
 File: make.info,  Node: Implicit Rules,  Next: Archives,  Prev: Running,  Up: Top
 
-Using Implicit Rules
-********************
+10 Using Implicit Rules
+***********************
 
 Certain standard ways of remaking target files are used very often.  For
 example, one customary way to make an object file is from a C source
@@ -6090,8 +6727,8 @@ retained for compatibility.
 * Implicit Variables::          How to change what predefined rules do.
 * Chained Rules::               How to use a chain of implicit rules.
 * Pattern Rules::               How to define new implicit rules.
-* Last Resort::                 How to defining commands for rules
-                                  which cannot find any.
+* Last Resort::                 How to define commands for rules which
+                                  cannot find any.
 * Suffix Rules::                The old-fashioned style of implicit rule.
 * Implicit Rule Search::        The precise algorithm for applying
                                   implicit rules.
@@ -6099,8 +6736,8 @@ retained for compatibility.
 
 File: make.info,  Node: Using Implicit,  Next: Catalogue of Rules,  Prev: Implicit Rules,  Up: Implicit Rules
 
-Using Implicit Rules
-====================
+10.1 Using Implicit Rules
+=========================
 
 To allow `make' to find a customary method for updating a target file,
 all you have to do is refrain from specifying commands yourself.  Either
@@ -6173,8 +6810,8 @@ semicolon (*note Defining Empty Commands: Empty Commands.).
 
 File: make.info,  Node: Catalogue of Rules,  Next: Implicit Variables,  Prev: Using Implicit,  Up: Implicit Rules
 
-Catalogue of Implicit Rules
-===========================
+10.2 Catalogue of Implicit Rules
+================================
 
 Here is a catalogue of predefined implicit rules which are always
 available unless the makefile explicitly overrides or cancels them.
@@ -6182,30 +6819,37 @@ available unless the makefile explicitly overrides or cancels them.
 canceling or overriding an implicit rule.  The `-r' or
 `--no-builtin-rules' option cancels all predefined rules.
 
+   This manual only documents the default rules available on POSIX-based
+operating systems.  Other operating systems, such as VMS, Windows,
+OS/2, etc. may have different sets of default rules.  To see the full
+list of default rules and variables available in your version of GNU
+`make', run `make -p' in a directory with no makefile.
+
    Not all of these rules will always be defined, even when the `-r'
 option is not given.  Many of the predefined implicit rules are
 implemented in `make' as suffix rules, so which ones will be defined
 depends on the "suffix list" (the list of prerequisites of the special
 target `.SUFFIXES').  The default suffix list is: `.out', `.a', `.ln',
-`.o', `.c', `.cc', `.C', `.p', `.f', `.F', `.r', `.y', `.l', `.s',
-`.S', `.mod', `.sym', `.def', `.h', `.info', `.dvi', `.tex', `.texinfo',
-`.texi', `.txinfo', `.w', `.ch' `.web', `.sh', `.elc', `.el'.  All of
-the implicit rules described below whose prerequisites have one of
-these suffixes are actually suffix rules.  If you modify the suffix
-list, the only predefined suffix rules in effect will be those named by
-one or two of the suffixes that are on the list you specify; rules
-whose suffixes fail to be on the list are disabled.  *Note
-Old-Fashioned Suffix Rules: Suffix Rules, for full details on suffix
-rules.
+`.o', `.c', `.cc', `.C', `.cpp', `.p', `.f', `.F', `.r', `.y', `.l',
+`.s', `.S', `.mod', `.sym', `.def', `.h', `.info', `.dvi', `.tex',
+`.texinfo', `.texi', `.txinfo', `.w', `.ch' `.web', `.sh', `.elc',
+`.el'.  All of the implicit rules described below whose prerequisites
+have one of these suffixes are actually suffix rules.  If you modify
+the suffix list, the only predefined suffix rules in effect will be
+those named by one or two of the suffixes that are on the list you
+specify; rules whose suffixes fail to be on the list are disabled.
+*Note Old-Fashioned Suffix Rules: Suffix Rules, for full details on
+suffix rules.
 
 Compiling C programs
      `N.o' is made automatically from `N.c' with a command of the form
      `$(CC) -c $(CPPFLAGS) $(CFLAGS)'.
 
 Compiling C++ programs
-     `N.o' is made automatically from `N.cc' or `N.C' with a command of
-     the form `$(CXX) -c $(CPPFLAGS) $(CXXFLAGS)'.  We encourage you to
-     use the suffix `.cc' for C++ source files instead of `.C'.
+     `N.o' is made automatically from `N.cc', `N.cpp', or `N.C' with a
+     command of the form `$(CXX) -c $(CPPFLAGS) $(CXXFLAGS)'.  We
+     encourage you to use the suffix `.cc' for C++ source files instead
+     of `.C'.
 
 Compiling Pascal programs
      `N.o' is made automatically from `N.p' with the command `$(PC) -c
@@ -6379,14 +7023,14 @@ value `; mv $*.o $@'.
 
 File: make.info,  Node: Implicit Variables,  Next: Chained Rules,  Prev: Catalogue of Rules,  Up: Implicit Rules
 
-Variables Used by Implicit Rules
-================================
+10.3 Variables Used by Implicit Rules
+=====================================
 
 The commands in built-in implicit rules make liberal use of certain
-predefined variables.  You can alter these variables in the makefile,
-with arguments to `make', or in the environment to alter how the
-implicit rules work without redefining the rules themselves.  You can
-cancel all variables used by implicit rules with the `-R' or
+predefined variables.  You can alter the values of these variables in
+the makefile, with arguments to `make', or in the environment to alter
+how the implicit rules work without redefining the rules themselves.
+You can cancel all variables used by implicit rules with the `-R' or
 `--no-builtin-variables' option.
 
    For example, the command used to compile a C source file actually
@@ -6406,23 +7050,33 @@ contain some command arguments, but it must start with an actual
 executable program name.)  If a variable value contains more than one
 argument, separate them with spaces.
 
-   Here is a table of variables used as names of programs in built-in
-rules:
+   The following tables describe of some of the more commonly-used
+predefined variables.  This list is not exhaustive, and the default
+values shown here may not be what are selected by `make' for your
+environment.  To see the complete list of predefined variables for your
+instance of GNU `make' you can run `make -p' in a directory with no
+makefiles.
+
+   Here is a table of some of the more common variables used as names of
+programs in built-in rules: makefiles.
 
 `AR'
-     Archive-maintaining program; default `ar'.
+     Archive-maintaining program; default `ar'.  
 
 `AS'
-     Program for doing assembly; default `as'.
+     Program for compiling assembly files; default `as'.  
 
 `CC'
-     Program for compiling C programs; default `cc'.
-
-`CXX'
-     Program for compiling C++ programs; default `g++'.
+     Program for compiling C programs; default `cc'.  
 
 `CO'
-     Program for extracting a file from RCS; default `co'.
+     Program for checking out files from RCS; default `co'.  
+
+`CXX'
+     Program for compiling C++ programs; default `g++'.  
+
+`CO'
+     Program for extracting a file from RCS; default `co'.  
 
 `CPP'
      Program for running the C preprocessor, with results to standard
@@ -6430,51 +7084,53 @@ rules:
 
 `FC'
      Program for compiling or preprocessing Fortran and Ratfor programs;
-     default `f77'.
+     default `f77'.  
 
 `GET'
-     Program for extracting a file from SCCS; default `get'.
+     Program for extracting a file from SCCS; default `get'.  
 
 `LEX'
-     Program to use to turn Lex grammars into C programs or Ratfor
-     programs; default `lex'.
-
-`PC'
-     Program for compiling Pascal programs; default `pc'.
+     Program to use to turn Lex grammars into source code; default
+     `lex'.  
 
 `YACC'
-     Program to use to turn Yacc grammars into C programs; default
-     `yacc'.
+     Program to use to turn Yacc grammars into source code; default
+     `yacc'.  
 
-`YACCR'
-     Program to use to turn Yacc grammars into Ratfor programs; default
-     `yacc -r'.
+`LINT'
+     Program to use to run lint on source code; default `lint'.  
+
+`M2C'
+     Program to use to compile Modula-2 source code; default `m2c'.  
+
+`PC'
+     Program for compiling Pascal programs; default `pc'.  
 
 `MAKEINFO'
      Program to convert a Texinfo source file into an Info file; default
-     `makeinfo'.
+     `makeinfo'.  
 
 `TEX'
-     Program to make TeX DVI files from TeX source; default `tex'.
+     Program to make TeX DVI files from TeX source; default `tex'.  
 
 `TEXI2DVI'
      Program to make TeX DVI files from Texinfo source; default
-     `texi2dvi'.
+     `texi2dvi'.  
 
 `WEAVE'
-     Program to translate Web into TeX; default `weave'.
+     Program to translate Web into TeX; default `weave'.  
 
 `CWEAVE'
-     Program to translate C Web into TeX; default `cweave'.
+     Program to translate C Web into TeX; default `cweave'.  
 
 `TANGLE'
-     Program to translate Web into Pascal; default `tangle'.
+     Program to translate Web into Pascal; default `tangle'.  
 
 `CTANGLE'
-     Program to translate C Web into C; default `ctangle'.
+     Program to translate C Web into C; default `ctangle'.  
 
 `RM'
-     Command to remove a file; default `rm -f'.
+     Command to remove a file; default `rm -f'.  
 
    Here is a table of variables whose values are additional arguments
 for the programs above.  The default values for all of these is the
@@ -6513,20 +7169,23 @@ empty string, unless otherwise noted.
 `LFLAGS'
      Extra flags to give to Lex.
 
+`YFLAGS'
+     Extra flags to give to Yacc.
+
 `PFLAGS'
      Extra flags to give to the Pascal compiler.
 
 `RFLAGS'
      Extra flags to give to the Fortran compiler for Ratfor programs.
 
-`YFLAGS'
-     Extra flags to give to Yacc.
+`LINTFLAGS'
+     Extra flags to give to lint.
 
 
 File: make.info,  Node: Chained Rules,  Next: Pattern Rules,  Prev: Implicit Variables,  Up: Implicit Rules
 
-Chains of Implicit Rules
-========================
+10.4 Chains of Implicit Rules
+=============================
 
 Sometimes a file can be made by a sequence of implicit rules.  For
 example, a file `N.o' could be made from `N.y' by running first Yacc
@@ -6578,7 +7237,7 @@ Marking a file as secondary also marks it as intermediate.
    You can list the target pattern of an implicit rule (such as `%.o')
 as a prerequisite of the special target `.PRECIOUS' to preserve
 intermediate files made by implicit rules whose target patterns match
-that file's name; see *Note Interrupts::.
+that file's name; see *Note Interrupts::.  
 
    A chain can involve more than two implicit rules.  For example, it is
 possible to make a file `foo' from `RCS/foo.y,v' by running RCS, Yacc
@@ -6599,577 +7258,4 @@ actually happens is that a special rule for this case does the
 compilation and linking with a single `cc' command.  The optimized rule
 is used in preference to the step-by-step chain because it comes
 earlier in the ordering of rules.
-
-
-File: make.info,  Node: Pattern Rules,  Next: Last Resort,  Prev: Chained Rules,  Up: Implicit Rules
-
-Defining and Redefining Pattern Rules
-=====================================
-
-You define an implicit rule by writing a "pattern rule".  A pattern
-rule looks like an ordinary rule, except that its target contains the
-character `%' (exactly one of them).  The target is considered a
-pattern for matching file names; the `%' can match any nonempty
-substring, while other characters match only themselves.  The
-prerequisites likewise use `%' to show how their names relate to the
-target name.
-
-   Thus, a pattern rule `%.o : %.c' says how to make any file `STEM.o'
-from another file `STEM.c'.
-
-   Note that expansion using `%' in pattern rules occurs *after* any
-variable or function expansions, which take place when the makefile is
-read.  *Note How to Use Variables: Using Variables, and *Note Functions
-for Transforming Text: Functions.
-
-* Menu:
-
-* Pattern Intro::               An introduction to pattern rules.
-* Pattern Examples::            Examples of pattern rules.
-* Automatic Variables::         How to use automatic variables in the
-                                  commands of implicit rules.
-* Pattern Match::               How patterns match.
-* Match-Anything Rules::        Precautions you should take prior to
-                                  defining rules that can match any
-                                  target file whatever.
-* Canceling Rules::             How to override or cancel built-in rules.
-
-
-File: make.info,  Node: Pattern Intro,  Next: Pattern Examples,  Prev: Pattern Rules,  Up: Pattern Rules
-
-Introduction to Pattern Rules
------------------------------
-
-A pattern rule contains the character `%' (exactly one of them) in the
-target; otherwise, it looks exactly like an ordinary rule.  The target
-is a pattern for matching file names; the `%' matches any nonempty
-substring, while other characters match only themselves.
-
-   For example, `%.c' as a pattern matches any file name that ends in
-`.c'.  `s.%.c' as a pattern matches any file name that starts with
-`s.', ends in `.c' and is at least five characters long.  (There must
-be at least one character to match the `%'.)  The substring that the
-`%' matches is called the "stem".
-
-   `%' in a prerequisite of a pattern rule stands for the same stem
-that was matched by the `%' in the target.  In order for the pattern
-rule to apply, its target pattern must match the file name under
-consideration, and its prerequisite patterns must name files that exist
-or can be made.  These files become prerequisites of the target.
-
-   Thus, a rule of the form
-
-     %.o : %.c ; COMMAND...
-
-specifies how to make a file `N.o', with another file `N.c' as its
-prerequisite, provided that `N.c' exists or can be made.
-
-   There may also be prerequisites that do not use `%'; such a
-prerequisite attaches to every file made by this pattern rule.  These
-unvarying prerequisites are useful occasionally.
-
-   A pattern rule need not have any prerequisites that contain `%', or
-in fact any prerequisites at all.  Such a rule is effectively a general
-wildcard.  It provides a way to make any file that matches the target
-pattern.  *Note Last Resort::.
-
-   Pattern rules may have more than one target.  Unlike normal rules,
-this does not act as many different rules with the same prerequisites
-and commands.  If a pattern rule has multiple targets, `make' knows that
-the rule's commands are responsible for making all of the targets.  The
-commands are executed only once to make all the targets.  When searching
-for a pattern rule to match a target, the target patterns of a rule
-other than the one that matches the target in need of a rule are
-incidental: `make' worries only about giving commands and prerequisites
-to the file presently in question.  However, when this file's commands
-are run, the other targets are marked as having been updated themselves.
-
-   The order in which pattern rules appear in the makefile is important
-since this is the order in which they are considered.  Of equally
-applicable rules, only the first one found is used.  The rules you
-write take precedence over those that are built in.  Note however, that
-a rule whose prerequisites actually exist or are mentioned always takes
-priority over a rule with prerequisites that must be made by chaining
-other implicit rules.
-
-
-File: make.info,  Node: Pattern Examples,  Next: Automatic Variables,  Prev: Pattern Intro,  Up: Pattern Rules
-
-Pattern Rule Examples
----------------------
-
-Here are some examples of pattern rules actually predefined in `make'.
-First, the rule that compiles `.c' files into `.o' files:
-
-     %.o : %.c
-             $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-
-defines a rule that can make any file `X.o' from `X.c'.  The command
-uses the automatic variables `$@' and `$<' to substitute the names of
-the target file and the source file in each case where the rule applies
-(*note Automatic Variables::).
-
-   Here is a second built-in rule:
-
-     % :: RCS/%,v
-             $(CO) $(COFLAGS) $<
-
-defines a rule that can make any file `X' whatsoever from a
-corresponding file `X,v' in the subdirectory `RCS'.  Since the target
-is `%', this rule will apply to any file whatever, provided the
-appropriate prerequisite file exists.  The double colon makes the rule
-"terminal", which means that its prerequisite may not be an intermediate
-file (*note Match-Anything Pattern Rules: Match-Anything Rules.).
-
-   This pattern rule has two targets:
-
-     %.tab.c %.tab.h: %.y
-             bison -d $<
-
-This tells `make' that the command `bison -d X.y' will make both
-`X.tab.c' and `X.tab.h'.  If the file `foo' depends on the files
-`parse.tab.o' and `scan.o' and the file `scan.o' depends on the file
-`parse.tab.h', when `parse.y' is changed, the command `bison -d parse.y'
-will be executed only once, and the prerequisites of both `parse.tab.o'
-and `scan.o' will be satisfied.  (Presumably the file `parse.tab.o'
-will be recompiled from `parse.tab.c' and the file `scan.o' from
-`scan.c', while `foo' is linked from `parse.tab.o', `scan.o', and its
-other prerequisites, and it will execute happily ever after.)
-
-
-File: make.info,  Node: Automatic Variables,  Next: Pattern Match,  Prev: Pattern Examples,  Up: Pattern Rules
-
-Automatic Variables
--------------------
-
-Suppose you are writing a pattern rule to compile a `.c' file into a
-`.o' file: how do you write the `cc' command so that it operates on the
-right source file name?  You cannot write the name in the command,
-because the name is different each time the implicit rule is applied.
-
-   What you do is use a special feature of `make', the "automatic
-variables".  These variables have values computed afresh for each rule
-that is executed, based on the target and prerequisites of the rule.
-In this example, you would use `$@' for the object file name and `$<'
-for the source file name.
-
-   It's very important that you recognize the limited scope in which
-automatic variable values are available: they only have values within
-the command script.  In particular, you cannot use them anywhere within
-the target or prerequisite lists of a rule; they have no value there
-and will expand to the empty string.  A common mistake is attempting to
-use `$@' within the prerequisites list in a rule; this will not work.
-However, see below for information on the SysV-style `$$@' variables.
-
-   Here is a table of automatic variables:
-
-`$@'
-     The file name of the target of the rule.  If the target is an
-     archive member, then `$@' is the name of the archive file.  In a
-     pattern rule that has multiple targets (*note Introduction to
-     Pattern Rules: Pattern Intro.), `$@' is the name of whichever
-     target caused the rule's commands to be run.
-
-`$%'
-     The target member name, when the target is an archive member.
-     *Note Archives::.  For example, if the target is `foo.a(bar.o)'
-     then `$%' is `bar.o' and `$@' is `foo.a'.  `$%' is empty when the
-     target is not an archive member.
-
-`$<'
-     The name of the first prerequisite.  If the target got its
-     commands from an implicit rule, this will be the first
-     prerequisite added by the implicit rule (*note Implicit Rules::).
-
-`$?'
-     The names of all the prerequisites that are newer than the target,
-     with spaces between them.  For prerequisites which are archive
-     members, only the member named is used (*note Archives::).
-
-`$^'
-     The names of all the prerequisites, with spaces between them.  For
-     prerequisites which are archive members, only the member named is
-     used (*note Archives::).  A target has only one prerequisite on
-     each other file it depends on, no matter how many times each file
-     is listed as a prerequisite.  So if you list a prerequisite more
-     than once for a target, the value of `$^' contains just one copy
-     of the name.
-
-`$+'
-     This is like `$^', but prerequisites listed more than once are
-     duplicated in the order they were listed in the makefile.  This is
-     primarily useful for use in linking commands where it is
-     meaningful to repeat library file names in a particular order.
-
-`$*'
-     The stem with which an implicit rule matches (*note How Patterns
-     Match: Pattern Match.).  If the target is `dir/a.foo.b' and the
-     target pattern is `a.%.b' then the stem is `dir/foo'.  The stem is
-     useful for constructing names of related files.
-
-     In a static pattern rule, the stem is part of the file name that
-     matched the `%' in the target pattern.
-
-     In an explicit rule, there is no stem; so `$*' cannot be determined
-     in that way.  Instead, if the target name ends with a recognized
-     suffix (*note Old-Fashioned Suffix Rules: Suffix Rules.), `$*' is
-     set to the target name minus the suffix.  For example, if the
-     target name is `foo.c', then `$*' is set to `foo', since `.c' is a
-     suffix.  GNU `make' does this bizarre thing only for compatibility
-     with other implementations of `make'.  You should generally avoid
-     using `$*' except in implicit rules or static pattern rules.
-
-     If the target name in an explicit rule does not end with a
-     recognized suffix, `$*' is set to the empty string for that rule.
-
-   `$?' is useful even in explicit rules when you wish to operate on
-only the prerequisites that have changed.  For example, suppose that an
-archive named `lib' is supposed to contain copies of several object
-files.  This rule copies just the changed object files into the archive:
-
-     lib: foo.o bar.o lose.o win.o
-             ar r lib $?
-
-   Of the variables listed above, four have values that are single file
-names, and three have values that are lists of file names.  These seven
-have variants that get just the file's directory name or just the file
-name within the directory.  The variant variables' names are formed by
-appending `D' or `F', respectively.  These variants are semi-obsolete
-in GNU `make' since the functions `dir' and `notdir' can be used to get
-a similar effect (*note Functions for File Names: File Name
-Functions.).  Note, however, that the `D' variants all omit the
-trailing slash which always appears in the output of the `dir'
-function.  Here is a table of the variants:
-
-`$(@D)'
-     The directory part of the file name of the target, with the
-     trailing slash removed.  If the value of `$@' is `dir/foo.o' then
-     `$(@D)' is `dir'.  This value is `.' if `$@' does not contain a
-     slash.
-
-`$(@F)'
-     The file-within-directory part of the file name of the target.  If
-     the value of `$@' is `dir/foo.o' then `$(@F)' is `foo.o'.  `$(@F)'
-     is equivalent to `$(notdir $@)'.
-
-`$(*D)'
-`$(*F)'
-     The directory part and the file-within-directory part of the stem;
-     `dir' and `foo' in this example.
-
-`$(%D)'
-`$(%F)'
-     The directory part and the file-within-directory part of the target
-     archive member name.  This makes sense only for archive member
-     targets of the form `ARCHIVE(MEMBER)' and is useful only when
-     MEMBER may contain a directory name.  (*Note Archive Members as
-     Targets: Archive Members.)
-
-`$(<D)'
-`$(<F)'
-     The directory part and the file-within-directory part of the first
-     prerequisite.
-
-`$(^D)'
-`$(^F)'
-     Lists of the directory parts and the file-within-directory parts
-     of all prerequisites.
-
-`$(+D)'
-`$(+F)'
-     Lists of the directory parts and the file-within-directory parts
-     of all prerequisites, including multiple instances of duplicated
-     prerequisites.
-
-`$(?D)'
-`$(?F)'
-     Lists of the directory parts and the file-within-directory parts of
-     all prerequisites that are newer than the target.
-
-   Note that we use a special stylistic convention when we talk about
-these automatic variables; we write "the value of `$<'", rather than
-"the variable `<'" as we would write for ordinary variables such as
-`objects' and `CFLAGS'.  We think this convention looks more natural in
-this special case.  Please do not assume it has a deep significance;
-`$<' refers to the variable named `<' just as `$(CFLAGS)' refers to the
-variable named `CFLAGS'.  You could just as well use `$(<)' in place of
-`$<'.
-
-   GNU `make' provides support for the SysV `make' feature that allows
-special variable references `$$@', `$$(@D)', and `$$(@F)' (note the
-required double-"$"!) to appear with the _prerequisites list_ (normal
-automatic variables are available only within a command script).  When
-appearing in a prerequisites list, these variables are expanded to the
-name of the target, the directory component of the target, and the file
-component of the target, respectively.
-
-   Note that these variables are available only within explicit and
-static pattern (*note Static Pattern Rules: Static Pattern.) rules;
-they have no special significance within implicit (suffix or pattern)
-rules.  Also note that while SysV `make' actually expands its entire
-prerequisite list _twice_, GNU `make' does not behave this way: instead
-it simply expands these special variables without re-expanding any
-other part of the prerequisites list.
-
-   This somewhat bizarre feature is included only to provide some
-compatibility with SysV makefiles.  In a native GNU `make' file there
-are other ways to accomplish the same results.  This feature is
-disabled if the special pseudo target `.POSIX' is defined.
-
-
-File: make.info,  Node: Pattern Match,  Next: Match-Anything Rules,  Prev: Automatic Variables,  Up: Pattern Rules
-
-How Patterns Match
-------------------
-
-A target pattern is composed of a `%' between a prefix and a suffix,
-either or both of which may be empty.  The pattern matches a file name
-only if the file name starts with the prefix and ends with the suffix,
-without overlap.  The text between the prefix and the suffix is called
-the "stem".  Thus, when the pattern `%.o' matches the file name
-`test.o', the stem is `test'.  The pattern rule prerequisites are
-turned into actual file names by substituting the stem for the character
-`%'.  Thus, if in the same example one of the prerequisites is written
-as `%.c', it expands to `test.c'.
-
-   When the target pattern does not contain a slash (and it usually does
-not), directory names in the file names are removed from the file name
-before it is compared with the target prefix and suffix.  After the
-comparison of the file name to the target pattern, the directory names,
-along with the slash that ends them, are added on to the prerequisite
-file names generated from the pattern rule's prerequisite patterns and
-the file name. The directories are ignored only for the purpose of
-finding an implicit rule to use, not in the application of that rule.
-Thus, `e%t' matches the file name `src/eat', with `src/a' as the stem.
-When prerequisites are turned into file names, the directories from the
-stem are added at the front, while the rest of the stem is substituted
-for the `%'.  The stem `src/a' with a prerequisite pattern `c%r' gives
-the file name `src/car'.
-
-
-File: make.info,  Node: Match-Anything Rules,  Next: Canceling Rules,  Prev: Pattern Match,  Up: Pattern Rules
-
-Match-Anything Pattern Rules
-----------------------------
-
-When a pattern rule's target is just `%', it matches any file name
-whatever.  We call these rules "match-anything" rules.  They are very
-useful, but it can take a lot of time for `make' to think about them,
-because it must consider every such rule for each file name listed
-either as a target or as a prerequisite.
-
-   Suppose the makefile mentions `foo.c'.  For this target, `make'
-would have to consider making it by linking an object file `foo.c.o',
-or by C compilation-and-linking in one step from `foo.c.c', or by
-Pascal compilation-and-linking from `foo.c.p', and many other
-possibilities.
-
-   We know these possibilities are ridiculous since `foo.c' is a C
-source file, not an executable.  If `make' did consider these
-possibilities, it would ultimately reject them, because files such as
-`foo.c.o' and `foo.c.p' would not exist.  But these possibilities are so
-numerous that `make' would run very slowly if it had to consider them.
-
-   To gain speed, we have put various constraints on the way `make'
-considers match-anything rules.  There are two different constraints
-that can be applied, and each time you define a match-anything rule you
-must choose one or the other for that rule.
-
-   One choice is to mark the match-anything rule as "terminal" by
-defining it with a double colon.  When a rule is terminal, it does not
-apply unless its prerequisites actually exist.  Prerequisites that
-could be made with other implicit rules are not good enough.  In other
-words, no further chaining is allowed beyond a terminal rule.
-
-   For example, the built-in implicit rules for extracting sources from
-RCS and SCCS files are terminal; as a result, if the file `foo.c,v' does
-not exist, `make' will not even consider trying to make it as an
-intermediate file from `foo.c,v.o' or from `RCS/SCCS/s.foo.c,v'.  RCS
-and SCCS files are generally ultimate source files, which should not be
-remade from any other files; therefore, `make' can save time by not
-looking for ways to remake them.
-
-   If you do not mark the match-anything rule as terminal, then it is
-nonterminal.  A nonterminal match-anything rule cannot apply to a file
-name that indicates a specific type of data.  A file name indicates a
-specific type of data if some non-match-anything implicit rule target
-matches it.
-
-   For example, the file name `foo.c' matches the target for the pattern
-rule `%.c : %.y' (the rule to run Yacc).  Regardless of whether this
-rule is actually applicable (which happens only if there is a file
-`foo.y'), the fact that its target matches is enough to prevent
-consideration of any nonterminal match-anything rules for the file
-`foo.c'.  Thus, `make' will not even consider trying to make `foo.c' as
-an executable file from `foo.c.o', `foo.c.c', `foo.c.p', etc.
-
-   The motivation for this constraint is that nonterminal match-anything
-rules are used for making files containing specific types of data (such
-as executable files) and a file name with a recognized suffix indicates
-some other specific type of data (such as a C source file).
-
-   Special built-in dummy pattern rules are provided solely to recognize
-certain file names so that nonterminal match-anything rules will not be
-considered.  These dummy rules have no prerequisites and no commands,
-and they are ignored for all other purposes.  For example, the built-in
-implicit rule
-
-     %.p :
-
-exists to make sure that Pascal source files such as `foo.p' match a
-specific target pattern and thereby prevent time from being wasted
-looking for `foo.p.o' or `foo.p.c'.
-
-   Dummy pattern rules such as the one for `%.p' are made for every
-suffix listed as valid for use in suffix rules (*note Old-Fashioned
-Suffix Rules: Suffix Rules.).
-
-
-File: make.info,  Node: Canceling Rules,  Prev: Match-Anything Rules,  Up: Pattern Rules
-
-Canceling Implicit Rules
-------------------------
-
-You can override a built-in implicit rule (or one you have defined
-yourself) by defining a new pattern rule with the same target and
-prerequisites, but different commands.  When the new rule is defined,
-the built-in one is replaced.  The new rule's position in the sequence
-of implicit rules is determined by where you write the new rule.
-
-   You can cancel a built-in implicit rule by defining a pattern rule
-with the same target and prerequisites, but no commands.  For example,
-the following would cancel the rule that runs the assembler:
-
-     %.o : %.s
-
-
-File: make.info,  Node: Last Resort,  Next: Suffix Rules,  Prev: Pattern Rules,  Up: Implicit Rules
-
-Defining Last-Resort Default Rules
-==================================
-
-You can define a last-resort implicit rule by writing a terminal
-match-anything pattern rule with no prerequisites (*note Match-Anything
-Rules::).  This is just like any other pattern rule; the only thing
-special about it is that it will match any target.  So such a rule's
-commands are used for all targets and prerequisites that have no
-commands of their own and for which no other implicit rule applies.
-
-   For example, when testing a makefile, you might not care if the
-source files contain real data, only that they exist.  Then you might
-do this:
-
-     %::
-             touch $@
-
-to cause all the source files needed (as prerequisites) to be created
-automatically.
-
-   You can instead define commands to be used for targets for which
-there are no rules at all, even ones which don't specify commands.  You
-do this by writing a rule for the target `.DEFAULT'.  Such a rule's
-commands are used for all prerequisites which do not appear as targets
-in any explicit rule, and for which no implicit rule applies.
-Naturally, there is no `.DEFAULT' rule unless you write one.
-
-   If you use `.DEFAULT' with no commands or prerequisites:
-
-     .DEFAULT:
-
-the commands previously stored for `.DEFAULT' are cleared.  Then `make'
-acts as if you had never defined `.DEFAULT' at all.
-
-   If you do not want a target to get the commands from a match-anything
-pattern rule or `.DEFAULT', but you also do not want any commands to be
-run for the target, you can give it empty commands (*note Defining
-Empty Commands: Empty Commands.).
-
-   You can use a last-resort rule to override part of another makefile.
-*Note Overriding Part of Another Makefile: Overriding Makefiles.
-
-
-File: make.info,  Node: Suffix Rules,  Next: Implicit Rule Search,  Prev: Last Resort,  Up: Implicit Rules
-
-Old-Fashioned Suffix Rules
-==========================
-
-"Suffix rules" are the old-fashioned way of defining implicit rules for
-`make'.  Suffix rules are obsolete because pattern rules are more
-general and clearer.  They are supported in GNU `make' for
-compatibility with old makefiles.  They come in two kinds:
-"double-suffix" and "single-suffix".
-
-   A double-suffix rule is defined by a pair of suffixes: the target
-suffix and the source suffix.  It matches any file whose name ends with
-the target suffix.  The corresponding implicit prerequisite is made by
-replacing the target suffix with the source suffix in the file name.  A
-two-suffix rule whose target and source suffixes are `.o' and `.c' is
-equivalent to the pattern rule `%.o : %.c'.
-
-   A single-suffix rule is defined by a single suffix, which is the
-source suffix.  It matches any file name, and the corresponding implicit
-prerequisite name is made by appending the source suffix.  A
-single-suffix rule whose source suffix is `.c' is equivalent to the
-pattern rule `% : %.c'.
-
-   Suffix rule definitions are recognized by comparing each rule's
-target against a defined list of known suffixes.  When `make' sees a
-rule whose target is a known suffix, this rule is considered a
-single-suffix rule.  When `make' sees a rule whose target is two known
-suffixes concatenated, this rule is taken as a double-suffix rule.
-
-   For example, `.c' and `.o' are both on the default list of known
-suffixes.  Therefore, if you define a rule whose target is `.c.o',
-`make' takes it to be a double-suffix rule with source suffix `.c' and
-target suffix `.o'.  Here is the old-fashioned way to define the rule
-for compiling a C source file:
-
-     .c.o:
-             $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
-
-   Suffix rules cannot have any prerequisites of their own.  If they
-have any, they are treated as normal files with funny names, not as
-suffix rules.  Thus, the rule:
-
-     .c.o: foo.h
-             $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
-
-tells how to make the file `.c.o' from the prerequisite file `foo.h',
-and is not at all like the pattern rule:
-
-     %.o: %.c foo.h
-             $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
-
-which tells how to make `.o' files from `.c' files, and makes all `.o'
-files using this pattern rule also depend on `foo.h'.
-
-   Suffix rules with no commands are also meaningless.  They do not
-remove previous rules as do pattern rules with no commands (*note
-Canceling Implicit Rules: Canceling Rules.).  They simply enter the
-suffix or pair of suffixes concatenated as a target in the data base.
-
-   The known suffixes are simply the names of the prerequisites of the
-special target `.SUFFIXES'.  You can add your own suffixes by writing a
-rule for `.SUFFIXES' that adds more prerequisites, as in:
-
-     .SUFFIXES: .hack .win
-
-which adds `.hack' and `.win' to the end of the list of suffixes.
-
-   If you wish to eliminate the default known suffixes instead of just
-adding to them, write a rule for `.SUFFIXES' with no prerequisites.  By
-special dispensation, this eliminates all existing prerequisites of
-`.SUFFIXES'.  You can then write another rule to add the suffixes you
-want.  For example,
-
-     .SUFFIXES:            # Delete the default suffixes
-     .SUFFIXES: .c .o .h   # Define our suffix list
-
-   The `-r' or `--no-builtin-rules' flag causes the default list of
-suffixes to be empty.
-
-   The variable `SUFFIXES' is defined to the default list of suffixes
-before `make' reads any makefiles.  You can change the list of suffixes
-with a rule for the special target `.SUFFIXES', but that does not alter
-this variable.
 

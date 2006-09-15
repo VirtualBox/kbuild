@@ -1,18 +1,34 @@
 #!/usr/bin/perl
 # -*-perl-*-
-
+#
 # Modification history:
 # Written 91-12-02 through 92-01-01 by Stephen McGee.
 # Modified 92-02-11 through 92-02-22 by Chris Arthur to further generalize.
-# End of modification history
+#
+# Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+# 2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+# This file is part of GNU Make.
+#
+# GNU Make is free software; you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2, or (at your option) any later version.
+#
+# GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# GNU Make; see the file COPYING.  If not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+
 
 # Test driver routines used by a number of test suites, including
 # those for SCS, make, roll_dir, and scan_deps (?).
-
+#
 # this routine controls the whole mess; each test suite sets up a few
 # variables and then calls &toplevel, which does all the real work.
 
-# $Id: test_driver.pl,v 1.14 2005/02/28 07:48:23 psmith Exp $
+# $Id: test_driver.pl,v 1.19 2006/03/10 02:20:45 psmith Exp $
 
 
 # The number of test categories we've run
@@ -32,12 +48,35 @@ $tests_passed = 0;
 # Yeesh.  This whole test environment is such a hack!
 $test_passed = 1;
 
+
+# %makeENV is the cleaned-out environment.
+%makeENV = ();
+
+# %extraENV are any extra environment variables the tests might want to set.
+# These are RESET AFTER EVERY TEST!
+%extraENV = ();
+
+# %origENV is the caller's original environment
+%origENV = %ENV;
+
+sub resetENV
+{
+  # We used to say "%ENV = ();" but this doesn't work in Perl 5.000
+  # through Perl 5.004.  It was fixed in Perl 5.004_01, but we don't
+  # want to require that here, so just delete each one individually.
+  foreach $v (keys %ENV) {
+    delete $ENV{$v};
+  }
+
+  %ENV = %makeENV;
+  foreach $v (keys %extraENV) {
+    $ENV{$v} = $extraENV{$v};
+    delete $extraENV{$v};
+  }
+}
+
 sub toplevel
 {
-  # Get a clean environment
-
-  %makeENV = ();
-
   # Pull in benign variables from the user's environment
   #
   foreach (# UNIX-specific things
@@ -57,15 +96,7 @@ sub toplevel
   #
   %origENV = %ENV;
 
-  # We used to say "%ENV = ();" but this doesn't work in Perl 5.000
-  # through Perl 5.004.  It was fixed in Perl 5.004_01, but we don't
-  # want to require that here, so just delete each one individually.
-
-  foreach $v (keys %ENV) {
-    delete $ENV{$v};
-  }
-
-  %ENV = %makeENV;
+  resetENV();
 
   $| = 1;                     # unbuffered output
 
@@ -133,22 +164,21 @@ sub toplevel
     print "Finding tests...\n";
     opendir (SCRIPTDIR, $scriptpath)
 	|| &error ("Couldn't opendir $scriptpath: $!\n");
-    @dirs = grep (!/^(\.\.?|CVS|RCS)$/, readdir (SCRIPTDIR) );
+    @dirs = grep (!/^(\..*|CVS|RCS)$/, readdir (SCRIPTDIR) );
     closedir (SCRIPTDIR);
     foreach $dir (@dirs)
     {
-      next if ($dir =~ /^\.\.?$/ || $dir eq 'CVS' || $dir eq 'RCS'
-               || ! -d "$scriptpath/$dir");
+      next if ($dir =~ /^(\..*|CVS|RCS)$/ || ! -d "$scriptpath/$dir");
       push (@rmdirs, $dir);
       mkdir ("$workpath/$dir", 0777)
            || &error ("Couldn't mkdir $workpath/$dir: $!\n");
       opendir (SCRIPTDIR, "$scriptpath/$dir")
 	  || &error ("Couldn't opendir $scriptpath/$dir: $!\n");
-      @files = grep (!/^(\.\.?|CVS|RCS)$/, readdir (SCRIPTDIR) );
+      @files = grep (!/^(\..*|CVS|RCS|.*~)$/, readdir (SCRIPTDIR) );
       closedir (SCRIPTDIR);
       foreach $test (@files)
       {
-        next if $test =~ /~$/ || -d $test;
+        -d $test and next;
 	push (@TESTS, "$dir/$test");
       }
     }
@@ -397,8 +427,7 @@ sub run_each_test
       $diffext = 'd';
       $baseext = 'b';
       $extext = '';
-   }
-    else {
+    } else {
       $logext = 'log';
       $diffext = 'diff';
       $baseext = 'base';
@@ -429,12 +458,9 @@ sub run_each_test
     if (!defined($code))
     {
       $suite_passed = 0;
-      if (length ($@))
-      {
+      if (length ($@)) {
         warn "\n*** Test died ($testname): $@\n";
-      }
-      else
-      {
+      } else {
         warn "\n*** Couldn't run $perl_testname\n";
       }
     }
@@ -460,7 +486,7 @@ sub run_each_test
         &rmfiles ($base_filename . &num_suffix ($i) );
       }
     }
-    elsif ($code > 0) {
+    elsif (!defined $code || $code > 0) {
       $status = "FAILED ($tests_passed/$tests_run passed)";
     }
     elsif ($code < 0) {
@@ -744,6 +770,11 @@ sub run_command
 {
   local ($code);
 
+  # We reset this before every invocation.  On Windows I think there is only
+  # one environment, not one per process, so I think that variables set in
+  # test scripts might leak into subsequent tests if this isn't reset--???
+  resetENV();
+
   print "\nrun_command: @_\n" if $debug;
   $code = system @_;
   print "run_command: \"@_\" returned $code.\n" if $debug;
@@ -760,6 +791,11 @@ sub run_command_with_output
 {
   local ($filename) = shift;
   local ($code);
+
+  # We reset this before every invocation.  On Windows I think there is only
+  # one environment, not one per process, so I think that variables set in
+  # test scripts might leak into subsequent tests if this isn't reset--???
+  resetENV();
 
   &attach_default_output ($filename);
   $code = system @_;

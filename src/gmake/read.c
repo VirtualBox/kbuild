@@ -1,22 +1,20 @@
 /* Reading and parsing of makefiles for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-2002 Free Software Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 
@@ -143,6 +141,9 @@ static void record_target_var PARAMS ((struct nameseq *filenames, char *defn,
                                        const struct floc *flocp));
 static enum make_word_type get_next_mword PARAMS ((char *buffer, char *delim,
                         char **startp, unsigned int *length));
+static void remove_comments PARAMS ((char *line));
+static char *find_char_unquote PARAMS ((char *string, int stop1,
+                                        int stop2, int blank, int ignorevars));
 
 /* Read in all the makefiles and return the chain of their names.  */
 
@@ -185,10 +186,7 @@ read_all_makefiles (char **makefiles)
       {
 	if (*p != '\0')
 	  *p++ = '\0';
-        name = xstrdup (name);
-	if (eval_makefile (name,
-                           RM_NO_DEFAULT_GOAL|RM_INCLUDED|RM_DONTCARE) < 2)
-          free (name);
+	eval_makefile (name, RM_NO_DEFAULT_GOAL|RM_INCLUDED|RM_DONTCARE);
       }
 
     free (value);
@@ -251,12 +249,9 @@ read_all_makefiles (char **makefiles)
 	    tail = tail->next;
 	  for (p = default_makefiles; *p != 0; ++p)
 	    {
-	      struct dep *d = (struct dep *) xmalloc (sizeof (struct dep));
-	      d->name = 0;
+	      struct dep *d = alloc_dep ();
 	      d->file = enter_file (*p);
 	      d->file->dontcare = 1;
-              d->ignore_mtime = 0;
-              d->need_2nd_expansion = 0;
 	      /* Tell update_goal_chain to bail out as soon as this file is
 		 made, and main not to die if we can't make this file.  */
 	      d->changed = RM_DONTCARE;
@@ -308,10 +303,12 @@ eval_makefile (char *filename, int flags)
   struct dep *deps;
   struct ebuffer ebuf;
   const struct floc *curfile;
+  char *expanded = 0;
+  char *included = 0;
   int makefile_errno;
   int r;
 
-  ebuf.floc.filenm = filename;
+  ebuf.floc.filenm = strcache_add (filename);
   ebuf.floc.lineno = 1;
 
   if (ISDB (DB_VERBOSE))
@@ -334,7 +331,7 @@ eval_makefile (char *filename, int flags)
      in which case it was already done.  */
   if (!(flags & RM_NO_TILDE) && filename[0] == '~')
     {
-      char *expanded = tilde_expand (filename);
+      expanded = tilde_expand (filename);
       if (expanded != 0)
 	filename = expanded;
     }
@@ -351,34 +348,36 @@ eval_makefile (char *filename, int flags)
       register unsigned int i;
       for (i = 0; include_directories[i] != 0; ++i)
 	{
-	  char *name = concat (include_directories[i], "/", filename);
-	  ebuf.fp = fopen (name, "r");
-	  if (ebuf.fp == 0)
-	    free (name);
-	  else
+	  included = concat (include_directories[i], "/", filename);
+	  ebuf.fp = fopen (included, "r");
+	  if (ebuf.fp)
 	    {
-	      filename = name;
+	      filename = included;
 	      break;
 	    }
+          free (included);
 	}
+      /* If we're not using it, we already freed it above.  */
+      if (filename != included)
+        included = 0;
     }
 
   /* Add FILENAME to the chain of read makefiles.  */
-  deps = (struct dep *) xmalloc (sizeof (struct dep));
+  deps = alloc_dep ();
   deps->next = read_makefiles;
   read_makefiles = deps;
-  deps->name = 0;
   deps->file = lookup_file (filename);
   if (deps->file == 0)
     deps->file = enter_file (xstrdup (filename));
-  if (filename != ebuf.floc.filenm)
-    free (filename);
   filename = deps->file->name;
   deps->changed = flags;
-  deps->ignore_mtime = 0;
-  deps->need_2nd_expansion = 0;
   if (flags & RM_DONTCARE)
     deps->file->dontcare = 1;
+
+  if (expanded)
+    free (expanded);
+  if (included)
+    free (included);
 
   /* If the makefile can't be found at all, give up entirely.  */
 
@@ -798,12 +797,13 @@ eval (struct ebuffer *ebuf, int set_default)
 	  int noerror = (p[0] != 'i');
 
 	  p = allocated_variable_expand (p2);
+
+          /* If no filenames, it's a no-op.  */
 	  if (*p == '\0')
-	    {
-	      error (fstart,
-                     _("no file name for `%sinclude'"), noerror ? "-" : "");
-	      continue;
-	    }
+            {
+              free (p);
+              continue;
+            }
 
 	  /* Parse the list of file names.  */
 	  p2 = p;
@@ -833,12 +833,9 @@ eval (struct ebuffer *ebuf, int set_default)
 
               r = eval_makefile (name, (RM_INCLUDED | RM_NO_TILDE
                                         | (noerror ? RM_DONTCARE : 0)));
-	      if (!r)
-                {
-                  if (!noerror)
-                    error (fstart, "%s: %s", name, strerror (errno));
-                  free (name);
-                }
+	      if (!r && !noerror)
+                error (fstart, "%s: %s", name, strerror (errno));
+              free (name);
 	    }
 
 	  /* Restore conditional state.  */
@@ -883,7 +880,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
         /* Search the line for an unquoted ; that is not after an
            unquoted #.  */
-        cmdleft = find_char_unquote (line, ';', '#', 0);
+        cmdleft = find_char_unquote (line, ';', '#', 0, 1);
         if (cmdleft != 0 && *cmdleft == '#')
           {
             /* We found a comment before a semicolon.  */
@@ -930,7 +927,7 @@ eval (struct ebuffer *ebuf, int set_default)
             if (cmdleft == 0)
               {
                 /* Look for a semicolon in the expanded line.  */
-                cmdleft = find_char_unquote (p2, ';', 0, 0);
+                cmdleft = find_char_unquote (p2, ';', 0, 0, 0);
 
                 if (cmdleft != 0)
                   {
@@ -957,7 +954,7 @@ eval (struct ebuffer *ebuf, int set_default)
                   }
               }
 
-            colonp = find_char_unquote(p2, ':', 0, 0);
+            colonp = find_char_unquote(p2, ':', 0, 0, 0);
 #ifdef HAVE_DOS_PATHS
             /* The drive spec brain-damage strikes again...  */
             /* Note that the only separators of targets in this context
@@ -966,7 +963,7 @@ eval (struct ebuffer *ebuf, int set_default)
             while (colonp && (colonp[1] == '/' || colonp[1] == '\\') &&
                    colonp > p2 && isalpha ((unsigned char)colonp[-1]) &&
                    (colonp == p2 + 1 || strchr (" \t(", colonp[-2]) != 0))
-              colonp = find_char_unquote(colonp + 1, ':', 0, 0);
+              colonp = find_char_unquote(colonp + 1, ':', 0, 0, 0);
 #endif
             if (colonp != 0)
               break;
@@ -1080,7 +1077,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
         /* This is a normal target, _not_ a target-specific variable.
            Unquote any = in the dependency list.  */
-        find_char_unquote (lb_next, '=', 0, 0);
+        find_char_unquote (lb_next, '=', 0, 0, 0);
 
         /* We have some targets, so don't ignore the following commands.  */
         no_targets = 0;
@@ -1095,7 +1092,7 @@ eval (struct ebuffer *ebuf, int set_default)
             /* Look for a semicolon in the expanded line.  */
             if (cmdleft == 0)
               {
-                cmdleft = find_char_unquote (p2, ';', 0, 0);
+                cmdleft = find_char_unquote (p2, ';', 0, 0, 0);
                 if (cmdleft != 0)
                   *(cmdleft++) = '\0';
               }
@@ -1160,7 +1157,7 @@ eval (struct ebuffer *ebuf, int set_default)
             pattern_percent = find_percent (pattern);
             if (pattern_percent == 0)
               fatal (fstart, _("target pattern contains no `%%' (target `%s')"), target->name);
-            free((char *)target);
+            free ((char *)target);
           }
         else
           pattern = 0;
@@ -1172,22 +1169,9 @@ eval (struct ebuffer *ebuf, int set_default)
 
         if (beg <= end && *beg != '\0')
           {
-            char *top;
-            const char *fromp = beg;
-
-            /* Make a copy of the dependency string.  Note if we find '$'.  */
-            deps = (struct dep*) xmalloc (sizeof (struct dep));
-            deps->next = 0;
-            deps->name = top = (char *) xmalloc (end - beg + 2);
-            deps->need_2nd_expansion = 0;
-            while (fromp <= end)
-              {
-                if (*fromp == '$')
-                  deps->need_2nd_expansion = 1;
-                *(top++) = *(fromp++);
-              }
-            *top = '\0';
-            deps->file = 0;
+            /* Put all the prerequisites here; they'll be parsed later.  */
+            deps = alloc_dep ();
+            deps->name = savestring (beg, end - beg + 1);
           }
         else
           deps = 0;
@@ -1311,8 +1295,23 @@ eval (struct ebuffer *ebuf, int set_default)
 
   return 1;
 }
-
 
+
+/* Remove comments from LINE.
+   This is done by copying the text at LINE onto itself.  */
+
+static void
+remove_comments (char *line)
+{
+  char *comment;
+
+  comment = find_char_unquote (line, '#', 0, 0, 0);
+
+  if (comment != 0)
+    /* Cut off the line at the #.  */
+    *comment = '\0';
+}
+
 /* Execute a `define' directive.
    The first line has already been read, and NAME is the name of
    the variable to be defined.  The following lines remain to be read.  */
@@ -1830,8 +1829,7 @@ record_target_var (struct nameseq *filenames, char *defn,
       /* Set up the variable to be *-specific.  */
       v->origin = origin;
       v->per_target = 1;
-      if (exported)
-        v->export = v_export;
+      v->export = exported ? v_export : v_default;
 
       /* If it's not an override, check to see if there was a command-line
          setting.  If so, reset the value.  */
@@ -1903,19 +1901,19 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
     {
       char *name = filenames->name;
       struct file *f;
-      struct dep *d;
-      struct dep *this;
+      struct dep *this = 0;
       char *implicit_percent;
 
       nextf = filenames->next;
       free (filenames);
 
-      /* Check for .POSIX.  We used to do this in snap_deps() but that's not
-         good enough: it doesn't happen until after the makefile is read,
-         which means we cannot use its value during parsing.  */
+      /* Check for special targets.  Do it here instead of, say, snap_deps()
+         so that we can immediately use the value.  */
 
       if (streq (name, ".POSIX"))
         posix_pedantic = 1;
+      else if (streq (name, ".SECONDEXPANSION"))
+        second_expansion = 1;
 
       implicit_percent = find_percent (name);
       implicit |= implicit_percent != 0;
@@ -1950,40 +1948,20 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	  continue;
 	}
 
-      /* If there are multiple filenames, copy the chain DEPS
-	 for all but the last one.  It is not safe for the same deps
-	 to go in more than one place in the database.  */
-      this = nextf != 0 ? copy_dep_chain (deps) : deps;
-
-      if (pattern != 0)
-	{
-	  /* If this is an extended static rule:
-	     `targets: target%pattern: dep%pattern; cmds',
-	     translate each dependency pattern into a plain filename
-	     using the target pattern and this target's name.  */
-	  if (!pattern_matches (pattern, pattern_percent, name))
-	    {
-	      /* Give a warning if the rule is meaningless.  */
-	      error (flocp,
-		     _("target `%s' doesn't match the target pattern"), name);
-	      this = 0;
-	    }
-	  else
-            /* We use subst_expand to do the work of translating % to $* in
-               the dependency line.  */
-
-            if (this != 0 && find_percent (this->name) != 0)
-              {
-                char *o;
-                char *buffer = variable_expand ("");
-
-                o = subst_expand (buffer, this->name, "%", "$*", 1, 2, 0);
-
-                free (this->name);
-                this->name = savestring (buffer, o - buffer);
-                this->need_2nd_expansion = 1;
-              }
-	}
+      /* If this is a static pattern rule:
+         `targets: target%pattern: dep%pattern; cmds',
+         make sure the pattern matches this target name.  */
+      if (pattern && !pattern_matches (pattern, pattern_percent, name))
+        error (flocp, _("target `%s' doesn't match the target pattern"), name);
+      else if (deps)
+        {
+          /* If there are multiple filenames, copy the chain DEPS for all but
+             the last one.  It is not safe for the same deps to go in more
+             than one place in the database.  */
+          this = nextf != 0 ? copy_dep_chain (deps) : deps;
+          this->need_2nd_expansion = (second_expansion
+				      && strchr (this->name, '$'));
+        }
 
       if (!two_colon)
 	{
@@ -2023,18 +2001,11 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	  if (cmds != 0)
 	    f->cmds = cmds;
 
-	  /* Defining .SUFFIXES with no dependencies
-	     clears out the list of suffixes.  */
+	  /* Defining .SUFFIXES with no dependencies clears out the list of
+	     suffixes.  */
 	  if (f == suffix_file && this == 0)
 	    {
-	      d = f->deps;
-	      while (d != 0)
-		{
-		  struct dep *nextd = d->next;
- 		  free (d->name);
- 		  free ((char *)d);
-		  d = nextd;
-		}
+              free_dep_chain (f->deps);
 	      f->deps = 0;
 	    }
           else if (this != 0)
@@ -2049,22 +2020,19 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
                     d_ptr = &(*d_ptr)->next;
 
                   if (cmds != 0)
-                    {
-                      /* This is the rule with commands, so put its deps
-                         last. The rationale behind this is that $< expands
-                         to the first dep in the chain, and commands use $<
-                         expecting to get the dep that rule specifies.
-                         However the second expansion algorithm reverses
-                         the order thus we need to make it last here.  */
-
-                      (*d_ptr)->next = this;
-                    }
+                    /* This is the rule with commands, so put its deps
+                       last. The rationale behind this is that $< expands to
+                       the first dep in the chain, and commands use $<
+                       expecting to get the dep that rule specifies.  However
+                       the second expansion algorithm reverses the order thus
+                       we need to make it last here.  */
+                    (*d_ptr)->next = this;
                   else
                     {
                       /* This is the rule without commands. Put its
-                         dependencies at the end but before dependencies
-                         from the rule with commands (if any). This way
-                         everything appears in makefile order.  */
+                         dependencies at the end but before dependencies from
+                         the rule with commands (if any). This way everything
+                         appears in makefile order.  */
 
                       if (f->cmds != 0)
                         {
@@ -2094,42 +2062,47 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
               if (cmds != 0)
                 f->updating = 1;
 	    }
-
-	  /* If this is a static pattern rule, set the file's stem to
-	     the part of its name that matched the `%' in the pattern,
-	     so you can use $* in the commands.  */
-	  if (pattern != 0)
-	    {
-	      static char *percent = "%";
-	      char *buffer = variable_expand ("");
-	      char *o = patsubst_expand (buffer, name, pattern, percent,
-					 pattern_percent+1, percent+1);
-	      f->stem = savestring (buffer, o - buffer);
-	    }
 	}
       else
 	{
-	  /* Double-colon.  Make a new record
-	     even if the file already has one.  */
+	  /* Double-colon.  Make a new record even if there already is one.  */
 	  f = lookup_file (name);
+
 	  /* Check for both : and :: rules.  Check is_target so
 	     we don't lose on default suffix rules or makefiles.  */
 	  if (f != 0 && f->is_target && !f->double_colon)
 	    fatal (flocp,
                    _("target file `%s' has both : and :: entries"), f->name);
 	  f = enter_file (name);
-	  /* If there was an existing entry and it was a double-colon
-	     entry, enter_file will have returned a new one, making it the
-	     prev pointer of the old one, and setting its double_colon
-	     pointer to the first one.  */
+	  /* If there was an existing entry and it was a double-colon entry,
+	     enter_file will have returned a new one, making it the prev
+	     pointer of the old one, and setting its double_colon pointer to
+	     the first one.  */
 	  if (f->double_colon == 0)
-	    /* This is the first entry for this name, so we must
-	       set its double_colon pointer to itself.  */
+	    /* This is the first entry for this name, so we must set its
+	       double_colon pointer to itself.  */
 	    f->double_colon = f;
 	  f->is_target = 1;
 	  f->deps = this;
 	  f->cmds = cmds;
 	}
+
+      /* If this is a static pattern rule, set the stem to the part of its
+         name that matched the `%' in the pattern, so you can use $* in the
+         commands.  */
+      if (pattern)
+        {
+          static char *percent = "%";
+          char *buffer = variable_expand ("");
+          char *o = patsubst_expand (buffer, name, pattern, percent,
+                                     pattern_percent+1, percent+1);
+          f->stem = savestring (buffer, o - buffer);
+          if (this)
+            {
+              this->staticpattern = 1;
+              this->stem = xstrdup (f->stem);
+            }
+        }
 
       /* Free name if not needed further.  */
       if (f != 0 && name != f->name
@@ -2140,9 +2113,9 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
 	}
 
       /* If this target is a default target, update DEFAULT_GOAL_FILE.  */
-      if (strcmp (*default_goal_name, name) == 0
+      if (streq (*default_goal_name, name)
           && (default_goal_file == 0
-              || strcmp (default_goal_file->name, name) != 0))
+              || ! streq (default_goal_file->name, name)))
         default_goal_file = f;
     }
 
@@ -2150,6 +2123,8 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
     {
       targets[target_idx] = 0;
       target_percents[target_idx] = 0;
+      if (deps)
+        deps->need_2nd_expansion = second_expansion;
       create_pattern_rule (targets, target_percents, two_colon, deps, cmds, 1);
       free ((char *) target_percents);
     }
@@ -2159,34 +2134,72 @@ record_files (struct nameseq *filenames, char *pattern, char *pattern_percent,
    Backslashes quote STOPCHAR, blanks if BLANK is nonzero, and backslash.
    Quoting backslashes are removed from STRING by compacting it into
    itself.  Returns a pointer to the first unquoted STOPCHAR if there is
-   one, or nil if there are none.  */
+   one, or nil if there are none.  STOPCHARs inside variable references are
+   ignored if IGNOREVARS is true.
 
-char *
-find_char_unquote (char *string, int stop1, int stop2, int blank)
+   STOPCHAR _cannot_ be '$' if IGNOREVARS is true.  */
+
+static char *
+find_char_unquote (char *string, int stop1, int stop2, int blank,
+                   int ignorevars)
 {
   unsigned int string_len = 0;
   register char *p = string;
-  register int ch;
+  register int ch; /* bird */
+
+  if (ignorevars)
+    ignorevars = '$';
 
   while (1)
     {
       if (stop2 && blank)
-	while ((ch = *p) != '\0' && ch != stop1 && ch != stop2
+	while ((ch = *p) != '\0' && ch != ignorevars && ch != stop1 && ch != stop2
 	       && ! isblank ((unsigned char) ch))
 	  ++p;
       else if (stop2)
-	while ((ch = *p) != '\0' && ch != stop1 && ch != stop2)
+	while ((ch = *p) != '\0' && ch != ignorevars && ch != stop1 && ch != stop2)
 	  ++p;
       else if (blank)
-	while ((ch = *p) != '\0' && ch != stop1
+	while ((ch = *p) != '\0' && ch != ignorevars && ch != stop1
 	       && ! isblank ((unsigned char) ch))
 	  ++p;
       else
-	while ((ch = *p) != '\0' && ch != stop1)
+	while ((ch = *p) != '\0' && ch != ignorevars && ch != stop1)
 	  ++p;
 
       if (ch == '\0')
 	break;
+
+      /* If we stopped due to a variable reference, skip over its contents.  */
+      if (ch == ignorevars)
+        {
+          char openparen = p[1];
+
+          p += 2;
+
+          /* Skip the contents of a non-quoted, multi-char variable ref.  */
+          if (openparen == '(' || openparen == '{')
+            {
+              unsigned int pcount = 1;
+              char closeparen = (openparen == '(' ? ')' : '}');
+
+              while ((ch = *p))
+                {
+                  if (ch == openparen)
+                    ++pcount;
+                  else if (ch == closeparen)
+                    if (--pcount == 0)
+                      {
+                        ++p;
+                        break;
+                      }
+                  ++p;
+                }
+            }
+
+          /* Skipped the variable reference: look for STOPCHARS again.  */
+          continue;
+        }
 
       if (p > string && p[-1] == '\\')
 	{
@@ -2223,7 +2236,7 @@ find_char_unquote (char *string, int stop1, int stop2, int blank)
 char *
 find_percent (char *pattern)
 {
-  return find_char_unquote (pattern, '%', 0, 0);
+  return find_char_unquote (pattern, '%', 0, 0, 0);
 }
 
 /* Parse a string into a sequence of filenames represented as a
@@ -2242,9 +2255,9 @@ find_percent (char *pattern)
 struct nameseq *
 parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 {
-  register struct nameseq *new = 0;
-  register struct nameseq *new1, *lastnew1;
-  register char *p = *stringp;
+  struct nameseq *new = 0;
+  struct nameseq *new1, *lastnew1;
+  char *p = *stringp;
   char *q;
   char *name;
 
@@ -2265,7 +2278,7 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 
       /* Yes, find end of next name.  */
       q = p;
-      p = find_char_unquote (q, stopchar, VMS_COMMA, 1);
+      p = find_char_unquote (q, stopchar, VMS_COMMA, 1, 0);
 #ifdef VMS
 	/* convert comma separated list to space separated */
       if (p && *p == ',')
@@ -2276,7 +2289,7 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
           && !(isspace ((unsigned char)p[1]) || !p[1]
                || isspace ((unsigned char)p[-1])))
       {
-	p = find_char_unquote (p+1, stopchar, VMS_COMMA, 1);
+	p = find_char_unquote (p+1, stopchar, VMS_COMMA, 1, 0);
       }
 #endif
 #ifdef HAVE_DOS_PATHS
@@ -2287,7 +2300,7 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
     if (stopchar == ':')
       while (p != 0 && !isspace ((unsigned char)*p) &&
              (p[1] == '\\' || p[1] == '/') && isalpha ((unsigned char)p[-1]))
-        p = find_char_unquote (p + 1, stopchar, VMS_COMMA, 1);
+        p = find_char_unquote (p + 1, stopchar, VMS_COMMA, 1, 0);
 #endif
       if (p == 0)
 	p = q + strlen (q);
@@ -2894,7 +2907,8 @@ construct_include_path (char **arg_dirs)
 
   dirs[idx] = 0;
 
-  /* Now compute the maximum length of any name in it.  */
+  /* Now compute the maximum length of any name in it. Also add each
+     dir to the .INCLUDE_DIRS variable.  */
 
   max_incl_len = 0;
   for (i = 0; i < idx; ++i)
@@ -2907,6 +2921,10 @@ construct_include_path (char **arg_dirs)
 	dirs[i] = savestring (dirs[i], len - 1);
       if (len > max_incl_len)
 	max_incl_len = len;
+
+      /* Append to .INCLUDE_DIRS.   */
+      do_variable_definition (NILF, ".INCLUDE_DIRS", dirs[i],
+                              o_default, f_append, 0);
     }
 
   include_directories = dirs;

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: make 3.80\n"
 "Report-Msgid-Bugs-To: bug-make@gnu.org\n"
-"POT-Creation-Date: 2004-03-06 03:08-0500\n"
+"POT-Creation-Date: 2006-04-01 01:40-0500\n"
 "PO-Revision-Date: 2003-10-12 18:01+0200\n"
 "Last-Translator: Hrvoje Niksic <hniksic@xemacs.org>\n"
 "Language-Team: Croatian <lokalizacija@linux.hr>\n"
@@ -14,31 +14,31 @@ msgstr ""
 "Content-Type: text/plain; charset=iso-8859-2\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ar.c:55
+#: ar.c:53
 #, c-format
 msgid "attempt to use unsupported feature: `%s'"
 msgstr "poku¹aj kori¹tenja nepodr¾ane moguænosti: `%s'"
 
-#: ar.c:139
+#: ar.c:137
 msgid "touch archive member is not available on VMS"
 msgstr "touch dijela arhive nije rapolo¾iv na VMS-u"
 
-#: ar.c:170
+#: ar.c:168
 #, c-format
 msgid "touch: Archive `%s' does not exist"
 msgstr "touch: Arhiva `%s' ne postoji"
 
-#: ar.c:173
+#: ar.c:171
 #, c-format
 msgid "touch: `%s' is not a valid archive"
 msgstr "touch: `%s' nije valjana arhiva"
 
-#: ar.c:180
+#: ar.c:178
 #, c-format
 msgid "touch: Member `%s' does not exist in `%s'"
 msgstr "touch: èlan `%s' ne postoji u `%s'"
 
-#: ar.c:187
+#: ar.c:185
 #, c-format
 msgid "touch: Bad return code from ar_member_touch on `%s'"
 msgstr "touch: Neispravan povratni kod iz ar_member_touch na `%s'"
@@ -77,44 +77,44 @@ msgstr "  Datum %s"
 msgid "  uid = %d, gid = %d, mode = 0%o.\n"
 msgstr "  uid = %d, gid = %d, mode = 0%o.\n"
 
-#: commands.c:415
+#: commands.c:422
 msgid "*** Break.\n"
 msgstr "*** Prekid.\n"
 
-#: commands.c:509
+#: commands.c:545
 #, c-format
 msgid "*** [%s] Archive member `%s' may be bogus; not deleted"
 msgstr "*** [%s] Èlan arhive '%s' mogao bi biti bezvezan; nije obrisan"
 
-#: commands.c:512
+#: commands.c:548
 #, c-format
 msgid "*** Archive member `%s' may be bogus; not deleted"
 msgstr "*** Èlan arhive '%s' mogao bi biti bezvezan; nije obrisan"
 
-#: commands.c:525
+#: commands.c:561
 #, c-format
 msgid "*** [%s] Deleting file `%s'"
 msgstr "*** [%s] Bri¹em spis `%s'"
 
-#: commands.c:527
+#: commands.c:563
 #, c-format
 msgid "*** Deleting file `%s'"
 msgstr "*** Bri¹em spis `%s'"
 
-#: commands.c:563
+#: commands.c:599
 msgid "#  commands to execute"
 msgstr "#  naredbe za izvr¹avanje"
 
-#: commands.c:566
+#: commands.c:602
 msgid " (built-in):"
 msgstr " (ugraðeno):"
 
-#: commands.c:568
+#: commands.c:604
 #, c-format
 msgid " (from `%s', line %lu):\n"
 msgstr " (iz `%s', redak %lu):\n"
 
-#: dir.c:967
+#: dir.c:983
 msgid ""
 "\n"
 "# Directories\n"
@@ -122,218 +122,219 @@ msgstr ""
 "\n"
 "# Direktoriji\n"
 
-#: dir.c:979
+#: dir.c:995
 #, c-format
 msgid "# %s: could not be stat'd.\n"
 msgstr "# %s: ne mo¾e se statati.\n"
 
-#: dir.c:983
+#: dir.c:999
 #, c-format
 msgid "# %s (key %s, mtime %d): could not be opened.\n"
 msgstr "# %s (tipka %s, mtime %d): nije ga se moglo otvoriti.\n"
 
-#: dir.c:987
+#: dir.c:1003
 #, c-format
 msgid "# %s (device %d, inode [%d,%d,%d]): could not be opened.\n"
 msgstr "# %s (device %d, inode [%d,%d,%d]): nije ga se moglo otvoriti.\n"
 
-#: dir.c:992
+#: dir.c:1008
 #, c-format
 msgid "# %s (device %ld, inode %ld): could not be opened.\n"
 msgstr "# %s (device %ld, inode %ld): nije ga se moglo otvoriti.\n"
 
-#: dir.c:1019
+#: dir.c:1035
 #, c-format
 msgid "# %s (key %s, mtime %d): "
 msgstr "# %s (tipka %s, mtime %d): "
 
-#: dir.c:1023
+#: dir.c:1039
 #, c-format
 msgid "# %s (device %d, inode [%d,%d,%d]): "
 msgstr "# %s (device %d, inode [%d,%d,%d]): "
 
-#: dir.c:1028
+#: dir.c:1044
 #, c-format
 msgid "# %s (device %ld, inode %ld): "
 msgstr "# %s (device %ld, inode %ld): "
 
-#: dir.c:1034 dir.c:1055
+#: dir.c:1050 dir.c:1071
 msgid "No"
 msgstr "Nijedan"
 
-#: dir.c:1037 dir.c:1058
+#: dir.c:1053 dir.c:1074
 msgid " files, "
 msgstr " spis, "
 
-#: dir.c:1039 dir.c:1060
+#: dir.c:1055 dir.c:1076
 msgid "no"
 msgstr "nijedna"
 
-#: dir.c:1042
+#: dir.c:1058
 msgid " impossibilities"
 msgstr " nemoguænost"
 
-#: dir.c:1046
+#: dir.c:1062
 msgid " so far."
 msgstr " do sad."
 
-#: dir.c:1063
+#: dir.c:1079
 #, c-format
 msgid " impossibilities in %lu directories.\n"
 msgstr " nemoguænosti u %lu direktorija.\n"
 
-#: expand.c:107
+#: expand.c:128
 #, c-format
 msgid "Recursive variable `%s' references itself (eventually)"
 msgstr "Rekurzivna varijabla `%s' pokazuje (na kraju) na sebe"
 
-#: expand.c:248
+#: expand.c:266
 msgid "unterminated variable reference"
 msgstr "nedovr¹ena referenca na varijablu"
 
-#: file.c:257
+#: file.c:270
 #, c-format
 msgid "Commands were specified for file `%s' at %s:%lu,"
 msgstr "Naredbe su naznaèene za spis `%s' na %s:%lu,"
 
-#: file.c:262
+#: file.c:275
 #, c-format
 msgid "Commands for file `%s' were found by implicit rule search,"
 msgstr "Naredbe za spis `%s' naðene su implicitnim pretra¾ivanjem propisa,"
 
-#: file.c:265
+#: file.c:278
 #, c-format
 msgid "but `%s' is now considered the same file as `%s'."
 msgstr "ali `%s' se sada smatra istim spisom kao i `%s'."
 
-#: file.c:268
+#: file.c:281
 #, c-format
 msgid "Commands for `%s' will be ignored in favor of those for `%s'."
 msgstr "Naredbe za `%s' ignorirat æe se u korist onih za `%s'."
 
-#: file.c:288
+#: file.c:301
 #, c-format
 msgid "can't rename single-colon `%s' to double-colon `%s'"
 msgstr "ne mogu preimenovati `%s' s jednom dvotoèkom u `%s' s dvije dvotoèke"
 
-#: file.c:293
+#: file.c:306
 #, c-format
 msgid "can't rename double-colon `%s' to single-colon `%s'"
 msgstr "ne mogu preimenovati `%s' s dvije dvotoèke u `%s' s jednom dvotoèkom"
 
-#: file.c:364
+#: file.c:381
 #, c-format
 msgid "*** Deleting intermediate file `%s'"
 msgstr "*** Bri¹em posredni spis `%s'"
 
-#: file.c:368
+#: file.c:385
 msgid "Removing intermediate files...\n"
 msgstr "Bri¹em posredne spise...\n"
 
-#: file.c:554
+#: file.c:781
 #, c-format
 msgid "%s: Timestamp out of range; substituting %s"
 msgstr "%s: Vremenska oznaka van granica; zamjenjujem s %s"
 
-#: file.c:555
+#: file.c:782
 msgid "Current time"
 msgstr "Trenutno vrijeme"
 
-#: file.c:654
+#: file.c:881
 msgid "# Not a target:"
 msgstr "# Nije meta:"
 
-#: file.c:676
+#: file.c:903
 msgid "#  Precious file (prerequisite of .PRECIOUS)."
 msgstr "#  Vrijedan spis (prerekvizit mete .PRECIOUS)."
 
-#: file.c:678
+#: file.c:905
 msgid "#  Phony target (prerequisite of .PHONY)."
 msgstr "#  La¾na meta (prerekvizit mete .PHONY)."
 
-#: file.c:680
+#: file.c:907
 msgid "#  Command-line target."
 msgstr "#  Meta na komandnoj liniji."
 
-#: file.c:682
-msgid "#  A default or MAKEFILES makefile."
+#: file.c:909
+#, fuzzy
+msgid "#  A default, MAKEFILES, or -include/sinclude makefile."
 msgstr "#  Podrazumijevani ili MAKEFILES makefile."
 
-#: file.c:684
+#: file.c:911
 msgid "#  Implicit rule search has been done."
 msgstr "#   Implicitna pretraga propisa je izvr¹ena."
 
-#: file.c:685
+#: file.c:912
 msgid "#  Implicit rule search has not been done."
 msgstr "#  Implicitna pretraga propisa nije izvr¹ena."
 
-#: file.c:687
+#: file.c:914
 #, c-format
 msgid "#  Implicit/static pattern stem: `%s'\n"
 msgstr "#  Korijen implicitnog/statièkog uzorka: `%s'\n"
 
-#: file.c:689
+#: file.c:916
 msgid "#  File is an intermediate prerequisite."
 msgstr "#  Spis je posredni prerekvizit."
 
-#: file.c:692
+#: file.c:919
 msgid "#  Also makes:"
 msgstr "#  Takoðer proizvodi:"
 
-#: file.c:698
+#: file.c:925
 msgid "#  Modification time never checked."
 msgstr "#  Vrijeme promjene nikada nije provjereno."
 
-#: file.c:700
+#: file.c:927
 msgid "#  File does not exist."
 msgstr "#  Spis ne postoji."
 
-#: file.c:702
+#: file.c:929
 msgid "#  File is very old."
 msgstr "#  Spis je vrlo star."
 
-#: file.c:707
+#: file.c:934
 #, c-format
 msgid "#  Last modified %s\n"
 msgstr "#  Zadnja promjena %s\n"
 
-#: file.c:710
+#: file.c:937
 msgid "#  File has been updated."
 msgstr "#  Spis je a¾uriran."
 
-#: file.c:710
+#: file.c:937
 msgid "#  File has not been updated."
 msgstr "#  Spis nije a¾uriran."
 
-#: file.c:714
+#: file.c:941
 msgid "#  Commands currently running (THIS IS A BUG)."
 msgstr "#  Naredbe koje se trenutno izvr¹avaju (OVO JE BUG)."
 
-#: file.c:717
+#: file.c:944
 msgid "#  Dependencies commands running (THIS IS A BUG)."
 msgstr "#  Ovisnosti izmeðu naredbi koje se izvr¹avaju (OVO JE BUG)."
 
-#: file.c:726
+#: file.c:953
 msgid "#  Successfully updated."
 msgstr "#  Uspje¹no a¾uriran."
 
-#: file.c:730
+#: file.c:957
 msgid "#  Needs to be updated (-q is set)."
 msgstr "#  Treba ga a¾urirati (-q je postavljen)."
 
-#: file.c:733
+#: file.c:960
 msgid "#  Failed to be updated."
 msgstr "#  Nije ga se a¾uriralo."
 
-#: file.c:736
+#: file.c:963
 msgid "#  Invalid value in `update_status' member!"
 msgstr "#  Neispravna vrijednost u elementu `update_status'!"
 
-#: file.c:743
+#: file.c:970
 msgid "#  Invalid value in `command_state' member!"
 msgstr "#  Neispravna vrijednost u elementu `command_state'!"
 
-#: file.c:762
+#: file.c:989
 msgid ""
 "\n"
 "# Files"
@@ -341,7 +342,7 @@ msgstr ""
 "\n"
 "# Spisi"
 
-#: file.c:766
+#: file.c:993
 msgid ""
 "\n"
 "# files hash-table stats:\n"
@@ -351,57 +352,57 @@ msgstr ""
 "# statistike hash tablice spisa\n"
 "# "
 
-#: function.c:721
+#: function.c:759
 msgid "non-numeric first argument to `word' function"
 msgstr "prvi argument funkcije `word' nije broj"
 
-#: function.c:725
+#: function.c:764
 msgid "first argument to `word' function must be greater than 0"
 msgstr "prvi argument funkcije `word' mora biti veæi od 0"
 
-#: function.c:746
+#: function.c:785
 msgid "non-numeric first argument to `wordlist' function"
 msgstr "drugi argument funkcije `wordllist' nije broj"
 
-#: function.c:748
+#: function.c:787
 msgid "non-numeric second argument to `wordlist' function"
 msgstr "drugi arument funkcije `wordlist' nije broj"
 
-#: function.c:1295
-#, c-format
-msgid "create_child_process: DuplicateHandle(In) failed (e=%d)\n"
+#: function.c:1453
+#, fuzzy, c-format
+msgid "create_child_process: DuplicateHandle(In) failed (e=%ld)\n"
 msgstr "create_child_process: DuplicateHandle(In) je zakazao (e=%d)\n"
 
-#: function.c:1306
-#, c-format
-msgid "create_child_process: DuplicateHandle(Err) failed (e=%d)\n"
+#: function.c:1464
+#, fuzzy, c-format
+msgid "create_child_process: DuplicateHandle(Err) failed (e=%ld)\n"
 msgstr "create_child_process: DuplicateHandle(Err) je zakazao (e=%d)\n"
 
-#: function.c:1311
-#, c-format
-msgid "CreatePipe() failed (e=%d)\n"
+#: function.c:1469
+#, fuzzy, c-format
+msgid "CreatePipe() failed (e=%ld)\n"
 msgstr "CreatePipe() je zakazao (e=%d)\n"
 
-#: function.c:1316
+#: function.c:1474
 msgid "windows32_openpipe (): process_init_fd() failed\n"
 msgstr "windows32_openpipe (): process_init_fd() je zakazao\n"
 
-#: function.c:1566
+#: function.c:1725
 #, c-format
 msgid "Cleaning up temporary batch file %s\n"
 msgstr "Èistim privremeni batch spis %s.\n"
 
-#: function.c:1784
-#, c-format
-msgid "Insufficient number of arguments (%d) to function `%s'"
+#: function.c:2101
+#, fuzzy, c-format
+msgid "insufficient number of arguments (%d) to function `%s'"
 msgstr "Nedovoljan broj argumenata (%d) funkciji `%s'"
 
-#: function.c:1795
-#, c-format
-msgid "Unimplemented on this platform: function `%s'"
+#: function.c:2113
+#, fuzzy, c-format
+msgid "unimplemented on this platform: function `%s'"
 msgstr "Neimplementirano na ovoj platformi: funkcija `%s'"
 
-#: function.c:1846
+#: function.c:2163
 #, c-format
 msgid "unterminated call to function `%s': missing `%c'"
 msgstr "nedovr¹en poziv funkciji `%s': nedostaje `%c'"
@@ -461,153 +462,153 @@ msgstr "%s: opcija `-W %s' je vi¹eznaèna\n"
 msgid "%s: option `-W %s' doesn't allow an argument\n"
 msgstr "%s: opcija `-W %s' ne dopu¹ta argument\n"
 
-#: hash.c:52
+#: hash.c:51
 #, c-format
 msgid "can't allocate %ld bytes for hash table: memory exhausted"
 msgstr "ne mogu alocirati %ld bajtova za hash tablicu; memorija iscrpljena"
 
-#: hash.c:283
+#: hash.c:282
 #, c-format
 msgid "Load=%ld/%ld=%.0f%%, "
 msgstr "Optereæenje=%ld/%ld=%.0f%%, "
 
-#: hash.c:285
+#: hash.c:284
 #, c-format
 msgid "Rehash=%d, "
 msgstr "Preraspodjela=%d, "
 
-#: hash.c:286
+#: hash.c:285
 #, c-format
 msgid "Collisions=%ld/%ld=%.0f%%"
 msgstr "Kolizije=%ld/%ld=%.0f%%"
 
-#: implicit.c:38
+#: implicit.c:41
 #, c-format
 msgid "Looking for an implicit rule for `%s'.\n"
 msgstr "Tra¾im implicitni propis za `%s'.\n"
 
-#: implicit.c:54
+#: implicit.c:57
 #, c-format
 msgid "Looking for archive-member implicit rule for `%s'.\n"
 msgstr "Tra¾im implicitni propis za `%s' koji pripada elementu arhive.\n"
 
-#: implicit.c:199
+#: implicit.c:319
 msgid "Avoiding implicit rule recursion.\n"
 msgstr "Izbjegavam rekurziju implicitnog propisa.\n"
 
-#: implicit.c:337
+#: implicit.c:476
 #, c-format
 msgid "Trying pattern rule with stem `%.*s'.\n"
 msgstr "Poku¹avam propis uzorka s korijenom `%.*s'.\n"
 
-#: implicit.c:378
+#: implicit.c:667
 #, c-format
 msgid "Rejecting impossible implicit prerequisite `%s'.\n"
 msgstr "Odbacujem nemoguæ prerekvizit `%s'.\n"
 
-#: implicit.c:379
+#: implicit.c:668
 #, c-format
 msgid "Rejecting impossible rule prerequisite `%s'.\n"
 msgstr "Odbacujem nemoguæe pravilo prerekvizita `%s'.\n"
 
-#: implicit.c:389
+#: implicit.c:678
 #, c-format
 msgid "Trying implicit prerequisite `%s'.\n"
 msgstr "Poku¹avam s implicitnim prerekvizitom `%s'.\n"
 
-#: implicit.c:390
+#: implicit.c:679
 #, c-format
 msgid "Trying rule prerequisite `%s'.\n"
 msgstr "Poku¹avam s propisom prerekvizita `%s'.\n"
 
-#: implicit.c:412
+#: implicit.c:710
 #, c-format
 msgid "Found prerequisite `%s' as VPATH `%s'\n"
 msgstr "Na¹ao prerekvizit `%s' kao VPATH `%s'\n"
 
-#: implicit.c:430
+#: implicit.c:730
 #, c-format
 msgid "Looking for a rule with intermediate file `%s'.\n"
 msgstr "Tra¾im propis s posrednim spisom `%s'.\n"
 
-#: job.c:300
+#: job.c:321
+#, fuzzy
+msgid "Cannot create a temporary file\n"
+msgstr "fwrite(privremeni spis)"
+
+#: job.c:388
 #, c-format
 msgid "*** [%s] Error 0x%x (ignored)"
 msgstr "*** [%s] Gre¹ka 0x%x (ignorirana)"
 
-#: job.c:301
+#: job.c:389
 #, c-format
 msgid "*** [%s] Error 0x%x"
 msgstr "*** [%s] Gre¹ka 0x%x"
 
-#: job.c:305
+#: job.c:393
 #, c-format
 msgid "[%s] Error %d (ignored)"
 msgstr "[%s] Gre¹ka %d (ignorirana)"
 
-#: job.c:306
+#: job.c:394
 #, c-format
 msgid "*** [%s] Error %d"
 msgstr "*** [%s] Gre¹ka %d"
 
-#: job.c:311
+#: job.c:399
 msgid " (core dumped)"
 msgstr " (izbaèen core)"
 
-#: job.c:360
-#, c-format
-msgid "Warning: Empty redirection\n"
-msgstr "Upozorenje: Prazno preusmjeravanje\n"
-
-#: job.c:482
+#: job.c:488
 msgid "*** Waiting for unfinished jobs...."
 msgstr "*** èekam na nedovr¹ene poslove...."
 
-#: job.c:511
+#: job.c:518
 #, c-format
 msgid "Live child 0x%08lx (%s) PID %ld %s\n"
 msgstr "®ivo dijete 0x%08lx (%s) PID %ld %s\n"
 
-#: job.c:513 job.c:669 job.c:767 job.c:1388
+#: job.c:520 job.c:701 job.c:804 job.c:1457
 msgid " (remote)"
 msgstr " (udaljen)"
 
-#: job.c:666
+#: job.c:698
 #, c-format
 msgid "Reaping losing child 0x%08lx PID %ld %s\n"
 msgstr "®anjem proma¹eno dijete 0x%08lx PID %ld %s\n"
 
-#: job.c:667
+#: job.c:699
 #, c-format
 msgid "Reaping winning child 0x%08lx PID %ld %s\n"
 msgstr "®anjem uspje¹no dijete 0x%08lx PID %ld %s\n"
 
-#: job.c:672
+#: job.c:704
 #, c-format
 msgid "Cleaning up temp batch file %s\n"
 msgstr "Èistim privremeni batch spis %s\n"
 
-#: job.c:765
+#: job.c:802
 #, c-format
 msgid "Removing child 0x%08lx PID %ld%s from chain.\n"
 msgstr "Uklanjam dijete 0x%08lx PID %ld%s iz lanca.\n"
 
 # ©to bi ovdje trebalo iæi?
-#: job.c:822
+#: job.c:862
 msgid "write jobserver"
 msgstr "write jobserver"
 
-#: job.c:824
+#: job.c:864
 #, c-format
 msgid "Released token for child 0x%08lx (%s).\n"
 msgstr "Otpustio token za dijete 0x%08lx (%s).\n"
 
-#: job.c:1320 job.c:2476
-#, c-format
-msgid "process_easy() failed failed to launch process (e=%d)\n"
+#: job.c:1383
+#, fuzzy, c-format
+msgid "process_easy() failed to launch process (e=%ld)\n"
 msgstr "process_easy() nije uspio pokrenuti proces (e=%d)\n"
 
-#: job.c:1324 job.c:2480
+#: job.c:1387 job.c:2020
 #, c-format
 msgid ""
 "\n"
@@ -616,162 +617,97 @@ msgstr ""
 "\n"
 "Prebrojao %d argumenata u neuspjelom pokretanju\n"
 
-#: job.c:1386
+#: job.c:1455
 #, c-format
 msgid "Putting child 0x%08lx (%s) PID %ld%s on the chain.\n"
 msgstr "Smje¹tam dijete 0x%08lx (%s) PID %ld%s u lanac.\n"
 
-#: job.c:1630
+#: job.c:1709
 #, c-format
 msgid "Obtained token for child 0x%08lx (%s).\n"
 msgstr "Preuzeo token za dijete 0x%08lx (%s).\n"
 
-#: job.c:1639
+#: job.c:1718
 msgid "read jobs pipe"
 msgstr "read jobs pipe"
 
-#: job.c:1745
+#: job.c:1832
 msgid "cannot enforce load limits on this operating system"
 msgstr ""
 "ne mogu silom primijeniti ogranièenje loada na ovom operativnom sustavu"
 
-#: job.c:1747
+#: job.c:1834
 msgid "cannot enforce load limit: "
 msgstr "ne mogu silom primijeniti ogranièenje loada: "
 
-#: job.c:1870
-#, c-format
-msgid "internal error: `%s' command_state"
-msgstr "unutra¹nja gre¹ka: `%s' command_state"
-
-#: job.c:1955
-#, c-format
-msgid "-warning, CTRL-Y will leave sub-process(es) around.\n"
-msgstr "-upozorenje, CTRL-Y æe ostaviti potproces(e) na ¾ivotu.\n"
-
-#: job.c:1972
-#, c-format
-msgid "-warning, you may have to re-enable CTRL-Y handling from DCL.\n"
-msgstr ""
-"-upozorenje, mo¾da æete morati ponovo omoguæiti obradu CTRL-Y iz DCL-a.\n"
-
-#: job.c:2083
-#, c-format
-msgid "BUILTIN [%s][%s]\n"
-msgstr "UGRAÐEN [%s][%s]\n"
-
-#: job.c:2094
-#, c-format
-msgid "BUILTIN CD %s\n"
-msgstr "UGRAÐEN CD %s\n"
-
-#: job.c:2112
-#, c-format
-msgid "BUILTIN RM %s\n"
-msgstr "UGRAÐEN RM %s\n"
-
-#: job.c:2133
-#, c-format
-msgid "Unknown builtin command '%s'\n"
-msgstr "Nepoznata ugraðena naredba `%s'\n"
-
-#: job.c:2155
-#, c-format
-msgid "Error, empty command\n"
-msgstr "Gre¹ka, prazna naredba\n"
-
-#: job.c:2162 main.c:1365
-msgid "fopen (temporary file)"
-msgstr "fopen (privremeni spis)"
-
-#: job.c:2167
-#, c-format
-msgid "Redirected input from %s\n"
-msgstr "Preusmjerio ulaz iz %s\n"
-
-#: job.c:2174
-#, c-format
-msgid "Redirected error to %s\n"
-msgstr "Preusmjerio gre¹ke u %s\n"
-
-#: job.c:2181
-#, c-format
-msgid "Redirected output to %s\n"
-msgstr "Preusmjerio izlaz u %s\n"
-
-#: job.c:2244
-#, c-format
-msgid "Executing %s instead\n"
-msgstr "Umjesto toga, izvr¹avam %s\n"
-
-#: job.c:2344
-#, c-format
-msgid "Error spawning, %d\n"
-msgstr "Gre¹ka pri pokretanju, %d\n"
-
-#: job.c:2377
+#: job.c:1907
 msgid "no more file handles: could not duplicate stdin\n"
 msgstr ""
 
-#: job.c:2379
+#: job.c:1909
 msgid "no more file handles: could not duplicate stdout\n"
 msgstr ""
 
-#: job.c:2405
-msgid "restoring of stdin failed\n"
+#: job.c:1937
+msgid "Could not restore stdin\n"
 msgstr ""
 
-#: job.c:2407
-msgid "restoring of stdout failed\n"
+#: job.c:1945
+msgid "Could not restore stdout\n"
 msgstr ""
 
-#: job.c:2505
-#, c-format
-msgid "make reaped child pid %d, still waiting for pid %d\n"
+#: job.c:2016
+#, fuzzy, c-format
+msgid "process_easy() failed failed to launch process (e=%ld)\n"
+msgstr "process_easy() nije uspio pokrenuti proces (e=%d)\n"
+
+#: job.c:2046
+#, fuzzy, c-format
+msgid "make reaped child pid %ld, still waiting for pid %ld\n"
 msgstr "make je po¾njeo dijete pid %d, jo¹ uvijek èeka na pid %d\n"
 
-#: job.c:2544
+#: job.c:2085
 #, c-format
 msgid "%s: Command not found"
 msgstr "%s: Naredba nije naðena"
 
-#: job.c:2588
+#: job.c:2145
 #, c-format
 msgid "%s: Shell program not found"
 msgstr "%s: Ljuskin program nije naðen"
 
-#: job.c:2597
+#: job.c:2154
 msgid "spawnvpe: environment space might be exhausted"
 msgstr ""
 
-#: job.c:2802
+#: job.c:2363
 #, fuzzy, c-format
 msgid "$SHELL changed (was `%s', now `%s')\n"
 msgstr "$SHELL se promijenio (prije `%s', sad `%s')"
 
-#: job.c:3223
+#: job.c:2789
 #, c-format
 msgid "Creating temporary batch file %s\n"
 msgstr "Stvaram privremeni batch spis %s\n"
 
-#: job.c:3363
+#: job.c:2902
 #, c-format
 msgid "%s (line %d) Bad shell context (!unixy && !batch_mode_shell)\n"
 msgstr "%s (redak %d) Lo¹ kontekst ljuske (!unixy && !batch_mode_shell)\n"
 
-#: main.c:268
+#: main.c:291
 msgid "Options:\n"
 msgstr "Opcije:\n"
 
-#: main.c:269
+#: main.c:292
 msgid "  -b, -m                      Ignored for compatibility.\n"
 msgstr "  -b, -m                      Ignorira se zbog kompatibilnosti\n"
 
-#: main.c:271
+#: main.c:294
 msgid "  -B, --always-make           Unconditionally make all targets.\n"
 msgstr "  -B, --always-make           Bezuvjetno proizvedi sve mete.\n"
 
-#: main.c:273
+#: main.c:296
 msgid ""
 "  -C DIRECTORY, --directory=DIRECTORY\n"
 "                              Change to DIRECTORY before doing anything.\n"
@@ -780,18 +716,18 @@ msgstr ""
 "                              Prijeði u DIREKTORIJ prije no ¹to i¹ta "
 "obavi¹.\n"
 
-#: main.c:276
+#: main.c:299
 msgid "  -d                          Print lots of debugging information.\n"
 msgstr "  -d                          Ispi¹i puno podataka za debugiranje.\n"
 
-#: main.c:278
+#: main.c:301
 msgid ""
 "  --debug[=FLAGS]             Print various types of debugging information.\n"
 msgstr ""
 "  --debug[=FLAGOVI]             Ispi¹i razne vrste informacija za "
 "debugiranje.\n"
 
-#: main.c:280
+#: main.c:303
 msgid ""
 "  -e, --environment-overrides\n"
 "                              Environment variables override makefiles.\n"
@@ -800,7 +736,7 @@ msgstr ""
 "                              Varijable iz okoline imaju veæu va¾nost od\n"
 "                              makefileova.\n"
 
-#: main.c:283
+#: main.c:306
 msgid ""
 "  -f FILE, --file=FILE, --makefile=FILE\n"
 "                              Read FILE as a makefile.\n"
@@ -808,15 +744,15 @@ msgstr ""
 "  -f SPIS, --file=SPIS, --makefile=SPIS\n"
 "                              Proèitaj SPIS kao makefile.\n"
 
-#: main.c:286
+#: main.c:309
 msgid "  -h, --help                  Print this message and exit.\n"
 msgstr "  -h, --help                  Ispi¹i ovu poruku i izaði.\n"
 
-#: main.c:288
+#: main.c:311
 msgid "  -i, --ignore-errors         Ignore errors from commands.\n"
 msgstr "  -i, --ignore-errors         Zanemari gre¹ke od naredbi.\n"
 
-#: main.c:290
+#: main.c:313
 msgid ""
 "  -I DIRECTORY, --include-dir=DIRECTORY\n"
 "                              Search DIRECTORY for included makefiles.\n"
@@ -824,7 +760,7 @@ msgstr ""
 "  -I DIREKTORIJ, --include-dir=DIREKTORIJ\n"
 "                              Potra¾i u DIREKTORIJU ukljuèene makefileove.\n"
 
-#: main.c:293
+#: main.c:316
 msgid ""
 "  -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no "
 "arg.\n"
@@ -832,14 +768,14 @@ msgstr ""
 "  -j [N], --jobs[=N]          Dopusti N istovremenih poslova; bez argumenta\n"
 "                              ih dopusti beskonaèno.\n"
 
-#: main.c:295
+#: main.c:318
 msgid ""
 "  -k, --keep-going            Keep going when some targets can't be made.\n"
 msgstr ""
 "  -k, --keep-going            Nastavi s radom ako se neke mete ne mogu "
 "izraditi.\n"
 
-#: main.c:297
+#: main.c:320
 msgid ""
 "  -l [N], --load-average[=N], --max-load[=N]\n"
 "                              Don't start multiple jobs unless load is below "
@@ -849,7 +785,13 @@ msgstr ""
 "                              Ne pokreæi vi¹estruke poslove, osim ako pri\n"
 "                              optereæenju ispod N.\n"
 
-#: main.c:300
+#: main.c:323
+msgid ""
+"  -L, --check-symlink-times   Use the latest mtime between symlinks and "
+"target.\n"
+msgstr ""
+
+#: main.c:325
 msgid ""
 "  -n, --just-print, --dry-run, --recon\n"
 "                              Don't actually run any commands; just print "
@@ -859,7 +801,7 @@ msgstr ""
 "                              Nemoj zapravo pokrenuti nijednu naredbu;\n"
 "                              samo ih ispi¹i.\n"
 
-#: main.c:303
+#: main.c:328
 msgid ""
 "  -o FILE, --old-file=FILE, --assume-old=FILE\n"
 "                              Consider FILE to be very old and don't remake "
@@ -869,11 +811,11 @@ msgstr ""
 "                              Smatraj da je SPIS vrlo star i nemoj ga\n"
 "                              ponovo napraviti.\n"
 
-#: main.c:306
+#: main.c:331
 msgid "  -p, --print-data-base       Print make's internal database.\n"
 msgstr "  -p, --print-data-base       Ispi¹i makeovu internu bazu.\n"
 
-#: main.c:308
+#: main.c:333
 msgid ""
 "  -q, --question              Run no commands; exit status says if up to "
 "date.\n"
@@ -881,20 +823,20 @@ msgstr ""
 "  -q, --question              Ne pokreæi naredbe; izlazni status oznaèava\n"
 "                              je li sve a¾urirano.\n"
 
-#: main.c:310
+#: main.c:335
 msgid "  -r, --no-builtin-rules      Disable the built-in implicit rules.\n"
 msgstr "  -r, --no-builtin-rules      Onemoguæi ugraðene implicitne propise.\n"
 
-#: main.c:312
+#: main.c:337
 msgid "  -R, --no-builtin-variables  Disable the built-in variable settings.\n"
 msgstr ""
 "  -R, --no-builtin-variables  Onemoguæi ugraðene vrijednosti varijabli.\n"
 
-#: main.c:314
+#: main.c:339
 msgid "  -s, --silent, --quiet       Don't echo commands.\n"
 msgstr "  -s, --silent, --quiet       Ne ispisuj naredbe.\n"
 
-#: main.c:316
+#: main.c:341
 msgid ""
 "  -S, --no-keep-going, --stop\n"
 "                              Turns off -k.\n"
@@ -902,21 +844,21 @@ msgstr ""
 "  -S, --no-keep-going, --stop\n"
 "                              Iskljuèuje -k.\n"
 
-#: main.c:319
+#: main.c:344
 msgid "  -t, --touch                 Touch targets instead of remaking them.\n"
 msgstr ""
 "  -t, --touch                 Dodirni mete umjesto da ih ponovo izraðuje¹.\n"
 
-#: main.c:321
+#: main.c:346
 msgid ""
 "  -v, --version               Print the version number of make and exit.\n"
 msgstr "  -v, --version               Ispi¹i verziju makea i izaði.\n"
 
-#: main.c:323
+#: main.c:348
 msgid "  -w, --print-directory       Print the current directory.\n"
 msgstr "  -w, --print-directory       Ispi¹i trenutni direktorij.\n"
 
-#: main.c:325
+#: main.c:350
 msgid ""
 "  --no-print-directory        Turn off -w, even if it was turned on "
 "implicitly.\n"
@@ -924,7 +866,7 @@ msgstr ""
 "  --no-print-directory        Iskljuèi -w, èak i ako je implicitno "
 "ukljuèen.\n"
 
-#: main.c:327
+#: main.c:352
 msgid ""
 "  -W FILE, --what-if=FILE, --new-file=FILE, --assume-new=FILE\n"
 "                              Consider FILE to be infinitely new.\n"
@@ -932,7 +874,7 @@ msgstr ""
 "  -W SPIS, --what-if=SPIS, --new-file=SPIS, --assume-new=SPIS\n"
 "                              Smatraj SPIS beskonaèno novim.\n"
 
-#: main.c:330
+#: main.c:355
 msgid ""
 "  --warn-undefined-variables  Warn when an undefined variable is "
 "referenced.\n"
@@ -940,28 +882,28 @@ msgstr ""
 "  --warn-undefined-variables  Upozori kad se referencira nedefinirana "
 "varijabla.\n"
 
-#: main.c:512
+#: main.c:549
 msgid "empty string invalid as file name"
 msgstr "prazan string nije valjan naziv spisa"
 
-#: main.c:591
+#: main.c:630
 #, c-format
 msgid "unknown debug level specification `%s'"
 msgstr "nepoznata naznaka nivoa debuga `%s'"
 
-#: main.c:631
-#, c-format
-msgid "%s: Interrupt/Exception caught (code = 0x%x, addr = 0x%x)\n"
+#: main.c:670
+#, fuzzy, c-format
+msgid "%s: Interrupt/Exception caught (code = 0x%lx, addr = 0x%lx)\n"
 msgstr "%s: Prekid/Iznimka uhvaæena (code = 0x%x, addr = 0x%x)\n"
 
-#: main.c:638
-#, c-format
+#: main.c:677
+#, fuzzy, c-format
 msgid ""
 "\n"
 "Unhandled exception filter called from program %s\n"
-"ExceptionCode = %x\n"
-"ExceptionFlags = %x\n"
-"ExceptionAddress = %x\n"
+"ExceptionCode = %lx\n"
+"ExceptionFlags = %lx\n"
+"ExceptionAddress = %lx\n"
 msgstr ""
 "\n"
 "Filter neobraðene iznimke pozvan iz programa %s\n"
@@ -969,152 +911,157 @@ msgstr ""
 "ExceptionFlags = %x\n"
 "ExceptionAddress = %x\n"
 
-#: main.c:646
-#, c-format
-msgid "Access violation: write operation at address %x\n"
+#: main.c:685
+#, fuzzy, c-format
+msgid "Access violation: write operation at address %lx\n"
 msgstr "Pristupni prekr¹aj: operacija pisanja na adresi %x\n"
 
-#: main.c:647
-#, c-format
-msgid "Access violation: read operation at address %x\n"
+#: main.c:686
+#, fuzzy, c-format
+msgid "Access violation: read operation at address %lx\n"
 msgstr "Pristupni prekr¹aj: operacija èitanja na adresi %x\n"
 
-#: main.c:712
+#: main.c:762 main.c:773
 #, c-format
 msgid "find_and_set_shell setting default_shell = %s\n"
 msgstr "find_and_set_shell postavljam default_shell = %s\n"
 
-#: main.c:755
+#: main.c:814
 #, c-format
 msgid "find_and_set_shell path search set default_shell = %s\n"
 msgstr "find_and_set_shell pretraga staze postavljam default_shell = %s\n"
 
-#: main.c:1111
+#: main.c:1236
 #, c-format
 msgid "%s is suspending for 30 seconds..."
 msgstr "%s se zaustavlja na 30 sekundi..."
 
-#: main.c:1113
+#: main.c:1238
 #, c-format
 msgid "done sleep(30). Continuing.\n"
 msgstr "gotov sa sleep(30).  Nastavljam.\n"
 
-#: main.c:1326
+#: main.c:1466
 msgid "Makefile from standard input specified twice."
 msgstr "Makefile sa standardnog ulaza naveden dvaput."
 
-#: main.c:1371
+#: main.c:1505 vmsjobs.c:486
+msgid "fopen (temporary file)"
+msgstr "fopen (privremeni spis)"
+
+#: main.c:1511
 msgid "fwrite (temporary file)"
 msgstr "fwrite(privremeni spis)"
 
-#: main.c:1459
-msgid "Do not specify -j or --jobs if sh.exe is not available."
-msgstr "Nemojte koristiti -j ili --jobs ako sh.exe nije dostupan."
-
-#: main.c:1460
-msgid "Resetting make for single job mode."
-msgstr "Resetiram make u mod jednog posla."
-
-#: main.c:1501
+#: main.c:1640
 msgid "Parallel jobs (-j) are not supported on this platform."
 msgstr "Paralelni poslovi (-j) nisu podr¾ani na ovoj platformi."
 
-#: main.c:1502
+#: main.c:1641
 msgid "Resetting to single job (-j1) mode."
 msgstr "Resetiram na mod jednog posla (-j1)."
 
-#: main.c:1517
+#: main.c:1656
 msgid "internal error: multiple --jobserver-fds options"
 msgstr "interna gre¹ja: vi¹estruko pojavljivanje opcije --jobserver-fds"
 
-#: main.c:1525
+#: main.c:1664
 #, c-format
 msgid "internal error: invalid --jobserver-fds string `%s'"
 msgstr "interna gre¹ka: neispravan --jobserver-fds string `%s'"
 
-#: main.c:1535
+#: main.c:1674
 msgid "warning: -jN forced in submake: disabling jobserver mode."
 msgstr "upozorenje: -jN se forsira u pod-makeu: onemoguæujem jobserver mod."
 
 # Treba li ovo prevesti?
-#: main.c:1545
+#: main.c:1684
 msgid "dup jobserver"
 msgstr "dup jobserver"
 
-#: main.c:1548
+#: main.c:1687
 msgid ""
 "warning: jobserver unavailable: using -j1.  Add `+' to parent make rule."
 msgstr ""
 "upozorenje: jobserver nedostupan: koristim -j1.  Dodaj `+' na roditeljev "
 "make propis."
 
-#: main.c:1571
+#: main.c:1710
 msgid "creating jobs pipe"
 msgstr "kreiram pipe za posao"
 
-#: main.c:1584
+#: main.c:1725
 msgid "init jobserver pipe"
 msgstr "prevesti?"
 
-#: main.c:1670
+#: main.c:1744
+msgid "Symbolic links not supported: disabling -L."
+msgstr ""
+
+#: main.c:1820
 msgid "Updating makefiles....\n"
 msgstr "A¾uriram makefileove....\n"
 
-#: main.c:1695
+#: main.c:1845
 #, c-format
 msgid "Makefile `%s' might loop; not remaking it.\n"
 msgstr "Makefile `%s' bi mogao upasti u petlju; ne izgraðujem ga ponovo.\n"
 
-#: main.c:1770
+#: main.c:1924
 #, c-format
 msgid "Failed to remake makefile `%s'."
 msgstr "Nisam uspio ponovo izgraditi makefile `%s'."
 
-#: main.c:1786
+#: main.c:1941
 #, c-format
 msgid "Included makefile `%s' was not found."
 msgstr "Ukljuèeni makefile `%s' ne mo¾e se naæi."
 
-#: main.c:1791
+#: main.c:1946
 #, c-format
 msgid "Makefile `%s' was not found"
 msgstr "Makefile `%s' ne mo¾e se naæi"
 
-#: main.c:1859
+#: main.c:2016
 msgid "Couldn't change back to original directory."
 msgstr "Nisam se mogao vratiti u prvotni direktorij."
 
-#: main.c:1894
-msgid "Re-executing:"
+#: main.c:2024
+#, fuzzy, c-format
+msgid "Re-executing[%u]:"
 msgstr "Ponovo izvr¹avam:"
 
-#: main.c:1949
+#: main.c:2140
 msgid "unlink (temporary file): "
 msgstr "unlink (privremeni spis): "
 
-#: main.c:1972
+#: main.c:2169
+msgid ".DEFAULT_GOAL contains more than one target"
+msgstr ""
+
+#: main.c:2189
 msgid "No targets specified and no makefile found"
 msgstr "Nijedna meta nije navedena, niti je ijedan makefile pronaðen"
 
-#: main.c:1974
+#: main.c:2191
 msgid "No targets"
 msgstr "Nema meta"
 
-#: main.c:1979
+#: main.c:2196
 msgid "Updating goal targets....\n"
 msgstr "A¾uriram ciljne mete....\n"
 
-#: main.c:2005
+#: main.c:2222
 msgid "warning:  Clock skew detected.  Your build may be incomplete."
 msgstr ""
 "upozorenje: uoèena je nepravilnost sata.  Izgradnja bi mogla biti nedovr¹ena."
 
-#: main.c:2158
+#: main.c:2383
 #, c-format
 msgid "Usage: %s [options] [target] ...\n"
 msgstr "Uporaba: %s [opcije] [meta] ...\n"
 
-#: main.c:2164
+#: main.c:2389
 #, c-format
 msgid ""
 "\n"
@@ -1123,7 +1070,7 @@ msgstr ""
 "\n"
 "Program sastavljen za %s\n"
 
-#: main.c:2166
+#: main.c:2391
 #, c-format
 msgid ""
 "\n"
@@ -1132,22 +1079,22 @@ msgstr ""
 "\n"
 "Program sastavljen za %s (%s)\n"
 
-#: main.c:2169
+#: main.c:2394
 #, c-format
 msgid "Report bugs to <bug-make@gnu.org>\n"
 msgstr "Uoèene gre¹ke prijavite na adresu <bug-make@gnu.org>.\n"
 
-#: main.c:2241
+#: main.c:2466
 #, fuzzy, c-format
 msgid "the `-%c' option requires a non-empty string argument"
 msgstr "opcija `-%c' tra¾i pozitivan cjelobrojni argument"
 
-#: main.c:2293
+#: main.c:2518
 #, c-format
 msgid "the `-%c' option requires a positive integral argument"
 msgstr "opcija `-%c' tra¾i pozitivan cjelobrojni argument"
 
-#: main.c:2717
+#: main.c:2942
 #, c-format
 msgid ""
 "%sThis is free software; see the source for copying conditions.\n"
@@ -1158,7 +1105,7 @@ msgstr ""
 "%sNema NIKAKVOG jamstva, èak ni za PROIZVODNOST ili UPOTREBLJIVOST ZA\n"
 "%sPOJEDINU SVRHU.\n"
 
-#: main.c:2723
+#: main.c:2948
 #, fuzzy, c-format
 msgid ""
 "\n"
@@ -1167,7 +1114,7 @@ msgstr ""
 "\n"
 "Program sastavljen za %s\n"
 
-#: main.c:2725
+#: main.c:2950
 #, fuzzy, c-format
 msgid ""
 "\n"
@@ -1176,7 +1123,7 @@ msgstr ""
 "\n"
 "Program sastavljen za %s (%s)\n"
 
-#: main.c:2743
+#: main.c:2968
 #, c-format
 msgid ""
 "\n"
@@ -1185,7 +1132,7 @@ msgstr ""
 "\n"
 "# Makeova baza, ispisana na %s"
 
-#: main.c:2752
+#: main.c:2978
 #, c-format
 msgid ""
 "\n"
@@ -1194,116 +1141,127 @@ msgstr ""
 "\n"
 "# Kraj Makeove baze na %s\n"
 
-#: main.c:2822
+#: main.c:3101
 #, fuzzy, c-format
 msgid "%s: Entering an unknown directory\n"
 msgstr "%s: Ulazim u nepoznat direktorij"
 
-#: main.c:2824
+#: main.c:3103
 #, fuzzy, c-format
 msgid "%s: Leaving an unknown directory\n"
 msgstr "%s: Izlazim iz nepoznatog direktorija"
 
-#: main.c:2827
+#: main.c:3106
 #, c-format
 msgid "%s: Entering directory `%s'\n"
 msgstr "%s: Ulazim u direktorij `%s'\n"
 
-#: main.c:2830
+#: main.c:3109
 #, c-format
 msgid "%s: Leaving directory `%s'\n"
 msgstr "%s: Izlazim iz direktorija `%s'\n"
 
-#: main.c:2835
+#: main.c:3114
 #, fuzzy, c-format
 msgid "%s[%u]: Entering an unknown directory\n"
 msgstr "%s[%u]: Ulazim u nepoznat direktorij"
 
-#: main.c:2838
+#: main.c:3117
 #, fuzzy, c-format
 msgid "%s[%u]: Leaving an unknown directory\n"
 msgstr "%s[%u]: Izlazim iz nepoznatog direktorija"
 
-#: main.c:2842
+#: main.c:3121
 #, c-format
 msgid "%s[%u]: Entering directory `%s'\n"
 msgstr "%s[%u]: Ulazim u direktorij `%s'\n"
 
-#: main.c:2845
+#: main.c:3124
 #, c-format
 msgid "%s[%u]: Leaving directory `%s'\n"
 msgstr "%s[%u]: Izlazim iz direktorija `%s'\n"
 
-#: misc.c:303
+#: misc.c:285
 msgid ".  Stop.\n"
 msgstr ".  Zaustavi.\n"
 
-#: misc.c:324
+#: misc.c:306
 #, c-format
 msgid "Unknown error %d"
 msgstr "Nepoznata gre¹ka %d"
 
-#: misc.c:334
+#: misc.c:316
 #, c-format
 msgid "%s%s: %s"
 msgstr "%s%s: %s"
 
-#: misc.c:342
+#: misc.c:324
 #, c-format
 msgid "%s: %s"
 msgstr "%s: %s"
 
-#: misc.c:362 misc.c:377 misc.c:394 read.c:3104
+#: misc.c:344 misc.c:359 misc.c:376 read.c:3127
 msgid "virtual memory exhausted"
 msgstr "prividna memorija potro¹ena"
 
 # Da prevedem ovo?
-#: misc.c:628
+#: misc.c:646
 #, c-format
 msgid "%s: user %lu (real %lu), group %lu (real %lu)\n"
 msgstr "%s: user %lu (real %lu), group %lu (real %lu)\n"
 
-#: misc.c:649
+#: misc.c:667
 msgid "Initialized access"
 msgstr "Inicijaliziran pristup"
 
-#: misc.c:728
+#: misc.c:746
 msgid "User access"
 msgstr "Korisnièki pristup"
 
-#: misc.c:776
+#: misc.c:794
 msgid "Make access"
 msgstr "Makeov pristup"
 
-#: misc.c:810
+#: misc.c:828
 msgid "Child access"
 msgstr "Pristup djeteta"
 
-#: read.c:158
+#: misc.c:892
+#, fuzzy, c-format
+msgid "write error: %s"
+msgstr "Preusmjerio gre¹ke u %s\n"
+
+# ©to bi ovdje trebalo iæi?
+#: misc.c:894
+#, fuzzy
+msgid "write error"
+msgstr "write jobserver"
+
+#: read.c:160
 msgid "Reading makefiles...\n"
 msgstr "Èitam makefileove...\n"
 
-#: read.c:316
+#: read.c:315
 #, c-format
 msgid "Reading makefile `%s'"
 msgstr "Èitam makefile `%s'"
 
-#: read.c:318
+#: read.c:317
 #, c-format
 msgid " (no default goal)"
 msgstr " (nema podrazumijevanog cilja)"
 
-#: read.c:320
+#: read.c:319
 #, c-format
 msgid " (search path)"
 msgstr " (staza za pretra¾ivanje)"
 
-#: read.c:322
+#: read.c:321
 #, c-format
 msgid " (don't care)"
 msgstr " (nije va¾no)"
 
-#: read.c:324
+#: read.c:323
 #, c-format
 msgid " (no ~ expansion)"
 msgstr " (bez ekspanzije ~)"
@@ -1312,133 +1270,122 @@ msgstr " (bez ekspanzije ~)"
 msgid "invalid syntax in conditional"
 msgstr "neispravna sintaksa uvjeta"
 
-#: read.c:632
+#: read.c:633
 msgid "extraneous `endef'"
 msgstr "suvi¹an `endef'"
 
-#: read.c:644 read.c:672 variable.c:1229
+#: read.c:645 read.c:673 variable.c:1316
 msgid "empty variable name"
 msgstr "prazno ime varijable"
 
-#: read.c:661
+#: read.c:662
 msgid "empty `override' directive"
 msgstr "prazna direktiva `ovverride'"
 
-#: read.c:686
+#: read.c:687
 msgid "invalid `override' directive"
 msgstr "neispravna direktiva `override'"
 
-#: read.c:801
-#, c-format
-msgid "no file name for `%sinclude'"
-msgstr "nedostaje naziv spisa za `%sinclude'"
-
-#: read.c:864
+#: read.c:854
 msgid "commands commence before first target"
 msgstr "naredbe poèinju prije prve mete"
 
-#: read.c:915
+#: read.c:905
 msgid "missing rule before commands"
 msgstr "nedostaje propis prije naredbi"
 
 # Grr, ¾ivjela engleska mno¾ina!  I ¹to sad da radim s onim %s-om?
-#: read.c:1001
+#: read.c:992
 #, c-format
 msgid "missing separator%s"
 msgstr "nedostaju separatori-%s"
 
-#: read.c:1003
+#: read.c:994
 msgid " (did you mean TAB instead of 8 spaces?)"
 msgstr " (jeste li mislili na TAB umjesto 8 razmaka?)"
 
-#: read.c:1173
+#: read.c:1152
 msgid "missing target pattern"
 msgstr "nedostaje uzorak mete"
 
-#: read.c:1175
+#: read.c:1154
 msgid "multiple target patterns"
 msgstr "vi¹estruki uzorci meta"
 
-#: read.c:1179
+#: read.c:1158
 #, c-format
 msgid "target pattern contains no `%%'"
 msgstr "uzorak mete ne sadr¾i `%%'"
 
-#: read.c:1238
+#: read.c:1286
 msgid "missing `endif'"
 msgstr "nedostaje `endif'"
 
-#: read.c:1314
+#: read.c:1377
 msgid "Extraneous text after `endef' directive"
 msgstr "Suvi¹an tekst nakon direktive `endef'"
 
-#: read.c:1348
+#: read.c:1411
 msgid "missing `endef', unterminated `define'"
 msgstr "nedostaje `endef', nedovr¹en `define'"
 
-#: read.c:1400 read.c:1568
+#: read.c:1454
 #, c-format
 msgid "Extraneous text after `%s' directive"
 msgstr "Suvi¹an tekst nakon direktive `%s'"
 
-#: read.c:1403
+#: read.c:1463 read.c:1477
 #, c-format
 msgid "extraneous `%s'"
 msgstr "suvi¹an `%s'"
 
-#: read.c:1408
+#: read.c:1482
 msgid "only one `else' per conditional"
 msgstr "samo jedan `else' po uvjetu"
 
-#: read.c:1691
-#, fuzzy
-msgid "Malformed pattern-specific variable definition"
-msgstr "Izoblièena definicija o meti ovisne varijable"
-
-#: read.c:1714
+#: read.c:1824
 #, fuzzy
 msgid "Malformed target-specific variable definition"
 msgstr "Izoblièena definicija o meti ovisne varijable"
 
-#: read.c:1805
+#: read.c:1886
+msgid "prerequisites cannot be defined in command scripts"
+msgstr ""
+
+#: read.c:1921
 msgid "mixed implicit and static pattern rules"
 msgstr "pomije¹ani implicitni i statièki propisi uzorka"
 
-#: read.c:1808
+#: read.c:1924
 msgid "mixed implicit and normal rules"
 msgstr "pomije¹ani implicitni i normalni propisi"
 
-#: read.c:1849
+#: read.c:1954
 #, c-format
 msgid "target `%s' doesn't match the target pattern"
 msgstr "meta `%s' ne odgovara uzorku mete"
 
-#: read.c:1871
-#, c-format
-msgid "target `%s' leaves prerequisite pattern empty"
-msgstr "meta `%s' ostavlja prerekvizitni uzorak praznim"
-
-#: read.c:1985 read.c:2085
+#: read.c:1973 read.c:2074
 #, c-format
 msgid "target file `%s' has both : and :: entries"
 msgstr "spis meta `%s' ima unose i kod : i kod ::"
 
-#: read.c:1991
+#: read.c:1979
 #, c-format
 msgid "target `%s' given more than once in the same rule."
 msgstr "meta `%s' zadan vi¹e nego jednom u istom propisu."
 
-#: read.c:2000
+#: read.c:1988
 #, c-format
 msgid "warning: overriding commands for target `%s'"
 msgstr "upozorenje: poni¹tavam postojeæe naredbe za metu `%s'"
 
-#: read.c:2003
+#: read.c:1991
 #, c-format
 msgid "warning: ignoring old commands for target `%s'"
 msgstr "upozorenje: ignoriram stare naredbe za metu `%s'"
 
-#: read.c:2557
+#: read.c:2575
 msgid "warning: NUL character seen; rest of line ignored"
 msgstr "upozorenje: NUL znak uoèen; ostatak retka se zanemaruje"
 
@@ -1452,42 +1399,52 @@ msgstr "Ni¹ta za napraviti za `%s'."
 msgid "`%s' is up to date."
 msgstr "`%s' je a¾uriran."
 
-#: remake.c:296
+#: remake.c:297
 #, c-format
 msgid "Pruning file `%s'.\n"
 msgstr "Èistim spis `%s'.\n"
 
-#: remake.c:348
+#: remake.c:349
+#, c-format
+msgid "%sNo rule to make target `%s'%s"
+msgstr "%sNema propisa za izradu mete `%s'%s"
+
+#: remake.c:351
+#, c-format
+msgid "%sNo rule to make target `%s', needed by `%s'%s"
+msgstr "%sNema propisa za izradu mete `%s', kojeg tra¾i `%s'%s"
+
+#: remake.c:378
 #, c-format
 msgid "Considering target file `%s'.\n"
 msgstr "Uzimam u razmatranje spis metu `%s'.\n"
 
-#: remake.c:355
+#: remake.c:385
 #, c-format
 msgid "Recently tried and failed to update file `%s'.\n"
 msgstr "Nedavno bezuspje¹no poku¹ao a¾urirati spis `%s'\n"
 
-#: remake.c:359
+#: remake.c:400
 #, c-format
 msgid "File `%s' was considered already.\n"
 msgstr "Spis `%s' veæ je bio uzet u razmatranje.\n"
 
-#: remake.c:369
+#: remake.c:410
 #, c-format
 msgid "Still updating file `%s'.\n"
 msgstr "Jo¹ uvijek a¾uriram spis `%s'.\n"
 
-#: remake.c:372
+#: remake.c:413
 #, c-format
 msgid "Finished updating file `%s'.\n"
 msgstr "Zavr¹io s a¾uriranjem spisa `%s'.\n"
 
-#: remake.c:393
+#: remake.c:434
 #, c-format
 msgid "File `%s' does not exist.\n"
 msgstr "Spis `%s' ne postoji.\n"
 
-#: remake.c:400
+#: remake.c:441
 #, c-format
 msgid ""
 "*** Warning: .LOW_RESOLUTION_TIME file `%s' has a high resolution time stamp"
@@ -1495,153 +1452,143 @@ msgstr ""
 "*** Upozorenje: .LOW_RESOLUTION_TIME spis `%s' ima vremensku oznaku visoke "
 "rezolucije"
 
-#: remake.c:413 remake.c:863
+#: remake.c:454 remake.c:962
 #, c-format
 msgid "Found an implicit rule for `%s'.\n"
 msgstr "Na¹ao implicitni propis za `%s'.\n"
 
-#: remake.c:415 remake.c:865
+#: remake.c:456 remake.c:964
 #, c-format
 msgid "No implicit rule found for `%s'.\n"
 msgstr "Nijedan implicitni propis nisam na¹ao za `%s'.\n"
 
-#: remake.c:421 remake.c:871
+#: remake.c:462 remake.c:970
 #, c-format
 msgid "Using default commands for `%s'.\n"
 msgstr "Koristim podrazumijevane naredbe za `%s'.\n"
 
-#: remake.c:442 remake.c:897
+#: remake.c:484 remake.c:996
 #, c-format
 msgid "Circular %s <- %s dependency dropped."
 msgstr "Kru¾na ovisnost %s <- %s ispu¹tena."
 
-#: remake.c:524
+#: remake.c:601
 #, c-format
 msgid "Finished prerequisites of target file `%s'.\n"
 msgstr "Zavr¹eni prerekviziti spisa mete `%s'.\n"
 
-#: remake.c:530
+#: remake.c:607
 #, c-format
 msgid "The prerequisites of `%s' are being made.\n"
 msgstr "Prerekviziti `%s' su u izradi.\n"
 
-#: remake.c:543
+#: remake.c:620
 #, c-format
 msgid "Giving up on target file `%s'.\n"
 msgstr "Odustajem od spisa mete `%s'.\n"
 
-#: remake.c:548
+#: remake.c:625
 #, c-format
 msgid "Target `%s' not remade because of errors."
 msgstr "Meta `%s' nije ponovo izraðen zbog gre¹aka."
 
 # Nisam siguran da sam ovo ispravno shvatio.
-#: remake.c:600
+#: remake.c:677
 #, c-format
 msgid "Prerequisite `%s' is order-only for target `%s'.\n"
 msgstr "Prerekvizit `%s' slu¾i samo za redosljed pri meti `%s'.\n"
 
-#: remake.c:605
+#: remake.c:682
 #, c-format
 msgid "Prerequisite `%s' of target `%s' does not exist.\n"
 msgstr "Prerekvizit `%s' mete `%s' ne postoji.\n"
 
-#: remake.c:610
+#: remake.c:687
 #, c-format
 msgid "Prerequisite `%s' is newer than target `%s'.\n"
 msgstr "Prerekvizit `%s' noviji je od mete `%s':\n"
 
-#: remake.c:613
+#: remake.c:690
 #, c-format
 msgid "Prerequisite `%s' is older than target `%s'.\n"
 msgstr "Prerekvizit `%s' stariji je od mete `%s'.\n"
 
-#: remake.c:631
+#: remake.c:708
 #, c-format
 msgid "Target `%s' is double-colon and has no prerequisites.\n"
 msgstr "Meta `%s' je dvotoèka, a nema prerekvizita.\n"
 
-#: remake.c:638
+#: remake.c:715
 #, c-format
 msgid "No commands for `%s' and no prerequisites actually changed.\n"
 msgstr "Nema naredbi za `%s', a nijedan prerekvizit nije promijenjen.\n"
 
-#: remake.c:643
+#: remake.c:720
 #, c-format
 msgid "Making `%s' due to always-make flag.\n"
 msgstr "Proizvodim `%s' zbog opcije always-make.\n"
 
-#: remake.c:651
+#: remake.c:728
 #, c-format
 msgid "No need to remake target `%s'"
 msgstr "Nema potrebe ponovo izraditi metu `%s'"
 
-#: remake.c:653
+#: remake.c:730
 #, c-format
 msgid "; using VPATH name `%s'"
 msgstr "; koristim VPATH imena `%s'"
 
-#: remake.c:673
+#: remake.c:750
 #, c-format
 msgid "Must remake target `%s'.\n"
 msgstr "Moram ponovo izgraditi metu `%s'.\n"
 
-#: remake.c:679
+#: remake.c:756
 #, c-format
 msgid "  Ignoring VPATH name `%s'.\n"
 msgstr "  Ignoriram VPATH imena `%s'.\n"
 
-#: remake.c:688
+#: remake.c:765
 #, c-format
 msgid "Commands of `%s' are being run.\n"
 msgstr "Naredbe od `%s' se izvr¹avaju.\n"
 
-#: remake.c:695
+#: remake.c:772
 #, c-format
 msgid "Failed to remake target file `%s'.\n"
 msgstr "Nije uspjela ponovna izrada spisa mete `%s'.\n"
 
-#: remake.c:698
+#: remake.c:775
 #, c-format
 msgid "Successfully remade target file `%s'.\n"
 msgstr "Uspje¹no ponovno izradio spis metu `%s'.\n"
 
-#: remake.c:701
+#: remake.c:778
 #, c-format
 msgid "Target file `%s' needs remade under -q.\n"
 msgstr "Spis meta `%s' treba ponovnu izradu zbog -q.\n"
 
-#: remake.c:1012
-#, c-format
-msgid "%sNo rule to make target `%s'%s"
-msgstr "%sNema propisa za izradu mete `%s'%s"
-
-#: remake.c:1014
-#, c-format
-msgid "%sNo rule to make target `%s', needed by `%s'%s"
-msgstr "%sNema propisa za izradu mete `%s', kojeg tra¾i `%s'%s"
-
-#: remake.c:1224
+#: remake.c:1306
 #, c-format
 msgid "Warning: File `%s' has modification time in the future"
 msgstr "Upozorenje: Spis `%s' ima vrijeme promjene u buduænosti"
 
-#: remake.c:1231
+#: remake.c:1313
 #, c-format
 msgid "Warning: File `%s' has modification time %.2g s in the future"
 msgstr "Upozorenje: Spis `%s' ima vrijeme promjene %.2g s u buduænosti"
 
-#: remake.c:1351
+#: remake.c:1511
 #, c-format
 msgid ".LIBPATTERNS element `%s' is not a pattern"
 msgstr "Element .LIBPATTERNS `%s' nije uzorak"
 
-#: remote-cstms.c:126
+#: remote-cstms.c:125
 #, c-format
 msgid "Customs won't export: %s\n"
 msgstr "Customs neæe eksportirati: %s\n"
 
-#: rule.c:565
+#: rule.c:548
 msgid ""
 "\n"
 "# Implicit Rules"
@@ -1649,7 +1596,7 @@ msgstr ""
 "\n"
 "# Implicitni Propisi"
 
-#: rule.c:580
+#: rule.c:563
 msgid ""
 "\n"
 "# No implicit rules."
@@ -1657,7 +1604,7 @@ msgstr ""
 "\n"
 "# Nema implicitnih propisa."
 
-#: rule.c:583
+#: rule.c:566
 #, c-format
 msgid ""
 "\n"
@@ -1666,213 +1613,235 @@ msgstr ""
 "\n"
 "# %u implicitnih propisa, %u"
 
-#: rule.c:592
+#: rule.c:575
 msgid " terminal."
 msgstr " zavr¹ni."
 
-#: rule.c:600
+#: rule.c:583
 #, c-format
 msgid "BUG: num_pattern_rules wrong!  %u != %u"
 msgstr "BUG: pogre¹an num_pattern_rules!  %u != %u"
 
-#: signame.c:87
+#: signame.c:85
 msgid "unknown signal"
 msgstr "nepoznat signal"
 
-#: signame.c:95
+#: signame.c:93
 msgid "Hangup"
 msgstr "Izgubljena veza"
 
-#: signame.c:98
+#: signame.c:96
 msgid "Interrupt"
 msgstr "Prekid"
 
-#: signame.c:101
+#: signame.c:99
 msgid "Quit"
 msgstr "Prestanak"
 
-#: signame.c:104
+#: signame.c:102
 msgid "Illegal Instruction"
 msgstr "Nedopu¹tena instrukcija"
 
-#: signame.c:107
+#: signame.c:105
 msgid "Trace/breakpoint trap"
 msgstr "Zamka za slijed/prekidnu toèku"
 
-#: signame.c:112
+#: signame.c:110
 msgid "Aborted"
 msgstr "Otkazan"
 
-#: signame.c:115
+#: signame.c:113
 msgid "IOT trap"
 msgstr "IOT zamka"
 
-#: signame.c:118
+#: signame.c:116
 msgid "EMT trap"
 msgstr "EMT zamja"
 
-#: signame.c:121
+#: signame.c:119
 msgid "Floating point exception"
 msgstr "Iznimka floating pointa"
 
-#: signame.c:124
+#: signame.c:122
 msgid "Killed"
 msgstr "Ubijen"
 
-#: signame.c:127
+#: signame.c:125
 msgid "Bus error"
 msgstr "Sabirnièka gre¹ka"
 
-#: signame.c:130
+#: signame.c:128
 msgid "Segmentation fault"
 msgstr "Segmentacijska gre¹ka"
 
-#: signame.c:133
+#: signame.c:131
 msgid "Bad system call"
 msgstr "Nevaljan sistemski poziv"
 
-#: signame.c:136
+#: signame.c:134
 msgid "Broken pipe"
 msgstr "Prekinut kanal"
 
-#: signame.c:139
+#: signame.c:137
 msgid "Alarm clock"
 msgstr "Budilica"
 
-#: signame.c:142
+#: signame.c:140
 msgid "Terminated"
 msgstr "Terminiran"
 
-#: signame.c:145
+#: signame.c:143
 msgid "User defined signal 1"
 msgstr "Korisnièki definiran signal 1"
 
-#: signame.c:148
+#: signame.c:146
 msgid "User defined signal 2"
 msgstr "Korisnièki definiran signal 2"
 
-#: signame.c:153 signame.c:156
+#: signame.c:151 signame.c:154
 msgid "Child exited"
 msgstr "Dijete iza¹lo"
 
-#: signame.c:159
+#: signame.c:157
 msgid "Power failure"
 msgstr "Nestalo struje"
 
-#: signame.c:162
+#: signame.c:160
 msgid "Stopped"
 msgstr "Zaustavljen"
 
-#: signame.c:165
+#: signame.c:163
 msgid "Stopped (tty input)"
 msgstr "Zaustavljen (unosom s TTY-ja)"
 
-#: signame.c:168
+#: signame.c:166
 msgid "Stopped (tty output)"
 msgstr "Zaustavljen (outputom s TTY-ja)"
 
-#: signame.c:171
+#: signame.c:169
 msgid "Stopped (signal)"
 msgstr "Zaustavljen (signalom)"
 
-#: signame.c:174
+#: signame.c:172
 msgid "CPU time limit exceeded"
 msgstr "prekoraèeno ogranièenje CPU vremena"
 
-#: signame.c:177
+#: signame.c:175
 msgid "File size limit exceeded"
 msgstr "Prekoraèeno ogranièenje velièine spisa"
 
 # Kako prevesti "virtual timer"?
-#: signame.c:180
+#: signame.c:178
 msgid "Virtual timer expired"
 msgstr "Virtualna ¹toperica istekla"
 
 # Kako prevesti "profiling timer"?
-#: signame.c:183
+#: signame.c:181
 msgid "Profiling timer expired"
 msgstr "Profajlerska ¹toperica istekla"
 
-#: signame.c:189
+#: signame.c:187
 msgid "Window changed"
 msgstr "Promijenjen prozor"
 
-#: signame.c:192
+#: signame.c:190
 msgid "Continued"
 msgstr "Nastavljen"
 
-#: signame.c:195
+#: signame.c:193
 msgid "Urgent I/O condition"
 msgstr "Hitno stanje I/O-a"
 
-#: signame.c:202 signame.c:211
+#: signame.c:200 signame.c:209
 msgid "I/O possible"
 msgstr "I/O moguæ"
 
 # Jesu li ova dva signala vic ili ¹to?  U svakom sluèaju, ovo su samo
 # descriptioni.  Za svaki sluèaj, nisam ih dirao.
-#: signame.c:205
+#: signame.c:203
 msgid "SIGWIND"
 msgstr "SIGWIND"
 
-#: signame.c:208
+#: signame.c:206
 msgid "SIGPHONE"
 msgstr "SIGPHONE"
 
-#: signame.c:214
+#: signame.c:212
 msgid "Resource lost"
 msgstr "Izgubljen resurs"
 
-#: signame.c:217
+#: signame.c:215
 msgid "Danger signal"
 msgstr "Signal za opasnost"
 
-#: signame.c:220
+#: signame.c:218
 msgid "Information request"
 msgstr "Zahtjev za informacijom"
 
-#: signame.c:223
+#: signame.c:221
 msgid "Floating point co-processor not available"
 msgstr "Aritmetièki koprocesor nije dostupan."
 
-#: variable.c:1282
+#: strcache.c:210
+#, c-format
+msgid ""
+"\n"
+"%s # of strings in strcache: %d\n"
+msgstr ""
+
+#: strcache.c:211
+#, c-format
+msgid "%s # of strcache buffers: %d\n"
+msgstr ""
+
+#: strcache.c:212
+#, c-format
+msgid "%s strcache size: total = %d / max = %d / min = %d / avg = %d\n"
+msgstr ""
+
+#: strcache.c:214
+#, c-format
+msgid "%s strcache free: total = %d / max = %d / min = %d / avg = %d\n"
+msgstr ""
+
+#: variable.c:1369
 msgid "default"
 msgstr "podrazumijevano"
 
-#: variable.c:1285
+#: variable.c:1372
 msgid "environment"
 msgstr "okoli¹"
 
-#: variable.c:1288
+#: variable.c:1375
 msgid "makefile"
 msgstr "makefile"
 
-#: variable.c:1291
+#: variable.c:1378
 msgid "environment under -e"
 msgstr "okoli¹ pod -e"
 
-#: variable.c:1294
+#: variable.c:1381
 msgid "command line"
 msgstr "komandna linija"
 
-#: variable.c:1297
+#: variable.c:1384
 msgid "`override' directive"
 msgstr "direktiva `override'"
 
-#: variable.c:1300
+#: variable.c:1387
 msgid "automatic"
 msgstr "automatsko"
 
-#: variable.c:1309
+#: variable.c:1396
 #, c-format
 msgid " (from `%s', line %lu)"
 msgstr " (iz `%s', redak %lu):"
 
-#: variable.c:1351
+#: variable.c:1438
 msgid "# variable set hash-table stats:\n"
 msgstr "# hash table statistike varijabli:\n"
 
-#: variable.c:1362
+#: variable.c:1449
 msgid ""
 "\n"
 "# Variables\n"
@@ -1880,7 +1849,7 @@ msgstr ""
 "\n"
 "# Varijable\n"
 
-#: variable.c:1366
+#: variable.c:1453
 #, fuzzy
 msgid ""
 "\n"
@@ -1889,7 +1858,7 @@ msgstr ""
 "\n"
 "# Uzorcima svojstvene vrijednosti varijabli"
 
-#: variable.c:1380
+#: variable.c:1467
 msgid ""
 "\n"
 "# No pattern-specific variable values."
@@ -1897,7 +1866,7 @@ msgstr ""
 "\n"
 "# Nema uzorcima svojstvenih vrijednosti varijabli."
 
-#: variable.c:1382
+#: variable.c:1469
 #, c-format
 msgid ""
 "\n"
@@ -1906,17 +1875,88 @@ msgstr ""
 "\n"
 "# %u uzorcima svojstvenih vrijednosti varijabli"
 
-#: variable.h:188
+#: variable.h:189
 #, c-format
 msgid "warning: undefined variable `%.*s'"
 msgstr "upozorenje: nedefinirana varijabla `%.*s'"
 
-#: vmsfunctions.c:78
+#: vmsfunctions.c:94
 #, c-format
 msgid "sys$search failed with %d\n"
 msgstr "sys$search je zatajila s %d\n"
 
-#: vpath.c:552
+#: vmsjobs.c:71
+#, c-format
+msgid "Warning: Empty redirection\n"
+msgstr "Upozorenje: Prazno preusmjeravanje\n"
+
+#: vmsjobs.c:175
+#, c-format
+msgid "internal error: `%s' command_state"
+msgstr "unutra¹nja gre¹ka: `%s' command_state"
+
+#: vmsjobs.c:268
+#, c-format
+msgid "-warning, CTRL-Y will leave sub-process(es) around.\n"
+msgstr "-upozorenje, CTRL-Y æe ostaviti potproces(e) na ¾ivotu.\n"
+
+#: vmsjobs.c:284
+#, c-format
+msgid "-warning, you may have to re-enable CTRL-Y handling from DCL.\n"
+msgstr ""
+"-upozorenje, mo¾da æete morati ponovo omoguæiti obradu CTRL-Y iz DCL-a.\n"
+
+#: vmsjobs.c:407
+#, c-format
+msgid "BUILTIN [%s][%s]\n"
+msgstr "UGRAÐEN [%s][%s]\n"
+
+#: vmsjobs.c:418
+#, c-format
+msgid "BUILTIN CD %s\n"
+msgstr "UGRAÐEN CD %s\n"
+
+#: vmsjobs.c:436
+#, c-format
+msgid "BUILTIN RM %s\n"
+msgstr "UGRAÐEN RM %s\n"
+
+#: vmsjobs.c:457
+#, c-format
+msgid "Unknown builtin command '%s'\n"
+msgstr "Nepoznata ugraðena naredba `%s'\n"
+
+#: vmsjobs.c:479
+#, c-format
+msgid "Error, empty command\n"
+msgstr "Gre¹ka, prazna naredba\n"
+
+#: vmsjobs.c:491
+#, c-format
+msgid "Redirected input from %s\n"
+msgstr "Preusmjerio ulaz iz %s\n"
+
+#: vmsjobs.c:498
+#, c-format
+msgid "Redirected error to %s\n"
+msgstr "Preusmjerio gre¹ke u %s\n"
+
+#: vmsjobs.c:505
+#, c-format
+msgid "Redirected output to %s\n"
+msgstr "Preusmjerio izlaz u %s\n"
+
+#: vmsjobs.c:568
+#, c-format
+msgid "Executing %s instead\n"
+msgstr "Umjesto toga, izvr¹avam %s\n"
+
+#: vmsjobs.c:668
+#, c-format
+msgid "Error spawning, %d\n"
+msgstr "Gre¹ka pri pokretanju, %d\n"
+
+#: vpath.c:571
 msgid ""
 "\n"
 "# VPATH Search Paths\n"
@@ -1924,11 +1964,11 @@ msgstr ""
 "\n"
 "# VPATH staze za pretra¾ivanje\n"
 
-#: vpath.c:569
+#: vpath.c:588
 msgid "# No `vpath' search paths."
 msgstr "# Nema `vpath' staza za pretra¾ivanje."
 
-#: vpath.c:571
+#: vpath.c:590
 #, c-format
 msgid ""
 "\n"
@@ -1937,7 +1977,7 @@ msgstr ""
 "\n"
 "# %u `vpath' staza za pretra¾ivanje.\n"
 
-#: vpath.c:574
+#: vpath.c:593
 msgid ""
 "\n"
 "# No general (`VPATH' variable) search path."
@@ -1945,7 +1985,7 @@ msgstr ""
 "\n"
 "# Nema opæe (iz varijable `VPATH') staze za pretra¾ivanje."
 
-#: vpath.c:580
+#: vpath.c:599
 msgid ""
 "\n"
 "# General (`VPATH' variable) search path:\n"
@@ -1961,6 +2001,18 @@ msgstr ""
 # Nepo¾etene ili nepo¾njete?
 #~ msgid "Got a SIGCHLD; %u unreaped children.\n"
 #~ msgstr "Dobio SIGCHLD; %u nepo¾etene djece.\n"
+
+#~ msgid "Do not specify -j or --jobs if sh.exe is not available."
+#~ msgstr "Nemojte koristiti -j ili --jobs ako sh.exe nije dostupan."
+
+#~ msgid "Resetting make for single job mode."
+#~ msgstr "Resetiram make u mod jednog posla."
+
+#~ msgid "no file name for `%sinclude'"
+#~ msgstr "nedostaje naziv spisa za `%sinclude'"
+
+#~ msgid "target `%s' leaves prerequisite pattern empty"
+#~ msgstr "meta `%s' ostavlja prerekvizitni uzorak praznim"
 
 #~ msgid ""
 #~ "\n"
