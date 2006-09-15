@@ -1507,10 +1507,16 @@ start_waiting_job (struct child *c)
 
   c->remote = start_remote_job_p (1);
 
+  if (c->file->command_flags & COMMANDS_NOTPARALLEL)
+    {
+      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel + 1, c->file, c->file->name));
+      ++not_parallel;
+    }
+
   /* If we are running at least one job already and the load average
      is too high, make this one wait.  */
   if (!c->remote 
-      && ((job_slots_used > 0 && (not_parallel || (c->file->command_flags & COMMANDS_NOTPARALLEL) || load_too_high ()))
+      && ((job_slots_used > 0 && (not_parallel > 0 || load_too_high ()))
 #ifdef WINDOWS32
 	  || (process_used_slots () >= MAXIMUM_WAIT_OBJECTS)
 #endif
@@ -1532,13 +1538,6 @@ start_waiting_job (struct child *c)
         waiting_jobs = c;
       DB (DB_KMK, (_("queued child %p (`%s')\n"), c, c->file->name));
       return 0;
-    }
-
-  if (c->file->command_flags & COMMANDS_NOTPARALLEL)
-    {
-      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel + 1, c->file, c->file->name));
-      assert(not_parallel == 0);
-      ++not_parallel;
     }
 
 
@@ -1828,7 +1827,8 @@ new_job (struct file *file)
     /* Since there is only one job slot, make things run linearly.
        Wait for the child to die, setting the state to `cs_finished'.  */
     while (file->command_state == cs_running
-        && (job_slots == 1 || not_parallel > 0))
+        && (job_slots == 1 || not_parallel > 0)
+        && (children != 0 || shell_function_pid != 0) /* reap_child condition - hackish! */)
       reap_children (1, 0);
 
   return;
@@ -1978,6 +1978,13 @@ start_waiting_jobs (void)
       /* Take a job off the waiting list.  */
       job = waiting_jobs;
       waiting_jobs = job->next;
+
+      /* we've already counted it. */
+      if (job->file->command_flags & COMMANDS_NOTPARALLEL)
+        {
+          DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [waiting job]\n"), not_parallel, not_parallel - 1, job->file, job->file->name));
+          --not_parallel;
+        }
 
       /* Try to start that job.  We break out of the loop as soon
 	 as start_waiting_job puts one back on the waiting list.  */

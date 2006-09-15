@@ -1,4 +1,4 @@
-/* $Id: ChangeLog 515 2006-09-15 08:23:14Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 516 2006-09-15 09:15:26Z knut.osmundsen@oracle.com $ */
 
 2006-09-15:
     - kBuild/bin/x86.win32/kmk.exe:
@@ -8,7 +8,7 @@
     - kBuild/bin/x86.linux/kmk:
         o Built new code on system360.
     - src/gmake:
-        o Fixed a loop for ever condtion in new_job related to multiple jobs (-j).
+        o Some parallel job fixes.
         o Regenerated config.h.linux on system360.
         o Fixed stat("dir/", &st) on windows and some warnings.
         o Merge with GNU Make v3.81 (vendor/gnumake/2005-05-16 -> vendor/gnumake/current).
