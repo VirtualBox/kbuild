@@ -1,4 +1,4 @@
-# $Id: header.kmk 480 2006-07-22 20:40:51Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 513 2006-09-15 07:38:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -463,11 +463,7 @@ endif
 ## DIRDEP - make create directory dependencies.
 #
 # @param	$1	The paths to the directories which must be created.
-ifeq ($(filter-out win32 win64 win nt,$(BUILD_PLATFORM)),)
-DIRDEP = $(patsubst %/,%,$(1))
-else
 DIRDEP = $(foreach path,$(patsubst %/,%,$(1)),$(path)/)
-endif
 
 
 ## Cygwin kludge.

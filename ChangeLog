@@ -1,7 +1,15 @@
-/* $Id: ChangeLog 503 2006-09-15 05:09:38Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 513 2006-09-15 07:38:49Z knut.osmundsen@oracle.com $ */
 
 2006-09-15:
+    - kBuild/bin/x86.win32/kmk.exe:
+        o Built new code.
+    - kBuild/header.kmk:
+        o DIRDEP is now the same on all platforms (fixed with 3.81 merge).
+    - kBuild/bin/x86.linux/kmk:
+        o Built new code on system360.
     - src/gmake:
+        o Regenerated config.h.linux on system360.
+        o Fixed stat("dir/", &st) on windows and some warnings.
         o Merge with GNU Make v3.81 (vendor/gnumake/2005-05-16 -> vendor/gnumake/current).
 
 2006-03-26:
