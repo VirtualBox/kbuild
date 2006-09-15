@@ -2942,20 +2942,46 @@ print_version (void)
      year, and none of the rest of it should be translated (including the
      word "Copyright", so it hardly seems worth it.  */
 
+#ifdef KMK
+  printf ("%skmk - The kBuild Make Program\n\
+\n\
+%sBased on GNU Make %s:\n\
+%s Copyright (C) 2006  Free Software Foundation, Inc.\n\
+\n\
+%skBuild Modifications:\n\
+%s Copyright (C) 2005-2006  Knut St. Osmundsen.\n\
+\n\
+%skmkbuiltin commands derived from *BSD sources:\n\
+%s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
+%s  The Regents of the University of California. All rights reserved.\n\
+%s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n\
+%s\n",
+          precede, precede, version_string, precede, precede, precede,
+          precede, precede, precede, precede, precede);
+#else
   printf ("%sGNU Make %s\n\
 %sCopyright (C) 2006  Free Software Foundation, Inc.\n",
           precede, version_string, precede);
+#endif
 
   printf (_("%sThis is free software; see the source for copying conditions.\n\
 %sThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n\
 %sPARTICULAR PURPOSE.\n"),
             precede, precede, precede);
 
+#ifdef KMK
+  if (!remote_description || *remote_description == '\0')
+    printf (_("\n%sThis program built for %s [" __DATE__ " " __TIME__ "]\n"), precede, make_host);
+  else
+    printf (_("\n%sThis program built for %s (%s) [" __DATE__ " " __TIME__ "]\n"),
+            precede, make_host, remote_description);
+#else
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program built for %s\n"), precede, make_host);
   else
     printf (_("\n%sThis program built for %s (%s)\n"),
             precede, make_host, remote_description);
+#endif
 
   printed_version = 1;
 
