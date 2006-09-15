@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 503 2006-09-15 05:09:38Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 505 2006-09-15 05:52:13Z knut.osmundsen@oracle.com $
 
 
 #
@@ -185,7 +185,12 @@ include $(PATH_KBUILD)/rules.kmk
 #
 # Use checked in config.h instead of running ./Configure for it.
 #			
-$(PATH_TARGET)/config.h: config.h.$(BUILD_TARGET)
+config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
+config.h.win32 := config.h.W32
+config.h.win64 := config.h.W32
+config.h.nt    := config.h.W32
+
+$(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET))
 	$(MKDIR) -p $(dir $@)
 	$(CP) $^ $@
 
