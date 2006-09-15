@@ -2256,7 +2256,10 @@ struct nameseq *
 parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 {
   struct nameseq *new = 0;
-  struct nameseq *new1, *lastnew1;
+  struct nameseq *new1;
+#ifndef NO_ARCHIVES
+  struct nameseq *lastnew1;
+#endif 
   char *p = *stringp;
   char *q;
   char *name;
