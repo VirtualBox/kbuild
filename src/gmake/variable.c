@@ -103,6 +103,11 @@ lookup_pattern_var (struct pattern_var *start, char *target)
 /* Hash table of all global variable definitions.  */
 
 #ifdef KMK
+# ifdef _MSC_VER
+#  define inline _inline
+typedef signed int int32_t;
+typedef signed short int int16_t;
+# endif 
 static inline unsigned long variable_hash_b(register const unsigned char *var, register int length)
 {
     register unsigned long hash = 0;
