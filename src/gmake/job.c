@@ -563,7 +563,13 @@ reap_children (int block, int err)
           if (completed_child)
             {
               pid = completed_child->pid;
+# if defined(WINDOWS32)
+              exit_code = completed_child->status;
+              exit_sig = 0;
+              coredump = 0;
+# else
               status = (WAIT_T)completed_child->status;
+# endif 
             }
           else
 #endif
