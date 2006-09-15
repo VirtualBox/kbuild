@@ -1827,7 +1827,8 @@ new_job (struct file *file)
   if (job_slots == 1 || not_parallel > 0)
     /* Since there is only one job slot, make things run linearly.
        Wait for the child to die, setting the state to `cs_finished'.  */
-    while (file->command_state == cs_running)
+    while (file->command_state == cs_running
+        && (job_slots == 1 || not_parallel > 0))
       reap_children (1, 0);
 
   return;
