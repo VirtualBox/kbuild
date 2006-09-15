@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 476 2006-07-16 05:08:33Z knut.osmundsen@oracle.com $
+# $Id: env.sh 518 2006-09-15 20:18:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
