@@ -1,21 +1,20 @@
 /* Pattern and suffix rule internals for GNU Make.
-Copyright (C) 1988,89,90,91,92,93, 1998 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "dep.h"
@@ -202,11 +201,8 @@ convert_suffix_rule (char *target, char *source, struct commands *cmds)
       depname = xmalloc (1 + len + 1);
       depname[0] = '%';
       bcopy (source, depname + 1, len + 1);
-      deps = (struct dep *) xmalloc (sizeof (struct dep));
-      deps->next = 0;
+      deps = alloc_dep ();
       deps->name = depname;
-      deps->ignore_mtime = 0;
-      deps->need_2nd_expansion = 0;
     }
 
   create_pattern_rule (names, percents, 0, deps, cmds, 0);
@@ -428,7 +424,8 @@ freerule (struct rule *rule, struct rule *lastrule)
       t = dep->next;
       /* We might leak dep->name here, but I'm not sure how to fix this: I
          think that pointer might be shared (e.g., in the file hash?)  */
-      free ((char *) dep);
+      dep->name = 0; /* Make sure free_dep does not free name.  */
+      free_dep (dep);
       dep = t;
     }
 
@@ -476,8 +473,8 @@ create_pattern_rule (char **targets, char **target_percents,
 		     int terminal, struct dep *deps,
                      struct commands *commands, int override)
 {
-  register struct rule *r = (struct rule *) xmalloc (sizeof (struct rule));
-  register unsigned int max_targets, i;
+  unsigned int max_targets, i;
+  struct rule *r = (struct rule *) xmalloc (sizeof (struct rule));
 
   r->cmds = commands;
   r->deps = deps;

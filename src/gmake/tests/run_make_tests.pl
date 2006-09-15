@@ -11,10 +11,30 @@
 #                         [-make <make prog>]
 #                        (and others)
 
+# Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
+# 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+# This file is part of GNU Make.
+#
+# GNU Make is free software; you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2, or (at your option) any later version.
+#
+# GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# GNU Make; see the file COPYING.  If not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+
 $valgrind = 0;              # invoke make with valgrind
+$valgrind_args = '--num-callers=15 --tool=memcheck --leak-check=full';
 $pure_log = undef;
 
 require "test_driver.pl";
+
+# Some target systems might not have the POSIX module...
+$has_POSIX = eval { require "POSIX.pm" };
 
 #$SIG{INT} = sub { print STDERR "Caught a signal!\n"; die @_; };
 
@@ -180,12 +200,14 @@ sub print_help
 }
 
 sub get_this_pwd {
-  if ($vos) {
-    $delete_command = "delete_file";
+  $delete_command = 'rm -f';
+  if ($has_POSIX) {
+    $__pwd = POSIX::getcwd();
+  } elsif ($vos) {
+    $delete_command = "delete_file -no_ask";
     $__pwd = `++(current_dir)`;
-  }
-  else {
-    $delete_command = "rm";
+  } else {
+    # No idea... just try using pwd as a last resort.
     chop ($__pwd = `pwd`);
   }
 
@@ -216,7 +238,7 @@ sub set_more_defaults
    #
    # This is probably not specific enough.
    #
-   if ($osname =~ /Windows/i || $osname =~ /MINGW32/i) {
+   if ($osname =~ /Windows/i || $osname =~ /MINGW32/i || $osname =~ /CYGWIN_NT/i) {
      $port_type = 'W32';
    }
    # Bleah, the osname is so variable on DOS.  This kind of bites.
@@ -248,8 +270,11 @@ sub set_more_defaults
 
    # Find the full pathname of Make.  For DOS systems this is more
    # complicated, so we ask make itself.
-   $make_path = `sh -c 'echo "all:;\@echo \\\$(MAKE)" | $make_path -f-'`;
-   chop $make_path;
+   my $mk = `sh -c 'echo "all:;\@echo \\\$(MAKE)" | $make_path -f-'`;
+   chop $mk;
+   $mk or die "FATAL ERROR: Cannot determine the value of \$(MAKE):\n
+'echo \"all:;\@echo \\\$(MAKE)\" | $make_path -f-' failed!\n";
+   $make_path = $mk;
    print "Make\t= `$make_path'\n" if $debug;
 
    $string = `$make_path -v -f /dev/null 2> /dev/null`;
@@ -303,12 +328,11 @@ sub set_more_defaults
    # Set up for valgrind, if requested.
 
    if ($valgrind) {
-#     use POSIX qw(:fcntl_h);
-#     require Fcntl;
      open(VALGRIND, "> valgrind.out")
        || die "Cannot open valgrind.out: $!\n";
      #  -q --leak-check=yes
-     $make_path = "valgrind --num-callers=15 --logfile-fd=".fileno(VALGRIND)." $make_path";
+     exists $ENV{VALGRIND_ARGS} and $valgrind_args = $ENV{VALGRIND_ARGS};
+     $make_path = "valgrind --log-fd=".fileno(VALGRIND)." $valgrind_args $make_path";
      # F_SETFD is 2
      fcntl(VALGRIND, 2, 0) or die "fcntl(setfd) failed: $!\n";
      system("echo Starting on `date` 1>&".fileno(VALGRIND));

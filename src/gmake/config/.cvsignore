@@ -1,6 +1,0 @@
-*.m4
-config.*
-mkinstalldirs
-texinfo.tex
-
-Makefile Makefile.in

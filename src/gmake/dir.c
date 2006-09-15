@@ -1,22 +1,20 @@
 /* Directory hashing for GNU Make.
-Copyright (C) 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-2002,2003 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "hash.h"
@@ -155,7 +153,11 @@ vms_hash (char *name)
   while (*name)
     {
       unsigned char uc = *name;
+#ifdef HAVE_CASE_INSENSITIVE_FS
       h = (h << 4) + (isupper (uc) ? tolower (uc) : uc);
+#else
+      h = (h << 4) + uc;
+#endif
       name++;
       g = h & 0xf0000000;
       if (g)
@@ -285,6 +287,17 @@ directory_contents_hash_2 (const void *key_0)
   return hash;
 }
 
+/* Sometimes it's OK to use subtraction to get this value:
+     result = X - Y;
+   But, if we're not sure of the type of X and Y they may be too large for an
+   int (on a 64-bit system for example).  So, use ?: instead.
+   See Savannah bug #15534.
+
+   NOTE!  This macro has side-effects!
+*/
+
+#define MAKECMP(_x,_y)  ((_x)<(_y)?-1:((_x)==(_y)?0:1))
+
 static int
 directory_contents_hash_cmp (const void *xv, const void *yv)
 {
@@ -296,28 +309,28 @@ directory_contents_hash_cmp (const void *xv, const void *yv)
   ISTRING_COMPARE (x->path_key, y->path_key, result);
   if (result)
     return result;
-  result = x->ctime - y->ctime;
+  result = MAKECMP(x->ctime, y->ctime);
   if (result)
     return result;
 #else
 # ifdef VMS
-  result = x->ino[0] - y->ino[0];
+  result = MAKECMP(x->ino[0], y->ino[0]);
   if (result)
     return result;
-  result = x->ino[1] - y->ino[1];
+  result = MAKECMP(x->ino[1], y->ino[1]);
   if (result)
     return result;
-  result = x->ino[2] - y->ino[2];
+  result = MAKECMP(x->ino[2], y->ino[2]);
   if (result)
     return result;
 # else
-  result = x->ino - y->ino;
+  result = MAKECMP(x->ino, y->ino);
   if (result)
     return result;
 # endif
 #endif /* WINDOWS32 */
 
-  return x->dev - y->dev;
+  return MAKECMP(x->dev, y->dev);
 }
 
 /* Table of directory contents hashed by device and inode number.  */
@@ -415,9 +428,9 @@ find_directory (char *name)
   char* w32_path;
   char  fs_label[BUFSIZ];
   char  fs_type[BUFSIZ];
-  long  fs_serno;
-  long  fs_flags;
-  long  fs_len;
+  unsigned long  fs_serno;
+  unsigned long  fs_flags;
+  unsigned long  fs_len;
 #endif
 #ifdef VMS
   if ((*name == '.') && (*(name+1) == 0))
@@ -626,21 +639,28 @@ dir_contents_file_exists_p (struct directory_contents *dir, char *filename)
        * filesystems force a rehash always as mtime does not change
        * on directories (ugh!).
        */
-      if (dir->path_key
-	  && (dir->fs_flags & FS_FAT
-	      || (stat(dir->path_key, &st) == 0
-		  && st.st_mtime > dir->mtime)))
+      if (dir->path_key)
 	{
-	  /* reset date stamp to show most recent re-process */
-	  dir->mtime = st.st_mtime;
+          if ((dir->fs_flags & FS_FAT) != 0)
+	    {
+	      dir->mtime = time ((time_t *) 0);
+	      rehash = 1;
+	    }
+	  else if (stat(dir->path_key, &st) == 0 && st.st_mtime > dir->mtime)
+	    {
+	      /* reset date stamp to show most recent re-process.  */
+	      dir->mtime = st.st_mtime;
+	      rehash = 1;
+	    }
 
-	  /* make sure directory can still be opened */
-	  dir->dirstream = opendir(dir->path_key);
+          /* If it has been already read in, all done.  */
+	  if (!rehash)
+	    return 0;
 
-	  if (dir->dirstream)
-	    rehash = 1;
-	  else
-	    return 0; /* couldn't re-read - fail */
+          /* make sure directory can still be opened; if not return.  */
+          dir->dirstream = opendir(dir->path_key);
+          if (!dir->dirstream)
+            return 0;
 	}
       else
 #endif

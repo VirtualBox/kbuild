@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 430 2006-03-26 12:40:00Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 503 2006-09-15 05:09:38Z knut.osmundsen@oracle.com $
 
 
 #
@@ -28,6 +28,7 @@ kmk_SOURCES         = \
 	main.c \
 	read.c \
 	hash.c \
+        strcache.c \
 	variable.c \
 	ar.c \
 	arscan.c \

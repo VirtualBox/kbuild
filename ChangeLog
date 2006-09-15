@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 433 2006-03-26 13:03:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 503 2006-09-15 05:09:38Z knut.osmundsen@oracle.com $ */
+
+2006-09-15:
+    - src/gmake:
+        o Merge with GNU Make v3.81 (vendor/gnumake/2005-05-16 -> vendor/gnumake/current).
 
 2006-03-26:
     - kBuild/bin/x86.os2/:

@@ -1,21 +1,20 @@
 /* Builtin function expansion for GNU Make.
-Copyright (C) 1988, 1989, 1991-1997, 1999, 2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "filedef.h"
@@ -493,6 +492,22 @@ func_origin (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+static char *
+func_flavor (char *o, char **argv, const char *funcname UNUSED)
+{
+  register struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
+
+  if (v == 0)
+    o = variable_buffer_output (o, "undefined", 9);
+  else
+    if (v->recursive)
+      o = variable_buffer_output (o, "recursive", 9);
+    else
+      o = variable_buffer_output (o, "simple", 6);
+
+  return o;
+}
+
 #ifdef VMS
 # define IS_PATHSEP(c) ((c) == ']')
 #else
@@ -732,7 +747,7 @@ check_numeric (const char *s, const char *message)
       break;
 
   if (s <= end || end - beg < 0)
-    fatal (reading_file, "%s: '%s'", message, beg);
+    fatal (*expanding_var, "%s: '%s'", message, beg);
 }
 
 
@@ -749,7 +764,8 @@ func_word (char *o, char **argv, const char *funcname UNUSED)
   i =  atoi (argv[0]);
 
   if (i == 0)
-    fatal (reading_file, _("first argument to `word' function must be greater than 0"));
+    fatal (*expanding_var,
+           _("first argument to `word' function must be greater than 0"));
 
 
   end_p = argv[1];
@@ -776,7 +792,7 @@ func_wordlist (char *o, char **argv, const char *funcname UNUSED)
 
   start = atoi (argv[0]);
   if (start < 1)
-    fatal (reading_file,
+    fatal (*expanding_var,
            "invalid first argument to `wordlist' function: `%d'", start);
 
   count = atoi (argv[1]) - start + 1;
@@ -1100,10 +1116,11 @@ func_error (char *o, char **argv, const char *funcname)
 
     case 'i':
       printf ("%s\n", msg);
+      fflush(stdout);
       break;
 
     default:
-      fatal (reading_file, "Internal error: func_error: '%s'", funcname);
+      fatal (*expanding_var, "Internal error: func_error: '%s'", funcname);
   }
 
   /* The warning function expands to the empty string.  */
@@ -1217,6 +1234,110 @@ func_if (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+/*
+  $(or condition1[,condition2[,condition3[...]]])
+
+  A CONDITION is false iff it evaluates to an empty string.  White
+  space before and after CONDITION are stripped before evaluation.
+
+  CONDITION1 is evaluated.  If it's true, then this is the result of
+  expansion.  If it's false, CONDITION2 is evaluated, and so on.  If none of
+  the conditions are true, the expansion is the empty string.
+
+  Once a CONDITION is true no further conditions are evaluated
+  (short-circuiting).
+*/
+
+static char *
+func_or (char *o, char **argv, const char *funcname UNUSED)
+{
+  for ( ; *argv ; ++argv)
+    {
+      const char *begp = *argv;
+      const char *endp = begp + strlen (*argv) - 1;
+      char *expansion;
+      int result = 0;
+
+      /* Find the result of the condition: if it's false keep going.  */
+
+      strip_whitespace (&begp, &endp);
+
+      if (begp > endp)
+        continue;
+
+      expansion = expand_argument (begp, endp+1);
+      result = strlen (expansion);
+
+      /* If the result is false keep going.  */
+      if (!result)
+        {
+          free (expansion);
+          continue;
+        }
+
+      /* It's true!  Keep this result and return.  */
+      o = variable_buffer_output (o, expansion, result);
+      free (expansion);
+      break;
+    }
+
+  return o;
+}
+
+/*
+  $(and condition1[,condition2[,condition3[...]]])
+
+  A CONDITION is false iff it evaluates to an empty string.  White
+  space before and after CONDITION are stripped before evaluation.
+
+  CONDITION1 is evaluated.  If it's false, then this is the result of
+  expansion.  If it's true, CONDITION2 is evaluated, and so on.  If all of
+  the conditions are true, the expansion is the result of the last condition.
+
+  Once a CONDITION is false no further conditions are evaluated
+  (short-circuiting).
+*/
+
+static char *
+func_and (char *o, char **argv, const char *funcname UNUSED)
+{
+  char *expansion;
+  int result;
+
+  while (1)
+    {
+      const char *begp = *argv;
+      const char *endp = begp + strlen (*argv) - 1;
+
+      /* An empty condition is always false.  */
+      strip_whitespace (&begp, &endp);
+      if (begp > endp)
+        return o;
+
+      expansion = expand_argument (begp, endp+1);
+      result = strlen (expansion);
+
+      /* If the result is false, stop here: we're done.  */
+      if (!result)
+        break;
+
+      /* Otherwise the result is true.  If this is the last one, keep this
+         result and quit.  Otherwise go on to the next one!  */
+
+      if (*(++argv))
+        free (expansion);
+      else
+        {
+          o = variable_buffer_output (o, expansion, result);
+          break;
+        }
+    }
+
+  free (expansion);
+
+  return o;
+}
+
 static char *
 func_wildcard (char *o, char **argv, const char *funcname UNUSED)
 {
@@ -1273,8 +1394,8 @@ func_value (char *o, char **argv, const char *funcname UNUSED)
 /*
   \r  is replaced on UNIX as well. Is this desirable?
  */
-void
-fold_newlines (char *buffer, int *length)
+static void
+fold_newlines (char *buffer, unsigned int *length)
 {
   char *dst = buffer;
   char *src = buffer;
@@ -1333,7 +1454,7 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
 		      0,
 		      TRUE,
 		      DUPLICATE_SAME_ACCESS) == FALSE) {
-    fatal (NILF, _("create_child_process: DuplicateHandle(In) failed (e=%d)\n"),
+    fatal (NILF, _("create_child_process: DuplicateHandle(In) failed (e=%ld)\n"),
 	   GetLastError());
 
   }
@@ -1344,12 +1465,12 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
 		      0,
 		      TRUE,
 		      DUPLICATE_SAME_ACCESS) == FALSE) {
-    fatal (NILF, _("create_child_process: DuplicateHandle(Err) failed (e=%d)\n"),
+    fatal (NILF, _("create_child_process: DuplicateHandle(Err) failed (e=%ld)\n"),
 	   GetLastError());
   }
 
   if (!CreatePipe(&hChildOutRd, &hChildOutWr, &saAttr, 0))
-    fatal (NILF, _("CreatePipe() failed (e=%d)\n"), GetLastError());
+    fatal (NILF, _("CreatePipe() failed (e=%ld)\n"), GetLastError());
 
   hProcess = process_init_fd(hIn, hChildOutWr, hErr);
 
@@ -1461,7 +1582,6 @@ static char *
 func_shell (char *o, char **argv, const char *funcname UNUSED)
 {
   char* batch_filename = NULL;
-  unsigned int i;
 
 #ifdef __MSDOS__
   FILE *fpipe;
@@ -1486,7 +1606,10 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
      because target_environment hits a loop trying to expand $(var)
      to put it in the environment.  This is even more confusing when
      var was not explicitly exported, but just appeared in the
-     calling environment.  */
+     calling environment.
+
+  envp = target_environment (NILF);
+  */
 
   envp = environ;
 
@@ -1552,9 +1675,8 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
 #endif
     {
       /* We are the parent.  */
-
       char *buffer;
-      unsigned int maxlen;
+      unsigned int maxlen, i;
       int cc;
 
       /* Record the PID for reap_children.  */
@@ -1617,17 +1739,15 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
 
       if (shell_function_completed == -1)
 	{
-	  /* This most likely means that the execvp failed,
-	     so we should just write out the error message
-	     that came in over the pipe from the child.  */
+	  /* This likely means that the execvp failed, so we should just
+	     write the error message in the pipe from the child.  */
 	  fputs (buffer, stderr);
 	  fflush (stderr);
 	}
       else
 	{
-	  /* The child finished normally.  Replace all
-	     newlines in its output with spaces, and put
-	     that in the variable output buffer.  */
+	  /* The child finished normally.  Replace all newlines in its output
+	     with spaces, and put that in the variable output buffer.  */
 	  fold_newlines (buffer, &i);
 	  o = variable_buffer_output (o, buffer, i);
 	}
@@ -1659,8 +1779,8 @@ func_shell (char *o, char **argv, const char *funcname)
 
   BPTR child_stdout;
   char tmp_output[FILENAME_MAX];
-  unsigned int maxlen = 200;
-  int cc, i;
+  unsigned int maxlen = 200, i;
+  int cc;
   char * buffer, * ptr;
   char ** aptr;
   int len = 0;
@@ -2002,6 +2122,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("filter-out"),    2,  2,  1,  func_filter_filterout},
   { STRING_SIZE_TUPLE("findstring"),    2,  2,  1,  func_findstring},
   { STRING_SIZE_TUPLE("firstword"),     0,  1,  1,  func_firstword},
+  { STRING_SIZE_TUPLE("flavor"),        0,  1,  1,  func_flavor},
   { STRING_SIZE_TUPLE("join"),          2,  2,  1,  func_join},
   { STRING_SIZE_TUPLE("lastword"),      0,  1,  1,  func_lastword},
   { STRING_SIZE_TUPLE("patsubst"),      3,  3,  1,  func_patsubst},
@@ -2020,6 +2141,8 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("error"),         0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("warning"),       0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("if"),            2,  3,  0,  func_if},
+  { STRING_SIZE_TUPLE("or"),            1,  0,  0,  func_or},
+  { STRING_SIZE_TUPLE("and"),           1,  0,  0,  func_and},
   { STRING_SIZE_TUPLE("value"),         0,  1,  1,  func_value},
   { STRING_SIZE_TUPLE("eval"),          0,  1,  1,  func_eval},
 #ifdef EXPERIMENTAL
@@ -2042,8 +2165,8 @@ expand_builtin_function (char *o, int argc, char **argv,
                          const struct function_table_entry *entry_p)
 {
   if (argc < (int)entry_p->minimum_args)
-    fatal (reading_file,
-           _("Insufficient number of arguments (%d) to function `%s'"),
+    fatal (*expanding_var,
+           _("insufficient number of arguments (%d) to function `%s'"),
            argc, entry_p->name);
 
   /* I suppose technically some function could do something with no
@@ -2054,8 +2177,8 @@ expand_builtin_function (char *o, int argc, char **argv,
     return o;
 
   if (!entry_p->func_ptr)
-    fatal (reading_file, _("Unimplemented on this platform: function `%s'"),
-           entry_p->name);
+    fatal (*expanding_var,
+           _("unimplemented on this platform: function `%s'"), entry_p->name);
 
   return entry_p->func_ptr (o, argv, entry_p->name);
 }
@@ -2104,7 +2227,7 @@ handle_function (char **op, char **stringp)
       break;
 
   if (count >= 0)
-    fatal (reading_file,
+    fatal (*expanding_var,
 	   _("unterminated call to function `%s': missing `%c'"),
 	   entry_p->name, closeparen);
 

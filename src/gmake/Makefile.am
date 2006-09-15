@@ -1,7 +1,25 @@
 # This is a -*-Makefile-*-, or close enough
+#
+# Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+# Free Software Foundation, Inc.
+# This file is part of GNU Make.
+#
+# GNU Make is free software; you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 2, or (at your option) any later version.
+#
+# GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# GNU Make; see the file COPYING.  If not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
 
 AUTOMAKE_OPTIONS = 1.8 dist-bzip2 check-news ansi2knr
 ACLOCAL_AMFLAGS	=  -I config
+
+MAKE_HOST =	@MAKE_HOST@
 
 # Only process if target is MS-Windows
 if WINDOWSENV
@@ -24,7 +42,7 @@ endif
 make_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		function.c getopt.c getopt1.c implicit.c job.c main.c \
 		misc.c read.c remake.c $(remote) rule.c signame.c \
-		variable.c version.c vpath.c hash.c
+		strcache.c variable.c version.c vpath.c hash.c
 
 EXTRA_make_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
@@ -49,9 +67,6 @@ endif
 
 
 # Extra stuff to include in the distribution.
-# Note we need all the glob stuff here, rather than in glob/Makefile.am,
-# because often that directory isn't built on the systems used by the
-# maintainers.
 
 EXTRA_DIST =	README build.sh.in $(man_MANS) \
 		README.customs README.OS2 \
@@ -59,11 +74,13 @@ EXTRA_DIST =	README build.sh.in $(man_MANS) \
 		README.Amiga Makefile.ami config.ami make.lnk amiga.c amiga.h \
 		README.DOS Makefile.DOS configure.bat dosbuild.bat configh.dos\
 		README.W32 NMakefile config.h.W32 build_w32.bat subproc.bat \
+		make_msvc_net2003.sln make_msvc_net2003.vcproj \
 		readme.vms makefile.vms makefile.com config.h-vms \
 		vmsdir.h vmsfunctions.c vmsify.c
 
-MAKE_HOST =	@MAKE_HOST@
+# This is built during configure, but behind configure's back
 
+DISTCLEANFILES = build.sh
 
 # Forward targets
 
@@ -136,7 +153,7 @@ check-loadavg: loadavg$(EXEEXT)
 	-./loadavg$(EXEEXT)
 
 # The loadavg function is invoked during "make check" to test getloadavg.
-noinst_PROGRAMS = loadavg
+check_PROGRAMS = loadavg
 nodist_loadavg_SOURCES = getloadavg.c
 loadavg_CPPFLAGS = -DTEST
 loadavg_LDADD = @GETLOADAVG_LIBS@

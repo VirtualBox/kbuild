@@ -1,24 +1,25 @@
 /* Internals of variables for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1996, 1997,
-2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
+
+#include <assert.h>
+
 #include "dep.h"
 #include "filedef.h"
 #include "job.h"
@@ -611,7 +612,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
 void
 initialize_file_variables (struct file *file, int reading)
 {
-  register struct variable_set_list *l = file->variables;
+  struct variable_set_list *l = file->variables;
 
   if (l == 0)
     {
@@ -706,29 +707,6 @@ initialize_file_variables (struct file *file, int reading)
 /* Pop the top set off the current variable set list,
    and free all its storage.  */
 
-static void
-free_variable_name_and_value (const void *item)
-{
-  struct variable *v = (struct variable *) item;
-  free (v->name);
-  free (v->value);
-}
-
-void
-pop_variable_scope (void)
-{
-  struct variable_set_list *setlist = current_variable_set_list;
-  struct variable_set *set = setlist->set;
-
-  current_variable_set_list = setlist->next;
-  free ((char *) setlist);
-
-  hash_map (&set->table, free_variable_name_and_value);
-  hash_free (&set->table, 1);
-
-  free ((char *) set);
-}
-
 struct variable_set_list *
 create_new_variable_set (void)
 {
@@ -747,12 +725,80 @@ create_new_variable_set (void)
   return setlist;
 }
 
-/* Create a new variable set and push it on the current setlist.  */
+static void
+free_variable_name_and_value (const void *item)
+{
+  struct variable *v = (struct variable *) item;
+  free (v->name);
+  free (v->value);
+}
+
+void
+free_variable_set (struct variable_set_list *list)
+{
+  hash_map (&list->set->table, free_variable_name_and_value);
+  hash_free (&list->set->table, 1);
+  free ((char *) list->set);
+  free ((char *) list);
+}
+
+/* Create a new variable set and push it on the current setlist.
+   If we're pushing a global scope (that is, the current scope is the global
+   scope) then we need to "push" it the other way: file variable sets point
+   directly to the global_setlist so we need to replace that with the new one.
+ */
 
 struct variable_set_list *
 push_new_variable_scope (void)
 {
-  return (current_variable_set_list = create_new_variable_set());
+  current_variable_set_list = create_new_variable_set();
+  if (current_variable_set_list->next == &global_setlist)
+    {
+      /* It was the global, so instead of new -> &global we want to replace
+         &global with the new one and have &global -> new, with current still
+         pointing to &global  */
+      struct variable_set *set = current_variable_set_list->set;
+      current_variable_set_list->set = global_setlist.set;
+      global_setlist.set = set;
+      current_variable_set_list->next = global_setlist.next;
+      global_setlist.next = current_variable_set_list;
+      current_variable_set_list = &global_setlist;
+    }
+  return (current_variable_set_list);
+}
+
+void
+pop_variable_scope (void)
+{
+  struct variable_set_list *setlist;
+  struct variable_set *set;
+
+  /* Can't call this if there's no scope to pop!  */
+  assert(current_variable_set_list->next != NULL);
+
+  if (current_variable_set_list != &global_setlist)
+    {
+      /* We're not pointing to the global setlist, so pop this one.  */
+      setlist = current_variable_set_list;
+      set = setlist->set;
+      current_variable_set_list = setlist->next;
+    }
+  else
+    {
+      /* This set is the one in the global_setlist, but there is another global
+         set beyond that.  We want to copy that set to global_setlist, then
+         delete what used to be in global_setlist.  */
+      setlist = global_setlist.next;
+      set = global_setlist.set;
+      global_setlist.set = setlist->set;
+      global_setlist.next = setlist->next;
+    }
+
+  /* Free the one we no longer need.  */
+  free ((char *) setlist);
+  hash_map (&set->table, free_variable_name_and_value);
+  hash_free (&set->table, 1);
+  free ((char *) set);
 }
 
 /* Merge FROM_SET into TO_SET, freeing unused storage in FROM_SET.  */
@@ -787,21 +833,28 @@ void
 merge_variable_set_lists (struct variable_set_list **setlist0,
                           struct variable_set_list *setlist1)
 {
-  register struct variable_set_list *list0 = *setlist0;
+  struct variable_set_list *to = *setlist0;
   struct variable_set_list *last0 = 0;
 
-  while (setlist1 != 0 && list0 != 0)
-    {
-      struct variable_set_list *next = setlist1;
-      setlist1 = setlist1->next;
+  /* If there's nothing to merge, stop now.  */
+  if (!setlist1)
+    return;
 
-      merge_variable_sets (list0->set, next->set);
+  /* This loop relies on the fact that all setlists terminate with the global
+     setlist (before NULL).  If that's not true, arguably we SHOULD die.  */
+  if (to)
+    while (setlist1 != &global_setlist && to != &global_setlist)
+      {
+        struct variable_set_list *from = setlist1;
+        setlist1 = setlist1->next;
 
-      last0 = list0;
-      list0 = list0->next;
-    }
+        merge_variable_sets (to->set, from->set);
 
-  if (setlist1 != 0)
+        last0 = to;
+        to = to->next;
+      }
+
+  if (setlist1 != &global_setlist)
     {
       if (last0 == 0)
 	*setlist0 = setlist1;
@@ -1298,7 +1351,8 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   else
 #endif /* __MSDOS__ */
 #ifdef WINDOWS32
-  if ((origin == o_file || origin == o_override) && streq (varname, "SHELL"))
+  if ((origin == o_file || origin == o_override || origin == o_command)
+      && streq (varname, "SHELL"))
     {
       extern char *default_shell;
 

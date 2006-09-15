@@ -1,22 +1,20 @@
 /* Miscellaneous global declarations and portability cruft for GNU Make.
-Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999,
-2002 Free Software Foundation, Inc.
+Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
-GNU Make is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GNU Make is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2, or (at your option) any later version.
 
-GNU Make is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU Make; see the file COPYING.  If not, write to
-the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+You should have received a copy of the GNU General Public License along with
+GNU Make; see the file COPYING.  If not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 /* We use <config.h> instead of "config.h" so that a compilation
    using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
@@ -42,7 +40,7 @@ char *alloca ();
 
 
 /* Use prototypes if available.  */
-#if defined (__cplusplus) || (defined (__STDC__) && __STDC__)
+#if defined (__cplusplus) || defined (__STDC__)
 # undef  PARAMS
 # define PARAMS(protos)  protos
 #else /* Not C++ or ANSI C.  */
@@ -276,15 +274,14 @@ extern void bzero PARAMS ((char *, int));
 extern void bcopy PARAMS ((const char *b1, char *b2, int));
 # endif
 
-#endif  /* ANSI_STRING.  */
-#undef  ANSI_STRING
-
 /* SCO Xenix has a buggy macro definition in <string.h>.  */
 #undef  strerror
-
-#if !defined(ANSI_STRING) && !defined(__DECC)
+#if !defined(__DECC)
 extern char *strerror PARAMS ((int errnum));
 #endif
+
+#endif  /* !ANSI_STRING.  */
+#undef  ANSI_STRING
 
 #if HAVE_INTTYPES_H
 # include <inttypes.h>
@@ -358,6 +355,11 @@ extern int strcmpi (const char *,const char *);
 # define PATH_SEPARATOR_CHAR ':'
 #endif
 
+/* This is needed for getcwd() and chdir().  */
+#if defined(_MSC_VER) || defined(__BORLANDC__)
+# include <direct.h>
+#endif
+
 #ifdef WINDOWS32
 # include <fcntl.h>
 # include <malloc.h>
@@ -378,7 +380,7 @@ extern int unixy_shell;
 
 struct floc
   {
-    char *filenm;
+    const char *filenm;
     unsigned long lineno;
   };
 #define NILF ((struct floc *)0)
@@ -421,7 +423,6 @@ extern char *find_next_token PARAMS ((char **, unsigned int *));
 extern char *next_token PARAMS ((const char *));
 extern char *end_of_token PARAMS ((const char *));
 extern void collapse_continuations PARAMS ((char *));
-extern void remove_comments PARAMS((char *));
 #ifdef KMK
 #define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
 #else
@@ -429,7 +430,6 @@ extern char *lindex PARAMS ((const char *, const char *, int));
 #endif
 extern int alpha_compare PARAMS ((const void *, const void *));
 extern void print_spaces PARAMS ((unsigned int));
-extern char *find_char_unquote PARAMS ((char *, int, int, int));
 extern char *find_percent PARAMS ((char *));
 extern FILE *open_tmpfile PARAMS ((char **, const char *));
 
@@ -463,9 +463,17 @@ extern void user_access PARAMS ((void));
 extern void make_access PARAMS ((void));
 extern void child_access PARAMS ((void));
 
-extern char *
-strip_whitespace PARAMS ((const char **begpp, const char **endpp));
+extern void close_stdout PARAMS ((void));
 
+extern char *strip_whitespace PARAMS ((const char **begpp, const char **endpp));
+
+/* String caching  */
+extern void strcache_init PARAMS ((void));
+extern void strcache_print_stats PARAMS ((const char *prefix));
+extern int strcache_iscached PARAMS ((const char *str));
+extern const char *strcache_add PARAMS ((const char *str));
+extern const char *strcache_add_len PARAMS ((const char *str, int len));
+extern int strcache_setbufsize PARAMS ((int size));
 
 #ifdef  HAVE_VFORK_H
 # include <vfork.h>
@@ -486,13 +494,14 @@ extern long int lseek ();
 #ifdef  HAVE_GETCWD
 # if !defined(VMS) && !defined(__DECC)
 extern char *getcwd ();
-#endif
+# endif
 #else
 extern char *getwd ();
 # define getcwd(buf, len)       getwd (buf)
 #endif
 
 extern const struct floc *reading_file;
+extern const struct floc **expanding_var;
 
 extern char **environ;
 
@@ -501,7 +510,7 @@ extern int print_data_base_flag, question_flag, touch_flag, always_make_flag;
 extern int env_overrides, no_builtin_rules_flag, no_builtin_variables_flag;
 extern int print_version_flag, print_directory_flag, check_symlink_flag;
 extern int warn_undefined_variables_flag, posix_pedantic, not_parallel;
-extern int clock_skew_detected, rebuilding_makefiles;
+extern int second_expansion, clock_skew_detected, rebuilding_makefiles;
 
 /* can we run commands via 'sh -c xxx' or must we use batch files? */
 extern int batch_mode_shell;
