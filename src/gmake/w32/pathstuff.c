@@ -232,6 +232,36 @@ getcwd_fs(char* buf, int len)
 	return p;
 }
 
+/* Workaround for directory names with trailing slashes. */
+int 
+stat(const char *path, struct stat *st)
+{
+    int rc = _stat(path, st);
+    if (    rc != 0
+        &&  errno == ENOENT
+        &&  *path != '\0')
+      {
+        char *slash = strchr(path, '\0') - 1;
+        if (*slash == '/' || *slash == '\\')
+          {
+            size_t len_path = slash - path + 1;
+            char *tmp = alloca(len_path + 4);
+            memcpy(tmp, path, len_path);
+            tmp[len_path] = '.';
+            tmp[len_path + 1] = '\0';
+            errno = 0;
+            rc = _stat(tmp, st);
+            if (    rc == 0
+                &&  !S_ISDIR(st->st_mode))
+              {
+                errno = ENOTDIR;
+                rc = -1;
+              }
+          }
+      }
+    return rc;
+}
+
 #ifdef unused
 /*
  * Convert delimiter separated pathnames (e.g. PATH) or single file pathname
