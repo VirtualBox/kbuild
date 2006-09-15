@@ -368,7 +368,7 @@ glob (pattern, flags, errfunc, pglob)
   const char *dirname;
   size_t dirlen;
   int status;
-  int oldcount;
+  __size_t oldcount; /* bird: correct type. */
 
   if (pattern == NULL || pglob == NULL || (flags & ~__GLOB_FLAGS) != 0)
     {
@@ -854,7 +854,7 @@ glob (pattern, flags, errfunc, pglob)
 	 have to glob for the directory, and then glob for
 	 the pattern in each directory found.  */
       glob_t dirs;
-      register int i;
+      register __size_t i; /* bird: correct type. */
 
       status = glob (dirname,
 		     ((flags & (GLOB_ERR | GLOB_NOCHECK | GLOB_NOESCAPE))
@@ -1004,7 +1004,7 @@ glob (pattern, flags, errfunc, pglob)
       if (dirlen > 0)
 	{
 	  /* Stick the directory on the front of each name.  */
-	  int ignore = oldcount;
+	  __size_t ignore = oldcount; /* bird: correct type. */
 
 	  if ((flags & GLOB_DOOFFS) && ignore < pglob->gl_offs)
 	    ignore = pglob->gl_offs;
@@ -1022,7 +1022,7 @@ glob (pattern, flags, errfunc, pglob)
   if (flags & GLOB_MARK)
     {
       /* Append slashes to directory names.  */
-      int i;
+      __size_t i; /* bird: correct type. */
       struct stat st;
       for (i = oldcount; i < pglob->gl_pathc; ++i)
 	if (((flags & GLOB_ALTDIRFUNC)
@@ -1066,7 +1066,7 @@ globfree (pglob)
 {
   if (pglob->gl_pathv != NULL)
     {
-      register int i;
+      register __size_t i; /* bird: correct type */
       for (i = 0; i < pglob->gl_pathc; ++i)
 	if (pglob->gl_pathv[i] != NULL)
 	  free ((__ptr_t) pglob->gl_pathv[i]);

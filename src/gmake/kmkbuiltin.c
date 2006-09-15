@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 377 2005-12-18 12:28:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 507 2006-09-15 06:31:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -28,6 +28,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#ifdef _MSC_VER
+# include <io.h>
+#endif 
 #include "kmkbuiltin/err.h"
 #include "kmkbuiltin.h"
 
@@ -37,7 +40,6 @@ int kmk_builtin_command(const char *pszCmd)
 {
     int         argc;
     char      **argv;
-    char       *psz;
     int         rc;
 
     /*
