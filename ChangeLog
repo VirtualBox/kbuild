@@ -1,6 +1,11 @@
-/* $Id: ChangeLog 523 2006-09-16 06:22:18Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 525 2006-09-16 06:26:17Z knut.osmundsen@oracle.com $ */
 
 2006-09-16:
+    - kBuild/header.kmk:
+        o Turn off command dependencies when using vanilla GNU Make.
+    - kBuild/footer.kmk:
+        o Made up my mind about the command depency blocker variables; 
+          NO_LINK_CMDS_DEPS and NO_COMPILE_CMDS_DEPS.
     - src/gmake:
         o Added kmk_gmake which is (almost) vanilla GNU Make.
         o kmk_ash wants batch files on windows or the double quotes will get screwed up.

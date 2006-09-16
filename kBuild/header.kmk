@@ -1,4 +1,4 @@
-# $Id: header.kmk 513 2006-09-15 07:38:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 525 2006-09-16 06:26:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -232,9 +232,12 @@ MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 
 
 #
-# Get rid of the GNU Make default stuff
+# Disable some features and stamp out predefines if we're running
+# vanilla GNU Make.
 #
 ifndef KMK_VERSION
+NO_COMPILE_CMDS_DEPS:= 1
+NO_LINK_CMDS_DEPS   := 1
 include $(PATH_KBUILD)/StampOutPredefines.kmk
 endif
 
