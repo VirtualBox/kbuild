@@ -3195,23 +3195,35 @@ construct_command_argv (char *line, char **restp, struct file *file,
 
     warn_undefined_variables_flag = save;
   }
-#if defined(CONFIG_WITH_KMK_BUILTIN) && defined(WINDOWS32)
-  /* On windows we have to avoid batch mode for builtin commands. */
-  if (!strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+
+#ifdef CONFIG_WITH_KMK_BUILTIN
+  /* If it's a kmk_builtin command, make sure we're treated like a 
+     unix shell and and don't get batch files. */
+  if (   (  !unixy_shell 
+          || batch_mode_shell
+# ifdef WINDOWS32
+          || no_default_sh_exe
+# endif 
+         )
+      && !strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
   {
     int saved_batch_mode_shell = batch_mode_shell;
-    int saved_no_default_sh_exe = no_default_sh_exe;
     int saved_unixy_shell = unixy_shell;
+# ifdef WINDOWS32
+    int saved_no_default_sh_exe = no_default_sh_exe;
+    no_default_sh_exe = 0;
+# endif 
     unixy_shell = 1;
     batch_mode_shell = 0;
-    no_default_sh_exe = 0;
     argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
-    no_default_sh_exe = saved_no_default_sh_exe;
     batch_mode_shell = saved_batch_mode_shell;
     unixy_shell = saved_unixy_shell;
+# ifdef WINDOWS32
+    no_default_sh_exe = saved_no_default_sh_exe;
+# endif
   }
   else
-#endif
+#endif /* CONFIG_WITH_KMK_BUILTIN */
   argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
 
   free (shell);
