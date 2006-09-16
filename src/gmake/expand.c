@@ -156,7 +156,7 @@ recursively_expand_for_file (struct variable *v, struct file *file)
 
 /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
 
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(_MSC_VER) /* bird added MSC */
 __inline
 #endif
 static char *
