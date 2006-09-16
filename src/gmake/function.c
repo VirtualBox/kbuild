@@ -28,8 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "amiga.h"
 #endif
 
-#ifdef WINDOWS32
-#include "pathstuff.h"
+#ifdef WINDOWS32 /* bird */
+# include "pathstuff.h"
 #endif
 
 
@@ -1657,7 +1657,7 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
   CLOSE_ON_EXEC(pipedes[1]);
   CLOSE_ON_EXEC(pipedes[0]);
   /* Never use fork()/exec() here! Use spawn() instead in exec_command() */
-  pid = child_execute_job (0, pipedes[1], command_argv, envp, NULL);
+  pid = child_execute_job (0, pipedes[1], command_argv, envp);
   if (pid < 0)
     perror_with_name (error_prefix, "spawn");
 
@@ -1891,10 +1891,10 @@ abspath (const char *name, char *apath)
   if (name[0] == '\0' || apath == NULL)
     return NULL;
 
-#ifdef WINDOWS32
+#ifdef WINDOWS32                                                    /* bird */
   dest = w32ify((char *)name, 1);
   if (!dest)
-      return NULL;
+    return NULL;
   {
   size_t len = strlen(dest);
   memcpy(apath, dest, len);
@@ -1903,9 +1903,9 @@ abspath (const char *name, char *apath)
 
   (void)end; (void)start; (void)apath_limit;
 
-#elif defined __OS2__
+#elif defined __OS2__                                               /* bird */
   if (_abspath(apath, name, GET_PATH_MAX))
-      return NULL;
+    return NULL;
   dest = strchr(apath, '\0');
 
   (void)end; (void)start; (void)apath_limit; (void)dest;
@@ -1980,7 +1980,7 @@ abspath (const char *name, char *apath)
 #endif /* !WINDOWS32 && !__OS2__ */
 
   /* Unless it is root strip trailing separator.  */
-#ifdef HAVE_DOS_PATHS
+#ifdef HAVE_DOS_PATHS /* bird (is this correct? what about UNC?) */
   if (dest > apath + 1 + (apath[0] != '/') && dest[-1] == '/')
 #else
   if (dest > apath + 1 && dest[-1] == '/')
@@ -2068,7 +2068,7 @@ func_abspath (char *o, char **argv, const char *funcname UNUSED)
  return o;
 }
 
-#ifdef KMK
+#ifdef CONFIG_WITH_TOUPPER_TOLOWER
 static char *
 func_toupper_tolower (char *o, char **argv, const char *funcname)
 {
@@ -2090,7 +2090,7 @@ func_toupper_tolower (char *o, char **argv, const char *funcname)
 
   return o;
 }
-#endif
+#endif /* CONFIG_WITH_TOUPPER_TOLOWER */
 
 /* Lookup table for builtin functions.
 
@@ -2149,7 +2149,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
 #endif
-#ifdef KMK
+#ifdef CONFIG_WITH_TOUPPER_TOLOWER
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
 #endif

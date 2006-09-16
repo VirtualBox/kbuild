@@ -21,16 +21,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define DB_JOBS         (0x004)
 #define DB_IMPLICIT     (0x008)
 #define DB_MAKEFILES    (0x100)
-#define DB_KMK          (0x800)
+#ifdef KMK
+# define DB_KMK         (0x800)
+#endif 
 
 #define DB_ALL          (0xfff)
 
 extern int db_level;
 
+#ifdef KMK
+
+/* Some extended info for -j and .NOTPARALLEL tracking. */
 extern unsigned int makelevel;
 extern unsigned int job_slots;
 extern unsigned int job_slots_used;
-
 
 #define DB_HDR()    do { printf ("[%u:%u/%u]", makelevel, job_slots_used, job_slots); } while (0)
 
@@ -46,3 +50,18 @@ extern unsigned int job_slots_used;
                                       fflush (stdout);} }while(0)
 
 #define DB(_l,_x)   do{ if(ISDB(_l)) {DB_HDR(); printf _x; fflush (stdout);} }while(0)
+
+#else  /* !KMK */
+
+#define ISDB(_l)    ((_l)&db_level)
+
+#define DBS(_l,_x)  do{ if(ISDB(_l)) {print_spaces (depth); \
+                                      printf _x; fflush (stdout);} }while(0)
+
+#define DBF(_l,_x)  do{ if(ISDB(_l)) {print_spaces (depth); \
+                                      printf (_x, file->name); \
+                                      fflush (stdout);} }while(0)
+
+#define DB(_l,_x)   do{ if(ISDB(_l)) {printf _x; fflush (stdout);} }while(0)
+
+#endif /* !KMK */

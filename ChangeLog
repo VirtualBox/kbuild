@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 516 2006-09-15 09:15:26Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 520 2006-09-16 04:56:25Z knut.osmundsen@oracle.com $ */
+
+2006-09-16:
+    - src/gmake:
+        o Cleaning up the modifications. Changes are now either configurable 
+          or marked, and dead stuff has been removed (dll shell).
 
 2006-09-15:
     - kBuild/bin/x86.win32/kmk.exe:

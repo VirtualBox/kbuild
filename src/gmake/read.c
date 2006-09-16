@@ -221,13 +221,25 @@ read_all_makefiles (char **makefiles)
       static char *default_makefiles[] =
 #ifdef VMS
 	/* all lower case since readdir() (the vms version) 'lowercasifies' */
+# ifdef KMK
 	{ "makefile.kmk", "makefile.vms", "gnumakefile.", "makefile.", 0 };
+# else
+	{ "makefile.vms", "gnumakefile.", "makefile.", 0 };
+# endif 
 #else
 #ifdef _AMIGA
         /* what's the deal here? no dots? */
+# ifdef KMK
 	{ "Makefile.kmk", "makefile.kmk", "GNUmakefile", "Makefile", "SMakefile", 0 };
+# else
+	{ "GNUmakefile", "Makefile", "SMakefile", 0 };
+# endif
 #else /* !Amiga && !VMS */
+# ifdef KMK
 	{ "Makefile.kmk", "makefile.kmk", "GNUmakefile", "makefile", "Makefile", 0 };
+# else
+	{ "GNUmakefile", "makefile", "Makefile", 0 };
+# endif
 #endif /* AMIGA */
 #endif /* VMS */
       register char **p = default_makefiles;
@@ -1152,11 +1164,11 @@ eval (struct ebuffer *ebuf, int set_default)
             if (target == 0)
               fatal (fstart, _("missing target pattern"));
             else if (target->next != 0)
-              fatal (fstart, _("multiple target patterns (target `%s')"), target->name);
+              fatal (fstart, _("multiple target patterns (target `%s')"), target->name); /* bird */
             pattern = target->name;
             pattern_percent = find_percent (pattern);
             if (pattern_percent == 0)
-              fatal (fstart, _("target pattern contains no `%%' (target `%s')"), target->name);
+              fatal (fstart, _("target pattern contains no `%%' (target `%s')"), target->name); /* bird */
             free ((char *)target);
           }
         else
@@ -2145,7 +2157,7 @@ find_char_unquote (char *string, int stop1, int stop2, int blank,
 {
   unsigned int string_len = 0;
   register char *p = string;
-  register int ch; /* bird */
+  register int ch; /* bird: 'optimiziations' */
 
   if (ignorevars)
     ignorevars = '$';
@@ -2257,7 +2269,7 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 {
   struct nameseq *new = 0;
   struct nameseq *new1;
-#ifndef NO_ARCHIVES
+#ifndef NO_ARCHIVES /* bird: MSC warning */
   struct nameseq *lastnew1;
 #endif 
   char *p = *stringp;

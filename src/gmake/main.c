@@ -490,10 +490,24 @@ int posix_pedantic;
 
 int second_expansion;
 
-/* Negative if we have seen the `.NOTPARALLEL' target with empty dependency list.
-   Zero if no `.NOTPARALLEL' or no file in the dependency list is being executed.
-   Positive when a file in `.NOTPARALLEL' is being made.
-   Nonzero values have the effect of disabeling parallel building. */
+#ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
+/* Nonzero if we have seen the `.NOTPARALLEL' target.
+   This turns off parallel builds for this invocation of make.  */
+
+#else  /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
+
+/* Negative if we have seen the `.NOTPARALLEL' target with an 
+   empty dependency list. 
+
+   Zero if no `.NOTPARALLEL' or no file in the dependency list 
+   is being executed. 
+
+   Positive when a file in the `.NOTPARALLEL' dependency list 
+   is in progress, the value is the number of notparallel files
+   in progress (running or queued for running).
+
+   In short, any nonzero value means no more parallel builing. */
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
 int not_parallel;
 
@@ -628,9 +642,11 @@ decode_debug_flags (void)
             case 'v':
               db_level |= DB_BASIC | DB_VERBOSE;
               break;
+#ifdef DB_KMK
             case 'k':
               db_level |= DB_KMK;
               break;
+#endif
             default:
               fatal (NILF, _("unknown debug level specification `%s'"), p);
             }
@@ -2096,7 +2112,7 @@ main (int argc, char **argv, char **envp)
 	       termination. */
 	    int pid;
 	    int status;
-	    pid = child_execute_job (0, 1, nargv, environ, NULL);
+	    pid = child_execute_job (0, 1, nargv, environ);
 
 	    /* is this loop really necessary? */
 	    do {
@@ -2731,11 +2747,9 @@ define_makeflags (int all, int makefile)
 		       && (*(unsigned int *) cs->value_ptr ==
 			   *(unsigned int *) cs->noarg_value))
 		ADD_FLAG ("", 0); /* Optional value omitted; see below.  */
-#if !defined(KMK) || defined(MAKE_JOBSERVER) /* Win32 doesn't have a job server, but we really do want jobs despite the risks. */
 	      else if (cs->c == 'j')
 		/* Special case for `-j'.  */
 		ADD_FLAG ("1", 1);
-#endif
 	      else
 		{
 		  char *buf = (char *) alloca (30);

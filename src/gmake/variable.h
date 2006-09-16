@@ -52,7 +52,7 @@ struct variable
   {
     char *name;			/* Variable name.  */
     int length;			/* strlen (name) */
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
     long hash1;                 /* the primary hash */
     long hash2;                 /* the secondary hash */
 #endif
