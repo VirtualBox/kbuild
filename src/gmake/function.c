@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef WINDOWS32 /* bird */
 # include "pathstuff.h"
 #endif
+#include <assert.h> /* bird */
 
 
 struct function_table_entry
@@ -257,15 +258,32 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
 }
 
 
-/* Look up a function by name.  */
+/* The maximum length of a function, once reached there is 
+   it can't be function and we can skip the hash lookup drop out. */
 
+#define MAX_FUNCTION_LENGTH 10 /* bird */
+
+/* Look up a function by name.  */
+#if defined(__GNUC__) || defined(_MSC_VER)
+__inline
+#endif
 static const struct function_table_entry *
 lookup_function (const char *s)
 {
   const char *e = s;
-
+#ifdef MAX_FUNCTION_LENGTH
+  int left = MAX_FUNCTION_LENGTH;
+  int ch;
+  while (((ch = *e) >= 'a' && ch <='z') || ch == '-')
+    {
+      if (!left--)
+        return 0;
+      e++;
+    }
+#else
   while (*e && ( (*e >= 'a' && *e <= 'z') || *e == '-'))
     e++;
+#endif
   if (*e == '\0' || isblank ((unsigned char) *e))
     {
       struct function_table_entry function_table_entry_key;
@@ -2188,10 +2206,9 @@ expand_builtin_function (char *o, int argc, char **argv,
    is found, expand it into the buffer at *OP, updating *OP, incrementing
    *STRINGP past the reference and returning nonzero.  If not, return zero.  */
 
-int
-handle_function (char **op, char **stringp)
+static int
+handle_function2 (const struct function_table_entry *entry_p, char **op, char **stringp) /* bird split it up. */
 {
-  const struct function_table_entry *entry_p;
   char openparen = (*stringp)[0];
   char closeparen = openparen == '(' ? ')' : '}';
   char *beg;
@@ -2202,11 +2219,6 @@ handle_function (char **op, char **stringp)
   int nargs;
 
   beg = *stringp + 1;
-
-  entry_p = lookup_function (beg);
-
-  if (!entry_p)
-    return 0;
 
   /* We found a builtin function.  Find the beginning of its arguments (skip
      whitespace after the name).  */
@@ -2288,6 +2300,15 @@ handle_function (char **op, char **stringp)
     free (beg);
 
   return 1;
+}
+
+int
+handle_function (char **op, char **stringp) /* bird split it up */
+{
+  const struct function_table_entry *entry_p = lookup_function (*stringp + 1);
+  if (!entry_p)
+    return 0;
+  return handle_function2 (entry_p, op, stringp);
 }
 
 
@@ -2405,4 +2426,11 @@ hash_init_function_table (void)
 	     function_table_entry_hash_cmp);
   hash_load (&function_table, function_table_init,
 	     FUNCTION_TABLE_ENTRIES, sizeof (struct function_table_entry));
+#ifdef MAX_FUNCTION_LENGTH /* bird */
+  {
+    unsigned i;
+    for (i = 0; i < FUNCTION_TABLE_ENTRIES; i++)
+        assert(function_table_init[i].len <= MAX_FUNCTION_LENGTH);
+  }
+#endif 
 }

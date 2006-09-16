@@ -233,14 +233,15 @@ getcwd_fs(char* buf, int len)
 	return p;
 }
 
+#undef stat
 /* 
  * Workaround for directory names with trailing slashes. 
  * Added by bird reasons stated.
  */
 int 
-stat(const char *path, struct stat *st)
+my_stat(const char *path, struct stat *st)
 {
-    int rc = _stat(path, (struct _stat *)st);
+    int rc = stat(path, st);
     if (    rc != 0
         &&  errno == ENOENT
         &&  *path != '\0')
@@ -254,7 +255,7 @@ stat(const char *path, struct stat *st)
             tmp[len_path] = '.';
             tmp[len_path + 1] = '\0';
             errno = 0;
-            rc = _stat(tmp, (struct _stat *)st);
+            rc = stat(tmp, st);
             if (    rc == 0
                 &&  !S_ISDIR(st->st_mode))
               {

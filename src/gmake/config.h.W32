@@ -227,7 +227,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define HAVE_STRCOLL 1
 
 /* Define to 1 if you have the `strdup' function. */
-/* #define HAVE_STRDUP 1*/
+#define HAVE_STRDUP 1 /* bird */
 
 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_STRERROR 1
@@ -487,3 +487,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef HAVE_CYGWIN_SHELL
 #undef BATCH_MODE_ONLY_SHELL
 #endif
+
+/* bird hacks */
+#include <sys/stat.h>
+extern int my_stat(const char *, struct stat *);
+#define stat(_path, _st) my_stat(_path, _st)
