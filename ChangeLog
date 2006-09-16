@@ -1,7 +1,8 @@
-/* $Id: ChangeLog 522 2006-09-16 06:04:15Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 523 2006-09-16 06:22:18Z knut.osmundsen@oracle.com $ */
 
 2006-09-16:
     - src/gmake:
+        o Added kmk_gmake which is (almost) vanilla GNU Make.
         o kmk_ash wants batch files on windows or the double quotes will get screwed up.
         o Make sure kmk_builtin commands don't get batch files and odd weird stuff.
         o Cleaning up the modifications. Changes are now either configurable 

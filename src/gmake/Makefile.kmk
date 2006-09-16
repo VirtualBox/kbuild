@@ -1,32 +1,30 @@
-# $Id: Makefile.kmk 522 2006-09-16 06:04:15Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 523 2006-09-16 06:22:18Z knut.osmundsen@oracle.com $
 
 
 #
 # kmk
 #
-PROGRAMS           += kmk
+PROGRAMS += kmk
 
-kmk_TEMPLATE        = BIN
-kmk_DEPS            = $(PATH_TARGET)/config.h
-kmk_DEFS.win32      = __WIN32__
-kmk_INCS            = $(PATH_TARGET) .
+kmk_TEMPLATE = BIN
+kmk_DEPS = $(PATH_TARGET)/config.h
+kmk_INCS = $(PATH_TARGET) .
 #kmk_INCS.win32      = kmkbuiltin/w32
 
-kmk_DEFS            = \
+kmk_DEFS = \
 	HAVE_CONFIG_H \
-    NO_ARCHIVES \
+	NO_ARCHIVES \
 	CONFIG_NO_DEFAULT_SUFFIXES \
 	CONFIG_NO_DEFAULT_PATTERN_RULES	\
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
-    CONFIG_WITH_EXTENDED_NOTPARALLEL \
-    CONFIG_WITH_TOUPPER_TOLOWER \
+	CONFIG_WITH_EXTENDED_NOTPARALLEL \
+	CONFIG_WITH_TOUPPER_TOLOWER \
 	KMK \
 	VARIABLE_HASH
 	
-	
-kmk_SOURCES         = \
+kmk_SOURCES = \
 	main.c \
 	read.c \
 	hash.c \
@@ -64,7 +62,7 @@ kmk_SOURCES.win32 = \
 
 kmk_SOURCES.freebsd = \
 	glob/glob.c \
-	glob/fnmatch.c \
+	glob/fnmatch.c
 
 #
 # kmkbuiltin commands
@@ -108,7 +106,7 @@ kmk_cp_DEFS = kmk_builtin_cp=main
 kmk_cp_SOURCES = \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
-    kmkbuiltin/strlcpy.c \
+	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/err.c
 kmk_cp_INCS.win32 = $(PATH_TARGET) .
 kmk_cp_DEFS.win32 = HAVE_CONFIG_H
@@ -178,6 +176,61 @@ kmk_rm_SOURCES.win32 = \
 	kmkbuiltin/mscfakes.c\
 	getopt.c \
 	getopt1.c
+
+
+#
+# kmk_gmake - almost plain GNU Make.
+#
+PROGRAMS += kmk_gmake
+kmk_gmake_TEMPLATE = BIN
+kmk_gmake_DEPS = $(PATH_TARGET)/config.h
+kmk_gmake_INCS = $(PATH_TARGET) .
+
+kmk_gmake_DEFS = \
+	HAVE_CONFIG_H \
+	NO_ARCHIVES \
+	CONFIG_WITH_TOUPPER_TOLOWER
+	
+kmk_gmake_SOURCES = \
+	main.c \
+	read.c \
+	hash.c \
+	strcache.c \
+	variable.c \
+	ar.c \
+	arscan.c \
+	commands.c \
+	default.c \
+	dir.c \
+	expand.c \
+	file.c \
+	function.c \
+	implicit.c \
+	job.c \
+	misc.c \
+	remake.c \
+	rule.c \
+	signame.c \
+	version.c \
+	vpath.c \
+	remote-stub.c
+
+kmk_gmake_SOURCES.win32 = \
+	getopt.c \
+	getopt1.c \
+	getloadavg.c \
+	w32/subproc/misc.c \
+	w32/subproc/sub_proc.c \
+	w32/subproc/w32err.c \
+	glob/glob.c \
+	glob/fnmatch.c \
+	w32/compat/dirent.c \
+	w32/pathstuff.c
+
+kmk_gmake_SOURCES.freebsd = \
+	glob/glob.c \
+	glob/fnmatch.c
+
 
 
 DEPTH = ../..
