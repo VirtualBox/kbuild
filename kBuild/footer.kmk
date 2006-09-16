@@ -1,4 +1,4 @@
-# $Id: footer.kmk 482 2006-08-19 20:30:22Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 524 2006-09-16 06:26:00Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -544,7 +544,7 @@ $(out) $($(target)_OUTPUT_): \
 $($(target)_CMDS_)
 
 	$(custom_post)
-ifndef NO_LINK_CMDS_DEP
+ifndef NO_LINK_CMDS_DEPS
 	@$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
 	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
 	@$(APPEND) "$(dep)" 'endef'
@@ -887,7 +887,7 @@ deps        := \
 
 # dependencies
 dep         := $(obj)$(SUFF_DEP)
-ifndef NO_COMPILE_DEPS
+ifndef NO_COMPILE_CMDS_DEPS
 _DEPFILES_INCLUDED += $(dep)
 $(if $(wildcard $(dep)),$(eval include $(dep)))
 endif
@@ -1062,7 +1062,7 @@ deps        := $($(target)_DEPS)
 
 # dependency file
 dep := $(out)$(SUFF_DEP)
-ifndef NO_LINK_CMDS_DEP
+ifndef NO_LINK_CMDS_DEPS
 _DEPFILES_INCLUDED += $(dep)
 $(if $(wildcard $(dep)),$(eval include $(dep)))
 endif
@@ -1301,7 +1301,7 @@ endif # NOINST
 
 # dependency file
 dep := $(outbase)$(SUFF_DEP)
-ifndef NO_LINK_CMDS_DEP
+ifndef NO_LINK_CMDS_DEPS
 _DEPFILES_INCLUDED += $(dep)
 $(if $(wildcard $(dep)),$(eval include $(dep)))
 endif
