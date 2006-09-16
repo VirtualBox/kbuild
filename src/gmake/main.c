@@ -837,6 +837,17 @@ find_and_set_default_shell (char *token)
     }
   }
 
+#ifdef KMK
+  /* WORKAROUND:
+    With GNU Make 3.81, this kludge was necessary to get double quotes 
+    working correctly again (worked fine with the 3.81beta1 code). 
+    beta1 was forcing batch_mode_shell I think, so let's enforce that 
+    for the kBuild shell. */
+  if (sh_found && strstr(default_shell, "kmk_ash")) {
+      unixy_shell = 1;
+      batch_mode_shell = 1;
+  } else
+#endif 
   /* naive test */
   if (!unixy_shell && sh_found &&
       (strstr(default_shell, "sh") || strstr(default_shell, "SH"))) {
