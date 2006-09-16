@@ -34,9 +34,13 @@ struct commands
 #define	COMMANDS_RECURSE	1 /* Recurses: + or $(MAKE).  */
 #define	COMMANDS_SILENT		2 /* Silent: @.  */
 #define	COMMANDS_NOERROR	4 /* No errors: -.  */
-#define COMMANDS_NOTPARALLEL   32 /* kmk: the commands must be executed alone. */
-#define COMMANDS_BUILTIN       64 /* kmk: builtin command. */
-#define COMMANDS_NO_COMMANDS  128 /* kmk: No commands. */
+#ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
+# define COMMANDS_NOTPARALLEL   32  /* kmk: The commands must be executed alone. */
+# define COMMANDS_NO_COMMANDS   64  /* kmk: No commands. */
+#endif 
+#ifdef CONFIG_WITH_KMK_BUILTIN
+# define COMMANDS_KMK_BUILTIN   128 /* kmk: kmk builtin command. */
+#endif
 
 extern void execute_file_commands PARAMS ((struct file *file));
 extern void print_commands PARAMS ((struct commands *cmds));

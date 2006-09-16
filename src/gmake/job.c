@@ -27,15 +27,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "variable.h"
 #include "debug.h"
 #ifdef CONFIG_WITH_KMK_BUILTIN
-#include "kmkbuiltin.h"
+# include "kmkbuiltin.h"
 #endif
 
 
 #include <string.h>
-
-#ifdef MAKE_DLLSHELL
-#include <dlfcn.h>
-#endif
 
 /* Default shell to use.  */
 #ifdef WINDOWS32
@@ -63,7 +59,7 @@ int batch_mode_shell = 0;
 
 #elif defined (__EMX__)
 
-char *default_shell = "sh.exe";
+char *default_shell = "sh.exe"; /* bird changed this from "/bin/sh" as that doesn't make sense on OS/2. */
 int batch_mode_shell = 0;
 
 #elif defined (VMS)
@@ -209,9 +205,6 @@ static void start_job_command PARAMS ((struct child *child));
 static int load_too_high PARAMS ((void));
 static int job_next_command PARAMS ((struct child *));
 static int start_waiting_job PARAMS ((struct child *));
-#ifdef MAKE_DLLSHELL
-static int spawn_command PARAMS ((char **argv, char **envp, struct child *child));
-#endif
 
 /* Chain of all live (or recently deceased) children.  */
 
@@ -487,8 +480,8 @@ reap_children (int block, int err)
       int child_failed;
       int any_remote, any_local;
       int dontcare;
-#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
-      struct child *completed_child = 0;
+#ifdef CONFIG_WITH_KMK_BUILTIN
+      struct child *completed_child = NULL;
 #endif
 
       if (err && block)
@@ -529,9 +522,16 @@ reap_children (int block, int err)
 	{
 	  any_remote |= c->remote;
 	  any_local |= ! c->remote;
-#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
-          if (c->have_status)
+#ifdef CONFIG_WITH_KMK_BUILTIN
+          if (c->has_status)
+            {
               completed_child = c;
+              DB (DB_JOBS, (_("builtin child 0x%08lx (%s) PID %ld %s Status %ld\n"),
+                            (unsigned long int) c, c->file->name,
+                            (long) c->pid, c->remote ? _(" (remote)") : "",
+                            (long) c->status));
+            }
+          else
 #endif
 	  DB (DB_JOBS, (_("Live child 0x%08lx (%s) PID %ld %s\n"),
                         (unsigned long int) c, c->file->name,
@@ -559,7 +559,7 @@ reap_children (int block, int err)
       else
 	{
 	  /* No remote children.  Check for local children.  */
-#if defined(CONFIG_WITH_KMK_BUILTIN) || defined(MAKE_DLLSHELL)
+#ifdef CONFIG_WITH_KMK_BUILTIN
           if (completed_child)
             {
               pid = completed_child->pid;
@@ -572,15 +572,13 @@ reap_children (int block, int err)
 # endif 
             }
           else
-#endif
+#endif /* CONFIG_WITH_KMK_BUILTIN */
 #if !defined(__MSDOS__) && !defined(_AMIGA) && !defined(WINDOWS32)
 	  if (any_local)
 	    {
 #ifdef VMS
 	      vmsWaitForChildren (&status);
 	      pid = c->pid;
-#elif MAKE_DLLSHELL
-              pid = wait_jobs((int*)&status, block);
 #else
 #ifdef WAIT_NOHANG
 	      if (!block)
@@ -1032,14 +1030,17 @@ start_job_command (struct child *child)
       else if (*p == '-')
 	child->noerror = 1;
       else if (!isblank ((unsigned char)*p))
+#ifndef CONFIG_WITH_KMK_BUILTIN
+        break;
+#else  /* CONFIG_WITH_KMK_BUILTIN */
+
         {
-#ifdef CONFIG_WITH_KMK_BUILTIN
-          if (   !(flags & COMMANDS_BUILTIN)
+          if (   !(flags & COMMANDS_KMK_BUILTIN)
               && !strncmp(p, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
-            flags |= COMMANDS_BUILTIN;
-#endif /* CONFIG_WITH_KMK_BUILTIN */
+            flags |= COMMANDS_KMK_BUILTIN;
           break;
         }
+#endif /* CONFIG_WITH_KMK_BUILTIN */
       ++p;
     }
 
@@ -1051,7 +1052,7 @@ start_job_command (struct child *child)
      actual line, after expansion.  */
   child->file->cmds->lines_flags[child->command_line - 1]
 #ifdef CONFIG_WITH_KMK_BUILTIN
-    |= flags & (COMMANDS_RECURSE | COMMANDS_BUILTIN);
+    |= flags & (COMMANDS_RECURSE | COMMANDS_KMK_BUILTIN);
 #else
     |= flags & COMMANDS_RECURSE;
 #endif 
@@ -1177,7 +1178,7 @@ start_job_command (struct child *child)
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* If builtin command then pass it on to the builtin shell interpreter. */
 
-  if ((flags & COMMANDS_BUILTIN) && !just_print_flag)
+  if ((flags & COMMANDS_KMK_BUILTIN) && !just_print_flag)
     {
       int    rc;
       char **p2 = argv;
@@ -1202,7 +1203,7 @@ start_job_command (struct child *child)
           goto next_command;
       child->pid = (pid_t)42424242;
       child->status = rc << 8;
-      child->have_status = 1;
+      child->has_status = 1;
       return;
     }
 #endif /* CONFIG_WITH_KMK_BUILTIN */
@@ -1316,7 +1317,7 @@ start_job_command (struct child *child)
 
       /* Never use fork()/exec() here! Use spawn() instead in exec_command() */
       child->pid = child_execute_job (child->good_stdin ? 0 : bad_stdin, 1,
-                                      argv, child->environment, child);
+                                      argv, child->environment);
       if (child->pid < 0)
 	{
 	  /* spawn failed!  */
@@ -1499,7 +1500,9 @@ static int
 start_waiting_job (struct child *c)
 {
   struct file *f = c->file;
+#ifdef DB_KMK
   DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x slots=%d/%d\n"), c, c->file->name, c->file->command_flags, job_slots_used, job_slots));
+#endif
 
   /* If we can start a job remotely, we always want to, and don't care about
      the local load average.  We record that the job should be started
@@ -1507,23 +1510,40 @@ start_waiting_job (struct child *c)
 
   c->remote = start_remote_job_p (1);
 
+#ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
   if (c->file->command_flags & COMMANDS_NOTPARALLEL)
     {
-      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s')\n"), not_parallel, not_parallel + 1, c->file, c->file->name));
+      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_job]\n"), 
+                   not_parallel, not_parallel + 1, c->file, c->file->name));
+      assert(not_parallel >= 0);
       ++not_parallel;
     }
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
   /* If we are running at least one job already and the load average
      is too high, make this one wait.  */
   if (!c->remote 
+#ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
       && ((job_slots_used > 0 && (not_parallel > 0 || load_too_high ()))
+#else
+      && ((job_slots_used > 0 && load_too_high ())
+#endif
 #ifdef WINDOWS32
 	  || (process_used_slots () >= MAXIMUM_WAIT_OBJECTS)
 #endif
 	  ))
     {
+#ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
+        /* Put this child on the chain of children waiting for the load average
+           to go down.  */
+        set_command_state (f, cs_running);
+        c->next = waiting_jobs;
+        waiting_jobs = c;
+
+#else  /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
+
       /* Put this child on the chain of children waiting for the load average
-         to go down. if not parallel, put it last.  */
+         to go down. If not parallel, put it last.  */
       set_command_state (f, cs_running);
       c->next = waiting_jobs;
       if (c->next && (c->file->command_flags & COMMANDS_NOTPARALLEL))
@@ -1534,12 +1554,12 @@ start_waiting_job (struct child *c)
           c->next = 0;
           prev->next = c;
         }
-      else
+      else /* FIXME: insert after the last node with COMMANDS_NOTPARALLEL set */
         waiting_jobs = c;
       DB (DB_KMK, (_("queued child %p (`%s')\n"), c, c->file->name));
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
       return 0;
     }
-
 
   /* Start the first command; reap_children will run later command lines.  */
   start_job_command (c);
@@ -1548,9 +1568,9 @@ start_waiting_job (struct child *c)
     {
     case cs_running:
       c->next = children;
-      DB (DB_JOBS, (_("Putting child 0x%08lx (%s) PID %ld%s on the chain. (%u/%u)\n"),
+      DB (DB_JOBS, (_("Putting child 0x%08lx (%s) PID %ld%s on the chain.\n"),
                     (unsigned long int) c, c->file->name,
-                    (long) c->pid, c->remote ? _(" (remote)") : "", job_slots_used + 1, job_slots));
+                    (long) c->pid, c->remote ? _(" (remote)") : ""));
       children = c;
       /* One more job slot is in use.  */
       ++job_slots_used;
@@ -1823,13 +1843,32 @@ new_job (struct file *file)
      (This will notice if there are in fact no commands.)  */
   (void) start_waiting_job (c);
 
-  if (job_slots == 1 || not_parallel > 0)
+#ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
+  if (job_slots == 1 || not_parallel)
     /* Since there is only one job slot, make things run linearly.
        Wait for the child to die, setting the state to `cs_finished'.  */
-    while (file->command_state == cs_running
-        && (job_slots == 1 || not_parallel > 0)
-        && (children != 0 || shell_function_pid != 0) /* reap_child condition - hackish! */)
+    while (file->command_state == cs_running)
       reap_children (1, 0);
+
+#else /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
+
+  if (job_slots == 1 || not_parallel < 0)
+    {
+      /* Since there is only one job slot, make things run linearly.
+         Wait for the child to die, setting the state to `cs_finished'.  */
+      while (file->command_state == cs_running)
+        reap_children (1, 0);
+    }
+  else if (not_parallel > 0)
+    {
+      /* wait for all live children to finish and then continue 
+         with the not-parallel child(s). FIXME: this loop could be better? */
+      while (file->command_state == cs_running
+          && (children != 0 || shell_function_pid != 0) /* reap_child condition */
+          && not_parallel > 0)
+        reap_children (1, 0);
+    }
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
   return;
 }
@@ -1979,12 +2018,18 @@ start_waiting_jobs (void)
       job = waiting_jobs;
       waiting_jobs = job->next;
 
-      /* we've already counted it. */
+#ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
+      /* If it's a not-parallel job, we've already counted it once
+         when it was queued in start_waiting_job, so decrement 
+         before sending it to  start_waiting_job again. */
       if (job->file->command_flags & COMMANDS_NOTPARALLEL)
         {
-          DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [waiting job]\n"), not_parallel, not_parallel - 1, job->file, job->file->name));
+          DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_jobs]\n"), 
+                       not_parallel, not_parallel - 1, job->file, job->file->name));
+          assert(not_parallel > 0);
           --not_parallel;
         }
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
       /* Try to start that job.  We break out of the loop as soon
 	 as start_waiting_job puts one back on the waiting list.  */
@@ -1997,16 +2042,9 @@ start_waiting_jobs (void)
 #ifndef WINDOWS32
 
 /* EMX: Start a child process. This function returns the new pid.  */
-/* The child argument can be NULL (that's why we return the pid), if it is
-   and the shell is a dllshell:// a child structure is created and inserted
-   into the child list so reap_children can do its job.
-
-   BTW. the name of this function in this port is very misleading, spawn_job
-   would perhaps be more appropriate. */
 # if defined __MSDOS__ || defined __EMX__
 int
-child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp,
-                   struct child *child)
+child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
 {
   int pid;
   /* stdin_fd == 0 means: nothing to do for stdin;
@@ -2039,12 +2077,8 @@ child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp,
   if (stdout_fd != 1)
     CLOSE_ON_EXEC (stdout_fd);
 
-#ifdef MAKE_DLLSHELL
-  pid = spawn_command(argv, envp, child);
-#else
   /* Run the command.  */
   pid = exec_command (argv, envp);
-#endif
 
   /* Restore stdout/stdin of the parent and close temporary FDs.  */
   if (stdin_fd != 0)
@@ -2089,125 +2123,6 @@ child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
 }
 #endif /* !AMIGA && !__MSDOS__ && !VMS */
 #endif /* !WINDOWS32 */
-
-#ifdef MAKE_DLLSHELL
-/* Globals for the currently loaded dllshell. */
-char   *dllshell_spec;
-void   *dllshell_dl;
-void   *dllshell_instance;
-void *(*dllshell_init) PARAMS ((const char *spec));
-pid_t (*dllshell_spawn) PARAMS ((void *instance, char **argv, char **envp, int *status, char *done));
-pid_t (*dllshell_wait) PARAMS ((void *instance, int *status, int block));
-
-/* This is called when all pipes and such are configured for the
-   child process. The child argument may be null, see child_execute_job. */
-static int spawn_command (char **argv, char **envp, struct child *c)
-{
-  /* Now let's see if there is a DLLSHELL specifier in the
-     first argument. */
-  if (!strncmp(argv[0], "dllshell://", 11))
-    {
-      /* dllshell://<dllname>[!<realshell>[!whatever]] */
-      char *name, *name_end;
-      int   insert_child = 0;
-
-      /* parse it */
-      name = argv[0] + 11;
-      name_end = strchr (name, '!');
-      if (!name_end)
-        name_end = strchr (name, '\0');
-      if (name_end == name)
-        fatal (NILF, _("%s : malformed specifier!\n"), argv[0]);
-
-      /* need loading? */
-      if (!dllshell_spec || strcmp (argv[0], dllshell_spec))
-        {
-          if (dllshell_spec)
-            fatal (NILF, _("cannot change the dllshell!!!\n"));
-
-          dllshell_spec = strdup (argv[0]);
-          dllshell_spec[name_end - argv[0]] = '\0';
-          dllshell_dl = dlopen (dllshell_spec + (name - argv[0]), RTLD_LOCAL);
-          if (!dllshell_dl)
-            fatal (NILF, _("%s : failed to load! dlerror: '%s'\n"), argv[0], dlerror());
-          dllshell_spec[name_end - name] = '!';
-
-          /* get symbols */
-          dllshell_init  = dlsym (dllshell_dl, "dllshell_init");
-          if (!dllshell_init)
-            fatal (NILF, _("%s : failed to find symbols 'dllshell_init' dlerror: %s\n"), argv[0], dlerror());
-          dllshell_spawn = dlsym (dllshell_dl, "dllshell_spawn");
-          if (!dllshell_spawn)
-            fatal (NILF, _("%s : failed to find symbols 'dllshell_spawn' dlerror: %s\n"), argv[0], dlerror());
-          dllshell_wait  = dlsym (dllshell_dl, "dllshell_wait");
-          if (!dllshell_wait)
-            fatal (NILF, _("%s : failed to find symbols 'dllshell_wait' dlerror: %s\n"), argv[0], dlerror());
-
-          /* init */
-          dllshell_instance = dllshell_init(dllshell_spec);
-          if (!dllshell_instance)
-            fatal (NILF, _("%s : init failed!!!\n"), argv[0]);
-        }
-
-      /* make child struct? */
-      if (!c)
-        {
-          c = (struct child *) xmalloc (sizeof (struct child));
-          bzero ((char *)c, sizeof (struct child));
-          insert_child = 1;
-        }
-
-      /* call it. return value is 0 on succes, -1 on failure. */
-      c->pid = dllshell_spawn (dllshell_instance, argv, envp, &c->status, &c->dllshell_done);
-      DB (DB_JOBS, (_("dllshell pid=%x\n"), c->pid));
-
-      if (insert_child && c->pid > 0)
-        {
-          c->next = children;
-          DB (DB_JOBS, (_("Putting child 0x%08lx (-) PID %ld on the chain.\n"),
-                        (unsigned long int) c, (long) c->pid));
-          children = c;
-          /* One more job slot is in use.  */
-          ++job_slots_used;
-        }
-    }
-  else
-    {
-      /* Run the command.  */
-#ifdef __EMX__
-      c->pid =
-        exec_command (argv, envp);
-#else
-# error MAKE_DLLSHELL is not ported to your platform yet.
-#endif
-      DB (DB_JOBS, (_("spawn pid=%x\n"), c->pid));
-    }
-
-  return c->pid;
-}
-
-/* Waits or pools for a job to finish.
-   If the block argument the the function will not return
-   till a job is completed (if there are any jobs).
-   Returns pid of completed job.
-   Returns 0 if no jobs are finished.
-   Returns -1 if no jobs are running. */
-pid_t  wait_jobs (int *status, int block)
-{
-  pid_t pid;
-  if (dllshell_wait)
-    pid = dllshell_wait(dllshell_instance, status, block);
-  else
-    {
-      if (block)
-        pid = WAIT_NOHANG(status);
-      else
-        pid = wait(status);
-    }
-  return pid;
-}
-
-#endif /* MAKE_DLLSHELL */
 
 #ifndef _AMIGA
 /* Replace the current process with one running the command in ARGV,
@@ -2621,13 +2536,17 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     }
 #else  /* !__MSDOS__ */
   else if (strcmp (shell, default_shell))
+# ifndef KMK
+    goto slow;
+#else /* KMK */
     {
       /* Allow ash from kBuild. */
       const char *psz = strstr(shell, "/kmk_ash");
       if (   !psz
-          || (!psz[sizeof("/kmk_ash")] && psz[sizeof("/kmk_ash")] == '.'))
-          goto slow;
+          || (!psz[sizeof("/kmk_ash")] && psz[sizeof("/kmk_ash")] == '.')) /* FIXME: this test looks bogus... */
+        goto slow;
     }
+# endif  /* KMK */
 #endif /* !__MSDOS__ && !__EMX__ */
 #endif /* not WINDOWS32 */
 
@@ -3277,6 +3196,7 @@ construct_command_argv (char *line, char **restp, struct file *file,
     warn_undefined_variables_flag = save;
   }
 #if defined(CONFIG_WITH_KMK_BUILTIN) && defined(WINDOWS32)
+  /* On windows we have to avoid batch mode for builtin commands. */
   if (!strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
   {
     int saved_batch_mode_shell = batch_mode_shell;

@@ -40,7 +40,7 @@ char *alloca ();
 
 
 /* Use prototypes if available.  */
-#if defined (__cplusplus) || defined (__STDC__) || defined WINDOWS32
+#if defined (__cplusplus) || defined (__STDC__) || defined WINDOWS32 /* bird: protos on windows */
 # undef  PARAMS
 # define PARAMS(protos)  protos
 #else /* Not C++ or ANSI C.  */
@@ -423,7 +423,7 @@ extern char *find_next_token PARAMS ((char **, unsigned int *));
 extern char *next_token PARAMS ((const char *));
 extern char *end_of_token PARAMS ((const char *));
 extern void collapse_continuations PARAMS ((char *));
-#ifdef KMK
+#if 1 /* memchr is usually compiler intrinsic, thus faster. */
 #define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
 #else
 extern char *lindex PARAMS ((const char *, const char *, int));
@@ -613,7 +613,7 @@ extern int handling_fatal_signal;
 #define ENULLLOOP(_v,_c)   do{ errno = 0; \
                                while (((_v)=_c)==0 && errno==EINTR); }while(0)
 
-#ifdef __EMX__ /* saves 40-100ms on libc. */
+#ifdef __EMX__ /* bird: saves 40-100ms on libc. */
 #undef strchr
 #define strchr(s, c) \
   (__extension__ (__builtin_constant_p (c)				      \
@@ -698,4 +698,4 @@ static inline void *__memchr (__const void *__s, int __c, size_t __n)
   return __res - 1;
 }
 
-#endif
+#endif /* __EMX__ (bird) */

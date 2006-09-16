@@ -165,38 +165,38 @@ static unsigned long
 variable_hash_1 (const void *keyv)
 {
   struct variable const *key = (struct variable const *) keyv;
-#ifdef VARIABLE_HASH
-#ifdef VARIABLE_HASH_STRICT
+#ifdef VARIABLE_HASH /* bird */
+# ifdef VARIABLE_HASH_STRICT
   if (key->hash1 != variable_hash_a (key->name, key->length))
     __asm__("int3");
   if (key->hash2 && key->hash2 != variable_hash_b (key->name, key->length))
     __asm__("int3");
-#endif
+# endif
   return key->hash1;
 #else
-#ifdef KMK
+# ifdef KMK
   return variable_hash_a (key->name, key->length);
-#else
+# else
   return_STRING_N_HASH_1 (key->name, key->length);
-#endif
+# endif
 #endif
 }
 
 static unsigned long
 variable_hash_2 (const void *keyv)
 {
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   struct variable *key = (struct variable *) keyv;
   if (!key->hash2)
     key->hash2 = variable_hash_b (key->name, key->length);
   return key->hash2;
 #else
   struct variable const *key = (struct variable const *) keyv;
-#ifdef KMK
+# ifdef KMK
   return variable_hash_b (key->name, key->length);
-#else
+# else
   return_STRING_N_HASH_2 (key->name, key->length);
-#endif
+# endif
 #endif
 }
 
@@ -208,7 +208,7 @@ variable_hash_cmp (const void *xv, const void *yv)
   int result = x->length - y->length;
   if (result)
     return result;
-#ifdef KMK /* speed */
+#ifdef KMK /* bird: speed */
   {
     const char *xs = x->name;
     const char *ys = y->name;
@@ -247,7 +247,7 @@ variable_hash_cmp (const void *xv, const void *yv)
       }
   }
 #endif /* KMK */
-#ifdef VARIABLE_HASH_STRICT
+#ifdef VARIABLE_HASH_STRICT /* bird */
   if (x->hash1 != variable_hash_a (x->name, x->length))
     __asm__("int3");
   if (x->hash2 && x->hash2 != variable_hash_b (x->name, x->length))
@@ -330,7 +330,7 @@ define_variable_in_set (const char *name, unsigned int length,
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   var_key.hash1 = variable_hash_a (name, length);
   var_key.hash2 = 0;
 #endif
@@ -370,7 +370,7 @@ define_variable_in_set (const char *name, unsigned int length,
   v = (struct variable *) xmalloc (sizeof (struct variable));
   v->name = savestring (name, length);
   v->length = length;
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   v->hash1 = variable_hash_a (name, length);
   v->hash2 = 0;
 #endif
@@ -509,7 +509,7 @@ lookup_variable (const char *name, unsigned int length)
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   var_key.hash1 = variable_hash_a (name, length);
   var_key.hash2 = 0;
 #endif
@@ -597,7 +597,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   var_key.hash1 = variable_hash_a (name, length);
   var_key.hash2 = 0;
 #endif
@@ -893,11 +893,13 @@ define_automatic_variables (void)
 	   ? "" : remote_description);
   (void) define_variable ("MAKE_VERSION", 12, buf, o_default, 0);
 
+#ifdef KMK
   /* Define KMK_VERSION to indicate kMk. */
   (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
   (void) define_variable ("KMK_FEATURES", 12, "abspath toupper tolower", o_default, 0);
+#endif
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* The supported kMk Builtin commands. */
@@ -1124,7 +1126,7 @@ target_environment (struct file *file)
 
   makelevel_key.name = MAKELEVEL_NAME;
   makelevel_key.length = MAKELEVEL_LENGTH;
-#ifdef VARIABLE_HASH
+#ifdef VARIABLE_HASH /* bird */
   makelevel_key.hash1 = variable_hash_a (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
   makelevel_key.hash2 = 0;
 #endif

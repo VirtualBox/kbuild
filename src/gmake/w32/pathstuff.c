@@ -15,13 +15,12 @@ You should have received a copy of the GNU General Public License along with
 GNU Make; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
-#include <Windows.h>
+#include <Windows.h> /* bird */
+#include <stdio.h>   /* bird */
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include "make.h"
 #include "pathstuff.h"
-
 
 /*
  * Convert delimiter separated vpath to Canonical format.
@@ -82,11 +81,13 @@ convert_Path_to_windows32(char *Path, char to_delim)
     return Path;
 }
 
-/*
+/* 
  * Corrects the case of a path.
  * Expects a fullpath!
+ * Added by bird for the $(abspath ) function and w32ify
  */
-void w32_fixcase(char *pszPath)
+void 
+w32_fixcase(char *pszPath)
 {
 #define my_assert(expr) \
     do { \
@@ -210,7 +211,7 @@ w32ify(char *filename, int resolve)
     else
         strncpy(w32_path, filename, sizeof (w32_path));
 
-    w32_fixcase(w32_path);
+    w32_fixcase(w32_path); /* bird */
 
     for (p = w32_path; p && *p; p++)
         if (*p == '\\')
@@ -232,11 +233,14 @@ getcwd_fs(char* buf, int len)
 	return p;
 }
 
-/* Workaround for directory names with trailing slashes. */
+/* 
+ * Workaround for directory names with trailing slashes. 
+ * Added by bird reasons stated.
+ */
 int 
 stat(const char *path, struct stat *st)
 {
-    int rc = _stat(path, st);
+    int rc = _stat(path, (struct _stat *)st);
     if (    rc != 0
         &&  errno == ENOENT
         &&  *path != '\0')
@@ -250,7 +254,7 @@ stat(const char *path, struct stat *st)
             tmp[len_path] = '.';
             tmp[len_path + 1] = '\0';
             errno = 0;
-            rc = _stat(tmp, st);
+            rc = _stat(tmp, (struct _stat *)st);
             if (    rc == 0
                 &&  !S_ISDIR(st->st_mode))
               {

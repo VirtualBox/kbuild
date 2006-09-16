@@ -734,9 +734,11 @@ snap_deps (void)
 	    f2->command_flags |= COMMANDS_SILENT;
     }
 
-  /* kmk changed */
   f = lookup_file (".NOTPARALLEL");
   if (f != 0 && f->is_target)
+#ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
+    not_parallel = 1;
+#else /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
     {
       if (f->deps == 0)
         {
@@ -748,6 +750,7 @@ snap_deps (void)
           for (f2 = d->file; f2 != 0; f2 = f2->prev)
             f2->command_flags |= COMMANDS_NOTPARALLEL;
     }
+#endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
 #ifndef NO_MINUS_C_MINUS_O
   /* If .POSIX was defined, remove OUTPUT_OPTION to comply.  */

@@ -358,7 +358,7 @@ chop_commands (struct commands *cmds)
 #ifdef CONFIG_WITH_KMK_BUILTIN
       /* check if kmk builtin command */
       if (!strncmp(p, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
-        flags |= COMMANDS_BUILTIN;
+        flags |= COMMANDS_KMK_BUILTIN;
 #endif
 
       cmds->lines_flags[idx] = flags;
@@ -384,7 +384,9 @@ execute_file_commands (struct file *file)
   if (*p == '\0')
     {
       /* If there are no commands, assume everything worked.  */
+#ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
       file->command_flags |= COMMANDS_NO_COMMANDS;
+#endif 
       set_command_state (file, cs_running);
       file->update_status = 0;
       notice_finished_file (file);

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 510 2006-09-15 07:07:24Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 520 2006-09-16 04:56:25Z knut.osmundsen@oracle.com $
 
 
 #
@@ -20,6 +20,8 @@ kmk_DEFS            = \
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
+    CONFIG_WITH_EXTENDED_NOTPARALLEL \
+    CONFIG_WITH_TOUPPER_TOLOWER \
 	KMK \
 	VARIABLE_HASH
 	
@@ -186,6 +188,7 @@ include $(PATH_KBUILD)/rules.kmk
 # Use checked in config.h instead of running ./Configure for it.
 #			
 config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
+config.h.win   := config.h.W32
 config.h.win32 := config.h.W32
 config.h.win64 := config.h.W32
 config.h.nt    := config.h.W32

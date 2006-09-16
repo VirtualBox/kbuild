@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "dep.h"
 #include "debug.h"
 
-#ifdef __EMX__  /* saves 5-10ms on libc */
+#ifdef __EMX__  /* bird: saves 5-10ms on libc */
 # define bcopy(src, dst, size)   __builtin_memcpy((dst), (src), (size))
 #endif
 
@@ -399,7 +399,8 @@ savestring (const char *str, unsigned int length)
 }
 
 
-#ifndef KMK /* This is really a reimplemntation of memchr. */
+#if 0 /* This is really a reimplemntation of memchr, only slower. 
+         It's been replaced by a macro in the header file. */
 /* Limited INDEX:
    Search through the string STRING, which ends at LIMIT, for the character C.
    Returns a pointer to the first occurrence, or nil if none is found.
