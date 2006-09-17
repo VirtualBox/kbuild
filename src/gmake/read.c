@@ -797,6 +797,48 @@ eval (struct ebuffer *ebuf, int set_default)
           goto rule_complete;
 	}
 
+#ifdef CONFIG_WITH_INCLUDEDEP
+      if (word1eq ("includedep"))
+        {
+            /* We have found an `includedep' line specifying a single nested
+               makefile to be read at this point. This include variation
+               does not globbing and doesn't support multiple names. It's
+               trying to save time by being dead simple. */
+            struct conditionals *save;
+            struct conditionals new_conditionals;
+            char *name = p2;
+            char *end = strchr(name, '\0');
+            char saved;
+            int r;
+
+            while (end > name && isspace ((unsigned char)end[-1]))
+              --end;
+            saved = *end; /* not sure if this is required... */
+            *end = '\0';
+
+            if (file_exists_p (name))
+              {
+                /* Save the state of conditionals and start
+                   the included makefile with a clean slate.  */
+                save = install_conditionals (&new_conditionals);
+
+                /* Record the rules that are waiting so they will determine
+                   the default goal before those in the included makefile.  */
+                record_waiting_files ();
+
+                /* Read the makefile.  */
+                r = eval_makefile (name, RM_INCLUDED | RM_NO_TILDE | RM_DONTCARE);
+                if (!r)
+                  error (fstart, "%s: %s", name, strerror (errno));
+
+                /* Restore conditional state.  */
+                restore_conditionals (save);
+              }
+            *end = saved;
+            goto rule_complete;
+          }
+#endif /* CONFIG_WITH_INCLUDEDEP */
+
       if (word1eq ("include") || word1eq ("-include") || word1eq ("sinclude"))
 	{
 	  /* We have found an `include' line specifying a nested
