@@ -56,6 +56,9 @@ struct variable
     int hash1;                  /* the primary hash */
     int hash2;                  /* the secondary hash */
 #endif
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    int value_length;		/* The length of the value, usually unused.  */
+#endif 
     char *value;		/* Variable value.  */
     struct floc fileinfo;       /* Where the variable was defined.  */
     unsigned int recursive:1;	/* Gets recursively re-evaluated.  */

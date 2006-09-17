@@ -1,4 +1,4 @@
-# $Id: footer.kmk 524 2006-09-16 06:26:00Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 530 2006-09-17 20:38:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -26,6 +26,21 @@
 
 ifndef __footer_kmk__
 # start-of-file-content
+
+#
+# Make sure that the core variables we defined in recursive expansion mode
+# up in header.kmk get expanded before we really start using them. The kBuild
+# functions added to kmk to speed stuff up assumes that the variables are
+# expanded here.
+#
+PATH_OBJ    := $(PATH_OBJ)
+PATH_TARGET := $(PATH_TARGET)
+PATH_INS    := $(PATH_INS)
+PATH_BIN    := $(PATH_BIN)
+PATH_DLL    := $(PATH_DLL)
+PATH_SYS    := $(PATH_SYS)
+PATH_LIB    := $(PATH_LIB)
+PATH_DOC    := $(PATH_DOC)
 
 #
 # Variables.
@@ -108,18 +123,18 @@ _SOURCE_TOOL = $(strip $(firstword \
 	$($(target)_$(source)_TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_$(source)_TOOL.$(bld_trg)) \
 	$($(target)_$(source)_TOOL) \
-	$($(target)_$(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_$(type)TOOL.$(bld_trg)) \
-	$($(target)_$(type)TOOL) \
-	$($(target)_TOOL.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_TOOL.$(bld_trg)) \
-	$($(target)_TOOL) \
 	$($(source)_$(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(source)_$(type)TOOL.$(bld_trg)) \
 	$($(source)_$(type)TOOL) \
 	$($(source)_TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(source)_TOOL.$(bld_trg)) \
 	$($(source)_TOOL) \
+	$($(target)_$(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(type)TOOL.$(bld_trg)) \
+	$($(target)_$(type)TOOL) \
+	$($(target)_TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_TOOL.$(bld_trg)) \
+	$($(target)_TOOL) \
 	$($(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(type)TOOL.$(bld_trg)) \
 	$($(type)TOOL) \
@@ -479,7 +494,11 @@ $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 ## wrapper the compile command dependency check.
 ifndef NO_COMPILE_CMDS_DEPS
+ ifdef NEW_KMK
+_DEP_COMPILE_CMDS = $(comp-vars $(target)_$(source)_CMDS_PREV_,$(target)_$(source)_CMDS_,FORCE)
+ else
 _DEP_COMPILE_CMDS = $(if $(subst $(strip $($(target)_$(source)_CMDS_PREV_)),,$(strip $($(target)_$(source)_CMDS_))),FORCE,)
+ endif
 else
 _DEP_COMPILE_CMDS =
 endif
@@ -576,9 +595,7 @@ endef
 # @param    bld_trg_arch  Build target arch.
 # @param    bld_trg_cpu   Build target cpu.
 #
-# @remark   I've no clue why I've to $(eval ..) everything in this define. MAKE bug?
-# @remark	I now have a clue. Have to use $$ if not.
-define def_target_source_c_cpp_asm
+define def_target_source_c_cpp_asm_old
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
 
 tool := $(call _SOURCE_TOOL,$(source),$(target),$(type))
@@ -936,6 +953,24 @@ $(target)_OBJS_ += $(obj)
 
 endef
 
+## Generic macro for processing C, C++ and Assembly sources.
+# @param    $(target)     Normalized target name.
+# @param    $(source)     Source file name.
+# @param    $(type)       Source type. {C,CXX,AS}
+# @param    bld_type      Build type.
+# @param    bld_trg       Build target.
+# @param    bld_trg_arch  Build target arch.
+# @param    bld_trg_cpu   Build target cpu.
+#
+#$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
+def_target_source_c_cpp_asm_new = $(kb-src-one x)
+
+ifdef NEW_KMK
+def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_new
+else
+def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_old
+endif
+
 ## Generic macro for processing all target sources.
 # @param    $(target)   Normalized target name.
 define def_target_sources
@@ -943,17 +978,17 @@ define def_target_sources
 # C sources
 type := C
 $(foreach source, $(filter %.c             , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value def_target_source_c_cpp_asm)) )
+   ,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
 
 # C++ sources
 type := CXX
 $(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value def_target_source_c_cpp_asm)) )
+	,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
 
 # ASM sources
 type := AS
 $(foreach source, $(filter %.asm %.s %.S   , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value def_target_source_c_cpp_asm)) )
+	,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
 
 endef
 

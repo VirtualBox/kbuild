@@ -457,6 +457,67 @@ eval_buffer (char *buffer)
   return r;
 }
 
+#ifdef CONFIG_WITH_INCLUDEDEP
+/* no nonsense dependency file including. */
+void 
+eval_include_dep(char *name, struct floc *f)
+{
+  FILE *fp;
+  long max_size;
+  long size;
+  char *buf;
+  unsigned int saved_var_len;
+  char *saved_var_buf;
+
+  /* ignore non-existing dependency files. */
+  if (!file_exists_p (name))
+    return;
+
+  /* open it and determin the size. */
+  errno = 0;
+  fp = fopen (name, "r");
+  if (!fp)
+    {
+      error (f, "%s: %s", name, strerror (errno));
+      return;
+    }
+
+  if (fseek (fp, 0, SEEK_END))
+    fatal (f, "%s: fseek failed - %s", name, strerror (errno));
+  max_size = ftell (fp);
+  if (max_size < 0)
+    fatal (f, "%s: ftell failed - %s", name, strerror (errno));
+  if (fseek (fp, 0, SEEK_SET))
+    fatal (f, "%s: fseek failed - %s", name, strerror (errno));
+
+  /* ignore empty files. */
+  if (max_size == 0)
+  {
+      fclose (fp);
+      return;
+  }
+
+  /* allocate a buffer and read the file. \r\n -> \n conversion 
+     make this intersting ... */
+  buf = xmalloc (max_size + 1);
+  size = fread (buf, 1, max_size, fp); /* FIXME: EINTR? incomplete reads? */
+  if (   size == -1
+      || (ferror (fp) && !feof (fp)))
+      fatal (f, "%s: fread failed - %s", name, strerror (errno));
+  if (size < max_size / 2)
+      fatal (f, "%s: fread failed - %s", name, strerror (errno));
+  buf[size] = '\0';
+
+  /* evaluate the buffer and cleanup. */
+  install_variable_buffer (&saved_var_buf, &saved_var_len);
+  eval_buffer (buf);
+  restore_variable_buffer (saved_var_buf, saved_var_len);
+
+  free (buf);
+  fclose (fp);
+}
+#endif /* CONFIG_WITH_INCLUDEDEP */
+
 
 /* Read file FILENAME as a makefile and add its contents to the data base.
 
@@ -804,37 +865,18 @@ eval (struct ebuffer *ebuf, int set_default)
                makefile to be read at this point. This include variation
                does not globbing and doesn't support multiple names. It's
                trying to save time by being dead simple. */
-            struct conditionals *save;
-            struct conditionals new_conditionals;
             char *name = p2;
             char *end = strchr(name, '\0');
             char saved;
-            int r;
 
             while (end > name && isspace ((unsigned char)end[-1]))
               --end;
+
             saved = *end; /* not sure if this is required... */
             *end = '\0';
-
-            if (file_exists_p (name))
-              {
-                /* Save the state of conditionals and start
-                   the included makefile with a clean slate.  */
-                save = install_conditionals (&new_conditionals);
-
-                /* Record the rules that are waiting so they will determine
-                   the default goal before those in the included makefile.  */
-                record_waiting_files ();
-
-                /* Read the makefile.  */
-                r = eval_makefile (name, RM_INCLUDED | RM_NO_TILDE | RM_DONTCARE);
-                if (!r)
-                  error (fstart, "%s: %s", name, strerror (errno));
-
-                /* Restore conditional state.  */
-                restore_conditionals (save);
-              }
+            eval_include_dep (name, fstart);
             *end = saved;
+
             goto rule_complete;
           }
 #endif /* CONFIG_WITH_INCLUDEDEP */
