@@ -435,11 +435,23 @@ expand_argument (const char *str, const char *end)
   if (!end || *end == '\0')
     return allocated_variable_expand ((char *)str);
 
-  tmp = (char *) alloca (end - str + 1);
-  bcopy (str, tmp, end - str);
-  tmp[end - str] = '\0';
-
-  return allocated_variable_expand (tmp);
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+    {
+      const char saved_char = *end;
+      *(char *)end = '\0';
+      tmp = allocated_variable_expand ((char *)str);
+      *(char *)end = saved_char;
+      return tmp;
+    }
+#else
+    {
+      tmp = (char *) alloca (end - str + 1);
+      bcopy (str, tmp, end - str);
+      tmp[end - str] = '\0';
+  
+      return allocated_variable_expand (tmp);
+    }
+#endif 
 }
 
 /* Expand LINE for FILE.  Error messages refer to the file and line where

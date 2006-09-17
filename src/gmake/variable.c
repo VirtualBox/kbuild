@@ -102,7 +102,7 @@ lookup_pattern_var (struct pattern_var *start, char *target)
 
 /* Hash table of all global variable definitions.  */
 
-#ifdef KMK
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
 # ifdef _MSC_VER
 #  define inline _inline
 typedef signed int int32_t;
@@ -154,7 +154,7 @@ static inline unsigned long variable_hash_1i(register const unsigned char *var, 
         case 0: return 5381; /* shouldn't happen */
     }
 }
-#endif /* KMK */
+#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
 
 static unsigned long
 variable_hash_1 (const void *keyv)
@@ -169,7 +169,7 @@ variable_hash_1 (const void *keyv)
 # endif
   return key->hash1;
 #else
-# ifdef KMK
+# ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   return variable_hash_1i (key->name, key->length);
 # else
   return_STRING_N_HASH_1 (key->name, key->length);
@@ -187,7 +187,7 @@ variable_hash_2 (const void *keyv)
   return key->hash2;
 #else
   struct variable const *key = (struct variable const *) keyv;
-# ifdef KMK
+# ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   return variable_hash_2i (key->name, key->length);
 # else
   return_STRING_N_HASH_2 (key->name, key->length);
@@ -219,7 +219,7 @@ variable_hash_cmp (const void *xv, const void *yv)
   if (result)
     return result;
 #endif
-#ifdef KMK /* bird: speed */
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS /* bird: speed */
   {
     const char *xs = x->name;
     const char *ys = y->name;
@@ -257,7 +257,7 @@ variable_hash_cmp (const void *xv, const void *yv)
             return 0;
       }
   }
-#endif /* KMK */
+#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
 #ifdef VARIABLE_HASH
   /* hash 2 */
   if (!x->hash2)
@@ -268,7 +268,7 @@ variable_hash_cmp (const void *xv, const void *yv)
   if (result)
     return result;
 #endif
-#ifdef KMK
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   return memcmp (x->name, y->name, x->length);
 #else
   return_STRING_N_COMPARE (x->name, y->name, x->length);
@@ -296,7 +296,7 @@ void
 init_hash_global_variable_set (void)
 {
   hash_init (&global_variable_set.table,
-#ifdef KMK
+#ifdef KMK /* FIMXE: just redefine the bucket size! */
              16384,
 #else
              VARIABLE_BUCKETS,

@@ -60,6 +60,9 @@ build_vpath_lists ()
   register struct vpath *new = 0;
   register struct vpath *old, *nexto;
   register char *p;
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+  char expr[64];
+#endif 
 
   /* Reverse the chain.  */
   for (old = vpaths; old != 0; old = nexto)
@@ -79,8 +82,11 @@ build_vpath_lists ()
     /* Turn off --warn-undefined-variables while we expand SHELL and IFS.  */
     int save = warn_undefined_variables_flag;
     warn_undefined_variables_flag = 0;
-
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+    p = variable_expand (strcpy (expr, "$(strip $(VPATH))"));
+#else
     p = variable_expand ("$(strip $(VPATH))");
+#endif 
 
     warn_undefined_variables_flag = save;
   }
@@ -112,7 +118,11 @@ build_vpath_lists ()
     int save = warn_undefined_variables_flag;
     warn_undefined_variables_flag = 0;
 
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+    p = variable_expand (strcpy (expr, "$(strip $(GPATH))"));
+#else
     p = variable_expand ("$(strip $(GPATH))");
+#endif 
 
     warn_undefined_variables_flag = save;
   }
