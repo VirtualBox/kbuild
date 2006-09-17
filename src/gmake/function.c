@@ -878,15 +878,25 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
   while ((p = find_next_token (&list_iterator, &len)) != 0)
     {
       char *result = 0;
-
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      if (len > (unsigned int)var->value_length)
+        {
+          free (var->value);
+          var->value = xmalloc (len + 1);
+        }
+      memcpy (var->value, p, len);
+      var->value[len] = '\0';
+      var->value_length = len;
+#else
       {
-	char save = p[len];
+        char save = p[len];
 
-	p[len] = '\0';
-	free (var->value);
-	var->value = (char *) xstrdup ((char*) p);
-	p[len] = save;
+        p[len] = '\0';
+        free (var->value);
+        var->value = (char *) xstrdup ((char*) p);
+        p[len] = save;
       }
+#endif 
 
       result = allocated_variable_expand (body);
 
