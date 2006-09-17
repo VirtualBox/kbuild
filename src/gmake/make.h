@@ -423,7 +423,7 @@ extern char *find_next_token PARAMS ((char **, unsigned int *));
 extern char *next_token PARAMS ((const char *));
 extern char *end_of_token PARAMS ((const char *));
 extern void collapse_continuations PARAMS ((char *));
-#if 1 /* memchr is usually compiler intrinsic, thus faster. */
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS /* memchr is usually compiler intrinsic, thus faster. */
 #define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
 #else
 extern char *lindex PARAMS ((const char *, const char *, int));
@@ -613,7 +613,7 @@ extern int handling_fatal_signal;
 #define ENULLLOOP(_v,_c)   do{ errno = 0; \
                                while (((_v)=_c)==0 && errno==EINTR); }while(0)
 
-#ifdef __EMX__ /* bird: saves 40-100ms on libc. */
+#if defined(__EMX__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS) /* bird: saves 40-100ms on libc. */
 #undef strchr
 #define strchr(s, c) \
   (__extension__ (__builtin_constant_p (c)				      \

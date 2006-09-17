@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "dep.h"
 #include "debug.h"
 
-#ifdef __EMX__  /* bird: saves 5-10ms on libc */
+#if defined(__EMX__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS) /* bird: saves 5-10ms on libc */
 # define bcopy(src, dst, size)   __builtin_memcpy((dst), (src), (size))
 #endif
 
@@ -399,8 +399,9 @@ savestring (const char *str, unsigned int length)
 }
 
 
-#if 0 /* This is really a reimplemntation of memchr, only slower. 
-         It's been replaced by a macro in the header file. */
+#ifndef CONFIG_WITH_OPTIMIZATION_HACKS /* This is really a reimplemntation of 
+   memchr, only slower. It's been replaced by a macro in the header file. */
+
 /* Limited INDEX:
    Search through the string STRING, which ends at LIMIT, for the character C.
    Returns a pointer to the first occurrence, or nil if none is found.
@@ -416,7 +417,7 @@ lindex (const char *s, const char *limit, int c)
 
   return 0;
 }
-#endif
+#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
 
 /* Return the address of the first whitespace or null in the string S.  */
 

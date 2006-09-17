@@ -257,21 +257,20 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
   return o;
 }
 
-
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
 /* The maximum length of a function, once reached there is 
    it can't be function and we can skip the hash lookup drop out. */
 
 #define MAX_FUNCTION_LENGTH 10 /* bird */
 
 /* Look up a function by name.  */
-#if defined(__GNUC__) || defined(_MSC_VER)
 __inline
-#endif
+#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
 static const struct function_table_entry *
 lookup_function (const char *s)
 {
   const char *e = s;
-#ifdef MAX_FUNCTION_LENGTH
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   int left = MAX_FUNCTION_LENGTH;
   int ch;
   while (((ch = *e) >= 'a' && ch <='z') || ch == '-')
@@ -2426,7 +2425,7 @@ hash_init_function_table (void)
 	     function_table_entry_hash_cmp);
   hash_load (&function_table, function_table_init,
 	     FUNCTION_TABLE_ENTRIES, sizeof (struct function_table_entry));
-#ifdef MAX_FUNCTION_LENGTH /* bird */
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   {
     unsigned i;
     for (i = 0; i < FUNCTION_TABLE_ENTRIES; i++)

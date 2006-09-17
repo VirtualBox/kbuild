@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 523 2006-09-16 06:22:18Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 527 2006-09-17 04:04:14Z knut.osmundsen@oracle.com $
 
 
 #
@@ -21,8 +21,10 @@ kmk_DEFS = \
 	CONFIG_NO_DEFAULT_VARIABLES \
 	CONFIG_WITH_EXTENDED_NOTPARALLEL \
 	CONFIG_WITH_TOUPPER_TOLOWER \
+    CONFIG_WITH_INCLUDEDEP \
 	KMK \
-	VARIABLE_HASH
+	CONFIG_WITH_OPTIMIZATION_HACKS \
+	VARIABLE_HASH 
 	
 kmk_SOURCES = \
 	main.c \
