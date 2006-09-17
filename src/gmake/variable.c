@@ -311,11 +311,19 @@ init_hash_global_variable_set (void)
    If RECURSIVE is nonzero a flag is set in the variable saying
    that it should be recursively re-expanded.  */
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
-                        char *value, enum variable_origin origin,
-                        int recursive, struct variable_set *set,
+                        char *value, unsigned int value_length, int duplicate_value,
+                        enum variable_origin origin, int recursive, 
+                        struct variable_set *set, const struct floc *flocp)
+#else
+struct variable *
+define_variable_in_set (const char *name, unsigned int length,
+                        char *value, enum variable_origin origin, 
+                        int recursive, struct variable_set *set, 
                         const struct floc *flocp)
+#endif 
 {
   struct variable *v;
   struct variable **var_slot;
@@ -349,9 +357,22 @@ define_variable_in_set (const char *name, unsigned int length,
       if ((int) origin >= (int) v->origin)
 	{
 #ifdef CONFIG_WITH_VALUE_LENGTH
-          v->value_length = strlen (value);
-          v->value = xrealloc (v->value, v->value_length + 1);
-          bcopy (value, v->value, v->value_length + 1);
+          if (value_length == ~0U)
+            value_length = strlen (value);
+          else
+            assert (value_length == strlen (value));
+          v->value_length = value_length;
+          if (!duplicate_value)
+            {
+              if (v->value != 0)
+                free (v->value);
+              v->value = value;
+            }
+          else
+            {
+              v->value = xrealloc (v->value, v->value_length + 1);
+              bcopy (value, v->value, v->value_length + 1);
+            }
 #else
           if (v->value != 0)
             free (v->value);
@@ -378,9 +399,18 @@ define_variable_in_set (const char *name, unsigned int length,
 #endif
   hash_insert_at (&set->table, v, var_slot);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  v->value_length = strlen (value);
-  v->value = xmalloc (v->value_length + 1);
-  bcopy (value, v->value, v->value_length + 1);
+  if (value_length == ~0U)
+    value_length = strlen (value);
+  else
+    assert (value_length == strlen (value));
+  v->value_length = value_length;
+  if (!duplicate_value)
+    v->value = value;
+  else
+    {
+      v->value = xmalloc (v->value_length + 1);
+      bcopy (value, v->value, v->value_length + 1);
+    }
 #else
   v->value = xstrdup (value);
 #endif 
@@ -1034,7 +1064,7 @@ define_automatic_variables (void)
       v->origin = o_file;
       v->value = xstrdup (default_shell);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-      v->value_length = -1;
+      v->value_length = strlen (v->value);
 #endif 
     }
 #endif
@@ -1232,6 +1262,9 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   int append = 0;
   int conditional = 0;
   const size_t varname_len = strlen (varname); /* bird */
+# ifdef CONFIG_WITH_VALUE_LENGTH
+  unsigned int value_len = ~0U;
+# endif 
 
   /* Calculate the variable's new value in VALUE.  */
 
@@ -1296,6 +1329,49 @@ do_variable_definition (const struct floc *flocp, const char *varname,
             char *val;
 
             val = value;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+            if (v->recursive)
+              {
+                /* The previous definition of the variable was recursive.
+                   The new value is the unexpanded old and new values. */
+                flavor = f_recursive;
+                oldlen = v->value_length; assert (oldlen == strlen (v->value));
+                vallen = strlen (val);
+
+                value_len = oldlen + 1 + vallen;
+                p = alloc_value = xmalloc (value_len + 1);
+                memcpy (p, v->value, oldlen);
+                p[oldlen] = ' ';
+                memcpy (&p[oldlen + 1], val, vallen + 1);
+              }
+            else 
+              {
+                /* The previous definition of the variable was simple.
+                   The new value comes from the old value, which was expanded
+                   when it was set; and from the expanded new value.  Allocate
+                   memory for the expansion as we may still need the rest of the
+                   buffer if we're looking at a target-specific variable.  */
+                char *buf;
+                unsigned int len;
+                install_variable_buffer (&buf, &len);
+
+                p = variable_buffer;
+                if ( v->value && *v->value )
+                  {
+                    p = variable_buffer_output (p, v->value, v->value_length);
+                    p = variable_buffer_output (p, " ", 1);
+                  }
+                p = variable_expand_string (p, val, (long)-1);
+
+                p = strchr (p, '\0'); /* returns adjusted start, not end. */
+                alloc_value = variable_buffer;
+                value_len = p - alloc_value;
+                p = alloc_value;
+
+                variable_buffer = NULL; /* hackish */
+                restore_variable_buffer (buf, len);
+              }
+#else /* !CONFIG_WITH_VALUE_LENGTH */
             if (v->recursive)
               /* The previous definition of the variable was recursive.
                  The new value is the unexpanded old and new values. */
@@ -1308,15 +1384,13 @@ do_variable_definition (const struct floc *flocp, const char *varname,
                  buffer if we're looking at a target-specific variable.  */
               val = alloc_value = allocated_variable_expand (val);
 
-#ifdef CONFIG_WITH_VALUE_LENGTH
-            oldlen = v->value_length;
-            assert(oldlen == strlen (v->value));
-#endif 
+            oldlen = strlen (v->value);
             vallen = strlen (val);
             p = (char *) alloca (oldlen + 1 + vallen + 1);
             bcopy (v->value, p, oldlen);
             p[oldlen] = ' ';
             bcopy (val, &p[oldlen + 1], vallen + 1);
+#endif /* !CONFIG_WITH_VALUE_LENGTH */
           }
       }
     }
@@ -1418,6 +1492,9 @@ do_variable_definition (const struct floc *flocp, const char *varname,
       if (find_and_set_default_shell (p))
         {
           v = define_variable_in_set (varname, varname_len, default_shell,
+# ifdef CONFIG_WITH_VALUE_LENGTH
+                                      ~0U, 1 /* duplicate_value */,
+# endif 
                                       origin, flavor == f_recursive,
                                       (target_var
                                        ? current_variable_set_list->set
@@ -1427,6 +1504,10 @@ do_variable_definition (const struct floc *flocp, const char *varname,
         }
       else
         v = lookup_variable (varname, varname_len);
+# ifdef CONFIG_WITH_VALUE_LENGTH
+      if (alloc_value)
+        free (alloc_value);
+# endif 
     }
   else
 #endif
@@ -1438,6 +1519,9 @@ do_variable_definition (const struct floc *flocp, const char *varname,
      make sure we define this variable in the global set.  */
 
   v = define_variable_in_set (varname, varname_len, p,
+#ifdef CONFIG_WITH_VALUE_LENGTH
+                              value_len, !alloc_value,
+#endif
                               origin, flavor == f_recursive,
                               (target_var
                                ? current_variable_set_list->set : NULL),
@@ -1445,8 +1529,10 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   v->append = append;
   v->conditional = conditional;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   if (alloc_value)
     free (alloc_value);
+#endif 
 
   return v;
 }

@@ -50,12 +50,22 @@
 static struct variable *
 kbuild_get_variable(const char *pszName)
 {
+#ifndef NDEBUG
+    unsigned i;
+#endif 
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
     if (pVar->recursive)
         fatal(NILF, _("variable `%s' is defined as `recursive' instead of `simple'!"), pszName);
-    pVar->value_length = strlen(pVar->value);
+#ifndef NDEBUG
+    i = strlen(pVar->value);
+    if (i != pVar->value_length)
+    {
+        printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+        __asm int 3;
+    }
+#endif
     return pVar;
 }
 
@@ -69,10 +79,20 @@ kbuild_get_variable(const char *pszName)
 static struct variable *
 kbuild_get_recursive_variable(const char *pszName)
 {
+#ifndef NDEBUG
+    unsigned i;
+#endif 
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
-    pVar->value_length = strlen(pVar->value);
+#ifndef NDEBUG
+    i = strlen(pVar->value);
+    if (i != pVar->value_length)
+    {
+        printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+        __asm int 3;
+    }
+#endif
     return pVar;
 }
 
@@ -89,7 +109,16 @@ kbuild_lookup_variable(const char *pszName)
 {
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (pVar)
-        pVar->value_length = strlen(pVar->value);
+    {
+#ifndef NDEBUG
+        unsigned i = strlen(pVar->value);
+        if (i != pVar->value_length)
+        {
+            printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+            __asm int 3;
+        }
+#endif
+    }
     return pVar;
 }
 
@@ -229,7 +258,8 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
             char chSaved = *pszEnd;
             *pszEnd = '\0';
             if (!strchr(pszEnd, '$'))
-                pVar = define_variable(pszVarName, strlen(pszVarName), psz, o_file, 0 /* !recursive */);
+                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz, 
+                                          1 /* duplicate */, o_file, 0 /* !recursive */);
             else
             {
                 /* needs expanding and stripping. */
@@ -243,7 +273,9 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
                 if (pszExpEnd > pszExp)
                 {
                     *pszExpEnd = '\0';
-                    pVar = define_variable(pszVarName, strlen(pszVarName), pszExp, o_file, 0 /* !recursive */);
+                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp, 
+                                              pszExpEnd - pszExp, 1 /* duplicate */,
+                                              o_file, 0 /* !recursive */);
                 }
                 else
                     pVar = NULL;
@@ -361,7 +393,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
         + 1 /* slash */
         + pszSrcEnd - pszSrc
         + 1;
-    psz = pszResult = alloca(cch);
+    psz = pszResult = xmalloc(cch);
 
     memcpy(psz, pPathTarget->value, pPathTarget->value_length); psz += pPathTarget->value_length;
     *psz++ = '/';
@@ -373,7 +405,8 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     /* 
      * Define the variable in the current set and return it.
      */
-    return define_variable(pszVarName, strlen(pszVarName), pszResult, o_file, 0 /* !recursive */);
+    return define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cch - 1, 
+                              0 /* use pszResult */, o_file, 0 /* !recursive */);
 }
 
 /* Implements _OBJECT_BASE. */
@@ -439,7 +472,8 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
             char chSaved = *pszEnd;
             *pszEnd = '\0';
             if (!strchr(pszEnd, '$'))
-                pVar = define_variable(pszVarName, strlen(pszVarName), psz, o_file, 0 /* !recursive */);
+                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz, 
+                                          1 /* duplicate */, o_file, 0 /* !recursive */);
             else
             {
                 /* needs expanding and stripping. */
@@ -453,7 +487,9 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
                 if (pszExpEnd > pszExp)
                 {
                     *pszExpEnd = '\0';
-                    pVar = define_variable(pszVarName, strlen(pszVarName), pszExp, o_file, 0 /* !recursive */);
+                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp, 
+                                              pszExpEnd - pszExp, 1 /* duplicate */, 
+                                              o_file, 0 /* !recursive */);
                 }
                 else
                     pVar = NULL;
@@ -953,10 +989,13 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
         if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
             free(paVars[iVar].pszExp);
     }
-    psz[-(cchTotal != 0)] = '\0';
+    if (psz != pszResult)
+        psz--;
+    *psz = '\0';
+    cchTotal = psz - pszResult;
 
-    pVar = define_variable(pszVarName, strlen(pszVarName), pszResult, o_file, 0 /* !recursive */);
-    free(pszResult);
+    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cchTotal,
+                              0 /* take pszResult */ , o_file, 0 /* !recursive */);
     return pVar;
 }
 
@@ -1020,13 +1059,14 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
     memcpy(psz, pOutBase->value, pOutBase->value_length);   psz += pOutBase->value_length;
     memcpy(psz, pObjSuff->value, pObjSuff->value_length);   psz += pObjSuff->value_length;
     memcpy(psz, pDepSuff->value, pDepSuff->value_length + 1);
-    *ppDep = define_variable("dep", 3, pszResult, o_file, 0 /* !recursive */);
+    *ppDep = define_variable_vl("dep", 3, pszResult, cch - 1, 1 /*dup*/, o_file, 0 /* !recursive */);
 
     /* 
      * obj 
      */
     *psz = '\0';
-    pObj = define_variable(pszVarName, strlen(pszVarName), pszResult, o_file, 0 /* !recursive */);
+    pObj = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, psz - pszResult, 
+                              1/* dup */, o_file, 0 /* !recursive */);
 
     /* 
      * PATH_$(target)_$(source) - this is global! 
@@ -1076,7 +1116,7 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
     *psz = '\0';
 
     /* set global variable */
-    define_variable_global(pszName, cch, pszResult, o_file, 0 /* !recursive */, NILF);
+    define_variable_vl_global(pszName, cch, pszResult, psz - pszResult, 1/*dup*/, o_file, 0 /* !recursive */, NILF);
 
     /*
      * dirdep
@@ -1091,7 +1131,7 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
         *psz++ = '/';
         *psz = '\0';
     }
-    *ppDirDep = define_variable("dirdep", 6, pszResult, o_file, 0 /* !recursive */);
+    *ppDirDep = define_variable_vl("dirdep", 6, pszResult, psz - pszResult, 1/*dup*/, o_file, 0 /* !recursive */);
 
     return pObj;
 }

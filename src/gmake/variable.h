@@ -161,6 +161,45 @@ extern struct variable *lookup_variable_in_set PARAMS ((const char *name,
                                                         unsigned int length,
                                                         const struct variable_set *set));
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+
+extern struct variable *define_variable_in_set
+    PARAMS ((const char *name, unsigned int length, char *value,
+             unsigned int value_length, int duplicate_value,
+             enum variable_origin origin, int recursive,
+             struct variable_set *set, const struct floc *flocp));
+
+/* Define a variable in the current variable set.  */
+
+#define define_variable(n,l,v,o,r) \
+          define_variable_in_set((n),(l),(v), ~0U,1,(o),(r),\
+                                 current_variable_set_list->set,NILF)
+
+#define define_variable_vl(n,l,v,vl,dv,o,r) \
+          define_variable_in_set((n),(l),(v),(vl),(dv),(o),(r),\
+                                 current_variable_set_list->set,NILF)
+
+/* Define a variable with a location in the current variable set.  */
+
+#define define_variable_loc(n,l,v,o,r,f) \
+          define_variable_in_set((n),(l),(v),~0U,1,(o),(r),\
+                                 current_variable_set_list->set,(f))
+
+/* Define a variable with a location in the global variable set.  */
+
+#define define_variable_global(n,l,v,o,r,f) \
+          define_variable_in_set((n),(l),(v),~0U,1,(o),(r),NULL,(f))
+
+#define define_variable_vl_global(n,l,v,vl,dv,o,r,f) \
+          define_variable_in_set((n),(l),(v),(vl),(dv),(o),(r),NULL,(f))
+
+/* Define a variable in FILE's variable set.  */
+
+#define define_variable_for_file(n,l,v,o,r,f) \
+          define_variable_in_set((n),(l),(v),~0U,1,(o),(r),(f)->variables->set,NILF)
+
+#else
+
 extern struct variable *define_variable_in_set
     PARAMS ((const char *name, unsigned int length, char *value,
              enum variable_origin origin, int recursive,
@@ -187,6 +226,8 @@ extern struct variable *define_variable_in_set
 
 #define define_variable_for_file(n,l,v,o,r,f) \
           define_variable_in_set((n),(l),(v),(o),(r),(f)->variables->set,NILF)
+
+#endif 
 
 /* Warn that NAME is an undefined variable.  */
 
