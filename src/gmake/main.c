@@ -281,6 +281,17 @@ int rebuilding_makefiles = 0;
 
 struct variable shell_var;
 
+#ifdef KMK
+/* Process priority. 
+    0 = no change; 
+    1 = idle / max nice; 
+    2 = below normal /  nice 10; 
+    3 = normal / nice 0; 
+    4 = high / nice -10;
+    4 = realtime / nice -19; */
+int process_priority = 0;
+#endif 
+
 
 /* The usage output.  We write it this way to make life easier for the
    translators, especially those trying to translate to right-to-left
@@ -399,6 +410,10 @@ static const struct command_switch switches[] =
     { 'o', string, (char *) &old_files, 0, 0, 0, 0, 0, "old-file" },
     { 'p', flag, (char *) &print_data_base_flag, 1, 1, 0, 0, 0,
       "print-data-base" },
+#ifdef KMK
+    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0, 0, 0,
+      "priority" },
+#endif
     { 'q', flag, (char *) &question_flag, 1, 1, 1, 0, 0, "question" },
     { 'r', flag, (char *) &no_builtin_rules_flag, 1, 1, 0, 0, 0,
       "no-builtin-rules" },
@@ -662,6 +677,42 @@ decode_debug_flags (void)
         }
     }
 }
+
+
+#ifdef KMK
+static void
+set_make_priority (void)
+{
+#ifdef WINDOWS32
+    DWORD dwPriority;
+    switch (process_priority)
+      {
+        case 0:     return;
+        case 1:     dwPriority = IDLE_PRIORITY_CLASS; break;
+        case 2:     dwPriority = BELOW_NORMAL_PRIORITY_CLASS; break;
+        case 3:     dwPriority = NORMAL_PRIORITY_CLASS; break;
+        case 4:     dwPriority = HIGH_PRIORITY_CLASS; break;
+        case 5:     dwPriority = REALTIME_PRIORITY_CLASS; break;
+        default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+      }
+    SetPriorityClass(GetCurrentProcess(), dwPriority);
+#else /*#elif HAVE_NICE */
+    int nice = 0;
+    switch (process_priority)
+      {
+        case 0:     return;
+        case 1:     nice = 19; break;
+        case 2:     nice = 10; break;
+        case 3:     nice = 0; break;
+        case 4:     nice = -10; break;
+        case 5:     nice = -19; break;
+        default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+      }
+    nice(nice);
+#endif 
+}
+#endif 
+
 
 #ifdef WINDOWS32
 /*
@@ -1272,6 +1323,10 @@ main (int argc, char **argv, char **envp)
 #endif
 
   decode_debug_flags ();
+
+#ifdef KMK
+  set_make_priority ();
+#endif 
 
   /* Set always_make_flag if -B was given and we've not restarted already.  */
   always_make_flag = always_make_set && (restarts == 0);

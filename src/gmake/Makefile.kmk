@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 527 2006-09-17 04:04:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 530 2006-09-17 20:38:57Z knut.osmundsen@oracle.com $
 
 
 #
@@ -20,11 +20,13 @@ kmk_DEFS = \
 	CONFIG_NO_DEFAULT_SUFFIX_RULES \
 	CONFIG_NO_DEFAULT_VARIABLES \
 	CONFIG_WITH_EXTENDED_NOTPARALLEL \
-	CONFIG_WITH_TOUPPER_TOLOWER \
     CONFIG_WITH_INCLUDEDEP \
+	CONFIG_WITH_TOUPPER_TOLOWER \
+	CONFIG_WITH_VALUE_LENGTH \
+	CONFIG_WITH_COMPARE \
 	KMK \
 	CONFIG_WITH_OPTIMIZATION_HACKS \
-	VARIABLE_HASH 
+	VARIABLE_HASH
 	
 kmk_SOURCES = \
 	main.c \
@@ -48,7 +50,8 @@ kmk_SOURCES = \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c \
+	kbuild.c
 
 kmk_SOURCES.win32 = \
 	getopt.c \

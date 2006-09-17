@@ -81,5 +81,9 @@ extern void free_dep_chain PARAMS ((struct dep *d));
 extern void free_ns_chain PARAMS ((struct nameseq *n));
 extern struct dep *read_all_makefiles PARAMS ((char **makefiles));
 extern int eval_buffer PARAMS ((char *buffer));
+#ifdef CONFIG_WITH_INCLUDEDEP
+extern void eval_include_dep PARAMS ((char *name, struct floc *f));
+#endif
 extern int update_goal_chain PARAMS ((struct dep *goals));
 extern void uniquize_deps PARAMS ((struct dep *));
+

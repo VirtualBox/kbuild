@@ -515,9 +515,18 @@ variable_append (const char *name, unsigned int length,
 
   /* Either expand it or copy it, depending.  */
   if (! v->recursive)
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    return variable_buffer_output (buf, v->value, 
+                                   v->value_length >= 0 ? v->value_length : strlen (v->value));
+#else
     return variable_buffer_output (buf, v->value, strlen (v->value));
+#endif
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  buf = variable_expand_string (buf, v->value, v->value_length >= 0 ? v->value_length : strlen (v->value));
+#else
   buf = variable_expand_string (buf, v->value, strlen (v->value));
+#endif
   return (buf + strlen (buf));
 }
 

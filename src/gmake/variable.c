@@ -348,9 +348,15 @@ define_variable_in_set (const char *name, unsigned int length,
 	 than this one, don't redefine it.  */
       if ((int) origin >= (int) v->origin)
 	{
-	  if (v->value != 0)
-	    free (v->value);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          v->value_length = strlen (value);
+          v->value = xrealloc (v->value, v->value_length + 1);
+          bcopy (value, v->value, v->value_length + 1);
+#else
+          if (v->value != 0)
+            free (v->value);
 	  v->value = xstrdup (value);
+#endif 
           if (flocp != 0)
             v->fileinfo = *flocp;
           else
@@ -371,7 +377,13 @@ define_variable_in_set (const char *name, unsigned int length,
   v->hash2 = 0;
 #endif
   hash_insert_at (&set->table, v, var_slot);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  v->value_length = strlen (value);
+  v->value = xmalloc (v->value_length + 1);
+  bcopy (value, v->value, v->value_length + 1);
+#else
   v->value = xstrdup (value);
+#endif 
   if (flocp != 0)
     v->fileinfo = *flocp;
   else
@@ -1021,6 +1033,9 @@ define_automatic_variables (void)
       free (v->value);
       v->origin = o_file;
       v->value = xstrdup (default_shell);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      v->value_length = -1;
+#endif 
     }
 #endif
 
@@ -1293,7 +1308,10 @@ do_variable_definition (const struct floc *flocp, const char *varname,
                  buffer if we're looking at a target-specific variable.  */
               val = alloc_value = allocated_variable_expand (val);
 
-            oldlen = strlen (v->value);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+            oldlen = v->value_length;
+            assert(oldlen == strlen (v->value));
+#endif 
             vallen = strlen (val);
             p = (char *) alloca (oldlen + 1 + vallen + 1);
             bcopy (v->value, p, oldlen);
@@ -1525,6 +1543,9 @@ parse_variable_definition (struct variable *v, char *line)
     --end;
   p = next_token (p);
   v->value = p;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  v->value_length = -1;
+#endif 
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
   name = (char *) alloca (end - beg + 1);

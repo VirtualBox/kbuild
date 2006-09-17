@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License along with
 GNU Make; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+# include <assert.h>
+#endif 
 #include "make.h"
 #include "filedef.h"
 #include "variable.h"
@@ -31,7 +34,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef WINDOWS32 /* bird */
 # include "pathstuff.h"
 #endif
-#include <assert.h> /* bird */
+
+#ifdef KMK
+# include "kbuild.h"
+#endif 
 
 
 struct function_table_entry
@@ -261,7 +267,11 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
 /* The maximum length of a function, once reached there is 
    it can't be function and we can skip the hash lookup drop out. */
 
-#define MAX_FUNCTION_LENGTH 10 /* bird */
+#ifdef KMK
+# define MAX_FUNCTION_LENGTH 12
+#else
+# define MAX_FUNCTION_LENGTH 10
+#endif 
 
 /* Look up a function by name.  */
 __inline
@@ -1403,7 +1413,12 @@ func_value (char *o, char **argv, const char *funcname UNUSED)
 
   /* Copy its value into the output buffer without expanding it.  */
   if (v)
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    o = variable_buffer_output (o, v->value, 
+                                v->value_length >= 0 ? v->value_length : strlen(v->value));
+#else
     o = variable_buffer_output (o, v->value, strlen(v->value));
+#endif 
 
   return o;
 }
@@ -2109,6 +2124,129 @@ func_toupper_tolower (char *o, char **argv, const char *funcname)
 }
 #endif /* CONFIG_WITH_TOUPPER_TOLOWER */
 
+#if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
+/* Returns empty string if equal, returns the third arg if not equal. */
+static char *
+func_comp_vars (char *o, char **argv, const char *funcname)
+{
+  const char *s1, *e1, *x1, *s2, *e2, *x2;
+  char *a1 = NULL, *a2 = NULL;
+  size_t l, l1, l2;
+  struct variable *var1 = lookup_variable (argv[0], strlen (argv[0]));
+  struct variable *var2 = lookup_variable (argv[1], strlen (argv[1]));
+
+  /* the simple cases */
+  if (var1 == var2)
+    return variable_buffer_output (o, "", 1);       /* eq */
+  if (!var1 || !var2)
+    return variable_buffer_output (o, argv[2], strlen(argv[2]));
+  if (var1->value == var2->value)
+    return variable_buffer_output (o, "", 1);       /* eq */
+  if (!var1->recursive && !var2->recursive)
+  {
+    if (    var1->value_length == var2->value_length
+        &&  !memcmp (var1->value, var2->value, var1->value_length))
+      return variable_buffer_output (o, "", 1);     /* eq */
+
+    /* ignore trailing and leading blanks */
+    s1 = var1->value;
+    while (isblank ((unsigned char) *s1))
+      s1++;
+    e1 = s1 + var1->value_length;
+    while (e1 > s1 && isblank ((unsigned char) e1[-1]))
+      e1--;
+
+    s2 = var2->value;
+    while (isblank ((unsigned char) *s2))
+      s2++;
+    e2 = s2 + var2->value_length;
+    while (e2 > s2 && isblank ((unsigned char) e2[-1]))
+      e2--;
+
+    if (e1 - s1 != e2 - s2)
+      return variable_buffer_output (o, "", 1);     /* eq */
+l_simple_compare:
+    if (!memcmp (s1, s2, e1 - s1))
+      return variable_buffer_output (o, "", 1);     /* eq */
+    return variable_buffer_output (o, argv[2], strlen(argv[2]));
+  }
+
+  /* ignore trailing and leading blanks */
+  s1 = var1->value;
+  e1 = s1 + var1->value_length;
+  while (isblank ((unsigned char) *s1))
+    s1++;
+  while (e1 > s1 && isblank ((unsigned char) e1[-1]))
+    e1--;
+
+  s2 = var2->value;
+  e2 = s2 + var2->value_length;
+  while (isblank((unsigned char)*s2))
+    s2++;
+  while (e2 > s2 && isblank ((unsigned char) e2[-1]))
+    e2--;
+
+  /* both empty after stripping? */
+  if (s1 == e1 && s2 == e2)
+    return variable_buffer_output (o, "", 1);       /* eq */
+
+  /* optimist. */
+  if (   e1 - s1 == e2 - s2
+      && !memcmp(s1, s2, e1 - s1))
+    return variable_buffer_output (o, "", 1);       /* eq */
+
+  /* compare up to the first '$' or the end. */
+  x1 = var1->recursive ? memchr (s1, '$', e1 - s1) : NULL;
+  x2 = var2->recursive ? memchr (s2, '$', e2 - s2) : NULL;
+  if (!x1 && !x2)
+    return variable_buffer_output (o, argv[2], strlen (argv[2]));
+
+  l1 = x1 ? x1 - s1 : e1 - s1;
+  l2 = x2 ? x2 - s2 : e2 - s2;
+  l = l1 <= l2 ? l1 : l2;
+  if (l && memcmp (s1, s2, l))
+      return variable_buffer_output (o, argv[2], strlen (argv[2]));
+
+  /* one or both buffers now require expanding. */
+  if (!x1)
+    s1 += l;
+  else
+    {
+      s1 = a1 = allocated_variable_expand ((char *)s1 + l);
+      if (!l)
+        while (isblank ((unsigned char) *s1))
+          s1++;
+      e1 = strchr (s1, '\0'); /*hmm*/
+      while (e1 > s1 && isblank ((unsigned char) e1[-1]))
+        e1--;
+    }
+
+  if (!x2)
+    s2 += l;
+  else
+    {
+      s2 = a2 = allocated_variable_expand ((char *)s2 + l);
+      if (!l)
+        while (isblank ((unsigned char) *s2))
+          s2++;
+      e2 = strchr (s2, '\0'); /*hmm*/
+      while (e2 > s2 && isblank ((unsigned char) e2[-1]))
+        e2--;
+    }
+
+  /* the final compare */
+  l = (   e1 - s1 != e2 - s2
+       || memcmp (s1, s2, e1 - s1));
+  if (a1)
+    free (a1);
+  if (a2)
+    free (a2);
+  if (l)
+    return variable_buffer_output (o, "", 1);
+  return variable_buffer_output (o, argv[2], strlen (argv[2]));
+}
+#endif 
+
 /* Lookup table for builtin functions.
 
    This doesn't have to be sorted; we use a straight lookup.  We might gain
@@ -2170,6 +2308,16 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
 #endif
+#if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
+  { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
+#endif
+#ifdef KMK
+  { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
+  { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
+  { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},
+  { STRING_SIZE_TUPLE("kb-src-prop"),   3,  3,  0,  func_kbuild_source_prop},
+  { STRING_SIZE_TUPLE("kb-src-one"),    1,  1,  0,  func_kbuild_source_one},
+#endif 
 };
 
 #define FUNCTION_TABLE_ENTRIES (sizeof (function_table_init) / sizeof (struct function_table_entry))
