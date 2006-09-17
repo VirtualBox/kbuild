@@ -206,12 +206,11 @@ w32ify(char *filename, int resolve)
     static char w32_path[FILENAME_MAX];
     char *p;
 
-    if (resolve)
+    if (resolve) {
         _fullpath(w32_path, filename, sizeof (w32_path));
-    else
+        w32_fixcase(w32_path); /* bird */
+    } else
         strncpy(w32_path, filename, sizeof (w32_path));
-
-    w32_fixcase(w32_path); /* bird */
 
     for (p = w32_path; p && *p; p++)
         if (*p == '\\')

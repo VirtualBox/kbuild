@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 525 2006-09-16 06:26:17Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 529 2006-09-17 06:56:50Z knut.osmundsen@oracle.com $ */
+
+2006-09-17:
+    - kBuild/gmake:
+        o Fixed assertion in w32_fixcase when shell doesn't have a full path 
+          and some other case.
 
 2006-09-16:
     - kBuild/header.kmk:
