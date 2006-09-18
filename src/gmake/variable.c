@@ -361,18 +361,24 @@ define_variable_in_set (const char *name, unsigned int length,
             value_length = strlen (value);
           else
             assert (value_length == strlen (value));
-          v->value_length = value_length;
           if (!duplicate_value)
             {
               if (v->value != 0)
                 free (v->value);
               v->value = value;
+              v->value_alloc_len = value_length + 1;
             }
           else
             {
-              v->value = xrealloc (v->value, v->value_length + 1);
-              bcopy (value, v->value, v->value_length + 1);
+              if ((unsigned int)v->value_alloc_len <= value_length)
+                {
+                  free (v->value);
+                  v->value_alloc_len = (value_length + 0x40) & ~0x3f;
+                  v->value = xmalloc (v->value_alloc_len);
+                }
+              memcpy (v->value, value, value_length + 1);
             }
+          v->value_length = value_length;
 #else
           if (v->value != 0)
             free (v->value);
@@ -405,11 +411,15 @@ define_variable_in_set (const char *name, unsigned int length,
     assert (value_length == strlen (value));
   v->value_length = value_length;
   if (!duplicate_value)
-    v->value = value;
+    {
+      v->value_alloc_len = value_length + 1;
+      v->value = value;
+    }
   else
     {
-      v->value = xmalloc (v->value_length + 1);
-      bcopy (value, v->value, v->value_length + 1);
+      v->value_alloc_len = (value_length + 32) & ~31;
+      v->value = xmalloc (v->value_alloc_len);
+      memcpy (v->value, value, value_length + 1);
     }
 #else
   v->value = xstrdup (value);
@@ -1065,6 +1075,7 @@ define_automatic_variables (void)
       v->value = xstrdup (default_shell);
 #ifdef CONFIG_WITH_VALUE_LENGTH
       v->value_length = strlen (v->value);
+      v->value_alloc_len = v->value_length + 1;
 #endif 
     }
 #endif
@@ -1249,6 +1260,69 @@ target_environment (struct file *file)
   return result_0;
 }
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+static struct variable *
+do_variable_definition_append (const struct floc *flocp, struct variable *v, char *value, 
+                               enum Variable_origin origin)
+{
+  if (env_overrides && origin == o_env)
+    origin = o_env_override;
+
+  if (env_overrides && v->origin == o_env)
+    /* V came from in the environment.  Since it was defined
+       before the switches were parsed, it wasn't affected by -e.  */
+    v->origin = o_env_override;
+
+  /* A variable of this name is already defined.
+     If the old definition is from a stronger source
+     than this one, don't redefine it.  */
+  if ((int) origin < (int) v->origin)
+    return v;
+  v->origin = origin;
+
+  /* location */
+  if (flocp != 0)
+    v->fileinfo = *flocp;
+
+  /* The juicy bits, append the specified value to the variable 
+     This is a heavily exercied code path in kBuild. */
+  if (v->recursive)
+    {
+      /* The previous definition of the variable was recursive.
+         The new value is the unexpanded old and new values. */
+      unsigned int value_len = strlen (value);
+      unsigned int new_value_len = value_len + (v->value_length != 0 ? 1 + v->value_length : 0);
+
+      /* adjust the size. */
+      if ((unsigned)v->value_alloc_len <= new_value_len)
+        {
+          v->value_alloc_len = (new_value_len + 0x80) + 0x7f;
+          v->value = xrealloc (v->value, v->value_alloc_len);
+        }
+
+      /* insert the new bits */
+      if (v->value_length != 0)
+        {
+          v->value[v->value_length] = ' ';
+          memcpy (&v->value[v->value_length + 1], value, value_len + 1);
+        }
+      else
+          memcpy (v->value, value, value_len + 1);
+      v->value_length = new_value_len;
+    }
+  else 
+    {
+      /* The previous definition of the variable was simple.
+         The new value comes from the old value, which was expanded
+         when it was set; and from the expanded new value. */
+      append_expanded_string_to_variable(v, value);
+    }
+
+  /* update the variable */
+  return v;
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
+
 /* Given a variable, a value, and a flavor, define the variable.
    See the try_variable_definition() function for details on the parameters. */
 
@@ -1323,55 +1397,17 @@ do_variable_definition (const struct floc *flocp, const char *varname,
           }
         else
           {
+#ifdef CONFIG_WITH_VALUE_LENGTH
+            v->append = append;
+            return do_variable_definition_append (flocp, v, value, origin);
+#else /* !CONFIG_WITH_VALUE_LENGTH */
+
             /* Paste the old and new values together in VALUE.  */
 
             unsigned int oldlen, vallen;
             char *val;
 
             val = value;
-#ifdef CONFIG_WITH_VALUE_LENGTH
-            if (v->recursive)
-              {
-                /* The previous definition of the variable was recursive.
-                   The new value is the unexpanded old and new values. */
-                flavor = f_recursive;
-                oldlen = v->value_length; assert (oldlen == strlen (v->value));
-                vallen = strlen (val);
-
-                value_len = oldlen + 1 + vallen;
-                p = alloc_value = xmalloc (value_len + 1);
-                memcpy (p, v->value, oldlen);
-                p[oldlen] = ' ';
-                memcpy (&p[oldlen + 1], val, vallen + 1);
-              }
-            else 
-              {
-                /* The previous definition of the variable was simple.
-                   The new value comes from the old value, which was expanded
-                   when it was set; and from the expanded new value.  Allocate
-                   memory for the expansion as we may still need the rest of the
-                   buffer if we're looking at a target-specific variable.  */
-                char *buf;
-                unsigned int len;
-                install_variable_buffer (&buf, &len);
-
-                p = variable_buffer;
-                if ( v->value && *v->value )
-                  {
-                    p = variable_buffer_output (p, v->value, v->value_length);
-                    p = variable_buffer_output (p, " ", 1);
-                  }
-                p = variable_expand_string (p, val, (long)-1);
-
-                p = strchr (p, '\0'); /* returns adjusted start, not end. */
-                alloc_value = variable_buffer;
-                value_len = p - alloc_value;
-                p = alloc_value;
-
-                variable_buffer = NULL; /* hackish */
-                restore_variable_buffer (buf, len);
-              }
-#else /* !CONFIG_WITH_VALUE_LENGTH */
             if (v->recursive)
               /* The previous definition of the variable was recursive.
                  The new value is the unexpanded old and new values. */
@@ -1630,7 +1666,7 @@ parse_variable_definition (struct variable *v, char *line)
   p = next_token (p);
   v->value = p;
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  v->value_length = -1;
+  v->value_length = v->value_alloc_len = -1;
 #endif 
 
   /* Expand the name, so "$(foo)bar = baz" works.  */

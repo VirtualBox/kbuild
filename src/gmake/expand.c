@@ -530,6 +530,36 @@ variable_append (const char *name, unsigned int length,
   return (buf + strlen (buf));
 }
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+/* Expands the specified string, appending it to the specified variable value. */
+void 
+append_expanded_string_to_variable (struct variable *v, char *value)
+{
+  char *p;
+
+  /* switch the variable buffer to the variable value buffer. */
+  char *saved_buffer = variable_buffer;
+  unsigned int saved_buffer_length = variable_buffer_length;
+  variable_buffer = v->value;
+  variable_buffer_length = v->value_alloc_len;
+
+  /* skip the current value and start appending a space and the expanded string. */
+  p = v->value + v->value_length;
+  if (v->value_length != 0)
+      p = variable_buffer_output (p, " ", 1);
+  p = variable_expand_string (p, value, (long)-1);
+
+  /* update the variable. (The variable_expand_string return is annoying!) */
+  p = strchr (p, '\0');
+  v->value = variable_buffer;
+  v->value_length = p - v->value;
+  v->value_alloc_len = variable_buffer_length;
+
+  /* restore the variable buffer. */
+  variable_buffer = saved_buffer;
+  variable_buffer_length = saved_buffer_length;
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 static char *
 allocated_variable_append (const struct variable *v)

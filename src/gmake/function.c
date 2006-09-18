@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 # include "pathstuff.h"
 #endif
 
-#ifdef KMK
+#ifdef KMK_HELPERS
 # include "kbuild.h"
 #endif 
 
@@ -879,10 +879,11 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
     {
       char *result = 0;
 #ifdef CONFIG_WITH_VALUE_LENGTH
-      if (len > (unsigned int)var->value_length)
+      if (len >= (unsigned int)var->value_alloc_len)
         {
           free (var->value);
-          var->value = xmalloc (len + 1);
+          var->value_alloc_len = (len + 32) & ~31;
+          var->value = xmalloc (var->value_alloc_len);
         }
       memcpy (var->value, p, len);
       var->value[len] = '\0';
@@ -2321,7 +2322,7 @@ static struct function_table_entry function_table_init[] =
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
 #endif
-#ifdef KMK
+#ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
   { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
   { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},

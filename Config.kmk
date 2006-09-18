@@ -1,4 +1,4 @@
-# $Id: Config.kmk 467 2006-07-15 04:25:24Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 533 2006-09-18 03:02:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -46,7 +46,9 @@ ifeq ($(BUILD_TARGET),win32)
 TEMPLATE_BIN_TOOL               = VCC70
 TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
 TEMPLATE_BIN_DEFS.release       = NDEBUG
-TEMPLATE_BIN_CFLAGS             = -MT -W3
+TEMPLATE_BIN_CFLAGS             = -MT -W3 -Zi -Zl
+TEMPLATE_BIN_CFLAGS.release     = -O2
+TEMPLATE_BIN_CFLAGS.profile     = -O2 -GH -Gh
 TEMPLATE_BIN_INCS              += \
 	. \
 	$(PATH_ROOT)/src/gmake/w32/include \
@@ -54,12 +56,14 @@ TEMPLATE_BIN_INCS              += \
 	$(PATH_DEV)/x86.win32/vcc70/include \
 	$(PATH_DEV)/x86.win32/sdk200209/include
 TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD
+TEMPLATE_BIN_LDFLAGS.profile    = /DEBUG
 TEMPLATE_BIN_LIBS               = \
 	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
 	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
+TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
 TEMPLATE_BIN_INST               = kBuild/bin/x86.win32/
 endif
 
