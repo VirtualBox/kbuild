@@ -26,6 +26,8 @@
 
 /* No GNU coding style here! */
 
+#ifdef KMK_HELPERS
+
 #include "make.h"
 #include "variable.h"
 #include "dep.h"
@@ -1287,3 +1289,5 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     return variable_buffer_output(o, "", 1);
 }
 
+
+#endif /* KMK_HELPERS */
