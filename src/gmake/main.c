@@ -411,8 +411,8 @@ static const struct command_switch switches[] =
     { 'p', flag, (char *) &print_data_base_flag, 1, 1, 0, 0, 0,
       "print-data-base" },
 #ifdef KMK
-    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0, 0, 0,
-      "priority" },
+    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0, 
+      (char *) &process_priority, (char *) &process_priority, "priority" },
 #endif
     { 'q', flag, (char *) &question_flag, 1, 1, 1, 0, 0, "question" },
     { 'r', flag, (char *) &no_builtin_rules_flag, 1, 1, 0, 0, 0,

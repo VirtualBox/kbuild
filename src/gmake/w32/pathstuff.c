@@ -89,7 +89,8 @@ convert_Path_to_windows32(char *Path, char to_delim)
 void 
 w32_fixcase(char *pszPath)
 {
-#define my_assert(expr) \
+#ifndef NDEBUG
+# define my_assert(expr) \
     do { \
         if (!(expr)) { \
             printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
@@ -98,6 +99,9 @@ w32_fixcase(char *pszPath)
             exit(1); \
         } \
     } while (0)
+#else
+# define my_assert(expr) do {} while (0)
+#endif 
     
     char *psz = pszPath;
     if (*psz == '/' || *psz == '\\')
