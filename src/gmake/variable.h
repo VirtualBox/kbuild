@@ -58,6 +58,8 @@ struct variable
 #endif
 #ifdef CONFIG_WITH_VALUE_LENGTH
     int value_length;		/* The length of the value, usually unused.  */
+    int value_alloc_len;	/* The amount of memory we've actually allocated. */
+    /* FIXME: make lengths unsigned! */
 #endif 
     char *value;		/* Variable value.  */
     struct floc fileinfo;       /* Where the variable was defined.  */
@@ -127,6 +129,9 @@ extern char *variable_expand_string PARAMS ((char *line, char *string,
                                              long length));
 extern void install_variable_buffer PARAMS ((char **bufp, unsigned int *lenp));
 extern void restore_variable_buffer PARAMS ((char *buf, unsigned int len));
+#ifdef CONFIG_WITH_VALUE_LENGTH
+extern void append_expanded_string_to_variable PARAMS ((struct variable *v, char *value));
+#endif
 
 /* function.c */
 extern int handle_function PARAMS ((char **op, char **stringp));
