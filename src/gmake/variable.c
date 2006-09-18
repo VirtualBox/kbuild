@@ -107,7 +107,7 @@ lookup_pattern_var (struct pattern_var *start, char *target)
 #  define inline _inline
 typedef signed int int32_t;
 typedef signed short int int16_t;
-# endif 
+# endif
 static inline unsigned long variable_hash_2i(register const unsigned char *var, register int length)
 {
     register unsigned int hash = 0;
@@ -315,15 +315,15 @@ init_hash_global_variable_set (void)
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
                         char *value, unsigned int value_length, int duplicate_value,
-                        enum variable_origin origin, int recursive, 
+                        enum variable_origin origin, int recursive,
                         struct variable_set *set, const struct floc *flocp)
 #else
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
-                        char *value, enum variable_origin origin, 
-                        int recursive, struct variable_set *set, 
+                        char *value, enum variable_origin origin,
+                        int recursive, struct variable_set *set,
                         const struct floc *flocp)
-#endif 
+#endif
 {
   struct variable *v;
   struct variable **var_slot;
@@ -383,7 +383,7 @@ define_variable_in_set (const char *name, unsigned int length,
           if (v->value != 0)
             free (v->value);
 	  v->value = xstrdup (value);
-#endif 
+#endif
           if (flocp != 0)
             v->fileinfo = *flocp;
           else
@@ -423,7 +423,7 @@ define_variable_in_set (const char *name, unsigned int length,
     }
 #else
   v->value = xstrdup (value);
-#endif 
+#endif
   if (flocp != 0)
     v->fileinfo = *flocp;
   else
@@ -1076,7 +1076,7 @@ define_automatic_variables (void)
 #ifdef CONFIG_WITH_VALUE_LENGTH
       v->value_length = strlen (v->value);
       v->value_alloc_len = v->value_length + 1;
-#endif 
+#endif
     }
 #endif
 
@@ -1262,8 +1262,8 @@ target_environment (struct file *file)
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
 static struct variable *
-do_variable_definition_append (const struct floc *flocp, struct variable *v, char *value, 
-                               enum Variable_origin origin)
+do_variable_definition_append (const struct floc *flocp, struct variable *v, char *value,
+                               enum variable_origin origin)
 {
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -1284,7 +1284,7 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, cha
   if (flocp != 0)
     v->fileinfo = *flocp;
 
-  /* The juicy bits, append the specified value to the variable 
+  /* The juicy bits, append the specified value to the variable
      This is a heavily exercied code path in kBuild. */
   if (v->recursive)
     {
@@ -1310,7 +1310,7 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, cha
           memcpy (v->value, value, value_len + 1);
       v->value_length = new_value_len;
     }
-  else 
+  else
     {
       /* The previous definition of the variable was simple.
          The new value comes from the old value, which was expanded
@@ -1338,7 +1338,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   const size_t varname_len = strlen (varname); /* bird */
 # ifdef CONFIG_WITH_VALUE_LENGTH
   unsigned int value_len = ~0U;
-# endif 
+# endif
 
   /* Calculate the variable's new value in VALUE.  */
 
@@ -1530,7 +1530,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
           v = define_variable_in_set (varname, varname_len, default_shell,
 # ifdef CONFIG_WITH_VALUE_LENGTH
                                       ~0U, 1 /* duplicate_value */,
-# endif 
+# endif
                                       origin, flavor == f_recursive,
                                       (target_var
                                        ? current_variable_set_list->set
@@ -1543,7 +1543,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 # ifdef CONFIG_WITH_VALUE_LENGTH
       if (alloc_value)
         free (alloc_value);
-# endif 
+# endif
     }
   else
 #endif
@@ -1568,7 +1568,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 #ifndef CONFIG_WITH_VALUE_LENGTH
   if (alloc_value)
     free (alloc_value);
-#endif 
+#endif
 
   return v;
 }
@@ -1667,7 +1667,7 @@ parse_variable_definition (struct variable *v, char *line)
   v->value = p;
 #ifdef CONFIG_WITH_VALUE_LENGTH
   v->value_length = v->value_alloc_len = -1;
-#endif 
+#endif
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
   name = (char *) alloca (end - beg + 1);

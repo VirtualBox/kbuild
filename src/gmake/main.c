@@ -282,15 +282,15 @@ int rebuilding_makefiles = 0;
 struct variable shell_var;
 
 #ifdef KMK
-/* Process priority. 
-    0 = no change; 
-    1 = idle / max nice; 
-    2 = below normal /  nice 10; 
-    3 = normal / nice 0; 
+/* Process priority.
+    0 = no change;
+    1 = idle / max nice;
+    2 = below normal /  nice 10;
+    3 = normal / nice 0;
     4 = high / nice -10;
     4 = realtime / nice -19; */
 int process_priority = 0;
-#endif 
+#endif
 
 
 /* The usage output.  We write it this way to make life easier for the
@@ -411,7 +411,7 @@ static const struct command_switch switches[] =
     { 'p', flag, (char *) &print_data_base_flag, 1, 1, 0, 0, 0,
       "print-data-base" },
 #ifdef KMK
-    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0, 
+    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
 #endif
     { 'q', flag, (char *) &question_flag, 1, 1, 1, 0, 0, "question" },
@@ -511,13 +511,13 @@ int second_expansion;
 
 #else  /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
 
-/* Negative if we have seen the `.NOTPARALLEL' target with an 
-   empty dependency list. 
+/* Negative if we have seen the `.NOTPARALLEL' target with an
+   empty dependency list.
 
-   Zero if no `.NOTPARALLEL' or no file in the dependency list 
-   is being executed. 
+   Zero if no `.NOTPARALLEL' or no file in the dependency list
+   is being executed.
 
-   Positive when a file in the `.NOTPARALLEL' dependency list 
+   Positive when a file in the `.NOTPARALLEL' dependency list
    is in progress, the value is the number of notparallel files
    in progress (running or queued for running).
 
@@ -684,34 +684,34 @@ static void
 set_make_priority (void)
 {
 #ifdef WINDOWS32
-    DWORD dwPriority;
-    switch (process_priority)
-      {
-        case 0:     return;
-        case 1:     dwPriority = IDLE_PRIORITY_CLASS; break;
-        case 2:     dwPriority = BELOW_NORMAL_PRIORITY_CLASS; break;
-        case 3:     dwPriority = NORMAL_PRIORITY_CLASS; break;
-        case 4:     dwPriority = HIGH_PRIORITY_CLASS; break;
-        case 5:     dwPriority = REALTIME_PRIORITY_CLASS; break;
-        default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
-      }
-    SetPriorityClass(GetCurrentProcess(), dwPriority);
+  DWORD dwPriority;
+  switch (process_priority)
+    {
+      case 0:     return;
+      case 1:     dwPriority = IDLE_PRIORITY_CLASS; break;
+      case 2:     dwPriority = BELOW_NORMAL_PRIORITY_CLASS; break;
+      case 3:     dwPriority = NORMAL_PRIORITY_CLASS; break;
+      case 4:     dwPriority = HIGH_PRIORITY_CLASS; break;
+      case 5:     dwPriority = REALTIME_PRIORITY_CLASS; break;
+      default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+    }
+  SetPriorityClass(GetCurrentProcess(), dwPriority);
 #else /*#elif HAVE_NICE */
-    int nice = 0;
-    switch (process_priority)
-      {
-        case 0:     return;
-        case 1:     nice = 19; break;
-        case 2:     nice = 10; break;
-        case 3:     nice = 0; break;
-        case 4:     nice = -10; break;
-        case 5:     nice = -19; break;
-        default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
-      }
-    nice(nice);
-#endif 
+  int nice_level = 0;
+  switch (process_priority)
+    {
+      case 0:     return;
+      case 1:     nice_level = 19; break;
+      case 2:     nice_level = 10; break;
+      case 3:     nice_level = 0; break;
+      case 4:     nice_level = -10; break;
+      case 5:     nice_level = -19; break;
+      default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+    }
+  nice (nice_level);
+#endif
 }
-#endif 
+#endif
 
 
 #ifdef WINDOWS32
@@ -890,15 +890,15 @@ find_and_set_default_shell (char *token)
 
 #ifdef KMK
   /* WORKAROUND:
-    With GNU Make 3.81, this kludge was necessary to get double quotes 
-    working correctly again (worked fine with the 3.81beta1 code). 
-    beta1 was forcing batch_mode_shell I think, so let's enforce that 
+    With GNU Make 3.81, this kludge was necessary to get double quotes
+    working correctly again (worked fine with the 3.81beta1 code).
+    beta1 was forcing batch_mode_shell I think, so let's enforce that
     for the kBuild shell. */
   if (sh_found && strstr(default_shell, "kmk_ash")) {
       unixy_shell = 1;
       batch_mode_shell = 1;
   } else
-#endif 
+#endif
   /* naive test */
   if (!unixy_shell && sh_found &&
       (strstr(default_shell, "sh") || strstr(default_shell, "SH"))) {
@@ -1326,7 +1326,7 @@ main (int argc, char **argv, char **envp)
 
 #ifdef KMK
   set_make_priority ();
-#endif 
+#endif
 
   /* Set always_make_flag if -B was given and we've not restarted already.  */
   always_make_flag = always_make_set && (restarts == 0);

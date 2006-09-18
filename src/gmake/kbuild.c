@@ -29,6 +29,7 @@
 #ifdef KMK_HELPERS
 
 #include "make.h"
+#include "filedef.h"
 #include "variable.h"
 #include "dep.h"
 #include "debug.h"
@@ -39,13 +40,13 @@
 #include <stdarg.h>
 #ifndef va_copy
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
-#endif 
+#endif
 
 
 /**
  * Gets a variable that must exist.
- * Will cause a fatal failure if the variable doesn't exist. 
- * 
+ * Will cause a fatal failure if the variable doesn't exist.
+ *
  * @returns Pointer to the variable.
  * @param   pszName     The variable name.
  */
@@ -54,7 +55,7 @@ kbuild_get_variable(const char *pszName)
 {
 #ifndef NDEBUG
     unsigned i;
-#endif 
+#endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
@@ -65,7 +66,10 @@ kbuild_get_variable(const char *pszName)
     if (i != pVar->value_length)
     {
         printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+# ifdef _MSC_VER
         __asm int 3;
+# endif
+        assert(0);
     }
 #endif
     return pVar;
@@ -73,8 +77,8 @@ kbuild_get_variable(const char *pszName)
 
 /**
  * Gets a variable that must exist and can be recursive.
- * Will cause a fatal failure if the variable doesn't exist. 
- * 
+ * Will cause a fatal failure if the variable doesn't exist.
+ *
  * @returns Pointer to the variable.
  * @param   pszName     The variable name.
  */
@@ -83,7 +87,7 @@ kbuild_get_recursive_variable(const char *pszName)
 {
 #ifndef NDEBUG
     unsigned i;
-#endif 
+#endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
@@ -92,7 +96,10 @@ kbuild_get_recursive_variable(const char *pszName)
     if (i != pVar->value_length)
     {
         printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+# ifdef _MSC_VER
         __asm int 3;
+# endif
+        assert(0);
     }
 #endif
     return pVar;
@@ -102,7 +109,7 @@ kbuild_get_recursive_variable(const char *pszName)
 /**
  * Looks up a variable.
  * The value_length field is valid upon successful return.
- * 
+ *
  * @returns Pointer to the variable. NULL if not found.
  * @param   pszName     The variable name.
  */
@@ -117,7 +124,10 @@ kbuild_lookup_variable(const char *pszName)
         if (i != pVar->value_length)
         {
             printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+# ifdef _MSC_VER
             __asm int 3;
+# endif
+            assert(0);
         }
 #endif
     }
@@ -218,7 +228,7 @@ _SOURCE_TOOL = $(strip $(firstword \
     $(TOOL) ))
 */
 static struct variable *
-kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struct variable *pType, 
+kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struct variable *pType,
                        struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
     struct variable *pVar;
@@ -260,7 +270,7 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
             char chSaved = *pszEnd;
             *pszEnd = '\0';
             if (!strchr(pszEnd, '$'))
-                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz, 
+                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
                                           1 /* duplicate */, o_file, 0 /* !recursive */);
             else
             {
@@ -275,7 +285,7 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
                 if (pszExpEnd > pszExp)
                 {
                     *pszExpEnd = '\0';
-                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp, 
+                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp,
                                               pszExpEnd - pszExp, 1 /* duplicate */,
                                               o_file, 0 /* !recursive */);
                 }
@@ -301,12 +311,12 @@ func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
                                                    kbuild_get_variable("source"),
                                                    kbuild_get_variable("type"),
                                                    kbuild_get_variable("bld_trg"),
-                                                   kbuild_get_variable("bld_trg_arch"), 
+                                                   kbuild_get_variable("bld_trg_arch"),
                                                    argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
     return o;
-                                                   
+
 }
 
 /*
@@ -346,22 +356,22 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
              &&  !strncmp(pSource->value, pPathRoot->value, pPathRoot->value_length))
     {
         pszSrc = pSource->value + pPathRoot->value_length;
-        if (    *pszSrc == '/' 
+        if (    *pszSrc == '/'
             &&  !strncmp(pszSrc, pPathSubCur->value, pPathSubCur->value_length))
             pszSrc += 1 + pPathSubCur->value_length;
     }
-    else 
+    else
         pszSrc = pSource->value;
 
     /* skip root specification */
 #ifdef HAVE_DOS_PATHS
     if (isalpha(pszSrc[0]) && pszSrc[1] == ':')
         pszSrc += 2;
-#endif 
+#endif
     while (*pszSrc == '/'
 #ifdef HAVE_DOS_PATHS
            || *pszSrc == '\\'
-#endif 
+#endif
            )
         pszSrc++;
 
@@ -373,7 +383,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
         if (    pszSrcEnd <= pszSrc
             ||  *pszSrcEnd == '/'
 #ifdef HAVE_DOS_PATHS
-            ||  *pszSrcEnd == '\\' 
+            ||  *pszSrcEnd == '\\'
             ||  *pszSrcEnd == ':'
 #endif
            )
@@ -404,10 +414,10 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     memcpy(psz, pszSrc, pszSrcEnd - pszSrc); psz += pszSrcEnd - pszSrc;
     *psz = '\0';
 
-    /* 
+    /*
      * Define the variable in the current set and return it.
      */
-    return define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cch - 1, 
+    return define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cch - 1,
                               0 /* use pszResult */, o_file, 0 /* !recursive */);
 }
 
@@ -416,12 +426,12 @@ char *
 func_kbuild_object_base(char *o, char **argv, const char *pszFuncName)
 {
     struct variable *pVar = kbuild_get_object_base(kbuild_lookup_variable("target"),
-                                                   kbuild_lookup_variable("source"), 
+                                                   kbuild_lookup_variable("source"),
                                                    argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
     return o;
-                                                   
+
 }
 
 
@@ -443,7 +453,7 @@ $(firstword \
 */
 static struct variable *
 kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
-                         struct variable *pBldTrg, struct variable *pBldTrgArch, 
+                         struct variable *pBldTrg, struct variable *pBldTrgArch,
                          const char *pszVarName)
 {
     /** @todo ignore variables without content. Can generalize this and join with the tool getter. */
@@ -474,7 +484,7 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
             char chSaved = *pszEnd;
             *pszEnd = '\0';
             if (!strchr(pszEnd, '$'))
-                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz, 
+                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
                                           1 /* duplicate */, o_file, 0 /* !recursive */);
             else
             {
@@ -489,8 +499,8 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
                 if (pszExpEnd > pszExp)
                 {
                     *pszExpEnd = '\0';
-                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp, 
-                                              pszExpEnd - pszExp, 1 /* duplicate */, 
+                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp,
+                                              pszExpEnd - pszExp, 1 /* duplicate */,
                                               o_file, 0 /* !recursive */);
                 }
                 else
@@ -514,12 +524,12 @@ func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName)
     struct variable *pVar = kbuild_get_object_suffix(kbuild_get_variable("target"),
                                                      kbuild_get_variable("source"),
                                                      kbuild_get_variable("bld_trg"),
-                                                     kbuild_get_variable("bld_trg_arch"), 
+                                                     kbuild_get_variable("bld_trg_arch"),
                                                      argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
     return o;
-                                                   
+
 }
 
 
@@ -542,7 +552,7 @@ struct kbuild_sdks
 
 /* Fills in the SDK struct (remember to free it). */
 static void
-kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct variable *pSource, 
+kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct variable *pSource,
                 struct variable *pBldType, struct variable *pBldTrg, struct variable *pBldTrgArch)
 {
     int i, j;
@@ -579,9 +589,9 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iTarget = i;
     pSdks->cTarget = 0;
     sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
-            pTarget->value, pBldType->value, 
-            pTarget->value, pBldTrg->value, 
-            pTarget->value, pBldTrg->value, 
+            pTarget->value, pBldType->value,
+            pTarget->value, pBldTrg->value,
+            pTarget->value, pBldTrg->value,
             pTarget->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[1] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
@@ -592,9 +602,9 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iSource = i;
     pSdks->cSource = 0;
     sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
-            pSource->value, pBldType->value, 
-            pSource->value, pBldTrg->value, 
-            pSource->value, pBldTrg->value, 
+            pSource->value, pBldType->value,
+            pSource->value, pBldTrg->value,
+            pSource->value, pBldTrg->value,
             pSource->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[2] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
@@ -605,9 +615,9 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iTargetSource = i;
     pSdks->cTargetSource = 0;
     sprintf(pszTmp, "$(%s_%s_SDKS) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s.%s)",
-            pTarget->value, pSource->value, pBldType->value, 
-            pTarget->value, pSource->value, pBldTrg->value, 
-            pTarget->value, pSource->value, pBldTrg->value, 
+            pTarget->value, pSource->value, pBldType->value,
+            pTarget->value, pSource->value, pBldTrg->value,
+            pTarget->value, pSource->value, pBldTrg->value,
             pTarget->value, pSource->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[3] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
@@ -618,8 +628,8 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     if (!i)
         return;
 
-    /* 
-     * Allocate the variable array and create the variables. 
+    /*
+     * Allocate the variable array and create the variables.
      */
     pSdks->pa = (struct variable *)xmalloc(sizeof(pSdks->pa[0]) * i);
     memset(pSdks->pa, 0, sizeof(pSdks->pa[0]) * i);
@@ -769,7 +779,7 @@ defs        := $(kb-src-exp defs)
 	$($(target)_$(source)_$(type)DEFS.$(bld_trg_cpu))
 */
 static struct variable *
-kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource, 
+kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
                            struct variable *pTool, struct kbuild_sdks *pSdks,
                            struct variable *pType, struct variable *pBldType,
                            struct variable *pBldTrg, struct variable *pBldTrgArch, struct variable *pBldTrgCpu,
@@ -791,7 +801,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     Prop.value = (char *)pszProp;
     Prop.value_length = strlen(pszProp);
 
-    /* 
+    /*
      * Get the variables.
      */
     cVars = 12 + (pSdks->c + 1) * 12 * 4;
@@ -942,7 +952,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldTrgArch);
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%.%",  pTarget, pSource, &Prop, pBldTrg, pBldTrgArch);
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldTrgCpu);
-                                                                       
+
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%",     pTarget, pSource, pType, &Prop);
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldType);
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrg);
@@ -959,7 +969,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     iVarEnd = iDirection > -1 ? cVars : 0;
     for (iVar = iDirection > 0 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
     {
-        paVars[iVar].cchExp = 0; 
+        paVars[iVar].cchExp = 0;
         if (!paVars[iVar].pVar)
             continue;
         if (    paVars[iVar].pVar->flavor == f_simple
@@ -1033,7 +1043,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 
     kbuild_put_sdks(&Sdks);
     return o;
-                                                   
+
 }
 
 /*
@@ -1043,8 +1053,8 @@ dirdep  := $(call DIRDEP,$(dir $(outbase)))
 PATH_$(target)_$(source) := $(patsubst %/,%,$(dir $(outbase)))
 */
 static struct variable *
-kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable *pTarget, struct variable *pSource, 
-                                                                 struct variable *pOutBase, struct variable *pObjSuff, 
+kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable *pTarget, struct variable *pSource,
+                                                                 struct variable *pOutBase, struct variable *pObjSuff,
                                                                  const char *pszVarName, struct variable **ppDep,
                                                                  struct variable **ppDirDep)
 {
@@ -1063,15 +1073,15 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
     memcpy(psz, pDepSuff->value, pDepSuff->value_length + 1);
     *ppDep = define_variable_vl("dep", 3, pszResult, cch - 1, 1 /*dup*/, o_file, 0 /* !recursive */);
 
-    /* 
-     * obj 
+    /*
+     * obj
      */
     *psz = '\0';
-    pObj = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, psz - pszResult, 
+    pObj = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, psz - pszResult,
                               1/* dup */, o_file, 0 /* !recursive */);
 
-    /* 
-     * PATH_$(target)_$(source) - this is global! 
+    /*
+     * PATH_$(target)_$(source) - this is global!
      */
     /* calc variable name. */
     cch = pTarget->value_length + pSource->value_length + 7;
@@ -1098,14 +1108,14 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
         if (    *psz == '/'
 #ifdef HAVE_DOS_PATHS
             ||  *psz == '\\'
-#endif 
+#endif
            )
         {
             while (     psz - 1 > pszResult
                    &&   psz[-1] == '/'
 #ifdef HAVE_DOS_PATHS
                    ||   psz[-1] == '\\'
-#endif 
+#endif
                   )
                 psz--;
 #ifdef HAVE_DOS_PATHS
@@ -1263,11 +1273,11 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1);
     memcpy(psz, pVar->value, pVar->value_length); psz += pVar->value_length;
     *psz++ = ' ';
-    memcpy(psz, pOutput->value, pOutput->value_length + 1); 
+    memcpy(psz, pOutput->value, pOutput->value_length + 1);
     do_variable_definition(NILF, "_OUT_FILES", pszVal, o_file, f_simple, 0 /* !target_var */);
     free(pszVal);
 
-    /* 
+    /*
     $(target)_OBJS_ += $(obj)
     */
     memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
