@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 533 2006-09-18 03:02:39Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 535 2006-09-19 04:29:18Z knut.osmundsen@oracle.com $
 
 
 #
@@ -29,6 +29,8 @@ kmk_DEFS = \
 	CONFIG_WITH_OPTIMIZATION_HACKS \
 	CONFIG_WITH_VALUE_LENGTH \
 	CONFIG_WITH_COMPARE
+kmk_DEFS.win32 = HAVE_CYGWIN_SHELL
+kmk_DEFS.win64 = HAVE_CYGWIN_SHELL
 
 kmk_SOURCES = \
 	main.c \
@@ -271,9 +273,24 @@ test:
 	echo "3"
 	echo "4"
 
-# shell double and single quoting check.
+
+#
+# Shell execution tests.
+#
+test_shell: test_shell_quoting test_shell_newline
+
+# shell double and single quoting check (was busted on windows in 3.81).
 test_shell_quoting:
+	$(ECHO_EXT) "double quoted sTrInG"
 	$(ECHO_EXT) "double quoted sTrInG" | $(SED_EXT) -e "s/sTrInG/string/g"
 	$(ECHO_EXT) 'single quoted sTrInG' | $(SED_EXT) -e 's/sTrInG/string/g'
 	$(ECHO) "This string should not be printed with double quotes."
 	$(ECHO) 'This string should not be printed with single quotes.'
+
+# when using batch mode shell, the newline got escaped twice and spoiling everything.
+test_shell_newline:
+	$(ECHO_EXT) "foo foo foo" | $(SED_EXT) -e \
+		's/foo/$@/' -e \
+		's/foo/works/' \
+		-e 's/foo/\!/'
+
