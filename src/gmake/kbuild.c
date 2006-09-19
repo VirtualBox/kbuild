@@ -105,6 +105,24 @@ kbuild_get_recursive_variable(const char *pszName)
     return pVar;
 }
 
+/**
+ * Converts the specified variable into a 'simple' one.
+ * @returns pVar.
+ * @param   pVar        The variable.
+ */
+static struct variable *
+kbuild_simplify_variable(struct variable *pVar)
+{
+    if (memchr(pVar->value, '$', pVar->value_length))
+    {
+        char *pszExpanded = allocated_variable_expand(pVar->value);
+        free(pVar->value);
+        pVar->value = pszExpanded;
+        pVar->value_length = strlen(pVar->value);
+        pVar->value_alloc_len = pVar->value_length + 1;
+    }
+    pVar->recursive = 0;
+}
 
 /**
  * Looks up a variable.
@@ -130,6 +148,9 @@ kbuild_lookup_variable(const char *pszName)
             assert(0);
         }
 #endif
+        /* Make sure the variable is simple, convert it if necessary. */
+        if (pVar->recursive)
+            kbuild_simplify_variable(pVar);
     }
     return pVar;
 }
