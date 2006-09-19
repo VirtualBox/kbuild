@@ -1,11 +1,13 @@
-/* $Id: ChangeLog 537 2006-09-19 04:45:11Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 539 2006-09-19 05:47:23Z knut.osmundsen@oracle.com $ */
 
 2006-09-18:
     - kBuild/gmake:
+        o Don't send put j1 in MAKEFLAGS on windows, somehow that doesn't work.
+        o Fixed some variable name typos in kbuild.c.
         o Fixed missing expansion in kbuild_lookup_variable.
         o A real attempt at fixing the double quoting problem on windows. ash seems to want a 
           space between a double quote enclosing the last argument on the commandline and the 
-          double quote enclosing the commandline (the -c argument). Also, defined HAVE_CYGWIN_SHELL.
+          double quote enclosing the commandline (the -c argument).
         o Fixed a newline escape problem when using batch_mode_shell on windows with kmk_ash.
 
 2006-09-17:
