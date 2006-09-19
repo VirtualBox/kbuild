@@ -253,29 +253,29 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
                        struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
     struct variable *pVar;
-    if (    (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL_.%.%", pTarget, pSource, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL_.%",  pTarget, pSource, pType, pBldTrg))
+    if (    (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL.%.%", pTarget, pSource, pType, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL.%",  pTarget, pSource, pType, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL",     pTarget, pSource, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL_.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL_.%",   pTarget, pSource, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL.%",   pTarget, pSource, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL",      pTarget, pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL_.%.%",  pSource, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL_.%",    pSource, pType, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%.%",  pSource, pType, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%",    pSource, pType, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL",       pSource, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL_.%.%",   pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL_.%",     pSource, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%.%",   pSource, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%",     pSource, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL",        pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL_.%.%",  pTarget, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL_.%",    pTarget, pType, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%.%",  pTarget, pType, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%",    pTarget, pType, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL",       pTarget, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL_.%.%",   pTarget, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL_.%",     pTarget, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%.%",   pTarget, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%",     pTarget, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL",        pTarget))
-        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL_.%.%",    pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL_.%",      pType, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL.%.%",    pType, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL.%",      pType, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%TOOL",         pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("TOOL_.%.%",     pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("TOOL_.%",       pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("TOOL.%.%",     pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("TOOL.%",       pBldTrg))
         ||  (pVar = kbuild_lookup_variable("TOOL"))
        )
     {
@@ -290,30 +290,8 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
         {
             char chSaved = *pszEnd;
             *pszEnd = '\0';
-            if (!strchr(pszEnd, '$'))
-                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
-                                          1 /* duplicate */, o_file, 0 /* !recursive */);
-            else
-            {
-                /* needs expanding and stripping. */
-                char *pszFree;
-                char *pszExp = pszFree = allocated_variable_expand(psz);
-                char *pszExpEnd = strchr(pszExp, '\0');
-                while (isblank((unsigned char)*pszExp))
-                    pszExp++;
-                while (pszExpEnd > pszExp && isblank((unsigned char)pszExpEnd[-1]))
-                    pszExpEnd--;
-                if (pszExpEnd > pszExp)
-                {
-                    *pszExpEnd = '\0';
-                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp,
-                                              pszExpEnd - pszExp, 1 /* duplicate */,
-                                              o_file, 0 /* !recursive */);
-                }
-                else
-                    pVar = NULL;
-                free(pszFree);
-            }
+            pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
+                                      1 /* duplicate */, o_file, 0 /* !recursive */);
             *pszEnd = chSaved;
             if (pVar)
                 return pVar;
@@ -479,14 +457,14 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
 {
     /** @todo ignore variables without content. Can generalize this and join with the tool getter. */
     struct variable *pVar;
-    if (    (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF_.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF_.%",   pTarget, pSource, pBldTrg))
+    if (    (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF.%",   pTarget, pSource, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF",      pTarget, pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF_.%.%",   pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF_.%",     pSource, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%.%",   pSource, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%",     pSource, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF",        pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF_.%.%",   pTarget, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF_.%",     pTarget, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%.%",   pTarget, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%",     pTarget, pBldTrg))
         ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF",        pTarget))
         ||  (pVar = kbuild_lookup_variable_fmt("OBJSUFF.%.%",      pBldTrg, pBldTrgArch))
         ||  (pVar = kbuild_lookup_variable_fmt("OBJSUFF.%",        pBldTrg))
@@ -504,30 +482,8 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
         {
             char chSaved = *pszEnd;
             *pszEnd = '\0';
-            if (!strchr(pszEnd, '$'))
-                pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
-                                          1 /* duplicate */, o_file, 0 /* !recursive */);
-            else
-            {
-                /* needs expanding and stripping. */
-                char *pszFree;
-                char *pszExp = pszFree = allocated_variable_expand(psz);
-                char *pszExpEnd = strchr(pszExp, '\0');
-                while (isblank((unsigned char)*pszExp))
-                    pszExp++;
-                while (pszExpEnd > pszExp && isblank((unsigned char)pszExpEnd[-1]))
-                    pszExpEnd--;
-                if (pszExpEnd > pszExp)
-                {
-                    *pszExpEnd = '\0';
-                    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszExp,
-                                              pszExpEnd - pszExp, 1 /* duplicate */,
-                                              o_file, 0 /* !recursive */);
-                }
-                else
-                    pVar = NULL;
-                free(pszFree);
-            }
+            pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
+                                      1 /* duplicate */, o_file, 0 /* !recursive */);
             *pszEnd = chSaved;
             if (pVar)
                 return pVar;
