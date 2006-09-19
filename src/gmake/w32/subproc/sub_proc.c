@@ -1072,6 +1072,9 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 	 * Add one for the terminating NULL.
 	 */
 	bytes_required++;
+#ifdef KMK /* for the space before the final " in case we need it. */
+	bytes_required++;
+#endif 
 
 	command_line = (char*) malloc(bytes_required);
 
@@ -1116,16 +1119,16 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 					*(command_line_i++) = '\"';
 				} else {
 
-				/*
-				 * We have to insert a backslash for the "
-				 * and each \ that precedes the ".
-				 */
-				backslash_count++;
-
-				while(backslash_count) {
-					*(command_line_i++) = '\\';
-					backslash_count--;
-				};
+					/*
+					 * We have to insert a backslash for the "
+					 * and each \ that precedes the ".
+					 */
+					backslash_count++;
+	
+					while(backslash_count) {
+						*(command_line_i++) = '\\';
+						backslash_count--;
+					};
 				}
 #if !defined(HAVE_MKS_SHELL) && !defined(HAVE_CYGWIN_SHELL)
 			} else if (*p == '\\') {
@@ -1151,6 +1154,17 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 				*(command_line_i++) = '\\';
 			};
 #endif
+#ifdef KMK
+                        /* 
+                         * ash it put off by echo "hello world" ending up as:
+                         *  G:/.../kmk_ash.exe -c "echo ""hello world"""
+                         * It wants a space before the last '"'.
+			 * (The 'test_shell' goals in Makefile.kmk tests this problem.)
+                         */
+                        if (command_line_i[-1] == '\"' && cygwin_mode && have_sh && !argvi[1]) {
+                            *(command_line_i++) = ' ';
+                        }
+#endif 
 			*(command_line_i++) = '\"';
 		}
 

@@ -2538,7 +2538,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
   else if (strcmp (shell, default_shell))
 # ifndef KMK
     goto slow;
-#else /* KMK */
+# else /* KMK */
     {
       /* Allow ash from kBuild. */
       const char *psz = strstr(shell, "/kmk_ash");
@@ -2893,6 +2893,9 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 	    if (PRESERVE_BSNL)
 	      {
 		*(ap++) = '\\';
+#ifdef KMK /* see test in Makefile.kmk, required on windows. */
+                if (!batch_mode_shell)
+#endif 
 		*(ap++) = '\\';
 		*(ap++) = '\n';
 	      }

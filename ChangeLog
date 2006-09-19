@@ -1,4 +1,12 @@
-/* $Id: ChangeLog 533 2006-09-18 03:02:39Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 535 2006-09-19 04:29:18Z knut.osmundsen@oracle.com $ */
+
+2006-09-18:
+    - kBuild/gmake:
+        o A real attempt at fixing the double quoting problem on windows. ash seems to want a 
+          space between a double quote enclosing the last argument on the commandline and the 
+          double quote enclosing the commandline (the -c argument). Also, defined HAVE_CYGWIN_SHELL.
+        o Fixed a newline escape problem when using batch_mode_shell on windows with kmk_ash.
+        o Fixed missing expansion in kbuild_lookup_variable.
 
 2006-09-17:
     - kBuild/gmake:

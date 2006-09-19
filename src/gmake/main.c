@@ -888,7 +888,7 @@ find_and_set_default_shell (char *token)
     }
   }
 
-#ifdef KMK
+#if 0/* def KMK - has been fixed in sub_proc.c */
   /* WORKAROUND:
     With GNU Make 3.81, this kludge was necessary to get double quotes
     working correctly again (worked fine with the 3.81beta1 code).
