@@ -960,7 +960,7 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 	char*		command_line_i;
 	int  cygwin_mode = 0; /* HAVE_CYGWIN_SHELL */
 	int have_sh = 0; /* HAVE_CYGWIN_SHELL */
-
+#undef HAVE_CYGWIN_SHELL
 #ifdef HAVE_CYGWIN_SHELL
 	have_sh = (shell_name != NULL || strstr(full_exec_path, "sh.exe"));
 	cygwin_mode = 1;
@@ -1155,16 +1155,16 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 			};
 #endif
 #ifdef KMK
-                        /* 
+                        /*
                          * ash it put off by echo "hello world" ending up as:
                          *  G:/.../kmk_ash.exe -c "echo ""hello world"""
                          * It wants a space before the last '"'.
 			 * (The 'test_shell' goals in Makefile.kmk tests this problem.)
                          */
-                        if (command_line_i[-1] == '\"' && cygwin_mode && have_sh && !argvi[1]) {
+                        if (command_line_i[-1] == '\"' /* && cygwin_mode && have_sh*/ && !argvi[1]) {
                             *(command_line_i++) = ' ';
                         }
-#endif 
+#endif
 			*(command_line_i++) = '\"';
 		}
 

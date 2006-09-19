@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 535 2006-09-19 04:29:18Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 540 2006-09-19 05:47:43Z knut.osmundsen@oracle.com $
 
 
 #
@@ -29,8 +29,6 @@ kmk_DEFS = \
 	CONFIG_WITH_OPTIMIZATION_HACKS \
 	CONFIG_WITH_VALUE_LENGTH \
 	CONFIG_WITH_COMPARE
-kmk_DEFS.win32 = HAVE_CYGWIN_SHELL
-kmk_DEFS.win64 = HAVE_CYGWIN_SHELL
 
 kmk_SOURCES = \
 	main.c \
