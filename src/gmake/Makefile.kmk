@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 540 2006-09-19 05:47:43Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 541 2006-09-19 05:52:02Z knut.osmundsen@oracle.com $
 
 
 #
@@ -284,6 +284,7 @@ test_shell_quoting:
 	$(ECHO_EXT) 'single quoted sTrInG' | $(SED_EXT) -e 's/sTrInG/string/g'
 	$(ECHO) "This string should not be printed with double quotes."
 	$(ECHO) 'This string should not be printed with single quotes.'
+	( echo "  #define PWD \"`pwd`\""; )
 
 # when using batch mode shell, the newline got escaped twice and spoiling everything.
 test_shell_newline:
