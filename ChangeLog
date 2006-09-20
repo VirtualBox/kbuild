@@ -1,4 +1,10 @@
-/* $Id: ChangeLog 539 2006-09-19 05:47:23Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 546 2006-09-20 06:05:11Z knut.osmundsen@oracle.com $ */
+
+2006-09-19:
+    - kBuild/bin/x86.win32/:
+        o Rebuilt kmk.exe and kmk_gmake.exe.
+    - src/gmake:
+        o Fixed some optimization bugs in kbuild.c.
 
 2006-09-18:
     - kBuild/gmake:
