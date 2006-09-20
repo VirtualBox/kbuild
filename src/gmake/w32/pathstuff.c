@@ -89,6 +89,9 @@ convert_Path_to_windows32(char *Path, char to_delim)
 void 
 w32_fixcase(char *pszPath)
 {
+    static char     s_szLast[260];
+    unsigned        cchLast;
+
 #ifndef NDEBUG
 # define my_assert(expr) \
     do { \
@@ -150,7 +153,45 @@ w32_fixcase(char *pszPath)
     }
 
     /*
-     * Pointing to the first char after the unc or drive specifier.
+     * Try make use of the result from the previous call.
+     * This is ignorant to slashes and similar, but may help even so.
+     */
+    if (    s_szLast[0] == pszPath[0]
+        &&  (psz - pszPath == 1 || s_szLast[1] == pszPath[1])
+        &&  (psz - pszPath <= 2 || s_szLast[2] == pszPath[2])
+       )
+    {
+        char *pszLast = &s_szLast[psz - pszPath];
+        char *pszCur = psz;
+        for (;;)
+        {
+            const char ch1 = *pszCur;
+            const char ch2 = *pszLast;
+            if (    ch1 != ch2
+                &&  (ch1 != '\\' || ch2 != '/')
+                &&  (ch1 != '/'  || ch2 != '\\'))
+            {
+                if (    tolower(ch1) != tolower(ch2)
+                    &&  toupper(ch1) != toupper(ch2))
+                    break;
+                /* optimistic, component mismatch will be corrected in the next loop. */
+                *pszCur = ch2;
+            }
+            if (ch1 == '/' || ch1 == '\\')
+                psz = pszCur + 1;
+            else if (ch1 == '\0')
+            {
+                psz = pszCur;
+                break;
+            }
+            pszCur++;
+            pszLast++;
+        }
+    }
+
+    /*
+     * Pointing to the first char after the unc or drive specifier, 
+     * or in case of a cache hit, the first non-matching char (following a slash of course).
      */
     while (*psz)
     {
@@ -177,6 +218,8 @@ w32_fixcase(char *pszPath)
         pszEnd[1] = chSaved1;
         if (!hDir)
         {
+            cchLast = psz - pszPath;
+            memcpy(s_szLast, pszPath, cchLast + 1);
             pszEnd[0] = chSaved0;
             return;
         }
@@ -185,6 +228,8 @@ w32_fixcase(char *pszPath)
         {
             if (!FindNextFile(hDir, &FindFileData))
             {
+                cchLast = psz - pszPath;
+                memcpy(s_szLast, pszPath, cchLast + 1);
                 pszEnd[0] = chSaved0;
                 return;
             }
@@ -194,10 +239,17 @@ w32_fixcase(char *pszPath)
 
         /* advance to the next component */
         if (!chSaved0)
-            return;
+        {
+            psz = pszEnd;
+            break;
+        }
         psz = pszEnd + 1;
         my_assert(*psz != '/' && *psz != '\\');
     }
+
+    /* *psz == '\0', the end. */
+    cchLast = psz - pszPath;
+    memcpy(s_szLast, pszPath, cchLast + 1);
 #undef my_assert
 }
 
