@@ -781,15 +781,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     /*
      * Get the variables.
      */
-    cVars = 12 /* the tool */
-          + 12 * pSdks->cGlobal /* global sdks */
-          + 12 /* the globals */
-          + 12 * pSdks->cTarget /* target sdks */
-          + 12 /* the target */
-          + 12 * pSdks->cSource /* source sdks */
-          + 12 /* the source */
-          + 12 * pSdks->cTargetSource /* target + source sdks */
-          + 12 /* the target + source */;
+    cVars = 12 * (pSdks->c + 5);
     paVars = alloca(cVars * sizeof(paVars[0]));
 
     iVar = 0;
