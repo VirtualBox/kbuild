@@ -566,10 +566,10 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iTarget = i;
     pSdks->cTarget = 0;
     sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+            pTarget->value,
             pTarget->value, pBldType->value,
             pTarget->value, pBldTrg->value,
-            pTarget->value, pBldTrg->value,
-            pTarget->value, pBldTrgArch->value);
+            pTarget->value, pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[1] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTarget++;
@@ -579,10 +579,10 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iSource = i;
     pSdks->cSource = 0;
     sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+            pSource->value,
             pSource->value, pBldType->value,
             pSource->value, pBldTrg->value,
-            pSource->value, pBldTrg->value,
-            pSource->value, pBldTrgArch->value);
+            pSource->value, pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[2] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cSource++;
@@ -592,10 +592,10 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iTargetSource = i;
     pSdks->cTargetSource = 0;
     sprintf(pszTmp, "$(%s_%s_SDKS) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s.%s)",
+            pTarget->value, pSource->value, 
             pTarget->value, pSource->value, pBldType->value,
             pTarget->value, pSource->value, pBldTrg->value,
-            pTarget->value, pSource->value, pBldTrg->value,
-            pTarget->value, pSource->value, pBldTrgArch->value);
+            pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[3] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTargetSource++;
@@ -781,7 +781,15 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     /*
      * Get the variables.
      */
-    cVars = 12 + (pSdks->c + 1) * 12 * 4;
+    cVars = 12 /* the tool */
+          + 12 * pSdks->cGlobal /* global sdks */
+          + 12 /* the globals */
+          + 12 * pSdks->cTarget /* target sdks */
+          + 12 /* the target */
+          + 12 * pSdks->cSource /* source sdks */
+          + 12 /* the source */
+          + 12 * pSdks->cTargetSource /* target + source sdks */
+          + 12 /* the target + source */;
     paVars = alloca(cVars * sizeof(paVars[0]));
 
     iVar = 0;
@@ -1061,7 +1069,7 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
      * PATH_$(target)_$(source) - this is global!
      */
     /* calc variable name. */
-    cch = pTarget->value_length + pSource->value_length + 7;
+    cch = sizeof("PATH_")-1 + pTarget->value_length + sizeof("_")-1 + pSource->value_length;
     psz = pszName = alloca(cch + 1);
     memcpy(psz, "PATH_", sizeof("PATH_") - 1);          psz += sizeof("PATH_") - 1;
     memcpy(psz, pTarget->value, pTarget->value_length); psz += pTarget->value_length;
