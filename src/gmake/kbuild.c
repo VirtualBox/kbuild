@@ -122,6 +122,7 @@ kbuild_simplify_variable(struct variable *pVar)
         pVar->value_alloc_len = pVar->value_length + 1;
     }
     pVar->recursive = 0;
+    return pVar;
 }
 
 /**
@@ -220,6 +221,78 @@ kbuild_lookup_variable_fmt(const char *pszNameFmt, ...)
     return pVar;
 }
 
+/**
+ * Gets the first defined property variable.
+ */
+static struct variable *
+kbuild_first_prop(struct variable *pTarget, struct variable *pSource, 
+                  struct variable *pTool, struct variable *pType,
+                  struct variable *pBldTrg, struct variable *pBldTrgArch, 
+                  const char *pszPropF1, const char *pszPropF2, const char *pszVarName)
+{
+    struct variable *pVar;
+    struct variable PropF1, PropF2;
+
+    PropF1.value = (char *)pszPropF1;
+    PropF1.value_length = strlen(pszPropF1);
+
+    PropF2.value = (char *)pszPropF2;
+    PropF2.value_length = strlen(pszPropF2);
+
+    if (    (pVar = kbuild_lookup_variable_fmt("%_%_%%.%.%",pTarget, pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%%.%",  pTarget, pSource, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%%",    pTarget, pSource, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%.%.%", pTarget, pSource, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%.%",   pTarget, pSource, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%",     pTarget, pSource, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%.%",  pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%",    pSource, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%",      pSource, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%.%",   pSource, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%",     pSource, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%",       pSource, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%.%",  pTarget, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%",    pTarget, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%%",      pTarget, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%.%",   pTarget, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%",     pTarget, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%_%",       pTarget, &PropF2))
+
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%.%",   pTool, pType, &PropF2, pBldTrg, pBldTrgArch)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",     pTool, pType, &PropF2, pBldTrg)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%",       pTool, pType, &PropF2)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%.%",    pTool, &PropF2, pBldTrg, pBldTrgArch)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",      pTool, &PropF2, pBldTrg)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%",        pTool, &PropF2)))
+
+        ||  (pVar = kbuild_lookup_variable_fmt("%%.%.%",    pType, &PropF1, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%%.%",      pType, &PropF1, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt("%%",        pType, &PropF1))
+        ||  (pVar = kbuild_lookup_variable_fmt("%.%.%",     &PropF1, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt("%.%",       &PropF1, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable(pszPropF1))
+       )
+    {
+        /* strip it */
+        char *psz = pVar->value;
+        char *pszEnd = psz + pVar->value_length;
+        while (isblank((unsigned char)*psz))
+            psz++;
+        while (pszEnd > psz && isblank((unsigned char)pszEnd[-1]))
+            pszEnd--;
+        if (pszEnd > psz)
+        {
+            char chSaved = *pszEnd;
+            *pszEnd = '\0';
+            pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
+                                      1 /* duplicate */, o_file, 0 /* !recursive */);
+            *pszEnd = chSaved;
+            if (pVar)
+                return pVar;
+        }
+    }
+    return NULL;
+}
 
 /*
 _SOURCE_TOOL = $(strip $(firstword \
@@ -252,54 +325,11 @@ static struct variable *
 kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struct variable *pType,
                        struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
-    struct variable *pVar;
-    if (    (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL.%.%", pTarget, pSource, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL.%",  pTarget, pSource, pType, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%TOOL",     pTarget, pSource, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL.%",   pTarget, pSource, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_TOOL",      pTarget, pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%.%",  pSource, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%",    pSource, pType, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL",       pSource, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%.%",   pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%",     pSource, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL",        pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%.%",  pTarget, pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL.%",    pTarget, pType, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%TOOL",       pTarget, pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%.%",   pTarget, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL.%",     pTarget, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_TOOL",        pTarget))
-        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL.%.%",    pType, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL.%",      pType, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%TOOL",         pType))
-        ||  (pVar = kbuild_lookup_variable_fmt("TOOL.%.%",     pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("TOOL.%",       pBldTrg))
-        ||  (pVar = kbuild_lookup_variable("TOOL"))
-       )
-    {
-        /* strip it */
-        char *psz = pVar->value;
-        char *pszEnd = psz + pVar->value_length;
-        while (isblank((unsigned char)*psz))
-            psz++;
-        while (pszEnd > psz && isblank((unsigned char)pszEnd[-1]))
-            pszEnd--;
-        if (pszEnd > psz)
-        {
-            char chSaved = *pszEnd;
-            *pszEnd = '\0';
-            pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
-                                      1 /* duplicate */, o_file, 0 /* !recursive */);
-            *pszEnd = chSaved;
-            if (pVar)
-                return pVar;
-        }
-    }
-
-    fatal(NILF, _("no tool for source `%s' in target `%s'!"), pSource->value, pTarget->value);
-    return NULL;
+    struct variable *pVar = kbuild_first_prop(pTarget, pSource, NULL, pType, pBldTrg, pBldTrgArch, 
+                                              "TOOL", "TOOL", pszVarName);
+    if (!pVar)
+        fatal(NILF, _("no tool for source `%s' in target `%s'!"), pSource->value, pTarget->value);
+    return pVar;
 }
 
 /* Implements _SOURCE_TOOL. */
@@ -317,6 +347,52 @@ func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
     return o;
 
 }
+
+/* This has been extended a bit, it's now identical to _SOURCE_TOOL.
+$(firstword \
+	$($(target)_$(source)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_$(source)_OBJSUFF.$(bld_trg))\
+	$($(target)_$(source)_OBJSUFF)\
+	$($(source)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
+	$($(source)_OBJSUFF.$(bld_trg))\
+	$($(source)_OBJSUFF)\
+	$($(target)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_OBJSUFF.$(bld_trg))\
+	$($(target)_OBJSUFF)\
+	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg).$(bld_trg_arch))\
+	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg))\
+	$(TOOL_$(tool)_$(type)OBJSUFF)\
+	$(SUFF_OBJ))
+*/
+static struct variable *
+kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource, 
+                         struct variable *pTool, struct variable *pType, 
+                         struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
+{
+    struct variable *pVar = kbuild_first_prop(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch,
+                                              "SUFF_OBJ", "OBJSUFF", pszVarName);
+    if (!pVar)
+        fatal(NILF, _("no OBJSUFF attribute or SUFF_OBJ default for source `%s' in target `%s'!"), pSource->value, pTarget->value);
+    return pVar;
+}
+
+/*  */
+char *
+func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName)
+{
+    struct variable *pVar = kbuild_get_object_suffix(kbuild_get_variable("target"),
+                                                     kbuild_get_variable("source"),
+                                                     kbuild_get_variable("tool"),
+                                                     kbuild_get_variable("type"),
+                                                     kbuild_get_variable("bld_trg"),
+                                                     kbuild_get_variable("bld_trg_arch"),
+                                                     argv[0]);
+    if (pVar)
+         o = variable_buffer_output(o, pVar->value, pVar->value_length);
+    return o;
+
+}
+
 
 /*
 ## Figure out where to put object files.
@@ -432,84 +508,6 @@ func_kbuild_object_base(char *o, char **argv, const char *pszFuncName)
     return o;
 
 }
-
-
-/*
-$(firstword \
-	$($(target)_$(source)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
-	$($(target)_$(source)_OBJSUFF.$(bld_trg))\
-	$($(target)_$(source)_OBJSUFF)\
-	$($(source)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
-	$($(source)_OBJSUFF.$(bld_trg))\
-	$($(source)_OBJSUFF)\
-	$($(target)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
-	$($(target)_OBJSUFF.$(bld_trg))\
-	$($(target)_OBJSUFF)\
-	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg).$(bld_trg_arch))\
-	$(TOOL_$(tool)_$(type)OBJSUFF.$(bld_trg))\
-	$(TOOL_$(tool)_$(type)OBJSUFF)\
-	$(SUFF_OBJ))
-*/
-static struct variable *
-kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
-                         struct variable *pBldTrg, struct variable *pBldTrgArch,
-                         const char *pszVarName)
-{
-    /** @todo ignore variables without content. Can generalize this and join with the tool getter. */
-    struct variable *pVar;
-    if (    (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF.%.%", pTarget, pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF.%",   pTarget, pSource, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_OBJSUFF",      pTarget, pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%.%",   pSource, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%",     pSource, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF",        pSource))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%.%",   pTarget, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF.%",     pTarget, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_OBJSUFF",        pTarget))
-        ||  (pVar = kbuild_lookup_variable_fmt("OBJSUFF.%.%",      pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("OBJSUFF.%",        pBldTrg))
-        ||  (pVar = kbuild_lookup_variable("SUFF_OBJ"))
-       )
-    {
-        /* strip it */
-        char *psz = pVar->value;
-        char *pszEnd = psz + pVar->value_length;
-        while (isblank((unsigned char)*psz))
-            psz++;
-        while (pszEnd > psz && isblank((unsigned char)pszEnd[-1]))
-            pszEnd--;
-        if (pszEnd > psz)
-        {
-            char chSaved = *pszEnd;
-            *pszEnd = '\0';
-            pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
-                                      1 /* duplicate */, o_file, 0 /* !recursive */);
-            *pszEnd = chSaved;
-            if (pVar)
-                return pVar;
-        }
-    }
-
-    fatal(NILF, _("no tool for source `%s' in target `%s'!"), pSource->value, pTarget->value);
-    return NULL;
-}
-
-/*  */
-char *
-func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName)
-{
-    struct variable *pVar = kbuild_get_object_suffix(kbuild_get_variable("target"),
-                                                     kbuild_get_variable("source"),
-                                                     kbuild_get_variable("bld_trg"),
-                                                     kbuild_get_variable("bld_trg_arch"),
-                                                     argv[0]);
-    if (pVar)
-         o = variable_buffer_output(o, pVar->value, pVar->value_length);
-    return o;
-
-}
-
-
 
 
 struct kbuild_sdks
@@ -1155,7 +1153,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pBldTrgCpu = kbuild_get_variable("bld_trg_cpu");
     struct variable *pTool      = kbuild_get_source_tool(pTarget, pSource, pType, pBldTrg, pBldTrgArch, "tool");
     struct variable *pOutBase   = kbuild_get_object_base(pTarget, pSource, "outbase");
-    struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pBldTrg, pBldTrgArch, "objsuff");
+    struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
     struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pDirDep, *pDep, *pVar, *pOutput;
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
