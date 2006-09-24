@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 553 2006-09-24 07:40:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kDepPre - Precompiler base dependency generator.
@@ -29,7 +29,9 @@ PROGRAMS += kDepPre
 kDepPre_TEMPLATE        = BIN
 kDepPre_LIBS            = $(LIB_KDEP)
 kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
-kDepPre_DEFS.win32      = NEED_ISBLANK=1 __WIN32__=1
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kDepPre_DEFS           += NEED_ISBLANK=1 __WIN32__=1
+endif
 kDepPre_SOURCES         = $(PATH_CURRENT)/kDepPre.c
 
 
