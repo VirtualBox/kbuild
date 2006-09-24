@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 546 2006-09-20 06:05:11Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 548 2006-09-24 04:18:14Z knut.osmundsen@oracle.com $ */
+
+2006-09-23:
+    - kBuild/envos2.cmd:
+        o Environment script (REXX) for OS/2.
 
 2006-09-19:
     - kBuild/bin/x86.win32/:
@@ -11,8 +15,8 @@
         o Don't send put j1 in MAKEFLAGS on windows, somehow that doesn't work.
         o Fixed some variable name typos in kbuild.c.
         o Fixed missing expansion in kbuild_lookup_variable.
-        o A real attempt at fixing the double quoting problem on windows. ash seems to want a 
-          space between a double quote enclosing the last argument on the commandline and the 
+        o A real attempt at fixing the double quoting problem on windows. ash seems to want a
+          space between a double quote enclosing the last argument on the commandline and the
           double quote enclosing the commandline (the -c argument).
         o Fixed a newline escape problem when using batch_mode_shell on windows with kmk_ash.
 
@@ -23,20 +27,20 @@
         o Optimized variable memory value allocation avoiding a bunch of
           unnecessary copying and allocating.
         o Added kBuild specific functions for speeding up source processing.
-        o Fixed assertion in w32_fixcase when shell doesn't have a full path 
+        o Fixed assertion in w32_fixcase when shell doesn't have a full path
           and some other case.
 
 2006-09-16:
     - kBuild/header.kmk:
         o Turn off command dependencies when using vanilla GNU Make.
     - kBuild/footer.kmk:
-        o Made up my mind about the command depency blocker variables; 
+        o Made up my mind about the command depency blocker variables;
           NO_LINK_CMDS_DEPS and NO_COMPILE_CMDS_DEPS.
     - src/gmake:
         o Added kmk_gmake which is (almost) vanilla GNU Make.
         o kmk_ash wants batch files on windows or the double quotes will get screwed up.
         o Make sure kmk_builtin commands don't get batch files and odd weird stuff.
-        o Cleaning up the modifications. Changes are now either configurable 
+        o Cleaning up the modifications. Changes are now either configurable
           or marked, and dead stuff has been removed (dll shell).
 
 2006-09-15:
