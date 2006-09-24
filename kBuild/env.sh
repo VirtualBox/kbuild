@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 518 2006-09-15 20:18:24Z knut.osmundsen@oracle.com $
+# $Id: env.sh 551 2006-09-24 04:28:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -56,7 +56,7 @@ if [ -z "$BUILD_PLATFORM_CPU" ]; then
     BUILD_PLATFORM_CPU=`uname -m`
     case "$BUILD_PLATFORM_CPU" in
         x86_64|AMD64)
-           BUILD_PLATFORM_CPU='amd64'
+           BUILD_PLATFORM_CPU='k8'
            ;;
     esac
 fi
@@ -65,10 +65,10 @@ echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
 
 if [ -z "$BUILD_PLATFORM_ARCH" ]; then
     case "$BUILD_PLATFORM_CPU" in
-        i[3456789]86|x86)
+        i[3456789]86)
             BUILD_PLATFORM_ARCH='x86'
             ;;
-        amd64|AMD64|x86_64)
+        k8|k8l|k9|k10)
             BUILD_PLATFORM_ARCH='amd64'
             ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_CPU"
@@ -125,10 +125,10 @@ echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU"
 
 if [ -z "$BUILD_TARGET_ARCH" ]; then
     case "$BUILD_TARGET_CPU" in
-        i[3456789]86|x86)
+        i[3456789]86)
             BUILD_TARGET_ARCH='x86'
             ;;
-        amd64|AMD64|x86_64)
+        k8|k8l|k9|k10)
             BUILD_TARGET_ARCH='amd64'
             ;;
         *)  echo "$0: unknown cpu/arch - $BUILD_TARGET_CPU"
