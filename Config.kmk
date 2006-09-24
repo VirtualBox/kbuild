@@ -1,4 +1,4 @@
-# $Id: Config.kmk 533 2006-09-18 03:02:39Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -42,13 +42,17 @@ TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
 TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
 endif
 
-ifeq ($(BUILD_TARGET),win32)
+ifeq ($(filter-out x86.win32 x86.win x86.nt,$(BUILD_TARGET_ARCH).$(BUILD_TARGET)),)
+ifndef PATH_DEV
+$(error To build on windows you'll have to set PATH_DEV to point to somewhere kbuild can find VCC70.)
+endif
 TEMPLATE_BIN_TOOL               = VCC70
 TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
 TEMPLATE_BIN_DEFS.release       = NDEBUG
 TEMPLATE_BIN_CFLAGS             = -MT -W3 -Zi -Zl
 TEMPLATE_BIN_CFLAGS.release     = -O2
 TEMPLATE_BIN_CFLAGS.profile     = -O2 -GH -Gh
+#todo use path macros from the tool
 TEMPLATE_BIN_INCS              += \
 	. \
 	$(PATH_ROOT)/src/gmake/w32/include \

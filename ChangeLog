@@ -1,9 +1,20 @@
-/* $Id: ChangeLog 550 2006-09-24 04:22:41Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $ */
 
 2006-09-23:
+    - kBuild/footer.kmk:
+        o Recursive template inheritance.
+    - kBuild/header.kmk, kBuild/footer.kmk:
+        o Removed some checks for features which are present in both gmake 3.81 and kmk.
+          Anyone trying to bootstrap kBuild will have to build gmake 3.81 first.
+    - Config.kmk, src/gmake:
+        o Allow all kinds of ways of saying Windows in BUILD_TARGET.
+    - kBuild/bin/x86.win32/:
+        o Rebuilt kmk.exe.
     - kBuild/bin/x86.os2/:
+        o Added kDepPre.exe and kDepIDB.exe.
         o Rebuilt kmk.exe and kmk_gmake.exe.
     - src/gmake:
+        o Update KMK_FEATURES to include the optimizations from earlier this week.
         o Regenerated config.h.os2 and make adjustments to make it all
           build quietly on OS/2.
     - kBuild/envos2.cmd:

@@ -978,8 +978,29 @@ define_automatic_variables (void)
   (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
-  (void) define_variable ("KMK_FEATURES", 12, "abspath toupper tolower", o_default, 0);
-#endif
+# if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
+  && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
+  && defined(KMK_HELPERS)
+  (void) define_variable ("KMK_FEATURES", 12, 
+                          "abspath"
+                          " toupper tolower"
+                          " comp-vars"
+                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one"
+                          , o_default, 0);
+# else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
+  strcpy(buf, "abspath");
+#  if defined(CONFIG_WITH_TOUPPER_TOLOWER)
+  strcat(buf, " toupper tolower");
+#  endif
+#  if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
+  strcat(buf, " comp-vars");
+#  endif 
+#  ifdef KMK_HELPERS
+  strcat(buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");
+#  endif
+  (void) define_variable ("KMK_FEATURES", 12, buf, o_default, 0);
+# endif 
+#endif /* KMK */
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
   /* The supported kMk Builtin commands. */
