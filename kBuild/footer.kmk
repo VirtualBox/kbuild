@@ -1,4 +1,4 @@
-# $Id: footer.kmk 530 2006-09-17 20:38:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -116,6 +116,7 @@ pass_prev :=
 # @param    type         tooltype
 # @param    bld_trg      build target.
 # @param    bld_trg_arch build target architecture.
+# @remark 	Obsoleted by kBuild helpers in kmk. Only required for gmake compatbility.
 _SOURCE_TOOL = $(strip $(firstword \
 	$($(target)_$(source)_$(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_$(source)_$(type)TOOL.$(bld_trg)) \
@@ -176,6 +177,7 @@ no-root-slash=$(patsubst /%,%,$(1))
 # @remark There are two major hacks here:
 #           1. Source files in the output directory are translated into a gen/ subdir.
 #         	2. Catch anyone specifying $(PATH_SUB_CURRENT)/sourcefile.c.
+# @remark 	obsoleted by kBuild helpers in kmk. Only required for gmake compatbility.
 _OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename \
 	$(patsubst $(PATH_ROOT)/%,%,$(patsubst $(PATH_SUB_CURRENT)/%,%,$(patsubst $(PATH_TARGET)/$(2)/%,gen/%,$(1)))))))
 
@@ -233,23 +235,44 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
 #
 define def_template_extends_prop
 ifndef TEMPLATE_$(template)_$(prop)
-ifdef TEMPLATE_$(parent)_$(prop)
+ ifdef TEMPLATE_$(parent)_$(prop)
 TEMPLATE_$(template)_$(prop) = $$(TEMPLATE_$(parent)_$(prop))
-endif
+ endif
 endif
 endef
 
+
 define def_template_extends
 ifdef TEMPLATE_$(template)_EXTENDS
-parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
+ ifndef TEMPLATE_$(template)_EXTENDS_STATUS_
+  TEMPLATE_$(template)_EXTENDS_STATUS_ := 0
+  parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
 
-$(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
-$(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-$(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-$(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-$(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-$(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
+  # recursivly process the parent if it's inherting from somebody too.
+  ifdef TEMPLATE_$(parent)_EXTENDS
+   ifneq ($(TEMPLATE_$(template)_EXTENDS_STATUS_),42)
+    # foreach will create 'template' in a new variable context hiding our current variable.
+    $(foreach template, $(TEMPLATE_$(parent)_EXTENDS), $(eval $(value def_template_extends)))
+    parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
+   endif
+  endif
+
+  # inherit properties.
+  $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
+  $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
+
+  TEMPLATE_$(template)_EXTENDS_STATUS_ := 42
+ else
+  # protect against inheritance loops.
+  ifneq ($(TEMPLATE_$(template)_EXTENDS_STATUS_),42)
+   $(error kBuild: inheritance loop! template=$(template))
+  endif
+ endif
 endif
 endef
 
@@ -494,7 +517,7 @@ $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 ## wrapper the compile command dependency check.
 ifndef NO_COMPILE_CMDS_DEPS
- ifdef NEW_KMK
+ ifneq ($(filter comp-vars,$(KMK_FEATURES)),)
 _DEP_COMPILE_CMDS = $(comp-vars $(target)_$(source)_CMDS_PREV_,$(target)_$(source)_CMDS_,FORCE)
  else
 _DEP_COMPILE_CMDS = $(if $(subst $(strip $($(target)_$(source)_CMDS_PREV_)),,$(strip $($(target)_$(source)_CMDS_))),FORCE,)
@@ -594,6 +617,7 @@ endef
 # @param    bld_trg       Build target.
 # @param    bld_trg_arch  Build target arch.
 # @param    bld_trg_cpu   Build target cpu.
+# @remark 	obsoleted by kBuild helpers in kmk. Only required for gmake compatbility.
 #
 define def_target_source_c_cpp_asm_old
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
@@ -867,6 +891,7 @@ flags        :=\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_arch))\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(source)_$(type)FLAGS.$(bld_trg_cpu))
+# this isn't 100% in sync with kBuild, but it doesn't matter as it's only for gmake now.
 objsuff     := $(firstword \
 	$($(target)_$(source)_OBJSUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(source)_OBJSUFF.$(bld_trg))\
@@ -965,7 +990,7 @@ endef
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
 def_target_source_c_cpp_asm_new = $(kb-src-one x)
 
-ifdef NEW_KMK
+ifneq ($(filter kb-src-one,$(KMK_FEATURES)),)
 def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_new
 else
 def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_old

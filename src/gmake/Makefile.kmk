@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 541 2006-09-19 05:52:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
 
 
 #
@@ -9,7 +9,9 @@ PROGRAMS += kmk
 kmk_TEMPLATE = BIN
 kmk_DEPS = $(PATH_TARGET)/config.h
 kmk_INCS = $(PATH_TARGET) .
-#kmk_INCS.win32      = kmkbuiltin/w32
+#ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+#kmk_INCS += kmkbuiltin/w32
+#endif
 
 kmk_DEFS = \
 	HAVE_CONFIG_H \
@@ -55,7 +57,8 @@ kmk_SOURCES = \
 	remote-stub.c \
 	kbuild.c
 
-kmk_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_SOURCES += \
 	getopt.c \
 	getopt1.c \
 	getloadavg.c \
@@ -66,6 +69,7 @@ kmk_SOURCES.win32 = \
 	glob/fnmatch.c \
 	w32/compat/dirent.c \
 	w32/pathstuff.c
+endif
 
 kmk_SOURCES.freebsd = \
 	glob/glob.c \
@@ -91,10 +95,11 @@ kmk_SOURCES += \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/strlcpy.c
 
-kmk_SOURCES.win32 += \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	kmkbuiltin/fts.c
-
+endif
 
 #
 # Standalone kmkbuiltin commands.
@@ -115,22 +120,26 @@ kmk_cp_SOURCES = \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/err.c
-kmk_cp_INCS.win32 = $(PATH_TARGET) .
-kmk_cp_DEFS.win32 = HAVE_CONFIG_H
-kmk_cp_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_cp_INCS += $(PATH_TARGET) .
+kmk_cp_DEFS += HAVE_CONFIG_H
+kmk_cp_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	kmkbuiltin/fts.c \
 	w32/compat/dirent.c \
 	getopt.c \
 	getopt1.c
+endif
 
 kmk_echo_TEMPLATE = BIN
 kmk_echo_DEFS = kmk_builtin_echo=main
 kmk_echo_SOURCES = \
 	kmkbuiltin/echo.c
-kmk_echo_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_echo_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	kmkbuiltin/err.c
+endif
 
 kmk_install_TEMPLATE = BIN
 kmk_install_DEFS = kmk_builtin_install=main
@@ -139,24 +148,28 @@ kmk_install_SOURCES = \
 	kmkbuiltin/err.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/setmode.c
-kmk_install_INCS.win32 = $(PATH_TARGET) .
-kmk_install_DEFS.win32 = HAVE_CONFIG_H
-kmk_install_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_install_INCS += $(PATH_TARGET) .
+kmk_install_DEFS += HAVE_CONFIG_H
+kmk_install_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	getopt.c \
 	getopt1.c
+endif
 
 kmk_ln_TEMPLATE = BIN
 kmk_ln_DEFS = kmk_builtin_ln=main
 kmk_ln_SOURCES = \
 	kmkbuiltin/ln.c \
 	kmkbuiltin/err.c
-kmk_ln_INCS.win32 = $(PATH_TARGET) .
-kmk_ln_DEFS.win32 = HAVE_CONFIG_H
-kmk_ln_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_ln_INCS += $(PATH_TARGET) .
+kmk_ln_DEFS += HAVE_CONFIG_H
+kmk_ln_SOURCES += \
 	kmkbuiltin/mscfakes.c\
 	getopt.c \
 	getopt1.c
+endif
 
 kmk_mkdir_TEMPLATE = BIN
 kmk_mkdir_DEFS = kmk_builtin_mkdir=main
@@ -164,12 +177,14 @@ kmk_mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/err.c \
 	kmkbuiltin/setmode.c
-kmk_mkdir_INCS.win32 = $(PATH_TARGET) .
-kmk_mkdir_DEFS.win32 = HAVE_CONFIG_H
-kmk_mkdir_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_mkdir_INCS += $(PATH_TARGET) .
+kmk_mkdir_DEFS += HAVE_CONFIG_H
+kmk_mkdir_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	getopt.c \
 	getopt1.c
+endif
 
 kmk_rm_TEMPLATE = BIN
 kmk_rm_DEFS = kmk_builtin_rm=main
@@ -177,12 +192,14 @@ kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/err.c \
 	kmkbuiltin/strmode.c
-kmk_rm_INCS.win32 = $(PATH_TARGET) .
-kmk_rm_DEFS.win32 = HAVE_CONFIG_H
-kmk_rm_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_rm_INCS += $(PATH_TARGET) .
+kmk_rm_DEFS += HAVE_CONFIG_H
+kmk_rm_SOURCES += \
 	kmkbuiltin/mscfakes.c\
 	getopt.c \
 	getopt1.c
+endif
 
 
 #
@@ -222,7 +239,8 @@ kmk_gmake_SOURCES = \
 	vpath.c \
 	remote-stub.c
 
-kmk_gmake_SOURCES.win32 = \
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_gmake_SOURCES += \
 	getopt.c \
 	getopt1.c \
 	getloadavg.c \
@@ -233,6 +251,7 @@ kmk_gmake_SOURCES.win32 = \
 	glob/fnmatch.c \
 	w32/compat/dirent.c \
 	w32/pathstuff.c
+endif
 
 kmk_gmake_SOURCES.freebsd = \
 	glob/glob.c \
