@@ -614,14 +614,15 @@ extern int handling_fatal_signal;
                                while (((_v)=_c)==0 && errno==EINTR); }while(0)
 
 #if defined(__EMX__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS) /* bird: saves 40-100ms on libc. */
+static inline void *__my_rawmemchr (const void *__s, int __c);
 #undef strchr
 #define strchr(s, c) \
   (__extension__ (__builtin_constant_p (c)				      \
 		  ? ((c) == '\0'					      \
-		     ? (char *) __rawmemchr ((s), (c))			      \
-		     : __strchr_c ((s), ((c) & 0xff) << 8))		      \
-		  : __strchr_g ((s), (c))))
-static inline char *__strchr_c (const char *__s, int __c)
+		     ? (char *) __my_rawmemchr ((s), (c))			      \
+		     : __my_strchr_c ((s), ((c) & 0xff) << 8))		      \
+		  : __my_strchr_g ((s), (c))))
+static inline char *__my_strchr_c (const char *__s, int __c)
 {
   register unsigned long int __d0;
   register char *__res;
@@ -642,7 +643,7 @@ static inline char *__strchr_c (const char *__s, int __c)
   return __res;
 }
 
-static inline char *__strchr_g (__const char *__s, int __c)
+static inline char *__my_strchr_g (__const char *__s, int __c)
 {
   register unsigned long int __d0;
   register char *__res;
@@ -664,7 +665,7 @@ static inline char *__strchr_g (__const char *__s, int __c)
   return __res;
 }
 
-static inline void *__rawmemchr (const void *__s, int __c)
+static inline void *__my_rawmemchr (const void *__s, int __c)
 {
   register unsigned long int __d0;
   register unsigned char *__res;
@@ -679,8 +680,8 @@ static inline void *__rawmemchr (const void *__s, int __c)
 }
 
 #undef memchr
-#define memchr(a,b,c) __memchr((a),(b),(c))
-static inline void *__memchr (__const void *__s, int __c, size_t __n)
+#define memchr(a,b,c) __my_memchr((a),(b),(c))
+static inline void *__my_memchr (__const void *__s, int __c, size_t __n)
 {
   register unsigned long int __d0;
   register unsigned char *__res;

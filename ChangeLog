@@ -1,6 +1,9 @@
-/* $Id: ChangeLog 548 2006-09-24 04:18:14Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 549 2006-09-24 04:19:23Z knut.osmundsen@oracle.com $ */
 
 2006-09-23:
+    - src/gmake:
+        o Regenerated config.h.os2 and make adjustments to make it all
+          build quietly on OS/2.
     - kBuild/envos2.cmd:
         o Environment script (REXX) for OS/2.
 

@@ -20,8 +20,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "dep.h"
 #include "debug.h"
 
-#if defined(__EMX__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS) /* bird: saves 5-10ms on libc */
-# define bcopy(src, dst, size)   __builtin_memcpy((dst), (src), (size))
+/* All bcopy calls in this file can be replaced by memcpy and save a tick or two. */
+#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+# undef bcopy
+# if defined(__GNUC__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS)
+#  define bcopy(src, dst, size)   __builtin_memcpy ((dst), (src), (size))
+# else
+#  define bcopy(src, dst, size)   memcpy ((dst), (src), (size))
+# endif
 #endif
 
 /* Variadic functions.  We go through contortions to allow proper function
@@ -399,7 +405,7 @@ savestring (const char *str, unsigned int length)
 }
 
 
-#ifndef CONFIG_WITH_OPTIMIZATION_HACKS /* This is really a reimplemntation of 
+#ifndef CONFIG_WITH_OPTIMIZATION_HACKS /* This is really a reimplemntation of
    memchr, only slower. It's been replaced by a macro in the header file. */
 
 /* Limited INDEX:
