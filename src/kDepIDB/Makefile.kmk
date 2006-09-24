@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 553 2006-09-24 07:40:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kDepIDB - IDB based dependency generator.
@@ -28,7 +28,9 @@ PROGRAMS += kDepIDB
 
 kDepIDB_TEMPLATE        = BIN
 kDepIDB_LIBS            = $(LIB_KDEP)
-kDepIDB_DEFS.win32      = NEED_ISBLANK=1 __WIN32__=1
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kDepIDB_DEFS           += NEED_ISBLANK=1 __WIN32__=1
+endif
 kDepIDB_SOURCES         = $(PATH_CURRENT)/kDepIDB.c
 
 

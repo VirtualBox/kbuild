@@ -1,4 +1,4 @@
-/* $Id: ChangeLog 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 553 2006-09-24 07:40:50Z knut.osmundsen@oracle.com $ */
 
 2006-09-23:
     - kBuild/footer.kmk:
@@ -6,7 +6,7 @@
     - kBuild/header.kmk, kBuild/footer.kmk:
         o Removed some checks for features which are present in both gmake 3.81 and kmk.
           Anyone trying to bootstrap kBuild will have to build gmake 3.81 first.
-    - Config.kmk, src/gmake:
+    - Config.kmk, src/gmake, src/lib, src/kDepPre, src/kDepIDB:
         o Allow all kinds of ways of saying Windows in BUILD_TARGET.
     - kBuild/bin/x86.win32/:
         o Rebuilt kmk.exe.
