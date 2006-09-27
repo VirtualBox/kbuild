@@ -492,3 +492,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include <sys/stat.h>
 extern int my_stat(const char *, struct stat *);
 #define stat(_path, _st) my_stat(_path, _st)
+
+/* cygwin sucks to much in one end or the other. */
+#define BATCH_MODE_ONLY_SHELL
+
