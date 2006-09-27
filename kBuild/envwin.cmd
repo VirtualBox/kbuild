@@ -4,7 +4,7 @@ REM ## @file
 REM #
 REM # Environment setup script.
 REM #
-REM # Copyright (c) 2005 knut st. osmundsen <bird@innotek.de>
+REM # Copyright (c) 2005-2006 knut st. osmundsen <bird@innotek.de>
 REM #
 REM #
 REM # This file is part of kBuild.
@@ -28,6 +28,13 @@ REM #
 REM #
 REM # Deal with the arguments.
 REM #
+if ".%1" = ".-h"        goto help
+if ".%1" = "./h"        goto help
+if ".%1" = "./H"        goto help
+if ".%1" = ".-h"        goto help
+if ".%1" = ".-help"     goto help
+if ".%1" = ".--help"    goto help
+
 if ".%1" = ".-win"      goto want_win_bit
 if ".%1" = ".-win32"    goto want_win32_bit
 if ".%1" = ".-win64"    goto want_win64_bit
@@ -35,6 +42,15 @@ if ".%1" = ".-nt"       goto want_nt_bit
 if ".%1" = ".-nt32"     goto want_nt32_bit
 if ".%1" = ".-nt64"     goto want_nt64_bit
 goto done_arguments
+
+REM #
+REM # Syntax
+REM #
+:help
+echo kBuild environment setup script for Windows NT.
+echo Syntax: envwin.cmd [-win, -win32, -win64, -nt, -nt32 or -nt64] [command to be executed]
+goto end
+
 
 :want_win_bit
 shift
@@ -234,3 +250,4 @@ goto end
 
 :failed
 :end
+
