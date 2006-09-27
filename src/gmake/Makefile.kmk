@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 554 2006-09-27 18:57:05Z knut.osmundsen@oracle.com $
 
 
 #
@@ -294,7 +294,7 @@ test:
 #
 # Shell execution tests.
 #
-test_shell: test_shell_quoting test_shell_newline
+test_shell: test_shell_quoting test_shell_double_quoting test_shell_newline
 
 # shell double and single quoting check (was busted on windows in 3.81).
 test_shell_quoting:
@@ -304,6 +304,19 @@ test_shell_quoting:
 	$(ECHO) "This string should not be printed with double quotes."
 	$(ECHO) 'This string should not be printed with single quotes.'
 	( echo "  #define PWD \"`pwd`\""; )
+
+test_shell_double_quoting:
+	$(ECHO_EXT) "foo foo foo" | $(SED_EXT) -e \
+		"s/foo/$@/" -e \
+		"s/foo/works/" \
+		-e "s/foo/\!/"
+
+test_shell_double_quoting2:
+	$(ECHO_EXT) "foo foo foo" | $(SED_EXT) -e \
+		"s/foo/$@/" -e \
+		"s/foo/works/" \
+		-e\
+		"s/foo/\!/"
 
 # when using batch mode shell, the newline got escaped twice and spoiling everything.
 test_shell_newline:
