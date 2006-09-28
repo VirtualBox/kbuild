@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 553 2006-09-24 07:40:50Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $ */
+
+2006-09-28:
+    - kBuild/header.kmk, kBuild/env.sh, kBuild/tools/GCC4MACH.kmk, kBuild/bin/x86.darwin/, src/gmake, Config.kmk:
+        o Initial Mac OS X / Darwin bootstrapping.
 
 2006-09-23:
     - kBuild/footer.kmk:

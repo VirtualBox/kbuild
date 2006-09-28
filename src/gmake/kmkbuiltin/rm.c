@@ -80,7 +80,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #define undelete(s) (-1)
 #endif
 
-#ifndef __FreeBSD__
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
 extern void strmode(mode_t mode, char *p);
 #endif
 
@@ -121,7 +121,7 @@ kmk_builtin_rm(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
-#if defined(__FreeBSD__) || defined(__EMX__)
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
         optreset = 1;
         optind = 1;
 #else

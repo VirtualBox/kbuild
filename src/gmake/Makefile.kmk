@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 554 2006-09-27 18:57:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
 
 
 #
@@ -9,6 +9,8 @@ PROGRAMS += kmk
 kmk_TEMPLATE = BIN
 kmk_DEPS = $(PATH_TARGET)/config.h
 kmk_INCS = $(PATH_TARGET) .
+kmk_INCS.darwin = glob
+kmk_INCS.freebsd = glob
 #ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 #kmk_INCS += kmkbuiltin/w32
 #endif
@@ -75,6 +77,10 @@ kmk_SOURCES.freebsd = \
 	glob/glob.c \
 	glob/fnmatch.c
 
+kmk_SOURCES.darwin = \
+	glob/glob.c \
+	glob/fnmatch.c
+
 #
 # kmkbuiltin commands
 #
@@ -100,6 +106,10 @@ kmk_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	kmkbuiltin/fts.c
 endif
+
+kmk_SOURCES.darwin += \
+	kmkbuiltin/darwin.c
+
 
 #
 # Standalone kmkbuiltin commands.
@@ -130,6 +140,8 @@ kmk_cp_SOURCES += \
 	getopt.c \
 	getopt1.c
 endif
+kmk_cp_SOURCES.darwin = \
+	kmkbuiltin/darwin.c
 
 kmk_echo_TEMPLATE = BIN
 kmk_echo_DEFS = kmk_builtin_echo=main
@@ -202,6 +214,7 @@ kmk_rm_SOURCES += \
 endif
 
 
+
 #
 # kmk_gmake - almost plain GNU Make.
 #
@@ -209,6 +222,9 @@ PROGRAMS += kmk_gmake
 kmk_gmake_TEMPLATE = BIN
 kmk_gmake_DEPS = $(PATH_TARGET)/config.h
 kmk_gmake_INCS = $(PATH_TARGET) .
+kmk_gmake_INCS.darwin = glob
+kmk_gmake_INCS.freebsd = glob
+
 
 kmk_gmake_DEFS = \
 	HAVE_CONFIG_H \
@@ -254,6 +270,10 @@ kmk_gmake_SOURCES += \
 endif
 
 kmk_gmake_SOURCES.freebsd = \
+	glob/glob.c \
+	glob/fnmatch.c
+
+kmk_gmake_SOURCES.darwin = \
 	glob/glob.c \
 	glob/fnmatch.c
 
