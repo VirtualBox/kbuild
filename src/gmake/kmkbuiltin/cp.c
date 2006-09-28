@@ -141,7 +141,7 @@ kmk_builtin_cp(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
-#if defined(__FreeBSD__) || defined(__EMX__)
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
         optreset = 1;
         optind = 1;
 #else

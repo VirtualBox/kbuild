@@ -1,4 +1,4 @@
-# $Id: header.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -103,7 +103,7 @@ ifndef BUILD_PLATFORM
  $(error kBuild: BUILD_PLATFORM is undefined!)
 else
  BUILD_PLATFORM     := $(strip $(BUILD_PLATFORM))
- ifneq ($(words $(BUILD_PLATFORM))$(filter-out freebsd l4 linux nt os2 win win32 win64,$(BUILD_PLATFORM)),1)
+ ifneq ($(words $(BUILD_PLATFORM))$(filter-out darwin freebsd l4 linux nt os2 win win32 win64,$(BUILD_PLATFORM)),1)
   # OS/2 (have uppercase legacy)
   ifeq ($(BUILD_PLATFORM),OS2)
    $(error kBuild: BUILD_PLATFORM must be all lowercase!)
@@ -137,7 +137,7 @@ ifndef BUILD_TARGET
 BUILD_TARGET        := $(BUILD_PLATFORM)
 else
  BUILD_TARGET       := $(strip $(BUILD_TARGET))
- ifneq ($(words $(BUILD_TARGET))$(filter-out freebsd l4 linux nt os2 win win32 win64,$(BUILD_TARGET)),1)
+ ifneq ($(words $(BUILD_TARGET))$(filter-out darwin freebsd l4 linux nt os2 win win32 win64,$(BUILD_TARGET)),1)
   # OS/2 (have uppercase legacy)
   ifeq ($(BUILD_TARGET),OS2)
    $(error kBuild: BUILD_TARGET must be all lowercase!)
@@ -248,6 +248,13 @@ EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
+# Darwin / Mac OS X
+ifeq ($(BUILD_PLATFORM),darwin)
+EXEC_X86_WIN32      := false
+HOSTSUFF_EXE        :=
+endif
+
+
 PATH_TOOLS          := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
 ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
  ifeq ($(BUILD_TARGET_ARCH),amd64)
@@ -280,6 +287,14 @@ ifeq ($(BUILD_TARGET),l4)
 SUFF_OBJ            := .o
 SUFF_LIB            := .a
 SUFF_DLL            := .s.so
+SUFF_EXE            :=
+SUFF_SYS            := .a
+SUFF_RES            :=
+endif
+ifeq ($(BUILD_TARGET),darwin)
+SUFF_OBJ            := .o
+SUFF_LIB            := .a
+SUFF_DLL            := .dylib
 SUFF_EXE            :=
 SUFF_SYS            := .a
 SUFF_RES            :=

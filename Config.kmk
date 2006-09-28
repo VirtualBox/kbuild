@@ -1,9 +1,9 @@
-# $Id: Config.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
 #
-# Copyright (c) 2005 knut st. osmundsen <bird@anduin.net>
+# Copyright (c) 2005-2006 knut st. osmundsen <bird@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -40,6 +40,14 @@ TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
 TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
+endif
+
+ifeq ($(BUILD_TARGET),darwin)
+TEMPLATE_BIN_TOOL               = GCC4MACH
+TEMPLATE_BIN_CFLAGS.profile     =
+TEMPLATE_BIN_CFLAGS.release     = -O3
+TEMPLATE_BIN_LDFLAGS            = 
+TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
 endif
 
 ifeq ($(filter-out x86.win32 x86.win x86.nt,$(BUILD_TARGET_ARCH).$(BUILD_TARGET)),)
@@ -92,17 +100,11 @@ endif
 # Template for building libraries for the tools.
 #
 TEMPLATE_LIB = Library for Commandline binary
+TEMPLATE_LIB_EXTENDS = BIN
+TEMPLATE_LIB_INST    = lib/
+# for LIB_KDEP
+TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
-TEMPLATE_LIB_TOOL                   = $(TEMPLATE_BIN_TOOL)
-TEMPLATE_LIB_INST                   = lib/
-TEMPLATE_LIB_INCS                   = $(TEMPLATE_BIN_INCS)
-TEMPLATE_LIB_INCS.$(BUILD_TYPE)     = $(TEMPLATE_BIN_INCS.$(BUILD_TYPE))
-TEMPLATE_LIB_DEFS                   = $(TEMPLATE_BIN_DEFS)
-TEMPLATE_LIB_DEFS.$(BUILD_TYPE)     = $(TEMPLATE_BIN_DEFS.$(BUILD_TYPE))
-TEMPLATE_LIB_CFLAGS                 = $(TEMPLATE_BIN_CFLAGS)
-TEMPLATE_LIB_CFLAGS.$(BUILD_TYPE)   = $(TEMPLATE_BIN_CFLAGS.$(BUILD_TYPE))
-TEMPLATE_LIB_CXXFLAGS               = $(TEMPLATE_BIN_CXXFLAGS)
-TEMPLATE_LIB_CXXFLAGS.$(BUILD_TYPE) = $(TEMPLATE_BIN_CXXFLAGS.$(BUILD_TYPE))
 
 LIB_KDEP = $(PATH_OUT)/$(TEMPLATE_LIB_INST)$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 

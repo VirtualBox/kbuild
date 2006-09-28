@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 551 2006-09-24 04:28:13Z knut.osmundsen@oracle.com $
+# $Id: env.sh 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -28,12 +28,8 @@
 
 # kBuild path.
 if [ -z "$PATH_KBUILD" ]; then
-    if which realpath > /dev/null 2>&1; then
-        PATH_KBUILD=`realpath $0`
-    else
-        PATH_KBUILD=`readlink -f $0`
-    fi
-    PATH_KBUILD=`dirname "$PATH_KBUILD"`
+    PATH_KBUILD=`dirname "$0"`
+    PATH_KBUILD=`cd "$PATH_KBUILD" ; /bin/pwd`
 fi
 if [ ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f "$PATH_KBUILD/rules.kmk" ]; then
     echo "$0: error: PATH_KBUILD ($PATH_KBUILD) is not pointing to a popluated kBuild directory.";
@@ -103,6 +99,10 @@ if [ -z "$BUILD_PLATFORM" ]; then
 
         netbsd|NetBSD|NETBSD)
             BUILD_PLATFORM=netbsd
+            ;;
+
+        Darwin|darwin)
+            BUILD_PLATFORM=darwin
             ;;
 
         *)
