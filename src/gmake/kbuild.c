@@ -225,9 +225,9 @@ kbuild_lookup_variable_fmt(const char *pszNameFmt, ...)
  * Gets the first defined property variable.
  */
 static struct variable *
-kbuild_first_prop(struct variable *pTarget, struct variable *pSource, 
+kbuild_first_prop(struct variable *pTarget, struct variable *pSource,
                   struct variable *pTool, struct variable *pType,
-                  struct variable *pBldTrg, struct variable *pBldTrgArch, 
+                  struct variable *pBldTrg, struct variable *pBldTrgArch,
                   const char *pszPropF1, const char *pszPropF2, const char *pszVarName)
 {
     struct variable *pVar;
@@ -325,7 +325,7 @@ static struct variable *
 kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struct variable *pType,
                        struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
-    struct variable *pVar = kbuild_first_prop(pTarget, pSource, NULL, pType, pBldTrg, pBldTrgArch, 
+    struct variable *pVar = kbuild_first_prop(pTarget, pSource, NULL, pType, pBldTrg, pBldTrgArch,
                                               "TOOL", "TOOL", pszVarName);
     if (!pVar)
         fatal(NILF, _("no tool for source `%s' in target `%s'!"), pSource->value, pTarget->value);
@@ -365,8 +365,8 @@ $(firstword \
 	$(SUFF_OBJ))
 */
 static struct variable *
-kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource, 
-                         struct variable *pTool, struct variable *pType, 
+kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
+                         struct variable *pTool, struct variable *pType,
                          struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
     struct variable *pVar = kbuild_first_prop(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch,
@@ -411,6 +411,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     struct variable *pPathRoot   = kbuild_get_variable("PATH_ROOT");
     struct variable *pPathSubCur = kbuild_get_variable("PATH_SUB_CURRENT");
     const char *pszSrcPrefix = NULL;
+    size_t      cchSrcPrefix = 0;
     const char *pszSrcEnd;
     char *pszSrc;
     char *pszResult;
@@ -426,13 +427,21 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     {
         pszSrc = pSource->value + pPathTarget->value_length;
         pszSrcPrefix = "gen/";
+        cchSrcPrefix = sizeof("gen/") - 1;
+        if (    *pszSrc == '/'
+            &&  !strncmp(pszSrc + 1, pTarget->value, pTarget->value_length)
+            &&   (   pszSrc[pTarget->value_length + 1] == '/'
+                  || pszSrc[pTarget->value_length + 1] == '\0'))
+            pszSrc += 1 + pTarget->value_length;
     }
     else if (    pSource->value_length > pPathRoot->value_length
              &&  !strncmp(pSource->value, pPathRoot->value, pPathRoot->value_length))
     {
         pszSrc = pSource->value + pPathRoot->value_length;
         if (    *pszSrc == '/'
-            &&  !strncmp(pszSrc, pPathSubCur->value, pPathSubCur->value_length))
+            &&  !strncmp(pszSrc + 1, pPathSubCur->value, pPathSubCur->value_length)
+            &&   (   pszSrc[pPathSubCur->value_length + 1] == '/'
+                  || pszSrc[pPathSubCur->value_length + 1] == '\0'))
             pszSrc += 1 + pPathSubCur->value_length;
     }
     else
@@ -478,6 +487,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
         + 1 /* slash */
         + pTarget->value_length
         + 1 /* slash */
+        + cchSrcPrefix
         + pszSrcEnd - pszSrc
         + 1;
     psz = pszResult = xmalloc(cch);
@@ -486,6 +496,11 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     *psz++ = '/';
     memcpy(psz, pTarget->value, pTarget->value_length); psz += pTarget->value_length;
     *psz++ = '/';
+    if (pszSrcPrefix)
+    {
+        memcpy(psz, pszSrcPrefix, cchSrcPrefix);
+        psz += cchSrcPrefix;
+    }
     memcpy(psz, pszSrc, pszSrcEnd - pszSrc); psz += pszSrcEnd - pszSrc;
     *psz = '\0';
 
@@ -590,7 +605,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iTargetSource = i;
     pSdks->cTargetSource = 0;
     sprintf(pszTmp, "$(%s_%s_SDKS) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s.%s)",
-            pTarget->value, pSource->value, 
+            pTarget->value, pSource->value,
             pTarget->value, pSource->value, pBldType->value,
             pTarget->value, pSource->value, pBldTrg->value,
             pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
