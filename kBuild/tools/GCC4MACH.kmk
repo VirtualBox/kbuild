@@ -61,12 +61,12 @@ TOOL_GCC4MACH_LDFLAGS            :=
 TOOL_GCC4MACH_LDFLAGS.debug      := -g
 TOOL_GCC4MACH_LDFLAGS.release    := -s
 ifndef TOOL_GCC4MACH_LDFLAGS.$(BUILD_TARGET)
-TOOL_GCC4MACH_LDFLAGS.dll        := -shared
+TOOL_GCC4MACH_LDFLAGS.dll        := -dynamiclib
 else
 TOOL_GCC4MACH_LDFLAGS.dll        := $(TOOL_GCC4MACH_LDFLAGS.$(BUILD_TARGET))
 endif
 TOOL_GCC4MACH_LDFLAGS.sysmod     := -r
-TOOL_GCC4MACH_LD_SONAME           = -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+#TOOL_GCC4MACH_LD_SONAME           = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 TOOL_GCC4MACH_LD_MAP              =
 TOOL_GCC4MACH_LD_SYSMOD_MAP       =
 
