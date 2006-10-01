@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 252 2005-04-20 21:05:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 561 2006-10-01 01:43:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Birds key additions to Visual Slickedit.
@@ -45,7 +45,7 @@ def  'C-DEL'    = kkeys_delete_right
 
 
 
-void kkeys_switch_lines()
+_command kkeys_switch_lines()
 {
    /* Allocate a selection for copying the current line. */
    cursor_down();
@@ -64,7 +64,7 @@ void kkeys_switch_lines()
       message(get_message(mark_id));
 }
 
-void kkeys_duplicate_line()
+_command kkeys_duplicate_line()
 {
    /* Allocate a selection for copying the current line. */
    mark_id= _alloc_selection();
@@ -80,7 +80,7 @@ void kkeys_duplicate_line()
        message(get_message(mark_id));
 }
 
-void kkeys_delete_right()
+_command kkeys_delete_right()
 {
    col=p_col
    search('[ \t]#|?|$|^','r+');
@@ -96,10 +96,11 @@ void kkeys_delete_right()
 
 }
 
-void kkeys_delete_left()
+_command kkeys_delete_left()
 {
    //denne virker ikkje som den skal!!!
    message "not implemented"
+/*
    return;
    col=p_col
    search('[ \t]#|?|$|^','r-');
@@ -111,16 +112,17 @@ void kkeys_delete_left()
    else
       delete_word();
    p_col=col
+*/
 }
 
-void kkeys_scroll_up()
+_command kkeys_scroll_up()
 {
    if (p_cursor_y == 0)
       down();
    set_scroll_pos(p_left_edge, p_cursor_y-1);
 }
 
-void kkeys_scroll_down()
+_command kkeys_scroll_down()
 {
    if (p_cursor_y intdiv p_font_height == p_char_height-1)
       up()
