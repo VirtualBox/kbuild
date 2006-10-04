@@ -56,7 +56,7 @@ TOOL_GCC4MACHO_ARLIBSUFF          := .a
 TOOL_GCC4MACHO_AR_IMP             := $(ECHO) not supported!
 
 TOOL_GCC4MACHO_LD                 := g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LD_SYSMOD          := ld$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LD_SYSMOD          := g++$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_LDFLAGS            :=
 TOOL_GCC4MACHO_LDFLAGS.debug      := -g
 TOOL_GCC4MACHO_LDFLAGS.release    := -s
