@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 561 2006-10-01 01:43:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 566 2006-10-08 01:57:06Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Birds key additions to Visual Slickedit.
@@ -129,14 +129,13 @@ _command kkeys_scroll_down()
    set_scroll_pos(p_left_edge, p_cursor_y+p_font_height);
 }
 
-int boxer_paste()
+_command boxer_paste()
 {
    int rc;
-   offset=_QROffset();
+   offset = _QROffset();
    message(offset);
    rc = paste();
    _GoToROffset(offset);
-   return rc;
 }
 
 _command kkeys_fullscreen()
