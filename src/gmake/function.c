@@ -2175,7 +2175,7 @@ func_comp_vars (char *o, char **argv, const char *funcname)
       e2--;
 
     if (e1 - s1 != e2 - s2)
-      return variable_buffer_output (o, "", 1);     /* eq */
+      return variable_buffer_output (o, argv[2], strlen(argv[2]));
 l_simple_compare:
     if (!memcmp (s1, s2, e1 - s1))
       return variable_buffer_output (o, "", 1);     /* eq */
@@ -2253,7 +2253,7 @@ l_simple_compare:
   if (a2)
     free (a2);
   if (l)
-    return variable_buffer_output (o, "", 1);
+    return variable_buffer_output (o, "", 1);       /* eq */
   return variable_buffer_output (o, argv[2], strlen (argv[2]));
 }
 #endif 
