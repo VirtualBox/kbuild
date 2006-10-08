@@ -2253,8 +2253,8 @@ l_simple_compare:
   if (a2)
     free (a2);
   if (l)
-    return variable_buffer_output (o, "", 1);       /* eq */
-  return variable_buffer_output (o, argv[2], strlen (argv[2]));
+    return variable_buffer_output (o, argv[2], strlen (argv[2]));
+  return variable_buffer_output (o, "", 1);         /* eq */
 }
 #endif 
 
