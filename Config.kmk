@@ -1,4 +1,4 @@
-# $Id: Config.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 565 2006-10-08 01:56:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -43,7 +43,7 @@ TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
 endif
 
 ifeq ($(BUILD_TARGET),darwin)
-TEMPLATE_BIN_TOOL               = GCC4MACH
+TEMPLATE_BIN_TOOL               = GCC4MACHO
 TEMPLATE_BIN_CFLAGS.profile     =
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = 
