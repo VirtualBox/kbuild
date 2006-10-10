@@ -46,13 +46,13 @@ call FixCMDEnv;
  */
 
 /* kBuild path. */
-if (EnvGet("PATH_KBUILD") = "") then 
+if (EnvGet("PATH_KBUILD") = "") then
 do
     call EnvSet 0, "PATH_KBUILD", GetScriptDir();
 end
-if (  FileExists(EnvGet("PATH_KBUILD")||"\footer.kmk") = 0, 
-    | FileExists(EnvGet("PATH_KBUILD")||"\header.kmk") = 0, 
-    | FileExists(EnvGet("PATH_KBUILD")||"\rules.kmk") = 0) then 
+if (  FileExists(EnvGet("PATH_KBUILD")||"\footer.kmk") = 0,
+    | FileExists(EnvGet("PATH_KBUILD")||"\header.kmk") = 0,
+    | FileExists(EnvGet("PATH_KBUILD")||"\rules.kmk") = 0) then
 do
     say "kBuild: error: PATH_KBUILD ("||EnvGet("PATH_KBUILD")||") is not point to a populated kBuild directory.";
     exit(1);
@@ -91,13 +91,13 @@ say "dbg: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU");
 
 if (EnvGet("BUILD_TARGET_ARCH") = "") then
 do
-    select 
+    select
         when (  EnvGet("BUILD_TARGET_CPU") = "i386",
               | EnvGet("BUILD_TARGET_CPU") = "i486",
               | EnvGet("BUILD_TARGET_CPU") = "i586",
               | EnvGet("BUILD_TARGET_CPU") = "i686",
               | EnvGet("BUILD_TARGET_CPU") = "i786",
-              | EnvGet("BUILD_TARGET_CPU") = "i886") then 
+              | EnvGet("BUILD_TARGET_CPU") = "i886") then
         do
             call EnvSet 0, "BUILD_TARGET_ARCH", "x86";
         end
@@ -105,7 +105,7 @@ do
         when (  EnvGet("BUILD_TARGET_CPU") = "k8",
               | EnvGet("BUILD_TARGET_CPU") = "k8l",
               | EnvGet("BUILD_TARGET_CPU") = "k9",
-              | EnvGet("BUILD_TARGET_CPU") = "k10") then 
+              | EnvGet("BUILD_TARGET_CPU") = "k10") then
         do
             call EnvSet 0, "BUILD_TARGET_ARCH", "amd64";
         end
@@ -133,8 +133,12 @@ call EnvSet 0, "MAKESHELL", translate(sPlatformBin||"/kmk_ash.exe", '/', '\');
 call EnvAddFront 0, "PATH", sPlatformBin;
 say "dbg: PATH="||EnvGet("PATH");
 
+/* The BEGINLIBPATH. */
+call EnvAddFront 0, "BEGINLIBPATH", sPlatformBin;
+say "dbg: BEGINLIBPATH="||EnvGet("BEGINLIBPATH");
+
 /* Sanity check */
-if (DirExists(sPlatformBin) = 0) then 
+if (DirExists(sPlatformBin) = 0) then
 do
     say "kBuild: warning: The bin directory for this platform doesn't exist. ("||sPlatformBin||")";
 end
@@ -143,7 +147,7 @@ do
     sPrograms = "kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_sed";
     do i = 1 to words(sPrograms)
         sProgram = word(sPrograms, i);
-        if (FileExists(sPlatformBin||"\"||sProgram||".exe") = 0) then 
+        if (FileExists(sPlatformBin||"\"||sProgram||".exe") = 0) then
         do
             say "kBuild: warning: The "||sProgram||" program doesn't exit for this platform. ("||sPlatformBin||")";
         end
@@ -151,8 +155,8 @@ do
 end
 
 
-/* 
- * Execute command if any arguments was given. 
+/*
+ * Execute command if any arguments was given.
  */
 parse arg sArgs
 if (strip(sArgs) <> "") then
