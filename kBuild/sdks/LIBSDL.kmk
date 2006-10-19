@@ -1,0 +1,86 @@
+# $Id: $
+## @file
+#
+# kBuild SDK - libsdl (default target only).
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+## @todo I need to come up with a decent way of dealing with non-default targets.
+# The different SDL distros and install patterns isn't making this very easy exactly.
+
+SDK_LIBSDL          := libsdl
+ifndef PATH_SDK_LIBSDL
+PATH_SDK_LIBSDL     := $(sort $(wildcard $(PATH_DEV)/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/libsdl/v*))
+ ifneq ($(PATH_SDK_LIBSDL),)
+  PATH_SDK_LIBSDL   := $(call lastword,$(PATH_SDK_LIBSDL))
+ else
+  $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
+  PATH_SDK_LIBSDL   := /usr
+ endif
+endif
+
+ifeq ($(BUILD_TARGET),os2)
+ SDK_LIBSDL_INCS    := \
+ 	$(PATH_SDK_LIBSDL)/SDL/include \
+ 	$(PATH_SDK_LIBSDL)/SDLGfx \
+ 	$(PATH_SDK_LIBSDL)/SDLImage \
+ 	$(PATH_SDK_LIBSDL)/SDLMixer \
+ 	$(PATH_SDK_LIBSDL)/SDLNet \
+ 	$(PATH_SDK_LIBSDL)/SDLTTF
+ SDK_LIBSDL_LIBS     := \
+ 	$(PATH_SDK_LIBSDL)/SDL/SDL12.lib \
+ 	$(PATH_SDK_LIBSDL)/SDLGfx/SDLGFX.lib \
+ 	$(PATH_SDK_LIBSDL)/SDLImage/SDLIMAGE.lib \
+ 	$(PATH_SDK_LIBSDL)/SDLMixer/SDLMIXER.lib \
+ 	$(PATH_SDK_LIBSDL)/SDLNet/SDLNET.lib \
+ 	$(PATH_SDK_LIBSDL)/SDLTTF/SDLTTF.lib
+ SDK_LIBSDL_LIBPATHS := \
+ 	$(PATH_SDK_LIBSDL)/SDL \
+ 	$(PATH_SDK_LIBSDL)/SDLGfx \
+ 	$(PATH_SDK_LIBSDL)/SDLImage \
+ 	$(PATH_SDK_LIBSDL)/SDLMixer \
+ 	$(PATH_SDK_LIBSDL)/SDLNet \
+ 	$(PATH_SDK_LIBSDL)/SDLTTF
+ SDK_LIBSDL_LIBMAIN = 
+else
+ ifneq ($(filter nt win win32 win64,$(BUILD_TARGET)),)
+  # only vc++, not mingw/cygwin.
+  SDK_LIBSDL_INCS    := \
+	$(PATH_SDK_LIBSDL)/include/SDL \
+	$(PATH_SDK_LIBSDL)/include
+  SDK_LIBSDL_LIBS     := \
+ 	$(PATH_SDK_LIBSDL)/lib/SDL.lib
+  SDK_LIBSDL_LIBPATHS := \
+ 	$(PATH_SDK_LIBSDL)/lib
+  SDK_LIBSDL_LIBMAIN = \
+	$(PATH_SDK_LIBSDL)/lib/SDLmain.lib
+ else
+  SDK_LIBSDL_INCS    := \
+	$(PATH_SDK_LIBSDL)/include/SDL \
+	$(PATH_SDK_LIBSDL)/include
+  SDK_LIBSDL_LIBS     := sdl sdlgfx sdlimage sdlmixer sdlnet sdlttf
+  SDK_LIBSDL_LIBPATHS := \
+ 	$(PATH_SDK_LIBSDL)/lib
+  SDK_LIBSDL_LIBMAIN = sdlmain
+ endif
+endif
+
