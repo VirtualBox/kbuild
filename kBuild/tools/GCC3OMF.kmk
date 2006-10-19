@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 471 2006-07-15 04:33:22Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 573 2006-10-19 02:21:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
@@ -55,7 +55,7 @@ TOOL_GCC3OMF_ARLIBSUFF          := .lib
 TOOL_GCC3OMF_AR_IMP             := emximp$(HOSTSUFF_EXE)
 
 TOOL_GCC3OMF_LD                 := g++$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_LD_SYSMOD          := emxomfld$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_LD_SYSMOD          := g++$(HOSTSUFF_EXE)
 TOOL_GCC3OMF_LDFLAGS            := -Zomf
 TOOL_GCC3OMF_LDFLAGS.debug      := -g
 TOOL_GCC3OMF_LDFLAGS.release    := -s
@@ -64,7 +64,7 @@ TOOL_GCC3OMF_LDFLAGS.dll        := -shared -Zdll
 else
 TOOL_GCC3OMF_LDFLAGS.dll        := $(TOOL_GCC3OMF_LDFLAGS.$(BUILD_TARGET))
 endif
-TOOL_GCC3OMF_LDFLAGS.sysmod     := -r
+TOOL_GCC3OMF_LDFLAGS.sysmod     := -nostdlib
 TOOL_GCC3OMF_LD_MAP              = -Zmap=$(1)
 TOOL_GCC3OMF_LD_SYSMOD_MAP       = -Zmap=$(1)
 
