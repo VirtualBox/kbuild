@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 571 2006-10-19 02:18:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
@@ -63,5 +63,11 @@ define TOOL_NASM_COMPILE_AS_CMDS
 		-l $(outbase).lst\
 		-o $(obj)\
 		$(call ABSPATH,$(source))
+	$(TOOL_NASM_AS)\
+		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
+		-l $(outbase).lst\
+		-o $(obj)\
+		$(call ABSPATH,$(source)) \
+		-M >> $(dep)
 endef
 
