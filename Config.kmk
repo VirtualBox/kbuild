@@ -1,4 +1,4 @@
-# $Id: Config.kmk 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 582 2006-11-23 13:45:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -119,5 +119,5 @@ TEMPLATE_LIB_INST    = lib/
 TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 
-LIB_KDEP = $(PATH_OUT)/$(TEMPLATE_LIB_INST)$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
+LIB_KDEP = $(PATH_OUT)/$(TEMPLATE_LIB_INST)$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 
