@@ -1,4 +1,4 @@
-# $Id: footer.kmk 579 2006-11-23 10:49:50Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 581 2006-11-23 13:44:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -558,7 +558,11 @@ endef
 
 ## wrapper the link command dependency check.
 ifndef NO_COMPILE_CMDS_DEPS
+ ifneq ($(filter comp-vars,$(KMK_FEATURES)),)
+_DEP_LINK_CMDS = $(comp-vars $(target)_CMDS_PREV_,$(target)_CMDS_,FORCE)
+ else
 _DEP_LINK_CMDS = $(if $(subst $(strip $($(target)_CMDS_PREV_)),,$(strip $($(target)_CMDS_))),FORCE,)
+ endif
 else
 _DEP_LINK_CMDS =
 endif
@@ -1089,7 +1093,6 @@ $(target)_OBJS_ := $(filter %.o %.obj, \
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg_cpu)) \
 	$($(target)_SOURCES.$(bld_type)))
-
 
 # source -> object
 $(eval $(value def_target_sources))
