@@ -3025,7 +3025,7 @@ print_version (void)
      word "Copyright", so it hardly seems worth it.  */
 
 #ifdef KMK
-  printf ("%skmk - The kBuild Make Program\n\
+  printf ("%skBuild Make %d.%d.%d\n\
 \n\
 %sBased on GNU Make %s:\n\
 %s Copyright (C) 2006  Free Software Foundation, Inc.\n\
@@ -3038,8 +3038,9 @@ print_version (void)
 %s  The Regents of the University of California. All rights reserved.\n\
 %s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n\
 %s\n",
-          precede, precede, version_string, precede, precede, precede,
-          precede, precede, precede, precede, precede);
+          precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
+          precede, version_string, 
+          precede, precede, precede, precede, precede, precede, precede, precede);
 #else
   printf ("%sGNU Make %s\n\
 %sCopyright (C) 2006  Free Software Foundation, Inc.\n",
