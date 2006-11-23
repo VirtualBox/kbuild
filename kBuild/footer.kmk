@@ -1,4 +1,4 @@
-# $Id: footer.kmk 552 2006-09-24 07:37:41Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 579 2006-11-23 10:49:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1034,18 +1034,18 @@ INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
 
 $(eval $(def_link_install_rule))
 
-_INSTALLS  += $(INSTARGET_$(target))
+_INSTALLS += $(INSTARGET_$(target))
 
 ifdef KBUILD_DO_AUTO_INSTALL
-$(typevar)  += $(INSTARGET_$(target))
+$(typevar) += $(INSTARGET_$(target))
 else
-$(typevar)  += $(out)
+$(typevar) += $(out)
 endif
 else # _NOINST
-$(typevar)  += $(out)
+$(typevar) += $(out)
 endif
 
-_OUT_FILES += $(out)
+_OUT_FILES += $($(target)_OUTPUT_)
 _CLEAN_FILES += $($(target)_CLEAN)
 _OBJS += $($(target)_OBJS_)
 
@@ -1395,10 +1395,10 @@ $(eval $(def_link_rule))
 
 
 # Update globals.
-_OBJS        += $($(target)_OBJS_)
-_OUT_FILES   += $($(target)_OUTPUT_) $(out)
+_OBJS += $($(target)_OBJS_)
+_OUT_FILES += $($(target)_OUTPUT_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN)
-_INSTALLS    += $(INSTARGET_$(target))
+_INSTALLS += $(INSTARGET_$(target))
 
 endef
 
