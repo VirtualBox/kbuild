@@ -1,8 +1,9 @@
-/* $Id: ChangeLog 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 578 2006-11-23 10:36:46Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
     - kBuild/header.kmk, kmk:
-        o Proper versioning.
+        o #6: Did code changes for unix installation. Will do install goals when creating the gentoo ebuild.
+        o #5: Proper versioning. (#5)
     - kmk:
         o Support SDK.$(BUILD_TARGET_ARCH) too (only bug).
         o Fixed a bug when gather SDKs.

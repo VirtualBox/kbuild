@@ -3062,6 +3062,12 @@ print_version (void)
             precede, precede, precede);
 
 #ifdef KMK
+# ifdef PATH_KBUILD
+  printf (_("%s\n\
+%sPATH_KBUILD default:     '%s'\n\
+%sPATH_KBUILD_BIN default: '%s'\n"),
+          precede, precede, PATH_KBUILD, precede, PATH_KBUILD_BIN);
+# endif /* PATH_KBUILD */
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
             precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);

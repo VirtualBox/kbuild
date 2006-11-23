@@ -996,18 +996,33 @@ define_automatic_variables (void)
                           buf, o_default, 0);
 
   /* The build platform defaults. */
-  envvar = getenv("BUILD_PLATFORM");
+  envvar = getenv ("BUILD_PLATFORM");
   if (!envvar)
       (void) define_variable ("BUILD_PLATFORM", sizeof("BUILD_PLATFORM") - 1, 
                               BUILD_PLATFORM, o_default, 0);
-  envvar = getenv("BUILD_PLATFORM_ARCH");
+  envvar = getenv ("BUILD_PLATFORM_ARCH");
   if (!envvar)
       (void) define_variable ("BUILD_PLATFORM_ARCH", sizeof("BUILD_PLATFORM_ARCH") - 1, 
                               BUILD_PLATFORM_ARCH, o_default, 0);
-  envvar = getenv("BUILD_PLATFORM_CPU");
+  envvar = getenv ("BUILD_PLATFORM_CPU");
   if (!envvar)
       (void) define_variable ("BUILD_PLATFORM_CPU", sizeof("BUILD_PLATFORM_CPU") - 1, 
                               BUILD_PLATFORM_CPU, o_default, 0);
+
+# ifdef PATH_KBUILD
+  /* define the installed. */
+  envvar = getenv("PATH_KBUILD");
+  if (!envvar)
+  {
+      (void) define_variable ("PATH_KBUILD", sizeof("PATH_KBUILD") - 1, 
+                              PATH_KBUILD, o_default, 0);
+      envvar = getenv("PATH_KBUILD_BIN");
+      if (!envvar)
+          (void) define_variable ("PATH_KBUILD_BIN", sizeof("PATH_KBUILD_BIN") - 1, 
+                                  PATH_KBUILD_BIN, o_default, 0);
+  }
+# endif 
+
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
