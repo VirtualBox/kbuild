@@ -1,4 +1,4 @@
-# $Id: header.kmk 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 578 2006-11-23 10:36:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -266,20 +266,21 @@ EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
 endif
 
-
-PATH_TOOLS          := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
-ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
- ifeq ($(BUILD_TARGET_ARCH),amd64)
-  PATH_TOOLS        := $(PATH_KBUILD)/bin/x86.$(BUILD_PLATFORM)
- endif
- ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
-  ifeq ($(filter-out win64 win nt ,$(BUILD_PLATFORM)),)
-   PATH_TOOLS       := $(PATH_KBUILD)/bin/x86.win32
+ifndef PATH_KBUILD_BIN
+ PATH_KBUILD_BIN    := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+ ifeq ($(wildcard $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)),)
+  ifeq ($(BUILD_TARGET_ARCH),amd64)
+   PATH_KBUILD_BIN  := $(PATH_KBUILD)/bin/x86.$(BUILD_PLATFORM)
   endif
- endif
- ifeq ($(wildcard $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)),)
-  # give up
-  PATH_TOOLS        := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+  ifeq ($(wildcard $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)),)
+   ifeq ($(filter-out win64 win nt ,$(BUILD_PLATFORM)),)
+    PATH_KBUILD_BIN := $(PATH_KBUILD)/bin/x86.win32
+   endif
+  endif
+  ifeq ($(wildcard $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)),)
+   # give up
+   PATH_KBUILD_BIN  := $(PATH_KBUILD)/bin/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+  endif
  endif
 endif
 
@@ -324,94 +325,94 @@ endif
 # Standard kBuild tools.
 #
 ifeq ($(MAKE),kmk)
-MAKE        := $(PATH_TOOLS)/kmk$(HOSTSUFF_EXE)
+MAKE        := $(PATH_KBUILD_BIN)/kmk$(HOSTSUFF_EXE)
 endif
 
-DEP_EXT     := $(PATH_TOOLS)/kDep$(HOSTSUFF_EXE)
+DEP_EXT     := $(PATH_KBUILD_BIN)/kDep$(HOSTSUFF_EXE)
 ifeq ($(filter kDep,$(KMK_BUILTIN)),kDep)
 DEP         := kmk_builtin_kDep
 else
 DEP         := $(DEP_EXT)
 endif
 
-DEP_IDB_EXT := $(PATH_TOOLS)/kDepIDB$(HOSTSUFF_EXE)
+DEP_IDB_EXT := $(PATH_KBUILD_BIN)/kDepIDB$(HOSTSUFF_EXE)
 ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepIDB)
 DEP_IDB     := $(if kmk_builtin_kDepIDB
 else
 DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
-DEP_PRE_EXT := $(PATH_TOOLS)/kDepPre$(HOSTSUFF_EXE)
+DEP_PRE_EXT := $(PATH_KBUILD_BIN)/kDepPre$(HOSTSUFF_EXE)
 ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepPre)
 DEP_PRE     := $(if kmk_builtin_kDepPre
 else
 DEP_PRE     := $(DEP_PRE_EXT)
 endif
 
-APPEND_EXT  := $(PATH_TOOLS)/kmk_append$(HOSTSUFF_EXE)
+APPEND_EXT  := $(PATH_KBUILD_BIN)/kmk_append$(HOSTSUFF_EXE)
 ifeq ($(filter append,$(KMK_BUILTIN)),append)
 APPEND      := kmk_builtin_append
 else
 APPEND      := $(APPEND_EXT)
 endif
 
-CAT_EXT     := $(PATH_TOOLS)/kmk_cat$(HOSTSUFF_EXE)
+CAT_EXT     := $(PATH_KBUILD_BIN)/kmk_cat$(HOSTSUFF_EXE)
 ifeq ($(filter cat,$(KMK_BUILTIN)),cat)
 CAT         := kmk_builtin_cat
 else
 CAT         := $(CAT_EXT)
 endif
 
-CP_EXT      := $(PATH_TOOLS)/kmk_cp$(HOSTSUFF_EXE)
+CP_EXT      := $(PATH_KBUILD_BIN)/kmk_cp$(HOSTSUFF_EXE)
 ifeq ($(filter cp,$(KMK_BUILTIN)),cp)
 CP          := kmk_builtin_cp
 else
 CP          := $(CP_EXT)
 endif
 
-ECHO_EXT    := $(PATH_TOOLS)/kmk_echo$(HOSTSUFF_EXE)
+ECHO_EXT    := $(PATH_KBUILD_BIN)/kmk_echo$(HOSTSUFF_EXE)
 ifeq ($(filter echo,$(KMK_BUILTIN)),echo)
 ECHO        := kmk_builtin_echo
 else
 ECHO        := $(ECHO_EXT)
 endif
 
-INSTALL_EXT := $(PATH_TOOLS)/kmk_install$(HOSTSUFF_EXE)
+INSTALL_EXT := $(PATH_KBUILD_BIN)/kmk_install$(HOSTSUFF_EXE)
 ifeq ($(filter install,$(KMK_BUILTIN)),install)
 INSTALL     := kmk_builtin_install
 else
 INSTALL     := $(INSTALL_EXT)
 endif
 
-LN_EXT      := $(PATH_TOOLS)/kmk_ln$(HOSTSUFF_EXE)
+LN_EXT      := $(PATH_KBUILD_BIN)/kmk_ln$(HOSTSUFF_EXE)
 ifeq ($(filter ln,$(KMK_BUILTIN)),ln)
 LN          := kmk_builtin_ln
 else
 LN          := $(LN_EXT)
 endif
 
-MKDIR_EXT   := $(PATH_TOOLS)/kmk_mkdir$(HOSTSUFF_EXE)
+MKDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_mkdir$(HOSTSUFF_EXE)
 ifeq ($(filter mkdir,$(KMK_BUILTIN)),mkdir)
 MKDIR       := kmk_builtin_mkdir
 else
 MKDIR       := $(MKDIR_EXT)
 endif
 
-MV_EXT      := $(PATH_TOOLS)/kmk_mv$(HOSTSUFF_EXE)
+MV_EXT      := $(PATH_KBUILD_BIN)/kmk_mv$(HOSTSUFF_EXE)
 ifeq ($(filter mv,$(KMK_BUILTIN)),mv)
 MV          := kmk_builtin_mv
 else
 MV          := $(MV_EXT)
 endif
 
-RM_EXT      := $(PATH_TOOLS)/kmk_rm$(HOSTSUFF_EXE)
+RM_EXT      := $(PATH_KBUILD_BIN)/kmk_rm$(HOSTSUFF_EXE)
 ifeq ($(filter rm,$(KMK_BUILTIN)),rm)
 RM          := kmk_builtin_rm
 else
 RM          := $(RM_EXT)
 endif
 
-SED_EXT     := $(PATH_TOOLS)/kmk_sed$(HOSTSUFF_EXE)
+SED_EXT     := $(PATH_KBUILD_BIN)/kmk_sed$(HOSTSUFF_EXE)
 ifeq ($(filter sed,$(KMK_BUILTIN)),sed)
 SED         := kmk_builtin_sed
 else
@@ -419,7 +420,7 @@ SED         := $(SED_EXT)
 endif
 
 # Our default shell is the Almquist shell from *BSD.
-ASH         := $(PATH_TOOLS)/kmk_ash$(HOSTSUFF_EXE)
+ASH         := $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)
 MAKESHELL   := $(ASH)
 SHELL       := $(ASH)
 export SHELL MAKESHELL
