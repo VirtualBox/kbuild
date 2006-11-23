@@ -2472,11 +2472,20 @@ print_usage (int bad)
   for (cpp = usage; *cpp; ++cpp)
     fputs (_(*cpp), usageto);
 
+#ifdef KMK
+  if (!remote_description || *remote_description == '\0')
+    printf (_("\nThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
+            BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+  else
+    printf (_("\nThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
+            BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+#else
   if (!remote_description || *remote_description == '\0')
     fprintf (usageto, _("\nThis program built for %s\n"), make_host);
   else
     fprintf (usageto, _("\nThis program built for %s (%s)\n"),
              make_host, remote_description);
+#endif
 
   fprintf (usageto, _("Report bugs to <bug-make@gnu.org>\n"));
 }
@@ -3054,10 +3063,11 @@ print_version (void)
 
 #ifdef KMK
   if (!remote_description || *remote_description == '\0')
-    printf (_("\n%sThis program built for %s [" __DATE__ " " __TIME__ "]\n"), precede, make_host);
+    printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
+            precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
   else
-    printf (_("\n%sThis program built for %s (%s) [" __DATE__ " " __TIME__ "]\n"),
-            precede, make_host, remote_description);
+    printf (_("\n%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
+            precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
 #else
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program built for %s\n"), precede, make_host);
