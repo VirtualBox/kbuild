@@ -546,7 +546,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
                 struct variable *pBldType, struct variable *pBldTrg, struct variable *pBldTrgArch)
 {
     int i, j;
-    size_t cchTmp;
+    size_t cchTmp, cch;
     char *pszTmp;
     unsigned cchCur;
     char *pszCur;
@@ -558,18 +558,22 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     i = 0;
 
     /* determin required tmp variable name space. */
-    cchTmp = (  pTarget->value_length + 1
-              + pSource->value_length + 6
-              + pBldTrg->value_length + 1
-              + pBldTrgArch->value_length + 4) * 4;
+    cchTmp = sizeof("$(__SDKS) $(__SDKS.) $(__SDKS.) $(__SDKS.) $(__SDKS..)")
+           + (pTarget->value_length + pSource->value_length) * 5
+           + pBldType->value_length
+           + pBldTrg->value_length
+           + pBldTrgArch->value_length
+           + pBldTrg->value_length + pBldTrgArch->value_length;
     pszTmp = alloca(cchTmp);
-
 
     /* the global sdks. */
     pSdks->iGlobal = i;
     pSdks->cGlobal = 0;
-    sprintf(pszTmp, "$(SDKS) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s.%s)",
-            pBldType->value, pBldTrg->value, pBldTrg->value, pBldTrgArch->value);
+    sprintf(pszTmp, "$(SDKS) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s.%s)",
+            pBldType->value, 
+            pBldTrg->value, 
+            pBldTrgArch->value,
+            pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[0] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cGlobal++;
@@ -578,10 +582,11 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the target sdks.*/
     pSdks->iTarget = i;
     pSdks->cTarget = 0;
-    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
             pTarget->value,
             pTarget->value, pBldType->value,
             pTarget->value, pBldTrg->value,
+            pTarget->value, pBldTrgArch->value,
             pTarget->value, pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[1] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
@@ -591,10 +596,11 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the source sdks.*/
     pSdks->iSource = i;
     pSdks->cSource = 0;
-    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
             pSource->value,
             pSource->value, pBldType->value,
             pSource->value, pBldTrg->value,
+            pSource->value, pBldTrgArch->value,
             pSource->value, pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[2] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
@@ -604,11 +610,13 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the target + source sdks. */
     pSdks->iTargetSource = i;
     pSdks->cTargetSource = 0;
-    sprintf(pszTmp, "$(%s_%s_SDKS) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s.%s)",
-            pTarget->value, pSource->value,
-            pTarget->value, pSource->value, pBldType->value,
-            pTarget->value, pSource->value, pBldTrg->value,
-            pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
+    cch = sprintf(pszTmp, "$(%s_%s_SDKS) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s) $(%s_%s_SDKS.%s.%s)",
+                  pTarget->value, pSource->value,
+                  pTarget->value, pSource->value, pBldType->value,
+                  pTarget->value, pSource->value, pBldTrg->value,
+                  pTarget->value, pSource->value, pBldTrgArch->value,
+                  pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
+    assert(cch < cchTmp); (void)cch; 
     pszIterator = pSdks->apsz[3] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTargetSource++;
@@ -625,14 +633,20 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     memset(pSdks->pa, 0, sizeof(pSdks->pa[0]) * i);
     for (i = j = 0; j < sizeof(pSdks->apsz) / sizeof(pSdks->apsz[0]); j++)
     {
+        int k = i;
         pszIterator = pSdks->apsz[j];
         while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         {
             pSdks->pa[i].value = pszCur;
             pSdks->pa[i].value_length = cchCur;
-            pszCur[cchCur] = '\0';
+            i++;
         }
     }
+    assert(i == pSdks->c);
+
+    /* terminate them (find_next_token won't work if we terminate them in the previous loop). */
+    while (i-- > 0)
+        pSdks->pa[i].value[pSdks->pa[i].value_length] = '\0';
 }
 
 /* releases resources allocated in the kbuild_get_sdks. */
