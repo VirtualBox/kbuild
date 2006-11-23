@@ -961,6 +961,9 @@ define_automatic_variables (void)
 #endif
   register struct variable *v;
   char buf[200];
+#ifdef KMK
+  const char *envvar;
+#endif 
 
   sprintf (buf, "%u", makelevel);
   (void) define_variable (MAKELEVEL_NAME, MAKELEVEL_LENGTH, buf, o_env, 0);
@@ -976,6 +979,35 @@ define_automatic_variables (void)
 #ifdef KMK
   /* Define KMK_VERSION to indicate kMk. */
   (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
+
+  /* Define KBUILD_VERSION* */
+  sprintf (buf, "%d", KBUILD_VERSION_MAJOR);
+  (void) define_variable ("KBUILD_VERSION_MAJOR", sizeof("KBUILD_VERSION_MAJOR") - 1, 
+                          buf, o_default, 0);
+  sprintf (buf, "%d", KBUILD_VERSION_MINOR);
+  (void) define_variable ("KBUILD_VERSION_MINOR", sizeof("KBUILD_VERSION_MINOR") - 1, 
+                          buf, o_default, 0);
+  sprintf (buf, "%d", KBUILD_VERSION_PATCH);
+  (void) define_variable ("KBUILD_VERSION_PATCH", sizeof("KBUILD_VERSION_PATCH") - 1, 
+                          buf, o_default, 0);
+
+  sprintf (buf, "%d.%d.%d", KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+  (void) define_variable ("KBUILD_VERSION", sizeof("KBUILD_VERSION") - 1, 
+                          buf, o_default, 0);
+
+  /* The build platform defaults. */
+  envvar = getenv("BUILD_PLATFORM");
+  if (!envvar)
+      (void) define_variable ("BUILD_PLATFORM", sizeof("BUILD_PLATFORM") - 1, 
+                              BUILD_PLATFORM, o_default, 0);
+  envvar = getenv("BUILD_PLATFORM_ARCH");
+  if (!envvar)
+      (void) define_variable ("BUILD_PLATFORM_ARCH", sizeof("BUILD_PLATFORM_ARCH") - 1, 
+                              BUILD_PLATFORM_ARCH, o_default, 0);
+  envvar = getenv("BUILD_PLATFORM_CPU");
+  if (!envvar)
+      (void) define_variable ("BUILD_PLATFORM_CPU", sizeof("BUILD_PLATFORM_CPU") - 1, 
+                              BUILD_PLATFORM_CPU, o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
@@ -1000,6 +1032,7 @@ define_automatic_variables (void)
 #  endif
   (void) define_variable ("KMK_FEATURES", 12, buf, o_default, 0);
 # endif 
+
 #endif /* KMK */
 
 #ifdef CONFIG_WITH_KMK_BUILTIN

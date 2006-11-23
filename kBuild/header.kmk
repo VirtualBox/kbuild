@@ -1,4 +1,4 @@
-# $Id: header.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -212,14 +212,26 @@ MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 
 
 #
-# Disable some features and stamp out predefines if we're running
-# vanilla GNU Make.
+# Check make version.
 #
-ifndef KMK_VERSION
-NO_COMPILE_CMDS_DEPS:= 1
-NO_LINK_CMDS_DEPS   := 1
-include $(PATH_KBUILD)/StampOutPredefines.kmk
+ifdef KMK_VERSION
+ ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
+  ifneq ($(KBUILD_VERSION_MAJOR),0)
+   $(warning kBuild: kmk major version mismatch, expected '0' found '$(KBUILD_VERSION_MAJOR)'!)
+  else
+   $(warning kBuild: kmk minor version mismatch, expected '1' found '$(KBUILD_VERSION_MINOR)'!) 
+  endif
+ endif
+else 
+ # Vanilla GNU Make. Only supported for kBuild bootstrapping. Disable some features to make it work.
+ NO_COMPILE_CMDS_DEPS:= 1
+ NO_LINK_CMDS_DEPS   := 1
+ sinclude $(PATH_KBUILD)/StampOutPredefines.kmk
+ ifndef IS_BOOTSTRAPPING_KBUILD_NOW
+  $(warning kBuild: Using vanilla GNU make isn't safe for anything but kBuild bootstrapping!)
+ endif
 endif
+
 
 #
 # Build platform setup.

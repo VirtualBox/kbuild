@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $
 
 
 #
@@ -32,7 +32,11 @@ kmk_DEFS = \
 	VARIABLE_HASH \
 	CONFIG_WITH_OPTIMIZATION_HACKS \
 	CONFIG_WITH_VALUE_LENGTH \
-	CONFIG_WITH_COMPARE
+	CONFIG_WITH_COMPARE \
+	\
+	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
+	BUILD_PLATFORM_ARCH=\"$(BUILD_TARGET_ARCH)\" \
+	BUILD_PLATFORM_CPU=\"$(BUILD_TARGET_CPU)\"
 
 kmk_SOURCES = \
 	main.c \
