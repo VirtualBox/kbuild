@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 579 2006-11-23 10:49:50Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 580 2006-11-23 10:53:51Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
+    - kBuild/bin/x86.win32:
+        o Rebuilt with current code. 
     - kBuild/footer.kmk:
         o #3: Clean link output files.
     - kBuild/header.kmk, kmk:
