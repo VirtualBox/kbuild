@@ -1,4 +1,4 @@
-# $Id: header.kmk 578 2006-11-23 10:36:46Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 585 2006-11-24 05:14:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -77,22 +77,15 @@ SP := $(subst ., ,.)
 STRCMP = $( todo )
 
 #
-# Assert build type.
+# Set default build type.
 #
 ifndef BUILD_TYPE
-ifndef BUILD_MODE
-$(error kBuild: You must define BUILD_TYPE!)
-endif
-BUILD_TYPE          := $(BUILD_MODE)
-endif
-ifeq ($(BUILD_TYPE),DEBUG)
-BUILD_TYPE          := debug
-endif
-ifeq ($(BUILD_TYPE),RELEASE)
+ ifdef BUILD_MODE
+ # BUILD_MODE is legacy from the OS/2 build system. :)
+BUILD_TYPE          := $(tolower $(BUILD_MODE))
+ else
 BUILD_TYPE          := release
-endif
-ifeq ($(BUILD_TYPE),PROFILE)
-BUILD_TYPE          := profile
+ endif
 endif
 
 
