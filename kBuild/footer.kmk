@@ -1,4 +1,4 @@
-# $Id: footer.kmk 581 2006-11-23 13:44:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 592 2006-11-24 20:54:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -422,8 +422,13 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_temp
 #
 # Include tools & sdks
 #
-_TOOLS := $(TOOL.$(BUILD_TARGET)) $(TOOL.$(BUILD_TARGET_ARCH)) $(TOOL.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) $(TOOL.$(BUILD_PLATFORM)) $(TOOL.$(BUILD_PLATFORM_ARCH)) $(TOOL.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) $(TOOL)
-_SDKS  := $(SDKS.$(BUILD_TARGET)) $(SDKS.$(BUILD_TARGET_ARCH)) $(SDKS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) $(SDKS.$(BUILD_PLATFORM)) $(SDKS.$(BUILD_PLATFORM_ARCH)) $(SDKS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) $(SDKS)
+_TOOLS := $(TOOL.$(BUILD_TARGET))   $(TOOL.$(BUILD_TARGET_ARCH))   $(TOOL.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+          $(TOOL.$(BUILD_PLATFORM)) $(TOOL.$(BUILD_PLATFORM_ARCH)) $(TOOL.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+	  $(TOOL)
+_SDKS  := $(SDKS.$(BUILD_TARGET))   $(SDKS.$(BUILD_TARGET_ARCH))   $(SDKS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+          $(SDKS.$(BUILD_PLATFORM)) $(SDKS.$(BUILD_PLATFORM_ARCH)) $(SDKS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+	  $(SDKS.$(BUILD_TYPE)) \
+	  $(SDKS)
 define def_tools_sdks_target_source
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
 	$($(source)_$(prop).$(_bld_trg)) \
@@ -441,6 +446,8 @@ $(eval _SDKS += \
 	$($(target)_$(source)_SDKS.$(_bld_trg).$(_bld_trg_arch)) \
 	$($(source)_SDKS.$(_bld_trg_arch)) \
 	$($(target)_$(source)_SDKS.$(_bld_trg_arch)) \
+	$($(source)_SDKS.$(BUILD_TYPE)) \
+	$($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
 	$($(source)_SDKS) \
 	$($(target)_$(source)_SDKS))
 endef
@@ -621,7 +628,7 @@ endef
 # @param    bld_trg       Build target.
 # @param    bld_trg_arch  Build target arch.
 # @param    bld_trg_cpu   Build target cpu.
-# @remark 	obsoleted by kBuild helpers in kmk. Only required for gmake compatbility.
+# @remark 	obsoleted by kBuild helpers in kmk. Only required for limited gmake compatbility.
 #
 define def_target_source_c_cpp_asm_old
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
@@ -639,10 +646,11 @@ defs        :=\
 	$(TOOL_$(tool)_DEFS.$(bld_trg_cpu))\
 	$(TOOL_$(tool)_$(type)DEFS)\
 	$(TOOL_$(tool)_$(type)DEFS.$(bld_type))\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
+	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg)) \
+	               $(SDKS.$(bld_type)) \
+	               $(SDKS),\
 		$(SDK_$(sdk)_DEFS)\
 		$(SDK_$(sdk)_DEFS.$(bld_type))\
 		$(SDK_$(sdk)_DEFS.$(bld_trg))\
@@ -667,10 +675,11 @@ defs        :=\
 	$($(type)DEFS.$(bld_trg_arch))\
 	$($(type)DEFS.$(bld_trg).$(bld_trg_arch))\
 	$($(type)DEFS.$(bld_trg_cpu))\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $($(target)_SDKS.$(bld_trg_arch)) \
+	               $($(target)_SDKS.$(bld_trg)) \
+	               $($(target)_SDKS.$(bld_type)) \
+	               $($(target)_SDKS),\
 		$(SDK_$(sdk)_DEFS)\
 		$(SDK_$(sdk)_DEFS.$(bld_type))\
 		$(SDK_$(sdk)_DEFS.$(bld_trg))\
@@ -695,10 +704,11 @@ defs        :=\
 	$($(target)_$(type)DEFS.$(bld_trg_arch))\
 	$($(target)_$(type)DEFS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(type)DEFS.$(bld_trg_cpu))\
-	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
-				   $($(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(source)_SDKS.$(bld_type)) \
-				   $($(source)_SDKS),\
+	$(foreach sdk, $($(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $($(source)_SDKS.$(bld_trg_arch)) \
+	               $($(source)_SDKS.$(bld_trg)) \
+	               $($(source)_SDKS.$(bld_type)) \
+	               $($(source)_SDKS),\
 		$(SDK_$(sdk)_DEFS)\
 		$(SDK_$(sdk)_DEFS.$(bld_type))\
 		$(SDK_$(sdk)_DEFS.$(bld_trg))\
@@ -723,10 +733,11 @@ defs        :=\
 	$($(source)_$(type)DEFS.$(bld_trg_arch))\
 	$($(source)_$(type)DEFS.$(bld_trg).$(bld_trg_arch))\
 	$($(source)_$(type)DEFS.$(bld_trg_cpu))\
-	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
-				   $($(target)_$(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_$(source)_SDKS.$(bld_type)) \
-				   $($(target)_$(source)_SDKS),\
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $($(target)_$(source)_SDKS.$(bld_trg_arch)) \
+	               $($(target)_$(source)_SDKS.$(bld_trg)) \
+	               $($(target)_$(source)_SDKS.$(bld_type)) \
+	               $($(target)_$(source)_SDKS),\
 		$(SDK_$(sdk)_DEFS)\
 		$(SDK_$(sdk)_DEFS.$(bld_type))\
 		$(SDK_$(sdk)_DEFS.$(bld_trg))\
@@ -764,10 +775,11 @@ incs        :=\
 	$($(target)_$(source)_INCS.$(bld_trg))\
 	$($(target)_$(source)_INCS.$(bld_type))\
 	$($(target)_$(source)_INCS)\
-	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg)) \
-				   $($(target)_$(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_$(source)_SDKS.$(bld_type)) \
-				   $($(target)_$(source)_SDKS),\
+	$(foreach sdk, $($(target)_$(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $($(target)_$(source)_SDKS.$(bld_trg_arch)) \
+	               $($(target)_$(source)_SDKS.$(bld_trg)) \
+	               $($(target)_$(source)_SDKS.$(bld_type)) \
+	               $($(target)_$(source)_SDKS),\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
@@ -792,10 +804,11 @@ incs        :=\
 	$($(source)_INCS.$(bld_trg))\
 	$($(source)_INCS.$(bld_type))\
 	$($(source)_INCS)\
-	$(foreach sdk, $($(source)_SDKS.$(bld_trg)) \
-				   $($(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(source)_SDKS.$(bld_type)) \
-				   $($(source)_SDKS),\
+	$(foreach sdk, $($(source)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+		       $($(source)_SDKS.$(bld_trg_arch)) \
+		       $($(source)_SDKS.$(bld_trg)) \
+		       $($(source)_SDKS.$(bld_type)) \
+		       $($(source)_SDKS),\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
@@ -820,10 +833,11 @@ incs        :=\
 	$($(target)_INCS.$(bld_trg))\
 	$($(target)_INCS.$(bld_type))\
 	$($(target)_INCS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg)) \
+		       $($(target)_SDKS.$(bld_type)) \
+		       $($(target)_SDKS),\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
@@ -842,10 +856,11 @@ incs        :=\
 	$(INCS.$(bld_trg))\
 	$(INCS.$(bld_type))\
 	$(INCS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
+	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg)) \
+	               $(SDKS.$(bld_type)) \
+	               $(SDKS),\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_$(type)INCS.$(bld_trg_arch))\
@@ -1244,10 +1259,11 @@ libs        :=\
 	$($(target)_LIBS.$(bld_trg))\
 	$($(target)_LIBS.$(bld_type))\
 	$($(target)_LIBS)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg)) \
+		       $($(target)_SDKS.$(bld_type)) \
+		       $($(target)_SDKS),\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
@@ -1260,10 +1276,11 @@ libs        :=\
 	$(LIBS.$(bld_trg))\
 	$(LIBS.$(bld_type))\
 	$(LIBS)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
+	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg)) \
+	               $(SDKS.$(bld_type)) \
+	               $(SDKS),\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBS.$(bld_trg_arch))\
@@ -1283,10 +1300,11 @@ libpath    :=\
 	$($(target)_LIBPATH.$(bld_trg))\
 	$($(target)_LIBPATH.$(bld_type))\
 	$($(target)_LIBPATH)\
-	$(foreach sdk, $($(target)_SDKS.$(bld_trg)) \
-				   $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $($(target)_SDKS.$(bld_type)) \
-				   $($(target)_SDKS),\
+	$(foreach sdk, $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg_arch)) \
+		       $($(target)_SDKS.$(bld_trg)) \
+		       $($(target)_SDKS.$(bld_type)) \
+		       $($(target)_SDKS),\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
@@ -1299,10 +1317,11 @@ libpath    :=\
 	$(LIBPATH.$(bld_trg))\
 	$(LIBPATH.$(bld_type))\
 	$(LIBPATH)\
-	$(foreach sdk, $(SDKS.$(bld_trg)) \
-				   $(SDKS.$(bld_trg).$(bld_trg_arch)) \
-				   $(SDKS.$(bld_type)) \
-				   $(SDKS),\
+	$(foreach sdk, $(SDKS.$(bld_trg).$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg)) \
+	               $(SDKS.$(bld_type)) \
+	               $(SDKS),\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_cpu))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg).$(bld_trg_arch))\
 		$(SDK_$(sdk)_LIBPATH.$(bld_trg_arch))\
