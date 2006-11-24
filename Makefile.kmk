@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 590 2006-11-24 05:58:32Z knut.osmundsen@oracle.com $
 
 
 DEPTH = .
@@ -12,7 +12,7 @@ ifdef NIX_INSTALL_DIR
 # When doing a unix install, install all the kBuild scripts.
 #
 INSTALLS += kBuild
-kBuild_INST = $(NIX_INSTALL_DIR_SHARED)
+kBuild_INST = $(NIX_INSTALL_DIR_SHARE)
 kBuild_SOURCES := \
         $(foreach src,\
 			$(wildcard kBuild/*.kmk kBuild/tools/*.kmk kBuild/sdks/*.kmk),\
