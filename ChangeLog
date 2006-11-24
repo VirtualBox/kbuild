@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 591 2006-11-24 20:22:49Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 593 2006-11-24 20:55:01Z knut.osmundsen@oracle.com $ */
 
 2006-11-24:
+    - kBuild/footer.kmk:
+        o Fixed some issues with SDKS and linking.
     - kmk:
         o Added --pretty-command-printing for simplifying makefile debugging.
 
