@@ -511,6 +511,9 @@ extern int env_overrides, no_builtin_rules_flag, no_builtin_variables_flag;
 extern int print_version_flag, print_directory_flag, check_symlink_flag;
 extern int warn_undefined_variables_flag, posix_pedantic, not_parallel;
 extern int second_expansion, clock_skew_detected, rebuilding_makefiles;
+#ifdef CONFIG_PRETTY_COMMAND_PRINTING
+extern int pretty_command_printing;
+#endif
 
 /* can we run commands via 'sh -c xxx' or must we use batch files? */
 extern int batch_mode_shell;

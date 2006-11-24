@@ -1,4 +1,4 @@
-# $Id: Config.kmk 590 2006-11-24 05:58:32Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 591 2006-11-24 20:22:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -83,30 +83,22 @@ TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET
 endif
 
 ifeq ($(filter-out x86.win32 x86.win x86.nt,$(BUILD_TARGET_ARCH).$(BUILD_TARGET)),)
-ifndef PATH_DEV
-$(error To build on windows you'll have to set PATH_DEV to point to somewhere kbuild can find VCC70.)
-endif
+include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
 TEMPLATE_BIN_TOOL               = VCC70
 TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
 TEMPLATE_BIN_DEFS.release       = NDEBUG
+TEMPLATE_BIN_SDKS               = WIN32SDK2002 # fixme!
 TEMPLATE_BIN_CFLAGS             = -MT -W3 -Zi -Zl
 TEMPLATE_BIN_CFLAGS.release     = -O2
 TEMPLATE_BIN_CFLAGS.profile     = -O2 -GH -Gh
-#todo use path macros from the tool
 TEMPLATE_BIN_INCS              += \
 	. \
 	$(PATH_ROOT)/src/gmake/w32/include \
-	$(PATH_ROOT)/src/gmake/glob \
-	$(PATH_DEV)/x86.win32/vcc70/include \
-	$(PATH_DEV)/x86.win32/sdk200209/include
-TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD
-TEMPLATE_BIN_LDFLAGS.profile    = /DEBUG
+	$(PATH_ROOT)/src/gmake/glob
+TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
 TEMPLATE_BIN_LIBS               = \
-	$(PATH_DEV)/x86.win32/vcc70/lib/libcmt.lib \
-	$(PATH_DEV)/x86.win32/vcc70/lib/oldnames.lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/Kernel32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
-	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
+	$(PATH_TOOL_VCC70_LIB)/libcmt.lib \
+	$(PATH_TOOL_VCC70_LIB)/oldnames.lib
 TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/

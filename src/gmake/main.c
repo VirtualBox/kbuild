@@ -150,6 +150,12 @@ int touch_flag;
 
 int just_print_flag;
 
+#ifdef CONFIG_PRETTY_COMMAND_PRINTING
+/* Nonzero means to print commands argument for argument skipping blanks. */
+
+int pretty_command_printing;
+#endif
+
 /* Print debugging info (--debug).  */
 
 static struct stringlist *db_flags;
@@ -410,6 +416,10 @@ static const struct command_switch switches[] =
     { 'o', string, (char *) &old_files, 0, 0, 0, 0, 0, "old-file" },
     { 'p', flag, (char *) &print_data_base_flag, 1, 1, 0, 0, 0,
       "print-data-base" },
+#ifdef CONFIG_PRETTY_COMMAND_PRINTING
+    { CHAR_MAX+6, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0, 
+       "pretty-command-printing" },
+#endif 
 #ifdef KMK
     { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },

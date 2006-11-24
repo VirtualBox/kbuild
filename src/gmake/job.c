@@ -1127,9 +1127,19 @@ start_job_command (struct child *child)
   /* Print out the command.  If silent, we call `message' with null so it
      can log the working directory before the command's own error messages
      appear.  */
-
-  message (0, (just_print_flag || (!(flags & COMMANDS_SILENT) && !silent_flag))
-	   ? "%s" : (char *) 0, p);
+#ifdef CONFIG_PRETTY_COMMAND_PRINTING
+  if (   pretty_command_printing
+      && (just_print_flag || (!(flags & COMMANDS_SILENT) && !silent_flag))
+      && argv[0][0] != '\0')
+    {
+      unsigned i;
+      for (i = 0; argv[i]; i++)
+        message (0, "%s'%s'%s", i ? "\t" : "> ", argv[i], argv[i + 1] ? " \\" : "");
+    }
+  else
+#endif /* CONFIG_PRETTY_COMMAND_PRINTING */
+    message (0, (just_print_flag || (!(flags & COMMANDS_SILENT) && !silent_flag))
+             ? "%s" : (char *) 0, p);
 
   /* Tell update_goal_chain that a command has been started on behalf of
      this target.  It is important that this happens here and not in

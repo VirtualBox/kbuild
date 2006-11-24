@@ -1,4 +1,8 @@
-/* $Id: ChangeLog 588 2006-11-24 05:22:05Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 591 2006-11-24 20:22:49Z knut.osmundsen@oracle.com $ */
+
+2006-11-24:
+    - kmk:
+        o Added --pretty-command-printing for simplifying makefile debugging.
 
 2006-11-23:
     - dist/portage:
