@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 584 2006-11-24 05:10:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 585 2006-11-24 05:14:13Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
+    - kBuild/header.kmk:
+        o BUILD_TYPE defaults to 'release'.
     - kBuild/tools/GCC*.kmk:
         o Cleaned up the -s and -g usage.
     - kBuild/bin/x86.win32, kBuild/bin/x86.linux:
