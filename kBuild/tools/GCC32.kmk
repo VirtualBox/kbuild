@@ -28,25 +28,27 @@ TOOL_GCC32                   := Generic GCC v3 32-bit
 
 TOOL_GCC32_CC                 := gcc32$(HOSTSUFF_EXE)
 TOOL_GCC32_COBJSUFF           := .o
-TOOL_GCC32_CFLAGS             := -g
-TOOL_GCC32_CFLAGS.debug       := -O0
+TOOL_GCC32_CFLAGS             := 
+TOOL_GCC32_CFLAGS.debug       := -g
+TOOL_GCC32_CFLAGS.profile     := -g -O2 #-pg
 TOOL_GCC32_CFLAGS.release     := -O2
-TOOL_GCC32_CFLAGS.profile     := -O2 #-pg
 TOOL_GCC32_CINCS              :=
 TOOL_GCC32_CDEFS              :=
 
 TOOL_GCC32_CXX                := g++32$(HOSTSUFF_EXE)
 TOOL_GCC32_CXXOBJSUFF         := .o
 TOOL_GCC32_CXXOBJSUFF         := .o
-TOOL_GCC32_CXXFLAGS           := -g
-TOOL_GCC32_CXXFLAGS.debug     := -O0
+TOOL_GCC32_CXXFLAGS           := 
+TOOL_GCC32_CXXFLAGS.debug     := -g
+TOOL_GCC32_CXXFLAGS.profile   := -g -O2 #-pg
 TOOL_GCC32_CXXFLAGS.release   := -O2
-TOOL_GCC32_CXXFLAGS.profile   := -O2 #-pg
 TOOL_GCC32_CXXINCS            :=
 TOOL_GCC32_CXXDEFS            :=
 
 TOOL_GCC32_AS                 := gcc32$(HOSTSUFF_EXE)
-TOOL_GCC32_ASFLAGS            := -g -x assembler-with-cpp
+TOOL_GCC32_ASFLAGS            := -x assembler-with-cpp
+TOOL_GCC32_ASFLAGS.debug      := -g
+TOOL_GCC32_ASFLAGS.profile    := -g
 TOOL_GCC32_ASOBJSUFF          := .o
 
 TOOL_GCC32_AR                 := ar$(HOSTSUFF_EXE)
@@ -57,7 +59,7 @@ TOOL_GCC32_LD                 := g++32$(HOSTSUFF_EXE)
 TOOL_GCC32_LD_SYSMOD          := ld$(HOSTSUFF_EXE)
 TOOL_GCC32_LDFLAGS            :=
 TOOL_GCC32_LDFLAGS.debug      := -g
-TOOL_GCC32_LDFLAGS.release    := -s
+TOOL_GCC32_LDFLAGS.profile    := -g
 ifndef TOOL_GCC32_LDFLAGS.$(BUILD_TARGET)
 TOOL_GCC32_LDFLAGS.dll        := -shared
 else
