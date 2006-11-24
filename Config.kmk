@@ -1,4 +1,4 @@
-# $Id: Config.kmk 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 590 2006-11-24 05:58:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -44,10 +44,10 @@ DEFS += \
 # Check if we're building a *nix installation.
 #
 ifdef NIX_INSTALL_DIR
-NIX_INSTALL_DIR_BIN    := $(patsubst /%,%,$(NIX_INSTALL_DIR))/bin
-NIX_INSTALL_DIR_SHARED := $(patsubst /%,%,$(NIX_INSTALL_DIR))/shared/kBuild
+NIX_INSTALL_DIR_BIN   := $(patsubst /%,%,$(NIX_INSTALL_DIR))/bin
+NIX_INSTALL_DIR_SHARE := $(patsubst /%,%,$(NIX_INSTALL_DIR))/share/kBuild
 DEFS += \
-	PATH_KBUILD=\"/$(NIX_INSTALL_DIR_SHARED)\" \
+	PATH_KBUILD=\"/$(NIX_INSTALL_DIR_SHARE)\" \
 	PATH_KBUILD_BIN=\"/$(NIX_INSTALL_DIR_BIN)\"
 endif
 					
