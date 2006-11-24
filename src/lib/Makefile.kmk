@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 553 2006-09-24 07:40:50Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 586 2006-11-24 05:15:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kDepIDB - IDB based dependency generator.
@@ -24,17 +24,17 @@
 #
 #
 
-LIBRARIES += kDep
-
-kDep_TEMPLATE      	= LIB
-ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
-kDep_DEFS          += NEED_ISBLANK=1 __WIN32__=1
-endif
-kDep_SOURCES        = $(PATH_CURRENT)/kDep.c
-
-
-ifndef DEPTH # Experiment in including stuff from the top level make.
 DEPTH = ../..
-include $(PATH_KBUILD)/rules.kmk
+include $(PATH_KBUILD)/header.kmk
+
+LIBRARIES += kDep
+kDep_TEMPLATE = LIB
+ifeq ($(filter-out win nt win32 win64,$(BUILD_TARGET)),)
+kDep_DEFS += NEED_ISBLANK=1 __WIN32__=1
 endif
+kDep_SOURCES = $(PATH_CURRENT)/kDep.c
+kDep_NOINST = 1
+
+
+include $(PATH_KBUILD)/footer.kmk
 

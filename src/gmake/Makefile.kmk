@@ -1,5 +1,8 @@
-# $Id: Makefile.kmk 576 2006-11-23 09:58:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 586 2006-11-24 05:15:50Z knut.osmundsen@oracle.com $
 
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
 
 #
 # kmk
@@ -283,8 +286,7 @@ kmk_gmake_SOURCES.darwin = \
 
 
 
-DEPTH = ../..
-include $(PATH_KBUILD)/rules.kmk
+include $(PATH_KBUILD)/footer.kmk
 
 			
 #
