@@ -1,6 +1,10 @@
-/* $Id: ChangeLog 585 2006-11-24 05:14:13Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
+    - Config.kmk, Makefile.kmk:
+        o #6: Hacking *nix install build for Gentoo.
+    - src/gmake/Makefile.kmk, src/lib/Makefile:
+        o Always include header.kmk when testing BUILD_TARGET*.
     - kBuild/header.kmk:
         o BUILD_TYPE defaults to 'release'.
     - kBuild/tools/GCC*.kmk:

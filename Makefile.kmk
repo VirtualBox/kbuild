@@ -1,7 +1,53 @@
-# $Id: Makefile.kmk 307 2005-08-11 20:24:37Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $
+
+
+DEPTH = .
+include $(PATH_KBUILD)/header.kmk
 
 SUBDIRS = src
 
-DEPTH = .
-include $(PATH_KBUILD)/rules.kmk
+
+ifdef NIX_INSTALL_DIR
+#
+# When doing a unix install, install all the kBuild scripts.
+#
+INSTALLS += kBuild
+kBuild_INST = $(NIX_INSTALL_DIR_SHARED)
+kBuild_SOURCES := \
+        $(foreach src,\
+			$(wildcard kBuild/*.kmk kBuild/tools/*.kmk kBuild/sdks/*.kmk),\
+			$(src)=>$(subst kBuild/,,$(src)))
+
+#
+# And install any binary only tools and dlls.
+#
+INSTALLS += kBuild_bin
+kBuild_bin_INST = $(NIX_INSTALL_DIR_BIN)
+kBuild_bin_SOURCES = \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_cat$(HOSTSUFF_EXE)=>kmk_cat$(HOSTSUFF_EXE) \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_mv$(HOSTSUFF_EXE)=>kmk_mv$(HOSTSUFF_EXE) \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_sed$(HOSTSUFF_EXE)=>kmk_sed$(HOSTSUFF_EXE) \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_ash$(HOSTSUFF_EXE)=>kmk_ash$(HOSTSUFF_EXE)
+
+ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
+kBuild_bin_SOURCES.$(BUILD_TARGET) = \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygiconv-2.dll=>cygiconv-2.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-1.dll=>cygintl-1.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-2.dll=>cygintl-2.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-3.dll=>cygintl-3.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygwin1.dll=>cygwin1.dll
+endif
+
+## @todo this isn't quite right, but then we will probably never use this on OS/2 anyway.
+kBuild_bin_SOURCES.os2 = \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/gcc29160.dll=>gcc29160.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/gnufu316.dll=>gnufu316.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/Iintl6i.dll=>Iintl6i.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/libc05.dll=>libc05.dll \ 
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/libc06.dll=>libc06.dll \ 
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/libc061.dll=>libc061.dll
+
+endif
+
+include $(PATH_KBUILD)/footer.kmk
 

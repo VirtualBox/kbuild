@@ -1,4 +1,4 @@
-# $Id: Config.kmk 582 2006-11-23 13:45:47Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -39,6 +39,17 @@ DEFS += \
 	KBUILD_VERSION_MAJOR=$(KBUILD_VERSION_MAJOR) \
 	KBUILD_VERSION_MINOR=$(KBUILD_VERSION_MINOR) \
 	KBUILD_VERSION_PATCH=$(KBUILD_VERSION_PATCH)
+
+#
+# Check if we're building a *nix installation.
+#
+ifdef NIX_INSTALL_DIR
+NIX_INSTALL_DIR_BIN    := $(patsubst /%,%,$(NIX_INSTALL_DIR))/bin
+NIX_INSTALL_DIR_SHARED := $(patsubst /%,%,$(NIX_INSTALL_DIR))/shared/kBuild
+DEFS += \
+	PATH_KBUILD=\"/$(NIX_INSTALL_DIR_SHARED)\" \
+	PATH_KBUILD_BIN=\"/$(NIX_INSTALL_DIR_BIN)\"
+endif
 					
 #
 # Template for building commandline tools.
@@ -52,7 +63,11 @@ TEMPLATE_BIN_TOOL               = GCC3OMF
 TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
+ ifdef NIX_INSTALL_DIR
+TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+ else
 TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
+ endif
 endif
 
 ifeq ($(BUILD_TARGET),darwin)
@@ -60,7 +75,11 @@ TEMPLATE_BIN_TOOL               = GCC4MACHO
 TEMPLATE_BIN_CFLAGS.profile     =
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = 
+ ifdef NIX_INSTALL_DIR
+TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+ else
 TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
+ endif
 endif
 
 ifeq ($(filter-out x86.win32 x86.win x86.nt,$(BUILD_TARGET_ARCH).$(BUILD_TARGET)),)
@@ -89,7 +108,11 @@ TEMPLATE_BIN_LIBS               = \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/User32.Lib \
 	$(PATH_DEV)/x86.win32/sdk200209/lib/AdvAPI32.Lib
 TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
+ ifdef NIX_INSTALL_DIR
+TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+ else
 TEMPLATE_BIN_INST               = kBuild/bin/x86.win32/
+ endif
 endif
 
 ifndef TEMPLATE_BIN_TOOL
@@ -104,10 +127,12 @@ TEMPLATE_BIN_LIBS              += iconv intl
 TEMPLATE_BIN_LIBPATH           += /usr/local/lib
 TEMPLATE_BIN_INCS              += $(PATH_ROOT)/src/gmake/glob /usr/local/include
 endif
+ ifdef NIX_INSTALL_DIR
+TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+ else
 TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
+ endif
 endif
-
-
 
 #
 # Template for building libraries for the tools.
@@ -119,5 +144,5 @@ TEMPLATE_LIB_INST    = lib/
 TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 
-LIB_KDEP = $(PATH_OUT)/$(TEMPLATE_LIB_INST)$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
+LIB_KDEP = $(PATH_OBJ)/src/lib/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 
