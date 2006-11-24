@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 583 2006-11-23 14:59:25Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 584 2006-11-24 05:10:00Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
+    - kBuild/tools/GCC*.kmk:
+        o Cleaned up the -s and -g usage.
     - kBuild/bin/x86.win32, kBuild/bin/x86.linux:
         o Rebuilt with current code. 
     - kBuild/footer.kmk:
