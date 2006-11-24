@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 587 2006-11-24 05:17:33Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 588 2006-11-24 05:22:05Z knut.osmundsen@oracle.com $ */
 
 2006-11-23:
+    - dist/portage:
+        o Hacked together two ebuilds for the Gentoo Portage.
     - Config.kmk, Makefile.kmk:
         o #6: Hacking *nix install build for Gentoo.
     - src/gmake/Makefile.kmk, src/lib/Makefile:
