@@ -18,14 +18,17 @@ IUSE=""
 KBUILD_SRC_TREE="${ESVN_STORE_DIR}/kBuild/trunk"
 
 src_compile() {
+    append-cflags -g
+    append-ldflags -g
     ${KBUILD_SRC_TREE}/kBuild/env.sh \
         kmk NIX_INSTALL_DIR=/usr BUILD_TYPE=release -C ${KBUILD_SRC_TREE} \
             || die "kmk failed"
 }
 
 src_install () {
+    append-cflags -g
+    append-ldflags -g
     ${KBUILD_SRC_TREE}/kBuild/env.sh \
         kmk NIX_INSTALL_DIR=/usr BUILD_TYPE=release -C ${KBUILD_SRC_TREE} PATH_INS=${D} install \
             || die "kmk install failed"
-    strip ${D}/usr/bin/k* || die "strip failed"
 }
