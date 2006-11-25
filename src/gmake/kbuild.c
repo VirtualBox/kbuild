@@ -828,7 +828,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrgCpu);
 
     /* the global sdks */
-    for (iSdk = pSdks->iGlobal; iSdk < pSdks->cGlobal; iSdk++)
+    for (iSdk = pSdks->iGlobal; iSdk < pSdks->iGlobal + pSdks->cGlobal; iSdk++)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
         paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
@@ -862,7 +862,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%",   pType, &Prop, pBldTrgCpu);
 
     /* the target sdks */
-    for (iSdk = pSdks->iTarget; iSdk < pSdks->cTarget; iSdk++)
+    for (iSdk = pSdks->iTarget; iSdk < pSdks->iTarget + pSdks->cTarget; iSdk++)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
         paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
@@ -896,7 +896,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pTarget, pType, &Prop, pBldTrgCpu);
 
     /* the source sdks */
-    for (iSdk = pSdks->iSource; iSdk < pSdks->cSource; iSdk++)
+    for (iSdk = pSdks->iSource; iSdk < pSdks->iSource + pSdks->cSource; iSdk++)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
         paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
@@ -931,7 +931,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
 
     /* the target + source sdks */
-    for (iSdk = pSdks->iTargetSource; iSdk < pSdks->cTargetSource; iSdk++)
+    for (iSdk = pSdks->iTargetSource; iSdk < pSdks->iTargetSource + pSdks->cTargetSource; iSdk++)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
         paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
