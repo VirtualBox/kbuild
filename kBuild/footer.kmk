@@ -1,4 +1,4 @@
-# $Id: footer.kmk 592 2006-11-24 20:54:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 594 2006-11-25 01:35:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -250,21 +250,21 @@ ifdef TEMPLATE_$(template)_EXTENDS
 
   # recursivly process the parent if it's inherting from somebody too.
   ifdef TEMPLATE_$(parent)_EXTENDS
-   ifneq ($(TEMPLATE_$(template)_EXTENDS_STATUS_),42)
+   ifneq ($(TEMPLATE_$(parent)_EXTENDS_STATUS_),42)
     # foreach will create 'template' in a new variable context hiding our current variable.
-    $(foreach template, $(TEMPLATE_$(parent)_EXTENDS), $(eval $(value def_template_extends)))
+    $(foreach template, $(parent), $(eval $(value def_template_extends)))
     parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
    endif
   endif
 
   # inherit properties.
   $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
-  $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-  $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-  $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-  $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-  $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-  ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
+    $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+    ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
 
   TEMPLATE_$(template)_EXTENDS_STATUS_ := 42
  else
