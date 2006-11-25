@@ -1,6 +1,8 @@
-/* $Id: ChangeLog 595 2006-11-25 02:16:39Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 596 2006-11-25 02:25:05Z knut.osmundsen@oracle.com $ */
 
 2006-11-24:
+    - kBuild/bin/x86.win32/kmk.exe, kBuild/bin/x86.linux/kmk:
+        o Rebuilt with current code. 
     - kBuild/footer.kmk:
         o Fixed some issues with SDKS and linking.
     - kmk:
