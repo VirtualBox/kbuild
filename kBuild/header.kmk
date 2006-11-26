@@ -1,4 +1,4 @@
-# $Id: header.kmk 585 2006-11-24 05:14:13Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 601 2006-11-26 00:19:19Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -403,6 +403,13 @@ ifeq ($(filter rm,$(KMK_BUILTIN)),rm)
 RM          := kmk_builtin_rm
 else
 RM          := $(RM_EXT)
+endif
+
+RMDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_rmdir$(HOSTSUFF_EXE)
+ifeq ($(filter rmdir,$(KMK_BUILTIN)),rmdir)
+RMDIR       := kmk_builtin_rmdir
+else
+RMDIR       := $(RMDIR_EXT)
 endif
 
 SED_EXT     := $(PATH_KBUILD_BIN)/kmk_sed$(HOSTSUFF_EXE)

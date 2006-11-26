@@ -1,4 +1,10 @@
-/* $Id: ChangeLog 596 2006-11-25 02:25:05Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 601 2006-11-26 00:19:19Z knut.osmundsen@oracle.com $ */
+
+2006-11-25:
+    - kmk, kBuild:
+        o Added rmdir as builtin and external command.
+        o Made mkdir not modify the argument strings.
+        o Made mkdir deal properly with DOS slashes on OS/2 and Windows.
 
 2006-11-24:
     - kBuild/bin/x86.win32/kmk.exe, kBuild/bin/x86.linux/kmk:

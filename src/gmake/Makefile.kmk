@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 591 2006-11-24 20:22:49Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 601 2006-11-26 00:19:19Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -103,6 +103,7 @@ kmk_SOURCES += \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/ln.c \
 	kmkbuiltin/rm.c \
+	kmkbuiltin/rmdir.c \
 	\
 	kmkbuiltin/err.c \
 	kmkbuiltin/setmode.c \
@@ -122,7 +123,7 @@ kmk_SOURCES.darwin += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_install kmk_ln kmk_rm
+PROGRAMS += kmk_append kmk_cp kmk_echo kmk_mkdir kmk_install kmk_ln kmk_rm kmk_rmdir
 
 kmk_append_TEMPLATE = BIN
 kmk_append_DEFS = kmk_builtin_append=main
@@ -217,6 +218,21 @@ kmk_rm_INCS += $(PATH_TARGET) .
 kmk_rm_DEFS += HAVE_CONFIG_H
 kmk_rm_SOURCES += \
 	kmkbuiltin/mscfakes.c\
+	getopt.c \
+	getopt1.c
+endif
+
+kmk_rmdir_TEMPLATE = BIN
+kmk_rmdir_DEFS = kmk_builtin_rmdir=main
+kmk_rmdir_SOURCES = \
+	kmkbuiltin/rmdir.c \
+	kmkbuiltin/err.c \
+	kmkbuiltin/setmode.c
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_rmdir_INCS += $(PATH_TARGET) .
+kmk_rmdir_DEFS += HAVE_CONFIG_H
+kmk_rmdir_SOURCES += \
+	kmkbuiltin/mscfakes.c \
 	getopt.c \
 	getopt1.c
 endif
