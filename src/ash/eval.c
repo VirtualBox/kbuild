@@ -50,7 +50,9 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#ifdef HAVE_SYSCTL_H
 #include <sys/sysctl.h>
+#endif
 
 /*
  * Evaluate a command.
@@ -603,13 +605,16 @@ out:
 static const char *
 syspath(void)
 {
+#ifdef CTL_USER
 	static char *sys_path = NULL;
 	static int mib[] = {CTL_USER, USER_CS_PATH};
+#endif 
 #ifdef PC_PATH_SEP
 	static char def_path[] = "PATH=/usr/bin;/bin;/usr/sbin;/sbin";
 #else
 	static char def_path[] = "PATH=/usr/bin:/bin:/usr/sbin:/sbin";
 #endif
+#ifdef CTL_USER
 	size_t len;
 
 	if (sys_path == NULL) {
@@ -624,6 +629,9 @@ syspath(void)
 		}
 	}
 	return sys_path;
+#else
+    return def_path;
+#endif 
 }
 
 static int
@@ -1008,8 +1016,13 @@ normal_fork:
 			argptr = argv + 1;
 			optptr = NULL;
 			/* and getopt */
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
 			optreset = 1;
 			optind = 1;
+#else
+			optind = 0; /* init */
+#endif
+
 			exitstatus = cmdentry.u.bltin(argc, argv);
 		} else {
 			e = exception;
