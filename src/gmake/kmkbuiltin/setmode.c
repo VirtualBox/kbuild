@@ -1,3 +1,5 @@
+/*	$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -13,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -34,30 +32,34 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/lib/libc/gen/setmode.c,v 1.9 2003/02/23 00:24:03 mikeh Exp $");
+#if defined(LIBC_SCCS) && !defined(lint)
+#if 0
+static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
+#else
+__RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
+#endif
 #endif /* LIBC_SCCS and not lint */
 
-//#include "namespace.h"
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <signal.h>
-#include <stddef.h>
 #include <stdlib.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#endif 
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
 #endif
-//#include "un-namespace.h"
+
+#ifdef __weak_alias
+__weak_alias(getmode,_getmode)
+__weak_alias(setmode,_setmode)
+#endif
 
 #define	SET_LEN	6		/* initial # of bitcmd struct to malloc */
 #define	SET_LEN_INCR 4		/* # of bitcmd structs to add as needed */
@@ -74,19 +76,11 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
-static void	 compress_mode(BITCMD *);
+static BITCMD	*addcmd __P((BITCMD *, int, int, int, u_int));
+static void	 compress_mode __P((BITCMD *));
 #ifdef SETMODE_DEBUG
-static void	 dumpmode(BITCMD *);
+static void	 dumpmode __P((BITCMD *));
 #endif
-
-#ifndef S_ISTXT
-#ifdef S_ISVTX
-#define S_ISTXT S_ISVTX
-#else
-#define S_ISTXT 0
-#endif
-#endif /* !S_ISTXT */
 
 /*
  * Given the old mode and an array of bitcmd structures, apply the operations
@@ -101,6 +95,8 @@ getmode(bbox, omode)
 {
 	const BITCMD *set;
 	mode_t clrval, newmode, value;
+
+	_DIAGASSERT(bbox != NULL);
 
 	set = (const BITCMD *)bbox;
 	newmode = omode;
@@ -164,22 +160,21 @@ common:			if (set->cmd2 & CMD2_CLR) {
 		}
 }
 
-#define	ADDCMD(a, b, c, d)						\
+#define	ADDCMD(a, b, c, d) do {						\
 	if (set >= endset) {						\
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
 		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
-		if (!newset) {						\
-			if (saveset)					\
-				free(saveset);				\
-			saveset = NULL;					\
+		if (newset == NULL) {					\
+			free(saveset);					\
 			return (NULL);					\
 		}							\
 		set = newset + (set - saveset);				\
 		saveset = newset;					\
 		endset = newset + (setlen - 2);				\
 	}								\
-	set = addcmd(set, (a), (b), (c), (d))
+	set = addcmd(set, (a), (b), (c), (d));				\
+} while (/*CONSTCOND*/0)
 
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
@@ -190,12 +185,10 @@ setmode(p)
 	int perm, who;
 	char op, *ep;
 	BITCMD *set, *saveset, *endset;
-#ifndef _MSC_VER
-	sigset_t sigset, sigoset;
-#endif 
+	sigset_t signset, sigoset;
 	mode_t mask;
-	int equalopdone=0, permXbits, setlen;
-	long perml;
+	int equalopdone = 0;	/* pacify gcc */
+	int permXbits, setlen;
 
 	if (!*p)
 		return (NULL);
@@ -206,18 +199,14 @@ setmode(p)
 	 * the caller is opening files inside a signal handler, protect them
 	 * as best we can.
 	 */
-#ifndef _MSC_VER
-	sigfillset(&sigset);
-        (void)sigprocmask(SIG_BLOCK, &sigset, &sigoset);
-#endif 
+	sigfillset(&signset);
+	(void)sigprocmask(SIG_BLOCK, &signset, &sigoset);
 	(void)umask(mask = umask(0));
 	mask = ~mask;
-#ifndef _MSC_VER
-        (void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
-#endif 
+	(void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
 
 	setlen = SET_LEN + 2;
-
+	
 	if ((set = malloc((u_int)(sizeof(BITCMD) * setlen))) == NULL)
 		return (NULL);
 	saveset = set;
@@ -228,12 +217,11 @@ setmode(p)
 	 * or illegal bits.
 	 */
 	if (isdigit((unsigned char)*p)) {
-		perml = strtol(p, &ep, 8);
-		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
+		perm = (mode_t)strtol(p, &ep, 8);
+		if (*ep || perm & ~(STANDARD_BITS|S_ISTXT)) {
 			free(saveset);
 			return (NULL);
 		}
-		perm = (mode_t)perml;
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
 		set->cmd = 0;
 		return (saveset);
@@ -278,13 +266,19 @@ getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
 				perm |= S_IRUSR|S_IRGRP|S_IROTH;
 				break;
 			case 's':
-				/* If only "other" bits ignore set-id. */
-				if (!who || who & ~S_IRWXO)
+				/*
+				 * If specific bits where requested and 
+				 * only "other" bits ignore set-id. 
+				 */
+				if (who == 0 || (who & ~S_IRWXO))
 					perm |= S_ISUID|S_ISGID;
 				break;
 			case 't':
-				/* If only "other" bits ignore sticky. */
-				if (!who || who & ~S_IRWXO) {
+				/*
+				 * If specific bits where requested and 
+				 * only "other" bits ignore set-id. 
+				 */
+				if (who == 0 || (who & ~S_IRWXO)) {
 					who |= S_ISTXT;
 					perm |= S_ISTXT;
 				}
@@ -364,6 +358,9 @@ addcmd(set, op, who, oparg, mask)
 	int op;
 	u_int mask;
 {
+
+	_DIAGASSERT(set != NULL);
+
 	switch (op) {
 	case '=':
 		set->cmd = '-';
@@ -392,7 +389,7 @@ addcmd(set, op, who, oparg, mask)
 			set->cmd2 = CMD2_UBITS | CMD2_GBITS | CMD2_OBITS;
 			set->bits = mask;
 		}
-
+	
 		if (oparg == '+')
 			set->cmd2 |= CMD2_SET;
 		else if (oparg == '-')
@@ -409,6 +406,9 @@ static void
 dumpmode(set)
 	BITCMD *set;
 {
+
+	_DIAGASSERT(set != NULL);
+
 	for (; set->cmd; ++set)
 		(void)printf("cmd: '%c' bits %04o%s%s%s%s%s%s\n",
 		    set->cmd, set->bits, set->cmd2 ? " cmd2:" : "",
@@ -423,7 +423,7 @@ dumpmode(set)
 /*
  * Given an array of bitcmd structures, compress by compacting consecutive
  * '+', '-' and 'X' commands into at most 3 commands, one of each.  The 'u',
- * 'g' and 'o' commands continue to be separate.  They could probably be
+ * 'g' and 'o' commands continue to be separate.  They could probably be 
  * compacted, but it's not worth the effort.
  */
 static void
@@ -432,6 +432,8 @@ compress_mode(set)
 {
 	BITCMD *nset;
 	int setbits, clrbits, Xbits, op;
+
+	_DIAGASSERT(set != NULL);
 
 	for (nset = set;;) {
 		/* Copy over any 'u', 'g' and 'o' commands. */
