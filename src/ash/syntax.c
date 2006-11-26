@@ -4,6 +4,9 @@
 #include "syntax.h"
 #include "parser.h"
 
+#ifdef _MSC_VER
+
+#else
 #if CWORD != 0
 #error initialisation assumes 'CWORD' is zero
 #endif
@@ -99,3 +102,4 @@ const char is_type[257] = { 0,
     set('*', ISSPECL)
     set('@', ISSPECL)
 };
+#endif /* !_MSC_VER */
