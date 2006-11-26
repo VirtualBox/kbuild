@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 611 2006-11-26 05:35:06Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 613 2006-11-26 06:19:04Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -102,6 +102,7 @@ kmk_SOURCES += \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/install.c \
 	kmkbuiltin/mkdir.c \
+	kmkbuiltin/mv.c \
 	kmkbuiltin/ln.c \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
@@ -124,7 +125,7 @@ kmk_SOURCES.darwin += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += kmk_append kmk_cat kmk_cp kmk_echo kmk_mkdir kmk_install kmk_ln kmk_rm kmk_rmdir
+PROGRAMS += kmk_append kmk_cat kmk_cp kmk_echo kmk_mkdir kmk_mv kmk_install kmk_ln kmk_rm kmk_rmdir
 
 kmk_append_TEMPLATE = BIN
 kmk_append_DEFS = kmk_builtin_append=main
@@ -217,6 +218,21 @@ ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 kmk_mkdir_INCS += $(PATH_TARGET) .
 kmk_mkdir_DEFS += HAVE_CONFIG_H
 kmk_mkdir_SOURCES += \
+	kmkbuiltin/mscfakes.c \
+	getopt.c \
+	getopt1.c
+endif
+
+kmk_mv_TEMPLATE = BIN
+kmk_mv_DEFS = kmk_builtin_mv=main
+kmk_mv_SOURCES = \
+	kmkbuiltin/mv.c \
+	kmkbuiltin/err.c \
+	kmkbuiltin/strmode.c
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_mv_INCS += $(PATH_TARGET) .
+kmk_mv_DEFS += HAVE_CONFIG_H
+kmk_mv_SOURCES += \
 	kmkbuiltin/mscfakes.c \
 	getopt.c \
 	getopt1.c
