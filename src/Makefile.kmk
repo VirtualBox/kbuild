@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 399 2006-01-14 23:29:49Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 610 2006-11-26 05:34:41Z knut.osmundsen@oracle.com $
 
-SUBDIRS = lib gmake kDepPre kDepIDB
+SUBDIRS = lib gmake sed kDepPre kDepIDB
 
 DEPTH = ..
 include $(PATH_KBUILD)/rules.kmk
