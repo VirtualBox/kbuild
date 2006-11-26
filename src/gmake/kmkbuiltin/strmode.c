@@ -1,3 +1,5 @@
+/*	$NetBSD: strmode.c,v 1.16 2004/06/20 22:20:15 jmc Exp $	*/
+
 /*-
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -10,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,25 +29,30 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
 #include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/lib/libc/string/strmode.c,v 1.4 2002/03/21 18:44:54 obrien Exp $");
+#if defined(LIBC_SCCS) && !defined(lint)
+#if 0
+static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
+#else
+__RCSID("$NetBSD: strmode.c,v 1.16 2004/06/20 22:20:15 jmc Exp $");
+#endif
 #endif /* LIBC_SCCS and not lint */
 
-
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <string.h>
-#ifdef _MSC_VER
-#include "mscfakes.h"
-#endif 
+
+#include <assert.h>
+#include <unistd.h>
 
 void
 strmode(mode, p)
 	mode_t mode;
 	char *p;
 {
+
+	_DIAGASSERT(p != NULL);
+
 	 /* print type */
 	switch (mode & S_IFMT) {
 	case S_IFDIR:			/* directory */
@@ -58,24 +61,30 @@ strmode(mode, p)
 	case S_IFCHR:			/* character special */
 		*p++ = 'c';
 		break;
-#ifdef S_IFBLK
 	case S_IFBLK:			/* block special */
 		*p++ = 'b';
 		break;
-#endif 
 	case S_IFREG:			/* regular */
-		*p++ = '-';
+#ifdef S_ARCH2
+		if ((mode & S_ARCH2) != 0) {
+			*p++ = 'A';
+		} else if ((mode & S_ARCH1) != 0) {
+			*p++ = 'a';
+		} else {
+#endif
+			*p++ = '-';
+#ifdef S_ARCH2
+		}
+#endif
 		break;
-#ifndef _MSC_VER
 	case S_IFLNK:			/* symbolic link */
 		*p++ = 'l';
 		break;
-#endif
 #ifdef S_IFSOCK
 	case S_IFSOCK:			/* socket */
 		*p++ = 's';
 		break;
-#endif 
+#endif
 #ifdef S_IFIFO
 	case S_IFIFO:			/* fifo */
 		*p++ = 'p';
@@ -84,6 +93,11 @@ strmode(mode, p)
 #ifdef S_IFWHT
 	case S_IFWHT:			/* whiteout */
 		*p++ = 'w';
+		break;
+#endif
+#ifdef S_IFDOOR
+	case S_IFDOOR:			/* door */
+		*p++ = 'D';
 		break;
 #endif
 	default:			/* unknown */
@@ -145,25 +159,19 @@ strmode(mode, p)
 		*p++ = 'w';
 	else
 		*p++ = '-';
-#ifdef S_ISVTX
 	switch (mode & (S_IXOTH | S_ISVTX)) {
-#else
-        switch (mode & (S_IXOTH)) {
-#endif
 	case 0:
 		*p++ = '-';
 		break;
 	case S_IXOTH:
 		*p++ = 'x';
 		break;
-#ifdef S_ISVTX
 	case S_ISVTX:
 		*p++ = 'T';
 		break;
 	case S_IXOTH | S_ISVTX:
 		*p++ = 't';
 		break;
-#endif 
 	}
 	*p++ = ' ';		/* will be a '+' if ACL's implemented */
 	*p = '\0';
