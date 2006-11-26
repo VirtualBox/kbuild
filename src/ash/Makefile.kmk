@@ -14,8 +14,12 @@ include $(PATH_KBUILD)/header.kmk
 PROGRAMS += kmk_ash
 kmk_ash_TEMPLATE = BIN
 kmk_ash_DEFS = lint SHELL SMALL
-kmk_ash_DEFS.win = PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
-kmk_ash_DEFS.os2 = EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_DEFS.linux = BSD
+kmk_ash_DEFS.win = \
+	PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_DEFS.os2 = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
+	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
 kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
 kmk_ash_SOURCES = \
 	alias.c \
@@ -48,6 +52,10 @@ kmk_ash_SOURCES = \
 	$(PATH_TARGET)/builtins.c \
 	$(PATH_TARGET)/init.c \
 	$(PATH_TARGET)/nodes.c
+kmk_ash_SOURCES.linux = \
+	sys_signame.c \
+	strlcpy.c \
+	setmode.c
 kmk_ash_DEPS = \
 	$(PATH_TARGET)/arith.h \
 	$(PATH_TARGET)/builtins.h \
