@@ -16,11 +16,12 @@ kmk_ash_TEMPLATE = BIN
 kmk_ash_DEFS = lint SHELL SMALL
 kmk_ash_DEFS.linux = BSD
 kmk_ash_DEFS.win = \
-	PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
 kmk_ash_DEFS.os2 = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
 	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
 kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
+kmk_ash_INCS.win = win
 kmk_ash_SOURCES = \
 	alias.c \
 	cd.c \
@@ -56,6 +57,9 @@ kmk_ash_SOURCES.linux = \
 	sys_signame.c \
 	strlcpy.c \
 	setmode.c
+#kmk_ash_SOURCES.win = \
+#	win/mscfakes.c
+
 kmk_ash_DEPS = \
 	$(PATH_TARGET)/arith.h \
 	$(PATH_TARGET)/builtins.h \
@@ -74,6 +78,29 @@ kmk_ash.man_SOURCES = \
 	sh.1=>ash.1
 #ash.man_SYMLINKS = \
 #	ash.1.gz=>sh.1
+
+
+
+ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
+
+#
+# Use the pregenerated code.
+#
+kmk_ash_DEPS :=
+
+define def_copy_generated
+$(PATH_TARGET)/$(src): generated/$(src)
+	$$(RM) -f $$@
+	$$(CP) -f $$^ $$@
+kmk_ash_DEPS += $(PATH_TARGET)/$(src)
+endef
+
+$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
+$(eval $(def_copy_generated)))
+
+include $(PATH_KBUILD)/footer.kmk
+
+else
 
 include $(PATH_KBUILD)/footer.kmk
 
@@ -111,3 +138,4 @@ $(PATH_TARGET)/init.c: $(PATH_CURRENT)/mkinit.sh $(filter-out $(PATH_TARGET)/%,$
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
+endif
