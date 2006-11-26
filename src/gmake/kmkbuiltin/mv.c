@@ -41,39 +41,73 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 #endif
+#if 0
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
+#endif 
 
 #include <sys/types.h>
+#ifndef _MSC_VER
 #include <sys/acl.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
+#endif
+#include <sys/stat.h>
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _MSC_VER
 #include <grp.h>
+#endif 
 #include <limits.h>
+#ifndef _MSC_VER
 #include <paths.h>
 #include <pwd.h>
+#endif 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#endif
 
-int fflg, iflg, nflg, vflg;
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
+extern void strmode(mode_t mode, char *p);
+#endif
 
-int	copy(char *, char *);
-int	do_move(char *, char *);
-int	fastcopy(char *, char *, struct stat *);
-void	usage(void);
+static int fflg, iflg, nflg, vflg;
+
+static int	do_move(char *, char *);
+#ifdef CROSS_DEVICE_MOVE
+static int	fastcopy(char *, char *, struct stat *);
+static int	copy(char *, char *);
+#endif 
+static int	usage(void);
+
+#if defined(_MSC_VER) || defined(__EMX__) || 0
+static const char *user_from_uid(unsigned long id, int x)
+{
+	static char s_buf[64];
+	sprintf(s_buf, "%ld", id);
+	return s_buf;
+}
+static const char *group_from_gid(unsigned long id, int x)
+{
+	static char s_buf[64];
+	sprintf(s_buf, "%ld", id);
+	return s_buf;
+}
+#endif
+
 
 int
-main(int argc, char *argv[])
+kmk_builtin_mv(int argc, char *argv[])
 {
 	size_t baselen, len;
 	int rval;
@@ -81,6 +115,21 @@ main(int argc, char *argv[])
 	struct stat sb;
 	int ch;
 	char path[PATH_MAX];
+
+	/* kmk: reinitialize globals */
+	fflg = iflg = nflg = vflg = 0;
+
+	/* kmk: reset getopt and set progname */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
+	optreset = 1;
+	optind = 1;
+#else
+	optind = 0; /* init */
+#endif
 
 	while ((ch = getopt(argc, argv, "finv")) != -1)
 		switch (ch) {
@@ -100,13 +149,13 @@ main(int argc, char *argv[])
 			vflg = 1;
 			break;
 		default:
-			usage();
+			return usage();
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
-		usage();
+		return usage();
 
 	/*
 	 * If the stat on the target fails or the target isn't a directory,
@@ -114,17 +163,21 @@ main(int argc, char *argv[])
 	 */
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
-			usage();
-		exit(do_move(argv[0], argv[1]));
+			return usage();
+		return do_move(argv[0], argv[1]);
 	}
 
 	/* It's a directory, move each file into it. */
 	if (strlen(argv[argc - 1]) > sizeof(path) - 1)
-		errx(1, "%s: destination pathname too long", *argv);
+		return errx(1, "%s: destination pathname too long", *argv);
 	(void)strcpy(path, argv[argc - 1]);
 	baselen = strlen(path);
 	endp = &path[baselen];
+#if defined(_MSC_VER) || defined(__EMX__)
+	if (!baselen || (*(endp - 1) != '/' && *(endp - 1) != '\\' && *(endp - 1) != ':')) {
+#else
 	if (!baselen || *(endp - 1) != '/') {
+#endif 
 		*endp++ = '/';
 		++baselen;
 	}
@@ -134,10 +187,17 @@ main(int argc, char *argv[])
 		 * may have trailing slashes.
 		 */
 		p = *argv + strlen(*argv);
+#if defined(_MSC_VER) || defined(__EMX__)
+		while (p != *argv && (p[-1] == '/' || p[-1] == '\\'))
+			--p;
+		while (p != *argv && p[-1] != '/' && p[-1] != '/' && p[-1] != ':')
+			--p;
+#else
 		while (p != *argv && p[-1] == '/')
 			--p;
 		while (p != *argv && p[-1] != '/')
 			--p;
+#endif 
 
 		if ((baselen + (len = strlen(p))) >= PATH_MAX) {
 			warnx("%s: destination pathname too long", *argv);
@@ -148,10 +208,10 @@ main(int argc, char *argv[])
 				rval = 1;
 		}
 	}
-	exit(rval);
+	return rval;
 }
 
-int
+static int
 do_move(char *from, char *to)
 {
 	struct stat sb;
@@ -166,7 +226,7 @@ do_move(char *from, char *to)
 	if (!fflg && !access(to, F_OK)) {
 
 		/* prompt only if source exist */
-	        if (lstat(from, &sb) == -1) {
+		if (lstat(from, &sb) == -1) {
 			warn("%s", from);
 			return (1);
 		}
@@ -205,6 +265,10 @@ do_move(char *from, char *to)
 	}
 
 	if (errno == EXDEV) {
+#ifndef CROSS_DEVICE_MOVE
+		warnx("cannot move `%s' to a different device: `%s'", from, to);
+		return (1);
+#else
 		struct statfs sfs;
 		char path[PATH_MAX];
 
@@ -228,11 +292,13 @@ do_move(char *from, char *to)
 				return (1);
 			}
 		}
+#endif 
 	} else {
 		warn("rename %s to %s", from, to);
 		return (1);
 	}
 
+#ifdef CROSS_DEVICE_MOVE
 	/*
 	 * If rename fails because we're trying to cross devices, and
 	 * it's a regular file, do the copy internally; otherwise, use
@@ -244,10 +310,12 @@ do_move(char *from, char *to)
 	}
 	return (S_ISREG(sb.st_mode) ?
 	    fastcopy(from, to, &sb) : copy(from, to));
+#endif 
 }
 
+#ifdef CROSS_DEVICE_MOVE
 int
-fastcopy(char *from, char *to, struct stat *sbp)
+static fastcopy(char *from, char *to, struct stat *sbp)
 {
 	struct timeval tval[2];
 	static u_int blen;
@@ -396,13 +464,15 @@ copy(char *from, char *to)
 	}
 	return (0);
 }
+#endif /* CROSS_DEVICE_MOVE */
 
-void
+
+static int
 usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
 		      "usage: mv [-f | -i | -n] [-v] source target",
 		      "       mv [-f | -i | -n] [-v] source ... directory");
-	exit(EX_USAGE);
+	return EX_USAGE;
 }

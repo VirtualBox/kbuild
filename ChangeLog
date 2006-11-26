@@ -1,7 +1,8 @@
-/* $Id: ChangeLog 611 2006-11-26 05:35:06Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 613 2006-11-26 06:19:04Z knut.osmundsen@oracle.com $ */
 
 2006-11-25:
     - kmk, kBuild:
+        o Added mv as builtin command.
         o Added cat as builtin command.
         o Added GNU sed version 4.1.5 and ported it to MSC.
         o Added rmdir as builtin and external command.
