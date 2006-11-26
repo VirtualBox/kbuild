@@ -76,8 +76,16 @@
 #define is_special(c)	((is_type+SYNBASE)[c] & (ISSPECL|ISDIGIT))
 #define digit_val(c)	((c) - '0')
 
+#ifdef _MSC_VER
+extern char basesyntax[];
+extern char dqsyntax[];
+extern char sqsyntax[];
+extern char arisyntax[];
+extern char is_type[];
+#else
 extern const char basesyntax[];
 extern const char dqsyntax[];
 extern const char sqsyntax[];
 extern const char arisyntax[];
 extern const char is_type[];
+#endif 

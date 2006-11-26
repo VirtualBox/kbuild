@@ -173,6 +173,12 @@ main(int argc, char **argv)
 #endif
 	rootpid = getpid();
 	rootshell = 1;
+#ifdef _MSC_VER
+    {
+        extern void init_syntax(void);
+        init_syntax();
+    }
+#endif 
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
