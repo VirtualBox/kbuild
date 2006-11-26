@@ -111,7 +111,7 @@ void sh_exit(int) __attribute__((__noreturn__));
  * so we use _setjmp instead.
  */
 
-#if defined(BSD) && !defined(__SVR4)
+#if defined(BSD) && !defined(__SVR4) && !defined(__GLIBC__) && !defined(__KLIBC__)
 #define setjmp(jmploc)	_setjmp(jmploc)
 #define longjmp(jmploc, val)	_longjmp(jmploc, val)
 #endif

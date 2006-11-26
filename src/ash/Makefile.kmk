@@ -1,19 +1,23 @@
 # $Id: $
 ## @file
 #
-# kBuild Makefile for ash.
+# kBuild Makefile for kmk_ash.
 #
-# Copyright (c) 2005 knut st. osmundsen <bird@anduin.net>
+# Copyright (c) 2005-2006 knut st. osmundsen <bird-src-spam@anduin.net>
 #
 
-PROGRAMS = ash
-INSTALLS = ash.man
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
 
-ash_TEMPLATE = bin
-ash_DEFS = lint SHELL SMALL
-ash_DEFS.os2 = EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
-ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
-ash_SOURCES = \
+#INSTALLS = ash.man
+
+PROGRAMS += kmk_ash
+kmk_ash_TEMPLATE = BIN
+kmk_ash_DEFS = lint SHELL SMALL
+kmk_ash_DEFS.win = PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_DEFS.os2 = EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
+kmk_ash_SOURCES = \
 	alias.c \
 	cd.c \
 	error.c \
@@ -44,27 +48,36 @@ ash_SOURCES = \
 	$(PATH_TARGET)/builtins.c \
 	$(PATH_TARGET)/init.c \
 	$(PATH_TARGET)/nodes.c
-ash_DEPS = \
+kmk_ash_DEPS = \
 	$(PATH_TARGET)/arith.h \
 	$(PATH_TARGET)/builtins.h \
 	$(PATH_TARGET)/nodes.h \
 	$(PATH_TARGET)/token.h
-ash_CLEAN = \
-	$(ash_DEPS)	\
+kmk_ash_CLEAN = \
+	$(kmk_ash_DEPS)	\
 	$(PATH_TARGET)/arith.c \
 	$(PATH_TARGET)/arith_lex.c \
 	$(PATH_TARGET)/builtins.c \
 	$(PATH_TARGET)/init.c \
 	$(PATH_TARGET)/nodes.c
 
-ash.man_TEMPLATE = usr.bin.man
-ash.man_SOURCES = \
+kmk_ash.man_TEMPLATE = usr.bin.man
+kmk_ash.man_SOURCES = \
 	sh.1=>ash.1
 #ash.man_SYMLINKS = \
 #	ash.1.gz=>sh.1
 
-DEPTH = ..
-include $(PATH_KBUILD)/rules.kmk
+include $(PATH_KBUILD)/footer.kmk
+
+#
+# ATTENTION! ATTENTION! ATTENTION!
+#
+# Older ash versions has trouble with some of these scripts, great. 
+# Kudos to the NetBSD guys for this clever move. ;)
+#
+# So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
+#
+BOOTSTRAP_SHELL ?= $(SHELL)
 
 $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
 	yacc -ld $^
@@ -74,19 +87,19 @@ $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TA
 $(PATH_TARGET)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_TARGET))
 	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
 
-$(PATH_TARGET)/builtins.h $(PATH_TARGET)/builtins.c: mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
-	$+ $(dir $@)
+$(PATH_TARGET)/builtins.h $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(PATH_TARGET)/builtins.h ]
 
-$(PATH_TARGET)/nodes.h $(PATH_TARGET)/nodes.c: mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
-	$+ $(dir $@)
+$(PATH_TARGET)/nodes.h $(PATH_TARGET)/nodes.c: $(PATH_CURRENT)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
-$(PATH_TARGET)/token.h: mktokens | $(call DIRDEP,$(PATH_TARGET))
-	$+
+$(PATH_TARGET)/token.h: $(PATH_CURRENT)/mktokens | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+
 	$(MV) token.h $@
 
-$(PATH_TARGET)/init.c: mkinit.sh $(filter-out $(PATH_TARGET)/%,$(ash_SOURCES)) | $(call DIRDEP,$(PATH_TARGET))
-	$+
+$(PATH_TARGET)/init.c: $(PATH_CURRENT)/mkinit.sh $(filter-out $(PATH_TARGET)/%,$(kmk_ash_SOURCES)) | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
