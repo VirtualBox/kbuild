@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 633 2006-11-26 14:05:05Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 636 2006-11-26 17:45:01Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -33,6 +33,8 @@
 #include <time.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <process.h>
 #undef setmode
 //#include "getopt.h"
 
@@ -142,9 +144,13 @@ int writev(int fd, const struct iovec *vector, int count);
 #define	FD_CLOEXEC 1
 #define O_NONBLOCK 0 /// @todo
 #define EWOULDBLOCK 512
-int fcntl (int, int, ...);
+int fcntl(int, int, ...);
+int ioctl(int, unsigned long, ...);
+pid_t tcgetpgrp(int fd);
+
 
 /* signal hacks */
+#include <signal.h>
 typedef struct sigset 
 {   
     unsigned long __bitmap[1]; 
@@ -170,17 +176,15 @@ int	sigprocmask(int, const sigset_t *, sigset_t *);
 #define SIG_UNBLOCK         2
 #define SIG_SETMASK         3
 
-#define SIGTTIN 29
-#define SIGTSTP 28
-#define SIGTTOU 27
-#define SIGCONT 26
-#define SIGPIPE 25
-#define SIGQUIT 24
-#define SIGHUP 23
-#ifndef NSIG
-#define NSIG 32
-#endif 
-extern const char *const sys_siglist[NSIG];
+#define SIGTTIN 19
+#define SIGTSTP 18
+#define SIGTTOU 17
+#define SIGCONT 20
+#define SIGPIPE 12
+#define SIGQUIT 9
+#define SIGHUP  5
+
+extern const char *const sys_siglist[NSIG]; /* NSIG == 23 */
 
 int	kill(pid_t, int);
 int	sigaction(int, const struct sigaction *, struct sigaction *);
