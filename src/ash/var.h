@@ -80,6 +80,9 @@ extern struct var vifs;
 extern struct var vmail;
 extern struct var vmpath;
 extern struct var vpath;
+#ifdef _MSC_VER
+extern struct var vpath2;
+#endif 
 extern struct var vps1;
 extern struct var vps2;
 extern struct var vps4;
@@ -99,7 +102,11 @@ extern struct var vhistsize;
 #define ifsset()	((vifs.flags & VUNSET) == 0)
 #define mailval()	(vmail.text + 5)
 #define mpathval()	(vmpath.text + 9)
+#ifdef _MSC_VER
+#define pathval()	(vpath.text[5] ? &vpath.text[5] : &vpath2.text[5])
+#else
 #define pathval()	(vpath.text + 5)
+#endif
 #define ps1val()	(vps1.text + 4)
 #define ps2val()	(vps2.text + 4)
 #define ps4val()	(vps4.text + 4)
