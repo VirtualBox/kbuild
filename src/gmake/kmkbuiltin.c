@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 507 2006-09-15 06:31:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 601 2006-11-26 00:19:19Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -195,8 +195,8 @@ int kmk_builtin_command_parsed(int argc, char **argv)
     //    rc = kmk_builtin_mv(argc, argv, environ);
     else if (!strcmp(pszCmd, "rm"))
         rc = kmk_builtin_rm(argc, argv, environ);
-    //else if (!strcmp(pszCmd, "rmdir"))
-    //    rc = kmk_builtin_rmdir(argc, argv, environ);
+    else if (!strcmp(pszCmd, "rmdir"))
+        rc = kmk_builtin_rmdir(argc, argv, environ);
     /* obsolete */
     else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);

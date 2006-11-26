@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #include <unistd.h>
 #else
 #include "mscfakes.h"
+#include <malloc.h>
 #endif
 
 extern void * setmode(const char *p);
@@ -160,24 +161,36 @@ build(char *path, mode_t omode)
 	int first, last, retval;
 	char *p;
 
+	const size_t len = strlen(path);
+	p = alloca(len + 1);
+	path = memcpy(p, path, len + 1);
+
+#if defined(_MSC_VER) || defined(__EMX__)
+	p = strchr(path, '\\');
+	while (p) {
+		*p++ = '/';
+		p = strchr(p, '\\');
+	}
+#endif 
+
 	p = path;
 	oumask = 0;
 	retval = 0;
 #if defined(_MSC_VER) || defined(__EMX__)
-        if (    (    (p[0] >= 'A' && p[0] <= 'Z')
-                 ||  (p[0] >= 'a' && p[0] <= 'z'))
-            && p[1] == ':')
-            p += 2;
-        else if (   (p[0] == '/' || p[0] == '\\')
-                 && (p[1] == '/' || p[1] == '\\')
-                 && (p[2] != '/' && p[2] != '\\'))
-        {
-            char *p2;
-            p += 2;
-            p2 = strpbrk(p, "\\/");
-            if (p2)
-                p = p2 + 1;
-        }
+	if (    (    (p[0] >= 'A' && p[0] <= 'Z')
+	         ||  (p[0] >= 'a' && p[0] <= 'z'))
+	    && p[1] == ':')
+		p += 2;
+	else if (   p[0] == '/'
+	         && p[1] == '/'
+	         && p[2] != '/')
+	{
+		char *p2;
+		p += 2;
+		p2 = strchr(p, '/');
+		if (p2)
+			p = p2 + 1;
+	}
 #endif
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
