@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include "mscfakes.h"
 #endif 
 
-static int rm_path(const char *);
+static int rm_path(char *);
 static int usage(void);
 
 static int pflag;
