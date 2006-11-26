@@ -263,6 +263,16 @@ do_move(char *from, char *to)
 			printf("%s -> %s\n", from, to);
 		return (0);
 	}
+#ifdef _MSC_VER
+	if (errno == EEXIST) {
+		remove(to);
+		if (!rename(from, to)) {
+			if (vflg)
+				printf("%s -> %s\n", from, to);
+			return (0);
+		}
+	}
+#endif 
 
 	if (errno == EXDEV) {
 #ifndef CROSS_DEVICE_MOVE
