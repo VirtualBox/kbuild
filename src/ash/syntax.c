@@ -4,9 +4,105 @@
 #include "syntax.h"
 #include "parser.h"
 
-#ifdef _MSC_VER
+#ifdef _MSC_VER /* doesn't implement the fancy initializers I think... */
 
-#else
+char basesyntax[257] = {CEOF};
+char dqsyntax[257] = {CEOF};
+char sqsyntax[257] = {CEOF};
+char arisyntax[257] = {CEOF};
+char is_type[257] = {0};
+
+void init_syntax(void)
+{
+    char *tab;
+    int i;
+
+#define ndx(ch) (ch + 1 - CHAR_MIN)
+#define set(ch, val) tab[ndx(ch)] = val
+#define set_range(s, e, val) for (i = ndx(s); i <= ndx(e); i++) tab[i] = val
+
+    /*basesyntax*/
+    tab = basesyntax;
+    set_range(CTL_FIRST, CTL_LAST, CCTL);
+    set('\n', CNL);
+    set('\\', CBACK);
+    set('\'', CSQUOTE);
+    set('"', CDQUOTE);
+    set('`', CBQUOTE);
+    set('$', CVAR);
+    set('}', CENDVAR);
+    set('<', CSPCL);
+    set('>', CSPCL);
+    set('(', CSPCL);
+    set(')', CSPCL);
+    set(';', CSPCL);
+    set('&', CSPCL);
+    set('|', CSPCL);
+    set(' ', CSPCL);
+    set('\t', CSPCL);
+
+    tab = dqsyntax;
+    set_range(CTL_FIRST, CTL_LAST, CCTL);
+    set('\n', CNL);
+    set('\\', CBACK);
+    set('"', CDQUOTE);
+    set('`', CBQUOTE);
+    set('$', CVAR);
+    set('}', CENDVAR);
+    /* ':/' for tilde expansion, '-' for [a\-x] pattern ranges */
+    set('!', CCTL);
+    set('*', CCTL);
+    set('?', CCTL);
+    set('[', CCTL);
+    set('=', CCTL);
+    set('~', CCTL);
+    set(':', CCTL);
+    set('/', CCTL);
+    set('-', CCTL);
+
+    tab = sqsyntax;
+    set_range(CTL_FIRST, CTL_LAST, CCTL);
+    set('\n', CNL);
+    set('\'', CSQUOTE);
+    /* ':/' for tilde expansion, '-' for [a\-x] pattern ranges */
+    set('!', CCTL);
+    set('*', CCTL) ;
+    set('?', CCTL);
+    set('[', CCTL);
+    set('=', CCTL);
+    set('~', CCTL);
+    set(':', CCTL);
+    set('/', CCTL);
+    set('-', CCTL);
+
+    tab = arisyntax;
+    set_range(CTL_FIRST, CTL_LAST, CCTL);
+    set('\n', CNL);
+    set('\\', CBACK);
+    set('`', CBQUOTE);
+    set('\'', CSQUOTE);
+    set('"', CDQUOTE);
+    set('$', CVAR);
+    set('}', CENDVAR);
+    set('(', CLP);
+    set(')', CRP);
+
+    tab = is_type;
+    set_range('0', '9', ISDIGIT);
+    set_range('a', 'z', ISLOWER);
+    set_range('A', 'Z', ISUPPER);
+    set('_', ISUNDER);
+    set('#', ISSPECL);
+    set('?', ISSPECL);
+    set('$', ISSPECL);
+    set('!', ISSPECL);
+    set('-', ISSPECL);
+    set('*', ISSPECL);
+    set('@', ISSPECL);
+}
+
+#else /* !_MSC_VER */
+
 #if CWORD != 0
 #error initialisation assumes 'CWORD' is zero
 #endif
