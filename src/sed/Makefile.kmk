@@ -32,7 +32,11 @@ kmk_sed_SOURCES = \
 	lib/utils.c \
 	lib/regex.c
 ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
-kmk_SOURCES += 
+kmk_sed_SOURCES += \
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/mkstemp.c \
+	lib/getline.c
 endif
 
 

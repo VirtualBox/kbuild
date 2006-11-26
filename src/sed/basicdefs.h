@@ -59,7 +59,9 @@
 # define bool unsigned
 # define __bool_true_false_are_defined 1
 #else
-# include <stdbool.h>
+# if HAVE_STDBOOL_H
+#  include <stdbool.h>
+# endif
 #endif
 
 #if ENABLE_NLS

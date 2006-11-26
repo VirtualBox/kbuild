@@ -1,4 +1,4 @@
-# $Id: Config.kmk 591 2006-11-24 20:22:49Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 606 2006-11-26 01:58:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -97,8 +97,9 @@ TEMPLATE_BIN_INCS              += \
 	$(PATH_ROOT)/src/gmake/glob
 TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
 TEMPLATE_BIN_LIBS               = \
+	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
 	$(PATH_TOOL_VCC70_LIB)/libcmt.lib \
-	$(PATH_TOOL_VCC70_LIB)/oldnames.lib
+	$(PATH_TOOL_VCC70_LIB)/libcpmt.lib
 TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
