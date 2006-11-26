@@ -91,7 +91,9 @@
 # define BE(expr, val) __builtin_expect (expr, val)
 #else
 # define BE(expr, val) (expr)
-# define inline
+# ifndef inline /* bird: silly since the rest of sed depends on this working.. */
+#  define inline
+# endif 
 #endif
 
 /* Number of single byte character.  */
@@ -412,7 +414,11 @@ static unsigned int re_string_context_at (const re_string_t *input, int idx,
 #define re_string_skip_bytes(pstr,idx) ((pstr)->cur_idx += (idx))
 #define re_string_set_index(pstr,idx) ((pstr)->cur_idx = (idx))
 
-#include <alloca.h>
+#if HAVE_ALLOCA_H
+# include <alloca.h>
+#elif HAVE_MALLOC_H
+# include <malloc.h>
+#endif
 
 #ifndef _LIBC
 # if HAVE_ALLOCA
