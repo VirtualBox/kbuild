@@ -173,7 +173,28 @@ main(argc, argv)
   initialize_main (&argc, &argv);
 #if HAVE_SETLOCALE
   /* Set locale according to user's wishes.  */
+#ifdef _MSC_VER
+  {
+    /* The redmon guys doesn't listen to the user in the same way... */
+    const char *lc_all = getenv("LC_ALL");
+    if (lc_all)
+      setlocale (LC_ALL, lc_all); 
+    else
+      {
+        const char *lc_lang = getenv("LANG");
+        const char *lc_ctype = getenv("LC_TYPE");
+        const char *lc_collate = getenv("LC_COLLATE");
+
+        setlocale (LC_ALL, lc_lang ? lc_lang : "");
+        if (lc_ctype)
+          setlocale (LC_CTYPE, lc_ctype ? lc_ctype : "");
+        if (lc_collate)
+          setlocale (LC_COLLATE, lc_collate ? lc_collate : "");
+      }
+  }
+#else
   setlocale (LC_ALL, "");
+#endif 
 #endif
   initialize_mbcs ();
 
