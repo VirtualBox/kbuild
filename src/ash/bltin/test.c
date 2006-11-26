@@ -189,7 +189,9 @@ main(int argc, char *argv[])
 {
 	int res;
 
+#ifdef HAVE_SETPROGNAME
 	setprogname(argv[0]);
+#endif 
 	if (strcmp(argv[0], "[") == 0) {
 		if (strcmp(argv[--argc], "]"))
 			error("missing ]");

@@ -55,6 +55,11 @@ __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
 #include <locale.h>
 #include <sys/ioctl.h>
 
+#ifndef HAVE_SYS_SIGNAME
+extern void init_sys_signame(void);
+extern char sys_signame[NSIG][16];
+#endif 
+
 #ifdef SHELL            /* sh (aka ash) builtin */
 #define main killcmd
 #include "bltin/bltin.h"
@@ -97,6 +102,9 @@ main(int argc, char *argv[])
 				numsig -= 128;
 			if (numsig <= 0 || numsig >= NSIG)
 				nosig(*argv);
+#ifndef HAVE_SYS_SIGNAME
+			init_sys_signame();
+#endif 
 			printf("%s\n", sys_signame[numsig]);
 			exit(0);
 		}
@@ -178,7 +186,9 @@ static int
 signame_to_signum(char *sig)
 {
 	int n;
-
+#ifndef HAVE_SYS_SIGNAME
+	init_sys_signame();
+#endif 
 	if (strncasecmp(sig, "sig", 3) == 0)
 		sig += 3;
 	for (n = 1; n < NSIG; n++) {
@@ -215,6 +225,9 @@ printsignals(FILE *fp)
 #else
 #warning TIOCGWINSZ is not present.
 #endif
+#ifndef HAVE_SYS_SIGNAME
+    init_sys_signame();
+#endif 
 
 	for (len = 0, sig = 1; sig < NSIG; sig++) {
 		name = sys_signame[sig];
