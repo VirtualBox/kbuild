@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>*/
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
@@ -41,7 +41,7 @@ __RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 
-#include "namespace.h"
+/*#include "namespace.h"*/
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -50,16 +50,20 @@ __RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#endif 
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
 #endif
 
-#ifdef __weak_alias
+/*#ifdef __weak_alias
 __weak_alias(getmode,_getmode)
 __weak_alias(setmode,_setmode)
-#endif
+#endif*/
 
 #define	SET_LEN	6		/* initial # of bitcmd struct to malloc */
 #define	SET_LEN_INCR 4		/* # of bitcmd structs to add as needed */
@@ -76,11 +80,23 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-static BITCMD	*addcmd __P((BITCMD *, int, int, int, u_int));
-static void	 compress_mode __P((BITCMD *));
+static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
+static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
-static void	 dumpmode __P((BITCMD *));
+static void	 dumpmode(BITCMD *);
 #endif
+
+#ifndef _DIAGASSERT
+# define _DIAGASSERT assert
+#endif 
+
+#ifndef S_ISTXT
+# ifdef S_ISVTX
+#  define S_ISTXT S_ISVTX
+# else
+#  define S_ISTXT 0
+# endif
+#endif /* !S_ISTXT */
 
 /*
  * Given the old mode and an array of bitcmd structures, apply the operations
@@ -185,7 +201,9 @@ setmode(p)
 	int perm, who;
 	char op, *ep;
 	BITCMD *set, *saveset, *endset;
+#ifndef _MSC_VER
 	sigset_t signset, sigoset;
+#endif
 	mode_t mask;
 	int equalopdone = 0;	/* pacify gcc */
 	int permXbits, setlen;
@@ -199,11 +217,15 @@ setmode(p)
 	 * the caller is opening files inside a signal handler, protect them
 	 * as best we can.
 	 */
+#ifndef _MSC_VER
 	sigfillset(&signset);
 	(void)sigprocmask(SIG_BLOCK, &signset, &sigoset);
+#endif 
 	(void)umask(mask = umask(0));
 	mask = ~mask;
+#ifndef _MSC_VER
 	(void)sigprocmask(SIG_SETMASK, &sigoset, NULL);
+#endif
 
 	setlen = SET_LEN + 2;
 	
