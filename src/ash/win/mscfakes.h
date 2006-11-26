@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 632 2006-11-26 13:46:21Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 633 2006-11-26 14:05:05Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -27,6 +27,7 @@
 #ifdef _MSC_VER
 
 #define setmode setmode_msc
+#include <sys/cdefs.h>
 #include <io.h>
 #include <direct.h>
 #include <time.h>
@@ -38,8 +39,6 @@
 #if !defined(__GNUC__) && !defined(__attribute__)
 #define __attribute__(a)
 #endif 
-
-typedef int pid_t;
 
 #define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
 #define S_ISREG(m)  (((m) & _S_IFMT) == _S_IFREG)
@@ -85,8 +84,6 @@ typedef int pid_t;
 
 typedef int mode_t;
 typedef unsigned short nlink_t;
-typedef unsigned short uid_t;
-typedef unsigned short gid_t;
 typedef long ssize_t;
 typedef unsigned long u_long;
 typedef unsigned int u_int;
@@ -152,18 +149,34 @@ typedef struct sigset
 {   
     unsigned long __bitmap[1]; 
 } sigset_t;
+typedef void __sighandler_t(int);
+typedef	void __siginfohandler_t(int, struct __siginfo *, void *);
+typedef __sighandler_t *sig_t; /** BSD 4.4 type. */
+struct sigaction
+{
+    union
+    {
+        __siginfohandler_t *__sa_sigaction;
+        __sighandler_t     *__sa_handler;
+    }  __sigaction_u;
+    sigset_t    sa_mask;
+    int         sa_flags;
+};
+#define sa_handler      __sigaction_u.__sa_handler
+#define sa_sigaction    __sigaction_u.__sa_sigaction
+
 int	sigprocmask(int, const sigset_t *, sigset_t *);
 #define SIG_BLOCK           1
 #define SIG_UNBLOCK         2
 #define SIG_SETMASK         3
 
-#define SIGTTIN 0
-#define SIGTSTP 0
-#define SIGTTOU 0
-#define SIGCONT 0
-#define SIGPIPE 0
-#define SIGQUIT 0
-#define SIGHUP 0
+#define SIGTTIN 29
+#define SIGTSTP 28
+#define SIGTTOU 27
+#define SIGCONT 26
+#define SIGPIPE 25
+#define SIGQUIT 24
+#define SIGHUP 23
 #ifndef NSIG
 #define NSIG 32
 #endif 
@@ -179,6 +192,7 @@ int	sigemptyset(sigset_t *);
 //int	sigpending(sigset_t *);
 //int	sigsuspend(const sigset_t *);
 //int	sigwait(const sigset_t *, int *);
+int	siginterrupt(int, int);
 
 #endif /* _MSC_VER */
 #endif 
