@@ -360,13 +360,29 @@ filstat(char *nm, enum token mode)
 	case FILDIR:
 		return S_ISDIR(s.st_mode);
 	case FILCDEV:
+#ifdef S_ISCHR
 		return S_ISCHR(s.st_mode);
+#else
+        return 0;
+#endif 
 	case FILBDEV:
+#ifdef S_ISBLK
 		return S_ISBLK(s.st_mode);
+#else
+        return 0;
+#endif 
 	case FILFIFO:
+#ifdef S_ISFIFO
 		return S_ISFIFO(s.st_mode);
+#else
+        return 0;
+#endif 
 	case FILSOCK:
+#ifdef S_ISSOCK
 		return S_ISSOCK(s.st_mode);
+#else
+        return 0;
+#endif 
 	case FILSYM:
 		return S_ISLNK(s.st_mode);
 	case FILSUID:
@@ -374,7 +390,11 @@ filstat(char *nm, enum token mode)
 	case FILSGID:
 		return (s.st_mode & S_ISGID) != 0;
 	case FILSTCK:
+#ifdef S_ISVTX
 		return (s.st_mode & S_ISVTX) != 0;
+#else
+        return 0;
+#endif 
 	case FILGZ:
 		return s.st_size > (off_t)0;
 	case FILUID:

@@ -314,7 +314,9 @@ STATIC const struct errname errormsg[] = {
 #endif
 	{ ENXIO,	ALL,	"no such device or address" },
 	{ EROFS,	ALL,	"read-only file system" },
+#ifdef ETXTBSY
 	{ ETXTBSY,	ALL,	"text busy" },
+#endif
 #ifdef EAGAIN
 	{ EAGAIN,	E_EXEC,	"not enough memory" },
 #endif

@@ -223,7 +223,9 @@ printsignals(FILE *fp)
 			termwidth = win.ws_col;
 	}
 #else
+#ifndef _MSC_VER
 #warning TIOCGWINSZ is not present.
+#endif 
 #endif
 #ifndef HAVE_SYS_SIGNAME
     init_sys_signame();
