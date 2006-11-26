@@ -1,0 +1,57 @@
+# $Id: $
+
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+#
+# kmk_sed
+#
+PROGRAMS += kmk_sed
+
+kmk_sed_TEMPLATE = BIN
+kmk_sed_DEPS = \
+	$(PATH_TARGET)/config.h \
+	$(PATH_TARGET)/regex.h
+kmk_sed_INCS = \
+	$(PATH_TARGET) \
+	. \
+	lib \
+	intl
+kmk_sed_DEFS = \
+	HAVE_CONFIG_H
+kmk_sed_SOURCES = \
+	sed/sed.c \
+	sed/compile.c \
+	sed/execute.c \
+	sed/regexp.c \
+	sed/fmt.c \
+	sed/mbcs.c \
+	lib/getopt1.c \
+	lib/getopt.c \
+	lib/utils.c \
+	lib/regex.c
+ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+kmk_SOURCES += 
+endif
+
+
+include $(PATH_KBUILD)/footer.kmk
+			
+#
+# Use checked in config.h instead of running ./configure for it.
+#			
+config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
+config.h.win32 := config.h.win
+config.h.win64 := config.h.win
+config.h.nt    := config.h.win
+
+$(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET)) | $(call DIRDEP,$(PATH_TARGET))
+	$(CP) $^ $@
+
+#
+# Use the regex lib shipped with sed and not anything installed on the system.
+#
+$(PATH_TARGET)/regex.h: lib/regex_.h | $(call DIRDEP,$(PATH_TARGET))
+	$(CP) $^ $@
+
