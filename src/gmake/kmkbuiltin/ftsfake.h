@@ -40,7 +40,11 @@ typedef struct {
 	struct _ftsent **fts_array;	/* sort array */
 	dev_t fts_dev;			/* starting device # */
 	char *fts_path;			/* path for this descent */
+#ifdef _MSC_VER
+	char *fts_rdir;		        /* path of root */
+#else
 	int fts_rfd;			/* fd for root */
+#endif
 	u_int fts_pathlen;		/* sizeof(path) */
 	u_int fts_nitems;		/* elements in the sort array */
 	int (*fts_compar)		/* compare function */
@@ -53,7 +57,9 @@ typedef struct {
 #define	FTS_PHYSICAL	0x010		/* physical walk */
 #define	FTS_SEEDOT	0x020		/* return dot and dot-dot */
 #define	FTS_XDEV	0x040		/* don't cross devices */
+#ifndef _MSC_VER
 #define	FTS_WHITEOUT	0x080		/* return whiteout information */
+#endif 
 #define	FTS_OPTIONMASK	0x0ff		/* valid user option mask */
 
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
@@ -70,7 +76,9 @@ typedef struct _ftsent {
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
+#ifndef _MSC_VER
 	int fts_symfd;			/* fd for symlink */
+#endif 
 	u_short fts_pathlen;		/* strlen(fts_path) */
 	u_short fts_namelen;		/* strlen(fts_name) */
 
@@ -79,7 +87,11 @@ typedef struct _ftsent {
 #ifdef __LIBC12_SOURCE__
 	u_int16_t fts_nlink;		/* link count */
 #else
+#ifndef _MSC_VER
 	nlink_t fts_nlink;		/* link count */
+#else
+	int fts_nlink;		/* link count */
+#endif 
 #endif
 
 #define	FTS_ROOTPARENTLEVEL	-1
@@ -99,12 +111,16 @@ typedef struct _ftsent {
 #define	FTS_NSOK	11		/* no stat(2) requested */
 #define	FTS_SL		12		/* symbolic link */
 #define	FTS_SLNONE	13		/* symbolic link without target */
+#ifndef _MSC_VER
 #define	FTS_W		14		/* whiteout object */
+#endif
 	u_short fts_info;		/* user flags for FTSENT structure */
 
 #define	FTS_DONTCHDIR	 0x01		/* don't chdir .. to the parent */
 #define	FTS_SYMFOLLOW	 0x02		/* followed a symlink to get here */
+#ifndef _MSC_VER
 #define	FTS_ISW		 0x04		/* this is a whiteout object */
+#endif 
 	u_short fts_flags;		/* private flags for FTSENT structure */
 
 #define	FTS_AGAIN	 1		/* read node again */
@@ -121,9 +137,13 @@ typedef struct _ftsent {
 	char fts_name[1];		/* file name */
 } FTSENT;
 
+#ifndef _MSC_VER
 #include <sys/cdefs.h>
-
 __BEGIN_DECLS
+#else
+#define __RENAME(a) 
+#endif 
+
 #ifdef __LIBC12_SOURCE__
 FTSENT	*fts_children(FTS *, int);
 int	 fts_close(FTS *);
@@ -140,6 +160,9 @@ FTS	*fts_open(char * const *, int,
 FTSENT	*fts_read(FTS *)			__RENAME(__fts_read13);
 int	 fts_set(FTS *, FTSENT *, int)	__RENAME(__fts_set13);
 #endif
+
+#ifndef _MSC_VER
 __END_DECLS
+#endif
 
 #endif /* !_FTS_H_ */
