@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>*/
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
 static char sccsid[] = "@(#)strmode.c	8.3 (Berkeley) 8/15/94";
@@ -38,12 +38,20 @@ __RCSID("$NetBSD: strmode.c,v 1.16 2004/06/20 22:20:15 jmc Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 
-#include "namespace.h"
+/*#include "namespace.h"*/
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include <assert.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#endif 
+
+#ifndef _DIAGASSERT
+#define _DIAGASSERT assert
+#endif 
 
 void
 strmode(mode, p)
@@ -61,9 +69,11 @@ strmode(mode, p)
 	case S_IFCHR:			/* character special */
 		*p++ = 'c';
 		break;
+#ifdef S_IFBLK
 	case S_IFBLK:			/* block special */
 		*p++ = 'b';
 		break;
+#endif 
 	case S_IFREG:			/* regular */
 #ifdef S_ARCH2
 		if ((mode & S_ARCH2) != 0) {
@@ -77,9 +87,11 @@ strmode(mode, p)
 		}
 #endif
 		break;
+#ifdef S_IFLNK
 	case S_IFLNK:			/* symbolic link */
 		*p++ = 'l';
 		break;
+#endif
 #ifdef S_IFSOCK
 	case S_IFSOCK:			/* socket */
 		*p++ = 's';
@@ -159,19 +171,25 @@ strmode(mode, p)
 		*p++ = 'w';
 	else
 		*p++ = '-';
+#ifdef S_ISVTX
 	switch (mode & (S_IXOTH | S_ISVTX)) {
+#else
+	switch (mode & (S_IXOTH)) {
+#endif 
 	case 0:
 		*p++ = '-';
 		break;
 	case S_IXOTH:
 		*p++ = 'x';
 		break;
+#ifdef S_ISVTX
 	case S_ISVTX:
 		*p++ = 'T';
 		break;
 	case S_IXOTH | S_ISVTX:
 		*p++ = 't';
 		break;
+#endif
 	}
 	*p++ = ' ';		/* will be a '+' if ACL's implemented */
 	*p = '\0';
