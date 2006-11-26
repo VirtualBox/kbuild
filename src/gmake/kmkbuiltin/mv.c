@@ -90,7 +90,7 @@ static int	copy(char *, char *);
 #endif 
 static int	usage(void);
 
-#if defined(_MSC_VER) || defined(__EMX__) || 0
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
 static const char *user_from_uid(unsigned long id, int x)
 {
 	static char s_buf[64];
