@@ -108,7 +108,9 @@
 # define __wctype wctype
 # define __iswctype iswctype
 # define __btowc btowc
+# ifndef __mempcpy /* keep quiet if string.h defines it (bird) */
 # define __mempcpy mempcpy
+# endif 
 # define __wcrtomb wcrtomb
 # define __regfree regfree
 # define attribute_hidden
