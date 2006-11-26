@@ -43,10 +43,16 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #endif
 #endif /* not lint */
+#if 0
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
+#else
+#define NO_UDOM_SUPPORT /* kmk */
+#endif 
 
+#ifndef _MSC_VER
 #include <sys/param.h>
+#endif
 #include <sys/stat.h>
 #ifndef NO_UDOM_SUPPORT
 #include <sys/socket.h>
@@ -55,34 +61,56 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #endif
 
 #include <ctype.h>
-#include <err.h>
+#include "err.h"
 #include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include "mscfakes.h"
+#endif 
 #include <stddef.h>
 
 int bflag, eflag, nflag, sflag, tflag, vflag;
-int rval;
+/*int rval;*/
 const char *filename;
 
-static void usage(void);
-static void scanfiles(char *argv[], int cooked);
-static void cook_cat(FILE *);
-static void raw_cat(int);
+static int usage(void);
+static int scanfiles(char *argv[], int cooked);
+static int cook_cat(FILE *);
+static int raw_cat(int);
 
 #ifndef NO_UDOM_SUPPORT
 static int udom_open(const char *path, int flags);
 #endif
 
 int
-main(int argc, char *argv[])
+kmk_builtin_cat(int argc, char *argv[])
 {
-	int ch;
+	int ch, rc;
 
+	/* kmk: reinitialize globals */
+	bflag = eflag = nflag = sflag = tflag = vflag = 0;
+	filename = NULL;
+
+	/* kmk: reset getopt and set progname */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
+	optreset = 1;
+	optind = 1;
+#else
+	optind = 0; /* init */
+#endif
+
+#ifdef kmk_builtin_cat /* kmk did this already. */
 	setlocale(LC_CTYPE, "");
+#endif 
 
 	while ((ch = getopt(argc, argv, "benstuv")) != -1)
 		switch (ch) {
@@ -108,34 +136,36 @@ main(int argc, char *argv[])
 			vflag = 1;
 			break;
 		default:
-			usage();
+			return usage();
 		}
 	argv += optind;
 
 	if (bflag || eflag || nflag || sflag || tflag || vflag)
-		scanfiles(argv, 1);
+		rc = scanfiles(argv, 1);
 	else
-		scanfiles(argv, 0);
+		rc = scanfiles(argv, 0);
+#ifdef kmk_builtin_cat /* only in the external program. */
 	if (fclose(stdout))
-		err(1, "stdout");
-	exit(rval);
-	/* NOTREACHED */
+		return err(1, "stdout");
+#endif
+	return rc;
 }
 
-static void
+static int
 usage(void)
 {
 	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
-	exit(1);
-	/* NOTREACHED */
+	return 1;
 }
 
-static void
+static int
 scanfiles(char *argv[], int cooked)
 {
 	int i = 0;
 	char *path;
 	FILE *fp;
+	int rc2 = 0;
+	int rc = 0;
 
 	while ((path = argv[i]) != NULL || i == 0) {
 		int fd;
@@ -153,30 +183,32 @@ scanfiles(char *argv[], int cooked)
 		}
 		if (fd < 0) {
 			warn("%s", path);
-			rval = 1;
+			rc2 = 1; /* non fatal */
 		} else if (cooked) {
 			if (fd == STDIN_FILENO)
-				cook_cat(stdin);
+				rc = cook_cat(stdin);
 			else {
 				fp = fdopen(fd, "r");
-				cook_cat(fp);
+				rc = cook_cat(fp);
 				fclose(fp);
 			}
 		} else {
-			raw_cat(fd);
+			rc = raw_cat(fd);
 			if (fd != STDIN_FILENO)
 				close(fd);
 		}
-		if (path == NULL)
+		if (rc || path == NULL)
 			break;
 		++i;
 	}
+	return !rc ? rc2 : rc;
 }
 
-static void
+static int
 cook_cat(FILE *fp)
 {
 	int ch, gobble, line, prev;
+	int rc = 0;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -227,14 +259,15 @@ cook_cat(FILE *fp)
 	}
 	if (ferror(fp)) {
 		warn("%s", filename);
-		rval = 1;
+		rc = 1;
 		clearerr(fp);
 	}
 	if (ferror(stdout))
-		err(1, "stdout");
+		return err(1, "stdout");
+	return rc;
 }
 
-static void
+static int
 raw_cat(int rfd)
 {
 	int off, wfd;
@@ -246,19 +279,24 @@ raw_cat(int rfd)
 	wfd = fileno(stdout);
 	if (buf == NULL) {
 		if (fstat(wfd, &sbuf))
-			err(1, "%s", filename);
+			return err(1, "%s", filename);
+#ifdef _MSC_VER
+		bsize = 1024;
+#else
 		bsize = MAX(sbuf.st_blksize, 1024);
+#endif 
 		if ((buf = malloc(bsize)) == NULL)
-			err(1, "buffer");
+			return err(1, "buffer");
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
 			if ((nw = write(wfd, buf + off, (size_t)nr)) < 0)
-				err(1, "stdout");
+				return err(1, "stdout");
 	if (nr < 0) {
 		warn("%s", filename);
-		rval = 1;
+		return 1;
 	}
+	return 0;
 }
 
 #ifndef NO_UDOM_SUPPORT

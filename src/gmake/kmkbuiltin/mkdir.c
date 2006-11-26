@@ -78,19 +78,19 @@ kmk_builtin_mkdir(int argc, char *argv[])
 	omode = pflag = 0;
 	mode = NULL;
 
-        /* reinitialize globals */
-        vflag = 0;
-
-        /* kmk: reset getopt and set progname */
-        g_progname = argv[0];
-        opterr = 1;
-        optarg = NULL;
-        optopt = 0;
+    /* reinitialize globals */
+    vflag = 0;
+    
+    /* kmk: reset getopt and set progname */
+    g_progname = argv[0];
+    opterr = 1;
+    optarg = NULL;
+    optopt = 0;
 #if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
-        optreset = 1;
-        optind = 1;
+    optreset = 1;
+    optind = 1;
 #else
-        optind = 0; /* init */
+    optind = 0; /* init */
 #endif
 	while ((ch = getopt(argc, argv, "m:pv")) != -1)
 		switch(ch) {
