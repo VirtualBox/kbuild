@@ -275,6 +275,12 @@ This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE,\n\
 to the extent permitted by law.\n\
 "), COPYRIGHT_NOTICE);
+#ifdef KBUILD_VERSION_MAJOR
+	  fprintf(stdout, _("\n\
+kBuild %d.%d.%d [" __DATE__ " " __TIME__ "]\n\
+"), KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+#endif
+
 	  ck_fclose (NULL);
 	  exit (0);
 	case 'h':
