@@ -1,9 +1,9 @@
-# $Id: footer.kmk 594 2006-11-25 01:35:17Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 640 2006-12-01 07:42:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -49,6 +49,8 @@ PATH_DOC    := $(PATH_DOC)
 
 # all targets.
 ALL_TARGETS += \
+	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
 	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
@@ -60,7 +62,8 @@ ALL_TARGETS += \
 
 # all $(BUILD_TARGET) targets.
 _ALL_BUILD_TARGET_TARGETS += \
-	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
@@ -72,6 +75,11 @@ _ALL_BUILD_TARGET_TARGETS += \
 # all $(BUILD_TARGET) targets.
 _ALL_BUILD_PLATFORM_TARGETS += \
 	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH))
+
+# all targets making use of srcname.
+_ALL_SRCNAME_TARGETS += \
+	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
 
 # dependency files.
 _DEPFILES :=
@@ -90,6 +98,10 @@ _CLEAN_FILES :=
 
 # all of a type
 _OBJS     :=
+_FETCHES  :=
+_DOWNLOADS:=
+_UNPACKS  :=
+_PATCHES  :=
 _BLDPROGS :=
 _LIBS     :=
 _DLLS     :=
@@ -477,10 +489,26 @@ $(foreach source, \
 	, $(eval $(value def_tools_sdks_target_source)))
 endef
 
+define def_tools_srcname_target
+_bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
+_bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
+_bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
+
+$(foreach source, $(notdir\
+	$($(target)_SOURCES.$(_bld_trg)) \
+	$($(target)_SOURCES.$(_bld_trg_arch)) \
+	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
+	$($(target)_SOURCES.$(_bld_trg_cpu)) \
+	$($(target)_SOURCES.$(BUILD_TYPE)) \
+	$($(target)_SOURCES) \
+	), $(eval $(value def_tools_sdks_target_source)))
+endef
+
 bld_trg := $(BUILD_TARGET)
 bld_trg_arch := $(BUILD_TARGET_ARCH)
 bld_trg_cpu := $(BUILD_TARGET_CPU)
 $(foreach target, $(_ALL_BUILD_TARGET_TARGETS), $(eval $(value def_tools_sdks_target)))
+$(foreach target, $(_ALL_SRCNAME_TARGETS), $(eval $(value def_tools_srcname_target)))
 
 bld_trg := $(BUILD_PLATFORM)
 bld_trg_arch := $(BUILD_PLATFORM_ARCH)
@@ -516,6 +544,324 @@ endef
 
 _SDKS := $(sort $(_SDKS))
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
+
+
+
+#
+# Fetching Tools, Sources and Similar.
+#
+MD5SUM := md5sum
+
+## generates the fetch rule
+define def_fetch_src_fetch_rule
+# Indirect goal for downloading something.
+$(out) $($(target)_$(srcname)_FETCH_OUTPUT_): | $($(target)_$(srcname)_FETCH_DEPORD_)
+	@$(ECHO) Downloading $(source)...
+	$$(RM) -f $(out) $(out).md5 ## @todo fancy stuff like download continuation
+	$($(target)_$(srcname)_FETCH_CMDS_)
+	@$(if $(md5),$(APPEND) $(out).md5 "$(subst 1,0,$(md5)) *$(out)")
+	$(if $(md5),$(MD5SUM) -c $(out).md5)
+
+
+# Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
+$(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
+	@$(ECHO) Checking $(out) ($(source))...
+	$$(RM) -f $$@ $(out).md5
+	@# creates the .md5 we pass to md5sum.
+	@$(if $(md5),$(APPEND) $(out).md5 "$(md5) *$(out)") 	
+	@# if the file exists, perform md5sum, otherwise just fetch it.
+	$(if $(wildcard $(out)),\
+		$(MD5SUM) -c $(out).md5 || ( $(RM_EXT) -f $(out) && $(MAKE) -f $(MAKEFILE) $(out) ),\
+		$(MAKE) -f $(MAKEFILE) $(out) )
+	@$(APPEND) $$@
+
+_TARGET_$(target)_FETCHED += $(out).checked_$(md5)_$(size)
+
+endef
+
+## generates the unpack rule
+define def_fetch_src_unpack_rule
+#$ (warning def_fetch_src_unpack_rule: source=$(source))
+
+# This is the unpack rule. it has an order-only dependency on the download check.
+$(out) $($(target)_$(srcname)_UNPACK_OUTPUT_): $($(target)_$(srcname)_UNPACK_DEPEND_) \
+		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
+	@$(ECHO) Unpacking $(source) into $(inst)...
+	$$(RM) -f $(out)
+	$($(target)_$(srcname)_UNPACK_CMDS_)
+	@$(APPEND) $(out) $(out)
+	@$(APPEND) $(out) $(out).check_$(md5)_$(size)
+
+$(eval _TARGET_$(target)_UNPACKED += $(out))
+_TARGET_$(target)_DIGEST := $(_TARGET_$(target)_DIGEST)-$(srcname)_$(md5)_$(size)
+
+endef 
+
+## Processes a fetch source
+#
+define def_fetch_src
+#$ (warning dbg: def_fetch_src: source='$(source)' target='$(target)')
+
+# common
+srcname := $(notdir $(source))
+inst := $(firstword \
+	$($(target)_$(source)_INST)\
+	$($(target)_$(srcname)_INST)\
+	$($(source)_INST)\
+	$($(srcname)_INST)\
+	$($(target)_INST)\
+)
+ifneq ($(patsubst %/,ok,$(inst)),ok)
+$(error kBuild: Bad or missing INST property for source '$(source)' in target '$(target)': $(inst))
+endif
+INSTARGET_$(target)_$(srcname) := $(inst)
+fetchdir := $(firstword \
+	$($(target)_$(source)_FETCHDIR)\
+	$($(target)_$(srcname)_FETCHDIR)\
+	$($(source)_FETCHDIR)\
+	$($(srcname)_FETCHDIR)\
+	$($(target)_FETCHDIR)\
+	$(FETCHDIR)\
+	$(PATH_TARGET)\
+)
+deps := \
+	$($(target)_$(source)_DEPS)\
+	$($(target)_$(srcname)_DEPS)\
+	$($(source)_DEPS)\
+	$($(srcname)_DEPS)\
+	$($(target)_DEPS)
+md5 := $(firstword \
+	$($(target)_$(source)_MD5)\
+	$($(target)_$(srcname)_MD5)\
+	$($(source)_MD5)\
+	$($(srcname)_MD5)\
+	$($(target)_MD5)\
+)
+size := $(firstword \
+	$($(target)_$(source)_SIZE)\
+	$($(target)_$(srcname)_SIZE)\
+	$($(source)_SIZE)\
+	$($(srcname)_SIZE)\
+	$($(target)_SIZE)\
+)
+dep := # not legal for fetch and unpack tools
+
+
+#
+# The fetching.
+#
+out := $(fetchdir)/$(srcname)
+archive := $(out)
+TARGET_$(target)_$(srcname) := $(out)
+dirdep := $(call DIRDEP,$(fetchdir))
+tool := $(firstword \
+	$($(target)_$(source)_FETCHTOOL)\
+	$($(target)_$(srcname)_FETCHTOOL)\
+	$($(target)_$(source)_TOOL)\
+	$($(target)_$(srcname)_TOOL)\
+	$($(source)_FETCHTOOL)\
+	$($(srcname)_FETCHTOOL)\
+	$($(source)_TOOL)\
+	$($(srcname)_TOOL)\
+	$($(target)_FETCHTOOL)\
+	$($(target)_TOOL)\
+	)
+flags :=\
+	$(TOOL_$(tool)_FETCHFLAGS)\
+	$(FETCHFLAGS)\
+	$($(target)_FETCHFLAGS)\
+	$($(srcname)_FETCHFLAGS)\
+	$($(source)_FETCHFLAGS)\
+	$($(target)_$(srcname)_FETCHFLAGS)\
+	$($(target)_$(source)_FETCHFLAGS)
+
+#$ (warning dbg: target=$(target) source=$(source) $(srcname)=$(srcname) tool=$(tool) out=$(out) flags=$(flags) dirdep=$(dirdep) fetchdir=$(fetchdir) md5=$(md5) size=$(size))
+
+ifndef TOOL_$(tool)_FETCH_CMDS
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)_FETCHTOOL)\
+	2 $($(target)_$(srcname)_FETCHTOOL)\
+	3 $($(target)_$(source)_TOOL)\
+	4 $($(target)_$(srcname)_TOOL)\
+	5 $($(source)_FETCHTOOL)\
+	6 $($(srcname)_FETCHTOOL)\
+	7 $($(source)_TOOL)\
+	8 $($(srcname)_TOOL)\
+	9 $($(target)_FETCHTOOL)\
+	10 $($(target)_TOOL) )
+$(error kBuild: TOOL_$(tool)_FETCH_CMDS is not defined. source=$(source) target=$(target) )
+endif
+
+# call the tool
+$(target)_$(srcname)_FETCH_CMDS_   := $(TOOL_$(tool)_FETCH_CMDS)
+$(target)_$(srcname)_FETCH_OUTPUT_ := $(TOOL_$(tool)_FETCH_OUTPUT)
+$(target)_$(srcname)_FETCH_DEPEND_ := $(TOOL_$(tool)_FETCH_DEPEND) $(deps)
+$(target)_$(srcname)_FETCH_DEPORD_ := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep)
+
+# generate the fetch rule.
+$(eval $(def_fetch_src_fetch_rule))
+
+
+#
+# The unpacking / installing.
+#
+out := $(inst)_kBuild_$(target)_$(srcname)_unpacked.lst
+dirdep := $(call DIRDEP,$(inst))
+tool := $(firstword \
+	$($(target)_$(source)_UNPACKTOOL)\
+	$($(target)_$(srcname)_UNPACKTOOL)\
+	$($(target)_$(source)_TOOL)\
+	$($(target)_$(srcname)_TOOL)\
+	$($(source)_UNPACKTOOL)\
+	$($(srcname)_UNPACKTOOL)\
+	$($(source)_TOOL)\
+	$($(srcname)_TOOL)\
+	$($(target)_UNPACKTOOL)\
+	$($(target)_TOOL) \
+	)
+ifeq ($(tool),)
+tool := $(toupper $(subst .,,$(suffix $(subst tar.,TAR,$(srcname)))))
+$(eval $(value def_tools_include))
+endif
+flags :=\
+	$(TOOL_$(tool)_UNPACKFLAGS)\
+	$(UNPACKFLAGS)\
+	$($(target)_UNPACKFLAGS)\
+	$($(srcname)_UNPACKFLAGS)\
+	$($(source)_UNPACKFLAGS)\
+	$($(target)_$(srcname)_UNPACKFLAGS)\
+	$($(target)_$(source)_UNPACKFLAGS)
+
+#$ (warning dbg: target=$(target) source=$(source) $(srcname)=$(srcname) tool=$(tool) out=$(out) flags=$(flags) dirdep=$(dirdep) inst=$(inst) md5=$(md5) size=$(size))
+ifndef TOOL_$(tool)_UNPACK_CMDS
+$(warning kBuild: tools: \
+	1 $($(target)_$(source)_UNPACKTOOL)\
+	2 $($(target)_$(srcname)_UNPACKTOOL)\
+	3 $($(target)_$(source)_TOOL)\
+	4 $($(target)_$(srcname)_TOOL)\
+	5 $($(source)_UNPACKTOOL)\
+	6 $($(srcname)_UNPACKTOOL)\
+	7 $($(source)_TOOL)\
+	8 $($(srcname)_TOOL)\
+	9 $($(target)_UNPACKTOOL)\
+	10 $($(target)_TOOL) \
+	11 $(toupper $(subst tar.,TAR,$(ext $(srcname)))) \
+	)
+$(error kBuild: TOOL_$(tool)_UNPACK_CMDS is not defined. source=$(source) target=$(target) )
+endif
+
+# call the tool
+$(target)_$(srcname)_UNPACK_CMDS_   := $(TOOL_$(tool)_UNPACK_CMDS)
+$(target)_$(srcname)_UNPACK_OUTPUT_ := $(TOOL_$(tool)_UNPACK_OUTPUT)
+$(target)_$(srcname)_UNPACK_DEPEND_ := $(TOOL_$(tool)_UNPACK_DEPEND) $(deps)
+$(target)_$(srcname)_UNPACK_DEPORD_ := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep)
+
+# generate the fetch rule.
+$(eval $(def_fetch_src_unpack_rule))
+
+_DIRS += $(inst) $(fetchdir)
+
+endef
+
+
+##
+# Define the target level rules for a fetch.
+# @param	target
+# @param	out
+# @param	inst
+# @param	_TARGET_$(target)_FETCHED...
+# @param	bld_trg
+# @param	bld_trg_arch
+define def_fetch_rules
+
+$(out): $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
+	@$(ECHO) Successfully fetched $(target)
+	$(RM) -f $$@ $$@.tmp
+	@$(APPEND) $$@.tmp ""
+	$(if $(_TARGET_$(target)_UNPACKED),$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
+	$(MV) -f $$@.tmp $$@
+
+$(out)_unfetched:
+	@$(ECHO) Unfetching $(target)...
+	$(RM) -f $$(shell $$(CAT_EXT) $(out) 2> /dev/null)
+	# figure out how to make this quiet...
+	-$(RMDIR) -p $(dir $(out)) $$(sort $$(dir $$(shell $$(CAT_EXT) $(out) 2> /dev/null))) 
+	$(RM) -f $(out)
+	-$(RMDIR) -p $(dir $(out))
+
+endef
+
+
+##
+# Deal with one fetch target.
+# @param	target
+# @param	bld_trg
+# @param	bld_trg_arch
+define def_fetch
+
+# common
+INSTARGET_$(target) := $($(target)_INST)
+ifneq ($(patsubst %/,ok,$(INSTARGET_$(target))),ok)
+$(error kBuild: Bad or missing INST property for target '$(target)': $(INSTARGET_$(target)))
+endif
+_TARGET_$(target)_FETCHED :=
+_TARGET_$(target)_UNPACKED :=
+_TARGET_$(target)_DIGEST :=
+
+# The 'sources'.
+#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)))
+$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),\
+	$(eval $(value def_fetch_src)))
+
+# The target.
+inst := $(INSTARGET_$(target))
+out := $(inst)_kBuild_fetch_$(target)
+
+$(eval $(def_fetch_rules))
+
+_FETCHES += $(out)
+_DOWNLOADS += $(_TARGET_$(target)_FETCHED)
+_UNPACKS += $(_TARGET_$(target)_UNPACKED)
+_UNFETCHES += $(out)_unfetched
+_DIRS += $(inst)
+
+endef
+
+# Walk the FETCH target lists.
+bld_trg := $(BUILD_TARGET)
+bld_trg_arch := $(BUILD_TARGET_ARCH)
+$(foreach target, $(FETCHES) $(FETCHES.$(BUILD_TARGET)) $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_fetch)))
+
+# some aliases.
+download: $(_DOWNLOADS)
+unpack: $(_UNPACK)
+fetches: $(_FETCHES)
+unfetches: $(_UNFETCHES)
+
+
+
+##
+## Patching.
+##
+##
+#define def_fetch_src
+#
+#endef
+#
+#
+## Deal with one patch target.
+#define def_patch
+#
+#$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),\
+#	$(eval $(value def_patch_one)))
+#
+#_PATCHES += 
+#endef
+#
+#$(foreach target, $(PATCHES) $(PATCHES.$(BUILD_TARGET)) $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+#	$(eval $(value def_patch)))
+#
 
 
 #

@@ -1,0 +1,43 @@
+# $Id: GCC3.kmk 584 2006-11-24 05:10:00Z bird $
+## @file
+#
+# kBuild Tool Config - wget fetchers.
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+TOOL_WGET := wget fetcher.
+
+TOOL_WGET_FETCH ?= wget$(HOSTSUFF_EXE)
+TOOL_WGET_FETCHFLAGS ?= --passive-ftp -t 5 -T 60
+
+## Fetch one file.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   The URI of the file.
+# @param    $(flags)    Flags.
+# @param    $(out)   	The output file
+TOOL_WGET_FETCH_OUTPUT =
+TOOL_WGET_FETCH_DEPEND =
+TOOL_WGET_FETCH_DEPORD =
+define TOOL_WGET_FETCH_CMDS
+	$(TOOL_WGET_FETCH) $(flags) -P $(dir $(out)) $(source)
+endef
+

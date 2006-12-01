@@ -1,4 +1,4 @@
-# $Id: header.kmk 601 2006-11-26 00:19:19Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 640 2006-12-01 07:42:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -507,11 +507,15 @@ SDK_PATHS :=
 # The user can overload this list.
 DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
 
+## PROPS_TOOLS
+# This is a subset of the other PROPS
+PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
+
 ## PROPS_SINGLE
 # The list of non-accumulative target properties.
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
-PROPS_SINGLE := TOOL ARTOOL CTOOL CXXTOOL ASTOOL LDTOOL INST NOINST
+PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are functions,
@@ -527,13 +531,8 @@ PROPS_ACCUMULATE := \
 	COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS \
 	ASOPTS ASFLAGS ASDEFS ASINCS \
 	LDFLAGS LIBS LIBPATH \
-	BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
 	SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
-
-
-## PROPS_TOOLS
-# This is a subset of the other PROPS
-PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL ARTOOL LDTOOL
+	FETCHFLAGS UNPACKFLAGS PATCHFLAGS
 
 
 #
@@ -543,6 +542,20 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL ARTOOL LDTOOL
 # The PASS_<passname>_vars variable is listing the target variables.
 # The PASS_<passname>_pass variable is the lowercased passname.
 #
+
+## PASS: fetches
+# This pass fetches and unpacks things needed to complete the build.
+PASS_FETCHES        := Fetches
+PASS_FETCHES_trgs   :=
+PASS_FETCHES_vars   := _FETCHES
+PASS_FETCHES_pass   := fetches
+
+## PASS: patches
+# This pass applies patches.
+PASS_PATCHES        := Patches
+PASS_PATCHES_trgs   :=
+PASS_PATCHES_vars   := _PATCHES
+PASS_PATCHES_pass   := patches
 
 ## PASS: bldprogs
 # This pass builds targets which are required for building the rest.
@@ -620,7 +633,7 @@ DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
 ## PASSES
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
-PASSES := $(DEFAULT_PASSES) NOTHING CLEAN
+PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
 
 
 #
