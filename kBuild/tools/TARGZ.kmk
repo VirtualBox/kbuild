@@ -1,0 +1,45 @@
+# $Id: GCC3.kmk 584 2006-11-24 05:10:00Z bird $
+## @file
+#
+# kBuild Tool Config - tar.gz unpacker.
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+TOOL_TARGZ := tar.gz unpacker.
+
+TOOL_TARGZ_UNPACK ?= tar$(HOSTSUFF_EXE)
+TOOL_TARGZ_UNPACKFLAGS ?= -z
+
+## UNPACK one file.
+# @param    $(target)   Normalized main target name.
+# @param    $(archive)  The file to unpack.
+# @param    $(flags)    Flags.
+# @param	$(inst)		Where to unpack it.
+# @param	$(out)		Where to write the file list.
+TOOL_TARGZ_UNPACK_OUTPUT =
+TOOL_TARGZ_UNPACK_DEPEND =
+TOOL_TARGZ_UNPACK_DEPORD =
+define TOOL_TARGZ_UNPACK_CMDS
+	$(TOOL_TARGZ_UNPACK) -x $(flags) -C $(inst) -f $(archive)
+	$(TOOL_TARGZ_UNPACK) -t $(flags) -f $(archive) | $(SED) -e 's|^|$(inst)|g' > $(out)
+endef
+
