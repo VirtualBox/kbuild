@@ -1,4 +1,4 @@
-# $Id: header.kmk 640 2006-12-01 07:42:42Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 641 2006-12-01 18:32:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -509,13 +509,14 @@ DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
 
 ## PROPS_TOOLS
 # This is a subset of the other PROPS
-PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
+PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
 
 ## PROPS_SINGLE
 # The list of non-accumulative target properties.
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
-PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR
+PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
+	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are functions,
@@ -530,8 +531,8 @@ PROPS_ACCUMULATE := \
 	SDKS DEFS DEPS INCS SOURCES \
 	COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS \
 	ASOPTS ASFLAGS ASDEFS ASINCS \
+	RCOPTS RCFLAGS RCDEFS RCINCS \
 	LDFLAGS LIBS LIBPATH \
-	SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
 	FETCHFLAGS UNPACKFLAGS PATCHFLAGS
 
 

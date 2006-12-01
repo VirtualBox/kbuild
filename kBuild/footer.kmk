@@ -1,4 +1,4 @@
-# $Id: footer.kmk 640 2006-12-01 07:42:42Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 641 2006-12-01 18:32:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -976,8 +976,8 @@ endef
 # @param    bld_trg_cpu   Build target cpu.
 # @remark 	obsoleted by kBuild helpers in kmk. Only required for limited gmake compatbility.
 #
-define def_target_source_c_cpp_asm_old
-#$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
+define def_target_source_c_cpp_asm_rc_old
+#$ (warning dbg: def_target_source_c_cpp_asm_rc_old: source='$(source)' target='$(target)' type='$(type)')
 
 tool := $(call _SOURCE_TOOL,$(source),$(target),$(type))
 outbase     := $(call _OBJECT_BASE,$(source),$(target))
@@ -1353,12 +1353,12 @@ endef
 # @param    bld_trg_cpu   Build target cpu.
 #
 #$ (warning dbg: def_target_source_c_cpp_asm: source='$(source)' target='$(target)' type='$(type)')
-def_target_source_c_cpp_asm_new = $(kb-src-one x)
+def_target_source_c_cpp_asm_rc_new = $(kb-src-one x)
 
 ifneq ($(filter kb-src-one,$(KMK_FEATURES)),)
-def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_new
+def_target_source_c_cpp_asm_rc_var = def_target_source_c_cpp_asm_rc_new
 else
-def_target_source_c_cpp_asm_var = def_target_source_c_cpp_asm_old
+def_target_source_c_cpp_asm_rc_var = def_target_source_c_cpp_asm_rc_old
 endif
 
 ## Generic macro for processing all target sources.
@@ -1368,17 +1368,22 @@ define def_target_sources
 # C sources
 type := C
 $(foreach source, $(filter %.c             , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-   ,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
+   ,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
 
 # C++ sources
 type := CXX
 $(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
+	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
 
 # ASM sources
 type := AS
 $(foreach source, $(filter %.asm %.s %.S   , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_asm_var))) )
+	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
+
+# Resource sources
+type := RC
+$(foreach source, $(filter %.rc            , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
+	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
 
 endef
 
