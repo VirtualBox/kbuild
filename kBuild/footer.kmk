@@ -1,4 +1,4 @@
-# $Id: footer.kmk 641 2006-12-01 18:32:45Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 643 2006-12-01 20:25:28Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1452,13 +1452,7 @@ suff        := $(firstword\
 	$(SUFF_LIB))
 out         := $(outbase)$(suff)
 TARGET_$(target) := $(out)
-$(target)_OBJS_ := $(filter %.o %.obj, \
-	$($(target)_SOURCES) \
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type)))
+$(target)_OBJS_ := 
 
 # source -> object
 $(eval $(value def_target_sources))
@@ -1484,7 +1478,14 @@ othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg_cpu)) \
 	$($(target)_SOURCES.$(bld_type)))
-objs         = $($(target)_OBJS_)
+objs         = $(filter %.o %.obj, \
+	$($(target)_SOURCES) \
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type))) \
+    $($(target)_OBJS_)
 dirdep      := $(call DIRDEP,$(dir $(out)))
 ## @todo fix dependencies on makefiles an such
 deps        := $($(target)_DEPS)
@@ -1562,13 +1563,7 @@ suff        := $(firstword \
 out         := $(outbase)$(suff)
 PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
 TARGET_$(target) := $(out)
-$(target)_OBJS_  := $(filter %.o %.obj, \
-	$($(target)_SOURCES) \
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type)))
+$(target)_OBJS_  := 
 
 # source -> object
 $(eval $(value def_target_sources))
@@ -1602,7 +1597,14 @@ othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg_cpu)) \
 	$($(target)_SOURCES.$(bld_type)))
-objs         = $($(target)_OBJS_)
+objs         = $(filter %.o %.obj, \
+	$($(target)_SOURCES) \
+	$($(target)_SOURCES.$(bld_trg)) \
+	$($(target)_SOURCES.$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_SOURCES.$(bld_trg_cpu)) \
+	$($(target)_SOURCES.$(bld_type))) \
+	$($(target)_OBJS_)
 libs        :=\
 	$($(target)_LIBS.$(bld_trg_cpu))\
 	$($(target)_LIBS.$(bld_trg).$(bld_trg_arch))\
