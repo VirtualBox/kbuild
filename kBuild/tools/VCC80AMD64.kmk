@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 642 2006-12-01 20:04:27Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 649 2006-12-03 23:40:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14)
@@ -57,6 +57,7 @@ TOOL_VCC80AMD64_ASOBJSUFF          := .obj
 
 TOOL_VCC80AMD64_RC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/../rc.exe
 TOOL_VCC80AMD64_RCOBJSUFF          := .res
+TOOL_VCC80AMD64_RCINCS             := $(PATH_TOOL_VCC80AMD64)/include
 
 TOOL_VCC80AMD64_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80AMD64_BIN)/lib.exe /MACHINE:X64
 TOOL_VCC80AMD64_ARFLAGS            := -nologo
