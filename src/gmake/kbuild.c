@@ -1211,7 +1211,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
                                         "INCS", "incs", -1/* right-to-left */);
     pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
-                                        "FLAGS", "flags", -1/* right-to-left */);
+                                        "FLAGS", "flags", 1/* left-to-right */);
     pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
                                         "DEPS", "deps", 1/* left-to-right */);
 
