@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 642 2006-12-01 20:04:27Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 649 2006-12-03 23:40:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14)
@@ -53,6 +53,7 @@ TOOL_VCC80X86_ASOBJSUFF          := .obj
 
 TOOL_VCC80X86_RC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/rc.exe
 TOOL_VCC80X86_RCOBJSUFF          := .res
+TOOL_VCC80X86_RCINCS             := $(PATH_TOOL_VCC80X86)/include
 
 TOOL_VCC80X86_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/lib.exe
 TOOL_VCC80X86_ARFLAGS            := -nologo
