@@ -1,4 +1,4 @@
-# $Id: ALP.kmk 380 2005-12-18 13:52:47Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 650 2006-12-03 23:41:26Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
@@ -27,7 +27,7 @@
 
 TOOL_ALP                     := IBM Assembly Language Processor
 #ifndef PATH_TOOL_ALP
-#PATH_TOOL_ALP                := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/alp/v*.*))
+#PATH_TOOL_ALP                := $(sort $(wildcard $(PATH_DEV_BLD)/alp/v*.*))
 #ifneq ($(PATH_TOOL_ALP),)
 #PATH_TOOL_ALP                := $(call lastword,$(PATH_TOOL_ALP))
 #endif
