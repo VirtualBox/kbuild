@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 586 2006-11-24 05:15:50Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 648 2006-12-03 23:30:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kDepIDB - IDB based dependency generator.
@@ -35,6 +35,13 @@ endif
 kDep_SOURCES = $(PATH_CURRENT)/kDep.c
 kDep_NOINST = 1
 
+
+ifeq ($(filter-out win nt win32 win64,$(BUILD_TARGET)),)
+LIBRARIES += kWinStartup
+kWinStartup_TEMPLATE = LIB
+kWinStartup_SOURCES = $(PATH_CURRENT)/startuphacks-win.c
+kWinStartup_NOINST = 1
+endif
 
 include $(PATH_KBUILD)/footer.kmk
 
