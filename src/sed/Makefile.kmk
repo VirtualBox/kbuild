@@ -36,9 +36,9 @@ kmk_sed_SOURCES += \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/mkstemp.c \
-	lib/getline.c
+	lib/getline.c \
+	../lib/startuphacks-win.c
 endif
-
 
 include $(PATH_KBUILD)/footer.kmk
 			
