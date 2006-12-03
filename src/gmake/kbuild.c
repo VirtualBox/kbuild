@@ -805,6 +805,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     Prop.value = (char *)pszProp;
     Prop.value_length = strlen(pszProp);
 
+    assert(iDirection == 1 || iDirection == -1);
+
     /*
      * Get the variables.
      */
@@ -970,8 +972,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
      * Expand the variables and calculate the total length.
      */
     cchTotal = 0;
-    iVarEnd = iDirection > -1 ? cVars : 0;
-    for (iVar = iDirection > 0 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
+    iVarEnd = iDirection == 1 ? cVars : 0;
+    for (iVar = iDirection == 1 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
     {
         paVars[iVar].cchExp = 0;
         if (!paVars[iVar].pVar)
@@ -994,8 +996,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
      * Construct the result value.
      */
     psz = pszResult = xmalloc(cchTotal + 1);
-    iVarEnd = iDirection > -1 ? cVars : 0;
-    for (iVar = iDirection > 0 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
+    iVarEnd = iDirection == 1 ? cVars : 0;
+    for (iVar = iDirection == 1 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
     {
         if (!paVars[iVar].cchExp)
             continue;
@@ -1033,7 +1035,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
     if (!strcmp(argv[2], "left-to-right"))
         iDirection = 1;
     else if (!strcmp(argv[2], "right-to-left"))
-        iDirection = 1;
+        iDirection = -1;
     else
         fatal(NILF, _("incorrect direction argument `%s'!"), argv[2]);
 
@@ -1195,9 +1197,9 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     pDefs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
                                         "DEFS", "defs", 1/* left-to-right */);
     pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
-                                        "INCS", "incs", 1/* right-to-left */);
+                                        "INCS", "incs", -1/* right-to-left */);
     pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
-                                        "FLAGS", "flags", 1/* right-to-left */);
+                                        "FLAGS", "flags", -1/* right-to-left */);
     pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
                                         "DEPS", "deps", 1/* left-to-right */);
 
