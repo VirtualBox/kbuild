@@ -39,7 +39,8 @@ else # x-compile:
 # find the latest xgcc build.
 _TOOL_XGCCAMD64LINUX_PREFIX            := x86_64-unknown-linux-gnu-
 ifndef PATH_TOOL_XGCCAMD64LINUX
-PATH_TOOL_XGCCAMD64LINUX               := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/x86_64-unknown-linux-gnu/*))
+PATH_DEV_BLD                           ?= $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+PATH_TOOL_XGCCAMD64LINUX               := $(sort $(wildcard $(PATH_DEV_BLD)/x86_64-unknown-linux-gnu/*))
 ifeq ($(filter-out win64,$(BUILD_PLATFORM)),) # these can use the windows build.
 _TOOL_XGCCAMD64LINUX_EXEC_PREFIX       := $(EXEC_X86_WIN32)
 PATH_TOOL_XGCCAMD64LINUX               := $(sort $(wildcard $(PATH_DEV)/x86.win32/x86_64-unknown-linux-gnu/*))
