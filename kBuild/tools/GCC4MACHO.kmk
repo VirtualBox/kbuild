@@ -26,51 +26,51 @@
 
 TOOL_GCC4MACHO                    := Mach-O GCC v4
 
-TOOL_GCC4MACHO_CC                 := gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_COBJSUFF           := .o
-TOOL_GCC4MACHO_CFLAGS             := 
-TOOL_GCC4MACHO_CFLAGS.debug       := -g
-TOOL_GCC4MACHO_CFLAGS.profile     := -g -O2 #-pg
-TOOL_GCC4MACHO_CFLAGS.release     := -O2 
-TOOL_GCC4MACHO_CINCS              :=
-TOOL_GCC4MACHO_CDEFS              :=
+TOOL_GCC4MACHO_CC                 ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_COBJSUFF           ?= .o
+TOOL_GCC4MACHO_CFLAGS             ?= 
+TOOL_GCC4MACHO_CFLAGS.debug       ?= -g
+TOOL_GCC4MACHO_CFLAGS.profile     ?= -g -O2 #-pg
+TOOL_GCC4MACHO_CFLAGS.release     ?= -O2 
+TOOL_GCC4MACHO_CINCS              ?=
+TOOL_GCC4MACHO_CDEFS              ?=
 
-TOOL_GCC4MACHO_CXX                := g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_CXXOBJSUFF         := .o
-TOOL_GCC4MACHO_CXXOBJSUFF         := .o
-TOOL_GCC4MACHO_CXXFLAGS           := 
-TOOL_GCC4MACHO_CXXFLAGS.debug     := -g
-TOOL_GCC4MACHO_CXXFLAGS.profile   := -g -O2 #-pg
-TOOL_GCC4MACHO_CXXFLAGS.release   := -O2
-TOOL_GCC4MACHO_CXXINCS            :=
-TOOL_GCC4MACHO_CXXDEFS            :=
+TOOL_GCC4MACHO_CXX                ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_CXXOBJSUFF         ?= .o
+TOOL_GCC4MACHO_CXXOBJSUFF         ?= .o
+TOOL_GCC4MACHO_CXXFLAGS           ?= 
+TOOL_GCC4MACHO_CXXFLAGS.debug     ?= -g
+TOOL_GCC4MACHO_CXXFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GCC4MACHO_CXXFLAGS.release   ?= -O2
+TOOL_GCC4MACHO_CXXINCS            ?=
+TOOL_GCC4MACHO_CXXDEFS            ?=
 
-TOOL_GCC4MACHO_AS                 := gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_ASFLAGS            := -x assembler-with-cpp
-TOOL_GCC4MACHO_ASFLAGS.debug      := -g
-TOOL_GCC4MACHO_ASFLAGS.profile    := -g
-TOOL_GCC4MACHO_ASOBJSUFF          := .o
+TOOL_GCC4MACHO_AS                 ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_ASFLAGS            ?= -x assembler-with-cpp
+TOOL_GCC4MACHO_ASFLAGS.debug      ?= -g
+TOOL_GCC4MACHO_ASFLAGS.profile    ?= -g
+TOOL_GCC4MACHO_ASOBJSUFF          ?= .o
 
-TOOL_GCC4MACHO_AR                 := ar$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_ARFLAGS            := -c -rs
-TOOL_GCC4MACHO_ARLIBSUFF          := .a
+TOOL_GCC4MACHO_AR                 ?= ar$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_ARFLAGS            ?= -c -rs
+TOOL_GCC4MACHO_ARLIBSUFF          ?= .a
 
-TOOL_GCC4MACHO_AR_IMP             := $(ECHO) not supported!
+TOOL_GCC4MACHO_AR_IMP             ?= $(ECHO) not supported!
 
-TOOL_GCC4MACHO_LD                 := g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LD_SYSMOD          := g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LDFLAGS            :=
-TOOL_GCC4MACHO_LDFLAGS.debug      := -g
-TOOL_GCC4MACHO_LDFLAGS.profile    := -g
+TOOL_GCC4MACHO_LD                 ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LD_SYSMOD          ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LDFLAGS            ?=
+TOOL_GCC4MACHO_LDFLAGS.debug      ?= -g
+TOOL_GCC4MACHO_LDFLAGS.profile    ?= -g
 ifndef TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET)
-TOOL_GCC4MACHO_LDFLAGS.dll        := -dynamiclib
+TOOL_GCC4MACHO_LDFLAGS.dll        ?= -dynamiclib
 else
-TOOL_GCC4MACHO_LDFLAGS.dll        := $(TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET))
+TOOL_GCC4MACHO_LDFLAGS.dll        ?= $(TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET))
 endif
-TOOL_GCC4MACHO_LDFLAGS.sysmod     := -r
+TOOL_GCC4MACHO_LDFLAGS.sysmod     ?= -r
 #TOOL_GCC4MACHO_LD_SONAME           = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
-TOOL_GCC4MACHO_LD_MAP              =
-TOOL_GCC4MACHO_LD_SYSMOD_MAP       =
+TOOL_GCC4MACHO_LD_MAP             ?=
+TOOL_GCC4MACHO_LD_SYSMOD_MAP      ?=
 
 ifdef SLKRUNS
 TOOL_GCC4MACHO_CC  += -fmessage-length=0

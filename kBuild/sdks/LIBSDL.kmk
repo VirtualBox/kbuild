@@ -39,48 +39,48 @@ PATH_SDK_LIBSDL     := $(sort $(wildcard $(PATH_DEV)/$(BUILD_TARGET_ARCH).$(BUIL
 endif
 
 ifeq ($(BUILD_TARGET),os2)
- SDK_LIBSDL_INCS    := \
+ SDK_LIBSDL_INCS     ?= \
  	$(PATH_SDK_LIBSDL)/SDL/include \
  	$(PATH_SDK_LIBSDL)/SDLGfx \
  	$(PATH_SDK_LIBSDL)/SDLImage \
  	$(PATH_SDK_LIBSDL)/SDLMixer \
  	$(PATH_SDK_LIBSDL)/SDLNet \
  	$(PATH_SDK_LIBSDL)/SDLTTF
- SDK_LIBSDL_LIBS     := \
+ SDK_LIBSDL_LIBS     ?= \
  	$(PATH_SDK_LIBSDL)/SDL/SDL12.lib \
  	$(PATH_SDK_LIBSDL)/SDLGfx/SDLGFX.lib \
  	$(PATH_SDK_LIBSDL)/SDLImage/SDLIMAGE.lib \
  	$(PATH_SDK_LIBSDL)/SDLMixer/SDLMIXER.lib \
  	$(PATH_SDK_LIBSDL)/SDLNet/SDLNET.lib \
  	$(PATH_SDK_LIBSDL)/SDLTTF/SDLTTF.lib
- SDK_LIBSDL_LIBPATHS := \
+ SDK_LIBSDL_LIBPATHS ?= \
  	$(PATH_SDK_LIBSDL)/SDL \
  	$(PATH_SDK_LIBSDL)/SDLGfx \
  	$(PATH_SDK_LIBSDL)/SDLImage \
  	$(PATH_SDK_LIBSDL)/SDLMixer \
  	$(PATH_SDK_LIBSDL)/SDLNet \
  	$(PATH_SDK_LIBSDL)/SDLTTF
- SDK_LIBSDL_LIBMAIN = 
+ SDK_LIBSDL_LIBMAIN  ?= 
 else
  ifneq ($(filter nt win win32 win64,$(BUILD_TARGET)),)
   # only vc++, not mingw/cygwin.
-  SDK_LIBSDL_INCS    := \
+  SDK_LIBSDL_INCS    ?= \
 	$(PATH_SDK_LIBSDL)/include/SDL \
 	$(PATH_SDK_LIBSDL)/include
-  SDK_LIBSDL_LIBS     := \
+  SDK_LIBSDL_LIBS    ?= \
  	$(PATH_SDK_LIBSDL)/lib/SDL.lib
-  SDK_LIBSDL_LIBPATHS := \
+  SDK_LIBSDL_LIBPATHS?= \
  	$(PATH_SDK_LIBSDL)/lib
-  SDK_LIBSDL_LIBMAIN = \
+  SDK_LIBSDL_LIBMAIN ?= \
 	$(PATH_SDK_LIBSDL)/lib/SDLmain.lib
  else
-  SDK_LIBSDL_INCS    := \
+  SDK_LIBSDL_INCS    ?= \
 	$(PATH_SDK_LIBSDL)/include/SDL \
 	$(PATH_SDK_LIBSDL)/include
-  SDK_LIBSDL_LIBS     := sdl sdlgfx sdlimage sdlmixer sdlnet sdlttf
-  SDK_LIBSDL_LIBPATHS := \
+  SDK_LIBSDL_LIBS    ?= sdl sdlgfx sdlimage sdlmixer sdlnet sdlttf
+  SDK_LIBSDL_LIBPATHS?= \
  	$(PATH_SDK_LIBSDL)/lib
-  SDK_LIBSDL_LIBMAIN = sdlmain
+  SDK_LIBSDL_LIBMAIN ?= sdlmain
  endif
 endif
 
