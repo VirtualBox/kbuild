@@ -1,4 +1,4 @@
-# $Id: header.kmk 641 2006-12-01 18:32:45Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 653 2006-12-04 00:30:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -266,8 +266,8 @@ ifndef PATH_KBUILD_BIN
    PATH_KBUILD_BIN  := $(PATH_KBUILD)/bin/x86.$(BUILD_PLATFORM)
   endif
   ifeq ($(wildcard $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)),)
-   ifeq ($(filter-out win64 win nt ,$(BUILD_PLATFORM)),)
-    PATH_KBUILD_BIN := $(PATH_KBUILD)/bin/x86.win32
+   ifeq ($(filter-out win64 win32 win nt ,$(BUILD_PLATFORM)),)
+    PATH_KBUILD_BIN := $(PATH_KBUILD)/bin/x86.win
    endif
   endif
   ifeq ($(wildcard $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)),)

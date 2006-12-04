@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 557 2006-09-28 15:56:25Z knut.osmundsen@oracle.com $
+# $Id: env.sh 653 2006-12-04 00:30:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -105,6 +105,10 @@ if [ -z "$BUILD_PLATFORM" ]; then
             BUILD_PLATFORM=darwin
             ;;
 
+        WindowsNT|CYGWIN_NT-*)
+            BUILD_PLATFORM=win
+            ;;
+
         *)
             echo "$0: unknown os $BUILD_PLATFORM"
             sleep 1
@@ -152,7 +156,7 @@ echo "dbg: BUILD_TARGET=$BUILD_TARGET"
 _SUFF_EXE=
 _PATH_SEP=":"
 case "$BUILD_PLATFORM" in
-    os2|win32|winnt|win2k|winxp)
+    os2|win|win32|win64|nt|winnt|win2k|winxp)
         _SUFF_EXE=".exe"
         _PATH_SEP=";"
         ;;
