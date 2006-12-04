@@ -1,3 +1,7 @@
+/*
+echo this is a rexx script!
+cancel & quit & exit
+*/
 /* $Id: $ */
 /** @file
  *
