@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 657 2006-12-04 16:32:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.
@@ -29,31 +29,33 @@ TOOL_MINGW32                 := MinGW32 GCC v3.3+
 # find latest installed version
 ifndef PATH_TOOL_MINGW32
  PATH_DEV_BLD                ?= $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
- PATH_TOOL_MINGW32           := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/mingw32/v*.*))
+ PATH_TOOL_MINGW32           := $(sort $(wildcard $(PATH_DEV_BLD)/mingw32/v*.*))
  ifeq ($(PATH_TOOL_MINGW32),)
   PATH_TOOL_MINGW32          := $(sort $(wildcard $(PATH_DEV)/x86.win32/mingw32/v*.*))
  endif
  ifneq ($(PATH_TOOL_MINGW32),)
   PATH_TOOL_MINGW32          := $(call lastword,$(PATH_TOOL_MINGW32))
  endif
+$(warning PATH_TOOL_MINGW32:=$(PATH_TOOL_MINGW32))
 endif
 
 # figure out if it's native or needs a win32 launcher
-_TOOL_MINGW32_PREFIX            ?=
 ifneq ($(PATH_TOOL_MINGW32),)
 _TOOL_MINGW32_PREFIX            ?= $(PATH_TOOL_MINGW32)/bin/
+else
+_TOOL_MINGW32_PREFIX            ?=
 endif
 _TOOL_MINGW32_SUFF_EXE          ?= $(HOSTSUFF_EXE)
-ifneq ($(BUILD_PLATFORM),win32)
-# we're cross compiling either using wine/odin or a cross compiler.
-ifneq ($(PATH_TOOL_MINGW32),$(subst x86.win32,,$(PATH_TOOL_MINGW32)))
-_TOOL_MINGW32_PREFIX            ?= $(EXEC_X86_WIN32) $(_TOOL_MINGW32_PREFIX)
-_TOOL_MINGW32_SUFF_EXE          ?= .exe
-else
-_TOOL_MINGW32_PREFIX            ?= $(_TOOL_MINGW32_PREFIX)i386-mingw32msvc-
-_TOOL_MINGW32_SUFF_EXE          ?=
-_TOOL_MINGW32_XCOMPILE          ?= 1
-endif
+ifneq ($(BUILD_PLATFORM),win)
+ # we're cross compiling either using wine/odin or a cross compiler.
+ ifneq ($(PATH_TOOL_MINGW32),$(subst x86.win32,,$(PATH_TOOL_MINGW32)))
+  _TOOL_MINGW32_PREFIX          := $(EXEC_X86_WIN32) $(_TOOL_MINGW32_PREFIX)
+  _TOOL_MINGW32_SUFF_EXE        ?= .exe
+ else
+  _TOOL_MINGW32_PREFIX          := $(_TOOL_MINGW32_PREFIX)i386-mingw32msvc-
+  _TOOL_MINGW32_SUFF_EXE        ?=
+  _TOOL_MINGW32_XCOMPILE        ?= 1
+ endif
 endif
 
 TOOL_MINGW32_CC                 ?= $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
