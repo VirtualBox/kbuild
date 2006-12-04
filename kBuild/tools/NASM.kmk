@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 650 2006-12-03 23:41:26Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - NASM	0.98 or later.
@@ -27,19 +27,19 @@
 
 TOOL_NASM                     := Netwide Assembler 0.98+
 ifndef PATH_TOOL_NASM
-PATH_DEV_BLD                  ?= $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
-PATH_TOOL_NASM                := $(sort $(wildcard $(PATH_DEV_BLD)/nasm/v*.*))
-ifneq ($(PATH_TOOL_NASM),)
-PATH_TOOL_NASM                := $(call lastword,$(PATH_TOOL_NASM))
-endif
+ PATH_DEV_BLD                 ?= $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
+ PATH_TOOL_NASM               := $(sort $(wildcard $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)/nasm/v*.*))
+ ifneq ($(PATH_TOOL_NASM),)
+  PATH_TOOL_NASM              := $(call lastword,$(PATH_TOOL_NASM))
+ endif
 endif
 
 ifneq ($(PATH_TOOL_NASM),)
-TOOL_NASM_AS                  := $(PATH_TOOL_NASM)/nasm$(HOSTSUFF_EXE)
+ TOOL_NASM_AS                 ?= $(PATH_TOOL_NASM)/nasm$(HOSTSUFF_EXE)
 else
-TOOL_NASM_AS                  := nasm$(HOSTSUFF_EXE)
+ TOOL_NASM_AS                 ?= nasm$(HOSTSUFF_EXE)
 endif
-TOOL_NASM_ASFLAGS             :=
+TOOL_NASM_ASFLAGS             ?=
 
 
 ## Compile Assembly source.

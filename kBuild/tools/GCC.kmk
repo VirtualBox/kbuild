@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 584 2006-11-24 05:10:00Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC.
@@ -27,44 +27,44 @@
 
 TOOL_GCC                    := Generic GCC
 
-TOOL_GCC_CC                 := gcc$(HOSTSUFF_EXE)
-TOOL_GCC_COBJSUFF           := .o
-TOOL_GCC_CFLAGS             := 
-TOOL_GCC_CFLAGS.debug       := -g
-TOOL_GCC_CFLAGS.profile     := -g -O2 #-pg
-TOOL_GCC_CFLAGS.release     := -O2
-TOOL_GCC_CINCS              :=
-TOOL_GCC_CDEFS              :=
+TOOL_GCC_CC                 ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC_COBJSUFF           ?= .o
+TOOL_GCC_CFLAGS             ?= 
+TOOL_GCC_CFLAGS.debug       ?= -g
+TOOL_GCC_CFLAGS.profile     ?= -g -O2 #-pg
+TOOL_GCC_CFLAGS.release     ?= -O2
+TOOL_GCC_CINCS              ?=
+TOOL_GCC_CDEFS              ?=
 
-TOOL_GCC_CXX                := g++$(HOSTSUFF_EXE)
-TOOL_GCC_CXXOBJSUFF         := .o
-TOOL_GCC_CXXOBJSUFF         := .o
-TOOL_GCC_CXXFLAGS           := 
-TOOL_GCC_CXXFLAGS.debug     := -g -O0
-TOOL_GCC_CXXFLAGS.profile   := -g -O2 #-pg
-TOOL_GCC_CXXFLAGS.release   := -O2
-TOOL_GCC_CXXINCS            :=
-TOOL_GCC_CXXDEFS            :=
+TOOL_GCC_CXX                ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC_CXXOBJSUFF         ?= .o
+TOOL_GCC_CXXOBJSUFF         ?= .o
+TOOL_GCC_CXXFLAGS           ?= 
+TOOL_GCC_CXXFLAGS.debug     ?= -g -O0
+TOOL_GCC_CXXFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GCC_CXXFLAGS.release   ?= -O2
+TOOL_GCC_CXXINCS            ?=
+TOOL_GCC_CXXDEFS            ?=
 
-TOOL_GCC_AS                 := gcc$(HOSTSUFF_EXE)
-TOOL_GCC_ASFLAGS            := -x assembler-with-cpp
-TOOL_GCC_ASFLAGS.debug      := -g
-TOOL_GCC_ASFLAGS.profile    := -g
-TOOL_GCC_ASOBJSUFF          := .o
+TOOL_GCC_AS                 ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC_ASFLAGS            ?= -x assembler-with-cpp
+TOOL_GCC_ASFLAGS.debug      ?= -g
+TOOL_GCC_ASFLAGS.profile    ?= -g
+TOOL_GCC_ASOBJSUFF          ?= .o
 
-TOOL_GCC_AR                 := ar$(HOSTSUFF_EXE)
-TOOL_GCC_ARFLAGS            := cr
-TOOL_GCC_ARLIBSUFF          := .a
+TOOL_GCC_AR                 ?= ar$(HOSTSUFF_EXE)
+TOOL_GCC_ARFLAGS            ?= cr
+TOOL_GCC_ARLIBSUFF          ?= .a
 
-TOOL_GCC_LD                 := g++$(HOSTSUFF_EXE)
-TOOL_GCC_LDFLAGS            :=
-TOOL_GCC_LDFLAGS.debug      := -g
-TOOL_GCC_LDFLAGS.profile    := -g
-TOOL_GCC_LDFLAGS.dll.os2    := -Zdll
+TOOL_GCC_LD                 ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC_LDFLAGS            ?=
+TOOL_GCC_LDFLAGS.debug      ?= -g
+TOOL_GCC_LDFLAGS.profile    ?= -g
+TOOL_GCC_LDFLAGS.dll.os2    ?= -Zdll
 ifndef TOOL_GCC_LDFLAGS.$(BUILD_TARGET)
-TOOL_GCC_LDFLAGS.dll        := -shared
+TOOL_GCC_LDFLAGS.dll        ?= -shared
 else
-TOOL_GCC_LDFLAGS.dll        := $(TOOL_GCC_LDFLAGS.$(BUILD_TARGET))
+TOOL_GCC_LDFLAGS.dll        ?= $(TOOL_GCC_LDFLAGS.$(BUILD_TARGET))
 endif
 
 

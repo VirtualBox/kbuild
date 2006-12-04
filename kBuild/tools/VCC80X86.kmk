@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 649 2006-12-03 23:40:58Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14)
@@ -27,52 +27,56 @@
 
 TOOL_VCC80X86                    := Visual C++ 8.0 x86
 PATH_TOOL_VCC80X86               ?= $(PATH_DEV)/x86.win32/vcc/v8
-PATH_TOOL_VCC80X86_LIB           ?= $(PATH_TOOL_VCC80X86)/lib
 PATH_TOOL_VCC80X86_BIN           ?= $(PATH_TOOL_VCC80X86)/bin
+PATH_TOOL_VCC80X86_LIB           ?= $(PATH_TOOL_VCC80X86)/lib
+PATH_TOOL_VCC80X86_INC           ?= $(PATH_TOOL_VCC80X86)/include
+PATH_TOOL_VCC80X86_ATLMFC        ?= $(PATH_TOOL_VCC80X86)/atlmfc
+PATH_TOOL_VCC80X86_ATLMFC_INC    ?= $(PATH_TOOL_VCC80X86_ATLMFC)/include
+PATH_TOOL_VCC80X86_ATLMFC_LIB    ?= $(PATH_TOOL_VCC80X86_ATLMFC)/lib
 
-TOOL_VCC80X86_CC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
-TOOL_VCC80X86_COBJSUFF           := .obj
-TOOL_VCC80X86_CFLAGS             := -TC -c -nologo
-TOOL_VCC80X86_CFLAGS.debug       := -Zi
-TOOL_VCC80X86_CFLAGS.release     := -O2
-TOOL_VCC80X86_CFLAGS.profile     := -O2
-TOOL_VCC80X86_CINCS              := $(PATH_TOOL_VCC80X86)/include
-TOOL_VCC80X86_CDEFS              :=
+TOOL_VCC80X86_CC                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
+TOOL_VCC80X86_COBJSUFF           ?= .obj
+TOOL_VCC80X86_CFLAGS             ?= -TC -c -nologo
+TOOL_VCC80X86_CFLAGS.debug       ?= -Zi
+TOOL_VCC80X86_CFLAGS.release     ?= -O2
+TOOL_VCC80X86_CFLAGS.profile     ?= -O2
+TOOL_VCC80X86_CINCS              ?= $(PATH_TOOL_VCC80X86_INC)
+TOOL_VCC80X86_CDEFS              ?=
 
-TOOL_VCC80X86_CXX                := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
-TOOL_VCC80X86_CXXOBJSUFF         := .obj
-TOOL_VCC80X86_CXXFLAGS           := -TP -c -nologo
-TOOL_VCC80X86_CXXFLAGS.debug     := -Zi
-TOOL_VCC80X86_CXXFLAGS.release   := -O2
-TOOL_VCC80X86_CXXFLAGS.profile   := -O2
-TOOL_VCC80X86_CXXINCS            := $(PATH_TOOL_VCC80X86)/include
-TOOL_VCC80X86_CXXDEFS            :=
+TOOL_VCC80X86_CXX                ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
+TOOL_VCC80X86_CXXOBJSUFF         ?= .obj
+TOOL_VCC80X86_CXXFLAGS           ?= -TP -c -nologo
+TOOL_VCC80X86_CXXFLAGS.debug     ?= -Zi
+TOOL_VCC80X86_CXXFLAGS.release   ?= -O2
+TOOL_VCC80X86_CXXFLAGS.profile   ?= -O2
+TOOL_VCC80X86_CXXINCS            ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
+TOOL_VCC80X86_CXXDEFS            ?=
 
-TOOL_VCC80X86_AS                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/ml.exe
-TOOL_VCC80X86_ASOBJSUFF          := .obj
+TOOL_VCC80X86_AS                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/ml.exe
+TOOL_VCC80X86_ASOBJSUFF          ?= .obj
 
-TOOL_VCC80X86_RC                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/rc.exe
-TOOL_VCC80X86_RCOBJSUFF          := .res
-TOOL_VCC80X86_RCINCS             := $(PATH_TOOL_VCC80X86)/include
+TOOL_VCC80X86_RC                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/rc.exe
+TOOL_VCC80X86_RCOBJSUFF          ?= .res
+TOOL_VCC80X86_RCINCS             ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
 
-TOOL_VCC80X86_AR                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/lib.exe
-TOOL_VCC80X86_ARFLAGS            := -nologo
-TOOL_VCC80X86_ARLIBSUFF          := .lib
+TOOL_VCC80X86_AR                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/lib.exe
+TOOL_VCC80X86_ARFLAGS            ?= -nologo
+TOOL_VCC80X86_ARLIBSUFF          ?= .lib
 
-TOOL_VCC80X86_LD                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/link.exe
-TOOL_VCC80X86_LDFLAGS            := -nologo -machine:x86
-TOOL_VCC80X86_LDFLAGS.debug      := -debug
-TOOL_VCC80X86_LDFLAGS.release    :=
+TOOL_VCC80X86_LD                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/link.exe
+TOOL_VCC80X86_LDFLAGS            ?= -nologo -machine:x86
+TOOL_VCC80X86_LDFLAGS.debug      ?= -debug
+TOOL_VCC80X86_LDFLAGS.release    ?=
 
-TOOL_VCC80X86_MT                 := $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/mt.exe
+TOOL_VCC80X86_MT                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/mt.exe
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
 # @param    $(2)        The extension.
 ifeq ($(filter tolower,$(KMK_FEATURES)),tolower)
-TOOL_VCC80X86_PDB                = $(dir $(1))$(tolower $(notdir $(1))).$(2)
+TOOL_VCC80X86_PDB                ?= $(dir $(1))$(tolower $(notdir $(1))).$(2)
 else # this fallback is incorrect and won't work on a case sensitive FS.
-TOOL_VCC80X86_PDB                = $(1).$(2)
+TOOL_VCC80X86_PDB                ?= $(1).$(2)
 endif
 
 

@@ -27,23 +27,23 @@
 
 SDK_WIN64SDK          := Win64 Platform SDK
 ifndef PATH_SDK_WIN64SDK
-PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/amd64.win64/sdk/2*))
-ifeq ($(PATH_SDK_WIN64SDK),)
-PATH_SDK_WIN64SDK     := $(sort $(wildcard $(PATH_DEV)/x86.win32/sdk/2*))
+ PATH_SDK_WIN64SDK    := $(sort $(wildcard $(PATH_DEV)/amd64.win64/sdk/2*))
+ ifeq ($(PATH_SDK_WIN64SDK),)
+  PATH_SDK_WIN64SDK   := $(sort $(wildcard $(PATH_DEV)/x86.win32/sdk/2*))
+ endif
+ ifneq ($(PATH_SDK_WIN64SDK),)
+  PATH_SDK_WIN64SDK   := $(call lastword,$(PATH_SDK_WIN64SDK))
+ else
+  $(warning kBuild: PATH_SDK_WIN64SDK couldn't be determined!)
+  PATH_SDK_WIN64SDK   := $(PATH_DEV)/amd64.win64/sdk/not/found
+ endif
 endif
-ifneq ($(PATH_SDK_WIN64SDK),)
-PATH_SDK_WIN64SDK     := $(call lastword,$(PATH_SDK_WIN64SDK))
-else
-$(warning kBuild: PATH_SDK_WIN64SDK couldn't be determined!)
-PATH_SDK_WIN64SDK     := $(PATH_DEV)/amd64.win64/sdk/not/found
-endif
-endif
-PATH_SDK_WIN64SDK_INC := $(PATH_SDK_WIN64SDK)/include
-PATH_SDK_WIN64SDK_LIB := $(PATH_SDK_WIN64SDK)/lib/AMD64
+PATH_SDK_WIN64SDK_INC ?= $(PATH_SDK_WIN64SDK)/include
+PATH_SDK_WIN64SDK_LIB ?= $(PATH_SDK_WIN64SDK)/lib/AMD64
 
-SDK_WIN64SDK_INCS     := $(PATH_SDK_WIN64SDK_INC)
-SDK_WIN64SDK_LIBPATH  := $(PATH_SDK_WIN64SDK_LIB)
-SDK_WIN64SDK_LIBS     := \
+SDK_WIN64SDK_INCS     ?= $(PATH_SDK_WIN64SDK_INC)
+SDK_WIN64SDK_LIBPATH  ?= $(PATH_SDK_WIN64SDK_LIB)
+SDK_WIN64SDK_LIBS     ?= \
 	$(PATH_SDK_WIN64SDK_LIB)/Kernel32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/User32.Lib \
 	$(PATH_SDK_WIN64SDK_LIB)/Gdi32.Lib \
