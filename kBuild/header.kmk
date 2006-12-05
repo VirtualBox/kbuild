@@ -1,4 +1,4 @@
-# $Id: header.kmk 653 2006-12-04 00:30:15Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 660 2006-12-05 14:36:19Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -523,17 +523,29 @@ PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG
 # and thus should not be expanded until the very last moment.
 PROPS_DEFERRED := INSTFUN INSTALLER
 
-## PROPS_ACCUMULATE
-# The list of accumulative target properties.
+## PROPS_ACCUMULATE_R
+# The list of accumulative target properties where the right most value/flag 
+# is the 'most significant'.
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
-PROPS_ACCUMULATE := \
-	SDKS DEFS DEPS INCS SOURCES \
-	COPTS CFLAGS CDEFS CINCS CXXOPTS CXXFLAGS CXXDEFS CXXINCS \
-	ASOPTS ASFLAGS ASDEFS ASINCS \
-	RCOPTS RCFLAGS RCDEFS RCINCS \
-	LDFLAGS LIBS LIBPATH \
+PROPS_ACCUMULATE_R := \
+	DEFS DEPS \
+	CFLAGS CDEFS \
+	CXXFLAGS CXXDEFS \
+	ASFLAGS ASDEFS \
+	RCFLAGS RCDEFS \
+	LDFLAGS \
 	FETCHFLAGS UNPACKFLAGS PATCHFLAGS
+
+## PROPS_ACCUMULATE
+# The list of accumulative target properties where the left most value/flag 
+# is the 'most significant'.
+# A Config.kmk file can add it's own properties to this list and kBuild
+# will do the necessary inheritance from templates to targets.
+PROPS_ACCUMULATE_L := \
+	SDKS SOURCES \
+	INCS CINCS CXXINCX ASINCS RCINCS \
+	LIBS LIBPATH
 
 
 #

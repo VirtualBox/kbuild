@@ -1,4 +1,4 @@
-# $Id: footer.kmk 659 2006-12-05 13:01:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 660 2006-12-05 14:36:19Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -270,12 +270,12 @@ ifdef TEMPLATE_$(template)_EXTENDS
   endif
 
   # inherit properties.
-  $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED)\
-    $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE) $(PROPS_DEFERRED))\
+  $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE_R) $(PROPS_ACCUMULATE_L) $(PROPS_DEFERRED)\
+    $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
+    $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
     ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
 
   TEMPLATE_$(template)_EXTENDS_STATUS_ := 42
@@ -371,10 +371,10 @@ endif
 endif
 endef
 
-## Inherit one template property.
+## Inherit one acculumlative template property where the 'most significant' items are at the left end.
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
-define def_inherit_template_one_accumulate
+define def_inherit_template_one_accumulate_l
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 #$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 $(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
@@ -402,6 +402,57 @@ $(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$
 endif
 endef
 
+## Inherit one acculumlative template property where the 'most significant' items are at the right end.
+# First pass, $(value) referenced.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+define def_inherit_template_one_accumulate_r1
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+_$(target)_$(prop)_R := $(value $(target)_$(prop))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
+_$(target)_$(prop).$(BUILD_TYPE)_R := $(value $(target)_$(prop).$(BUILD_TYPE))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+_$(target)_$(prop).$(bld_trg)_R := $(value $(target)_$(prop).$(bld_trg))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+_$(target)_$(prop).$(bld_trg).$(bld_trg_arch)_R := $(value $(target)_$(prop).$(bld_trg).$(bld_trg_arch))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+_$(target)_$(prop).$(bld_trg_cpu)_R := $(value $(target)_$(prop).$(bld_trg_cpu))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+_$(target)_$(prop).$(bld_trg_arch)_R := $(value $(target)_$(prop).$(bld_trg_arch))
+endif
+endef
+
+## Inherit one template property the other way around.
+# Second pass, not $(value) referenced.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+define def_inherit_template_one_accumulate_r2
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+$(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop)) $$(_$(target)_$(prop)_R)
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
+$(target)_$(prop).$(BUILD_TYPE) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)) $$(_$(target)_$(prop).$(BUILD_TYPE)_R)
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+$(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)) $$(_$(target)_$(prop).$(bld_trg)_R)
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)) $$(_$(target)_$(prop).$(bld_trg).$(bld_trg_arch)_R)
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+$(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)) $$(_$(target)_$(prop).$(bld_trg_cpu)_R)
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)) $$(_$(target)_$(prop).$(bld_trg_arch)_R)
+endif
+endef
+
+
 ## Inherit template properties for on target.
 # @param    $(target)    Target name.
 define def_inherit_template
@@ -415,7 +466,11 @@ endif
 ifneq ($($(target)_TEMPLATE),)
 $(foreach prop,$(PROPS_SINGLE),$(eval $(value def_inherit_template_one)))
 $(foreach prop,$(PROPS_DEFERRED),$(eval $(def_inherit_template_one_deferred))) # exploits the 2 evaluation, so no value!
-$(foreach prop,$(PROPS_ACCUMULATE),$(eval $(def_inherit_template_one_accumulate))) # += works fine (better) without value.
+$(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulate_l))) # += works fine (better) without value.
+$(foreach prop,$(PROPS_ACCUMULATE_R),\
+$(eval $(value def_inherit_template_one_accumulate_r1))\
+$(eval $(def_inherit_template_one_accumulate_r2))\
+) # This is a hack! (but it appears to work)
 endif
 endef
 
@@ -2349,7 +2404,7 @@ show_targets:
 	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
 	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
-$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE) OBJS_ CLEAN, \
+$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) OBJS_ CLEAN, \
 	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
 	$(if $($(target)_$(prop).$(_tmp)),\
 		@$(ECHO) "  $(target)_$(prop).$(_tmp)=$($(target)_$(prop).$(_tmp))" $(NLTAB)) \
