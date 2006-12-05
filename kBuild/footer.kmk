@@ -1,4 +1,4 @@
-# $Id: footer.kmk 643 2006-12-01 20:25:28Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 659 2006-12-05 13:01:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -377,28 +377,28 @@ endef
 define def_inherit_template_one_accumulate
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 #$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
-$(target)_$(prop) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+$(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 #$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
 #$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
-$(target)_$(prop).$(BUILD_TYPE) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+$(target)_$(prop).$(BUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
-$(target)_$(prop).$(bld_trg) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+$(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
 #$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
 #$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
-$(target)_$(prop).$(bld_trg_cpu) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+$(target)_$(prop).$(bld_trg_cpu) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
 #$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
-$(target)_$(prop).$(bld_trg_arch) += $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
 
