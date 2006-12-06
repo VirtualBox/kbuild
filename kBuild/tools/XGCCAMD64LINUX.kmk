@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 380 2005-12-18 13:52:47Z bird $
+# $Id: XGCCAMD64LINUX.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC Cross compiler for AMD64 (aka x86_64).

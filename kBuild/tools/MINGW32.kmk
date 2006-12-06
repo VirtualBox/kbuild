@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 658 2006-12-04 16:34:05Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MINGW32 GCC.

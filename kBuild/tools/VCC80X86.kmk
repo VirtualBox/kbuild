@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14)

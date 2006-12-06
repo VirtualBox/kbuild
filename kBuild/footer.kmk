@@ -1,4 +1,4 @@
-# $Id: footer.kmk 661 2006-12-05 16:00:18Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.

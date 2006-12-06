@@ -1,4 +1,4 @@
-# $Id: $
+# $Id: subheader.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
