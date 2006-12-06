@@ -1,7 +1,7 @@
-# $Id: NT4DDK.kmk 78 2004-06-01 01:07:24Z bird $
+# $Id: W2K3DDKX86.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild SDK - Windows 2003 DDK, X86.
+# kBuild SDK - The Microsoft Windows 2003 DDK, targeting X86.
 #
 # Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
@@ -24,26 +24,37 @@
 #
 #
 
+SDK_W2K3DDKX86 := The Microsoft Windows 2003 DDK, targeting X86.
 
-SDK_W2K3DDKX86          := MicroSoft Windows 2003 DDK, X86
+# SDK Specific Properties
 ifndef PATH_SDK_W2K3DDKX86
- PATH_SDK_W2K3DDKX86    := $(sort $(wildcard $(PATH_DEV)/x86.win32/ddkwin2k3/2*))
- ifneq ($(PATH_SDK_W2K3DDKX86),)
-  PATH_SDK_W2K3DDKX86   := $(call lastword,$(PATH_SDK_W2K3DDKX86))
- else
-  PATH_SDK_W2K3DDKX86   := $(PATH_DEV)/x86.win32/ddkwin2k3
+ PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/ddkwin2k3/2*))
+ ifeq ($(PATH_SDK_W2K3DDKX86),)
+  PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3/2*))
  endif
+ ifeq ($(PATH_SDK_W2K3DDKX86),)
+  PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/ddkwin2k3/2*))
+ endif
+ ifneq ($(PATH_SDK_W2K3DDKX86),)
+  PATH_SDK_W2K3DDKX86 := $(call lastword,$(PATH_SDK_W2K3DDKX86))
+ else
+  $(warning kBuild: PATH_SDK_W2K3DDKX86 couldn't be determined!)
+  PATH_SDK_W2K3DDKX86 := $(PATH_DEVTOOL)/x86.win/ddkwin2k3/not/found
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_SDK_W2K3DDKX86 := $(PATH_SDK_W2K3DDKX86)
 endif
 PATH_SDK_W2K3DDKX86_INC ?= $(PATH_SDK_W2K3DDKX86)/inc
 PATH_SDK_W2K3DDKX86_LIB ?= $(PATH_SDK_W2K3DDKX86)/lib/wnet/i386
 
-SDK_W2K3DDKX86_DEFS     ?= _X86_
-SDK_W2K3DDKX86_INCS     ?= \
+# General Properties used by kBuild
+SDK_W2K3DDKX86_DEFS ?= _X86_
+SDK_W2K3DDKX86_INCS ?= \
 	$(PATH_SDK_W2K3DDKX86_INC)/ddk \
 	$(PATH_SDK_W2K3DDKX86_INC)/ddk/wnet \
 	$(PATH_SDK_W2K3DDKX86_INC)/wnet \
 	$(PATH_SDK_W2K3DDKX86_INC)/ddk/wdm/wnet
-#	$(PATH_SDK_W2K3DDKX86_INC)/crt
-
-SDK_W2K3DDKX86_LIBPATHS	?= $(PATH_SDK_W2K3DDKX86_LIB)
+SDK_W2K3DDKX86_LIBPATHS	?= \
+	$(PATH_SDK_W2K3DDKX86_LIB)
 
