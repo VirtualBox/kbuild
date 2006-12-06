@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 655 2006-12-04 15:34:29Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - OS/2 GCC v3 OMF.
