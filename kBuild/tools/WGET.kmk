@@ -1,4 +1,4 @@
-# $Id: WGET.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: WGET.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - wget fetchers.
@@ -26,7 +26,18 @@
 
 TOOL_WGET := wget fetcher.
 
-TOOL_WGET_FETCH ?= wget$(HOSTSUFF_EXE)
+# Tool Specific Properties
+ifndef TOOL_WGET_FETCH
+ TOOL_WGET_FETCH := $(wildcard $(PATH_DEVTOOLS_BLD)/bin/wget$(HOSTSUFF_EXE))
+ ifeq ($(TOOL_WGET_FETCH),)
+  TOOL_WGET_FETCH := wget$(HOSTSUFF_EXE)
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ TOOL_WGET_FETCH := $(TOOL_WGET_FETCH)
+endif
+
+# General Properties used by kBuild
 TOOL_WGET_FETCHFLAGS ?= --passive-ftp -t 5 -T 60
 
 ## Fetch one file.

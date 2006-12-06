@@ -1,9 +1,9 @@
-# $Id: ALP.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
 #
-# Copyright (c) 2005 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2005-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -24,21 +24,23 @@
 #
 #
 
+TOOL_ALP := The IBM Assembly Language Processor
 
-TOOL_ALP                     := IBM Assembly Language Processor
-#ifndef PATH_TOOL_ALP
-#PATH_TOOL_ALP                := $(sort $(wildcard $(PATH_DEV_BLD)/alp/v*.*))
-#ifneq ($(PATH_TOOL_ALP),)
-#PATH_TOOL_ALP                := $(call lastword,$(PATH_TOOL_ALP))
-#endif
-#endif
-
-ifneq ($(PATH_TOOL_ALP),)
-TOOL_ALP_AS                  ?= $(PATH_TOOL_ALP)/alp$(HOSTSUFF_EXE)
-else
-TOOL_ALP_AS                  ?= alp$(HOSTSUFF_EXE)
+# Tool Specific Properties
+ifndef PATH_TOOL_ALP
+ PATH_TOOL_ALP := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/alp/v*.*))
+ ifneq ($(PATH_TOOL_ALP),)
+  PATH_TOOL_ALP := $(call lastword,$(PATH_TOOL_ALP))
+ endif
 endif
-TOOL_ALP_ASFLAGS             ?= -Mb
+ifneq ($(PATH_TOOL_ALP),)
+ TOOL_ALP_AS ?= $(PATH_TOOL_ALP)/alp$(HOSTSUFF_EXE)
+else
+ TOOL_ALP_AS ?= alp$(HOSTSUFF_EXE)
+endif
+
+# General Properties used by kBuild
+TOOL_ALP_ASFLAGS ?= -Mb
 
 
 ## Compile Assembly source.
