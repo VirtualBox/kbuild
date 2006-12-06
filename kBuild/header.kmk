@@ -1,4 +1,4 @@
-# $Id: header.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 672 2006-12-06 05:22:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -224,6 +224,7 @@ else
   $(warning kBuild: Using vanilla GNU make isn't safe for anything but kBuild bootstrapping!)
  endif
 endif
+KMK_REVISION := $(patsubst %:,,  $Rev: 672 $  )
 
 
 #
