@@ -1,0 +1,69 @@
+# $Id: W2K3DDK.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild SDK - The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+SDK_W2K3DDKAMD64 := The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
+
+# SDK Specific Properties
+ifndef PATH_SDK_W2K3DDK
+ PATH_SDK_W2K3DDK := $(sort $(wildcard $(PATH_DEVTOOLS_TRG)/ddkwin2k3/2*))
+ ifeq ($(PATH_SDK_W2K3DDK),)
+  PATH_SDK_W2K3DDK := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/ddkwin2k3/2*))
+ endif
+ ifeq ($(PATH_SDK_W2K3DDK),)
+  PATH_SDK_W2K3DDK := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/ddkwin2k3/2*))
+ endif
+ ifeq ($(PATH_SDK_W2K3DDK),)
+  PATH_SDK_W2K3DDK := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/ddkwin2k3/2*))
+ endif
+ ifeq ($(PATH_SDK_W2K3DDK),)
+  PATH_SDK_W2K3DDK := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3/2*))
+ endif
+ ifneq ($(PATH_SDK_W2K3DDK),)
+  PATH_SDK_W2K3DDK := $(call lastword,$(PATH_SDK_W2K3DDK))
+ else
+  $(warning kBuild: PATH_SDK_W2K3DDK couldn't be determined!)
+  PATH_SDK_W2K3DDK := $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_SDK_W2K3DDK := $(PATH_SDK_W2K3DDK)
+endif
+PATH_SDK_W2K3DDK_INC ?= $(PATH_SDK_W2K3DDK)/inc
+PATH_SDK_W2K3DDK_LIB.amd64 ?= $(PATH_SDK_W2K3DDK)/lib/wnet/AMD64
+PATH_SDK_W2K3DDK_LIB.x86 ?= $(PATH_SDK_W2K3DDK)/lib/wnet/i386
+PATH_SDK_W2K3DDK_LIB ?= $(PATH_SDK_W2K3DDK.$(BUILD_TARGET_ARCH))
+
+# General Properties used by kBuild
+SDK_W2K3DDK_DEFS.amd64 ?= _AMD64_
+SDK_W2K3DDK_DEFS.x86 ?= _X86_
+SDK_W2K3DDK_INCS ?= \
+	$(PATH_SDK_W2K3DDK_INC)/ddk \
+	$(PATH_SDK_W2K3DDK_INC)/ddk/wnet \
+	$(PATH_SDK_W2K3DDK_INC)/wnet \
+	$(PATH_SDK_W2K3DDK_INC)/ddk/wdw/wnet
+SDK_W2K3DDK_LIBPATHS.amd64 ?= $(PATH_SDK_W2K3DDK_LIB.amd64)
+SDK_W2K3DDK_LIBPATHS.x86 ?= $(PATH_SDK_W2K3DDK_LIB.x86)
+
