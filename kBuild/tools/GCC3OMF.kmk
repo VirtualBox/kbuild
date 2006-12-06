@@ -1,9 +1,9 @@
-# $Id: GCC3OMF.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild Tool Config - OS/2 GCC v3 OMF.
+# kBuild Tool Config - GCC v3 targeting OS/2 OMF.
 #
-# Copyright (c) 2004-2005 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -24,56 +24,59 @@
 #
 #
 
-TOOL_GCC3OMF                    := OS/2 GCC v3 OMF
+TOOL_GCC3OMF := GCC v3 targeting OS/2 OMF.
 
-TOOL_GCC3OMF_CC                 ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_COBJSUFF           ?= .o
-TOOL_GCC3OMF_CFLAGS             ?= -Zomf
-TOOL_GCC3OMF_CFLAGS.debug       ?= -g
-TOOL_GCC3OMF_CFLAGS.profile     ?= -g -O2 #-pg
-TOOL_GCC3OMF_CFLAGS.release     ?= -O2
-TOOL_GCC3OMF_CINCS              ?=
-TOOL_GCC3OMF_CDEFS              ?=
-
-TOOL_GCC3OMF_CXX                ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_CXXOBJSUFF         ?= .o
-TOOL_GCC3OMF_CXXOBJSUFF         ?= .o
-TOOL_GCC3OMF_CXXFLAGS           ?= -Zomf
-TOOL_GCC3OMF_CXXFLAGS.debug     ?= -g
-TOOL_GCC3OMF_CXXFLAGS.profile   ?= -g -O2 #-pg
-TOOL_GCC3OMF_CXXFLAGS.release   ?= -O2
-TOOL_GCC3OMF_CXXINCS            ?=
-TOOL_GCC3OMF_CXXDEFS            ?=
-
-TOOL_GCC3OMF_AS                 ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_ASFLAGS            ?= -x assembler-with-cpp
-TOOL_GCC3OMF_ASFLAGS.debug      ?= -g
-TOOL_GCC3OMF_ASFLAGS.profile    ?= -g
-TOOL_GCC3OMF_ASOBJSUFF          ?= .obj
-
-TOOL_GCC3OMF_AR                 ?= emxomfar$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_ARFLAGS            ?= cr
-TOOL_GCC3OMF_ARLIBSUFF          ?= .lib
-TOOL_GCC3OMF_AR_IMP             ?= emximp$(HOSTSUFF_EXE)
-
-TOOL_GCC3OMF_LD                 ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_LD_SYSMOD          ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC3OMF_LDFLAGS            ?= -Zomf
-TOOL_GCC3OMF_LDFLAGS.debug      ?= -g
-TOOL_GCC3OMF_LDFLAGS.profile    ?= -g
+# Tool Specific Properties
+TOOL_GCC3OMF_CC  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_CXX ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_AS  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_AR  ?= emxomfar$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_AR_IMP ?= emximp$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_LD ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC3OMF_LD_SYSMOD ?= g++$(HOSTSUFF_EXE)
 ifndef TOOL_GCC3OMF_LDFLAGS.$(BUILD_TARGET)
-TOOL_GCC3OMF_LDFLAGS.dll        ?= -shared -Zdll
+TOOL_GCC3OMF_LDFLAGS.dll ?= -shared -Zdll
 else
-TOOL_GCC3OMF_LDFLAGS.dll        ?= $(TOOL_GCC3OMF_LDFLAGS.$(BUILD_TARGET))
+TOOL_GCC3OMF_LDFLAGS.dll ?= $(TOOL_GCC3OMF_LDFLAGS.$(BUILD_TARGET))
 endif
-TOOL_GCC3OMF_LDFLAGS.sysmod     ?= -nostdlib
-TOOL_GCC3OMF_LD_MAP             ?= -Zmap=$(1)
-TOOL_GCC3OMF_LD_SYSMOD_MAP      ?= -Zmap=$(1)
+TOOL_GCC3OMF_LDFLAGS.sysmod ?= -nostdlib
+TOOL_GCC3OMF_LD_MAP ?= -Zmap=$(1)
+TOOL_GCC3OMF_LD_SYSMOD_MAP ?= -Zmap=$(1)
 
 ifdef SLKRUNS
 TOOL_GCC3OMF_CC  += -fmessage-length=0
 TOOL_GCC3OMF_CXX += -fmessage-length=0
 endif
+
+# General Properties used by kBuild
+TOOL_GCC3OMF_COBJSUFF         ?= .o
+TOOL_GCC3OMF_CFLAGS           ?= -Zomf
+TOOL_GCC3OMF_CFLAGS.debug     ?= -g
+TOOL_GCC3OMF_CFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GCC3OMF_CFLAGS.release   ?= -O2
+TOOL_GCC3OMF_CINCS            ?=
+TOOL_GCC3OMF_CDEFS            ?=
+
+TOOL_GCC3OMF_CXXOBJSUFF       ?= .o
+TOOL_GCC3OMF_CXXOBJSUFF       ?= .o
+TOOL_GCC3OMF_CXXFLAGS         ?= -Zomf
+TOOL_GCC3OMF_CXXFLAGS.debug   ?= -g
+TOOL_GCC3OMF_CXXFLAGS.profile ?= -g -O2 #-pg
+TOOL_GCC3OMF_CXXFLAGS.release ?= -O2
+TOOL_GCC3OMF_CXXINCS          ?=
+TOOL_GCC3OMF_CXXDEFS          ?=
+
+TOOL_GCC3OMF_ASFLAGS          ?= -x assembler-with-cpp
+TOOL_GCC3OMF_ASFLAGS.debug    ?= -g
+TOOL_GCC3OMF_ASFLAGS.profile  ?= -g
+TOOL_GCC3OMF_ASOBJSUFF        ?= .obj
+
+TOOL_GCC3OMF_ARFLAGS          ?= cr
+TOOL_GCC3OMF_ARLIBSUFF        ?= .lib
+
+TOOL_GCC3OMF_LDFLAGS          ?= -Zomf
+TOOL_GCC3OMF_LDFLAGS.debug    ?= -g
+TOOL_GCC3OMF_LDFLAGS.profile  ?= -g
 
 
 ## Compile C source.

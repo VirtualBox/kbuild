@@ -1,7 +1,7 @@
-# $Id: GCC32.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: GCC32.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild Tool Config - 32-bit GCC, elf.
+# kBuild Tool Config - Generic 32-bit GCC v3.2.x or later Using The System GCC.
 #
 # Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
@@ -24,63 +24,67 @@
 #
 #
 
-TOOL_GCC32                    := Generic GCC v3 32-bit
+TOOL_GCC32 := Generic 32-bit GCC v3.2.x or later Using The System GCC. \
+	More or less Linux/ELF specfic.
 
-TOOL_GCC32_CC                 ?= gcc32$(HOSTSUFF_EXE)
-TOOL_GCC32_COBJSUFF           ?= .o
-TOOL_GCC32_CFLAGS             ?= 
-TOOL_GCC32_CFLAGS.debug       ?= -g
-TOOL_GCC32_CFLAGS.profile     ?= -g -O2 #-pg
-TOOL_GCC32_CFLAGS.release     ?= -O2
-TOOL_GCC32_CINCS              ?=
-TOOL_GCC32_CDEFS              ?=
-
-TOOL_GCC32_CXX                ?= g++32$(HOSTSUFF_EXE)
-TOOL_GCC32_CXXOBJSUFF         ?= .o
-TOOL_GCC32_CXXOBJSUFF         ?= .o
-TOOL_GCC32_CXXFLAGS           ?= 
-TOOL_GCC32_CXXFLAGS.debug     ?= -g
-TOOL_GCC32_CXXFLAGS.profile   ?= -g -O2 #-pg
-TOOL_GCC32_CXXFLAGS.release   ?= -O2
-TOOL_GCC32_CXXINCS            ?=
-TOOL_GCC32_CXXDEFS            ?=
-
-TOOL_GCC32_AS                 ?= gcc32$(HOSTSUFF_EXE)
-TOOL_GCC32_ASFLAGS            ?= -x assembler-with-cpp
-TOOL_GCC32_ASFLAGS.debug      ?= -g
-TOOL_GCC32_ASFLAGS.profile    ?= -g
-TOOL_GCC32_ASOBJSUFF          ?= .o
-
-TOOL_GCC32_AR                 ?= ar$(HOSTSUFF_EXE)
-TOOL_GCC32_ARFLAGS            ?= cr
-TOOL_GCC32_ARLIBSUFF          ?= .a
-
-TOOL_GCC32_LD                 ?= g++32$(HOSTSUFF_EXE)
-TOOL_GCC32_LD_SYSMOD          ?= ld$(HOSTSUFF_EXE)
-TOOL_GCC32_LDFLAGS            ?=
-TOOL_GCC32_LDFLAGS.debug      ?= -g
-TOOL_GCC32_LDFLAGS.profile    ?= -g
+# Tool Specific Properties
+TOOL_GCC32_CC  ?= gcc32$(HOSTSUFF_EXE)
+TOOL_GCC32_CXX ?= g++32$(HOSTSUFF_EXE)
+TOOL_GCC32_AS  ?= gcc32$(HOSTSUFF_EXE)
+TOOL_GCC32_AR  ?= ar$(HOSTSUFF_EXE)
+TOOL_GCC32_LD  ?= g++32$(HOSTSUFF_EXE)
+TOOL_GCC32_LD_SYSMOD ?= ld$(HOSTSUFF_EXE)
 ifndef TOOL_GCC32_LDFLAGS.$(BUILD_TARGET)
-TOOL_GCC32_LDFLAGS.dll        ?= -shared
+TOOL_GCC32_LDFLAGS.dll ?= -shared
 else
-TOOL_GCC32_LDFLAGS.dll        ?= $(TOOL_GCC32_LDFLAGS.$(BUILD_TARGET))
+TOOL_GCC32_LDFLAGS.dll ?= $(TOOL_GCC32_LDFLAGS.$(BUILD_TARGET))
 endif
-TOOL_GCC32_LDFLAGS.sysmod     ?= -r -m elf_i386
-TOOL_GCC32_LD_SONAME          ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+TOOL_GCC32_LDFLAGS.sysmod ?= -r -m elf_i386
+TOOL_GCC32_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 ifeq ($(BUILD_TARGET),os2)
-TOOL_GCC32_LD_MAP             ?= -Zmap=$(1)
+TOOL_GCC32_LD_MAP ?= -Zmap=$(1)
 else
-TOOL_GCC32_LD_MAP             ?= -Wl,-Map -Wl,$(1) -Wl,--cref
+TOOL_GCC32_LD_MAP ?= -Wl,-Map -Wl,$(1) -Wl,--cref
 endif
 ifeq ($(BUILD_TARGET),os2)
-TOOL_GCC32_LD_SYSMOD_MAP      ?= -Zmap=$(1)
+TOOL_GCC32_LD_SYSMOD_MAP ?= -Zmap=$(1)
 else
-TOOL_GCC32_LD_SYSMOD_MAP      ?= -Map $(1) --cref
+TOOL_GCC32_LD_SYSMOD_MAP ?= -Map $(1) --cref
 endif
 ifdef SLKRUNS
 TOOL_GCC32_CC  += -fmessage-length=0
 TOOL_GCC32_CXX += -fmessage-length=0
 endif
+
+# General Properties used by kBuild
+TOOL_GCC32_COBJSUFF         ?= .o
+TOOL_GCC32_CFLAGS           ?= 
+TOOL_GCC32_CFLAGS.debug     ?= -g
+TOOL_GCC32_CFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GCC32_CFLAGS.release   ?= -O2
+TOOL_GCC32_CINCS            ?=
+TOOL_GCC32_CDEFS            ?=
+
+TOOL_GCC32_CXXOBJSUFF       ?= .o
+TOOL_GCC32_CXXOBJSUFF       ?= .o
+TOOL_GCC32_CXXFLAGS         ?= 
+TOOL_GCC32_CXXFLAGS.debug   ?= -g
+TOOL_GCC32_CXXFLAGS.profile ?= -g -O2 #-pg
+TOOL_GCC32_CXXFLAGS.release ?= -O2
+TOOL_GCC32_CXXINCS          ?=
+TOOL_GCC32_CXXDEFS          ?=
+
+TOOL_GCC32_ASFLAGS          ?= -x assembler-with-cpp
+TOOL_GCC32_ASFLAGS.debug    ?= -g
+TOOL_GCC32_ASFLAGS.profile  ?= -g
+TOOL_GCC32_ASOBJSUFF        ?= .o
+
+TOOL_GCC32_ARFLAGS          ?= cr
+TOOL_GCC32_ARLIBSUFF        ?= .a
+
+TOOL_GCC32_LDFLAGS          ?=
+TOOL_GCC32_LDFLAGS.debug    ?= -g
+TOOL_GCC32_LDFLAGS.profile  ?= -g
 
 
 ## Compile C source.

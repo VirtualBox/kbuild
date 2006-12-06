@@ -1,7 +1,7 @@
-# $Id: VCC80X86.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14)
+# kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
 #
 # Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
@@ -24,51 +24,38 @@
 #
 #
 
+TOOL_VCC80X86 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
 
-TOOL_VCC80X86                    := Visual C++ 8.0 x86
-PATH_TOOL_VCC80X86               ?= $(PATH_DEV)/x86.win32/vcc/v8
-PATH_TOOL_VCC80X86_BIN           ?= $(PATH_TOOL_VCC80X86)/bin
-PATH_TOOL_VCC80X86_LIB           ?= $(PATH_TOOL_VCC80X86)/lib
-PATH_TOOL_VCC80X86_INC           ?= $(PATH_TOOL_VCC80X86)/include
-PATH_TOOL_VCC80X86_ATLMFC        ?= $(PATH_TOOL_VCC80X86)/atlmfc
-PATH_TOOL_VCC80X86_ATLMFC_INC    ?= $(PATH_TOOL_VCC80X86_ATLMFC)/include
-PATH_TOOL_VCC80X86_ATLMFC_LIB    ?= $(PATH_TOOL_VCC80X86_ATLMFC)/lib
-
-TOOL_VCC80X86_CC                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
-TOOL_VCC80X86_COBJSUFF           ?= .obj
-TOOL_VCC80X86_CFLAGS             ?= -TC -c -nologo
-TOOL_VCC80X86_CFLAGS.debug       ?= -Zi
-TOOL_VCC80X86_CFLAGS.release     ?= -O2
-TOOL_VCC80X86_CFLAGS.profile     ?= -O2
-TOOL_VCC80X86_CINCS              ?= $(PATH_TOOL_VCC80X86_INC)
-TOOL_VCC80X86_CDEFS              ?=
-
-TOOL_VCC80X86_CXX                ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
-TOOL_VCC80X86_CXXOBJSUFF         ?= .obj
-TOOL_VCC80X86_CXXFLAGS           ?= -TP -c -nologo
-TOOL_VCC80X86_CXXFLAGS.debug     ?= -Zi
-TOOL_VCC80X86_CXXFLAGS.release   ?= -O2
-TOOL_VCC80X86_CXXFLAGS.profile   ?= -O2
-TOOL_VCC80X86_CXXINCS            ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
-TOOL_VCC80X86_CXXDEFS            ?=
-
-TOOL_VCC80X86_AS                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/ml.exe
-TOOL_VCC80X86_ASOBJSUFF          ?= .obj
-
-TOOL_VCC80X86_RC                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/rc.exe
-TOOL_VCC80X86_RCOBJSUFF          ?= .res
-TOOL_VCC80X86_RCINCS             ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
-
-TOOL_VCC80X86_AR                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/lib.exe
-TOOL_VCC80X86_ARFLAGS            ?= -nologo
-TOOL_VCC80X86_ARLIBSUFF          ?= .lib
-
-TOOL_VCC80X86_LD                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/link.exe
-TOOL_VCC80X86_LDFLAGS            ?= -nologo -machine:x86
-TOOL_VCC80X86_LDFLAGS.debug      ?= -debug
-TOOL_VCC80X86_LDFLAGS.release    ?=
-
-TOOL_VCC80X86_MT                 ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/mt.exe
+# Tool Specific Properties
+ifndef PATH_TOOL_VCC80X86
+ PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/x86.win/vcc/v8)
+ ifeq ($(PATH_TOOL_VCC80X86),)
+  PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/vcc/v8)
+ endif
+ ifneq ($(PATH_TOOL_VCC80X86),)
+  # done for now
+ else
+  $(warning kBuild: PATH_TOOL_VCC80X86 cannot be determined!)
+  PATH_TOOL_VCC80X86 := $(PATH_DEVTOOLS)/x86.win/vcc/v8
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_TOOL_VCC80X86 := $(PATH_TOOL_VCC80X86)
+endif
+PATH_TOOL_VCC80X86_BIN    ?= $(PATH_TOOL_VCC80X86)/bin
+PATH_TOOL_VCC80X86_LIB    ?= $(PATH_TOOL_VCC80X86)/lib
+PATH_TOOL_VCC80X86_INC    ?= $(PATH_TOOL_VCC80X86)/include
+PATH_TOOL_VCC80X86_ATLMFC ?= $(PATH_TOOL_VCC80X86)/atlmfc
+PATH_TOOL_VCC80X86_ATLMFC_INC ?= $(PATH_TOOL_VCC80X86_ATLMFC)/include
+PATH_TOOL_VCC80X86_ATLMFC_LIB ?= $(PATH_TOOL_VCC80X86_ATLMFC)/lib
+TOOL_VCC80X86_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
+TOOL_VCC80X86_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/cl.exe
+TOOL_VCC80X86_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/ml.exe
+TOOL_VCC80X86_RC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/rc.exe
+TOOL_VCC80X86_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/lib.exe
+TOOL_VCC80X86_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/link.exe
+TOOL_VCC80X86_MT  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80X86_BIN)/mt.exe
+VCC80X86_NEW_DEPS = 1 ##< Enables fast DEP_IDB based dependencies.
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
@@ -80,9 +67,34 @@ TOOL_VCC80X86_PDB                ?= $(1).$(2)
 endif
 
 
-#ifeq ($(BUILD_PLATFORM),win32)
-VCC80X86_NEW_DEPS = 1
-#endif
+# General Properties used by kBuild
+TOOL_VCC80X86_COBJSUFF         ?= .obj
+TOOL_VCC80X86_CFLAGS           ?= -TC -c -nologo
+TOOL_VCC80X86_CFLAGS.debug     ?= -Zi
+TOOL_VCC80X86_CFLAGS.release   ?= -O2
+TOOL_VCC80X86_CFLAGS.profile   ?= -O2
+TOOL_VCC80X86_CINCS            ?= $(PATH_TOOL_VCC80X86_INC)
+TOOL_VCC80X86_CDEFS            ?=
+
+TOOL_VCC80X86_CXXOBJSUFF       ?= .obj
+TOOL_VCC80X86_CXXFLAGS         ?= -TP -c -nologo
+TOOL_VCC80X86_CXXFLAGS.debug   ?= -Zi
+TOOL_VCC80X86_CXXFLAGS.release ?= -O2
+TOOL_VCC80X86_CXXFLAGS.profile ?= -O2
+TOOL_VCC80X86_CXXINCS          ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
+TOOL_VCC80X86_CXXDEFS          ?=
+
+TOOL_VCC80X86_ASOBJSUFF        ?= .obj
+
+TOOL_VCC80X86_RCOBJSUFF        ?= .res
+TOOL_VCC80X86_RCINCS           ?= $(PATH_TOOL_VCC80X86_INC) $(PATH_TOOL_VCC80X86_ATLMFC_INC)
+
+TOOL_VCC80X86_ARFLAGS          ?= -nologo
+TOOL_VCC80X86_ARLIBSUFF        ?= .lib
+
+TOOL_VCC80X86_LDFLAGS          ?= -nologo -machine:x86
+TOOL_VCC80X86_LDFLAGS.debug    ?= -debug
+TOOL_VCC80X86_LDFLAGS.release  ?=
 
 
 
@@ -99,8 +111,8 @@ VCC80X86_NEW_DEPS = 1
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC80X86_COMPILE_C_OUTPUT	= $(call TOOL_VCC80X86_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80X86_PDB, $(outbase)-obj,idb)
-TOOL_VCC80X86_COMPILE_C_DEPEND	=
+TOOL_VCC80X86_COMPILE_C_OUTPUT = $(call TOOL_VCC80X86_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80X86_PDB, $(outbase)-obj,idb)
+TOOL_VCC80X86_COMPILE_C_DEPEND =
 TOOL_VCC80X86_COMPILE_C_DEPORD =
 ifdef VCC80X86_NEW_DEPS
 define TOOL_VCC80X86_COMPILE_C_CMDS
@@ -167,6 +179,7 @@ define TOOL_VCC80X86_COMPILE_CXX_CMDS
 endef
 endif
 
+## @todo configure the assembler template.
 
 ## Compile resource source.
 # @param    $(target)   Normalized main target name.

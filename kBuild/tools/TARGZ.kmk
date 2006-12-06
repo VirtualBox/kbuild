@@ -1,4 +1,4 @@
-# $Id: TARGZ.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: TARGZ.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - tar.gz unpacker.
@@ -26,7 +26,17 @@
 
 TOOL_TARGZ := tar.gz unpacker.
 
-TOOL_TARGZ_UNPACK ?= tar$(HOSTSUFF_EXE)
+# Tool Specific Properties
+ifndef TOOL_TARGZ_UNPACK
+ TOOL_TARGZ_UNPACK := $(wildcard $(PATH_DEVTOOLS_BLD)/tar$(HOSTSUFF_EXE))
+ ifeq ($(TOOL_TARGZ_UNPACK),)
+  TOOL_TARGZ_UNPACK := tar$(HOSTSUFF_EXE)
+ endif
+else
+ TOOL_TARGZ_UNPACK := $(TOOL_TARGZ_UNPACK)
+endif
+
+# General Properties used by kBuild
 TOOL_TARGZ_UNPACKFLAGS ?= -z
 
 ## UNPACK one file.

@@ -1,7 +1,7 @@
-# $Id: MINGW32.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild Tool Config - MINGW32 GCC.
+# kBuild Tool Config - MinGW32 GCC v3.3+.
 #
 # Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
@@ -24,40 +24,64 @@
 #
 #
 
-TOOL_MINGW32                 := MinGW32 GCC v3.3+
+TOOL_MINGW32 := MinGW32 GCC v3.3+.
 
-# find latest installed version
+# Tool Specific Properties
 ifndef PATH_TOOL_MINGW32
- PATH_DEV_BLD                ?= $(PATH_DEV)/$(BUILD_PLATFORM_ARCH).$(BUILD_PLATFORM)
- PATH_TOOL_MINGW32           := $(sort $(wildcard $(PATH_DEV_BLD)/mingw32/v*.*))
+ PATH_TOOL_MINGW32 := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/mingw32/v*.*))
  ifeq ($(PATH_TOOL_MINGW32),)
-  PATH_TOOL_MINGW32          := $(sort $(wildcard $(PATH_DEV)/x86.win32/mingw32/v*.*))
+  PATH_TOOL_MINGW32 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/mingw32/v*.*))
+ endif
+ ifeq ($(PATH_TOOL_MINGW32),)
+  PATH_TOOL_MINGW32 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/mingw32/v*.*))
  endif
  ifneq ($(PATH_TOOL_MINGW32),)
-  PATH_TOOL_MINGW32          := $(call lastword,$(PATH_TOOL_MINGW32))
+  PATH_TOOL_MINGW32 := $(call lastword,$(PATH_TOOL_MINGW32))
  endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_TOOL_MINGW32 := $(PATH_TOOL_MINGW32)
 endif
 
 # figure out if it's native or needs a win32 launcher
-ifneq ($(PATH_TOOL_MINGW32),)
-_TOOL_MINGW32_PREFIX            ?= $(PATH_TOOL_MINGW32)/bin/
-else
-_TOOL_MINGW32_PREFIX            ?=
-endif
-_TOOL_MINGW32_SUFF_EXE          ?= $(HOSTSUFF_EXE)
-ifneq ($(BUILD_PLATFORM),win)
- # we're cross compiling either using wine/odin or a cross compiler.
- ifneq ($(PATH_TOOL_MINGW32),$(subst x86.win32,,$(PATH_TOOL_MINGW32)))
-  _TOOL_MINGW32_PREFIX          := $(EXEC_X86_WIN32) $(_TOOL_MINGW32_PREFIX)
-  _TOOL_MINGW32_SUFF_EXE        ?= .exe
+TOOL_MINGW32_HOSTSUFF_EXE ?= $(HOSTSUFF_EXE)
+ifndef TOOL_MINGW32_PREFIX
+ ifneq ($(PATH_TOOL_MINGW32),)
+  TOOL_MINGW32_PREFIX := $(PATH_TOOL_MINGW32)/bin/
  else
-  _TOOL_MINGW32_PREFIX          := $(_TOOL_MINGW32_PREFIX)i386-mingw32msvc-
-  _TOOL_MINGW32_SUFF_EXE        ?=
-  _TOOL_MINGW32_XCOMPILE        ?= 1
+  TOOL_MINGW32_PREFIX :=
  endif
+ ifneq ($(BUILD_PLATFORM),win)
+  # we're cross compiling either using an emulator (wine/odin) or a cross compiler.
+  ifneq ($(PATH_TOOL_MINGW32),$(subst /x86.win,,$(PATH_TOOL_MINGW32)))
+   TOOL_MINGW32_PREFIX := $(EXEC_X86_WIN32) $(TOOL_MINGW32_PREFIX)
+   TOOL_MINGW32_HOSTSUFF_EXE := .exe
+  else
+   TOOL_MINGW32_PREFIX := $(TOOL_MINGW32_PREFIX)i386-mingw32msvc-
+   TOOL_MINGW32_HOSTSUFF_EXE :=
+   TOOL_MINGW32_XCOMPILE := 1
+  endif
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ TOOL_MINGW32_PREFIX := 
 endif
 
-TOOL_MINGW32_CC                 ?= $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
+TOOL_MINGW32_CC  ?= $(TOOL_MINGW32_PREFIX)gcc$(TOOL_MINGW32_HOSTSUFF_EXE)
+TOOL_MINGW32_CXX ?= $(TOOL_MINGW32_PREFIX)g++$(TOOL_MINGW32_HOSTSUFF_EXE)
+TOOL_MINGW32_AS  ?= $(TOOL_MINGW32_PREFIX)gcc$(TOOL_MINGW32_HOSTSUFF_EXE)
+TOOL_MINGW32_AR  ?= $(TOOL_MINGW32_PREFIX)ar$(TOOL_MINGW32_HOSTSUFF_EXE)
+ifndef TOOL_MINGW32_XCOMPILE# The gentoo package doesn't have g++.
+TOOL_MINGW32_LD  ?= $(TOOL_MINGW32_PREFIX)g++$(TOOL_MINGW32_HOSTSUFF_EXE)
+else
+TOOL_MINGW32_LD  ?= $(TOOL_MINGW32_PREFIX)gcc$(TOOL_MINGW32_HOSTSUFF_EXE)
+endif
+TOOL_MINGW32_LD_MAP ?= -Wl,-Map -Wl,$(1) -Wl,--cref
+TOOL_MINGW32_LD_SYSMOD_MAP ?= -Map $(1) --cref
+TOOL_MINGW32_DLLWRAP ?= $(TOOL_MINGW32_PREFIX)dllwrap$(TOOL_MINGW32_HOSTSUFF_EXE)
+TOOL_MINGW32_DLLTOOL ?= $(TOOL_MINGW32_PREFIX)dlltool$(TOOL_MINGW32_HOSTSUFF_EXE)
+
+# General Properties used by kBuild
 TOOL_MINGW32_COBJSUFF           ?= .o
 TOOL_MINGW32_CFLAGS             ?= -g
 TOOL_MINGW32_CFLAGS.debug       ?= -O0
@@ -66,7 +90,6 @@ TOOL_MINGW32_CFLAGS.profile     ?= -O2 #-pg
 TOOL_MINGW32_CINCS              ?=
 TOOL_MINGW32_CDEFS              ?=
 
-TOOL_MINGW32_CXX                ?= $(_TOOL_MINGW32_PREFIX)g++$(_TOOL_MINGW32_SUFF_EXE)
 TOOL_MINGW32_CXXOBJSUFF         ?= .o
 TOOL_MINGW32_CXXOBJSUFF         ?= .o
 TOOL_MINGW32_CXXFLAGS           ?= -g
@@ -76,28 +99,16 @@ TOOL_MINGW32_CXXFLAGS.profile   ?= -O2 #-pg
 TOOL_MINGW32_CXXINCS            ?=
 TOOL_MINGW32_CXXDEFS            ?=
 
-TOOL_MINGW32_AS                 ?= $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
 TOOL_MINGW32_ASFLAGS            ?= -g -x assembler-with-cpp
 TOOL_MINGW32_ASOBJSUFF          ?= .o
 
-TOOL_MINGW32_AR                 ?= $(_TOOL_MINGW32_PREFIX)ar$(_TOOL_MINGW32_SUFF_EXE)
 TOOL_MINGW32_ARFLAGS            ?= cr
 TOOL_MINGW32_ARLIBSUFF          ?= .a
 
 # The linux cross compiler ebuild haven't got g++, this is a hack for that.
-ifndef _TOOL_MINGW32_XCOMPILE
-TOOL_MINGW32_LD                 ?= $(_TOOL_MINGW32_PREFIX)g++$(_TOOL_MINGW32_SUFF_EXE)
-else
-TOOL_MINGW32_LD                 ?= $(_TOOL_MINGW32_PREFIX)gcc$(_TOOL_MINGW32_SUFF_EXE)
-endif
 TOOL_MINGW32_LDFLAGS            ?=
 TOOL_MINGW32_LDFLAGS.debug      ?= -g
 TOOL_MINGW32_LDFLAGS.release    ?= -s
-TOOL_MINGW32_LD_MAP             ?= -Wl,-Map -Wl,$(1) -Wl,--cref
-TOOL_MINGW32_LD_SYSMOD_MAP      ?= -Map $(1) --cref
-
-TOOL_MINGW32_DLLWRAP            ?= $(_TOOL_MINGW32_PREFIX)dllwrap$(_TOOL_MINGW32_SUFF_EXE)
-TOOL_MINGW32_DLLTOOL            ?= $(_TOOL_MINGW32_PREFIX)dlltool$(_TOOL_MINGW32_SUFF_EXE)
 
 
 ## Compile C source.
