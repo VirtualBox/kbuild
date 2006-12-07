@@ -1,0 +1,67 @@
+# $Id: WINPSDKINCS.kmk 674 2006-12-07 00:53:00Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild SDK - The Windows Platform SDK, targeting (BUILD_TARGET) but 
+#              without any libraries or LIBPATH properties. 
+#              Basically for finding specstrings.h when using the DDK.
+#
+# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+SDK_WINPSDKINCS := The Windows Platform SDK, targeting (BUILD_TARGET) but \
+	without any library or LIBPATH properties. \
+	Basically for finding specstrings.h when using the DDK.
+
+# SDK Specific Properties
+ifndef PATH_SDK_WINPSDKINCS
+ PATH_SDK_WINPSDKINCS := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/sdk/2*))
+ ifeq ($(PATH_SDK_WINPSDKINCS),)
+  PATH_SDK_WINPSDKINCS := $(sort $(wildcard $(PATH_DEVTOOLS_TRG)/sdk/2*))
+ endif
+ ifeq ($(PATH_SDK_WINPSDKINCS),)
+  PATH_SDK_WINPSDKINCS := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/sdk/2*))
+ endif
+ ifeq ($(PATH_SDK_WINPSDKINCS),)
+  PATH_SDK_WINPSDKINCS := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/sdk/2*))
+ endif
+ ifeq ($(PATH_SDK_WINPSDKINCS),)
+  PATH_SDK_WINPSDKINCS := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/sdk/2*))
+ endif
+ ifneq ($(PATH_SDK_WINPSDKINCS),)
+  PATH_SDK_WINPSDKINCS := $(call lastword,$(PATH_SDK_WINPSDKINCS))
+ else
+  $(warning kBuild: PATH_SDK_WINPSDKINCS couldn't be determined!)
+  PATH_SDK_WINPSDKINCS := $(PATH_DEVTOOLS_BLD)/sdk//not/found
+ endif
+else
+ PATH_SDK_WINPSDKINCS := $(PATH_SDK_WINPSDKINCS)
+endif
+PATH_SDK_WINPSDKINCS_INC ?= $(PATH_SDK_WINPSDKINCS)/include
+PATH_SDK_WINPSDKINCS_LIB.x86 ?= $(PATH_SDK_WINPSDKINCS)/lib
+PATH_SDK_WINPSDKINCS_LIB.amd64 ?= $(PATH_SDK_WINPSDKINCS)/lib
+PATH_SDK_WINPSDKINCS_LIB ?= $(PATH_SDK_WINPSDKINCS_LIB.$(BUILD_TARGET_ARCH))
+PATH_SDK_WINPSDKINCS_BIN ?= $(PATH_SDK_WINPSDKINCS)/bin
+PATH_SDK_WINPSDKINCS_BIN_AMD64 ?= $(PATH_SDK_WINPSDKINCS)/bin/win64/x86/AMD64
+PATH_SDK_WINPSDKINCS_BIN_IA64 ?= $(PATH_SDK_WINPSDKINCS)/bin/win64/
+
+# General Properties used by kBuild
+SDK_WINPSDKINCS_INCS ?= $(PATH_SDK_WINPSDKINCS_INC)
+
