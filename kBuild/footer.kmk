@@ -1,4 +1,4 @@
-# $Id: footer.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 679 2006-12-07 06:18:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -857,7 +857,8 @@ define def_fetch
 # common
 INSTARGET_$(target) := $($(target)_INST)
 ifneq ($(patsubst %/,ok,$(INSTARGET_$(target))),ok)
-$(error kBuild: Bad or missing INST property for target '$(target)': $(INSTARGET_$(target)))
+$(error kBuild: Bad or missing INST property for target '$(target)'. \
+	$(target)_INST='$($(target)_INST)' ($(origin $(target)_INST)))
 endif
 _TARGET_$(target)_FETCHED :=
 _TARGET_$(target)_UNPACKED :=
