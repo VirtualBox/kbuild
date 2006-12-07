@@ -1,4 +1,4 @@
-# $Id: W2K3DDKX86.kmk 671 2006-12-06 04:23:57Z knut.osmundsen@oracle.com $
+# $Id: W2K3DDKX86.kmk 675 2006-12-07 01:03:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Microsoft Windows 2003 DDK, targeting X86.
@@ -31,6 +31,9 @@ ifndef PATH_SDK_W2K3DDKX86
  PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/ddkwin2k3/2*))
  ifeq ($(PATH_SDK_W2K3DDKX86),)
   PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3/2*))
+ endif
+ ifeq ($(PATH_SDK_W2K3DDKX86),)
+  PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddkwin2k3))
  endif
  ifeq ($(PATH_SDK_W2K3DDKX86),)
   PATH_SDK_W2K3DDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/ddkwin2k3/2*))
