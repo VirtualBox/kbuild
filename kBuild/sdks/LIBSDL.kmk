@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 676 2006-12-07 02:56:34Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - libsdl, targeting $(BUILD_TARGET).
@@ -47,7 +47,14 @@ endif
 # varies quite a bit, thus this kludge.
 #
 ifeq ($(BUILD_TARGET),os2)
- SDK_LIBSDL_LIBMAIN ?= 
+ LIB_SDK_LIBSDL_SDLMAIN  ?= 
+ DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/SDL/SDL12.dll
+ LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/SDL/SDL12.lib
+ LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/SDLGfx/SDLGFX.lib
+ LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/SDLImage/SDLIMAGE.lib
+ LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/SDLMixer/SDLMIXER.lib
+ LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/SDLNet/SDLNET.lib
+ LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/SDLTTF/SDLTTF.lib
 
  # General Properties used by kBuild
  SDK_LIBSDL_INCS ?= \
@@ -58,12 +65,7 @@ ifeq ($(BUILD_TARGET),os2)
  	$(PATH_SDK_LIBSDL)/SDLNet \
  	$(PATH_SDK_LIBSDL)/SDLTTF
  SDK_LIBSDL_LIBS ?= \
- 	$(PATH_SDK_LIBSDL)/SDL/SDL12.lib \
- 	$(PATH_SDK_LIBSDL)/SDLGfx/SDLGFX.lib \
- 	$(PATH_SDK_LIBSDL)/SDLImage/SDLIMAGE.lib \
- 	$(PATH_SDK_LIBSDL)/SDLMixer/SDLMIXER.lib \
- 	$(PATH_SDK_LIBSDL)/SDLNet/SDLNET.lib \
- 	$(PATH_SDK_LIBSDL)/SDLTTF/SDLTTF.lib
+ 	$(LIB_SDK_LIBSDL_SDL)
  SDK_LIBSDL_LIBPATHS ?= \
  	$(PATH_SDK_LIBSDL)/SDL \
  	$(PATH_SDK_LIBSDL)/SDLGfx \
@@ -74,26 +76,40 @@ ifeq ($(BUILD_TARGET),os2)
 
 else
  ifeq ($(BUILD_TARGET),win) # ASSUMES VC++ on windows, sorry.
-  SDK_LIBSDL_LIBMAIN ?= \
-	$(PATH_SDK_LIBSDL)/lib/SDLmain.lib
+  LIB_SDK_LIBSDL_SDLMAIN  ?= $(PATH_SDK_LIBSDL)/lib/SDLmain.lib
+  LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.lib
+  DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.dll
+  LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/lib/SDLGFX.lib
+  LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/lib/SDLIMAGE.lib
+  LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/lib/SDLMIXER.lib
+  LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/lib/SDLNET.lib
+  LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDLTTF.lib
+  DLL_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.dll
 
   # General Properties used by kBuild
   SDK_LIBSDL_INCS ?= \
 	$(PATH_SDK_LIBSDL)/include/SDL \
 	$(PATH_SDK_LIBSDL)/include
   SDK_LIBSDL_LIBS ?= \
- 	$(PATH_SDK_LIBSDL)/lib/SDL.lib
-  SDK_LIBSDL_LIBPATHS?= \
+	$(LIB_SDK_LIBSDL_SDL)
+  SDK_LIBSDL_LIBPATHS ?= \
  	$(PATH_SDK_LIBSDL)/lib
 
  else # ASSUMES Unix like system
-  SDK_LIBSDL_LIBMAIN ?= sdlmain
+  LIB_SDK_LIBSDL_SDLMAIN  ?= sdlmain
+  LIB_SDK_LIBSDL_SDL      ?= sdl
+  LIB_SDK_LIBSDL_SDLGFX   ?= sdlgfx
+  LIB_SDK_LIBSDL_SDLIMAGE ?= sdlimage
+  LIB_SDK_LIBSDL_SDLMIXER ?= sdlmixer
+  LIB_SDK_LIBSDL_SDLNET   ?= sdlnet
+  LIB_SDK_LIBSDL_SDLTTF   ?= sdlttf
 
   # General Properties used by kBuild
   SDK_LIBSDL_INCS ?= \
 	$(PATH_SDK_LIBSDL)/include/SDL \
 	$(PATH_SDK_LIBSDL)/include
-  SDK_LIBSDL_LIBS ?= sdl sdlgfx sdlimage sdlmixer sdlnet sdlttf
+  SDK_LIBSDL_LIBS ?= \
+	$(LIB_SDK_LIBSDL_SDL)
   SDK_LIBSDL_LIBPATHS ?= \
  	$(PATH_SDK_LIBSDL)/lib
  endif
