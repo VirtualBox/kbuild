@@ -1,4 +1,4 @@
-# $Id: VCC80.kmk 668 2006-12-06 04:08:30Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 677 2006-12-07 04:51:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
@@ -28,49 +28,52 @@ TOOL_VCC80 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUI
 
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC80
- PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS_TRG)/vcc/v8)
+ PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS_TRG)/vcc/v8 \
+                               $(PATH_DEVTOOLS)/x86.win/vcc/v8 \
+                               $(PATH_DEVTOOLS)/x86.win32/vcc/v8 \
+                               $(PATH_DEVTOOLS)/amd64.win/vcc/v8)
  ifeq ($(PATH_TOOL_VCC80),)
-  PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS)/x86.win/vcc/v8)
+  PATH_TOOL_VCC80 := $(firstword $(PATH_TOOL_VCC80))
  endif
- ifeq ($(PATH_TOOL_VCC80),)
-  PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/vcc/v8)
- endif
- ifeq ($(PATH_TOOL_VCC80),)
-  PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS)/amd64.win/vcc/v8)
- endif
- ifneq ($(PATH_TOOL_VCC80),)
-  # done for now
- else
-  $(warning kBuild: PATH_TOOL_VCC80 cannot be determined!)
-  PATH_TOOL_VCC80 := $(PATH_DEVTOOLS_TRG)/vcc/v8
- endif
+ # if not found, we'll enter 'pathless' mode.
 else
  # Resolve any fancy stuff once and for all.
  PATH_TOOL_VCC80 := $(PATH_TOOL_VCC80)
 endif
-ifeq ($(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH),win.amd64)
-PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/amd64
-else
-PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/x86_amd64
+ifneq ($(PATH_TOOL_VCC80),)
+ ifeq ($(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH),win.amd64)
+ PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/amd64
+ else
+ PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/x86_amd64
+ endif
+ PATH_TOOL_VCC80_BIN.x86   ?= $(PATH_TOOL_VCC80)/bin
+ PATH_TOOL_VCC80_BIN       ?= $(PATH_TOOL_VCC80_BIN.$(BUILD_TARGET))
+ PATH_TOOL_VCC80_LIB.amd64 ?= $(PATH_TOOL_VCC80)/lib/amd64
+ PATH_TOOL_VCC80_LIB.x86   ?= $(PATH_TOOL_VCC80)/lib
+ PATH_TOOL_VCC80_LIB       ?= $(PATH_TOOL_VCC80_LIB.$(BUILD_TARGET))
+ PATH_TOOL_VCC80_INC       ?= $(PATH_TOOL_VCC80)/include
+ PATH_TOOL_VCC80_ATLMFC    ?= $(PATH_TOOL_VCC80X86)/atlmfc
+ PATH_TOOL_VCC80_ATLMFC_INC       ?= $(PATH_TOOL_VCC80_ATLMFC)/include
+ PATH_TOOL_VCC80_ATLMFC_LIB.amd64 ?= $(PATH_TOOL_VCC80_ATLMFC)/lib
+ PATH_TOOL_VCC80_ATLMFC_LIB.x86   ?= $(PATH_TOOL_VCC80_ATLMFC)/lib/amd64
+ PATH_TOOL_VCC80_ATLMFC_LIB       ?= $(PATH_TOOL_VCC80_ATLMFC_LIB.$(BUILD_TARGET))
+ TOOL_VCC80_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
+ TOOL_VCC80_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
+ TOOL_VCC80_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/ml64.exe
+ TOOL_VCC80_RC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN.x86)/rc.exe
+ TOOL_VCC80_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/lib.exe
+ TOOL_VCC80_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/link.exe
+ TOOL_VCC80_MT  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN.x86)/mt.exe
+else 
+ # Pathless, relies on the environment.
+ TOOL_VCC80_CC  ?= $(EXEC_X86_WIN32) cl.exe
+ TOOL_VCC80_CXX ?= $(EXEC_X86_WIN32) cl.exe
+ TOOL_VCC80_AS  ?= $(EXEC_X86_WIN32) ml64.exe
+ TOOL_VCC80_RC  ?= $(EXEC_X86_WIN32) rc.exe
+ TOOL_VCC80_AR  ?= $(EXEC_X86_WIN32) lib.exe
+ TOOL_VCC80_LD  ?= $(EXEC_X86_WIN32) link.exe
+ TOOL_VCC80_MT  ?= $(EXEC_X86_WIN32) mt.exe
 endif
-PATH_TOOL_VCC80_BIN.x86   ?= $(PATH_TOOL_VCC80)/bin
-PATH_TOOL_VCC80_BIN       ?= $(PATH_TOOL_VCC80_BIN.$(BUILD_TARGET))
-PATH_TOOL_VCC80_LIB.amd64 ?= $(PATH_TOOL_VCC80)/lib/amd64
-PATH_TOOL_VCC80_LIB.x86   ?= $(PATH_TOOL_VCC80)/lib
-PATH_TOOL_VCC80_LIB       ?= $(PATH_TOOL_VCC80_LIB.$(BUILD_TARGET))
-PATH_TOOL_VCC80_INC       ?= $(PATH_TOOL_VCC80)/include
-PATH_TOOL_VCC80_ATLMFC    ?= $(PATH_TOOL_VCC80X86)/atlmfc
-PATH_TOOL_VCC80_ATLMFC_INC       ?= $(PATH_TOOL_VCC80_ATLMFC)/include
-PATH_TOOL_VCC80_ATLMFC_LIB.amd64 ?= $(PATH_TOOL_VCC80_ATLMFC)/lib
-PATH_TOOL_VCC80_ATLMFC_LIB.x86   ?= $(PATH_TOOL_VCC80_ATLMFC)/lib/amd64
-PATH_TOOL_VCC80_ATLMFC_LIB       ?= $(PATH_TOOL_VCC80_ATLMFC_LIB.$(BUILD_TARGET))
-TOOL_VCC80_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
-TOOL_VCC80_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
-TOOL_VCC80_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/ml64.exe
-TOOL_VCC80_RC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/../rc.exe
-TOOL_VCC80_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/lib.exe
-TOOL_VCC80_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/link.exe
-TOOL_VCC80_MT  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/../mt.exe
 VCC80_NEW_DEPS = 1 ##< Enables fast DEP_IDB based dependencies.
 
 ## Constructs the correct .pdb name (the name is lowercased).
@@ -113,6 +116,8 @@ TOOL_VCC80_LDFLAGS.x86      ?= -machine:x86
 TOOL_VCC80_LDFLAGS          ?= -nologo
 TOOL_VCC80_LDFLAGS.debug    ?= -debug
 TOOL_VCC80_LDFLAGS.release  ?=
+TOOL_VCC80_LIBPATH.amd64    ?= $(PATH_TOOL_VCC80_LIB.amd64) $(PATH_TOOL_VCC80_ATLMFC_LIB.amd64)
+TOOL_VCC80_LIBPATH.x86      ?= $(PATH_TOOL_VCC80_LIB.x86) $(PATH_TOOL_VCC80_ATLMFC_LIB.x86)
 
 
 
