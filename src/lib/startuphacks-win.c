@@ -84,6 +84,7 @@ int __cdecl _setargv(void)
     if (!pszCmdLineBuf)
         return -1;
     parse_args(pszCmdLine, papszArgs, pszCmdLineBuf);
+    papszArgs[g_cArgs] = papszArgs[g_cArgs + 1] = NULL;
 
     /* set return variables */
     __argc = g_cArgs;
