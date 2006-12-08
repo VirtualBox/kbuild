@@ -1,4 +1,4 @@
-# $Id: ZIP.kmk 681 2006-12-08 00:01:51Z knut.osmundsen@oracle.com $
+# $Id: ZIP.kmk 688 2006-12-08 05:44:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - The zip/unzip packer/unpacker.
@@ -53,7 +53,6 @@ define TOOL_ZIP_UNPACK_CMDS
 	$(TOOL_ZIP_UNPACK) -l $(archive) | $(SED) \
 		-e '/ [0-2][0-9]:[0-6][0-9]/!d' \
 		-e 's/^.* [0-2][0-9]:[0-6][0-9]   //' \
-		-e 's|^|$(inst)|' \
 		> $(out)
 endef
 
