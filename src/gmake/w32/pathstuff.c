@@ -236,6 +236,7 @@ w32_fixcase(char *pszPath)
         }
         strcpy(psz, FindFileData.cFileName);
         pszEnd[0] = chSaved0;
+        FindClose(hDir);
 
         /* advance to the next component */
         if (!chSaved0)
