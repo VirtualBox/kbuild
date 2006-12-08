@@ -1,4 +1,4 @@
-# $Id: ZIP.kmk 688 2006-12-08 05:44:22Z knut.osmundsen@oracle.com $
+# $Id: ZIP.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - The zip/unzip packer/unpacker.
@@ -28,13 +28,37 @@ TOOL_ZIP := The zip/unzip packer/unpacker.
 
 # Tool Specific Properties
 ifndef TOOL_ZIP_UNPACK
- TOOL_ZIP_UNPACK := $(wildcard $(PATH_DEVTOOLS_BLD)/unzip$(HOSTSUFF_EXE))
+ TOOL_ZIP_UNPACK := $(wildcard $(PATH_DEVTOOLS_BLD)/unzip/v*/unzip$(HOSTSUFF_EXE))
  ifeq ($(TOOL_ZIP_UNPACK),)
+  TOOL_ZIP_UNPACK := $(wildcard $(PATH_DEVTOOLS_BLD)/zip/v*/unzip$(HOSTSUFF_EXE))
+ endif
+ ifeq ($(TOOL_ZIP_UNPACK),)
+  TOOL_ZIP_UNPACK := $(wildcard $(PATH_DEVTOOLS_BLD)/bin/unzip$(HOSTSUFF_EXE))
+ endif
+ ifneq ($(TOOL_ZIP_UNPACK),)
+  TOOL_ZIP_UNPACK := $(lastword $(sort $(TOOL_ZIP_UNPACK)))
+ else
   TOOL_ZIP_UNPACK := unzip$(HOSTSUFF_EXE)
  endif
 else
  TOOL_ZIP_UNPACK := $(TOOL_ZIP_UNPACK)
 endif
+#ifndef TOOL_ZIP_PACK
+# TOOL_ZIP_PACK := $(wildcard $(PATH_DEVTOOLS_BLD)/zip/v*/zip$(HOSTSUFF_EXE))
+# ifeq ($(TOOL_ZIP_PACK),)
+#  TOOL_ZIP_PACK := $(wildcard $(PATH_DEVTOOLS_BLD)/unzip/v*/zip$(HOSTSUFF_EXE))
+# endif
+# ifeq ($(TOOL_ZIP_PACK),)
+#  TOOL_ZIP_PACK := $(wildcard $(PATH_DEVTOOLS_BLD)/bin/zip$(HOSTSUFF_EXE))
+# endif
+# ifneq ($(TOOL_ZIP_PACK),)
+#  TOOL_ZIP_PACK := $(lastword $(sort $(TOOL_ZIP_PACK)))
+# else
+#  TOOL_ZIP_PACK := zip$(HOSTSUFF_EXE)
+# endif
+#else
+# TOOL_ZIP_PACK := $(TOOL_ZIP_PACK)
+#endif
 
 # General Properties used by kBuild
 TOOL_ZIP_UNPACKFLAGS ?=
