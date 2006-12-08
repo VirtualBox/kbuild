@@ -1,7 +1,7 @@
-# $Id: LIBSDL.kmk 676 2006-12-07 02:56:34Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild SDK - libsdl, targeting $(BUILD_TARGET).
+# kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
 #
 # Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
 #
@@ -24,19 +24,30 @@
 #
 #
 
-SDK_LIBSDL := libsdl, targeting $(BUILD_TARGET).
+SDK_LIBSDL := Simple DirectMedia Layer, targeting $(BUILD_TARGET).
 
 # SDK Specific Properties
 ifndef PATH_SDK_LIBSDL
- PATH_SDK_LIBSDL := $(sort $(wildcard $(PATH_DEVTOOLS_TRG)/libsdl/v*))
+ PATH_SDK_LIBSDL := $(wildcard $(PATH_DEVTOOLS_TRG)/libsdl/v*)
  ifeq ($(PATH_SDK_LIBSDL),)
-  PATH_SDK_LIBSDL := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/libsdl/v*))
+  PATH_SDK_LIBSDL := $(wildcard $(PATH_DEVTOOLS_BLD)/libsdl/v*)
  endif
  ifneq ($(PATH_SDK_LIBSDL),)
-  PATH_SDK_LIBSDL := $(call lastword,$(PATH_SDK_LIBSDL))
+  PATH_SDK_LIBSDL := $(lastword $(sort $(PATH_SDK_LIBSDL)))
  else
-  $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
-  PATH_SDK_LIBSDL := /usr
+  # Search in the typical unix places.
+  PATH_SDK_LIBSDL := $(firstword $(wildcard \
+	/lib/libsdl.* \
+	/usr/lib/libsdl.* \
+	/usr/local/lib/libsdl.* \
+	/opt/lib/libsdl.* \
+	/opt/local/lib/libsdl.*) )
+  ifneq ($(PATH_SDK_LIBSDL),)
+   PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(dir PATH_SDK_LIBSDL)))
+  else
+   $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
+   PATH_SDK_LIBSDL := $(PATH_DEVTOOLS_TRG)/libsdl/not/found
+  endif
  endif
 else
   PATH_SDK_LIBSDL := $(PATH_SDK_LIBSDL)

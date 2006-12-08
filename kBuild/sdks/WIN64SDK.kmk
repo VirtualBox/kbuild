@@ -1,4 +1,4 @@
-# $Id: WIN64SDK.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
+# $Id: WIN64SDK.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows Platform SDK, targeting AMD64.
@@ -29,18 +29,21 @@ SDK_WIN64SDK := The Windows Platform SDK, targeting AMD64.
 
 # SDK Specific Properties
 ifndef PATH_SDK_WIN64SDK
- PATH_SDK_WIN64SDK := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/sdk/2*))
+ PATH_SDK_WIN64SDK := $(wildcard $(PATH_DEVTOOLS)/win.amd64/sdk/2*)
  ifeq ($(PATH_SDK_WIN64SDK),)
-  PATH_SDK_WIN64SDK := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/sdk/2*))
+  PATH_SDK_WIN64SDK := $(PATH_SDK_WINPSDK)
  endif
  ifeq ($(PATH_SDK_WIN64SDK),)
-  PATH_SDK_WIN64SDK := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/sdk/2*))
+  PATH_SDK_WIN64SDK := $(wildcard $(PATH_DEVTOOLS)/x86.win/sdk/2*)
+ endif
+ ifeq ($(PATH_SDK_WIN64SDK),)
+  PATH_SDK_WIN64SDK := $(wildcard $(PATH_DEVTOOLS)/x86.win32/sdk/2*)
  endif
  ifneq ($(PATH_SDK_WIN64SDK),)
-  PATH_SDK_WIN64SDK := $(call lastword,$(PATH_SDK_WIN64SDK))
+  PATH_SDK_WIN64SDK := $(lastword $(sort $(PATH_SDK_WIN64SDK)))
  else
   $(warning kBuild: PATH_SDK_WIN64SDK couldn't be determined!)
-  PATH_SDK_WIN64SDK := $(PATH_DEVTOOLS)/amd64.win/sdk/not/found
+  PATH_SDK_WIN64SDK := $(PATH_DEVTOOLS)/win.amd64/sdk/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.

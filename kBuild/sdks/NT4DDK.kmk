@@ -1,4 +1,4 @@
-# $Id: NT4DDK.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
+# $Id: NT4DDK.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows NT 4 DDK, targeting X86.
@@ -28,12 +28,12 @@ SDK_NT4DDK := The MicroSoft NT 4 DDK, targeting X86 (free, not checked).
 
 # SDK Specific Properties
 ifndef PATH_SDK_NT4DDK
- PATH_SDK_NT4DDK := $(wildcard $(PATH_DEVTOOLS)/x86.win/ddknt4)
+ PATH_SDK_NT4DDK := $(wildcard $(PATH_DEVTOOLS)/win.x86/ddknt4/1* $(PATH_DEVTOOLS)/win.x86/ddknt4/2*)
  ifeq ($(PATH_SDK_NT4DDK),)
-  PATH_SDK_NT4DDK := $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddknt4) # legacy
+  PATH_SDK_NT4DDK := $(wildcard $(PATH_DEVTOOLS)/x86.win32/ddknt4)
  endif
  ifneq ($(PATH_SDK_NT4DDK),)
-  # only one version here, currently.
+  PATH_SDK_NT4DDK := $(lastword $(sort $(PATH_SDK_NT4DDK)))
  else
   $(warning kBuild: PATH_SDK_NT4DDK couldn't be determined!)
   PATH_SDK_NT4DDK := $(PATH_DEVTOOLS)/x86.win/ddknt4/not/found

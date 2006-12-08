@@ -1,4 +1,4 @@
-# $Id: DXSDKX86.kmk 664 2006-12-06 02:14:43Z knut.osmundsen@oracle.com $
+# $Id: DXSDKX86.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Microsoft Direct X SDK, targeting X86.
@@ -29,18 +29,18 @@ SDK_DXSDKX86 := The Microsoft Direct X SDK, targeting X86.
 
 # SDK Specific Properties
 ifndef PATH_SDK_DXSDKX86
- PATH_SDK_DXSDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win/dxsdk/2*))
+ PATH_SDK_DXSDKX86 := $(wildcard $(PATH_DEVTOOLS)/win.x86/dxsdk/2*)
  ifeq ($(PATH_SDK_DXSDKX86),)
-  PATH_SDK_DXSDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/x86.win32/dxsdk/2*))
+  PATH_SDK_DXSDKX86 := $(PATH_SDK_DXSDK)
  endif
  ifeq ($(PATH_SDK_DXSDKX86),)
-  PATH_SDK_DXSDKX86 := $(sort $(wildcard $(PATH_DEVTOOLS)/amd64.win/dxsdk/2*))
+  PATH_SDK_DXSDKX86 := $(wildcard $(PATH_DEVTOOLS)/amd64.win/dxsdk/2*)
  endif
  ifneq ($(PATH_SDK_DXSDKX86),)
-  PATH_SDK_DXSDKX86 := $(call lastword,$(PATH_SDK_DXSDKX86))
+  PATH_SDK_DXSDKX86 := $(lastword $(sort $(PATH_SDK_DXSDKX86)))
  else
   $(warning kBuild: PATH_SDK_DXSDKX86 couldn't be determined!)
-  PATH_SDK_DXSDKX86 := $(PATH_DEVTOOLS)/x86.win/dxsdk/not/found
+  PATH_SDK_DXSDKX86 := $(PATH_DEVTOOLS)/win.x86/dxsdk/not/found
  endif
 else
  # Resolve any fancy stuff once and for all.
