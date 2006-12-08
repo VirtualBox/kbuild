@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #ifndef _MSC_VER
 #include <unistd.h>
 #else
@@ -59,6 +60,16 @@ static int usage(void);
 
 static int pflag;
 static int vflag;
+static int ignore_fail_on_non_empty;
+
+static struct option long_options[] =
+{
+    { "ignore-fail-on-non-empty",   no_argument, 0, 260 },
+    { "parents",                    no_argument, 0, 'p' },
+    { "verbose",                    no_argument, 0, 'v' },
+    { 0, 0,	0, 0 },
+};
+
 
 int
 kmk_builtin_rmdir(int argc, char *argv[])
@@ -66,7 +77,7 @@ kmk_builtin_rmdir(int argc, char *argv[])
 	int ch, errors;
 
 	/* reinitialize globals */
-	vflag = 0;
+	ignore_fail_on_non_empty = vflag = pflag = 0;
 	
 	/* kmk: reset getopt and set progname */
 	g_progname = argv[0];
@@ -79,13 +90,16 @@ kmk_builtin_rmdir(int argc, char *argv[])
 #else
 	optind = 0; /* init */
 #endif
-	while ((ch = getopt(argc, argv, "pv")) != -1)
+	while ((ch = getopt_long(argc, argv, "pv", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'p':
 			pflag = 1;
 			break;
 		case 'v':
 			vflag = 1;
+			break;
+		case 260:
+			ignore_fail_on_non_empty = 1;
 			break;
 		case '?':
 		default:
@@ -99,8 +113,10 @@ kmk_builtin_rmdir(int argc, char *argv[])
 
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
-			warn("%s", *argv);
-			errors = 1;
+			if (!ignore_fail_on_non_empty || errno != ENOTEMPTY) {
+				warn("%s", *argv);
+				errors = 1;
+			}
 		} else {
 			if (vflag)
 				printf("%s\n", *argv);
@@ -145,6 +161,8 @@ rm_path(char *path)
 #endif 
 
 		if (rmdir(path) < 0) {
+			if (ignore_fail_on_non_empty && errno != ENOTEMPTY)
+				break;
 			warn("%s", path);
 			return (1);
 		}
