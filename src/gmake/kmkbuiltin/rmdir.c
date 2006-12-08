@@ -61,10 +61,12 @@ static int usage(void);
 static int pflag;
 static int vflag;
 static int ignore_fail_on_non_empty;
+static int ignore_fail_on_not_exist;
 
 static struct option long_options[] =
 {
     { "ignore-fail-on-non-empty",   no_argument, 0, 260 },
+    { "ignore-fail-on-not-exist",   no_argument, 0, 261 },
     { "parents",                    no_argument, 0, 'p' },
     { "verbose",                    no_argument, 0, 'v' },
     { 0, 0,	0, 0 },
@@ -77,7 +79,7 @@ kmk_builtin_rmdir(int argc, char *argv[])
 	int ch, errors;
 
 	/* reinitialize globals */
-	ignore_fail_on_non_empty = vflag = pflag = 0;
+	ignore_fail_on_not_exist = ignore_fail_on_non_empty = vflag = pflag = 0;
 	
 	/* kmk: reset getopt and set progname */
 	g_progname = argv[0];
@@ -101,6 +103,9 @@ kmk_builtin_rmdir(int argc, char *argv[])
 		case 260:
 			ignore_fail_on_non_empty = 1;
 			break;
+		case 261:
+			ignore_fail_on_not_exist = 1;
+			break;
 		case '?':
 		default:
 			return usage();
@@ -113,7 +118,8 @@ kmk_builtin_rmdir(int argc, char *argv[])
 
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
-			if (!ignore_fail_on_non_empty || errno != ENOTEMPTY) {
+			if (	(!ignore_fail_on_non_empty || errno != ENOTEMPTY)
+				&& 	(!ignore_fail_on_not_exist || errno != ENOENT)) {
 				warn("%s", *argv);
 				errors = 1;
 			}
@@ -161,10 +167,12 @@ rm_path(char *path)
 #endif 
 
 		if (rmdir(path) < 0) {
-			if (ignore_fail_on_non_empty && errno != ENOTEMPTY)
+			if (ignore_fail_on_non_empty && errno == ENOTEMPTY)
 				break;
-			warn("%s", path);
-			return (1);
+			if (!ignore_fail_on_not_exist || errno != ENOENT) {
+				warn("%s", path);
+				return (1);
+			}
 		}
 		if (vflag)
 			printf("%s\n", path);
@@ -177,6 +185,6 @@ static int
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: rmdir [-pv] directory ...\n");
+	(void)fprintf(stderr, "usage: rmdir [-pv --ignore-fail-on-non-empty --ignore-fail-on-not-exist] directory ...\n");
 	return 1;
 }
