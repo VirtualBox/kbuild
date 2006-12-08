@@ -1,4 +1,4 @@
-# $Id: TAR.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
+# $Id: TAR.kmk 688 2006-12-08 05:44:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - tar unpacker.
@@ -51,12 +51,12 @@ TOOL_TAR_UNPACK_DEPORD =
 ifeq ($(BUILD_PLATFORM),win) # hacking with buggy unxutils on windows. it doesn't like driver letters.
 define TOOL_TAR_UNPACK_CMDS
 	$(TOOL_TAR_UNPACK) -x $(flags) -C $(subst G:,,$(inst)) -f $(archive)
-	$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive)| $(SED) -e 's|^|$(inst)|g' > $(out)
+	$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive) > $(out)
 endef
 else
 define TOOL_TAR_UNPACK_CMDS
 	$(TOOL_TAR_UNPACK) -x $(flags) -C $(inst) -f $(archive)
-	$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive)| $(SED) -e 's|^|$(inst)|g' > $(out)
+	$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive) > $(out)
 endef
 endif
 

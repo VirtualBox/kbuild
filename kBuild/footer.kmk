@@ -1,4 +1,4 @@
-# $Id: footer.kmk 682 2006-12-08 00:03:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 688 2006-12-08 05:44:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -102,6 +102,7 @@ _FETCHES  :=
 _DOWNLOADS:=
 _UNPACKS  :=
 _PATCHES  :=
+_UNFETCHES:=
 _BLDPROGS :=
 _LIBS     :=
 _DLLS     :=
@@ -602,9 +603,53 @@ $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 
 
+## @page pg_fetches 	Fetching Tools, Sources and Similar.
 #
-# Fetching Tools, Sources and Similar.
+# The targets listed in the the FETCHES target list have the following attributes:
+#	SOURCES
+#	INST
+#   FETCHTOOL
+#   FETCHFLAGS
+#   FETCHDIR
+#   UNPACKTOOL
+#   UNPACKFLAGS
 #
+# As usual the target name is an alias for 'creating' the target. Other 
+# aliases are:
+#	pass_fetches
+#	fetch
+#	unfetch
+# 	download
+# 	unpack
+#
+# @remark
+#
+#   This is a little bit complex because we must guarantee that if a source file
+#   changes only sligtly we must refetch it and to a proper unpacking of it. It 
+#   is also a desire that fetched archives and unpacked files can be deleted to 
+#   save space.
+#
+#   Thus, we must be able to cleanup what we've unpacked should any of the 
+#   sources be removed. We do this by maintaining a file listing the files
+#   and directories that was unpacked. This operation is named 'unfetch'.
+#
+#   We make use of the SIZE and MD5 attributes for each of the sources to 
+#   construct a primary goal. Should any sources change only sligtly this
+#   name will change and we'll have to remake it. Upon remaking we will
+#   perform an 'unfetch' to remove old unpacked files.
+#
+#   By not depending directly on the archives (nor on any unpacked files)
+#	but on a goal made up from the archive name, size and md5, we allow
+#   the user to delete the archives. Naturally, this means we'll have to
+#   check and fetch missing archives before attempting to unpack them.
+# 
+# TODOs:
+#	1. Port md5sum or some equivalent tool and include it in kBuild.
+#   2. Download corruption / continuation.
+#   3. It's quite possible that there is one too many indirect dependency now...
+#
+
+## @todo move this!
 MD5SUM := md5sum
 
 ## generates the fetch rule
@@ -612,8 +657,9 @@ define def_fetch_src_fetch_rule
 # Indirect goal for downloading something.
 .PRECIOUS: $(out)
 $(out) $($(target)_$(srcname)_FETCH_OUTPUT_): | $($(target)_$(srcname)_FETCH_DEPORD_)
-	@$(ECHO) Downloading $(source)...
-	$$(RM) -f $(out) $(out).md5 ## @todo fancy stuff like download continuation
+	@$$(ECHO) Downloading $(source)...
+	## @todo do fancy stuff like download continuation.
+	$$(RM) -f $(out) $(out).md5
 	$($(target)_$(srcname)_FETCH_CMDS_)
 	@$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
 	$(if $(md5),$$(MD5SUM) -c $(out).md5)
@@ -622,35 +668,43 @@ $(out) $($(target)_$(srcname)_FETCH_OUTPUT_): | $($(target)_$(srcname)_FETCH_DEP
 
 # Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
 $(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
-	@$(ECHO) Checking $(out) ($(source))...
+	@$$(ECHO) Checking $(out) ($(source))...
 	$$(RM) -f $$@ $(out).md5
 	@# creates the .md5 we pass to md5sum.
-	@$(if $(md5),$(APPEND) $(out).md5 "$(md5) *$(out)") 	
-	@# if the file exists, perform md5sum, otherwise just fetch it.
-	$(if $(wildcard $(out)),\
-		$(MD5SUM) -c $(out).md5 || ( $(RM_EXT) -f $(out) && $(MAKE) -f $(MAKEFILE) $(out) ),\
-		$(MAKE) -f $(MAKEFILE) $(out) )
-	@$(APPEND) $$@
+	@$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
+	@# (re)fetch the file if it doesn't exist or if it doesn't matches the md5.
+	## @todo do fancy stuff like download continuation.
+	( test -f $(out) && $(if $(md5),$$(MD5SUM) -c $(out).md5, true) ) \
+		|| (   $$(RM_EXT) -f $(out) \
+		    && $$(MAKE)      $(out) -f $(MAKEFILE) )
+	@$$(APPEND) $$@
 
-_TARGET_$(target)_FETCHED += $(out).checked_$(md5)_$(size)
+_TARGET_$(target)_FETCHED += $(out) $(out).checked_$(md5)_$(size) 
+
+# Just a little precaution.
+.NOTPARALLEL: $(out) $(out).checked_$(md5)_$(size)
 
 endef
 
 ## generates the unpack rule
 define def_fetch_src_unpack_rule
-#$ (warning def_fetch_src_unpack_rule: source=$(source))
-
 # This is the unpack rule. it has an order-only dependency on the download check.
 $(out) $($(target)_$(srcname)_UNPACK_OUTPUT_): $($(target)_$(srcname)_UNPACK_DEPEND_) \
 		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
-	@$(ECHO) Unpacking $(source) into $(inst)...
+	@$$(ECHO) Unpacking $(source) into $(inst)...
 	$$(RM) -f $(out)
+	@# if the source archive doesn't exist fetch it (can have been deleted to save space).
+	test -f $(archive) \
+		|| (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
+		    && $$(MAKE)      $(archive).checked_$(md5)_$(size) -f $(MAKEFILE) )
 	$($(target)_$(srcname)_UNPACK_CMDS_)
-	@$(APPEND) $(out) $(out)
-	@$(APPEND) $(out) $(out).check_$(md5)_$(size)
+	@$$(APPEND) $(out) $(notdir $(archive).checked_$(md5)_$(size))
+	@$$(APPEND) $(out) $(notdir $(out))
 
 $(eval _TARGET_$(target)_UNPACKED += $(out))
 _TARGET_$(target)_DIGEST := $(_TARGET_$(target)_DIGEST)-$(srcname)_$(md5)_$(size)
+
+.NOTPARALLEL: $(out)
 
 endef 
 
@@ -826,25 +880,37 @@ endef
 # @param	target
 # @param	out
 # @param	inst
-# @param	_TARGET_$(target)_FETCHED...
+# @param	_TARGET_$(target)_UNPACKED
+# @param	_TARGET_$(target)_DIGEST
 # @param	bld_trg
 # @param	bld_trg_arch
 define def_fetch_rules
 
 $(out): $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
-	@$(ECHO) Successfully fetched $(target)
-	$(RM) -f $$@ $$@.tmp
-	@$(APPEND) $$@.tmp ""
-	$(if $(_TARGET_$(target)_UNPACKED),$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
-	$(MV) -f $$@.tmp $$@
+	@$$(ECHO) Successfully fetched $(target)
+	$$(RM) -f $$@ $$@.tmp
+	@$$(APPEND) $$@.tmp "$(notdir $(out).$(_TARGET_$(target)_DIGEST))"
+	$(if $(_TARGET_$(target)_UNPACKED),$$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
+	$$(MV) -f $$@.tmp $$@
 
 $(out)_unfetched:
-	@$(ECHO) Unfetching $(target)...
-	$(RM) -f $$(shell $$(CAT_EXT) $(out) 2> /dev/null)
-	# figure out how to make this quiet...
-	-$(RMDIR) -p $(dir $(out)) $$(sort $$(dir $$(shell $$(CAT_EXT) $(out) 2> /dev/null))) 
-	$(RM) -f $(out)
-	-$(RMDIR) -p $(dir $(out))
+	@$$(ECHO) Unfetching $(target)...
+	$$(RM) -f $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out) 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
+	$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $(out)) \
+		$$(addprefix $(inst),$$(sort $$(dir $$(shell $$(CAT_EXT) $(out) 2> /dev/null))))
+	$$(RM) -f $(out)
+	$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $(out))
+
+$(out).$(_TARGET_$(target)_DIGEST): | $(call DIRDEP,$(inst))
+	@$$(RM) -f $(out).$(_TARGET_$(target)_DIGEST)
+	@$$(ECHO) $$(if $$(wildcard $(out)),Re-fetching,Fetching) $(target)...
+	$$(if $$(wildcard $(out)),$$(MAKE) -f $(MAKEFILE) $(out)_unfetched)
+	$$(MAKE) -f $(MAKEFILE) $(out)
+	$$(APPEND) $$@ ""
+	
+$(target):: $(out).$(_TARGET_$(target)_DIGEST)
+
+.NOTPARALLEL: $(out) $(out)_unfetched $(out).$(_TARGET_$(target)_DIGEST)
 
 endef
 
@@ -877,7 +943,7 @@ out := $(inst)_kBuild_fetch_$(target)
 
 $(eval $(def_fetch_rules))
 
-_FETCHES += $(out)
+_FETCHES += $(out).$(_TARGET_$(target)_DIGEST)
 _DOWNLOADS += $(_TARGET_$(target)_FETCHED)
 _UNPACKS += $(_TARGET_$(target)_UNPACKED)
 _UNFETCHES += $(out)_unfetched
@@ -893,9 +959,9 @@ $(foreach target, $(FETCHES) $(FETCHES.$(BUILD_TARGET)) $(FETCHES.$(BUILD_TARGET
 
 # some aliases.
 download: $(_DOWNLOADS)
-unpack: $(_UNPACK)
-fetches: $(_FETCHES)
-unfetches: $(_UNFETCHES)
+unpack: $(_UNPACKS)
+fetch: $(_FETCHES)
+unfetch: $(_UNFETCHES)
 
 
 
@@ -903,7 +969,7 @@ unfetches: $(_UNFETCHES)
 ## Patching.
 ##
 ##
-#define def_fetch_src
+#define def_patch_src
 #
 #endef
 #
@@ -912,7 +978,7 @@ unfetches: $(_UNFETCHES)
 #define def_patch
 #
 #$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),\
-#	$(eval $(value def_patch_one)))
+#	$(eval $(value def_patch_src)))
 #
 #_PATCHES += 
 #endef
