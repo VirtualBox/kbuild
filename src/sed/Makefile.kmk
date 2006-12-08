@@ -31,6 +31,10 @@ kmk_sed_SOURCES = \
 	lib/getopt.c \
 	lib/utils.c \
 	lib/regex.c
+kmk_sed_SOURCES.darwin += \
+        lib/strverscmp.c \
+        lib/obstack.c \
+        lib/getline.c
 ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 kmk_sed_SOURCES += \
 	lib/strverscmp.c \
