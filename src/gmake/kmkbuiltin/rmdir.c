@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include <malloc.h>
 #include "mscfakes.h"
 #endif 
+#include <getopt.h>
 
 static int rm_path(char *);
 static int usage(void);
