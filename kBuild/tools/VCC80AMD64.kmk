@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 706 2006-12-10 21:57:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting AMD64.
@@ -28,9 +28,12 @@ TOOL_VCC80AMD64 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting 
 
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC80AMD64
- PATH_TOOL_VCC80AMD64 := $(wildcard $(PATH_DEVTOOLS)/amd64.win/vcc/v8)
+ PATH_TOOL_VCC80AMD64 := $(wildcard $(PATH_DEVTOOLS)/win.x86/vcc/v8)
  ifeq ($(PATH_TOOL_VCC80AMD64),)
-  PATH_TOOL_VCC80AMD64 := $(wildcard $(PATH_DEVTOOLS)/x86.win/vcc/v8)
+  PATH_TOOL_VCC80AMD64 := $(PATH_TOOL_VCC80)
+ endif
+ ifeq ($(PATH_TOOL_VCC80AMD64),)
+  PATH_TOOL_VCC80AMD64 := $(wildcard $(PATH_DEVTOOLS)/win.x86/vcc/v8)
  endif
  ifeq ($(PATH_TOOL_VCC80AMD64),)
   PATH_TOOL_VCC80AMD64 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/vcc/v8)
@@ -39,7 +42,7 @@ ifndef PATH_TOOL_VCC80AMD64
   # done for now
  else
   $(warning kBuild: PATH_TOOL_VCC80AMD64 cannot be determined!)
-  PATH_TOOL_VCC80AMD64 := $(PATH_DEVTOOLS)/x86.win/vcc/v8
+  PATH_TOOL_VCC80AMD64 := $(PATH_DEVTOOLS)/win.x86/vcc/v8
  endif
 else
  # Resolve any fancy stuff once and for all.

@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 706 2006-12-10 21:57:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
@@ -28,9 +28,15 @@ TOOL_VCC80X86 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x8
 
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC80X86
- PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/x86.win/vcc/v8)
+ PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/win.x86/vcc/v8)
+ ifeq ($(PATH_TOOL_VCC80X86),)
+  PATH_TOOL_VCC80X86 := $(PATH_TOOL_VCC80)
+ endif
  ifeq ($(PATH_TOOL_VCC80X86),)
   PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/vcc/v8)
+ endif
+ ifeq ($(PATH_TOOL_VCC80X86),)
+  PATH_TOOL_VCC80X86 := $(wildcard $(PATH_DEVTOOLS)/win.amd64/vcc/v8)
  endif
  ifneq ($(PATH_TOOL_VCC80X86),)
   # done for now
