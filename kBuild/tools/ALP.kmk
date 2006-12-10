@@ -1,4 +1,4 @@
-# $Id: ALP.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
@@ -60,7 +60,7 @@ TOOL_ALP_COMPILE_AS_OUTPUT = $(outbase).lst
 TOOL_ALP_COMPILE_AS_DEPEND = 
 TOOL_ALP_COMPILE_AS_DEPORD = 
 define TOOL_ALP_COMPILE_AS_CMDS
-	$(TOOL_ALP_AS)\
+	$(QUIET)$(TOOL_ALP_AS)\
 		$(flags) $(addsuffix /,$(addprefix -I:, $(incs))) $(addprefix -D:, $(defs))\
 		$(source)\
 		-Fl:$(outbase).lst\

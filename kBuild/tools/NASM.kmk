@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Netwide Assembler v0.98+.
@@ -64,12 +64,12 @@ TOOL_NASM_COMPILE_AS_OUTPUT = $(outbase).lst
 TOOL_NASM_COMPILE_AS_DEPEND =
 TOOL_NASM_COMPILE_AS_DEPORD =
 define TOOL_NASM_COMPILE_AS_CMDS
-	$(TOOL_NASM_AS)\
+	$(QUIET)$(TOOL_NASM_AS)\
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\
 		$(call ABSPATH,$(source))
-	$(TOOL_NASM_AS)\
+	$(QUIET)$(TOOL_NASM_AS)\
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\

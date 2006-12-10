@@ -1,4 +1,4 @@
-# $Id: footer.kmk 693 2006-12-09 14:50:07Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -665,27 +665,27 @@ define def_fetch_src_fetch_rule
 # Indirect goal for downloading something.
 .PRECIOUS: $(out)
 $(out) $($(target)_$(srcname)_FETCH_OUTPUT_): | $($(target)_$(srcname)_FETCH_DEPORD_)
-	@$$(ECHO) Downloading $(source)...
-	## @todo do fancy stuff like download continuation.
-	$$(RM) -f $(out) $(out).md5
+	$$(call MSG_L1,Downloading $(source)...)
+	@## @todo do fancy stuff like download continuation.
+	$$(QUIET)$$(RM) -f $(out) $(out).md5
 	$($(target)_$(srcname)_FETCH_CMDS_)
-	@$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
-	$(if $(md5),$$(MD5SUM) -c $(out).md5)
+	$$(QUIET2)$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
+	$$(QUIET)$(if $(md5),$$(MD5SUM) -c $(out).md5)
 
 
 
 # Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
 $(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
-	@$$(ECHO) Checking $(out) ($(source))...
-	$$(RM) -f $$@ $(out).md5
+	$$(call MSG_L1,Checking $(out),($(source))...)
+	$$(QUIET)$$(RM) -f $$@ $(out).md5
 	@# creates the .md5 we pass to md5sum.
-	@$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
+	$$(QUIET2)$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
 	@# (re)fetch the file if it doesn't exist or if it doesn't matches the md5.
-	## @todo do fancy stuff like download continuation.
-	( test -f $(out) && $(if $(md5),$$(MD5SUM) -c $(out).md5, true) ) \
-		|| (   $$(RM_EXT) -f $(out) \
-		    && $$(MAKE)      $(out) -f $(MAKEFILE) )
-	@$$(APPEND) $$@
+	@## @todo do fancy stuff like download continuation.
+	$$(QUIET)( test -f $(out) && $(if $(md5),$$(MD5SUM) -c $(out).md5, true) ) \
+	          || (   $$(RM_EXT) -f $(out) \
+		      && $$(MAKE)      $(out) -f $(MAKEFILE) --no-print-directory )
+	$$(QUIET2)$$(APPEND) $$@
 
 _TARGET_$(target)_FETCHED += $(out) $(out).checked_$(md5)_$(size) 
 
@@ -699,15 +699,15 @@ define def_fetch_src_unpack_rule
 # This is the unpack rule. it has an order-only dependency on the download check.
 $(out) $($(target)_$(srcname)_UNPACK_OUTPUT_): $($(target)_$(srcname)_UNPACK_DEPEND_) \
 		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
-	@$$(ECHO) Unpacking $(source) into $(inst)...
-	$$(RM) -f $(out)
+	$$(call MSG_L1,Unpacking $(archive),into $(inst)...)
+	$$(QUIET)$$(RM) -f $(out)
 	@# if the source archive doesn't exist fetch it (can have been deleted to save space).
-	test -f $(archive) \
-		|| (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
-		    && $$(MAKE)      $(archive).checked_$(md5)_$(size) -f $(MAKEFILE) )
+	$$(QUIET)test -f $(archive) \
+	         || (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
+	             && $$(MAKE)      $(archive).checked_$(md5)_$(size) -f $(MAKEFILE) --no-print-directory )
 	$($(target)_$(srcname)_UNPACK_CMDS_)
-	@$$(APPEND) $(out) $(notdir $(archive).checked_$(md5)_$(size))
-	@$$(APPEND) $(out) $(notdir $(out))
+	$$(QUIET2)$$(APPEND) $(out) $(notdir $(archive).checked_$(md5)_$(size))
+	$$(QUIET2)$$(APPEND) $(out) $(notdir $(out))
 
 $(eval _TARGET_$(target)_UNPACKED += $(out))
 _TARGET_$(target)_DIGEST := $(_TARGET_$(target)_DIGEST)-$(srcname)_$(md5)_$(size)
@@ -895,26 +895,26 @@ endef
 define def_fetch_rules
 
 $(out).lst: $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
-	@$$(ECHO) kBuild: Successfully fetched $(target)
-	$$(RM) -f $$@ $$@.tmp
-	@$$(APPEND) $$@.tmp "$(notdir $(out))"
-	$(if $(_TARGET_$(target)_UNPACKED),$$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
-	$$(MV) -f $$@.tmp $$@
+	$$(call MSG_L1,Successfully fetched $(target))
+	$$(QUIET)$$(RM) -f $$@ $$@.tmp
+	$$(QUIET2)$$(APPEND) $$@.tmp "$(notdir $(out))"
+	$$(QUIET)$(if $(_TARGET_$(target)_UNPACKED),$$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
+	$$(QUIET)$$(MV) -f $$@.tmp $$@
 
 $(out)_unfetched:
-	@$$(ECHO) kBuild: Unfetching $(target)...
-	$$(RM) -f $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
-	$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@) \
+	$$(call MSG_L1,Unfetching $(target)...)
+	$$(QUIET)$$(RM) -f $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
+	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@) \
 		$$(addprefix $(inst),$$(sort $$(dir $$(shell $$(CAT_EXT) $(out).lst 2> /dev/null))))
-	$$(RM) -f $(out).lst $(out)
-	$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@)
+	$$(QUIET)$$(RM) -f $(out).lst $(out)
+	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@)
 
 $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE) | $(call DIRDEP,$(inst))
-	@$$(RM) -f $$@
-	@$$(ECHO) kBuild: $$(if $$(wildcard $(out).lst),$$(if $$(_TARGET_$(target)_DIGEST),Re-fetching,Removing),Fetching) $(target)...
-	@$$(if $$(wildcard $(out).lst),$$(MAKE) -f $(MAKEFILE) $(out)_unfetched)
-	@$$(if $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) $(out).lst)
-	@$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
+	$$(QUIET)$$(RM) -f $$@
+	$$(call MSG_L1,$$(if $$(wildcard $(out).lst),$$(if $$(_TARGET_$(target)_DIGEST),Re-fetching,Removing),Fetching) $(target)...)
+	$$(QUIET)$$(if $$(wildcard $(out).lst      ),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched)
+	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst)
+	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
 	
 .NOTPARALLEL: $(out).lst $(out)_unfetched $(out)
 
@@ -1024,18 +1024,18 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 		$(_DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_)
-	$(call MSG_L1,Creating $$@)
-	$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
+	$$(call MSG_L1,Compiling $(source),=> $$@)
+	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
 	$(custom_pre)
 
 $($(target)_$(source)_CMDS_)
 
 	$(custom_post)
 ifndef NO_COMPILE_CMDS_DEPS
-	@$(APPEND) "$(dep)"
-	@$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
-	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_$(source)_CMDS_))'
-	@$(APPEND) "$(dep)" 'endef'
+	$$(QUIET2)$$(APPEND) "$(dep)"
+	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
+	$$(QUIET2)$$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_$(source)_CMDS_))'
+	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
 endif
 
 $(basename $(notdir $(obj))).o::
@@ -1072,17 +1072,17 @@ $(out) $($(target)_OUTPUT_): \
 		$(_DEP_LINK_CMDS) \
 		| \
 		$($(target)_DEPORD_)
-	$(call MSG_L1,Creating $$@)
-	$(RM) -f $(dep) $(out) $($(target)_OUTPUT_)
+	$$(call MSG_L1,Linking $$@)
+	$$(QUIET)$$(RM) -f $(dep) $(out) $($(target)_OUTPUT_)
 	$(custom_pre)
 
 $($(target)_CMDS_)
 
 	$(custom_post)
 ifndef NO_LINK_CMDS_DEPS
-	@$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
-	@$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
-	@$(APPEND) "$(dep)" 'endef'
+	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
+	$$(QUIET2)$$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
+	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
 endif
 
 $(basename $(notdir $(out)))::
@@ -1097,7 +1097,8 @@ endef
 # @param    $(mode)     The file mode (optional)
 define def_link_install_rule
 $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
-	$(INSTALL) $$(if $(mode),-m $(mode)) $(out) $$@
+	$$(call MSG_L1,Installing $(target),=> $$@)
+	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) $(out) $$@
 endef
 
 
@@ -2018,8 +2019,9 @@ _OTHERS = $(OTHERS) $(OTHERS.$(BUILD_TARGET)) $(OTHERS.$(BUILD_TARGET).$(BUILD_T
 define def_install_src_rule
 # the install rule
 $(insdst) : $(srcsrc) | $(call DIRDEP,$(dir $(insdst)))
-	$$(if $$(filter $(INSTALL),$(inscmd)),,$$(RM) -f $$@)
-	$(inscmd)
+	$$(call MSG_L1,Installing $(srcsrc),=> $(insdst))
+	$$(QUIET)$$(if $$(filter $(INSTALL),$(inscmd)),,$$(RM) -f $$@)
+	$$(QUIET)$(inscmd)
 endef
 
 ## install one file
@@ -2133,8 +2135,9 @@ endef
 define def_install_symlink_rule
 # the install rule
 $(insdst) : | $(call DIRDEP,$(dir $(insdst)))
-	$$(RM) -f $$@
-	$$(LN_SYMLINK) $(symdst) $(insdst)
+	$$(call MSG_L1,Installing symlink $(insdst),pointing to $(symdst))
+	$$(QUIET)$$(RM) -f $$@
+	$$(QUIET)$$(LN_SYMLINK) $(symdst) $(insdst)
 endef
 
 ## create one symlink
@@ -2182,7 +2185,8 @@ endef
 define def_install_directory_rule
 # the install rule
 $(insdst):
-	$(INSTALL) -d \
+	$$(call MSG_L1,Installing directory $(insdst))
+	$$(QUIET)$$(INSTALL) -d \
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
@@ -2295,8 +2299,8 @@ $(foreach directory,$(_INSTALLS_DIRS), $(eval _DIR_ALL := $(filter-out $(directo
 
 define def_mkdir_rule
 $(directory):
-	$(call MSG_L1,Creating directory $$@)
-	$(MKDIR) -p $$@
+	$$(call MSG_L2,Creating directory $$@)
+	$$(QUIET)$$(MKDIR) -p $$@
 endef
 
 $(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
@@ -2327,7 +2331,7 @@ do-clean:
 # @param	$(tag)		tag to attach to the rule name.
 define def_pass_subdir
 pass_$(pass)$(tag):: $(dep)
-	+ $(QUIET)$$(MAKE) -C $(subdir) -f $$(notdir $$(firstword $$(wildcard $$(addprefix $(subdir)/,$$(DEFAULT_MAKEFILE))))) pass_$(pass)
+	+ $$(QUIET)$$(MAKE) -C $(subdir) -f $$(notdir $$(firstword $$(wildcard $$(addprefix $(subdir)/,$$(DEFAULT_MAKEFILE))))) pass_$(pass)
 endef
 
 ## Submakefile
@@ -2337,7 +2341,7 @@ endef
 # @param	$(tag)		tag to attach to the rule name.
 define def_pass_makefile
 pass_$(pass)$(tag):: $(dep)
-	+ $(QUIET)$$(MAKE) -C $(patsubst %/,%,$(dir $(makefile))) -f $(notdir $(makefile)) pass_$(pass)
+	+ $$(QUIET)$$(MAKE) -C $(patsubst %/,%,$(dir $(makefile))) -f $(notdir $(makefile)) pass_$(pass)
 endef
 
 ## Execute a pass.
@@ -2363,7 +2367,7 @@ $(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD
 .PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
 pass_$(pass)_doit: 	$(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
 pass_$(pass)_this:      pass_$(pass)_before
-	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
+	+ $$(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
 pass_$(pass)_after::    pass_$(pass)_this
 pass_$(pass):           pass_$(pass)_after
 
@@ -2390,7 +2394,7 @@ ifdef KBUILD_SAFE_PARALLEL
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this pass_$(pass)_doit
 pass_$(pass)_doit: 	    $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
 pass_$(pass)_this:      pass_$(pass)_before
-	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
+	+ $$(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
 pass_$(pass)_after::    pass_$(pass)_this
 pass_$(pass):           pass_$(pass)_after
 else
@@ -2420,13 +2424,13 @@ ifdef KBUILD_SAFE_PARALLEL
 .NOTPARALLEL: pass_$(pass)_order
 .PHONY: pass_$(pass)_order
 pass_$(pass)_order: $(pass_prev)
-	$(call MSG_L1,Pass - $(if $(PASS_$(PASS)),$(PASS_$(PASS)),$(pass)))
-	+ $(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
+	$$(call MSG_L1,Pass - $$(if $$(PASS_$(PASS)),$$(PASS_$(PASS)),$(pass)))
+	+ $$(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
 else
 .NOTPARALLEL: pass_$(pass)_order pass_$(pass)_banner
 .PHONY:       pass_$(pass)_order pass_$(pass)_banner
 pass_$(pass)_banner:
-	$(call MSG_L1,Pass - $(if $(PASS_$(PASS)),$(PASS_$(PASS)),$(pass)))
+	$$(call MSG_L1,Pass - $$(if $$(PASS_$(PASS)),$$(PASS_$(PASS)),$(pass)))
 pass_$(pass)_order: \
 		$(pass_prev) \
 		pass_$(pass)_banner \

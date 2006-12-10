@@ -1,4 +1,4 @@
-# $Id: WGET.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: WGET.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - wget fetchers.
@@ -54,6 +54,6 @@ TOOL_WGET_FETCH_OUTPUT =
 TOOL_WGET_FETCH_DEPEND =
 TOOL_WGET_FETCH_DEPORD =
 define TOOL_WGET_FETCH_CMDS
-	$(TOOL_WGET_FETCH) $(flags) -P $(dir $(out)) $(source)
+	$(QUIET)$(TOOL_WGET_FETCH) $(flags) -P $(dir $(out)) $(source)
 endef
 

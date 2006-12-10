@@ -1,4 +1,4 @@
-# $Id: header.kmk 693 2006-12-09 14:50:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -230,7 +230,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 693 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 696 $  )
 
 
 #
@@ -435,40 +435,11 @@ export SHELL MAKESHELL
 # Symlinking is problematic on some platforms...
 LN_SYMLINK  := $(LN) -s
 
-
-
-#
-# Message macros.
-#
-
-ifndef BUILD_QUIET
-ifdef BUILD_DEBUG
-BUILD_VERBOSE := 9
-endif
-MSG_L1		= @$(ECHO) "kBuild: $1"
-ifdef BUILD_VERBOSE
-MSG_L2		= @$(ECHO) "kBuild: $1"
-QUIET		:=
-else
-QUIET		:= @
-MSG_L2		=
-endif
-ifdef BUILD_DEBUG
-MSG_L3      = @$(ECHO) "kBuild: $1"
-else
-MSG_L3      =
-endif
-else
-QUIET		:=
-MSG_L1		=
-MSG_L2      =
-MSG_L3      =
-endif
-
 ## ABSPATH - make paths absolute.
 # This implementation is clumsy and doesn't resolve '..' and '.' components.
 #
 # @param	$1	The paths to make absolute.
+# @obsolete Use the GNU make function $(abspath) directly now.
 ABSPATH = $(abspath $(1))
 
 ## DIRDEP - make create directory dependencies.
@@ -703,6 +674,39 @@ endif
 # Include the config.kmk we found file (or the default one).
 include $(_CFGFILE)
 
+
+#
+# Message macros.
+#
+# This is done after including Config.kmk as to allow for 
+# KBUILD_QUIET and KBUILD_VERBOSE to be configurable.
+#
+ifdef KBUILD_QUIET
+ # minimal output.
+ QUIET := @
+ QUIET2:= @
+ MSG_L1	=
+ MSG_L2 =
+ MSG_L3 =
+else
+ ifndef KBUILD_VERBOSE
+  QUIET := @
+  QUIET2:= @
+  MSG_L1 = @$(ECHO) "kBuild: $1"
+  MSG_L2 =
+  MSG_L3 =
+ else
+  # maximal output.
+  QUIET :=
+  MSG_L1 = @$(ECHO) "kBuild: $1 $2"
+  MSG_L2 = @$(ECHO) "kBuild: $1"
+  ifeq ($(KBUILD_VERBOSE),full)
+   QUIET2:= @
+  else
+   QUIET2:=
+  endif
+ endif
+endif
 
 # end-of-file-content
 __header_kmk__ := 1
