@@ -1,4 +1,4 @@
-# $Id: WIN32SDK.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: WIN32SDK.kmk 702 2006-12-10 08:27:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows Platform SDK, targeting x86.
@@ -45,8 +45,16 @@ ifndef PATH_SDK_WIN32SDK
   PATH_SDK_WIN32SDK := $(PATH_DEVTOOLS)/win.x86/sdk/not/found
  endif
 endif
-PATH_SDK_WIN32SDK_INC ?= $(PATH_SDK_WIN32SDK)/include
-PATH_SDK_WIN32SDK_LIB ?= $(PATH_SDK_WIN32SDK)/lib
+ifndef PATH_SDK_WIN32SDK_INC
+PATH_SDK_WIN32SDK_INC := $(firstword $(wildcard $(PATH_SDK_WIN32SDK)/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]) $(PATH_SDK_WIN32SDK)/Include)
+endif
+ifndef PATH_SDK_WIN32SDK_LIB
+PATH_SDK_WIN32SDK_LIB := $(firstword $(wildcard $(PATH_SDK_WIN32SDK)/[Ll][Ii][Bb]) $(PATH_SDK_WIN32SDK)/Lib)
+endif
+ifndef PATH_SDK_WIN32SDK_BIN
+PATH_SDK_WIN32SDK_BIN := $(firstword $(wildcard $(PATH_SDK_WIN32SDK)/[Bb][Ii][Nn]) $(PATH_SDK_WIN32SDK)/Bin)
+endif
+
 
 # General Properties used by kBuild
 SDK_WIN32SDK_INCS ?= $(PATH_SDK_WIN32SDK_INC)
