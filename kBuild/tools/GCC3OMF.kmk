@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
@@ -100,7 +100,7 @@ define TOOL_GCC3OMF_COMPILE_C_CMDS
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP \
 		-o $(obj)\
-		$(call ABSPATH,$(source))
+		$(abspath $(source))
 endef
 
 
@@ -125,7 +125,7 @@ define TOOL_GCC3OMF_COMPILE_CXX_CMDS
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP \
 		-o $(obj)\
-		$(call ABSPATH,$(source))
+		$(abspath $(source))
 endef
 
 
@@ -150,7 +150,7 @@ define TOOL_GCC3OMF_COMPILE_AS_CMDS
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
-		$(call ABSPATH,$(source))
+		$(abspath $(source))
 endef
 
 

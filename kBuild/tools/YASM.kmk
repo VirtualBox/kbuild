@@ -1,4 +1,4 @@
-# $Id: YASM.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
+# $Id: YASM.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - YASM 0.4.0 or later.
@@ -67,11 +67,11 @@ define TOOL_YASM_COMPILE_AS_CMDS
 		$(flags) $(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\
-		$(call ABSPATH,$(source))
+		$(abspath $(source))
 	$(QUIET)$(TOOL_YASM_AS)\
 		$(flags) $(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
 		-o $(obj) \
-		$(call ABSPATH,$(source)) \
+		$(abspath $(source)) \
 		-M > $(dep)
 endef
 

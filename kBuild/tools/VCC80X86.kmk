@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
@@ -121,7 +121,7 @@ define TOOL_VCC80X86_COMPILE_C_CMDS
 		-Fd$(outbase)-obj.pdb \
 		-FD\
 		-Fo$(obj)\
-		$(subst /,\\,$(call ABSPATH,$(source)))
+		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 else
@@ -130,10 +130,10 @@ define TOOL_VCC80X86_COMPILE_C_CMDS
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
-		$(subst /,\\,$(call ABSPATH,$(source)))
+		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(TOOL_VCC80X86_CC) -E\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(call ABSPATH,$(source)))\
+		$(subst /,\\,$(abspath $(source)))\
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
 endef
 endif
@@ -162,7 +162,7 @@ define TOOL_VCC80X86_COMPILE_CXX_CMDS
 		-Fd$(outbase)-obj.pdb \
 		-FD\
 		-Fo$(obj)\
-		$(subst /,\\,$(call ABSPATH,$(source)))
+		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 else
@@ -171,10 +171,10 @@ define TOOL_VCC80X86_COMPILE_CXX_CMDS
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
-		$(subst /,\\,$(call ABSPATH,$(source)))
+		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(TOOL_VCC80X86_CXX) -E\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(call ABSPATH,$(source)))\
+		$(subst /,\\,$(abspath $(source)))\
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
 endef
 endif
@@ -201,7 +201,7 @@ define TOOL_VCC80X86_COMPILE_RC_CMDS
 	$(QUIET)$(TOOL_VCC80X86_RC) \
 		$(flags) $(addprefix /i, $(subst /,\\,$(incs))) $(addprefix /d, $(defs))\
 		/fo$(obj)\
-		$(subst /,\\,$(call ABSPATH,$(source)))
+		$(subst /,\\,$(abspath $(source)))
 endef
 
 
