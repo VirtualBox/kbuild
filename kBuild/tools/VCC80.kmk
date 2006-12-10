@@ -1,4 +1,4 @@
-# $Id: VCC80.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 706 2006-12-10 21:57:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
@@ -29,9 +29,9 @@ TOOL_VCC80 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUI
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC80
  PATH_TOOL_VCC80 := $(wildcard $(PATH_DEVTOOLS_TRG)/vcc/v8 \
-                               $(PATH_DEVTOOLS)/x86.win/vcc/v8 \
+                               $(PATH_DEVTOOLS)/win.x86/vcc/v8 \
                                $(PATH_DEVTOOLS)/x86.win32/vcc/v8 \
-                               $(PATH_DEVTOOLS)/amd64.win/vcc/v8)
+                               $(PATH_DEVTOOLS)/win.amd64/vcc/v8)
  ifeq ($(PATH_TOOL_VCC80),)
   PATH_TOOL_VCC80 := $(firstword $(PATH_TOOL_VCC80))
  endif
@@ -64,7 +64,7 @@ ifneq ($(PATH_TOOL_VCC80),)
  TOOL_VCC80_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/lib.exe
  TOOL_VCC80_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/link.exe
  TOOL_VCC80_MT  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN.x86)/mt.exe
-else 
+else
  # Pathless, relies on the environment.
  TOOL_VCC80_CC  ?= $(EXEC_X86_WIN32) cl.exe
  TOOL_VCC80_CXX ?= $(EXEC_X86_WIN32) cl.exe
