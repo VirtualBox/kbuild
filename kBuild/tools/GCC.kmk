@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC Using The System GCC.
@@ -87,7 +87,7 @@ TOOL_GCC_COMPILE_C_OUTPUT =
 TOOL_GCC_COMPILE_C_DEPEND =
 TOOL_GCC_COMPILE_C_DEPORD =
 define TOOL_GCC_COMPILE_C_CMDS
-	$(TOOL_GCC_CC) -c\
+	$(QUIET)$(TOOL_GCC_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(out) \
 		-o $(out)\
@@ -112,7 +112,7 @@ TOOL_GCC_COMPILE_CXX_OUTPUT =
 TOOL_GCC_COMPILE_CXX_DEPEND =
 TOOL_GCC_COMPILE_CXX_DEPORD =
 define TOOL_GCC_COMPILE_CXX_CMDS
-	$(TOOL_GCC_CXX) -c\
+	$(QUIET)$(TOOL_GCC_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(out) \
 		-o $(out)\
@@ -137,7 +137,7 @@ TOOL_GCC_COMPILE_AS_OUTPUT =
 TOOL_GCC_COMPILE_AS_DEPEND =
 TOOL_GCC_COMPILE_AS_DEPORD =
 define TOOL_GCC_COMPILE_AS_CMDS
-	$(TOOL_GCC_AS) -c\
+	$(QUIET)$(TOOL_GCC_AS) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(out) \
 		-o $(out)\
@@ -158,7 +158,7 @@ TOOL_GCC_LINK_LIBRARY_OUTPUT =
 TOOL_GCC_LINK_LIBRARY_DEPEND =
 TOOL_GCC_LINK_LIBRARY_DEPORD =
 define TOOL_GCC_LINK_LIBRARY_CMDS
-	$(TOOL_GCC_AR) $(flags) $(out) $(objs)
+	$(QUIET)$(TOOL_GCC_AR) $(flags) $(out) $(objs)
 endef
 
 
@@ -180,7 +180,7 @@ TOOL_GCC_LINK_PROGRAM_OUTPUT =
 TOOL_GCC_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC_LINK_PROGRAM_DEPORD =
 define TOOL_GCC_LINK_PROGRAM_CMDS
-	$(TOOL_GCC_LD) $(flags) -o $(out) $(objs) \
+	$(QUIET)$(TOOL_GCC_LD) $(flags) -o $(out) $(objs) \
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 endef
 
@@ -202,7 +202,7 @@ TOOL_GCC_LINK_DLL_OUTPUT =
 TOOL_GCC_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC_LINK_DLL_DEPORD =
 define TOOL_GCC_LINK_DLL_CMDS
-	$(TOOL_GCC_LD) $(TOOL_GCC_LDFLAGS.dll) $(flags) -o $(out) $(objs) \
+	$(QUIET)$(TOOL_GCC_LD) $(TOOL_GCC_LDFLAGS.dll) $(flags) -o $(out) $(objs) \
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
 endef
 

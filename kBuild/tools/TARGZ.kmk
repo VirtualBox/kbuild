@@ -1,4 +1,4 @@
-# $Id: TARGZ.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: TARGZ.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - tar.gz unpacker.
@@ -58,7 +58,7 @@ TOOL_TARGZ_UNPACK_OUTPUT =
 TOOL_TARGZ_UNPACK_DEPEND =
 TOOL_TARGZ_UNPACK_DEPORD =
 define TOOL_TARGZ_UNPACK_CMDS
-	$(TOOL_TARGZ_UNPACK) -x $(flags) -C $(inst) -f $(archive)
-	$(TOOL_TARGZ_UNPACK) -t $(flags) -f $(archive) > $(out)
+	$(QUIET)$(TOOL_TARGZ_UNPACK) -x $(flags) -C $(inst) -f $(archive)
+	$(QUIET)$(TOOL_TARGZ_UNPACK) -t $(flags) -f $(archive) > $(out)
 endef
 

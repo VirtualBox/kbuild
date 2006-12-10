@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 667 2006-12-06 04:00:16Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
@@ -116,22 +116,22 @@ TOOL_VCC80X86_COMPILE_C_DEPEND =
 TOOL_VCC80X86_COMPILE_C_DEPORD =
 ifdef VCC80X86_NEW_DEPS
 define TOOL_VCC80X86_COMPILE_C_CMDS
-	$(TOOL_VCC80X86_CC) -c\
+	$(QUIET)$(TOOL_VCC80X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
+	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 else
 define TOOL_VCC80X86_COMPILE_C_CMDS
-	$(TOOL_VCC80X86_CC) -c\
+	$(QUIET)$(TOOL_VCC80X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(TOOL_VCC80X86_CC) -E\
+	$(QUIET)$(TOOL_VCC80X86_CC) -E\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(call ABSPATH,$(source)))\
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
@@ -157,22 +157,22 @@ TOOL_VCC80X86_COMPILE_CXX_DEPEND =
 TOOL_VCC80X86_COMPILE_CXX_DEPORD =
 ifdef VCC80X86_NEW_DEPS
 define TOOL_VCC80X86_COMPILE_CXX_CMDS
-	$(TOOL_VCC80X86_CXX) -c\
+	$(QUIET)$(TOOL_VCC80X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
+	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 else
 define TOOL_VCC80X86_COMPILE_CXX_CMDS
-	$(TOOL_VCC80X86_CXX) -c\
+	$(QUIET)$(TOOL_VCC80X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
-	$(TOOL_VCC80X86_CXX) -E\
+	$(QUIET)$(TOOL_VCC80X86_CXX) -E\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(call ABSPATH,$(source)))\
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
@@ -198,7 +198,7 @@ TOOL_VCC80X86_COMPILE_RC_OUTPUT =
 TOOL_VCC80X86_COMPILE_RC_DEPEND =
 TOOL_VCC80X86_COMPILE_RC_DEPORD =
 define TOOL_VCC80X86_COMPILE_RC_CMDS
-	$(TOOL_VCC80X86_RC) \
+	$(QUIET)$(TOOL_VCC80X86_RC) \
 		$(flags) $(addprefix /i, $(subst /,\\,$(incs))) $(addprefix /d, $(defs))\
 		/fo$(obj)\
 		$(subst /,\\,$(call ABSPATH,$(source)))
@@ -219,7 +219,7 @@ TOOL_VCC80X86_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
 TOOL_VCC80X86_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VCC80X86_LINK_LIBRARY_DEPORD =
 define TOOL_VCC80X86_LINK_LIBRARY_CMDS
-	$(TOOL_VCC80X86_AR) $(flags) /OUT:$(out) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
+	$(QUIET)$(TOOL_VCC80X86_AR) $(flags) /OUT:$(out) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
 endef
 
@@ -242,7 +242,7 @@ TOOL_VCC80X86_LINK_PROGRAM_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp
 TOOL_VCC80X86_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80X86_LINK_PROGRAM_DEPORD =
 define TOOL_VCC80X86_LINK_PROGRAM_CMDS
-	$(TOOL_VCC80X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC80X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -251,7 +251,7 @@ define TOOL_VCC80X86_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-	if test -f $(out).manifest; then \
+	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out)); \
 	fi
 endef
@@ -275,7 +275,7 @@ TOOL_VCC80X86_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(o
 TOOL_VCC80X86_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80X86_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
 define TOOL_VCC80X86_LINK_DLL_CMDS
-	$(TOOL_VCC80X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC80X86_LD) $(flags) \
 		/OUT:$(out) \
 		/IMPLIB:$(outbase).lib \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
@@ -286,12 +286,12 @@ define TOOL_VCC80X86_LINK_DLL_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-	if test -f $(out).manifest; then \
+	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"; \
 	fi
 ifeq ($(filter %.exp .def,$(othersrc)),)
-	if test -f $(outbase).exp; then $(CP_EXT) $(outbase).exp $(PATH_LIB)/; fi
-	if test -f $(outbase).lib; then $(CP_EXT) $(outbase).lib $(PATH_LIB)/; fi
+	$(QUIET)if test -f $(outbase).exp; then $(CP_EXT) $(outbase).exp $(PATH_LIB)/; fi
+	$(QUIET)if test -f $(outbase).lib; then $(CP_EXT) $(outbase).lib $(PATH_LIB)/; fi
 endif
 $(eval _DIRS += $(PATH_LIB))
 endef
@@ -315,7 +315,7 @@ TOOL_VCC80X86_LINK_SYSMOD_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp 
 TOOL_VCC80X86_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80X86_LINK_SYSMOD_DEPORD =
 define TOOL_VCC80X86_LINK_SYSMOD_CMDS
-	$(TOOL_VCC80X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC80X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -324,7 +324,7 @@ define TOOL_VCC80X86_LINK_SYSMOD_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-	if test -f $(out).manifest; then \
+	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"; \
 	fi
 endef

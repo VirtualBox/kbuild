@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MinGW32 GCC v3.3+.
@@ -127,7 +127,7 @@ TOOL_MINGW32_COMPILE_C_OUTPUT =
 TOOL_MINGW32_COMPILE_C_DEPEND =
 TOOL_MINGW32_COMPILE_C_DEPORD =
 define TOOL_MINGW32_COMPILE_C_CMDS
-	$(TOOL_MINGW32_CC) -c\
+	$(QUIET)$(TOOL_MINGW32_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
@@ -151,7 +151,7 @@ TOOL_MINGW32_COMPILE_CXX_OUTPUT =
 TOOL_MINGW32_COMPILE_CXX_DEPEND =
 TOOL_MINGW32_COMPILE_CXX_DEPORD =
 define TOOL_MINGW32_COMPILE_CXX_CMDS
-	$(TOOL_MINGW32_CXX) -c\
+	$(QUIET)$(TOOL_MINGW32_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
@@ -176,7 +176,7 @@ TOOL_MINGW32_COMPILE_AS_OUTPUT =
 TOOL_MINGW32_COMPILE_AS_DEPEND =
 TOOL_MINGW32_COMPILE_AS_DEPORD =
 define TOOL_MINGW32_COMPILE_AS_CMDS
-	$(TOOL_MINGW32_AS) -c\
+	$(QUIET)$(TOOL_MINGW32_AS) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
@@ -197,14 +197,14 @@ TOOL_MINGW32_LINK_LIBRARY_OUTPUT = $(lib).ar-script
 TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(filter %.a %.lib,$(othersrc))
 TOOL_MINGW32_LINK_LIBRARY_DEPORD =
 define TOOL_MINGW32_LINK_LIBRARY_CMDS
-	$(APPEND) $(lib).ar-script "CREATE $(out)"
+	$(QUIET)$(APPEND) $(lib).ar-script "CREATE $(out)"
 	$(foreach o, $(objs)\
-		,$(NL)$(TAB)$(APPEND) $(lib).ar-script "ADDMOD $(o)")
+		,$(NL)$(TAB)$(QUIET)$(APPEND) $(lib).ar-script "ADDMOD $(o)")
 	$(foreach srclib, $(filter %.a %.lib,$(othersrc))\
-		,$(NL)$(TAB)$(APPEND) $(lib).ar-script "ADDLIB $(srclib)")
-	$(APPEND) $(lib).ar-script "SAVE"
-	$(APPEND) $(lib).ar-script "END"
-	$(TOOL_MINGW32_AR) -M < $(lib).ar-script
+		,$(NL)$(TAB)$(QUIET)$(APPEND) $(lib).ar-script "ADDLIB $(srclib)")
+	$(QUIET)$(APPEND) $(lib).ar-script "SAVE"
+	$(QUIET)$(APPEND) $(lib).ar-script "END"
+	$(QUIET)$(TOOL_MINGW32_AR) -M < $(lib).ar-script
 endef
 
 
@@ -226,7 +226,7 @@ TOOL_MINGW32_LINK_PROGRAM_OUTPUT =
 TOOL_MINGW32_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_MINGW32_LINK_PROGRAM_DEPORD =
 define TOOL_MINGW32_LINK_PROGRAM_CMDS
-	$(TOOL_MINGW32_LD) $(flags) -o $(out) $(objs)\
+	$(QUIET)$(TOOL_MINGW32_LD) $(flags) -o $(out) $(objs)\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
 		$(call TOOL_MINGW32_LD_MAP,$(outbase).map)
@@ -251,7 +251,7 @@ TOOL_MINGW32_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(
 	$(filter %.def %.res,$(othersrc))
 TOOL_MINGW32_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB)) 
 define TOOL_MINGW32_LINK_DLL_CMDS
-	$(TOOL_MINGW32_DLLWRAP) $(flags)\
+	$(QUIET)$(TOOL_MINGW32_DLLWRAP) $(flags)\
 		--dllname=$(out)\
 		--output-exp=$(outbase).exp\
 		--output-lib=$(outbase).a\
@@ -261,6 +261,6 @@ define TOOL_MINGW32_LINK_DLL_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
 		$(call TOOL_MINGW32_LD_MAP,$(outbase).map)
-	$(CP) $(outbase).exp $(outbase).a $(PATH_LIB)/
+	$(QUIET)$(CP) $(outbase).exp $(outbase).a $(PATH_LIB)/
 endef
 ## @todo seperate install stuff!
