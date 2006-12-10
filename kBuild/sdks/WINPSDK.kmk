@@ -1,4 +1,4 @@
-# $Id: WINPSDK.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: WINPSDK.kmk 702 2006-12-10 08:27:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows Platform SDK, targeting (BUILD_TARGET).
@@ -50,13 +50,29 @@ ifndef PATH_SDK_WINPSDK
 else
  PATH_SDK_WINPSDK := $(PATH_SDK_WINPSDK)
 endif
-PATH_SDK_WINPSDK_INC ?= $(PATH_SDK_WINPSDK)/include
-PATH_SDK_WINPSDK_LIB.x86 ?= $(PATH_SDK_WINPSDK)/lib
-PATH_SDK_WINPSDK_LIB.amd64 ?= $(PATH_SDK_WINPSDK)/lib
+
+ifndef PATH_SDK_WINPSDK_INC
+PATH_SDK_WINPSDK_INC := $(firstword $(wildcard $(PATH_SDK_WINPSDK)/[Ii][Nn][Cc][Ll][Uu][Dd][Ee]) $(PATH_SDK_WINPSDK)/Include)
+endif
+
+ifndef PATH_SDK_WINPSDK_LIB.x86
+PATH_SDK_WINPSDK_LIB.x86 := $(firstword $(wildcard $(PATH_SDK_WINPSDK)/[Ll][Ii][Bb]) $(PATH_SDK_WINPSDK)/Lib)
+endif
+ifndef PATH_SDK_WINPSDK_LIB.amd64
+PATH_SDK_WINPSDK_LIB.amd64 := $(firstword $(wildcard $(PATH_SDK_WINPSDK)/[Ll][Ii][Bb]/[Aa][Mm][Dd]64) $(PATH_SDK_WINPSDK)/Lib/AMD64)
+endif
 PATH_SDK_WINPSDK_LIB ?= $(PATH_SDK_WINPSDK_LIB.$(BUILD_TARGET_ARCH))
-PATH_SDK_WINPSDK_BIN ?= $(PATH_SDK_WINPSDK)/bin
-PATH_SDK_WINPSDK_BIN_AMD64 ?= $(PATH_SDK_WINPSDK)/bin/win64/x86/AMD64
-PATH_SDK_WINPSDK_BIN_IA64 ?= $(PATH_SDK_WINPSDK)/bin/win64/
+
+ifndef PATH_SDK_WINPSDK_BIN
+PATH_SDK_WINPSDK_BIN := $(firstword $(wildcard $(PATH_SDK_WINPSDK)/[Bb][Ii][Nn]) $(PATH_SDK_WINPSDK)/Bin)
+endif
+ifndef PATH_SDK_WINPSDK_BIN_AMD64
+PATH_SDK_WINPSDK_BIN_AMD64 := $(firstword $(wildcard $(PATH_SDK_WINPSDK_BIN)/[Ww][Ii][Nn]64/[Xx]86/[Aa][Mm][Dd]64) $(PATH_SDK_WINPSDK_BIN)/win64/AMD64)
+endif
+ifndef PATH_SDK_WINPSDK_BIN_IA64
+PATH_SDK_WINPSDK_BIN_IA64 := $(firstword $(wildcard $(PATH_SDK_WINPSDK_BIN)/[Ww][Ii][Nn]64) $(PATH_SDK_WINPSDK_BIN)/win64)
+endif
+
 
 # General Properties used by kBuild
 SDK_WINPSDK_INCS ?= $(PATH_SDK_WINPSDK_INC)
