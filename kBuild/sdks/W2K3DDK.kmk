@@ -1,4 +1,4 @@
-# $Id: W2K3DDK.kmk 692 2006-12-08 22:31:16Z knut.osmundsen@oracle.com $
+# $Id: W2K3DDK.kmk 703 2006-12-10 09:23:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
@@ -59,7 +59,7 @@ endif
 PATH_SDK_W2K3DDK_INC ?= $(PATH_SDK_W2K3DDK)/inc
 PATH_SDK_W2K3DDK_LIB.amd64 ?= $(PATH_SDK_W2K3DDK)/lib/wnet/AMD64
 PATH_SDK_W2K3DDK_LIB.x86 ?= $(PATH_SDK_W2K3DDK)/lib/wnet/i386
-PATH_SDK_W2K3DDK_LIB ?= $(PATH_SDK_W2K3DDK.$(BUILD_TARGET_ARCH))
+PATH_SDK_W2K3DDK_LIB ?= $(PATH_SDK_W2K3DDK_LIB.$(BUILD_TARGET_ARCH))
 
 # General Properties used by kBuild
 SDK_W2K3DDK_DEFS.amd64 ?= _AMD64_
