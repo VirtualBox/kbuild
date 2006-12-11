@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 707 2006-12-11 09:59:03Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 708 2006-12-11 13:29:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
@@ -90,11 +90,11 @@ else
   LIB_SDK_LIBSDL_SDLMAIN  ?= $(PATH_SDK_LIBSDL)/lib/SDLmain.lib
   LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.lib
   DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.dll
-  LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/lib/SDLGFX.lib
-  LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/lib/SDLIMAGE.lib
-  LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/lib/SDLMIXER.lib
-  LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/lib/SDLNET.lib
-  LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDLTTF.lib
+  LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/lib/SDL_gfx.lib
+  LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/lib/SDL_image.lib
+  LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/lib/SDL_mixer.lib
+  LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/lib/SDL_net.lib
+  LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.lib
   DLL_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.dll
 
   # General Properties used by kBuild
