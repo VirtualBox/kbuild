@@ -1,4 +1,4 @@
-# $Id: header.kmk 709 2006-12-11 13:31:40Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 710 2006-12-12 23:30:25Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -230,7 +230,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 709 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 710 $  )
 
 
 #
@@ -648,7 +648,7 @@ DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
 ## PASSES
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
-PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
+PASSES := FETCHES PATCHES $(DEFAULT_PASSES) PACKING NOTHING CLEAN
 
 
 #
