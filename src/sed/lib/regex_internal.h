@@ -93,7 +93,7 @@
 # define BE(expr, val) (expr)
 # ifndef inline /* bird: silly since the rest of sed depends on this working.. */
 #  define inline
-# endif 
+# endif
 #endif
 
 /* Number of single byte character.  */
@@ -112,7 +112,7 @@
 # define __btowc btowc
 # ifndef __mempcpy /* keep quiet if string.h defines it (bird) */
 # define __mempcpy mempcpy
-# endif 
+# endif
 # define __wcrtomb wcrtomb
 # define __regfree regfree
 # define attribute_hidden
@@ -379,7 +379,11 @@ typedef struct re_dfa_t re_dfa_t;
 
 #ifndef _LIBC
 # ifdef __i386__
-#  define internal_function   __attribute ((regparm (3), stdcall))
+#  ifdef __OS2__
+#   define internal_function   __attribute ((regparm (3)))
+#  else
+#   define internal_function   __attribute ((regparm (3), stdcall))
+#  endif
 # else
 #  define internal_function
 # endif
