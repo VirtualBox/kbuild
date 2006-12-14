@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 398 2006-01-13 04:00:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 713 2006-12-14 01:34:32Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -51,7 +51,7 @@
 #else
 #define dprintf(a)              do {} while (0)
 #define dump(pb, cb, offBase)   do {} while (0)
-#endif 
+#endif
 
 
 /*******************************************************************************
@@ -91,11 +91,11 @@ static void hexdump(const uint8_t *pb, size_t cb, size_t offBase)
     }
     printf("\n");
 }
-#endif 
+#endif
 
 /**
  * Scans a stream (chunk of data really) for dependencies.
- * 
+ *
  * @returns 0 on success.
  * @returns !0 on failure.
  * @param   pbStream        The stream bits.
@@ -180,11 +180,11 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
-// 
+//
+//
 //  P D B   7 . 0
-// 
-// 
+//
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 /** A PDB 7.0 Page number. */
@@ -248,7 +248,7 @@ static int Pdb70ValidateHeader(PPDB70HDR pHdr, size_t cbFile)
     }
     if (pHdr->iStartPage >= pHdr->cPages && pHdr->iStartPage <= 0)
     {
-        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", argv0, 
+        fprintf(stderr, "%s: error: Bad PDB 2.0 header - iStartPage=%u cPages=%u.\n", argv0,
                 pHdr->iStartPage, pHdr->cPages);
         return 1;
     }
@@ -294,7 +294,7 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
             }
             else
             {
-                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", argv0, 
+                fprintf(stderr, "%s: warning: Invalid page index %u (max %u)!\n", argv0,
                         (unsigned)off, pHdr->cPages);
                 memset(pbBuf + iPage * cbPage, 0, cbPage);
             }
@@ -381,7 +381,7 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
         return 1;
 
     /*
-     * Iterate the streams in the root and scan their content for 
+     * Iterate the streams in the root and scan their content for
      * dependencies.
      */
     rc = 0;
@@ -410,11 +410,11 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
-// 
+//
+//
 //  P D B   2 . 0
-// 
-// 
+//
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 
@@ -583,7 +583,7 @@ static int Pdb20Process(uint8_t *pbFile, size_t cbFile)
         return 1;
 
     /*
-     * Iterate the streams in the root and scan their content for 
+     * Iterate the streams in the root and scan their content for
      * dependencies.
      */
     rc = 0;
@@ -612,7 +612,7 @@ static int Pdb20Process(uint8_t *pbFile, size_t cbFile)
  */
 static int ProcessIDB(FILE *pInput)
 {
-    long    cbFile;
+    size_t  cbFile;
     char   *pbFile;
     char   *pbHdr = PDB_SIGNATURE_200;
     int     rc = 0;
@@ -640,7 +640,7 @@ static int ProcessIDB(FILE *pInput)
     free(pbFile);
     return rc;
 }
-        
+
 
 static void usage(const char *argv0)
 {
