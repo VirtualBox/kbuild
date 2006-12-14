@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 653 2006-12-04 00:30:15Z knut.osmundsen@oracle.com $
+# $Id: env.sh 718 2006-12-14 02:22:55Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -41,7 +41,7 @@ echo "dbg: PATH_KBUILD=$PATH_KBUILD"
 
 # Type.
 if [ -z "$BUILD_TYPE" ]; then
-    BUILD_TYPE=debug
+    BUILD_TYPE=release
 fi
 export BUILD_TYPE
 echo "dbg: BUILD_TYPE=$BUILD_TYPE"
