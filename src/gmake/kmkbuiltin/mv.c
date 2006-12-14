@@ -44,11 +44,13 @@ static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 #if 0
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
-#endif 
+#endif
 
 #include <sys/types.h>
 #ifndef _MSC_VER
+#ifndef __OS2__
 #include <sys/acl.h>
+#endif
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -61,12 +63,12 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #include <fcntl.h>
 #ifndef _MSC_VER
 #include <grp.h>
-#endif 
+#endif
 #include <limits.h>
 #ifndef _MSC_VER
 #include <paths.h>
 #include <pwd.h>
-#endif 
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,17 +89,23 @@ static int	do_move(char *, char *);
 #ifdef CROSS_DEVICE_MOVE
 static int	fastcopy(char *, char *, struct stat *);
 static int	copy(char *, char *);
-#endif 
+#endif
 static int	usage(void);
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
-static const char *user_from_uid(unsigned long id, int x)
+# ifdef __OS2__
+static
+# endif
+const char *user_from_uid(uid_t id, int x)
 {
 	static char s_buf[64];
 	sprintf(s_buf, "%ld", id);
 	return s_buf;
 }
-static const char *group_from_gid(unsigned long id, int x)
+# ifdef __OS2__
+static
+# endif
+const char *group_from_gid(gid_t id, int x)
 {
 	static char s_buf[64];
 	sprintf(s_buf, "%ld", id);
@@ -177,7 +185,7 @@ kmk_builtin_mv(int argc, char *argv[])
 	if (!baselen || (*(endp - 1) != '/' && *(endp - 1) != '\\' && *(endp - 1) != ':')) {
 #else
 	if (!baselen || *(endp - 1) != '/') {
-#endif 
+#endif
 		*endp++ = '/';
 		++baselen;
 	}
@@ -197,7 +205,7 @@ kmk_builtin_mv(int argc, char *argv[])
 			--p;
 		while (p != *argv && p[-1] != '/')
 			--p;
-#endif 
+#endif
 
 		if ((baselen + (len = strlen(p))) >= PATH_MAX) {
 			warnx("%s: destination pathname too long", *argv);
@@ -272,7 +280,7 @@ do_move(char *from, char *to)
 			return (0);
 		}
 	}
-#endif 
+#endif
 
 	if (errno == EXDEV) {
 #ifndef CROSS_DEVICE_MOVE
@@ -302,7 +310,7 @@ do_move(char *from, char *to)
 				return (1);
 			}
 		}
-#endif 
+#endif
 	} else {
 		warn("rename %s to %s", from, to);
 		return (1);
@@ -320,7 +328,7 @@ do_move(char *from, char *to)
 	}
 	return (S_ISREG(sb.st_mode) ?
 	    fastcopy(from, to, &sb) : copy(from, to));
-#endif 
+#endif
 }
 
 #ifdef CROSS_DEVICE_MOVE
