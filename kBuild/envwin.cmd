@@ -126,7 +126,7 @@ REM #
 REM # Type.
 REM #
 IF NOT ".%BUILD_TYPE%" = "." goto have_BUILD_TYPE
-set BUILD_TYPE=debug
+set BUILD_TYPE=release
 :have_BUILD_TYPE
 echo dbg: BUILD_TYPE=%BUILD_TYPE%
 

@@ -65,7 +65,7 @@ say "dbg: PATH_KBUILD="||EnvGet("PATH_KBUILD");
 
 /* Type. */
 if (EnvGet("BUILD_TYPE") = "") then
-    call EnvSet 0, "BUILD_TYPE", "debug";
+    call EnvSet 0, "BUILD_TYPE", "release";
 call EnvSet 0, "BUILD_TYPE", ToLower(EnvGet("BUILD_TYPE"));
 say "dbg: BUILD_TYPE="||EnvGet("BUILD_TYPE");
 
@@ -179,14 +179,7 @@ exit(0);
  * Give the script syntax
  */
 syntax: procedure
-    say 'syntax: env.cmd [options] [mode]'
-    say ''
-    say 'Mode:'
-    say '    The build mode, debug or release. Default it debug.'
-    say ''
-    say 'Options:'
-    say '    enable-staged-gcc      Enable the staged GCC build. (default)'
-    say '    disable-staged-gcc     Use buildenv gcc335.'
+    say 'syntax: envos2.cmd [command to be executed and its arguments]'
     say ''
 return 0;
 
