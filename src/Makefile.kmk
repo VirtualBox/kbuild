@@ -1,7 +1,7 @@
-# $Id: Makefile.kmk 683 2006-12-08 02:05:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 716 2006-12-14 02:20:24Z knut.osmundsen@oracle.com $
 
 SUBDIRS = lib gmake sed kDepPre kDepIDB
-ifeq ($(BUILD_TARGET),win)
+ifneq ($(BUILD_TARGET),win)
 SUBDIRS += ash
 endif
 
