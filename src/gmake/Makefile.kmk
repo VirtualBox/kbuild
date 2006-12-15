@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 613 2006-11-26 06:19:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 720 2006-12-15 02:41:46Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -37,6 +37,8 @@ kmk_DEFS = \
 	CONFIG_WITH_OPTIMIZATION_HACKS \
 	CONFIG_WITH_VALUE_LENGTH \
 	CONFIG_WITH_COMPARE \
+	CONFIG_WITH_STACK \
+	EXPERIMENTAL \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
 	BUILD_PLATFORM_ARCH=\"$(BUILD_TARGET_ARCH)\" \
@@ -284,7 +286,8 @@ kmk_gmake_INCS.freebsd = glob
 kmk_gmake_DEFS = \
 	HAVE_CONFIG_H \
 	NO_ARCHIVES \
-	CONFIG_WITH_TOUPPER_TOLOWER
+	CONFIG_WITH_TOUPPER_TOLOWER \
+	EXPERIMENTAL
 	
 kmk_gmake_SOURCES = \
 	main.c \
@@ -399,3 +402,6 @@ test_shell_newline:
 		's/foo/works/' \
 		-e 's/foo/\!/'
 
+
+test_stack:
+	$(MAKE) -f testcase-stack.kmk
