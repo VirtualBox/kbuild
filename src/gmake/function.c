@@ -2111,6 +2111,66 @@ func_abspath (char *o, char **argv, const char *funcname UNUSED)
  return o;
 }
 
+#ifdef CONFIG_WITH_ABSPATHEX
+/* same as abspath except that the current path is given as the 2nd argument. */
+static char *
+func_abspathex (char *o, char **argv, const char *funcname UNUSED)
+{
+  /* Expand the argument.  */
+  char *p = argv[0];
+  PATH_VAR (current_directory);
+  char *cwd = argv[1];
+  unsigned int cwd_len = ~0U;
+  char *path = 0;
+  int doneany = 0;
+  unsigned int len = 0;
+  PATH_VAR (in);
+  PATH_VAR (out);
+
+  while ((path = find_next_token (&p, &len)) != 0)
+    {
+      if (len < GET_PATH_MAX)
+        {
+#ifdef HAVE_DOS_PATHS
+          if (path[0] != '/' && path[0] != '\\' && (len < 2 || path[1] != ':') && cwd)
+#else
+          if (path[0] != '/' && cwd)
+#endif 
+            {
+              /* relative path, prefix with cwd. */
+              if (cwd_len == ~0U)
+                cwd_len = strlen (cwd);
+              if (cwd_len + len + 1 >= GET_PATH_MAX)
+                  continue;
+              memcpy (in, cwd, cwd_len)
+              in[cwd_len] = '/';
+              memcpy (in + cwd_len + 1, path, len);
+              in[cwd_len + len + 1] = '\0';
+            }
+          else
+            {
+              /* absolute path pass it as-is. */
+              memcpy (in, path, len);
+              in[len] = '\0';
+            }
+
+          if (abspath (in, out))
+            {
+              o = variable_buffer_output (o, out, strlen (out));
+              o = variable_buffer_output (o, " ", 1);
+              doneany = 1;
+            }
+        }
+    }
+
+  /* Kill last space.  */
+  if (doneany)
+    --o;
+
+ return o;
+}
+#endif 
+
 #ifdef CONFIG_WITH_TOUPPER_TOLOWER
 static char *
 func_toupper_tolower (char *o, char **argv, const char *funcname)
@@ -2369,6 +2429,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
 #endif
+#ifdef CONFIG_WITH_ABSPATHEX
+  { STRING_SIZE_TUPLE("abspathex"),     0,  2,  1,  func_abspathex},
+#endif 
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
 #endif

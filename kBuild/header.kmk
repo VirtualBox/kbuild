@@ -1,4 +1,4 @@
-# $Id: header.kmk 724 2006-12-15 03:03:59Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 725 2006-12-15 05:18:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -155,31 +155,38 @@ endif
 #
 # Common definitions.
 #
+## PATH_CURRENT is the current directory (getcwd).
 PATH_CURRENT        := $(abspath $(CURDIR))
-ifneq ($(strip $(SUB_DEPTH)),)
-PATH_SUB_CURRENT    := $(abspath $(PATH_CURRENT)/$(SUB_DEPTH))
-else
+## PATH_SUB_CURRENT points to current directory of the current makefile.
+# Meaning that it will change value as we enter and exit sub-makefiles.
 PATH_SUB_CURRENT    := $(PATH_CURRENT)
-endif
+## PATH_ROOT points to the project root directory.
 PATH_ROOT           := $(abspath $(PATH_CURRENT)/$(DEPTH))
+## PATH_SUB_ROOT points to the directory of the top-level makefile.
+ifneq ($(strip $(SUB_DEPTH)),)
+ PATH_SUB_ROOT      := $(abspath $(PATH_CURRENT)/$(SUB_DEPTH))
+else
+ PATH_SUB_ROOT      := $(PATH_CURRENT)
+endif
 
-# Subdirectory relative to the root.
+## CURSUBDIR is PATH_SUB_ROOT described relative to PATH_ROOT. 
+# This variable is used to determin where the object files and other output goes.
 ifneq ($(PATH_ROOT),$(PATH_CURRENT))
-CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(PATH_SUB_CURRENT))
+CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(PATH_SUB_ROOT))
 else
 CURSUBDIR           := .
 endif
 
 # Output directories.
 ifndef PATH_OUT_BASE
-PATH_OUT_BASE       := $(PATH_ROOT)/out
+ PATH_OUT_BASE      := $(PATH_ROOT)/out
 endif
 ifndef PATH_OUT
-ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
-PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
-else
-PATH_OUT            := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
-endif
+ ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
+  PATH_OUT          := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
+ else
+  PATH_OUT          := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
+ endif
 endif # !define PATH_OUT
 PATH_OBJ             = $(PATH_OUT)/obj
 PATH_TARGET          = $(PATH_OBJ)/$(CURSUBDIR)
@@ -192,16 +199,20 @@ PATH_DOC             = $(PATH_INS)/doc
 
 # Usually kBuild is external to the source tree.
 ifndef PATH_KBUILD
-PATH_KBUILD         := $(PATH_ROOT)/kBuild
+ PATH_KBUILD        := $(PATH_ROOT)/kBuild
 endif
 PATH_KBUILD         := $(abspath $(PATH_KBUILD))
 # kBuild files which might be of interest.
 FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
-FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
+#FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
 FILE_KBUILD_FOOTER  := $(PATH_KBUILD)/footer.kmk
 
 SUFF_DEP            := .dep
+## MAKEFILE is the name of the main makefile.
 MAKEFILE            := $(firstword $(MAKEFILE_LIST))
+## MAKEFILE_CURRENT is the name of the current makefile. 
+# This is updated everything a sub-makefile is included.
+MAKEFILE_CURRENT    := $(MAKEFILE)
 
 
 #
@@ -224,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 724 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 725 $  )
 
 
 #

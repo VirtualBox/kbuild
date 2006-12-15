@@ -787,6 +787,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
                            struct variable *pTool, struct kbuild_sdks *pSdks,
                            struct variable *pType, struct variable *pBldType,
                            struct variable *pBldTrg, struct variable *pBldTrgArch, struct variable *pBldTrgCpu,
+                           struct variable *pDefPath,
                            const char *pszProp, const char *pszVarName, int iDirection)
 {
     struct variable *pVar;
@@ -1001,6 +1002,10 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
             paVars[iVar].pszExp = allocated_variable_expand(paVars[iVar].pVar->value);
             paVars[iVar].cchExp = strlen(paVars[iVar].pszExp);
         }
+        if (pDefPath)
+        {
+            /** @todo */
+        }
         cchTotal += paVars[iVar].cchExp + 1;
     }
 
@@ -1029,7 +1034,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     return pVar;
 }
 
-/* get a source property. */
+/* get a source property. Doesn't respect the default path. */
 char *
 func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 {
@@ -1055,6 +1060,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 
     pVar = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType,
                                       pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
+                                      NULL,
                                       argv[0], argv[1], iDirection);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
@@ -1189,6 +1195,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     static int s_fNoCompileCmdsDepsDefined = -1;
     struct variable *pTarget    = kbuild_get_variable("target");
     struct variable *pSource    = kbuild_get_variable("source");
+    struct variable *pDefPath   = kbuild_get_variable("defpath");
     struct variable *pType      = kbuild_get_variable("type");
     struct variable *pBldType   = kbuild_get_variable("bld_type");
     struct variable *pBldTrg    = kbuild_get_variable("bld_trg");
@@ -1206,13 +1213,15 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct kbuild_sdks Sdks;
     kbuild_get_sdks(&Sdks, pTarget, pSource, pBldType, pBldTrg, pBldTrgArch);
 
-    pDefs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
+    if (pDefPath && !pDefPath->value_length)
+        pDefPath = NULL;
+    pDefs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                         "DEFS", "defs", 1/* left-to-right */);
-    pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
+    pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                         "INCS", "incs", -1/* right-to-left */);
-    pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
+    pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                         "FLAGS", "flags", 1/* left-to-right */);
-    pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
+    pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                         "DEPS", "deps", 1/* left-to-right */);
 
     /*
