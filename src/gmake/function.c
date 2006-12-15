@@ -2258,6 +2258,56 @@ l_simple_compare:
 }
 #endif 
 
+
+#ifdef CONFIG_WITH_STACK
+
+/* Push an item (string without spaces). */
+static char *
+func_stack_push (char *o, char **argv, const char *funcname)
+{
+    do_variable_definition(NILF, argv[0], argv[1], o_file, f_append, 0 /* !target_var */);
+    return o;
+}
+
+/* Pops an item off the stack / get the top stack element.
+   (This is what's tricky to do in pure GNU make syntax.) */
+static char *
+func_stack_pop_top (char *o, char **argv, const char *funcname)
+{
+    struct variable *stack_var;
+    const char *stack = argv[0];
+    const int return_item = argv[0][sizeof("stack-pop") - 1] == '\0';
+
+    stack_var = lookup_variable (stack, strlen (stack) );
+    if (stack_var)
+      {
+        unsigned int len;
+        char *iterator = stack_var->value;
+        char *lastitem = NULL;
+        char *cur;
+
+        while ((cur = find_next_token (&iterator, &len)))
+          lastitem = cur;
+
+        if (lastitem != NULL)
+          {
+            if (strcmp (funcname, "stack-popv") != 0)
+              o = variable_buffer_output (o, lastitem, len);
+            if (strcmp (funcname, "stack-top") != 0)
+              {
+                *lastitem = '\0';
+                while (lastitem > stack_var->value && isspace (lastitem[-1]))
+                  *--lastitem = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+                stack_var->value_length = lastitem - stack_var->value;
+#endif 
+              }
+          }
+      }
+    return o;
+}
+#endif /* CONFIG_WITH_STACK */
+
 /* Lookup table for builtin functions.
 
    This doesn't have to be sorted; we use a straight lookup.  We might gain
@@ -2321,6 +2371,12 @@ static struct function_table_entry function_table_init[] =
 #endif
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
+#endif
+#ifdef CONFIG_WITH_STACK
+  { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},
+  { STRING_SIZE_TUPLE("stack-pop"),     1,  1,  1,  func_stack_pop_top},
+  { STRING_SIZE_TUPLE("stack-popv"),    1,  1,  1,  func_stack_pop_top},
+  { STRING_SIZE_TUPLE("stack-top"),     1,  1,  1,  func_stack_pop_top},
 #endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
