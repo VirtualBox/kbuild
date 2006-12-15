@@ -1,4 +1,4 @@
-# $Id: header.kmk 710 2006-12-12 23:30:25Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 723 2006-12-15 02:54:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -216,13 +216,7 @@ ifdef KMK_VERSION
   endif
  endif
 else 
- # Vanilla GNU Make. Only supported for kBuild bootstrapping. Disable some features to make it work.
- NO_COMPILE_CMDS_DEPS:= 1
- NO_LINK_CMDS_DEPS   := 1
- sinclude $(PATH_KBUILD)/StampOutPredefines.kmk
- ifndef IS_BOOTSTRAPPING_KBUILD_NOW
-  $(warning kBuild: Using vanilla GNU make isn't safe for anything but kBuild bootstrapping!)
- endif
+ include $(PATH_KBUILD)/gnumake-header.kmk
 endif
 
 
@@ -230,7 +224,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 710 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 723 $  )
 
 
 #
@@ -460,6 +454,42 @@ else
 CYGPATHMIXED = $(1)
 endif
 
+
+ifneq ($(filter stack,$(KMK_FEATURES)),stack) ## @todo retire this to gnumake-header.kmk when all the programs have been recompiled.
+##
+# Pushes an item onto a 'stack' variable. 
+# @param    $1   The stack variable name
+# @param    $2   What to push.
+stack-push = $(eval $1 +=$2)
+
+##
+# Removes the top element from a 'stack' variable.
+# @returns  The popped element
+# @param    $1   The stack variable name
+stack-pop  = $(call stack-top,$1)$(call stack-popv,$1)
+
+##
+# Removes the top element from a 'stack' variable.
+# This does *NOT* return the top element, use 
+# @param    $1   The stack variable name
+# @remark This ain't very fast (that's why it's implemented in functions.c in kmk).
+define def_stack-popv_sub
+$1 :=$(__tmp)
+__tmp+=$(item)
+endef
+define def_stack-popv
+__tmp:=
+$(foreach item,$($1),$(eval $(value def_stack-popv_sub)))
+endef
+stack-popv = $(eval $(value def_stack-popv))
+
+##
+# Retrieves the top element from the 'stack' variable.
+# @param    $1   The stack variable name
+stack-top  = $(lastword $($1))
+endif
+
+
 #
 # Initialize some of the globals which the Config.kmk and
 # others can add stuff to if they like for processing in the footer.
@@ -648,7 +678,7 @@ DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
 ## PASSES
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
-PASSES := FETCHES PATCHES $(DEFAULT_PASSES) PACKING NOTHING CLEAN
+PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
 
 
 #
