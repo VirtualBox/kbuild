@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 665 2006-12-06 02:15:46Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 725 2006-12-15 05:18:47Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
@@ -25,9 +25,48 @@
 #
 
 ifndef _SUB_MAKEFILE_STACK
-_SUB_MAKEFILE_STACK := 1
-include $(PATH_KBUILD)/header.kmk
+ #
+ # The first time we just take the makefile context set by header.kmk.
+ #
+ include $(PATH_KBUILD)/header.kmk
+
 else
-_SUB_MAKEFILE_STACK := $(_SUB_MAKEFILE_STACK) $(words $(_SUB_MAKEFILE_STACK) 1)
+
+ #
+ # Set the default path and makefile for all new targets.
+ #
+ define def_subfooter
+ ifndef $(target)_PATH
+ $(target)_PATH := $(PATH_SUB_CURRENT)
+ endif
+ ifndef $(target)_MAKEFILE
+ $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
+ endif
+ endef
+
+ $(foreach target,\
+	$(ALL_TARGETS) \
+	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+ ,$(eval $(def_subfooter)))
+
+
+ #
+ # Switch context.
+ #
+ __tmp := $(MAKEFILE_LIST)
+ $(call stack-popv,__tmp)
+ MAKEFILE_CURRENT := $(call stack-top,__tmp)
+ PATH_SUB_CURRENT := $(abspath $(patsubst %/,%,$(dir $(MAKEFILE_CURRENT))))
 endif
+
+$(call stack-push,_SUB_MAKEFILE_STACK,$(MAKEFILE_CURRENT))
 
