@@ -1,4 +1,4 @@
-# $Id: footer.kmk 741 2006-12-17 07:41:04Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 743 2006-12-17 08:12:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -142,29 +142,6 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(bld_trg)) \
 	$(TOOL) \
 	))
-
-## Removes the drive letter from a path (if it has one)
-# @param	$1 		the path
-no-drive=$(word $(words	$(subst :, ,$(1))),$(subst :, ,$(1)))
-
-## Removes the root slash from a path (if it has one)
-# @param	$1 		the path
-no-root-slash=$(patsubst /%,%,$(1))
-
-ifneq ($(filter abspathex,$(KMK_FEATURES)),abspathex) ## @todo Retire this to gnumake-header.kmk when it has been implemented.
-## Converts an relative path to an absolute path using the given CWD.
-# @returns absolute path.
-# @param    $1      The path to fixup.
-# @param    $2      The CWD to use.
-abspathex = $(foreach _fix_path,$1\
-,$(if $(subst :$(call no-root-slash,$(call no-drive,$(_fix_path))):,,:$(_fix_path):),$(_fix_path),$(abspath $2/$(_fix_path))))
-endif
-
-## Figure out where to put object files.
-# @param    $1      real target name.
-# @param    $2      normalized main target
-_TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(1))))
-
 
 ## Figure out the actual name of an installed file.
 # @param	$1		The file to install.
@@ -886,7 +863,7 @@ $(out)_unfetched:
 
 $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE) | $(call DIRDEP,$(inst))
 	$$(QUIET)$$(RM) -f $$@
-	$$(call MSG_L1,$$(if $$(wildcard $(out).lst),$$(if $$(_TARGET_$(target)_DIGEST),Re-fetching,Removing),Fetching) $(target)...)
+	$$(call MSG_L1,$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(wildcard $(out).lst),Re-fetching,Fetching),Removing) $(target)...)
 	$$(QUIET)$$(if $$(wildcard $(out).lst      ),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched)
 	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@))
 	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
@@ -1171,8 +1148,14 @@ tool        := $(call _TARGET_TOOL,$(target),AR)
 ifeq ($(tool),)
 $(error kBuild: Library target $(target) does not have a tool defined!)
 endif
-outbase     := $(call _TARGET_BASE,$(target),$(target))
-PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+outbase     := $(call TARGET_BASE,$(target),$(target))
+ifndef PATH_$(target)
+ PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+else
+ ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
+ endif
+endif
 suff        := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LIBSUFF.$(bld_trg))\
@@ -1191,7 +1174,7 @@ $(eval $(value def_target_sources))
 
 # library linking
 tool        := $(call _TARGET_TOOL,$(target),AR)
-outbase     := $(call _TARGET_BASE,$(target),$(target))
+outbase     := $(call TARGET_BASE,$(target),$(target))
 flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(bld_type))\
@@ -1293,14 +1276,20 @@ bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
 
 tool        := $(call _TARGET_TOOL,$(target),LD)
-outbase     := $(call _TARGET_BASE,$(target),$(target))
+outbase     := $(call TARGET_BASE,$(target),$(target))
+ifndef PATH_$(target)
+ PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+else
+ ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
+ endif
+endif
 suff        := $(firstword \
 	$($(target)_$(EXT)SUFF) \
 	$($(target)_$(EXT)SUFF) \
 	$(TOOL_$(tool)_LD$(EXT)SUFF) \
 	$($(EXTPRE)SUFF_$(EXT)))
 out         := $(outbase)$(suff)
-PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
 TARGET_$(target) := $(out)
 $(target)_OBJS_  :=
 defpath := $($(target)_PATH)
@@ -1310,7 +1299,7 @@ $(eval $(value def_target_sources))
 
 # more library stuff.
 tool        := $(call _TARGET_TOOL,$(target),LD)
-outbase     := $(call _TARGET_BASE,$(target),$(target))
+outbase     := $(call TARGET_BASE,$(target),$(target))
 flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\

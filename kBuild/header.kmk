@@ -1,4 +1,4 @@
-# $Id: header.kmk 742 2006-12-17 07:41:22Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 743 2006-12-17 08:12:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 742 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 743 $  )
 
 
 #
@@ -440,6 +440,12 @@ export SHELL MAKESHELL
 # Symlinking is problematic on some platforms...
 LN_SYMLINK  := $(LN) -s
 
+
+#
+# Some Functions.
+# The lower cased ones are either fallbacks or candidates for functions.c. 
+#
+
 ## ABSPATH - make paths absolute.
 # This implementation is clumsy and doesn't resolve '..' and '.' components.
 #
@@ -452,45 +458,43 @@ ABSPATH = $(abspath $(1))
 # @param	$1	The paths to the directories which must be created.
 DIRDEP = $(foreach path,$(patsubst %/,%,$(1)),$(path)/)
 
-
 ## Cygwin kludge.
 # This converts /cygdrive/x/% to x:%.
 #
 # @param	$1	The paths to make native.
 # @remark	This macro is pretty much obsolete since we don't use cygwin base make.
 ifneq ($(patsubst /cygdrive/%,%,$(CURDIR)),$(CURDIR))
-CYGPATHMIXED = $(foreach path,$(1)\
+ CYGPATHMIXED = $(foreach path,$(1)\
    ,$(if $(patsubst /cygdrive/%,,$(path)),$(path),$(patsubst $(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path)))))/%,$(strip $(firstword $(subst /, ,$(patsubst /cygdrive/%,%,$(path))))):/%,$(patsubst /cygdrive/%,%,$(path)))))
 else
-CYGPATHMIXED = $(1)
+ CYGPATHMIXED = $(1)
 endif
 
-
-ifneq ($(filter stack,$(KMK_FEATURES)),stack) ## @todo retire this to gnumake-header.kmk when all the programs have been recompiled.
-##
-# Pushes an item onto a 'stack' variable. 
-# @param    $1   The stack variable name
-# @param    $2   What to push.
-stack-push = $(eval $1 +=$2)
-
-##
-# Removes the top element from a 'stack' variable.
-# @returns  The popped element
-# @param    $1   The stack variable name
-stack-pop  = $(call stack-top,$1)$(call stack-popv,$1)
-
-##
-# Removes the top element from a 'stack' variable.
-# This does *NOT* return the top element, use 
-# @param    $1   The stack variable name
-# @remark This ain't very fast (that's why it's implemented in functions.c in kmk).
-stack-popv = $(eval $1:=$(wordlist 1,$(words $(wordlist 2,9999,$($1))),$($1)))
-
-##
-# Retrieves the top element from the 'stack' variable.
-# @param    $1   The stack variable name
-stack-top  = $(lastword $($1))
+ifneq ($(filter abspathex,$(KMK_FEATURES)),abspathex) ## @todo Retire this to gnumake-header.kmk when it has been implemented.
+## Converts an relative path to an absolute path using the given CWD.
+# @returns absolute path.
+# @param    $1      The path to fixup.
+# @param    $2      The CWD to use.
+abspathex = $(foreach _fix_path,$1\
+,$(if $(subst :$(call no-root-slash,$(call no-drive,$(_fix_path))):,,:$(_fix_path):),$(_fix_path),$(abspath $2/$(_fix_path))))
 endif
+
+## Removes the drive letter from a path (if it has one)
+# @param	$1 		the path
+no-drive    = $(word $(words $(subst :, ,$(1))),$(subst :, ,$(1)))
+
+## Removes the root slash from a path (if it has one)
+# @param	$1 		the path
+no-root-slash = $(patsubst /%,%,$(1))
+
+## Figure out where to put object files.
+# @param    $1      real target name.
+# @param    $2      normalized main target
+TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basename $(1))))
+
+## Figure out where to put object files.
+# @param    $1      normalized main target
+TARGET_PATH = $(PATH_TARGET)/$(1)
 
 
 #

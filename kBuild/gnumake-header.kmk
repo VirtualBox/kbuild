@@ -1,4 +1,4 @@
-# $Id: gnumake-header.kmk 723 2006-12-15 02:54:52Z knut.osmundsen@oracle.com $
+# $Id: gnumake-header.kmk 743 2006-12-17 08:12:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional header for use when bootstrapping kBuild using Vanilla GNU Make.
@@ -32,9 +32,33 @@ NO_LINK_CMDS_DEPS := 1
 sinclude $(PATH_KBUILD)/StampOutPredefines.kmk
 $(warning kBuild: Using vanilla GNU make isn't safe for anything but kBuild bootstrapping!)
 
+##
+# Pushes an item onto a 'stack' variable. 
+# @param    $1   The stack variable name
+# @param    $2   What to push.
+stack-push = $(eval $1 +=$2)
+
+##
+# Removes the top element from a 'stack' variable.
+# @returns  The popped element
+# @param    $1   The stack variable name
+stack-pop  = $(call stack-top,$1)$(call stack-popv,$1)
+
+##
+# Removes the top element from a 'stack' variable.
+# This does *NOT* return the top element, use 
+# @param    $1   The stack variable name
+# @remark This ain't very fast (that's why it's implemented in functions.c in kmk).
+stack-popv = $(eval $1:=$(wordlist 1,$(words $(wordlist 2,9999,$($1))),$($1)))
+
+##
+# Retrieves the top element from the 'stack' variable.
+# @param    $1   The stack variable name
+stack-top  = $(lastword $($1))
+
 
 #
-# Default variables.
+# Fix some default variables.
 #
 ifeq ($(MAKEFLAGS),$(MAKEFLAGS:R=x))
 # add the -R makeflag to avoid doing this for submakes
@@ -53,13 +77,13 @@ def_undefine_default :=
 endif
 
 #
-# Suffixes.
+# Zap suffixes.
 #
 .SUFFIXES:
 SUFFIXES :=
 
 #
-# Implicit rules
+# Zap implicit rules
 #
 ifeq ($(MAKEFLAGS),$(MAKEFLAGS:r=x))
 MAKEFLAGS := r$(MAKEFLAGS)
