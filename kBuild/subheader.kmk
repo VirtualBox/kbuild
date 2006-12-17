@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 729 2006-12-17 02:12:07Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 742 2006-12-17 07:41:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
@@ -23,6 +23,13 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
+
+#
+# Sanity check.
+#
+ifdef __footer_kmk__
+$(error kBuild: footer.kmk has already been included. Fix your sub-makefiles!)
+endif
 
 ifndef _SUB_MAKEFILE_NOT_FIRST
 

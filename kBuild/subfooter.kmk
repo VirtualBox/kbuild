@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 729 2006-12-17 02:12:07Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 742 2006-12-17 07:41:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at bottom of a makefile or sub-makefile.
@@ -24,6 +24,12 @@
 #
 #
 
+#
+# Sanity check.
+#
+ifdef __footer_kmk__
+$(error kBuild: footer.kmk has already been included. Fix your sub-makefiles!)
+endif
 
 #
 # Set the default path for all new targets.
@@ -52,17 +58,19 @@ $(foreach target,\
 ,$(eval $(def_subheader)))
 
 
-#
-# Switch back to the context of previous makefile on the stack.
-#
-MAKEFILE_CURRENT := $(call stack-pop,_SUB_MAKEFILE_STACK)
-PATH_SUB_CURRENT := $(abspath $(dir $(MAKEFILE_CURRENT)))
 
-#
-# When we reach the last makefile we include the footer.
-#
-ifeq ($(_SUB_MAKEFILE_STACK),)
+ifneq ($(_SUB_MAKEFILE_STACK),)
+ #
+ # Switch back to the context of previous makefile on the stack.
+ #
+ MAKEFILE_CURRENT := $(call stack-pop,_SUB_MAKEFILE_STACK)
+ PATH_SUB_CURRENT := $(abspath $(dir $(MAKEFILE_CURRENT)))
+
+else
+ #
+ # We've reached the end of the line, include the real footer.
+ #
  include $(PATH_KBUILD)/footer.kmk
-endif
 
+endif
 
