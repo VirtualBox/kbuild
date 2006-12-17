@@ -7,7 +7,7 @@ cancel & quit & exit
  *
  * Environment setup script for OS/2.
  *
- * Copyright (c) 2006 knut st. osmundsen <bird-kbuild-src@anduin.net>
+ * Copyright (c) 1999-2006 knut st. osmundsen <bird-kbuild-src@anduin.net>
  *
  *
  * This file is part of kBuild.
@@ -128,7 +128,7 @@ call EnvSet 0, "BUILD_TARGET", EnvGet("BUILD_TARGET");
 say "dbg: BUILD_TARGET="||EnvGet("BUILD_TARGET");
 
 
-sPlatformBin = EnvGet("PATH_KBUILD")||"\bin\"||EnvGet("BUILD_PLATFORM_ARCH")||"."||EnvGet("BUILD_PLATFORM");
+sPlatformBin = EnvGet("PATH_KBUILD")||"\bin\"||EnvGet("BUILD_PLATFORM")||"."||EnvGet("BUILD_PLATFORM_ARCH");
 
 /* Make shell */
 call EnvSet 0, "MAKESHELL", translate(sPlatformBin||"/kmk_ash.exe", '/', '\');
@@ -148,7 +148,7 @@ do
 end
 else
 do
-    sPrograms = "kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_sed";
+    sPrograms = "kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed";
     do i = 1 to words(sPrograms)
         sProgram = word(sPrograms, i);
         if (FileExists(sPlatformBin||"\"||sProgram||".exe") = 0) then

@@ -35,10 +35,10 @@ if ".%1" = ".-h"        goto help
 if ".%1" = ".-help"     goto help
 if ".%1" = ".--help"    goto help
 
-if ".%1" = ".-win"      goto want_win_bit
+if ".%1" = ".-win"      goto want_win
 if ".%1" = ".-win32"    goto want_win32_bit
 if ".%1" = ".-win64"    goto want_win64_bit
-if ".%1" = ".-nt"       goto want_nt_bit
+if ".%1" = ".-nt"       goto want_nt
 if ".%1" = ".-nt32"     goto want_nt32_bit
 if ".%1" = ".-nt64"     goto want_nt64_bit
 goto done_arguments
@@ -52,7 +52,7 @@ echo Syntax: envwin.cmd [-win, -win32, -win64, -nt, -nt32 or -nt64] [command to 
 goto end
 
 
-:want_win_bit
+:want_win
 shift
 set BUILD_TARGET=win
 set BUILD_PLATFORM=win
@@ -60,18 +60,18 @@ goto done_arguments
 
 :want_win32_bit
 shift
-set BUILD_PLATFORM=win32
-set BUILD_TARGET=win32
+set BUILD_PLATFORM=win
+set BUILD_TARGET=win
 set BUILD_TARGET_ARCH=x86
 goto done_arguments
 
 :want_win64_bit
 shift
-set BUILD_TARGET=win64
+set BUILD_TARGET=win
 set BUILD_TARGET_ARCH=amd64
 goto done_arguments
 
-:want_nt_bit
+:want_nt
 shift
 set BUILD_PLATFORM=nt
 set BUILD_TARGET=nt
@@ -92,6 +92,30 @@ set BUILD_TARGET_ARCH=amd64
 goto done_arguments
 
 :done_arguments
+
+
+REM #
+REM # Check for illegal target/platforms.
+REM #
+if "%BUILD_TARGET" = "win32" goto illegal_target
+if "%BUILD_TARGET" = "win64" goto illegal_target
+
+if "%BUILD_PLATFORM" = "win32" goto illegal_platform
+if "%BUILD_PLATFORM" = "win64" goto illegal_platform
+goto target_and_platform_ok
+
+:illegal_target
+echo error: BUILD_TARGET=%BUILD_TARGET is no longer valid. 
+echo        Only 'win' and 'nt' are permitted for targeting microsoft windows.
+goto failed
+
+:illegal_platform
+echo error: BUILD_PLATFORM=%BUILD_PLATFORM is no longer valid. 
+echo        Only 'win' and 'nt' are permitted for building on microsoft windows.
+goto failed
+
+:target_and_platform_ok
+
 
 REM #
 REM # figure the current directory.
@@ -167,8 +191,6 @@ goto process_BUILD_TARGET
 
 :have_2_BUILD_PLATFORM
 echo dbg: BUILD_PLATFORM=%BUILD_PLATFORM%
-IF "%BUILD_PLATFORM%" = "win32"         set BUILD_PLATFORM_ARCH=x86
-IF "%BUILD_PLATFORM%" = "win64"         set BUILD_PLATFORM_ARCH=amd64
 IF NOT ".%BUILD_PLATFORM_ARCH%" = "."   goto have_2_BUILD_PLATFORM_ARCH
 set TEST_PROCESSOR_ARCH=%PROCESSOR_ARCHITECTURE%
 IF NOT ".%PROCESSOR_ARCHITEW6432%" = "." set TEST_PROCESSOR_ARCH=%PROCESSOR_ARCHITEW6432%
@@ -215,8 +237,6 @@ goto next
 echo dbg: BUILD_TARGET=%BUILD_TARGET%
 IF NOT ".%BUILD_TARGET_ARCH%" = "." goto have_2_BUILD_TARGET_ARCH
 IF "%BUILD_TARGET%" = "os2"             set BUILD_TARGET_ARCH=x86
-IF "%BUILD_TARGET%" = "win32"           set BUILD_TARGET_ARCH=x86
-IF "%BUILD_TARGET%" = "win64"           set BUILD_TARGET_ARCH=amd64
 IF ".%BUILD_TARGET_ARCH%" = "."         set BUILD_TARGET_ARCH=%BUILD_PLATFORM_ARCH%
 :have_2_BUILD_TARGET_ARCH
 echo dbg: BUILD_TARGET_ARCH=%BUILD_TARGET_ARCH%
@@ -232,12 +252,8 @@ echo dbg: BUILD_TARGET_CPU=%BUILD_TARGET_CPU%
 :next
 
 REM # The PATH.
-IF "%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%" = "x86.nt"      set PATH=%PATH_KBUILD%\bin\x86.win32;%PATH%
-IF "%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%" = "x86.win"     set PATH=%PATH_KBUILD%\bin\x86.win32;%PATH%
-IF "%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%" = "amd64.nt"    set PATH=%PATH_KBUILD%\bin\amd64.nt;%PATH_KBUILD%\bin\x86.win32;%PATH%
-IF "%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%" = "amd64.win"   set PATH=%PATH_KBUILD%\bin\amd64.win64;%PATH_KBUILD%\bin\x86.win32;%PATH%
-IF "%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%" = "amd64.win64" set PATH=%PATH_KBUILD%\bin\x86.win32;%PATH%
-set PATH=%PATH_KBUILD%\bin\%BUILD_PLATFORM_ARCH%.%BUILD_PLATFORM%;%PATH%
+set PATH=%PATH_KBUILD%\bin\win.x86;%PATH%
+IF "%BUILD_PLATFORM_ARCH%" = "win.amd64" set PATH=%PATH_KBUILD%\bin\win.amd64;%PATH%
 echo dbg: PATH=%PATH%
 
 REM # Execute command

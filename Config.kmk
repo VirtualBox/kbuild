@@ -1,4 +1,4 @@
-# $Id: Config.kmk 722 2006-12-15 02:54:06Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 731 2006-12-17 04:19:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -66,7 +66,7 @@ TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/x86.os2/
+TEMPLATE_BIN_INST               = kBuild/bin/os2.x86/
  endif
 endif
 
@@ -78,11 +78,11 @@ TEMPLATE_BIN_LDFLAGS            =
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
+TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/
  endif
 endif
 
-ifeq ($(filter-out x86.win32 x86.win x86.nt,$(BUILD_TARGET_ARCH).$(BUILD_TARGET)),)
+ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
 include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
 TEMPLATE_BIN_TOOL               = VCC70
 TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
@@ -104,7 +104,7 @@ TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/x86.win32/
+TEMPLATE_BIN_INST               = kBuild/bin/win.$(BUILD_TARGET_ARCH)/
  endif
 endif
 
@@ -123,7 +123,7 @@ endif
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/
+TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/
  endif
 endif
 
