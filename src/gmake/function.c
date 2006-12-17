@@ -1924,8 +1924,11 @@ func_not (char *o, char **argv, char *funcname)
 
 /* Return the absolute name of file NAME which does not contain any `.',
    `..' components nor any repeated path separators ('/').   */
-
+#ifdef KMK
+char *
+#else
 static char *
+#endif 
 abspath (const char *name, char *apath)
 {
   char *dest;
@@ -2445,8 +2448,8 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
   { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
   { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},
-  { STRING_SIZE_TUPLE("kb-src-prop"),   3,  3,  0,  func_kbuild_source_prop},
-  { STRING_SIZE_TUPLE("kb-src-one"),    1,  1,  0,  func_kbuild_source_one},
+  { STRING_SIZE_TUPLE("kb-src-prop"),   4,  4,  0,  func_kbuild_source_prop},
+  { STRING_SIZE_TUPLE("kb-src-one"),    0,  1,  0,  func_kbuild_source_one},
 #endif 
 };
 

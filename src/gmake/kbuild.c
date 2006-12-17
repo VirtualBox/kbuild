@@ -42,6 +42,114 @@
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
 #endif
 
+/* function.c */
+char * abspath(const char *name, char *apath);
+
+/**
+ * Applies the specified default path to any relative paths in *ppsz.
+ * 
+ * @param   pDefPath        The default path.
+ * @param   ppsz            Pointer to the string pointer. If we expand anything, *ppsz 
+ *                          will be replaced and the caller is responsible for calling free() on it.
+ * @param   pcch            IN: *pcch contains the current string length.
+ *                          OUT: *pcch contains the new string length.
+ * @param   pcchAlloc       *pcchAlloc contains the length allocated for the string. Can be NULL.
+ * @param   fCanFree        Whether *ppsz should be freed when we replace it.
+ */
+static void 
+kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcchAlloc, int fCanFree)
+{
+    char *pszIterator;
+    const char *pszInCur;
+    unsigned int cchInCur;
+    unsigned int cRelativePaths; 
+
+    /* 
+     * The first pass, count the relative paths. 
+     */
+    cRelativePaths = 0;
+    pszIterator = *ppsz;
+    while ((pszInCur = find_next_token(&pszIterator, &cchInCur)))
+    {
+        /* is relative? */
+#ifdef HAVE_DOS_PATHS
+        if (pszInCur[0] != '/' && pszInCur[0] != '\\' && (cchInCur < 2 || pszInCur[1] != ':'))
+#else
+        if (pszInCur[0] != '/')
+#endif 
+            cRelativePaths++;
+    } 
+
+    /* 
+     * The second pass construct the new string. 
+     */
+    if (cRelativePaths)
+    {
+        const size_t cchOut = *pcch + cRelativePaths * (pDefPath->value_length + 1) + 1;
+        char *pszOut = xmalloc(cchOut);
+        char *pszOutCur = pszOut;
+        const char *pszInNextCopy = *ppsz;
+
+        cRelativePaths = 0;
+        pszIterator = *ppsz;
+        while ((pszInCur = find_next_token(&pszIterator, &cchInCur)))
+        {
+            /* is relative? */
+#ifdef HAVE_DOS_PATHS
+            if (pszInCur[0] != '/' && pszInCur[0] != '\\' && (cchInCur < 2 || pszInCur[1] != ':'))
+#else
+            if (pszInCur[0] != '/')
+#endif 
+            {
+                PATH_VAR(szAbsPathIn);
+                PATH_VAR(szAbsPathOut);
+
+                if (pDefPath->value_length + cchInCur + 1 >= GET_PATH_MAX)
+                    continue;
+
+                /* Create the abspath input. */
+                memcpy(szAbsPathIn, pDefPath->value, pDefPath->value_length);
+                szAbsPathIn[pDefPath->value_length] = '/';
+                memcpy(&szAbsPathIn[pDefPath->value_length + 1], pszInCur, cchInCur);
+                szAbsPathIn[pDefPath->value_length + 1 + cchInCur] = '\0';
+
+                if (abspath(szAbsPathIn, szAbsPathOut) != NULL)
+                {
+                    const size_t cchAbsPathOut = strlen(szAbsPathOut);
+                    assert(cchAbsPathOut <= pDefPath->value_length + 1 + cchInCur);
+
+                    /* copy leading input */
+                    if (pszInCur != pszInNextCopy)
+                    {
+                        const size_t cchCopy = pszInCur - pszInNextCopy;
+                        memcpy(pszOutCur, pszInNextCopy, cchCopy);
+                        pszOutCur += cchCopy;
+                    }
+                    pszInNextCopy = pszInCur + cchInCur;
+
+                    /* copy out the abspath. */
+                    memcpy(pszOutCur, szAbsPathOut, cchAbsPathOut);
+                    pszOutCur += cchAbsPathOut;
+                }
+            }
+        } 
+        /* the final copy (includes the nil). */
+        cchInCur = *ppsz + *pcch - pszInNextCopy;
+        memcpy(pszOutCur, pszInNextCopy, cchInCur);
+        pszOutCur += cchInCur;
+        *pszOutCur = '\0';
+        assert((size_t)(pszOutCur - pszOut) < cchOut);
+
+        /* set return values */
+        if (fCanFree)
+            free(*ppsz);
+        *ppsz = pszOut;
+        *pcch = pszOutCur - pszOut;
+        if (pcchAlloc)
+            *pcchAlloc = cchOut;
+    }
+}
+
 
 /**
  * Gets a variable that must exist.
@@ -156,10 +264,27 @@ kbuild_lookup_variable(const char *pszName)
     return pVar;
 }
 
+/**
+ * Looks up a variable and applies default a path to all relative paths.
+ * The value_length field is valid upon successful return.
+ *
+ * @returns Pointer to the variable. NULL if not found.
+ * @param   pDefPath    The default path.
+ * @param   pszName     The variable name.
+ */
+static struct variable *
+kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
+{
+    struct variable *pVar = kbuild_lookup_variable(pszName);
+    if (pVar && pDefPath)
+        kbuild_apply_defpath(pDefPath, &pVar->value, &pVar->value_length, &pVar->value_alloc_len, 1);
+    return pVar;
+}
+
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
  * will be substituted with the values of the variables in the va list.  */
 static struct variable *
-kbuild_lookup_variable_fmt_va(const char *pszNameFmt, va_list va)
+kbuild_lookup_variable_fmt_va(struct variable *pDefPath, const char *pszNameFmt, va_list va)
 {
     va_list va2;
     size_t cchName;
@@ -205,18 +330,20 @@ kbuild_lookup_variable_fmt_va(const char *pszNameFmt, va_list va)
     }
     va_end(va2);
 
+    if (pDefPath)
+        return kbuild_lookup_variable_defpath(pDefPath, pszName);
     return kbuild_lookup_variable(pszName);
 }
 
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
  * will be substituted with the values of the variables in the ellipsis.  */
 static struct variable *
-kbuild_lookup_variable_fmt(const char *pszNameFmt, ...)
+kbuild_lookup_variable_fmt(struct variable *pDefPath, const char *pszNameFmt, ...)
 {
     struct variable *pVar;
     va_list va;
     va_start(va, pszNameFmt);
-    pVar = kbuild_lookup_variable_fmt_va(pszNameFmt, va);
+    pVar = kbuild_lookup_variable_fmt_va(pDefPath, pszNameFmt, va);
     va_end(va);
     return pVar;
 }
@@ -239,37 +366,37 @@ kbuild_first_prop(struct variable *pTarget, struct variable *pSource,
     PropF2.value = (char *)pszPropF2;
     PropF2.value_length = strlen(pszPropF2);
 
-    if (    (pVar = kbuild_lookup_variable_fmt("%_%_%%.%.%",pTarget, pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%%.%",  pTarget, pSource, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%%",    pTarget, pSource, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%.%.%", pTarget, pSource, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%.%",   pTarget, pSource, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%_%",     pTarget, pSource, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%.%",  pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%",    pSource, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%",      pSource, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%.%",   pSource, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%",     pSource, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%",       pSource, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%.%",  pTarget, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%.%",    pTarget, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%%",      pTarget, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%.%",   pTarget, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%.%",     pTarget, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%_%",       pTarget, &PropF2))
+    if (    (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%%.%.%",pTarget, pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%%.%",  pTarget, pSource, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%%",    pTarget, pSource, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%.%.%", pTarget, pSource, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%.%",   pTarget, pSource, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%_%",     pTarget, pSource, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%.%.%",  pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%.%",    pSource, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%",      pSource, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%.%.%",   pSource, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%.%",     pSource, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%",       pSource, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%.%.%",  pTarget, pType, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%.%",    pTarget, pType, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%%",      pTarget, pType, &PropF2))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%.%.%",   pTarget, &PropF2, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%.%",     pTarget, &PropF2, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%_%",       pTarget, &PropF2))
 
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%.%",   pTool, pType, &PropF2, pBldTrg, pBldTrgArch)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",     pTool, pType, &PropF2, pBldTrg)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%%",       pTool, pType, &PropF2)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%.%",    pTool, &PropF2, pBldTrg, pBldTrgArch)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",      pTool, &PropF2, pBldTrg)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt("TOOL_%_%",        pTool, &PropF2)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%.%",   pTool, pType, &PropF2, pBldTrg, pBldTrgArch)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%",     pTool, pType, &PropF2, pBldTrg)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%",       pTool, pType, &PropF2)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%.%",    pTool, &PropF2, pBldTrg, pBldTrgArch)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%",      pTool, &PropF2, pBldTrg)))
+        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%",        pTool, &PropF2)))
 
-        ||  (pVar = kbuild_lookup_variable_fmt("%%.%.%",    pType, &PropF1, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%%.%",      pType, &PropF1, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt("%%",        pType, &PropF1))
-        ||  (pVar = kbuild_lookup_variable_fmt("%.%.%",     &PropF1, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt("%.%",       &PropF1, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%%.%.%",    pType, &PropF1, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%%.%",      pType, &PropF1, pBldTrg))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%%",        pType, &PropF1))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%.%.%",     &PropF1, pBldTrg, pBldTrgArch))
+        ||  (pVar = kbuild_lookup_variable_fmt(NULL, "%.%",       &PropF1, pBldTrg))
         ||  (pVar = kbuild_lookup_variable(pszPropF1))
        )
     {
@@ -650,6 +777,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
 }
 
 /* releases resources allocated in the kbuild_get_sdks. */
+static void
 kbuild_put_sdks(struct kbuild_sdks *pSdks)
 {
     unsigned j;
@@ -798,7 +926,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     struct
     {
         struct variable    *pVar;
-        size_t              cchExp;
+        int                 cchExp;
         char               *pszExp;
     } *paVars;
 
@@ -816,19 +944,19 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     iVar = 0;
     /* the tool (lowest priority) */
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%",      pTool, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",    pTool, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",    pTool, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",    pTool, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%.%",  pTool, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%.%",    pTool, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%",      pTool, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%",    pTool, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%",    pTool, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%",    pTool, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%.%",  pTool, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%.%",    pTool, &Prop, pBldTrgCpu);
 
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%",     pTool, pType, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",   pTool, pType, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%.%", pTool, pType, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%",     pTool, pType, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%",   pTool, pType, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%.%", pTool, pType, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "TOOL_%_%%.%",   pTool, pType, &Prop, pBldTrgCpu);
 
     /* the global sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iGlobal + pSdks->cGlobal : pSdks->iGlobal - 1;
@@ -837,35 +965,35 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%",      pSdk, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
 
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%",     pSdk, pType, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%",     pSdk, pType, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
     }
 
     /* the globals */
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%",      &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%.%",    &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%.%",    &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%.%",    &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%.%.%",  &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%.%",    &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%",      &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%.%",    &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%.%",    &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%.%",    &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%.%.%",  &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%.%",    &Prop, pBldTrgCpu);
 
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%",     pType, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%",   pType, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%",   pType, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%",   pType, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%.%", pType, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%%.%",   pType, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%",     pType, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%.%",   pType, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%.%",   pType, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%.%",   pType, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%.%.%", pType, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "%%.%",   pType, &Prop, pBldTrgCpu);
 
     /* the target sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iTarget + pSdks->cTarget : pSdks->iTarget - 1;
@@ -874,35 +1002,35 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%",      pSdk, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
 
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%",     pSdk, pType, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%",     pSdk, pType, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
     }
 
     /* the target */
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%",      pTarget, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pTarget, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pTarget, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pTarget, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%.%",  pTarget, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pTarget, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%",      pTarget, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pTarget, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pTarget, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pTarget, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%.%",  pTarget, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pTarget, &Prop, pBldTrgCpu);
 
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%",     pTarget, pType, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pTarget, pType, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pTarget, pType, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pTarget, pType, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%.%", pTarget, pType, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pTarget, pType, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%",     pTarget, pType, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pTarget, pType, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pTarget, pType, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pTarget, pType, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%.%", pTarget, pType, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pTarget, pType, &Prop, pBldTrgCpu);
 
     /* the source sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iSource + pSdks->cSource : pSdks->iSource - 1;
@@ -911,35 +1039,35 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%",      pSdk, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
 
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%",     pSdk, pType, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%",     pSdk, pType, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
     }
 
     /* the source */
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%",      pSource, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pSource, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pSource, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pSource, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%.%",  pSource, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%.%",    pSource, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%",      pSource, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pSource, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pSource, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pSource, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%.%",  pSource, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%.%",    pSource, &Prop, pBldTrgCpu);
 
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%",     pSource, pType, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pSource, pType, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pSource, pType, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pSource, pType, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%.%", pSource, pType, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%%.%",   pSource, pType, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%",     pSource, pType, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pSource, pType, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pSource, pType, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pSource, pType, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%.%", pSource, pType, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%%.%",   pSource, pType, &Prop, pBldTrgCpu);
 
 
     /* the target + source sdks */
@@ -949,35 +1077,35 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%",      pSdk, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%",      pSdk, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%.%",  pSdk, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%.%",    pSdk, &Prop, pBldTrgCpu);
 
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%",     pSdk, pType, &Prop);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
-        paVars[iVar++].pVar = kbuild_lookup_variable_fmt("SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%",     pSdk, pType, &Prop);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldType);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrg);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%.%", pSdk, pType, &Prop, pBldTrg, pBldTrgArch);
+        paVars[iVar++].pVar = kbuild_lookup_variable_fmt(NULL, "SDK_%_%%.%",   pSdk, pType, &Prop, pBldTrgCpu);
     }
 
     /* the target + source */
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%",      pTarget, pSource, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%.%",  pTarget, pSource, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%.%",    pTarget, pSource, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%",      pTarget, pSource, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%.%",    pTarget, pSource, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%.%",    pTarget, pSource, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%.%",    pTarget, pSource, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%.%.%",  pTarget, pSource, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%.%",    pTarget, pSource, &Prop, pBldTrgCpu);
 
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%",     pTarget, pSource, pType, &Prop);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldType);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrg);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%.%", pTarget, pSource, pType, &Prop, pBldTrg, pBldTrgArch);
-    paVars[iVar++].pVar = kbuild_lookup_variable_fmt("%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrgCpu);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%",     pTarget, pSource, pType, &Prop);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldType);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrg);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%.%.%", pTarget, pSource, pType, &Prop, pBldTrg, pBldTrgArch);
+    paVars[iVar++].pVar = kbuild_lookup_variable_fmt(pDefPath, "%_%_%%.%",   pTarget, pSource, pType, &Prop, pBldTrgCpu);
 
     assert(cVars == iVar);
 
@@ -1003,9 +1131,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
             paVars[iVar].cchExp = strlen(paVars[iVar].pszExp);
         }
         if (pDefPath)
-        {
-            /** @todo */
-        }
+            kbuild_apply_defpath(pDefPath, &paVars[iVar].pszExp, &paVars[iVar].cchExp, NULL,
+                                 paVars[iVar].pszExp != paVars[iVar].pVar->value);
         cchTotal += paVars[iVar].cchExp + 1;
     }
 
@@ -1040,6 +1167,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 {
     struct variable *pTarget = kbuild_get_variable("target");
     struct variable *pSource = kbuild_get_variable("source");
+    struct variable *pDefPath = NULL;
     struct variable *pType = kbuild_get_variable("type");
     struct variable *pTool = kbuild_get_variable("tool");
     struct variable *pBldType = kbuild_get_variable("bld_type");
@@ -1055,12 +1183,14 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
         iDirection = -1;
     else
         fatal(NILF, _("incorrect direction argument `%s'!"), argv[2]);
+    if (argv[3])
+        pDefPath = kbuild_get_variable("defpath");
 
     kbuild_get_sdks(&Sdks, pTarget, pSource, pBldType, pBldTrg, pBldTrgArch);
 
     pVar = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType,
                                       pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
-                                      NULL,
+                                      pDefPath,
                                       argv[0], argv[1], iDirection);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
@@ -1211,18 +1341,30 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     unsigned cchSavedVarBuf;
     size_t cch;
     struct kbuild_sdks Sdks;
+
+    /*
+     * Gather properties.
+     */
     kbuild_get_sdks(&Sdks, pTarget, pSource, pBldType, pBldTrg, pBldTrgArch);
 
     if (pDefPath && !pDefPath->value_length)
         pDefPath = NULL;
     pDefs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                         "DEFS", "defs", 1/* left-to-right */);
-    pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
+    pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                         "INCS", "incs", -1/* right-to-left */);
-    pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
+    pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                         "FLAGS", "flags", 1/* left-to-right */);
     pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                         "DEPS", "deps", 1/* left-to-right */);
+
+    /*
+     * If we've got a default path, we must expand the source now.
+     * If we do this too early, "<source>_property = stuff" won't work becuase 
+     * our 'source' value isn't what the user expects.
+     */
+    if (pDefPath)
+        kbuild_apply_defpath(pDefPath, &pSource->value, &pSource->value_length, &pSource->value_alloc_len, 1 /* can free */);
 
     /*
     # dependencies
