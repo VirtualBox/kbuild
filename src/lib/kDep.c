@@ -1,4 +1,4 @@
-/* $Id: kDep.c 727 2006-12-17 01:43:01Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 733 2006-12-17 04:42:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code. 
@@ -205,10 +205,16 @@ static void fixcase(char *pszPath)
             if (!cchDelta)
                 memcpy(psz, FindFileData.cAlternateFileName, cch);
             else
-            {
-                memmove(psz + cchAlt, pszEnd, strlen(pszEnd) + 1);
-                pszEnd -= cchDelta;
-                memcpy(psz, FindFileData.cAlternateFileName, cchAlt);
+            {   int cbLeft = strlen(pszEnd) + 1;
+                if ((psz - pszPath) + cbLeft + cchAlt <= _MAX_PATH)
+                {
+                    memmove(psz + cchAlt, pszEnd, cbLeft);
+                    pszEnd -= cchDelta;
+                    memcpy(psz, FindFileData.cAlternateFileName, cchAlt);
+                }
+                else
+                    fprintf(stderr, "kDep: case & space fixed filename is growing too long (%d bytes)! '%s'\n",
+                            (psz - pszPath) + cbLeft + cchAlt, pszPath);
             }
         }
         my_assert(pszEnd[0] == chSaved0);
