@@ -1,4 +1,4 @@
-# $Id: VCC80.kmk 706 2006-12-10 21:57:53Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 735 2006-12-17 04:56:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
@@ -74,7 +74,8 @@ else
  TOOL_VCC80_LD  ?= $(EXEC_X86_WIN32) link.exe
  TOOL_VCC80_MT  ?= $(EXEC_X86_WIN32) mt.exe
 endif
-VCC80_NEW_DEPS = 1 ##< Enables fast DEP_IDB based dependencies.
+## Disabled fast DEP_IDB based dependencies.
+#VCC80_OLD_DEPS = 1
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
@@ -137,7 +138,7 @@ TOOL_VCC80_LIBPATH.x86      ?= $(PATH_TOOL_VCC80_LIB.x86) $(PATH_TOOL_VCC80_ATLM
 TOOL_VCC80_COMPILE_C_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
 TOOL_VCC80_COMPILE_C_DEPEND =
 TOOL_VCC80_COMPILE_C_DEPORD =
-ifdef VCC80_NEW_DEPS
+ifndef VCC80_OLD_DEPS
 define TOOL_VCC80_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC80_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -178,7 +179,7 @@ endif
 TOOL_VCC80_COMPILE_CXX_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
 TOOL_VCC80_COMPILE_CXX_DEPEND =
 TOOL_VCC80_COMPILE_CXX_DEPORD =
-ifdef VCC80_NEW_DEPS
+ifndef VCC80_OLD_DEPS
 define TOOL_VCC80_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC80_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\

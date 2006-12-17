@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 735 2006-12-17 04:56:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
@@ -59,7 +59,8 @@ else
  TOOL_VCC70_AR  ?= $(EXEC_X86_WIN32) lib.exe
  TOOL_VCC70_LD  ?= $(EXEC_X86_WIN32) link.exe
 endif
-VCC70_NEW_DEPS = 1 ##< Enables fast DEP_IDB based dependencies.
+## Disabled fast DEP_IDB based dependencies.
+#VCC70_OLD_DEPS = 1 
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
@@ -116,7 +117,7 @@ TOOL_VCC70_LDFLAGS.release  ?=
 TOOL_VCC70_COMPILE_C_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_C_DEPEND =
 TOOL_VCC70_COMPILE_C_DEPORD =
-ifdef VCC70_NEW_DEPS
+ifndef VCC70_OLD_DEPS
 define TOOL_VCC70_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC70_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -157,7 +158,7 @@ endif
 TOOL_VCC70_COMPILE_CXX_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_CXX_DEPEND =
 TOOL_VCC70_COMPILE_CXX_DEPORD =
-ifdef VCC70_NEW_DEPS
+ifndef VCC70_OLD_DEPS
 define TOOL_VCC70_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC70_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
