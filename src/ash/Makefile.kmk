@@ -22,6 +22,8 @@ kmk_ash_DEFS.os2 = \
 	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
 kmk_ash_DEFS.darwin = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME	
+kmk_ash_DEFS.freebsd = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
 kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug.
 kmk_ash_INCS.win = win

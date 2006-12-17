@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 731 2006-12-17 04:19:16Z knut.osmundsen@oracle.com $
+# $Id: env.sh 738 2006-12-17 06:01:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -51,7 +51,7 @@ echo "dbg: BUILD_TYPE=$BUILD_TYPE"
 if [ -z "$BUILD_PLATFORM_CPU" ]; then
     BUILD_PLATFORM_CPU=`uname -m`
     case "$BUILD_PLATFORM_CPU" in
-        x86_64|AMD64)
+        x86_64|AMD64|amd64)
            BUILD_PLATFORM_CPU='k8'
            ;;
     esac

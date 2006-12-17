@@ -20,7 +20,7 @@
 
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
-#define ENABLE_NLS 1
+/* #undef ENABLE_NLS */
 
 /* Use high resolution file timestamps if nonzero. */
 #define FILE_TIMESTAMP_HI_RES 0
@@ -39,19 +39,33 @@
 /* Define if your compiler conforms to the ANSI C standard. */
 #define HAVE_ANSI_COMPILER 1
 
+/* Define to 1 if you have the `atexit' function. */
+#define HAVE_ATEXIT 1
+
 /* Define to 1 if you have the `bsd_signal' function. */
 /* #undef HAVE_BSD_SIGNAL */
+
+/* Use case insensitive file names */
+/* #undef HAVE_CASE_INSENSITIVE_FS */
 
 /* Define if you have the clock_gettime function. */
 /* #undef HAVE_CLOCK_GETTIME */
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
-#define HAVE_DCGETTEXT 1
+/* #undef HAVE_DCGETTEXT */
 
 /* Define to 1 if you have the declaration of `sys_siglist', and to 0 if you
    don't. */
-#define HAVE_DECL_SYS_SIGLIST 0
+#define HAVE_DECL_SYS_SIGLIST 1
+
+/* Define to 1 if you have the declaration of `_sys_siglist', and to 0 if you
+   don't. */
+#define HAVE_DECL__SYS_SIGLIST 0
+
+/* Define to 1 if you have the declaration of `__sys_siglist', and to 0 if you
+   don't. */
+#define HAVE_DECL___SYS_SIGLIST 0
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -60,8 +74,7 @@
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 /* #undef HAVE_DOPRNT */
 
-/* Define this if your system requires backslashes or drive specs in
-   pathnames. */
+/* Use platform specific coding */
 /* #undef HAVE_DOS_PATHS */
 
 /* Define to 1 if you have the `dup2' function. */
@@ -91,14 +104,17 @@
 /* Define to 1 if you have the `getloadavg' function. */
 #define HAVE_GETLOADAVG 1
 
+/* Define to 1 if you have the `getrlimit' function. */
+#define HAVE_GETRLIMIT 1
+
 /* Define if the GNU gettext() function is already present or preinstalled. */
-#define HAVE_GETTEXT 1
+/* #undef HAVE_GETTEXT */
 
 /* Define if you have a standard gettimeofday function */
 #define HAVE_GETTIMEOFDAY 1
 
 /* Define if you have the iconv() function. */
-#define HAVE_ICONV 1
+/* #undef HAVE_ICONV */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -114,6 +130,9 @@
 
 /* Define to 1 if you have the <locale.h> header file. */
 #define HAVE_LOCALE_H 1
+
+/* Define to 1 if you have the `lstat' function. */
+#define HAVE_LSTAT 1
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
 /* #undef HAVE_MACH_MACH_H */
@@ -145,6 +164,12 @@
 /* Define to 1 if you have the `pstat_getdynamic' function. */
 /* #undef HAVE_PSTAT_GETDYNAMIC */
 
+/* Define to 1 if you have the `readlink' function. */
+#define HAVE_READLINK 1
+
+/* Define to 1 if you have the `realpath' function. */
+#define HAVE_REALPATH 1
+
 /* Define if <signal.h> defines the SA_RESTART constant. */
 #define HAVE_SA_RESTART 1
 
@@ -165,6 +190,9 @@
 
 /* Define to 1 if you have the `setreuid' function. */
 #define HAVE_SETREUID 1
+
+/* Define to 1 if you have the `setrlimit' function. */
+#define HAVE_SETRLIMIT 1
 
 /* Define to 1 if you have the `setvbuf' function. */
 #define HAVE_SETVBUF 1
@@ -226,6 +254,9 @@
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
 
+/* Define to 1 if you have the <sys/resource.h> header file. */
+#define HAVE_SYS_RESOURCE_H 1
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
@@ -272,10 +303,13 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. */
-#define MAKE_HOST "x86_64-unknown-freebsd5.4"
+#define MAKE_HOST "x86_64-unknown-freebsd6.2"
 
 /* Define this to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
+
+/* Define this to enable symbolic link timestamp checking. */
+#define MAKE_SYMLINKS 1
 
 /* Define to 1 if your `struct nlist' has an `n_un' member. Obsolete, depend
    on `HAVE_STRUCT_NLIST_N_UN_N_NAME */
@@ -297,13 +331,13 @@
 #define PACKAGE_NAME "GNU make"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU make 3.81beta1"
+#define PACKAGE_STRING "GNU make 3.81"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "make"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.81beta1"
+#define PACKAGE_VERSION "3.81"
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #define PROTOTYPES 1
@@ -353,7 +387,10 @@
 /* #undef UMAX4_3 */
 
 /* Version number of package */
-#define VERSION "3.81beta1"
+#define VERSION "3.81"
+
+/* Use platform specific coding */
+/* #undef WINDOWS32 */
 
 /* Define if using the dmalloc debugging malloc package */
 /* #undef WITH_DMALLOC */
@@ -401,6 +438,8 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
+
+/* bird added: */
 
 #define LOCALEDIR   ""
 #define ALIASPATH   ""
