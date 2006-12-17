@@ -1897,7 +1897,7 @@ func_shell (char *o, char **argv, const char *funcname)
   equality. Return is string-boolean, ie, the empty string is false.
  */
 static char *
-func_eq (char *o, char **argv, char *funcname)
+func_eq (char *o, char **argv, const char *funcname)
 {
   int result = ! strcmp (argv[0], argv[1]);
   o = variable_buffer_output (o,  result ? "1" : "", result);
@@ -1909,7 +1909,7 @@ func_eq (char *o, char **argv, char *funcname)
   string-boolean not operator.
  */
 static char *
-func_not (char *o, char **argv, char *funcname)
+func_not (char *o, char **argv, const char *funcname)
 {
   char *s = argv[0];
   int result = 0;
@@ -2199,7 +2199,141 @@ func_toupper_tolower (char *o, char **argv, const char *funcname)
 #endif /* CONFIG_WITH_TOUPPER_TOLOWER */
 
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
-/* Returns empty string if equal, returns the third arg if not equal. */
+
+/* Strip leading spaces and other things off a command. */
+static const char *
+comp_cmds_strip_leading (const char *s, const char *e)
+{
+    while (s < e)
+      {
+        const char ch = *s;
+        if (!isblank (ch)
+         && ch != '@'
+         && ch != '+'
+         && ch != '-')
+          break;
+        s++;
+      }
+    return s;
+}
+
+/* Worker for func_comp_vars() which is called if the comparision failed.
+   It will do the slow command by command comparision of the commands 
+   when there invoked as comp-cmds. */
+static char * 
+comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const char *e2, 
+              char *ne_retval, const char *funcname)
+{
+    /* give up at once if not comp-cmds. */
+    if (strcmp (funcname, "comp-cmds") != 0)
+      o = variable_buffer_output (o, ne_retval, strlen (ne_retval));
+    else
+      {
+        const char * const s1_start = s1;
+        int new_cmd = 1;
+        int diff;
+        for (;;)
+          {
+            /* if it's a new command, strip leading stuff. */
+            if (new_cmd)
+              {
+                s1 = comp_cmds_strip_leading (s1, e1);
+                s2 = comp_cmds_strip_leading (s2, e2);
+                new_cmd = 0;
+              }
+            if (s1 >= e1 || s2 >= e2)
+              break;
+
+            /* 
+             * Inner compare loop which compares one line.
+             * FIXME: parse quoting!
+             */
+            for (;;)
+              {
+                const char ch1 = *s1;
+                const char ch2 = *s2;
+                diff = ch1 - ch2;
+                if (diff)
+                  break;
+                if (ch1 == '\n')
+                  break;
+                assert (ch1 != '\r');
+
+                /* next */
+                s1++;
+                s2++;
+                if (s1 >= e1 || s2 >= e2)
+                  break;
+              }
+
+            /*
+             * If we exited because of a difference try to end-of-command 
+             * comparision, e.g. ignore trailing spaces.
+             */
+            if (diff)
+              {
+                /* strip */
+                while (s1 < e1 && isblank (*s1))
+                  s1++;
+                while (s2 < e2 && isblank (*s2))
+                  s2++;
+                if (s1 >= e1 || s2 >= e2)
+                  break;
+
+                /* compare again and check that it's a newline. */
+                if (*s2 != '\n' || *s1 != '\n')
+                  break;
+              }
+            /* Break out if we exited because of EOS. */
+            else if (s1 >= e1 || s2 >= e2)
+                break;
+
+            /*
+             * Detect the end of command lines.
+             */
+            if (*s1 == '\n')
+              new_cmd = s1 == s1_start || s1[-1] != '\\';
+            s1++;
+            s2++;
+          }
+
+        /*
+         * Ignore trailing empty lines.
+         */
+        if (s1 < e1 || s2 < e2)
+          {
+            while (s1 < e1 && (isblank (*s1) || *s1 == '\n'))
+              if (*s1++ == '\n')
+                s1 = comp_cmds_strip_leading (s1, e1);
+            while (s2 < e2 && (isblank (*s2) || *s2 == '\n'))
+              if (*s2++ == '\n')
+                s2 = comp_cmds_strip_leading (s2, e2);
+          }
+
+        /* emit the result. */
+        if (s1 == e1 && s2 == e2)
+          o = variable_buffer_output (o, "", 1);
+        else
+          o = variable_buffer_output (o, ne_retval, strlen (ne_retval));
+      }
+    return o;
+}
+
+/* 
+    $(comp-vars var1,var2,not-equal-return)
+  or 
+    $(comp-cmds cmd-var1,cmd-var2,not-equal-return)
+
+  Compares the two variables (that's given by name to avoid unnecessary 
+  expanding) and return the string in the third argument if not equal.
+  If equal, nothing is returned.
+
+  comp-vars will to an exact comparision only stripping leading and 
+  trailing spaces.
+
+  comp-cmds will compare command by command, ignoring not only leading 
+  and trailing spaces on each line but also leading one leading '@' and '-'.
+*/
 static char *
 func_comp_vars (char *o, char **argv, const char *funcname)
 {
@@ -2238,11 +2372,11 @@ func_comp_vars (char *o, char **argv, const char *funcname)
       e2--;
 
     if (e1 - s1 != e2 - s2)
-      return variable_buffer_output (o, argv[2], strlen(argv[2]));
+      return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
 l_simple_compare:
     if (!memcmp (s1, s2, e1 - s1))
       return variable_buffer_output (o, "", 1);     /* eq */
-    return variable_buffer_output (o, argv[2], strlen(argv[2]));
+    return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
   }
 
   /* ignore trailing and leading blanks */
@@ -2273,13 +2407,13 @@ l_simple_compare:
   x1 = var1->recursive ? memchr (s1, '$', e1 - s1) : NULL;
   x2 = var2->recursive ? memchr (s2, '$', e2 - s2) : NULL;
   if (!x1 && !x2)
-    return variable_buffer_output (o, argv[2], strlen (argv[2]));
+    return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
 
   l1 = x1 ? x1 - s1 : e1 - s1;
   l2 = x2 ? x2 - s2 : e2 - s2;
   l = l1 <= l2 ? l1 : l2;
   if (l && memcmp (s1, s2, l))
-      return variable_buffer_output (o, argv[2], strlen (argv[2]));
+    return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
 
   /* one or both buffers now require expanding. */
   if (!x1)
@@ -2290,7 +2424,7 @@ l_simple_compare:
       if (!l)
         while (isblank ((unsigned char) *s1))
           s1++;
-      e1 = strchr (s1, '\0'); /*hmm*/
+      e1 = strchr (s1, '\0');
       while (e1 > s1 && isblank ((unsigned char) e1[-1]))
         e1--;
     }
@@ -2303,21 +2437,22 @@ l_simple_compare:
       if (!l)
         while (isblank ((unsigned char) *s2))
           s2++;
-      e2 = strchr (s2, '\0'); /*hmm*/
+      e2 = strchr (s2, '\0');
       while (e2 > s2 && isblank ((unsigned char) e2[-1]))
         e2--;
     }
 
   /* the final compare */
-  l = (   e1 - s1 != e2 - s2
-       || memcmp (s1, s2, e1 - s1));
+  if (   e1 - s1 != e2 - s2
+      || memcmp (s1, s2, e1 - s1))
+      o = comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
+  else
+      o = variable_buffer_output (o, "", 1);        /* eq */
   if (a1)
     free (a1);
   if (a2)
     free (a2);
-  if (l)
-    return variable_buffer_output (o, argv[2], strlen (argv[2]));
-  return variable_buffer_output (o, "", 1);         /* eq */
+  return o;
 }
 #endif 
 
@@ -2437,6 +2572,7 @@ static struct function_table_entry function_table_init[] =
 #endif 
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
+  { STRING_SIZE_TUPLE("comp-cmds"),     3,  3,  1,  func_comp_vars},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},

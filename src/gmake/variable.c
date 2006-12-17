@@ -1026,23 +1026,27 @@ define_automatic_variables (void)
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
+  && defined(CONFIG_WITH_ABSPATHEX) \
   && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
   && defined(CONFIG_WITH_STACK) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12, 
-                          "abspath"
+                          "abspath abspathex"
                           " toupper tolower"
-                          " comp-vars"
+                          " comp-vars comp-cmds"
                           " stack "
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one"
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
   strcpy(buf, "abspath");
+#  if defined(CONFIG_WITH_ABSPATHEX)
+  strcat(buf, " abspathex");
+#  endif 
 #  if defined(CONFIG_WITH_TOUPPER_TOLOWER)
   strcat(buf, " toupper tolower");
 #  endif
 #  if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
-  strcat(buf, " comp-vars");
+  strcat(buf, " comp-vars comp-cmds");
 #  endif 
 #  if defined(CONFIG_WITH_STACK)
   strcat(buf, " stack");
