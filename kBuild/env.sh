@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 718 2006-12-14 02:22:55Z knut.osmundsen@oracle.com $
+# $Id: env.sh 731 2006-12-17 04:19:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -163,22 +163,22 @@ case "$BUILD_PLATFORM" in
 esac
 
 # Make shell
-export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/kmk_ash${_SUFF_EXE}";
+export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/kmk_ash${_SUFF_EXE}";
 
 # The PATH.
-PATH="$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${_PATH_SEP}$PATH"
+PATH="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${_PATH_SEP}$PATH"
 export PATH
 echo "dbg: PATH=$PATH"
 
 # Sanity and x bits.
-if [ ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/" ]; then
-    echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/)"
+if [ ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/" ]; then
+    echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/)"
 else
-    for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_sed;
+    for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed;
     do
-        chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog} > /dev/null 2>&1
-        if [ ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog}${_SUFF_EXE}" ]; then
-            echo "$0: warning: The ${prog} program doesn't exist for this platform. ($PATH_KBUILD/bin/$BUILD_PLATFORM_ARCH.$BUILD_PLATFORM/${prog}${_SUFF_EXE})"
+        chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog} > /dev/null 2>&1
+        if [ ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE}" ]; then
+            echo "$0: warning: The ${prog} program doesn't exist for this platform. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE})"
         fi
     done
 fi
@@ -197,3 +197,4 @@ else
     echo "$0: info: Executing command: $*"
     $*
 fi
+
