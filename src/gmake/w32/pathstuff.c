@@ -200,6 +200,7 @@ w32_fixcase(char *pszPath)
         char chSaved0;
         char chSaved1;
         char *pszEnd;
+        int iLongNameDiff;
 
 
         /* find the end of the component. */
@@ -224,7 +225,8 @@ w32_fixcase(char *pszPath)
             return;
         }
         pszEnd[0] = '\0';
-        while (stricmp(FindFileData.cFileName, psz))
+        while (   (iLongNameDiff = stricmp(FindFileData.cFileName, psz))
+               && stricmp(FindFileData.cAlternateFileName, psz))
         {
             if (!FindNextFile(hDir, &FindFileData))
             {
@@ -234,7 +236,7 @@ w32_fixcase(char *pszPath)
                 return;
             }
         }
-        strcpy(psz, FindFileData.cFileName);
+        strcpy(psz, !iLongNameDiff ? FindFileData.cFileName : FindFileData.cAlternateFileName);
         pszEnd[0] = chSaved0;
         FindClose(hDir);
 
