@@ -1,4 +1,4 @@
-# $Id: footer.kmk 743 2006-12-17 08:12:30Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 744 2006-12-17 08:36:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -360,6 +360,9 @@ endef
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate_r1
+ifdef _$(target)_$(prop)_R
+$(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s))
+endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 $(eval _$(target)_$(prop)_R = $(value $(target)_$(prop)))
 endif
@@ -879,6 +882,11 @@ endef
 # @param	bld_trg
 # @param	bld_trg_arch
 define def_fetch
+# sanity check.
+ifdef $(target)_ALREADY_PROCESSED
+ $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s). Prev: $(EXT) This: $($(target)_ALREADY_PROCESSED))
+endif
+$(target)_ALREADY_PROCESSED := fetch
 
 # common
 INSTARGET_$(target) := $($(target)_INST)
@@ -1138,6 +1146,12 @@ endef
 ## Library (one).
 # @param    $(target)   Normalized library (target) name.
 define def_lib
+# sanity check.
+ifdef $(target)_ALREADY_PROCESSED
+ $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s). Prev: $(EXT) This: $($(target)_ALREADY_PROCESSED))
+endif
+$(target)_ALREADY_PROCESSED := lib
+
 # library basics
 ## @todo prefix
 bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
@@ -1269,6 +1283,12 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_
 # @param    $(definst)  The default _INST value.
 # @param    $(typevar)  The name of the variable with all the root targets of its type.
 define def_link_common
+# sanity check.
+ifdef $(target)_ALREADY_PROCESSED
+ $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s). Prev: $(EXT) This: $($(target)_ALREADY_PROCESSED))
+endif
+$(target)_ALREADY_PROCESSED := $(EXT)
+
 # basics
 bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
 bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
@@ -1297,7 +1317,7 @@ defpath := $($(target)_PATH)
 # source -> object
 $(eval $(value def_target_sources))
 
-# more library stuff.
+# more link stuff.
 tool        := $(call _TARGET_TOOL,$(target),LD)
 outbase     := $(call TARGET_BASE,$(target),$(target))
 flags       :=\
@@ -1860,6 +1880,13 @@ endef
 
 ## process one install target.
 define def_install
+# sanity check.
+ifdef $(target)_ALREADY_PROCESSED
+ $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s). Prev: $(EXT) This: $($(target)_ALREADY_PROCESSED))
+endif
+$(target)_ALREADY_PROCESSED := install
+
+# the basics.
 bld_type  := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
 bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
 bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
