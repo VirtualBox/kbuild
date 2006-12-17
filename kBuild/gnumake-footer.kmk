@@ -1,4 +1,4 @@
-# $Id: gnumake-footer.kmk 729 2006-12-17 02:12:07Z knut.osmundsen@oracle.com $
+# $Id: gnumake-footer.kmk 740 2006-12-17 07:37:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional footer for use when bootstrapping kBuild using Vanilla GNU Make.
@@ -23,6 +23,13 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
+
+## Converts an relative path to an absolute path using the given CWD.
+# @returns absolute path.
+# @param    $1      The path to fixup.
+# @param    $2      The CWD to use.
+abspathex = $(foreach _fix_path,$1\
+,$(if $(subst :$(call no-root-slash,$(call no-drive,$(_fix_path))):,,:$(_fix_path):),$(_fix_path),$(abspath $2/$(_fix_path))))
 
 ## Figure out the tool for a source
 # @param    target       source file
