@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 725 2006-12-15 05:18:47Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 729 2006-12-17 02:12:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
@@ -24,12 +24,14 @@
 #
 #
 
-ifndef _SUB_MAKEFILE_STACK
+ifndef _SUB_MAKEFILE_NOT_FIRST
+
  #
  # The first time we just take the makefile context set by header.kmk.
  #
+ _SUB_MAKEFILE_NOT_FIRST := 1
  include $(PATH_KBUILD)/header.kmk
-
+ 
 else
 
  #
@@ -62,11 +64,14 @@ else
  #
  # Switch context.
  #
+
+ # push the current old makefile onto the stack.
+ $(call stack-push,_SUB_MAKEFILE_STACK,$(MAKEFILE_CURRENT))
+
+ # the current makefile is the 2nd from the end of the MAKEFILE_LIST (we're the last one).
  __tmp := $(MAKEFILE_LIST)
  $(call stack-popv,__tmp)
  MAKEFILE_CURRENT := $(call stack-top,__tmp)
- PATH_SUB_CURRENT := $(abspath $(patsubst %/,%,$(dir $(MAKEFILE_CURRENT))))
+ PATH_SUB_CURRENT := $(abspath $(dir $(MAKEFILE_CURRENT)))
 endif
-
-$(call stack-push,_SUB_MAKEFILE_STACK,$(MAKEFILE_CURRENT))
 
