@@ -35,6 +35,10 @@ kmk_sed_SOURCES.darwin += \
         lib/strverscmp.c \
         lib/obstack.c \
         lib/getline.c
+kmk_sed_SOURCES.freebsd += \
+        lib/strverscmp.c \
+        lib/obstack.c \
+        lib/getline.c
 ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 kmk_sed_SOURCES += \
 	lib/strverscmp.c \
