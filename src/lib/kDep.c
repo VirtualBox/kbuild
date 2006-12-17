@@ -1,4 +1,4 @@
-/* $Id: kDep.c 407 2006-01-15 00:54:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 727 2006-12-17 01:43:01Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code. 
@@ -83,11 +83,13 @@ static char *fixslash(char *pszFilename)
 
 #ifdef __WIN32__
 /**
- * Corrects the case of a path.
- * Expects a fullpath!
+ * Corrects the case of a path and changes any path components containing 
+ * spaces with the short name (which can be longer).
+ * 
+ * Expects a _fullpath!
  *
  * @param   pszPath     Pointer to the path, both input and output.
- *                      The buffer must be able to hold one more byte than the string length.
+ *                      The buffer must be at least MAX_PATH in length.
  */
 static void fixcase(char *pszPath)
 {
@@ -157,12 +159,15 @@ static void fixcase(char *pszPath)
         char chSaved0;
         char chSaved1;
         char *pszEnd;
+        int cch;
+        int iLongNameDiff;
 
 
         /* find the end of the component. */
         pszEnd = psz;
         while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
             pszEnd++;
+        cch = pszEnd - psz;
 
         /* replace the end with "?\0" */
         chSaved0 = pszEnd[0];
@@ -179,7 +184,8 @@ static void fixcase(char *pszPath)
             return;
         }
         pszEnd[0] = '\0';
-        while (stricmp(FindFileData.cFileName, psz))
+        while (   (iLongNameDiff = stricmp(FindFileData.cFileName, psz))
+               && stricmp(FindFileData.cAlternateFileName, psz))
         {
             if (!FindNextFile(hDir, &FindFileData))
             {
@@ -187,8 +193,25 @@ static void fixcase(char *pszPath)
                 return;
             }
         }
-        strcpy(psz, FindFileData.cFileName);
         pszEnd[0] = chSaved0;
+        if (iLongNameDiff || !FindFileData.cAlternateFileName[0] || !memchr(psz, ' ', cch))
+            memcpy(psz, !iLongNameDiff ? FindFileData.cFileName : FindFileData.cAlternateFileName, cch);
+        else
+        {
+            /* replace spacy name with the short name. */
+            const int cchAlt = strlen(FindFileData.cAlternateFileName);
+            const int cchDelta = cch - cchAlt;
+            my_assert(cchAlt > 0);
+            if (!cchDelta)
+                memcpy(psz, FindFileData.cAlternateFileName, cch);
+            else
+            {
+                memmove(psz + cchAlt, pszEnd, strlen(pszEnd) + 1);
+                pszEnd -= cchDelta;
+                memcpy(psz, FindFileData.cAlternateFileName, cchAlt);
+            }
+        }
+        my_assert(pszEnd[0] == chSaved0);
 
         /* advance to the next component */
         if (!chSaved0)
