@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 708 2006-12-11 13:29:41Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 746 2006-12-22 14:47:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
@@ -54,12 +54,13 @@ else
 endif
 
 #
-# The way libsdl is distributed on the different platforms 
+# The way libsdl is distributed on the different platforms
 # varies quite a bit, thus this kludge.
 #
 ifeq ($(BUILD_TARGET),os2)
- LIB_SDK_LIBSDL_SDLMAIN  ?= 
+ LIB_SDK_LIBSDL_SDLMAIN  ?=
  DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/SDL/SDL12.dll
+ DLL_SDK_LIBSDL_FSLIB    ?= $(PATH_SDK_LIBSDL)/SDL/FSLib.dll
  LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/SDL/SDL12.lib
  LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/SDLGfx/SDLGFX.lib
  LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/SDLImage/SDLIMAGE.lib
