@@ -1,4 +1,4 @@
-# $Id: footer.kmk 745 2006-12-17 08:42:47Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 747 2006-12-25 01:19:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -152,7 +152,7 @@ _INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/)
 
 
 #
-# Include the additional footer macros when bootstrapping kBuild. 
+# Include the additional footer macros when bootstrapping kBuild.
 #
 ifndef KMK_VERSION
  include $(PATH_KBUILD)/gnumake-footer.kmk
@@ -977,7 +977,7 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 		$(_DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_)
-	$$(call MSG_L1,Compiling $(source),=> $$@)
+	$$(call MSG_L1,Compiling $(target) - $(source),=> $$@)
 	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
 	$(custom_pre)
 
