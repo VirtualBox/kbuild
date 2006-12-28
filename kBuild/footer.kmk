@@ -1,4 +1,4 @@
-# $Id: footer.kmk 747 2006-12-25 01:19:06Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 749 2006-12-28 03:13:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -909,8 +909,8 @@ $(eval includedep $(out))
 $(eval $(def_fetch_rules))
 
 # Define the aliases here (doesn't work if defined in def_fetch_rules, just like includedep).
-$(target):: $(out)
-$(target)_unfetch:: $(out)_unfetched
+$(target): $(out)
+$(target)_unfetch: $(out)_unfetched
 
 _FETCHES += $(out)
 _DOWNLOADS += $(_TARGET_$(target)_FETCHED)
@@ -968,7 +968,7 @@ else
  _DEP_COMPILE_CMDS =
 endif
 
-## Generates the rules for building a specific object, and the '::' aliases
+## Generates the rules for building a specific object, and the aliases
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
@@ -991,10 +991,8 @@ ifndef NO_COMPILE_CMDS_DEPS
 	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
 endif
 
-$(basename $(notdir $(obj))).o::
-	+ $$(MAKE) -f $$(MAKEFILE) $(obj)
-$(basename $(notdir $(obj))).obj::
-	+ $$(MAKE) -f $$(MAKEFILE) $(obj)
+$(basename $(notdir $(obj))).o: $(obj)
+$(basename $(notdir $(obj))).obj: $(obj)
 endef
 
 
@@ -1034,8 +1032,7 @@ ifndef NO_LINK_CMDS_DEPS
 	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
 endif
 
-$(basename $(notdir $(out)))::
-	+ $$(MAKE) -f $$(MAKEFILE) $(out)
+$(basename $(notdir $(out))): $(out)
 
 endef
 
@@ -1051,8 +1048,7 @@ $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
 	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) $(out) $$@
 
 ifdef KBUILD_DO_AUTO_INSTALL
-$(basename $(notdir $(out)))::
-	+ $$(MAKE) -f $$(MAKEFILE) $(INSTARGET_$(target))
+$(basename $(notdir $(out))): $(INSTARGET_$(target))
 endif
 endef
 
