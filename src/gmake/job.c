@@ -757,7 +757,17 @@ reap_children (int block, int err)
           static int delete_on_error = -1;
 
           if (!dontcare)
+#ifdef KMK
+            { 
+              child_error (c->file->name, exit_code, exit_sig, coredump, 0);
+              if ((  c->file->cmds->lines_flags[c->command_line - 1]
+                   & (COMMANDS_SILENT | COMMANDS_RECURSE))
+                  == COMMANDS_SILENT)
+                message (0, "The failing command:\n%s", c->file->cmds->command_lines[c->command_line - 1]);
+            }
+#else
             child_error (c->file->name, exit_code, exit_sig, coredump, 0);
+#endif 
 
           c->file->update_status = 2;
           if (delete_on_error == -1)
