@@ -2145,7 +2145,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
                 cwd_len = strlen (cwd);
               if (cwd_len + len + 1 >= GET_PATH_MAX)
                   continue;
-              memcpy (in, cwd, cwd_len)
+              memcpy (in, cwd, cwd_len);
               in[cwd_len] = '/';
               memcpy (in + cwd_len + 1, path, len);
               in[cwd_len + len + 1] = '\0';

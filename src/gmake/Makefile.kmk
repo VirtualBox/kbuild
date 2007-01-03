@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 720 2006-12-15 02:41:46Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 750 2007-01-03 21:44:07Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -29,6 +29,7 @@ kmk_DEFS = \
 	CONFIG_WITH_EXTENDED_NOTPARALLEL \
 	CONFIG_WITH_INCLUDEDEP \
 	CONFIG_WITH_TOUPPER_TOLOWER \
+	CONFIG_WITH_ABSPATHEX \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	KMK \
 	\
