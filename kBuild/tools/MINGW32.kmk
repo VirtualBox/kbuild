@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 752 2007-01-06 01:37:35Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MinGW32 GCC v3.3+.
@@ -186,25 +186,25 @@ endef
 
 ## Link library
 # @param    $(target)   Normalized main target name.
-# @param    $(lib)      Library name.
+# @param    $(out)      Library name.
 # @param    $(objs)     Object files to put in the library.
 # @param    $(flags)    Flags.
 # @param    $(dirdep)   Directory creation dependency.
 # @param    $(deps)     Other dependencies.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_MINGW32_LINK_LIBRARY_OUTPUT = $(lib).ar-script
+TOOL_MINGW32_LINK_LIBRARY_OUTPUT = $(out).ar-script
 TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(filter %.a %.lib,$(othersrc))
 TOOL_MINGW32_LINK_LIBRARY_DEPORD =
 define TOOL_MINGW32_LINK_LIBRARY_CMDS
-	$(QUIET)$(APPEND) $(lib).ar-script "CREATE $(out)"
+	$(QUIET)$(APPEND) $(out).ar-script "CREATE $(out)"
 	$(foreach o, $(objs)\
-		,$(NL)$(TAB)$(QUIET)$(APPEND) $(lib).ar-script "ADDMOD $(o)")
+		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDMOD $(o)")
 	$(foreach srclib, $(filter %.a %.lib,$(othersrc))\
-		,$(NL)$(TAB)$(QUIET)$(APPEND) $(lib).ar-script "ADDLIB $(srclib)")
-	$(QUIET)$(APPEND) $(lib).ar-script "SAVE"
-	$(QUIET)$(APPEND) $(lib).ar-script "END"
-	$(QUIET)$(TOOL_MINGW32_AR) -M < $(lib).ar-script
+		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDLIB $(srclib)")
+	$(QUIET)$(APPEND) $(out).ar-script "SAVE"
+	$(QUIET)$(APPEND) $(out).ar-script "END"
+	$(QUIET)$(TOOL_MINGW32_AR) -M < $(out).ar-script
 endef
 
 
