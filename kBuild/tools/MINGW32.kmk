@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 752 2007-01-06 01:37:35Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 754 2007-01-07 04:05:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MinGW32 GCC v3.3+.
@@ -105,7 +105,6 @@ TOOL_MINGW32_ASOBJSUFF          ?= .o
 TOOL_MINGW32_ARFLAGS            ?= cr
 TOOL_MINGW32_ARLIBSUFF          ?= .a
 
-# The linux cross compiler ebuild haven't got g++, this is a hack for that.
 TOOL_MINGW32_LDFLAGS            ?=
 TOOL_MINGW32_LDFLAGS.debug      ?= -g
 TOOL_MINGW32_LDFLAGS.release    ?= -s
