@@ -84,7 +84,15 @@
 #endif
 
 #if (defined MB_CUR_MAX && HAVE_LOCALE_H && HAVE_WCTYPE_H && HAVE_WCHAR_H && HAVE_WCRTOMB && HAVE_MBRTOWC && HAVE_WCSCOLL) || _LIBC
+# if defined(__OS2__) /* setlocale() misbehaves in LIBC 0.6.1 and earlier, breaking /[a-z]/. */
+#  if defined(__KLIBC_VERSION__)
+#   if __KLIBC_VERSION__ >= 0x00060002
+#    define RE_ENABLE_I18N
+#   endif
+#  endif
+# else
 # define RE_ENABLE_I18N
+# endif
 #endif
 
 #if __GNUC__ >= 3
