@@ -184,7 +184,7 @@ kmk_builtin_install(int argc, char *argv[])
 			if (strtofflags(&flags, &fset, NULL))
 				return errx(EX_USAGE, "%s: invalid flag", flags);
 			iflags |= SETFLAGS;
-#else	
+#else
 			(void)flags;
 #endif
 			break;
@@ -863,8 +863,10 @@ strip(const char *to_name)
 #else
 	const char *stripbin;
 	int serrno, status;
+        pid_t pid;
 
-	switch (fork()) {
+        pid = fork();
+	switch (pid) {
 	case -1:
 		serrno = errno;
 		(void)unlink(to_name);
@@ -877,11 +879,11 @@ strip(const char *to_name)
 		execlp(stripbin, stripbin, to_name, (char *)NULL);
 		err(EX_OSERR, "exec(%s)", stripbin);
 	default:
-		if (wait(&status) == -1 || status) {
+		if (waitpid(pid, &status, 0) == -1 || status) {
 			serrno = errno;
 			(void)unlink(to_name);
                         errno = serrno;
-			err(EX_SOFTWARE, "wait");
+			err(EX_SOFTWARE, "waitpid");
 			/* NOTREACHED */
 		}
 	}
