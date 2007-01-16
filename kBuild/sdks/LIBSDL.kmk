@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 757 2007-01-09 22:51:39Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 759 2007-01-16 13:55:44Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
@@ -41,7 +41,9 @@ ifndef PATH_SDK_LIBSDL
 	/usr/lib/libSDL.* \
 	/usr/local/lib/libSDL.* \
 	/opt/lib/libSDL.* \
-	/opt/local/lib/libSDL.*) )
+	/opt/local/lib/libSDL.* \
+	/sw/lib/libSDL.* \
+	) )
   ifneq ($(PATH_SDK_LIBSDL),)
    PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(PATH_SDK_LIBSDL)))))
   else
