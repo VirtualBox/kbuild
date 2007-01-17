@@ -1,4 +1,4 @@
-# $Id: header.kmk 748 2006-12-25 01:21:48Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 761 2007-01-17 10:30:48Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 748 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 761 $  )
 
 
 #
@@ -314,7 +314,7 @@ SUFF_OBJ            := .o
 SUFF_LIB            := .a
 SUFF_DLL            := .dylib
 SUFF_EXE            :=
-SUFF_SYS            := .a
+SUFF_SYS            :=
 SUFF_RES            :=
 endif
 ifndef SUFF_OBJ
