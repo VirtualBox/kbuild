@@ -1,4 +1,4 @@
-# $Id: footer.kmk 753 2007-01-07 04:00:50Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 760 2007-01-17 10:01:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -873,7 +873,7 @@ $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE
 	$$(QUIET)$$(if $$(wildcard $(out).lst      ),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched)
 	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@))
 	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
-	
+
 .NOTPARALLEL: $(out).lst $(out)_unfetched $(out)
 
 endef
@@ -1423,7 +1423,7 @@ deps        := $($(target)_DEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- libpath := $(call abspathex,$(libpath)def $(target)_PATH)
+ libpath := $(call abspathex,$(libpath),$(defpath))
  objs := $(call abspathex,$(objs),$(defpath))
  deps := $(call abspathex,$(deps),$(defpath))
  othersrc := $(call abspathex,$(othersrc),$(defpath))
