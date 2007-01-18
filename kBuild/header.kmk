@@ -1,4 +1,4 @@
-# $Id: header.kmk 761 2007-01-17 10:30:48Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 762 2007-01-18 23:31:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 761 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 762 $  )
 
 
 #
@@ -582,7 +582,10 @@ ifeq ($(origin $(prop)),environment)
 $(prop) =
 endif
 endef
-$(foreach prop,$(PROPS_ALL),$(eval $(value def_nuke_environment_prop)))
+$(foreach prop, $(PROPS_ALL) \
+	FETCHES PATCHES BLDPROGS LIBRARIES IMPORT_LIBS DLLS PROGRAMS SYSMODS INSTALLS OTHERS \
+	SUBDIRS MAKEFILES \
+	,$(eval $(value def_nuke_environment_prop)))
 
 endif
 
