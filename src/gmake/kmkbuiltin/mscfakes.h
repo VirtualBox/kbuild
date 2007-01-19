@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 526 2006-09-16 14:37:51Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 775 2007-01-19 05:57:42Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -30,6 +30,7 @@
 #include <io.h>
 #include <direct.h>
 #include <time.h>
+#include <stdarg.h>
 #undef setmode
 #include "getopt.h"
 
@@ -85,19 +86,21 @@ typedef unsigned int u_int;
 typedef unsigned short u_short;
 
 #ifndef timerisset
-struct timeval 
+struct timeval
 {
     long tv_sec;
     long tv_usec;
 };
-#endif 
+#endif
 
-struct iovec 
+struct iovec
 {
     char *iov_base;
     size_t iov_len;
 };
 
+typedef __int64 intmax_t;
+typedef unsigned __int64 uintmax_t;
 
 #define chown(path, uid, gid) 0         /** @todo implement fchmod! */
 char *dirname(char *path);
@@ -117,16 +120,19 @@ int mkdir_msc(const char *path, mode_t mode);
 int mkstemp(char *temp);
 #define readlink(link, buf, size) -1
 #define reallocf(old, size) realloc(old, size)
+intmax_t strtoimax(const char *nptr, char **endptr, int base);
+int asprintf(char **strp, const char *fmt, ...);
+int vasprintf(char **strp, const char *fmt, va_list ap);
 #if _MSC_VER < 1400
 int snprintf(char *buf, size_t size, const char *fmt, ...);
 #else
 #define snprintf _snprintf
-#endif 
+#endif
 size_t strlcpy(char *, const char *, size_t);
 int symlink(const char *pszDst, const char *pszLink);
 int utimes(const char *pszPath, const struct timeval *paTimes);
 int writev(int fd, const struct iovec *vector, int count);
 
 #endif /* _MSC_VER */
-#endif 
+#endif
 

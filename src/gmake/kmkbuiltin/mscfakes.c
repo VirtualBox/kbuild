@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 370 2005-12-18 03:48:02Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 775 2007-01-19 05:57:42Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -36,7 +36,7 @@
 
 
 char *dirname(char *path)
-{         
+{
     /** @todo later */
     return path;
 }
@@ -126,7 +126,7 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
     va_end(args);
     return cch;
 }
-#endif 
+#endif
 
 
 int utimes(const char *pszPath, const struct timeval *paTimes)
@@ -148,5 +148,62 @@ int writev(int fd, const struct iovec *vector, int count)
         size += cb;
     }
     return size;
+}
+
+
+intmax_t strtoimax(const char *nptr, char **endptr, int base)
+{
+    return strtol(nptr, endptr, base); /** @todo fix this. */
+}
+
+
+uintmax_t strtoumax(const char *nptr, char **endptr, int base)
+{
+    return strtoul(nptr, endptr, base); /** @todo fix this. */
+}
+
+
+int asprintf(char **strp, const char *fmt, ...)
+{
+    int rc;
+    va_list va;
+    va_start(va, fmt);
+    rc = vasprintf(strp, fmt, va);
+    va_end(va);
+    return rc;
+}
+
+
+int vasprintf(char **strp, const char *fmt, va_list va)
+{
+    int rc;
+    char *psz;
+    size_t cb = 1024;
+
+    *strp = NULL;
+    for (;;)
+    {
+        va_list va2;
+
+        psz = malloc(cb);
+        if (!psz)
+            return -1;
+
+#ifdef va_copy
+        va_copy(va2, va);
+        rc = snprintf(psz, cb, fmt, va2);
+        va_end(vaCopy);
+#else
+        va2 = va;
+        rc = snprintf(psz, cb, fmt, va2);
+#endif
+        if (rc < 0 || (size_t)rc < cb)
+            break;
+        cb *= 2;
+        free(psz);
+    }
+
+    *strp = psz;
+    return rc;
 }
 
