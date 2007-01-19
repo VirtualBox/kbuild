@@ -963,7 +963,7 @@ define_automatic_variables (void)
   char buf[200];
 #ifdef KMK
   const char *envvar;
-#endif 
+#endif
 
   sprintf (buf, "%u", makelevel);
   (void) define_variable (MAKELEVEL_NAME, MAKELEVEL_LENGTH, buf, o_env, 0);
@@ -982,31 +982,31 @@ define_automatic_variables (void)
 
   /* Define KBUILD_VERSION* */
   sprintf (buf, "%d", KBUILD_VERSION_MAJOR);
-  (void) define_variable ("KBUILD_VERSION_MAJOR", sizeof("KBUILD_VERSION_MAJOR") - 1, 
+  (void) define_variable ("KBUILD_VERSION_MAJOR", sizeof("KBUILD_VERSION_MAJOR") - 1,
                           buf, o_default, 0);
   sprintf (buf, "%d", KBUILD_VERSION_MINOR);
-  (void) define_variable ("KBUILD_VERSION_MINOR", sizeof("KBUILD_VERSION_MINOR") - 1, 
+  (void) define_variable ("KBUILD_VERSION_MINOR", sizeof("KBUILD_VERSION_MINOR") - 1,
                           buf, o_default, 0);
   sprintf (buf, "%d", KBUILD_VERSION_PATCH);
-  (void) define_variable ("KBUILD_VERSION_PATCH", sizeof("KBUILD_VERSION_PATCH") - 1, 
+  (void) define_variable ("KBUILD_VERSION_PATCH", sizeof("KBUILD_VERSION_PATCH") - 1,
                           buf, o_default, 0);
 
   sprintf (buf, "%d.%d.%d", KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
-  (void) define_variable ("KBUILD_VERSION", sizeof("KBUILD_VERSION") - 1, 
+  (void) define_variable ("KBUILD_VERSION", sizeof("KBUILD_VERSION") - 1,
                           buf, o_default, 0);
 
   /* The build platform defaults. */
   envvar = getenv ("BUILD_PLATFORM");
   if (!envvar)
-      (void) define_variable ("BUILD_PLATFORM", sizeof("BUILD_PLATFORM") - 1, 
+      (void) define_variable ("BUILD_PLATFORM", sizeof("BUILD_PLATFORM") - 1,
                               BUILD_PLATFORM, o_default, 0);
   envvar = getenv ("BUILD_PLATFORM_ARCH");
   if (!envvar)
-      (void) define_variable ("BUILD_PLATFORM_ARCH", sizeof("BUILD_PLATFORM_ARCH") - 1, 
+      (void) define_variable ("BUILD_PLATFORM_ARCH", sizeof("BUILD_PLATFORM_ARCH") - 1,
                               BUILD_PLATFORM_ARCH, o_default, 0);
   envvar = getenv ("BUILD_PLATFORM_CPU");
   if (!envvar)
-      (void) define_variable ("BUILD_PLATFORM_CPU", sizeof("BUILD_PLATFORM_CPU") - 1, 
+      (void) define_variable ("BUILD_PLATFORM_CPU", sizeof("BUILD_PLATFORM_CPU") - 1,
                               BUILD_PLATFORM_CPU, o_default, 0);
 
 # ifdef PATH_KBUILD
@@ -1014,14 +1014,14 @@ define_automatic_variables (void)
   envvar = getenv("PATH_KBUILD");
   if (!envvar)
   {
-      (void) define_variable ("PATH_KBUILD", sizeof("PATH_KBUILD") - 1, 
+      (void) define_variable ("PATH_KBUILD", sizeof("PATH_KBUILD") - 1,
                               PATH_KBUILD, o_default, 0);
       envvar = getenv("PATH_KBUILD_BIN");
       if (!envvar)
-          (void) define_variable ("PATH_KBUILD_BIN", sizeof("PATH_KBUILD_BIN") - 1, 
+          (void) define_variable ("PATH_KBUILD_BIN", sizeof("PATH_KBUILD_BIN") - 1,
                                   PATH_KBUILD_BIN, o_default, 0);
   }
-# endif 
+# endif
 
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
@@ -1029,33 +1029,38 @@ define_automatic_variables (void)
   && defined(CONFIG_WITH_ABSPATHEX) \
   && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
   && defined(CONFIG_WITH_STACK) \
+  && defined(CONFIG_WITH_MATH) \
   && defined(KMK_HELPERS)
-  (void) define_variable ("KMK_FEATURES", 12, 
+  (void) define_variable ("KMK_FEATURES", 12,
                           "abspath abspathex"
                           " toupper tolower"
                           " comp-vars comp-cmds"
                           " stack "
+                          " math-int "
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one"
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
   strcpy(buf, "abspath");
 #  if defined(CONFIG_WITH_ABSPATHEX)
   strcat(buf, " abspathex");
-#  endif 
+#  endif
 #  if defined(CONFIG_WITH_TOUPPER_TOLOWER)
   strcat(buf, " toupper tolower");
 #  endif
 #  if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   strcat(buf, " comp-vars comp-cmds");
-#  endif 
+#  endif
 #  if defined(CONFIG_WITH_STACK)
   strcat(buf, " stack");
-#  endif 
+#  endif
+#  if defined(CONFIG_WITH_MATH)
+  strcat(buf, " math-int");
+#  endif
 #  ifdef KMK_HELPERS
   strcat(buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");
 #  endif
   (void) define_variable ("KMK_FEATURES", 12, buf, o_default, 0);
-# endif 
+# endif
 
 #endif /* KMK */
 
