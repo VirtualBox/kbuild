@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 750 2007-01-03 21:44:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 763 2007-01-19 01:29:43Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -39,6 +39,7 @@ kmk_DEFS = \
 	CONFIG_WITH_VALUE_LENGTH \
 	CONFIG_WITH_COMPARE \
 	CONFIG_WITH_STACK \
+	CONFIG_WITH_MATH \
 	EXPERIMENTAL \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
@@ -289,7 +290,7 @@ kmk_gmake_DEFS = \
 	NO_ARCHIVES \
 	CONFIG_WITH_TOUPPER_TOLOWER \
 	EXPERIMENTAL
-	
+
 kmk_gmake_SOURCES = \
 	main.c \
 	read.c \
@@ -340,10 +341,10 @@ kmk_gmake_SOURCES.darwin = \
 
 include $(PATH_KBUILD)/footer.kmk
 
-			
+
 #
 # Use checked in config.h instead of running ./Configure for it.
-#			
+#
 config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
 config.h.win   := config.h.W32
 config.h.win32 := config.h.W32
@@ -406,3 +407,9 @@ test_shell_newline:
 
 test_stack:
 	$(MAKE) -f testcase-stack.kmk
+
+test_math:
+	$(MAKE) -f testcase-math.kmk
+
+
+test_all:	test_math test_stack test_shell
