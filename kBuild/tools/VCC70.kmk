@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 735 2006-12-17 04:56:21Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 768 2007-01-19 02:52:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
@@ -23,7 +23,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
-	   
+
 TOOL_VCC70 := Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
 
 # Tool Specific Properties
@@ -60,7 +60,7 @@ else
  TOOL_VCC70_LD  ?= $(EXEC_X86_WIN32) link.exe
 endif
 ## Disabled fast DEP_IDB based dependencies.
-#VCC70_OLD_DEPS = 1 
+#VCC70_OLD_DEPS = 1
 
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
@@ -217,13 +217,26 @@ endef
 # @param    $(othersrc) Unhandled sources.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 #
-TOOL_VCC70_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
 TOOL_VCC70_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VCC70_LINK_LIBRARY_DEPORD =
+ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
+TOOL_VCC70_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb $(outbase).rsp
+define TOOL_VCC70_LINK_LIBRARY_CMDS
+	$(QUIET)$(APPEND) -n $(outbase).rsp \
+		$(foreach arg,\
+			$(subst /,\\,$(objs) \
+			$(filter-out %.def,$(othersrc))) \
+			$(addprefix /DEF:,$(filter %.def,$(othersrc))) \
+			,\"$(arg)\")
+	$(QUIET)$(TOOL_VCC70_AR) $(flags) /OUT:$(out) @$(outbase).rsp
+endef
+else
+TOOL_VCC70_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
 define TOOL_VCC70_LINK_LIBRARY_CMDS
 	$(QUIET)$(TOOL_VCC70_AR) $(flags) /OUT:$(out) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
 endef
+endif
 
 
 ## Link program
