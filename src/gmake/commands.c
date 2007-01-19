@@ -352,7 +352,12 @@ chop_commands (struct commands *cmds)
 
       /* If no explicit '+' was given, look for MAKE variable references.  */
       if (!(flags & COMMANDS_RECURSE)
+#ifndef KMK
           && (strstr (p, "$(MAKE)") != 0 || strstr (p, "${MAKE}") != 0))
+#else
+          && (strstr (p, "$(KMK)") != 0 || strstr (p, "${KMK}") != 0 ||
+              strstr (p, "${MAKE}") != 0 || strstr (p, "${MAKE}") != 0))
+#endif
         flags |= COMMANDS_RECURSE;
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
@@ -386,7 +391,7 @@ execute_file_commands (struct file *file)
       /* If there are no commands, assume everything worked.  */
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
       file->command_flags |= COMMANDS_NO_COMMANDS;
-#endif 
+#endif
       set_command_state (file, cs_running);
       file->update_status = 0;
       notice_finished_file (file);

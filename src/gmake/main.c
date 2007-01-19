@@ -417,9 +417,9 @@ static const struct command_switch switches[] =
     { 'p', flag, (char *) &print_data_base_flag, 1, 1, 0, 0, 0,
       "print-data-base" },
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
-    { CHAR_MAX+6, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0, 
+    { CHAR_MAX+6, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0,
        "pretty-command-printing" },
-#endif 
+#endif
 #ifdef KMK
     { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
@@ -1403,6 +1403,9 @@ main (int argc, char **argv, char **envp)
      for hysterical raisins.  */
   (void) define_variable ("MAKE_COMMAND", 12, argv[0], o_default, 0);
   (void) define_variable ("MAKE", 4, "$(MAKE_COMMAND)", o_default, 1);
+#ifdef KMK
+  (void) define_variable ("KMK", 3, argv[0], o_default, 1);
+#endif
 
   if (command_variables != 0)
     {
@@ -3058,7 +3061,7 @@ print_version (void)
 %s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n\
 %s\n",
           precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
-          precede, version_string, 
+          precede, version_string,
           precede, precede, precede, precede, precede, precede, precede, precede);
 #else
   printf ("%sGNU Make %s\n\
