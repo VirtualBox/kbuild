@@ -1,4 +1,4 @@
-/* $Id: append.c 767 2007-01-19 02:27:11Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 769 2007-01-19 04:41:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -28,6 +28,10 @@
 #include <stdio.h>
 #include "err.h"
 #include "kmkbuiltin.h"
+#ifndef kmk_builtin_append
+# include "make.h"
+# include "variable.h"
+#endif
 
 
 /**
@@ -35,7 +39,7 @@
  */
 static int usage(void)
 {
-    fprintf(stderr, "usage: append [-n] file [string ...]\n");
+    fprintf(stderr, "usage: append [-nv] file [string ...]\n");
     return 1;
 }
 
@@ -49,6 +53,9 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int fFirst;
     FILE *pFile;
     int fNewLine = 0;
+#ifndef kmk_builtin_append
+    int fVariables = 0;
+#endif
 
     g_progname = argv[0];
 
@@ -59,7 +66,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("n", argv[i][1]) /* valid option char */
+       &&  strchr("nv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
@@ -70,6 +77,14 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                 case 'n':
                     fNewLine = 1;
                     break;
+                case 'v':
+#ifndef kmk_builtin_append
+                    fVariables = 1;
+                    break;
+#else
+                    errx(1, "Option '-v' isn't supported in external mode.");
+                    return usage();
+#endif
                 default:
                     errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
                     return usage();
@@ -100,9 +115,26 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         size_t cch = strlen(psz);
         if (!fFirst)
             fputc(fNewLine ? '\n' : ' ', pFile);
+#ifndef kmk_builtin_append
+        if (fVariables)
+        {
+            struct variable *pVar = lookup_variable(psz, cch);
+            if (!pVar)
+                continue;
+            if (    pVar->recursive
+                &&  memchr(pVar->value, '$', pVar->value_length))
+            {
+                char *pszExpanded = allocated_variable_expand(pVar->value);
+                fwrite(pszExpanded, 1, strlen(pszExpanded), pFile);
+                free(pszExpanded);
+            }
+            else
+                fwrite(pVar->value, 1, pVar->value_length, pFile);
+        }
         else
-            fFirst = 0;
-        fwrite(psz, 1, cch, pFile);
+#endif
+            fwrite(psz, 1, cch, pFile);
+        fFirst = 0;
     }
 
     /*
