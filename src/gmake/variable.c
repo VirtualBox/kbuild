@@ -1032,15 +1032,16 @@ define_automatic_variables (void)
   && defined(CONFIG_WITH_MATH) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
+                          "append-dash-n "
                           "abspath abspathex"
                           " toupper tolower"
                           " comp-vars comp-cmds"
                           " stack "
                           " math-int "
-                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one"
+                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
-  strcpy(buf, "abspath");
+  strcpy(buf, "append-dash-n abspath");
 #  if defined(CONFIG_WITH_ABSPATHEX)
   strcat(buf, " abspathex");
 #  endif
