@@ -1,4 +1,4 @@
-# $Id: Config.kmk 738 2006-12-17 06:01:46Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 766 2007-01-19 02:05:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -50,10 +50,10 @@ DEFS += \
 	PATH_KBUILD=\"/$(NIX_INSTALL_DIR_SHARE)\" \
 	PATH_KBUILD_BIN=\"/$(NIX_INSTALL_DIR_BIN)\"
 endif
-					
+
 #
 # Template for building commandline tools.
-#					
+#
 TEMPLATE_BIN = Commandline binary
 
 TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
@@ -74,7 +74,7 @@ ifeq ($(BUILD_TARGET),darwin)
 TEMPLATE_BIN_TOOL               = GCC4MACHO
 TEMPLATE_BIN_CFLAGS.profile     =
 TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            = 
+TEMPLATE_BIN_LDFLAGS            =
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
@@ -112,7 +112,6 @@ ifndef TEMPLATE_BIN_TOOL
 TEMPLATE_BIN_TOOL               = GCC3
 TEMPLATE_BIN_CFLAGS.release     = -O3
 ifeq ($(BUILD_TARGET),linux)
-TEMPLATE_BIN_LDFLAGS            = -static
 TEMPLATE_BIN_LIBS              += rt
 endif
 ifeq ($(BUILD_TARGET),freebsd)
