@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 754 2007-01-07 04:05:51Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 771 2007-01-19 04:47:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MinGW32 GCC v3.3+.
@@ -64,7 +64,7 @@ ifndef TOOL_MINGW32_PREFIX
  endif
 else
  # Resolve any fancy stuff once and for all.
- TOOL_MINGW32_PREFIX := 
+ TOOL_MINGW32_PREFIX :=
 endif
 
 TOOL_MINGW32_CC  ?= $(TOOL_MINGW32_PREFIX)gcc$(TOOL_MINGW32_HOSTSUFF_EXE)
@@ -193,8 +193,20 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_MINGW32_LINK_LIBRARY_OUTPUT = $(out).ar-script
-TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(filter %.a %.lib,$(othersrc))
 TOOL_MINGW32_LINK_LIBRARY_DEPORD =
+ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
+TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(othersrc)
+define TOOL_MINGW32_LINK_LIBRARY_CMDS
+	$(QUIET)$(APPEND) $(out).ar-script CREATE $(out)
+	$(QUIET)$(APPEND) -n $(out).ar-script \
+		$(foreach o,$(objs), 'ADDMOD $(o)') \
+		$(foreach o,$(othersrc), 'ADDLIB $(o)')
+	$(QUIET)$(APPEND) $(out).ar-script 'SAVE'
+	$(QUIET)$(APPEND) $(out).ar-script 'END'
+	$(QUIET)$(TOOL_MINGW32_AR) -M < $(out).ar-script
+endef
+else
+TOOL_MINGW32_LINK_LIBRARY_DEPEND = $(filter %.a %.lib,$(othersrc))
 define TOOL_MINGW32_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) $(out).ar-script "CREATE $(out)"
 	$(foreach o, $(objs)\
@@ -205,6 +217,7 @@ define TOOL_MINGW32_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) $(out).ar-script "END"
 	$(QUIET)$(TOOL_MINGW32_AR) -M < $(out).ar-script
 endef
+endif
 
 
 ## Link program
@@ -248,7 +261,7 @@ endef
 TOOL_MINGW32_LINK_DLL_OUTPUT = $(outbase).a $(outbase).exp
 TOOL_MINGW32_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))\
 	$(filter %.def %.res,$(othersrc))
-TOOL_MINGW32_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB)) 
+TOOL_MINGW32_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
 define TOOL_MINGW32_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_MINGW32_DLLWRAP) $(flags)\
 		--dllname=$(out)\
