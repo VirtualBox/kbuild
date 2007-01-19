@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 735 2006-12-17 04:56:21Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 768 2007-01-19 02:52:39Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting AMD64.
@@ -223,13 +223,26 @@ endef
 # @param    $(othersrc) Unhandled sources.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 #
-TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
 TOOL_VCC80AMD64_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VCC80AMD64_LINK_LIBRARY_DEPORD =
+ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
+TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb $(outbase).rsp
+define TOOL_VCC80AMD64_LINK_LIBRARY_CMDS
+	$(QUIET)$(APPEND) -n $(outbase).rsp \
+		$(foreach arg,\
+			$(subst /,\\,$(objs) \
+			$(filter-out %.def,$(othersrc))) \
+			$(addprefix /DEF:,$(filter %.def,$(othersrc))) \
+			,\"$(arg)\")
+	$(QUIET)$(TOOL_VCC80AMD64_AR) $(flags) /OUT:$(out) @$(outbase).rsp
+endef
+else
+TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
 define TOOL_VCC80AMD64_LINK_LIBRARY_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_AR) $(flags) /OUT:$(out) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
 		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
 endef
+endif
 
 
 ## Link program
