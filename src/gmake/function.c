@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
 # include <assert.h>
-#endif 
+#endif
 #include "make.h"
 #include "filedef.h"
 #include "variable.h"
@@ -37,7 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #ifdef KMK_HELPERS
 # include "kbuild.h"
-#endif 
+#endif
 
 
 struct function_table_entry
@@ -264,14 +264,14 @@ patsubst_expand (char *o, char *text, char *pattern, char *replace,
 }
 
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
-/* The maximum length of a function, once reached there is 
+/* The maximum length of a function, once reached there is
    it can't be function and we can skip the hash lookup drop out. */
 
 #ifdef KMK
 # define MAX_FUNCTION_LENGTH 12
 #else
 # define MAX_FUNCTION_LENGTH 10
-#endif 
+#endif
 
 /* Look up a function by name.  */
 __inline
@@ -897,7 +897,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
         var->value = (char *) xstrdup ((char*) p);
         p[len] = save;
       }
-#endif 
+#endif
 
       result = allocated_variable_expand (body);
 
@@ -1425,11 +1425,11 @@ func_value (char *o, char **argv, const char *funcname UNUSED)
   /* Copy its value into the output buffer without expanding it.  */
   if (v)
 #ifdef CONFIG_WITH_VALUE_LENGTH
-    o = variable_buffer_output (o, v->value, 
+    o = variable_buffer_output (o, v->value,
                                 v->value_length >= 0 ? v->value_length : strlen(v->value));
 #else
     o = variable_buffer_output (o, v->value, strlen(v->value));
-#endif 
+#endif
 
   return o;
 }
@@ -1928,7 +1928,7 @@ func_not (char *o, char **argv, const char *funcname)
 char *
 #else
 static char *
-#endif 
+#endif
 abspath (const char *name, char *apath)
 {
   char *dest;
@@ -2138,7 +2138,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
           if (path[0] != '/' && path[0] != '\\' && (len < 2 || path[1] != ':') && cwd)
 #else
           if (path[0] != '/' && cwd)
-#endif 
+#endif
             {
               /* relative path, prefix with cwd. */
               if (cwd_len == ~0U)
@@ -2172,7 +2172,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 
  return o;
 }
-#endif 
+#endif
 
 #ifdef CONFIG_WITH_TOUPPER_TOLOWER
 static char *
@@ -2218,10 +2218,10 @@ comp_cmds_strip_leading (const char *s, const char *e)
 }
 
 /* Worker for func_comp_vars() which is called if the comparision failed.
-   It will do the slow command by command comparision of the commands 
+   It will do the slow command by command comparision of the commands
    when there invoked as comp-cmds. */
-static char * 
-comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const char *e2, 
+static char *
+comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const char *e2,
               char *ne_retval, const char *funcname)
 {
     /* give up at once if not comp-cmds. */
@@ -2244,7 +2244,7 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
             if (s1 >= e1 || s2 >= e2)
               break;
 
-            /* 
+            /*
              * Inner compare loop which compares one line.
              * FIXME: parse quoting!
              */
@@ -2267,7 +2267,7 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
               }
 
             /*
-             * If we exited because of a difference try to end-of-command 
+             * If we exited because of a difference try to end-of-command
              * comparision, e.g. ignore trailing spaces.
              */
             if (diff)
@@ -2319,19 +2319,19 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
     return o;
 }
 
-/* 
+/*
     $(comp-vars var1,var2,not-equal-return)
-  or 
+  or
     $(comp-cmds cmd-var1,cmd-var2,not-equal-return)
 
-  Compares the two variables (that's given by name to avoid unnecessary 
+  Compares the two variables (that's given by name to avoid unnecessary
   expanding) and return the string in the third argument if not equal.
   If equal, nothing is returned.
 
-  comp-vars will to an exact comparision only stripping leading and 
+  comp-vars will to an exact comparision only stripping leading and
   trailing spaces.
 
-  comp-cmds will compare command by command, ignoring not only leading 
+  comp-cmds will compare command by command, ignoring not only leading
   and trailing spaces on each line but also leading one leading '@' and '-'.
 */
 static char *
@@ -2454,7 +2454,7 @@ l_simple_compare:
     free (a2);
   return o;
 }
-#endif 
+#endif
 
 
 #ifdef CONFIG_WITH_STACK
@@ -2498,13 +2498,307 @@ func_stack_pop_top (char *o, char **argv, const char *funcname)
                   *--lastitem = '\0';
 #ifdef CONFIG_WITH_VALUE_LENGTH
                 stack_var->value_length = lastitem - stack_var->value;
-#endif 
+#endif
               }
           }
       }
     return o;
 }
 #endif /* CONFIG_WITH_STACK */
+
+#ifdef CONFIG_WITH_MATH
+
+#include <ctype.h>
+#ifdef _MSC_VER
+typedef __int64 math_int;
+#else
+# include <stdint.h>
+typedef int64_t math_int;
+#endif
+
+/* Converts a string to an integer, causes an error if the format is invalid. */
+static math_int
+math_int_from_string (const char *str)
+{
+    const char *start;
+    unsigned base = 0;
+    int      negative = 0;
+    math_int num = 0;
+
+    /* strip spaces */
+    while (isspace (*str))
+      str++;
+    if (!*str)
+      {
+        error (NILF, _("bad number: empty\n"));
+        return 0;
+      }
+    start = str;
+
+    /* check for +/- */
+    while (*str == '+' || *str == '-' || isspace (*str))
+        if (*str++ == '-')
+          negative = !negative;
+
+    /* check for prefix - we do not accept octal numbers, sorry. */
+    if (*str == '0' && (str[1] == 'x' || str[1] == 'X'))
+      {
+        base = 16;
+        str += 2;
+      }
+    else
+      {
+        /* look for a hex digit, if not found treat it as decimal */
+        const char *p2 = str;
+        for ( ; *p2; p2++)
+          if (isxdigit (*p2) && !isdigit (*p2) && isascii (*p2) )
+            {
+              base = 16;
+              break;
+            }
+        if (base == 0)
+          base = 10;
+      }
+
+    /* must have at least one digit! */
+    if (    !isascii (*str)
+        ||  !(base == 16 ? isxdigit (*str) : isdigit (*str)) )
+      {
+        error (NILF, _("bad number: '%s'\n"), start);
+        return 0;
+      }
+
+    /* convert it! */
+    while (*str && !isspace (*str))
+      {
+        int ch = *str++;
+        if (ch >= '0' && ch <= '9')
+          ch -= '0';
+        else if (base == 16 && ch >= 'a' && ch <= 'f')
+          ch -= 'a' - 10;
+        else if (base == 16 && ch >= 'A' && ch <= 'F')
+          ch -= 'A' - 10;
+        else
+          {
+            error (NILF, _("bad number: '%s' (base=%d, pos=%d)\n"), start, base, str - start);
+            return 0;
+          }
+        num *= base;
+        num += ch;
+      }
+
+    /* check trailing spaces. */
+    while (isspace (*str))
+      str++;
+    if (*str)
+      {
+        error (NILF, _("bad number: '%s'\n"), start);
+        return 0;
+      }
+
+    return negative ? -num : num;
+}
+
+/* outputs the number (as a string) into the variable buffer. */
+static char *
+math_int_to_variable_buffer (char *o, math_int num)
+{
+    static const char xdigits[17] = "0123456789abcdef";
+    int negative;
+    char strbuf[24]; /* 16 hex + 2 prefix + sign + term => 20 */
+    char *str = &strbuf[sizeof (strbuf) - 1];
+
+    negative = num < 0;
+    if (negative)
+      num = -num;
+
+    *str-- = '\0';
+
+    do
+      {
+        *str-- = xdigits[num & 0xf];
+        num >>= 4;
+      }
+    while (num);
+
+    *str-- = 'x';
+    *str = '0';
+
+    if (negative)
+        *--str = '-';
+
+    return variable_buffer_output (o, str, &strbuf[sizeof (strbuf) - 1] - str);
+}
+
+/* Add two or more integer numbers. */
+static char *
+func_int_add (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num += math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Subtract two or more integer numbers. */
+static char *
+func_int_sub (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num -= math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Multiply two or more integer numbers. */
+static char *
+func_int_mul (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num *= math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Divide an integer number by one or more divisors. */
+static char *
+func_int_div (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    math_int divisor;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      {
+        divisor = math_int_from_string (argv[i]);
+        if (!divisor)
+          {
+            error (NILF, _("divide by zero ('%s')\n"), argv[i]);
+            return math_int_to_variable_buffer (o, 0);
+          }
+        num /= divisor;
+      }
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+
+/* Divide and return the remainder. */
+static char *
+func_int_mod (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    math_int divisor;
+
+    num = math_int_from_string (argv[0]);
+    divisor = math_int_from_string (argv[1]);
+    if (!divisor)
+      {
+        error (NILF, _("divide by zero ('%s')\n"), argv[1]);
+        return math_int_to_variable_buffer (o, 0);
+      }
+    num %= divisor;
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* 2-complement. */
+static char *
+func_int_not (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+
+    num = math_int_from_string (argv[0]);
+    num = ~num;
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Bitwise AND (two or more numbers). */
+static char *
+func_int_and (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num &= math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Bitwise OR (two or more numbers). */
+static char *
+func_int_or (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num |= math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Bitwise XOR (two or more numbers). */
+static char *
+func_int_xor (char *o, char **argv, const char *funcname)
+{
+    math_int num;
+    int i;
+
+    num = math_int_from_string (argv[0]);
+    for (i = 1; argv[i]; i++)
+      num ^= math_int_from_string (argv[i]);
+
+    return math_int_to_variable_buffer (o, num);
+}
+
+/* Compare two integer numbers. Returns make boolean (true="1"; false=""). */
+static char *
+func_int_cmp (char *o, char **argv, const char *funcname)
+{
+    math_int num1;
+    math_int num2;
+    int rc;
+
+    num1 = math_int_from_string (argv[0]);
+    num2 = math_int_from_string (argv[1]);
+
+    funcname += sizeof ("int-") - 1;
+    if (!strcmp (funcname, "eq"))
+      rc = num1 == num2;
+    else if (!strcmp (funcname, "ne"))
+      rc = num1 != num2;
+    else if (!strcmp (funcname, "gt"))
+      rc = num1 > num2;
+    else if (!strcmp (funcname, "ge"))
+      rc = num1 >= num2;
+    else if (!strcmp (funcname, "lt"))
+      rc = num1 < num2;
+    else /*if (!strcmp (funcname, "le"))*/
+      rc = num1 <= num2;
+
+    return variable_buffer_output (o, rc ? "1" : "", rc);
+}
+
+
+#endif /* CONFIG_WITH_MATH */
 
 /* Lookup table for builtin functions.
 
@@ -2569,7 +2863,7 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_ABSPATHEX
   { STRING_SIZE_TUPLE("abspathex"),     0,  2,  1,  func_abspathex},
-#endif 
+#endif
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
   { STRING_SIZE_TUPLE("comp-cmds"),     3,  3,  1,  func_comp_vars},
@@ -2580,13 +2874,30 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("stack-popv"),    1,  1,  1,  func_stack_pop_top},
   { STRING_SIZE_TUPLE("stack-top"),     1,  1,  1,  func_stack_pop_top},
 #endif
+#ifdef CONFIG_WITH_MATH
+  { STRING_SIZE_TUPLE("int-add"),       2,  0,  1,  func_int_add},
+  { STRING_SIZE_TUPLE("int-sub"),       2,  0,  1,  func_int_sub},
+  { STRING_SIZE_TUPLE("int-mul"),       2,  0,  1,  func_int_mul},
+  { STRING_SIZE_TUPLE("int-div"),       2,  0,  1,  func_int_div},
+  { STRING_SIZE_TUPLE("int-mod"),       2,  2,  1,  func_int_mod},
+  { STRING_SIZE_TUPLE("int-not"),       1,  1,  1,  func_int_not},
+  { STRING_SIZE_TUPLE("int-and"),       2,  0,  1,  func_int_and},
+  { STRING_SIZE_TUPLE("int-or"),        2,  0,  1,  func_int_or},
+  { STRING_SIZE_TUPLE("int-xor"),       2,  0,  1,  func_int_xor},
+  { STRING_SIZE_TUPLE("int-eq"),        2,  2,  1,  func_int_cmp},
+  { STRING_SIZE_TUPLE("int-ne"),        2,  2,  1,  func_int_cmp},
+  { STRING_SIZE_TUPLE("int-gt"),        2,  2,  1,  func_int_cmp},
+  { STRING_SIZE_TUPLE("int-ge"),        2,  2,  1,  func_int_cmp},
+  { STRING_SIZE_TUPLE("int-lt"),        2,  2,  1,  func_int_cmp},
+  { STRING_SIZE_TUPLE("int-le"),        2,  2,  1,  func_int_cmp},
+#endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
   { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
   { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},
   { STRING_SIZE_TUPLE("kb-src-prop"),   4,  4,  0,  func_kbuild_source_prop},
   { STRING_SIZE_TUPLE("kb-src-one"),    0,  1,  0,  func_kbuild_source_one},
-#endif 
+#endif
 };
 
 #define FUNCTION_TABLE_ENTRIES (sizeof (function_table_init) / sizeof (struct function_table_entry))
@@ -2848,5 +3159,5 @@ hash_init_function_table (void)
     for (i = 0; i < FUNCTION_TABLE_ENTRIES; i++)
         assert(function_table_init[i].len <= MAX_FUNCTION_LENGTH);
   }
-#endif 
+#endif
 }
