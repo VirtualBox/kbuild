@@ -1,4 +1,4 @@
-/* $Id: append.c 370 2005-12-18 03:48:02Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 767 2007-01-19 02:27:11Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -29,38 +29,79 @@
 #include "err.h"
 #include "kmkbuiltin.h"
 
+
+/**
+ * Prints the usage and return 1.
+ */
+static int usage(void)
+{
+    fprintf(stderr, "usage: append [-n] file [string ...]\n");
+    return 1;
+}
+
+
 /**
  * Appends text to a textfile, creating the textfile if necessary.
  */
 int kmk_builtin_append(int argc, char **argv, char **envp)
 {
     int i;
+    int fFirst;
     FILE *pFile;
+    int fNewLine = 0;
 
     g_progname = argv[0];
 
     /*
+     * Parse options.
+     */
+    i = 1;
+    while (i < argc
+       &&  argv[i][0] == '-'
+       &&  argv[i][1] != '\0' /* '-' is a file */
+       &&  strchr("n", argv[i][1]) /* valid option char */
+       )
+    {
+        char *psz = &argv[i][1];
+        do
+        {
+            switch (*psz)
+            {
+                case 'n':
+                    fNewLine = 1;
+                    break;
+                default:
+                    errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
+                    return usage();
+            }
+        } while (*++psz);
+        i++;
+    }
+
+    /*
      * Open the output file.
      */
-    if (argc <= 1)
+    if (i >= argc)
     {
         errx(1, "missing filename!");
-        fprintf(stderr, "usage: append file [string ...]\n");
-        return 1;
+        return usage();
     }
-    pFile = fopen(argv[1], "a");
+    pFile = fopen(argv[i], "a");
     if (!pFile)
-        return err(1, "failed to open '%s'.", argv[1]);
+        return err(1, "failed to open '%s'.", argv[i]);
 
     /*
      * Append the argument strings to the file
      */
-    for (i = 2; i < argc; i++)
+    fFirst = 1;
+    for (i++; i < argc; i++)
     {
         const char *psz = argv[i];
         size_t cch = strlen(psz);
-        if (i > 2)
-            fputc(' ', pFile);
+        if (!fFirst)
+            fputc(fNewLine ? '\n' : ' ', pFile);
+        else
+            fFirst = 0;
         fwrite(psz, 1, cch, pFile);
     }
 
