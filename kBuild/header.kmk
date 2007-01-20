@@ -1,4 +1,4 @@
-# $Id: header.kmk 762 2007-01-18 23:31:58Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 776 2007-01-20 18:36:40Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 762 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 776 $  )
 
 
 #
@@ -408,6 +408,13 @@ ifeq ($(filter mv,$(KMK_BUILTIN)),mv)
 MV          := kmk_builtin_mv
 else
 MV          := $(MV_EXT)
+endif
+
+PRINTF_EXT  := $(PATH_KBUILD_BIN)/kmk_printf$(HOSTSUFF_EXE)
+ifeq ($(filter printf,$(KMK_BUILTIN)),printf)
+PRINTF      := kmk_builtin_printf
+else
+PRINTF      := $(PRINTF_EXT)
 endif
 
 RM_EXT      := $(PATH_KBUILD_BIN)/kmk_rm$(HOSTSUFF_EXE)
@@ -711,8 +718,175 @@ ifeq ($(_CFGFILE),)
 $(error kBuild: no Config.kmk file found! Check the DEPTH: DEPTH='$(DEPTH)' PATH_CURRENT='$(PATH_CURRENT)')
 endif
 
+#
+# Check for --pretty-command-printing before including the Config.kmk
+# so that anyone overriding the message macros can take the implied
+# verbosity level change into account.
+#
+ifndef KBUILD_VERBOSE
+ ifndef KBUILD_QUIET
+  ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
+   export KBUILD_VERBOSE := 1
+  endif
+ endif
+endif
+
+
 # Include the config.kmk we found file (or the default one).
 include $(_CFGFILE)
+
+
+#
+# Currently two message styles are supported: default and dense.
+#
+KBUILD_MSG_STYLE ?= default
+ifeq ($(KBUILD_MSG_STYLE),default)
+ #
+ # The 'default' style.
+ #
+
+ ## Fetch starting.
+ # @param 1     Target name.
+ MSG_FETCH    ?= $(call MSG_L1,Fetching $1...)
+ ## Re-fetch starting.
+ # @param 1     Target name.
+ MSG_REFETCH  ?= $(call MSG_L1,Re-fetching $1...)
+ ## Downloading a fetch component.
+ # @param 1     Target name.
+ # @param 2     The source URL.
+ # @param 3     The destination file name.
+ MSG_FETCH_DL ?= $(call MSG_L1,Downloading $1 - $2,=> $3)
+ ## Checking a fetch component.
+ # @param 1     Target name.
+ # @param 2     The source URL.
+ # @param 3     The destination file name.
+ MSG_FETCH_CHK?= $(call MSG_L1,Checking $1 - $3, ($2))
+ ## Unpacking a fetch component.
+ # @param 1     Target name.
+ # @param 2     The archive file name.
+ # @param 3     The target directory.
+ MSG_FETCH_UP ?= $(call MSG_L1,Unpacking $1 - $2 => $3)
+ ## Fetch completed.
+ # @param 1     Target name.
+ MSG_FETCH_OK ?= $(call MSG_L1,Successfully fetched $1)
+ ## Unfetch a fetch target.
+ # @param 1     Target name.
+ MSG_UNFETCH  ?= $(call MSG_L1,Unfetching $1...)
+ ## Compiling a source file.
+ # @param 1     Target name.
+ # @param 2     The source filename.
+ # @param 3     The primary link output file name.
+ # @param 4     The source type (CXX,C,AS,RC,++).
+ MSG_COMPILE  ?= $(call MSG_L1,Compiling $1 - $2,=> $3)
+ ## Linking a bldprog/dll/program/sysmod target.
+ # @param 1     Target name.
+ # @param 2     The primary link output file name.
+ # @param 3     The link tool operation (LINK_LIBRARY,LINK_PROGRAM,LINK_DLL,LINK_SYSMOD,++).
+ MSG_LINK     ?= $(call MSG_L1,Linking $1,=> $2)
+ ## Creating a directory (build).
+ # @param 1     Directory name.
+ MSG_MKDIR    ?= $(call MSG_L2,Creating directory $1)
+ ## Cleaning.
+ MSG_CLEAN    ?= $(call MSG_L1,Cleaning...)
+ ## Nothing.
+ MSG_NOTHING  ?= $(call MSG_L1,Did nothing in $(CURDIR))
+ ## Pass
+ # @param 1     The pass name.
+ MSG_PASS     ?= $(call MSG_L1,Pass - $1)
+ ## Installing a bldprog/lib/dll/program/sysmod target.
+ # @param 1     Target name.
+ # @param 2     The source filename.
+ # @param 3     The destination file name.
+ MSG_INST_TRG ?= $(call MSG_L1,Installing $1 => $3)
+ ## Installing a file (install target).
+ # @param 1     The source filename.
+ # @param 2     The destination filename.
+ MSG_INST_FILE?= $(call MSG_L1,Installing $2,(<= $1))
+ ## Installing a symlink.
+ # @param 1     Symlink
+ # @param 2     Link target
+ MSG_INST_SYM ?= $(call MSG_L1,Installing symlink $1,=> $2)
+ ## Installing a directory.
+ # @param 1     Directory name.
+ MSG_INST_DIR ?= $(call MSG_L1,Installing directory $1)
+
+else ifeq ($(KBUILD_MSG_STYLE),dense)
+ #
+ # The 'dense' style
+ #
+ ifndef KBUILD_VERBOSE
+  MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
+ else
+  MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1 $2))))"
+  MSG_L2 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
+ endif
+ MAKEFLAGS := --no-print-directory $(MAKEFLAGS)
+
+ ## Fetch starting.
+ # @param 1     Target name.
+ MSG_FETCH    ?= $(call MSG_L1,FTCH $1...)
+ ## Re-fetch starting.
+ # @param 1     Target name.
+ MSG_REFETCH  ?= $(call MSG_L1,RFTCH $1...)
+ ## Downloading a fetch component.
+ # @param 1     Target name.
+ # @param 2     The source URL.
+ # @param 3     The destination file name.
+ MSG_FETCH_DL ?= $(call MSG_L1,GET  $1 - $2,=> $3)
+ ## Checking a fetch component.
+ # @param 1     Target name.
+ # @param 2     The source URL.
+ # @param 3     The destination file name.
+ MSG_FETCH_CHK?= $(call MSG_L1,CHK  $1 - $3, ($2))
+ ## Unpacking a fetch component.
+ # @param 1     Target name.
+ # @param 2     The archive file name.
+ # @param 3     The target directory.
+ MSG_FETCH_UP ?= $(call MSG_L1,UNPK $1 - $2,=> $3)
+ ## Fetch completed.
+ # @param 1     Target name.
+ MSG_FETCH_OK ?= $(call MSG_L1,DONE $1)
+ ## Unfetch a fetch target.
+ # @param 1     Target name.
+ MSG_UNFETCH  ?= $(call MSG_L1,RM   $1...)
+ ## Compiling a source file.
+ # @param 1     Target name.
+ # @param 2     The source filename.
+ # @param 3     The primary link output file name.
+ # @param 4     The source type (CXX,C,AS,RC,++).
+ MSG_COMPILE  ?= $(call MSG_L1,CC   $1 - $2,=> $3)
+ ## Linking a bldprog/dll/program/sysmod target.
+ # @param 1     Target name.
+ # @param 2     The primary link output file name.
+ # @param 3     The link tool operation (LINK_LIBRARY,LINK_PROGRAM,LINK_DLL,LINK_SYSMOD,++).
+ MSG_LINK     ?= $(call MSG_L1,$(if $(eq $3,LINK_LIBRARY),AR,LD)   $1,=> $2)
+ ## Creating a directory (build).
+ # @param 1     Directory name.
+ MSG_MKDIR    ?= $(call MSG_L2,DIR  $1)
+ ## Cleaning.
+ MSG_CLEAN    ?= $(call MSG_L1,CLEAN)
+ ## Nothing.
+ MSG_NOTHING  ?= $(call MSG_L1,NOTHING $(CURDIR))
+ ## Installing a bldprog/lib/dll/program/sysmod target.
+ # @param 1     Target name.
+ # @param 2     The source filename.
+ # @param 3     The destination file name.
+ MSG_INST_TRG ?= $(call MSG_L1,INST $1,=> $2)
+ ## Installing a file (install target).
+ # @param 1     The source filename.
+ # @param 2     The destination filename.
+ MSG_INST_FILE?= $(call MSG_L1,IFIL $2,(<= $1))
+ ## Installing a symlink.
+ # @param 1     Symlink
+ # @param 2     Link target
+ MSG_INST_SYM ?= $(call MSG_L1,ISYM $1,=> $2)
+ ## Installing a directory.
+ # @param 1     Directory name.
+ MSG_INST_DIR ?= $(call MSG_L1,IDIR $1)
+
+else
+ $(error kBuild: Unknown message style: KBUILD_MSG_STYLE=$(KBUILD_MSG_STYLE))
+endif
 
 
 #
@@ -722,39 +896,42 @@ include $(_CFGFILE)
 # KBUILD_QUIET and KBUILD_VERBOSE to be configurable.
 #
 ifdef KBUILD_QUIET
- # minimal output.
+ # No output
  QUIET := @
  QUIET2:= @
  MSG_L1	=
  MSG_L2 =
- MSG_L3 =
 else
  ifndef KBUILD_VERBOSE
-  ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
-   export KBUILD_VERBOSE := 1
-  endif
- endif
- ifndef KBUILD_VERBOSE
-  QUIET := @
-  QUIET2:= @
-  MSG_L1 = @$(ECHO) "kBuild: $1"
-  MSG_L2 =
-  MSG_L3 =
+  # Default output level.
+  QUIET  := @
+  QUIET2 := @
+  MSG_L1 ?= @$(ECHO) "kBuild: $1"
+  MSG_L2  =
+ else ifeq ($(KBUILD_VERBOSE),1)
+  # A bit more output
+  QUIET  := @
+  QUIET2 := @
+  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
+  MSG_L2  =
+ else ifeq ($(KBUILD_VERBOSE),2)
+  # Lot more output
+  QUIET  :=
+  QUIET2 := @
+  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
+  MSG_L2 ?= @$(ECHO) "kBuild: $1"
  else
   # maximal output.
-  QUIET :=
-  MSG_L1 = @$(ECHO) "kBuild: $1 $2"
-  MSG_L2 = @$(ECHO) "kBuild: $1"
-  ifneq ($(KBUILD_VERBOSE),all)
-   QUIET2:= @
-  else
-   QUIET2:=
-  endif
+  QUIET  :=
+  QUIET2 :=
+  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
+  MSG_L2 ?= @$(ECHO) "kBuild: $1"
  endif
 endif
+
+
 
 # end-of-file-content
 __header_kmk__ := 1
 endif # __header_kmk__
-
 
