@@ -1,4 +1,4 @@
-# $Id: header.kmk 776 2007-01-20 18:36:40Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 777 2007-01-20 18:41:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 776 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 777 $  )
 
 
 #
@@ -810,9 +810,9 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  # @param 1     Directory name.
  MSG_INST_DIR ?= $(call MSG_L1,Installing directory $1)
 
-else ifeq ($(KBUILD_MSG_STYLE),dense)
+else ifeq ($(KBUILD_MSG_STYLE),short)
  #
- # The 'dense' style
+ # The 'short' style
  #
  ifndef KBUILD_VERBOSE
   MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
@@ -820,7 +820,6 @@ else ifeq ($(KBUILD_MSG_STYLE),dense)
   MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1 $2))))"
   MSG_L2 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
  endif
- MAKEFLAGS := --no-print-directory $(MAKEFLAGS)
 
  ## Fetch starting.
  # @param 1     Target name.
