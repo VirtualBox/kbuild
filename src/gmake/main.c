@@ -922,6 +922,72 @@ find_and_set_default_shell (char *token)
 
   return (sh_found);
 }
+
+/* bird: */
+#ifdef CONFIG_NEW_WIN32_CTRL_EVENT
+#include <process.h>
+static UINT g_tidMainThread = 0;
+static int g_sigPending = 0; /* lazy bird */
+
+static __declspec(naked) void dispatch_stub(void)
+{
+    __asm  {
+        pushfd
+        pushad
+        cld
+    }
+    fflush(stdout);
+    /*fprintf(stderr, "dbg: raising %s on the main thread (%d)\n", g_sigPending == SIGINT ? "SIGINT" : "SIGBREAK", _getpid());*/
+    raise(g_sigPending);
+    __asm  {
+        popad
+        popfd
+        ret
+    }
+}
+
+static BOOL WINAPI ctrl_event(DWORD CtrlType)
+{
+    int sig = (CtrlType == CTRL_C_EVENT) ? SIGINT : SIGBREAK;
+    HANDLE hThread;
+    CONTEXT Ctx;
+
+    /* open the main thread and suspend it. */
+    hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, g_tidMainThread);
+    SuspendThread(hThread);
+
+    /* Get the thread context and */
+    memset(&Ctx, 0, sizeof(Ctx));
+    Ctx.ContextFlags = CONTEXT_FULL;
+    GetThreadContext(hThread, &Ctx);
+
+    /* If we've got a valid Esp, dispatch it on the main thread
+       otherwise raise the signal in the ctrl-event thread (this). */
+    if (Ctx.Esp >= 0x1000)
+    {
+        ((uintptr_t *)Ctx.Esp)[-1] = Ctx.Eip;
+        Ctx.Esp -= sizeof(uintptr_t);
+        Ctx.Eip = (uintptr_t)&dispatch_stub;
+
+        SetThreadContext(hThread, &Ctx);
+        g_sigPending = sig;
+        ResumeThread(hThread);
+        CloseHandle(hThread);
+    }
+    else
+    {
+        fprintf(stderr, "dbg: raising %s on the ctrl-event thread (%d)\n", sig == SIGINT ? "SIGINT" : "SIGBREAK", _getpid());
+        raise(sig);
+        ResumeThread(hThread);
+        CloseHandle(hThread);
+        exit(130);
+    }
+
+    Sleep(1);
+    return TRUE;
+}
+#endif /* CONFIG_NEW_WIN32_CTRL_EVENT */
+
 #endif  /* WINDOWS32 */
 
 #ifdef  __MSDOS__
@@ -1090,6 +1156,12 @@ main (int argc, char **argv, char **envp)
 #ifdef SIGXFSZ
   FATAL_SIG (SIGXFSZ);
 #endif
+
+#ifdef CONFIG_NEW_WIN32_CTRL_EVENT
+  /* bird: dispatch signals in our own way to try avoid deadlocks. */
+  g_tidMainThread = GetCurrentThreadId ();
+  SetConsoleCtrlHandler (ctrl_event, TRUE);
+#endif /* CONFIG_NEW_WIN32_CTRL_EVENT */
 
 #undef	FATAL_SIG
 
