@@ -437,7 +437,7 @@ fatal_error_signal (int sig)
 
   exit (10);
 #else /* not Amiga */
-#ifdef WINDOWS32
+#if defined(WINDOWS32) && !defined(CONFIG_NEW_WIN32_CTRL_EVENT)
   extern HANDLE main_thread;
 
   /* Windows creates a sperate thread for handling Ctrl+C, so we need
@@ -511,7 +511,6 @@ fatal_error_signal (int sig)
   /* Delete any non-precious intermediate files that were made.  */
 
   remove_intermediates (1);
-
 #ifdef SIGQUIT
   if (sig == SIGQUIT)
     /* We don't want to send ourselves SIGQUIT, because it will
@@ -520,8 +519,10 @@ fatal_error_signal (int sig)
 #endif
 
 #ifdef WINDOWS32
+#ifndef CONFIG_NEW_WIN32_CTRL_EVENT
   if (main_thread)
     CloseHandle (main_thread);
+#endif /* !CONFIG_NEW_WIN32_CTRL_EVENT */
   /* Cannot call W32_kill with a pid (it needs a handle).  The exit
      status of 130 emulates what happens in Bash.  */
   exit (130);

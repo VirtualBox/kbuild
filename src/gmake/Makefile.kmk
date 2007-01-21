@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 775 2007-01-19 05:57:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 778 2007-01-21 00:29:17Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -45,6 +45,7 @@ kmk_DEFS = \
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
 	BUILD_PLATFORM_ARCH=\"$(BUILD_TARGET_ARCH)\" \
 	BUILD_PLATFORM_CPU=\"$(BUILD_TARGET_CPU)\"
+kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
 
 kmk_SOURCES = \
 	main.c \
