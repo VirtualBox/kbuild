@@ -1,4 +1,4 @@
-# $Id: header.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 788 2007-01-24 22:44:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 782 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 788 $  )
 
 
 #
@@ -737,7 +737,10 @@ include $(_CFGFILE)
 
 
 #
-# Currently two message styles are supported: default and dense.
+# Setup the message style. The default one is inlined.
+#
+# See kBuild/msgstyles for more styles or use KBUILD_MSG_STYLE_PATHS
+# to create your own message style.
 #
 KBUILD_MSG_STYLE ?= default
 ifeq ($(KBUILD_MSG_STYLE),default)
@@ -810,81 +813,13 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  # @param 1     Directory name.
  MSG_INST_DIR ?= $(call MSG_L1,Installing directory $1)
 
-else ifeq ($(KBUILD_MSG_STYLE),short)
- #
- # The 'short' style
- #
- ifndef KBUILD_VERBOSE
-  MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
- else
-  MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1 $2))))"
-  MSG_L2 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
- endif
-
- ## Fetch starting.
- # @param 1     Target name.
- MSG_FETCH    ?= $(call MSG_L1,FTCH $1...)
- ## Re-fetch starting.
- # @param 1     Target name.
- MSG_REFETCH  ?= $(call MSG_L1,RFTCH $1...)
- ## Downloading a fetch component.
- # @param 1     Target name.
- # @param 2     The source URL.
- # @param 3     The destination file name.
- MSG_FETCH_DL ?= $(call MSG_L1,GET  $1 - $2,=> $3)
- ## Checking a fetch component.
- # @param 1     Target name.
- # @param 2     The source URL.
- # @param 3     The destination file name.
- MSG_FETCH_CHK?= $(call MSG_L1,CHK  $1 - $3, ($2))
- ## Unpacking a fetch component.
- # @param 1     Target name.
- # @param 2     The archive file name.
- # @param 3     The target directory.
- MSG_FETCH_UP ?= $(call MSG_L1,UNPK $1 - $2,=> $3)
- ## Fetch completed.
- # @param 1     Target name.
- MSG_FETCH_OK ?= $(call MSG_L1,DONE $1)
- ## Unfetch a fetch target.
- # @param 1     Target name.
- MSG_UNFETCH  ?= $(call MSG_L1,RM   $1...)
- ## Compiling a source file.
- # @param 1     Target name.
- # @param 2     The source filename.
- # @param 3     The primary link output file name.
- # @param 4     The source type (CXX,C,AS,RC,++).
- MSG_COMPILE  ?= $(call MSG_L1,CC   $1 - $2,=> $3)
- ## Linking a bldprog/dll/program/sysmod target.
- # @param 1     Target name.
- # @param 2     The primary link output file name.
- # @param 3     The link tool operation (LINK_LIBRARY,LINK_PROGRAM,LINK_DLL,LINK_SYSMOD,++).
- MSG_LINK     ?= $(call MSG_L1,$(if $(eq $3,LINK_LIBRARY),AR,LD)   $1,=> $2)
- ## Creating a directory (build).
- # @param 1     Directory name.
- MSG_MKDIR    ?= $(call MSG_L2,DIR  $1)
- ## Cleaning.
- MSG_CLEAN    ?= $(call MSG_L1,CLEAN)
- ## Nothing.
- MSG_NOTHING  ?= $(call MSG_L1,NOTHING $(CURDIR))
- ## Installing a bldprog/lib/dll/program/sysmod target.
- # @param 1     Target name.
- # @param 2     The source filename.
- # @param 3     The destination file name.
- MSG_INST_TRG ?= $(call MSG_L1,INST $1 => $3)
- ## Installing a file (install target).
- # @param 1     The source filename.
- # @param 2     The destination filename.
- MSG_INST_FILE?= $(call MSG_L1,IFIL $2,(<= $1))
- ## Installing a symlink.
- # @param 1     Symlink
- # @param 2     Link target
- MSG_INST_SYM ?= $(call MSG_L1,ISYM $1,=> $2)
- ## Installing a directory.
- # @param 1     Directory name.
- MSG_INST_DIR ?= $(call MSG_L1,IDIR $1)
-
 else
- $(error kBuild: Unknown message style: KBUILD_MSG_STYLE=$(KBUILD_MSG_STYLE))
+ _KBUILD_MSG_STYLE_FILE := $(firstword $(foreach path, $(KBUILD_MSG_STYLE_PATHS) $(PATH_KBUILD)/msgstyles, $(wildcard $(path)/$(KBUILD_MSG_STYLE).kmk)))
+ ifneq ($(_KBUILD_MSG_STYLE_FILE),)
+  include $(_KBUILD_MSG_STYLE_FILE)
+ else
+  $(error kBuild: Can't find the style setup file for KBUILD_MSG_STYLE '$(KBUILD_MSG_STYLE)')
+ endif
 endif
 
 
