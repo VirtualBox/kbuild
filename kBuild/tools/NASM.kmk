@@ -1,9 +1,9 @@
-# $Id: NASM.kmk 697 2006-12-10 07:20:49Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Netwide Assembler v0.98+.
 #
-# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

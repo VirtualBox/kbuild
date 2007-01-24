@@ -4,7 +4,7 @@ REM ## @file
 REM #
 REM # Environment setup script.
 REM #
-REM # Copyright (c) 2005-2006 knut st. osmundsen <bird@innotek.de>
+REM # Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 REM #
 REM #
 REM # This file is part of kBuild.
@@ -105,12 +105,12 @@ if "%BUILD_PLATFORM" = "win64" goto illegal_platform
 goto target_and_platform_ok
 
 :illegal_target
-echo error: BUILD_TARGET=%BUILD_TARGET is no longer valid. 
+echo error: BUILD_TARGET=%BUILD_TARGET is no longer valid.
 echo        Only 'win' and 'nt' are permitted for targeting microsoft windows.
 goto failed
 
 :illegal_platform
-echo error: BUILD_PLATFORM=%BUILD_PLATFORM is no longer valid. 
+echo error: BUILD_PLATFORM=%BUILD_PLATFORM is no longer valid.
 echo        Only 'win' and 'nt' are permitted for building on microsoft windows.
 goto failed
 
