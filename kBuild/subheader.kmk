@@ -1,9 +1,9 @@
-# $Id: subheader.kmk 743 2006-12-17 08:12:30Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
 #
-# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -38,7 +38,7 @@ ifndef _SUB_MAKEFILE_NOT_FIRST
  #
  _SUB_MAKEFILE_NOT_FIRST := 1
  include $(PATH_KBUILD)/header.kmk
- 
+
 else
 
  #

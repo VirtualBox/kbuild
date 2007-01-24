@@ -1,11 +1,11 @@
-# $Id: WINPSDKINCS.kmk 702 2006-12-10 08:27:54Z knut.osmundsen@oracle.com $
+# $Id: WINPSDKINCS.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild SDK - The Windows Platform SDK, targeting (BUILD_TARGET) but 
-#              without any libraries or LIBPATH properties. 
+# kBuild SDK - The Windows Platform SDK, targeting (BUILD_TARGET) but
+#              without any libraries or LIBPATH properties.
 #              Basically for finding specstrings.h when using the DDK.
 #
-# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

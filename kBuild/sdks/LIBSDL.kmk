@@ -1,9 +1,9 @@
-# $Id: LIBSDL.kmk 759 2007-01-16 13:55:44Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
 #
-# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

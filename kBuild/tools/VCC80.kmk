@@ -1,9 +1,9 @@
-# $Id: VCC80.kmk 768 2007-01-19 02:52:39Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
 #
-# Copyright (c) 2004-2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2007 knut st. osmundsen <fbird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

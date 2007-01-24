@@ -1,9 +1,9 @@
-# $Id: ALP.kmk 696 2006-12-10 07:16:02Z knut.osmundsen@oracle.com $
+# $Id: ALP.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - ALP or later.
 #
-# Copyright (c) 2005-2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -57,8 +57,8 @@ TOOL_ALP_ASFLAGS ?= -Mb
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
 TOOL_ALP_COMPILE_AS_OUTPUT = $(outbase).lst
-TOOL_ALP_COMPILE_AS_DEPEND = 
-TOOL_ALP_COMPILE_AS_DEPORD = 
+TOOL_ALP_COMPILE_AS_DEPEND =
+TOOL_ALP_COMPILE_AS_DEPORD =
 define TOOL_ALP_COMPILE_AS_CMDS
 	$(QUIET)$(TOOL_ALP_AS)\
 		$(flags) $(addsuffix /,$(addprefix -I:, $(incs))) $(addprefix -D:, $(defs))\

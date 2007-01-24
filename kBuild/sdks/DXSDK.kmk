@@ -1,9 +1,9 @@
-# $Id: DXSDK.kmk 757 2007-01-09 22:51:39Z knut.osmundsen@oracle.com $
+# $Id: DXSDK.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Microsoft Direct X SDK, targeting $(BUILD_TARGET).
 #
-# Copyright (c) 2006 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
