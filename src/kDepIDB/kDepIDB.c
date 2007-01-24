@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 793 2007-01-24 23:23:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -42,7 +42,7 @@
 #endif
 #include "kDep.h"
 
-#define OFFSETOF(type, member)  ( (int)(void *)&( ((type *)(void *)0)->member) )
+#define OFFSETOF(type, member)  ( (int)(size_t)(void *)&( ((type *)(void *)0)->member) )
 
 /*#define DEBUG*/
 #ifdef DEBUG
