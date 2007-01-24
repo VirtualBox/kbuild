@@ -3,7 +3,7 @@
  *
  * kBuild specific make functionality.
  *
- * Copyright (c) 2006 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.
@@ -33,4 +33,4 @@ extern char *func_kbuild_object_suffix PARAMS((char *o, char **argv, const char 
 extern char *func_kbuild_source_prop PARAMS((char *o, char **argv, const char *pszFuncName));
 extern char *func_kbuild_source_one PARAMS((char *o, char **argv, const char *pszFuncName));
 
-#endif 
+#endif

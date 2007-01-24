@@ -1,9 +1,9 @@
-/* $Id: mscfakes.c 636 2006-11-26 17:45:01Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
  *
- * Copyright (c) 2005 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -40,7 +40,7 @@ int optind = 1;
 
 
 char *dirname(char *path)
-{         
+{
     /** @todo later */
     return path;
 }
@@ -130,7 +130,7 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
     va_end(args);
     return cch;
 }
-#endif 
+#endif
 
 
 int utimes(const char *pszPath, const struct timeval *paTimes)
@@ -165,7 +165,7 @@ int ioctl(int fd, unsigned long iCmd, ...)
 {
     fprintf(stderr, "ioctl(%d, %d,..)\n", fd, iCmd);
     return 0;
-}   
+}
 
 int tcsetpgrp(int fd, pid_t pgrp)
 {

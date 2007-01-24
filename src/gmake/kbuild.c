@@ -3,7 +3,7 @@
  *
  * kBuild specific make functionality.
  *
- * Copyright (c) 2006 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.
@@ -47,25 +47,25 @@ char * abspath(const char *name, char *apath);
 
 /**
  * Applies the specified default path to any relative paths in *ppsz.
- * 
+ *
  * @param   pDefPath        The default path.
- * @param   ppsz            Pointer to the string pointer. If we expand anything, *ppsz 
+ * @param   ppsz            Pointer to the string pointer. If we expand anything, *ppsz
  *                          will be replaced and the caller is responsible for calling free() on it.
  * @param   pcch            IN: *pcch contains the current string length.
  *                          OUT: *pcch contains the new string length.
  * @param   pcchAlloc       *pcchAlloc contains the length allocated for the string. Can be NULL.
  * @param   fCanFree        Whether *ppsz should be freed when we replace it.
  */
-static void 
+static void
 kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcchAlloc, int fCanFree)
 {
     char *pszIterator;
     const char *pszInCur;
     unsigned int cchInCur;
-    unsigned int cRelativePaths; 
+    unsigned int cRelativePaths;
 
-    /* 
-     * The first pass, count the relative paths. 
+    /*
+     * The first pass, count the relative paths.
      */
     cRelativePaths = 0;
     pszIterator = *ppsz;
@@ -76,12 +76,12 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcc
         if (pszInCur[0] != '/' && pszInCur[0] != '\\' && (cchInCur < 2 || pszInCur[1] != ':'))
 #else
         if (pszInCur[0] != '/')
-#endif 
+#endif
             cRelativePaths++;
-    } 
+    }
 
-    /* 
-     * The second pass construct the new string. 
+    /*
+     * The second pass construct the new string.
      */
     if (cRelativePaths)
     {
@@ -99,7 +99,7 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcc
             if (pszInCur[0] != '/' && pszInCur[0] != '\\' && (cchInCur < 2 || pszInCur[1] != ':'))
 #else
             if (pszInCur[0] != '/')
-#endif 
+#endif
             {
                 PATH_VAR(szAbsPathIn);
                 PATH_VAR(szAbsPathOut);
@@ -132,7 +132,7 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcc
                     pszOutCur += cchAbsPathOut;
                 }
             }
-        } 
+        }
         /* the final copy (includes the nil). */
         cchInCur = *ppsz + *pcch - pszInNextCopy;
         memcpy(pszOutCur, pszInNextCopy, cchInCur);
@@ -697,8 +697,8 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     pSdks->iGlobal = i;
     pSdks->cGlobal = 0;
     sprintf(pszTmp, "$(SDKS) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s.%s)",
-            pBldType->value, 
-            pBldTrg->value, 
+            pBldType->value,
+            pBldTrg->value,
             pBldTrgArch->value,
             pBldTrg->value, pBldTrgArch->value);
     pszIterator = pSdks->apsz[0] = allocated_variable_expand(pszTmp);
@@ -743,7 +743,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
                   pTarget->value, pSource->value, pBldTrg->value,
                   pTarget->value, pSource->value, pBldTrgArch->value,
                   pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
-    assert(cch < cchTmp); (void)cch; 
+    assert(cch < cchTmp); (void)cch;
     pszIterator = pSdks->apsz[3] = allocated_variable_expand(pszTmp);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTargetSource++;
@@ -961,7 +961,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     /* the global sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iGlobal + pSdks->cGlobal : pSdks->iGlobal - 1;
     for (iSdk = iDirection == 1 ? pSdks->iGlobal : pSdks->iGlobal + pSdks->cGlobal - 1;
-         iSdk != iSdkEnd; 
+         iSdk != iSdkEnd;
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
@@ -998,7 +998,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     /* the target sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iTarget + pSdks->cTarget : pSdks->iTarget - 1;
     for (iSdk = iDirection == 1 ? pSdks->iTarget : pSdks->iTarget + pSdks->cTarget - 1;
-         iSdk != iSdkEnd; 
+         iSdk != iSdkEnd;
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
@@ -1034,8 +1034,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     /* the source sdks */
     iSdkEnd = iDirection == 1 ? pSdks->iSource + pSdks->cSource : pSdks->iSource - 1;
-    for (iSdk = iDirection == 1 ? pSdks->iSource : pSdks->iSource + pSdks->cSource - 1; 
-         iSdk != iSdkEnd; 
+    for (iSdk = iDirection == 1 ? pSdks->iSource : pSdks->iSource + pSdks->cSource - 1;
+         iSdk != iSdkEnd;
          iSdk += iDirection)
     {
         struct variable *pSdk = &pSdks->pa[iSdk];
@@ -1360,7 +1360,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     /*
      * If we've got a default path, we must expand the source now.
-     * If we do this too early, "<source>_property = stuff" won't work becuase 
+     * If we do this too early, "<source>_property = stuff" won't work becuase
      * our 'source' value isn't what the user expects.
      */
     if (pDefPath)

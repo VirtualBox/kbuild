@@ -1,9 +1,9 @@
-/* $Id: kkeys.e 566 2006-10-08 01:57:06Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Birds key additions to Visual Slickedit.
  *
- * Copyright (c) 2004 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.

@@ -1,4 +1,4 @@
-# $Id: $
+# $Id: Makefile.kmk 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..

@@ -1,9 +1,9 @@
-/* $Id: err.h 632 2006-11-26 13:46:21Z knut.osmundsen@oracle.com $ */
+/* $Id: err.h 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Override err.h stuff so we get the program names right.
  *
- * Copyright (c) 2005 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify

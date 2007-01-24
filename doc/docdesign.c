@@ -1,8 +1,8 @@
-/* $Id: docdesign.c 16 2002-10-16 23:21:04Z knut.osmundsen@oracle.com $
+/* $Id: docdesign.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
  *
  * Documentation generator.
  *
- * Copyright (c) 2002 knut st. osmundsen <bird@anduin.net>
+ * Copyright (c) 2002 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.
