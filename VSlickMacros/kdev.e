@@ -1,8 +1,8 @@
-/* $Id: kdev.e 323 2005-09-15 18:27:33Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 784 2007-01-24 22:20:31Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
- * Copyright (c) 1999-2004 knut st. osmundsen <bird@anduin.net>
+ * Copyright (c) 1999-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -90,7 +90,7 @@ def  'C-S-L' = k_style_load
 /* Remeber to change these! */
 static _str skUserInitials  = "kso";
 static _str skUserName      = "knut st. osmundsen";
-static _str skUserEmail     = "bird@innotek.de";
+static _str skUserEmail     = "bird-src-spam@anduin.net";
 
 
 /*******************************************************************************
@@ -167,7 +167,6 @@ static int k_alignup(int iValue, iAlign)
  * @param   iColumn     Comment mark column. (1-based) (output)
  * @param   sExt        The extension to lookup defaults to the current one.
  * @param   sLexer      The lexer to lookup defaults to the current one.
- * @author  knut st. osmundsen (bird@anduin.net)
  * @remark  This should be exported from box.e, but unfortunately it isn't.
  */
 static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sExt = p_extension, _str sLexer = p_lexer_name)
@@ -340,7 +339,6 @@ void k_insert_comment(_str sStr, int iCursor, int iPosition = -1)
  * @returns Comment prefix or postfix.
  * @param   fRight  If clear left comment string - default.
  *                  If set right comment string.
- * @author  knut st. osmundsen (bird@anduin.net)
  */
 static _str k_comment(boolean fRight = false)
 {
@@ -1253,10 +1251,21 @@ void k_javadoc_moduleheader()
     _insert_text("\n");
 
     k_javadoc_box_start('@file');
-    k_javadoc_box_line();
-    iCursorLine = p_RLine;
-    k_javadoc_box_line();
-    k_javadoc_box_line();
+    if (skLicense == 'VirtualBox')
+    {
+        iCursorLine = p_RLine;
+        k_javadoc_box_line();
+        k_javadoc_box_end();
+        _insert_text("\n");
+        _insert_text(k_comment() "\n");
+    }
+    else
+    {
+        k_javadoc_box_line();
+        iCursorLine = p_RLine;
+        k_javadoc_box_line();
+        k_javadoc_box_line();
+    }
 
     if (skLicense == 'Confidential')
     {
@@ -1266,9 +1275,14 @@ void k_javadoc_moduleheader()
 
     if (skCompany != '')
     {
-        k_javadoc_box_line('Copyright (c) ' k_year() ' ' skCompany);
-        k_javadoc_box_line();
-        k_javadoc_box_line('Author: ' skUserName' <' skUserEmail '>');
+        if (skLicense == 'VirtualBox')
+            k_javadoc_box_line('Copyright (c) ' k_year() ' ' skCompany);
+        else
+        {
+            k_javadoc_box_line('Copyright (c) ' k_year() ' ' skCompany);
+            k_javadoc_box_line();
+            k_javadoc_box_line('Author: ' skUserName' <' skUserEmail '>');
+        }
     }
     else
         k_javadoc_box_line('Copyright (c) ' k_year() ' 'skUserName' <' skUserEmail '>');
@@ -1331,6 +1345,21 @@ void k_javadoc_moduleheader()
 
         case 'Confidential':
             k_javadoc_box_line('All Rights Reserved');
+            break;
+
+        case 'VirtualBox':
+            k_javadoc_box_line();
+            k_javadoc_box_line('This file is part of VirtualBox Open Source Edition (OSE), as');
+            k_javadoc_box_line('available from http://www.virtualbox.org. This file is free software;');
+            k_javadoc_box_line('you can redistribute it and/or modify it under the terms of the GNU');
+            k_javadoc_box_line('General Public License as published by the Free Software Foundation,');
+            k_javadoc_box_line('in version 2 as it comes in the "COPYING" file of the VirtualBox OSE');
+            k_javadoc_box_line('distribution. VirtualBox OSE is distributed in the hope that it will');
+            k_javadoc_box_line('be useful, but WITHOUT ANY WARRANTY of any kind.');
+            k_javadoc_box_line('');
+            k_javadoc_box_line('If you received this file as part of a commercial VirtualBox');
+            k_javadoc_box_line('distribution, then only the terms of your commercial VirtualBox');
+            k_javadoc_box_line('license agreement apply instead of the previous paragraph.');
             break;
 
         default:
@@ -2872,6 +2901,7 @@ static k_menu_create()
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Odin32",              "k_menu_license Odin32",        "Odin32");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&GPL",                 "k_menu_license GPL",           "GPL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&LGPL",                "k_menu_license LGPL",          "LGPL");
+    rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&VirtualBox",          "k_menu_license VirtualBox",    "VirtualBox");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Confidential",        "k_menu_license Confidential",  "Confidential");
 
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash vars");
@@ -2886,12 +2916,10 @@ static k_menu_create()
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Odin32",      "k_menu_preset javadoc, Odin32, Opt2Ind4,,Odin32",      "odin32");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Linux Kernel","k_menu_preset linux, GPL, Opt1Ind4,,Linux",            "linux");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "The Bird",    "k_menu_preset javadoc, GPL, Opt2Ind4",                 "bird");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Win32k",      "k_menu_preset javadoc, GPL, Opt2Ind4,, Win32k",        "Win32k");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kKrnlLib",    "k_menu_preset javadoc, GPL, Opt2Ind4,, kKrnlLib",      "kKrnlLib");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLib",        "k_menu_preset javadoc, GPL, Opt2Ind4,, kLib",          "kLib");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLIBC",       "k_menu_preset javadoc, GPL, Opt2Ind4,, kLIBC",         "kLIBC");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kBuild",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kBuild",        "kBuild");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Innotek",     "k_menu_preset javadoc, Confidential, Opt2Ind4, InnoTek Systemberatung GmbH",           "Innotek");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VPC/2",       "k_menu_preset javadoc, Confidential, Opt2Ind4, InnoTek Systemberatung GmbH, VPC/2",    "VPC2");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "InnoTek",     "k_menu_preset javadoc, Confidential, Opt2Ind4, InnoTek Systemberatung GmbH", "InnoTek");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, InnoTek Systemberatung GmbH",   "InnoTek");
 
     k_menu_doc_style();
     k_menu_license();
