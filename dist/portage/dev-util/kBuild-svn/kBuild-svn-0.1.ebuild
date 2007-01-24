@@ -1,4 +1,4 @@
-# Copyright (c) 2006 knut st. osmundsen <bird-kbuild-src@anduin.net>
+# Copyright (c) 2006 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 # Distributed under the terms of the GNU General Public License v2
 # $Header: $
 

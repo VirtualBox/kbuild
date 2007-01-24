@@ -1,8 +1,8 @@
-/* $Id: fastdep.c 7 2002-10-15 21:00:40Z knut.osmundsen@oracle.com $
+/* $Id: fastdep.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
  *
  * Fast dependents. (Fast = Quick and Dirty!)
  *
- * Copyright (c) 1999-2002 knut st. osmundsen (bird@anduin.net)
+ * Copyright (c) 1999-2002 knut st. osmundsen (bird-kBuild-spam@anduin.net)
  *
  * GPL
  *
@@ -1005,7 +1005,7 @@ void syntax(void)
         "   <files>         Files to scan. Wildchars are allowed.\n"
         "\n"
         "Options and files could be mixed.\n"
-        " copyright (c) 1999-2002 knut st. osmundsen (bird@anduin.net)\n",
+        " copyright (c) 1999-2002 knut st. osmundsen (bird-kBuild-spam@anduin.net)\n",
         ODIN32_BUILD_NR,
         pszDefaultDepFile
         );
@@ -2395,7 +2395,6 @@ int langIPF(  const char *pszFilename, const char *pszNormFilename,
  * @param     pszS1  String 1
  * @param     pszS2  String 2
  * @param     cch    Length to compare (relative to string 1)
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 int strnicmpwords(const char *pszS1, const char *pszS2, int cch)
 {
@@ -3046,7 +3045,6 @@ BOOL pathlistFindFile2(const char *pszPathList, const char *pszFilename)
  * Finds the first char after word.
  * @returns   Pointer to the first char after word.
  * @param     psz  Where to start.
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 char *findEndOfWord(char *psz)
 {
@@ -3070,7 +3068,6 @@ char *findEndOfWord(char *psz)
  * @returns   Pointer to first char in word.
  * @param     psz       Where to start.
  * @param     pszStart  Where to stop.
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 char *findStartOfWord(const char *psz, const char *pszStart)
 {
@@ -3116,7 +3113,6 @@ signed long fsize(FILE *phFile)
  * @returns   Pointer to first not space or tab char in the string.
  * @param     psz   Pointer to the string which is to be trimmed.
  * @status    completely implmented.
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 INLINE char *trim(char *psz)
 {
@@ -3138,7 +3134,6 @@ INLINE char *trim(char *psz)
  * @returns   Pointer to the string passed in.
  * @param     psz   Pointer to the string which is to be right trimmed.
  * @status    completely implmented.
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 INLINE char *trimR(char *psz)
 {
@@ -3158,7 +3153,6 @@ INLINE char *trimR(char *psz)
  * @returns   Pointer to the string passed in.
  * @param     psz   Pointer to the string which is to be quote-trimmed.
  * @status    completely implmented.
- * @author    knut st. osmundsen (bird@anduin.net)
  */
 INLINE char *trimQuotes(char *psz)
 {
@@ -3182,7 +3176,6 @@ INLINE char *trimQuotes(char *psz)
  * @returns Pointer to output buffer.
  * @param   pszOut  Ouput (preprocessed) string.
  * @param   pszIn   Input string.
- * @author  knut st. osmundsen (bird@anduin.net)
  */
 char *PreProcessLine(char *pszOut, const char *pszIn)
 {

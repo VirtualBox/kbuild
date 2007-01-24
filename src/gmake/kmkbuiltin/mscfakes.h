@@ -1,9 +1,9 @@
-/* $Id: mscfakes.h 775 2007-01-19 05:57:42Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
  *
- * Copyright (c) 2005 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This program is free software; you can redistribute it and/or modify

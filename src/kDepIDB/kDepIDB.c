@@ -1,9 +1,9 @@
-/* $Id: kDepIDB.c 713 2006-12-14 01:34:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  *
- * Copyright (c) 2006 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.

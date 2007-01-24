@@ -3,7 +3,7 @@
  *
  * kBuild - Alternative argument parser for the windows startup code.
  *
- * Copyright (c) 2006 knut st. osmundsen <bird-kbuild-pszSrc@anduin.net>
+ * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * parse_args(): Copyright (c) 1992-1998 by Eberhard Mattes
  *
@@ -57,14 +57,14 @@ int __cdecl _setargv(void)
     char      **papszArgs = NULL;
     int         cb;
 
-    /* 
-     * Set the program name. 
+    /*
+     * Set the program name.
      */
     GetModuleFileName(NULL, s_szProgramName, MAX_PATH);
     s_szProgramName[MAX_PATH] = '\0';
 #if _MSC_VER >= 1400
     _set_pgmptr(s_szProgramName);
-#endif 
+#endif
 
     /*
      * Get the commandline, use the program name if nothings available.
@@ -72,7 +72,7 @@ int __cdecl _setargv(void)
     pszCmdLine = (const char *)GetCommandLineA();
     if (!pszCmdLine || !*pszCmdLine)
         pszCmdLine = s_szProgramName;
-    
+
     /*
      * Parse the argument commandline emitting the unix argument vector.
      */

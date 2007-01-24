@@ -1,9 +1,9 @@
-/* $Id: kDepPre.c 393 2006-01-13 00:42:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
  *
- * Copyright (c) 2005-2006 knut st. osmundsen <bird@innotek.de>
+ * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.
