@@ -1528,6 +1528,63 @@ main (int argc, char **argv, char **envp)
 			      "${-*-command-variables-*-}", o_env, 1);
     }
 
+#ifdef KMK
+  /* If there wasn't any -C or -f flags, check for Makefile.kup and
+     insert a fake -C argument.
+     Makefile.kmk overrides Makefile.kup but not plain Makefile. */
+  if (makefiles == 0 && directories == 0)
+    {
+      struct stat st;
+      if ((   stat ("Makefile.kup", &st) == 0
+           && S_ISREG (st.st_mode) )
+       || (   stat ("makefile.kup", &st) == 0
+           && S_ISREG (st.st_mode) )
+       && stat ("Makefile.kmk", &st) < 0
+       && stat ("makefile.kmk", &st) < 0)
+        {
+          static char  fake_path[3*16 + 32] = "..";
+          static char *fake_list[2] = { &fake_path[0], NULL };
+          struct stringlist fake_directories = { &fake_list[0], 1, 0 };
+
+          char *cur = &fake_path[2];
+          int   up_levels = 1;
+
+          while (up_levels < 16)
+            {
+              /* File with higher precedence.s */
+              strcpy (cur, "/Makefile.kmk");
+              if (stat (fake_path, &st) == 0)
+                break;
+              strcpy (cur, "/makefile.kmk");
+              if (stat (fake_path, &st) == 0)
+                break;
+
+              /* the .kup files */
+              strcpy (cur, "/Makefile.kup");
+              if (   stat (fake_path, &st) != 0
+                  || !S_ISREG (st.st_mode))
+                {
+                  strcpy (cur, "/makefile.kup");
+                  if (   stat (fake_path, &st) != 0
+                      || !S_ISREG (st.st_mode))
+                    break;
+                }
+
+              /* ok */
+              strcpy (cur, "/..");
+              cur += 3;
+              up_levels++;
+            }
+
+          if (up_levels >= 16)
+            fatal (NILF, _("Makefile.kup recursion is too deep."));
+
+          *cur = '\0';
+          directories = &fake_directories;
+      }
+    }
+#endif
+
   /* If there were -C flags, move ourselves about.  */
   if (directories != 0)
     for (i = 0; directories->list[i] != 0; ++i)
