@@ -1,3 +1,0 @@
-# Forward to the parent makefile.
-DEPTH = ../../..
-include $(PATH_KBUILD)/up.kmk
