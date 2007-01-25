@@ -179,9 +179,11 @@ extern int wait ();
 #endif	/* Don't have `union wait'.  */
 
 #ifndef	HAVE_UNISTD_H
+# ifndef _MSC_VER
 extern int dup2 ();
 extern int execve ();
 extern void _exit ();
+# endif
 # ifndef VMS
 extern int geteuid ();
 extern int getegid ();
@@ -569,7 +571,7 @@ reap_children (int block, int err)
               coredump = 0;
 # else
               status = (WAIT_T)completed_child->status;
-# endif 
+# endif
             }
           else
 #endif /* CONFIG_WITH_KMK_BUILTIN */
@@ -758,7 +760,7 @@ reap_children (int block, int err)
 
           if (!dontcare)
 #ifdef KMK
-            { 
+            {
               child_error (c->file->name, exit_code, exit_sig, coredump, 0);
               if ((  c->file->cmds->lines_flags[c->command_line - 1]
                    & (COMMANDS_SILENT | COMMANDS_RECURSE))
@@ -767,7 +769,7 @@ reap_children (int block, int err)
             }
 #else
             child_error (c->file->name, exit_code, exit_sig, coredump, 0);
-#endif 
+#endif
 
           c->file->update_status = 2;
           if (delete_on_error == -1)
@@ -1065,7 +1067,7 @@ start_job_command (struct child *child)
     |= flags & (COMMANDS_RECURSE | COMMANDS_KMK_BUILTIN);
 #else
     |= flags & COMMANDS_RECURSE;
-#endif 
+#endif
 
   /* Figure out an argument list from this command line.  */
 
@@ -1533,7 +1535,7 @@ start_waiting_job (struct child *c)
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
   if (c->file->command_flags & COMMANDS_NOTPARALLEL)
     {
-      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_job]\n"), 
+      DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_job]\n"),
                    not_parallel, not_parallel + 1, c->file, c->file->name));
       assert(not_parallel >= 0);
       ++not_parallel;
@@ -1542,7 +1544,7 @@ start_waiting_job (struct child *c)
 
   /* If we are running at least one job already and the load average
      is too high, make this one wait.  */
-  if (!c->remote 
+  if (!c->remote
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
       && ((job_slots_used > 0 && (not_parallel > 0 || load_too_high ()))
 #else
@@ -1881,7 +1883,7 @@ new_job (struct file *file)
     }
   else if (not_parallel > 0)
     {
-      /* wait for all live children to finish and then continue 
+      /* wait for all live children to finish and then continue
          with the not-parallel child(s). FIXME: this loop could be better? */
       while (file->command_state == cs_running
           && (children != 0 || shell_function_pid != 0) /* reap_child condition */
@@ -2040,11 +2042,11 @@ start_waiting_jobs (void)
 
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
       /* If it's a not-parallel job, we've already counted it once
-         when it was queued in start_waiting_job, so decrement 
+         when it was queued in start_waiting_job, so decrement
          before sending it to  start_waiting_job again. */
       if (job->file->command_flags & COMMANDS_NOTPARALLEL)
         {
-          DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_jobs]\n"), 
+          DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_jobs]\n"),
                        not_parallel, not_parallel - 1, job->file, job->file->name));
           assert(not_parallel > 0);
           --not_parallel;
@@ -2915,7 +2917,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 		*(ap++) = '\\';
 #ifdef KMK /* see test in Makefile.kmk, required on windows. */
                 if (!batch_mode_shell)
-#endif 
+#endif
 		*(ap++) = '\\';
 		*(ap++) = '\n';
 	      }
@@ -3220,13 +3222,13 @@ construct_command_argv (char *line, char **restp, struct file *file,
   }
 
 #ifdef CONFIG_WITH_KMK_BUILTIN
-  /* If it's a kmk_builtin command, make sure we're treated like a 
+  /* If it's a kmk_builtin command, make sure we're treated like a
      unix shell and and don't get batch files. */
-  if (   (  !unixy_shell 
+  if (   (  !unixy_shell
           || batch_mode_shell
 # ifdef WINDOWS32
           || no_default_sh_exe
-# endif 
+# endif
          )
       && !strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
   {
@@ -3235,7 +3237,7 @@ construct_command_argv (char *line, char **restp, struct file *file,
 # ifdef WINDOWS32
     int saved_no_default_sh_exe = no_default_sh_exe;
     no_default_sh_exe = 0;
-# endif 
+# endif
     unixy_shell = 1;
     batch_mode_shell = 0;
     argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);

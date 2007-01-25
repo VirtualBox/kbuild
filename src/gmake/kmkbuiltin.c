@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 803 2007-01-25 00:49:28Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -34,7 +34,9 @@
 #include "kmkbuiltin/err.h"
 #include "kmkbuiltin.h"
 
+#ifndef _MSC_VER
 extern char **environ;
+#endif
 
 int kmk_builtin_command(const char *pszCmd)
 {
