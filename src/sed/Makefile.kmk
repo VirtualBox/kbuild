@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 801 2007-01-25 00:44:14Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -32,13 +32,13 @@ kmk_sed_SOURCES = \
 	lib/utils.c \
 	lib/regex.c
 kmk_sed_SOURCES.darwin += \
-        lib/strverscmp.c \
-        lib/obstack.c \
-        lib/getline.c
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
 kmk_sed_SOURCES.freebsd += \
-        lib/strverscmp.c \
-        lib/obstack.c \
-        lib/getline.c
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
 ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
 kmk_sed_SOURCES += \
 	lib/strverscmp.c \
@@ -49,10 +49,10 @@ kmk_sed_SOURCES += \
 endif
 
 include $(PATH_KBUILD)/footer.kmk
-			
+
 #
 # Use checked in config.h instead of running ./configure for it.
-#			
+#
 config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
 config.h.win32 := config.h.win
 config.h.win64 := config.h.win
