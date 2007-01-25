@@ -1,4 +1,4 @@
-# $Id: Config.kmk 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 804 2007-01-25 00:50:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -88,7 +88,7 @@ TEMPLATE_BIN_TOOL               = VCC70
 TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
 TEMPLATE_BIN_DEFS.release       = NDEBUG
 TEMPLATE_BIN_SDKS               = WINPSDK
-TEMPLATE_BIN_CFLAGS             = -MT -W3 -Zi -Zl
+TEMPLATE_BIN_CFLAGS             = -W3 -Zi -Zl
 TEMPLATE_BIN_CFLAGS.release     = -O2
 TEMPLATE_BIN_CFLAGS.profile     = -O2 -GH -Gh
 TEMPLATE_BIN_INCS              += \
@@ -96,10 +96,19 @@ TEMPLATE_BIN_INCS              += \
 	$(PATH_ROOT)/src/gmake/w32/include \
 	$(PATH_ROOT)/src/gmake/glob
 TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
+ifeq (1,0)
+TEMPLATE_BIN_CFLAGS            += -MT
 TEMPLATE_BIN_LIBS               = \
 	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
 	$(PATH_TOOL_VCC70_LIB)/libcmt.lib \
 	$(PATH_TOOL_VCC70_LIB)/libcpmt.lib
+else
+TEMPLATE_BIN_CFLAGS            += -MD
+TEMPLATE_BIN_LIBS               = \
+	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
+	$(PATH_TOOL_VCC70_LIB)/msvcrt.lib
+#	$(PATH_TOOL_VCC70_LIB)/msvcprt.lib
+endif
 TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/

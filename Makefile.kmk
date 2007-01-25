@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 789 2007-01-24 22:47:44Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 804 2007-01-25 00:50:03Z knut.osmundsen@oracle.com $
 
 
 DEPTH = .
@@ -27,10 +27,8 @@ kBuild_bin_SOURCES =
 
 ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
 kBuild_bin_SOURCES.$(BUILD_TARGET) = \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygiconv-2.dll=>cygiconv-2.dll \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-1.dll=>cygintl-1.dll \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-2.dll=>cygintl-2.dll \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygintl-3.dll=>cygintl-3.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/msvcr71.dll=>msvcr71.dll \
+	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_ash.exe=>kmk_ash.exe \
 	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygwin1.dll=>cygwin1.dll
 endif
 
