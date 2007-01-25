@@ -27,7 +27,7 @@
 /*#define HAVE_BCOPY 1*/
 
 /* Define to 1 if you have the `btowc' function. */
-#define HAVE_BTOWC 1
+/*#define HAVE_BTOWC 1 - bird don't drag in msvcp71.dll */
 
 /* Define to 1 if you have the `bzero' function. */
 /*#define HAVE_BZERO 1*/
@@ -122,7 +122,7 @@
 #define HAVE_MALLOC_H 1
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
-#define HAVE_MBRTOWC 1
+/*#define HAVE_MBRTOWC 1 - bird don't drag in msvcp71.dll */
 
 /* Define to 1 if <wchar.h> declares mbstate_t. */
 #define HAVE_MBSTATE_T 1
@@ -263,10 +263,10 @@
 #define HAVE_WCHAR_H 1
 
 /* Define to 1 if you have the `wcrtomb' function. */
-#define HAVE_WCRTOMB 1
+/*#define HAVE_WCRTOMB 1  - bird don't drag in msvcp71.dll */
 
 /* Define to 1 if you have the `wcscoll' function. */
-#define HAVE_WCSCOLL 1
+/*#define HAVE_WCSCOLL 1 - bird don't drag in msvcp71.dll */
 
 /* Define to 1 if you have the <wctype.h> header file. */
 #define HAVE_WCTYPE_H 1
@@ -395,7 +395,7 @@
 #define true 1
 
 /* mbsinit isn't defined?!? */
-#include <wchar.h> 
+#include <wchar.h>
 int _inline mbsinit(const mbstate_t *_p)
 {
     return (_p) == (const mbstate_t *)0 || *(_p) == 0;
