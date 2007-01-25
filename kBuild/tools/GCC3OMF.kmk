@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 798 2007-01-25 00:14:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
@@ -164,8 +164,8 @@ endef
 # @param    $(othersrc) Unhandled sources.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_GCC3OMF_LINK_LIBRARY_OUTPUT =
-TOOL_GCC3OMF_LINK_LIBRARY_DEPEND = $(othersrc) $(outbase).rsp
+TOOL_GCC3OMF_LINK_LIBRARY_OUTPUT = $(outbase).rsp
+TOOL_GCC3OMF_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GCC3OMF_LINK_LIBRARY_DEPORD =
 define TOOL_GCC3OMF_LINK_LIBRARY_CMDS
 	$(if $(filter %.def %.imp,$(othersrc))\
