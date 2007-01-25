@@ -1,4 +1,4 @@
-# $Id: GCC32.kmk 807 2007-01-25 02:13:20Z knut.osmundsen@oracle.com $
+# $Id: GCC32.kmk 808 2007-01-25 02:45:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later Using The System GCC.
@@ -28,11 +28,11 @@ TOOL_GCC32 := Generic 32-bit GCC v3.2.x or later Using The System GCC. \
 	More or less Linux/ELF specfic.
 
 # Tool Specific Properties
-TOOL_GCC32_CC  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC32_CXX ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC32_AS  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC32_CC  ?= gcc$(HOSTSUFF_EXE) -m32
+TOOL_GCC32_CXX ?= g++$(HOSTSUFF_EXE) -m32
+TOOL_GCC32_AS  ?= gcc$(HOSTSUFF_EXE) -m32
 TOOL_GCC32_AR  ?= ar$(HOSTSUFF_EXE)
-TOOL_GCC32_LD  ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC32_LD  ?= g++$(HOSTSUFF_EXE) -m32
 TOOL_GCC32_LD_SYSMOD ?= ld$(HOSTSUFF_EXE)
 ifndef TOOL_GCC32_LDFLAGS.$(BUILD_TARGET)
 TOOL_GCC32_LDFLAGS.dll ?= -shared
@@ -58,7 +58,7 @@ endif
 
 # General Properties used by kBuild
 TOOL_GCC32_COBJSUFF         ?= .o
-TOOL_GCC32_CFLAGS           ?= -m32
+TOOL_GCC32_CFLAGS           ?=
 TOOL_GCC32_CFLAGS.debug     ?= -g
 TOOL_GCC32_CFLAGS.profile   ?= -g -O2 #-pg
 TOOL_GCC32_CFLAGS.release   ?= -O2
@@ -67,14 +67,14 @@ TOOL_GCC32_CDEFS            ?=
 
 TOOL_GCC32_CXXOBJSUFF       ?= .o
 TOOL_GCC32_CXXOBJSUFF       ?= .o
-TOOL_GCC32_CXXFLAGS         ?= -m32
+TOOL_GCC32_CXXFLAGS         ?=
 TOOL_GCC32_CXXFLAGS.debug   ?= -g
 TOOL_GCC32_CXXFLAGS.profile ?= -g -O2 #-pg
 TOOL_GCC32_CXXFLAGS.release ?= -O2
 TOOL_GCC32_CXXINCS          ?=
 TOOL_GCC32_CXXDEFS          ?=
 
-TOOL_GCC32_ASFLAGS          ?= -m32 -x assembler-with-cpp
+TOOL_GCC32_ASFLAGS          ?= -x assembler-with-cpp
 TOOL_GCC32_ASFLAGS.debug    ?= -g
 TOOL_GCC32_ASFLAGS.profile  ?= -g
 TOOL_GCC32_ASOBJSUFF        ?= .o
@@ -82,7 +82,7 @@ TOOL_GCC32_ASOBJSUFF        ?= .o
 TOOL_GCC32_ARFLAGS          ?= cr
 TOOL_GCC32_ARLIBSUFF        ?= .a
 
-TOOL_GCC32_LDFLAGS          ?= -m32
+TOOL_GCC32_LDFLAGS          ?=
 TOOL_GCC32_LDFLAGS.debug    ?= -g
 TOOL_GCC32_LDFLAGS.profile  ?= -g
 
