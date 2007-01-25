@@ -71,7 +71,7 @@ extern void print_vpath_data_base PARAMS ((void));
 # define HAVE_WAIT_NOHANG
 #endif
 
-#ifndef	HAVE_UNISTD_H
+#if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
 extern int chdir ();
 #endif
 #ifndef	STDC_HEADERS
@@ -1000,7 +1000,9 @@ msdos_return_to_initial_directory (void)
 }
 #endif
 
+#ifndef _MSC_VER
 extern char *mktemp PARAMS ((char *template));
+#endif
 extern int mkstemp PARAMS ((char *template));
 
 FILE *

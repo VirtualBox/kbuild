@@ -119,7 +119,7 @@ USA.  */
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
-# if !defined _LIBC && !defined getenv
+# if !defined _LIBC && !defined getenv && !defined _MSC_VER
 extern char *getenv ();
 # endif
 

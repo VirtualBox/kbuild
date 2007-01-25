@@ -187,6 +187,7 @@ __inline
 # endif
 # ifndef __SASC
 #  ifdef WINDOWS32
+#   include <malloc.h>
 static void *
 my_realloc (void *p, unsigned int n)
 #  else
