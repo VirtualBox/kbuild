@@ -199,6 +199,12 @@ static char *posixly_correct;
    in GCC.  */
 # include <string.h>
 # define my_index	strchr
+#elif defined(_MSC_VER)
+
+# include <stdlib.h>
+# include <string.h>
+# include <stdio.h>
+# define my_index	strchr
 #else
 
 /* Avoid depending on library functions or files
