@@ -1,4 +1,4 @@
-# $Id: header.kmk 788 2007-01-24 22:44:32Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 811 2007-01-29 06:20:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -96,7 +96,7 @@ ifndef BUILD_PLATFORM
  $(error kBuild: BUILD_PLATFORM is undefined!)
 else
  BUILD_PLATFORM     := $(strip $(BUILD_PLATFORM))
- ifneq ($(words $(BUILD_PLATFORM))$(filter-out darwin freebsd l4 linux nt os2 win win32 win64,$(BUILD_PLATFORM)),1)
+ ifneq ($(words $(BUILD_PLATFORM))$(filter-out darwin freebsd l4 linux nt os2 solaris win win32 win64,$(BUILD_PLATFORM)),1)
   # OS/2 (have uppercase legacy)
   ifeq ($(BUILD_PLATFORM),OS2)
    $(error kBuild: BUILD_PLATFORM must be all lowercase!)
@@ -130,7 +130,7 @@ ifndef BUILD_TARGET
 BUILD_TARGET        := $(BUILD_PLATFORM)
 else
  BUILD_TARGET       := $(strip $(BUILD_TARGET))
- ifneq ($(words $(BUILD_TARGET))$(filter-out darwin freebsd l4 linux nt os2 win win32 win64,$(BUILD_TARGET)),1)
+ ifneq ($(words $(BUILD_TARGET))$(filter-out darwin freebsd l4 linux nt os2 solaris win win32 win64,$(BUILD_TARGET)),1)
   # OS/2 (have uppercase legacy)
   ifeq ($(BUILD_TARGET),OS2)
    $(error kBuild: BUILD_TARGET must be all lowercase!)
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 788 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 811 $  )
 
 
 #
@@ -267,6 +267,12 @@ endif
 
 # Darwin / Mac OS X
 ifeq ($(BUILD_PLATFORM),darwin)
+EXEC_X86_WIN32      := false
+HOSTSUFF_EXE        :=
+endif
+
+# Solaris
+ifeq ($(BUILD_PLATFORM),solaris)
 EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
 endif
