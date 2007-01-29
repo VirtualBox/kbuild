@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
@@ -63,7 +65,7 @@ __RCSID("$NetBSD: trap.c,v 1.31 2005/01/11 19:38:57 christos Exp $");
 #ifndef HAVE_SYS_SIGNAME
 extern void init_sys_signame(void);
 extern char sys_signame[NSIG][16];
-#endif 
+#endif
 
 /*
  * Sigmode records the current value of the signal handlers for the various
@@ -83,6 +85,9 @@ MKINIT char sigmode[NSIG];	/* current value of signal */
 char gotsig[NSIG];		/* indicates specified signal received */
 int pendingsigs;		/* indicates some signal received */
 
+#ifdef __sun__
+typedef void (*sig_t) (int);
+#endif
 static int getsigaction(int, sig_t *);
 
 /*
@@ -100,13 +105,13 @@ signame_to_signum(const char *p)
 
 	if (strcasecmp(p, "exit") == 0 )
 		return 0;
-	
+
 	if (strncasecmp(p, "sig", 3) == 0)
 		p += 3;
 
 #ifndef HAVE_SYS_SIGNAME
 	init_sys_signame();
-#endif 
+#endif
 	for (i = 0; i < NSIG; ++i)
 		if (strcasecmp (p, sys_signame[i]) == 0)
 			return i;
@@ -124,7 +129,7 @@ printsignals(void)
 	out1str("EXIT ");
 #ifndef HAVE_SYS_SIGNAME
 	init_sys_signame();
-#endif 
+#endif
 
 	for (n = 1; n < NSIG; n++) {
 		out1fmt("%s", sys_signame[n]);
@@ -147,7 +152,7 @@ trapcmd(int argc, char **argv)
 	int signo;
 #ifndef HAVE_SYS_SIGNAME
 	init_sys_signame();
-#endif 
+#endif
 
 	if (argc <= 1) {
 		for (signo = 0 ; signo <= NSIG ; signo++)

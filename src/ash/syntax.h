@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #include <ctype.h>
 
 /* Syntax classes */
@@ -88,4 +90,4 @@ extern const char dqsyntax[];
 extern const char sqsyntax[];
 extern const char arisyntax[];
 extern const char is_type[];
-#endif 
+#endif

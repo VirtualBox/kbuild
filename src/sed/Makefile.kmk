@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 801 2007-01-25 00:44:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 809 2007-01-29 05:54:36Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -31,22 +31,24 @@ kmk_sed_SOURCES = \
 	lib/getopt.c \
 	lib/utils.c \
 	lib/regex.c
-kmk_sed_SOURCES.darwin += \
+kmk_sed_SOURCES.darwin = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c
-kmk_sed_SOURCES.freebsd += \
+kmk_sed_SOURCES.freebsd = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c
-ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
-kmk_sed_SOURCES += \
+kmk_sed_SOURCES.solaris = \
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
+kmk_sed_SOURCES.win = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/mkstemp.c \
 	lib/getline.c \
 	../lib/startuphacks-win.c
-endif
 
 include $(PATH_KBUILD)/footer.kmk
 
@@ -54,9 +56,6 @@ include $(PATH_KBUILD)/footer.kmk
 # Use checked in config.h instead of running ./configure for it.
 #
 config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
-config.h.win32 := config.h.win
-config.h.win64 := config.h.win
-config.h.nt    := config.h.win
 
 $(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET)) | $(call DIRDEP,$(PATH_TARGET))
 	$(CP) $^ $@

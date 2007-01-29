@@ -48,13 +48,12 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include <malloc.h>
-#include "mscfakes.h"
-#endif 
-#include <getopt.h>
+#include "getopt.h"
+
+#ifdef _MSC_VER
+# include "mscfakes.h"
+#endif
 
 static int rm_path(char *);
 static int usage(void);
@@ -81,7 +80,7 @@ kmk_builtin_rmdir(int argc, char *argv[])
 
 	/* reinitialize globals */
 	ignore_fail_on_not_exist = ignore_fail_on_non_empty = vflag = pflag = 0;
-	
+
 	/* kmk: reset getopt and set progname */
 	g_progname = argv[0];
 	opterr = 1;
@@ -149,7 +148,7 @@ rm_path(char *path)
 		*p++ = '/';
 		p = strchr(p, '\\');
 	}
-#endif 
+#endif
 
 	p = path + len;
 	while (--p > path && *p == '/')
@@ -165,7 +164,7 @@ rm_path(char *path)
 #if defined(_MSC_VER) || defined(__EMX__)
 		if (p[-1] == ':' && p - 2 == path)
 			break;
-#endif 
+#endif
 
 		if (rmdir(path) < 0) {
 			if (ignore_fail_on_non_empty && (errno == ENOTEMPTY || errno == EPERM || errno == EACCES || errno == EINVAL))

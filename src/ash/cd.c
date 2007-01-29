@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __sun__
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";

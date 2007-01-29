@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #endif /* no $id */
 
 #ifndef _MSC_VER
-#include <sys/param.h>
+# include <sys/param.h>
 #endif
 #include <sys/stat.h>
 
@@ -52,10 +52,13 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
+
+#ifdef __sun__
+# include "getopt.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 static int	fflag;				/* Unlink existing files. */

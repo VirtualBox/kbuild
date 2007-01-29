@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
@@ -178,7 +180,7 @@ main(int argc, char **argv)
         extern void init_syntax(void);
         init_syntax();
     }
-#endif 
+#endif
 	init();
 	setstackmark(&smark);
 	procargs(argc, argv);
@@ -201,7 +203,7 @@ state3:
 	state = 4;
 	if (sflag == 0 || minusc) {
 		static int sigs[] =  {
-		    SIGINT, SIGQUIT, SIGHUP, 
+		    SIGINT, SIGQUIT, SIGHUP,
 #ifdef SIGTSTP
 		    SIGTSTP,
 #endif

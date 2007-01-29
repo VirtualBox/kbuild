@@ -1,4 +1,4 @@
-# $Id: Config.kmk 804 2007-01-25 00:50:03Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 809 2007-01-29 05:54:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -83,51 +83,54 @@ TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH
 endif
 
 ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
-include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
-TEMPLATE_BIN_TOOL               = VCC70
-TEMPLATE_BIN_DEFS               = WINDOWS32 _CONSOLE WIN32 __WIN32__
-TEMPLATE_BIN_DEFS.release       = NDEBUG
-TEMPLATE_BIN_SDKS               = WINPSDK
-TEMPLATE_BIN_CFLAGS             = -W3 -Zi -Zl
-TEMPLATE_BIN_CFLAGS.release     = -O2
-TEMPLATE_BIN_CFLAGS.profile     = -O2 -GH -Gh
-TEMPLATE_BIN_INCS              += \
+ include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
+ TEMPLATE_BIN_TOOL              = VCC70
+ TEMPLATE_BIN_DEFS              = WINDOWS32 _CONSOLE WIN32 __WIN32__
+ TEMPLATE_BIN_DEFS.release      = NDEBUG
+ TEMPLATE_BIN_SDKS              = WINPSDK
+ TEMPLATE_BIN_CFLAGS            = -W3 -Zi -Zl
+ TEMPLATE_BIN_CFLAGS.release    = -O2
+ TEMPLATE_BIN_CFLAGS.profile    = -O2 -GH -Gh
+ TEMPLATE_BIN_INCS             += \
 	. \
 	$(PATH_ROOT)/src/gmake/w32/include \
 	$(PATH_ROOT)/src/gmake/glob
-TEMPLATE_BIN_LDFLAGS            = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
-ifeq (1,0)
-TEMPLATE_BIN_CFLAGS            += -MT
-TEMPLATE_BIN_LIBS               = \
+ TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
+ ifeq (1,0)
+ TEMPLATE_BIN_CFLAGS           += -MT
+ TEMPLATE_BIN_LIBS              = \
 	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
 	$(PATH_TOOL_VCC70_LIB)/libcmt.lib \
 	$(PATH_TOOL_VCC70_LIB)/libcpmt.lib
-else
-TEMPLATE_BIN_CFLAGS            += -MD
-TEMPLATE_BIN_LIBS               = \
+ else
+ TEMPLATE_BIN_CFLAGS           += -MD
+ TEMPLATE_BIN_LIBS              = \
 	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
 	$(PATH_TOOL_VCC70_LIB)/msvcrt.lib
-#	$(PATH_TOOL_VCC70_LIB)/msvcprt.lib
-endif
-TEMPLATE_BIN_LIBS.profile       = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
+ #	$(PATH_TOOL_VCC70_LIB)/msvcprt.lib
+ endif
+ TEMPLATE_BIN_LIBS.profile      = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
-TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+ TEMPLATE_BIN_INST              = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/win.$(BUILD_TARGET_ARCH)/
+ TEMPLATE_BIN_INST              = kBuild/bin/win.$(BUILD_TARGET_ARCH)/
  endif
 endif
 
 ifndef TEMPLATE_BIN_TOOL
 TEMPLATE_BIN_TOOL               = GCC3
 TEMPLATE_BIN_CFLAGS.release     = -O3
-ifeq ($(BUILD_TARGET),linux)
-TEMPLATE_BIN_LIBS              += rt
-endif
-ifeq ($(BUILD_TARGET),freebsd)
+ endif
+ ifeq ($(BUILD_TARGET),freebsd)
 TEMPLATE_BIN_LIBS              += iconv intl
 TEMPLATE_BIN_LIBPATH           += /usr/local/lib
 TEMPLATE_BIN_INCS              += $(PATH_ROOT)/src/gmake/glob /usr/local/include
-endif
+ endif
+ ifeq ($(BUILD_TARGET),linux)
+TEMPLATE_BIN_LIBS              += rt
+ ifeq ($(BUILD_TARGET),solaris)
+TEMPLATE_BIN_LIBS              += rt
+ endif
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else

@@ -55,16 +55,21 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 #include "ftsfake.h"
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#define dirfd(dir) -1
-#endif 
-#include "ftsfake.h"
+
+#ifdef __sun__
+# include "solfakes.h"
+# define dirfd(dir) -1
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
+# define dirfd(dir) -1
+#endif
 
 #if ! HAVE_NBTOOL_CONFIG_H
+#ifndef __sun__
 #define HAVE_STRUCT_DIRENT_D_NAMLEN 1
+#endif
 #endif
 
 #if 0
@@ -77,7 +82,7 @@ __weak_alias(fts_read,_fts_read)
 __weak_alias(fts_set,_fts_set)
 #endif /* __LIBC12_SOURCE__ */
 #endif /* __weak_alias */
-#endif 
+#endif
 
 #ifdef __LIBC12_SOURCE__
 #define	STAT	stat12
@@ -119,7 +124,7 @@ static int	 fts_safe_changedir(const FTS *, const FTSENT *, int,
 #ifdef _MSC_VER
 #undef HAVE_STRUCT_DIRENT_D_NAMLEN
 #undef HAVE_FCHDIR
-#endif 
+#endif
 
 #if defined(__EMX__) || defined(_MSC_VER)
 # define NEED_STRRSLASH
@@ -267,7 +272,7 @@ fts_open(argv, options, compar)
 #else
 		if ((sp->fts_rdir = getcwd(NULL, 0)) != NULL)
 			SET(FTS_NOCHDIR);
-#endif 
+#endif
 	}
 
 	return (sp);
@@ -373,9 +378,9 @@ fts_close(sp)
 #else
 		if (chdir(sp->fts_rdir))
 			saved_errno =  errno;
-        free(sp->fts_rdir); 
+        free(sp->fts_rdir);
 		sp->fts_rdir = NULL;
-#endif 
+#endif
 	}
 
 	/* Free up the stream pointer. */
@@ -466,7 +471,7 @@ fts_read(sp)
 			}
 			p->fts_info = FTS_DP;
 			return (p);
-		} 
+		}
 
 		/* Rebuild if only read the names and now traversing. */
 		if (sp->fts_child && ISSET(FTS_NAMEONLY)) {
@@ -519,7 +524,7 @@ next:	tmp = p;
 			if (FCHDIR(sp, sp->fts_rfd)) {
 #else
 			if (CHDIR(sp, sp->fts_rdir)) {
-#endif 
+#endif
 				SET(FTS_STOP);
 				return (NULL);
 			}
@@ -586,7 +591,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		if (FCHDIR(sp, sp->fts_rfd)) {
 #else
 		if (CHDIR(sp, sp->fts_rdir)) {
-#endif 
+#endif
 			SET(FTS_STOP);
 			return (NULL);
 		}
@@ -690,7 +695,7 @@ fts_children(sp, instr)
 	if (instr == FTS_NAMEONLY) {
 		SET(FTS_NAMEONLY);
 		instr = BNAMES;
-	} else 
+	} else
 		instr = BCHILD;
 
 	/*
@@ -912,7 +917,7 @@ mem1:				saved_errno = errno;
 			p->fts_accpath = cur->fts_accpath;
 		} else if (nlinks == 0
 #ifdef DT_DIR
-		    || (nostat && 
+		    || (nostat &&
 		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
 #endif
 		    ) {
@@ -978,7 +983,7 @@ mem1:				saved_errno = errno;
 	    FCHDIR(sp, sp->fts_rfd) :
 #else
 	    CHDIR(sp, sp->fts_rdir) :
-#endif 
+#endif
 	    fts_safe_changedir(sp, cur->fts_parent, -1, ".."))) {
 		cur->fts_info = FTS_ERR;
 		SET(FTS_STOP);
@@ -1038,7 +1043,7 @@ fts_stat(sp, p, follow)
 			if (!lstat(p->fts_accpath, sbp)) {
 				errno = 0;
 				return (FTS_SLNONE);
-			} 
+			}
 			p->fts_errno = saved_errno;
 			goto err;
 		}
@@ -1113,7 +1118,7 @@ fts_sort(sp, head, nitems)
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
-	qsort((void *)sp->fts_array, nitems, sizeof(FTSENT *), 
+	qsort((void *)sp->fts_array, nitems, sizeof(FTSENT *),
 		(int (*)(const void *, const void *))sp->fts_compar);
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
 		ap[0]->fts_link = ap[1];
@@ -1221,7 +1226,7 @@ fts_pow2(x)
  * Allow essentially unlimited paths; find, rm, ls should all work on any tree.
  * Most systems will allow creation of paths much longer than MAXPATHLEN, even
  * though the kernel won't resolve them.  Round up the new size to a power of 2,
- * so we don't realloc the path 2 bytes at a time. 
+ * so we don't realloc the path 2 bytes at a time.
  */
 static int
 fts_palloc(sp, size)

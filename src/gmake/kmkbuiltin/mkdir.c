@@ -47,17 +47,20 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #include "err.h"
 #include <errno.h>
 #ifndef _MSC_VER
-#include <libgen.h>
+# include <libgen.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#include <malloc.h>
+
+#ifdef __sun__
+# include "getopt.h"
+#endif
+#ifdef _MSC_VER
+# include <malloc.h>
+# include "mscfakes.h"
 #endif
 
 extern void * setmode(const char *p);
@@ -80,7 +83,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 
     /* reinitialize globals */
     vflag = 0;
-    
+
     /* kmk: reset getopt and set progname */
     g_progname = argv[0];
     opterr = 1;
@@ -135,7 +138,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
-		
+
 		if (!success)
 			exitval = 1;
 		/*
@@ -171,7 +174,7 @@ build(char *path, mode_t omode)
 		*p++ = '/';
 		p = strchr(p, '\\');
 	}
-#endif 
+#endif
 
 	p = path;
 	oumask = 0;

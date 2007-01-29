@@ -64,19 +64,16 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 
 #include "err.h"
 #include <errno.h>
-#ifndef _MSC_VER
 #include <fts.h>
-#endif
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#include "ftsfake.h"
+
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 #include "cp_extern.h"
@@ -470,7 +467,7 @@ copy(char *argv[], enum op type, int fts_options)
 			    curr->fts_level == 0)) {
 				if (copy_file(curr, dne))
 					badcp = rval = 1;
-			} else {	
+			} else {
 				if (copy_link(curr, !dne))
 					badcp = rval = 1;
 			}
