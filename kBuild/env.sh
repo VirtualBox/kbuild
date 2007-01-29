@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: env.sh 811 2007-01-29 06:20:50Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -61,7 +61,7 @@ echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
 
 if [ -z "$BUILD_PLATFORM_ARCH" ]; then
     case "$BUILD_PLATFORM_CPU" in
-        i[3456789]86)
+        i[3456789]86|i86pc)
             BUILD_PLATFORM_ARCH='x86'
             ;;
         k8|k8l|k9|k10)
@@ -105,6 +105,10 @@ if [ -z "$BUILD_PLATFORM" ]; then
             BUILD_PLATFORM=darwin
             ;;
 
+        SunOS)
+            BUILD_PLATFORM=solaris
+            ;;
+
         WindowsNT|CYGWIN_NT-*)
             BUILD_PLATFORM=win
             ;;
@@ -129,7 +133,7 @@ echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU"
 
 if [ -z "$BUILD_TARGET_ARCH" ]; then
     case "$BUILD_TARGET_CPU" in
-        i[3456789]86)
+        i[3456789]86|i86pc)
             BUILD_TARGET_ARCH='x86'
             ;;
         k8|k8l|k9|k10)
