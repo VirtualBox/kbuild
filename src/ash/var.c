@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
@@ -44,7 +46,12 @@ __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
 #include <unistd.h>
 #include <stdlib.h>
 #include <strings.h>
+#ifndef __sun__
 #include <paths.h>
+#else
+#define _PATH_DEFPATH        "/usr/bin:/usr/sbin"
+#include <iso/limits_iso.h>
+#endif
 
 #ifdef PC_OS2_LIBPATHS
 #define INCL_BASE
@@ -122,7 +129,7 @@ struct var vmpath;
 struct var vpath;
 #ifdef _MSC_VER
 struct var vpath2;
-#endif 
+#endif
 struct var vps1;
 struct var vps2;
 struct var vps4;
@@ -154,7 +161,7 @@ const struct varinit varinit[] = {
 #ifdef _MSC_VER
 	{ &vpath2,	VSTRFIXED|VTEXTFIXED,		"Path=",
 	  changepath },
-#endif 
+#endif
 	/*
 	 * vps1 depends on uid
 	 */

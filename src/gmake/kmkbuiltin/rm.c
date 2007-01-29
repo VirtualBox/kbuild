@@ -46,28 +46,29 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 
 #include <sys/stat.h>
 #ifndef _MSC_VER
-#include <sys/param.h>
-#include <sys/mount.h>
+# include <sys/param.h>
+# include <sys/mount.h>
 #endif
 
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
 #ifdef DO_RMTREE
-#include <fts.h>
+# include <fts.h>
 #endif
-#ifndef _MSC_VER
 #include <grp.h>
 #include <pwd.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#else
-#include "mscfakes.h"
+
+#ifdef __sun__
+# include "getopt.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 #ifdef __EMX__

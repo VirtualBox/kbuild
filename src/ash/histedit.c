@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
@@ -42,7 +44,9 @@ __RCSID("$NetBSD: histedit.c,v 1.36 2005/05/09 11:35:19 christos Exp $");
 #endif /* not lint */
 
 #include <sys/param.h>
+#ifndef __sun__
 #include <paths.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -153,7 +157,7 @@ bad:
 				el_set(el, EL_EDITOR, "vi");
 			else if (Eflag)
 				el_set(el, EL_EDITOR, "emacs");
-			el_set(el, EL_BIND, "^I", 
+			el_set(el, EL_BIND, "^I",
 			    tabcomplete ? "rl-complete" : "ed-insert", NULL);
 			el_source(el, NULL);
 		}

@@ -69,7 +69,9 @@ typedef void *pointer;
 #define STATIC	/* empty */
 #define MKINIT	/* empty */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 
 extern char nullstr[1];		/* null string */
 

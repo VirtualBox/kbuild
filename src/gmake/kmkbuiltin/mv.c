@@ -48,35 +48,34 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 
 #include <sys/types.h>
 #ifndef _MSC_VER
-#ifndef __OS2__
-#include <sys/acl.h>
-#endif
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/wait.h>
-#include <sys/mount.h>
+# ifndef __OS2__
+#  include <sys/acl.h>
+# endif
+# include <sys/param.h>
+# include <sys/time.h>
+# include <sys/wait.h>
+# include <sys/mount.h>
 #endif
 #include <sys/stat.h>
 
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#ifndef _MSC_VER
 #include <grp.h>
-#endif
 #include <limits.h>
-#ifndef _MSC_VER
 #include <paths.h>
 #include <pwd.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#else
-#include "mscfakes.h"
+
+#ifdef __sun__
+# include "solfakes.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)

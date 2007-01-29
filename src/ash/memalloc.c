@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
@@ -223,7 +225,7 @@ growstackblock(void)
 
 		/*
 		 * Stack marks pointing to the start of the old block
-		 * must be relocated to point to the new block 
+		 * must be relocated to point to the new block
 		 */
 		xmark = markp;
 		while (xmark != NULL && xmark->stackp == oldstackp) {

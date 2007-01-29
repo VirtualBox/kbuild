@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
@@ -50,6 +52,9 @@ __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
 #include <pwd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef __sun__
+#include <iso/limits_iso.h>
+#endif
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -100,7 +105,7 @@ STATIC char *evalvar(char *, int);
 STATIC int varisset(char *, int);
 STATIC void varvalue(char *, int, int, int);
 STATIC void recordregion(int, int, int);
-STATIC void removerecordregions(int); 
+STATIC void removerecordregions(int);
 STATIC void ifsbreakup(char *, struct arglist *);
 STATIC void ifsfree(void);
 STATIC void expandmeta(struct strlist *, int);
@@ -304,7 +309,7 @@ lose:
 }
 
 
-STATIC void 
+STATIC void
 removerecordregions(int endoff)
 {
 	if (ifslastp == NULL)
@@ -327,7 +332,7 @@ removerecordregions(int endoff)
 		}
 		return;
 	}
-	
+
 	ifslastp = &ifsfirst;
 	while (ifslastp->next && ifslastp->next->begoff < endoff)
 		ifslastp=ifslastp->next;
@@ -561,7 +566,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 				goto recordright;
 			loc--;
 			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) { 
+			    *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -739,9 +744,9 @@ again: /* jump here after setting a variable with ${var=text} */
 			break;
 		if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
 			varflags &= ~VSNUL;
-			/* 
-			 * Remove any recorded regions beyond 
-			 * start of variable 
+			/*
+			 * Remove any recorded regions beyond
+			 * start of variable
 			 */
 			removerecordregions(startloc);
 			goto again;

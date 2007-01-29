@@ -29,7 +29,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __sun__
 #include <sys/cdefs.h>
+#endif
 #if !defined(lint) && !defined(SHELL)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n");
@@ -44,7 +46,9 @@ __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
 #endif /* not lint */
 
 #include <ctype.h>
+#ifndef __sun__
 #include <err.h>
+#endif
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>

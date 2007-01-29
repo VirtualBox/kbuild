@@ -50,19 +50,20 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #include <ctype.h>
 #include "err.h"
 #include <errno.h>
-#ifndef _MSC_VER
 #include <inttypes.h>
-#endif
 #include <limits.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
+
+#ifdef __sun__
+# include "solfakes.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 #ifdef __GNUC__

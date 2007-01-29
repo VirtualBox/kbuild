@@ -48,16 +48,16 @@ static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #else
 #define NO_UDOM_SUPPORT /* kmk */
-#endif 
+#endif
 
 #ifndef _MSC_VER
-#include <sys/param.h>
+# include <sys/param.h>
 #endif
 #include <sys/stat.h>
 #ifndef NO_UDOM_SUPPORT
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <errno.h>
+# include <sys/socket.h>
+# include <sys/un.h>
+# include <errno.h>
 #endif
 
 #include <ctype.h>
@@ -67,12 +67,15 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#endif 
 #include <stddef.h>
+
+#ifdef __sun__
+# include "solfakes.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
+#endif
 
 int bflag, eflag, nflag, sflag, tflag, vflag;
 /*int rval;*/
@@ -110,7 +113,7 @@ kmk_builtin_cat(int argc, char *argv[])
 
 #ifdef kmk_builtin_cat /* kmk did this already. */
 	setlocale(LC_CTYPE, "");
-#endif 
+#endif
 
 	while ((ch = getopt(argc, argv, "benstuv")) != -1)
 		switch (ch) {
@@ -284,7 +287,7 @@ raw_cat(int rfd)
 		bsize = 1024;
 #else
 		bsize = MAX(sbuf.st_blksize, 1024);
-#endif 
+#endif
 		if ((buf = malloc(bsize)) == NULL)
 			return err(1, "buffer");
 	}

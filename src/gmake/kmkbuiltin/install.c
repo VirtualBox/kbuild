@@ -47,36 +47,37 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #endif
 
 #ifndef _MSC_VER
-#include <sys/param.h>
-#ifdef USE_MMAP
-#include <sys/mman.h>
-#endif
-#include <sys/mount.h>
-#include <sys/wait.h>
-#include <sys/time.h>
-#endif
+# include <sys/param.h>
+# ifdef USE_MMAP
+#  include <sys/mman.h>
+# endif
+# include <sys/mount.h>
+# include <sys/wait.h>
+# include <sys/time.h>
+#endif /* !_MSC_VER */
 #include <sys/stat.h>
 
 #include <ctype.h>
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#ifndef _MSC_VER
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#endif
 #if defined(__EMX__) || defined(_MSC_VER)
 # include <process.h>
+#endif
+
+#ifdef __sun__
+# include "solfakes.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
 #endif
 
 extern void * setmode(const char *p);

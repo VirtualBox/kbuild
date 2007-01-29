@@ -10,7 +10,9 @@
  * This program is in the Public Domain.
  */
 
+#ifndef __sun__
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 __RCSID("$NetBSD: test.c,v 1.26 2005/02/10 06:56:55 simonb Exp $");
 #endif
@@ -19,7 +21,9 @@ __RCSID("$NetBSD: test.c,v 1.26 2005/02/10 06:56:55 simonb Exp $");
 #include <sys/types.h>
 
 #include <ctype.h>
+#ifndef __sun__
 #include <err.h>
+#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

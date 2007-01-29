@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
@@ -42,6 +44,9 @@ __RCSID("$NetBSD: parser.c,v 1.59 2005/03/21 20:10:29 dsl Exp $");
 #endif /* not lint */
 
 #include <stdlib.h>
+#ifdef __sun__
+#include <iso/limits_iso.h>
+#endif
 
 #include "shell.h"
 #include "parser.h"
@@ -745,7 +750,7 @@ readtoken(void)
 			for (pp = parsekwd; *pp; pp++) {
 				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
-					lasttoken = t = pp - 
+					lasttoken = t = pp -
 					    parsekwd + KWDOFFSET;
 					TRACE(("keyword %s recognized\n", tokname[t]));
 					goto out;

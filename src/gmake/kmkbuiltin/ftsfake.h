@@ -34,6 +34,10 @@
 #ifndef	_FTS_H_
 #define	_FTS_H_
 
+#ifdef _MSC_VER
+# include "kmkbuiltin/mscfakes.h"
+#endif
+
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */
@@ -59,7 +63,7 @@ typedef struct {
 #define	FTS_XDEV	0x040		/* don't cross devices */
 #ifndef _MSC_VER
 #define	FTS_WHITEOUT	0x080		/* return whiteout information */
-#endif 
+#endif
 #define	FTS_OPTIONMASK	0x0ff		/* valid user option mask */
 
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
@@ -78,7 +82,7 @@ typedef struct _ftsent {
 	int fts_errno;			/* errno for this node */
 #ifndef _MSC_VER
 	int fts_symfd;			/* fd for symlink */
-#endif 
+#endif
 	u_short fts_pathlen;		/* strlen(fts_path) */
 	u_short fts_namelen;		/* strlen(fts_name) */
 
@@ -91,7 +95,7 @@ typedef struct _ftsent {
 	nlink_t fts_nlink;		/* link count */
 #else
 	int fts_nlink;		/* link count */
-#endif 
+#endif
 #endif
 
 #define	FTS_ROOTPARENTLEVEL	-1
@@ -120,7 +124,7 @@ typedef struct _ftsent {
 #define	FTS_SYMFOLLOW	 0x02		/* followed a symlink to get here */
 #ifndef _MSC_VER
 #define	FTS_ISW		 0x04		/* this is a whiteout object */
-#endif 
+#endif
 	u_short fts_flags;		/* private flags for FTSENT structure */
 
 #define	FTS_AGAIN	 1		/* read node again */
@@ -137,14 +141,16 @@ typedef struct _ftsent {
 	char fts_name[1];		/* file name */
 } FTSENT;
 
+#ifndef __sun__
 #ifndef _MSC_VER
 #include <sys/cdefs.h>
 __BEGIN_DECLS
 #else
-#define __RENAME(a) 
-#endif 
+#define __RENAME(a)
+#endif
+#endif
 
-#ifdef __LIBC12_SOURCE__
+#if defined(__LIBC12_SOURCE__) || defined(__sun__)
 FTSENT	*fts_children(FTS *, int);
 int	 fts_close(FTS *);
 FTS	*fts_open(char * const *, int,
@@ -161,8 +167,10 @@ FTSENT	*fts_read(FTS *)			__RENAME(__fts_read13);
 int	 fts_set(FTS *, FTSENT *, int)	__RENAME(__fts_set13);
 #endif
 
+#ifndef __sun__
 #ifndef _MSC_VER
 __END_DECLS
+#endif
 #endif
 
 #endif /* !_FTS_H_ */

@@ -32,7 +32,11 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#else
+#define _PATH_DEVNULL "/dev/null"
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
@@ -42,14 +46,19 @@ __RCSID("$NetBSD: jobs.c,v 1.63 2005/06/01 15:41:19 lukem Exp $");
 #endif /* not lint */
 
 #include <fcntl.h>
+#ifdef __sun__
+#define sys_siglist _sys_siglist
+#endif
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#ifndef __sun__
 #include <paths.h>
+#endif
 #include <sys/types.h>
 #include <sys/param.h>
-#ifdef BSD
+#if defined(BSD) || defined(__sun__)
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -687,7 +696,7 @@ getjob(const char *name, int noerror)
 	int pid;
 	int i;
 	const char *err_msg = "No such job: %s";
-		
+
 	if (name == NULL) {
 #if JOBS
 		jobno = curjob;

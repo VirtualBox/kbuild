@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
+#endif
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
@@ -52,6 +54,9 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #include <sys/wait.h>
 #ifdef HAVE_SYSCTL_H
 #include <sys/sysctl.h>
+#endif
+#ifdef __sun__
+#include <iso/limits_iso.h>
 #endif
 
 /*
@@ -608,7 +613,7 @@ syspath(void)
 #ifdef CTL_USER
 	static char *sys_path = NULL;
 	static int mib[] = {CTL_USER, USER_CS_PATH};
-#endif 
+#endif
 #ifdef PC_PATH_SEP
 	static char def_path[] = "PATH=/usr/bin;/bin;/usr/sbin;/sbin";
 #else
@@ -631,7 +636,7 @@ syspath(void)
 	return sys_path;
 #else
     return def_path;
-#endif 
+#endif
 }
 
 static int

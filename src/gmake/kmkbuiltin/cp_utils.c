@@ -36,30 +36,30 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #endif /* not lint */
 
 #ifndef _MSC_VER
-#include <sys/param.h>
-#endif 
+# include <sys/param.h>
+#endif
 #include <sys/stat.h>
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
-#include <sys/mman.h>
+# include <sys/mman.h>
 #endif
 
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#ifndef _MSC_VER
 #include <fts.h>
-#endif
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#ifndef _MSC_VER
 #include <sysexits.h>
 #include <unistd.h>
-#else
-#include "mscfakes.h"
-#include "ftsfake.h"
-#endif 
+
+#ifdef __sun__
+# include "solfakes.h"
+#endif
+#ifdef _MSC_VER
+# include "mscfakes.h"
+#endif
 
 #include "cp_extern.h"
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 
 #ifndef S_ISVTX
 # define S_ISVTX 0
-#endif 
+#endif
 
 int
 copy_file(const FTSENT *entp, int dne)
@@ -122,7 +122,7 @@ copy_file(const FTSENT *entp, int dne)
 				return (1);
 			}
 		}
-		
+
 		if (fflag) {
 		    /* remove existing destination file name,
 		     * create a new file  */
@@ -168,7 +168,7 @@ copy_file(const FTSENT *entp, int dne)
 						"%s -> %s %3d%%\n",
 						entp->fts_path, to.p_path,
 						cp_pct(wtotal, fs->st_size));
-						
+
 				}
 				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
@@ -198,7 +198,7 @@ copy_file(const FTSENT *entp, int dne)
 						"%s -> %s %3d%%\n",
 						entp->fts_path, to.p_path,
 						cp_pct(wtotal, fs->st_size));
-						
+
 				}
 				if (wcount >= (ssize_t)wresid || wcount <= 0)
 					break;
