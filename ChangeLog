@@ -1,4 +1,9 @@
-/* $Id: ChangeLog 651 2006-12-04 00:15:52Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 812 2007-01-30 19:45:46Z knut.osmundsen@oracle.com $ */
+
+The change log has been discontinued. check the trac timeline instead:
+
+    http://svn.netlabs.org/kbuild/timeline
+
 
 2006-12-03:
     - kBuild/bin/x86.win32:
