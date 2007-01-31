@@ -303,7 +303,12 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. */
+/* bird: changed: */
+#if defined(__x86_64__) || defined(__X64_64__) || defined(__AMD64__) || defined(__amd64__)
 #define MAKE_HOST "x86_64-unknown-freebsd6.2"
+#else
+#define MAKE_HOST "x86-unknown-freebsd6.2"
+#endif
 
 /* Define this to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
