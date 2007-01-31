@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: startuphacks-win.c 813 2007-01-31 02:56:48Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild - Alternative argument parser for the windows startup code.
