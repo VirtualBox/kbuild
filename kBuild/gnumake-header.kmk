@@ -1,4 +1,4 @@
-# $Id: gnumake-header.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: gnumake-header.kmk 815 2007-01-31 03:54:18Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional header for use when bootstrapping kBuild using Vanilla GNU Make.
@@ -56,6 +56,10 @@ stack-popv = $(eval $1:=$(wordlist 1,$(words $(wordlist 2,9999,$($1))),$($1)))
 # @param    $1   The stack variable name
 stack-top  = $(lastword $($1))
 
+##
+# Use the APPEND shell script in case we're boot strapping.
+override APPEND_EXT := $(PATH_KBUILD)/gnumake-append.sh
+override APPEND = $(APPEND_EXT)
 
 #
 # Fix some default variables.
