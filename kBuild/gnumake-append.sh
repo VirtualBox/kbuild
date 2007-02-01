@@ -28,9 +28,8 @@
 
 
 set -e
-set -x
 
-# 
+#
 # Parse args.
 #
 NEWLINE=0
@@ -71,7 +70,7 @@ else
             echo "$1" >> "$FILE"
             shift
         done
-    fi        
+    fi
 fi
 exit 0;
 
