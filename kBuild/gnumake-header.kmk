@@ -1,4 +1,4 @@
-# $Id: gnumake-header.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: gnumake-header.kmk 825 2007-02-01 06:37:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional header for use when bootstrapping kBuild using Vanilla GNU Make.
@@ -55,6 +55,14 @@ stack-popv = $(eval $1:=$(wordlist 1,$(words $(wordlist 2,9999,$($1))),$($1)))
 # Retrieves the top element from the 'stack' variable.
 # @param    $1   The stack variable name
 stack-top  = $(lastword $($1))
+
+## Converts an relative path to an absolute path using the given CWD.
+# @returns absolute path.
+# @param    $1      The path to fixup.
+# @param    $2      The CWD to use.
+abspathex = $(foreach _fix_path,$1\
+,$(if $(subst :$(call no-root-slash,$(call no-drive,$(_fix_path))):,,:$(_fix_path):),$(_fix_path),$(abspath $2/$(_fix_path))))
+
 
 ##
 # Use the APPEND shell script in case we're boot strapping.
