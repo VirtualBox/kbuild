@@ -1,4 +1,4 @@
-# $Id: header.kmk 811 2007-01-29 06:20:50Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 823 2007-02-01 06:18:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 811 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 823 $  )
 
 
 #
@@ -732,7 +732,7 @@ endif
 ifndef KBUILD_VERBOSE
  ifndef KBUILD_QUIET
   ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
-   export KBUILD_VERBOSE := 1
+   export KBUILD_VERBOSE := 2
   endif
  endif
 endif
