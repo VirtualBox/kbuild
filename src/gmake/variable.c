@@ -1030,14 +1030,16 @@ define_automatic_variables (void)
   && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
   && defined(CONFIG_WITH_STACK) \
   && defined(CONFIG_WITH_MATH) \
+  && defined(CONFIG_WITH_XARGS) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n "
                           "abspath abspathex"
                           " toupper tolower"
                           " comp-vars comp-cmds"
-                          " stack "
-                          " math-int "
+                          " stack"
+                          " math-int"
+                          " xargs"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
@@ -1056,6 +1058,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined(CONFIG_WITH_MATH)
   strcat(buf, " math-int");
+#  endif
+#  if defined(CONFIG_WITH_XARGS)
+  strcat(buf, " xargs");
 #  endif
 #  ifdef KMK_HELPERS
   strcat(buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");

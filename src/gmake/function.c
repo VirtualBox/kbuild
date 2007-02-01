@@ -38,6 +38,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef KMK_HELPERS
 # include "kbuild.h"
 #endif
+#ifdef CONFIG_WITH_XARGS /* bird */
+# ifdef HAVE_LIMITS_H
+#  include <limits.h>
+# endif
+#endif
 
 
 struct function_table_entry
@@ -2174,6 +2179,163 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 }
 #endif
 
+#ifdef CONFIG_WITH_XARGS
+/* Create one or more command lines avoiding the max argument
+   lenght restriction of the host OS.
+
+   The last argument is the list of arguments that the normal
+   xargs command would be fed from stdin.
+
+   The first argument is initial command and it's arguments.
+
+   If there are three or more arguments, the 2nd argument is
+   the command and arguments to be used on subsequent
+   command lines. Defaults to the initial command.
+
+   If there are four or more arguments, the 3rd argument is
+   the command to be used at the final command line. Defaults
+   to the sub sequent or initial command .
+
+   A future version of this function may define more arguments
+   and therefor anyone specifying six or more arguments will
+   cause fatal errors.
+
+   Typical usage is:
+        $(xargs ar cas mylib.a,$(objects))
+   or
+        $(xargs ar cas mylib.a,ar as mylib.a,$(objects))
+
+   It will then create one or more "ar mylib.a ..." command
+   lines with proper \n\t separation so it can be used when
+   writing rules. */
+static char *
+func_xargs (char *o, char **argv, const char *funcname)
+{
+  int argc;
+  const char *initial_cmd;
+  size_t initial_cmd_len;
+  const char *subsequent_cmd;
+  size_t subsequent_cmd_len;
+  const char *final_cmd;
+  size_t final_cmd_len;
+  const char *args;
+  size_t max_args;
+  int i;
+
+#ifdef ARG_MAX
+  /* ARG_MAX is a bit unreliable (environment), so drop 25% of the max. */
+# define XARGS_MAX  (ARG_MAX - (ARG_MAX / 4))
+#else /* FIXME: update configure with a command line length test. */
+# define XARGS_MAX  10240
+#endif
+
+  argc = 0;
+  while (argv[argc])
+    argc++;
+  if (argc > 4)
+    fatal (NILF, _("Too many arguments for $(xargs)!\n"));
+
+  /* first: the initial / default command.*/
+  initial_cmd = argv[0];
+  while (isspace ((unsigned char)*initial_cmd))
+    initial_cmd++;
+  max_args = initial_cmd_len = strlen (initial_cmd);
+
+  /* second: the command for the subsequent command lines. defaults to the initial cmd. */
+  subsequent_cmd = argc > 2 && argv[1][0] != '\0' ? argv[1] : "";
+  while (isspace ((unsigned char)*subsequent_cmd))
+    subsequent_cmd++;
+  if (*subsequent_cmd)
+    {
+      subsequent_cmd_len = strlen (subsequent_cmd);
+      if (subsequent_cmd_len > max_args)
+        max_args = subsequent_cmd_len;
+    }
+  else
+    {
+      subsequent_cmd = initial_cmd;
+      subsequent_cmd_len = initial_cmd_len;
+    }
+
+  /* third: the final command. defaults to the subseq cmd. */
+  final_cmd = argc > 3 && argv[2][0] != '\0' ? argv[2] : "";
+  while (isspace ((unsigned char)*final_cmd))
+    final_cmd++;
+  if (*final_cmd)
+    {
+      final_cmd_len = strlen (final_cmd);
+      if (final_cmd_len > max_args)
+        max_args = final_cmd_len;
+    }
+  else
+    {
+      final_cmd = subsequent_cmd;
+      final_cmd_len = subsequent_cmd_len;
+    }
+
+  /* last: the arguments to split up into sensible portions. */
+  args = argv[argc - 1];
+
+  /* calc the max argument length. */
+  if (XARGS_MAX <= max_args + 2)
+    fatal (NILF, _("$(xargs): the commands are longer than the max exec argument length. (%lu <= %lu)\n"),
+           (unsigned long)XARGS_MAX, (unsigned long)max_args + 2);
+  max_args = XARGS_MAX - max_args - 1;
+
+  /* generate the commands. */
+  i = 0;
+  for (i = 0; ; i++)
+    {
+      unsigned int len;
+      char *iterator = (char *)args;
+      const char *end = args;
+      const char *cur;
+      const char *tmp;
+
+      /* scan the arguments till we reach the end or the max length. */
+      while ((cur = find_next_token(&iterator, &len))
+          && (size_t)((cur + len) - args) < max_args)
+        end = cur + len;
+      if (cur && end == args)
+        fatal (NILF, _("$(xargs): command + one single arg is too much. giving up.\n"));
+
+      /* emit the command. */
+      if (i == 0)
+        {
+          o = variable_buffer_output (o, (char *)initial_cmd, initial_cmd_len);
+          o = variable_buffer_output (o, " ", 1);
+        }
+      else if (cur)
+        {
+          o = variable_buffer_output (o, "\n\t", 2);
+          o = variable_buffer_output (o, (char *)subsequent_cmd, subsequent_cmd_len);
+          o = variable_buffer_output (o, " ", 1);
+        }
+      else
+        {
+          o = variable_buffer_output (o, "\n\t", 2);
+          o = variable_buffer_output (o, (char *)final_cmd, final_cmd_len);
+          o = variable_buffer_output (o, " ", 1);
+        }
+
+      tmp = end;
+      while (tmp > args && isspace ((unsigned char)tmp[-1])) /* drop trailing spaces. */
+        tmp--;
+      o = variable_buffer_output (o, (char *)args, tmp - args);
+
+
+      /* next */
+      if (!cur)
+        break;
+      args = end;
+      while (isspace ((unsigned char)*args))
+        args++;
+    }
+
+  return o;
+}
+#endif
+
 #ifdef CONFIG_WITH_TOUPPER_TOLOWER
 static char *
 func_toupper_tolower (char *o, char **argv, const char *funcname)
@@ -2863,6 +3025,9 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_ABSPATHEX
   { STRING_SIZE_TUPLE("abspathex"),     0,  2,  1,  func_abspathex},
+#endif
+#ifdef CONFIG_WITH_XARGS
+  { STRING_SIZE_TUPLE("xargs"),         2,  0,  1,  func_xargs},
 #endif
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
