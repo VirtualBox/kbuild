@@ -1,4 +1,4 @@
-# $Id: Config.kmk 810 2007-01-29 06:07:47Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 826 2007-02-01 06:39:00Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -107,7 +107,7 @@ ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
  TEMPLATE_BIN_LIBS              = \
 	$(PATH_TOOL_VCC70_LIB)/oldnames.lib \
 	$(PATH_TOOL_VCC70_LIB)/msvcrt.lib
- #	$(PATH_TOOL_VCC70_LIB)/msvcprt.lib
+ #	$(PATH_TOOL_VCC70_LIB)/msvcprt.lib - avoid this to save space!
  endif
  TEMPLATE_BIN_LIBS.profile      = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
@@ -118,7 +118,12 @@ ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
 endif
 
 ifndef TEMPLATE_BIN_TOOL
- TEMPLATE_BIN_TOOL              = GCC3
+ # Use GCC3 when we're certain that the system is using GNU ld and ar.
+ ifeq ($(filter-out linux freebsd openbsd netbsd,$(BUILD_TARGET)),)
+  TEMPLATE_BIN_TOOL              = GCC3
+ else
+  TEMPLATE_BIN_TOOL              = GCC3PLAIN
+ endif
  TEMPLATE_BIN_CFLAGS.release    = -O3
  ifeq ($(BUILD_TARGET),freebsd)
   TEMPLATE_BIN_LIBS            += iconv intl
