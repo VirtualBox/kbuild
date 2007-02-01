@@ -1,4 +1,4 @@
-# $Id: gnumake-header.kmk 815 2007-01-31 03:54:18Z knut.osmundsen@oracle.com $
+# $Id: gnumake-header.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional header for use when bootstrapping kBuild using Vanilla GNU Make.
