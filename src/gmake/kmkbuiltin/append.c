@@ -1,4 +1,4 @@
-/* $Id: append.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 820 2007-02-01 04:53:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -30,6 +30,7 @@
 #include "kmkbuiltin.h"
 #ifndef kmk_builtin_append
 # include "make.h"
+# include "filedef.h"
 # include "variable.h"
 #endif
 
