@@ -1,4 +1,4 @@
-# $Id: footer.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 827 2007-02-03 01:08:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -109,6 +109,7 @@ _DLLS     :=
 _PROGRAMS :=
 _SYSMODS  :=
 _INSTALLS :=
+_INSTALLS_FILES :=
 _INSTALLS_DIRS :=
 _OTHERS   :=
 _PACKING  :=
@@ -707,6 +708,12 @@ deps := \
 	$($(source)_DEPS)\
 	$($(srcname)_DEPS)\
 	$($(target)_DEPS)
+orderdeps := \
+	$($(target)_$(source)_ORDERDEPS)\
+	$($(target)_$(srcname)_ORDERDEPS)\
+	$($(source)_ORDERDEPS)\
+	$($(srcname)_ORDERDEPS)\
+	$($(target)_ORDERDEPS)
 md5 := $(firstword \
 	$($(target)_$(source)_MD5)\
 	$($(target)_$(srcname)_MD5)\
@@ -773,7 +780,7 @@ endif
 $(target)_$(srcname)_FETCH_CMDS_   := $(TOOL_$(tool)_FETCH_CMDS)
 $(target)_$(srcname)_FETCH_OUTPUT_ := $(TOOL_$(tool)_FETCH_OUTPUT)
 $(target)_$(srcname)_FETCH_DEPEND_ := $(TOOL_$(tool)_FETCH_DEPEND) $(deps)
-$(target)_$(srcname)_FETCH_DEPORD_ := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep)
+$(target)_$(srcname)_FETCH_DEPORD_ := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the fetch rule.
 $(eval $(def_fetch_src_fetch_rule))
@@ -831,7 +838,7 @@ endif
 $(target)_$(srcname)_UNPACK_CMDS_   := $(TOOL_$(tool)_UNPACK_CMDS)
 $(target)_$(srcname)_UNPACK_OUTPUT_ := $(TOOL_$(tool)_UNPACK_OUTPUT)
 $(target)_$(srcname)_UNPACK_DEPEND_ := $(TOOL_$(tool)_UNPACK_DEPEND) $(deps)
-$(target)_$(srcname)_UNPACK_DEPORD_ := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep)
+$(target)_$(srcname)_UNPACK_DEPORD_ := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the fetch rule.
 $(eval $(def_fetch_src_unpack_rule))
@@ -1122,7 +1129,7 @@ INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
 
 $(eval $(def_link_install_rule))
 
-_INSTALLS += $(INSTARGET_$(target))
+_INSTALLS_FILES += $(INSTARGET_$(target))
 
 ifdef KBUILD_DO_AUTO_INSTALL
 $(typevar) += $(INSTARGET_$(target))
@@ -1212,13 +1219,14 @@ objs         = $(filter %.o %.obj, \
 	$($(target)_SOURCES.$(bld_type))) \
     $($(target)_OBJS_)
 dirdep      := $(call DIRDEP,$(dir $(out)))
-## @todo fix dependencies on makefiles an such
 deps        := $($(target)_DEPS)
+orderdeps   := $($(target)_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
  objs := $(call abspathex,$(objs),$(defpath))
  deps := $(call abspathex,$(deps),$(defpath))
+ orderdeps := $(call abspathex,$(orderdeps),$(defpath))
  othersrc := $(call abspathex,$(othersrc),$(defpath))
 endif
 
@@ -1251,7 +1259,7 @@ endif
 $(target)_CMDS_   := $(TOOL_$(tool)_LINK_LIBRARY_CMDS)
 $(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
-$(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep)
+$(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
 $(eval $(def_link_rule))
@@ -1428,20 +1436,21 @@ libpath    :=\
 	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)
 dirdep      := $(call DIRDEP,$(dir $(out)))
-## @todo fix dependencies
 deps        := $($(target)_DEPS)
+orderdeps   := $($(target)_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
  libpath := $(call abspathex,$(libpath),$(defpath))
  objs := $(call abspathex,$(objs),$(defpath))
  deps := $(call abspathex,$(deps),$(defpath))
+ orderdeps := $(call abspathex,$(orderdeps),$(defpath))
  othersrc := $(call abspathex,$(othersrc),$(defpath))
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
 endif
 
 ## @todo this stuff can't be working.
-custom_pre  := $(strip $(firstword \
+custom_pre := $(strip $(firstword \
 	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
 	$($(target)_CUSTOM_PRE.$(bld_trg))\
@@ -1453,7 +1462,7 @@ custom_pre  := $(strip $(firstword \
 	$(CUSTOM_PRE.$(bld_type))\
 	$(CUSTOM_PRE)\
 ))
-custom_post    := $(strip $(firstword \
+custom_post := $(strip $(firstword \
 	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
 	$($(target)_CUSTOM_POST.$(bld_trg))\
@@ -1512,7 +1521,7 @@ endif
 $(target)_CMDS_   := $(TOOL_$(tool)_$(tool_do)_CMDS)
 $(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
-$(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep)
+$(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
 $(eval $(def_link_rule))
@@ -1522,7 +1531,7 @@ $(eval $(def_link_rule))
 _OBJS += $($(target)_OBJS_)
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN)
-_INSTALLS += $(INSTARGET_$(target))
+_INSTALLS_FILES += $(INSTARGET_$(target))
 
 endef
 
@@ -1768,24 +1777,20 @@ symdst := $(word $(words $(symdst)),$(symdst))
 
 # _INSTFUN
 ifdef $(symlnk)_INSTFUN
-instfun := $(symlnk)_INSTFUN
-else
-ifdef $(target)_INSTFUN
+ instfun := $(symlnk)_INSTFUN
+else ifdef $(target)_INSTFUN
 instfun := $(target)_INSTFUN
 else
-instfun := _INSTALL_FILE
-endif
+ instfun := _INSTALL_FILE
 endif
 
 # _INST
 ifdef $(symlnk)_INST
  inst := $(patsubst %/,%,$($(symlnk)_INST))/$(dir $(symlnk))
+else ifdef $(target)_INST
+ inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(symlnk))
 else
- ifdef $(target)_INST
-  inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(symlnk))
- else
-  inst := $(dir $(symlnk))
- endif
+ inst := $(dir $(symlnk))
 endif
 
 # calc target
@@ -1820,12 +1825,10 @@ define def_install_directory
 # _INST
 ifdef $(directory)_INST
  inst := $(PATH_INS)/$(patsubst %/,%,$($(directory)_INST))
+else ifdef $(target)_INST
+ inst := $(PATH_INS)/$(patsubst %/,%,$($(target)_INST))
 else
- ifdef $(target)_INST
-  inst := $(PATH_INS)/$(patsubst %/,%,$($(target)_INST))
- else
-  inst := $(PATH_INS)
- endif
+ inst := $(PATH_INS)
 endif
 
 mode := $(firstword \
@@ -1877,7 +1880,7 @@ bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
 bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
 
-INSTARGET_$(target) :=
+INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
 
 $(foreach directory,$($(target)_DIRS) $($(target)_DIRS.$(bld_trg)) $($(target)_DIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_DIRS.$(bld_trg_arch)) $($(target)_DIRS.$(bld_trg_cpu)) $($(target)_DIRS.$(bld_type)), \
@@ -1889,7 +1892,15 @@ $(foreach src,$($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_S
 $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)_SYMLINKS.$(bld_trg).$(bld_trg_arch)) $($(target)_SYMLINKS.$(bld_trg_arch)) $($(target)_SYMLINKS.$(bld_trg_cpu)) $($(target)_SYMLINKS.$(bld_type)), \
 	$(eval $(value def_install_symlink)))
 
-_INSTALLS += $(INSTARGET_$(target)) $($(target)_GOALS)
+# the collection target
+TARGET_$(target) := $(PATH_TARGET)/$(target).ins
+$(TARGET_$(target)): $(INSTARGET_$(target)) | $(INSTARGET_DIRS_$(target))
+	@$(QUIET2)$(APPEND) $@
+
+$(target): $(TARGET_$(target))
+
+_INSTALLS += $(TARGET_$(target))
+_INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 endef
 
@@ -1912,7 +1923,7 @@ _PACKING += $(PACKING) $(PACKING.$(BUILD_TARGET)) $(PACKING.$(BUILD_TARGET).$(BU
 #
 # DIRECTORIES
 #
-_DIR_ALL := $(sort $(addsuffix /,$(patsubst %/,%,$(_DIRS))) $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS)))
+_DIR_ALL := $(sort $(addsuffix /,$(patsubst %/,%,$(_DIRS))) $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS_FILES)))
 $(foreach directory,$(_INSTALLS_DIRS), $(eval _DIR_ALL := $(filter-out $(directory),$(_DIR_ALL))))
 
 
@@ -2077,7 +2088,7 @@ rebuild: clean
 
 # @todo make this a non-default pass!
 uninstall:
-	$(RM) -f $(_INSTALLS)
+	$(RM) -f $(_INSTALLS_FILES)
 
 install: pass_installs
 
@@ -2090,7 +2101,7 @@ dlls:      $(_DLLS)
 programs:  $(_PROGRAMS)
 sysmods:   $(_SYSMODS)
 others:    $(_OTHERS)
-installs:  $(_INSTALLS_DIRS) $(_INSTALLS)
+installs:  $(_INSTALLS)
 
 
 #

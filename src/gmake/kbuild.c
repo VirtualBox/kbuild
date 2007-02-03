@@ -1334,7 +1334,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pTool      = kbuild_get_source_tool(pTarget, pSource, pType, pBldTrg, pBldTrgArch, "tool");
     struct variable *pOutBase   = kbuild_get_object_base(pTarget, pSource, "outbase");
     struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
-    struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pDirDep, *pDep, *pVar, *pOutput;
+    struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pOrderDeps, *pDirDep, *pDep, *pVar, *pOutput;
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
@@ -1349,14 +1349,16 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     if (pDefPath && !pDefPath->value_length)
         pDefPath = NULL;
-    pDefs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
-                                        "DEFS", "defs", 1/* left-to-right */);
-    pIncs  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
-                                        "INCS", "incs", -1/* right-to-left */);
-    pFlags = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
-                                        "FLAGS", "flags", 1/* left-to-right */);
-    pDeps  = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
-                                        "DEPS", "deps", 1/* left-to-right */);
+    pDefs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
+                                            "DEFS", "defs", 1/* left-to-right */);
+    pIncs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
+                                            "INCS", "incs", -1/* right-to-left */);
+    pFlags     = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
+                                            "FLAGS", "flags", 1/* left-to-right */);
+    pDeps      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
+                                            "DEPS", "deps", 1/* left-to-right */);
+    pOrderDeps = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
+                                            "ORDERDEPS", "orderdeps", 1/* left-to-right */);
 
     /*
      * If we've got a default path, we must expand the source now.
@@ -1428,10 +1430,12 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszSrc, "_DEPORD", sizeof("_DEPORD"));
     memcpy(pszDst, "_DEPORD_", sizeof("_DEPORD_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
-    psz = pszVal = xmalloc(pVar->value_length + 1 + pDirDep->value_length + 1);
+    psz = pszVal = xmalloc(pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length + 1);
     memcpy(psz, pVar->value, pVar->value_length);       psz += pVar->value_length;
     *psz++ = ' ';
-    memcpy(psz, pDirDep->value, pDirDep->value_length + 1);
+    memcpy(psz, pDirDep->value, pDirDep->value_length); psz += pDirDep->value_length;
+    *psz++ = ' ';
+    memcpy(psz, pOrderDeps->value, pOrderDeps->value_length + 1);
     do_variable_definition(NILF, pszDstVar, pszVal, o_file, f_simple, 0 /* !target_var */);
     free(pszVal);
 
