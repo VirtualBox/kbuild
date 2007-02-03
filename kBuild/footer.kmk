@@ -1,4 +1,4 @@
-# $Id: footer.kmk 828 2007-02-03 02:26:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 830 2007-02-03 11:09:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1762,23 +1762,32 @@ EXTPRE  :=
 tool_do := LINK_DLL
 definst := $(PATH_DLL)
 typevar := _DLLS
-mode    := 0755
+mode    := 0644
 bld_trg_base_var := TARGET
 $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
 
 
 #
-# Process import libraries.
+# IMPORT LIBRARIES
 #
 #   - On OS/2 and windows these are libraries.
 #   - On other platforms they are fake DLLs.
+#
+EXTPRE  :=
+typevar := _IMPORT_LIBS
+mode    := 0644
+bld_trg_base_var := TARGET
 ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_lib)))
+ EXT     := LIB
+ tool_do := LINK_LIBRARY
+ definst := $(PATH_LIB)
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_lib)))
 else
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
+ EXT     := DLL
+ tool_do := LINK_DLL
+ definst := $(PATH_DLL)
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
 endif
-$(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
-	$(eval _IMPORT_LIBS += $(if $(INSTARGET_$(target)),$(INSTARGET_$(target)), $(TARGET_$(target)))))
 
 
 #
@@ -1915,6 +1924,22 @@ gid := $(firstword \
 	$($(target)_GID.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_GID.$(bld_trg)) \
 	$($(target)_GID))
+flags := \
+	$($(target)_IFFLAGS) \
+	$($(target)_IFFLAGS.$(bld_trg)) \
+	$($(target)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcdst)_IFFLAGS) \
+	$($(srcdst)_IFFLAGS.$(bld_trg)) \
+	$($(srcdst)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcsrc)_IFFLAGS) \
+	$($(srcsrc)_IFFLAGS.$(bld_trg)) \
+	$($(srcsrc)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcdst)_IFFLAGS) \
+	$($(target)_$(srcdst)_IFFLAGS.$(bld_trg)) \
+	$($(target)_$(srcdst)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcsrc)_IFFLAGS) \
+	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg)) \
+	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg).$(bld_trg_arch))
 
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
@@ -1924,17 +1949,16 @@ endif
 
 # create the command
 ifdef $(srcsrc)_INSTALLER
- inscmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(insdst),$(target))
+ inscmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(insdst),$(target),$(flags))
+else ifdef $(target)_INSTALLER
+ inscmd := $(call $(target)_INSTALLER,$(srcsrc),$(insdst),$(target),$(flags))
 else
- ifdef $(target)_INSTALLER
-  inscmd := $(call $(target)_INSTALLER,$(srcsrc),$(insdst),$(target))
- else
-  inscmd := $$(INSTALL)\
+ inscmd := $$(INSTALL)\
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
+		$(flags)\
 		$(srcsrc) $(insdst)
- endif
 endif
 
 # generate the rule (need double evaluation here)
@@ -1965,7 +1989,7 @@ symdst := $(word $(words $(symdst)),$(symdst))
 ifdef $(symlnk)_INSTFUN
  instfun := $(symlnk)_INSTFUN
 else ifdef $(target)_INSTFUN
-instfun := $(target)_INSTFUN
+ instfun := $(target)_INSTFUN
 else
  instfun := _INSTALL_FILE
 endif
@@ -1999,6 +2023,7 @@ $(insdst):
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
+		$(flags)\
 		$(insdst)
 
 .NOTPARALLEL: $(insdst)
@@ -2047,6 +2072,16 @@ gid := $(firstword \
 	$($(target)_GID.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_GID.$(bld_trg)) \
 	$($(target)_GID))
+flags := \
+	$($(target)_IDFLAGS)\
+	$($(target)_IDFLAGS.$(bld_trg)) \
+	$($(target)_IDFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(directory)_IDFLAGS) \
+	$($(directory)_IDFLAGS.$(bld_trg)) \
+	$($(directory)_IDFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(directory)_IDFLAGS) \
+	$($(target)_$(directory)_IDFLAGS.$(bld_trg)) \
+	$($(target)_$(directory)_IDFLAGS.$(bld_trg).$(bld_trg_arch))
 
 insdst := $(inst)/$(directory)/
 #$(warning directory=$(directory) inst=$(inst) insdst=$(insdst) mode=$(mode) gid=$(gid) uid=$(uid))
