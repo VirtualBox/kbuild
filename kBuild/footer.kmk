@@ -1,4 +1,4 @@
-# $Id: footer.kmk 827 2007-02-03 01:08:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 828 2007-02-03 02:26:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -560,6 +560,192 @@ endef
 _SDKS := $(sort $(_SDKS))
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
+
+
+#
+#
+# Target lists - Pass 1
+#
+#       This pass is for defining variables that might be referenced in
+#       properties of other targets.
+#
+#
+
+# Don't do anything for fetch targets (yet).
+
+##
+# Link prolog for Pass 1.
+#
+# @param    $(target)           Normalized target name.
+# @param    $(EXT)              EXE,DLL,SYS,LIB.
+# @param    $(EXTPRE)           HOST or nothing.
+# @param    $(definst)          The default _INST value.
+# @param    $(tool_prefix)      LD or AR.
+# @param    $(bld_trg_base_var) TARGET or PLATFORM.
+define def_pass1_link_common
+
+bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
+bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
+bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
+
+tool := $(call _TARGET_TOOL,$(target),$(tool_prefix))
+outbase := $(call TARGET_BASE,$(target),$(target))
+ifndef PATH_$(target)
+ PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
+endif
+ifeq ($(tool_prefix),AR) ## @todo fix this mess!
+suff := $(firstword\
+	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_$(EXT)SUFF.$(bld_trg))\
+	$($(target)_$(EXT)SUFF)\
+	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
+	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF.$(bld_trg))\
+	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF)\
+	$(SUFF_LIB))
+else
+suff := $(firstword \
+	$($(target)_$(EXT)SUFF) \
+	$($(target)_$(EXT)SUFF) \
+	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF) \
+	$($(EXTPRE)SUFF_$(EXT)))
+endif
+out := $(outbase)$(suff)
+
+# TARGET_*
+TARGET_$(target) := $(out)
+
+# INSTARGET_*
+ifndef $(target)_NOINST
+INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
+	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
+
+else # NOINST
+INSTARGET_$(target) :=
+endif # NOINST
+
+endef
+
+
+#
+# BLDPROGS (Pass 1)
+#
+define def_pass1_bldprog
+# set NOINST if not forced installation before doing the usual stuff.
+ifndef $(target)_INST
+$(target)_NOINST := 1
+endif
+$(eval $(value def_pass1_link_common))
+endef
+
+EXT     := EXE
+EXTPRE  := HOST
+definst := $(PATH_BIN)
+tool_prefix := LD
+bld_trg_base_var := PLATFORM
+$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)) $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)), \
+	$(eval $(value def_pass1_bldprog)))
+
+
+#
+# LIBRARIES (Pass 1)
+#
+EXT     := LIB
+EXTPRE  :=
+definst := $(PATH_LIB)
+tool_prefix := AR
+bld_trg_base_var := TARGET
+$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_link_common)))
+
+
+#
+# DLLS  (Pass 1)
+#
+EXT     := DLL
+EXTPRE  :=
+definst := $(PATH_DLL)
+tool_prefix := LD
+bld_trg_base_var := TARGET
+$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_link_common)))
+
+
+#
+# IMPORT LIBRARIES (Pass 1)
+#
+#   - On OS/2 and windows these are libraries.
+#   - On other platforms they are fake DLLs.
+#
+ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+ EXT     := LIB
+ EXTPRE  :=
+ definst := $(PATH_LIB)
+ tool_prefix := AR
+ bld_trg_base_var := TARGET
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_lib)))
+else
+ EXT     := DLL
+ EXTPRE  :=
+ definst := $(PATH_DLL)
+ tool_prefix := LD
+ bld_trg_base_var := TARGET
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_link_common)))
+endif
+
+
+#
+# PROGRAMS (Pass 1)
+#
+EXT     := EXE
+EXTPRE  :=
+definst := $(PATH_BIN)
+tool_prefix := LD
+bld_trg_base_var := TARGET
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)) $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_link_common)))
+
+
+#
+# SYSMODS (Pass 1)
+#
+EXT     := SYS
+EXTPRE  :=
+definst := $(PATH_SYS)
+tool_prefix := LD
+bld_trg_base_var := TARGET
+$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_link_common)))
+
+
+#
+# INSTALLS (Pass 1)
+# 	Note! INSTARGET_* for INSTALLS aren't available until later.
+#
+define def_pass1_install
+bld_type  := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
+bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
+bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+# TARGET_*
+TARGET_$(target) := $(PATH_TARGET)/$(target).ins
+# INSTARGET_ later.
+endef
+$(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+	$(eval $(value def_pass1_install)))
+
+
+
+
+#
+#
+# Target lists - Pass 2
+#
+#
 
 
 ## @page pg_fetches 	Fetching Tools, Sources and Similar.
