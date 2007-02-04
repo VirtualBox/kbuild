@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __sun__
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
 #ifndef lint

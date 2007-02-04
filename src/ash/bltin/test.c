@@ -10,7 +10,7 @@
  * This program is in the Public Domain.
  */
 
-#ifndef __sun__
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
 #ifndef lint
@@ -195,7 +195,7 @@ main(int argc, char *argv[])
 
 #ifdef HAVE_SETPROGNAME
 	setprogname(argv[0]);
-#endif 
+#endif
 	if (strcmp(argv[0], "[") == 0) {
 		if (strcmp(argv[--argc], "]"))
 			error("missing ]");
@@ -291,7 +291,7 @@ primary(enum token n)
 
 	if (t_lex(t_wp[1]), t_wp_op && t_wp_op->op_type == BINOP) {
 		return binop();
-	}	  
+	}
 
 	return strlen(*t_wp) > 0;
 }
@@ -308,7 +308,7 @@ binop(void)
 
 	if ((opnd2 = *++t_wp) == NULL)
 		syntax(op->op_text, "argument expected");
-		
+
 	switch (op->op_num) {
 	case STREQ:
 		return strcmp(opnd1, opnd2) == 0;
@@ -368,25 +368,25 @@ filstat(char *nm, enum token mode)
 		return S_ISCHR(s.st_mode);
 #else
         return 0;
-#endif 
+#endif
 	case FILBDEV:
 #ifdef S_ISBLK
 		return S_ISBLK(s.st_mode);
 #else
         return 0;
-#endif 
+#endif
 	case FILFIFO:
 #ifdef S_ISFIFO
 		return S_ISFIFO(s.st_mode);
 #else
         return 0;
-#endif 
+#endif
 	case FILSOCK:
 #ifdef S_ISSOCK
 		return S_ISSOCK(s.st_mode);
 #else
         return 0;
-#endif 
+#endif
 	case FILSYM:
 		return S_ISLNK(s.st_mode);
 	case FILSUID:
@@ -398,7 +398,7 @@ filstat(char *nm, enum token mode)
 		return (s.st_mode & S_ISVTX) != 0;
 #else
         return 0;
-#endif 
+#endif
 	case FILGZ:
 		return s.st_size > (off_t)0;
 	case FILUID:
@@ -449,7 +449,7 @@ isoperand(void)
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
 	    		return op->op_type == BINOP &&
-	    		    (t[0] != ')' || t[1] != '\0'); 
+	    		    (t[0] != ')' || t[1] != '\0');
 		op++;
 	}
 	return 0;
@@ -470,7 +470,7 @@ getn(const char *s)
 
 	while (isspace((unsigned char)*p))
 	      p++;
-	
+
 	if (*p)
 	      error("%s: bad number", s);
 

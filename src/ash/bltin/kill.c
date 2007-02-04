@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __sun__
+#ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
 #endif
 #if !defined(lint) && !defined(SHELL)
@@ -62,7 +62,7 @@ __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
 #ifndef HAVE_SYS_SIGNAME
 extern void init_sys_signame(void);
 extern char sys_signame[NSIG][16];
-#endif 
+#endif
 
 #ifdef SHELL            /* sh (aka ash) builtin */
 #define main killcmd
@@ -108,7 +108,7 @@ main(int argc, char *argv[])
 				nosig(*argv);
 #ifndef HAVE_SYS_SIGNAME
 			init_sys_signame();
-#endif 
+#endif
 			printf("%s\n", sys_signame[numsig]);
 			exit(0);
 		}
@@ -192,7 +192,7 @@ signame_to_signum(char *sig)
 	int n;
 #ifndef HAVE_SYS_SIGNAME
 	init_sys_signame();
-#endif 
+#endif
 	if (strncasecmp(sig, "sig", 3) == 0)
 		sig += 3;
 	for (n = 1; n < NSIG; n++) {
@@ -229,11 +229,11 @@ printsignals(FILE *fp)
 #else
 #ifndef _MSC_VER
 #warning TIOCGWINSZ is not present.
-#endif 
+#endif
 #endif
 #ifndef HAVE_SYS_SIGNAME
     init_sys_signame();
-#endif 
+#endif
 
 	for (len = 0, sig = 1; sig < NSIG; sig++) {
 		name = sys_signame[sig];
