@@ -1,4 +1,4 @@
-# $Id: header.kmk 844 2007-02-04 14:17:25Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 845 2007-02-04 14:36:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -235,7 +235,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 844 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 845 $  )
 
 
 #
@@ -798,7 +798,7 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  # @param 1     Target name.
  # @param 2     The output library name.
  # @param 3     The input library name.
- MSG_AR_MERGE ?= $(call MSG_L1,Merging $2 into $1, ($2))
+ MSG_AR_MERGE ?= $(call MSG_L1,Merging $3 into $1, ($2))
  ## Creating a directory (build).
  # @param 1     Directory name.
  MSG_MKDIR    ?= $(call MSG_L2,Creating directory $1)
