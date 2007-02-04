@@ -1,4 +1,4 @@
-# $Id: brief.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: brief.kmk 844 2007-02-04 14:17:25Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Message Style - 'brief'
@@ -70,6 +70,11 @@ MSG_COMPILE  ?= $(call MSG_L1,CC   $1 - $2,=> $3)
 # @param 2     The primary link output file name.
 # @param 3     The link tool operation (LINK_LIBRARY,LINK_PROGRAM,LINK_DLL,LINK_SYSMOD,++).
 MSG_LINK     ?= $(call MSG_L1,$(if $(eq $3,LINK_LIBRARY),AR,LD)   $1,=> $2)
+## Merging a library into the target (during library linking).
+# @param 1     Target name.
+# @param 2     The output library name.
+# @param 3     The input library name.
+MSG_AR_MERGE ?= $(NO_SUCH_VARIABLE)
 ## Creating a directory (build).
 # @param 1     Directory name.
 MSG_MKDIR    ?= $(call MSG_L2,DIR  $1)
