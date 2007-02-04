@@ -1,4 +1,4 @@
-# $Id: GCC3PLAIN.kmk 826 2007-02-01 06:39:00Z knut.osmundsen@oracle.com $
+# $Id: GCC3PLAIN.kmk 847 2007-02-04 14:38:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x or later Using The System GCC, any Unix Linker and Unix Archiver.
@@ -24,7 +24,7 @@
 #
 #
 
-TOOL_GCC3PLAIN := Generic GCC v3.2.x or later Using The System GCC, any Unix Linker and Unix Archive.
+TOOL_GCC3PLAIN := Generic GCC v3.2.x or later Using The System GCC, any Unix Linker and Unix Archiver.
 
 # Tool Specific Properties
 TOOL_GCC3PLAIN_CC  ?= gcc$(HOSTSUFF_EXE)
@@ -33,8 +33,21 @@ TOOL_GCC3PLAIN_AS  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC3PLAIN_AR  ?= ar$(HOSTSUFF_EXE)
 TOOL_GCC3PLAIN_RANLIB ?= ranlib$(HOSTSUFF_EXE)
 TOOL_GCC3PLAIN_LD  ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC3PLAIN_LDFLAGS.dll ?= -shared
-TOOL_GCC3PLAIN_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+TOOL_GCC3PLAIN_LDFLAGS.dll.os2 ?= -Zdll
+TOOL_GCC3PLAIN_LDFLAGS.dll.darwin ?= -dynamiclib
+ifndef TOOL_GCC_LDFLAGS.$(BUILD_TARGET)
+ TOOL_GCC3PLAIN_LDFLAGS.dll ?= -shared
+else
+ TOOL_GCC3PLAIN_LDFLAGS.dll ?= $(TOOL_GCC_LDFLAGS.$(BUILD_TARGET))
+endif
+TOOL_GCC3PLAIN_LD_SONAME.darwin ?= $(NO_SUCH_VARIABLE)
+TOOL_GCC3PLAIN_LD_SONAME.os2 ?= $(NO_SUCH_VARIABLE)
+TOOL_GCC3PLAIN_LD_SONAME.win ?= $(NO_SUCH_VARIABLE)
+ifndef TOOL_GCC3PLAIN_LD_SONAME.$(BUILD_TARGET)
+ TOOL_GCC3PLAIN_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+else
+ TOOL_GCC3PLAIN_LD_SONAME ?= $(TOOL_GCC3PLAIN_LD_SONAME.$(BUILD_TARGET))
+endif
 ifdef SLKRUNS
  TOOL_GCC3PLAIN_CC  += -fmessage-length=0
  TOOL_GCC3PLAIN_CXX += -fmessage-length=0
@@ -157,18 +170,19 @@ endef
 TOOL_GCC3PLAIN_LINK_LIBRARY_OUTPUT = $(out).ar-script
 TOOL_GCC3PLAIN_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GCC3PLAIN_LINK_LIBRARY_DEPORD =
-## @todo archive merging!
-#ifeq ($(filter xargs,$(KMK_FEATURES)),xargs) - I wonder if this works...
 define TOOL_GCC3PLAIN_LINK_LIBRARY_CMDS
-	$(call xargs,$(QUIET)$(TOOL_GCC3PLAIN_AR) $(flags) $(out), $(objs))
+	$(call xargs,$(QUIET)$(TOOL_GCC3PLAIN_AR) $(flags) $(out),$(objs))
+	$(foreach lib,$(othersrc)\
+		,$(NL)$(TAB)$(call MSG_AR_MERGE,$(target),$(out),$(lib)) \
+		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))ar.tmp.dir/* \
+		$(NL)$(TAB)$(QUIET)$(MKDIR) -p $(dir $(outbase))/ar.tmp.dir/ \
+		$(NL)$(TAB)$(QUIET)(cd $(dir $(outbase))ar.tmp.dir/ \
+			&& $(TOOL_GCC3PLAIN_AR) x $(abspath $(lib)) \
+			&& $(TOOL_GCC3PLAIN_AR) $(flags) $(out) *) \
+		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))/ar.tmp.dir/* \
+		$(NL)$(TAB)$(QUIET)$(RMDIR) $(dir $(outbase))ar.tmp.dir/)
 	$(QUIET)$(TOOL_GCC3PLAIN_RANLIB) $(out)
 endef
-#else
-#define TOOL_GCC3PLAIN_LINK_LIBRARY_CMDS
-#	$(QUIET)$(TOOL_GCC3PLAIN_AR) $(flags) $(out) $(objs)
-#	$(QUIET)$(TOOL_GCC3PLAIN_RANLIB) $(out)
-#endef
-#endif
 
 
 ## Link program
