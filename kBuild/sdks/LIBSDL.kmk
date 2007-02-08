@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 849 2007-02-08 22:42:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
@@ -36,14 +36,37 @@ ifndef PATH_SDK_LIBSDL
   PATH_SDK_LIBSDL := $(lastword $(sort $(PATH_SDK_LIBSDL)))
  else
   # Search in the typical unix places.
-  PATH_SDK_LIBSDL := $(firstword $(wildcard \
+  ifeq ($(filter-out %64,$(BUILD_TARGET_ARCH)),)
+   PATH_SDK_LIBSDL := $(firstword $(wildcard \
+	/lib64/libSDL.* \
 	/lib/libSDL.* \
+	/usr/lib64/libSDL.* \
 	/usr/lib/libSDL.* \
+	/usr/local/lib64/libSDL.* \
 	/usr/local/lib/libSDL.* \
+	/opt/lib64/libSDL.* \
 	/opt/lib/libSDL.* \
+	/opt/local/lib64/libSDL.* \
 	/opt/local/lib/libSDL.* \
+	/sw/lib64/libSDL.* \
 	/sw/lib/libSDL.* \
 	) )
+  else
+   PATH_SDK_LIBSDL := $(firstword $(wildcard \
+	/lib32/libSDL.* \
+	/lib/libSDL.* \
+	/usr/lib32/libSDL.* \
+	/usr/lib/libSDL.* \
+	/usr/local/lib32/libSDL.* \
+	/usr/local/lib/libSDL.* \
+	/opt/lib32/libSDL.* \
+	/opt/lib/libSDL.* \
+	/opt/local/lib32/libSDL.* \
+	/opt/local/lib/libSDL.* \
+	/sw/lib32/libSDL.* \
+	/sw/lib/libSDL.* \
+	) )
+  endif
   ifneq ($(PATH_SDK_LIBSDL),)
    PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(PATH_SDK_LIBSDL)))))
   else
