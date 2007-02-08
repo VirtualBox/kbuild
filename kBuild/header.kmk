@@ -1,4 +1,4 @@
-# $Id: header.kmk 845 2007-02-04 14:36:45Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 850 2007-02-08 22:43:31Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -226,8 +226,6 @@ ifdef KMK_VERSION
    $(warning kBuild: kmk minor version mismatch, expected '1' found '$(KBUILD_VERSION_MINOR)'!)
   endif
  endif
-else
- include $(PATH_KBUILD)/gnumake-header.kmk
 endif
 
 
@@ -235,7 +233,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 845 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 850 $  )
 
 
 #
@@ -704,6 +702,14 @@ DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
 PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
+
+
+#
+# Include the gnumake header hacks if we're not using kmk.
+#
+ifndef KMK_VERSION
+ include $(PATH_KBUILD)/gnumake-header.kmk
+endif
 
 
 #
