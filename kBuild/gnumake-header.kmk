@@ -1,4 +1,4 @@
-# $Id: gnumake-header.kmk 825 2007-02-01 06:37:56Z knut.osmundsen@oracle.com $
+# $Id: gnumake-header.kmk 850 2007-02-08 22:43:31Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - Additional header for use when bootstrapping kBuild using Vanilla GNU Make.
@@ -66,8 +66,8 @@ abspathex = $(foreach _fix_path,$1\
 
 ##
 # Use the APPEND shell script in case we're boot strapping.
-override APPEND_EXT := $(PATH_KBUILD)/gnumake-append.sh
-override APPEND = $(APPEND_EXT)
+APPEND_EXT := $(PATH_KBUILD)/gnumake-append.sh
+APPEND = $(APPEND_EXT)
 
 #
 # Fix some default variables.
