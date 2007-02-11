@@ -1,4 +1,4 @@
-# $Id: W2K3DDK.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: W2K3DDK.kmk 851 2007-02-11 03:58:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
@@ -24,7 +24,7 @@
 #
 #
 
-SDK_W2K3DDKAMD64 := The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
+SDK_W2K3DDK := The Microsoft Windows 2003 DDK, targeting $(BUILD_TARGET).
 
 # SDK Specific Properties
 ifndef PATH_SDK_W2K3DDK
