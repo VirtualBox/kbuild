@@ -1,4 +1,4 @@
-# $Id: footer.kmk 853 2007-02-11 04:01:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 854 2007-02-11 04:19:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2328,7 +2328,7 @@ dlls:      $(_DLLS)
 programs:  $(_PROGRAMS)
 sysmods:   $(_SYSMODS)
 others:    $(_OTHERS)
-installs:  $(_INSTALLS)
+installs:  $(_INSTALLS) $(_INSTALLS_DIRS) $(_INSTALLS_FILES)
 
 
 #

@@ -1,4 +1,4 @@
-# $Id: header.kmk 850 2007-02-08 22:43:31Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 854 2007-02-11 04:19:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -233,7 +233,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 850 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 854 $  )
 
 
 #
@@ -664,7 +664,7 @@ PASS_OTHERS_pass    := others
 # This pass installs the built entities to a sandbox area.
 PASS_INSTALLS       := Install
 PASS_INSTALLS_trgs  :=
-PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS
+PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS _INSTALLS_FILES
 PASS_INSTALLS_pass  := installs
 
 ## PASS: packing
