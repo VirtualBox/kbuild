@@ -1,4 +1,4 @@
-# $Id: footer.kmk 852 2007-02-11 04:00:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 853 2007-02-11 04:01:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -539,6 +539,9 @@ ifeq ($(TOOL_$(tool)_KMK_FILE),)
 $(error kBuild: Cannot find include file for the tool '$(tool)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
 endif
 include $(TOOL_$(tool)_KMK_FILE)
+ifndef TOOL_$(tool)
+$(warning kBuild: TOOL_$(tool) was not by $(TOOL_$(tool)_KMK_FILE)!)
+endif
 endif
 endef
 
@@ -555,7 +558,7 @@ $(error kBuild: Cannot find include file for the SDK '$(sdk)'! Searched: $(SDK_P
 endif
 include $(SDK_$(sdk)_KMK_FILE)
 ifndef SDK_$(sdk)
-$(warning kBuild: SDK_$(sdk) not defined after including $(SDK_$(sdk)_KMK_FILE)!)
+$(warning kBuild: SDK_$(sdk) was not defined by $(SDK_$(sdk)_KMK_FILE)!)
 endif
 endif
 endef
