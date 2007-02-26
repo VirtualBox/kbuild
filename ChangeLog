@@ -1,4 +1,4 @@
-/* $Id: ChangeLog 812 2007-01-30 19:45:46Z knut.osmundsen@oracle.com $ */
+/* $Id: ChangeLog 855 2007-02-26 21:59:05Z knut.osmundsen@oracle.com $ */
 
 The change log has been discontinued. check the trac timeline instead:
 
@@ -31,7 +31,7 @@ The change log has been discontinued. check the trac timeline instead:
 
 2006-11-24:
     - kBuild/bin/x86.win32/kmk.exe, kBuild/bin/x86.linux/kmk:
-        o Rebuilt with current code. 
+        o Rebuilt with current code.
     - kBuild/footer.kmk:
         o Fixed some issues with SDKS and linking.
     - kmk:
@@ -50,7 +50,7 @@ The change log has been discontinued. check the trac timeline instead:
     - kBuild/tools/GCC*.kmk:
         o Cleaned up the -s and -g usage.
     - kBuild/bin/x86.win32, kBuild/bin/x86.linux:
-        o Rebuilt with current code. 
+        o Rebuilt with current code.
     - kBuild/footer.kmk:
         o #3: Clean link output files.
     - kBuild/header.kmk, kmk:
@@ -351,5 +351,4 @@ The change log has been discontinued. check the trac timeline instead:
 
 2002-10-15: ktk
     - ALL:      Create repository.
-
 
