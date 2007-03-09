@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 844 2007-02-04 14:17:25Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 856 2007-03-09 05:01:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -171,6 +171,7 @@ define TOOL_GCC4MACHO_LINK_LIBRARY_CMDS
 		$(NL)$(TAB)$(QUIET)$(MKDIR) -p $(dir $(outbase))/ar.tmp.dir/ \
 		$(NL)$(TAB)$(QUIET)(cd $(dir $(outbase))ar.tmp.dir/ \
 			&& $(TOOL_GCC4MACHO_AR) -x $(abspath $(lib)) \
+		    && $(RM_EXT) -f ./__.SYMDEF* \
 			&& $(TOOL_GCC4MACHO_AR) $(flags) $(out) *) \
 		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))/ar.tmp.dir/* \
 		$(NL)$(TAB)$(QUIET)$(RMDIR) $(dir $(outbase))ar.tmp.dir/)
