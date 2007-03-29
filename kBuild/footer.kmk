@@ -1,4 +1,4 @@
-# $Id: footer.kmk 854 2007-02-11 04:19:04Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 859 2007-03-29 02:58:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -563,7 +563,7 @@ endif
 endif
 endef
 
-_SDKS := $(sort $(_SDKS)) 
+_SDKS := $(sort $(_SDKS))
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 
@@ -1179,11 +1179,10 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 		$($(target)_$(source)_DEPORD_)
 	$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
-	$(custom_pre)
 
 $($(target)_$(source)_CMDS_)
 
-	$(custom_post)
+	$($(target)_$(source)_CMDS_)
 ifndef NO_COMPILE_CMDS_DEPS
 	$$(QUIET2)$$(APPEND) "$(dep)"
 	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
@@ -1225,11 +1224,9 @@ $(out) $($(target)_OUTPUT_): \
 		$($(target)_DEPORD_)
 	$$(call MSG_LINK,$(target),$$@,$(tool_do))
 	$$(QUIET)$$(RM) -f $(dep) $(out) $($(target)_OUTPUT_)
-	$(custom_pre)
 
 $($(target)_CMDS_)
 
-	$(custom_post)
 ifndef NO_LINK_CMDS_DEPS
 	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
 ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
@@ -1422,6 +1419,69 @@ ifneq ($(defpath),)
  othersrc := $(call abspathex,$(othersrc),$(defpath))
 endif
 
+
+# Custom pre-link actions.
+ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_type))
+else ifdef $(target)_PRE_CMDS.$(bld_trg_arch)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg_arch))
+else ifdef $(target)_PRE_CMDS.$(bld_trg)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg))
+else ifdef $(target)_PRE_CMDS.$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_type))
+else ifdef $(target)_PRE_CMDS
+ pre_cmds := $($(target)_PRE_CMDS)
+else ifdef PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef PRE_CMDS.$(bld_trg).$(bld_trg_arch)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef PRE_CMDS.$(bld_trg).$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_type))
+else ifdef PRE_CMDS.$(bld_trg_arch)
+ pre_cmds := $(PRE_CMDS.$(bld_trg_arch))
+else ifdef PRE_CMDS.$(bld_trg)
+ pre_cmds := $(PRE_CMDS.$(bld_trg))
+else ifdef PRE_CMDS.$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_type))
+else
+ pre_cmds := $(PRE_CMDS)
+endif
+
+# Custom post-link actions.
+ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_type))
+else ifdef $(target)_POST_CMDS.$(bld_trg_arch)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg_arch))
+else ifdef $(target)_POST_CMDS.$(bld_trg)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg))
+else ifdef $(target)_POST_CMDS.$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_type))
+else ifdef $(target)_POST_CMDS
+ post_cmds := $($(target)_POST_CMDS)
+else ifdef POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef POST_CMDS.$(bld_trg).$(bld_trg_arch)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef POST_CMDS.$(bld_trg).$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_type))
+else ifdef POST_CMDS.$(bld_trg_arch)
+ post_cmds := $(POST_CMDS.$(bld_trg_arch))
+else ifdef POST_CMDS.$(bld_trg)
+ post_cmds := $(POST_CMDS.$(bld_trg))
+else ifdef POST_CMDS.$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_type))
+else
+ post_cmds := $(POST_CMDS)
+endif
+
 # dependency file
 dep := $(out)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
@@ -1449,6 +1509,12 @@ endif
 
 # call the tool
 $(target)_CMDS_   := $(TOOL_$(tool)_LINK_LIBRARY_CMDS)
+ifneq ($(pre_cmds),)
+ $(target)_CMDS_  := $(TAB)$(pre_cmds)$(NL)$(TAB)$($(target)_CMDS_)
+endif
+ifneq ($(post_cmds),)
+ $(target)_CMDS_  := $($(target)_CMDS_)$(NL)$(TAB)$(post_cmds)
+endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
@@ -1457,12 +1523,12 @@ $(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 $(eval $(def_link_rule))
 
 # installing and globals
-definst := $(PATH_LIB)
-typevar := _LIBS
 $(eval $(value def_target_install_pluss))
 endef
 
 # Process libraries
+definst := $(PATH_LIB)
+typevar := _LIBS
 tool_do := LINK_LIBRARY
 mode := 0644
 $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_lib)))
@@ -1641,31 +1707,67 @@ ifneq ($(defpath),)
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
 endif
 
-## @todo this stuff can't be working.
-custom_pre := $(strip $(firstword \
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_trg_arch))\
-	$($(target)_CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_PRE.$(bld_trg))\
-	$($(target)_CUSTOM_PRE.$(bld_type))\
-	$($(target)_CUSTOM_PRE)\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_trg_arch))\
-	$(CUSTOM_PRE.$(bld_trg).$(bld_type))\
-	$(CUSTOM_PRE.$(bld_trg))\
-	$(CUSTOM_PRE.$(bld_type))\
-	$(CUSTOM_PRE)\
-))
-custom_post := $(strip $(firstword \
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_trg_arch))\
-	$($(target)_CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$($(target)_CUSTOM_POST.$(bld_trg))\
-	$($(target)_CUSTOM_POST.$(bld_type))\
-	$($(target)_CUSTOM_POST)\
-	$(CUSTOM_POST.$(bld_trg).$(bld_trg_arch))\
-	$(CUSTOM_POST.$(bld_trg).$(bld_type))\
-	$(CUSTOM_POST.$(bld_trg))\
-	$(CUSTOM_POST.$(bld_type))\
-	$(CUSTOM_POST)\
-))
+# Custom pre-link actions.
+ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_type))
+else ifdef $(target)_PRE_CMDS.$(bld_trg_arch)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg_arch))
+else ifdef $(target)_PRE_CMDS.$(bld_trg)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_trg))
+else ifdef $(target)_PRE_CMDS.$(bld_type)
+ pre_cmds := $($(target)_PRE_CMDS.$(bld_type))
+else ifdef $(target)_PRE_CMDS
+ pre_cmds := $($(target)_PRE_CMDS)
+else ifdef PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef PRE_CMDS.$(bld_trg).$(bld_trg_arch)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef PRE_CMDS.$(bld_trg).$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_trg).$(bld_type))
+else ifdef PRE_CMDS.$(bld_trg_arch)
+ pre_cmds := $(PRE_CMDS.$(bld_trg_arch))
+else ifdef PRE_CMDS.$(bld_trg)
+ pre_cmds := $(PRE_CMDS.$(bld_trg))
+else ifdef PRE_CMDS.$(bld_type)
+ pre_cmds := $(PRE_CMDS.$(bld_type))
+else
+ pre_cmds := $(PRE_CMDS)
+endif
+
+# Custom post-link actions.
+ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef $(target)_POST_CMDS.$(bld_trg).$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg).$(bld_type))
+else ifdef $(target)_POST_CMDS.$(bld_trg_arch)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg_arch))
+else ifdef $(target)_POST_CMDS.$(bld_trg)
+ post_cmds := $($(target)_POST_CMDS.$(bld_trg))
+else ifdef $(target)_POST_CMDS.$(bld_type)
+ post_cmds := $($(target)_POST_CMDS.$(bld_type))
+else ifdef $(target)_POST_CMDS
+ post_cmds := $($(target)_POST_CMDS)
+else ifdef POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
+else ifdef POST_CMDS.$(bld_trg).$(bld_trg_arch)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_trg_arch))
+else ifdef POST_CMDS.$(bld_trg).$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_trg).$(bld_type))
+else ifdef POST_CMDS.$(bld_trg_arch)
+ post_cmds := $(POST_CMDS.$(bld_trg_arch))
+else ifdef POST_CMDS.$(bld_trg)
+ post_cmds := $(POST_CMDS.$(bld_trg))
+else ifdef POST_CMDS.$(bld_type)
+ post_cmds := $(POST_CMDS.$(bld_type))
+else
+ post_cmds := $(POST_CMDS)
+endif
 
 # installation targets
 ifndef $(target)_NOINST
@@ -1711,6 +1813,12 @@ endif
 
 # call the tool
 $(target)_CMDS_   := $(TOOL_$(tool)_$(tool_do)_CMDS)
+ifneq ($(pre_cmds),)
+ $(target)_CMDS_  := $(TAB)$(pre_cmds)$(NL)$(TAB)$($(target)_CMDS_)
+endif
+ifneq ($(post_cmds),)
+ $(target)_CMDS_  := $($(target)_CMDS_)$(NL)$(TAB)$(post_cmds)
+endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
