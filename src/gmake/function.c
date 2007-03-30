@@ -1737,6 +1737,9 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
       free ((char *) command_argv);
 
       /* Close the write side of the pipe.  */
+# ifdef _MSC_VER /* crap. */
+      if (pipedes[1] != -1)
+# endif 
       (void) close (pipedes[1]);
 #endif
 
@@ -1765,6 +1768,9 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
       if (fpipe)
 	(void) pclose (fpipe);
 #else
+# ifdef _MSC_VER /* crap. */
+      if (pipedes[0] != -1)
+# endif 
       (void) close (pipedes[0]);
 #endif
 
