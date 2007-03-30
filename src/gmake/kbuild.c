@@ -175,7 +175,7 @@ kbuild_get_variable(const char *pszName)
     {
         printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
 # ifdef _MSC_VER
-        __asm int 3;
+        __debugbreak();
 # endif
         assert(0);
     }
@@ -205,7 +205,7 @@ kbuild_get_recursive_variable(const char *pszName)
     {
         printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
 # ifdef _MSC_VER
-        __asm int 3;
+        __debugbreak();
 # endif
         assert(0);
     }
@@ -252,7 +252,7 @@ kbuild_lookup_variable(const char *pszName)
         {
             printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
 # ifdef _MSC_VER
-            __asm int 3;
+            __debugbreak();
 # endif
             assert(0);
         }
