@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 793 2007-01-24 23:23:57Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 860 2007-03-30 01:48:58Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -30,6 +30,7 @@
 *******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -44,13 +45,13 @@
 
 #define OFFSETOF(type, member)  ( (int)(size_t)(void *)&( ((type *)(void *)0)->member) )
 
-/*#define DEBUG*/
+#define DEBUG
 #ifdef DEBUG
-#define dprintf(a)              printf a
-#define dump(pb, cb, offBase)   hexdump(pb,cb,offBase)
+# define dprintf(a)             printf a
+# define dump(pb, cb, offBase)  hexdump(pb,cb,offBase)
 #else
-#define dprintf(a)              do {} while (0)
-#define dump(pb, cb, offBase)   do {} while (0)
+# define dprintf(a)             do {} while (0)
+# define dump(pb, cb, offBase)  do {} while (0)
 #endif
 
 
@@ -237,6 +238,27 @@ typedef struct PDB70ROOT
     /* uint32_t aiPages[] */
 } PDB70ROOT, *PPDB70ROOT;
 
+/**
+ * The PDB 7.0 name stream (#1) header.
+ */
+typedef struct PDB70NAMES
+{
+    /** The structure version. */
+    uint32_t        Version;
+    /** Timestamp.  */
+    uint32_t        TimeStamp;
+    /** Unknown. */
+    uint32_t        Unknown1;
+    /** GUID. */
+    uint32_t        u32Guid[4];
+    /** The size of the following name table. */
+    uint32_t        cbNames;
+    /** The name table. */
+    char            szzNames[1];
+} PDB70NAMES, *PPDB70NAMES;
+
+/** The version / magic of the names structure. */
+#define PDB70NAMES_VERSION  20000404
 
 
 static int Pdb70ValidateHeader(PPDB70HDR pHdr, size_t cbFile)
@@ -290,7 +312,7 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
             {
                 off *= cbPage;
                 memcpy(pbBuf + iPage * cbPage, (uint8_t *)pHdr + off, cbPage);
-                dump(pbBuf + iPage * cbPage, cbPage, off);
+                dump(pbBuf + iPage * cbPage, iPage + 1 < cPages ? cbPage : cb % cbPage, off);
             }
             else
             {
@@ -311,13 +333,14 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
 static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
 {
     /*
-     * The tricky bit here is to find the right length.
-     * (Todo: Check if we can just use the stream size..)
+     * The tricky bit here is to find the right length. Really?
+     * (Todo: Check if we can just use the stream #0 size..)
      */
     PPDB70PAGE piPageMap = (uint32_t *)((uint8_t *)pHdr + pHdr->iRootPages * pHdr->cbPage);
     PPDB70ROOT pRoot = Pdb70AllocAndRead(pHdr, pHdr->cbRoot, piPageMap);
     if (pRoot)
     {
+#if 1
         /* This stuff is probably unnecessary: */
         /* size = stream header + array of stream. */
         size_t cb = OFFSETOF(PDB70ROOT, aStreams[pRoot->cStreams]);
@@ -338,14 +361,18 @@ static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
                 return pRoot;
             }
         }
+#else
+        /* validate? */
+        return pRoot;
+#endif 
     }
     return NULL;
 }
 
 static void *Pdb70AllocAndReadStream(PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned iStream, size_t *pcbStream)
 {
-    size_t      cbStream = pRoot->aStreams[iStream].cbStream;
-    PPDB70PAGE  paiPageMap;
+    const size_t    cbStream = pRoot->aStreams[iStream].cbStream;
+    PPDB70PAGE      paiPageMap;
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(uint32_t)0)
     {
@@ -367,6 +394,9 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
 {
     PPDB70HDR   pHdr = (PPDB70HDR)pbFile;
     PPDB70ROOT  pRoot;
+    PPDB70NAMES pNames;
+    size_t      cbStream;
+    unsigned    fDone = 0;
     unsigned    iStream;
     int         rc = 0;
     dprintf(("pdb70\n"));
@@ -381,26 +411,82 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
         return 1;
 
     /*
-     * Iterate the streams in the root and scan their content for
-     * dependencies.
+     * The names we want are usually all found in the 'Names' stream, that is #1.
      */
-    rc = 0;
-    for (iStream = 0; iStream < pRoot->cStreams && !rc; iStream++)
+    dprintf(("Reading the names stream....\n"));
+    pNames = Pdb70AllocAndReadStream(pHdr, pRoot, 1, &cbStream);
+    if (pNames)
     {
-        const size_t cbStream = Pdb70Align(pHdr, pRoot->aStreams[iStream].cbStream);
-        uint8_t     *pbStream;
-        if (    pRoot->aStreams[iStream].cbStream == ~(uint32_t)0
-            ||  !pRoot->aStreams[iStream].cbStream)
-            continue;
-        dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream, cbStream));
-        pbStream = (uint8_t *)Pdb70AllocAndReadStream(pHdr, pRoot, iStream, NULL);
-        if (pbStream)
+        dprintf(("Names: Version=%u cbNames=%u (%#x)\n", pNames->Version, pNames->cbNames, pNames->cbNames));
+        if (    pNames->Version == PDB70NAMES_VERSION
+            &&  pNames->cbNames > 32
+            &&  pNames->cbNames + offsetof(PDB70NAMES, szzNames) <= pRoot->aStreams[1].cbStream)
         {
-            rc = ScanStream(pbStream, cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
-            free(pbStream);
+            /*
+             * Iterate the names and add the /mr/inversedeps/ ones to the dependency list.
+             */
+            const char *psz = &pNames->szzNames[0];
+            size_t cb = pNames->cbNames;
+            size_t off = 0;
+            dprintf(("0x0000 #0: %6d bytes  [root / toc]\n", pRoot->aStreams[0].cbStream));
+            for (iStream = 1; cb > 0; iStream++)
+            {
+                int fAdded = 0;
+                size_t cch = strlen(psz);
+                if (   cch >= sizeof("/mr/inversedeps/")
+                    && !memcmp(psz, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1))
+                {
+                    depAdd(psz + sizeof("/mr/inversedeps/") - 1, cch - (sizeof("/mr/inversedeps/") - 1));
+                    fAdded = 1;
+                }
+                dprintf(("%#06x #%d: %6d bytes  %s%s\n", off, iStream, 
+                         iStream < pRoot->cStreams ? pRoot->aStreams[iStream].cbStream : -1, 
+                         psz, fAdded ? "  [dep]" : "")); 
+                (void)fAdded;
+
+                /* next */
+                if (cch >= cb)
+                {
+                    dprintf(("warning! cch=%d cb=%d\n", cch, cb));
+                    cch = cb - 1;
+                }
+                cb  -= cch + 1;
+                psz += cch + 1;
+                off += cch + 1;
+            }
+            rc = 0;
+            fDone = 1;
         }
         else
-            rc = 1;
+            dprintf(("Unknown version or bad size: Version=%u cbNames=%d cbStream=%d\n", 
+                     pNames->Version, pNames->cbNames, cbStream));
+        free(pNames);
+    }
+
+    if (!fDone)
+    {
+        /*
+         * Iterate the streams in the root and scan their content for
+         * dependencies.
+         */
+        rc = 0;
+        for (iStream = 0; iStream < pRoot->cStreams && !rc; iStream++)
+        {
+            uint8_t *pbStream;
+            if (    pRoot->aStreams[iStream].cbStream == ~(uint32_t)0
+                ||  !pRoot->aStreams[iStream].cbStream)
+                continue;
+            dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream, 
+                     Pdb70Align(pHdr, pRoot->aStreams[iStream].cbStream)));
+            pbStream = (uint8_t *)Pdb70AllocAndReadStream(pHdr, pRoot, iStream, &cbStream);
+            if (pbStream)
+            {
+                rc = ScanStream(pbStream, cbStream, "/mr/inversedeps/", sizeof("/mr/inversedeps/") - 1);
+                free(pbStream);
+            }
+            else
+                rc = 1;
+        }
     }
 
     free(pRoot);
