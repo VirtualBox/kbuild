@@ -1,4 +1,4 @@
-/* $Id: kDep.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 865 2007-03-30 01:52:19Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -98,7 +98,7 @@ static void fixcase(char *pszPath)
         if (!(expr)) { \
             printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
                    #expr, __FILE__, __LINE__, pszPath, psz); \
-            __asm { __asm int 3 } \
+            __debugbreak(); \
             exit(1); \
         } \
     } while (0)
@@ -159,7 +159,7 @@ static void fixcase(char *pszPath)
         char chSaved0;
         char chSaved1;
         char *pszEnd;
-        int cch;
+        size_t cch;
         int iLongNameDiff;
 
 
@@ -184,8 +184,8 @@ static void fixcase(char *pszPath)
             return;
         }
         pszEnd[0] = '\0';
-        while (   (iLongNameDiff = stricmp(FindFileData.cFileName, psz))
-               && stricmp(FindFileData.cAlternateFileName, psz))
+        while (   (iLongNameDiff = _stricmp(FindFileData.cFileName, psz))
+               && _stricmp(FindFileData.cAlternateFileName, psz))
         {
             if (!FindNextFile(hDir, &FindFileData))
             {
@@ -199,13 +199,14 @@ static void fixcase(char *pszPath)
         else
         {
             /* replace spacy name with the short name. */
-            const int cchAlt = strlen(FindFileData.cAlternateFileName);
-            const int cchDelta = cch - cchAlt;
+            const size_t cchAlt = strlen(FindFileData.cAlternateFileName);
+            const size_t cchDelta = cch - cchAlt;
             my_assert(cchAlt > 0);
             if (!cchDelta)
                 memcpy(psz, FindFileData.cAlternateFileName, cch);
             else
-            {   int cbLeft = strlen(pszEnd) + 1;
+            {   
+                size_t cbLeft = strlen(pszEnd) + 1;
                 if ((psz - pszPath) + cbLeft + cchAlt <= _MAX_PATH)
                 {
                     memmove(psz + cchAlt, pszEnd, cbLeft);
