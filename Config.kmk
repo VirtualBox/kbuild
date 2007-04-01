@@ -1,4 +1,4 @@
-# $Id: Config.kmk 861 2007-03-30 01:50:45Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 869 2007-04-01 03:30:12Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -140,6 +140,7 @@ ifndef TEMPLATE_BIN_TOOL
  endif
  ifeq ($(BUILD_TARGET),solaris)
   TEMPLATE_BIN_LIBS            += rt
+  TEMPLATE_BIN_LDFLAGS         += -Wl,-i
  endif
  ifdef NIX_INSTALL_DIR
   TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
