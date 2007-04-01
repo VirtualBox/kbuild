@@ -128,9 +128,10 @@ include $(PATH_KBUILD)/footer.kmk
 # So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
+YACC ?= yacc
 
 $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
-	yacc -ld $^
+	$(YACC) -ld $^
 	$(MV) -f y.tab.c $(PATH_TARGET)/arith.c
 	$(MV) -f y.tab.h $(PATH_TARGET)/arith.h
 
