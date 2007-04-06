@@ -1,4 +1,4 @@
-# $Id: header.kmk 859 2007-03-29 02:58:33Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 874 2007-04-06 18:01:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -233,7 +233,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 859 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 874 $  )
 
 
 #
@@ -751,6 +751,23 @@ include $(_CFGFILE)
 
 
 #
+# Finalize a the central path variables now that we've included the Config.kmk file.
+#
+# This prevents some trouble when users override the defaults for these
+# variables and uses relative paths or paths with incorrect case.
+#
+PATH_OUT    := $(abspath $(PATH_OUT))
+PATH_OBJ    := $(abspath $(PATH_OBJ))
+PATH_TARGET := $(abspath $(PATH_TARGET))
+PATH_INS    := $(abspath $(PATH_INS))
+PATH_BIN    := $(abspath $(PATH_BIN))
+PATH_DLL    := $(abspath $(PATH_DLL))
+PATH_SYS    := $(abspath $(PATH_SYS))
+PATH_LIB    := $(abspath $(PATH_LIB))
+PATH_DOC    := $(abspath $(PATH_DOC))
+
+
+#
 # Setup the message style. The default one is inlined.
 #
 # See kBuild/msgstyles for more styles or use KBUILD_MSG_STYLE_PATHS
@@ -881,7 +898,6 @@ else
   MSG_L2 ?= @$(ECHO) "kBuild: $1"
  endif
 endif
-
 
 
 # end-of-file-content
