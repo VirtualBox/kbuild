@@ -1063,11 +1063,7 @@ start_job_command (struct child *child)
      order to really fix this, we'll have to keep a lines_flags for every
      actual line, after expansion.  */
   child->file->cmds->lines_flags[child->command_line - 1]
-#ifdef CONFIG_WITH_KMK_BUILTIN
-    |= flags & (COMMANDS_RECURSE | COMMANDS_KMK_BUILTIN);
-#else
     |= flags & COMMANDS_RECURSE;
-#endif
 
   /* Figure out an argument list from this command line.  */
 
