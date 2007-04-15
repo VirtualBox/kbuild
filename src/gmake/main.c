@@ -1759,7 +1759,7 @@ main (int argc, char **argv, char **envp)
 	  }
     }
 
-#ifndef __EMX__ /* Don't use a SIGCHLD handler for OS/2 */
+#if !defined(__EMX__) || defined(__KLIBC__) /* Don't use a SIGCHLD handler for good old EMX */
 #if defined(MAKE_JOBSERVER) || !defined(HAVE_WAIT_NOHANG)
   /* Set up to handle children dying.  This must be done before
      reading in the makefiles so that `shell' function calls will work.
