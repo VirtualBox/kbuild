@@ -307,7 +307,7 @@ read_profile(struct shinstance *psh, const char *name)
 	int vflag_set = 0;
 
 	INTOFF;
-	if ((fd = shfile_open(psh, name, O_RDONLY)) >= 0)
+	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY)) >= 0)
 		setinputfd(psh, fd, 1);
 	INTON;
 	if (fd < 0)

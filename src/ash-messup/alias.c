@@ -53,22 +53,23 @@ __RCSID("$NetBSD: alias.c,v 1.12 2003/08/07 09:05:29 agc Exp $");
 #include "alias.h"
 #include "options.h"	/* XXX for argptr (should remove?) */
 #include "var.h"
+#include "shinstance.h"
 
-#define ATABSIZE 39
+/*#define ATABSIZE 39
 
-struct alias *atab[ATABSIZE];
+struct alias *atab[ATABSIZE];*/
 
-STATIC void setalias(char *, char *);
-STATIC int unalias(char *);
-STATIC struct alias **hashalias(char *);
+STATIC void setalias(shinstance *, char *, char *);
+STATIC int unalias(shinstance *, char *);
+STATIC struct alias **hashalias(shinstance *, char *);
 
 STATIC
 void
-setalias(char *name, char *val)
+setalias(shinstance *psh, char *name, char *val)
 {
 	struct alias *ap, **app;
 
-	app = hashalias(name);
+	app = hashalias(psh, name);
 	for (ap = *app; ap; ap = ap->next) {
 		if (equal(name, ap->name)) {
 			INTOFF;
@@ -116,11 +117,11 @@ setalias(char *name, char *val)
 }
 
 STATIC int
-unalias(char *name)
+unalias(shinstance *psh, char *name)
 {
 	struct alias *ap, **app;
 
-	app = hashalias(name);
+	app = hashalias(psh, name);
 
 	for (ap = *app; ap; app = &(ap->next), ap = ap->next) {
 		if (equal(name, ap->name)) {
@@ -149,23 +150,23 @@ unalias(char *name)
 }
 
 #ifdef mkinit
-MKINIT void rmaliases(void);
+MKINIT void rmaliases(shinstance *psh);
 
 SHELLPROC {
-	rmaliases();
+	rmaliases(psh);
 }
 #endif
 
 void
-rmaliases(void)
+rmaliases(shinstance *psh)
 {
 	struct alias *ap, *tmp;
 	int i;
 
 	INTOFF;
 	for (i = 0; i < ATABSIZE; i++) {
-		ap = atab[i];
-		atab[i] = NULL;
+		ap = psh->atab[i];
+		psh->atab[i] = NULL;
 		while (ap) {
 			ckfree(ap->name);
 			ckfree(ap->val);
@@ -178,9 +179,9 @@ rmaliases(void)
 }
 
 struct alias *
-lookupalias(char *name, int check)
+lookupalias(shinstance *psh, char *name, int check)
 {
-	struct alias *ap = *hashalias(name);
+	struct alias *ap = *hashalias(psh, name);
 
 	for (; ap; ap = ap->next) {
 		if (equal(name, ap->name)) {
@@ -194,11 +195,11 @@ lookupalias(char *name, int check)
 }
 
 char *
-get_alias_text(char *name)
+get_alias_text(shinstance *psh, char *name)
 {
 	struct alias *ap;
 
-	ap = lookupalias(name, 0);
+	ap = lookupalias(psh, name, 0);
 	if (ap == NULL)
 		return NULL;
 	return ap->val;
@@ -208,7 +209,7 @@ get_alias_text(char *name)
  * TODO - sort output
  */
 int
-aliascmd(int argc, char **argv)
+aliascmd(shinstance *psh, int argc, char **argv)
 {
 	char *n, *v;
 	int ret = 0;
@@ -218,28 +219,28 @@ aliascmd(int argc, char **argv)
 		int i;
 
 		for (i = 0; i < ATABSIZE; i++)
-			for (ap = atab[i]; ap; ap = ap->next) {
+			for (ap = psh->atab[i]; ap; ap = ap->next) {
 				if (*ap->name != '\0') {
-					out1fmt("alias %s=", ap->name);
-					print_quoted(ap->val);
-					out1c('\n');
+					out1fmt(psh, "alias %s=", ap->name);
+					print_quoted(psh, ap->val);
+					out1c(psh, '\n');
 				}
 			}
 		return (0);
 	}
 	while ((n = *++argv) != NULL) {
 		if ((v = strchr(n+1, '=')) == NULL) { /* n+1: funny ksh stuff */
-			if ((ap = lookupalias(n, 0)) == NULL) {
-				outfmt(out2, "alias: %s not found\n", n);
+			if ((ap = lookupalias(psh, n, 0)) == NULL) {
+				outfmt(psh->out2, "alias: %s not found\n", n);
 				ret = 1;
 			} else {
-				out1fmt("alias %s=", n);
-				print_quoted(ap->val);
-				out1c('\n');
+				out1fmt(psh, "alias %s=", n);
+				print_quoted(psh, ap->val);
+				out1c(psh, '\n');
 			}
 		} else {
 			*v++ = '\0';
-			setalias(n, v);
+			setalias(psh, n, v);
 		}
 	}
 
@@ -247,29 +248,29 @@ aliascmd(int argc, char **argv)
 }
 
 int
-unaliascmd(int argc, char **argv)
+unaliascmd(shinstance *psh, int argc, char **argv)
 {
 	int i;
 
-	while ((i = nextopt("a")) != '\0') {
+	while ((i = nextopt(psh, "a")) != '\0') {
 		if (i == 'a') {
-			rmaliases();
+			rmaliases(psh);
 			return (0);
 		}
 	}
-	for (i = 0; *argptr; argptr++)
-		i = unalias(*argptr);
+	for (i = 0; *psh->argptr; psh->argptr++)
+		i = unalias(psh, *psh->argptr);
 
 	return (i);
 }
 
 STATIC struct alias **
-hashalias(char *p)
+hashalias(shinstance *psh, char *p)
 {
 	unsigned int hashval;
 
 	hashval = *p << 4;
 	while (*p)
 		hashval+= *p++;
-	return &atab[hashval % ATABSIZE];
+	return &psh->atab[hashval % ATABSIZE];
 }

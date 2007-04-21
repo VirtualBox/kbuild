@@ -24,6 +24,8 @@
  *
  */
 
+#ifndef ___shthread_h___
+#define ___shthread_h___
 
 #include <sys/types.h>
 
@@ -36,3 +38,6 @@ typedef uintptr_t shtid;
 
 void shthread_set_shell(struct shinstance *);
 struct shinstance *shthread_get_shell(void);
+
+#endif
+

@@ -24,34 +24,20 @@
  *
  */
 
-#ifndef ___shfile_h___
-#define ___shfile_h___
+#include "shfile.h"
 
-#include "shtypes.h"
+#include <stdlib.h>
+#include <unistd.h>
 
-/**
- * One file.
- */
-typedef struct shfile
+
+int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags)
 {
-    int                 fd;             /**< The shell file descriptor number. */
-    int                 flags;          /**< Open flags. */
-    intptr_t            native;         /**< The native file descriptor number. */
-} shfile;
+    return open(name, flags);
+}
 
-/**
- * The file descriptor table for a shell.
- */
-typedef struct shfdtab
+
+int shfile_close(shfdtab *pfdtab, unsigned fd)
 {
-    shmtx               mtx;            /**< Mutex protecting any operations on the table and it's handles. */
-    unsigned            size;           /**< The size of the table (number of entries). */
-    shfile             *tab;            /**< Pointer to the table. */
-} shfdtab;
-
-
-int shfile_open(shfdtab *, const char *, unsigned);
-int shfile_close(shfdtab *pfdtab, unsigned fd);
-
-#endif
+    return close(fd);
+}
 

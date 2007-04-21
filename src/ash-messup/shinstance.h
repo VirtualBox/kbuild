@@ -136,6 +136,10 @@ typedef struct shinstance
 
     /* builtins.h */
 
+    /* alias.c */
+#define ATABSIZE 39
+    struct alias       *atab[ATABSIZE];
+
 } shinstance;
 
 
