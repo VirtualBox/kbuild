@@ -34,13 +34,13 @@
  *	@(#)trap.h	8.3 (Berkeley) 6/5/95
  */
 
-extern int pendingsigs;
+/*extern int pendingsigs;*/
 
-int trapcmd(int, char **);
-void clear_traps(int);
-long setsignal(int, int);
-void ignoresig(int, int);
-void onsig(int);
-void dotrap(void);
-void setinteractive(int);
-void exitshell(int) __attribute__((__noreturn__));
+int trapcmd(struct shinstance *, int, char **);
+void clear_traps(struct shinstance *, int);
+long setsignal(struct shinstance *, int, int);
+void ignoresig(struct shinstance *, int, int);
+void onsig(struct shinstance *, int);
+void dotrap(struct shinstance *, void);
+void setinteractive(struct shinstance *, int);
+void exitshell(struct shinstance *, int) __attribute__((__noreturn__));

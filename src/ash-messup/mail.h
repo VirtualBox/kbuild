@@ -34,4 +34,4 @@
  *	@(#)mail.h	8.2 (Berkeley) 5/4/95
  */
 
-void chkmail(int);
+void chkmail(struct shinstance *, int);

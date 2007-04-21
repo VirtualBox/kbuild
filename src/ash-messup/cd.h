@@ -30,9 +30,9 @@
  *
  */
 
-void	getpwd(int);
-int	cdcmd(int, char **);
-int	pwdcmd(int, char **);
+void	getpwd(struct shinstance *, int);
+int	cdcmd(struct shinstance *, int, char **);
+int	pwdcmd(struct shinstance *, int, char **);
 #ifdef PC_DRIVE_LETTERS
 #define IS_ROOT(path) (   *(path) == '/' \
                        || *(path) == '\\' \

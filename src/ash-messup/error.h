@@ -61,9 +61,10 @@ struct jmploc {
 	jmp_buf loc;
 };
 
+/*
 extern struct jmploc *handler;
 extern int exception;
-extern int exerrno;	/* error for EXEXEC */
+extern int exerrno;*/	/* error for EXEXEC */
 
 /* exceptions */
 #define EXINT 0		/* SIGINT received */
@@ -79,31 +80,31 @@ extern int exerrno;	/* error for EXEXEC */
  * more fun than worrying about efficiency and portability. :-))
  */
 
-extern volatile int suppressint;
-extern volatile int intpending;
+/*extern volatile int suppressint;
+extern volatile int intpending;*/
 
-#define INTOFF suppressint++
-#define INTON { if (--suppressint == 0 && intpending) onint(); }
-#define FORCEINTON {suppressint = 0; if (intpending) onint();}
-#define CLEAR_PENDING_INT intpending = 0
-#define int_pending() intpending
+#define INTOFF psh->suppressint++
+#define INTON { if (--psh->suppressint == 0 && psh->intpending) onint(psh); }
+#define FORCEINTON {suppressint = 0; if (psh->intpending) onint(psh);}
+#define CLEAR_PENDING_INT psh->intpending = 0
+#define int_pending() psh->intpending
 
-void exraise(int) __attribute__((__noreturn__));
-void onint(void);
-void error(const char *, ...) __attribute__((__noreturn__));
-void exerror(int, const char *, ...) __attribute__((__noreturn__));
-const char *errmsg(int, int);
+void exraise(struct shinstance *, int) __attribute__((__noreturn__));
+void onint(struct shinstance *);
+void error(struct shinstance *, const char *, ...) __attribute__((__noreturn__));
+void exerror(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
+const char *errmsg(struct shinstance *, int, int);
 
-void sh_err(int, const char *, ...) __attribute__((__noreturn__));
-void sh_verr(int, const char *, va_list) __attribute__((__noreturn__));
-void sh_errx(int, const char *, ...) __attribute__((__noreturn__));
-void sh_verrx(int, const char *, va_list) __attribute__((__noreturn__));
-void sh_warn(const char *, ...);
-void sh_vwarn(const char *, va_list);
-void sh_warnx(const char *, ...);
-void sh_vwarnx(const char *, va_list);
+void sh_err(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
+void sh_verr(struct shinstance *, int, const char *, va_list) __attribute__((__noreturn__));
+void sh_errx(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
+void sh_verrx(struct shinstance *, int, const char *, va_list) __attribute__((__noreturn__));
+void sh_warn(struct shinstance *, const char *, ...);
+void sh_vwarn(struct shinstance *, const char *, va_list);
+void sh_warnx(struct shinstance *, const char *, ...);
+void sh_vwarnx(struct shinstance *, const char *, va_list);
 
-void sh_exit(int) __attribute__((__noreturn__));
+void sh_exit(struct shinstance *, int) __attribute__((__noreturn__));
 
 
 /*

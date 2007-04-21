@@ -71,12 +71,12 @@
  * must be distinct from NULL, so we use the address of a variable that
  * happens to be handy.
  */
-extern int tokpushback;
-#define NEOF ((union node *)&tokpushback)
-extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
+/*extern int tokpushback;*/
+#define NEOF ((union node *)&psh->tokpushback)
+/*extern int whichprompt;*/		/* 1 == PS1, 2 == PS2 */
 
 
-union node *parsecmd(int);
-void fixredir(union node *, const char *, int);
-int goodname(char *);
-const char *getprompt(void *);
+union node *parsecmd(struct shinstance *, int);
+void fixredir(struct shinstance *, union node *, const char *, int);
+int goodname(struct shinstance *, char *);
+const char *getprompt(struct shinstance *, void *);

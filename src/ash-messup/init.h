@@ -34,6 +34,6 @@
  *	@(#)init.h	8.2 (Berkeley) 5/4/95
  */
 
-void init(void);
-void reset(void);
-void initshellproc(void);
+void init(struct shinstance *);
+void reset(struct shinstance *);
+void initshellproc(struct shinstance *);
