@@ -1,7 +1,7 @@
 /* $Id: $ */
 /** @file
  *
- * File management. 
+ * Shell Thread Management.
  *
  * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
  *
@@ -24,34 +24,25 @@
  *
  */
 
-#ifndef ___shfile_h___
-#define ___shfile_h___
+#include "shthread.h"
+#include "shinstance.h"
 
-#include "shtypes.h"
+#if defined(_MSC_VER) || defined(__EMX__)
+# include <process.h>
+#else
+# include <pthread.h>
+#endif 
 
-/**
- * One file.
- */
-typedef struct shfile
+
+void shthread_set_shell(struct shinstance *psh)
 {
-    int                 fd;             /**< The shell file descriptor number. */
-    int                 flags;          /**< Open flags. */
-    intptr_t            native;         /**< The native file descriptor number. */
-} shfile;
 
-/**
- * The file descriptor table for a shell.
- */
-typedef struct shfdtab
+}
+
+struct shinstance *shthread_get_shell(void)
 {
-    shmtx               mtx;            /**< Mutex protecting any operations on the table and it's handles. */
-    unsigned            size;           /**< The size of the table (number of entries). */
-    shfile             *tab;            /**< Pointer to the table. */
-} shfdtab;
+    shinstance *psh = NULL;
+    return psh;
+}
 
-
-int shfile_open(shfdtab *, const char *, unsigned);
-int shfile_close(shfdtab *pfdtab, unsigned fd);
-
-#endif
 
