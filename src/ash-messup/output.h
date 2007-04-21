@@ -45,37 +45,38 @@ struct output {
 	int bufsize;
 	short fd;
 	short flags;
+	struct shinstance *psh;
 };
 
-extern struct output output;
+/*extern struct output output;
 extern struct output errout;
 extern struct output memout;
 extern struct output *out1;
-extern struct output *out2;
+extern struct output *out2;*/
 
-void open_mem(char *, int, struct output *);
-void out1str(const char *);
-void out2str(const char *);
+void open_mem(struct shinstance *, char *, int, struct output *);
+void out1str(struct shinstance *, const char *);
+void out2str(struct shinstance *, const char *);
 void outstr(const char *, struct output *);
 void emptyoutbuf(struct output *);
-void output_flushall(void);
+void output_flushall(struct shinstance *);
 void flushout(struct output *);
-void freestdout(void);
+void freestdout(struct shinstance *);
 void outfmt(struct output *, const char *, ...)
-    __attribute__((__format__(__printf__,2,3)));
-void out1fmt(const char *, ...)
-    __attribute__((__format__(__printf__,1,2)));
-void dprintf(const char *, ...)
-    __attribute__((__format__(__printf__,1,2)));
-void fmtstr(char *, size_t, const char *, ...)
     __attribute__((__format__(__printf__,3,4)));
+void out1fmt(struct shinstance *, const char *, ...)
+    __attribute__((__format__(__printf__,2,3)));
+void dprintf(struct shinstance *, const char *, ...)
+    __attribute__((__format__(__printf__,2,3)));
+void fmtstr(struct shinstance *, char *, size_t, const char *, ...)
+    __attribute__((__format__(__printf__,4,5)));
 void doformat(struct output *, const char *, va_list);
 int xwrite(int, char *, int);
 int xioctl(int, unsigned long, char *);
 
-#define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
-#define out1c(c)	outc(c, out1);
-#define out2c(c)	outc(c, out2);
+#define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(psh, file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
+#define out1c(c)	outc(c, psh->out1);
+#define out2c(c)	outc(c, psh->out2);
 
 #define OUTPUT_INCL
 #endif

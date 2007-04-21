@@ -57,13 +57,13 @@ struct arglist {
 
 
 union node;
-void expandhere(union node *, int);
-void expandarg(union node *, struct arglist *, int);
-void expari(int);
-int patmatch(char *, char *, int);
-void rmescapes(char *);
-int casematch(union node *, char *);
-int wordexpcmd(int, char **);
+void expandhere(struct shinstance *, union node *, int);
+void expandarg(struct shinstance *, union node *, struct arglist *, int);
+void expari(struct shinstance *, int);
+int patmatch(struct shinstance *, char *, char *, int);
+void rmescapes(struct shinstance *, char *);
+int casematch(struct shinstance *, union node *, char *);
+int wordexpcmd(struct shinstance *, int, char **);
 
 /* From arith.y */
 int arith(const char *);

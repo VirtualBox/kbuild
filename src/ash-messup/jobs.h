@@ -82,25 +82,25 @@ struct job {
 #endif
 };
 
-extern pid_t backgndpid;	/* pid of last background process */
-extern int job_warning;		/* user was warned about stopped jobs */
+/*extern pid_t backgndpid;*/	/* pid of last background process */
+/*extern int job_warning;*/		/* user was warned about stopped jobs */
 
-void setjobctl(int);
-int fgcmd(int, char **);
-int bgcmd(int, char **);
-int jobscmd(int, char **);
-void showjobs(struct output *, int);
-int waitcmd(int, char **);
-int jobidcmd(int, char **);
-struct job *makejob(union node *, int);
-int forkshell(struct job *, union node *, int);
-void forkchild(struct job *, union node *, int, int);
-int forkparent(struct job *, union node *, int, pid_t);
-int waitforjob(struct job *);
-int stoppedjobs(void);
-void commandtext(struct procstat *, union node *);
-int getjobpgrp(const char *);
+void setjobctl(struct shinstance *, int);
+int fgcmd(struct shinstance *, int, char **);
+int bgcmd(struct shinstance *, int, char **);
+int jobscmd(struct shinstance *, int, char **);
+void showjobs(struct shinstance *, struct output *, int);
+int waitcmd(struct shinstance *, int, char **);
+int jobidcmd(struct shinstance *, int, char **);
+struct job *makejob(struct shinstance *, union node *, int);
+int forkshell(struct shinstance *, struct job *, union node *, int);
+void forkchild(struct shinstance *, struct job *, union node *, int, int);
+int forkparent(struct shinstance *, struct job *, union node *, int, pid_t);
+int waitforjob(struct shinstance *, struct job *);
+int stoppedjobs(struct shinstance *);
+void commandtext(struct shinstance *, struct procstat *, union node *);
+int getjobpgrp(struct shinstance *, const char *);
 
 #if ! JOBS
-#define setjobctl(on)	/* do nothing */
+#define setjobctl(psh, on)	/* do nothing */
 #endif

@@ -34,10 +34,10 @@
  *	@(#)eval.h	8.2 (Berkeley) 5/4/95
  */
 
-extern char *commandname;	/* currently executing command */
-extern int exitstatus;		/* exit status of last command */
-extern int back_exitstatus;	/* exit status of backquoted command */
-extern struct strlist *cmdenviron;  /* environment for builtin command */
+/*extern char *commandname;*/	/* currently executing command */
+/*extern int exitstatus;*/		/* exit status of last command */
+/*extern int back_exitstatus;*/	/* exit status of backquoted command */
+/*extern struct strlist *cmdenviron;*/  /* environment for builtin command */
 
 
 struct backcmd {		/* result of evalbackcmd */
@@ -47,15 +47,15 @@ struct backcmd {		/* result of evalbackcmd */
 	struct job *jp;		/* job structure for command */
 };
 
-void evalstring(char *, int);
+void evalstring(struct shinstance *, char *, int);
 union node;	/* BLETCH for ansi C */
-void evaltree(union node *, int);
-void evalbackcmd(union node *, struct backcmd *);
+void evaltree(struct shinstance *, union node *, int);
+void evalbackcmd(struct shinstance *, union node *, struct backcmd *);
 
 /* in_function returns nonzero if we are currently evaluating a function */
-#define in_function()	funcnest
-extern int funcnest;
-extern int evalskip;
+#define in_function()	psh->funcnest
+/*extern int funcnest;
+extern int evalskip;*/
 
 /* reasons for skipping commands (see comment on breakcmd routine) */
 #define SKIPBREAK	1

@@ -70,7 +70,7 @@ struct localvar {
 	char *text;			/* saved text */
 };
 
-
+/*
 struct localvar *localvars;
 
 #if ATTY
@@ -91,6 +91,7 @@ extern struct var vterm;
 extern struct var vtermcap;
 extern struct var vhistsize;
 #endif
+*/
 
 /*
  * The following macros access the values of the above variables.
@@ -98,46 +99,46 @@ extern struct var vhistsize;
  * for unset variables.
  */
 
-#define ifsval()	(vifs.text + 4)
-#define ifsset()	((vifs.flags & VUNSET) == 0)
-#define mailval()	(vmail.text + 5)
-#define mpathval()	(vmpath.text + 9)
+#define ifsval()	(psh->vifs.text + 4)
+#define ifsset()	((psh->vifs.flags & VUNSET) == 0)
+#define mailval()	(psh->vmail.text + 5)
+#define mpathval()	(psh->vmpath.text + 9)
 #ifdef _MSC_VER
-#define pathval()	(vpath.text[5] ? &vpath.text[5] : &vpath2.text[5])
+#define pathval()	(psh->vpath.text[5] ? &psh->vpath.text[5] : &psh->vpath2.text[5])
 #else
-#define pathval()	(vpath.text + 5)
+#define pathval()	(psh->vpath.text + 5)
 #endif
-#define ps1val()	(vps1.text + 4)
-#define ps2val()	(vps2.text + 4)
-#define ps4val()	(vps4.text + 4)
-#define optindval()	(voptind.text + 7)
+#define ps1val()	(psh->vps1.text + 4)
+#define ps2val()	(psh->vps2.text + 4)
+#define ps4val()	(psh->vps4.text + 4)
+#define optindval()	(psh->voptind.text + 7)
 #ifndef SMALL
-#define histsizeval()	(vhistsize.text + 9)
-#define termval()	(vterm.text + 5)
+#define histsizeval()	(psh->vhistsize.text + 9)
+#define termval()	(psh->vterm.text + 5)
 #endif
 
 #if ATTY
-#define attyset()	((vatty.flags & VUNSET) == 0)
+#define attyset()	((psh->vatty.flags & VUNSET) == 0)
 #endif
-#define mpathset()	((vmpath.flags & VUNSET) == 0)
+#define mpathset()	((psh->vmpath.flags & VUNSET) == 0)
 
-void initvar(void);
-void setvar(const char *, const char *, int);
-void setvareq(char *, int);
+void initvar(struct shinstance *);
+void setvar(struct shinstance *, const char *, const char *, int);
+void setvareq(struct shinstance *, char *, int);
 struct strlist;
-void listsetvar(struct strlist *, int);
-char *lookupvar(const char *);
-char *bltinlookup(const char *, int);
-char **environment(void);
-void shprocvar(void);
-int showvars(const char *, int, int);
-int exportcmd(int, char **);
-int localcmd(int, char **);
-void mklocal(const char *, int);
-void listmklocal(struct strlist *, int);
-void poplocalvars(void);
-int setvarcmd(int, char **);
-int unsetcmd(int, char **);
-int unsetvar(const char *, int);
-int setvarsafe(const char *, const char *, int);
-void print_quoted(const char *);
+void listsetvar(struct shinstance *, struct strlist *, int);
+char *lookupvar(struct shinstance *, const char *);
+char *bltinlookup(struct shinstance *, const char *, int);
+char **environment(struct shinstance *);
+void shprocvar(struct shinstance *);
+int showvars(struct shinstance *, const char *, int, int);
+int exportcmd(struct shinstance *, int, char **);
+int localcmd(struct shinstance *, int, char **);
+void mklocal(struct shinstance *, const char *, int);
+void listmklocal(struct shinstance *, struct strlist *, int);
+void poplocalvars(struct shinstance *);
+int setvarcmd(struct shinstance *, int, char **);
+int unsetcmd(struct shinstance *, int, char **);
+int unsetvar(struct shinstance *, const char *, int);
+int setvarsafe(struct shinstance *, const char *, const char *, int);
+void print_quoted(struct shinstance *, const char *);

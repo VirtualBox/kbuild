@@ -26,6 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-int readcmd(int, char **);
-int umaskcmd(int, char **);
-int ulimitcmd(int, char **);
+int readcmd(struct shinstance *, int, char **);
+int umaskcmd(struct shinstance *, int, char **);
+int ulimitcmd(struct shinstance *, int, char **);

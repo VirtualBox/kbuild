@@ -34,16 +34,16 @@
 #ifndef SMALL
 #include <histedit.h>
 
-extern History *hist;
-extern EditLine *el;
+/*extern History *hist;
+extern EditLine *el;*/
 #endif
-extern int displayhist;
+/*extern int displayhist;*/
 
-void histedit(void);
-void sethistsize(const char *);
-void setterm(const char *);
-int histcmd(int, char **);
-int inputrc(int, char **);
-int not_fcnumber(char *);
-int str_to_event(const char *, int);
+void histedit(struct shinstance *);
+void sethistsize(struct shinstance *, const char *);
+void setterm(struct shinstance *, const char *);
+int histcmd(struct shinstance *, int, char **);
+int inputrc(struct shinstance *, int, char **);
+int not_fcnumber(struct shinstance *, char *);
+int str_to_event(struct shinstance *, const char *, int);
 

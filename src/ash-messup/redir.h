@@ -40,9 +40,9 @@
 #define REDIR_VFORK 04		/* running under vfork(2), be careful */
 
 union node;
-void redirect(union node *, int);
-void popredir(void);
-int fd0_redirected_p(void);
-void clearredir(int);
-int copyfd(int, int);
+void redirect(struct shinstance *, union node *, int);
+void popredir(struct shinstance *);
+int fd0_redirected_p(struct shinstance *);
+void clearredir(struct shinstance *, int);
+int copyfd(struct shinstance *, int, int);
 

@@ -59,21 +59,21 @@ struct cmdentry {
 #define DO_ALTPATH	0x08	/* using alternate path */
 #define DO_ALTBLTIN	0x20	/* %builtin in alt. path */
 
-extern const char *pathopt;	/* set by padvance */
+/*extern const char *pathopt;*/	/* set by padvance */
 
-void shellexec(char **, char **, const char *, int, int)
+void shellexec(struct shinstance *, char **, char **, const char *, int, int)
     __attribute__((__noreturn__));
-char *padvance(const char **, const char *);
-int hashcmd(int, char **);
-void find_command(char *, struct cmdentry *, int, const char *);
-int (*find_builtin(char *))(int, char **);
-int (*find_splbltin(char *))(int, char **);
-void hashcd(void);
-void changepath(const char *);
-void deletefuncs(void);
-void getcmdentry(char *, struct cmdentry *);
-void addcmdentry(char *, struct cmdentry *);
-void defun(char *, union node *);
-int unsetfunc(char *);
-int typecmd(int, char **);
-void hash_special_builtins(void);
+char *padvance(struct shinstance *, const char **, const char *);
+int hashcmd(struct shinstance *, int, char **);
+void find_command(struct shinstance *, char *, struct cmdentry *, int, const char *);
+int (*find_builtin(struct shinstance *, char *))(struct shinstance *, int, char **);
+int (*find_splbltin(struct shinstance *, char *))(struct shinstance *, int, char **);
+void hashcd(struct shinstance *);
+void changepath(struct shinstance *, const char *);
+void deletefuncs(struct shinstance *);
+void getcmdentry(struct shinstance *, char *, struct cmdentry *);
+void addcmdentry(struct shinstance *, char *, struct cmdentry *);
+void defun(struct shinstance *, char *, union node *);
+int unsetfunc(struct shinstance *, char *);
+int typecmd(struct shinstance *, int, char **);
+void hash_special_builtins(struct shinstance *);

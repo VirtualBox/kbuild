@@ -43,8 +43,8 @@ struct alias {
 	int flag;
 };
 
-struct alias *lookupalias(char *, int);
-char *get_alias_text(char *);
-int aliascmd(int, char **);
-int unaliascmd(int, char **);
-void rmaliases(void);
+struct alias *lookupalias(struct shinstance *, char *, int);
+char *get_alias_text(struct shinstance *, char *);
+int aliascmd(struct shinstance *, int, char **);
+int unaliascmd(struct shinstance *, int, char **);
+void rmaliases(struct shinstance *);

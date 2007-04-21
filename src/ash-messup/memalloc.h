@@ -42,36 +42,36 @@ struct stackmark {
 };
 
 
-extern char *stacknxt;
+/*extern char *stacknxt;
 extern int stacknleft;
 extern int sstrnleft;
-extern int herefd;
+extern int herefd;*/
 
 pointer ckmalloc(int);
 pointer ckrealloc(pointer, int);
 char *savestr(const char *);
-pointer stalloc(int);
-void stunalloc(pointer);
-void setstackmark(struct stackmark *);
-void popstackmark(struct stackmark *);
-void growstackblock(void);
-void grabstackblock(int);
-char *growstackstr(void);
-char *makestrspace(void);
-void ungrabstackstr(char *, char *);
+pointer stalloc(struct shinstance *, int);
+void stunalloc(struct shinstance *, pointer);
+void setstackmark(struct shinstance *, struct stackmark *);
+void popstackmark(struct shinstance *, struct stackmark *);
+void growstackblock(struct shinstance *);
+void grabstackblock(struct shinstance *, int);
+char *growstackstr(struct shinstance *);
+char *makestrspace(struct shinstance *);
+void ungrabstackstr(struct shinstance *, char *, char *);
 
 
 
-#define stackblock() stacknxt
-#define stackblocksize() stacknleft
-#define STARTSTACKSTR(p)	p = stackblock(), sstrnleft = stackblocksize()
-#define STPUTC(c, p)	(--sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(), *p++ = (c)))
-#define CHECKSTRSPACE(n, p)	{ if (sstrnleft < n) p = makestrspace(); }
-#define USTPUTC(c, p)	(--sstrnleft, *p++ = (c))
-#define STACKSTRNUL(p)	(sstrnleft == 0? (p = growstackstr(), *p = '\0') : (*p = '\0'))
-#define STUNPUTC(p)	(++sstrnleft, --p)
+#define stackblock() psh->stacknxt
+#define stackblocksize() psh->stacknleft
+#define STARTSTACKSTR(p)	p = stackblock(), psh->sstrnleft = stackblocksize()
+#define STPUTC(c, p)	(--psh->sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(psh), *p++ = (c)))
+#define CHECKSTRSPACE(n, p)	{ if (psh->sstrnleft < n) p = makestrspace(psh); }
+#define USTPUTC(c, p)	(--psh->sstrnleft, *p++ = (c))
+#define STACKSTRNUL(p)	(psh->sstrnleft == 0? (p = growstackstr(psh), *p = '\0') : (*p = '\0'))
+#define STUNPUTC(p)	(++psh->sstrnleft, --p)
 #define STTOPC(p)	p[-1]
-#define STADJUST(amount, p)	(p += (amount), sstrnleft -= (amount))
-#define grabstackstr(p)	stalloc(stackblocksize() - sstrnleft)
+#define STADJUST(amount, p)	(p += (amount), psh->sstrnleft -= (amount))
+#define grabstackstr(p)	stalloc(stackblocksize() - psh->sstrnleft)
 
 #define ckfree(p)	free((pointer)(p))

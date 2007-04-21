@@ -34,10 +34,10 @@
  *	@(#)main.h	8.2 (Berkeley) 5/4/95
  */
 
-extern int rootpid;	/* pid of main shell */
-extern int rootshell;	/* true if we aren't a child of the main shell */
+/*extern int rootpid;*/	/* pid of main shell */
+/*extern int rootshell;*/	/* true if we aren't a child of the main shell */
 
-void readcmdfile(char *);
-void cmdloop(int);
-int dotcmd(int, char **);
-int exitcmd(int, char **);
+void readcmdfile(struct shinstance *, char *);
+void cmdloop(struct shinstance *, int);
+int dotcmd(struct shinstance *, int, char **);
+int exitcmd(struct shinstance *, int, char **);

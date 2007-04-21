@@ -34,10 +34,10 @@
 #include <stdarg.h>
 
 union node;
-void showtree(union node *);
-void trace(const char *, ...);
-void tracev(const char *, va_list);
-void trargs(char **);
+void showtree(struct shinstance *, union node *);
+void trace(struct shinstance *, const char *, ...);
+void tracev(struct shinstance *, const char *, va_list);
+void trargs(struct shinstance *, char **);
 #ifdef DEBUG
 void trputc(int);
 void trputs(const char *);

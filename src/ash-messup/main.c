@@ -84,10 +84,6 @@ int rootpid;
 int rootshell;
 STATIC union node *curcmd;
 STATIC union node *prevcmd;
-#if PROFILE
-short profile_buf[16384];
-extern int etext();
-#endif
 
 STATIC void read_profile(const char *);
 STATIC char *find_dot_file(char *);
@@ -104,16 +100,27 @@ int main(int, char **);
 int
 main(int argc, char **argv)
 {
+	shinstance *psh;
+
+	setlocale(LC_ALL, "");
+
+	/*
+	 * Create the root shell instance.
+	 */
+	psh = create_root_shell(NULL, argc, argv);
+	if (!psh)
+		return 2;
+	return shell_main(psh, argc);
+}	
+
+int 
+shell_main(shinstance *psh, int argc, char **argv)
+{
 	struct jmploc jmploc;
 	struct stackmark smark;
 	volatile int state;
 	char *shinit;
 
-	setlocale(LC_ALL, "");
-
-#if PROFILE
-	monitor(4, etext, profile_buf, sizeof profile_buf, 50);
-#endif
 	state = 0;
 	if (setjmp(jmploc.loc)) {
 		/*
@@ -165,7 +172,7 @@ main(int argc, char **argv)
 		else
 			goto state4;
 	}
-	handler = &jmploc;
+	psh->handler = &jmploc;
 #ifdef DEBUG
 #if DEBUG == 2
 	debug = 1;
@@ -173,8 +180,8 @@ main(int argc, char **argv)
 	opentrace();
 	trputs("Shell args:  ");  trargs(argv);
 #endif
-	rootpid = getpid();
-	rootshell = 1;
+	psh->rootpid = getpid();
+	psh->rootshell = 1;
 #ifdef _MSC_VER
     {
         extern void init_syntax(void);
@@ -186,17 +193,17 @@ main(int argc, char **argv)
 	procargs(argc, argv);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
-		read_profile("/etc/profile");
+		read_profile(psh, "/etc/profile");
 state1:
 		state = 2;
-		read_profile(".profile");
+		read_profile(psh, ".profile");
 	}
 state2:
 	state = 3;
 	if (getuid() == geteuid() && getgid() == getegid()) {
-		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
+		if ((shinit = lookupvar(psh, "ENV")) != NULL && *shinit != '\0') {
 			state = 3;
-			read_profile(shinit);
+			read_profile(psh, shinit);
 		}
 	}
 state3:
@@ -213,20 +220,17 @@ state3:
 		int i;
 
 		for (i = 0; i < SIGSSIZE; i++)
-		    setsignal(sigs[i], 0);
+		    setsignal(psh, sigs[i], 0);
 	}
 
-	if (minusc)
-		evalstring(minusc, 0);
+	if (psh->minusc)
+		evalstring(psh, psh->minusc, 0);
 
-	if (sflag || minusc == NULL) {
+	if (psh->sflag || minusc == NULL) {
 state4:	/* XXX ??? - why isn't this before the "if" statement */
-		cmdloop(1);
+		cmdloop(psh, 1);
 	}
-#if PROFILE
-	monitor(0);
-#endif
-	exitshell(exitstatus);
+	exitshell(psh, psh->exitstatus);
 	/* NOTREACHED */
 }
 
