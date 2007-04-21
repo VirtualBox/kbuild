@@ -67,6 +67,6 @@ int wordexpcmd(struct shinstance *, int, char **);
 
 /* From arith.y */
 int arith(const char *);
-int expcmd(int , char **);
+int expcmd(struct shinstance *, int , char **);
 void arith_lex_reset(void);
 int yylex(void);

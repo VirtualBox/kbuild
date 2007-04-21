@@ -129,7 +129,7 @@ extern const struct optent ro_optlist[];
 void procargs(struct shinstance *, int, char **);
 void optschanged(struct shinstance *);
 void setparam(struct shinstance *, char **);
-void freeparam(struct shinstance *, volatile struct shparam *);
+void freeparam(volatile struct shparam *);
 int shiftcmd(struct shinstance *, int, char **);
 int setcmd(struct shinstance *, int, char **);
 int getoptscmd(struct shinstance *, int, char **);

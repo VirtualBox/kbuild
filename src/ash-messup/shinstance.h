@@ -137,8 +137,10 @@ typedef struct shinstance
     int                 exitstatus;     /**< exit status of last command */
     int                 back_exitstatus;/**< exit status of backquoted command */
     struct strlist     *cmdenviron;     /**< environment for builtin command */
-    int                 funcnest;
-    int                 evalskip;
+    int                 funcnest;       /**< depth of function calls */
+    int                 evalskip;       /**< set if we are skipping commands */
+    int                 skipcount;      /**< number of levels to skip */
+    int                 loopnest;       /**< current loop nesting level */
 
     /* builtins.h */
 
@@ -155,6 +157,8 @@ typedef struct shinstance
     /* error.c */
     char                errmsg_buf[16]; /**< static in errmsg. (bss) */
 
+    /* eval.c */
+    int                 vforked;
 } shinstance;
 
 
@@ -164,9 +168,9 @@ char *sh_getenv(shinstance *, const char *);
 /* signals */
 #include <signal.h>
 #ifdef _MSC_VER
-typedef uint32_t sh_sigset_t;
+    typedef uint32_t sh_sigset_t;
 #else
-typedef sigset_t sh_sigset_t;
+    typedef sigset_t sh_sigset_t;
 #endif 
 
 typedef void (*sh_handler)(int);
@@ -174,5 +178,48 @@ sh_handler sh_signal(shinstance *, int, sh_handler handler);
 void sh_raise_sigint(shinstance *);
 void sh_sigemptyset(sh_sigset_t *set);
 int sh_sigprocmask(shinstance *, int op, sh_sigset_t const *new, sh_sigset_t *old);
+
+/* times */
+#include <time.h>
+#ifdef _MSC_VER
+    typedef struct sh_tms
+    {
+        clock_t tms_utime;
+        clock_t tms_stime;
+        clock_t tms_cutime;
+        clock_t tms_cstime;
+    } sh_tms;
+#else
+#   include <times.h>
+    typedef struct tms sh_tms;
+#endif 
+clock_t sh_times(sh_tms *);
+int sh_sysconf_clk_tck(void);
+
+/* wait */
+#ifdef _MSC_VER
+#   include <process.h>
+#   define WNOHANG         1       /* Don't hang in wait. */
+#   define WUNTRACED       2       /* Tell about stopped, untraced children. */
+#   define WCONTINUED      4       /* Report a job control continued process. */
+#   define _W_INT(w)       (*(int *)&(w))  /* Convert union wait to int. */
+#   define WCOREFLAG       0200
+#   define _WSTATUS(x)     (_W_INT(x) & 0177)
+#   define _WSTOPPED       0177            /* _WSTATUS if process is stopped */
+#   define WIFSTOPPED(x)   (_WSTATUS(x) == _WSTOPPED)
+#   define WSTOPSIG(x)     (_W_INT(x) >> 8)
+#   define WIFSIGNALED(x)  (_WSTATUS(x) != 0 && !WIFSTOPPED(x) && !WIFCONTINUED(x)) /* bird: made GLIBC tests happy. */
+#   define WTERMSIG(x)     (_WSTATUS(x))
+#   define WIFEXITED(x)    (_WSTATUS(x) == 0)
+#   define WEXITSTATUS(x)  (_W_INT(x) >> 8)
+#   define WIFCONTINUED(x) (x == 0x13)     /* 0x13 == SIGCONT */
+#   define WCOREDUMP(x)    (_W_INT(x) & WCOREFLAG)
+#   define W_EXITCODE(ret, sig)    ((ret) << 8 | (sig))
+#   define W_STOPCODE(sig)         ((sig) << 8 | _WSTOPPED)
+#else
+#   include <sys/wait.h>
+#endif 
+pid_t sh_waitpid(shinstance *, pid_t, int *, int);
+void sh__exit(shinstance *, int);
 
 #endif

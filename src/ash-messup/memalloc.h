@@ -72,6 +72,6 @@ void ungrabstackstr(struct shinstance *, char *, char *);
 #define STUNPUTC(p)	(++psh->sstrnleft, --p)
 #define STTOPC(p)	p[-1]
 #define STADJUST(amount, p)	(p += (amount), psh->sstrnleft -= (amount))
-#define grabstackstr(p)	stalloc(stackblocksize() - psh->sstrnleft)
+#define grabstackstr(p)	stalloc(psh, stackblocksize() - psh->sstrnleft)
 
 #define ckfree(p)	free((pointer)(p))

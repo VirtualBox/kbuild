@@ -46,7 +46,7 @@ struct cmdentry {
 	int cmdtype;
 	union param {
 		int index;
-		int (*bltin)(int, char**);
+		int (*bltin)(struct shinstance*, int, char**);
 		union node *func;
 	} u;
 };

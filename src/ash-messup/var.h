@@ -34,6 +34,9 @@
  *	@(#)var.h	8.2 (Berkeley) 5/4/95
  */
 
+#ifndef ___var_h___
+#define ___var_h___
+
 /*
  * Shell variables.
  */
@@ -142,3 +145,5 @@ int unsetcmd(struct shinstance *, int, char **);
 int unsetvar(struct shinstance *, const char *, int);
 int setvarsafe(struct shinstance *, const char *, const char *, int);
 void print_quoted(struct shinstance *, const char *);
+
+#endif
