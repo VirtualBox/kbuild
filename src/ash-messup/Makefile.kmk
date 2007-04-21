@@ -101,7 +101,7 @@ ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
 #
 # Use the pregenerated code.
 #
-kmk_ash_DEPS :=Ä
+kmk_ash_DEPS := 
 
 define def_copy_generated
 $(PATH_TARGET)/$(src): generated/$(src)
@@ -110,8 +110,10 @@ $(PATH_TARGET)/$(src): generated/$(src)
 kmk_ash_DEPS += $(PATH_TARGET)/$(src)
 endef
 
-$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
-$(eval $(def_copy_generated)))
+#$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
+#$(eval $(def_copy_generated)))
+
+kmk_ash_INCS += generated 
 
 include $(PATH_KBUILD)/footer.kmk
 

@@ -31,6 +31,7 @@
 #include <stdlib.h>
 
 #ifdef _MSC_VER
+#include <io.h> /* intptr_t and uintptr_t */
 typedef signed char     int8_t;
 typedef unsigned char   uint8_t;
 typedef short           int16_t;
@@ -39,13 +40,6 @@ typedef int             int32_t;
 typedef unsigned int    uint32_t;
 typedef _int64          int64_t;
 typedef unsigned _int64 uint64_t;
-# if defined(__X86__) || defined(_X86_) || defined(_M_IX86)
-typedef signed long     intptr_t;
-typedef unsigned long   uintptr_t;
-# else
-typedef int64_t         intptr_t;
-typedef uint64_t        uintptr_t;
-# endif
 
 #define INT16_C(c)      (c)
 #define INT32_C(c)      (c)
@@ -77,6 +71,9 @@ typedef uint64_t        uintptr_t;
 #else
 # include <stdint.h>
 #endif
+
+struct shinstance;
+typedef struct shinstance shinstance;
 
 #endif
 

@@ -41,6 +41,6 @@ void clear_traps(struct shinstance *, int);
 long setsignal(struct shinstance *, int, int);
 void ignoresig(struct shinstance *, int, int);
 void onsig(struct shinstance *, int);
-void dotrap(struct shinstance *, void);
+void dotrap(struct shinstance *);
 void setinteractive(struct shinstance *, int);
 void exitshell(struct shinstance *, int) __attribute__((__noreturn__));

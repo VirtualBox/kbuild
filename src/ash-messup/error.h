@@ -85,7 +85,7 @@ extern volatile int intpending;*/
 
 #define INTOFF psh->suppressint++
 #define INTON { if (--psh->suppressint == 0 && psh->intpending) onint(psh); }
-#define FORCEINTON {suppressint = 0; if (psh->intpending) onint(psh);}
+#define FORCEINTON {psh->suppressint = 0; if (psh->intpending) onint(psh);}
 #define CLEAR_PENDING_INT psh->intpending = 0
 #define int_pending() psh->intpending
 

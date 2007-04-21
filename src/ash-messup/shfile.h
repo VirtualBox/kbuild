@@ -1,7 +1,7 @@
 /* $Id: $ */
 /** @file
  *
- * Shell thread methods.
+ * File management. 
  *
  * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
  *
@@ -25,14 +25,28 @@
  */
 
 
-#include <sys/types.h>
+#include "shtypes.h"
 
-typedef struct shmtx
+/**
+ * One file.
+ */
+typedef struct shfile
 {
-    char b[64];
-} shmtx;
+    int                 fd;             /**< The shell file descriptor number. */
+    int                 flags;          /**< Open flags. */
+    intptr_t            native;         /**< The native file descriptor number. */
+} shfile;
 
-typedef uintptr_t shtid;
+/**
+ * The file descriptor table for a shell.
+ */
+typedef struct shfdtab
+{
+    shmtx               mtx;            /**< Mutex protecting any operations on the table and it's handles. */
+    unsigned            size;           /**< The size of the table (number of entries). */
+    shfile             *tab;            /**< Pointer to the table. */
+} shfdtab;
 
-void shthread_set_shell(struct shinstance *);
-struct shinstance *shthread_get_shell(void);
+
+int shfile_open(shinstance *, const char *, unsigned);
+
