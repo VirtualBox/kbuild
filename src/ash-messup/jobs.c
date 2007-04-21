@@ -1020,7 +1020,7 @@ waitforjob(struct job *jp)
 		 * occurred, and if so interrupt ourselves.  Yuck.  - mycroft
 		 */
 		if (WIFSIGNALED(status) && WTERMSIG(status) == SIGINT)
-			raise(SIGINT);
+			sh_raise_sigint(psh);/*raise(SIGINT);*/
 	}
 #endif
 	if (! JOBS || jp->state == JOBDONE)

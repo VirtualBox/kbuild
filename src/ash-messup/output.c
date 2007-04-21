@@ -252,6 +252,7 @@ fmtstr(char *outbuf, size_t length, const char *fmt, ...)
 	strout.nleft = length;
 	strout.fd = BLOCK_OUT;
 	strout.flags = 0;
+        strout.psh = NULL;
 	doformat(&strout, fmt, ap);
 	outc('\0', &strout);
 	if (strout.flags & OUTPUT_ERR)
