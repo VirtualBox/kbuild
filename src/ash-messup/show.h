@@ -41,5 +41,5 @@ void trargs(struct shinstance *, char **);
 #ifdef DEBUG
 void trputc(int);
 void trputs(const char *);
-void opentrace(void);
+void opentrace(struct shinstance *);
 #endif

@@ -80,14 +80,18 @@ __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
 
 #define PROFILE 0
 
-int rootpid;
-int rootshell;
+/*int rootpid;
+int rootshell;*/
 STATIC union node *curcmd;
 STATIC union node *prevcmd;
 
 STATIC void read_profile(const char *);
 STATIC char *find_dot_file(char *);
 int main(int, char **);
+int shell_main(shinstance *, int, char **);
+#ifdef _MSC_VER
+extern void init_syntax(void);
+#endif
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -102,14 +106,20 @@ main(int argc, char **argv)
 {
 	shinstance *psh;
 
+	/*
+	 * Global initializations. 
+         */
 	setlocale(LC_ALL, "");
-
+#ifdef _MSC_VER
+	init_syntax();
+#endif
 	/*
 	 * Create the root shell instance.
 	 */
 	psh = create_root_shell(NULL, argc, argv);
 	if (!psh)
 		return 2;
+	shthread_set_shell(psh);
 	return shell_main(psh, argc);
 }	
 
@@ -128,40 +138,40 @@ shell_main(shinstance *psh, int argc, char **argv)
 		 * exception EXSHELLPROC to clean up before executing
 		 * the shell procedure.
 		 */
-		switch (exception) {
+		switch (psh->exception) {
 		case EXSHELLPROC:
-			rootpid = getpid();
-			rootshell = 1;
-			minusc = NULL;
-			state = 3;
+			psh->rootpid = /*getpid()*/ psh->pid;
+			psh->rootshell = 1;
+			psh->minusc = NULL;
+			psh->state = 3;
 			break;
 
 		case EXEXEC:
-			exitstatus = exerrno;
+			psh->exitstatus = psh->exerrno;
 			break;
 
 		case EXERROR:
-			exitstatus = 2;
+			psh->exitstatus = 2;
 			break;
 
 		default:
 			break;
 		}
 
-		if (exception != EXSHELLPROC) {
-			if (state == 0 || iflag == 0 || ! rootshell)
-				exitshell(exitstatus);
+		if (psh->exception != EXSHELLPROC) {
+			if (state == 0 || iflag == 0 || ! psh->rootshell)
+				exitshell(psh, exitstatus);
 		}
-		reset();
-		if (exception == EXINT
+		reset(psh);
+		if (psh->exception == EXINT
 #if ATTY
-		 && (! attyset() || equal(termval(), "emacs"))
+		 && (! attyset(psh) || equal(termval(psh), "emacs"))
 #endif
 		 ) {
-			out2c('\n');
+			out2c(psh, '\n');
 			flushout(&errout);
 		}
-		popstackmark(&smark);
+		popstackmark(psh, &smark);
 		FORCEINTON;				/* enable interrupts */
 		if (state == 1)
 			goto state1;
@@ -173,24 +183,19 @@ shell_main(shinstance *psh, int argc, char **argv)
 			goto state4;
 	}
 	psh->handler = &jmploc;
+	psh->rootpid = /*getpid()*/ psh->pid;
+	psh->rootshell = 1;
 #ifdef DEBUG
 #if DEBUG == 2
 	debug = 1;
 #endif
-	opentrace();
+	opentrace(psh);
 	trputs("Shell args:  ");  trargs(argv);
 #endif
-	psh->rootpid = getpid();
-	psh->rootshell = 1;
-#ifdef _MSC_VER
-    {
-        extern void init_syntax(void);
-        init_syntax();
-    }
-#endif
-	init();
-	setstackmark(&smark);
-	procargs(argc, argv);
+
+	init(psh);
+	setstackmark(psh, &smark);
+	procargs(psh, argc, argv);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile(psh, "/etc/profile");
@@ -208,7 +213,7 @@ state2:
 	}
 state3:
 	state = 4;
-	if (sflag == 0 || minusc) {
+	if (psh->sflag == 0 || psh->minusc) {
 		static int sigs[] =  {
 		    SIGINT, SIGQUIT, SIGHUP,
 #ifdef SIGTSTP
@@ -241,7 +246,7 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
  */
 
 void
-cmdloop(int top)
+cmdloop(struct shinstance *psh, int top)
 {
 	union node *n;
 	struct stackmark smark;
@@ -249,41 +254,41 @@ cmdloop(int top)
 	int numeof = 0;
 
 	TRACE(("cmdloop(%d) called\n", top));
-	setstackmark(&smark);
+	setstackmark(psh, &smark);
 	for (;;) {
-		if (pendingsigs)
-			dotrap();
+		if (psh->pendingsigs)
+			dotrap(psh);
 		inter = 0;
-		if (iflag && top) {
+		if (psh->iflag && top) {
 			inter = 1;
-			showjobs(out2, SHOW_CHANGED);
-			chkmail(0);
-			flushout(&errout);
+			showjobs(psh, psh->out2, SHOW_CHANGED);
+			chkmail(psh, 0);
+			flushout(&psh->errout);
 		}
-		n = parsecmd(inter);
+		n = parsecmd(psh, inter);
 		/* showtree(n); DEBUG */
 		if (n == NEOF) {
 			if (!top || numeof >= 50)
 				break;
-			if (!stoppedjobs()) {
-				if (!Iflag)
+			if (!stoppedjobs(psh)) {
+				if (!psh->Iflag)
 					break;
-				out2str("\nUse \"exit\" to leave shell.\n");
+				out2str(psh, "\nUse \"exit\" to leave shell.\n");
 			}
 			numeof++;
-		} else if (n != NULL && nflag == 0) {
-			job_warning = (job_warning == 2) ? 1 : 0;
+		} else if (n != NULL && psh->nflag == 0) {
+			psh->job_warning = (psh->job_warning == 2) ? 1 : 0;
 			numeof = 0;
-			evaltree(n, 0);
+			evaltree(psh, n, 0);
 		}
-		popstackmark(&smark);
-		setstackmark(&smark);
-		if (evalskip == SKIPFILE) {
-			evalskip = 0;
+		popstackmark(psh, &smark);
+		setstackmark(psh, &smark);
+		if (psh->evalskip == SKIPFILE) {
+			psh->evalskip = 0;
 			break;
 		}
 	}
-	popstackmark(&smark);
+	popstackmark(psh, &smark);
 }
 
 
@@ -293,33 +298,33 @@ cmdloop(int top)
  */
 
 STATIC void
-read_profile(const char *name)
+read_profile(struct shinstance *psh, const char *name)
 {
 	int fd;
 	int xflag_set = 0;
 	int vflag_set = 0;
 
 	INTOFF;
-	if ((fd = open(name, O_RDONLY)) >= 0)
-		setinputfd(fd, 1);
+	if ((fd = shfile_open(psh, name, O_RDONLY)) >= 0)
+		setinputfd(psh, fd, 1);
 	INTON;
 	if (fd < 0)
 		return;
 	/* -q turns off -x and -v just when executing init files */
-	if (qflag)  {
-	    if (xflag)
-		    xflag = 0, xflag_set = 1;
-	    if (vflag)
-		    vflag = 0, vflag_set = 1;
+	if (psh->qflag)  {
+	    if (psh->xflag)
+		    psh->xflag = 0, xflag_set = 1;
+	    if (psh->vflag)
+		    psh->vflag = 0, vflag_set = 1;
 	}
-	cmdloop(0);
-	if (qflag)  {
+	cmdloop(psh, 0);
+	if (psh->qflag)  {
 	    if (xflag_set)
-		    xflag = 1;
+		    psh->xflag = 1;
 	    if (vflag_set)
-		    vflag = 1;
+		    psh->vflag = 1;
 	}
-	popfile();
+	popfile(psh);
 }
 
 
@@ -329,18 +334,18 @@ read_profile(const char *name)
  */
 
 void
-readcmdfile(char *name)
+readcmdfile(struct shinstance *psh, char *name)
 {
 	int fd;
 
 	INTOFF;
 	if ((fd = open(name, O_RDONLY)) >= 0)
-		setinputfd(fd, 1);
+		setinputfd(psh, fd, 1);
 	else
 		error("Can't open %s", name);
 	INTON;
-	cmdloop(0);
-	popfile();
+	cmdloop(psh, 0);
+	popfile(psh);
 }
 
 
@@ -352,17 +357,17 @@ readcmdfile(char *name)
 
 
 STATIC char *
-find_dot_file(char *basename)
+find_dot_file(struct shinstance *psh, char *basename)
 {
 	char *fullname;
-	const char *path = pathval();
+	const char *path = pathval(psh);
 	struct stat statb;
 
 	/* don't try this for absolute or relative paths */
 	if (strchr(basename, '/'))
 		return basename;
 
-	while ((fullname = padvance(&path, basename)) != NULL) {
+	while ((fullname = padvance(psh, &path, basename)) != NULL) {
 		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
 			/*
 			 * Don't bother freeing here, since it will
@@ -370,7 +375,7 @@ find_dot_file(char *basename)
 			 */
 			return fullname;
 		}
-		stunalloc(fullname);
+		stunalloc(psh, fullname);
 	}
 
 	/* not found in the PATH */
@@ -379,33 +384,39 @@ find_dot_file(char *basename)
 }
 
 int
-dotcmd(int argc, char **argv)
+dotcmd(struct shinstance *psh, int argc, char **argv)
 {
-	exitstatus = 0;
+	psh->exitstatus = 0;
 
 	if (argc >= 2) {		/* That's what SVR2 does */
 		char *fullname;
 		struct stackmark smark;
 
-		setstackmark(&smark);
-		fullname = find_dot_file(argv[1]);
-		setinputfile(fullname, 1);
-		commandname = fullname;
-		cmdloop(0);
-		popfile();
-		popstackmark(&smark);
+		setstackmark(psh, &smark);
+		fullname = find_dot_file(psh, argv[1]);
+		setinputfile(psh, fullname, 1);
+		psh->commandname = fullname;
+		cmdloop(psh, 0);
+		popfile(psh);
+		popstackmark(psh, &smark);
 	}
-	return exitstatus;
+	return psh->exitstatus;
 }
 
 
 int
-exitcmd(int argc, char **argv)
+exitcmd(struct shinstance *psh, int argc, char **argv)
 {
-	if (stoppedjobs())
+	if (stoppedjobs(psh))
 		return 0;
 	if (argc > 1)
-		exitstatus = number(argv[1]);
-	exitshell(exitstatus);
+		psh->exitstatus = number(argv[1]);
+	exitshell(psh, exitstatus);
 	/* NOTREACHED */
 }
+
+/*
+ * Local Variables:
+ *   c-file-style: bsd
+ * End:
+ */

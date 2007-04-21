@@ -99,28 +99,28 @@ extern struct var vhistsize;
  * for unset variables.
  */
 
-#define ifsval()	(psh->vifs.text + 4)
-#define ifsset()	((psh->vifs.flags & VUNSET) == 0)
-#define mailval()	(psh->vmail.text + 5)
-#define mpathval()	(psh->vmpath.text + 9)
+#define ifsval(psh)	((psh)->vifs.text + 4)
+#define ifsset(psh)	(((psh)->vifs.flags & VUNSET) == 0)
+#define mailval(psh)	((psh)->vmail.text + 5)
+#define mpathval(psh)	((psh)->vmpath.text + 9)
 #ifdef _MSC_VER
-#define pathval()	(psh->vpath.text[5] ? &psh->vpath.text[5] : &psh->vpath2.text[5])
+#define pathval(psh)	((psh)->vpath.text[5] ? &(psh)->vpath.text[5] : &(psh)->vpath2.text[5])
 #else
-#define pathval()	(psh->vpath.text + 5)
+#define pathval(psh)	((psh)->vpath.text + 5)
 #endif
-#define ps1val()	(psh->vps1.text + 4)
-#define ps2val()	(psh->vps2.text + 4)
-#define ps4val()	(psh->vps4.text + 4)
-#define optindval()	(psh->voptind.text + 7)
+#define ps1val(psh)	((psh)->vps1.text + 4)
+#define ps2val(psh)	((psh)->vps2.text + 4)
+#define ps4val(psh)	((psh)->vps4.text + 4)
+#define optindval(psh)	((psh)->voptind.text + 7)
 #ifndef SMALL
-#define histsizeval()	(psh->vhistsize.text + 9)
-#define termval()	(psh->vterm.text + 5)
+#define histsizeval(psh) ((psh)->vhistsize.text + 9)
+#define termval(psh)	((psh)->vterm.text + 5)
 #endif
 
 #if ATTY
-#define attyset()	((psh->vatty.flags & VUNSET) == 0)
+#define attyset(psh)	(((psh)->vatty.flags & VUNSET) == 0)
 #endif
-#define mpathset()	((psh->vmpath.flags & VUNSET) == 0)
+#define mpathset(psh)	(((psh)->vmpath.flags & VUNSET) == 0)
 
 void initvar(struct shinstance *);
 void setvar(struct shinstance *, const char *, const char *, int);

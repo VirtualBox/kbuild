@@ -74,9 +74,9 @@ void doformat(struct output *, const char *, va_list);
 int xwrite(int, char *, int);
 int xioctl(int, unsigned long, char *);
 
-#define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(psh, file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
-#define out1c(c)	outc(c, psh->out1);
-#define out2c(c)	outc(c, psh->out2);
+#define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
+#define out1c(psh, c)	outc(c, (psh)->out1);
+#define out2c(psh, c)	outc(c, (psh)->out2);
 
 #define OUTPUT_INCL
 #endif
