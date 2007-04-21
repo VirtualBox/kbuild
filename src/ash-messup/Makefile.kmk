@@ -29,6 +29,7 @@ kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
 kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug.
 kmk_ash_INCS.win = win
 kmk_ash_SOURCES = \
+	main.c \
 	alias.c \
 	cd.c \
 	error.c \
@@ -39,7 +40,6 @@ kmk_ash_SOURCES = \
 	input.c \
 	jobs.c \
 	mail.c \
-	main.c \
 	memalloc.c \
 	miscbltin.c \
 	mystring.c \

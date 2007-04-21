@@ -52,7 +52,19 @@ typedef struct shfdtab
 
 
 int shfile_open(shfdtab *, const char *, unsigned);
+int shfile_pipe(shfdtab *, int [2]);
 int shfile_close(shfdtab *, unsigned);
+int shfile_fcntl(shfdtab *, int fd, int cmd, int arg);
+#ifdef _MSC_VER
+# define F_DUPFD    0
+# define F_GETFD    1
+# define F_SETFD    2
+# define F_GETFL    3
+# define F_SETFL    4
+# define FD_CLOEXEC 1
+#else
+# include <sys/fcntl.h>
+#endif
 
 int shfile_stat(shfdtab *, const char *, struct stat *);
 int shfile_lstat(shfdtab *, const char *, struct stat *);

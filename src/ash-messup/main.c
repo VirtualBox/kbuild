@@ -341,7 +341,7 @@ readcmdfile(struct shinstance *psh, char *name)
 	int fd;
 
 	INTOFF;
-	if ((fd = open(name, O_RDONLY)) >= 0)
+	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY)) >= 0)
 		setinputfd(psh, fd, 1);
 	else
 		error(psh, "Can't open %s", name);
@@ -370,7 +370,7 @@ find_dot_file(struct shinstance *psh, char *basename)
 		return basename;
 
 	while ((fullname = padvance(psh, &path, basename)) != NULL) {
-		if ((stat(fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
+		if ((shfile_stat(&psh->fdtab, fullname, &statb) == 0) && S_ISREG(statb.st_mode)) {
 			/*
 			 * Don't bother freeing here, since it will
 			 * be freed by the caller.
