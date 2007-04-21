@@ -68,46 +68,46 @@ const struct optent ro_optlist[NOPTS] = {
 #define DEF_OPT(name,letter) DEF_OPTS(name, letter, 0)
 
 DEF_OPT( "errexit",	'e' )	/* exit on error */
-#define eflag psh->optlist[0].val
+#define eflag optlist[0].val
 DEF_OPT( "noglob",	'f' )	/* no pathname expansion */
-#define fflag psh->optlist[1].val
+#define fflag optlist[1].val
 DEF_OPT( "ignoreeof",	'I' )	/* do not exit on EOF */
-#define Iflag psh->optlist[2].val
+#define Iflag optlist[2].val
 DEF_OPT( "interactive",'i' )	/* interactive shell */
-#define iflag psh->optlist[3].val
+#define iflag optlist[3].val
 DEF_OPT( "monitor",	'm' )	/* job control */
-#define mflag psh->optlist[4].val
+#define mflag optlist[4].val
 DEF_OPT( "noexec",	'n' )	/* [U] do not exec commands */
-#define nflag psh->optlist[5].val
+#define nflag optlist[5].val
 DEF_OPT( "stdin",	's' )	/* read from stdin */
-#define sflag psh->optlist[6].val
+#define sflag optlist[6].val
 DEF_OPT( "xtrace",	'x' )	/* trace after expansion */
-#define xflag psh->optlist[7].val
+#define xflag optlist[7].val
 DEF_OPT( "verbose",	'v' )	/* trace read input */
-#define vflag psh->optlist[8].val
+#define vflag optlist[8].val
 DEF_OPTS( "vi",		'V', 'V' )	/* vi style editing */
-#define Vflag psh->optlist[9].val
+#define Vflag optlist[9].val
 DEF_OPTS( "emacs",	'E', 'V' )	/* emacs style editing */
-#define	Eflag psh->optlist[10].val
+#define	Eflag optlist[10].val
 DEF_OPT( "noclobber",	'C' )	/* do not overwrite files with > */
-#define	Cflag psh->optlist[11].val
+#define	Cflag optlist[11].val
 DEF_OPT( "allexport",	'a' )	/* export all variables */
-#define	aflag psh->optlist[12].val
+#define	aflag optlist[12].val
 DEF_OPT( "notify",	'b' )	/* [U] report completion of background jobs */
-#define	bflag psh->optlist[13].val
+#define	bflag optlist[13].val
 DEF_OPT( "nounset",	'u' )	/* error expansion of unset variables */
-#define	uflag psh->optlist[14].val
+#define	uflag optlist[14].val
 DEF_OPT( "quietprofile", 'q' )
-#define	qflag psh->optlist[15].val
+#define	qflag optlist[15].val
 DEF_OPT( "nolog",	0 )	/* [U] no functon defs in command history */
-#define	nolog psh->optlist[16].val
+#define	nolog optlist[16].val
 DEF_OPT( "cdprint",	0 )	/* always print result of cd */
-#define	cdprint psh->optlist[17].val
+#define	cdprint optlist[17].val
 DEF_OPT( "tabcomplete",	0 )	/* <tab> causes filename expansion */
-#define	tabcomplete psh->optlist[18].val
+#define	tabcomplete optlist[18].val
 #ifdef DEBUG
 DEF_OPT( "debug",	0 )	/* enable debug prints */
-#define	debug psh->optlist[19].val
+#define	debug optlist[19].val
 #endif
 
 #ifdef DEFINE_OPTIONS

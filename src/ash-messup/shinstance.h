@@ -152,6 +152,10 @@ typedef struct shinstance
     struct strlist     *cmdenviron;     /**< environment for builtin command */
     int                 funcnest;
     int                 evalskip;
+
+    /* builtins.h */
+    const char         *commandname;
+
 } shinstance;
 
 

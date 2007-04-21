@@ -83,12 +83,12 @@
 #define INITARGS(argv)	if ((commandname = argv[0]) == NULL) {fputs("Argc is zero\n", stderr); exit(2);} else
 #endif
 
-pointer stalloc(int);
-void error(const char *, ...);
-void sh_warnx(const char *, ...);
-void sh_exit(int) __attribute__((__noreturn__));
+pointer stalloc(struct shinstance *, int);
+void error(struct shinstance *, const char *, ...);
+void sh_warnx(struct shinstance *, const char *, ...);
+void sh_exit(struct shinstance *, int) __attribute__((__noreturn__));
 
-int echocmd(int, char **);
+int echocmd(struct shinstance *, int, char **);
 
 
-extern const char *commandname;
+/*extern const char *commandname;*/
