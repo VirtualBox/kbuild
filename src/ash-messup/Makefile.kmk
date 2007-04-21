@@ -1,0 +1,157 @@
+# $Id: $
+## @file
+#
+# kBuild Makefile for kmk_ash.
+#
+# Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+#INSTALLS = ash.man
+
+PROGRAMS += kmk_ash
+kmk_ash_TEMPLATE = BIN
+kmk_ash_DEFS = lint SHELL SMALL
+kmk_ash_DEFS.linux = BSD
+kmk_ash_DEFS.solaris = BSD
+kmk_ash_DEFS.win = \
+	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_DEFS.os2 = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
+	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+kmk_ash_DEFS.darwin = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kmk_ash_DEFS.freebsd = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
+kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug.
+kmk_ash_INCS.win = win
+kmk_ash_SOURCES = \
+	alias.c \
+	cd.c \
+	error.c \
+	eval.c \
+	exec.c \
+	expand.c \
+	histedit.c \
+	input.c \
+	jobs.c \
+	mail.c \
+	main.c \
+	memalloc.c \
+	miscbltin.c \
+	mystring.c \
+	options.c \
+	output.c \
+	parser.c \
+	redir.c \
+	show.c \
+	syntax.c \
+	trap.c \
+	var.c \
+	bltin/echo.c \
+	bltin/kill.c \
+	bltin/test.c \
+	$(PATH_TARGET)/arith.c \
+	$(PATH_TARGET)/arith_lex.c \
+	$(PATH_TARGET)/builtins.c \
+	$(PATH_TARGET)/init.c \
+	$(PATH_TARGET)/nodes.c
+kmk_ash_SOURCES.linux = \
+	sys_signame.c \
+	strlcpy.c \
+	setmode.c
+kmk_ash_SOURCES.win = \
+	win/mscfakes.c \
+	win/err.c \
+	win/dirent.c \
+	sys_signame.c \
+	strlcpy.c \
+	setmode.c
+kmk_ash_SOURCES.solaris = \
+	sys_signame.c \
+	strlcpy.c \
+	setmode.c
+
+kmk_ash_DEPS = \
+	$(PATH_TARGET)/arith.h \
+	$(PATH_TARGET)/builtins.h \
+	$(PATH_TARGET)/nodes.h \
+	$(PATH_TARGET)/token.h
+kmk_ash_CLEAN = \
+	$(kmk_ash_DEPS)	\
+	$(PATH_TARGET)/arith.c \
+	$(PATH_TARGET)/arith_lex.c \
+	$(PATH_TARGET)/builtins.c \
+	$(PATH_TARGET)/init.c \
+	$(PATH_TARGET)/nodes.c
+
+kmk_ash.man_TEMPLATE = usr.bin.man
+kmk_ash.man_SOURCES = \
+	sh.1=>ash.1
+#ash.man_SYMLINKS = \
+#	ash.1.gz=>sh.1
+
+
+
+ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
+
+#
+# Use the pregenerated code.
+#
+kmk_ash_DEPS :=Ä
+
+define def_copy_generated
+$(PATH_TARGET)/$(src): generated/$(src)
+	$$(RM) -f $$@
+	$$(CP) -f $$^ $$@
+kmk_ash_DEPS += $(PATH_TARGET)/$(src)
+endef
+
+$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
+$(eval $(def_copy_generated)))
+
+include $(PATH_KBUILD)/footer.kmk
+
+else
+
+include $(PATH_KBUILD)/footer.kmk
+
+#
+# ATTENTION! ATTENTION! ATTENTION!
+#
+# Older ash versions has trouble with some of these scripts, great.
+# Kudos to the NetBSD guys for this clever move. ;)
+#
+# So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
+#
+BOOTSTRAP_SHELL ?= $(SHELL)
+YACC ?= yacc
+
+$(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
+	$(YACC) -ld $^
+	$(MV) -f y.tab.c $(PATH_TARGET)/arith.c
+	$(MV) -f y.tab.h $(PATH_TARGET)/arith.h
+
+$(PATH_TARGET)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_TARGET))
+	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
+
+$(PATH_TARGET)/builtins.h $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+ $(dir $@)
+	[ -f $(PATH_TARGET)/builtins.h ]
+
+$(PATH_TARGET)/nodes.h $(PATH_TARGET)/nodes.c: $(PATH_CURRENT)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+ $(dir $@)
+	[ -f $(dir $@)/nodes.h ]
+
+$(PATH_TARGET)/token.h: $(PATH_CURRENT)/mktokens | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+
+	$(MV) token.h $@
+
+$(PATH_TARGET)/init.c: $(PATH_CURRENT)/mkinit.sh $(filter-out $(PATH_TARGET)/%,$(kmk_ash_SOURCES)) | $(call DIRDEP,$(PATH_TARGET))
+	$(BOOTSTRAP_SHELL) $+
+	$(MV) init.c $@
+
+endif
