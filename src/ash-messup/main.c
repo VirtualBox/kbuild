@@ -77,6 +77,7 @@ __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
 #include "mystring.h"
 #include "exec.h"
 #include "cd.h"
+#include "shinstance.h"
 
 #define PROFILE 0
 
@@ -85,8 +86,8 @@ int rootshell;*/
 STATIC union node *curcmd;
 STATIC union node *prevcmd;
 
-STATIC void read_profile(const char *);
-STATIC char *find_dot_file(char *);
+STATIC void read_profile(struct shinstance *, const char *);
+STATIC char *find_dot_file(struct shinstance *, char *);
 int main(int, char **);
 int shell_main(shinstance *, int, char **);
 #ifdef _MSC_VER
@@ -120,7 +121,7 @@ main(int argc, char **argv)
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);
-	return shell_main(psh, argc);
+	return shell_main(psh, argc, argv);
 }	
 
 int 
@@ -143,7 +144,7 @@ shell_main(shinstance *psh, int argc, char **argv)
 			psh->rootpid = /*getpid()*/ psh->pid;
 			psh->rootshell = 1;
 			psh->minusc = NULL;
-			psh->state = 3;
+			state = 3;
 			break;
 
 		case EXEXEC:
@@ -159,8 +160,8 @@ shell_main(shinstance *psh, int argc, char **argv)
 		}
 
 		if (psh->exception != EXSHELLPROC) {
-			if (state == 0 || iflag == 0 || ! psh->rootshell)
-				exitshell(psh, exitstatus);
+			if (state == 0 || psh->iflag == 0 || ! psh->rootshell)
+				exitshell(psh, psh->exitstatus);
 		}
 		reset(psh);
 		if (psh->exception == EXINT
@@ -169,7 +170,7 @@ shell_main(shinstance *psh, int argc, char **argv)
 #endif
 		 ) {
 			out2c(psh, '\n');
-			flushout(&errout);
+			flushout(&psh->errout);
 		}
 		popstackmark(psh, &smark);
 		FORCEINTON;				/* enable interrupts */
@@ -231,12 +232,13 @@ state3:
 	if (psh->minusc)
 		evalstring(psh, psh->minusc, 0);
 
-	if (psh->sflag || minusc == NULL) {
+	if (psh->sflag || psh->minusc == NULL) {
 state4:	/* XXX ??? - why isn't this before the "if" statement */
 		cmdloop(psh, 1);
 	}
 	exitshell(psh, psh->exitstatus);
 	/* NOTREACHED */
+	return 1;
 }
 
 
@@ -342,7 +344,7 @@ readcmdfile(struct shinstance *psh, char *name)
 	if ((fd = open(name, O_RDONLY)) >= 0)
 		setinputfd(psh, fd, 1);
 	else
-		error("Can't open %s", name);
+		error(psh, "Can't open %s", name);
 	INTON;
 	cmdloop(psh, 0);
 	popfile(psh);
@@ -379,8 +381,9 @@ find_dot_file(struct shinstance *psh, char *basename)
 	}
 
 	/* not found in the PATH */
-	error("%s: not found", basename);
+	error(psh, "%s: not found", basename);
 	/* NOTREACHED */
+	return NULL;
 }
 
 int
@@ -411,8 +414,9 @@ exitcmd(struct shinstance *psh, int argc, char **argv)
 		return 0;
 	if (argc > 1)
 		psh->exitstatus = number(argv[1]);
-	exitshell(psh, exitstatus);
+	exitshell(psh, psh->exitstatus);
 	/* NOTREACHED */
+	return 1;
 }
 
 /*

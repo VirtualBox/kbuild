@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 878 2007-04-21 04:34:19Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 881 2007-04-21 08:47:37Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -111,7 +111,6 @@ char *dirname(char *path);
 #define fsync(fd)  0
 #define fchown(fd,uid,gid) 0
 #define fchmod(fd, mode) 0              /** @todo implement fchmod! */
-#define geteuid()  0
 #define lstat(path, s) stat(path, s)
 #define lchmod(path, mod) chmod(path, mod)
 #define lchown(path, uid, gid) chown(path, uid, gid)

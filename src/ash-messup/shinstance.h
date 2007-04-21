@@ -26,26 +26,7 @@
 
 #include "shtypes.h"
 #include "shthread.h"
-
-/**
- * One file.
- */
-typedef struct shfile
-{
-    int                 fd;             /**< The shell file descriptor number. */
-    int                 flags;          /**< Open flags. */
-    intptr_t            native;         /**< The native file descriptor number. */
-} shfile;
-
-/**
- * The file descriptor table for a shell.
- */
-typedef struct shfdtab
-{
-    shmtx               mtx;            /**< Mutex protecting any operations on the table and it's handles. */
-    unsigned            size;           /**< The size of the table (number of entries). */
-    shfile             *tab;            /**< Pointer to the table. */
-} shfdtab;
+#include "shfile.h"
 
 /**
  * A shell instance.
@@ -154,7 +135,6 @@ typedef struct shinstance
     int                 evalskip;
 
     /* builtins.h */
-    const char         *commandname;
 
 } shinstance;
 
