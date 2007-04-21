@@ -36,7 +36,7 @@
  * 
  * @returns pointer to root shell on success, NULL on failure.
  */
-shinstance *create_root_shell(shinstance *inherit, int argc, char **argv)
+shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
 {
     shinstance *psh;
 

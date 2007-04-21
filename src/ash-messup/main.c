@@ -117,7 +117,7 @@ main(int argc, char **argv)
 	/*
 	 * Create the root shell instance.
 	 */
-	psh = create_root_shell(NULL, argc, argv);
+	psh = sh_create_root_shell(NULL, argc, argv);
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);

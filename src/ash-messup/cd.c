@@ -67,48 +67,49 @@ __RCSID("$NetBSD: cd.c,v 1.34 2003/11/14 20:00:28 dsl Exp $");
 #include "mystring.h"
 #include "show.h"
 #include "cd.h"
+#include "shinstance.h"
 
-STATIC int docd(char *, int);
-STATIC char *getcomponent(void);
-STATIC void updatepwd(char *);
-STATIC void find_curdir(int noerror);
+STATIC int docd(shinstance *psh, char *, int);
+STATIC char *getcomponent(shinstance *psh);
+STATIC void updatepwd(shinstance *psh, char *);
+STATIC void find_curdir(shinstance *psh, int noerror);
 
-char *curdir = NULL;		/* current working directory */
-char *prevdir;			/* previous working directory */
-STATIC char *cdcomppath;
+/*char *curdir = NULL;*/		/* current working directory */
+/*char *prevdir;*/			/* previous working directory */
+/*STATIC char *cdcomppath;*/
 
 int
-cdcmd(int argc, char **argv)
+cdcmd(shinstance *psh, int argc, char **argv)
 {
 	const char *dest;
 	const char *path;
 	char *p, *d;
 	struct stat statb;
-	int print = cdprint;	/* set -cdprint to enable */
+	int print = psh->cdprint;	/* set -cdprint to enable */
 
-	nextopt(nullstr);
+	nextopt(psh, nullstr);
 
 	/*
 	 * Try (quite hard) to have 'curdir' defined, nothing has set
 	 * it on entry to the shell, but we want 'cd fred; cd -' to work.
 	 */
-	getpwd(1);
-	dest = *argptr;
+	getpwd(psh, 1);
+	dest = *psh->argptr;
 	if (dest == NULL) {
-		dest = bltinlookup("HOME", 1);
+		dest = bltinlookup(psh, "HOME", 1);
 		if (dest == NULL)
-			error("HOME not set");
+			error(psh, "HOME not set");
 	} else {
-		if (argptr[1]) {
+		if (psh->argptr[1]) {
 			/* Do 'ksh' style substitution */
-			if (!curdir)
-				error("PWD not set");
-			p = strstr(curdir, dest);
+			if (!psh->curdir)
+				error(psh, "PWD not set");
+			p = strstr(psh->curdir, dest);
 			if (!p)
-				error("bad substitution");
-			d = stalloc(strlen(curdir) + strlen(argptr[1]) + 1);
-			memcpy(d, curdir, p - curdir);
-			strcpy(d + (p - curdir), argptr[1]);
+				error(psh, "bad substitution");
+			d = stalloc(psh, strlen(psh->curdir) + strlen(psh->argptr[1]) + 1);
+			memcpy(d, psh->curdir, p - psh->curdir);
+			strcpy(d + (p - psh->curdir), psh->argptr[1]);
 			strcat(d, p + strlen(dest));
 			dest = d;
 			print = 1;
@@ -116,15 +117,15 @@ cdcmd(int argc, char **argv)
 	}
 
 	if (dest[0] == '-' && dest[1] == '\0') {
-		dest = prevdir ? prevdir : curdir;
+		dest = psh->prevdir ? psh->prevdir : psh->curdir;
 		print = 1;
 	}
 	if (*dest == '\0')
 	        dest = ".";
-	if (IS_ROOT(dest) || (path = bltinlookup("CDPATH", 1)) == NULL)
+	if (IS_ROOT(dest) || (path = bltinlookup(psh, "CDPATH", 1)) == NULL)
 		path = nullstr;
-	while ((p = padvance(&path, dest)) != NULL) {
-		if (stat(p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
+	while ((p = padvance(psh, &path, dest)) != NULL) {
+		if (shfile_stat(&psh->fdtab, p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
 			if (!print) {
 				/*
 				 * XXX - rethink
@@ -133,13 +134,14 @@ cdcmd(int argc, char **argv)
 					p += 2;
 				print = strcmp(p, dest);
 			}
-			if (docd(p, print) >= 0)
+			if (docd(psh, p, print) >= 0)
 				return 0;
 
 		}
 	}
-	error("can't cd to %s", dest);
+	error(psh, "can't cd to %s", dest);
 	/* NOTREACHED */
+        return 1;
 }
 
 
@@ -149,7 +151,7 @@ cdcmd(int argc, char **argv)
  */
 
 STATIC int
-docd(char *dest, int print)
+docd(shinstance *psh, char *dest, int print)
 {
 	char *p;
 	char *q;
@@ -166,15 +168,15 @@ docd(char *dest, int print)
 	 *  next time we get the value of the current directory.
 	 */
 	badstat = 0;
-	cdcomppath = stalloc(strlen(dest) + 1);
-	scopy(dest, cdcomppath);
+	psh->cdcomppath = stalloc(psh, strlen(dest) + 1);
+	scopy(dest, psh->cdcomppath);
 	STARTSTACKSTR(p);
 	if (IS_ROOT(dest)) {
 		STPUTC('/', p);
-		cdcomppath++;
+		psh->cdcomppath++;
 	}
 	first = 1;
-	while ((q = getcomponent()) != NULL) {
+	while ((q = getcomponent(psh)) != NULL) {
 		if (q[0] == '\0' || (q[0] == '.' && q[1] == '\0'))
 			continue;
 		if (! first)
@@ -186,7 +188,7 @@ docd(char *dest, int print)
 		if (equal(component, ".."))
 			continue;
 		STACKSTRNUL(p);
-		if ((lstat(stackblock(), &statb) < 0)
+		if ((shfile_lstat(&psh->fdtab, stackblock(), &statb) < 0)
 		    || (S_ISLNK(statb.st_mode)))  {
 			/* print = 1; */
 			badstat = 1;
@@ -195,39 +197,39 @@ docd(char *dest, int print)
 	}
 
 	INTOFF;
-	if (chdir(dest) < 0) {
+	if (shfile_chdir(&psh->fdtab, dest) < 0) {
 		INTON;
 		return -1;
 	}
-	updatepwd(badstat ? NULL : dest);
+	updatepwd(psh, badstat ? NULL : dest);
 	INTON;
-	if (print && iflag && curdir)
-		out1fmt("%s\n", curdir);
+	if (print && psh->iflag && psh->curdir)
+		out1fmt(psh, "%s\n", psh->curdir);
 	return 0;
 }
 
 
 /*
- * Get the next component of the path name pointed to by cdcomppath.
- * This routine overwrites the string pointed to by cdcomppath.
+ * Get the next component of the path name pointed to by psh->cdcomppath.
+ * This routine overwrites the string pointed to by psh->cdcomppath.
  */
 
 STATIC char *
-getcomponent()
+getcomponent(shinstance *psh)
 {
 	char *p;
 	char *start;
 
-	if ((p = cdcomppath) == NULL)
+	if ((p = psh->cdcomppath) == NULL)
 		return NULL;
-	start = cdcomppath;
+	start = psh->cdcomppath;
 	while (*p != '/' && *p != '\0')
 		p++;
 	if (*p == '\0') {
-		cdcomppath = NULL;
+		psh->cdcomppath = NULL;
 	} else {
 		*p++ = '\0';
-		cdcomppath = p;
+		psh->cdcomppath = p;
 	}
 	return start;
 }
@@ -241,43 +243,43 @@ getcomponent()
  */
 
 STATIC void
-updatepwd(char *dir)
+updatepwd(shinstance *psh, char *dir)
 {
 	char *new;
 	char *p;
 
-	hashcd();				/* update command hash table */
+	hashcd(psh);				/* update command hash table */
 
 	/*
 	 * If our argument is NULL, we don't know the current directory
 	 * any more because we traversed a symbolic link or something
 	 * we couldn't stat().
 	 */
-	if (dir == NULL || curdir == NULL)  {
-		if (prevdir)
-			ckfree(prevdir);
+	if (dir == NULL || psh->curdir == NULL)  {
+		if (psh->prevdir)
+			ckfree(psh->prevdir);
 		INTOFF;
-		prevdir = curdir;
-		curdir = NULL;
-		getpwd(1);
+		psh->prevdir = psh->curdir;
+		psh->curdir = NULL;
+		getpwd(psh, 1);
 		INTON;
-		if (curdir)
-			setvar("PWD", curdir, VEXPORT);
+		if (psh->curdir)
+			setvar(psh, "PWD", psh->curdir, VEXPORT);
 		else
-			unsetvar("PWD", 0);
+			unsetvar(psh, "PWD", 0);
 		return;
 	}
-	cdcomppath = stalloc(strlen(dir) + 1);
-	scopy(dir, cdcomppath);
+	psh->cdcomppath = stalloc(psh, strlen(dir) + 1);
+	scopy(dir, psh->cdcomppath);
 	STARTSTACKSTR(new);
 	if (!IS_ROOT(dir)) {
-		p = curdir;
+		p = psh->curdir;
 		while (*p)
 			STPUTC(*p++, new);
 		if (p[-1] == '/')
 			STUNPUTC(new);
 	}
-	while ((p = getcomponent()) != NULL) {
+	while ((p = getcomponent(psh)) != NULL) {
 		if (equal(p, "..")) {
 			while (new > stackblock() && (STUNPUTC(new), *new) != '/');
 		} else if (*p != '\0' && ! equal(p, ".")) {
@@ -290,11 +292,11 @@ updatepwd(char *dir)
 		STPUTC('/', new);
 	STACKSTRNUL(new);
 	INTOFF;
-	if (prevdir)
-		ckfree(prevdir);
-	prevdir = curdir;
-	curdir = savestr(stackblock());
-	setvar("PWD", curdir, VEXPORT);
+	if (psh->prevdir)
+		ckfree(psh->prevdir);
+	psh->prevdir = psh->curdir;
+	psh->curdir = savestr(stackblock());
+	setvar(psh, "PWD", psh->curdir, VEXPORT);
 	INTON;
 }
 
@@ -307,24 +309,24 @@ updatepwd(char *dir)
  */
 
 int
-pwdcmd(int argc, char **argv)
+pwdcmd(shinstance *psh, int argc, char **argv)
 {
 	int i;
 	char opt = 'L';
 
-	while ((i = nextopt("LP")) != '\0')
+	while ((i = nextopt(psh, "LP")) != '\0')
 		opt = i;
-	if (*argptr)
-		error("unexpected argument");
+	if (*psh->argptr)
+		error(psh, "unexpected argument");
 
 	if (opt == 'L')
-		getpwd(0);
+		getpwd(psh, 0);
 	else
-		find_curdir(0);
+		find_curdir(psh, 0);
 
-	setvar("PWD", curdir, VEXPORT);
-	out1str(curdir);
-	out1c('\n');
+	setvar(psh, "PWD", psh->curdir, VEXPORT);
+	out1str(psh, psh->curdir);
+	out1c(psh, '\n');
 	return 0;
 }
 
@@ -338,34 +340,34 @@ pwdcmd(int argc, char **argv)
  * directory, this routine returns immediately.
  */
 void
-getpwd(int noerror)
+getpwd(shinstance *psh, int noerror)
 {
 	char *pwd;
 	struct stat stdot, stpwd;
-	static int first = 1;
+	/*static int first = 1;*/
 
-	if (curdir)
+	if (psh->curdir)
 		return;
 
-	if (first) {
-		first = 0;
-		pwd = getenv("PWD");
-		if (pwd && IS_ROOT(pwd) && stat(".", &stdot) != -1 &&
-		    stat(pwd, &stpwd) != -1 &&
+	if (psh->getpwd_first) {
+		psh->getpwd_first = 0;
+		pwd = sh_getenv(psh, "PWD");
+		if (pwd && IS_ROOT(pwd) && shfile_stat(&psh->fdtab, ".", &stdot) != -1 &&
+		    shfile_stat(&psh->fdtab, pwd, &stpwd) != -1 &&
 		    stdot.st_dev == stpwd.st_dev &&
 		    stdot.st_ino == stpwd.st_ino) {
-			curdir = savestr(pwd);
+			psh->curdir = savestr(pwd);
 			return;
 		}
 	}
 
-	find_curdir(noerror);
+	find_curdir(psh, noerror);
 
 	return;
 }
 
 STATIC void
-find_curdir(int noerror)
+find_curdir(shinstance *psh, int noerror)
 {
 	int i;
 	char *pwd;
@@ -382,19 +384,19 @@ find_curdir(int noerror)
 	 * c implementation of getcwd, that does not open a pipe to
 	 * /bin/pwd.
 	 */
-#if defined(__NetBSD__) || defined(__SVR4) || defined(__INNOTEK_LIBC__)
+#if 1 //defined(__NetBSD__) || defined(__SVR4) || defined(__INNOTEK_LIBC__)
 
 	for (i = MAXPWD;; i *= 2) {
-		pwd = stalloc(i);
-		if (getcwd(pwd, i) != NULL) {
-			curdir = savestr(pwd);
+		pwd = stalloc(psh, i);
+		if (shfile_getcwd(&psh->fdtab, pwd, i) != NULL) {
+			psh->curdir = savestr(pwd);
 			return;
 		}
-		stunalloc(pwd);
+		stunalloc(psh, pwd);
 		if (errno == ERANGE)
 			continue;
 		if (!noerror)
-			error("getcwd() failed: %s", strerror(errno));
+			error(psh, "getcwd() failed: %s", strerror(errno));
 		return;
 	}
 #else
@@ -404,7 +406,7 @@ find_curdir(int noerror)
 		struct job *jp;
 		int pip[2];
 
-		pwd = stalloc(MAXPWD);
+		pwd = stalloc(psh, MAXPWD);
 		INTOFF;
 		if (pipe(pip) < 0)
 			error("Pipe call failed");
@@ -441,7 +443,7 @@ find_curdir(int noerror)
 		}
 		p[-1] = '\0';
 		INTON;
-		curdir = savestr(pwd);
+		psh->curdir = savestr(pwd);
 		return;
 	}
 #endif

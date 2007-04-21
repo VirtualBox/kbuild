@@ -27,7 +27,7 @@
 #ifndef ___shthread_h___
 #define ___shthread_h___
 
-#include <sys/types.h>
+#include "shtypes.h"
 
 typedef struct shmtx
 {

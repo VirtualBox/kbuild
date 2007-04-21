@@ -99,7 +99,7 @@ MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 
 
-char *commandname;
+/*char *commandname;*/
 struct strlist *cmdenviron;
 int exitstatus;			/* exit status of last command */
 int back_exitstatus;		/* exit status of backquoted command */

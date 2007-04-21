@@ -45,13 +45,19 @@ typedef struct shfile
 typedef struct shfdtab
 {
     shmtx               mtx;            /**< Mutex protecting any operations on the table and it's handles. */
+    char               *cwd;            /**< The current directory for this shell instance. */
     unsigned            size;           /**< The size of the table (number of entries). */
     shfile             *tab;            /**< Pointer to the table. */
 } shfdtab;
 
 
 int shfile_open(shfdtab *, const char *, unsigned);
-int shfile_close(shfdtab *pfdtab, unsigned fd);
+int shfile_close(shfdtab *, unsigned);
 
+int shfile_stat(shfdtab *, const char *, struct stat *);
+int shfile_lstat(shfdtab *, const char *, struct stat *);
+int shfile_chdir(shfdtab *, const char *);
+char *shfile_getcwd(shfdtab *, char *, int);
+         
 #endif
 

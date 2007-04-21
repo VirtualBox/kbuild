@@ -60,21 +60,22 @@ __RCSID("$NetBSD: error.c,v 1.31 2003/08/07 09:05:30 agc Exp $");
 #include "output.h"
 #include "error.h"
 #include "show.h"
+#include "shinstance.h"
 
 
 /*
  * Code to handle exceptions in C.
  */
 
-struct jmploc *handler;
+/*struct jmploc *handler;
 int exception;
 volatile int suppressint;
 volatile int intpending;
-char *commandname;
+char *commandname;*/
 
 
-static void exverror(int, const char *, va_list)
-    __attribute__((__noreturn__));
+static void exverror(shinstance *psh, int, const char *, va_list)
+    /*__attribute__((__noreturn__))*/;
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
@@ -83,12 +84,12 @@ static void exverror(int, const char *, va_list)
  */
 
 void
-exraise(int e)
+exraise(shinstance *psh, int e)
 {
-	if (handler == NULL)
+	if (psh->handler == NULL)
 		abort();
-	exception = e;
-	longjmp(handler->loc, 1);
+	psh->exception = e;
+	longjmp(psh->handler->loc, 1);
 }
 
 
@@ -103,28 +104,28 @@ exraise(int e)
  */
 
 void
-onint(void)
+onint(shinstance *psh)
 {
-	sigset_t nsigset;
+	sh_sigset_t nsigset;
 
-	if (suppressint) {
-		intpending = 1;
+	if (psh->suppressint) {
+		psh->intpending = 1;
 		return;
 	}
-	intpending = 0;
-	sigemptyset(&nsigset);
-	sigprocmask(SIG_SETMASK, &nsigset, NULL);
-	if (rootshell && iflag)
-		exraise(EXINT);
+	psh->intpending = 0;
+	sh_sigemptyset(&nsigset);
+	sh_sigprocmask(psh, SIG_SETMASK, &nsigset, NULL);
+	if (psh->rootshell && psh->iflag)
+		exraise(psh, EXINT);
 	else {
-		signal(SIGINT, SIG_DFL);
-		raise(SIGINT);
+		sh_signal(psh, SIGINT, SIG_DFL);
+		sh_raise_sigint(psh);/*raise(psh, SIGINT);*/
 	}
 	/* NOTREACHED */
 }
 
 static void
-exvwarning(int sv_errno, const char *msg, va_list ap)
+exvwarning(shinstance *psh, int sv_errno, const char *msg, va_list ap)
 {
 	/* Partially emulate line buffered output so that:
 	 *	printf '%d\n' 1 a 2
@@ -132,19 +133,19 @@ exvwarning(int sv_errno, const char *msg, va_list ap)
 	 *	printf '%d %d %d\n' 1 a 2
 	 * both generate sensible text when stdout and stderr are merged.
 	 */
-	if (output.nextc != output.buf && output.nextc[-1] == '\n')
-		flushout(&output);
-	if (commandname)
-		outfmt(&errout, "%s: ", commandname);
+	if (psh->output.nextc != psh->output.buf && psh->output.nextc[-1] == '\n')
+		flushout(&psh->output);
+	if (psh->commandname)
+		outfmt(&psh->errout, "%s: ", psh->commandname);
 	if (msg != NULL) {
-		doformat(&errout, msg, ap);
+		doformat(&psh->errout, msg, ap);
 		if (sv_errno >= 0)
-			outfmt(&errout, ": ");
+			outfmt(&psh->errout, ": ");
 	}
 	if (sv_errno >= 0)
-		outfmt(&errout, "%s", strerror(sv_errno));
-	out2c('\n');
-	flushout(&errout);
+		outfmt(&psh->errout, "%s", strerror(sv_errno));
+	out2c(psh, '\n');
+	flushout(&psh->errout);
 }
 
 /*
@@ -153,7 +154,7 @@ exvwarning(int sv_errno, const char *msg, va_list ap)
  * formatting.  It then raises the error exception.
  */
 static void
-exverror(int cond, const char *msg, va_list ap)
+exverror(shinstance *psh, int cond, const char *msg, va_list ap)
 {
 	CLEAR_PENDING_INT;
 	INTOFF;
@@ -167,33 +168,33 @@ exverror(int cond, const char *msg, va_list ap)
 		TRACE(("exverror(%d, NULL) pid=%d\n", cond, getpid()));
 #endif
 	if (msg)
-		exvwarning(-1, msg, ap);
+		exvwarning(psh, -1, msg, ap);
 
-	output_flushall();
-	exraise(cond);
+	output_flushall(psh);
+	exraise(psh, cond);
 	/* NOTREACHED */
 }
 
 
 void
-error(const char *msg, ...)
+error(shinstance *psh, const char *msg, ...)
 {
 	va_list ap;
 
 	va_start(ap, msg);
-	exverror(EXERROR, msg, ap);
+	exverror(psh, EXERROR, msg, ap);
 	/* NOTREACHED */
 	va_end(ap);
 }
 
 
 void
-exerror(int cond, const char *msg, ...)
+exerror(shinstance *psh, int cond, const char *msg, ...)
 {
 	va_list ap;
 
 	va_start(ap, msg);
-	exverror(cond, msg, ap);
+	exverror(psh, cond, msg, ap);
 	/* NOTREACHED */
 	va_end(ap);
 }
@@ -203,78 +204,78 @@ exerror(int cond, const char *msg, ...)
  */
 
 void
-sh_exit(int rval)
+sh_exit(shinstance *psh, int rval)
 {
-	exerrno = rval & 255;
-	exraise(EXEXEC);
+	psh->exerrno = rval & 255;
+	exraise(psh, EXEXEC);
 }
 
 void
-sh_err(int status, const char *fmt, ...)
+sh_err(shinstance *psh, int status, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	exvwarning(errno, fmt, ap);
+	exvwarning(psh, errno, fmt, ap);
 	va_end(ap);
-	sh_exit(status);
+	sh_exit(psh, status);
 }
 
 void
-sh_verr(int status, const char *fmt, va_list ap)
+sh_verr(shinstance *psh, int status, const char *fmt, va_list ap)
 {
-	exvwarning(errno, fmt, ap);
-	sh_exit(status);
+	exvwarning(psh, errno, fmt, ap);
+	sh_exit(psh, status);
 }
 
 void
-sh_errx(int status, const char *fmt, ...)
+sh_errx(shinstance *psh, int status, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	exvwarning(-1, fmt, ap);
+	exvwarning(psh, -1, fmt, ap);
 	va_end(ap);
-	sh_exit(status);
+	sh_exit(psh, status);
 }
 
 void
-sh_verrx(int status, const char *fmt, va_list ap)
+sh_verrx(shinstance *psh, int status, const char *fmt, va_list ap)
 {
-	exvwarning(-1, fmt, ap);
-	sh_exit(status);
+	exvwarning(psh, -1, fmt, ap);
+	sh_exit(psh, status);
 }
 
 void
-sh_warn(const char *fmt, ...)
+sh_warn(shinstance *psh, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	exvwarning(errno, fmt, ap);
+	exvwarning(psh, errno, fmt, ap);
 	va_end(ap);
 }
 
 void
-sh_vwarn(const char *fmt, va_list ap)
+sh_vwarn(shinstance *psh, const char *fmt, va_list ap)
 {
-	exvwarning(errno, fmt, ap);
+	exvwarning(psh, errno, fmt, ap);
 }
 
 void
-sh_warnx(const char *fmt, ...)
+sh_warnx(shinstance *psh, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	exvwarning(-1, fmt, ap);
+	exvwarning(psh, -1, fmt, ap);
 	va_end(ap);
 }
 
 void
-sh_vwarnx(const char *fmt, va_list ap)
+sh_vwarnx(shinstance *psh, const char *fmt, va_list ap)
 {
-	exvwarning(-1, fmt, ap);
+	exvwarning(psh, -1, fmt, ap);
 }
 
 
@@ -356,15 +357,15 @@ STATIC const struct errname errormsg[] = {
  */
 
 const char *
-errmsg(int e, int action)
+errmsg(shinstance *psh, int e, int action)
 {
 	struct errname const *ep;
-	static char buf[12];
+	/*static char buf[12];*/
 
 	for (ep = errormsg ; ep->errcode ; ep++) {
 		if (ep->errcode == e && (ep->action & action) != 0)
 			return ep->msg;
 	}
-	fmtstr(buf, sizeof buf, "error %d", e);
-	return buf;
+	fmtstr(psh->errmsg_buf, sizeof psh->errmsg_buf, "error %d", e);
+	return psh->errmsg_buf;
 }

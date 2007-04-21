@@ -24,9 +24,15 @@
  *
  */
 
+#ifndef ___shinstance_h___
+#define ___shinstance_h___
+
 #include "shtypes.h"
 #include "shthread.h"
 #include "shfile.h"
+
+#include "var.h"
+
 
 /**
  * A shell instance.
@@ -140,8 +146,33 @@ typedef struct shinstance
 #define ATABSIZE 39
     struct alias       *atab[ATABSIZE];
 
+    /* cd.c */
+    char               *curdir;         /**< current working directory */
+    char               *prevdir;	/**< previous working directory */
+    char               *cdcomppath;
+    int                 getpwd_first;   /**< static in getpwd. (initialized to 1!) */
+
+    /* error.c */
+    char                errmsg_buf[16]; /**< static in errmsg. (bss) */
+
 } shinstance;
 
 
-extern shinstance *create_root_shell(shinstance *inherit, int argc, char **argv);
+extern shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv);
+char *sh_getenv(shinstance *, const char *);
 
+/* signals */
+#include <signal.h>
+#ifdef _MSC_VER
+typedef uint32_t sh_sigset_t;
+#else
+typedef sigset_t sh_sigset_t;
+#endif 
+
+typedef void (*sh_handler)(int);
+sh_handler sh_signal(shinstance *, int, sh_handler handler);
+void sh_raise_sigint(shinstance *);
+void sh_sigemptyset(sh_sigset_t *set);
+int sh_sigprocmask(shinstance *, int op, sh_sigset_t const *new, sh_sigset_t *old);
+
+#endif
