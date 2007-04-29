@@ -333,6 +333,9 @@ padvance(const char **path, const char *name)
 {
 	const char *p;
 	char *q;
+#ifdef PC_SLASHES
+	char *s;
+#endif
 	const char *start;
 	int len;
 
@@ -350,6 +353,9 @@ padvance(const char **path, const char *name)
 #endif
 	while (stackblocksize() < len)
 		growstackblock();
+#ifdef PC_SLASHES
+	s =
+#endif
 	q = stackblock();
 	if (p != start) {
 		memcpy(q, start, p - start);
@@ -357,6 +363,10 @@ padvance(const char **path, const char *name)
 		*q++ = '/';
 	}
 	strcpy(q, name);
+#ifdef PC_SLASHES
+	while ((s = strchr(s, '\\')) != NULL)
+		*s++ = '/';
+#endif
 	pathopt = NULL;
 	if (*p == '%') {
 		pathopt = ++p;
