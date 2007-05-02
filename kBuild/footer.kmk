@@ -1,4 +1,4 @@
-# $Id: footer.kmk 889 2007-05-02 22:37:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 891 2007-05-02 23:53:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1174,7 +1174,6 @@ $(obj) $($(target)_$(source)_OUTPUT_): \
 
 $($(target)_$(source)_CMDS_)
 
-	$($(target)_$(source)_CMDS_)
 ifndef NO_COMPILE_CMDS_DEPS
 	$$(QUIET2)$$(APPEND) "$(dep)"
 	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
