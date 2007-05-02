@@ -1,4 +1,4 @@
-# $Id: header.kmk 874 2007-04-06 18:01:14Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 889 2007-05-02 22:37:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -233,7 +233,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 874 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 889 $  )
 
 
 #
@@ -546,9 +546,9 @@ PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG
 	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
 
 ## PROPS_DEFERRED
-# This list of non-accumulative target properties which are functions,
-# and thus should not be expanded until the very last moment.
-PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS
+# This list of non-accumulative target properties which are or may be
+# functions, and thus should not be expanded until the very last moment.
+PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME
 
 ## PROPS_ACCUMULATE_R
 # The list of accumulative target properties where the right most value/flag
