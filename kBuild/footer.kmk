@@ -1,4 +1,4 @@
-# $Id: footer.kmk 874 2007-04-06 18:01:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 889 2007-05-02 22:37:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -580,8 +580,15 @@ bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)
 bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
 
-tool := $(call _TARGET_TOOL,$(target),$(tool_prefix))
-outbase := $(call TARGET_BASE,$(target),$(target))
+tool        := $(call _TARGET_TOOL,$(target),$(tool_prefix))
+name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg))\
+	$($(target)_NAME.$(bld_type))\
+	$($(target)_NAME)\
+	$(target))
+outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
 else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
@@ -1339,7 +1346,14 @@ tool        := $(call _TARGET_TOOL,$(target),AR)
 ifeq ($(tool),)
 $(error kBuild: Library target $(target) does not have a tool defined!)
 endif
-outbase     := $(call TARGET_BASE,$(target),$(target))
+name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg))\
+	$($(target)_NAME.$(bld_type))\
+	$($(target)_NAME)\
+	$(target))
+outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
 else
@@ -1365,7 +1379,14 @@ $(eval $(value def_target_sources))
 
 # library linking
 tool        := $(call _TARGET_TOOL,$(target),AR)
-outbase     := $(call TARGET_BASE,$(target),$(target))
+name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg))\
+	$($(target)_NAME.$(bld_type))\
+	$($(target)_NAME)\
+	$(target))
+outbase     := $(call TARGET_BASE,$(name),$(target))
 flags       :=\
 	$(TOOL_$(tool)_ARFLAGS)\
 	$(TOOL_$(tool)_ARFLAGS.$(bld_type))\
@@ -1538,7 +1559,14 @@ bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
 
 tool        := $(call _TARGET_TOOL,$(target),LD)
-outbase     := $(call TARGET_BASE,$(target),$(target))
+name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg))\
+	$($(target)_NAME.$(bld_type))\
+	$($(target)_NAME)\
+	$(target))
+outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
 else
@@ -1561,7 +1589,14 @@ $(eval $(value def_target_sources))
 
 # more link stuff.
 tool        := $(call _TARGET_TOOL,$(target),LD)
-outbase     := $(call TARGET_BASE,$(target),$(target))
+name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg))\
+	$($(target)_NAME.$(bld_type))\
+	$($(target)_NAME)\
+	$(target))
+outbase     := $(call TARGET_BASE,$(name),$(target))
 flags       :=\
 	$(TOOL_$(tool)_LDFLAGS)\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_type))\
