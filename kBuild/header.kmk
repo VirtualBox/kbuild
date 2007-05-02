@@ -1,4 +1,4 @@
-# $Id: header.kmk 889 2007-05-02 22:37:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 890 2007-05-02 23:27:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -233,7 +233,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 889 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 890 $  )
 
 
 #
@@ -812,6 +812,17 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  # @param 3     The primary link output file name.
  # @param 4     The source type (CXX,C,AS,RC,++).
  MSG_COMPILE  ?= $(call MSG_L1,Compiling $1 - $2,=> $3)
+ ## Tool
+ # @param 1     The tool name (bin2c,...)
+ # @param 2     Target name.
+ # @param 3     The source filename.
+ # @param 4     The primary output file name.
+ MSG_TOOL     ?= $(call MSG_L1,$1 $2 - $3,=> $4)
+ ## Generate a file, typically a source file.
+ # @param 1     Target name if applicable.
+ # @param 2     Output file name.
+ # @param 3     What it's generated from
+ MSG_GENERATE ?= $(call MSG_L1,Generating $(if $1,$1 - )$2,$(if $3,from $3))
  ## Linking a bldprog/dll/program/sysmod target.
  # @param 1     Target name.
  # @param 2     The primary link output file name.
