@@ -1,4 +1,4 @@
-# $Id: footer.kmk 891 2007-05-02 23:53:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 893 2007-05-04 04:48:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1490,8 +1490,8 @@ endif
 # dependency file
 dep := $(out)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
-_DEPFILES_INCLUDED += $(dep)
-$(if $(wildcard $(dep)),$(eval include $(dep)))
+ _DEPFILES_INCLUDED += $(dep)
+ $(eval includedep $(dep))
 endif
 
 # check that the tool is defined.
@@ -1808,8 +1808,8 @@ endif # NOINST
 # dependency file
 dep := $(outbase)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
-_DEPFILES_INCLUDED += $(dep)
-$(if $(wildcard $(dep)),$(eval include $(dep)))
+ _DEPFILES_INCLUDED += $(dep)
+ $(eval includedep $(dep))
 endif
 
 # check that the tool is defined.
@@ -2492,7 +2492,9 @@ $(foreach prop,$(PROPS_DEFERRED), \
 #
 # Include dependency files.
 #
-$(foreach dep,$(wildcard $(_DEPFILES)),$(eval include $(dep)))
+ifneq ($(_DEPFILES),)
+ includedep $(_DEPFILES)
+endif
 
 
 # end-of-file-content
