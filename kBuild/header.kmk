@@ -1,4 +1,4 @@
-# $Id: header.kmk 894 2007-05-05 04:44:10Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 895 2007-05-16 21:00:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -79,12 +79,35 @@ TAB := $(subst .,	,.)
 SP := $(subst ., ,.)
 
 ##
-# Checks if two strings are equal.
-# @returns	blank if equal
-# @returns	non-blank if not equal.
-# @param    $1   String 1.
-# @param    $2   String 2
-STRCMP = $( todo )
+# Hash character.
+define HASH
+#
+endef
+
+##
+# Colon character.
+COLON := :
+
+##
+# Semicolon character.
+SEMICOLON := ;
+
+##
+# Comma character.
+COMMA := ,
+
+##
+# Dot character.
+DOT := .
+
+##
+# Dollar character.
+DOLLAR := $$
+
+##
+# Equal character.
+EQUAL := =
+
 
 #
 # Set default build type.
@@ -243,7 +266,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 894 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 895 $  )
 
 
 #
