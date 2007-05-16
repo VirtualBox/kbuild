@@ -3226,6 +3226,7 @@ construct_command_argv (char *line, char **restp, struct file *file,
           || no_default_sh_exe
 # endif
          )
+      && line
       && !strncmp(line, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
   {
     int saved_batch_mode_shell = batch_mode_shell;
