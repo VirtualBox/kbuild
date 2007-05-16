@@ -1,4 +1,4 @@
-# $Id: footer.kmk 893 2007-05-04 04:48:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 897 2007-05-16 21:23:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -98,7 +98,7 @@ _INSTALLS_FILES :=
 _INSTALLS_DIRS :=
 _OTHERS   :=
 _PACKING  :=
-_DIRS     := $(PATH_TARGET)/ $(PATH_TARGET)
+_DIRS     := $(PATH_TARGET)/ $(PATH_TARGET) $(BLDDIRS)
 _IMPORT_LIBS :=
 
 # misc
@@ -1322,6 +1322,7 @@ endif
 
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN)
+_DIRS += $($(target)_BLDDIRS)
 _OBJS += $($(target)_OBJS_)
 
 endef
@@ -1850,6 +1851,7 @@ $(eval $(def_link_rule))
 _OBJS += $($(target)_OBJS_)
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN)
+_DIRS += $($(target)_BLDDIRS)
 _INSTALLS_FILES += $(INSTARGET_$(target))
 
 endef
@@ -2256,6 +2258,8 @@ $(target): $(TARGET_$(target))
 _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
+_CLEAN_FILES += $($(target)_CLEAN)
+_DIRS += $($(target)_BLDDIRS)
 endef
 
 ## process all install targets
@@ -2303,6 +2307,7 @@ do-nothing:
 do-clean:
 	$(call MSG_CLEAN)
 	$(QUIET)$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
+
 
 
 #
@@ -2432,6 +2437,7 @@ $(foreach PASS,$(DEFAULT_PASSES),\
 	$(eval $(def_pass_order)))
 
 
+
 #
 # THE MAIN RULES
 #
@@ -2458,16 +2464,10 @@ others:    $(_OTHERS)
 installs:  $(_INSTALLS) $(_INSTALLS_DIRS) $(_INSTALLS_FILES)
 
 
+
 #
 # kBuild debugging stuff.
 #
-_SPACE := $(subst ., ,.)
-_TAB := $(subst .,	,.)
-define _NEWLINE
-
-
-endef
-NLTAB = $(_NEWLINE)$(TAB)
 show_targets:
 	@$(foreach target, $(ALL_TARGETS),\
 	@$(ECHO) "target: $(target)" $(NLTAB)\
