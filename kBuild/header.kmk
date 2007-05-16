@@ -1,4 +1,4 @@
-# $Id: header.kmk 896 2007-05-16 21:07:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 897 2007-05-16 21:23:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -270,7 +270,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 896 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 897 $  )
 
 
 #
@@ -610,7 +610,8 @@ PROPS_ACCUMULATE_R := \
 PROPS_ACCUMULATE_L := \
 	SDKS SOURCES \
 	INCS CINCS CXXINCX ASINCS RCINCS \
-	LIBS LIBPATH
+	LIBS LIBPATH \
+	DIRS BLDDIRS
 
 ## PROPS_ALL
 # List of all the properties.
@@ -634,10 +635,10 @@ endif
 endef
 $(foreach prop, $(PROPS_ALL) \
 	FETCHES PATCHES BLDPROGS LIBRARIES IMPORT_LIBS DLLS PROGRAMS SYSMODS INSTALLS OTHERS \
-	SUBDIRS MAKEFILES \
+	SUBDIRS MAKEFILES BLDDIRS \
 	,$(eval $(value def_nuke_environment_prop)))
 
-endif
+endif # KBUILD_DONT_KILL_ENV_PROPS
 
 
 #
