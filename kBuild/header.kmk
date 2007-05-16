@@ -1,4 +1,4 @@
-# $Id: header.kmk 895 2007-05-16 21:00:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 896 2007-05-16 21:07:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -73,6 +73,10 @@ endef
 ##
 # Tab character.
 TAB := $(subst .,	,.)
+
+##
+# Newline + tab characters (for generating commands).
+NLTAB = $(NL)$(TAB)
 
 ##
 # Space character.
@@ -266,7 +270,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 895 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 896 $  )
 
 
 #
