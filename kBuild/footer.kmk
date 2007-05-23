@@ -1,4 +1,4 @@
-# $Id: footer.kmk 904 2007-05-23 05:31:56Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 905 2007-05-23 05:38:48Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1321,8 +1321,8 @@ $(typevar) += $(out)
 endif
 
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
-_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
-_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _OBJS += $($(target)_OBJS_)
 
 endef
@@ -1850,8 +1850,8 @@ $(eval $(def_link_rule))
 # Update globals.
 _OBJS += $($(target)_OBJS_)
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
-_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
-_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 
 endef
@@ -2258,8 +2258,8 @@ $(target): $(TARGET_$(target))
 _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
-_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
-_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 endef
 
 ## process all install targets
