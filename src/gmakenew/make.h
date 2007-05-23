@@ -39,15 +39,6 @@ char *alloca ();
 #endif
 
 
-/* Use prototypes if available.  */
-#if defined (__cplusplus) || defined (__STDC__) || defined WINDOWS32 /* bird: protos on windows */
-# undef  PARAMS
-# define PARAMS(protos)  protos
-#else /* Not C++ or ANSI C.  */
-# undef  PARAMS
-# define PARAMS(protos)  ()
-#endif /* C++ or ANSI C.  */
-
 /* Specify we want GNU source code.  This must be defined before any
    system headers are included.  */
 
@@ -150,8 +141,8 @@ extern int errno;
 #else
 # define NEED_GET_PATH_MAX 1
 # define GET_PATH_MAX   (get_path_max ())
-# define PATH_VAR(var)  char *var = (char *) alloca (GET_PATH_MAX)
-extern unsigned int get_path_max PARAMS ((void));
+# define PATH_VAR(var)  char *var = alloca (GET_PATH_MAX)
+unsigned int get_path_max (void);
 #endif
 
 #ifndef CHAR_BIT
@@ -227,12 +218,12 @@ extern unsigned int get_path_max PARAMS ((void));
 # ifdef HAVE_STDLIB_H
 #  include <stdlib.h>
 # else
-extern char *malloc PARAMS ((int));
-extern char *realloc PARAMS ((char *, int));
-extern void free PARAMS ((char *));
+void *malloc (int);
+void *realloc (void *, int);
+void free (void *);
 
-extern void abort PARAMS ((void)) __attribute__ ((noreturn));
-extern void exit PARAMS ((int)) __attribute__ ((noreturn));
+void abort (void) __attribute__ ((noreturn));
+void exit (int) __attribute__ ((noreturn));
 # endif /* HAVE_STDLIB_H.  */
 
 #endif /* Standard headers.  */
@@ -242,42 +233,15 @@ extern void exit PARAMS ((int)) __attribute__ ((noreturn));
 # define EXIT_SUCCESS 0
 #endif
 #ifndef EXIT_FAILURE
-# define EXIT_FAILURE 0
+# define EXIT_FAILURE 1
 #endif
 
-#ifdef  ANSI_STRING
-
-# ifndef bcmp
-#  define bcmp(s1, s2, n)   memcmp ((s1), (s2), (n))
-# endif
-# ifndef bzero
-#  define bzero(s, n)       memset ((s), 0, (n))
-# endif
-# if defined(HAVE_MEMMOVE) && !defined(bcopy)
-#  define bcopy(s, d, n)    memmove ((d), (s), (n))
-# endif
-
-#else   /* Not ANSI_STRING.  */
-
-# ifndef HAVE_STRCHR
-#  define strchr(s, c)      index((s), (c))
-#  define strrchr(s, c)     rindex((s), (c))
-# endif
-
-# ifndef bcmp
-extern int bcmp PARAMS ((const char *, const char *, int));
-# endif
-# ifndef bzero
-extern void bzero PARAMS ((char *, int));
-#endif
-# ifndef bcopy
-extern void bcopy PARAMS ((const char *b1, char *b2, int));
-# endif
+#ifndef  ANSI_STRING
 
 /* SCO Xenix has a buggy macro definition in <string.h>.  */
 #undef  strerror
 #if !defined(__DECC)
-extern char *strerror PARAMS ((int errnum));
+char *strerror (int errnum);
 #endif
 
 #endif  /* !ANSI_STRING.  */
@@ -289,7 +253,7 @@ extern char *strerror PARAMS ((int errnum));
 #define FILE_TIMESTAMP uintmax_t
 
 #if !defined(HAVE_STRSIGNAL)
-extern char *strsignal PARAMS ((int signum));
+char *strsignal (int signum);
 #endif
 
 /* ISDIGIT offers the following features:
@@ -308,11 +272,10 @@ extern char *strsignal PARAMS ((int signum));
    ((a) == (b) || \
     (*(a) == *(b) && (*(a) == '\0' || !strcmp ((a) + 1, (b) + 1))))
 # ifdef HAVE_CASE_INSENSITIVE_FS
-/* This is only used on Windows/DOS platforms, so we assume strcmpi().  */
 #  define strieq(a, b) \
     ((a) == (b) \
      || (tolower((unsigned char)*(a)) == tolower((unsigned char)*(b)) \
-         && (*(a) == '\0' || !strcmpi ((a) + 1, (b) + 1))))
+         && (*(a) == '\0' || !strcasecmp ((a) + 1, (b) + 1))))
 # else
 #  define strieq(a, b) streq(a, b)
 # endif
@@ -322,9 +285,6 @@ extern char *strsignal PARAMS ((int signum));
 # define strieq(a, b) (strcmp ((a), (b)) == 0)
 #endif
 #define strneq(a, b, l) (strncmp ((a), (b), (l)) == 0)
-#ifdef  VMS
-extern int strcmpi (const char *,const char *);
-#endif
 
 #if defined(__GNUC__) || defined(ENUM_BITFIELDS)
 # define ENUM_BITFIELD(bits)    :bits
@@ -347,29 +307,31 @@ extern int strcmpi (const char *,const char *);
 #define S_(msg1,msg2,num)   ngettext (msg1,msg2,num)
 
 /* Handle other OSs.  */
-#if defined(HAVE_DOS_PATHS)
-# define PATH_SEPARATOR_CHAR ';'
-#elif defined(VMS)
-# define PATH_SEPARATOR_CHAR ','
-#else
-# define PATH_SEPARATOR_CHAR ':'
+#ifndef PATH_SEPARATOR_CHAR
+# if defined(HAVE_DOS_PATHS)
+#  define PATH_SEPARATOR_CHAR ';'
+# elif defined(VMS)
+#  define PATH_SEPARATOR_CHAR ','
+# else
+#  define PATH_SEPARATOR_CHAR ':'
+# endif
 #endif
 
-/* This is needed for getcwd() and chdir().  */
-#if defined(_MSC_VER) || defined(__BORLANDC__)
+/* This is needed for getcwd() and chdir(), on some W32 systems.  */
+#if defined(HAVE_DIRECT_H)
 # include <direct.h>
 #endif
 
 #ifdef WINDOWS32
 # include <fcntl.h>
 # include <malloc.h>
-# define pipe(p) _pipe(p, 512, O_BINARY)
-# define kill(pid,sig) w32_kill(pid,sig)
+# define pipe(_p)        _pipe((_p), 512, O_BINARY)
+# define kill(_pid,_sig) w32_kill((_pid),(_sig))
 
-extern void sync_Path_environment(void);
-extern int kill(int pid, int sig);
-extern char *end_of_token_w32(char *s, char stopchar);
-extern int find_and_set_default_shell(char *token);
+void sync_Path_environment (void);
+int w32_kill (int pid, int sig); /* bird kill -> w32_kill - macro acquired () on the args. */
+char *end_of_token_w32 (const char *s, char stopchar);
+int find_and_set_default_shell (const char *token);
 
 /* indicates whether or not we have Bourne shell */
 extern int no_default_sh_exe;
@@ -398,82 +360,94 @@ struct floc
 #endif
 
 #if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
-extern void message (int prefix, const char *fmt, ...)
-                     __attribute__ ((__format__ (__printf__, 2, 3)));
-extern void error (const struct floc *flocp, const char *fmt, ...)
-                   __attribute__ ((__format__ (__printf__, 2, 3)));
-extern void fatal (const struct floc *flocp, const char *fmt, ...)
+void message (int prefix, const char *fmt, ...)
+              __attribute__ ((__format__ (__printf__, 2, 3)));
+void error (const struct floc *flocp, const char *fmt, ...)
+            __attribute__ ((__format__ (__printf__, 2, 3)));
+void fatal (const struct floc *flocp, const char *fmt, ...)
                    __attribute__ ((noreturn, __format__ (__printf__, 2, 3)));
 #else
-extern void message ();
-extern void error ();
-extern void fatal ();
+void message ();
+void error ();
+void fatal ();
 #endif
 
-extern void die PARAMS ((int)) __attribute__ ((noreturn));
-extern void log_working_directory PARAMS ((int));
-extern void pfatal_with_name PARAMS ((const char *)) __attribute__ ((noreturn));
-extern void perror_with_name PARAMS ((const char *, const char *));
-extern char *savestring PARAMS ((const char *, unsigned int));
-extern char *concat PARAMS ((const char *, const char *, const char *));
-extern char *xmalloc PARAMS ((unsigned int));
-extern char *xrealloc PARAMS ((char *, unsigned int));
-extern char *xstrdup PARAMS ((const char *));
-extern char *find_next_token PARAMS ((char **, unsigned int *));
-extern char *next_token PARAMS ((const char *));
-extern char *end_of_token PARAMS ((const char *));
-extern void collapse_continuations PARAMS ((char *));
+void die (int) __attribute__ ((noreturn));
+void log_working_directory (int);
+void pfatal_with_name (const char *) __attribute__ ((noreturn));
+void perror_with_name (const char *, const char *);
+char *savestring (const char *, unsigned int);
+char *concat (const char *, const char *, const char *);
+void *xmalloc (unsigned int);
+void *xrealloc (void *, unsigned int);
+char *xstrdup (const char *);
+char *find_next_token (const char **, unsigned int *);
+char *next_token (const char *);
+char *end_of_token (const char *);
+void collapse_continuations (char *);
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS /* memchr is usually compiler intrinsic, thus faster. */
-#define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
+# define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
 #else
-extern char *lindex PARAMS ((const char *, const char *, int));
+char *lindex (const char *, const char *, int);
 #endif
-extern int alpha_compare PARAMS ((const void *, const void *));
-extern void print_spaces PARAMS ((unsigned int));
-extern char *find_percent PARAMS ((char *));
-extern FILE *open_tmpfile PARAMS ((char **, const char *));
+int alpha_compare (const void *, const void *);
+void print_spaces (unsigned int);
+char *find_percent (char *);
+const char *find_percent_cached (const char **);
+FILE *open_tmpfile (char **, const char *);
 
 #ifndef NO_ARCHIVES
-extern int ar_name PARAMS ((char *));
-extern void ar_parse_name PARAMS ((char *, char **, char **));
-extern int ar_touch PARAMS ((char *));
-extern time_t ar_member_date PARAMS ((char *));
+int ar_name (const char *);
+void ar_parse_name (const char *, char **, char **);
+int ar_touch (const char *);
+time_t ar_member_date (const char *);
+
+typedef long int (*ar_member_func_t) (int desc, const char *mem, int truncated,
+				      long int hdrpos, long int datapos,
+				      long int size, long int date, int uid,
+				      int gid, int mode, const void *arg);
+
+long int ar_scan (const char *archive, ar_member_func_t function, const void *arg);
+int ar_name_equal (const char *name, const char *mem, int truncated);
+#ifndef VMS
+int ar_member_touch (const char *arname, const char *memname);
+#endif
 #endif
 
-extern int dir_file_exists_p PARAMS ((char *, char *));
-extern int file_exists_p PARAMS ((char *));
-extern int file_impossible_p PARAMS ((char *));
-extern void file_impossible PARAMS ((char *));
-extern char *dir_name PARAMS ((char *));
-extern void hash_init_directories PARAMS ((void));
+int dir_file_exists_p (const char *, const char *);
+int file_exists_p (const char *);
+int file_impossible_p (const char *);
+void file_impossible (const char *);
+const char *dir_name (const char *);
+void hash_init_directories (void);
 
-extern void define_default_variables PARAMS ((void));
-extern void set_default_suffixes PARAMS ((void));
-extern void install_default_suffix_rules PARAMS ((void));
-extern void install_default_implicit_rules PARAMS ((void));
+void define_default_variables (void);
+void set_default_suffixes (void);
+void install_default_suffix_rules (void);
+void install_default_implicit_rules (void);
 
-extern void build_vpath_lists PARAMS ((void));
-extern void construct_vpath_list PARAMS ((char *pattern, char *dirpath));
-extern int vpath_search PARAMS ((char **file, FILE_TIMESTAMP *mtime_ptr));
-extern int gpath_search PARAMS ((char *file, unsigned int len));
+void build_vpath_lists (void);
+void construct_vpath_list (char *pattern, char *dirpath);
+const char *vpath_search (const char *file, FILE_TIMESTAMP *mtime_ptr);
+int gpath_search (const char *file, unsigned int len);
 
-extern void construct_include_path PARAMS ((char **arg_dirs));
+void construct_include_path (const char **arg_dirs);
 
-extern void user_access PARAMS ((void));
-extern void make_access PARAMS ((void));
-extern void child_access PARAMS ((void));
+void user_access (void);
+void make_access (void);
+void child_access (void);
 
-extern void close_stdout PARAMS ((void));
+void close_stdout (void);
 
-extern char *strip_whitespace PARAMS ((const char **begpp, const char **endpp));
+char *strip_whitespace (const char **begpp, const char **endpp);
 
 /* String caching  */
-extern void strcache_init PARAMS ((void));
-extern void strcache_print_stats PARAMS ((const char *prefix));
-extern int strcache_iscached PARAMS ((const char *str));
-extern const char *strcache_add PARAMS ((const char *str));
-extern const char *strcache_add_len PARAMS ((const char *str, int len));
-extern int strcache_setbufsize PARAMS ((int size));
+void strcache_init (void);
+void strcache_print_stats (const char *prefix);
+int strcache_iscached (const char *str);
+const char *strcache_add (const char *str);
+const char *strcache_add_len (const char *str, int len);
+int strcache_setbufsize (int size);
 
 #ifdef  HAVE_VFORK_H
 # include <vfork.h>
@@ -484,26 +458,37 @@ extern int strcache_setbufsize PARAMS ((int size));
 
 #if !defined (__GNU_LIBRARY__) && !defined (POSIX) && !defined (_POSIX_VERSION) && !defined(WINDOWS32)
 
-extern long int atol ();
+long int atol ();
 # ifndef VMS
-extern long int lseek ();
+long int lseek ();
 # endif
 
 #endif  /* Not GNU C library or POSIX.  */
 
 #ifdef  HAVE_GETCWD
-# if !defined(VMS) && !defined(__DECC) && !defined(_MSC_VER)
-extern char *getcwd ();
+# if !defined(VMS) && !defined(__DECC) && !defined(_MSC_VER) /* bird: MSC */
+char *getcwd ();
 # endif
 #else
-extern char *getwd ();
+char *getwd ();
 # define getcwd(buf, len)       getwd (buf)
+#endif
+
+#if !HAVE_STRCASECMP
+# if HAVE_STRICMP
+#  define strcasecmp stricmp
+# elif HAVE_STRCMPI
+#  define strcasecmp strcmpi
+# else
+/* Create our own, in misc.c */
+int strcasecmp (const char *s1, const char *s2);
+# endif
 #endif
 
 extern const struct floc *reading_file;
 extern const struct floc **expanding_var;
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) /* bird */
 extern char **environ;
 #endif
 
@@ -519,6 +504,8 @@ extern int pretty_command_printing;
 
 /* can we run commands via 'sh -c xxx' or must we use batch files? */
 extern int batch_mode_shell;
+
+extern char cmd_prefix;
 
 extern unsigned int job_slots;
 extern int job_fds[2];
@@ -571,12 +558,7 @@ extern int handling_fatal_signal;
 # endif
 #endif
 
-
 #ifdef __EMX__
-# if !HAVE_STRCASECMP
-#  define strcasecmp stricmp
-# endif
-
 # if !defined chdir
 #  define chdir _chdir2
 # endif
@@ -615,8 +597,9 @@ extern int handling_fatal_signal;
    NULL at the end of the directory--and _doesn't_ reset errno.  So, we have
    to do it ourselves here.  */
 
-#define ENULLLOOP(_v,_c)   do{ errno = 0; \
-                               while (((_v)=_c)==0 && errno==EINTR); }while(0)
+#define ENULLLOOP(_v,_c)   do { errno = 0; (_v) = _c; } \
+                           while((_v)==0 && errno==EINTR)
+
 
 #if defined(__EMX__) && defined(CONFIG_WITH_OPTIMIZATION_HACKS) /* bird: saves 40-100ms on libc. */
 static inline void *__my_rawmemchr (const void *__s, int __c);

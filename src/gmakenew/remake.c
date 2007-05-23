@@ -39,7 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include <io.h>
 #endif
 
-extern int try_implicit_rule PARAMS ((struct file *file, unsigned int depth));
+extern int try_implicit_rule (struct file *file, unsigned int depth);
 
 
 /* The test for circular dependencies is based on the 'updating' bit in
@@ -60,13 +60,14 @@ unsigned int commands_started = 0;
 /* Current value for pruning the scan of the goal chain (toggle 0/1).  */
 static unsigned int considered;
 
-static int update_file PARAMS ((struct file *file, unsigned int depth));
-static int update_file_1 PARAMS ((struct file *file, unsigned int depth));
-static int check_dep PARAMS ((struct file *file, unsigned int depth, FILE_TIMESTAMP this_mtime, int *must_make_ptr));
-static int touch_file PARAMS ((struct file *file));
-static void remake_file PARAMS ((struct file *file));
-static FILE_TIMESTAMP name_mtime PARAMS ((char *name));
-static int library_search PARAMS ((char **lib, FILE_TIMESTAMP *mtime_ptr));
+static int update_file (struct file *file, unsigned int depth);
+static int update_file_1 (struct file *file, unsigned int depth);
+static int check_dep (struct file *file, unsigned int depth,
+                      FILE_TIMESTAMP this_mtime, int *must_make_ptr);
+static int touch_file (struct file *file);
+static void remake_file (struct file *file);
+static FILE_TIMESTAMP name_mtime (const char *name);
+static const char *library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr);
 
 
 /* Remake all the goals in the `struct dep' chain GOALS.  Return -1 if nothing
@@ -237,7 +238,7 @@ update_goal_chain (struct dep *goals)
 		lastgoal->next = g->next;
 
 	      /* Free the storage.  */
-	      free ((char *) g);
+	      free (g);
 
 	      g = lastgoal == 0 ? goals : lastgoal->next;
 
@@ -534,11 +535,9 @@ update_file_1 (struct file *file, unsigned int depth)
 
       if (!running)
         /* The prereq is considered changed if the timestamp has changed while
-           it was built, OR it doesn't exist.
-	   This causes the Linux kernel build to break.  We'll defer this
-	   fix until GNU make 3.82 to give them time to update.  */
+           it was built, OR it doesn't exist.  */
 	d->changed = ((file_mtime (d->file) != mtime)
-                      /* || (mtime == NONEXISTENT_MTIME) */);
+                      || (mtime == NONEXISTENT_MTIME));
 
       lastd = d;
       d = d->next;
@@ -818,7 +817,7 @@ notice_finished_file (struct file *file)
 
   if (touch_flag
       /* The update status will be:
-	 	-1	if this target was not remade;
+		-1	if this target was not remade;
 		0	if 0 or more commands (+ or ${MAKE}) were run and won;
 		1	if some commands were run and lost.
 	 We touch the target if it has commands which either were not run
@@ -928,7 +927,7 @@ notice_finished_file (struct file *file)
 	     We do this instead of just invalidating the cached time
 	     so that a vpath_search can happen.  Otherwise, it would
 	     never be done because the target is already updated.  */
-	  (void) f_mtime (d->file, 0);
+	  f_mtime (d->file, 0);
       }
   else if (file->update_status == -1)
     /* Nothing was done for FILE, but it needed nothing done.
@@ -936,12 +935,11 @@ notice_finished_file (struct file *file)
     file->update_status = 0;
 }
 
-/* Check whether another file (whose mtime is THIS_MTIME)
-   needs updating on account of a dependency which is file FILE.
-   If it does, store 1 in *MUST_MAKE_PTR.
-   In the process, update any non-intermediate files
-   that FILE depends on (including FILE itself).
-   Return nonzero if any updating failed.  */
+/* Check whether another file (whose mtime is THIS_MTIME) needs updating on
+   account of a dependency which is file FILE.  If it does, store 1 in
+   *MUST_MAKE_PTR.  In the process, update any non-intermediate files that
+   FILE depends on (including FILE itself).  Return nonzero if any updating
+   failed.  */
 
 static int
 check_dep (struct file *file, unsigned int depth,
@@ -955,8 +953,8 @@ check_dep (struct file *file, unsigned int depth,
 
   if (file->phony || !file->intermediate)
     {
-      /* If this is a non-intermediate file, update it and record
-         whether it is newer than THIS_MTIME.  */
+      /* If this is a non-intermediate file, update it and record whether it
+         is newer than THIS_MTIME.  */
       FILE_TIMESTAMP mtime;
       dep_status = update_file (file, depth);
       check_renamed (file);
@@ -985,18 +983,18 @@ check_dep (struct file *file, unsigned int depth,
 	  file->cmds = default_file->cmds;
 	}
 
-      /* If the intermediate file actually exists
-	 and is newer, then we should remake from it.  */
       check_renamed (file);
       mtime = file_mtime (file);
       check_renamed (file);
       if (mtime != NONEXISTENT_MTIME && mtime > this_mtime)
+        /* If the intermediate file actually exists and is newer, then we
+           should remake from it.  */
 	*must_make_ptr = 1;
-	  /* Otherwise, update all non-intermediate files we depend on,
-	     if necessary, and see whether any of them is more
-	     recent than the file on whose behalf we are checking.  */
       else
 	{
+          /* Otherwise, update all non-intermediate files we depend on, if
+             necessary, and see whether any of them is more recent than the
+             file on whose behalf we are checking.  */
 	  struct dep *lastd;
 
 	  lastd = 0;
@@ -1074,7 +1072,7 @@ touch_file (struct file *file)
       else
 	{
 	  struct stat statbuf;
-	  char buf;
+	  char buf = 'x';
           int e;
 
           EINTRLOOP (e, fstat (fd, &statbuf));
@@ -1168,7 +1166,6 @@ f_mtime (struct file *file, int search)
 
       char *arname, *memname;
       struct file *arfile;
-      int arname_used = 0;
       time_t member_date;
 
       /* Find the archive's name.  */
@@ -1178,10 +1175,7 @@ f_mtime (struct file *file, int search)
 	 Also allow for its name to be changed via VPATH search.  */
       arfile = lookup_file (arname);
       if (arfile == 0)
-	{
-	  arfile = enter_file (arname);
-	  arname_used = 1;
-	}
+        arfile = enter_file (strcache_add (arname));
       mtime = f_mtime (arfile, search);
       check_renamed (arfile);
       if (search && strcmp (arfile->hname, arname))
@@ -1192,22 +1186,13 @@ f_mtime (struct file *file, int search)
           char *name;
 	  unsigned int arlen, memlen;
 
-	  if (!arname_used)
-	    {
-	      free (arname);
-	      arname_used = 1;
-	    }
-
-	  arname = arfile->hname;
-	  arlen = strlen (arname);
+	  arlen = strlen (arfile->hname);
 	  memlen = strlen (memname);
 
-	  /* free (file->name); */
-
-	  name = (char *) xmalloc (arlen + 1 + memlen + 2);
-	  bcopy (arname, name, arlen);
+	  name = xmalloc (arlen + 1 + memlen + 2);
+	  memcpy (name, arfile->hname, arlen);
 	  name[arlen] = '(';
-	  bcopy (memname, name + arlen + 1, memlen);
+	  memcpy (name + arlen + 1, memname, memlen);
 	  name[arlen + 1 + memlen] = ')';
 	  name[arlen + 1 + memlen + 1] = '\0';
 
@@ -1220,9 +1205,7 @@ f_mtime (struct file *file, int search)
           check_renamed (file);
 	}
 
-      if (!arname_used)
-	free (arname);
-      free (memname);
+      free (arname);
 
       file->low_resolution_time = 1;
 
@@ -1243,11 +1226,11 @@ f_mtime (struct file *file, int search)
       if (mtime == NONEXISTENT_MTIME && search && !file->ignore_vpath)
 	{
 	  /* If name_mtime failed, search VPATH.  */
-	  char *name = file->name;
-	  if (vpath_search (&name, &mtime)
+	  const char *name = vpath_search (file->name, &mtime);
+	  if (name
 	      /* Last resort, is it a library (-lxxx)?  */
-	      || (name[0] == '-' && name[1] == 'l'
-		  && library_search (&name, &mtime)))
+	      || (file->name[0] == '-' && file->name[1] == 'l'
+		  && (name = library_search (file->name, &mtime)) != 0))
 	    {
 	      if (mtime != UNKNOWN_MTIME)
 		/* vpath_search and library_search store UNKNOWN_MTIME
@@ -1366,7 +1349,7 @@ f_mtime (struct file *file, int search)
    much cleaner.  */
 
 static FILE_TIMESTAMP
-name_mtime (char *name)
+name_mtime (const char *name)
 {
   FILE_TIMESTAMP mtime;
   struct stat st;
@@ -1460,8 +1443,8 @@ name_mtime (char *name)
    suitable library file in the system library directories and the VPATH
    directories.  */
 
-static int
-library_search (char **lib, FILE_TIMESTAMP *mtime_ptr)
+static const char *
+library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 {
   static char *dirs[] =
     {
@@ -1482,14 +1465,15 @@ library_search (char **lib, FILE_TIMESTAMP *mtime_ptr)
 
   static char *libpatterns = NULL;
 
-  char *libname = &(*lib)[2];	/* Name without the `-l'.  */
+  const char *libname = lib+2;	/* Name without the '-l'.  */
   FILE_TIMESTAMP mtime;
 
   /* Loop variables for the libpatterns value.  */
-  char *p, *p2;
+  char *p;
+  const char *p2;
   unsigned int len;
 
-  char *file, **dp;
+  char **dp;
 
   /* If we don't have libpatterns, get it.  */
   if (!libpatterns)
@@ -1538,20 +1522,18 @@ library_search (char **lib, FILE_TIMESTAMP *mtime_ptr)
       mtime = name_mtime (libbuf);
       if (mtime != NONEXISTENT_MTIME)
 	{
-	  *lib = xstrdup (libbuf);
 	  if (mtime_ptr != 0)
 	    *mtime_ptr = mtime;
-	  return 1;
+	  return strcache_add (libbuf);
 	}
 
       /* Now try VPATH search on that.  */
 
-      file = libbuf;
-      if (vpath_search (&file, mtime_ptr))
-	{
-	  *lib = file;
-	  return 1;
-	}
+      {
+        const char *file = vpath_search (libbuf, mtime_ptr);
+        if (file)
+          return file;
+      }
 
       /* Now try the standard set of directories.  */
 
@@ -1578,10 +1560,9 @@ library_search (char **lib, FILE_TIMESTAMP *mtime_ptr)
 	  mtime = name_mtime (buf);
 	  if (mtime != NONEXISTENT_MTIME)
 	    {
-	      *lib = xstrdup (buf);
 	      if (mtime_ptr != 0)
 		*mtime_ptr = mtime;
-	      return 1;
+	      return strcache_add (buf);
 	    }
 	}
     }

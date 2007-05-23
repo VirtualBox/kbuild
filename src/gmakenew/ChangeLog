@@ -1,3 +1,219 @@
+2007-05-11  Paul Smith  <psmith@gnu.org>
+
+	* job.c (new_job): Add debug info to specify where make found the
+	command script it is running to build a target.
+	Fixes Savannah bug #18617.
+
+	* default.c (default_suffixes,default_suffix_rules,default_variables):
+	Add support for Objective C.  Fixes Savannah bug #16389.
+	Based on a patch provided by Peter O'Gorman <peter@pogma.com>.
+
+	* function.c (func_lastword): Initialize p.
+
+	* doc/make.texi (Eval Function, Implicit Variables, Special Targets):
+	Doc fixes noticed by Bob <twobanjobob@sbcglobal.net>.  Patch from
+	Dave Korn <dave.korn@artimi.com>
+
+2007-05-08  Paul Smith  <psmith@gnu.org>
+
+	Fix Savannah bug #19656:
+
+	* configure.in: Check for strcasecmp(), strcmpi(), and stricmp().
+
+	* make.h: Change all case-insensitive string compares to use
+	strcasecmp() (from POSIX).  If we don't have that but do have one
+	of the others, define strcasecmp to be one of those instead.  If
+	we don't have any, declare a prototype for our own version.
+
+	* misc.c (strcasecmp): Use this if we can't find any native
+	case-insensitive string comparison function.
+	* vmsfunctions.c: Remove strcmpi(); we'll use misc.c:strcasecmp().
+	* main.c (find_and_set_default_shell): Use strcasecmp() instead of
+	strcmpi().
+	* job.c (_is_unixy_shell, construct_command_argv_internal): Use
+	strcasecmp() instead of stricmp().
+	* hash.h (ISTRING_COMPARE, return_ISTRING_COMPARE): Use strcasecmp()
+	instead of strcmpi().
+	* acinclude.m4: Remove the strcasecmp() check from here.
+
+2007-03-21  Paul Smith  <psmith@gnu.org>
+
+	* configure.in: Don't turn on case-insensitive file system support
+	if --disable-... is given.  Fixes Savannah bug #19348.
+
+2007-03-19  Paul Smith  <psmith@gnu.org>
+
+	* ALL: Use the strcache for all file name strings, or other
+	strings which we will never free.  The goal is to save memory by
+	avoiding duplicate copies of strings.  However, at the moment this
+	doesn't save much memory in most situations: due to secondary
+	expansion we actually save prerequisite lists twice (once before
+	the secondary expansion, and then again after it's been parsed
+	into individual file names in the dep list).  We will resolve this
+	in a future change, by doing the parsing up-front for targets
+	where secondary expansion is not set.
+
+	Moving things into the strcache also allows us to use const
+	pointers in many more places.
+
+2007-01-03  Paul Smith  <psmith@gnu.org>
+
+	* make.h (ENULLLOOP): Reset errno after each failed invocation of
+	the function, not just the first.  Fixes Savannah bug #18680.
+
+2006-11-18  Paul Smith  <psmith@gnu.org>
+
+	* strcache.c (strcache_add_len): Don't allocate a new buffer
+	unless the string is not already nil-terminated.  Technically this
+	is a violation of the standard, since we may be passed an array
+	that is not long enough to test one past.  However, in make this
+	is never true since we only use nil-terminated strings or
+	sub-strings thereof.
+
+	* read.c (eval, do_define): Use cmd_prefix instead of '\t'.
+
+	* main.c: New global cmd_prefix, defaults to '\t'.
+	* job.c (construct_command_argv_internal): Use cmd_prefix instead
+	of '\t'.
+
+	* dir.c: Constified.
+	(dir_contents_file_exists_p): Check for an error return	from
+	readdir(), just in case.
+
+	* commands.c: Constified.
+	* default.c: Constified.
+	* expand.c: Constified.
+	* function.c: Partial constification.
+	* variable.c: Partial constification.
+	* vmsify.c: Constification.  Hard to test this but I hope I didn't
+	screw it up!
+	* vpath.c: Partial constification.
+	* w32/pathstuff.c: Partial constification.
+
+2006-11-16  Eli Zaretskii  <eliz@gnu.org>
+
+	* main.c (main) [HAVE_DOS_PATHS]: Treat DOS style argv[0] with
+	backslashes and drive letters as absolute.
+
+2006-10-22  Paul Smith  <psmith@gnu.org>
+
+	* main.c (struct command_switch): Use const and void*.
+
+2006-10-21  Paul Smith  <psmith@gnu.org>
+
+	* ar.c: Constified.
+	* arscan.c: Constified.
+
+2006-09-30  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (MAKEFILE_LIST Variable): Modify reference to
+	point to lastword since the example was updated.
+	Fixes Savannah bug #16304.
+	(Secondary Expansion): Correct example description.
+	Fixes Savannah bug #16468.
+	(Makefile Contents): Clarify that comments cannot appear within
+	variable references or function calls.
+	Fixes Savannah bug #16577.
+	(Special Targets): Clarify how .NOTPARALLEL works in recursion.
+	Fixes Savannah bug #17701.
+	Reported by Ralf Wildenhues <Ralf.Wildenhues@gmx.de>:
+	(Prerequisite Types): Added an example of using	order-only
+	prerequisites.  Fixes Savannah bug #17880.
+	(Rule Syntax): "lise" -> "list"
+	(Multiple Rules): ... -> @dots{}
+	(Splitting Lines): ditto.
+
+	* remake.c (update_file_1): Prereqs that don't exist should be
+	considered changed, for the purposes of $?.
+	Fixes Savannah bug #16051.
+
+	* make.1: Remove extraneous "+".
+	Fixes Savannah bug #16652.
+
+2006-09-06  Paul D. Smith  <psmith@gnu.org>
+
+	* configure.in: Include sys/types.h when checking for sys/wait.h.
+
+2006-08-18  Eli Zaretskii  <eliz@gnu.org>
+
+	* configure.in (PATH_SEPARATOR_CHAR): Define to the value of
+	$PATH_SEPARATOR.
+
+	* make.h (PATH_SEPARATOR_CHAR): Define only if still undefined.
+	Normally, it is defined in config.h.
+
+	* config/dospaths.m4 <ac_cv_dos_paths>: Define to yes on Cygwin as
+	well.
+
+	* job.c (construct_command_argv_internal) [HAVE_DOS_PATHS]: Define
+	sh_chars_sh for Windows platforms that emulate Unix.
+
+2006-05-07  Paul D. Smith  <psmith@gnu.org>
+
+	* README.OS2.template: Updates provided by Andreas Buening
+	<andreas.buening@nexgo.de>.
+
+2006-04-30  Paul D. Smith  <psmith@gnu.org>
+
+	* make.h: Include <direct.h> if HAVE_DIRECT_H.
+	* config.h.W32.template (HAVE_DIRECT_H): Set it if it's available.
+
+2006-04-26  Paul D. Smith  <psmith@gnu.org>
+
+	* README.cvs: Add a reminder to notify the GNU translation robot.
+
+	* doc/make.texi: Change @direcategory (requested by Karl Berry).
+
+2006-04-20  Paul D. Smith  <psmith@gnu.org>
+
+	* maintMakefile (po-check): Use Perl instead of grep -E, for systems
+	that don't have extended grep.
+	(cvsclean): Use $(PERL) instead of perl.
+
+2006-04-09  Paul D. Smith  <psmith@gnu.org>
+
+	* maintMakefile: Add some extra warning options (GCC 4.1 only?)
+
+	* expand.c, implicit.c, main.c, read.c: Rename variables so that
+	inner-scope variables don't mask outer-scope variables.
+
+	* ar.c, arscan.c, commands.c, default.c, dir.c, expand.c, file.c:
+	* function.c, getloadavg.c, implicit.c, job.c, main.c, misc.c, read.c:
+	* remake.c, remote-cstms.c, rule.c, strcache.c, variable.c:
+	* vmsfunctions.c, vmsify.c, vpath.c: Remove all casts of returned
+	values from memory allocation functions: they return void* and so
+	don't need to be cast.  Also remove (char *) casts of arguments to
+	xrealloc().
+
+	* configure.in: Remove checks for memcpy/memmove/strchr.
+
+	* make.h: Remove bcmp/bcopy/bzero/strchr/strrchr macros.
+
+	* ar.c, arscan.c, commands.c, dir.c: Convert all bzero/bcopy/bcmp
+	calls to memset/memcpy/memmove/memcmp calls.
+	* expand.c, file.c, function.c, getloadavg.c, implicit.c: Ditto.
+	* job.c, main.c, misc.c, read.c, remake.c, rule.c: Ditto.
+	* variable.c, vpath.c: Ditto.
+
+	* make.h (EXIT_FAILURE): Should be 1, not 0.
+
+2006-04-06  Paul D. Smith  <psmith@gnu.org>
+
+	* configure.in: Removed AM_C_PROTOTYPES.  Starting now on we
+	require an ISO C 1989 standard compiler and runtime library.
+
+	* Makefile.am: Remove the ansi2knr feature.
+
+	* make.h: Remove the PARAMS() macro definition and all uses of it.
+
+	* amiga.h, ar.c, arscan.c: Remove all uses of the PARAMS() macro.
+	* commands.c, commands.h, config.h-vms.template: Ditto.
+	* dep.h, dir.c, expand.c, filedef.h, function.c: Ditto.
+	* implicit.c, job.c, job.h, main.c, read.c, remake.c: Ditto.
+	* rule.c, rule.h, variable.h, vmsdir.h, vmsjobs.c, vpath.c: Ditto.
+
+	* NEWS: Update.
+
 2006-04-01  Paul D. Smith  <psmith@gnu.org>
 
 	Version 3.81 released.
@@ -53,7 +269,7 @@
 	(die): Cleanup code was removed from here; call the new function.
 	(main): If we are re-execing, clean up the jobserver first so we
 	don't leak file descriptors.
-	Fix bug reported by Craig Fithian <craig.fithian@citigroup.com>.
+	Reported by Craig Fithian <craig.fithian@citigroup.com>
 
 2006-03-17  Paul D. Smith  <psmith@gnu.org>
 

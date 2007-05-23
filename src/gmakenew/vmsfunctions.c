@@ -37,7 +37,7 @@ opendir (char *dspec)
   struct DIR *dir  = (struct DIR *)xmalloc (sizeof (struct DIR));
   struct NAM *dnam = (struct NAM *)xmalloc (sizeof (struct NAM));
   struct FAB *dfab = &dir->fab;
-  char *searchspec = (char *)xmalloc (MAXNAMLEN + 1);
+  char *searchspec = xmalloc (MAXNAMLEN + 1);
 
   memset (dir, 0, sizeof *dir);
 
@@ -256,16 +256,4 @@ cvt_time (unsigned long tval)
   str[26] = '\0';
 
   return (str);
-}
-
-int
-strcmpi (const char *s1, const char *s2)
-{
-  while (*s1 != '\0' && toupper(*s1) == toupper(*s2))
-    {
-      s1++;
-      s2++;
-    }
-
-  return toupper(*(unsigned char *) s1) - toupper(*(unsigned char *) s2);
 }

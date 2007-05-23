@@ -42,10 +42,9 @@ static struct pattern_var *last_pattern_var;
 /* Create a new pattern-specific variable struct.  */
 
 struct pattern_var *
-create_pattern_var (char *target, char *suffix)
+create_pattern_var (const char *target, const char *suffix)
 {
-  register struct pattern_var *p
-    = (struct pattern_var *) xmalloc (sizeof (struct pattern_var));
+  register struct pattern_var *p = xmalloc (sizeof (struct pattern_var));
 
   if (last_pattern_var != 0)
     last_pattern_var->next = p;
@@ -64,14 +63,14 @@ create_pattern_var (char *target, char *suffix)
 /* Look up a target in the pattern-specific variable list.  */
 
 static struct pattern_var *
-lookup_pattern_var (struct pattern_var *start, char *target)
+lookup_pattern_var (struct pattern_var *start, const char *target)
 {
   struct pattern_var *p;
   unsigned int targlen = strlen(target);
 
   for (p = start ? start->next : pattern_vars; p != 0; p = p->next)
     {
-      char *stem;
+      const char *stem;
       unsigned int stemlen;
 
       if (p->len > targlen)
@@ -276,7 +275,11 @@ variable_hash_cmp (const void *xv, const void *yv)
 }
 
 #ifndef	VARIABLE_BUCKETS
+# ifdef KMK /* Move to Makefile.kmk? */
+#  define VARIABLE_BUCKETS		16384
+# else  /*!KMK*/
 #define VARIABLE_BUCKETS		523
+# endif /*!KMK*/
 #endif
 #ifndef	PERFILE_VARIABLE_BUCKETS
 #define	PERFILE_VARIABLE_BUCKETS	23
@@ -295,12 +298,7 @@ struct variable_set_list *current_variable_set_list = &global_setlist;
 void
 init_hash_global_variable_set (void)
 {
-  hash_init (&global_variable_set.table,
-#ifdef KMK /* FIMXE: just redefine the bucket size! */
-             16384,
-#else
-             VARIABLE_BUCKETS,
-#endif
+  hash_init (&global_variable_set.table, VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 }
 
@@ -314,13 +312,13 @@ init_hash_global_variable_set (void)
 #ifdef CONFIG_WITH_VALUE_LENGTH
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
-                        char *value, unsigned int value_length, int duplicate_value,
+                        const char *value, unsigned int value_length, int duplicate_value,
                         enum variable_origin origin, int recursive,
                         struct variable_set *set, const struct floc *flocp)
 #else
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
-                        char *value, enum variable_origin origin,
+                        const char *value, enum variable_origin origin,
                         int recursive, struct variable_set *set,
                         const struct floc *flocp)
 #endif
@@ -365,7 +363,7 @@ define_variable_in_set (const char *name, unsigned int length,
             {
               if (v->value != 0)
                 free (v->value);
-              v->value = value;
+              v->value = (char *)value;
               v->value_alloc_len = value_length + 1;
             }
           else
@@ -396,7 +394,7 @@ define_variable_in_set (const char *name, unsigned int length,
 
   /* Create a new variable definition and add it to the hash table.  */
 
-  v = (struct variable *) xmalloc (sizeof (struct variable));
+  v = xmalloc (sizeof (struct variable));
   v->name = savestring (name, length);
   v->length = length;
 #ifdef VARIABLE_HASH /* bird */
@@ -413,7 +411,7 @@ define_variable_in_set (const char *name, unsigned int length,
   if (!duplicate_value)
     {
       v->value_alloc_len = value_length + 1;
-      v->value = value;
+      v->value = (char *)value;
     }
   else
     {
@@ -527,7 +525,7 @@ handle_special_var (struct variable *var)
                 p = &var->value[off];
               }
 
-            bcopy (v->name, p, l);
+            memcpy (p, v->name, l);
             p += l;
             *(p++) = ' ';
           }
@@ -691,7 +689,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
    rule, then we will use the "root" double-colon target's variable set as the
    parent of FILE's variable set.
 
-   If we're READing a makefile, don't do the pattern variable search now,
+   If we're READING a makefile, don't do the pattern variable search now,
    since the pattern variable might not have been defined yet.  */
 
 void
@@ -703,7 +701,7 @@ initialize_file_variables (struct file *file, int reading)
     {
       l = (struct variable_set_list *)
 	xmalloc (sizeof (struct variable_set_list));
-      l->set = (struct variable_set *) xmalloc (sizeof (struct variable_set));
+      l->set = xmalloc (sizeof (struct variable_set));
       hash_init (&l->set->table, PERFILE_VARIABLE_BUCKETS,
                  variable_hash_1, variable_hash_2, variable_hash_cmp);
       file->variables = l;
@@ -798,7 +796,7 @@ create_new_variable_set (void)
   register struct variable_set_list *setlist;
   register struct variable_set *set;
 
-  set = (struct variable_set *) xmalloc (sizeof (struct variable_set));
+  set = xmalloc (sizeof (struct variable_set));
   hash_init (&set->table, SMALL_SCOPE_VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 
@@ -823,8 +821,8 @@ free_variable_set (struct variable_set_list *list)
 {
   hash_map (&list->set->table, free_variable_name_and_value);
   hash_free (&list->set->table, 1);
-  free ((char *) list->set);
-  free ((char *) list);
+  free (list->set);
+  free (list);
 }
 
 /* Create a new variable set and push it on the current setlist.
@@ -880,10 +878,10 @@ pop_variable_scope (void)
     }
 
   /* Free the one we no longer need.  */
-  free ((char *) setlist);
+  free (setlist);
   hash_map (&set->table, free_variable_name_and_value);
   hash_free (&set->table, 1);
-  free ((char *) set);
+  free (set);
 }
 
 /* Merge FROM_SET into TO_SET, freeing unused storage in FROM_SET.  */
@@ -1026,6 +1024,7 @@ define_automatic_variables (void)
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
+  && defined(CONFIG_WITH_RSORT) \
   && defined(CONFIG_WITH_ABSPATHEX) \
   && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
   && defined(CONFIG_WITH_STACK) \
@@ -1033,8 +1032,9 @@ define_automatic_variables (void)
   && defined(CONFIG_WITH_XARGS) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
-                          "append-dash-n "
-                          "abspath abspathex"
+                          "append-dash-n abspath"
+                          " rsort"
+                          " abspathex"
                           " toupper tolower"
                           " comp-vars comp-cmds"
                           " stack"
@@ -1044,6 +1044,9 @@ define_automatic_variables (void)
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
   strcpy(buf, "append-dash-n abspath");
+#  if defined(CONFIG_WITH_RSORT)
+  strcat(buf, " rsort");
+#  endif
 #  if defined(CONFIG_WITH_ABSPATHEX)
   strcat(buf, " abspathex");
 #  endif
@@ -1305,7 +1308,7 @@ target_environment (struct file *file)
 #endif
   hash_delete (&table, &makelevel_key);
 
-  result = result_0 = (char **) xmalloc ((table.ht_fill + 2) * sizeof (char *));
+  result = result_0 = xmalloc ((table.ht_fill + 2) * sizeof (char *));
 
   v_slot = (struct variable **) table.ht_vec;
   v_end = v_slot + table.ht_size;
@@ -1326,7 +1329,7 @@ target_environment (struct file *file)
 		strcmp(v->name, "PATH") == 0)
 	      convert_Path_to_windows32(value, ';');
 #endif
-	    *result++ = concat (v->name, "=", value);
+	    *result++ = xstrdup (concat (v->name, "=", value));
 	    free (value);
 	  }
 	else
@@ -1336,12 +1339,12 @@ target_environment (struct file *file)
                 strcmp(v->name, "PATH") == 0)
               convert_Path_to_windows32(v->value, ';');
 #endif
-	    *result++ = concat (v->name, "=", v->value);
+	    *result++ = xstrdup (concat (v->name, "=", v->value));
 	  }
       }
 
-  *result = (char *) xmalloc (100);
-  (void) sprintf (*result, "%s=%u", MAKELEVEL_NAME, makelevel + 1);
+  *result = xmalloc (100);
+  sprintf (*result, "%s=%u", MAKELEVEL_NAME, makelevel + 1);
   *++result = 0;
 
   hash_free (&table, 0);
@@ -1351,7 +1354,7 @@ target_environment (struct file *file)
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
 static struct variable *
-do_variable_definition_append (const struct floc *flocp, struct variable *v, char *value,
+do_variable_definition_append (const struct floc *flocp, struct variable *v, const char *value,
                                enum variable_origin origin)
 {
   if (env_overrides && origin == o_env)
@@ -1417,10 +1420,11 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, cha
 
 struct variable *
 do_variable_definition (const struct floc *flocp, const char *varname,
-                        char *value, enum variable_origin origin,
+                        const char *value, enum variable_origin origin,
                         enum variable_flavor flavor, int target_var)
 {
-  char *p, *alloc_value = NULL;
+  const char *p;
+  char *alloc_value = NULL;
   struct variable *v;
   int append = 0;
   int conditional = 0;
@@ -1494,7 +1498,8 @@ do_variable_definition (const struct floc *flocp, const char *varname,
             /* Paste the old and new values together in VALUE.  */
 
             unsigned int oldlen, vallen;
-            char *val;
+            const char *val;
+            char *tp;
 
             val = value;
             if (v->recursive)
@@ -1511,10 +1516,11 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 
             oldlen = strlen (v->value);
             vallen = strlen (val);
-            p = (char *) alloca (oldlen + 1 + vallen + 1);
-            bcopy (v->value, p, oldlen);
-            p[oldlen] = ' ';
-            bcopy (val, &p[oldlen + 1], vallen + 1);
+            tp = alloca (oldlen + 1 + vallen + 1);
+            memcpy (tp, v->value, oldlen);
+            tp[oldlen] = ' ';
+            memcpy (&tp[oldlen + 1], val, vallen + 1);
+            p = tp;
 #endif /* !CONFIG_WITH_VALUE_LENGTH */
           }
       }
@@ -1541,22 +1547,21 @@ do_variable_definition (const struct floc *flocp, const char *varname,
       extern char * __dosexec_find_on_path (const char *, char *[], char *);
 
       /* See if we can find "/bin/sh.exe", "/bin/sh.com", etc.  */
-      if (__dosexec_find_on_path (p, (char **)0, shellpath))
+      if (__dosexec_find_on_path (p, NULL, shellpath))
 	{
-	  char *p;
+	  char *tp;
 
-	  for (p = shellpath; *p; p++)
-	    {
-	      if (*p == '\\')
-		*p = '/';
-	    }
+	  for (tp = shellpath; *tp; tp++)
+            if (*tp == '\\')
+              *tp = '/';
+
 	  v = define_variable_loc (varname, varname_len,
                                    shellpath, origin, flavor == f_recursive,
                                    flocp);
 	}
       else
 	{
-	  char *shellbase, *bslash;
+	  const char *shellbase, *bslash;
 	  struct variable *pathv = lookup_variable ("PATH", 4);
 	  char *path_string;
 	  char *fake_env[2];
@@ -1577,20 +1582,19 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 	     executable extensions) along the $PATH.  */
 	  if (pathv)
 	    pathlen = strlen (pathv->value);
-	  path_string = (char *)xmalloc (5 + pathlen + 2 + 1);
+	  path_string = xmalloc (5 + pathlen + 2 + 1);
 	  /* On MSDOS, current directory is considered as part of $PATH.  */
 	  sprintf (path_string, "PATH=.;%s", pathv ? pathv->value : "");
 	  fake_env[0] = path_string;
-	  fake_env[1] = (char *)0;
+	  fake_env[1] = 0;
 	  if (__dosexec_find_on_path (shellbase, fake_env, shellpath))
 	    {
-	      char *p;
+	      char *tp;
 
-	      for (p = shellpath; *p; p++)
-		{
-		  if (*p == '\\')
-		    *p = '/';
-		}
+	      for (tp = shellpath; *tp; tp++)
+                if (*tp == '\\')
+                  *tp = '/';
+
 	      v = define_variable_loc (varname, varname_len,
                                        shellpath, origin,
                                        flavor == f_recursive, flocp);
@@ -1759,8 +1763,8 @@ parse_variable_definition (struct variable *v, char *line)
 #endif
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
-  name = (char *) alloca (end - beg + 1);
-  bcopy (beg, name, end - beg);
+  name = alloca (end - beg + 1);
+  memcpy (name, beg, end - beg);
   name[end - beg] = '\0';
   v->name = allocated_variable_expand (name);
 
@@ -1811,8 +1815,8 @@ try_variable_definition (const struct floc *flocp, char *line,
 static void
 print_variable (const void *item, void *arg)
 {
-  const struct variable *v = (struct variable *) item;
-  const char *prefix = (char *) arg;
+  const struct variable *v = item;
+  const char *prefix = arg;
   const char *origin;
 
   switch (v->origin)
@@ -1926,7 +1930,7 @@ print_variable_data_base (void)
 /* Print all the local variables of FILE.  */
 
 void
-print_file_variables (struct file *file)
+print_file_variables (const struct file *file)
 {
   if (file->variables != 0)
     print_variable_set (file->variables->set, "# ");
@@ -1953,7 +1957,7 @@ sync_Path_environment (void)
    * Create something WINDOWS32 world can grok
    */
   convert_Path_to_windows32 (path, ';');
-  environ_path = concat ("PATH", "=", path);
+  environ_path = xstrdup (concat ("PATH", "=", path));
   putenv (environ_path);
   free (path);
 }

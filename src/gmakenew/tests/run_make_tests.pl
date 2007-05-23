@@ -190,7 +190,8 @@ sub run_make_with_options {
 
 sub print_usage
 {
-   &print_standard_usage ("run_make_tests", "[-make_path make_pathname]");
+   &print_standard_usage ("run_make_tests",
+                          "[-make_path make_pathname] [-valgrind]",);
 }
 
 sub print_help
@@ -227,11 +228,6 @@ sub set_more_defaults
 {
    local($string);
    local($index);
-
-   # Make sure we're in the C locale for those systems that support it,
-   # so sorting, etc. is predictable.
-   #
-   $ENV{LANG} = 'C';
 
    # find the type of the port.  We do this up front to have a single
    # point of change if it needs to be tweaked.

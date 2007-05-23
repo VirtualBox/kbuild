@@ -27,10 +27,10 @@
 #ifndef __kBuild_h__
 #define __kBuild_h__
 
-extern char *func_kbuild_source_tool PARAMS((char *o, char **argv, const char *pszFuncName));
-extern char *func_kbuild_object_base PARAMS((char *o, char **argv, const char *pszFuncName));
-extern char *func_kbuild_object_suffix PARAMS((char *o, char **argv, const char *pszFuncName));
-extern char *func_kbuild_source_prop PARAMS((char *o, char **argv, const char *pszFuncName));
-extern char *func_kbuild_source_one PARAMS((char *o, char **argv, const char *pszFuncName));
+char *func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName);
+char *func_kbuild_object_base(char *o, char **argv, const char *pszFuncName);
+char *func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName);
+char *func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName);
+char *func_kbuild_source_one(char *o, char **argv, const char *pszFuncName);
 
 #endif
