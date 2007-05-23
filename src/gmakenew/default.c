@@ -42,11 +42,11 @@ static char default_suffixes[]
 .s .ss .i .ii .mod .sym .def .h .info .dvi .tex .texinfo .texi .txinfo \
 .w .ch .cweb .web .com .sh .elc .el";
 #elif defined(__EMX__)
-  = ".out .a .ln .o .c .cc .C .cpp .p .f .F .r .y .l .s .S \
+  = ".out .a .ln .o .c .cc .C .cpp .p .f .F .m .r .y .l .ym .yl .s .S \
 .mod .sym .def .h .info .dvi .tex .texinfo .texi .txinfo \
 .w .ch .web .sh .elc .el .obj .exe .dll .lib";
 #else
-  = ".out .a .ln .o .c .cc .C .cpp .p .f .F .r .y .l .s .S \
+  = ".out .a .ln .o .c .cc .C .cpp .p .f .F .m .r .y .l .ym .yl .s .S \
 .mod .sym .def .h .info .dvi .tex .texinfo .texi .txinfo \
 .w .ch .web .sh .elc .el";
 #endif
@@ -200,6 +200,8 @@ static char *default_suffix_rules[] =
     "$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@",
     ".f",
     "$(LINK.f) $^ $(LOADLIBES) $(LDLIBS) -o $@",
+    ".m",
+    "$(LINK.m) $^ $(LOADLIBES) $(LDLIBS) -o $@",
     ".p",
     "$(LINK.p) $^ $(LOADLIBES) $(LDLIBS) -o $@",
     ".F",
@@ -229,6 +231,8 @@ static char *default_suffix_rules[] =
     "$(COMPILE.cpp) $(OUTPUT_OPTION) $<",
     ".f.o",
     "$(COMPILE.f) $(OUTPUT_OPTION) $<",
+    ".m.o",
+    "$(COMPILE.m) $(OUTPUT_OPTION) $<",
     ".p.o",
     "$(COMPILE.p) $(OUTPUT_OPTION) $<",
     ".F.o",
@@ -257,15 +261,18 @@ static char *default_suffix_rules[] =
 #endif
     ".l.c",
     "@$(RM) $@ \n $(LEX.l) $< > $@",
+    ".ym.m",
+    "$(YACC.m) $< \n mv -f y.tab.c $@",
+    ".lm.m",
+    "@$(RM) $@ \n $(LEX.m) $< > $@",
 
     ".F.f",
     "$(PREPROCESS.F) $(OUTPUT_OPTION) $<",
     ".r.f",
     "$(PREPROCESS.r) $(OUTPUT_OPTION) $<",
 
-    /* This might actually make lex.yy.c if there's no %R%
-       directive in $*.l, but in that case why were you
-       trying to make $*.r anyway?  */
+    /* This might actually make lex.yy.c if there's no %R% directive in $*.l,
+       but in that case why were you trying to make $*.r anyway?  */
     ".l.r",
     "$(LEX.l) $< > $@ \n mv -f lex.yy.r $@",
 
@@ -310,7 +317,7 @@ static char *default_suffix_rules[] =
     0, 0,
   };
 
-static char *default_variables[] =
+static const char *default_variables[] =
   {
 #ifndef CONFIG_NO_DEFAULT_VARIABLES
 #ifdef VMS
@@ -407,9 +414,11 @@ static char *default_variables[] =
 # else
     "CXX", "gcc",
 # endif /* __MSDOS__ */
+    "OBJC", "gcc",
 #else
     "CC", "cc",
     "CXX", "g++",
+    "OBJC", "cc",
 #endif
 
     /* This expands to $(CO) $(COFLAGS) $< $@ if $@ does not exist,
@@ -477,6 +486,8 @@ static char *default_variables[] =
     "LINK.o", "$(CC) $(LDFLAGS) $(TARGET_ARCH)",
     "COMPILE.c", "$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c",
     "LINK.c", "$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)",
+    "COMPILE.m", "$(OBJC) $(OBJCFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c",
+    "LINK.m", "$(OBJC) $(OBJCFLAGS) $(CPPFLAGS) $(LDFLAGS) $(TARGET_ARCH)",
     "COMPILE.cc", "$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c",
     "COMPILE.C", "$(COMPILE.cc)",
     "COMPILE.cpp", "$(COMPILE.cc)",
@@ -485,6 +496,8 @@ static char *default_variables[] =
     "LINK.cpp", "$(LINK.cc)",
     "YACC.y", "$(YACC) $(YFLAGS)",
     "LEX.l", "$(LEX) $(LFLAGS) -t",
+    "YACC.m", "$(YACC) $(YFLAGS)",
+    "LEX.m", "$(LEX) $(LFLAGS) -t",
     "COMPILE.f", "$(FC) $(FFLAGS) $(TARGET_ARCH) -c",
     "LINK.f", "$(FC) $(FFLAGS) $(LDFLAGS) $(TARGET_ARCH)",
     "COMPILE.F", "$(FC) $(FFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c",
@@ -532,40 +545,40 @@ static char *default_variables[] =
 void
 set_default_suffixes (void)
 {
-  suffix_file = enter_file (".SUFFIXES");
+  suffix_file = enter_file (strcache_add (".SUFFIXES"));
 
   if (no_builtin_rules_flag)
-    (void) define_variable ("SUFFIXES", 8, "", o_default, 0);
+    define_variable ("SUFFIXES", 8, "", o_default, 0);
   else
     {
       char *p = default_suffixes;
       suffix_file->deps = (struct dep *)
 	multi_glob (parse_file_seq (&p, '\0', sizeof (struct dep), 1),
 		    sizeof (struct dep));
-      (void) define_variable ("SUFFIXES", 8, default_suffixes, o_default, 0);
+      define_variable ("SUFFIXES", 8, default_suffixes, o_default, 0);
     }
 }
 
 /* Enter the default suffix rules as file rules.  This used to be done in
    install_default_implicit_rules, but that loses because we want the
-   suffix rules installed before reading makefiles, and thee pattern rules
+   suffix rules installed before reading makefiles, and the pattern rules
    installed after.  */
 
 void
 install_default_suffix_rules (void)
 {
-  register char **s;
+  char **s;
 
   if (no_builtin_rules_flag)
     return;
 
- for (s = default_suffix_rules; *s != 0; s += 2)
+  for (s = default_suffix_rules; *s != 0; s += 2)
     {
-      register struct file *f = enter_file (s[0]);
+      struct file *f = enter_file (strcache_add (s[0]));
       /* Don't clobber cmds given in a makefile if there were any.  */
       if (f->cmds == 0)
 	{
-	  f->cmds = (struct commands *) xmalloc (sizeof (struct commands));
+	  f->cmds = xmalloc (sizeof (struct commands));
 	  f->cmds->fileinfo.filenm = 0;
 	  f->cmds->commands = s[1];
 	  f->cmds->command_lines = 0;
@@ -579,7 +592,7 @@ install_default_suffix_rules (void)
 void
 install_default_implicit_rules (void)
 {
-  register struct pspec *p;
+  struct pspec *p;
 
   if (no_builtin_rules_flag)
     return;
@@ -594,11 +607,11 @@ install_default_implicit_rules (void)
 void
 define_default_variables (void)
 {
-  register char **s;
+  const char **s;
 
   if (no_builtin_variables_flag)
     return;
 
   for (s = default_variables; *s != 0; s += 2)
-    (void) define_variable (s[0], strlen (s[0]), s[1], o_default, 1);
+    define_variable (s[0], strlen (s[0]), s[1], o_default, 1);
 }

@@ -168,28 +168,31 @@ print_spaces (unsigned int n)
 }
 
 
-/* Return a newly-allocated string whose contents
-   concatenate those of s1, s2, s3.  */
+/* Return a string whose contents concatenate those of s1, s2, s3.
+   This string lives in static, re-used memory.  */
 
 char *
 concat (const char *s1, const char *s2, const char *s3)
 {
   unsigned int len1, len2, len3;
-  char *result;
+  static unsigned int rlen = 0;
+  static char *result = NULL;
 
-  len1 = *s1 != '\0' ? strlen (s1) : 0;
-  len2 = *s2 != '\0' ? strlen (s2) : 0;
-  len3 = *s3 != '\0' ? strlen (s3) : 0;
+  len1 = (s1 && *s1 != '\0') ? strlen (s1) : 0;
+  len2 = (s2 && *s2 != '\0') ? strlen (s2) : 0;
+  len3 = (s3 && *s3 != '\0') ? strlen (s3) : 0;
 
-  result = (char *) xmalloc (len1 + len2 + len3 + 1);
+  if (len1 + len2 + len3 + 1 > rlen)
+    result = xrealloc (result, (rlen = len1 + len2 + len3 + 10));
 
-  if (*s1 != '\0')
-    bcopy (s1, result, len1);
-  if (*s2 != '\0')
-    bcopy (s2, result + len1, len2);
-  if (*s3 != '\0')
-    bcopy (s3, result + len1 + len2, len3);
-  *(result + len1 + len2 + len3) = '\0';
+  if (len1)
+    memcpy (result, s1, len1);
+  if (len2)
+    memcpy (result + len1, s2, len2);
+  if (len3)
+    memcpy (result + len1 + len2, s3, len3);
+
+  result[len1+len2+len3] = '\0';
 
   return result;
 }
@@ -345,21 +348,21 @@ pfatal_with_name (const char *name)
 #undef xrealloc
 #undef xstrdup
 
-char *
+void *
 xmalloc (unsigned int size)
 {
   /* Make sure we don't allocate 0, for pre-ANSI libraries.  */
-  char *result = (char *) malloc (size ? size : 1);
+  void *result = malloc (size ? size : 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
   return result;
 }
 
 
-char *
-xrealloc (char *ptr, unsigned int size)
+void *
+xrealloc (void *ptr, unsigned int size)
 {
-  char *result;
+  void *result;
 
   /* Some older implementations of realloc() don't conform to ANSI.  */
   if (! size)
@@ -379,7 +382,7 @@ xstrdup (const char *ptr)
 #ifdef HAVE_STRDUP
   result = strdup (ptr);
 #else
-  result = (char *) malloc (strlen (ptr) + 1);
+  result = malloc (strlen (ptr) + 1);
 #endif
 
   if (result == 0)
@@ -388,7 +391,7 @@ xstrdup (const char *ptr)
 #ifdef HAVE_STRDUP
   return result;
 #else
-  return strcpy(result, ptr);
+  return strcpy (result, ptr);
 #endif
 }
 
@@ -397,9 +400,9 @@ xstrdup (const char *ptr)
 char *
 savestring (const char *str, unsigned int length)
 {
-  register char *out = (char *) xmalloc (length + 1);
+  char *out = xmalloc (length + 1);
   if (length > 0)
-    bcopy (str, out, length);
+    memcpy (out, str, length);
   out[length] = '\0';
   return out;
 }
@@ -440,10 +443,10 @@ end_of_token (const char *s)
  * Same as end_of_token, but take into account a stop character
  */
 char *
-end_of_token_w32 (char *s, char stopchar)
+end_of_token_w32 (const char *s, char stopchar)
 {
-  register char *p = s;
-  register int backslash = 0;
+  const char *p = s;
+  int backslash = 0;
 
   while (*p != '\0' && *p != stopchar
 	 && (backslash || !isblank ((unsigned char)*p)))
@@ -461,7 +464,7 @@ end_of_token_w32 (char *s, char stopchar)
         backslash = 0;
     }
 
-  return p;
+  return (char *)p;
 }
 #endif
 
@@ -475,22 +478,23 @@ next_token (const char *s)
   return (char *)s;
 }
 
-/* Find the next token in PTR; return the address of it, and store the
-   length of the token into *LENGTHPTR if LENGTHPTR is not nil.  */
+/* Find the next token in PTR; return the address of it, and store the length
+   of the token into *LENGTHPTR if LENGTHPTR is not nil.  Set *PTR to the end
+   of the token, so this function can be called repeatedly in a loop.  */
 
 char *
-find_next_token (char **ptr, unsigned int *lengthptr)
+find_next_token (const char **ptr, unsigned int *lengthptr)
 {
-  char *p = next_token (*ptr);
-  char *end;
+  const char *p = next_token (*ptr);
 
   if (*p == '\0')
     return 0;
 
-  *ptr = end = end_of_token (p);
+  *ptr = end_of_token (p);
   if (lengthptr != 0)
-    *lengthptr = end - p;
-  return p;
+    *lengthptr = *ptr - p;
+
+  return (char *)p;
 }
 
 
@@ -499,8 +503,8 @@ find_next_token (char **ptr, unsigned int *lengthptr)
 struct dep *
 alloc_dep ()
 {
-  struct dep *d = (struct dep *) xmalloc (sizeof (struct dep));
-  bzero ((char *) d, sizeof (struct dep));
+  struct dep *d = xmalloc (sizeof (struct dep));
+  memset (d, '\0', sizeof (struct dep));
   return d;
 }
 
@@ -510,13 +514,7 @@ alloc_dep ()
 void
 free_dep (struct dep *d)
 {
-  if (d->name != 0)
-    free (d->name);
-
-  if (d->stem != 0)
-    free (d->stem);
-
-  free ((char *)d);
+  free (d);
 }
 
 /* Copy a chain of `struct dep', making a new chain
@@ -525,19 +523,13 @@ free_dep (struct dep *d)
 struct dep *
 copy_dep_chain (const struct dep *d)
 {
-  register struct dep *c;
   struct dep *firstnew = 0;
   struct dep *lastnew = 0;
 
   while (d != 0)
     {
-      c = (struct dep *) xmalloc (sizeof (struct dep));
-      bcopy ((char *) d, (char *) c, sizeof (struct dep));
-
-      if (c->name != 0)
-	c->name = xstrdup (c->name);
-      if (c->stem != 0)
-	c->stem = xstrdup (c->stem);
+      struct dep *c = xmalloc (sizeof (struct dep));
+      memcpy (c, d, sizeof (struct dep));
 
       c->next = 0;
       if (firstnew == 0)
@@ -563,35 +555,45 @@ free_dep_chain (struct dep *d)
       free_dep (df);
     }
 }
-
-/* Free a chain of `struct nameseq'. Each nameseq->name is freed
-   as well.  For `struct dep' chains use free_dep_chain.  */
+
+/* Free a chain of struct nameseq.
+   For struct dep chains use free_dep_chain.  */
 
 void
-free_ns_chain (struct nameseq *n)
+free_ns_chain (struct nameseq *ns)
 {
-  register struct nameseq *tmp;
+  while (ns != 0)
+    {
+      struct nameseq *t = ns;
+      ns = ns->next;
+      free (t);
+    }
+}
+
 
-  while (n != 0)
-  {
-    if (n->name != 0)
-      free (n->name);
+#if !HAVE_STRCASECMP && !HAVE_STRICMP && !HAVE_STRCMPI
 
-    tmp = n;
+/* If we don't have strcasecmp() (from POSIX), or anything that can substitute
+   for it, define our own version.  */
 
-    n = n->next;
-
-    free (tmp);
-  }
-
-}
-#ifdef	iAPX286
-/* The losing compiler on this machine can't handle this macro.  */
-
-char *
-dep_name (struct dep *dep)
+int
+strcasecmp (const char *s1, const char *s2)
 {
-  return dep->name == 0 ? dep->file->name : dep->name;
+  while (1)
+    {
+      int c1 = (int) *(s1++);
+      int c2 = (int) *(s2++);
+
+      if (isalpha (c1))
+        c1 = tolower (c1);
+      if (isalpha (c2))
+        c2 = tolower (c2);
+
+      if (c1 != '\0' && c1 == c2)
+        continue;
+
+      return (c1 - c2);
+    }
 }
 #endif
 

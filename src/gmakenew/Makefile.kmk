@@ -1,7 +1,8 @@
-# $Id: Makefile.kmk 902 2007-05-23 03:56:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 903 2007-05-23 05:31:19Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
+PATH_GNUMAKE_SRC = $(PATH_ROOT)/src/gmakenew
 include $(PATH_KBUILD)/header.kmk
 
 
@@ -12,9 +13,11 @@ TEMPLATE_BIN-KMK = Template for src/gmake binaries
 TEMPLATE_BIN-KMK_EXTENDS = BIN
 TEMPLATE_BIN-KMK_DEFS = HAVE_CONFIG_H $(TEMPLATE_BIN_DEFS)
 TEMPLATE_BIN-KMK_DEPS = $(PATH_TARGET)/config.h
+TEMPLATE_BIN-KMK_CLEAN = $(TEMPLATE_BIN-KMK_DEPS)
 TEMPLATE_BIN-KMK_DEPS.solaris = \
 	$(PATH_TARGET)/fts.h \
 	$(PATH_TARGET)/paths.h
+TEMPLATE_BIN-KMK_CLEAN.solaris = $(TEMPLATE_BIN-KMK_DEPS.solaris)
 TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(PATH_TARGET)/fts.h \
 	$(PATH_TARGET)/sysexits.h \
@@ -23,6 +26,7 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(PATH_TARGET)/grp.h \
 	$(PATH_TARGET)/pwd.h \
 	$(PATH_TARGET)/inttypes.h
+TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
 TEMPLATE_BIN-KMK_INCS = $(PATH_TARGET) . $(TEMPLATE_BIN_INCS)
 TEMPLATE_BIN-KMK_INCS.darwin = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
@@ -97,6 +101,7 @@ kmk_DEFS = \
 	CONFIG_WITH_EXTENDED_NOTPARALLEL \
 	CONFIG_WITH_INCLUDEDEP \
 	CONFIG_WITH_VALUE_LENGTH \
+	CONFIG_WITH_RSORT \
 	CONFIG_WITH_ABSPATHEX \
 	CONFIG_WITH_COMPARE \
 	CONFIG_WITH_STACK \
@@ -265,8 +270,6 @@ include $(PATH_KBUILD)/footer.kmk
 # Use checked in config.h instead of running ./Configure for it.
 #
 config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
-config.h.win   := config.h.W32
-
 $(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET))
 	$(MKDIR) -p $(dir $@)
 	$(CP) $^ $@

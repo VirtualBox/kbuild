@@ -33,10 +33,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 # define FILE_LIST_SEPARATOR ' '
 #endif
 
-extern int remote_kill PARAMS ((int id, int sig));
+int remote_kill (int id, int sig);
 
 #ifndef	HAVE_UNISTD_H
-extern int getpid ();
+int getpid ();
 #endif
 
 /* Set FILE's automatic variables up.  */
@@ -44,8 +44,8 @@ extern int getpid ();
 void
 set_file_variables (struct file *file)
 {
-  struct dep *d;
-  char *at, *percent, *star, *less;
+  const struct dep *d;
+  const char *at, *percent, *star, *less;
 
 #ifndef	NO_ARCHIVES
   /* If the target is an archive member `lib(member)',
@@ -54,16 +54,19 @@ set_file_variables (struct file *file)
   if (ar_name (file->name))
     {
       unsigned int len;
+      const char *cp;
       char *p;
 
-      p = strchr (file->name, '(');
-      at = (char *) alloca (p - file->name + 1);
-      bcopy (file->name, at, p - file->name);
-      at[p - file->name] = '\0';
-      len = strlen (p + 1);
-      percent = (char *) alloca (len);
-      bcopy (p + 1, percent, len - 1);
-      percent[len - 1] = '\0';
+      cp = strchr (file->name, '(');
+      p = alloca (cp - file->name + 1);
+      memcpy (p, file->name, cp - file->name);
+      p[cp - file->name] = '\0';
+      at = p;
+      len = strlen (cp + 1);
+      p = alloca (len);
+      memcpy (p, cp + 1, len - 1);
+      p[len - 1] = '\0';
+      percent = p;
     }
   else
 #endif	/* NO_ARCHIVES.  */
@@ -78,8 +81,7 @@ set_file_variables (struct file *file)
       /* In Unix make, $* is set to the target name with
 	 any suffix in the .SUFFIXES list stripped off for
 	 explicit rules.  We store this in the `stem' member.  */
-      register struct dep *d;
-      char *name;
+      const char *name;
       unsigned int len;
 
 #ifndef	NO_ARCHIVES
@@ -95,12 +97,12 @@ set_file_variables (struct file *file)
 	  len = strlen (name);
 	}
 
-      for (d = enter_file (".SUFFIXES")->deps; d != 0; d = d->next)
+      for (d = enter_file (strcache_add (".SUFFIXES"))->deps; d ; d = d->next)
 	{
 	  unsigned int slen = strlen (dep_name (d));
 	  if (len > slen && strneq (dep_name (d), name + (len - slen), slen))
 	    {
-	      file->stem = savestring (name, len - slen);
+	      file->stem = strcache_add_len (name, len - slen);
 	      break;
 	    }
 	}
@@ -137,7 +139,7 @@ set_file_variables (struct file *file)
 
   {
     static char *plus_value=0, *bar_value=0, *qmark_value=0;
-    static unsigned int qmark_max=0, plus_max=0, bar_max=0;
+    static unsigned int plus_max=0, bar_max=0, qmark_max=0;
 
     unsigned int qmark_len, plus_len, bar_len;
     char *cp;
@@ -164,7 +166,7 @@ set_file_variables (struct file *file)
     for (d = file->deps; d != 0; d = d->next)
       if (! d->ignore_mtime)
         {
-          char *c = dep_name (d);
+          const char *c = dep_name (d);
 
 #ifndef	NO_ARCHIVES
           if (ar_name (c))
@@ -176,7 +178,7 @@ set_file_variables (struct file *file)
 #endif
             len = strlen (c);
 
-          bcopy (c, cp, len);
+          memcpy (cp, c, len);
           cp += len;
           *cp++ = FILE_LIST_SEPARATOR;
           if (! d->changed)
@@ -215,7 +217,7 @@ set_file_variables (struct file *file)
 
     for (d = file->deps; d != 0; d = d->next)
       {
-	char *c = dep_name (d);
+	const char *c = dep_name (d);
 
 #ifndef	NO_ARCHIVES
 	if (ar_name (c))
@@ -229,18 +231,18 @@ set_file_variables (struct file *file)
 
         if (d->ignore_mtime)
           {
-	    bcopy (c, bp, len);
+	    memcpy (bp, c, len);
 	    bp += len;
 	    *bp++ = FILE_LIST_SEPARATOR;
 	  }
 	else
 	  {
-            bcopy (c, cp, len);
+            memcpy (cp, c, len);
             cp += len;
             *cp++ = FILE_LIST_SEPARATOR;
             if (d->changed)
               {
-                bcopy (c, qp, len);
+                memcpy (qp, c, len);
                 qp += len;
                 *qp++ = FILE_LIST_SEPARATOR;
               }
@@ -268,7 +270,7 @@ set_file_variables (struct file *file)
 void
 chop_commands (struct commands *cmds)
 {
-  register char *p;
+  const char *p;
   unsigned int nlines, idx;
   char **lines;
 
@@ -283,12 +285,12 @@ chop_commands (struct commands *cmds)
 	 and the CMDS->any_recurse flag.  */
 
   nlines = 5;
-  lines = (char **) xmalloc (5 * sizeof (char *));
+  lines = xmalloc (5 * sizeof (char *));
   idx = 0;
   p = cmds->commands;
   while (*p != '\0')
     {
-      char *end = p;
+      const char *end = p;
     find_end:;
       end = strchr (end, '\n');
       if (end == 0)
@@ -296,7 +298,7 @@ chop_commands (struct commands *cmds)
       else if (end > p && end[-1] == '\\')
         {
           int backslash = 1;
-          register char *b;
+          const char *b;
           for (b = end - 2; b >= p && *b == '\\'; --b)
             backslash = !backslash;
           if (backslash)
@@ -309,8 +311,7 @@ chop_commands (struct commands *cmds)
       if (idx == nlines)
         {
           nlines += 2;
-          lines = (char **) xrealloc ((char *) lines,
-                                      nlines * sizeof (char *));
+          lines = xrealloc (lines, nlines * sizeof (char *));
         }
       lines[idx++] = savestring (p, end - p);
       p = end;
@@ -321,15 +322,14 @@ chop_commands (struct commands *cmds)
   if (idx != nlines)
     {
       nlines = idx;
-      lines = (char **) xrealloc ((char *) lines,
-                                  nlines * sizeof (char *));
+      lines = xrealloc (lines, nlines * sizeof (char *));
     }
 
   cmds->ncommand_lines = nlines;
   cmds->command_lines = lines;
 
   cmds->any_recurse = 0;
-  cmds->lines_flags = (char *) xmalloc (nlines);
+  cmds->lines_flags = xmalloc (nlines);
   for (idx = 0; idx < nlines; ++idx)
     {
       int flags = 0;
@@ -378,7 +378,7 @@ chop_commands (struct commands *cmds)
 void
 execute_file_commands (struct file *file)
 {
-  register char *p;
+  const char *p;
 
   /* Don't go through all the preparations if
      the commands are nothing but whitespace.  */
@@ -469,7 +469,7 @@ fatal_error_signal (int sig)
 
   if (sig == SIGTERM)
     {
-      register struct child *c;
+      struct child *c;
       for (c = children; c != 0; c = c->next)
 	if (!c->remote)
 	  (void) kill (c->pid, SIGTERM);
@@ -487,7 +487,7 @@ fatal_error_signal (int sig)
 #endif
     )
     {
-      register struct child *c;
+      struct child *c;
 
       /* Remote children won't automatically get signals sent
 	 to the process group, so we must send them.  */
@@ -540,7 +540,7 @@ fatal_error_signal (int sig)
    and it has changed on disk since we last stat'd it.  */
 
 static void
-delete_target (struct file *file, char *on_behalf_of)
+delete_target (struct file *file, const char *on_behalf_of)
 {
   struct stat st;
   int e;
@@ -595,7 +595,7 @@ delete_child_targets (struct child *child)
     return;
 
   /* Delete the target file if it changed.  */
-  delete_target (child->file, (char *) 0);
+  delete_target (child->file, NULL);
 
   /* Also remove any non-precious targets listed in the `also_make' member.  */
   for (d = child->file->also_make; d != 0; d = d->next)
@@ -607,9 +607,9 @@ delete_child_targets (struct child *child)
 /* Print out the commands in CMDS.  */
 
 void
-print_commands (struct commands *cmds)
+print_commands (const struct commands *cmds)
 {
-  register char *s;
+  const char *s;
 
   fputs (_("#  commands to execute"), stdout);
 
@@ -622,7 +622,7 @@ print_commands (struct commands *cmds)
   s = cmds->commands;
   while (*s != '\0')
     {
-      char *end;
+      const char *end;
 
       while (isspace ((unsigned char)*s))
 	++s;

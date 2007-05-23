@@ -25,14 +25,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 struct file
   {
-    char *name;
-    char *hname;                /* Hashed filename */
-    char *vpath;                /* VPATH/vpath pathname */
+    const char *name;
+    const char *hname;          /* Hashed filename */
+    const char *vpath;          /* VPATH/vpath pathname */
     struct dep *deps;		/* all dependencies, including duplicates */
     struct commands *cmds;	/* Commands to execute for this target.  */
     int command_flags;		/* Flags OR'd in for cmds; see commands.h.  */
-    char *stem;			/* Implicit stem, if an implicit
-    				   rule has been used */
+    const char *stem;		/* Implicit stem, if an implicit
+                                   rule has been used */
     struct dep *also_make;	/* Targets that are made by making this.  */
     FILE_TIMESTAMP last_mtime;	/* File's modtime, if already known.  */
     FILE_TIMESTAMP mtime_before_update;	/* File's modtime before any updating
@@ -101,17 +101,17 @@ extern struct file *default_goal_file, *suffix_file, *default_file;
 extern char **default_goal_name;
 
 
-extern struct file *lookup_file PARAMS ((char *name));
-extern struct file *enter_file PARAMS ((char *name));
-extern struct dep *parse_prereqs PARAMS ((char *prereqs));
-extern void remove_intermediates PARAMS ((int sig));
-extern void snap_deps PARAMS ((void));
-extern void rename_file PARAMS ((struct file *file, char *name));
-extern void rehash_file PARAMS ((struct file *file, char *name));
-extern void set_command_state PARAMS ((struct file *file, enum cmd_state state));
-extern void notice_finished_file PARAMS ((struct file *file));
-extern void init_hash_files PARAMS ((void));
-extern char *build_target_list PARAMS ((char *old_list));
+struct file *lookup_file (const char *name);
+struct file *enter_file (const char *name);
+struct dep *parse_prereqs (char *prereqs);
+void remove_intermediates (int sig);
+void snap_deps (void);
+void rename_file (struct file *file, const char *name);
+void rehash_file (struct file *file, const char *name);
+void set_command_state (struct file *file, enum cmd_state state);
+void notice_finished_file (struct file *file);
+void init_hash_files (void);
+char *build_target_list (char *old_list);
 
 #if FILE_TIMESTAMP_HI_RES
 # define FILE_TIMESTAMP_STAT_MODTIME(fname, st) \
@@ -152,10 +152,9 @@ extern char *build_target_list PARAMS ((char *old_list));
     * 302 / 1000) \
    + 1 + 1 + 4 + 25)
 
-extern FILE_TIMESTAMP file_timestamp_cons PARAMS ((char const *,
-						   time_t, int));
-extern FILE_TIMESTAMP file_timestamp_now PARAMS ((int *));
-extern void file_timestamp_sprintf PARAMS ((char *p, FILE_TIMESTAMP ts));
+FILE_TIMESTAMP file_timestamp_cons (char const *, time_t, int);
+FILE_TIMESTAMP file_timestamp_now (int *);
+void file_timestamp_sprintf (char *p, FILE_TIMESTAMP ts);
 
 /* Return the mtime of file F (a struct file *), caching it.
    The value is NONEXISTENT_MTIME if the file does not exist.  */
@@ -165,7 +164,7 @@ extern void file_timestamp_sprintf PARAMS ((char *p, FILE_TIMESTAMP ts));
    we don't find it.
    The value is NONEXISTENT_MTIME if the file does not exist.  */
 #define file_mtime_no_search(f) file_mtime_1 ((f), 0)
-extern FILE_TIMESTAMP f_mtime PARAMS ((struct file *file, int search));
+FILE_TIMESTAMP f_mtime (struct file *file, int search);
 #define file_mtime_1(f, v) \
   ((f)->last_mtime == UNKNOWN_MTIME ? f_mtime ((f), v) : (f)->last_mtime)
 

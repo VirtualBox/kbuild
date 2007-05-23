@@ -16,16 +16,18 @@ You should have received a copy of the GNU General Public License along with
 GNU Make; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
-/* Structure used for pattern rules.  */
+
+/* Structure used for pattern (implicit) rules.  */
 
 struct rule
   {
     struct rule *next;
-    char **targets;		/* Targets of the rule.  */
+    const char **targets;	/* Targets of the rule.  */
     unsigned int *lens;		/* Lengths of each target.  */
-    char **suffixes;		/* Suffixes (after `%') of each target.  */
+    const char **suffixes;	/* Suffixes (after `%') of each target.  */
     struct dep *deps;		/* Dependencies of the rule.  */
     struct commands *cmds;	/* Commands to execute.  */
+    unsigned short num;         /* Number of targets.  */
     char terminal;		/* If terminal (double-colon).  */
     char in_use;		/* If in use by a parent pattern_search.  */
   };
@@ -49,12 +51,9 @@ extern struct file *suffix_file;
 extern unsigned int maxsuffix;
 
 
-extern void install_pattern_rule PARAMS ((struct pspec *p, int terminal));
-extern int new_pattern_rule PARAMS ((struct rule *rule, int override));
-extern void count_implicit_rule_limits PARAMS ((void));
-extern void convert_to_pattern PARAMS ((void));
-extern void create_pattern_rule PARAMS ((char **targets,
-                                         char **target_percents, int terminal,
-                                         struct dep *deps,
-                                         struct commands *commands,
-                                         int override));
+void count_implicit_rule_limits (void);
+void convert_to_pattern (void);
+void install_pattern_rule (struct pspec *p, int terminal);
+void create_pattern_rule (const char **targets, const char **target_percents,
+                          unsigned int num, int terminal, struct dep *deps,
+                          struct commands *commands, int override);

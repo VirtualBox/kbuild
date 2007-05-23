@@ -81,12 +81,12 @@ convert_Path_to_windows32(char *Path, char to_delim)
     return Path;
 }
 
-/* 
+/*
  * Corrects the case of a path.
  * Expects a fullpath!
  * Added by bird for the $(abspath ) function and w32ify
  */
-void 
+void
 w32_fixcase(char *pszPath)
 {
     static char     s_szLast[260];
@@ -104,8 +104,8 @@ w32_fixcase(char *pszPath)
     } while (0)
 #else
 # define my_assert(expr) do {} while (0)
-#endif 
-    
+#endif
+
     char *psz = pszPath;
     if (*psz == '/' || *psz == '\\')
     {
@@ -190,7 +190,7 @@ w32_fixcase(char *pszPath)
     }
 
     /*
-     * Pointing to the first char after the unc or drive specifier, 
+     * Pointing to the first char after the unc or drive specifier,
      * or in case of a cache hit, the first non-matching char (following a slash of course).
      */
     while (*psz)
@@ -260,7 +260,7 @@ w32_fixcase(char *pszPath)
  * Convert to forward slashes. Resolve to full pathname optionally
  */
 char *
-w32ify(char *filename, int resolve)
+w32ify(const char *filename, int resolve)
 {
     static char w32_path[FILENAME_MAX];
     char *p;
@@ -292,11 +292,11 @@ getcwd_fs(char* buf, int len)
 }
 
 #undef stat
-/* 
- * Workaround for directory names with trailing slashes. 
+/*
+ * Workaround for directory names with trailing slashes.
  * Added by bird reasons stated.
  */
-int 
+int
 my_stat(const char *path, struct stat *st)
 {
     int rc = stat(path, st);
