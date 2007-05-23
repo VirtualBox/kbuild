@@ -1,4 +1,4 @@
-# $Id: header.kmk 897 2007-05-16 21:23:51Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 904 2007-05-23 05:31:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -270,7 +270,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 897 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 904 $  )
 
 
 #
@@ -611,7 +611,8 @@ PROPS_ACCUMULATE_L := \
 	SDKS SOURCES \
 	INCS CINCS CXXINCX ASINCS RCINCS \
 	LIBS LIBPATH \
-	DIRS BLDDIRS
+	DIRS BLDDIRS \
+	CLEAN
 
 ## PROPS_ALL
 # List of all the properties.
