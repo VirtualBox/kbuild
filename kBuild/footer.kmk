@@ -1,4 +1,4 @@
-# $Id: footer.kmk 897 2007-05-16 21:23:51Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 904 2007-05-23 05:31:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1321,8 +1321,8 @@ $(typevar) += $(out)
 endif
 
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
-_CLEAN_FILES += $($(target)_CLEAN)
-_DIRS += $($(target)_BLDDIRS)
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
 _OBJS += $($(target)_OBJS_)
 
 endef
@@ -1850,8 +1850,8 @@ $(eval $(def_link_rule))
 # Update globals.
 _OBJS += $($(target)_OBJS_)
 _OUT_FILES += $($(target)_OUTPUT_) $(out)
-_CLEAN_FILES += $($(target)_CLEAN)
-_DIRS += $($(target)_BLDDIRS)
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 
 endef
@@ -2258,8 +2258,8 @@ $(target): $(TARGET_$(target))
 _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
-_CLEAN_FILES += $($(target)_CLEAN)
-_DIRS += $($(target)_BLDDIRS)
+_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(BUILD_TARGET)) $($(target)_CLEAN.$(BUILD_TYPE))
+_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(BUILD_TARGET))
 endef
 
 ## process all install targets
@@ -2307,6 +2307,11 @@ do-nothing:
 do-clean:
 	$(call MSG_CLEAN)
 	$(QUIET)$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
+ifeq ($(RMDIR),kmk_builtin_rmdir)
+ ifeq ($(filter rsort,$(KMK_FEATURES)),rsort) # TODO: Drop this when switching gmake to the gmakenew code!
+	$(RMDIR) --ignore-fail-on-non-empty --ignore-fail-on-not-exist $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
+ endif
+endif
 
 
 
