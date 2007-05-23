@@ -1,0 +1,99 @@
+# $Id: $
+## @file
+#
+# kBuild - testcase for the math functions.
+#
+# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+#
+# This file is part of kLdr.
+#
+# kLdr is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kLdr is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kLdr; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+ifneq ($(not 1),)
+ $(error The 'not' function is missing)
+endif
+ifneq ($(eq 1,1),1)
+ $(error The 'eq' function is missing)
+endif
+
+
+ASSERT_TRUE  = $(if $(not $(1)),$(error failure: '$(1)' isn't true))
+ASSERT_FALSE = $(if       $(1) ,$(error failure: '$(1)' isn't false))
+
+$(call ASSERT_TRUE, $(int-eq 0x0, 0))
+$(call ASSERT_FALSE,$(int-eq 1, 0))
+$(call ASSERT_FALSE,$(int-eq 1123123123, 9898787987))
+$(call ASSERT_TRUE, $(int-eq 1234567890, 1234567890))
+$(call ASSERT_TRUE, $(int-eq 0x1c, 28))
+$(call ASSERT_TRUE, $(int-eq 1c, 28))
+$(call ASSERT_TRUE, $(int-ne 0x123, -0x123))
+$(call ASSERT_TRUE, $(int-ne 123, -0x123))
+$(call ASSERT_FALSE,$(int-ne 0x100, 256))
+$(call ASSERT_FALSE,$(int-ne 0x0, 0))
+$(call ASSERT_FALSE,$(int-ne 0x1c, 28))
+$(call ASSERT_TRUE, $(int-le 0, 0))
+$(call ASSERT_TRUE, $(int-le -0, 0))
+$(call ASSERT_FALSE,$(int-le 5, 1))
+$(call ASSERT_FALSE,$(int-lt 5, 1))
+$(call ASSERT_FALSE,$(int-lt 5, 5))
+$(call ASSERT_TRUE, $(int-lt 9, 10))
+$(call ASSERT_TRUE, $(int-lt -9, -8))
+$(call ASSERT_TRUE, $(int-ge 0, 0))
+$(call ASSERT_TRUE, $(int-ge -0, 0))
+$(call ASSERT_TRUE, $(int-ge 1, 0))
+$(call ASSERT_TRUE, $(int-ge -55, -55))
+$(call ASSERT_TRUE, $(int-ge 512, 400))
+$(call ASSERT_TRUE, $(int-ge -18, -19))
+$(call ASSERT_FALSE,$(int-ge -19, -18))
+$(call ASSERT_FALSE,$(int-ge 15, 20))
+$(call ASSERT_FALSE,$(int-gt 15, 20))
+$(call ASSERT_FALSE,$(int-gt 15, 15))
+$(call ASSERT_TRUE, $(int-gt 20, 15))
+
+ASSERT2 = $(if $(not $(int-eq $(1),$(2))),$(error failure: '$(1)' -ne '$(2)'))
+$(call ASSERT2,$(int-add 1, 1),0x2)
+$(call ASSERT2,$(int-add 1, 1, 1, 1, 1, 1, 1),7)
+$(call ASSERT2,$(int-add 1, -1),0)
+$(call ASSERT2,$(int-sub 1, -1),2)
+$(call ASSERT2,$(int-sub 1, 5),-4)
+$(call ASSERT2,$(int-mul 0x10, 0x20),0x200)
+$(call ASSERT2,$(int-mul 0x20, 0x10),0x200)
+$(call ASSERT2,$(int-mul 4, 7),28)
+$(call ASSERT2,$(int-mul 2, 2, 2, 2, 2, 4, 1, 1, 1, 1),128)
+$(call ASSERT2,$(int-div 0x1000, 0x100),0x10)
+$(call ASSERT2,$(int-div 999, 10),99)
+$(call ASSERT2,$(int-div 4096, 4,2,2,2,2),64)
+#$(call ASSERT2,$(int-div 0x1230023213, 0),0x0)
+$(call ASSERT2,$(int-mod 19, 10),9)
+$(call ASSERT2,$(int-mod 9, 10),9)
+$(call ASSERT2,$(int-mod 30, 10),0)
+$(call ASSERT2,$(int-not 0),-1)
+$(call ASSERT2,$(int-and 1, 1),1)
+$(call ASSERT2,$(int-and 0x123123214, 0xfff),0x214)
+$(call ASSERT2,$(int-and 0x123123214, 0xf0f, 0xf),4)
+$(call ASSERT2,$(int-or 1, 1, 1, 2, 2),3)
+$(call ASSERT2,$(int-xor 1, 1, 2, 2),0)
+$(call ASSERT2,$(int-xor 1, 2, 4),7)
+
+
+all_recursive:
+	$(ECHO) The math works. 6 * 7 = $(int-mul 6,7)
+
