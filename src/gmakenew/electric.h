@@ -1,4 +1,4 @@
-/* $Id: electric.h 909 2007-05-24 03:09:09Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.h 915 2007-05-24 05:00:18Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * A simple electric heap implementation, wrapper header.
@@ -28,6 +28,7 @@
 #ifdef WINDOWS32
 # include <malloc.h>
 #endif
+#include <string.h> /* strdup */
 
 void xfree (void *);
 void *xcalloc (size_t, size_t);
