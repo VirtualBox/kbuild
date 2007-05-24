@@ -26,6 +26,7 @@ getopt.c
 hash.c
 implicit.c
 job.c
+kbuild.c
 main.c
 misc.c
 read.c
