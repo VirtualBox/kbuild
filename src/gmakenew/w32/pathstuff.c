@@ -98,7 +98,7 @@ w32_fixcase(char *pszPath)
         if (!(expr)) { \
             printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
                    #expr, __FILE__, __LINE__, pszPath, psz); \
-            __asm { __asm int 3 } \
+            __debugbreak(); \
             exit(1); \
         } \
     } while (0)
