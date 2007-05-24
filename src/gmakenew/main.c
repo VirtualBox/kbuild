@@ -1132,7 +1132,7 @@ main (int argc, char **argv, char **envp)
 
   /* Set up gettext/internationalization support.  */
   setlocale (LC_ALL, "");
-#ifndef LOCALEDIR /* bird */
+#ifdef LOCALEDIR /* bird */
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
 #endif
