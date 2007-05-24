@@ -1245,8 +1245,8 @@ func_sort (char *o, char **argv, const char *funcname UNUSED)
           while (i-- > 0)
             {
               len = strlen (words[i]);
-              if (i == 0 || strlen (words[i + 1]) != len
-                  || strcmp (words[i], words[i + 1]))
+              if (i == 0 || strlen (words[i - 1]) != len
+                  || strcmp (words[i], words[i - 1]))
                 {
                   o = variable_buffer_output (o, words[i], len);
                   o = variable_buffer_output (o, " ", 1);
