@@ -99,7 +99,11 @@ static const char *default_include_directories[] =
    This is defined as a placeholder.  */
 # define INCLUDEDIR "."
 #endif
+# ifdef INCLUDEDIR  /* bird */
     INCLUDEDIR,
+# else              /* bird */
+    ".",            /* bird */
+# endif             /* bird */
 #ifndef _AMIGA
     "/usr/gnu/include",
     "/usr/local/include",
