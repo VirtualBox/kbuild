@@ -1462,7 +1462,11 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
  */
 #define LIBDIR "."
 #endif
+# ifdef LIBDIR      /* bird */
       LIBDIR,			/* Defined by configuration.  */
+# else              /* bird */
+      ".",          /* bird */
+# endif             /* bird */
 #endif /* !KMK */
       0
     };
