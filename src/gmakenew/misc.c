@@ -342,7 +342,7 @@ pfatal_with_name (const char *name)
 /* Like malloc but get fatal error if memory is exhausted.  */
 /* Don't bother if we're using dmalloc; it provides these for us.  */
 
-#ifndef HAVE_DMALLOC_H
+#if !defined(HAVE_DMALLOC_H) && !defined(ELECTRIC_HEAP) /* bird */
 
 #undef xmalloc
 #undef xrealloc
