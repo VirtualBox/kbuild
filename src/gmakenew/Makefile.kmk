@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 909 2007-05-24 03:09:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 914 2007-05-24 04:49:27Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -32,7 +32,7 @@ TEMPLATE_BIN-KMK_INCS.darwin = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
 TEMPLATE_BIN-KMK_INCS.solaris = glob
 TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN_LIBS) $(TARGET_kmkmissing)
-ifeq (disabled,) # for electric heap (see electric.c) - windows only.
+ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) /FI$(PATH_CURRENT)/electric.h -DELECTRIC_HEAP=1
 endif
 
