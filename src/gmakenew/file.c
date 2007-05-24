@@ -481,8 +481,11 @@ expand_deps (struct file *f)
          still need to massage it though.  */
       if (! d->need_2nd_expansion)
         {
+          size_t l;                         /* bird */
           p = variable_expand ("");
+          l = p - variable_buffer;          /* bird */
           variable_buffer_output (p, d->name, strlen (d->name) + 1);
+          p = variable_buffer + l;          /* bird - this may have been reallocated! */
         }
       else
         {
