@@ -804,8 +804,8 @@ notice_finished_file (struct file *file)
 
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
   /* update not_parallel if the file was flagged for that. */
-  if (   ran 
-      && (file->command_flags & (COMMANDS_NOTPARALLEL | COMMANDS_NO_COMMANDS)) 
+  if (   ran
+      && (file->command_flags & (COMMANDS_NOTPARALLEL | COMMANDS_NO_COMMANDS))
          == COMMANDS_NOTPARALLEL)
     {
       DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [notice_finished_file]\n"), not_parallel,
@@ -1494,6 +1494,7 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
       static unsigned int buflen = 0;
       static int libdir_maxlen = -1;
       char *libbuf = variable_expand ("");
+      const size_t libbuf_offset = libbuf - variable_buffer; /* bird */
 
       /* Expand the pattern using LIBNAME as a replacement.  */
       {
@@ -1516,6 +1517,7 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 	p4 = variable_buffer_output (p4, libname, strlen (libname));
 	p4 = variable_buffer_output (p4, p3+1, len - (p3-p));
 	p[len] = c;
+	libbuf = variable_buffer + libbuf_offset; /* bird - variable_buffer may have been reallocated. */
       }
 
       /* Look first for `libNAME.a' in the current directory.  */

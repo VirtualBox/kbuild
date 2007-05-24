@@ -2176,8 +2176,10 @@ record_files (struct nameseq *filenames, const char *pattern,
         {
           static const char *percent = "%";
           char *buffer = variable_expand ("");
+          const size_t buffer_offset = buffer - variable_buffer; /* bird */
           char *o = patsubst_expand_pat (buffer, name, pattern, percent,
                                          pattern_percent+1, percent+1);
+          buffer = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. */
           f->stem = strcache_add_len (buffer, o - buffer);
           if (this)
             {
