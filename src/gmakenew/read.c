@@ -30,6 +30,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "rule.h"
 #include "debug.h"
 #include "hash.h"
+#ifdef KMK
+# include "kbuild.h"
+#endif
 
 
 #ifndef WINDOWS32
@@ -90,6 +93,7 @@ static struct conditionals *conditionals = &toplevel_conditionals;
 
 static const char *default_include_directories[] =
   {
+#ifndef KMK
 #if defined(WINDOWS32) && !defined(INCLUDEDIR)
 /* This completely up to the user when they install MSVC or other packages.
    This is defined as a placeholder.  */
@@ -101,6 +105,7 @@ static const char *default_include_directories[] =
     "/usr/local/include",
     "/usr/include",
 #endif
+#endif /* !KMK */
     0
   };
 
@@ -2991,6 +2996,10 @@ construct_include_path (const char **arg_dirs)
   /* Add one for $DJDIR.  */
   ++idx;
 #endif
+#ifdef KMK
+  /* Add one for the kBuild directory. */
+  ++idx;
+#endif
 
   dirs = xmalloc (idx * sizeof (const char *));
 
@@ -3049,6 +3058,15 @@ construct_include_path (const char **arg_dirs)
         if (len > max_incl_len)
           max_incl_len = len;
       }
+  }
+#endif
+#ifdef KMK
+  /* Add $(PATH_KBUILD). */
+  {
+    size_t len = strlen (get_path_kbuild ());
+    dirs[idx++] = strcache_add_len (get_path_kbuild (), len);
+    if (len > max_incl_len)
+      max_incl_len = len;
   }
 #endif
 
@@ -3210,7 +3228,7 @@ multi_glob (struct nameseq *chain, unsigned int size)
       if (!strpbrk(gname, "*?["))
         {
           gl.gl_pathc = 1;
-          gl.gl_pathv = (char *)&gname;
+          gl.gl_pathv = (char **)&gname;
           rc = 0;
         }
       else

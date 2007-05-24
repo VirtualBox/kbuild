@@ -26,8 +26,10 @@
 
 /* No GNU coding style here! */
 
-#ifdef KMK_HELPERS
 
+/*******************************************************************************
+*   Header Files                                                               *
+*******************************************************************************/
 #include "make.h"
 #include "filedef.h"
 #include "variable.h"
@@ -42,8 +44,97 @@
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
 #endif
 
+
+/*******************************************************************************
+*   Internal Functions                                                         *
+*******************************************************************************/
 /* function.c */
 char * abspath(const char *name, char *apath);
+
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+/** The argv[0] passed to main. */
+static const char *g_argv0 = "";
+
+
+/**
+ * Initialize kBuild stuff.
+ *
+ * @param   argc    Number of arguments to main().
+ * @param   argv    The main() argument vector.
+ */
+void init_kbuild(int argc, char **argv)
+{
+    g_argv0 = argv[0];
+}
+
+
+/**
+ * Determin the PATH_KBUILD value.
+ *
+ * @returns Pointer to static buffer to be treated as read only!
+ */
+const char *get_path_kbuild(void)
+{
+    static const char *s_pszPath = NULL;
+    if (!s_pszPath)
+    {
+        PATH_VAR(szTmpPath);
+        const char *pszEnvVar = getenv("PATH_KBUILD");
+        if (    !pszEnvVar
+            ||  !abspath(pszEnvVar, szTmpPath))
+        {
+#ifdef PATH_KBUILD
+            return s_pszPath = PATH_KBUILD;
+#else
+            /* $(abspath $(PATH_KBUILD_BIN)/../..)*/
+            size_t cch = strlen(get_path_kbuild_bin());
+            char *pszTmp2 = alloca(cch + sizeof("/../.."));
+            strcat(strcpy(pszTmp2, get_path_kbuild_bin()), "/../..");
+            if (!abspath(pszTmp2, szTmpPath))
+                fatal(NILF, _("failed to determin PATH_KBUILD"));
+#endif
+        }
+        s_pszPath = xstrdup(szTmpPath);
+    }
+    return s_pszPath;
+}
+
+
+/**
+ * Determin the PATH_KBUILD_BIN value.
+ *
+ * @returns Pointer to static buffer to be treated as read only!
+ */
+const char *get_path_kbuild_bin(void)
+{
+    static const char *s_pszPath = NULL;
+    if (!s_pszPath)
+    {
+        PATH_VAR(szTmpPath);
+        const char *pszEnvVar = getenv("PATH_KBUILD_BIN");
+        if (    !pszEnvVar
+            ||  !abspath(pszEnvVar, szTmpPath))
+        {
+#ifdef PATH_KBUILD
+            return s_pszPath = PATH_KBUILD_BIN;
+#else
+            /* $(abspath $(ARGV0)/../../..) - the filename shouldn't cause trouble... */
+            size_t cch = strlen(g_argv0);
+            char *pszTmp2 = alloca(cch + sizeof("/../../.."));
+            strcat(strcpy(pszTmp2, g_argv0), "/../../..");
+            if (!abspath(pszTmp2, szTmpPath))
+                fatal(NILF, _("failed to determin PATH_KBUILD_BIN"));
+#endif
+        }
+        s_pszPath = xstrdup(szTmpPath);
+    }
+    return s_pszPath;
+}
+
+
+#ifdef KMK_HELPERS
 
 /**
  * Applies the specified default path to any relative paths in *ppsz.
@@ -1474,3 +1565,4 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
 
 #endif /* KMK_HELPERS */
+

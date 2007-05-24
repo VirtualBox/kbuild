@@ -25,6 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "rule.h"
 #include "debug.h"
 #include "getopt.h"
+#ifdef KMK
+# include "kbuild.h"
+#endif
 
 #include <assert.h>
 #ifdef _AMIGA
@@ -1108,6 +1111,10 @@ main (int argc, char **argv, char **envp)
   /* Needed for OS/2 */
   initialize_main(&argc, &argv);
 
+#ifdef KMK
+  init_kbuild (argc, argv);
+#endif
+
   default_goal_file = 0;
   reading_file = 0;
 
@@ -1125,8 +1132,10 @@ main (int argc, char **argv, char **envp)
 
   /* Set up gettext/internationalization support.  */
   setlocale (LC_ALL, "");
+#ifndef LOCALEDIR /* bird */
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
+#endif
 
 #ifdef	POSIX
   sigemptyset (&fatal_signal_set);
@@ -3236,10 +3245,19 @@ print_version (void)
 #ifdef KMK
 # ifdef PATH_KBUILD
   printf (_("%s\n\
-%sPATH_KBUILD default:     '%s'\n\
-%sPATH_KBUILD_BIN default: '%s'\n"),
-          precede, precede, PATH_KBUILD, precede, PATH_KBUILD_BIN);
-# endif /* PATH_KBUILD */
+%sPATH_KBUILD:     '%s' (default '%s')\n\
+%sPATH_KBUILD_BIN: '%s' (default '%s')\n"),
+          precede,
+          precede, get_path_kbuild(), PATH_KBUILD
+          precede, get_path_kbuild_bin(), PATH_KBUILD_BIN);
+# else  /* !PATH_KBUILD */
+  printf (_("%s\n\
+%sPATH_KBUILD:     '%s'\n\
+%sPATH_KBUILD_BIN: '%s'\n"),
+          precede,
+          precede, get_path_kbuild(),
+          precede, get_path_kbuild_bin());
+# endif /* !PATH_KBUILD */
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
             precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
