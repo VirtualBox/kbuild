@@ -1,4 +1,4 @@
-/* $Id: electric.c 909 2007-05-24 03:09:09Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.c 915 2007-05-24 05:00:18Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * A simple electric heap implementation.
@@ -47,6 +47,7 @@ static unsigned freed_tail = 0;
 static void fatal_error (const char *msg)
 {
   fprintf (stderr, "electric heap error: %s\n", msg);
+  __debugbreak ();
   abort ();
   exit (1);
 }
