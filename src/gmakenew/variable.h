@@ -129,7 +129,7 @@ char *variable_expand_string (char *line, const char *string, long length);
 void install_variable_buffer (char **bufp, unsigned int *lenp);
 void restore_variable_buffer (char *buf, unsigned int len);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-extern void append_expanded_string_to_variable (struct variable *v, char *value);
+extern void append_expanded_string_to_variable (struct variable *v, const char *value);
 #endif
 
 /* function.c */

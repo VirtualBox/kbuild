@@ -542,7 +542,7 @@ variable_append (const char *name, unsigned int length,
 #ifdef CONFIG_WITH_VALUE_LENGTH
 /* Expands the specified string, appending it to the specified variable value. */
 void
-append_expanded_string_to_variable (struct variable *v, char *value)
+append_expanded_string_to_variable (struct variable *v, const char *value)
 {
   char *p;
 
