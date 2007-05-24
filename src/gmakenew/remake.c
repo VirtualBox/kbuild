@@ -1448,6 +1448,9 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 {
   static char *dirs[] =
     {
+#ifdef KMK
+      ".",
+#else /* !KMK */
 #ifndef _AMIGA
       "/lib",
       "/usr/lib",
@@ -1460,6 +1463,7 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 #define LIBDIR "."
 #endif
       LIBDIR,			/* Defined by configuration.  */
+#endif /* !KMK */
       0
     };
 
