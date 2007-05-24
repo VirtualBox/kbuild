@@ -438,9 +438,3 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
-
-/* bird: added  */
-#define LOCALEDIR   ""
-#define ALIASPATH   ""
-#define LIBDIR      ""
-#define INCLUDEDIR  ""
