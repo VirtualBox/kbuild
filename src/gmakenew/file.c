@@ -470,6 +470,7 @@ expand_deps (struct file *f)
 
   for (d = old; d != 0; d = d->next)
     {
+      size_t buffer_offset; /* bird */
       struct dep *new, *d1;
       char *p;
 
@@ -481,11 +482,10 @@ expand_deps (struct file *f)
          still need to massage it though.  */
       if (! d->need_2nd_expansion)
         {
-          size_t l;                         /* bird */
           p = variable_expand ("");
-          l = p - variable_buffer;          /* bird */
+          buffer_offset = p - variable_buffer;
           variable_buffer_output (p, d->name, strlen (d->name) + 1);
-          p = variable_buffer + l;          /* bird - this may have been reallocated! */
+          p = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. (observed it) */
         }
       else
         {
@@ -495,8 +495,10 @@ expand_deps (struct file *f)
             {
               char *o;
               char *buffer = variable_expand ("");
+              buffer_offset = buffer - variable_buffer; /* bird */
 
               o = subst_expand (buffer, d->name, "%", "$*", 1, 2, 0);
+              buffer = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. */
 
               d->name = strcache_add_len (buffer, o - buffer);
               d->staticpattern = 0; /* Clear staticpattern so that we don't
@@ -534,6 +536,7 @@ expand_deps (struct file *f)
         {
           const char *pattern = "%";
           char *buffer = variable_expand ("");
+          const size_t buffer_offset = buffer - variable_buffer; /* bird */
           struct dep *dp = new, *dl = 0;
 
           while (dp != 0)
@@ -558,6 +561,8 @@ expand_deps (struct file *f)
                   else
                     o = patsubst_expand_pat (buffer, d->stem, pattern, nm,
                                              pattern+1, percent+1);
+                  buffer = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. */
+
 
                   /* If the name expanded to the empty string, ignore it.  */
                   if (buffer[0] == '\0')
