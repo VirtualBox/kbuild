@@ -1078,7 +1078,9 @@ main (int argc, char **argv, char **envp)
   char *unix_path = NULL;
   char *windows32_path = NULL;
 
+#ifndef ELECTRIC_HEAP /* Drop this because it prevent JIT debugging. */
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
+#endif /* !ELECTRICT_HEAP */
 
   /* start off assuming we have no shell */
   unixy_shell = 0;
