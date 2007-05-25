@@ -56,6 +56,8 @@ char * abspath(const char *name, char *apath);
 *******************************************************************************/
 /** The argv[0] passed to main. */
 static const char *g_argv0 = "";
+/** The initial working directory. */
+static const char *g_pszInitialCwd = ".";
 
 
 /**
@@ -66,7 +68,33 @@ static const char *g_argv0 = "";
  */
 void init_kbuild(int argc, char **argv)
 {
+    PATH_VAR(szCwd);
+
     g_argv0 = argv[0];
+#ifdef WINDOWS32
+    if (getcwd_fs(szCwd, GET_PATH_MAX) != 0)
+#else
+    if (getcwd(szCwd, GET_PATH_MAX) != 0)
+#endif
+        g_pszInitialCwd = xstrdup(szCwd);
+    else
+        fatal(NILF, _("getcwd failed"));
+}
+
+
+/**
+ * Wrapper that ensures correct starting_directory.
+ */
+static char *my_abspath(const char *pszIn, char *pszOut)
+{
+    char *pszSaved, *pszRet;
+
+    pszSaved = starting_directory;
+    starting_directory = g_pszInitialCwd;
+    pszRet = abspath(pszIn, pszOut);
+    starting_directory = pszSaved;
+
+    return pszRet;
 }
 
 
@@ -83,7 +111,7 @@ const char *get_path_kbuild(void)
         PATH_VAR(szTmpPath);
         const char *pszEnvVar = getenv("PATH_KBUILD");
         if (    !pszEnvVar
-            ||  !abspath(pszEnvVar, szTmpPath))
+            ||  !my_abspath(pszEnvVar, szTmpPath))
         {
 #ifdef PATH_KBUILD
             return s_pszPath = PATH_KBUILD;
@@ -92,7 +120,7 @@ const char *get_path_kbuild(void)
             size_t cch = strlen(get_path_kbuild_bin());
             char *pszTmp2 = alloca(cch + sizeof("/../.."));
             strcat(strcpy(pszTmp2, get_path_kbuild_bin()), "/../..");
-            if (!abspath(pszTmp2, szTmpPath))
+            if (!my_abspath(pszTmp2, szTmpPath))
                 fatal(NILF, _("failed to determin PATH_KBUILD"));
 #endif
         }
@@ -115,17 +143,29 @@ const char *get_path_kbuild_bin(void)
         PATH_VAR(szTmpPath);
         const char *pszEnvVar = getenv("PATH_KBUILD_BIN");
         if (    !pszEnvVar
-            ||  !abspath(pszEnvVar, szTmpPath))
+            ||  !my_abspath(pszEnvVar, szTmpPath))
         {
 #ifdef PATH_KBUILD
             return s_pszPath = PATH_KBUILD_BIN;
 #else
-            /* $(abspath $(ARGV0)/../../..) - the filename shouldn't cause trouble... */
+            /* $(abspath $(dir $(ARGV0)).) */
             size_t cch = strlen(g_argv0);
-            char *pszTmp2 = alloca(cch + sizeof("/../../.."));
-            strcat(strcpy(pszTmp2, g_argv0), "/../../..");
-            if (!abspath(pszTmp2, szTmpPath))
-                fatal(NILF, _("failed to determin PATH_KBUILD_BIN"));
+            char *pszTmp2 = alloca(cch + sizeof("."));
+            char *pszSep = pszTmp2 + cch - 1;
+            memcpy(pszTmp2, g_argv0, cch);
+#ifdef HAVE_DOS_PATHS
+            while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && pszSep != ':')
+#else
+            while (pszSep >= pszTmp2 && *pszSep != '/')
+#endif
+                pszSep--;
+            if (pszSep >= pszTmp2)
+              strcpy(pszSep + 1, ".");
+            else
+              strcpy(pszTmp2, ".");
+
+            if (!my_abspath(pszTmp2, szTmpPath))
+                fatal(NILF, _("failed to determin PATH_KBUILD_BIN (pszTmp2=%s szTmpPath=%s)"), pszTmp2, szTmpPath);
 #endif
         }
         s_pszPath = xstrdup(szTmpPath);
