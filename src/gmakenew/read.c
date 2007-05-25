@@ -2052,7 +2052,16 @@ record_files (struct nameseq *filenames, const char *pattern,
          as a potential multiple first target rule. For the subsequent files
          the operator is only required to switch between maybe and non-maybe
          mode:
-         `primary + 2nd 3rd +| 4th-maybe + 5th-for-sure: deps; cmds' */
+         `primary + 2nd 3rd +| 4th-maybe + 5th-for-sure: deps; cmds'
+
+         The whole idea of the maybe-updated files is this:
+            timestamp +| maybe.h: src1.c src2.c
+                grep goes-into-maybe.h $* > timestamp
+                cmp timestamp maybe.h || cp -f timestamp maybe.h
+
+         This is handled below by adding replacing the prereqs of the
+         maybe-updated by an order only dependency on the primary target
+         (see below). This saves messing up remake.c. */
       if (multi_mode != m_no && name[0] == '+'
         && (name[1] == '\0' || (name[1] == '|' && name[2] == '\0')))
         {
@@ -2123,6 +2132,40 @@ record_files (struct nameseq *filenames, const char *pattern,
 	  if (cmds != 0)
 	    f->cmds = cmds;
 
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+          /* If this is an explicit multi target rule, add it to the
+             target chain and set the multi_maybe flag according to
+             the current mode. This is also where we do the dependency
+             tricks for the 'maybe' targets (see above). */
+
+          if (multi_mode >= m_yes)
+            {
+              f->multi_maybe = multi_mode == m_yes_maybe;
+              if (f->multi_maybe)
+                {
+                  /* expand_deps needs the "| " bit.
+                     XXX leaking memory here? */
+                  size_t len = strlen (prev_file->multi_head->name) + 1;
+                  char *maybe_dep = xmalloc (len + 2);
+                  memcpy (maybe_dep, "| ", 2);
+                  memcpy (maybe_dep + 2, prev_file->multi_head->name, len);
+
+                  free_dep_chain (this);
+                  this = alloc_dep ();
+                  this->name = maybe_dep;
+                  this->ignore_mtime = 1;
+                }
+              prev_file->multi_next = f;
+              assert (prev_file->multi_head != 0);
+              f->multi_head = prev_file->multi_head;
+
+              if (f == suffix_file)
+                error (flocp,
+                       _(".SUFFIXES encountered in an explicit multi target rule"));
+            }
+          prev_file = f;
+#endif
+
 	  /* Defining .SUFFIXES with no dependencies clears out the list of
 	     suffixes.  */
 	  if (f == suffix_file && this == 0)
@@ -2184,21 +2227,6 @@ record_files (struct nameseq *filenames, const char *pattern,
               if (cmds != 0)
                 f->updating = 1;
 	    }
-
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-          /* If this is an explicit multi target rule, add it to the
-             target chain and set the multi_maybe flag according to
-             the current mode. */
-
-          if (multi_mode >= m_yes)
-            {
-              f->multi_maybe = multi_mode == m_yes_maybe;
-              prev_file->multi_next = f;
-              assert (prev_file->multi_head != 0);
-              f->multi_head = prev_file->multi_head;
-            }
-          prev_file = f;
-#endif
 	}
       else
 	{
