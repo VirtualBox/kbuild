@@ -746,7 +746,12 @@ update_file_1 (struct file *file, unsigned int depth)
       return 0;
     }
 
-  DBF (DB_BASIC, _("Must remake target `%s'.\n"));
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (ISDB(DB_BASIC) && file->multi_head && file->multi_head != file)
+    DBS (DB_BASIC, (_("Must remake target `%s' - primary target `%s'.\n"), file->name, file->multi_head->name));
+  else
+#endif
+    DBF (DB_BASIC, _("Must remake target `%s'.\n"));
 
   /* It needs to be remade.  If it's VPATH and not reset via GPATH, toss the
      VPATH.  */
@@ -912,23 +917,44 @@ notice_finished_file (struct file *file)
     }
 
   if (ran && file->update_status != -1)
-    /* We actually tried to update FILE, which has
-       updated its also_make's as well (if it worked).
-       If it didn't work, it wouldn't work again for them.
-       So mark them as updated with the same status.  */
-    for (d = file->also_make; d != 0; d = d->next)
-      {
-	d->file->command_state = cs_finished;
-	d->file->updated = 1;
-	d->file->update_status = file->update_status;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+    {
+#endif
+      /* We actually tried to update FILE, which has
+         updated its also_make's as well (if it worked).
+         If it didn't work, it wouldn't work again for them.
+         So mark them as updated with the same status.  */
+      for (d = file->also_make; d != 0; d = d->next)
+        {
+          d->file->command_state = cs_finished;
+          d->file->updated = 1;
+          d->file->update_status = file->update_status;
 
-	if (ran && !d->file->phony)
-	  /* Fetch the new modification time.
-	     We do this instead of just invalidating the cached time
-	     so that a vpath_search can happen.  Otherwise, it would
-	     never be done because the target is already updated.  */
-	  f_mtime (d->file, 0);
-      }
+          if (ran && !d->file->phony)
+            /* Fetch the new modification time.
+               We do this instead of just invalidating the cached time
+               so that a vpath_search can happen.  Otherwise, it would
+               never be done because the target is already updated.  */
+            f_mtime (d->file, 0);
+        }
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+      /* Same as above but for explicit multi target rules. */
+      if (file->multi_head)
+        {
+          struct file *f2;
+          assert (file == file->multi_head);
+          for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+            {
+              f2->command_state = cs_finished;
+              f2->updated = 1;
+              f2->update_status = file->update_status;
+
+              if (!f2->phony)
+                f_mtime (f2, 0);
+            }
+        }
+    }
+#endif
   else if (file->update_status == -1)
     /* Nothing was done for FILE, but it needed nothing done.
        So mark it now as "succeeded".  */
@@ -1108,6 +1134,12 @@ touch_file (struct file *file)
 static void
 remake_file (struct file *file)
 {
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  /* Always operate on the primary file. */
+  if (file->multi_head && file->multi_head != file)
+    file = file->multi_head;
+#endif
+
   if (file->cmds == 0)
     {
       if (file->phony)

@@ -773,6 +773,15 @@ set_command_state (struct file *file, enum cmd_state state)
 
   for (d = file->also_make; d != 0; d = d->next)
     d->file->command_state = state;
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (file->multi_head)
+    {
+      assert (file == file->multi_head);
+      for (file = file->multi_head; file != 0; file = file->multi_next)
+        file->command_state = state;
+    }
+#endif
 }
 
 /* Convert an external file timestamp to internal form.  */
@@ -890,7 +899,32 @@ print_file (const void *item)
   putchar ('\n');
   if (!f->is_target)
     puts (_("# Not a target:"));
-  printf ("%s:%s", f->name, f->double_colon ? ":" : "");
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (f->multi_head)
+    {
+      const struct file *f2;
+      if (f->multi_head == f)
+        {
+          int multi_maybe = -1;
+          assert (!f->multi_maybe);
+          assert (!f->double_colon);
+
+          printf ("%s", f->name);
+          for (f2 = f->multi_next; f2 != 0; f2 = f2->multi_next)
+            {
+              printf (" %s%s", f2->multi_maybe != multi_maybe
+                      ? f2->multi_maybe ? "+| " : "+ " : "",
+                      f2->name);
+              multi_maybe = f2->multi_maybe;
+            }
+          putchar (':');
+        }
+      else
+        printf ("%s:%s", f->name, f->double_colon ? ":" : "");
+    }
+  else
+#endif
+    printf ("%s:%s", f->name, f->double_colon ? ":" : "");
 
   /* Print all normal dependencies; note any order-only deps.  */
   for (d = f->deps; d != 0; d = d->next)
@@ -909,6 +943,19 @@ print_file (const void *item)
     }
 
   putchar ('\n');
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (f->multi_head && f->multi_head != f)
+    {
+      const struct file *f2;
+      fputs (_("#  In multi target list:"), stdout);
+      for (f2 = f->multi_head; f2 != 0; f2 = f2->multi_next)
+        printf (" %s%s", f2->name, f == f2 ? "(*)" : "");
+      putchar ('\n');
+      if (f->multi_maybe)
+        puts (_("#  File is an optional multi target member."));
+    }
+#endif
 
   if (f->precious)
     puts (_("#  Precious file (prerequisite of .PRECIOUS)."));
