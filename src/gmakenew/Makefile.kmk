@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 914 2007-05-24 04:49:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 921 2007-05-25 03:27:53Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -93,6 +93,7 @@ kmk_DEFS = \
 	NO_ARCHIVES \
 	EXPERIMENTAL \
 	CONFIG_WITH_TOUPPER_TOLOWER \
+	CONFIG_WITH_EXPLICIT_MULTITARGET \
 	\
 	KMK \
 	KMK_HELPERS \

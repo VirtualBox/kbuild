@@ -1971,6 +1971,11 @@ record_files (struct nameseq *filenames, const char *pattern,
   unsigned int max_targets = 0, target_idx = 0;
   const char **targets = 0, **target_percents = 0;
   struct commands *cmds;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  struct file *prev_file = 0;
+  enum multitarget_mode { m_unsettled, m_no, m_yes, m_yes_maybe }
+    multi_mode = !two_colon && !pattern ? m_unsettled : m_no;
+#endif
 
   /* If we've already snapped deps, that means we're in an eval being
      resolved after the makefiles have been read in.  We can't add more rules
@@ -2038,6 +2043,32 @@ record_files (struct nameseq *filenames, const char *pattern,
 	  ++target_idx;
 	  continue;
 	}
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+      /* Check for the explicit multitarget mode operators. For this to be
+         identified as an excplicit multiple target rule, the first + or +|
+         operator *must* appear between the first two files. If not found as
+         the 2nd file or if found as the 1st file, the rule will be rejected
+         as a potential multiple first target rule. For the subsequent files
+         the operator is only required to switch between maybe and non-maybe
+         mode:
+         `primary + 2nd 3rd +| 4th-maybe + 5th-for-sure: deps; cmds' */
+      if (multi_mode != m_no && name[0] == '+'
+        && (name[1] == '\0' || (name[1] == '|' && name[2] == '\0')))
+        {
+          if (!prev_file)
+            multi_mode = m_no; /* first */
+          else
+            {
+              if (multi_mode == m_unsettled)
+                prev_file->multi_head = prev_file;
+              multi_mode = name[1] == '\0' ? m_yes : m_yes_maybe;
+              continue;
+            }
+        }
+      else if (multi_mode == m_unsettled && prev_file)
+        multi_mode = m_no;
+#endif
 
       /* If this is a static pattern rule:
          `targets: target%pattern: dep%pattern; cmds',
@@ -2153,6 +2184,21 @@ record_files (struct nameseq *filenames, const char *pattern,
               if (cmds != 0)
                 f->updating = 1;
 	    }
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+          /* If this is an explicit multi target rule, add it to the
+             target chain and set the multi_maybe flag according to
+             the current mode. */
+
+          if (multi_mode >= m_yes)
+            {
+              f->multi_maybe = multi_mode == m_yes_maybe;
+              prev_file->multi_next = f;
+              assert (prev_file->multi_head != 0);
+              f->multi_head = prev_file->multi_head;
+            }
+          prev_file = f;
+#endif
 	}
       else
 	{

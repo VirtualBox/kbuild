@@ -61,6 +61,14 @@ struct file
        the same file.  Otherwise this is null.  */
     struct file *double_colon;
 
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+    /* For a target of an explicit multi target rule, this points to the
+       primary target.  Otherwise this is null. */
+    struct file *multi_head;
+    /* Pointer to next target of an explicit multi target rule. */
+    struct file *multi_next;
+#endif
+
     short int update_status;	/* Status of the last attempt to update,
 				   or -1 if none has been made.  */
 
@@ -94,6 +102,11 @@ struct file
                                    pattern-specific variables.  */
     unsigned int considered:1;  /* equal to 'considered' if file has been
                                    considered on current scan of goal chain */
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+    unsigned int multi_maybe:1; /* Nonzero if this file may not always be
+                                   touched/created by the multi target rule. */
+#endif
+
   };
 
 
