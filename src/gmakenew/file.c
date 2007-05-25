@@ -776,11 +776,8 @@ set_command_state (struct file *file, enum cmd_state state)
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   if (file->multi_head)
-    {
-      assert (file == file->multi_head);
-      for (file = file->multi_head; file != 0; file = file->multi_next)
-        file->command_state = state;
-    }
+    for (file = file->multi_head; file != 0; file = file->multi_next)
+      file->command_state = state;
 #endif
 }
 
