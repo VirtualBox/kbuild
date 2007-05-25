@@ -35,6 +35,9 @@
 #include "variable.h"
 #include "dep.h"
 #include "debug.h"
+#ifdef WINDOWS32
+# include "pathstuff.h"
+#endif
 
 #include "kbuild.h"
 
@@ -57,7 +60,7 @@ char * abspath(const char *name, char *apath);
 /** The argv[0] passed to main. */
 static const char *g_argv0 = "";
 /** The initial working directory. */
-static const char *g_pszInitialCwd = ".";
+static char *g_pszInitialCwd = ".";
 
 
 /**
@@ -154,7 +157,7 @@ const char *get_path_kbuild_bin(void)
             char *pszSep = pszTmp2 + cch - 1;
             memcpy(pszTmp2, g_argv0, cch);
 #ifdef HAVE_DOS_PATHS
-            while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && pszSep != ':')
+            while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && *pszSep != ':')
 #else
             while (pszSep >= pszTmp2 && *pszSep != '/')
 #endif
