@@ -30,7 +30,7 @@ endif
 
 SUBDIRS =	glob config po doc $(MAYBE_W32)
 
-bin_PROGRAMS =	make
+bin_PROGRAMS =	kmk
 
 if USE_CUSTOMS
   remote =	remote-cstms.c
@@ -39,25 +39,84 @@ else
 endif
 
 
-make_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
+kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		function.c getopt.c getopt1.c implicit.c job.c main.c \
 		misc.c read.c remake.c $(remote) rule.c signame.c \
-		strcache.c variable.c version.c vpath.c hash.c
+		strcache.c variable.c version.c vpath.c hash.c \
+		\
+		kbuild.c \
+		electric.c \
+		\
+		kmkbuiltin.c \
+		kmkbuiltin/append.c \
+		kmkbuiltin/cat.c \
+		kmkbuiltin/cp.c \
+		kmkbuiltin/cp_utils.c \
+		kmkbuiltin/echo.c \
+		kmkbuiltin/install.c \
+		kmkbuiltin/mkdir.c \
+		kmkbuiltin/mv.c \
+		kmkbuiltin/ln.c \
+		kmkbuiltin/printf.c \
+		kmkbuiltin/rm.c \
+		kmkbuiltin/rmdir.c \
+		kmkbuiltin/err.c \
+		kmkbuiltin/setmode.c \
+		kmkbuiltin/strmode.c \
+		kmkbuiltin/strlcpy.c \
+		kmkbuiltin/osdep.c
 
-EXTRA_make_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
+
+EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
 noinst_HEADERS = commands.h dep.h filedef.h job.h make.h rule.h variable.h \
 		debug.h getopt.h gettext.h hash.h
 
-make_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@ @LIBINTL@
+#kmk_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@ @LIBINTL@
+kmk_LDADD =	@LIBOBJS@ @ALLOCA@ $(GLOBLIB) @GETLOADAVG_LIBS@
 # Only process if target is MS-Windows
 if WINDOWSENV
-    make_LDADD += $(W32LIB)
+    kmk_LDADD += $(W32LIB)
 endif
 
 man_MANS =	make.1
 
-DEFS =		-DLOCALEDIR=\"$(localedir)\" -DLIBDIR=\"$(libdir)\" -DINCLUDEDIR=\"$(includedir)\" @DEFS@
+# org - DEFS =		-DLOCALEDIR=\"$(localedir)\" -DLIBDIR=\"$(libdir)\" -DINCLUDEDIR=\"$(includedir)\" @DEFS@
+DEFS = \
+	-DNO_ARCHIVES \
+	-DEXPERIMENTAL \
+	-DCONFIG_WITH_TOUPPER_TOLOWER \
+	-DCONFIG_WITH_EXPLICIT_MULTITARGET \
+	\
+	-DKMK \
+	-DKMK_HELPERS \
+	-DVARIABLE_HASH \
+	-DCONFIG_NO_DEFAULT_SUFFIXES \
+	-DCONFIG_NO_DEFAULT_PATTERN_RULES	\
+	-DCONFIG_NO_DEFAULT_TERMINAL_RULES \
+	-DCONFIG_NO_DEFAULT_SUFFIX_RULES \
+	-DCONFIG_NO_DEFAULT_VARIABLES \
+	-DCONFIG_WITH_EXTENDED_NOTPARALLEL \
+	-DCONFIG_WITH_INCLUDEDEP \
+	-DCONFIG_WITH_VALUE_LENGTH \
+	-DCONFIG_WITH_RSORT \
+	-DCONFIG_WITH_ABSPATHEX \
+	-DCONFIG_WITH_COMPARE \
+	-DCONFIG_WITH_STACK \
+	-DCONFIG_WITH_MATH \
+	-DCONFIG_WITH_XARGS \
+	-DCONFIG_PRETTY_COMMAND_PRINTING \
+	\
+	-DBUILD_PLATFORM=\"$(BUILD_TARGET)\" \
+	-DBUILD_PLATFORM_ARCH=\"$(BUILD_TARGET_ARCH)\" \
+	-DBUILD_PLATFORM_CPU=\"$(BUILD_TARGET_CPU)\" \
+	\
+        -DKBUILD_VERSION_MAJOR=0 \
+        -DKBUILD_VERSION_MINOR=1 \
+        -DKBUILD_VERSION_PATCH=0 \
+	\
+	-DCONFIG_WITH_KMK_BUILTIN \
+    @DEFS@
 
 AM_CPPFLAGS =	$(GLOBINC)
 # Only process if target is MS-Windows
