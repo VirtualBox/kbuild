@@ -700,6 +700,23 @@ update_file_1 (struct file *file, unsigned int depth)
   /* Here depth returns to the value it had when we were called.  */
   depth--;
 
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  /* maybe-update targets in a multi target should have been remade
+     by now, so return before we remake it again.
+
+     XXX What if there are extra dependencies for this file that
+     triggers a remake when the primary target doesn't need remaking?
+     Current solution is: Don't do that! */
+  if (file->multi_maybe)
+    {
+      assert (file->multi_head->updated);
+      assert (file->updated);
+      assert (file->update_status <= 0);
+      DBF (DB_VERBOSE, _("Finished maybe-update file `%s'.\n"));
+      return 0;
+    }
+#endif
+
   if (file->double_colon && file->deps == 0)
     {
       must_make = 1;
