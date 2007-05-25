@@ -28,7 +28,9 @@ if WINDOWSENV
   W32LIB =	-Lw32 -lw32
 endif
 
-SUBDIRS =	glob config po doc $(MAYBE_W32)
+# we can safely drop doc and po when bootstrapping kmk.
+# SUBDIRS =	glob config po doc $(MAYBE_W32)
+SUBDIRS =	glob config $(MAYBE_W32)
 
 bin_PROGRAMS =	kmk
 

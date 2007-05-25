@@ -448,7 +448,9 @@ esac
 
 
 # Specify what files are to be created.
-AC_CONFIG_FILES(Makefile glob/Makefile po/Makefile.in config/Makefile doc/Makefile w32/Makefile)
+#we can safely drop doc and po when bootstrapping kmk.
+#AC_CONFIG_FILES(Makefile glob/Makefile po/Makefile.in config/Makefile doc/Makefile w32/Makefile)
+AC_CONFIG_FILES(Makefile glob/Makefile config/Makefile w32/Makefile)
 
 # OK, do it!
 
