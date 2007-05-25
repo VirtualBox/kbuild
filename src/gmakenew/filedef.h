@@ -103,8 +103,8 @@ struct file
     unsigned int considered:1;  /* equal to 'considered' if file has been
                                    considered on current scan of goal chain */
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-    unsigned int multi_maybe:1; /* Nonzero if this file may not always be
-                                   touched/created by the multi target rule. */
+    unsigned int multi_maybe:1; /* Nonzero if this file isn't always updated
+                                   by the explicit multi target rule. */
 #endif
 
   };
