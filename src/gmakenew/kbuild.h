@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: kbuild.h 933 2007-05-25 23:12:32Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
