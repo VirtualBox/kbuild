@@ -104,7 +104,7 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 
 /* Hash table of all global variable definitions.  */
 
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+#ifdef VARIABLE_HASH
 # ifdef _MSC_VER
 #  define inline _inline
 typedef signed int int32_t;
