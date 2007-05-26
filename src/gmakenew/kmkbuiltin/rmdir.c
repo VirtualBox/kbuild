@@ -109,7 +109,7 @@ kmk_builtin_rmdir(int argc, char *argv[])
 	argv += optind;
 
 	if (argc == 0)
-		return usage();
+		return /*usage()*/0;
 
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
