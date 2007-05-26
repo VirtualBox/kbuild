@@ -1349,7 +1349,7 @@ target_environment (struct file *file)
 #ifdef CONFIG_WITH_VALUE_LENGTH
 static struct variable *
 do_variable_definition_append (const struct floc *flocp, struct variable *v, const char *value,
-                               enum variable_origin origin)
+                               enum variable_origin origin, int append)
 {
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -1378,22 +1378,47 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
          The new value is the unexpanded old and new values. */
       unsigned int value_len = strlen (value);
       unsigned int new_value_len = value_len + (v->value_length != 0 ? 1 + v->value_length : 0);
+      int done_1st_prepend_copy = 0;
 
       /* adjust the size. */
       if ((unsigned)v->value_alloc_len <= new_value_len)
         {
-          v->value_alloc_len = (new_value_len + 0x80) + 0x7f;
-          v->value = xrealloc (v->value, v->value_alloc_len);
+          /* XXX: anticipating further appends/prepends. */
+          if (value_len > v->value_alloc_len)
+            v->value_alloc_len = (new_value_len + 0x80) + 0x7f;
+          else
+            v->value_alloc_len = (new_value_len + value_len + 0x80) + 0x7f;
+          if (append || !v->value_length)
+            v->value = xrealloc (v->value, v->value_alloc_len);
+          else
+            {
+              /* avoid the extra memcpy the xrealloc may have to do */
+              char *new_buf = xmalloc (v->value_alloc_len);
+              memcpy (&new_buf[value_len + 1], v->value, v->value_length + 1);
+              done_1st_prepend_copy = 1;
+              free (v->value);
+              v->value = new_buf;
+            }
         }
 
       /* insert the new bits */
       if (v->value_length != 0)
         {
-          v->value[v->value_length] = ' ';
-          memcpy (&v->value[v->value_length + 1], value, value_len + 1);
+          if (append)
+            {
+              v->value[v->value_length] = ' ';
+              memcpy (&v->value[v->value_length + 1], value, value_len + 1);
+            }
+          else
+            {
+              if (!done_1st_prepend_copy)
+                memmove (&v->value[value_len + 1], v->value, v->value_length + 1);
+              v->value[value_len] = ' ';
+              memcpy (v->value, value, value_len);
+            }
         }
       else
-          memcpy (v->value, value, value_len + 1);
+        memcpy (v->value, value, value_len + 1);
       v->value_length = new_value_len;
     }
   else
@@ -1423,9 +1448,9 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   int append = 0;
   int conditional = 0;
   const size_t varname_len = strlen (varname); /* bird */
-# ifdef CONFIG_WITH_VALUE_LENGTH
+#ifdef CONFIG_WITH_VALUE_LENGTH
   unsigned int value_len = ~0U;
-# endif
+#endif
 
   /* Calculate the variable's new value in VALUE.  */
 
@@ -1457,8 +1482,16 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 	 The value is used verbatim.  */
       p = value;
       break;
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+    case f_append:
+    case f_prepend:
+      {
+        const enum variable_flavor org_flavor = flavor;
+#else
     case f_append:
       {
+#endif
+
         /* If we have += but we're in a target variable context, we want to
            append only with other variables in the context of this target.  */
         if (target_var)
@@ -1486,7 +1519,11 @@ do_variable_definition (const struct floc *flocp, const char *varname,
           {
 #ifdef CONFIG_WITH_VALUE_LENGTH
             v->append = append;
-            return do_variable_definition_append (flocp, v, value, origin);
+# ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+            return do_variable_definition_append (flocp, v, value, origin, org_flavor == f_append);
+# else
+            return do_variable_definition_append (flocp, v, value, origin, 1);
+# endif
 #else /* !CONFIG_WITH_VALUE_LENGTH */
 
             /* Paste the old and new values together in VALUE.  */
@@ -1511,9 +1548,20 @@ do_variable_definition (const struct floc *flocp, const char *varname,
             oldlen = strlen (v->value);
             vallen = strlen (val);
             tp = alloca (oldlen + 1 + vallen + 1);
-            memcpy (tp, v->value, oldlen);
-            tp[oldlen] = ' ';
-            memcpy (&tp[oldlen + 1], val, vallen + 1);
+# ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+            if (org_flavor == f_prepend)
+              {
+                memcpy (tp, val, vallen);
+                tp[oldlen] = ' ';
+                memcpy (&tp[oldlen + 1], v->value, oldlen + 1);
+              }
+            else
+# endif /* CONFIG_WITH_PREPEND_ASSIGNMENT */
+              {
+                memcpy (tp, v->value, oldlen);
+                tp[oldlen] = ' ';
+                memcpy (&tp[oldlen + 1], val, vallen + 1);
+              }
             p = tp;
 #endif /* !CONFIG_WITH_VALUE_LENGTH */
           }
@@ -1710,6 +1758,14 @@ parse_variable_definition (struct variable *v, char *line)
 	  flavor = f_append;
 	  break;
 	}
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+      else if (c == '<' && *p == '=')
+        {
+          end = p++ - 1;
+          flavor = f_prepend;
+          break;
+        }
+#endif
       else if (c == '?' && *p == '=')
         {
           end = p++ - 1;

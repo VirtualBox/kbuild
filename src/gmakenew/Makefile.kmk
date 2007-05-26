@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 921 2007-05-25 03:27:53Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 937 2007-05-26 18:43:44Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -94,6 +94,7 @@ kmk_DEFS = \
 	EXPERIMENTAL \
 	CONFIG_WITH_TOUPPER_TOLOWER \
 	CONFIG_WITH_EXPLICIT_MULTITARGET \
+	CONFIG_WITH_PREPEND_ASSIGNMENT \
 	\
 	KMK \
 	KMK_HELPERS \

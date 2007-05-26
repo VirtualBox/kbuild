@@ -38,6 +38,9 @@ enum variable_flavor
     f_simple,           /* Simple definition (:=) */
     f_recursive,        /* Recursive definition (=) */
     f_append,           /* Appending definition (+=) */
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+    f_prepend,          /* Prepending definition (>=) */
+#endif
     f_conditional       /* Conditional definition (?=) */
   };
 

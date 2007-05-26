@@ -2882,7 +2882,7 @@ readline (struct ebuffer *ebuf)
      w_colon        A colon
      w_dcolon       A double-colon
      w_semicolon    A semicolon
-     w_varassign    A variable assignment operator (=, :=, +=, or ?=)
+     w_varassign    A variable assignment operator (=, :=, +=, >=, or ?=)
 
    Note that this function is only used when reading certain parts of the
    makefile.  Don't use it where special rules hold sway (RHS of a variable,
@@ -2933,6 +2933,9 @@ get_next_mword (char *buffer, char *delim, char **startp, unsigned int *length)
 
     case '+':
     case '?':
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+    case '>':
+#endif
       if (*p == '=')
         {
           ++p;
@@ -3014,6 +3017,9 @@ get_next_mword (char *buffer, char *delim, char **startp, unsigned int *length)
 
         case '?':
         case '+':
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+        case '>':
+#endif
           if (*p == '=')
             goto done_word;
           break;
