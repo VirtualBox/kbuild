@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 933 2007-05-25 23:12:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 939 2007-05-26 20:05:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -193,7 +193,7 @@ const char *get_path_kbuild_bin(void)
 static void
 kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcchAlloc, int fCanFree)
 {
-    char *pszIterator;
+    const char *pszIterator;
     const char *pszInCur;
     unsigned int cchInCur;
     unsigned int cRelativePaths;
@@ -811,7 +811,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     char *pszTmp;
     unsigned cchCur;
     char *pszCur;
-    char *pszIterator;
+    const char *pszIterator;
 
     /* basic init. */
     pSdks->pa = NULL;
