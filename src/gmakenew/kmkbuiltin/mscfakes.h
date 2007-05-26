@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 902 2007-05-23 03:56:33Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 936 2007-05-26 18:42:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -121,6 +121,8 @@ int mkdir_msc(const char *path, mode_t mode);
 int mkstemp(char *temp);
 #define readlink(link, buf, size) -1
 #define reallocf(old, size) realloc(old, size)
+int rmdir_msc(const char *path);
+#define rmdir(path) rmdir_msc(path)
 intmax_t strtoimax(const char *nptr, char **endptr, int base);
 uintmax_t strtoumax(const char *nptr, char **endptr, int base);
 int asprintf(char **strp, const char *fmt, ...);
