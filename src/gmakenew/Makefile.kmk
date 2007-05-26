@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 942 2007-05-26 23:19:22Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 943 2007-05-26 23:24:18Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -70,7 +70,7 @@ kmkmissing_SOURCES.solaris = \
 
 kmkmissing_SOURCES.win += \
 	kmkbuiltin/mscfakes.c \
-	kmkbuiltin/fts.c
+	kmkbuiltin/fts.c \
 	glob/glob.c \
 	glob/fnmatch.c \
 	getloadavg.c \
