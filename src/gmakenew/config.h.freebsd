@@ -18,10 +18,6 @@
 /* Define to 1 for DGUX with <sys/dg_sys_info.h>. */
 /* #undef DGUX */
 
-/* Define to 1 if translation of program messages to the user's native
-   language is requested. */
-/* #undef ENABLE_NLS */
-
 /* Use high resolution file timestamps if nonzero. */
 #define FILE_TIMESTAMP_HI_RES 0
 
@@ -36,7 +32,7 @@
    */
 /* #undef HAVE_ALLOCA_H */
 
-/* Define if your compiler conforms to the ANSI C standard. */
+/* Define to 1 if your compiler conforms to the ANSI C standard. */
 #define HAVE_ANSI_COMPILER 1
 
 /* Define to 1 if you have the `atexit' function. */
@@ -48,12 +44,8 @@
 /* Use case insensitive file names */
 /* #undef HAVE_CASE_INSENSITIVE_FS */
 
-/* Define if you have the clock_gettime function. */
+/* Define to 1 if you have the clock_gettime function. */
 /* #undef HAVE_CLOCK_GETTIME */
-
-/* Define if the GNU dcgettext() function is already present or preinstalled.
-   */
-/* #undef HAVE_DCGETTEXT */
 
 /* Define to 1 if you have the declaration of `sys_siglist', and to 0 if you
    don't. */
@@ -107,14 +99,8 @@
 /* Define to 1 if you have the `getrlimit' function. */
 #define HAVE_GETRLIMIT 1
 
-/* Define if the GNU gettext() function is already present or preinstalled. */
-/* #undef HAVE_GETTEXT */
-
-/* Define if you have a standard gettimeofday function */
+/* Define to 1 if you have a standard gettimeofday function */
 #define HAVE_GETTIMEOFDAY 1
-
-/* Define if you have the iconv() function. */
-/* #undef HAVE_ICONV */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -136,12 +122,6 @@
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
 /* #undef HAVE_MACH_MACH_H */
-
-/* Define to 1 if you have the `memcpy' function. */
-#define HAVE_MEMCPY 1
-
-/* Define to 1 if you have the `memmove' function. */
-#define HAVE_MEMMOVE 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -170,7 +150,7 @@
 /* Define to 1 if you have the `realpath' function. */
 #define HAVE_REALPATH 1
 
-/* Define if <signal.h> defines the SA_RESTART constant. */
+/* Define to 1 if <signal.h> defines the SA_RESTART constant. */
 #define HAVE_SA_RESTART 1
 
 /* Define to 1 if you have the `setegid' function. */
@@ -216,10 +196,10 @@
 #define HAVE_STDLIB_H 1
 
 /* Define to 1 if you have the `strcasecmp' function. */
-/* #undef HAVE_STRCASECMP */
+#define HAVE_STRCASECMP 1
 
-/* Define to 1 if you have the `strchr' function. */
-#define HAVE_STRCHR 1
+/* Define to 1 if you have the `strcmpi' function. */
+/* #undef HAVE_STRCMPI */
 
 /* Define to 1 if you have the `strcoll' function and it is properly defined.
    */
@@ -230,6 +210,9 @@
 
 /* Define to 1 if you have the `strerror' function. */
 #define HAVE_STRERROR 1
+
+/* Define to 1 if you have the `stricmp' function. */
+/* #undef HAVE_STRICMP */
 
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
@@ -272,7 +255,7 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
-/* Define this if you have the \`union wait' type in <sys/wait.h>. */
+/* Define to 1 if you have the \`union wait' type in <sys/wait.h>. */
 /* #undef HAVE_UNION_WAIT */
 
 /* Define to 1 if you have the <unistd.h> header file. */
@@ -303,24 +286,19 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. */
-/* bird: changed: */
-#if defined(__x86_64__) || defined(__X64_64__) || defined(__AMD64__) || defined(__amd64__)
-#define MAKE_HOST "x86_64-unknown-freebsd6.2"
-#else
-#define MAKE_HOST "x86-unknown-freebsd6.2"
-#endif
+#define MAKE_HOST "amd64-unknown-freebsd6.2"
 
-/* Define this to enable job server support in GNU make. */
+/* Define to 1 to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
 
-/* Define this to enable symbolic link timestamp checking. */
+/* Define to 1 to enable symbolic link timestamp checking. */
 #define MAKE_SYMLINKS 1
 
 /* Define to 1 if your `struct nlist' has an `n_un' member. Obsolete, depend
    on `HAVE_STRUCT_NLIST_N_UN_N_NAME */
 /* #undef NLIST_NAME_UNION */
 
-/* Define if struct nlist.n_name is a pointer rather than an array. */
+/* Define to 1 if struct nlist.n_name is a pointer rather than an array. */
 /* #undef NLIST_STRUCT */
 
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
@@ -336,13 +314,16 @@
 #define PACKAGE_NAME "GNU make"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU make 3.81"
+#define PACKAGE_STRING "GNU make 3.81.90"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "make"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.81"
+#define PACKAGE_VERSION "3.81.90"
+
+/* Define to the character that separates directories in PATH. */
+#define PATH_SEPARATOR_CHAR ':'
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #define PROTOTYPES 1
@@ -353,7 +334,7 @@
 /* Define to the name of the SCCS 'get' command. */
 #define SCCS_GET "get"
 
-/* Define this if the SCCS 'get' command understands the '-G<file>' option. */
+/* Define to 1 if the SCCS 'get' command understands the '-G<file>' option. */
 /* #undef SCCS_GET_MINUS_G */
 
 /* Define to 1 if the `setvbuf' function takes the buffering type as its
@@ -392,7 +373,7 @@
 /* #undef UMAX4_3 */
 
 /* Version number of package */
-#define VERSION "3.81"
+#define VERSION "3.81.90"
 
 /* Use platform specific coding */
 /* #undef WINDOWS32 */
@@ -443,11 +424,3 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
-
-/* bird added: */
-
-#define LOCALEDIR   ""
-#define ALIASPATH   ""
-#define LIBDIR      ""
-#define INCLUDEDIR  ""
-
