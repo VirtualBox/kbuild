@@ -1312,6 +1312,14 @@ main (int argc, char **argv, char **envp)
   do_variable_definition (NILF, ".FEATURES", "check-symlink",
                           o_default, f_append, 0);
 #endif
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  do_variable_definition (NILF, ".FEATURES", "explicit-multitarget",
+                          o_default, f_append, 0);
+#endif
+#ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
+  do_variable_definition (NILF, ".FEATURES", "prepend-assignment",
+                          o_default, f_append, 0);
+#endif
 
   /* Read in variables from the environment.  It is important that this be
      done before $(MAKE) is figured out so its definitions will not be
@@ -2755,7 +2763,7 @@ decode_switches (int argc, char **argv, int env)
 		  else if (sl->idx == sl->max - 1)
 		    {
 		      sl->max += 5;
-		      sl->list = xrealloc (sl->list,
+		      sl->list = xrealloc ((void *)sl->list, /* bird */
                                            sl->max * sizeof (char *));
 		    }
                   if (cs->type == filename)
