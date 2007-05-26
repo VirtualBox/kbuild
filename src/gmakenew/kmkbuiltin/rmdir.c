@@ -86,12 +86,7 @@ kmk_builtin_rmdir(int argc, char *argv[])
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
-#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
-	optreset = 1;
-	optind = 1;
-#else
 	optind = 0; /* init */
-#endif
 	while ((ch = getopt_long(argc, argv, "pv", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'p':

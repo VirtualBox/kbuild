@@ -153,12 +153,7 @@ kmk_builtin_install(int argc, char *argv[])
         opterr = 1;
         optarg = NULL;
         optopt = 0;
-#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
-        optreset = 1;
-        optind = 1;
-#else
         optind = 0; /* init */
-#endif
 
 	iflags = 0;
 	group = owner = NULL;

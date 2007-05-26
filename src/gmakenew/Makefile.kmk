@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 937 2007-05-26 18:43:44Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 942 2007-05-26 23:19:22Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -49,6 +49,8 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/strlcpy.c \
+	getopt.c \
+	getopt1.c \
 	electric.c
 
 kmkmissing_SOURCES.darwin = \
@@ -64,23 +66,19 @@ kmkmissing_SOURCES.solaris = \
 	kmkbuiltin/solfakes.c \
 	kmkbuiltin/fts.c \
 	glob/glob.c \
-	glob/fnmatch.c \
-	getopt.c \
-	getopt1.c
+	glob/fnmatch.c
 
 kmkmissing_SOURCES.win += \
+	kmkbuiltin/mscfakes.c \
+	kmkbuiltin/fts.c
 	glob/glob.c \
 	glob/fnmatch.c \
-	getopt.c \
-	getopt1.c \
 	getloadavg.c \
 	w32/subproc/misc.c \
 	w32/subproc/sub_proc.c \
 	w32/subproc/w32err.c \
 	w32/compat/dirent.c \
-	w32/pathstuff.c \
-	kmkbuiltin/mscfakes.c \
-	kmkbuiltin/fts.c
+	w32/pathstuff.c
 
 #
 # kmk
