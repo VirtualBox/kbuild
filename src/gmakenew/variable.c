@@ -1017,13 +1017,15 @@ define_automatic_variables (void)
                    get_path_kbuild_bin (), o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
-# if defined(CONFIG_WITH_TOUPPER_TOLOWER) \
-  && defined(CONFIG_WITH_RSORT) \
+# if defined(CONFIG_WITH_RSORT) \
   && defined(CONFIG_WITH_ABSPATHEX) \
+  && defined(CONFIG_WITH_TOUPPER_TOLOWER) \
   && defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE) \
   && defined(CONFIG_WITH_STACK) \
   && defined(CONFIG_WITH_MATH) \
   && defined(CONFIG_WITH_XARGS) \
+  && defined(CONFIG_WITH_EXPLICIT_MULTITARGET) \
+  && defined(CONFIG_WITH_PREPEND_ASSIGNMENT) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath"
@@ -1034,9 +1036,12 @@ define_automatic_variables (void)
                           " stack"
                           " math-int"
                           " xargs"
+                          " explicit-multitarget"
+                          " prepend-assignment"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
+#  error "All features should be enabled by default!"
   strcpy (buf, "append-dash-n abspath");
 #  if defined (CONFIG_WITH_RSORT)
   strcat (buf, " rsort");
@@ -1059,7 +1064,13 @@ define_automatic_variables (void)
 #  if defined (CONFIG_WITH_XARGS)
   strcat (buf, " xargs");
 #  endif
-#  ifdef KMK_HELPERS
+#  if defined (CONFIG_WITH_EXPLICIT_MULTITARGET)
+  strcat (buf, " explicit-multitarget");
+#  endif
+#  if defined (CONFIG_WITH_PREPEND_ASSIGNMENT) \
+  strcat (buf, " prepend-assignment");
+#  endif
+#  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");
 #  endif
   (void) define_variable ("KMK_FEATURES", 12, buf, o_default, 0);
