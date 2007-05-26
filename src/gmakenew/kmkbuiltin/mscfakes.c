@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 902 2007-05-23 03:56:33Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 936 2007-05-26 18:42:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -32,7 +32,6 @@
 #include <fcntl.h>
 #include "err.h"
 #include "mscfakes.h"
-#undef mkdir
 
 
 char *dirname(char *path)
@@ -52,7 +51,7 @@ int link(const char *pszDst, const char *pszLink)
 
 int mkdir_msc(const char *path, mode_t mode)
 {
-    int rc = mkdir(path);
+    int rc = (mkdir)(path);
     if (rc)
     {
         int len = strlen(path);
@@ -61,7 +60,25 @@ int mkdir_msc(const char *path, mode_t mode)
             char *str = strdup(path);
             while (len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\'))
                 str[--len] = '\0';
-            rc = mkdir(str);
+            rc = (mkdir)(str);
+            free(str);
+        }
+    }
+    return rc;
+}
+
+int rmdir_msc(const char *path)
+{
+    int rc = (rmdir)(path);
+    if (rc)
+    {
+        int len = strlen(path);
+        if (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\'))
+        {
+            char *str = strdup(path);
+            while (len > 0 && (str[len - 1] == '/' || str[len - 1] == '\\'))
+                str[--len] = '\0';
+            rc = (rmdir)(str);
             free(str);
         }
     }
