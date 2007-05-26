@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 944 2007-05-26 23:43:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 945 2007-05-26 23:53:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -91,7 +91,7 @@ void init_kbuild(int argc, char **argv)
      * Determin the executable name.
      */
     rc = -1;
-#if defined(__DARWIN__)
+#if defined(__APPLE__)
     {
         const char *pszImageName = _dyld_get_image_name(0);
         if (pszImageName)
@@ -112,7 +112,7 @@ void init_kbuild(int argc, char **argv)
     else
         szTmp[rc] == '\0';
 
-#elif defined(__LINUX__) /** @todo find proper define... */
+#elif defined(__gnu_linux__) /** @todo find proper define... */
     rc = readlink("/proc/self/exe", szTmp, GET_PATH_MAX - 1);
     if (rc < 0 || rc == GET_PATH_MAX - 1)
         rc = -1;
