@@ -3376,7 +3376,7 @@ multi_glob (struct nameseq *chain, unsigned int size)
 		  }
 	      }
 #if defined(KMK) || defined(__EMX__) /* speed optimization */
-            if (gl.gl_pathv != &gname)
+            if (gl.gl_pathv != (char **)&gname)
 #endif
 	    globfree (&gl);
 	    free (old);

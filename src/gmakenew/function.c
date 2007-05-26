@@ -2156,7 +2156,7 @@ static char *
 func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 {
   /* Expand the argument.  */
-  char *p = argv[0];
+  const char *p = argv[0];
   char *cwd = argv[1];
   unsigned int cwd_len = ~0U;
   char *path = 0;
@@ -2317,7 +2317,7 @@ func_xargs (char *o, char **argv, const char *funcname)
   for (i = 0; ; i++)
     {
       unsigned int len;
-      char *iterator = (char *)args;
+      const char *iterator = args;
       const char *end = args;
       const char *cur;
       const char *tmp;
@@ -2672,7 +2672,7 @@ func_stack_pop_top (char *o, char **argv, const char *funcname)
     if (stack_var)
       {
         unsigned int len;
-        char *iterator = stack_var->value;
+        const char *iterator = stack_var->value;
         char *lastitem = NULL;
         char *cur;
 
