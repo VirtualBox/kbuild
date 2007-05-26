@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 939 2007-05-26 20:05:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 944 2007-05-26 23:43:35Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -37,6 +37,7 @@
 #include "debug.h"
 #ifdef WINDOWS32
 # include "pathstuff.h"
+# include <Windows.h>
 #endif
 
 #include "kbuild.h"
@@ -58,9 +59,9 @@ char * abspath(const char *name, char *apath);
 *   Global Variables                                                           *
 *******************************************************************************/
 /** The argv[0] passed to main. */
-static const char *g_argv0 = "";
+static const char *g_pszExeName;
 /** The initial working directory. */
-static char *g_pszInitialCwd = ".";
+static char *g_pszInitialCwd;
 
 
 /**
@@ -71,17 +72,66 @@ static char *g_pszInitialCwd = ".";
  */
 void init_kbuild(int argc, char **argv)
 {
-    PATH_VAR(szCwd);
+    int rc;
+    PATH_VAR(szTmp);
 
-    g_argv0 = argv[0];
+    /*
+     * Get the initial cwd for use in my_abspath.
+     */
 #ifdef WINDOWS32
-    if (getcwd_fs(szCwd, GET_PATH_MAX) != 0)
+    if (getcwd_fs(szTmp, GET_PATH_MAX) != 0)
 #else
-    if (getcwd(szCwd, GET_PATH_MAX) != 0)
+    if (getcwd(szTmp, GET_PATH_MAX) != 0)
 #endif
-        g_pszInitialCwd = xstrdup(szCwd);
+        g_pszInitialCwd = xstrdup(szTmp);
     else
         fatal(NILF, _("getcwd failed"));
+
+    /*
+     * Determin the executable name.
+     */
+    rc = -1;
+#if defined(__DARWIN__)
+    {
+        const char *pszImageName = _dyld_get_image_name(0);
+        if (pszImageName)
+        {
+            size_t cchImageName = strlen(pszImageName);
+            if (cchImageName < GET_PATH_MAX)
+            {
+                memcpy(szTmp, pszImageName, cchImageName + 1);
+                rc = 0;
+            }
+        }
+    }
+
+#elif defined(__FreeBSD__)
+    rc = readlink("/proc/curproc/file", szTmp, GET_PATH_MAX - 1);
+    if (rc < 0 || rc == GET_PATH_MAX - 1)
+        rc = -1;
+    else
+        szTmp[rc] == '\0';
+
+#elif defined(__LINUX__) /** @todo find proper define... */
+    rc = readlink("/proc/self/exe", szTmp, GET_PATH_MAX - 1);
+    if (rc < 0 || rc == GET_PATH_MAX - 1)
+        rc = -1;
+    else
+        szTmp[rc] == '\0';
+
+#elif defined(__OS2__)
+     _execname(g_szrtProgramPath, sizeof(g_szrtProgramPath));
+     rc = 0;
+
+#elif defined(WINDOWS32)
+    if (GetModuleFileName(GetModuleHandle(NULL), szTmp, GET_PATH_MAX))
+        rc = 0;
+
+#endif
+    if (rc < 0)
+        g_pszExeName = argv[0];
+    else
+        g_pszExeName = xstrdup(szTmp);
 }
 
 
@@ -152,10 +202,10 @@ const char *get_path_kbuild_bin(void)
             return s_pszPath = PATH_KBUILD_BIN;
 #else
             /* $(abspath $(dir $(ARGV0)).) */
-            size_t cch = strlen(g_argv0);
+            size_t cch = strlen(g_pszExeName);
             char *pszTmp2 = alloca(cch + sizeof("."));
             char *pszSep = pszTmp2 + cch - 1;
-            memcpy(pszTmp2, g_argv0, cch);
+            memcpy(pszTmp2, g_pszExeName, cch);
 #ifdef HAVE_DOS_PATHS
             while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && *pszSep != ':')
 #else
