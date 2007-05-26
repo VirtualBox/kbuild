@@ -1585,8 +1585,8 @@ main (int argc, char **argv, char **envp)
        && stat ("Makefile.kmk", &st) < 0
        && stat ("makefile.kmk", &st) < 0)
         {
-          static char  fake_path[3*16 + 32] = "..";
-          static char *fake_list[2] = { &fake_path[0], NULL };
+          static char fake_path[3*16 + 32] = "..";
+          static const char *fake_list[2] = { &fake_path[0], NULL };
           struct stringlist fake_directories = { &fake_list[0], 1, 0 };
 
           char *cur = &fake_path[2];
