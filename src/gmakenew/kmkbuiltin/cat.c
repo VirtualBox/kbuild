@@ -104,12 +104,7 @@ kmk_builtin_cat(int argc, char *argv[])
 	opterr = 1;
 	optarg = NULL;
 	optopt = 0;
-#if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
-	optreset = 1;
-	optind = 1;
-#else
 	optind = 0; /* init */
-#endif
 
 #ifdef kmk_builtin_cat /* kmk did this already. */
 	setlocale(LC_CTYPE, "");
