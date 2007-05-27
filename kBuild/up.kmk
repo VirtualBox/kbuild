@@ -1,7 +1,8 @@
-# $Id: up.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 977 2007-05-27 18:55:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a up forwarder makefile.
+#          This method is DEPRECATED. Use Makefile.kup files instead.
 #
 # Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
