@@ -1,0 +1,255 @@
+# $Id: GXX4MACHO.kmk 971 2007-05-27 16:45:22Z knut.osmundsen@oracle.com $
+## @file
+#
+# kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o, for building C++ code.
+#
+# Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+TOOL_GXX4MACHO := GCC v4 targeting Darwin (Mac OS X) Mach-o, for building C++ code.
+
+# Tool Specific Properties
+TOOL_GXX4MACHO_CC  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GXX4MACHO_CXX ?= g++$(HOSTSUFF_EXE)
+TOOL_GXX4MACHO_AS  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GXX4MACHO_LD  ?= g++$(HOSTSUFF_EXE)
+TOOL_GXX4MACHO_LD_SYSMOD ?= g++$(HOSTSUFF_EXE)
+ifndef TOOL_GXX4MACHO_LDFLAGS.$(BUILD_TARGET)
+TOOL_GXX4MACHO_LDFLAGS.dll ?= -dynamiclib
+else
+TOOL_GXX4MACHO_LDFLAGS.dll ?= $(TOOL_GXX4MACHO_LDFLAGS.$(BUILD_TARGET))
+endif
+TOOL_GXX4MACHO_LDFLAGS.sysmod ?= -r
+#TOOL_GXX4MACHO_LD_SONAME = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+
+ifdef SLKRUNS
+TOOL_GXX4MACHO_CC  += -fmessage-length=0
+TOOL_GXX4MACHO_CXX += -fmessage-length=0
+endif
+
+# General Properties used by kBuild
+TOOL_GXX4MACHO_COBJSUFF         ?= .o
+TOOL_GXX4MACHO_CFLAGS           ?=
+TOOL_GXX4MACHO_CFLAGS.debug     ?= -g
+TOOL_GXX4MACHO_CFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GXX4MACHO_CFLAGS.release   ?= -O2
+TOOL_GXX4MACHO_CINCS            ?=
+TOOL_GXX4MACHO_CDEFS            ?=
+
+TOOL_GXX4MACHO_CXXOBJSUFF       ?= .o
+TOOL_GXX4MACHO_CXXOBJSUFF       ?= .o
+TOOL_GXX4MACHO_CXXFLAGS         ?=
+TOOL_GXX4MACHO_CXXFLAGS.debug   ?= -g
+TOOL_GXX4MACHO_CXXFLAGS.profile ?= -g -O2 #-pg
+TOOL_GXX4MACHO_CXXFLAGS.release ?= -O2
+TOOL_GXX4MACHO_CXXINCS          ?=
+TOOL_GXX4MACHO_CXXDEFS          ?=
+
+TOOL_GXX4MACHO_ASFLAGS          ?= -x assembler-with-cpp
+TOOL_GXX4MACHO_ASFLAGS.debug    ?= -g
+TOOL_GXX4MACHO_ASFLAGS.profile  ?= -g
+TOOL_GXX4MACHO_ASOBJSUFF        ?= .o
+
+TOOL_GXX4MACHO_AR               ?= ar$(HOSTSUFF_EXE)
+TOOL_GXX4MACHO_ARFLAGS          ?= -c -rs
+TOOL_GXX4MACHO_ARLIBSUFF        ?= .a
+
+TOOL_GXX4MACHO_LDFLAGS          ?=
+TOOL_GXX4MACHO_LDFLAGS.debug    ?= -g
+TOOL_GXX4MACHO_LDFLAGS.profile  ?= -g
+
+
+## Compile C source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+#
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GXX4MACHO_COMPILE_C_OUTPUT =
+TOOL_GXX4MACHO_COMPILE_C_DEPEND =
+TOOL_GXX4MACHO_COMPILE_C_DEPORD =
+define TOOL_GXX4MACHO_COMPILE_C_CMDS
+	$(QUIET)$(TOOL_GXX4MACHO_CC) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+endef
+
+
+## Compile C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GXX4MACHO_COMPILE_CXX_OUTPUT =
+TOOL_GXX4MACHO_COMPILE_CXX_DEPEND =
+TOOL_GXX4MACHO_COMPILE_CXX_DEPORD =
+define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_GXX4MACHO_CXX) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+endef
+
+
+## Compile Assembly source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)     Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+#
+TOOL_GXX4MACHO_COMPILE_AS_OUTPUT =
+TOOL_GXX4MACHO_COMPILE_AS_DEPEND =
+TOOL_GXX4MACHO_COMPILE_AS_DEPORD =
+define TOOL_GXX4MACHO_COMPILE_AS_CMDS
+	$(QUIET)$(TOOL_GXX4MACHO_AS) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+endef
+
+
+## Link library
+# @param    $(target)   Normalized main target name.
+# @param    $(out)		Library name.
+# @param    $(objs)     Object files to put in the library.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_GXX4MACHO_LINK_LIBRARY_OUTPUT =
+TOOL_GXX4MACHO_LINK_LIBRARY_DEPEND = $(othersrc)
+TOOL_GXX4MACHO_LINK_LIBRARY_DEPORD =
+define TOOL_GXX4MACHO_LINK_LIBRARY_CMDS
+	$(call xargs,$(QUIET)$(TOOL_GXX4MACHO_AR) $(flags) $(out),$(objs))
+	$(foreach lib,$(othersrc)\
+		,$(NL)$(TAB)$(call MSG_AR_MERGE,$(target),$(out),$(lib)) \
+		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))ar.tmp.dir/* \
+		$(NL)$(TAB)$(QUIET)$(MKDIR) -p $(dir $(outbase))/ar.tmp.dir/ \
+		$(NL)$(TAB)$(QUIET)(cd $(dir $(outbase))ar.tmp.dir/ \
+			&& $(TOOL_GXX4MACHO_AR) -x $(abspath $(lib)) \
+		    && $(RM_EXT) -f ./__.SYMDEF* \
+			&& $(TOOL_GXX4MACHO_AR) $(flags) $(out) *) \
+		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))/ar.tmp.dir/* \
+		$(NL)$(TAB)$(QUIET)$(RMDIR) $(dir $(outbase))ar.tmp.dir/)
+endef
+
+
+## Link program
+# @param    $(target)   Normalized main target name.
+# @param    $(out)		Program name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_GXX4MACHO_LINK_PROGRAM_OUTPUT = $(outbase).map $(outbase).rsp
+TOOL_GXX4MACHO_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
+TOOL_GXX4MACHO_LINK_PROGRAM_DEPORD =
+define TOOL_GXX4MACHO_LINK_PROGRAM_CMDS
+	$(QUIET)$(APPEND) -n $(outbase).rsp $(objs)
+	$(QUIET)$(TOOL_GXX4MACHO_LD) $(flags) -o $(out)\
+		-filelist $(outbase).rsp\
+		$(foreach p,$(libpath), -L$(p))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+endef
+
+
+## Link DLL
+# @param    $(target)   Normalized main target name.
+# @param    $(out)		Program name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_GXX4MACHO_LINK_DLL_OUTPUT = $(outbase).rsp
+TOOL_GXX4MACHO_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
+TOOL_GXX4MACHO_LINK_DLL_DEPORD =
+define TOOL_GXX4MACHO_LINK_DLL_CMDS
+	$(QUIET)$(APPEND) -n $(outbase).rsp $(objs)
+	$(QUIET)$(TOOL_GXX4MACHO_LD) $(TOOL_GXX4MACHO_LDFLAGS.dll) $(flags) -o $(out)\
+		$(call TOOL_GXX4MACHO_LD_SONAME,$(target),$(out))\
+		-filelist $(outbase).rsp\
+		$(foreach p,$(libpath), -L$(p))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+endef
+
+
+## Link system module (windows aka driver, linux aka kernel module)
+# @param    $(target)   Normalized main target name.
+# @param    $(out)		System module name.
+# @param    $(objs)     Object files to link together.
+# @param    $(libs)     Libraries to search.
+# @param    $(libpath)  Library search paths.
+# @param    $(flags)    Flags.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(othersrc) Unhandled sources.
+# @param    $(custom_pre)   Custom step invoked before linking.
+# @param    $(custom_post)  Custom step invoked after linking.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+TOOL_GXX4MACHO_LINK_SYSMOD_OUTPUT = $(outbase).rsp
+TOOL_GXX4MACHO_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
+TOOL_GXX4MACHO_LINK_SYSMOD_DEPORD =
+define TOOL_GXX4MACHO_LINK_SYSMOD_CMDS
+	$(QUIET)$(APPEND) -n $(outbase).rsp $(objs)
+	$(QUIET)$(TOOL_GXX4MACHO_LD_SYSMOD) $(TOOL_GXX4MACHO_LDFLAGS.sysmod) $(flags) -o $(out)\
+		-filelist $(outbase).rsp\
+		$(foreach p,$(libpath), -L$(p))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+endef
+
