@@ -1,4 +1,4 @@
-# $Id: footer.kmk 905 2007-05-23 05:38:48Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 966 2007-05-27 13:47:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1160,11 +1160,18 @@ else
  _DEP_COMPILE_CMDS =
 endif
 
+## Temporary macro for testing the new multi target rules.
+ifdef USE_MULTI_TARGET
+ _M_PLUSS=+
+else
+ _M_PLUSS=
+endif
+
 ## Generates the rules for building a specific object, and the aliases
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
-$(obj) $($(target)_$(source)_OUTPUT_): \
+$(obj) $(_M_PLUSS) $($(target)_$(source)_OUTPUT_): \
 		$($(target)_$(source)_DEPEND_) \
 		$(_DEP_COMPILE_CMDS) \
 		| \
@@ -1208,7 +1215,7 @@ endif
 # @param    $($(target)_CMDS_)      The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
-$(out) $($(target)_OUTPUT_): \
+$(out) $(_M_PLUSS) $($(target)_OUTPUT_): \
 		$($(target)_DEPEND_) \
 		$(_DEP_LINK_CMDS) \
 		| \
@@ -2309,7 +2316,7 @@ do-clean:
 	$(QUIET)$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
 ifeq ($(RMDIR),kmk_builtin_rmdir)
  ifeq ($(filter rsort,$(KMK_FEATURES)),rsort) # TODO: Drop this when switching gmake to the gmakenew code!
-	$(RMDIR) --ignore-fail-on-non-empty --ignore-fail-on-not-exist $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
+	$(QUIET)$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
  endif
 endif
 
@@ -2505,5 +2512,4 @@ endif
 # end-of-file-content
 __footer_kmk__ := target
 endif # __footer_kmk__
-
 
