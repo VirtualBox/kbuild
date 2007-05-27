@@ -1,4 +1,4 @@
-# $Id: header.kmk 978 2007-05-27 18:58:51Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 980 2007-05-27 19:57:41Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -46,7 +46,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 978 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 980 $  )
 
 
 #
@@ -162,7 +162,7 @@ ifneq ($(words $(filter $(BUILD_PLATFORM),$(KBUILD_OSES))),1)
  $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' is not recognized (valid: $(KBUILD_OSES)))
 endif
 
-ifneq (.$(BUILD_PLATFORM_ARCH).,.$(strip $(BUILD_PLATFORM_ARCH)).)
+ifneq (.$(words $(BUILD_PLATFORM_ARCH)).$(BUILD_PLATFORM_ARCH).,.1.$(strip $(BUILD_PLATFORM_ARCH)).)
  $(error kBuild: The BUILD_PLATFORM_ARCH value '$(BUILD_PLATFORM_ARCH)' contains spaces/tabs!)
 endif
 ifneq ($(words $(filter $(BUILD_PLATFORM_ARCH),$(KBUILD_ARCHES))),1)
@@ -190,7 +190,7 @@ endif
 ifndef BUILD_TARGET
  BUILD_TARGET := $(BUILD_PLATFORM)
 else
- ifneq (.$(words $(BUILD_TARGET)).$(BUILD_TARGET).,.$(strip $(BUILD_TARGET)).)
+ ifneq (.$(words $(BUILD_TARGET)).$(BUILD_TARGET).,.1.$(strip $(BUILD_TARGET)).)
   $(error kBuild: The BUILD_TARGET value '$(BUILD_TARGET)' contains spaces/tabs!)
  endif
  ifneq ($(words $(filter $(BUILD_TARGET),$(KBUILD_OSES))),1)
@@ -201,7 +201,7 @@ endif
 ifndef BUILD_TARGET_ARCH
  BUILD_TARGET_ARCH := $(BUILD_PLATFORM_ARCH)
 else
- ifneq (.$(BUILD_TARGET_ARCH).,.$(strip $(BUILD_TARGET_ARCH)).)
+ ifneq (.$(words $(BUILD_TARGET_ARCH)).$(BUILD_TARGET_ARCH).,.1.$(strip $(BUILD_TARGET_ARCH)).)
   $(error kBuild: The BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)' contains spaces/tabs!)
  endif
  ifneq ($(words $(filter $(BUILD_TARGET_ARCH),$(KBUILD_ARCHES))),1)
@@ -529,6 +529,11 @@ SDK_PATHS :=
 ## Proritized list of the default makefile when walking subdirectories.
 # The user can overload this list.
 DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
+
+
+#
+#
+#
 
 ## PROPS_TOOLS
 # This is a subset of the other PROPS
