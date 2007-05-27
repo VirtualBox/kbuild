@@ -1,4 +1,4 @@
-# $Id: Config.kmk 906 2007-05-23 05:39:24Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 952 2007-05-27 11:37:24Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -54,7 +54,7 @@ endif
 #
 # Where to fine the GNU Make stuff (for FreeBSD and Windows).
 #
-PATH_GNUMAKE_SRC               ?= $(PATH_ROOT)/src/gmake
+PATH_GNUMAKE_SRC               ?= $(PATH_ROOT)/src/kmk
 
 
 #
