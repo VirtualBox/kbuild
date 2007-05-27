@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #ifdef __sun__
 # undef va_copy /* why? */
 #endif
