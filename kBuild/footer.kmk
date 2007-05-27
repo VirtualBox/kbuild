@@ -1,4 +1,4 @@
-# $Id: footer.kmk 979 2007-05-27 19:05:11Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 981 2007-05-27 20:22:05Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -342,52 +342,33 @@ endif
 endef
 
 ## Inherit one acculumlative template property where the 'most significant' items are at the right end.
-# First pass, $(value) referenced.
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
-define def_inherit_template_one_accumulate_r1
+define def_inherit_template_one_accumulate_r
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-$(eval _$(target)_$(prop)_R = $(value $(target)_$(prop)))
+#$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
+$(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+#$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-$(eval _$(target)_$(prop).$(BUILD_TYPE)_R = $(value $(target)_$(prop).$(BUILD_TYPE)))
+#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+$(target)_$(prop).$(BUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-$(eval _$(target)_$(prop).$(bld_trg)_R = $(value $(target)_$(prop).$(bld_trg)))
+#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+$(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-$(eval _$(target)_$(prop).$(bld_trg).$(bld_trg_arch)_R = $(value $(target)_$(prop).$(bld_trg).$(bld_trg_arch)))
+#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-$(eval _$(target)_$(prop).$(bld_trg_cpu)_R = $(value $(target)_$(prop).$(bld_trg_cpu)))
+#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+$(target)_$(prop).$(bld_trg_cpu) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-$(eval _$(target)_$(prop).$(bld_trg_arch)_R = $(value $(target)_$(prop).$(bld_trg_arch)))
-endif
-endef
-
-## Inherit one template property the other way around.
-# Second pass, not $(value) referenced.
-# @param    $(prop)     Property name
-# @param    $(target)	Target name
-define def_inherit_template_one_accumulate_r2
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-$(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop)) $$(_$(target)_$(prop)_R)
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-$(target)_$(prop).$(BUILD_TYPE) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)) $$(_$(target)_$(prop).$(BUILD_TYPE)_R)
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-$(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)) $$(_$(target)_$(prop).$(bld_trg)_R)
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)) $$(_$(target)_$(prop).$(bld_trg).$(bld_trg_arch)_R)
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-$(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)) $$(_$(target)_$(prop).$(bld_trg_cpu)_R)
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)) $$(_$(target)_$(prop).$(bld_trg_arch)_R)
+#$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+$(target)_$(prop).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
 
@@ -411,11 +392,8 @@ endif
 ifneq ($($(target)_TEMPLATE),)
 $(foreach prop,$(PROPS_SINGLE),$(eval $(value def_inherit_template_one)))
 $(foreach prop,$(PROPS_DEFERRED),$(eval $(def_inherit_template_one_deferred))) # exploits the 2 evaluation, so no value!
-$(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulate_l))) # += works fine (better) without value.
-$(foreach prop,$(PROPS_ACCUMULATE_R),\
-$(eval $(value def_inherit_template_one_accumulate_r1))\
-$(eval $(def_inherit_template_one_accumulate_r2))\
-) # This is a hack! (but it appears to work)
+$(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulate_l))) # += works fine without value
+$(foreach prop,$(PROPS_ACCUMULATE_R),$(eval $(def_inherit_template_one_accumulate_r))) # use <= (kmk addition)
 endif
 endef
 
