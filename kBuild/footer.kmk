@@ -1,4 +1,4 @@
-# $Id: footer.kmk 981 2007-05-27 20:22:05Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 983 2007-05-27 20:46:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2292,11 +2292,7 @@ do-nothing:
 do-clean:
 	$(call MSG_CLEAN)
 	$(QUIET)$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
-ifeq ($(RMDIR),kmk_builtin_rmdir)
- ifeq ($(filter rsort,$(KMK_FEATURES)),rsort) # TODO: Drop this when switching gmake to the gmakenew code!
 	$(QUIET)$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
- endif
-endif
 
 
 
