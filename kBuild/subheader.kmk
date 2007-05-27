@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 979 2007-05-27 19:05:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile or sub-makefile.
@@ -76,12 +76,12 @@ else
  #
 
  # push the current old makefile onto the stack.
- $(call stack-push,_SUB_MAKEFILE_STACK,$(MAKEFILE_CURRENT))
+ $(stack-push _SUB_MAKEFILE_STACK,$(MAKEFILE_CURRENT))
 
  # the current makefile is the 2nd from the end of the MAKEFILE_LIST (we're the last one).
  __tmp := $(MAKEFILE_LIST)
- $(call stack-popv,__tmp)
- MAKEFILE_CURRENT := $(call stack-top,__tmp)
+ $(stack-popv __tmp)
+ MAKEFILE_CURRENT := $(stack-top __tmp)
  PATH_SUB_CURRENT := $(abspath $(dir $(MAKEFILE_CURRENT)))
 endif
 

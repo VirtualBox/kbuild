@@ -1,4 +1,4 @@
-# $Id: footer.kmk 966 2007-05-27 13:47:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 979 2007-05-27 19:05:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1426,10 +1426,10 @@ orderdeps   := $($(target)_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- objs := $(call abspathex,$(objs),$(defpath))
- deps := $(call abspathex,$(deps),$(defpath))
- orderdeps := $(call abspathex,$(orderdeps),$(defpath))
- othersrc := $(call abspathex,$(othersrc),$(defpath))
+ objs := $(abspathex $(objs),$(defpath))
+ deps := $(abspathex $(deps),$(defpath))
+ orderdeps := $(abspathex $(orderdeps),$(defpath))
+ othersrc := $(abspathex $(othersrc),$(defpath))
 endif
 
 
@@ -1726,11 +1726,11 @@ orderdeps   := $($(target)_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- libpath := $(call abspathex,$(libpath),$(defpath))
- objs := $(call abspathex,$(objs),$(defpath))
- deps := $(call abspathex,$(deps),$(defpath))
- orderdeps := $(call abspathex,$(orderdeps),$(defpath))
- othersrc := $(call abspathex,$(othersrc),$(defpath))
+ libpath := $(abspathex $(libpath),$(defpath))
+ objs := $(abspathex $(objs),$(defpath))
+ deps := $(abspathex $(deps),$(defpath))
+ orderdeps := $(abspathex $(orderdeps),$(defpath))
+ othersrc := $(abspathex $(othersrc),$(defpath))
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
 endif
 
@@ -2086,7 +2086,7 @@ flags := \
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
 ifdef $(target)_PATH
- srcsrc := $(call abspathex,$(srcsrc),$($(target)_PATH))
+ srcsrc := $(abspathex $(srcsrc),$($(target)_PATH))
 endif
 
 # create the command
