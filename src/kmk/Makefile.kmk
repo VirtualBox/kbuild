@@ -1,8 +1,7 @@
-# $Id: Makefile.kmk 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 953 2007-05-27 11:38:23Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
-PATH_GNUMAKE_SRC = $(PATH_ROOT)/src/gmakenew
 include $(PATH_KBUILD)/header.kmk
 
 
