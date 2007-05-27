@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 948 2007-05-27 05:57:14Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 949 2007-05-27 05:57:43Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -120,7 +120,7 @@ void init_kbuild(int argc, char **argv)
         szTmp[rc] == '\0';
 
 #elif defined(__OS2__)
-     _execname(tmp, GET_PATH_MAX);
+     _execname(szTmp, GET_PATH_MAX);
      rc = 0;
 
 #elif defined(WINDOWS32)
