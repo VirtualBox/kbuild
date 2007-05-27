@@ -1,4 +1,4 @@
-# $Id: GCC3.kmk 824 2007-02-01 06:24:02Z knut.osmundsen@oracle.com $
+# $Id: GCC3.kmk 973 2007-05-27 17:09:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x or later Using The System GCC and Binutils.
@@ -40,7 +40,7 @@ ifeq ($(BUILD_TARGET),os2)
 else
  TOOL_GCC3_AR_IMP ?= $(ECHO) not supported!
 endif
-TOOL_GCC3_LD ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC3_LD ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC3_LD_SYSMOD ?= ld$(HOSTSUFF_EXE)
 ifndef TOOL_GCC3_LDFLAGS.$(BUILD_TARGET)
  TOOL_GCC3_LDFLAGS.dll ?= -shared

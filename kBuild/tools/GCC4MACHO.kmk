@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 856 2007-03-09 05:01:03Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 973 2007-05-27 17:09:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -30,8 +30,8 @@ TOOL_GCC4MACHO := GCC v4 targeting Darwin (Mac OS X) Mach-o.
 TOOL_GCC4MACHO_CC  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_CXX ?= g++$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_AS  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LD  ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LD_SYSMOD ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LD  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LD_SYSMOD ?= gcc$(HOSTSUFF_EXE)
 ifndef TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET)
 TOOL_GCC4MACHO_LDFLAGS.dll ?= -dynamiclib
 else
