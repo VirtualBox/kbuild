@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 949 2007-05-27 05:57:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 961 2007-05-27 13:30:41Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -110,19 +110,30 @@ void init_kbuild(int argc, char **argv)
     if (rc < 0 || rc == GET_PATH_MAX - 1)
         rc = -1;
     else
-        szTmp[rc] == '\0';
+        szTmp[rc] = '\0';
 
 #elif defined(__gnu_linux__) /** @todo find proper define... */
     rc = readlink("/proc/self/exe", szTmp, GET_PATH_MAX - 1);
     if (rc < 0 || rc == GET_PATH_MAX - 1)
         rc = -1;
     else
-        szTmp[rc] == '\0';
+        szTmp[rc] = '\0';
 
 #elif defined(__OS2__)
-     _execname(szTmp, GET_PATH_MAX);
-     rc = 0;
+    _execname(szTmp, GET_PATH_MAX);
+    rc = 0;
 
+#elif defined(__sun__)
+    {
+        char szTmp2[64];
+        snprintf(szTmp2, sizeof(szTmp2), "/proc/%d/path/a.out", getpid());
+        rc = readlink(szTmp2, szTmp, GET_PATH_MAX - 1);
+        if (rc < 0 || rc == GET_PATH_MAX - 1)
+            rc = -1;
+        else
+            szTmp[rc] = '\0';
+    }
+    
 #elif defined(WINDOWS32)
     if (GetModuleFileName(GetModuleHandle(NULL), szTmp, GET_PATH_MAX))
         rc = 0;
