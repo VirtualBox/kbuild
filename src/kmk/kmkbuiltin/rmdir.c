@@ -114,16 +114,19 @@ kmk_builtin_rmdir(int argc, char *argv[])
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
 			if (	(!ignore_fail_on_non_empty || (errno != ENOTEMPTY && errno != EPERM && errno != EACCES && errno != EINVAL))
-				&& 	(!ignore_fail_on_not_exist || errno != ENOENT)) {
+			    &&	(!ignore_fail_on_not_exist || errno != ENOENT)) {
 				warn("%s", *argv);
 				errors = 1;
+				continue;
 			}
-		} else {
-			if (vflag)
-				printf("%s\n", *argv);
-			if (pflag)
-				errors |= rm_path(*argv);
+			if (!ignore_fail_on_not_exist || errno != ENOENT)
+				continue;
+			/* (only ignored doesn't exist errors fall thru) */
+		} else if (vflag) {
+			printf("%s\n", *argv);
 		}
+		if (pflag)
+			errors |= rm_path(*argv);
 	}
 
 	return errors;
