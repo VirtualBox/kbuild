@@ -1,4 +1,4 @@
-# $Id: header.kmk 980 2007-05-27 19:57:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 984 2007-05-28 19:41:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -32,7 +32,7 @@ ifndef __header_kmk__
 # Check make version before we do anything else.
 #
 ifndef KMK_VERSION
- $(error kBuild: The kmk default variable KMK_VERSION isn't defined! Make sure you are using 'kmk' and not 'make', 'gmake', 'kmk_gmake', 'dmake' or any other make program.)
+ $(error kBuild: The kmk default variable KMK_VERSION isn't defined! Make sure you are using 'kmk' and not 'make', 'gmake', 'kmk_gmake', 'dmake' or any other make program)
 endif
 ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
  ifneq ($(KBUILD_VERSION_MAJOR),0)
@@ -46,7 +46,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 980 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 984 $  )
 
 
 #
@@ -128,7 +128,7 @@ EQUAL := =
 # When kBuild is ported to a new OS or architecture a unique keyword needs
 # to be assigned to it and added here. This strictness is required because
 # this keyword namespace is shared between OSes, architectures, cpus and
-# build types.
+# build types. (PORTME)
 #
 KBUILD_OSES   = darwin freebsd l4 linux netbsd nt openbsd os2 solaris win
 KBUILD_ARCHES = x86 amd64 sparc32 sparc64 mips32 mips64 ppc32 ppc64
@@ -303,7 +303,9 @@ MAKEFILE_CURRENT    := $(MAKEFILE)
 
 #
 # Build platform setup.
+# (PORTME)
 #
+
 # OS/2
 ifeq ($(BUILD_PLATFORM),os2)
 EXEC_X86_WIN32      := innopec.exe
@@ -343,6 +345,7 @@ endif
 
 #
 # Build target setup.
+# (PORTME)
 #
 SUFF_DEP            := .dep
 ifeq ($(filter-out win32 win64 win nt os2,$(BUILD_TARGET)),)
@@ -468,7 +471,7 @@ LN_SYMLINK  := $(LN) -s
 #
 # @param	$1	The paths to make absolute.
 # @obsolete Use the GNU make function $(abspath) directly now.
-ABSPATH = $(abspath $(1))
+ABSPATH = $(abspath $(1))$(warning ABSPATH is deprecated, use abspath directly!)
 
 ## DIRDEP - make create directory dependencies.
 #
@@ -509,10 +512,6 @@ TARGET_PATH = $(PATH_TARGET)/$(1)
 # Initialize some of the globals which the Config.kmk and
 # others can add stuff to if they like for processing in the footer.
 #
-
-## ALL_TARGET
-# This is the list of all targets.
-ALL_TARGETS :=
 
 ## TEMPLATE_PATHS
 # List a paths (separated by space) where templates can be found.
@@ -708,6 +707,20 @@ PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
 
 
 #
+# Check for --pretty-command-printing before including the Config.kmk
+# so that anyone overriding the message macros can take the implied
+# verbosity level change into account.
+#
+ifndef KBUILD_VERBOSE
+ ifndef KBUILD_QUIET
+  ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
+   export KBUILD_VERBOSE := 2
+  endif
+ endif
+endif
+
+
+#
 # This is how we find the closest config.kmk.
 # It's a little hacky but I think it works fine.
 #
@@ -726,21 +739,6 @@ _CFGDIR     :=
 ifeq ($(_CFGFILE),)
 $(error kBuild: no Config.kmk file found! Check the DEPTH: DEPTH='$(DEPTH)' PATH_CURRENT='$(PATH_CURRENT)')
 endif
-
-
-#
-# Check for --pretty-command-printing before including the Config.kmk
-# so that anyone overriding the message macros can take the implied
-# verbosity level change into account.
-#
-ifndef KBUILD_VERBOSE
- ifndef KBUILD_QUIET
-  ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
-   export KBUILD_VERBOSE := 2
-  endif
- endif
-endif
-
 
 # Include the config.kmk we found file (or the default one).
 include $(_CFGFILE)

@@ -1,4 +1,4 @@
-# $Id: footer.kmk 983 2007-05-27 20:46:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 984 2007-05-28 19:41:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -33,7 +33,7 @@ ifndef __footer_kmk__
 #
 
 # all targets.
-ALL_TARGETS += \
+_ALL_TARGETS := \
 	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
@@ -46,7 +46,7 @@ ALL_TARGETS += \
 	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
 
 # all $(BUILD_TARGET) targets.
-_ALL_BUILD_TARGET_TARGETS += \
+_ALL_BUILD_TARGET_TARGETS := \
 	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
@@ -58,11 +58,23 @@ _ALL_BUILD_TARGET_TARGETS += \
 	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
 
 # all $(BUILD_TARGET) targets.
-_ALL_BUILD_PLATFORM_TARGETS += \
+_ALL_BUILD_PLATFORM_TARGETS := \
 	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH))
 
+## all linkable targets.
+#_ALL_LINKABLE_TARGETS := \
+#	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+#	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+#	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+#	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+#
+## all library targets.
+#_ALL_LIBRARY_TARGETS := \
+#	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+#	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+
 # all targets making use of srcname.
-_ALL_SRCNAME_TARGETS += \
+_ALL_SRCNAME_TARGETS := \
 	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
 	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
 
@@ -105,8 +117,9 @@ _IMPORT_LIBS :=
 pass_prev :=
 
 
+
 #
-# Basic macros
+# Footer macros
 #
 
 ## Figure out the tool for a target.
@@ -137,14 +150,6 @@ _TARGET_TOOL = $(strip $(firstword \
 _INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/))
 
 
-#
-# Include the additional footer macros when bootstrapping kBuild.
-#
-ifndef KMK_VERSION
- include $(PATH_KBUILD)/gnumake-footer.kmk
-endif
-
-
 
 #
 # Check syntax which leads to weird syntax errors.
@@ -157,7 +162,13 @@ ifneq ("$($(target)_TEMPLATE)","$(strip $($(target)_TEMPLATE))")
 $$(error $(target) have an incorrect template name. Remove any tabs!)
 endif
 endef
-$(foreach target, $(ALL_TARGETS),$(eval $(def_check_target)))
+$(foreach target, $(_ALL_TARGETS),$(eval $(def_check_target)))
+
+
+#
+# Target inheritance.
+#
+# $ (foreach ...
 
 
 #
@@ -169,7 +180,7 @@ ifdef $(target)_TEMPLATE
 _TEMPLATES += $($(target)_TEMPLATE)
 endif
 endef
-$(foreach target, $(ALL_TARGETS), $(eval $(def_templates)))
+$(foreach target, $(_ALL_TARGETS), $(eval $(def_templates)))
 _TEMPLATES := $(sort $(_TEMPLATES))
 # $ (warning dbg: _TEMPLATES=$(_TEMPLATES))
 
@@ -1138,18 +1149,11 @@ else
  _DEP_COMPILE_CMDS =
 endif
 
-## Temporary macro for testing the new multi target rules.
-ifdef USE_MULTI_TARGET
- _M_PLUSS=+
-else
- _M_PLUSS=
-endif
-
 ## Generates the rules for building a specific object, and the aliases
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
-$(obj) $(_M_PLUSS) $($(target)_$(source)_OUTPUT_): \
+$(obj) + $($(target)_$(source)_OUTPUT_) : \
 		$($(target)_$(source)_DEPEND_) \
 		$(_DEP_COMPILE_CMDS) \
 		| \
@@ -1193,7 +1197,7 @@ endif
 # @param    $($(target)_CMDS_)      The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
-$(out) $(_M_PLUSS) $($(target)_OUTPUT_): \
+$(out) + $($(target)_OUTPUT_) : \
 		$($(target)_DEPEND_) \
 		$(_DEP_LINK_CMDS) \
 		| \
@@ -2455,7 +2459,7 @@ installs:  $(_INSTALLS) $(_INSTALLS_DIRS) $(_INSTALLS_FILES)
 # kBuild debugging stuff.
 #
 show_targets:
-	@$(foreach target, $(ALL_TARGETS),\
+	@$(foreach target, $(_ALL_TARGETS),\
 	@$(ECHO) "target: $(target)" $(NLTAB)\
 	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
 	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
