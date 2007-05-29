@@ -3045,7 +3045,7 @@ func_nanots (char *o, char **argv, const char *funcname)
       GetSystemTimeAsFileTime (&ft);
       bigint.u.LowPart = ft.dwLowDateTime;
       bigint.u.HighPart = ft.dwLowDateTime;
-      ts = bigint.QuadPart * 10000;
+      ts = bigint.QuadPart * 100;
     }
 
 /* FIXME: Linux and others has the realtime clock_* api, detect and use it. */
