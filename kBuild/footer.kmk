@@ -1,4 +1,4 @@
-# $Id: footer.kmk 988 2007-05-29 03:52:30Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 989 2007-05-29 04:09:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -354,13 +354,27 @@ $(foreach trg, $(_ALL_BLDPROGS) $(_ALL_PROGRAMS),$(eval $(value def_inherit)))
 properties          := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_SINGLE))
 properties_now      := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_ACCUMULATE_R) $(PROPS_LIBRARIES_ACCUMULATE_L))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_DEFERRED))
-$(foreach trg, $(_ALL_LIBRARIES) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
+ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+ $(foreach trg, $(_ALL_LIBRARIES) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
+else
+ $(foreach trg, $(_ALL_LIBRARIES),$(eval $(value def_inherit)))
+endif
 
 # DLLs.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_DLLS_SINGLE))
 properties_now      := $(call _COMB_KEY_PROP,$(PROPS_DLLS_ACCUMULATE_R) $(PROPS_DLLS_ACCUMULATE_L))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_DLLS_DEFERRED))
-$(foreach trg, $(_ALL_DLLS),$(eval $(value def_inherit)))
+ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+ $(foreach trg, $(_ALL_DLLS),$(eval $(value def_inherit)))
+else
+ $(foreach trg, $(_ALL_DLLS) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
+endif
+
+# System modules.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_ACCUMULATE_R) $(PROPS_SYSMODS_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_DEFERRED))
+$(foreach trg, $(_ALL_SYSMODS),$(eval $(value def_inherit)))
 
 # Installs.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_SINGLE))

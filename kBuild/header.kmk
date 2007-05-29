@@ -1,4 +1,4 @@
-# $Id: header.kmk 988 2007-05-29 03:52:30Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 989 2007-05-29 04:09:17Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 988 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 989 $  )
 
 
 #
@@ -614,7 +614,7 @@ PROPS_PROGRAMS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 
 ## @name Properties valid on libraries (LIBRARIES and IMPORT_LIBS)
 ## @{
-PROPS_LIBRARIES_SINGLE       := $(PROPS_SINGLE_LNK) ARTOOL LIBSUFF ARLIBSUFF
+PROPS_LIBRARIES_SINGLE       := $(PROPS_SINGLE_LNK) ARTOOL LIBSUFF ARLIBSUFF LIBSUFF
 PROPS_LIBRARIES_DEFERRED     := $(filter-out SONAME,$(PROPS_DEFERRED))
 PROPS_LIBRARIES_ACCUMULATE_R := $(PROPS_ACCUMULATE_R_LNK) ARFLAGS
 PROPS_LIBRARIES_ACCUMULATE_L := $(PROPS_ACCUMULATE_L_LNK)
@@ -626,6 +626,14 @@ PROPS_DLLS_SINGLE            := $(PROPS_SINGLE_LNK) LDTOOL DLLSUFF LIBSUFF
 PROPS_DLLS_DEFERRED          := $(PROPS_DEFERRED)
 PROPS_DLLS_ACCUMULATE_R      := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
 PROPS_DLLS_ACCUMULATE_L      := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
+## @}
+
+## @name Properties valid on system modules (SYSMODS)
+## @{
+PROPS_SYSMODS_SINGLE         := $(PROPS_SINGLE_LNK) LDTOOL SYSSUFF
+PROPS_SYSMODS_DEFERRED       := $(PROPS_DEFERRED)
+PROPS_SYSMODS_ACCUMULATE_R   := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
+PROPS_SYSMODS_ACCUMULATE_L   := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 ## @}
 
 ## @name Properties valid on installs (INSTALLS)
