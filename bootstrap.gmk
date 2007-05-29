@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 996 2007-05-29 21:18:10Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 998 2007-05-29 21:25:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -125,7 +125,7 @@ $(OUTDIR)/ts-stage2-build: \
 	echo done > $@
 
 $(OUTDIR)/ts-stage2-install: $(OUTDIR)/ts-stage2-build
-	$(OUTDIR)/kmk/kmk -C $(SRCDIR) PATH_INS=`pwd` install
+	$(OUTDIR)/kmk/kmk -C $(SRCDIR) PATH_INS=$(SRCDIR) install
 	echo done > $@
 
 
