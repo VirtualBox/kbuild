@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 993 2007-05-29 19:47:54Z knut.osmundsen@oracle.com $
+# $Id: env.sh 994 2007-05-29 20:00:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -29,11 +29,11 @@
 #
 # Determin the kBuild path from the script location.
 #
-if [ -z "$PATH_KBUILD" ]; then
+if test -z "$PATH_KBUILD"; then
     PATH_KBUILD=`dirname "$0"`
     PATH_KBUILD=`cd "$PATH_KBUILD" ; /bin/pwd`
 fi
-if [ ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f "$PATH_KBUILD/rules.kmk" ]; then
+if test ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f "$PATH_KBUILD/rules.kmk"; then
     echo "$0: error: PATH_KBUILD ($PATH_KBUILD) is not pointing to a popluated kBuild directory.";
     sleep 1;
     exit 1;
@@ -44,7 +44,7 @@ echo "dbg: PATH_KBUILD=$PATH_KBUILD"
 #
 # Set default build type.
 #
-if [ -z "$BUILD_TYPE" ]; then
+if test -z "$BUILD_TYPE"; then
     BUILD_TYPE=release
 fi
 export BUILD_TYPE
@@ -57,9 +57,54 @@ echo "dbg: BUILD_TYPE=$BUILD_TYPE"
 # arch and platform (and build type) share a common key space, try make
 # sure any new additions are unique. (See header.kmk, KBUILD_OSES/ARCHES.)
 #
-if [ -z "$BUILD_PLATFORM_ARCH" ]; then
+if test -z "$BUILD_PLATFORM"; then
+    BUILD_PLATFORM=`uname`
+    case "$BUILD_PLATFORM" in
+        linux|Linux|GNU/Linux|LINUX)
+            BUILD_PLATFORM=linux
+            ;;
+
+        os2|OS/2|OS2)
+            BUILD_PLATFORM=os2
+            ;;
+
+        freebsd|FreeBSD|FREEBSD)
+            BUILD_PLATFORM=freebsd
+            ;;
+
+        openbsd|OpenBSD|OPENBSD)
+            BUILD_PLATFORM=openbsd
+            ;;
+
+        netbsd|NetBSD|NETBSD)
+            BUILD_PLATFORM=netbsd
+            ;;
+
+        Darwin|darwin)
+            BUILD_PLATFORM=darwin
+            ;;
+
+        SunOS)
+            BUILD_PLATFORM=solaris
+            ;;
+
+        WindowsNT|CYGWIN_NT-*)
+            BUILD_PLATFORM=win
+            ;;
+
+        *)
+            echo "$0: unknown os $BUILD_PLATFORM"
+            sleep 1
+            exit 1
+            ;;
+    esac
+fi
+export BUILD_PLATFORM
+echo "dbg: BUILD_PLATFORM=$BUILD_PLATFORM"
+
+if test -z "$BUILD_PLATFORM_ARCH"; then
     # Try deduce it from the cpu if given.
-    if [ -s "$BUILD_PLATFORM_CPU" ]; then
+    if test -s "$BUILD_PLATFORM_CPU"; then
         case "$BUILD_PLATFORM_CPU" in
             i[3456789]86)
                 BUILD_PLATFORM_ARCH='x86'
@@ -70,7 +115,7 @@ if [ -z "$BUILD_PLATFORM_ARCH" ]; then
         esac
     fi
 fi
-if [ -z "$BUILD_PLATFORM_ARCH" ]; then
+if test -z "$BUILD_PLATFORM_ARCH"; then
     # Use uname (lots of guesses here, please help clean this up...)
     BUILD_PLATFORM_ARCH=`uname -m`
     case "$BUILD_PLATFORM_ARCH" in
@@ -129,79 +174,37 @@ fi
 export BUILD_PLATFORM_ARCH
 echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH"
 
-if [ -z "$BUILD_PLATFORM_CPU" ]; then
+if test -z "$BUILD_PLATFORM_CPU"; then
     BUILD_PLATFORM_CPU="blend"
 fi
 export BUILD_PLATFORM_CPU
 echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
 
-if [ -z "$BUILD_PLATFORM" ]; then
-    BUILD_PLATFORM=`uname`
-    case "$BUILD_PLATFORM" in
-        linux|Linux|GNU/Linux|LINUX)
-            BUILD_PLATFORM=linux
-            ;;
-
-        os2|OS/2|OS2)
-            BUILD_PLATFORM=os2
-            ;;
-
-        freebsd|FreeBSD|FREEBSD)
-            BUILD_PLATFORM=freebsd
-            ;;
-
-        openbsd|OpenBSD|OPENBSD)
-            BUILD_PLATFORM=openbsd
-            ;;
-
-        netbsd|NetBSD|NETBSD)
-            BUILD_PLATFORM=netbsd
-            ;;
-
-        Darwin|darwin)
-            BUILD_PLATFORM=darwin
-            ;;
-
-        SunOS)
-            BUILD_PLATFORM=solaris
-            ;;
-
-        WindowsNT|CYGWIN_NT-*)
-            BUILD_PLATFORM=win
-            ;;
-
-        *)
-            echo "$0: unknown os $BUILD_PLATFORM"
-            sleep 1
-            exit 1
-            ;;
-    esac
-fi
-export BUILD_PLATFORM
-echo "dbg: BUILD_PLATFORM=$BUILD_PLATFORM"
-
-
 #
 # The target platform.
 # Defaults to the host when not specified.
 #
-if [ -z "$BUILD_TARGET_CPU" ]; then
-    BUILD_TARGET_CPU="$BUILD_PLATFORM_CPU"
+if test -z "$BUILD_TARGET"; then
+    BUILD_TARGET="$BUILD_PLATFORM"
 fi
-export BUILD_TARGET_CPU
-echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU"
+export BUILD_TARGET
+echo "dbg: BUILD_TARGET=$BUILD_TARGET"
 
-if [ -z "$BUILD_TARGET_ARCH" ]; then
+if test -z "$BUILD_TARGET_ARCH"; then
     BUILD_TARGET_ARCH="$BUILD_PLATFORM_ARCH"
 fi
 export BUILD_TARGET_ARCH
 echo "dbg: BUILD_TARGET_ARCH=$BUILD_TARGET_ARCH"
 
-if [ -z "$BUILD_TARGET" ]; then
-    BUILD_TARGET="$BUILD_PLATFORM"
+if test -z "$BUILD_TARGET_CPU"; then
+    if test "$BUILD_TARGET_ARCH" = "$BUILD_PLATFORM_ARCH"; then
+        BUILD_TARGET_CPU="$BUILD_PLATFORM_CPU"
+    else
+        BUILD_TARGET_CPU="blend"
+    fi
 fi
-export BUILD_TARGET
-echo "dbg: BUILD_TARGET=$BUILD_TARGET"
+export BUILD_TARGET_CPU
+echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU"
 
 
 # Determin executable extension and path separator.
@@ -226,13 +229,13 @@ export PATH
 echo "dbg: PATH=$PATH"
 
 # Sanity and x bits.
-if [ ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/" ]; then
+if test ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/"; then
     echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/)"
 else
     for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed;
     do
         chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog} > /dev/null 2>&1
-        if [ ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE}" ]; then
+        if test ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE}"; then
             echo "$0: warning: The ${prog} program doesn't exist for this platform. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE})"
         fi
     done
@@ -242,9 +245,9 @@ unset _SUFF_EXE
 unset _PATH_SEP
 
 # Execute command or spawn shell.
-if [ $# -eq 0 ]; then
+if test $# -eq 0; then
     echo "$0: info: Spawning work shell..."
-    if [ "$TERM" != 'dumb'  ] && [ -n "$BASH" ]; then
+    if test "$TERM" != 'dumb'  -a  -n "$BASH"; then
         export PS1='\[\033[01;32m\]\u@\h \[\033[01;34m\]\W \$ \[\033[00m\]'
     fi
     $SHELL -i

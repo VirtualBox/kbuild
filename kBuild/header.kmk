@@ -1,4 +1,4 @@
-# $Id: header.kmk 992 2007-05-29 19:45:16Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 994 2007-05-29 20:00:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 992 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 994 $  )
 
 
 #
@@ -176,16 +176,17 @@ ifneq ($(words $(filter $(BUILD_PLATFORM_ARCH),$(KBUILD_ARCHES))),1)
 endif
 
 ifeq ($(strip $(BUILD_PLATFORM_CPU)),)
- $(error kBuild: The BUILD_PLATFORM_CPU value is missing (should be set by kmk)!)
-endif
-ifneq (.$(words $(BUILD_PLATFORM_CPU)).$(BUILD_PLATFORM_CPU).,.1.$(strip $(BUILD_PLATFORM_CPU)).)
- $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' contains spaces/tabs!)
-endif
-ifneq ($(filter $(BUILD_PLATFORM_CPU), $(KBUILD_OSES) $(BUILD_ARCHES)),)
- $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' was found in the OS or architecture keywords!)
-endif
-ifeq ($(BUILD_PLATFORM_CPU),$(BUILD_TYPE))
- $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' is the same as the BUILD_TYPE!)
+ BUILD_PLATFORM_CPU := blend
+else
+ ifneq (.$(words $(BUILD_PLATFORM_CPU)).$(BUILD_PLATFORM_CPU).,.1.$(strip $(BUILD_PLATFORM_CPU)).)
+  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' contains spaces/tabs!)
+ endif
+ ifneq ($(filter $(BUILD_PLATFORM_CPU), $(KBUILD_OSES) $(BUILD_ARCHES)),)
+  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' was found in the OS or architecture keywords!)
+ endif
+ ifeq ($(BUILD_PLATFORM_CPU),$(BUILD_TYPE))
+  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' is the same as the BUILD_TYPE!)
+ endif
 endif
 
 
@@ -217,10 +218,13 @@ endif
 
 ifndef BUILD_TARGET_CPU
  BUILD_TARGET_CPU := $(BUILD_PLATFORM_CPU)
-else
- ifeq ($(strip $(BUILD_TARGET_CPU)),)
-  $(error kBuild: The BUILD_TARGET_CPU value is missing (should be set by kmk)!)
+else ifeq ($(strip $(BUILD_TARGET_CPU)),)
+ ifeq ($(BUILD_TARGET_ARCH),$(BUILD_PLATFORM_ARCH))
+  BUILD_TARGET_CPU := $(BUILD_PLATFORM_CPU)
+ else
+  BUILD_TARGET_CPU := blend
  endif
+else
  ifneq (.$(words $(BUILD_TARGET_CPU)).$(BUILD_TARGET_CPU).,.1.$(strip $(BUILD_TARGET_CPU)).)
   $(error kBuild: The BUILD_TARGET_CPU value '$(BUILD_TARGET_CPU)' contains spaces/tabs!)
  endif
