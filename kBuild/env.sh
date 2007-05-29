@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 992 2007-05-29 19:45:16Z knut.osmundsen@oracle.com $
+# $Id: env.sh 993 2007-05-29 19:47:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -129,7 +129,7 @@ fi
 export BUILD_PLATFORM_ARCH
 echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH"
 
-if [ -s "$BUILD_PLATFORM_CPU" ]; then
+if [ -z "$BUILD_PLATFORM_CPU" ]; then
     BUILD_PLATFORM_CPU="blend"
 fi
 export BUILD_PLATFORM_CPU
