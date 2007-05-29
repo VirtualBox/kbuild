@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 811 2007-01-29 06:20:50Z knut.osmundsen@oracle.com $
+# $Id: env.sh 992 2007-05-29 19:45:16Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -26,7 +26,9 @@
 #
 #set -x
 
-# kBuild path.
+#
+# Determin the kBuild path from the script location.
+#
 if [ -z "$PATH_KBUILD" ]; then
     PATH_KBUILD=`dirname "$0"`
     PATH_KBUILD=`cd "$PATH_KBUILD" ; /bin/pwd`
@@ -39,34 +41,84 @@ fi
 export PATH_KBUILD
 echo "dbg: PATH_KBUILD=$PATH_KBUILD"
 
-# Type.
+#
+# Set default build type.
+#
 if [ -z "$BUILD_TYPE" ]; then
     BUILD_TYPE=release
 fi
 export BUILD_TYPE
 echo "dbg: BUILD_TYPE=$BUILD_TYPE"
 
-
-# Host platform.
-if [ -z "$BUILD_PLATFORM_CPU" ]; then
-    BUILD_PLATFORM_CPU=`uname -m`
-    case "$BUILD_PLATFORM_CPU" in
-        x86_64|AMD64|amd64)
-           BUILD_PLATFORM_CPU='k8'
-           ;;
-    esac
-fi
-export BUILD_PLATFORM_CPU
-echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
-
+#
+# Determin the host platform.
+#
+# The CPU isn't important, only the other two are.  But, since the cpu,
+# arch and platform (and build type) share a common key space, try make
+# sure any new additions are unique. (See header.kmk, KBUILD_OSES/ARCHES.)
+#
 if [ -z "$BUILD_PLATFORM_ARCH" ]; then
-    case "$BUILD_PLATFORM_CPU" in
-        i[3456789]86|i86pc)
-            BUILD_PLATFORM_ARCH='x86'
-            ;;
-        k8|k8l|k9|k10)
+    # Try deduce it from the cpu if given.
+    if [ -s "$BUILD_PLATFORM_CPU" ]; then
+        case "$BUILD_PLATFORM_CPU" in
+            i[3456789]86)
+                BUILD_PLATFORM_ARCH='x86'
+                ;;
+            k8|k8l|k9|k10)
+                BUILD_PLATFORM_ARCH='amd64'
+                ;;
+        esac
+    fi
+fi
+if [ -z "$BUILD_PLATFORM_ARCH" ]; then
+    # Use uname (lots of guesses here, please help clean this up...)
+    BUILD_PLATFORM_ARCH=`uname -m`
+    case "$BUILD_PLATFORM_ARCH" in
+        x86_64|AMD64|amd64|k8|k8l|k9|k10)
             BUILD_PLATFORM_ARCH='amd64'
             ;;
+        x86|i86pc|ia32|i[3456789]86)
+            BUILD_PLATFORM_ARCH='x86'
+            ;;
+        sparc32|sparc)
+            BUILD_PLATFORM_ARCH='sparc32'
+            ;;
+        sparc64)
+            BUILD_PLATFORM_ARCH='sparc64'
+            ;;
+        s390)
+            ## @todo: 31-bit vs 64-bit on the mainframe?
+            BUILD_PLATFORM_ARCH='s390'
+            ;;
+        ppc32|ppc|powerpc)
+            BUILD_PLATFORM_ARCH='ppc32'
+            ;;
+        ppc64|powerpc64)
+            BUILD_PLATFORM_ARCH='ppc64'
+            ;;
+        mips32|mips)
+            BUILD_PLATFORM_ARCH='mips32'
+            ;;
+        mips64)
+            BUILD_PLATFORM_ARCH='mips64'
+            ;;
+        ia64)
+            BUILD_PLATFORM_ARCH='ia64'
+            ;;
+        #hppa32|hppa|parisc32|parisc)?
+        hppa32|parisc32)
+            BUILD_PLATFORM_ARCH='hppa32'
+            ;;
+        hppa64|parisc64)
+            BUILD_PLATFORM_ARCH='hppa64'
+            ;;
+        arm)
+            BUILD_PLATFORM_ARCH='arm'
+            ;;
+        alpha)
+            BUILD_PLATFORM_ARCH='alpha'
+            ;;
+
         *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_CPU"
             sleep 1
             exit 1
@@ -77,6 +129,11 @@ fi
 export BUILD_PLATFORM_ARCH
 echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH"
 
+if [ -s "$BUILD_PLATFORM_CPU" ]; then
+    BUILD_PLATFORM_CPU="blend"
+fi
+export BUILD_PLATFORM_CPU
+echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU"
 
 if [ -z "$BUILD_PLATFORM" ]; then
     BUILD_PLATFORM=`uname`
@@ -124,33 +181,24 @@ export BUILD_PLATFORM
 echo "dbg: BUILD_PLATFORM=$BUILD_PLATFORM"
 
 
-# Target platform.
+#
+# The target platform.
+# Defaults to the host when not specified.
+#
 if [ -z "$BUILD_TARGET_CPU" ]; then
-    BUILD_TARGET_CPU=$BUILD_PLATFORM_CPU
+    BUILD_TARGET_CPU="$BUILD_PLATFORM_CPU"
 fi
 export BUILD_TARGET_CPU
 echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU"
 
 if [ -z "$BUILD_TARGET_ARCH" ]; then
-    case "$BUILD_TARGET_CPU" in
-        i[3456789]86|i86pc)
-            BUILD_TARGET_ARCH='x86'
-            ;;
-        k8|k8l|k9|k10)
-            BUILD_TARGET_ARCH='amd64'
-            ;;
-        *)  echo "$0: unknown cpu/arch - $BUILD_TARGET_CPU"
-            sleep 1
-            exit 1
-            ;;
-    esac
-
+    BUILD_TARGET_ARCH="$BUILD_PLATFORM_ARCH"
 fi
 export BUILD_TARGET_ARCH
 echo "dbg: BUILD_TARGET_ARCH=$BUILD_TARGET_ARCH"
 
 if [ -z "$BUILD_TARGET" ]; then
-    BUILD_TARGET=$BUILD_PLATFORM
+    BUILD_TARGET="$BUILD_PLATFORM"
 fi
 export BUILD_TARGET
 echo "dbg: BUILD_TARGET=$BUILD_TARGET"
@@ -160,16 +208,19 @@ echo "dbg: BUILD_TARGET=$BUILD_TARGET"
 _SUFF_EXE=
 _PATH_SEP=":"
 case "$BUILD_PLATFORM" in
-    os2|win|win32|win64|nt|winnt|win2k|winxp)
+    os2|win|nt)
         _SUFF_EXE=".exe"
         _PATH_SEP=";"
         ;;
 esac
 
-# Make shell
+# Make shell. OS/2 and DOS only?
 export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/kmk_ash${_SUFF_EXE}";
 
-# The PATH.
+#
+# Add the bin/x.y/ directory to the PATH.
+# NOTE! Once bootstrapped this is the only thing that is actually necessary.
+#
 PATH="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${_PATH_SEP}$PATH"
 export PATH
 echo "dbg: PATH=$PATH"
