@@ -3050,7 +3050,7 @@ func_nanots (char *o, char **argv, const char *funcname)
 
 /* FIXME: Linux and others has the realtime clock_* api, detect and use it. */
 
-#elif HAVE_GETTIMEOF_DAY
+#elif HAVE_GETTIMEOFDAY
   struct timeval tv;
   if (!gettimeofday (&tv, NULL))
     ts = (math_int)tv.tv_sec * 1000000000
