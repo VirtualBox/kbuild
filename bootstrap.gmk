@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 998 2007-05-29 21:25:30Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 999 2007-05-29 21:29:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -129,11 +129,26 @@ $(OUTDIR)/ts-stage2-install: $(OUTDIR)/ts-stage2-build
 	echo done > $@
 
 
-##
-## Clean the output files...
-##
-#clean:
-#	rm -Rf $(OUTDIR)
+#
+# Clean the output files...
+#
+clean:
+	rm -Rf $(SRCDIR)/out/ \
+		$(SRCDIR)/src/kmk/autom4te.cache/ \
+		$(SRCDIR)/src/sed/autom4te.cache/
+	rm -f $(SRCDIR)/src/kmk/Makefile.in \
+		$(SRCDIR)/src/kmk/config.h.in \
+		$(SRCDIR)/src/kmk/configure \
+		$(SRCDIR)/src/kmk/aclocal.m4 \
+		$(SRCDIR)/src/kmk/glob/Makefile.in \
+		$(SRCDIR)/src/kmk/config/Makefile.in \
+		$(SRCDIR)/src/kmk/config/depcomp \
+		$(SRCDIR)/src/kmk/config/compile \
+		$(SRCDIR)/src/kmk/config/missing \
+		$(SRCDIR)/src/kmk/config/config.guess \
+		$(SRCDIR)/src/kmk/config/config.sub \
+		$(SRCDIR)/src/kmk/config/install-sh \
+		$(SRCDIR)/src/kmk/w32/Makefile.in
 
 
 # can't hurt...
