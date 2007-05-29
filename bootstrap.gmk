@@ -1,0 +1,129 @@
+# $Id: bootstrap.gmk 995 2007-05-29 20:52:03Z knut.osmundsen@oracle.com $
+## @file
+#
+# GNU Make Compatible bootstrap Makefile.
+#
+# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+
+
+#
+# ASSUMES:
+#   - BUILD_TARGET, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU in the env.
+#   - PATH_KBUILD points to ./kBuild with an absolute path.
+#   - Current directory == bootstrap.gmk directory.
+#   - mkdir -p works.
+#   - ln -s works
+#   - cp -f works
+#   - cd somedir && command works.
+#   - echo done > file works.
+#
+# Tip. kBuild/env.sh (g)make -f bootstrap.kmk
+#
+#
+
+#
+# OPTIONAL:
+#   Set env.var. NIX_INSTALL_DIR to /usr/local or /usr
+#   (see Config.kmk and wiki for details)
+#
+
+srcdir = .
+OUTDIR = $(srcdir)/out/$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)/$(BUILD_TYPE)/bootstrap
+
+.NOTPARALLEL:
+
+.PHONEY: all stage1 stage2
+all: stage1
+
+#
+# Stage 1 - Build bootstrap kmk and sed, refresh config.h caches, link
+#           up kmk_ash so $(OUTDIR)/kmk can serve as kBuild bin dir.
+#
+stage1: \
+    $(OUTDIR)/kmk/kmk \
+    $(OUTDIR)/kmk/kmk_ash \
+    $(OUTDIR)/kmk/kmk_sed \
+    $(srcdir)/src/kmk/config.h.$(BUILD_TARGET) \
+    $(srcdir)/src/sed/config.h.$(BUILD_TARGET)
+
+# kmk
+$(OUTDIR)/kmk/:
+    mkdir -p $@
+
+$(OUTDIR)/kmk/ts-autoreconf: $(OUTDIR)/kmk/
+    cd $(srcdir)/src/kmk && autoreconf -i -v
+    echo done > $@
+
+$(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
+    cd $(OUTDIR)/kmk && $(srcdir)/src/kmk/configure
+    echo done > $@
+
+$(OUTDIR)/kmk/config.h: $(OUTDIR)/kmk/ts-configured
+
+$(srcdir)/src/kmk/config.h.$(BUILD_TARGET): $(OUTDIR)/kmk/config.h
+    cp -f $(OUTDIR)/kmk/config.h $(srcdir)/src/kmk/config.h.$(BUILD_TARGET)
+
+$(OUTDIR)/kmk/kmk: $(OUTDIR)/kmk/ts-configured
+    $(MAKE) -C $(@D)
+
+# sed
+$(OUTDIR)/sed/:
+    mkdir -p $@
+
+$(OUTDIR)/sed/ts-autoreconf: $(OUTDIR)/sed/
+    cd $(srcdir)/src/sed && autoreconf -i -v
+    echo done > $@
+
+$(OUTDIR)/sed/ts-configured: $(OUTDIR)/sed/ts-autoreconf
+    cd $(OUTDIR)/sed && $(srcdir)/src/sed/configure --without-libintl --disable-nls
+    echo done > $@
+
+$(OUTDIR)/sed/config.h: $(OUTDIR)/sed/ts-configured
+
+$(srcdir)/src/sed/config.h.$(BUILD_TARGET): $(OUTDIR)/sed/config.h
+    cp -f $< $@
+
+$(OUTDIR)/sed/src/sed: $(OUTDIR)/sed/ts-configured
+    $(MAKE) -C $(@D)
+
+$(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/src/sed
+    cp -f $< $@
+
+$(OUTDIR)/kmk/kmk_ash:
+    ln -s /bin/sh $@
+
+#
+# Stage 2 - Build kBuild using the bootstrap tools from the previous step
+#           and install it to kBuild/bin/x.y.
+#
+stage2: \
+    $(OUTDIR)/ts-stage2-build \
+    $(OUTDIR)/ts-stage2-install
+
+$(OUTDIR)/ts-stage2-build:
+    PATH_KBUILD_BIN=$(OUTDIR)/kmk $(OUTDIR)/kmk -C $(srcdir)
+    echo done > $@
+
+$(OUTDIR)/ts-stage2-install:
+    PATH_KBUILD_BIN=$(OUTDIR)/kmk $(OUTDIR)/kmk -C $(srcdir) PATH_INS=$(srcdir) install
+    echo done > $@
+
