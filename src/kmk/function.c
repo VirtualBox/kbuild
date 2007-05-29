@@ -3048,7 +3048,7 @@ func_nanots (char *o, char **argv, const char *funcname)
       ts = bigint.QuadPart * 100;
     }
 
-/* FIXME: Linux and others has the realtime clock_* api, detect and use it. */
+/* FIXME: Linux and others have the realtime clock_* api, detect and use it. */
 
 #elif HAVE_GETTIMEOFDAY
   struct timeval tv;
