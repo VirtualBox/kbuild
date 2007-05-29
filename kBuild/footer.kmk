@@ -1,4 +1,4 @@
-# $Id: footer.kmk 985 2007-05-29 01:16:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 988 2007-05-29 03:52:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -26,6 +26,11 @@
 
 ifndef __footer_kmk__
 # start-of-file-content
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_FOOTER_START := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_PREV)) - start of footer.kmk)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_START)
+endif
 
 #
 # Variables.
@@ -305,6 +310,12 @@ _KEYWORDS := $(_BLD_TYPES) $(_BLD_TARGETS) $(_BLD_ARCHES) $(_BLD_CPUS) \
 	$(foreach bld_trg,$(_BLD_TARGETS),$(addprefix $(bld_trg).,$(_BLD_ARCHES)))
 # $ (warning dbg _KEYWORDS := $(_KEYWORDS))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done keywords)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # Target inheritance.
@@ -357,6 +368,12 @@ properties_now      := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_ACCUMULATE_R) $(PR
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_DEFERRED))
 $(foreach trg, $(_ALL_INSTALLS),$(eval $(value def_inherit)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done target inheritance)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # Template Inheritance.
@@ -379,6 +396,12 @@ src_prefix :=
 properties :=
 properties_now :=
 properties_deferred :=
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template inheritance)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -558,6 +581,12 @@ bld_trg_arch := $(BUILD_PLATFORM_ARCH)
 bld_trg_cpu := $(BUILD_PLATFORM_CPU)
 $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_template)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done common inheritance)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # Include tools & sdks
@@ -685,6 +714,12 @@ _SDKS := $(sort $(_SDKS))
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
 ## @todo Execute SDKS and TOOL inhertiance.
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done tools and sdks)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -869,6 +904,12 @@ TARGET_$(target) := $(PATH_TARGET)/$(target).ins
 endef
 $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
 	$(eval $(value def_pass1_install)))
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done pass 1)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 
@@ -1257,6 +1298,12 @@ download: $(_DOWNLOADS)
 unpack: $(_UNPACKS)
 fetch: $(_FETCHES)
 unfetch: $(_UNFETCHES)
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done fetching targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 
@@ -1673,6 +1720,12 @@ tool_do := LINK_LIBRARY
 mode := 0644
 $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_lib)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done library targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # Link operations.
@@ -2019,6 +2072,11 @@ mode    := 0755
 bld_trg_base_var := PLATFORM
 $(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)) $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)), $(eval $(value def_bldprog)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done build program targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -2034,6 +2092,12 @@ typevar := _DLLS
 mode    := 0644
 bld_trg_base_var := TARGET
 $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done dll targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -2058,6 +2122,12 @@ else
  $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
 endif
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done import library targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # PROGRAMS
@@ -2073,6 +2143,11 @@ mode    := 0755
 bld_trg_base_var := TARGET
 $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)) $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done program targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -2088,6 +2163,12 @@ typevar := _SYSMODS
 mode    := 0644
 bld_trg_base_var := TARGET
 $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(eval $(value def_link_common)))
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done sysmod targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -2400,6 +2481,12 @@ endef
 $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
 	$(eval $(value def_install)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done install targets)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # PACKING
@@ -2427,11 +2514,20 @@ endef
 
 $(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done directories)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
+
 
 #
 # NOTHING
 #
 do-nothing:
+ifdef KBUILD_PROFILE_SELF
+	@$(ECHO) 'prof: $(int-sub $(nanots ), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(nanots ), $(_KBUILD_TS_PREV)) - executing $@'
+endif
 	$(call MSG_NOTHING)
 
 
@@ -2571,6 +2667,11 @@ $(foreach PASS,$(DEFAULT_PASSES),\
 	$(eval pass := $(PASS_$(PASS)_pass)) \
 	$(eval $(def_pass_order)))
 
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done passes)
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endif
 
 
 #
@@ -2631,6 +2732,13 @@ ifneq ($(_DEPFILES),)
  includedep $(_DEPFILES)
 endif
 
+
+ifdef KBUILD_PROFILE_SELF
+ _KBUILD_TS_FOOTER_END := $(nanots )
+ $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_PREV)) - end of footer.kmk)
+ $(info prof: footer.kmk: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_FOOTER_START)))
+ _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_END)
+endif
 
 # end-of-file-content
 __footer_kmk__ := target
