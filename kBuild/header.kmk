@@ -1,4 +1,4 @@
-# $Id: header.kmk 984 2007-05-28 19:41:38Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 985 2007-05-29 01:16:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -46,7 +46,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 984 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 985 $  )
 
 
 #
@@ -123,15 +123,15 @@ EQUAL := =
 
 
 #
-# The OSes and Architectures that kBuild recognizes.
+# The OSes, Architectures and CPUs that kBuild recognizes.
 #
 # When kBuild is ported to a new OS or architecture a unique keyword needs
 # to be assigned to it and added here. This strictness is required because
 # this keyword namespace is shared between OSes, architectures, cpus and
 # build types. (PORTME)
 #
-KBUILD_OSES   = darwin freebsd l4 linux netbsd nt openbsd os2 solaris win
-KBUILD_ARCHES = x86 amd64 sparc32 sparc64 mips32 mips64 ppc32 ppc64
+KBUILD_OSES   := darwin freebsd l4 linux netbsd nt openbsd os2 solaris win
+KBUILD_ARCHES := x86 amd64 sparc32 sparc64 mips32 mips64 ppc32 ppc64
 
 
 #
@@ -530,12 +530,8 @@ SDK_PATHS :=
 DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
 
 
-#
-#
-#
-
 ## PROPS_TOOLS
-# This is a subset of the other PROPS
+# This is a subset of PROPS_SINGLE.
 PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
 
 ## PROPS_SINGLE
@@ -544,11 +540,16 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTO
 # will do the necessary inheritance from templates to targets.
 PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
 	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
+## PROPS_SINGLE_LNK
+# Subset of PROPS_SINGLE which applies to all linkable targets.
+PROPS_SINGLE_LNK := TOOL CTOOL CXXTOOL ASTOOL RCTOOL \
+    INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
+	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
 # functions, and thus should not be expanded until the very last moment.
-PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME
+PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME SONAME
 
 ## PROPS_ACCUMULATE_R
 # The list of accumulative target properties where the right most value/flag
@@ -556,7 +557,8 @@ PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_R := \
-	DEFS DEPS ORDERDEPS \
+	DEPS ORDERDEPS DEFS \
+	ARFLAGS \
 	CFLAGS CDEFS \
 	CXXFLAGS CXXDEFS \
 	ASFLAGS ASDEFS \
@@ -564,6 +566,15 @@ PROPS_ACCUMULATE_R := \
 	LDFLAGS \
 	IDFLAGS IFDLAGS ISFLAGS \
 	FETCHFLAGS UNPACKFLAGS PATCHFLAGS
+## PROPS_ACCUMULATE_R_LNK
+# Subset of PROPS_ACCUMULATE_R which applies to all linkable targets.
+PROPS_ACCUMULATE_R_LNK := \
+	DEPS ORDERDEPS DEFS \
+	CFLAGS CDEFS \
+	CXXFLAGS CXXDEFS \
+	ASFLAGS ASDEFS \
+	RCFLAGS RCDEFS \
+	IDFLAGS IFDLAGS ISFLAGS
 
 ## PROPS_ACCUMULATE
 # The list of accumulative target properties where the left most value/flag
@@ -574,12 +585,58 @@ PROPS_ACCUMULATE_L := \
 	SDKS SOURCES \
 	INCS CINCS CXXINCX ASINCS RCINCS \
 	LIBS LIBPATH \
-	DIRS BLDDIRS \
-	CLEAN
+	DIRS BLDDIRS CLEAN
+## PROPS_ACCUMULATE_L_LNK
+# Subset of PROPS_ACCUMULATE_L which applies to all linkable targets.
+PROPS_ACCUMULATE_L_LNK := \
+	SDKS SOURCES \
+	INCS CINCS CXXINCX ASINCS RCINCS \
+	BLDDIRS CLEAN
 
 ## PROPS_ALL
 # List of all the properties.
 PROPS_ALL = $(PROPS_SINGLE) $(PROPS_DEFERRED) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R)
+
+
+## @name Properties valid on programs (BLDPROGS and PROGRAMS)
+## @{
+PROPS_PROGRAMS_SINGLE        := $(PROPS_SINGLE_LNK) LDTOOL EXESUFF
+PROPS_PROGRAMS_DEFERRED      := $(PROPS_DEFERRED)
+PROPS_PROGRAMS_ACCUMULATE_R  := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
+PROPS_PROGRAMS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
+## @}
+
+## @name Properties valid on libraries (LIBRARIES and IMPORT_LIBS)
+## @{
+PROPS_LIBRARIES_SINGLE       := $(PROPS_SINGLE_LNK) ARTOOL LIBSUFF ARLIBSUFF
+PROPS_LIBRARIES_DEFERRED     := $(filter-out SONAME,$(PROPS_DEFERRED))
+PROPS_LIBRARIES_ACCUMULATE_R := $(PROPS_ACCUMULATE_R_LNK) ARFLAGS
+PROPS_LIBRARIES_ACCUMULATE_L := $(PROPS_ACCUMULATE_L_LNK)
+## @}
+
+## @name Properties valid on dlls (DLLS)
+## @{
+PROPS_DLLS_SINGLE            := $(PROPS_SINGLE_LNK) LDTOOL DLLSUFF LIBSUFF
+PROPS_DLLS_DEFERRED          := $(PROPS_DEFERRED)
+PROPS_DLLS_ACCUMULATE_R      := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
+PROPS_DLLS_ACCUMULATE_L      := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
+## @}
+
+## @name Properties valid on installs (INSTALLS)
+## @{
+PROPS_INSTALLS_SINGLE        := TOOL INST NOINST
+PROPS_INSTALLS_DEFERRED      := INSTFUN INSTALLER
+PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS
+PROPS_INSTALLS_ACCUMULATE_L  := SOURCES DIRS CLEAN
+## @}
+
+## @name Properties valid on fetches (INSTALLS)
+## @{
+PROPS_FETCHES_SINGLE         := TOOL FETCHTOOL UNPACKTOOL PATCHTOOL INST FETCHDIR
+PROPS_FETCHES_DEFERRED       :=
+PROPS_FETCHES_ACCUMULATE_R   := FETCHFLAGS UNPACKFLAGS PATCHFLAGS
+PROPS_FETCHES_ACCUMULATE_L   := SOURCES
+## @}
 
 
 #

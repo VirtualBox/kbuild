@@ -1,4 +1,4 @@
-# $Id: footer.kmk 984 2007-05-28 19:41:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 985 2007-05-29 01:16:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -32,51 +32,51 @@ ifndef __footer_kmk__
 # (Some of these need initialization before including definitions using them.)
 #
 
+# All targets of each types.
+_ALL_BLDPROGS    := $(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH))    $(BLDPROGS.$(BUILD_PLATFORM_ARCH))  $(BLDPROGS.$(BUILD_PLATFORM_CPU))   $(BLDPROGS.$(BUILD_TYPE))
+_ALL_LIBRARIES   := $(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))       $(LIBRARIES.$(BUILD_TARGET_ARCH))   $(LIBRARIES.$(BUILD_TARGET_CPU))    $(LIBRARIES.$(BUILD_TYPE))
+_ALL_IMPORT_LIBS := $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))     $(IMPORT_LIBS.$(BUILD_TARGET_ARCH)) $(IMPORT_LIBS.$(BUILD_TARGET_CPU))  $(IMPORT_LIBS.$(BUILD_TYPE))
+_ALL_DLLS        := $(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))            $(DLLS.$(BUILD_TARGET_ARCH))        $(DLLS.$(BUILD_TARGET_CPU))         $(DLLS.$(BUILD_TYPE))
+_ALL_PROGRAMS    := $(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))        $(PROGRAMS.$(BUILD_TARGET_ARCH))    $(PROGRAMS.$(BUILD_TARGET_CPU))     $(PROGRAMS.$(BUILD_TYPE))
+_ALL_SYSMODS     := $(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(SYSMODS.$(BUILD_TARGET_ARCH))     $(SYSMODS.$(BUILD_TARGET_CPU))      $(SYSMODS.$(BUILD_TYPE))
+_ALL_OTHERS      := $(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))          $(OTHERS.$(BUILD_TARGET_ARCH))      $(OTHERS.$(BUILD_TARGET_CPU))       $(OTHERS.$(BUILD_TYPE))
+_ALL_INSTALLS    := $(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))        $(INSTALLS.$(BUILD_TARGET_ARCH))    $(INSTALLS.$(BUILD_TARGET_CPU))     $(INSTALLS.$(BUILD_TYPE))
+_ALL_FETCHES     := $(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(FETCHES.$(BUILD_TARGET_ARCH))     $(FETCHES.$(BUILD_TARGET_CPU))      $(FETCHES.$(BUILD_TYPE))
+_ALL_PATCHES     := $(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(PATCHES.$(BUILD_TARGET_ARCH))     $(PATCHES.$(BUILD_TARGET_CPU))      $(PATCHES.$(BUILD_TYPE))
+
 # all targets.
-_ALL_TARGETS := \
-	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
-	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+_ALL_TARGETS = \
+	$(_ALL_FETCHES) \
+	$(_ALL_PATCHES) \
+	$(_ALL_BLDPROGS) \
+	$(_ALL_LIBRARIES) \
+	$(_ALL_IMPORT_LIBS) \
+	$(_ALL_DLLS) \
+	$(_ALL_PROGRAMS) \
+	$(_ALL_SYSMODS) \
+	$(_ALL_INSTALLS) \
+	$(_ALL_OTHERS)
 
 # all $(BUILD_TARGET) targets.
-_ALL_BUILD_TARGET_TARGETS := \
-	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+_ALL_BUILD_TARGET_TARGETS = \
+	$(_ALL_FETCHES) \
+	$(_ALL_PATCHES) \
+	$(_ALL_LIBRARIES) \
+	$(_ALL_IMPORT_LIBS) \
+	$(_ALL_DLLS) \
+	$(_ALL_PROGRAMS) \
+	$(_ALL_SYSMODS) \
+	$(_ALL_INSTALLS) \
+	$(_ALL_OTHERS)
 
-# all $(BUILD_TARGET) targets.
-_ALL_BUILD_PLATFORM_TARGETS := \
-	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH))
-
-## all linkable targets.
-#_ALL_LINKABLE_TARGETS := \
-#	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
-#	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-#	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-#	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
-#
-## all library targets.
-#_ALL_LIBRARY_TARGETS := \
-#	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-#	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+# all $(BUILD_PLATFORM) targets.
+_ALL_BUILD_PLATFORM_TARGETS = \
+	$(_ALL_BLDPROGS)
 
 # all targets making use of srcname.
-_ALL_SRCNAME_TARGETS := \
-	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+_ALL_SRCNAME_TARGETS = \
+	$(_ALL_FETCHES) \
+	$(_ALL_PATCHES)
 
 # dependency files.
 _DEPFILES :=
@@ -150,96 +150,235 @@ _TARGET_TOOL = $(strip $(firstword \
 _INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/))
 
 
-
-#
-# Check syntax which leads to weird syntax errors.
-#
-
-## Check
-# @param	$(target)	Target name.
-define def_check_target
-ifneq ("$($(target)_TEMPLATE)","$(strip $($(target)_TEMPLATE))")
-$$(error $(target) have an incorrect template name. Remove any tabs!)
+## Inherit one template property in a non-accumulative manner.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+# @remark Not all properties has all the variations, but making the correct
+#         exceptions will only complicate matters and probably not gain much speed.
+define def_inherit_one
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $($(src)_$(prop))
+  #$ (warning dbg-inherit: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
 endif
-endef
-$(foreach target, $(_ALL_TARGETS),$(eval $(def_check_target)))
+endef # def_inherit_one
+
+## Inherit one template property in a non-accumulative manner.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+# @remark Not all properties has all the variations, but making the correct
+#         exceptions will only complicate matters and probably not gain much speed.
+# @todo   Check how/if this differs from def_inherit_one.
+define def_inherit_one_now
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) := $($(src)_$(prop))
+  #$ (warning dbg-inherit-now: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_now
+
+## Inherit one template property in a non-accumulative manner, deferred expansion.
+# @param    $(prop)         Property name
+# @param    $(src)          Source
+# @param    $(trg)          Target
+# @remark This define relies on double evaluation
+define def_inherit_one_deferred
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $$($(src)_$(prop))
+  #$ (warning dbg-inherit-def: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_deferred
+
+## Generic inheritance for use with targets templates and tools.
+# @param    trg                 Object to consider for inheriting.
+# @param    src_prefix          What to prefix the value found in EXTENDS with to get the object.
+# @param    properties          List of the properties with straight expansion.
+# @param    properties_now      List of the properties with immediate expansion.
+# @param    properties_deferred List of the properties with deferred expansion (e.g. function).
+define def_inherit
+src := $(strip $($(trg)_EXTENDS))
+ifneq ($(src),)
+ ifndef $(trg)_EXTENDS_STATUS_
+  $(trg)_EXTENDS_STATUS_ := 0
+  src := $(src_prefix)$(src)
+
+  # Recursivly process the parent (src) if it's inherting from somebody too.
+  ifdef $(src)_EXTENDS
+   ifneq ($($(src)_EXTENDS_STATUS_),42)
+    # 'foreach' will create 'trg' in a new variable context hiding
+	# out current variable. 'src' OTOH will be overwritten.
+    #$ (warning def_inherit: recursing into $(src) from $(trg))
+    $(foreach trg, $(src), $(eval $(value def_inherit)))
+    src := $(src_prefix)$(strip $($(trg)_EXTENDS))
+   endif
+  endif
+
+  # Inherit the properties and mark the trg done.
+  #$ (warning def_inherit: trg=$(trg) src=$(src))
+  $(foreach prop, $(properties),          $(eval $(def_inherit_one)))
+  $(foreach prop, $(properties_now),      $(eval $(def_inherit_one_now)))
+  $(foreach prop, $(properties_deferred), $(eval $(def_inherit_one_deferred)))
+  $(trg)_EXTENDS_STATUS_ := 42
+ else
+  # Check for inheritance loops.
+  ifneq ($(target)_EXTENDS_STATUS_),42)
+   $(error kBuild: Target inheritance loop! target=$(target))
+  endif
+ endif
+endif
+endef # def_inherit
+
+
+#
+# Determin all the templates that is being used and make
+# sure they are present.
+#
+_TEMPLATES := $(TEMPLATE)
+define def_templates
+ifdef $(target)_TEMPLATE
+ ifneq ("$($(target)_TEMPLATE)","$(strip $($(target)_TEMPLATE))")
+  $$(error kBuild: The template name of target '$(target)' contains tabs ($($(target)_TEMPLATE))). Please remove them)
+ endif
+ _TEMPLATES += $($(target)_TEMPLATE)
+endif
+endef # def_templates
+$(foreach target, $(_ALL_TARGETS), $(eval $(def_templates)))
+_TEMPLATES := $(sort $(_TEMPLATES))
+
+define def_templates_include
+ifndef TEMPLATE_$(template)
+ TEMPLATE_$(template)_INCLUDE_FILE_ := $(firstword $(foreach path, $(TEMPLATE_PATHS) $(PATH_KBUILD)/templates/, $(wildcard $(path)/$(template).kmk)))
+ ifneq ($(TEMPLATE_$(template)_INCLUDE_FILE_),)
+  include $(TEMPLATE_$(template)_INCLUDE_FILE_)
+ else
+  $$(error kBuild: Cannot find template '$(template)')
+ endif
+endif
+endef # def_templates_include
+$(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
+
+#$ (warning dbg _TEMPLATES := $(_TEMPLATES))
+
+
+#
+# Determin the BLD_TRG_* keywords required for correct inherting.
+#
+# This means walking all the template and target lists in order to
+# pick up all BLD_TRG_* attributes.
+#
+_BLD_TYPES   := $(BUILD_TYPE)
+_BLD_TARGETS := $(BUILD_TARGET) $(BUILD_PLATFORMS)
+_BLD_ARCHES  := $(BUILD_TARGET_ARCH) $(BUILD_PLATFORM_ARCH)
+_BLD_CPUS    := $(BUILD_TARGET_CPU) $(BUILD_PLATFORM_CPU)
+
+define def_collect_bld_xyz
+ifdef ($(src)_BLD_TYPE)
+ _BLD_TYPE += $($(src)_BLD_TYPE)
+endif
+ifdef ($(src)_BLD_TRG)
+ _BLD_TARGETS += $($(src)_BLD_TRG)
+endif
+ifdef ($(src)_BLD_TRG_ARCH)
+ _BLD_ARCHES += $($(src)_BLD_TRG_ARCH)
+endif
+ifdef ($(src)_BLD_TRG_CPU)
+ _BLD_CPU += $($(src)_BLD_TRG_CPU)
+endif
+endef # def_collect_bld_xyz
+$(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)) $(_ALL_TARGETS)\
+	,$(eval $(def_collect_bld_xyz)))
+
+# drop duplicate values
+_BLD_TYPES   := $(sort $(_BLD_TYPES))
+_BLD_TARGETS := $(sort $(_BLD_TARGETS))
+_BLD_ARCHES  := $(sort $(_BLD_ARCHES))
+_BLD_CPUS    := $(sort $(_BLD_CPUS))
+
+# Construct all the possible keywords.
+_KEYWORDS := $(_BLD_TYPES) $(_BLD_TARGETS) $(_BLD_ARCHES) $(_BLD_CPUS) \
+	$(foreach bld_trg,$(_BLD_TARGETS),$(addprefix $(bld_trg).,$(_BLD_ARCHES)))
+# $ (warning dbg _KEYWORDS := $(_KEYWORDS))
 
 
 #
 # Target inheritance.
 #
-# $ (foreach ...
-
-
+# This has to be done on a per target list basis as to avoid adding
+# incorrect properties that will wast memory, time, and may confuse
+# later strictness checks. This also has to be done *before* templates
+# are applied to the targets. Since we're doing that part rather
+# early on, the target inheritance feature is a bit restricted at
+# the moment. However, this will be addressed in a little(?) while.
 #
-# Include templates
-#
-_TEMPLATES := $(TEMPLATE)
-define def_templates
-ifdef $(target)_TEMPLATE
-_TEMPLATES += $($(target)_TEMPLATE)
-endif
-endef
-$(foreach target, $(_ALL_TARGETS), $(eval $(def_templates)))
-_TEMPLATES := $(sort $(_TEMPLATES))
-# $ (warning dbg: _TEMPLATES=$(_TEMPLATES))
 
-define def_templates_include
-ifndef TEMPLATE_$(template)
-include $(firstword $(foreach path, $(TEMPLATE_PATHS) $(PATH_KBUILD)/templates/, $(wildcard $(path)/$(template).kmk)))
-endif
-endef
-$(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
+src_prefix :=
+## combines the specified properties $(1) with the $(_KEYWORDS).
+_COMB_KEY_PROP = $(1)  $(foreach keyword,$(_KEYWORDS), $(addsuffix .$(keyword), $(1)))
+
+# Fetches.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_ACCUMULATE_R) $(PROPS_FETCHES_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_DEFERRED))
+$(foreach trg, $(_ALL_FETCHES),$(eval $(value def_inherit)))
+
+## Patches. - not implemented yet.
+#properties          := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_SINGLE))
+#properties_now      := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_ACCUMULATE_R) $(PROPS_PATCHES_ACCUMULATE_L))
+#properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_DEFERRED))
+#$(foreach trg, $(_ALL_PATCHES),$(eval $(value def_inherit)))
+
+# Programs and build programs.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_ACCUMULATE_R) $(PROPS_PROGRAMS_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_DEFERRED))
+$(foreach trg, $(_ALL_BLDPROGS) $(_ALL_PROGRAMS),$(eval $(value def_inherit)))
+
+# Libraries and import libraries.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_ACCUMULATE_R) $(PROPS_LIBRARIES_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_DEFERRED))
+$(foreach trg, $(_ALL_LIBRARIES) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
+
+# DLLs.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_DLLS_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_DLLS_ACCUMULATE_R) $(PROPS_DLLS_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_DLLS_DEFERRED))
+$(foreach trg, $(_ALL_DLLS),$(eval $(value def_inherit)))
+
+# Installs.
+properties          := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_SINGLE))
+properties_now      := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_ACCUMULATE_R) $(PROPS_INSTALLS_ACCUMULATE_L))
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_DEFERRED))
+$(foreach trg, $(_ALL_INSTALLS),$(eval $(value def_inherit)))
 
 
 #
 # Template Inheritance.
 #
-define def_template_extends_prop
-ifndef TEMPLATE_$(template)_$(prop)
- ifdef TEMPLATE_$(parent)_$(prop)
-TEMPLATE_$(template)_$(prop) = $$(TEMPLATE_$(parent)_$(prop))
- endif
-endif
-endef
+# This is much the same as with target inheritance, except we cannot
+# restrict the properties involved since we've got a clue which target
+# types are using them. But, we can drop the instance expansion we're
+# doing for targets since there won't be any more changes to either the
+# source nor the target templates beyond this exercise.
+#
 
+src_prefix := TEMPLATE_
+properties :=
+properties_now :=
+properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_ALL))
+$(foreach trg, $(addprefix TEMPLATE_,$(_TEMPLATES)),$(eval $(value def_inherit)))
 
-define def_template_extends
-ifdef TEMPLATE_$(template)_EXTENDS
- ifndef TEMPLATE_$(template)_EXTENDS_STATUS_
-  TEMPLATE_$(template)_EXTENDS_STATUS_ := 0
-  parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
-
-  # recursivly process the parent if it's inherting from somebody too.
-  ifdef TEMPLATE_$(parent)_EXTENDS
-   ifneq ($(TEMPLATE_$(parent)_EXTENDS_STATUS_),42)
-    # foreach will create 'template' in a new variable context hiding our current variable.
-    $(foreach template, $(parent), $(eval $(value def_template_extends)))
-    parent := $(strip $(TEMPLATE_$(template)_EXTENDS))
-   endif
-  endif
-
-  # inherit properties.
-  $(foreach prop, $(PROPS_SINGLE) $(PROPS_ACCUMULATE_R) $(PROPS_ACCUMULATE_L) $(PROPS_DEFERRED)\
-    $(addsuffix .$(BUILD_TARGET),                      $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET).$(BUILD_TARGET_ARCH), $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET_ARCH),                 $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TARGET_CPU),                  $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
-    $(addsuffix .$(BUILD_TYPE),                        $(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) $(PROPS_DEFERRED))\
-    ,$(eval $(def_template_extends_prop))) # exploits the 2 evaluation, so no value!
-
-  TEMPLATE_$(template)_EXTENDS_STATUS_ := 42
- else
-  # protect against inheritance loops.
-  ifneq ($(TEMPLATE_$(template)_EXTENDS_STATUS_),42)
-   $(error kBuild: inheritance loop! template=$(template))
-  endif
- endif
-endif
-endef
-
-# $ (foreach template, $(_TEMPLATES), $(if TEMPLATE_$(template)_EXTENDS, $(eval $(value def_template_extends))))
-$(foreach template, $(_TEMPLATES), $(eval $(value def_template_extends)))
+# done.
+src_prefix :=
+properties :=
+properties_now :=
+properties_deferred :=
 
 
 #
@@ -423,6 +562,9 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_temp
 #
 # Include tools & sdks
 #
+# The first part of this exercise is to figure out which TOOLS and SDKS
+# that should be included.
+#
 _TOOLS := $(TOOL.$(BUILD_TARGET))   $(TOOL.$(BUILD_TARGET_ARCH))   $(TOOL.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
           $(TOOL.$(BUILD_PLATFORM)) $(TOOL.$(BUILD_PLATFORM_ARCH)) $(TOOL.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
 	  $(TOOL)
@@ -451,9 +593,10 @@ $(eval _SDKS += \
 	$($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
 	$($(source)_SDKS) \
 	$($(target)_$(source)_SDKS))
-endef
+endef # def_tools_sdks_target_source
 
 define def_tools_sdks_target
+_bld_type := $(firstword $($(target)_BLD_TYPE) $(BUILD_TYPE))
 _bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
 _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
 _bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
@@ -473,12 +616,13 @@ $(foreach source, \
 	$($(target)_SOURCES.$(_bld_trg_arch)) \
 	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
 	$($(target)_SOURCES.$(_bld_trg_cpu)) \
-	$($(target)_SOURCES.$(BUILD_TYPE)) \
+	$($(target)_SOURCES.$(_bld_type)) \
 	$($(target)_SOURCES) \
 	, $(eval $(value def_tools_sdks_target_source)))
-endef
+endef # def_tools_sdks_target
 
 define def_tools_srcname_target
+_bld_type := $(firstword $($(target)_BLD_TYPE) $(BUILD_TYPE))
 _bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
 _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
 _bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
@@ -488,10 +632,10 @@ $(foreach source, $(notdir\
 	$($(target)_SOURCES.$(_bld_trg_arch)) \
 	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
 	$($(target)_SOURCES.$(_bld_trg_cpu)) \
-	$($(target)_SOURCES.$(BUILD_TYPE)) \
+	$($(target)_SOURCES.$(_bld_type)) \
 	$($(target)_SOURCES) \
 	), $(eval $(value def_tools_sdks_target_source)))
-endef
+endef # def_tools_srcname_target
 
 bld_trg := $(BUILD_TARGET)
 bld_trg_arch := $(BUILD_TARGET_ARCH)
@@ -508,16 +652,16 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS), $(eval $(value def_tools_sdks_
 # include TOOLS
 define def_tools_include
 ifndef TOOL_$(tool)
-TOOL_$(tool)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(tool).kmk)))
-ifeq ($(TOOL_$(tool)_KMK_FILE),)
-$(error kBuild: Cannot find include file for the tool '$(tool)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
+ TOOL_$(tool)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(tool).kmk)))
+ ifeq ($(TOOL_$(tool)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the tool '$(tool)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
+ endif
+ include $(TOOL_$(tool)_KMK_FILE)
+ ifndef TOOL_$(tool)
+  $(warning kBuild: TOOL_$(tool) was not by $(TOOL_$(tool)_KMK_FILE)!)
+ endif
 endif
-include $(TOOL_$(tool)_KMK_FILE)
-ifndef TOOL_$(tool)
-$(warning kBuild: TOOL_$(tool) was not by $(TOOL_$(tool)_KMK_FILE)!)
-endif
-endif
-endef
+endef # def_tools_include
 
 _TOOLS := $(sort $(_TOOLS))
 $(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
@@ -526,20 +670,21 @@ $(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
 # include SDKS
 define def_sdks_include_one
 ifndef SDK_$(sdk)
-SDK_$(sdk)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(sdk).kmk)))
-ifeq ($(SDK_$(sdk)_KMK_FILE),)
-$(error kBuild: Cannot find include file for the SDK '$(sdk)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
+ SDK_$(sdk)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(sdk).kmk)))
+ ifeq ($(SDK_$(sdk)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the SDK '$(sdk)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
+ endif
+ include $(SDK_$(sdk)_KMK_FILE)
+ ifndef SDK_$(sdk)
+  $(warning kBuild: SDK_$(sdk) was not defined by $(SDK_$(sdk)_KMK_FILE)!)
+ endif
 endif
-include $(SDK_$(sdk)_KMK_FILE)
-ifndef SDK_$(sdk)
-$(warning kBuild: SDK_$(sdk) was not defined by $(SDK_$(sdk)_KMK_FILE)!)
-endif
-endif
-endef
+endef # def_sdks_include_one
 
 _SDKS := $(sort $(_SDKS))
 $(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
+## @todo Execute SDKS and TOOL inhertiance.
 
 
 #
@@ -714,8 +859,8 @@ $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET
 # 	Note! INSTARGET_* for INSTALLS aren't available until later.
 #
 define def_pass1_install
-bld_type  := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
-bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
+bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
 bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
 bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
 # TARGET_*
