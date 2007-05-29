@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 953 2007-05-27 11:38:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 986 2007-05-29 02:59:06Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -110,6 +110,7 @@ kmk_DEFS = \
 	CONFIG_WITH_STACK \
 	CONFIG_WITH_MATH \
 	CONFIG_WITH_XARGS \
+	CONFIG_WITH_NANOTS \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \

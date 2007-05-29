@@ -42,6 +42,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #endif
 #include <assert.h> /* bird */
 
+#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) /* bird */
+# include <ctype.h>
+# ifdef _MSC_VER
+typedef __int64 math_int;
+# else
+#  include <stdint.h>
+typedef int64_t math_int;
+# endif
+#endif
+
+#ifdef CONFIG_WITH_NANOTS /* bird */
+# ifdef WINDOWS32
+#  include <Windows.h>
+# endif
+#endif
+
 
 struct function_table_entry
   {
@@ -2655,8 +2671,8 @@ l_simple_compare:
 static char *
 func_stack_push (char *o, char **argv, const char *funcname)
 {
-    do_variable_definition(NILF, argv[0], argv[1], o_file, f_append, 0 /* !target_var */);
-    return o;
+  do_variable_definition(NILF, argv[0], argv[1], o_file, f_append, 0 /* !target_var */);
+  return o;
 }
 
 /* Pops an item off the stack / get the top stack element.
@@ -2664,227 +2680,229 @@ func_stack_push (char *o, char **argv, const char *funcname)
 static char *
 func_stack_pop_top (char *o, char **argv, const char *funcname)
 {
-    struct variable *stack_var;
-    const char *stack = argv[0];
-    const int return_item = argv[0][sizeof("stack-pop") - 1] == '\0';
+  struct variable *stack_var;
+  const char *stack = argv[0];
+  const int return_item = argv[0][sizeof("stack-pop") - 1] == '\0';
 
-    stack_var = lookup_variable (stack, strlen (stack) );
-    if (stack_var)
-      {
-        unsigned int len;
-        const char *iterator = stack_var->value;
-        char *lastitem = NULL;
-        char *cur;
+  stack_var = lookup_variable (stack, strlen (stack) );
+  if (stack_var)
+    {
+      unsigned int len;
+      const char *iterator = stack_var->value;
+      char *lastitem = NULL;
+      char *cur;
 
-        while ((cur = find_next_token (&iterator, &len)))
-          lastitem = cur;
+      while ((cur = find_next_token (&iterator, &len)))
+        lastitem = cur;
 
-        if (lastitem != NULL)
-          {
-            if (strcmp (funcname, "stack-popv") != 0)
-              o = variable_buffer_output (o, lastitem, len);
-            if (strcmp (funcname, "stack-top") != 0)
-              {
-                *lastitem = '\0';
-                while (lastitem > stack_var->value && isspace (lastitem[-1]))
-                  *--lastitem = '\0';
+      if (lastitem != NULL)
+        {
+          if (strcmp (funcname, "stack-popv") != 0)
+            o = variable_buffer_output (o, lastitem, len);
+          if (strcmp (funcname, "stack-top") != 0)
+            {
+              *lastitem = '\0';
+              while (lastitem > stack_var->value && isspace (lastitem[-1]))
+                *--lastitem = '\0';
 #ifdef CONFIG_WITH_VALUE_LENGTH
-                stack_var->value_length = lastitem - stack_var->value;
+              stack_var->value_length = lastitem - stack_var->value;
 #endif
-              }
-          }
-      }
-    return o;
+            }
+        }
+    }
+  return o;
 }
 #endif /* CONFIG_WITH_STACK */
 
-#ifdef CONFIG_WITH_MATH
+#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS)
+/* outputs the number (as a string) into the variable buffer. */
+static char *
+math_int_to_variable_buffer (char *o, math_int num)
+{
+  static const char xdigits[17] = "0123456789abcdef";
+  int negative;
+  char strbuf[24]; /* 16 hex + 2 prefix + sign + term => 20
+                              or 20 dec + sign + term => 22 */
+  char *str = &strbuf[sizeof (strbuf) - 1];
 
-#include <ctype.h>
-#ifdef _MSC_VER
-typedef __int64 math_int;
+  negative = num < 0;
+  if (negative)
+    num = -num;
+
+  *str = '\0';
+
+  do
+    {
+#ifdef HEX_MATH_NUMBERS
+      *--str = xdigits[num & 0xf];
+      num >>= 4;
 #else
-# include <stdint.h>
-typedef int64_t math_int;
+      *--str = xdigits[num % 10];
+      num /= 10;
 #endif
+    }
+  while (num);
+
+#ifdef HEX_MATH_NUMBERS
+  *--str = 'x';
+  *--str = '0';
+#endif
+
+  if (negative)
+    *--str = '-';
+
+  return variable_buffer_output (o, str, &strbuf[sizeof (strbuf) - 1] - str);
+}
+#endif /* CONFIG_WITH_MATH || CONFIG_WITH_NANOTS */
+
+#ifdef CONFIG_WITH_MATH
 
 /* Converts a string to an integer, causes an error if the format is invalid. */
 static math_int
 math_int_from_string (const char *str)
 {
-    const char *start;
-    unsigned base = 0;
-    int      negative = 0;
-    math_int num = 0;
+  const char *start;
+  unsigned base = 0;
+  int      negative = 0;
+  math_int num = 0;
 
-    /* strip spaces */
-    while (isspace (*str))
-      str++;
-    if (!*str)
-      {
-        error (NILF, _("bad number: empty\n"));
-        return 0;
-      }
-    start = str;
+  /* strip spaces */
+  while (isspace (*str))
+    str++;
+  if (!*str)
+    {
+      error (NILF, _("bad number: empty\n"));
+      return 0;
+    }
+  start = str;
 
-    /* check for +/- */
-    while (*str == '+' || *str == '-' || isspace (*str))
-        if (*str++ == '-')
-          negative = !negative;
+  /* check for +/- */
+  while (*str == '+' || *str == '-' || isspace (*str))
+      if (*str++ == '-')
+        negative = !negative;
 
-    /* check for prefix - we do not accept octal numbers, sorry. */
-    if (*str == '0' && (str[1] == 'x' || str[1] == 'X'))
-      {
-        base = 16;
-        str += 2;
-      }
-    else
-      {
-        /* look for a hex digit, if not found treat it as decimal */
-        const char *p2 = str;
-        for ( ; *p2; p2++)
-          if (isxdigit (*p2) && !isdigit (*p2) && isascii (*p2) )
-            {
-              base = 16;
-              break;
-            }
-        if (base == 0)
-          base = 10;
-      }
-
-    /* must have at least one digit! */
-    if (    !isascii (*str)
-        ||  !(base == 16 ? isxdigit (*str) : isdigit (*str)) )
-      {
-        error (NILF, _("bad number: '%s'\n"), start);
-        return 0;
-      }
-
-    /* convert it! */
-    while (*str && !isspace (*str))
-      {
-        int ch = *str++;
-        if (ch >= '0' && ch <= '9')
-          ch -= '0';
-        else if (base == 16 && ch >= 'a' && ch <= 'f')
-          ch -= 'a' - 10;
-        else if (base == 16 && ch >= 'A' && ch <= 'F')
-          ch -= 'A' - 10;
-        else
+  /* check for prefix - we do not accept octal numbers, sorry. */
+  if (*str == '0' && (str[1] == 'x' || str[1] == 'X'))
+    {
+      base = 16;
+      str += 2;
+    }
+  else
+    {
+      /* look for a hex digit, if not found treat it as decimal */
+      const char *p2 = str;
+      for ( ; *p2; p2++)
+        if (isxdigit (*p2) && !isdigit (*p2) && isascii (*p2) )
           {
-            error (NILF, _("bad number: '%s' (base=%d, pos=%d)\n"), start, base, str - start);
-            return 0;
+            base = 16;
+            break;
           }
-        num *= base;
-        num += ch;
-      }
+      if (base == 0)
+        base = 10;
+    }
 
-    /* check trailing spaces. */
-    while (isspace (*str))
-      str++;
-    if (*str)
-      {
-        error (NILF, _("bad number: '%s'\n"), start);
-        return 0;
-      }
+  /* must have at least one digit! */
+  if (    !isascii (*str)
+      ||  !(base == 16 ? isxdigit (*str) : isdigit (*str)) )
+    {
+      error (NILF, _("bad number: '%s'\n"), start);
+      return 0;
+    }
 
-    return negative ? -num : num;
-}
+  /* convert it! */
+  while (*str && !isspace (*str))
+    {
+      int ch = *str++;
+      if (ch >= '0' && ch <= '9')
+        ch -= '0';
+      else if (base == 16 && ch >= 'a' && ch <= 'f')
+        ch -= 'a' - 10;
+      else if (base == 16 && ch >= 'A' && ch <= 'F')
+        ch -= 'A' - 10;
+      else
+        {
+          error (NILF, _("bad number: '%s' (base=%d, pos=%d)\n"), start, base, str - start);
+          return 0;
+        }
+      num *= base;
+      num += ch;
+    }
 
-/* outputs the number (as a string) into the variable buffer. */
-static char *
-math_int_to_variable_buffer (char *o, math_int num)
-{
-    static const char xdigits[17] = "0123456789abcdef";
-    int negative;
-    char strbuf[24]; /* 16 hex + 2 prefix + sign + term => 20 */
-    char *str = &strbuf[sizeof (strbuf) - 1];
+  /* check trailing spaces. */
+  while (isspace (*str))
+    str++;
+  if (*str)
+    {
+      error (NILF, _("bad number: '%s'\n"), start);
+      return 0;
+    }
 
-    negative = num < 0;
-    if (negative)
-      num = -num;
-
-    *str-- = '\0';
-
-    do
-      {
-        *str-- = xdigits[num & 0xf];
-        num >>= 4;
-      }
-    while (num);
-
-    *str-- = 'x';
-    *str = '0';
-
-    if (negative)
-        *--str = '-';
-
-    return variable_buffer_output (o, str, &strbuf[sizeof (strbuf) - 1] - str);
+  return negative ? -num : num;
 }
 
 /* Add two or more integer numbers. */
 static char *
 func_int_add (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num += math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num += math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Subtract two or more integer numbers. */
 static char *
 func_int_sub (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num -= math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num -= math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Multiply two or more integer numbers. */
 static char *
 func_int_mul (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num *= math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num *= math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Divide an integer number by one or more divisors. */
 static char *
 func_int_div (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    math_int divisor;
-    int i;
+  math_int num;
+  math_int divisor;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      {
-        divisor = math_int_from_string (argv[i]);
-        if (!divisor)
-          {
-            error (NILF, _("divide by zero ('%s')\n"), argv[i]);
-            return math_int_to_variable_buffer (o, 0);
-          }
-        num /= divisor;
-      }
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    {
+      divisor = math_int_from_string (argv[i]);
+      if (!divisor)
+        {
+          error (NILF, _("divide by zero ('%s')\n"), argv[i]);
+          return math_int_to_variable_buffer (o, 0);
+        }
+      num /= divisor;
+    }
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 
@@ -2892,73 +2910,73 @@ func_int_div (char *o, char **argv, const char *funcname)
 static char *
 func_int_mod (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    math_int divisor;
+  math_int num;
+  math_int divisor;
 
-    num = math_int_from_string (argv[0]);
-    divisor = math_int_from_string (argv[1]);
-    if (!divisor)
-      {
-        error (NILF, _("divide by zero ('%s')\n"), argv[1]);
-        return math_int_to_variable_buffer (o, 0);
-      }
-    num %= divisor;
+  num = math_int_from_string (argv[0]);
+  divisor = math_int_from_string (argv[1]);
+  if (!divisor)
+    {
+      error (NILF, _("divide by zero ('%s')\n"), argv[1]);
+      return math_int_to_variable_buffer (o, 0);
+    }
+  num %= divisor;
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* 2-complement. */
 static char *
 func_int_not (char *o, char **argv, const char *funcname)
 {
-    math_int num;
+  math_int num;
 
-    num = math_int_from_string (argv[0]);
-    num = ~num;
+  num = math_int_from_string (argv[0]);
+  num = ~num;
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Bitwise AND (two or more numbers). */
 static char *
 func_int_and (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num &= math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num &= math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Bitwise OR (two or more numbers). */
 static char *
 func_int_or (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num |= math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num |= math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Bitwise XOR (two or more numbers). */
 static char *
 func_int_xor (char *o, char **argv, const char *funcname)
 {
-    math_int num;
-    int i;
+  math_int num;
+  int i;
 
-    num = math_int_from_string (argv[0]);
-    for (i = 1; argv[i]; i++)
-      num ^= math_int_from_string (argv[i]);
+  num = math_int_from_string (argv[0]);
+  for (i = 1; argv[i]; i++)
+    num ^= math_int_from_string (argv[i]);
 
-    return math_int_to_variable_buffer (o, num);
+  return math_int_to_variable_buffer (o, num);
 }
 
 /* Compare two integer numbers. Returns make boolean (true="1"; false=""). */
@@ -2990,6 +3008,66 @@ func_int_cmp (char *o, char **argv, const char *funcname)
 }
 
 #endif /* CONFIG_WITH_MATH */
+
+#ifdef CONFIG_WITH_NANOTS
+/* Returns the current timestamp as nano seconds. The time
+   source is a high res monotone one if the platform provides
+   this (and we know about it).
+
+   Tip. Use this with int-sub to profile makefile reading
+        and similar. */
+static char *
+func_nanots (char *o, char **argv, const char *funcname)
+{
+  math_int ts;
+
+#if defined (WINDOWS32)
+  static int s_state = -1;
+  static LARGE_INTEGER s_freq;
+
+  if (s_state == -1)
+    s_state = QueryPerformanceFrequency (&s_freq);
+  if (s_state)
+    {
+      LARGE_INTEGER pc;
+      if (!QueryPerformanceCounter (&pc))
+        {
+          s_state = 0;
+          return func_nanots (o, argv, funcname);
+        }
+      ts = (math_int)((long double)pc.QuadPart / (long double)s_freq.QuadPart * 1000000000);
+    }
+  else
+    {
+      /* fall back to low resolution system time. */
+      LARGE_INTEGER bigint;
+      FILETIME ft = {0,0};
+      GetSystemTimeAsFileTime (&ft);
+      bigint.u.LowPart = ft.dwLowDateTime;
+      bigint.u.HighPart = ft.dwLowDateTime;
+      ts = bigint.QuadPart * 10000;
+    }
+
+/* FIXME: Linux and others has the realtime clock_* api, detect and use it. */
+
+#elif HAVE_GETTIMEOF_DAY
+  struct timeval tv;
+  if (!gettimeofday (&tv, NULL))
+    ts = (math_int)tv.tv_sec * 1000000000
+       + tv.tv_usec * 1000;
+  else
+    {
+      error (NILF, _("$(nanots): gettimeofday failed"));
+      ts = 0;
+    }
+
+#else
+# error "PORTME"
+#endif
+
+  return math_int_to_variable_buffer (o, ts);
+}
+#endif
 
 
 /* Lookup table for builtin functions.
@@ -3088,6 +3166,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("int-ge"),        2,  2,  1,  func_int_cmp},
   { STRING_SIZE_TUPLE("int-lt"),        2,  2,  1,  func_int_cmp},
   { STRING_SIZE_TUPLE("int-le"),        2,  2,  1,  func_int_cmp},
+#endif
+#ifdef CONFIG_WITH_NANOTS
+  { STRING_SIZE_TUPLE("nanots"),        0,  0,  0,  func_nanots},
 #endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
