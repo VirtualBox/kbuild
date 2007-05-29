@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 995 2007-05-29 20:52:03Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 996 2007-05-29 21:18:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -27,14 +27,16 @@
 
 #
 # ASSUMES:
-#   - BUILD_TARGET, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU in the env.
+#   - BUILD_TARGET, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU and BUILD_TYPE in the env.
 #   - PATH_KBUILD points to ./kBuild with an absolute path.
+#   - PATH_KBUILD_BIN must *NOT* be defined anywhere.
 #   - Current directory == bootstrap.gmk directory.
 #   - mkdir -p works.
 #   - ln -s works
 #   - cp -f works
 #   - cd somedir && command works.
 #   - echo done > file works.
+#   - GNU make implements CURDIR, if not please define SRCDIR.
 #
 # Tip. kBuild/env.sh (g)make -f bootstrap.kmk
 #
@@ -46,13 +48,12 @@
 #   (see Config.kmk and wiki for details)
 #
 
-srcdir = .
-OUTDIR = $(srcdir)/out/$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)/$(BUILD_TYPE)/bootstrap
+SRCDIR = $(CURDIR)
+OUTDIR = $(SRCDIR)/out/$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)/$(BUILD_TYPE)/bootstrap
 
-.NOTPARALLEL:
 
-.PHONEY: all stage1 stage2
-all: stage1
+all: stage1 stage2
+
 
 #
 # Stage 1 - Build bootstrap kmk and sed, refresh config.h caches, link
@@ -62,54 +63,51 @@ stage1: \
     $(OUTDIR)/kmk/kmk \
     $(OUTDIR)/kmk/kmk_ash \
     $(OUTDIR)/kmk/kmk_sed \
-    $(srcdir)/src/kmk/config.h.$(BUILD_TARGET) \
-    $(srcdir)/src/sed/config.h.$(BUILD_TARGET)
+    $(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET) \
+    $(SRCDIR)/src/sed/config.h.$(BUILD_TARGET)
 
 # kmk
-$(OUTDIR)/kmk/:
-    mkdir -p $@
-
-$(OUTDIR)/kmk/ts-autoreconf: $(OUTDIR)/kmk/
-    cd $(srcdir)/src/kmk && autoreconf -i -v
-    echo done > $@
+$(OUTDIR)/kmk/ts-autoreconf:
+	mkdir -p $(@D)
+	cd $(SRCDIR)/src/kmk && autoreconf -i -v
+	echo done > $@
 
 $(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
-    cd $(OUTDIR)/kmk && $(srcdir)/src/kmk/configure
-    echo done > $@
+	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure
+	echo done > $@
 
 $(OUTDIR)/kmk/config.h: $(OUTDIR)/kmk/ts-configured
 
-$(srcdir)/src/kmk/config.h.$(BUILD_TARGET): $(OUTDIR)/kmk/config.h
-    cp -f $(OUTDIR)/kmk/config.h $(srcdir)/src/kmk/config.h.$(BUILD_TARGET)
+$(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET): $(OUTDIR)/kmk/config.h
+	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET)
 
 $(OUTDIR)/kmk/kmk: $(OUTDIR)/kmk/ts-configured
-    $(MAKE) -C $(@D)
+	$(MAKE) -C $(@D)
 
 # sed
-$(OUTDIR)/sed/:
-    mkdir -p $@
-
-$(OUTDIR)/sed/ts-autoreconf: $(OUTDIR)/sed/
-    cd $(srcdir)/src/sed && autoreconf -i -v
-    echo done > $@
+$(OUTDIR)/sed/ts-autoreconf:
+	mkdir -p $(@D)
+	@# only required on OS/2, so skip it.
+	@# cd $(SRCDIR)/src/sed && autoreconf -i -v
+	echo done > $@
 
 $(OUTDIR)/sed/ts-configured: $(OUTDIR)/sed/ts-autoreconf
-    cd $(OUTDIR)/sed && $(srcdir)/src/sed/configure --without-libintl --disable-nls
-    echo done > $@
+	cd $(OUTDIR)/sed && $(SRCDIR)/src/sed/configure --without-libintl --disable-nls
+	echo done > $@
 
 $(OUTDIR)/sed/config.h: $(OUTDIR)/sed/ts-configured
 
-$(srcdir)/src/sed/config.h.$(BUILD_TARGET): $(OUTDIR)/sed/config.h
-    cp -f $< $@
+$(SRCDIR)/src/sed/config.h.$(BUILD_TARGET): $(OUTDIR)/sed/config.h
+	cp -f $< $@
 
-$(OUTDIR)/sed/src/sed: $(OUTDIR)/sed/ts-configured
-    $(MAKE) -C $(@D)
+$(OUTDIR)/sed/sed/sed: $(OUTDIR)/sed/ts-configured
+	$(MAKE) -C $(@D)/..
 
-$(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/src/sed
-    cp -f $< $@
+$(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/sed/sed
+	cp -f $< $@
 
 $(OUTDIR)/kmk/kmk_ash:
-    ln -s /bin/sh $@
+	ln -s /bin/sh $@
 
 #
 # Stage 2 - Build kBuild using the bootstrap tools from the previous step
@@ -119,11 +117,25 @@ stage2: \
     $(OUTDIR)/ts-stage2-build \
     $(OUTDIR)/ts-stage2-install
 
-$(OUTDIR)/ts-stage2-build:
-    PATH_KBUILD_BIN=$(OUTDIR)/kmk $(OUTDIR)/kmk -C $(srcdir)
-    echo done > $@
+$(OUTDIR)/ts-stage2-build: \
+		$(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET) \
+                $(SRCDIR)/src/sed/config.h.$(BUILD_TARGET) \
+		$(OUTDIR)/kmk/kmk
+	$(OUTDIR)/kmk/kmk -C $(SRCDIR)
+	echo done > $@
 
-$(OUTDIR)/ts-stage2-install:
-    PATH_KBUILD_BIN=$(OUTDIR)/kmk $(OUTDIR)/kmk -C $(srcdir) PATH_INS=$(srcdir) install
-    echo done > $@
+$(OUTDIR)/ts-stage2-install: $(OUTDIR)/ts-stage2-build
+	$(OUTDIR)/kmk/kmk -C $(SRCDIR) PATH_INS=`pwd` install
+	echo done > $@
+
+
+##
+## Clean the output files...
+##
+#clean:
+#	rm -Rf $(OUTDIR)
+
+
+# can't hurt...
+.NOTPARALLEL:
 
