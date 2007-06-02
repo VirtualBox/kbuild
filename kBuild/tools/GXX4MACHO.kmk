@@ -1,4 +1,4 @@
-# $Id: GXX4MACHO.kmk 971 2007-05-27 16:45:22Z knut.osmundsen@oracle.com $
+# $Id: GXX4MACHO.kmk 1013 2007-06-02 18:11:20Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o, for building C++ code.
@@ -90,9 +90,25 @@ TOOL_GXX4MACHO_LDFLAGS.profile  ?= -g
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX4MACHO_COMPILE_C_OUTPUT =
 TOOL_GXX4MACHO_COMPILE_C_DEPEND =
 TOOL_GXX4MACHO_COMPILE_C_DEPORD =
+ifdef USE_KOBJCACHE
+TOOL_GXX4MACHO_COMPILE_C_USES_KOBJCACHE = 1
+TOOL_GXX4MACHO_COMPILE_C_OUTPUT = $(outbase).i
+define TOOL_GXX4MACHO_COMPILE_C_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).i \
+		$(TOOL_GXX4MACHO_CC) -E -o -\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source)) \
+		--kObjCache-cc $(obj) \
+		$(TOOL_GXX4MACHO_CC) -c\
+		$(flags)\
+		-o $(obj)\
+		$(outbase).i
+endef
+else  # !USE_KOBJCACHE
+TOOL_GXX4MACHO_COMPILE_C_OUTPUT =
 define TOOL_GXX4MACHO_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_GXX4MACHO_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -100,6 +116,7 @@ define TOOL_GXX4MACHO_COMPILE_C_CMDS
 		-o $(obj)\
 		$(abspath $(source))
 endef
+endif # !KUSE_OBJCACHE
 
 
 ## Compile C++ source.
@@ -114,9 +131,25 @@ endef
 # @param    $(deps)		Other dependencies.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_GXX4MACHO_COMPILE_CXX_OUTPUT =
 TOOL_GXX4MACHO_COMPILE_CXX_DEPEND =
 TOOL_GXX4MACHO_COMPILE_CXX_DEPORD =
+ifdef USE_KOBJCACHE
+TOOL_GXX4MACHO_COMPILE_CXX_USES_KOBJCACHE = 1
+TOOL_GXX4MACHO_COMPILE_CXX_OUTPUT = $(outbase).ii
+define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).ii \
+		$(TOOL_GXX4MACHO_CXX) -E -o -\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source)) \
+		--kObjCache-cc $(obj) \
+		$(TOOL_GXX4MACHO_CXX) -c\
+		$(flags)\
+		-o $(obj)\
+		$(outbase).ii
+endef
+else  # !USE_KOBJCACHE
+TOOL_GXX4MACHO_COMPILE_CXX_OUTPUT =
 define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_GXX4MACHO_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -124,6 +157,7 @@ define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
 		-o $(obj)\
 		$(abspath $(source))
 endef
+endif # !KUSE_OBJCACHE
 
 
 ## Compile Assembly source.
