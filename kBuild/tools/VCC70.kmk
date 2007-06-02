@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 1006 2007-06-02 16:21:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
@@ -114,10 +114,32 @@ TOOL_VCC70_LDFLAGS.release  ?=
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
+ifdef USE_KOBJCACHE
+TOOL_VCC70_COMPILE_C_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb) $(outbase).i
+TOOL_VCC70_COMPILE_C_DEPEND =
+TOOL_VCC70_COMPILE_C_DEPORD =
+TOOL_VCC70_COMPILE_C_USESES_KOBJCACHE = 1
+define TOOL_VCC70_COMPILE_C_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).i \
+		$(TOOL_VCC70_CC) -E \
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(subst /,\\,$(abspath $(source))) \
+		--kObjCache-cc $(obj) \
+		$(TOOL_VCC70_CC) -c -TC\
+		$(flags) \
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(subst /,\\,$(outbase).i)
+endef
+#	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
+else # !USE_KOBJCACHE
 TOOL_VCC70_COMPILE_C_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_C_DEPEND =
 TOOL_VCC70_COMPILE_C_DEPORD =
-ifndef VCC70_OLD_DEPS
 define TOOL_VCC70_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC70_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -127,19 +149,7 @@ define TOOL_VCC70_COMPILE_C_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 endef
-else
-define TOOL_VCC70_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC70_CC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
-		-Fo$(obj)\
-		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(TOOL_VCC70_CC) -E\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source)))\
-		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
-endef
-endif
+endif # !USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -155,10 +165,32 @@ endif
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
+ifdef USE_KOBJCACHE
+TOOL_VCC70_COMPILE_CXX_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb) $(outbase).ii
+TOOL_VCC70_COMPILE_CXX_DEPEND =
+TOOL_VCC70_COMPILE_CXX_DEPORD =
+TOOL_VCC70_COMPILE_CXX_USESES_KOBJCACHE = 1
+define TOOL_VCC70_COMPILE_CXX_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).ii \
+		$(TOOL_VCC70_CC) -E \
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(subst /,\\,$(abspath $(source))) \
+		--kObjCache-cc $(obj) \
+		$(TOOL_VCC70_CC) -c -TP\
+		$(flags) \
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(subst /,\\,$(outbase).ii)
+endef
+#	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
+else # !USE_KOBJCACHE
 TOOL_VCC70_COMPILE_CXX_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_CXX_DEPEND =
 TOOL_VCC70_COMPILE_CXX_DEPORD =
-ifndef VCC70_OLD_DEPS
 define TOOL_VCC70_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC70_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -168,19 +200,7 @@ define TOOL_VCC70_COMPILE_CXX_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 endef
-else
-define TOOL_VCC70_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC70_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
-		-Fo$(obj)\
-		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(TOOL_VCC70_CXX) -E\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source)))\
-		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
-endef
-endif
+endif # !USE_KOBJCACHE
 
 
 ## Compile resource source.
