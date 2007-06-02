@@ -1,4 +1,4 @@
-# $Id: Config.kmk 952 2007-05-27 11:37:24Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1010 2007-06-02 16:31:37Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -166,4 +166,5 @@ TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 
 LIB_KDEP = $(PATH_OBJ)/src/lib/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
+LIB_KUTIL = $(PATH_OBJ)/src/lib/kUtil/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kUtil$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 
