@@ -1,4 +1,4 @@
-# $Id: header.kmk 994 2007-05-29 20:00:08Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1004 2007-06-02 12:05:54Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 994 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1004 $  )
 
 
 #
@@ -408,16 +408,23 @@ endif
 
 DEP_IDB_EXT := $(PATH_KBUILD_BIN)/kDepIDB$(HOSTSUFF_EXE)
 ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepIDB)
-DEP_IDB     := $(if kmk_builtin_kDepIDB
+DEP_IDB     := kmk_builtin_kDepIDB
 else
 DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
 DEP_PRE_EXT := $(PATH_KBUILD_BIN)/kDepPre$(HOSTSUFF_EXE)
 ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepPre)
-DEP_PRE     := $(if kmk_builtin_kDepPre
+DEP_PRE     := kmk_builtin_kDepPre
 else
 DEP_PRE     := $(DEP_PRE_EXT)
+endif
+
+KOBJCACHE_EXT := $(PATH_KBUILD_BIN)/kObjCache$(HOSTSUFF_EXE)
+ifeq ($(filter kObjCache,$(KMK_BUILTIN)),kObjCache)
+KOBJCACHE   := kmk_builtin_kObjCache
+else
+KOBJCACHE   := $(KOBJCACHE_EXT)
 endif
 
 APPEND_EXT  := $(PATH_KBUILD_BIN)/kmk_append$(HOSTSUFF_EXE)
