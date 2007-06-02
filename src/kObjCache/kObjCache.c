@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1001 2007-06-02 08:21:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1002 2007-06-02 10:13:03Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -36,6 +36,10 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <limits.h>
+#ifndef PATH_MAX
+# define PATH_MAX _MAX_PATH /* windows */
+#endif 
 #if defined(__OS2__) || defined(__WIN__)
 # include <process.h>
 # include <io.h>
@@ -51,12 +55,6 @@
 #endif 
 #include "crc32.h"
 #include "md5.h"
-
-
-/* for later: */
-#define xmalloc     malloc
-#define xrealloc    realloc
-#define xstrdup     strdup
 
 
 /*******************************************************************************
@@ -87,7 +85,7 @@ typedef struct KOBJCACHE
     /** The cache dir that all other names are relative to. */
     char *pszDir;
     /** The name of the cache file. */
-    char *pszName;
+    const char *pszName;
     /** Set if the object needs to be (re)compiled. */
     unsigned fNeedCompiling;
 
@@ -136,6 +134,7 @@ static int g_fVerbose = 0;
 *   Internal Functions                                                         *
 *******************************************************************************/
 static const char *FindFilenameInPath(const char *pszPath);
+static char *AbsPath(const char *pszPath);
 static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir);
 static char *CalcRelativeName(const char *pszPath, const char *pszDir);
 static FILE *FOpenFileInDir(const char *pszName, const char *pszDir, const char *pszMode);
@@ -143,6 +142,10 @@ static int UnlinkFileInDir(const char *pszName, const char *pszDir);
 static int RenameFileInDir(const char *pszOldName, const char *pszNewName, const char *pszDir);
 static int DoesFileInDirExist(const char *pszName, const char *pszDir);
 static void *ReadFileInDir(const char *pszName, const char *pszDir, size_t *pcbFile);
+static void *xmalloc(size_t);
+static void *xrealloc(void *, size_t);
+static char *xstrdup(const char *);
+
 
 /* crc.c */
 extern uint32_t crc32(uint32_t, const void *, size_t);
@@ -168,69 +171,6 @@ static int kObjCacheSumIsEqual(PCKOCSUM pSum1, PCKOCSUM pSum2)
         return 0;
     return 1;
 }
-
-
-/**
- * Creates a cache entry for the given cache file name.
- *  
- * @returns Pointer to a cache entry.
- * @param   pszFilename     The cache file name.
- */
-static PKOBJCACHE kObjCacheCreate(const char *pszFilename)
-{
-    PKOBJCACHE pEntry;
-    const char *pszDir;
-    size_t cchDir;
-
-    /*
-     * Allocate an empty entry.
-     */
-    pEntry = xmalloc(sizeof(*pEntry));
-    memset(pEntry, 0, sizeof(*pEntry));
-
-    /*
-     * Setup the directory and cache file name.
-     */
-    pszDir = pszFilename;
-    assert(*pszFilename);
-    pszFilename = FindFilenameInPath(pszFilename);
-    if (pszFilename <= pszDir)
-    {
-        pszDir = "./";
-        cchDir = 2;
-    }
-    else
-        cchDir = pszFilename - pszDir; /* includes the separator */
-
-    pEntry->pszDir = xmalloc(cchDir + 1);
-    memcpy(pEntry->pszDir, pszDir, cchDir);
-    pEntry->pszDir[cchDir] = '\0';
-    pEntry->pszName = xstrdup(pszFilename);
-
-    return pEntry;
-}
-
-
-#if 0 /* don't bother. */
-/**
- * Destroys the cache entry freeing up all it's resources. 
- *  
- * @param   pEntry      The entry to free.
- */
-static void kObjCacheDestroy(PKOBJCACHE pEntry)
-{
-    free(pEntry->pszDir);
-    free(pEntry->pszName);
-    while (pEntry->SumHead.pNext)
-    {
-        void *pv = pEntry->SumHead.pNext;
-        pEntry->SumHead.pNext = pEntry->SumHead.pNext->pNext;
-        if (pv != &pEntry->NewSum)
-            free(pv);
-    }
-    free(pEntry);
-}
-#endif
 
 
 /**
@@ -275,13 +215,65 @@ static void kObjCacheVerbose(PCKOBJCACHE pEntry, const char *pszFormat, ...)
 
 
 /**
+ * Creates a cache entry for the given cache file name.
+ *  
+ * @returns Pointer to a cache entry.
+ * @param   pszFilename     The cache file name.
+ */
+static PKOBJCACHE kObjCacheCreate(const char *pszFilename)
+{
+    PKOBJCACHE pEntry;
+
+    /*
+     * Allocate an empty entry.
+     */
+    pEntry = xmalloc(sizeof(*pEntry));
+    memset(pEntry, 0, sizeof(*pEntry));
+
+    /*
+     * Setup the directory and cache file name.
+     */
+    pEntry->pszDir = AbsPath(pszFilename);
+    pEntry->pszName = FindFilenameInPath(pEntry->pszDir);
+    if (pEntry->pszDir == pEntry->pszName)
+        kObjCacheFatal(pEntry, "Failed to find abs path for '%s'!\n", pszFilename);
+    ((char *)pEntry->pszName)[-1] = '\0';
+
+    return pEntry;
+}
+
+
+#if 0 /* don't bother. */
+/**
+ * Destroys the cache entry freeing up all it's resources. 
+ *  
+ * @param   pEntry      The entry to free.
+ */
+static void kObjCacheDestroy(PKOBJCACHE pEntry)
+{
+    free(pEntry->pszDir);
+    free(pEntry->pszName);
+    while (pEntry->SumHead.pNext)
+    {
+        void *pv = pEntry->SumHead.pNext;
+        pEntry->SumHead.pNext = pEntry->SumHead.pNext->pNext;
+        if (pv != &pEntry->NewSum)
+            free(pv);
+    }
+    free(pEntry);
+}
+#endif
+
+
+/**
  * Reads and parses the cache file.
  *  
  * @param   pEntry      The entry to read it into.
  */
 static void kObjCacheRead(PKOBJCACHE pEntry)
 {
-
+    kObjCacheVerbose(pEntry, "reading cache file...\n");
+    pEntry->fNeedCompiling = 1;
 }
 
 
@@ -292,6 +284,7 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
  */
 static void kObjCacheWrite(PKOBJCACHE pEntry)
 {
+    kObjCacheVerbose(pEntry, "writing cache file...\n");
     
 }
 
@@ -303,17 +296,40 @@ static void kObjCacheWrite(PKOBJCACHE pEntry)
  * @param   papszArgv       Argument vector. The cArgv element is NULL.
  * @param   cArgv           The number of arguments in the vector.
  */
-static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg)
+static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg, const char *pszStdOut)
 {
-#if defined(__OS2__)
-    int rc = _spawnvp(_P_WAIT, papszArgv[0], papszArgv);
-    if (rc)
-        kObjCacheFatal(pEntry, "%s - _spawnvp / command failed, rc=%#x\n", pszMsg, rc);
+#if defined(__OS2__) || defined(__WIN__)
+    intptr_t rc;
+    int fdStdOut = -1;
+    if (pszStdOut)
+    {
+        int fdReDir;
+        fdStdOut = dup(1); /* dup2(1,-1) doesn't work right on windows */
+        close(1);
+        fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0777);
+        if (fdReDir < 0)
+            kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n", 
+                           pszMsg, pszStdOut, strerror(errno));
+        if (fdReDir != 1)
+        {
+            if (dup2(fdReDir, 1) < 0)
+                kObjCacheFatal(pEntry, "%s - dup2 failed: %s\n", pszMsg, strerror(errno));
+            close(fdReDir);
+        }
+    }
 
-#elif defined(__WIN__)
-    intptr_t rc = _spawnvp(_P_WAIT, papszArgv[0], papszArgv);
-    if (rc)
-        kObjCacheFatal(pEntry, "%s - _spawnvp / command failed, rc=0x%p\n", pszMsg, rc);
+    errno = 0;
+    rc = _spawnvp(_P_WAIT, papszArgv[0], papszArgv);
+    if (rc < 0)
+        kObjCacheFatal(pEntry, "%s - _spawnvp failed (rc=0x%p): %s\n", pszMsg, rc, strerror(errno));
+    if (rc > 0)
+        kObjCacheFatal(pEntry, "%s - failed rc=%d\n", pszMsg, (int)rc);
+    if (fdStdOut)
+    {
+        close(1);
+        fdStdOut = dup2(fdStdOut, 1);
+        close(fdStdOut);
+    }
 
 #else
     int iStatus;
@@ -321,6 +337,21 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
     pid_t pid = fork();
     if (!pid)
     {
+        if (pszStdOut)
+        {
+            close(1);
+            fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0777);
+            if (fdReDir < 0)
+                kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n", 
+                               pszMsg, pszStdOut, strerror(errno));
+            if (fdReDir != 1)
+            {
+                if (dup2(fdReDir, 1) < 0)
+                    kObjCacheFatal(pEntry, "%s - dup2 failed: %s\n", pszMsg, strerror(errno));
+                close(fdReDir);
+            }
+        }
+
         execvp(papszArgv[0], papszArgv);
         kObjCacheFatal(pEntry, "%s - execvp failed rc=%d errno=%d %s\n", 
                        pszMsg, rc, errno, strerror(errno));
@@ -356,14 +387,20 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
      * gigantic, but that's a pretty safe assumption I hope...
      */
     pEntry->pszNewCppMapping = ReadFileInDir(pEntry->pszNewCppName, pEntry->pszDir, &pEntry->cbNewCppMapping);
-    if (pEntry->pszNewCppMapping)
+    if (!pEntry->pszNewCppMapping)
         kObjCacheFatal(pEntry, "failed to open/read '%s' in '%s': %s\n", 
                        pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
+    kObjCacheVerbose(pEntry, "precompiled file is %lu bytes long\n", (unsigned long)pEntry->cbNewCppMapping);
 
     pEntry->NewSum.crc32 = crc32(0, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
     MD5Init(&MD5Ctx);
     MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
     MD5Final(&pEntry->NewSum.md5[0], &MD5Ctx);
+    kObjCacheVerbose(pEntry, "crc32=%#lx md5=08x%08x%08x%08x\n", pEntry->NewSum.crc32, 
+                     ((uint32_t *)&pEntry->NewSum.md5[0])[0],
+                     ((uint32_t *)&pEntry->NewSum.md5[0])[1],
+                     ((uint32_t *)&pEntry->NewSum.md5[0])[2],
+                     ((uint32_t *)&pEntry->NewSum.md5[0])[3]);
 }
 
 
@@ -374,21 +411,24 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
  * @param   papszArgvPreComp    The argument vector for executing precompiler. The cArgvPreComp'th argument must be NULL.
  * @param   cArgvPreComp        The number of arguments.
  * @param   pszPreCompName      Precompile output name. (must kick around)
+ * @param   fRedirStdOut        Whether stdout needs to be redirected or not.
  */
-static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp, unsigned cArgvPreComp, const char *pszPreCompName)
+static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp, unsigned cArgvPreComp, const char *pszPreCompName, int fRedirStdOut)
 {
     /*
      * Rename the old precompiled output to '-old'.
      * We'll discard the old output and keep the new output, but because
      * we might with to do a quick matchup later we can't remove it just now.
      */
-    if (pEntry->pszOldCppName)
+    if (    pEntry->pszOldCppName 
+        &&  DoesFileInDirExist(pEntry->pszOldCppName, pEntry->pszDir))
     {
         size_t cch = strlen(pEntry->pszOldCppName);
         char *psz = xmalloc(cch + sizeof("-old"));
         memcpy(psz, pEntry->pszOldCppName, cch);
         memcpy(psz + cch, "-old", sizeof("-old"));
 
+        kObjCacheVerbose(pEntry, "renaming '%s' to '%s' in '%s'\n", pEntry->pszOldCppName, psz, pEntry->pszDir);
         UnlinkFileInDir(psz, pEntry->pszDir);
         if (RenameFileInDir(pEntry->pszOldCppName, psz, pEntry->pszDir))
             kObjCacheFatal(pEntry, "failed to rename '%s' -> '%s' in '%s': %s\n", 
@@ -396,17 +436,16 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
         free(pEntry->pszOldCppName);
         pEntry->pszOldCppName = psz;
     }
-    pEntry->pszNewCppName = pszPreCompName;
+    pEntry->pszNewCppName = CalcRelativeName(pszPreCompName, pEntry->pszDir);
 
     /*
      * Precompile it and calculate the checksum on the output.
      */
-    if (!pszPreCompName)
-    {
-        kObjCacheFatal(pEntry, "redirection feature is not implemented\n");
-        /** @todo piped output. */
-    }
-    kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile");
+    kObjCacheVerbose(pEntry, "precompiling -> '%s'...\n", pEntry->pszNewCppName);
+    if (fRedirStdOut)
+        kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", pszPreCompName);
+    else
+        kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", NULL);
     kObjCacheCalcChecksum(pEntry);
 }
 
@@ -448,7 +487,7 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
         UnlinkFileInDir(pEntry->pszObjName, pEntry->pszDir);
         pEntry->pszObjName = NULL;
     }
-    pEntry->pszNewObjName = CalcRelativeName(pEntry->pszDir, pszObjName);
+    pEntry->pszNewObjName = CalcRelativeName(pszObjName, pEntry->pszDir);
 
     /*
      * Release buffers we no longer need before starting the compile.
@@ -461,9 +500,10 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
     /*
      * Do the recompilation.
      */
+    kObjCacheVerbose(pEntry, "compiling -> '%s'...\n", pEntry->pszNewObjName);
     pEntry->papszArgvCompile = papszArgvCompile;
     pEntry->cArgvCompile = cArgvCompile;
-    kObjCacheSpawn(pEntry, papszArgvCompile, cArgvCompile, "compile");
+    kObjCacheSpawn(pEntry, papszArgvCompile, cArgvCompile, "compile", NULL);
 }
 
 
@@ -481,11 +521,15 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
     /*
      * Does the object name differ?
      */
-    if (    !pEntry->fNeedCompiling
-        &&  strcmp(FindFilenameInPath(pszObjName), pEntry->pszObjName))
+    if (!pEntry->fNeedCompiling)
     {
-        pEntry->fNeedCompiling = 1;
-        kObjCacheVerbose(pEntry, "object name changed\n");
+        char *pszTmp = CalcRelativeName(pszObjName, pEntry->pszDir);
+        if (strcmp(pEntry->pszObjName, pszTmp))
+        {
+            pEntry->fNeedCompiling = 1;
+            kObjCacheVerbose(pEntry, "object name changed '%s' -> '%s'\n", pEntry->pszObjName, pszTmp);
+        }
+        free(pszTmp);
     }
 
     /*
@@ -513,7 +557,8 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
     /*
      * Does the object file exist?
      */
-    if (!DoesFileInDirExist(pEntry->pszObjName, pEntry->pszDir))
+    if (    !pEntry->fNeedCompiling
+        &&  !DoesFileInDirExist(pEntry->pszObjName, pEntry->pszDir))
     {
         pEntry->fNeedCompiling = 1;
         kObjCacheVerbose(pEntry, "object file doesn't exist\n");
@@ -565,6 +610,26 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
 
 
 /**
+ * Gets the absolute path 
+ * 
+ * @returns A new heap buffer containing the absolute path.
+ * @param   pszPath     The path to make absolute. (Readonly)
+ */
+static char *AbsPath(const char *pszPath)
+{
+    char szTmp[PATH_MAX];
+#if defined(__OS2__) || defined(__WIN__)
+    if (!_fullpath(szTmp, *pszPath ? pszPath : ".", sizeof(szTmp)))
+        return xstrdup(pszPath);
+#else
+    if (!realpath(pszPath, szTmp))
+        return xstrdup(pszPath);
+#endif
+   return xstrdup(szTmp);
+}
+
+
+/**
  * Utility function that finds the filename part in a path.
  * 
  * @returns Pointer to the file name part (this may be "").
@@ -609,6 +674,46 @@ static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir)
 
 
 /**
+ * Compares two path strings to see if they are identical.
+ * 
+ * This doesn't do anything fancy, just the case ignoring and 
+ * slash unification.
+ * 
+ * @returns 1 if equal, 0 otherwise.
+ * @param   pszPath1    The first path.
+ * @param   pszPath2    The second path.
+ * @param   cch         The number of characters to compare.
+ */
+static int ArePathsIdentical(const char *pszPath1, const char *pszPath2, size_t cch)
+{
+#if defined(__OS2__) || defined(__WIN__)
+    if (strnicmp(pszPath1, pszPath2, cch))
+    {
+        /* Slashes may differ, compare char by char. */
+        const char *psz1 = pszPath1;
+        const char *psz2 = pszPath2;
+        for (;cch; psz1++, psz2++, cch--)
+        {
+            if (*psz1 != *psz2)
+            {
+                if (    tolower(*psz1) != tolower(*psz2)
+                    &&  toupper(*psz1) != toupper(*psz2)
+                    &&  *psz1 != '/'
+                    &&  *psz1 != '\\'
+                    &&  *psz2 != '/'
+                    &&  *psz2 != '\\')
+                    return 0;
+            }
+        }
+    }
+    return 1;
+#else
+    return !strncmp(pszPath1, pszPath2, cch);
+#endif 
+}
+
+
+/**
  * Calculate how to get to pszPath from pszDir.
  * 
  * @returns The relative path from pszDir to path pszPath.
@@ -617,49 +722,42 @@ static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir)
  */
 static char *CalcRelativeName(const char *pszPath, const char *pszDir)
 {
+    char *pszRet = NULL;
+    char *pszAbsPath = NULL;
     size_t cchDir = strlen(pszDir);
-#if defined(__OS2__) || defined(__WIN__)
-    int fMatches;
-#endif 
 
     /*
      * This is indeed a bit tricky, so we'll try the easy way first...
      */
-#if defined(__OS2__) || defined(__WIN__)
-    fMatches = strnicmp(pszPath, pszDir, cchDir);
-    if (!fMatches)
-    {
-        /* Slashes may differ, compare char by char. */
-        const char *psz1 = pszDir;
-        const char *psz2 = pszPath;
-        fMatches = 1;
-        for (;; psz1++, psz2++)
-        {
-            if (*psz1 != *psz2)
-            {
-                if (!*psz1) /* dir */
-                    break;
-                if (    tolower(*psz1) != tolower(*psz2)
-                    &&  toupper(*psz1) != toupper(*psz2)
-                    &&  *psz1 != '/'
-                    &&  *psz1 != '\\'
-                    &&  *psz2 != '/'
-                    &&  *psz2 != '\\')
-                {
-                    fMatches = 0;
-                    break;
-                }
-            }
-        }
-    }
-    if (fMatches)
-#else
-    if (!strncmp(pszPath, pszDir, cchDir))
-#endif 
+    if (ArePathsIdentical(pszPath, pszDir, cchDir))
     {
         if (pszPath[cchDir])
-            return xstrdup(pszPath + cchDir);
-        return xstrdup("./");
+            pszRet = (char *)pszPath + cchDir;
+        else
+            pszRet = "./";
+    }
+    else
+    {
+        pszAbsPath = AbsPath(pszPath);
+        if (ArePathsIdentical(pszAbsPath, pszDir, cchDir))
+        {
+            if (pszPath[cchDir])
+                pszRet = pszAbsPath + cchDir;
+            else
+                pszRet = "./";
+        }
+    }
+    if (pszRet)
+    {
+#if defined(__OS2__) || defined(__WIN__)
+        while (*pszRet == ':' || *pszRet == '/' || *pszRet == '\\')
+#else
+        while (*pszRet == '/')
+#endif 
+            pszRet++;
+        pszRet = xstrdup(pszRet);
+        free(pszAbsPath);
+        return pszRet;
     }
 
     /*
@@ -794,6 +892,32 @@ static void *ReadFileInDir(const char *pszName, const char *pszDir, size_t *pcbF
 }
 
 
+static void *xmalloc(size_t cb)
+{
+    void *pv = malloc(cb);
+    if (!pv)
+        kObjCacheFatal(NULL, "out of memory (%d)\n", (int)cb);
+    return pv;
+}
+
+
+static void *xrealloc(void *pvOld, size_t cb)
+{
+    void *pv = realloc(pvOld, cb);
+    if (!pv)
+        kObjCacheFatal(NULL, "out of memory (%d)\n", (int)cb);
+    return pv;
+}
+
+
+static char *xstrdup(const char *pszIn)
+{
+    char *psz = strdup(pszIn);
+    if (!psz)
+        kObjCacheFatal(NULL, "out of memory (%d)\n", (int)strlen(pszIn));
+    return psz;
+}
+
 
 /**
  * Prints a syntax error and returns the appropriate exit code
@@ -819,7 +943,7 @@ static int SyntaxError(const char *pszFormat, ...)
  */
 static int usage(void)
 {
-    printf("syntax: kObjCache [-v|--verbose] [-f|--file] <cache-file> [-V|--version]\n"
+    printf("syntax: kObjCache [-v|--verbose] [-f|--file] <cache-file> [-V|--version] [-r|--redir-stdout]\n"
            "                  --kObjCache-cpp <filename> <precompiler + args> \n"
            "                  --kObjCache-cc <object> <compiler + args>\n"
            "                  [--kObjCache-both [args]]\n"
@@ -838,6 +962,7 @@ int main(int argc, char **argv)
     const char **papszArgvPreComp = NULL;
     unsigned cArgvPreComp = 0;
     const char *pszPreCompName = NULL;
+    int fRedirStdOut = 0;
 
     const char **papszArgvCompile = NULL;
     unsigned cArgvCompile = 0;
@@ -865,7 +990,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--kObjCache-cc"))
         {
             enmMode = kOC_CcArgv;
-            if (pszObjName)
+            if (!pszObjName)
             {
                 if (++i >= argc)
                     return SyntaxError("--kObjCache-cc requires an precompiler output filename!\n");
@@ -881,20 +1006,14 @@ int main(int argc, char **argv)
             if (enmMode == kOC_CppArgv || enmMode == kOC_BothArgv)
             {
                 if (!(cArgvPreComp % 16))
-                {
-                    cArgvPreComp += 16;
-                    papszArgvPreComp = xrealloc((void *)papszArgvPreComp, (cArgvPreComp + 2) * sizeof(papszArgvPreComp[0]));
-                }
+                    papszArgvPreComp = xrealloc((void *)papszArgvPreComp, (cArgvPreComp + 17) * sizeof(papszArgvPreComp[0]));
                 papszArgvPreComp[cArgvPreComp++] = argv[i];
                 papszArgvPreComp[cArgvPreComp] = NULL;
             }
             if (enmMode == kOC_CcArgv || enmMode == kOC_BothArgv)
             {
                 if (!(cArgvCompile % 16))
-                {
-                    cArgvCompile += 16;
-                    papszArgvCompile = xrealloc((void *)papszArgvCompile, (cArgvCompile + 2) * sizeof(papszArgvCompile[0]));
-                }
+                    papszArgvCompile = xrealloc((void *)papszArgvCompile, (cArgvCompile + 17) * sizeof(papszArgvCompile[0]));
                 papszArgvCompile[cArgvCompile++] = argv[i];
                 papszArgvCompile[cArgvCompile] = NULL;
             }
@@ -905,6 +1024,8 @@ int main(int argc, char **argv)
                 return SyntaxError("%s requires a cache filename!\n", argv[i]);
             pszCacheFile = argv[++i];
         }
+        else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--redir-stdout"))
+            fRedirStdOut = 1;
         else if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose"))
             g_fVerbose = 1;
         else if (!strcmp(argv[i], "-q") || !strcmp(argv[i], "--quiet"))
@@ -913,7 +1034,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1001 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1002 $)\n");
             return 0;
         }
         else
@@ -935,7 +1056,7 @@ int main(int argc, char **argv)
     /*
      * Do the compiling.
      */
-    kObjCachePreCompile(pEntry, papszArgvPreComp, cArgvPreComp, pszPreCompName);
+    kObjCachePreCompile(pEntry, papszArgvPreComp, cArgvPreComp, pszPreCompName, fRedirStdOut);
     kObjCacheCompileIfNeeded(pEntry, papszArgvCompile, cArgvCompile, pszObjName);
 
     /*
@@ -946,5 +1067,4 @@ int main(int argc, char **argv)
     /* kObjCacheDestroy(pEntry); - don't bother */
     return 0;
 }
-
 
