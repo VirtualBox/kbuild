@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1008 2007-06-02 16:22:27Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1016 2007-06-02 18:58:41Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -554,6 +554,8 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
     {
         if (pszStdOut)
         {
+            int fdReDir;
+
             close(1);
             fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0777);
             if (fdReDir < 0)
@@ -567,16 +569,16 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
             }
         }
 
-        execvp(papszArgv[0], papszArgv);
-        kObjCacheFatal(pEntry, "%s - execvp failed rc=%d errno=%d %s\n", 
-                       pszMsg, rc, errno, strerror(errno));
+        execvp(papszArgv[0], (char **)papszArgv);
+        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n", 
+                       pszMsg, strerror(errno));
     }
     if (pid == -1)
         kObjCacheFatal(pEntry, "%s - fork() failed: %s\n", pszMsg, strerror(errno));
 
-    pidWait = waitpid(pid, &iStatus);
+    pidWait = waitpid(pid, &iStatus, 0);
     while (pidWait < 0 && errno == EINTR)
-        pidWait = waitpid(pid, &iStatus);
+        pidWait = waitpid(pid, &iStatus, 0);
     if (pidWait != pid)
         kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
                        pszMsg, pidWait, strerror(errno));
@@ -643,9 +645,9 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     pid = fork();
     if (!pid)
     {
-        execvp(papszArgv[0], papszArgv);
-        kObjCacheFatal(pEntry, "%s - execvp failed rc=%d errno=%d %s\n", 
-                       pszMsg, rc, errno, strerror(errno));
+        execvp(papszArgv[0], (char **)papszArgv);
+        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n", 
+                       pszMsg, strerror(errno));
     }
     if (pid == -1)
         kObjCacheFatal(pEntry, "%s - fork() failed: %s\n", pszMsg, strerror(errno));
@@ -660,12 +662,12 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     /*
      * Read data from the child.
      */
-    cbAlloc = pEntry->cbOldCpp ? (pEntry->cbOldCpp + 4*1024*1024) & ~(4*1024*1024 - 1) : 4*1024*1024;
+    cbAlloc = pEntry->cbOldCpp ? (pEntry->cbOldCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
     cbLeft = cbAlloc;
     *ppszOutput = psz = xmalloc(cbAlloc);
     for (;;)
     {
-        long cbRead = _read(fds[0], psz, cbLeft);
+        long cbRead = read(fds[0], psz, cbLeft);
         if (!cbRead)
             break;
         if (cbRead < 0 && errno != EINTR)
@@ -698,9 +700,9 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     if (iStatus)
         kObjCacheFatal(pEntry, "%s - failed with rc %d\n", pszMsg, iStatus);
 #else
-    pidWait = waitpid(pid, &iStatus);
+    pidWait = waitpid(pid, &iStatus, 0);
     while (pidWait < 0 && errno == EINTR)
-        pidWait = waitpid(pid, &iStatus);
+        pidWait = waitpid(pid, &iStatus, 0);
     if (pidWait != pid)
         kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
                        pszMsg, pidWait, strerror(errno));
@@ -744,7 +746,7 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
     memset(&pEntry->NewSum, 0, sizeof(pEntry->NewSum));
     pEntry->NewSum.crc32 = crc32(0, pEntry->pszNewCppMapping, pEntry->cbNewCpp);
     MD5Init(&MD5Ctx);
-    MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCpp);
+    MD5Update(&MD5Ctx, (unsigned char *)pEntry->pszNewCppMapping, pEntry->cbNewCpp);
     MD5Final(&pEntry->NewSum.md5[0], &MD5Ctx);
     kObjCacheVerbose(pEntry, "crc32=%#lx md5=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
                      pEntry->NewSum.crc32,
@@ -1410,7 +1412,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1008 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1016 $)\n");
             return 0;
         }
         else
