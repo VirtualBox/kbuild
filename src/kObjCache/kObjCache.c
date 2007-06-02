@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1005 2007-06-02 13:54:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1008 2007-06-02 16:22:27Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -73,6 +73,8 @@
 # define IS_SLASH(ch)       ((ch) == '/')
 # define IS_SLASH_DRV(ch)   ((ch) == '/')
 #endif 
+/** Use pipe instead of temp files when possible (speed). */
+#define USE_PIPE 1
 
 
 
@@ -107,13 +109,17 @@ typedef struct KOBJCACHE
     const char *pszName;
     /** Set if the object needs to be (re)compiled. */
     unsigned fNeedCompiling;
+    /** Whether the precompiler runs in piped mode. If clear it's file 
+     * mode (it could be redirected stdout, but that's essentially the 
+     * same from our point of view). */
+    unsigned fPiped;
 
     /** The name of new precompiled output. */
     const char *pszNewCppName;
     /** Pointer to the 'mapping' of the new precompiled output. */
     char *pszNewCppMapping;
     /** The size of the new precompiled output 'mapping'. */
-    size_t cbNewCppMapping;
+    size_t cbNewCpp;
     /** The new checksum. */
     KOCSUM NewSum;
     /** The new object filename (relative to the cache file). */
@@ -123,8 +129,8 @@ typedef struct KOBJCACHE
     char *pszOldCppName;
     /** Pointer to the 'mapping' of the old precompiled output. */
     char *pszOldCppMapping;
-    /** The size of the old precompiled output 'mapping'. */
-    size_t cbOldCppMapping;
+    /** The size of the old precompiled output. */
+    size_t cbOldCpp;
 
     /** The head of the checksum list. */
     KOCSUM SumHead;
@@ -333,6 +339,15 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
                         break;
                     pEntry->pszOldCppName = xstrdup(pszVal);
                 }
+                else if (!strcmp(s_szLine, "cpp-size"))
+                {
+                    char *pszNext;
+                    if ((fBad = pEntry->cbOldCpp != 0))
+                        break;
+                    pEntry->cbOldCpp = strtoul(pszVal, &pszNext, 0);
+                    if ((fBad = pszNext && *pszNext))
+                        break;
+                }
                 else if (!strcmp(s_szLine, "cc-argc"))
                 {
                     if ((fBad = pEntry->papszArgvCompile != NULL))
@@ -461,6 +476,7 @@ static void kObjCacheWrite(PKOBJCACHE pEntry)
     fprintf(pFile, "magic=kObjCache-1\n");
     CHECK_LEN(fprintf(pFile, "obj=%s\n", pEntry->pszNewObjName ? pEntry->pszNewObjName : pEntry->pszObjName));
     CHECK_LEN(fprintf(pFile, "cpp=%s\n", pEntry->pszNewCppName ? pEntry->pszNewCppName : pEntry->pszOldCppName));
+    CHECK_LEN(fprintf(pFile, "cpp-size=%lu\n", pEntry->pszNewCppName ? pEntry->cbNewCpp : pEntry->cbOldCpp));
     CHECK_LEN(fprintf(pFile, "cc-argc=%u\n", pEntry->cArgvCompile));
     for (i = 0; i < pEntry->cArgvCompile; i++)
         CHECK_LEN(fprintf(pFile, "cc-argv-#%u=%s\n", i, pEntry->papszArgvCompile[i]));
@@ -508,6 +524,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
         if (fdReDir < 0)
             kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n", 
                            pszMsg, pszStdOut, strerror(errno));
+
         if (fdReDir != 1)
         {
             if (dup2(fdReDir, 1) < 0)
@@ -554,18 +571,163 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
         kObjCacheFatal(pEntry, "%s - execvp failed rc=%d errno=%d %s\n", 
                        pszMsg, rc, errno, strerror(errno));
     }
+    if (pid == -1)
+        kObjCacheFatal(pEntry, "%s - fork() failed: %s\n", pszMsg, strerror(errno));
+
     pidWait = waitpid(pid, &iStatus);
     while (pidWait < 0 && errno == EINTR)
         pidWait = waitpid(pid, &iStatus);
     if (pidWait != pid)
-        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d errno=%d %s\n", 
-                       pszMsg, rc, errno, strerror(errno));
+        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
+                       pszMsg, pidWait, strerror(errno));
     if (!WIFEXITED(iStatus))
         kObjCacheFatal(pEntry, "%s - abended (iStatus=%#x)\n", pszMsg, iStatus);
     if (WEXITSTATUS(iStatus))
         kObjCacheFatal(pEntry, "%s - failed with rc %d\n", pszMsg, WEXITSTATUS(iStatus));
 #endif
     (void)cArgv;
+}
+
+
+#ifdef USE_PIPE
+/**
+ * Spawns a child in a synchronous fashion.
+ * Terminating on failure.
+ * 
+ * @param   papszArgv       Argument vector. The cArgv element is NULL.
+ * @param   cArgv           The number of arguments in the vector.
+ */
+static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg, char **ppszOutput, size_t *pcchOutput)
+{
+    int fds[2];
+    int iStatus;
+#if defined(__WIN__)
+    intptr_t pid, pidWait;
+#else
+    pid_t pid, pidWait;
+#endif
+    int fdStdOut;
+    size_t cbAlloc;
+    size_t cbLeft;
+    char *psz;
+
+    /*
+     * Setup the pipe.
+     */
+#if defined(__WIN__)
+    if (_pipe(fds, 0, _O_NOINHERIT | _O_BINARY) < 0)
+#else
+    if (pipe(fds) < 0)
+#endif
+        kObjCacheFatal(pEntry, "pipe failed: %s\n", strerror(errno));
+    fdStdOut = dup(1);
+    if (dup2(fds[1 /* write */], 1) < 0)
+        kObjCacheFatal(pEntry, "dup2(,1) failed: %s\n", strerror(errno));
+    close(fds[1]);
+    fds[1] = -1;
+#ifndef __WIN__
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fdStdOut, F_SETFD, FD_CLOEXEC);
+#endif 
+
+    /*
+     * Create the child process.
+     */
+#if defined(__OS2__) || defined(__WIN__)
+    errno = 0;
+    pid = _spawnvp(_P_NOWAIT, papszArgv[0], papszArgv);
+    if (pid == -1)
+        kObjCacheFatal(pEntry, "%s - _spawnvp failed: %s\n", pszMsg, strerror(errno));
+
+#else
+    pid = fork();
+    if (!pid)
+    {
+        execvp(papszArgv[0], papszArgv);
+        kObjCacheFatal(pEntry, "%s - execvp failed rc=%d errno=%d %s\n", 
+                       pszMsg, rc, errno, strerror(errno));
+    }
+    if (pid == -1)
+        kObjCacheFatal(pEntry, "%s - fork() failed: %s\n", pszMsg, strerror(errno));
+#endif 
+
+    /*
+     * Restore stdout.
+     */
+    close(1);
+    fdStdOut = dup2(fdStdOut, 1);
+
+    /*
+     * Read data from the child.
+     */
+    cbAlloc = pEntry->cbOldCpp ? (pEntry->cbOldCpp + 4*1024*1024) & ~(4*1024*1024 - 1) : 4*1024*1024;
+    cbLeft = cbAlloc;
+    *ppszOutput = psz = xmalloc(cbAlloc);
+    for (;;)
+    {
+        long cbRead = _read(fds[0], psz, cbLeft);
+        if (!cbRead)
+            break;
+        if (cbRead < 0 && errno != EINTR)
+            kObjCacheFatal(pEntry, "%s - read(%d,,%ld) failed: %s\n", pszMsg, fds[0], (long)cbLeft, strerror(errno));
+        psz += cbRead;
+        cbLeft -= cbRead;
+
+        /* expand the buffer? */
+        if (!cbLeft)
+        {
+            size_t off = psz - *ppszOutput;
+            assert(off == cbAlloc);
+            cbLeft = 4*1024*1024;
+            cbAlloc += cbLeft;
+            *ppszOutput = xrealloc(*ppszOutput, cbAlloc);
+            psz = *ppszOutput + off;
+        }
+    } 
+    close(fds[0]);
+    *pcchOutput = cbAlloc - cbLeft;
+
+    /*
+     * Reap the child.
+     */
+#ifdef __WIN__
+    pidWait = _cwait(&iStatus, pid, _WAIT_CHILD);
+    if (pidWait == -1)
+        kObjCacheFatal(pEntry, "%s - waitpid failed: %s\n", 
+                       pszMsg, strerror(errno));
+    if (iStatus)
+        kObjCacheFatal(pEntry, "%s - failed with rc %d\n", pszMsg, iStatus);
+#else
+    pidWait = waitpid(pid, &iStatus);
+    while (pidWait < 0 && errno == EINTR)
+        pidWait = waitpid(pid, &iStatus);
+    if (pidWait != pid)
+        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
+                       pszMsg, pidWait, strerror(errno));
+    if (!WIFEXITED(iStatus))
+        kObjCacheFatal(pEntry, "%s - abended (iStatus=%#x)\n", pszMsg, iStatus);
+    if (WEXITSTATUS(iStatus))
+        kObjCacheFatal(pEntry, "%s - failed with rc %d\n", pszMsg, WEXITSTATUS(iStatus));
+#endif
+    (void)cArgv;
+}
+#endif /* USE_PIPE */
+
+
+/**
+ * Reads the (new) output of the precompiler.
+ * 
+ * Not used when using pipes.
+ * 
+ * @param   pEntry      The cache entry. cbNewCpp and pszNewCppMapping will be updated.
+ */
+static void kObjCacheReadPrecompileOutput(PKOBJCACHE pEntry)
+{
+    pEntry->pszNewCppMapping = ReadFileInDir(pEntry->pszNewCppName, pEntry->pszDir, &pEntry->cbNewCpp);
+    if (!pEntry->pszNewCppMapping)
+        kObjCacheFatal(pEntry, "failed to open/read '%s' in '%s': %s\n", 
+                       pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
+    kObjCacheVerbose(pEntry, "precompiled file is %lu bytes long\n", (unsigned long)pEntry->cbNewCpp);
 }
 
 
@@ -579,21 +741,10 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
 {
     struct MD5Context MD5Ctx;
 
-    /* 
-     * Read/maps the entire file into a buffer and does the crc sums 
-     * on the buffer. This assumes the precompiler output isn't 
-     * gigantic, but that's a pretty safe assumption I hope...
-     */
-    pEntry->pszNewCppMapping = ReadFileInDir(pEntry->pszNewCppName, pEntry->pszDir, &pEntry->cbNewCppMapping);
-    if (!pEntry->pszNewCppMapping)
-        kObjCacheFatal(pEntry, "failed to open/read '%s' in '%s': %s\n", 
-                       pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
-    kObjCacheVerbose(pEntry, "precompiled file is %lu bytes long\n", (unsigned long)pEntry->cbNewCppMapping);
-
     memset(&pEntry->NewSum, 0, sizeof(pEntry->NewSum));
-    pEntry->NewSum.crc32 = crc32(0, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
+    pEntry->NewSum.crc32 = crc32(0, pEntry->pszNewCppMapping, pEntry->cbNewCpp);
     MD5Init(&MD5Ctx);
-    MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
+    MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCpp);
     MD5Final(&pEntry->NewSum.md5[0], &MD5Ctx);
     kObjCacheVerbose(pEntry, "crc32=%#lx md5=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
                      pEntry->NewSum.crc32,
@@ -616,12 +767,24 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
  */
 static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp, unsigned cArgvPreComp, const char *pszPreCompName, int fRedirStdOut)
 {
+#ifdef USE_PIPE
+    /*
+     * Flag it as piped or non-piped.
+     */
+    if (fRedirStdOut)
+        pEntry->fPiped = 1;
+    else
+#endif 
+        pEntry->fPiped = 0;
+
     /*
      * Rename the old precompiled output to '-old'.
      * We'll discard the old output and keep the new output, but because
      * we might with to do a quick matchup later we can't remove it just now.
+     * If we're using the pipe strategy, we will not do any renaming.
      */
     if (    pEntry->pszOldCppName 
+        &&  !pEntry->fPiped
         &&  DoesFileInDirExist(pEntry->pszOldCppName, pEntry->pszDir))
     {
         size_t cch = strlen(pEntry->pszOldCppName);
@@ -643,10 +806,18 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
      * Precompile it and calculate the checksum on the output.
      */
     kObjCacheVerbose(pEntry, "precompiling -> '%s'...\n", pEntry->pszNewCppName);
-    if (fRedirStdOut)
-        kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", pszPreCompName);
+#ifdef USE_PIPE
+    if (pEntry->fPiped)
+        kObjCacheSpawnPipe(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", &pEntry->pszNewCppMapping, &pEntry->cbNewCpp);
     else
-        kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", NULL);
+#endif 
+    {
+        if (fRedirStdOut)
+            kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", pszPreCompName);
+        else
+            kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", NULL);
+        kObjCacheReadPrecompileOutput(pEntry);
+    }
     kObjCacheCalcChecksum(pEntry);
 }
 
@@ -689,6 +860,22 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
         pEntry->pszObjName = NULL;
     }
     pEntry->pszNewObjName = CalcRelativeName(pszObjName, pEntry->pszDir);
+
+    /*
+     * If we executed the precompiled in piped mode we'll have to write the
+     * precompiler output to disk so the compile has some thing to chew on.
+     */
+    if (pEntry->fPiped)
+    {
+        FILE *pFile = FOpenFileInDir(pEntry->pszNewCppName, pEntry->pszDir, "wb");
+        if (!pFile)
+            kObjCacheFatal(pEntry, "failed to create file '%s' in '%s': %s\n", 
+                           pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
+        if (fwrite(pEntry->pszNewCppMapping, pEntry->cbNewCpp, 1, pFile) != 1)
+            kObjCacheFatal(pEntry, "fwrite failed: %s\n", strerror(errno));
+        if (fclose(pFile))
+            kObjCacheFatal(pEntry, "fclose failed: %s\n", strerror(errno));
+    }
 
     /*
      * Release buffers we no longer need before starting the compile.
@@ -1223,7 +1410,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1005 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1008 $)\n");
             return 0;
         }
         else
