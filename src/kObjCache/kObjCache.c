@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1002 2007-06-02 10:13:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1003 2007-06-02 11:54:36Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -56,6 +56,12 @@
 #include "crc32.h"
 #include "md5.h"
 
+/*******************************************************************************
+*   Defined Constants And Macros                                               *
+*******************************************************************************/
+/** The max line length in a cache file. */
+#define KOBJCACHE_MAX_LINE_LEN  16384
+
 
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
@@ -107,15 +113,12 @@ typedef struct KOBJCACHE
     /** The size of the old precompiled output 'mapping'. */
     size_t cbOldCppMapping;
 
-    /** The raw cache file buffer.
-     * The const members below points into this. */
-    char *pszRawFile;
     /** The head of the checksum list. */
     KOCSUM SumHead;
     /** The object filename (relative to the cache file). */
-    const char *pszObjName;
+    char *pszObjName;
     /** The compile argument vector used to build the object. */
-    const char **papszArgvCompile;
+    char **papszArgvCompile;
     /** The size of the compile  */
     unsigned cArgvCompile;
 } KOBJCACHE, *PKOBJCACHE;
@@ -147,10 +150,6 @@ static void *xrealloc(void *, size_t);
 static char *xstrdup(const char *);
 
 
-/* crc.c */
-extern uint32_t crc32(uint32_t, const void *, size_t);
-
-
 /**
  * Compares two check sum entries. 
  *  
@@ -163,7 +162,7 @@ static int kObjCacheSumIsEqual(PCKOCSUM pSum1, PCKOCSUM pSum2)
 {
     if (pSum1 == pSum2)
         return 1;
-    if (pSum1 || !pSum2)
+    if (!pSum1 || !pSum2)
         return 0;
     if (pSum1->crc32 != pSum2->crc32)
         return 0;
@@ -272,8 +271,157 @@ static void kObjCacheDestroy(PKOBJCACHE pEntry)
  */
 static void kObjCacheRead(PKOBJCACHE pEntry)
 {
-    kObjCacheVerbose(pEntry, "reading cache file...\n");
-    pEntry->fNeedCompiling = 1;
+    static char s_szLine[KOBJCACHE_MAX_LINE_LEN + 16];
+    FILE *pFile;
+    pFile = FOpenFileInDir(pEntry->pszName, pEntry->pszDir, "rb");
+    if (pFile)
+    {
+        kObjCacheVerbose(pEntry, "reading cache file...\n");
+
+        /* 
+         * Check the magic.
+         */
+        if (    !fgets(s_szLine, sizeof(s_szLine), pFile)
+            ||  strcmp(s_szLine, "magic=kObjCache-1\n"))
+        {
+            kObjCacheVerbose(pEntry, "bad cache file (magic)\n");
+            pEntry->fNeedCompiling = 1;
+        }
+        else
+        {
+            /*
+             * Parse the rest of the file (relaxed order).
+             */
+            unsigned i;
+            int fBad = 0;
+            int fBadBeforeMissing;
+            int fFirstSum = 1;
+            while (fgets(s_szLine, sizeof(s_szLine), pFile))
+            {
+                /* Split the line and drop the trailing newline. */
+                char *pszNl = strchr(s_szLine, '\n');
+                char *pszVal = strchr(s_szLine, '=');
+                if ((fBad = pszVal == NULL))
+                    break;
+                if (pszNl)
+                    *pszNl = '\0';
+                *pszVal++ = '\0';
+
+                /* string case on variable name */
+                if (!strcmp(s_szLine, "obj"))
+                {
+                    if ((fBad = pEntry->pszObjName != NULL))
+                        break;
+                    pEntry->pszObjName = xstrdup(pszVal);
+                }
+                else if (!strcmp(s_szLine, "cpp"))
+                {
+                    if ((fBad = pEntry->pszOldCppName != NULL))
+                        break;
+                    pEntry->pszOldCppName = xstrdup(pszVal);
+                }
+                else if (!strcmp(s_szLine, "cc-argc"))
+                {
+                    if ((fBad = pEntry->papszArgvCompile != NULL))
+                        break;
+                    pEntry->cArgvCompile = atoi(pszVal); /* if wrong, we'll fail below. */
+                    pEntry->papszArgvCompile = xmalloc((pEntry->cArgvCompile + 1) * sizeof(pEntry->papszArgvCompile[0]));
+                    memset(pEntry->papszArgvCompile, 0, (pEntry->cArgvCompile + 1) * sizeof(pEntry->papszArgvCompile[0]));
+                }
+                else if (!strncmp(s_szLine, "cc-argv-#", sizeof("cc-argv-#") - 1))
+                {
+                    char *pszNext;
+                    unsigned i = strtoul(&s_szLine[sizeof("cc-argv-#") - 1], &pszNext, 0);
+                    if ((fBad = i >= pEntry->cArgvCompile || pEntry->papszArgvCompile[i] || (pszNext && *pszNext)))
+                        break;
+                    pEntry->papszArgvCompile[i] = xstrdup(pszVal);
+                }
+                else if (!strcmp(s_szLine, "sum"))
+                {
+                    KOCSUM Sum;
+                    unsigned i;
+                    char *pszNext;
+                    char *pszMD5 = strchr(pszVal, ':');
+                    if ((fBad = pszMD5 == NULL))
+                        break;
+                    *pszMD5++ = '\0';
+
+                    /* crc32 */
+                    Sum.crc32 = (uint32_t)strtoul(pszVal, &pszNext, 16);
+                    if ((fBad = (pszNext && *pszNext)))
+                        break;
+
+                    /* md5 */
+                    for (i = 0; i < sizeof(Sum.md5) * 2; i++)
+                    {
+                        unsigned char ch = pszMD5[i];
+                        int x;
+                        if (ch - '0' <= 9)
+                            x = ch - '0';
+                        else if (ch - 'a' <= 5)
+                            x = ch - 'a' + 10;
+                        else if (ch - 'A' <= 5)
+                            x = ch - 'A' + 10;
+                        else
+                        {
+                            fBad = 1;
+                            break;
+                        }
+                        if (!(i & 1))
+                            Sum.md5[i >> 1] = x << 4;
+                        else
+                            Sum.md5[i >> 1] |= x;
+                    }
+                    if (fBad)
+                        break;
+                    
+                    if (fFirstSum)
+                    {
+                        pEntry->SumHead = Sum;
+                        pEntry->SumHead.pNext = NULL;
+                        fFirstSum = 0;
+                    }
+                    else
+                    {
+                        Sum.pNext = pEntry->SumHead.pNext;
+                        pEntry->SumHead.pNext = xmalloc(sizeof(Sum));
+                        *pEntry->SumHead.pNext = Sum;
+                    }
+                }
+                else
+                {         
+                    fBad = 1;
+                    break;
+                }
+            } /* parse loop */
+
+            /*
+             * Did we find everything?
+             */
+            fBadBeforeMissing = fBad;
+            if (    !fBad
+                &&  (   !pEntry->papszArgvCompile
+                     || !pEntry->pszObjName
+                     || !pEntry->pszOldCppName
+                     || fFirstSum))
+                fBad = 1;
+            if (!fBad)
+                for (i = 0; i < pEntry->cArgvCompile; i++)
+                    if ((fBad = !pEntry->papszArgvCompile[i]))
+                        break;
+            if (fBad)
+                kObjCacheVerbose(pEntry, "bad cache file (%s)\n", fBadBeforeMissing ? s_szLine : "missing stuff");
+            else if (ferror(pFile))
+                kObjCacheVerbose(pEntry, "cache file read error\n");
+            pEntry->fNeedCompiling = fBad;
+        }
+        fclose(pFile);
+    }
+    else
+    {
+        kObjCacheVerbose(pEntry, "no cache file\n");
+        pEntry->fNeedCompiling = 1;
+    }
 }
 
 
@@ -284,8 +432,45 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
  */
 static void kObjCacheWrite(PKOBJCACHE pEntry)
 {
+    FILE *pFile;
+    PCKOCSUM pSum;
+    unsigned i;
+
     kObjCacheVerbose(pEntry, "writing cache file...\n");
+    pFile = FOpenFileInDir(pEntry->pszName, pEntry->pszDir, "wb");
+    if (!pFile)
+        kObjCacheFatal(pEntry, "Failed to open '%s' in '%s': %s\n", 
+                       pEntry->pszName, pEntry->pszDir, strerror(errno));
+
+#define CHECK_LEN(expr) \
+        do { int cch = expr; if (cch >= KOBJCACHE_MAX_LINE_LEN) kObjCacheFatal(pEntry, "Line too long: %d (max %d)\nexpr: %s\n", cch, KOBJCACHE_MAX_LINE_LEN, #expr); } while (0)
+
+    fprintf(pFile, "magic=kObjCache-1\n");
+    CHECK_LEN(fprintf(pFile, "obj=%s\n", pEntry->pszNewObjName ? pEntry->pszNewObjName : pEntry->pszObjName));
+    CHECK_LEN(fprintf(pFile, "cpp=%s\n", pEntry->pszNewCppName ? pEntry->pszNewCppName : pEntry->pszOldCppName));
+    CHECK_LEN(fprintf(pFile, "cc-argc=%u\n", pEntry->cArgvCompile));
+    for (i = 0; i < pEntry->cArgvCompile; i++)
+        CHECK_LEN(fprintf(pFile, "cc-argv-#%u=%s\n", i, pEntry->papszArgvCompile[i]));
+    for (pSum = pEntry->fNeedCompiling ? &pEntry->NewSum : &pEntry->SumHead;
+         pSum;
+         pSum = pSum->pNext)
+        fprintf(pFile, "sum=%#x:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n", 
+                pSum->crc32,
+                pSum->md5[0], pSum->md5[1], pSum->md5[2], pSum->md5[3],
+                pSum->md5[4], pSum->md5[5], pSum->md5[6], pSum->md5[7],
+                pSum->md5[8], pSum->md5[9], pSum->md5[10], pSum->md5[11],
+                pSum->md5[12], pSum->md5[13], pSum->md5[14], pSum->md5[15]);
     
+    if (    fflush(pFile) < 0
+        ||  ferror(pFile))
+    {
+        int iErr = errno;
+        fclose(pFile);
+        UnlinkFileInDir(pEntry->pszName, pEntry->pszDir);
+        kObjCacheFatal(pEntry, "Stream error occured while writing '%s' in '%s': %d (?)\n", 
+                       pEntry->pszName, pEntry->pszDir, strerror(iErr));
+    }
+    fclose(pFile);
 }
 
 
@@ -396,11 +581,13 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
     MD5Init(&MD5Ctx);
     MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
     MD5Final(&pEntry->NewSum.md5[0], &MD5Ctx);
-    kObjCacheVerbose(pEntry, "crc32=%#lx md5=08x%08x%08x%08x\n", pEntry->NewSum.crc32, 
-                     ((uint32_t *)&pEntry->NewSum.md5[0])[0],
-                     ((uint32_t *)&pEntry->NewSum.md5[0])[1],
-                     ((uint32_t *)&pEntry->NewSum.md5[0])[2],
-                     ((uint32_t *)&pEntry->NewSum.md5[0])[3]);
+    kObjCacheVerbose(pEntry, "crc32=%#lx md5=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                     pEntry->NewSum.crc32,
+                     pEntry->NewSum.md5[0], pEntry->NewSum.md5[1], pEntry->NewSum.md5[2], pEntry->NewSum.md5[3],
+                     pEntry->NewSum.md5[4], pEntry->NewSum.md5[5], pEntry->NewSum.md5[6], pEntry->NewSum.md5[7],
+                     pEntry->NewSum.md5[8], pEntry->NewSum.md5[9], pEntry->NewSum.md5[10], pEntry->NewSum.md5[11],
+                     pEntry->NewSum.md5[12], pEntry->NewSum.md5[13], pEntry->NewSum.md5[14], pEntry->NewSum.md5[15]);
+
 }
 
 
@@ -501,7 +688,7 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
      * Do the recompilation.
      */
     kObjCacheVerbose(pEntry, "compiling -> '%s'...\n", pEntry->pszNewObjName);
-    pEntry->papszArgvCompile = papszArgvCompile;
+    pEntry->papszArgvCompile = (char **)papszArgvCompile; /* LEAK */
     pEntry->cArgvCompile = cArgvCompile;
     kObjCacheSpawn(pEntry, papszArgvCompile, cArgvCompile, "compile", NULL);
 }
@@ -1034,7 +1221,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1002 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1003 $)\n");
             return 0;
         }
         else
