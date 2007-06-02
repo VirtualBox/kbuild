@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1003 2007-06-02 11:54:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1005 2007-06-02 13:54:25Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -61,6 +61,19 @@
 *******************************************************************************/
 /** The max line length in a cache file. */
 #define KOBJCACHE_MAX_LINE_LEN  16384
+#if defined(__WIN__)
+# define PATH_SLASH '\\'
+#else
+# define PATH_SLASH '/'
+#endif 
+#if defined(__OS2__) || defined(__WIN__)
+# define IS_SLASH(ch)       ((ch) == '/' || (ch) == '\\')
+# define IS_SLASH_DRV(ch)   ((ch) == '/' || (ch) == '\\' || (ch) == ':')
+#else
+# define IS_SLASH(ch)       ((ch) == '/')
+# define IS_SLASH_DRV(ch)   ((ch) == '/')
+#endif 
+
 
 
 /*******************************************************************************
@@ -577,6 +590,7 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
                        pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
     kObjCacheVerbose(pEntry, "precompiled file is %lu bytes long\n", (unsigned long)pEntry->cbNewCppMapping);
 
+    memset(&pEntry->NewSum, 0, sizeof(pEntry->NewSum));
     pEntry->NewSum.crc32 = crc32(0, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
     MD5Init(&MD5Ctx);
     MD5Update(&MD5Ctx, pEntry->pszNewCppMapping, pEntry->cbNewCppMapping);
@@ -826,11 +840,7 @@ static const char *FindFilenameInPath(const char *pszPath)
 {
     const char *pszFilename = strchr(pszPath, '\0') - 1;
     while (     pszFilename > pszPath 
-#if defined(__OS2__) || defined(__WIN__)
-           &&   pszFilename[-1] != ':' && pszFilename[-1] != '/' && pszFilename[-1] != '\\')
-#else
-           &&   pszFilename[-1] != '/')
-#endif
+           &&   !IS_SLASH_DRV(pszFilename[-1]))
         pszFilename--;
     return pszFilename;
 }
@@ -849,12 +859,8 @@ static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir)
     size_t cchDir = strlen(pszDir);
     char *pszBuf = xmalloc(cchName + cchDir + 2);
     memcpy(pszBuf, pszDir, cchDir);
-#if defined(__OS2__) || defined(__WIN__)
-    if (cchDir > 0 && pszDir[cchDir - 1] != '/' && pszDir[cchDir - 1] != '\\' && pszDir[cchDir - 1] != ':')
-#else
-    if (cchDir > 0 && pszDir[cchDir - 1] != '/')
-#endif 
-        pszBuf[cchDir++] = '/';
+    if (cchDir > 0 && !IS_SLASH_DRV(pszDir[cchDir - 1]))
+        pszBuf[cchDir++] = PATH_SLASH;
     memcpy(pszBuf + cchDir, pszName, cchName + 1);
     return pszBuf;
 }
@@ -936,11 +942,7 @@ static char *CalcRelativeName(const char *pszPath, const char *pszDir)
     }
     if (pszRet)
     {
-#if defined(__OS2__) || defined(__WIN__)
-        while (*pszRet == ':' || *pszRet == '/' || *pszRet == '\\')
-#else
-        while (*pszRet == '/')
-#endif 
+        while (IS_SLASH_DRV(*pszRet))
             pszRet++;
         pszRet = xstrdup(pszRet);
         free(pszAbsPath);
@@ -1001,7 +1003,7 @@ static int RenameFileInDir(const char *pszOldName, const char *pszNewName, const
 {
     char *pszOldPath = MakePathFromDirAndFile(pszOldName, pszDir);
     char *pszNewPath = MakePathFromDirAndFile(pszNewName, pszDir);
-    int rc = rename(pszOldName, pszNewName);
+    int rc = rename(pszOldPath, pszNewPath);
     free(pszOldPath);
     free(pszNewPath);
     return rc;
@@ -1044,7 +1046,7 @@ static void *ReadFileInDir(const char *pszName, const char *pszDir, size_t *pcbF
 {
     int SavedErrno;
     char *pszPath = MakePathFromDirAndFile(pszName, pszDir);
-    int fd = open(pszName, O_RDONLY | O_BINARY);
+    int fd = open(pszPath, O_RDONLY | O_BINARY);
     if (fd >= 0)
     {
         off_t cbFile = lseek(fd, 0, SEEK_END);
@@ -1221,7 +1223,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1003 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1005 $)\n");
             return 0;
         }
         else
