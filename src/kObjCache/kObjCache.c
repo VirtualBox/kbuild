@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1016 2007-06-02 18:58:41Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1017 2007-06-03 02:49:52Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <ctype.h>
 #ifndef PATH_MAX
 # define PATH_MAX _MAX_PATH /* windows */
 #endif 
@@ -384,11 +385,11 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
                     {
                         unsigned char ch = pszMD5[i];
                         int x;
-                        if (ch - '0' <= 9)
+                        if ((unsigned char)(ch - '0') <= 9)
                             x = ch - '0';
-                        else if (ch - 'a' <= 5)
+                        else if ((unsigned char)(ch - 'a') <= 5)
                             x = ch - 'a' + 10;
-                        else if (ch - 'A' <= 5)
+                        else if ((unsigned char)(ch - 'A') <= 5)
                             x = ch - 'A' + 10;
                         else
                         {
@@ -667,16 +668,17 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     *ppszOutput = psz = xmalloc(cbAlloc);
     for (;;)
     {
-        long cbRead = read(fds[0], psz, cbLeft);
+        long cbRead = read(fds[0], psz, cbLeft - 1);
         if (!cbRead)
             break;
         if (cbRead < 0 && errno != EINTR)
             kObjCacheFatal(pEntry, "%s - read(%d,,%ld) failed: %s\n", pszMsg, fds[0], (long)cbLeft, strerror(errno));
         psz += cbRead;
+        *psz = '\0';
         cbLeft -= cbRead;
 
         /* expand the buffer? */
-        if (!cbLeft)
+        if (cbLeft <= 1)
         {
             size_t off = psz - *ppszOutput;
             assert(off == cbAlloc);
@@ -825,20 +827,311 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
 
 
 /**
- * Worker for kObjCacheCompileIfNeeded that compares the 
- * precompiled output. 
+ * Check whether the string is a '#line' statement.
+ * 
+ * @returns 1 if it is, 0 if it isn't.
+ * @param   psz         The line to examin. 
+ * @parma   piLine      Where to store the line number.
+ * @parma   ppszFile    Where to store the start of the filename.
+ */
+static int IsLineStatement(const char *psz, unsigned *piLine, const char **ppszFile)
+{
+    unsigned iLine;
+
+    /* Expect a hash. */
+    if (*psz++ != '#')
+        return 0;
+
+    /* Skip blanks between '#' and the line / number */
+    while (*psz == ' ' || *psz == '\t')
+        psz++;
+
+    /* Skip the 'line' if present. */
+    if (!strncmp(psz, "line", sizeof("line") - 1))
+        psz += sizeof("line");
+
+    /* Expect a line number now. */
+    if ((unsigned char)(*psz - '0') > 9)
+        return 0;
+    iLine = 0;
+    do  
+    {
+        iLine *= 10;
+        iLine += (*psz - '0');
+        psz++;
+    }
+    while ((unsigned char)(*psz - '0') <= 9);
+
+    /* Expect one or more space now. */
+    if (*psz != ' ' && *psz != '\t')
+        return 0;
+    do  psz++;
+    while (*psz == ' ' || *psz == '\t');
+
+    /* that's good enough. */
+    *piLine = iLine;
+    *ppszFile = psz;
+    return 1;
+}
+
+
+/**
+ * Scan backwards for the previous #line statement.
+ * 
+ * @returns The filename in the previous statement.
+ * @param   pszStart        Where to start.
+ * @param   pszStop         Where to stop. Less than pszStart.
+ * @param   piLine          The line number count to adjust.
+ */
+static const char *FindFileStatement(const char *pszStart, const char *pszStop, unsigned *piLine)
+{
+    unsigned iLine = *piLine;
+    assert(pszStart >= pszStop);
+    while (pszStart >= pszStop)
+    {
+        if (*pszStart == '\n')
+            iLine++;
+        else if (*pszStart == '#')
+        {
+            unsigned iLineTmp;
+            const char *pszFile;
+            const char *psz = pszStart - 1;
+            while (psz >= pszStop && (*psz == ' ' || *psz =='\t'))
+                psz--;
+            if (    (psz < pszStop || *psz == '\n')
+                &&  IsLineStatement(pszStart, &iLineTmp, &pszFile))
+            {
+                *piLine = iLine + iLineTmp - 1;
+                return pszFile;
+            }
+        }
+        pszStart--;
+    }
+    return NULL;
+}
+
+
+/**
+ * Worker for kObjCacheCompareOldAndNewOutput() that compares the 
+ * precompiled output using a fast but not very good method.
  * 
  * @returns 1 if matching, 0 if not matching. 
  * @param   pEntry      The entry containing the names of the files to compare.
  *                      The entry is not updated in any way.
  */
-static int kObjCacheCompareOldAndNewOutput(PCKOBJCACHE pEntry)
+static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
+{
+    const char *        psz1 = pEntry->pszNewCppMapping;
+    const char * const  pszEnd1 = psz1 + pEntry->cbNewCpp;
+    const char *        psz2 = pEntry->pszOldCppMapping;
+    const char * const  pszEnd2 = psz2 + pEntry->cbOldCpp;
+
+    assert(*pszEnd1 == '\0');
+    assert(*pszEnd2 == '\0');
+
+    /*
+     * Iterate block by block and backtrack when we find a difference.
+     */
+    for (;;)
+    {
+        size_t cch = pszEnd1 - psz1;
+        if (cch > (size_t)(pszEnd2 - psz2))
+            cch = pszEnd2 - psz2;
+        if (cch > 4096)
+            cch = 4096;
+        if (    cch
+            &&  !memcmp(psz1, psz2, cch))
+        {
+            /* no differences */
+            psz1 += cch;
+            psz2 += cch;
+        }
+        else
+        {
+            /*
+             * Pinpoint the difference exactly and the try find the start
+             * of that line. Then skip forward until we find something to
+             * work on that isn't spaces or #line statements. Since we 
+             * might be skipping a few new empty headers, it is possible
+             * that we will omit this header from the dependencies when
+             * using VCC. But I think that's a reasonable trade off for 
+             * a simple algorithm.
+             */
+            const char *psz;
+            const char *pszMismatch1;
+            const char *pszFile1 = NULL;
+            unsigned    iLine1 = 0;
+            const char *pszMismatch2;
+            const char *pszFile2 = NULL;
+            unsigned    iLine2 = 0;
+
+            /* locate the difference. */
+            while (cch >= 512 && !memcmp(psz1, psz2, 512))
+                psz1 += 512, psz2 += 512, cch -= 512;
+            while (cch >= 64 && !memcmp(psz1, psz2, 64))
+                psz1 += 64, psz2 += 64, cch -= 64;
+            while (*psz1 == *psz2 && cch > 0)
+                psz1++, psz2++, cch--;
+
+            /* locate the start of that line. */
+            psz = psz1;
+            while (     psz > pEntry->pszNewCppMapping 
+                   &&   psz[-1] != '\n')
+                psz--;
+            psz2 -= (psz1 - psz);
+            pszMismatch2 = psz2;
+            pszMismatch1 = psz1 = psz;
+
+            /* Parse the 1st file line by line. */
+            while (psz1 < pszEnd1)
+            {
+                if (*psz1 == '\n')
+                {
+                    psz1++;
+                    iLine1++;
+                }
+                else
+                {
+                    psz = psz1;
+                    while (isspace(*psz) && *psz != '\n')
+                        psz++;
+                    if (*psz == '\n')
+                    {
+                        psz1 = psz + 1;
+                        iLine1++;
+                    }
+                    else if (*psz == '#' && IsLineStatement(psz, &iLine1, &pszFile1))
+                    {
+                        psz1 = memchr(psz, '\n', pszEnd1 - psz);
+                        if (!psz1++)
+                            psz1 = pszEnd1;
+                    }
+                    else if (psz == pszEnd1)
+                        psz1 = psz;
+                    else /* found something that can be compared. */
+                        break;
+                }
+            }
+
+            /* Ditto for the 2nd file. */
+            while (psz2 < pszEnd2)
+            {
+                if (*psz2 == '\n')
+                {
+                    psz2++;
+                    iLine2++;
+                }
+                else
+                {
+                    psz = psz2;
+                    while (isspace(*psz) && *psz != '\n')
+                        psz++;
+                    if (*psz == '\n')
+                    {
+                        psz2 = psz + 1;
+                        iLine2++;
+                    }
+                    else if (*psz == '#' && IsLineStatement(psz, &iLine2, &pszFile2))
+                    {
+                        psz2 = memchr(psz, '\n', pszEnd2 - psz);
+                        if (!psz2++)
+                            psz2 = pszEnd2;
+                    }
+                    else if (psz == pszEnd2)
+                        psz2 = psz;
+                    else /* found something that can be compared. */
+                        break;
+                }
+            }
+
+            /* Reaching the end of any of them means the return statement can decide. */
+            if (   psz1 == pszEnd1
+                || psz2 == pszEnd2)
+                break;
+
+            /* Match the current line. */
+            psz = memchr(psz1, '\n', pszEnd1 - psz1);
+            if (!psz)
+                psz = pszEnd1;
+            cch = psz - psz1;
+            if (psz2 + cch > pszEnd2)
+                break;
+            if (memcmp(psz1, psz2, cch))
+                break;
+
+            /* Check that we're at the same location now. */
+            if (!pszFile1)
+                pszFile1 = FindFileStatement(pszMismatch1, pEntry->pszNewCppMapping, &iLine1);
+            if (!pszFile2)
+                pszFile2 = FindFileStatement(pszMismatch2, pEntry->pszOldCppMapping, &iLine2);
+            if (pszFile1 && pszFile2)
+            {
+                if (iLine1 != iLine2)
+                    break;
+                while (*pszFile1 == *pszFile2 && *pszFile1 != '\n' && *pszFile1)
+                    pszFile1++, pszFile2++;
+                if (*pszFile1 != *pszFile2)
+                    break;
+            }
+            else if (pszFile1 || pszFile2)
+            {
+                assert(0); /* this shouldn't happen. */
+                break;
+            }
+
+            /* Try align psz1 on 8 or 4 bytes so at least one of the buffers are aligned. */
+            psz1 += cch;
+            psz2 += cch;
+            if (cch >= ((uintptr_t)psz1 & 7))
+            {
+                psz2 -= ((uintptr_t)psz1 & 7);
+                psz1 -= ((uintptr_t)psz1 & 7);
+            }
+            else if (cch >= ((uintptr_t)psz1 & 3))
+            {
+                psz2 -= ((uintptr_t)psz1 & 3);
+                psz1 -= ((uintptr_t)psz1 & 3);
+            }
+        }
+    }
+
+    return psz1 == pszEnd1 
+        && psz2 == pszEnd2;
+}
+
+
+/**
+ * Worker for kObjCacheCompileIfNeeded that compares the 
+ * precompiled output. 
+ * 
+ * @returns 1 if matching, 0 if not matching. 
+ * @param   pEntry      The entry containing the names of the files to compare.
+ *                      This will load the old cpp output (changing pszOldCppName and cbOldCpp).
+ */
+static int kObjCacheCompareOldAndNewOutput(PKOBJCACHE pEntry)
 {
     /** @todo do some quick but fancy comparing that determins whether code 
      * has actually changed or moved. We can ignore declarations and typedefs that
      * has just been moved up/down a bit. The typical case is adding a new error 
      * #define that doesn't influence the current compile job. */
-    return 0;
+
+    /*
+     * Load the old output.
+     */
+    pEntry->pszOldCppMapping = ReadFileInDir(pEntry->pszOldCppName, pEntry->pszDir, &pEntry->cbOldCpp);
+    if (!pEntry->pszOldCppMapping)
+    {
+        kObjCacheVerbose(pEntry, "failed to read old cpp file ('%s' in '%s'): %s\n", 
+                         pEntry->pszOldCppName, pEntry->pszDir, strerror(errno));
+        return 0;
+    }
+
+    /*
+     * I may implement a more sophisticated alternative method later... maybe.
+     */
+    //if ()
+    //    return kObjCacheCompareBest(pEntry);
+    return kObjCacheCompareFast(pEntry);
 }
 
 
@@ -982,9 +1275,11 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
     }
 
     /*
-     * Discard the old precompiled output it's no longer needed.s
+     * Discard the old precompiled output if it's no longer needed.
      */
-    if (pEntry->pszOldCppName)
+    if (    pEntry->pszOldCppName
+        &&  (   !pEntry->fPiped
+             || pEntry->fNeedCompiling))
     {
         UnlinkFileInDir(pEntry->pszOldCppName, pEntry->pszDir);
         free(pEntry->pszOldCppName);
@@ -1412,7 +1707,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1016 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1017 $)\n");
             return 0;
         }
         else
@@ -1441,8 +1736,33 @@ int main(int argc, char **argv)
      * Write the cache file.
      */
     kObjCacheWrite(pEntry);
-    //kObjCacheCleanup(pEntry);
     /* kObjCacheDestroy(pEntry); - don't bother */
     return 0;
 }
 
+
+/** @page kObjCache Benchmarks.
+ * 
+ * 2007-06-02 - 21-23:00:
+ * Mac OS X debug -j 3 clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
+ *  real    10m26.077s
+ *  user    13m13.291s
+ *  sys     2m58.193s
+ * 
+ * Mac OS X debug -j 3 depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
+ *  real    3m55.275s                                                                                            
+ *  user    4m11.852s
+ *  sys     0m54.931s
+ *
+ * Mac OS X debug -j 3 cached clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ *  real    11m42.513s
+ *  user    14m27.736s
+ *  sys     3m39.512s
+ *
+ * Mac OS X debug -j 3 cached clobber build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ *  real    2m24.712s       real    2m10.909s  
+ *  user    2m15.339s       user    2m15.146s  
+ *  sys     0m56.278s       sys     0m55.591s  
+ *  !Stuff is built three times here because of + instead of +| in footer.kmk!
+ * 
+ */
