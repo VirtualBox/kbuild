@@ -784,7 +784,6 @@ update_file_1 (struct file *file, unsigned int depth)
   if (file->multi_maybe)
     {
       assert (file->multi_head->updated);
-      assert (file->updated);
       assert (file->update_status <= 0);
       DBF (DB_VERBOSE, _("Finished maybe-update file `%s'.\n"));
       return 0;
