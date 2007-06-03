@@ -375,8 +375,26 @@ update_file_1 (struct file *file, unsigned int depth)
   int dep_status = 0;
   register struct dep *d, *lastd;
   int running = 0;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  struct file *dep_file;
 
-  DBF (DB_VERBOSE, _("Considering target file `%s'.\n"));
+  /* Always work on the primary multi target file, unless of course, if it's
+     a multi-maybe file with its order only dependency on the primary file. */
+  if (file->multi_head != NULL && file->multi_head != file)
+    {
+      if (!file->multi_maybe)
+        {
+          DBS (DB_VERBOSE, (_("Considering target file `%s' -> switching to multi head `%s'.\n"), 
+                            file->name, file->multi_head->name));
+          file = file->multi_head;
+        }
+      else
+        DBF (DB_VERBOSE, _("Considering target file `%s'. (multi-maybe)\n"));
+      /* XXX: optimize dependencies. */
+    }
+  else
+#endif /* CONFIG_WITH_EXPLICIT_MULTITARGET */
+    DBF (DB_VERBOSE, _("Considering target file `%s'.\n"));
 
   if (file->updated)
     {
@@ -465,134 +483,186 @@ update_file_1 (struct file *file, unsigned int depth)
     }
 
   /* Update all non-intermediate files we depend on, if necessary,
-     and see whether any of them is more recent than this file.  */
+     and see whether any of them is more recent than this file.  
+     For explicit multitarget rules we must iterate all the output
+     files to get the correct picture (this means re-evaluating 
+     shared dependencies - bad). */
 
-  lastd = 0;
-  d = file->deps;
-  while (d != 0)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  for (dep_file = file; dep_file;
+       dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
     {
-      FILE_TIMESTAMP mtime;
-      int maybe_make;
-      int dontcare = 0;
-
-      check_renamed (d->file);
-
-      mtime = file_mtime (d->file);
-      check_renamed (d->file);
-
-      if (is_updating (d->file))
-	{
-	  error (NILF, _("Circular %s <- %s dependency dropped."),
-		 file->name, d->file->name);
-	  /* We cannot free D here because our the caller will still have
-	     a reference to it when we were called recursively via
-	     check_dep below.  */
-	  if (lastd == 0)
-	    file->deps = d->next;
-	  else
-	    lastd->next = d->next;
-	  d = d->next;
-	  continue;
-	}
-
-      d->file->parent = file;
-      maybe_make = must_make;
-
-      /* Inherit dontcare flag from our parent. */
-      if (rebuilding_makefiles)
+      lastd = 0;
+      d = dep_file->deps;
+#else
+      lastd = 0;
+      d = file->deps;
+#endif
+      while (d != 0)
         {
-          dontcare = d->file->dontcare;
-          d->file->dontcare = file->dontcare;
+          FILE_TIMESTAMP mtime;
+          int maybe_make;
+          int dontcare = 0;
+    
+          check_renamed (d->file);
+    
+          mtime = file_mtime (d->file);
+          check_renamed (d->file);
+    
+          if (is_updating (d->file))
+            {
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+              /* silently ignore the order-only dep hack. */
+              if (dep_file->multi_maybe && d->file == file)
+                {
+                  lastd = d;
+                  d = d->next;
+                  continue;
+                }
+#endif 
+
+              error (NILF, _("Circular %s <- %s dependency dropped."),
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+                     dep_file->name, d->file->name);
+#else
+                     file->name, d->file->name);
+#endif 
+              /* We cannot free D here because our the caller will still have
+                 a reference to it when we were called recursively via
+                 check_dep below.  */
+              if (lastd == 0)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+                dep_file->deps = d->next;
+#else
+                file->deps = d->next;
+#endif 
+              else
+                lastd->next = d->next;
+              d = d->next;
+              continue;
+            }
+    
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+          d->file->parent = dep_file;
+#else
+          d->file->parent = file;
+#endif 
+          maybe_make = must_make;
+    
+          /* Inherit dontcare flag from our parent. */
+          if (rebuilding_makefiles)
+            {
+              dontcare = d->file->dontcare;
+              d->file->dontcare = file->dontcare;
+            }
+    
+    
+          dep_status |= check_dep (d->file, depth, this_mtime, &maybe_make);
+    
+          /* Restore original dontcare flag. */
+          if (rebuilding_makefiles)
+            d->file->dontcare = dontcare;
+    
+          if (! d->ignore_mtime)
+            must_make = maybe_make;
+    
+          check_renamed (d->file);
+    
+          {
+            register struct file *f = d->file;
+            if (f->double_colon)
+              f = f->double_colon;
+            do
+              {
+                running |= (f->command_state == cs_running
+                            || f->command_state == cs_deps_running);
+                f = f->prev;
+              }
+            while (f != 0);
+          }
+    
+          if (dep_status != 0 && !keep_going_flag)
+            break;
+    
+          if (!running)
+            /* The prereq is considered changed if the timestamp has changed while
+               it was built, OR it doesn't exist.  */
+            d->changed = ((file_mtime (d->file) != mtime)
+                          || (mtime == NONEXISTENT_MTIME));
+    
+          lastd = d;
+          d = d->next;
         }
-
-
-      dep_status |= check_dep (d->file, depth, this_mtime, &maybe_make);
-
-      /* Restore original dontcare flag. */
-      if (rebuilding_makefiles)
-        d->file->dontcare = dontcare;
-
-      if (! d->ignore_mtime)
-        must_make = maybe_make;
-
-      check_renamed (d->file);
-
-      {
-	register struct file *f = d->file;
-	if (f->double_colon)
-	  f = f->double_colon;
-	do
-	  {
-	    running |= (f->command_state == cs_running
-			|| f->command_state == cs_deps_running);
-	    f = f->prev;
-	  }
-	while (f != 0);
-      }
-
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
       if (dep_status != 0 && !keep_going_flag)
-	break;
-
-      if (!running)
-        /* The prereq is considered changed if the timestamp has changed while
-           it was built, OR it doesn't exist.  */
-	d->changed = ((file_mtime (d->file) != mtime)
-                      || (mtime == NONEXISTENT_MTIME));
-
-      lastd = d;
-      d = d->next;
+        break;
     }
+#endif 
 
   /* Now we know whether this target needs updating.
      If it does, update all the intermediate files we depend on.  */
 
   if (must_make || always_make_flag)
     {
-      for (d = file->deps; d != 0; d = d->next)
-	if (d->file->intermediate)
-	  {
-            int dontcare = 0;
-
-	    FILE_TIMESTAMP mtime = file_mtime (d->file);
-	    check_renamed (d->file);
-	    d->file->parent = file;
-
-            /* Inherit dontcare flag from our parent. */
-            if (rebuilding_makefiles)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+      for (dep_file = file; dep_file;
+           dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
+        for (d = dep_file->deps; d != 0; d = d->next)
+#else
+        for (d = file->deps; d != 0; d = d->next)
+#endif
+          if (d->file->intermediate)
+            {
+              int dontcare = 0;
+   
+              FILE_TIMESTAMP mtime = file_mtime (d->file);
+              check_renamed (d->file);
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+              d->file->parent = dep_file;
+#else
+              d->file->parent = file;
+#endif 
+   
+              /* Inherit dontcare flag from our parent. */
+              if (rebuilding_makefiles)
+                {
+                  dontcare = d->file->dontcare;
+                  d->file->dontcare = file->dontcare;
+                }
+   
+   
+              dep_status |= update_file (d->file, depth);
+   
+              /* Restore original dontcare flag. */
+              if (rebuilding_makefiles)
+                d->file->dontcare = dontcare;
+   
+              check_renamed (d->file);
+                  
               {
-                dontcare = d->file->dontcare;
-                d->file->dontcare = file->dontcare;
+                register struct file *f = d->file;
+                if (f->double_colon)
+          	f = f->double_colon;
+                do
+          	{
+          	  running |= (f->command_state == cs_running
+          	              || f->command_state == cs_deps_running);
+          	  f = f->prev;
+          	}
+                while (f != 0);
               }
-
-
-	    dep_status |= update_file (d->file, depth);
-
-            /* Restore original dontcare flag. */
-            if (rebuilding_makefiles)
-              d->file->dontcare = dontcare;
-
-	    check_renamed (d->file);
-
-	    {
-	      register struct file *f = d->file;
-	      if (f->double_colon)
-		f = f->double_colon;
-	      do
-		{
-		  running |= (f->command_state == cs_running
-			      || f->command_state == cs_deps_running);
-		  f = f->prev;
-		}
-	      while (f != 0);
-	    }
-
-	    if (dep_status != 0 && !keep_going_flag)
-	      break;
-
-	    if (!running)
-	      d->changed = ((file->phony && file->cmds != 0)
-			    || file_mtime (d->file) != mtime);
-	  }
+   
+              if (dep_status != 0 && !keep_going_flag)
+                break;
+   
+              if (!running)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+                d->changed = ((dep_file->phony && dep_file->cmds != 0)
+#else
+                d->changed = ((file->phony && file->cmds != 0)
+#endif 
+          	            || file_mtime (d->file) != mtime);
+            }
     }
 
   finish_updating (file);
@@ -641,72 +711,76 @@ update_file_1 (struct file *file, unsigned int depth)
      recent than this file, so we can define $?.  */
 
   deps_changed = 0;
-  for (d = file->deps; d != 0; d = d->next)
-    {
-      FILE_TIMESTAMP d_mtime = file_mtime (d->file);
-      check_renamed (d->file);
-
-      if (! d->ignore_mtime)
-        {
-#if 1
-          /* %%% In version 4, remove this code completely to
-	   implement not remaking deps if their deps are newer
-	   than their parents.  */
-          if (d_mtime == NONEXISTENT_MTIME && !d->file->intermediate)
-            /* We must remake if this dep does not
-               exist and is not intermediate.  */
-            must_make = 1;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  for (dep_file = file; dep_file;
+       dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
 #endif
-
-          /* Set DEPS_CHANGED if this dep actually changed.  */
-          deps_changed |= d->changed;
-        }
-
-      /* Set D->changed if either this dep actually changed,
-	 or its dependent, FILE, is older or does not exist.  */
-      d->changed |= noexist || d_mtime > this_mtime;
-
-      if (!noexist && ISDB (DB_BASIC|DB_VERBOSE))
-	{
-          const char *fmt = 0;
-
-          if (d->ignore_mtime)
-            {
-              if (ISDB (DB_VERBOSE))
-                fmt = _("Prerequisite `%s' is order-only for target `%s'.\n");
-            }
-          else if (d_mtime == NONEXISTENT_MTIME)
-            {
-              if (ISDB (DB_BASIC))
-                fmt = _("Prerequisite `%s' of target `%s' does not exist.\n");
-            }
-	  else if (d->changed)
-            {
-              if (ISDB (DB_BASIC))
-                fmt = _("Prerequisite `%s' is newer than target `%s'.\n");
-            }
-          else if (ISDB (DB_VERBOSE))
-            fmt = _("Prerequisite `%s' is older than target `%s'.\n");
-
-          if (fmt)
-            {
-              print_spaces (depth);
-              printf (fmt, dep_name (d), file->name);
-              fflush (stdout);
-            }
-	}
-    }
+    for (d = file->deps; d != 0; d = d->next)
+      {
+        FILE_TIMESTAMP d_mtime = file_mtime (d->file);
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+        if (d->file == file && dep_file->multi_maybe)
+          continue;
+#endif 
+        check_renamed (d->file);
+  
+        if (! d->ignore_mtime)
+          {
+#if 1
+            /* %%% In version 4, remove this code completely to
+             implement not remaking deps if their deps are newer
+             than their parents.  */
+            if (d_mtime == NONEXISTENT_MTIME && !d->file->intermediate)
+              /* We must remake if this dep does not
+                 exist and is not intermediate.  */
+              must_make = 1;
+#endif
+  
+            /* Set DEPS_CHANGED if this dep actually changed.  */
+            deps_changed |= d->changed;
+          }
+  
+        /* Set D->changed if either this dep actually changed,
+           or its dependent, FILE, is older or does not exist.  */
+        d->changed |= noexist || d_mtime > this_mtime;
+  
+        if (!noexist && ISDB (DB_BASIC|DB_VERBOSE))
+          {
+            const char *fmt = 0;
+  
+            if (d->ignore_mtime)
+              {
+                if (ISDB (DB_VERBOSE))
+                  fmt = _("Prerequisite `%s' is order-only for target `%s'.\n");
+              }
+            else if (d_mtime == NONEXISTENT_MTIME)
+              {
+                if (ISDB (DB_BASIC))
+                  fmt = _("Prerequisite `%s' of target `%s' does not exist.\n");
+              }
+            else if (d->changed)
+              {
+                if (ISDB (DB_BASIC))
+                  fmt = _("Prerequisite `%s' is newer than target `%s'.\n");
+              }
+            else if (ISDB (DB_VERBOSE))
+              fmt = _("Prerequisite `%s' is older than target `%s'.\n");
+  
+            if (fmt)
+              {
+                print_spaces (depth);
+                printf (fmt, dep_name (d), file->name);
+                fflush (stdout);
+              }
+          }
+      }
 
   /* Here depth returns to the value it had when we were called.  */
   depth--;
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   /* maybe-update targets in a multi target should have been remade
-     by now, so return before we remake it again.
-
-     XXX What if there are extra dependencies for this file that
-     triggers a remake when the primary target doesn't need remaking?
-     Current solution is: Don't do that! */
+     by now, so return before we remake it again. */
   if (file->multi_maybe)
     {
       assert (file->multi_head->updated);
