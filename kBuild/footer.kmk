@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1025 2007-06-04 01:29:16Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1030 2007-06-04 01:49:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -996,7 +996,8 @@ MD5SUM := md5sum
 define def_fetch_src_fetch_rule
 # Indirect goal for downloading something.
 .PRECIOUS: $(out)
-$(out) $($(target)_$(srcname)_FETCH_OUTPUT_): | $($(target)_$(srcname)_FETCH_DEPORD_)
+$(out) + $($(target)_$(srcname)_FETCH_OUTPUT_) +| $($(target)_$(srcname)_FETCH_OUTPUT_MAYBE_)  : \
+		| $($(target)_$(srcname)_FETCH_DEPORD_)
 	$$(call MSG_FETCH_DL,$(target),$(source),$(out))
 	@## @todo do fancy stuff like download continuation.
 	$$(QUIET)$$(RM) -f $(out) $(out).md5
@@ -1029,7 +1030,8 @@ endef
 ## generates the unpack rule
 define def_fetch_src_unpack_rule
 # This is the unpack rule. it has an order-only dependency on the download check.
-$(out) $($(target)_$(srcname)_UNPACK_OUTPUT_): $($(target)_$(srcname)_UNPACK_DEPEND_) \
+$(out) + $($(target)_$(srcname)_UNPACK_OUTPUT_) +| $($(target)_$(srcname)_UNPACK_OUTPUT_MAYBE_) : \
+		$($(target)_$(srcname)_UNPACK_DEPEND_) \
 		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
 	$$(call MSG_FETCH_UP,$(target),$(archive),$(inst))
 	$$(QUIET)$$(RM) -f $(out)
@@ -1152,6 +1154,7 @@ endif
 # call the tool
 $(target)_$(srcname)_FETCH_CMDS_   := $(TOOL_$(tool)_FETCH_CMDS)
 $(target)_$(srcname)_FETCH_OUTPUT_ := $(TOOL_$(tool)_FETCH_OUTPUT)
+$(target)_$(srcname)_FETCH_OUTPUT_MAYBE_ := $(TOOL_$(tool)_FETCH_OUTPUT_MAYBE)
 $(target)_$(srcname)_FETCH_DEPEND_ := $(TOOL_$(tool)_FETCH_DEPEND) $(deps)
 $(target)_$(srcname)_FETCH_DEPORD_ := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep) $(orderdeps)
 
@@ -1210,6 +1213,7 @@ endif
 # call the tool
 $(target)_$(srcname)_UNPACK_CMDS_   := $(TOOL_$(tool)_UNPACK_CMDS)
 $(target)_$(srcname)_UNPACK_OUTPUT_ := $(TOOL_$(tool)_UNPACK_OUTPUT)
+$(target)_$(srcname)_UNPACK_OUTPUT_MAYBE_ := $(TOOL_$(tool)_UNPACK_OUTPUT_MAYBE)
 $(target)_$(srcname)_UNPACK_DEPEND_ := $(TOOL_$(tool)_UNPACK_DEPEND) $(deps)
 $(target)_$(srcname)_UNPACK_DEPORD_ := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep) $(orderdeps)
 
@@ -1361,21 +1365,21 @@ endif
 define def_target_source_rule
 
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
-$(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) : \
+$(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
 		$(_DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_)
 	$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 else
-$(obj) + $($(target)_$(source)_OUTPUT_) : \
+$(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
 		$(_DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_)
 	$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 ifdef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
-	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_)
+	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 endif
 endif
 
@@ -1410,18 +1414,19 @@ endif
 # @param    $(dep)                  The name of the dependency file.
 # @param    $(out)
 # @param    $($(target)_OUTPUT_)    Output files from the link.
+# @param    $($(target)_OUTPUT_MAYBE_)	Output files that the link may perhaps create.
 # @param    $($(target)_DEPEND_)	Dependencies.
 # @param    $($(target)_DEPORD_)    Dependencies which should only affect build order.
 # @param    $($(target)_CMDS_)      The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
-$(out) + $($(target)_OUTPUT_) : \
+$(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
 		$($(target)_DEPEND_) \
 		$(_DEP_LINK_CMDS) \
 		| \
 		$($(target)_DEPORD_)
 	$$(call MSG_LINK,$(target),$$@,$(tool_do))
-	$$(QUIET)$$(RM) -f $(dep) $(out) $($(target)_OUTPUT_)
+	$$(QUIET)$$(RM) -f $(dep) $(out) $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 
 $($(target)_CMDS_)
 
@@ -1527,7 +1532,7 @@ else # _NOINST
 $(typevar) += $(out)
 endif
 
-_OUT_FILES += $($(target)_OUTPUT_) $(out)
+_OUT_FILES += $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _OBJS += $($(target)_OBJS_)
@@ -1729,6 +1734,7 @@ ifneq ($(post_cmds),)
  $(target)_CMDS_  := $($(target)_CMDS_)$(NL)$(TAB)$(post_cmds)
 endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
+$(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
 $(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
@@ -2053,6 +2059,7 @@ ifneq ($(post_cmds),)
  $(target)_CMDS_  := $($(target)_CMDS_)$(NL)$(TAB)$(post_cmds)
 endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
+$(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
 $(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
 $(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
