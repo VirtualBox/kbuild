@@ -378,18 +378,12 @@ update_file_1 (struct file *file, unsigned int depth)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   struct file *dep_file;
 
-  /* Always work on the primary multi target file, unless of course, if it's
-     a multi-maybe file with its order only dependency on the primary file. */
+  /* Always work on the primary multi target file. */
   if (file->multi_head != NULL && file->multi_head != file)
     {
-      if (!file->multi_maybe)
-        {
-          DBS (DB_VERBOSE, (_("Considering target file `%s' -> switching to multi head `%s'.\n"), 
-                            file->name, file->multi_head->name));
-          file = file->multi_head;
-        }
-      else
-        DBF (DB_VERBOSE, _("Considering target file `%s'. (multi-maybe)\n"));
+      DBS (DB_VERBOSE, (_("Considering target file `%s' -> switching to multi head `%s'.\n"), 
+                          file->name, file->multi_head->name));
+      file = file->multi_head;
       /* XXX: optimize dependencies. */
     }
   else
@@ -489,8 +483,7 @@ update_file_1 (struct file *file, unsigned int depth)
      shared dependencies - bad). */
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (dep_file = file; dep_file;
-       dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
+  for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
     {
       lastd = 0;
       d = dep_file->deps;
@@ -605,8 +598,7 @@ update_file_1 (struct file *file, unsigned int depth)
   if (must_make || always_make_flag)
     {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-      for (dep_file = file; dep_file;
-           dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
+      for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
         for (d = dep_file->deps; d != 0; d = d->next)
 #else
         for (d = file->deps; d != 0; d = d->next)
@@ -712,8 +704,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
   deps_changed = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (dep_file = file; dep_file;
-       dep_file = file == file->multi_head ? dep_file->multi_next : NULL)
+  for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
 #endif
     for (d = file->deps; d != 0; d = d->next)
       {
@@ -777,18 +768,6 @@ update_file_1 (struct file *file, unsigned int depth)
 
   /* Here depth returns to the value it had when we were called.  */
   depth--;
-
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  /* maybe-update targets in a multi target should have been remade
-     by now, so return before we remake it again. */
-  if (file->multi_maybe)
-    {
-      assert (file->multi_head->updated);
-      assert (file->update_status <= 0);
-      DBF (DB_VERBOSE, _("Finished maybe-update file `%s'.\n"));
-      return 0;
-    }
-#endif
 
   if (file->double_colon && file->deps == 0)
     {
