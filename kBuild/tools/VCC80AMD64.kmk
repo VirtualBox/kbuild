@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 857 2007-03-28 22:36:57Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 1031 2007-06-04 01:56:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting AMD64.
@@ -120,10 +120,9 @@ TOOL_VCC80AMD64_LDFLAGS.release  ?=
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC80AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,idb)
 TOOL_VCC80AMD64_COMPILE_C_DEPEND =
 TOOL_VCC80AMD64_COMPILE_C_DEPORD =
-ifndef VCC80AMD64_OLD_DEPS
+TOOL_VCC80AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,idb)
 define TOOL_VCC80AMD64_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -133,19 +132,6 @@ define TOOL_VCC80AMD64_COMPILE_C_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80AMD64_PDB,$(outbase)-obj,idb)
 endef
-else
-define TOOL_VCC80AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC80AMD64_CC) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
-		-Fo$(obj)\
-		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(TOOL_VCC80AMD64_CC) -E\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source)))\
-		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
-endef
-endif
 
 
 ## Compile C++ source.
@@ -161,10 +147,9 @@ endif
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC80AMD64_COMPILE_CXX_OUTPUT = $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,idb)
 TOOL_VCC80AMD64_COMPILE_CXX_DEPEND =
 TOOL_VCC80AMD64_COMPILE_CXX_DEPORD =
-ifndef VCC80AMD64_OLD_DEPS
+TOOL_VCC80AMD64_COMPILE_CXX_OUTPUT = $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80AMD64_PDB, $(outbase)-obj,idb)
 define TOOL_VCC80AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -174,19 +159,6 @@ define TOOL_VCC80AMD64_COMPILE_CXX_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80AMD64_PDB,$(outbase)-obj,idb)
 endef
-else
-define TOOL_VCC80AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC80AMD64_CXX) -c\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
-		-Fo$(obj)\
-		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(TOOL_VCC80AMD64_CXX) -E\
-		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source)))\
-		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
-endef
-endif
 
 
 ## Compile resource source.
@@ -202,9 +174,9 @@ endif
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC80AMD64_COMPILE_RC_OUTPUT =
 TOOL_VCC80AMD64_COMPILE_RC_DEPEND =
 TOOL_VCC80AMD64_COMPILE_RC_DEPORD =
+TOOL_VCC80AMD64_COMPILE_RC_OUTPUT =
 define TOOL_VCC80AMD64_COMPILE_RC_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_RC) \
 		$(flags) $(addprefix /i, $(subst /,\\,$(incs))) $(addprefix /d, $(defs))\
@@ -225,8 +197,8 @@ endef
 #
 TOOL_VCC80AMD64_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VCC80AMD64_LINK_LIBRARY_DEPORD =
-ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
-TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb $(outbase).rsp
+TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).rsp
+TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT_MAYBE = $(outbase).lst $(outbase).exp $(outbase).pdb
 define TOOL_VCC80AMD64_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) -n $(outbase).rsp \
 		$(foreach arg,\
@@ -236,13 +208,6 @@ define TOOL_VCC80AMD64_LINK_LIBRARY_CMDS
 			,\"$(arg)\")
 	$(QUIET)$(TOOL_VCC80AMD64_AR) $(flags) /OUT:$(out) @$(outbase).rsp
 endef
-else
-TOOL_VCC80AMD64_LINK_LIBRARY_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
-define TOOL_VCC80AMD64_LINK_LIBRARY_CMDS
-	$(QUIET)$(TOOL_VCC80AMD64_AR) $(flags) /OUT:$(out) $(subst /,\\,$(objs) $(filter %.a %.lib,$(othersrc))) \
-		$(foreach def,$(filter %.def,$(othersrc)), /DEF:$(def))
-endef
-endif
 
 
 ## Link program
@@ -259,9 +224,10 @@ endif
 # @param    $(custom_post)  Custom step invoked after linking.
 # @param    $(outbase)      Output basename (full). Use this for list files and such.
 #
-TOOL_VCC80AMD64_LINK_PROGRAM_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk $(out).manifest
 TOOL_VCC80AMD64_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80AMD64_LINK_PROGRAM_DEPORD =
+TOOL_VCC80AMD64_LINK_PROGRAM_OUTPUT = $(outbase).map
+TOOL_VCC80AMD64_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk $(out).manifest
 define TOOL_VCC80AMD64_LINK_PROGRAM_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_LD) $(flags) \
 		/OUT:$(out) \
@@ -292,9 +258,10 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_VCC80AMD64_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk $(out).manifest
 TOOL_VCC80AMD64_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80AMD64_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
+TOOL_VCC80AMD64_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp
+TOOL_VCC80AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest
 define TOOL_VCC80AMD64_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_LD) $(flags) \
 		/OUT:$(out) \
@@ -332,9 +299,10 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_VCC80AMD64_LINK_SYSMOD_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk $(out).manifest
 TOOL_VCC80AMD64_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80AMD64_LINK_SYSMOD_DEPORD =
+TOOL_VCC80AMD64_LINK_SYSMOD_OUTPUT = $(outbase).map
+TOOL_VCC80AMD64_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).lib $(outbase).exp $(outbase).pdb $(outbase).ilk $(out).manifest
 define TOOL_VCC80AMD64_LINK_SYSMOD_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_LD) $(flags) \
 		/OUT:$(out) \
