@@ -376,15 +376,15 @@ update_file_1 (struct file *file, unsigned int depth)
   register struct dep *d, *lastd;
   int running = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  struct file *dep_file;
+  struct file *f2, *f3;
 
   /* Always work on the primary multi target file. */
+
   if (file->multi_head != NULL && file->multi_head != file)
     {
-      DBS (DB_VERBOSE, (_("Considering target file `%s' -> switching to multi head `%s'.\n"), 
+      DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"), 
                           file->name, file->multi_head->name));
       file = file->multi_head;
-      /* XXX: optimize dependencies. */
     }
   else
 #endif /* CONFIG_WITH_EXPLICIT_MULTITARGET */
@@ -438,13 +438,37 @@ update_file_1 (struct file *file, unsigned int depth)
      that its name may be changed by a VPATH search, and thus it may
      not need an implicit rule.  If this were not done, the file
      might get implicit commands that apply to its initial name, only
-     to have that name replaced with another found by VPATH search.  */
+     to have that name replaced with another found by VPATH search.
 
+     For multi target files check the other files and use the time
+     of the oldest / non-existing file. */
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  this_mtime = file_mtime (file);
+  f3 = file;
+  for (f2 = file->multi_next; 
+       f2 != NULL && this_mtime != NONEXISTENT_MTIME; 
+       f2 = f2->multi_next)
+    if (!f2->multi_maybe)
+      {
+        FILE_TIMESTAMP second_mtime = file_mtime (f2);
+        if (second_mtime < this_mtime)
+          {
+            this_mtime = second_mtime;
+            f3 = f2;
+          }
+      }
+  check_renamed (file);
+  noexist = this_mtime == NONEXISTENT_MTIME;
+  if (noexist)
+    DBS (DB_BASIC, (_("File `%s' does not exist.\n"), f3->name));
+#else /* !CONFIG_WITH_EXPLICIT_MULTITARGET */
   this_mtime = file_mtime (file);
   check_renamed (file);
   noexist = this_mtime == NONEXISTENT_MTIME;
   if (noexist)
     DBF (DB_BASIC, _("File `%s' does not exist.\n"));
+#endif /* !CONFIG_WITH_EXPLICIT_MULTITARGET */
   else if (ORDINARY_MTIME_MIN <= this_mtime && this_mtime <= ORDINARY_MTIME_MAX
 	   && file->low_resolution_time)
     {
@@ -479,14 +503,13 @@ update_file_1 (struct file *file, unsigned int depth)
   /* Update all non-intermediate files we depend on, if necessary,
      and see whether any of them is more recent than this file.  
      For explicit multitarget rules we must iterate all the output
-     files to get the correct picture (this means re-evaluating 
-     shared dependencies - bad). */
+     files to get the correct picture. */
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
+  for (f2 = file; f2; f2 = f2->multi_next)
     {
       lastd = 0;
-      d = dep_file->deps;
+      d = f2->deps;
 #else
       lastd = 0;
       d = file->deps;
@@ -506,7 +529,7 @@ update_file_1 (struct file *file, unsigned int depth)
             {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
               /* silently ignore the order-only dep hack. */
-              if (dep_file->multi_maybe && d->file == file)
+              if (f2->multi_maybe && d->file == file)
                 {
                   lastd = d;
                   d = d->next;
@@ -516,7 +539,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
               error (NILF, _("Circular %s <- %s dependency dropped."),
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                     dep_file->name, d->file->name);
+                     f2->name, d->file->name);
 #else
                      file->name, d->file->name);
 #endif 
@@ -525,7 +548,7 @@ update_file_1 (struct file *file, unsigned int depth)
                  check_dep below.  */
               if (lastd == 0)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                dep_file->deps = d->next;
+                f2->deps = d->next;
 #else
                 file->deps = d->next;
 #endif 
@@ -536,7 +559,7 @@ update_file_1 (struct file *file, unsigned int depth)
             }
     
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-          d->file->parent = dep_file;
+          d->file->parent = f2;
 #else
           d->file->parent = file;
 #endif 
@@ -598,8 +621,8 @@ update_file_1 (struct file *file, unsigned int depth)
   if (must_make || always_make_flag)
     {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-      for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
-        for (d = dep_file->deps; d != 0; d = d->next)
+      for (f2 = file; f2; f2 = f2->multi_next)
+        for (d = f2->deps; d != 0; d = d->next)
 #else
         for (d = file->deps; d != 0; d = d->next)
 #endif
@@ -610,7 +633,7 @@ update_file_1 (struct file *file, unsigned int depth)
               FILE_TIMESTAMP mtime = file_mtime (d->file);
               check_renamed (d->file);
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-              d->file->parent = dep_file;
+              d->file->parent = f2;
 #else
               d->file->parent = file;
 #endif 
@@ -649,7 +672,7 @@ update_file_1 (struct file *file, unsigned int depth)
    
               if (!running)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                d->changed = ((dep_file->phony && dep_file->cmds != 0)
+                d->changed = ((f2->phony && f2->cmds != 0)
 #else
                 d->changed = ((file->phony && file->cmds != 0)
 #endif 
@@ -704,13 +727,13 @@ update_file_1 (struct file *file, unsigned int depth)
 
   deps_changed = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (dep_file = file; dep_file; dep_file = dep_file->multi_next)
+  for (f2 = file; f2; f2 = f2->multi_next)
 #endif
     for (d = file->deps; d != 0; d = d->next)
       {
         FILE_TIMESTAMP d_mtime = file_mtime (d->file);
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-        if (d->file == file && dep_file->multi_maybe)
+        if (d->file == file && f2->multi_maybe)
           continue;
 #endif 
         check_renamed (d->file);
@@ -815,12 +838,7 @@ update_file_1 (struct file *file, unsigned int depth)
       return 0;
     }
 
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  if (ISDB(DB_BASIC) && file->multi_head && file->multi_head != file)
-    DBS (DB_BASIC, (_("Must remake target `%s' - primary target `%s'.\n"), file->name, file->multi_head->name));
-  else
-#endif
-    DBF (DB_BASIC, _("Must remake target `%s'.\n"));
+  DBF (DB_BASIC, _("Must remake target `%s'.\n"));
 
   /* It needs to be remade.  If it's VPATH and not reset via GPATH, toss the
      VPATH.  */
@@ -1204,9 +1222,7 @@ static void
 remake_file (struct file *file)
 {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  /* Always operate on the primary file. */
-  if (file->multi_head && file->multi_head != file)
-    file = file->multi_head;
+  assert(file->multi_head == NULL || file->multi_head == file);
 #endif
 
   if (file->cmds == 0)
