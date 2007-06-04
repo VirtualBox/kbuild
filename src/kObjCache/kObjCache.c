@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1024 2007-06-04 01:28:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1036 2007-06-04 17:20:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -951,19 +951,30 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
             /*
              * Pinpoint the difference exactly and the try find the start
              * of that line. Then skip forward until we find something to
-             * work on that isn't spaces or #line statements. Since we 
-             * might be skipping a few new empty headers, it is possible
-             * that we will omit this header from the dependencies when
-             * using VCC. But I think that's a reasonable trade off for 
-             * a simple algorithm.
+             * work on that isn't spaces, #line statements or closing curly 
+             * braces. 
+             *
+             * The closing curly braces are ignored because they are frequently 
+             * found at the end of header files (__END_DECLS) and the worst 
+             * thing that may happen if it isn't one of these braces we're 
+             * ignoring is that the final line in a function block is a little 
+             * bit off in the debug info. 
+             *
+             * Since we might be skipping a few new empty headers, it is 
+             * possible that we will omit this header from the dependencies 
+             * when using VCC. This might not be a problem, since it seems
+             * we'll have to use the precompiler output to generate the deps
+             * anyway.
              */
             const char *psz;
             const char *pszMismatch1;
             const char *pszFile1 = NULL;
             unsigned    iLine1 = 0;
+            unsigned    cCurlyBraces1 = 0;
             const char *pszMismatch2;
             const char *pszFile2 = NULL;
             unsigned    iLine2 = 0;
+            unsigned    cCurlyBraces2 = 0;
 
             /* locate the difference. */
             while (cch >= 512 && !memcmp(psz1, psz2, 512))
@@ -1006,6 +1017,17 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
                         if (!psz1++)
                             psz1 = pszEnd1;
                     }
+                    else if (*psz == '}')
+                    {
+                        do psz++;
+                        while (isspace(*psz) && *psz != '\n');
+                        if (*psz == '\n')
+                            iLine1++;
+                        else if (psz != pszEnd1)
+                            break;
+                        cCurlyBraces1++;
+                        psz1 = psz;
+                    }
                     else if (psz == pszEnd1)
                         psz1 = psz;
                     else /* found something that can be compared. */
@@ -1037,12 +1059,27 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
                         if (!psz2++)
                             psz2 = pszEnd2;
                     }
+                    else if (*psz == '}')
+                    {
+                        do psz++;
+                        while (isspace(*psz) && *psz != '\n');
+                        if (*psz == '\n')
+                            iLine2++;
+                        else if (psz != pszEnd2)
+                            break;
+                        cCurlyBraces2++;
+                        psz2 = psz;
+                    }
                     else if (psz == pszEnd2)
                         psz2 = psz;
                     else /* found something that can be compared. */
                         break;
                 }
             }
+
+            /* Match the number of ignored closing curly braces. */
+            if (cCurlyBraces1 != cCurlyBraces2)
+                return 0;
 
             /* Reaching the end of any of them means the return statement can decide. */
             if (   psz1 == pszEnd1
@@ -1707,7 +1744,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1024 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1036 $)\n");
             return 0;
         }
         else
