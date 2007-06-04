@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1026 2007-06-04 01:30:19Z knut.osmundsen@oracle.com $
 
-SUBDIRS = lib kmk sed kDepPre kDepIDB
+SUBDIRS = lib kmk sed kDepPre kDepIDB kObjCache
 ifneq ($(BUILD_TARGET),win)
 SUBDIRS += ash
 endif
