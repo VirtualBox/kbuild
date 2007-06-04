@@ -2140,6 +2140,25 @@ record_files (struct nameseq *filenames, const char *pattern,
 	  if (cmds != 0)
 	    f->cmds = cmds;
 
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+          /* If this is an explicit multi target rule, add it to the
+             target chain and set the multi_maybe flag according to
+             the current mode. */
+
+          if (multi_mode >= m_yes)
+            {
+              f->multi_maybe = multi_mode == m_yes_maybe;
+              prev_file->multi_next = f;
+              assert (prev_file->multi_head != 0);
+              f->multi_head = prev_file->multi_head;
+
+              if (f == suffix_file)
+                error (flocp,
+                       _(".SUFFIXES encountered in an explicit multi target rule"));
+            }
+          prev_file = f;
+#endif
+
 	  /* Defining .SUFFIXES with no dependencies clears out the list of
 	     suffixes.  */
 	  if (f == suffix_file && this == 0)
