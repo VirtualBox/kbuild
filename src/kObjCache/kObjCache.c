@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1036 2007-06-04 17:20:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1038 2007-06-05 08:31:14Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -40,20 +40,20 @@
 #include <ctype.h>
 #ifndef PATH_MAX
 # define PATH_MAX _MAX_PATH /* windows */
-#endif 
+#endif
 #if defined(__OS2__) || defined(__WIN__)
 # include <process.h>
 # include <io.h>
 # ifdef __OS2__
 #  include <unistd.h>
-# endif 
+# endif
 #else
 # include <unistd.h>
 # include <sys/wait.h>
 # ifndef O_BINARY
 #  define O_BINARY 0
 # endif
-#endif 
+#endif
 #include "crc32.h"
 #include "md5.h"
 
@@ -66,14 +66,14 @@
 # define PATH_SLASH '\\'
 #else
 # define PATH_SLASH '/'
-#endif 
+#endif
 #if defined(__OS2__) || defined(__WIN__)
 # define IS_SLASH(ch)       ((ch) == '/' || (ch) == '\\')
 # define IS_SLASH_DRV(ch)   ((ch) == '/' || (ch) == '\\' || (ch) == ':')
 #else
 # define IS_SLASH(ch)       ((ch) == '/')
 # define IS_SLASH_DRV(ch)   ((ch) == '/')
-#endif 
+#endif
 /** Use pipe instead of temp files when possible (speed). */
 #define USE_PIPE 1
 
@@ -83,8 +83,8 @@
 *   Structures and Typedefs                                                    *
 *******************************************************************************/
 /** A checksum list entry.
- * We keep a list checksums (of precompiler output) that matches, The planned 
- * matching algorithm doesn't require the precompiler output to be indentical, 
+ * We keep a list checksums (of precompiler output) that matches, The planned
+ * matching algorithm doesn't require the precompiler output to be indentical,
  * only to produce the same object files.
  */
 typedef struct KOCSUM
@@ -110,8 +110,8 @@ typedef struct KOBJCACHE
     const char *pszName;
     /** Set if the object needs to be (re)compiled. */
     unsigned fNeedCompiling;
-    /** Whether the precompiler runs in piped mode. If clear it's file 
-     * mode (it could be redirected stdout, but that's essentially the 
+    /** Whether the precompiler runs in piped mode. If clear it's file
+     * mode (it could be redirected stdout, but that's essentially the
      * same from our point of view). */
     unsigned fPiped;
 
@@ -171,10 +171,10 @@ static char *xstrdup(const char *);
 
 
 /**
- * Compares two check sum entries. 
- *  
- * @returns 1 if equal, 0 if not equal. 
- *  
+ * Compares two check sum entries.
+ *
+ * @returns 1 if equal, 0 if not equal.
+ *
  * @param pSum1     The first checksum.
  * @param pSum2     The second checksum.
  */
@@ -194,7 +194,7 @@ static int kObjCacheSumIsEqual(PCKOCSUM pSum1, PCKOCSUM pSum2)
 
 /**
  * Print a fatal error message and exit with rc=1.
- * 
+ *
  * @param   pEntry      The cache entry.
  * @param   pszFormat   The message to print.
  * @param   ...         Format arguments.
@@ -214,7 +214,7 @@ static void kObjCacheFatal(PCKOBJCACHE pEntry, const char *pszFormat, ...)
 
 /**
  * Print a verbose message if verbosisty is enabled.
- * 
+ *
  * @param   pEntry      The cache entry.
  * @param   pszFormat   The message to print.
  * @param   ...         Format arguments.
@@ -224,7 +224,7 @@ static void kObjCacheVerbose(PCKOBJCACHE pEntry, const char *pszFormat, ...)
     if (g_fVerbose)
     {
         va_list va;
-    
+
         fprintf(stdout, "kObjCache %s - info: ", pEntry->pszName);
         va_start(va, pszFormat);
         vfprintf(stdout, pszFormat, va);
@@ -235,7 +235,7 @@ static void kObjCacheVerbose(PCKOBJCACHE pEntry, const char *pszFormat, ...)
 
 /**
  * Creates a cache entry for the given cache file name.
- *  
+ *
  * @returns Pointer to a cache entry.
  * @param   pszFilename     The cache file name.
  */
@@ -264,8 +264,8 @@ static PKOBJCACHE kObjCacheCreate(const char *pszFilename)
 
 #if 0 /* don't bother. */
 /**
- * Destroys the cache entry freeing up all it's resources. 
- *  
+ * Destroys the cache entry freeing up all it's resources.
+ *
  * @param   pEntry      The entry to free.
  */
 static void kObjCacheDestroy(PKOBJCACHE pEntry)
@@ -286,7 +286,7 @@ static void kObjCacheDestroy(PKOBJCACHE pEntry)
 
 /**
  * Reads and parses the cache file.
- *  
+ *
  * @param   pEntry      The entry to read it into.
  */
 static void kObjCacheRead(PKOBJCACHE pEntry)
@@ -298,7 +298,7 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
     {
         kObjCacheVerbose(pEntry, "reading cache file...\n");
 
-        /* 
+        /*
          * Check the magic.
          */
         if (    !fgets(s_szLine, sizeof(s_szLine), pFile)
@@ -403,7 +403,7 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
                     }
                     if (fBad)
                         break;
-                    
+
                     if (fFirstSum)
                     {
                         pEntry->SumHead = Sum;
@@ -418,7 +418,7 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
                     }
                 }
                 else
-                {         
+                {
                     fBad = 1;
                     break;
                 }
@@ -456,7 +456,7 @@ static void kObjCacheRead(PKOBJCACHE pEntry)
 
 /**
  * Writes the cache file.
- *  
+ *
  * @param   pEntry      The entry to write.
  */
 static void kObjCacheWrite(PKOBJCACHE pEntry)
@@ -468,7 +468,7 @@ static void kObjCacheWrite(PKOBJCACHE pEntry)
     kObjCacheVerbose(pEntry, "writing cache file...\n");
     pFile = FOpenFileInDir(pEntry->pszName, pEntry->pszDir, "wb");
     if (!pFile)
-        kObjCacheFatal(pEntry, "Failed to open '%s' in '%s': %s\n", 
+        kObjCacheFatal(pEntry, "Failed to open '%s' in '%s': %s\n",
                        pEntry->pszName, pEntry->pszDir, strerror(errno));
 
 #define CHECK_LEN(expr) \
@@ -484,20 +484,20 @@ static void kObjCacheWrite(PKOBJCACHE pEntry)
     for (pSum = pEntry->fNeedCompiling ? &pEntry->NewSum : &pEntry->SumHead;
          pSum;
          pSum = pSum->pNext)
-        fprintf(pFile, "sum=%#x:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n", 
+        fprintf(pFile, "sum=%#x:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
                 pSum->crc32,
                 pSum->md5[0], pSum->md5[1], pSum->md5[2], pSum->md5[3],
                 pSum->md5[4], pSum->md5[5], pSum->md5[6], pSum->md5[7],
                 pSum->md5[8], pSum->md5[9], pSum->md5[10], pSum->md5[11],
                 pSum->md5[12], pSum->md5[13], pSum->md5[14], pSum->md5[15]);
-    
+
     if (    fflush(pFile) < 0
         ||  ferror(pFile))
     {
         int iErr = errno;
         fclose(pFile);
         UnlinkFileInDir(pEntry->pszName, pEntry->pszDir);
-        kObjCacheFatal(pEntry, "Stream error occured while writing '%s' in '%s': %d (?)\n", 
+        kObjCacheFatal(pEntry, "Stream error occured while writing '%s' in '%s': %d (?)\n",
                        pEntry->pszName, pEntry->pszDir, strerror(iErr));
     }
     fclose(pFile);
@@ -507,7 +507,7 @@ static void kObjCacheWrite(PKOBJCACHE pEntry)
 /**
  * Spawns a child in a synchronous fashion.
  * Terminating on failure.
- * 
+ *
  * @param   papszArgv       Argument vector. The cArgv element is NULL.
  * @param   cArgv           The number of arguments in the vector.
  */
@@ -523,7 +523,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
         close(1);
         fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0777);
         if (fdReDir < 0)
-            kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n", 
+            kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n",
                            pszMsg, pszStdOut, strerror(errno));
 
         if (fdReDir != 1)
@@ -560,7 +560,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
             close(1);
             fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0777);
             if (fdReDir < 0)
-                kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n", 
+                kObjCacheFatal(pEntry, "%s - failed to create stdout redirection file '%s': %s\n",
                                pszMsg, pszStdOut, strerror(errno));
             if (fdReDir != 1)
             {
@@ -571,7 +571,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
         }
 
         execvp(papszArgv[0], (char **)papszArgv);
-        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n", 
+        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n",
                        pszMsg, strerror(errno));
     }
     if (pid == -1)
@@ -581,7 +581,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
     while (pidWait < 0 && errno == EINTR)
         pidWait = waitpid(pid, &iStatus, 0);
     if (pidWait != pid)
-        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
+        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n",
                        pszMsg, pidWait, strerror(errno));
     if (!WIFEXITED(iStatus))
         kObjCacheFatal(pEntry, "%s - abended (iStatus=%#x)\n", pszMsg, iStatus);
@@ -596,7 +596,7 @@ static void kObjCacheSpawn(PCKOBJCACHE pEntry, const char **papszArgv, unsigned 
 /**
  * Spawns a child in a synchronous fashion.
  * Terminating on failure.
- * 
+ *
  * @param   papszArgv       Argument vector. The cArgv element is NULL.
  * @param   cArgv           The number of arguments in the vector.
  */
@@ -631,7 +631,7 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
 #ifndef __WIN__
     fcntl(fds[0], F_SETFD, FD_CLOEXEC);
     fcntl(fdStdOut, F_SETFD, FD_CLOEXEC);
-#endif 
+#endif
 
     /*
      * Create the child process.
@@ -647,12 +647,12 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     if (!pid)
     {
         execvp(papszArgv[0], (char **)papszArgv);
-        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n", 
+        kObjCacheFatal(pEntry, "%s - execvp failed: %s\n",
                        pszMsg, strerror(errno));
     }
     if (pid == -1)
         kObjCacheFatal(pEntry, "%s - fork() failed: %s\n", pszMsg, strerror(errno));
-#endif 
+#endif
 
     /*
      * Restore stdout.
@@ -681,13 +681,12 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
         if (cbLeft <= 1)
         {
             size_t off = psz - *ppszOutput;
-            assert(off == cbAlloc);
             cbLeft = 4*1024*1024;
             cbAlloc += cbLeft;
             *ppszOutput = xrealloc(*ppszOutput, cbAlloc);
             psz = *ppszOutput + off;
         }
-    } 
+    }
     close(fds[0]);
     *pcchOutput = cbAlloc - cbLeft;
 
@@ -697,7 +696,7 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
 #ifdef __WIN__
     pidWait = _cwait(&iStatus, pid, _WAIT_CHILD);
     if (pidWait == -1)
-        kObjCacheFatal(pEntry, "%s - waitpid failed: %s\n", 
+        kObjCacheFatal(pEntry, "%s - waitpid failed: %s\n",
                        pszMsg, strerror(errno));
     if (iStatus)
         kObjCacheFatal(pEntry, "%s - failed with rc %d\n", pszMsg, iStatus);
@@ -706,7 +705,7 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
     while (pidWait < 0 && errno == EINTR)
         pidWait = waitpid(pid, &iStatus, 0);
     if (pidWait != pid)
-        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n", 
+        kObjCacheFatal(pEntry, "%s - waitpid failed rc=%d: %s\n",
                        pszMsg, pidWait, strerror(errno));
     if (!WIFEXITED(iStatus))
         kObjCacheFatal(pEntry, "%s - abended (iStatus=%#x)\n", pszMsg, iStatus);
@@ -720,25 +719,25 @@ static void kObjCacheSpawnPipe(PCKOBJCACHE pEntry, const char **papszArgv, unsig
 
 /**
  * Reads the (new) output of the precompiler.
- * 
+ *
  * Not used when using pipes.
- * 
+ *
  * @param   pEntry      The cache entry. cbNewCpp and pszNewCppMapping will be updated.
  */
 static void kObjCacheReadPrecompileOutput(PKOBJCACHE pEntry)
 {
     pEntry->pszNewCppMapping = ReadFileInDir(pEntry->pszNewCppName, pEntry->pszDir, &pEntry->cbNewCpp);
     if (!pEntry->pszNewCppMapping)
-        kObjCacheFatal(pEntry, "failed to open/read '%s' in '%s': %s\n", 
+        kObjCacheFatal(pEntry, "failed to open/read '%s' in '%s': %s\n",
                        pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
     kObjCacheVerbose(pEntry, "precompiled file is %lu bytes long\n", (unsigned long)pEntry->cbNewCpp);
 }
 
 
 /**
- * Worker for kObjCachePreCompile and calculates the checksum of 
+ * Worker for kObjCachePreCompile and calculates the checksum of
  * the precompiler output.
- * 
+ *
  * @param   pEntry      The cache entry. NewSum will be updated.
  */
 static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
@@ -762,7 +761,7 @@ static void kObjCacheCalcChecksum(PKOBJCACHE pEntry)
 
 /**
  * Run the precompiler and calculate the checksum of the output.
- *  
+ *
  * @param   pEntry              The cache entry.
  * @param   papszArgvPreComp    The argument vector for executing precompiler. The cArgvPreComp'th argument must be NULL.
  * @param   cArgvPreComp        The number of arguments.
@@ -778,7 +777,7 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
     if (fRedirStdOut)
         pEntry->fPiped = 1;
     else
-#endif 
+#endif
         pEntry->fPiped = 0;
 
     /*
@@ -787,7 +786,7 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
      * we might with to do a quick matchup later we can't remove it just now.
      * If we're using the pipe strategy, we will not do any renaming.
      */
-    if (    pEntry->pszOldCppName 
+    if (    pEntry->pszOldCppName
         &&  !pEntry->fPiped
         &&  DoesFileInDirExist(pEntry->pszOldCppName, pEntry->pszDir))
     {
@@ -799,7 +798,7 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
         kObjCacheVerbose(pEntry, "renaming '%s' to '%s' in '%s'\n", pEntry->pszOldCppName, psz, pEntry->pszDir);
         UnlinkFileInDir(psz, pEntry->pszDir);
         if (RenameFileInDir(pEntry->pszOldCppName, psz, pEntry->pszDir))
-            kObjCacheFatal(pEntry, "failed to rename '%s' -> '%s' in '%s': %s\n", 
+            kObjCacheFatal(pEntry, "failed to rename '%s' -> '%s' in '%s': %s\n",
                            pEntry->pszOldCppName, psz, pEntry->pszDir, strerror(errno));
         free(pEntry->pszOldCppName);
         pEntry->pszOldCppName = psz;
@@ -814,7 +813,7 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
     if (pEntry->fPiped)
         kObjCacheSpawnPipe(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", &pEntry->pszNewCppMapping, &pEntry->cbNewCpp);
     else
-#endif 
+#endif
     {
         if (fRedirStdOut)
             kObjCacheSpawn(pEntry, papszArgvPreComp, cArgvPreComp, "precompile", pszPreCompName);
@@ -828,9 +827,9 @@ static void kObjCachePreCompile(PKOBJCACHE pEntry, const char **papszArgvPreComp
 
 /**
  * Check whether the string is a '#line' statement.
- * 
+ *
  * @returns 1 if it is, 0 if it isn't.
- * @param   psz         The line to examin. 
+ * @param   psz         The line to examin.
  * @parma   piLine      Where to store the line number.
  * @parma   ppszFile    Where to store the start of the filename.
  */
@@ -854,7 +853,7 @@ static int IsLineStatement(const char *psz, unsigned *piLine, const char **ppszF
     if ((unsigned char)(*psz - '0') > 9)
         return 0;
     iLine = 0;
-    do  
+    do
     {
         iLine *= 10;
         iLine += (*psz - '0');
@@ -877,7 +876,7 @@ static int IsLineStatement(const char *psz, unsigned *piLine, const char **ppszF
 
 /**
  * Scan backwards for the previous #line statement.
- * 
+ *
  * @returns The filename in the previous statement.
  * @param   pszStart        Where to start.
  * @param   pszStop         Where to stop. Less than pszStart.
@@ -912,10 +911,10 @@ static const char *FindFileStatement(const char *pszStart, const char *pszStop, 
 
 
 /**
- * Worker for kObjCacheCompareOldAndNewOutput() that compares the 
+ * Worker for kObjCacheCompareOldAndNewOutput() that compares the
  * precompiled output using a fast but not very good method.
- * 
- * @returns 1 if matching, 0 if not matching. 
+ *
+ * @returns 1 if matching, 0 if not matching.
  * @param   pEntry      The entry containing the names of the files to compare.
  *                      The entry is not updated in any way.
  */
@@ -951,17 +950,17 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
             /*
              * Pinpoint the difference exactly and the try find the start
              * of that line. Then skip forward until we find something to
-             * work on that isn't spaces, #line statements or closing curly 
-             * braces. 
+             * work on that isn't spaces, #line statements or closing curly
+             * braces.
              *
-             * The closing curly braces are ignored because they are frequently 
-             * found at the end of header files (__END_DECLS) and the worst 
-             * thing that may happen if it isn't one of these braces we're 
-             * ignoring is that the final line in a function block is a little 
-             * bit off in the debug info. 
+             * The closing curly braces are ignored because they are frequently
+             * found at the end of header files (__END_DECLS) and the worst
+             * thing that may happen if it isn't one of these braces we're
+             * ignoring is that the final line in a function block is a little
+             * bit off in the debug info.
              *
-             * Since we might be skipping a few new empty headers, it is 
-             * possible that we will omit this header from the dependencies 
+             * Since we might be skipping a few new empty headers, it is
+             * possible that we will omit this header from the dependencies
              * when using VCC. This might not be a problem, since it seems
              * we'll have to use the precompiler output to generate the deps
              * anyway.
@@ -986,7 +985,7 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
 
             /* locate the start of that line. */
             psz = psz1;
-            while (     psz > pEntry->pszNewCppMapping 
+            while (     psz > pEntry->pszNewCppMapping
                    &&   psz[-1] != '\n')
                 psz--;
             psz2 -= (psz1 - psz);
@@ -1132,24 +1131,24 @@ static int kObjCacheCompareFast(PCKOBJCACHE pEntry)
         }
     }
 
-    return psz1 == pszEnd1 
+    return psz1 == pszEnd1
         && psz2 == pszEnd2;
 }
 
 
 /**
- * Worker for kObjCacheCompileIfNeeded that compares the 
- * precompiled output. 
- * 
- * @returns 1 if matching, 0 if not matching. 
+ * Worker for kObjCacheCompileIfNeeded that compares the
+ * precompiled output.
+ *
+ * @returns 1 if matching, 0 if not matching.
  * @param   pEntry      The entry containing the names of the files to compare.
  *                      This will load the old cpp output (changing pszOldCppName and cbOldCpp).
  */
 static int kObjCacheCompareOldAndNewOutput(PKOBJCACHE pEntry)
 {
-    /** @todo do some quick but fancy comparing that determins whether code 
+    /** @todo do some quick but fancy comparing that determins whether code
      * has actually changed or moved. We can ignore declarations and typedefs that
-     * has just been moved up/down a bit. The typical case is adding a new error 
+     * has just been moved up/down a bit. The typical case is adding a new error
      * #define that doesn't influence the current compile job. */
 
     /*
@@ -1158,7 +1157,7 @@ static int kObjCacheCompareOldAndNewOutput(PKOBJCACHE pEntry)
     pEntry->pszOldCppMapping = ReadFileInDir(pEntry->pszOldCppName, pEntry->pszDir, &pEntry->cbOldCpp);
     if (!pEntry->pszOldCppMapping)
     {
-        kObjCacheVerbose(pEntry, "failed to read old cpp file ('%s' in '%s'): %s\n", 
+        kObjCacheVerbose(pEntry, "failed to read old cpp file ('%s' in '%s'): %s\n",
                          pEntry->pszOldCppName, pEntry->pszDir, strerror(errno));
         return 0;
     }
@@ -1173,9 +1172,9 @@ static int kObjCacheCompareOldAndNewOutput(PKOBJCACHE pEntry)
 
 
 /**
- * Worker for kObjCacheCompileIfNeeded that does the actual (re)compilation. 
- * 
- * @returns 1 if matching, 0 if not matching. 
+ * Worker for kObjCacheCompileIfNeeded that does the actual (re)compilation.
+ *
+ * @returns 1 if matching, 0 if not matching.
  * @param   pEntry              The cache entry.
  * @param   papszArgvCompile    The argument vector for invoking the compiler. The cArgvCompile'th entry must be NULL.
  * @param   cArgvCompile        The number of arguments in the vector.
@@ -1201,7 +1200,7 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
     {
         FILE *pFile = FOpenFileInDir(pEntry->pszNewCppName, pEntry->pszDir, "wb");
         if (!pFile)
-            kObjCacheFatal(pEntry, "failed to create file '%s' in '%s': %s\n", 
+            kObjCacheFatal(pEntry, "failed to create file '%s' in '%s': %s\n",
                            pEntry->pszNewCppName, pEntry->pszDir, strerror(errno));
         if (fwrite(pEntry->pszNewCppMapping, pEntry->cbNewCpp, 1, pFile) != 1)
             kObjCacheFatal(pEntry, "fwrite failed: %s\n", strerror(errno));
@@ -1229,8 +1228,8 @@ static void kObjCacheCompileIt(PKOBJCACHE pEntry, const char **papszArgvCompile,
 
 /**
  * Check if (re-)compilation is required and do it.
- * 
- * @returns 1 if matching, 0 if not matching. 
+ *
+ * @returns 1 if matching, 0 if not matching.
  * @param   pEntry              The cache entry.
  * @param   papszArgvCompile    The argument vector for invoking the compiler. The cArgvCompile'th entry must be NULL.
  * @param   cArgvCompile        The number of arguments in the vector.
@@ -1256,7 +1255,7 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
      * Does the compile command differ?
      * TODO: Ignore irrelevant options here (like warning level).
      */
-    if (    !pEntry->fNeedCompiling 
+    if (    !pEntry->fNeedCompiling
         &&  pEntry->cArgvCompile != cArgvCompile)
     {
         pEntry->fNeedCompiling = 1;
@@ -1332,8 +1331,8 @@ static void kObjCacheCompileIfNeeded(PKOBJCACHE pEntry, const char **papszArgvCo
 
 
 /**
- * Gets the absolute path 
- * 
+ * Gets the absolute path
+ *
  * @returns A new heap buffer containing the absolute path.
  * @param   pszPath     The path to make absolute. (Readonly)
  */
@@ -1353,14 +1352,14 @@ static char *AbsPath(const char *pszPath)
 
 /**
  * Utility function that finds the filename part in a path.
- * 
+ *
  * @returns Pointer to the file name part (this may be "").
  * @param   pszPath     The path to parse.
  */
 static const char *FindFilenameInPath(const char *pszPath)
 {
     const char *pszFilename = strchr(pszPath, '\0') - 1;
-    while (     pszFilename > pszPath 
+    while (     pszFilename > pszPath
            &&   !IS_SLASH_DRV(pszFilename[-1]))
         pszFilename--;
     return pszFilename;
@@ -1369,7 +1368,7 @@ static const char *FindFilenameInPath(const char *pszPath)
 
 /**
  * Utility function that combines a filename and a directory into a path.
- * 
+ *
  * @returns malloced buffer containing the result.
  * @param   pszName     The file name.
  * @param   pszDir      The directory path.
@@ -1389,10 +1388,10 @@ static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir)
 
 /**
  * Compares two path strings to see if they are identical.
- * 
- * This doesn't do anything fancy, just the case ignoring and 
+ *
+ * This doesn't do anything fancy, just the case ignoring and
  * slash unification.
- * 
+ *
  * @returns 1 if equal, 0 otherwise.
  * @param   pszPath1    The first path.
  * @param   pszPath2    The second path.
@@ -1423,13 +1422,13 @@ static int ArePathsIdentical(const char *pszPath1, const char *pszPath2, size_t 
     return 1;
 #else
     return !strncmp(pszPath1, pszPath2, cch);
-#endif 
+#endif
 }
 
 
 /**
  * Calculate how to get to pszPath from pszDir.
- * 
+ *
  * @returns The relative path from pszDir to path pszPath.
  * @param   pszPath     The path to the object.
  * @param   pszDir      The directory it shall be relative to.
@@ -1481,7 +1480,7 @@ static char *CalcRelativeName(const char *pszPath, const char *pszDir)
 
 /**
  * Utility function that combines a filename and directory and passes it onto fopen.
- * 
+ *
  * @returns fopen return value.
  * @param   pszName     The file name.
  * @param   pszDir      The directory path.
@@ -1498,7 +1497,7 @@ static FILE *FOpenFileInDir(const char *pszName, const char *pszDir, const char 
 
 /**
  * Deletes a file in a directory.
- * 
+ *
  * @returns whatever unlink returns.
  * @param   pszName     The file name.
  * @param   pszDir      The directory path.
@@ -1514,7 +1513,7 @@ static int UnlinkFileInDir(const char *pszName, const char *pszDir)
 
 /**
  * Renames a file in a directory.
- * 
+ *
  * @returns whatever unlink returns.
  * @param   pszOldName  The new file name.
  * @param   pszNewName  The old file name.
@@ -1533,7 +1532,7 @@ static int RenameFileInDir(const char *pszOldName, const char *pszNewName, const
 
 /**
  * Check if a (regular) file exists in a directory.
- * 
+ *
  * @returns 1 if it exists and is a regular file, 0 if not.
  * @param   pszName     The file name.
  * @param   pszDir      The directory path.
@@ -1550,13 +1549,13 @@ static int DoesFileInDirExist(const char *pszName, const char *pszDir)
     return !rc && (st.st_mode & _S_IFMT) == _S_IFREG;
 #else
 #error "Port me"
-#endif 
+#endif
 }
 
 
 /**
  * Reads into memory an entire file.
- * 
+ *
  * @returns Pointer to the heap allocation containing the file.
  *          On failure NULL and errno is returned.
  * @param   pszName     The file.
@@ -1631,7 +1630,7 @@ static char *xstrdup(const char *pszIn)
 
 /**
  * Prints a syntax error and returns the appropriate exit code
- * 
+ *
  * @returns approriate exit code.
  * @param   pszFormat   The syntax error message.
  * @param   ...         Message args.
@@ -1744,7 +1743,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1036 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1038 $)\n");
             return 0;
         }
         else
@@ -1779,15 +1778,15 @@ int main(int argc, char **argv)
 
 
 /** @page kObjCache Benchmarks.
- * 
+ *
  * 2007-06-02 - 21-23:00:
  * Mac OS X debug -j 3 clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
  *  real    10m26.077s
  *  user    13m13.291s
  *  sys     2m58.193s
- * 
+ *
  * Mac OS X debug -j 3 depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
- *  real    3m55.275s                                                                                            
+ *  real    3m55.275s
  *  user    4m11.852s
  *  sys     0m54.931s
  *
@@ -1795,15 +1794,15 @@ int main(int argc, char **argv)
  *  real    11m42.513s
  *  user    14m27.736s
  *  sys     3m39.512s
- * 
+ *
  * Mac OS X debug -j 3 cached depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
  *  real    1m17.445s
  *  user    1m13.410s
  *  sys     0m22.789s
- * 
+ *
  * Mac OS X debug -j3 cached depend build (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
  *  real    1m29.315s
  *  user    1m31.391s
  *  sys     0m32.748s
- * 
+ *
  */
