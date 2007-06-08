@@ -28,7 +28,9 @@ DEPTH ?= ../..
 #SUB_DEPTH = ../..
 include $(PATH_KBUILD)/subheader.kmk
 
+ifeq ($(USERNAME),bird) # disable it for now.
 PROGRAMS += kObjCache
+endif
 kObjCache_TEMPLATE = BIN
 kObjCache_SOURCES = kObjCache.c
 kObjCache_LIBS = $(LIB_KUTIL)
