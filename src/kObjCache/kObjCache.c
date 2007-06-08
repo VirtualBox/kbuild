@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1041 2007-06-08 18:36:57Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1042 2007-06-08 20:12:31Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -28,6 +28,10 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#if 0
+# define ELECTRIC_HEAP
+# include "../kmk/electric.h"
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -190,20 +194,12 @@ static void SetErrorPrefix(const char *pszPrefix, ...)
     (void)cch;
 }
 
-
+#ifndef ELECTRIC_HEAP
 void *xmalloc(size_t cb)
 {
     void *pv = malloc(cb);
     if (!pv)
         FatalDie(NULL, "out of memory (%d)\n", (int)cb);
-    return pv;
-}
-
-
-void *xmallocz(size_t cb)
-{
-    void *pv = xmalloc(cb);
-    memset(pv, 0, cb);
     return pv;
 }
 
@@ -224,6 +220,17 @@ char *xstrdup(const char *pszIn)
         FatalDie(NULL, "out of memory (%d)\n", (int)strlen(pszIn));
     return psz;
 }
+#endif
+
+
+void *xmallocz(size_t cb)
+{
+    void *pv = xmalloc(cb);
+    memset(pv, 0, cb);
+    return pv;
+}
+
+
 
 
 
@@ -683,6 +690,7 @@ static void kOCSumUpdate(PKOCSUM pSum, PKOCSUMCTX pCtx, const void *pvBuf, size_
 static void kOCSumFinalize(PKOCSUM pSum, PKOCSUMCTX pCtx)
 {
     MD5Final(&pSum->md5[0], &pCtx->MD5Ctx);
+    pSum->fUsed = 1;
 }
 
 
@@ -991,8 +999,8 @@ static PKOCENTRY kOCEntryCreate(const char *pszFilename)
     off = pEntry->pszName - pEntry->pszAbsPath;
     if (!off)
         FatalDie("Failed to find abs path for '%s'!\n", pszFilename);
-    pEntry->pszDir = xmalloc(off - 1);
-    memcpy(pEntry->pszDir, pEntry->pszAbsPath, off);
+    pEntry->pszDir = xmalloc(off);
+    memcpy(pEntry->pszDir, pEntry->pszAbsPath, off - 1);
     pEntry->pszDir[off - 1] = '\0';
 
     return pEntry;
@@ -1066,7 +1074,6 @@ static void kOCEntryRead(PKOCENTRY pEntry)
             unsigned i;
             int fBad = 0;
             int fBadBeforeMissing = 1;
-            int fFirstSum = 1;
             while (fgets(g_szLine, sizeof(g_szLine), pFile))
             {
                 char *pszNl;
@@ -1104,6 +1111,13 @@ static void kOCEntryRead(PKOCENTRY pEntry)
                     if ((fBad = pszNext && *pszNext))
                         break;
                 }
+                else if (!strcmp(g_szLine, "cpp-sum"))
+                {
+                    KOCSUM Sum;
+                    if ((fBad = kOCSumInitFromString(&Sum, pszVal)))
+                        break;
+                    kOCSumAdd(&pEntry->Old.SumHead, &Sum);
+                }
                 else if (!strcmp(g_szLine, "cc-argc"))
                 {
                     if ((fBad = pEntry->Old.papszArgvCompile != NULL))
@@ -1119,12 +1133,12 @@ static void kOCEntryRead(PKOCENTRY pEntry)
                         break;
                     pEntry->Old.papszArgvCompile[i] = xstrdup(pszVal);
                 }
-                else if (!strcmp(g_szLine, "sum"))
+                else if (!strcmp(g_szLine, "cc-argv-sum"))
                 {
-                    KOCSUM Sum;
-                    if ((fBad = kOCSumInitFromString(&Sum, pszVal)))
+                    if ((fBad = !kOCSumIsEmpty(&pEntry->Old.SumCompArgv)))
                         break;
-                    kOCSumAdd(&pEntry->Old.SumHead, &Sum);
+                    if ((fBad = kOCSumInitFromString(&pEntry->Old.SumCompArgv, pszVal)))
+                        break;
                 }
                 else if (!strcmp(g_szLine, "target"))
                 {
@@ -1132,9 +1146,18 @@ static void kOCEntryRead(PKOCENTRY pEntry)
                         break;
                     pEntry->Old.pszTarget = xstrdup(pszVal);
                 }
+                else if (!strcmp(g_szLine, "key"))
+                {
+                    char *pszNext;
+                    if ((fBad = pEntry->uKey != 0))
+                        break;
+                    pEntry->uKey = strtoul(pszVal, &pszNext, 0);
+                    if ((fBad = pszNext && *pszNext))
+                        break;
+                }
                 else if (!strcmp(g_szLine, "the-end"))
                 {
-                    fBadBeforeMissing = fBad = !strcmp(pszVal, "fine");
+                    fBadBeforeMissing = fBad = strcmp(pszVal, "fine");
                     break;
                 }
                 else
@@ -1159,7 +1182,7 @@ static void kOCEntryRead(PKOCENTRY pEntry)
                     &&  (   !pEntry->Old.papszArgvCompile
                          || !pEntry->Old.pszObjName
                          || !pEntry->Old.pszCppName
-                         || fFirstSum))
+                         || kOCSumIsEmpty(&pEntry->Old.SumHead)))
                     fBad = 1;
                 if (!fBad)
                 {
@@ -1226,7 +1249,7 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
     PCKOCSUM pSum;
     unsigned i;
 
-    InfoMsg(1, "writing cache file...\n");
+    InfoMsg(1, "writing cache entry '%s'...\n", pEntry->pszName);
     pFile = FOpenFileInDir(pEntry->pszName, pEntry->pszDir, "wb");
     if (!pFile)
         FatalDie("Failed to open '%s' in '%s': %s\n",
@@ -1237,6 +1260,7 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
 
     fprintf(pFile, "magic=kObjCache-1\n");
     CHECK_LEN(fprintf(pFile, "target=%s\n", pEntry->New.pszTarget ? pEntry->New.pszTarget : pEntry->Old.pszTarget));
+    CHECK_LEN(fprintf(pFile, "key=%u\n", (unsigned long)pEntry->uKey));
     CHECK_LEN(fprintf(pFile, "obj=%s\n", pEntry->New.pszObjName ? pEntry->New.pszObjName : pEntry->Old.pszObjName));
     CHECK_LEN(fprintf(pFile, "cpp=%s\n", pEntry->New.pszCppName ? pEntry->New.pszCppName : pEntry->Old.pszCppName));
     CHECK_LEN(fprintf(pFile, "cpp-size=%lu\n", pEntry->New.pszCppName ? pEntry->New.cbCpp : pEntry->Old.cbCpp));
@@ -1259,11 +1283,11 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
     }
 
 
-    for (pSum = kOCSumIsEmpty(&pEntry->New.SumHead) ? &pEntry->New.SumHead : &pEntry->Old.SumHead;
+    for (pSum = !kOCSumIsEmpty(&pEntry->New.SumHead) ? &pEntry->New.SumHead : &pEntry->Old.SumHead;
          pSum;
          pSum = pSum->pNext)
     {
-        fprintf(pFile, "sum=");
+        fprintf(pFile, "cpp-sum=");
         kOCSumFPrintf(pSum, pFile);
     }
 
@@ -1276,6 +1300,7 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
      * On failure delete the file so we won't be seeing any invalid
      * files the next time or upset make with new timestamps.
      */
+    errno = 0;
     if (    fflush(pFile) < 0
         ||  ferror(pFile))
     {
@@ -1321,15 +1346,16 @@ static void kOCEntrySetCompileArgv(PKOCENTRY pEntry, const char * const *papszAr
      * Copy the argument vector and calculate the checksum while doing so.
      */
     pEntry->New.cArgvCompile = cArgvCompile;
-    pEntry->New.papszArgvCompile = xmalloc(cArgvCompile + 1);
+    pEntry->New.papszArgvCompile = xmalloc((cArgvCompile + 1) * sizeof(pEntry->New.papszArgvCompile[0]));
     kOCSumInitWithCtx(&pEntry->New.SumCompArgv, &Ctx);
     for (i = 0; i < cArgvCompile; i++)
     {
         pEntry->New.papszArgvCompile[i] = xstrdup(papszArgvCompile[i]);
-        kOCSumUpdate(&pEntry->New.SumCompArgv, &Ctx, papszArgvCompile[i], strlen(papszArgvCompile[i]));
+        kOCSumUpdate(&pEntry->New.SumCompArgv, &Ctx, papszArgvCompile[i], strlen(papszArgvCompile[i]) + 1);
     }
     kOCSumFinalize(&pEntry->New.SumCompArgv, &Ctx);
     pEntry->New.papszArgvCompile[i] = NULL; /* for exev/spawnv */
+    kOCSumInfo(&pEntry->New.SumCompArgv, 1, "comp-argv");
 
     /*
      * Compare with the old argument vector.
@@ -1774,7 +1800,7 @@ static void kOCEntryCalcChecksum(PKOCENTRY pEntry)
     kOCSumInitWithCtx(&pEntry->New.SumHead, &Ctx);
     kOCSumUpdate(&pEntry->New.SumHead, &Ctx, pEntry->New.pszCppMapping, pEntry->New.cbCpp);
     kOCSumFinalize(&pEntry->New.SumHead, &Ctx);
-    kOCSumInfo(&pEntry->New.SumHead, 1, "");
+    kOCSumInfo(&pEntry->New.SumHead, 1, "cpp (file)");
 }
 
 
@@ -1837,6 +1863,7 @@ static void kOCEntryPreCompileConsumer(PKOCENTRY pEntry, int fdIn)
     close(fdIn);
     pEntry->New.cbCpp = cbAlloc - cbLeft;
     kOCSumFinalize(&pEntry->New.SumHead, &Ctx);
+    kOCSumInfo(&pEntry->New.SumHead, 1, "cpp (pipe)");
 }
 
 
@@ -1915,7 +1942,8 @@ static void kOCEntryWriteCppOutput(PKOCENTRY pEntry, int fFreeIt)
     {
         long cbLeft;
         char *psz;
-        int fd = OpenFileInDir(pEntry->New.pszCppName, pEntry->pszDir, O_WRONLY | O_TRUNC | O_BINARY, 0666);
+        int fd = OpenFileInDir(pEntry->New.pszCppName, pEntry->pszDir,
+                               O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
         if (fd == -1)
             FatalDie("Failed to create '%s' in '%s': %s\n",
                      pEntry->New.pszCppName, pEntry->pszDir, strerror(errno));
@@ -1934,6 +1962,9 @@ static void kOCEntryWriteCppOutput(PKOCENTRY pEntry, int fFreeIt)
                 FatalDie("error writing '%s' in '%s': %s\n",
                          pEntry->New.pszCppName, pEntry->pszDir, strerror(iErr));
             }
+
+            psz += cbWritten;
+            cbLeft -= cbWritten;
         }
         close(fd);
     }
@@ -2096,6 +2127,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
     close(fdOut);
     pEntry->New.cbCpp = cbAlloc - cbLeft;
     kOCSumFinalize(&pEntry->New.SumHead, &Ctx);
+    kOCSumInfo(&pEntry->New.SumHead, 1, "cpp (tee)");
 
     /*
      * Write the precompiler output to disk and free the memory it
@@ -2667,6 +2699,7 @@ static void kOCDigestInitFromEntry(PKOCDIGEST pDigest, PCKOCENTRY pEntry)
     kOCDigestInit(pDigest);
 
     pDigest->uKey = pEntry->uKey;
+    pDigest->pszTarget = xstrdup(pEntry->New.pszTarget ? pEntry->New.pszTarget : pEntry->Old.pszTarget);
 
     kOCSumInit(&pDigest->SumCompArgv);
     if (!kOCSumIsEmpty(&pEntry->New.SumCompArgv))
@@ -2776,6 +2809,8 @@ typedef struct KOBJCACHE
 
     /** The cache file descriptor. */
     int fd;
+    /** The stream associated with fd. */
+    FILE *pFile;
     /** Whether it's currently locked or not. */
     unsigned fLocked;
     /** Whether the cache file is dirty and needs writing back. */
@@ -2827,11 +2862,33 @@ static PKOBJCACHE kObjCacheCreate(const char *pszCacheFile)
     off = pCache->pszName - pCache->pszAbsPath;
     if (!off)
         FatalDie("Failed to find abs path for '%s'!\n", pszCacheFile);
-    pCache->pszDir = xmalloc(off - 1);
-    memcpy(pCache->pszDir, pCache->pszAbsPath, off);
+    pCache->pszDir = xmalloc(off);
+    memcpy(pCache->pszDir, pCache->pszAbsPath, off - 1);
     pCache->pszDir[off - 1] = '\0';
 
     return pCache;
+}
+
+
+/**
+ * Destroys the cache - closing any open files, freeing up heap memory and such.
+ *
+ * @param   pCache      The cache.
+ */
+static void kObjCacheDestroy(PKOBJCACHE pCache)
+{
+    if (pCache->pFile)
+    {
+        errno = 0;
+        if (fclose(pCache->pFile) != 0)
+            FatalMsg("fclose failed: %s\n", strerror(errno));
+        pCache->pFile = NULL;
+        pCache->fd = -1;
+    }
+    free(pCache->paDigests);
+    free(pCache->pszAbsPath);
+    free(pCache->pszDir);
+    free(pCache);
 }
 
 
@@ -2858,29 +2915,30 @@ static void kObjCachePurge(PKOBJCACHE pCache)
  */
 static void kObjCacheRead(PKOBJCACHE pCache)
 {
-    FILE *pFile;
     unsigned i;
+    char szBuf[8192];
     int fBad = 0;
 
     /*
-     * Rewind the file and associate it with a buffered file stream.
+     * Rewind the file & stream, and associate a temporary buffer
+     * with the stream to speed up reading.
      */
     if (lseek(pCache->fd, 0, SEEK_SET) == -1)
         FatalDie("lseek(cache-fd) failed: %s\n", strerror(errno));
-    pFile = fdopen(pCache->fd, "rb");
-    if (!pFile)
+    rewind(pCache->pFile);
+    if (setvbuf(pCache->pFile, szBuf, _IOFBF, sizeof(szBuf)) != 0)
         FatalDie("fdopen(cache-fd,rb) failed: %s\n", strerror(errno));
 
     /*
      * Read magic and generation.
      */
-    if (    !fgets(g_szLine, sizeof(g_szLine), pFile)
+    if (    !fgets(g_szLine, sizeof(g_szLine), pCache->pFile)
         ||  strcmp(g_szLine, "magic=kObjCache-v0.1.0\n"))
     {
         InfoMsg(1, "bad cache file (magic)\n");
         fBad = 1;
     }
-    else if (    !fgets(g_szLine, sizeof(g_szLine), pFile)
+    else if (    !fgets(g_szLine, sizeof(g_szLine), pCache->pFile)
              ||  strncmp(g_szLine, "generation=", sizeof("generation=") - 1))
     {
         InfoMsg(1, "bad cache file (generation)\n");
@@ -2889,7 +2947,7 @@ static void kObjCacheRead(PKOBJCACHE pCache)
     else if (   pCache->uGeneration
              && pCache->uGeneration == atol(&g_szLine[sizeof("generation=") - 1]))
     {
-        InfoMsg(1, "cache file unchanged\n");
+        InfoMsg(1, "drop re-read unmodified cache file\n");
         fBad = 0;
     }
     else
@@ -2921,38 +2979,40 @@ static void kObjCacheRead(PKOBJCACHE pCache)
             psz = strchr(g_szLine, '#');
             if (psz)
             {
-                i = strtoul(psz, &psz, 0);
-                if ((fBad = psz && *psz))
+                char *pszNext;
+                i = strtoul(++psz, &pszNext, 0);
+                if ((fBad = pszNext && *pszNext))
                     break;
                 if ((fBad = i >= pCache->cDigests))
                     break;
                 pDigest = &pCache->paDigests[i];
+                *psz = '\0';
             }
             else
                 pDigest = NULL;
 
 
             /* string case on value name. */
-            if (!strncmp(g_szLine, "sum-#", sizeof("sum-sum-#") - 1))
+            if (!strcmp(g_szLine, "sum-#"))
             {
                 KOCSUM Sum;
                 if ((fBad = kOCSumInitFromString(&Sum, pszVal) != 0))
                     break;
                 kOCSumAdd(&pDigest->SumHead, &Sum);
             }
-            else if (!strncmp(g_szLine, "digest-abs-#", sizeof("digest-abs-#") - 1))
+            else if (!strcmp(g_szLine, "digest-abs-#"))
             {
                 if ((fBad = pDigest->pszAbsPath != NULL))
                     break;
                 pDigest->pszAbsPath = xstrdup(pszVal);
             }
-            else if (!strncmp(g_szLine, "digest-rel-#", sizeof("digest-rel-#") - 1))
+            else if (!strcmp(g_szLine, "digest-rel-#"))
             {
                 if ((fBad = pDigest->pszRelPath != NULL))
                     break;
                 pDigest->pszRelPath = xstrdup(pszVal);
             }
-            else if (!strncmp(g_szLine, "key-#", sizeof("key-#") - 1))
+            else if (!strcmp(g_szLine, "key-#"))
             {
                 if ((fBad = pDigest->uKey != 0))
                     break;
@@ -2962,14 +3022,14 @@ static void kObjCacheRead(PKOBJCACHE pCache)
                 if (pDigest->uKey >= pCache->uNextKey)
                     pCache->uNextKey = pDigest->uKey + 1;
             }
-            else if (!strncmp(g_szLine, "comp-argv-sum-#", sizeof("comp-argv-sum-#") - 1))
+            else if (!strcmp(g_szLine, "comp-argv-sum-#"))
             {
                 if ((fBad = !kOCSumIsEmpty(&pDigest->SumCompArgv)))
                     break;
                 if ((fBad = kOCSumInitFromString(&pDigest->SumCompArgv, pszVal) != 0))
                     break;
             }
-            else if (!strncmp(g_szLine, "target-#", sizeof("target-#") - 1))
+            else if (!strcmp(g_szLine, "target-#"))
             {
                 if ((fBad = pDigest->pszTarget != NULL))
                     break;
@@ -3005,7 +3065,7 @@ static void kObjCacheRead(PKOBJCACHE pCache)
                 fBad = 1;
                 break;
             }
-        } while (fgets(g_szLine, sizeof(g_szLine), pFile));
+        } while (fgets(g_szLine, sizeof(g_szLine), pCache->pFile));
 
         /*
          * Did we find everything?
@@ -3031,7 +3091,7 @@ static void kObjCacheRead(PKOBJCACHE pCache)
             }
         if (fBad)
             InfoMsg(1, "bad cache file (%s)\n", fBadBeforeMissing ? g_szLine : "missing stuff");
-        else if (ferror(pFile))
+        else if (ferror(pCache->pFile))
         {
             InfoMsg(1, "cache file read error\n");
             fBad = 1;
@@ -3044,9 +3104,11 @@ static void kObjCacheRead(PKOBJCACHE pCache)
     }
 
     /*
-     * Close the stream.
+     * Disassociate the buffer from the stream changing
+     * it to non-buffered mode.
      */
-    fclose(pFile);
+    if (setvbuf(pCache->pFile, NULL, _IONBF, 0) != 0)
+        FatalDie("setvbuf(,0,,0) failed: %s\n", strerror(errno));
 }
 
 
@@ -3057,26 +3119,27 @@ static void kObjCacheRead(PKOBJCACHE pCache)
  */
 static void kObjCacheWrite(PKOBJCACHE pCache)
 {
-    FILE *pFile;
     unsigned i;
     off_t cb;
+    char szBuf[8192];
     assert(pCache->fLocked);
     assert(pCache->fDirty);
 
     /*
-     * Rewind the file and associate it with a buffered file stream.
+     * Rewind the file & stream, and associate a temporary buffer
+     * with the stream to speed up the writing.
      */
     if (lseek(pCache->fd, 0, SEEK_SET) == -1)
         FatalDie("lseek(cache-fd) failed: %s\n", strerror(errno));
-    pFile = fdopen(pCache->fd, "w+b");
-    if (!pFile)
-        FatalDie("fdopen(cache-fd,w+b) failed: %s\n", strerror(errno));
+    rewind(pCache->pFile);
+    if (setvbuf(pCache->pFile, szBuf, _IOFBF, sizeof(szBuf)) != 0)
+        FatalDie("setvbuf failed: %s\n", strerror(errno));
 
     /*
      * Write the header.
      */
     pCache->uGeneration++;
-    fprintf(pFile,
+    fprintf(pCache->pFile,
             "magic=kObjCache-v0.1.0\n"
             "generation=%d\n"
             "digests=%d\n",
@@ -3086,23 +3149,23 @@ static void kObjCacheWrite(PKOBJCACHE pCache)
     /*
      * Write the digests.
      */
-    for (i = 0; pCache->cDigests; i++)
+    for (i = 0; i < pCache->cDigests; i++)
     {
         PCKOCDIGEST pDigest = &pCache->paDigests[i];
         PKOCSUM pSum;
 
         if (pDigest->pszAbsPath)
-            fprintf(pFile, "digest-abs-#%u=%s\n", i, pDigest->pszAbsPath);
+            fprintf(pCache->pFile, "digest-abs-#%u=%s\n", i, pDigest->pszAbsPath);
         if (pDigest->pszRelPath)
-            fprintf(pFile, "digest-rel-#%u=%s\n", i, pDigest->pszRelPath);
-        fprintf(pFile, "key-#%u=%u\n", i, pDigest->uKey);
-        fprintf(pFile, "target-#%u=%s\n", i, pDigest->pszTarget);
-        fprintf(pFile, "comp-argv-sum-#%u=", i);
-        kOCSumFPrintf(&pDigest->SumCompArgv, pFile);
+            fprintf(pCache->pFile, "digest-rel-#%u=%s\n", i, pDigest->pszRelPath);
+        fprintf(pCache->pFile, "key-#%u=%u\n", i, pDigest->uKey);
+        fprintf(pCache->pFile, "target-#%u=%s\n", i, pDigest->pszTarget);
+        fprintf(pCache->pFile, "comp-argv-sum-#%u=", i);
+        kOCSumFPrintf(&pDigest->SumCompArgv, pCache->pFile);
         for (pSum = &pDigest->SumHead; pSum; pSum = pSum->pNext)
         {
-            fprintf(pFile, "sum-#%u=", i);
-            kOCSumFPrintf(pSum, pFile);
+            fprintf(pCache->pFile, "sum-#%u=", i);
+            kOCSumFPrintf(pSum, pCache->pFile);
         }
     }
 
@@ -3110,18 +3173,19 @@ static void kObjCacheWrite(PKOBJCACHE pCache)
      * Close the stream and unlock fhe file.
      * (Closing the stream shouldn't close the file handle IIRC...)
      */
-    fprintf(pFile, "the-end=fine\n");
-    fflush(pFile);
-    if (    fflush(pFile) < 0
-        ||  ferror(pFile))
+    fprintf(pCache->pFile, "the-end=fine\n");
+    errno = 0;
+    if (    fflush(pCache->pFile) < 0
+        ||  ferror(pCache->pFile))
     {
         int iErr = errno;
-        fclose(pFile);
+        fclose(pCache->pFile);
         UnlinkFileInDir(pCache->pszName, pCache->pszDir);
         FatalDie("Stream error occured while writing '%s' in '%s': %s\n",
                  pCache->pszName, pCache->pszDir, strerror(iErr));
     }
-    fclose(pFile);
+    if (setvbuf(pCache->pFile, NULL, _IONBF, 0) != 0)
+        FatalDie("setvbuf(,0,,0) failed: %s\n", strerror(errno));
 
     cb = lseek(pCache->fd, 0, SEEK_CUR);
     if (cb == -1)
@@ -3132,7 +3196,7 @@ static void kObjCacheWrite(PKOBJCACHE pCache)
     if (ftruncate(pCache->fd, cb) == -1)
 #endif
         FatalDie("file truncation failed: %s\n", strerror(errno));
-    InfoMsg(1, "Wrote '%s' in '%s', %d bytes\n", pCache->pszName, pCache->pszDir, cb);
+    InfoMsg(1, "wrote '%s' in '%s', %d bytes\n", pCache->pszName, pCache->pszDir, cb);
 }
 
 
@@ -3185,6 +3249,10 @@ static void kObjCacheClean(PKOBJCACHE pCache)
 static void kObjCacheLock(PKOBJCACHE pCache)
 {
     struct stat st;
+#if defined(__WIN__)
+    OVERLAPPED OverLapped;
+#endif
+
     assert(!pCache->fLocked);
 
     /*
@@ -3200,13 +3268,20 @@ static void kObjCacheLock(PKOBJCACHE pCache)
             if (pCache->fd == -1)
                 FatalDie("Failed to create '%s' in '%s': %s\n", pCache->pszName, pCache->pszDir, strerror(errno));
         }
+
+        pCache->pFile = fdopen(pCache->fd, "r+b");
+        if (!pCache->pFile)
+            FatalDie("fdopen failed: %s\n", strerror(errno));
+        if (setvbuf(pCache->pFile, NULL, _IONBF, 0) != 0)
+            FatalDie("setvbuf(,0,,0) failed: %s\n", strerror(errno));
     }
 
     /*
      * Lock it.
      */
 #if defined(__WIN__)
-    if (!LockFileEx((HANDLE)_get_osfhandle(pCache->fd), LOCKFILE_EXCLUSIVE_LOCK, 0, ~0, 0, NULL))
+    memset(&OverLapped, 0, sizeof(OverLapped));
+    if (!LockFileEx((HANDLE)_get_osfhandle(pCache->fd), LOCKFILE_EXCLUSIVE_LOCK, 0, ~0, 0, &OverLapped))
         FatalDie("Failed to lock the cache file: Windows Error %d\n", GetLastError());
 #else
 # error port me....
@@ -3236,6 +3311,9 @@ static void kObjCacheLock(PKOBJCACHE pCache)
  */
 static void kObjCacheUnlock(PKOBJCACHE pCache)
 {
+#if defined(__WIN__)
+    OVERLAPPED OverLapped;
+#endif
     assert(pCache->fLocked);
 
     /*
@@ -3254,7 +3332,8 @@ static void kObjCacheUnlock(PKOBJCACHE pCache)
      * Lock it.
      */
 #if defined(__WIN__)
-    if (!UnlockFileEx((HANDLE)_get_osfhandle(pCache->fd), 0, ~0U, 0, NULL))
+    memset(&OverLapped, 0, sizeof(OverLapped));
+    if (!UnlockFileEx((HANDLE)_get_osfhandle(pCache->fd), 0, ~0U, 0, &OverLapped))
         FatalDie("Failed to unlock the cache file: Windows Error %d\n", GetLastError());
 #else
 # error port me....
@@ -3312,6 +3391,8 @@ static void kObjCacheInsertEntry(PKOBJCACHE pCache, PKOCENTRY pEntry)
      * Find a new key.
      */
     pEntry->uKey = pCache->uNextKey++;
+    if (!pEntry->uKey)
+        pEntry->uKey = pCache->uNextKey++;
     i = pCache->cDigests;
     while (i-- > 0)
         if (pCache->paDigests[i].uKey == pEntry->uKey)
@@ -3327,7 +3408,7 @@ static void kObjCacheInsertEntry(PKOBJCACHE pCache, PKOCENTRY pEntry)
      */
     if (    !(pCache->cDigests & 3)
         &&  (pCache->cDigests || !pCache->paDigests))
-        pCache->paDigests = xrealloc(pCache->paDigests, sizeof(pCache->paDigests[0]) * pCache->cDigests + 4);
+        pCache->paDigests = xrealloc(pCache->paDigests, sizeof(pCache->paDigests[0]) * (pCache->cDigests + 4));
 
     /*
      * Create a new digest.
@@ -3573,7 +3654,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1041 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1042 $)\n");
             return 0;
         }
         else
@@ -3618,7 +3699,7 @@ int main(int argc, char **argv)
     SetErrorPrefix("kObjCache - %s", FindFilenameInPath(pszCacheFile));
     pCache = kObjCacheCreate(pszCacheFile);
 
-    pEntry = kOCEntryCreate(pszCacheFile);
+    pEntry = kOCEntryCreate(pszEntryFile);
     kOCEntryRead(pEntry);
     kOCEntrySetCompileArgv(pEntry, papszArgvCompile, cArgvCompile);
     kOCEntrySetCompileObjName(pEntry, pszObjName);
@@ -3637,7 +3718,9 @@ int main(int argc, char **argv)
          * Both files are missing/invalid.
          * Optimize this path as it is frequently used when making a clean build.
          */
+        kObjCacheUnlock(pCache);
         kOCEntryPreCompileAndCompile(pEntry, papszArgvPreComp, cArgvPreComp);
+        kObjCacheLock(pCache);
     }
     else
     {
@@ -3669,6 +3752,8 @@ int main(int argc, char **argv)
                 kObjCacheLock(pCache);
             }
         }
+        else
+            kObjCacheLock(pCache);
     }
 
     /*
@@ -3677,6 +3762,7 @@ int main(int argc, char **argv)
     kObjCacheInsertEntry(pCache, pEntry);
     kOCEntryWrite(pEntry);
     kObjCacheUnlock(pCache);
+    kObjCacheDestroy(pCache);
     return 0;
 }
 
