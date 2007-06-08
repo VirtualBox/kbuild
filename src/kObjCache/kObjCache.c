@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1040 2007-06-08 02:08:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1041 2007-06-08 18:36:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -645,7 +645,7 @@ typedef KOCSUMCTX *PKOCSUMCTX;
  */
 static void kOCSumInitWithCtx(PKOCSUM pSum, PKOCSUMCTX pCtx)
 {
-    memcmp(pSum, 0, sizeof(*pSum));
+    memset(pSum, 0, sizeof(*pSum));
     MD5Init(&pCtx->MD5Ctx);
 }
 
@@ -693,7 +693,7 @@ static void kOCSumFinalize(PKOCSUM pSum, PKOCSUMCTX pCtx)
  */
 static void kOCSumInit(PKOCSUM pSumHead)
 {
-    memcmp(pSumHead, 0, sizeof(*pSumHead));
+    memset(pSumHead, 0, sizeof(*pSumHead));
 }
 
 
@@ -759,7 +759,7 @@ static void kOCSumDeleteChain(PKOCSUM pSumHead)
         pSumHead = pSumHead->pNext;
         free(pv);
     }
-    memcmp(pSumHead, 0, sizeof(*pSumHead));
+    memset(pSumHead, 0, sizeof(*pSumHead));
 }
 
 
@@ -3423,15 +3423,17 @@ static int SyntaxError(const char *pszFormat, ...)
 static int usage(void)
 {
     printf("syntax: kObjCache [--kObjCache-options] [-v|--verbose]\n"
-           "            [-d|--cache-dir <cache-dir>] [-n|--name <name-in-cache>]\n"
-           "            [-f|--file <local-cache-file>] [-t|--target <target-name>\n"
+           "            <  [-c|--cache-file <cache-file>]\n"
+           "             | [-n|--name <name-in-cache>] [[-d|--cache-dir <cache-dir>]] >\n"
+           "            <-f|--file <local-cache-file>>\n"
+           "            <-t|--target <target-name>>\n"
            "            [-r|--redir-stdout] [-p|--passthru]\n"
            "            --kObjCache-cpp <filename> <precompiler + args>\n"
            "            --kObjCache-cc <object> <compiler + args>\n"
            "            [--kObjCache-both [args]]\n"
            "            [--kObjCache-cpp|--kObjCache-cc [more args]]\n"
            "        kObjCache <-V|--version>\n"
-           "        kObjCache [-?|-h|--help]\n"
+           "        kObjCache [-?|/?|-h|/h|--help|/help]\n"
            "\n"
            "The env.var. KOBJCACHE_DIR sets the default cache diretory (-d).\n"
            "The env.var. KOBJCACHE_OPTS allow you to specifie additional options\n"
@@ -3481,6 +3483,8 @@ int main(int argc, char **argv)
     /*
      * Parse the arguments.
      */
+    if (argc <= 1)
+        return usage();
     for (i = 1; i < argc; i++)
     {
         if (!strcmp(argv[i], "--kObjCache-cpp"))
@@ -3564,11 +3568,12 @@ int main(int argc, char **argv)
             g_cVerbosityLevel++;
         else if (!strcmp(argv[i], "-q") || !strcmp(argv[i], "--quiet"))
             g_cVerbosityLevel = 0;
-        else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "-?"))
+        else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "-?")
+              || !strcmp(argv[i], "/h") || !strcmp(argv[i], "/?") || !strcmp(argv[i], "/help"))
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1040 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1041 $)\n");
             return 0;
         }
         else
@@ -3576,6 +3581,8 @@ int main(int argc, char **argv)
     }
     if (!pszEntryFile)
         return SyntaxError("No cache entry filename (-f)!\n");
+    if (!pszTarget)
+        return SyntaxError("No target name (-t)!\n");
     if (!cArgvCompile)
         return SyntaxError("No compiler arguments (--kObjCache-cc)!\n");
     if (!cArgvPreComp)
