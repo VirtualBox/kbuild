@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1042 2007-06-08 20:12:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1043 2007-06-08 22:36:21Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -1453,7 +1453,7 @@ static void kOCEntrySetPipedMode(PKOCENTRY pEntry, int fRedirPreCompStdOut, int 
  * @param   papszArgv       Argument vector. The cArgv element is NULL.
  * @param   cArgv           The number of arguments in the vector.
  */
-static void kOCEntrySpawn(PCKOCENTRY pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg, const char *pszStdOut)
+static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsigned cArgv, const char *pszMsg, const char *pszStdOut)
 {
 #if defined(__OS2__) || defined(__WIN__)
     intptr_t rc;
@@ -1544,7 +1544,7 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char **papszArgv, unsigned cA
  * @param   fdStdOut        Child stdout, -1 if it should inherit our stdout. Will be closed.
  * @param   pszMsg          Message to start the info/error messages with.
  */
-static pid_t kOCEntrySpawnChild(PCKOCENTRY pEntry, const char **papszArgv, unsigned cArgv, int fdStdIn, int fdStdOut, const char *pszMsg)
+static pid_t kOCEntrySpawnChild(PCKOCENTRY pEntry, const char * const *papszArgv, unsigned cArgv, int fdStdIn, int fdStdOut, const char *pszMsg)
 {
     pid_t pid;
     int fdSavedStdOut = -1;
@@ -1679,7 +1679,7 @@ static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *pFDs, const char *pszMsg)
  * @param   pfnConsumer     Pointer to a consumer callback function that is responsible
  *                          for servicing the child output and closing the pipe.
  */
-static void kOCEntrySpawnProducer(PKOCENTRY pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg,
+static void kOCEntrySpawnProducer(PKOCENTRY pEntry, const char * const *papszArgv, unsigned cArgv, const char *pszMsg,
                                   void (*pfnConsumer)(PKOCENTRY, int))
 {
     int fds[2];
@@ -1703,7 +1703,7 @@ static void kOCEntrySpawnProducer(PKOCENTRY pEntry, const char **papszArgv, unsi
  * @param   pfnProducer     Pointer to a producer callback function that is responsible
  *                          for serving the child input and closing the pipe.
  */
-static void kOCEntrySpawnConsumer(PKOCENTRY pEntry, const char **papszArgv, unsigned cArgv, const char *pszMsg,
+static void kOCEntrySpawnConsumer(PKOCENTRY pEntry, const char * const *papszArgv, unsigned cArgv, const char *pszMsg,
                                   void (*pfnProducer)(PKOCENTRY, int))
 {
     int fds[2];
@@ -1728,8 +1728,8 @@ static void kOCEntrySpawnConsumer(PKOCENTRY pEntry, const char **papszArgv, unsi
  * @param   pfnConsumer     Pointer to a consumer callback function that is responsible
  *                          for servicing the child output and closing the pipe.
  */
-static void kOCEntrySpawnTee(PKOCENTRY pEntry, const char **papszProdArgv, unsigned cProdArgv,
-                             const char **papszConsArgv, unsigned cConsArgv,
+static void kOCEntrySpawnTee(PKOCENTRY pEntry, const char * const *papszProdArgv, unsigned cProdArgv,
+                             const char * const *papszConsArgv, unsigned cConsArgv,
                              const char *pszMsg, void (*pfnTeeConsumer)(PKOCENTRY, int, int))
 {
     int fds[2];
@@ -1876,7 +1876,7 @@ static void kOCEntryPreCompileConsumer(PKOCENTRY pEntry, int fdIn)
  * @param   papszArgvPreComp    The argument vector for executing precompiler. The cArgvPreComp'th argument must be NULL.
  * @param   cArgvPreComp        The number of arguments.
  */
-static void kOCEntryPreCompile(PKOCENTRY pEntry, const char **papszArgvPreComp, unsigned cArgvPreComp)
+static void kOCEntryPreCompile(PKOCENTRY pEntry, const char * const *papszArgvPreComp, unsigned cArgvPreComp)
 {
     /*
      * If we're executing the precompiler in piped mode, it's relatively simple.
@@ -2040,7 +2040,7 @@ static void kOCEntryCompileIt(PKOCENTRY pEntry)
             &&  !pEntry->New.pszCppMapping)
             kOCEntryReadCppOutput(pEntry, &pEntry->New, 0 /* fatal */);
         InfoMsg(1, "compiling -> '%s'...\n", pEntry->New.pszObjName);
-        kOCEntrySpawnConsumer(pEntry, pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile,
+        kOCEntrySpawnConsumer(pEntry, (const char * const *)pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile,
                               "compile", kOCEntryCompileProducer);
     }
     else
@@ -2048,7 +2048,7 @@ static void kOCEntryCompileIt(PKOCENTRY pEntry)
         if (pEntry->fPipedPreComp)
             kOCEntryWriteCppOutput(pEntry, 1 /* free it */);
         InfoMsg(1, "compiling -> '%s'...\n", pEntry->New.pszObjName);
-        kOCEntrySpawn(pEntry, pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile, "compile", NULL);
+        kOCEntrySpawn(pEntry, (const char * const *)pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile, "compile", NULL);
     }
 }
 
@@ -2144,7 +2144,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
  * @param   papszArgvPreComp    The argument vector for executing precompiler. The cArgvPreComp'th argument must be NULL.
  * @param   cArgvPreComp        The number of arguments.
  */
-static void kOCEntryPreCompileAndCompile(PKOCENTRY pEntry, const char **papszArgvPreComp, unsigned cArgvPreComp)
+static void kOCEntryPreCompileAndCompile(PKOCENTRY pEntry, const char * const *papszArgvPreComp, unsigned cArgvPreComp)
 {
     if (    pEntry->fPipedCompile
         &&  pEntry->fPipedPreComp)
@@ -2165,7 +2165,7 @@ static void kOCEntryPreCompileAndCompile(PKOCENTRY pEntry, const char **papszArg
          * Do the actual compile and write the precompiler output to disk.
          */
         kOCEntrySpawnTee(pEntry, papszArgvPreComp, cArgvPreComp,
-                         pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile,
+                         (const char * const *)pEntry->New.papszArgvCompile, pEntry->New.cArgvCompile,
                          "precompile|compile", kOCEntryTeeConsumer);
     }
     else
@@ -2583,10 +2583,10 @@ static void kOCEntryCopyFile(PCKOCENTRY pEntry, const char *pszTo, char *pszSrc)
         {
             if (errno == EINTR)
                 continue;
-            if (eof(fdSrc))
-                break;
             FatalDie("read '%s' failed: %s\n", pszSrc, strerror(errno));
         }
+        if (!cbRead)
+            break; /* eof */
 
         /* write the chunk. */
         psz = pszBuf;
@@ -3284,7 +3284,8 @@ static void kObjCacheLock(PKOBJCACHE pCache)
     if (!LockFileEx((HANDLE)_get_osfhandle(pCache->fd), LOCKFILE_EXCLUSIVE_LOCK, 0, ~0, 0, &OverLapped))
         FatalDie("Failed to lock the cache file: Windows Error %d\n", GetLastError());
 #else
-# error port me....
+    if (flock(pCache->fd, LOCK_EX) != 0)
+        FatalDie("Failed to lock the cache file: %s\n", strerror(errno));
 #endif
     pCache->fLocked = 1;
 
@@ -3336,7 +3337,8 @@ static void kObjCacheUnlock(PKOBJCACHE pCache)
     if (!UnlockFileEx((HANDLE)_get_osfhandle(pCache->fd), 0, ~0U, 0, &OverLapped))
         FatalDie("Failed to unlock the cache file: Windows Error %d\n", GetLastError());
 #else
-# error port me....
+    if (flock(pCache->fd, LOCK_UN) != 0)
+        FatalDie("Failed to unlock the cache file: %s\n", strerror(errno));
 #endif
     pCache->fLocked = 0;
 }
@@ -3654,7 +3656,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1042 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1043 $)\n");
             return 0;
         }
         else
