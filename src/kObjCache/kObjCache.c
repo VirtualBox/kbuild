@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1045 2007-06-09 04:44:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1046 2007-06-09 04:56:00Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -1151,7 +1151,7 @@ static void kOCEntryRead(PKOCENTRY pEntry)
          * Check the magic.
          */
         if (    !fgets(g_szLine, sizeof(g_szLine), pFile)
-            ||  strcmp(g_szLine, "magic=kObjCache-1\n"))
+            ||  strcmp(g_szLine, "magic=kObjCacheEntry-v0.1.0\n"))
         {
             InfoMsg(2, "bad cache file (magic)\n");
             pEntry->fNeedCompiling = 1;
@@ -1343,7 +1343,7 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
 #define CHECK_LEN(expr) \
         do { int cch = expr; if (cch >= KOBJCACHE_MAX_LINE_LEN) FatalDie("Line too long: %d (max %d)\nexpr: %s\n", cch, KOBJCACHE_MAX_LINE_LEN, #expr); } while (0)
 
-    fprintf(pFile, "magic=kObjCache-1\n");
+    fprintf(pFile, "magic=kObjCacheEntry-v0.1.0\n");
     CHECK_LEN(fprintf(pFile, "target=%s\n", pEntry->New.pszTarget ? pEntry->New.pszTarget : pEntry->Old.pszTarget));
     CHECK_LEN(fprintf(pFile, "key=%u\n", (unsigned long)pEntry->uKey));
     CHECK_LEN(fprintf(pFile, "obj=%s\n", pEntry->New.pszObjName ? pEntry->New.pszObjName : pEntry->Old.pszObjName));
@@ -3654,6 +3654,7 @@ int main(int argc, char **argv)
 
     enum { kOC_Options, kOC_CppArgv, kOC_CcArgv, kOC_BothArgv } enmMode = kOC_Options;
 
+    size_t cch;
     char *psz;
     int i;
 
@@ -3759,7 +3760,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1045 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1046 $)\n");
             return 0;
         }
         else
@@ -3776,6 +3777,7 @@ int main(int argc, char **argv)
 
     /*
      * Calc the cache file name.
+     * It's a bit messy since the extension has to be replaced.
      */
     if (!pszCacheFile)
     {
@@ -3783,19 +3785,21 @@ int main(int argc, char **argv)
             return SyntaxError("No cache dir (-d / KOBJCACHE_DIR) and no cache filename!\n");
         if (!pszCacheName)
         {
-            pszCacheName = FindFilenameInPath(pszEntryFile);
-            if (!*pszCacheName)
+            psz = (char *)FindFilenameInPath(pszEntryFile);
+            if (!*psz)
                 return SyntaxError("The cache file (-f) specifies a directory / nothing!\n");
-            pszCacheName = xstrdup(pszCacheName);
+            cch = psz - pszEntryFile;
+            pszCacheName = memcpy(xmalloc(cch + 5), psz, cch + 1);
             psz = strrchr(pszCacheName, '.');
-            if (psz > pszCacheName)
-                *psz = '\0';
+            if (!psz || psz <= pszCacheName)
+                psz = (char *)pszCacheName + cch;
+            memcpy(psz, ".koc", sizeof(".koc") - 1);
         }
         pszCacheFile = MakePathFromDirAndFile(pszCacheName, pszCacheDir);
     }
 
     /*
-     * Create and initialize the two bojects we'll be working on.
+     * Create and initialize the two objects we'll be working on.
      *
      * We're supposed to be the only ones actually writing to the local file,
      * so it's perfectly fine to read it here before we lock it. This simplifies
