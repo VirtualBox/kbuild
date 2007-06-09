@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1046 2007-06-09 04:56:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1047 2007-06-09 23:23:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -2207,7 +2207,6 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
         if (cbLeft <= 1)
         {
             size_t off = psz - pEntry->New.pszCppMapping;
-            assert(off == cbAlloc);
             cbLeft = 4*1024*1024;
             cbAlloc += cbLeft;
             pEntry->New.pszCppMapping = xrealloc(pEntry->New.pszCppMapping, cbAlloc);
@@ -3760,7 +3759,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1046 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1047 $)\n");
             return 0;
         }
         else
