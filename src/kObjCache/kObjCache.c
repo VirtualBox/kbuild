@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1043 2007-06-08 22:36:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1044 2007-06-09 03:32:47Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -85,6 +85,16 @@
 #else
 # define IS_SLASH(ch)       ((ch) == '/')
 # define IS_SLASH_DRV(ch)   ((ch) == '/')
+#endif
+
+#ifndef STDIN_FILENO
+# define STDIN_FILENO 0
+#endif
+#ifndef STDOUT_FILENO
+# define STDOUT_FILENO 1
+#endif
+#ifndef STDERR_FILENO
+# define STDERR_FILENO 2
 #endif
 
 
@@ -199,7 +209,7 @@ void *xmalloc(size_t cb)
 {
     void *pv = malloc(cb);
     if (!pv)
-        FatalDie(NULL, "out of memory (%d)\n", (int)cb);
+        FatalDie("out of memory (%d)\n", (int)cb);
     return pv;
 }
 
@@ -208,7 +218,7 @@ void *xrealloc(void *pvOld, size_t cb)
 {
     void *pv = realloc(pvOld, cb);
     if (!pv)
-        FatalDie(NULL, "out of memory (%d)\n", (int)cb);
+        FatalDie("out of memory (%d)\n", (int)cb);
     return pv;
 }
 
@@ -217,7 +227,7 @@ char *xstrdup(const char *pszIn)
 {
     char *psz = strdup(pszIn);
     if (!psz)
-        FatalDie(NULL, "out of memory (%d)\n", (int)strlen(pszIn));
+        FatalDie("out of memory (%d)\n", (int)strlen(pszIn));
     return psz;
 }
 #endif
@@ -531,8 +541,50 @@ static void *ReadFileInDir(const char *pszName, const char *pszDir, size_t *pcbF
  */
 static int MakePath(const char *pszPath)
 {
-    /** @todo implement me */
-    return 0;
+    int iErr = 0;
+    char *pszAbsPath = AbsPath(pszPath);
+    char *psz = pszAbsPath;
+
+    /* Skip to the root slash (PC). */
+    while (!IS_SLASH(*psz) && *psz)
+        psz++;
+/** @todo UNC */
+    for (;;)
+    {
+        char chSaved;
+
+        /* skip slashes */
+        while (IS_SLASH(*psz))
+            psz++;
+        if (!*psz)
+            break;
+
+        /* find the next slash or end and terminate the string. */
+        while (!IS_SLASH(*psz) && *psz)
+            psz++;
+        chSaved = *psz;
+        *psz = '\0';
+
+        /* try create the directory, ignore failure because the directory already exists. */
+        errno = 0;
+#ifdef _MSC_VER
+        if (    _mkdir(pszAbsPath)
+            &&  errno != EEXIST)
+#else
+        if (    mkdir(pszAbsPath, 0777)
+            &&  errno != EEXIST)
+#endif
+        {
+            iErr = errno;
+            break;
+        }
+
+        /* restore the slash/terminator */
+        *psz = chSaved;
+    }
+
+    free(pszAbsPath);
+    return iErr ? -1 : 0;
 }
 
 
@@ -578,8 +630,8 @@ static void AppendArgs(int *pcArgs, char ***ppapszArgs, const char *pszCmdLine, 
      *  from the heap but off the stack or somewhere... )
      */
     i = *pcArgs;
-    *pcArgs = i + cExtraArgs + 1 + !!pszWedgeArg;
-    papszArgs = xmalloc(*pcArgs * sizeof(char *));
+    *pcArgs = i + cExtraArgs + !!pszWedgeArg;
+    papszArgs = xmalloc((*pcArgs + 1) * sizeof(char *));
     *ppapszArgs = memcpy(papszArgs, *ppapszArgs, i * sizeof(char *));
 
     if (pszWedgeArg)
@@ -588,6 +640,7 @@ static void AppendArgs(int *pcArgs, char ***ppapszArgs, const char *pszCmdLine, 
     psz = pszCmdLine;
     while (*psz)
     {
+        size_t cch;
         const char *pszEnd;
         while (isspace(*psz))
             psz++;
@@ -597,11 +650,16 @@ static void AppendArgs(int *pcArgs, char ***ppapszArgs, const char *pszCmdLine, 
         while (!isspace(*pszEnd) && *pszEnd)
             pszEnd++;
 
-        papszArgs[i] = xmalloc(psz - pszEnd + 1);
-        memcpy(papszArgs[i], psz, psz - pszEnd);
-        papszArgs[i][psz - pszEnd] = '\0';
+        cch = pszEnd - psz;
+        papszArgs[i] = xmalloc(cch + 1);
+        memcpy(papszArgs[i], psz, cch);
+        papszArgs[i][cch] = '\0';
+
         i++;
+        psz = pszEnd;
     }
+
+    papszArgs[i] = NULL;
 }
 
 
@@ -1461,16 +1519,16 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsi
     if (pszStdOut)
     {
         int fdReDir;
-        fdStdOut = dup(1); /* dup2(1,-1) doesn't work right on windows */
-        close(1);
+        fdStdOut = dup(STDOUT_FILENO);
+        close(STDOUT_FILENO);
         fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0666);
         if (fdReDir < 0)
             FatalDie("%s - failed to create stdout redirection file '%s': %s\n",
                      pszMsg, pszStdOut, strerror(errno));
 
-        if (fdReDir != 1)
+        if (fdReDir != STDOUT_FILENO)
         {
-            if (dup2(fdReDir, 1) < 0)
+            if (dup2(fdReDir, STDOUT_FILENO) < 0)
                 FatalDie("%s - dup2 failed: %s\n", pszMsg, strerror(errno));
             close(fdReDir);
         }
@@ -1484,8 +1542,8 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsi
         FatalDie("%s - failed rc=%d\n", pszMsg, (int)rc);
     if (fdStdOut)
     {
-        close(1);
-        fdStdOut = dup2(fdStdOut, 1);
+        close(STDOUT_FILENO);
+        fdStdOut = dup2(fdStdOut, STDOUT_FILENO);
         close(fdStdOut);
     }
 
@@ -1499,14 +1557,14 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsi
         {
             int fdReDir;
 
-            close(1);
+            close(STDOUT_FILENO);
             fdReDir = open(pszStdOut, O_CREAT | O_TRUNC | O_WRONLY, 0666);
             if (fdReDir < 0)
                 FatalDie("%s - failed to create stdout redirection file '%s': %s\n",
                          pszMsg, pszStdOut, strerror(errno));
-            if (fdReDir != 1)
+            if (fdReDir != STDOUT_FILENO)
             {
-                if (dup2(fdReDir, 1) < 0)
+                if (dup2(fdReDir, STDOUT_FILENO) < 0)
                     FatalDie("%s - dup2 failed: %s\n", pszMsg, strerror(errno));
                 close(fdReDir);
             }
@@ -1553,20 +1611,20 @@ static pid_t kOCEntrySpawnChild(PCKOCENTRY pEntry, const char * const *papszArgv
     /*
      * Setup redirection.
      */
-    if (fdStdOut != -1)
+    if (fdStdOut != -1 && fdStdOut != STDOUT_FILENO)
     {
-        fdSavedStdOut = dup(1 /* stdout */);
-        if (dup2(fdStdOut, 1 /* stdout */) < 0)
+        fdSavedStdOut = dup(STDOUT_FILENO);
+        if (dup2(fdStdOut, STDOUT_FILENO) < 0)
             FatalDie("%s - dup2(,1) failed: %s\n", pszMsg, strerror(errno));
         close(fdStdOut);
 #ifndef __WIN__
         fcntl(fdSavedStdOut, F_SETFD, FD_CLOEXEC);
 #endif
     }
-    if (fdStdIn != -1)
+    if (fdStdIn != -1 && fdStdIn != STDIN_FILENO)
     {
-        fdSavedStdIn = dup(0 /* stdin */);
-        if (dup2(fdStdOut, 0 /* stdin */) < 0)
+        fdSavedStdIn = dup(STDIN_FILENO);
+        if (dup2(fdStdIn, STDIN_FILENO) < 0)
             FatalDie("%s - dup2(,0) failed: %s\n", pszMsg, strerror(errno));
         close(fdStdIn);
 #ifndef __WIN__
@@ -1597,19 +1655,20 @@ static pid_t kOCEntrySpawnChild(PCKOCENTRY pEntry, const char * const *papszArgv
     /*
      * Restore stdout & stdin.
      */
-    if (fdSavedStdIn)
+    if (fdSavedStdIn != -1)
     {
-        close(0 /* stdin */);
-        dup2(fdStdOut, 0 /* stdin */);
+        close(STDIN_FILENO);
+        dup2(fdStdOut, STDIN_FILENO);
         close(fdSavedStdIn);
     }
-    if (fdSavedStdOut)
+    if (fdSavedStdOut != -1)
     {
-        close(1 /* stdout */);
-        dup2(fdSavedStdOut, 1 /* stdout */);
+        close(STDOUT_FILENO);
+        dup2(fdSavedStdOut, STDOUT_FILENO);
         close(fdSavedStdOut);
     }
 
+    InfoMsg(3, "%s - spawned %ld\n", pszMsg, (long)pid);
     (void)cArgv;
     (void)pEntry;
     return pid;
@@ -1627,6 +1686,8 @@ static void kOCEntryWaitChild(PCKOCENTRY pEntry, pid_t pid, const char *pszMsg)
 {
     int iStatus = -1;
     pid_t pidWait;
+    InfoMsg(3, "%s - wait-child(%ld)\n", pszMsg, (long)pid);
+
 #ifdef __WIN__
     pidWait = _cwait(&iStatus, pid, _WAIT_CHILD);
     if (pidWait == -1)
@@ -1657,6 +1718,7 @@ static void kOCEntryWaitChild(PCKOCENTRY pEntry, pid_t pid, const char *pszMsg)
  */
 static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *pFDs, const char *pszMsg)
 {
+    pFDs[0] = pFDs[1] = -1;
 #if defined(__WIN__)
     if (_pipe(pFDs, 0, _O_NOINHERIT | _O_BINARY) < 0)
 #else
@@ -1747,7 +1809,7 @@ static void kOCEntrySpawnTee(PKOCENTRY pEntry, const char * const *papszProdArgv
      * The consumer.
      */
     kOCEntryCreatePipe(pEntry, fds, pszMsg);
-    pidProducer = kOCEntrySpawnChild(pEntry, papszProdArgv, cProdArgv, fds[0 /* read */], -1, pszMsg);
+    pidProducer = kOCEntrySpawnChild(pEntry, papszConsArgv, cConsArgv, fds[0 /* read */], -1, pszMsg);
     fdOut = fds[1 /* write */];
 
     /*
@@ -2003,6 +2065,7 @@ static void kOCEntryCompileProducer(PKOCENTRY pEntry, int fdOut)
         psz += cbWritten;
         cbLeft -= cbWritten;
     }
+    close(fdOut);
 
     if (pEntry->fPipedPreComp)
         kOCEntryWriteCppOutput(pEntry, 1 /* free it */);
@@ -2074,6 +2137,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
     cbAlloc = pEntry->Old.cbCpp ? (pEntry->Old.cbCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
     cbLeft = cbAlloc;
     pEntry->New.pszCppMapping = psz = xmalloc(cbAlloc);
+    InfoMsg(3, "precompiler|compile - starting passhtru...\n");
     for (;;)
     {
         /*
@@ -2089,6 +2153,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
             FatalDie("precompile|compile - read(%d,,%ld) failed: %s\n",
                      fdIn, (long)cbLeft, strerror(errno));
         }
+        InfoMsg(2, "precompiler|compile - read %d\n", cbRead);
 
         /*
          * Process the data.
@@ -2122,6 +2187,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
             psz = pEntry->New.pszCppMapping + off;
         }
     }
+    InfoMsg(2, "precompiler|compile - done passhtru\n");
 
     close(fdIn);
     close(fdOut);
@@ -3656,7 +3722,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1043 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1044 $)\n");
             return 0;
         }
         else
@@ -3680,7 +3746,7 @@ int main(int argc, char **argv)
             return SyntaxError("No cache dir (-d / KOBJCACHE_DIR) and no cache filename!\n");
         if (!pszCacheName)
         {
-            pszCacheName = FindFilenameInPath(pszCacheFile);
+            pszCacheName = FindFilenameInPath(pszEntryFile);
             if (!*pszCacheName)
                 return SyntaxError("The cache file (-f) specifies a directory / nothing!\n");
             pszCacheName = xstrdup(pszCacheName);
@@ -3688,7 +3754,7 @@ int main(int argc, char **argv)
             if (psz > pszCacheName)
                 *psz = '\0';
         }
-        pszCacheFile = MakePathFromDirAndFile(pszCacheDir, pszCacheName); /* harmless leak. */
+        pszCacheFile = MakePathFromDirAndFile(pszCacheName, pszCacheDir);
     }
 
     /*
@@ -3761,6 +3827,7 @@ int main(int argc, char **argv)
     /*
      * Update the cache files.
      */
+    kObjCacheRemoveEntry(pCache, pEntry);
     kObjCacheInsertEntry(pCache, pEntry);
     kOCEntryWrite(pEntry);
     kObjCacheUnlock(pCache);
