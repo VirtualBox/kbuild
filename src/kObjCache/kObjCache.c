@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1047 2007-06-09 23:23:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1048 2007-06-10 00:07:38Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -1941,7 +1941,6 @@ static void kOCEntryPreCompileConsumer(PKOCENTRY pEntry, int fdIn)
         if (cbLeft <= 1)
         {
             size_t off = psz - pEntry->New.pszCppMapping;
-            assert(off == cbAlloc);
             cbLeft = 4*1024*1024;
             cbAlloc += cbLeft;
             pEntry->New.pszCppMapping = xrealloc(pEntry->New.pszCppMapping, cbAlloc);
@@ -3759,7 +3758,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1047 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1048 $)\n");
             return 0;
         }
         else
@@ -3910,4 +3909,22 @@ int main(int argc, char **argv)
  *  user    1m31.391s
  *  sys     0m32.748s
  *
+ * ------- new code -------
+ *
+ * Mac OS X debug -j 3 cached clobber build (rm -Rf out ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ *  real    11m28.811s
+ *  user    13m59.291s
+ *  sys     3m24.590s
+ *
+ * Mac OS X debug -j 3 cached depend build (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ *  real    1m26.895s
+ *  user    1m26.971s
+ *  sys     0m32.532s
+ *
+ * Mac OS X debug -j 3 cached depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ *  real    1m18.049s
+ *  user    1m20.462s
+ *  sys     0m27.887s
+ *
+ * (all with KOBJCACHE_OPTS=-v)
  */
