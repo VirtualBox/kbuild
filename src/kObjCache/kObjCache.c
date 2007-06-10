@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1048 2007-06-10 00:07:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1049 2007-06-10 02:48:05Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -3758,7 +3758,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.0.0 ($Revision: 1048 $)\n");
+            printf("kObjCache v0.0.0 ($Revision: 1049 $)\n");
             return 0;
         }
         else
@@ -3883,48 +3883,59 @@ int main(int argc, char **argv)
 
 /** @page kObjCache Benchmarks.
  *
- * 2007-06-02 - 21-23:00:
- * Mac OS X debug -j 3 clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
- *  real    10m26.077s
- *  user    13m13.291s
- *  sys     2m58.193s
- *
- * Mac OS X debug -j 3 depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3):
- *  real    3m55.275s
- *  user    4m11.852s
- *  sys     0m54.931s
- *
- * Mac OS X debug -j 3 cached clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
- *  real    11m42.513s
- *  user    14m27.736s
- *  sys     3m39.512s
- *
- * Mac OS X debug -j 3 cached depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
- *  real    1m17.445s
- *  user    1m13.410s
- *  sys     0m22.789s
- *
- * Mac OS X debug -j3 cached depend build (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
- *  real    1m29.315s
- *  user    1m31.391s
- *  sys     0m32.748s
- *
- * ------- new code -------
+ * (2007-06-10)
  *
  * Mac OS X debug -j 3 cached clobber build (rm -Rf out ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
  *  real    11m28.811s
  *  user    13m59.291s
  *  sys     3m24.590s
  *
- * Mac OS X debug -j 3 cached depend build (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ * Mac OS X debug -j 3 cached depend build [cdefs.h] (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
  *  real    1m26.895s
  *  user    1m26.971s
  *  sys     0m32.532s
  *
- * Mac OS X debug -j 3 cached depend build (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
+ * Mac OS X debug -j 3 cached depend build [err.h] (touch include/iprt/err.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1):
  *  real    1m18.049s
  *  user    1m20.462s
  *  sys     0m27.887s
  *
- * (all with KOBJCACHE_OPTS=-v)
+ * Mac OS X release -j 3 cached clobber build (rm -Rf out/darwin.x86/release ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1 BUILD_TYPE=release):
+ *  real    13m27.751s
+ *  user    18m12.654s
+ *  sys     3m25.170s
+ *
+ * Mac OS X profile -j 3 cached clobber build (rm -Rf out/darwin.x86/profile ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 USE_KOBJCACHE=1 BUILD_TYPE=profile):
+ *  real    9m9.720s
+ *  user    8m53.005s
+ *  sys     2m13.110s
+ *
+ * Mac OS X debug -j 3 clobber build (rm -Rf out/darwin.x86/debug ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 BUILD_TYPE=debug):
+ *  real    10m18.129s
+ *  user    12m52.687s
+ *  sys     2m51.277s
+ *
+ * Mac OS X debug -j 3 debug build [cdefs.h] (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 BUILD_TYPE=debug):
+ *  real    4m46.147s
+ *  user    5m27.087s
+ *  sys     1m11.775s
+ *
+ * Mac OS X debug -j 3 debug build [err.h] (touch include/iprt/cdefs.h ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 BUILD_TYPE=debug):
+ *  real    4m17.572s
+ *  user    5m7.450s
+ *  sys     1m3.450s
+ *
+ * Mac OS X release -j 3 clobber build (rm -Rf out/darwin.x86/release ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 BUILD_TYPE=release):
+ *  real    12m14.742s
+ *  user    17m11.794s
+ *  sys     2m51.454s
+ *
+ * Mac OS X profile -j 3 clobber build (rm -Rf out/darwin.x86/profile ; sync ; svn diff ; sync ; sleep 1 ; time kmk -j 3 BUILD_TYPE=profile):
+ *  real    12m33.821s
+ *  user    17m35.086s
+ *  sys     2m53.312s
+ *
+ * Note. The profile build can pick object files from the release build.
+ * (all with KOBJCACHE_OPTS=-v; which means a bit more output and perhaps a second or two slower.)
  */
+
