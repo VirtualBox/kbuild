@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1053 2007-06-11 09:32:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1055 2007-06-11 09:35:21Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -52,6 +52,7 @@
 #  include <unistd.h>
 # endif
 # if defined(_MSC_VER)
+#  include <direct.h>
    typedef intptr_t pid_t;
 # endif
 #else
@@ -3758,7 +3759,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1053 $)\n");
+            printf("kObjCache v0.1.0 ($Revision: 1055 $)\n");
             return 0;
         }
         else
