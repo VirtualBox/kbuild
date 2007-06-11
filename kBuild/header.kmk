@@ -1,4 +1,4 @@
-# $Id: header.kmk 1004 2007-06-02 12:05:54Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1051 2007-06-11 09:23:55Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1004 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1051 $  )
 
 
 #
@@ -281,6 +281,7 @@ ifndef PATH_OUT
   PATH_OUT          := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
  endif
 endif # !define PATH_OUT
+PATH_OBJCACHE        = $(PATH_OUT_BASE)/kObjCache
 PATH_OBJ             = $(PATH_OUT)/obj
 PATH_TARGET          = $(PATH_OBJ)/$(CURSUBDIR)
 PATH_INS             = $(PATH_OUT)
