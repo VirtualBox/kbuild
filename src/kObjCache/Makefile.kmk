@@ -3,7 +3,7 @@
 #
 # kObjCache - Object Cache.
 #
-# Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -28,9 +28,7 @@ DEPTH ?= ../..
 #SUB_DEPTH = ../..
 include $(PATH_KBUILD)/subheader.kmk
 
-ifeq ($(USERNAME),bird) # disable it for now.
 PROGRAMS += kObjCache
-endif
 kObjCache_TEMPLATE = BIN
 kObjCache_SOURCES = kObjCache.c
 kObjCache_LIBS = $(LIB_KUTIL)
