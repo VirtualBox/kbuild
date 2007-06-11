@@ -1,4 +1,4 @@
-# $Id: GXX3OMF.kmk 1015 2007-06-02 18:57:50Z knut.osmundsen@oracle.com $
+# $Id: GXX3OMF.kmk 1058 2007-06-11 11:22:43Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF, for building C++ code.
@@ -52,7 +52,7 @@ endif
 TOOL_GXX3OMF_COBJSUFF         ?= .o
 TOOL_GXX3OMF_CFLAGS           ?= -Zomf
 TOOL_GXX3OMF_CFLAGS.debug     ?= -g
-TOOL_GXX3OMF_CFLAGS.profile   ?= -g -O2 #-pg
+TOOL_GXX3OMF_CFLAGS.profile   ?= -O2 #-g -pg
 TOOL_GXX3OMF_CFLAGS.release   ?= -O2
 TOOL_GXX3OMF_CINCS            ?=
 TOOL_GXX3OMF_CDEFS            ?=
@@ -61,7 +61,7 @@ TOOL_GXX3OMF_CXXOBJSUFF       ?= .o
 TOOL_GXX3OMF_CXXOBJSUFF       ?= .o
 TOOL_GXX3OMF_CXXFLAGS         ?= -Zomf
 TOOL_GXX3OMF_CXXFLAGS.debug   ?= -g
-TOOL_GXX3OMF_CXXFLAGS.profile ?= -g -O2 #-pg
+TOOL_GXX3OMF_CXXFLAGS.profile ?= -O2 #-g -pg
 TOOL_GXX3OMF_CXXFLAGS.release ?= -O2
 TOOL_GXX3OMF_CXXINCS          ?=
 TOOL_GXX3OMF_CXXDEFS          ?=
@@ -98,16 +98,17 @@ ifdef USE_KOBJCACHE
 TOOL_GXX3OMF_COMPILE_C_USES_KOBJCACHE = 1
 TOOL_GXX3OMF_COMPILE_C_OUTPUT = $(outbase).i
 define TOOL_GXX3OMF_COMPILE_C_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).i \
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).i\
 		$(TOOL_GXX3OMF_CC) -E -o -\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source)) \
-		--kObjCache-cc $(obj) \
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
 		$(TOOL_GXX3OMF_CC) -c\
-		$(flags)\
+		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
-		$(outbase).i
+		-
 endef
 else # !USE_KOBJCACHE
 TOOL_GXX3OMF_COMPILE_C_OUTPUT =
@@ -140,16 +141,17 @@ ifdef USE_KOBJCACHE
 TOOL_GXX3OMF_COMPILE_CXX_USES_KOBJCACHE = 1
 TOOL_GXX3OMF_COMPILE_CXX_OUTPUT = $(outbase).ii
 define TOOL_GXX3OMF_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).ii \
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_GXX3OMF_CXX) -E -o -\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source)) \
-		--kObjCache-cc $(obj) \
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
 		$(TOOL_GXX3OMF_CXX) -c\
-		$(flags)\
+		$(flags) -fpreprocessed -x c++\
 		-o $(obj)\
-		$(outbase).ii
+		-
 endef
 else # !USE_KOBJCACHE
 TOOL_GXX3OMF_COMPILE_CXX_OUTPUT =
