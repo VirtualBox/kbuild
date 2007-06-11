@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 1023 2007-06-04 01:11:45Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 1052 2007-06-11 09:30:19Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -96,16 +96,17 @@ ifdef USE_KOBJCACHE
 TOOL_GCC4MACHO_COMPILE_C_USES_KOBJCACHE = 1
 TOOL_GCC4MACHO_COMPILE_C_OUTPUT = $(outbase).i
 define TOOL_GCC4MACHO_COMPILE_C_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).i \
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).i\
 		$(TOOL_GCC4MACHO_CC) -E -o -\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source)) \
-		--kObjCache-cc $(obj) \
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
 		$(TOOL_GCC4MACHO_CC) -c\
-		$(flags)\
+		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
-		$(outbase).i
+		-
 endef
 else  # !USE_KOBJCACHE
 TOOL_GCC4MACHO_COMPILE_C_OUTPUT =
@@ -137,16 +138,17 @@ ifdef USE_KOBJCACHE
 TOOL_GCC4MACHO_COMPILE_CXX_USES_KOBJCACHE = 1
 TOOL_GCC4MACHO_COMPILE_CXX_OUTPUT = $(outbase).ii
 define TOOL_GCC4MACHO_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -r --kObjCache-cpp $(outbase).ii \
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).ii\
 		$(TOOL_GCC4MACHO_CXX) -E -o -\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
-		$(abspath $(source)) \
-		--kObjCache-cc $(obj) \
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
 		$(TOOL_GCC4MACHO_CXX) -c\
-		$(flags)\
+		$(flags) -fpreprocessed -x c++\
 		-o $(obj)\
-		$(outbase).ii
+		-
 endef
 else  # !USE_KOBJCACHE
 TOOL_GCC4MACHO_COMPILE_CXX_OUTPUT =
