@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1030 2007-06-04 01:49:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1061 2007-06-19 00:01:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2219,7 +2219,6 @@ define def_install_src_rule
 # the install rule
 $(insdst) : $(srcsrc) | $(call DIRDEP,$(dir $(insdst)))
 	$$(call MSG_INST_FILE,$(srcsrc),$(insdst))
-	$$(QUIET)$$(if $$(filter $(INSTALL),$(inscmd)),,$$(RM) -f $$@)
 	$$(QUIET)$(inscmd)
 endef
 
