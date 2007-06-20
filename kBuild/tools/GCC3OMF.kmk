@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 1058 2007-06-11 11:22:43Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 1062 2007-06-20 12:08:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
@@ -66,7 +66,7 @@ TOOL_GCC3OMF_CXXFLAGS.release ?= -O2
 TOOL_GCC3OMF_CXXINCS          ?=
 TOOL_GCC3OMF_CXXDEFS          ?=
 
-TOOL_GCC3OMF_ASFLAGS          ?= -x assembler-with-cpp
+TOOL_GCC3OMF_ASFLAGS          ?= -x assembler-with-cpp -Zomf
 TOOL_GCC3OMF_ASFLAGS.debug    ?= -g
 TOOL_GCC3OMF_ASFLAGS.profile  ?= -g
 TOOL_GCC3OMF_ASOBJSUFF        ?= .obj
