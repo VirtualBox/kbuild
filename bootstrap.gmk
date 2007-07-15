@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 999 2007-05-29 21:29:21Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 1068 2007-07-15 15:34:37Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -51,6 +51,8 @@
 SRCDIR = $(CURDIR)
 OUTDIR = $(SRCDIR)/out/$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)/$(BUILD_TYPE)/bootstrap
 
+# Override this on the make commandline if you need to (FreeBSD).
+AUTORECONF = autoreconf
 
 all: stage1 stage2
 
@@ -69,7 +71,7 @@ stage1: \
 # kmk
 $(OUTDIR)/kmk/ts-autoreconf:
 	mkdir -p $(@D)
-	cd $(SRCDIR)/src/kmk && autoreconf -i -v
+	cd $(SRCDIR)/src/kmk && $(AUTORECONF) -i -v
 	echo done > $@
 
 $(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
@@ -88,7 +90,7 @@ $(OUTDIR)/kmk/kmk: $(OUTDIR)/kmk/ts-configured
 $(OUTDIR)/sed/ts-autoreconf:
 	mkdir -p $(@D)
 	@# only required on OS/2, so skip it.
-	@# cd $(SRCDIR)/src/sed && autoreconf -i -v
+	@# cd $(SRCDIR)/src/sed && $(AUTORECONF) -i -v --force
 	echo done > $@
 
 $(OUTDIR)/sed/ts-configured: $(OUTDIR)/sed/ts-autoreconf
