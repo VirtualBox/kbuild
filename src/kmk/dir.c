@@ -675,7 +675,7 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       if (d == 0)
         {
           if (errno)
-            fatal (NILF, "INTERNAL: readdir(%p[%s]): %s\n", dir, dir->path_key, strerror (errno));
+            fatal (NILF, "INTERNAL: readdir(%p): %s (filename=%s)\n", dir, strerror (errno), filename);
           break;
         }
 
