@@ -286,7 +286,11 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. */
+#if defined(__X86__) || defined(__i386__) || defined(__I386__)
+#define MAKE_HOST "i386-unknown-freebsd6.2"
+#else
 #define MAKE_HOST "amd64-unknown-freebsd6.2"
+#endif
 
 /* Define to 1 to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
