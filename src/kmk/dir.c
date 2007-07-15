@@ -41,6 +41,11 @@ char *vmsify (char *name, int type);
 #  include "vmsdir.h"
 # endif /* HAVE_VMSDIR_H */
 #endif
+/* bird: FreeBSD + smbfs -> readdir() + EBADF */
+#ifdef __FreeBSD__
+# include <sys/mount.h>
+#endif
+/* bird: end */
 
 /* In GNU systems, <dirent.h> defines this macro for us.  */
 #ifdef _D_NAMLEN
@@ -674,6 +679,26 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       ENULLLOOP (d, readdir (dir->dirstream));
       if (d == 0)
         {
+/* bird: Workaround for smbfs mounts returning EBADF at the end of the search. 
+         To exactly determin the cause here, I should probably do some smbfs
+         tracing, but for now just ignoring the EBADF on seems to work. 
+         (The smb server is 64-bit vista, btw.) */
+#if defined (__FreeBSD__)
+          struct statfs stfs;
+          int saved_errno = errno;
+          errno = 0;
+          if (saved_errno == EBADF
+           && !fstatfs (dirfd (dir->dirstream), &stfs)
+           && !(stfs.f_flags & MNT_LOCAL)
+           && !strcmp(stfs.f_fstypename, "smbfs"))
+            {
+              /*fprintf (stderr, "EBADF on remote fs! dirfd=%d errno=%d\n", 
+                       dirfd (dir->dirstream), errno);*/
+              saved_errno = 0;
+            }
+          errno = saved_errno;
+#endif
+/* bird: end */
           if (errno)
             fatal (NILF, "INTERNAL: readdir(%p): %s (filename=%s)\n", dir, strerror (errno), filename);
           break;
