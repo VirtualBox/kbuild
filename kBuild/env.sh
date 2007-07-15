@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 1067 2007-07-15 14:09:59Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1076 2007-07-15 19:36:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -40,6 +40,7 @@ if test ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f
 fi
 export PATH_KBUILD
 echo "dbg: PATH_KBUILD=$PATH_KBUILD"
+
 
 #
 # Set default build type.
@@ -217,26 +218,35 @@ case "$BUILD_PLATFORM" in
         ;;
 esac
 
+
+#
+# Calc PATH_KBUILD_BIN (but don't export it).
+#
+if test -z "$PATH_KBUILD_BIN"; then
+    PATH_KBUILD_BIN="${PATH_KBUILD}/bin/${BUILD_PLATFORM}.${BUILD_PLATFORM_ARCH}"
+fi
+echo "dbg: PATH_KBUILD_BIN=${PATH_KBUILD_BIN} (not exported)"
+
 # Make shell. OS/2 and DOS only?
-export MAKESHELL="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/kmk_ash${_SUFF_EXE}";
+export MAKESHELL="${PATH_KBUILD_BIN}/kmk_ash${_SUFF_EXE}";
 
 #
 # Add the bin/x.y/ directory to the PATH.
 # NOTE! Once bootstrapped this is the only thing that is actually necessary.
 #
-PATH="$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${_PATH_SEP}$PATH"
+PATH="${PATH_KBUILD_BIN}/${_PATH_SEP}$PATH"
 export PATH
 echo "dbg: PATH=$PATH"
 
 # Sanity and x bits.
-if test ! -d "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/"; then
-    echo "$0: warning: The bin directory for this platform doesn't exists. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/)"
+if test ! -d "${PATH_KBUILD_BIN}/"; then
+    echo "$0: warning: The bin directory for this platform doesn't exists. (${PATH_KBUILD_BIN}/)"
 else
     for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed;
     do
-        chmod a+x $PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog} > /dev/null 2>&1
-        if test ! -f "$PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE}"; then
-            echo "$0: warning: The ${prog} program doesn't exist for this platform. ($PATH_KBUILD/bin/$BUILD_PLATFORM.$BUILD_PLATFORM_ARCH/${prog}${_SUFF_EXE})"
+        chmod a+x ${PATH_KBUILD_BIN}/${prog} > /dev/null 2>&1
+        if test ! -f "${PATH_KBUILD_BIN}/${prog}${_SUFF_EXE}"; then
+            echo "$0: warning: The ${prog} program doesn't exist for this platform. (${PATH_KBUILD_BIN}/${prog}${_SUFF_EXE})"
         fi
     done
 fi
