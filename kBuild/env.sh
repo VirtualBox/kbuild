@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 1066 2007-07-15 13:23:04Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1067 2007-07-15 14:09:59Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -24,7 +24,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 #
-set -x
+#set -x
 
 #
 # Determin the kBuild path from the script location.
