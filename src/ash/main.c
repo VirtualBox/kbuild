@@ -89,9 +89,8 @@ short profile_buf[16384];
 extern int etext();
 #endif
 
-#ifdef KMK
+#ifndef KMK
 #error "Huh? KMK isn't defined!"
-#else
 STATIC void read_profile(const char *);
 #endif
 STATIC char *find_dot_file(char *);
