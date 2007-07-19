@@ -89,7 +89,11 @@ short profile_buf[16384];
 extern int etext();
 #endif
 
+#ifdef KMK
+#error "Huh? KMK isn't defined!"
+#else
 STATIC void read_profile(const char *);
+#endif
 STATIC char *find_dot_file(char *);
 int main(int, char **);
 
@@ -186,19 +190,25 @@ main(int argc, char **argv)
 	procargs(argc, argv);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
+#ifndef KMK
 		read_profile("/etc/profile");
+#endif
 state1:
 		state = 2;
+#ifndef KMK
 		read_profile(".profile");
+#endif
 	}
 state2:
 	state = 3;
+#ifndef KMK
 	if (getuid() == geteuid() && getgid() == getegid()) {
 		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
 			state = 3;
 			read_profile(shinit);
 		}
 	}
+#endif
 state3:
 	state = 4;
 	if (sflag == 0 || minusc) {
@@ -284,6 +294,7 @@ cmdloop(int top)
 
 
 
+#ifndef KMK
 /*
  * Read /etc/profile or .profile.  Return on error.
  */
@@ -317,6 +328,7 @@ read_profile(const char *name)
 	}
 	popfile();
 }
+#endif /* !KMK */
 
 
 
