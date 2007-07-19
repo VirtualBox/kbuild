@@ -13,7 +13,7 @@ include $(PATH_KBUILD)/header.kmk
 
 PROGRAMS += kmk_ash
 kmk_ash_TEMPLATE = BIN
-kmk_ash_DEFS = lint SHELL SMALL
+kmk_ash_DEFS = lint SHELL SMALL KMK
 kmk_ash_DEFS.linux = BSD
 kmk_ash_DEFS.solaris = BSD
 kmk_ash_DEFS.win = \
