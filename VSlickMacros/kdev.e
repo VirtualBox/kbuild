@@ -1,4 +1,4 @@
-/* $Id: kdev.e 784 2007-01-24 22:20:31Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 1081 2007-07-21 17:29:12Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -3230,10 +3230,18 @@ btnCancel.lbutton_up()
  */
 definit()
 {
-   k_styles_create();
-   k_menu_create();
-   iTimer = _set_timer(1000, k_menu_create, "timer");
-   /* createMyColorSchemeAndUseIt();*/
+    /* do cleanup. */
+    for (i = 0; i < 200; i++)
+    {
+        index = name_match("def-koptions-", 1, MISC_TYPE);
+        if (!index)
+            break;
+        delete_name(index);
+    }
+
+    /* do init */
+    k_styles_create();
+    k_menu_create();
+    iTimer = _set_timer(1000, k_menu_create, "timer");
+    /* createMyColorSchemeAndUseIt();*/
 }
-
-
