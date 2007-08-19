@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1010 2007-06-02 16:31:37Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1082 2007-08-19 20:41:58Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -95,7 +95,8 @@ ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
   TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__
  else ifeq ($(BUILD_TARGET_ARCH),amd64)
   TEMPLATE_BIN_TOOL             = VCC80AMD64
-  TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 _CRT_SECURE_NO_DEPRECATE
+  TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 \
+                                  _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  endif
  TEMPLATE_BIN_DEFS.release      = NDEBUG
  TEMPLATE_BIN_SDKS              = WINPSDK
