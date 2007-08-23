@@ -1,4 +1,4 @@
-# $Id: GCC3PLAIN.kmk 1058 2007-06-11 11:22:43Z knut.osmundsen@oracle.com $
+# $Id: GCC3PLAIN.kmk 1083 2007-08-23 15:26:59Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x or later Using The System GCC, any Unix Linker and Unix Archiver.
@@ -80,8 +80,6 @@ TOOL_GCC3PLAIN_ARFLAGS          ?= cr
 TOOL_GCC3PLAIN_ARLIBSUFF        ?= .a
 
 TOOL_GCC3PLAIN_LDFLAGS          ?=
-TOOL_GCC3PLAIN_LDFLAGS.debug    ?= -g
-TOOL_GCC3PLAIN_LDFLAGS.profile  ?= -g
 
 
 ## Compile C source.
