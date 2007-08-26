@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1081 2007-07-21 17:29:12Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 1085 2007-08-26 00:00:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -1244,6 +1244,7 @@ void k_javadoc_funcbox()
 void k_javadoc_moduleheader()
 {
     int iCursorLine;
+    int fSplit = 0;
 
     _begin_line();
     k_insert_comment('$':+'I':+'d: $', KIC_CURSOR_AT_END, -1);
@@ -1251,8 +1252,9 @@ void k_javadoc_moduleheader()
     _insert_text("\n");
 
     k_javadoc_box_start('@file');
-    if (skLicense == 'VirtualBox')
+    if (skLicense == 'VirtualBox' || 1 /* it's now default */)
     {
+        fSplit = 1;
         iCursorLine = p_RLine;
         k_javadoc_box_line();
         k_javadoc_box_end();
@@ -1276,7 +1278,7 @@ void k_javadoc_moduleheader()
     if (skCompany != '')
     {
         if (skLicense == 'VirtualBox')
-            k_javadoc_box_line('Copyright (c) ' k_year() ' ' skCompany);
+            k_javadoc_box_line('Copyright (C) ' k_year() ' ' skCompany);
         else
         {
             k_javadoc_box_line('Copyright (c) ' k_year() ' ' skCompany);
@@ -1295,7 +1297,8 @@ void k_javadoc_moduleheader()
 
         case 'GPL':
             _str sProg = skProgram;
-            k_javadoc_box_line();
+            if (!fSplit)
+                k_javadoc_box_line();
             if (sProg == '')
                 sProg = 'This program';
             else
@@ -1315,12 +1318,13 @@ void k_javadoc_moduleheader()
             k_javadoc_box_line();
             k_javadoc_box_line('You should have received a copy of the GNU General Public License');
             k_javadoc_box_line('along with ' sProg '; if not, write to the Free Software');
-            k_javadoc_box_line('Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA');
+            k_javadoc_box_line('Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA');
             break;
 
         case 'LGPL':
             sProg = skProgram;
-            k_javadoc_box_line();
+            if (!fSplit)
+                k_javadoc_box_line();
             if (sProg == '')
                 sProg = 'This program';
             else
@@ -1328,19 +1332,19 @@ void k_javadoc_moduleheader()
                 k_javadoc_box_line('This file is part of ' sProg '.');
                 k_javadoc_box_line();
             }
-            k_javadoc_box_line(sProg ' is free software; you can redistribute it and/or modify');
-            k_javadoc_box_line('it under the terms of the GNU Lesser General Public License as published');
-            k_javadoc_box_line('by the Free Software Foundation; either version 2 of the License, or');
-            k_javadoc_box_line('(at your option) any later version.');
+            k_javadoc_box_line(sProg ' is free software; you can redistribute it and/or');
+            k_javadoc_box_line('modify it under the terms of the GNU Lesser General Public');
+            k_javadoc_box_line('License as published by the Free Software Foundation; either');
+            k_javadoc_box_line('version 2.1 of the License, or (at your option) any later version.');
             k_javadoc_box_line();
             k_javadoc_box_line(sProg ' is distributed in the hope that it will be useful,');
             k_javadoc_box_line('but WITHOUT ANY WARRANTY; without even the implied warranty of');
-            k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
-            k_javadoc_box_line('GNU Lesser General Public License for more details.');
+            k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU');
+            k_javadoc_box_line('Lesser General Public License for more details.');
             k_javadoc_box_line();
-            k_javadoc_box_line('You should have received a copy of the GNU Lesser General Public License');
-            k_javadoc_box_line('along with ' sProg '; if not, write to the Free Software');
-            k_javadoc_box_line('Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA');
+            k_javadoc_box_line('You should have received a copy of the GNU Lesser General Public');
+            k_javadoc_box_line('License along with ' sProg '; if not, write to the Free Software');
+            k_javadoc_box_line('Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA');
             break;
 
         case 'Confidential':
