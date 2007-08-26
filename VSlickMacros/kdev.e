@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1085 2007-08-26 00:00:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 1086 2007-08-26 00:01:31Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -1326,7 +1326,7 @@ void k_javadoc_moduleheader()
             if (!fSplit)
                 k_javadoc_box_line();
             if (sProg == '')
-                sProg = 'This program';
+                sProg = 'This library';
             else
             {
                 k_javadoc_box_line('This file is part of ' sProg '.');
