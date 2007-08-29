@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1055 2007-06-11 09:35:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1087 2007-08-29 12:40:58Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -2530,7 +2530,7 @@ static int kOCEntryCompareFast(PCKOCENTRY pEntry)
 
             /* Match the current line. */
             psz = memchr(psz1, '\n', pszEnd1 - psz1);
-            if (!psz)
+            if (!psz++)
                 psz = pszEnd1;
             cch = psz - psz1;
             if (psz2 + cch > pszEnd2)
@@ -2558,19 +2558,9 @@ static int kOCEntryCompareFast(PCKOCENTRY pEntry)
                 break;
             }
 
-            /* Try align psz1 on 8 or 4 bytes so at least one of the buffers are aligned. */
+            /* Advance. We might now have a misaligned buffer, but that's memcmps problem... */
             psz1 += cch;
             psz2 += cch;
-            if (cch >= ((uintptr_t)psz1 & 7))
-            {
-                psz2 -= ((uintptr_t)psz1 & 7);
-                psz1 -= ((uintptr_t)psz1 & 7);
-            }
-            else if (cch >= ((uintptr_t)psz1 & 3))
-            {
-                psz2 -= ((uintptr_t)psz1 & 3);
-                psz1 -= ((uintptr_t)psz1 & 3);
-            }
         }
     }
 
@@ -3759,7 +3749,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1055 $)\n");
+            printf("kObjCache v0.1.0 ($Revision: 1087 $)\n");
             return 0;
         }
         else
