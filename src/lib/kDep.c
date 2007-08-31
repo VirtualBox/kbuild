@@ -1,4 +1,4 @@
-/* $Id: kDep.c 865 2007-03-30 01:52:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1088 2007-08-31 01:45:51Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -205,7 +205,7 @@ static void fixcase(char *pszPath)
             if (!cchDelta)
                 memcpy(psz, FindFileData.cAlternateFileName, cch);
             else
-            {   
+            {
                 size_t cbLeft = strlen(pszEnd) + 1;
                 if ((psz - pszPath) + cbLeft + cchAlt <= _MAX_PATH)
                 {
@@ -387,7 +387,7 @@ void depOptimize(int fFixCase)
          */
         if (stat(pszFilename, &s))
         {
-            fprintf(stderr, "kDep: Skipping '%s' - %s!\n", szFilename, strerror(errno));
+            fprintf(stderr, "kDep: Skipping '%s' - %s!\n", pszFilename, strerror(errno));
             continue;
         }
 
