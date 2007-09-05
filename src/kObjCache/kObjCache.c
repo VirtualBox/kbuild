@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1087 2007-08-29 12:40:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1089 2007-09-05 20:50:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -3369,6 +3369,16 @@ static void kObjCacheLock(PKOBJCACHE pCache)
     memset(&OverLapped, 0, sizeof(OverLapped));
     if (!LockFileEx((HANDLE)_get_osfhandle(pCache->fd), LOCKFILE_EXCLUSIVE_LOCK, 0, ~0, 0, &OverLapped))
         FatalDie("Failed to lock the cache file: Windows Error %d\n", GetLastError());
+#elif defined(__sun__)
+    {
+        struct flock fl;
+        fl.l_whence = 0;
+        fl.l_start = 0;
+        fl.l_len = 0;
+        fl.l_type = F_WRLCK;
+        if (fcntl(pCache->fd, F_SETLKW, &fl) != 0)
+            FatalDie("Failed to lock the cache file: %s\n", strerror(errno));
+    }
 #else
     if (flock(pCache->fd, LOCK_EX) != 0)
         FatalDie("Failed to lock the cache file: %s\n", strerror(errno));
@@ -3425,6 +3435,16 @@ static void kObjCacheUnlock(PKOBJCACHE pCache)
     memset(&OverLapped, 0, sizeof(OverLapped));
     if (!UnlockFileEx((HANDLE)_get_osfhandle(pCache->fd), 0, ~0U, 0, &OverLapped))
         FatalDie("Failed to unlock the cache file: Windows Error %d\n", GetLastError());
+#elif defined(__sun__)
+    {
+        struct flock fl;
+        fl.l_whence = 0;
+        fl.l_start = 0;
+        fl.l_len = 0;
+        fl.l_type = F_UNLCK;
+        if (fcntl(pCache->fd, F_SETLKW, &fl) != 0)
+            FatalDie("Failed to lock the cache file: %s\n", strerror(errno));
+    }
 #else
     if (flock(pCache->fd, LOCK_UN) != 0)
         FatalDie("Failed to unlock the cache file: %s\n", strerror(errno));
@@ -3749,7 +3769,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1087 $)\n");
+            printf("kObjCache v0.1.0 ($Revision: 1089 $)\n");
             return 0;
         }
         else
