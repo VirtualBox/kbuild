@@ -1,4 +1,4 @@
-# $Id: GXX3PLAIN.kmk 1090 2007-09-05 23:18:00Z knut.osmundsen@oracle.com $
+# $Id: GXX3PLAIN.kmk 1092 2007-09-05 23:39:44Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x or later using the system GCC, any Unix linker and Unix archiver to build C++ code.
@@ -44,6 +44,7 @@ else
 endif
 TOOL_GXX3PLAIN_LD_SONAME.darwin ?= $(NO_SUCH_VARIABLE)
 TOOL_GXX3PLAIN_LD_SONAME.os2 ?= $(NO_SUCH_VARIABLE)
+TOOL_GXX3PLAIN_LD_SONAME.solaris ?= -Wl,-h,$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 TOOL_GXX3PLAIN_LD_SONAME.win ?= $(NO_SUCH_VARIABLE)
 ifndef TOOL_GXX3PLAIN_LD_SONAME.$(BUILD_TARGET)
  TOOL_GXX3PLAIN_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
