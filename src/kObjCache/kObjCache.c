@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1089 2007-09-05 20:50:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1093 2007-09-09 00:21:19Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -50,10 +50,17 @@
 # include <io.h>
 # ifdef __OS2__
 #  include <unistd.h>
+#  include <sys/wait.h>
 # endif
 # if defined(_MSC_VER)
 #  include <direct.h>
    typedef intptr_t pid_t;
+# endif
+# ifndef _P_WAIT
+#  define _P_WAIT   P_WAIT
+# endif 
+# ifndef _P_NOWAIT
+#  define _P_NOWAIT P_NOWAIT
 # endif
 #else
 # include <unistd.h>
@@ -253,8 +260,13 @@ void *xmallocz(size_t cb)
  */
 static char *AbsPath(const char *pszPath)
 {
+/** @todo this isn't really working as it should... */
     char szTmp[PATH_MAX];
-#if defined(__OS2__) || defined(__WIN__)
+#if defined(__OS2__)
+    if (    _fullpath(szTmp, *pszPath ? pszPath : ".", sizeof(szTmp))
+        &&  !realpath(pszPath, szTmp))
+        return xstrdup(pszPath);
+#elif defined(__WIN__)
     if (!_fullpath(szTmp, *pszPath ? pszPath : ".", sizeof(szTmp)))
         return xstrdup(pszPath);
 #else
@@ -274,6 +286,8 @@ static char *AbsPath(const char *pszPath)
 static const char *FindFilenameInPath(const char *pszPath)
 {
     const char *pszFilename = strchr(pszPath, '\0') - 1;
+    if (pszFilename < pszPath)
+        return pszPath;
     while (     pszFilename > pszPath
            &&   !IS_SLASH_DRV(pszFilename[-1]))
         pszFilename--;
@@ -3769,7 +3783,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1089 $)\n");
+            printf("kObjCache v0.1.0 ($Revision: 1093 $)\n");
             return 0;
         }
         else
