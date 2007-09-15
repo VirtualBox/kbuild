@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1093 2007-09-09 00:21:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1095 2007-09-15 23:47:55Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kObjCache - Object Cache.
@@ -834,11 +834,12 @@ static int kOCSumInitFromString(PKOCSUM pSumHead, const char *pszVal)
  */
 static void kOCSumDeleteChain(PKOCSUM pSumHead)
 {
-    void *pv;
-    while ((pv = pSumHead->pNext))
+    PKOCSUM pSum = pSumHead->pNext;
+    while (pSum)
     {
-        pSumHead = pSumHead->pNext;
-        free(pv);
+        void *pvFree = pSum;
+        pSum = pSum->pNext;
+        free(pvFree);
     }
     memset(pSumHead, 0, sizeof(*pSumHead));
 }
@@ -3783,7 +3784,7 @@ int main(int argc, char **argv)
             return usage();
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1093 $)\n");
+            printf("kObjCache v0.1.0 ($Revision: 1095 $)\n");
             return 0;
         }
         else
