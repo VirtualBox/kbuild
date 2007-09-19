@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1086 2007-08-26 00:01:31Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 1100 2007-09-19 07:32:44Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -1352,18 +1352,13 @@ void k_javadoc_moduleheader()
             break;
 
         case 'VirtualBox':
-            k_javadoc_box_line();
-            k_javadoc_box_line('This file is part of VirtualBox Open Source Edition (OSE), as');
-            k_javadoc_box_line('available from http://www.virtualbox.org. This file is free software;');
-            k_javadoc_box_line('you can redistribute it and/or modify it under the terms of the GNU');
-            k_javadoc_box_line('General Public License as published by the Free Software Foundation,');
-            k_javadoc_box_line('in version 2 as it comes in the "COPYING" file of the VirtualBox OSE');
-            k_javadoc_box_line('distribution. VirtualBox OSE is distributed in the hope that it will');
-            k_javadoc_box_line('be useful, but WITHOUT ANY WARRANTY of any kind.');
-            k_javadoc_box_line('');
-            k_javadoc_box_line('If you received this file as part of a commercial VirtualBox');
-            k_javadoc_box_line('distribution, then only the terms of your commercial VirtualBox');
-            k_javadoc_box_line('license agreement apply instead of the previous paragraph.');
+            k_javadoc_box_line('This file is part of VirtualBox Open Source Edition (OSE), as')
+            k_javadoc_box_line('available from http://www.virtualbox.org. This file is free software;')
+            k_javadoc_box_line('you can redistribute it and/or modify it under the terms of the GNU')
+            k_javadoc_box_line('General Public License as published by the Free Software Foundation,')
+            k_javadoc_box_line('in version 2 as it comes in the "COPYING" file of the VirtualBox OSE')
+            k_javadoc_box_line('distribution. VirtualBox OSE is distributed in the hope that it will')
+            k_javadoc_box_line('be useful, but WITHOUT ANY WARRANTY of any kind.')
             break;
 
         default:
