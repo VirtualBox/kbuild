@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 986 2007-05-29 02:59:06Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1101 2007-09-22 22:01:37Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -150,6 +150,7 @@ kmk_SOURCES = \
 # kmkbuiltin commands
 #
 kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
+kmk_LIBS += $(LIB_KUTIL)
 kmk_SOURCES += \
 	kmkbuiltin.c \
 	kmkbuiltin/append.c \
@@ -158,6 +159,7 @@ kmk_SOURCES += \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/install.c \
+	kmkbuiltin/md5sum.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/mv.c \
 	kmkbuiltin/ln.c \
@@ -170,7 +172,7 @@ kmk_SOURCES += \
 # Standalone kmkbuiltin commands.
 #
 ## @todo should probably put all those
-PROGRAMS += kmk_append kmk_cat kmk_cp kmk_echo kmk_mkdir kmk_mv kmk_install kmk_ln kmk_printf kmk_rm kmk_rmdir
+PROGRAMS += kmk_append kmk_cat kmk_cp kmk_echo kmk_md5sum kmk_mkdir kmk_mv kmk_install kmk_ln kmk_printf kmk_rm kmk_rmdir
 
 kmk_append_TEMPLATE = BIN-KMK
 kmk_append_DEFS = kmk_builtin_append=main
@@ -208,6 +210,12 @@ kmk_mkdir_TEMPLATE = BIN-KMK
 kmk_mkdir_DEFS = kmk_builtin_mkdir=main
 kmk_mkdir_SOURCES = \
 	kmkbuiltin/mkdir.c
+
+kmk_md5sum_TEMPLATE = BIN-KMK
+kmk_md5sum_DEFS = kmk_builtin_md5sum=main
+kmk_md5sum_SOURCES = \
+	kmkbuiltin/md5sum.c
+kmk_md5sum_LIBS = $(LIB_KUTIL)
 
 kmk_mv_TEMPLATE = BIN-KMK
 kmk_mv_DEFS = kmk_builtin_mv=main

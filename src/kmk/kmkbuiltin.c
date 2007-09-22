@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 1101 2007-09-22 22:01:37Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -202,10 +202,12 @@ int kmk_builtin_command_parsed(int argc, char **argv)
     else if (!strcmp(pszCmd, "rmdir"))
         rc = kmk_builtin_rmdir(argc, argv, environ);
     /* rarely used commands: */
-    else if (!strcmp(pszCmd, "cat"))
-        rc = kmk_builtin_cat(argc, argv, environ);
     else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);
+    else if (!strcmp(pszCmd, "md5sum"))
+        rc = kmk_builtin_md5sum(argc, argv, environ);
+    else if (!strcmp(pszCmd, "cat"))
+        rc = kmk_builtin_cat(argc, argv, environ);
     else
     {
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);
