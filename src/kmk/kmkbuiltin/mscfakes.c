@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 1108 2007-09-23 08:33:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -30,8 +30,13 @@
 #include <errno.h>
 #include <io.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include "err.h"
 #include "mscfakes.h"
+
+#define timeval windows_timeval
+#include <Windows.h>
+#undef timeval
 
 
 char *dirname(char *path)
@@ -54,7 +59,7 @@ int mkdir_msc(const char *path, mode_t mode)
     int rc = (mkdir)(path);
     if (rc)
     {
-        int len = strlen(path);
+        size_t len = strlen(path);
         if (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\'))
         {
             char *str = strdup(path);
@@ -72,7 +77,7 @@ int rmdir_msc(const char *path)
     int rc = (rmdir)(path);
     if (rc)
     {
-        int len = strlen(path);
+        size_t len = strlen(path);
         if (len > 0 && (path[len - 1] == '/' || path[len - 1] == '\\'))
         {
             char *str = strdup(path);
@@ -125,8 +130,78 @@ int mkstemp(char *temp)
 }
 
 
+/** Unix to DOS. */
+static char *fix_slashes(char *psz)
+{
+    char *pszRet = psz;
+    for (; *psz; psz++)
+        if (*psz == '/')
+            *psz = '\\';
+    return pszRet;
+}
+
+
+/** Calcs the SYMBOLIC_LINK_FLAG_DIRECTORY flag for CreatesymbolcLink.  */
+static DWORD is_directory(const char *pszPath, const char *pszRelativeTo)
+{
+    size_t cchPath = strlen(pszPath);
+    struct stat st;
+    if (cchPath > 0 && pszPath[cchPath - 1] == '\\' || pszPath[cchPath - 1] == '/')
+        return 1; /* SYMBOLIC_LINK_FLAG_DIRECTORY */
+
+    if (stat(pszPath, &st))
+    {
+        size_t cchRelativeTo = strlen(pszRelativeTo);
+        char *psz = malloc(cchPath + cchRelativeTo + 4);
+        memcpy(psz, pszRelativeTo, cchRelativeTo);
+        memcpy(psz + cchRelativeTo, "\\", 1);
+        memcpy(psz + cchRelativeTo + 1, pszPath, cchPath + 1);
+        if (stat(pszPath, &st))
+            st.st_mode = _S_IFREG;
+        free(psz);
+    }
+
+    return (st.st_mode & _S_IFMT) == _S_IFDIR ? 1 : 0;
+}
+
+
 int symlink(const char *pszDst, const char *pszLink)
 {
+    static BOOL (WINAPI *s_pfnCreateSymbolicLinkA)(LPCSTR, LPCSTR, DWORD) = 0;
+    static BOOL s_fTried = FALSE;
+
+    if (!s_fTried)
+    {
+        HMODULE hmod = LoadLibrary("KERNEL32.DLL");
+        if (hmod)
+            *(FARPROC *)&s_pfnCreateSymbolicLinkA = GetProcAddress(hmod, "CreateSymbolicLinkA");
+        s_fTried = TRUE;
+    }
+
+    if (s_pfnCreateSymbolicLinkA)
+    {
+        char *pszDstCopy = fix_slashes(strdup(pszDst));
+        char *pszLinkCopy = fix_slashes(strdup(pszLink));
+        BOOL fRc = s_pfnCreateSymbolicLinkA(pszLinkCopy, pszDstCopy,
+                                            is_directory(pszDstCopy, pszLinkCopy));
+        DWORD err = GetLastError();
+        free(pszDstCopy);
+        free(pszLinkCopy);
+        if (fRc)
+            return 0;
+        switch (err)
+        {
+            case ERROR_NOT_SUPPORTED:       errno = ENOSYS; break;
+            case ERROR_ALREADY_EXISTS:
+            case ERROR_FILE_EXISTS:         errno = EEXIST; break;
+            case ERROR_DIRECTORY:           errno = ENOTDIR; break;
+            case ERROR_ACCESS_DENIED:
+            case ERROR_PRIVILEGE_NOT_HELD:  errno = EPERM; break;
+            default:                        errno = EINVAL; break;
+        }
+        return -1;
+    }
+
     errno = ENOSYS;
     err(1, "symlink() is not implemented on windows!");
     return -1;
@@ -159,7 +234,7 @@ int writev(int fd, const struct iovec *vector, int count)
     int i;
     for (i = 0; i < count; i++)
     {
-        int cb = write(fd, vector[i].iov_base, vector[i].iov_len);
+        int cb = (int)write(fd, vector[i].iov_base, (int)vector[i].iov_len);
         if (cb < 0)
             return -1;
         size += cb;
