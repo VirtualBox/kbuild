@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 1102 2007-09-23 03:30:49Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 1103 2007-09-23 03:32:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -57,6 +57,7 @@ static int usage(FILE *pOut)
             " -C, --check-file  This is followed by an MD5 sum and the file to check.\n"
             " -b, --binary      Read files in binary mode. (default)\n"
             " -t, --text        Read files in text mode.\n"
+            " -p, --progress    Show progress indicator on large files.\n"
             " -q, --status      Be quiet.\n"
             " -w, --warn        Ignored. Always warn, unless quiet.\n"
             " -h, --help        This usage info.\n"
