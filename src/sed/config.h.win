@@ -394,12 +394,20 @@
 #define false 0
 #define true 1
 
-/* mbsinit isn't defined?!? */
 #include <wchar.h>
+/* mbsinit isn't defined until 2005 / v8.0. */
+#if _MSC_VER < 1400
 int _inline mbsinit(const mbstate_t *_p)
 {
     return (_p) == (const mbstate_t *)0 || *(_p) == 0;
 }
+#endif
+
+#if _MSC_VER >= 1400
+/* crtdefs.h contains a typedef int errcode which collides with regcomp.c,
+   try avoid it. */
+#define errcode _errcode
+#endif
 
 /* mkstemp, getline */
 #endif
