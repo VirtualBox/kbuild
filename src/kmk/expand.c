@@ -62,9 +62,16 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
   if ((newlen + VARIABLE_BUFFER_ZONE) > variable_buffer_length)
     {
       unsigned int offset = ptr - variable_buffer;
+#ifdef KMK
+      variable_buffer_length = variable_buffer_length <= 1024
+                             ? 2048 : variable_buffer_length * 4;
+      if (variable_buffer_length < newlen + 100)
+          variable_buffer_length = (newlen + 100 + 1023) & ~1023U;
+#else
       variable_buffer_length = (newlen + 100 > 2 * variable_buffer_length
-				? newlen + 100
-				: 2 * variable_buffer_length);
+                               ? newlen + 100
+                               : 2 * variable_buffer_length);
+#endif
       variable_buffer = xrealloc (variable_buffer, variable_buffer_length);
       ptr = variable_buffer + offset;
     }
@@ -82,7 +89,11 @@ initialize_variable_output (void)
 
   if (variable_buffer == 0)
     {
+#ifdef KMK
+      variable_buffer_length = 384;
+#else
       variable_buffer_length = 200;
+#endif
       variable_buffer = xmalloc (variable_buffer_length);
       variable_buffer[0] = '\0';
     }
