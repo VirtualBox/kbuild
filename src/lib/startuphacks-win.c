@@ -1,4 +1,4 @@
-/* $Id: startuphacks-win.c 813 2007-01-31 02:56:48Z knut.osmundsen@oracle.com $ */
+/* $Id: startuphacks-win.c 1106 2007-09-23 04:20:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild - Alternative argument parser for the windows startup code.
@@ -45,7 +45,9 @@ static int parse_args(const char *pszSrc, char **argv, char *pchPool);
 *   Global Variables                                                           *
 *******************************************************************************/
 /** argument count found by parse_args(). */
-static int g_cArgs;
+static int  g_cArgs = 0;
+/** the argument vector, for __getmainargs(). */
+static char **g_papszArgs = NULL;
 
 
 
@@ -54,7 +56,6 @@ int __cdecl _setargv(void)
     static char s_szProgramName[MAX_PATH + 1];
     const char *pszCmdLine;
     char       *pszCmdLineBuf;
-    char      **papszArgs = NULL;
     int         cb;
 
     /*
@@ -62,7 +63,7 @@ int __cdecl _setargv(void)
      */
     GetModuleFileName(NULL, s_szProgramName, MAX_PATH);
     s_szProgramName[MAX_PATH] = '\0';
-#if _MSC_VER >= 1400
+#if _MSC_VER >= 1400 && !defined(CRTDLL) && !defined(_DLL)
     _set_pgmptr(s_szProgramName);
 #endif
 
@@ -77,20 +78,37 @@ int __cdecl _setargv(void)
      * Parse the argument commandline emitting the unix argument vector.
      */
     cb = parse_args(pszCmdLine, NULL, NULL);
-    papszArgs = malloc(sizeof(*papszArgs) * (g_cArgs + 2));
-    if (!papszArgs)
+    g_papszArgs = malloc(sizeof(*g_papszArgs) * (g_cArgs + 2));
+    if (!g_papszArgs)
         return -1;
     pszCmdLineBuf = malloc(cb);
     if (!pszCmdLineBuf)
         return -1;
-    parse_args(pszCmdLine, papszArgs, pszCmdLineBuf);
-    papszArgs[g_cArgs] = papszArgs[g_cArgs + 1] = NULL;
+    parse_args(pszCmdLine, g_papszArgs, pszCmdLineBuf);
+    g_papszArgs[g_cArgs] = g_papszArgs[g_cArgs + 1] = NULL;
 
     /* set return variables */
     __argc = g_cArgs;
-    __argv = papszArgs;
+    __argv = g_papszArgs;
     return 0;
 }
+
+
+/* when linking with the crtexe.c, the __getmainargs() call will redo the _setargv job inside the msvc*.dll. */
+int __cdecl __getmainargs(int *pargc, char ***pargv, char ***penvp, int dowildcard, /*_startupinfo*/ void *startinfo)
+{
+    __argc = *pargc = g_cArgs;
+    __argv = *pargv = g_papszArgs;
+    *penvp = _environ;
+    return 0;
+}
+
+#if defined(_M_IX86)
+int (__cdecl * _imp____getmainargs)(int *, char ***, char ***, int, /*_startupinfo*/ void *) = __getmainargs;
+#else
+int (__cdecl * __imp___getmainargs)(int *, char ***, char ***, int, /*_startupinfo*/ void *) = __getmainargs;
+#endif
+
 
 
 /**
