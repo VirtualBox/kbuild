@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 1103 2007-09-23 03:32:12Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 1104 2007-09-23 03:33:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -38,7 +38,7 @@
 #include "kmkbuiltin.h"
 #include "../../lib/md5.h"
 
-//#define MD5SUM_USE_STDIO
+/*#define MD5SUM_USE_STDIO*/
 
 
 /**
