@@ -1382,7 +1382,7 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
     v->fileinfo = *flocp;
 
   /* The juicy bits, append the specified value to the variable
-     This is a heavily exercied code path in kBuild. */
+     This is a heavily exercised code path in kBuild. */
   if (v->recursive)
     {
       /* The previous definition of the variable was recursive.
@@ -1394,11 +1394,9 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
       /* adjust the size. */
       if ((unsigned)v->value_alloc_len <= new_value_len)
         {
-          /* XXX: anticipating further appends/prepends. */
-          if (value_len > v->value_alloc_len)
-            v->value_alloc_len = (new_value_len + 0x80) + 0x7f;
-          else
-            v->value_alloc_len = (new_value_len + value_len + 0x80) + 0x7f;
+          v->value_alloc_len *= 2;
+          if (v->value_alloc_len < new_value_len)
+              v->value_alloc_len = (new_value_len + value_len + 0x7f) + ~0x7fU;
           if (append || !v->value_length)
             v->value = xrealloc (v->value, v->value_alloc_len);
           else
