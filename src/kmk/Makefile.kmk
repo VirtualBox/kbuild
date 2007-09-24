@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1101 2007-09-22 22:01:37Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1109 2007-09-24 02:27:14Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -25,6 +25,7 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(PATH_TARGET)/grp.h \
 	$(PATH_TARGET)/pwd.h \
 	$(PATH_TARGET)/inttypes.h
+TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
 TEMPLATE_BIN-KMK_INCS = $(PATH_TARGET) . $(TEMPLATE_BIN_INCS)
 TEMPLATE_BIN-KMK_INCS.darwin = glob
@@ -111,6 +112,7 @@ kmk_DEFS = \
 	CONFIG_WITH_MATH \
 	CONFIG_WITH_XARGS \
 	CONFIG_WITH_NANOTS \
+	CONFIG_WITH_SET_CONDITIONALS \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
@@ -366,6 +368,8 @@ test_stack:
 test_math:
 	$(MAKE) -f testcase-math.kmk
 
+test_if1of:
+	$(MAKE) -f testcase-if1of.kmk
 
-test_all:	test_math test_stack test_shell
+test_all:	test_math test_stack test_shell test_if1of
 

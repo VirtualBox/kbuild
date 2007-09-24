@@ -1512,7 +1512,7 @@ do_define (char *name, unsigned int namelen,
 }
 
 /* Interpret conditional commands "ifdef", "ifndef", "ifeq",
-   "ifneq", "else" and "endif".
+   "ifneq", "if1of", "ifn1of", "else" and "endif".
    LINE is the input line, with the command as its first word.
 
    FILENAME and LINENO are the filename and line number in the
@@ -1527,7 +1527,11 @@ static int
 conditional_line (char *line, int len, const struct floc *flocp)
 {
   char *cmdname;
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, c_if1of, c_ifn1of, c_else, c_endif } cmdtype;
+#else
   enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, c_else, c_endif } cmdtype;
+#endif
   unsigned int i;
   unsigned int o;
 
@@ -1540,6 +1544,10 @@ conditional_line (char *line, int len, const struct floc *flocp)
   else chkword ("ifndef", c_ifndef)
   else chkword ("ifeq", c_ifeq)
   else chkword ("ifneq", c_ifneq)
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+  else chkword ("if1of", c_if1of)
+  else chkword ("ifn1of", c_ifn1of)
+#endif
   else chkword ("else", c_else)
   else chkword ("endif", c_endif)
   else
@@ -1680,7 +1688,11 @@ conditional_line (char *line, int len, const struct floc *flocp)
     }
   else
     {
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+      /* "ifeq", "ifneq", "if1of" or "ifn1of". */
+#else
       /* "ifeq" or "ifneq".  */
+#endif
       char *s1, *s2;
       unsigned int l;
       char termin = *line == '(' ? ',' : *line;
@@ -1769,7 +1781,33 @@ conditional_line (char *line, int len, const struct floc *flocp)
 	EXTRANEOUS ();
 
       s2 = variable_expand (s2);
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+      if (cmdtype == c_if1of || cmdtype == c_ifn1of)
+        {
+          const char *s1_cur;
+          unsigned int s1_len;
+          const char *s1_iterator = s1;
+
+          conditionals->ignoring[o] = (cmdtype == c_if1of); /* if not found */
+          while ((s1_cur = find_next_token (&s1_iterator, &s1_len)) != 0)
+            {
+              const char *s2_cur;
+              unsigned int s2_len;
+              const char *s2_iterator = s2;
+              while ((s2_cur = find_next_token (&s2_iterator, &s2_len)) != 0)
+                if (s2_len == s1_len
+                 && strneq (s2_cur, s1_cur, s1_len) )
+                  {
+                    conditionals->ignoring[o] = (cmdtype != c_if1of); /* found */
+                    break;
+                  }
+            }
+        }
+      else
+        conditionals->ignoring[o] = (streq (s1, s2) == (cmdtype == c_ifneq));
+#else
       conditionals->ignoring[o] = (streq (s1, s2) == (cmdtype == c_ifneq));
+#endif
     }
 
  DONE:
@@ -2059,7 +2097,7 @@ record_files (struct nameseq *filenames, const char *pattern,
                 grep goes-into-maybe.h $* > timestamp
                 cmp timestamp maybe.h || cp -f timestamp maybe.h
 
-        This is implemented in remake.c where we don't consider the mtime of 
+        This is implemented in remake.c where we don't consider the mtime of
         the maybe-updated targets. */
       if (multi_mode != m_no && name[0] == '+'
         && (name[1] == '\0' || (name[1] == '|' && name[2] == '\0')))

@@ -1026,6 +1026,7 @@ define_automatic_variables (void)
   && defined(CONFIG_WITH_XARGS) \
   && defined(CONFIG_WITH_EXPLICIT_MULTITARGET) \
   && defined(CONFIG_WITH_PREPEND_ASSIGNMENT) \
+  && defined(CONFIG_WITH_SET_CONDITIONALS) \
   && defined(KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath"
@@ -1038,6 +1039,7 @@ define_automatic_variables (void)
                           " xargs"
                           " explicit-multitarget"
                           " prepend-assignment"
+                          " set-conditionals"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
@@ -1067,8 +1069,11 @@ define_automatic_variables (void)
 #  if defined (CONFIG_WITH_EXPLICIT_MULTITARGET)
   strcat (buf, " explicit-multitarget");
 #  endif
-#  if defined (CONFIG_WITH_PREPEND_ASSIGNMENT) \
+#  if defined (CONFIG_WITH_PREPEND_ASSIGNMENT)
   strcat (buf, " prepend-assignment");
+#  endif
+#  if defined (CONFIG_WITH_SET_CONDITIONALS)
+  strcat (buf, " set-conditionals");
 #  endif
 #  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");
