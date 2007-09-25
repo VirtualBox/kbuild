@@ -446,8 +446,8 @@ update_file_1 (struct file *file, unsigned int depth)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   this_mtime = file_mtime (file);
   f3 = file;
-  for (f2 = file->multi_next; 
-       f2 != NULL && this_mtime != NONEXISTENT_MTIME; 
+  for (f2 = file->multi_next;
+       f2 != NULL && this_mtime != NONEXISTENT_MTIME;
        f2 = f2->multi_next)
     if (!f2->multi_maybe)
       {
@@ -535,14 +535,14 @@ update_file_1 (struct file *file, unsigned int depth)
                   d = d->next;
                   continue;
                 }
-#endif 
+#endif
 
               error (NILF, _("Circular %s <- %s dependency dropped."),
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
                      f2->name, d->file->name);
 #else
                      file->name, d->file->name);
-#endif 
+#endif
               /* We cannot free D here because our the caller will still have
                  a reference to it when we were called recursively via
                  check_dep below.  */
@@ -551,7 +551,7 @@ update_file_1 (struct file *file, unsigned int depth)
                 f2->deps = d->next;
 #else
                 file->deps = d->next;
-#endif 
+#endif
               else
                 lastd->next = d->next;
               d = d->next;
@@ -562,7 +562,7 @@ update_file_1 (struct file *file, unsigned int depth)
           d->file->parent = f2;
 #else
           d->file->parent = file;
-#endif 
+#endif
           maybe_make = must_make;
     
           /* Inherit dontcare flag from our parent. */
@@ -613,7 +613,7 @@ update_file_1 (struct file *file, unsigned int depth)
       if (dep_status != 0 && !keep_going_flag)
         break;
     }
-#endif 
+#endif
 
   /* Now we know whether this target needs updating.
      If it does, update all the intermediate files we depend on.  */
@@ -636,7 +636,7 @@ update_file_1 (struct file *file, unsigned int depth)
               d->file->parent = f2;
 #else
               d->file->parent = file;
-#endif 
+#endif
    
               /* Inherit dontcare flag from our parent. */
               if (rebuilding_makefiles)
@@ -675,7 +675,7 @@ update_file_1 (struct file *file, unsigned int depth)
                 d->changed = ((f2->phony && f2->cmds != 0)
 #else
                 d->changed = ((file->phony && file->cmds != 0)
-#endif 
+#endif
           	            || file_mtime (d->file) != mtime);
             }
     }
@@ -735,7 +735,7 @@ update_file_1 (struct file *file, unsigned int depth)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
         if (d->file == file && f2->multi_maybe)
           continue;
-#endif 
+#endif
         check_renamed (d->file);
   
         if (! d->ignore_mtime)
@@ -886,6 +886,9 @@ update_file_1 (struct file *file, unsigned int depth)
 void
 notice_finished_file (struct file *file)
 {
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  struct file *f2;
+#endif
   struct dep *d;
   int ran = file->command_state == cs_running;
   int touched = 0;
@@ -893,6 +896,17 @@ notice_finished_file (struct file *file)
                   file, file->name, file->update_status, file->command_state));
   file->command_state = cs_finished;
   file->updated = 1;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (file->multi_head)
+    {
+      assert (file == file->multi_head);
+      for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+        {
+          f2->command_state = cs_finished;
+          f2->updated = 1;
+        }
+    }
+#endif
 
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
   /* update not_parallel if the file was flagged for that. */
@@ -929,12 +943,28 @@ notice_finished_file (struct file *file)
 	{
 	have_nonrecursing:
 	  if (file->phony)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+            {
+              file->update_status = 0;
+              if (file->multi_head)
+                for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+                  f2->update_status = 0;
+            }
+#else
 	    file->update_status = 0;
+#endif
           /* According to POSIX, -t doesn't affect targets with no cmds.  */
 	  else if (file->cmds != 0)
             {
               /* Should set file's modification date and do nothing else.  */
               file->update_status = touch_file (file);
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+              if (file->multi_head)
+                for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+                  {
+                    /* figure out this, touch if it exist ignore otherwise? */
+                  }
+#endif
 
               /* Pretend we ran a real touch command, to suppress the
                  "`foo' is up to date" message.  */
@@ -951,6 +981,12 @@ notice_finished_file (struct file *file)
 
   if (file->mtime_before_update == UNKNOWN_MTIME)
     file->mtime_before_update = file->last_mtime;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (file->multi_head)
+    for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+      if (f2->mtime_before_update == UNKNOWN_MTIME)
+        f2->mtime_before_update = f2->last_mtime;
+#endif
 
   if ((ran && !file->phony) || touched)
     {
@@ -973,6 +1009,11 @@ notice_finished_file (struct file *file)
 	i = 1;
 
       file->last_mtime = i == 0 ? UNKNOWN_MTIME : NEW_MTIME;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+      if (file->multi_head)
+        for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+          file->last_mtime = i == 0 ? UNKNOWN_MTIME : NEW_MTIME; /*??*/
+#endif
     }
 
   if (file->double_colon)
@@ -1027,25 +1068,29 @@ notice_finished_file (struct file *file)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
       /* Same as above but for explicit multi target rules. */
       if (file->multi_head)
-        {
-          struct file *f2;
-          assert (file == file->multi_head);
-          for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
-            {
-              f2->command_state = cs_finished;
-              f2->updated = 1;
-              f2->update_status = file->update_status;
-
-              if (!f2->phony)
-                f_mtime (f2, 0);
-            }
-        }
+        for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+          {
+            f2->update_status = file->update_status;
+            if (!f2->phony)
+              f_mtime (f2, 0);
+          }
     }
 #endif
   else if (file->update_status == -1)
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+    {
+      /* Nothing was done for FILE, but it needed nothing done.
+         So mark it now as "succeeded".  */
+      file->update_status = 0;
+      if (file->multi_head)
+        for (f2 = file->multi_next; f2 != 0; f2 = f2->multi_next)
+          f2->update_status = 0;
+    }
+#else
     /* Nothing was done for FILE, but it needed nothing done.
        So mark it now as "succeeded".  */
     file->update_status = 0;
+#endif
 }
 
 /* Check whether another file (whose mtime is THIS_MTIME) needs updating on
