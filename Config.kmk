@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1082 2007-08-19 20:41:58Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1123 2007-09-25 23:22:26Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -121,7 +121,7 @@ ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
  #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
  endif
- TEMPLATE_BIN_LIBS.profile      = g:/coding/vbox/trunk/out/win32/debug/lib/kPrf2.lib
+ TEMPLATE_BIN_LIBS.profile      = Y:/coding/libc/svn/trunk/out/win.$(BUILD_TARGET_ARCH)/debug/kStuff/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
  TEMPLATE_BIN_INST              = $(NIX_INSTALL_DIR_BIN)/
  else
