@@ -42,7 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #endif
 #include <assert.h> /* bird */
 
-#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) /* bird */
+#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_FILE_SIZE) /* bird */
 # include <ctype.h>
 # ifdef _MSC_VER
 typedef __int64 math_int;
@@ -50,6 +50,7 @@ typedef __int64 math_int;
 #  include <stdint.h>
 typedef int64_t math_int;
 # endif
+static char *math_int_to_variable_buffer (char *, math_int);
 #endif
 
 #ifdef CONFIG_WITH_NANOTS /* bird */
@@ -2665,6 +2666,12 @@ l_simple_compare:
 #endif
 
 #ifdef CONFIG_WITH_DATE
+/* The first argument is the strftime format string, a iso 
+   timestamp is the default if nothing is given.
+
+   The second argument is a time value if given. The format
+   is either the format from the first argument or given as
+   an additional third argument. */
 static char *
 func_date (char *o, char **argv, const char *funcname)
 {
@@ -2680,7 +2687,7 @@ func_date (char *o, char **argv, const char *funcname)
       while (isspace ((unsigned char)*buf))
         buf++;
       if (*buf)
-        format = buf;
+        format = argv[0];
     }
 
   if (argv[1])
@@ -2700,6 +2707,20 @@ func_date (char *o, char **argv, const char *funcname)
   o = variable_buffer_output (o, buf, strlen (buf));
   free (buf);
   return o;
+}
+#endif
+
+#ifdef CONFIG_WITH_FILE_SIZE
+/* Prints the size of the specified file. Only one file is 
+   permitted, notthing is stripped. -1 is returned if stat
+   fails. */
+static char *
+func_file_size (char *o, char **argv, const char *funcname)
+{
+  struct stat st;
+  if (stat (argv[0], &st))
+    return variable_buffer_output (o, "-1", 2);
+  return math_int_to_variable_buffer (o, st.st_size);
 }
 #endif
 
@@ -2753,7 +2774,7 @@ func_stack_pop_top (char *o, char **argv, const char *funcname)
 }
 #endif /* CONFIG_WITH_STACK */
 
-#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS)
+#if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_FILE_SIZE)
 /* outputs the number (as a string) into the variable buffer. */
 static char *
 math_int_to_variable_buffer (char *o, math_int num)
@@ -3186,6 +3207,9 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_DATE
   { STRING_SIZE_TUPLE("date"),          0,  1,  1,  func_date},
   { STRING_SIZE_TUPLE("date-utc"),      0,  1,  1,  func_date},
+#endif
+#ifdef CONFIG_WITH_FILE_SIZE
+  { STRING_SIZE_TUPLE("file-size"),     1,  1,  1,  func_file_size},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},
