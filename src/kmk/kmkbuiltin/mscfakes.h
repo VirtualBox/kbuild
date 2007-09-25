@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1117 2007-09-25 05:03:31Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -125,6 +125,8 @@ int rmdir_msc(const char *path);
 #define rmdir(path) rmdir_msc(path)
 intmax_t strtoimax(const char *nptr, char **endptr, int base);
 uintmax_t strtoumax(const char *nptr, char **endptr, int base);
+#define strtoll(a,b,c) strtoimax(a,b,c)
+#define strtoull(a,b,c) strtoumax(a,b,c)
 int asprintf(char **strp, const char *fmt, ...);
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #if _MSC_VER < 1400

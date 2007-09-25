@@ -35,10 +35,10 @@
 #define DIFF_EXIT	1
 #define ERR_EXIT	2	/* error exit code */
 
-void	c_regular(int, char *, off_t, off_t, int, char *, off_t, off_t);
-void	c_special(int, char *, off_t, int, char *, off_t);
-void	diffmsg(char *, char *, off_t, off_t);
-void	eofmsg(char *, off_t, off_t);
-void	errmsg(char *, off_t, off_t);
+static int	c_regular(int, char *, off_t, off_t, int, char *, off_t, off_t);
+static int	c_special(int, char *, off_t, int, char *, off_t);
+static int	diffmsg(char *, char *, off_t, off_t);
+static int	eofmsg(char *, off_t, off_t);
+static int	errmsg(char *, off_t, off_t);
 
-extern int lflag, sflag;
+/*extern int lflag, sflag;*/

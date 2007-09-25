@@ -29,47 +29,82 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>*/
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1987, 1990, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n");
+/*__COPYRIGHT("@(#) Copyright (c) 1987, 1990, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n");*/
 #endif /* not lint */
 
 #ifndef lint
-#if 0
+/*#if 0
 static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 #else
 __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $");
-#endif
+#endif*/
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#ifndef _MSC_VER
+# include <unistd.h>
+#else
+# include "mscfakes.h"
+# if _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
+#  define off_t __int64
+#  define stat  _stat64
+#  define fstat _fstat64
+#  define lseek _lseeki64
+# endif
+#endif 
 #include <locale.h>
 
-#include "extern.h"
+#ifndef O_BINARY
+# define O_BINARY 0
+#endif 
 
-int	lflag, sflag;
+/*#include "extern.h"*/
 
-static void usage(void);
+static int	lflag, sflag;
+
+/* this is kind of ugly but its the simplest way to avoid namespace mess. */
+#include "cmp_misc.c"
+#include "cmp_special.c"
+#if defined(__FreeBSD__) || defined(__NetBSD__) /** @todo more mmap capable OSes. */
+#include "cmp_regular.c"
+#else
+#include "cmp_regular_std.c"
+#endif 
+
+static int usage(void);
 
 int
-main(int argc, char *argv[])
+kmk_builtin_cmp(int argc, char *argv[])
 {
 	struct stat sb1, sb2;
 	off_t skip1 = 0, skip2 = 0;
 	int ch, fd1, fd2, special;
 	char *file1, *file2;
+        int rc;
 
+#ifdef kmk_builtin_cmp
 	setlocale(LC_ALL, "");
+#endif
+        /* init globals */
+        lflag = sflag = 0;
+
+        /* reset getopt and set progname. */
+        g_progname = argv[0];
+        opterr = 1;
+        optarg = NULL;
+        optopt = 0;
+        optind = 0; /* init */
 
 	while ((ch = getopt(argc, argv, "ls")) != -1)
 		switch (ch) {
@@ -81,16 +116,16 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			usage();
+			return usage();
 		}
 	argv += optind;
 	argc -= optind;
 
 	if (lflag && sflag)
-		errx(ERR_EXIT, "only one of -l and -s may be specified");
+		return errx(ERR_EXIT, "only one of -l and -s may be specified");
 
 	if (argc < 2 || argc > 4)
-		usage();
+		return usage();
 
 	/* Backward compatibility -- handle "-" meaning stdin. */
 	special = 0;
@@ -99,66 +134,78 @@ main(int argc, char *argv[])
 		fd1 = 0;
 		file1 = "stdin";
 	}
-	else if ((fd1 = open(file1, O_RDONLY, 0)) < 0) {
+	else if ((fd1 = open(file1, O_RDONLY | O_BINARY, 0)) < 0) {
 		if (!sflag)
 			warn("%s", file1);
-		exit(ERR_EXIT);
+		return(ERR_EXIT);
 	}
 	if (strcmp(file2 = argv[1], "-") == 0) {
 		if (special)
-			errx(ERR_EXIT,
+			return errx(ERR_EXIT,
 				"standard input may only be specified once");
 		special = 1;
 		fd2 = 0;
 		file2 = "stdin";
 	}
-	else if ((fd2 = open(file2, O_RDONLY, 0)) < 0) {
+	else if ((fd2 = open(file2, O_RDONLY | O_BINARY, 0)) < 0) {
 		if (!sflag)
 			warn("%s", file2);
-		exit(ERR_EXIT);
+		if (fd1 != 0) close(fd1);
+		return(ERR_EXIT);
 	}
 
 	if (argc > 2) {
 		char *ep;
 
 		errno = 0;
-		skip1 = strtoq(argv[2], &ep, 0);
-		if (errno || ep == argv[2])
-			usage();
+		skip1 = strtoll(argv[2], &ep, 0);
+		if (errno || ep == argv[2]) {
+			rc = usage();
+			goto l_exit;
+		}
 
 		if (argc == 4) {
-			skip2 = strtoq(argv[3], &ep, 0);
-			if (errno || ep == argv[3])
-				usage();
+			skip2 = strtoll(argv[3], &ep, 0);
+			if (errno || ep == argv[3]) {
+				rc = usage();
+				goto l_exit;
+			}
 		}
 	}
 
 	if (!special) {
-		if (fstat(fd1, &sb1))
-			err(ERR_EXIT, "%s", file1);
+		if (fstat(fd1, &sb1)) {
+			rc = err(ERR_EXIT, "%s", file1);
+			goto l_exit;
+		}
 		if (!S_ISREG(sb1.st_mode))
 			special = 1;
 		else {
-			if (fstat(fd2, &sb2))
-				err(ERR_EXIT, "%s", file2);
+			if (fstat(fd2, &sb2)) {
+				rc = err(ERR_EXIT, "%s", file2);
+				goto l_exit;
+			}
 			if (!S_ISREG(sb2.st_mode))
 				special = 1;
 		}
 	}
 
 	if (special)
-		c_special(fd1, file1, skip1, fd2, file2, skip2);
+		rc = c_special(fd1, file1, skip1, fd2, file2, skip2);
 	else
-		c_regular(fd1, file1, skip1, sb1.st_size,
+		rc = c_regular(fd1, file1, skip1, sb1.st_size,
 		    fd2, file2, skip2, sb2.st_size);
-	exit(0);
+l_exit:
+	if (fd1 != 0) close(fd1);
+	if (fd2 != 0) close(fd2);
+	return rc;
 }
 
-static void
+static int
 usage(void)
 {
 
 	(void)fprintf(stderr,
 	    "usage: cmp [-l | -s] file1 file2 [skip1 [skip2]]\n");
-	exit(ERR_EXIT);
+	return(ERR_EXIT);
 }
