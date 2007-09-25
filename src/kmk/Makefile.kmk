@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1117 2007-09-25 05:03:31Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1121 2007-09-25 05:57:57Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -113,6 +113,7 @@ kmk_DEFS = \
 	CONFIG_WITH_XARGS \
 	CONFIG_WITH_NANOTS \
 	CONFIG_WITH_SET_CONDITIONALS \
+	CONFIG_WITH_DATE \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \

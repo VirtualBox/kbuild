@@ -2664,6 +2664,45 @@ l_simple_compare:
 }
 #endif
 
+#ifdef CONFIG_WITH_DATE
+static char *
+func_date (char *o, char **argv, const char *funcname)
+{
+  char *buf;
+  size_t buf_size;
+  time_t tval;
+  const char *format = !strcmp (funcname, "date-utc")
+                     ? "%Y-%m-%dT%H:%M:%SZ" 
+                     : "%Y-%m-%dT%H:%M:%S";
+  if (argv[0]) 
+    {
+      buf = argv[0];
+      while (isspace ((unsigned char)*buf))
+        buf++;
+      if (*buf)
+        format = buf;
+    }
+
+  if (argv[1])
+    {
+      /* FIXME */
+      fatal (NILF, _("The reverse strftime aspect of the $(date*) functions isn't implemented yet.\n"));
+    }
+  else
+    time(&tval);
+
+  buf_size = 64;
+  buf = xmalloc (buf_size);
+  while (strftime (buf, buf_size, format, 
+                   !strcmp (funcname, "date-utc") 
+                   ? gmtime (&tval) : localtime (&tval)) == 0)
+    buf = xrealloc (buf, buf_size <<= 1);
+  o = variable_buffer_output (o, buf, strlen (buf));
+  free (buf);
+  return o;
+}
+#endif
+
 
 #ifdef CONFIG_WITH_STACK
 
@@ -3143,6 +3182,10 @@ static struct function_table_entry function_table_init[] =
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
   { STRING_SIZE_TUPLE("comp-cmds"),     3,  3,  1,  func_comp_vars},
+#endif
+#ifdef CONFIG_WITH_DATE
+  { STRING_SIZE_TUPLE("date"),          0,  1,  1,  func_date},
+  { STRING_SIZE_TUPLE("date-utc"),      0,  1,  1,  func_date},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},
