@@ -29,25 +29,25 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>*/
 #ifndef lint
-#if 0
+/*#if 0
 static char sccsid[] = "@(#)special.c	8.3 (Berkeley) 4/2/94";
 #else
 __RCSID("$NetBSD: special.c,v 1.12 2007/08/21 14:09:54 christos Exp $");
-#endif
+#endif*/
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <err.h>
+#include "err.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "extern.h"
+#include "cmp_extern.h"
 
-void
+static int
 c_special(int fd1, char *file1, off_t skip1, int fd2, char *file2, off_t skip2)
 {
 	int ch1, ch2;
@@ -57,9 +57,9 @@ c_special(int fd1, char *file1, off_t skip1, int fd2, char *file2, off_t skip2)
 
 	dfound = 0;
 	if ((fp1 = fdopen(fd1, "r")) == NULL)
-		err(ERR_EXIT, "%s", file1);
+		return err(ERR_EXIT, "%s", file1);
 	if ((fp2 = fdopen(fd2, "r")) == NULL)
-		err(ERR_EXIT, "%s", file2);
+		return err(ERR_EXIT, "%s", file2);
 
 	for (byte = line = 1; skip1--; byte++) {
 		ch1 = getc(fp1);
@@ -87,8 +87,7 @@ c_special(int fd1, char *file1, off_t skip1, int fd2, char *file2, off_t skip2)
 				(void)printf("%6lld %3o %3o\n", (long long)byte,
 				    ch1, ch2);
 			} else
-				diffmsg(file1, file2, byte, line);
-				/* NOTREACHED */
+				return diffmsg(file1, file2, byte, line);
 		}
 		if (ch1 == '\n')
 			++line;
@@ -96,17 +95,18 @@ c_special(int fd1, char *file1, off_t skip1, int fd2, char *file2, off_t skip2)
 
  eof:
 	if (ferror(fp1))
-		errmsg(file1, byte, line);
+		return errmsg(file1, byte, line);
 	if (ferror(fp2))
-		errmsg(file2, byte, line);
+		return errmsg(file2, byte, line);
 	if (feof(fp1)) {
 		if (!feof(fp2))
-			eofmsg(file1, byte, line);
+			return eofmsg(file1, byte, line);
 	} else
 		if (feof(fp2))
-			eofmsg(file2, byte, line);
+			return eofmsg(file2, byte, line);
 	(void)fclose(fp1);
 	(void)fclose(fp2);
 	if (dfound)
-		exit(DIFF_EXIT);
+		return(DIFF_EXIT);
+	return(0);
 }

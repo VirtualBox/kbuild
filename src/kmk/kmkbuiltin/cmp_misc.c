@@ -29,34 +29,34 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>*/
 #ifndef lint
-#if 0
+/*#if 0
 static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #else
 __RCSID("$NetBSD: misc.c,v 1.11 2007/08/22 16:59:19 christos Exp $");
-#endif
+#endif*/
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <err.h>
+#include "err.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "extern.h"
+#include "cmp_extern.h"
 
-void
+static int
 errmsg(char *file, off_t byte, off_t line)
 {
 	if (lflag)
-		err(ERR_EXIT, "%s: char %lld, line %lld", file,
+		return err(ERR_EXIT, "%s: char %lld, line %lld", file,
 		    (long long)byte, (long long)line);
 	else
-		err(ERR_EXIT, "%s", file);
+		return err(ERR_EXIT, "%s", file);
 }
 
-void
+static int
 eofmsg(char *file, off_t byte, off_t line)
 {
 	if (!sflag) {
@@ -71,14 +71,14 @@ eofmsg(char *file, off_t byte, off_t line)
 				file, (long long)byte);
 		}
 	}
-	exit(DIFF_EXIT);
+	return(DIFF_EXIT);
 }
 
-void
+static int
 diffmsg(char *file1, char *file2, off_t byte, off_t line)
 {
 	if (!sflag)
 		(void)printf("%s %s differ: char %lld, line %lld\n",
 		    file1, file2, (long long)byte, (long long)line);
-	exit(DIFF_EXIT);
+	return(DIFF_EXIT);
 }

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1109 2007-09-24 02:27:14Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1117 2007-09-25 05:03:31Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -157,6 +157,7 @@ kmk_SOURCES += \
 	kmkbuiltin.c \
 	kmkbuiltin/append.c \
 	kmkbuiltin/cat.c \
+	kmkbuiltin/cmp.c \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/echo.c \
@@ -173,8 +174,7 @@ kmk_SOURCES += \
 #
 # Standalone kmkbuiltin commands.
 #
-## @todo should probably put all those
-PROGRAMS += kmk_append kmk_cat kmk_cp kmk_echo kmk_md5sum kmk_mkdir kmk_mv kmk_install kmk_ln kmk_printf kmk_rm kmk_rmdir
+PROGRAMS += kmk_append kmk_cat kmk_cp kmk_cmp kmk_echo kmk_md5sum kmk_mkdir kmk_mv kmk_install kmk_ln kmk_printf kmk_rm kmk_rmdir
 
 kmk_append_TEMPLATE = BIN-KMK
 kmk_append_DEFS = kmk_builtin_append=main
@@ -186,6 +186,11 @@ kmk_cat_TEMPLATE = BIN-KMK
 kmk_cat_DEFS = kmk_builtin_cat=main
 kmk_cat_SOURCES = \
 	kmkbuiltin/cat.c
+
+kmk_cmp_TEMPLATE = BIN-KMK
+kmk_cmp_DEFS = kmk_builtin_cmp=main
+kmk_cmp_SOURCES = \
+	kmkbuiltin/cmp.c
 
 kmk_cp_TEMPLATE = BIN-KMK
 kmk_cp_DEFS = kmk_builtin_cp=main

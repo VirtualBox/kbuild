@@ -38,8 +38,6 @@ __RCSID("$NetBSD: regular.c,v 1.20 2006/06/03 21:47:55 christos Exp $");
 #endif*/
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include "err.h"
@@ -54,8 +52,8 @@ static int
 c_regular(int fd1, char *file1, off_t skip1, off_t len1,
     int fd2, char *file2, off_t skip2, off_t len2)
 {
-	u_char ch, *p1, *p2, *b1, *b2;
-	off_t byte, length, line;
+	unsigned char ch, *p1, *p2, *b1 = 0, *b2 = 0;
+	off_t byte, length, line, bytes_read;
 	int dfound;
 	size_t blk_sz, blk_cnt;
 
@@ -69,30 +67,46 @@ c_regular(int fd1, char *file1, off_t skip1, off_t len1,
 		return eofmsg(file2, len2 + 1, 0);
 	len2 -= skip2;
 
+	if (skip1 && lseek(fd1, skip1, SEEK_SET) < 0)
+		goto l_special;
+	if (skip2 && lseek(fd2, skip2, SEEK_SET) < 0) {
+		if (skip1 && lseek(fd1, 0, SEEK_SET) < 0)
+			return err(1, "seek failed");
+		goto l_special;
+	}
+
+#define CMP_BUF_SIZE (128*1024)
+
+	b1 = malloc(CMP_BUF_SIZE);
+	b2 = malloc(CMP_BUF_SIZE);
+	if (!b1 || !b2)
+		goto l_malloc_failed;
+
 	byte = line = 1;
 	dfound = 0;
-	length = MIN(len1, len2);
-	for (blk_sz = 1024 * 1024; length != 0; length -= blk_sz) {
-		if (blk_sz > length)
+	length = len1;
+	if (length > len2)
+		length = len2;
+	for (blk_sz = CMP_BUF_SIZE; length != 0; length -= blk_sz) {
+		if ((off_t)blk_sz > length)
 			blk_sz = length;
-		b1 = p1 = mmap(NULL, blk_sz, PROT_READ, MAP_FILE|MAP_SHARED,
-		    fd1, skip1);
-		if (p1 == MAP_FAILED)
-			goto mmap_failed;
 
-		b2 = p2 = mmap(NULL, blk_sz, PROT_READ, MAP_FILE|MAP_SHARED,
-		    fd2, skip2);
-		if (p2 == MAP_FAILED) {
-			munmap(p1, blk_sz);
-			goto mmap_failed;
-		}
+		bytes_read = read(fd1, b1, blk_sz);
+		if (bytes_read != blk_sz)
+			goto l_read_error;
+
+		bytes_read = read(fd2, b2, blk_sz);
+		if (bytes_read != blk_sz)
+			goto l_read_error;
 
 		blk_cnt = blk_sz;
+		p1 = b1;
+		p2 = b2;
 		for (; blk_cnt--; ++p1, ++p2, ++byte) {
 			if ((ch = *p1) != *p2) {
 				if (!lflag) {
-					munmap(b1, blk_sz);
-					munmap(b2, blk_sz);
+					free(b1);
+					free(b2);
 					return diffmsg(file1, file2, byte, line);
 				}
 				dfound = 1;
@@ -102,8 +116,6 @@ c_regular(int fd1, char *file1, off_t skip1, off_t len1,
 			if (ch == '\n')
 				++line;
 		}
-		munmap(p1 - blk_sz, blk_sz);
-		munmap(p2 - blk_sz, blk_sz);
 		skip1 += blk_sz;
 		skip2 += blk_sz;
 	}
@@ -114,7 +126,18 @@ c_regular(int fd1, char *file1, off_t skip1, off_t len1,
 		return(DIFF_EXIT);
 	return(0);
 
-mmap_failed:
+l_read_error:
+	if (	lseek(fd1, 0, SEEK_SET) < 0
+		||	lseek(fd2, 0, SEEK_SET) < 0) {
+		err(1, "seek failed");
+		free(b1);
+		free(b2);
+		return 1;
+	}
+l_malloc_failed:
+	free(b1);
+	free(b2);
+l_special:
 	return c_special(fd1, file1, skip1, fd2, file2, skip2);
 }
 
