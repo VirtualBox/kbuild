@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1071 2007-07-15 16:25:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1128 2007-09-26 22:32:26Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -416,6 +416,7 @@ kbuild_get_variable(const char *pszName)
     return pVar;
 }
 
+
 /**
  * Gets a variable that must exist and can be recursive.
  * Will cause a fatal failure if the variable doesn't exist.
@@ -446,6 +447,39 @@ kbuild_get_recursive_variable(const char *pszName)
     return pVar;
 }
 
+
+/**
+ * Gets a variable that doesn't have to exit, but if it does can be recursive.
+ *
+ * @returns Pointer to the variable.
+ *          NULL if not found.
+ * @param   pszName     The variable name.
+ */
+static struct variable *
+kbuild_query_recursive_variable(const char *pszName)
+{
+#ifndef NDEBUG
+    unsigned i;
+#endif
+    struct variable *pVar = lookup_variable(pszName, strlen(pszName));
+    if (pVar)
+    {
+#ifndef NDEBUG
+        i = strlen(pVar->value);
+        if (i != pVar->value_length)
+        {
+            printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
+# ifdef _MSC_VER
+            __debugbreak();
+# endif
+            assert(0);
+        }
+#endif
+    }
+    return pVar;
+}
+
+
 /**
  * Converts the specified variable into a 'simple' one.
  * @returns pVar.
@@ -465,6 +499,7 @@ kbuild_simplify_variable(struct variable *pVar)
     pVar->recursive = 0;
     return pVar;
 }
+
 
 /**
  * Looks up a variable.
@@ -497,6 +532,7 @@ kbuild_lookup_variable(const char *pszName)
     return pVar;
 }
 
+
 /**
  * Looks up a variable and applies default a path to all relative paths.
  * The value_length field is valid upon successful return.
@@ -514,8 +550,9 @@ kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
     return pVar;
 }
 
+
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
- * will be substituted with the values of the variables in the va list.  */
+ * will be substituted with the values of the variables in the va list. */
 static struct variable *
 kbuild_lookup_variable_fmt_va(struct variable *pDefPath, const char *pszNameFmt, va_list va)
 {
@@ -568,6 +605,7 @@ kbuild_lookup_variable_fmt_va(struct variable *pDefPath, const char *pszNameFmt,
     return kbuild_lookup_variable(pszName);
 }
 
+
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
  * will be substituted with the values of the variables in the ellipsis.  */
 static struct variable *
@@ -580,6 +618,7 @@ kbuild_lookup_variable_fmt(struct variable *pDefPath, const char *pszNameFmt, ..
     va_end(va);
     return pVar;
 }
+
 
 /**
  * Gets the first defined property variable.
@@ -654,6 +693,7 @@ kbuild_first_prop(struct variable *pTarget, struct variable *pSource,
     return NULL;
 }
 
+
 /*
 _SOURCE_TOOL = $(strip $(firstword \
     $($(target)_$(source)_$(type)TOOL.$(bld_trg).$(bld_trg_arch)) \
@@ -692,6 +732,7 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
     return pVar;
 }
 
+
 /* Implements _SOURCE_TOOL. */
 char *
 func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
@@ -707,6 +748,7 @@ func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
     return o;
 
 }
+
 
 /* This has been extended a bit, it's now identical to _SOURCE_TOOL.
 $(firstword \
@@ -735,6 +777,7 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
         fatal(NILF, _("no OBJSUFF attribute or SUFF_OBJ default for source `%s' in target `%s'!"), pSource->value, pTarget->value);
     return pVar;
 }
+
 
 /*  */
 char *
@@ -871,6 +914,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
                               0 /* use pszResult */, o_file, 0 /* !recursive */);
 }
 
+
 /* Implements _OBJECT_BASE. */
 char *
 func_kbuild_object_base(char *o, char **argv, const char *pszFuncName)
@@ -899,6 +943,7 @@ struct kbuild_sdks
     unsigned iTargetSource;
     unsigned cTargetSource;
 };
+
 
 /* Fills in the SDK struct (remember to free it). */
 static void
@@ -1009,6 +1054,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
         pSdks->pa[i].value[pSdks->pa[i].value_length] = '\0';
 }
 
+
 /* releases resources allocated in the kbuild_get_sdks. */
 static void
 kbuild_put_sdks(struct kbuild_sdks *pSdks)
@@ -1018,6 +1064,7 @@ kbuild_put_sdks(struct kbuild_sdks *pSdks)
         free(pSdks->apsz[j]);
     free(pSdks->pa);
 }
+
 
 /* this kind of stuff:
 
@@ -1394,6 +1441,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     return pVar;
 }
 
+
 /* get a source property. Doesn't respect the default path. */
 char *
 func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
@@ -1432,6 +1480,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
     return o;
 
 }
+
 
 /*
 dep     := $(obj)$(SUFF_DEP)
@@ -1620,10 +1669,11 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     # call the tool
     $(target)_$(source)_CMDS_   := $(TOOL_$(tool)_COMPILE_$(type)_CMDS)
     $(target)_$(source)_OUTPUT_ := $(TOOL_$(tool)_COMPILE_$(type)_OUTPUT)
+    $(target)_$(source)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_COMPILE_$(type)_OUTPUT_MAYBE)
     $(target)_$(source)_DEPEND_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPEND) $(deps) $(source)
     $(target)_$(source)_DEPORD_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPORD) $(dirdep)
     */
-    cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_OUTPUT");
+    cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_OUTPUT_MAYBE");
     psz = pszSrcVar = alloca(cch);
     memcpy(psz, "TOOL_", sizeof("TOOL_") - 1);          psz += sizeof("TOOL_") - 1;
     memcpy(psz, pTool->value, pTool->value_length);     psz += pTool->value_length;
@@ -1631,7 +1681,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pType->value, pType->value_length);     psz += pType->value_length;
     pszSrc = psz;
 
-    cch = pTarget->value_length + 1 + pSource->value_length + sizeof("_OUTPUT_");
+    cch = pTarget->value_length + 1 + pSource->value_length + sizeof("_OUTPUT_MAYBE_");
     psz = pszDstVar = alloca(cch);
     memcpy(psz, pTarget->value, pTarget->value_length); psz += pTarget->value_length;
     *psz++ = '_';
@@ -1647,6 +1697,11 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
     pOutput = do_variable_definition(NILF, pszDstVar, pVar->value, o_file, f_simple, 0 /* !target_var */);
+
+    memcpy(pszSrc, "_OUTPUT_MAYBE", sizeof("_OUTPUT_MAYBE"));
+    memcpy(pszDst, "_OUTPUT_MAYBE_", sizeof("_OUTPUT_MAYBE_"));
+    pVar = kbuild_query_recursive_variable(pszSrcVar);
+    pOutput = do_variable_definition(NILF, pszDstVar, pVar ? pVar->value : "", o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPEND", sizeof("_DEPEND"));
     memcpy(pszDst, "_DEPEND_", sizeof("_DEPEND_"));
