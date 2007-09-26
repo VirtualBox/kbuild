@@ -1571,11 +1571,33 @@ main (int argc, char **argv, char **envp)
 			      "${-*-command-variables-*-}", o_env, 1);
     }
 
+  /* If there were -C flags, move ourselves about.  */
+  if (directories != 0)
+    {
+      unsigned int i;
+      for (i = 0; directories->list[i] != 0; ++i)
+        {
+          const char *dir = directories->list[i];
+#ifdef WINDOWS32
+          /* WINDOWS32 chdir() doesn't work if the directory has a trailing '/'
+             But allow -C/ just in case someone wants that.  */
+          {
+            char *p = (char *)dir + strlen (dir) - 1;
+            while (p > dir && (p[0] == '/' || p[0] == '\\'))
+              --p;
+            p[1] = '\0';
+          }
+#endif
+          if (chdir (dir) < 0)
+            pfatal_with_name (dir);
+        }
+    }
+
 #ifdef KMK
-  /* If there wasn't any -C or -f flags, check for Makefile.kup and
-     insert a fake -C argument.
-     Makefile.kmk overrides Makefile.kup but not plain Makefile. */
-  if (makefiles == 0 && directories == 0)
+  /* Check for [Mm]akefile.kup and change directory when found.
+     Makefile.kmk overrides Makefile.kup but not plain Makefile. 
+     If no -C arguments were given, fake one to indicate chdir. */
+  if (makefiles == 0)
     {
       struct stat st;
       if ((   stat ("Makefile.kup", &st) == 0
@@ -1586,12 +1608,8 @@ main (int argc, char **argv, char **envp)
        && stat ("makefile.kmk", &st) < 0)
         {
           static char fake_path[3*16 + 32] = "..";
-          static const char *fake_list[2] = { &fake_path[0], NULL };
-          struct stringlist fake_directories = { &fake_list[0], 1, 0 };
-
           char *cur = &fake_path[2];
           int   up_levels = 1;
-
           while (up_levels < 16)
             {
               /* File with higher precedence.s */
@@ -1622,33 +1640,29 @@ main (int argc, char **argv, char **envp)
           if (up_levels >= 16)
             fatal (NILF, _("Makefile.kup recursion is too deep."));
 
+          /* attempt to change to the directory. */
           *cur = '\0';
-          directories = &fake_directories;
-      }
-    }
-#endif /* KMK */
+          if (chdir (fake_path) < 0)
+            pfatal_with_name (fake_path);
 
-  /* If there were -C flags, move ourselves about.  */
-  if (directories != 0)
-    {
-      unsigned int i;
-      for (i = 0; directories->list[i] != 0; ++i)
-        {
-          const char *dir = directories->list[i];
-#ifdef WINDOWS32
-          /* WINDOWS32 chdir() doesn't work if the directory has a trailing '/'
-             But allow -C/ just in case someone wants that.  */
-          {
-            char *p = (char *)dir + strlen (dir) - 1;
-            while (p > dir && (p[0] == '/' || p[0] == '\\'))
-              --p;
-            p[1] = '\0';
-          }
-#endif
-          if (chdir (dir) < 0)
-            pfatal_with_name (dir);
+          /* add the string to the directories. */
+          if (!directories)
+            {
+              directories = xmalloc (sizeof(*directories));
+              directories->list = xmalloc (5 * sizeof (char *));
+              directories->max = 5;
+              directories->idx = 0;
+            }
+          else if (directories->idx == directories->max - 1)
+            {
+              directories->max += 5;
+              directories->list = xrealloc ((void *)directories->list,
+                                   directories->max * sizeof (char *));
+            }
+          directories->list[directories->idx++] = fake_path;
         }
     }
+#endif /* KMK */
 
 #ifdef WINDOWS32
   /*
