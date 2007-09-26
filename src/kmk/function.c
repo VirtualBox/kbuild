@@ -2666,6 +2666,23 @@ l_simple_compare:
 #endif
 
 #ifdef CONFIG_WITH_DATE
+# if defined (_MSC_VER) /* FIXME: !defined (HAVE_STRPTIME) */
+char *strptime(const char *s, const char *format, struct tm *tm)
+{
+  return (char *)"strptime is not implemented";
+}
+# endif 
+/* Check if the string is all blanks or not. */
+static int
+all_blanks (const char *s)
+{
+  if (!s)
+    return 1;
+  while (isspace ((unsigned char)*s))
+    s++;
+  return *s == '\0';
+}
+
 /* The first argument is the strftime format string, a iso 
    timestamp is the default if nothing is given.
 
@@ -2675,35 +2692,55 @@ l_simple_compare:
 static char *
 func_date (char *o, char **argv, const char *funcname)
 {
+  char *p;
   char *buf;
   size_t buf_size;
-  time_t tval;
-  const char *format = !strcmp (funcname, "date-utc")
-                     ? "%Y-%m-%dT%H:%M:%SZ" 
-                     : "%Y-%m-%dT%H:%M:%S";
-  if (argv[0]) 
-    {
-      buf = argv[0];
-      while (isspace ((unsigned char)*buf))
-        buf++;
-      if (*buf)
-        format = argv[0];
-    }
+  struct tm t;
+  const char *format;
 
-  if (argv[1])
+  /* determin the format - use a single word as the default. */
+  format = !strcmp (funcname, "date-utc")
+         ? "%Y-%m-%dT%H:%M:%SZ" 
+         : "%Y-%m-%dT%H:%M:%S";
+  if (!all_blanks (argv[0]))
+    format = argv[0];
+
+  /* get the time. */
+  memset (&t, 0, sizeof(t));
+  if (argv[0] && !all_blanks (argv[1]))
     {
-      /* FIXME */
-      fatal (NILF, _("The reverse strftime aspect of the $(date*) functions isn't implemented yet.\n"));
+      const char *input_format = !all_blanks (argv[2]) ? argv[2] : format;
+      p = strptime (argv[1], input_format, &t);
+      if (!p || *p != '\0')
+        {
+          error (NILF, _("$(%s): strptime(%s,%s,) -> %s\n"), funcname, 
+                 argv[1], input_format, p ? p : "<null>");
+          return variable_buffer_output (o, "", 1);
+        }
     }
   else
-    time(&tval);
+    {
+      time_t tval;
+      time (&tval);
+      if (!strcmp (funcname, "date-utc"))
+        t = *gmtime (&tval);
+      else
+        t = *localtime (&tval);
+    }
 
+  /* format it. note that zero isn't necessarily an error, so we'll 
+     have to keep shut about failures. */
   buf_size = 64;
   buf = xmalloc (buf_size);
-  while (strftime (buf, buf_size, format, 
-                   !strcmp (funcname, "date-utc") 
-                   ? gmtime (&tval) : localtime (&tval)) == 0)
-    buf = xrealloc (buf, buf_size <<= 1);
+  while (strftime (buf, buf_size, format, &t) == 0)
+    {
+      if (buf_size >= 4096)
+        {
+          *buf = '\0';
+          break;
+        }
+      buf = xrealloc (buf, buf_size <<= 1);
+    }
   o = variable_buffer_output (o, buf, strlen (buf));
   free (buf);
   return o;
@@ -3206,7 +3243,7 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_DATE
   { STRING_SIZE_TUPLE("date"),          0,  1,  1,  func_date},
-  { STRING_SIZE_TUPLE("date-utc"),      0,  1,  1,  func_date},
+  { STRING_SIZE_TUPLE("date-utc"),      0,  3,  1,  func_date},
 #endif
 #ifdef CONFIG_WITH_FILE_SIZE
   { STRING_SIZE_TUPLE("file-size"),     1,  1,  1,  func_file_size},
