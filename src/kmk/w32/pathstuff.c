@@ -81,6 +81,7 @@ convert_Path_to_windows32(char *Path, char to_delim)
     return Path;
 }
 
+#if 1 /* bird */
 /*
  * Corrects the case of a path.
  * Expects a fullpath!
@@ -256,6 +257,178 @@ w32_fixcase(char *pszPath)
 #undef my_assert
 }
 
+#define MY_FileNameInformation 9
+
+typedef struct _MY_FILE_NAME_INFORMATION
+{
+    ULONG FileNameLength;
+    WCHAR FileName[1];
+} MY_FILE_NAME_INFORMATION, *PMY_FILE_NAME_INFORMATION;
+
+typedef struct _IO_STATUS_BLOCK 
+{
+    union
+    {
+        LONG Status;
+        PVOID Pointer;
+    };
+    ULONG_PTR Information;
+} MY_IO_STATUS_BLOCK, *PMY_IO_STATUS_BLOCK;
+
+static BOOL g_fInitialized = FALSE;
+static LONG (NTAPI *g_pfnNtQueryInformationFile)(HANDLE FileHandle, 
+    PMY_IO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,  
+    ULONG Length, ULONG FileInformationClass);
+
+
+int
+nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
+{
+    static char                 abBuf[8192];
+    PMY_FILE_NAME_INFORMATION   pFileNameInfo = (PMY_FILE_NAME_INFORMATION)abBuf;
+    MY_IO_STATUS_BLOCK          Ios;
+    LONG                        rcNt;
+    HANDLE                      hFile;
+
+    /*
+     * Check for NtQueryInformationFile the first time around.
+     */
+    if (!g_fInitialized)
+    {
+        g_fInitialized = TRUE;
+        if (!getenv("KMK_DONT_USE_NT_QUERY_INFORMATION_FILE"))
+            *(FARPROC *)&g_pfnNtQueryInformationFile = 
+                GetProcAddress(LoadLibrary("ntdll.dll"), "NtQueryInformationFile");
+    }
+    if (!g_pfnNtQueryInformationFile)
+        return -1;
+
+    /*
+     * Try open the path and query its file name information.
+     */
+    hFile = CreateFile(pszPath, 
+                       GENERIC_READ,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_FLAG_BACKUP_SEMANTICS,
+                       NULL);
+    if (hFile)
+    {
+        memset(&Ios, 0, sizeof(Ios));
+        rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, abBuf, sizeof(abBuf), MY_FileNameInformation);
+        CloseHandle(hFile);
+        if (rcNt >= 0)
+        {
+            /*
+             * The FileNameInformation we get is relative to where the volume is mounted,
+             * so we have to extract the driveletter prefix ourselves.
+             *
+             * FIXME: This will probably not work for volumes mounted in NTFS sub-directories.
+             */
+            int cchOut;
+            int fUnc = 0;
+            char *psz = pszFull;
+            if (pszPath[0] == '\\' || pszPath[0] == '/')
+            {
+                /* unc or root of volume */
+                if (    (pszPath[1] == '\\' || pszPath[1] == '/')
+                    &&  (pszPath[2] != '\\' || pszPath[2] == '/'))
+                {
+                    /* unc - we get the server + name back */
+                    *psz++ = '\\';
+                    fUnc = 1;
+                }
+                else
+                {
+                    /* root slash */
+                    *psz++ = _getdrive() + 'A' - 1;
+                    *psz++ = ':';
+                }
+            }
+            else if (pszPath[1] == ':' && isalpha(pszPath[0]))
+            {
+                /* drive letter */
+                *psz++ = toupper(pszPath[0]);
+                *psz++ = ':';
+            }
+            else
+            {
+                /* relative */
+                *psz++ = _getdrive() + 'A' - 1;
+                *psz++ = ':';
+            }
+
+            cchOut = WideCharToMultiByte(CP_ACP, 0, 
+                                         pFileNameInfo->FileName, pFileNameInfo->FileNameLength / sizeof(WCHAR), 
+                                         psz, cchFull - (psz - pszFull) - 2, NULL, NULL);
+            if (cchOut > 0)
+            {
+                const char *pszEnd;
+
+                /* upper case the server and share */
+                if (fUnc)
+                {
+                    for (psz++; *psz != '/' && *psz != '\\'; psz++)
+                        *psz = toupper(*psz);
+                    for (psz++; *psz != '/' && *psz != '\\'; psz++)
+                        *psz = toupper(*psz);
+                }
+
+                /* add trailing slash on directories if input has it. */
+                pszEnd = strchr(pszPath, '\0');
+                if (    (pszEnd[-1] == '/' || pszEnd[-1] == '\\')
+                    &&  psz[cchOut - 1] != '\\' 
+                    &&  psz[cchOut - 1] != '//')
+                    psz[cchOut++] = '\\';
+
+                /* make sure it's terminated */
+                psz[cchOut] = '\0';
+                return 0;
+            }
+            return -3;
+        }
+    }
+    return -2;
+}
+
+void 
+nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull)
+{
+#if 0
+    static int s_cHits = 0;
+    static int s_cFallbacks = 0;
+#endif
+
+    /*
+     * The simple case, the file / dir / whatever exists and can be 
+     * queried without problems.
+     */
+    if (nt_get_filename_info(pszPath, pszFull, cchFull) == 0)
+    {
+#if 0
+        fprintf(stderr, "nt #%d - %s\n", ++s_cHits, pszFull);
+#endif
+        return;
+    }
+    if (g_pfnNtQueryInformationFile)
+    {
+        /* do _fullpath and drop off path elements until we get a hit... - later */
+    }
+    
+    /*
+     * For now, simply fall back on the old method. 
+     */
+    _fullpath(pszFull, pszPath, cchFull);
+    w32_fixcase(pszFull);
+#if 0
+    fprintf(stderr, "fb #%d - %s\n", ++s_cFallbacks, pszFull);
+#endif
+}
+
+#endif /* bird */
+
+
 /*
  * Convert to forward slashes. Resolve to full pathname optionally
  */
@@ -266,8 +439,16 @@ w32ify(const char *filename, int resolve)
     char *p;
 
     if (resolve) {
+#if 1 /* bird */
+# if 1
+        nt_fullpath(filename, w32_path, sizeof(w32_path));
+# else
+        _fullpath(w32_path, filename, sizeof(w32_path));
+        w32_fixcase(w32_path);
+# endif
+#else   /* !bird */
         _fullpath(w32_path, filename, sizeof (w32_path));
-        w32_fixcase(w32_path); /* bird */
+#endif  /* !bird */
     } else
         strncpy(w32_path, filename, sizeof (w32_path));
 
