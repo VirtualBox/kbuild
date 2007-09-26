@@ -1,0 +1,14 @@
+# $Id: Makefile.kmk 1122 2007-09-25 06:16:26Z bird $
+
+
+DEPTH = ../../..
+include $(PATH_KBUILD)/header.kmk
+
+#
+# tstFileInfo
+#
+PROGRAMS.win += tstFileInfo
+tstFileInfo_TEMPLATE = BIN
+tstFileInfo_SOURCES = tstFileInfo.c
+
+include $(PATH_KBUILD)/footer.kmk
