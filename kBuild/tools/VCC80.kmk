@@ -1,4 +1,4 @@
-# $Id: VCC80.kmk 1031 2007-06-04 01:56:58Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 1129 2007-09-26 22:37:00Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
@@ -143,7 +143,8 @@ TOOL_VCC80_LIBPATH.x86      ?= $(PATH_TOOL_VCC80_LIB.x86) $(PATH_TOOL_VCC80_ATLM
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC80_COMPILE_C_DEPEND =
 TOOL_VCC80_COMPILE_C_DEPORD =
-TOOL_VCC80_COMPILE_C_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
+TOOL_VCC80_COMPILE_C_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
+TOOL_VCC80_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC80_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC80_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -170,7 +171,8 @@ endef
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC80_COMPILE_CXX_DEPEND =
 TOOL_VCC80_COMPILE_CXX_DEPORD =
-TOOL_VCC80_COMPILE_CXX_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
+TOOL_VCC80_COMPILE_CXX_OUTPUT = $(call TOOL_VCC80_PDB, $(outbase)-obj,idb)
+TOOL_VCC80_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC80_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC80_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC80_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
