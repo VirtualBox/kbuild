@@ -3270,7 +3270,7 @@ print_version (void)
 %sPATH_KBUILD:     '%s' (default '%s')\n\
 %sPATH_KBUILD_BIN: '%s' (default '%s')\n"),
           precede,
-          precede, get_path_kbuild(), PATH_KBUILD
+          precede, get_path_kbuild(), PATH_KBUILD,
           precede, get_path_kbuild_bin(), PATH_KBUILD_BIN);
 # else  /* !PATH_KBUILD */
   printf (_("%s\n\
