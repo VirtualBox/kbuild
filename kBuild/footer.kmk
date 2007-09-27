@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1061 2007-06-19 00:01:14Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1148 2007-09-27 18:40:05Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1610,14 +1610,14 @@ flags       :=\
 	$($(target)_ARFLAGS.$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.rc %.o %.obj %.res,\
 	$($(target)_SOURCES) \
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg_cpu)) \
 	$($(target)_SOURCES.$(bld_type)))
-objs         = $(filter %.o %.obj, \
+objs         = $(filter %.o %.obj %.res, \
 	$($(target)_SOURCES) \
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
@@ -1835,14 +1835,14 @@ flags       :=\
 	$($(target)_LDFLAGS.$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.o %.obj,\
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.rc %.o %.obj %.res,\
 	$($(target)_SOURCES)\
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_SOURCES.$(bld_trg_cpu)) \
 	$($(target)_SOURCES.$(bld_type)))
-objs         = $(filter %.o %.obj, \
+objs         = $(filter %.o %.obj %.res, \
 	$($(target)_SOURCES) \
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
