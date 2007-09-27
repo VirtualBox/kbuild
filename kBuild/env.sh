@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 1076 2007-07-15 19:36:22Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1142 2007-09-27 02:16:05Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -158,14 +158,14 @@ if test -z "$BUILD_PLATFORM_ARCH"; then
         hppa64|parisc64)
             BUILD_PLATFORM_ARCH='hppa64'
             ;;
-        arm)
+        arm|armv4l)
             BUILD_PLATFORM_ARCH='arm'
             ;;
         alpha)
             BUILD_PLATFORM_ARCH='alpha'
             ;;
 
-        *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_CPU"
+        *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_ARCH"
             sleep 1
             exit 1
             ;;
