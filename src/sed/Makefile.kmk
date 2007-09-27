@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 813 2007-01-31 02:56:48Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1152 2007-09-27 23:42:58Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -13,6 +13,7 @@ kmk_sed_TEMPLATE = BIN
 kmk_sed_DEPS = \
 	$(PATH_TARGET)/config.h \
 	$(PATH_TARGET)/regex.h
+kmk_sed_CLEAN = $(kmk_sed_DEPS)
 kmk_sed_INCS = \
 	$(PATH_TARGET) \
 	. \
