@@ -1,0 +1,37 @@
+
+
+#
+# Testing the VAC308 tool.
+#
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+
+#
+# The base package.
+#
+PROGRAMS += fastdep
+fastdep_TOOL = VAC308
+fastdep_SOURCES = avl.c fastdep.c
+fastdep_INCS = f:/toolkit/v4.52/h
+fastdep_LIBPATH = f:/toolkit/v4.52/lib
+
+
+LIBRARIES += libfastdep
+libfastdep_TOOL = VAC308
+libfastdep_SOURCES = avl.c fastdep.c
+libfastdep_INCS = f:/toolkit/v4.52/h
+
+LIBRARIES += libfastdll
+libfastdll_TOOL = VAC308
+libfastdll_SOURCES = fastdll.def
+
+DLLS += fastdll
+fastdll_TOOL = VAC308
+fastdll_SOURCES = fastdll.def avl.c fastdep.c
+fastdll_INCS = f:/toolkit/v4.52/h
+fastdll_LIBPATH = f:/toolkit/v4.52/lib
+
+
+include $(PATH_KBUILD)/footer.kmk
+
