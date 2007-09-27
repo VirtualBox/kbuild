@@ -1,4 +1,4 @@
-# $Id: VAC308.kmk 1097 2007-09-16 16:55:55Z knut.osmundsen@oracle.com $
+# $Id: VAC308.kmk 1145 2007-09-27 17:19:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - VisualAge for C++ v3.08.
@@ -190,7 +190,7 @@ TOOL_VAC308_LINK_PROGRAM_DEPORD =
 define TOOL_VAC308_LINK_PROGRAM_CMDS
 	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
 	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
-		$(TOOL_VAC308_LD) $(flags) -Fe$(out) -Fm$(outbase).map $(objs) $(libs) $(othersrc)
+		$(TOOL_VAC308_LD) $(flags) -Fe$(out) -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
 endef
 
 
@@ -214,7 +214,7 @@ TOOL_VAC308_LINK_DLL_DEPORD =
 define TOOL_VAC308_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
 	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
-		$(TOOL_VAC308_LD) /B"/DLL" $(flags) -Fe$(out) -Fm$(outbase).map $(objs) $(libs) $(othersrc)
+		$(TOOL_VAC308_LD) /B"/DLL" $(flags) -Fe$(out) -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
 endef
 
 
@@ -238,6 +238,6 @@ TOOL_VAC308_LINK_SYSMOD_DEPORD =
 define TOOL_VAC308_LINK_SYSMOD_CMDS
 	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
 	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
-		$(TOOL_VAC308_LD) $(flags) -Fe$(out)  -Fm$(outbase).map $(objs) $(libs) $(othersrc)
+		$(TOOL_VAC308_LD) $(flags) -Fe$(out)  -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
 endef
 
