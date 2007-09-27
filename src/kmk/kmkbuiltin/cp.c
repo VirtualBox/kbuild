@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #endif
 #endif /* !S_ISTXT */
 
+#ifndef __unused
+# define __unused
+#endif
 
 #define	STRIP_TRAILING_SLASH(p) {					\
         while ((p).p_end > (p).p_path + 1 && (p).p_end[-1] == '/')	\
