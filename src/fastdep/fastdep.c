@@ -1,4 +1,4 @@
-/* $Id: fastdep.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
+/* $Id: fastdep.c 1149 2007-09-27 23:10:32Z knut.osmundsen@oracle.com $
  *
  * Fast dependents. (Fast = Quick and Dirty!)
  *
@@ -2740,7 +2740,7 @@ BOOL filecacheAddDir(const char *pszDir)
 
     /* Make path */
     filePathSlash2(pszDir, szDir);
-    //strlwr(szDir); /* Convert name to lower case to allow faster searchs! */
+    /*strlwr(szDir);*/ /* Convert name to lower case to allow faster searchs! */
     cchDir = strlen(szDir);
 
 
