@@ -1403,7 +1403,7 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
       /* The previous definition of the variable was recursive.
          The new value is the unexpanded old and new values. */
       unsigned int value_len = strlen (value);
-      unsigned int new_value_len = value_len + (v->value_length != 0 ? 1 + v->value_length : 0);
+      unsigned int new_value_len = value_len + (v->value_length != 0 ? 2 + v->value_length : 1);
       int done_1st_prepend_copy = 0;
 
       /* adjust the size. */
