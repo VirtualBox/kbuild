@@ -1403,15 +1403,15 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
       /* The previous definition of the variable was recursive.
          The new value is the unexpanded old and new values. */
       unsigned int value_len = strlen (value);
-      unsigned int new_value_len = value_len + (v->value_length != 0 ? 2 + v->value_length : 1);
+      unsigned int new_value_len = value_len + (v->value_length != 0 ? 1 + v->value_length : 0);
       int done_1st_prepend_copy = 0;
 
       /* adjust the size. */
-      if ((unsigned)v->value_alloc_len <= new_value_len)
+      if ((unsigned)v->value_alloc_len <= new_value_len + 1)
         {
           v->value_alloc_len *= 2;
-          if (v->value_alloc_len < new_value_len)
-              v->value_alloc_len = (new_value_len + value_len + 0x7f) + ~0x7fU;
+          if (v->value_alloc_len < new_value_len + 1)
+              v->value_alloc_len = (new_value_len + 1 + value_len + 0x7f) + ~0x7fU;
           if (append || !v->value_length)
             v->value = xrealloc (v->value, v->value_alloc_len);
           else
