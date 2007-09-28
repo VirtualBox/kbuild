@@ -1,4 +1,4 @@
-# $Id: header.kmk 1119 2007-09-25 05:07:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1155 2007-09-28 01:51:34Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1119 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1155 $  )
 
 
 #
@@ -434,10 +434,8 @@ APPEND      := kmk_builtin_append
 CAT_EXT     := $(PATH_KBUILD_BIN)/kmk_cat$(HOSTSUFF_EXE)
 CAT         := kmk_builtin_cat
 
-ifeq ($(filter cmp,$(KMK_BUILTIN)),cmp)
 CMP_EXT     := $(PATH_KBUILD_BIN)/kmk_cmp$(HOSTSUFF_EXE)
 CMP         := kmk_builtin_cmp
-endif
 
 CP_EXT      := $(PATH_KBUILD_BIN)/kmk_cp$(HOSTSUFF_EXE)
 CP          := kmk_builtin_cp
@@ -451,10 +449,8 @@ INSTALL     := kmk_builtin_install
 LN_EXT      := $(PATH_KBUILD_BIN)/kmk_ln$(HOSTSUFF_EXE)
 LN          := kmk_builtin_ln
 
-ifeq ($(filter md5sum,$(KMK_BUILTIN)),md5sum)
 MD5SUM_EXT  := $(PATH_KBUILD_BIN)/kmk_md5sum$(HOSTSUFF_EXE)
 MD5SUM      := kmk_builtin_md5sum
-endif
 
 MKDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_mkdir$(HOSTSUFF_EXE)
 MKDIR       := kmk_builtin_mkdir
