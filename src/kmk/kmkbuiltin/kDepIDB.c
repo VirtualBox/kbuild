@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 1162 2007-09-30 03:55:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1163 2007-09-30 04:03:40Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -736,7 +736,7 @@ static void usage(const char *argv0)
 }
 
 
-int kmk_builtin_kDepIDB(int argc, char *argv[])
+int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
 {
     int         i;
 
