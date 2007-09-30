@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1167 2007-09-30 09:37:09Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -43,6 +43,7 @@ endif
 #
 LIBRARIES += kmkmissing
 kmkmissing_TEMPLATE = BIN-KMK
+kmkmissing_DEFS = KMK
 kmkmissing_NOINST = 1
 kmkmissing_SOURCES = \
 	kmkbuiltin/err.c \
