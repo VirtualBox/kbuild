@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1123 2007-09-25 23:22:26Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1157 2007-09-30 02:21:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -138,8 +138,6 @@ ifndef TEMPLATE_BIN_TOOL
  endif
  TEMPLATE_BIN_CFLAGS.release    = -O3
  ifeq ($(BUILD_TARGET),freebsd)
-  TEMPLATE_BIN_LIBS            += iconv intl
-  TEMPLATE_BIN_LIBPATH         += /usr/local/lib
   TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
  endif
  ifeq ($(BUILD_TARGET),linux)
