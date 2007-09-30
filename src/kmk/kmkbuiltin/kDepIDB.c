@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 866 2007-03-30 02:04:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1162 2007-09-30 03:55:36Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -34,14 +34,16 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
-#ifndef __WIN32__
+#if !defined(_MSC_VER)
 # include <stdint.h>
 #else
  typedef unsigned char  uint8_t;
  typedef unsigned short uint16_t;
  typedef unsigned int   uint32_t;
 #endif
-#include "kDep.h"
+/*#include "kDep.h"*/
+#include "../../lib/kDep.h"
+#include "kmkbuiltin.h"
 
 #define OFFSETOF(type, member)  ( (int)(size_t)(void *)&( ((type *)(void *)0)->member) )
 
@@ -364,7 +366,7 @@ static PPDB70ROOT Pdb70AllocAndReadRoot(PPDB70HDR pHdr)
 #else
         /* validate? */
         return pRoot;
-#endif 
+#endif
     }
     return NULL;
 }
@@ -439,9 +441,9 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
                     depAdd(psz + sizeof("/mr/inversedeps/") - 1, cch - (sizeof("/mr/inversedeps/") - 1));
                     fAdded = 1;
                 }
-                dprintf(("%#06x #%d: %6d bytes  %s%s\n", off, iStream, 
-                         iStream < pRoot->cStreams ? pRoot->aStreams[iStream].cbStream : -1, 
-                         psz, fAdded ? "  [dep]" : "")); 
+                dprintf(("%#06x #%d: %6d bytes  %s%s\n", off, iStream,
+                         iStream < pRoot->cStreams ? pRoot->aStreams[iStream].cbStream : -1,
+                         psz, fAdded ? "  [dep]" : ""));
                 (void)fAdded;
 
                 /* next */
@@ -458,7 +460,7 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
             fDone = 1;
         }
         else
-            dprintf(("Unknown version or bad size: Version=%u cbNames=%d cbStream=%d\n", 
+            dprintf(("Unknown version or bad size: Version=%u cbNames=%d cbStream=%d\n",
                      pNames->Version, pNames->cbNames, cbStream));
         free(pNames);
     }
@@ -476,7 +478,7 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
             if (    pRoot->aStreams[iStream].cbStream == ~(uint32_t)0
                 ||  !pRoot->aStreams[iStream].cbStream)
                 continue;
-            dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream, 
+            dprintf(("Stream #%d: %#x bytes (%#x aligned)\n", iStream, pRoot->aStreams[iStream].cbStream,
                      Pdb70Align(pHdr, pRoot->aStreams[iStream].cbStream)));
             pbStream = (uint8_t *)Pdb70AllocAndReadStream(pHdr, pRoot, iStream, &cbStream);
             if (pbStream)
@@ -734,7 +736,7 @@ static void usage(const char *argv0)
 }
 
 
-int main(int argc, char *argv[])
+int kmk_builtin_kDepIDB(int argc, char *argv[])
 {
     int         i;
 

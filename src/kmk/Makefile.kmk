@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1122 2007-09-25 06:16:26Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1162 2007-09-30 03:55:36Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -122,8 +122,7 @@ kmk_DEFS = \
 	BUILD_PLATFORM_CPU=\"$(BUILD_TARGET_CPU)\"
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
-kmk_DEFS.win.x86 = \
-	CONFIG_NEW_WIN32_CTRL_EVENT
+kmk_DEFS.win.x86 = CONFIG_NEW_WIN32_CTRL_EVENT
 
 kmk_SOURCES = \
 	main.c \
@@ -154,7 +153,7 @@ kmk_SOURCES = \
 # kmkbuiltin commands
 #
 kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
-kmk_LIBS += $(LIB_KUTIL)
+kmk_LIBS += $(LIB_KUTIL) $(LIB_KDEP)
 kmk_SOURCES += \
 	kmkbuiltin.c \
 	kmkbuiltin/append.c \
@@ -164,6 +163,7 @@ kmk_SOURCES += \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/echo.c \
 	kmkbuiltin/install.c \
+	kmkbuiltin/kDepIDB.c \
 	kmkbuiltin/md5sum.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/mv.c \
@@ -176,7 +176,21 @@ kmk_SOURCES += \
 #
 # Standalone kmkbuiltin commands.
 #
-PROGRAMS += kmk_append kmk_cat kmk_cp kmk_cmp kmk_echo kmk_md5sum kmk_mkdir kmk_mv kmk_install kmk_ln kmk_printf kmk_rm kmk_rmdir
+PROGRAMS += \
+	kmk_append \
+	kmk_cat \
+	kmk_cp \
+	kmk_cmp \
+	kmk_echo \
+	kmk_md5sum \
+	kmk_mkdir \
+	kmk_mv \
+	kmk_install \
+	kmk_ln \
+	kmk_printf \
+	kmk_rm \
+	kmk_rmdir \
+	kDepIDB \
 
 kmk_append_TEMPLATE = BIN-KMK
 kmk_append_DEFS = kmk_builtin_append=main
@@ -245,6 +259,13 @@ kmk_rmdir_TEMPLATE = BIN-KMK
 kmk_rmdir_DEFS = kmk_builtin_rmdir=main
 kmk_rmdir_SOURCES = \
 	kmkbuiltin/rmdir.c
+
+kDepIDB_TEMPLATE = BIN-KMK
+kDepIDB_DEFS = kmk_builtin_kDepIDB=main
+kDepIDB_INCS = .
+kDepIDB_LIBS = $(LIB_KDEP)
+kDepIDB_SOURCES = \
+	kmkbuiltin/kDepIDB.c
 
 
 #

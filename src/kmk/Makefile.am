@@ -49,6 +49,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kbuild.c \
 		electric.c \
         ../lib/md5.c \
+        ../lib/kDep.c \
 		\
 		kmkbuiltin.c \
 		kmkbuiltin/append.c \
@@ -58,10 +59,11 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/cp_utils.c \
 		kmkbuiltin/echo.c \
 		kmkbuiltin/install.c \
+		kmkbuiltin/kDepIDB.c \
+		kmkbuiltin/ln.c \
 		kmkbuiltin/md5sum.c \
 		kmkbuiltin/mkdir.c \
 		kmkbuiltin/mv.c \
-		kmkbuiltin/ln.c \
 		kmkbuiltin/printf.c \
 		kmkbuiltin/rm.c \
 		kmkbuiltin/rmdir.c \
