@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 1163 2007-09-30 04:03:40Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -37,6 +37,9 @@
 #if !defined(_MSC_VER)
 # include <stdint.h>
 #else
+# define USE_WIN_MMAP
+# include <io.h>
+# include <Windows.h>
  typedef unsigned char  uint8_t;
  typedef unsigned short uint16_t;
  typedef unsigned int   uint32_t;
@@ -136,11 +139,16 @@ static int ScanStream(uint8_t *pbStream, size_t cbStream, const char *pszPrefix,
 }
 
 
+#ifdef USE_WIN_MMAP
+/** Handle to the current file mapping object. */
+static HANDLE g_hMapObj = NULL;
+#endif
+
 
 /**
  * Reads the file specified by the pInput file stream into memory.
  * The size of the file is returned in *pcbFile if specified.
- * The returned pointer should be freed by free().
+ * The returned pointer should be freed by FreeFileMemory().
  */
 void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
 {
@@ -151,9 +159,14 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
     /*
      * Figure out file size.
      */
+#if defined(_MSC_VER)
+    cbFile = _filelength(fileno(pInput));
+    if (cbFile < 0)
+#else
     if (    fseek(pInput, 0, SEEK_END) < 0
         ||  (cbFile = ftell(pInput)) < 0
         ||  fseek(pInput, 0, SEEK_SET))
+#endif
     {
         fprintf(stderr, "%s: error: Failed to determin file size.\n", argv0);
         return NULL;
@@ -162,12 +175,41 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
         *pcbFile = cbFile;
 
     /*
+     * Try mmap first.
+     */
+#ifdef USE_WIN_MMAP
+    {
+        HANDLE hMapObj = CreateFileMapping((HANDLE)_get_osfhandle(fileno(pInput)),
+                                           NULL, PAGE_READONLY, 0, cbFile, NULL);
+        if (hMapObj != NULL)
+        {
+            pvFile = MapViewOfFile(hMapObj, FILE_MAP_READ, 0, 0, cbFile);
+            if (pvFile)
+            {
+                g_hMapObj = hMapObj;
+                return pvFile;
+            }
+            fprintf(stderr, "%s: warning: MapViewOfFile failed, %d.\n", argv0, GetLastError());
+            CloseHandle(hMapObj);
+        }
+        else
+            fprintf(stderr, "%s: warning: CreateFileMapping failed, %d.\n", argv0, GetLastError());
+    }
+
+#endif
+
+    /*
      * Allocate memory and read the file.
      */
     pvFile = malloc(cbFile + 1);
     if (pvFile)
     {
+#if 1
+        long cbRead = (long)read(fileno(pInput), pvFile, cbFile);
+        if (cbRead == cbFile)
+#else
         if (fread(pvFile, cbFile, 1, pInput))
+#endif
         {
             ((uint8_t *)pvFile)[cbFile] = '\0';
             return pvFile;
@@ -180,6 +222,19 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
     return NULL;
 }
 
+
+static void FreeFileMemory(void *pvFile)
+{
+#if defined(USE_WIN_MMAP)
+    if (g_hMapObj)
+    {
+        UnmapViewOfFile(pvFile);
+        CloseHandle(g_hMapObj);
+        return;
+    }
+#endif
+    free(pvFile);
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -725,7 +780,7 @@ static int ProcessIDB(FILE *pInput)
         rc = 1;
     }
 
-    free(pbFile);
+    FreeFileMemory(pbFile);
     return rc;
 }
 
@@ -924,6 +979,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
             fprintf(stderr, "%s: warning: failed to remove output file '%s' on failure.\n", argv[0], pszOutput);
     }
 
+    depCleanup();
     return i;
 }
 

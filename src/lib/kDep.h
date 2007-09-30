@@ -1,4 +1,4 @@
-/* $Id: kDep.h 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.h 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -46,6 +46,7 @@ extern PDEP depAdd(const char *pszFilename, size_t cchFilename);
 extern void depOptimize(int fFixCase);
 extern void depPrint(FILE *pOutput);
 extern void depPrintStubs(FILE *pOutput);
+extern void depCleanup(void);
 
 #endif
 
