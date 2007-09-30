@@ -697,6 +697,13 @@ reap_children (int block, int err)
 
                 coredump = 0;
               }
+            else if (!process_used_slots())
+              {
+                /* The wait*() failed miserably.  Punt.  */
+                errno = ECHILD;
+                pfatal_with_name ("wait");
+              }
+
             pid = (pid_t) hPID;
           }
 #endif /* WINDOWS32 */

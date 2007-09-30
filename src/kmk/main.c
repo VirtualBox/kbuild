@@ -945,8 +945,13 @@ find_and_set_default_shell (const char *token)
 #ifdef CONFIG_NEW_WIN32_CTRL_EVENT
 #include <process.h>
 static UINT g_tidMainThread = 0;
-static int g_sigPending = 0; /* lazy bird */
+static int volatile g_sigPending = 0; /* lazy bird */
+# ifndef _M_IX86
+static LONG volatile g_lTriggered = 0;
+static CONTEXT g_Ctx;
+# endif
 
+# ifdef _M_IX86
 static __declspec(naked) void dispatch_stub(void)
 {
     __asm  {
@@ -963,6 +968,19 @@ static __declspec(naked) void dispatch_stub(void)
         ret
     }
 }
+# else /* !_M_IX86 */
+static void dispatch_stub(void)
+{
+    fflush(stdout);
+    /*fprintf(stderr, "dbg: raising %s on the main thread (%d)\n", g_sigPending == SIGINT ? "SIGINT" : "SIGBREAK", _getpid());*/
+    raise(g_sigPending);
+
+    SetThreadContext(GetCurrentThread(), &g_Ctx);
+    fprintf(stderr, "fatal error: SetThreadContext failed with last error %d\n", GetLastError());
+    for (;;)
+        exit(131);
+}
+# endif /* !_M_IX86 */
 
 static BOOL WINAPI ctrl_event(DWORD CtrlType)
 {
@@ -970,22 +988,42 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
     HANDLE hThread;
     CONTEXT Ctx;
 
+#ifndef _M_IX86
+    /* only once. */
+    if (InterlockedExchange(&g_lTriggered, 1))
+    {
+        Sleep(1);
+        return TRUE;
+    }
+#endif
+
     /* open the main thread and suspend it. */
     hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, g_tidMainThread);
     SuspendThread(hThread);
 
-    /* Get the thread context and */
+    /* Get the thread context and if we've get a valid Esp, dispatch
+       it on the main thread otherwise raise the signal in the
+       ctrl-event thread (this). */
     memset(&Ctx, 0, sizeof(Ctx));
     Ctx.ContextFlags = CONTEXT_FULL;
-    GetThreadContext(hThread, &Ctx);
-
-    /* If we've got a valid Esp, dispatch it on the main thread
-       otherwise raise the signal in the ctrl-event thread (this). */
-    if (Ctx.Esp >= 0x1000)
+    if (GetThreadContext(hThread, &Ctx)
+#ifdef _M_IX86
+        && Ctx.Esp >= 0x1000
+#else
+        && Ctx.Rsp >= 0x1000
+#endif
+       )
     {
+#ifdef _M_IX86
         ((uintptr_t *)Ctx.Esp)[-1] = Ctx.Eip;
         Ctx.Esp -= sizeof(uintptr_t);
         Ctx.Eip = (uintptr_t)&dispatch_stub;
+#else
+        g_Ctx = Ctx;
+        Ctx.Rsp -= 0x20;
+        Ctx.Rsp &= ~(uintptr_t)0xf;
+        Ctx.Rip = (uintptr_t)&dispatch_stub;
+#endif
 
         SetThreadContext(hThread, &Ctx);
         g_sigPending = sig;
@@ -1595,7 +1633,7 @@ main (int argc, char **argv, char **envp)
 
 #ifdef KMK
   /* Check for [Mm]akefile.kup and change directory when found.
-     Makefile.kmk overrides Makefile.kup but not plain Makefile. 
+     Makefile.kmk overrides Makefile.kup but not plain Makefile.
      If no -C arguments were given, fake one to indicate chdir. */
   if (makefiles == 0)
     {

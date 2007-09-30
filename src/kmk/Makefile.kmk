@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1162 2007-09-30 03:55:36Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1164 2007-09-30 06:23:59Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -122,7 +122,7 @@ kmk_DEFS = \
 	BUILD_PLATFORM_CPU=\"$(BUILD_TARGET_CPU)\"
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
-kmk_DEFS.win.x86 = CONFIG_NEW_WIN32_CTRL_EVENT
+kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
 
 kmk_SOURCES = \
 	main.c \
