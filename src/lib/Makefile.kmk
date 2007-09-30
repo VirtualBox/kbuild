@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1000 2007-06-02 06:19:57Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kDepIDB - IDB based dependency generator.
@@ -31,12 +31,14 @@ LIBRARIES += kDep
 kDep_TEMPLATE = LIB
 kDep_DEFS.win += NEED_ISBLANK=1 __WIN32__=1
 kDep_SOURCES = kDep.c
+kDep_SOURCES.win = nt_fullpath.c
 kDep_NOINST = 1
 
 LIBRARIES += kUtil
 kUtil_TEMPLATE = LIB
 kUtil_DEFS.win = __WIN__
 kUtil_SOURCES = crc32.c md5.c
+kUtil_SOURCES.win = nt_fullpath.c
 kUtil_NOINST = 1
 
 LIBRARIES.win += kWinStartup

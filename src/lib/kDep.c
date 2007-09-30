@@ -1,4 +1,4 @@
-/* $Id: kDep.c 1088 2007-08-31 01:45:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -48,6 +48,7 @@
  typedef unsigned char  uint8_t;
  typedef unsigned short uint16_t;
  typedef unsigned int   uint32_t;
+ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
 #endif
 
 #include "kDep.h"
@@ -81,155 +82,7 @@ static char *fixslash(char *pszFilename)
 }
 
 
-#ifdef __WIN32__
-/**
- * Corrects the case of a path and changes any path components containing
- * spaces with the short name (which can be longer).
- *
- * Expects a _fullpath!
- *
- * @param   pszPath     Pointer to the path, both input and output.
- *                      The buffer must be at least MAX_PATH in length.
- */
-static void fixcase(char *pszPath)
-{
-#define my_assert(expr) \
-    do { \
-        if (!(expr)) { \
-            printf("my_assert: %s, file %s, line %d\npszPath=%s\npsz=%s\n", \
-                   #expr, __FILE__, __LINE__, pszPath, psz); \
-            __debugbreak(); \
-            exit(1); \
-        } \
-    } while (0)
-
-    char *psz = pszPath;
-    if (*psz == '/' || *psz == '\\')
-    {
-        if (psz[1] == '/' || psz[1] == '\\')
-        {
-            /* UNC */
-            my_assert(psz[1] == '/' || psz[1] == '\\');
-            my_assert(psz[2] != '/' && psz[2] != '\\');
-
-            /* skip server name */
-            psz += 2;
-            while (*psz != '\\' && *psz != '/')
-            {
-                if (!*psz)
-                    return;
-                *psz++ = toupper(*psz);
-            }
-
-            /* skip the share name */
-            psz++;
-            my_assert(*psz != '/' && *psz != '\\');
-            while (*psz != '\\' && *psz != '/')
-            {
-                if (!*psz)
-                    return;
-                *psz++ = toupper(*psz);
-            }
-            my_assert(*psz == '/' || *psz == '\\');
-            psz++;
-        }
-        else
-        {
-            /* Unix spec */
-            psz++;
-        }
-    }
-    else
-    {
-        /* Drive letter */
-        my_assert(psz[1] == ':');
-        *psz = toupper(*psz);
-        my_assert(psz[0] >= 'A' && psz[0] <= 'Z');
-        my_assert(psz[2] == '/' || psz[2] == '\\');
-        psz += 3;
-    }
-
-    /*
-     * Pointing to the first char after the unc or drive specifier.
-     */
-    while (*psz)
-    {
-        WIN32_FIND_DATA FindFileData;
-        HANDLE hDir;
-        char chSaved0;
-        char chSaved1;
-        char *pszEnd;
-        size_t cch;
-        int iLongNameDiff;
-
-
-        /* find the end of the component. */
-        pszEnd = psz;
-        while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
-            pszEnd++;
-        cch = pszEnd - psz;
-
-        /* replace the end with "?\0" */
-        chSaved0 = pszEnd[0];
-        chSaved1 = pszEnd[1];
-        pszEnd[0] = '?';
-        pszEnd[1] = '\0';
-
-        /* find the right filename. */
-        hDir = FindFirstFile(pszPath, &FindFileData);
-        pszEnd[1] = chSaved1;
-        if (!hDir)
-        {
-            pszEnd[0] = chSaved0;
-            return;
-        }
-        pszEnd[0] = '\0';
-        while (   (iLongNameDiff = _stricmp(FindFileData.cFileName, psz))
-               && _stricmp(FindFileData.cAlternateFileName, psz))
-        {
-            if (!FindNextFile(hDir, &FindFileData))
-            {
-                pszEnd[0] = chSaved0;
-                return;
-            }
-        }
-        pszEnd[0] = chSaved0;
-        if (iLongNameDiff || !FindFileData.cAlternateFileName[0] || !memchr(psz, ' ', cch))
-            memcpy(psz, !iLongNameDiff ? FindFileData.cFileName : FindFileData.cAlternateFileName, cch);
-        else
-        {
-            /* replace spacy name with the short name. */
-            const size_t cchAlt = strlen(FindFileData.cAlternateFileName);
-            const size_t cchDelta = cch - cchAlt;
-            my_assert(cchAlt > 0);
-            if (!cchDelta)
-                memcpy(psz, FindFileData.cAlternateFileName, cch);
-            else
-            {
-                size_t cbLeft = strlen(pszEnd) + 1;
-                if ((psz - pszPath) + cbLeft + cchAlt <= _MAX_PATH)
-                {
-                    memmove(psz + cchAlt, pszEnd, cbLeft);
-                    pszEnd -= cchDelta;
-                    memcpy(psz, FindFileData.cAlternateFileName, cchAlt);
-                }
-                else
-                    fprintf(stderr, "kDep: case & space fixed filename is growing too long (%d bytes)! '%s'\n",
-                            (psz - pszPath) + cbLeft + cchAlt, pszPath);
-            }
-        }
-        my_assert(pszEnd[0] == chSaved0);
-
-        /* advance to the next component */
-        if (!chSaved0)
-            return;
-        psz = pszEnd + 1;
-        my_assert(*psz != '/' && *psz != '\\');
-    }
-#undef my_assert
-}
-
-#elif defined(__OS2__)
+#if defined(__OS2__)
 
 /**
  * Corrects the case of a path.
@@ -242,7 +95,7 @@ static void fixcase(char *pszFilename)
     return;
 }
 
-#else
+#elif !defined(__WIN32__) && !defined(__WIN64__)
 
 /**
  * Corrects the case of a path.
@@ -371,14 +224,12 @@ void depOptimize(int fFixCase)
          */
         if (fFixCase)
         {
-#ifdef __WIN32__
-            if (_fullpath(szFilename, pszFilename, sizeof(szFilename)))
-                ;
-            else
-#endif
-                strcpy(szFilename, pszFilename);
+#if defined(__WIN32__) || defined(__WIN64__)
+            nt_fullpath(pszFilename, szFilename, sizeof(szFilename));
+#else
             fixslash(szFilename);
             fixcase(szFilename);
+#endif
             pszFilename = szFilename;
         }
 
@@ -397,7 +248,6 @@ void depOptimize(int fFixCase)
         depAdd(pszFilename, strlen(pszFilename));
     }
 
-#if 0 /* waste of time */
     /*
      * Free the old ones.
      */
@@ -407,7 +257,6 @@ void depOptimize(int fFixCase)
         pDepOrg = pDepOrg->pNext;
         free(pDep);
     }
-#endif
 }
 
 
@@ -509,3 +358,20 @@ PDEP depAdd(const char *pszFilename, size_t cchFilename)
     }
     return pDep;
 }
+
+
+/**
+ * Frees the current dependency chain.
+ */
+void depCleanup(void)
+{
+    PDEP pDep = g_pDeps;
+    g_pDeps = NULL;
+    while (pDep)
+    {
+        PDEP pFree = pDep;
+        pDep = pDep->pNext;
+        free(pFree);
+    }
+}
+

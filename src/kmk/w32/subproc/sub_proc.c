@@ -736,6 +736,7 @@ process_pipe_io(
 	 */
 
 	while (!stdin_eof || !stdout_eof || !stderr_eof || !child_dead) {
+long tick;
 		wait_count = 0;
 		if (!stdin_eof) {
 			wait_list[wait_count++] = tStdin;
@@ -750,10 +751,12 @@ process_pipe_io(
 			wait_list[wait_count++] = childhand;
 		}
 
+tick = GetTickCount();
 		wait_return = WaitForMultipleObjects(wait_count, wait_list,
 			 FALSE, /* don't wait for all: one ready will do */
 			 child_dead? 1000 :INFINITE); /* after the child dies, subthreads have
 			 	one second to collect all remaining output */
+printf("waitformultipleobjects: %d ms rc=%d\n", GetTickCount() - tick, wait_return);
 
 		if (wait_return == WAIT_FAILED) {
 /*			map_windows32_error_to_string(GetLastError());*/
@@ -1074,7 +1077,7 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 	bytes_required++;
 #ifdef KMK /* for the space before the final " in case we need it. */
 	bytes_required++;
-#endif 
+#endif
 
 	command_line = (char*) malloc(bytes_required);
 
@@ -1124,7 +1127,7 @@ make_command_line( char *shell_name, char *full_exec_path, char **argv)
 					 * and each \ that precedes the ".
 					 */
 					backslash_count++;
-	
+
 					while(backslash_count) {
 						*(command_line_i++) = '\\';
 						backslash_count--;
