@@ -47,6 +47,8 @@ typedef struct sub_process_t {
 	long lerrno;
 } sub_process;
 
+static long process_file_io_private(sub_process *pproc, BOOL fNeedToWait); /* bird */
+
 /* keep track of children so we can implement a waitpid-like routine */
 static sub_process *proc_array[MAXIMUM_WAIT_OBJECTS];
 static int proc_index = 0;
@@ -183,8 +185,12 @@ process_wait_for_any(void)
 		/*
 		 * Ouch! can't tell caller if this fails directly. Caller
 		 * will have to use process_last_err()
-                 */
+		 */
+#ifdef KMK
+		(void) process_file_io_private(pproc, FALSE);
+#else
 		(void) process_file_io(pproc);
+#endif
 		return ((HANDLE) pproc);
 	}
 }
@@ -352,8 +358,25 @@ find_file(char *exec_path, LPOFSTRUCT file_info)
 	HANDLE exec_handle;
 	char *fname;
 	char *ext;
+#ifdef KMK
+	size_t exec_path_len;
 
+	/*
+	 * if there is an .exe extension there already, don't waste time here.
+	 * If .exe scripts become common, they can be handled in a CreateProcess
+	 * failure path instead of here.
+	 */
+	exec_path_len = strlen(exec_path);
+	if (	exec_path_len > 4
+		&&	exec_path[exec_path_len - 4] == '.'
+		&&  !stricmp(exec_path + exec_path_len - 3, "exe")){
+		return((HANDLE)HFILE_ERROR);
+	}
+
+	fname = malloc(exec_path_len + 5);
+#else
 	fname = malloc(strlen(exec_path) + 5);
+#endif
 	strcpy(fname, exec_path);
 	ext = fname + strlen(fname);
 
@@ -524,14 +547,32 @@ process_begin(
 	 *  Set up inherited stdin, stdout, stderr for child
 	 */
 	GetStartupInfo(&startInfo);
+#ifndef KMK
 	startInfo.dwFlags = STARTF_USESTDHANDLES;
+#endif
 	startInfo.lpReserved = 0;
 	startInfo.cbReserved2 = 0;
 	startInfo.lpReserved2 = 0;
 	startInfo.lpTitle = shell_name ? shell_name : exec_path;
+#ifndef KMK
 	startInfo.hStdInput = (HANDLE)pproc->sv_stdin[1];
 	startInfo.hStdOutput = (HANDLE)pproc->sv_stdout[1];
 	startInfo.hStdError = (HANDLE)pproc->sv_stderr[1];
+#else
+	if (    pproc->sv_stdin[1]
+		||  pproc->sv_stdout[1]
+		||  pproc->sv_stderr[1]) {
+		startInfo.dwFlags = STARTF_USESTDHANDLES;
+		startInfo.hStdInput = (HANDLE)pproc->sv_stdin[1];
+		startInfo.hStdOutput = (HANDLE)pproc->sv_stdout[1];
+		startInfo.hStdError = (HANDLE)pproc->sv_stderr[1];
+	} else {
+		startInfo.dwFlags = 0;
+		startInfo.hStdInput = 0;
+		startInfo.hStdOutput = 0;
+		startInfo.hStdError = 0;
+	}
+#endif
 
 	if (as_user) {
 		if (envblk) free(envblk);
@@ -567,12 +608,27 @@ process_begin(
 	CloseHandle(procInfo.hThread);
 
 	/* Close the halves of the pipes we don't need */
-        CloseHandle((HANDLE)pproc->sv_stdin[1]);
-        CloseHandle((HANDLE)pproc->sv_stdout[1]);
-        CloseHandle((HANDLE)pproc->sv_stderr[1]);
-        pproc->sv_stdin[1] = 0;
-        pproc->sv_stdout[1] = 0;
-        pproc->sv_stderr[1] = 0;
+#ifndef KMK
+	CloseHandle((HANDLE)pproc->sv_stdin[1]);
+	CloseHandle((HANDLE)pproc->sv_stdout[1]);
+	CloseHandle((HANDLE)pproc->sv_stderr[1]);
+	pproc->sv_stdin[1] = 0;
+	pproc->sv_stdout[1] = 0;
+	pproc->sv_stderr[1] = 0;
+#else
+	if ((HANDLE)pproc->sv_stdin[1]) {
+		CloseHandle((HANDLE)pproc->sv_stdin[1]);
+		pproc->sv_stdin[1] = 0;
+	}
+	if ((HANDLE)pproc->sv_stdout[1]) {
+		CloseHandle((HANDLE)pproc->sv_stdout[1]);
+		pproc->sv_stdout[1] = 0;
+	}
+	if ((HANDLE)pproc->sv_stderr[1]) {
+		CloseHandle((HANDLE)pproc->sv_stderr[1]);
+		pproc->sv_stderr[1] = 0;
+	}
+#endif
 
 	free( command_line );
 	if (envblk) free(envblk);
@@ -841,11 +897,6 @@ process_file_io(
 	HANDLE proc)
 {
 	sub_process *pproc;
-	HANDLE childhand;
-	DWORD wait_return;
-	BOOL GetExitCodeResult;
-        DWORD ierr;
-
 	if (proc == NULL)
 		pproc = process_wait_for_any_private();
 	else
@@ -854,6 +905,20 @@ process_file_io(
 	/* some sort of internal error */
 	if (!pproc)
 		return -1;
+
+	return process_file_io_private(proc, TRUE);
+}
+
+/* private function, avoid some kernel calls. (bird) */
+static long
+process_file_io_private(
+	sub_process *pproc,
+	BOOL fNeedToWait)
+{
+	HANDLE childhand;
+	DWORD wait_return;
+	BOOL GetExitCodeResult;
+	DWORD ierr;
 
 	childhand = (HANDLE) pproc->pid;
 
@@ -876,16 +941,16 @@ process_file_io(
 	}
 
 	/*
-	 *  Wait for the child process to exit
+	 *  Wait for the child process to exit it we didn't do that already.
 	 */
-
-	wait_return = WaitForSingleObject(childhand, INFINITE);
-
-	if (wait_return != WAIT_OBJECT_0) {
-/*		map_windows32_error_to_string(GetLastError());*/
-		pproc->last_err = GetLastError();
-		pproc->lerrno = E_SCALL;
-		goto done2;
+	if (fNeedToWait) {
+		wait_return = WaitForSingleObject(childhand, INFINITE);
+		if (wait_return != WAIT_OBJECT_0) {
+/*			map_windows32_error_to_string(GetLastError());*/
+			pproc->last_err = GetLastError();
+			pproc->lerrno = E_SCALL;
+			goto done2;
+		}
 	}
 
 	GetExitCodeResult = GetExitCodeProcess(childhand, &ierr);
@@ -1203,15 +1268,18 @@ process_easy(
 	char **argv,
 	char **envp)
 {
+#ifndef KMK
   HANDLE hIn;
   HANDLE hOut;
   HANDLE hErr;
+#endif
   HANDLE hProcess;
 
   if (proc_index >= MAXIMUM_WAIT_OBJECTS) {
 	DB (DB_JOBS, ("process_easy: All process slots used up\n"));
 	return INVALID_HANDLE_VALUE;
   }
+#ifndef KMK
   if (DuplicateHandle(GetCurrentProcess(),
                       GetStdHandle(STD_INPUT_HANDLE),
                       GetCurrentProcess(),
@@ -1250,6 +1318,9 @@ process_easy(
   }
 
   hProcess = process_init_fd(hIn, hOut, hErr);
+#else
+  hProcess = process_init_fd(0, 0, 0);
+#endif /* !KMK */
 
   if (process_begin(hProcess, argv, envp, argv[0], NULL)) {
     fake_exits_pending++;
@@ -1258,10 +1329,12 @@ process_easy(
       ((sub_process*) hProcess)->last_err = -1;
     ((sub_process*) hProcess)->exit_code = process_last_err(hProcess);
 
+#ifndef KMK
     /* close up unused handles */
     CloseHandle(hIn);
     CloseHandle(hOut);
     CloseHandle(hErr);
+#endif
   }
 
   process_register(hProcess);
