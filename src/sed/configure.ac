@@ -144,17 +144,16 @@ AM_CONDITIONAL(TEXI2HTML_HTML, test "x$enable_html" = xtexi2html)
 AC_DEFUN([AM_MKINSTALLDIRS], [MKINSTALLDIRS="$mkdir_p" AC_SUBST(MKINSTALLDIRS)])
 AM_GNU_GETTEXT_VERSION(0.14)
 AM_GNU_GETTEXT(no-libtool, need-ngettext, ../intl)
+dnl bird: made the 'expr/a\' stuff work on BSD. a\ only works when scripting there.
 AC_CONFIG_COMMANDS([gettext-fix], [
-  sed -e '/^mkinstalldirs *=/a\' \
-      -e "install_sh=$install_sh" \
-      -e 's/^mkinstalldirs *=.*/mkinstalldirs=$(MKINSTALLDIRS)/' \
-      intl/Makefile > intl/Makefile.tmp
+  echo '/^mkinstalldirs *=/a\' > tmp.sed
+  echo "install_sh=$install_sh" >> tmp.sed
+  echo 's/^mkinstalldirs *=.*/mkinstalldirs=$(MKINSTALLDIRS)/' >> tmp.sed
+  sed -f tmp.sed intl/Makefile > intl/Makefile.tmp
   mv intl/Makefile.tmp intl/Makefile
-  sed -e '/^mkinstalldirs *=/a\' \
-      -e "install_sh=$install_sh" \
-      -e 's/^mkinstalldirs *=.*/mkinstalldirs=$(MKINSTALLDIRS)/' \
-      po/Makefile > po/Makefile.tmp
-  mv po/Makefile.tmp po/Makefile], [
+  sed -f tmp.sed po/Makefile > po/Makefile.tmp
+  mv po/Makefile.tmp po/Makefile
+  rm -f tmp.sed], [
   install_sh="$install_sh"])
 
 AC_CONFIG_FILES([bootstrap.sh], chmod +x bootstrap.sh)
