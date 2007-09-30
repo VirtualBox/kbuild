@@ -736,7 +736,6 @@ process_pipe_io(
 	 */
 
 	while (!stdin_eof || !stdout_eof || !stderr_eof || !child_dead) {
-long tick;
 		wait_count = 0;
 		if (!stdin_eof) {
 			wait_list[wait_count++] = tStdin;
@@ -751,14 +750,12 @@ long tick;
 			wait_list[wait_count++] = childhand;
 		}
 
-tick = GetTickCount();
 		wait_return = WaitForMultipleObjects(wait_count, wait_list,
 			 FALSE, /* don't wait for all: one ready will do */
 			 child_dead? 1000 :INFINITE); /* after the child dies, subthreads have
 			 	one second to collect all remaining output */
-printf("waitformultipleobjects: %d ms rc=%d\n", GetTickCount() - tick, wait_return);
 
-		if (wait_return == WAIT_FAILED) {
+                if (wait_return == WAIT_FAILED) {
 /*			map_windows32_error_to_string(GetLastError());*/
 			pproc->last_err = GetLastError();
 			pproc->lerrno = E_SCALL;
