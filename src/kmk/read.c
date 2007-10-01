@@ -458,62 +458,238 @@ eval_buffer (char *buffer)
 }
 
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* no nonsense dependency file including. */
+/* no nonsense dependency file including.
+
+   Because nobody wants bogus dependency files to break their incremental
+   builds with hard to comprehend error messages, this function does not
+   use the normal eval routine but does all the parsing itself. This isn't,
+   as much work as it sounds, because the necessary feature set is very
+   limited. */
 void
 eval_include_dep (const char *name, struct floc *f)
 {
   FILE *fp;
-  long max_size;
-  long size;
-  char *buf;
-  unsigned int saved_var_len;
-  char *saved_var_buf;
+  char line_buf[8192];
+  unsigned line_no = 0;
 
-  /* ignore non-existing dependency files. */
+  /* open it, ignore non-existing dependency files and don't
+     fail fataly if we cannot open it. */
   if (!file_exists_p (name))
     return;
-
-  /* open it and determin the size. */
   errno = 0;
-  fp = fopen (name, "r");
+  fp = fopen (name, "rb");
   if (!fp)
     {
       error (f, "%s: %s", name, strerror (errno));
       return;
     }
 
-  if (fseek (fp, 0, SEEK_END))
-    fatal (f, "%s: fseek failed - %s", name, strerror (errno));
-  max_size = ftell (fp);
-  if (max_size < 0)
-    fatal (f, "%s: ftell failed - %s", name, strerror (errno));
-  if (fseek (fp, 0, SEEK_SET))
-    fatal (f, "%s: fseek failed - %s", name, strerror (errno));
+  /* parse the file line by line... */
+  while (fgets (line_buf, sizeof (line_buf), fp))
+    {
+      char *p;
+      char *endp;
 
-  /* ignore empty files. */
-  if (max_size == 0)
-  {
-      fclose (fp);
-      return;
-  }
+      line_no++;
+      p = line_buf;
+      while (isspace ((unsigned char)*p))
+        ++p;
+      if (*p == '\0' || *p == '#')
+        continue;
 
-  /* allocate a buffer and read the file. \r\n -> \n conversion
-     make this intersting ... */
-  buf = xmalloc (max_size + 1);
-  size = fread (buf, 1, max_size, fp); /* FIXME: EINTR? incomplete reads? */
-  if (   size == -1
-      || (ferror (fp) && !feof (fp)))
-      fatal (f, "%s: fread failed - %s", name, strerror (errno));
-  if (size < max_size / 2)
-      fatal (f, "%s: fread failed - %s", name, strerror (errno));
-  buf[size] = '\0';
+      /* define var ... endef for command tracking. */
+      if (strneq (p, "define ", 7))
+        {
+          size_t value_len = 0;
+          size_t value_alloc_size = 0;
+          char *value = 0;
+          int newline = 1;
+          int found_endef = 0;
+          const char *var;
+          unsigned var_len;
 
-  /* evaluate the buffer and cleanup. */
-  install_variable_buffer (&saved_var_buf, &saved_var_len);
-  eval_buffer (buf);
-  restore_variable_buffer (saved_var_buf, saved_var_len);
+          /* extract the variable name. */
+          p += 7;
+          while (isblank ((unsigned char)*p))
+            ++p;
+          endp = strchr(p, '\0');
+          while (endp > p && isspace ((unsigned char)endp[-1]))
+            --endp;
+          var_len = endp - p;
+          if (!var_len)
+          {
+              error (f, "%s(%d): bogus define statement.", name, line_no);
+              break;
+          }
+          var = strcache_add_len (p, var_len);
 
-  free (buf);
+          /* read the define contents. */
+          while (fgets (line_buf, sizeof (line_buf), fp))
+            {
+              size_t len;
+
+              line_no++;
+
+              /* check for endef */
+              if (newline)
+                {
+                  p = line_buf;
+                  while (isblank ((unsigned char)*p))
+                    ++p;
+                  if (strneq (p, "endef", 5))
+                    {
+                      p += 5;
+                      while (isspace ((unsigned char)*p))
+                        p++;
+                      if (*p == '\0')
+                        {
+                          found_endef = 1;
+                          break;
+                        }
+                    }
+                }
+
+              /* append the line to the buffer. */
+              len = strlen (line_buf);
+              if (value_len + len + 1 > value_alloc_size)
+                {
+                  if (value_alloc_size == 0)
+                      value_alloc_size = (len + 1 + 0x100) & ~(size_t)0xff;
+                  else
+                    {
+                      value_alloc_size *= 2;
+                      if (value_len + len + 1 > value_alloc_size)
+                          value_alloc_size = (value_len + len * 2 + 1) & ~(size_t)0xff;
+                    }
+                  value = xrealloc (value, value_alloc_size);
+                }
+              memcpy (value + value_len, line_buf, len + 1);
+              value_len += len;
+              newline = len ? line_buf[len - 1] == '\n' : 0;
+            }
+
+          if (!found_endef)
+            {
+              error (f, "%s(%d): bogus define statement.", name, line_no);
+              break;
+            }
+
+          /* all that's left is to define it. */
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          define_variable_in_set (var, var_len, value, value_len, 0 /* don't duplicate */,
+                                  o_file, 0 /* not recursive */, NULL /* global set */,
+                                  NULL /*no floc*/);
+#else
+          define_variable_in_set (var, var_len, value, o_file, 0 /* not recursive */,
+                                  NULL /* global set */, NULL /*no floc*/);
+          free (value);
+#endif
+        }
+      /* file: deps */
+      else
+        {
+          struct nameseq *filenames = 0;
+          struct dep *deps = 0;
+          struct dep **nextdep = &deps;
+          struct dep *dep;
+          int next_line = 1;
+          char *colonp;
+
+          /* look for a colon. */
+          colonp = strchr (p, ':');
+#ifdef HAVE_DOS_PATHS
+          while (   colonp
+                 && (colonp[1] == '/' || colonp[1] == '\\')
+                 && colonp > p
+                 && isalpha ((unsigned char)colonp[-1])
+                 && (   colonp == p + 1
+                     || strchr (" \t(", colonp[-2]) != 0))
+              colonp = strchr (colonp + 1, ':');
+#endif
+          if (!colonp)
+            {
+              error (f, "%s(%d): no colon.", name, line_no);
+              break;
+            }
+
+          /* extract the filename, ASSUME a single one. */
+          endp = colonp;
+          while (endp > p && isblank ((unsigned char)endp[-1]))
+            --endp;
+          if (p == endp)
+            {
+              error (f, "%s(%d): empty filename.", name, line_no);
+              break;
+            }
+          filenames = xmalloc (sizeof (struct nameseq));
+          memset (filenames, 0, sizeof (*filenames));
+          filenames->name = strcache_add_len (p, endp - p);
+
+          /* parse any dependencies, taking care with very long lines. */
+          p = colonp + 1;
+          for (;;)
+            {
+              while (isblank ((unsigned char)*p))
+                ++p;
+
+              /* eol + continuation mark? read the next line.  */
+              if (*p == '\\'
+               && (     (p[1] == '\n' && p[2] == '\0')
+                   ||   (p[1] == '\r' && p[2] == '\n' && p[3] == '\0')
+                   ||   p[1] == '\0'))
+                {
+                  if (!fgets (line_buf, sizeof (line_buf), fp))
+                    break;
+                  p = line_buf;
+                  line_no++;
+                  continue;
+                }
+
+              /* eol? */
+              if ((p[0] == '\n' && p[1] == '\0')
+               || p[0] == '\0'
+               || (p[0] == '\r' && p[1] == '\n' && p[2] == '\0'))
+                  break;
+
+              /* find the end of the filename */
+              endp = p;
+              while (!isspace ((unsigned char) *endp) && *endp != '\0')
+                ++endp;
+              if (*endp == '\0' && !feof (fp))
+                {
+                  size_t len = endp - p;
+                  if (len > (sizeof (line_buf) / 4) * 3)
+                    {
+                      error (f, "%s(%d): dependency name too long.", name, line_no);
+                      break;
+                    }
+                  memmove (line_buf, p, len);
+                  p -= len;
+                  endp -= len;
+                  if (!fgets (endp, sizeof (line_buf) - len, fp))
+                      break;
+                  while (!isblank ((unsigned char) *endp) && *endp != '\0')
+                    ++endp;
+                  if (*endp == '\0' && !feof (fp))
+                    {
+                      error (f, "%s(%d): dependency name too long.", name, line_no);
+                      break;
+                    }
+                }
+
+              /* add it to the list. */
+              *nextdep = dep = alloc_dep ();
+              dep->name = strcache_add_len (p, endp - p);
+              nextdep = &dep->next;
+
+              p = endp;
+            }
+
+          /* enter the file with its dependencies. */
+          record_files (filenames, NULL, NULL, deps, 0, NULL, 0, 0, NULL);
+        }
+    } /* while (fgets) */
+
   fclose (fp);
 }
 #endif /* CONFIG_WITH_INCLUDEDEP */
