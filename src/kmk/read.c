@@ -494,9 +494,9 @@ eval_include_dep (const char *name, struct floc *f)
   if (fd < 0)
     {
       int err = errno;
-      if (!file_exists_p (name))
+      if (err == ENOENT || !file_exists_p (name))
         return;
-      error (f, "%s: %s", name, strerror (errno));
+      error (f, "%s: %s", name, strerror (err));
       return;
     }
   if (fstat (fd, &st))
