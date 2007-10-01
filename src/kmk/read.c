@@ -485,8 +485,6 @@ eval_include_dep (const char *name, struct floc *f)
 
   /* open and read it into memory. ignore non-existing dependency files
      or that we can't read. */
-  if (!file_exists_p (name))
-    return;
   errno = 0;
 #ifdef O_BINARY
   fd = open (name, O_RDONLY | O_BINARY, 0);
@@ -495,6 +493,9 @@ eval_include_dep (const char *name, struct floc *f)
 #endif
   if (fd < 0)
     {
+      int err = errno;
+      if (!file_exists_p (name))
+        return;
       error (f, "%s: %s", name, strerror (errno));
       return;
     }
