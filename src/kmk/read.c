@@ -532,6 +532,18 @@ eval_include_dep (const char *name, struct floc *f)
           if (!cur)
             break;
         }
+      if (*cur == '\\')
+        {
+          unsigned eol_len = (file_end - cur > 1 && cur[1] == '\n') ? 2
+                           : (file_end - cur > 2 && cur[1] == '\r' && cur[2] == '\n') ? 3
+                           : (file_end - cur == 1) ? 1 : 0;
+           if (eol_len)
+             {
+               cur += eol_len;
+               line_no++;
+               continue;
+             }
+        }
       if (*cur == '\n')
         {
           cur++;
