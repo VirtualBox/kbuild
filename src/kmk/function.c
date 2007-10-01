@@ -2671,7 +2671,7 @@ char *strptime(const char *s, const char *format, struct tm *tm)
 {
   return (char *)"strptime is not implemented";
 }
-# endif 
+# endif
 /* Check if the string is all blanks or not. */
 static int
 all_blanks (const char *s)
@@ -2683,7 +2683,7 @@ all_blanks (const char *s)
   return *s == '\0';
 }
 
-/* The first argument is the strftime format string, a iso 
+/* The first argument is the strftime format string, a iso
    timestamp is the default if nothing is given.
 
    The second argument is a time value if given. The format
@@ -2700,7 +2700,7 @@ func_date (char *o, char **argv, const char *funcname)
 
   /* determin the format - use a single word as the default. */
   format = !strcmp (funcname, "date-utc")
-         ? "%Y-%m-%dT%H:%M:%SZ" 
+         ? "%Y-%m-%dT%H:%M:%SZ"
          : "%Y-%m-%dT%H:%M:%S";
   if (!all_blanks (argv[0]))
     format = argv[0];
@@ -2713,7 +2713,7 @@ func_date (char *o, char **argv, const char *funcname)
       p = strptime (argv[1], input_format, &t);
       if (!p || *p != '\0')
         {
-          error (NILF, _("$(%s): strptime(%s,%s,) -> %s\n"), funcname, 
+          error (NILF, _("$(%s): strptime(%s,%s,) -> %s\n"), funcname,
                  argv[1], input_format, p ? p : "<null>");
           return variable_buffer_output (o, "", 1);
         }
@@ -2728,7 +2728,7 @@ func_date (char *o, char **argv, const char *funcname)
         t = *localtime (&tval);
     }
 
-  /* format it. note that zero isn't necessarily an error, so we'll 
+  /* format it. note that zero isn't necessarily an error, so we'll
      have to keep shut about failures. */
   buf_size = 64;
   buf = xmalloc (buf_size);
@@ -2748,7 +2748,7 @@ func_date (char *o, char **argv, const char *funcname)
 #endif
 
 #ifdef CONFIG_WITH_FILE_SIZE
-/* Prints the size of the specified file. Only one file is 
+/* Prints the size of the specified file. Only one file is
    permitted, notthing is stripped. -1 is returned if stat
    fails. */
 static char *
@@ -2761,6 +2761,147 @@ func_file_size (char *o, char **argv, const char *funcname)
 }
 #endif
 
+#ifdef CONFIG_WITH_WHICH
+/* Checks if the specified file exists an is executable.
+   On systems employing executable extensions, the name may
+   be modified to include the extension. */
+static int func_which_test_x (char *file)
+{
+  struct stat st;
+# if defined(WINDOWS32) || defined(__OS2__)
+  char *ext;
+  char *slash;
+
+  /* fix slashes first. */
+  slash = file;
+  while ((slash = strchr (slash, '\\')) != NULL)
+    *slash++ = '/';
+
+  /* straight */
+  if (stat (file, &st) == 0
+    && S_ISREG (st.st_mode))
+    return 1;
+
+  /* don't try add an extension if there already is one */
+  ext = strchr (file, '\0');
+  if (ext - file >= 4
+   && (   !stricmp (ext - 4, ".exe")
+       || !stricmp (ext - 4, ".cmd")
+       || !stricmp (ext - 4, ".bat")
+       || !stricmp (ext - 4, ".com")))
+    return 0;
+
+  /* try the extensions. */
+  strcpy (ext, ".exe");
+  if (stat (file, &st) == 0
+    && S_ISREG (st.st_mode))
+    return 1;
+
+  strcpy (ext, ".cmd");
+  if (stat (file, &st) == 0
+    && S_ISREG (st.st_mode))
+    return 1;
+
+  strcpy (ext, ".bat");
+  if (stat (file, &st) == 0
+    && S_ISREG (st.st_mode))
+    return 1;
+
+  strcpy (ext, ".com");
+  if (stat (file, &st) == 0
+    && S_ISREG (st.st_mode))
+    return 1;
+
+  return 0;
+
+# else
+
+  return access (file, X_OK) == 0
+     && stat (file, &st) == 0
+     && S_ISREG (st.st_mode);
+# endif
+}
+
+/* Searches for the specified programs in the PATH and print
+   their full location if found. Prints nothing if not found. */
+static char *
+func_which (char *o, char **argv, const char *funcname)
+{
+  const char *path;
+  struct variable *path_var;
+  unsigned i;
+  PATH_VAR (buf);
+
+  path_var = lookup_variable ("PATH", 4);
+  if (path_var)
+    path = path_var->value;
+  else
+    path = ".";
+
+  /* iterate input */
+  for (i = 0; argv[i]; i++)
+    {
+      unsigned int len;
+      const char *iterator = argv[i];
+      char *cur;
+
+      while ((cur = find_next_token (&iterator, &len)))
+        {
+          /* if there is a separator, don't walk the path. */
+          if (memchr (cur, '/', len)
+#ifdef HAVE_DOS_PATHS
+           || memchr (cur, '\\', len)
+           || memchr (cur, ':', len)
+#endif
+             )
+            {
+              if (len + 1 + 4 < GET_PATH_MAX) /* +4 for .exe */
+                {
+                  memcpy (buf, cur, len);
+                  buf[len] = '\0';
+                  if (func_which_test_x (buf))
+                    o = variable_buffer_output (o, buf, strlen (buf));
+                }
+            }
+          else
+            {
+              const char *comp = path;
+              for (;;)
+                {
+                  const char *src = comp;
+                  const char *end = strchr (comp, PATH_SEPARATOR_CHAR);
+                  size_t comp_len = end ? end - comp : strlen (comp);
+                  if (!comp_len)
+                    {
+                      comp_len = 1;
+                      src = ".";
+                    }
+                  if (len + comp_len + 2 + 4 < GET_PATH_MAX) /* +4 for .exe */
+                    {
+                      memcpy (buf, comp, comp_len);
+                      buf [comp_len] = '/';
+                      memcpy (&buf[comp_len + 1], cur, len);
+                      buf[comp_len + 1 + len] = '\0';
+
+                      if (func_which_test_x (buf))
+                        {
+                          o = variable_buffer_output (o, buf, strlen (buf));
+                          break;
+                        }
+                    }
+
+                  /* next */
+                  if (!end)
+                    break;
+                  comp = end + 1;
+                }
+            }
+        }
+    }
+
+  return variable_buffer_output (o, "", 1);
+}
+#endif
 
 #ifdef CONFIG_WITH_STACK
 
@@ -3247,6 +3388,9 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_FILE_SIZE
   { STRING_SIZE_TUPLE("file-size"),     1,  1,  1,  func_file_size},
+#endif
+#ifdef CONFIG_WITH_WHICH
+  { STRING_SIZE_TUPLE("which"),         0,  0,  1,  func_which},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},
