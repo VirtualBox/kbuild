@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 1052 2007-06-11 09:30:19Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 1174 2007-10-03 23:04:40Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -200,7 +200,7 @@ TOOL_GCC4MACHO_LINK_LIBRARY_OUTPUT =
 TOOL_GCC4MACHO_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GCC4MACHO_LINK_LIBRARY_DEPORD =
 define TOOL_GCC4MACHO_LINK_LIBRARY_CMDS
-	$(call xargs,$(QUIET)$(TOOL_GCC4MACHO_AR) $(flags) $(out),$(objs))
+	$(if $(strip $(objs)),$(call xargs,$(QUIET)$(TOOL_GCC4MACHO_AR) $(flags) $(out),$(objs)))
 	$(foreach lib,$(othersrc)\
 		,$(NL)$(TAB)$(call MSG_AR_MERGE,$(target),$(out),$(lib)) \
 		$(NL)$(TAB)$(QUIET)$(RM_EXT) -f $(dir $(outbase))ar.tmp.dir/* \
