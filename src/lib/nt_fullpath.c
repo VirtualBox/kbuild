@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1175 2007-10-04 18:33:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -224,6 +224,7 @@ typedef struct _IO_STATUS_BLOCK
 } MY_IO_STATUS_BLOCK, *PMY_IO_STATUS_BLOCK;
 
 static BOOL g_fInitialized = FALSE;
+static int  g_afNtfsDrives['Z' - 'A' + 1];
 static LONG (NTAPI *g_pfnNtQueryInformationFile)(HANDLE FileHandle,
     PMY_IO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,
     ULONG Length, ULONG FileInformationClass);
@@ -237,6 +238,8 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
     MY_IO_STATUS_BLOCK          Ios;
     LONG                        rcNt;
     HANDLE                      hFile;
+    int                         cchOut;
+    char                       *psz;
 
     /*
      * Check for NtQueryInformationFile the first time around.
@@ -247,8 +250,75 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
         if (!getenv("KMK_DONT_USE_NT_QUERY_INFORMATION_FILE"))
             *(FARPROC *)&g_pfnNtQueryInformationFile =
                 GetProcAddress(LoadLibrary("ntdll.dll"), "NtQueryInformationFile");
+        if (g_pfnNtQueryInformationFile)
+        {
+            unsigned i;
+            for (i = 0; i < sizeof(g_afNtfsDrives) / sizeof(g_afNtfsDrives[0]); i++ )
+                g_afNtfsDrives[i] = -1;
+        }
     }
     if (!g_pfnNtQueryInformationFile)
+        return -1;
+
+    /*
+     * The FileNameInformation we get is relative to where the volume is mounted,
+     * so we have to extract the driveletter prefix ourselves.
+     *
+     * FIXME: This will probably not work for volumes mounted in NTFS sub-directories.
+     */
+    psz = pszFull;
+    if (pszPath[0] == '\\' || pszPath[0] == '/')
+    {
+        /* unc or root of volume */
+        if (    (pszPath[1] == '\\' || pszPath[1] == '/')
+            &&  (pszPath[2] != '\\' || pszPath[2] == '/'))
+        {
+#if 0 /* don't bother with unc yet. */
+            /* unc - we get the server + name back */
+            *psz++ = '\\';
+#endif
+            return -1;
+        }
+        /* root slash */
+        *psz++ = _getdrive() + 'A' - 1;
+        *psz++ = ':';
+    }
+    else if (pszPath[1] == ':' && isalpha(pszPath[0]))
+    {
+        /* drive letter */
+        *psz++ = toupper(pszPath[0]);
+        *psz++ = ':';
+    }
+    else
+    {
+        /* relative */
+        *psz++ = _getdrive() + 'A' - 1;
+        *psz++ = ':';
+    }
+
+    /*
+     * Fat32 doesn't return filenames with the correct case, so restrict it
+     * to NTFS volumes for now.
+     */
+    if (g_afNtfsDrives[*pszFull - 'A'] == -1)
+    {
+        char szFSName[32];
+
+        psz[0] = '\\';
+        psz[1] = '\0';
+        if (    GetVolumeInformation(pszFull,
+                                     NULL, 0,   /* volume name */
+                                     NULL,      /* serial number */
+                                     NULL,      /* max component */
+                                     NULL,      /* volume attribs */
+                                     szFSName,
+                                     sizeof(szFSName))
+            &&  !strcmp(szFSName, "NTFS"))
+            g_afNtfsDrives[*pszFull - 'A'] = 1;
+        else
+            g_afNtfsDrives[*pszFull - 'A'] = 0;
+    }
+    if (!g_afNtfsDrives[*pszFull - 'A'])
         return -1;
 
     /*
@@ -268,52 +338,13 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
         CloseHandle(hFile);
         if (rcNt >= 0)
         {
-            /*
-             * The FileNameInformation we get is relative to where the volume is mounted,
-             * so we have to extract the driveletter prefix ourselves.
-             *
-             * FIXME: This will probably not work for volumes mounted in NTFS sub-directories.
-             */
-            int cchOut;
-            int fUnc = 0;
-            char *psz = pszFull;
-            if (pszPath[0] == '\\' || pszPath[0] == '/')
-            {
-                /* unc or root of volume */
-                if (    (pszPath[1] == '\\' || pszPath[1] == '/')
-                    &&  (pszPath[2] != '\\' || pszPath[2] == '/'))
-                {
-                    /* unc - we get the server + name back */
-                    *psz++ = '\\';
-                    fUnc = 1;
-                }
-                else
-                {
-                    /* root slash */
-                    *psz++ = _getdrive() + 'A' - 1;
-                    *psz++ = ':';
-                }
-            }
-            else if (pszPath[1] == ':' && isalpha(pszPath[0]))
-            {
-                /* drive letter */
-                *psz++ = toupper(pszPath[0]);
-                *psz++ = ':';
-            }
-            else
-            {
-                /* relative */
-                *psz++ = _getdrive() + 'A' - 1;
-                *psz++ = ':';
-            }
-
             cchOut = WideCharToMultiByte(CP_ACP, 0,
                                          pFileNameInfo->FileName, pFileNameInfo->FileNameLength / sizeof(WCHAR),
                                          psz, (int)(cchFull - (psz - pszFull) - 2), NULL, NULL);
             if (cchOut > 0)
             {
                 const char *pszEnd;
-
+#if 0
                 /* upper case the server and share */
                 if (fUnc)
                 {
@@ -322,7 +353,7 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
                     for (psz++; *psz != '/' && *psz != '\\'; psz++)
                         *psz = toupper(*psz);
                 }
-
+#endif
                 /* add trailing slash on directories if input has it. */
                 pszEnd = strchr(pszPath, '\0');
                 if (    (pszEnd[-1] == '/' || pszEnd[-1] == '\\')
