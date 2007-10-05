@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1171 2007-10-01 05:15:26Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -50,6 +50,7 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/strlcpy.c \
+	kmkbuiltin/version.c \
 	getopt.c \
 	getopt1.c \
 	electric.c

@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
 static int	fflag;				/* Unlink existing files. */
 static int	hflag;				/* Check new name for symlink first. */
 static int	iflag;				/* Interactive mode. */
@@ -69,56 +71,38 @@ static int	vflag;				/* Verbose output. */
 					/* System link call. */
 static int (*linkf)(const char *, const char *);
 static char	linkch;
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
 
 static int	linkit(const char *, const char *, int);
-static int	usage(void);
+static int	usage(FILE *);
 
 
 int
-kmk_builtin_ln(int argc, char *argv[])
+kmk_builtin_ln(int argc, char *argv[], char **envp)
 {
 	struct stat sb;
-	char *p, *sourcedir;
+	char *sourcedir;
 	int ch, exitval;
 
-        /* initialize globals. */
-        fflag = hflag = iflag = sflag = vflag = 0;
-        linkch = 0;
-        linkf = NULL;
+	/* initialize globals. */
+	fflag = hflag = iflag = sflag = vflag = 0;
+	linkch = 0;
+	linkf = NULL;
 
-        /* kmk: reset getopt() and set program name. */
-        g_progname = argv[0];
-        opterr = 1;
-        optarg = NULL;
-        optopt = 0;
-        optind = 0; /* init */
+	/* kmk: reset getopt() and set program name. */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+	optind = 0; /* init */
 
-#if 0 /* kmk: we don't need this. */
-	/*
-	 * Test for the special case where the utility is called as
-	 * "link", for which the functionality provided is greatly
-	 * simplified.
-	 */
-	if ((p = rindex(argv[0], '/')) == NULL)
-		p = argv[0];
-	else
-		++p;
-	if (strcmp(p, "link") == 0) {
-		while (getopt(argc, argv, "") != -1)
-			return usage();
-		argc -= optind;
-		argv += optind;
-		if (argc != 2)
-			return usage();
-		linkf = link;
-		return linkit(argv[0], argv[1], 0);
-	}
-#else
-        (void)p;
-#endif
-
-
-	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
+	while ((ch = getopt_long(argc, argv, "fhinsv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
@@ -138,9 +122,14 @@ kmk_builtin_ln(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage();
+			return usage(stderr);
 		}
 
 	argv += optind;
@@ -151,7 +140,7 @@ kmk_builtin_ln(int argc, char *argv[])
 
 	switch(argc) {
 	case 0:
-		return usage();
+		return usage(stderr);
 		/* NOTREACHED */
 	case 1:				/* ln target */
 		return linkit(argv[0], ".", 1);
@@ -173,7 +162,7 @@ kmk_builtin_ln(int argc, char *argv[])
 	if (stat(sourcedir, &sb))
 		return err(1, "%s", sourcedir);
 	if (!S_ISDIR(sb.st_mode))
-		return usage();
+		return usage(stderr);
 	for (exitval = 0; *argv != sourcedir; ++argv)
 		exitval |= linkit(*argv, sourcedir, 1);
 	return exitval;
@@ -260,11 +249,12 @@ linkit(const char *target, const char *source, int isdir)
 }
 
 static int
-usage(void)
+usage(FILE *pf)
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ln [-fhinsv] source_file [target_file]",
-	    "       ln [-fhinsv] source_file ... target_dir",
-	    "       link source_file target_file");
+	fprintf(pf, "usage: %s [-fhinsv] source_file [target_file]\n"
+				"   or: %s [-fhinsv] source_file ... target_dir\n"
+                "   or: %s source_file target_file\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n");
 	return 1;
 }

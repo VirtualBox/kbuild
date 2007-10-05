@@ -1,4 +1,4 @@
-/* $Id: append.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -38,9 +38,13 @@
 /**
  * Prints the usage and return 1.
  */
-static int usage(void)
+static int usage(FILE *pf)
 {
-    fprintf(stderr, "usage: append [-nv] file [string ...]\n");
+    fprintf(pf,
+            "usage: %s [-nv] file [string ...]\n"
+            "   or: %s --version\n"
+            "   or: %s --help\n",
+            g_progname, g_progname, g_progname);
     return 1;
 }
 
@@ -67,30 +71,42 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("nv", argv[i][1]) /* valid option char */
+       &&  strchr("-nv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
-        do
+        if (*psz != '-')
         {
-            switch (*psz)
+            do
             {
-                case 'n':
-                    fNewLine = 1;
-                    break;
-                case 'v':
+                switch (*psz)
+                {
+                    case 'n':
+                        fNewLine = 1;
+                        break;
+                    case 'v':
 #ifndef kmk_builtin_append
-                    fVariables = 1;
-                    break;
+                        fVariables = 1;
+                        break;
 #else
-                    errx(1, "Option '-v' isn't supported in external mode.");
-                    return usage();
+                        errx(1, "Option '-v' isn't supported in external mode.");
+                        return usage(stderr);
 #endif
-                default:
-                    errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
-                    return usage();
-            }
-        } while (*++psz);
+                    default:
+                        errx(1, "Invalid option '%c'! (%s)", *psz, argv[i]);
+                        return usage(stderr);
+                }
+            } while (*++psz);
+        }
+        else if (!strcmp(psz, "-help"))
+        {
+            usage(stdout);
+            return 0;
+        }
+        else if (!strcmp(psz, "-version"))
+            return kbuild_version(argv[0]);
+        else
+            break;
         i++;
     }
 
@@ -100,7 +116,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     if (i >= argc)
     {
         errx(1, "missing filename!");
-        return usage();
+        return usage(stderr);
     }
     pFile = fopen(argv[i], "a");
     if (!pFile)

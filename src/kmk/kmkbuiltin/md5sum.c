@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 1125 2007-09-26 00:15:30Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -64,25 +64,6 @@ static int usage(FILE *pOut)
             " -v, --version     Show version information and exit.\n"
             );
     return 1;
-}
-
-
-/**
- * Prints the version string.
- * @returns 0
- */
-static int version(void)
-{
-#ifdef kmk_builtin_md5sum
-    fprintf(stdout, "kmk_md5sum (kBuild) %d.%d.%d\n"
-                    "Copyright (c) 2007 knut st. osmundsen\n",
-            KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
-#else
-    fprintf(stdout, "kmk_builtin_md5sum (kBuild) %d.%d.%d\n"
-                    "Copyright (c) 2007 knut st. osmundsen\n",
-            KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
-#endif
-    return 0;
 }
 
 
@@ -712,7 +693,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                         return 0;
 
                     case 'v':
-                        return version();
+                        return kbuild_version(argv[0]);
 
                     /*
                      * -C md5 file
@@ -759,5 +740,4 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
 
     return rc;
 }
-
 

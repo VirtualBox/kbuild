@@ -354,12 +354,3 @@ setfile(struct stat *fs, int fd)
 	return (rval);
 }
 
-int
-usage(void)
-{
-
-	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory");
-	return EX_USAGE;
-}

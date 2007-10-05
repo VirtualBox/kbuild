@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -787,7 +787,10 @@ static int ProcessIDB(FILE *pInput)
 
 static void usage(const char *argv0)
 {
-    printf("syntax: %s -o <output> -t <target> [-f] [-s] <vc idb-file>\n", argv0);
+    printf("usage: %s -o <output> -t <target> [-f] [-s] <vc idb-file>\n"
+           "   or: %s --help\n"
+           "   or: %s --version\n",
+           argv0, argv0, argv0);
 }
 
 
@@ -819,7 +822,16 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
     {
         if (argv[i][0] == '-')
         {
-            switch (argv[i][1])
+            const char *psz = &argv[i][1];
+            if (*psz == '-')
+            {
+                if (!strcmp(psz, "-help"))
+                    psz = "?";
+                else if (!strcmp(psz, "-version"))
+                    psz = "v";
+            }
+
+            switch (*psz)
             {
                 /*
                  * Output file.
@@ -893,6 +905,15 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                     fStubs = 1;
                     break;
                 }
+
+                /*
+                 * The mandatory version & help.
+                 */
+                case '?':
+                    usage(argv[0]);
+                    return 0;
+                case 'v':
+                    return kbuild_version(argv[0]);
 
                 /*
                  * Invalid argument.
