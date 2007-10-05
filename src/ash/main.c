@@ -114,6 +114,29 @@ main(int argc, char **argv)
 
 	setlocale(LC_ALL, "");
 
+	/* Just a --version for show. */
+	if (argc > 1
+	 && argv[1][0] == '-'
+	 && argv[1][1] == '-') {
+		if (!strcmp(&argv[1][2], "version")) {
+			printf("kmk_ash - kBuild version %d.%d.%d\n",
+				   KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+			return 0;
+		}
+		if (!strcmp(&argv[1][2], "help")) {
+			printf("usage: kmk_ash [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+				   "               [+o option_name] [command_file [argument ...]]\n"
+				   "   or: kmk_ash -c [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+				   "               [+o option_name] command_string [command_name [argument ...]]\n"
+				   "   or: kmk_ash -s [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+				   "               [+o option_name] [argument ...]\n"
+				   "   or: kmk_ash --help\n"
+				   "   or: kmk_ash --version\n",
+				   argv[0], argv[0], argv[0], argv[0], argv[0]);
+			return 0;
+		}
+	}
+
 #if PROFILE
 	monitor(4, etext, profile_buf, sizeof profile_buf, 50);
 #endif
