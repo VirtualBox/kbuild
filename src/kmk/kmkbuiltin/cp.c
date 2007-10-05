@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 
 #include "cp_extern.h"
 
+#include "kmkbuiltin.h"
+
+
 #ifndef S_IFWHT
 #define S_IFWHT 0
 #define S_ISWHT(s) 0
@@ -114,14 +117,23 @@ volatile sig_atomic_t info;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
 static int copy(char *[], enum op, int);
 static int mastercmp(const FTSENT * const *, const FTSENT * const *);
 #ifdef SIGINFO
 static void siginfo(int __unused);
 #endif
+static int usage(FILE *);
 
 int
-kmk_builtin_cp(int argc, char *argv[])
+kmk_builtin_cp(int argc, char *argv[], char **envp)
 {
 	struct stat to_stat, tmp_stat;
 	enum op type;
@@ -144,7 +156,7 @@ kmk_builtin_cp(int argc, char *argv[])
         optind = 0; /* init */
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfinprv")) != -1)
+	while ((ch = getopt_long(argc, argv, "HLPRfinprv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -190,14 +202,19 @@ kmk_builtin_cp(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		default:
-		        return usage();
+		        return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
-		return usage();
+		return usage(stderr);
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (rflag) {
@@ -269,7 +286,7 @@ kmk_builtin_cp(int argc, char *argv[])
 		 * Case (1).  Target is not a directory.
 		 */
 		if (argc > 1)
-			return usage();
+			return usage(stderr);
 		/*
 		 * Need to detect the case:
 		 *	cp -R dir foo
@@ -572,3 +589,15 @@ siginfo(int sig __unused)
 	info = 1;
 }
 #endif
+
+
+static int
+usage(FILE *fp)
+{
+	fprintf(fp, "usage: %s [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target\n"
+				"   or: %s [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname, g_progname);
+	return EX_USAGE;
+}

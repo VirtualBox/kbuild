@@ -57,4 +57,3 @@ int	copy_file(const FTSENT *, int);
 int	copy_link(const FTSENT *, int);
 int	copy_special(struct stat *, int);
 int	setfile(struct stat *, int);
-int	usage(void);

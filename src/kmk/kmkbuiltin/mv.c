@@ -78,18 +78,28 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 # include "mscfakes.h"
 #endif
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
-extern void strmode(mode_t mode, char *p);
-#endif
+#include "kmkbuiltin.h"
+
 
 static int fflg, iflg, nflg, vflg;
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
 
 static int	do_move(char *, char *);
 #ifdef CROSS_DEVICE_MOVE
 static int	fastcopy(char *, char *, struct stat *);
 static int	copy(char *, char *);
 #endif
-static int	usage(void);
+static int	usage(FILE *);
+
+#if !defined(__FreeBSD__) && !defined(__APPLE__)
+extern void strmode(mode_t mode, char *p);
+#endif
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__)
 # ifdef __OS2__
@@ -114,7 +124,7 @@ const char *group_from_gid(gid_t id, int x)
 
 
 int
-kmk_builtin_mv(int argc, char *argv[])
+kmk_builtin_mv(int argc, char *argv[], char **envp)
 {
 	size_t baselen, len;
 	int rval;
@@ -133,7 +143,7 @@ kmk_builtin_mv(int argc, char *argv[])
 	optopt = 0;
 	optind = 0; /* init */
 
-	while ((ch = getopt(argc, argv, "finv")) != -1)
+	while ((ch = getopt_long(argc, argv, "finv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'i':
 			iflg = 1;
@@ -150,14 +160,19 @@ kmk_builtin_mv(int argc, char *argv[])
 		case 'v':
 			vflg = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 2)
-		return usage();
+		return usage(stderr);
 
 	/*
 	 * If the stat on the target fails or the target isn't a directory,
@@ -165,7 +180,7 @@ kmk_builtin_mv(int argc, char *argv[])
 	 */
 	if (stat(argv[argc - 1], &sb) || !S_ISDIR(sb.st_mode)) {
 		if (argc > 2)
-			return usage();
+			return usage(stderr);
 		return do_move(argv[0], argv[1]);
 	}
 
@@ -480,11 +495,11 @@ copy(char *from, char *to)
 
 
 static int
-usage(void)
+usage(FILE *pf)
 {
-
-	(void)fprintf(stderr, "%s\n%s\n",
-		      "usage: mv [-f | -i | -n] [-v] source target",
-		      "       mv [-f | -i | -n] [-v] source ... directory");
+	fprintf(pf, "usage: %s [-f | -i | -n] [-v] source target\n"
+				"   or: %s [-f | -i | -n] [-v] source ... directory\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n");
 	return EX_USAGE;
 }

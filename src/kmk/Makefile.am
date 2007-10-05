@@ -71,7 +71,8 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/setmode.c \
 		kmkbuiltin/strmode.c \
 		kmkbuiltin/strlcpy.c \
-		kmkbuiltin/osdep.c
+		kmkbuiltin/osdep.c \
+		kmkbuiltin/version.c
 
 
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
@@ -126,7 +127,7 @@ DEFS = \
 	\
 	-DKBUILD_VERSION_MAJOR=0 \
 	-DKBUILD_VERSION_MINOR=1 \
-	-DKBUILD_VERSION_PATCH=0 \
+	-DKBUILD_VERSION_PATCH=1 \
 	\
 	-DCONFIG_WITH_KMK_BUILTIN \
     @DEFS@

@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
+
 extern void * setmode(const char *p);
 extern mode_t getmode(const void *bbox, mode_t omode);
 
@@ -117,6 +120,14 @@ static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, ve
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static const char *suffix = BACKUP_SUFFIX;
 
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
 static int	copy(int, const char *, int, const char *, off_t);
 static int	compare(int, const char *, size_t, int, const char *, size_t);
 static int	create_newfile(const char *, int, struct stat *);
@@ -128,10 +139,10 @@ static int	strip(const char *);
 #ifdef USE_MMAP
 static int	trymmap(int);
 #endif
-static int	usage(void);
+static int	usage(FILE *);
 
 int
-kmk_builtin_install(int argc, char *argv[])
+kmk_builtin_install(int argc, char *argv[], char **envp)
 {
 	struct stat from_sb, to_sb;
 	mode_t *set;
@@ -157,7 +168,7 @@ kmk_builtin_install(int argc, char *argv[])
 
 	iflags = 0;
 	group = owner = NULL;
-	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:o:pSsv")) != -1)
+	while ((ch = getopt_long(argc, argv, "B:bCcdf:g:Mm:o:pSsv", long_options, NULL)) != -1)
 		switch((char)ch) {
 		case 'B':
 			suffix = optarg;
@@ -216,9 +227,14 @@ kmk_builtin_install(int argc, char *argv[])
 		case 'v':
 			verbose = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
@@ -226,12 +242,12 @@ kmk_builtin_install(int argc, char *argv[])
 	/* some options make no sense when creating directories */
 	if (dostrip && dodir) {
 		warnx("-d and -s may not be specified together");
-		return usage();
+		return usage(stderr);
 	}
 
 	/* must have at least two arguments, except when creating directories */
 	if (argc == 0 || (argc == 1 && !dodir))
-		return usage();
+		return usage(stderr);
 
 	/* need to make a temp copy so we can compare stripped version */
 	if (docompare && dostrip)
@@ -291,7 +307,7 @@ kmk_builtin_install(int argc, char *argv[])
 	/* can't do file1 file2 directory/file */
 	if (argc != 2) {
 		warnx("wrong number or types of arguments");
-		return usage();
+		return usage(stderr);
 	}
 
 	if (!no_target) {
@@ -926,14 +942,17 @@ install_dir(char *path)
  *	print a usage message and die
  */
 static int
-usage()
+usage(FILE *pf)
 {
-	(void)fprintf(stderr,
-"usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-o owner] file1 file2\n"
-"       install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"               [-o owner] file1 ... fileN directory\n"
-"       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
+	fprintf(stderr,
+"usage: %s [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
+"           [-o owner] file1 file2\n"
+"   or: %s [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
+"           [-o owner] file1 ... fileN directory\n"
+"   or: %s -d [-v] [-g group] [-m mode] [-o owner] directory ...\n"
+"   or: %s --help\n"
+"   or: %s --version\n",
+			g_progname, g_progname, g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }
 

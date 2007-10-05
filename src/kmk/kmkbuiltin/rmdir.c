@@ -50,13 +50,14 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include <errno.h>
 #include <unistd.h>
 #include "getopt.h"
+#include "kmkbuiltin.h"
 
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
 
 static int rm_path(char *);
-static int usage(void);
+static int usage(FILE *);
 
 static int pflag;
 static int vflag;
@@ -65,16 +66,18 @@ static int ignore_fail_on_not_exist;
 
 static struct option long_options[] =
 {
+    { "help",                       no_argument, 0, 262 },
     { "ignore-fail-on-non-empty",   no_argument, 0, 260 },
     { "ignore-fail-on-not-exist",   no_argument, 0, 261 },
     { "parents",                    no_argument, 0, 'p' },
     { "verbose",                    no_argument, 0, 'v' },
+    { "version",                    no_argument, 0, 263 },
     { 0, 0,	0, 0 },
 };
 
 
 int
-kmk_builtin_rmdir(int argc, char *argv[])
+kmk_builtin_rmdir(int argc, char *argv[], char **envp)
 {
 	int ch, errors;
 
@@ -101,15 +104,20 @@ kmk_builtin_rmdir(int argc, char *argv[])
 		case 261:
 			ignore_fail_on_not_exist = 1;
 			break;
+		case 262:
+			return kbuild_version(argv[0]);
+		case 263:
+			usage(stdout);
+			return 0;
 		case '?':
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc == 0)
-		return /*usage()*/0;
+		return /*usage(stderr)*/0;
 
 	for (errors = 0; *argv; argv++) {
 		if (rmdir(*argv) < 0) {
@@ -180,9 +188,11 @@ rm_path(char *path)
 }
 
 static int
-usage(void)
+usage(FILE *pf)
 {
-
-	(void)fprintf(stderr, "usage: rmdir [-pv --ignore-fail-on-non-empty --ignore-fail-on-not-exist] directory ...\n");
+	(void)fprintf(pf, "usage: %s [-pv --ignore-fail-on-non-empty --ignore-fail-on-not-exist] directory ...\n"
+	                  "   or: %s --help\n"
+	                  "   or: %s --version\n",
+	              g_progname, g_progname, g_progname);
 	return 1;
 }

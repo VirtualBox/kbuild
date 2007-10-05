@@ -77,11 +77,22 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
+
 int bflag, eflag, nflag, sflag, tflag, vflag;
 /*int rval;*/
 const char *filename;
 
-static int usage(void);
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
+static int usage(FILE *);
 static int scanfiles(char *argv[], int cooked);
 static int cook_cat(FILE *);
 static int raw_cat(int);
@@ -91,7 +102,7 @@ static int udom_open(const char *path, int flags);
 #endif
 
 int
-kmk_builtin_cat(int argc, char *argv[])
+kmk_builtin_cat(int argc, char *argv[], char **envp)
 {
 	int ch, rc;
 
@@ -110,7 +121,7 @@ kmk_builtin_cat(int argc, char *argv[])
 	setlocale(LC_CTYPE, "");
 #endif
 
-	while ((ch = getopt(argc, argv, "benstuv")) != -1)
+	while ((ch = getopt_long(argc, argv, "benstuv", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
@@ -133,8 +144,13 @@ kmk_builtin_cat(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argv += optind;
 
@@ -150,9 +166,12 @@ kmk_builtin_cat(int argc, char *argv[])
 }
 
 static int
-usage(void)
+usage(FILE *fp)
 {
-	fprintf(stderr, "usage: cat [-benstuv] [file ...]\n");
+	fprintf(fp, "usage: %s [-benstuv] [file ...]\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname);
 	return 1;
 }
 

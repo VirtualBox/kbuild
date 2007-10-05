@@ -71,6 +71,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
+
 #ifdef __EMX__
 #undef S_IFWHT
 #undef S_ISWHT
@@ -90,6 +93,14 @@ static uid_t uid;
 
 static char *argv0;
 
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
 static int	check(char *, char *, struct stat *);
 static void	checkdot(char **);
 static void	rm_file(char **);
@@ -97,7 +108,9 @@ static int	rm_overwrite(char *, struct stat *);
 #ifdef DO_RMTREE
 static void	rm_tree(char **);
 #endif
-static int	usage(void);
+static int	usage(FILE *);
+
+
 
 /*
  * rm --
@@ -107,48 +120,24 @@ static int	usage(void);
  * 	file removal.
  */
 int
-kmk_builtin_rm(int argc, char *argv[])
+kmk_builtin_rm(int argc, char *argv[], char **envp)
 {
 	int ch, rflag;
-	char *p;
 
-        /* reinitialize globals */
-        argv0 = argv[0];
-        dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
-        uid = 0;
+	/* reinitialize globals */
+	argv0 = argv[0];
+	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
+	uid = 0;
 
-        /* kmk: reset getopt and set program name. */
-        g_progname = argv[0];
-        opterr = 1;
-        optarg = NULL;
-        optopt = 0;
-        optind = 0; /* init */
+	/* kmk: reset getopt and set program name. */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+	optind = 0; /* init */
 
-#if 0 /* kmk: we don't need this */
-	/*
-	 * Test for the special case where the utility is called as
-	 * "unlink", for which the functionality provided is greatly
-	 * simplified.
-	 */
-	if ((p = rindex(argv[0], '/')) == NULL)
-		p = argv[0];
-	else
-		++p;
-	if (strcmp(p, "unlink") == 0) {
-		while (getopt(argc, argv, "") != -1)
-			return usage();
-		argc -= optind;
-		argv += optind;
-		if (argc != 1)
-			return usage();
-		rm_file(&argv[0]);
-		return eval;
-	}
-#else
-        (void)p;
-#endif
 	Pflag = rflag = 0;
-	while ((ch = getopt(argc, argv, "dfiPRrvW")) != -1)
+	while ((ch = getopt_long(argc, argv, "dfiPRrvW", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -181,8 +170,14 @@ kmk_builtin_rm(int argc, char *argv[])
 			Wflag = 1;
 			break;
 #endif
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
+		case '?':
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
@@ -190,7 +185,7 @@ kmk_builtin_rm(int argc, char *argv[])
 	if (argc < 1) {
 		if (fflag)
 			return (0);
-		return usage();
+		return usage(stderr);
 	}
 
 	checkdot(argv);
@@ -602,11 +597,11 @@ checkdot(char **argv)
 }
 
 static int
-usage(void)
+usage(FILE *pf)
 {
-
-	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: rm [-f | -i] [-dPRrvW] file ...\n",
-	    "       unlink file");
+	fprintf(pf, "usage: %s [-f | -i] [-dPRrvW] file ...\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }

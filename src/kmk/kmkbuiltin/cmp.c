@@ -62,16 +62,27 @@ __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $");
 #  define fstat _fstat64
 #  define lseek _lseeki64
 # endif
-#endif 
+#endif
 #include <locale.h>
 
 #ifndef O_BINARY
 # define O_BINARY 0
-#endif 
+#endif
 
 /*#include "extern.h"*/
 
+#include "kmkbuiltin.h"
+
+
 static int	lflag, sflag;
+
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
 
 /* this is kind of ugly but its the simplest way to avoid namespace mess. */
 #include "cmp_misc.c"
@@ -80,12 +91,12 @@ static int	lflag, sflag;
 #include "cmp_regular.c"
 #else
 #include "cmp_regular_std.c"
-#endif 
+#endif
 
-static int usage(void);
+static int usage(FILE *);
 
 int
-kmk_builtin_cmp(int argc, char *argv[])
+kmk_builtin_cmp(int argc, char *argv[], char **envp)
 {
 	struct stat sb1, sb2;
 	off_t skip1 = 0, skip2 = 0;
@@ -106,7 +117,7 @@ kmk_builtin_cmp(int argc, char *argv[])
         optopt = 0;
         optind = 0; /* init */
 
-	while ((ch = getopt(argc, argv, "ls")) != -1)
+	while ((ch = getopt_long(argc, argv, "ls", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			lflag = 1;
@@ -114,9 +125,14 @@ kmk_builtin_cmp(int argc, char *argv[])
 		case 's':		/* silent run */
 			sflag = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			return usage();
+			return usage(stderr);
 		}
 	argv += optind;
 	argc -= optind;
@@ -125,7 +141,7 @@ kmk_builtin_cmp(int argc, char *argv[])
 		return errx(ERR_EXIT, "only one of -l and -s may be specified");
 
 	if (argc < 2 || argc > 4)
-		return usage();
+		return usage(stderr);
 
 	/* Backward compatibility -- handle "-" meaning stdin. */
 	special = 0;
@@ -160,14 +176,14 @@ kmk_builtin_cmp(int argc, char *argv[])
 		errno = 0;
 		skip1 = strtoll(argv[2], &ep, 0);
 		if (errno || ep == argv[2]) {
-			rc = usage();
+			rc = usage(stderr);
 			goto l_exit;
 		}
 
 		if (argc == 4) {
 			skip2 = strtoll(argv[3], &ep, 0);
 			if (errno || ep == argv[3]) {
-				rc = usage();
+				rc = usage(stderr);
 				goto l_exit;
 			}
 		}
@@ -202,10 +218,11 @@ l_exit:
 }
 
 static int
-usage(void)
+usage(FILE *fp)
 {
-
-	(void)fprintf(stderr,
-	    "usage: cmp [-l | -s] file1 file2 [skip1 [skip2]]\n");
+    fprintf(fp, "usage: %s [-l | -s] file1 file2 [skip1 [skip2]]\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname);
 	return(ERR_EXIT);
 }

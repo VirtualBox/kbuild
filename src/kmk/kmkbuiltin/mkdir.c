@@ -63,16 +63,27 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
+
+static int vflag;
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
+
 extern void * setmode(const char *p);
 extern mode_t getmode(const void *bbox, mode_t omode);
 
 static int	build(char *, mode_t);
-static int	usage(void);
+static int	usage(FILE *);
 
-static int vflag;
 
 int
-kmk_builtin_mkdir(int argc, char *argv[])
+kmk_builtin_mkdir(int argc, char *argv[], char **envp)
 {
 	int ch, exitval, success, pflag;
 	mode_t omode, *set = (mode_t *)NULL;
@@ -90,7 +101,7 @@ kmk_builtin_mkdir(int argc, char *argv[])
 	optarg = NULL;
 	optopt = 0;
 	optind = 0; /* init */
-	while ((ch = getopt(argc, argv, "m:pv")) != -1)
+	while ((ch = getopt_long(argc, argv, "m:pv", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'm':
 			mode = optarg;
@@ -101,15 +112,20 @@ kmk_builtin_mkdir(int argc, char *argv[])
 		case 'v':
 			vflag = 1;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
-                default:
-			return usage();
+			default:
+			return usage(stderr);
 		}
 
 	argc -= optind;
 	argv += optind;
 	if (argv[0] == NULL)
-		return usage();
+		return usage(stderr);
 
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
@@ -251,9 +267,11 @@ build(char *path, mode_t omode)
 }
 
 static int
-usage(void)
+usage(FILE *pf)
 {
-
-	(void)fprintf(stderr, "usage: mkdir [-pv] [-m mode] directory ...\n");
+	fprintf(pf, "usage: %s [-pv] [-m mode] directory ...\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }

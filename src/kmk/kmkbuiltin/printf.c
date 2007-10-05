@@ -66,11 +66,27 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 # include "mscfakes.h"
 #endif
 
+#include "kmkbuiltin.h"
+
+
 #ifdef __GNUC__
 #define ESCAPE '\e'
 #else
 #define ESCAPE 033
 #endif
+
+
+static size_t	b_length;
+static char	*b_fmt;
+static int	rval;
+static char  **gargv;
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
 
 static void	 conv_escape_str(char *, void (*)(int));
 static char	*conv_escape(char *, char *);
@@ -83,15 +99,10 @@ static uintmax_t getuintmax(void);
 static char	*getstr(void);
 static char	*mklong(const char *, int);
 static void      check_conversion(const char *, const char *);
-static void	 usage(void);
+static int	 usage(FILE *);
 
 static void	b_count(int);
 static void	b_output(int);
-static size_t	b_length;
-static char	*b_fmt;
-
-static int	rval;
-static char  **gargv;
 
 #ifdef BUILTIN		/* csh builtin */
 #define kmk_builtin_printf progprintf
@@ -126,7 +137,7 @@ static char  **gargv;
 		(void)asprintf(cpp, f, func); \
 }
 
-int kmk_builtin_printf(int argc, char *argv[])
+int kmk_builtin_printf(int argc, char *argv[], char **envp)
 {
 	char *fmt, *start;
 	int fieldwidth, precision;
@@ -151,20 +162,23 @@ int kmk_builtin_printf(int argc, char *argv[])
 	(void)setlocale (LC_ALL, "");
 #endif
 
-	while ((ch = getopt(argc, argv, "")) != -1) {
+	while ((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch (ch) {
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			usage();
-			return 1;
+			return usage(stderr);
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1) {
-		usage();
-		return 1;
+		return usage(stderr);
 	}
 
 	format = *argv;
@@ -674,8 +688,12 @@ check_conversion(const char *s, const char *ep)
 	}
 }
 
-static void
-usage(void)
+static int
+usage(FILE *pf)
 {
-	(void)fprintf(stderr, "Usage: %s format [arg ...]\n", g_progname);
+	fprintf(pf, "usage: %s format [arg ...]\n"
+				"   or: %s --help\n"
+				"   or: %s --version\n",
+			g_progname, g_progname, g_progname);
+	return 1;
 }
