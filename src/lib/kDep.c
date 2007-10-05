@@ -1,4 +1,4 @@
-/* $Id: kDep.c 1165 2007-09-30 07:36:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1177 2007-10-05 07:59:58Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -227,6 +227,7 @@ void depOptimize(int fFixCase)
 #if defined(__WIN32__) || defined(__WIN64__)
             nt_fullpath(pszFilename, szFilename, sizeof(szFilename));
 #else
+            strcpy(szFilename, pszFilename);
             fixslash(szFilename);
             fixcase(szFilename);
 #endif
