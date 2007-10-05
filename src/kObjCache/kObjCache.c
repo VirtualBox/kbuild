@@ -1,10 +1,10 @@
-/* $Id: kObjCache.c 1095 2007-09-15 23:47:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1184 2007-10-05 22:25:54Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * kObjCache - Object Cache.
- *
+ */
+
+/*
  * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
- *
  *
  * This file is part of kBuild.
  *
@@ -20,7 +20,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with kBuild; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 
@@ -58,7 +58,7 @@
 # endif
 # ifndef _P_WAIT
 #  define _P_WAIT   P_WAIT
-# endif 
+# endif
 # ifndef _P_NOWAIT
 #  define _P_NOWAIT P_NOWAIT
 # endif
@@ -748,7 +748,7 @@ static void kOCSumUpdate(PKOCSUM pSum, PKOCSUMCTX pCtx, const void *pvBuf, size_
     {
         size_t cb = cbBuf >= 128*1024 ? 128*1024 : cbBuf;
         pSum->crc32 = crc32(pSum->crc32, pb, cb);
-        MD5Update(&pCtx->MD5Ctx, pb, cb);
+        MD5Update(&pCtx->MD5Ctx, pb, (unsigned)cb);
         cbBuf -= cb;
     }
 }
@@ -1924,7 +1924,7 @@ static void kOCEntryPreCompileConsumer(PKOCENTRY pEntry, int fdIn)
     char *psz;
 
     kOCSumInitWithCtx(&pEntry->New.SumHead, &Ctx);
-    cbAlloc = pEntry->Old.cbCpp ? (pEntry->Old.cbCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
+    cbAlloc = pEntry->Old.cbCpp ? ((long)pEntry->Old.cbCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
     cbLeft = cbAlloc;
     pEntry->New.pszCppMapping = psz = xmalloc(cbAlloc);
     for (;;)
@@ -2052,7 +2052,7 @@ static void kOCEntryWriteCppOutput(PKOCENTRY pEntry, int fFreeIt)
             FatalDie("Failed to create '%s' in '%s': %s\n",
                      pEntry->New.pszCppName, pEntry->pszDir, strerror(errno));
         psz = pEntry->New.pszCppMapping;
-        cbLeft = pEntry->New.cbCpp;
+        cbLeft = (long)pEntry->New.cbCpp;
         while (cbLeft > 0)
         {
             long cbWritten = write(fd, psz, cbLeft);
@@ -2094,7 +2094,7 @@ static void kOCEntryWriteCppOutput(PKOCENTRY pEntry, int fFreeIt)
 static void kOCEntryCompileProducer(PKOCENTRY pEntry, int fdOut)
 {
     const char *psz = pEntry->New.pszCppMapping;
-    long cbLeft = pEntry->New.cbCpp;
+    long cbLeft = (long)pEntry->New.cbCpp;
     while (cbLeft > 0)
     {
         long cbWritten = write(fdOut, psz, cbLeft);
@@ -2176,7 +2176,7 @@ static void kOCEntryTeeConsumer(PKOCENTRY pEntry, int fdIn, int fdOut)
     char *psz;
 
     kOCSumInitWithCtx(&pEntry->New.SumHead, &Ctx);
-    cbAlloc = pEntry->Old.cbCpp ? (pEntry->Old.cbCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
+    cbAlloc = pEntry->Old.cbCpp ? ((long)pEntry->Old.cbCpp + 4*1024*1024 + 4096) & ~(4*1024*1024 - 1) : 4*1024*1024;
     cbLeft = cbAlloc;
     pEntry->New.pszCppMapping = psz = xmalloc(cbAlloc);
     InfoMsg(3, "precompiler|compile - starting passhtru...\n");
@@ -3630,26 +3630,27 @@ static int SyntaxError(const char *pszFormat, ...)
  * Prints the usage.
  * @returns 0.
  */
-static int usage(void)
+static int usage(FILE *pOut)
 {
-    printf("syntax: kObjCache [--kObjCache-options] [-v|--verbose]\n"
-           "            <  [-c|--cache-file <cache-file>]\n"
-           "             | [-n|--name <name-in-cache>] [[-d|--cache-dir <cache-dir>]] >\n"
-           "            <-f|--file <local-cache-file>>\n"
-           "            <-t|--target <target-name>>\n"
-           "            [-r|--redir-stdout] [-p|--passthru]\n"
-           "            --kObjCache-cpp <filename> <precompiler + args>\n"
-           "            --kObjCache-cc <object> <compiler + args>\n"
-           "            [--kObjCache-both [args]]\n"
-           "            [--kObjCache-cpp|--kObjCache-cc [more args]]\n"
-           "        kObjCache <-V|--version>\n"
-           "        kObjCache [-?|/?|-h|/h|--help|/help]\n"
-           "\n"
-           "The env.var. KOBJCACHE_DIR sets the default cache diretory (-d).\n"
-           "The env.var. KOBJCACHE_OPTS allow you to specifie additional options\n"
-           "without having to mess with the makefiles. These are appended with "
-           "a --kObjCache-options between them and the command args.\n"
-           "\n");
+    fprintf(pOut,
+            "syntax: kObjCache [--kObjCache-options] [-v|--verbose]\n"
+            "            <  [-c|--cache-file <cache-file>]\n"
+            "             | [-n|--name <name-in-cache>] [[-d|--cache-dir <cache-dir>]] >\n"
+            "            <-f|--file <local-cache-file>>\n"
+            "            <-t|--target <target-name>>\n"
+            "            [-r|--redir-stdout] [-p|--passthru]\n"
+            "            --kObjCache-cpp <filename> <precompiler + args>\n"
+            "            --kObjCache-cc <object> <compiler + args>\n"
+            "            [--kObjCache-both [args]]\n"
+            "            [--kObjCache-cpp|--kObjCache-cc [more args]]\n"
+            "        kObjCache <-V|--version>\n"
+            "        kObjCache [-?|/?|-h|/h|--help|/help]\n"
+            "\n"
+            "The env.var. KOBJCACHE_DIR sets the default cache diretory (-d).\n"
+            "The env.var. KOBJCACHE_OPTS allow you to specifie additional options\n"
+            "without having to mess with the makefiles. These are appended with "
+            "a --kObjCache-options between them and the command args.\n"
+            "\n");
     return 0;
 }
 
@@ -3695,7 +3696,7 @@ int main(int argc, char **argv)
      * Parse the arguments.
      */
     if (argc <= 1)
-        return usage();
+        return usage(stderr);
     for (i = 1; i < argc; i++)
     {
         if (!strcmp(argv[i], "--kObjCache-cpp"))
@@ -3723,7 +3724,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--kObjCache-options"))
             enmMode = kOC_Options;
         else if (!strcmp(argv[i], "--help"))
-            return usage();
+            return usage(stderr);
         else if (enmMode != kOC_Options)
         {
             if (enmMode == kOC_CppArgv || enmMode == kOC_BothArgv)
@@ -3781,10 +3782,15 @@ int main(int argc, char **argv)
             g_cVerbosityLevel = 0;
         else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "-?")
               || !strcmp(argv[i], "/h") || !strcmp(argv[i], "/?") || !strcmp(argv[i], "/help"))
-            return usage();
+        {
+            usage(stdout);
+            return 0;
+        }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache v0.1.0 ($Revision: 1095 $)\n");
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 1184 $)\n"
+                   "Copyright (C) 2007 Knut St. Osmundsen\n",
+                   KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
         }
         else
