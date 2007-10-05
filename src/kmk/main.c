@@ -3275,7 +3275,7 @@ print_version (void)
      word "Copyright", so it hardly seems worth it.  */
 
 #ifdef KMK
-  printf ("%skBuild Make %d.%d.%d\n\
+  printf ("%skmk - kBuild version %d.%d.%d\n\
 \n\
 %sBased on GNU Make %s:\n\
 %s Copyright (C) 2006  Free Software Foundation, Inc.\n\
