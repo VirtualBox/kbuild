@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 1187 2007-10-05 22:54:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -206,9 +206,14 @@ static int ParseCPrecompiler(FILE *pInput)
 }
 
 
-static void usage(const char *argv0)
+static int usage(FILE *pOut,  const char *argv0)
 {
-    printf("syntax: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> >\n", argv0);
+    fprintf(pOut,
+            "usage: %s [-l=c] -o <output> -t <target> [-f] [-s] < - | <filename> | -e <cmdline> >\n"
+            "   or: %s --help\n"
+            "   or: %s --version\n",
+            argv0, argv0, argv0);
+    return 1;
 }
 
 
@@ -231,15 +236,21 @@ int main(int argc, char *argv[])
      * Parse arguments.
      */
     if (argc <= 1)
-    {
-        usage(argv[0]);
-        return 1;
-    }
+        return usage(stderr, argv[0]);
     for (i = 1; i < argc; i++)
     {
         if (argv[i][0] == '-')
         {
-            switch (argv[i][1])
+            const char *psz = &argv[i][1];
+            if (*psz == '-')
+            {
+                if (!strcmp(psz, "-help"))
+                    psz = "h";
+                else if (!strcmp(psz, "-version"))
+                    psz = "V";
+            }
+
+            switch (*psz)
             {
                 /*
                  * Output file.
@@ -358,12 +369,24 @@ int main(int argc, char *argv[])
                 }
 
                 /*
+                 * The obligatory help and version.
+                 */
+                case 'h':
+                    usage(stdout, argv[0]);
+                    return 0;
+
+                case 'V':
+                    printf("kDepPre - kBuild version %d.%d.%d\n"
+                           "Copyright (C) 2005-2007 Knut St. Osmundse\n",
+                           KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+                    return 0;
+
+                /*
                  * Invalid argument.
                  */
                 default:
                     fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
-                    usage(argv[0]);
-                    return 1;
+                    return usage(stderr, argv[0]);
             }
         }
         else
