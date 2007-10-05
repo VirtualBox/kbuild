@@ -1704,10 +1704,6 @@ do_variable_definition (const struct floc *flocp, const char *varname,
         }
       else
         v = lookup_variable (varname, varname_len);
-# ifdef CONFIG_WITH_VALUE_LENGTH
-      if (alloc_value)
-        free (alloc_value);
-# endif
     }
   else
 #endif
