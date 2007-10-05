@@ -105,10 +105,10 @@ kmk_builtin_rmdir(int argc, char *argv[], char **envp)
 			ignore_fail_on_not_exist = 1;
 			break;
 		case 262:
-			return kbuild_version(argv[0]);
-		case 263:
 			usage(stdout);
 			return 0;
+		case 263:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
 			return usage(stderr);
