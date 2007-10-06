@@ -227,7 +227,7 @@ initvar(void)
 
             if (i > 0)
             {
-                psz[0] = psz[1] = psz[2] = psz[3] = '\0'; 
+                psz[0] = psz[1] = psz[2] = psz[3] = '\0';
                 rc = DosQueryExtLIBPATH(psz, i);
             }
             else
@@ -364,7 +364,7 @@ setvareq(char *s, int flags)
 	struct var *vp, **vpp;
 	int nlen;
 
-	if (aflag)
+	if (aflag(psh))
 		flags |= VEXPORT;
 	vp = find_var(s, &vpp, &nlen);
 	if (vp != NULL) {
@@ -500,7 +500,7 @@ environment(void)
 			if (vp->flags & VEXPORT)
 				nenv++;
 	}
-	ep = env = stalloc((nenv + 1) * sizeof *env);
+	ep = env = stalloc(psh, (nenv + 1) * sizeof *env);
 	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next)
 			if (vp->flags & VEXPORT)
@@ -705,7 +705,7 @@ localcmd(int argc, char **argv)
 {
 	char *name;
 
-	if (! in_function())
+	if (! in_function(psh))
 		error("Not in a function");
 	while ((name = *argptr++) != NULL) {
 		mklocal(name, 0);

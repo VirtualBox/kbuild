@@ -30,8 +30,16 @@
 #include "shtypes.h"
 #include "shthread.h"
 #include "shfile.h"
+#include "output.h"
+#include "options.h"
 
 #include "var.h"
+
+#define MINSIZE 504		/* minimum size of a block */
+struct stack_block {
+	struct stack_block *prev;
+	char space[MINSIZE];
+};
 
 
 /**
@@ -96,7 +104,7 @@ typedef struct shinstance
     struct var          vpath;
 #ifdef _MSC_VER
     struct var          vpath2;
-#endif 
+#endif
     struct var          vps1;
     struct var          vps2;
     struct var          vps4;
@@ -114,10 +122,16 @@ typedef struct shinstance
 #endif
 
     /* memalloc.h */
-    char               *stacknxt;
-    int                 stacknleft;
+    char               *stacknxt/* = stackbase.space*/;
+    int                 stacknleft/* = MINSIZE*/;
     int                 sstrnleft;
-    int                 herefd;
+    int                 herefd/* = -1 */;
+
+    /* memalloc.c */
+    struct stack_block  stackbase;
+    struct stack_block *stackp/* = &stackbase*/;
+    struct stackmark   *markp;
+
 
     /* jobs.h */
     pid_t               backgndpid;     /**< pid of last background process */
@@ -150,7 +164,7 @@ typedef struct shinstance
 
     /* cd.c */
     char               *curdir;         /**< current working directory */
-    char               *prevdir;	/**< previous working directory */
+    char               *prevdir;        /**< previous working directory */
     char               *cdcomppath;
     int                 getpwd_first;   /**< static in getpwd. (initialized to 1!) */
 
@@ -159,6 +173,12 @@ typedef struct shinstance
 
     /* eval.c */
     int                 vforked;
+
+    /* mail.c */
+#define MAXMBOXES 10
+    int                 nmboxes;        /**< number of mailboxes */
+    time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
+
 } shinstance;
 
 
@@ -171,13 +191,14 @@ char *sh_getenv(shinstance *, const char *);
     typedef uint32_t sh_sigset_t;
 #else
     typedef sigset_t sh_sigset_t;
-#endif 
+#endif
 
 typedef void (*sh_handler)(int);
 sh_handler sh_signal(shinstance *, int, sh_handler handler);
 void sh_raise_sigint(shinstance *);
 void sh_sigemptyset(sh_sigset_t *set);
 int sh_sigprocmask(shinstance *, int op, sh_sigset_t const *new, sh_sigset_t *old);
+void sh_abort(shinstance *);
 
 /* times */
 #include <time.h>
@@ -192,7 +213,7 @@ int sh_sigprocmask(shinstance *, int op, sh_sigset_t const *new, sh_sigset_t *ol
 #else
 #   include <times.h>
     typedef struct tms sh_tms;
-#endif 
+#endif
 clock_t sh_times(sh_tms *);
 int sh_sysconf_clk_tck(void);
 
@@ -218,8 +239,9 @@ int sh_sysconf_clk_tck(void);
 #   define W_STOPCODE(sig)         ((sig) << 8 | _WSTOPPED)
 #else
 #   include <sys/wait.h>
-#endif 
+#endif
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
 void sh__exit(shinstance *, int);
+
 
 #endif

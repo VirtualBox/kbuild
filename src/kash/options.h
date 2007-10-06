@@ -34,6 +34,9 @@
  *	@(#)options.h	8.2 (Berkeley) 5/4/95
  */
 
+#ifndef ___options_h
+#define ___options_h
+
 struct shparam {
 	int nparam;		/* # of positional parameters (without $0) */
 	unsigned char malloc;	/* if parameter list dynamically allocated */
@@ -57,7 +60,7 @@ struct optent {
 # define NOPTS 21
 #else
 # define NOPTS 20
-#endif 
+#endif
 
 #ifdef DEFINE_OPTIONS
 #define DEF_OPTS(name, letter, opt_set) {name, letter, opt_set, 0},
@@ -68,46 +71,46 @@ const struct optent ro_optlist[NOPTS] = {
 #define DEF_OPT(name,letter) DEF_OPTS(name, letter, 0)
 
 DEF_OPT( "errexit",	'e' )	/* exit on error */
-#define eflag optlist[0].val
+#define eflag(psh) (psh)->optlist[0].val
 DEF_OPT( "noglob",	'f' )	/* no pathname expansion */
-#define fflag optlist[1].val
+#define fflag(psh) (psh)->optlist[1].val
 DEF_OPT( "ignoreeof",	'I' )	/* do not exit on EOF */
-#define Iflag optlist[2].val
+#define Iflag(psh) (psh)->optlist[2].val
 DEF_OPT( "interactive",'i' )	/* interactive shell */
-#define iflag optlist[3].val
+#define iflag(psh) (psh)->optlist[3].val
 DEF_OPT( "monitor",	'm' )	/* job control */
-#define mflag optlist[4].val
+#define mflag(psh) (psh)->optlist[4].val
 DEF_OPT( "noexec",	'n' )	/* [U] do not exec commands */
-#define nflag optlist[5].val
+#define nflag(psh) (psh)->optlist[5].val
 DEF_OPT( "stdin",	's' )	/* read from stdin */
-#define sflag optlist[6].val
+#define sflag(psh) (psh)->optlist[6].val
 DEF_OPT( "xtrace",	'x' )	/* trace after expansion */
-#define xflag optlist[7].val
+#define xflag(psh) (psh)->optlist[7].val
 DEF_OPT( "verbose",	'v' )	/* trace read input */
-#define vflag optlist[8].val
+#define vflag(psh) (psh)->optlist[8].val
 DEF_OPTS( "vi",		'V', 'V' )	/* vi style editing */
-#define Vflag optlist[9].val
+#define Vflag(psh) (psh)->optlist[9].val
 DEF_OPTS( "emacs",	'E', 'V' )	/* emacs style editing */
-#define	Eflag optlist[10].val
+#define	Eflag(psh) (psh)->optlist[10].val
 DEF_OPT( "noclobber",	'C' )	/* do not overwrite files with > */
-#define	Cflag optlist[11].val
+#define	Cflag(psh) (psh)->optlist[11].val
 DEF_OPT( "allexport",	'a' )	/* export all variables */
-#define	aflag optlist[12].val
+#define	aflag(psh) (psh)->optlist[12].val
 DEF_OPT( "notify",	'b' )	/* [U] report completion of background jobs */
-#define	bflag optlist[13].val
+#define	bflag(psh) (psh)->optlist[13].val
 DEF_OPT( "nounset",	'u' )	/* error expansion of unset variables */
-#define	uflag optlist[14].val
+#define	uflag(psh) (psh)->optlist[14].val
 DEF_OPT( "quietprofile", 'q' )
-#define	qflag optlist[15].val
+#define	qflag(psh) (psh)->optlist[15].val
 DEF_OPT( "nolog",	0 )	/* [U] no functon defs in command history */
-#define	nolog optlist[16].val
+#define	nolog(psh) (psh)->optlist[16].val
 DEF_OPT( "cdprint",	0 )	/* always print result of cd */
-#define	cdprint optlist[17].val
+#define	cdprint(psh) (psh)->optlist[17].val
 DEF_OPT( "tabcomplete",	0 )	/* <tab> causes filename expansion */
-#define	tabcomplete optlist[18].val
+#define	tabcomplete(psh) (psh)->optlist[18].val
 #ifdef DEBUG
 DEF_OPT( "debug",	0 )	/* enable debug prints */
-#define	debug optlist[19].val
+#define	debug(psh) (psh)->optlist[19].val
 #endif
 
 #ifdef DEFINE_OPTIONS
@@ -135,3 +138,5 @@ int setcmd(struct shinstance *, int, char **);
 int getoptscmd(struct shinstance *, int, char **);
 int nextopt(struct shinstance *, const char *);
 void getoptsreset(struct shinstance *, const char *);
+
+#endif

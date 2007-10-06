@@ -110,11 +110,11 @@ prefix(const char *pfx, const char *string)
  */
 
 int
-number(const char *s)
+number(shinstance *psh, const char *s)
 {
 
 	if (! is_number(s))
-		error("Illegal number: %s", s);
+		error(psh, "Illegal number: %s", s);
 	return atoi(s);
 }
 

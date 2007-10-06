@@ -43,7 +43,7 @@
 #undef  DEFEDITOR
 #define DEFEDITOR	"ed"	/* default editor *should* be $EDITOR */
 #undef  editing
-#define editing (Eflag || Vflag)
+#define editing (Eflag(psh) || Vflag(psh))
 #undef  EOF_NLEFT
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
 #undef  MAXMBOXES

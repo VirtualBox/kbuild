@@ -124,13 +124,13 @@ STATIC void prehash(shinstance *, union node *);
 INCLUDE "eval.h"
 
 RESET {
-	evalskip = 0;
-	loopnest = 0;
-	funcnest = 0;
+	psh->evalskip = 0;
+	psh->loopnest = 0;
+	psh->funcnest = 0;
 }
 
 SHELLPROC {
-	exitstatus = 0;
+	psh->exitstatus = 0;
 }
 #endif
 
@@ -175,17 +175,17 @@ evalcmd(shinstance *psh, int argc, char **argv)
         if (argc > 1) {
                 p = argv[1];
                 if (argc > 2) {
-                        STARTSTACKSTR(concat);
+                        STARTSTACKSTR(psh, concat);
                         ap = argv + 2;
                         for (;;) {
                                 while (*p)
-                                        STPUTC(*p++, concat);
+                                        STPUTC(psh, *p++, concat);
                                 if ((p = *ap++) == NULL)
                                         break;
-                                STPUTC(' ', concat);
+                                STPUTC(psh, ' ', concat);
                         }
-                        STPUTC('\0', concat);
-                        p = grabstackstr(concat);
+                        STPUTC(psh, '\0', concat);
+                        p = grabstackstr(psh, concat);
                 }
                 evalstring(psh, p, EV_TESTED);
         }
@@ -593,7 +593,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 				copyfd(psh, pip[1], 1);
 				shfile_close(&psh->fdtab, pip[1]);
 			}
-			psh->eflag = 0;
+			eflag(psh) = 0;
 			evaltree(psh, n, EV_EXIT);
 			/* NOTREACHED */
 		}
@@ -764,12 +764,12 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	}
 	*argv = NULL;
 	lastarg = NULL;
-	if (psh->iflag && psh->funcnest == 0 && argc > 0)
+	if (iflag(psh) && psh->funcnest == 0 && argc > 0)
 		lastarg = argv[-1];
 	argv -= argc;
 
 	/* Print the command if xflag is set. */
-	if (psh->xflag) {
+	if (xflag(psh)) {
 		char sep = 0;
 		out2str(psh, ps4val(psh));
 		for (sp = varlist.list ; sp ; sp = sp->next) {
@@ -1061,7 +1061,7 @@ normal_fork:
 			popredir(psh);
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = psh->memout.buf;
-			backcmd->nleft = psh->memout.nextc - psh->memout.buf;
+			backcmd->nleft = (int)(psh->memout.nextc - psh->memout.buf);
 			psh->memout.buf = NULL;
 		}
 		break;
@@ -1100,7 +1100,7 @@ out:
 		setvar(psh, "_", lastarg, 0);
 	popstackmark(psh, &smark);
 
-	if (psh->eflag && psh->exitstatus && !(flags & EV_TESTED))
+	if (eflag(psh) && psh->exitstatus && !(flags & EV_TESTED))
 		exitshell(psh, psh->exitstatus);
 }
 
@@ -1159,7 +1159,7 @@ bltincmd(shinstance *psh, int argc, char **argv)
 int
 breakcmd(shinstance *psh, int argc, char **argv)
 {
-	int n = argc > 1 ? number(argv[1]) : 1;
+	int n = argc > 1 ? number(psh, argv[1]) : 1;
 
 	if (n > psh->loopnest)
 		n = psh->loopnest;
@@ -1178,7 +1178,7 @@ breakcmd(shinstance *psh, int argc, char **argv)
 int
 returncmd(shinstance *psh, int argc, char **argv)
 {
-	int ret = argc > 1 ? number(argv[1]) : psh->exitstatus;
+	int ret = argc > 1 ? number(psh, argv[1]) : psh->exitstatus;
 
 	if (psh->funcnest) {
 		psh->evalskip = SKIPFUNC;
@@ -1214,8 +1214,8 @@ execcmd(shinstance *psh, int argc, char **argv)
 	if (argc > 1) {
 		struct strlist *sp;
 
-		psh->iflag = 0;		/* exit on error */
-		psh->mflag = 0;
+		iflag(psh) = 0;		/* exit on error */
+		mflag(psh) = 0;
 		optschanged(psh);
 		for (sp = psh->cmdenviron; sp; sp = sp->next)
 			setvareq(psh, sp->text, VEXPORT|VSTACK);
@@ -1229,7 +1229,7 @@ conv_time(clock_t ticks, char *seconds, size_t l)
 {
 	static clock_t tpm = 0;
 	clock_t mins;
-	int i;
+	size_t i;
 
 	if (!tpm)
 		tpm = /*sysconf(_SC_CLK_TCK)*/sh_sysconf_clk_tck() * 60;

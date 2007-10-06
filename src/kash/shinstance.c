@@ -29,11 +29,11 @@
 
 /**
  * Creates a root shell instance.
- * 
+ *
  * @param   inherit     The shell to inherit from. If NULL inherit from environment and such.
  * @param   argc        The argument count.
  * @param   argv        The argument vector.
- * 
+ *
  * @returns pointer to root shell on success, NULL on failure.
  */
 shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
@@ -44,7 +44,13 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
     if (psh)
     {
         memset(psh, 0, sizeof(*psh));
-        psh->
+
+        /* memalloc.c */
+        psh->stacknleft = MINSIZE;
+        psh->herefd = -1;
+        psh->stackp = &psh->stackbase;
+        psh->stacknxt = psh->stackbase.space;
+
     }
     return psh;
 }

@@ -205,7 +205,7 @@ openredirect(union node *redir, char memory[10], int flags)
 			goto ecreate;
 		break;
 	case NTO:
-		if (Cflag)
+		if (Cflag(psh))
 			oflags |= O_EXCL;
 		/* FALLTHROUGH */
 	case NCLOBBER:
@@ -266,7 +266,7 @@ openhere(union node *redir)
 	if (redir->type == NHERE) {
 		len = strlen(redir->nhere.doc->narg.text);
 		if (len <= PIPESIZE) {
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
+			xwrite(psh, pip[1], redir->nhere.doc->narg.text, len);
 			goto out;
 		}
 	}
@@ -280,7 +280,7 @@ openhere(union node *redir)
 #endif
 		signal(SIGPIPE, SIG_DFL);
 		if (redir->type == NHERE)
-			xwrite(pip[1], redir->nhere.doc->narg.text, len);
+			xwrite(psh, pip[1], redir->nhere.doc->narg.text, len);
 		else
 			expandhere(redir->nhere.doc, pip[1]);
 		_exit(0);

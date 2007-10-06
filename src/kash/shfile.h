@@ -1,7 +1,7 @@
 /* $Id: $ */
 /** @file
  *
- * File management. 
+ * File management.
  *
  * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
  *
@@ -54,6 +54,9 @@ typedef struct shfdtab
 int shfile_open(shfdtab *, const char *, unsigned);
 int shfile_pipe(shfdtab *, int [2]);
 int shfile_close(shfdtab *, unsigned);
+long shfile_read(shfdtab *, int, void *, size_t);
+long shfile_write(shfdtab *, int, const void *, size_t);
+long shfile_lseek(shfdtab *, int, long, int);
 int shfile_fcntl(shfdtab *, int fd, int cmd, int arg);
 #ifdef _MSC_VER
 # define F_DUPFD    0
@@ -70,6 +73,7 @@ int shfile_stat(shfdtab *, const char *, struct stat *);
 int shfile_lstat(shfdtab *, const char *, struct stat *);
 int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);
-         
+int shfile_isatty(shfdtab *, int);
+
 #endif
 

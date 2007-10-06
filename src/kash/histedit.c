@@ -90,9 +90,9 @@ histedit(void)
 {
 	FILE *el_err;
 
-#define editing (Eflag || Vflag)
+#define editing (Eflag(psh) || Vflag(psh))
 
-	if (iflag) {
+	if (iflag(psh)) {
 		if (!hist) {
 			/*
 			 * turn history on
@@ -153,12 +153,12 @@ bad:
 			INTON;
 		}
 		if (el) {
-			if (Vflag)
+			if (Vflag(psh))
 				el_set(el, EL_EDITOR, "vi");
-			else if (Eflag)
+			else if (Eflag(psh))
 				el_set(el, EL_EDITOR, "emacs");
 			el_set(el, EL_BIND, "^I",
-			    tabcomplete ? "rl-complete" : "ed-insert", NULL);
+			    tabcomplete(psh) ? "rl-complete" : "ed-insert", NULL);
 			el_source(el, NULL);
 		}
 	} else {
@@ -417,7 +417,7 @@ histcmd(int argc, char **argv)
 					out2str(s);
 				}
 
-				evalstring(strcpy(stalloc(strlen(s) + 1), s), 0);
+				evalstring(strcpy(stalloc(psh, strlen(s) + 1), s), 0);
 				if (displayhist && hist) {
 					/*
 					 *  XXX what about recursive and
@@ -439,7 +439,7 @@ histcmd(int argc, char **argv)
 		char *editcmd;
 
 		fclose(efp);
-		editcmd = stalloc(strlen(editor) + strlen(editfile) + 2);
+		editcmd = stalloc(psh, strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(editcmd, 0);	/* XXX - should use no JC command */
 		INTON;
@@ -460,18 +460,18 @@ fc_replace(const char *s, char *p, char *r)
 	char *dest;
 	int plen = strlen(p);
 
-	STARTSTACKSTR(dest);
+	STARTSTACKSTR(psh, dest);
 	while (*s) {
 		if (*s == *p && strncmp(s, p, plen) == 0) {
 			while (*r)
-				STPUTC(*r++, dest);
+				STPUTC(psh, *r++, dest);
 			s += plen;
 			*p = '\0';	/* so no more matches */
 		} else
-			STPUTC(*s++, dest);
+			STPUTC(psh, *s++, dest);
 	}
-	STACKSTRNUL(dest);
-	dest = grabstackstr(dest);
+	STACKSTRNUL(psh, dest);
+	dest = grabstackstr(psh, dest);
 
 	return (dest);
 }
@@ -536,15 +536,17 @@ str_to_event(const char *str, int last)
 }
 #else
 int
-histcmd(int argc, char **argv)
+histcmd(shinstance *psh, int argc, char **argv)
 {
-	error("not compiled with history support");
+	error(psh, "not compiled with history support");
 	/* NOTREACHED */
+	return -1;
 }
 int
-inputrc(int argc, char **argv)
+inputrc(shinstance *psh, int argc, char **argv)
 {
-	error("not compiled with history support");
+	error(psh, "not compiled with history support");
 	/* NOTREACHED */
+	return -1;
 }
 #endif

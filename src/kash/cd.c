@@ -85,7 +85,7 @@ cdcmd(shinstance *psh, int argc, char **argv)
 	const char *path;
 	char *p, *d;
 	struct stat statb;
-	int print = psh->cdprint;	/* set -cdprint to enable */
+	int print = cdprint(psh);	/* set -cdprint to enable */
 
 	nextopt(psh, nullstr);
 
@@ -170,9 +170,9 @@ docd(shinstance *psh, char *dest, int print)
 	badstat = 0;
 	psh->cdcomppath = stalloc(psh, strlen(dest) + 1);
 	scopy(dest, psh->cdcomppath);
-	STARTSTACKSTR(p);
+	STARTSTACKSTR(psh, p);
 	if (IS_ROOT(dest)) {
-		STPUTC('/', p);
+		STPUTC(psh, '/', p);
 		psh->cdcomppath++;
 	}
 	first = 1;
@@ -180,15 +180,15 @@ docd(shinstance *psh, char *dest, int print)
 		if (q[0] == '\0' || (q[0] == '.' && q[1] == '\0'))
 			continue;
 		if (! first)
-			STPUTC('/', p);
+			STPUTC(psh, '/', p);
 		first = 0;
 		component = q;
 		while (*q)
-			STPUTC(*q++, p);
+			STPUTC(psh, *q++, p);
 		if (equal(component, ".."))
 			continue;
-		STACKSTRNUL(p);
-		if ((shfile_lstat(&psh->fdtab, stackblock(), &statb) < 0)
+		STACKSTRNUL(psh, p);
+		if ((shfile_lstat(&psh->fdtab, stackblock(psh), &statb) < 0)
 		    || (S_ISLNK(statb.st_mode)))  {
 			/* print = 1; */
 			badstat = 1;
@@ -203,7 +203,7 @@ docd(shinstance *psh, char *dest, int print)
 	}
 	updatepwd(psh, badstat ? NULL : dest);
 	INTON;
-	if (print && psh->iflag && psh->curdir)
+	if (print && iflag(psh) && psh->curdir)
 		out1fmt(psh, "%s\n", psh->curdir);
 	return 0;
 }
@@ -271,31 +271,31 @@ updatepwd(shinstance *psh, char *dir)
 	}
 	psh->cdcomppath = stalloc(psh, strlen(dir) + 1);
 	scopy(dir, psh->cdcomppath);
-	STARTSTACKSTR(new);
+	STARTSTACKSTR(psh, new);
 	if (!IS_ROOT(dir)) {
 		p = psh->curdir;
 		while (*p)
-			STPUTC(*p++, new);
+			STPUTC(psh, *p++, new);
 		if (p[-1] == '/')
-			STUNPUTC(new);
+			STUNPUTC(psh, new);
 	}
 	while ((p = getcomponent(psh)) != NULL) {
 		if (equal(p, "..")) {
-			while (new > stackblock() && (STUNPUTC(new), *new) != '/');
+			while (new > stackblock(psh) && (STUNPUTC(psh, new), *new) != '/');
 		} else if (*p != '\0' && ! equal(p, ".")) {
-			STPUTC('/', new);
+			STPUTC(psh, '/', new);
 			while (*p)
-				STPUTC(*p++, new);
+				STPUTC(psh, *p++, new);
 		}
 	}
-	if (new == stackblock())
-		STPUTC('/', new);
-	STACKSTRNUL(new);
+	if (new == stackblock(psh))
+		STPUTC(psh, '/', new);
+	STACKSTRNUL(psh, new);
 	INTOFF;
 	if (psh->prevdir)
 		ckfree(psh->prevdir);
 	psh->prevdir = psh->curdir;
-	psh->curdir = savestr(stackblock());
+	psh->curdir = savestr(stackblock(psh));
 	setvar(psh, "PWD", psh->curdir, VEXPORT);
 	INTON;
 }

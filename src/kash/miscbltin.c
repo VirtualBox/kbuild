@@ -124,7 +124,7 @@ readcmd(int argc, char **argv)
 
 	status = 0;
 	startword = 2;
-	STARTSTACKSTR(p);
+	STARTSTACKSTR(psh, p);
 	for (;;) {
 		if (read(0, &c, 1) != 1) {
 			status = 1;
@@ -138,7 +138,7 @@ readcmd(int argc, char **argv)
 				break;
 			}
 			if (c != '\n')
-				STPUTC(c, p);
+				STPUTC(psh, c, p);
 			continue;
 		}
 		if (c == '\n')
@@ -152,14 +152,14 @@ readcmd(int argc, char **argv)
 			if (is_ifs == 1) {
 				/* Ignore leading IFS whitespace */
 				if (saveall)
-					STPUTC(c, p);
+					STPUTC(psh, c, p);
 				continue;
 			}
 			if (is_ifs == 2 && startword == 1) {
 				/* Only one non-whitespace IFS per word */
 				startword = 2;
 				if (saveall)
-					STPUTC(c, p);
+					STPUTC(psh, c, p);
 				continue;
 			}
 		}
@@ -170,7 +170,7 @@ readcmd(int argc, char **argv)
 			if (saveall)
 				/* Not just a spare terminator */
 				saveall++;
-			STPUTC(c, p);
+			STPUTC(psh, c, p);
 			continue;
 		}
 
@@ -180,19 +180,19 @@ readcmd(int argc, char **argv)
 		if (ap[1] == NULL) {
 			/* Last variable needs all IFS chars */
 			saveall++;
-			STPUTC(c, p);
+			STPUTC(psh, c, p);
 			continue;
 		}
 
-		STACKSTRNUL(p);
-		setvar(*ap, stackblock(), 0);
+		STACKSTRNUL(psh, p);
+		setvar(*ap, stackblock(psh), 0);
 		ap++;
-		STARTSTACKSTR(p);
+		STARTSTACKSTR(psh, p);
 	}
-	STACKSTRNUL(p);
+	STACKSTRNUL(psh, p);
 
 	/* Remove trailing IFS chars */
-	for (; stackblock() <= --p; *p = 0) {
+	for (; stackblock(psh) <= --p; *p = 0) {
 		if (!strchr(ifs, *p))
 			break;
 		if (strchr(" \t\n", *p))
@@ -202,7 +202,7 @@ readcmd(int argc, char **argv)
 			/* Don't remove non-whitespace unless it was naked */
 			break;
 	}
-	setvar(*ap, stackblock(), 0);
+	setvar(*ap, stackblock(psh), 0);
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)

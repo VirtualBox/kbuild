@@ -71,8 +71,8 @@ void dprintf(struct shinstance *, const char *, ...)
 void fmtstr(char *, size_t, const char *, ...)
     __attribute__((__format__(__printf__,3,4)));
 void doformat(struct output *, const char *, va_list);
-int xwrite(int, char *, int);
-int xioctl(int, unsigned long, char *);
+int xwrite(struct shinstance *, int, char *, int);
+int xioctl(struct shinstance *, int, unsigned long, char *);
 
 #define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
 #define out1c(psh, c)	outc(c, (psh)->out1);

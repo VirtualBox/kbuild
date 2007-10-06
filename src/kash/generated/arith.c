@@ -328,17 +328,17 @@ expcmd(argc, argv)
 			/*
 			 * concatenate arguments
 			 */
-			STARTSTACKSTR(concat);
+			STARTSTACKSTR(psh, concat);
 			ap = argv + 2;
 			for (;;) {
 				while (*p)
-					STPUTC(*p++, concat);
+					STPUTC(psh, *p++, concat);
 				if ((p = *ap++) == NULL)
 					break;
-				STPUTC(' ', concat);
+				STPUTC(psh, ' ', concat);
 			}
-			STPUTC('\0', concat);
-			p = grabstackstr(concat);
+			STPUTC(psh, '\0', concat);
+			p = grabstackstr(psh, concat);
 		}
 	} else
 		p = "";
@@ -381,7 +381,7 @@ yyerror(s)
 #define YYACCEPT goto yyaccept
 #define YYERROR goto yyerrlab
 #ifdef __cplusplus
-extern "C" { 
+extern "C" {
 char * getenv();
 int yylex();
 int yyparse();
