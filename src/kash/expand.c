@@ -438,7 +438,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	saveherefd = psh->herefd;
 	psh->herefd = -1;
 	p = grabstackstr(psh, dest);
-	evalbackcmd(cmd, &in);
+	evalbackcmd(psh, cmd, &in);
 	ungrabstackstr(psh, p, dest);
 	ifsfirst = saveifs;
 	ifslastp = savelastp;

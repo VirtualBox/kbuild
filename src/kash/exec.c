@@ -153,7 +153,7 @@ shellexec(char **argv, char **envp, const char *path, int idx, int vforked)
 		e = errno;
 	} else {
 		e = ENOENT;
-		while ((cmdname = padvance(&path, argv[0])) != NULL) {
+		while ((cmdname = padvance(psh, &path, argv[0])) != NULL) {
 			if (--idx < 0 && pathopt == NULL) {
 				tryexec(cmdname, argv, envp, vforked, has_ext);
 				if (errno != ENOENT && errno != ENOTDIR)
@@ -309,7 +309,7 @@ break2:;
 	ap = argv;
 	while (*ap2++ = *ap++);
 	TRACE((psh, "hash bang '%s'\n", new[0]));
-	shellexec(new, envp, pathval(), 0, 0);
+	shellexec(psh, new, envp, pathval(), 0, 0);
 	/* NOTREACHED */
 }
 #endif
@@ -457,7 +457,7 @@ hashcmd(int argc, char **argv)
 		 && (cmdp->cmdtype == CMDNORMAL
 		     || (cmdp->cmdtype == CMDBUILTIN && builtinloc >= 0)))
 			delete_cmd_entry();
-		find_command(name, &entry, DO_ERR, pathval());
+		find_command(psh, name, &entry, DO_ERR, pathval());
 		if (verbose) {
 			if (entry.cmdtype != CMDUNKNOWN) {	/* if no error msg */
 				cmdp = cmdlookup(name, 0);
@@ -483,7 +483,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		idx = cmdp->param.index;
 		path = pathval();
 		do {
-			name = padvance(&path, cmdp->cmdname);
+			name = padvance(psh, &path, cmdp->cmdname);
 			stunalloc(psh, name);
 		} while (--idx >= 0);
 		out1str(psh, name);
@@ -606,7 +606,7 @@ find_command(char *name, struct cmdentry *entry, int act, const char *path)
 
 	/* If %builtin not in path, check for builtin next */
 	if ((act & DO_ALTPATH ? !(act & DO_ALTBLTIN) : builtinloc < 0) &&
-	    (bltin = find_builtin(name)) != 0)
+	    (bltin = find_builtin(psh, name)) != 0)
 		goto builtin_success;
 
 	/* We have to search path. */
@@ -621,12 +621,12 @@ find_command(char *name, struct cmdentry *entry, int act, const char *path)
 	e = ENOENT;
 	idx = -1;
 loop:
-	while ((fullname = padvance(&path, name)) != NULL) {
+	while ((fullname = padvance(psh, &path, name)) != NULL) {
 		stunalloc(psh, fullname);
 		idx++;
 		if (pathopt) {
 			if (prefix("builtin", pathopt)) {
-				if ((bltin = find_builtin(name)) == 0)
+				if ((bltin = find_builtin(psh, name)) == 0)
 					goto loop;
 				goto builtin_success;
 			} else if (prefix("func", pathopt)) {
@@ -891,15 +891,15 @@ clearcmdentry(int firstchange)
  */
 
 #ifdef mkinit
-MKINIT void deletefuncs(void);
-MKINIT void hash_special_builtins(void);
+MKINIT void deletefuncs(struct shinstance *);
+MKINIT void hash_special_builtins(struct shinstance *);
 
 INIT {
-	hash_special_builtins();
+	hash_special_builtins(psh);
 }
 
 SHELLPROC {
-	deletefuncs();
+	deletefuncs(psh);
 }
 #endif
 
@@ -1042,7 +1042,7 @@ defun(char *name, union node *func)
 	INTOFF;
 	entry.cmdtype = CMDFUNCTION;
 	entry.u.func = copyfunc(func);
-	addcmdentry(name, &entry);
+	addcmdentry(psh, name, &entry);
 	INTON;
 }
 
@@ -1125,7 +1125,7 @@ typecmd(int argc, char **argv)
 			entry.u = cmdp->param;
 		} else {
 			/* Finally use brute force */
-			find_command(arg, &entry, DO_ABS, pathval());
+			find_command(psh, arg, &entry, DO_ABS, pathval());
 		}
 
 		switch (entry.cmdtype) {
@@ -1135,7 +1135,7 @@ typecmd(int argc, char **argv)
 				char *name;
 				int j = entry.u.index;
 				do {
-					name = padvance(&path, arg);
+					name = padvance(psh, &path, arg);
 					stunalloc(psh, name);
 				} while (--j >= 0);
 				if (!v_flag)

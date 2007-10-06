@@ -407,7 +407,7 @@ dotrap(void)
 		}
 		gotsig[i - 1] = 0;
 		savestatus=exitstatus;
-		evalstring(trap[i], 0);
+		evalstring(psh, trap[i], 0);
 		exitstatus=savestatus;
 	}
 done:
@@ -456,7 +456,7 @@ exitshell(int status)
 	handler = &loc1;
 	if ((p = trap[0]) != NULL && *p != '\0') {
 		trap[0] = NULL;
-		evalstring(p, 0);
+		evalstring(psh, p, 0);
 	}
 l1:   handler = &loc2;			/* probably unnecessary */
 	output_flushall(psh);

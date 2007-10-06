@@ -831,9 +831,9 @@ unsetcmd(int argc, char **argv)
 
 	for (ap = argptr; *ap ; ap++) {
 		if (flg_func)
-			ret |= unsetfunc(*ap);
+			ret |= unsetfunc(psh, *ap);
 		if (flg_var)
-			ret |= unsetvar(*ap, flg_var == 'e');
+			ret |= unsetvar(psh, *ap, flg_var == 'e');
 	}
 	return ret;
 }
