@@ -220,7 +220,7 @@ retry:
                                 if (flags >= 0 && flags & O_NONBLOCK) {
                                         flags &=~ O_NONBLOCK;
                                         if (fcntl(0, F_SETFL, flags) >= 0) {
-						out2str("sh: turning off NDELAY mode\n");
+						out2str(psh, "sh: turning off NDELAY mode\n");
                                                 goto retry;
                                         }
                                 }
@@ -316,7 +316,7 @@ check:
 #endif
 
 	if (vflag(psh)) {
-		out2str(parsenextc);
+		out2str(psh, parsenextc);
 		flushout(out2);
 	}
 
@@ -396,12 +396,12 @@ setinputfile(const char *fname, int push)
 
 	INTOFF;
 	if ((fd = open(fname, O_RDONLY)) < 0)
-		error("Can't open %s", fname);
+		error(psh, "Can't open %s", fname);
 	if (fd < 10) {
 		fd2 = copyfd(fd, 10);
 		close(fd);
 		if (fd2 < 0)
-			error("Out of file descriptors");
+			error(psh, "Out of file descriptors");
 		fd = fd2;
 	}
 	setinputfd(fd, push);

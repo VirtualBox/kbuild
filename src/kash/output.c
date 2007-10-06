@@ -70,18 +70,19 @@ __RCSID("$NetBSD: output.c,v 1.28 2003/08/07 09:05:36 agc Exp $");
 #include "memalloc.h"
 #include "error.h"
 
+#include "shinstance.h"
 
-#define OUTBUFSIZ BUFSIZ
+//#define OUTBUFSIZ BUFSIZ
 #define BLOCK_OUT -2		/* output to a fixed block of memory */
-#define MEM_OUT -3		/* output to dynamically allocated memory */
+//#define MEM_OUT -3		/* output to dynamically allocated memory */
 #define OUTPUT_ERR 01		/* error occurred on output */
 
 
-struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 100, 2, 0};
-struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
-struct output *out1 = &output;
-struct output *out2 = &errout;
+//struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
+//struct output errout = {NULL, 0, NULL, 100, 2, 0};
+//struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
+//struct output *out1 = &output;
+//struct output *out2 = &errout;
 
 
 
@@ -91,11 +92,11 @@ INCLUDE "output.h"
 INCLUDE "memalloc.h"
 
 RESET {
-	out1 = &output;
-	out2 = &errout;
-	if (memout.buf != NULL) {
-		ckfree(memout.buf);
-		memout.buf = NULL;
+	psh->out1 = &psh->output;
+	psh->out2 = &psh->errout;
+	if (psh->memout.buf != NULL) {
+		ckfree(psh->memout.buf);
+		psh->memout.buf = NULL;
 	}
 }
 
@@ -119,16 +120,16 @@ open_mem(char *block, int length, struct output *file)
 
 
 void
-out1str(const char *p)
+out1str(shinstance *psh, const char *p)
 {
-	outstr(p, out1);
+	outstr(p, psh->out1);
 }
 
 
 void
-out2str(const char *p)
+out2str(shinstance *psh, const char *p)
 {
-	outstr(p, out2);
+	outstr(p, psh->out2);
 }
 
 
@@ -137,7 +138,7 @@ outstr(const char *p, struct output *file)
 {
 	while (*p)
 		outc(*p++, file);
-	if (file == out2)
+	if (file == file->psh->out2)
 		flushout(file);
 }
 
@@ -149,6 +150,7 @@ void
 emptyoutbuf(struct output *dest)
 {
 	int offset;
+	shinstance *psh = dest->psh;
 
 	if (dest->fd == BLOCK_OUT) {
 		dest->nextc = out_junk;
@@ -176,10 +178,10 @@ emptyoutbuf(struct output *dest)
 
 
 void
-output_flushall(void)
+output_flushall(shinstance *psh)
 {
-	flushout(&output);
-	flushout(&errout);
+	flushout(&psh->output);
+	flushout(&psh->errout);
 }
 
 
@@ -189,7 +191,7 @@ flushout(struct output *dest)
 
 	if (dest->buf == NULL || dest->nextc == dest->buf || dest->fd < 0)
 		return;
-	if (xwrite(psh, dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
+	if (xwrite(dest->psh, dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
 		dest->flags |= OUTPUT_ERR;
 	dest->nextc = dest->buf;
 	dest->nleft = dest->bufsize;
@@ -197,13 +199,13 @@ flushout(struct output *dest)
 
 
 void
-freestdout(void)
+freestdout(shinstance *psh)
 {
 	INTOFF;
-	if (output.buf) {
-		ckfree(output.buf);
-		output.buf = NULL;
-		output.nleft = 0;
+	if (psh->output.buf) {
+		ckfree(psh->output.buf);
+		psh->output.buf = NULL;
+		psh->output.nleft = 0;
 	}
 	INTON;
 }
@@ -221,24 +223,24 @@ outfmt(struct output *file, const char *fmt, ...)
 
 
 void
-out1fmt(const char *fmt, ...)
+out1fmt(shinstance *psh, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	doformat(out1, fmt, ap);
+	doformat(psh->out1, fmt, ap);
 	va_end(ap);
 }
 
 void
-dprintf(const char *fmt, ...)
+dprintf(shinstance *psh, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	doformat(out2, fmt, ap);
+	doformat(psh->out2, fmt, ap);
 	va_end(ap);
-	flushout(out2);
+	flushout(psh->out2);
 }
 
 void
@@ -249,7 +251,7 @@ fmtstr(char *outbuf, size_t length, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	strout.nextc = outbuf;
-	strout.nleft = length;
+	strout.nleft = (int)length;
 	strout.fd = BLOCK_OUT;
 	strout.flags = 0;
         strout.psh = NULL;
@@ -413,7 +415,7 @@ number:		  /* process a number */
 				*--p = digit[num % base];
 				num /= base;
 			}
-			len = (temp + TEMPSIZE - 1) - p;
+			len = (int)((temp + TEMPSIZE - 1) - p);
 			if (prec < 0)
 				prec = 1;
 			if (sharp && *f == 'o' && prec <= len)
@@ -444,7 +446,7 @@ number:		  /* process a number */
 			p = va_arg(ap, char *);
 			pad = 0;
 			if (width) {
-				len = strlen(p);
+				len = (int)strlen(p);
 				if (prec >= 0 && len > prec)
 					len = prec;
 				pad = width - len;
@@ -479,11 +481,11 @@ number:		  /* process a number */
  */
 
 int
-xwrite(shinstance *psh, int fd, char *buf, int nbytes)
+xwrite(shinstance *psh, int fd, char *buf, size_t nbytes)
 {
 	int ntry;
-	int i;
-	int n;
+	long i;
+	size_t n;
 
 	n = nbytes;
 	ntry = 0;
@@ -491,12 +493,12 @@ xwrite(shinstance *psh, int fd, char *buf, int nbytes)
 		i = shfile_write(&psh->fdtab, fd, buf, n);
 		if (i > 0) {
 			if ((n -= i) <= 0)
-				return nbytes;
+				return (int)nbytes;
 			buf += i;
 			ntry = 0;
 		} else if (i == 0) {
 			if (++ntry > 10)
-				return nbytes - n;
+				return (int)(nbytes - n);
 		} else if (errno != EINTR) {
 			return -1;
 		}
@@ -504,6 +506,7 @@ xwrite(shinstance *psh, int fd, char *buf, int nbytes)
 }
 
 
+#ifdef not_used
 /*
  * Version of ioctl that retries after a signal is caught.
  * XXX unused function
@@ -517,3 +520,4 @@ xioctl(shinstance *psh, int fd, unsigned long request, char *arg)
 	while ((i = shfile_ioctl(&psh->fdtab, fd, request, arg)) == -1 && errno == EINTR);
 	return i;
 }
+#endif /* not_used */

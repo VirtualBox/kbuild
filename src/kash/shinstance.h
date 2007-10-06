@@ -83,6 +83,9 @@ typedef struct shinstance
     struct output       memout;
     struct output      *out1;
     struct output      *out2;
+    /* output.c */
+#define OUTBUFSIZ BUFSIZ
+#define MEM_OUT -3                      /**< output to dynamically allocated memory */
 
     /* options.h */
     struct optent       optlist[NOPTS];

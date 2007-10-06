@@ -126,17 +126,17 @@ printsignals(void)
 {
 	int n;
 
-	out1str("EXIT ");
+	out1str(psh, "EXIT ");
 #ifndef HAVE_SYS_SIGNAME
 	init_sys_signame();
 #endif
 
 	for (n = 1; n < NSIG; n++) {
-		out1fmt("%s", sys_signame[n]);
+		out1fmt(psh, "%s", sys_signame[n]);
 		if ((n == NSIG/2) ||  n == (NSIG - 1))
-			out1str("\n");
+			out1str(psh, "\n");
 		else
-			out1c(' ');
+			out1c(psh, ' ');
 	}
 }
 
@@ -157,9 +157,9 @@ trapcmd(int argc, char **argv)
 	if (argc <= 1) {
 		for (signo = 0 ; signo <= NSIG ; signo++)
 			if (trap[signo] != NULL) {
-				out1fmt("trap -- ");
+				out1fmt(psh, "trap -- ");
 				print_quoted(trap[signo]);
-				out1fmt(" %s\n",
+				out1fmt(psh, " %s\n",
 				    (signo) ? sys_signame[signo] : "EXIT");
 			}
 		return 0;
@@ -181,7 +181,7 @@ trapcmd(int argc, char **argv)
 				return 0;
 			}
 			else
-				error("bad option %s\n", *ap);
+				error(psh, "bad option %s\n", *ap);
 		}
 		else
 			action = *ap++;
@@ -194,7 +194,7 @@ trapcmd(int argc, char **argv)
 			signo = signame_to_signum(*ap);
 
 		if (signo < 0 || signo > NSIG)
-			error("%s: bad trap", *ap);
+			error(psh, "%s: bad trap", *ap);
 
 		INTOFF;
 		if (action)
@@ -374,11 +374,11 @@ SHELLPROC {
  */
 
 void
-onsig(int signo)
+onsig(shinstance *psh, int signo)
 {
 	signal(signo, onsig);
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
-		onint();
+		onint(psh);
 		return;
 	}
 	gotsig[signo - 1] = 1;
@@ -446,7 +446,7 @@ exitshell(int status)
 	struct jmploc loc1, loc2;
 	char *p;
 
-	TRACE(("pid %d, exitshell(%d)\n", getpid(), status));
+	TRACE((psh, "pid %d, exitshell(%d)\n", getpid(), status));
 	if (setjmp(loc1.loc)) {
 		goto l1;
 	}
@@ -459,7 +459,7 @@ exitshell(int status)
 		evalstring(p, 0);
 	}
 l1:   handler = &loc2;			/* probably unnecessary */
-	output_flushall();
+	output_flushall(psh);
 #if JOBS
 	setjobctl(0);
 #endif

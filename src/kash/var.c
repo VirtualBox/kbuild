@@ -331,7 +331,7 @@ setvar(const char *name, const char *val, int flags)
 	}
 	namelen = p - name;
 	if (isbad)
-		error("%.*s: bad variable name", namelen, name);
+		error(psh, "%.*s: bad variable name", namelen, name);
 	len = namelen + 2;		/* 2 is space for '=' and '\0' */
 	if (val == NULL) {
 		flags |= VUNSET;
@@ -369,7 +369,7 @@ setvareq(char *s, int flags)
 	vp = find_var(s, &vpp, &nlen);
 	if (vp != NULL) {
 		if (vp->flags & VREADONLY)
-			error("%.*s: is read only", vp->name_len, s);
+			error(psh, "%.*s: is read only", vp->name_len, s);
 		if (flags & VNOSET)
 			return;
 		INTOFF;
@@ -574,21 +574,21 @@ print_quoted(const char *p)
 	const char *q;
 
 	if (strcspn(p, "|&;<>()$`\\\"' \t\n*?[]#~=%") == strlen(p)) {
-		out1fmt("%s", p);
+		out1fmt(psh, "%s", p);
 		return;
 	}
 	while (*p) {
 		if (*p == '\'') {
-			out1fmt("\\'");
+			out1fmt(psh, "\\'");
 			p++;
 			continue;
 		}
 		q = index(p, '\'');
 		if (!q) {
-			out1fmt("'%s'", p );
+			out1fmt(psh, "'%s'", p );
 			return;
 		}
-		out1fmt("'%.*s'", (int)(q - p), p );
+		out1fmt(psh, "'%.*s'", (int)(q - p), p );
 		p = q;
 	}
 }
@@ -647,14 +647,14 @@ showvars(const char *name, int flag, int show_value)
 	for (vpp = list; count--; vpp++) {
 		vp = *vpp;
 		if (name)
-			out1fmt("%s ", name);
+			out1fmt(psh, "%s ", name);
 		for (p = vp->text ; *p != '=' ; p++)
-			out1c(*p);
+			out1c(psh, *p);
 		if (!(vp->flags & VUNSET) && show_value) {
-			out1fmt("=");
-			print_quoted(++p);
+			out1fmt(psh, "=");
+			print_quoted(psh, ++p);
 		}
-		out1c('\n');
+		out1c(psh, '\n');
 	}
 	return 0;
 }
@@ -706,7 +706,7 @@ localcmd(int argc, char **argv)
 	char *name;
 
 	if (! in_function(psh))
-		error("Not in a function");
+		error(psh, "Not in a function");
 	while ((name = *argptr++) != NULL) {
 		mklocal(name, 0);
 	}
@@ -773,7 +773,7 @@ poplocalvars(void)
 	while ((lvp = localvars) != NULL) {
 		localvars = lvp->next;
 		vp = lvp->vp;
-		TRACE(("poplocalvar %s", vp ? vp->text : "-"));
+		TRACE((psh, "poplocalvar %s", vp ? vp->text : "-"));
 		if (vp == NULL) {	/* $- saved */
 			memcpy(optlist, lvp->text, sizeof_optlist);
 			ckfree(lvp->text);
@@ -800,7 +800,7 @@ setvarcmd(int argc, char **argv)
 	else if (argc == 3)
 		setvar(argv[1], argv[2], 0);
 	else
-		error("List assignment not implemented");
+		error(psh, "List assignment not implemented");
 	return 0;
 }
 

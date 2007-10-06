@@ -112,12 +112,12 @@ readcmd(int argc, char **argv)
 	}
 
 	if (prompt && isatty(0)) {
-		out2str(prompt);
-		output_flushall();
+		out2str(psh, prompt);
+		output_flushall(psh);
 	}
 
 	if (*(ap = argptr) == NULL)
-		error("arg count");
+		error(psh, "arg count");
 
 	if ((ifs = bltinlookup("IFS", 1)) == NULL)
 		ifs = " \t\n";
@@ -260,16 +260,16 @@ umaskcmd(int argc, char **argv)
 				o[i++] = 'x';
 			o[i] = '\0';
 
-			out1fmt("u=%s,g=%s,o=%s\n", u, g, o);
+			out1fmt(psh, "u=%s,g=%s,o=%s\n", u, g, o);
 		} else {
-			out1fmt("%.4o\n", mask);
+			out1fmt(psh, "%.4o\n", mask);
 		}
 	} else {
 		if (isdigit((unsigned char)*ap)) {
 			mask = 0;
 			do {
 				if (*ap >= '8' || *ap < '0')
-					error("Illegal number: %s", argv[1]);
+					error(psh, "Illegal number: %s", argv[1]);
 				mask = (mask << 3) + (*ap - '0');
 			} while (*++ap != '\0');
 			umask(mask);
@@ -287,7 +287,7 @@ umaskcmd(int argc, char **argv)
 			}
 			INTON;
 			if (!set)
-				error("Illegal mode: %s", ap);
+				error(psh, "Illegal mode: %s", ap);
 
 			umask(~mask & 0777);
 		}
@@ -383,14 +383,14 @@ ulimitcmd(int argc, char **argv)
 	for (l = limits; l->name && l->option != what; l++)
 		;
 	if (!l->name)
-		error("internal error (%c)", what);
+		error(psh, "internal error (%c)", what);
 
 	set = *argptr ? 1 : 0;
 	if (set) {
 		char *p = *argptr;
 
 		if (all || argptr[1])
-			error("too many arguments");
+			error(psh, "too many arguments");
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
@@ -403,7 +403,7 @@ ulimitcmd(int argc, char **argv)
 					break;
 			}
 			if (c)
-				error("bad number");
+				error(psh, "bad number");
 			val *= l->factor;
 		}
 	}
@@ -415,16 +415,16 @@ ulimitcmd(int argc, char **argv)
 			else if (how & HARD)
 				val = limit.rlim_max;
 
-			out1fmt("%-20s ", l->name);
+			out1fmt(psh, "%-20s ", l->name);
 			if (val == RLIM_INFINITY)
 				out1fmt("unlimited\n");
 			else
 			{
 				val /= l->factor;
 #ifdef BSD4_4
-				out1fmt("%lld\n", (long long) val);
+				out1fmt(psh, "%lld\n", (long long) val);
 #else
-				out1fmt("%ld\n", (long) val);
+				out1fmt(psh, "%ld\n", (long) val);
 #endif
 			}
 		}
@@ -438,7 +438,7 @@ ulimitcmd(int argc, char **argv)
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (setrlimit(l->cmd, &limit) < 0)
-			error("error setting limit (%s)", strerror(errno));
+			error(psh, "error setting limit (%s)", strerror(errno));
 	} else {
 		if (how & SOFT)
 			val = limit.rlim_cur;
@@ -446,14 +446,14 @@ ulimitcmd(int argc, char **argv)
 			val = limit.rlim_max;
 
 		if (val == RLIM_INFINITY)
-			out1fmt("unlimited\n");
+			out1fmt(psh, "unlimited\n");
 		else
 		{
 			val /= l->factor;
 #ifdef BSD4_4
-			out1fmt("%lld\n", (long long) val);
+			out1fmt(psh, "%lld\n", (long long) val);
 #else
-			out1fmt("%ld\n", (long) val);
+			out1fmt(psh, "%ld\n", (long) val);
 #endif
 		}
 	}

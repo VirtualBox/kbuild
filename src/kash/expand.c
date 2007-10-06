@@ -384,7 +384,7 @@ expari(int flag)
 	while (*p != CTLARI && p >= start)
 		--p;
 	if (*p != CTLARI)
-		error("missing CTLARI (shouldn't happen)");
+		error(psh, "missing CTLARI (shouldn't happen)");
 	if (p > start && *(p-1) == CTLESC)
 		for (p = start; *p != CTLARI; p++)
 			if (*p == CTLESC)
@@ -452,7 +452,7 @@ expbackq(union node *cmd, int quoted, int flag)
 			if (in.fd < 0)
 				break;
 			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
-			TRACE(("expbackq: read returns %d\n", i));
+			TRACE((psh, "expbackq: read returns %d\n", i));
 			if (i <= 0)
 				break;
 			p = buf;
@@ -479,7 +479,7 @@ expbackq(union node *cmd, int quoted, int flag)
 		back_exitstatus = waitforjob(in.jp);
 	if (quoted == 0)
 		recordregion(startloc, dest - stackblock(psh), 0);
-	TRACE(("evalbackq: size=%d: \"%.*s\"\n",
+	TRACE((psh, "evalbackq: size=%d: \"%.*s\"\n",
 		(dest - stackblock(psh)) - startloc,
 		(dest - stackblock(psh)) - startloc,
 		stackblock(psh) + startloc));
@@ -522,9 +522,9 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
 			outfmt(&errout, "%s\n", startp);
-			error((char *)NULL);
+			error(psh, (char *)NULL);
 		}
-		error("%.*s: parameter %snot set", p - str - 1,
+		error(psh, "%.*s: parameter %snot set", p - str - 1,
 		      str, (varflags & VSNUL) ? "null or "
 					      : nullstr);
 		/* NOTREACHED */
@@ -657,7 +657,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		case VSTRIMRIGHT:
 		case VSTRIMRIGHTMAX:
 		case VSLENGTH:
-			error("%.*s: parameter not set", p - var - 1, var);
+			error(psh, "%.*s: parameter not set", p - var - 1, var);
 			/* NOTREACHED */
 		}
 	}
@@ -1555,15 +1555,15 @@ wordexpcmd(int argc, char **argv)
 	size_t len;
 	int i;
 
-	out1fmt("%d", argc - 1);
-	out1c('\0');
+	out1fmt(psh, "%d", argc - 1);
+	out1c(psh, '\0');
 	for (i = 1, len = 0; i < argc; i++)
 		len += strlen(argv[i]);
-	out1fmt("%zd", len);
-	out1c('\0');
+	out1fmt(psh, "%zd", len);
+	out1c(psh, '\0');
 	for (i = 1; i < argc; i++) {
-		out1str(argv[i]);
-		out1c('\0');
+		out1str(psh, argv[i]);
+		out1c(psh, '\0');
 	}
 	return (0);
 }

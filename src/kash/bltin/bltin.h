@@ -54,7 +54,7 @@
 #define stderr out2
 #define printf out1fmt
 #define putc(c, file)	outc(c, file)
-#define putchar(c)	out1c(c)
+#define putchar(c)	out1c(psh, c)
 #define FILE struct output
 #define fprintf outfmt
 #define fputs outstr

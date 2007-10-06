@@ -74,6 +74,7 @@ int shfile_lstat(shfdtab *, const char *, struct stat *);
 int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);
 int shfile_isatty(shfdtab *, int);
+/*int shfile_ioctl(shfdtab *, int, unsigned long, char *);*/
 
 #endif
 

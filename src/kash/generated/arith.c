@@ -345,7 +345,7 @@ expcmd(argc, argv)
 
 	i = arith(p);
 
-	out1fmt("%ld\n", i);
+	out1fmt(psh, "%ld\n", i);
 	return (! i);
 }
 

@@ -256,7 +256,7 @@ pipeline(void)
 	int negate;
 
 	negate = 0;
-	TRACE(("pipeline: entered\n"));
+	TRACE((psh, "pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;
 	tokpushback++;
@@ -312,7 +312,7 @@ command(void)
 	tokpushback++;
 
 	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
+		TRACE((psh, "command: TNOT recognized\n"));
 		negate = !negate;
 	}
 	tokpushback++;
@@ -352,7 +352,7 @@ command(void)
 		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
 		n1->nbinary.ch1 = list(0);
 		if ((got=readtoken()) != TDO) {
-TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
+TRACE((psh, "expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(TDO);
 		}
 		n1->nbinary.ch2 = list(0);
@@ -553,7 +553,7 @@ simplecmd(union node **rpp, union node *redir)
 	orig_rpp = rpp;
 
 	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
+		TRACE((psh, "command: TNOT recognized\n"));
 		negate = !negate;
 	}
 	tokpushback++;
@@ -621,7 +621,7 @@ makename(void)
 
 void fixredir(union node *n, const char *text, int err)
 	{
-	TRACE(("Fix redir %s %d\n", text, err));
+	TRACE((psh, "Fix redir %s %d\n", text, err));
 	if (!err)
 		n->ndup.vname = NULL;
 
@@ -653,7 +653,7 @@ parsefname(void)
 
 		if (quoteflag == 0)
 			n->type = NXHERE;
-		TRACE(("Here document %d\n", n->type));
+		TRACE((psh, "Here document %d\n", n->type));
 		if (here->striptabs) {
 			while (*wordtext == '\t')
 				wordtext++;
@@ -752,12 +752,12 @@ readtoken(void)
 				{
 					lasttoken = t = pp -
 					    parsekwd + KWDOFFSET;
-					TRACE(("keyword %s recognized\n", tokname[t]));
+					TRACE((psh, "keyword %s recognized\n", tokname[t]));
 					goto out;
 				}
 			}
 			if(!noalias &&
-			    (ap = lookupalias(wordtext, 1)) != NULL) {
+			    (ap = lookupalias(psh, wordtext, 1)) != NULL) {
 				pushstring(ap->val, strlen(ap->val), ap);
 				checkkwd = savecheckkwd;
 				goto top;
@@ -768,9 +768,9 @@ out:
 	}
 #ifdef DEBUG
 	if (!alreadyseen)
-	    TRACE(("token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
+	    TRACE((psh, "token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
 	else
-	    TRACE(("reread token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
+	    TRACE((psh, "reread token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
 #endif
 	return (t);
 }
@@ -1619,9 +1619,9 @@ STATIC void
 synerror(const char *msg)
 {
 	if (commandname)
-		outfmt(&errout, "%s: %d: ", commandname, startlinno);
-	outfmt(&errout, "Syntax error: %s\n", msg);
-	error((char *)NULL);
+		outfmt(&psh->errout, "%s: %d: ", commandname, startlinno);
+	outfmt(&psh->errout, "Syntax error: %s\n", msg);
+	error(psh, (char *)NULL);
 	/* NOTREACHED */
 }
 
