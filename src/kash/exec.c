@@ -217,11 +217,11 @@ tryexec(char *cmd, char **argv, char **envp, int vforked, int has_ext)
 			 */
 			exraise(psh, EXSHELLPROC);
 		}
-		initshellproc();
-		setinputfile(cmd, 0);
+		initshellproc(psh);
+		setinputfile(psh, cmd, 0);
 		commandname = arg0 = savestr(argv[0]);
 #ifdef EXEC_HASH_BANG_SCRIPT
-		pgetc(); pungetc();		/* fill up input buffer */
+		pgetc(psh); pungetc(psh);		/* fill up input buffer */
 		p = parsenextc;
 		if (parsenleft > 2 && p[0] == '#' && p[1] == '!') {
 			argv[0] = cmd;
@@ -702,7 +702,7 @@ loop:
 	if (cmdp)
 		delete_cmd_entry();
 	if (act & DO_ERR)
-		outfmt(out2, "%s: %s\n", name, errmsg(psh, e, E_EXEC));
+		outfmt(psh->out2, "%s: %s\n", name, errmsg(psh, e, E_EXEC));
 	entry->cmdtype = CMDUNKNOWN;
 	return;
 

@@ -208,7 +208,7 @@ list(int nlflag)
 			if (heredoclist)
 				parseheredoc();
 			else
-				pungetc();		/* push back EOF on input */
+				pungetc(psh);		/* push back EOF on input */
 			return n1;
 		default:
 			if (nlflag)
@@ -660,7 +660,7 @@ parsefname(void)
 		}
 		if (! noexpand(wordtext) || (i = strlen(wordtext)) == 0 || i > EOFMARKLEN)
 			synerror("Illegal eof marker for << redirection");
-		rmescapes(wordtext);
+		rmescapes(psh, wordtext);
 		here->eofmark = wordtext;
 		here->next = NULL;
 		if (heredoclist == NULL)
@@ -694,7 +694,7 @@ parseheredoc(void)
 			setprompt(2);
 			needprompt = 0;
 		}
-		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
+		readtoken1(pgetc(psh), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
 				here->eofmark, here->striptabs);
 		n = (union node *)stalloc(psh, sizeof (struct narg));
 		n->narg.type = NARG;
@@ -758,7 +758,7 @@ readtoken(void)
 			}
 			if(!noalias &&
 			    (ap = lookupalias(psh, wordtext, 1)) != NULL) {
-				pushstring(ap->val, strlen(ap->val), ap);
+				pushstring(psh, ap->val, strlen(ap->val), ap);
 				checkkwd = savecheckkwd;
 				goto top;
 			}
@@ -811,18 +811,18 @@ xxreadtoken(void)
 	}
 	startlinno = plinno;
 	for (;;) {	/* until token or start of word found */
-		c = pgetc_macro();
+		c = pgetc_macro(psh);
 		if (c == ' ' || c == '\t')
 			continue;		/* quick check for white space first */
 		switch (c) {
 		case ' ': case '\t':
 			continue;
 		case '#':
-			while ((c = pgetc()) != '\n' && c != PEOF);
-			pungetc();
+			while ((c = pgetc(psh)) != '\n' && c != PEOF);
+			pungetc(psh);
 			continue;
 		case '\\':
-			if (pgetc() == '\n') {
+			if (pgetc(psh) == '\n') {
 				startlinno = ++plinno;
 				if (doprompt)
 					setprompt(2);
@@ -830,7 +830,7 @@ xxreadtoken(void)
 					setprompt(0);
 				continue;
 			}
-			pungetc();
+			pungetc(psh);
 			goto breakloop;
 		case '\n':
 			plinno++;
@@ -839,19 +839,19 @@ xxreadtoken(void)
 		case PEOF:
 			RETURN(TEOF);
 		case '&':
-			if (pgetc() == '&')
+			if (pgetc(psh) == '&')
 				RETURN(TAND);
-			pungetc();
+			pungetc(psh);
 			RETURN(TBACKGND);
 		case '|':
-			if (pgetc() == '|')
+			if (pgetc(psh) == '|')
 				RETURN(TOR);
-			pungetc();
+			pungetc(psh);
 			RETURN(TPIPE);
 		case ';':
-			if (pgetc() == ';')
+			if (pgetc(psh) == ';')
 				RETURN(TENDCASE);
-			pungetc();
+			pungetc(psh);
 			RETURN(TSEMI);
 		case '(':
 			RETURN(TLP);
@@ -960,7 +960,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 			attyline();
 			if (syntax == BASESYNTAX)
 				return readtoken();
-			c = pgetc();
+			c = pgetc(psh);
 			goto loop;
 		}
 #endif
@@ -977,7 +977,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 					setprompt(2);
 				else
 					setprompt(0);
-				c = pgetc();
+				c = pgetc(psh);
 				goto loop;		/* continue outer loop */
 			case CWORD:
 				USTPUTC(psh, c, out);
@@ -988,10 +988,10 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				USTPUTC(psh, c, out);
 				break;
 			case CBACK:	/* backslash */
-				c = pgetc();
+				c = pgetc(psh);
 				if (c == PEOF) {
 					USTPUTC(psh, '\\', out);
-					pungetc();
+					pungetc(psh);
 					break;
 				}
 				if (c == '\n') {
@@ -1092,7 +1092,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 					USTPUTC(psh, c, out);
 					--parenlevel;
 				} else {
-					if (pgetc() == ')') {
+					if (pgetc(psh) == ')') {
 						if (--arinest == 0) {
 							USTPUTC(psh, CTLENDARI, out);
 							syntax = prevsyntax;
@@ -1107,7 +1107,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 						 * unbalanced parens
 						 *  (don't 2nd guess - no error)
 						 */
-						pungetc();
+						pungetc(psh);
 						USTPUTC(psh, ')', out);
 					}
 				}
@@ -1122,7 +1122,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 					goto endword;	/* exit outer loop */
 				USTPUTC(psh, c, out);
 			}
-			c = pgetc_macro();
+			c = pgetc_macro(psh);
 		}
 	}
 endword:
@@ -1146,7 +1146,7 @@ endword:
 			PARSEREDIR();
 			return lasttoken = TREDIR;
 		} else {
-			pungetc();
+			pungetc(psh);
 		}
 	}
 	quoteflag = quotef;
@@ -1170,10 +1170,10 @@ checkend: {
 	if (eofmark) {
 		if (striptabs) {
 			while (c == '\t')
-				c = pgetc();
+				c = pgetc(psh);
 		}
 		if (c == *eofmark) {
-			if (pfgets(line, sizeof line) != NULL) {
+			if (pfgets(psh, line, sizeof line) != NULL) {
 				char *p, *q;
 
 				p = line;
@@ -1183,7 +1183,7 @@ checkend: {
 					plinno++;
 					needprompt = doprompt;
 				} else {
-					pushstring(line, strlen(line), NULL);
+					pushstring(psh, line, strlen(line), NULL);
 				}
 			}
 		}
@@ -1205,7 +1205,7 @@ parseredir: {
 	np = (union node *)stalloc(psh, sizeof (struct nfile));
 	if (c == '>') {
 		np->nfile.fd = 1;
-		c = pgetc();
+		c = pgetc(psh);
 		if (c == '>')
 			np->type = NAPPEND;
 		else if (c == '|')
@@ -1214,11 +1214,11 @@ parseredir: {
 			np->type = NTOFD;
 		else {
 			np->type = NTO;
-			pungetc();
+			pungetc(psh);
 		}
 	} else {	/* c == '<' */
 		np->nfile.fd = 0;
-		switch (c = pgetc()) {
+		switch (c = pgetc(psh)) {
 		case '<':
 			if (sizeof (struct nfile) != sizeof (struct nhere)) {
 				np = (union node *)stalloc(psh, sizeof (struct nhere));
@@ -1227,11 +1227,11 @@ parseredir: {
 			np->type = NHERE;
 			heredoc = (struct heredoc *)stalloc(psh, sizeof (struct heredoc));
 			heredoc->here = np;
-			if ((c = pgetc()) == '-') {
+			if ((c = pgetc(psh)) == '-') {
 				heredoc->striptabs = 1;
 			} else {
 				heredoc->striptabs = 0;
-				pungetc();
+				pungetc(psh);
 			}
 			break;
 
@@ -1245,7 +1245,7 @@ parseredir: {
 
 		default:
 			np->type = NFROM;
-			pungetc();
+			pungetc(psh);
 			break;
 		}
 	}
@@ -1268,15 +1268,15 @@ parsesub: {
 	char *p;
 	static const char types[] = "}-+?=";
 
-	c = pgetc();
+	c = pgetc(psh);
 	if (c != '(' && c != OPENBRACE && !is_name(c) && !is_special(c)) {
 		USTPUTC(psh, '$', out);
-		pungetc();
+		pungetc(psh);
 	} else if (c == '(') {	/* $(command) or $((arith)) */
-		if (pgetc() == '(') {
+		if (pgetc(psh) == '(') {
 			PARSEARITH();
 		} else {
-			pungetc();
+			pungetc(psh);
 			PARSEBACKQNEW();
 		}
 	} else {
@@ -1285,9 +1285,9 @@ parsesub: {
 		USTPUTC(psh, VSNORMAL, out);
 		subtype = VSNORMAL;
 		if (c == OPENBRACE) {
-			c = pgetc();
+			c = pgetc(psh);
 			if (c == '#') {
-				if ((c = pgetc()) == CLOSEBRACE)
+				if ((c = pgetc(psh)) == CLOSEBRACE)
 					c = '#';
 				else
 					subtype = VSLENGTH;
@@ -1298,17 +1298,17 @@ parsesub: {
 		if (is_name(c)) {
 			do {
 				STPUTC(psh, c, out);
-				c = pgetc();
+				c = pgetc(psh);
 			} while (is_in_name(c));
 		} else if (is_digit(c)) {
 			do {
 				USTPUTC(psh, c, out);
-				c = pgetc();
+				c = pgetc(psh);
 			} while (is_digit(c));
 		}
 		else if (is_special(c)) {
 			USTPUTC(psh, c, out);
-			c = pgetc();
+			c = pgetc(psh);
 		}
 		else
 badsub:			synerror("Bad substitution");
@@ -1319,7 +1319,7 @@ badsub:			synerror("Bad substitution");
 			switch (c) {
 			case ':':
 				flags = VSNUL;
-				c = pgetc();
+				c = pgetc(psh);
 				/*FALLTHROUGH*/
 			default:
 				p = strchr(types, c);
@@ -1333,16 +1333,16 @@ badsub:			synerror("Bad substitution");
 					int cc = c;
 					subtype = c == '#' ? VSTRIMLEFT :
 							     VSTRIMRIGHT;
-					c = pgetc();
+					c = pgetc(psh);
 					if (c == cc)
 						subtype++;
 					else
-						pungetc();
+						pungetc(psh);
 					break;
 				}
 			}
 		} else {
-			pungetc();
+			pungetc(psh);
 		}
 		if (ISDBLQUOTE() || arinest)
 			flags |= VSQUOTE;
@@ -1414,12 +1414,12 @@ parsebackq: {
 				setprompt(2);
 				needprompt = 0;
 			}
-			switch (pc = pgetc()) {
+			switch (pc = pgetc(psh)) {
 			case '`':
 				goto done;
 
 			case '\\':
-                                if ((pc = pgetc()) == '\n') {
+                                if ((pc = pgetc(psh)) == '\n') {
 					plinno++;
 					if (doprompt)
 						setprompt(2);
@@ -1458,7 +1458,7 @@ done:
                 psavelen = pout - stackblock(psh);
                 if (psavelen > 0) {
 			pstr = grabstackstr(psh, pout);
-			setinputstring(pstr, 1);
+			setinputstring(psh, pstr, 1);
                 }
         }
 	nlpp = &bqlist;
@@ -1488,7 +1488,7 @@ done:
 		 * Start reading from old file again, ignoring any pushed back
 		 * tokens left from the backquote parsing
 		 */
-                popfile();
+                popfile(psh);
 		tokpushback = 0;
 	}
 	while (stackblocksize(psh) <= savelen)
@@ -1628,7 +1628,7 @@ synerror(const char *msg)
 STATIC void
 setprompt(int which)
 {
-	whichprompt = which;
+	psh->whichprompt = which;
 
 #ifndef SMALL
 	if (!el)
@@ -1643,7 +1643,7 @@ setprompt(int which)
 const char *
 getprompt(void *unused)
 	{
-	switch (whichprompt) {
+	switch (psh->whichprompt) {
 	case 0:
 		return "";
 	case 1:

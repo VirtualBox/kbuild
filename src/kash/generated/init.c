@@ -172,7 +172,7 @@ extern char **environ;
  */
 
 void
-init() {
+init(shinstance *psh) {
 
       /* from exec.c: */
       {
@@ -205,7 +205,7 @@ init() {
  */
 
 void
-reset() {
+reset(shinstance *psh) {
 
       /* from eval.c: */
       {
@@ -218,13 +218,13 @@ reset() {
       {
 	      if (exception != EXSHELLPROC)
 		      parselleft = parsenleft = 0;	/* clear input buffer */
-	      popallfiles();
+	      popallfiles(psh);
       }
 
       /* from output.c: */
       {
-	      out1 = &output;
-	      out2 = &errout;
+	      psh->out1 = &psh->output;
+	      psh->out2 = &psh->errout;
 	      if (memout.buf != NULL) {
 		      ckfree(memout.buf);
 		      memout.buf = NULL;
@@ -251,7 +251,7 @@ reset() {
  */
 
 void
-initshellproc() {
+initshellproc(shinstance *psh) {
 
       /* from alias.c: */
       {
@@ -270,7 +270,7 @@ initshellproc() {
 
       /* from input.c: */
       {
-	      popallfiles();
+	      popallfiles(psh);
       }
 
       /* from jobs.c: */

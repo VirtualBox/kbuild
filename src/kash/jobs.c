@@ -904,8 +904,8 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 	if (!vforked)
 		rootshell = 0;
 
-	closescript(vforked);
-	clear_traps(vforked);
+	closescript(psh, vforked);
+	clear_traps(psh, vforked);
 #if JOBS
 	if (!vforked)
 		jobctl = 0;		/* do job control only in root shell */
@@ -1094,7 +1094,7 @@ dowait(int block, struct job *job)
 		if (job == thisjob)
 			mode = SHOW_SIGNALLED | SHOW_NO_FREE;
 		if (mode)
-			showjob(out2, thisjob, mode);
+			showjob(psh->out2, thisjob, mode);
 		else {
 			TRACE((psh, "Not printing status, rootshell=%d, job=%p\n",
 				rootshell, job));
