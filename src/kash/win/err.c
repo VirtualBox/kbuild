@@ -1,4 +1,4 @@
-/* $Id: err.c 878 2007-04-21 04:34:19Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 1196 2007-10-06 08:49:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Override err.h so we get the program name right.

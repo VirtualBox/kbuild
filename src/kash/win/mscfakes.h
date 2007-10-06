@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 881 2007-04-21 08:47:37Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1196 2007-10-06 08:49:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
