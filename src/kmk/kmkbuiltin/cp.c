@@ -99,8 +99,14 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 # define __unused
 #endif
 
+#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+# define IS_SLASH(ch)   ((ch) == '/' || (ch) == '\\')
+#else
+# define IS_SLASH(ch)   ((ch) == '/')
+#endif
+
 #define	STRIP_TRAILING_SLASH(p) {					\
-        while ((p).p_end > (p).p_path + 1 && (p).p_end[-1] == '/')	\
+        while ((p).p_end > (p).p_path + 1 && IS_SLASH((p).p_end[-1]))	\
                 *--(p).p_end = 0;					\
 }
 
@@ -256,7 +262,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		*to.p_end++ = '.';
 		*to.p_end = 0;
 	}
-	have_trailing_slash = (to.p_end[-1] == '/');
+	have_trailing_slash = IS_SLASH(to.p_end[-1]);
 	if (have_trailing_slash)
 		STRIP_TRAILING_SLASH(to);
 	to.target_end = to.p_end;
@@ -387,6 +393,10 @@ copy(char *argv[], enum op type, int fts_options)
 			if (curr->fts_level == FTS_ROOTLEVEL) {
 				if (type != DIR_TO_DNE) {
 					p = strrchr(curr->fts_path, '/');
+#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+                                        if (strrchr(curr->fts_path, '\\') > p)
+                                            p = strrchr(curr->fts_path, '\\');
+#endif
 					base = (p == NULL) ? 0 :
 					    (int)(p - curr->fts_path + 1);
 
@@ -400,7 +410,7 @@ copy(char *argv[], enum op type, int fts_options)
 			p = &curr->fts_path[base];
 			nlen = curr->fts_pathlen - base;
 			target_mid = to.target_end;
-			if (*p != '/' && target_mid[-1] != '/')
+			if (!IS_SLASH(*p) && !IS_SLASH(target_mid[-1]))
 				*target_mid++ = '/';
 			*target_mid = 0;
 			if (target_mid - to.p_path + nlen >= PATH_MAX) {

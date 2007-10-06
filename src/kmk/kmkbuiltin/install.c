@@ -114,6 +114,12 @@ extern mode_t getmode(const void *bbox, mode_t omode);
 # define EFTYPE EINVAL
 #endif
 
+#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+# define IS_SLASH(ch)   ((ch) == '/' || (ch) == '\\')
+#else
+# define IS_SLASH(ch)   ((ch) == '/')
+#endif
+
 static gid_t gid;
 static uid_t uid;
 static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
@@ -140,6 +146,7 @@ static int	strip(const char *);
 static int	trymmap(int);
 #endif
 static int	usage(FILE *);
+static char    *last_slash(const char *);
 
 int
 kmk_builtin_install(int argc, char *argv[], char **envp)
@@ -388,7 +395,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (flags & DIRECTORY) {
 			(void)snprintf(pathbuf, sizeof(pathbuf), "%s/%s",
 			    to_name,
-			    (p = strrchr(from_name, '/')) ? ++p : from_name);
+			    (p = last_slash(from_name)) ? ++p : from_name);
 			to_name = pathbuf;
 		}
 		devnull = 0;
@@ -743,7 +750,7 @@ create_tempfile(const char *path, char *temp, size_t tsize)
 
 	(void)strncpy(temp, path, tsize);
 	temp[tsize - 1] = '\0';
-	if ((p = strrchr(temp, '/')) != NULL)
+	if ((p = last_slash(temp)) != NULL)
 		p++;
 	else
 		p = temp;
@@ -914,7 +921,7 @@ install_dir(char *path)
 	int ch;
 
 	for (p = path;; ++p)
-		if (!*p || (p != path && *p  == '/')) {
+		if (!*p || (p != path && IS_SLASH(*p))) {
 			ch = *p;
 			*p = '\0';
 			if (stat(path, &sb)) {
@@ -980,3 +987,28 @@ trymmap(int fd)
 	return (0);
 }
 #endif
+
+/* figures out where the last slash or colon is. */
+static char *
+last_slash(const char *path)
+{
+#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+    char *p = (char *)strrchr(path, '/');
+    if (p)
+    {
+        char *p2 = strrchr(p, '\\');
+        if (p2)
+            p = p2;
+    }
+    else
+    {
+        p = (char *)strrchr(path, '\\');
+        if (!p && isalpha(path[0]) && path[1] == ':')
+            p = (char *)&path[1];
+    }
+    return p;
+#else
+    return strrchr(path, '/');
+#endif
+}
+
