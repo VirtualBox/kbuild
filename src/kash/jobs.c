@@ -192,7 +192,7 @@ setjobctl(int on)
 			if ((initialpgrp = tcgetpgrp(ttyfd)) < 0) {
 out:
 				out2str("sh: can't access tty; job control turned off\n");
-				mflag = 0;
+				mflag(psh) = 0;
 				return;
 			}
 			if (initialpgrp == -1)
@@ -207,7 +207,7 @@ out:
 		if (ioctl(ttyfd, TIOCGETD, (char *)&ldisc) < 0
 		    || ldisc != NTTYDISC) {
 			out2str("sh: need new tty driver to run job control; job control turned off\n");
-			mflag = 0;
+			mflag(psh) = 0;
 			return;
 		}
 #endif
@@ -548,7 +548,7 @@ showjobs(struct output *out, int mode)
 	 * Check if we are not in our foreground group, and if not
 	 * put us in it.
 	 */
-	if (mflag && gotpid != -1 && tcgetpgrp(ttyfd) != getpid()) {
+	if (mflag(psh) && gotpid != -1 && tcgetpgrp(ttyfd) != getpid()) {
 		if (tcsetpgrp(ttyfd, getpid()) == -1)
 			error("Cannot set tty process group (%s) at %d",
 			    strerror(errno), __LINE__);
@@ -650,7 +650,7 @@ waitcmd(int argc, char **argv)
 			/* XXX: limits number of signals */
 			retval = WTERMSIG(status) + 128;
 		}
-		if (!iflag)
+		if (!iflag(psh))
 			freejob(job);
 	}
 	return retval;
@@ -704,7 +704,7 @@ getjob(const char *name, int noerror)
 		err_msg = "No current job";
 	} else if (name[0] == '%') {
 		if (is_number(name + 1)) {
-			jobno = number(name + 1) - 1;
+			jobno = number(psh, name + 1) - 1;
 		} else if (!name[2]) {
 			switch (name[1]) {
 #if JOBS
@@ -747,7 +747,7 @@ getjob(const char *name, int noerror)
 		}
 
 	} else if (is_number(name)) {
-		pid = number(name);
+		pid = number(psh, name);
 		for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 			if (jp->used && jp->nprocs > 0
 			 && jp->ps[jp->nprocs - 1].pid == pid)
@@ -869,7 +869,7 @@ forkparent(struct job *jp, union node *n, int mode, pid_t pid)
 {
 	int pgrp;
 
-	if (rootshell && mode != FORK_NOJOB && mflag) {
+	if (rootshell && mode != FORK_NOJOB && mflag(psh)) {
 		if (jp == NULL || jp->nprocs == 0)
 			pgrp = pid;
 		else
@@ -909,7 +909,7 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 #if JOBS
 	if (!vforked)
 		jobctl = 0;		/* do job control only in root shell */
-	if (wasroot && mode != FORK_NOJOB && mflag) {
+	if (wasroot && mode != FORK_NOJOB && mflag(psh)) {
 		if (jp == NULL || jp->nprocs == 0)
 			pgrp = getpid();
 		else
@@ -945,7 +945,7 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 		}
 	}
 #endif
-	if (wasroot && iflag) {
+	if (wasroot && iflag(psh)) {
 		setsignal(SIGINT, vforked);
 		setsignal(SIGQUIT, vforked);
 		setsignal(SIGTERM, vforked);
@@ -1089,7 +1089,7 @@ dowait(int block, struct job *job)
 
 	if (thisjob && thisjob->state != JOBRUNNING) {
 		int mode = 0;
-		if (!rootshell || !iflag)
+		if (!rootshell || !iflag(psh))
 			mode = SHOW_SIGNALLED;
 		if (job == thisjob)
 			mode = SHOW_SIGNALLED | SHOW_NO_FREE;
@@ -1218,7 +1218,7 @@ commandtext(struct procstat *ps, union node *n)
 	int len;
 
 	cmdnextc = ps->cmd;
-	if (iflag || mflag || sizeof ps->cmd < 100)
+	if (iflag(psh) || mflag(psh) || sizeof ps->cmd < 100)
 		len = sizeof(ps->cmd);
 	else
 		len = sizeof(ps->cmd) / 10;

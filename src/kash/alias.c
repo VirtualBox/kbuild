@@ -104,7 +104,7 @@ setalias(shinstance *psh, char *name, char *val)
 	ap->val = savestr(val);
 #else /* hack */
 	{
-	int len = strlen(val);
+	size_t len = strlen(val);
 	ap->val = ckmalloc(len + 2);
 	memcpy(ap->val, val, len);
 	ap->val[len] = ' ';	/* fluff */

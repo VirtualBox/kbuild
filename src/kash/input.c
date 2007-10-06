@@ -315,7 +315,7 @@ check:
 	}
 #endif
 
-	if (vflag) {
+	if (vflag(psh)) {
 		out2str(parsenextc);
 		flushout(out2);
 	}

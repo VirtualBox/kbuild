@@ -275,19 +275,19 @@ FILE *tracefile;
 void
 trputc(int c)
 {
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
 	putc(c, tracefile);
 }
 #endif
 
 void
-trace(const char *fmt, ...)
+trace(shinstance *psh, const char *fmt, ...)
 {
 #ifdef DEBUG
 	va_list va;
 
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
         fprintf(tracefile, "[%d] ", getpid());
 	va_start(va, fmt);
@@ -297,10 +297,10 @@ trace(const char *fmt, ...)
 }
 
 void
-tracev(const char *fmt, va_list va)
+tracev(shinstance *psh, const char *fmt, va_list va)
 {
 #ifdef DEBUG
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
         fprintf(tracefile, "[%d] ", getpid());
 	(void) vfprintf(tracefile, fmt, va);
@@ -312,7 +312,7 @@ tracev(const char *fmt, va_list va)
 void
 trputs(const char *s)
 {
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
 	fputs(s, tracefile);
 }
@@ -324,7 +324,7 @@ trstring(char *s)
 	char *p;
 	char c;
 
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
 	putc('"', tracefile);
 	for (p = s ; *p ; p++) {
@@ -360,10 +360,10 @@ backslash:	  putc('\\', tracefile);
 
 
 void
-trargs(char **ap)
+trargs(shinstance *psh, char **ap)
 {
 #ifdef DEBUG
-	if (debug != 1)
+	if (debug(psh) != 1)
 		return;
 	while (*ap) {
 		trstring(*ap++);
@@ -385,7 +385,7 @@ opentrace(void)
 	int flags;
 #endif
 
-	if (debug != 1) {
+	if (debug(psh) != 1) {
 		if (tracefile)
 			fflush(tracefile);
 		/* leave open because libedit might be using it */
@@ -409,13 +409,13 @@ opentrace(void)
 	if (tracefile) {
 		if (!freopen(s, "a", tracefile)) {
 			fprintf(stderr, "Can't re-open %s\n", s);
-			debug = 0;
+			debug(psh) = 0;
 			return;
 		}
 	} else {
 		if ((tracefile = fopen(s, "a")) == NULL) {
 			fprintf(stderr, "Can't open %s\n", s);
-			debug = 0;
+			debug(psh) = 0;
 			return;
 		}
 	}

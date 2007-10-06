@@ -47,10 +47,10 @@ extern int stacknleft;
 extern int sstrnleft;
 extern int herefd;*/
 
-pointer ckmalloc(int);
-pointer ckrealloc(pointer, int);
+pointer ckmalloc(size_t);
+pointer ckrealloc(pointer, size_t);
 char *savestr(const char *);
-pointer stalloc(struct shinstance *, int);
+pointer stalloc(struct shinstance *, size_t);
 void stunalloc(struct shinstance *, pointer);
 void setstackmark(struct shinstance *, struct stackmark *);
 void popstackmark(struct shinstance *, struct stackmark *);
@@ -62,16 +62,16 @@ void ungrabstackstr(struct shinstance *, char *, char *);
 
 
 
-#define stackblock() psh->stacknxt
-#define stackblocksize() psh->stacknleft
-#define STARTSTACKSTR(p)	p = stackblock(), psh->sstrnleft = stackblocksize()
-#define STPUTC(c, p)	(--psh->sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(psh), *p++ = (c)))
-#define CHECKSTRSPACE(n, p)	{ if (psh->sstrnleft < n) p = makestrspace(psh); }
-#define USTPUTC(c, p)	(--psh->sstrnleft, *p++ = (c))
-#define STACKSTRNUL(p)	(psh->sstrnleft == 0? (p = growstackstr(psh), *p = '\0') : (*p = '\0'))
-#define STUNPUTC(p)	(++psh->sstrnleft, --p)
-#define STTOPC(p)	p[-1]
-#define STADJUST(amount, p)	(p += (amount), psh->sstrnleft -= (amount))
-#define grabstackstr(p)	stalloc(psh, stackblocksize() - psh->sstrnleft)
+#define stackblock(psh)             (psh)->stacknxt
+#define stackblocksize(psh)         (psh)->stacknleft
+#define STARTSTACKSTR(psh, p)       p = stackblock(psh), (psh)->sstrnleft = stackblocksize(psh)
+#define STPUTC(psh, c, p)           (--(psh)->sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(psh), *p++ = (c)))
+#define CHECKSTRSPACE(psh, n, p)    { if ((psh)->sstrnleft < n) p = makestrspace(psh); }
+#define USTPUTC(psh, c, p)          (--(psh)->sstrnleft, *p++ = (c))
+#define STACKSTRNUL(psh, p)         ((psh)->sstrnleft == 0? (p = growstackstr(psh), *p = '\0') : (*p = '\0'))
+#define STUNPUTC(psh, p)            (++(psh)->sstrnleft, --p)
+#define STTOPC(psh, p)	            p[-1]
+#define STADJUST(psh, amount, p)    (p += (amount), (psh)->sstrnleft -= (amount))
+#define grabstackstr(psh, p)        stalloc((psh), stackblocksize(psh) - (psh)->sstrnleft)
 
 #define ckfree(p)	free((pointer)(p))

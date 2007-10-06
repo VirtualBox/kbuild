@@ -115,7 +115,7 @@ onint(shinstance *psh)
 	psh->intpending = 0;
 	sh_sigemptyset(&nsigset);
 	sh_sigprocmask(psh, SIG_SETMASK, &nsigset, NULL);
-	if (psh->rootshell && psh->iflag)
+	if (psh->rootshell && iflag(psh))
 		exraise(psh, EXINT);
 	else {
 		sh_signal(psh, SIGINT, SIG_DFL);

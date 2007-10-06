@@ -39,7 +39,12 @@
  * in some way.  The following macro will get this right on many machines.
  */
 
+#ifdef _MSC_VER
+#define SHELL_SIZE (8 - 1)
+#else
 #define SHELL_SIZE (sizeof(union {int i; char *cp; double d; }) - 1)
+#endif
+
 /*
  * It appears that grabstackstr() will barf with such alignments
  * because stalloc() will return a string allocated in a new stackblock.

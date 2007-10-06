@@ -53,7 +53,7 @@ void evaltree(struct shinstance *, union node *, int);
 void evalbackcmd(struct shinstance *, union node *, struct backcmd *);
 
 /* in_function returns nonzero if we are currently evaluating a function */
-#define in_function()	psh->funcnest
+#define in_function(psh)	(psh)->funcnest
 /*extern int funcnest;
 extern int evalskip;*/
 

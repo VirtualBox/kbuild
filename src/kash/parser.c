@@ -170,7 +170,7 @@ list(int nlflag)
 			} else if (n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
-				n3 = (union node *)stalloc(sizeof (struct nredir));
+				n3 = (union node *)stalloc(psh, sizeof (struct nredir));
 				n3->type = NBACKGND;
 				n3->nredir.n = n2;
 				n3->nredir.redirect = NULL;
@@ -181,7 +181,7 @@ list(int nlflag)
 			n1 = n2;
 		}
 		else {
-			n3 = (union node *)stalloc(sizeof (struct nbinary));
+			n3 = (union node *)stalloc(psh, sizeof (struct nbinary));
 			n3->type = NSEMI;
 			n3->nbinary.ch1 = n1;
 			n3->nbinary.ch2 = n2;
@@ -238,7 +238,7 @@ andor(void)
 			return n1;
 		}
 		n2 = pipeline();
-		n3 = (union node *)stalloc(sizeof (struct nbinary));
+		n3 = (union node *)stalloc(psh, sizeof (struct nbinary));
 		n3->type = t;
 		n3->nbinary.ch1 = n1;
 		n3->nbinary.ch2 = n2;
@@ -262,15 +262,15 @@ pipeline(void)
 	tokpushback++;
 	n1 = command();
 	if (readtoken() == TPIPE) {
-		pipenode = (union node *)stalloc(sizeof (struct npipe));
+		pipenode = (union node *)stalloc(psh, sizeof (struct npipe));
 		pipenode->type = NPIPE;
 		pipenode->npipe.backgnd = 0;
-		lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
+		lp = (struct nodelist *)stalloc(psh, sizeof (struct nodelist));
 		pipenode->npipe.cmdlist = lp;
 		lp->n = n1;
 		do {
 			prev = lp;
-			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
+			lp = (struct nodelist *)stalloc(psh, sizeof (struct nodelist));
 			lp->n = command();
 			prev->next = lp;
 		} while (readtoken() == TPIPE);
@@ -279,7 +279,7 @@ pipeline(void)
 	}
 	tokpushback++;
 	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2 = (union node *)stalloc(psh, sizeof (struct nnot));
 		n2->type = NNOT;
 		n2->nnot.com = n1;
 		return n2;
@@ -319,7 +319,7 @@ command(void)
 
 	switch (readtoken()) {
 	case TIF:
-		n1 = (union node *)stalloc(sizeof (struct nif));
+		n1 = (union node *)stalloc(psh, sizeof (struct nif));
 		n1->type = NIF;
 		n1->nif.test = list(0);
 		if (readtoken() != TTHEN)
@@ -327,7 +327,7 @@ command(void)
 		n1->nif.ifpart = list(0);
 		n2 = n1;
 		while (readtoken() == TELIF) {
-			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
+			n2->nif.elsepart = (union node *)stalloc(psh, sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
 			n2->nif.test = list(0);
@@ -348,7 +348,7 @@ command(void)
 	case TWHILE:
 	case TUNTIL: {
 		int got;
-		n1 = (union node *)stalloc(sizeof (struct nbinary));
+		n1 = (union node *)stalloc(psh, sizeof (struct nbinary));
 		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
 		n1->nbinary.ch1 = list(0);
 		if ((got=readtoken()) != TDO) {
@@ -364,13 +364,13 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TFOR:
 		if (readtoken() != TWORD || quoteflag || ! goodname(wordtext))
 			synerror("Bad for loop variable");
-		n1 = (union node *)stalloc(sizeof (struct nfor));
+		n1 = (union node *)stalloc(psh, sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
 		if (readtoken() == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
-				n2 = (union node *)stalloc(sizeof (struct narg));
+				n2 = (union node *)stalloc(psh, sizeof (struct narg));
 				n2->type = NARG;
 				n2->narg.text = wordtext;
 				n2->narg.backquote = backquotelist;
@@ -384,7 +384,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		} else {
 			static char argvars[5] = {CTLVAR, VSNORMAL|VSQUOTE,
 								   '@', '=', '\0'};
-			n2 = (union node *)stalloc(sizeof (struct narg));
+			n2 = (union node *)stalloc(psh, sizeof (struct narg));
 			n2->type = NARG;
 			n2->narg.text = argvars;
 			n2->narg.backquote = NULL;
@@ -410,11 +410,11 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		checkkwd = 1;
 		break;
 	case TCASE:
-		n1 = (union node *)stalloc(sizeof (struct ncase));
+		n1 = (union node *)stalloc(psh, sizeof (struct ncase));
 		n1->type = NCASE;
 		if (readtoken() != TWORD)
 			synexpect(TWORD);
-		n1->ncase.expr = n2 = (union node *)stalloc(sizeof (struct narg));
+		n1->ncase.expr = n2 = (union node *)stalloc(psh, sizeof (struct narg));
 		n2->type = NARG;
 		n2->narg.text = wordtext;
 		n2->narg.backquote = backquotelist;
@@ -426,11 +426,11 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		noalias = 1;
 		checkkwd = 2, readtoken();
 		do {
-			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
+			*cpp = cp = (union node *)stalloc(psh, sizeof (struct nclist));
 			cp->type = NCLIST;
 			app = &cp->nclist.pattern;
 			for (;;) {
-				*app = ap = (union node *)stalloc(sizeof (struct narg));
+				*app = ap = (union node *)stalloc(psh, sizeof (struct narg));
 				ap->type = NARG;
 				ap->narg.text = wordtext;
 				ap->narg.backquote = backquotelist;
@@ -464,7 +464,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		checkkwd = 1;
 		break;
 	case TLP:
-		n1 = (union node *)stalloc(sizeof (struct nredir));
+		n1 = (union node *)stalloc(psh, sizeof (struct nredir));
 		n1->type = NSUBSHELL;
 		n1->nredir.n = list(0);
 		n1->nredir.redirect = NULL;
@@ -510,7 +510,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	*rpp = NULL;
 	if (redir) {
 		if (n1->type != NSUBSHELL) {
-			n2 = (union node *)stalloc(sizeof (struct nredir));
+			n2 = (union node *)stalloc(psh, sizeof (struct nredir));
 			n2->type = NREDIR;
 			n2->nredir.n = n1;
 			n1 = n2;
@@ -520,7 +520,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 
 checkneg:
 	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2 = (union node *)stalloc(psh, sizeof (struct nnot));
 		n2->type = NNOT;
 		n2->nnot.com = n1;
 		return n2;
@@ -560,7 +560,7 @@ simplecmd(union node **rpp, union node *redir)
 
 	for (;;) {
 		if (readtoken() == TWORD) {
-			n = (union node *)stalloc(sizeof (struct narg));
+			n = (union node *)stalloc(psh, sizeof (struct narg));
 			n->type = NARG;
 			n->narg.text = wordtext;
 			n->narg.backquote = backquotelist;
@@ -589,7 +589,7 @@ simplecmd(union node **rpp, union node *redir)
 	}
 	*app = NULL;
 	*rpp = NULL;
-	n = (union node *)stalloc(sizeof (struct ncmd));
+	n = (union node *)stalloc(psh, sizeof (struct ncmd));
 	n->type = NCMD;
 	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
@@ -597,7 +597,7 @@ simplecmd(union node **rpp, union node *redir)
 
 checkneg:
 	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2 = (union node *)stalloc(psh, sizeof (struct nnot));
 		n2->type = NNOT;
 		n2->nnot.com = n;
 		return n2;
@@ -611,7 +611,7 @@ makename(void)
 {
 	union node *n;
 
-	n = (union node *)stalloc(sizeof (struct narg));
+	n = (union node *)stalloc(psh, sizeof (struct narg));
 	n->type = NARG;
 	n->narg.next = NULL;
 	n->narg.text = wordtext;
@@ -696,7 +696,7 @@ parseheredoc(void)
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
 				here->eofmark, here->striptabs);
-		n = (union node *)stalloc(sizeof (struct narg));
+		n = (union node *)stalloc(psh, sizeof (struct narg));
 		n->narg.type = NARG;
 		n->narg.next = NULL;
 		n->narg.text = wordtext;
@@ -952,7 +952,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 	arinest = 0;
 	parenlevel = 0;
 
-	STARTSTACKSTR(out);
+	STARTSTACKSTR(psh, out);
 	loop: {	/* for each line, until end of word */
 #if ATTY
 		if (c == '\034' && doprompt
@@ -966,12 +966,12 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 #endif
 		CHECKEND();	/* set c to PEOF if at end of here document */
 		for (;;) {	/* until end of line or end of word */
-			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
+			CHECKSTRSPACE(psh, 4, out);	/* permit 4 calls to USTPUTC */
 			switch(syntax[c]) {
 			case CNL:	/* '\n' */
 				if (syntax == BASESYNTAX)
 					goto endword;	/* exit outer loop */
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 				plinno++;
 				if (doprompt)
 					setprompt(2);
@@ -980,17 +980,17 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				c = pgetc();
 				goto loop;		/* continue outer loop */
 			case CWORD:
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 				break;
 			case CCTL:
 				if (eofmark == NULL || ISDBLQUOTE())
-					USTPUTC(CTLESC, out);
-				USTPUTC(c, out);
+					USTPUTC(psh, CTLESC, out);
+				USTPUTC(psh, c, out);
 				break;
 			case CBACK:	/* backslash */
 				c = pgetc();
 				if (c == PEOF) {
-					USTPUTC('\\', out);
+					USTPUTC(psh, '\\', out);
 					pungetc();
 					break;
 				}
@@ -1005,22 +1005,22 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				if (ISDBLQUOTE() && c != '\\' &&
 				    c != '`' && c != '$' &&
 				    (c != '"' || eofmark != NULL))
-					USTPUTC('\\', out);
+					USTPUTC(psh, '\\', out);
 				if (SQSYNTAX[c] == CCTL)
-					USTPUTC(CTLESC, out);
+					USTPUTC(psh, CTLESC, out);
 				else if (eofmark == NULL) {
-					USTPUTC(CTLQUOTEMARK, out);
-					USTPUTC(c, out);
+					USTPUTC(psh, CTLQUOTEMARK, out);
+					USTPUTC(psh, c, out);
 					if (varnest != 0)
-						USTPUTC(CTLQUOTEEND, out);
+						USTPUTC(psh, CTLQUOTEEND, out);
 					break;
 				}
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 				break;
 			case CSQUOTE:
 				if (syntax != SQSYNTAX) {
 					if (eofmark == NULL)
-						USTPUTC(CTLQUOTEMARK, out);
+						USTPUTC(psh, CTLQUOTEMARK, out);
 					quotef = 1;
 					syntax = SQSYNTAX;
 					break;
@@ -1028,7 +1028,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && arinest == 0 &&
 				    varnest == 0) {
 					/* Ignore inside quoted here document */
-					USTPUTC(c, out);
+					USTPUTC(psh, c, out);
 					break;
 				}
 				/* End of single quotes... */
@@ -1037,14 +1037,14 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 				else {
 					syntax = BASESYNTAX;
 					if (varnest != 0)
-						USTPUTC(CTLQUOTEEND, out);
+						USTPUTC(psh, CTLQUOTEEND, out);
 				}
 				break;
 			case CDQUOTE:
 				if (eofmark != NULL && arinest == 0 &&
 				    varnest == 0) {
 					/* Ignore inside here document */
-					USTPUTC(c, out);
+					USTPUTC(psh, c, out);
 					break;
 				}
 				quotef = 1;
@@ -1055,7 +1055,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 					} else {
 						syntax = DQSYNTAX;
 						SETDBLQUOTE();
-						USTPUTC(CTLQUOTEMARK, out);
+						USTPUTC(psh, CTLQUOTEMARK, out);
 					}
 					break;
 				}
@@ -1063,13 +1063,13 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 					break;
 				if (ISDBLQUOTE()) {
 					if (varnest != 0)
-						USTPUTC(CTLQUOTEEND, out);
+						USTPUTC(psh, CTLQUOTEEND, out);
 					syntax = BASESYNTAX;
 					CLRDBLQUOTE();
 				} else {
 					syntax = DQSYNTAX;
 					SETDBLQUOTE();
-					USTPUTC(CTLQUOTEMARK, out);
+					USTPUTC(psh, CTLQUOTEMARK, out);
 				}
 				break;
 			case CVAR:	/* '$' */
@@ -1078,37 +1078,37 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 			case CENDVAR:	/* CLOSEBRACE */
 				if (varnest > 0 && !ISDBLQUOTE()) {
 					varnest--;
-					USTPUTC(CTLENDVAR, out);
+					USTPUTC(psh, CTLENDVAR, out);
 				} else {
-					USTPUTC(c, out);
+					USTPUTC(psh, c, out);
 				}
 				break;
 			case CLP:	/* '(' in arithmetic */
 				parenlevel++;
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 				break;
 			case CRP:	/* ')' in arithmetic */
 				if (parenlevel > 0) {
-					USTPUTC(c, out);
+					USTPUTC(psh, c, out);
 					--parenlevel;
 				} else {
 					if (pgetc() == ')') {
 						if (--arinest == 0) {
-							USTPUTC(CTLENDARI, out);
+							USTPUTC(psh, CTLENDARI, out);
 							syntax = prevsyntax;
 							if (syntax == DQSYNTAX)
 								SETDBLQUOTE();
 							else
 								CLRDBLQUOTE();
 						} else
-							USTPUTC(')', out);
+							USTPUTC(psh, ')', out);
 					} else {
 						/*
 						 * unbalanced parens
 						 *  (don't 2nd guess - no error)
 						 */
 						pungetc();
-						USTPUTC(')', out);
+						USTPUTC(psh, ')', out);
 					}
 				}
 				break;
@@ -1120,7 +1120,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 			default:
 				if (varnest == 0)
 					goto endword;	/* exit outer loop */
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 			}
 			c = pgetc_macro();
 		}
@@ -1135,9 +1135,9 @@ endword:
 		/* { */
 		synerror("Missing '}'");
 	}
-	USTPUTC('\0', out);
-	len = out - stackblock();
-	out = stackblock();
+	USTPUTC(psh, '\0', out);
+	len = out - stackblock(psh);
+	out = stackblock(psh);
 	if (eofmark == NULL) {
 		if ((c == '>' || c == '<')
 		 && quotef == 0
@@ -1151,7 +1151,7 @@ endword:
 	}
 	quoteflag = quotef;
 	backquotelist = bqlist;
-	grabstackblock(len);
+	grabstackblock(psh, len);
 	wordtext = out;
 	if (dblquotep != NULL)
 	    ckfree(dblquotep);
@@ -1202,7 +1202,7 @@ parseredir: {
 	char fd = *out;
 	union node *np;
 
-	np = (union node *)stalloc(sizeof (struct nfile));
+	np = (union node *)stalloc(psh, sizeof (struct nfile));
 	if (c == '>') {
 		np->nfile.fd = 1;
 		c = pgetc();
@@ -1221,11 +1221,11 @@ parseredir: {
 		switch (c = pgetc()) {
 		case '<':
 			if (sizeof (struct nfile) != sizeof (struct nhere)) {
-				np = (union node *)stalloc(sizeof (struct nhere));
+				np = (union node *)stalloc(psh, sizeof (struct nhere));
 				np->nfile.fd = 0;
 			}
 			np->type = NHERE;
-			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
+			heredoc = (struct heredoc *)stalloc(psh, sizeof (struct heredoc));
 			heredoc->here = np;
 			if ((c = pgetc()) == '-') {
 				heredoc->striptabs = 1;
@@ -1270,7 +1270,7 @@ parsesub: {
 
 	c = pgetc();
 	if (c != '(' && c != OPENBRACE && !is_name(c) && !is_special(c)) {
-		USTPUTC('$', out);
+		USTPUTC(psh, '$', out);
 		pungetc();
 	} else if (c == '(') {	/* $(command) or $((arith)) */
 		if (pgetc() == '(') {
@@ -1280,9 +1280,9 @@ parsesub: {
 			PARSEBACKQNEW();
 		}
 	} else {
-		USTPUTC(CTLVAR, out);
-		typeloc = out - stackblock();
-		USTPUTC(VSNORMAL, out);
+		USTPUTC(psh, CTLVAR, out);
+		typeloc = out - stackblock(psh);
+		USTPUTC(psh, VSNORMAL, out);
 		subtype = VSNORMAL;
 		if (c == OPENBRACE) {
 			c = pgetc();
@@ -1297,23 +1297,23 @@ parsesub: {
 		}
 		if (is_name(c)) {
 			do {
-				STPUTC(c, out);
+				STPUTC(psh, c, out);
 				c = pgetc();
 			} while (is_in_name(c));
 		} else if (is_digit(c)) {
 			do {
-				USTPUTC(c, out);
+				USTPUTC(psh, c, out);
 				c = pgetc();
 			} while (is_digit(c));
 		}
 		else if (is_special(c)) {
-			USTPUTC(c, out);
+			USTPUTC(psh, c, out);
 			c = pgetc();
 		}
 		else
 badsub:			synerror("Bad substitution");
 
-		STPUTC('=', out);
+		STPUTC(psh, '=', out);
 		flags = 0;
 		if (subtype == 0) {
 			switch (c) {
@@ -1346,7 +1346,7 @@ badsub:			synerror("Bad substitution");
 		}
 		if (ISDBLQUOTE() || arinest)
 			flags |= VSQUOTE;
-		*(stackblock() + typeloc) = subtype | flags;
+		*(stackblock(psh) + typeloc) = subtype | flags;
 		if (subtype != VSNORMAL) {
 			varnest++;
 			if (varnest >= maxnest) {
@@ -1390,10 +1390,10 @@ parsebackq: {
 	}
 	INTOFF;
 	str = NULL;
-	savelen = out - stackblock();
+	savelen = out - stackblock(psh);
 	if (savelen > 0) {
 		str = ckmalloc(savelen);
-		memcpy(str, stackblock(), savelen);
+		memcpy(str, stackblock(psh), savelen);
 	}
 	savehandler = handler;
 	handler = &jmploc;
@@ -1408,7 +1408,7 @@ parsebackq: {
                 char *pstr;
 
 
-                STARTSTACKSTR(pout);
+                STARTSTACKSTR(psh, pout);
 		for (;;) {
 			if (needprompt) {
 				setprompt(2);
@@ -1435,7 +1435,7 @@ parsebackq: {
 				}
                                 if (pc != '\\' && pc != '`' && pc != '$'
                                     && (!ISDBLQUOTE() || pc != '"'))
-                                        STPUTC('\\', pout);
+                                        STPUTC(psh, '\\', pout);
 				break;
 
 			case '\n':
@@ -1451,20 +1451,20 @@ parsebackq: {
 			default:
 				break;
 			}
-			STPUTC(pc, pout);
+			STPUTC(psh, pc, pout);
                 }
 done:
-                STPUTC('\0', pout);
-                psavelen = pout - stackblock();
+                STPUTC(psh, '\0', pout);
+                psavelen = pout - stackblock(psh);
                 if (psavelen > 0) {
-			pstr = grabstackstr(pout);
+			pstr = grabstackstr(psh, pout);
 			setinputstring(pstr, 1);
                 }
         }
 	nlpp = &bqlist;
 	while (*nlpp)
 		nlpp = &(*nlpp)->next;
-	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
+	*nlpp = (struct nodelist *)stalloc(psh, sizeof (struct nodelist));
 	(*nlpp)->next = NULL;
 	parsebackquote = oldstyle;
 
@@ -1491,12 +1491,12 @@ done:
                 popfile();
 		tokpushback = 0;
 	}
-	while (stackblocksize() <= savelen)
-		growstackblock();
-	STARTSTACKSTR(out);
+	while (stackblocksize(psh) <= savelen)
+		growstackblock(psh);
+	STARTSTACKSTR(psh, out);
 	if (str) {
 		memcpy(out, str, savelen);
-		STADJUST(savelen, out);
+		STADJUST(psh, savelen, out);
 		INTOFF;
 		ckfree(str);
 		str = NULL;
@@ -1505,9 +1505,9 @@ done:
 	parsebackquote = savepbq;
 	handler = savehandler;
 	if (arinest || ISDBLQUOTE())
-		USTPUTC(CTLBACKQ | CTLQUOTE, out);
+		USTPUTC(psh, CTLBACKQ | CTLQUOTE, out);
 	else
-		USTPUTC(CTLBACKQ, out);
+		USTPUTC(psh, CTLBACKQ, out);
 	if (oldstyle)
 		goto parsebackq_oldreturn;
 	else
@@ -1522,17 +1522,17 @@ parsearith: {
 	if (++arinest == 1) {
 		prevsyntax = syntax;
 		syntax = ARISYNTAX;
-		USTPUTC(CTLARI, out);
+		USTPUTC(psh, CTLARI, out);
 		if (ISDBLQUOTE())
-			USTPUTC('"',out);
+			USTPUTC(psh, '"',out);
 		else
-			USTPUTC(' ',out);
+			USTPUTC(psh, ' ',out);
 	} else {
 		/*
 		 * we collapse embedded arithmetic expansion to
 		 * parenthesis, which should be equivalent
 		 */
-		USTPUTC('(', out);
+		USTPUTC(psh, '(', out);
 	}
 	goto parsearith_return;
 }

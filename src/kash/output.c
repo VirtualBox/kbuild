@@ -189,7 +189,7 @@ flushout(struct output *dest)
 
 	if (dest->buf == NULL || dest->nextc == dest->buf || dest->fd < 0)
 		return;
-	if (xwrite(dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
+	if (xwrite(psh, dest->fd, dest->buf, dest->nextc - dest->buf) < 0)
 		dest->flags |= OUTPUT_ERR;
 	dest->nextc = dest->buf;
 	dest->nleft = dest->bufsize;
@@ -479,7 +479,7 @@ number:		  /* process a number */
  */
 
 int
-xwrite(int fd, char *buf, int nbytes)
+xwrite(shinstance *psh, int fd, char *buf, int nbytes)
 {
 	int ntry;
 	int i;
@@ -488,7 +488,7 @@ xwrite(int fd, char *buf, int nbytes)
 	n = nbytes;
 	ntry = 0;
 	for (;;) {
-		i = write(fd, buf, n);
+		i = shfile_write(&psh->fdtab, fd, buf, n);
 		if (i > 0) {
 			if ((n -= i) <= 0)
 				return nbytes;
@@ -510,10 +510,10 @@ xwrite(int fd, char *buf, int nbytes)
  */
 
 int
-xioctl(int fd, unsigned long request, char *arg)
+xioctl(shinstance *psh, int fd, unsigned long request, char *arg)
 {
 	int i;
 
-	while ((i = ioctl(fd, request, arg)) == -1 && errno == EINTR);
+	while ((i = shfile_ioctl(&psh->fdtab, fd, request, arg)) == -1 && errno == EINTR);
 	return i;
 }

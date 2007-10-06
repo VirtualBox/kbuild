@@ -58,13 +58,13 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
  */
 
 pointer
-ckmalloc(int nbytes)
+ckmalloc(size_t nbytes)
 {
 	pointer p;
 
 	p = malloc(nbytes);
 	if (p == NULL)
-		error("Out of space");
+		error(NULL, "Out of space");
 	return p;
 }
 
@@ -74,11 +74,11 @@ ckmalloc(int nbytes)
  */
 
 pointer
-ckrealloc(pointer p, int nbytes)
+ckrealloc(pointer p, size_t nbytes)
 {
 	p = realloc(p, nbytes);
 	if (p == NULL)
-		error("Out of space");
+		error(NULL, "Out of space");
 	return p;
 }
 
@@ -107,29 +107,29 @@ savestr(const char *s)
  * well.
  */
 
-#define MINSIZE 504		/* minimum size of a block */
+//#define MINSIZE 504		/* minimum size of a block */
 
-struct stack_block {
-	struct stack_block *prev;
-	char space[MINSIZE];
-};
+//struct stack_block {
+//	struct stack_block *prev;
+//	char space[MINSIZE];
+//};
 
-struct stack_block stackbase;
-struct stack_block *stackp = &stackbase;
-struct stackmark *markp;
-char *stacknxt = stackbase.space;
-int stacknleft = MINSIZE;
-int sstrnleft;
-int herefd = -1;
+//struct stack_block stackbase;
+//struct stack_block *stackp = &stackbase;
+//struct stackmark *markp;
+//char *stacknxt = stackbase.space;
+//int stacknleft = MINSIZE;
+//int sstrnleft;
+//int herefd = -1;
 
 pointer
-stalloc(int nbytes)
+stalloc(shinstance *psh, size_t nbytes)
 {
 	char *p;
 
 	nbytes = SHELL_ALIGN(nbytes);
-	if (nbytes > stacknleft) {
-		int blocksize;
+	if (nbytes > psh->stacknleft) {
+		size_t blocksize;
 		struct stack_block *sp;
 
 		blocksize = nbytes;
@@ -137,57 +137,57 @@ stalloc(int nbytes)
 			blocksize = MINSIZE;
 		INTOFF;
 		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + blocksize);
-		sp->prev = stackp;
-		stacknxt = sp->space;
-		stacknleft = blocksize;
-		stackp = sp;
+		sp->prev = psh->stackp;
+		psh->stacknxt = sp->space;
+		psh->stacknleft = (int)blocksize;
+		psh->stackp = sp;
 		INTON;
 	}
-	p = stacknxt;
-	stacknxt += nbytes;
-	stacknleft -= nbytes;
+	p = psh->stacknxt;
+	psh->stacknxt += nbytes;
+	psh->stacknleft -= (int)nbytes;
 	return p;
 }
 
 
 void
-stunalloc(pointer p)
+stunalloc(shinstance *psh, pointer p)
 {
 	if (p == NULL) {		/*DEBUG */
-		write(2, "stunalloc\n", 10);
-		abort();
+		shfile_write(&psh->fdtab, 2, "stunalloc\n", 10);
+		sh_abort(psh);
 	}
-	stacknleft += stacknxt - (char *)p;
-	stacknxt = p;
+	psh->stacknleft += (int)(psh->stacknxt - (char *)p);
+	psh->stacknxt = p;
 }
 
 
 
 void
-setstackmark(struct stackmark *mark)
+setstackmark(shinstance *psh, struct stackmark *mark)
 {
-	mark->stackp = stackp;
-	mark->stacknxt = stacknxt;
-	mark->stacknleft = stacknleft;
-	mark->marknext = markp;
-	markp = mark;
+	mark->stackp = psh->stackp;
+	mark->stacknxt = psh->stacknxt;
+	mark->stacknleft = psh->stacknleft;
+	mark->marknext = psh->markp;
+	psh->markp = mark;
 }
 
 
 void
-popstackmark(struct stackmark *mark)
+popstackmark(shinstance *psh, struct stackmark *mark)
 {
 	struct stack_block *sp;
 
 	INTOFF;
-	markp = mark->marknext;
-	while (stackp != mark->stackp) {
-		sp = stackp;
-		stackp = sp->prev;
+	psh->markp = mark->marknext;
+	while (psh->stackp != mark->stackp) {
+		sp = psh->stackp;
+		psh->stackp = sp->prev;
 		ckfree(sp);
 	}
-	stacknxt = mark->stacknxt;
-	stacknleft = mark->stacknleft;
+	psh->stacknxt = mark->stacknxt;
+	psh->stacknleft = mark->stacknleft;
 	INTON;
 }
 
@@ -203,55 +203,55 @@ popstackmark(struct stackmark *mark)
  */
 
 void
-growstackblock(void)
+growstackblock(shinstance *psh)
 {
-	int newlen = SHELL_ALIGN(stacknleft * 2 + 100);
+	int newlen = SHELL_ALIGN(psh->stacknleft * 2 + 100);
 
-	if (stacknxt == stackp->space && stackp != &stackbase) {
+	if (psh->stacknxt == psh->stackp->space && psh->stackp != &psh->stackbase) {
 		struct stack_block *oldstackp;
 		struct stackmark *xmark;
 		struct stack_block *sp;
 
 		INTOFF;
-		oldstackp = stackp;
-		sp = stackp;
-		stackp = sp->prev;
+		oldstackp = psh->stackp;
+		sp = psh->stackp;
+		psh->stackp = sp->prev;
 		sp = ckrealloc((pointer)sp,
 		    sizeof(struct stack_block) - MINSIZE + newlen);
-		sp->prev = stackp;
-		stackp = sp;
-		stacknxt = sp->space;
-		stacknleft = newlen;
+		sp->prev = psh->stackp;
+		psh->stackp = sp;
+		psh->stacknxt = sp->space;
+		psh->stacknleft = newlen;
 
 		/*
 		 * Stack marks pointing to the start of the old block
 		 * must be relocated to point to the new block
 		 */
-		xmark = markp;
+		xmark = psh->markp;
 		while (xmark != NULL && xmark->stackp == oldstackp) {
-			xmark->stackp = stackp;
-			xmark->stacknxt = stacknxt;
-			xmark->stacknleft = stacknleft;
+			xmark->stackp = psh->stackp;
+			xmark->stacknxt = psh->stacknxt;
+			xmark->stacknleft = psh->stacknleft;
 			xmark = xmark->marknext;
 		}
 		INTON;
 	} else {
-		char *oldspace = stacknxt;
-		int oldlen = stacknleft;
-		char *p = stalloc(newlen);
+		char *oldspace = psh->stacknxt;
+		int oldlen = psh->stacknleft;
+		char *p = stalloc(psh, newlen);
 
 		(void)memcpy(p, oldspace, oldlen);
-		stacknxt = p;			/* free the space */
-		stacknleft += newlen;		/* we just allocated */
+		psh->stacknxt = p;			/* free the space */
+		psh->stacknleft += newlen;		/* we just allocated */
 	}
 }
 
 void
-grabstackblock(int len)
+grabstackblock(shinstance *psh, int len)
 {
 	len = SHELL_ALIGN(len);
-	stacknxt += len;
-	stacknleft -= len;
+	psh->stacknxt += len;
+	psh->stacknleft -= len;
 }
 
 /*
@@ -259,9 +259,9 @@ grabstackblock(int len)
  * The user declares a variable of type STACKSTR, which may be declared
  * to be a register.  The macro STARTSTACKSTR initializes things.  Then
  * the user uses the macro STPUTC to add characters to the string.  In
- * effect, STPUTC(c, p) is the same as *p++ = c except that the stack is
+ * effect, STPUTC(psh, c, p) is the same as *p++ = c except that the stack is
  * grown as necessary.  When the user is done, she can just leave the
- * string there and refer to it using stackblock().  Or she can allocate
+ * string there and refer to it using stackblock(psh).  Or she can allocate
  * the space for it using grabstackstr().  If it is necessary to allow
  * someone else to use the stack temporarily and then continue to grow
  * the string, the user should use grabstack to allocate the space, and
@@ -273,17 +273,17 @@ grabstackblock(int len)
  */
 
 char *
-growstackstr(void)
+growstackstr(shinstance *psh)
 {
-	int len = stackblocksize();
-	if (herefd >= 0 && len >= 1024) {
-		xwrite(herefd, stackblock(), len);
-		sstrnleft = len - 1;
-		return stackblock();
+	int len = stackblocksize(psh);
+	if (psh->herefd >= 0 && len >= 1024) {
+		xwrite(psh, psh->herefd, stackblock(psh), len);
+		psh->sstrnleft = len - 1;
+		return stackblock(psh);
 	}
-	growstackblock();
-	sstrnleft = stackblocksize() - len - 1;
-	return stackblock() + len;
+	growstackblock(psh);
+	psh->sstrnleft = stackblocksize(psh) - len - 1;
+	return stackblock(psh) + len;
 }
 
 /*
@@ -291,19 +291,19 @@ growstackstr(void)
  */
 
 char *
-makestrspace(void)
+makestrspace(shinstance *psh)
 {
-	int len = stackblocksize() - sstrnleft;
-	growstackblock();
-	sstrnleft = stackblocksize() - len;
-	return stackblock() + len;
+	int len = stackblocksize(psh) - psh->sstrnleft;
+	growstackblock(psh);
+	psh->sstrnleft = stackblocksize(psh) - len;
+	return stackblock(psh) + len;
 }
 
 void
-ungrabstackstr(char *s, char *p)
+ungrabstackstr(shinstance *psh, char *s, char *p)
 {
-	stacknleft += stacknxt - s;
-	stacknxt = s;
-	sstrnleft = stacknleft - (p - s);
+	psh->stacknleft += (int)(psh->stacknxt - s);
+	psh->stacknxt = s;
+	psh->sstrnleft = (int)(psh->stacknleft - (p - s));
 
 }

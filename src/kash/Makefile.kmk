@@ -34,21 +34,22 @@ kmk_ash_SOURCES = \
 	cd.c \
 	error.c \
 	eval.c \
-	exec.c \
-	expand.c \
 	histedit.c \
-	input.c \
-	jobs.c \
 	mail.c \
 	memalloc.c \
-	miscbltin.c \
 	mystring.c \
 	options.c \
-	output.c \
-	parser.c \
-	redir.c \
 	show.c \
 	syntax.c \
+	\
+	output.c \
+	exec.c \
+	expand.c \
+	input.c \
+	jobs.c \
+	miscbltin.c \
+	parser.c \
+	redir.c \
 	trap.c \
 	var.c \
 	bltin/echo.c \
@@ -105,7 +106,7 @@ ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
 #
 # Use the pregenerated code.
 #
-kmk_ash_DEPS := 
+kmk_ash_DEPS :=
 
 define def_copy_generated
 $(PATH_TARGET)/$(src): generated/$(src)
@@ -118,7 +119,7 @@ endef
 #$(eval $(def_copy_generated)))
 
 kmk_ash_INCS += generated
-kmk_ash_DEFS += HAVE_SYS_CDEFS_H 
+kmk_ash_DEFS += HAVE_SYS_CDEFS_H
 
 include $(PATH_KBUILD)/footer.kmk
 

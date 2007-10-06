@@ -145,11 +145,11 @@ shellexec(char **argv, char **envp, const char *path, int idx, int vforked)
 #endif
 	TRACE(("shellexec: argv[0]=%s idx=%d\n", argv[0], idx));
 	if (strchr(argv[0], '/') != NULL) {
-		cmdname = stalloc(strlen(argv[0]) + 5);
+		cmdname = stalloc(psh, strlen(argv[0]) + 5);
 		strcpy(cmdname, argv[0]);
 		tryexec(cmdname, argv, envp, vforked, has_ext);
 		TRACE(("shellexec: cmdname=%s\n", cmdname));
-		stunalloc(cmdname);
+		stunalloc(psh, cmdname);
 		e = errno;
 	} else {
 		e = ENOENT;
@@ -159,7 +159,7 @@ shellexec(char **argv, char **envp, const char *path, int idx, int vforked)
 				if (errno != ENOENT && errno != ENOTDIR)
 					e = errno;
 			}
-			stunalloc(cmdname);
+			stunalloc(psh, cmdname);
 		}
 	}
 
@@ -274,13 +274,13 @@ execinterp(char **argv, char **envp)
 			break;
 		if (ap == &newargs[NEWARGS])
 bad:		  error("Bad #! line");
-		STARTSTACKSTR(outp);
+		STARTSTACKSTR(psh, outp);
 		do {
-			STPUTC(c, outp);
+			STPUTC(psh, c, outp);
 		} while (--n >= 0 && (c = *inp++) != ' ' && c != '\t' && c != '\n');
-		STPUTC('\0', outp);
+		STPUTC(psh, '\0', outp);
 		n++, inp--;
-		*ap++ = grabstackstr(outp);
+		*ap++ = grabstackstr(psh, outp);
 	}
 	if (ap == newargs + 1) {	/* if no args, maybe no exec is needed */
 		p = newargs[0];
@@ -348,9 +348,9 @@ padvance(const char **path, const char *name)
 #ifdef PC_EXE_EXTS
         len += 4; /* "4" is for .exe/.com/.cmd/.bat/.btm */
 #endif
-	while (stackblocksize() < len)
-		growstackblock();
-	q = stackblock();
+	while (stackblocksize(psh) < len)
+		growstackblock(psh);
+	q = stackblock(psh);
 	if (p != start) {
 		memcpy(q, start, p - start);
 		q += p - start;
@@ -374,7 +374,7 @@ padvance(const char **path, const char *name)
 		*path = p + 1;
 	else
 		*path = NULL;
-	return stalloc(len);
+	return stalloc(psh, len);
 }
 
 
@@ -484,7 +484,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		path = pathval();
 		do {
 			name = padvance(&path, cmdp->cmdname);
-			stunalloc(name);
+			stunalloc(psh, name);
 		} while (--idx >= 0);
 		out1str(name);
 		break;
@@ -622,7 +622,7 @@ find_command(char *name, struct cmdentry *entry, int act, const char *path)
 	idx = -1;
 loop:
 	while ((fullname = padvance(&path, name)) != NULL) {
-		stunalloc(fullname);
+		stunalloc(psh, fullname);
 		idx++;
 		if (pathopt) {
 			if (prefix("builtin", pathopt)) {
@@ -663,12 +663,12 @@ loop:
 		if (pathopt) {		/* this is a %func directory */
 			if (act & DO_NOFUNC)
 				goto loop;
-			stalloc(strlen(fullname) + 1);
+			stalloc(psh, strlen(fullname) + 1);
 			readcmdfile(fullname);
 			if ((cmdp = cmdlookup(name, 0)) == NULL ||
 			    cmdp->cmdtype != CMDFUNCTION)
 				error("%s not defined in %s", name, fullname);
-			stunalloc(fullname);
+			stunalloc(psh, fullname);
 			goto success;
 		}
 #ifdef notdef
@@ -688,7 +688,7 @@ loop:
 		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
 		if (act & DO_ALTPATH) {
-			stalloc(strlen(fullname) + 1);
+			stalloc(psh, strlen(fullname) + 1);
 			cmdp = &loc_cmd;
 		} else
 			cmdp = cmdlookup(name, 1);
@@ -1136,7 +1136,7 @@ typecmd(int argc, char **argv)
 				int j = entry.u.index;
 				do {
 					name = padvance(&path, arg);
-					stunalloc(name);
+					stunalloc(psh, name);
 				} while (--j >= 0);
 				if (!v_flag)
 					out1fmt(" is%s ",

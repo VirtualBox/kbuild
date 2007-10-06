@@ -57,13 +57,14 @@ __RCSID("$NetBSD: mail.c,v 1.16 2003/08/07 09:05:33 agc Exp $");
 #include "memalloc.h"
 #include "error.h"
 #include "mail.h"
+#include "shinstance.h"
 
 
-#define MAXMBOXES 10
+/*#define MAXMBOXES 10*/
 
 
-STATIC int nmboxes;			/* number of mailboxes */
-STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
+/*STATIC int nmboxes;			/* number of mailboxes */
+/*STATIC time_t mailtime[MAXMBOXES];*/	/* times of mailboxes */
 
 
 
@@ -74,7 +75,7 @@ STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  */
 
 void
-chkmail(int silent)
+chkmail(shinstance *psh, int silent)
 {
 	int i;
 	const char *mpath;
@@ -84,13 +85,13 @@ chkmail(int silent)
 	struct stat statb;
 
 	if (silent)
-		nmboxes = 10;
-	if (nmboxes == 0)
+		psh->nmboxes = 10;
+	if (psh->nmboxes == 0)
 		return;
-	setstackmark(&smark);
-	mpath = mpathset() ? mpathval() : mailval();
-	for (i = 0 ; i < nmboxes ; i++) {
-		p = padvance(&mpath, nullstr);
+	setstackmark(psh, &smark);
+	mpath = mpathset(psh) ? mpathval(psh) : mailval(psh);
+	for (i = 0 ; i < psh->nmboxes ; i++) {
+		p = padvance(psh, &mpath, nullstr);
 		if (p == NULL)
 			break;
 		if (*p == '\0')
@@ -100,23 +101,23 @@ chkmail(int silent)
 			abort();
 		q[-1] = '\0';			/* delete trailing '/' */
 #ifdef notdef /* this is what the System V shell claims to do (it lies) */
-		if (stat(p, &statb) < 0)
+		if (shfile_stat(&psh->fdtab, p, &statb) < 0)
 			statb.st_mtime = 0;
-		if (statb.st_mtime > mailtime[i] && ! silent) {
-			out2str(pathopt ? pathopt : "you have mail");
-			out2c('\n');
+		if (statb.st_mtime > psh->mailtime[i] && ! silent) {
+			out2str(psh, psh->pathopt ? psh->pathopt : "you have mail");
+			out2c(psh, '\n');
 		}
-		mailtime[i] = statb.st_mtime;
+		psh->mailtime[i] = statb.st_mtime;
 #else /* this is what it should do */
-		if (stat(p, &statb) < 0)
+		if (shfile_stat(&psh->fdtab, p, &statb) < 0)
 			statb.st_size = 0;
-		if (statb.st_size > mailtime[i] && ! silent) {
-			out2str(pathopt ? pathopt : "you have mail");
-			out2c('\n');
+		if (statb.st_size > psh->mailtime[i] && ! silent) {
+			out2str(psh, psh->pathopt ? psh->pathopt : "you have mail");
+			out2c(psh, '\n');
 		}
-		mailtime[i] = statb.st_size;
+		psh->mailtime[i] = statb.st_size;
 #endif
 	}
-	nmboxes = i;
-	popstackmark(&smark);
+	psh->nmboxes = i;
+	popstackmark(psh, &smark);
 }

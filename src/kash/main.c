@@ -83,8 +83,10 @@ __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
 
 /*int rootpid;
 int rootshell;*/
+#ifdef unused_variables
 STATIC union node *curcmd;
 STATIC union node *prevcmd;
+#endif
 
 STATIC void read_profile(struct shinstance *, const char *);
 STATIC char *find_dot_file(struct shinstance *, char *);
@@ -93,6 +95,8 @@ int shell_main(shinstance *, int, char **);
 #ifdef _MSC_VER
 extern void init_syntax(void);
 #endif
+STATIC int usage(const char *argv0);
+STATIC int version(const char *argv0);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -108,12 +112,23 @@ main(int argc, char **argv)
 	shinstance *psh;
 
 	/*
-	 * Global initializations. 
-         */
+	 * Global initializations.
+	 */
 	setlocale(LC_ALL, "");
 #ifdef _MSC_VER
 	init_syntax();
 #endif
+
+	/*
+	 * Check for --version and --help.
+     */
+	if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '-') {
+		if (!strcmp(argv[1], "--help"))
+			return usage(argv[0]);
+		if (!strcmp(argv[1], "--version"))
+			return version(argv[0]);
+	}
+
 	/*
 	 * Create the root shell instance.
 	 */
@@ -122,9 +137,9 @@ main(int argc, char **argv)
 		return 2;
 	shthread_set_shell(psh);
 	return shell_main(psh, argc, argv);
-}	
+}
 
-int 
+int
 shell_main(shinstance *psh, int argc, char **argv)
 {
 	struct jmploc jmploc;
@@ -160,7 +175,7 @@ shell_main(shinstance *psh, int argc, char **argv)
 		}
 
 		if (psh->exception != EXSHELLPROC) {
-			if (state == 0 || psh->iflag == 0 || ! psh->rootshell)
+			if (state == 0 || iflag(psh) == 0 || ! psh->rootshell)
 				exitshell(psh, psh->exitstatus);
 		}
 		reset(psh);
@@ -188,7 +203,7 @@ shell_main(shinstance *psh, int argc, char **argv)
 	psh->rootshell = 1;
 #ifdef DEBUG
 #if DEBUG == 2
-	debug = 1;
+	debug(psh) = 1;
 #endif
 	opentrace(psh);
 	trputs("Shell args:  ");  trargs(argv);
@@ -214,7 +229,7 @@ state2:
 	}
 state3:
 	state = 4;
-	if (psh->sflag == 0 || psh->minusc) {
+	if (sflag(psh) == 0 || psh->minusc) {
 		static int sigs[] =  {
 		    SIGINT, SIGQUIT, SIGHUP,
 #ifdef SIGTSTP
@@ -232,7 +247,7 @@ state3:
 	if (psh->minusc)
 		evalstring(psh, psh->minusc, 0);
 
-	if (psh->sflag || psh->minusc == NULL) {
+	if (sflag(psh) || psh->minusc == NULL) {
 state4:	/* XXX ??? - why isn't this before the "if" statement */
 		cmdloop(psh, 1);
 	}
@@ -261,7 +276,7 @@ cmdloop(struct shinstance *psh, int top)
 		if (psh->pendingsigs)
 			dotrap(psh);
 		inter = 0;
-		if (psh->iflag && top) {
+		if (iflag(psh) && top) {
 			inter = 1;
 			showjobs(psh, psh->out2, SHOW_CHANGED);
 			chkmail(psh, 0);
@@ -273,12 +288,12 @@ cmdloop(struct shinstance *psh, int top)
 			if (!top || numeof >= 50)
 				break;
 			if (!stoppedjobs(psh)) {
-				if (!psh->Iflag)
+				if (!Iflag(psh))
 					break;
 				out2str(psh, "\nUse \"exit\" to leave shell.\n");
 			}
 			numeof++;
-		} else if (n != NULL && psh->nflag == 0) {
+		} else if (n != NULL && nflag(psh) == 0) {
 			psh->job_warning = (psh->job_warning == 2) ? 1 : 0;
 			numeof = 0;
 			evaltree(psh, n, 0);
@@ -313,18 +328,18 @@ read_profile(struct shinstance *psh, const char *name)
 	if (fd < 0)
 		return;
 	/* -q turns off -x and -v just when executing init files */
-	if (psh->qflag)  {
-	    if (psh->xflag)
-		    psh->xflag = 0, xflag_set = 1;
-	    if (psh->vflag)
-		    psh->vflag = 0, vflag_set = 1;
+	if (qflag(psh))  {
+	    if (xflag(psh))
+		    xflag(psh) = 0, xflag_set = 1;
+	    if (vflag(psh))
+		    vflag(psh) = 0, vflag_set = 1;
 	}
 	cmdloop(psh, 0);
-	if (psh->qflag)  {
+	if (qflag(psh))  {
 	    if (xflag_set)
-		    psh->xflag = 1;
+		    xflag(psh) = 1;
 	    if (vflag_set)
-		    psh->vflag = 1;
+		    vflag(psh) = 1;
 	}
 	popfile(psh);
 }
@@ -413,11 +428,62 @@ exitcmd(struct shinstance *psh, int argc, char **argv)
 	if (stoppedjobs(psh))
 		return 0;
 	if (argc > 1)
-		psh->exitstatus = number(argv[1]);
+		psh->exitstatus = number(psh, argv[1]);
 	exitshell(psh, psh->exitstatus);
 	/* NOTREACHED */
 	return 1;
 }
+
+
+STATIC const char *
+strip_argv0(const char *argv0, size_t *lenp)
+{
+	const char *tmp;
+
+	/* skip the path */
+	for (tmp = strpbrk(argv0, "\\/:"); tmp; tmp = strpbrk(argv0, "\\/:"))
+		argv0 = tmp + 1;
+
+	/* find the end, ignoring extenions */
+	tmp = strrchr(argv0, '.');
+	if (!tmp)
+		tmp = strchr(argv0, '\0');
+	*lenp = tmp - argv0;
+	return argv0;
+}
+
+STATIC int
+usage(const char *argv0)
+{
+	size_t len;
+	strip_argv0(argv0, &len);
+
+	fprintf(stdout,
+			"usage: %.*s [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+		    "               [+o option_name] [command_file [argument ...]]\n"
+		    "   or: %.*s -c [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+		    "               [+o option_name] command_string [command_name [argument ...]]\n"
+		    "   or: %.*s -s [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"
+		    "               [+o option_name] [argument ...]\n"
+		    "   or: %.*s --help\n"
+		    "   or: %.*s --version\n",
+		    len, argv0, len, argv0, len, argv0, len, argv0, len, argv0);
+	return 0;
+}
+
+STATIC int
+version(const char *argv0)
+{
+	size_t len;
+	strip_argv0(argv0, &len);
+
+	fprintf(stdout,
+			"%.*s - kBuild version %d.%d.%d\n",
+		    len, argv0,
+		    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+	return 0;
+}
+
 
 /*
  * Local Variables:

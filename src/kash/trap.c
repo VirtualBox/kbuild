@@ -101,7 +101,7 @@ signame_to_signum(const char *p)
 	int i;
 
 	if (is_number(p))
-		return number(p);
+		return number(psh, p);
 
 	if (strcasecmp(p, "exit") == 0 )
 		return 0;
@@ -189,7 +189,7 @@ trapcmd(int argc, char **argv)
 
 	while (*ap) {
 		if (is_number(*ap))
-			signo = number(*ap);
+			signo = number(psh, *ap);
 		else
 			signo = signame_to_signum(*ap);
 
@@ -263,23 +263,23 @@ setsignal(int signo, int vforked)
 	if (rootshell && !vforked && action == S_DFL) {
 		switch (signo) {
 		case SIGINT:
-			if (iflag || minusc || sflag == 0)
+			if (iflag(psh) || minusc || sflag(psh) == 0)
 				action = S_CATCH;
 			break;
 		case SIGQUIT:
 #ifdef DEBUG
-			if (debug)
+			if (debug(psh))
 				break;
 #endif
 			/* FALLTHROUGH */
 		case SIGTERM:
-			if (iflag)
+			if (iflag(psh))
 				action = S_IGN;
 			break;
 #if JOBS
 		case SIGTSTP:
 		case SIGTTOU:
-			if (mflag)
+			if (mflag(psh))
 				action = S_IGN;
 			break;
 #endif
@@ -301,7 +301,7 @@ setsignal(int signo, int vforked)
 			return 0;
 		}
 		if (sigact == SIG_IGN) {
-			if (mflag && (signo == SIGTSTP ||
+			if (mflag(psh) && (signo == SIGTSTP ||
 			     signo == SIGTTIN || signo == SIGTTOU)) {
 				tsig = S_IGN;	/* don't hard ignore these */
 			} else
