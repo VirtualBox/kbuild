@@ -91,7 +91,7 @@ extern mode_t getmode(const void *bbox, mode_t omode);
 #endif
 
 #ifndef MAXBSIZE
-# define MAXBSIZE 16384
+# define MAXBSIZE 0x20000
 #endif
 
 /* Bootstrap aid - this doesn't exist in most older releases */
