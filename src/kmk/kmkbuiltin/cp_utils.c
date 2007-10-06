@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
 
 #ifndef MAXBSIZE
-# define MAXBSIZE 16384
+# define MAXBSIZE 0x20000
 #endif
 #ifndef O_BINARY
 # define O_BINARY 0
