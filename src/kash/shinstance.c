@@ -51,6 +51,11 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
         psh->stackp = &psh->stackbase;
         psh->stacknxt = psh->stackbase.space;
 
+        /* input.c */
+        psh->plinno = 1;
+        psh->init_editline = 0;
+        psh->parsefile = &psh->basepf;
+
         /* output.c */
         psh->output.bufsize = OUTBUFSIZ;
         psh->output.fd = 1;
@@ -60,7 +65,6 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
         psh->out1 = &psh->output;
         psh->out2 = &psh->errout;
 
-        /* .c */
     }
     return psh;
 }

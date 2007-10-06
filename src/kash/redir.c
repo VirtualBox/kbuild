@@ -166,9 +166,9 @@ again:
 			openredirect(n, memory, flags);
 	}
 	if (memory[1])
-		out1 = &memout;
+		psh->out1 = &psh->memout;
 	if (memory[2])
-		out2 = &memout;
+		psh->out2 = &psh->memout;
 }
 
 
@@ -282,7 +282,7 @@ openhere(union node *redir)
 		if (redir->type == NHERE)
 			xwrite(psh, pip[1], redir->nhere.doc->narg.text, len);
 		else
-			expandhere(redir->nhere.doc, pip[1]);
+			expandhere(psh, redir->nhere.doc, pip[1]);
 		_exit(0);
 	}
 out:

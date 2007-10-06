@@ -27,6 +27,8 @@
 #ifndef ___shinstance_h___
 #define ___shinstance_h___
 
+#include <stdio.h> /* BUFSIZ */
+
 #include "shtypes.h"
 #include "shthread.h"
 #include "shfile.h"
@@ -35,11 +37,38 @@
 
 #include "var.h"
 
+/* memalloc.c */
 #define MINSIZE 504		/* minimum size of a block */
 struct stack_block {
 	struct stack_block *prev;
 	char space[MINSIZE];
 };
+
+/* input.c */
+struct strpush {
+	struct strpush *prev;	/* preceding string on stack */
+	char *prevstring;
+	int prevnleft;
+	int prevlleft;
+	struct alias *ap;	/* if push was associated with an alias */
+};
+
+/*
+ * The parsefile structure pointed to by the global variable parsefile
+ * contains information about the current file being read.
+ */
+struct parsefile {
+	struct parsefile *prev;	/* preceding file on stack */
+	int linno;		/* current line */
+	int fd;			/* file descriptor (or -1 if string) */
+	int nleft;		/* number of chars left in this line */
+	int lleft;		/* number of chars left in this buffer */
+	char *nextc;		/* next char in buffer */
+	char *buf;		/* input buffer */
+	struct strpush *strpush; /* for pushing strings at this level */
+	struct strpush basestrpush; /* so pushing one is fast */
+};
+
 
 
 /**
@@ -135,16 +164,25 @@ typedef struct shinstance
     struct stack_block *stackp/* = &stackbase*/;
     struct stackmark   *markp;
 
-
     /* jobs.h */
     pid_t               backgndpid;     /**< pid of last background process */
     int                 job_warning;    /**< user was warned about stopped jobs */
 
     /* input.h */
-    int                 plinno;
+    int                 plinno/* = 1 */;/**< input line number */
     int                 parsenleft;     /**< number of characters left in input buffer */
     char               *parsenextc;     /**< next character in input buffer */
-    int                 init_editline;  /**< 0 == not setup, 1 == OK, -1 == failed */
+    int                 init_editline/* = 0 */;     /**< 0 == not setup, 1 == OK, -1 == failed */
+
+    /* input.c */
+    int                 parselleft;     /**< copy of parsefile->lleft */
+    struct parsefile    basepf;         /**< top level input file */
+    char                basebuf[BUFSIZ];/**< buffer for top level input file */
+    struct parsefile   *parsefile/* = &basepf*/;    /**< current input file */
+#ifndef SMALL
+    EditLine           *el;             /**< cookie for editline package */
+#endif
+
 
     /* exec.h */
     const char         *pathopt;        /**< set by padvance */

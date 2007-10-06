@@ -195,8 +195,8 @@ setterm(const char *term)
 {
 	if (el != NULL && term != NULL)
 		if (el_set(el, EL_TERMINAL, term) != 0) {
-			outfmt(out2, "sh: Can't set terminal type %s\n", term);
-			outfmt(out2, "sh: Using dumb terminal settings.\n");
+			outfmt(psh->out2, "sh: Can't set terminal type %s\n", term);
+			outfmt(psh->out2, "sh: Using dumb terminal settings.\n");
 		}
 }
 

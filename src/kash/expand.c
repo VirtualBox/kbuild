@@ -121,11 +121,11 @@ STATIC char *cvtnum(int, char *);
  */
 
 void
-expandhere(union node *arg, int fd)
+expandhere(shinstance *psh, union node *arg, int fd)
 {
 	psh->herefd = fd;
-	expandarg(arg, (struct arglist *)NULL, 0);
-	xwrite(psh, fd, stackblock(psh), expdest - stackblock(psh));
+	expandarg(psh, arg, (struct arglist *)NULL, 0);
+	xwrite(psh, fd, stackblock(psh), psh->expdest - stackblock(psh));
 }
 
 
@@ -163,7 +163,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 		expandmeta(exparg.list, flag);
 	} else {
 		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
-			rmescapes(p);
+			rmescapes(psh, p);
 		sp = (struct strlist *)stalloc(psh, sizeof (struct strlist));
 		sp->text = p;
 		*exparg.lastp = sp;
@@ -230,7 +230,7 @@ argstr(char *p, int flag)
 			argbackq = argbackq->next;
 			break;
 		case CTLENDARI:
-			expari(flag);
+			expari(psh, flag);
 			break;
 		case ':':
 		case '=':
@@ -397,7 +397,7 @@ expari(int flag)
 	begoff = p - start;
 	removerecordregions(begoff);
 	if (quotes)
-		rmescapes(p+2);
+		rmescapes(psh, p+2);
 	result = arith(p+2);
 	fmtstr(p, 12, "%d", result);
 
@@ -521,7 +521,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {
-			outfmt(&errout, "%s\n", startp);
+			outfmt(&psh->errout, "%s\n", startp);
 			error(psh, (char *)NULL);
 		}
 		error(psh, "%.*s: parameter %snot set", p - str - 1,
@@ -533,7 +533,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE))
+			if (patmatch(psh, str, startp, varflags & VSQUOTE))
 				goto recordleft;
 			*loc = c;
 			if ((varflags & VSQUOTE) && *loc == CTLESC)
@@ -545,7 +545,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 		for (loc = str - 1; loc >= startp;) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE))
+			if (patmatch(psh, str, startp, varflags & VSQUOTE))
 				goto recordleft;
 			*loc = c;
 			loc--;
@@ -562,7 +562,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 
 	case VSTRIMRIGHT:
 	        for (loc = str - 1; loc >= startp;) {
-			if (patmatch(str, loc, varflags & VSQUOTE))
+			if (patmatch(psh, str, loc, varflags & VSQUOTE))
 				goto recordright;
 			loc--;
 			if ((varflags & VSQUOTE) && loc > startp &&
@@ -578,7 +578,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
-			if (patmatch(str, loc, varflags & VSQUOTE))
+			if (patmatch(psh, str, loc, varflags & VSQUOTE))
 				goto recordright;
 			if ((varflags & VSQUOTE) && *loc == CTLESC)
 			        loc++;
@@ -1110,7 +1110,7 @@ expandmeta(struct strlist *str, int flag)
 			 */
 nometa:
 			*exparg.lastp = str;
-			rmescapes(str->text);
+			rmescapes(psh, str->text);
 			exparg.lastp = &str->next;
 		} else {
 			*exparg.lastp = NULL;
@@ -1234,7 +1234,7 @@ expmeta(char *enddir, char *name)
 	while (! int_pending() && (dp = readdir(dirp)) != NULL) {
 		if (dp->d_name[0] == '.' && ! matchdot)
 			continue;
-		if (patmatch(start, dp->d_name, 0)) {
+		if (patmatch(psh, start, dp->d_name, 0)) {
 			if (atend) {
 				scopy(dp->d_name, enddir);
 				addfname(expdir);
@@ -1515,7 +1515,7 @@ casematch(union node *pattern, char *val)
 	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE);
 	STPUTC(psh, '\0', expdest);
 	p = grabstackstr(psh, expdest);
-	result = patmatch(p, val, 0);
+	result = patmatch(psh, p, val, 0);
 	popstackmark(psh, &smark);
 	return result;
 }
@@ -1550,7 +1550,7 @@ cvtnum(int num, char *buf)
  */
 
 int
-wordexpcmd(int argc, char **argv)
+wordexpcmd(shinstance *psh, int argc, char **argv)
 {
 	size_t len;
 	int i;

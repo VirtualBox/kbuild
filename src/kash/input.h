@@ -41,10 +41,10 @@
  * and restores it when files are pushed and popped.  The user of this
  * package must set its value.
  */
-extern int plinno;
-extern int parsenleft;		/* number of characters left in input buffer */
-extern char *parsenextc;	/* next character in input buffer */
-extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
+//extern int plinno;
+//extern int parsenleft;		/* number of characters left in input buffer */
+//extern char *parsenextc;	/* next character in input buffer */
+//extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
 
 char *pfgets(struct shinstance *, char *, int);
 int pgetc(struct shinstance *);
@@ -59,4 +59,4 @@ void popfile(struct shinstance *);
 void popallfiles(struct shinstance *);
 void closescript(struct shinstance *, int);
 
-#define pgetc_macro()	(--psh->parsenleft >= 0? *psh->parsenextc++ : preadbuffer(psh))
+#define pgetc_macro(psh)	(--(psh)->parsenleft >= 0? *(psh)->parsenextc++ : preadbuffer(psh))

@@ -50,8 +50,8 @@
 #undef putc
 #undef putchar
 #undef fileno
-#define stdout out1
-#define stderr out2
+#define stdout psh->out1
+#define stderr psh->out2
 #define printf out1fmt
 #define putc(c, file)	outc(c, file)
 #define putchar(c)	out1c(psh, c)
