@@ -417,7 +417,7 @@ histcmd(int argc, char **argv)
 					out2str(psh, s);
 				}
 
-				evalstring(strcpy(stalloc(psh, strlen(s) + 1), s), 0);
+				evalstring(psh, strcpy(stalloc(psh, strlen(s) + 1), s), 0);
 				if (displayhist && hist) {
 					/*
 					 *  XXX what about recursive and
@@ -441,7 +441,7 @@ histcmd(int argc, char **argv)
 		fclose(efp);
 		editcmd = stalloc(psh, strlen(editor) + strlen(editfile) + 2);
 		sprintf(editcmd, "%s %s", editor, editfile);
-		evalstring(editcmd, 0);	/* XXX - should use no JC command */
+		evalstring(psh, editcmd, 0);	/* XXX - should use no JC command */
 		INTON;
 		readcmdfile(editfile);	/* XXX - should read back - quick tst */
 		unlink(editfile);

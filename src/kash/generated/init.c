@@ -121,8 +121,8 @@ extern void rmaliases(struct shinstance *);
 
 extern int loopnest;		/* current loop nesting level */
 
-extern void deletefuncs(void);
-extern void hash_special_builtins(void);
+extern void deletefuncs(struct shinstance *);
+extern void hash_special_builtins(struct shinstance *);
 
 struct strpush {
 	struct strpush *prev;	/* preceding string on stack */
@@ -265,7 +265,7 @@ initshellproc() {
 
       /* from exec.c: */
       {
-	      deletefuncs();
+	      deletefuncs(psh);
       }
 
       /* from input.c: */
