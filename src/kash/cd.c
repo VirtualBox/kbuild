@@ -160,7 +160,7 @@ docd(shinstance *psh, char *dest, int print)
 	int first;
 	int badstat;
 
-	TRACE(("docd(\"%s\", %d) called\n", dest, print));
+	TRACE((psh, "docd(\"%s\", %d) called\n", dest, print));
 
 	/*
 	 *  Check each component of the path. If we find a symlink or
@@ -409,7 +409,7 @@ find_curdir(shinstance *psh, int noerror)
 		pwd = stalloc(psh, MAXPWD);
 		INTOFF;
 		if (pipe(pip) < 0)
-			error("Pipe call failed");
+			error(psh, "Pipe call failed");
 		jp = makejob((union node *)NULL, 1);
 		if (forkshell(jp, (union node *)NULL, FORK_NOJOB) == 0) {
 			(void) close(pip[0]);
@@ -419,7 +419,7 @@ find_curdir(shinstance *psh, int noerror)
 				close(pip[1]);
 			}
 			(void) execl("/bin/pwd", "pwd", (char *)0);
-			error("Cannot exec /bin/pwd");
+			error(psh, "Cannot exec /bin/pwd");
 		}
 		(void) close(pip[1]);
 		pip[1] = -1;
@@ -433,13 +433,13 @@ find_curdir(shinstance *psh, int noerror)
 		pip[0] = -1;
 		status = waitforjob(jp);
 		if (status != 0)
-			error((char *)0);
+			error(psh, (char *)0);
 		if (i < 0 || p == pwd || p[-1] != '\n') {
 			if (noerror) {
 				INTON;
 				return;
 			}
-			error("pwd command failed");
+			error(psh, "pwd command failed");
 		}
 		p[-1] = '\0';
 		INTON;

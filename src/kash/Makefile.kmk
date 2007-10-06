@@ -14,6 +14,7 @@ include $(PATH_KBUILD)/header.kmk
 PROGRAMS += kmk_ash
 kmk_ash_TEMPLATE = BIN
 kmk_ash_DEFS = lint SHELL SMALL
+kmk_ash_DEFS.debug = DEBUG
 kmk_ash_DEFS.linux = BSD
 kmk_ash_DEFS.solaris = BSD
 kmk_ash_DEFS.win = \
@@ -41,8 +42,8 @@ kmk_ash_SOURCES = \
 	options.c \
 	show.c \
 	syntax.c \
-	\
 	output.c \
+	\
 	exec.c \
 	expand.c \
 	input.c \

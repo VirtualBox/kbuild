@@ -60,13 +60,13 @@ static void shtree(union node *, int, char *, FILE*);
 static void shcmd(union node *, FILE *);
 static void sharg(union node *, FILE *);
 static void indent(int, char *, FILE *);
-static void trstring(char *);
+static void trstring(shinstance *, char *);
 
 
 void
-showtree(union node *n)
+showtree(shinstance *psh, union node *n)
 {
-	trputs("showtree called\n");
+	trputs(psh, "showtree called\n");
 	shtree(n, 1, NULL, stdout);
 }
 
@@ -273,7 +273,7 @@ FILE *tracefile;
 
 #ifdef DEBUG
 void
-trputc(int c)
+trputc(shinstance *psh, int c)
 {
 	if (debug(psh) != 1)
 		return;
@@ -310,7 +310,7 @@ tracev(shinstance *psh, const char *fmt, va_list va)
 
 #ifdef DEBUG
 void
-trputs(const char *s)
+trputs(shinstance *psh, const char *s)
 {
 	if (debug(psh) != 1)
 		return;
@@ -319,7 +319,7 @@ trputs(const char *s)
 
 
 static void
-trstring(char *s)
+trstring(shinstance *psh, char *s)
 {
 	char *p;
 	char c;
@@ -366,7 +366,7 @@ trargs(shinstance *psh, char **ap)
 	if (debug(psh) != 1)
 		return;
 	while (*ap) {
-		trstring(*ap++);
+		trstring(psh, *ap++);
 		if (*ap)
 			putc(' ', tracefile);
 		else
@@ -378,7 +378,7 @@ trargs(shinstance *psh, char **ap)
 
 #ifdef DEBUG
 void
-opentrace(void)
+opentrace(shinstance *psh)
 {
 	char s[100];
 #ifdef O_APPEND
@@ -423,7 +423,7 @@ opentrace(void)
 	if ((flags = fcntl(fileno(tracefile), F_GETFL, 0)) >= 0)
 		fcntl(fileno(tracefile), F_SETFL, flags | O_APPEND);
 #endif
-	setlinebuf(tracefile);
+	setvbuf(tracefile, (char *)NULL, _IOLBF, 0); //setlinebuf(tracefile);
 	fputs("\nTracing started.\n", tracefile);
 }
 #endif /* DEBUG */

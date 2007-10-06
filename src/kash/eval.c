@@ -225,15 +225,15 @@ void
 evaltree(shinstance *psh, union node *n, int flags)
 {
 	if (n == NULL) {
-		TRACE(("evaltree(NULL) called\n"));
+		TRACE((psh, "evaltree(NULL) called\n"));
 		psh->exitstatus = 0;
 		goto out;
 	}
 #ifndef SMALL
 	psh->displayhist = 1;	/* show history substitutions done with fc */
 #endif
-	TRACE(("pid %d, evaltree(%p: %d, %d) called\n",
-	    getpid(), n, n->type, flags));
+	TRACE((psh, "pid %d, evaltree(%p: %d, %d) called\n",
+	       getpid(), n, n->type, flags));
 	switch (n->type) {
 	case NSEMI:
 		evaltree(psh, n->nbinary.ch1, flags & EV_TESTED);
@@ -499,7 +499,7 @@ evalpipe(shinstance *psh, union node *n)
 	int prevfd;
 	int pip[2];
 
-	TRACE(("evalpipe(0x%lx) called\n", (long)n));
+	TRACE((psh, "evalpipe(0x%lx) called\n", (long)n));
 	pipelen = 0;
 	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next)
 		pipelen++;
@@ -539,7 +539,7 @@ evalpipe(shinstance *psh, union node *n)
 	}
 	if (n->npipe.backgnd == 0) {
 		psh->exitstatus = waitforjob(psh, jp);
-		TRACE(("evalpipe:  job done exit status %d\n", psh->exitstatus));
+		TRACE((psh, "evalpipe:  job done exit status %d\n", psh->exitstatus));
 	}
 	INTON;
 }
@@ -604,7 +604,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 	}
 out:
 	popstackmark(psh, &smark);
-	TRACE(("evalbackcmd done: fd=%d buf=0x%x nleft=%d jp=0x%x\n",
+	TRACE((psh, "evalbackcmd done: fd=%d buf=0x%x nleft=%d jp=0x%x\n",
 		result->fd, result->buf, result->nleft, result->jp));
 }
 
@@ -715,7 +715,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 
 	psh->vforked = 0;
 	/* First expand the arguments. */
-	TRACE(("evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
+	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
 	setstackmark(psh, &smark);
 	psh->exitstatus = 0;
 
@@ -759,7 +759,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	argv = stalloc(psh, sizeof (char *) * (argc + 1));
 
 	for (sp = arglist.list ; sp ; sp = sp->next) {
-		TRACE(("evalcommand arg: %s\n", sp->text));
+		TRACE((psh, "evalcommand arg: %s\n", sp->text));
 		*argv++ = sp->text;
 	}
 	*argv = NULL;
@@ -863,7 +863,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 			psh->vforked = 1;
 			switch (pid = vfork()) {
 			case -1:
-				TRACE(("Vfork failed, errno=%d\n", errno));
+				TRACE((psh, "Vfork failed, errno=%d\n", errno));
 				INTON;
 				error(psh, "Cannot vfork");
 				break;
@@ -931,7 +931,7 @@ normal_fork:
 	switch (cmdentry.cmdtype) {
 	case CMDFUNCTION:
 #ifdef DEBUG
-		trputs("Shell function:  ");  trargs(argv);
+		trputs(psh, "Shell function:  ");  trargs(psh, argv);
 #endif
 		redirect(psh, cmd->ncmd.redirect, REDIR_PUSH);
 		saveparam = psh->shellparam;
@@ -984,7 +984,7 @@ normal_fork:
 	case CMDBUILTIN:
 	case CMDSPLBLTIN:
 #ifdef DEBUG
-		trputs("builtin command:  ");  trargs(argv);
+		trputs(psh, "builtin command:  ");  trargs(psh, argv);
 #endif
 		mode = (cmdentry.u.bltin == execcmd) ? 0 : REDIR_PUSH;
 		if (flags == EV_BACKCMD) {
@@ -1068,7 +1068,7 @@ normal_fork:
 
 	default:
 #ifdef DEBUG
-		trputs("normal command:  ");  trargs(argv);
+		trputs(psh, "normal command:  ");  trargs(psh, argv);
 #endif
 		clearredir(psh, psh->vforked);
 		redirect(psh, cmd->ncmd.redirect, psh->vforked ? REDIR_VFORK : 0);

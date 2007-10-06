@@ -53,8 +53,13 @@ extern struct output errout;
 extern struct output memout;
 extern struct output *out1;
 extern struct output *out2;*/
+#ifdef _MSC_VER
+# ifndef __attribute__
+#  define __attribute__(a)
+# endif
+#endif
 
-void open_mem(struct shinstance *, char *, int, struct output *);
+void open_mem(char *, int, struct output *);
 void out1str(struct shinstance *, const char *);
 void out2str(struct shinstance *, const char *);
 void outstr(const char *, struct output *);
@@ -71,7 +76,7 @@ void dprintf(struct shinstance *, const char *, ...)
 void fmtstr(char *, size_t, const char *, ...)
     __attribute__((__format__(__printf__,3,4)));
 void doformat(struct output *, const char *, va_list);
-int xwrite(struct shinstance *, int, char *, int);
+int xwrite(struct shinstance *, int, char *, size_t);
 int xioctl(struct shinstance *, int, unsigned long, char *);
 
 #define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))

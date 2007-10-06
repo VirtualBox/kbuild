@@ -143,12 +143,12 @@ shellexec(char **argv, char **envp, const char *path, int idx, int vforked)
 #else
 	const int has_ext = 1;
 #endif
-	TRACE(("shellexec: argv[0]=%s idx=%d\n", argv[0], idx));
+	TRACE((psh, "shellexec: argv[0]=%s idx=%d\n", argv[0], idx));
 	if (strchr(argv[0], '/') != NULL) {
 		cmdname = stalloc(psh, strlen(argv[0]) + 5);
 		strcpy(cmdname, argv[0]);
 		tryexec(cmdname, argv, envp, vforked, has_ext);
-		TRACE(("shellexec: cmdname=%s\n", cmdname));
+		TRACE((psh, "shellexec: cmdname=%s\n", cmdname));
 		stunalloc(psh, cmdname);
 		e = errno;
 	} else {
@@ -175,9 +175,9 @@ shellexec(char **argv, char **envp, const char *path, int idx, int vforked)
 		exerrno = 2;
 		break;
 	}
-	TRACE(("shellexec failed for '%s', errno %d, vforked %d, suppressint %d\n",
+	TRACE((psh, "shellexec failed for '%s', errno %d, vforked %d, suppressint %d\n",
 		argv[0], e, vforked, suppressint ));
-	exerror(EXEXEC, "%s: %s", argv[0], errmsg(e, E_EXEC));
+	exerror(psh, EXEXEC, "%s: %s", argv[0], errmsg(psh, e, E_EXEC));
 	/* NOTREACHED */
 }
 
@@ -215,7 +215,7 @@ tryexec(char *cmd, char **argv, char **envp, int vforked, int has_ext)
 			 * exception, and evalcommand will try again
 			 * with a normal fork(2).
 			 */
-			exraise(EXSHELLPROC);
+			exraise(psh, EXSHELLPROC);
 		}
 		initshellproc();
 		setinputfile(cmd, 0);
@@ -229,7 +229,7 @@ tryexec(char *cmd, char **argv, char **envp, int vforked, int has_ext)
 		}
 #endif
 		setparam(argv + 1);
-		exraise(EXSHELLPROC);
+		exraise(psh, EXSHELLPROC);
 	}
 	errno = e;
 }
@@ -273,7 +273,7 @@ execinterp(char **argv, char **envp)
 		if ((c = *inp++) == '\n')
 			break;
 		if (ap == &newargs[NEWARGS])
-bad:		  error("Bad #! line");
+bad:		  error(psh, "Bad #! line");
 		STARTSTACKSTR(psh, outp);
 		do {
 			STPUTC(psh, c, outp);
@@ -286,7 +286,7 @@ bad:		  error("Bad #! line");
 		p = newargs[0];
 		for (;;) {
 			if (equal(p, "sh") || equal(p, "ash")) {
-				TRACE(("hash bang self\n"));
+				TRACE((psh, "hash bang self\n"));
 				return;
 			}
 			while (*p != '/') {
@@ -300,7 +300,7 @@ break2:;
 	}
 	i = (char *)ap - (char *)newargs;		/* size in bytes */
 	if (i == 0)
-		error("Bad #! line");
+		error(psh, "Bad #! line");
 	for (ap2 = argv ; *ap2++ != NULL ; );
 	new = ckmalloc(i + ((char *)ap2 - (char *)argv));
 	ap = newargs, ap2 = new;
@@ -308,7 +308,7 @@ break2:;
 		*ap2++ = *ap++;
 	ap = argv;
 	while (*ap2++ = *ap++);
-	TRACE(("hash bang '%s'\n", new[0]));
+	TRACE((psh, "hash bang '%s'\n", new[0]));
 	shellexec(new, envp, pathval(), 0, 0);
 	/* NOTREACHED */
 }
@@ -463,7 +463,7 @@ hashcmd(int argc, char **argv)
 				cmdp = cmdlookup(name, 0);
 				printentry(cmdp, verbose);
 			}
-			output_flushall();
+			output_flushall(psh);
 		}
 		argptr++;
 	}
@@ -486,32 +486,32 @@ printentry(struct tblentry *cmdp, int verbose)
 			name = padvance(&path, cmdp->cmdname);
 			stunalloc(psh, name);
 		} while (--idx >= 0);
-		out1str(name);
+		out1str(psh, name);
 		break;
 	case CMDSPLBLTIN:
-		out1fmt("special builtin %s", cmdp->cmdname);
+		out1fmt(psh, "special builtin %s", cmdp->cmdname);
 		break;
 	case CMDBUILTIN:
-		out1fmt("builtin %s", cmdp->cmdname);
+		out1fmt(psh, "builtin %s", cmdp->cmdname);
 		break;
 	case CMDFUNCTION:
-		out1fmt("function %s", cmdp->cmdname);
+		out1fmt(psh, "function %s", cmdp->cmdname);
 		if (verbose) {
 			struct procstat ps;
 			INTOFF;
 			commandtext(&ps, cmdp->param.func);
 			INTON;
-			out1str("() { ");
-			out1str(ps.cmd);
-			out1str("; }");
+			out1str(psh, "() { ");
+			out1str(psh, ps.cmd);
+			out1str(psh, "; }");
 		}
 		break;
 	default:
-		error("internal error: %s cmdtype %d", cmdp->cmdname, cmdp->cmdtype);
+		error(psh, "internal error: %s cmdtype %d", cmdp->cmdname, cmdp->cmdtype);
 	}
 	if (cmdp->rehash)
-		out1c('*');
-	out1c('\n');
+		out1c(psh, '*');
+	out1c(psh, '\n');
 }
 
 
@@ -640,7 +640,7 @@ loop:
 		if (fullname[0] == '/' && idx <= prev) {
 			if (idx < prev)
 				goto loop;
-			TRACE(("searchexec \"%s\": no change\n", name));
+			TRACE((psh, "searchexec \"%s\": no change\n", name));
 			goto success;
 		}
 #ifdef PC_EXE_EXTS
@@ -667,7 +667,7 @@ loop:
 			readcmdfile(fullname);
 			if ((cmdp = cmdlookup(name, 0)) == NULL ||
 			    cmdp->cmdtype != CMDFUNCTION)
-				error("%s not defined in %s", name, fullname);
+				error(psh, "%s not defined in %s", name, fullname);
 			stunalloc(psh, fullname);
 			goto success;
 		}
@@ -685,7 +685,7 @@ loop:
 				goto loop;
 		}
 #endif
-		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
+		TRACE((psh, "searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
 		if (act & DO_ALTPATH) {
 			stalloc(psh, strlen(fullname) + 1);
@@ -702,7 +702,7 @@ loop:
 	if (cmdp)
 		delete_cmd_entry();
 	if (act & DO_ERR)
-		outfmt(out2, "%s: %s\n", name, errmsg(e, E_EXEC));
+		outfmt(out2, "%s: %s\n", name, errmsg(psh, e, E_EXEC));
 	entry->cmdtype = CMDUNKNOWN;
 	return;
 
@@ -1093,11 +1093,11 @@ typecmd(int argc, char **argv)
 	}
 
 	if (p_flag && (v_flag || V_flag))
-		error("cannot specify -p with -v or -V");
+		error(psh, "cannot specify -p with -v or -V");
 
 	while ((arg = *argptr++)) {
 		if (!v_flag)
-			out1str(arg);
+			out1str(psh, arg);
 		/* First look at the keywords */
 		for (pp = parsekwd; *pp; pp++)
 			if (**pp == *arg && equal(*pp, arg))
@@ -1107,15 +1107,15 @@ typecmd(int argc, char **argv)
 			if (v_flag)
 				err = 1;
 			else
-				out1str(" is a shell keyword\n");
+				out1str(psh, " is a shell keyword\n");
 			continue;
 		}
 
 		/* Then look at the aliases */
-		if ((ap = lookupalias(arg, 1)) != NULL) {
+		if ((ap = lookupalias(psh, arg, 1)) != NULL) {
 			if (!v_flag)
-				out1fmt(" is an alias for \n");
-			out1fmt("%s\n", ap->val);
+				out1fmt(psh, " is an alias for \n");
+			out1fmt(psh, "%s\n", ap->val);
 			continue;
 		}
 
@@ -1139,17 +1139,17 @@ typecmd(int argc, char **argv)
 					stunalloc(psh, name);
 				} while (--j >= 0);
 				if (!v_flag)
-					out1fmt(" is%s ",
+					out1fmt(psh, " is%s ",
 					    cmdp ? " a tracked alias for" : "");
-				out1fmt("%s\n", name);
+				out1fmt(psh, "%s\n", name);
 			} else {
 				if (access(arg, X_OK) == 0) {
 					if (!v_flag)
-						out1fmt(" is ");
-					out1fmt("%s\n", arg);
+						out1fmt(psh, " is ");
+					out1fmt(psh, "%s\n", arg);
 				} else {
 					if (!v_flag)
-						out1fmt(": %s\n",
+						out1fmt(psh, ": %s\n",
 						    strerror(errno));
 					else
 						err = 126;
@@ -1159,28 +1159,28 @@ typecmd(int argc, char **argv)
 		}
 		case CMDFUNCTION:
 			if (!v_flag)
-				out1str(" is a shell function\n");
+				out1str(psh, " is a shell function\n");
 			else
-				out1fmt("%s\n", arg);
+				out1fmt(psh, "%s\n", arg);
 			break;
 
 		case CMDBUILTIN:
 			if (!v_flag)
-				out1str(" is a shell builtin\n");
+				out1str(psh, " is a shell builtin\n");
 			else
-				out1fmt("%s\n", arg);
+				out1fmt(psh, "%s\n", arg);
 			break;
 
 		case CMDSPLBLTIN:
 			if (!v_flag)
-				out1str(" is a special shell builtin\n");
+				out1str(psh, " is a special shell builtin\n");
 			else
-				out1fmt("%s\n", arg);
+				out1fmt(psh, "%s\n", arg);
 			break;
 
 		default:
 			if (!v_flag)
-				out1str(": not found\n");
+				out1str(psh, ": not found\n");
 			err = 127;
 			break;
 		}

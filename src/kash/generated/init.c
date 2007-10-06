@@ -117,7 +117,7 @@
 
 
 
-extern void rmaliases(void);
+extern void rmaliases(struct shinstance *);
 
 extern int loopnest;		/* current loop nesting level */
 
@@ -255,7 +255,7 @@ initshellproc() {
 
       /* from alias.c: */
       {
-	      rmaliases();
+	      rmaliases(psh);
       }
 
       /* from eval.c: */

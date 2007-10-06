@@ -206,7 +206,7 @@ shell_main(shinstance *psh, int argc, char **argv)
 	debug(psh) = 1;
 #endif
 	opentrace(psh);
-	trputs("Shell args:  ");  trargs(argv);
+	trputs(psh, "Shell args:  ");  trargs(psh, argv);
 #endif
 
 	init(psh);
@@ -270,7 +270,7 @@ cmdloop(struct shinstance *psh, int top)
 	int inter;
 	int numeof = 0;
 
-	TRACE(("cmdloop(%d) called\n", top));
+	TRACE((psh, "cmdloop(%d) called\n", top));
 	setstackmark(psh, &smark);
 	for (;;) {
 		if (psh->pendingsigs)

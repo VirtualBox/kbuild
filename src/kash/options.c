@@ -212,7 +212,7 @@ set_opt_val(shinstance *psh, int i, int val)
 	psh->optlist[i].val = val;
 #ifdef DEBUG
 	if (&psh->optlist[i].val == &debug(psh))
-		opentrace();
+		opentrace(psh);
 #endif
 }
 

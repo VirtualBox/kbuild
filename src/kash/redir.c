@@ -148,7 +148,7 @@ again:
 					/* FALLTHROUGH*/
 				default:
 					INTON;
-					error("%d: %s", fd, strerror(errno));
+					error(psh, "%d: %s", fd, strerror(errno));
 					/* NOTREACHED */
 				}
 			}
@@ -243,9 +243,9 @@ openredirect(union node *redir, char memory[10], int flags)
 	INTON;
 	return;
 ecreate:
-	error("cannot create %s: %s", fname, errmsg(errno, E_CREAT));
+	error(psh, "cannot create %s: %s", fname, errmsg(psh, errno, E_CREAT));
 eopen:
-	error("cannot open %s: %s", fname, errmsg(errno, E_OPEN));
+	error(psh, "cannot open %s: %s", fname, errmsg(psh, errno, E_OPEN));
 }
 
 
@@ -262,7 +262,7 @@ openhere(union node *redir)
 	int len = 0;
 
 	if (pipe(pip) < 0)
-		error("Pipe call failed");
+		error(psh, "Pipe call failed");
 	if (redir->type == NHERE) {
 		len = strlen(redir->nhere.doc->narg.text);
 		if (len <= PIPESIZE) {
@@ -384,7 +384,7 @@ copyfd(int from, int to)
 		if (errno == EMFILE)
 			return EMPTY;
 		else
-			error("%d: %s", from, strerror(errno));
+			error(psh, "%d: %s", from, strerror(errno));
 	}
 	return newfd;
 }

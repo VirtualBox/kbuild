@@ -104,7 +104,7 @@ histedit(void)
 			if (hist != NULL)
 				sethistsize(histsizeval());
 			else
-				out2str("sh: can't initialize history\n");
+				out2str(psh, "sh: can't initialize history\n");
 		}
 		if (editing && !el && isatty(0)) { /* && isatty(2) ??? */
 			/*
@@ -143,7 +143,7 @@ histedit(void)
 				    _el_fn_complete);
 			} else {
 bad:
-				out2str("sh: can't initialize editing\n");
+				out2str(psh, "sh: can't initialize editing\n");
 			}
 			INTON;
 		} else if (!editing && el) {
@@ -206,17 +206,17 @@ inputrc(argc, argv)
 	char **argv;
 {
 	if (argc != 2) {
-		out2str("usage: inputrc file\n");
+		out2str(psh, "usage: inputrc file\n");
 		return 1;
 	}
 	if (el != NULL) {
 		if (el_source(el, argv[1])) {
-			out2str("inputrc: failed\n");
+			out2str(psh, "inputrc: failed\n");
 			return 1;
 		} else
 			return 0;
 	} else {
-		out2str("sh: inputrc ignored, not editing\n");
+		out2str(psh, "sh: inputrc ignored, not editing\n");
 		return 1;
 	}
 }
@@ -258,10 +258,10 @@ histcmd(int argc, char **argv)
 #endif
 
 	if (hist == NULL)
-		error("history not active");
+		error(psh, "history not active");
 
 	if (argc == 1)
-		error("missing history argument");
+		error(psh, "missing history argument");
 
 	optreset = 1; optind = 1; /* initialize getopt */
 	while (not_fcnumber(argv[optind]) &&
@@ -283,11 +283,11 @@ histcmd(int argc, char **argv)
 			sflg = 1;
 			break;
 		case ':':
-			error("option -%c expects argument", optopt);
+			error(psh, "option -%c expects argument", optopt);
 			/* NOTREACHED */
 		case '?':
 		default:
-			error("unknown option: -%c", optopt);
+			error(psh, "unknown option: -%c", optopt);
 			/* NOTREACHED */
 		}
 	argc -= optind, argv += optind;
@@ -314,7 +314,7 @@ histcmd(int argc, char **argv)
 		if (++active > MAXHISTLOOPS) {
 			active = 0;
 			displayhist = 0;
-			error("called recursively too many times");
+			error(psh, "called recursively too many times");
 		}
 		/*
 		 * Set editor.
@@ -357,7 +357,7 @@ histcmd(int argc, char **argv)
 		laststr = argv[1];
 		break;
 	default:
-		error("too many args");
+		error(psh, "too many args");
 		/* NOTREACHED */
 	}
 	/*
@@ -386,10 +386,10 @@ histcmd(int argc, char **argv)
 		INTOFF;		/* easier */
 		snprintf(editfile, sizeof(editfile), "%s_shXXXXXX", _PATH_TMP);
 		if ((fd = mkstemp(editfile)) < 0)
-			error("can't create temporary file %s", editfile);
+			error(psh, "can't create temporary file %s", editfile);
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
-			error("can't allocate stdio buffer for temp");
+			error(psh, "can't allocate stdio buffer for temp");
 		}
 	}
 
@@ -406,15 +406,15 @@ histcmd(int argc, char **argv)
 	for (;retval != -1; retval = history(hist, &he, direction)) {
 		if (lflg) {
 			if (!nflg)
-				out1fmt("%5d ", he.num);
-			out1str(he.str);
+				out1fmt(psh, "%5d ", he.num);
+			out1str(psh, he.str);
 		} else {
 			const char *s = pat ?
 			   fc_replace(he.str, pat, repl) : he.str;
 
 			if (sflg) {
 				if (displayhist) {
-					out2str(s);
+					out2str(psh, s);
 				}
 
 				evalstring(strcpy(stalloc(psh, strlen(s) + 1), s), 0);
@@ -522,7 +522,7 @@ str_to_event(const char *str, int last)
 			}
 		}
 		if (retval == -1)
-			error("history number %s not found (internal error)",
+			error(psh, "history number %s not found (internal error)",
 			       str);
 	} else {
 		/*
@@ -530,7 +530,7 @@ str_to_event(const char *str, int last)
 		 */
 		retval = history(hist, &he, H_PREV_STR, str);
 		if (retval == -1)
-			error("history pattern not found: %s", str);
+			error(psh, "history pattern not found: %s", str);
 	}
 	return (he.num);
 }
