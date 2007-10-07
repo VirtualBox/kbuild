@@ -61,6 +61,7 @@ __RCSID("$NetBSD: trap.c,v 1.31 2005/01/11 19:38:57 christos Exp $");
 #include "trap.h"
 #include "mystring.h"
 #include "var.h"
+#include "shinstance.h"
 
 #ifndef HAVE_SYS_SIGNAME
 extern void init_sys_signame(void);
@@ -80,15 +81,12 @@ extern char sys_signame[NSIG][16];
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
 
 
-char *trap[NSIG+1];		/* trap handler commands */
-MKINIT char sigmode[NSIG];	/* current value of signal */
-char gotsig[NSIG];		/* indicates specified signal received */
-int pendingsigs;		/* indicates some signal received */
+//char *trap[NSIG+1];		/* trap handler commands */
+//MKINIT char sigmode[NSIG];	/* current value of signal */
+//char gotsig[NSIG];		/* indicates specified signal received */
+//int pendingsigs;		/* indicates some signal received */
 
-#ifdef __sun__
-typedef void (*sig_t) (int);
-#endif
-static int getsigaction(int, sig_t *);
+static int getsigaction(shinstance *, int, sh_sig_t *);
 
 /*
  * return the signal number described by `p' (as a number or a name)
@@ -96,7 +94,7 @@ static int getsigaction(int, sig_t *);
  */
 
 static int
-signame_to_signum(const char *p)
+signame_to_signum(shinstance *psh, const char *p)
 {
 	int i;
 
@@ -122,7 +120,7 @@ signame_to_signum(const char *p)
  * Print a list of valid signal names
  */
 static void
-printsignals(void)
+printsignals(shinstance *psh)
 {
 	int n;
 
@@ -145,7 +143,7 @@ printsignals(void)
  */
 
 int
-trapcmd(int argc, char **argv)
+trapcmd(shinstance *psh, int argc, char **argv)
 {
 	char *action;
 	char **ap;
@@ -156,9 +154,9 @@ trapcmd(int argc, char **argv)
 
 	if (argc <= 1) {
 		for (signo = 0 ; signo <= NSIG ; signo++)
-			if (trap[signo] != NULL) {
+			if (psh->trap[signo] != NULL) {
 				out1fmt(psh, "trap -- ");
-				print_quoted(psh, trap[signo]);
+				print_quoted(psh, psh->trap[signo]);
 				out1fmt(psh, " %s\n",
 				    (signo) ? sys_signame[signo] : "EXIT");
 			}
@@ -172,12 +170,12 @@ trapcmd(int argc, char **argv)
 		if (*++ap == NULL)
 			return 0;
 
-	if (signame_to_signum(*ap) == -1) {
+	if (signame_to_signum(psh, *ap) == -1) {
 		if ((*ap)[0] == '-') {
 			if ((*ap)[1] == '\0')
 				ap++;
 			else if ((*ap)[1] == 'l' && (*ap)[2] == '\0') {
-				printsignals();
+				printsignals(psh);
 				return 0;
 			}
 			else
@@ -191,7 +189,7 @@ trapcmd(int argc, char **argv)
 		if (is_number(*ap))
 			signo = number(psh, *ap);
 		else
-			signo = signame_to_signum(*ap);
+			signo = signame_to_signum(psh, *ap);
 
 		if (signo < 0 || signo > NSIG)
 			error(psh, "%s: bad trap", *ap);
@@ -200,10 +198,10 @@ trapcmd(int argc, char **argv)
 		if (action)
 			action = savestr(action);
 
-		if (trap[signo])
-			ckfree(trap[signo]);
+		if (psh->trap[signo])
+			ckfree(psh->trap[signo]);
 
-		trap[signo] = action;
+		psh->trap[signo] = action;
 
 		if (signo != 0)
 			setsignal(psh, signo, 0);
@@ -222,19 +220,19 @@ trapcmd(int argc, char **argv)
  */
 
 void
-clear_traps(int vforked)
+clear_traps(shinstance *psh, int vforked)
 {
 	char **tp;
 
-	for (tp = trap ; tp <= &trap[NSIG] ; tp++) {
+	for (tp = psh->trap ; tp <= &psh->trap[NSIG] ; tp++) {
 		if (*tp && **tp) {	/* trap not NULL or SIG_IGN */
 			INTOFF;
 			if (!vforked) {
 				ckfree(*tp);
 				*tp = NULL;
 			}
-			if (tp != &trap[0])
-				setsignal(psh, tp - trap, vforked);
+			if (tp != &psh->trap[0])
+				setsignal(psh, (int)(tp - psh->trap), vforked);
 			INTON;
 		}
 	}
@@ -248,13 +246,13 @@ clear_traps(int vforked)
  */
 
 long
-setsignal(int signo, int vforked)
+setsignal(shinstance *psh, int signo, int vforked)
 {
 	int action;
-	sig_t sigact = SIG_DFL;
+	sh_sig_t sigact = SH_SIG_DFL;
 	char *t, tsig;
 
-	if ((t = trap[signo]) == NULL)
+	if ((t = psh->trap[signo]) == NULL)
 		action = S_DFL;
 	else if (*t != '\0')
 		action = S_CATCH;
@@ -263,7 +261,7 @@ setsignal(int signo, int vforked)
 	if (psh->rootshell && !vforked && action == S_DFL) {
 		switch (signo) {
 		case SIGINT:
-			if (iflag(psh) || minusc || sflag(psh) == 0)
+			if (iflag(psh) || psh->minusc || sflag(psh) == 0)
 				action = S_CATCH;
 			break;
 		case SIGQUIT:
@@ -286,13 +284,13 @@ setsignal(int signo, int vforked)
 		}
 	}
 
-	t = &sigmode[signo - 1];
+	t = &psh->sigmode[signo - 1];
 	tsig = *t;
 	if (tsig == 0) {
 		/*
 		 * current setting unknown
 		 */
-		if (!getsigaction(signo, &sigact)) {
+		if (!getsigaction(psh, signo, &sigact)) {
 			/*
 			 * Pretend it worked; maybe we should give a warning
 			 * here, but other shells don't. We don't alter
@@ -300,7 +298,7 @@ setsignal(int signo, int vforked)
 			 */
 			return 0;
 		}
-		if (sigact == SIG_IGN) {
+		if (sigact == SH_SIG_IGN) {
 			if (mflag(psh) && (signo == SIGTSTP ||
 			     signo == SIGTTIN || signo == SIGTTOU)) {
 				tsig = S_IGN;	/* don't hard ignore these */
@@ -313,27 +311,27 @@ setsignal(int signo, int vforked)
 	if (tsig == S_HARD_IGN || tsig == action)
 		return 0;
 	switch (action) {
-		case S_DFL:	sigact = SIG_DFL;	break;
+		case S_DFL:	sigact = SH_SIG_DFL;	break;
 		case S_CATCH:  	sigact = onsig;		break;
-		case S_IGN:	sigact = SIG_IGN;	break;
+		case S_IGN:	sigact = SH_SIG_IGN;	break;
 	}
 	if (!vforked)
 		*t = action;
 	siginterrupt(signo, 1);
-	return (long)signal(signo, sigact);
+	return (long)sh_signal(psh, signo, sigact);
 }
 
 /*
  * Return the current setting for sig w/o changing it.
  */
 static int
-getsigaction(int signo, sig_t *sigact)
+getsigaction(shinstance *psh, int signo, sh_sig_t *sigact)
 {
-	struct sigaction sa;
+	struct sh_sigaction sa;
 
-	if (sigaction(signo, (struct sigaction *)0, &sa) == -1)
+	if (sh_sigaction(signo, NULL, &sa) == -1)
 		return 0;
-	*sigact = (sig_t) sa.sa_handler;
+	*sigact = (sh_sig_t)sa.sh_handler;
 	return 1;
 }
 
@@ -342,13 +340,13 @@ getsigaction(int signo, sig_t *sigact)
  */
 
 void
-ignoresig(int signo, int vforked)
+ignoresig(shinstance *psh, int signo, int vforked)
 {
-	if (sigmode[signo - 1] != S_IGN && sigmode[signo - 1] != S_HARD_IGN) {
-		signal(signo, SIG_IGN);
+	if (psh->sigmode[signo - 1] != S_IGN && psh->sigmode[signo - 1] != S_HARD_IGN) {
+		sh_signal(psh, signo, SH_SIG_IGN);
 	}
 	if (!vforked)
-		sigmode[signo - 1] = S_HARD_IGN;
+		psh->sigmode[signo - 1] = S_HARD_IGN;
 }
 
 
@@ -360,7 +358,7 @@ SHELLPROC {
 	char *sm;
 
 	clear_traps(psh, s0);
-	for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
+	for (sm = psh->sigmode ; sm < psh->sigmode + NSIG ; sm++) {
 		if (*sm == S_IGN)
 			*sm = S_HARD_IGN;
 	}
@@ -376,13 +374,13 @@ SHELLPROC {
 void
 onsig(shinstance *psh, int signo)
 {
-	signal(signo, onsig);
-	if (signo == SIGINT && trap[SIGINT] == NULL) {
+	sh_signal(psh, signo, onsig);
+	if (signo == SIGINT && psh->trap[SIGINT] == NULL) {
 		onint(psh);
 		return;
 	}
-	gotsig[signo - 1] = 1;
-	pendingsigs++;
+	psh->gotsig[signo - 1] = 1;
+	psh->pendingsigs++;
 }
 
 
@@ -393,7 +391,7 @@ onsig(shinstance *psh, int signo)
  */
 
 void
-dotrap(void)
+dotrap(shinstance *psh)
 {
 	int i;
 	int savestatus;
@@ -407,7 +405,7 @@ dotrap(void)
 		}
 		psh->gotsig[i - 1] = 0;
 		savestatus=psh->exitstatus;
-		evalstring(psh, trap[i], 0);
+		evalstring(psh, psh->trap[i], 0);
 		psh->exitstatus=savestatus;
 	}
 done:
@@ -422,7 +420,7 @@ done:
 
 
 void
-setinteractive(int on)
+setinteractive(shinstance *psh, int on)
 {
 	static int is_interactive;
 
@@ -441,7 +439,7 @@ setinteractive(int on)
  */
 
 void
-exitshell(int status)
+exitshell(shinstance *psh, int status)
 {
 	struct jmploc loc1, loc2;
 	char *p;
@@ -453,16 +451,16 @@ exitshell(int status)
 	if (setjmp(loc2.loc)) {
 		goto l2;
 	}
-	handler = &loc1;
-	if ((p = trap[0]) != NULL && *p != '\0') {
-		trap[0] = NULL;
+	psh->handler = &loc1;
+	if ((p = psh->trap[0]) != NULL && *p != '\0') {
+		psh->trap[0] = NULL;
 		evalstring(psh, p, 0);
 	}
-l1:   handler = &loc2;			/* probably unnecessary */
+l1:   psh->handler = &loc2;			/* probably unnecessary */
 	output_flushall(psh);
 #if JOBS
 	setjobctl(psh, 0);
 #endif
-l2:   _exit(status);
+l2: sh__exit(psh, status);
 	/* NOTREACHED */
 }

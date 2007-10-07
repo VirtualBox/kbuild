@@ -126,7 +126,12 @@ typedef struct shinstance
     struct shinstance  *psh_rootshell;  /**< The root shell pointer. (!rootshell) */
 
     /* trap.h */
-    int                 pendingsigs;
+    int                 pendingsigs;    /**< indicates some signal received */
+
+    /* trap.c */
+    char                gotsig[NSIG];   /**< indicates specified signal received */
+    char               *trap[NSIG+1];   /**< trap handler commands */
+    char                sigmode[NSIG];  /**< current value of signal */
 
     /* parse.h */
     int                 tokpushback;
@@ -276,28 +281,33 @@ typedef struct shinstance
     char              **t_wp;
     struct t_op const  *t_wp_op;
 
-    /* trap.c */
-    char                gotsig[NSIG];   /**< indicates specified signal received */
-
 } shinstance;
 
 
-extern shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv);
+extern shinstance *sh_create_root_shell(shinstance *, int, char **);
 char *sh_getenv(shinstance *, const char *);
 
 /* signals */
-#include <signal.h>
+typedef void (*sh_sig_t)(shinstance *, int);
 #ifdef _MSC_VER
-    typedef uint32_t sh_sigset_t;
+ typedef uint32_t sh_sigset_t;
 #else
-    typedef sigset_t sh_sigset_t;
+ typedef sigset_t sh_sigset_t;
 #endif
+struct sh_sigaction
+{
+    sh_sig_t    sh_handler;
+    sh_sigset_t sh_mask;
+    int         sh_flags;
+};
+#define SH_SIG_DFL ((sh_sig_t)SIG_DFL)
+#define SH_SIG_IGN ((sh_sig_t)SIG_IGN)
 
-typedef void (*sh_handler)(int);
-sh_handler sh_signal(shinstance *, int, sh_handler handler);
+int sh_sigaction(int, const struct sh_sigaction *, struct sh_sigaction *);
+sh_sig_t sh_signal(shinstance *, int, sh_sig_t);
 void sh_raise_sigint(shinstance *);
-void sh_sigemptyset(sh_sigset_t *set);
-int sh_sigprocmask(shinstance *, int op, sh_sigset_t const *new, sh_sigset_t *old);
+void sh_sigemptyset(sh_sigset_t *);
+int sh_sigprocmask(shinstance *, int, sh_sigset_t const *, sh_sigset_t *);
 void sh_abort(shinstance *);
 
 /* times */

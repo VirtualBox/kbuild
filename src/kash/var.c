@@ -284,7 +284,7 @@ int
 setvarsafe(const char *name, const char *val, int flags)
 {
 	struct jmploc jmploc;
-	struct jmploc *volatile savehandler = handler;
+	struct jmploc *volatile savehandler = psh->handler;
 	int err = 0;
 #ifdef __GNUC__
 	(void) &err;
@@ -293,10 +293,10 @@ setvarsafe(const char *name, const char *val, int flags)
 	if (setjmp(jmploc.loc))
 		err = 1;
 	else {
-		handler = &jmploc;
+		psh->handler = &jmploc;
 		setvar(psh, name, val, flags);
 	}
-	handler = savehandler;
+	psh->handler = savehandler;
 	return err;
 }
 
