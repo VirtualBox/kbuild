@@ -32,9 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
 #include <ctype.h>
 
 /* Syntax classes */
@@ -48,7 +45,7 @@
 #define CENDVAR 7		/* a '}' character */
 #define CLP 8			/* a left paren in arithmetic */
 #define CRP 9			/* a right paren in arithmetic */
-#define CEOF 10			/* end of file */
+#define CSHEOF 10		/* end of file */
 #define CCTL 11			/* like CWORD, except it must be escaped */
 #define CSPCL 12		/* these terminate a word */
 

@@ -7,10 +7,10 @@
 
 #ifdef _MSC_VER /* doesn't implement the fancy initializers I think... */
 
-char basesyntax[257] = {CEOF};
-char dqsyntax[257] = {CEOF};
-char sqsyntax[257] = {CEOF};
-char arisyntax[257] = {CEOF};
+char basesyntax[257] = {CSHEOF};
+char dqsyntax[257] = {CSHEOF};
+char sqsyntax[257] = {CSHEOF};
+char arisyntax[257] = {CSHEOF};
 char is_type[257] = {0};
 
 void init_syntax(void)
@@ -113,7 +113,7 @@ void init_syntax(void)
 #define set_range(s, e, val) [ndx(s) ... ndx(e)] = val,
 
 /* syntax table used when not in quotes */
-const char basesyntax[257] = { CEOF,
+const char basesyntax[257] = { CSHEOF,
     set_range(CTL_FIRST, CTL_LAST, CCTL)
     set('\n', CNL)
     set('\\', CBACK)
@@ -134,7 +134,7 @@ const char basesyntax[257] = { CEOF,
 };
 
 /* syntax table used when in double quotes */
-const char dqsyntax[257] = { CEOF,
+const char dqsyntax[257] = { CSHEOF,
     set_range(CTL_FIRST, CTL_LAST, CCTL)
     set('\n', CNL)
     set('\\', CBACK)
@@ -155,7 +155,7 @@ const char dqsyntax[257] = { CEOF,
 };
 
 /* syntax table used when in single quotes */
-const char sqsyntax[257] = { CEOF,
+const char sqsyntax[257] = { CSHEOF,
     set_range(CTL_FIRST, CTL_LAST, CCTL)
     set('\n', CNL)
     set('\'', CSQUOTE)
@@ -172,7 +172,7 @@ const char sqsyntax[257] = { CEOF,
 };
 
 /* syntax table used when in arithmetic */
-const char arisyntax[257] = { CEOF,
+const char arisyntax[257] = { CSHEOF,
     set_range(CTL_FIRST, CTL_LAST, CCTL)
     set('\n', CNL)
     set('\\', CBACK)

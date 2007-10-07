@@ -1253,13 +1253,13 @@ conv_time(clock_t ticks, char *seconds, size_t l)
 int
 timescmd(shinstance *psh, int argc, char **argv)
 {
-	struct sh_tms tms;
+	shtms tms;
 	int u, s, cu, cs;
 	char us[8], ss[8], cus[8], css[8];
 
 	nextopt(psh, "");
 
-	sh_times(&tms);
+	sh_times(psh, &tms);
 
 	u = conv_time(tms.tms_utime, us, sizeof(us));
 	s = conv_time(tms.tms_stime, ss, sizeof(ss));

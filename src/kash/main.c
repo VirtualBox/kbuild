@@ -37,13 +37,11 @@
 __COPYRIGHT("@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
-
 #ifndef lint
 static char sccsid[] = "@(#)main.c	8.7 (Berkeley) 7/19/95";
 #else
 __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
 #endif /* not lint */
-
 #endif
 
 #include <errno.h>
