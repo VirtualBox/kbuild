@@ -51,7 +51,8 @@
  * expanded.  printf is now a builtin of netbsd's sh and csh.
  */
 
-#include "bltin.h"
+#include "shinstance.h"
+#include "builtins.h"
 
 int
 echocmd(shinstance *psh, int argc, char **argv)

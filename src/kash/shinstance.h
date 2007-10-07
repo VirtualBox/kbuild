@@ -258,6 +258,10 @@ typedef struct shinstance
     int                 nmboxes;        /**< number of mailboxes */
     time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
 
+    /* bltin/test.c */
+    char              **t_wp;
+    struct t_op const  *t_wp_op;
+
 } shinstance;
 
 
@@ -322,5 +326,9 @@ int sh_sysconf_clk_tck(void);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
 void sh__exit(shinstance *, int);
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
+uid_t sh_getuid(shinstance *);
+uid_t sh_geteuid(shinstance *);
+gid_t sh_getgid(shinstance *);
+gid_t sh_getegid(shinstance *);
 
 #endif

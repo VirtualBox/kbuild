@@ -17,19 +17,18 @@
 __RCSID("$NetBSD: test.c,v 1.26 2005/02/10 06:56:55 simonb Exp $");
 #endif
 
-#include <sys/stat.h>
 #include <sys/types.h>
 
 #include <ctype.h>
-#ifndef __sun__
-#include <err.h>
-#endif
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdarg.h>
+
+#include "error.h"
+#include "shinstance.h"
+
 
 /* test(1) accepts the following grammar:
 	oexpr	::= aexpr | aexpr "-o" oexpr ;
@@ -145,120 +144,93 @@ static struct t_op {
 	{0,	0,	0}
 };
 
-static char **t_wp;
-static struct t_op const *t_wp_op;
+//static char **t_wp;
+//static struct t_op const *t_wp_op;
 
-static void syntax(const char *, const char *);
-static int oexpr(enum token);
-static int aexpr(enum token);
-static int nexpr(enum token);
-static int primary(enum token);
-static int binop(void);
-static int filstat(char *, enum token);
-static enum token t_lex(char *);
-static int isoperand(void);
-static int getn(const char *);
-static int newerf(const char *, const char *);
-static int olderf(const char *, const char *);
-static int equalf(const char *, const char *);
+static void syntax(shinstance *, const char *, const char *);
+static int oexpr(shinstance *, enum token);
+static int aexpr(shinstance *, enum token);
+static int nexpr(shinstance *, enum token);
+static int primary(shinstance *, enum token);
+static int binop(shinstance *);
+static int filstat(shinstance *, char *, enum token);
+static enum token t_lex(shinstance *, char *);
+static int isoperand(shinstance *);
+static int getn(shinstance *, const char *);
+static int newerf(shinstance *, const char *, const char *);
+static int olderf(shinstance *, const char *, const char *);
+static int equalf(shinstance *, const char *, const char *);
 
-#if defined(SHELL)
-extern void error(const char *, ...) __attribute__((__noreturn__));
-#else
-static void error(const char *, ...) __attribute__((__noreturn__));
-
-static void
-error(const char *msg, ...)
-{
-	va_list ap;
-
-	va_start(ap, msg);
-	verrx(2, msg, ap);
-	/*NOTREACHED*/
-	va_end(ap);
-}
-#endif
-
-#ifdef SHELL
-int testcmd(int, char **);
 
 int
-testcmd(int argc, char **argv)
-#else
-int main(int, char *[]);
-
-int
-main(int argc, char *argv[])
-#endif
+testcmd(shinstance *psh, int argc, char **argv)
 {
 	int res;
 
-#ifdef HAVE_SETPROGNAME
-	setprogname(argv[0]);
-#endif
 	if (strcmp(argv[0], "[") == 0) {
 		if (strcmp(argv[--argc], "]"))
-			error("missing ]");
+			error(psh, "missing ]");
 		argv[argc] = NULL;
 	}
 
 	if (argc < 2)
 		return 1;
 
-	t_wp = &argv[1];
-	res = !oexpr(t_lex(*t_wp));
+	psh->t_wp_op = NULL;
+	psh->t_wp = &argv[1];
+	res = !oexpr(psh, t_lex(psh, *psh->t_wp));
 
-	if (*t_wp != NULL && *++t_wp != NULL)
-		syntax(*t_wp, "unexpected operator");
+	if (*psh->t_wp != NULL && *++psh->t_wp != NULL)
+		syntax(psh, *psh->t_wp, "unexpected operator");
 
 	return res;
 }
 
 static void
-syntax(const char *op, const char *msg)
+syntax(shinstance *psh, const char *op, const char *msg)
 {
 
 	if (op && *op)
-		error("%s: %s", op, msg);
+		error(psh, "%s: %s", op, msg);
 	else
-		error("%s", msg);
+		error(psh, "%s", msg);
 }
 
 static int
-oexpr(enum token n)
+oexpr(shinstance *psh, enum token n)
 {
 	int res;
 
-	res = aexpr(n);
-	if (t_lex(*++t_wp) == BOR)
-		return oexpr(t_lex(*++t_wp)) || res;
-	t_wp--;
+	res = aexpr(psh, n);
+	if (t_lex(psh, *++psh->t_wp) == BOR)
+		return oexpr(psh, t_lex(psh, *++psh->t_wp)) || res;
+	psh->t_wp--;
 	return res;
 }
 
 static int
-aexpr(enum token n)
+aexpr(shinstance *psh, enum token n)
 {
 	int res;
 
-	res = nexpr(n);
-	if (t_lex(*++t_wp) == BAND)
-		return aexpr(t_lex(*++t_wp)) && res;
-	t_wp--;
+	res = nexpr(psh, n);
+	if (t_lex(psh, *++psh->t_wp) == BAND)
+		return aexpr(psh, t_lex(psh, *++psh->t_wp)) && res;
+	psh->t_wp--;
 	return res;
 }
 
 static int
-nexpr(enum token n)
+nexpr(shinstance *psh, enum token n)
 {
 
 	if (n == UNOT)
-		return !nexpr(t_lex(*++t_wp));
-	return primary(n);
+		return !nexpr(psh, t_lex(psh, *++psh->t_wp));
+	return primary(psh, n);
 }
 
 static int
-primary(enum token n)
+primary(shinstance *psh, enum token n)
 {
 	enum token nn;
 	int res;
@@ -266,48 +238,48 @@ primary(enum token n)
 	if (n == EOI)
 		return 0;		/* missing expression */
 	if (n == LPAREN) {
-		if ((nn = t_lex(*++t_wp)) == RPAREN)
+		if ((nn = t_lex(psh, *++psh->t_wp)) == RPAREN)
 			return 0;	/* missing expression */
-		res = oexpr(nn);
-		if (t_lex(*++t_wp) != RPAREN)
-			syntax(NULL, "closing paren expected");
+		res = oexpr(psh, nn);
+		if (t_lex(psh, *++psh->t_wp) != RPAREN)
+			syntax(psh, NULL, "closing paren expected");
 		return res;
 	}
-	if (t_wp_op && t_wp_op->op_type == UNOP) {
+	if (psh->t_wp_op && psh->t_wp_op->op_type == UNOP) {
 		/* unary expression */
-		if (*++t_wp == NULL)
-			syntax(t_wp_op->op_text, "argument expected");
+		if (*++psh->t_wp == NULL)
+			syntax(psh, psh->t_wp_op->op_text, "argument expected");
 		switch (n) {
 		case STREZ:
-			return strlen(*t_wp) == 0;
+			return strlen(*psh->t_wp) == 0;
 		case STRNZ:
-			return strlen(*t_wp) != 0;
+			return strlen(*psh->t_wp) != 0;
 		case FILTT:
-			return isatty(getn(*t_wp));
+			return shfile_isatty(&psh->fdtab, getn(psh, *psh->t_wp));
 		default:
-			return filstat(*t_wp, n);
+			return filstat(psh, *psh->t_wp, n);
 		}
 	}
 
-	if (t_lex(t_wp[1]), t_wp_op && t_wp_op->op_type == BINOP) {
-		return binop();
+	if (t_lex(psh, psh->t_wp[1]), psh->t_wp_op && psh->t_wp_op->op_type == BINOP) {
+		return binop(psh);
 	}
 
-	return strlen(*t_wp) > 0;
+	return strlen(*psh->t_wp) > 0;
 }
 
 static int
-binop(void)
+binop(shinstance *psh)
 {
 	const char *opnd1, *opnd2;
 	struct t_op const *op;
 
-	opnd1 = *t_wp;
-	(void) t_lex(*++t_wp);
-	op = t_wp_op;
+	opnd1 = *psh->t_wp;
+	(void) t_lex(psh, *++psh->t_wp);
+	op = psh->t_wp_op;
 
-	if ((opnd2 = *++t_wp) == NULL)
-		syntax(op->op_text, "argument expected");
+	if ((opnd2 = *++psh->t_wp) == NULL)
+		syntax(psh, op->op_text, "argument expected");
 
 	switch (op->op_num) {
 	case STREQ:
@@ -319,46 +291,49 @@ binop(void)
 	case STRGT:
 		return strcmp(opnd1, opnd2) > 0;
 	case INTEQ:
-		return getn(opnd1) == getn(opnd2);
+		return getn(psh, opnd1) == getn(psh, opnd2);
 	case INTNE:
-		return getn(opnd1) != getn(opnd2);
+		return getn(psh, opnd1) != getn(psh, opnd2);
 	case INTGE:
-		return getn(opnd1) >= getn(opnd2);
+		return getn(psh, opnd1) >= getn(psh, opnd2);
 	case INTGT:
-		return getn(opnd1) > getn(opnd2);
+		return getn(psh, opnd1) > getn(psh, opnd2);
 	case INTLE:
-		return getn(opnd1) <= getn(opnd2);
+		return getn(psh, opnd1) <= getn(psh, opnd2);
 	case INTLT:
-		return getn(opnd1) < getn(opnd2);
+		return getn(psh, opnd1) < getn(psh, opnd2);
 	case FILNT:
-		return newerf(opnd1, opnd2);
+		return newerf(psh, opnd1, opnd2);
 	case FILOT:
-		return olderf(opnd1, opnd2);
+		return olderf(psh, opnd1, opnd2);
 	case FILEQ:
-		return equalf(opnd1, opnd2);
+		return equalf(psh, opnd1, opnd2);
 	default:
 		abort();
 		/* NOTREACHED */
+		return -1;
 	}
 }
 
 static int
-filstat(char *nm, enum token mode)
+filstat(shinstance *psh, char *nm, enum token mode)
 {
 	struct stat s;
 
-	if (mode == FILSYM ? lstat(nm, &s) : stat(nm, &s))
+	if (mode == FILSYM
+		? shfile_lstat(&psh->fdtab, nm, &s)
+		: shfile_stat(&psh->fdtab, nm, &s))
 		return 0;
 
 	switch (mode) {
 	case FILRD:
-		return access(nm, R_OK) == 0;
+		return shfile_access(&psh->fdtab, nm, R_OK) == 0;
 	case FILWR:
-		return access(nm, W_OK) == 0;
+		return shfile_access(&psh->fdtab, nm, W_OK) == 0;
 	case FILEX:
-		return access(nm, X_OK) == 0;
+		return shfile_access(&psh->fdtab, nm, X_OK) == 0;
 	case FILEXIST:
-		return access(nm, F_OK) == 0;
+		return shfile_access(&psh->fdtab, nm, F_OK) == 0;
 	case FILREG:
 		return S_ISREG(s.st_mode);
 	case FILDIR:
@@ -402,49 +377,49 @@ filstat(char *nm, enum token mode)
 	case FILGZ:
 		return s.st_size > (off_t)0;
 	case FILUID:
-		return s.st_uid == geteuid();
+		return s.st_uid == sh_geteuid(psh);
 	case FILGID:
-		return s.st_gid == getegid();
+		return s.st_gid == sh_getegid(psh);
 	default:
 		return 1;
 	}
 }
 
 static enum token
-t_lex(char *s)
+t_lex(shinstance *psh, char *s)
 {
 	struct t_op const *op;
 
 	op = ops;
 
 	if (s == 0) {
-		t_wp_op = NULL;
+		psh->t_wp_op = NULL;
 		return EOI;
 	}
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
-			if ((op->op_type == UNOP && isoperand()) ||
-			    (op->op_num == LPAREN && *(t_wp+1) == 0))
+			if ((op->op_type == UNOP && isoperand(psh)) ||
+			    (op->op_num == LPAREN && *(psh->t_wp+1) == 0))
 				break;
-			t_wp_op = op;
+			psh->t_wp_op = op;
 			return op->op_num;
 		}
 		op++;
 	}
-	t_wp_op = NULL;
+	psh->t_wp_op = NULL;
 	return OPERAND;
 }
 
 static int
-isoperand(void)
+isoperand(shinstance *psh)
 {
 	struct t_op const *op;
 	char *s, *t;
 
 	op = ops;
-	if ((s  = *(t_wp+1)) == 0)
+	if ((s  = *(psh->t_wp+1)) == 0)
 		return 1;
-	if ((t = *(t_wp+2)) == 0)
+	if ((t = *(psh->t_wp+2)) == 0)
 		return 0;
 	while (op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
@@ -457,7 +432,7 @@ isoperand(void)
 
 /* atoi with error detection */
 static int
-getn(const char *s)
+getn(shinstance *psh, const char *s)
 {
 	char *p;
 	long r;
@@ -466,44 +441,44 @@ getn(const char *s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	      error("%s: out of range", s);
+	      error(psh, "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 	      p++;
 
 	if (*p)
-	      error("%s: bad number", s);
+	      error(psh, "%s: bad number", s);
 
 	return (int) r;
 }
 
 static int
-newerf(const char *f1, const char *f2)
+newerf(shinstance *psh, const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
-	return (stat(f1, &b1) == 0 &&
-		stat(f2, &b2) == 0 &&
+	return (shfile_stat(&psh->fdtab, f1, &b1) == 0 &&
+		shfile_stat(&psh->fdtab, f2, &b2) == 0 &&
 		b1.st_mtime > b2.st_mtime);
 }
 
 static int
-olderf(const char *f1, const char *f2)
+olderf(shinstance *psh, const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
-	return (stat(f1, &b1) == 0 &&
-		stat(f2, &b2) == 0 &&
+	return (shfile_stat(&psh->fdtab, f1, &b1) == 0 &&
+		shfile_stat(&psh->fdtab, f2, &b2) == 0 &&
 		b1.st_mtime < b2.st_mtime);
 }
 
 static int
-equalf(const char *f1, const char *f2)
+equalf(shinstance *psh, const char *f1, const char *f2)
 {
 	struct stat b1, b2;
 
-	return (stat(f1, &b1) == 0 &&
-		stat(f2, &b2) == 0 &&
+	return (shfile_stat(&psh->fdtab, f1, &b1) == 0 &&
+		shfile_stat(&psh->fdtab, f2, &b2) == 0 &&
 		b1.st_dev == b2.st_dev &&
 		b1.st_ino == b2.st_ino);
 }

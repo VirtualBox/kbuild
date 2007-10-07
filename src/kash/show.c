@@ -381,7 +381,7 @@ void
 opentrace(shinstance *psh)
 {
 	char s[100];
-#ifdef O_APPEND
+#if defined(O_APPEND) && !defined(_MSC_VER)
 	int flags;
 #endif
 
@@ -419,7 +419,7 @@ opentrace(shinstance *psh)
 			return;
 		}
 	}
-#ifdef O_APPEND
+#if defined(O_APPEND) && !defined(_MSC_VER)
 	if ((flags = fcntl(fileno(tracefile), F_GETFL, 0)) >= 0)
 		fcntl(fileno(tracefile), F_SETFL, flags | O_APPEND);
 #endif
