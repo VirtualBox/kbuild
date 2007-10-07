@@ -34,24 +34,22 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: arith_lex.l,v 1.13 2005/03/21 22:37:09 dsl Exp $");
-#endif
 #endif /* not lint */
+#endif
 
-#include <unistd.h>
 #include "arith.h"
 #include "error.h"
 #include "expand.h"
 #include "var.h"
+#include "shinstance.h"
 
 extern int yylval;
+extern shinstance *arith_psh;
 extern char *arith_buf, *arith_startbuf;
 #undef YY_INPUT
 #define YY_INPUT(buf,result,max) \
@@ -64,13 +62,13 @@ extern char *arith_buf, *arith_startbuf;
 0x[0-9a-fA-F]+	{ yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
 0[0-7]*		{ yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
 [1-9][0-9]*	{ yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
-[A-Za-z_][A-Za-z_0-9]*	{ char *v = lookupvar(yytext);
+[A-Za-z_][A-Za-z_0-9]*	{ char *v = lookupvar(arith_psh, yytext);
 			if (v) {
 				yylval = strtol(v, &v, 0);
 				if (*v == 0)
 					return ARITH_NUM;
 			}
-			error("arith: syntax error: \"%s\"", arith_startbuf);
+			error(arith_psh, "arith: syntax error: \"%s\"", arith_startbuf);
 		}
 "("	{ return(ARITH_LPAREN); }
 ")"	{ return(ARITH_RPAREN); }
@@ -94,7 +92,7 @@ extern char *arith_buf, *arith_startbuf;
 "-"	{ return(ARITH_SUB); }
 "~"	{ return(ARITH_BNOT); }
 "!"	{ return(ARITH_NOT); }
-.	{ error("arith: syntax error: \"%s\"", arith_startbuf); }
+.	{ error(arith_psh, "arith: syntax error: \"%s\"", arith_startbuf); }
 %%
 
 void

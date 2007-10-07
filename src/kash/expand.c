@@ -387,7 +387,7 @@ expari(shinstance *psh, int flag)
 	removerecordregions(psh, begoff);
 	if (quotes)
 		rmescapes(psh, p+2);
-	result = arith(p+2);
+	result = arith(psh, p+2);
 	fmtstr(p, 12, "%d", result);
 
 	while (*p++)

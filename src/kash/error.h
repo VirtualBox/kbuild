@@ -37,6 +37,7 @@
 #ifndef ___error_h
 #define ___error_h
 
+#include "shtypes.h"
 #include <stdarg.h>
 
 /*
