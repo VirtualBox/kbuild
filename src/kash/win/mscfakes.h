@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 1196 2007-10-06 08:49:22Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1204 2007-10-07 14:19:01Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -196,6 +196,9 @@ int	sigemptyset(sigset_t *);
 //int	sigsuspend(const sigset_t *);
 //int	sigwait(const sigset_t *, int *);
 int	siginterrupt(int, int);
+#undef setmode
+void *  setmode(const char *p);
+mode_t  getmode(const void *bbox, mode_t omode);
 
 #endif /* _MSC_VER */
 #endif
