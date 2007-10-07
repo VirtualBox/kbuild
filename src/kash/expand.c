@@ -287,7 +287,7 @@ exptilde(char *p, int flag)
 done:
 	*p = '\0';
 	if (*(startp+1) == '\0') {
-		if ((home = lookupvar("HOME")) == NULL)
+		if ((home = lookupvar(psh, "HOME")) == NULL)
 			goto lose;
 	} else {
 		if ((pw = getpwnam(startp+1)) == NULL)
@@ -476,7 +476,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	if (in.buf)
 		ckfree(in.buf);
 	if (in.jp)
-		back_exitstatus = waitforjob(in.jp);
+		back_exitstatus = waitforjob(psh, in.jp);
 	if (quoted == 0)
 		recordregion(startloc, dest - stackblock(psh), 0);
 	TRACE((psh, "evalbackq: size=%d: \"%.*s\"\n",
@@ -511,7 +511,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 
 	switch (subtype) {
 	case VSASSIGN:
-		setvar(str, startp, 0);
+		setvar(psh, str, startp, 0);
 		amount = startp - expdest;
 		STADJUST(psh, amount, expdest);
 		varflags &= ~VSNUL;
@@ -638,7 +638,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
 	} else {
-		val = lookupvar(var);
+		val = lookupvar(psh, var);
 		if (val == NULL || ((varflags & VSNUL) && val[0] == '\0')) {
 			val = NULL;
 			set = 0;

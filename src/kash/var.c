@@ -194,10 +194,10 @@ MKINIT char **environ;
 INIT {
 	char **envp;
 
-	initvar();
+	initvar(psh);
 	for (envp = environ ; *envp ; envp++) {
 		if (strchr(*envp, '=')) {
-			setvareq(*envp, VEXPORT|VTEXTFIXED);
+			setvareq(psh, *envp, VEXPORT|VTEXTFIXED);
 		}
 	}
 }
@@ -294,7 +294,7 @@ setvarsafe(const char *name, const char *val, int flags)
 		err = 1;
 	else {
 		handler = &jmploc;
-		setvar(name, val, flags);
+		setvar(psh, name, val, flags);
 	}
 	handler = savehandler;
 	return err;
@@ -346,7 +346,7 @@ setvar(const char *name, const char *val, int flags)
 	*d = '\0';
 	if (val)
 		scopy(val, d);
-	setvareq(nameeq, flags);
+	setvareq(psh, nameeq, flags);
 }
 
 
@@ -393,7 +393,7 @@ setvareq(char *s, int flags)
 		 * a regular variable function callback, but why bother?
 		 */
 		if (vp == &vmpath || (vp == &vmail && ! mpathset()))
-			chkmail(1);
+			chkmail(psh, 1);
 		INTON;
 		return;
 	}
@@ -422,7 +422,7 @@ listsetvar(struct strlist *list, int flags)
 
 	INTOFF;
 	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), flags);
+		setvareq(psh, savestr(lp->text), flags);
 	}
 	INTON;
 }
@@ -433,7 +433,7 @@ listmklocal(struct strlist *list, int flags)
 	struct strlist *lp;
 
 	for (lp = list ; lp ; lp = lp->next)
-		mklocal(lp->text, flags);
+		mklocal(psh, lp->text, flags);
 }
 
 
@@ -527,20 +527,20 @@ environment(void)
  */
 
 #ifdef mkinit
-void shprocvar(void);
+void shprocvar(shinstance *psh);
 
 SHELLPROC {
-	shprocvar();
+	shprocvar(psh);
 }
 #endif
 
 void
-shprocvar(void)
+shprocvar(shinstance *psh)
 {
 	struct var **vpp;
 	struct var *vp, **prev;
 
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
+	for (vpp = psh->vartab ; vpp < psh->vartab + VTABSIZE ; vpp++) {
 		for (prev = vpp ; (vp = *prev) != NULL ; ) {
 			if ((vp->flags & VEXPORT) == 0) {
 				*prev = vp->next;
@@ -557,7 +557,7 @@ shprocvar(void)
 			}
 		}
 	}
-	initvar();
+	initvar(psh);
 }
 
 
@@ -674,9 +674,9 @@ exportcmd(int argc, char **argv)
 	int flag = argv[0][0] == 'r'? VREADONLY : VEXPORT;
 	int pflag;
 
-	pflag = nextopt("p") == 'p' ? 3 : 0;
+	pflag = nextopt(psh, "p") == 'p' ? 3 : 0;
 	if (argc <= 1 || pflag) {
-		showvars( pflag ? argv[0] : 0, flag, pflag );
+		showvars(psh, pflag ? argv[0] : 0, flag, pflag );
 		return 0;
 	}
 
@@ -690,7 +690,7 @@ exportcmd(int argc, char **argv)
 				continue;
 			}
 		}
-		setvar(name, p, flag);
+		setvar(psh, name, p, flag);
 	}
 	return 0;
 }
@@ -708,7 +708,7 @@ localcmd(int argc, char **argv)
 	if (! in_function(psh))
 		error(psh, "Not in a function");
 	while ((name = *argptr++) != NULL) {
-		mklocal(name, 0);
+		mklocal(psh, name, 0);
 	}
 	return 0;
 }
@@ -739,9 +739,9 @@ mklocal(const char *name, int flags)
 		vp = find_var(name, &vpp, NULL);
 		if (vp == NULL) {
 			if (strchr(name, '='))
-				setvareq(savestr(name), VSTRFIXED|flags);
+				setvareq(psh, savestr(name), VSTRFIXED|flags);
 			else
-				setvar(name, NULL, VSTRFIXED|flags);
+				setvar(psh, name, NULL, VSTRFIXED|flags);
 			vp = *vpp;	/* the new variable */
 			lvp->text = NULL;
 			lvp->flags = VUNSET;
@@ -750,7 +750,7 @@ mklocal(const char *name, int flags)
 			lvp->flags = vp->flags;
 			vp->flags |= VSTRFIXED|VTEXTFIXED;
 			if (name[vp->name_len] == '=')
-				setvareq(savestr(name), flags);
+				setvareq(psh, savestr(name), flags);
 		}
 	}
 	lvp->vp = vp;
@@ -778,7 +778,7 @@ poplocalvars(void)
 			memcpy(optlist, lvp->text, sizeof_optlist);
 			ckfree(lvp->text);
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
-			(void)unsetvar(vp->text, 0);
+			(void)unsetvar(psh, vp->text, 0);
 		} else {
 			if (vp->func && (vp->flags & VNOFUNC) == 0)
 				(*vp->func)(lvp->text + vp->name_len + 1);
@@ -796,9 +796,9 @@ int
 setvarcmd(int argc, char **argv)
 {
 	if (argc <= 2)
-		return unsetcmd(argc, argv);
+		return unsetcmd(psh, argc, argv);
 	else if (argc == 3)
-		setvar(argv[1], argv[2], 0);
+		setvar(psh, argv[1], argv[2], 0);
 	else
 		error(psh, "List assignment not implemented");
 	return 0;
@@ -820,7 +820,7 @@ unsetcmd(int argc, char **argv)
 	int flg_var = 0;
 	int ret = 0;
 
-	while ((i = nextopt("evf")) != '\0') {
+	while ((i = nextopt(psh, "evf")) != '\0') {
 		if (i == 'f')
 			flg_func = 1;
 		else
@@ -861,7 +861,7 @@ unsetvar(const char *s, int unexport)
 		vp->flags &= ~VEXPORT;
 	} else {
 		if (vp->text[vp->name_len + 1] != '\0')
-			setvar(s, nullstr, 0);
+			setvar(psh, s, nullstr, 0);
 		vp->flags &= ~VEXPORT;
 		vp->flags |= VUNSET;
 		if ((vp->flags & VSTRFIXED) == 0) {

@@ -188,10 +188,10 @@ init(shinstance *psh) {
       {
 	      char **envp;
 
-	      initvar();
+	      initvar(psh);
 	      for (envp = environ ; *envp ; envp++) {
 		      if (strchr(*envp, '=')) {
-			      setvareq(*envp, VEXPORT|VTEXTFIXED);
+			      setvareq(psh, *envp, VEXPORT|VTEXTFIXED);
 		      }
 	      }
       }
@@ -240,7 +240,7 @@ reset(shinstance *psh) {
       /* from redir.c: */
       {
 	      while (redirlist)
-		      popredir();
+		      popredir(psh);
       }
 }
 
@@ -287,20 +287,20 @@ initshellproc(shinstance *psh) {
 
 	      for (i = 0; optlist[i].name; i++)
 		      optlist[i].val = 0;
-	      optschanged();
+	      optschanged(psh);
 
       }
 
       /* from redir.c: */
       {
-	      clearredir(0);
+	      clearredir(psh, 0);
       }
 
       /* from trap.c: */
       {
 	      char *sm;
 
-	      clear_traps(0);
+	      clear_traps(psh, 0);
 	      for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
 		      if (*sm == S_IGN)
 			      *sm = S_HARD_IGN;
@@ -309,6 +309,6 @@ initshellproc(shinstance *psh) {
 
       /* from var.c: */
       {
-	      shprocvar();
+	      shprocvar(psh);
       }
 }

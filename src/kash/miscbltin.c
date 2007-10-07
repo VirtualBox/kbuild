@@ -104,7 +104,7 @@ readcmd(int argc, char **argv)
 
 	rflag = 0;
 	prompt = NULL;
-	while ((i = nextopt("p:r")) != '\0') {
+	while ((i = nextopt(psh, "p:r")) != '\0') {
 		if (i == 'p')
 			prompt = optionarg;
 		else
@@ -119,7 +119,7 @@ readcmd(int argc, char **argv)
 	if (*(ap = argptr) == NULL)
 		error(psh, "arg count");
 
-	if ((ifs = bltinlookup("IFS", 1)) == NULL)
+	if ((ifs = bltinlookup(psh, "IFS", 1)) == NULL)
 		ifs = " \t\n";
 
 	status = 0;
@@ -185,7 +185,7 @@ readcmd(int argc, char **argv)
 		}
 
 		STACKSTRNUL(psh, p);
-		setvar(*ap, stackblock(psh), 0);
+		setvar(psh, *ap, stackblock(psh), 0);
 		ap++;
 		STARTSTACKSTR(psh, p);
 	}
@@ -202,11 +202,11 @@ readcmd(int argc, char **argv)
 			/* Don't remove non-whitespace unless it was naked */
 			break;
 	}
-	setvar(*ap, stackblock(psh), 0);
+	setvar(psh, *ap, stackblock(psh), 0);
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)
-		setvar(*ap, nullstr, 0);
+		setvar(psh, *ap, nullstr, 0);
 	return status;
 }
 
@@ -220,7 +220,7 @@ umaskcmd(int argc, char **argv)
 	int i;
 	int symbolic_mode = 0;
 
-	while ((i = nextopt("S")) != '\0') {
+	while ((i = nextopt(psh, "S")) != '\0') {
 		symbolic_mode = 1;
 	}
 
@@ -365,7 +365,7 @@ ulimitcmd(int argc, char **argv)
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSabtfdsmcnpl")) != '\0')
+	while ((optc = nextopt(psh, "HSabtfdsmcnpl")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;

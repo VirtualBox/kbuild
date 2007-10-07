@@ -158,7 +158,7 @@ trapcmd(int argc, char **argv)
 		for (signo = 0 ; signo <= NSIG ; signo++)
 			if (trap[signo] != NULL) {
 				out1fmt(psh, "trap -- ");
-				print_quoted(trap[signo]);
+				print_quoted(psh, trap[signo]);
 				out1fmt(psh, " %s\n",
 				    (signo) ? sys_signame[signo] : "EXIT");
 			}
@@ -206,7 +206,7 @@ trapcmd(int argc, char **argv)
 		trap[signo] = action;
 
 		if (signo != 0)
-			setsignal(signo, 0);
+			setsignal(psh, signo, 0);
 		INTON;
 		ap++;
 	}
@@ -234,7 +234,7 @@ clear_traps(int vforked)
 				*tp = NULL;
 			}
 			if (tp != &trap[0])
-				setsignal(tp - trap, vforked);
+				setsignal(psh, tp - trap, vforked);
 			INTON;
 		}
 	}
@@ -359,7 +359,7 @@ INCLUDE "trap.h"
 SHELLPROC {
 	char *sm;
 
-	clear_traps(0);
+	clear_traps(psh, s0);
 	for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
 		if (*sm == S_IGN)
 			*sm = S_HARD_IGN;
@@ -428,9 +428,9 @@ setinteractive(int on)
 
 	if (on == is_interactive)
 		return;
-	setsignal(SIGINT, 0);
-	setsignal(SIGQUIT, 0);
-	setsignal(SIGTERM, 0);
+	setsignal(psh, SIGINT, 0);
+	setsignal(psh, SIGQUIT, 0);
+	setsignal(psh, SIGTERM, 0);
 	is_interactive = on;
 }
 
@@ -461,7 +461,7 @@ exitshell(int status)
 l1:   handler = &loc2;			/* probably unnecessary */
 	output_flushall(psh);
 #if JOBS
-	setjobctl(0);
+	setjobctl(psh, 0);
 #endif
 l2:   _exit(status);
 	/* NOTREACHED */

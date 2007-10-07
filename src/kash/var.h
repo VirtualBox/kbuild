@@ -85,7 +85,7 @@ extern struct var vmpath;
 extern struct var vpath;
 #ifdef _MSC_VER
 extern struct var vpath2;
-#endif 
+#endif
 extern struct var vps1;
 extern struct var vps2;
 extern struct var vps4;
