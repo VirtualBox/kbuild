@@ -159,7 +159,7 @@ struct redirtab {
 	short renamed[10];
 };
 
-extern struct redirtab *redirlist;
+//extern struct redirtab *redirlist;
 
 extern char sigmode[NSIG];	/* current value of signal */
 

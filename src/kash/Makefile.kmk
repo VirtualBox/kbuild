@@ -46,6 +46,7 @@ kmk_ash_SOURCES = \
 	options.c \
 	output.c \
 	parser.c \
+	redir.c \
 	show.c \
 	syntax.c \
 	trap.c \
@@ -54,7 +55,6 @@ kmk_ash_SOURCES = \
 	bltin/echo.c \
 	bltin/test.c \
 	\
-	redir.c \
 	bltin/kill.c \
 	$(PATH_TARGET)/arith.c \
 	$(PATH_TARGET)/arith_lex.c \

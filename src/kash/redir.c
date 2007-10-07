@@ -84,17 +84,17 @@ struct redirtab {
 };
 
 
-MKINIT struct redirtab *redirlist;
+//MKINIT struct redirtab *redirlist;
 
 /*
  * We keep track of whether or not fd0 has been redirected.  This is for
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-int fd0_redirected = 0;
+//int fd0_redirected = 0;
 
-STATIC void openredirect(union node *, char[10], int);
-STATIC int openhere(union node *);
+STATIC void openredirect(shinstance *, union node *, char[10], int);
+STATIC int openhere(shinstance *, union node *);
 
 
 /*
@@ -106,7 +106,7 @@ STATIC int openhere(union node *);
  */
 
 void
-redirect(union node *redir, int flags)
+redirect(shinstance *psh, union node *redir, int flags)
 {
 	union node *n;
 	struct redirtab *sv = NULL;
@@ -125,8 +125,8 @@ redirect(union node *redir, int flags)
 		sv = ckmalloc(sizeof (struct redirtab));
 		for (i = 0 ; i < 10 ; i++)
 			sv->renamed[i] = EMPTY;
-		sv->next = redirlist;
-		redirlist = sv;
+		sv->next = psh->redirlist;
+		psh->redirlist = sv;
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
@@ -142,7 +142,7 @@ again:
 				switch (errno) {
 				case EBADF:
 					if (!try) {
-						openredirect(n, memory, flags);
+						openredirect(psh, n, memory, flags);
 						try++;
 						goto again;
 					}
@@ -162,9 +162,9 @@ again:
 			shfile_close(&psh->fdtab, fd);
 		}
                 if (fd == 0)
-                        fd0_redirected++;
+                        psh->fd0_redirected++;
 		if (!try)
-			openredirect(n, memory, flags);
+			openredirect(psh, n, memory, flags);
 	}
 	if (memory[1])
 		psh->out1 = &psh->memout;
@@ -174,7 +174,7 @@ again:
 
 
 STATIC void
-openredirect(union node *redir, char memory[10], int flags)
+openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 {
 	int fd = redir->nfile.fd;
 	char *fname;
@@ -231,7 +231,7 @@ openredirect(union node *redir, char memory[10], int flags)
 		return;
 	case NHERE:
 	case NXHERE:
-		f = openhere(redir);
+		f = openhere(psh, redir);
 		break;
 	default:
 		abort();
@@ -257,12 +257,12 @@ eopen:
  */
 
 STATIC int
-openhere(union node *redir)
+openhere(shinstance *psh, union node *redir)
 {
 	int pip[2];
-	int len = 0;
+	size_t len = 0;
 
-	if (pipe(pip) < 0)
+	if (shfile_pipe(&psh->fdtab, pip) < 0)
 		error(psh, "Pipe call failed");
 	if (redir->type == NHERE) {
 		len = strlen(redir->nhere.doc->narg.text);
@@ -298,15 +298,15 @@ out:
  */
 
 void
-popredir(void)
+popredir(shinstance *psh)
 {
-	struct redirtab *rp = redirlist;
+	struct redirtab *rp = psh->redirlist;
 	int i;
 
 	for (i = 0 ; i < 10 ; i++) {
 		if (rp->renamed[i] != EMPTY) {
                         if (i == 0)
-                                fd0_redirected--;
+                                psh->fd0_redirected--;
 			shfile_close(&psh->fdtab, i);
 			if (rp->renamed[i] >= 0) {
 				copyfd(psh, rp->renamed[i], i);
@@ -315,7 +315,7 @@ popredir(void)
 		}
 	}
 	INTOFF;
-	redirlist = rp->next;
+	psh->redirlist = rp->next;
 	ckfree(rp);
 	INTON;
 }
@@ -329,7 +329,7 @@ popredir(void)
 INCLUDE "redir.h"
 
 RESET {
-	while (redirlist)
+	while (psh->redirlist)
 		popredir(psh);
 }
 
@@ -350,13 +350,12 @@ fd0_redirected_p(shinstance *psh) {
  */
 
 void
-clearredir(vforked)
-	int vforked;
+clearredir(shinstance *psh, int vforked)
 {
 	struct redirtab *rp;
 	int i;
 
-	for (rp = redirlist ; rp ; rp = rp->next) {
+	for (rp = psh->redirlist ; rp ; rp = rp->next) {
 		for (i = 0 ; i < 10 ; i++) {
 			if (rp->renamed[i] >= 0) {
 				shfile_close(&psh->fdtab, rp->renamed[i]);
@@ -380,7 +379,7 @@ copyfd(shinstance *psh, int from, int to)
 {
 	int newfd;
 
-	newfd = shfile_fcntl(psh, from, F_DUPFD, to);
+	newfd = shfile_fcntl(&psh->fdtab, from, F_DUPFD, to);
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
