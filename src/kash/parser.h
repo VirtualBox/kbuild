@@ -78,5 +78,5 @@
 
 union node *parsecmd(struct shinstance *, int);
 void fixredir(struct shinstance *, union node *, const char *, int);
-int goodname(char *);
+int goodname(const char *);
 const char *getprompt(struct shinstance *, void *);

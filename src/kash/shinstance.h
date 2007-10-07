@@ -137,6 +137,21 @@ typedef struct shinstance
     int                 tokpushback;
     int                 whichprompt;    /**< 1 == PS1, 2 == PS2 */
 
+    /* parser.c */
+    int                 noalias/* = 0*/;/**< when set, don't handle aliases */
+    struct heredoc     *heredoclist;    /**< list of here documents to read */
+    int                 parsebackquote; /**< nonzero if we are inside backquotes */
+    int                 doprompt;       /**< if set, prompt the user */
+    int                 needprompt;     /**< true if interactive and at start of line */
+    int                 lasttoken;      /**< last token read */
+    char               *wordtext;       /**< text of last word returned by readtoken */
+    int                 checkkwd;       /**< 1 == check for kwds, 2 == also eat newlines */
+    struct nodelist    *backquotelist;
+    union node         *redirnode;
+    struct heredoc     *heredoc;
+    int                 quoteflag;      /**< set if (part of) last token was quoted */
+    int                 startlinno;     /**< line # where last token started */
+
     /* output.h */
     struct output       output;
     struct output       errout;

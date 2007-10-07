@@ -50,7 +50,7 @@ char *pfgets(struct shinstance *, char *, int);
 int pgetc(struct shinstance *);
 int preadbuffer(struct shinstance *);
 void pungetc(struct shinstance *);
-void pushstring(struct shinstance *, char *, int, void *);
+void pushstring(struct shinstance *, char *, size_t, void *);
 void popstring(struct shinstance *);
 void setinputfile(struct shinstance *, const char *, int);
 void setinputfd(struct shinstance *, int, int);

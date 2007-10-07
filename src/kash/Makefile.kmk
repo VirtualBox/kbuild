@@ -45,15 +45,15 @@ kmk_ash_SOURCES = \
 	mystring.c \
 	options.c \
 	output.c \
+	parser.c \
 	show.c \
 	syntax.c \
+	trap.c \
+	var.c \
 	miscbltin.c \
 	bltin/echo.c \
 	bltin/test.c \
-	trap.c \
-	var.c \
 	\
-	parser.c \
 	redir.c \
 	bltin/kill.c \
 	$(PATH_TARGET)/arith.c \
