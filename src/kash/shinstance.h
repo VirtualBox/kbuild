@@ -113,6 +113,16 @@ typedef struct shinstance
     shtid               tid;            /**< The thread identifier of the thread for this shell. */
     shfdtab             fdtab;          /**< The file descriptor table. */
 
+    /* alias.c */
+#define ATABSIZE 39
+    struct alias       *atab[ATABSIZE];
+
+    /* cd.c */
+    char               *curdir;         /**< current working directory */
+    char               *prevdir;        /**< previous working directory */
+    char               *cdcomppath;
+    int                 getpwd_first;   /**< static in getpwd. (initialized to 1!) */
+
     /* error.h */
     struct jmploc      *handler;
     int                 exception;
@@ -120,18 +130,116 @@ typedef struct shinstance
     int volatile        suppressint;
     int volatile        intpending;
 
+    /* error.c */
+    char                errmsg_buf[16]; /**< static in errmsg. (bss) */
+
+    /* eval.h */
+    char               *commandname;    /**< currently executing command */
+    int                 exitstatus;     /**< exit status of last command */
+    int                 back_exitstatus;/**< exit status of backquoted command */
+    struct strlist     *cmdenviron;     /**< environment for builtin command */
+    int                 funcnest;       /**< depth of function calls */
+    int                 evalskip;       /**< set if we are skipping commands */
+    int                 skipcount;      /**< number of levels to skip */
+    int                 loopnest;       /**< current loop nesting level */
+
+    /* eval.c */
+    int                 vforked;
+
+    /* expand.c */
+    char               *expdest;        /**< output of current string */
+    struct nodelist    *argbackq;       /**< list of back quote expressions */
+    struct ifsregion    ifsfirst;       /**< first struct in list of ifs regions */
+    struct ifsregion   *ifslastp;       /**< last struct in list */
+    struct arglist      exparg;         /**< holds expanded arg list */
+    char               *expdir;         /**< Used by expandmeta. */
+
+    /* exec.h */
+    const char         *pathopt;        /**< set by padvance */
+
+    /* exec.c */
+    struct tblentry    *cmdtable[CMDTABLESIZE];
+    int                 builtinloc/* = -1*/;    /**< index in path of %builtin, or -1 */
+
+    /* input.h */
+    int                 plinno/* = 1 */;/**< input line number */
+    int                 parsenleft;     /**< number of characters left in input buffer */
+    char               *parsenextc;     /**< next character in input buffer */
+    int                 init_editline/* = 0 */;     /**< 0 == not setup, 1 == OK, -1 == failed */
+
+    /* input.c */
+    int                 parselleft;     /**< copy of parsefile->lleft */
+    struct parsefile    basepf;         /**< top level input file */
+    char                basebuf[BUFSIZ];/**< buffer for top level input file */
+    struct parsefile   *parsefile/* = &basepf*/;    /**< current input file */
+#ifndef SMALL
+    EditLine           *el;             /**< cookie for editline package */
+#endif
+
+    /* jobs.h */
+    pid_t               backgndpid/* = -1 */;   /**< pid of last background process */
+    int                 job_warning;    /**< user was warned about stopped jobs */
+
+    /* jobs.c */
+    struct job         *jobtab;         /**< array of jobs */
+    int                 njobs;          /**< size of array */
+    int                 jobs_invalid;   /**< set in child */
+#if JOBS
+    int                 initialpgrp;    /**< pgrp of shell on invocation */
+    int                 curjob/* = -1*/;/**< current job */
+#endif
+    int                 ttyfd/* = -1*/;
+    int                 jobctl;         /**< job control enabled / disabled */
+    char               *cmdnextc;
+    int                 cmdnleft;
+
+    /* mail.c */
+#define MAXMBOXES 10
+    int                 nmboxes;        /**< number of mailboxes */
+    time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
+
     /* main.h */
     int                 rootpid;        /**< pid of main shell. */
     int                 rootshell;      /**< true if we aren't a child of the main shell. */
     struct shinstance  *psh_rootshell;  /**< The root shell pointer. (!rootshell) */
 
-    /* trap.h */
-    int                 pendingsigs;    /**< indicates some signal received */
+    /* memalloc.h */
+    char               *stacknxt/* = stackbase.space*/;
+    int                 stacknleft/* = MINSIZE*/;
+    int                 sstrnleft;
+    int                 herefd/* = -1 */;
 
-    /* trap.c */
-    char                gotsig[NSIG];   /**< indicates specified signal received */
-    char               *trap[NSIG+1];   /**< trap handler commands */
-    char                sigmode[NSIG];  /**< current value of signal */
+    /* memalloc.c */
+    struct stack_block  stackbase;
+    struct stack_block *stackp/* = &stackbase*/;
+    struct stackmark   *markp;
+
+    /* myhistedit.h */
+    int                 displayhist;
+#ifndef SMALL
+    History            *hist;
+    EditLine           *el;
+#endif
+
+    /* output.h */
+    struct output       output;
+    struct output       errout;
+    struct output       memout;
+    struct output      *out1;
+    struct output      *out2;
+
+    /* output.c */
+#define OUTBUFSIZ BUFSIZ
+#define MEM_OUT -3                      /**< output to dynamically allocated memory */
+
+    /* options.h */
+    struct optent       optlist[NOPTS];
+    char               *minusc;         /**< argument to -c option */
+    char               *arg0;           /**< $0 */
+    struct shparam      shellparam;     /**< $@ */
+    char              **argptr;         /**< argument list for builtin commands */
+    char               *optionarg;      /**< set by nextopt */
+    char               *optptr;         /**< used by nextopt */
 
     /* parse.h */
     int                 tokpushback;
@@ -152,24 +260,17 @@ typedef struct shinstance
     int                 quoteflag;      /**< set if (part of) last token was quoted */
     int                 startlinno;     /**< line # where last token started */
 
-    /* output.h */
-    struct output       output;
-    struct output       errout;
-    struct output       memout;
-    struct output      *out1;
-    struct output      *out2;
-    /* output.c */
-#define OUTBUFSIZ BUFSIZ
-#define MEM_OUT -3                      /**< output to dynamically allocated memory */
+    /* redir.c */
+    struct redirtab    *redirlist;
+    int                 fd0_redirected/* = 0*/;
 
-    /* options.h */
-    struct optent       optlist[NOPTS];
-    char               *minusc;         /**< argument to -c option */
-    char               *arg0;           /**< $0 */
-    struct shparam      shellparam;     /**< $@ */
-    char              **argptr;         /**< argument list for builtin commands */
-    char               *optionarg;      /**< set by nextopt */
-    char               *optptr;         /**< used by nextopt */
+    /* trap.h */
+    int                 pendingsigs;    /**< indicates some signal received */
+
+    /* trap.c */
+    char                gotsig[NSIG];   /**< indicates specified signal received */
+    char               *trap[NSIG+1];   /**< trap handler commands */
+    char                sigmode[NSIG];  /**< current value of signal */
 
     /* var.h */
     struct localvar    *localvars;
@@ -201,105 +302,7 @@ typedef struct shinstance
 #endif
     struct var         *vartab[VTABSIZE];
 
-    /* myhistedit.h */
-    int                 displayhist;
-#ifndef SMALL
-    History            *hist;
-    EditLine           *el;
-#endif
-
-    /* memalloc.h */
-    char               *stacknxt/* = stackbase.space*/;
-    int                 stacknleft/* = MINSIZE*/;
-    int                 sstrnleft;
-    int                 herefd/* = -1 */;
-
-    /* memalloc.c */
-    struct stack_block  stackbase;
-    struct stack_block *stackp/* = &stackbase*/;
-    struct stackmark   *markp;
-
-    /* jobs.h */
-    pid_t               backgndpid/* = -1 */;   /**< pid of last background process */
-    int                 job_warning;    /**< user was warned about stopped jobs */
-
-    /* jobs.c */
-    struct job         *jobtab;         /**< array of jobs */
-    int                 njobs;          /**< size of array */
-    int                 jobs_invalid;   /**< set in child */
-#if JOBS
-    int                 initialpgrp;    /**< pgrp of shell on invocation */
-    int                 curjob/* = -1*/;/**< current job */
-#endif
-    int                 ttyfd/* = -1*/;
-    int                 jobctl;         /**< job control enabled / disabled */
-    char               *cmdnextc;
-    int                 cmdnleft;
-
-    /* input.h */
-    int                 plinno/* = 1 */;/**< input line number */
-    int                 parsenleft;     /**< number of characters left in input buffer */
-    char               *parsenextc;     /**< next character in input buffer */
-    int                 init_editline/* = 0 */;     /**< 0 == not setup, 1 == OK, -1 == failed */
-
-    /* input.c */
-    int                 parselleft;     /**< copy of parsefile->lleft */
-    struct parsefile    basepf;         /**< top level input file */
-    char                basebuf[BUFSIZ];/**< buffer for top level input file */
-    struct parsefile   *parsefile/* = &basepf*/;    /**< current input file */
-#ifndef SMALL
-    EditLine           *el;             /**< cookie for editline package */
-#endif
-
-
-    /* exec.h */
-    const char         *pathopt;        /**< set by padvance */
-
-    /* exec.c */
-    struct tblentry    *cmdtable[CMDTABLESIZE];
-    int                 builtinloc/* = -1*/;    /**< index in path of %builtin, or -1 */
-
-
-    /* eval.h */
-    char               *commandname;    /**< currently executing command */
-    int                 exitstatus;     /**< exit status of last command */
-    int                 back_exitstatus;/**< exit status of backquoted command */
-    struct strlist     *cmdenviron;     /**< environment for builtin command */
-    int                 funcnest;       /**< depth of function calls */
-    int                 evalskip;       /**< set if we are skipping commands */
-    int                 skipcount;      /**< number of levels to skip */
-    int                 loopnest;       /**< current loop nesting level */
-
     /* builtins.h */
-
-    /* alias.c */
-#define ATABSIZE 39
-    struct alias       *atab[ATABSIZE];
-
-    /* cd.c */
-    char               *curdir;         /**< current working directory */
-    char               *prevdir;        /**< previous working directory */
-    char               *cdcomppath;
-    int                 getpwd_first;   /**< static in getpwd. (initialized to 1!) */
-
-    /* error.c */
-    char                errmsg_buf[16]; /**< static in errmsg. (bss) */
-
-    /* eval.c */
-    int                 vforked;
-
-    /* expand.c */
-    char               *expdest;        /**< output of current string */
-    struct nodelist    *argbackq;       /**< list of back quote expressions */
-    struct ifsregion    ifsfirst;       /**< first struct in list of ifs regions */
-    struct ifsregion   *ifslastp;       /**< last struct in list */
-    struct arglist      exparg;         /**< holds expanded arg list */
-    char               *expdir;         /**< Used by expandmeta. */
-
-    /* mail.c */
-#define MAXMBOXES 10
-    int                 nmboxes;        /**< number of mailboxes */
-    time_t              mailtime[MAXMBOXES]; /**< times of mailboxes */
 
     /* bltin/test.c */
     char              **t_wp;
