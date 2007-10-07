@@ -152,9 +152,9 @@ main(int argc, char *argv[])
 
 	for (errors = 0; argc; argc--, argv++) {
 #ifdef SHELL
-		extern int getjobpgrp(const char *);
+		extern int getjobpgrp(shinstance *psh, const char *);
 		if (*argv[0] == '%') {
-			pid = getjobpgrp(*argv);
+			pid = getjobpgrp(psh, *argv);
 			if (pid == 0) {
 				warnx("illegal job id: %s", *argv);
 				errors = 1;

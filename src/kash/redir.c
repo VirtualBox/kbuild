@@ -224,7 +224,7 @@ openredirect(union node *redir, char memory[10], int flags)
 			if (memory[redir->ndup.dupfd])
 				memory[fd] = 1;
 			else
-				copyfd(redir->ndup.dupfd, fd);
+				copyfd(psh, redir->ndup.dupfd, fd);
 		}
 		INTON;
 		return;
@@ -237,8 +237,8 @@ openredirect(union node *redir, char memory[10], int flags)
 	}
 
 	if (f != fd) {
-		copyfd(f, fd);
-		close(f);
+		copyfd(psh, f, fd);
+		shfile_close(&psh->fdtab, f);
 	}
 	INTON;
 	return;
@@ -270,7 +270,7 @@ openhere(union node *redir)
 			goto out;
 		}
 	}
-	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
+	if (forkshell(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
@@ -306,10 +306,10 @@ popredir(void)
 		if (rp->renamed[i] != EMPTY) {
                         if (i == 0)
                                 fd0_redirected--;
-			close(i);
+			shfile_close(&psh->fdtab, i);
 			if (rp->renamed[i] >= 0) {
-				copyfd(rp->renamed[i], i);
-				close(rp->renamed[i]);
+				copyfd(psh, rp->renamed[i], i);
+				shfile_close(&psh->fdtab, rp->renamed[i]);
 			}
 		}
 	}
@@ -329,19 +329,19 @@ INCLUDE "redir.h"
 
 RESET {
 	while (redirlist)
-		popredir();
+		popredir(psh);
 }
 
 SHELLPROC {
-	clearredir(0);
+	clearredir(psh, 0);
 }
 
 #endif
 
 /* Return true if fd 0 has already been redirected at least once.  */
 int
-fd0_redirected_p () {
-        return fd0_redirected != 0;
+fd0_redirected_p(shinstance *psh) {
+        return psh->fd0_redirected != 0;
 }
 
 /*
@@ -375,11 +375,11 @@ clearredir(vforked)
  */
 
 int
-copyfd(int from, int to)
+copyfd(shinstance *psh, int from, int to)
 {
 	int newfd;
 
-	newfd = fcntl(from, F_DUPFD, to);
+	newfd = shfile_fcntl(psh, from, F_DUPFD, to);
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;

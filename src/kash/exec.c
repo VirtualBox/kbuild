@@ -228,7 +228,7 @@ tryexec(char *cmd, char **argv, char **envp, int vforked, int has_ext)
 			execinterp(argv, envp);
 		}
 #endif
-		setparam(argv + 1);
+		setparam(psh, argv + 1);
 		exraise(psh, EXSHELLPROC);
 	}
 	errno = e;
@@ -436,7 +436,7 @@ hashcmd(int argc, char **argv)
 	char *name;
 
 	verbose = 0;
-	while ((c = nextopt("rv")) != '\0') {
+	while ((c = nextopt(psh, "rv")) != '\0') {
 		if (c == 'r') {
 			clearcmdentry(0);
 		} else if (c == 'v') {
@@ -499,7 +499,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		if (verbose) {
 			struct procstat ps;
 			INTOFF;
-			commandtext(&ps, cmdp->param.func);
+			commandtext(psh, &ps, cmdp->param.func);
 			INTON;
 			out1str(psh, "() { ");
 			out1str(psh, ps.cmd);
@@ -664,7 +664,7 @@ loop:
 			if (act & DO_NOFUNC)
 				goto loop;
 			stalloc(psh, strlen(fullname) + 1);
-			readcmdfile(fullname);
+			readcmdfile(psh, fullname);
 			if ((cmdp = cmdlookup(name, 0)) == NULL ||
 			    cmdp->cmdtype != CMDFUNCTION)
 				error(psh, "%s not defined in %s", name, fullname);
@@ -1084,7 +1084,7 @@ typecmd(int argc, char **argv)
 	int v_flag = 0;
 	int p_flag = 0;
 
-	while ((c = nextopt("vVp")) != 0) {
+	while ((c = nextopt(psh, "vVp")) != 0) {
 		switch (c) {
 		case 'v': v_flag = 1; break;
 		case 'V': V_flag = 1; break;

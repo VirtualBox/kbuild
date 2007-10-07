@@ -74,7 +74,7 @@
 #define getprogname() commandname
 #define setlocate(l,s) 0
 
-#define getenv(p) bltinlookup((p),0)
+#define getenv(p) bltinlookup(psh, (p),0)
 
 #else
 #undef NULL

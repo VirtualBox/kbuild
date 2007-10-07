@@ -124,7 +124,7 @@ histedit(void)
 			if (tracefile)
 				el_err = tracefile;
 #endif
-			term = lookupvar("TERM");
+			term = lookupvar(psh, "TERM");
 			if (term)
 				setenv("TERM", term, 1);
 			else
@@ -321,8 +321,8 @@ histcmd(int argc, char **argv)
 		 */
 		if (sflg == 0) {
 			if (editor == NULL &&
-			    (editor = bltinlookup("FCEDIT", 1)) == NULL &&
-			    (editor = bltinlookup("EDITOR", 1)) == NULL)
+			    (editor = bltinlookup(psh, "FCEDIT", 1)) == NULL &&
+			    (editor = bltinlookup(psh, "EDITOR", 1)) == NULL)
 				editor = DEFEDITOR;
 			if (editor[0] == '-' && editor[1] == '\0') {
 				sflg = 1;	/* no edit */
@@ -443,7 +443,7 @@ histcmd(int argc, char **argv)
 		sprintf(editcmd, "%s %s", editor, editfile);
 		evalstring(psh, editcmd, 0);	/* XXX - should use no JC command */
 		INTON;
-		readcmdfile(editfile);	/* XXX - should read back - quick tst */
+		readcmdfile(psh, editfile);	/* XXX - should read back - quick tst */
 		unlink(editfile);
 	}
 

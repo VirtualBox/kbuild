@@ -115,19 +115,19 @@ static pid_t tcgetpgrp(int fd);
 static int tcsetpgrp(int fd, pid_t pgrp);
 
 static pid_t
-tcgetpgrp(int fd)
+tcgetpgrp(shinstance *psh, int fd)
 {
 	pid_t pgrp;
-	if (ioctl(fd, TIOCGPGRP, (char *)&pgrp) == -1)
+	if (shfile_ioctl(&psh->fdtab, fd, TIOCGPGRP, (char *)&pgrp) == -1)
 		return -1;
 	else
 		return pgrp;
 }
 
 static int
-tcsetpgrp(int fd, pid_tpgrp)
+tcsetpgrp(shinstance *psh, int fd, pid_tpgrp)
 {
-	return ioctl(fd, TIOCSPGRP, (char *)&pgrp);
+	return shfile_ioctl(&psh->fdtab, fd, TIOCSPGRP, (char *)&pgrp);
 }
 #endif
 
@@ -211,9 +211,9 @@ out:
 			return;
 		}
 #endif
-		setsignal(SIGTSTP, 0);
-		setsignal(SIGTTOU, 0);
-		setsignal(SIGTTIN, 0);
+		setsignal(psh, SIGTSTP, 0);
+		setsignal(psh, SIGTTOU, 0);
+		setsignal(psh, SIGTTIN, 0);
 		if (getpgid(0) != rootpid && setpgid(0, rootpid) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
 			    strerror(errno), __LINE__);
@@ -229,9 +229,9 @@ out:
 			    strerror(errno), __LINE__);
 		close(ttyfd);
 		ttyfd = -1;
-		setsignal(SIGTSTP, 0);
-		setsignal(SIGTTOU, 0);
-		setsignal(SIGTTIN, 0);
+		setsignal(psh, SIGTSTP, 0);
+		setsignal(psh, SIGTTOU, 0);
+		setsignal(psh, SIGTTIN, 0);
 	}
 	jobctl = on;
 }
@@ -253,14 +253,14 @@ SHELLPROC {
 
 #if JOBS
 int
-fgcmd(int argc, char **argv)
+fgcmd(shinstance *psh, int argc, char **argv)
 {
 	struct job *jp;
 	int i;
 	int status;
 
-	nextopt("");
-	jp = getjob(*argptr, 0);
+	nextopt(psh, "");
+	jp = getjob(*psh->argptr, 0);
 	if (jp->jobctl == 0)
 		error(psh, "job not created under job control");
 	out1fmt(psh, "%s", jp->ps[0].cmd);
@@ -270,16 +270,16 @@ fgcmd(int argc, char **argv)
 	output_flushall(psh);
 
 	for (i = 0; i < jp->nprocs; i++)
-	    if (tcsetpgrp(ttyfd, jp->ps[i].pid) != -1)
+	    if (tcsetpgrp(psh, ttyfd, jp->ps[i].pid) != -1)
 		    break;
 
 	if (i >= jp->nprocs) {
 		error(psh, "Cannot set tty process group (%s) at %d",
 		    strerror(errno), __LINE__);
 	}
-	restartjob(jp);
+	restartjob(psh, jp);
 	INTOFF;
-	status = waitforjob(jp);
+	status = waitforjob(psh, jp);
 	INTON;
 	return status;
 }
@@ -337,7 +337,7 @@ bgcmd(int argc, char **argv)
 	struct job *jp;
 	int i;
 
-	nextopt("");
+	nextopt(psh, "");
 	do {
 		jp = getjob(psh, *psh->argptr, 0);
 		if (jp->jobctl == 0)
@@ -505,7 +505,7 @@ jobscmd(int argc, char **argv)
 
 	jobs_invalid = 0;
 	mode = 0;
-	while ((m = nextopt("lp")))
+	while ((m = nextopt(psh, "lp")))
 		if (m == 'l')
 			mode = SHOW_PID;
 		else
@@ -515,7 +515,7 @@ jobscmd(int argc, char **argv)
 			showjob(out1, getjob(*argptr,0), mode);
 		while (*++argptr);
 	else
-		showjobs(out1, mode);
+		showjobs(psh, out1, mode);
 	jobs_invalid = sv;
 	return 0;
 }
@@ -605,7 +605,7 @@ waitcmd(int argc, char **argv)
 	int status, retval;
 	struct job *jp;
 
-	nextopt("");
+	nextopt(psh, "");
 
 	if (!*argptr) {
 		/* wait for all jobs */
@@ -664,7 +664,7 @@ jobidcmd(int argc, char **argv)
 	struct job *jp;
 	int i;
 
-	nextopt("");
+	nextopt(psh, "");
 	jp = getjob(*argptr, 0);
 	for (i = 0 ; i < jp->nprocs ; ) {
 		out1fmt(psh, "%ld", (long)jp->ps[i].pid);
@@ -857,10 +857,10 @@ forkshell(struct job *jp, union node *n, int mode)
 		error(psh, "Cannot fork");
 		break;
 	case 0:
-		forkchild(jp, n, mode, 0);
+		forkchild(psh, jp, n, mode, 0);
 		return 0;
 	default:
-		return forkparent(jp, n, mode, pid);
+		return forkparent(psh, jp, n, mode, pid);
 	}
 }
 
@@ -885,7 +885,7 @@ forkparent(struct job *jp, union node *n, int mode, pid_t pid)
 		ps->status = -1;
 		ps->cmd[0] = 0;
 		if (/* iflag && rootshell && */ n)
-			commandtext(ps, n);
+			commandtext(psh, ps, n);
 	}
 	TRACE((psh, "In parent shell:  child = %d\n", pid));
 	return pid;
@@ -921,13 +921,13 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 				error(psh, "Cannot set tty process group (%s) at %d",
 				    strerror(errno), __LINE__);
 		}
-		setsignal(SIGTSTP, vforked);
-		setsignal(SIGTTOU, vforked);
+		setsignal(psh, SIGTSTP, vforked);
+		setsignal(psh, SIGTTOU, vforked);
 	} else if (mode == FORK_BG) {
-		ignoresig(SIGINT, vforked);
-		ignoresig(SIGQUIT, vforked);
+		ignoresig(psh, SIGINT, vforked);
+		ignoresig(psh, SIGQUIT, vforked);
 		if ((jp == NULL || jp->nprocs == 0) &&
-		    ! fd0_redirected_p ()) {
+		    ! fd0_redirected_p(psh)) {
 			close(0);
 			if (open(devnull, O_RDONLY) != 0)
 				error(psh, nullerr, devnull);
@@ -935,10 +935,10 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 	}
 #else
 	if (mode == FORK_BG) {
-		ignoresig(SIGINT, vforked);
-		ignoresig(SIGQUIT, vforked);
+		ignoresig(psh, SIGINT, vforked);
+		ignoresig(psh, SIGQUIT, vforked);
 		if ((jp == NULL || jp->nprocs == 0) &&
-		    ! fd0_redirected_p ()) {
+		    ! fd0_redirected_p(psh)) {
 			close(0);
 			if (open(devnull, O_RDONLY) != 0)
 				error(psh, nullerr, devnull);
@@ -946,9 +946,9 @@ forkchild(struct job *jp, union node *n, int mode, int vforked)
 	}
 #endif
 	if (wasroot && iflag(psh)) {
-		setsignal(SIGINT, vforked);
-		setsignal(SIGQUIT, vforked);
-		setsignal(SIGTERM, vforked);
+		setsignal(psh, SIGINT, vforked);
+		setsignal(psh, SIGQUIT, vforked);
+		setsignal(psh, SIGTERM, vforked);
 	}
 
 	if (!vforked)
