@@ -47,8 +47,7 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
  * Miscelaneous builtins.
  */
 
-#include <sys/types.h>		/* quad_t */
-#include <sys/param.h>		/* BSD4_4 */
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -56,6 +55,9 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
+#ifndef _MSC_VER
+# include "mscfakes.h"
+#endif
 
 #include "shell.h"
 #include "options.h"
@@ -88,7 +90,7 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
  */
 
 int
-readcmd(int argc, char **argv)
+readcmd(shinstance *psh, int argc, char **argv)
 {
 	char **ap;
 	char c;
@@ -106,7 +108,7 @@ readcmd(int argc, char **argv)
 	prompt = NULL;
 	while ((i = nextopt(psh, "p:r")) != '\0') {
 		if (i == 'p')
-			prompt = optionarg;
+			prompt = psh->optionarg;
 		else
 			rflag = 1;
 	}
@@ -213,7 +215,7 @@ readcmd(int argc, char **argv)
 
 
 int
-umaskcmd(int argc, char **argv)
+umaskcmd(shinstance *psh, int argc, char **argv)
 {
 	char *ap;
 	int mask;
@@ -353,7 +355,7 @@ static const struct limits limits[] = {
 };
 
 int
-ulimitcmd(int argc, char **argv)
+ulimitcmd(shinstance *psh, int argc, char **argv)
 {
 	int	c;
 	rlim_t val = 0;
@@ -417,15 +419,11 @@ ulimitcmd(int argc, char **argv)
 
 			out1fmt(psh, "%-20s ", l->name);
 			if (val == RLIM_INFINITY)
-				out1fmt("unlimited\n");
+				out1fmt(psh, "unlimited\n");
 			else
 			{
 				val /= l->factor;
-#ifdef BSD4_4
 				out1fmt(psh, "%lld\n", (long long) val);
-#else
-				out1fmt(psh, "%ld\n", (long) val);
-#endif
 			}
 		}
 		return 0;
@@ -450,11 +448,7 @@ ulimitcmd(int argc, char **argv)
 		else
 		{
 			val /= l->factor;
-#ifdef BSD4_4
 			out1fmt(psh, "%lld\n", (long long) val);
-#else
-			out1fmt(psh, "%ld\n", (long) val);
-#endif
 		}
 	}
 	return 0;

@@ -100,7 +100,7 @@ struct rusage {
 
 #define	RLIM_NLIMITS	12		/* number of resource limits */ /* bird: was 11 */
 
-#define	RLIM_INFINITY	(((rlim_t)1 << 63) - 1)
+#define	RLIM_INFINITY	(0x7fffffffffffffffLL)
 /* XXX Missing: RLIM_SAVED_MAX, RLIM_SAVED_CUR */
 
 
@@ -134,7 +134,7 @@ struct rlimit {
 
 /* XXX 2nd arg to [gs]etpriority() should be an id_t */
 //int	getpriority(int, /*int*/ id_t);         /* bird: SuS uses id_t */
-//int	getrlimit(int, struct rlimit *);
+int	getrlimit(int, struct rlimit *);
 int	getrusage(int, struct rusage *);
 //int	setpriority(int, /*int*/ id_t, int);    /* bird: SuS uses id_t */
 int	setrlimit(int, const struct rlimit *);
