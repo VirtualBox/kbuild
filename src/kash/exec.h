@@ -64,6 +64,10 @@ struct cmdentry {
 
 /*extern const char *pathopt;*/	/* set by padvance */
 
+#if !defined(__GNUC__) && !defined(__attribute__)
+# define __attribute__(a)
+#endif
+
 void shellexec(struct shinstance *, char **, char **, const char *, int, int)
     __attribute__((__noreturn__));
 char *padvance(struct shinstance *, const char **, const char *);

@@ -31,9 +31,7 @@
 #include <stdlib.h>
 
 #ifdef _MSC_VER
-# define setmode setmode_msc
 # include <io.h> /* intptr_t and uintptr_t */
-# undef setmode
 typedef signed char     int8_t;
 typedef unsigned char   uint8_t;
 typedef short           int16_t;
@@ -55,19 +53,31 @@ typedef unsigned _int64 uint64_t;
 #define INTMAX_C(c)     (c ## LL)
 #define UINTMAX_C(c)    (c ## ULL)
 
+#undef  INT8_MIN
 #define INT8_MIN        (-0x7f-1)
+#undef  INT16_MIN
 #define INT16_MIN       (-0x7fff-1)
+#undef  INT32_MIN
 #define INT32_MIN       (-0x7fffffff-1)
+#undef  INT64_MIN
 #define INT64_MIN       (-0x7fffffffffffffffLL-1)
 
+#undef  INT8_MAX
 #define INT8_MAX        0x7f
+#undef  INT16_MAX
 #define INT16_MAX       0x7fff
+#undef  INT32_MAX
 #define INT32_MAX       0x7fffffff
+#undef  INT64_MAX
 #define INT64_MAX       0x7fffffffffffffffLL
 
+#undef  UINT8_MAX
 #define UINT8_MAX       0xff
+#undef  UINT16_MAX
 #define UINT16_MAX      0xffff
+#undef  UINT32_MAX
 #define UINT32_MAX      0xffffffffU
+#undef  UINT64_MAX
 #define UINT64_MAX      0xffffffffffffffffULL
 
 typedef int             pid_t;
@@ -75,9 +85,6 @@ typedef unsigned short  uid_t;
 typedef unsigned short  gid_t;
 typedef int             mode_t;
 typedef intptr_t        ssize_t;
-
-void *  setmode(const char *p);
-mode_t  getmode(const void *bbox, mode_t omode);
 
 #else
 # include <stdint.h>
