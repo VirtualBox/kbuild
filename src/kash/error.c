@@ -118,7 +118,7 @@ onint(shinstance *psh)
 	if (psh->rootshell && iflag(psh))
 		exraise(psh, EXINT);
 	else {
-		sh_signal(psh, SIGINT, SIG_DFL);
+		sh_signal(psh, SIGINT, SH_SIG_DFL);
 		sh_raise_sigint(psh);/*raise(psh, SIGINT);*/
 	}
 	/* NOTREACHED */

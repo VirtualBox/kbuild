@@ -66,6 +66,7 @@ __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
+#include "shinstance.h"
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
@@ -272,18 +273,18 @@ openhere(union node *redir)
 	}
 	if (forkshell(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
 		shfile_close(&psh->fdtab, pip[0]);
-		signal(SIGINT, SIG_IGN);
-		signal(SIGQUIT, SIG_IGN);
-		signal(SIGHUP, SIG_IGN);
+		sh_signal(psh, SIGINT, SH_SIG_IGN);
+		sh_signal(psh, SIGQUIT, SH_SIG_IGN);
+		sh_signal(psh, SIGHUP, SH_SIG_IGN);
 #ifdef SIGTSTP
-		signal(SIGTSTP, SIG_IGN);
+		sh_signal(psh, SIGTSTP, SH_SIG_IGN);
 #endif
-		signal(SIGPIPE, SIG_DFL);
+		sh_signal(psh, SIGPIPE, SH_SIG_DFL);
 		if (redir->type == NHERE)
 			xwrite(psh, pip[1], redir->nhere.doc->narg.text, len);
 		else
 			expandhere(psh, redir->nhere.doc, pip[1]);
-		_exit(0);
+		sh__exit(psh, 0);
 	}
 out:
 	shfile_close(&psh->fdtab, pip[1]);

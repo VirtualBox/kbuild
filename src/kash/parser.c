@@ -1385,8 +1385,8 @@ parsebackq: {
 		if (str)
 			ckfree(str);
 		parsebackquote = 0;
-		handler = savehandler;
-		longjmp(handler->loc, 1);
+		psh->handler = savehandler;
+		longjmp(psh->handler->loc, 1);
 	}
 	INTOFF;
 	str = NULL;
@@ -1395,8 +1395,8 @@ parsebackq: {
 		str = ckmalloc(savelen);
 		memcpy(str, stackblock(psh), savelen);
 	}
-	savehandler = handler;
-	handler = &jmploc;
+	savehandler = psh->handler;
+	psh->handler = &jmploc;
 	INTON;
         if (oldstyle) {
                 /* We must read until the closing backquote, giving special
@@ -1503,7 +1503,7 @@ done:
 		INTON;
 	}
 	parsebackquote = savepbq;
-	handler = savehandler;
+	psh->handler = savehandler;
 	if (arinest || ISDBLQUOTE())
 		USTPUTC(psh, CTLBACKQ | CTLQUOTE, out);
 	else

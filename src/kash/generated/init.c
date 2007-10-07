@@ -301,7 +301,7 @@ initshellproc(shinstance *psh) {
 	      char *sm;
 
 	      clear_traps(psh, 0);
-	      for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
+	      for (sm = psh->sigmode ; sm < psh->sigmode + NSIG ; sm++) {
 		      if (*sm == S_IGN)
 			      *sm = S_HARD_IGN;
 	      }
