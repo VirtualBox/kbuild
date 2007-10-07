@@ -880,7 +880,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 						psh->vforked = 2;
 						sh__exit(psh, 0);
 					} else {
-						sh__exit(psh, exerrno);
+						sh__exit(psh, psh->exerrno);
 					}
 				}
 				savehandler = psh->handler;

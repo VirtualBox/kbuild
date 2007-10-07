@@ -34,6 +34,9 @@
  *	@(#)exec.h	8.3 (Berkeley) 6/8/95
  */
 
+#ifndef ___exec_h
+#define ___exec_h
+
 /* values of cmdtype */
 #define CMDUNKNOWN	-1	/* no entry in table for command */
 #define CMDNORMAL	0	/* command is an executable program */
@@ -77,3 +80,5 @@ void defun(struct shinstance *, char *, union node *);
 int unsetfunc(struct shinstance *, char *);
 int typecmd(struct shinstance *, int, char **);
 void hash_special_builtins(struct shinstance *);
+
+#endif

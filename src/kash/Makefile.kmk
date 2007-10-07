@@ -44,9 +44,9 @@ kmk_ash_SOURCES = \
 	syntax.c \
 	output.c \
 	input.c \
-	\
 	exec.c \
 	expand.c \
+	\
 	jobs.c \
 	miscbltin.c \
 	parser.c \
