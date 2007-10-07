@@ -46,86 +46,74 @@ __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
 #endif /* not lint */
 
 #include <ctype.h>
-#ifndef __sun__
-#include <err.h>
-#endif
 #include <errno.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
-#include <unistd.h>
-#include <locale.h>
-#include <sys/ioctl.h>
+#include "jobs.h"
+#include "error.h"
+#include "shinstance.h"
 
 #ifndef HAVE_SYS_SIGNAME
 extern void init_sys_signame(void);
 extern char sys_signame[NSIG][16];
 #endif
 
-#ifdef SHELL            /* sh (aka ash) builtin */
-#define main killcmd
-#include "bltin/bltin.h"
-#include "jobs.h"
-#endif /* SHELL */
-
-static void nosig(char *);
-static void printsignals(FILE *);
+static int nosig(shinstance *, char *);
+static void printsignals(shinstance *, struct output *);
 static int signame_to_signum(char *);
-static void usage(void);
-int main(int, char *[]);
+static int usage(shinstance *psh);
 
 int
-main(int argc, char *argv[])
+killcmd(shinstance *psh, int argc, char *argv[])
 {
 	int errors, numsig, pid;
 	char *ep;
 
-	setprogname(argv[0]);
-	setlocale(LC_ALL, "");
 	if (argc < 2)
-		usage();
+		return usage(psh);
 
 	numsig = SIGTERM;
+#ifndef HAVE_SYS_SIGNAME
+	init_sys_signame();
+#endif
 
 	argc--, argv++;
 	if (strcmp(*argv, "-l") == 0) {
 		argc--, argv++;
 		if (argc > 1)
-			usage();
+			return usage(psh);
 		if (argc == 1) {
 			if (isdigit((unsigned char)**argv) == 0)
-				usage();
+				return usage(psh);
 			numsig = strtol(*argv, &ep, 10);
 			if (*ep != '\0') {
-				errx(EXIT_FAILURE, "illegal signal number: %s",
+				sh_errx(psh, EXIT_FAILURE, "illegal signal number: %s",
 						*argv);
 				/* NOTREACHED */
 			}
 			if (numsig >= 128)
 				numsig -= 128;
 			if (numsig <= 0 || numsig >= NSIG)
-				nosig(*argv);
-#ifndef HAVE_SYS_SIGNAME
-			init_sys_signame();
-#endif
-			printf("%s\n", sys_signame[numsig]);
-			exit(0);
+				return nosig(psh, *argv);
+			outfmt(psh->out1, "%s\n", sys_signame[numsig]);
+			//sh_exit(psh, 0);
+			return 0;
 		}
-		printsignals(stdout);
-		exit(0);
+		printsignals(psh, psh->out1);
+		//sh_exit(psh, 0);
+		return 0;
 	}
 
 	if (!strcmp(*argv, "-s")) {
 		argc--, argv++;
 		if (argc < 1) {
-			warnx("option requires an argument -- s");
-			usage();
+			sh_warnx(psh, "option requires an argument -- s");
+			return usage(psh);
 		}
 		if (strcmp(*argv, "0")) {
 			if ((numsig = signame_to_signum(*argv)) < 0)
-				nosig(*argv);
+				return nosig(psh, *argv);
 		} else
 			numsig = 0;
 		argc--, argv++;
@@ -133,66 +121,59 @@ main(int argc, char *argv[])
 		++*argv;
 		if (isalpha((unsigned char)**argv)) {
 			if ((numsig = signame_to_signum(*argv)) < 0)
-				nosig(*argv);
+				return nosig(psh, *argv);
 		} else if (isdigit((unsigned char)**argv)) {
 			numsig = strtol(*argv, &ep, 10);
 			if (!*argv || *ep) {
-				errx(EXIT_FAILURE, "illegal signal number: %s",
+				sh_errx(psh, EXIT_FAILURE, "illegal signal number: %s",
 						*argv);
 				/* NOTREACHED */
 			}
 			if (numsig < 0 || numsig >= NSIG)
-				nosig(*argv);
+				return nosig(psh, *argv);
 		} else
-			nosig(*argv);
+			return nosig(psh, *argv);
 		argc--, argv++;
 	}
 
 	if (argc == 0)
-		usage();
+		return usage(psh);
 
 	for (errors = 0; argc; argc--, argv++) {
-#ifdef SHELL
 		if (*argv[0] == '%') {
 			pid = getjobpgrp(psh, *argv);
 			if (pid == 0) {
-				warnx("illegal job id: %s", *argv);
+				sh_warnx(psh, "illegal job id: %s", *argv);
 				errors = 1;
 				continue;
 			}
-		} else
-#endif
-		{
+		} else {
 			pid = strtol(*argv, &ep, 10);
 			if (!**argv || *ep) {
-				warnx("illegal process id: %s", *argv);
+				sh_warnx(psh, "illegal process id: %s", *argv);
 				errors = 1;
 				continue;
 			}
 		}
-		if (kill(pid, numsig) == -1) {
-			warn("%s", *argv);
+		if (sh_kill(psh, pid, numsig) == -1) {
+			sh_warn(psh, "%s", *argv);
 			errors = 1;
 		}
-#ifdef SHELL
 		/* Wakeup the process if it was suspended, so it can
 		   exit without an explicit 'fg'. */
 		if (numsig == SIGTERM || numsig == SIGHUP)
-			kill(pid, SIGCONT);
-#endif
+			sh_kill(psh, pid, SIGCONT);
 	}
 
-	exit(errors);
-	/* NOTREACHED */
+	//sh_exit(psh, errors);
+	///* NOTREACHED */
+	return errors;
 }
 
 static int
 signame_to_signum(char *sig)
 {
 	int n;
-#ifndef HAVE_SYS_SIGNAME
-	init_sys_signame();
-#endif
 	if (strncasecmp(sig, "sig", 3) == 0)
 		sig += 3;
 	for (n = 1; n < NSIG; n++) {
@@ -202,65 +183,56 @@ signame_to_signum(char *sig)
 	return (-1);
 }
 
-static void
-nosig(char *name)
+static int
+nosig(shinstance *psh, char *name)
 {
-
-	warnx("unknown signal %s; valid signals:", name);
-	printsignals(stderr);
-	exit(1);
-	/* NOTREACHED */
+	sh_warnx(psh, "unknown signal %s; valid signals:", name);
+	printsignals(psh, psh->out2);
+	//sh_exit(psh, 1);
+	///* NOTREACHED */
+	return 1;
 }
 
 static void
-printsignals(FILE *fp)
+printsignals(shinstance *psh, struct output *out)
 {
 	int sig;
-	int len, nl;
+	size_t len, nl;
 	const char *name;
 	int termwidth = 80;
 
-#ifdef TIOCGWINSZ
-	if (isatty(fileno(fp))) {
-		struct winsize win;
-		if (ioctl(fileno(fp), TIOCGWINSZ, &win) == 0 && win.ws_col > 0)
+	if (shfile_isatty(&psh->fdtab, out->fd)) {
+		sh_winsize win;
+		if (shfile_ioctl(&psh->fdtab, out->fd, TIOCGWINSZ, &win) == 0 && win.ws_col > 0)
 			termwidth = win.ws_col;
 	}
-#else
-#ifndef _MSC_VER
-#warning TIOCGWINSZ is not present.
-#endif
-#endif
-#ifndef HAVE_SYS_SIGNAME
-    init_sys_signame();
-#endif
 
 	for (len = 0, sig = 1; sig < NSIG; sig++) {
 		name = sys_signame[sig];
 		nl = 1 + strlen(name);
 
 		if (len + nl >= termwidth) {
-			fprintf(fp, "\n");
+			outfmt(out, "\n");
 			len = 0;
-		} else
-			if (len != 0)
-				fprintf(fp, " ");
+		} else if (len != 0)
+			outfmt(out, " ");
 		len += nl;
-		fprintf(fp, "%s", name);
+		outfmt(out, "%s", name);
 	}
 	if (len != 0)
-		fprintf(fp, "\n");
+		outfmt(out, "\n");
 }
 
-static void
-usage(void)
+static int
+usage(shinstance *psh)
 {
-
-	fprintf(stderr, "usage: %s [-s signal_name] pid ...\n"
+	outfmt(psh->out2,
+	    "usage: %s [-s signal_name] pid ...\n"
 	    "       %s -l [exit_status]\n"
 	    "       %s -signal_name pid ...\n"
 	    "       %s -signal_number pid ...\n",
-	    getprogname(), getprogname(), getprogname(), getprogname());
-	exit(1);
-	/* NOTREACHED */
+	    psh->commandname, psh->commandname, psh->commandname, psh->commandname);
+	//sh_exit(psh, 1);
+	///* NOTREACHED */
+	return 1;
 }

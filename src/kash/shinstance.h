@@ -24,11 +24,15 @@
  *
  */
 
-#ifndef ___shinstance_h___
-#define ___shinstance_h___
+#ifndef ___shinstance_h
+#define ___shinstance_h
 
 #include <stdio.h> /* BUFSIZ */
 #include <signal.h> /* NSIG */
+#ifndef _MSC_VER
+# include <termios.h>
+# include <sys/ioctl.h>
+#endif
 
 #include "shtypes.h"
 #include "shthread.h"
@@ -39,6 +43,12 @@
 #include "expand.h"
 #include "exec.h"
 #include "var.h"
+
+#ifdef _MSC_VER
+# define strcasecmp stricmp
+# define strncasecmp strnicmp
+#endif
+
 
 /* memalloc.c */
 #define MINSIZE 504		/* minimum size of a block */
@@ -329,6 +339,18 @@ struct sh_sigaction
 };
 #define SH_SIG_DFL ((sh_sig_t)SIG_DFL)
 #define SH_SIG_IGN ((sh_sig_t)SIG_IGN)
+#ifdef _MSC_VER
+# define SIG_BLOCK          1
+# define SIG_UNBLOCK        2
+# define SIG_SETMASK        3
+# define SIGHUP             5
+# define SIGQUIT            9
+# define SIGPIPE            12
+# define SIGTTOU            17
+# define SIGTSTP            18
+# define SIGTTIN            19
+# define SIGCONT            20
+#endif /* _MSC_VER */
 
 int sh_sigaction(int, const struct sh_sigaction *, struct sh_sigaction *);
 sh_sig_t sh_signal(shinstance *, int, sh_sig_t);
@@ -388,6 +410,7 @@ pid_t sh_getpid(shinstance *);
 pid_t sh_getpgrp(shinstance *);
 pid_t sh_getpgid(shinstance *, pid_t);
 int sh_setpgid(shinstance *, pid_t, pid_t);
+int sh_kill(shinstance *, pid_t, int);
 int sh_killpg(shinstance *, pid_t, int);
 
 /* tc* */

@@ -34,6 +34,9 @@
  *	@(#)error.h	8.2 (Berkeley) 5/4/95
  */
 
+#ifndef ___error_h
+#define ___error_h
+
 #include <stdarg.h>
 
 /*
@@ -115,4 +118,6 @@ void sh_exit(struct shinstance *, int) __attribute__((__noreturn__));
 #if defined(BSD) && !defined(__SVR4) && !defined(__GLIBC__) && !defined(__KLIBC__) && !defined(_MSC_VER)
 #define setjmp(jmploc)	_setjmp(jmploc)
 #define longjmp(jmploc, val)	_longjmp(jmploc, val)
+#endif
+
 #endif
