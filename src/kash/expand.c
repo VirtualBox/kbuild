@@ -77,44 +77,45 @@ __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
 #include "error.h"
 #include "mystring.h"
 #include "show.h"
+#include "shinstance.h"
 
-/*
- * Structure specifying which parts of the string should be searched
- * for IFS characters.
- */
+///*
+// * Structure specifying which parts of the string should be searched
+// * for IFS characters.
+// */
+//
+//struct ifsregion {
+//	struct ifsregion *next;	/* next region in list */
+//	int begoff;		/* offset of start of region */
+//	int endoff;		/* offset of end of region */
+//	int inquotes;		/* search for nul bytes only */
+//};
+//
+//
+//char *expdest;			/* output of current string */
+//struct nodelist *argbackq;	/* list of back quote expressions */
+//struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
+//struct ifsregion *ifslastp;	/* last struct in list */
+//struct arglist exparg;		/* holds expanded arg list */
 
-struct ifsregion {
-	struct ifsregion *next;	/* next region in list */
-	int begoff;		/* offset of start of region */
-	int endoff;		/* offset of end of region */
-	int inquotes;		/* search for nul bytes only */
-};
-
-
-char *expdest;			/* output of current string */
-struct nodelist *argbackq;	/* list of back quote expressions */
-struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
-struct ifsregion *ifslastp;	/* last struct in list */
-struct arglist exparg;		/* holds expanded arg list */
-
-STATIC void argstr(char *, int);
-STATIC char *exptilde(char *, int);
-STATIC void expbackq(union node *, int, int);
-STATIC int subevalvar(char *, char *, int, int, int, int);
-STATIC char *evalvar(char *, int);
-STATIC int varisset(char *, int);
-STATIC void varvalue(char *, int, int, int);
-STATIC void recordregion(int, int, int);
-STATIC void removerecordregions(int);
-STATIC void ifsbreakup(char *, struct arglist *);
-STATIC void ifsfree(void);
-STATIC void expandmeta(struct strlist *, int);
-STATIC void expmeta(char *, char *);
-STATIC void addfname(char *);
+STATIC void argstr(shinstance *, char *, int);
+STATIC char *exptilde(shinstance *, char *, int);
+STATIC void expbackq(shinstance *, union node *, int, int);
+STATIC int subevalvar(shinstance *, char *, char *, int, int, int, int);
+STATIC char *evalvar(shinstance *, char *, int);
+STATIC int varisset(shinstance *, char *, int);
+STATIC void varvalue(shinstance *, char *, int, int, int);
+STATIC void recordregion(shinstance *, int, int, int);
+STATIC void removerecordregions(shinstance *, int);
+STATIC void ifsbreakup(shinstance *, char *, struct arglist *);
+STATIC void ifsfree(shinstance *);
+STATIC void expandmeta(shinstance *, struct strlist *, int);
+STATIC void expmeta(shinstance *, char *, char *);
+STATIC void addfname(shinstance *, char *);
 STATIC struct strlist *expsort(struct strlist *);
 STATIC struct strlist *msort(struct strlist *, int);
 STATIC int pmatch(char *, char *, int);
-STATIC char *cvtnum(int, char *);
+STATIC char *cvtnum(shinstance *, int, char *);
 
 /*
  * Expand shell variables and backquotes inside a here document.
@@ -137,43 +138,43 @@ expandhere(shinstance *psh, union node *arg, int fd)
  */
 
 void
-expandarg(union node *arg, struct arglist *arglist, int flag)
+expandarg(shinstance *psh, union node *arg, struct arglist *arglist, int flag)
 {
 	struct strlist *sp;
 	char *p;
 
-	argbackq = arg->narg.backquote;
-	STARTSTACKSTR(psh, expdest);
-	ifsfirst.next = NULL;
-	ifslastp = NULL;
-	argstr(arg->narg.text, flag);
+	psh->argbackq = arg->narg.backquote;
+	STARTSTACKSTR(psh, psh->expdest);
+	psh->ifsfirst.next = NULL;
+	psh->ifslastp = NULL;
+	argstr(psh, arg->narg.text, flag);
 	if (arglist == NULL) {
 		return;			/* here document expanded */
 	}
-	STPUTC(psh, '\0', expdest);
-	p = grabstackstr(psh, expdest);
-	exparg.lastp = &exparg.list;
+	STPUTC(psh, '\0', psh->expdest);
+	p = grabstackstr(psh, psh->expdest);
+	psh->exparg.lastp = &psh->exparg.list;
 	/*
 	 * TODO - EXP_REDIR
 	 */
 	if (flag & EXP_FULL) {
-		ifsbreakup(p, &exparg);
-		*exparg.lastp = NULL;
-		exparg.lastp = &exparg.list;
-		expandmeta(exparg.list, flag);
+		ifsbreakup(psh, p, &psh->exparg);
+		*psh->exparg.lastp = NULL;
+		psh->exparg.lastp = &psh->exparg.list;
+		expandmeta(psh, psh->exparg.list, flag);
 	} else {
 		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
 			rmescapes(psh, p);
 		sp = (struct strlist *)stalloc(psh, sizeof (struct strlist));
 		sp->text = p;
-		*exparg.lastp = sp;
-		exparg.lastp = &sp->next;
+		*psh->exparg.lastp = sp;
+		psh->exparg.lastp = &sp->next;
 	}
-	ifsfree();
-	*exparg.lastp = NULL;
-	if (exparg.list) {
-		*arglist->lastp = exparg.list;
-		arglist->lastp = exparg.lastp;
+	ifsfree(psh);
+	*psh->exparg.lastp = NULL;
+	if (psh->exparg.list) {
+		*arglist->lastp = psh->exparg.list;
+		arglist->lastp = psh->exparg.lastp;
 	}
 }
 
@@ -186,7 +187,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  */
 
 STATIC void
-argstr(char *p, int flag)
+argstr(shinstance *psh, char *p, int flag)
 {
 	char c;
 	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
@@ -195,10 +196,10 @@ argstr(char *p, int flag)
 	int ifs_split = EXP_IFS_SPLIT;
 
 	if (flag & EXP_IFS_SPLIT)
-		ifs = ifsset() ? ifsval() : " \t\n";
+		ifs = ifsset(psh) ? ifsval(psh) : " \t\n";
 
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
-		p = exptilde(p, flag);
+		p = exptilde(psh, p, flag);
 	for (;;) {
 		switch (c = *p++) {
 		case '\0':
@@ -209,7 +210,7 @@ argstr(char *p, int flag)
 			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
-				STPUTC(psh, c, expdest);
+				STPUTC(psh, c, psh->expdest);
 			ifs_split = 0;
 			break;
 		case CTLQUOTEEND:
@@ -217,17 +218,17 @@ argstr(char *p, int flag)
 			break;
 		case CTLESC:
 			if (quotes)
-				STPUTC(psh, c, expdest);
+				STPUTC(psh, c, psh->expdest);
 			c = *p++;
-			STPUTC(psh, c, expdest);
+			STPUTC(psh, c, psh->expdest);
 			break;
 		case CTLVAR:
-			p = evalvar(p, (flag & ~EXP_IFS_SPLIT) | (flag & ifs_split));
+			p = evalvar(psh, p, (flag & ~EXP_IFS_SPLIT) | (flag & ifs_split));
 			break;
 		case CTLBACKQ:
 		case CTLBACKQ|CTLQUOTE:
-			expbackq(argbackq->n, c & CTLQUOTE, flag);
-			argbackq = argbackq->next;
+			expbackq(psh, psh->argbackq->n, c & CTLQUOTE, flag);
+			psh->argbackq = psh->argbackq->next;
 			break;
 		case CTLENDARI:
 			expari(psh, flag);
@@ -238,7 +239,7 @@ argstr(char *p, int flag)
 			 * sort of a hack - expand tildes in variable
 			 * assignments (after the first '=' and after ':'s).
 			 */
-			STPUTC(psh, c, expdest);
+			STPUTC(psh, c, psh->expdest);
 			if (flag & EXP_VARTILDE && *p == '~') {
 				if (c == '=') {
 					if (firsteq)
@@ -246,15 +247,15 @@ argstr(char *p, int flag)
 					else
 						break;
 				}
-				p = exptilde(p, flag);
+				p = exptilde(psh, p, flag);
 			}
 			break;
 		default:
-			STPUTC(psh, c, expdest);
+			STPUTC(psh, c, psh->expdest);
 			if (flag & EXP_IFS_SPLIT & ifs_split && strchr(ifs, c) != NULL) {
 				/* We need to get the output split here... */
-				recordregion(expdest - stackblock(psh) - 1,
-						expdest - stackblock(psh), 0);
+				recordregion(psh, (int)(psh->expdest - stackblock(psh) - 1),
+						(int)(psh->expdest - stackblock(psh)), 0);
 			}
 			break;
 		}
@@ -262,7 +263,7 @@ argstr(char *p, int flag)
 }
 
 STATIC char *
-exptilde(char *p, int flag)
+exptilde(shinstance *psh, char *p, int flag)
 {
 	char c, *startp = p;
 	struct passwd *pw;
@@ -299,8 +300,8 @@ done:
 	*p = c;
 	while ((c = *home++) != '\0') {
 		if (quotes && SQSYNTAX[(int)c] == CCTL)
-			STPUTC(psh, CTLESC, expdest);
-		STPUTC(psh, c, expdest);
+			STPUTC(psh, CTLESC, psh->expdest);
+		STPUTC(psh, c, psh->expdest);
 	}
 	return (p);
 lose:
@@ -310,42 +311,42 @@ lose:
 
 
 STATIC void
-removerecordregions(int endoff)
+removerecordregions(shinstance *psh, int endoff)
 {
-	if (ifslastp == NULL)
+	if (psh->ifslastp == NULL)
 		return;
 
-	if (ifsfirst.endoff > endoff) {
-		while (ifsfirst.next != NULL) {
+	if (psh->ifsfirst.endoff > endoff) {
+		while (psh->ifsfirst.next != NULL) {
 			struct ifsregion *ifsp;
 			INTOFF;
-			ifsp = ifsfirst.next->next;
-			ckfree(ifsfirst.next);
-			ifsfirst.next = ifsp;
+			ifsp = psh->ifsfirst.next->next;
+			ckfree(psh->ifsfirst.next);
+			psh->ifsfirst.next = ifsp;
 			INTON;
 		}
-		if (ifsfirst.begoff > endoff)
-			ifslastp = NULL;
+		if (psh->ifsfirst.begoff > endoff)
+			psh->ifslastp = NULL;
 		else {
-			ifslastp = &ifsfirst;
-			ifsfirst.endoff = endoff;
+			psh->ifslastp = &psh->ifsfirst;
+			psh->ifsfirst.endoff = endoff;
 		}
 		return;
 	}
 
-	ifslastp = &ifsfirst;
-	while (ifslastp->next && ifslastp->next->begoff < endoff)
-		ifslastp=ifslastp->next;
-	while (ifslastp->next != NULL) {
+	psh->ifslastp = &psh->ifsfirst;
+	while (psh->ifslastp->next && psh->ifslastp->next->begoff < endoff)
+		psh->ifslastp=psh->ifslastp->next;
+	while (psh->ifslastp->next != NULL) {
 		struct ifsregion *ifsp;
 		INTOFF;
-		ifsp = ifslastp->next->next;
-		ckfree(ifslastp->next);
-		ifslastp->next = ifsp;
+		ifsp = psh->ifslastp->next->next;
+		ckfree(psh->ifslastp->next);
+		psh->ifslastp->next = ifsp;
 		INTON;
 	}
-	if (ifslastp->endoff > endoff)
-		ifslastp->endoff = endoff;
+	if (psh->ifslastp->endoff > endoff)
+		psh->ifslastp->endoff = endoff;
 }
 
 
@@ -354,7 +355,7 @@ removerecordregions(int endoff)
  * evaluate, place result in (backed up) result, adjust string position.
  */
 void
-expari(int flag)
+expari(shinstance *psh, int flag)
 {
 	char *p, *start;
 	int result;
@@ -377,10 +378,10 @@ expari(int flag)
 #if INT_MAX / 1000000000 >= 10 || INT_MIN / 1000000000 <= -10
 #error "integers with more than 10 digits are not supported"
 #endif
-	CHECKSTRSPACE(psh, 12 - 2, expdest);
-	USTPUTC(psh, '\0', expdest);
+	CHECKSTRSPACE(psh, 12 - 2, psh->expdest);
+	USTPUTC(psh, '\0', psh->expdest);
 	start = stackblock(psh);
-	p = expdest - 1;
+	p = psh->expdest - 1;
 	while (*p != CTLARI && p >= start)
 		--p;
 	if (*p != CTLARI)
@@ -394,8 +395,8 @@ expari(int flag)
 		quoted=1;
 	else
 		quoted=0;
-	begoff = p - start;
-	removerecordregions(begoff);
+	begoff = (int)(p - start);
+	removerecordregions(psh, begoff);
 	if (quotes)
 		rmescapes(psh, p+2);
 	result = arith(p+2);
@@ -405,9 +406,9 @@ expari(int flag)
 		;
 
 	if (quoted == 0)
-		recordregion(begoff, p - 1 - start, 0);
-	result = expdest - p + 1;
-	STADJUST(psh, -result, expdest);
+		recordregion(psh, begoff, (int)(p - 1 - start), 0);
+	result = (int)(psh->expdest - p + 1);
+	STADJUST(psh, -result, psh->expdest);
 }
 
 
@@ -416,33 +417,33 @@ expari(int flag)
  */
 
 STATIC void
-expbackq(union node *cmd, int quoted, int flag)
+expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 {
 	struct backcmd in;
 	int i;
 	char buf[128];
 	char *p;
-	char *dest = expdest;
+	char *dest = psh->expdest;
 	struct ifsregion saveifs, *savelastp;
 	struct nodelist *saveargbackq;
 	char lastc;
-	int startloc = dest - stackblock(psh);
+	int startloc = (int)(dest - stackblock(psh));
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
 	int saveherefd;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	INTOFF;
-	saveifs = ifsfirst;
-	savelastp = ifslastp;
-	saveargbackq = argbackq;
+	saveifs = psh->ifsfirst;
+	savelastp = psh->ifslastp;
+	saveargbackq = psh->argbackq;
 	saveherefd = psh->herefd;
 	psh->herefd = -1;
 	p = grabstackstr(psh, dest);
 	evalbackcmd(psh, cmd, &in);
 	ungrabstackstr(psh, p, dest);
-	ifsfirst = saveifs;
-	ifslastp = savelastp;
-	argbackq = saveargbackq;
+	psh->ifsfirst = saveifs;
+	psh->ifslastp = savelastp;
+	psh->argbackq = saveargbackq;
 	psh->herefd = saveherefd;
 
 	p = in.buf;
@@ -476,35 +477,35 @@ expbackq(union node *cmd, int quoted, int flag)
 	if (in.buf)
 		ckfree(in.buf);
 	if (in.jp)
-		back_exitstatus = waitforjob(psh, in.jp);
+		psh->back_exitstatus = waitforjob(psh, in.jp);
 	if (quoted == 0)
-		recordregion(startloc, dest - stackblock(psh), 0);
+		recordregion(psh, startloc, (int)(dest - stackblock(psh)), 0);
 	TRACE((psh, "evalbackq: size=%d: \"%.*s\"\n",
 		(dest - stackblock(psh)) - startloc,
 		(dest - stackblock(psh)) - startloc,
 		stackblock(psh) + startloc));
-	expdest = dest;
+	psh->expdest = dest;
 	INTON;
 }
 
 
 
 STATIC int
-subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varflags)
+subevalvar(shinstance *psh, char *p, char *str, int strloc, int subtype, int startloc, int varflags)
 {
 	char *startp;
 	char *loc = NULL;
 	char *q;
 	int c = 0;
 	int saveherefd = psh->herefd;
-	struct nodelist *saveargbackq = argbackq;
+	struct nodelist *saveargbackq = psh->argbackq;
 	int amount;
 
 	psh->herefd = -1;
-	argstr(p, 0);
-	STACKSTRNUL(psh, expdest);
+	argstr(psh, p, 0);
+	STACKSTRNUL(psh, psh->expdest);
 	psh->herefd = saveherefd;
-	argbackq = saveargbackq;
+	psh->argbackq = saveargbackq;
 	startp = stackblock(psh) + startloc;
 	if (str == NULL)
 	    str = stackblock(psh) + strloc;
@@ -512,8 +513,8 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 	switch (subtype) {
 	case VSASSIGN:
 		setvar(psh, str, startp, 0);
-		amount = startp - expdest;
-		STADJUST(psh, amount, expdest);
+		amount = (int)(startp - psh->expdest);
+		STADJUST(psh, amount, psh->expdest);
 		varflags &= ~VSNUL;
 		if (c != 0)
 			*loc = c;
@@ -591,17 +592,17 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc, int varfla
 
 recordleft:
 	*loc = c;
-	amount = ((str - 1) - (loc - startp)) - expdest;
-	STADJUST(psh, amount, expdest);
+	amount = (int)(((str - 1) - (loc - startp)) - psh->expdest);
+	STADJUST(psh, amount, psh->expdest);
 	while (loc != str - 1)
 		*startp++ = *loc++;
 	return 1;
 
 recordright:
-	amount = loc - expdest;
-	STADJUST(psh, amount, expdest);
-	STPUTC(psh, '\0', expdest);
-	STADJUST(psh, -1, expdest);
+	amount = (int)(loc - psh->expdest);
+	STADJUST(psh, amount, psh->expdest);
+	STPUTC(psh, '\0', psh->expdest);
+	STADJUST(psh, -1, psh->expdest);
 	return 1;
 }
 
@@ -612,7 +613,7 @@ recordright:
  */
 
 STATIC char *
-evalvar(char *p, int flag)
+evalvar(shinstance *psh, char *p, int flag)
 {
 	int subtype;
 	int varflags;
@@ -635,7 +636,7 @@ evalvar(char *p, int flag)
 
 again: /* jump here after setting a variable with ${var=text} */
 	if (special) {
-		set = varisset(var, varflags & VSNUL);
+		set = varisset(psh, var, varflags & VSNUL);
 		val = NULL;
 	} else {
 		val = lookupvar(psh, var);
@@ -647,7 +648,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	}
 
 	varlen = 0;
-	startloc = expdest - stackblock(psh);
+	startloc = (int)(psh->expdest - stackblock(psh));
 
 	if (!set && uflag(psh)) {
 		switch (subtype) {
@@ -665,10 +666,10 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			varvalue(var, varflags & VSQUOTE, subtype, flag);
+			varvalue(psh, var, varflags & VSQUOTE, subtype, flag);
 			if (subtype == VSLENGTH) {
-				varlen = expdest - stackblock(psh) - startloc;
-				STADJUST(psh, -varlen, expdest);
+				varlen = (int)(psh->expdest - stackblock(psh) - startloc);
+				STADJUST(psh, -varlen, psh->expdest);
 			}
 		} else {
 			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX
@@ -680,8 +681,8 @@ again: /* jump here after setting a variable with ${var=text} */
 			} else {
 				while (*val) {
 					if (quotes && syntax[(int)*val] == CCTL)
-						STPUTC(psh, CTLESC, expdest);
-					STPUTC(psh, *val++, expdest);
+						STPUTC(psh, CTLESC, psh->expdest);
+					STPUTC(psh, *val++, psh->expdest);
 				}
 
 			}
@@ -690,11 +691,11 @@ again: /* jump here after setting a variable with ${var=text} */
 
 
 	apply_ifs = ((varflags & VSQUOTE) == 0 ||
-		(*var == '@' && shellparam.nparam != 1));
+		(*var == '@' && psh->shellparam.nparam != 1));
 
 	switch (subtype) {
 	case VSLENGTH:
-		expdest = cvtnum(varlen, expdest);
+		psh->expdest = cvtnum(psh, varlen, psh->expdest);
 		break;
 
 	case VSNORMAL:
@@ -705,7 +706,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		/* FALLTHROUGH */
 	case VSMINUS:
 		if (!set) {
-		        argstr(p, flag | (apply_ifs ? EXP_IFS_SPLIT : 0));
+		        argstr(psh, p, flag | (apply_ifs ? EXP_IFS_SPLIT : 0));
 			/*
 			 * ${x-a b c} doesn't get split, but removing the
 			 * 'apply_ifs = 0' apparantly breaks ${1+"$@"}..
@@ -726,15 +727,15 @@ again: /* jump here after setting a variable with ${var=text} */
 		 * Terminate the string and start recording the pattern
 		 * right after it
 		 */
-		STPUTC(psh, '\0', expdest);
-		patloc = expdest - stackblock(psh);
-		if (subevalvar(p, NULL, patloc, subtype,
+		STPUTC(psh, '\0', psh->expdest);
+		patloc = (int)(psh->expdest - stackblock(psh));
+		if (subevalvar(psh, p, NULL, patloc, subtype,
 			       startloc, varflags) == 0) {
-			int amount = (expdest - stackblock(psh) - patloc) + 1;
-			STADJUST(psh, -amount, expdest);
+			int amount = (int)(psh->expdest - stackblock(psh) - patloc) + 1;
+			STADJUST(psh, -amount, psh->expdest);
 		}
 		/* Remove any recorded regions beyond start of variable */
-		removerecordregions(startloc);
+		removerecordregions(psh, startloc);
 		apply_ifs = 1;
 		break;
 
@@ -742,13 +743,13 @@ again: /* jump here after setting a variable with ${var=text} */
 	case VSQUESTION:
 		if (set)
 			break;
-		if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+		if (subevalvar(psh, p, var, 0, subtype, startloc, varflags)) {
 			varflags &= ~VSNUL;
 			/*
 			 * Remove any recorded regions beyond
 			 * start of variable
 			 */
-			removerecordregions(startloc);
+			removerecordregions(psh, startloc);
 			goto again;
 		}
 		apply_ifs = 0;
@@ -759,7 +760,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	}
 
 	if (apply_ifs)
-		recordregion(startloc, expdest - stackblock(psh),
+		recordregion(psh, startloc, (int)(psh->expdest - stackblock(psh)),
 			     varflags & VSQUOTE);
 
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
@@ -769,7 +770,7 @@ again: /* jump here after setting a variable with ${var=text} */
 				p++;
 			else if (c == CTLBACKQ || c == (CTLBACKQ|CTLQUOTE)) {
 				if (set)
-					argbackq = argbackq->next;
+					psh->argbackq = psh->argbackq->next;
 			} else if (c == CTLVAR) {
 				if ((*p++ & VSTYPE) != VSNORMAL)
 					nesting++;
@@ -789,18 +790,18 @@ again: /* jump here after setting a variable with ${var=text} */
  */
 
 STATIC int
-varisset(char *name, int nulok)
+varisset(shinstance *psh, char *name, int nulok)
 {
 	if (*name == '!')
-		return backgndpid != -1;
+		return psh->backgndpid != -1;
 	else if (*name == '@' || *name == '*') {
-		if (*shellparam.p == NULL)
+		if (*psh->shellparam.p == NULL)
 			return 0;
 
 		if (nulok) {
 			char **av;
 
-			for (av = shellparam.p; *av; av++)
+			for (av = psh->shellparam.p; *av; av++)
 				if (**av != '\0')
 					return 1;
 			return 0;
@@ -809,13 +810,13 @@ varisset(char *name, int nulok)
 		char *ap;
 		int num = atoi(name);
 
-		if (num > shellparam.nparam)
+		if (num > psh->shellparam.nparam)
 			return 0;
 
 		if (num == 0)
-			ap = arg0;
+			ap = psh->arg0;
 		else
-			ap = shellparam.p[num - 1];
+			ap = psh->shellparam.p[num - 1];
 
 		if (nulok && (ap == NULL || *ap == '\0'))
 			return 0;
@@ -830,7 +831,7 @@ varisset(char *name, int nulok)
  */
 
 STATIC void
-varvalue(char *name, int quoted, int subtype, int flag)
+varvalue(shinstance *psh, char *name, int quoted, int subtype, int flag)
 {
 	int num;
 	char *p;
@@ -845,66 +846,66 @@ varvalue(char *name, int quoted, int subtype, int flag)
 		syntax = quoted? DQSYNTAX : BASESYNTAX; \
 		while (*p) { \
 			if (syntax[(int)*p] == CCTL) \
-				STPUTC(psh, CTLESC, expdest); \
-			STPUTC(psh, *p++, expdest); \
+				STPUTC(psh, CTLESC, psh->expdest); \
+			STPUTC(psh, *p++, psh->expdest); \
 		} \
 	} else \
 		while (*p) \
-			STPUTC(psh, *p++, expdest); \
+			STPUTC(psh, *p++, psh->expdest); \
 	} while (0)
 
 
 	switch (*name) {
 	case '$':
-		num = rootpid;
+		num = psh->rootpid;
 		goto numvar;
 	case '?':
-		num = exitstatus;
+		num = psh->exitstatus;
 		goto numvar;
 	case '#':
-		num = shellparam.nparam;
+		num = psh->shellparam.nparam;
 		goto numvar;
 	case '!':
-		num = backgndpid;
+		num = psh->backgndpid;
 numvar:
-		expdest = cvtnum(num, expdest);
+		psh->expdest = cvtnum(psh, num, psh->expdest);
 		break;
 	case '-':
-		for (i = 0; optlist[i].name; i++) {
-			if (optlist[i].val)
-				STPUTC(psh, optlist[i].letter, expdest);
+		for (i = 0; psh->optlist[i].name; i++) {
+			if (psh->optlist[i].val)
+				STPUTC(psh, psh->optlist[i].letter, psh->expdest);
 		}
 		break;
 	case '@':
 		if (flag & EXP_FULL && quoted) {
-			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
+			for (ap = psh->shellparam.p ; (p = *ap++) != NULL ; ) {
 				STRTODEST(p);
 				if (*ap)
-					STPUTC(psh, '\0', expdest);
+					STPUTC(psh, '\0', psh->expdest);
 			}
 			break;
 		}
 		/* fall through */
 	case '*':
-		if (ifsset() != 0)
-			sep = ifsval()[0];
+		if (ifsset(psh) != 0)
+			sep = ifsval(psh)[0];
 		else
 			sep = ' ';
-		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
+		for (ap = psh->shellparam.p ; (p = *ap++) != NULL ; ) {
 			STRTODEST(p);
 			if (*ap && sep)
-				STPUTC(psh, sep, expdest);
+				STPUTC(psh, sep, psh->expdest);
 		}
 		break;
 	case '0':
-		p = arg0;
+		p = psh->arg0;
 		STRTODEST(p);
 		break;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
-			if (num > 0 && num <= shellparam.nparam) {
-				p = shellparam.p[num - 1];
+			if (num > 0 && num <= psh->shellparam.nparam) {
+				p = psh->shellparam.p[num - 1];
 				STRTODEST(p);
 			}
 		}
@@ -920,27 +921,27 @@ numvar:
  */
 
 STATIC void
-recordregion(int start, int end, int inquotes)
+recordregion(shinstance *psh, int start, int end, int inquotes)
 {
 	struct ifsregion *ifsp;
 
-	if (ifslastp == NULL) {
-		ifsp = &ifsfirst;
+	if (psh->ifslastp == NULL) {
+		ifsp = &psh->ifsfirst;
 	} else {
-		if (ifslastp->endoff == start
-		    && ifslastp->inquotes == inquotes) {
+		if (psh->ifslastp->endoff == start
+		    && psh->ifslastp->inquotes == inquotes) {
 			/* extend previous area */
-			ifslastp->endoff = end;
+			psh->ifslastp->endoff = end;
 			return;
 		}
 		ifsp = (struct ifsregion *)ckmalloc(sizeof (struct ifsregion));
-		ifslastp->next = ifsp;
+		psh->ifslastp->next = ifsp;
 	}
-	ifslastp = ifsp;
-	ifslastp->next = NULL;
-	ifslastp->begoff = start;
-	ifslastp->endoff = end;
-	ifslastp->inquotes = inquotes;
+	psh->ifslastp = ifsp;
+	psh->ifslastp->next = NULL;
+	psh->ifslastp->begoff = start;
+	psh->ifslastp->endoff = end;
+	psh->ifslastp->inquotes = inquotes;
 }
 
 
@@ -951,7 +952,7 @@ recordregion(int start, int end, int inquotes)
  * searched for IFS characters have been stored by recordregion.
  */
 STATIC void
-ifsbreakup(char *string, struct arglist *arglist)
+ifsbreakup(shinstance *psh, char *string, struct arglist *arglist)
 {
 	struct ifsregion *ifsp;
 	struct strlist *sp;
@@ -966,7 +967,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 	ifsspc = NULL;
 	inquotes = 0;
 
-	if (ifslastp == NULL) {
+	if (psh->ifslastp == NULL) {
 		/* Return entire argument, IFS doesn't apply to any of it */
 		sp = (struct strlist *)stalloc(psh, sizeof *sp);
 		sp->text = start;
@@ -975,9 +976,9 @@ ifsbreakup(char *string, struct arglist *arglist)
 		return;
 	}
 
-	ifs = ifsset() ? ifsval() : " \t\n";
+	ifs = ifsset(psh) ? ifsval(psh) : " \t\n";
 
-	for (ifsp = &ifsfirst; ifsp != NULL; ifsp = ifsp->next) {
+	for (ifsp = &psh->ifsfirst; ifsp != NULL; ifsp = ifsp->next) {
 		p = string + ifsp->begoff;
 		inquotes = ifsp->inquotes;
 		ifsspc = NULL;
@@ -1050,32 +1051,32 @@ ifsbreakup(char *string, struct arglist *arglist)
 }
 
 STATIC void
-ifsfree(void)
+ifsfree(shinstance *psh)
 {
-	while (ifsfirst.next != NULL) {
+	while (psh->ifsfirst.next != NULL) {
 		struct ifsregion *ifsp;
 		INTOFF;
-		ifsp = ifsfirst.next->next;
-		ckfree(ifsfirst.next);
-		ifsfirst.next = ifsp;
+		ifsp = psh->ifsfirst.next->next;
+		ckfree(psh->ifsfirst.next);
+		psh->ifsfirst.next = ifsp;
 		INTON;
 	}
-	ifslastp = NULL;
-	ifsfirst.next = NULL;
+	psh->ifslastp = NULL;
+	psh->ifsfirst.next = NULL;
 }
 
 
 
 /*
  * Expand shell metacharacters.  At this point, the only control characters
- * should be escapes.  The results are stored in the list exparg.
+ * should be escapes.  The results are stored in the list psh->exparg.
  */
 
-char *expdir;
+//char *expdir;
 
 
 STATIC void
-expandmeta(struct strlist *str, int flag)
+expandmeta(shinstance *psh, struct strlist *str, int flag)
 {
 	char *p;
 	struct strlist **savelastp;
@@ -1093,31 +1094,31 @@ expandmeta(struct strlist *str, int flag)
 			if (c == '*' || c == '?' || c == '[' || c == '!')
 				break;
 		}
-		savelastp = exparg.lastp;
+		savelastp = psh->exparg.lastp;
 		INTOFF;
-		if (expdir == NULL) {
-			int i = strlen(str->text);
-			expdir = ckmalloc(i < 2048 ? 2048 : i); /* XXX */
+		if (psh->expdir == NULL) {
+			size_t i = strlen(str->text);
+			psh->expdir = ckmalloc(i < 2048 ? 2048 : i); /* XXX */
 		}
 
-		expmeta(expdir, str->text);
-		ckfree(expdir);
-		expdir = NULL;
+		expmeta(psh, psh->expdir, str->text);
+		ckfree(psh->expdir);
+		psh->expdir = NULL;
 		INTON;
-		if (exparg.lastp == savelastp) {
+		if (psh->exparg.lastp == savelastp) {
 			/*
 			 * no matches
 			 */
 nometa:
-			*exparg.lastp = str;
+			*psh->exparg.lastp = str;
 			rmescapes(psh, str->text);
-			exparg.lastp = &str->next;
+			psh->exparg.lastp = &str->next;
 		} else {
-			*exparg.lastp = NULL;
+			*psh->exparg.lastp = NULL;
 			*savelastp = sp = expsort(*savelastp);
 			while (sp->next != NULL)
 				sp = sp->next;
-			exparg.lastp = &sp->next;
+			psh->exparg.lastp = &sp->next;
 		}
 		str = str->next;
 	}
@@ -1129,7 +1130,7 @@ nometa:
  */
 
 STATIC void
-expmeta(char *enddir, char *name)
+expmeta(shinstance *psh, char *enddir, char *name)
 {
 	char *p;
 	const char *cp;
@@ -1179,7 +1180,7 @@ expmeta(char *enddir, char *name)
 		}
 	}
 	if (metaflag == 0) {	/* we've reached the end of the file name */
-		if (enddir != expdir)
+		if (enddir != psh->expdir)
 			metaflag++;
 		for (p = name ; ; p++) {
 			if (*p == CTLQUOTEMARK)
@@ -1190,8 +1191,8 @@ expmeta(char *enddir, char *name)
 			if (*p == '\0')
 				break;
 		}
-		if (metaflag == 0 || lstat(expdir, &statb) >= 0)
-			addfname(expdir);
+		if (metaflag == 0 || lstat(psh->expdir, &statb) >= 0)
+			addfname(psh, psh->expdir);
 		return;
 	}
 	endname = p;
@@ -1205,17 +1206,17 @@ expmeta(char *enddir, char *name)
 			*enddir++ = *p++;
 		}
 	}
-	if (enddir == expdir) {
+	if (enddir == psh->expdir) {
 		cp = ".";
-	} else if (enddir == expdir + 1 && *expdir == '/') {
+	} else if (enddir == psh->expdir + 1 && *psh->expdir == '/') {
 		cp = "/";
 	} else {
-		cp = expdir;
+		cp = psh->expdir;
 		enddir[-1] = '\0';
 	}
 	if ((dirp = opendir(cp)) == NULL)
 		return;
-	if (enddir != expdir)
+	if (enddir != psh->expdir)
 		enddir[-1] = '/';
 	if (*endname == 0) {
 		atend = 1;
@@ -1237,13 +1238,13 @@ expmeta(char *enddir, char *name)
 		if (patmatch(psh, start, dp->d_name, 0)) {
 			if (atend) {
 				scopy(dp->d_name, enddir);
-				addfname(expdir);
+				addfname(psh, psh->expdir);
 			} else {
 				for (p = enddir, cp = dp->d_name;
 				     (*p++ = *cp++) != '\0';)
 					continue;
 				p[-1] = '/';
-				expmeta(p, endname);
+				expmeta(psh, p, endname);
 			}
 		}
 	}
@@ -1258,7 +1259,7 @@ expmeta(char *enddir, char *name)
  */
 
 STATIC void
-addfname(char *name)
+addfname(shinstance *psh, char *name)
 {
 	char *p;
 	struct strlist *sp;
@@ -1267,8 +1268,8 @@ addfname(char *name)
 	scopy(name, p);
 	sp = (struct strlist *)stalloc(psh, sizeof *sp);
 	sp->text = p;
-	*exparg.lastp = sp;
-	exparg.lastp = &sp->next;
+	*psh->exparg.lastp = sp;
+	psh->exparg.lastp = &sp->next;
 }
 
 
@@ -1338,7 +1339,7 @@ msort(struct strlist *list, int len)
  */
 
 int
-patmatch(char *pattern, char *string, int squoted)
+patmatch(shinstance *psh, char *pattern, char *string, int squoted)
 {
 #ifdef notdef
 	if (pattern[0] == '!' && pattern[1] == '!')
@@ -1473,7 +1474,7 @@ breakloop:
  */
 
 void
-rmescapes(char *str)
+rmescapes(shinstance *psh, char *str)
 {
 	char *p, *q;
 
@@ -1502,19 +1503,19 @@ rmescapes(char *str)
  */
 
 int
-casematch(union node *pattern, char *val)
+casematch(shinstance *psh, union node *pattern, char *val)
 {
 	struct stackmark smark;
 	int result;
 	char *p;
 
 	setstackmark(psh, &smark);
-	argbackq = pattern->narg.backquote;
-	STARTSTACKSTR(psh, expdest);
-	ifslastp = NULL;
-	argstr(pattern->narg.text, EXP_TILDE | EXP_CASE);
-	STPUTC(psh, '\0', expdest);
-	p = grabstackstr(psh, expdest);
+	psh->argbackq = pattern->narg.backquote;
+	STARTSTACKSTR(psh, psh->expdest);
+	psh->ifslastp = NULL;
+	argstr(psh, pattern->narg.text, EXP_TILDE | EXP_CASE);
+	STPUTC(psh, '\0', psh->expdest);
+	p = grabstackstr(psh, psh->expdest);
 	result = patmatch(psh, p, val, 0);
 	popstackmark(psh, &smark);
 	return result;
@@ -1525,7 +1526,7 @@ casematch(union node *pattern, char *val)
  */
 
 STATIC char *
-cvtnum(int num, char *buf)
+cvtnum(shinstance *psh, int num, char *buf)
 {
 	char temp[32];
 	int neg = num < 0;

@@ -116,7 +116,7 @@ readcmd(int argc, char **argv)
 		output_flushall(psh);
 	}
 
-	if (*(ap = argptr) == NULL)
+	if (*(ap = psh->argptr) == NULL)
 		error(psh, "arg count");
 
 	if ((ifs = bltinlookup(psh, "IFS", 1)) == NULL)
@@ -229,7 +229,7 @@ umaskcmd(int argc, char **argv)
 	umask(mask);
 	INTON;
 
-	if ((ap = *argptr) == NULL) {
+	if ((ap = *psh->argptr) == NULL) {
 		if (symbolic_mode) {
 			char u[4], g[4], o[4];
 
@@ -385,11 +385,11 @@ ulimitcmd(int argc, char **argv)
 	if (!l->name)
 		error(psh, "internal error (%c)", what);
 
-	set = *argptr ? 1 : 0;
+	set = *psh->argptr ? 1 : 0;
 	if (set) {
-		char *p = *argptr;
+		char *p = *psh->argptr;
 
-		if (all || argptr[1])
+		if (all || psh->argptr[1])
 			error(psh, "too many arguments");
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;

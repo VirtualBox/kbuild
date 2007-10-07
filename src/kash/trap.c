@@ -400,18 +400,18 @@ dotrap(void)
 
 	for (;;) {
 		for (i = 1 ; ; i++) {
-			if (gotsig[i - 1])
+			if (psh->gotsig[i - 1])
 				break;
 			if (i >= NSIG)
 				goto done;
 		}
-		gotsig[i - 1] = 0;
-		savestatus=exitstatus;
+		psh->gotsig[i - 1] = 0;
+		savestatus=psh->exitstatus;
 		evalstring(psh, trap[i], 0);
-		exitstatus=savestatus;
+		psh->exitstatus=savestatus;
 	}
 done:
-	pendingsigs = 0;
+	psh->pendingsigs = 0;
 }
 
 

@@ -93,7 +93,7 @@ __RCSID("$NetBSD: jobs.c,v 1.63 2005/06/01 15:41:19 lukem Exp $");
 static struct job *jobtab;		/* array of jobs */
 static int njobs;			/* size of array */
 static int jobs_invalid;		/* set in child */
-MKINIT pid_t backgndpid = -1;	/* pid of last background process */
+MKINIT pid_t psh->backgndpid = -1;	/* pid of last background process */
 #if JOBS
 int initialpgrp;		/* pgrp of shell on invocation */
 static int curjob = -1;		/* current job */
@@ -214,14 +214,14 @@ out:
 		setsignal(psh, SIGTSTP, 0);
 		setsignal(psh, SIGTTOU, 0);
 		setsignal(psh, SIGTTIN, 0);
-		if (getpgid(0) != rootpid && setpgid(0, rootpid) == -1)
+		if (getpgid(0) != psh->rootpid && sh_setpgid(0, psh->rootpid) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
 			    strerror(errno), __LINE__);
-		if (tcsetpgrp(ttyfd, rootpid) == -1)
+		if (tcsetpgrp(ttyfd, psh->rootpid) == -1)
 			error(psh, "Cannot set tty process group (%s) at %d",
 			    strerror(errno), __LINE__);
 	} else { /* turning job control off */
-		if (getpgid(0) != initialpgrp && setpgid(0, initialpgrp) == -1)
+		if (getpgid(0) != initialpgrp && sh_setpgid(0, initialpgrp) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
 			    strerror(errno), __LINE__);
 		if (tcsetpgrp(ttyfd, initialpgrp) == -1)
@@ -241,9 +241,9 @@ out:
 INCLUDE <stdlib.h>
 
 SHELLPROC {
-	backgndpid = -1;
+	psh->backgndpid = -1;
 #if JOBS
-	jobctl = 0;
+	psh->jobctl = 0;
 #endif
 }
 
@@ -510,10 +510,10 @@ jobscmd(int argc, char **argv)
 			mode = SHOW_PID;
 		else
 			mode = SHOW_PGID;
-	if (*argptr)
+	if (*psh->argptr)
 		do
-			showjob(out1, getjob(*argptr,0), mode);
-		while (*++argptr);
+			showjob(out1, getjob(*psh->argptr,0), mode);
+		while (*++psh->argptr);
 	else
 		showjobs(psh, out1, mode);
 	jobs_invalid = sv;
@@ -607,7 +607,7 @@ waitcmd(int argc, char **argv)
 
 	nextopt(psh, "");
 
-	if (!*argptr) {
+	if (!*psh->argptr) {
 		/* wait for all jobs */
 		jp = jobtab;
 		if (jobs_invalid)
@@ -628,8 +628,8 @@ waitcmd(int argc, char **argv)
 	}
 
 	retval = 127;		/* XXXGCC: -Wuninitialized */
-	for (; *argptr; argptr++) {
-		job = getjob(*argptr, 1);
+	for (; *psh->argptr; psh->argptr++) {
+		job = getjob(*psh->argptr, 1);
 		if (!job) {
 			retval = 127;
 			continue;
@@ -665,7 +665,7 @@ jobidcmd(int argc, char **argv)
 	int i;
 
 	nextopt(psh, "");
-	jp = getjob(*argptr, 0);
+	jp = getjob(*psh->argptr, 0);
 	for (i = 0 ; i < jp->nprocs ; ) {
 		out1fmt(psh, "%ld", (long)jp->ps[i].pid);
 		out1c(psh, ++i < jp->nprocs ? ' ' : '\n');
@@ -878,7 +878,7 @@ forkparent(struct job *jp, union node *n, int mode, pid_t pid)
 		(void)setpgid(pid, pgrp);
 	}
 	if (mode == FORK_BG)
-		backgndpid = pid;		/* set $! */
+		psh0->backgndpid = pid;		/* set $! */
 	if (jp) {
 		struct procstat *ps = &jp->ps[jp->nprocs++];
 		ps->pid = pid;

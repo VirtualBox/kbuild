@@ -129,7 +129,7 @@ histedit(void)
 				setenv("TERM", term, 1);
 			else
 				unsetenv("TERM");
-			shname = arg0;
+			shname = psh->arg0;
 			if (shname[0] == '-')
 				shname++;
 			el = el_init(shname, el_in, el_out, el_err);

@@ -209,15 +209,15 @@ reset(shinstance *psh) {
 
       /* from eval.c: */
       {
-	      evalskip = 0;
-	      loopnest = 0;
-	      funcnest = 0;
+	      psh->evalskip = 0;
+	      psh->loopnest = 0;
+	      psh->funcnest = 0;
       }
 
       /* from input.c: */
       {
-	      if (exception != EXSHELLPROC)
-		      parselleft = parsenleft = 0;	/* clear input buffer */
+	      if (psh->exception != EXSHELLPROC)
+		      psh->parselleft = psh->parsenleft = 0;	/* clear input buffer */
 	      popallfiles(psh);
       }
 
@@ -233,13 +233,13 @@ reset(shinstance *psh) {
 
       /* from parser.c: */
       {
-	      tokpushback = 0;
-	      checkkwd = 0;
+	      psh->tokpushback = 0;
+	      psh->checkkwd = 0;
       }
 
       /* from redir.c: */
       {
-	      while (redirlist)
+	      while (psh->redirlist)
 		      popredir(psh);
       }
 }
@@ -260,7 +260,7 @@ initshellproc(shinstance *psh) {
 
       /* from eval.c: */
       {
-	      exitstatus = 0;
+	      psh->exitstatus = 0;
       }
 
       /* from exec.c: */
@@ -275,7 +275,7 @@ initshellproc(shinstance *psh) {
 
       /* from jobs.c: */
       {
-	      backgndpid = -1;
+	      psh->backgndpid = -1;
 #if JOBS
 	      jobctl = 0;
 #endif

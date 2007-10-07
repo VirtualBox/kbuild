@@ -34,6 +34,9 @@
  *	@(#)expand.h	8.2 (Berkeley) 5/4/95
  */
 
+#ifndef ___expand_h
+#define ___expand_h
+
 struct strlist {
 	struct strlist *next;
 	char *text;
@@ -70,3 +73,5 @@ int arith(const char *);
 int expcmd(struct shinstance *, int , char **);
 void arith_lex_reset(void);
 int yylex(void);
+
+#endif

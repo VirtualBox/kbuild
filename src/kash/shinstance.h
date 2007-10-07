@@ -35,6 +35,8 @@
 #include "output.h"
 #include "options.h"
 
+#include "expand.h"
+#include "exec.h"
 #include "var.h"
 
 /* memalloc.c */
@@ -69,6 +71,29 @@ struct parsefile {
 	struct strpush basestrpush; /* so pushing one is fast */
 };
 
+/* exec.c */
+#define CMDTABLESIZE 31		/* should be prime */
+#define ARB 1			/* actual size determined at run time */
+
+struct tblentry {
+	struct tblentry *next;	/* next entry in hash chain */
+	union param param;	/* definition of builtin function */
+	short cmdtype;		/* index identifying command */
+	char rehash;		/* if set, cd done since entry created */
+	char cmdname[ARB];	/* name of command */
+};
+
+/* expand.c */
+/*
+ * Structure specifying which parts of the string should be searched
+ * for IFS characters.
+ */
+struct ifsregion {
+	struct ifsregion *next;	/* next region in list */
+	int begoff;		/* offset of start of region */
+	int endoff;		/* offset of end of region */
+	int inquotes;		/* search for nul bytes only */
+};
 
 
 /**
@@ -90,7 +115,7 @@ typedef struct shinstance
     /* error.h */
     struct jmploc      *handler;
     int                 exception;
-    int                 exerrno;
+    int                 exerrno/* = 0 */; /**< Last exec error */
     int volatile        suppressint;
     int volatile        intpending;
 
@@ -187,6 +212,11 @@ typedef struct shinstance
     /* exec.h */
     const char         *pathopt;        /**< set by padvance */
 
+    /* exec.c */
+    struct tblentry    *cmdtable[CMDTABLESIZE];
+    int                 builtinloc/* = -1*/;    /**< index in path of %builtin, or -1 */
+
+
     /* eval.h */
     char               *commandname;    /**< currently executing command */
     int                 exitstatus;     /**< exit status of last command */
@@ -214,6 +244,14 @@ typedef struct shinstance
 
     /* eval.c */
     int                 vforked;
+
+    /* expand.c */
+    char               *expdest;        /**< output of current string */
+    struct nodelist    *argbackq;       /**< list of back quote expressions */
+    struct ifsregion    ifsfirst;       /**< first struct in list of ifs regions */
+    struct ifsregion   *ifslastp;       /**< last struct in list */
+    struct arglist      exparg;         /**< holds expanded arg list */
+    char               *expdir;         /**< Used by expandmeta. */
 
     /* mail.c */
 #define MAXMBOXES 10
@@ -258,7 +296,7 @@ void sh_abort(shinstance *);
 clock_t sh_times(sh_tms *);
 int sh_sysconf_clk_tck(void);
 
-/* wait */
+/* wait / process */
 #ifdef _MSC_VER
 #   include <process.h>
 #   define WNOHANG         1       /* Don't hang in wait. */
@@ -283,6 +321,6 @@ int sh_sysconf_clk_tck(void);
 #endif
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
 void sh__exit(shinstance *, int);
-
+int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
 
 #endif

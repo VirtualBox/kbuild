@@ -680,7 +680,7 @@ exportcmd(int argc, char **argv)
 		return 0;
 	}
 
-	while ((name = *argptr++) != NULL) {
+	while ((name = *psh->argptr++) != NULL) {
 		if ((p = strchr(name, '=')) != NULL) {
 			p++;
 		} else {
@@ -707,7 +707,7 @@ localcmd(int argc, char **argv)
 
 	if (! in_function(psh))
 		error(psh, "Not in a function");
-	while ((name = *argptr++) != NULL) {
+	while ((name = *psh->argptr++) != NULL) {
 		mklocal(psh, name, 0);
 	}
 	return 0;
@@ -829,7 +829,7 @@ unsetcmd(int argc, char **argv)
 	if (flg_func == 0 && flg_var == 0)
 		flg_var = 1;
 
-	for (ap = argptr; *ap ; ap++) {
+	for (ap = psh->argptr; *ap ; ap++) {
 		if (flg_func)
 			ret |= unsetfunc(psh, *ap);
 		if (flg_var)

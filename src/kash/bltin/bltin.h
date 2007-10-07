@@ -71,7 +71,7 @@
 #define	vwarnx sh_vwarnx
 #define exit sh_exit
 #define setprogname(s)
-#define getprogname() commandname
+#define getprogname() psh->commandname
 #define setlocate(l,s) 0
 
 #define getenv(p) bltinlookup(psh, (p),0)
