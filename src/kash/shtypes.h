@@ -68,6 +68,10 @@ typedef unsigned _int64 uint64_t;
 #define UINT32_MAX      0xffffffffU
 #define UINT64_MAX      0xffffffffffffffffULL
 
+typedef int             pid_t;
+typedef unsigned short  uid_t;
+typedef unsigned short  gid_t;
+
 #else
 # include <stdint.h>
 #endif
