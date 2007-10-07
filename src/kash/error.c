@@ -32,24 +32,19 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: error.c,v 1.31 2003/08/07 09:05:30 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 /*
  * Errors and exceptions.
  */
 
-#include <signal.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>

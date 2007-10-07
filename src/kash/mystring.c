@@ -32,16 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)mystring.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: mystring.c,v 1.16 2003/08/07 09:05:35 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 /*
  * String functions.

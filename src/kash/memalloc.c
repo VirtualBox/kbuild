@@ -32,19 +32,15 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdlib.h>
-#include <unistd.h>
 
 #include "shell.h"
 #include "output.h"
@@ -52,6 +48,7 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
 #include "error.h"
 #include "machdep.h"
 #include "mystring.h"
+#include "shinstance.h"
 
 /*
  * Like malloc, but returns an error when out of space.

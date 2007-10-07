@@ -76,6 +76,9 @@ typedef unsigned short  gid_t;
 typedef int             mode_t;
 typedef intptr_t        ssize_t;
 
+void *  setmode(const char *p);
+mode_t  getmode(const void *bbox, mode_t omode);
+
 #else
 # include <stdint.h>
 #endif

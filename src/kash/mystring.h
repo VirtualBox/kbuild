@@ -34,13 +34,21 @@
  *	@(#)mystring.h	8.2 (Berkeley) 5/4/95
  */
 
+#ifndef ___mystring_h
+#define ___mystring_h
+
 #include <string.h>
-#include "shinstance.h"
+#include "shtypes.h" /* ssize_t */
 
 void scopyn(const char *, char *, ssize_t);
 int prefix(const char *, const char *);
-int number(shinstance *, const char *);
+int number(struct shinstance *, const char *);
 int is_number(const char *);
+#ifdef _MSC_VER
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
 
 #define equal(s1, s2)	(strcmp(s1, s2) == 0)
 #define scopy(s1, s2)	((void)strcpy(s2, s1))
+
+#endif

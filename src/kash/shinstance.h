@@ -32,6 +32,11 @@
 #ifndef _MSC_VER
 # include <termios.h>
 # include <sys/ioctl.h>
+# include <sys/resource.h>
+#endif
+#include <errno.h>
+#ifdef _MSC_VER
+# define EWOULDBLOCK    512
 #endif
 
 #include "shtypes.h"
@@ -323,13 +328,14 @@ typedef struct shinstance
 
 extern shinstance *sh_create_root_shell(shinstance *, int, char **);
 char *sh_getenv(shinstance *, const char *);
+const char *sh_gethomedir(shinstance *, const char *);
 
 /* signals */
 typedef void (*sh_sig_t)(shinstance *, int);
 #ifdef _MSC_VER
- typedef uint32_t sh_sigset_t;
+    typedef uint32_t sh_sigset_t;
 #else
- typedef sigset_t sh_sigset_t;
+    typedef sigset_t sh_sigset_t;
 #endif
 struct sh_sigaction
 {
@@ -340,24 +346,31 @@ struct sh_sigaction
 #define SH_SIG_DFL ((sh_sig_t)SIG_DFL)
 #define SH_SIG_IGN ((sh_sig_t)SIG_IGN)
 #ifdef _MSC_VER
-# define SIG_BLOCK          1
-# define SIG_UNBLOCK        2
-# define SIG_SETMASK        3
-# define SIGHUP             5
-# define SIGQUIT            9
-# define SIGPIPE            12
-# define SIGTTOU            17
-# define SIGTSTP            18
-# define SIGTTIN            19
-# define SIGCONT            20
+#   define SIG_BLOCK         1
+#   define SIG_UNBLOCK       2
+#   define SIG_SETMASK       3
+#   define SIGHUP            5
+#   define SIGQUIT           9
+#   define SIGPIPE          12
+#   define SIGTTOU          17
+#   define SIGTSTP          18
+#   define SIGTTIN          19
+#   define SIGCONT          20
+    extern const char * const sys_siglist[NSIG];
 #endif /* _MSC_VER */
+#ifdef __sun__
+#   define sys_siglist _sys_siglist
+#endif
 
 int sh_sigaction(int, const struct sh_sigaction *, struct sh_sigaction *);
 sh_sig_t sh_signal(shinstance *, int, sh_sig_t);
-void sh_raise_sigint(shinstance *);
+int sh_siginterrupt(shinstance *, int, int);
 void sh_sigemptyset(sh_sigset_t *);
 int sh_sigprocmask(shinstance *, int, sh_sigset_t const *, sh_sigset_t *);
 void sh_abort(shinstance *);
+void sh_raise_sigint(shinstance *);
+int sh_kill(shinstance *, pid_t, int);
+int sh_killpg(shinstance *, pid_t, int);
 
 /* times */
 #include <time.h>
@@ -370,6 +383,7 @@ void sh_abort(shinstance *);
         clock_t tms_cstime;
     } sh_tms;
 #else
+#   include <sys/times.h>
 #   include <times.h>
     typedef struct tms sh_tms;
 #endif
@@ -399,6 +413,7 @@ int sh_sysconf_clk_tck(void);
 #else
 #   include <sys/wait.h>
 #endif
+pid_t sh_fork(shinstance *);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
 void sh__exit(shinstance *, int);
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
@@ -410,11 +425,37 @@ pid_t sh_getpid(shinstance *);
 pid_t sh_getpgrp(shinstance *);
 pid_t sh_getpgid(shinstance *, pid_t);
 int sh_setpgid(shinstance *, pid_t, pid_t);
-int sh_kill(shinstance *, pid_t, int);
-int sh_killpg(shinstance *, pid_t, int);
 
 /* tc* */
 pid_t sh_tcgetpgrp(shinstance *, int);
 int sh_tcsetpgrp(shinstance *, int, pid_t);
+
+/* sys/resourece.h */
+#ifdef _MSC_VER
+    typedef int64_t shrlim_t;
+    typedef struct shrlimit
+    {
+        shrlim_t   rlim_cur;
+        shrlim_t   rlim_max;
+    } shrlimit;
+#   define RLIMIT_CPU     0
+#   define RLIMIT_FSIZE   1
+#   define RLIMIT_DATA    2
+#   define RLIMIT_STACK   3
+#   define RLIMIT_CORE    4
+#   define RLIMIT_RSS     5
+#   define RLIMIT_MEMLOCK 6
+#   define RLIMIT_NPROC   7
+#   define RLIMIT_NOFILE  8
+#   define RLIMIT_SBSIZE  9
+#   define RLIMIT_VMEM    10
+#   define RLIM_NLIMITS   11
+#   define RLIM_INFINITY  (0x7fffffffffffffffLL)
+#else
+    typedef rlim_t          shrlim_t;
+    typedef struct rlimit   shrlimit;
+#endif
+int sh_getrlimit(shinstance *, int, shrlimit *);
+int sh_setrlimit(shinstance *, int, const shrlimit *);
 
 #endif

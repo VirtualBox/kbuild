@@ -32,27 +32,17 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
-#endif
 #endif /* not lint */
+#endif
 
-#include <unistd.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <strings.h>
-#ifndef __sun__
-#include <paths.h>
-#else
-#define _PATH_DEFPATH        "/usr/bin:/usr/sbin"
-#include <iso/limits_iso.h>
-#endif
 
 #ifdef PC_OS2_LIBPATHS
 #define INCL_BASE
@@ -99,7 +89,7 @@ extern APIRET
 #include "parser.h"
 #include "show.h"
 #ifndef SMALL
-#include "myhistedit.h"
+# include "myhistedit.h"
 #endif
 #include "shinstance.h"
 

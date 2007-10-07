@@ -32,22 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: mail.c,v 1.16 2003/08/07 09:05:33 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 /*
  * Routines to check for mail.  (Perhaps make part of main.c?)
  */
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <stdlib.h>
 
 #include "shell.h"

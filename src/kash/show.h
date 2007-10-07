@@ -31,6 +31,9 @@
  *	@(#)show.h	1.1 (Berkeley) 5/4/95
  */
 
+#ifndef ___show_h
+#define ___show_h
+
 #include <stdarg.h>
 
 union node;
@@ -42,4 +45,6 @@ void trargs(struct shinstance *, char **);
 void trputc(struct shinstance *, int);
 void trputs(struct shinstance *, const char *);
 void opentrace(struct shinstance *);
+#endif
+
 #endif

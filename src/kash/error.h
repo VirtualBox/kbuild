@@ -92,6 +92,10 @@ extern volatile int intpending;*/
 #define CLEAR_PENDING_INT psh->intpending = 0
 #define int_pending() psh->intpending
 
+#if !defined(__GNUC__) && !defined(__attribute__)
+# define __attribute__(a)
+#endif
+
 void exraise(struct shinstance *, int) __attribute__((__noreturn__));
 void onint(struct shinstance *);
 void error(struct shinstance *, const char *, ...) __attribute__((__noreturn__));

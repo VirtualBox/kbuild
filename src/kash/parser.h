@@ -34,6 +34,9 @@
  *	@(#)parser.h	8.3 (Berkeley) 5/4/95
  */
 
+#ifndef ___parse_h
+#define ___parse_h
+
 /* control characters in argument strings */
 #define CTL_FIRST '\201'	/* first 'special' character */
 #define CTLESC '\201'		/* escape next character */
@@ -80,3 +83,5 @@ union node *parsecmd(struct shinstance *, int);
 void fixredir(struct shinstance *, union node *, const char *, int);
 int goodname(const char *);
 const char *getprompt(struct shinstance *, void *);
+
+#endif

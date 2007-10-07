@@ -32,26 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #else
 __RCSID("$NetBSD: input.c,v 1.39 2003/08/07 09:05:32 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdio.h>	/* defines BUFSIZ */
-#include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __sun__
-#include <iso/limits_iso.h>
-#endif
 
 /*
  * This file implements the input routines used by the parser.

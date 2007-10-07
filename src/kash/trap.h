@@ -38,7 +38,7 @@
 
 int trapcmd(struct shinstance *, int, char **);
 void clear_traps(struct shinstance *, int);
-long setsignal(struct shinstance *, int, int);
+void setsignal(struct shinstance *, int, int);
 void ignoresig(struct shinstance *, int, int);
 void onsig(struct shinstance *, int);
 void dotrap(struct shinstance *);

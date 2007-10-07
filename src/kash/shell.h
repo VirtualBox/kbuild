@@ -49,37 +49,42 @@
  * a quit signal will generate a core dump.
  */
 
+#ifndef ___shell_h
+#define ___shell_h
+
 #include <sys/param.h>
 
 #define JOBS 1
 #ifndef BSD
-#define BSD 1
+# define BSD 1
 #endif
 
 #ifndef DO_SHAREDVFORK
-#if __NetBSD_Version__ >= 104000000
-#define DO_SHAREDVFORK
-#endif
+# if __NetBSD_Version__ >= 104000000
+#  define DO_SHAREDVFORK
+# endif
 #endif
 
 typedef void *pointer;
 #ifndef NULL
-#define NULL (void *)0
+# define NULL (void *)0
 #endif
 #define STATIC	/* empty */
 #define MKINIT	/* empty */
 
 #ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
+# include <sys/cdefs.h>
 #endif
 
 extern char nullstr[1];		/* null string */
 
 
 #ifdef DEBUG
-#define TRACE(param)	trace param
-#define TRACEV(param)	tracev param
+# define TRACE(param)	trace param
+# define TRACEV(param)	tracev param
 #else
-#define TRACE(param)
-#define TRACEV(param)
+# define TRACE(param)
+# define TRACEV(param)
+#endif
+
 #endif

@@ -63,10 +63,10 @@ struct optent {
 #endif
 
 #ifdef DEFINE_OPTIONS
-#define DEF_OPTS(name, letter, opt_set) {name, letter, opt_set, 0},
+# define DEF_OPTS(name, letter, opt_set) {name, letter, opt_set, 0},
 const struct optent ro_optlist[NOPTS] = {
 #else
-#define DEF_OPTS(name, letter, opt_set)
+# define DEF_OPTS(name, letter, opt_set)
 #endif
 #define DEF_OPT(name,letter) DEF_OPTS(name, letter, 0)
 

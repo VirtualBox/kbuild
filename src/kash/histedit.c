@@ -32,24 +32,17 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: histedit.c,v 1.36 2005/05/09 11:35:19 christos Exp $");
-#endif
 #endif /* not lint */
-
-#include <sys/param.h>
-#ifndef __sun__
-#include <paths.h>
 #endif
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+
 /*
  * Editline and history functions (and glue).
  */
@@ -62,6 +55,7 @@ __RCSID("$NetBSD: histedit.c,v 1.36 2005/05/09 11:35:19 christos Exp $");
 #include "mystring.h"
 #include "myhistedit.h"
 #include "error.h"
+
 #ifndef SMALL
 #include "eval.h"
 #include "memalloc.h"
@@ -534,7 +528,7 @@ str_to_event(const char *str, int last)
 	}
 	return (he.num);
 }
-#else
+#else /* SMALL */
 int
 histcmd(shinstance *psh, int argc, char **argv)
 {
@@ -549,4 +543,4 @@ inputrc(shinstance *psh, int argc, char **argv)
 	/* NOTREACHED */
 	return -1;
 }
-#endif
+#endif /* SMALL */

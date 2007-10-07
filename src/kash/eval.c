@@ -32,31 +32,22 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #else
 __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdlib.h>
-#include <signal.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/fcntl.h>
-#include <sys/times.h>
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #ifdef HAVE_SYSCTL_H
-#include <sys/sysctl.h>
+# include <sys/sysctl.h>
 #endif
-#ifdef __sun__
-#include <iso/limits_iso.h>
+#ifdef _MSC_VER
+# include "getopt.h"
 #endif
 
 /*
@@ -84,7 +75,7 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #include "mystring.h"
 #include "main.h"
 #ifndef SMALL
-#include "myhistedit.h"
+# include "myhistedit.h"
 #endif
 #include "shinstance.h"
 
@@ -168,28 +159,28 @@ sh_pipe(shinstance *psh, int fds[2])
 int
 evalcmd(shinstance *psh, int argc, char **argv)
 {
-        char *p;
-        char *concat;
-        char **ap;
+	char *p;
+	char *concat;
+	char **ap;
 
-        if (argc > 1) {
-                p = argv[1];
-                if (argc > 2) {
-                        STARTSTACKSTR(psh, concat);
-                        ap = argv + 2;
-                        for (;;) {
-                                while (*p)
-                                        STPUTC(psh, *p++, concat);
-                                if ((p = *ap++) == NULL)
-                                        break;
-                                STPUTC(psh, ' ', concat);
-                        }
-                        STPUTC(psh, '\0', concat);
-                        p = grabstackstr(psh, concat);
-                }
-                evalstring(psh, p, EV_TESTED);
-        }
-        return psh->exitstatus;
+	if (argc > 1) {
+		p = argv[1];
+		if (argc > 2) {
+			STARTSTACKSTR(psh, concat);
+			ap = argv + 2;
+			for (;;) {
+				while (*p)
+					STPUTC(psh, *p++, concat);
+				if ((p = *ap++) == NULL)
+					break;
+				STPUTC(psh, ' ', concat);
+			}
+			STPUTC(psh, '\0', concat);
+			p = grabstackstr(psh, concat);
+		}
+		evalstring(psh, p, EV_TESTED);
+	}
+	return psh->exitstatus;
 }
 
 
@@ -636,7 +627,7 @@ syspath(shinstance *psh)
 	}
 	return sys_path;
 #else
-    return def_path;
+	return def_path;
 #endif
 }
 
@@ -1235,7 +1226,15 @@ conv_time(clock_t ticks, char *seconds, size_t l)
 		tpm = /*sysconf(_SC_CLK_TCK)*/sh_sysconf_clk_tck() * 60;
 
 	mins = ticks / tpm;
+#ifdef _MSC_VER
+	{
+		char tmp[64];
+		sprintf(tmp, "%.4f", (ticks - mins * tpm) * 60.0 / tpm);
+		strlcpy(seconds, tmp, l);
+	}
+#else
 	snprintf(seconds, l, "%.4f", (ticks - mins * tpm) * 60.0 / tpm );
+#endif
 
 	if (seconds[0] == '6' && seconds[1] == '0') {
 		/* 59.99995 got rounded up... */

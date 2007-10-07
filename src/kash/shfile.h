@@ -24,12 +24,26 @@
  *
  */
 
-#ifndef ___shfile_h___
-#define ___shfile_h___
+#ifndef ___shfile_h
+#define ___shfile_h
 
 #include "shtypes.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifdef _MSC_VER
+# define _PATH_DEVNULL  "nul"
+# define _PATH_DEFPATH  "."
+#else
+# if !defined(__sun__)
+#  include <paths.h>
+# endif
+# ifdef _PATH_DEVNULL
+#  define _PATH_DEVNULL "/dev/null"
+# endif
+# ifndef _PATH_DEFPATH
+#  define _PATH_DEFPATH "/bin:/usr/bin:/sbin:/usr/sbin"
+# endif
+#endif
 #ifndef _MSC_VER
 # include <sys/fcntl.h>
 # include <unistd.h>
@@ -74,6 +88,8 @@
 # define X_OK       1
 # define W_OK       2
 # define R_OK       4
+
+# define O_NONBLOCK 0 /// @todo
 
 #endif
 
@@ -127,6 +143,22 @@ typedef struct sh_winsize
 #else
 typedef struct winsize sh_winsize;
 #endif
+
+typedef struct sh_dirent
+{
+    char name[260];
+} shdirent;
+
+typedef struct shdir
+{
+    shfdtab    *shfdtab;
+    void       *native;
+    shdirent    ent;
+} shdir;
+
+shdir *shfile_opendir(shfdtab *, const char *);
+shdirent *shfile_readdir(struct shdir *);
+void shfile_closedir(struct shdir *);
 
 #endif
 
