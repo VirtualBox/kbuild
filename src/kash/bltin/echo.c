@@ -51,17 +51,13 @@
  * expanded.  printf is now a builtin of netbsd's sh and csh.
  */
 
-#define main echocmd
-
 #include "bltin.h"
 
 int
-main(int argc, char **argv)
+echocmd(shinstance *psh, int argc, char **argv)
 {
 	char **ap;
-	char *p;
-	char c;
-	int count;
+	const char *p;
 	int nflag = 0;
 	int eflag = 0;
 
@@ -69,48 +65,55 @@ main(int argc, char **argv)
 	if (argc)
 		ap++;
 
-	if ((p = *ap) != NULL) {
-		if (equal(p, "-n")) {
+	if ((p = *ap) != NULL && *p == '-') {
+		if (p[1] == 'n' && !p[2]) {
 			nflag = 1;
 			ap++;
-		} else if (equal(p, "-e")) {
+		} else if (p[1] == 'e' && !p[2]) {
 			eflag = 1;
 			ap++;
 		}
 	}
 
 	while ((p = *ap++) != NULL) {
-		while ((c = *p++) != '\0') {
-			if (c == '\\' && eflag) {
-				switch (*p++) {
-				case 'a':  c = '\a';  break;	/* bell */
-				case 'b':  c = '\b';  break;
-				case 'c':  return 0;		/* exit */
-				case 'e':  c =  033;  break;	/* escape */
-				case 'f':  c = '\f';  break;
-				case 'n':  c = '\n';  break;
-				case 'r':  c = '\r';  break;
-				case 't':  c = '\t';  break;
-				case 'v':  c = '\v';  break;
-				case '\\':  break;		/* c = '\\' */
-				case '0':
-					c = 0;
-					count = 3;
-					while (--count >= 0 && (unsigned)(*p - '0') < 8)
-						c = (c << 3) + (*p++ - '0');
-					break;
-				default:
-					/* Output the '/' and char following */
-					p--;
-					break;
+		if (!eflag) {
+			out1str(psh, p);
+		} else {
+			char c;
+			int count;
+
+			while ((c = *p++) != '\0') {
+				if (c == '\\') {
+					switch (*p++) {
+					case 'a':  c = '\a';  break;	/* bell */
+					case 'b':  c = '\b';  break;
+					case 'c':  return 0;		/* exit */
+					case 'e':  c =  033;  break;	/* escape */
+					case 'f':  c = '\f';  break;
+					case 'n':  c = '\n';  break;
+					case 'r':  c = '\r';  break;
+					case 't':  c = '\t';  break;
+					case 'v':  c = '\v';  break;
+					case '\\':  break;		/* c = '\\' */
+					case '0':
+						c = 0;
+						count = 3;
+						while (--count >= 0 && (unsigned)(*p - '0') < 8)
+							c = (c << 3) + (*p++ - '0');
+						break;
+					default:
+						/* Output the '/' and char following */
+						p--;
+						break;
+					}
 				}
+				out1c(psh, c);
 			}
-			putchar(c);
 		}
 		if (*ap)
-			putchar(' ');
+			out1c(psh, ' ');
 	}
 	if (! nflag)
-		putchar('\n');
+		out1c(psh, '\n');
 	return 0;
 }
