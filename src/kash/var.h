@@ -60,7 +60,7 @@ struct var {
 	int flags;			/* flags are defined above */
 	char *text;			/* name=value */
 	int name_len;			/* length of name */
-	void (*func)(const char *);
+	void (*func)(struct shinstance *, const char *);
 					/* function to be called when  */
 					/* the variable gets set/unset */
 };

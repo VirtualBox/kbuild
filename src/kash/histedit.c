@@ -177,7 +177,7 @@ bad:
 
 
 void
-sethistsize(const char *hs)
+sethistsize(shinstance *psh, const char *hs)
 {
 	int histsize;
 	HistEvent he;
@@ -191,7 +191,7 @@ sethistsize(const char *hs)
 }
 
 void
-setterm(const char *term)
+setterm(shinstance *psh, const char *term)
 {
 	if (el != NULL && term != NULL)
 		if (el_set(el, EL_TERMINAL, term) != 0) {
