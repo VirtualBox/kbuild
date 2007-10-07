@@ -152,6 +152,7 @@ IFS=' '
 for f in $includes; do
 	echo "#include $f"
 done
+echo "#include \"shinstance.h\""
 
 echo
 echo
@@ -166,7 +167,7 @@ echo " * Initialization code."
 echo " */"
 echo
 echo "void"
-echo "init() {"
+echo "init(shinstance *psh) {"
 echo "${event_init%$nl}"
 echo "}"
 echo
@@ -178,7 +179,7 @@ echo " * interactive shell and control is returned to the main command loop."
 echo " */"
 echo
 echo "void"
-echo "reset() {"
+echo "reset(shinstance *psh) {"
 echo "${event_reset%$nl}"
 echo "}"
 echo
@@ -189,7 +190,7 @@ echo " * This routine is called to initialize the shell to run a shell procedure
 echo " */"
 echo
 echo "void"
-echo "initshellproc() {"
+echo "initshellproc(shinstance *psh) {"
 echo "${event_shellproc%$nl}"
 echo "}"
 
