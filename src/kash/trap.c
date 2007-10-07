@@ -352,7 +352,7 @@ INCLUDE "trap.h"
 SHELLPROC {
 	char *sm;
 
-	clear_traps(psh, s0);
+	clear_traps(psh, 0);
 	for (sm = psh->sigmode ; sm < psh->sigmode + NSIG ; sm++) {
 		if (*sm == S_IGN)
 			*sm = S_HARD_IGN;
