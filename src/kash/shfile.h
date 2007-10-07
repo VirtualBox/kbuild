@@ -113,8 +113,20 @@ int shfile_lstat(shfdtab *, const char *, struct stat *);
 int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);
 int shfile_isatty(shfdtab *, int);
-int shfile_ioctl(shfdtab *, int, unsigned long, char *);
+int shfile_ioctl(shfdtab *, int, unsigned long, void *);
 int shfile_access(shfdtab *, const char *, int);
+#ifdef _MSC_VER
+# define TIOCGWINSZ         0x4201
+typedef struct sh_winsize
+{
+    unsigned ws_row;        /**< Rows, in characters. */
+    unsigned ws_col;        /**< Columns, in characters. */
+    unsigned ws_xpixel;     /**< Horizontal size, pixels. */
+    unsigned ws_ypixel;     /**< Vertical size, pixels. */
+} sh_winsize;
+#else
+typedef struct winsize sh_winsize;
+#endif
 
 #endif
 
