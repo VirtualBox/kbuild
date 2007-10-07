@@ -47,13 +47,13 @@ kmk_ash_SOURCES = \
 	exec.c \
 	expand.c \
 	miscbltin.c \
+	bltin/echo.c \
 	\
 	jobs.c \
 	parser.c \
 	redir.c \
 	trap.c \
 	var.c \
-	bltin/echo.c \
 	bltin/kill.c \
 	bltin/test.c \
 	$(PATH_TARGET)/arith.c \
