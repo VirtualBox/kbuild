@@ -128,14 +128,14 @@ readcmd(shinstance *psh, int argc, char **argv)
 	startword = 2;
 	STARTSTACKSTR(psh, p);
 	for (;;) {
-		if (read(0, &c, 1) != 1) {
+		if (shfile_read(&psh->fdtab, 0, &c, 1) != 1) {
 			status = 1;
 			break;
 		}
 		if (c == '\0')
 			continue;
 		if (c == '\\' && !rflag) {
-			if (read(0, &c, 1) != 1) {
+			if (shfile_read(&psh->fdtab, 0, &c, 1) != 1) {
 				status = 1;
 				break;
 			}

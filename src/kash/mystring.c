@@ -78,7 +78,7 @@ char nullstr[1];		/* zero length string */
  */
 
 void
-scopyn(const char *from, char *to, int size)
+scopyn(const char *from, char *to, ssize_t size)
 {
 
 	while (--size > 0) {

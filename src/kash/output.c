@@ -307,7 +307,7 @@ doformat(struct output *dest, const char *f, va_list ap)
 	u_quad_t num;
 #else
 	long l;
-	u_long num;
+	unsigned long num;
 #endif
 	unsigned base;
 	int len;

@@ -163,9 +163,9 @@ exverror(shinstance *psh, int cond, const char *msg, va_list ap)
 	if (msg) {
 		TRACE((psh, "exverror(%d, \"", cond));
 		TRACEV((psh, msg, ap));
-		TRACE((psh, "\") pid=%d\n", getpid()));
+		TRACE((psh, "\") pid=%d\n", sh_getpid(psh)));
 	} else
-		TRACE((psh, "exverror(%d, NULL) pid=%d\n", cond, getpid()));
+		TRACE((psh, "exverror(%d, NULL) pid=%d\n", cond, sh_getpid(psh)));
 #endif
 	if (msg)
 		exvwarning(psh, -1, msg, ap);

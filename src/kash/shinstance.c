@@ -65,6 +65,13 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
         psh->out1 = &psh->output;
         psh->out2 = &psh->errout;
 
+        /* jobs.c */
+        psh->backgndpid = -1;
+#if JOBS
+        psh->curjob = -1;
+#endif
+        psh->ttyfd = -1;
+
     }
     return psh;
 }

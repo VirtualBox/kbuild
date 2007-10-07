@@ -452,7 +452,7 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 		if (--in.nleft < 0) {
 			if (in.fd < 0)
 				break;
-			while ((i = read(in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
+			while ((i = shfile_read(&psh->fdtab, in.fd, buf, sizeof buf)) < 0 && errno == EINTR);
 			TRACE((psh, "expbackq: read returns %d\n", i));
 			if (i <= 0)
 				break;
@@ -473,7 +473,7 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 		STUNPUTC(psh, dest);
 
 	if (in.fd >= 0)
-		close(in.fd);
+		shfile_close(&psh->fdtab, in.fd);
 	if (in.buf)
 		ckfree(in.buf);
 	if (in.jp)
@@ -1191,7 +1191,7 @@ expmeta(shinstance *psh, char *enddir, char *name)
 			if (*p == '\0')
 				break;
 		}
-		if (metaflag == 0 || lstat(psh->expdir, &statb) >= 0)
+		if (metaflag == 0 || shfile_lstat(&psh->fdtab, psh->expdir, &statb) >= 0)
 			addfname(psh, psh->expdir);
 		return;
 	}
