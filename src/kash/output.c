@@ -32,16 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: output.c,v 1.28 2003/08/07 09:05:36 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 /*
  * Shell output routines.  We use our own output routines because:
@@ -54,14 +51,11 @@ __RCSID("$NetBSD: output.c,v 1.28 2003/08/07 09:05:36 agc Exp $");
  *	Our output routines may be smaller than the stdio routines.
  */
 
-#include <sys/types.h>		/* quad_t */
-#include <sys/param.h>		/* BSD4_4 */
-#include <sys/ioctl.h>
+#include <sys/types.h>
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 #include "shell.h"
@@ -69,7 +63,6 @@ __RCSID("$NetBSD: output.c,v 1.28 2003/08/07 09:05:36 agc Exp $");
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
-
 #include "shinstance.h"
 
 //#define OUTBUFSIZ BUFSIZ
@@ -275,7 +268,7 @@ fmtstr(char *outbuf, size_t length, const char *fmt, ...)
  * - A % may be printed by writing %% in the format string.
  */
 
-#define TEMPSIZE 24
+#define TEMPSIZE 32
 
 #ifdef BSD4_4
 #define HAVE_VASPRINTF 1
@@ -284,14 +277,16 @@ fmtstr(char *outbuf, size_t length, const char *fmt, ...)
 void
 doformat(struct output *dest, const char *f, va_list ap)
 {
-#if	HAVE_VASPRINTF
+#ifdef HAVE_VASPRINTF
 	char *s;
 
 	vasprintf(&s, f, ap);
 	outstr(s, dest);
 	free(s);
 #else	/* !HAVE_VASPRINTF */
-	static const char digit[] = "0123456789ABCDEF";
+	static const char digit_lower[] = "0123456789abcdef";
+	static const char digit_upper[] = "0123456789ABCDEF";
+	const char *digit;
 	char c;
 	char temp[TEMPSIZE];
 	int flushleft;
@@ -302,13 +297,8 @@ doformat(struct output *dest, const char *f, va_list ap)
 	int isquad;
 	char *p;
 	int sign;
-#ifdef BSD4_4
-	quad_t l;
-	u_quad_t num;
-#else
-	long l;
-	unsigned long num;
-#endif
+	int64_t l;
+	uint64_t num;
 	unsigned base;
 	int len;
 	int size;
@@ -364,14 +354,12 @@ doformat(struct output *dest, const char *f, va_list ap)
 			isquad++;
 			f++;
 		}
+		digit = digit_upper;
 		switch (*f) {
 		case 'd':
-#ifdef BSD4_4
 			if (isquad)
-				l = va_arg(ap, quad_t);
-			else
-#endif
-			if (islong)
+				l = va_arg(ap, int64_t);
+			else if (islong)
 				l = va_arg(ap, long);
 			else
 				l = va_arg(ap, int);
@@ -395,16 +383,14 @@ doformat(struct output *dest, const char *f, va_list ap)
 			/*FALLTHROUGH*/
 		case 'x':
 			/* we don't implement 'x'; treat like 'X' */
+			digit = digit_lower;
 		case 'X':
 			base = 16;
 uns_number:	  /* an unsigned number */
 			sign = 0;
-#ifdef BSD4_4
 			if (isquad)
-				num = va_arg(ap, u_quad_t);
-			else
-#endif
-			if (islong)
+				num = va_arg(ap, uint64_t);
+			else if (islong)
 				num = va_arg(ap, unsigned long);
 			else
 				num = va_arg(ap, unsigned int);
@@ -504,20 +490,3 @@ xwrite(shinstance *psh, int fd, char *buf, size_t nbytes)
 		}
 	}
 }
-
-
-#ifdef not_used
-/*
- * Version of ioctl that retries after a signal is caught.
- * XXX unused function
- */
-
-int
-xioctl(shinstance *psh, int fd, unsigned long request, char *arg)
-{
-	int i;
-
-	while ((i = shfile_ioctl(&psh->fdtab, fd, request, arg)) == -1 && errno == EINTR);
-	return i;
-}
-#endif /* not_used */

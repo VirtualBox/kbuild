@@ -1,13 +1,9 @@
 /*	$NetBSD: syntax.c,v 1.1 2004/01/17 17:38:12 dsl Exp $	*/
 
-#ifdef __sun__
-#include <stdio.h>
-#include <iso/limits_iso.h>
-#endif
-
 #include "shell.h"
 #include "syntax.h"
 #include "parser.h"
+#include "shinstance.h"
 
 #ifdef _MSC_VER /* doesn't implement the fancy initializers I think... */
 

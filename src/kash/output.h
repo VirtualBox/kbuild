@@ -53,10 +53,8 @@ extern struct output errout;
 extern struct output memout;
 extern struct output *out1;
 extern struct output *out2;*/
-#ifdef _MSC_VER
-# ifndef __attribute__
-#  define __attribute__(a)
-# endif
+#if !defined(__GNUC__) && !defined(__attribute__)
+# define __attribute__(a)
 #endif
 
 void open_mem(char *, int, struct output *);

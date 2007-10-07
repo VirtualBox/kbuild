@@ -29,27 +29,24 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
+#if 0
 #if !defined(lint) && !defined(SHELL)
 __COPYRIGHT("@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
-
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)kill.c	8.4 (Berkeley) 4/28/95";
 #else
 __RCSID("$NetBSD: kill.c,v 1.23 2003/08/07 09:05:13 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "shtypes.h"
 #include "jobs.h"
 #include "error.h"
 #include "shinstance.h"

@@ -10,15 +10,13 @@
  * This program is in the Public Domain.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
+#if 0
 #ifndef lint
 __RCSID("$NetBSD: test.c,v 1.26 2005/02/10 06:56:55 simonb Exp $");
 #endif
+#endif
 
 #include <sys/types.h>
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>

@@ -32,38 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#else
-#define _PATH_DEVNULL "/dev/null"
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: jobs.c,v 1.63 2005/06/01 15:41:19 lukem Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <fcntl.h>
-#ifdef __sun__
-# define sys_siglist _sys_siglist
-#endif
-#include <signal.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
-#ifndef __sun__
-# include <paths.h>
-#endif
 #include <sys/types.h>
-#include <sys/param.h>
-#if defined(BSD) || defined(__sun__)
-# include <sys/wait.h>
-# include <sys/time.h>
-# include <sys/resource.h>
-#endif
-#include <sys/ioctl.h>
 
 #include "shell.h"
 #if JOBS
@@ -814,7 +794,7 @@ forkshell(shinstance *psh, struct job *jp, union node *n, int mode)
 	int pid;
 
 	TRACE((psh, "forkshell(%%%d, %p, %d) called\n", jp - psh->jobtab, n, mode));
-	switch ((pid = fork())) {
+	switch ((pid = sh_fork(psh))) {
 	case -1:
 		TRACE((psh, "Fork failed, errno=%d\n", errno));
 		INTON;

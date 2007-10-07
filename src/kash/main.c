@@ -32,29 +32,24 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
+#if 0
 #ifndef lint
 __COPYRIGHT("@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)main.c	8.7 (Berkeley) 7/19/95";
 #else
 __RCSID("$NetBSD: main.c,v 1.48 2003/09/14 12:09:29 jmmv Exp $");
-#endif
 #endif /* not lint */
+
+#endif
 
 #include <errno.h>
 #include <stdio.h>
-#include <signal.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <locale.h>
-#include <fcntl.h>
 
 
 #include "shell.h"
@@ -121,7 +116,7 @@ main(int argc, char **argv)
 
 	/*
 	 * Check for --version and --help.
-     */
+	 */
 	if (argc > 1 && argv[1][0] == '-' && argv[1][1] == '-') {
 		if (!strcmp(argv[1], "--help"))
 			return usage(argv[0]);

@@ -32,29 +32,19 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
 #else
 __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <pwd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef __sun__
-#include <iso/limits_iso.h>
-#endif
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -266,7 +256,6 @@ STATIC char *
 exptilde(shinstance *psh, char *p, int flag)
 {
 	char c, *startp = p;
-	struct passwd *pw;
 	const char *home;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
 
@@ -291,9 +280,8 @@ done:
 		if ((home = lookupvar(psh, "HOME")) == NULL)
 			goto lose;
 	} else {
-		if ((pw = getpwnam(startp+1)) == NULL)
+		if ((home = sh_gethomedir(psh, startp+1)) == NULL)
 			goto lose;
-		home = pw->pw_dir;
 	}
 	if (*home == '\0')
 		goto lose;
@@ -1139,8 +1127,8 @@ expmeta(shinstance *psh, char *enddir, char *name)
 	char *endname;
 	int metaflag;
 	struct stat statb;
-	DIR *dirp;
-	struct dirent *dp;
+	shdir *dirp;
+	shdirent *dp;
 	int atend;
 	int matchdot;
 
@@ -1214,7 +1202,7 @@ expmeta(shinstance *psh, char *enddir, char *name)
 		cp = psh->expdir;
 		enddir[-1] = '\0';
 	}
-	if ((dirp = opendir(cp)) == NULL)
+	if ((dirp = shfile_opendir(&psh->fdtab, cp)) == NULL)
 		return;
 	if (enddir != psh->expdir)
 		enddir[-1] = '/';
@@ -1232,15 +1220,15 @@ expmeta(shinstance *psh, char *enddir, char *name)
 		p++;
 	if (*p == '.')
 		matchdot++;
-	while (! int_pending() && (dp = readdir(dirp)) != NULL) {
-		if (dp->d_name[0] == '.' && ! matchdot)
+	while (! int_pending() && (dp = shfile_readdir(dirp)) != NULL) {
+		if (dp->name[0] == '.' && ! matchdot)
 			continue;
-		if (patmatch(psh, start, dp->d_name, 0)) {
+		if (patmatch(psh, start, dp->name, 0)) {
 			if (atend) {
-				scopy(dp->d_name, enddir);
+				scopy(dp->name, enddir);
 				addfname(psh, psh->expdir);
 			} else {
-				for (p = enddir, cp = dp->d_name;
+				for (p = enddir, cp = dp->name;
 				     (*p++ = *cp++) != '\0';)
 					continue;
 				p[-1] = '/';
@@ -1248,7 +1236,7 @@ expmeta(shinstance *psh, char *enddir, char *name)
 			}
 		}
 	}
-	closedir(dirp);
+	shfile_closedir(dirp);
 	if (! atend)
 		endname[-1] = '/';
 }

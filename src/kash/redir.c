@@ -32,24 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: redir.c,v 1.29 2004/07/08 03:57:33 christos Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
-#include <sys/param.h>	/* PIPE_BUF */
-#include <signal.h>
+#include <limits.h>         /* PIPE_BUF */
 #include <string.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 /*

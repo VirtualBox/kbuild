@@ -135,7 +135,7 @@ struct rlimit {
 /* XXX 2nd arg to [gs]etpriority() should be an id_t */
 //int	getpriority(int, /*int*/ id_t);         /* bird: SuS uses id_t */
 int	getrlimit(int, struct rlimit *);
-int	getrusage(int, struct rusage *);
+//int	getrusage(int, struct rusage *);
 //int	setpriority(int, /*int*/ id_t, int);    /* bird: SuS uses id_t */
 int	setrlimit(int, const struct rlimit *);
 

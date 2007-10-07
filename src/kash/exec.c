@@ -32,22 +32,15 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
 #else
 __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -84,7 +77,6 @@ __RCSID("$NetBSD: exec.c,v 1.37 2003/08/07 09:05:31 agc Exp $");
 #ifdef __INNOTEK_LIBC__
 #include <InnoTekLIBC/backend.h>
 #endif
-
 #include "shinstance.h"
 
 //#define CMDTABLESIZE 31		/* should be prime */
@@ -198,7 +190,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
         if (!has_ext)
             stat_pc_exec_exts(psh, cmd, &st, 0);
 #endif
-#if defined __INNOTEK_LIBC__ && defined EXEC_HASH_BANG_SCRIPT
+#if defined(__INNOTEK_LIBC__) && defined(EXEC_HASH_BANG_SCRIPT)
 	__libc_Back_gfProcessHandleHashBangScripts = 0;
 #endif
 

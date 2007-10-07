@@ -32,19 +32,14 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #else
 __RCSID("$NetBSD: trap.c,v 1.31 2005/01/11 19:38:57 christos Exp $");
-#endif
 #endif /* not lint */
+#endif
 
-#include <signal.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 #include "shell.h"
@@ -111,7 +106,7 @@ signame_to_signum(shinstance *psh, const char *p)
 	init_sys_signame();
 #endif
 	for (i = 0; i < NSIG; ++i)
-		if (strcasecmp (p, sys_signame[i]) == 0)
+		if (strcasecmp(p, sys_signame[i]) == 0)
 			return i;
 	return -1;
 }
@@ -245,7 +240,7 @@ clear_traps(shinstance *psh, int vforked)
  * out what it should be set to.
  */
 
-long
+void
 setsignal(shinstance *psh, int signo, int vforked)
 {
 	int action;
@@ -296,7 +291,7 @@ setsignal(shinstance *psh, int signo, int vforked)
 			 * here, but other shells don't. We don't alter
 			 * sigmode, so that we retry every time.
 			 */
-			return 0;
+			return;
 		}
 		if (sigact == SH_SIG_IGN) {
 			if (mflag(psh) && (signo == SIGTSTP ||
@@ -309,7 +304,7 @@ setsignal(shinstance *psh, int signo, int vforked)
 		}
 	}
 	if (tsig == S_HARD_IGN || tsig == action)
-		return 0;
+		return;
 	switch (action) {
 		case S_DFL:	sigact = SH_SIG_DFL;	break;
 		case S_CATCH:  	sigact = onsig;		break;
@@ -317,8 +312,8 @@ setsignal(shinstance *psh, int signo, int vforked)
 	}
 	if (!vforked)
 		*t = action;
-	siginterrupt(signo, 1);
-	return (long)sh_signal(psh, signo, sigact);
+	sh_siginterrupt(psh, signo, 1);
+	sh_signal(psh, signo, sigact);
 }
 
 /*

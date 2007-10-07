@@ -32,16 +32,13 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: show.c,v 1.26 2003/11/14 10:46:13 dsl Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -53,6 +50,7 @@ __RCSID("$NetBSD: show.c,v 1.26 2003/11/14 10:46:13 dsl Exp $");
 #include "mystring.h"
 #include "show.h"
 #include "options.h"
+#include "shinstance.h"
 
 
 #ifdef DEBUG

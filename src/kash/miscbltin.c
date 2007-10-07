@@ -32,32 +32,22 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)miscbltin.c	8.4 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 /*
  * Miscelaneous builtins.
  */
 
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <errno.h>
-#ifndef _MSC_VER
-# include "mscfakes.h"
-#endif
 
 #include "shell.h"
 #include "options.h"
@@ -67,6 +57,7 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
 #include "error.h"
 #include "miscbltin.h"
 #include "mystring.h"
+#include "shinstance.h"
 
 #undef rflag
 
@@ -358,13 +349,13 @@ int
 ulimitcmd(shinstance *psh, int argc, char **argv)
 {
 	int	c;
-	rlim_t val = 0;
+	shrlim_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;
 	const struct limits	*l;
 	int		set, all = 0;
 	int		optc, what;
-	struct rlimit	limit;
+	shrlimit	limit;
 
 	what = 'f';
 	while ((optc = nextopt(psh, "HSabtfdsmcnpl")) != '\0')
@@ -396,12 +387,12 @@ ulimitcmd(shinstance *psh, int argc, char **argv)
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = (rlim_t) 0;
+			val = (shrlim_t) 0;
 
 			while ((c = *p++) >= '0' && c <= '9')
 			{
 				val = (val * 10) + (long)(c - '0');
-				if (val < (rlim_t) 0)
+				if (val < (shrlim_t) 0)
 					break;
 			}
 			if (c)
@@ -411,7 +402,7 @@ ulimitcmd(shinstance *psh, int argc, char **argv)
 	}
 	if (all) {
 		for (l = limits; l->name; l++) {
-			getrlimit(l->cmd, &limit);
+			sh_getrlimit(psh, l->cmd, &limit);
 			if (how & SOFT)
 				val = limit.rlim_cur;
 			else if (how & HARD)
@@ -429,13 +420,13 @@ ulimitcmd(shinstance *psh, int argc, char **argv)
 		return 0;
 	}
 
-	getrlimit(l->cmd, &limit);
+	sh_getrlimit(psh, l->cmd, &limit);
 	if (set) {
 		if (how & HARD)
 			limit.rlim_max = val;
 		if (how & SOFT)
 			limit.rlim_cur = val;
-		if (setrlimit(l->cmd, &limit) < 0)
+		if (sh_setrlimit(psh, l->cmd, &limit) < 0)
 			error(psh, "error setting limit (%s)", strerror(errno));
 	} else {
 		if (how & SOFT)
