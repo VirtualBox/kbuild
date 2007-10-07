@@ -31,7 +31,9 @@
 #include <stdlib.h>
 
 #ifdef _MSC_VER
-#include <io.h> /* intptr_t and uintptr_t */
+# define setmode setmode_msc
+# include <io.h> /* intptr_t and uintptr_t */
+# undef setmode
 typedef signed char     int8_t;
 typedef unsigned char   uint8_t;
 typedef short           int16_t;
@@ -71,6 +73,8 @@ typedef unsigned _int64 uint64_t;
 typedef int             pid_t;
 typedef unsigned short  uid_t;
 typedef unsigned short  gid_t;
+typedef int             mode_t;
+typedef intptr_t        ssize_t;
 
 #else
 # include <stdint.h>

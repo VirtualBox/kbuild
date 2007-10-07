@@ -675,10 +675,10 @@ loop:
 #ifdef notdef
 		/* XXX this code stops root executing stuff, and is buggy
 		   if you need a group from the group list. */
-		if (statb.st_uid == geteuid()) {
+		if (statb.st_uid == sh_geteuid(psh)) {
 			if ((statb.st_mode & 0100) == 0)
 				goto loop;
-		} else if (statb.st_gid == getegid()) {
+		} else if (statb.st_gid == sh_getegid(psh)) {
 			if ((statb.st_mode & 010) == 0)
 				goto loop;
 		} else {

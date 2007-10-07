@@ -137,7 +137,7 @@ redirect(union node *redir, int flags)
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
 again:
-			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
+			if ((i = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
 					if (!try) {
@@ -154,11 +154,11 @@ again:
 			}
 			if (!try) {
 				sv->renamed[fd] = i;
-				close(fd);
+				shfile_close(&psh->fdtab, fd);
 			}
 			INTON;
 		} else {
-			close(fd);
+			shfile_close(&psh->fdtab, fd);
 		}
                 if (fd == 0)
                         fd0_redirected++;
@@ -197,7 +197,7 @@ openredirect(union node *redir, char memory[10], int flags)
 		if ((f = open(fname, O_RDONLY|eflags)) < 0)
 			goto eopen;
 		if (eflags)
-			(void)fcntl(f, F_SETFL, fcntl(f, F_GETFL, 0) & ~eflags);
+			(void)shfile_fcntl(&psh->fdtab, f, F_SETFL, shfile_fcntl(&psh->fdtab, f, F_GETFL, 0) & ~eflags);
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
@@ -271,7 +271,7 @@ openhere(union node *redir)
 		}
 	}
 	if (forkshell(psh, (struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
-		close(pip[0]);
+		shfile_close(&psh->fdtab, pip[0]);
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 		signal(SIGHUP, SIG_IGN);
@@ -286,7 +286,7 @@ openhere(union node *redir)
 		_exit(0);
 	}
 out:
-	close(pip[1]);
+	shfile_close(&psh->fdtab, pip[1]);
 	return pip[0];
 }
 
@@ -358,7 +358,7 @@ clearredir(vforked)
 	for (rp = redirlist ; rp ; rp = rp->next) {
 		for (i = 0 ; i < 10 ; i++) {
 			if (rp->renamed[i] >= 0) {
-				close(rp->renamed[i]);
+				shfile_close(&psh->fdtab, rp->renamed[i]);
 			}
 			if (!vforked)
 				rp->renamed[i] = EMPTY;

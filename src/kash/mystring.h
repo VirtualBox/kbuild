@@ -37,7 +37,7 @@
 #include <string.h>
 #include "shinstance.h"
 
-void scopyn(const char *, char *, int);
+void scopyn(const char *, char *, ssize_t);
 int prefix(const char *, const char *);
 int number(shinstance *, const char *);
 int is_number(const char *);

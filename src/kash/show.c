@@ -289,7 +289,7 @@ trace(shinstance *psh, const char *fmt, ...)
 
 	if (debug(psh) != 1)
 		return;
-        fprintf(tracefile, "[%d] ", getpid());
+        fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	va_start(va, fmt);
 	(void) vfprintf(tracefile, fmt, va);
 	va_end(va);
@@ -302,7 +302,7 @@ tracev(shinstance *psh, const char *fmt, va_list va)
 #ifdef DEBUG
 	if (debug(psh) != 1)
 		return;
-        fprintf(tracefile, "[%d] ", getpid());
+        fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	(void) vfprintf(tracefile, fmt, va);
 #endif
 }
@@ -395,7 +395,7 @@ opentrace(shinstance *psh)
 	{
 		char *p;
 		if ((p = getenv("HOME")) == NULL) {
-			if (geteuid() == 0)
+			if (sh_geteuid(psh) == 0)
 				p = "/";
 			else
 				p = "/tmp";
@@ -420,8 +420,8 @@ opentrace(shinstance *psh)
 		}
 	}
 #if defined(O_APPEND) && !defined(_MSC_VER)
-	if ((flags = fcntl(fileno(tracefile), F_GETFL, 0)) >= 0)
-		fcntl(fileno(tracefile), F_SETFL, flags | O_APPEND);
+	if ((flags = shfile_fcntl(&psh->fdtab, fileno(tracefile), F_GETFL, 0)) >= 0)
+		shfile_fcntl(&psh->fdtab, fileno(tracefile), F_SETFL, flags | O_APPEND);
 #endif
 	setvbuf(tracefile, (char *)NULL, _IOLBF, 0); //setlinebuf(tracefile);
 	fputs("\nTracing started.\n", tracefile);

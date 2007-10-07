@@ -28,6 +28,7 @@
 #define ___shinstance_h___
 
 #include <stdio.h> /* BUFSIZ */
+#include <signal.h> /* NSIG */
 
 #include "shtypes.h"
 #include "shthread.h"
@@ -190,8 +191,21 @@ typedef struct shinstance
     struct stackmark   *markp;
 
     /* jobs.h */
-    pid_t               backgndpid;     /**< pid of last background process */
+    pid_t               backgndpid/* = -1 */;   /**< pid of last background process */
     int                 job_warning;    /**< user was warned about stopped jobs */
+
+    /* jobs.c */
+    struct job         *jobtab;         /**< array of jobs */
+    int                 njobs;          /**< size of array */
+    int                 jobs_invalid;   /**< set in child */
+#if JOBS
+    int                 initialpgrp;    /**< pgrp of shell on invocation */
+    int                 curjob/* = -1*/;/**< current job */
+#endif
+    int                 ttyfd/* = -1*/;
+    int                 jobctl;         /**< job control enabled / disabled */
+    char               *cmdnextc;
+    int                 cmdnleft;
 
     /* input.h */
     int                 plinno/* = 1 */;/**< input line number */
@@ -262,6 +276,9 @@ typedef struct shinstance
     char              **t_wp;
     struct t_op const  *t_wp_op;
 
+    /* trap.c */
+    char                gotsig[NSIG];   /**< indicates specified signal received */
+
 } shinstance;
 
 
@@ -330,5 +347,14 @@ uid_t sh_getuid(shinstance *);
 uid_t sh_geteuid(shinstance *);
 gid_t sh_getgid(shinstance *);
 gid_t sh_getegid(shinstance *);
+pid_t sh_getpid(shinstance *);
+pid_t sh_getpgrp(shinstance *);
+pid_t sh_getpgid(shinstance *, pid_t);
+int sh_setpgid(shinstance *, pid_t, pid_t);
+int sh_killpg(shinstance *, pid_t, int);
+
+/* tc* */
+pid_t sh_tcgetpgrp(shinstance *, int);
+int sh_tcsetpgrp(shinstance *, int, pid_t);
 
 #endif

@@ -271,7 +271,7 @@ initvar(void)
 	if (find_var("PS1", &vpp, &vps1.name_len) == NULL) {
 		vps1.next = *vpp;
 		*vpp = &vps1;
-		vps1.text = strdup(geteuid() ? "PS1=$ " : "PS1=# ");
+		vps1.text = strdup(sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 }

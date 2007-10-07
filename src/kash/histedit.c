@@ -388,7 +388,7 @@ histcmd(int argc, char **argv)
 		if ((fd = mkstemp(editfile)) < 0)
 			error(psh, "can't create temporary file %s", editfile);
 		if ((efp = fdopen(fd, "w")) == NULL) {
-			close(fd);
+			shfile_close(&psh->fdtab, fd);
 			error(psh, "can't allocate stdio buffer for temp");
 		}
 	}

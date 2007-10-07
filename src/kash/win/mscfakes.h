@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 1204 2007-10-07 14:19:01Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1207 2007-10-07 17:09:24Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -26,6 +26,7 @@
 #define __mscfakes_h__
 #ifdef _MSC_VER
 
+#include "shtypes.h"
 #define setmode setmode_msc
 #include <sys/cdefs.h>
 #include <io.h>
@@ -83,13 +84,6 @@
 #define _PATH_DEVNULL "/dev/null"
 
 #define MAX(a,b) ((a) >= (b) ? (a) : (b))
-
-typedef int mode_t;
-typedef unsigned short nlink_t;
-typedef long ssize_t;
-typedef unsigned long u_long;
-typedef unsigned int u_int;
-typedef unsigned short u_short;
 
 #ifndef timerisset
 struct timeval

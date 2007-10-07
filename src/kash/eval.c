@@ -233,7 +233,7 @@ evaltree(shinstance *psh, union node *n, int flags)
 	psh->displayhist = 1;	/* show history substitutions done with fc */
 #endif
 	TRACE((psh, "pid %d, evaltree(%p: %d, %d) called\n",
-	       getpid(), n, n->type, flags));
+	       sh_getpid(psh), n, n->type, flags));
 	switch (n->type) {
 	case NSEMI:
 		evaltree(psh, n->nbinary.ch1, flags & EV_TESTED);

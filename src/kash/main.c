@@ -221,7 +221,7 @@ state1:
 	}
 state2:
 	state = 3;
-	if (getuid() == geteuid() && getgid() == getegid()) {
+	if (sh_getuid(psh) == sh_geteuid(psh) && sh_getgid(psh) == sh_getegid(psh)) {
 		if ((shinit = lookupvar(psh, "ENV")) != NULL && *shinit != '\0') {
 			state = 3;
 			read_profile(psh, shinit);

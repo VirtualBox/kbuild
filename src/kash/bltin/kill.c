@@ -67,6 +67,7 @@ extern char sys_signame[NSIG][16];
 #ifdef SHELL            /* sh (aka ash) builtin */
 #define main killcmd
 #include "bltin/bltin.h"
+#include "jobs.h"
 #endif /* SHELL */
 
 static void nosig(char *);
@@ -152,7 +153,6 @@ main(int argc, char *argv[])
 
 	for (errors = 0; argc; argc--, argv++) {
 #ifdef SHELL
-		extern int getjobpgrp(shinstance *psh, const char *);
 		if (*argv[0] == '%') {
 			pid = getjobpgrp(psh, *argv);
 			if (pid == 0) {

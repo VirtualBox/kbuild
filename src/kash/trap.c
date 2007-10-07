@@ -260,7 +260,7 @@ setsignal(int signo, int vforked)
 		action = S_CATCH;
 	else
 		action = S_IGN;
-	if (rootshell && !vforked && action == S_DFL) {
+	if (psh->rootshell && !vforked && action == S_DFL) {
 		switch (signo) {
 		case SIGINT:
 			if (iflag(psh) || minusc || sflag(psh) == 0)
@@ -446,7 +446,7 @@ exitshell(int status)
 	struct jmploc loc1, loc2;
 	char *p;
 
-	TRACE((psh, "pid %d, exitshell(%d)\n", getpid(), status));
+	TRACE((psh, "pid %d, exitshell(%d)\n", sh_getpid(psh), status));
 	if (setjmp(loc1.loc)) {
 		goto l1;
 	}
