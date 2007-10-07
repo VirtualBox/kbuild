@@ -50,11 +50,7 @@ __RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
-#ifndef _MSC_VER
-#include <unistd.h>
-#else
-#include "mscfakes.h"
-#endif 
+#include "shinstance.h" /* for unistd.h types/defines */
 
 #ifdef SETMODE_DEBUG
 #include <stdio.h>
@@ -88,7 +84,7 @@ static void	 dumpmode(BITCMD *);
 
 #ifndef _DIAGASSERT
 # define _DIAGASSERT assert
-#endif 
+#endif
 
 #ifndef S_ISTXT
 # ifdef S_ISVTX
@@ -105,9 +101,7 @@ static void	 dumpmode(BITCMD *);
  * bits) followed by a '+' (set bits).
  */
 mode_t
-getmode(bbox, omode)
-	const void *bbox;
-	mode_t omode;
+bsd_getmode(const void *bbox, mode_t omode)
 {
 	const BITCMD *set;
 	mode_t clrval, newmode, value;
@@ -195,8 +189,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 void *
-setmode(p)
-	const char *p;
+bsd_setmode(const char *p)
 {
 	int perm, who;
 	char op, *ep;
@@ -220,7 +213,7 @@ setmode(p)
 #ifndef _MSC_VER
 	sigfillset(&signset);
 	(void)sigprocmask(SIG_BLOCK, &signset, &sigoset);
-#endif 
+#endif
 	(void)umask(mask = umask(0));
 	mask = ~mask;
 #ifndef _MSC_VER
@@ -228,7 +221,7 @@ setmode(p)
 #endif
 
 	setlen = SET_LEN + 2;
-	
+
 	if ((set = malloc((u_int)(sizeof(BITCMD) * setlen))) == NULL)
 		return (NULL);
 	saveset = set;
@@ -289,16 +282,16 @@ getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
 				break;
 			case 's':
 				/*
-				 * If specific bits where requested and 
-				 * only "other" bits ignore set-id. 
+				 * If specific bits where requested and
+				 * only "other" bits ignore set-id.
 				 */
 				if (who == 0 || (who & ~S_IRWXO))
 					perm |= S_ISUID|S_ISGID;
 				break;
 			case 't':
 				/*
-				 * If specific bits where requested and 
-				 * only "other" bits ignore set-id. 
+				 * If specific bits where requested and
+				 * only "other" bits ignore set-id.
 				 */
 				if (who == 0 || (who & ~S_IRWXO)) {
 					who |= S_ISTXT;
@@ -411,7 +404,7 @@ addcmd(set, op, who, oparg, mask)
 			set->cmd2 = CMD2_UBITS | CMD2_GBITS | CMD2_OBITS;
 			set->bits = mask;
 		}
-	
+
 		if (oparg == '+')
 			set->cmd2 |= CMD2_SET;
 		else if (oparg == '-')
@@ -445,7 +438,7 @@ dumpmode(set)
 /*
  * Given an array of bitcmd structures, compress by compacting consecutive
  * '+', '-' and 'X' commands into at most 3 commands, one of each.  The 'u',
- * 'g' and 'o' commands continue to be separate.  They could probably be 
+ * 'g' and 'o' commands continue to be separate.  They could probably be
  * compacted, but it's not worth the effort.
  */
 static void

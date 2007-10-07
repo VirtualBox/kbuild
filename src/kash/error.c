@@ -179,7 +179,9 @@ error(shinstance *psh, const char *msg, ...)
 	va_start(ap, msg);
 	exverror(psh, EXERROR, msg, ap);
 	/* NOTREACHED */
+#ifndef __GNUC__
 	va_end(ap);
+#endif
 }
 
 
@@ -191,7 +193,9 @@ exerror(shinstance *psh, int cond, const char *msg, ...)
 	va_start(ap, msg);
 	exverror(psh, cond, msg, ap);
 	/* NOTREACHED */
+#ifndef __GNUC__
 	va_end(ap);
+#endif
 }
 
 /*

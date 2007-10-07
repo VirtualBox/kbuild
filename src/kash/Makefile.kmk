@@ -18,7 +18,7 @@ kmk_ash_DEFS.debug = DEBUG
 kmk_ash_DEFS.linux = BSD
 kmk_ash_DEFS.solaris = BSD
 kmk_ash_DEFS.win = \
-	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
+	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS YY_NO_UNISTD_H
 kmk_ash_DEFS.os2 = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
 	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
@@ -81,13 +81,13 @@ kmk_ash_SOURCES.solaris = \
 	strlcpy.c \
 	setmode.c
 
-kmk_ash_DEPS = \
+kmk_ash_ORDERDEPS = \
 	$(PATH_TARGET)/arith.h \
 	$(PATH_TARGET)/builtins.h \
 	$(PATH_TARGET)/nodes.h \
 	$(PATH_TARGET)/token.h
 kmk_ash_CLEAN = \
-	$(kmk_ash_DEPS)	\
+	$(kmk_ash_ORDERDEPS)	\
 	$(PATH_TARGET)/arith.c \
 	$(PATH_TARGET)/arith_lex.c \
 	$(PATH_TARGET)/builtins.c \
@@ -102,25 +102,14 @@ kmk_ash.man_SOURCES = \
 
 
 
-ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
+ifeq ($(filter-out win,$(BUILD_TARGET)),)
 
 #
 # Use the pregenerated code.
 #
-kmk_ash_DEPS :=
-
-define def_copy_generated
-$(PATH_TARGET)/$(src): generated/$(src)
-	$$(RM) -f $$@
-	$$(CP) -f $$^ $$@
-kmk_ash_DEPS += $(PATH_TARGET)/$(src)
-endef
-
-#$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
-#$(eval $(def_copy_generated)))
-
+kmk_ash_ORDERDEPS :=
 kmk_ash_INCS += generated
-kmk_ash_DEFS += HAVE_SYS_CDEFS_H
+kmk_ash_SOURCES := $(patsubst $(PATH_TARGET)/%,generated/%,$(kmk_ash_SOURCES))
 
 include $(PATH_KBUILD)/footer.kmk
 
