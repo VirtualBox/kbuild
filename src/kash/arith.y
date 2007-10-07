@@ -33,16 +33,13 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: arith.y,v 1.17 2003/09/17 17:33:36 jmmv Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdlib.h>
 #include "expand.h"
@@ -50,7 +47,9 @@ __RCSID("$NetBSD: arith.y,v 1.17 2003/09/17 17:33:36 jmmv Exp $");
 #include "error.h"
 #include "output.h"
 #include "memalloc.h"
+#include "shinstance.h"
 
+shinstance *arith_psh;
 const char *arith_buf, *arith_startbuf;
 
 void yyerror(const char *);
@@ -116,16 +115,18 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN { $$ = $2; }
 	;
 %%
 int
-arith(s)
-	const char *s;
+arith(shinstance *psh, const char *s)
 {
 	long result;
 
-	arith_buf = arith_startbuf = s;
-
 	INTOFF;
+/* todo lock */
+   arith_psh = psh;
+	arith_buf = arith_startbuf = s;
 	result = yyparse();
 	arith_lex_reset();	/* reprime lex */
+   arith_psh = NULL;
+/* todo unlock */
 	INTON;
 
 	return (result);
@@ -136,9 +137,7 @@ arith(s)
  *  The exp(1) builtin.
  */
 int
-expcmd(argc, argv)
-	int argc;
-	char **argv;
+expcmd(shinstance *psh, int argc, char **argv)
 {
 	const char *p;
 	char *concat;
@@ -151,24 +150,24 @@ expcmd(argc, argv)
 			/*
 			 * concatenate arguments
 			 */
-			STARTSTACKSTR(concat);
+			STARTSTACKSTR(psh, concat);
 			ap = argv + 2;
 			for (;;) {
 				while (*p)
-					STPUTC(*p++, concat);
+					STPUTC(psh, *p++, concat);
 				if ((p = *ap++) == NULL)
 					break;
-				STPUTC(' ', concat);
+				STPUTC(psh, ' ', concat);
 			}
-			STPUTC('\0', concat);
-			p = grabstackstr(concat);
+			STPUTC(psh, '\0', concat);
+			p = grabstackstr(psh, concat);
 		}
 	} else
 		p = "";
 
-	i = arith(p);
+	i = arith(psh, p);
 
-	out1fmt("%ld\n", i);
+	out1fmt(psh, "%ld\n", i);
 	return (! i);
 }
 
@@ -189,13 +188,13 @@ error(s)
 #endif
 
 void
-yyerror(s)
-	const char *s;
+yyerror(const char *s)
 {
-
+   shinstance *psh = arith_psh;
 	yyerrok;
 	yyclearin;
 	arith_lex_reset();	/* reprime lex */
-	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
+/** @todo unlock */
+	error(psh, "arithmetic expression: %s: \"%s\"", s, arith_startbuf);
 	/* NOTREACHED */
 }

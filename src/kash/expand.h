@@ -37,6 +37,8 @@
 #ifndef ___expand_h
 #define ___expand_h
 
+#include "shtypes.h"
+
 struct strlist {
 	struct strlist *next;
 	char *text;
@@ -69,7 +71,7 @@ int casematch(struct shinstance *, union node *, char *);
 int wordexpcmd(struct shinstance *, int, char **);
 
 /* From arith.y */
-int arith(const char *);
+int arith(struct shinstance *, const char *);
 int expcmd(struct shinstance *, int , char **);
 void arith_lex_reset(void);
 int yylex(void);

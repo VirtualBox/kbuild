@@ -24,6 +24,7 @@ __RCSID("$NetBSD: test.c,v 1.26 2005/02/10 06:56:55 simonb Exp $");
 #include <string.h>
 #include <stdarg.h>
 
+#include "shell.h"
 #include "error.h"
 #include "shinstance.h"
 
