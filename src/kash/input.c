@@ -343,7 +343,7 @@ pungetc(shinstance *psh)
  * We handle aliases this way.
  */
 void
-pushstring(shinstance *psh, char *s, int len, void *ap)
+pushstring(shinstance *psh, char *s, size_t len, void *ap)
 {
 	struct strpush *sp;
 
@@ -362,7 +362,7 @@ pushstring(shinstance *psh, char *s, int len, void *ap)
 	if (ap)
 		((struct alias *)ap)->flag |= ALIASINUSE;
 	psh->parsenextc = s;
-	psh->parsenleft = len;
+	psh->parsenleft = (int)len;
 	INTON;
 }
 
