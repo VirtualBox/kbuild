@@ -173,9 +173,18 @@ typedef struct shinstance
     struct var          vps4;
 #ifndef SMALL
     struct var          vterm;
-    struct var          vtermcap;
     struct var          vhistsize;
 #endif
+    struct var          voptind;
+#ifdef PC_OS2_LIBPATHS
+    struct var          libpath_vars[4];
+#endif
+#ifdef SMALL
+# define VTABSIZE 39
+#else
+# define VTABSIZE 517
+#endif
+    struct var         *vartab[VTABSIZE];
 
     /* myhistedit.h */
     int                 displayhist;

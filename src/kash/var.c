@@ -44,6 +44,7 @@ __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
 #endif /* not lint */
 
 #include <unistd.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <strings.h>
 #ifndef __sun__
@@ -100,89 +101,90 @@ extern APIRET
 #ifndef SMALL
 #include "myhistedit.h"
 #endif
+#include "shinstance.h"
 
-#ifdef SMALL
-#define VTABSIZE 39
-#else
-#define VTABSIZE 517
-#endif
+//#ifdef SMALL
+//#define VTABSIZE 39
+//#else
+//#define VTABSIZE 517
+//#endif
 
 
 struct varinit {
-	struct var *var;
+	unsigned var_off;
 	int flags;
 	const char *text;
-	void (*func)(const char *);
+	void (*func)(shinstance *, const char *);
 };
 
 
-#if ATTY
-struct var vatty;
-#endif
-#ifndef SMALL
-struct var vhistsize;
-struct var vterm;
-#endif
-struct var vifs;
-struct var vmail;
-struct var vmpath;
-struct var vpath;
-#ifdef _MSC_VER
-struct var vpath2;
-#endif
-struct var vps1;
-struct var vps2;
-struct var vps4;
-struct var vvers;
-struct var voptind;
+//#if ATTY
+//struct var vatty;
+//#endif
+//#ifndef SMALL
+//struct var vhistsize;
+//struct var vterm;
+//#endif
+//struct var vifs;
+//struct var vmail;
+//struct var vmpath;
+//struct var vpath;
+//#ifdef _MSC_VER
+//struct var vpath2;
+//#endif
+//struct var vps1;
+//struct var vps2;
+//struct var vps4;
+//struct var vvers; - unused
+//struct var voptind;
 
 #ifdef PC_OS2_LIBPATHS
-static struct var libpath_vars[4];
-static const char *libpath_envs[4] = {"LIBPATH=", "BEGINLIBPATH=", "ENDLIBPATH=", "LIBPATHSTRICT="};
+//static struct var libpath_vars[4];
+static const char * const libpath_envs[4] = {"LIBPATH=", "BEGINLIBPATH=", "ENDLIBPATH=", "LIBPATHSTRICT="};
 #endif
 
 const struct varinit varinit[] = {
 #if ATTY
-	{ &vatty,	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
+	{ offsetof(shinstance, vatty),	VSTRFIXED|VTEXTFIXED|VUNSET,	"ATTY=",
 	  NULL },
 #endif
 #ifndef SMALL
-	{ &vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
+	{ offsetof(shinstance, vhistsize),	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
 	  sethistsize },
 #endif
-	{ &vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
+	{ offsetof(shinstance, vifs),	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
 	  NULL },
-	{ &vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
+	{ offsetof(shinstance, vmail),	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
 	  NULL },
-	{ &vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
+	{ offsetof(shinstance, vmpath),	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
 	  NULL },
-	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
+	{ offsetof(shinstance, vpath),	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
 	  changepath },
 #ifdef _MSC_VER
-	{ &vpath2,	VSTRFIXED|VTEXTFIXED,		"Path=",
+	{ offsetof(shinstance, vpath2),	VSTRFIXED|VTEXTFIXED,		"Path=",
 	  changepath },
 #endif
 	/*
 	 * vps1 depends on uid
 	 */
-	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	{ offsetof(shinstance, vps2),	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
 	  NULL },
-	{ &vps4,	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
+	{ offsetof(shinstance, vps4),	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
 	  NULL },
 #ifndef SMALL
-	{ &vterm,	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM=",
+	{ offsetof(shinstance, vterm),	VSTRFIXED|VTEXTFIXED|VUNSET,	"TERM=",
 	  setterm },
 #endif
-	{ &voptind,	VSTRFIXED|VTEXTFIXED|VNOFUNC,	"OPTIND=1",
+	{ offsetof(shinstance, voptind),	VSTRFIXED|VTEXTFIXED|VNOFUNC,	"OPTIND=1",
 	  getoptsreset },
-	{ NULL,	0,				NULL,
+	{ 0,	0,				NULL,
 	  NULL }
 };
 
-struct var *vartab[VTABSIZE];
+//struct var *vartab[VTABSIZE];
 
 STATIC int strequal(const char *, const char *);
-STATIC struct var *find_var(const char *, struct var ***, int *);
+STATIC struct var *find_var(shinstance *, const char *, struct var ***, int *);
 
 /*
  * Initialize the varable symbol tables and import the environment
@@ -210,54 +212,55 @@ INIT {
  */
 
 void
-initvar(void)
+initvar(shinstance *psh)
 {
 	const struct varinit *ip;
 	struct var *vp;
 	struct var **vpp;
-
 #ifdef PC_OS2_LIBPATHS
-        char *psz = ckmalloc(2048);
-        int rc;
-        int i;
-        for (i = 0; i < 4; i++)
-        {
-            libpath_vars[i].flags = VSTRFIXED | VOS2LIBPATH;
-            libpath_vars[i].func = NULL;
+	char *psz = ckmalloc(2048);
+	int rc;
+	int i;
 
-            if (i > 0)
-            {
-                psz[0] = psz[1] = psz[2] = psz[3] = '\0';
-                rc = DosQueryExtLIBPATH(psz, i);
-            }
-            else
-            {
-                rc = DosQueryHeaderInfo(NULLHANDLE, 0, psz, 2048, QHINF_LIBPATH);
-                libpath_vars[i].flags |= VREADONLY;
-            }
-            if (!rc && *psz)
-            {
-                int cch1 = strlen(libpath_envs[i]);
-                int cch2 = strlen(psz) + 1;
-                libpath_vars[i].text = ckmalloc(cch1 + cch2);
-                memcpy(libpath_vars[i].text, libpath_envs[i], cch1);
-                memcpy(libpath_vars[i].text + cch1, psz, cch2);
-            }
-            else
-            {
-                libpath_vars[i].flags |= VUNSET | VTEXTFIXED;
-                libpath_vars[i].text = (char*)libpath_envs[i];
-            }
-            if (find_var(libpath_vars[i].text, &vpp, &libpath_vars[i].name_len) != NULL)
-                    continue;
-            libpath_vars[i].next = *vpp;
-            *vpp = &libpath_vars[i];
-        }
-        free(psz);
+	for (i = 0; i < 4; i++)
+	{
+		psh->libpath_vars[i].flags = VSTRFIXED | VOS2LIBPATH;
+		psh->libpath_vars[i].func = NULL;
+
+		if (i > 0)
+		{
+			psz[0] = psz[1] = psz[2] = psz[3] = '\0';
+			rc = DosQueryExtLIBPATH(psz, i);
+		}
+		else
+		{
+			rc = DosQueryHeaderInfo(NULLHANDLE, 0, psz, 2048, QHINF_LIBPATH);
+			psh->libpath_vars[i].flags |= VREADONLY;
+		}
+		if (!rc && *psz)
+		{
+			int cch1 = strlen(libpath_envs[i]);
+			int cch2 = strlen(psz) + 1;
+			psh->libpath_vars[i].text = ckmalloc(cch1 + cch2);
+			memcpy(psh->libpath_vars[i].text, libpath_envs[i], cch1);
+			memcpy(psh->libpath_vars[i].text + cch1, psz, cch2);
+		}
+		else
+		{
+			psh->libpath_vars[i].flags |= VUNSET | VTEXTFIXED;
+			psh->libpath_vars[i].text = (char*)libpath_envs[i];
+		}
+		if (find_var(psh, psh->libpath_vars[i].text, &vpp, &psh->libpath_vars[i].name_len) != NULL)
+			continue;
+		psh->libpath_vars[i].next = *vpp;
+		*vpp = &psh->libpath_vars[i];
+	}
+	free(psz);
 #endif
 
-	for (ip = varinit ; (vp = ip->var) != NULL ; ip++) {
-		if (find_var(ip->text, &vpp, &vp->name_len) != NULL)
+	for (ip = varinit; ip->text; ip++) {
+		vp = (struct var *)((char *)psh + ip->var_off);
+		if (find_var(psh, ip->text, &vpp, &vp->name_len) != NULL)
 			continue;
 		vp->next = *vpp;
 		*vpp = vp;
@@ -268,11 +271,11 @@ initvar(void)
 	/*
 	 * PS1 depends on uid
 	 */
-	if (find_var("PS1", &vpp, &vps1.name_len) == NULL) {
-		vps1.next = *vpp;
-		*vpp = &vps1;
-		vps1.text = strdup(sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
-		vps1.flags = VSTRFIXED|VTEXTFIXED;
+	if (find_var(psh, "PS1", &vpp, &psh->vps1.name_len) == NULL) {
+		psh->vps1.next = *vpp;
+		*vpp = &psh->vps1;
+		psh->vps1.text = strdup(sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
+		psh->vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 }
 
@@ -281,7 +284,7 @@ initvar(void)
  */
 
 int
-setvarsafe(const char *name, const char *val, int flags)
+setvarsafe(shinstance *psh, const char *name, const char *val, int flags)
 {
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler = psh->handler;
@@ -306,12 +309,12 @@ setvarsafe(const char *name, const char *val, int flags)
  */
 
 void
-setvar(const char *name, const char *val, int flags)
+setvar(shinstance *psh, const char *name, const char *val, int flags)
 {
 	const char *p;
 	const char *q;
 	char *d;
-	int len;
+	size_t len;
 	int namelen;
 	char *nameeq;
 	int isbad;
@@ -329,7 +332,7 @@ setvar(const char *name, const char *val, int flags)
 		}
 		p++;
 	}
-	namelen = p - name;
+	namelen = (int)(p - name);
 	if (isbad)
 		error(psh, "%.*s: bad variable name", namelen, name);
 	len = namelen + 2;		/* 2 is space for '=' and '\0' */
@@ -359,14 +362,14 @@ setvar(const char *name, const char *val, int flags)
  */
 
 void
-setvareq(char *s, int flags)
+setvareq(shinstance *psh, char *s, int flags)
 {
 	struct var *vp, **vpp;
 	int nlen;
 
 	if (aflag(psh))
 		flags |= VEXPORT;
-	vp = find_var(s, &vpp, &nlen);
+	vp = find_var(psh, s, &vpp, &nlen);
 	if (vp != NULL) {
 		if (vp->flags & VREADONLY)
 			error(psh, "%.*s: is read only", vp->name_len, s);
@@ -375,7 +378,7 @@ setvareq(char *s, int flags)
 		INTOFF;
 
 		if (vp->func && (flags & VNOFUNC) == 0)
-			(*vp->func)(s + vp->name_len + 1);
+			(*vp->func)(psh, s + vp->name_len + 1);
 
 		if ((vp->flags & (VTEXTFIXED|VSTACK)) == 0)
 			ckfree(vp->text);
@@ -384,15 +387,15 @@ setvareq(char *s, int flags)
 		vp->flags |= flags & ~VNOFUNC;
 		vp->text = s;
 #ifdef PC_OS2_LIBPATHS
-                if ((vp->flags & VOS2LIBPATH) && (vp->flags & VEXPORT))
-                    vp->flags &= ~VEXPORT;
+		if ((vp->flags & VOS2LIBPATH) && (vp->flags & VEXPORT))
+			vp->flags &= ~VEXPORT;
 #endif
 
 		/*
 		 * We could roll this to a function, to handle it as
 		 * a regular variable function callback, but why bother?
 		 */
-		if (vp == &vmpath || (vp == &vmail && ! mpathset()))
+		if (vp == &psh->vmpath || (vp == &psh->vmail && ! mpathset(psh)))
 			chkmail(psh, 1);
 		INTON;
 		return;
@@ -416,7 +419,7 @@ setvareq(char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list, int flags)
+listsetvar(shinstance *psh, struct strlist *list, int flags)
 {
 	struct strlist *lp;
 
@@ -428,7 +431,7 @@ listsetvar(struct strlist *list, int flags)
 }
 
 void
-listmklocal(struct strlist *list, int flags)
+listmklocal(shinstance *psh, struct strlist *list, int flags)
 {
 	struct strlist *lp;
 
@@ -442,11 +445,11 @@ listmklocal(struct strlist *list, int flags)
  */
 
 char *
-lookupvar(const char *name)
+lookupvar(shinstance *psh, const char *name)
 {
 	struct var *v;
 
-	v = find_var(name, NULL, NULL);
+	v = find_var(psh, name, NULL, NULL);
 	if (v == NULL || v->flags & VUNSET)
 		return NULL;
 	return v->text + v->name_len + 1;
@@ -461,17 +464,17 @@ lookupvar(const char *name)
  */
 
 char *
-bltinlookup(const char *name, int doall)
+bltinlookup(shinstance *psh, const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
 
-	for (sp = cmdenviron ; sp ; sp = sp->next) {
+	for (sp = psh->cmdenviron ; sp ; sp = sp->next) {
 		if (strequal(sp->text, name))
 			return strchr(sp->text, '=') + 1;
 	}
 
-	v = find_var(name, NULL, NULL);
+	v = find_var(psh, name, NULL, NULL);
 
 	if (v == NULL || v->flags & VUNSET || (!doall && !(v->flags & VEXPORT)))
 		return NULL;
@@ -486,7 +489,7 @@ bltinlookup(const char *name, int doall)
  */
 
 char **
-environment(void)
+environment(shinstance *psh)
 {
 	int nenv;
 	struct var **vpp;
@@ -495,13 +498,13 @@ environment(void)
 	char **ep;
 
 	nenv = 0;
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
+	for (vpp = psh->vartab ; vpp < psh->vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next)
 			if (vp->flags & VEXPORT)
 				nenv++;
 	}
 	ep = env = stalloc(psh, (nenv + 1) * sizeof *env);
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
+	for (vpp = psh->vartab ; vpp < psh->vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next)
 			if (vp->flags & VEXPORT)
 				*ep++ = vp->text;
@@ -509,11 +512,11 @@ environment(void)
 	*ep = NULL;
 
 #ifdef PC_OS2_LIBPATHS
-        /*
-         * Set the libpaths now as this is exec() time.
-         */
-        for (nenv = 0; nenv < 3; nenv++)
-            DosSetExtLIBPATH(strchr(libpath_vars[nenv].text, '=') + 1, nenv);
+	/*
+	 * Set the libpaths now as this is exec() time.
+	 */
+	for (nenv = 0; nenv < 3; nenv++)
+		DosSetExtLIBPATH(strchr(psh->libpath_vars[nenv].text, '=') + 1, nenv);
 #endif
 
 	return env;
@@ -569,7 +572,7 @@ shprocvar(shinstance *psh)
  */
 
 void
-print_quoted(const char *p)
+print_quoted(shinstance *psh, const char *p)
 {
 	const char *q;
 
@@ -612,7 +615,7 @@ sort_var(const void *v_v1, const void *v_v2)
  */
 
 int
-showvars(const char *name, int flag, int show_value)
+showvars(shinstance *psh, const char *name, int flag, int show_value)
 {
 	struct var **vpp;
 	struct var *vp;
@@ -624,10 +627,10 @@ showvars(const char *name, int flag, int show_value)
 
 	if (!list) {
 		list_len = 32;
-		list = ckmalloc(list_len * sizeof *list);
+		list = ckmalloc(list_len * sizeof(*list));
 	}
 
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
+	for (vpp = psh->vartab ; vpp < psh->vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next) {
 			if (flag && !(vp->flags & flag))
 				continue;
@@ -635,14 +638,14 @@ showvars(const char *name, int flag, int show_value)
 				continue;
 			if (count >= list_len) {
 				list = ckrealloc(list,
-					(list_len << 1) * sizeof *list);
+					(list_len << 1) * sizeof(*list));
 				list_len <<= 1;
 			}
 			list[count++] = vp;
 		}
 	}
 
-	qsort(list, count, sizeof *list, sort_var);
+	qsort(list, count, sizeof(*list), sort_var);
 
 	for (vpp = list; count--; vpp++) {
 		vp = *vpp;
@@ -666,7 +669,7 @@ showvars(const char *name, int flag, int show_value)
  */
 
 int
-exportcmd(int argc, char **argv)
+exportcmd(shinstance *psh, int argc, char **argv)
 {
 	struct var *vp;
 	char *name;
@@ -684,7 +687,7 @@ exportcmd(int argc, char **argv)
 		if ((p = strchr(name, '=')) != NULL) {
 			p++;
 		} else {
-			vp = find_var(name, NULL, NULL);
+			vp = find_var(psh, name, NULL, NULL);
 			if (vp != NULL) {
 				vp->flags |= flag;
 				continue;
@@ -701,7 +704,7 @@ exportcmd(int argc, char **argv)
  */
 
 int
-localcmd(int argc, char **argv)
+localcmd(shinstance *psh, int argc, char **argv)
 {
 	char *name;
 
@@ -722,7 +725,7 @@ localcmd(int argc, char **argv)
  */
 
 void
-mklocal(const char *name, int flags)
+mklocal(shinstance *psh, const char *name, int flags)
 {
 	struct localvar *lvp;
 	struct var **vpp;
@@ -733,10 +736,10 @@ mklocal(const char *name, int flags)
 	if (name[0] == '-' && name[1] == '\0') {
 		char *p;
 		p = ckmalloc(sizeof_optlist);
-		lvp->text = memcpy(p, optlist, sizeof_optlist);
+		lvp->text = memcpy(p, psh->optlist, sizeof_optlist);
 		vp = NULL;
 	} else {
-		vp = find_var(name, &vpp, NULL);
+		vp = find_var(psh, name, &vpp, NULL);
 		if (vp == NULL) {
 			if (strchr(name, '='))
 				setvareq(psh, savestr(name), VSTRFIXED|flags);
@@ -754,8 +757,8 @@ mklocal(const char *name, int flags)
 		}
 	}
 	lvp->vp = vp;
-	lvp->next = localvars;
-	localvars = lvp;
+	lvp->next = psh->localvars;
+	psh->localvars = lvp;
 	INTON;
 }
 
@@ -765,23 +768,23 @@ mklocal(const char *name, int flags)
  */
 
 void
-poplocalvars(void)
+poplocalvars(shinstance *psh)
 {
 	struct localvar *lvp;
 	struct var *vp;
 
-	while ((lvp = localvars) != NULL) {
-		localvars = lvp->next;
+	while ((lvp = psh->localvars) != NULL) {
+		psh->localvars = lvp->next;
 		vp = lvp->vp;
 		TRACE((psh, "poplocalvar %s", vp ? vp->text : "-"));
 		if (vp == NULL) {	/* $- saved */
-			memcpy(optlist, lvp->text, sizeof_optlist);
+			memcpy(psh->optlist, lvp->text, sizeof_optlist);
 			ckfree(lvp->text);
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
 			(void)unsetvar(psh, vp->text, 0);
 		} else {
 			if (vp->func && (vp->flags & VNOFUNC) == 0)
-				(*vp->func)(lvp->text + vp->name_len + 1);
+				(*vp->func)(psh, lvp->text + vp->name_len + 1);
 			if ((vp->flags & VTEXTFIXED) == 0)
 				ckfree(vp->text);
 			vp->flags = lvp->flags;
@@ -793,7 +796,7 @@ poplocalvars(void)
 
 
 int
-setvarcmd(int argc, char **argv)
+setvarcmd(shinstance *psh, int argc, char **argv)
 {
 	if (argc <= 2)
 		return unsetcmd(psh, argc, argv);
@@ -812,7 +815,7 @@ setvarcmd(int argc, char **argv)
  */
 
 int
-unsetcmd(int argc, char **argv)
+unsetcmd(shinstance *psh, int argc, char **argv)
 {
 	char **ap;
 	int i;
@@ -844,12 +847,12 @@ unsetcmd(int argc, char **argv)
  */
 
 int
-unsetvar(const char *s, int unexport)
+unsetvar(shinstance *psh, const char *s, int unexport)
 {
 	struct var **vpp;
 	struct var *vp;
 
-	vp = find_var(s, &vpp, NULL);
+	vp = find_var(psh, s, &vpp, NULL);
 	if (vp == NULL)
 		return 1;
 
@@ -902,7 +905,7 @@ strequal(const char *p, const char *q)
  */
 
 STATIC struct var *
-find_var(const char *name, struct var ***vppp, int *lenp)
+find_var(shinstance *psh, const char *name, struct var ***vppp, int *lenp)
 {
 	unsigned int hashval;
 	int len;
@@ -912,11 +915,11 @@ find_var(const char *name, struct var ***vppp, int *lenp)
 	hashval = 0;
 	while (*p && *p != '=')
 		hashval = 2 * hashval + (unsigned char)*p++;
-	len = p - name;
+	len = (int)(p - name);
 
 	if (lenp)
 		*lenp = len;
-	vpp = &vartab[hashval % VTABSIZE];
+	vpp = &psh->vartab[hashval % VTABSIZE];
 	if (vppp)
 		*vppp = vpp;
 

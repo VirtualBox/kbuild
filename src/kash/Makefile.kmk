@@ -50,11 +50,11 @@ kmk_ash_SOURCES = \
 	miscbltin.c \
 	bltin/echo.c \
 	bltin/test.c \
-	\
 	trap.c \
+	var.c \
+	\
 	parser.c \
 	redir.c \
-	var.c \
 	bltin/kill.c \
 	$(PATH_TARGET)/arith.c \
 	$(PATH_TARGET)/arith_lex.c \
