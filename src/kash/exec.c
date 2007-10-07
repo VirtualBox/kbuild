@@ -199,7 +199,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
 		sh_execve(psh, cmd, argv, envp);
 	} while (errno == EINTR);
 #else
-	sh_execve(psh, cmd, argv, envp);
+	sh_execve(psh, cmd, (const char * const*)argv, (const char * const*)envp);
 #endif
 	e = errno;
 	if (e == ENOEXEC) {

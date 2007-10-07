@@ -1110,7 +1110,7 @@ readtoken1(shinstance *psh, int firstc, char const *syntax, char *eofmark, int s
 			case CBQUOTE:	/* '`' */
 				PARSEBACKQOLD();
 				break;
-			case CEOF:
+			case CSHEOF:
 				goto endword;		/* exit outer loop */
 			default:
 				if (varnest == 0)

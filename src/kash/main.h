@@ -34,6 +34,7 @@
  *	@(#)main.h	8.2 (Berkeley) 5/4/95
  */
 
+#include "shtypes.h"
 /*extern int rootpid;*/	/* pid of main shell */
 /*extern int rootshell;*/	/* true if we aren't a child of the main shell */
 

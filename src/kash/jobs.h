@@ -92,6 +92,7 @@ int jobscmd(struct shinstance *, int, char **);
 void showjobs(struct shinstance *, struct output *, int);
 int waitcmd(struct shinstance *, int, char **);
 int jobidcmd(struct shinstance *, int, char **);
+union node;
 struct job *makejob(struct shinstance *, union node *, int);
 int forkshell(struct shinstance *, struct job *, union node *, int);
 void forkchild(struct shinstance *, struct job *, union node *, int, int);

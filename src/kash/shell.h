@@ -87,4 +87,6 @@ extern char nullstr[1];		/* null string */
 # define TRACEV(param)
 #endif
 
+#include "shtypes.h"
+
 #endif

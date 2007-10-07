@@ -66,7 +66,7 @@ void output_flushall(struct shinstance *);
 void flushout(struct output *);
 void freestdout(struct shinstance *);
 void outfmt(struct output *, const char *, ...)
-    __attribute__((__format__(__printf__,3,4)));
+    __attribute__((__format__(__printf__,2,3)));
 void out1fmt(struct shinstance *, const char *, ...)
     __attribute__((__format__(__printf__,2,3)));
 void dprintf(struct shinstance *, const char *, ...)

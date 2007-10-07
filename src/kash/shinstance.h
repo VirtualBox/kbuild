@@ -119,7 +119,7 @@ struct ifsregion {
  * the data associated with a shell process except that it's
  * running in a thread and not a separate process.
  */
-typedef struct shinstance
+struct shinstance
 {
     struct shinstance  *next;           /**< The next shell instance. */
     struct shinstance  *prev;           /**< The previous shell instance. */
@@ -323,7 +323,7 @@ typedef struct shinstance
     char              **t_wp;
     struct t_op const  *t_wp_op;
 
-} shinstance;
+};
 
 
 extern shinstance *sh_create_root_shell(shinstance *, int, char **);
@@ -375,19 +375,18 @@ int sh_killpg(shinstance *, pid_t, int);
 /* times */
 #include <time.h>
 #ifdef _MSC_VER
-    typedef struct sh_tms
+    typedef struct shtms
     {
         clock_t tms_utime;
         clock_t tms_stime;
         clock_t tms_cutime;
         clock_t tms_cstime;
-    } sh_tms;
+    } shtms;
 #else
 #   include <sys/times.h>
-#   include <times.h>
-    typedef struct tms sh_tms;
+    typedef struct tms shtms;
 #endif
-clock_t sh_times(sh_tms *);
+clock_t sh_times(shinstance *, shtms *);
 int sh_sysconf_clk_tck(void);
 
 /* wait / process */
