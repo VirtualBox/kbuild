@@ -308,7 +308,7 @@ binop(shinstance *psh)
 	case FILEQ:
 		return equalf(psh, opnd1, opnd2);
 	default:
-		abort();
+		sh_abort(psh);
 		/* NOTREACHED */
 		return -1;
 	}

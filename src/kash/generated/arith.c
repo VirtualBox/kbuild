@@ -43,14 +43,13 @@ static char yyrcsid[] = "$Id: skeleton.c,v 1.2 1997/06/23 02:51:17 tdukes Exp $"
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #else
 __RCSID("$NetBSD: arith.y,v 1.17 2003/09/17 17:33:36 jmmv Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <stdlib.h>
 #include "expand.h"
@@ -58,7 +57,9 @@ __RCSID("$NetBSD: arith.y,v 1.17 2003/09/17 17:33:36 jmmv Exp $");
 #include "error.h"
 #include "output.h"
 #include "memalloc.h"
+#include "shinstance.h"
 
+shinstance *arith_psh;
 const char *arith_buf, *arith_startbuf;
 
 void yyerror(const char *);
@@ -293,16 +294,18 @@ short yyss[YYSTACKSIZE];
 YYSTYPE yyvs[YYSTACKSIZE];
 #define yystacksize YYSTACKSIZE
 int
-arith(s)
-	const char *s;
+arith(shinstance *psh, const char *s)
 {
 	long result;
 
-	arith_buf = arith_startbuf = s;
-
 	INTOFF;
+/* todo lock */
+   arith_psh = psh;
+	arith_buf = arith_startbuf = s;
 	result = yyparse();
 	arith_lex_reset();	/* reprime lex */
+   arith_psh = NULL;
+/* todo unlock */
 	INTON;
 
 	return (result);
@@ -313,9 +316,7 @@ arith(s)
  *  The exp(1) builtin.
  */
 int
-expcmd(argc, argv)
-	int argc;
-	char **argv;
+expcmd(shinstance *psh, int argc, char **argv)
 {
 	const char *p;
 	char *concat;
@@ -343,7 +344,7 @@ expcmd(argc, argv)
 	} else
 		p = "";
 
-	i = arith(p);
+	i = arith(psh, p);
 
 	out1fmt(psh, "%ld\n", i);
 	return (! i);
@@ -366,14 +367,14 @@ error(s)
 #endif
 
 void
-yyerror(s)
-	const char *s;
+yyerror(const char *s)
 {
-
+   shinstance *psh = arith_psh;
 	yyerrok;
 	yyclearin;
 	arith_lex_reset();	/* reprime lex */
-	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
+/** @todo unlock */
+	error(psh, "arithmetic expression: %s: \"%s\"", s, arith_startbuf);
 	/* NOTREACHED */
 }
 #define YYABORT goto yyabort
@@ -381,7 +382,7 @@ yyerror(s)
 #define YYACCEPT goto yyaccept
 #define YYERROR goto yyerrlab
 #ifdef __cplusplus
-extern "C" {
+extern "C" { 
 char * getenv();
 int yylex();
 int yyparse();

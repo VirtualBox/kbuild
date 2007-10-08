@@ -1134,7 +1134,7 @@ typecmd(shinstance *psh, int argc, char **argv)
 					    cmdp ? " a tracked alias for" : "");
 				out1fmt(psh, "%s\n", name);
 			} else {
-				if (access(arg, X_OK) == 0) {
+				if (shfile_access(&psh->fdtab, arg, X_OK) == 0) {
 					if (!v_flag)
 						out1fmt(psh, " is ");
 					out1fmt(psh, "%s\n", arg);

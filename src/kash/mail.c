@@ -94,7 +94,7 @@ chkmail(shinstance *psh, int silent)
 			continue;
 		for (q = p ; *q ; q++);
 		if (q[-1] != '/')
-			abort();
+			sh_abort(psh);
 		q[-1] = '\0';			/* delete trailing '/' */
 #ifdef notdef /* this is what the System V shell claims to do (it lies) */
 		if (shfile_stat(&psh->fdtab, p, &statb) < 0)

@@ -28,6 +28,7 @@
 #define ___shfile_h
 
 #include "shtypes.h"
+#include "shthread.h"
 #include <fcntl.h>
 #include <sys/stat.h>
 #ifdef _MSC_VER
@@ -115,7 +116,7 @@ typedef struct shfdtab
     shfile             *tab;            /**< Pointer to the table. */
 } shfdtab;
 
-int shfile_open(shfdtab *, const char *, unsigned);
+int shfile_open(shfdtab *, const char *, unsigned, mode_t);
 int shfile_pipe(shfdtab *, int [2]);
 int shfile_close(shfdtab *, unsigned);
 long shfile_read(shfdtab *, int, void *, size_t);
@@ -128,9 +129,9 @@ int shfile_stat(shfdtab *, const char *, struct stat *);
 int shfile_lstat(shfdtab *, const char *, struct stat *);
 int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);
+int shfile_access(shfdtab *, const char *, int);
 int shfile_isatty(shfdtab *, int);
 int shfile_ioctl(shfdtab *, int, unsigned long, void *);
-int shfile_access(shfdtab *, const char *, int);
 #ifdef _MSC_VER
 # define TIOCGWINSZ         0x4201
 typedef struct sh_winsize
@@ -143,6 +144,8 @@ typedef struct sh_winsize
 #else
 typedef struct winsize sh_winsize;
 #endif
+mode_t shfile_get_umask(shfdtab *);
+
 
 typedef struct sh_dirent
 {

@@ -106,7 +106,7 @@ setjobctl(shinstance *psh, int on)
 		int i;
 		if (psh->ttyfd != -1)
 			shfile_close(&psh->fdtab, psh->ttyfd);
-		if ((psh->ttyfd = shfile_open(&psh->fdtab, "/dev/tty", O_RDWR)) == -1) {
+		if ((psh->ttyfd = shfile_open(&psh->fdtab, "/dev/tty", O_RDWR, 0)) == -1) {
 			for (i = 0; i < 3; i++) {
 				if (shfile_isatty(&psh->fdtab, i)
 				 && (psh->ttyfd = shfile_dup(&psh->fdtab, i)) != -1)
@@ -872,7 +872,7 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 		if ((jp == NULL || jp->nprocs == 0) &&
 		    ! fd0_redirected_p(psh)) {
 			shfile_close(&psh->fdtab, 0);
-			if (open(devnull, O_RDONLY) != 0)
+			if (shfile_open(&psh->fdtab, devnull, O_RDONLY, 0) != 0)
 				error(psh, nullerr, devnull);
 		}
 	}
@@ -883,7 +883,7 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 		if ((jp == NULL || jp->nprocs == 0) &&
 		    ! fd0_redirected_p(psh)) {
 			shfile_close(&psh->fdtab, 0);
-			if (open(devnull, O_RDONLY) != 0)
+			if (shfile_open(&psh->fdtab, devnull, O_RDONLY, 0) != 0)
 				error(psh, nullerr, devnull);
 		}
 	}

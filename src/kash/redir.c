@@ -189,14 +189,14 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 			eflags = O_NONBLOCK;
 		else
 			eflags = 0;
-		if ((f = open(fname, O_RDONLY|eflags)) < 0)
+		if ((f = shfile_open(&psh->fdtab, fname, O_RDONLY|eflags, 0)) < 0)
 			goto eopen;
 		if (eflags)
 			(void)shfile_fcntl(&psh->fdtab, f, F_SETFL, shfile_fcntl(&psh->fdtab, f, F_GETFL, 0) & ~eflags);
 		break;
 	case NFROMTO:
 		fname = redir->nfile.expfname;
-		if ((f = open(fname, O_RDWR|O_CREAT|O_TRUNC, 0666)) < 0)
+		if ((f = shfile_open(&psh->fdtab, fname, O_RDWR|O_CREAT|O_TRUNC, 0666)) < 0)
 			goto ecreate;
 		break;
 	case NTO:
@@ -205,12 +205,12 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 		/* FALLTHROUGH */
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
-		if ((f = open(fname, oflags, 0666)) < 0)
+		if ((f = shfile_open(&psh->fdtab, fname, oflags, 0666)) < 0)
 			goto ecreate;
 		break;
 	case NAPPEND:
 		fname = redir->nfile.expfname;
-		if ((f = open(fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
+		if ((f = shfile_open(&psh->fdtab, fname, O_WRONLY|O_CREAT|O_APPEND, 0666)) < 0)
 			goto ecreate;
 		break;
 	case NTOFD:
@@ -228,7 +228,7 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 		f = openhere(psh, redir);
 		break;
 	default:
-		abort();
+		sh_abort(psh);
 	}
 
 	if (f != fd) {

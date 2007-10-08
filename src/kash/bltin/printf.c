@@ -29,23 +29,17 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-#ifndef lint
+#if 0
 #if !defined(BUILTIN) && !defined(SHELL)
 __COPYRIGHT("@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#endif
-
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)printf.c	8.2 (Berkeley) 3/22/95";
 #else
 __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
-#endif
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 

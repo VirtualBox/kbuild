@@ -389,7 +389,7 @@ setinputfile(shinstance *psh, const char *fname, int push)
 
 	INTOFF;
 /** @todo shfile fixme */
-	if ((fd = shfile_open(&psh->fdtab, fname, O_RDONLY)) < 0)
+	if ((fd = shfile_open(&psh->fdtab, fname, O_RDONLY, 0)) < 0)
 		error(psh, "Can't open %s", fname);
 	if (fd < 10) {
 		fd2 = copyfd(psh, fd, 10);

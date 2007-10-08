@@ -182,12 +182,12 @@ STATIC struct var *find_var(shinstance *, const char *, struct var ***, int *);
 
 #ifdef mkinit
 INCLUDE "var.h"
-MKINIT char **environ;
+
 INIT {
 	char **envp;
 
 	initvar(psh);
-	for (envp = environ ; *envp ; envp++) {
+	for (envp = sh_environ(psh) ; *envp ; envp++) {
 		if (strchr(*envp, '=')) {
 			setvareq(psh, *envp, VEXPORT|VTEXTFIXED);
 		}
