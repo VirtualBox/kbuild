@@ -78,3 +78,152 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
 }
 
 
+char *sh_getenv(shinstance *psh, const char *var)
+{
+    return NULL;
+}
+
+char **sh_environ(shinstance *psh)
+{
+    static char *s_null[2] = {0,0};
+    return &s_null[0];
+}
+
+const char *sh_gethomedir(shinstance *psh, const char *user)
+{
+    return NULL;
+}
+
+int sh_sigaction(int signo, const struct sh_sigaction *newp, struct sh_sigaction *oldp)
+{
+    return -1;
+}
+
+sh_sig_t sh_signal(shinstance *psh, int signo, sh_sig_t handler)
+{
+    return (sh_sig_t)-1;
+}
+
+int sh_siginterrupt(shinstance *psh, int signo, int interrupt)
+{
+    return -1;
+}
+
+void sh_sigemptyset(sh_sigset_t *setp)
+{
+
+}
+
+int sh_sigprocmask(shinstance *psh, int operation, sh_sigset_t const *newp, sh_sigset_t *oldp)
+{
+    return -1;
+}
+
+void sh_abort(shinstance *psh)
+{
+}
+
+void sh_raise_sigint(shinstance *psh)
+{
+
+}
+
+int sh_kill(shinstance *psh, pid_t pid, int signo)
+{
+    return -1;
+}
+
+int sh_killpg(shinstance *psh, pid_t pgid, int signo)
+{
+    return -1;
+}
+
+clock_t sh_times(shinstance *psh, shtms *tmsp)
+{
+    return 0;
+}
+
+int sh_sysconf_clk_tck(void)
+{
+    return 1;
+}
+
+pid_t sh_fork(shinstance *psh)
+{
+    return -1;
+}
+
+pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
+{
+    return -1;
+}
+
+void sh__exit(shinstance *psh, int rc)
+{
+}
+
+int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const char * const *envp)
+{
+    return -1;
+}
+
+uid_t sh_getuid(shinstance *psh)
+{
+    return 0;
+}
+
+uid_t sh_geteuid(shinstance *psh)
+{
+    return 0;
+}
+
+gid_t sh_getgid(shinstance *psh)
+{
+    return 0;
+}
+
+gid_t sh_getegid(shinstance *psh)
+{
+    return 0;
+}
+
+pid_t sh_getpid(shinstance *psh)
+{
+    return 0;
+}
+
+pid_t sh_getpgrp(shinstance *psh)
+{
+    return 0;
+}
+
+pid_t sh_getpgid(shinstance *psh, pid_t pid)
+{
+    return pid;
+}
+
+int sh_setpgid(shinstance *psh, pid_t pid, pid_t pgid)
+{
+    return -1;
+}
+
+pid_t sh_tcgetpgrp(shinstance *psh, int fd)
+{
+    return -1;
+}
+
+int sh_tcsetpgrp(shinstance *psh, int fd, pid_t pgrp)
+{
+    return -1;
+}
+
+int sh_getrlimit(shinstance *psh, int resid, shrlimit *limp)
+{
+    return -1;
+}
+
+int sh_setrlimit(shinstance *psh, int resid, const shrlimit *limp)
+{
+    return -1;
+}
+

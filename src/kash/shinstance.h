@@ -359,10 +359,13 @@ struct sh_sigaction
 #   define SIGTSTP          18
 #   define SIGTTIN          19
 #   define SIGCONT          20
-    extern const char * const sys_siglist[NSIG];
+#   define sys_siglist      sys_signame
 #endif /* _MSC_VER */
 #ifdef __sun__
-#   define sys_siglist _sys_siglist
+#   define sys_siglist      _sys_siglist
+#endif
+#ifndef HAVE_SYS_SIGNAME
+extern char sys_signame[NSIG][16];
 #endif
 
 int sh_sigaction(int, const struct sh_sigaction *, struct sh_sigaction *);
@@ -432,7 +435,7 @@ int sh_setpgid(shinstance *, pid_t, pid_t);
 pid_t sh_tcgetpgrp(shinstance *, int);
 int sh_tcsetpgrp(shinstance *, int, pid_t);
 
-/* sys/resourece.h */
+/* sys/resource.h */
 #ifdef _MSC_VER
     typedef int64_t shrlim_t;
     typedef struct shrlimit
