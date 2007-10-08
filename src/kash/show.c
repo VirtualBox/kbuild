@@ -171,7 +171,7 @@ sharg(union node *arg, FILE *fp)
 
 	if (arg->type != NARG) {
 		printf("<node type %d>\n", arg->type);
-		sh_abort(psh);
+		abort();
 	}
 	bqlist = arg->narg.backquote;
 	for (p = arg->narg.text ; *p ; p++) {
