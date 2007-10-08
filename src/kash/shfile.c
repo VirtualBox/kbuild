@@ -41,10 +41,94 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
     return -1;
 }
 
-
-int shfile_close(shfdtab *pfdtab, unsigned fd)
+int shfile_pipe(shfdtab *pfdtab, int fds[2])
 {
-//    return close(fd);
     return -1;
 }
 
+int shfile_dup(shfdtab *pfdtab, int fd)
+{
+    return -1;
+}
+
+int shfile_close(shfdtab *pfdtab, unsigned fd)
+{
+    return -1;
+}
+
+long shfile_read(shfdtab *pfdtab, int fd, void *buf, size_t len)
+{
+    return -1;
+}
+
+long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
+{
+    return -1;
+}
+
+long shfile_lseek(shfdtab *pfdtab, int fd, long off, int whench)
+{
+    return -1;
+}
+
+int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
+{
+    return -1;
+}
+
+int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
+{
+    return -1;
+}
+
+int shfile_lstat(shfdtab *pfdtab, const char *link, struct stat *pst)
+{
+    return -1;
+}
+
+int shfile_chdir(shfdtab *pfdtab, const char *path)
+{
+    return -1;
+}
+
+char *shfile_getcwd(shfdtab *pfdtab, char *buf, int len)
+{
+    return NULL;
+}
+
+int shfile_access(shfdtab *pfdtab, const char *path, int type)
+{
+    return -1;
+}
+
+int shfile_isatty(shfdtab *pfdtab, int fd)
+{
+    return 0;
+}
+
+
+int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
+{
+    return -1;
+}
+
+mode_t shfile_get_umask(shfdtab *pfdtab)
+{
+    return 022;
+}
+
+
+shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
+{
+    return NULL;
+}
+
+shdirent *shfile_readdir(struct shdir *pdir)
+{
+    return NULL;
+}
+
+void shfile_closedir(struct shdir *pdir)
+{
+
+}
