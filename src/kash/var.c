@@ -42,7 +42,7 @@ __RCSID("$NetBSD: var.c,v 1.36 2004/10/06 10:23:43 enami Exp $");
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 
 #ifdef PC_OS2_LIBPATHS
 #define INCL_BASE
@@ -576,7 +576,7 @@ print_quoted(shinstance *psh, const char *p)
 			p++;
 			continue;
 		}
-		q = index(p, '\'');
+		q = strchr(p, '\'');
 		if (!q) {
 			out1fmt(psh, "'%s'", p );
 			return;

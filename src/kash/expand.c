@@ -41,7 +41,6 @@ __RCSID("$NetBSD: expand.c,v 1.71 2005/06/01 15:41:19 lukem Exp $");
 #endif
 
 #include <sys/types.h>
-#include <sys/time.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>

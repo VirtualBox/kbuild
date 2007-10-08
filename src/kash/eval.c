@@ -46,9 +46,6 @@ __RCSID("$NetBSD: eval.c,v 1.84 2005/06/23 23:05:29 christos Exp $");
 #ifdef HAVE_SYSCTL_H
 # include <sys/sysctl.h>
 #endif
-#ifdef _MSC_VER
-# include "getopt.h"
-#endif
 
 /*
  * Evaluate a command.
