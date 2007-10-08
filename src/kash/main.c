@@ -449,7 +449,7 @@ STATIC int
 usage(const char *argv0)
 {
 	size_t len;
-	strip_argv0(argv0, &len);
+	argv0 = strip_argv0(argv0, &len);
 
 	fprintf(stdout,
 			"usage: %.*s [-aCefnuvxIimqVEb] [+aCefnuvxIimqVEb] [-o option_name]\n"

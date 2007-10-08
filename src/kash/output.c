@@ -108,6 +108,7 @@ open_mem(char *block, int length, struct output *file)
 	file->nleft = --length;
 	file->fd = BLOCK_OUT;
 	file->flags = 0;
+	file->psh = psh;
 }
 #endif
 

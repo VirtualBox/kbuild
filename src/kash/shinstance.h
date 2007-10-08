@@ -199,14 +199,13 @@ struct shinstance
     struct job         *jobtab;         /**< array of jobs */
     int                 njobs;          /**< size of array */
     int                 jobs_invalid;   /**< set in child */
-#if JOBS
     int                 initialpgrp;    /**< pgrp of shell on invocation */
     int                 curjob/* = -1*/;/**< current job */
-#endif
     int                 ttyfd/* = -1*/;
     int                 jobctl;         /**< job control enabled / disabled */
     char               *cmdnextc;
     int                 cmdnleft;
+
 
     /* mail.c */
 #define MAXMBOXES 10
@@ -289,9 +288,7 @@ struct shinstance
 
     /* var.h */
     struct localvar    *localvars;
-#if ATTY
     struct var          vatty;
-#endif
     struct var          vifs;
     struct var          vmail;
     struct var          vmpath;
