@@ -25,6 +25,12 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
+#ifndef _MSC_VER
+# include <unistd.h>
+# include <pwd.h>
+extern char **environ;
+#endif
 #include "shinstance.h"
 
 
@@ -44,6 +50,13 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv)
     psh = calloc(sizeof(*psh), 1);
     if (psh)
     {
+        /* the special stuff. */
+#ifdef _MSC_VER
+        psh->pid = _getpid();
+#else
+        psh->pid = getpid();
+#endif
+
         /* memalloc.c */
         psh->stacknleft = MINSIZE;
         psh->herefd = -1;
@@ -109,7 +122,7 @@ const char *sh_gethomedir(shinstance *psh, const char *user)
     return NULL;
 # else
     struct passwd *pwd = getpwnam(user);
-    return pwd ? pwd->pw_dir;
+    return pwd ? pwd->pw_dir : NULL;
 # endif
 #else
 #endif
@@ -225,7 +238,7 @@ int sh_sysconf_clk_tck(void)
 # ifdef _MSC_VER
     return CLK_TCK;
 # else
-    return sysconf(_SC_CLK_TCK)
+    return sysconf(_SC_CLK_TCK);
 # endif
 #endif
 }
