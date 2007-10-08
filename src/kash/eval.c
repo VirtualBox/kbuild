@@ -1013,12 +1013,13 @@ normal_fork:
 			psh->argptr = argv + 1;
 			psh->optptr = NULL;
 			/* and getopt */
-/** @todo fix getop usage! */
+#if 0 /** @todo fix getop usage! */
 #if defined(__FreeBSD__) || defined(__EMX__) || defined(__APPLE__)
 			optreset = 1;
 			optind = 1;
 #else
 			optind = 0; /* init */
+#endif
 #endif
 
 			psh->exitstatus = cmdentry.u.bltin(psh, argc, argv);
