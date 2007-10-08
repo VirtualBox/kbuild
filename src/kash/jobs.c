@@ -46,7 +46,7 @@ __RCSID("$NetBSD: jobs.c,v 1.63 2005/06/01 15:41:19 lukem Exp $");
 #include <sys/types.h>
 
 #include "shell.h"
-#if JOBS
+#if JOBS && !defined(_MSC_VER)
 # include <termios.h>
 #endif
 #include "redir.h"

@@ -52,7 +52,9 @@
 #ifndef ___shell_h
 #define ___shell_h
 
-#include <sys/param.h>
+#ifndef _MSC_VER
+# include <sys/param.h>
+#endif
 
 #define JOBS 1
 #ifndef BSD
