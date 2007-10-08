@@ -17,11 +17,14 @@
 #include <signal.h>
 #include "trap.h"
 #include "var.h"
+#include "shinstance.h"
 
 
 
-#undef  ATABSIZE
-#define ATABSIZE 39
+#undef  PROFILE
+#define PROFILE 0
+#undef  SIGSSIZE
+#define SIGSSIZE (sizeof(sigs)/sizeof(sigs[0]))
 #undef  MAXPWD
 #define MAXPWD 256
 #undef  ALL
@@ -32,10 +35,6 @@
 #define EV_TESTED 02		/* exit status is checked; ignore -e flag */
 #undef  EV_BACKCMD
 #define EV_BACKCMD 04		/* command executing within back quotes */
-#undef  CMDTABLESIZE
-#define CMDTABLESIZE 31		/* should be prime */
-#undef  ARB
-#define ARB 1			/* actual size determined at run time */
 #undef  NEWARGS
 #define NEWARGS 5
 #undef  MAXHISTLOOPS
@@ -46,26 +45,14 @@
 #define editing (Eflag(psh) || Vflag(psh))
 #undef  EOF_NLEFT
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
-#undef  MAXMBOXES
-#define MAXMBOXES 10
-#undef  PROFILE
-#define PROFILE 0
-#undef  SIGSSIZE
-#define SIGSSIZE (sizeof(sigs)/sizeof(sigs[0]))
-#undef  MINSIZE
-#define MINSIZE 504		/* minimum size of a block */
 #undef  DEFINE_OPTIONS
 #define DEFINE_OPTIONS
-#undef  OUTBUFSIZ
-#define OUTBUFSIZ BUFSIZ
 #undef  BLOCK_OUT
 #define BLOCK_OUT -2		/* output to a fixed block of memory */
-#undef  MEM_OUT
-#define MEM_OUT -3		/* output to dynamically allocated memory */
 #undef  OUTPUT_ERR
 #define OUTPUT_ERR 01		/* error occurred on output */
 #undef  TEMPSIZE
-#define TEMPSIZE 24
+#define TEMPSIZE 32
 #undef  HAVE_VASPRINTF
 #define HAVE_VASPRINTF 1
 #undef  EOFMARKLEN
@@ -106,64 +93,34 @@
 #define QHINF_STE           7 /* NE only */
 #undef  QHINF_MAPSEL
 #define QHINF_MAPSEL        8 /* NE only */
-#undef  VTABSIZE
-#define VTABSIZE 39
-#undef  VTABSIZE
-#define VTABSIZE 517
-#undef  main
-#define main echocmd
-#undef  main
-#define main killcmd
+#undef  SET_LEN
+#define	SET_LEN	6		/* initial # of bitcmd struct to malloc */
+#undef  SET_LEN_INCR
+#define	SET_LEN_INCR 4		/* # of bitcmd structs to add as needed */
+#undef  CMD2_CLR
+#define	CMD2_CLR	0x01
+#undef  CMD2_SET
+#define	CMD2_SET	0x02
+#undef  CMD2_GBITS
+#define	CMD2_GBITS	0x04
+#undef  CMD2_OBITS
+#define	CMD2_OBITS	0x08
+#undef  CMD2_UBITS
+#define	CMD2_UBITS	0x10
+#undef  STANDARD_BITS
+#define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 
 
-extern void rmaliases(struct shinstance *);
-
-extern int loopnest;		/* current loop nesting level */
+extern void rmaliases(shinstance *psh);
 
 extern void deletefuncs(struct shinstance *);
 extern void hash_special_builtins(struct shinstance *);
-
-struct strpush {
-	struct strpush *prev;	/* preceding string on stack */
-	char *prevstring;
-	int prevnleft;
-	int prevlleft;
-	struct alias *ap;	/* if push was associated with an alias */
-};
-
-struct parsefile {
-	struct parsefile *prev;	/* preceding file on stack */
-	int linno;		/* current line */
-	int fd;			/* file descriptor (or -1 if string) */
-	int nleft;		/* number of chars left in this line */
-	int lleft;		/* number of chars left in this buffer */
-	char *nextc;		/* next char in buffer */
-	char *buf;		/* input buffer */
-	struct strpush *strpush; /* for pushing strings at this level */
-	struct strpush basestrpush; /* so pushing one is fast */
-};
-
-extern int parselleft;		/* copy of parsefile->lleft */
-extern struct parsefile basepf;	/* top level input file */
-extern char basebuf[BUFSIZ];	/* buffer for top level input file */
-
-extern pid_t backgndpid;	/* pid of last background process */
-extern int jobctl;
-
-extern int tokpushback;		/* last token pushed back */
-extern int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
 
 struct redirtab {
 	struct redirtab *next;
 	short renamed[10];
 };
-
-//extern struct redirtab *redirlist;
-
-extern char sigmode[NSIG];	/* current value of signal */
-
-extern char **environ;
 
 
 
@@ -176,12 +133,12 @@ init(shinstance *psh) {
 
       /* from exec.c: */
       {
-	      hash_special_builtins();
+	      hash_special_builtins(psh);
       }
 
       /* from input.c: */
       {
-	      basepf.nextc = basepf.buf = basebuf;
+	      psh->basepf.nextc = psh->basepf.buf = psh->basebuf;
       }
 
       /* from var.c: */
@@ -189,7 +146,7 @@ init(shinstance *psh) {
 	      char **envp;
 
 	      initvar(psh);
-	      for (envp = environ ; *envp ; envp++) {
+	      for (envp = sh_environ(psh) ; *envp ; envp++) {
 		      if (strchr(*envp, '=')) {
 			      setvareq(psh, *envp, VEXPORT|VTEXTFIXED);
 		      }
@@ -225,9 +182,9 @@ reset(shinstance *psh) {
       {
 	      psh->out1 = &psh->output;
 	      psh->out2 = &psh->errout;
-	      if (memout.buf != NULL) {
-		      ckfree(memout.buf);
-		      memout.buf = NULL;
+	      if (psh->memout.buf != NULL) {
+		      ckfree(psh->memout.buf);
+		      psh->memout.buf = NULL;
 	      }
       }
 
@@ -277,7 +234,7 @@ initshellproc(shinstance *psh) {
       {
 	      psh->backgndpid = -1;
 #if JOBS
-	      jobctl = 0;
+	      psh->jobctl = 0;
 #endif
       }
 
@@ -285,8 +242,8 @@ initshellproc(shinstance *psh) {
       {
 	      int i;
 
-	      for (i = 0; optlist[i].name; i++)
-		      optlist[i].val = 0;
+	      for (i = 0; psh->optlist[i].name; i++)
+		      psh->optlist[i].val = 0;
 	      optschanged(psh);
 
       }

@@ -327,7 +327,10 @@ struct shinstance
 
 
 extern shinstance *sh_create_root_shell(shinstance *, int, char **);
+
+/* environment & pwd.h */
 char *sh_getenv(shinstance *, const char *);
+char **sh_environ(shinstance *);
 const char *sh_gethomedir(shinstance *, const char *);
 
 /* signals */
@@ -367,7 +370,7 @@ sh_sig_t sh_signal(shinstance *, int, sh_sig_t);
 int sh_siginterrupt(shinstance *, int, int);
 void sh_sigemptyset(sh_sigset_t *);
 int sh_sigprocmask(shinstance *, int, sh_sigset_t const *, sh_sigset_t *);
-void sh_abort(shinstance *);
+void sh_abort(shinstance *) __attribute__((__noreturn__));
 void sh_raise_sigint(shinstance *);
 int sh_kill(shinstance *, pid_t, int);
 int sh_killpg(shinstance *, pid_t, int);
@@ -414,7 +417,7 @@ int sh_sysconf_clk_tck(void);
 #endif
 pid_t sh_fork(shinstance *);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
-void sh__exit(shinstance *, int);
+void sh__exit(shinstance *, int) __attribute__((__noreturn__));;
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
 uid_t sh_getuid(shinstance *);
 uid_t sh_geteuid(shinstance *);

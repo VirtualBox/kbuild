@@ -575,7 +575,7 @@ subevalvar(shinstance *psh, char *p, char *str, int strloc, int subtype, int sta
 		return 0;
 
 	default:
-		abort();
+		sh_abort(psh);
 	}
 
 recordleft:
@@ -744,7 +744,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		break;
 
 	default:
-		abort();
+		sh_abort(psh);
 	}
 
 	if (apply_ifs)

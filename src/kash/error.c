@@ -70,7 +70,7 @@ char *commandname;*/
 
 
 static void exverror(shinstance *psh, int, const char *, va_list)
-    /*__attribute__((__noreturn__))*/;
+    __attribute__((__noreturn__));
 
 /*
  * Called to raise an exception.  Since C doesn't include exceptions, we
@@ -82,7 +82,7 @@ void
 exraise(shinstance *psh, int e)
 {
 	if (psh->handler == NULL)
-		abort();
+		sh_abort(psh);
 	psh->exception = e;
 	longjmp(psh->handler->loc, 1);
 }
@@ -179,9 +179,7 @@ error(shinstance *psh, const char *msg, ...)
 	va_start(ap, msg);
 	exverror(psh, EXERROR, msg, ap);
 	/* NOTREACHED */
-#ifndef __GNUC__
 	va_end(ap);
-#endif
 }
 
 
@@ -193,9 +191,7 @@ exerror(shinstance *psh, int cond, const char *msg, ...)
 	va_start(ap, msg);
 	exverror(psh, cond, msg, ap);
 	/* NOTREACHED */
-#ifndef __GNUC__
 	va_end(ap);
-#endif
 }
 
 /*

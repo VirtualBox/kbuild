@@ -315,7 +315,7 @@ read_profile(struct shinstance *psh, const char *name)
 	int vflag_set = 0;
 
 	INTOFF;
-	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY)) >= 0)
+	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY, 0)) >= 0)
 		setinputfd(psh, fd, 1);
 	INTON;
 	if (fd < 0)
@@ -349,7 +349,7 @@ readcmdfile(struct shinstance *psh, char *name)
 	int fd;
 
 	INTOFF;
-	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY)) >= 0)
+	if ((fd = shfile_open(&psh->fdtab, name, O_RDONLY, 0)) >= 0)
 		setinputfd(psh, fd, 1);
 	else
 		error(psh, "Can't open %s", name);

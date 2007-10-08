@@ -1,7 +1,7 @@
 /* $Id: $ */
 /** @file
  *
- * File management. 
+ * File management.
  *
  * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
  *
@@ -25,19 +25,26 @@
  */
 
 #include "shfile.h"
-
 #include <stdlib.h>
-#include <unistd.h>
+
+#ifdef KBUILD_OS_WINDOWS
+//# include <io.h>
+#else
+# include <unistd.h>
+# include <fcntl.h>
+#endif
 
 
-int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags)
+int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 {
-    return open(name, flags);
+//    return open(name, flags);
+    return -1;
 }
 
 
 int shfile_close(shfdtab *pfdtab, unsigned fd)
 {
-    return close(fd);
+//    return close(fd);
+    return -1;
 }
 
