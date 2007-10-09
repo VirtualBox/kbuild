@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1232 2007-10-09 23:23:46Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1234 2007-10-09 23:25:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Makefile for kash.
 #
@@ -30,7 +30,6 @@ kash_DEFS.darwin = \
 kash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
-kash_INCS.win = win
 kash_SOURCES = \
 	main.c \
 	alias.c \
