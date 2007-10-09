@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 1231 2007-10-09 23:07:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -465,7 +465,7 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
             /* remove the trailing newline. */
             rc2 = (int)strlen(psz);
             if (psz[rc2 - 1] == '\n')
-                psz[rc2 - 1] = '\0';
+                psz[rc2 - (rc2 >= 2 && psz[rc2 - 2] == '\r' ? 2 : 1)] = '\0';
 
             /* skip to the end of the digest and terminate it. */
             pszDigest = psz;
