@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: shtypes.h 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
