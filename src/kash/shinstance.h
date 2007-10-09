@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: shinstance.h 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
