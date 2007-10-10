@@ -30,7 +30,7 @@
  *
  */
 
-void	getpwd(struct shinstance *, int);
+const char *getpwd(struct shinstance *, int);
 int	cdcmd(struct shinstance *, int, char **);
 int	pwdcmd(struct shinstance *, int, char **);
 #ifdef PC_DRIVE_LETTERS
