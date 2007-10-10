@@ -61,6 +61,7 @@ __RCSID("$NetBSD: parser.c,v 1.59 2005/03/21 20:10:29 dsl Exp $");
 #ifndef SMALL
 # include "myhistedit.h"
 #endif
+#include "cd.h"
 #include "shinstance.h"
 
 /*
@@ -1620,6 +1621,26 @@ synerror(shinstance *psh, const char *msg)
 	/* NOTREACHED */
 }
 
+STATIC const char *
+my_basename(const char *argv0, unsigned *lenp)
+{
+	const char *tmp;
+
+    /* skip the path */
+    for (tmp = strpbrk(argv0, "\\/:"); tmp; tmp = strpbrk(argv0, "\\/:"))
+        argv0 = tmp + 1;
+
+	if (lenp) {
+		/* find the end, ignoring extenions */
+		tmp = strrchr(argv0, '.');
+		if (!tmp)
+			tmp = strchr(argv0, '\0');
+		*lenp = (unsigned)(tmp - argv0);
+	}
+	return argv0;
+}
+
+
 STATIC void
 setprompt(shinstance *psh, int which)
 {
@@ -1628,7 +1649,110 @@ setprompt(shinstance *psh, int which)
 #ifndef SMALL
 	if (!el)
 #endif
-		out2str(psh, getprompt(psh, NULL));
+	{
+		/* deal with bash prompts */
+		const char *prompt = getprompt(psh, NULL);
+		if (!strchr(prompt, '\\')) {
+			out2str(psh, prompt);
+		} else {
+			while (*prompt) {
+				if (*prompt != '\\') {
+					out2c(psh, *prompt++);
+				} else {
+					prompt++;
+					switch (*prompt++)
+					{
+						/* simple */
+						case '$':	out2c(psh, sh_geteuid(psh) ? '$' : '#'); break;
+						case '\\': 	out2c(psh, '\\'); break;
+						case 'a':	out2c(psh, '\a'); break;
+						case 'e':	out2c(psh, 033); break;
+						case 'n': 	out2c(psh, '\n'); break;
+						case 'r': 	out2c(psh, '\r'); break;
+
+						/* complicated */
+						case 's': {
+							unsigned len;
+							const char *arg0 = my_basename(psh->arg0, &len);
+							outfmt(psh->out2, "%.*s", len, arg0);
+							break;
+						}
+						case 'v':
+							outfmt(psh->out2, "%d.%d", KBUILD_VERSION_MAJOR,
+								   KBUILD_VERSION_MINOR);
+							break;
+						case 'V':
+							outfmt(psh->out2, "%d.%d.%d", KBUILD_VERSION_MAJOR,
+								   KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+							break;
+							out2str(psh, getpwd(psh, 1) ? getpwd(psh, 1) : "?");
+							break;
+						case 'w':
+						case 'W': {
+							const char *cwd = getpwd(psh, 1);
+							const char *home = bltinlookup(psh, "HOME", 1);
+							size_t home_len = home ? strlen(home) : 0;
+							if (!cwd) cwd = "?";
+							if (!strncmp(cwd, home, home_len)
+							  && (    cwd[home_len] == '\0'
+							      || (cwd[home_len] == '/' && prompt[-1] == 'w'))) {
+								out2c(psh, '~');
+								if (prompt[-1] == 'w' && cwd[home_len]) {
+									out2str(psh, cwd + home_len);
+								}
+							} else if (prompt[-1] == 'w') {
+								out2str(psh, cwd);
+							} else {
+								out2str(psh, my_basename(cwd, NULL));
+							}
+							break;
+						}
+						case '0':
+						case '1':
+						case '2':
+						case '3': {
+							unsigned int ch = prompt[-1] - '0';
+							if (isdigit(*prompt)) {
+								ch *= 8;
+								ch += *prompt++ - '0';
+							}
+							if (isdigit(*prompt)) {
+								ch *= 8;
+								ch += *prompt++ - '0';
+							}
+							out2c(psh, ch);
+							break;
+						}
+
+						/* ignore */
+							break;
+						case '!':
+						case '#':
+						case '@':
+						case 'A':
+						case 'h':
+						case 'H':
+						case 'j':
+						case 'l':
+						case 't':
+						case 'T':
+						case 'u':
+						case '[':
+							if (strchr(prompt, ']')) {
+								prompt = strchr(prompt, ']') + 1;
+							}
+							break;
+						case 'D':
+							if (*prompt == '{' && strchr(prompt, '}')) {
+								prompt = strchr(prompt, '}') + 1;
+							}
+							break;
+					}
+
+				}
+			}
+		}
+	}
 }
 
 /*

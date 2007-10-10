@@ -334,7 +334,7 @@ pwdcmd(shinstance *psh, int argc, char **argv)
  * Find out what the current directory is. If we already know the current
  * directory, this routine returns immediately.
  */
-void
+const char *
 getpwd(shinstance *psh, int noerror)
 {
 	char *pwd;
@@ -342,7 +342,7 @@ getpwd(shinstance *psh, int noerror)
 	/*static int first = 1;*/
 
 	if (psh->curdir)
-		return;
+		return psh->curdir;
 
 	if (psh->getpwd_first) {
 		psh->getpwd_first = 0;
@@ -352,13 +352,13 @@ getpwd(shinstance *psh, int noerror)
 		    stdot.st_dev == stpwd.st_dev &&
 		    stdot.st_ino == stpwd.st_ino) {
 			psh->curdir = savestr(pwd);
-			return;
+			return psh->curdir;
 		}
 	}
 
 	find_curdir(psh, noerror);
 
-	return;
+	return psh->curdir;
 }
 
 STATIC void
