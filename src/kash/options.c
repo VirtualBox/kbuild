@@ -239,7 +239,7 @@ setoption(shinstance *psh, int flag, int val)
 
 	for (i = 0; i < NOPTS; i++)
 		if (psh->optlist[i].letter == flag) {
-			set_opt_val(psh, i, val );
+			set_opt_val(psh, i, val);
 			return;
 		}
 	error(psh, "Illegal option -%c", flag);
@@ -250,6 +250,10 @@ setoption(shinstance *psh, int flag, int val)
 
 #ifdef mkinit
 INCLUDE "options.h"
+
+INIT {
+	memcpy(&psh->optlist[0], &ro_optlist[0], sizeof(psh->optlist));
+}
 
 SHELLPROC {
 	int i;
