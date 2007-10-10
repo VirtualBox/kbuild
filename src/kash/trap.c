@@ -81,7 +81,7 @@ extern char sys_signame[NSIG][16];
 //char gotsig[NSIG];		/* indicates specified signal received */
 //int pendingsigs;		/* indicates some signal received */
 
-static int getsigaction(shinstance *, int, sh_sig_t *);
+static int getsigaction(shinstance *, int, shsig_t *);
 
 /*
  * return the signal number described by `p' (as a number or a name)
@@ -244,7 +244,7 @@ void
 setsignal(shinstance *psh, int signo, int vforked)
 {
 	int action;
-	sh_sig_t sigact = SH_SIG_DFL;
+	shsig_t sigact = SH_SIG_DFL;
 	char *t, tsig;
 
 	if ((t = psh->trap[signo]) == NULL)
@@ -320,13 +320,13 @@ setsignal(shinstance *psh, int signo, int vforked)
  * Return the current setting for sig w/o changing it.
  */
 static int
-getsigaction(shinstance *psh, int signo, sh_sig_t *sigact)
+getsigaction(shinstance *psh, int signo, shsig_t *sigact)
 {
-	struct sh_sigaction sa;
+	struct shsigaction sa;
 
-	if (sh_sigaction(signo, NULL, &sa) == -1)
+	if (sh_sigaction(psh, signo, NULL, &sa) == -1)
 		return 0;
-	*sigact = (sh_sig_t)sa.sh_handler;
+	*sigact = (shsig_t)sa.sh_handler;
 	return 1;
 }
 

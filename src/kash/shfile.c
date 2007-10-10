@@ -1,4 +1,4 @@
-/* $Id: shfile.c 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -26,6 +26,7 @@
 
 #include "shfile.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifdef KBUILD_OS_WINDOWS
 # include <limits.h>
@@ -209,6 +210,25 @@ int shfile_isatty(shfdtab *pfdtab, int fd)
 }
 
 
+int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
+{
+#ifdef SH_PURE_STUB_MODE
+    return -1;
+#elif defined(SH_STUB_MODE)
+# ifdef _MSC_VER
+    return -1;
+# else
+    int rc = fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0)
+                              | (closeit ? FD_CLOEXEC : 0));
+    fprintf(stderr, "shfile_cloexec(%d, %d) -> %d\n", fd, closeit, rc);
+    return rc;
+# endif
+#else
+#endif
+
+}
+
+
 int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 {
 #ifdef SH_PURE_STUB_MODE
@@ -217,11 +237,14 @@ int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 # ifdef _MSC_VER
     return -1;
 # else
-    return ioctl(fd, request, buf);
+    int rc = ioctl(fd, request, buf);
+    fprintf(stderr, "ioctl(%d, %#x, %p) -> %d\n", fd, request, buf, rc);
+    return rc;
 # endif
 #else
 #endif
 }
+
 
 mode_t shfile_get_umask(shfdtab *pfdtab)
 {

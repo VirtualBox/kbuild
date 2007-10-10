@@ -101,7 +101,7 @@ exraise(shinstance *psh, int e)
 void
 onint(shinstance *psh)
 {
-	sh_sigset_t nsigset;
+	shsigset_t nsigset;
 
 	if (psh->suppressint) {
 		psh->intpending = 1;
