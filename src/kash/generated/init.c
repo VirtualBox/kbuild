@@ -141,6 +141,11 @@ init(shinstance *psh) {
 	      psh->basepf.nextc = psh->basepf.buf = psh->basebuf;
       }
 
+      /* from options.c: */
+      {
+	      memcpy(&psh->optlist[0], &ro_optlist[0], sizeof(psh->optlist));
+      }
+
       /* from var.c: */
       {
 	      char **envp;
