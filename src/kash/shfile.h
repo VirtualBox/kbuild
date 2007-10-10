@@ -1,4 +1,4 @@
-/* $Id: shfile.h 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -131,6 +131,7 @@ int shfile_chdir(shfdtab *, const char *);
 char *shfile_getcwd(shfdtab *, char *, int);
 int shfile_access(shfdtab *, const char *, int);
 int shfile_isatty(shfdtab *, int);
+int shfile_cloexec(shfdtab *, int, int);
 int shfile_ioctl(shfdtab *, int, unsigned long, void *);
 #ifdef _MSC_VER
 # define TIOCGWINSZ         0x4201

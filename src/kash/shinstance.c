@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 1237 2007-10-10 01:03:09Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -128,7 +128,7 @@ const char *sh_gethomedir(shinstance *psh, const char *user)
 #endif
 }
 
-int sh_sigaction(int signo, const struct sh_sigaction *newp, struct sh_sigaction *oldp)
+int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, struct shsigaction *oldp)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
@@ -150,9 +150,9 @@ int sh_sigaction(int signo, const struct sh_sigaction *newp, struct sh_sigaction
 #endif
 }
 
-sh_sig_t sh_signal(shinstance *psh, int signo, sh_sig_t handler)
+shsig_t sh_signal(shinstance *psh, int signo, shsig_t handler)
 {
-    return (sh_sig_t)-1;
+    return (shsig_t)-1;
 }
 
 int sh_siginterrupt(shinstance *psh, int signo, int interrupt)
@@ -160,12 +160,12 @@ int sh_siginterrupt(shinstance *psh, int signo, int interrupt)
     return -1;
 }
 
-void sh_sigemptyset(sh_sigset_t *setp)
+void sh_sigemptyset(shsigset_t *setp)
 {
     memset(setp, 0, sizeof(*setp));
 }
 
-int sh_sigprocmask(shinstance *psh, int operation, sh_sigset_t const *newp, sh_sigset_t *oldp)
+int sh_sigprocmask(shinstance *psh, int operation, shsigset_t const *newp, shsigset_t *oldp)
 {
     return -1;
 }

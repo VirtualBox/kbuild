@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -331,20 +331,20 @@ char **sh_environ(shinstance *);
 const char *sh_gethomedir(shinstance *, const char *);
 
 /* signals */
-typedef void (*sh_sig_t)(shinstance *, int);
+typedef void (*shsig_t)(shinstance *, int);
 #ifdef _MSC_VER
-    typedef uint32_t sh_sigset_t;
+    typedef uint32_t shsigset_t;
 #else
-    typedef sigset_t sh_sigset_t;
+    typedef sigset_t shsigset_t;
 #endif
-struct sh_sigaction
+struct shsigaction
 {
-    sh_sig_t    sh_handler;
-    sh_sigset_t sh_mask;
+    shsig_t     sh_handler;
+    shsigset_t  sh_mask;
     int         sh_flags;
 };
-#define SH_SIG_DFL ((sh_sig_t)SIG_DFL)
-#define SH_SIG_IGN ((sh_sig_t)SIG_IGN)
+#define SH_SIG_DFL ((shsig_t)SIG_DFL)
+#define SH_SIG_IGN ((shsig_t)SIG_IGN)
 #ifdef _MSC_VER
 #   define SIG_BLOCK         1
 #   define SIG_UNBLOCK       2
@@ -365,11 +365,11 @@ struct sh_sigaction
 extern char sys_signame[NSIG][16];
 #endif
 
-int sh_sigaction(int, const struct sh_sigaction *, struct sh_sigaction *);
-sh_sig_t sh_signal(shinstance *, int, sh_sig_t);
+int sh_sigaction(shinstance *, int, const struct shsigaction *, struct shsigaction *);
+shsig_t sh_signal(shinstance *, int, shsig_t);
 int sh_siginterrupt(shinstance *, int, int);
-void sh_sigemptyset(sh_sigset_t *);
-int sh_sigprocmask(shinstance *, int, sh_sigset_t const *, sh_sigset_t *);
+void sh_sigemptyset(shsigset_t *);
+int sh_sigprocmask(shinstance *, int, shsigset_t const *, shsigset_t *);
 void sh_abort(shinstance *) __attribute__((__noreturn__));
 void sh_raise_sigint(shinstance *);
 int sh_kill(shinstance *, pid_t, int);

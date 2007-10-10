@@ -101,7 +101,6 @@ setjobctl(shinstance *psh, int on)
 	if (on == psh->jobctl || psh->rootshell == 0)
 		return;
 	if (on) {
-#if defined(FIOCLEX) || defined(FD_CLOEXEC)
 		int err;
 		int i;
 		if (psh->ttyfd != -1)
@@ -124,21 +123,12 @@ setjobctl(shinstance *psh, int on)
 			shfile_close(&psh->fdtab, psh->ttyfd);
 			psh->ttyfd = err;
 		}
-#ifdef FIOCLEX
-		err = shfile_ioctl(&psh->fdtab, psh->ttyfd, FIOCLEX, 0);
-#elif FD_CLOEXEC
-		err = shfile_fcntl(&psh->fdtab, psh->ttyfd, F_SETFD,
-		    shfile_fcntl(&psh->fdtab, psh->ttyfd, F_GETFD, 0) | FD_CLOEXEC);
-#endif
+                err = shfile_cloexec(&psh->fdtab, psh->ttyfd, 1);
 		if (err == -1) {
 			shfile_close(&psh->fdtab, psh->ttyfd);
 			psh->ttyfd = -1;
 			goto out;
 		}
-#else
-		out2str(psh, "sh: Need FIOCLEX or FD_CLOEXEC to support job control");
-		goto out;
-#endif
 		do { /* while we are in the background */
 			if ((psh->initialpgrp = sh_tcgetpgrp(psh, psh->ttyfd)) < 0) {
 out:
