@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 1237 2007-10-10 01:03:09Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -196,6 +196,7 @@ int sh_kill(shinstance *psh, pid_t pid, int signo)
 # ifdef _MSC_VER
     return -1;
 # else
+    //fprintf(stderr, "kill(%d, %d)\n", pid, signo);
     return kill(pid, signo);
 # endif
 #else
@@ -210,6 +211,7 @@ int sh_killpg(shinstance *psh, pid_t pgid, int signo)
 # ifdef _MSC_VER
     return -1;
 # else
+    //fprintf(stderr, "killpg(%d, %d)\n", pgid, signo);
     return killpg(pgid, signo);
 # endif
 #else
@@ -259,13 +261,16 @@ pid_t sh_fork(shinstance *psh)
 
 pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
 {
+    *statusp = 0;
 #ifdef SH_PURE_STUB_MODE
     return -1;
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     return -1;
 # else
-    return waitpid(pid, statusp, flags);
+    pid = waitpid(pid, statusp, flags);
+    //fprintf(stderr, "waitpid -> %d *statusp=%d (rc=%d) flags=%#x\n",  pid, *statusp, WEXITSTATUS(*statusp), flags);
+    return pid;
 # endif
 #else
 #endif
@@ -401,7 +406,10 @@ int sh_setpgid(shinstance *psh, pid_t pid, pid_t pgid)
 # ifdef _MSC_VER
     return -1;
 # else
-    return setpgid(pid, pgid);
+    int rc;
+    rc = setpgid(pid, pgid);
+    //fprintf(stderr, "setpgid(%d,%d) -> %d\n",  pid, pgid, rc);
+    return rc;
 # endif
 #else
 #endif
