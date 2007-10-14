@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1148 2007-09-27 18:40:05Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1242 2007-10-14 15:20:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1823,12 +1823,34 @@ flags       :=\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_arch))\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$(TOOL_$(tool)_LDFLAGS.$(bld_trg_cpu))\
+	$(foreach sdk, $(SDKS) \
+	               $(SDKS.$(bld_type)) \
+	               $(SDKS.$(bld_trg)) \
+	               $(SDKS.$(bld_trg_arch)) \
+	               $(SDKS.$(bld_trg).$(bld_trg_arch)),\
+		$(SDK_$(sdk)_LDFLAGS)\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_type))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg_cpu)))\
 	$(LDFLAGS)\
 	$(LDFLAGS.$(bld_type))\
 	$(LDFLAGS.$(bld_trg))\
 	$(LDFLAGS.$(bld_trg_arch))\
 	$(LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$(LDFLAGS.$(bld_trg_cpu))\
+	$(foreach sdk, $($(target)_SDKS) \
+	               $($(target)_SDKS.$(bld_type)) \
+	               $($(target)_SDKS.$(bld_trg)) \
+	               $($(target)_SDKS.$(bld_trg_arch)) \
+	               $($(target)_SDKS.$(bld_trg).$(bld_trg_arch)),\
+		$(SDK_$(sdk)_LDFLAGS)\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_type))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg_arch))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
+		$(SDK_$(sdk)_LDFLAGS.$(bld_trg_cpu)))\
 	$($(target)_LDFLAGS)\
 	$($(target)_LDFLAGS.$(bld_type))\
 	$($(target)_LDFLAGS.$(bld_trg))\
