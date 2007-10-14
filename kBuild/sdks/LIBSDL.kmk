@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 849 2007-02-08 22:42:27Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 1243 2007-10-14 15:41:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(BUILD_TARGET).
@@ -27,6 +27,7 @@
 SDK_LIBSDL := Simple DirectMedia Layer, targeting $(BUILD_TARGET).
 
 # SDK Specific Properties
+_SDK_LIBSDK_IS_FRAMEWORK := no
 ifndef PATH_SDK_LIBSDL
  PATH_SDK_LIBSDL := $(wildcard $(PATH_DEVTOOLS_TRG)/libsdl/v*)
  ifeq ($(PATH_SDK_LIBSDL),)
@@ -35,9 +36,23 @@ ifndef PATH_SDK_LIBSDL
  ifneq ($(PATH_SDK_LIBSDL),)
   PATH_SDK_LIBSDL := $(lastword $(sort $(PATH_SDK_LIBSDL)))
  else
-  # Search in the typical unix places.
-  ifeq ($(filter-out %64,$(BUILD_TARGET_ARCH)),)
+
+  # Darwin might have a framework for it.
+  ifeq ($(BUILD_TARGET),darwin)
    PATH_SDK_LIBSDL := $(firstword $(wildcard \
+	/System/Library/Frameworks/SDL.frameworks/SDL \
+	/Library/Frameworks/SDL.framework/SDL \
+	) )
+   ifneq ($(PATH_SDK_LIBSDL),)
+    PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(PATH_SDK_LIBSDL)))
+    _SDK_LIBSDK_IS_FRAMEWORK := yes
+   endif
+  endif
+
+  ifeq ($(PATH_SDK_LIBSDL),)
+   # Search in the typical unix places.
+   ifeq ($(filter-out %64,$(BUILD_TARGET_ARCH)),)
+    PATH_SDK_LIBSDL := $(firstword $(wildcard \
 	/lib64/libSDL.* \
 	/lib/libSDL.* \
 	/usr/lib64/libSDL.* \
@@ -51,8 +66,8 @@ ifndef PATH_SDK_LIBSDL
 	/sw/lib64/libSDL.* \
 	/sw/lib/libSDL.* \
 	) )
-  else
-   PATH_SDK_LIBSDL := $(firstword $(wildcard \
+   else
+    PATH_SDK_LIBSDL := $(firstword $(wildcard \
 	/lib32/libSDL.* \
 	/lib/libSDL.* \
 	/usr/lib32/libSDL.* \
@@ -66,16 +81,21 @@ ifndef PATH_SDK_LIBSDL
 	/sw/lib32/libSDL.* \
 	/sw/lib/libSDL.* \
 	) )
-  endif
-  ifneq ($(PATH_SDK_LIBSDL),)
-   PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(PATH_SDK_LIBSDL)))))
-  else
-   $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
-   PATH_SDK_LIBSDL := $(PATH_DEVTOOLS_TRG)/libsdl/not/found
+   endif
+   ifneq ($(PATH_SDK_LIBSDL),)
+    PATH_SDK_LIBSDL := $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(PATH_SDK_LIBSDL)))))
+   else
+    $(warning kBuild: PATH_SDK_LIBSDL couldn't be determined!)
+    PATH_SDK_LIBSDL := $(PATH_DEVTOOLS_TRG)/libsdl/not/found
+   endif
   endif
  endif
 else
-  PATH_SDK_LIBSDL := $(PATH_SDK_LIBSDL)
+ PATH_SDK_LIBSDL := $(PATH_SDK_LIBSDL)
+ ifeq ($(BUILD_TARGET),darwin)
+  # Check if it's the framework or not.
+  _SDK_LIBSDK_IS_FRAMEWORK := $(if $(wildcard $(PATH_SDK_LIBSDL)/Headers/SDL.h),yes)
+ endif
 endif
 
 #
@@ -111,47 +131,59 @@ ifeq ($(BUILD_TARGET),os2)
  	$(PATH_SDK_LIBSDL)/SDLNet \
  	$(PATH_SDK_LIBSDL)/SDLTTF
 
-else
- ifeq ($(BUILD_TARGET),win) # ASSUMES VC++ on windows, sorry.
-  LIB_SDK_LIBSDL_SDLMAIN  ?= $(PATH_SDK_LIBSDL)/lib/SDLmain.lib
-  LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.lib
-  DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.dll
-  LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/lib/SDL_gfx.lib
-  LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/lib/SDL_image.lib
-  LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/lib/SDL_mixer.lib
-  LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/lib/SDL_net.lib
-  LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.lib
-  DLL_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.dll
+else ifeq ($(BUILD_TARGET),win) # ASSUMES VC++ on windows, sorry.
+ LIB_SDK_LIBSDL_SDLMAIN  ?= $(PATH_SDK_LIBSDL)/lib/SDLmain.lib
+ LIB_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.lib
+ DLL_SDK_LIBSDL_SDL      ?= $(PATH_SDK_LIBSDL)/lib/SDL.dll
+ LIB_SDK_LIBSDL_SDLGFX   ?= $(PATH_SDK_LIBSDL)/lib/SDL_gfx.lib
+ LIB_SDK_LIBSDL_SDLIMAGE ?= $(PATH_SDK_LIBSDL)/lib/SDL_image.lib
+ LIB_SDK_LIBSDL_SDLMIXER ?= $(PATH_SDK_LIBSDL)/lib/SDL_mixer.lib
+ LIB_SDK_LIBSDL_SDLNET   ?= $(PATH_SDK_LIBSDL)/lib/SDL_net.lib
+ LIB_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.lib
+ DLL_SDK_LIBSDL_SDLTTF   ?= $(PATH_SDK_LIBSDL)/lib/SDL_ttf.dll
 
-  # General Properties used by kBuild
-  SDK_LIBSDL_INCS ?= \
+ # General Properties used by kBuild
+ SDK_LIBSDL_INCS ?= \
 	$(PATH_SDK_LIBSDL)/include/SDL \
 	$(PATH_SDK_LIBSDL)/include
-  SDK_LIBSDL_LIBS ?= \
+ SDK_LIBSDL_LIBS ?= \
 	$(LIB_SDK_LIBSDL_SDL)
-  SDK_LIBSDL_LIBPATH ?= \
+ SDK_LIBSDL_LIBPATH ?= \
  	$(PATH_SDK_LIBSDL)/lib
 
- else # ASSUMES Unix like system
-  LIB_SDK_LIBSDL_SDLMAIN  ?= SDLmain
-  LIB_SDK_LIBSDL_SDL      ?= SDL
-  LIB_SDK_LIBSDL_SDLGFX   ?= SDL_gfx
-  LIB_SDK_LIBSDL_SDLIMAGE ?= SDL_image
-  LIB_SDK_LIBSDL_SDLMIXER ?= SDL_mixer
-  LIB_SDK_LIBSDL_SDLNET   ?= SDL_net
-  LIB_SDK_LIBSDL_SDLTTF   ?= SDL_ttf
+else ifeq ($(BUILD_TARGET).$(_SDK_LIBSDK_IS_FRAMEWORK),darwin.yes)
+ # darwin + framework
+ LIB_SDK_LIBSDL_SDLMAIN  ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDL      ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDLGFX   ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDLIMAGE ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDLMIXER ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDLNET   ?= $(NO_SUCH_VARIABLE)
+ LIB_SDK_LIBSDL_SDLTTF   ?= $(NO_SUCH_VARIABLE)
 
-  # General Properties used by kBuild
-  ifndef SDK_LIBSDL_INCS
-   ifneq ($(wildcard $(PATH_SDK_LIBSDL)/include/SDL/),)
-    SDK_LIBSDL_INCS := $(PATH_SDK_LIBSDL)/include/SDL
-   else
-    SDK_LIBSDL_INCS := $(PATH_SDK_LIBSDL)/include
-   endif
+ # General Properties used by kBuild
+ SDK_LIBSDL_INCS         ?= $(PATH_SDK_LIBSDL)/Headers
+ SDK_LIBSDL_LDFLAGS      ?= -framework SDL
+
+else # ASSUMES Unix like system
+ LIB_SDK_LIBSDL_SDLMAIN  ?= SDLmain
+ LIB_SDK_LIBSDL_SDL      ?= SDL
+ LIB_SDK_LIBSDL_SDLGFX   ?= SDL_gfx
+ LIB_SDK_LIBSDL_SDLIMAGE ?= SDL_image
+ LIB_SDK_LIBSDL_SDLMIXER ?= SDL_mixer
+ LIB_SDK_LIBSDL_SDLNET   ?= SDL_net
+ LIB_SDK_LIBSDL_SDLTTF   ?= SDL_ttf
+
+ # General Properties used by kBuild
+ ifndef SDK_LIBSDL_INCS
+  ifneq ($(wildcard $(PATH_SDK_LIBSDL)/include/SDL/),)
+   SDK_LIBSDL_INCS := $(PATH_SDK_LIBSDL)/include/SDL
+  else
+   SDK_LIBSDL_INCS := $(PATH_SDK_LIBSDL)/include
   endif
-  SDK_LIBSDL_LIBS ?= \
-	$(LIB_SDK_LIBSDL_SDL)
-  SDK_LIBSDL_LIBPATH ?= \
- 	$(PATH_SDK_LIBSDL)/lib
  endif
+ SDK_LIBSDL_LIBS ?= \
+	$(LIB_SDK_LIBSDL_SDL)
+ SDK_LIBSDL_LIBPATH ?= \
+ 	$(PATH_SDK_LIBSDL)/lib
 endif
