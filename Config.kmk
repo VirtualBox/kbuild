@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1182 2007-10-05 20:41:37Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1245 2007-10-15 16:54:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -144,6 +144,12 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_LIBS            += rt
  endif
  ifeq ($(BUILD_TARGET),solaris)
+  TEMPLATE_BIN_CFLAGS.x86      += -m32
+  TEMPLATE_BIN_CFLAGS.amd64    += -m64
+  TEMPLATE_BIN_CXXFLAGS.x86    += -m32
+  TEMPLATE_BIN_CXXFLAGS.amd64  += -m64
+  TEMPLATE_BIN_LDFLAGS.x86     += -m32
+  TEMPLATE_BIN_LDFLAGS.amd64   += -m64
   TEMPLATE_BIN_LIBS            += rt
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
  endif
