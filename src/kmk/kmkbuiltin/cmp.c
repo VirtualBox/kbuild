@@ -64,6 +64,7 @@ __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $");
 # endif
 #endif
 #include <locale.h>
+#include "getopt.h"
 
 #ifndef O_BINARY
 # define O_BINARY 0

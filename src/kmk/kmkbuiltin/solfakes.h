@@ -26,6 +26,7 @@
 #define __solfakes_h__
 #ifdef __sun__
 
+#include <stdarg.h>
 #include "getopt.h"
 #define _PATH_DEVNULL "/dev/null"
 #define ALLPERMS 0000777
@@ -35,6 +36,9 @@
 #ifndef USHRT_MAX
 # define USHRT_MAX 65535
 #endif
+
+int vasprintf(char **strp, const char *fmt, va_list va);
+int asprintf(char **strp, const char *fmt, ...);
 
 #endif /* __sun__ */
 #endif /* __solfakes_h__ */

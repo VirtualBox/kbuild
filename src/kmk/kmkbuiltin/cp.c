@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "getopt.h"
 
 #ifdef _MSC_VER
 # include "mscfakes.h"
@@ -609,5 +610,5 @@ usage(FILE *fp)
 				"   or: %s --help\n"
 				"   or: %s --version\n",
 			g_progname, g_progname, g_progname, g_progname);
-	return EX_USAGE;
+	return 1;
 }

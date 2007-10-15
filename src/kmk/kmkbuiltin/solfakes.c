@@ -26,9 +26,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#ifdef __sun__
-# undef va_copy /* why? */
-#endif
 #include "solfakes.h"
 
 
@@ -61,7 +58,7 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 #ifdef va_copy
         va_copy(va2, va);
         rc = snprintf(psz, cb, fmt, va2);
-        va_end(vaCopy);
+        va_end(va2);
 #else
         va2 = va;
         rc = snprintf(psz, cb, fmt, va2);
