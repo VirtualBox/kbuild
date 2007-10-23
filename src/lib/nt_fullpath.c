@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1175 2007-10-04 18:33:47Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1248 2007-10-23 12:46:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -150,12 +150,14 @@ static void w32_fixcase(char *pszPath)
         char chSaved1;
         char *pszEnd;
         int iLongNameDiff;
+        size_t cch;
 
 
         /* find the end of the component. */
         pszEnd = psz;
         while (*pszEnd && *pszEnd != '/' && *pszEnd != '\\')
             pszEnd++;
+        cch = pszEnd - psz;
 
         /* replace the end with "?\0" */
         chSaved0 = pszEnd[0];
@@ -170,6 +172,7 @@ static void w32_fixcase(char *pszPath)
         {
             cchLast = psz - pszPath;
             memcpy(s_szLast, pszPath, cchLast + 1);
+            s_szLast[cchLast + 1] = '\0';
             pszEnd[0] = chSaved0;
             return;
         }
@@ -181,12 +184,39 @@ static void w32_fixcase(char *pszPath)
             {
                 cchLast = psz - pszPath;
                 memcpy(s_szLast, pszPath, cchLast + 1);
+                s_szLast[cchLast + 1] = '\0';
                 pszEnd[0] = chSaved0;
                 return;
             }
         }
-        strcpy(psz, !iLongNameDiff ? FindFileData.cFileName : FindFileData.cAlternateFileName);
         pszEnd[0] = chSaved0;
+        if (    iLongNameDiff                           /* matched the short name */
+            ||  !FindFileData.cAlternateFileName[0]     /* no short name */
+            || !memchr(psz, ' ', cch))                  /* no spaces in the matching name */
+            memcpy(psz, !iLongNameDiff ? FindFileData.cFileName : FindFileData.cAlternateFileName, cch);
+        else
+        {
+            /* replace spacy name with the short name. */
+            const size_t cchAlt = strlen(FindFileData.cAlternateFileName);
+            const size_t cchDelta = cch - cchAlt;
+            my_assert(cchAlt > 0);
+            if (!cchDelta)
+                memcpy(psz, FindFileData.cAlternateFileName, cch);
+            else
+            {
+                size_t cbLeft = strlen(pszEnd) + 1;
+                if ((psz - pszPath) + cbLeft + cchAlt <= _MAX_PATH)
+                {
+                    memmove(psz + cchAlt, pszEnd, cbLeft);
+                    pszEnd -= cchDelta;
+                    memcpy(psz, FindFileData.cAlternateFileName, cchAlt);
+                }
+                else
+                    fprintf(stderr, "kBuild: case & space fixed filename is growing too long (%d bytes)! '%s'\n",
+                            (psz - pszPath) + cbLeft + cchAlt, pszPath);
+            }
+        }
+        my_assert(pszEnd[0] == chSaved0);
         FindClose(hDir);
 
         /* advance to the next component */
@@ -385,10 +415,13 @@ nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull)
 
     /*
      * The simple case, the file / dir / whatever exists and can be
-     * queried without problems.
+     * queried without problems and spaces.
      */
     if (nt_get_filename_info(pszPath, pszFull, cchFull) == 0)
     {
+        /** @todo make nt_get_filename_info return spaceless path. */
+        if (strchr(pszPath, ' '))
+            w32_fixcase(pszPath);
 #if 0
         fprintf(stderr, "nt #%d - %s\n", ++s_cHits, pszFull);
 #endif
