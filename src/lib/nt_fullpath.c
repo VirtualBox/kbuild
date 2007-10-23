@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1248 2007-10-23 12:46:50Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1250 2007-10-23 16:12:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -420,10 +420,11 @@ nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull)
     if (nt_get_filename_info(pszPath, pszFull, cchFull) == 0)
     {
         /** @todo make nt_get_filename_info return spaceless path. */
-        if (strchr(pszPath, ' '))
-            w32_fixcase(pszPath);
+        if (strchr(pszFull, ' '))
+            w32_fixcase(pszFull);
 #if 0
-        fprintf(stderr, "nt #%d - %s\n", ++s_cHits, pszFull);
+        fprintf(stdout, "nt #%d - %s\n", ++s_cHits, pszFull);
+        fprintf(stdout, "   #%d - %s\n", s_cHits, pszPath);
 #endif
         return;
     }
@@ -439,6 +440,7 @@ nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull)
     w32_fixcase(pszFull);
 #if 0
     fprintf(stderr, "fb #%d - %s\n", ++s_cFallbacks, pszFull);
+    fprintf(stderr, "   #%d - %s\n", s_cFallbacks, pszPath);
 #endif
 }
 
