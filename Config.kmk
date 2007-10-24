@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1245 2007-10-15 16:54:06Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1251 2007-10-24 03:17:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -39,6 +39,22 @@ DEFS += \
 	KBUILD_VERSION_MAJOR=$(KBUILD_VERSION_MAJOR) \
 	KBUILD_VERSION_MINOR=$(KBUILD_VERSION_MINOR) \
 	KBUILD_VERSION_PATCH=$(KBUILD_VERSION_PATCH)
+
+#
+# The OS and Architecture indicators.
+#
+DEFS.darwin  += KBUILD_OS_DARWIN
+DEFS.freebsd += KBUILD_OS_FREEBSD
+DEFS.linux   += KBUILD_OS_LINUX
+DEFS.netbsd  += KBUILD_OS_NETBSD
+DEFS.openbsd += KBUILD_OS_OPENBSD
+DEFS.os2     += KBUILD_OS_OS2
+DEFS.solaris += KBUILD_OS_SOLARIS
+DEFS.win     += KBUILD_OS_WINDOWS
+
+DEFS.x86     += KBUILD_ARCH_X86
+DEFS.amd64   += KBUILD_ARCH_AMD64
+
 
 #
 # Check if we're building a *nix installation.
