@@ -1,4 +1,4 @@
-# $Id: header.kmk 1191 2007-10-05 23:29:53Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1256 2007-10-25 02:42:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1191 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1256 $  )
 
 
 #
@@ -556,19 +556,19 @@ DEFAULT_MAKEFILE := Makefile.kmk makefile.kmk Makefile makefile
 
 ## PROPS_TOOLS
 # This is a subset of PROPS_SINGLE.
-PROPS_TOOLS := TOOL CTOOL CXXTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
+PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
 
 ## PROPS_SINGLE
 # The list of non-accumulative target properties.
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_SINGLE := $(PROPS_TOOLS) INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
-	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
+	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
 ## PROPS_SINGLE_LNK
 # Subset of PROPS_SINGLE which applies to all linkable targets.
-PROPS_SINGLE_LNK := TOOL CTOOL CXXTOOL ASTOOL RCTOOL \
+PROPS_SINGLE_LNK := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL \
     INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
-	OBJSUFF COBJSUFF CXXOBJSUFF ASOBJSUFF RCOBJSUFF
+	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
@@ -585,6 +585,7 @@ PROPS_ACCUMULATE_R := \
 	ARFLAGS \
 	CFLAGS CDEFS \
 	CXXFLAGS CXXDEFS \
+	OBJCFLAGS OBJCDEFS \
 	ASFLAGS ASDEFS \
 	RCFLAGS RCDEFS \
 	LDFLAGS \
@@ -596,6 +597,7 @@ PROPS_ACCUMULATE_R_LNK := \
 	DEPS ORDERDEPS DEFS \
 	CFLAGS CDEFS \
 	CXXFLAGS CXXDEFS \
+	OBJCFLAGS OBJCDEFS \
 	ASFLAGS ASDEFS \
 	RCFLAGS RCDEFS \
 	IDFLAGS IFDLAGS ISFLAGS
@@ -607,14 +609,14 @@ PROPS_ACCUMULATE_R_LNK := \
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_L := \
 	SDKS SOURCES \
-	INCS CINCS CXXINCX ASINCS RCINCS \
+	INCS CINCS CXXINCS OBJCINCS ASINCS RCINCS \
 	LIBS LIBPATH \
 	DIRS BLDDIRS CLEAN
 ## PROPS_ACCUMULATE_L_LNK
 # Subset of PROPS_ACCUMULATE_L which applies to all linkable targets.
 PROPS_ACCUMULATE_L_LNK := \
 	SDKS SOURCES \
-	INCS CINCS CXXINCX ASINCS RCINCS \
+	INCS CINCS CXXINCS OBJCINCS ASINCS RCINCS \
 	BLDDIRS CLEAN
 
 ## PROPS_ALL
@@ -906,7 +908,7 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  # @param 1     Target name.
  # @param 2     The source filename.
  # @param 3     The primary link output file name.
- # @param 4     The source type (CXX,C,AS,RC,++).
+ # @param 4     The source type (C,CXX,OBJC,AS,RC,++).
  MSG_COMPILE  ?= $(call MSG_L1,Compiling $1 - $2,=> $3)
  ## Tool
  # @param 1     The tool name (bin2c,...)

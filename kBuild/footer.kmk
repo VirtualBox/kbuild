@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1255 2007-10-25 01:58:30Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1256 2007-10-25 02:42:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1457,16 +1457,16 @@ endef
 ## Generic macro for processing C, C++ and Assembly sources.
 # @param    $(target)     Normalized target name.
 # @param    $(source)     Source file name.
-# @param    $(type)       Source type. {C,CXX,AS}
+# @param    $(type)       Source type. {C,CXX,AS,OBJC}
 # @param    bld_type      Build type.
 # @param    bld_trg       Build target.
 # @param    bld_trg_arch  Build target arch.
 # @param    bld_trg_cpu   Build target cpu.
-def_target_source_c_cpp_asm_rc_new = $(kb-src-one )
+def_target_source_c_cpp_objc_asm_rc_new = $(kb-src-one )
 ifdef KMK_VERSION
- def_target_source_c_cpp_asm_rc_var = def_target_source_c_cpp_asm_rc_new
+ def_target_source_c_cpp_objc_asm_rc_var = def_target_source_c_cpp_objc_asm_rc_new
 else
- def_target_source_c_cpp_asm_rc_var = def_target_source_c_cpp_asm_rc_old
+ def_target_source_c_cpp_objc_asm_rc_var = def_target_source_c_cpp_objc_asm_rc_old
 endif
 
 ## Generic macro for processing all target sources.
@@ -1478,22 +1478,27 @@ define def_target_sources
 # C sources
 type := C
 $(foreach source, $(filter %.c             , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-   ,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
+   ,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
 
 # C++ sources
 type := CXX
 $(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
+	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
+
+# Objective-C sources
+type := OBJC
+$(foreach source, $(filter %.m,              $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
+	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
 
 # ASM sources
 type := AS
 $(foreach source, $(filter %.asm %.s %.S   , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
+	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
 
 # Resource sources
 type := RC
 $(foreach source, $(filter %.rc            , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_asm_rc_var))) )
+	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
 
 endef
 
@@ -1603,7 +1608,7 @@ flags       :=\
 	$($(target)_ARFLAGS.$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.rc %.o %.obj %.res,\
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.m %.s %.S %.asm %.rc %.o %.obj %.res,\
 	$($(target)_SOURCES) \
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
@@ -1850,7 +1855,7 @@ flags       :=\
 	$($(target)_LDFLAGS.$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.s %.S %.asm %.rc %.o %.obj %.res,\
+othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.m %.s %.S %.asm %.rc %.o %.obj %.res,\
 	$($(target)_SOURCES)\
 	$($(target)_SOURCES.$(bld_trg)) \
 	$($(target)_SOURCES.$(bld_trg_arch)) \
