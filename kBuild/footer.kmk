@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1242 2007-10-14 15:20:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1255 2007-10-25 01:58:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -984,13 +984,9 @@ endif
 #   it makes use of includedep to avoid too many unnecessary files.
 #
 # @todo
-#	1. Port md5sum or some equivalent tool and include it in kBuild.
-#   2. Download corruption / continuation.
-#   3. It's quite possible that there is one too many indirect dependency now...
+#   1. Download corruption / continuation.
+#   2. It's quite possible that there is one too many indirect dependency now...
 #
-
-## @todo move this!
-MD5SUM := md5sum
 
 ## generates the fetch rule
 define def_fetch_src_fetch_rule
@@ -1000,22 +996,19 @@ $(out) + $($(target)_$(srcname)_FETCH_OUTPUT_) +| $($(target)_$(srcname)_FETCH_O
 		| $($(target)_$(srcname)_FETCH_DEPORD_)
 	$$(call MSG_FETCH_DL,$(target),$(source),$(out))
 	@## @todo do fancy stuff like download continuation.
-	$$(QUIET)$$(RM) -f $(out) $(out).md5
+	$$(QUIET)$$(RM) -f $(out)
 	$($(target)_$(srcname)_FETCH_CMDS_)
-	$$(QUIET2)$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
-	$$(QUIET)$(if $(md5),$$(MD5SUM) -c $(out).md5)
+	$$(QUIET)$(if $(md5),$$(MD5SUM_EXT) -b -C $(md5) $(out))
 
 
 
 # Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
 $(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
 	$$(call MSG_FETCH_CHK,$(target),$(source),$(out))
-	$$(QUIET)$$(RM) -f $$@ $(out).md5
-	@# creates the .md5 we pass to md5sum.
-	$$(QUIET2)$(if $(md5),$$(APPEND) $(out).md5 "$(md5) *$(out)")
+	$$(QUIET)$$(RM) -f $$@
 	@# (re)fetch the file if it doesn't exist or if it doesn't matches the md5.
 	@## @todo do fancy stuff like download continuation.
-	$$(QUIET)( test -f $(out) && $(if $(md5),$$(MD5SUM) -c $(out).md5, true) ) \
+	$$(QUIET)( test -f $(out) && $(if $(md5),$$(MD5SUM_EXT) -b -C $(md5) $(out), true) ) \
 	          || (   $$(RM_EXT) -f $(out) \
 		      && $$(MAKE)      $(out) -f $(MAKEFILE) --no-print-directory )
 	$$(QUIET2)$$(APPEND) $$@
