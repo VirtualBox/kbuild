@@ -1712,8 +1712,20 @@ main (int argc, char **argv, char **envp)
    * lookups to fail because the current directory (.) was pointing
    * at the wrong place when it was first evaluated.
    */
+#ifdef KMK /* this is really a candidate for all platforms... */
+  {
+    extern char *default_shell;
+    char *bin = get_path_kbuild_bin();
+    size_t len = strlen (bin);
+    default_shell = xmalloc (len + sizeof("/kmk_ash.exe"));
+    memcpy (default_shell, bin, len);
+    strcpy (default_shell + len, "/kmk_ash.exe");
+    no_default_sh_exe = 0;
+    batch_mode_shell = 1;
+  }
+#else /* !KMK */
    no_default_sh_exe = !find_and_set_default_shell(NULL);
-
+#endif /* !KMK */
 #endif /* WINDOWS32 */
   /* Figure out the level of recursion.  */
   {
