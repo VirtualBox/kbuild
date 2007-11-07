@@ -1,4 +1,4 @@
-# $Id: GXX3OMF.kmk 1062 2007-06-20 12:08:51Z knut.osmundsen@oracle.com $
+# $Id: GXX3OMF.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF, for building C++ code.
@@ -237,7 +237,7 @@ define TOOL_GXX3OMF_LINK_PROGRAM_CMDS
 		$(objs)\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(QUIET)$(TOOL_GXX3OMF_LD) @$(outbase).rsp
 endef
@@ -268,7 +268,7 @@ define TOOL_GXX3OMF_LINK_DLL_CMDS
 		$(objs)\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(TOOL_GXX3OMF_LD) @$(outbase).rsp
 endef
@@ -299,7 +299,7 @@ define TOOL_GXX3OMF_LINK_SYSMOD_CMDS
 		$(objs)\
 		$(foreach p,$(libpath), -L$(p))\
 		$(othersrc)\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(QUIET)$(TOOL_GXX3OMF_LD_SYSMOD) @$(outbase).rsp
 endef

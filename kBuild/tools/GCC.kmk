@@ -1,4 +1,4 @@
-# $Id: GCC.kmk 973 2007-05-27 17:09:49Z knut.osmundsen@oracle.com $
+# $Id: GCC.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC Using The System GCC.
@@ -194,7 +194,7 @@ TOOL_GCC_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(
 TOOL_GCC_LINK_PROGRAM_DEPORD =
 define TOOL_GCC_LINK_PROGRAM_CMDS
 	$(QUIET)$(TOOL_GCC_LD) $(flags) -o $(out) $(objs) \
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
 endef
 
 
@@ -216,6 +216,6 @@ TOOL_GCC_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subs
 TOOL_GCC_LINK_DLL_DEPORD =
 define TOOL_GCC_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_GCC_LD) $(TOOL_GCC_LDFLAGS.dll) $(flags) -o $(out) $(objs) \
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
 endef
 
