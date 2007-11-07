@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 1257 2007-10-25 02:46:21Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -288,7 +288,7 @@ define TOOL_GCC4MACHO_LINK_PROGRAM_CMDS
 	$(QUIET)$(TOOL_GCC4MACHO_LD) $(flags) -o $(out)\
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
 endef
 
 
@@ -314,7 +314,7 @@ define TOOL_GCC4MACHO_LINK_DLL_CMDS
 		$(call TOOL_GCC4MACHO_LD_SONAME,$(target),$(out))\
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
 endef
 
 
@@ -339,6 +339,6 @@ define TOOL_GCC4MACHO_LINK_SYSMOD_CMDS
 	$(QUIET)$(TOOL_GCC4MACHO_LD_SYSMOD) $(TOOL_GCC4MACHO_LDFLAGS.sysmod) $(flags) -o $(out)\
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
 endef
 

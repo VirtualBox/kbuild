@@ -1,4 +1,4 @@
-# $Id: GXX32.kmk 1063 2007-07-10 15:04:17Z knut.osmundsen@oracle.com $
+# $Id: GXX32.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later using the system GCC, for building C++ code.
@@ -253,7 +253,7 @@ TOOL_GXX32_LINK_PROGRAM_DEPORD =
 define TOOL_GXX32_LINK_PROGRAM_CMDS
 	$(QUIET)$(TOOL_GXX32_LD) $(flags) -o $(out) $(objs)\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GXX32_LD_MAP,$(outbase).map)
 endef
 
@@ -280,7 +280,7 @@ define TOOL_GXX32_LINK_DLL_CMDS
 		$(if $(filter-out win os2, $(BUILD_TARGET)),$(call TOOL_GXX32_LD_SONAME,$(target),$(out)))\
 		$(objs)\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GXX32_LD_MAP,$(outbase).map)
 endef
 
@@ -305,7 +305,7 @@ TOOL_GXX32_LINK_SYSMOD_DEPORD =
 define TOOL_GXX32_LINK_SYSMOD_CMDS
 	$(QUIET)$(TOOL_GXX32_LD_SYSMOD) $(TOOL_GXX32_LDFLAGS.sysmod) $(flags) -o $(out) $(objs)\
 		$(foreach p,$(libpath), -L$(p))\
-		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\
+		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GXX32_LD_SYSMOD_MAP,$(outbase).map)
 endef
 
