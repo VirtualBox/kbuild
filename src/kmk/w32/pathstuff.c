@@ -154,6 +154,13 @@ my_stat(const char *path, struct stat *st)
               }
           }
       }
+#ifdef KMK_PRF
+    {
+        int err = errno;
+        fprintf(stderr, "stat(%s,) -> %d/%d\n", path, rc, errno);
+        errno = err;
+    }
+#endif
     return rc;
 }
 
