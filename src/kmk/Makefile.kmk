@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1263 2007-11-09 23:21:32Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -175,6 +175,11 @@ kmk_SOURCES += \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
 
+## Some profiling
+#kmk_SOURCES += kbuildprf.c
+#kmk_DEFS += open=prf_open read=prf_read lseek=prf_lseek close=prf_close
+##kmk_DEFS += KMK_PRF=1
+##kmkmissing_DEFS += KMK_PRF=1
 
 #
 # Standalone kmkbuiltin commands.
