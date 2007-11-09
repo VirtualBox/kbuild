@@ -21,6 +21,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef KMK_PRF
+# include <stdio.h>
+#endif
 #include "dirent.h"
 
 
@@ -78,6 +81,9 @@ opendir(const char* pDirName)
 	pDir->dir_hDirHandle = INVALID_HANDLE_VALUE;
 	pDir->dir_ulCookie = __DIRENT_COOKIE;
 
+#ifdef KMK_PRF
+	fprintf(stderr, "opendir(%s) -> %p\n", pDirName, pDir);
+#endif
 	return pDir;
 }
 
