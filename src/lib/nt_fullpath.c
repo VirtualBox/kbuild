@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1250 2007-10-23 16:12:16Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1265 2007-11-10 12:39:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -236,12 +236,35 @@ static void w32_fixcase(char *pszPath)
 }
 
 #define MY_FileNameInformation 9
-
 typedef struct _MY_FILE_NAME_INFORMATION
 {
     ULONG FileNameLength;
     WCHAR FileName[1];
 } MY_FILE_NAME_INFORMATION, *PMY_FILE_NAME_INFORMATION;
+
+#define MY_FileInternalInformation 6
+typedef struct _MY_FILE_INTERNAL_INFORMATION {
+    LARGE_INTEGER IndexNumber;
+} MY_FILE_INTERNAL_INFORMATION, *PMY_FILE_INTERNAL_INFORMATION;
+
+#define MY_FileFsVolumeInformation 1
+typedef struct _MY_FILE_FS_VOLUME_INFORMATION
+{
+    LARGE_INTEGER VolumeCreationTime;
+    ULONG VolumeSerialNumber;
+    ULONG VolumeLabelLength;
+    BOOLEAN SupportsObjects;
+    WCHAR VolumeLabel[/*1*/128];
+} MY_FILE_FS_VOLUME_INFORMATION, *PMY_FILE_FS_VOLUME_INFORMATION;
+
+#define MY_FileFsAttributeInformation 5
+typedef struct _MY_FILE_FS_ATTRIBUTE_INFORMATION
+{
+    ULONG FileSystemAttributes;
+    LONG MaximumComponentNameLength;
+    ULONG FileSystemNameLength;
+    WCHAR FileSystemName[/*1*/64];
+} MY_FILE_FS_ATTRIBUTE_INFORMATION, *PMY_FILE_FS_ATTRIBUTE_INFORMATION;
 
 typedef struct _IO_STATUS_BLOCK
 {
@@ -253,23 +276,31 @@ typedef struct _IO_STATUS_BLOCK
     ULONG_PTR Information;
 } MY_IO_STATUS_BLOCK, *PMY_IO_STATUS_BLOCK;
 
-static BOOL g_fInitialized = FALSE;
-static int  g_afNtfsDrives['Z' - 'A' + 1];
+static BOOL                             g_fInitialized = FALSE;
+static int                              g_afNtfsDrives['Z' - 'A' + 1];
+static MY_FILE_FS_VOLUME_INFORMATION    g_aVolumeInfo['Z' - 'A' + 1];
+
 static LONG (NTAPI *g_pfnNtQueryInformationFile)(HANDLE FileHandle,
     PMY_IO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,
     ULONG Length, ULONG FileInformationClass);
+static LONG (NTAPI *g_pfnNtQueryVolumeInformationFile)(HANDLE FileHandle,
+    PMY_IO_STATUS_BLOCK IoStatusBlock, PVOID FsInformation,
+    ULONG Length, ULONG FsInformationClass);
 
 
 int
 nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
 {
-    static char                 abBuf[8192];
-    PMY_FILE_NAME_INFORMATION   pFileNameInfo = (PMY_FILE_NAME_INFORMATION)abBuf;
-    MY_IO_STATUS_BLOCK          Ios;
-    LONG                        rcNt;
+    static char                     abBuf[8192];
+    PMY_FILE_NAME_INFORMATION       pFileNameInfo = (PMY_FILE_NAME_INFORMATION)abBuf;
+    PMY_FILE_FS_VOLUME_INFORMATION  pFsVolInfo = (PMY_FILE_FS_VOLUME_INFORMATION)abBuf;
+    MY_IO_STATUS_BLOCK              Ios;
+    LONG                            rcNt;
     HANDLE                      hFile;
-    int                         cchOut;
-    char                       *psz;
+    int                             cchOut;
+    char                           *psz;
+    int                             iDrv;
+    int                             rc;
 
     /*
      * Check for NtQueryInformationFile the first time around.
@@ -278,13 +309,23 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
     {
         g_fInitialized = TRUE;
         if (!getenv("KMK_DONT_USE_NT_QUERY_INFORMATION_FILE"))
+        {
             *(FARPROC *)&g_pfnNtQueryInformationFile =
                 GetProcAddress(LoadLibrary("ntdll.dll"), "NtQueryInformationFile");
-        if (g_pfnNtQueryInformationFile)
+            *(FARPROC *)&g_pfnNtQueryVolumeInformationFile =
+                GetProcAddress(LoadLibrary("ntdll.dll"), "NtQueryVolumeInformationFile");
+        }
+        if (    g_pfnNtQueryInformationFile
+            &&  g_pfnNtQueryVolumeInformationFile)
         {
             unsigned i;
             for (i = 0; i < sizeof(g_afNtfsDrives) / sizeof(g_afNtfsDrives[0]); i++ )
                 g_afNtfsDrives[i] = -1;
+        }
+        else
+        {
+            g_pfnNtQueryVolumeInformationFile = NULL;
+            g_pfnNtQueryInformationFile = NULL;
         }
     }
     if (!g_pfnNtQueryInformationFile)
@@ -325,30 +366,70 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
         *psz++ = _getdrive() + 'A' - 1;
         *psz++ = ':';
     }
+    iDrv = *pszFull - 'A';
 
     /*
      * Fat32 doesn't return filenames with the correct case, so restrict it
      * to NTFS volumes for now.
      */
-    if (g_afNtfsDrives[*pszFull - 'A'] == -1)
+    if (g_afNtfsDrives[iDrv] == -1)
     {
-        char szFSName[32];
-
+        /* FSCTL_GET_REPARSE_POINT? Enumerate mount points? */
+        g_afNtfsDrives[iDrv] = 0;
         psz[0] = '\\';
         psz[1] = '\0';
-        if (    GetVolumeInformation(pszFull,
-                                     NULL, 0,   /* volume name */
-                                     NULL,      /* serial number */
-                                     NULL,      /* max component */
-                                     NULL,      /* volume attribs */
-                                     szFSName,
-                                     sizeof(szFSName))
-            &&  !strcmp(szFSName, "NTFS"))
-            g_afNtfsDrives[*pszFull - 'A'] = 1;
-        else
-            g_afNtfsDrives[*pszFull - 'A'] = 0;
+#if 1
+        hFile = CreateFile(pszFull,
+                           GENERIC_READ,
+                           FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           NULL,
+                           OPEN_EXISTING,
+                           FILE_FLAG_BACKUP_SEMANTICS,
+                           NULL);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            PMY_FILE_FS_ATTRIBUTE_INFORMATION pFsAttrInfo = (PMY_FILE_FS_ATTRIBUTE_INFORMATION)abBuf;
+
+            memset(&Ios, 0, sizeof(Ios));
+            rcNt = g_pfnNtQueryVolumeInformationFile(hFile, &Ios, abBuf, sizeof(abBuf),
+                                                     MY_FileFsAttributeInformation);
+            if (    rcNt >= 0
+                //&&  pFsAttrInfo->FileSystemNameLength == 4
+                &&  pFsAttrInfo->FileSystemName[0] == 'N'
+                &&  pFsAttrInfo->FileSystemName[1] == 'T'
+                &&  pFsAttrInfo->FileSystemName[2] == 'F'
+                &&  pFsAttrInfo->FileSystemName[3] == 'S'
+                &&  pFsAttrInfo->FileSystemName[4] == '\0')
+            {
+                memset(&Ios, 0, sizeof(Ios));
+                rcNt = g_pfnNtQueryVolumeInformationFile(hFile, &Ios, &g_aVolumeInfo[iDrv],
+                                                         sizeof(MY_FILE_FS_VOLUME_INFORMATION),
+                                                         MY_FileFsVolumeInformation);
+                if (rcNt >= 0)
+                {
+                    g_afNtfsDrives[iDrv] = 1;
+                }
+            }
+            CloseHandle(hFile);
+        }
+#else
+        {
+            char szFSName[32];
+            if (    GetVolumeInformation(pszFull,
+                                         NULL, 0,   /* volume name */
+                                         NULL,      /* serial number */
+                                         NULL,      /* max component */
+                                         NULL,      /* volume attribs */
+                                         szFSName,
+                                         sizeof(szFSName))
+                &&  !strcmp(szFSName, "NTFS"))
+            {
+                g_afNtfsDrives[iDrv] = 1;
+            }
+        }
+#endif
     }
-    if (!g_afNtfsDrives[*pszFull - 'A'])
+    if (!g_afNtfsDrives[iDrv])
         return -1;
 
     /*
@@ -361,44 +442,64 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
                        OPEN_EXISTING,
                        FILE_FLAG_BACKUP_SEMANTICS,
                        NULL);
-    if (hFile)
+    if (hFile != INVALID_HANDLE_VALUE)
     {
+        /* check that the driver letter is correct first (reparse / symlink issues). */
         memset(&Ios, 0, sizeof(Ios));
-        rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, abBuf, sizeof(abBuf), MY_FileNameInformation);
-        CloseHandle(hFile);
+        rcNt = g_pfnNtQueryVolumeInformationFile(hFile, &Ios, pFsVolInfo, sizeof(*pFsVolInfo), MY_FileFsVolumeInformation);
         if (rcNt >= 0)
         {
-            cchOut = WideCharToMultiByte(CP_ACP, 0,
-                                         pFileNameInfo->FileName, pFileNameInfo->FileNameLength / sizeof(WCHAR),
-                                         psz, (int)(cchFull - (psz - pszFull) - 2), NULL, NULL);
-            if (cchOut > 0)
+            /** @todo do a quick search and try correct the drive letter? */
+            if (    pFsVolInfo->VolumeCreationTime.QuadPart == g_aVolumeInfo[iDrv].VolumeCreationTime.QuadPart
+                &&  pFsVolInfo->VolumeSerialNumber == g_aVolumeInfo[iDrv].VolumeSerialNumber)
             {
-                const char *pszEnd;
-#if 0
-                /* upper case the server and share */
-                if (fUnc)
+                memset(&Ios, 0, sizeof(Ios));
+                rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, abBuf, sizeof(abBuf), MY_FileNameInformation);
+                if (rcNt >= 0)
                 {
-                    for (psz++; *psz != '/' && *psz != '\\'; psz++)
-                        *psz = toupper(*psz);
-                    for (psz++; *psz != '/' && *psz != '\\'; psz++)
-                        *psz = toupper(*psz);
-                }
+                    cchOut = WideCharToMultiByte(CP_ACP, 0,
+                                                 pFileNameInfo->FileName, pFileNameInfo->FileNameLength / sizeof(WCHAR),
+                                                 psz, (int)(cchFull - (psz - pszFull) - 2), NULL, NULL);
+                    if (cchOut > 0)
+                    {
+                        const char *pszEnd;
+#if 0
+                        /* upper case the server and share */
+                        if (fUnc)
+                        {
+                            for (psz++; *psz != '/' && *psz != '\\'; psz++)
+                                *psz = toupper(*psz);
+                            for (psz++; *psz != '/' && *psz != '\\'; psz++)
+                                *psz = toupper(*psz);
+                        }
 #endif
-                /* add trailing slash on directories if input has it. */
-                pszEnd = strchr(pszPath, '\0');
-                if (    (pszEnd[-1] == '/' || pszEnd[-1] == '\\')
-                    &&  psz[cchOut - 1] != '\\'
-                    &&  psz[cchOut - 1] != '//')
-                    psz[cchOut++] = '\\';
+                        /* add trailing slash on directories if input has it. */
+                        pszEnd = strchr(pszPath, '\0');
+                        if (    (pszEnd[-1] == '/' || pszEnd[-1] == '\\')
+                            &&  psz[cchOut - 1] != '\\'
+                            &&  psz[cchOut - 1] != '//')
+                            psz[cchOut++] = '\\';
 
-                /* make sure it's terminated */
-                psz[cchOut] = '\0';
-                return 0;
+                        /* make sure it's terminated */
+                        psz[cchOut] = '\0';
+                        rc = 0;
+                    }
+                    else
+                        rc = -3;
+                }
+                else
+                    rc = -4;
             }
-            return -3;
+            else
+                rc = -5;
         }
+        else
+            rc = -6;
+        CloseHandle(hFile);
     }
-    return -2;
+    else
+        rc = -7;
+    return rc;
 }
 
 /**
