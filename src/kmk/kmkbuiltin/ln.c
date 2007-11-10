@@ -255,6 +255,7 @@ usage(FILE *pf)
 				"   or: %s [-fhinsv] source_file ... target_dir\n"
                 "   or: %s source_file target_file\n"
 				"   or: %s --help\n"
-				"   or: %s --version\n");
+				"   or: %s --version\n",
+                g_progname, g_progname, g_progname, g_progname, g_progname);
 	return 1;
 }
