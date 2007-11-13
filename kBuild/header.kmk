@@ -1,4 +1,4 @@
-# $Id: header.kmk 1256 2007-10-25 02:42:13Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1267 2007-11-13 08:12:06Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1256 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1267 $  )
 
 
 #
@@ -1018,5 +1018,4 @@ endif
 # end-of-file-content
 __header_kmk__ := 1
 endif # __header_kmk__
-
 
