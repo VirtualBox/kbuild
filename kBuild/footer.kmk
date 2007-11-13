@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1260 2007-11-07 23:09:47Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1266 2007-11-13 08:03:31Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -232,8 +232,8 @@ ifneq ($(src),)
   $(trg)_EXTENDS_STATUS_ := 42
  else
   # Check for inheritance loops.
-  ifneq ($(target)_EXTENDS_STATUS_),42)
-   $(error kBuild: Target inheritance loop! target=$(target))
+  ifneq ($($(trg)_EXTENDS_STATUS_),42)
+   $(error kBuild: Target inheritance loop! target=$(trg) $(trg)_EXTENDS_STATUS_=$($(trg)_EXTENDS_STATUS_))
   endif
  endif
 endif
