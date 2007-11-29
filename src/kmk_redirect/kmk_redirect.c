@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1271 2007-11-29 20:36:18Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_redirect.c 1275 2007-11-29 20:56:45Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -178,7 +178,9 @@ int main(int argc, char **argv, char **envp)
                     break;
 
                 default:
+#ifdef O_BINARY
                     fOpen |= O_BINARY;
+#endif
                     break;
 
             }
@@ -269,7 +271,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef _MSC_VER
                 /** @todo figure out how to make the handle close-on-exec. We'll simply close it for now. */
 #else
-                if (fcntl(channel, F_SETFD, FD_CLOEXEC) == -1)
+                if (fcntl(fdOpened, F_SETFD, FD_CLOEXEC) == -1)
                 {
                     fprintf(pStdErr, "%s: error: failed to make stderr (%d) close-on-exec: %s\n", argv[0], fdOpened, strerror(errno));
                     return 1;
