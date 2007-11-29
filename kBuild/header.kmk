@@ -1,4 +1,4 @@
-# $Id: header.kmk 1267 2007-11-13 08:12:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1272 2007-11-29 20:44:57Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1267 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1272 $  )
 
 
 #
@@ -401,28 +401,28 @@ endif
 MAKE        := $(KMK)
 
 DEP_EXT     := $(PATH_KBUILD_BIN)/kDep$(HOSTSUFF_EXE)
-ifeq ($(filter kDep,$(KMK_BUILTIN)),kDep)
+if1of (kDep,$(KMK_BUILTIN))
 DEP         := kmk_builtin_kDep
 else
 DEP         := $(DEP_EXT)
 endif
 
 DEP_IDB_EXT := $(PATH_KBUILD_BIN)/kDepIDB$(HOSTSUFF_EXE)
-ifeq ($(filter kDepIDB,$(KMK_BUILTIN)),kDepIDB)
+if1of (kDepIDB,$(KMK_BUILTIN))
 DEP_IDB     := kmk_builtin_kDepIDB
 else
 DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
 DEP_PRE_EXT := $(PATH_KBUILD_BIN)/kDepPre$(HOSTSUFF_EXE)
-ifeq ($(filter kDepPre,$(KMK_BUILTIN)),kDepPre)
+if1of (kDepPre,$(KMK_BUILTIN))
 DEP_PRE     := kmk_builtin_kDepPre
 else
 DEP_PRE     := $(DEP_PRE_EXT)
 endif
 
 KOBJCACHE_EXT := $(PATH_KBUILD_BIN)/kObjCache$(HOSTSUFF_EXE)
-ifeq ($(filter kObjCache,$(KMK_BUILTIN)),kObjCache)
+if1of (kObjCache,$(KMK_BUILTIN))
 KOBJCACHE   := kmk_builtin_kObjCache
 else
 KOBJCACHE   := $(KOBJCACHE_EXT)
@@ -461,6 +461,13 @@ MV          := kmk_builtin_mv
 PRINTF_EXT  := $(PATH_KBUILD_BIN)/kmk_printf$(HOSTSUFF_EXE)
 PRINTF      := kmk_builtin_printf
 
+REDIRECT_EXT:= $(PATH_KBUILD_BIN)/kmk_redirect$(HOSTSUFF_EXE)
+if1of (redirect,$(KMK_BUILTIN))
+REDIRECT    := kmk_builtin_redirect
+else
+REDIRECT    := $(REDIRECT_EXT)
+endif
+
 RM_EXT      := $(PATH_KBUILD_BIN)/kmk_rm$(HOSTSUFF_EXE)
 RM          := kmk_builtin_rm
 
@@ -468,7 +475,7 @@ RMDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_rmdir$(HOSTSUFF_EXE)
 RMDIR       := kmk_builtin_rmdir
 
 SED_EXT     := $(PATH_KBUILD_BIN)/kmk_sed$(HOSTSUFF_EXE)
-ifeq ($(filter sed,$(KMK_BUILTIN)),sed)
+if1of (sed, $(KMK_BUILTIN))
 SED_INT     := kmk_builtin_sed
 else
 SED_INT     := $(SED_EXT)
