@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1275 2007-11-29 20:56:45Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_redirect.c 1276 2007-11-29 20:59:09Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -269,7 +269,9 @@ int main(int argc, char **argv, char **envp)
                     return 1;
                 }
 #ifdef _MSC_VER
-                /** @todo figure out how to make the handle close-on-exec. We'll simply close it for now. */
+                /** @todo figure out how to make the handle close-on-exec. We'll simply close it for now. 
+                 * SetHandleInformation + set FNOINHERIT in CRT.
+                 */
 #else
                 if (fcntl(fdOpened, F_SETFD, FD_CLOEXEC) == -1)
                 {
