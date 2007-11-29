@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1276 2007-11-29 20:59:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_redirect.c 1278 2007-11-29 23:46:50Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -51,7 +51,7 @@ static int usage(FILE *pOut,  const char *argv0)
             "   or: %s --version\n"
             "\n"
             "The rwa+tb is like for fopen, if not specified it defaults to w+.\n"
-            "The <fd> is either a number or an alias for the standard handles;\n" 
+            "The <fd> is either a number or an alias for the standard handles;\n"
             "i - stdin, o - stdout, e - stderr.\n"
             ,
             argv0, argv0, argv0);
@@ -59,9 +59,12 @@ static int usage(FILE *pOut,  const char *argv0)
 }
 
 
-int main(int argc, char **argv, char **envp)
+int main(int argc, char **argv)
 {
     int i;
+#if defined(_MSC_VER)
+    intptr_t rc;
+#endif
     FILE *pStdErr = stderr;
     FILE *pStdOut = stdout;
 
@@ -111,7 +114,7 @@ int main(int argc, char **argv, char **envp)
                 return 0;
             }
 
-            /* 
+            /*
              * Parse a file descriptor argument.
              */
 
@@ -173,7 +176,7 @@ int main(int argc, char **argv, char **envp)
                 case 't':
 #ifdef O_TEXT
                     fOpen |= O_TEXT;
-#endif 
+#endif
                     psz++;
                     break;
 
@@ -192,12 +195,12 @@ int main(int argc, char **argv, char **envp)
                     fd = 1;
                     psz++;
                     break;
-                        
+
                 case 'e':
                     fd = 2;
                     psz++;
                     break;
-    
+
                 case '0':
                     if (!psz[1])
                     {
@@ -219,7 +222,7 @@ int main(int argc, char **argv, char **envp)
                     {
                         fprintf(pStdErr, "%s: error: failed to convert '%s' to a number\n", argv[0], argv[i]);
                         return 1;
-                        
+
                     }
                     if (fd < 0)
                     {
@@ -257,7 +260,7 @@ int main(int argc, char **argv, char **envp)
              */
             if (fd == fileno(pStdErr))
             {
-                /* 
+                /*
                  * Move stderr to a new location, making it close on exec.
                  * If pStdOut has already teamed up with pStdErr, update it too.
                  */
@@ -269,7 +272,7 @@ int main(int argc, char **argv, char **envp)
                     return 1;
                 }
 #ifdef _MSC_VER
-                /** @todo figure out how to make the handle close-on-exec. We'll simply close it for now. 
+                /** @todo figure out how to make the handle close-on-exec. We'll simply close it for now.
                  * SetHandleInformation + set FNOINHERIT in CRT.
                  */
 #else
@@ -278,7 +281,7 @@ int main(int argc, char **argv, char **envp)
                     fprintf(pStdErr, "%s: error: failed to make stderr (%d) close-on-exec: %s\n", argv[0], fdOpened, strerror(errno));
                     return 1;
                 }
-#endif 
+#endif
 
                 pNew = fdopen(fdOpened, "w");
                 if (!pNew)
@@ -334,24 +337,24 @@ int main(int argc, char **argv, char **envp)
         return usage(pStdErr, argv[0]);
     }
 
-#if 0/** @todo defined(_MSC_VER)
-    / * 
-     * We'll have to find the '--' in the commandline and pass that 
-     * on to CreateProcess or spawn. Otherwise, the argument qouting 
+#if defined(_MSC_VER)
+    /** @todo
+     * We'll have to find the '--' in the commandline and pass that
+     * on to CreateProcess or spawn. Otherwise, the argument qouting
      * is gonna be messed up.
      */
-#else
-# if defined(_MSC_VER) /* tmp hack. */
     if (fileno(pStdErr) != 2)
-    {
         fclose(pStdErr);
-        execv(argv[i], &argv[i]);
-        return 1;
+    rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
+    if (rc == -1 && fileno(pStdErr) != 2)
+    {
+        fprintf(pStdErr, "%s: error: _spawnvp(_P_WAIT,%s,..) failed: %s\n", argv[0], argv[i], strerror(errno));
+        rc = 1;
     }
-# endif
-    execv(argv[i], &argv[i]);
-    fprintf(pStdErr, "%s: error: execv(%s,..) failed: %s\n", argv[0], argv[i], strerror(errno));
-#endif
+    return rc;
+#else
+    execvp(argv[i], &argv[i]);
     return 1;
+#endif
 }
 
