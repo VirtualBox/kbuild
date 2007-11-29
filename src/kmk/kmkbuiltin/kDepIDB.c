@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1269 2007-11-29 18:25:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -972,6 +972,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      * Do the parsing.
      */
     i = ProcessIDB(pInput);
+    fclose(pInput);
 
     /*
      * Write the dependecy file.
