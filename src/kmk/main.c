@@ -3295,8 +3295,8 @@ print_version (void)
 %sBased on GNU Make %s:\n\
 %s Copyright (C) 2006  Free Software Foundation, Inc.\n\
 \n\
-%skBuild Modifications:\n\
-%s Copyright (C) 2005-2006  Knut St. Osmundsen.\n\
+%skBuild modifications:\n\
+%s Copyright (C) 2005-2007  Knut St. Osmundsen.\n\
 \n\
 %skmkbuiltin commands derived from *BSD sources:\n\
 %s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
