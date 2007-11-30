@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1278 2007-11-29 23:46:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_redirect.c 1281 2007-11-30 01:28:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -46,13 +46,20 @@
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s [-[rwa+tb]<fd> <file>] -- <program> [args]\n"
+            "usage: %s [-[rwa+tb]<fd>[=|:| ]<file>] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
             "The rwa+tb is like for fopen, if not specified it defaults to w+.\n"
-            "The <fd> is either a number or an alias for the standard handles;\n"
-            "i - stdin, o - stdout, e - stderr.\n"
+            "The <fd> is either a number or an alias for the standard handles:\n"
+            "   i = stdin\n"
+            "   o = stdout\n"
+            "   e = stderr\n"
+            "\n"
+            "This command is really just a quick hack to avoid invoking the shell\n"
+            "on Windows (cygwin) where forking is very expensive and has exhibited\n"
+            "stability issues on SMP machines. This tool may be retired when kBuild\n"
+            "starts using the kmk_kash shell.\n"
             ,
             argv0, argv0, argv0);
     return 1;
@@ -67,7 +74,6 @@ int main(int argc, char **argv)
 #endif
     FILE *pStdErr = stderr;
     FILE *pStdOut = stdout;
-
 
     /*
      * Parse arguments.
@@ -244,16 +250,23 @@ int main(int argc, char **argv)
              */
             if (*psz)
             {
-                fprintf(pStdErr, "%s: syntax error: characters following the file descriptor: '%s' ('%s')\n", argv[0], psz, argv[i]);
-                return 1;
+                if (*psz != ':' && *psz != '=')
+                {
+                    fprintf(pStdErr, "%s: syntax error: characters following the file descriptor: '%s' ('%s')\n", argv[0], psz, argv[i]);
+                    return 1;
+                }
+                psz++;
             }
-            i++;
-            if (i >= argc )
+            else
             {
-                fprintf(pStdErr, "%s: syntax error: missing filename argument.\n", argv[0]);
-                return 1;
+                i++;
+                if (i >= argc)
+                {
+                    fprintf(pStdErr, "%s: syntax error: missing filename argument.\n", argv[0]);
+                    return 1;
+                }
+                psz = argv[i];
             }
-            psz = argv[i];
 
             /*
              * Setup the redirection.
