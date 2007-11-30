@@ -1463,6 +1463,9 @@ main (int argc, char **argv, char **envp)
 
   /* Decode the switches.  */
 
+#ifdef KMK
+  decode_env_switches (STRING_SIZE_TUPLE ("KMKFLAGS"));
+#endif
   decode_env_switches (STRING_SIZE_TUPLE ("MAKEFLAGS"));
 #if 0
   /* People write things like:
