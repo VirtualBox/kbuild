@@ -1,4 +1,4 @@
-/* $Id: kDep.c 1177 2007-10-05 07:59:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1283 2007-11-30 02:54:36Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -35,29 +35,17 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/stat.h>
-#ifdef __WIN32__
+#include <k/kDefs.h>
+#if K_OS == K_OS_WINDOWS
 # include <windows.h>
-#endif
-#if !defined(__WIN32__) && !defined(__OS2__)
+ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
+#else
 # include <dirent.h>
-#endif
-#ifndef __WIN32__
 # include <unistd.h>
 # include <stdint.h>
-#else
- typedef unsigned char  uint8_t;
- typedef unsigned short uint16_t;
- typedef unsigned int   uint32_t;
- extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
 #endif
 
 #include "kDep.h"
-
-#ifdef NEED_ISBLANK
-# define isblank(ch) ( (unsigned char)(ch) == ' ' || (unsigned char)(ch) == '\t' )
-#endif
-
-#define OFFSETOF(type, member)  ( (int)(void *)&( ((type *)(void *)0)->member) )
 
 
 /*******************************************************************************
@@ -82,7 +70,7 @@ static char *fixslash(char *pszFilename)
 }
 
 
-#if defined(__OS2__)
+#if K_OS == K_OS_OS2
 
 /**
  * Corrects the case of a path.
@@ -95,7 +83,7 @@ static void fixcase(char *pszFilename)
     return;
 }
 
-#elif !defined(__WIN32__) && !defined(__WIN64__)
+#elif K_OS != K_OS_WINDOWS
 
 /**
  * Corrects the case of a path.
@@ -177,8 +165,7 @@ static void fixcase(char *pszFilename)
     return;
 }
 
-
-#endif
+#endif /* !OS/2 && !Windows */
 
 
 /**
@@ -194,7 +181,7 @@ void depOptimize(int fFixCase)
     g_pDeps = NULL;
     for (; pDep; pDep = pDep->pNext)
     {
-#ifdef __WIN32__
+#ifndef PATH_MAX
         char        szFilename[_MAX_PATH + 1];
 #else
         char        szFilename[PATH_MAX + 1];
@@ -210,7 +197,7 @@ void depOptimize(int fFixCase)
             continue;
         pszFilename = pDep->szFilename;
 
-#if !defined(__OS2__) && !defined(__WIN32__)
+#if K_OS != K_OS_OS2 && K_OS != K_OS_WINDOWS
         /*
          * Skip any drive letters from compilers running in wine.
          */
@@ -224,7 +211,7 @@ void depOptimize(int fFixCase)
          */
         if (fFixCase)
         {
-#if defined(__WIN32__) || defined(__WIN64__)
+#if K_OS == K_OS_WINDOWS
             nt_fullpath(pszFilename, szFilename, sizeof(szFilename));
 #else
             strcpy(szFilename, pszFilename);
