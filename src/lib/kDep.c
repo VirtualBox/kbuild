@@ -1,4 +1,4 @@
-/* $Id: kDep.c 1283 2007-11-30 02:54:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1284 2007-11-30 02:56:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <sys/stat.h>
-#include <k/kDefs.h>
+#include "k/kDefs.h"
 #if K_OS == K_OS_WINDOWS
 # include <windows.h>
  extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
