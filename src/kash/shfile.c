@@ -1,4 +1,4 @@
-/* $Id: shfile.c 1241 2007-10-10 02:33:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 1286 2007-11-30 03:08:25Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -28,7 +28,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef KBUILD_OS_WINDOWS
+#if K_OS == K_OS_WINDOWS
 # include <limits.h>
 # ifndef PIPE_BUF
 #  define PIPE_BUF 512
