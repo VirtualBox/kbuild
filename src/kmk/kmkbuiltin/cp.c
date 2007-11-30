@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include <unistd.h>
 #include "getopt.h"
 
+#include "k/kDefs.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
@@ -100,7 +101,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 # define __unused
 #endif
 
-#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
 # define IS_SLASH(ch)   ((ch) == '/' || (ch) == '\\')
 #else
 # define IS_SLASH(ch)   ((ch) == '/')
@@ -121,6 +122,7 @@ PATH_T to = { to.p_path, emptystring, "" };
 int fflag, iflag, nflag, pflag, vflag;
 static int Rflag, rflag;
 volatile sig_atomic_t info;
+static int cp_ignore_non_existing, cp_changed_only;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
@@ -128,6 +130,8 @@ static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
     { "version",   					no_argument, 0, 262 },
+    { "ignore-non-existing",				no_argument, 0, 263 },
+    { "changed",					no_argument, 0, 264 },
     { 0, 0,	0, 0 },
 };
 
@@ -154,6 +158,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
         memset(to.p_path, 0, sizeof(to.p_path));
         fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
         info = 0;
+	cp_ignore_non_existing = cp_changed_only = 0;
 
         /* reset getopt and set progname. */
         g_progname = argv[0];
@@ -214,6 +219,12 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
+		case 263:
+			cp_ignore_non_existing = 1;
+			break;
+		case 264:
+			cp_changed_only = 1;
+			break;
 		default:
 		        return usage(stderr);
 		}
@@ -353,6 +364,14 @@ copy(char *argv[], enum op type, int fts_options)
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
 		switch (curr->fts_info) {
 		case FTS_NS:
+			if (   cp_ignore_non_existing
+			    && curr->fts_errno == ENOENT) {
+				if (vflag) {
+					warnx("%s: %s", curr->fts_path,
+					      strerror(curr->fts_errno));
+				}
+				continue;
+			}
 		case FTS_DNR:
 		case FTS_ERR:
 			warnx("%s: %s",
@@ -394,7 +413,7 @@ copy(char *argv[], enum op type, int fts_options)
 			if (curr->fts_level == FTS_ROOTLEVEL) {
 				if (type != DIR_TO_DNE) {
 					p = strrchr(curr->fts_path, '/');
-#if defined(__WIN32__) || defined(__WIN64__) || defined(__OS2__)
+#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
                                         if (strrchr(curr->fts_path, '\\') > p)
                                             p = strrchr(curr->fts_path, '\\');
 #endif
@@ -605,10 +624,24 @@ siginfo(int sig __unused)
 static int
 usage(FILE *fp)
 {
-	fprintf(fp, "usage: %s [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target\n"
-				"   or: %s [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-			g_progname, g_progname, g_progname, g_progname);
+	fprintf(fp, "usage: %s [options] src target\n"
+	            "   or: %s [options] src1 ... srcN directory\n"
+	            "   or: %s --help\n"
+	            "   or: %s --version\n"
+	            "\n"
+	            "Options:\n"
+	            "   -R  Recursive copy.\n"
+	            "   -H  Description. Only valid with -R.\n"
+	            "   -L  Description. Only valid with -R.\n"
+	            "   -P  Description. Only valid with -R\n"
+	            "   -f  Force. Overrides -i and -n.\n"
+	            "   -i  Iteractive. Overrides -n and -f.\n"
+	            "   -n  Don't overwrite any files. Overrides -i and -f.\n"
+	            "   --ignore-non-existing\n"
+	            "       Don't fail if the specified source file doesn't exist.\n"
+	            "   --changed\n"
+	            "       Only copy if changed (i.e. compare first). TODO.\n"
+	        ,
+	        g_progname, g_progname, g_progname, g_progname);
 	return 1;
 }
