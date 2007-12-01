@@ -277,7 +277,7 @@ int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn
 			}
 
 			argv_new = xmalloc((argc_new + 1) * sizeof(char *));
-			buf = cur = xmalloc(argc_new * sizeof(char *));
+			buf = cur = xmalloc(sz);
 			for (i = 0; i < argc_new; i++) {
 				size_t len = strlen(argv_spawn[i]) + 1;
 				argv_new[i] = memcpy(cur, argv_spawn[i], len);
