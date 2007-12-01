@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 1292 2007-12-01 03:30:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 1293 2007-12-01 03:42:50Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -249,10 +249,10 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
         assert(!*pPidSpawned);
 
         *ppapszArgvToSpawn = NULL;
-        rc = kmk_builtin_command_parsed (argc_new, argv_new, ppapszArgvToSpawn, pPidSpawned);
+        rc = kmk_builtin_command_parsed(argc_new, argv_new, ppapszArgvToSpawn, pPidSpawned);
 
-        free (argv_new[0]);
-        free (argv_new);
+        free(argv_new[0]);
+        free(argv_new);
     }
 
     return rc;
