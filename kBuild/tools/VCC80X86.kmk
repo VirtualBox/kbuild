@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 1288 2007-11-30 03:58:03Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 1295 2007-12-01 03:44:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
@@ -242,9 +242,14 @@ define TOOL_VCC80X86_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
+ifdef KMK_USE_TEST
+	$(QUIET)$(TEST) -f $(out).manifest -- \
+		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out))
+else
 	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out)); \
 	fi
+endif
 endef
 
 
@@ -278,9 +283,14 @@ define TOOL_VCC80X86_LINK_DLL_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
+ifdef KMK_USE_TEST
+	$(QUIET)$(TEST) -f $(out).manifest -- \
+		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"
+else
 	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"; \
 	fi
+endif
 ifeq ($(filter %.exp .def,$(othersrc)),)
 ifdef KMK_NEW_CP
 	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_LIB)/
@@ -321,8 +331,13 @@ define TOOL_VCC80X86_LINK_SYSMOD_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
+ifdef KMK_USE_TEST
+	$(QUIET)$(TEST) -f $(out).manifest -- \
+		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"
+else
 	$(QUIET)if test -f $(out).manifest; then \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest "-outputresource:$(subst /,\\,$(out));#2"; \
 	fi
+endif
 endef
 
