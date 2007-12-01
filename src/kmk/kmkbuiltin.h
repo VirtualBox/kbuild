@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 1290 2007-12-01 00:22:28Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 1292 2007-12-01 03:30:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command handling.
@@ -48,6 +48,7 @@ extern int kmk_builtin_mv(int argc, char **argv, char **envp);
 extern int kmk_builtin_printf(int argc, char **argv, char **envp);
 extern int kmk_builtin_rm(int argc, char **argv, char **envp);
 extern int kmk_builtin_rmdir(int argc, char **argv, char **envp);
+extern int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn);
 extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp);
 
 extern int kbuild_version(const char *argv0);

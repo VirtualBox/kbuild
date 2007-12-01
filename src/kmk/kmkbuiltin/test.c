@@ -10,23 +10,38 @@
  * This program is in the Public Domain.
  */
 
-#include <sys/cdefs.h>
+/*#include <sys/cdefs.h>
 #ifndef lint
 __RCSID("$NetBSD: test.c,v 1.33 2007/06/24 18:54:58 christos Exp $");
-#endif
+#endif*/
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
 #include <ctype.h>
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#ifdef _MSC_VER
+# include <direct.h>
+# include <io.h>
+# include <process.h>
+# include "mscfakes.h"
+#else
+# include <unistd.h>
+#endif
 #include <stdarg.h>
+#include <sys/stat.h>
+
+#include "kmkbuiltin.h"
+
+#ifndef __arraycount
+# define __arraycount(a) 	( sizeof(a) / sizeof(a[0]) )
+#endif
+
 
 /* test(1) accepts the following grammar:
 	oexpr	::= aexpr | aexpr "-o" oexpr ;
@@ -155,7 +170,7 @@ static const struct t_op mop2[] = {
 static char **t_wp;
 static struct t_op const *t_wp_op;
 
-static void syntax(const char *, const char *);
+static int syntax(const char *, const char *);
 static int oexpr(enum token);
 static int aexpr(enum token);
 static int nexpr(enum token);
@@ -169,83 +184,125 @@ static int getn(const char *);
 static int newerf(const char *, const char *);
 static int olderf(const char *, const char *);
 static int equalf(const char *, const char *);
+static int usage(const char *);
 
-#if defined(SHELL)
-extern void error(const char *, ...) __attribute__((__noreturn__));
-extern void *ckmalloc(size_t);
+#ifdef kmk_builtin_test
+extern void *xmalloc(unsigned int);
 #else
-static void error(const char *, ...) __attribute__((__noreturn__));
-
-static void
-error(const char *msg, ...)
+static void *xmalloc(unsigned int sz)
 {
-	va_list ap;
-
-	va_start(ap, msg);
-	verrx(2, msg, ap);
-	/*NOTREACHED*/
-	va_end(ap);
-}
-
-static void *ckmalloc(size_t);
-static void *
-ckmalloc(size_t nbytes)
-{
-	void *p = malloc(nbytes);
-
-	if (!p)
-		error("Not enough memory!");
-	return p;
+    void *p = malloc(sz);
+    if (!p) {
+	    fprintf(stderr, "%s: malloc(%u) failed\n", g_progname, sz);
+	    exit(1);
+    }
+    return p;
 }
 #endif
 
-#ifdef SHELL
-int testcmd(int, char **);
-
-int
-testcmd(int argc, char **argv)
+#ifdef kmk_builtin_test
+int kmk_builtin_test(int argc, char **argv)
 #else
-int main(int, char *[]);
-
-int
-main(int argc, char *argv[])
+int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn)
 #endif
 {
 	int res;
-	const char *argv0;
+	char **argv_spawn;
+	int i;
 
-#ifdef SHELL
-	argv0 = argv[0];
-#else
-	setprogname(argv[0]);
-	argv0 = getprogname();
-#endif
-	if (strcmp(argv0, "[") == 0) {
+	g_progname = argv[0];
+
+	/* look for the '--', '--help' and '--version'. */
+	argv_spawn = NULL;
+	for (i = 1; i < argc; i++) {
+		if (   argv[i][0] == '-'
+		    && argv[i][1] == '-') {
+    			if (argv[i][2] == '\0') {
+				argc = i;
+				argv[i] = NULL;
+				argv_spawn = &argv[i + 1];
+				break;
+			}
+			if (!strcmp(argv[i], "--help"))
+				return usage(argv[0]);
+			if (!strcmp(argv[i], "--version"))
+				return kbuild_version(argv[0]);
+		}
+	}
+
+	/* are we '['? then check for ']'. */
+	if (strcmp(g_progname, "[") == 0) { /** @todo should skip the path in g_progname */
 		if (strcmp(argv[--argc], "]"))
-			error("missing ]");
+			return errx(1, "missing ]");
 		argv[argc] = NULL;
 	}
 
+	/* evaluate the expression */
 	if (argc < 2)
-		return 1;
+		res = 1;
+	else {
+		t_wp = &argv[1];
+		res = oexpr(t_lex(*t_wp));
+		if (res != -42 && *t_wp != NULL && *++t_wp != NULL)
+			res = syntax(*t_wp, "unexpected operator");
+		if (res == -42)
+			return 1; /* don't mix syntax errors with the argv_spawn ignore */
+		res = !res;
+	}
 
-	t_wp = &argv[1];
-	res = !oexpr(t_lex(*t_wp));
+	/* anything to execute on success? */
+	if (argv_spawn) {
+		if (res != 0 || !argv_spawn[0])
+			res = 0; /* ignored */
+		else {
+#ifdef kmk_builtin_test
+			/* try exec the specified process */
+# if defined(_MSC_VER)
+			res = _spawnvp(_P_WAIT, argv_spawn[0], argv_spawn);
+			if (res == -1)
+			    res = err(1, "_spawnvp(_P_WAIT,%s,..)", argv_spawn[i]);
+# else
+			execvp(argv_spawn[i], &argv_spawn[i]);
+			res = err(1, "execvp(%s,..)", argv_spawn[i]);
+# endif
+#else /* in kmk */
+			/* let job.c spawn the process, make a job.c style argv_spawn copy. */
+			char *buf, *cur, **argv_new;
+			size_t sz = 0;
+			int argc_new = 0;
+			while (argv_spawn[argc_new]) {
+    				size_t len = strlen(argv_spawn[argc_new]) + 1;
+				sz += (len + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+				argc_new++;
+			}
 
-	if (*t_wp != NULL && *++t_wp != NULL)
-		syntax(*t_wp, "unexpected operator");
+			argv_new = xmalloc((argc_new + 1) * sizeof(char *));
+			buf = cur = xmalloc(argc_new * sizeof(char *));
+			for (i = 0; i < argc_new; i++) {
+				size_t len = strlen(argv_spawn[i]) + 1;
+				argv_new[i] = memcpy(cur, argv_spawn[i], len);
+				cur += (len + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+			}
+			argv_new[i] = NULL;
+
+			*ppapszArgvSpawn = argv_new;
+			res = 0;
+#endif /* in kmk */
+		}
+	}
 
 	return res;
 }
 
-static void
+static int
 syntax(const char *op, const char *msg)
 {
 
 	if (op && *op)
-		error("%s: %s", op, msg);
+		errx(1, "%s: %s", op, msg);
 	else
-		error("%s", msg);
+		errx(1, "%s", msg);
+	return -42;
 }
 
 static int
@@ -254,10 +311,12 @@ oexpr(enum token n)
 	int res;
 
 	res = aexpr(n);
-	if (*t_wp == NULL)
+	if (res == -42 || *t_wp == NULL)
 		return res;
-	if (t_lex(*++t_wp) == BOR)
-		return oexpr(t_lex(*++t_wp)) || res;
+	if (t_lex(*++t_wp) == BOR) {
+		int res2 = oexpr(t_lex(*++t_wp));
+		return res2 != -42 ? res2 || res : res2;
+	}
 	t_wp--;
 	return res;
 }
@@ -268,10 +327,12 @@ aexpr(enum token n)
 	int res;
 
 	res = nexpr(n);
-	if (*t_wp == NULL)
+	if (res == -42 || *t_wp == NULL)
 		return res;
-	if (t_lex(*++t_wp) == BAND)
-		return aexpr(t_lex(*++t_wp)) && res;
+	if (t_lex(*++t_wp) == BAND) {
+		int res2 = aexpr(t_lex(*++t_wp));
+		return res2 != -42 ? res2 && res : res2;
+	}
 	t_wp--;
 	return res;
 }
@@ -279,9 +340,10 @@ aexpr(enum token n)
 static int
 nexpr(enum token n)
 {
-
-	if (n == UNOT)
-		return !nexpr(t_lex(*++t_wp));
+	if (n == UNOT) {
+		int res = nexpr(t_lex(*++t_wp));
+		return res != -42 ? !res : res;
+	}
 	return primary(n);
 }
 
@@ -297,14 +359,14 @@ primary(enum token n)
 		if ((nn = t_lex(*++t_wp)) == RPAREN)
 			return 0;	/* missing expression */
 		res = oexpr(nn);
-		if (t_lex(*++t_wp) != RPAREN)
-			syntax(NULL, "closing paren expected");
+		if (res != -42 && t_lex(*++t_wp) != RPAREN)
+			return syntax(NULL, "closing paren expected");
 		return res;
 	}
 	if (t_wp_op && t_wp_op->op_type == UNOP) {
 		/* unary expression */
 		if (*++t_wp == NULL)
-			syntax(t_wp_op->op_text, "argument expected");
+			return syntax(t_wp_op->op_text, "argument expected");
 		switch (n) {
 		case STREZ:
 			return strlen(*t_wp) == 0;
@@ -319,7 +381,7 @@ primary(enum token n)
 
 	if (t_lex(t_wp[1]), t_wp_op && t_wp_op->op_type == BINOP) {
 		return binop();
-	}	  
+	}
 
 	return strlen(*t_wp) > 0;
 }
@@ -335,8 +397,8 @@ binop(void)
 	op = t_wp_op;
 
 	if ((opnd2 = *++t_wp) == NULL)
-		syntax(op->op_text, "argument expected");
-		
+		return syntax(op->op_text, "argument expected");
+
 	switch (op->op_num) {
 	case STREQ:
 		return strcmp(opnd1, opnd2) == 0;
@@ -367,6 +429,9 @@ binop(void)
 	default:
 		abort();
 		/* NOTREACHED */
+#ifdef _MSC_VER
+		return -42;
+#endif
 	}
 }
 
@@ -448,21 +513,21 @@ binop(void)
  * totally useless for the case in question since its 'test -w' and 'test -r'
  * can never fail for root for any existing files, i.e. files for which 'test
  * -e' succeeds.)
- * 
+ *
  * The rationale for 1003.1-2001 suggests that the wording was "clarified" in
  * 1003.1-2001 to align with the 1003.2b draft.  1003.2b Draft 12 (July 1999),
  * which is the latest copy I have, does carry the same suggested wording as is
  * in 1003.1-2001, with its rationale saying:
- * 
+ *
  * 	This change is a clarification and is the result of interpretation
  * 	request PASC 1003.2-92 #23 submitted for IEEE Std 1003.2-1992.
- * 
+ *
  * That interpretation can be found here:
- * 
+ *
  *   http://www.pasc.org/interps/unofficial/db/p1003.2/pasc-1003.2-23.html
- * 
+ *
  * Not terribly helpful, unfortunately.  I wonder who that fence sitter was.
- * 
+ *
  * Worse, IMVNSHO, I think the authors of 1003.2b-D12 have mis-interpreted the
  * PASC interpretation and appear to be gone against at least one widely used
  * implementation (namely 4.4BSD).  The problem is that for file access by root
@@ -472,17 +537,17 @@ binop(void)
  * the output of 'ls -l'.  This was widely considered to be a bug in V7's
  * "test" and is, I believe, one of the reasons why direct use of access() was
  * avoided in some more recent implementations!
- * 
+ *
  * I have always interpreted '-r' to match '-w' and '-x' as per the original
  * wording in 1003.2-1992, not the other way around.  I think 1003.2b goes much
  * too far the wrong way without any valid rationale and that it's best if we
  * stick with 1003.2-1992 and test the flags, and not mimic the behaviour of
  * open() since we already know very well how it will work -- existance of the
  * file is all that matters to open() for root.
- * 
+ *
  * Unfortunately the SVID is no help at all (which is, I guess, partly why
  * we're in this mess in the first place :-).
- * 
+ *
  * The SysV implementation (at least in the 'test' builtin in /bin/sh) does use
  * access(name, 2) even though it also goes to much greater lengths for '-x'
  * matching the 1003.2-1992 definition (which is no doubt where that definition
@@ -495,7 +560,12 @@ binop(void)
 static int
 test_access(struct stat *sp, mode_t stmode)
 {
-	gid_t *groups; 
+#ifdef _MSC_VER
+	/* just pretend to be root for now. */
+	stmode = (stmode << 6) | (stmode << 3) | stmode;
+	return !!(sp->st_mode & stmode);
+#else
+	gid_t *groups;
 	register int n;
 	uid_t euid;
 	int maxgroups;
@@ -518,7 +588,7 @@ test_access(struct stat *sp, mode_t stmode)
 		/* on some systems you can be in several groups */
 		if ((maxgroups = getgroups(0, NULL)) <= 0)
 			maxgroups = NGROUPS_MAX;	/* pre-POSIX system? */
-		groups = ckmalloc((maxgroups + 1) * sizeof(gid_t));
+		groups = xmalloc((maxgroups + 1) * sizeof(gid_t));
 		n = getgroups(maxgroups, groups);
 		while (--n >= 0) {
 			if (groups[n] == sp->st_gid) {
@@ -529,7 +599,8 @@ test_access(struct stat *sp, mode_t stmode)
 		free(groups);
 	}
 
-	return sp->st_mode & stmode;
+	return !!(sp->st_mode & stmode);
+#endif
 }
 
 static int
@@ -554,21 +625,45 @@ filstat(char *nm, enum token mode)
 	case FILDIR:
 		return S_ISDIR(s.st_mode);
 	case FILCDEV:
+#ifdef S_ISCHR
 		return S_ISCHR(s.st_mode);
+#else
+		return 0;
+#endif
 	case FILBDEV:
+#ifdef S_ISBLK
 		return S_ISBLK(s.st_mode);
+#else
+		return 0;
+#endif
 	case FILFIFO:
+#ifdef S_ISFIFO
 		return S_ISFIFO(s.st_mode);
+#else
+		return 0;
+#endif
 	case FILSOCK:
+#ifdef S_ISSOCK
 		return S_ISSOCK(s.st_mode);
+#else
+		return 0;
+#endif
 	case FILSYM:
+#ifdef S_ISLNK
 		return S_ISLNK(s.st_mode);
+#else
+		return 0;
+#endif
 	case FILSUID:
 		return (s.st_mode & S_ISUID) != 0;
 	case FILSGID:
 		return (s.st_mode & S_ISGID) != 0;
 	case FILSTCK:
+#ifdef S_ISVTX
 		return (s.st_mode & S_ISVTX) != 0;
+#else
+		return 0;
+#endif
 	case FILGZ:
 		return s.st_size > (off_t)0;
 	case FILUID:
@@ -658,7 +753,7 @@ isoperand(void)
 	if ((t = *(t_wp+2)) == 0)
 		return 0;
 	if ((op = findop(s)) != NULL)
-		return op->op_type == BINOP && (t[0] != ')' || t[1] != '\0'); 
+		return op->op_type == BINOP && (t[0] != ')' || t[1] != '\0');
 	return 0;
 }
 
@@ -673,13 +768,13 @@ getn(const char *s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	      error("%s: out of range", s);
+	      return errx(-42, "%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 	      p++;
-	
+
 	if (*p)
-	      error("%s: bad number", s);
+	      return errx(-42, "%s: bad number", s);
 
 	return (int) r;
 }
@@ -713,4 +808,12 @@ equalf(const char *f1, const char *f2)
 		stat(f2, &b2) == 0 &&
 		b1.st_dev == b2.st_dev &&
 		b1.st_ino == b2.st_ino);
+}
+
+static int
+usage(const char *argv0)
+{
+	fprintf(stdout,
+	        "usage: %s expression [-- <prog> [args]]\n", argv0);
+	return 0; /* only used in --help. */
 }
