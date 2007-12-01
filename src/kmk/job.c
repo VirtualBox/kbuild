@@ -3056,8 +3056,13 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
       sprintf(fbuf, "make%d", id);
       *batch_filename_ptr = create_batch_file (fbuf, unixy_shell, &temp_fd);
 
+# ifdef KMK
+      DB (DB_JOBS, (_("Creating temporary batch file %s\nCommand: %s\n"),
+                    *batch_filename_ptr, command_ptr));
+# else  /* !KMK */
       DB (DB_JOBS, (_("Creating temporary batch file %s\n"),
                     *batch_filename_ptr));
+# endif /* !KMK */
 
       /* Create a FILE object for the batch file, and write to it the
 	 commands to be executed.  Put the batch file in TEXT mode.  */
