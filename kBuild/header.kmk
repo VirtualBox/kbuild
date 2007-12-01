@@ -1,4 +1,4 @@
-# $Id: header.kmk 1272 2007-11-29 20:44:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1296 2007-12-01 03:47:44Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -52,7 +52,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1272 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1296 $  )
 
 
 #
@@ -481,6 +481,9 @@ else
 SED_INT     := $(SED_EXT)
 endif
 SED         := $(SED_EXT)
+
+TEST_EXT    := $(PATH_KBUILD_BIN)/kmk_test$(HOSTSUFF_EXE)
+TEST        := kmk_builtin_test
 
 # Our default shell is the Almquist shell from *BSD.
 ASH         := $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)
