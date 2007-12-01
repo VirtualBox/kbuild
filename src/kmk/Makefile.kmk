@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1292 2007-12-01 03:30:16Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1302 2007-12-01 23:10:11Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -176,6 +176,8 @@ kmk_SOURCES += \
 	kmkbuiltin/rmdir.c \
 	kmkbuiltin/test.c \
 
+## @todo kmkbuiltin/redirect.c
+
 ## Some profiling
 #kmk_SOURCES += kbuildprf.c
 #kmk_DEFS += open=prf_open read=prf_read lseek=prf_lseek close=prf_close
@@ -197,6 +199,7 @@ PROGRAMS += \
 	kmk_install \
 	kmk_ln \
 	kmk_printf \
+	kmk_redirect \
 	kmk_rm \
 	kmk_rmdir \
 	kmk_test \
@@ -264,6 +267,11 @@ kmk_rm_TEMPLATE = BIN-KMK
 kmk_rm_DEFS = kmk_builtin_rm=main
 kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c
+
+kmk_redirect_TEMPLATE = BIN-KMK
+kmk_redirect_DEFS = kmk_builtin_redirect=main
+kmk_redirect_SOURCES = \
+	kmkbuiltin/redirect.c
 
 kmk_rmdir_TEMPLATE = BIN-KMK
 kmk_rmdir_DEFS = kmk_builtin_rmdir=main
