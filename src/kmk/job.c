@@ -29,6 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef CONFIG_WITH_KMK_BUILTIN
 # include "kmkbuiltin.h"
 #endif
+#ifdef KMK
+# include "kbuild.h"
+#endif
 
 
 #include <string.h>
@@ -2511,8 +2514,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
   static char sh_chars[] = "";
   static char *sh_cmds[] = { 0 };
 #else  /* must be UNIX-ish */
-  static char sh_chars[] = "#;\"*?[]&|<>(){}$`^~!";
-  static char *sh_cmds[] = { ".", ":", "break", "case", "cd", "continue",
+  static char sh_chars_sh[] = "#;\"*?[]&|<>(){}$`^~!";                          /* kmk: +_sh */
+  static char *sh_cmds_sh[] = { ".", ":", "break", "case", "cd", "continue",    /* kmk: +_sh */
                              "eval", "exec", "exit", "export", "for", "if",
                              "login", "logout", "read", "readonly", "set",
                              "shift", "switch", "test", "times", "trap",
@@ -2523,6 +2526,21 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
      sh_chars_sh[] directly (see below).  */
   static char *sh_chars_sh = sh_chars;
 # endif	 /* HAVE_DOS_PATHS */
+# ifdef KMK
+  char*  sh_chars = sh_chars_sh;
+  char** sh_cmds = sh_cmds_sh;
+# endif
+#endif
+#ifdef KMK
+  static char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" */
+  static char *sh_cmds_kash[] = {
+      ".", ":", "break", "case", "cd", "continue",
+      "echo", "eval", "exec", "exit", "export", "for", "if",
+      "login", "logout", "read", "readonly", "set",
+      "shift", "switch", "test", "times", "trap",
+      "umask", "wait", "while", 0
+  };
+  int is_kmk_shell = 0;
 #endif
   int i;
   char *p;
@@ -2553,8 +2571,40 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     return 0;
 
   /* See if it is safe to parse commands internally.  */
+#ifdef KMK /* kmk_ash and kmk_kash are both fine, kmk_ash is the default btw. */
+  if (shell == 0)
+    {
+      is_kmk_shell = 1;
+      shell = (char *)get_default_kbuild_shell ();
+    }
+  else if (!strcmp (shell, get_default_kbuild_shell()))
+    is_kmk_shell = 1;
+  else
+    {
+      const char *psz = strstr (shell, "/kmk_ash");
+      if (psz)
+        psz += sizeof ("/kmk_ash") - 1;
+      else
+        {
+          psz = strstr (shell, "/kmk_kash");
+          if (psz)
+            psz += sizeof ("/kmk_kash") - 1;
+        }
+# if defined (__OS2__) || defined (_WIN32) || defined (WINDOWS32)
+      is_kmk_shell = psz && (*psz == '\0' || !stricmp (psz, ".exe"));
+# else
+      is_kmk_shell = psz && *psz == '\0';
+# endif
+    }
+  if (is_kmk_shell)
+    {
+      sh_chars = sh_chars_kash;
+      sh_cmds = sh_cmds_kash;
+    }
+#else /* !KMK */
   if (shell == 0)
     shell = default_shell;
+#endif /* !KMK */
 #ifdef WINDOWS32
   else if (strcmp (shell, default_shell))
   {
@@ -2602,17 +2652,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     }
 #else  /* !__MSDOS__ */
   else if (strcmp (shell, default_shell))
-# ifndef KMK
     goto slow;
-# else /* KMK */
-    {
-      /* Allow ash from kBuild. */
-      const char *psz = strstr(shell, "/kmk_ash");
-      if (   !psz
-          || (!psz[sizeof("/kmk_ash")] && psz[sizeof("/kmk_ash")] == '.')) /* FIXME: this test looks bogus... */
-        goto slow;
-    }
-# endif  /* KMK */
 #endif /* !__MSDOS__ && !__EMX__ */
 #endif /* not WINDOWS32 */
 
