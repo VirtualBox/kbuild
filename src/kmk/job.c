@@ -1204,30 +1204,51 @@ start_job_command (struct child *child)
   if ((flags & COMMANDS_KMK_BUILTIN) && !just_print_flag)
     {
       int    rc;
+      char **argv_spawn = NULL;
       char **p2 = argv;
-      while (*p2 && strncmp(*p2, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
-          p2++;
-      assert(*p2);
+      while (*p2 && strncmp (*p2, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+        p2++;
+      assert (*p2);
       set_command_state (child->file, cs_running);
+      child->pid = 0;
       if (p2 != argv)
-          rc = kmk_builtin_command(*p2);
+        rc = kmk_builtin_command (*p2, &argv_spawn, &child->pid);
       else
-      {
+        {
           int argc = 1;
           while (argv[argc])
-              argc++;
-          rc = kmk_builtin_command_parsed(argc, argv);
-      }
+            argc++;
+          rc = kmk_builtin_command_parsed (argc, argv, &argv_spawn, &child->pid);
+        }
+
 #ifndef VMS
       free (argv[0]);
       free ((char *) argv);
 #endif
-      if (!rc)
-          goto next_command;
-      child->pid = (pid_t)42424242;
-      child->status = rc << 8;
-      child->has_status = 1;
-      return;
+
+      /* synchronous command execution? */
+      if (!rc && !argv_spawn)
+        goto next_command;
+
+      /* spawned a child? */
+      if (!rc && child->pid)
+        {
+          ++job_counter;
+          return;
+        }
+
+      /* failure? */
+      if (rc)
+        {
+          child->pid = (pid_t)42424242;
+          child->status = rc << 8;
+          child->has_status = 1;
+          unblock_sigs();
+          return;
+        }
+
+      /* conditional check == true; kicking off a child (not kmk_builtin_*). */
+      argv = argv_spawn;
     }
 #endif /* CONFIG_WITH_KMK_BUILTIN */
 
@@ -1502,6 +1523,9 @@ start_job_command (struct child *child)
   set_command_state (child->file, cs_running);
 
   /* Free the storage used by the child's argument list.  */
+#ifdef KMK /* leak */
+ cleanup_argv:
+#endif
 #ifndef VMS
   free (argv[0]);
   free (argv);
@@ -1512,7 +1536,11 @@ start_job_command (struct child *child)
  error:
   child->file->update_status = 2;
   notice_finished_file (child->file);
+#ifdef KMK /* fix leak */
+  goto cleanup_argv;
+#else
   return;
+#endif
 }
 
 /* Try to start a child running.
