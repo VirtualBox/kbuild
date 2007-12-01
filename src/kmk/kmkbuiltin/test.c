@@ -220,7 +220,16 @@ int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn
     			if (argv[i][2] == '\0') {
 				argc = i;
 				argv[i] = NULL;
-				argv_spawn = &argv[i + 1];
+
+                                /* skip blank arguments (happens inside kmk) */
+                                while (argv[++i]) {
+                                        const char *psz = argv[i];
+                                        while (isspace(*psz))
+                                                psz++;
+                                        if (*psz)
+                                                break;
+                                }
+				argv_spawn = &argv[i];
 				break;
 			}
 			if (!strcmp(argv[i], "--help"))
