@@ -310,7 +310,10 @@ char cmd_prefix = '\t';
     4 = high / nice -10;
     4 = realtime / nice -19; */
 int process_priority = 0;
-#endif
+
+/* Process affinity mask; 0 means any CPU. */
+int process_affinity = 0;
+#endif /* KMK */
 
 
 /* The usage output.  We write it this way to make life easier for the
@@ -428,8 +431,10 @@ static const struct command_switch switches[] =
        "pretty-command-printing" },
 #endif
 #ifdef KMK
-    { CHAR_MAX+5, positive_int, (char *) &process_priority, 1, 1, 0,
+    { CHAR_MAX+6, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
+    { CHAR_MAX+7, positive_int, (char *) &process_affinity, 1, 1, 0,
+      (char *) &process_affinity, (char *) &process_affinity, "affinity" },
 #endif
     { 'q', flag, &question_flag, 1, 1, 1, 0, 0, "question" },
     { 'r', flag, &no_builtin_rules_flag, 1, 1, 0, 0, 0, "no-builtin-rules" },
@@ -706,7 +711,7 @@ decode_debug_flags (void)
 
 #ifdef KMK
 static void
-set_make_priority (void)
+set_make_priority_and_affinity (void)
 {
 #ifdef WINDOWS32
   DWORD dwPriority;
@@ -721,6 +726,9 @@ set_make_priority (void)
       default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
     }
   SetPriorityClass(GetCurrentProcess(), dwPriority);
+  if (process_affinity)
+    SetThreadAffinityMask(GetCurrentProcess(), process_affinity);
+
 #else /*#elif HAVE_NICE */
   int nice_level = 0;
   switch (process_priority)
@@ -735,6 +743,7 @@ set_make_priority (void)
     }
   nice (nice_level);
 #endif
+  /** @todo bitch about failures. */
 }
 #endif
 
@@ -1486,7 +1495,7 @@ main (int argc, char **argv, char **envp)
   decode_debug_flags ();
 
 #ifdef KMK
-  set_make_priority ();
+  set_make_priority_and_affinity ();
 #endif
 
   /* Set always_make_flag if -B was given and we've not restarted already.  */
