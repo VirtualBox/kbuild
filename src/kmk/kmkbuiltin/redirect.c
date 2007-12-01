@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1300 2007-12-01 21:51:28Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1302 2007-12-01 23:10:11Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
