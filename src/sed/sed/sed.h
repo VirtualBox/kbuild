@@ -210,6 +210,12 @@ extern void fmt P_ ((const char *line, const char *line_end, int max_length, FIL
 
 extern int extended_regexp_flags;
 
+#ifndef CONFIG_WITHOUT_O_OPT
+/* The output file, defaults to stdout but can be overridden
+   by the -o or --output option. main sets this to avoid problems. */
+extern FILE *sed_stdout;
+#endif
+
 /* If set, fflush(stdout) on every line output. */
 extern bool unbuffered_output;
 

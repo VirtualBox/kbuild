@@ -399,7 +399,11 @@ get_openfile(file_ptrs, mode, fail)
 		  
       /* std* sometimes are not constants, so they
          cannot be used in the initializer for special_files */
+#ifndef CONFIG_WITHOUT_O_OPT
+      my_stdin = stdin; my_stdout = sed_stdout; my_stderr = stderr;
+#else
       my_stdin = stdin; my_stdout = stdout; my_stderr = stderr;
+#endif
       for (special = special_files; special->outf.name; special++)
         if (strcmp(special->outf.name, file_name) == 0)
           {

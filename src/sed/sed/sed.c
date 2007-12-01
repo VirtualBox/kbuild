@@ -61,6 +61,12 @@
 
 int extended_regexp_flags = 0;
 
+#ifndef CONFIG_WITHOUT_O_OPT
+/* The output file, defaults to stdout but can be overridden
+   by the -o or --output option. main sets this to avoid problems. */
+FILE *sed_stdout = NULL;
+#endif
+
 /* If set, fflush(stdout) on every line output. */
 bool unbuffered_output = false;
 
@@ -111,6 +117,11 @@ Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n\
                  specify the desired line-wrap length for the `l' command\n"));
   fprintf(out, _("  --posix\n\
                  disable all GNU extensions.\n"));
+#ifndef CONFIG_WITHOUT_O_OPT
+  fprintf(out, _("  -o, --output=file, --output-text=file, --output-binary=file\n\
+                 use the specified file instead of stdout; the first two uses\n\
+                 uses the default text/binary mode.\n"));
+#endif
   fprintf(out, _("  -r, --regexp-extended\n\
                  use extended regular expressions in the script.\n"));
   fprintf(out, PERL_HELP);
@@ -142,9 +153,17 @@ main(argc, argv)
   char **argv;
 {
 #ifdef REG_PERL
+# ifndef CONFIG_WITHOUT_O_OPT
+#define SHORTOPTS "snrRue:f:l:i::o:V:"
+# else
 #define SHORTOPTS "snrRue:f:l:i::V:"
+# endif
 #else
+# ifndef CONFIG_WITHOUT_O_OPT
+#define SHORTOPTS "snrue:f:l:i::o:V:"
+# else
 #define SHORTOPTS "snrue:f:l:i::V:"
+# endif
 #endif
 
   static struct option longopts[] = {
@@ -161,6 +180,11 @@ main(argc, argv)
     {"silent", 0, NULL, 'n'},
     {"separate", 0, NULL, 's'},
     {"unbuffered", 0, NULL, 'u'},
+#ifndef CONFIG_WITHOUT_O_OPT
+    {"output", 1, NULL, 'o'},
+    {"output-binary", 1, NULL, 300},
+    {"output-text", 1, NULL, 301},
+#endif
     {"version", 0, NULL, 'v'},
     {"help", 0, NULL, 'h'},
     {NULL, 0, NULL, 0}
@@ -171,6 +195,9 @@ main(argc, argv)
   const char *cols = getenv("COLS");
 
   initialize_main (&argc, &argv);
+#ifndef CONFIG_WITHOUT_O_OPT
+  sed_stdout = stdout;
+#endif
 #if HAVE_SETLOCALE
   /* Set locale according to user's wishes.  */
 #ifdef _MSC_VER
@@ -257,6 +284,20 @@ main(argc, argv)
 	case 'l':
 	  lcmd_out_line_len = ATOI(optarg);
 	  break;
+
+#ifndef CONFIG_WITHOUT_O_OPT
+        case 'o':
+          sed_stdout = ck_fopen (optarg, "w", true /* fail on error */);
+          break;
+
+        case 300:
+          sed_stdout = ck_fopen (optarg, "wb", true /* fail on error */);
+          break;
+
+        case 301:
+          sed_stdout = ck_fopen (optarg, "wt", true /* fail on error */);
+          break;
+#endif
 
 	case 'p':
 	  posixicity = POSIXLY_BASIC;

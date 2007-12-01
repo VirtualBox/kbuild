@@ -499,7 +499,11 @@ static inline void
 flush_output(fp)
   FILE *fp;
 {
+#ifndef CONFIG_WITHOUT_O_OPT
+  if (fp != sed_stdout || unbuffered_output)
+#else
   if (fp != stdout || unbuffered_output)
+#endif
     ck_fflush(fp);
 }
 
@@ -693,7 +697,11 @@ open_next_file(name, input)
 #endif
     }
   else
+#ifndef CONFIG_WITHOUT_O_OPT
+    output_file.fp = sed_stdout;
+#else
     output_file.fp = stdout;
+#endif
 }
 
 
