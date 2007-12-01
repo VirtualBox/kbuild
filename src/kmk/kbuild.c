@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1128 2007-09-26 22:32:26Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1298 2007-12-01 20:11:25Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -133,7 +133,7 @@ void init_kbuild(int argc, char **argv)
         else
             szTmp[rc] = '\0';
     }
-    
+
 #elif defined(WINDOWS32)
     if (GetModuleFileName(GetModuleHandle(NULL), szTmp, GET_PATH_MAX))
         rc = 0;
@@ -166,7 +166,7 @@ void init_kbuild(int argc, char **argv)
                     rc = 0;
                     break;
                 }
-            }    
+            }
 
             /* next */
             psz = pszEnd;
@@ -175,7 +175,7 @@ void init_kbuild(int argc, char **argv)
         }
         free(pszCopy);
     }
-#endif        
+#endif
 
     if (rc < 0)
         g_pszExeName = argv[0];
@@ -203,7 +203,7 @@ static char *my_abspath(const char *pszIn, char *pszOut)
 /**
  * Determin the PATH_KBUILD value.
  *
- * @returns Pointer to static buffer to be treated as read only!
+ * @returns Pointer to static a buffer containing the value (consider it read-only).
  */
 const char *get_path_kbuild(void)
 {
@@ -235,7 +235,7 @@ const char *get_path_kbuild(void)
 /**
  * Determin the PATH_KBUILD_BIN value.
  *
- * @returns Pointer to static buffer to be treated as read only!
+ * @returns Pointer to static a buffer containing the value (consider it read-only).
  */
 const char *get_path_kbuild_bin(void)
 {
@@ -275,6 +275,30 @@ const char *get_path_kbuild_bin(void)
     return s_pszPath;
 }
 
+
+/**
+ * Determin the location of default kBuild shell.
+ *
+ * @returns Pointer to static a buffer containing the location (consider it read-only).
+ */
+const char *get_default_kbuild_shell(void)
+{
+    static char *s_pszDefaultShell = NULL;
+    if (!s_pszDefaultShell)
+      {
+#if defined(__OS2__) || defined(_WIN32) || defined(WINDOWS32)
+        static const char s_szShellName[] = "/kmk_ash.exe";
+#else
+        static const char s_szShellName[] = "/kmk_ash";
+#endif
+        const char *pszBin = get_path_kbuild_bin();
+        size_t cchBin = strlen(pszBin);
+        s_pszDefaultShell = xmalloc(cchBin + sizeof(s_szShellName));
+        memcpy(s_pszDefaultShell, pszBin, cchBin);
+        memcpy(&s_pszDefaultShell[cchBin], s_szShellName, sizeof(s_szShellName));
+      }
+    return s_pszDefaultShell;
+}
 
 #ifdef KMK_HELPERS
 
