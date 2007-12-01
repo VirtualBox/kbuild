@@ -1,4 +1,4 @@
-/* $Id: kmk_redirect.c 1281 2007-11-30 01:28:30Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_redirect.c 1300 2007-12-01 21:51:28Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -160,6 +160,10 @@ int main(int argc, char **argv)
                         fOpen = O_WRONLY | O_CREAT | O_APPEND;
                     break;
 
+                case 'i': /* make sure stdin is read-only. */
+                    fOpen = O_RDONLY;
+                    break;
+
                 case '+':
                     fprintf(pStdErr, "%s: syntax error: Unexpected '+' in '%s'\n", argv[0], argv[i]);
                     return 1;
@@ -197,6 +201,11 @@ int main(int argc, char **argv)
             /* convert to file descriptor number */
             switch (*psz)
             {
+                case 'i':
+                    fd = 0;
+                    psz++;
+                    break;
+
                 case 'o':
                     fd = 1;
                     psz++;
