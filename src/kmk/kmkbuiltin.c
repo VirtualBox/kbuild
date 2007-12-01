@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 1162 2007-09-30 03:55:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 1290 2007-12-01 00:22:28Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <assert.h>
 #ifdef _MSC_VER
 # include <io.h>
 #endif
@@ -38,7 +39,7 @@
 extern char **environ;
 #endif
 
-int kmk_builtin_command(const char *pszCmd)
+int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
 {
     int         argc;
     char      **argv;
@@ -150,7 +151,7 @@ int kmk_builtin_command(const char *pszCmd)
      * Execute the command if parsing was successful.
      */
     if (!*pszCmd)
-        rc = kmk_builtin_command_parsed(argc, argv);
+        rc = kmk_builtin_command_parsed(argc, argv, ppapszArgvToSpawn, pPidSpawned);
     else
         rc = 1;
 
@@ -162,7 +163,7 @@ int kmk_builtin_command(const char *pszCmd)
 }
 
 
-int kmk_builtin_command_parsed(int argc, char **argv)
+int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
 {
     const char *pszCmd = argv[0];
     int         iumask;
@@ -193,19 +194,23 @@ int kmk_builtin_command_parsed(int argc, char **argv)
         rc = kmk_builtin_install(argc, argv, environ);
     else if (!strcmp(pszCmd, "kDepIDB"))
         rc = kmk_builtin_kDepIDB(argc, argv, environ);
-    else if (!strcmp(pszCmd, "ln"))
-        rc = kmk_builtin_ln(argc, argv, environ);
     else if (!strcmp(pszCmd, "mkdir"))
         rc = kmk_builtin_mkdir(argc, argv, environ);
     else if (!strcmp(pszCmd, "mv"))
         rc = kmk_builtin_mv(argc, argv, environ);
+    /*else if (!strcmp(pszCmd, "redirect"))
+        rc = kmk_builtin_redirect(argc, argv, environ, pPidSpawned);*/
     else if (!strcmp(pszCmd, "rm"))
         rc = kmk_builtin_rm(argc, argv, environ);
     else if (!strcmp(pszCmd, "rmdir"))
         rc = kmk_builtin_rmdir(argc, argv, environ);
+    /*else if (!strcmp(pszCmd, "test"))
+        rc = kmk_builtin_test(argc, argv, environ, ppapszArgvToSpawn);*/
     /* rarely used commands: */
     else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);
+    else if (!strcmp(pszCmd, "ln"))
+        rc = kmk_builtin_ln(argc, argv, environ);
     else if (!strcmp(pszCmd, "md5sum"))
         rc = kmk_builtin_md5sum(argc, argv, environ);
     else if (!strcmp(pszCmd, "cmp"))
@@ -217,8 +222,39 @@ int kmk_builtin_command_parsed(int argc, char **argv)
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);
         return 1;
     }
+
+    /*
+     * Cleanup.
+     */
     g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
     umask(iumask);
+
+
+    /*
+     * If we've executed a conditional test or something that wishes to execute
+     * some child process, check if the child is a kmk_builtin thing. We recurse
+     * here, both because I'm lazy and because it's easier to debug a problem then
+     * (the call stack shows what's been going on).
+     */
+    if (    !rc
+        &&  *ppapszArgvToSpawn
+        &&  !strncmp(**ppapszArgvToSpawn, "kmk_builtin_", sizeof("kmk_builtin_") - 1))
+    {
+        char **argv_new = *ppapszArgvToSpawn;
+        int argc_new = 1;
+        while (argv_new[argc_new])
+          argc_new++;
+
+        assert(argv_new[0] != argv[0]);
+        assert(!*pPidSpawned);
+
+        *ppapszArgvToSpawn = NULL;
+        rc = kmk_builtin_command_parsed (argc_new, argv_new, ppapszArgvToSpawn, pPidSpawned);
+
+        free (argv_new[0]);
+        free (argv_new);
+    }
+
     return rc;
 }
 
