@@ -1988,6 +1988,9 @@ main (int argc, char **argv, char **envp)
 #endif /* __MSDOS__ || __EMX__ */
 
   /* Decode switches again, in case the variables were set by the makefile.  */
+#ifdef KMK
+  decode_env_switches (STRING_SIZE_TUPLE ("KMKFLAGS"));
+#endif
   decode_env_switches (STRING_SIZE_TUPLE ("MAKEFLAGS"));
 #if 0
   decode_env_switches (STRING_SIZE_TUPLE ("MFLAGS"));
