@@ -200,11 +200,7 @@ static void *xmalloc(unsigned int sz)
 }
 #endif
 
-#ifdef kmk_builtin_test
-int kmk_builtin_test(int argc, char **argv)
-#else
 int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn)
-#endif
 {
 	int res;
 	char **argv_spawn;
