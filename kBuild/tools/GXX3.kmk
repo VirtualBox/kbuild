@@ -1,4 +1,4 @@
-# $Id: GXX3.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
+# $Id: GXX3.kmk 1315 2007-12-02 05:59:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x using the system GCC and Binutils, for building C++ code.
@@ -222,7 +222,11 @@ define TOOL_GXX3_LINK_LIBRARY_CMDS
 		 $(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script 'ADDLIB $(outbase).imp.a')
 	$(QUIET)$(APPEND) $(out).ar-script 'SAVE'
 	$(QUIET)$(APPEND) $(out).ar-script 'END'
+ifdef KMK_USE_REDIRECT
+	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_GXX3_AR) -M
+else
 	$(QUIET)$(TOOL_GXX3_AR) -M < $(out).ar-script
+endif
 endef
 
 

@@ -1,4 +1,4 @@
-# $Id: GCC64.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
+# $Id: GCC64.kmk 1315 2007-12-02 05:59:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 64-bit GCC v3.2.x or later Using The System GCC.
@@ -217,7 +217,11 @@ define TOOL_GCC64_LINK_LIBRARY_CMDS
 		$(foreach o,$(othersrc), 'ADDLIB $(o)')
 	$(QUIET)$(APPEND) $(out).ar-script 'SAVE'
 	$(QUIET)$(APPEND) $(out).ar-script 'END'
+ifdef KMK_USE_REDIRECT
+	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_GCC64_AR) -M
+else
 	$(QUIET)$(TOOL_GCC64_AR) -M < $(out).ar-script
+endif
 endef
 
 
