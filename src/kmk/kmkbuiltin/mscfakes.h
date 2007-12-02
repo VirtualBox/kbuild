@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 1292 2007-12-01 03:30:16Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1309 2007-12-02 04:53:40Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -34,6 +34,14 @@
 #include <malloc.h>
 #undef setmode
 #include "getopt.h"
+
+#if defined(MSC_DO_64_BIT_IO) && _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
+# define off_t __int64
+# define stat  _stat64
+# define fstat _fstat64
+# define lseek _lseeki64
+#endif
+
 
 #define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
 #define S_ISREG(m)  (((m) & _S_IFMT) == _S_IFREG)

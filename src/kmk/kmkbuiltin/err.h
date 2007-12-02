@@ -1,4 +1,4 @@
-/* $Id: err.h 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: err.h 1309 2007-12-02 04:53:40Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Override err.h stuff so we get the program names right.
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __err_h__
-#define __err_h__
+#ifndef ___err_h
+#define ___err_h
 
 extern const char *g_progname;
 int err(int eval, const char *fmt, ...);

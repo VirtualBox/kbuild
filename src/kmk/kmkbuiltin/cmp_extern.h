@@ -35,10 +35,15 @@
 #define DIFF_EXIT	1
 #define ERR_EXIT	2	/* error exit code */
 
-static int	c_regular(int, char *, off_t, off_t, int, char *, off_t, off_t);
-static int	c_special(int, char *, off_t, int, char *, off_t);
-static int	diffmsg(char *, char *, off_t, off_t);
-static int	eofmsg(char *, off_t, off_t);
-static int	errmsg(char *, off_t, off_t);
+int cmp_file_and_file(const char *file1, const char *file2, int sflag, int lflag, int special);
+int cmp_file_and_file_ex(const char *file1, off_t skip1, 
+                         const char *file2, off_t skip2, int sflag, int lflag, int special);
+int cmp_fd_and_file(int fd1, const char *file1,
+                    const char *file2, int sflag, int lflag, int special);
+int cmp_fd_and_file_ex(int fd1, const char *file1, off_t skip1,
+                       const char *file2, off_t skip2, int sflag, int lflag, int special);
+int cmp_fd_and_fd(int fd1, const char *file1, 
+                  int fd2, const char *file2, int sflag, int lflag, int special);
+int cmp_fd_and_fd_ex(int fd1, const char *file1, off_t skip1,
+                     int fd2, const char *file2, off_t skip2,  int sflag, int lflag, int special);
 
-/*extern int lflag, sflag;*/

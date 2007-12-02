@@ -362,6 +362,8 @@ copy(char *argv[], enum op type, int fts_options)
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
 		return err(1, "fts_open");
 	for (badcp = rval = 0; (curr = fts_read(ftsp)) != NULL; badcp = 0) {
+                int copied = 0;
+
 		switch (curr->fts_info) {
 		case FTS_NS:
 			if (   cp_ignore_non_existing
@@ -510,7 +512,7 @@ copy(char *argv[], enum op type, int fts_options)
 			if ((fts_options & FTS_LOGICAL) ||
 			    ((fts_options & FTS_COMFOLLOW) &&
 			    curr->fts_level == 0)) {
-				if (copy_file(curr, dne))
+				if (copy_file(curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			} else {
 				if (copy_link(curr, !dne))
@@ -557,7 +559,7 @@ copy(char *argv[], enum op type, int fts_options)
 				if (copy_special(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(curr, dne))
+				if (copy_file(curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
@@ -568,17 +570,18 @@ copy(char *argv[], enum op type, int fts_options)
 				if (copy_fifo(curr->fts_statp, !dne))
 					badcp = rval = 1;
 			} else {
-				if (copy_file(curr, dne))
+				if (copy_file(curr, dne, cp_changed_only, &copied))
 					badcp = rval = 1;
 			}
 			break;
 		default:
-			if (copy_file(curr, dne))
+			if (copy_file(curr, dne, cp_changed_only, &copied))
 				badcp = rval = 1;
 			break;
 		}
 		if (vflag && !badcp)
-			(void)printf("%s -> %s\n", curr->fts_path, to.p_path);
+			(void)printf(copied ? "%s -> %s\n" : "%s matches %s - not copied\n",
+				     curr->fts_path, to.p_path);
 	}
 	if (errno)
 		return err(1, "fts_read");

@@ -55,6 +55,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/append.c \
 		kmkbuiltin/cat.c \
 		kmkbuiltin/cmp.c \
+		kmkbuiltin/cmp_util.c \
 		kmkbuiltin/cp.c \
 		kmkbuiltin/cp_utils.c \
 		kmkbuiltin/echo.c \
@@ -74,6 +75,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/osdep.c \
 		kmkbuiltin/version.c
 
+## TODO kmk_redirect.
 
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
