@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 1159 2007-09-30 03:03:50Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 1339 2007-12-02 22:06:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -58,7 +58,7 @@ all: stage1 stage2
 
 
 #
-# Stage 1 - Build bootstrap kmk and sed, refresh config.h caches, link
+# Stage 1 - Build bootstrap kmk, kmk_redirect and sed, refresh config.h caches, link
 #           up kmk_ash so $(OUTDIR)/kmk can serve as kBuild bin dir.
 #
 stage1: \
