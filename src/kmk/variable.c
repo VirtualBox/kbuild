@@ -110,48 +110,50 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 typedef signed int int32_t;
 typedef signed short int int16_t;
 # endif
-static inline unsigned long variable_hash_2i(register const unsigned char *var, register int length)
+static inline unsigned long variable_hash_2i(register const char *var, register int length)
 {
+    register const unsigned char *uvar = (const unsigned char *)var;
     register unsigned int hash = 0;
-    var += length;
+    uvar += length;
     switch (length)
     {
         default:
-        case 16: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 15: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 14: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 13: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 12: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 11: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 10: hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 9:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 8:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 7:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 6:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 5:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 4:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 3:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 2:  hash = *--var + (hash << 6) + (hash << 16) - hash;
-        case 1:  hash = *--var + (hash << 6) + (hash << 16) - hash;
+        case 16: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 15: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 14: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 13: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 12: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 11: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 10: hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 9:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 8:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 7:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 6:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 5:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 4:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 3:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 2:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
+        case 1:  hash = *--uvar + (hash << 6) + (hash << 16) - hash;
         case 0:
             break;
     }
     return hash;
 }
 
-static inline unsigned long variable_hash_1i(register const unsigned char *var, register int length)
+static inline unsigned long variable_hash_1i(register const char *var, register int length)
 {
-    register unsigned int hash = ((5381 << 5) + 5381) + *var;
+    register const unsigned char *uvar = (const unsigned char *)var;
+    register unsigned int hash = ((5381 << 5) + 5381) + *uvar;
     switch (length)
     {
         default:
-        case 8: hash = ((hash << 5) + hash) + var[7];
-        case 7: hash = ((hash << 5) + hash) + var[6];
-        case 6: hash = ((hash << 5) + hash) + var[5];
-        case 5: hash = ((hash << 5) + hash) + var[4];
-        case 4: hash = ((hash << 5) + hash) + var[3];
-        case 3: hash = ((hash << 5) + hash) + var[2];
-        case 2: hash = ((hash << 5) + hash) + var[1];
+        case 8: hash = ((hash << 5) + hash) + uvar[7];
+        case 7: hash = ((hash << 5) + hash) + uvar[6];
+        case 6: hash = ((hash << 5) + hash) + uvar[5];
+        case 5: hash = ((hash << 5) + hash) + uvar[4];
+        case 4: hash = ((hash << 5) + hash) + uvar[3];
+        case 3: hash = ((hash << 5) + hash) + uvar[2];
+        case 2: hash = ((hash << 5) + hash) + uvar[1];
         case 1: return hash;
         case 0: return 5381; /* shouldn't happen */
     }
