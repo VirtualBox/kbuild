@@ -402,7 +402,7 @@ static const char *const usage[] =
 #endif /* KMK */
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
     N_("\
-  --pretty-command-printing   Makes the command echo easier to read.\n");
+  --pretty-command-printing   Makes the command echo easier to read.\n"),
 #endif
     NULL
   };
