@@ -175,7 +175,7 @@ kmk_builtin_install(int argc, char *argv[], char **envp)
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt_long(argc, argv, "B:bCcdf:g:Mm:o:pSsv", long_options, NULL)) != -1)
-		switch((char)ch) {
+		switch(ch) {
 		case 'B':
 			suffix = optarg;
 			/* FALLTHROUGH */

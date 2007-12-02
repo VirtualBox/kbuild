@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 1231 2007-10-09 23:07:29Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 1329 2007-12-02 20:49:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -312,7 +312,7 @@ static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgre
         /* process a chunk. */
         cb = read_file(pvFile, abBuf, sizeof(abBuf));
         if (cb > 0)
-            MD5Update(&Ctx, abBuf, cb);
+            MD5Update(&Ctx, (unsigned char *)&abBuf[0], cb);
         else if (!cb)
             break;
         else
