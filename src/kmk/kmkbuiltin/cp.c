@@ -72,14 +72,11 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include <string.h>
 #include <unistd.h>
 #include "getopt.h"
-
 #include "k/kDefs.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "cp_extern.h"
-
 #include "kmkbuiltin.h"
 
 
