@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1266 2007-11-13 08:03:31Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1311 2007-12-02 05:06:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1232,7 +1232,7 @@ define def_fetch_rules
 $(out).lst: $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
 	$$(call MSG_FETCH_OK,$(target))
 	$$(QUIET)$$(RM) -f $$@ $$@.tmp
-	$$(QUIET2)$$(APPEND) $$@.tmp "$(notdir $(out))"
+	$$(QUIET2)$$(APPEND) $$@.tmp '$(notdir $(out))'
 	$$(QUIET)$(if $(_TARGET_$(target)_UNPACKED),$$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
 	$$(QUIET)$$(MV) -f $$@.tmp $$@
 
@@ -1379,14 +1379,10 @@ endif
 $($(target)_$(source)_CMDS_)
 
 ifndef NO_COMPILE_CMDS_DEPS
-	$$(QUIET2)$$(APPEND) "$(dep)"
-	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_$(source)_CMDS_PREV_'
-ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
-	$$(QUIET2)$$(APPEND) -v "$(dep)" '$(target)_$(source)_CMDS_'
-else
-	$$(QUIET2)$$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_$(source)_CMDS_))'
-endif
-	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
+	$$(QUIET2)$$(APPEND) '$(dep)'
+	$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(source)_CMDS_PREV_'
+	$$(QUIET2)$$(APPEND) -v '$(dep)' '$(target)_$(source)_CMDS_'
+	$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
 $(basename $(notdir $(obj))).o: $(obj)
@@ -1424,13 +1420,9 @@ $(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
 $($(target)_CMDS_)
 
 ifndef NO_LINK_CMDS_DEPS
-	$$(QUIET2)$$(APPEND) "$(dep)" 'define $(target)_CMDS_PREV_'
-ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
-	$$(QUIET2)$$(APPEND) -v "$(dep)" '$(target)_CMDS_'
-else
-	$$(QUIET2)$$(APPEND) "$(dep)" '$(subst $(NL),'$(NL)$(TAB)@$(APPEND) "$(dep)" ',$($(target)_CMDS_))'
-endif
-	$$(QUIET2)$$(APPEND) "$(dep)" 'endef'
+	$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_CMDS_PREV_'
+	$$(QUIET2)$$(APPEND) -v '$(dep)' '$(target)_CMDS_'
+	$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
 $(basename $(notdir $(out))): $(out)
