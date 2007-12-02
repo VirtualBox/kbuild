@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 1322 2007-12-02 19:51:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1323 2007-12-02 19:52:00Z knut.osmundsen@oracle.com $
 ## @file
+# Various libraries and stuff.
 #
-# kDepIDB - IDB based dependency generator.
+
 #
-# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
-#
+# Copyright (c) 2006-2007 knut st. osmundsen <bird-src-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -20,7 +20,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
 
