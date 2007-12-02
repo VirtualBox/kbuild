@@ -72,14 +72,13 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #if defined(__EMX__) || defined(_MSC_VER)
 # include <process.h>
 #endif
-
+#include "getopt.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 

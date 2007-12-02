@@ -54,15 +54,11 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#ifdef __sun__
-# include "getopt.h"
-#endif
+#include "getopt.h"
 #ifdef _MSC_VER
 # include <malloc.h>
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 
