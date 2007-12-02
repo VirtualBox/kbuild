@@ -69,14 +69,13 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <stddef.h>
-
+#include "getopt.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 
