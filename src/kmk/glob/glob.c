@@ -181,7 +181,7 @@ extern void bcopy ();
 # define mempcpy(Dest, Src, Len) __mempcpy (Dest, Src, Len)
 #endif
 
-#if !defined(__GNU_LIBRARY__) && !defined(ELECTRIC_HEAP) /* bird */
+#if !defined(__GNU_LIBRARY__) && !defined(ELECTRIC_HEAP) && !defined(__APPLE__) /* bird (last two) */
 # ifdef	__GNUC__
 __inline
 # endif
