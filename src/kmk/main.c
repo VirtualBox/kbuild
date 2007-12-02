@@ -305,10 +305,10 @@ char cmd_prefix = '\t';
 /* Process priority.
     0 = no change;
     1 = idle / max nice;
-    2 = below normal /  nice 10;
+    2 = below normal / nice 10;
     3 = normal / nice 0;
     4 = high / nice -10;
-    4 = realtime / nice -19; */
+    5 = realtime / nice -19; */
 int process_priority = 0;
 
 /* Process affinity mask; 0 means any CPU. */
@@ -388,6 +388,22 @@ static const char *const usage[] =
                               Consider FILE to be infinitely new.\n"),
     N_("\
   --warn-undefined-variables  Warn when an undefined variable is referenced.\n"),
+#ifdef KMK
+    N_("\
+  --affinity=mask             Sets the CPU affinity on some hosts.\n"),
+    N_("\
+  --priority=0-5              Sets the process priority / nice level:\n\
+                                0 = no change;\n\
+                                1 = idle / max nice;\n\
+                                2 = below normal / nice 10;\n\
+                                3 = normal / nice 0;\n\
+                                4 = high / nice -10;\n\
+                                5 = realtime / nice -19;\n"),
+#endif /* KMK */
+#ifdef CONFIG_PRETTY_COMMAND_PRINTING
+    N_("\
+  --pretty-command-printing   Makes the command echo easier to read.\n");
+#endif
     NULL
   };
 
@@ -427,13 +443,13 @@ static const struct command_switch switches[] =
     { 'o', filename, &old_files, 0, 0, 0, 0, 0, "old-file" },
     { 'p', flag, &print_data_base_flag, 1, 1, 0, 0, 0, "print-data-base" },
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
-    { CHAR_MAX+6, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0,
+    { CHAR_MAX+10, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0,
        "pretty-command-printing" },
 #endif
 #ifdef KMK
-    { CHAR_MAX+6, positive_int, (char *) &process_priority, 1, 1, 0,
+    { CHAR_MAX+11, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
-    { CHAR_MAX+7, positive_int, (char *) &process_affinity, 1, 1, 0,
+    { CHAR_MAX+12, positive_int, (char *) &process_affinity, 1, 1, 0,
       (char *) &process_affinity, (char *) &process_affinity, "affinity" },
 #endif
     { 'q', flag, &question_flag, 1, 1, 1, 0, 0, "question" },
