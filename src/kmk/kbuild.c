@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1298 2007-12-01 20:11:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1330 2007-12-02 20:52:52Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -38,6 +38,9 @@
 #ifdef WINDOWS32
 # include "pathstuff.h"
 # include <Windows.h>
+#endif
+#if defined(__APPLE__)
+# include <mach-o/dyld.h>
 #endif
 
 #include "kbuild.h"
