@@ -82,7 +82,7 @@
 #  define K_OS      K_OS_OPENBSD
 # elif defined(__OS2__)
 #  define K_OS      K_OS_OS2
-# elif defined(__SunOrSomething__)
+# elif defined(__sun__) || defined(__SunOS__) || defined(__sun) || defined(__SunOS)
 #  define K_OS      K_OS_SOLARIS
 # elif defined(_WIN32) || defined(_WIN64)
 #  define K_OS      K_OS_WINDOWS
