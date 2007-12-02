@@ -118,9 +118,10 @@ Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n\
   fprintf(out, _("  --posix\n\
                  disable all GNU extensions.\n"));
 #ifndef CONFIG_WITHOUT_O_OPT
-  fprintf(out, _("  -o, --output=file, --output-text=file, --output-binary=file\n\
-                 use the specified file instead of stdout; the first two uses\n\
-                 uses the default text/binary mode.\n"));
+  fprintf(out, _("  -o, --output=file, --append=file, --output-text=file,\n"));
+  fprintf(out, _("  --output-binary=file, --append-text=file, append-binary=file\n\
+                 use the specified file instead of stdout; the first\n\
+                 three uses the default text/binary mode.\n"));
 #endif
   fprintf(out, _("  -r, --regexp-extended\n\
                  use extended regular expressions in the script.\n"));
@@ -184,6 +185,9 @@ main(argc, argv)
     {"output", 1, NULL, 'o'},
     {"output-binary", 1, NULL, 300},
     {"output-text", 1, NULL, 301},
+    {"append", 1, NULL, 302},
+    {"append-binary", 1, NULL, 303},
+    {"append-text", 1, NULL, 304},
 #endif
     {"version", 0, NULL, 'v'},
     {"help", 0, NULL, 'h'},
@@ -296,6 +300,18 @@ main(argc, argv)
 
         case 301:
           sed_stdout = ck_fopen (optarg, "wt", true /* fail on error */);
+          break;
+
+        case 302:
+          sed_stdout = ck_fopen (optarg, "a", true /* fail on error */);
+          break;
+
+        case 303:
+          sed_stdout = ck_fopen (optarg, "ab", true /* fail on error */);
+          break;
+
+        case 304:
+          sed_stdout = ck_fopen (optarg, "at", true /* fail on error */);
           break;
 #endif
 
