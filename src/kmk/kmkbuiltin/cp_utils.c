@@ -53,15 +53,16 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #include <signal.h>
 #include <sysexits.h>
 #include <unistd.h>
-
 #ifdef __sun__
 # include "solfakes.h"
 #endif
 #ifdef _MSC_VER
+# define MSC_DO_64_BIT_IO
 # include "mscfakes.h"
 #endif
-
 #include "cp_extern.h"
+#include "cmp_extern.h"
+
 #define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
 
 #ifndef MAXBSIZE
@@ -75,8 +76,9 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 # define S_ISVTX 0
 #endif
 
+
 int
-copy_file(const FTSENT *entp, int dne)
+copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
@@ -88,6 +90,8 @@ copy_file(const FTSENT *entp, int dne)
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
+
+	*pcopied = 0;
 
 	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
 		warn("%s", entp->fts_path);
@@ -105,6 +109,15 @@ copy_file(const FTSENT *entp, int dne)
 	 * modified by the umask.)
 	 */
 	if (!dne) {
+		/* compare the files first if requested */
+		if (	changed_only
+		    &&  cmp_fd_and_file(from_fd, entp->fts_path, to.p_path,
+                                        1 /* silent */, 0 /* lflag */,
+		                        0 /* special */)
+		        == OK_EXIT) {
+			return (0);
+		}
+
 #define YESNO "(y/n [n]) "
 		if (nflag) {
 			if (vflag)
@@ -143,6 +156,7 @@ copy_file(const FTSENT *entp, int dne)
 	}
 
 	rval = 0;
+	*pcopied = 1;
 
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
