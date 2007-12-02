@@ -498,8 +498,9 @@ static int
 usage(FILE *pf)
 {
 	fprintf(pf, "usage: %s [-f | -i | -n] [-v] source target\n"
-				"   or: %s [-f | -i | -n] [-v] source ... directory\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n");
+	            "   or: %s [-f | -i | -n] [-v] source ... directory\n"
+	            "   or: %s --help\n"
+	            "   or: %s --version\n",
+	        g_progname, g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }
