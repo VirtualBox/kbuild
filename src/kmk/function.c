@@ -2554,16 +2554,16 @@ func_comp_vars (char *o, char **argv, const char *funcname)
 
   /* the simple cases */
   if (var1 == var2)
-    return variable_buffer_output (o, "", 1);       /* eq */
+    return variable_buffer_output (o, "", 0);       /* eq */
   if (!var1 || !var2)
     return variable_buffer_output (o, argv[2], strlen(argv[2]));
   if (var1->value == var2->value)
-    return variable_buffer_output (o, "", 1);       /* eq */
+    return variable_buffer_output (o, "", 0);       /* eq */
   if (!var1->recursive && !var2->recursive)
   {
     if (    var1->value_length == var2->value_length
         &&  !memcmp (var1->value, var2->value, var1->value_length))
-      return variable_buffer_output (o, "", 1);     /* eq */
+      return variable_buffer_output (o, "", 0);     /* eq */
 
     /* ignore trailing and leading blanks */
     s1 = var1->value;
@@ -2584,7 +2584,7 @@ func_comp_vars (char *o, char **argv, const char *funcname)
       return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
 l_simple_compare:
     if (!memcmp (s1, s2, e1 - s1))
-      return variable_buffer_output (o, "", 1);     /* eq */
+      return variable_buffer_output (o, "", 0);     /* eq */
     return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
   }
 
@@ -2605,12 +2605,12 @@ l_simple_compare:
 
   /* both empty after stripping? */
   if (s1 == e1 && s2 == e2)
-    return variable_buffer_output (o, "", 1);       /* eq */
+    return variable_buffer_output (o, "", 0);       /* eq */
 
   /* optimist. */
   if (   e1 - s1 == e2 - s2
       && !memcmp(s1, s2, e1 - s1))
-    return variable_buffer_output (o, "", 1);       /* eq */
+    return variable_buffer_output (o, "", 0);       /* eq */
 
   /* compare up to the first '$' or the end. */
   x1 = var1->recursive ? memchr (s1, '$', e1 - s1) : NULL;
@@ -2715,7 +2715,7 @@ func_date (char *o, char **argv, const char *funcname)
         {
           error (NILF, _("$(%s): strptime(%s,%s,) -> %s\n"), funcname,
                  argv[1], input_format, p ? p : "<null>");
-          return variable_buffer_output (o, "", 1);
+          return variable_buffer_output (o, "", 0);
         }
     }
   else
@@ -2899,7 +2899,7 @@ func_which (char *o, char **argv, const char *funcname)
         }
     }
 
-  return variable_buffer_output (o, "", 1);
+  return variable_buffer_output (o, "", 0);
 }
 #endif
 
