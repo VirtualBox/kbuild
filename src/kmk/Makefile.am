@@ -32,7 +32,7 @@ endif
 # SUBDIRS =	glob config po doc $(MAYBE_W32)
 SUBDIRS =	glob config $(MAYBE_W32)
 
-bin_PROGRAMS =	kmk
+bin_PROGRAMS =	kmk kmk_redirect
 
 if USE_CUSTOMS
   remote =	remote-cstms.c
@@ -48,8 +48,8 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		\
 		kbuild.c \
 		electric.c \
-        ../lib/md5.c \
-        ../lib/kDep.c \
+		../lib/md5.c \
+		../lib/kDep.c \
 		\
 		kmkbuiltin.c \
 		kmkbuiltin/append.c \
@@ -68,14 +68,15 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/printf.c \
 		kmkbuiltin/rm.c \
 		kmkbuiltin/rmdir.c \
+		kmkbuiltin/test.c \
 		kmkbuiltin/err.c \
 		kmkbuiltin/setmode.c \
 		kmkbuiltin/strmode.c \
 		kmkbuiltin/strlcpy.c \
 		kmkbuiltin/osdep.c \
-		kmkbuiltin/version.c
+		kmkbuiltin/kbuild_version.c
 
-## TODO kmk_redirect.
+kmk_redirect_SOURCES = kmkbuiltin/redirect.c
 
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
@@ -134,7 +135,7 @@ DEFS = \
 	-DCONFIG_WITH_KMK_BUILTIN \
     @DEFS@
 
-AM_CPPFLAGS =	$(GLOBINC)
+AM_CPPFLAGS =	$(GLOBINC) -I$(srcdir)/../lib
 # Only process if target is MS-Windows
 if WINDOWSENV
     AM_CPPFLAGS +=	$(W32INC)

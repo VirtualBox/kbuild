@@ -1,4 +1,4 @@
-/* $Id: version.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_version.c 1340 2007-12-02 22:07:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * kbuild_version(), helper function.
  */
