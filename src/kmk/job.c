@@ -2526,10 +2526,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
      sh_chars_sh[] directly (see below).  */
   static char *sh_chars_sh = sh_chars;
 # endif	 /* HAVE_DOS_PATHS */
-# ifdef KMK
-  char*  sh_chars = sh_chars_sh;
-  char** sh_cmds = sh_cmds_sh;
-# endif
+  char*  sh_chars = sh_chars_sh;                                                /* kmk: +_sh */
+  char** sh_cmds = sh_cmds_sh;                                                  /* kmk: +_sh */
 #endif
 #ifdef KMK
   static char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" */
