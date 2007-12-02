@@ -48,7 +48,6 @@ __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $"); */
 # include "mscfakes.h"
 #endif
 #include "getopt.h"
-
 #include "kmkbuiltin.h"
 #include "cmp_extern.h"
 

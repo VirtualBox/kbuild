@@ -58,7 +58,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include "getopt.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif

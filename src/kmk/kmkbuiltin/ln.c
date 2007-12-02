@@ -53,14 +53,10 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __sun__
-# include "getopt.h"
-#endif
+#include "getopt.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 static int	fflag;				/* Unlink existing files. */

@@ -63,14 +63,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#ifdef __sun__
-# include "getopt.h"
-#endif
+#include "getopt.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 

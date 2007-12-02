@@ -70,14 +70,13 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
+#include "getopt.h"
 #ifdef __sun__
 # include "solfakes.h"
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
-
 #include "kmkbuiltin.h"
 
 
