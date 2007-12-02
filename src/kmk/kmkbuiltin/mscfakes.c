@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 1108 2007-09-23 08:33:10Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 1321 2007-12-02 10:28:19Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -296,6 +296,41 @@ int vasprintf(char **strp, const char *fmt, va_list va)
     }
 
     *strp = psz;
+    return rc;
+}
+
+
+#undef stat
+/*
+ * Workaround for directory names with trailing slashes.
+ * Added by bird reasons stated.
+ */
+int
+my_other_stat(const char *path, struct stat *st)
+{
+    int rc = stat(path, st);
+    if (    rc != 0
+        &&  errno == ENOENT
+        &&  *path != '\0')
+    {
+        char *slash = strchr(path, '\0') - 1;
+        if (*slash == '/' || *slash == '\\')
+        {
+            size_t len_path = slash - path + 1;
+            char *tmp = alloca(len_path + 4);
+            memcpy(tmp, path, len_path);
+            tmp[len_path] = '.';
+            tmp[len_path + 1] = '\0';
+            errno = 0;
+            rc = stat(tmp, st);
+            if (    rc == 0
+                &&  !S_ISDIR(st->st_mode))
+            {
+                errno = ENOTDIR;
+                rc = -1;
+            }
+        }
+    }
     return rc;
 }
 
