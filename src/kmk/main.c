@@ -392,8 +392,7 @@ static const char *const usage[] =
     N_("\
   --affinity=mask             Sets the CPU affinity on some hosts.\n"),
     N_("\
-  --priority=0-5              Sets the process priority / nice level:\n\
-                                0 = no change;\n\
+  --priority=1-5              Sets the process priority / nice level:\n\
                                 1 = idle / max nice;\n\
                                 2 = below normal / nice 10;\n\
                                 3 = normal / nice 0;\n\
@@ -731,6 +730,11 @@ set_make_priority_and_affinity (void)
 {
 #ifdef WINDOWS32
   DWORD dwPriority;
+  if (process_affinity)
+    if (!SetProcessAffinityMask (GetCurrentProcess (), process_affinity))
+      fprintf (stderr, "warning: SetPriorityClass (,%#x) failed with last error %d\n",
+               process_affinity, GetLastError());
+
   switch (process_priority)
     {
       case 0:     return;
@@ -741,9 +745,9 @@ set_make_priority_and_affinity (void)
       case 5:     dwPriority = REALTIME_PRIORITY_CLASS; break;
       default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
     }
-  SetPriorityClass(GetCurrentProcess(), dwPriority);
-  if (process_affinity)
-    SetThreadAffinityMask(GetCurrentProcess(), process_affinity);
+  if (!SetPriorityClass (GetCurrentProcess (), dwPriority))
+    fprintf (stderr, "warning: SetPriorityClass (,%#x) failed with last error %d\n",
+             dwPriority, GetLastError ());
 
 #else /*#elif HAVE_NICE */
   int nice_level = 0;
@@ -757,9 +761,10 @@ set_make_priority_and_affinity (void)
       case 5:     nice_level = -19; break;
       default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
     }
-  nice (nice_level);
+  errno = 0;
+  if (nice (nice_level) == -1 && errno != 0)
+    fprintf (stderr, "warning: nice (%d) failed: %s\n", nice, strerror (errno));
 #endif
-  /** @todo bitch about failures. */
 }
 #endif
 
