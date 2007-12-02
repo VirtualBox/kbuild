@@ -1,4 +1,4 @@
-/* $Id: redirect.c 1302 2007-12-01 23:10:11Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1308 2007-12-02 02:05:11Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kmk_redirect - Do simple program <-> file redirection.
@@ -46,7 +46,7 @@
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s [-[rwa+tb]<fd>[=|:| ]<file>] -- <program> [args]\n"
+            "usage: %s [-[rwa+tb]<fd> <file>] [-E <var=val>] [-C <dir>] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
@@ -55,6 +55,12 @@ static int usage(FILE *pOut,  const char *argv0)
             "   i = stdin\n"
             "   o = stdout\n"
             "   e = stderr\n"
+            "\n"
+            "The -E switch is for making changes to the environment in a putenv\n"
+            "fashion.\n"
+            "\n"
+            "The -C switch is for changing the current directory. This takes immediate\n"
+            "effect, so be careful where you put it.\n"
             "\n"
             "This command is really just a quick hack to avoid invoking the shell\n"
             "on Windows (cygwin) where forking is very expensive and has exhibited\n"
@@ -102,6 +108,10 @@ int main(int argc, char **argv)
                     psz = "h";
                 else if (!strcmp(psz, "-version"))
                     psz = "V";
+                else if (!strcmp(psz, "-env"))
+                    psz = "E";
+                else if (!strcmp(psz, "-chdir"))
+                    psz = "C";
             }
 
             /*
@@ -118,6 +128,75 @@ int main(int argc, char **argv)
                        "Copyright (C) 2007 Knut St. Osmundsen\n",
                        KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
                 return 0;
+            }
+
+            /*
+             * Environment switch?
+             */
+            if (*psz == 'E')
+            {
+                psz++;
+                if (*psz == ':' || *psz == '=')
+                    psz++;
+                else
+                {
+                    if (i + 1 >= argc)
+                    {
+                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", argv[0], argv[i]);
+                        return 1;
+                    }
+                    psz = argv[++i];
+                }
+                if (putenv(psz))
+                {
+                    fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", argv[0], psz, strerror(errno));
+                    return 1;
+                }
+                continue;
+            }
+
+            /*
+             * Change directory switch?
+             */
+            if (*psz == 'C')
+            {
+                psz++;
+                if (*psz == ':' || *psz == '=')
+                    psz++;
+                else
+                {
+                    if (i + 1 >= argc)
+                    {
+                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", argv[0], argv[i]);
+                        return 1;
+                    }
+                    psz = argv[++i];
+                }
+                if (!chdir(psz))
+                    continue;
+#ifdef _MSC_VER
+                {
+                    /* drop trailing slash if any. */
+                    size_t cch = strlen(psz);
+                    if (    cch > 2
+                        &&  (psz[cch - 1] == '/' || psz[cch - 1] == '\\')
+                        &&  psz[cch - 1] != ':')
+                    {
+                        int rc2;
+                        char *pszCopy = strdup(psz);
+                        do  pszCopy[--cch] = '\0';
+                        while (    cch > 2
+                               &&  (pszCopy[cch - 1] == '/' || pszCopy[cch - 1] == '\\')
+                               &&  pszCopy[cch - 1] != ':');
+                        rc2 = chdir(pszCopy);
+                        free(pszCopy);
+                        if (!rc2)
+                            continue;
+                    }
+                }
+#endif
+                fprintf(pStdErr, "%s: error: chdir(\"%s\"): %s\n", argv[0], psz, strerror(errno));
+                return 1;
             }
 
             /*
