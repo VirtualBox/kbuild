@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1311 2007-12-02 05:06:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1347 2007-12-03 00:53:22Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2246,23 +2246,19 @@ srcdst := $(word $(words $(srcdst)),$(srcdst))
 # _INSTFUN
 ifdef $(srcsrc)_INSTFUN
  instfun := $(srcsrc)_INSTFUN
+else ifdef $(target)_INSTFUN
+ instfun := $(target)_INSTFUN
 else
- ifdef $(target)_INSTFUN
-  instfun := $(target)_INSTFUN
- else
-  instfun := _INSTALL_FILE
- endif
+ instfun := _INSTALL_FILE
 endif
 
 # _INST
 ifdef $(srcsrc)_INST
  inst := $(patsubst %/,%,$($(srcsrc)_INST))/$(dir $(srcdstdir))
+else ifdef $(target)_INST
+ inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(srcdstdir))
 else
- ifdef $(target)_INST
-  inst := $(patsubst %/,%,$($(target)_INST))/$(dir $(srcdstdir))
- else
-  inst := $(dir $(srcdstdir))
- endif
+ inst := $(dir $(srcdstdir))
 endif
 
 # calc target
