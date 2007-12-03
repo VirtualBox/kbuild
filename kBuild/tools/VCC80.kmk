@@ -1,4 +1,4 @@
-# $Id: VCC80.kmk 1350 2007-12-03 01:03:09Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 1354 2007-12-03 01:07:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
@@ -86,11 +86,7 @@ endif
 ## Constructs the correct .pdb name (the name is lowercased).
 # @param    $(1)        Base name, no extention.
 # @param    $(2)        The extension.
-ifeq ($(filter tolower,$(KMK_FEATURES)),tolower)
 TOOL_VCC80_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
-else # this fallback is incorrect and won't work on a case sensitive FS.
-TOOL_VCC80_PDB = $(1).$(2)
-endif
 
 TOOL_VCC80_COBJSUFF         ?= .obj
 TOOL_VCC80_CFLAGS           ?= -TC -c -nologo
