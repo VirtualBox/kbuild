@@ -1,4 +1,4 @@
-# $Id: GXX64.kmk 1349 2007-12-03 00:58:51Z knut.osmundsen@oracle.com $
+# $Id: GXX64.kmk 1355 2007-12-03 01:09:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 64-bit GCC v3.2.x or later using the system GCC, for building C++ code.
@@ -209,7 +209,6 @@ endef
 TOOL_GXX64_LINK_LIBRARY_OUTPUT = $(out).ar-script
 TOOL_GXX64_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GXX64_LINK_LIBRARY_DEPORD =
-ifeq ($(filter append-dash-n,$(KMK_FEATURES)),append-dash-n)
 define TOOL_GXX64_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) $(out).ar-script 'CREATE $(out)'
 	$(QUIET)$(APPEND) -n $(out).ar-script \
@@ -219,18 +218,6 @@ define TOOL_GXX64_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) $(out).ar-script 'END'
 	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_GXX64_AR) -M
 endef
-else
-define TOOL_GXX64_LINK_LIBRARY_CMDS
-	$(QUIET)$(APPEND) $(out).ar-script "CREATE $(out)"
-	$(foreach o, $(objs)\
-		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDMOD $(o)")
-	$(foreach srclib,$(othersrc)\
-		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDLIB $(srclib)")
-	$(QUIET)$(APPEND) $(out).ar-script "SAVE"
-	$(QUIET)$(APPEND) $(out).ar-script "END"
-	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_GXX64_AR) -M
-endef
-endif
 
 
 ## Link program
