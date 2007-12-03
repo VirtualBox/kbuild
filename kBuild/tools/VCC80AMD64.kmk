@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 1350 2007-12-03 01:03:09Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 1351 2007-12-03 01:03:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting AMD64.
@@ -240,14 +240,8 @@ define TOOL_VCC80AMD64_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		$(subst /,\\,$(objs)) \
 		$(subst /,\\,$(libs))
-ifdef KMK_USE_TEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC80AMD64_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out))
-else
-	$(QUIET)if test -f $(out).manifest; then \
-		$(TOOL_VCC80AMD64_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out)); \
-	fi
-endif
 endef
 
 
