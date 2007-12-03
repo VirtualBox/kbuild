@@ -1,4 +1,4 @@
-# $Id: XGCCAMD64LINUX.kmk 1315 2007-12-02 05:59:27Z knut.osmundsen@oracle.com $
+# $Id: XGCCAMD64LINUX.kmk 1349 2007-12-03 00:58:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC Cross compiler for AMD64+Linux.
@@ -201,11 +201,7 @@ define TOOL_XGCCAMD64LINUX_LINK_LIBRARY_CMDS
 		$(foreach o,$(othersrc), 'ADDLIB $(o)')
 	$(QUIET)$(APPEND) $(out).ar-script 'SAVE'
 	$(QUIET)$(APPEND) $(out).ar-script 'END'
-ifdef KMK_USE_REDIRECT
 	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_XGCCAMD64LINUX_AR) -M
-else
-	$(QUIET)$(TOOL_XGCCAMD64LINUX_AR) -M < $(out).ar-script
-endif
 endef
 else
 define TOOL_XGCCAMD64LINUX_LINK_LIBRARY_CMDS
@@ -216,11 +212,7 @@ define TOOL_XGCCAMD64LINUX_LINK_LIBRARY_CMDS
 		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDLIB $(srclib)")
 	$(QUIET)$(APPEND) $(out).ar-script "SAVE"
 	$(QUIET)$(APPEND) $(out).ar-script "END"
-ifdef KMK_USE_REDIRECT
 	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_XGCCAMD64LINUX_AR) -M
-else
-	$(QUIET)$(TOOL_XGCCAMD64LINUX_AR) -M < $(out).ar-script
-endif
 endef
 endif
 
