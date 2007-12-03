@@ -1,4 +1,4 @@
-# $Id: GXX32.kmk 1315 2007-12-02 05:59:27Z knut.osmundsen@oracle.com $
+# $Id: GXX32.kmk 1349 2007-12-03 00:58:51Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later using the system GCC, for building C++ code.
@@ -232,11 +232,7 @@ define TOOL_GXX32_LINK_LIBRARY_CMDS
 		,$(NL)$(TAB)$(QUIET)$(APPEND) $(out).ar-script "ADDLIB $(srclib)")
 	$(QUIET)$(APPEND) $(out).ar-script "SAVE"
 	$(QUIET)$(APPEND) $(out).ar-script "END"
-ifdef KMK_USE_REDIRECT
 	$(QUIET)$(REDIRECT) -rti $(out).ar-script -- $(TOOL_GXX32_AR) -M
-else
-	$(QUIET)$(TOOL_GXX32_AR) -M < $(out).ar-script
-endif
 endef
 endif
 
