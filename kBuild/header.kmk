@@ -1,4 +1,4 @@
-# $Id: header.kmk 1296 2007-12-01 03:47:44Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1348 2007-12-03 00:54:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -42,9 +42,13 @@ ifndef KMK_VERSION
 endif
 ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
  ifneq ($(KBUILD_VERSION_MAJOR),0)
-  $(warning kBuild: kmk major version mismatch, expected '0' found '$(KBUILD_VERSION_MAJOR)'!)
+  $(warning kBuild: kmk major version mismatch! Expected '0' but found '$(KBUILD_VERSION_MAJOR)'!)
  else
-  $(warning kBuild: kmk minor version mismatch, expected '1' found '$(KBUILD_VERSION_MINOR)'!)
+  $(warning kBuild: kmk minor version mismatch! Expected '1' but found '$(KBUILD_VERSION_MINOR)'!)
+ endif
+else
+ ifneq ($(int-ge $(KBUILD_VERSION_PATCH),2),1)
+  $(warning kBuild: kmk version mismatch! Expected 0.1.2 or later. Actual version is $(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR).$(KBUILD_VERSION_PATCH).)
  endif
 endif
 
@@ -52,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1296 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1348 $  )
 
 
 #
@@ -146,7 +150,7 @@ KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 ppc32 ppc64 mips32 mips64 ia64 h
 ifndef BUILD_TYPE
  BUILD_TYPE := release
 else
- ifneq ($(filter $(BUILD_TYPE),$(KBUILD_OSES) $(KBUILD_ARCHES)),)
+ if1of ($(BUILD_TYPE),$(KBUILD_OSES) $(KBUILD_ARCHES))
   $(error kBuild: The BUILD_TYPE value '$(BUILD_TYPE)' is an OS or architecture!)
  endif
  ifneq (.$(words $(BUILD_TYPE)).$(BUILD_TYPE).,.1.$(strip $(BUILD_TYPE)).)
@@ -181,7 +185,7 @@ else
  ifneq (.$(words $(BUILD_PLATFORM_CPU)).$(BUILD_PLATFORM_CPU).,.1.$(strip $(BUILD_PLATFORM_CPU)).)
   $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' contains spaces/tabs!)
  endif
- ifneq ($(filter $(BUILD_PLATFORM_CPU), $(KBUILD_OSES) $(BUILD_ARCHES)),)
+ if1of ($(BUILD_PLATFORM_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
   $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' was found in the OS or architecture keywords!)
  endif
  ifeq ($(BUILD_PLATFORM_CPU),$(BUILD_TYPE))
@@ -228,7 +232,7 @@ else
  ifneq (.$(words $(BUILD_TARGET_CPU)).$(BUILD_TARGET_CPU).,.1.$(strip $(BUILD_TARGET_CPU)).)
   $(error kBuild: The BUILD_TARGET_CPU value '$(BUILD_TARGET_CPU)' contains spaces/tabs!)
  endif
- ifneq ($(filter $(BUILD_TARGET_CPU), $(KBUILD_OSES) $(BUILD_ARCHES)),)
+ if1of ($(BUILD_TARGET_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
   $(error kBuild: The BUILD_TARGET_CPU value was found in the OS or architecture keywords!)
  endif
  ifeq ($(BUILD_TARGET_CPU),$(BUILD_TYPE))
@@ -330,7 +334,7 @@ HOSTSUFF_EXE        :=
 endif
 
 # Win, Win32, Win64, NT.
-ifeq ($(filter-out win32 win64 win nt,$(BUILD_PLATFORM)),)
+if1of ($(BUILD_PLATFORM),win nt)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
@@ -359,7 +363,7 @@ endif
 # (PORTME)
 #
 SUFF_DEP            := .dep
-ifeq ($(filter-out win32 win64 win nt os2,$(BUILD_TARGET)),)
+if1of ($(BUILD_TARGET),win nt os2)
 SUFF_OBJ            := .obj
 SUFF_LIB            := .lib
 SUFF_DLL            := .dll
