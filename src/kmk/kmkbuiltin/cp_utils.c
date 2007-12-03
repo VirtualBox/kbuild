@@ -110,12 +110,20 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	 */
 	if (!dne) {
 		/* compare the files first if requested */
-		if (	changed_only
-		    &&  cmp_fd_and_file(from_fd, entp->fts_path, to.p_path,
-                                        1 /* silent */, 0 /* lflag */,
-		                        0 /* special */)
-		        == OK_EXIT) {
-			return (0);
+		if (changed_only) {
+                        if (cmp_fd_and_file(from_fd, entp->fts_path, to.p_path,
+					    1 /* silent */, 0 /* lflag */,
+					    0 /* special */) == OK_EXIT) {
+				close(from_fd);
+				return (0);
+			}
+			if (lseek(from_fd, 0, SEEK_SET) != 0) {
+    				close(from_fd);
+				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
+					warn("%s", entp->fts_path);
+					return (1);
+				}
+			}
 		}
 
 #define YESNO "(y/n [n]) "
