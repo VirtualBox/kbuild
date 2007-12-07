@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1100 2007-09-19 07:32:44Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
+/* $Id: kdev.e 1367 2007-12-07 12:24:22Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
  *
  * Visual SlickEdit Documentation Macros.
  *
@@ -2912,13 +2912,13 @@ static k_menu_create()
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, 'User &Initials (' skUserInitials ')...',  "k_menu_user_initials", "userinitials");
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash preset");
     mhPre= _menu_insert(mhkDev,  -1, MF_SUBMENU, "P&resets", "", "");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Odin32",      "k_menu_preset javadoc, Odin32, Opt2Ind4,,Odin32",      "odin32");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Linux Kernel","k_menu_preset linux, GPL, Opt1Ind4,,Linux",            "linux");
+    /*rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Odin32",      "k_menu_preset javadoc, Odin32, Opt2Ind4,,Odin32",      "odin32");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Linux Kernel","k_menu_preset linux, GPL, Opt1Ind4,,Linux",            "linux");*/
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "The Bird",    "k_menu_preset javadoc, GPL, Opt2Ind4",                 "bird");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLIBC",       "k_menu_preset javadoc, GPL, Opt2Ind4,, kLIBC",         "kLIBC");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kBuild",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kBuild",        "kBuild");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "InnoTek",     "k_menu_preset javadoc, Confidential, Opt2Ind4, InnoTek Systemberatung GmbH", "InnoTek");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, InnoTek Systemberatung GmbH",   "InnoTek");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "innotek",     "k_menu_preset javadoc, Confidential, Opt2Ind4, innotek GmbH", "innotek");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, innotek GmbH",   "VirtualBox");
 
     k_menu_doc_style();
     k_menu_license();
@@ -2960,7 +2960,7 @@ _command k_menu_program()
 _command k_menu_company()
 {
     if (skCompany == '')
-        sRc = show("-modal k_form_simple_input", "Company", 'InnoTek Systemberatung GmbH');
+        sRc = show("-modal k_form_simple_input", "Company", 'innotek GmbH');
     else
         sRc = show("-modal k_form_simple_input", "Company", skCompany);
     if (sRc != "\r")
