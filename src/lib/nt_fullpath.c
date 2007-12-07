@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1265 2007-11-10 12:39:39Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1368 2007-12-07 19:36:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -112,22 +112,23 @@ static void w32_fixcase(char *pszPath)
     {
         char *pszLast = &s_szLast[psz - pszPath];
         char *pszCur = psz;
+        char *pszSrc0 = pszLast;
+        char *pszDst0 = pszCur;
         for (;;)
         {
             const char ch1 = *pszCur;
             const char ch2 = *pszLast;
             if (    ch1 != ch2
                 &&  (ch1 != '\\' || ch2 != '/')
-                &&  (ch1 != '/'  || ch2 != '\\'))
-            {
-                if (    tolower(ch1) != tolower(ch2)
-                    &&  toupper(ch1) != toupper(ch2))
-                    break;
-                /* optimistic, component mismatch will be corrected in the next loop. */
-                *pszCur = ch2;
-            }
+                &&  (ch1 != '/'  || ch2 != '\\')
+                &&  tolower(ch1) != tolower(ch2)
+                &&  toupper(ch1) != toupper(ch2))
+                break;
             if (ch1 == '/' || ch1 == '\\')
-                psz = pszCur + 1;
+            {
+				psz = pszCur + 1;
+                *pszLast = ch1; /* preserve the slashes */
+            }
             else if (ch1 == '\0')
             {
                 psz = pszCur;
@@ -136,6 +137,8 @@ static void w32_fixcase(char *pszPath)
             pszCur++;
             pszLast++;
         }
+        if (psz != pszDst0)
+            memcpy(pszDst0, pszSrc0, psz - pszDst0);
     }
 
     /*
