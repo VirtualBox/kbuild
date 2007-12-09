@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1347 2007-12-03 00:53:22Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1370 2007-12-09 21:03:03Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -266,7 +266,7 @@ ifndef TEMPLATE_$(template)
  endif
 endif
 endef # def_templates_include
-$(foreach template, $(_TEMPLATES), $(eval $(def_templates)))
+$(foreach template, $(_TEMPLATES), $(eval $(def_templates_include)))
 
 #$ (warning dbg _TEMPLATES := $(_TEMPLATES))
 
@@ -393,10 +393,11 @@ endif
 # Template Inheritance.
 #
 # This is much the same as with target inheritance, except we cannot
-# restrict the properties involved since we've got a clue which target
-# types are using them. But, we can drop the instance expansion we're
-# doing for targets since there won't be any more changes to either the
-# source nor the target templates beyond this exercise.
+# restrict the properties involved since we haven't got a clue which
+# target platforms/archs are using them. But, we can drop the instance
+# expansion we're doing for targets since there won't be any more
+# changes to either the source nor the target templates beyond this
+# exercise.
 #
 
 src_prefix := TEMPLATE_
