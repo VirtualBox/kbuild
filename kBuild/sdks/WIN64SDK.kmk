@@ -1,4 +1,4 @@
-# $Id: WIN64SDK.kmk 848 2007-02-06 03:13:07Z knut.osmundsen@oracle.com $
+# $Id: WIN64SDK.kmk 1371 2007-12-14 01:56:13Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows Platform SDK, targeting AMD64.
@@ -51,14 +51,14 @@ PATH_SDK_WIN64SDK_INC := $(firstword $(wildcard $(PATH_SDK_WIN64SDK)/[Ii][Nn][Cc
 endif
 
 ifndef PATH_SDK_WIN64SDK_LIB
-PATH_SDK_WIN64SDK_LIB := $(firstword $(wildcard $(PATH_SDK_WIN64SDK)/[Ll][Ii][Bb]/[Aa][Mm][Dd]64) $(PATH_SDK_WIN64SDK)/Lib/AMD64)
+PATH_SDK_WIN64SDK_LIB := $(firstword $(wildcard $(PATH_SDK_WIN64SDK)/[Ll][Ii][Bb]/[Aa][Mm][Dd]64 $(PATH_SDK_WIN64SDK)/[Ll][Ii][Bb]/[xX]64) $(PATH_SDK_WIN64SDK)/Lib/AMD64)
 endif
 
 ifndef PATH_SDK_WIN64SDK_BIN
 PATH_SDK_WIN64SDK_BIN := $(firstword $(wildcard $(PATH_SDK_WIN64SDK)/[Bb][Ii][Nn]) $(PATH_SDK_WIN64SDK)/Bin)
 endif
 ifndef PATH_SDK_WIN64SDK_BIN_AMD64
-PATH_SDK_WIN64SDK_BIN_AMD64 := $(firstword $(wildcard $(PATH_SDK_WIN64SDK_BIN)/[Ww][Ii][Nn]64/[Xx]86/[Aa][Mm][Dd]64) $(PATH_SDK_WIN64SDK_BIN)/win64/AMD64)
+PATH_SDK_WIN64SDK_BIN_AMD64 := $(firstword $(wildcard $(PATH_SDK_WIN64SDK_BIN)/[Ww][Ii][Nn]64/[Xx]86/[Aa][Mm][Dd]64 $(PATH_SDK_WIN64SDK_BIN)/[Ww][Ii][Nn]64/[Xx]86) $(PATH_SDK_WIN64SDK_BIN)/win64/AMD64)
 endif
 
 
