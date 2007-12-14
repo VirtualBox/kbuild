@@ -2724,8 +2724,24 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 	    *ap++ = *p;
 	}
       else if (strchr (sh_chars, *p) != 0)
+#ifdef KMK
+        {
+          /* Tilde is only special if at the start of a path spec,
+             i.e. don't get excited when we by 8.3 files on windows. */
+          if (   *p == '~'
+              && p > line
+              && !isspace (p[-1])
+              && p[-1] != '"'
+              && p[-1] != '\'')
+            *ap++ = *p;
+          else
+            /* Not inside a string, but it's a special char.  */
+            goto slow;
+        }
+#else  /* !KMK */
 	/* Not inside a string, but it's a special char.  */
 	goto slow;
+#endif /* !KMK */
 #ifdef  __MSDOS__
       else if (*p == '.' && p[1] == '.' && p[2] == '.' && p[3] != '.')
 	/* `...' is a wildcard in DJGPP.  */
