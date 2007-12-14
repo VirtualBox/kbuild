@@ -2530,7 +2530,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
   char** sh_cmds = sh_cmds_sh;                                                  /* kmk: +_sh */
 #endif
 #ifdef KMK
-  static char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" */
+  static char sh_chars_kash[] = "#;*?[]&|<>(){}$`^~!";                          /* note: no \" - good idea? */
   static char *sh_cmds_kash[] = {
       ".", ":", "break", "case", "cd", "continue",
       "echo", "eval", "exec", "exit", "export", "for", "if",
@@ -2803,7 +2803,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
                   if (p[1] != '\\' && p[1] != '\''
                       && !isspace ((unsigned char)p[1])
 # ifdef KMK
-                      && strchr (sh_chars, p[1]) == 0)
+                      && strchr (sh_chars, p[1]) == 0 
+                      && (p[1] != '"' || !unixy_shell))
 # else
                       && strchr (sh_chars_sh, p[1]) == 0)
 # endif 
