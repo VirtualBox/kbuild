@@ -2786,7 +2786,11 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 #endif
                   if (p[1] != '\\' && p[1] != '\''
                       && !isspace ((unsigned char)p[1])
+# ifdef KMK
+                      && strchr (sh_chars, p[1]) == 0)
+# else
                       && strchr (sh_chars_sh, p[1]) == 0)
+# endif 
                     /* back up one notch, to copy the backslash */
                     --p;
 #endif  /* HAVE_DOS_PATHS */
