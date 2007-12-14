@@ -2731,6 +2731,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
           if (   *p == '~'
               && p > line
               && !isspace (p[-1])
+              && p[-1] != '='
+              && p[-1] != ':'
               && p[-1] != '"'
               && p[-1] != '\'')
             *ap++ = *p;
