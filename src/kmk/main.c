@@ -1748,7 +1748,7 @@ main (int argc, char **argv, char **envp)
 #ifdef KMK /* this is really a candidate for all platforms... */
   {
     extern char *default_shell;
-    char *bin = get_path_kbuild_bin();
+    const char *bin = get_path_kbuild_bin();
     size_t len = strlen (bin);
     default_shell = xmalloc (len + sizeof("/kmk_ash.exe"));
     memcpy (default_shell, bin, len);
@@ -3302,6 +3302,28 @@ define_makeflags (int all, int makefile)
        We should not do this again on the second call, because that is
        after reading makefiles which might have done `unexport MAKEFLAGS'. */
     v->export = v_export;
+
+#ifdef KMK
+  /* Provide simple access to some of the options. */
+  {
+    char val[32];
+    sprintf (val, "%u", job_slots);
+    define_variable ("KMK_OPTS_JOBS", sizeof("KMK_OPTS_JOBS") - 1, 
+                     val, o_default, 1);
+    define_variable ("KMK_OPTS_KEEP_GOING", sizeof("KMK_OPTS_KEEP_GOING") - 1, 
+                     keep_going_flag ? "1" : "0", o_default, 1);
+    define_variable ("KMK_OPTS_JUST_PRINT", sizeof("KMK_OPTS_JUST_PRINT") - 1, 
+                     just_print_flag ? "1" : "0", o_default, 1);
+    define_variable ("KMK_OPTS_PRETTY_COMMAND_PRINTING", sizeof("KMK_OPTS_PRETTY_COMMAND_PRINTING") - 1, 
+                     pretty_command_printing ? "1" : "0", o_default, 1);
+    sprintf (val, "%u", process_priority);
+    define_variable ("KMK_OPTS_PRORITY", sizeof("KMK_OPTS_PRORITY") - 1, 
+                     val, o_default, 1);
+    sprintf (val, "%u", process_affinity);
+    define_variable ("KMK_OPTS_AFFINITY", sizeof("KMK_OPTS_AFFINITY") - 1, 
+                     val, o_default, 1);
+  }
+#endif
 }
 
 /* Print version information.  */
