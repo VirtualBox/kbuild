@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: env.sh 1244 2007-10-15 15:20:40Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1380 2008-01-07 03:12:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -138,8 +138,10 @@ if test -z "$BUILD_PLATFORM_ARCH"; then
             BUILD_PLATFORM_ARCH='sparc64'
             ;;
         s390)
-            ## @todo: 31-bit vs 64-bit on the mainframe?
             BUILD_PLATFORM_ARCH='s390'
+            ;;
+        s390x)
+            BUILD_PLATFORM_ARCH='s390x'
             ;;
         ppc32|ppc|powerpc)
             BUILD_PLATFORM_ARCH='ppc32'
@@ -163,7 +165,7 @@ if test -z "$BUILD_PLATFORM_ARCH"; then
         hppa64|parisc64)
             BUILD_PLATFORM_ARCH='hppa64'
             ;;
-        arm|armv4l)
+        arm|armv4l|armv5tel)
             BUILD_PLATFORM_ARCH='arm'
             ;;
         alpha)
