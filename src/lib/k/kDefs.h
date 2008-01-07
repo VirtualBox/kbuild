@@ -3,7 +3,7 @@
  *
  * kTypes - Defines and Macros.
  *
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
  *
  * This file is part of k*.
@@ -142,16 +142,24 @@
 #define K_ARCH_MIPS_32          ( 9 | K_ARCH_BIT_32 | K_ARCH_END_BI)
 /** 64-bit MIPS. */
 #define K_ARCH_MIPS_64          (10 | K_ARCH_BIT_64 | K_ARCH_END_BI)
+/** 32-bit PA-RISC. */
+#define K_ARCH_PARISC_32        (11 | K_ARCH_BIT_32 | K_ARCH_END_BI)
+/** 64-bit PA-RISC. */
+#define K_ARCH_PARISC_64        (12 | K_ARCH_BIT_64 | K_ARCH_END_BI)
 /** 32-bit PowerPC. */
-#define K_ARCH_POWERPC_32       (11 | K_ARCH_BIT_32 | K_ARCH_END_BI)
+#define K_ARCH_POWERPC_32       (13 | K_ARCH_BIT_32 | K_ARCH_END_BI)
 /** 64-bit PowerPC. */
-#define K_ARCH_POWERPC_64       (12 | K_ARCH_BIT_64 | K_ARCH_END_BI)
+#define K_ARCH_POWERPC_64       (14 | K_ARCH_BIT_64 | K_ARCH_END_BI)
+/** 32(31)-bit S390. */
+#define K_ARCH_S390_32          (15 | K_ARCH_BIT_32 | K_ARCH_END_BIG)
+/** 64-bit S390. */
+#define K_ARCH_S390_64          (16 | K_ARCH_BIT_64 | K_ARCH_END_BIG)
 /** 32-bit SPARC. */
-#define K_ARCH_SPARC_32         (13 | K_ARCH_BIT_32 | K_ARCH_END_BIG)
+#define K_ARCH_SPARC_32         (17 | K_ARCH_BIT_32 | K_ARCH_END_BIG)
 /** 64-bit SPARC. */
-#define K_ARCH_SPARC_64         (14 | K_ARCH_BIT_64 | K_ARCH_END_BI)
+#define K_ARCH_SPARC_64         (18 | K_ARCH_BIT_64 | K_ARCH_END_BI)
 /** The end of the valid architecture values (exclusive). */
-#define K_ARCH_MAX              (15)
+#define K_ARCH_MAX              (19)
 /** @} */
 
 
@@ -160,12 +168,36 @@
  */
 #ifndef K_ARCH
   /* detection based on compiler defines. */
-# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64)
+# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64)
 #  define K_ARCH    K_ARCH_AMD64
-# elif defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86)
+# elif defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)
 #  define K_ARCH    K_ARCH_X86_32
 # elif defined(__ia64__) || defined(__IA64__) || defined(_M_IA64)
 #  define K_ARCH    K_ARCH_IA64
+# elif defined(__alpha__)
+#  define K_ARCH    K_ARCH_ALPHA
+# elif defined(__arm__) || defined(__arm32__)
+#  define K_ARCH    K_ARCH_ARM_32
+# elif defined(__hppa__) && defined(__LP64__)
+#  define K_ARCH    K_ARCH_PARISC_64
+# elif defined(__hppa__)
+#  define K_ARCH    K_ARCH_PARISC_32
+# elif defined(__mips64)
+#  define K_ARCH    K_ARCH_MIPS_64
+# elif defined(__mips__)
+#  define K_ARCH    K_ARCH_MIPS_32
+# elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__)
+#  define K_ARCH    K_ARCH_POWERPC_64
+# elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
+#  define K_ARCH    K_ARCH_POWERPC_32
+# elif defined(__sparcv9__) || defined(__sparcv9)
+#  define K_ARCH    K_ARCH_SPARC_64
+# elif defined(__sparc__) || defined(__sparc)
+#  define K_ARCH    K_ARCH_SPARC_32
+# elif defined(__s390x__)
+#  define K_ARCH    K_ARCH_S390_64
+# elif defined(__s390__)
+#  define K_ARCH    K_ARCH_S390_32
 # else
 #  error "Port Me"
 # endif
