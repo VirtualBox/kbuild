@@ -59,6 +59,25 @@ static char *math_int_to_variable_buffer (char *, math_int);
 # endif
 #endif
 
+#ifdef __OS2__
+# define CONFIG_WITH_OS2_LIBPATH 1
+#endif 
+#ifdef CONFIG_WITH_OS2_LIBPATH
+# define INCL_BASE
+# define INCL_ERRROS
+# include <os2.h>
+
+# define QHINF_EXEINFO       1 /* NE exeinfo. */
+# define QHINF_READRSRCTBL   2 /* Reads from the resource table. */
+# define QHINF_READFILE      3 /* Reads from the executable file. */
+# define QHINF_LIBPATHLENGTH 4 /* Gets the libpath length. */
+# define QHINF_LIBPATH       5 /* Gets the entire libpath. */
+# define QHINF_FIXENTRY      6 /* NE only */
+# define QHINF_STE           7 /* NE only */
+# define QHINF_MAPSEL        8 /* NE only */
+  extern APIRET APIENTRY DosQueryHeaderInfo(HMODULE hmod, ULONG ulIndex, PVOID pvBuffer, ULONG cbBuffer, ULONG ulSubFunction);
+#endif /* CONFIG_WITH_OS2_LIBPATH */
+
 
 struct function_table_entry
   {
@@ -3307,6 +3326,99 @@ func_nanots (char *o, char **argv, const char *funcname)
 }
 #endif
 
+#ifdef CONFIG_WITH_OS2_LIBPATH
+/* Sets or gets the OS/2 libpath variables.
+
+   The first argument indicates which variable - BEGINLIBPATH, 
+   ENDLIBPATH, LIBPATHSTRICT or LIBPATH. 
+
+   The second indicates whether this is a get (not present) or 
+   set (present) operation. When present it is the new value for
+   the variable. */
+static char *
+func_os2_libpath (char *o, char **argv, const char *funcname)
+{
+  char buf[4096];
+  ULONG fVar;
+  APIRET rc;
+
+  /* translate variable name (first arg) */
+  if (!strcmp (argv[0], "BEGINLIBPATH"))
+    fVar = BEGIN_LIBPATH;
+  else if (!strcmp (argv[0], "ENDLIBPATH"))
+    fVar = END_LIBPATH;
+  else if (!strcmp (argv[0], "LIBPATHSTRICT"))
+    fVar = LIBPATHSTRICT;
+  else if (!strcmp (argv[0], "LIBPATH"))
+    fVar = 0;
+  else
+    {
+      error (NILF, _("$(libpath): unknown variable `%s'"), argv[0]);
+      return variable_buffer_output (o, "", 0);
+    }
+
+  if (!argv[1])
+    {
+      /* get the variable value. */
+      if (fVar != 0)
+        {
+          buf[0] = buf[1] = buf[2] = buf[3] = '\0';
+          rc = DosQueryExtLIBPATH (psz, fVar);
+        }
+      else
+        rc = DosQueryHeaderInfo (NULLHANDLE, 0, buf, sizeof(buf), QHINF_LIBPATH);
+      if (rc != NO_ERROR)
+        {
+          error (NILF, _("$(libpath): failed to query `%s', rc=%d"), argv[0], rc);
+          return variable_buffer_output (o, "", 0);
+        }
+      o = variable_buffer_output (o, buf, strlen (buf));
+    }
+  else
+    {
+      /* set the variable value. */
+      size_t len;
+      size_t len_max = sizeof (buf) < 2048 ? sizeof (buf) : 2048;
+      const char *val;
+      const char *end;
+
+      if (fVar == 0)
+        {
+          error (NILF, _("$(libpath): LIBPATH is read-only"));
+          return variable_buffer_output (o, "", 0);
+        }
+
+      /* strip leading and trailing spaces and check for max length. */
+      val = argv[1];
+      while (isspace (*val))
+        val++;
+      end = strchr (val, '\0');
+      while (end > val && isspace (end[-1]))
+        end--;
+
+      len = end - val;
+      if (len >= len_max)
+        {
+          error (NILF, _("$(libpath): The new `%s' value is too long (%d bytes, max %d)"), 
+                 argv[0], len, len_max);
+          return variable_buffer_output (o, "", 0);
+        }
+
+      /* make a stripped copy in low memory and try set it. */
+      memcpy (buf, val, len);
+      buf[len] = '\0';
+      rc = DosSetExtLIBPATH (buf, fVar);
+      if (rc != NO_ERROR)
+        {
+          error (NILF, _("$(libpath): failed to set `%s' to `%s', rc=%d"), argv[0], buf, rc);
+          return variable_buffer_output (o, "", 0);
+        }
+
+      o = variable_buffer_output (o, "", 0);
+    }
+  return o;
+}
+#endif  /* CONFIG_WITH_OS2_LIBPATH */
 
 /* Lookup table for builtin functions.
 
@@ -3418,6 +3530,9 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_NANOTS
   { STRING_SIZE_TUPLE("nanots"),        0,  0,  0,  func_nanots},
 #endif
+#ifdef CONFIG_WITH_OS2_LIBPATH
+  { STRING_SIZE_TUPLE("libpath"),       1,  2,  1,  func_os2_libpath},
+#endif 
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
   { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
