@@ -5,7 +5,7 @@ styles=dqbackslash sqbackslash
 punctuation= ( ) : ; [ ] { }
 operators= ! # $ % & * + , - . / < = > ? ^ ` | ~ := += >= |+
 keywords= export override
-symbol1= abspath abspathex addprefix addsuffix and basename call comp-cmds comp-vars date date-utc dir eq error eval file-size filter filter-out findstring firstword flavor foreach if info int-add int-and int-div int-eq int-ge int-gt int-le int-lt int-mod int-mul int-ne int-not int-or int-sub int-xor join kb-obj-base kb-obj-suff kb-src-one kb-src-prop kb-src-tool lastword nanots not notdir or origin patsubst realpath rsort shell sort stack-pop stack-popv stack-push stack-top strip subst suffix tolower toupper value warning which wildcard word wordlist words xargs
+libkeywords= abspath abspathex addprefix addsuffix and basename call comp-cmds comp-vars date date-utc dir eq error eval file-size filter filter-out findstring firstword flavor foreach if info int-add int-and int-div int-eq int-ge int-gt int-le int-lt int-mod int-mul int-ne int-not int-or int-sub int-xor join kb-obj-base kb-obj-suff kb-src-one kb-src-prop kb-src-tool lastword nanots not notdir or origin patsubst realpath rsort shell sort stack-pop stack-popv stack-push stack-top strip subst suffix tolower toupper value warning which wildcard word wordlist words xargs
 ppkeywords= else endif if if1of ifn1of ifdef ifndef  ifeq ifneq include includedep
 linecomment=#
 
