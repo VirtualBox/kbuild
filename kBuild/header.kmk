@@ -1,4 +1,4 @@
-# $Id: header.kmk 1388 2008-01-31 15:24:33Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1389 2008-01-31 21:00:36Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1388 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1389 $  )
 
 
 #
@@ -390,10 +390,10 @@ SUFF_LIB    := .a
 SUFF_DLL    := .so
 SUFF_EXE    :=
  if1of ($(BUILD_TARGET), freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
-SUFF_SYS   := .ko
+SUFF_SYS    := .ko
  else
-SUFF_SYS   :=
- else
+SUFF_SYS    :=
+ endif
 SUFF_RES    :=
 endif
 
