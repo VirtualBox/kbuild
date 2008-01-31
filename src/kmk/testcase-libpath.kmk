@@ -1,0 +1,20 @@
+
+all:
+	@kmk_builtin_echo ""
+	@kmk_builtin_echo "Warning: This testcase requires manual inspection and is intended for OS/2 only."
+	@kmk_builtin_echo ""
+	@kmk_builtin_echo "getting:"
+	@kmk_builtin_echo "libpath BEGINLIBPATH:  $(libpath BEGINLIBPATH)"
+	@kmk_builtin_echo "libpath LIBPATH:       $(libpath LIBPATH)"
+	@kmk_builtin_echo "libpath ENDLIBPATH:    $(libpath ENDLIBPATH)"
+	@kmk_builtin_echo "libpath LIBPATHSTRICT: $(libpath LIBPATHSTRICT)"
+	@kmk_builtin_echo "setting:"
+	@kmk_builtin_echo "libpath ENDLIBPATH,\foobar:   $(libpath ENDLIBPATH,\foobar) -> $(libpath ENDLIBPATH)"
+	@kmk_builtin_echo "libpath ENDLIBPATH,:          $(libpath ENDLIBPATH,) -> $(libpath ENDLIBPATH)"
+	@kmk_builtin_echo "libpath BEGINLIBPATH,\qwerty: $(libpath BEGINLIBPATH,\qwerty) -> $(libpath BEGINLIBPATH)"
+	@kmk_builtin_echo "libpath BEGINLIBPATH,:        $(libpath BEGINLIBPATH,) -> $(libpath BEGINLIBPATH)"
+	@kmk_builtin_echo "libpath LIBPATHSTRICT,T:      $(libpath LIBPATHSTRICT,T) -> $(libpath LIBPATHSTRICT)"
+	@kmk_builtin_echo "libpath LIBPATHSTRICT,qwerty: $(libpath LIBPATHSTRICT,qwerty) -> $(libpath LIBPATHSTRICT)"
+	@kmk_builtin_echo "libpath LIBPATHSTRICT,F:      $(libpath LIBPATHSTRICT,F) -> $(libpath LIBPATHSTRICT)"
+	@kmk_builtin_echo "libpath LIBPATHSTRICT,:       $(libpath LIBPATHSTRICT,) -> $(libpath LIBPATHSTRICT)"
+
