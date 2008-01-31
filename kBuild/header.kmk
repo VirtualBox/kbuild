@@ -1,4 +1,4 @@
-# $Id: header.kmk 1381 2008-01-07 03:13:55Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1388 2008-01-31 15:24:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1381 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1388 $  )
 
 
 #
@@ -150,7 +150,7 @@ KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 
 ifndef BUILD_TYPE
  BUILD_TYPE := release
 else
- if1of ($(BUILD_TYPE),$(KBUILD_OSES) $(KBUILD_ARCHES))
+ if1of ($(BUILD_TYPE), $(KBUILD_OSES) $(KBUILD_ARCHES))
   $(error kBuild: The BUILD_TYPE value '$(BUILD_TYPE)' is an OS or architecture!)
  endif
  ifneq (.$(words $(BUILD_TYPE)).$(BUILD_TYPE).,.1.$(strip $(BUILD_TYPE)).)
@@ -334,7 +334,7 @@ HOSTSUFF_EXE        :=
 endif
 
 # Win, Win32, Win64, NT.
-if1of ($(BUILD_PLATFORM),win nt)
+if1of ($(BUILD_PLATFORM), win nt)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
@@ -362,38 +362,39 @@ endif
 # Build target setup.
 # (PORTME)
 #
-SUFF_DEP            := .dep
-if1of ($(BUILD_TARGET),win nt os2)
-SUFF_OBJ            := .obj
-SUFF_LIB            := .lib
-SUFF_DLL            := .dll
-SUFF_EXE            := .exe
-SUFF_SYS            := .sys
-SUFF_RES            := .res
-endif
-ifeq ($(BUILD_TARGET),l4)
-SUFF_OBJ            := .o
-SUFF_LIB            := .a
-SUFF_DLL            := .s.so
-SUFF_EXE            :=
-SUFF_SYS            := .a
-SUFF_RES            :=
-endif
-ifeq ($(BUILD_TARGET),darwin)
-SUFF_OBJ            := .o
-SUFF_LIB            := .a
-SUFF_DLL            := .dylib
-SUFF_EXE            :=
-SUFF_SYS            :=
-SUFF_RES            :=
-endif
-ifndef SUFF_OBJ
-SUFF_OBJ            := .o
-SUFF_LIB            := .a
-SUFF_DLL            := .so
-SUFF_EXE            :=
-SUFF_SYS            := .a
-SUFF_RES            :=
+SUFF_DEP    := .dep
+if1of ($(BUILD_TARGET), win nt os2)
+SUFF_OBJ    := .obj
+SUFF_LIB    := .lib
+SUFF_DLL    := .dll
+SUFF_EXE    := .exe
+SUFF_SYS    := .sys
+SUFF_RES    := .res
+else ifeq ($(BUILD_TARGET),l4)
+SUFF_OBJ    := .o
+SUFF_LIB    := .a
+SUFF_DLL    := .s.so
+SUFF_EXE    :=
+SUFF_SYS    := .a
+SUFF_RES    :=
+else ifeq ($(BUILD_TARGET),darwin)
+SUFF_OBJ    := .o
+SUFF_LIB    := .a
+SUFF_DLL    := .dylib
+SUFF_EXE    :=
+SUFF_SYS    :=
+SUFF_RES    :=
+else
+SUFF_OBJ    := .o
+SUFF_LIB    := .a
+SUFF_DLL    := .so
+SUFF_EXE    :=
+ if1of ($(BUILD_TARGET), freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
+SUFF_SYS   := .ko
+ else
+SUFF_SYS   :=
+ else
+SUFF_RES    :=
 endif
 
 #
@@ -407,28 +408,28 @@ MAKE        := $(KMK)
 GMAKE       := $(PATH_KBUILD_BIN)/kmk_gmake$(HOSTSUFF_EXE)
 
 DEP_EXT     := $(PATH_KBUILD_BIN)/kDep$(HOSTSUFF_EXE)
-if1of (kDep,$(KMK_BUILTIN))
+if1of (kDep, $(KMK_BUILTIN))
 DEP         := kmk_builtin_kDep
 else
 DEP         := $(DEP_EXT)
 endif
 
 DEP_IDB_EXT := $(PATH_KBUILD_BIN)/kDepIDB$(HOSTSUFF_EXE)
-if1of (kDepIDB,$(KMK_BUILTIN))
+if1of (kDepIDB, $(KMK_BUILTIN))
 DEP_IDB     := kmk_builtin_kDepIDB
 else
 DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
 DEP_PRE_EXT := $(PATH_KBUILD_BIN)/kDepPre$(HOSTSUFF_EXE)
-if1of (kDepPre,$(KMK_BUILTIN))
+if1of (kDepPre, $(KMK_BUILTIN))
 DEP_PRE     := kmk_builtin_kDepPre
 else
 DEP_PRE     := $(DEP_PRE_EXT)
 endif
 
 KOBJCACHE_EXT := $(PATH_KBUILD_BIN)/kObjCache$(HOSTSUFF_EXE)
-if1of (kObjCache,$(KMK_BUILTIN))
+if1of (kObjCache, $(KMK_BUILTIN))
 KOBJCACHE   := kmk_builtin_kObjCache
 else
 KOBJCACHE   := $(KOBJCACHE_EXT)
@@ -468,7 +469,7 @@ PRINTF_EXT  := $(PATH_KBUILD_BIN)/kmk_printf$(HOSTSUFF_EXE)
 PRINTF      := kmk_builtin_printf
 
 REDIRECT_EXT:= $(PATH_KBUILD_BIN)/kmk_redirect$(HOSTSUFF_EXE)
-if1of (redirect,$(KMK_BUILTIN))
+if1of (redirect, $(KMK_BUILTIN))
 REDIRECT    := kmk_builtin_redirect
 else
 REDIRECT    := $(REDIRECT_EXT)
