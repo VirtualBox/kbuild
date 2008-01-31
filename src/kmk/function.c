@@ -3363,7 +3363,7 @@ func_os2_libpath (char *o, char **argv, const char *funcname)
       if (fVar != 0)
         {
           buf[0] = buf[1] = buf[2] = buf[3] = '\0';
-          rc = DosQueryExtLIBPATH (psz, fVar);
+          rc = DosQueryExtLIBPATH (buf, fVar);
         }
       else
         rc = DosQueryHeaderInfo (NULLHANDLE, 0, buf, sizeof(buf), QHINF_LIBPATH);
