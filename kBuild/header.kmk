@@ -1,4 +1,4 @@
-# $Id: header.kmk 1389 2008-01-31 21:00:36Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1390 2008-02-03 21:53:30Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1389 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1390 $  )
 
 
 #
@@ -268,10 +268,10 @@ endif
 
 ## CURSUBDIR is PATH_SUB_ROOT described relative to PATH_ROOT.
 # This variable is used to determin where the object files and other output goes.
-ifneq ($(PATH_ROOT),$(PATH_CURRENT))
-CURSUBDIR           := $(patsubst $(PATH_ROOT)/%,%,$(PATH_SUB_ROOT))
+ifneq ($(PATH_ROOT),$(PATH_SUB_ROOT))
+ CURSUBDIR          := $(patsubst $(PATH_ROOT)/%,%,$(PATH_SUB_ROOT))
 else
-CURSUBDIR           := .
+ CURSUBDIR          := .
 endif
 
 # Output directories.
