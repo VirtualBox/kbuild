@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1370 2007-12-09 21:03:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1394 2008-03-15 21:09:08Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -284,7 +284,7 @@ _BLD_CPUS    := $(BUILD_TARGET_CPU) $(BUILD_PLATFORM_CPU)
 
 define def_collect_bld_xyz
 ifdef ($(src)_BLD_TYPE)
- _BLD_TYPE += $($(src)_BLD_TYPE)
+ _BLD_TYPES += $($(src)_BLD_TYPE)
 endif
 ifdef ($(src)_BLD_TRG)
  _BLD_TARGETS += $($(src)_BLD_TRG)
@@ -293,7 +293,7 @@ ifdef ($(src)_BLD_TRG_ARCH)
  _BLD_ARCHES += $($(src)_BLD_TRG_ARCH)
 endif
 ifdef ($(src)_BLD_TRG_CPU)
- _BLD_CPU += $($(src)_BLD_TRG_CPU)
+ _BLD_CPUS += $($(src)_BLD_TRG_CPU)
 endif
 endef # def_collect_bld_xyz
 $(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)) $(_ALL_TARGETS)\
