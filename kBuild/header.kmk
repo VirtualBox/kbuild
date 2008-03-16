@@ -1,4 +1,4 @@
-# $Id: header.kmk 1400 2008-03-16 22:06:14Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1403 2008-03-16 23:34:00Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1400 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1403 $  )
 
 
 #
@@ -130,6 +130,15 @@ DOLLAR := $$
 ##
 # Equal character.
 EQUAL := =
+
+
+#
+# The list of standard build types in kBuild.
+#
+# This list can be extended in Config.kmk and it's possible to extend 
+# (inherit) another build type.
+#
+KBUILD_BLD_TYPES := releases profile debug
 
 
 #
@@ -1024,6 +1033,24 @@ else
   MSG_L2 ?= @$(ECHO) "kBuild: $1"
  endif
 endif
+
+
+#
+# Validate any KBUILD_BLD_TYPES additions and finally the BUILD_TYPE.
+#
+if1of ($(KBUILD_BLD_TYPES), $(KBUILD_OSES))
+ $(error kBuild: found KBUILD_BLD_TYPES in KBUILD_OSES!)
+endif
+if1of ($(KBUILD_BLD_TYPES), $(KBUILD_ARCHES))
+ $(error kBuild: found KBUILD_BLD_TYPES in KBUILD_ARCHES!)
+endif
+if1of ($(KBUILD_OSES), $(KBUILD_ARCHES))
+ $(error kBuild: found KBUILD_OSES in KBUILD_ARCHES!)
+endif
+ifn1of ($(BUILD_TYPE), $(KBUILD_BLD_TYPES))
+ $(error kBuild: BUILD_TYPE(=$(BUILD_TYPE)) is not found in KBUILD_BLD_TYPES(=$(KBUILD_BLD_TYPES))!)
+endif
+
 
 
 ifdef KBUILD_PROFILE_SELF
