@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1330 2007-12-02 20:52:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1396 2008-03-16 18:19:12Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -842,10 +842,12 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     struct variable *pPathSubCur = kbuild_get_variable("PATH_SUB_CURRENT");
     const char *pszSrcPrefix = NULL;
     size_t      cchSrcPrefix = 0;
+    size_t      cchSrc = 0;
     const char *pszSrcEnd;
     char *pszSrc;
     char *pszResult;
     char *psz;
+    char *pszDot;
     size_t cch;
 
     /*
@@ -910,15 +912,16 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     }
 
     /*
-     * Assemble the string on the stack and define the objbase variable
+     * Assemble the string on the heap and define the objbase variable
      * which we then return.
      */
+    cchSrc = pszSrcEnd - pszSrc;
     cch = pPathTarget->value_length
         + 1 /* slash */
         + pTarget->value_length
         + 1 /* slash */
         + cchSrcPrefix
-        + pszSrcEnd - pszSrc
+        + cchSrc
         + 1;
     psz = pszResult = xmalloc(cch);
 
@@ -931,8 +934,37 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
         memcpy(psz, pszSrcPrefix, cchSrcPrefix);
         psz += cchSrcPrefix;
     }
-    memcpy(psz, pszSrc, pszSrcEnd - pszSrc); psz += pszSrcEnd - pszSrc;
+    pszDot = psz;
+    memcpy(psz, pszSrc, cchSrc); psz += cchSrc;
     *psz = '\0';
+
+    /* convert '..' path elements in the source to '_.'. */
+    psz = pszDot;
+    while ((psz = memchr(psz, '.', cchSrc + 1 - (pszDot - psz))) != NULL)
+    {
+        if (    psz[1] == '.'
+            &&  (   psz == pszDot
+                 || psz[-1] == '/'
+#ifdef HAVE_DOS_PATHS
+                 || psz[-1] == '\\'
+                 || psz[-1] == ':'
+#endif
+                )
+            &&  (   !psz[2]
+                 || psz[2] == '/'
+#ifdef HAVE_DOS_PATHS
+                 || psz[2] == '\\'
+                 || psz[2] == ':'
+#endif
+                )
+            )
+        {
+            *psz = '_';
+            psz += 2;
+        }
+        else
+            psz++;
+    }
 
     /*
      * Define the variable in the current set and return it.
