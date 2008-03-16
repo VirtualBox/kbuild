@@ -1,0 +1,42 @@
+# $Id: Makefile.kmk 1398 2008-03-16 22:01:11Z knut.osmundsen@oracle.com $
+## @file
+# Test - Build Type Inheritance.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+
+# not finished...
+PROGRAMS += dummy1
+dummy1_TEMPLATE = TST
+dummy1_SOURCES = ../dummy.c
+
+PROGRAMS += dummy2
+dummy2_TEMPLATE = TST
+dummy2_SOURCES = ../dummy.c
+
+
+include $(PATH_KBUILD)/footer.kmk
+

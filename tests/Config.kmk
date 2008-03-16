@@ -1,0 +1,95 @@
+# $Id: Config.kmk 1398 2008-03-16 22:01:11Z knut.osmundsen@oracle.com $
+## @file
+# Tests - Configuration.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+
+
+#
+# Template for building commandline tools.
+#
+TEMPLATE_TST = Commandline binary
+
+TEMPLATE_TST_INST               = tests/
+ifeq ($(BUILD_TARGET),os2)
+ TEMPLATE_TST_TOOL              = GCC3OMF
+ TEMPLATE_TST_CFLAGS.profile    = -pg
+ TEMPLATE_TST_CFLAGS.release    = -O3
+ TEMPLATE_TST_LDFLAGS           = -Zhigh-mem -Zstack=1024
+endif
+
+ifeq ($(BUILD_TARGET),darwin)
+ TEMPLATE_TST_TOOL              = GCC4MACHO
+ TEMPLATE_TST_CFLAGS.profile    =
+ TEMPLATE_TST_CFLAGS.release    = -O3
+ TEMPLATE_TST_LDFLAGS           =
+endif
+
+ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
+ ifeq ($(BUILD_TARGET_ARCH),x86)
+  include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
+  TEMPLATE_TST_TOOL             = VCC70
+ else ifeq ($(BUILD_TARGET_ARCH),amd64)
+  TEMPLATE_TST_TOOL             = VCC80AMD64
+  TEMPLATE_TST_DEFS             = _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
+ endif
+ TEMPLATE_TST_SDKS              = WINPSDK
+ TEMPLATE_TST_CFLAGS            = -W3 -Zi -Zl
+ TEMPLATE_TST_CFLAGS.release    = -O2
+ TEMPLATE_TST_CFLAGS.profile    = -O2 -GH -Gh
+ TEMPLATE_TST_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
+ TEMPLATE_TST_CFLAGS           += -MD
+ TEMPLATE_TST_LIBS              = \
+	$(PATH_TOOL_$(TEMPLATE_TST_TOOL)_LIB)/oldnames.lib \
+	$(PATH_TOOL_$(TEMPLATE_TST_TOOL)_LIB)/msvcrt.lib
+ TEMPLATE_TST_LIBS.profile      = Y:/coding/libc/svn/trunk/out/win.$(BUILD_TARGET_ARCH)/debug/kStuff/lib/kPrf2.lib
+endif
+
+ifndef TEMPLATE_TST_TOOL
+ # Use GCC3 when we're certain that the system is using GNU ld and ar.
+ ifeq ($(filter-out linux freebsd openbsd netbsd,$(BUILD_TARGET)),)
+  TEMPLATE_TST_TOOL             = GCC3
+ else
+  TEMPLATE_TST_TOOL             = GCC3PLAIN
+ endif
+ TEMPLATE_TST_CFLAGS.release    = -O3
+ ifeq ($(BUILD_TARGET),solaris)
+  TEMPLATE_TST_CFLAGS.x86      += -m32
+  TEMPLATE_TST_CFLAGS.amd64    += -m64
+  TEMPLATE_TST_CXXFLAGS.x86    += -m32
+  TEMPLATE_TST_CXXFLAGS.amd64  += -m64
+  TEMPLATE_TST_LDFLAGS.x86     += -m32
+  TEMPLATE_TST_LDFLAGS.amd64   += -m64
+  TEMPLATE_TST_LDFLAGS         += -Wl,-i
+ endif
+endif
+
+#
+# Template for building libraries for the tools.
+#
+TEMPLATE_TSTLIB = Library for Commandline binary
+TEMPLATE_TSTLIB_EXTENDS = BIN
+TEMPLATE_TSTLIB_INST    = lib/
+
+
