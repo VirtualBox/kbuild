@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1394 2008-03-15 21:09:08Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1399 2008-03-16 22:05:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -240,6 +240,23 @@ endif
 endef # def_inherit
 
 
+## 
+# Function for $(call)'ing.
+# @param    1   trgs                List of object to consider for inheriting.
+# @param    2   src_prefix          What to prefix the value found in EXTENDS with to get the object.
+# @param    3   properties          List of the properties with straight expansion.
+# @param    4   properties_now      List of the properties with immediate expansion.
+# @param    5   properties_deferred List of the properties with deferred expansion (e.g. function).
+define fn_inherit
+src_prefix          := $(2)
+properties          := $(3)
+properties_now      := $(4)
+properties_deferred := $(5)
+$(foreach trg, $(1),$(eval $(value def_inherit)))
+endef
+
+
+
 #
 # Determin all the templates that is being used and make
 # sure they are present.
@@ -420,7 +437,11 @@ endif
 
 
 #
-# Common Inheritance
+# Template/Target Expansion.
+#
+# Extend all targets with the values from the template. Doing this up front
+# allows more generic code and less mess down in the pass 2 target handling.
+# However it does eat a good deal of memory.
 #
 
 ## Inherit one template property in a non-accumulative manner.
@@ -710,6 +731,8 @@ endef # def_tools_include
 _TOOLS := $(sort $(_TOOLS))
 $(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
 
+## @todo TOOL_X_EXTENDS
+
 
 # include SDKS
 define def_sdks_include_one
@@ -736,6 +759,7 @@ ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
+## @todo SDK_X_EXTENDS
 
 #
 #
