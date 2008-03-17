@@ -1523,9 +1523,16 @@ do_variable_definition (const struct floc *flocp, const char *varname,
       {
 #endif
 
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+          /* If we have += but we're in a target or local variable context,
+             we want to append only with other variables in the context of
+             this target.  */
+        if (target_var || origin == o_local)
+#else
         /* If we have += but we're in a target variable context, we want to
            append only with other variables in the context of this target.  */
         if (target_var)
+#endif
           {
             append = 1;
             v = lookup_variable_in_set (varname, varname_len,
@@ -1721,7 +1728,11 @@ do_variable_definition (const struct floc *flocp, const char *varname,
                               value_len, !alloc_value,
 #endif
                               origin, flavor == f_recursive,
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+                              (target_var || origin == o_local
+#else
                               (target_var
+#endif
                                ? current_variable_set_list->set : NULL),
                               flocp);
   v->append = append;
@@ -1853,7 +1864,7 @@ parse_variable_definition (struct variable *v, char *line)
 
 /* Try to interpret LINE (a null-terminated string) as a variable definition.
 
-   ORIGIN may be o_file, o_override, o_env, o_env_override,
+   ORIGIN may be o_file, o_override, o_env, o_env_override, o_local,
    or o_command specifying that the variable definition comes
    from a makefile, an override directive, the environment with
    or without the -e switch, or the command line.
@@ -1919,6 +1930,11 @@ print_variable (const void *item, void *arg)
     case o_automatic:
       origin = _("automatic");
       break;
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+    case o_local:
+      origin = _("`local' directive");
+      break;
+#endif
     case o_invalid:
     default:
       abort ();

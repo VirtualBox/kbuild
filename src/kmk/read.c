@@ -1163,6 +1163,41 @@ eval (struct ebuffer *ebuf, int set_default)
 
 	  continue;
 	}
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+
+      if (word1eq ("local"))
+        {
+          if (*p2 == '\0')
+            error (fstart, _("empty `local' directive"));
+
+          if (strneq (p2, "define", 6)
+              && (isblank ((unsigned char)p2[6]) || p2[6] == '\0'))
+            {
+              if (ignoring)
+                in_ignored_define = 1;
+              else
+                {
+                  p2 = next_token (p2 + 6);
+                  if (*p2 == '\0')
+                    fatal (fstart, _("empty variable name"));
+
+                  /* Let the variable name be the whole rest of the line,
+                     with trailing blanks stripped (comments have already been
+                     removed), so it could be a complex variable/function
+                     reference that might contain blanks.  */
+                  p = strchr (p2, '\0');
+                  while (isblank ((unsigned char)p[-1]))
+                    --p;
+                  do_define (p2, p - p2, o_local, ebuf);
+                }
+            }
+          else if (!ignoring
+                   && !try_variable_definition (fstart, p2, o_local, 0))
+            error (fstart, _("invalid `local' directive"));
+
+          continue;
+        }
+#endif /* CONFIG_WITH_LOCAL_VARIABLES */
 
       if (ignoring)
 	/* Ignore the line.  We continue here so conditionals

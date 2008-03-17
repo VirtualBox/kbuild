@@ -61,7 +61,7 @@ static char *math_int_to_variable_buffer (char *, math_int);
 
 #ifdef __OS2__
 # define CONFIG_WITH_OS2_LIBPATH 1
-#endif 
+#endif
 #ifdef CONFIG_WITH_OS2_LIBPATH
 # define INCL_BASE
 # define INCL_ERRROS
@@ -563,6 +563,11 @@ func_origin (char *o, char **argv, const char *funcname UNUSED)
       case o_automatic:
 	o = variable_buffer_output (o, "automatic", 9);
 	break;
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+      case o_local:
+        o = variable_buffer_output (o, "local", 5);
+        break;
+#endif
       }
 
   return o;
@@ -3329,10 +3334,10 @@ func_nanots (char *o, char **argv, const char *funcname)
 #ifdef CONFIG_WITH_OS2_LIBPATH
 /* Sets or gets the OS/2 libpath variables.
 
-   The first argument indicates which variable - BEGINLIBPATH, 
-   ENDLIBPATH, LIBPATHSTRICT or LIBPATH. 
+   The first argument indicates which variable - BEGINLIBPATH,
+   ENDLIBPATH, LIBPATHSTRICT or LIBPATH.
 
-   The second indicates whether this is a get (not present) or 
+   The second indicates whether this is a get (not present) or
    set (present) operation. When present it is the new value for
    the variable. */
 static char *
@@ -3399,7 +3404,7 @@ func_os2_libpath (char *o, char **argv, const char *funcname)
       len = end - val;
       if (len >= len_max)
         {
-          error (NILF, _("$(libpath): The new `%s' value is too long (%d bytes, max %d)"), 
+          error (NILF, _("$(libpath): The new `%s' value is too long (%d bytes, max %d)"),
                  argv[0], len, len_max);
           return variable_buffer_output (o, "", 0);
         }
@@ -3532,7 +3537,7 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_OS2_LIBPATH
   { STRING_SIZE_TUPLE("libpath"),       1,  2,  1,  func_os2_libpath},
-#endif 
+#endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},
   { STRING_SIZE_TUPLE("kb-obj-base"),   1,  1,  0,  func_kbuild_object_base},
