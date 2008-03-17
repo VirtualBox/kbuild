@@ -1497,6 +1497,32 @@ func_eval (char *o, char **argv, const char *funcname UNUSED)
 }
 
 
+#ifdef CONFIG_WITH_EVALCTX
+/* Same as func_eval except that we push and pop the local variable
+   context before evaluating the buffer. */
+static char *
+func_evalctx (char *o, char **argv, const char *funcname UNUSED)
+{
+  char *buf;
+  unsigned int len;
+
+  /* Eval the buffer.  Pop the current variable buffer setting so that the
+     eval'd code can use its own without conflicting.  */
+
+  install_variable_buffer (&buf, &len);
+
+  push_new_variable_scope ();
+
+  eval_buffer (argv[0]);
+
+  pop_variable_scope ();
+
+  restore_variable_buffer (buf, len);
+
+  return o;
+}
+#endif /* CONFIG_WITH_EVALCTX */
+
 static char *
 func_value (char *o, char **argv, const char *funcname UNUSED)
 {
@@ -3481,6 +3507,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("and"),           1,  0,  0,  func_and},
   { STRING_SIZE_TUPLE("value"),         0,  1,  1,  func_value},
   { STRING_SIZE_TUPLE("eval"),          0,  1,  1,  func_eval},
+#ifdef CONFIG_WITH_EVALCTX
+  { STRING_SIZE_TUPLE("evalctx"),       0,  1,  1,  func_evalctx},
+#endif
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},

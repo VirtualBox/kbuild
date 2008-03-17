@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1408 2008-03-17 22:21:36Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1409 2008-03-17 22:31:35Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -123,6 +123,7 @@ kmk_DEFS = \
 	CONFIG_WITH_DATE \
 	CONFIG_WITH_FILE_SIZE \
 	CONFIG_WITH_WHICH \
+	CONFIG_WITH_EVALCTX \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\
 	BUILD_PLATFORM=\"$(BUILD_TARGET)\" \
