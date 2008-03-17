@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1340 2007-12-02 22:07:40Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1408 2008-03-17 22:21:36Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -99,6 +99,7 @@ kmk_DEFS = \
 	CONFIG_WITH_TOUPPER_TOLOWER \
 	CONFIG_WITH_EXPLICIT_MULTITARGET \
 	CONFIG_WITH_PREPEND_ASSIGNMENT \
+	CONFIG_WITH_LOCAL_VARIABLES \
 	\
 	KMK \
 	KMK_HELPERS \
@@ -429,5 +430,8 @@ test_math:
 test_if1of:
 	$(MAKE) -f testcase-if1of.kmk
 
-test_all:	test_math test_stack test_shell test_if1of
+test_local:
+	$(MAKE) -f testcase-local.kmk
+
+test_all:	test_math test_stack test_shell test_if1of test_local
 

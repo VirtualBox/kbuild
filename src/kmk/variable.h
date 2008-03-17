@@ -24,6 +24,9 @@ enum variable_origin
   {
     o_default,		/* Variable from the default set.  */
     o_env,		/* Variable from environment.  */
+#ifdef CONFIG_WITH_LOCAL_VARIABLES /** @todo Correct priority? */
+    o_local,            /* Variable from an 'local' directive.  */
+#endif
     o_file,		/* Variable given in a makefile.  */
     o_env_override,	/* Variable from environment, if -e.  */
     o_command,		/* Variable given by user.  */
