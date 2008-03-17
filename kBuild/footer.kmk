@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1399 2008-03-16 22:05:33Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1407 2008-03-17 20:24:04Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -159,53 +159,196 @@ _INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/)
 # @param    $(prop)         Property name
 # @param    $(src)          Source (parent) object.
 # @param    $(trg)          Target (child) object.
-# @remark Not all properties has all the variations, but making the correct
-#         exceptions will only complicate matters and probably not gain much speed.
 define def_inherit_one
 ifdef $(src)_$(prop)
  ifndef $(trg)_$(prop)
   $(trg)_$(prop) = $($(src)_$(prop))
-  #$ (warning dbg-inherit: $(trg)_$(prop) = $($(src)_$(prop)) )
+  #$ (warning def_inherit_one: $(trg)_$(prop) = $($(src)_$(prop)) )
  endif
 endif
 endef # def_inherit_one
+
+
+# EXPAND_BY = overriding
 
 ## Inherit one template property in a non-accumulative manner.
 # @param    $(prop)         Property name
 # @param    $(src)          Source (parent) object.
 # @param    $(trg)          Target (child) object.
-# @remark Not all properties has all the variations, but making the correct
-#         exceptions will only complicate matters and probably not gain much speed.
-# @todo   Check how/if this differs from def_inherit_one.
-define def_inherit_one_now
+define def_inherit_one_overriding_now_l
 ifdef $(src)_$(prop)
  ifndef $(trg)_$(prop)
   $(trg)_$(prop) := $($(src)_$(prop))
-  #$ (warning dbg-inherit-now: $(trg)_$(prop) = $($(src)_$(prop)) )
+  #$ (warning def_inherit_one_overriding_now_l: $(trg)_$(prop) = $($(src)_$(prop)) )
  endif
 endif
-endef # def_inherit_one_now
+endef # def_inherit_one_overriding_now_l
+
+## @copydoc def_inherit_one_overriding_now_l
+define def_inherit_one_overriding_now_r
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) := $($(src)_$(prop))
+  #$ (warning def_inherit_one_overriding_now_r: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_overriding_now_r
 
 ## Inherit one template property in a non-accumulative manner, deferred expansion.
 # @param    $(prop)         Property name
 # @param    $(src)          Source
 # @param    $(trg)          Target
 # @remark This define relies on double evaluation
-define def_inherit_one_deferred
+define def_inherit_one_overriding_deferred
 ifdef $(src)_$(prop)
  ifndef $(trg)_$(prop)
   $(trg)_$(prop) = $$($(src)_$(prop))
-  #$ (warning dbg-inherit-def: $(trg)_$(prop) = $($(src)_$(prop)) )
+  #$ (warning def_inherit_one_overriding_deferred: $(trg)_$(prop) = $($(src)_$(prop)) )
  endif
 endif
-endef # def_inherit_one_deferred
+endef # def_inherit_one_overriding_deferred
+
+## @copydoc def_inherit_one_overriding_deferred
+define def_inherit_one_overriding_deferred_l
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $$($(src)_$(prop))
+  #$ (warning def_inherit_one_overriding_deferred_l: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_overriding_deferred_l
+
+## @copydoc def_inherit_one_overriding_deferred
+define def_inherit_one_overriding_deferred_r
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $$($(src)_$(prop))
+  #$ (warning def_inherit_one_overriding_deferred_r: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_overriding_deferred_r
+
+
+# EXPAND_BY = prepending
+
+## Inherit one template property in a prepending manner.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+define def_inherit_one_prepending_now_l
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) := $(trg)_$(prop) $($(src)_$(prop))
+ #$ (warning def_inherit_one_prepending_now_l: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_prepending_now_l
+
+## @copydoc def_inherit_one_prepending_now_l
+define def_inherit_one_prepending_now_r
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) := $($(src)_$(prop)) $(trg)_$(prop)
+ #$ (warning def_inherit_one_prepending_now_r: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_prepending_now_r
+
+## Inherit one template property in a non-accumulative manner, deferred expansion.
+# @param    $(prop)         Property name
+# @param    $(src)          Source
+# @param    $(trg)          Target
+# @remark This define relies on double evaluation
+define def_inherit_one_prepending_deferred
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $$($(src)_$(prop))
+  #$ (warning def_inherit_one_prepending_deferred: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_prepending_deferred
+
+## Inherit one template property in a prepending manner, deferred expansion.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+define def_inherit_one_prepending_deferred_l
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) <= $$($(src)_$(prop))
+ #$ (warning def_inherit_one_prepending_deferred_l: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_prepending_deferred_l
+
+## @copydoc def_inherit_one_prepending_deferred_l
+define def_inherit_one_prepending_deferred_r
+ifdef $(src)_$(prop)
+  $(trg)_$(prop) += $$($(src)_$(prop))
+  #$ (warning def_inherit_one_prepending_deferred_r: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_prepending_deferred_r
+
+
+# EXPAND_BY = appending
+
+## Inherit one template property in a appending manner.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+define def_inherit_one_appending_now_l
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) := $($(src)_$(prop)) $(trg)_$(prop)
+ #$ (warning def_inherit_one_appending_now_l: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_appending_now_l
+
+## @copydoc def_inherit_one_appending_now_l
+define def_inherit_one_appending_now_r
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) := $(trg)_$(prop) $($(src)_$(prop))
+ #$ (warning def_inherit_one_appending_now_r: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_appending_now_r
+
+## Inherit one template property in a non-accumulative manner, deferred expansion.
+# @param    $(prop)         Property name
+# @param    $(src)          Source
+# @param    $(trg)          Target
+# @remark This define relies on double evaluation
+define def_inherit_one_appending_deferred
+ifdef $(src)_$(prop)
+ ifndef $(trg)_$(prop)
+  $(trg)_$(prop) = $$($(src)_$(prop))
+  #$ (warning def_inherit_one_appending_deferred: $(trg)_$(prop) = $($(src)_$(prop)) )
+ endif
+endif
+endef # def_inherit_one_appending_deferred
+
+## Inherit one template property in a appending manner, deferred expansion.
+# @param    $(prop)         Property name
+# @param    $(src)          Source (parent) object.
+# @param    $(trg)          Target (child) object.
+define def_inherit_one_appending_deferred_l
+ifdef $(src)_$(prop)
+ $(trg)_$(prop) += $$($(src)_$(prop))
+ #$ (warning def_inherit_one_appending_deferred_l: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_appending_deferred_l
+
+## @copydoc def_inherit_one_appending_deferred_l
+define def_inherit_one_appending_deferred_r
+ifdef $(src)_$(prop)
+  $(trg)_$(prop) <= $$($(src)_$(prop))
+  #$ (warning def_inherit_one_appending_deferred_r: $(trg)_$(prop) = $($(trg)_$(prop)) )
+endif
+endef # def_inherit_one_appending_deferred_r
+
+
 
 ## Generic inheritance for use with targets templates and tools.
-# @param    trg                 Object to consider for inheriting.
-# @param    src_prefix          What to prefix the value found in EXTENDS with to get the object.
-# @param    properties          List of the properties with straight expansion.
-# @param    properties_now      List of the properties with immediate expansion.
-# @param    properties_deferred List of the properties with deferred expansion (e.g. function).
+# @param    trg                   Object to consider for inheriting.
+# @param    src_prefix            What to prefix the value found in EXTENDS with to get the object.
+# @param    properties            List of the properties with straight expansion.
+# @param    properties_now_l      List of the properties with immediate expansion, accumulating on the left side.
+# @param    properties_now_r      List of the properties with immediate expansion, accumulating on the right side.
+# @param    properties_deferred   List of the properties with deferred expansion (e.g. function), non-accumulative .
+# @param    properties_deferred_l List of the properties with deferred expansion (e.g. function), accumulating on the left side.
+# @param    properties_deferred_r List of the properties with deferred expansion (e.g. function), accumulating on the right side.
 define def_inherit
 src := $(strip $($(trg)_EXTENDS))
 ifneq ($(src),)
@@ -224,11 +367,24 @@ ifneq ($(src),)
    endif
   endif
 
-  # Inherit the properties and mark the trg done.
+  # Get & check EXTENDS_BY.
+  by = $(strip $($(trg)_EXTENDS_BY))
+  ifeq ($(by),)
+   by = overriding
+  else ifn1of ($(by), overriding appending prepending)
+   $(error kBuild: Invalid EXTENDS_BY value '$(by)' on '$(trg)'!)
+  endif
+
+  # Inherit the properties.
   #$ (warning def_inherit: trg=$(trg) src=$(src))
-  $(foreach prop, $(properties),          $(eval $(def_inherit_one)))
-  $(foreach prop, $(properties_now),      $(eval $(def_inherit_one_now)))
-  $(foreach prop, $(properties_deferred), $(eval $(def_inherit_one_deferred)))
+  $(foreach prop, $(properties),            $(eval $(def_inherit_one)))
+  $(foreach prop, $(properties_now_l),      $(eval $(def_inherit_one_$(by)_now_l)))
+  $(foreach prop, $(properties_now_r),      $(eval $(def_inherit_one_$(by)_now_r)))
+  $(foreach prop, $(properties_deferred),   $(eval $(def_inherit_one_$(by)_deferred)))
+  $(foreach prop, $(properties_deferred_l), $(eval $(def_inherit_one_$(by)_deferred_l)))
+  $(foreach prop, $(properties_deferred_r), $(eval $(def_inherit_one_$(by)_deferred_r)))
+
+  # Mark the target as done.
   $(trg)_EXTENDS_STATUS_ := 42
  else
   # Check for inheritance loops.
@@ -240,18 +396,24 @@ endif
 endef # def_inherit
 
 
-## 
+##
 # Function for $(call)'ing.
-# @param    1   trgs                List of object to consider for inheriting.
-# @param    2   src_prefix          What to prefix the value found in EXTENDS with to get the object.
-# @param    3   properties          List of the properties with straight expansion.
-# @param    4   properties_now      List of the properties with immediate expansion.
-# @param    5   properties_deferred List of the properties with deferred expansion (e.g. function).
+# @param    1   trg                   Object to consider for inheriting.
+# @param    2   src_prefix            What to prefix the value found in EXTENDS with to get the object.
+# @param    3   properties            List of the properties with straight expansion.
+# @param    4   properties_now_l      List of the properties with immediate expansion, accumulating on the left side.
+# @param    5   properties_now_r      List of the properties with immediate expansion, accumulating on the right side.
+# @param    6   properties_deferred   List of the properties with deferred expansion (e.g. function), non-accumulative .
+# @param    7   properties_deferred_l List of the properties with deferred expansion (e.g. function), accumulating on the left side.
+# @param    8   properties_deferred_r List of the properties with deferred expansion (e.g. function), accumulating on the right side.
 define fn_inherit
-src_prefix          := $(2)
-properties          := $(3)
-properties_now      := $(4)
-properties_deferred := $(5)
+src_prefix := $(2)
+properties := $(3)
+properties_now_l := $(4)
+properties_now_r := $(5)
+properties_deferred := $(6)
+properties_deferred_l := $(7)
+properties_deferred_r := $(8)
 $(foreach trg, $(1),$(eval $(value def_inherit)))
 endef
 
@@ -346,32 +508,39 @@ endif
 #
 
 src_prefix :=
+properties_deferred_l :=
+properties_deferred_r :=
+
 ## combines the specified properties $(1) with the $(_KEYWORDS).
 _COMB_KEY_PROP = $(1)  $(foreach keyword,$(_KEYWORDS), $(addsuffix .$(keyword), $(1)))
 
 # Fetches.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_ACCUMULATE_R) $(PROPS_FETCHES_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_FETCHES_DEFERRED))
 $(foreach trg, $(_ALL_FETCHES),$(eval $(value def_inherit)))
 
 ## Patches. - not implemented yet.
 #properties          := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_SINGLE))
-#properties_now      := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_ACCUMULATE_R) $(PROPS_PATCHES_ACCUMULATE_L))
+#properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_ACCUMULATE_L))
+#properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_ACCUMULATE_R))
 #properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_PATCHES_DEFERRED))
 #$(foreach trg, $(_ALL_PATCHES),$(eval $(value def_inherit)))
 
 # Programs and build programs.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_ACCUMULATE_R) $(PROPS_PROGRAMS_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_PROGRAMS_DEFERRED))
 $(foreach trg, $(_ALL_BLDPROGS) $(_ALL_PROGRAMS),$(eval $(value def_inherit)))
 
 # Libraries and import libraries.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_ACCUMULATE_R) $(PROPS_LIBRARIES_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_LIBRARIES_DEFERRED))
-ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+if1of ($(BUILD_TARGET), nt os2 win)
  $(foreach trg, $(_ALL_LIBRARIES) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
 else
  $(foreach trg, $(_ALL_LIBRARIES),$(eval $(value def_inherit)))
@@ -379,9 +548,10 @@ endif
 
 # DLLs.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_DLLS_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_DLLS_ACCUMULATE_R) $(PROPS_DLLS_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_DLLS_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_DLLS_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_DLLS_DEFERRED))
-ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+if1of ($(BUILD_TARGET), nt os2 win)
  $(foreach trg, $(_ALL_DLLS),$(eval $(value def_inherit)))
 else
  $(foreach trg, $(_ALL_DLLS) $(_ALL_IMPORT_LIBS),$(eval $(value def_inherit)))
@@ -389,13 +559,15 @@ endif
 
 # System modules.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_ACCUMULATE_R) $(PROPS_SYSMODS_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_SYSMODS_DEFERRED))
 $(foreach trg, $(_ALL_SYSMODS),$(eval $(value def_inherit)))
 
 # Installs.
 properties          := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_SINGLE))
-properties_now      := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_ACCUMULATE_R) $(PROPS_INSTALLS_ACCUMULATE_L))
+properties_now_l    := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_ACCUMULATE_L))
+properties_now_r    := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_ACCUMULATE_R))
 properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_INSTALLS_DEFERRED))
 $(foreach trg, $(_ALL_INSTALLS),$(eval $(value def_inherit)))
 
@@ -419,21 +591,28 @@ endif
 
 src_prefix := TEMPLATE_
 properties :=
-properties_now :=
-properties_deferred := $(call _COMB_KEY_PROP,$(PROPS_ALL))
+properties_now_l :=
+properties_now_r :=
+properties_deferred   := $(call _COMB_KEY_PROP,$(PROPS_SINGLE) $(PROPS_DEFERRED))
+properties_deferred_l := $(call _COMB_KEY_PROP,$(PROPS_ACCUMULATE_L))
+properties_deferred_r := $(call _COMB_KEY_PROP,$(PROPS_ACCUMULATE_R))
 $(foreach trg, $(addprefix TEMPLATE_,$(_TEMPLATES)),$(eval $(value def_inherit)))
-
-# done.
-src_prefix :=
-properties :=
-properties_now :=
-properties_deferred :=
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template inheritance)
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
+
+
+# done inheriting.
+src_prefix :=
+properties :=
+properties_now_l :=
+properties_now_r :=
+properties_deferred :=
+properties_deferred_l :=
+properties_deferred_r :=
 
 
 #
