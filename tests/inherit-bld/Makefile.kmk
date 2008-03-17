@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1402 2008-03-16 23:32:34Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1404 2008-03-17 08:02:15Z knut.osmundsen@oracle.com $
 ## @file
 # Test - Build Type Inheritance.
 #
@@ -57,21 +57,19 @@ inherit-bld4_DEFS.dbgbld3 = X=y
 inherit-bld4_SOURCES = ../dummy_defined_X.c
 
 # Test that appending build type inheritance works - dbgbld5 extends dbgbld3.
-## @todo somehow make this test the order
 PROGRAMS += inherit-bld5
 inherit-bld5_TEMPLATE = TST
 inherit-bld5_BLD_TYPE = dbgbld4
-inherit-bld5_DEFS.dbgbld3 = X=y
-inherit-bld5_DEFS.dbgbld5 = SOMETHING
+inherit-bld5_DEFS.dbgbld3 = X=y y=0
+inherit-bld5_DEFS.dbgbld5 = y=42
 inherit-bld5_SOURCES = ../dummy_defined_X.c
 
 # Test that prepending build type inheritance works - dbgbld6 extends dbgbld3.
-## @todo somehow make this test the order
 PROGRAMS += inherit-bld6
 inherit-bld6_TEMPLATE = TST
 inherit-bld6_BLD_TYPE = dbgbld6
-inherit-bld6_DEFS.dbgbld3 = X=y
-inherit-bld6_DEFS.dbgbld6 = SOMETHING
+inherit-bld5_DEFS.dbgbld3 = X=y y=42
+inherit-bld5_DEFS.dbgbld6 = y=0
 inherit-bld6_SOURCES = ../dummy_defined_X.c
 
 
