@@ -1,0 +1,127 @@
+#
+# local variables:
+#	o The keyword will make sure the variable is defined in
+#     current variable context instead of the global one.
+#   o Local variables are readable by children but not writable,
+#     writes goes to the globle space (a sideeffect / feature).
+#   o Local variables hides global and parent variables.
+#
+
+
+# global variable.
+var_exists1 = 1
+
+
+
+##
+# A simple define that is $(eval)uated.
+define def_test1
+
+# check that the existing variable is accessible.
+ifneq ($(var_exists1),1)
+ $(error var_exists1=$(var_exists1) (def_test1/1))
+endif
+
+# Quick check with a couple of local variables.
+local var_local1 = 2
+ifneq ($(var_local1),2)
+ $(error var_local1=$(var_local1) (def_test1/2))
+endif
+local var_local2 = 3
+ifneq ($(var_local2),3)
+ $(error var_local2=$(var_local2) (def_test1/3))
+endif
+
+# var_local1 and var_local2 should remain unchanged, var_local3 shouldn't exist.
+$(evalctx $(value def_test2))
+
+ifneq ($(var_local1),2)
+ $(error var_local1=$(var_local1) (def_test1/4))
+endif
+ifneq ($(var_local2),3)
+ $(error var_local2=$(var_local2) (def_test1/5))
+endif
+ifneq ($(var_local3),)
+ $(error var_local3=$(var_local3) (def_test1/6))
+endif
+
+endef # def_test1
+
+
+
+##
+# Called by def_test1, this checks that the locals of def_test1
+# are accessible and can be hidden by another local variable
+# or updated if assigned to.
+define def_test2
+
+# check that the existing variables are accessible, including the def_test1 ones.
+ifneq ($(var_exists1),1)
+ $(error var_exists1=$(var_exists1) (def_test2/1))
+endif
+ifneq ($(var_local1),2)
+ $(error var_local1=$(var_local1) (def_test2/2))
+endif
+ifneq ($(var_local2),3)
+ $(error var_local2=$(var_local2) (def_test2/3))
+endif
+
+# Make a local var_local1 that hides the one in def_test1.
+local var_local1 = 20
+ifneq ($(var_local1),20)
+ $(error var_local1=$(var_local1) (def_test2/4))
+endif
+
+# FEATURE: Update the var_local2 variable, this should be visible in the global space and not the local.
+var_local2 = 30
+ifneq ($(var_local2),3)
+ $(error var_local2=$(var_local2) (def_test2/5))
+endif
+
+# create a new local variable that isn't accessible from def_test1.
+local var_local3 = 4
+ifneq ($(var_local3),4)
+ $(error var_local3=$(var_local3) (def_test2/6))
+endif
+
+endef # def_test2
+
+
+
+#
+# The test body
+#
+
+# None of the local variables should exist.
+ifneq ($(var_local1),)
+ $(error var_local1=$(var_local1))
+endif
+ifneq ($(var_local2),)
+ $(error var_local2=$(var_local2))
+endif
+ifneq ($(var_local3),)
+ $(error var_local3=$(var_local3))
+endif
+
+# Evaluate the function in a local context.
+$(evalctx $(value def_test1))
+
+# FEATURE: see var_local2 = 30 in def_test2.
+ifneq ($(var_local2),30)
+ $(error var_local2=$(var_local2))
+endif
+
+# None of the other local variables should exist.
+ifneq ($(var_local1),)
+ $(error var_local1=$(var_local1))
+endif
+ifneq ($(var_local3),)
+ $(error var_local3=$(var_local3))
+endif
+
+
+
+# dummy
+all:
+	echo local variables works.
+
