@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1415 2008-03-18 22:28:31Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1416 2008-03-18 22:37:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -625,7 +625,7 @@ _TEMPLATES := $(sort $(_TEMPLATES))
 
 define def_templates_include
 ifndef TEMPLATE_$(template)
- TEMPLATE_$(template)_INCLUDE_FILE_ := $(firstword $(foreach path, $(TEMPLATE_PATHS) $(PATH_KBUILD)/templates/, $(wildcard $(path)/$(template).kmk)))
+ TEMPLATE_$(template)_INCLUDE_FILE_ := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(template).kmk)))
  ifneq ($(TEMPLATE_$(template)_INCLUDE_FILE_),)
   include $(TEMPLATE_$(template)_INCLUDE_FILE_)
  else
@@ -1177,9 +1177,9 @@ _SDKS := $(sort $(_SDKS))
 # @param loading    The tool name
 define def_tools_load_function
 ifndef TOOL_$(loading)
- TOOL_$(loading)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(loading).kmk)))
+ TOOL_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TOOL_PATHS) $(PATH_KBUILD)/tools $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(TOOL_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the tool '$(loading)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
+  $(error kBuild: Cannot find include file for the tool '$(loading)'! Searched: $(KBUILD_TOOL_PATHS) $(PATH_KBUILD)/tools $(KBUILD_DEFAULT_PATHS))
  endif
  include $(TOOL_$(loading)_KMK_FILE)
  ifndef TOOL_$(loading)
@@ -1192,9 +1192,9 @@ endef # def_tools_include
 # @param loading    The tool name
 define def_sdk_load_function
 ifndef SDK_$(loading)
- SDK_$(loading)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(loading).kmk)))
+ SDK_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_SDK_PATHS) $(PATH_KBUILD)/sdks $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(SDK_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the SDK '$(loading)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
+  $(error kBuild: Cannot find include file for the SDK '$(loading)'! Searched: $(KBUILD_SDK_PATHS) $(PATH_KBUILD)/sdks $(KBUILD_DEFAULT_PATHS))
  endif
  include $(SDK_$(loading)_KMK_FILE)
  ifndef SDK_$(loading)
