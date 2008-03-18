@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1407 2008-03-17 20:24:04Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1410 2008-03-18 16:00:56Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -451,7 +451,8 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates_include)))
 
 
 #
-# Determin the BLD_TRG_* keywords required for correct inherting.
+# Determin the BLD_TRG_* and BLD_TYPE keywords required for correct
+# inherting, and then check for inheritance.
 #
 # This means walking all the template and target lists in order to
 # pick up all BLD_TRG_* attributes.
@@ -462,23 +463,35 @@ _BLD_ARCHES  := $(BUILD_TARGET_ARCH) $(BUILD_PLATFORM_ARCH)
 _BLD_CPUS    := $(BUILD_TARGET_CPU) $(BUILD_PLATFORM_CPU)
 
 define def_collect_bld_xyz
-ifdef ($(src)_BLD_TYPE)
+ifdef $(src)_BLD_TYPE
+ ifn1of ($($(src)_BLD_TYPE), $(KBUILD_BLD_TYPES))
+  $(error kBuild: $(src)_BLD_TYPE=$($(src)_BLD_TYPE) not in KBUILD_BLD_TYPES={$(KBUILD_BLD_TYPES)}!)
+ endif
  _BLD_TYPES += $($(src)_BLD_TYPE)
 endif
-ifdef ($(src)_BLD_TRG)
+ifdef $(src)_BLD_TRG
+ ifn1of ($($(src)_BLD_TRG), $(KBUILD_OSES))
+  $(error kBuild: $(src)_BLD_TRG=$($(src)_BLD_TRG) not in KBUILD_OSES={$(KBUILD_OSES)}!)
+ endif
  _BLD_TARGETS += $($(src)_BLD_TRG)
 endif
-ifdef ($(src)_BLD_TRG_ARCH)
+ifdef $(src)_BLD_TRG_ARCH
+ ifn1of ($($(src)_BLD_TRG_ARCH), $(KBUILD_ARCHES))
+  $(error kBuild: $(src)_BLD_TRG_ARCH=$($(src)_BLD_TRG_ARCH) not in KBUILD_ARCHES={$(KBUILD_ARCHES)}!)
+ endif
  _BLD_ARCHES += $($(src)_BLD_TRG_ARCH)
 endif
-ifdef ($(src)_BLD_TRG_CPU)
+ifdef $(src)_BLD_TRG_CPU
+ if1of ($($(src)_BLD_CPU), $(KBUILD_ARCHES) $(KBUILD_OSES) $(KBUILD_BLD_TYPES))
+  $(error kBuild: $(src)_BLD_TRG_CPU=$($(src)_BLD_TRG_CPU) found in KBUILD_ARCHES, KBUILD_OSES or KBUILD_BLD_TYPES!)
+ endif
  _BLD_CPUS += $($(src)_BLD_TRG_CPU)
 endif
 endef # def_collect_bld_xyz
-$(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)) $(_ALL_TARGETS)\
-	,$(eval $(def_collect_bld_xyz)))
+$(foreach src, $(addprefix TEMPLATE_, $(_TEMPLATES)) $(_ALL_TARGETS) \
+	,$(eval $(value def_collect_bld_xyz)))
 
-# drop duplicate values
+# Drop duplicate values.
 _BLD_TYPES   := $(sort $(_BLD_TYPES))
 _BLD_TARGETS := $(sort $(_BLD_TARGETS))
 _BLD_ARCHES  := $(sort $(_BLD_ARCHES))
@@ -487,7 +500,73 @@ _BLD_CPUS    := $(sort $(_BLD_CPUS))
 # Construct all the possible keywords.
 _KEYWORDS := $(_BLD_TYPES) $(_BLD_TARGETS) $(_BLD_ARCHES) $(_BLD_CPUS) \
 	$(foreach bld_trg,$(_BLD_TARGETS),$(addprefix $(bld_trg).,$(_BLD_ARCHES)))
-# $ (warning dbg _KEYWORDS := $(_KEYWORDS))
+
+# Look for keywords which extends others and order them.
+_KEYWORDS_ORDERED :=
+define def_keyword_ordering
+src := $(strip $($(prefix)_$(keyword)_EXTENDS))
+ifneq ($(src),)
+ ifndef $(prefix)_$(keyword)_EXTENDS_STATUS_
+  $(prefix)_$(keyword)_EXTENDS_STATUS_ := 0
+
+  # Validate src.
+  ifn1of ($(src), $(valid))
+   $(error kBuild: $(keyword) tries to extend unknown keyword '$(src)'! (known = $(valid)))
+  endif
+
+  # Recursivly process the parent (src) if it's inherting from somebody too.
+  # If it isn't, then we'll have to add it to the ordered keyword list here.
+  ifneq ($($(prefix)_$(src)_EXTENDS_STATUS_),42)
+   ifneq ($($(prefix)_$(src)_EXTENDS_STATUS_),)
+    $(error kBuild: Keyword inheritance loop! keyword=$(src) $(prefix)_$(src)_EXTENDS_STATUS_=$($(prefix)_$(src)_EXTENDS_STATUS_))
+   endif
+   ifdef $(prefix)_$(src)_EXTENDS
+    # 'foreach' will create 'keyword' in a new variable context hiding
+	# out current variable. 'src' OTOH will be overwritten.
+    $(foreach keyword, $(src), $(eval $(value def_keyword_ordering)))
+    src := $(strip $($(keyword)_EXTENDS))
+   else
+    # Add it to the list and mark it as done.
+    _KEYWORDS_ORDERED += $(src)
+    $(prefix)_$(src)_EXTENDS_STATUS_ := 42
+   endif
+  endif
+
+  # Check EXTENDS_BY.
+  by = $(strip $($(trg)_EXTENDS_BY))
+  ifeq ($(by),)
+   by = overriding
+  else ifn1of ($(by), overriding appending prepending)
+   $(error kBuild: Invalid EXTENDS_BY value '$(by)' on '$(keyword)'!)
+  endif
+
+  # Add it to the list and mark it as done.
+  _KEYWORDS_ORDERED += $(keyword)
+  $(prefix)_$(keyword)_EXTENDS_STATUS_ := 42
+ else
+  # Check for inheritance loops.
+  ifneq ($($(trg)_EXTENDS_STATUS_),42)
+   $(error kBuild: Keyword inheritance loop! keyword=$(keyword) $(prefix)_$(keyword)_EXTENDS_STATUS_=$($(prefix)_$(keyword)_EXTENDS_STATUS_))
+  endif
+ endif
+endif
+
+endef
+
+prefix := BLD_TYPE
+valid := $(KBUILD_BLD_TYPES)
+$(foreach keyword, $(_BLD_TYPES) , $(eval $(value def_keyword_ordering)))
+
+prefix := BLD_ARCH
+valid := $(KBUILD_ARCHES)
+$(foreach keyword, $(_BLD_ARCHES), $(eval $(value def_keyword_ordering)))
+
+prefix := BLD_CPU
+valid := $(KBUILD_CPUS)
+$(foreach keyword, $(_BLD_CPUS)  , $(eval $(value def_keyword_ordering)))
+
+# Update _KEYWORDS to the ordered list making sure parent keywords are included too.
+_KEYWORDS := $(_KEYWORDS_ORDERED) $(filter-out $(_KEYWORDS_ORDERED), $(_KEYWORDS))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
