@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1416 2008-03-18 22:37:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1417 2008-03-18 22:48:52Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -623,19 +623,22 @@ endef # def_templates
 $(foreach target, $(_ALL_TARGETS), $(eval $(def_templates)))
 _TEMPLATES := $(sort $(_TEMPLATES))
 
-define def_templates_include
-ifndef TEMPLATE_$(template)
- TEMPLATE_$(template)_INCLUDE_FILE_ := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(template).kmk)))
- ifneq ($(TEMPLATE_$(template)_INCLUDE_FILE_),)
-  include $(TEMPLATE_$(template)_INCLUDE_FILE_)
- else
-  $$(error kBuild: Cannot find template '$(template)')
+## Template load function.
+# @param loading    The template name. This is prefixed.
+define def_templates_load_function
+loading := $(patsubst TEMPLATE_%,%,$(loading))
+ifndef TEMPLATE_$(loading)
+ TEMPLATE_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ ifneq ($(TEMPLATE_$(loading)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the template '$(loading)'! Searched: $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS))
+ endif
+ include $(TEMPLATE_$(loading)_KMK_FILE)
+ ifndef TEMPLATE_$(loading)
+  $(warning kBuild: TEMPLATE_$(loading) was not defined by $(TEMPLATE_$(loading)_KMK_FILE)!)
  endif
 endif
 endef # def_templates_include
-$(foreach template, $(_TEMPLATES), $(eval $(def_templates_include)))
-
-#$ (warning dbg _TEMPLATES := $(_TEMPLATES))
+$(foreach loading, $(addprefix TEMPLATE_,$(_TEMPLATES)), $(eval $(value def_templates_include)))
 
 
 #
@@ -865,7 +868,7 @@ endif
 #
 
 src_prefix := TEMPLATE_
-load_function :=
+load_function := def_templates_load_function
 properties :=
 properties_now_l :=
 properties_now_r :=
