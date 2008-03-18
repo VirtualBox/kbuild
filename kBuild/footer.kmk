@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1413 2008-03-18 21:22:32Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1414 2008-03-18 21:51:48Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -535,6 +535,7 @@ _INHERIT_JOIN_KEYWORDS = $(1)  $(foreach keyword,$(_KEYWORDS), $(addsuffix .$(ke
 ## Generic inheritance for use with targets templates and tools.
 # @param    trg                   Object to consider for inheriting.
 # @param    src_prefix            What to prefix the value found in EXTENDS with to get the object.
+# @param    load_function         Load function for stuff that needs
 # @param    properties            List of the properties with straight expansion.
 # @param    properties_now_l      List of the properties with immediate expansion, accumulating on the left side.
 # @param    properties_now_r      List of the properties with immediate expansion, accumulating on the right side.
@@ -542,10 +543,25 @@ _INHERIT_JOIN_KEYWORDS = $(1)  $(foreach keyword,$(_KEYWORDS), $(addsuffix .$(ke
 # @param    properties_deferred_l List of the properties with deferred expansion (e.g. function), accumulating on the left side.
 # @param    properties_deferred_r List of the properties with deferred expansion (e.g. function), accumulating on the right side.
 define def_inherit
+
+# Load it.
+ifneq ($(load_function),)
+ loading := $(trg)
+ $(eval $(value $(load_function)))
+endif
+
 src := $(strip $($(trg)_EXTENDS))
 ifneq ($(src),)
  ifndef $(trg)_EXTENDS_STATUS_
   $(trg)_EXTENDS_STATUS_ := 0
+
+  # Load the source.
+  ifneq ($(load_function),)
+   loading := $(src)
+   $(eval $(value $(load_function)))
+  endif
+
+  # less typing.
   src := $(src_prefix)$(src)
 
   # Recursivly process the parent (src) if it's inherting from somebody too.
@@ -768,6 +784,7 @@ endif
 #
 
 src_prefix :=
+load_function :=
 properties_deferred_l :=
 properties_deferred_r :=
 
@@ -847,6 +864,7 @@ endif
 #
 
 src_prefix := TEMPLATE_
+load_function :=
 properties :=
 properties_now_l :=
 properties_now_r :=
@@ -855,6 +873,16 @@ properties_deferred_l := $(PROPS_ACCUMULATE_L)
 properties_deferred_r := $(PROPS_ACCUMULATE_R)
 $(foreach trg, $(addprefix TEMPLATE_,$(_TEMPLATES)),$(eval $(value def_inherit)))
 
+# done inheriting.
+src_prefix :=
+load_function :=
+properties :=
+properties_now_l :=
+properties_now_r :=
+properties_deferred :=
+properties_deferred_l :=
+properties_deferred_r :=
+
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template inheritance)
@@ -862,14 +890,6 @@ ifdef KBUILD_PROFILE_SELF
 endif
 
 
-# done inheriting.
-src_prefix :=
-properties :=
-properties_now_l :=
-properties_now_r :=
-properties_deferred :=
-properties_deferred_l :=
-properties_deferred_r :=
 
 
 #
@@ -1149,45 +1169,65 @@ bld_trg_arch := $(BUILD_PLATFORM_ARCH)
 bld_trg_cpu := $(BUILD_PLATFORM_CPU)
 $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS), $(eval $(value def_tools_sdks_target)))
 
+_TOOLS := $(sort $(_TOOLS))
+_SDKS := $(sort $(_SDKS))
 
-# include TOOLS
-define def_tools_include
-ifndef TOOL_$(tool)
- TOOL_$(tool)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(tool).kmk)))
- ifeq ($(TOOL_$(tool)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the tool '$(tool)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
+## Tool load function.
+# @param loading    The tool name
+define def_tools_load_function
+ifndef TOOL_$(loading)
+ TOOL_$(loading)_KMK_FILE := $(firstword $(foreach path, $(TOOL_PATHS) $(PATH_KBUILD)/tools, $(wildcard $(path)/$(loading).kmk)))
+ ifeq ($(TOOL_$(loading)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the tool '$(loading)'! Searched: $(TOOL_PATHS) $(PATH_KBUILD)/tools)
  endif
- include $(TOOL_$(tool)_KMK_FILE)
- ifndef TOOL_$(tool)
-  $(warning kBuild: TOOL_$(tool) was not by $(TOOL_$(tool)_KMK_FILE)!)
+ include $(TOOL_$(loading)_KMK_FILE)
+ ifndef TOOL_$(loading)
+  $(warning kBuild: TOOL_$(loading) was not defined by $(TOOL_$(loading)_KMK_FILE)!)
  endif
 endif
 endef # def_tools_include
 
-_TOOLS := $(sort $(_TOOLS))
-$(foreach tool, $(_TOOLS), $(eval $(value def_tools_include)))
-
-## @todo TOOL_X_EXTENDS
-
-
-# include SDKS
-define def_sdks_include_one
-ifndef SDK_$(sdk)
- SDK_$(sdk)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(sdk).kmk)))
- ifeq ($(SDK_$(sdk)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the SDK '$(sdk)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
+## SDK load function.
+# @param loading    The tool name
+define def_sdk_load_function
+ifndef SDK_$(loading)
+ SDK_$(loading)_KMK_FILE := $(firstword $(foreach path, $(SDK_PATHS) $(PATH_KBUILD)/sdks, $(wildcard $(path)/$(loading).kmk)))
+ ifeq ($(SDK_$(loading)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the SDK '$(loading)'! Searched: $(SDK_PATHS) $(PATH_KBUILD)/sdks)
  endif
- include $(SDK_$(sdk)_KMK_FILE)
- ifndef SDK_$(sdk)
-  $(warning kBuild: SDK_$(sdk) was not defined by $(SDK_$(sdk)_KMK_FILE)!)
+ include $(SDK_$(loading)_KMK_FILE)
+ ifndef SDK_$(loading)
+  $(warning kBuild: SDK_$(loading) was not defined by $(SDK_$(loading)_KMK_FILE)!)
  endif
 endif
-endef # def_sdks_include_one
+endef # def_sdk_load_function
 
-_SDKS := $(sort $(_SDKS))
-$(foreach sdk, $(_SDKS), $(eval $(value def_sdks_include_one)))
 
-## @todo Execute SDKS and TOOL inhertiance.
+properties :=
+properties_now_l :=
+properties_now_r :=
+properties_deferred   := $(PROPS_SINGLE) $(PROPS_DEFERRED)
+properties_deferred_l := $(PROPS_ACCUMULATE_L)
+properties_deferred_r := $(PROPS_ACCUMULATE_R)
+
+src_prefix := TOOL_
+load_function := def_tools_load_function
+$(foreach trg, $(_TOOLS), $(eval $(value def_inherit)))
+
+src_prefix := SDK_
+load_function := def_sdk_load_function
+$(foreach trg, $(_SDKS) , $(eval $(value def_inherit)))
+
+# done inheriting.
+src_prefix :=
+load_function :=
+properties :=
+properties_now_l :=
+properties_now_r :=
+properties_deferred :=
+properties_deferred_l :=
+properties_deferred_r :=
+
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -1195,7 +1235,7 @@ ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
-## @todo SDK_X_EXTENDS
+
 
 #
 #
