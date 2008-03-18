@@ -1,4 +1,4 @@
-# $Id: header.kmk 1403 2008-03-16 23:34:00Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1416 2008-03-18 22:37:29Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1403 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1416 $  )
 
 
 #
@@ -135,7 +135,7 @@ EQUAL := =
 #
 # The list of standard build types in kBuild.
 #
-# This list can be extended in Config.kmk and it's possible to extend 
+# This list can be extended in Config.kmk and it's possible to extend
 # (inherit) another build type.
 #
 KBUILD_BLD_TYPES := releases profile debug
@@ -563,17 +563,21 @@ TARGET_PATH = $(PATH_TARGET)/$(1)
 # others can add stuff to if they like for processing in the footer.
 #
 
-## TEMPLATE_PATHS
+## KBUILD_TEMPLATE_PATHS
 # List a paths (separated by space) where templates can be found.
-TEMPLATE_PATHS :=
+KBUILD_TEMPLATE_PATHS :=
 
-## TOOL_PATHS
+## KBUILD_TOOL_PATHS
 # List of paths (separated by space) where tools can be found.
-TOOL_PATHS :=
+KBUILD_TOOL_PATHS :=
 
-## SDK_PATHS
+## KBUILD_SDK_PATHS
 # List of paths (separated by space) where SDKs can be found.
-SDK_PATHS :=
+KBUILD_SDK_PATHS :=
+
+## KBUILD_DEFAULT_PATHS
+# List of paths (separated by space) to search for stuff as a last resort.
+KBUILD_DEFAULT_PATHS :=
 
 ## Proritized list of the default makefile when walking subdirectories.
 # The user can overload this list.
