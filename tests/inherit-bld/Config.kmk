@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1404 2008-03-17 08:02:15Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1412 2008-03-18 21:20:30Z knut.osmundsen@oracle.com $
 ## @file
 # Tests - Build Type Inheritance.
 #
@@ -60,9 +60,22 @@ BLD_TYPE_dbgbld6_EXTENDS = dbgbld3
 BLD_TYPE_dbgbld6_EXTENDS_BY = prepending
 
 #
-# For inherit-bld6 - overriding inheritance.
+# For inherit-bld7 - overriding inheritance.
 #
 KBUILD_BLD_TYPES += dbgbld7
 BLD_TYPE_dbgbld7_EXTENDS = dbgbld3
 BLD_TYPE_dbgbld7_EXTENDS_BY = overriding
+
+#
+# For inherit-bld10 thru 19 - overriding inheritance.
+#
+KBUILD_BLD_TYPES += dbgbld10 dbgbld11
+BLD_TYPE_dbgbld11_EXTENDS = dbgbld10
+
+#
+# For inherit-bld20 thru 29 - prepending inheritance.
+#
+KBUILD_BLD_TYPES += dbgbld20 dbgbld21
+BLD_TYPE_dbgbld21_EXTENDS = dbgbld20
+BLD_TYPE_dbgbld21_EXTENDS_BY = prepending
 
