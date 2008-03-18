@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1414 2008-03-18 21:51:48Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1415 2008-03-18 22:28:31Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -609,7 +609,7 @@ endef # def_inherit
 
 #
 # Determin all the templates that is being used and make
-# sure they are present.
+# sure they are present before we try collect keywords.
 #
 _TEMPLATES := $(TEMPLATE)
 define def_templates
@@ -639,11 +639,12 @@ $(foreach template, $(_TEMPLATES), $(eval $(def_templates_include)))
 
 
 #
-# Determin the BLD_TRG_* and BLD_TYPE keywords required for correct
-# inherting, and then check for inheritance.
+# Determin the keywords required for correct inherting and setup keyword inheritance.
 #
-# This means walking all the template and target lists in order to
-# pick up all BLD_TRG_* attributes.
+# This means walking all the lists of immediate template and targets and
+# pick up all the BLD_T* keywords. Since templates that are referenced
+# indirectly in the inheritance hierarchy, the result from this exercise
+# might not be 100% accurate... :-/
 #
 _BLD_TYPES   := $(BUILD_TYPE)
 _BLD_TARGETS := $(BUILD_TARGET) $(BUILD_PLATFORMS)
