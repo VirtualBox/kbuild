@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1405 2008-03-17 18:08:13Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1412 2008-03-18 21:20:30Z knut.osmundsen@oracle.com $
 ## @file
 # Test - Build Type Inheritance.
 #
@@ -54,7 +54,6 @@ PROGRAMS += inherit-bld4
 inherit-bld4_TEMPLATE = TST
 inherit-bld4_BLD_TYPE = dbgbld4
 inherit-bld4_DEFS.dbgbld3 = X=y
-inherit-bld4_DEFS.dbgbld4 = $(inherit-bld4_DEFS.dbgbld3)        # remove me
 inherit-bld4_SOURCES = ../dummy_defined_X.c
 
 # Test that appending build type inheritance works - dbgbld5 extends dbgbld3.
@@ -62,8 +61,7 @@ PROGRAMS += inherit-bld5
 inherit-bld5_TEMPLATE = TST
 inherit-bld5_BLD_TYPE = dbgbld5
 inherit-bld5_DEFS.dbgbld3 = X=y y=0
-#inherit-bld5_DEFS.dbgbld5 = y=42
-inherit-bld5_DEFS.dbgbld5 = $(inherit-bld5_DEFS.dbgbld3) y=42   # remove me
+inherit-bld5_DEFS.dbgbld5 = y=42
 inherit-bld5_SOURCES = ../dummy_defined_X.c
 
 # Test that prepending build type inheritance works - dbgbld6 extends dbgbld3.
@@ -71,9 +69,47 @@ PROGRAMS += inherit-bld6
 inherit-bld6_TEMPLATE = TST
 inherit-bld6_BLD_TYPE = dbgbld6
 inherit-bld6_DEFS.dbgbld3 = X=y y=42
-#inherit-bld6_DEFS.dbgbld6 = y=0
-inherit-bld6_DEFS.dbgbld6 = y=0 $(inherit-bld6_DEFS.dbgbld3)    # remove me
+inherit-bld6_DEFS.dbgbld6 = y=0
 inherit-bld6_SOURCES = ../dummy_defined_X.c
+
+
+#
+# Tests where we inherit from a target and force build type which
+# relies on inheritance. These are the fine points...
+#
+PROGRAMS += inherit-bld10
+inherit-bld10_TEMPLATE = TST
+inherit-bld10_BLD_TYPE = dbgbld11
+inherit-bld10_DEFS = X=y
+inherit-bld10_DEFS.dbgbld10 = y=42
+inherit-bld10_SOURCES = ../dummy_defined_X.c
+
+# Tests that target and build inheriting works together.
+PROGRAMS += inherit-bld11
+inherit-bld11_EXTENDS = inherit-bld10
+
+# Tests that dbgbld11 is picked from the target rather than the parent.
+PROGRAMS += inherit-bld12
+inherit-bld12_EXTENDS = inherit-bld10
+inherit-bld12_DEFS = y=0
+inherit-bld12_DEFS.dbgbld11 = X=z z=42
+
+# Tests that prepending works.
+PROGRAMS += inherit-bld20
+inherit-bld20_TEMPLATE = TST
+inherit-bld20_BLD_TYPE = dbgbld21
+inherit-bld20_DEFS = X=y
+inherit-bld20_DEFS.dbgbld20 = y=42
+inherit-bld20_DEFS.dbgbld21 = y=0
+#inherit-bld20_DEFS.dbgbld21 = y=0 y=42 <-- expected result.
+inherit-bld20_SOURCES = ../dummy_defined_X.c
+
+# Tests that prepending + target inheritance works as expected. funky!
+PROGRAMS += inherit-bld21
+inherit-bld21_EXTENDS = inherit-bld20
+inherit-bld21_DEFS.dbgbld20 = Y=y
+#inherit-bld21_DEFS.dbgbld21 = y=0 y=42 Y=y <-- expected result; dbgbld21 from parent + our dbgbld20.
+inherit-bld21_SOURCES = ../dummy_defined_Y.c
 
 
 include $(PATH_KBUILD)/footer.kmk
