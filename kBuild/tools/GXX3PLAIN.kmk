@@ -1,4 +1,4 @@
-# $Id: GXX3PLAIN.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
+# $Id: GXX3PLAIN.kmk 1418 2008-03-18 22:52:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC v3.2.x or later using the system GCC, any Unix linker and Unix archiver to build C++ code.
@@ -100,7 +100,7 @@ TOOL_GXX3PLAIN_LDFLAGS          ?=
 # @param    $(objsuff)  Object suffix.
 TOOL_GXX3PLAIN_COMPILE_C_DEPEND =
 TOOL_GXX3PLAIN_COMPILE_C_DEPORD =
-ifdef USE_KOBJCACHE
+ifdef KBUILD_USE_KOBJCACHE
 TOOL_GXX3PLAIN_COMPILE_C_USES_KOBJCACHE = 1
 TOOL_GXX3PLAIN_COMPILE_C_OUTPUT = $(outbase).i
 define TOOL_GXX3PLAIN_COMPILE_C_CMDS
@@ -116,7 +116,7 @@ define TOOL_GXX3PLAIN_COMPILE_C_CMDS
 		-o $(obj)\
 		-
 endef
-else # !USE_KOBJCACHE
+else # !KBUILD_USE_KOBJCACHE
 TOOL_GXX3PLAIN_COMPILE_C_OUTPUT =
 define TOOL_GXX3PLAIN_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_GXX3PLAIN_CC) -c\
@@ -125,7 +125,7 @@ define TOOL_GXX3PLAIN_COMPILE_C_CMDS
 		-o $(obj)\
 		$(abspath $(source))
 endef
-endif # !USE_KOBJCACHE
+endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -142,7 +142,7 @@ endif # !USE_KOBJCACHE
 # @param    $(objsuff)  Object suffix.
 TOOL_GXX3PLAIN_COMPILE_CXX_DEPEND =
 TOOL_GXX3PLAIN_COMPILE_CXX_DEPORD =
-ifdef USE_KOBJCACHE
+ifdef KBUILD_USE_KOBJCACHE
 TOOL_GXX3PLAIN_COMPILE_CXX_USES_KOBJCACHE = 1
 TOOL_GXX3PLAIN_COMPILE_CXX_OUTPUT = $(outbase).ii
 define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
@@ -158,7 +158,7 @@ define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
 		-o $(obj)\
 		-
 endef
-else # !USE_KOBJCACHE
+else # !KBUILD_USE_KOBJCACHE
 TOOL_GXX3PLAIN_COMPILE_CXX_OUTPUT =
 define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_GXX3PLAIN_CXX) -c\
@@ -167,7 +167,7 @@ define TOOL_GXX3PLAIN_COMPILE_CXX_CMDS
 		-o $(obj)\
 		$(abspath $(source))
 endef
-endif # !USE_KOBJCACHE
+endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile Assembly source.

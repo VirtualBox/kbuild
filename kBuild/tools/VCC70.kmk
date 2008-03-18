@@ -1,4 +1,4 @@
-# $Id: VCC70.kmk 1354 2007-12-03 01:07:33Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 1418 2008-03-18 22:52:45Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
@@ -113,7 +113,7 @@ TOOL_VCC70_LDFLAGS.release  ?=
 TOOL_VCC70_COMPILE_C_DONT_PURGE_OUTPUT =
 TOOL_VCC70_COMPILE_C_DEPEND =
 TOOL_VCC70_COMPILE_C_DEPORD =
-#ifdef USE_KOBJCACHE
+#ifdef KBUILD_USE_KOBJCACHE
 #TOOL_VCC70_COMPILE_C_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb) $(outbase).i
 #TOOL_VCC70_COMPILE_C_USESES_KOBJCACHE = 1
 #define TOOL_VCC70_COMPILE_C_CMDS
@@ -130,7 +130,7 @@ TOOL_VCC70_COMPILE_C_DEPORD =
 #		$(subst /,\\,$(outbase).i)
 #	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 #endef
-#else # !USE_KOBJCACHE
+#else # !KBUILD_USE_KOBJCACHE
 TOOL_VCC70_COMPILE_C_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC70_COMPILE_C_CMDS
@@ -142,7 +142,7 @@ define TOOL_VCC70_COMPILE_C_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 endef
-#endif # !USE_KOBJCACHE
+#endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -161,7 +161,7 @@ endef
 TOOL_VCC70_COMPILE_CXX_DONT_PURGE_OUTPUT =
 TOOL_VCC70_COMPILE_CXX_DEPEND =
 TOOL_VCC70_COMPILE_CXX_DEPORD =
-#ifdef USE_KOBJCACHE
+#ifdef KBUILD_USE_KOBJCACHE
 #TOOL_VCC70_COMPILE_CXX_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC70_PDB, $(outbase)-obj,idb) $(outbase).ii
 #TOOL_VCC70_COMPILE_CXX_USES_KOBJCACHE = 1
 #define TOOL_VCC70_COMPILE_CXX_CMDS
@@ -178,7 +178,7 @@ TOOL_VCC70_COMPILE_CXX_DEPORD =
 #		$(subst /,\\,$(outbase).ii)
 #	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 #endef
-#else # !USE_KOBJCACHE
+#else # !KBUILD_USE_KOBJCACHE
 TOOL_VCC70_COMPILE_CXX_OUTPUT = $(call TOOL_VCC70_PDB, $(outbase)-obj,idb)
 TOOL_VCC70_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC70_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC70_COMPILE_CXX_CMDS
@@ -190,7 +190,7 @@ define TOOL_VCC70_COMPILE_CXX_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC70_PDB,$(outbase)-obj,idb)
 endef
-#endif # !USE_KOBJCACHE
+#endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile resource source.
