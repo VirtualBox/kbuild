@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 804 2007-01-25 00:50:03Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1421 2008-03-19 17:59:20Z knut.osmundsen@oracle.com $
 
 
 DEPTH = .
@@ -17,25 +17,25 @@ kBuild_SOURCES := \
         $(foreach src,\
 			$(wildcard kBuild/*.kmk kBuild/tools/*.kmk kBuild/sdks/*.kmk),\
 			$(src)=>$(subst kBuild/,,$(src)))
+endif
 
 #
 # And install any binary only tools and dlls.
 #
 INSTALLS += kBuild_bin
-kBuild_bin_INST = $(NIX_INSTALL_DIR_BIN)
+kBuild_bin_INST = $(TEMPLATE_BIN_INST)
 kBuild_bin_SOURCES =
 
-ifeq ($(filter-out nt win win32 win64,$(BUILD_TARGET)),)
+if1of ($(BUILD_TARGET), nt win)
 kBuild_bin_SOURCES.$(BUILD_TARGET) = \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/msvcr71.dll=>msvcr71.dll \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/kmk_ash.exe=>kmk_ash.exe \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/cygwin1.dll=>cygwin1.dll
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll \
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/kmk_ash.exe=>kmk_ash.exe \
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/cygwin1.dll=>cygwin1.dll
 endif
 
 kBuild_bin_SOURCES.os2 = \
-	kBuild/bin/$(BUILD_TARGET_ARCH).$(BUILD_TARGET)/libc061.dll=>libc061.dll
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/libc061.dll=>libc061.dll
 
-endif
 
 include $(PATH_KBUILD)/footer.kmk
 
