@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1409 2008-03-17 22:31:35Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1419 2008-03-19 17:41:07Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -434,5 +434,17 @@ test_if1of:
 test_local:
 	$(MAKE) -f testcase-local.kmk
 
-test_all:	test_math test_stack test_shell test_if1of test_local
+test_30_continued_on_failure_worker:
+	this_executable_does_not_exist.exe
+	echo "We shouldn't see this..."
+
+test_30_continued_on_failure:
+	$(MAKE) -f $(MAKEFILE) test_30_continued_on_failure_worker; \
+	if test $$? -ne 1; then \
+		echo "$@: FAILED - exit code $$? instead of 1."; \
+		exit 1; \
+	fi
+
+
+test_all:	test_math test_stack test_shell test_if1of test_local test_30_continued_on_failure
 
