@@ -595,6 +595,10 @@ process_begin(
 
 			pproc->last_err = GetLastError();
 			pproc->lerrno = E_FORK;
+#ifdef KMK
+			if (pproc->last_err == ERROR_FILE_NOT_FOUND)
+				pproc->exit_code = 127; /* see execve failure in job.c. */
+#endif
 			fprintf(stderr, "process_begin: CreateProcess(%s, %s, ...) failed.\n",
                                 exec_path ? exec_path : "NULL", command_line);
 			if (envblk) free(envblk);
@@ -939,6 +943,12 @@ process_file_io_private(
 		CloseHandle((HANDLE)pproc->sv_stderr[0]);
 		pproc->sv_stderr[0] = 0;
 	}
+
+#ifdef KMK
+	if (childhand == NULL || childhand == INVALID_HANDLE_VALUE) {
+		goto done2;
+	}
+#endif
 
 	/*
 	 *  Wait for the child process to exit it we didn't do that already.
@@ -1327,7 +1337,10 @@ process_easy(
     /* process_begin() failed: make a note of that.  */
     if (!((sub_process*) hProcess)->last_err)
       ((sub_process*) hProcess)->last_err = -1;
-    ((sub_process*) hProcess)->exit_code = process_last_err(hProcess);
+#ifdef KMK
+    if (!((sub_process*) hProcess)->exit_code)
+#endif
+      ((sub_process*) hProcess)->exit_code = process_last_err(hProcess);
 
 #ifndef KMK
     /* close up unused handles */
