@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1419 2008-03-19 17:41:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1422 2008-03-19 18:03:39Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -440,9 +440,12 @@ test_30_continued_on_failure_worker:
 
 test_30_continued_on_failure:
 	$(MAKE) -f $(MAKEFILE) test_30_continued_on_failure_worker; \
-	if test $$? -ne 1; then \
-		echo "$@: FAILED - exit code $$? instead of 1."; \
+	RC=$$?; \
+	if test $${RC} -ne 2; then \
+		echo "$@: FAILED - exit code $${RC} instead of 2."; \
 		exit 1; \
+	else \
+		echo "$@: SUCCESS"; \
 	fi
 
 
