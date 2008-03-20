@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1417 2008-03-18 22:48:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1424 2008-03-20 07:28:38Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1951,51 +1951,70 @@ endif
 endef
 
 
-## Generic macro for processing C, C++ and Assembly sources.
-# @param    $(target)     Normalized target name.
-# @param    $(source)     Source file name.
-# @param    $(type)       Source type. {C,CXX,AS,OBJC}
-# @param    bld_type      Build type.
-# @param    bld_trg       Build target.
-# @param    bld_trg_arch  Build target arch.
-# @param    bld_trg_cpu   Build target cpu.
-def_target_source_c_cpp_objc_asm_rc_new = $(kb-src-one )
-ifdef KMK_VERSION
- def_target_source_c_cpp_objc_asm_rc_var = def_target_source_c_cpp_objc_asm_rc_new
+## def_src_handler_*
+#
+# @{
+define def_src_handler_c
+$(warning def_src_handler_c: source=$(source))
+type := C
+ $(kb-src-one )
+endef
+
+define def_src_handler_cxx
+type := CXX
+ $(kb-src-one )
+endef
+
+define def_src_handler_objc
+type := OBJC
+ $(kb-src-one )
+endef
+
+define def_src_handler_asm
+type := AS
+ $(kb-src-one )
+endef
+
+define def_src_handler_rc
+type := RC
+ $(kb-src-one )
+endef
+
+define def_src_handler_obj
+$(target)_OBJS_ += $(source)
+endef
+## @}
+
+## Handle one source.
+# .
+define def_src_handler_one
+suff := $(suffix $(source))
+src_handler := $(firstword $(filter $(suff):%, $($(target)_$(source)_SRC_HANDLERS) $($(source)_SRC_HANDLERS) $(target_src_handlers) ))
+handler := $(patsubst $(suff):%,%,$(src_handler))
+#$ (warning def_src_handler_one: source=$(source) suff=$(suff) src_handler=$(src_handler) handler=$(handler))
+ifneq ($(handler),)
+$(eval $(value $(handler)))
 else
- def_target_source_c_cpp_objc_asm_rc_var = def_target_source_c_cpp_objc_asm_rc_old
+othersrc += $(sources)
 endif
+endef
 
 ## Generic macro for processing all target sources.
 # @param    $(target)   Normalized target name.
 # @param    $(defpath)
 # @param    much-more...
+# @returns	othersrc, $(target)_OBJS_, ++
 define def_target_sources
-#$ (warning def_target_sources)
-# C sources
-type := C
-$(foreach source, $(filter %.c             , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-   ,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
 
-# C++ sources
-type := CXX
-$(foreach source, $(filter %.cpp %.cxx %.xx, $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
-
-# Objective-C sources
-type := OBJC
-$(foreach source, $(filter %.m,              $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
-
-# ASM sources
-type := AS
-$(foreach source, $(filter %.asm %.s %.S   , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
-
-# Resource sources
-type := RC
-$(foreach source, $(filter %.rc            , $($(target)_SOURCES) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg_cpu)) $($(target)_SOURCES.$(bld_type)))\
-	,$(eval $(value $(def_target_source_c_cpp_objc_asm_rc_var))) )
+target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
+$(foreach source,\
+	$($(target)_SOURCES)\
+	$($(target)_SOURCES.$(bld_trg))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_SOURCES.$(bld_trg_arch))\
+	$($(target)_SOURCES.$(bld_trg_cpu))\
+	$($(target)_SOURCES.$(bld_type))\
+	,$(eval $(value def_src_handler_one)) )
 
 endef
 
@@ -2080,6 +2099,7 @@ out         := $(outbase)$(suff)
 TARGET_$(target) := $(out)
 $(target)_OBJS_ :=
 defpath := $($(target)_PATH)
+othersrc :=
 
 # source -> object
 $(eval $(value def_target_sources))
@@ -2105,28 +2125,13 @@ flags       :=\
 	$($(target)_ARFLAGS.$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.m %.s %.S %.asm %.rc %.o %.obj %.res,\
-	$($(target)_SOURCES) \
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type)))
-objs         = $(filter %.o %.obj %.res, \
-	$($(target)_SOURCES) \
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type))) \
-    $($(target)_OBJS_)
 dirdep      := $(call DIRDEP,$(dir $(out)))
 deps        := $($(target)_DEPS)
 orderdeps   := $($(target)_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- objs := $(abspathex $(objs),$(defpath))
+ $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
@@ -2195,6 +2200,9 @@ else
  post_cmds := $(POST_CMDS)
 endif
 
+# eliminate this guy?
+objs = $($(target)_OBJS_)
+
 # dependency file
 dep := $(out)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
@@ -2230,7 +2238,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
-$(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $(objs)
+$(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_OBJS_)
 $(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
@@ -2297,6 +2305,7 @@ out         := $(outbase)$(suff)
 TARGET_$(target) := $(out)
 $(target)_OBJS_  :=
 defpath := $($(target)_PATH)
+othersrc :=
 
 # source -> object
 $(eval $(value def_target_sources))
@@ -2352,21 +2361,6 @@ flags       :=\
 	$($(target)_LDFLAGS.$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LDFLAGS.$(bld_trg_cpu))
-othersrc    := $(filter-out %.c %.cpp %.cxx %.cc %.m %.s %.S %.asm %.rc %.o %.obj %.res,\
-	$($(target)_SOURCES)\
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type)))
-objs         = $(filter %.o %.obj %.res, \
-	$($(target)_SOURCES) \
-	$($(target)_SOURCES.$(bld_trg)) \
-	$($(target)_SOURCES.$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_SOURCES.$(bld_trg_cpu)) \
-	$($(target)_SOURCES.$(bld_type))) \
-	$($(target)_OBJS_)
 libs        :=\
 	$($(target)_LIBS.$(bld_trg_cpu))\
 	$($(target)_LIBS.$(bld_trg).$(bld_trg_arch))\
@@ -2456,7 +2450,7 @@ orderdeps   := $($(target)_ORDERDEPS)
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
  libpath := $(abspathex $(libpath),$(defpath))
- objs := $(abspathex $(objs),$(defpath))
+ $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
@@ -2525,6 +2519,9 @@ else
  post_cmds := $(POST_CMDS)
 endif
 
+# eliminate this guy?
+objs = $($(target)_OBJS_)
+
 # installation targets
 ifndef $(target)_NOINST
 INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
@@ -2577,7 +2574,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
-$(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $(objs)
+$(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_OBJS_)
 $(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
