@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1424 2008-03-20 07:28:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1425 2008-03-20 14:56:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1955,7 +1955,6 @@ endef
 #
 # @{
 define def_src_handler_c
-$(warning def_src_handler_c: source=$(source))
 type := C
  $(kb-src-one )
 endef
