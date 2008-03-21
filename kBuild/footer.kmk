@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1426 2008-03-21 08:06:09Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1427 2008-03-21 08:06:49Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1996,7 +1996,7 @@ handler := $(patsubst $(suff):%,%,$(src_handler))
 ifneq ($(handler),)
 $(eval $(value $(handler)))
 else
-othersrc += $(sources)
+othersrc += $(source)
 endif
 endef
 
