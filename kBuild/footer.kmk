@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1427 2008-03-21 08:06:49Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1428 2008-03-21 09:01:27Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2009,12 +2009,13 @@ define def_target_sources
 
 target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
 $(foreach source,\
-	$($(target)_SOURCES)\
-	$($(target)_SOURCES.$(bld_trg))\
-	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
-	$($(target)_SOURCES.$(bld_trg_arch))\
-	$($(target)_SOURCES.$(bld_trg_cpu))\
-	$($(target)_SOURCES.$(bld_type))\
+	$(abspathex $($(target)_SOURCES)\
+		$($(target)_SOURCES.$(bld_trg))\
+		$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
+		$($(target)_SOURCES.$(bld_trg_arch))\
+		$($(target)_SOURCES.$(bld_trg_cpu))\
+		$($(target)_SOURCES.$(bld_type))\
+		,$(defpath))\
 	,$(eval $(value def_src_handler_one)) )
 
 endef
@@ -2135,7 +2136,6 @@ ifneq ($(defpath),)
  $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
- othersrc := $(abspathex $(othersrc),$(defpath))
 endif
 
 
@@ -2454,7 +2454,6 @@ ifneq ($(defpath),)
  $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
- othersrc := $(abspathex $(othersrc),$(defpath))
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
 endif
 
