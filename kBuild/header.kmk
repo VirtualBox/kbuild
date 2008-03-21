@@ -1,4 +1,4 @@
-# $Id: header.kmk 1424 2008-03-20 07:28:38Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1426 2008-03-21 08:06:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1424 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1426 $  )
 
 
 #
@@ -662,7 +662,7 @@ PROPS_ACCUMULATE_R_LNK := \
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_L := \
-	SDKS SOURCES SRC_HANDLERS \
+	SDKS SOURCES SRC_HANDLERS INTERMEDIATES \
 	INCS CINCS CXXINCS OBJCINCS ASINCS RCINCS \
 	LIBS LIBPATH \
 	DIRS BLDDIRS CLEAN
