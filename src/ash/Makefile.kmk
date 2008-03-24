@@ -131,7 +131,6 @@ BOOTSTRAP_SHELL ?= $(SHELL)
 ifndef YACC
  YACC := $(firstword $(which byacc) $(which yacc) yacc)
 endif
-$(error YACC=$(YACC))
 
 $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
 	$(YACC) -ld $^
