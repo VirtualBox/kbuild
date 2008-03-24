@@ -75,7 +75,7 @@ kmk_ash_SOURCES.solaris = \
 	strlcpy.c \
 	setmode.c
 
-kmk_ash_DEPS = \
+kmk_ash_INTERMEDIATES = \
 	$(PATH_TARGET)/arith.h \
 	$(PATH_TARGET)/builtins.h \
 	$(PATH_TARGET)/nodes.h \
@@ -128,7 +128,10 @@ include $(PATH_KBUILD)/footer.kmk
 # So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
-YACC ?= yacc
+ifndef YACC
+ YACC := $(firstword $(which byacc) $(which yacc) yacc)
+endif
+$(error YACC=$(YACC))
 
 $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
 	$(YACC) -ld $^
