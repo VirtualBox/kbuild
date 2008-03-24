@@ -132,7 +132,7 @@ ifndef YACC
  YACC := $(firstword $(which byacc) $(which yacc) yacc)
 endif
 
-$(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_TARGET)/arith.h + $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
 	$(YACC) -ld $^
 	$(MV) -f y.tab.c $(PATH_TARGET)/arith.c
 	$(MV) -f y.tab.h $(PATH_TARGET)/arith.h
@@ -140,11 +140,11 @@ $(PATH_TARGET)/arith.h $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TA
 $(PATH_TARGET)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_TARGET))
 	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
 
-$(PATH_TARGET)/builtins.h $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_TARGET)/builtins.h + $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(PATH_TARGET)/builtins.h ]
 
-$(PATH_TARGET)/nodes.h $(PATH_TARGET)/nodes.c: $(PATH_CURRENT)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_TARGET)/nodes.h + $(PATH_TARGET)/nodes.c: $(PATH_CURRENT)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
