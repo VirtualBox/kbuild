@@ -81,7 +81,7 @@ kmk_ash_INTERMEDIATES = \
 	$(PATH_TARGET)/nodes.h \
 	$(PATH_TARGET)/token.h
 kmk_ash_CLEAN = \
-	$(kmk_ash_DEPS)	\
+	$(kmk_ash_INTERMEDIATES) \
 	$(PATH_TARGET)/arith.c \
 	$(PATH_TARGET)/arith_lex.c \
 	$(PATH_TARGET)/builtins.c \
