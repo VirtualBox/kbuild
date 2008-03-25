@@ -192,8 +192,9 @@ void
 yyerror(s)
 	const char *s;
 {
-
+#ifndef YYBISON /* yyerrok references yyerrstatus which is a local variable in yyparse().*/
 	yyerrok;
+#endif
 	yyclearin;
 	arith_lex_reset();	/* reprime lex */
 	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
