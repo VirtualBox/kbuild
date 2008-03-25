@@ -1,4 +1,4 @@
-# $Id: header.kmk 1426 2008-03-21 08:06:09Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1435 2008-03-25 01:44:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -56,7 +56,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1426 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1435 $  )
 
 
 #
@@ -604,9 +604,7 @@ KBUILD_SRC_HANDLERS := \
  .rc:def_src_handler_rc \
 .obj:def_src_handler_obj \
   .o:def_src_handler_obj \
-.res:def_src_handler_obj \
-.lib:def_src_handler_obj \
-  .a:def_src_handler_obj \
+.res:def_src_handler_obj
 
 ## PROPS_TOOLS
 # This is a subset of PROPS_SINGLE.
