@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1429 2008-03-24 02:44:23Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1434 2008-03-25 00:43:55Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1982,7 +1982,11 @@ type := RC
 endef
 
 define def_src_handler_obj
-$(target)_OBJS_ += $(source)
+ifeq ($(defpath),)
+ $(target)_OBJS_ += $(source)
+else
+ $(target)_OBJS_ += $(abspathex $(source), $(defpath))
+endif
 endef
 ## @}
 
@@ -1994,9 +1998,9 @@ src_handler := $(firstword $(filter $(suff):%, $($(target)_$(source)_SRC_HANDLER
 handler := $(patsubst $(suff):%,%,$(src_handler))
 #$ (warning def_src_handler_one: source=$(source) suff=$(suff) src_handler=$(src_handler) handler=$(handler))
 ifneq ($(handler),)
-$(eval $(value $(handler)))
+ $(eval $(value $(handler)))
 else
-othersrc += $(source)
+ othersrc += $(source)
 endif
 endef
 
@@ -2006,9 +2010,7 @@ endef
 # @param    much-more...
 # @returns	othersrc, $(target)_OBJS_, ++
 define def_target_sources
-
 target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
-ifeq ($(defpath),)
 $(foreach source,\
 	$($(target)_SOURCES)\
 	$($(target)_SOURCES.$(bld_trg))\
@@ -2017,18 +2019,6 @@ $(foreach source,\
 	$($(target)_SOURCES.$(bld_trg_cpu))\
 	$($(target)_SOURCES.$(bld_type))\
 	,$(eval $(value def_src_handler_one)) )
-else
-$(foreach source,\
-	$(abspathex $($(target)_SOURCES)\
-		$($(target)_SOURCES.$(bld_trg))\
-		$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
-		$($(target)_SOURCES.$(bld_trg_arch))\
-		$($(target)_SOURCES.$(bld_trg_cpu))\
-		$($(target)_SOURCES.$(bld_type))\
-		,$(defpath))\
-	,$(eval $(value def_src_handler_one)) )
-endif
-
 endef
 
 
