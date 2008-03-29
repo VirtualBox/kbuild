@@ -963,8 +963,10 @@ define_automatic_variables (void)
   extern char default_shell[];
 #endif
   register struct variable *v;
+#ifndef KMK
   char buf[200];
-#ifdef KMK
+#else
+  char buf[1024];
   const char *envvar;
 #endif
 
@@ -1032,7 +1034,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_DATE) \
   && defined (CONFIG_WITH_FILE_SIZE) \
   && defined (CONFIG_WITH_WHICH) \
-  && defined (CONFIG_WITH_EVALCTX) \
+  && defined (CONFIG_WITH_EVALPLUS) \
   && defined (CONFIG_WITH_MAKE_STATS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
@@ -1050,7 +1052,7 @@ define_automatic_variables (void)
                           " date"
                           " file-size"
                           " which"
-                          " evalctx"
+                          " evalctx evalval evalvalctx evalcall evalcall2"
                           " make-stats"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
@@ -1096,8 +1098,8 @@ define_automatic_variables (void)
 #  if defined (CONFIG_WITH_WHICH)
   strcat (buf, " which");
 #  endif
-#  if defined (CONFIG_WITH_EVALCTX)
-  strcat (buf, " evalctx");
+#  if defined (CONFIG_WITH_EVALPLUS)
+  strcat (buf, " evalctx evalval evalvalctx evalcall evalcall2");
 #  endif
 #  if defined (CONFIG_WITH_MAKE_STATS)
   strcat (buf, " make-stats");

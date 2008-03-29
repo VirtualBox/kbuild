@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1438 2008-03-29 01:49:27Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1439 2008-03-29 02:55:14Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -123,7 +123,7 @@ kmk_DEFS = \
 	CONFIG_WITH_DATE \
 	CONFIG_WITH_FILE_SIZE \
 	CONFIG_WITH_WHICH \
-	CONFIG_WITH_EVALCTX \
+	CONFIG_WITH_EVALPLUS \
 	CONFIG_WITH_MAKE_STATS \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\

@@ -1505,7 +1505,7 @@ func_eval (char *o, char **argv, const char *funcname UNUSED)
 }
 
 
-#ifdef CONFIG_WITH_EVALCTX
+#ifdef CONFIG_WITH_EVALPLUS
 /* Same as func_eval except that we push and pop the local variable
    context before evaluating the buffer. */
 static char *
@@ -1529,7 +1529,39 @@ func_evalctx (char *o, char **argv, const char *funcname UNUSED)
 
   return o;
 }
-#endif /* CONFIG_WITH_EVALCTX */
+
+/* A mix of func_eval and func_value, saves memory for the expansion. 
+  This implements both evalval and evalvalctx, the latter has its own
+  variable context just like evalctx. */
+static char *
+func_evalval (char *o, char **argv, const char *funcname)
+{
+  /* Look up the variable.  */
+  struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
+  if (v)
+    {
+      char *buf;
+      unsigned int len;
+      int var_ctx;
+
+      /* Eval the value.  Pop the current variable buffer setting so that the
+         eval'd code can use its own without conflicting. (really necessary?)  */
+
+      install_variable_buffer (&buf, &len);
+      var_ctx = !strcmp(funcname, "evalvalctx");
+      if (var_ctx)
+        push_new_variable_scope ();
+
+      eval_buffer (v->value);
+
+      if (var_ctx)
+        pop_variable_scope ();
+      restore_variable_buffer (buf, len);
+    }
+
+  return o;
+}
+#endif /* CONFIG_WITH_EVALPLUS */
 
 static char *
 func_value (char *o, char **argv, const char *funcname UNUSED)
@@ -3568,8 +3600,12 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("and"),           1,  0,  0,  func_and},
   { STRING_SIZE_TUPLE("value"),         0,  1,  1,  func_value},
   { STRING_SIZE_TUPLE("eval"),          0,  1,  1,  func_eval},
-#ifdef CONFIG_WITH_EVALCTX
+#ifdef CONFIG_WITH_EVALPLUS
   { STRING_SIZE_TUPLE("evalctx"),       0,  1,  1,  func_evalctx},
+  { STRING_SIZE_TUPLE("evalval"),       0,  1,  0,  func_evalval},
+  { STRING_SIZE_TUPLE("evalvalctx"),    0,  1,  0,  func_evalval},
+  { STRING_SIZE_TUPLE("evalcall"),      1,  0,  1,  func_call},
+  { STRING_SIZE_TUPLE("evalcall2"),     1,  0,  1,  func_call},
 #endif
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
@@ -3806,6 +3842,10 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   int saved_args;
   const struct function_table_entry *entry_p;
   struct variable *v;
+#ifdef CONFIG_WITH_EVALPLUS
+  char *buf;
+  unsigned int len;
+#endif
 
   /* There is no way to define a variable with a space in the name, so strip
      leading and trailing whitespace as a favor to the user.  */
@@ -3877,21 +3917,50 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
       define_variable (num, strlen (num), "", o_automatic, 0);
     }
 
-  /* Expand the body in the context of the arguments, adding the result to
-     the variable buffer.  */
-
-  v->exp_count = EXP_COUNT_MAX;
-
   saved_args = max_args;
   max_args = i;
-  o = variable_expand_string (o, body, flen+3);
-  max_args = saved_args;
 
-  v->exp_count = 0;
+#ifdef CONFIG_WITH_EVALPLUS
+  if (!strcmp (funcname, "call"))
+    {
+#endif
+      /* Expand the body in the context of the arguments, adding the result to
+         the variable buffer.  */
+    
+      v->exp_count = EXP_COUNT_MAX;
+      o = variable_expand_string (o, body, flen+3);
+      v->exp_count = 0;
+
+      o += strlen (o);
+#ifdef CONFIG_WITH_EVALPLUS
+    }
+  else if (!strcmp (funcname, "evalcall"))
+    {
+      /* Evaluate the variable value directly without expanding it first.  */
+
+      install_variable_buffer (&buf, &len);
+      eval_buffer (v->value);
+      restore_variable_buffer (buf, len);
+    }
+  else /* evalcall2: */
+    {
+      /* Expand the body first and then evaluate the output. */
+
+      v->exp_count = EXP_COUNT_MAX;
+      o = variable_expand_string (o, body, flen+3);
+      v->exp_count = 0;
+
+      install_variable_buffer (&buf, &len);
+      eval_buffer (o);
+      restore_variable_buffer (buf, len);
+    }
+#endif /* CONFIG_WITH_EVALPLUS */
+
+  max_args = saved_args;
 
   pop_variable_scope ();
 
-  return o + strlen (o);
+  return o;
 }
 
 void
