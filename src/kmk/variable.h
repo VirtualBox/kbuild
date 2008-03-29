@@ -84,7 +84,11 @@ struct variable
     enum variable_flavor
       flavor ENUM_BITFIELD (3);	/* Variable flavor.  */
     enum variable_origin
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+      origin ENUM_BITFIELD (4);	/* Variable origin.  */
+#else
       origin ENUM_BITFIELD (3);	/* Variable origin.  */
+#endif 
     enum variable_export
       {
 	v_export,		/* Export this variable.  */
