@@ -688,3 +688,34 @@ static inline void *__my_memchr (__const void *__s, int __c, size_t __n)
 }
 
 #endif /* __EMX__ (bird) */
+
+#ifdef CONFIG_WITH_MAKE_STATS
+extern unsigned long make_stats_allocations;
+extern unsigned long make_stats_allocated;
+extern unsigned long make_stats_allocated_sum;
+extern unsigned long make_stats_ht_lookups;
+extern unsigned long make_stats_ht_collisions;
+
+# ifdef __APPLE__
+#  include <malloc/malloc.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_size(ptr)
+
+# elif defined(__linux__) /* glibc */
+#  include <malloc.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_usable_size(ptr)
+
+# elif defined(_MSC_VER) || defined(__OS2__)
+#  define SIZE_OF_HEAP_BLOCK(ptr)   _msize(ptr)
+
+# else
+#  include <stdlib.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   0
+#endif
+
+# if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
+#  define free xfree
+extern void xfree (void *);
+# endif
+
+#endif
+
