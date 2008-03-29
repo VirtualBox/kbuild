@@ -115,6 +115,14 @@ function_table_entry_hash_cmp (const void *xv, const void *yv)
 }
 
 static struct hash_table function_table;
+
+#ifdef CONFIG_WITH_MAKE_STATS
+unsigned long make_stats_allocations = 0;
+unsigned long make_stats_allocated = 0;
+unsigned long make_stats_allocated_sum = 0;
+unsigned long make_stats_ht_lookups = 0;
+unsigned long make_stats_ht_collisions = 0;
+#endif
 
 
 /* Store into VARIABLE_BUFFER at O the result of scanning TEXT and replacing
@@ -3451,6 +3459,59 @@ func_os2_libpath (char *o, char **argv, const char *funcname)
 }
 #endif  /* CONFIG_WITH_OS2_LIBPATH */
 
+#ifdef CONFIG_WITH_MAKE_STATS
+/* Retrieve make statistics. */
+static char *
+func_make_stats (char *o, char **argv, const char *funcname)
+{
+  char buf[512];
+  int len;
+
+  if (!argv[0] || (!argv[0][0] && !argv[1]))
+    {
+      len = sprintf (buf, "alloc-cur: %5lu %6luKB (/%3luMB)  hash: %5lu %2lu%%", 
+                     make_stats_allocations, 
+                     make_stats_allocated / 1024, 
+                     make_stats_allocated_sum / (1024*1024), 
+                     make_stats_ht_lookups,
+                     (make_stats_ht_collisions * 100) / make_stats_ht_lookups);
+      o = variable_buffer_output (o, buf, len);
+    }
+  else
+    { 
+      /* selective */
+      int i;
+      for (i = 0; argv[i]; i++)
+        {
+          unsigned long val;
+          if (i != 0)
+            o = variable_buffer_output (o, " ", 1);
+          if (!strcmp(argv[i], "allocations"))
+            val = make_stats_allocations;
+          else if (!strcmp(argv[i], "allocated"))
+            val = make_stats_allocated;
+          else if (!strcmp(argv[i], "allocated_sum"))
+            val = make_stats_allocated_sum;
+          else if (!strcmp(argv[i], "ht_lookups"))
+            val = make_stats_ht_lookups;
+          else if (!strcmp(argv[i], "ht_collisions"))
+            val = make_stats_ht_collisions;
+          else if (!strcmp(argv[i], "ht_collisions_pct"))
+            val = (make_stats_ht_collisions * 100) / make_stats_ht_lookups;
+          else
+            {  
+              o = variable_buffer_output (o, argv[i], strlen (argv[i]));
+              continue;
+            }
+
+          len = sprintf (buf, "%ld", val);
+          o = variable_buffer_output (o, buf, len);
+        }
+    }
+  return o;
+}
+#endif
+
 /* Lookup table for builtin functions.
 
    This doesn't have to be sorted; we use a straight lookup.  We might gain
@@ -3566,6 +3627,9 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_OS2_LIBPATH
   { STRING_SIZE_TUPLE("libpath"),       1,  2,  1,  func_os2_libpath},
+#endif
+#ifdef CONFIG_WITH_MAKE_STATS
+  { STRING_SIZE_TUPLE("make-stats"),    0, ~0,  0,  func_make_stats},
 #endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},

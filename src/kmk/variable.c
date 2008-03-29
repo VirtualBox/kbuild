@@ -1032,6 +1032,8 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_DATE) \
   && defined (CONFIG_WITH_FILE_SIZE) \
   && defined (CONFIG_WITH_WHICH) \
+  && defined (CONFIG_WITH_EVALCTX) \
+  && defined (CONFIG_WITH_MAKE_STATS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath"
@@ -1048,6 +1050,8 @@ define_automatic_variables (void)
                           " date"
                           " file-size"
                           " which"
+                          " evalctx"
+                          " make-stats"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
@@ -1091,6 +1095,12 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_WHICH)
   strcat (buf, " which");
+#  endif
+#  if defined (CONFIG_WITH_EVALCTX)
+  strcat (buf, " evalctx");
+#  endif
+#  if defined (CONFIG_WITH_MAKE_STATS)
+  strcat (buf, " make-stats");
 #  endif
 #  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");

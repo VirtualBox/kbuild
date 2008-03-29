@@ -91,6 +91,9 @@ hash_find_slot (struct hash_table *ht, const void *key)
   unsigned int hash_1 = (*ht->ht_hash_1) (key);
 
   ht->ht_lookups++;
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_ht_lookups++;
+#endif
   for (;;)
     {
       hash_1 &= (ht->ht_size - 1);
@@ -110,6 +113,9 @@ hash_find_slot (struct hash_table *ht, const void *key)
 	  if ((*ht->ht_compare) (key, *slot) == 0)
 	    return slot;
 	  ht->ht_collisions++;
+#ifdef CONFIG_WITH_MAKE_STATS
+    make_stats_ht_collisions++;
+#endif
 	}
       if (!hash_2)
 	  hash_2 = (*ht->ht_hash_2) (key) | 1;

@@ -355,6 +355,11 @@ xmalloc (unsigned int size)
   void *result = malloc (size ? size : 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_allocations++;
+  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+#endif
   return result;
 }
 
@@ -363,6 +368,10 @@ void *
 xrealloc (void *ptr, unsigned int size)
 {
   void *result;
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
+  make_stats_allocated_sum -= SIZE_OF_HEAP_BLOCK (ptr);
+#endif
 
   /* Some older implementations of realloc() don't conform to ANSI.  */
   if (! size)
@@ -370,6 +379,10 @@ xrealloc (void *ptr, unsigned int size)
   result = ptr ? realloc (ptr, size) : malloc (size);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+#endif
   return result;
 }
 
@@ -388,6 +401,11 @@ xstrdup (const char *ptr)
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
 
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_allocations++;
+  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+#endif
 #ifdef HAVE_STRDUP
   return result;
 #else
@@ -911,3 +929,17 @@ close_stdout (void)
       exit (EXIT_FAILURE);
     }
 }
+
+#if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
+#undef free
+void xfree(void *ptr)
+{
+  if (ptr) 
+    {
+      make_stats_allocations--;
+      make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
+      free (ptr);
+    }
+}
+#endif
+
