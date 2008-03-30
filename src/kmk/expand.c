@@ -511,19 +511,21 @@ variable_expand_for_file_2 (char *o, const char *line, struct file *file)
 {
   char *result;
   struct variable_set_list *save;
+  const struct floc *reading_file_saved;
 
   if (file == 0)
     return variable_expand_string (o, line, (long)-1);
 
   save = current_variable_set_list;
   current_variable_set_list = file->variables;
+  reading_file_saved = reading_file;
   if (file->cmds && file->cmds->fileinfo.filenm)
     reading_file = &file->cmds->fileinfo;
   else
     reading_file = 0;
   result = variable_expand_string (o, line, (long)-1);
   current_variable_set_list = save;
-  reading_file = 0;
+  reading_file = reading_file_saved;
 
   return result;
 }
