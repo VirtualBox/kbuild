@@ -1544,6 +1544,7 @@ func_evalval (char *o, char **argv, const char *funcname)
       unsigned int len;
       int var_ctx;
       size_t off;
+      const struct floc *reading_file_saved = reading_file;
 
       /* Make a copy of the value to the variable buffer since
          eval_buffer will make changes to its input. */
@@ -1560,9 +1561,12 @@ func_evalval (char *o, char **argv, const char *funcname)
       var_ctx = !strcmp (funcname, "evalvalctx");
       if (var_ctx)
         push_new_variable_scope ();
+      if (v->fileinfo.filenm)
+        reading_file = &v->fileinfo;
 
       eval_buffer (o);
 
+      reading_file = reading_file_saved;
       if (var_ctx)
         pop_variable_scope ();
       restore_variable_buffer (buf, len);
@@ -4186,6 +4190,8 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
     }
   else
     {
+      const struct floc *reading_file_saved = reading_file;
+
       if (!strcmp (funcname, "evalcall"))
         {
           /* Evaluate the variable value without expanding it. We 
@@ -4194,6 +4200,8 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
           size_t off = o - variable_buffer;
           o = variable_buffer_output (o, v->value, v->value_length + 1);
           o = variable_buffer + off;
+          if (v->fileinfo.filenm)
+            reading_file = &v->fileinfo;
         }
       else
         {
@@ -4207,6 +4215,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
       install_variable_buffer (&buf, &len);
       eval_buffer (o);
       restore_variable_buffer (buf, len);
+      reading_file = reading_file_saved;
     }
 #endif /* CONFIG_WITH_EVALPLUS */
 
