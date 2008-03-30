@@ -290,7 +290,11 @@ variable_hash_cmp (const void *xv, const void *yv)
 #define	PERFILE_VARIABLE_BUCKETS	23
 #endif
 #ifndef	SMALL_SCOPE_VARIABLE_BUCKETS
+# ifdef KMK /* Move to Makefile.kmk? */
+#  define SMALL_SCOPE_VARIABLE_BUCKETS  31
+# else
 #define	SMALL_SCOPE_VARIABLE_BUCKETS	13
+# endif 
 #endif
 
 static struct variable_set global_variable_set;
