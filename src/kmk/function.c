@@ -1551,12 +1551,13 @@ func_evalval (char *o, char **argv, const char *funcname)
       off = o - variable_buffer;
       o = variable_buffer_output (o, v->value, v->value_length + 1);
       o = variable_buffer + off;
+      assert (!o[v->value_length]);
 
       /* Eval the value.  Pop the current variable buffer setting so that the
          eval'd code can use its own without conflicting. (really necessary?)  */
 
       install_variable_buffer (&buf, &len);
-      var_ctx = !strcmp(funcname, "evalvalctx");
+      var_ctx = !strcmp (funcname, "evalvalctx");
       if (var_ctx)
         push_new_variable_scope ();
 
@@ -3774,8 +3775,10 @@ func_commands (char *o, char **argv, const char *funcname)
             o++;
           if (*o != '\0' && *o != '%')
             o = strchr (o, '\0');
-          else
+          else if (i)
             o = p - cmd_sep_len;
+          else
+            o = p;
         }
     }
   /* else FIXME: bitch about it? */
