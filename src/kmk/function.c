@@ -3766,11 +3766,12 @@ func_commands (char *o, char **argv, const char *funcname)
             o = variable_buffer_output (o, cmd_sep, cmd_sep_len);
           o = variable_expand_for_file_2 (o, cmds->command_lines[i], file);
 
-          /* blank, if so, drop it. */
+          /* Skip it if it has a '%' prefix or is blank. */
           p = o;
-          while (isblank ((unsigned char)*o))
+          while (isblank ((unsigned char)*o) 
+              || strchr("@-+", *o))
             o++;
-          if (o != '\0')
+          if (*o != '\0' && *o != '%')
             o = strchr (o, '\0');
           else
             o = p - cmd_sep_len;

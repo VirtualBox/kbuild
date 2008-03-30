@@ -1,4 +1,4 @@
-/* $Id: append.c 1440 2008-03-30 04:13:55Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 1442 2008-03-30 06:45:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -72,7 +72,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("-nv", argv[i][1]) /* valid option char */
+       &&  strchr("-cnv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
