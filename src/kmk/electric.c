@@ -1,4 +1,4 @@
-/* $Id: electric.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.c 1453 2008-03-30 14:06:49Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * A simple electric heap implementation.
@@ -28,6 +28,7 @@
 #  include <windows.h>
 # else
 #  include <sys/mman.h>
+#  include <errno.h>
 # endif
 # include <string.h>
 # include <stdlib.h>
@@ -46,8 +47,13 @@ static unsigned freed_tail = 0;
 
 static void fatal_error (const char *msg)
 {
+#ifdef _MSC_VER
   fprintf (stderr, "electric heap error: %s\n", msg);
   __debugbreak ();
+#else
+  fprintf (stderr, "electric heap error: %s (errno=%d)\n", msg, errno);
+  __asm__ ("int3"); /* not portable... */
+#endif 
   abort ();
   exit (1);
 }
@@ -58,6 +64,8 @@ static void free_it (void *ptr, unsigned aligned)
   if (!VirtualFree (ptr, 0, MEM_RELEASE))
     fatal_error ("VirtualFree failed");
 # else
+  if (munmap(ptr, aligned))
+    fatal_error ("munmap failed");
 # endif
 }
 
@@ -98,6 +106,8 @@ void xfree (void *ptr)
   if (!VirtualProtect (hdr, aligned - 0x1000, fFlags, &fFlags))
     fatal_error ("failed to protect freed memory");
 # else
+  if (mprotect(hdr, aligned - 0x1000, PROT_NONE))
+    fatal_error ("failed to protect freed memory");
 # endif
 
   freed[freed_head].ptr = hdr;
@@ -123,6 +133,12 @@ xmalloc (unsigned int size)
        && !VirtualProtect((char *)hdr + aligned - 0x1000, 0x1000, fFlags, &fFlags))
         fatal_error ("failed to set guard page protection");
 # else
+      hdr = mmap(NULL, aligned, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+      if (hdr == MAP_FAILED)
+        hdr = 0;
+      if (hdr
+       && mprotect((char *)hdr + aligned - 0x1000, 0x1000, PROT_NONE))
+        fatal_error ("failed to set guard page protection");
 # endif
       if (hdr)
         break;
