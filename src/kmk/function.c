@@ -2271,61 +2271,72 @@ func_abspath (char *o, char **argv, const char *funcname UNUSED)
 }
 
 #ifdef CONFIG_WITH_ABSPATHEX
-/* same as abspath except that the current path is given as the 2nd argument. */
+/* Same as abspath except that the current path may be given as the 
+   2nd argument. */
 static char *
 func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 {
-  /* Expand the argument.  */
-  const char *p = argv[0];
   char *cwd = argv[1];
-  unsigned int cwd_len = ~0U;
-  char *path = 0;
-  int doneany = 0;
-  unsigned int len = 0;
-  PATH_VAR (in);
-  PATH_VAR (out);
 
-  while ((path = find_next_token (&p, &len)) != 0)
+  /* cwd needs leading spaces chopped and may be optional, 
+     in which case we're exactly like $(abspath ). */
+  while (isblank(*cwd))
+    cwd++;
+  if (!*cwd)
+    o = func_abspath (o, argv, funcname);
+  else
     {
-      if (len < GET_PATH_MAX)
+      /* Expand the argument.  */
+      const char *p = argv[0];
+      unsigned int cwd_len = ~0U;
+      char *path = 0;
+      int doneany = 0;
+      unsigned int len = 0;
+      PATH_VAR (in);
+      PATH_VAR (out);
+    
+      while ((path = find_next_token (&p, &len)) != 0)
         {
+          if (len < GET_PATH_MAX)
+            {
 #ifdef HAVE_DOS_PATHS
-          if (path[0] != '/' && path[0] != '\\' && (len < 2 || path[1] != ':') && cwd)
+              if (path[0] != '/' && path[0] != '\\' && (len < 2 || path[1] != ':') && cwd)
 #else
-          if (path[0] != '/' && cwd)
+              if (path[0] != '/' && cwd)
 #endif
-            {
-              /* relative path, prefix with cwd. */
-              if (cwd_len == ~0U)
-                cwd_len = strlen (cwd);
-              if (cwd_len + len + 1 >= GET_PATH_MAX)
-                  continue;
-              memcpy (in, cwd, cwd_len);
-              in[cwd_len] = '/';
-              memcpy (in + cwd_len + 1, path, len);
-              in[cwd_len + len + 1] = '\0';
-            }
-          else
-            {
-              /* absolute path pass it as-is. */
-              memcpy (in, path, len);
-              in[len] = '\0';
-            }
-
-          if (abspath (in, out))
-            {
-              o = variable_buffer_output (o, out, strlen (out));
-              o = variable_buffer_output (o, " ", 1);
-              doneany = 1;
+                {
+                  /* relative path, prefix with cwd. */
+                  if (cwd_len == ~0U)
+                    cwd_len = strlen (cwd);
+                  if (cwd_len + len + 1 >= GET_PATH_MAX)
+                      continue;
+                  memcpy (in, cwd, cwd_len);
+                  in[cwd_len] = '/';
+                  memcpy (in + cwd_len + 1, path, len);
+                  in[cwd_len + len + 1] = '\0';
+                }
+              else
+                {
+                  /* absolute path pass it as-is. */
+                  memcpy (in, path, len);
+                  in[len] = '\0';
+                }
+    
+              if (abspath (in, out))
+                {
+                  o = variable_buffer_output (o, out, strlen (out));
+                  o = variable_buffer_output (o, " ", 1);
+                  doneany = 1;
+                }
             }
         }
+    
+      /* Kill last space.  */
+      if (doneany)
+        --o;
     }
-
-  /* Kill last space.  */
-  if (doneany)
-    --o;
-
- return o;
+  
+   return o;
 }
 #endif
 
