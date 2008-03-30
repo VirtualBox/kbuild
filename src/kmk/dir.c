@@ -1096,8 +1096,9 @@ print_dir_data_base (void)
 	      impossible += im;
 
 #ifdef KMK
-              fputs ("\n# ", stdout);
+              fputs ("# ", stdout);
               hash_print_stats (&dir->contents->dirfiles, stdout);
+              fputs ("\n", stdout);
 #endif 
 	    }
 	}
@@ -1119,7 +1120,7 @@ print_dir_data_base (void)
   hash_print_stats (&directories, stdout);
   fputs ("\n# directory_contents: ", stdout);
   hash_print_stats (&directory_contents, stdout);
-  fputs ("# \n", stdout);
+  fputs ("\n", stdout);
 #endif 
 }
 
