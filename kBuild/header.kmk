@@ -1,4 +1,4 @@
-# $Id: header.kmk 1435 2008-03-25 01:44:32Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1441 2008-03-30 05:31:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -29,6 +29,7 @@ ifndef __header_kmk__
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_HEADER_START := $(nanots ) # just a dummy warm up query
  $(info prof: since start - since previous - event description)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_HEADER_START := $(nanots )
  _KBUILD_TS_PREV := $(_KBUILD_TS_HEADER_START)
 endif
@@ -56,7 +57,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1435 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1441 $  )
 
 
 #
@@ -898,12 +899,14 @@ endif
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - including $(_CFGFILE))
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 
  include $(_CFGFILE)
 
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - included $(_CFGFILE))
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 else
  include $(_CFGFILE)
@@ -1093,6 +1096,7 @@ endif
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_HEADER_END := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_HEADER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_HEADER_END), $(_KBUILD_TS_PREV)) - end of header.kmk)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_HEADER_END)
 endif
 
