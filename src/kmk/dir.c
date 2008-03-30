@@ -212,7 +212,11 @@ vmsstat_dir (char *name, struct stat *st)
 /* Hash table of directories.  */
 
 #ifndef	DIRECTORY_BUCKETS
+#ifdef KMK
+# define DIRECTORY_BUCKETS 4096
+# else
 #define DIRECTORY_BUCKETS 199
+# endif 
 #endif
 
 struct directory_contents
@@ -1090,6 +1094,11 @@ print_dir_data_base (void)
 		puts (_(" so far."));
 	      files += f;
 	      impossible += im;
+
+#ifdef KMK
+              fputs ("\n# ", stdout);
+              hash_print_stats (&dir->contents->dirfiles, stdout);
+#endif 
 	    }
 	}
     }
@@ -1105,6 +1114,13 @@ print_dir_data_base (void)
   else
     printf ("%u", impossible);
   printf (_(" impossibilities in %lu directories.\n"), directories.ht_fill);
+#ifdef KMK
+  fputs ("# directories: ", stdout);
+  hash_print_stats (&directories, stdout);
+  fputs ("\n# directory_contents: ", stdout);
+  hash_print_stats (&directory_contents, stdout);
+  fputs ("# \n", stdout);
+#endif 
 }
 
 /* Hooks for globbing.  */
