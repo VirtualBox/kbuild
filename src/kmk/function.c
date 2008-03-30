@@ -2346,7 +2346,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
    lines with proper \n\t separation so it can be used when
    writing rules. */
 static char *
-func_xargs (char *o, char **argv, const char *funcname)
+func_xargs (char *o, char **argv, const char *funcname UNUSED)
 {
   int argc;
   const char *initial_cmd;
@@ -2508,6 +2508,9 @@ comp_cmds_strip_leading (const char *s, const char *e)
         const char ch = *s;
         if (!isblank (ch)
          && ch != '@'
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+         && ch != '%'
+#endif
          && ch != '+'
          && ch != '-')
           break;
@@ -2523,8 +2526,9 @@ static char *
 comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const char *e2,
               char *ne_retval, const char *funcname)
 {
-    /* give up at once if not comp-cmds. */
-    if (strcmp (funcname, "comp-cmds") != 0)
+    /* give up at once if not comp-cmds or comp-cmds-ex. */
+    if (strcmp (funcname, "comp-cmds") != 0
+     && strcmp (funcname, "comp-cmds-ex") != 0)
       o = variable_buffer_output (o, ne_retval, strlen (ne_retval));
     else
       {
@@ -2631,7 +2635,8 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
   trailing spaces.
 
   comp-cmds will compare command by command, ignoring not only leading
-  and trailing spaces on each line but also leading one leading '@' and '-'.
+  and trailing spaces on each line but also leading one leading '@', 
+  '-', '+' and '%'
 */
 static char *
 func_comp_vars (char *o, char **argv, const char *funcname)
@@ -2657,16 +2662,16 @@ func_comp_vars (char *o, char **argv, const char *funcname)
 
     /* ignore trailing and leading blanks */
     s1 = var1->value;
+    e1 = s1 + var1->value_length;
     while (isblank ((unsigned char) *s1))
       s1++;
-    e1 = s1 + var1->value_length;
     while (e1 > s1 && isblank ((unsigned char) e1[-1]))
       e1--;
 
     s2 = var2->value;
+    e2 = s2 + var2->value_length;
     while (isblank ((unsigned char) *s2))
       s2++;
-    e2 = s2 + var2->value_length;
     while (e2 > s2 && isblank ((unsigned char) e2[-1]))
       e2--;
 
@@ -2752,6 +2757,55 @@ l_simple_compare:
   if (a2)
     free (a2);
   return o;
+}
+
+/*
+  $(comp-cmds-ex cmds1,cmds2,not-equal-return)
+
+  Compares the two strings and return the string in the third argument 
+  if not equal. If equal, nothing is returned.
+
+  The comparision will be performed command by command, ignoring not 
+  only leading and trailing spaces on each line but also leading one 
+  leading '@', '-', '+' and '%'.
+*/
+static char *
+func_comp_cmds_ex (char *o, char **argv, const char *funcname)
+{
+  const char *s1, *e1, *x1, *s2, *e2, *x2;
+  char *a1 = NULL, *a2 = NULL;
+  size_t l, l1, l2;
+
+  /* the simple cases */
+  s1 = argv[0];
+  s2 = argv[1];
+  if (s1 == s2)
+    return variable_buffer_output (o, "", 0);       /* eq */
+  l1 = strlen (argv[0]);
+  l2 = strlen (argv[1]);
+
+  if (    l1 == l2
+      &&  !memcmp (s1, s2, l1))
+    return variable_buffer_output (o, "", 0);       /* eq */
+
+  /* ignore trailing and leading blanks */
+  e1 = s1 + l1;
+  while (isblank ((unsigned char) *s1))
+    s1++;
+  while (e1 > s1 && isblank ((unsigned char) e1[-1]))
+    e1--;
+
+  e2 = s2 + l1;
+  while (isblank ((unsigned char) *s2))
+    s2++;
+  while (e2 > s2 && isblank ((unsigned char) e2[-1]))
+    e2--;
+
+  if (e1 - s1 != e2 - s2)
+    return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
+  if (!memcmp (s1, s2, e1 - s1))
+    return variable_buffer_output (o, "", 0);       /* eq */
+  return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
 }
 #endif
 
@@ -2842,7 +2896,7 @@ func_date (char *o, char **argv, const char *funcname)
    permitted, notthing is stripped. -1 is returned if stat
    fails. */
 static char *
-func_file_size (char *o, char **argv, const char *funcname)
+func_file_size (char *o, char **argv, const char *funcname UNUSED)
 {
   struct stat st;
   if (stat (argv[0], &st))
@@ -2915,7 +2969,7 @@ static int func_which_test_x (char *file)
 /* Searches for the specified programs in the PATH and print
    their full location if found. Prints nothing if not found. */
 static char *
-func_which (char *o, char **argv, const char *funcname)
+func_which (char *o, char **argv, const char *funcname UNUSED)
 {
   const char *path;
   struct variable *path_var;
@@ -2997,7 +3051,7 @@ func_which (char *o, char **argv, const char *funcname)
 
 /* Push an item (string without spaces). */
 static char *
-func_stack_push (char *o, char **argv, const char *funcname)
+func_stack_push (char *o, char **argv, const char *funcname UNUSED)
 {
   do_variable_definition(NILF, argv[0], argv[1], o_file, f_append, 0 /* !target_var */);
   return o;
@@ -3170,7 +3224,7 @@ math_int_from_string (const char *str)
 
 /* Add two or more integer numbers. */
 static char *
-func_int_add (char *o, char **argv, const char *funcname)
+func_int_add (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3184,7 +3238,7 @@ func_int_add (char *o, char **argv, const char *funcname)
 
 /* Subtract two or more integer numbers. */
 static char *
-func_int_sub (char *o, char **argv, const char *funcname)
+func_int_sub (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3198,7 +3252,7 @@ func_int_sub (char *o, char **argv, const char *funcname)
 
 /* Multiply two or more integer numbers. */
 static char *
-func_int_mul (char *o, char **argv, const char *funcname)
+func_int_mul (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3212,7 +3266,7 @@ func_int_mul (char *o, char **argv, const char *funcname)
 
 /* Divide an integer number by one or more divisors. */
 static char *
-func_int_div (char *o, char **argv, const char *funcname)
+func_int_div (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   math_int divisor;
@@ -3236,7 +3290,7 @@ func_int_div (char *o, char **argv, const char *funcname)
 
 /* Divide and return the remainder. */
 static char *
-func_int_mod (char *o, char **argv, const char *funcname)
+func_int_mod (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   math_int divisor;
@@ -3255,7 +3309,7 @@ func_int_mod (char *o, char **argv, const char *funcname)
 
 /* 2-complement. */
 static char *
-func_int_not (char *o, char **argv, const char *funcname)
+func_int_not (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
 
@@ -3267,7 +3321,7 @@ func_int_not (char *o, char **argv, const char *funcname)
 
 /* Bitwise AND (two or more numbers). */
 static char *
-func_int_and (char *o, char **argv, const char *funcname)
+func_int_and (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3281,7 +3335,7 @@ func_int_and (char *o, char **argv, const char *funcname)
 
 /* Bitwise OR (two or more numbers). */
 static char *
-func_int_or (char *o, char **argv, const char *funcname)
+func_int_or (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3295,7 +3349,7 @@ func_int_or (char *o, char **argv, const char *funcname)
 
 /* Bitwise XOR (two or more numbers). */
 static char *
-func_int_xor (char *o, char **argv, const char *funcname)
+func_int_xor (char *o, char **argv, const char *funcname UNUSED)
 {
   math_int num;
   int i;
@@ -3407,7 +3461,7 @@ func_nanots (char *o, char **argv, const char *funcname)
    set (present) operation. When present it is the new value for
    the variable. */
 static char *
-func_os2_libpath (char *o, char **argv, const char *funcname)
+func_os2_libpath (char *o, char **argv, const char *funcname UNUSED)
 {
   char buf[4096];
   ULONG fVar;
@@ -3494,7 +3548,7 @@ func_os2_libpath (char *o, char **argv, const char *funcname)
 #ifdef CONFIG_WITH_MAKE_STATS
 /* Retrieve make statistics. */
 static char *
-func_make_stats (char *o, char **argv, const char *funcname)
+func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 {
   char buf[512];
   int len;
@@ -3542,7 +3596,192 @@ func_make_stats (char *o, char **argv, const char *funcname)
     }
   return o;
 }
-#endif
+#endif  /* CONFIG_WITH_MAKE_STATS */
+
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+/* Gets all the commands for a target, separated by newlines.
+ 
+   This is useful when creating and checking target dependencies since
+   it reduces the amount of work and the memory consuption. A new prefix
+   character '%' has been introduced for skipping certain lines, like 
+   for instance the one calling this function and pushing to a dep file.
+   Blank lines are also skipped.
+
+   The commands function takes exactly one argument, which is the name of 
+   the target which commands should be returned. 
+
+   The commands-sc is identical to commands except that it uses a ';' to 
+   separate the commands.
+
+   The commands-usr is similar to commands except that it takes a 2nd
+   argument that is used to separate the commands. */
+char *
+func_commands (char *o, char **argv, const char *funcname)
+{
+  struct file *file;
+  static int recursive = 0;
+
+  if (recursive)
+    return variable_buffer_output (o, "recursive", sizeof ("recursive") - 1);
+  recursive = 1;
+
+  file = lookup_file (argv[0]);
+  if (file) 
+    {
+      int i, cmd_sep_len;
+      struct commands *cmds = file->cmds;
+      const char *cmd_sep;
+
+      if (!strcmp (funcname, "commands"))
+        {
+          cmd_sep = "\n";
+          cmd_sep_len = 1;
+        }
+      else if (!strcmp (funcname, "commands-sc"))
+        {
+          cmd_sep = ";";
+          cmd_sep_len = 1;
+        }
+      else /*if (!strcmp (funcname, "commands-usr"))*/
+        {
+          cmd_sep = argv[1];
+          cmd_sep_len = strlen (cmd_sep);
+        }
+
+      initialize_file_variables (file, 1 /* reading - FIXME: we don't know? */);
+      set_file_variables (file);
+      chop_commands (cmds);
+
+      for (i = 0; i < cmds->ncommand_lines; i++) 
+        {
+          char *p;
+          char *in, *out, *ref;
+
+          /* Skip it if it has a '%' prefix or is blank. */
+          if (cmds->lines_flags[i] & COMMAND_GETTER_SKIP_IT)
+            continue;
+          p = cmds->command_lines[i];
+          while (isblank ((unsigned char)*p))
+            p++;
+          if (*p == '\0') 
+            continue;
+
+          /* --- copied from new_job() in job.c --- */
+
+          /* Collapse backslash-newline combinations that are inside variable
+             or function references.  These are left alone by the parser so
+             that they will appear in the echoing of commands (where they look
+             nice); and collapsed by construct_command_argv when it tokenizes.
+             But letting them survive inside function invocations loses because
+             we don't want the functions to see them as part of the text.  */
+
+          /* IN points to where in the line we are scanning.
+             OUT points to where in the line we are writing.
+             When we collapse a backslash-newline combination,
+             IN gets ahead of OUT.  */
+
+          in = out = p;
+          while ((ref = strchr (in, '$')) != 0)
+            {
+              ++ref;		/* Move past the $.  */
+
+              if (out != in)
+                /* Copy the text between the end of the last chunk
+                   we processed (where IN points) and the new chunk
+                   we are about to process (where REF points).  */
+                memmove (out, in, ref - in);
+
+              /* Move both pointers past the boring stuff.  */
+              out += ref - in;
+              in = ref;
+
+              if (*ref == '(' || *ref == '{')
+                {
+                  char openparen = *ref;
+                  char closeparen = openparen == '(' ? ')' : '}';
+                  int count;
+                  char *p;
+
+                  *out++ = *in++;	/* Copy OPENPAREN.  */
+                  /* IN now points past the opening paren or brace.
+                     Count parens or braces until it is matched.  */
+                  count = 0;
+                  while (*in != '\0')
+                    {
+                      if (*in == closeparen && --count < 0)
+                        break;
+                      else if (*in == '\\' && in[1] == '\n')
+                        {
+                          /* We have found a backslash-newline inside a
+                             variable or function reference.  Eat it and
+                             any following whitespace.  */
+
+                          int quoted = 0;
+                          for (p = in - 1; p > ref && *p == '\\'; --p)
+                            quoted = !quoted;
+
+                          if (quoted)
+                            /* There were two or more backslashes, so this is
+                               not really a continuation line.  We don't collapse
+                               the quoting backslashes here as is done in
+                               collapse_continuations, because the line will
+                               be collapsed again after expansion.  */
+                            *out++ = *in++;
+                          else
+                            {
+                              /* Skip the backslash, newline and
+                                 any following whitespace.  */
+                              in = next_token (in + 2);
+
+                              /* Discard any preceding whitespace that has
+                                 already been written to the output.  */
+                              while (out > ref
+                                     && isblank ((unsigned char)out[-1]))
+                                --out;
+
+                              /* Replace it all with a single space.  */
+                              *out++ = ' ';
+                            }
+                        }
+                      else
+                        {
+                          if (*in == openparen)
+                            ++count;
+
+                          *out++ = *in++;
+                        }
+                    }
+                }
+            }
+
+          /* There are no more references in this line to worry about.
+             Copy the remaining uninteresting text to the output.  */
+          if (out != in)
+            strcpy (out, in);
+
+          /* --- copied from new_job() in job.c --- */
+
+          /* Finally, expand the line.  */
+          if (i)
+            o = variable_buffer_output (o, cmd_sep, cmd_sep_len);
+          o = variable_expand_for_file_2 (o, cmds->command_lines[i], file);
+
+          /* blank, if so, drop it. */
+          p = o;
+          while (isblank ((unsigned char)*o))
+            o++;
+          if (o != '\0')
+            o = strchr (o, '\0');
+          else
+            o = p - cmd_sep_len;
+        }
+    }
+  /* else FIXME: bitch about it? */
+
+  recursive = 0;
+  return o;
+}
+#endif  /* CONFIG_WITH_COMMANDS_FUNC */
 
 /* Lookup table for builtin functions.
 
@@ -3624,6 +3863,7 @@ static struct function_table_entry function_table_init[] =
 #if defined(CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   { STRING_SIZE_TUPLE("comp-vars"),     3,  3,  1,  func_comp_vars},
   { STRING_SIZE_TUPLE("comp-cmds"),     3,  3,  1,  func_comp_vars},
+  { STRING_SIZE_TUPLE("comp-cmds-ex"),  3,  3,  1,  func_comp_cmds_ex},
 #endif
 #ifdef CONFIG_WITH_DATE
   { STRING_SIZE_TUPLE("date"),          0,  1,  1,  func_date},
@@ -3666,6 +3906,11 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_MAKE_STATS
   { STRING_SIZE_TUPLE("make-stats"),    0, ~0,  0,  func_make_stats},
+#endif
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+  { STRING_SIZE_TUPLE("commands"),      1,  1,  1,  func_commands},
+  { STRING_SIZE_TUPLE("commands-sc"),   1,  1,  1,  func_commands},
+  { STRING_SIZE_TUPLE("commands-usr"),  2,  2,  1,  func_commands},
 #endif
 #ifdef KMK_HELPERS
   { STRING_SIZE_TUPLE("kb-src-tool"),   1,  1,  0,  func_kbuild_source_tool},

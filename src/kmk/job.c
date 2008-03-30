@@ -1049,6 +1049,10 @@ start_job_command (struct child *child)
 	flags |= COMMANDS_RECURSE;
       else if (*p == '-')
 	child->noerror = 1;
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+      else if (*p == '%')
+        flags |= COMMAND_GETTER_SKIP_IT;
+#endif 
       else if (!isblank ((unsigned char)*p))
 #ifndef CONFIG_WITH_KMK_BUILTIN
         break;

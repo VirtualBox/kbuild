@@ -499,6 +499,36 @@ variable_expand_for_file (const char *line, struct file *file)
   return result;
 }
 
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+/* Expand LINE for FILE.  Error messages refer to the file and line where
+   FILE's commands were found.  Expansion uses FILE's variable set list.
+
+   Differs from variable_expand_for_file in that it takes a pointer to
+   where in the variable buffer to start outputting the expanded string.  */
+
+char *
+variable_expand_for_file_2 (char *o, const char *line, struct file *file)
+{
+  char *result;
+  struct variable_set_list *save;
+
+  if (file == 0)
+    return variable_expand_string (o, line, (long)-1);
+
+  save = current_variable_set_list;
+  current_variable_set_list = file->variables;
+  if (file->cmds && file->cmds->fileinfo.filenm)
+    reading_file = &file->cmds->fileinfo;
+  else
+    reading_file = 0;
+  result = variable_expand_string (o, line, (long)-1);
+  current_variable_set_list = save;
+  reading_file = 0;
+
+  return result;
+}
+
+#endif /* CONFIG_WITH_COMMANDS_FUNC */
 /* Like allocated_variable_expand, but for += target-specific variables.
    First recursively construct the variable value from its appended parts in
    any upper variable sets.  Then expand the resulting value.  */

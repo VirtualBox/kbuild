@@ -329,13 +329,21 @@ chop_commands (struct commands *cmds)
   cmds->command_lines = lines;
 
   cmds->any_recurse = 0;
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+  cmds->lines_flags = xmalloc (nlines * sizeof (cmds->lines_flags[0]));
+#else
   cmds->lines_flags = xmalloc (nlines);
+#endif 
   for (idx = 0; idx < nlines; ++idx)
     {
       int flags = 0;
 
       for (p = lines[idx];
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+           isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+' || *p == '%';
+#else
            isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+';
+#endif
            ++p)
         switch (*p)
           {
@@ -348,6 +356,11 @@ chop_commands (struct commands *cmds)
           case '-':
             flags |= COMMANDS_NOERROR;
             break;
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+          case '%':
+            flags |= COMMAND_GETTER_SKIP_IT;
+            break;
+#endif
           }
 
       /* If no explicit '+' was given, look for MAKE variable references.  */
