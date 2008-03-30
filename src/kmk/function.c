@@ -1540,10 +1540,17 @@ func_evalval (char *o, char **argv, const char *funcname)
   struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
   if (v)
     {
-      char *tmp;
       char *buf;
       unsigned int len;
       int var_ctx;
+      size_t off;
+
+      /* Make a copy of the value to the variable buffer since
+         eval_buffer will make changes to its input. */
+
+      off = o - variable_buffer;
+      o = variable_buffer_output (o, v->value, v->value_length + 1);
+      o = variable_buffer + off;
 
       /* Eval the value.  Pop the current variable buffer setting so that the
          eval'd code can use its own without conflicting. (really necessary?)  */
@@ -1553,10 +1560,7 @@ func_evalval (char *o, char **argv, const char *funcname)
       if (var_ctx)
         push_new_variable_scope ();
 
-      tmp = xmalloc (v->value_length + 1);
-      memcpy (tmp, v->value, v->value_length + 1);
-      eval_buffer (tmp);
-      free (tmp);
+      eval_buffer (o);
 
       if (var_ctx)
         pop_variable_scope ();
@@ -4177,27 +4181,25 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
       o += strlen (o);
 #ifdef CONFIG_WITH_EVALPLUS
     }
-  else if (!strcmp (funcname, "evalcall"))
+  else
     {
-      /* Evaluate the variable value directly without expanding it first.  */
-      char *tmp;
+      if (!strcmp (funcname, "evalcall"))
+        {
+          /* Evaluate the variable value without expanding it. We 
+             need a copy since eval_buffer is destructive.  */
 
-      install_variable_buffer (&buf, &len);
+          size_t off = o - variable_buffer;
+          o = variable_buffer_output (o, v->value, v->value_length + 1);
+          o = variable_buffer + off;
+        }
+      else
+        {
+          /* Expand the body first and then evaluate the output. */
 
-      tmp = xmalloc (v->value_length + 1);
-      memcpy (tmp, v->value, v->value_length + 1);
-      eval_buffer (tmp);
-      free (tmp);
-
-      restore_variable_buffer (buf, len);
-    }
-  else /* evalcall2: */
-    {
-      /* Expand the body first and then evaluate the output. */
-
-      v->exp_count = EXP_COUNT_MAX;
-      o = variable_expand_string (o, body, flen+3);
-      v->exp_count = 0;
+          v->exp_count = EXP_COUNT_MAX;
+          o = variable_expand_string (o, body, flen+3);
+          v->exp_count = 0;
+        }
 
       install_variable_buffer (&buf, &len);
       eval_buffer (o);
