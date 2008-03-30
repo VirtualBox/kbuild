@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1441 2008-03-30 05:31:21Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1456 2008-03-30 20:42:33Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -638,8 +638,8 @@ ifndef TEMPLATE_$(loading)
   $(warning kBuild: TEMPLATE_$(loading) was not defined by $(TEMPLATE_$(loading)_KMK_FILE)!)
  endif
 endif
-endef # def_templates_include
-$(foreach loading, $(addprefix TEMPLATE_,$(_TEMPLATES)), $(eval $(value def_templates_include)))
+endef # def_templates_load_function
+$(foreach loading, $(addprefix TEMPLATE_,$(_TEMPLATES)), $(eval $(value def_templates_load_function)))
 
 
 #
@@ -1873,7 +1873,7 @@ define def_target_source_rule
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
-		$(_DEP_COMPILE_CMDS) \
+		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
 		$$($(target)_INTERMEDIATES)
@@ -1881,7 +1881,7 @@ $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OU
 else
 $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
-		$(_DEP_COMPILE_CMDS) \
+		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
 		$$($(target)_INTERMEDIATES)
@@ -1926,7 +1926,7 @@ endif
 define def_link_rule
 $(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
 		$($(target)_DEPEND_) \
-		$(_DEP_LINK_CMDS) \
+		$(value _DEP_LINK_CMDS) \
 		| \
 		$($(target)_DEPORD_)
 	$$(call MSG_LINK,$(target),$$@,$(tool_do))
@@ -3086,6 +3086,7 @@ endif
 do-nothing:
 ifdef KBUILD_PROFILE_SELF
 	@$(ECHO) 'prof: $(int-sub $(nanots ), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(nanots ), $(_KBUILD_TS_PREV)) - executing $@'
+	@$(ECHO) 'stat: $(make-stats )'
 endif
 	$(call MSG_NOTHING)
 
