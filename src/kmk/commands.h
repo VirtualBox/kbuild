@@ -25,7 +25,11 @@ struct commands
     char *commands;		/* Commands text.  */
     unsigned int ncommand_lines;/* Number of command lines.  */
     char **command_lines;	/* Commands chopped up into lines.  */
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+    short *lines_flags;		/* One set of flag bits for each line.  */
+#else
     char *lines_flags;		/* One set of flag bits for each line.  */
+#endif
     int any_recurse;		/* Nonzero if any `lines_recurse' elt has */
 				/* the COMMANDS_RECURSE bit set.  */
   };
@@ -40,6 +44,9 @@ struct commands
 #endif 
 #ifdef CONFIG_WITH_KMK_BUILTIN
 # define COMMANDS_KMK_BUILTIN   128 /* kmk: kmk builtin command. */
+#endif
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+# define COMMAND_GETTER_SKIP_IT 256 /* $(commands target) skips this: % */
 #endif
 
 void execute_file_commands (struct file *file);

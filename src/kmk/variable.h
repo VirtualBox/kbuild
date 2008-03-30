@@ -131,6 +131,9 @@ extern struct variable_set_list *current_variable_set_list;
 char *variable_buffer_output (char *ptr, const char *string, unsigned int length);
 char *variable_expand (const char *line);
 char *variable_expand_for_file (const char *line, struct file *file);
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+char *variable_expand_for_file_2 (char *o, const char *line, struct file *file);
+#endif
 char *allocated_variable_expand_for_file (const char *line, struct file *file);
 #define	allocated_variable_expand(line) \
   allocated_variable_expand_for_file (line, (struct file *) 0)
@@ -152,6 +155,9 @@ char *patsubst_expand_pat (char *o, const char *text, const char *pattern,
                            const char *replace, const char *pattern_percent,
                            const char *replace_percent);
 char *patsubst_expand (char *o, const char *text, char *pattern, char *replace);
+#ifdef CONFIG_WITH_COMMANDS_FUNC
+char *func_commands (char *o, char **argv, const char *funcname);
+#endif
 
 /* expand.c */
 char *recursively_expand_for_file (struct variable *v, struct file *file);

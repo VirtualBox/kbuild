@@ -1036,13 +1036,14 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_WHICH) \
   && defined (CONFIG_WITH_EVALPLUS) \
   && defined (CONFIG_WITH_MAKE_STATS) \
+  && defined (CONFIG_WITH_COMMANDS_FUNC) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath"
                           " rsort"
                           " abspathex"
                           " toupper tolower"
-                          " comp-vars comp-cmds"
+                          " comp-vars comp-cmds comp-cmds-ex"
                           " stack"
                           " math-int"
                           " xargs"
@@ -1054,6 +1055,7 @@ define_automatic_variables (void)
                           " which"
                           " evalctx evalval evalvalctx evalcall evalcall2"
                           " make-stats"
+                          " commands"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
@@ -1069,7 +1071,7 @@ define_automatic_variables (void)
   strcat (buf, " toupper tolower");
 #  endif
 #  if defined (CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
-  strcat (buf, " comp-vars comp-cmds");
+  strcat (buf, " comp-vars comp-cmds comp-cmds-ex");
 #  endif
 #  if defined (CONFIG_WITH_STACK)
   strcat (buf, " stack");
@@ -1103,6 +1105,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_MAKE_STATS)
   strcat (buf, " make-stats");
+#  endif
+#  if defined (CONFIG_WITH_COMMANDS_FUNC)
+  strcat (buf, " commands");
 #  endif
 #  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");

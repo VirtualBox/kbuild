@@ -1,4 +1,4 @@
-/* $Id: append.c 1183 2007-10-05 22:16:46Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 1440 2008-03-30 04:13:55Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -41,7 +41,7 @@
 static int usage(FILE *pf)
 {
     fprintf(pf,
-            "usage: %s [-nv] file [string ...]\n"
+            "usage: %s [-cnv] file [string ...]\n"
             "   or: %s --version\n"
             "   or: %s --help\n",
             g_progname, g_progname, g_progname);
@@ -60,6 +60,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int fNewLine = 0;
 #ifndef kmk_builtin_append
     int fVariables = 0;
+    int fCommands = 0;
 #endif
 
     g_progname = argv[0];
@@ -81,6 +82,14 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
             {
                 switch (*psz)
                 {
+                    case 'c':
+#ifndef kmk_builtin_append
+                        fCommands = 1;
+                        break;
+#else
+                        errx(1, "Option '-c' isn't supported in external mode.");
+                        return usage(stderr);
+#endif
                     case 'n':
                         fNewLine = 1;
                         break;
@@ -133,7 +142,20 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         if (!fFirst)
             fputc(fNewLine ? '\n' : ' ', pFile);
 #ifndef kmk_builtin_append
-        if (fVariables)
+        if (fCommands)
+        {
+            char *pszOldBuf;
+            unsigned cchOldBuf;
+            char *pchEnd;
+
+            install_variable_buffer(&pszOldBuf, &cchOldBuf);
+
+            pchEnd = func_commands(variable_buffer, &argv[i], "commands");
+            fwrite(variable_buffer, 1, pchEnd - variable_buffer, pFile);
+
+            restore_variable_buffer(pszOldBuf, cchOldBuf);
+        }
+        else if (fVariables)
         {
             struct variable *pVar = lookup_variable(psz, cch);
             if (!pVar)
