@@ -1540,6 +1540,7 @@ func_evalval (char *o, char **argv, const char *funcname)
   struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
   if (v)
     {
+      char *tmp;
       char *buf;
       unsigned int len;
       int var_ctx;
@@ -1552,7 +1553,10 @@ func_evalval (char *o, char **argv, const char *funcname)
       if (var_ctx)
         push_new_variable_scope ();
 
-      eval_buffer (v->value);
+      tmp = xmalloc (v->value_length + 1);
+      memcpy (tmp, v->value, v->value_length + 1);
+      eval_buffer (tmp);
+      free (tmp);
 
       if (var_ctx)
         pop_variable_scope ();
@@ -3835,8 +3839,8 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("eval"),          0,  1,  1,  func_eval},
 #ifdef CONFIG_WITH_EVALPLUS
   { STRING_SIZE_TUPLE("evalctx"),       0,  1,  1,  func_evalctx},
-  { STRING_SIZE_TUPLE("evalval"),       0,  1,  0,  func_evalval},
-  { STRING_SIZE_TUPLE("evalvalctx"),    0,  1,  0,  func_evalval},
+  { STRING_SIZE_TUPLE("evalval"),       1,  1,  1,  func_evalval},
+  { STRING_SIZE_TUPLE("evalvalctx"),    1,  1,  1,  func_evalval},
   { STRING_SIZE_TUPLE("evalcall"),      1,  0,  1,  func_call},
   { STRING_SIZE_TUPLE("evalcall2"),     1,  0,  1,  func_call},
 #endif
@@ -3899,7 +3903,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("libpath"),       1,  2,  1,  func_os2_libpath},
 #endif
 #ifdef CONFIG_WITH_MAKE_STATS
-  { STRING_SIZE_TUPLE("make-stats"),    0, ~0,  0,  func_make_stats},
+  { STRING_SIZE_TUPLE("make-stats"),    0,  0,  0,  func_make_stats},
 #endif
 #ifdef CONFIG_WITH_COMMANDS_FUNC
   { STRING_SIZE_TUPLE("commands"),      1,  1,  1,  func_commands},
@@ -4176,9 +4180,15 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   else if (!strcmp (funcname, "evalcall"))
     {
       /* Evaluate the variable value directly without expanding it first.  */
+      char *tmp;
 
       install_variable_buffer (&buf, &len);
-      eval_buffer (v->value);
+
+      tmp = xmalloc (v->value_length + 1);
+      memcpy (tmp, v->value, v->value_length + 1);
+      eval_buffer (tmp);
+      free (tmp);
+
       restore_variable_buffer (buf, len);
     }
   else /* evalcall2: */
