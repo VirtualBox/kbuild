@@ -104,7 +104,7 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 
 /* Hash table of all global variable definitions.  */
 
-#ifdef VARIABLE_HASH
+#if defined(VARIABLE_HASH) || defined(CONFIG_WITH_OPTIMIZATION_HACKS)
 # ifdef _MSC_VER
 #  define inline _inline
 typedef signed int int32_t;
@@ -346,6 +346,7 @@ variable_hash_cmp (const void *xv, const void *yv)
   int result = x->length - y->length;
   if (result)
     return result;
+#ifdef VARIABLE_HASH
 #ifdef VARIABLE_HASH_STRICT /* bird */
   if (x->hash1 != variable_hash_1i (x->name, x->length))
     __asm__("int3");
@@ -356,7 +357,6 @@ variable_hash_cmp (const void *xv, const void *yv)
   if (y->hash2 && y->hash2 != variable_hash_2i (y->name, y->length))
     __asm__("int3");
 #endif
-#ifdef VARIABLE_HASH
   /* hash 1 */
   result = x->hash1 - y->hash1;
   if (result)
