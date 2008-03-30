@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1456 2008-03-30 20:42:33Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1457 2008-03-30 21:30:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -547,7 +547,7 @@ define def_inherit
 
 # Load it.
 ifneq ($(load_function),)
- loading := $(trg)
+ loading := $(patsubst $(src_prefix)%,%,$(trg))
  $(eval $(value $(load_function)))
 endif
 
@@ -627,7 +627,6 @@ _TEMPLATES := $(sort $(_TEMPLATES))
 ## Template load function.
 # @param loading    The template name. This is prefixed.
 define def_templates_load_function
-loading := $(patsubst TEMPLATE_%,%,$(loading))
 ifndef TEMPLATE_$(loading)
  TEMPLATE_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifneq ($(TEMPLATE_$(loading)_KMK_FILE),)
@@ -639,7 +638,7 @@ ifndef TEMPLATE_$(loading)
  endif
 endif
 endef # def_templates_load_function
-$(foreach loading, $(addprefix TEMPLATE_,$(_TEMPLATES)), $(eval $(value def_templates_load_function)))
+$(foreach loading, $(_TEMPLATES), $(eval $(value def_templates_load_function)))
 
 
 #
