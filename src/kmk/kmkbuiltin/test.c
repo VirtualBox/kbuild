@@ -186,10 +186,10 @@ static int olderf(const char *, const char *);
 static int equalf(const char *, const char *);
 static int usage(const char *);
 
-#ifdef kmk_builtin_test
+#if !defined(kmk_builtin_test) || defined(ELECTRIC_HEAP)
 extern void *xmalloc(unsigned int);
 #else
-static void *xmalloc(unsigned int sz)
+extern void *xmalloc(unsigned int sz)
 {
     void *p = malloc(sz);
     if (!p) {
