@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1434 2008-03-25 00:43:55Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1441 2008-03-30 05:31:21Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -29,6 +29,7 @@ ifndef __footer_kmk__
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_FOOTER_START := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_PREV)) - start of footer.kmk)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_START)
 endif
 
@@ -772,6 +773,7 @@ _KEYWORDS := $(_KEYWORDS_ORDERED) $(_KEYWORDS_EXTENDS) \
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done keywords)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -852,6 +854,7 @@ $(foreach trg, $(_ALL_INSTALLS),$(eval $(value def_inherit)))
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done target inheritance)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -890,6 +893,7 @@ properties_deferred_r :=
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template inheritance)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -1080,6 +1084,7 @@ $(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(eval $(value def_inherit_temp
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template/target expansion)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -1236,6 +1241,7 @@ properties_deferred_r :=
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done tools and sdks)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -1427,6 +1433,7 @@ $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TAR
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done pass 1)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -1818,6 +1825,7 @@ unfetch: $(_UNFETCHES)
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done fetching targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2260,6 +2268,7 @@ $(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done library targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2623,6 +2632,7 @@ $(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)) $(BLDPROGS.$(BUILD_P
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done build program targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2644,6 +2654,7 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done dll targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2673,6 +2684,7 @@ endif
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done import library targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2694,6 +2706,7 @@ $(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)) $(PROGRAMS.$(BUILD_TAR
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done program targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -2715,6 +2728,7 @@ $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done sysmod targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -3027,6 +3041,7 @@ $(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TAR
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done install targets)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -3060,6 +3075,7 @@ $(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done directories)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -3213,6 +3229,7 @@ $(foreach PASS,$(DEFAULT_PASSES),\
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done passes)
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
 
@@ -3280,6 +3297,7 @@ ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_FOOTER_END := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_PREV)) - end of footer.kmk)
  $(info prof: footer.kmk: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_FOOTER_START)))
+ $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_END)
 endif
 
