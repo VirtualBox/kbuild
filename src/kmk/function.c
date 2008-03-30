@@ -2772,8 +2772,7 @@ l_simple_compare:
 static char *
 func_comp_cmds_ex (char *o, char **argv, const char *funcname)
 {
-  const char *s1, *e1, *x1, *s2, *e2, *x2;
-  char *a1 = NULL, *a2 = NULL;
+  const char *s1, *e1, *s2, *e2;
   size_t l, l1, l2;
 
   /* the simple cases */
@@ -2790,16 +2789,10 @@ func_comp_cmds_ex (char *o, char **argv, const char *funcname)
 
   /* ignore trailing and leading blanks */
   e1 = s1 + l1;
-  while (isblank ((unsigned char) *s1))
-    s1++;
-  while (e1 > s1 && isblank ((unsigned char) e1[-1]))
-    e1--;
+  s1 = comp_cmds_strip_leading (s1, e1);
 
-  e2 = s2 + l1;
-  while (isblank ((unsigned char) *s2))
-    s2++;
-  while (e2 > s2 && isblank ((unsigned char) e2[-1]))
-    e2--;
+  e2 = s2 + l2;
+  s2 = comp_cmds_strip_leading (s2, e2);
 
   if (e1 - s1 != e2 - s2)
     return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
