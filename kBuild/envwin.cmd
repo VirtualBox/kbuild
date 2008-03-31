@@ -179,8 +179,7 @@ echo dbg: BUILD_PLATFORM_ARCH=%BUILD_PLATFORM_ARCH%
 set TEST_PROCESSOR_ARCH=
 
 IF NOT ".%BUILD_PLATFORM_CPU%" == "."   goto have_BUILD_PLATFORM_CPU
-IF "%BUILD_PLATFORM_ARCH%" == "amd64"   set BUILD_PLATFORM_CPU=k8
-IF "%BUILD_PLATFORM_ARCH%" == "x86"     set BUILD_PLATFORM_CPU=i386
+set BUILD_PLATFORM_CPU=blend
 IF NOT ".%BUILD_PLATFORM_CPU%" == "."   goto have_BUILD_PLATFORM_CPU
 echo kBuild: Cannot figure BUILD_PLATFORM_CPU!
 goto failed
@@ -241,8 +240,7 @@ IF ".%BUILD_TARGET_ARCH%" == "."        set BUILD_TARGET_ARCH=%BUILD_PLATFORM_AR
 :have_2_BUILD_TARGET_ARCH
 echo dbg: BUILD_TARGET_ARCH=%BUILD_TARGET_ARCH%
 IF NOT ".%BUILD_TARGET_CPU%" == "."     goto have_2_BUILD_TARGET_CPU
-IF "%BUILD_TARGET_ARCH%" == "amd64"     set BUILD_TARGET_CPU=k8
-IF "%BUILD_TARGET_ARCH%" == "x86"       set BUILD_TARGET_CPU=i386
+set BUILD_TARGET_CPU=blend
 IF NOT ".%BUILD_TARGET_CPU%" == "."     goto have_2_BUILD_TARGET_CPU
 echo kBuild: Cannot figure BUILD_TARGET_CPU!
 goto failed
@@ -253,7 +251,7 @@ echo dbg: BUILD_TARGET_CPU=%BUILD_TARGET_CPU%
 
 REM # The PATH.
 set PATH=%PATH_KBUILD%\bin\win.x86;%PATH%
-IF "%BUILD_PLATFORM_ARCH%" == "win.amd64" set PATH=%PATH_KBUILD%\bin\win.amd64;%PATH%
+IF "%BUILD_PLATFORM_ARCH%" == "amd64" set PATH=%PATH_KBUILD%\bin\win.amd64;%PATH%
 echo dbg: PATH=%PATH%
 
 REM # Execute command
