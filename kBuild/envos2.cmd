@@ -88,44 +88,54 @@ say "dbg: BUILD_PLATFORM="||EnvGet("BUILD_PLATFORM");
 
 
 /* Target platform. */
-if (EnvGet("BUILD_TARGET_CPU") = "") then
+if (  (  EnvGet("BUILD_TARGET") = "",
+       | EnvGet("BUILD_TARGET") = EnvGet("BUILD_PLATFORM")),
+    & (  EnvGet("BUILD_TARGET_ARCH") = "",
+       | EnvGet("BUILD_TARGET_ARCH") = EnvGet("BUILD_PLATFORM_ARCH")),
+    & (  EnvGet("BUILD_TARGET_CPU") = "", 
+       | EnvGet("BUILD_TARGET_CPU") = "blend")) then
+do
+    call EnvSet 0, "BUILD_TARGET", EnvGet("BUILD_PLATFORM");
+    call EnvSet 0, "BUILD_TARGET_ARCH", EnvGet("BUILD_PLATFORM_ARCH");
     call EnvSet 0, "BUILD_TARGET_CPU", EnvGet("BUILD_PLATFORM_CPU");
-call EnvSet 0, "BUILD_TARGET_CPU", EnvGet("BUILD_TARGET_CPU");
-say "dbg: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU");
-
-if (EnvGet("BUILD_TARGET_ARCH") = "") then
+end
+if (  EnvGet("BUILD_TARGET") <> "",
+    & EnvGet("BUILD_TARGET_ARCH") = "",
+    & (  EnvGet("BUILD_TARGET_CPU") = "", 
+       | EnvGet("BUILD_TARGET_CPU") = "blend")) then
 do
     select
-        when (  EnvGet("BUILD_TARGET_CPU") = "i386",
-              | EnvGet("BUILD_TARGET_CPU") = "i486",
-              | EnvGet("BUILD_TARGET_CPU") = "i586",
-              | EnvGet("BUILD_TARGET_CPU") = "i686",
-              | EnvGet("BUILD_TARGET_CPU") = "i786",
-              | EnvGet("BUILD_TARGET_CPU") = "i886") then
+        when ( EnvGet("BUILD_TARGET") = "os2" ) then 
         do
             call EnvSet 0, "BUILD_TARGET_ARCH", "x86";
+            call EnvSet 0, "BUILD_TARGET_CPU", "blend";
         end
-
-        when (  EnvGet("BUILD_TARGET_CPU") = "k8",
-              | EnvGet("BUILD_TARGET_CPU") = "k8l",
-              | EnvGet("BUILD_TARGET_CPU") = "k9",
-              | EnvGet("BUILD_TARGET_CPU") = "k10") then
-        do
-            call EnvSet 0, "BUILD_TARGET_ARCH", "amd64";
-        end
-
-        default
-            say "kBuild: error: can't figure out target arch from the BUILD_TARGET_CPU value ("||EnvGet("BUILD_TARGET_CPU")||")";
+        
+        otherwise
+            say "kBuild: error: can't figure out target arch/cpu from the BUILD_TARGET value ("||EnvGet("BUILD_TARGET")||")";
             exit(1);
     end
 end
-call EnvSet 0, "BUILD_TARGET_ARCH", EnvGet("BUILD_TARGET_ARCH");
-say "dbg: BUILD_TARGET_ARCH="||EnvGet("BUILD_TARGET_ARCH");
+if (  EnvGet("BUILD_TARGET") <> "",
+    & EnvGet("BUILD_TARGET_ARCH") <> "",
+    & EnvGet("BUILD_TARGET_CPU") = "") then
+do
+    call EnvSet 0, "BUILD_TARGET_CPU", "blend";
+end
+if (  EnvGet("BUILD_TARGET_ARCH") = "",
+    | EnvGet("BUILD_TARGET_CPU") = "",
+    | EnvGet("BUILD_TARGET") = "") then
+do
+    say "kBuild: error: can't figure out all the target settings, try specify all three."
+    say "kBuild:  info: BUILD_TARGET="||EnvGet("BUILD_TARGET")
+    say "kBuild:  info: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU")
+    say "kBuild:  info: BUILD_TARGET_ARCH="||EnvGet("BUILD_TARGET_ARCH")
+    exit(1);
+end
 
-if (EnvGet("BUILD_TARGET") = "") then
-    call EnvSet 0, "BUILD_TARGET", EnvGet("BUILD_PLATFORM");
-call EnvSet 0, "BUILD_TARGET", EnvGet("BUILD_TARGET");
 say "dbg: BUILD_TARGET="||EnvGet("BUILD_TARGET");
+say "dbg: BUILD_TARGET_ARCH="||EnvGet("BUILD_TARGET_ARCH");
+say "dbg: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU");
 
 
 sPlatformBin = EnvGet("PATH_KBUILD")||"\bin\"||EnvGet("BUILD_PLATFORM")||"."||EnvGet("BUILD_PLATFORM_ARCH");
