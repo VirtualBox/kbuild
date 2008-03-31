@@ -3351,7 +3351,7 @@ print_version (void)
 %s Copyright (C) 2006  Free Software Foundation, Inc.\n\
 \n\
 %skBuild modifications:\n\
-%s Copyright (C) 2005-2007  Knut St. Osmundsen.\n\
+%s Copyright (C) 2005-2008  Knut St. Osmundsen.\n\
 \n\
 %skmkbuiltin commands derived from *BSD sources:\n\
 %s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
