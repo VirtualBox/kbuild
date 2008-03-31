@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1457 2008-03-30 21:30:53Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1472 2008-03-31 17:39:40Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -2015,7 +2015,7 @@ endef
 # @param    $(target)   Normalized target name.
 # @param    $(defpath)
 # @param    much-more...
-# @returns	othersrc, $(target)_OBJS_, ++
+# @returns  othersrc, $(target)_OBJS_, ++
 define def_target_sources
 target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
 $(foreach source,\
@@ -2144,6 +2144,7 @@ ifneq ($(defpath),)
  $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
+ othersrc := $(abspathex $(othersrc),$(defpath))
 endif
 
 
@@ -2463,6 +2464,7 @@ ifneq ($(defpath),)
  $(target)_OBJS_ := $(abspathex $($(target)_OBJS_),$(defpath))
  deps := $(abspathex $(deps),$(defpath))
  orderdeps := $(abspathex $(orderdeps),$(defpath))
+ othersrc := $(abspathex $(othersrc),$(defpath))
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
 endif
 
