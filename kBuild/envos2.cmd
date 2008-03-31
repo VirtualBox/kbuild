@@ -72,7 +72,7 @@ say "dbg: BUILD_TYPE="||EnvGet("BUILD_TYPE");
 
 /* Host platform. */
 if (EnvGet("BUILD_PLATFORM_CPU") = "") then
-    call EnvSet 0, "BUILD_PLATFORM_CPU", "i386";
+    call EnvSet 0, "BUILD_PLATFORM_CPU", "blend";
 call EnvSet 0, "BUILD_PLATFORM_CPU", ToLower(EnvGet("BUILD_PLATFORM_CPU"));
 say "dbg: BUILD_PLATFORM_CPU="||EnvGet("BUILD_PLATFORM_CPU");
 
