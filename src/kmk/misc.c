@@ -369,8 +369,11 @@ xrealloc (void *ptr, unsigned int size)
 {
   void *result;
 #ifdef CONFIG_WITH_MAKE_STATS
-  make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
-  make_stats_allocated_sum -= SIZE_OF_HEAP_BLOCK (ptr);
+  if (ptr != NULL) 
+    {
+      make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
+      make_stats_allocated_sum -= SIZE_OF_HEAP_BLOCK (ptr);
+    }
 #endif
 
   /* Some older implementations of realloc() don't conform to ANSI.  */
