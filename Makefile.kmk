@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1421 2008-03-19 17:59:20Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1468 2008-03-31 16:53:34Z knut.osmundsen@oracle.com $
 
 
 DEPTH = .
@@ -28,9 +28,14 @@ kBuild_bin_SOURCES =
 
 if1of ($(BUILD_TARGET), nt win)
 kBuild_bin_SOURCES.$(BUILD_TARGET) = \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll \
 	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/kmk_ash.exe=>kmk_ash.exe \
 	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/cygwin1.dll=>cygwin1.dll
+kBuild_bin_SOURCES.$(BUILD_TARGET).x86 = \
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll
+kBuild_bin_SOURCES.$(BUILD_TARGET).amd64 = \
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/Microsoft.VC80.CRT/msvcr80.dll=>Microsoft.VC80.CRT/msvcr80.dll \
+	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest=>Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
+
 endif
 
 kBuild_bin_SOURCES.os2 = \
