@@ -3786,7 +3786,9 @@ func_commands (char *o, char **argv, const char *funcname)
           /* Skip it if it has a '%' prefix or is blank. */
           p = o;
           while (isblank ((unsigned char)*o) 
-              || strchr("@-+", *o))
+              || *o == '@'
+              || *o == '-'
+              || *o == '+')
             o++;
           if (*o != '\0' && *o != '%')
             o = strchr (o, '\0');
