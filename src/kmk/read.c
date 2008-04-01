@@ -625,12 +625,17 @@ eval_include_dep (const char *name, struct floc *f)
 
           if (!found_endef)
             {
-              error (f, "%s(%d): bogus define statement.", name, line_no);
+              error (f, "%s(%d): missing endef, dropping the rest of the file.", name, line_no);
+              break;
+            }
+          value_len = value_end - value_start;
+          if (memchr (value_start, '\0', value_len))
+            {
+              error (f, "%s(%d): '\\0' in define, dropping the rest of the file.", name, line_no);
               break;
             }
 
           /* make a copy of the value, converting \r\n to \n, and define it. */
-          value_len = value_end - value_start;
           value = xmalloc (value_len + 1);
           endp = memchr (value_start, '\r', value_len);
           if (endp)
