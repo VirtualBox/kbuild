@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1460 2008-03-31 09:46:26Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1483 2008-04-03 21:20:09Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -82,9 +82,10 @@ TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
 
 ifeq ($(BUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
+TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024
+TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024 -g
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
@@ -94,9 +95,10 @@ endif
 
 ifeq ($(BUILD_TARGET),darwin)
 TEMPLATE_BIN_TOOL               = GCC4MACHO
+TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     =
 TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            =
+TEMPLATE_BIN_LDFLAGS            = -g
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
@@ -152,6 +154,8 @@ ifndef TEMPLATE_BIN_TOOL
  else
   TEMPLATE_BIN_TOOL              = GCC3PLAIN
  endif
+ TEMPLATE_BIN_CFLAGS            = -g
+ TEMPLATE_BIN_LDFLAGS           = -g
  TEMPLATE_BIN_CFLAGS.release    = -O3
  ifeq ($(BUILD_TARGET),freebsd)
   TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
