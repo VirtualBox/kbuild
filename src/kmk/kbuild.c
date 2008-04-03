@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1397 2008-03-16 21:32:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1484 2008-04-03 22:04:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -939,31 +939,30 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
     *psz = '\0';
 
     /* convert '..' path elements in the source to 'dt'. */
-    psz = pszDot;
-    while ((psz = memchr(psz, '.', cchSrc + 1 - (pszDot - psz))) != NULL)
+    while ((pszDot = memchr(pszDot, '.', psz - pszDot)) != NULL)
     {
-        if (    psz[1] == '.'
-            &&  (   psz == pszDot
-                 || psz[-1] == '/'
+        if (    pszDot[1] == '.'
+            &&  (   pszDot == psz
+                 || pszDot[-1] == '/'
 #ifdef HAVE_DOS_PATHS
-                 || psz[-1] == '\\'
-                 || psz[-1] == ':'
+                 || pszDot[-1] == '\\'
+                 || pszDot[-1] == ':'
 #endif
                 )
-            &&  (   !psz[2]
-                 || psz[2] == '/'
+            &&  (   !pszDot[2]
+                 || pszDot[2] == '/'
 #ifdef HAVE_DOS_PATHS
-                 || psz[2] == '\\'
-                 || psz[2] == ':'
+                 || pszDot[2] == '\\'
+                 || pszDot[2] == ':'
 #endif
                 )
             )
         {
-            *psz++ = 'd';
-            *psz++ = 't';
+            *pszDot++ = 'd';
+            *pszDot++ = 't';
         }
         else
-            psz++;
+            pszDot++;
     }
 
     /*
