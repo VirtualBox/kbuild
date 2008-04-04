@@ -1,5 +1,6 @@
 #!/bin/bash
-# $Id: env.sh 1380 2008-01-07 03:12:53Z knut.osmundsen@oracle.com $
+#!/bin/sh should work fine too, just needs testing.
+# $Id: env.sh 1488 2008-04-04 02:36:46Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
@@ -118,7 +119,7 @@ if test -z "$BUILD_PLATFORM_ARCH"; then
 fi
 if test -z "$BUILD_PLATFORM_ARCH"; then
     # Use uname -m or isainfo (lots of guesses here, please help clean this up...)
-    if test "$BUILD_PLATFORM" == "solaris"; then
+    if test "$BUILD_PLATFORM" = "solaris"; then
         BUILD_PLATFORM_ARCH=`isainfo | cut -f 1 -d ' '`
         
     else
