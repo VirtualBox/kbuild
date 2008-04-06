@@ -19,9 +19,9 @@
 					MenuCaption="&amp;Build"
 					CaptureOutputWith="ProcessBuffer"
 					SaveOption="SaveWorkspaceFiles"
-					RunFromDir="%rp"
+					RunFromDir="%rw"
 					ClearProcessBuffer="1">
-					<Exec CmdLine="kmk -C %rp"/>
+					<Exec CmdLine="kmk"/>
 				</Target>
 				<Target
 					Name="Rebuild"
@@ -30,7 +30,7 @@
 					SaveOption="SaveWorkspaceFiles"
 					RunFromDir="%rw"
 					ClearProcessBuffer="1">
-					<Exec CmdLine="kmk -C %rp rebuild"/>
+					<Exec CmdLine="kmk rebuild"/>
 				</Target>
 				<Target
 					Name="Debug"
