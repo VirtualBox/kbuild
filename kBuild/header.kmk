@@ -1,4 +1,4 @@
-# $Id: header.kmk 1441 2008-03-30 05:31:21Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1496 2008-04-06 23:16:10Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
@@ -57,7 +57,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1441 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1496 $  )
 
 
 #
@@ -1051,26 +1051,26 @@ else
   # Default output level.
   QUIET  := @
   QUIET2 := @
-  MSG_L1 ?= @$(ECHO) "kBuild: $1"
+  MSG_L1 ?= %@$(ECHO) "kBuild: $1"
   MSG_L2  =
  else ifeq ($(KBUILD_VERBOSE),1)
   # A bit more output
   QUIET  := @
   QUIET2 := @
-  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
+  MSG_L1 ?= %@$(ECHO) "kBuild: $1 $2"
   MSG_L2  =
  else ifeq ($(KBUILD_VERBOSE),2)
   # Lot more output
   QUIET  :=
   QUIET2 := @
-  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
-  MSG_L2 ?= @$(ECHO) "kBuild: $1"
+  MSG_L1 ?= %@$(ECHO) "kBuild: $1 $2"
+  MSG_L2 ?= %@$(ECHO) "kBuild: $1"
  else
   # maximal output.
   QUIET  :=
   QUIET2 :=
-  MSG_L1 ?= @$(ECHO) "kBuild: $1 $2"
-  MSG_L2 ?= @$(ECHO) "kBuild: $1"
+  MSG_L1 ?= %@$(ECHO) "kBuild: $1 $2"
+  MSG_L2 ?= %@$(ECHO) "kBuild: $1"
  endif
 endif
 
