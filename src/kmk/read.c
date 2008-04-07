@@ -415,6 +415,21 @@ eval_makefile (const char *filename, int flags)
   do_variable_definition (&ebuf.floc, "MAKEFILE_LIST", filename, o_file,
                           f_append, 0);
 
+#ifdef KMK
+  /* Buffer the entire file or at least 256KB (footer.kmk) of it. */
+  {
+    void *stream_buf = NULL;
+    struct stat st;
+    if (!fstat (fileno (ebuf.fp), &st))
+      {
+        unsigned int stream_buf_size = 256*1024;
+        if (st.st_size < stream_buf_size)
+          stream_buf_size = (st.st_size + 0xfff) & ~0xfffU;
+        stream_buf = xmalloc (stream_buf_size);
+        setvbuf (ebuf.fp, stream_buf, _IOFBF, stream_buf_size);
+      }
+#endif
+
   /* Evaluate the makefile */
 
   ebuf.size = 200;
@@ -429,6 +444,11 @@ eval_makefile (const char *filename, int flags)
 
   fclose (ebuf.fp);
 
+#ifdef KMK
+   if (stream_buf)
+     free (stream_buf);
+  }
+#endif 
   free (ebuf.bufstart);
   alloca (0);
   return r;
