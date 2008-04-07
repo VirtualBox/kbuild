@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1152 2007-09-27 23:42:58Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1500 2008-04-07 23:11:25Z knut.osmundsen@oracle.com $
 
 
 DEPTH = ../..
@@ -23,6 +23,7 @@ kmk_sed_DEFS = \
 	HAVE_CONFIG_H
 kmk_sed_SOURCES = \
 	sed/sed.c \
+	lib/regex.c \
 	sed/compile.c \
 	sed/execute.c \
 	sed/regexp.c \
@@ -30,8 +31,7 @@ kmk_sed_SOURCES = \
 	sed/mbcs.c \
 	lib/getopt1.c \
 	lib/getopt.c \
-	lib/utils.c \
-	lib/regex.c
+	lib/utils.c
 kmk_sed_SOURCES.darwin = \
 	lib/strverscmp.c \
 	lib/obstack.c \
