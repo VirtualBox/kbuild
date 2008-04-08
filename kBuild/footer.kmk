@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1496 2008-04-06 23:16:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1502 2008-04-08 00:23:15Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -569,8 +569,7 @@ ifneq ($(src),)
   ifdef $(src)_EXTENDS
    ifneq ($($(src)_EXTENDS_STATUS_),42)
     # 'foreach' will create 'trg' in a new variable context hiding
-	# out current variable. 'src' OTOH will be overwritten.
-    #$ (warning def_inherit: recursing into $(src) from $(trg))
+    # out current variable. 'src' OTOH will be overwritten.
     $(foreach trg, $(src), $(evalval def_inherit))
     local src := $(src_prefix)$(strip $($(trg)_EXTENDS))
    endif
@@ -915,30 +914,25 @@ define def_inherit_template_one
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 ifndef $(target)_$(prop)
 $(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-#$ (warning dbgtarget: $(target)_$(prop):='$(value $(target)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 ifndef $(target)_$(prop).$(bld_trg)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
 ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
 ifndef $(target)_$(prop).$(bld_trg_arch)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
 ifndef $(target)_$(prop).$(bld_trg_cpu)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_cpu)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 $(target)_$(prop).$(bld_trg_cpu) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 endif
@@ -953,30 +947,25 @@ define def_inherit_template_one_deferred
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 ifndef $(target)_$(prop)
 $(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-#$ (warning dbgtarget: $(target)_$(prop):='$(value $(target)_$(prop))' TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 ifndef $(target)_$(prop).$(bld_trg)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
 ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
 ifndef $(target)_$(prop).$(bld_trg_arch)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_arch)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
 ifndef $(target)_$(prop).$(bld_trg_cpu)
-#$ (warning dbgsource: $(target)_$(prop).$(bld_trg_cpu)="TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)" TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 $(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 endif
@@ -987,28 +976,21 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate_l
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-#$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 $(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-#$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 $(target)_$(prop).$(BUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 $(target)_$(prop).$(bld_trg_cpu) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-#$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
@@ -1018,28 +1000,21 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate_r
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-#$ (warning dbgtype: TEMPLATE_$($(target)_TEMPLATE)_$(prop) $(target)_$(prop)=$($(target)_$(prop)) $(TEMPLATE_$($(target)_TEMPLATE)_$(prop)))
 $(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-#$ (warning dbgtype: $(target)_$(prop)=$($(target)_$(prop)))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 $(target)_$(prop).$(BUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 $(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-#$ (warning dbg4: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-#$ (warning dbg5: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 $(target)_$(prop).$(bld_trg_cpu) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-#$ (warning dbg6: TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 $(target)_$(prop).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
@@ -1908,7 +1883,7 @@ endef
 
 
 ## wrapper the link command dependency check.
-ifndef NO_COMPILE_CMDS_DEPS
+ifndef NO_LINK_CMDS_DEPS
  _DEP_LINK_CMDS = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $(out)),FORCE)
 else
  _DEP_LINK_CMDS =
@@ -2006,7 +1981,6 @@ define def_src_handler_one
 local suff := $(suffix $(source))
 local src_handler := $(firstword $(filter $(suff):%, $($(target)_$(source)_SRC_HANDLERS) $($(source)_SRC_HANDLERS) $(target_src_handlers) ))
 local handler := $(patsubst $(suff):%,%,$(src_handler))
-#$ (warning def_src_handler_one: source=$(source) suff=$(suff) src_handler=$(src_handler) handler=$(handler))
 ifneq ($(handler),)
  $(evalval $(handler))
 else
