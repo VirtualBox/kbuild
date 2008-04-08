@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1498 2008-04-07 23:02:06Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -63,8 +63,8 @@ ifdef NIX_INSTALL_DIR
 NIX_INSTALL_DIR_BIN   := $(patsubst /%,%,$(NIX_INSTALL_DIR))/bin
 NIX_INSTALL_DIR_SHARE := $(patsubst /%,%,$(NIX_INSTALL_DIR))/share/kBuild
 DEFS += \
-	PATH_KBUILD=\"/$(NIX_INSTALL_DIR_SHARE)\" \
-	PATH_KBUILD_BIN=\"/$(NIX_INSTALL_DIR_BIN)\"
+	KBUILD_PATH=\"/$(NIX_INSTALL_DIR_SHARE)\" \
+	KBUILD_PATH_BIN=\"/$(NIX_INSTALL_DIR_BIN)\"
 endif
 
 #
