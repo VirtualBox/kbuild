@@ -278,5 +278,9 @@ struct pattern_var *create_pattern_var (const char *target,
 
 extern int export_all_variables;
 
+#ifdef KMK
+# define MAKELEVEL_NAME "KMK_LEVEL"
+#else
 #define MAKELEVEL_NAME "MAKELEVEL"
+#endif
 #define MAKELEVEL_LENGTH (sizeof (MAKELEVEL_NAME) - 1)

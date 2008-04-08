@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1484 2008-04-03 22:04:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -204,30 +204,35 @@ static char *my_abspath(const char *pszIn, char *pszOut)
 
 
 /**
- * Determin the PATH_KBUILD value.
+ * Determin the KBUILD_PATH value.
  *
  * @returns Pointer to static a buffer containing the value (consider it read-only).
  */
-const char *get_path_kbuild(void)
+const char *get_kbuild_path(void)
 {
     static const char *s_pszPath = NULL;
     if (!s_pszPath)
     {
         PATH_VAR(szTmpPath);
-        const char *pszEnvVar = getenv("PATH_KBUILD");
+        const char *pszEnvVar = getenv("KBUILD_PATH");
         if (    !pszEnvVar
             ||  !my_abspath(pszEnvVar, szTmpPath))
         {
-#ifdef PATH_KBUILD
-            return s_pszPath = PATH_KBUILD;
+            const char *pszEnvVar = getenv("PATH_KBUILD");
+            if (    !pszEnvVar
+                ||  !my_abspath(pszEnvVar, szTmpPath))
+            {
+#ifdef KBUILD_PATH
+                return s_pszPath = KBUILD_PATH;
 #else
-            /* $(abspath $(PATH_KBUILD_BIN)/../..)*/
-            size_t cch = strlen(get_path_kbuild_bin());
-            char *pszTmp2 = alloca(cch + sizeof("/../.."));
-            strcat(strcpy(pszTmp2, get_path_kbuild_bin()), "/../..");
-            if (!my_abspath(pszTmp2, szTmpPath))
-                fatal(NILF, _("failed to determin PATH_KBUILD"));
+                /* $(abspath $(KBUILD_BIN_PATH)/../..)*/
+                size_t cch = strlen(get_kbuild_bin_path());
+                char *pszTmp2 = alloca(cch + sizeof("/../.."));
+                strcat(strcpy(pszTmp2, get_kbuild_bin_path()), "/../..");
+                if (!my_abspath(pszTmp2, szTmpPath))
+                    fatal(NILF, _("failed to determin KBUILD_PATH"));
 #endif
+            }
         }
         s_pszPath = xstrdup(szTmpPath);
     }
@@ -236,42 +241,48 @@ const char *get_path_kbuild(void)
 
 
 /**
- * Determin the PATH_KBUILD_BIN value.
+ * Determin the KBUILD_BIN_PATH value.
  *
  * @returns Pointer to static a buffer containing the value (consider it read-only).
  */
-const char *get_path_kbuild_bin(void)
+const char *get_kbuild_bin_path(void)
 {
     static const char *s_pszPath = NULL;
     if (!s_pszPath)
     {
         PATH_VAR(szTmpPath);
-        const char *pszEnvVar = getenv("PATH_KBUILD_BIN");
+
+        const char *pszEnvVar = getenv("KBUILD_BIN_PATH");
         if (    !pszEnvVar
             ||  !my_abspath(pszEnvVar, szTmpPath))
         {
-#ifdef PATH_KBUILD
-            return s_pszPath = PATH_KBUILD_BIN;
+            const char *pszEnvVar = getenv("PATH_KBUILD_BIN");
+            if (    !pszEnvVar
+                ||  !my_abspath(pszEnvVar, szTmpPath))
+            {
+#ifdef KBUILD_PATH
+                return s_pszPath = KBUILD_BIN_PATH;
 #else
-            /* $(abspath $(dir $(ARGV0)).) */
-            size_t cch = strlen(g_pszExeName);
-            char *pszTmp2 = alloca(cch + sizeof("."));
-            char *pszSep = pszTmp2 + cch - 1;
-            memcpy(pszTmp2, g_pszExeName, cch);
-#ifdef HAVE_DOS_PATHS
-            while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && *pszSep != ':')
-#else
-            while (pszSep >= pszTmp2 && *pszSep != '/')
-#endif
-                pszSep--;
-            if (pszSep >= pszTmp2)
-              strcpy(pszSep + 1, ".");
-            else
-              strcpy(pszTmp2, ".");
-
-            if (!my_abspath(pszTmp2, szTmpPath))
-                fatal(NILF, _("failed to determin PATH_KBUILD_BIN (pszTmp2=%s szTmpPath=%s)"), pszTmp2, szTmpPath);
-#endif
+                /* $(abspath $(dir $(ARGV0)).) */
+                size_t cch = strlen(g_pszExeName);
+                char *pszTmp2 = alloca(cch + sizeof("."));
+                char *pszSep = pszTmp2 + cch - 1;
+                memcpy(pszTmp2, g_pszExeName, cch);
+# ifdef HAVE_DOS_PATHS
+                while (pszSep >= pszTmp2 && *pszSep != '/' && *pszSep != '\\' && *pszSep != ':')
+# else
+                while (pszSep >= pszTmp2 && *pszSep != '/')
+# endif
+                    pszSep--;
+                if (pszSep >= pszTmp2)
+                  strcpy(pszSep + 1, ".");
+                else
+                  strcpy(pszTmp2, ".");
+    
+                if (!my_abspath(pszTmp2, szTmpPath))
+                    fatal(NILF, _("failed to determin KBUILD_BIN_PATH (pszTmp2=%s szTmpPath=%s)"), pszTmp2, szTmpPath);
+#endif /* !KBUILD_PATH */
+            }
         }
         s_pszPath = xstrdup(szTmpPath);
     }
@@ -288,18 +299,18 @@ const char *get_default_kbuild_shell(void)
 {
     static char *s_pszDefaultShell = NULL;
     if (!s_pszDefaultShell)
-      {
+    {
 #if defined(__OS2__) || defined(_WIN32) || defined(WINDOWS32)
         static const char s_szShellName[] = "/kmk_ash.exe";
 #else
         static const char s_szShellName[] = "/kmk_ash";
 #endif
-        const char *pszBin = get_path_kbuild_bin();
+        const char *pszBin = get_kbuild_bin_path();
         size_t cchBin = strlen(pszBin);
         s_pszDefaultShell = xmalloc(cchBin + sizeof(s_szShellName));
         memcpy(s_pszDefaultShell, pszBin, cchBin);
         memcpy(&s_pszDefaultShell[cchBin], s_szShellName, sizeof(s_szShellName));
-      }
+    }
     return s_pszDefaultShell;
 }
 

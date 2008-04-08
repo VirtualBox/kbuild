@@ -3636,10 +3636,10 @@ construct_include_path (const char **arg_dirs)
   }
 #endif
 #ifdef KMK
-  /* Add $(PATH_KBUILD). */
+  /* Add $(KBUILD_PATH). */
   {
-    size_t len = strlen (get_path_kbuild ());
-    dirs[idx++] = strcache_add_len (get_path_kbuild (), len);
+    size_t len = strlen (get_kbuild_path ());
+    dirs[idx++] = strcache_add_len (get_kbuild_path (), len);
     if (len > max_incl_len)
       max_incl_len = len;
   }

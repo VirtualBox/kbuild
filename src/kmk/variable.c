@@ -1114,7 +1114,9 @@ define_automatic_variables (void)
   char buf[200];
 #else
   char buf[1024];
-  const char *envvar;
+  const char *val;
+  struct variable *envvar1;
+  struct variable *envvar2;
 #endif
 
   sprintf (buf, "%u", makelevel);
@@ -1126,9 +1128,10 @@ define_automatic_variables (void)
 	   ? "" : "-",
 	   (remote_description == 0 || remote_description[0] == '\0')
 	   ? "" : remote_description);
+#ifndef KMK
   (void) define_variable ("MAKE_VERSION", 12, buf, o_default, 0);
+#else /* KMK */
 
-#ifdef KMK
   /* Define KMK_VERSION to indicate kMk. */
   (void) define_variable ("KMK_VERSION", 11, buf, o_default, 0);
 
@@ -1147,25 +1150,53 @@ define_automatic_variables (void)
   define_variable ("KBUILD_VERSION", sizeof ("KBUILD_VERSION") - 1,
                    buf, o_default, 0);
 
-  /* The build platform defaults. */
-  envvar = getenv ("BUILD_PLATFORM");
-  if (!envvar)
-      define_variable ("BUILD_PLATFORM", sizeof ("BUILD_PLATFORM") - 1,
-                       BUILD_PLATFORM, o_default, 0);
-  envvar = getenv ("BUILD_PLATFORM_ARCH");
-  if (!envvar)
-      define_variable ("BUILD_PLATFORM_ARCH", sizeof ("BUILD_PLATFORM_ARCH") - 1,
-                       BUILD_PLATFORM_ARCH, o_default, 0);
-  envvar = getenv ("BUILD_PLATFORM_CPU");
-  if (!envvar)
-      define_variable ("BUILD_PLATFORM_CPU", sizeof ("BUILD_PLATFORM_CPU") - 1,
-                       BUILD_PLATFORM_CPU, o_default, 0);
+  /* The host defaults. The BUILD_* stuff will be replaced by KBUILD_* soon. */
+  envvar1 = lookup_variable (STRING_SIZE_TUPLE ("KBUILD_HOST"));
+  envvar2 = lookup_variable (STRING_SIZE_TUPLE ("BUILD_PLATFORM"));
+  val = envvar1 ? envvar1->value : envvar2 ? envvar2->value : KBUILD_HOST;
+  if (envvar1 && envvar2 && strcmp (envvar1->value, envvar2->value))
+    error (NULL, _("KBUILD_HOST and BUILD_PLATFORM differs, using KBUILD_HOST=%s."), val);
+  if (!envvar1)
+    define_variable ("KBUILD_HOST", sizeof ("KBUILD_HOST") - 1,
+                     val, o_default, 0);
+  if (!envvar2)
+    define_variable ("BUILD_PLATFORM", sizeof ("BUILD_PLATFORM") - 1,
+                     val, o_default, 0);
+
+  envvar1 = lookup_variable (STRING_SIZE_TUPLE ("KBUILD_HOST_ARCH"));
+  envvar2 = lookup_variable (STRING_SIZE_TUPLE ("BUILD_PLATFORM_ARCH"));
+  val = envvar1 ? envvar1->value : envvar2 ? envvar2->value : KBUILD_HOST_ARCH;
+  if (envvar1 && envvar2 && strcmp (envvar1->value, envvar2->value))
+    error (NULL, _("KBUILD_HOST_ARCH and BUILD_PLATFORM_ARCH differs, using KBUILD_HOST_ARCH=%s."), val);
+  if (!envvar1)
+    define_variable ("KBUILD_HOST_ARCH", sizeof ("KBUILD_HOST_ARCH") - 1,
+                     val, o_default, 0);
+  if (!envvar2)
+    define_variable ("BUILD_PLATFORM_ARCH", sizeof ("BUILD_PLATFORM_ARCH") - 1,
+                     val, o_default, 0);
+
+  envvar1 = lookup_variable (STRING_SIZE_TUPLE ("KBUILD_HOST_CPU"));
+  envvar2 = lookup_variable (STRING_SIZE_TUPLE ("BUILD_PLATFORM_CPU"));
+  val = envvar1 ? envvar1->value : envvar2 ? envvar2->value : KBUILD_HOST_CPU;
+  if (envvar1 && envvar2 && strcmp (envvar1->value, envvar2->value))
+    error (NULL, _("KBUILD_HOST_CPU and BUILD_PLATFORM_CPU differs, using KBUILD_HOST_CPU=%s."), val);
+  if (!envvar1)
+    define_variable ("KBUILD_HOST_CPU", sizeof ("KBUILD_HOST_CPU") - 1,
+                     val, o_default, 0);
+  if (!envvar2)
+    define_variable ("BUILD_PLATFORM_CPU", sizeof ("BUILD_PLATFORM_CPU") - 1,
+                     val, o_default, 0);
 
   /* The kBuild locations. */
+  define_variable ("KBUILD_PATH", sizeof ("KBUILD_PATH") - 1,
+                   get_kbuild_path (), o_default, 0);
+  define_variable ("KBUILD_BIN_PATH", sizeof ("KBUILD_BIN_PATH") - 1,
+                   get_kbuild_bin_path (), o_default, 0);
+
   define_variable ("PATH_KBUILD", sizeof ("PATH_KBUILD") - 1,
-                   get_path_kbuild (), o_default, 0);
+                   get_kbuild_path (), o_default, 0);
   define_variable ("PATH_KBUILD_BIN", sizeof ("PATH_KBUILD_BIN") - 1,
-                   get_path_kbuild_bin (), o_default, 0);
+                   get_kbuild_bin_path (), o_default, 0);
 
   /* Define KMK_FEATURES to indicate various working KMK features. */
 # if defined (CONFIG_WITH_RSORT) \

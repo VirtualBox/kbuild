@@ -1289,7 +1289,11 @@ main (int argc, char **argv, char **envp)
   if (argv[0] == 0)
     argv[0] = "";
   if (argv[0][0] == '\0')
+#ifdef KMK
+    program = "kmk";
+#else
     program = "make";
+#endif
   else
     {
 #ifdef VMS
@@ -1494,8 +1498,8 @@ main (int argc, char **argv, char **envp)
   /* Decode the switches.  */
 
 #ifdef KMK
-  decode_env_switches (STRING_SIZE_TUPLE ("KMKFLAGS"));
-#endif
+  decode_env_switches (STRING_SIZE_TUPLE ("KMK_FLAGS"));
+#else /* !KMK */
   decode_env_switches (STRING_SIZE_TUPLE ("MAKEFLAGS"));
 #if 0
   /* People write things like:
@@ -1503,6 +1507,7 @@ main (int argc, char **argv, char **envp)
      and we set the -p, -i and -e switches.  Doesn't seem quite right.  */
   decode_env_switches (STRING_SIZE_TUPLE ("MFLAGS"));
 #endif
+#endif /* !KMK */
   decode_switches (argc, argv, 0);
 #ifdef WINDOWS32
   if (suspend_flag) {
@@ -1638,7 +1643,11 @@ main (int argc, char **argv, char **envp)
          exported value of MAKEFLAGS.  In POSIX-pedantic mode, we cannot
          allow the user's setting of MAKEOVERRIDES to affect MAKEFLAGS, so
          a reference to this hidden variable is written instead. */
+#ifdef KMK
+      (void) define_variable ("KMK_OVERRIDES", 13,
+#else
       (void) define_variable ("MAKEOVERRIDES", 13,
+#endif
 			      "${-*-command-variables-*-}", o_env, 1);
     }
 
@@ -1748,7 +1757,7 @@ main (int argc, char **argv, char **envp)
 #ifdef KMK /* this is really a candidate for all platforms... */
   {
     extern char *default_shell;
-    const char *bin = get_path_kbuild_bin();
+    const char *bin = get_kbuild_bin_path();
     size_t len = strlen (bin);
     default_shell = xmalloc (len + sizeof("/kmk_ash.exe"));
     memcpy (default_shell, bin, len);
@@ -1989,12 +1998,13 @@ main (int argc, char **argv, char **envp)
 
   /* Decode switches again, in case the variables were set by the makefile.  */
 #ifdef KMK
-  decode_env_switches (STRING_SIZE_TUPLE ("KMKFLAGS"));
-#endif
+  decode_env_switches (STRING_SIZE_TUPLE ("KMK_FLAGS"));
+#else /* !KMK */
   decode_env_switches (STRING_SIZE_TUPLE ("MAKEFLAGS"));
 #if 0
   decode_env_switches (STRING_SIZE_TUPLE ("MFLAGS"));
 #endif
+#endif /* !KMK */
 
 #if defined (__MSDOS__) || defined (__EMX__)
   if (job_slots != 1
@@ -2760,10 +2770,10 @@ print_usage (int bad)
 #ifdef KMK
   if (!remote_description || *remote_description == '\0')
     printf (_("\nThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
-            BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
   else
     printf (_("\nThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
-            BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
 #else  /* !KMK */
   if (!remote_description || *remote_description == '\0')
     fprintf (usageto, _("\nThis program built for %s\n"), make_host);
@@ -3044,7 +3054,11 @@ quote_for_env (char *out, const char *in)
 static void
 define_makeflags (int all, int makefile)
 {
+#ifdef KMK
+  static const char ref[] = "$(KMK_OVERRIDES)";
+#else
   static const char ref[] = "$(MAKEOVERRIDES)";
+#endif
   static const char posixref[] = "$(-*-command-variables-*-)";
   register const struct command_switch *cs;
   char *flagstring;
@@ -3234,9 +3248,11 @@ define_makeflags (int all, int makefile)
     /* Terminate the string.  */
     *p = '\0';
 
+#ifdef KMK
   /* Since MFLAGS is not parsed for flags, there is no reason to
      override any makefile redefinition.  */
   (void) define_variable ("MFLAGS", 6, flagstring, o_env, 1);
+#endif /* !KMK */
 
   if (all && command_variables != 0)
     {
@@ -3283,7 +3299,11 @@ define_makeflags (int all, int makefile)
   /* Terminate the string.  */
   *p = '\0';
 
+#ifdef KMK
+  v = define_variable ("KMK_FLAGS", 9,
+#else
   v = define_variable ("MAKEFLAGS", 9,
+#endif
 		       /* If there are switches, omit the leading dash
 			  unless it is a single long option with two
 			  leading dashes.  */
@@ -3373,27 +3393,27 @@ print_version (void)
             precede, precede, precede);
 
 #ifdef KMK
-# ifdef PATH_KBUILD
+# ifdef KBUILD_PATH
   printf (_("%s\n\
-%sPATH_KBUILD:     '%s' (default '%s')\n\
-%sPATH_KBUILD_BIN: '%s' (default '%s')\n"),
+%sKBUILD_PATH:     '%s' (default '%s')\n\
+%sKBUILD_BIN_PATH: '%s' (default '%s')\n"),
           precede,
-          precede, get_path_kbuild(), PATH_KBUILD,
-          precede, get_path_kbuild_bin(), PATH_KBUILD_BIN);
-# else  /* !PATH_KBUILD */
+          precede, get_kbuild_path(), KBUILD_PATH,
+          precede, get_kbuild_bin_path(), KBUILD_BIN_PATH);
+# else  /* !KBUILD_PATH */
   printf (_("%s\n\
-%sPATH_KBUILD:     '%s'\n\
-%sPATH_KBUILD_BIN: '%s'\n"),
+%sKBUILD_PATH:     '%s'\n\
+%sKBUILD_BIN_PATH: '%s'\n"),
           precede,
-          precede, get_path_kbuild(),
-          precede, get_path_kbuild_bin());
-# endif /* !PATH_KBUILD */
+          precede, get_kbuild_path(),
+          precede, get_kbuild_bin_path());
+# endif /* !KBUILD_PATH */
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
-            precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
   else
     printf (_("\n%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
-            precede, BUILD_PLATFORM, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU, remote_description);
+            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
 #else
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program built for %s\n"), precede, make_host);
