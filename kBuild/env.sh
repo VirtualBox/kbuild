@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1513 2008-04-09 01:52:03Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1517 2008-04-09 22:25:57Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -35,18 +35,35 @@ EVAL_OPT=
 DBG_OPT=
 QUIET_OPT=
 FULL_OPT=
+LEGACY_OPT="true"
 VAR_OPT=
+VALUE_ONLY_OPT=
 while test $# -gt 0; 
 do
     case "$1" in
         "--debug")
             DBG_OPT="true"
             ;;
+        "--no-debug")
+            DBG_OPT=
+            ;;
         "--quiet")
             QUIET_OPT="true"
             ;;
+        "--verbose")
+            QUIET_OPT=
+            ;;
         "--full")
             FULL_OPT="true"
+            ;;
+        "--normal")
+            FULL_OPT=
+            ;;
+        "--legacy")
+            LEGACY_OPT="true"
+            ;;
+        "--no-legacy")
+            LEGACY_OPT=
             ;;
         "--eval")
             EVAL_OPT="true"
@@ -56,10 +73,42 @@ do
         "--var")
             shift
             VAR_OPT="${VAR_OPT} $1"
+            ERR_REDIR=2
+            DBG_REDIR=2
+            ;;
+        "--value-only")
+            VALUE_ONLY_OPT="true"
+            ;;
+        "--name-and-value")
+            VALUE_ONLY_OPT=
             ;;
         "--help")
-            echo "syntax: $0 [--debug] [--quiet] [--full] [--eval] [--var name] [command [args]]"
-            ## FIXME: long --help screen.
+            echo "kBuild Environment Setup Script, v0.1.3"
+            echo ""
+            echo "syntax: $0 [options] [command [args]]"
+            echo "    or: $0 [options] --var <varname>"
+            echo "    or: $0 [options] --eval"
+            echo "    or: $0 [options] --eval --var <varname>"
+            echo ""
+            echo "The first form will execute the command, or if no command is givne start"
+            echo "an interactive shell."
+            echo "The second form will print the specfified variable(s)."
+            echo "The third form will print all exported variables suitable for bourne shell"
+            echo "evalutation."
+            echo "The forth form will only print the specified variable(s)."
+            echo ""
+            echo "Options:"
+            echo "  --debug, --no-debug"
+            echo "      Controls debug output. Default: --no-debug"
+            echo "  --quiet, --verbose"
+            echo "      Controls informational output. Default: --verbose"
+            echo "  --full, --normal"
+            echo "      Controls the variable set. Default: --normal"
+            echo "  --legacy, --no-legacy"
+            echo "      Include legacy variables in result. Default: --legacy"
+            echo "  --value-only, --name-and-value"
+            echo "      Controls what the result of a --var query. Default: --name-and-value"
+            echo ""
             exit 1
             ;;
         *)
@@ -71,27 +120,92 @@ done
 
 
 #
-# Determin the kBuild path from the script location.
+# Deal with legacy environment variables.
 #
-if test -z "$PATH_KBUILD"; then
-    PATH_KBUILD=`dirname "$0"`
-    PATH_KBUILD=`cd "$PATH_KBUILD" ; /bin/pwd`
+if test -n "$PATH_KBUILD"; then
+    if test -n "$KBUILD_PATH"  -a  "$KBUILD_PATH" != "$PATH_KBUILD"; then
+        echo "$0: error: KBUILD_PATH ($KBUILD_PATH) and PATH_KBUILD ($PATH_KBUILD) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_PATH=$PATH_KBUILD
 fi
-if test ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f "$PATH_KBUILD/rules.kmk"; then
-    echo "$0: error: PATH_KBUILD ($PATH_KBUILD) is not pointing to a popluated kBuild directory." 1>&${ERR_REDIR}
-    sleep 1;
-    exit 1;
+if test -n "$PATH_KBUILD_BIN"; then
+    if test -n "$KBUILD_BIN_PATH"  -a  "$KBUILD_BIN_PATH" != "$PATH_KBUILD_BIN"; then
+        echo "$0: error: KBUILD_BIN_PATH ($KBUILD_BIN_PATH) and PATH_KBUILD_BIN ($PATH_KBUILD_BIN) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_BIN_PATH=$PATH_KBUILD_BIN
 fi
-test -n "$DBG_OPT" && echo "dbg: PATH_KBUILD=$PATH_KBUILD" 1>&${DBG_REDIR}
+
+if test -n "$BUILD_TYPE"; then
+    if test -n "$KBUILD_TYPE"  -a  "$KBUILD_TYPE" != "$BUILD_TYPE"; then
+        echo "$0: error: KBUILD_TYPE ($KBUILD_TYPE) and BUILD_TYPE ($BUILD_TYPE) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_TYPE=$BUILD_TYPE
+fi
+
+if test -n "$BUILD_PLATFORM"; then
+    if test -n "$KBUILD_HOST"  -a  "$KBUILD_HOST" != "$BUILD_PLATFORM"; then
+        echo "$0: error: KBUILD_HOST ($KBUILD_HOST) and BUILD_PLATFORM ($BUILD_PLATFORM) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_HOST=$BUILD_PLATFORM
+fi
+if test -n "$BUILD_PLATFORM_ARCH"; then
+    if test -n "$KBUILD_HOST_ARCH"  -a  "$KBUILD_HOST_ARCH" != "$BUILD_PLATFORM_ARCH"; then
+        echo "$0: error: KBUILD_HOST_ARCH ($KBUILD_HOST_ARCH) and BUILD_PLATFORM_ARCH ($BUILD_PLATFORM_ARCH) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_HOST_ARCH=$BUILD_PLATFORM_ARCH
+fi
+if test -n "$BUILD_PLATFORM_CPU"; then
+    if test -n "$KBUILD_HOST_CPU"  -a  "$KBUILD_HOST_CPU" != "$BUILD_PLATFORM_CPU"; then
+        echo "$0: error: KBUILD_HOST_CPU ($KBUILD_HOST_CPU) and BUILD_PLATFORM_CPU ($BUILD_PLATFORM_CPU) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_HOST_CPU=$BUILD_PLATFORM_CPU
+fi
+
+if test -n "$BUILD_TARGET"; then
+    if test -n "$KBUILD_TARGET"  -a  "$KBUILD_TARGET" != "$BUILD_TARGET"; then
+        echo "$0: error: KBUILD_TARGET ($KBUILD_TARGET) and BUILD_TARGET ($BUILD_TARGET) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_TARGET=$BUILD_TARGET
+fi
+if test -n "$BUILD_TARGET_ARCH"; then
+    if test -n "$KBUILD_TARGET_ARCH"  -a  "$KBUILD_TARGET_ARCH" != "$BUILD_TARGET_ARCH"; then
+        echo "$0: error: KBUILD_TARGET_ARCH ($KBUILD_TARGET_ARCH) and BUILD_TARGET_ARCH ($BUILD_TARGET_ARCH) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_TARGET_ARCH=$BUILD_TARGET_ARCH
+fi
+if test -n "$BUILD_TARGET_CPU"; then
+    if test -n "$KBUILD_TARGET_CPU"  -a  "$KBUILD_TARGET_CPU" != "$BUILD_TARGET_CPU"; then
+        echo "$0: error: KBUILD_TARGET_CPU ($KBUILD_TARGET_CPU) and BUILD_TARGET_CPU ($BUILD_TARGET_CPU) disagree." 1>&${ERR_REDIR}
+        sleep 1
+        exit 1
+    fi
+    KBUILD_TARGET_CPU=$BUILD_TARGET_CPU
+fi
 
 
 #
 # Set default build type.
 #
-if test -z "$BUILD_TYPE"; then
-    BUILD_TYPE=release
+if test -z "$KBUILD_TYPE"; then
+    KBUILD_TYPE=release
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_TYPE=$BUILD_TYPE" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_TYPE=$KBUILD_TYPE" 1>&${DBG_REDIR}
 
 #
 # Determin the host platform.
@@ -100,204 +214,220 @@ test -n "$DBG_OPT" && echo "dbg: BUILD_TYPE=$BUILD_TYPE" 1>&${DBG_REDIR}
 # arch and platform (and build type) share a common key space, try make
 # sure any new additions are unique. (See header.kmk, KBUILD_OSES/ARCHES.)
 #
-if test -z "$BUILD_PLATFORM"; then
-    BUILD_PLATFORM=`uname`
-    case "$BUILD_PLATFORM" in
+if test -z "$KBUILD_HOST"; then
+    KBUILD_HOST=`uname`
+    case "$KBUILD_HOST" in
         linux|Linux|GNU/Linux|LINUX)
-            BUILD_PLATFORM=linux
+            KBUILD_HOST=linux
             ;;
 
         os2|OS/2|OS2)
-            BUILD_PLATFORM=os2
+            KBUILD_HOST=os2
             ;;
 
         freebsd|FreeBSD|FREEBSD)
-            BUILD_PLATFORM=freebsd
+            KBUILD_HOST=freebsd
             ;;
 
         openbsd|OpenBSD|OPENBSD)
-            BUILD_PLATFORM=openbsd
+            KBUILD_HOST=openbsd
             ;;
 
         netbsd|NetBSD|NETBSD)
-            BUILD_PLATFORM=netbsd
+            KBUILD_HOST=netbsd
             ;;
 
         Darwin|darwin)
-            BUILD_PLATFORM=darwin
+            KBUILD_HOST=darwin
             ;;
 
         SunOS)
-            BUILD_PLATFORM=solaris
+            KBUILD_HOST=solaris
             ;;
 
         WindowsNT|CYGWIN_NT-*)
-            BUILD_PLATFORM=win
+            KBUILD_HOST=win
             ;;
 
         *)
-            echo "$0: unknown os $BUILD_PLATFORM" 1>&${ERR_REDIR}
+            echo "$0: unknown os $KBUILD_HOST" 1>&${ERR_REDIR}
             sleep 1
             exit 1
             ;;
     esac
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM=$BUILD_PLATFORM" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_HOST=$KBUILD_HOST" 1>&${DBG_REDIR}
 
-if test -z "$BUILD_PLATFORM_ARCH"; then
+if test -z "$KBUILD_HOST_ARCH"; then
     # Try deduce it from the cpu if given.
-    if test -s "$BUILD_PLATFORM_CPU"; then
-        case "$BUILD_PLATFORM_CPU" in
+    if test -n "$KBUILD_HOST_CPU"; then
+        case "$KBUILD_HOST_CPU" in
             i[3456789]86)
-                BUILD_PLATFORM_ARCH='x86'
+                KBUILD_HOST_ARCH='x86'
                 ;;
             k8|k8l|k9|k10)
-                BUILD_PLATFORM_ARCH='amd64'
+                KBUILD_HOST_ARCH='amd64'
                 ;;
         esac
     fi
 fi
-if test -z "$BUILD_PLATFORM_ARCH"; then
+if test -z "$KBUILD_HOST_ARCH"; then
     # Use uname -m or isainfo (lots of guesses here, please help clean this up...)
-    if test "$BUILD_PLATFORM" = "solaris"; then
-        BUILD_PLATFORM_ARCH=`isainfo | cut -f 1 -d ' '`
+    if test "$KBUILD_HOST" = "solaris"; then
+        KBUILD_HOST_ARCH=`isainfo | cut -f 1 -d ' '`
         
     else
-        BUILD_PLATFORM_ARCH=`uname -m`
+        KBUILD_HOST_ARCH=`uname -m`
     fi
-    case "$BUILD_PLATFORM_ARCH" in
+    case "$KBUILD_HOST_ARCH" in
         x86_64|AMD64|amd64|k8|k8l|k9|k10)
-            BUILD_PLATFORM_ARCH='amd64'
+            KBUILD_HOST_ARCH='amd64'
             ;;
         x86|i86pc|ia32|i[3456789]86)
-            BUILD_PLATFORM_ARCH='x86'
+            KBUILD_HOST_ARCH='x86'
             ;;
         sparc32|sparc)
-            BUILD_PLATFORM_ARCH='sparc32'
+            KBUILD_HOST_ARCH='sparc32'
             ;;
         sparc64)
-            BUILD_PLATFORM_ARCH='sparc64'
+            KBUILD_HOST_ARCH='sparc64'
             ;;
         s390)
-            BUILD_PLATFORM_ARCH='s390'
+            KBUILD_HOST_ARCH='s390'
             ;;
         s390x)
-            BUILD_PLATFORM_ARCH='s390x'
+            KBUILD_HOST_ARCH='s390x'
             ;;
         ppc32|ppc|powerpc)
-            BUILD_PLATFORM_ARCH='ppc32'
+            KBUILD_HOST_ARCH='ppc32'
             ;;
         ppc64|powerpc64)
-            BUILD_PLATFORM_ARCH='ppc64'
+            KBUILD_HOST_ARCH='ppc64'
             ;;
         mips32|mips)
-            BUILD_PLATFORM_ARCH='mips32'
+            KBUILD_HOST_ARCH='mips32'
             ;;
         mips64)
-            BUILD_PLATFORM_ARCH='mips64'
+            KBUILD_HOST_ARCH='mips64'
             ;;
         ia64)
-            BUILD_PLATFORM_ARCH='ia64'
+            KBUILD_HOST_ARCH='ia64'
             ;;
         #hppa32|hppa|parisc32|parisc)?
         hppa32|parisc32)
-            BUILD_PLATFORM_ARCH='hppa32'
+            KBUILD_HOST_ARCH='hppa32'
             ;;
         hppa64|parisc64)
-            BUILD_PLATFORM_ARCH='hppa64'
+            KBUILD_HOST_ARCH='hppa64'
             ;;
         arm|armv4l|armv5tel)
-            BUILD_PLATFORM_ARCH='arm'
+            KBUILD_HOST_ARCH='arm'
             ;;
         alpha)
-            BUILD_PLATFORM_ARCH='alpha'
+            KBUILD_HOST_ARCH='alpha'
             ;;
 
-        *)  echo "$0: unknown cpu/arch - $BUILD_PLATFORM_ARCH" 1>&${ERR_REDIR}
+        *)  echo "$0: unknown cpu/arch - $KBUILD_HOST_ARCH" 1>&${ERR_REDIR}
             sleep 1
             exit 1
             ;;
     esac
 
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_HOST_ARCH=$KBUILD_HOST_ARCH" 1>&${DBG_REDIR}
 
-if test -z "$BUILD_PLATFORM_CPU"; then
-    BUILD_PLATFORM_CPU="blend"
+if test -z "$KBUILD_HOST_CPU"; then
+    KBUILD_HOST_CPU="blend"
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_HOST_CPU=$KBUILD_HOST_CPU" 1>&${DBG_REDIR}
 
 #
 # The target platform.
 # Defaults to the host when not specified.
 #
-if test -z "$BUILD_TARGET"; then
-    BUILD_TARGET="$BUILD_PLATFORM"
+if test -z "$KBUILD_TARGET"; then
+    KBUILD_TARGET="$KBUILD_HOST"
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET=$BUILD_TARGET" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_TARGET=$KBUILD_TARGET" 1>&${DBG_REDIR}
 
-if test -z "$BUILD_TARGET_ARCH"; then
-    BUILD_TARGET_ARCH="$BUILD_PLATFORM_ARCH"
+if test -z "$KBUILD_TARGET_ARCH"; then
+    KBUILD_TARGET_ARCH="$KBUILD_HOST_ARCH"
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET_ARCH=$BUILD_TARGET_ARCH" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_TARGET_ARCH=$KBUILD_TARGET_ARCH" 1>&${DBG_REDIR}
 
-if test -z "$BUILD_TARGET_CPU"; then
-    if test "$BUILD_TARGET_ARCH" = "$BUILD_PLATFORM_ARCH"; then
-        BUILD_TARGET_CPU="$BUILD_PLATFORM_CPU"
+if test -z "$KBUILD_TARGET_CPU"; then
+    if test "$KBUILD_TARGET_ARCH" = "$KBUILD_HOST_ARCH"; then
+        KBUILD_TARGET_CPU="$KBUILD_HOST_CPU"
     else
-        BUILD_TARGET_CPU="blend"
+        KBUILD_TARGET_CPU="blend"
     fi
 fi
-test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: KBUILD_TARGET_CPU=$KBUILD_TARGET_CPU" 1>&${DBG_REDIR}
 
-
+#
 # Determin executable extension and path separator.
+#
 _SUFF_EXE=
 _PATH_SEP=":"
-case "$BUILD_PLATFORM" in
+case "$KBUILD_HOST" in
     os2|win|nt)
         _SUFF_EXE=".exe"
         _PATH_SEP=";"
         ;;
 esac
 
-
 #
-# Calc PATH_KBUILD_BIN (but don't export it).
+# Determin KBUILD_PATH from the script location and calc KBUILD_BIN_PATH from there.
 #
-if test -z "$PATH_KBUILD_BIN"; then
-    PATH_KBUILD_BIN="${PATH_KBUILD}/bin/${BUILD_PLATFORM}.${BUILD_PLATFORM_ARCH}"
+if test -z "$KBUILD_PATH"; then
+    KBUILD_PATH=`dirname "$0"`
+    KBUILD_PATH=`cd "$KBUILD_PATH" ; /bin/pwd`
 fi
-test -n "$DBG_OPT" && echo "dbg: PATH_KBUILD_BIN=${PATH_KBUILD_BIN} (not exported)" 1>&${DBG_REDIR}
+if test ! -f "$KBUILD_PATH/footer.kmk" -o ! -f "$KBUILD_PATH/header.kmk" -o ! -f "$KBUILD_PATH/rules.kmk"; then
+    echo "$0: error: KBUILD_PATH ($KBUILD_PATH) is not pointing to a popluated kBuild directory." 1>&${ERR_REDIR}
+    sleep 1
+    exit 1
+fi
+test -n "$DBG_OPT" && echo "dbg: KBUILD_PATH=$KBUILD_PATH" 1>&${DBG_REDIR}
 
-# Make shell. OS/2 and DOS only?
-if test "$BUILD_PLATFORM" = "os2"; then
-    export MAKESHELL="${PATH_KBUILD_BIN}/kmk_ash${_SUFF_EXE}";
+if test -z "$KBUILD_BIN_PATH"; then
+    KBUILD_BIN_PATH="${KBUILD_PATH}/bin/${KBUILD_HOST}.${KBUILD_HOST_ARCH}"
+fi
+test -n "$DBG_OPT" && echo "dbg: KBUILD_BIN_PATH=${KBUILD_BIN_PATH}" 1>&${DBG_REDIR}
+
+#
+# Make shell - OS/2 only.
+# Remove this!
+#
+if test "$KBUILD_HOST" = "os2"; then
+    export MAKESHELL="${KBUILD_BIN_PATH}/kmk_ash${_SUFF_EXE}";
 fi
 
 #
 # Add the bin/x.y/ directory to the PATH.
 # NOTE! Once bootstrapped this is the only thing that is actually necessary.
 #
-PATH="${PATH_KBUILD_BIN}${_PATH_SEP}$PATH"
+PATH="${KBUILD_BIN_PATH}${_PATH_SEP}$PATH"
 test -n "$DBG_OPT" && echo "dbg: PATH=$PATH" 1>&${DBG_REDIR}
 
+#
 # Sanity and x bits.
-if test ! -d "${PATH_KBUILD_BIN}/"; then
-    echo "$0: warning: The bin directory for this platform doesn't exists. (${PATH_KBUILD_BIN}/)" 1>&${ERR_REDIR}
+#
+if test ! -d "${KBUILD_BIN_PATH}/"; then
+    echo "$0: warning: The bin directory for this platform doesn't exists. (${KBUILD_BIN_PATH}/)" 1>&${ERR_REDIR}
 else
     for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed;
     do
-        chmod a+x ${PATH_KBUILD_BIN}/${prog} > /dev/null 2>&1
-        if test ! -f "${PATH_KBUILD_BIN}/${prog}${_SUFF_EXE}"; then
-            echo "$0: warning: The ${prog} program doesn't exist for this platform. (${PATH_KBUILD_BIN}/${prog}${_SUFF_EXE})" 1>&${ERR_REDIR}
+        chmod a+x ${KBUILD_BIN_PATH}/${prog} > /dev/null 2>&1
+        if test ! -f "${KBUILD_BIN_PATH}/${prog}${_SUFF_EXE}"; then
+            echo "$0: warning: The ${prog} program doesn't exist for this platform. (${KBUILD_BIN_PATH}/${prog}${_SUFF_EXE})" 1>&${ERR_REDIR}
         fi
     done
 fi
 
-unset _SUFF_EXE
-unset _PATH_SEP
-
+#
+# The environment is in place, now take the requested action.
+#
 if test -n "${VAR_OPT}"; then
     # Echo variable values or variable export statements.
     for var in ${VAR_OPT};
@@ -307,32 +437,32 @@ if test -n "${VAR_OPT}"; then
             PATH) 
                 val=$PATH 
                 ;;
-            KBUILD_PATH|PATH_KBUILD) 
-                val=$PATH_KBUILD 
+            KBUILD_PATH) 
+                val=$KBUILD_PATH 
                 ;;
-            KBUILD_BIN_PATH|PATH_KBUILD_BIN) 
-                val=$PATH_KBUILD_BIN
+            KBUILD_BIN_PATH) 
+                val=$KBUILD_BIN_PATH
                 ;;
-            KBUILD_HOST|BUILD_PLATFORM) 
-                val=$BUILD_PLATFORM 
+            KBUILD_HOST) 
+                val=$KBUILD_HOST 
                 ;;
-            KBUILD_HOST_ARCH|BUILD_PLATFORM_ARCH) 
-                val=$BUILD_PLATFORM_ARCH
+            KBUILD_HOST_ARCH) 
+                val=$KBUILD_HOST_ARCH
                 ;;
-            KBUILD_HOST_CPU|BUILD_PLATFORM_CPU) 
-                val=$BUILD_PLATFORM_CPU
+            KBUILD_HOST_CPU) 
+                val=$KBUILD_HOST_CPU
                 ;;
-            KBUILD_TARGET|BUILD_TARGET) 
-                val=$BUILD_TARGET 
+            KBUILD_TARGET) 
+                val=$KBUILD_TARGET 
                 ;;
-            KBUILD_TARGET_ARCH|BUILD_TARGET_ARCH) 
-                val=$BUILD_TARGET_ARCH
+            KBUILD_TARGET_ARCH) 
+                val=$KBUILD_TARGET_ARCH
                 ;;
-            KBUILD_TARGET_CPU|BUILD_TARGET_CPU) 
-                val=$BUILD_TARGET_CPU
+            KBUILD_TARGET_CPU) 
+                val=$KBUILD_TARGET_CPU
                 ;;
-            KBUILD_TYPE|BUILD_TYPE) 
-                val=$BUILD_TARGET_CPU
+            KBUILD_TYPE) 
+                val=$KBUILD_TYPE
                 ;;
             *)  
                 echo "$0: error: Unknown variable $var specified in --var request." 1>&${ERR_REDIR}
@@ -344,7 +474,11 @@ if test -n "${VAR_OPT}"; then
         if test -n "$EVAL_OPT"; then
             echo "export $var=$val"
         else
-            echo "$var=$val"
+            if test -n "$VALUE_ONLY_OPT"; then
+                echo "$val"
+            else
+                echo "$var=$val"
+            fi
         fi
     done
 else
@@ -353,27 +487,49 @@ else
         test -n "$DBG_OPT" && echo "dbg: echoing exported variables" 1>&${DBG_REDIR}
         echo "export PATH=${PATH}"
         if test -n "${FULL_OPT}"; then
-            echo "export BUILD_PLATFORM=${BUILD_PLATFORM}"
-            echo "export BUILD_PLATFORM_ARCH=${BUILD_PLATFORM_ARCH}"
-            echo "export BUILD_PLATFORM_CPU=${BUILD_PLATFORM_CPU}"
-            echo "export BUILD_TARGET=${BUILD_TARGET}"
-            echo "export BUILD_TARGET_ARCH=${BUILD_TARGET_ARCH}"
-            echo "export BUILD_TARGET_CPU=${BUILD_TARGET_CPU}"
-            echo "export BUILD_TYPE=${BUILD_TYPE}"
-            echo "export PATH_KBUILD=${PATH_KBUILD}"
+            echo "export KBUILD_PATH=${KBUILD_PATH}"
+            echo "export KBUILD_TYPE=${KBUILD_TYPE}"
+            echo "export KBUILD_HOST=${KBUILD_HOST}"
+            echo "export KBUILD_HOST_ARCH=${KBUILD_HOST_ARCH}"
+            echo "export KBUILD_HOST_CPU=${KBUILD_HOST_CPU}"
+            echo "export KBUILD_TARGET=${KBUILD_TARGET}"
+            echo "export KBUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
+            echo "export KBUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
+
+            if test -n "${LEGACY_OPT}"; then
+                echo "export PATH_KBUILD=${KBUILD_PATH}"
+                echo "export BUILD_TYPE=${KBUILD_TYPE}"
+                echo "export BUILD_PLATFORM=${KBUILD_HOST}"
+                echo "export BUILD_PLATFORM_ARCH=${KBUILD_HOST_ARCH}"
+                echo "export BUILD_PLATFORM_CPU=${KBUILD_HOST_CPU}"
+                echo "export BUILD_TARGET=${KBUILD_TARGET}"
+                echo "export BUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
+                echo "export BUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
+            fi
         fi
     else
         # Export variables.
         export PATH
         if test -n "${FULL_OPT}"; then
-            export PATH_KBUILD
-            export BUILD_TYPE
-            export BUILD_PLATFORM
-            export BUILD_PLATFORM_ARCH
-            export BUILD_PLATFORM_CPU
-            export BUILD_TARGET
-            export BUILD_TARGET_ARCH
-            export BUILD_TARGET_CPU
+            export KBUILD_PATH
+            export KBUILD_TYPE
+            export KBUILD_HOST
+            export KBUILD_HOST_ARCH
+            export KBUILD_HOST_CPU
+            export KBUILD_TARGET
+            export KBUILD_TARGET_ARCH
+            export KBUILD_TARGET_CPU
+
+            if test -n "${LEGACY_OPT}"; then
+                export PATH_KBUILD=$KBUILD_PATH
+                export BUILD_TYPE=$KBUILD_TYPE
+                export BUILD_PLATFORM=$KBUILD_HOST
+                export BUILD_PLATFORM_ARCH=$KBUILD_HOST_ARCH
+                export BUILD_PLATFORM_CPU=$KBUILD_HOST_CPU
+                export BUILD_TARGET=$KBUILD_TARGET
+                export BUILD_TARGET_ARCH=$KBUILD_TARGET_ARCH
+                export BUILD_TARGET_CPU=$KBUILD_TARGET_CPU
+            fi
         fi
     
         # Execute command or spawn shell.
