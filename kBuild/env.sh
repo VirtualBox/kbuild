@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1511 2008-04-09 01:19:54Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1512 2008-04-09 01:36:57Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -34,20 +34,34 @@ DBG_REDIR=1
 EVAL_OPT=
 DBG_OPT=
 QUIET_OPT=
-if test "$1" = "--debug"; then
-    DBG_OPT="true"
+FULL_OPT=
+while test $# -gt 0; 
+do
+    case "$1" in
+        "--debug")
+            DBG_OPT="true"
+            ;;
+        "--quiet")
+            QUIET_OPT="true"
+            ;;
+        "--full")
+            FULL_OPT="true"
+            ;;
+        "--eval")
+            EVAL_OPT="true"
+            ERR_REDIR=2
+            DBG_REDIR=2
+            ;;
+        "--help")
+            echo "syntax: $0 [--debug] [--quiet] [--full] [--eval] [command [args]]"
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
     shift
-fi
-if test "$1" = "--quiet"; then
-    QUIET_OPT="true"
-    shift
-fi
-if test "$1" = "--eval"; then
-    EVAL_OPT="true"
-    ERR_REDIR=2
-    DBG_REDIR=2
-    shift
-fi
+done
 
 
 #
@@ -62,7 +76,6 @@ if test ! -f "$PATH_KBUILD/footer.kmk" -o ! -f "$PATH_KBUILD/header.kmk" -o ! -f
     sleep 1;
     exit 1;
 fi
-export PATH_KBUILD
 test -n "$DBG_OPT" && echo "dbg: PATH_KBUILD=$PATH_KBUILD" 1>&${DBG_REDIR}
 
 
@@ -72,7 +85,6 @@ test -n "$DBG_OPT" && echo "dbg: PATH_KBUILD=$PATH_KBUILD" 1>&${DBG_REDIR}
 if test -z "$BUILD_TYPE"; then
     BUILD_TYPE=release
 fi
-export BUILD_TYPE
 test -n "$DBG_OPT" && echo "dbg: BUILD_TYPE=$BUILD_TYPE" 1>&${DBG_REDIR}
 
 #
@@ -124,7 +136,6 @@ if test -z "$BUILD_PLATFORM"; then
             ;;
     esac
 fi
-export BUILD_PLATFORM
 test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM=$BUILD_PLATFORM" 1>&${DBG_REDIR}
 
 if test -z "$BUILD_PLATFORM_ARCH"; then
@@ -203,13 +214,11 @@ if test -z "$BUILD_PLATFORM_ARCH"; then
     esac
 
 fi
-export BUILD_PLATFORM_ARCH
 test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM_ARCH=$BUILD_PLATFORM_ARCH" 1>&${DBG_REDIR}
 
 if test -z "$BUILD_PLATFORM_CPU"; then
     BUILD_PLATFORM_CPU="blend"
 fi
-export BUILD_PLATFORM_CPU
 test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU" 1>&${DBG_REDIR}
 
 #
@@ -219,13 +228,11 @@ test -n "$DBG_OPT" && echo "dbg: BUILD_PLATFORM_CPU=$BUILD_PLATFORM_CPU" 1>&${DB
 if test -z "$BUILD_TARGET"; then
     BUILD_TARGET="$BUILD_PLATFORM"
 fi
-export BUILD_TARGET
 test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET=$BUILD_TARGET" 1>&${DBG_REDIR}
 
 if test -z "$BUILD_TARGET_ARCH"; then
     BUILD_TARGET_ARCH="$BUILD_PLATFORM_ARCH"
 fi
-export BUILD_TARGET_ARCH
 test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET_ARCH=$BUILD_TARGET_ARCH" 1>&${DBG_REDIR}
 
 if test -z "$BUILD_TARGET_CPU"; then
@@ -235,7 +242,6 @@ if test -z "$BUILD_TARGET_CPU"; then
         BUILD_TARGET_CPU="blend"
     fi
 fi
-export BUILD_TARGET_CPU
 test -n "$DBG_OPT" && echo "dbg: BUILD_TARGET_CPU=$BUILD_TARGET_CPU" 1>&${DBG_REDIR}
 
 
@@ -268,7 +274,6 @@ fi
 # NOTE! Once bootstrapped this is the only thing that is actually necessary.
 #
 PATH="${PATH_KBUILD_BIN}${_PATH_SEP}$PATH"
-export PATH
 test -n "$DBG_OPT" && echo "dbg: PATH=$PATH" 1>&${DBG_REDIR}
 
 # Sanity and x bits.
@@ -289,17 +294,31 @@ unset _PATH_SEP
 
 if test -n "$EVAL_OPT"; then
     test -n "$DBG_OPT" && echo "dbg: echoing exported variables" 1>&${DBG_REDIR}
-    echo "export BUILD_PLATFORM=${BUILD_PLATFORM}"
-    echo "export BUILD_PLATFORM_ARCH=${BUILD_PLATFORM_ARCH}"
-    echo "export BUILD_PLATFORM_CPU=${BUILD_PLATFORM_CPU}"
-    echo "export BUILD_TARGET=${BUILD_TARGET}"
-    echo "export BUILD_TARGET_ARCH=${BUILD_TARGET_ARCH}"
-    echo "export BUILD_TARGET_CPU=${BUILD_TARGET_CPU}"
-    echo "export BUILD_TYPE=${BUILD_TYPE}"
-    echo "export PATH_KBUILD=${PATH_KBUILD}"
     echo "export PATH=${PATH}"
+    if test -n "${FULL_OPT}"; then
+        echo "export BUILD_PLATFORM=${BUILD_PLATFORM}"
+        echo "export BUILD_PLATFORM_ARCH=${BUILD_PLATFORM_ARCH}"
+        echo "export BUILD_PLATFORM_CPU=${BUILD_PLATFORM_CPU}"
+        echo "export BUILD_TARGET=${BUILD_TARGET}"
+        echo "export BUILD_TARGET_ARCH=${BUILD_TARGET_ARCH}"
+        echo "export BUILD_TARGET_CPU=${BUILD_TARGET_CPU}"
+        echo "export BUILD_TYPE=${BUILD_TYPE}"
+        echo "export PATH_KBUILD=${PATH_KBUILD}"
+    fi
     test -n "$DBG_OPT" && echo "dbg: finished" 1>&${DBG_REDIR}
 else
+    export PATH
+    if test -n "${FULL_OPT}"; then
+        export PATH_KBUILD
+        export BUILD_TYPE
+        export BUILD_PLATFORM
+        export BUILD_PLATFORM_ARCH
+        export BUILD_PLATFORM_CPU
+        export BUILD_TARGET
+        export BUILD_TARGET_ARCH
+        export BUILD_TARGET_CPU
+    fi
+
     # Execute command or spawn shell.
     if test $# -eq 0; then
         test -z "${QUIET_OPT}" && echo "$0: info: Spawning work shell..." 1>&${ERR_REDIR}
@@ -308,7 +327,7 @@ else
         fi
         $SHELL -i
     else
-        echo "$0: info: Executing command: $*"
+        test -z "${QUIET_OPT}" && echo "$0: info: Executing command: $*" 1>&${ERR_REDIR}
         $*
     fi
 fi

@@ -1,10 +1,10 @@
-# $Id: bootstrap.gmk 1506 2008-04-09 00:22:07Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 1512 2008-04-09 01:36:57Z knut.osmundsen@oracle.com $
 ## @file
-#
 # GNU Make Compatible bootstrap Makefile.
 #
-# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+
 #
+# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -38,7 +38,7 @@
 #   - echo done > some-file works.
 #   - GNU make implements CURDIR, if not please define SRCDIR.
 #
-# Tip. kBuild/env.sh (g)make -f bootstrap.kmk
+# Tip: kBuild/env.sh --full (g)make -f bootstrap.kmk
 #
 #
 
