@@ -1,11 +1,10 @@
-#!/bin/bash
 #!/bin/sh should work fine too, just needs testing.
-# $Id: env.sh 1488 2008-04-04 02:36:46Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1507 2008-04-09 00:23:59Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Environment setup script.
 #
-# Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
