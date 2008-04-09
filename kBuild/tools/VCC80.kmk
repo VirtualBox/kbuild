@@ -1,7 +1,7 @@
-# $Id: VCC80.kmk 1354 2007-12-03 01:07:33Z knut.osmundsen@oracle.com $
+# $Id: VCC80.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
+# kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(KBUILD_TARGET).
 #
 # Copyright (c) 2004-2007 knut st. osmundsen <fbird-kBuild-spam@anduin.net>
 #
@@ -24,7 +24,7 @@
 #
 #
 
-TOOL_VCC80 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(BUILD_TARGET).
+TOOL_VCC80 := Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting $(KBUILD_TARGET).
 
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC80
@@ -47,22 +47,22 @@ else
  PATH_TOOL_VCC80 := $(PATH_TOOL_VCC80)
 endif
 ifneq ($(PATH_TOOL_VCC80),)
- ifeq ($(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH),win.amd64)
+ ifeq ($(KBUILD_HOST).$(KBUILD_HOST_ARCH),win.amd64)
  PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/amd64
  else
  PATH_TOOL_VCC80_BIN.amd64 ?= $(PATH_TOOL_VCC80)/bin/x86_amd64
  endif
  PATH_TOOL_VCC80_BIN.x86   ?= $(PATH_TOOL_VCC80)/bin
- PATH_TOOL_VCC80_BIN       ?= $(PATH_TOOL_VCC80_BIN.$(BUILD_TARGET))
+ PATH_TOOL_VCC80_BIN       ?= $(PATH_TOOL_VCC80_BIN.$(KBUILD_TARGET))
  PATH_TOOL_VCC80_LIB.amd64 ?= $(PATH_TOOL_VCC80)/lib/amd64
  PATH_TOOL_VCC80_LIB.x86   ?= $(PATH_TOOL_VCC80)/lib
- PATH_TOOL_VCC80_LIB       ?= $(PATH_TOOL_VCC80_LIB.$(BUILD_TARGET))
+ PATH_TOOL_VCC80_LIB       ?= $(PATH_TOOL_VCC80_LIB.$(KBUILD_TARGET))
  PATH_TOOL_VCC80_INC       ?= $(PATH_TOOL_VCC80)/include
  PATH_TOOL_VCC80_ATLMFC    ?= $(PATH_TOOL_VCC80X86)/atlmfc
  PATH_TOOL_VCC80_ATLMFC_INC       ?= $(PATH_TOOL_VCC80_ATLMFC)/include
  PATH_TOOL_VCC80_ATLMFC_LIB.amd64 ?= $(PATH_TOOL_VCC80_ATLMFC)/lib
  PATH_TOOL_VCC80_ATLMFC_LIB.x86   ?= $(PATH_TOOL_VCC80_ATLMFC)/lib/amd64
- PATH_TOOL_VCC80_ATLMFC_LIB       ?= $(PATH_TOOL_VCC80_ATLMFC_LIB.$(BUILD_TARGET))
+ PATH_TOOL_VCC80_ATLMFC_LIB       ?= $(PATH_TOOL_VCC80_ATLMFC_LIB.$(KBUILD_TARGET))
  TOOL_VCC80_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
  TOOL_VCC80_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/cl.exe
  TOOL_VCC80_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC80_BIN)/ml64.exe

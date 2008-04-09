@@ -1,9 +1,9 @@
-# $Id: header.kmk 1501 2008-04-07 23:52:19Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of a makefile.
 #
-# Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -48,8 +48,8 @@ ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
   $(warning kBuild: kmk minor version mismatch! Expected '1' but found '$(KBUILD_VERSION_MINOR)'!)
  endif
 else
- ifneq ($(int-ge $(KBUILD_VERSION_PATCH),2),1)
-  $(warning kBuild: kmk version mismatch! Expected 0.1.2 or later. Actual version is $(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR).$(KBUILD_VERSION_PATCH).)
+ ifneq ($(int-ge $(KBUILD_VERSION_PATCH),3),1)
+  $(warning kBuild: kmk version mismatch! Expected 0.1.3 or later. Actual version is $(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR).$(KBUILD_VERSION_PATCH).)
  endif
 endif
 
@@ -57,7 +57,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1501 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1504 $  )
 
 
 #
@@ -159,15 +159,45 @@ KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 
 #
 # Set default build type.
 #
-ifndef BUILD_TYPE
- BUILD_TYPE := release
+ifndef KBUILD_TYPE
+ ifdef BUILD_TYPE
+  KBUILD_TYPE := $(BUILD_TYPE)
+ endif
+else ifdef BUILD_TYPE
+ ifneq ($(KBUILD_TYPE),$(BUILD_TYPE))
+  ifeq ($(origin KBUILD_TYPE):$(origin BUILD_TYPE),environment:command line)
+   KBUILD_TYPE := $(BUILD_TYPE)
+  else ifneq ($(origin KBUILD_TYPE):$(origin BUILD_TYPE),command line:environment)
+   $(error kBuild: KBUILD_TYPE and BUILD_TYPE disagree.)
+  endif
+ endif
+endif
+override BUILD_TYPE = $(KBUILD_TYPE)
+
+ifndef KBUILD_TYPE
+ KBUILD_TYPE := release
 else
- if1of ($(BUILD_TYPE), $(KBUILD_OSES) $(KBUILD_ARCHES))
-  $(error kBuild: The BUILD_TYPE value '$(BUILD_TYPE)' is an OS or architecture!)
+ if1of ($(KBUILD_TYPE), $(KBUILD_OSES) $(KBUILD_ARCHES))
+  $(error kBuild: The KBUILD_TYPE value '$(KBUILD_TYPE)' is an OS or architecture!)
  endif
- ifneq (.$(words $(BUILD_TYPE)).$(BUILD_TYPE).,.1.$(strip $(BUILD_TYPE)).)
-  $(error kBuild: The BUILD_TYPE value '$(BUILD_TYPE)' contains spaces/tabs!)
+ ifneq (.$(words $(KBUILD_TYPE)).$(KBUILD_TYPE).,.1.$(strip $(KBUILD_TYPE)).)
+  $(error kBuild: The KBUILD_TYPE value '$(KBUILD_TYPE)' contains spaces/tabs!)
  endif
+endif
+
+
+#
+# Host platform legacy 
+# kmk deals with this, so this is only temporary until I've rebuilt everything.
+#
+ifndef KBUILD_HOST
+ KBUILD_HOST := $(BUILD_PLATFORM)
+endif
+ifndef KBUILD_HOST_ARCH
+ KBUILD_HOST_ARCH := $(BUILD_PLATFORM_ARCH)
+endif
+ifndef KBUILD_HOST_CPU
+ KBUILD_HOST_CPU := $(BUILD_PLATFORM_CPU)
 endif
 
 
@@ -177,78 +207,127 @@ endif
 # All these are set by kmk so they shouldn't be any trouble
 # unless the user starts messing about with environment variables.
 #
-ifneq (.$(words $(BUILD_PLATFORM)).$(BUILD_PLATFORM).,.1.$(strip $(BUILD_PLATFORM)).)
- $(error kBuild: The BUILD_PLATFORM value '$(BUILD_PLATFORM)' contains spaces/tabs!)
+ifneq (.$(words $(KBUILD_HOST)).$(KBUILD_HOST).,.1.$(strip $(KBUILD_HOST)).)
+ $(error kBuild: The KBUILD_HOST value '$(KBUILD_HOST)' contains spaces/tabs!)
 endif
-ifneq ($(words $(filter $(BUILD_PLATFORM),$(KBUILD_OSES))),1)
- $(error kBuild: BUILD_PLATFORM value '$(BUILD_PLATFORM)' is not recognized (valid: $(KBUILD_OSES)))
-endif
-
-ifneq (.$(words $(BUILD_PLATFORM_ARCH)).$(BUILD_PLATFORM_ARCH).,.1.$(strip $(BUILD_PLATFORM_ARCH)).)
- $(error kBuild: The BUILD_PLATFORM_ARCH value '$(BUILD_PLATFORM_ARCH)' contains spaces/tabs!)
-endif
-ifneq ($(words $(filter $(BUILD_PLATFORM_ARCH),$(KBUILD_ARCHES))),1)
- $(error kBuild: BUILD_PLATFORM_ARCH value '$(BUILD_PLATFORM_ARCH)' is not recognized (valid: $(KBUILD_ARCHES)))
+ifneq ($(words $(filter $(KBUILD_HOST),$(KBUILD_OSES))),1)
+ $(error kBuild: KBUILD_HOST value '$(KBUILD_HOST)' is not recognized (valid: $(KBUILD_OSES)))
 endif
 
-ifeq ($(strip $(BUILD_PLATFORM_CPU)),)
- BUILD_PLATFORM_CPU := blend
+ifneq (.$(words $(KBUILD_HOST_ARCH)).$(KBUILD_HOST_ARCH).,.1.$(strip $(KBUILD_HOST_ARCH)).)
+ $(error kBuild: The KBUILD_HOST_ARCH value '$(KBUILD_HOST_ARCH)' contains spaces/tabs!)
+endif
+ifneq ($(words $(filter $(KBUILD_HOST_ARCH),$(KBUILD_ARCHES))),1)
+ $(error kBuild: KBUILD_HOST_ARCH value '$(KBUILD_HOST_ARCH)' is not recognized (valid: $(KBUILD_ARCHES)))
+endif
+
+ifeq ($(strip $(KBUILD_HOST_CPU)),)
+ KBUILD_HOST_CPU := blend
 else
- ifneq (.$(words $(BUILD_PLATFORM_CPU)).$(BUILD_PLATFORM_CPU).,.1.$(strip $(BUILD_PLATFORM_CPU)).)
-  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' contains spaces/tabs!)
+ ifneq (.$(words $(KBUILD_HOST_CPU)).$(KBUILD_HOST_CPU).,.1.$(strip $(KBUILD_HOST_CPU)).)
+  $(error kBuild: The KBUILD_HOST_CPU value '$(KBUILD_HOST_CPU)' contains spaces/tabs!)
  endif
- if1of ($(BUILD_PLATFORM_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
-  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' was found in the OS or architecture keywords!)
+ if1of ($(KBUILD_HOST_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
+  $(error kBuild: The KBUILD_HOST_CPU value '$(KBUILD_HOST_CPU)' was found in the OS or architecture keywords!)
  endif
- ifeq ($(BUILD_PLATFORM_CPU),$(BUILD_TYPE))
-  $(error kBuild: The BUILD_PLATFORM_CPU value '$(BUILD_PLATFORM_CPU)' is the same as the BUILD_TYPE!)
+ ifeq ($(KBUILD_HOST_CPU),$(KBUILD_TYPE))
+  $(error kBuild: The KBUILD_HOST_CPU value '$(KBUILD_HOST_CPU)' is the same as the KBUILD_TYPE!)
  endif
 endif
+
+
+#
+# Deal with target platform legacy.
+#
+ifndef KBUILD_TARGET
+ ifdef BUILD_TARGET
+  KBUILD_TARGET := $(BUILD_TARGET)
+ endif
+else ifdef BUILD_TARGET
+ ifneq ($(KBUILD_TARGET),$(BUILD_TARGET))
+  ifeq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),environment:command line)
+   KBUILD_TARGET := $(BUILD_TARGET)
+  else ifneq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),command line:environment)
+   $(error kBuild: KBUILD_TARGET and BUILD_TARGET disagree) 
+  endif
+ endif
+endif
+override BUILD_TARGET = $(KBUILD_TARGET)
+
+ifndef KBUILD_TARGET_ARCH
+ ifdef BUILD_TARGET_ARCH
+  KBUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH)
+ endif
+else ifdef BUILD_TARGET_ARCH
+ ifneq ($(KBUILD_TARGET_ARCH),$(BUILD_TARGET_ARCH))
+  ifeq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),environment:command line)
+   KBUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH)
+  else ifneq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),command line:environment)
+   $(error kBuild: KBUILD_TARGET_ARCH and BUILD_TARGET_ARCH disagree) 
+  endif
+ endif
+endif
+override BUILD_TARGET_ARCH = $(KBUILD_TARGET_ARCH)
+
+ifndef KBUILD_TARGET_CPU
+ ifdef BUILD_TARGET_CPU
+  KBUILD_TARGET_CPU := $(BUILD_TARGET_CPU)
+ endif
+else ifdef BUILD_TARGET_CPU
+ ifneq ($(KBUILD_TARGET_CPU),$(BUILD_TARGET_CPU))
+  ifeq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),environment:command line)
+   KBUILD_TARGET_CPU := $(BUILD_TARGET_CPU)
+  else ifneq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),command line:environment)
+   $(error kBuild: KBUILD_TARGET_CPU and BUILD_TARGET_CPU disagree) 
+  endif
+ endif
+endif
+override BUILD_TARGET_CPU = $(KBUILD_TARGET_CPU)
 
 
 #
 # Assert or set default target platform.
-# When not defined use the corresponding BUILD_PLATFORM value.
+# When not defined use the corresponding KBUILD_HOST value.
 #
-ifndef BUILD_TARGET
- BUILD_TARGET := $(BUILD_PLATFORM)
+ifndef KBUILD_TARGET
+ KBUILD_TARGET := $(KBUILD_HOST)
 else
- ifneq (.$(words $(BUILD_TARGET)).$(BUILD_TARGET).,.1.$(strip $(BUILD_TARGET)).)
-  $(error kBuild: The BUILD_TARGET value '$(BUILD_TARGET)' contains spaces/tabs!)
+ ifneq (.$(words $(KBUILD_TARGET)).$(KBUILD_TARGET).,.1.$(strip $(KBUILD_TARGET)).)
+  $(error kBuild: The KBUILD_TARGET value '$(KBUILD_TARGET)' contains spaces/tabs!)
  endif
- ifneq ($(words $(filter $(BUILD_TARGET),$(KBUILD_OSES))),1)
-  $(error kBuild: BUILD_TARGET value '$(BUILD_TARGET)' is not recognized (valid: $(KBUILD_OSES)))
+ ifneq ($(words $(filter $(KBUILD_TARGET),$(KBUILD_OSES))),1)
+  $(error kBuild: KBUILD_TARGET value '$(KBUILD_TARGET)' is not recognized (valid: $(KBUILD_OSES)))
  endif
 endif
 
-ifndef BUILD_TARGET_ARCH
- BUILD_TARGET_ARCH := $(BUILD_PLATFORM_ARCH)
+ifndef KBUILD_TARGET_ARCH
+ KBUILD_TARGET_ARCH := $(KBUILD_HOST_ARCH)
 else
- ifneq (.$(words $(BUILD_TARGET_ARCH)).$(BUILD_TARGET_ARCH).,.1.$(strip $(BUILD_TARGET_ARCH)).)
-  $(error kBuild: The BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)' contains spaces/tabs!)
+ ifneq (.$(words $(KBUILD_TARGET_ARCH)).$(KBUILD_TARGET_ARCH).,.1.$(strip $(KBUILD_TARGET_ARCH)).)
+  $(error kBuild: The KBUILD_TARGET_ARCH value '$(KBUILD_TARGET_ARCH)' contains spaces/tabs!)
  endif
- ifneq ($(words $(filter $(BUILD_TARGET_ARCH),$(KBUILD_ARCHES))),1)
-  $(error kBuild: BUILD_TARGET_ARCH value '$(BUILD_TARGET_ARCH)' is not recognized (valid: $(KBUILD_ARCHES)))
+ ifneq ($(words $(filter $(KBUILD_TARGET_ARCH),$(KBUILD_ARCHES))),1)
+  $(error kBuild: KBUILD_TARGET_ARCH value '$(KBUILD_TARGET_ARCH)' is not recognized (valid: $(KBUILD_ARCHES)))
  endif
 endif
 
-ifndef BUILD_TARGET_CPU
- BUILD_TARGET_CPU := $(BUILD_PLATFORM_CPU)
-else ifeq ($(strip $(BUILD_TARGET_CPU)),)
- ifeq ($(BUILD_TARGET_ARCH),$(BUILD_PLATFORM_ARCH))
-  BUILD_TARGET_CPU := $(BUILD_PLATFORM_CPU)
+ifndef KBUILD_TARGET_CPU
+ KBUILD_TARGET_CPU := $(KBUILD_HOST_CPU)
+else ifeq ($(strip $(KBUILD_TARGET_CPU)),)
+ ifeq ($(KBUILD_TARGET_ARCH),$(KBUILD_HOST_ARCH))
+  KBUILD_TARGET_CPU := $(KBUILD_HOST_CPU)
  else
-  BUILD_TARGET_CPU := blend
+  KBUILD_TARGET_CPU := blend
  endif
 else
- ifneq (.$(words $(BUILD_TARGET_CPU)).$(BUILD_TARGET_CPU).,.1.$(strip $(BUILD_TARGET_CPU)).)
-  $(error kBuild: The BUILD_TARGET_CPU value '$(BUILD_TARGET_CPU)' contains spaces/tabs!)
+ ifneq (.$(words $(KBUILD_TARGET_CPU)).$(KBUILD_TARGET_CPU).,.1.$(strip $(KBUILD_TARGET_CPU)).)
+  $(error kBuild: The KBUILD_TARGET_CPU value '$(KBUILD_TARGET_CPU)' contains spaces/tabs!)
  endif
- if1of ($(BUILD_TARGET_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
-  $(error kBuild: The BUILD_TARGET_CPU value was found in the OS or architecture keywords!)
+ if1of ($(KBUILD_TARGET_CPU), $(KBUILD_OSES) $(BUILD_ARCHES))
+  $(error kBuild: The KBUILD_TARGET_CPU value was found in the OS or architecture keywords!)
  endif
- ifeq ($(BUILD_TARGET_CPU),$(BUILD_TYPE))
-  $(error kBuild: The BUILD_TARGET_CPU value '$(BUILD_TARGET_CPU)' is the same as the BUILD_TYPE!)
+ ifeq ($(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
+  $(error kBuild: The KBUILD_TARGET_CPU value '$(KBUILD_TARGET_CPU)' is the same as the KBUILD_TYPE!)
  endif
 endif
 
@@ -291,10 +370,10 @@ ifndef PATH_OUT_BASE
  PATH_OUT_BASE      := $(PATH_ROOT)/out
 endif
 ifndef PATH_OUT
- ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places.)
-  PATH_OUT          := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(BUILD_TYPE)
+ ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places - obsolete)
+  PATH_OUT          := $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(KBUILD_TYPE)
  else
-  PATH_OUT          := $(PATH_OUT_BASE)/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/$(BUILD_TYPE)
+  PATH_OUT          := $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/$(KBUILD_TYPE)
  endif
 endif # !define PATH_OUT
 PATH_OBJCACHE        = $(PATH_OUT_BASE)/kObjCache
@@ -307,19 +386,25 @@ PATH_SYS             = $(PATH_INS)/bin
 PATH_LIB             = $(PATH_INS)/lib
 PATH_DOC             = $(PATH_INS)/doc
 
-# PATH_KBUILD is determined by kmk.
-ifeq ($(strip $(PATH_KBUILD)),)
- $(error kBuild: PATH_KBUILD is missing or empty! kmk is supposed to set it.)
+# KBUILD_PATH / PATH_KBUILD is determined by kmk.
+ifndef KBUILD_PATH
+ KBUILD_PATH := $(PATH_KBUILD)
 endif
-# PATH_KBUILD_BIN is determined by kmk.
-ifeq ($(strip $(PATH_KBUILD_BIN)),)
- $(error kBuild: PATH_KBUILD_BIN is missing or empty! kmk is supposed to set it.)
+ifeq ($(strip $(KBUILD_PATH)),)
+ $(error kBuild: KBUILD_PATH is missing or empty! kmk is supposed to set it.)
+endif
+# KBUILD_BIN_PATH / PATH_KBUILD_BIN is determined by kmk.
+ifndef KBUILD_BIN_PATH
+ KBUILD_BIN_PATH := $(PATH_KBUILD_BIN)
+endif
+ifeq ($(strip $(KBUILD_BIN_PATH)),)
+ $(error kBuild: KBUILD_BIN_PATH is missing or empty! kmk is supposed to set it.)
 endif
 
 # kBuild files which might be of interest.
-FILE_KBUILD_HEADER  := $(PATH_KBUILD)/header.kmk
-#FILE_KBUILD_CONFIG  := $(PATH_KBUILD)/config.kmk
-FILE_KBUILD_FOOTER  := $(PATH_KBUILD)/footer.kmk
+FILE_KBUILD_HEADER  := $(KBUILD_PATH)/header.kmk
+#FILE_KBUILD_CONFIG  := $(KBUILD_PATH)/config.kmk
+FILE_KBUILD_FOOTER  := $(KBUILD_PATH)/footer.kmk
 
 ## MAKEFILE is the name of the main makefile.
 MAKEFILE            := $(firstword $(MAKEFILE_LIST))
@@ -334,37 +419,37 @@ MAKEFILE_CURRENT    := $(MAKEFILE)
 #
 
 # OS/2
-ifeq ($(BUILD_PLATFORM),os2)
+ifeq ($(KBUILD_HOST),os2)
 EXEC_X86_WIN32      := innopec.exe
 HOSTSUFF_EXE        := .exe
 endif
 
 # Linux
-ifeq ($(BUILD_PLATFORM),linux)
+ifeq ($(KBUILD_HOST),linux)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
 # Win, Win32, Win64, NT.
-if1of ($(BUILD_PLATFORM), win nt)
+if1of ($(KBUILD_HOST), win nt)
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
 endif
 
 # FreeBSD
-ifeq ($(BUILD_PLATFORM),freebsd)
+ifeq ($(KBUILD_HOST),freebsd)
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
 endif
 
 # Darwin / Mac OS X
-ifeq ($(BUILD_PLATFORM),darwin)
+ifeq ($(KBUILD_HOST),darwin)
 EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
 endif
 
 # Solaris
-ifeq ($(BUILD_PLATFORM),solaris)
+ifeq ($(KBUILD_HOST),solaris)
 EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
 endif
@@ -375,21 +460,21 @@ endif
 # (PORTME)
 #
 SUFF_DEP    := .dep
-if1of ($(BUILD_TARGET), win nt os2)
+if1of ($(KBUILD_TARGET), win nt os2)
 SUFF_OBJ    := .obj
 SUFF_LIB    := .lib
 SUFF_DLL    := .dll
 SUFF_EXE    := .exe
 SUFF_SYS    := .sys
 SUFF_RES    := .res
-else ifeq ($(BUILD_TARGET),l4)
+else ifeq ($(KBUILD_TARGET),l4)
 SUFF_OBJ    := .o
 SUFF_LIB    := .a
 SUFF_DLL    := .s.so
 SUFF_EXE    :=
 SUFF_SYS    := .a
 SUFF_RES    :=
-else ifeq ($(BUILD_TARGET),darwin)
+else ifeq ($(KBUILD_TARGET),darwin)
 SUFF_OBJ    := .o
 SUFF_LIB    := .a
 SUFF_DLL    := .dylib
@@ -401,7 +486,7 @@ SUFF_OBJ    := .o
 SUFF_LIB    := .a
 SUFF_DLL    := .so
 SUFF_EXE    :=
- if1of ($(BUILD_TARGET), freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
+ if1of ($(KBUILD_TARGET), freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
 SUFF_SYS    := .ko
  else
 SUFF_SYS    :=
@@ -413,87 +498,87 @@ endif
 # Standard kBuild tools.
 #
 ifeq ($(KMK),kmk)
-KMK         := $(PATH_KBUILD_BIN)/kmk$(HOSTSUFF_EXE)
+KMK         := $(KBUILD_BIN_PATH)/kmk$(HOSTSUFF_EXE)
 endif
 MAKE        := $(KMK)
 
-GMAKE       := $(PATH_KBUILD_BIN)/kmk_gmake$(HOSTSUFF_EXE)
+GMAKE       := $(KBUILD_BIN_PATH)/kmk_gmake$(HOSTSUFF_EXE)
 
-DEP_EXT     := $(PATH_KBUILD_BIN)/kDep$(HOSTSUFF_EXE)
+DEP_EXT     := $(KBUILD_BIN_PATH)/kDep$(HOSTSUFF_EXE)
 if1of (kDep, $(KMK_BUILTIN))
 DEP         := kmk_builtin_kDep
 else
 DEP         := $(DEP_EXT)
 endif
 
-DEP_IDB_EXT := $(PATH_KBUILD_BIN)/kDepIDB$(HOSTSUFF_EXE)
+DEP_IDB_EXT := $(KBUILD_BIN_PATH)/kDepIDB$(HOSTSUFF_EXE)
 if1of (kDepIDB, $(KMK_BUILTIN))
 DEP_IDB     := kmk_builtin_kDepIDB
 else
 DEP_IDB     := $(DEP_IDB_EXT)
 endif
 
-DEP_PRE_EXT := $(PATH_KBUILD_BIN)/kDepPre$(HOSTSUFF_EXE)
+DEP_PRE_EXT := $(KBUILD_BIN_PATH)/kDepPre$(HOSTSUFF_EXE)
 if1of (kDepPre, $(KMK_BUILTIN))
 DEP_PRE     := kmk_builtin_kDepPre
 else
 DEP_PRE     := $(DEP_PRE_EXT)
 endif
 
-KOBJCACHE_EXT := $(PATH_KBUILD_BIN)/kObjCache$(HOSTSUFF_EXE)
+KOBJCACHE_EXT := $(KBUILD_BIN_PATH)/kObjCache$(HOSTSUFF_EXE)
 if1of (kObjCache, $(KMK_BUILTIN))
 KOBJCACHE   := kmk_builtin_kObjCache
 else
 KOBJCACHE   := $(KOBJCACHE_EXT)
 endif
 
-APPEND_EXT  := $(PATH_KBUILD_BIN)/kmk_append$(HOSTSUFF_EXE)
+APPEND_EXT  := $(KBUILD_BIN_PATH)/kmk_append$(HOSTSUFF_EXE)
 APPEND      := kmk_builtin_append
 
-CAT_EXT     := $(PATH_KBUILD_BIN)/kmk_cat$(HOSTSUFF_EXE)
+CAT_EXT     := $(KBUILD_BIN_PATH)/kmk_cat$(HOSTSUFF_EXE)
 CAT         := kmk_builtin_cat
 
-CMP_EXT     := $(PATH_KBUILD_BIN)/kmk_cmp$(HOSTSUFF_EXE)
+CMP_EXT     := $(KBUILD_BIN_PATH)/kmk_cmp$(HOSTSUFF_EXE)
 CMP         := kmk_builtin_cmp
 
-CP_EXT      := $(PATH_KBUILD_BIN)/kmk_cp$(HOSTSUFF_EXE)
+CP_EXT      := $(KBUILD_BIN_PATH)/kmk_cp$(HOSTSUFF_EXE)
 CP          := kmk_builtin_cp
 
-ECHO_EXT    := $(PATH_KBUILD_BIN)/kmk_echo$(HOSTSUFF_EXE)
+ECHO_EXT    := $(KBUILD_BIN_PATH)/kmk_echo$(HOSTSUFF_EXE)
 ECHO        := kmk_builtin_echo
 
-INSTALL_EXT := $(PATH_KBUILD_BIN)/kmk_install$(HOSTSUFF_EXE)
+INSTALL_EXT := $(KBUILD_BIN_PATH)/kmk_install$(HOSTSUFF_EXE)
 INSTALL     := kmk_builtin_install
 
-LN_EXT      := $(PATH_KBUILD_BIN)/kmk_ln$(HOSTSUFF_EXE)
+LN_EXT      := $(KBUILD_BIN_PATH)/kmk_ln$(HOSTSUFF_EXE)
 LN          := kmk_builtin_ln
 
-MD5SUM_EXT  := $(PATH_KBUILD_BIN)/kmk_md5sum$(HOSTSUFF_EXE)
+MD5SUM_EXT  := $(KBUILD_BIN_PATH)/kmk_md5sum$(HOSTSUFF_EXE)
 MD5SUM      := kmk_builtin_md5sum
 
-MKDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_mkdir$(HOSTSUFF_EXE)
+MKDIR_EXT   := $(KBUILD_BIN_PATH)/kmk_mkdir$(HOSTSUFF_EXE)
 MKDIR       := kmk_builtin_mkdir
 
-MV_EXT      := $(PATH_KBUILD_BIN)/kmk_mv$(HOSTSUFF_EXE)
+MV_EXT      := $(KBUILD_BIN_PATH)/kmk_mv$(HOSTSUFF_EXE)
 MV          := kmk_builtin_mv
 
-PRINTF_EXT  := $(PATH_KBUILD_BIN)/kmk_printf$(HOSTSUFF_EXE)
+PRINTF_EXT  := $(KBUILD_BIN_PATH)/kmk_printf$(HOSTSUFF_EXE)
 PRINTF      := kmk_builtin_printf
 
-REDIRECT_EXT:= $(PATH_KBUILD_BIN)/kmk_redirect$(HOSTSUFF_EXE)
+REDIRECT_EXT:= $(KBUILD_BIN_PATH)/kmk_redirect$(HOSTSUFF_EXE)
 if1of (redirect, $(KMK_BUILTIN))
 REDIRECT    := kmk_builtin_redirect
 else
 REDIRECT    := $(REDIRECT_EXT)
 endif
 
-RM_EXT      := $(PATH_KBUILD_BIN)/kmk_rm$(HOSTSUFF_EXE)
+RM_EXT      := $(KBUILD_BIN_PATH)/kmk_rm$(HOSTSUFF_EXE)
 RM          := kmk_builtin_rm
 
-RMDIR_EXT   := $(PATH_KBUILD_BIN)/kmk_rmdir$(HOSTSUFF_EXE)
+RMDIR_EXT   := $(KBUILD_BIN_PATH)/kmk_rmdir$(HOSTSUFF_EXE)
 RMDIR       := kmk_builtin_rmdir
 
-SED_EXT     := $(PATH_KBUILD_BIN)/kmk_sed$(HOSTSUFF_EXE)
+SED_EXT     := $(KBUILD_BIN_PATH)/kmk_sed$(HOSTSUFF_EXE)
 if1of (sed, $(KMK_BUILTIN))
 SED_INT     := kmk_builtin_sed
 else
@@ -501,11 +586,11 @@ SED_INT     := $(SED_EXT)
 endif
 SED         := $(SED_EXT)
 
-TEST_EXT    := $(PATH_KBUILD_BIN)/kmk_test$(HOSTSUFF_EXE)
+TEST_EXT    := $(KBUILD_BIN_PATH)/kmk_test$(HOSTSUFF_EXE)
 TEST        := kmk_builtin_test
 
 # Our default shell is the Almquist shell from *BSD.
-ASH         := $(PATH_KBUILD_BIN)/kmk_ash$(HOSTSUFF_EXE)
+ASH         := $(KBUILD_BIN_PATH)/kmk_ash$(HOSTSUFF_EXE)
 MAKESHELL   := $(ASH)
 SHELL       := $(ASH)
 export SHELL MAKESHELL
@@ -1027,7 +1112,7 @@ ifeq ($(KBUILD_MSG_STYLE),default)
  MSG_INST_DIR ?= $(call MSG_L1,Installing directory $1)
 
 else
- _KBUILD_MSG_STYLE_FILE := $(firstword $(foreach path, $(KBUILD_MSG_STYLE_PATHS) $(PATH_KBUILD)/msgstyles, $(wildcard $(path)/$(KBUILD_MSG_STYLE).kmk)))
+ _KBUILD_MSG_STYLE_FILE := $(firstword $(foreach path, $(KBUILD_MSG_STYLE_PATHS) $(KBUILD_PATH)/msgstyles, $(wildcard $(path)/$(KBUILD_MSG_STYLE).kmk)))
  ifneq ($(_KBUILD_MSG_STYLE_FILE),)
   include $(_KBUILD_MSG_STYLE_FILE)
  else
@@ -1078,7 +1163,7 @@ endif
 
 
 #
-# Validate any KBUILD_BLD_TYPES additions and finally the BUILD_TYPE.
+# Validate any KBUILD_BLD_TYPES additions and finally the KBUILD_TYPE.
 #
 if1of ($(KBUILD_BLD_TYPES), $(KBUILD_OSES))
  $(error kBuild: found KBUILD_BLD_TYPES in KBUILD_OSES!)
@@ -1089,8 +1174,8 @@ endif
 if1of ($(KBUILD_OSES), $(KBUILD_ARCHES))
  $(error kBuild: found KBUILD_OSES in KBUILD_ARCHES!)
 endif
-ifn1of ($(BUILD_TYPE), $(KBUILD_BLD_TYPES))
- $(error kBuild: BUILD_TYPE(=$(BUILD_TYPE)) is not found in KBUILD_BLD_TYPES(=$(KBUILD_BLD_TYPES))!)
+ifn1of ($(KBUILD_TYPE), $(KBUILD_BLD_TYPES))
+ $(error kBuild: KBUILD_TYPE(=$(KBUILD_TYPE)) is not found in KBUILD_BLD_TYPES(=$(KBUILD_BLD_TYPES))!)
 endif
 
 

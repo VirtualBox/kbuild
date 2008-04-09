@@ -1,4 +1,4 @@
-# $Id: GXX.kmk 1259 2007-11-07 16:02:56Z knut.osmundsen@oracle.com $
+# $Id: GXX.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic GCC using the system GCC, for building C++ code.
@@ -35,10 +35,10 @@ TOOL_GXX_RANLIB ?= ranlib$(HOSTSUFF_EXE)
 TOOL_GXX_LD  ?= g++$(HOSTSUFF_EXE)
 TOOL_GXX_LDFLAGS.dll.os2 ?= -Zdll
 TOOL_GXX_LDFLAGS.dll.darwin ?= -dynamiclib
-ifndef TOOL_GXX_LDFLAGS.$(BUILD_TARGET)
+ifndef TOOL_GXX_LDFLAGS.$(KBUILD_TARGET)
 TOOL_GXX_LDFLAGS.dll ?= -shared
 else
-TOOL_GXX_LDFLAGS.dll ?= $(TOOL_GXX_LDFLAGS.$(BUILD_TARGET))
+TOOL_GXX_LDFLAGS.dll ?= $(TOOL_GXX_LDFLAGS.$(KBUILD_TARGET))
 endif
 
 # General Properties used by kBuild

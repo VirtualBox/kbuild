@@ -1,7 +1,7 @@
-# $Id: DXSDK.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: DXSDK.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
-# kBuild SDK - The Microsoft Direct X SDK, targeting $(BUILD_TARGET).
+# kBuild SDK - The Microsoft Direct X SDK, targeting $(KBUILD_TARGET).
 #
 # Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
@@ -24,7 +24,7 @@
 #
 #
 
-SDK_DXSDK := The Microsoft Direct X SDK, targeting $(BUILD_TARGET)
+SDK_DXSDK := The Microsoft Direct X SDK, targeting $(KBUILD_TARGET)
 
 # SDK Specific Properties
 ifndef PATH_SDK_DXSDK
@@ -52,7 +52,7 @@ endif
 PATH_SDK_DXSDK_INC ?= $(PATH_SDK_DXSDK)/Include
 PATH_SDK_DXSDK_LIB.x86 ?= $(PATH_SDK_DXSDK)/Lib/x86
 PATH_SDK_DXSDK_LIB.amd64 ?= $(PATH_SDK_DXSDK)/Lib/x64
-PATH_SDK_DXSDK_LIB ?= $(PATH_SDK_DXSDK_LIB.$(BUILD_TARGET_ARCH))
+PATH_SDK_DXSDK_LIB ?= $(PATH_SDK_DXSDK_LIB.$(KBUILD_TARGET_ARCH))
 
 # General Properties used by kBuild
 SDK_DXSDK_INCS ?= $(PATH_SDK_DXSDK_INC)

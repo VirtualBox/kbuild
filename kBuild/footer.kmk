@@ -1,9 +1,9 @@
-# $Id: footer.kmk 1502 2008-04-08 00:23:15Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
 #
-# Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
@@ -39,16 +39,16 @@ endif
 #
 
 # All targets of each types.
-_ALL_BLDPROGS    := $(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH))    $(BLDPROGS.$(BUILD_PLATFORM_ARCH))  $(BLDPROGS.$(BUILD_PLATFORM_CPU))   $(BLDPROGS.$(BUILD_TYPE))
-_ALL_LIBRARIES   := $(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))       $(LIBRARIES.$(BUILD_TARGET_ARCH))   $(LIBRARIES.$(BUILD_TARGET_CPU))    $(LIBRARIES.$(BUILD_TYPE))
-_ALL_IMPORT_LIBS := $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))     $(IMPORT_LIBS.$(BUILD_TARGET_ARCH)) $(IMPORT_LIBS.$(BUILD_TARGET_CPU))  $(IMPORT_LIBS.$(BUILD_TYPE))
-_ALL_DLLS        := $(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))            $(DLLS.$(BUILD_TARGET_ARCH))        $(DLLS.$(BUILD_TARGET_CPU))         $(DLLS.$(BUILD_TYPE))
-_ALL_PROGRAMS    := $(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))        $(PROGRAMS.$(BUILD_TARGET_ARCH))    $(PROGRAMS.$(BUILD_TARGET_CPU))     $(PROGRAMS.$(BUILD_TYPE))
-_ALL_SYSMODS     := $(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(SYSMODS.$(BUILD_TARGET_ARCH))     $(SYSMODS.$(BUILD_TARGET_CPU))      $(SYSMODS.$(BUILD_TYPE))
-_ALL_OTHERS      := $(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))          $(OTHERS.$(BUILD_TARGET_ARCH))      $(OTHERS.$(BUILD_TARGET_CPU))       $(OTHERS.$(BUILD_TYPE))
-_ALL_INSTALLS    := $(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))        $(INSTALLS.$(BUILD_TARGET_ARCH))    $(INSTALLS.$(BUILD_TARGET_CPU))     $(INSTALLS.$(BUILD_TYPE))
-_ALL_FETCHES     := $(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(FETCHES.$(BUILD_TARGET_ARCH))     $(FETCHES.$(BUILD_TARGET_CPU))      $(FETCHES.$(BUILD_TYPE))
-_ALL_PATCHES     := $(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         $(PATCHES.$(BUILD_TARGET_ARCH))     $(PATCHES.$(BUILD_TARGET_CPU))      $(PATCHES.$(BUILD_TYPE))
+_ALL_BLDPROGS    := $(BLDPROGS)    $(BLDPROGS.$(KBUILD_HOST))        $(BLDPROGS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH))            $(BLDPROGS.$(KBUILD_HOST_ARCH))      $(BLDPROGS.$(KBUILD_HOST_CPU))       $(BLDPROGS.$(KBUILD_TYPE))
+_ALL_LIBRARIES   := $(LIBRARIES)   $(LIBRARIES.$(KBUILD_TARGET))     $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))       $(LIBRARIES.$(KBUILD_TARGET_ARCH))   $(LIBRARIES.$(KBUILD_TARGET_CPU))    $(LIBRARIES.$(KBUILD_TYPE))
+_ALL_IMPORT_LIBS := $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET))   $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))     $(IMPORT_LIBS.$(KBUILD_TARGET_ARCH)) $(IMPORT_LIBS.$(KBUILD_TARGET_CPU))  $(IMPORT_LIBS.$(KBUILD_TYPE))
+_ALL_DLLS        := $(DLLS)        $(DLLS.$(KBUILD_TARGET))          $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))            $(DLLS.$(KBUILD_TARGET_ARCH))        $(DLLS.$(KBUILD_TARGET_CPU))         $(DLLS.$(KBUILD_TYPE))
+_ALL_PROGRAMS    := $(PROGRAMS)    $(PROGRAMS.$(KBUILD_TARGET))      $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(PROGRAMS.$(KBUILD_TARGET_ARCH))    $(PROGRAMS.$(KBUILD_TARGET_CPU))     $(PROGRAMS.$(KBUILD_TYPE))
+_ALL_SYSMODS     := $(SYSMODS)     $(SYSMODS.$(KBUILD_TARGET))       $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         $(SYSMODS.$(KBUILD_TARGET_ARCH))     $(SYSMODS.$(KBUILD_TARGET_CPU))      $(SYSMODS.$(KBUILD_TYPE))
+_ALL_OTHERS      := $(OTHERS)      $(OTHERS.$(KBUILD_TARGET))        $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))          $(OTHERS.$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_CPU))       $(OTHERS.$(KBUILD_TYPE))
+_ALL_INSTALLS    := $(INSTALLS)    $(INSTALLS.$(KBUILD_TARGET))      $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(INSTALLS.$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_CPU))     $(INSTALLS.$(KBUILD_TYPE))
+_ALL_FETCHES     := $(FETCHES)     $(FETCHES.$(KBUILD_TARGET))       $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         $(FETCHES.$(KBUILD_TARGET_ARCH))     $(FETCHES.$(KBUILD_TARGET_CPU))      $(FETCHES.$(KBUILD_TYPE))
+_ALL_PATCHES     := $(PATCHES)     $(PATCHES.$(KBUILD_TARGET))       $(PATCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         $(PATCHES.$(KBUILD_TARGET_ARCH))     $(PATCHES.$(KBUILD_TARGET_CPU))      $(PATCHES.$(KBUILD_TYPE))
 
 # all targets.
 _ALL_TARGETS = \
@@ -63,8 +63,8 @@ _ALL_TARGETS = \
 	$(_ALL_INSTALLS) \
 	$(_ALL_OTHERS)
 
-# all $(BUILD_TARGET) targets.
-_ALL_BUILD_TARGET_TARGETS = \
+# all $(KBUILD_TARGET) targets.
+_ALL_TARGET_TARGETS = \
 	$(_ALL_FETCHES) \
 	$(_ALL_PATCHES) \
 	$(_ALL_LIBRARIES) \
@@ -75,8 +75,8 @@ _ALL_BUILD_TARGET_TARGETS = \
 	$(_ALL_INSTALLS) \
 	$(_ALL_OTHERS)
 
-# all $(BUILD_PLATFORM) targets.
-_ALL_BUILD_PLATFORM_TARGETS = \
+# all $(KBUILD_HOST) targets.
+_ALL_HOST_TARGETS = \
 	$(_ALL_BLDPROGS)
 
 # all targets making use of srcname.
@@ -627,9 +627,9 @@ _TEMPLATES := $(sort $(_TEMPLATES))
 # @param loading    The template name. This is prefixed.
 define def_templates_load_function
 ifndef TEMPLATE_$(loading)
- TEMPLATE_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ TEMPLATE_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TEMPLATE_PATHS) $(KBUILD_PATH)/templates $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(TEMPLATE_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the template '$(loading)'! Searched: $(KBUILD_TEMPLATE_PATHS) $(PATH_KBUILD)/templates $(KBUILD_DEFAULT_PATHS))
+  $(error kBuild: Cannot find include file for the template '$(loading)'! Searched: $(KBUILD_TEMPLATE_PATHS) $(KBUILD_PATH)/templates $(KBUILD_DEFAULT_PATHS))
  endif
  include $(TEMPLATE_$(loading)_KMK_FILE)
  ifndef TEMPLATE_$(loading)
@@ -648,10 +648,10 @@ $(foreach loading, $(_TEMPLATES), $(evalval def_templates_load_function))
 # indirectly in the inheritance hierarchy, the result from this exercise
 # might not be 100% accurate... :-/
 #
-_BLD_TYPES   := $(BUILD_TYPE)
-_BLD_TARGETS := $(BUILD_TARGET) $(BUILD_PLATFORMS)
-_BLD_ARCHES  := $(BUILD_TARGET_ARCH) $(BUILD_PLATFORM_ARCH)
-_BLD_CPUS    := $(BUILD_TARGET_CPU) $(BUILD_PLATFORM_CPU)
+_BLD_TYPES   := $(KBUILD_TYPE)
+_BLD_TARGETS := $(KBUILD_TARGET) $(KBUILD_HOSTS)
+_BLD_ARCHES  := $(KBUILD_TARGET_ARCH) $(KBUILD_HOST_ARCH)
+_BLD_CPUS    := $(KBUILD_TARGET_CPU) $(KBUILD_HOST_CPU)
 
 define def_collect_bld_xyz
 ifdef $(src)_BLD_TYPE
@@ -818,7 +818,7 @@ properties          := $(PROPS_LIBRARIES_SINGLE)
 properties_now_l    := $(PROPS_LIBRARIES_ACCUMULATE_L)
 properties_now_r    := $(PROPS_LIBRARIES_ACCUMULATE_R)
 properties_deferred := $(PROPS_LIBRARIES_DEFERRED)
-if1of ($(BUILD_TARGET), nt os2 win)
+if1of ($(KBUILD_TARGET), nt os2 win)
  $(foreach trg, $(_ALL_LIBRARIES) $(_ALL_IMPORT_LIBS),$(evalval def_inherit))
 else
  $(foreach trg, $(_ALL_LIBRARIES),$(evalval def_inherit))
@@ -829,7 +829,7 @@ properties          := $(PROPS_DLLS_SINGLE)
 properties_now_l    := $(PROPS_DLLS_ACCUMULATE_L)
 properties_now_r    := $(PROPS_DLLS_ACCUMULATE_R)
 properties_deferred := $(PROPS_DLLS_DEFERRED)
-if1of ($(BUILD_TARGET), nt os2 win)
+if1of ($(KBUILD_TARGET), nt os2 win)
  $(foreach trg, $(_ALL_DLLS),$(evalval def_inherit))
 else
  $(foreach trg, $(_ALL_DLLS) $(_ALL_IMPORT_LIBS),$(evalval def_inherit))
@@ -978,8 +978,8 @@ define def_inherit_template_one_accumulate_l
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 $(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-$(target)_$(prop).$(BUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+$(target)_$(prop).$(KBUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 $(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
@@ -1002,8 +1002,8 @@ define def_inherit_template_one_accumulate_r
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
 $(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE)
-$(target)_$(prop).$(BUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(BUILD_TYPE))
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+$(target)_$(prop).$(KBUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
 $(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
@@ -1045,15 +1045,15 @@ endif
 endef
 
 # Inherit template properties
-bld_trg := $(BUILD_TARGET)
-bld_trg_arch := $(BUILD_TARGET_ARCH)
-bld_trg_cpu := $(BUILD_TARGET_CPU)
-$(foreach target, $(_ALL_BUILD_TARGET_TARGETS),$(evalval def_inherit_template))
+bld_trg := $(KBUILD_TARGET)
+bld_trg_arch := $(KBUILD_TARGET_ARCH)
+bld_trg_cpu := $(KBUILD_TARGET_CPU)
+$(foreach target, $(_ALL_TARGET_TARGETS),$(evalval def_inherit_template))
 
-bld_trg := $(BUILD_PLATFORM)
-bld_trg_arch := $(BUILD_PLATFORM_ARCH)
-bld_trg_cpu := $(BUILD_PLATFORM_CPU)
-$(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS),$(evalval def_inherit_template))
+bld_trg := $(KBUILD_HOST)
+bld_trg_arch := $(KBUILD_HOST_ARCH)
+bld_trg_cpu := $(KBUILD_HOST_CPU)
+$(foreach target, $(_ALL_HOST_TARGETS),$(evalval def_inherit_template))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -1069,12 +1069,12 @@ endif
 # The first part of this exercise is to figure out which TOOLS and SDKS
 # that should be included.
 #
-_TOOLS := $(TOOL.$(BUILD_TARGET))   $(TOOL.$(BUILD_TARGET_ARCH))   $(TOOL.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-          $(TOOL.$(BUILD_PLATFORM)) $(TOOL.$(BUILD_PLATFORM_ARCH)) $(TOOL.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
+_TOOLS := $(TOOL.$(KBUILD_TARGET))   $(TOOL.$(KBUILD_TARGET_ARCH))   $(TOOL.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) \
+          $(TOOL.$(KBUILD_HOST)) $(TOOL.$(KBUILD_HOST_ARCH)) $(TOOL.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)) \
 	  $(TOOL)
-_SDKS  := $(SDKS.$(BUILD_TARGET))   $(SDKS.$(BUILD_TARGET_ARCH))   $(SDKS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-          $(SDKS.$(BUILD_PLATFORM)) $(SDKS.$(BUILD_PLATFORM_ARCH)) $(SDKS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
-	  $(SDKS.$(BUILD_TYPE)) \
+_SDKS  := $(SDKS.$(KBUILD_TARGET))   $(SDKS.$(KBUILD_TARGET_ARCH))   $(SDKS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) \
+          $(SDKS.$(KBUILD_HOST)) $(SDKS.$(KBUILD_HOST_ARCH)) $(SDKS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)) \
+	  $(SDKS.$(KBUILD_TYPE)) \
 	  $(SDKS)
 define def_tools_sdks_target_source
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
@@ -1093,14 +1093,14 @@ $(eval _SDKS += \
 	$($(target)_$(source)_SDKS.$(_bld_trg).$(_bld_trg_arch)) \
 	$($(source)_SDKS.$(_bld_trg_arch)) \
 	$($(target)_$(source)_SDKS.$(_bld_trg_arch)) \
-	$($(source)_SDKS.$(BUILD_TYPE)) \
-	$($(target)_$(source)_SDKS.$(BUILD_TYPE)) \
+	$($(source)_SDKS.$(KBUILD_TYPE)) \
+	$($(target)_$(source)_SDKS.$(KBUILD_TYPE)) \
 	$($(source)_SDKS) \
 	$($(target)_$(source)_SDKS))
 endef # def_tools_sdks_target_source
 
 define def_tools_sdks_target
-local _bld_type := $(firstword $($(target)_BLD_TYPE) $(BUILD_TYPE))
+local _bld_type := $(firstword $($(target)_BLD_TYPE) $(KBUILD_TYPE))
 local _bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
 local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
 local _bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
@@ -1126,7 +1126,7 @@ $(foreach source, \
 endef # def_tools_sdks_target
 
 define def_tools_srcname_target
-local _bld_type := $(firstword $($(target)_BLD_TYPE) $(BUILD_TYPE))
+local _bld_type := $(firstword $($(target)_BLD_TYPE) $(KBUILD_TYPE))
 local _bld_trg := $(firstword $($(target)_BLD_TRG) $(bld_trg))
 local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(bld_trg_arch))
 local _bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU) $(bld_trg_cpu))
@@ -1141,16 +1141,16 @@ $(foreach source, $(notdir\
 	), $(evalval def_tools_sdks_target_source))
 endef # def_tools_srcname_target
 
-bld_trg := $(BUILD_TARGET)
-bld_trg_arch := $(BUILD_TARGET_ARCH)
-bld_trg_cpu := $(BUILD_TARGET_CPU)
-$(foreach target, $(_ALL_BUILD_TARGET_TARGETS), $(evalval def_tools_sdks_target))
+bld_trg := $(KBUILD_TARGET)
+bld_trg_arch := $(KBUILD_TARGET_ARCH)
+bld_trg_cpu := $(KBUILD_TARGET_CPU)
+$(foreach target, $(_ALL_TARGET_TARGETS), $(evalval def_tools_sdks_target))
 $(foreach target, $(_ALL_SRCNAME_TARGETS), $(evalval def_tools_srcname_target))
 
-bld_trg := $(BUILD_PLATFORM)
-bld_trg_arch := $(BUILD_PLATFORM_ARCH)
-bld_trg_cpu := $(BUILD_PLATFORM_CPU)
-$(foreach target, $(_ALL_BUILD_PLATFORM_TARGETS), $(evalval def_tools_sdks_target))
+bld_trg := $(KBUILD_HOST)
+bld_trg_arch := $(KBUILD_HOST_ARCH)
+bld_trg_cpu := $(KBUILD_HOST_CPU)
+$(foreach target, $(_ALL_HOST_TARGETS), $(evalval def_tools_sdks_target))
 
 _TOOLS := $(sort $(_TOOLS))
 _SDKS := $(sort $(_SDKS))
@@ -1159,9 +1159,9 @@ _SDKS := $(sort $(_SDKS))
 # @param loading    The tool name
 define def_tools_load_function
 ifndef TOOL_$(loading)
- TOOL_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TOOL_PATHS) $(PATH_KBUILD)/tools $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ TOOL_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_TOOL_PATHS) $(KBUILD_PATH)/tools $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(TOOL_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the tool '$(loading)'! Searched: $(KBUILD_TOOL_PATHS) $(PATH_KBUILD)/tools $(KBUILD_DEFAULT_PATHS))
+  $(error kBuild: Cannot find include file for the tool '$(loading)'! Searched: $(KBUILD_TOOL_PATHS) $(KBUILD_PATH)/tools $(KBUILD_DEFAULT_PATHS))
  endif
  include $(TOOL_$(loading)_KMK_FILE)
  ifndef TOOL_$(loading)
@@ -1174,9 +1174,9 @@ endef # def_tools_include
 # @param loading    The tool name
 define def_sdk_load_function
 ifndef SDK_$(loading)
- SDK_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_SDK_PATHS) $(PATH_KBUILD)/sdks $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ SDK_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_SDK_PATHS) $(KBUILD_PATH)/sdks $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
  ifeq ($(SDK_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the SDK '$(loading)'! Searched: $(KBUILD_SDK_PATHS) $(PATH_KBUILD)/sdks $(KBUILD_DEFAULT_PATHS))
+  $(error kBuild: Cannot find include file for the SDK '$(loading)'! Searched: $(KBUILD_SDK_PATHS) $(KBUILD_PATH)/sdks $(KBUILD_DEFAULT_PATHS))
  endif
  include $(SDK_$(loading)_KMK_FILE)
  ifndef SDK_$(loading)
@@ -1243,7 +1243,7 @@ endif
 # @param    $(bld_trg_base_var) TARGET or PLATFORM.
 define def_pass1_link_common
 
-local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
 local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
 local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
 local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
@@ -1311,7 +1311,7 @@ EXTPRE  := HOST
 definst := $(PATH_BIN)
 tool_prefix := LD
 bld_trg_base_var := PLATFORM
-$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)) $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)), \
+$(foreach target, $(BLDPROGS) $(BLDPROGS.$(KBUILD_HOST)) $(BLDPROGS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)), \
 	$(evalval def_pass1_bldprog))
 
 
@@ -1323,7 +1323,7 @@ EXTPRE  :=
 definst := $(PATH_LIB)
 tool_prefix := AR
 bld_trg_base_var := TARGET
-$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(LIBRARIES) $(LIBRARIES.$(KBUILD_TARGET)) $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1335,7 +1335,7 @@ EXTPRE  :=
 definst := $(PATH_DLL)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(DLLS) $(DLLS.$(KBUILD_TARGET)) $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1345,13 +1345,13 @@ $(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD
 #   - On OS/2 and windows these are libraries.
 #   - On other platforms they are fake DLLs.
 #
-if1of ($(BUILD_TARGET), nt os2 win win64 win32)
+if1of ($(KBUILD_TARGET), nt os2 win win64 win32)
  EXT     := LIB
  EXTPRE  :=
  definst := $(PATH_LIB)
  tool_prefix := AR
  bld_trg_base_var := TARGET
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 else
  EXT     := DLL
@@ -1359,7 +1359,7 @@ else
  definst := $(PATH_DLL)
  tool_prefix := LD
  bld_trg_base_var := TARGET
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 endif
 
@@ -1372,7 +1372,7 @@ EXTPRE  :=
 definst := $(PATH_BIN)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)) $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(KBUILD_TARGET)) $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1384,7 +1384,7 @@ EXTPRE  :=
 definst := $(PATH_SYS)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(SYSMODS) $(SYSMODS.$(KBUILD_TARGET)) $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1393,15 +1393,15 @@ $(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET
 # 	Note! INSTARGET_* for INSTALLS aren't available until later.
 #
 define def_pass1_install
-local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
-local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
-local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
-local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
+local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
+local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 # TARGET_*
 TARGET_$(target) := $(PATH_TARGET)/$(target).ins
 # INSTARGET_ later.
 endef
-$(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(INSTALLS) $(INSTALLS.$(KBUILD_TARGET)) $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_pass1_install))
 
 ifdef KBUILD_PROFILE_SELF
@@ -1760,8 +1760,8 @@ _TARGET_$(target)_UNPACKED :=
 _TARGET_$(target)_DIGEST :=
 
 # The 'sources'.
-#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)))
-$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),\
+#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)))
+$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),\
 	$(evalval def_fetch_src))
 
 # The target.
@@ -1785,9 +1785,9 @@ _DIRS += $(inst)
 endef
 
 # Walk the FETCH target lists.
-bld_trg := $(BUILD_TARGET)
-bld_trg_arch := $(BUILD_TARGET_ARCH)
-$(foreach target, $(FETCHES) $(FETCHES.$(BUILD_TARGET)) $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+bld_trg := $(KBUILD_TARGET)
+bld_trg_arch := $(KBUILD_TARGET_ARCH)
+$(foreach target, $(FETCHES) $(FETCHES.$(KBUILD_TARGET)) $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_fetch))
 
 # some aliases.
@@ -1817,13 +1817,13 @@ endif
 ## Deal with one patch target.
 #define def_patch
 #
-#$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(BUILD_TYPE)) $($(target)_SOURCES.$(BUILD_TARGET)) $($(target)_SOURCES.$(BUILD_TARGET_ARCH)) $($(target)_SOURCES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),\
+#$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),\
 #	$(evalval def_patch_src))
 #
 #_PATCHES +=
 #endef
 #
-#$(foreach target, $(PATCHES) $(PATCHES.$(BUILD_TARGET)) $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+#$(foreach target, $(PATCHES) $(PATCHES.$(KBUILD_TARGET)) $(PATCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 #	$(evalval def_patch))
 #
 
@@ -2051,10 +2051,10 @@ endef
 define def_lib
 # library basics
 ## @todo prefix
-local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
-local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
-local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
-local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
+local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
+local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 local tool        := $(call _TARGET_TOOL,$(target),AR)
 ifeq ($(tool),)
 $(error kBuild: Library target $(target) does not have a tool defined!)
@@ -2241,7 +2241,7 @@ definst := $(PATH_LIB)
 typevar := _LIBS
 tool_do := LINK_LIBRARY
 mode := 0644
-$(foreach target, $(LIBRARIES) $(LIBRARIES.$(BUILD_TARGET)) $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_lib))
+$(foreach target, $(LIBRARIES) $(LIBRARIES.$(KBUILD_TARGET)) $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_lib))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2264,7 +2264,7 @@ endif
 # @param    $(typevar)  The name of the variable with all the root targets of its type.
 define def_link_common
 # basics
-local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
+local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
 local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(BUILD_$(bld_trg_base_var)))
 local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_$(bld_trg_base_var)_ARCH))
 local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_base_var)_CPU))
@@ -2607,7 +2607,7 @@ definst := $(PATH_BIN)
 typevar := _BLDPROGS
 mode    := 0755
 bld_trg_base_var := PLATFORM
-$(foreach target, $(BLDPROGS) $(BLDPROGS.$(BUILD_PLATFORM)) $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)), $(evalval def_bldprog))
+$(foreach target, $(BLDPROGS) $(BLDPROGS.$(KBUILD_HOST)) $(BLDPROGS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)), $(evalval def_bldprog))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2629,7 +2629,7 @@ definst := $(PATH_DLL)
 typevar := _DLLS
 mode    := 0644
 bld_trg_base_var := TARGET
-$(foreach target, $(DLLS) $(DLLS.$(BUILD_TARGET)) $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(DLLS) $(DLLS.$(KBUILD_TARGET)) $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2649,16 +2649,16 @@ EXTPRE  :=
 typevar := _IMPORT_LIBS
 mode    := 0644
 bld_trg_base_var := TARGET
-ifeq ($(filter-out nt os2 win win64 win32,$(BUILD_TARGET)),)
+ifeq ($(filter-out nt os2 win win64 win32,$(KBUILD_TARGET)),)
  EXT     := LIB
  tool_do := LINK_LIBRARY
  definst := $(PATH_LIB)
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_lib))
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_lib))
 else
  EXT     := DLL
  tool_do := LINK_DLL
  definst := $(PATH_DLL)
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET)) $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_link_common))
+ $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
 endif
 
 ifdef KBUILD_PROFILE_SELF
@@ -2681,7 +2681,7 @@ definst := $(PATH_BIN)
 typevar := _PROGRAMS
 mode    := 0755
 bld_trg_base_var := TARGET
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(BUILD_TARGET)) $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(PROGRAMS) $(PROGRAMS.$(KBUILD_TARGET)) $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2703,7 +2703,7 @@ definst := $(PATH_SYS)
 typevar := _SYSMODS
 mode    := 0644
 bld_trg_base_var := TARGET
-$(foreach target, $(SYSMODS) $(SYSMODS.$(BUILD_TARGET)) $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(SYSMODS) $(SYSMODS.$(KBUILD_TARGET)) $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2716,7 +2716,7 @@ endif
 #
 # OTHERS
 #
-_OTHERS = $(OTHERS) $(OTHERS.$(BUILD_TARGET)) $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+_OTHERS = $(OTHERS) $(OTHERS.$(KBUILD_TARGET)) $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))
 
 
 #
@@ -2983,10 +2983,10 @@ endef
 ## process one install target.
 define def_install
 # the basics.
-local bld_type  := $(firstword $($(target)_BLD_TYPE)     $(BUILD_TYPE))
-local bld_trg   := $(firstword $($(target)_BLD_TRG)      $(BUILD_TARGET))
-local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(BUILD_TARGET_ARCH))
-local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_TARGET_CPU))
+local bld_type  := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
+local bld_trg   := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
+local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 
 INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
@@ -3015,7 +3015,7 @@ _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIR
 endef
 
 ## process all install targets
-$(foreach target, $(INSTALLS) $(INSTALLS.$(BUILD_TARGET)) $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)), \
+$(foreach target, $(INSTALLS) $(INSTALLS.$(KBUILD_TARGET)) $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
 	$(evalval def_install))
 
 ifdef KBUILD_PROFILE_SELF
@@ -3029,7 +3029,7 @@ endif
 #
 # PACKING
 #
-_PACKING += $(PACKING) $(PACKING.$(BUILD_TARGET)) $(PACKING.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))
+_PACKING += $(PACKING) $(PACKING.$(KBUILD_TARGET)) $(PACKING.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))
 
 
 #
@@ -3109,20 +3109,20 @@ endef
 # @param	$(pass)		Lowercase pass name.
 # @param	$(PASS)		Uppercase pass name.
 define def_pass_old
-$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET))           $(SUBDIRS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))          )
-$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET))     $(SUBDIRS_AFTER.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))    )
-$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET))  $(MAKEFILES_BEFORE.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) )
-$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET))   $(MAKEFILES_AFTER.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))  )
+$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(KBUILD_TARGET))           $(SUBDIRS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))          )
+$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(KBUILD_TARGET))     $(SUBDIRS_AFTER.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    )
+$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(KBUILD_TARGET))  $(MAKEFILES_BEFORE.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) )
+$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(KBUILD_TARGET))   $(MAKEFILES_AFTER.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))  )
 
 $(eval tag:=_before)
 $(eval dep:=)
-$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(BUILD_TARGET))           $(SUBDIRS_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET))  $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(KBUILD_TARGET))           $(SUBDIRS_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET))  $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
 
 $(eval tag:=_after)
 $(eval dep:=pass_$(pass)_doit)
-$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET))     $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET))   $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET))     $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET))   $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
 
 .NOTPARALLEL: pass_$(pass)_before pass_$(pass)_after
 .PHONY: pass_$(pass) pass_$(pass)_before pass_$(pass)_doit pass_$(pass)_after
@@ -3135,20 +3135,20 @@ pass_$(pass):           pass_$(pass)_after
 endef
 
 define def_pass
-$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(BUILD_TARGET))          $(SUBDIRS.$(BUILD_TARGET.$(BUILD_TARGET_ARCH)))          )
-$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(BUILD_TARGET))    $(SUBDIRS_AFTER.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))    )
-$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(BUILD_TARGET)) $(MAKEFILES_BEFORE.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) )
-$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(BUILD_TARGET))  $(MAKEFILES_AFTER.$(BUILD_TARGET).$(BUILD_TARGET_ARCH))  )
+$(eval SUBDIRS_$(PASS)          ?= $(SUBDIRS)          $(SUBDIRS.$(KBUILD_TARGET))          $(SUBDIRS.$(KBUILD_TARGET.$(KBUILD_TARGET_ARCH)))          )
+$(eval SUBDIRS_AFTER_$(PASS)    ?= $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(KBUILD_TARGET))    $(SUBDIRS_AFTER.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    )
+$(eval MAKEFILES_BEFORE_$(PASS) ?= $(MAKEFILES_BEFORE) $(MAKEFILES_BEFORE.$(KBUILD_TARGET)) $(MAKEFILES_BEFORE.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) )
+$(eval MAKEFILES_AFTER_$(PASS)  ?= $(MAKEFILES_AFTER)  $(MAKEFILES_AFTER.$(KBUILD_TARGET))  $(MAKEFILES_AFTER.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))  )
 
 $(eval tag:=_before)
 $(eval dep:=)
-$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(BUILD_TARGET))          $(SUBDIRS_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET)) $(MAKEFILES_BEFORE_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_$(PASS))            $(SUBDIRS_$(PASS).$(KBUILD_TARGET))          $(SUBDIRS_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
 
 $(eval tag:=_after)
 $(eval dep:=pass_$(pass)_doit)
-$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET))    $(SUBDIRS_AFTER_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
-$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET))  $(MAKEFILES_AFTER_$(PASS).$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
+$(foreach subdir,$(SUBDIRS_AFTER_$(PASS))      $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET))    $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
 
 ifdef KBUILD_SAFE_PARALLEL
 .NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this
@@ -3252,13 +3252,13 @@ show_targets:
 	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
 $(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) OBJS_ CLEAN, \
-	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
+	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(KBUILD_TARGET))) \
 	$(if $($(target)_$(prop).$(_tmp)),\
 		@$(ECHO) "  $(target)_$(prop).$(_tmp)=$($(target)_$(prop).$(_tmp))" $(NLTAB)) \
 	$(if $($(target)_$(prop)), $(NLTAB)@$(ECHO) "  $(target)_$(prop)=$($(target)_$(prop))" $(NLTAB)) \
 )\
 $(foreach prop,$(PROPS_DEFERRED), \
-	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(BUILD_TARGET))) \
+	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(KBUILD_TARGET))) \
 	$(if $(value $(target)_$(prop).$(_tmp)),\
 		@$(ECHO) '  $(target)_$(prop).$(_tmp)=$(value $(TARGET)_$(prop).$(_tmp))' $(NLTAB)) \
 	$(if $(value $(target)_$(prop)), $(NLTAB)@$(ECHO) '  $(target)_$(prop)=$(value $(target)_$(prop))' $(NLTAB)) \

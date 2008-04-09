@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 1418 2008-03-18 22:52:45Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
@@ -33,13 +33,13 @@ TOOL_GCC4MACHO_OBJC?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_AS  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_LD  ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_LD_SYSMOD ?= gcc$(HOSTSUFF_EXE)
-ifndef TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET)
+ifndef TOOL_GCC4MACHO_LDFLAGS.$(KBUILD_TARGET)
 TOOL_GCC4MACHO_LDFLAGS.dll ?= -dynamiclib
 else
-TOOL_GCC4MACHO_LDFLAGS.dll ?= $(TOOL_GCC4MACHO_LDFLAGS.$(BUILD_TARGET))
+TOOL_GCC4MACHO_LDFLAGS.dll ?= $(TOOL_GCC4MACHO_LDFLAGS.$(KBUILD_TARGET))
 endif
 TOOL_GCC4MACHO_LDFLAGS.sysmod ?= -r
-#TOOL_GCC4MACHO_LD_SONAME = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+#TOOL_GCC4MACHO_LD_SONAME = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 
 ifdef SLKRUNS
 TOOL_GCC4MACHO_CC  += -fmessage-length=0
