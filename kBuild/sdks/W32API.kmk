@@ -1,9 +1,9 @@
-# $Id: W32API.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: W32API.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - w32api (MinGW), targeting x86.
 #
-# Copyright (c) 2004-2007 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

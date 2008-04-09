@@ -1,9 +1,9 @@
-# $Id: WIN64SDK.kmk 1371 2007-12-14 01:56:13Z knut.osmundsen@oracle.com $
+# $Id: WIN64SDK.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows Platform SDK, targeting AMD64.
 #
-# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

@@ -1,9 +1,9 @@
-# $Id: brief.kmk 892 2007-05-03 00:10:44Z knut.osmundsen@oracle.com $
+# $Id: brief.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Message Style - 'brief'
 #
-# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2007-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

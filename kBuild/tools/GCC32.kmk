@@ -1,9 +1,9 @@
-# $Id: GCC32.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
+# $Id: GCC32.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later Using The System GCC.
 #
-# Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
