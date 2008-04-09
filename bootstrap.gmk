@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 1339 2007-12-02 22:06:11Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 1506 2008-04-09 00:22:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # GNU Make Compatible bootstrap Makefile.
@@ -27,7 +27,7 @@
 
 #
 # ASSUMES:
-#   - BUILD_TARGET, BUILD_PLATFORM_ARCH, BUILD_PLATFORM_CPU and BUILD_TYPE in the env.
+#   - KBUILD_TARGET, KBUILD_HOST, KBUILD_HOST_ARCH, and KBUILD_TYPE in the env.
 #   - PATH_KBUILD points to ./kBuild with an absolute path.
 #   - PATH_KBUILD_BIN must *NOT* be defined anywhere.
 #   - Current directory == bootstrap.gmk directory.
@@ -35,7 +35,7 @@
 #   - ln -s works
 #   - cp -f works
 #   - cd somedir && command works.
-#   - echo done > file works.
+#   - echo done > some-file works.
 #   - GNU make implements CURDIR, if not please define SRCDIR.
 #
 # Tip. kBuild/env.sh (g)make -f bootstrap.kmk
@@ -48,8 +48,43 @@
 #   (see Config.kmk and wiki for details)
 #
 
+#
+# Deal with legacy env.vars. - no niceties here.
+#
+ifndef KBUILD_HOST
+ KBUILD_HOST := $(BUILD_PLATFORM)
+endif
+ifndef KBUILD_HOST_ARCH
+ KBUILD_HOST_ARCH := $(BUILD_PLATFORM_ARCH)
+endif
+ifndef KBUILD_HOST_CPU
+ KBUILD_HOST_CPU := $(BUILD_PLATFORM_CPU)
+endif
+
+ifndef KBUILD_TARGET
+ KBUILD_TARGET := $(BUILD_TARGET)
+endif
+ifndef KBUILD_TARGET_ARCH
+ KBUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH)
+endif
+ifndef KBUILD_TARGET_CPU
+ KBUILD_TARGET_CPU := $(BUILD_TARGET_CPU)
+endif
+
+ifndef KBUILD_TYPE
+ KBUILD_TYPE := $(BUILD_TYPE)
+endif
+
+ifndef KBUILD_PATH
+ KBUILD_PATH := $(PATH_KBUILD)
+endif
+
+
+#
+# Globals
+#
 SRCDIR = $(CURDIR)
-OUTDIR = $(SRCDIR)/out/$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)/$(BUILD_TYPE)/bootstrap
+OUTDIR = $(SRCDIR)/out/$(KBUILD_HOST).$(KBUILD_HOST_ARCH)/$(KBUILD_TYPE)/bootstrap
 
 # Override this on the make commandline if you need to (FreeBSD).
 AUTORECONF = autoreconf
@@ -65,8 +100,8 @@ stage1: \
     $(OUTDIR)/kmk/kmk \
     $(OUTDIR)/kmk/kmk_ash \
     $(OUTDIR)/kmk/kmk_sed \
-    $(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET) \
-    $(SRCDIR)/src/sed/config.h.$(BUILD_TARGET)
+    $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET) \
+    $(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET)
 
 # kmk
 $(OUTDIR)/kmk/ts-autoreconf:
@@ -80,8 +115,8 @@ $(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
 
 $(OUTDIR)/kmk/config.h: $(OUTDIR)/kmk/ts-configured
 
-$(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET): $(OUTDIR)/kmk/config.h
-	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET)
+$(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET): $(OUTDIR)/kmk/config.h
+	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET)
 
 $(OUTDIR)/kmk/kmk: $(OUTDIR)/kmk/ts-configured
 	$(MAKE) -C $(@D)
@@ -98,7 +133,7 @@ $(OUTDIR)/sed/ts-configured: $(OUTDIR)/sed/ts-autoreconf
 
 $(OUTDIR)/sed/config.h: $(OUTDIR)/sed/ts-configured
 
-$(SRCDIR)/src/sed/config.h.$(BUILD_TARGET): $(OUTDIR)/sed/config.h
+$(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET): $(OUTDIR)/sed/config.h
 	cp -f $< $@
 
 $(OUTDIR)/sed/sed/sed: $(OUTDIR)/sed/ts-configured
@@ -119,8 +154,8 @@ stage2: \
     $(OUTDIR)/ts-stage2-install
 
 $(OUTDIR)/ts-stage2-build: \
-		$(SRCDIR)/src/kmk/config.h.$(BUILD_TARGET) \
-                $(SRCDIR)/src/sed/config.h.$(BUILD_TARGET) \
+		$(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET) \
+                $(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET) \
 		$(OUTDIR)/kmk/kmk
 	$(OUTDIR)/kmk/kmk -C $(SRCDIR)
 	echo done > $@

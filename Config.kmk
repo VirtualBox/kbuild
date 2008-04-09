@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1506 2008-04-09 00:22:07Z knut.osmundsen@oracle.com $
 ## @file
 #
 # Build Configuration.
@@ -80,7 +80,7 @@ TEMPLATE_BIN = Commandline binary
 
 TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
 
-ifeq ($(BUILD_TARGET),os2)
+ifeq ($(KBUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
 TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     = -pg
@@ -93,7 +93,7 @@ TEMPLATE_BIN_INST               = kBuild/bin/os2.x86/
  endif
 endif
 
-ifeq ($(BUILD_TARGET),darwin)
+ifeq ($(KBUILD_TARGET),darwin)
 TEMPLATE_BIN_TOOL               = GCC4MACHO
 TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     = -O3 -pg
@@ -103,16 +103,16 @@ TEMPLATE_BIN_LDFLAGS.profile    = -pg
  ifdef NIX_INSTALL_DIR
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/
+TEMPLATE_BIN_INST               = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
-ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
- ifeq ($(BUILD_TARGET_ARCH),x86)
-  include $(PATH_KBUILD)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
+ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
+ ifeq ($(KBUILD_TARGET_ARCH),x86)
+  include $(KBUILD_PATH)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
   TEMPLATE_BIN_TOOL             = VCC70
   TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__
- else ifeq ($(BUILD_TARGET_ARCH),amd64)
+ else ifeq ($(KBUILD_TARGET_ARCH),amd64)
   TEMPLATE_BIN_TOOL             = VCC80AMD64
   TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 \
                                   _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
@@ -140,17 +140,17 @@ ifeq ($(filter-out win nt,$(BUILD_TARGET)),)
 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
  #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
  endif
- TEMPLATE_BIN_LIBS.profile      = Y:/coding/libc/svn/trunk/out/win.$(BUILD_TARGET_ARCH)/debug/kStuff/lib/kPrf2.lib
+ TEMPLATE_BIN_LIBS.profile      = Y:/coding/libc/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/debug/kStuff/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
  TEMPLATE_BIN_INST              = $(NIX_INSTALL_DIR_BIN)/
  else
- TEMPLATE_BIN_INST              = kBuild/bin/win.$(BUILD_TARGET_ARCH)/
+ TEMPLATE_BIN_INST              = kBuild/bin/win.$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
 ifndef TEMPLATE_BIN_TOOL
  # Use GCC3 when we're certain that the system is using GNU ld and ar.
- ifeq ($(filter-out linux freebsd openbsd netbsd,$(BUILD_TARGET)),)
+ ifeq ($(filter-out linux freebsd openbsd netbsd,$(KBUILD_TARGET)),)
   TEMPLATE_BIN_TOOL              = GCC3
  else
   TEMPLATE_BIN_TOOL              = GCC3PLAIN
@@ -158,13 +158,13 @@ ifndef TEMPLATE_BIN_TOOL
  TEMPLATE_BIN_CFLAGS            = -g
  TEMPLATE_BIN_LDFLAGS           = -g
  TEMPLATE_BIN_CFLAGS.release    = -O3
- ifeq ($(BUILD_TARGET),freebsd)
+ ifeq ($(KBUILD_TARGET),freebsd)
   TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
  endif
- ifeq ($(BUILD_TARGET),linux)
+ ifeq ($(KBUILD_TARGET),linux)
   TEMPLATE_BIN_LIBS            += rt
  endif
- ifeq ($(BUILD_TARGET),solaris)
+ ifeq ($(KBUILD_TARGET),solaris)
   TEMPLATE_BIN_CFLAGS.x86      += -m32
   TEMPLATE_BIN_CFLAGS.amd64    += -m64
   TEMPLATE_BIN_CXXFLAGS.x86    += -m32
@@ -177,7 +177,7 @@ ifndef TEMPLATE_BIN_TOOL
  ifdef NIX_INSTALL_DIR
   TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
-  TEMPLATE_BIN_INST             = kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/
+  TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
