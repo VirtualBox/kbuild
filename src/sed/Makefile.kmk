@@ -1,5 +1,28 @@
-# $Id: Makefile.kmk 1500 2008-04-07 23:11:25Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+## @file
+# sed
+#
 
+#
+# Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
 
 DEPTH = ../..
 include $(PATH_KBUILD)/header.kmk
@@ -51,14 +74,14 @@ kmk_sed_SOURCES.win = \
 	lib/getline.c \
 	../lib/startuphacks-win.c
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
 
 #
 # Use checked in config.h instead of running ./configure for it.
 #
-config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
+config.h.$(KBUILD_TARGET) := config.h.$(KBUILD_TARGET)
 
-$(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET)) | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_TARGET)/config.h: $(config.h.$(KBUILD_TARGET)) | $(call DIRDEP,$(PATH_TARGET))
 	$(CP) $^ $@
 
 #

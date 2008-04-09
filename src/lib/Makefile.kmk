@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 1323 2007-12-02 19:52:00Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
 ## @file
 # Various libraries and stuff.
 #
 
 #
-# Copyright (c) 2006-2007 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -51,5 +51,5 @@ wrapper_TEMPLATE = BIN
 wrapper_SOURCES = wrapper.c
 wrapper_NOINST = 1
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
 

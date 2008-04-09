@@ -1,10 +1,10 @@
-# $Id: $
+# $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
 ## @file
+# kObjCache
 #
-# kObjCache - Object Cache.
+
 #
-# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
-#
+# Copyright (c) 2007-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -20,7 +20,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
 
@@ -33,5 +33,5 @@ kObjCache_TEMPLATE = BIN
 kObjCache_SOURCES = kObjCache.c
 kObjCache_LIBS = $(LIB_KUTIL)
 
-include $(PATH_KBUILD)/subfooter.kmk
+include $(KBUILD_PATH)/subfooter.kmk
 

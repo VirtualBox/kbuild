@@ -1,4 +1,28 @@
-# $Id: Makefile.kmk 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+## @file
+# kmk / GNU Make
+#
+
+#
+# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
 
 
 DEPTH = ../..
@@ -33,7 +57,7 @@ TEMPLATE_BIN-KMK_INCS.freebsd = glob
 TEMPLATE_BIN-KMK_INCS.solaris = glob
 TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN_LIBS) $(TARGET_kmkmissing) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
-ifeq ($(BUILD_TARGET),win)
+ifeq ($(KBUILD_TARGET),win)
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) /FI$(PATH_CURRENT)/electric.h -DELECTRIC_HEAP=1
 else
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) -include $(PATH_CURRENT)/electric.h -DELECTRIC_HEAP=1
@@ -132,9 +156,9 @@ kmk_DEFS = \
 	CONFIG_WITH_COMMANDS_FUNC \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	\
-	KBUILD_HOST=\"$(BUILD_TARGET)\" \
-	KBUILD_HOST_ARCH=\"$(BUILD_TARGET_ARCH)\" \
-	KBUILD_HOST_CPU=\"$(BUILD_TARGET_CPU)\"
+	KBUILD_HOST=\"$(KBUILD_TARGET)\" \
+	KBUILD_HOST_ARCH=\"$(KBUILD_TARGET_ARCH)\" \
+	KBUILD_HOST_CPU=\"$(KBUILD_TARGET_CPU)\"
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
@@ -343,14 +367,14 @@ kmk_gmake_SOURCES = \
 	remote-stub.c
 
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
 
 
 #
 # Use checked in config.h instead of running ./Configure for it.
 #
-config.h.$(BUILD_TARGET) := config.h.$(BUILD_TARGET)
-$(PATH_TARGET)/config.h: $(config.h.$(BUILD_TARGET))
+config.h.$(KBUILD_TARGET) := config.h.$(KBUILD_TARGET)
+$(PATH_TARGET)/config.h: $(config.h.$(KBUILD_TARGET))
 	$(MKDIR) -p $(dir $@)
 	$(CP) $^ $@
 

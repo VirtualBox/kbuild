@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1412 2008-03-18 21:20:30Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
 ## @file
 # Test - Build Type Inheritance.
 #
@@ -112,5 +112,5 @@ inherit-bld21_DEFS.dbgbld20 = Y=y
 inherit-bld21_SOURCES = ../dummy_defined_Y.c
 
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
 
