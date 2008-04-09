@@ -1,9 +1,9 @@
-# $Id: NT4DDK.kmk 782 2007-01-24 20:19:57Z knut.osmundsen@oracle.com $
+# $Id: NT4DDK.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The Windows NT 4 DDK, targeting X86.
 #
-# Copyright (c) 2004-2007 knut st. osmundsen <bird-srcspam@anduin.net>
+# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.

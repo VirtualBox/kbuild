@@ -1,9 +1,9 @@
-# $Id: TARGZ.kmk 819 2007-02-01 02:28:30Z knut.osmundsen@oracle.com $
+# $Id: TARGZ.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - tar.gz unpacker.
 #
-# Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 #
 # This file is part of kBuild.
