@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1512 2008-04-09 01:36:57Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1513 2008-04-09 01:52:03Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -35,6 +35,7 @@ EVAL_OPT=
 DBG_OPT=
 QUIET_OPT=
 FULL_OPT=
+VAR_OPT=
 while test $# -gt 0; 
 do
     case "$1" in
@@ -52,8 +53,13 @@ do
             ERR_REDIR=2
             DBG_REDIR=2
             ;;
+        "--var")
+            shift
+            VAR_OPT="${VAR_OPT} $1"
+            ;;
         "--help")
-            echo "syntax: $0 [--debug] [--quiet] [--full] [--eval] [command [args]]"
+            echo "syntax: $0 [--debug] [--quiet] [--full] [--eval] [--var name] [command [args]]"
+            ## FIXME: long --help screen.
             exit 1
             ;;
         *)
@@ -292,43 +298,96 @@ fi
 unset _SUFF_EXE
 unset _PATH_SEP
 
-if test -n "$EVAL_OPT"; then
-    test -n "$DBG_OPT" && echo "dbg: echoing exported variables" 1>&${DBG_REDIR}
-    echo "export PATH=${PATH}"
-    if test -n "${FULL_OPT}"; then
-        echo "export BUILD_PLATFORM=${BUILD_PLATFORM}"
-        echo "export BUILD_PLATFORM_ARCH=${BUILD_PLATFORM_ARCH}"
-        echo "export BUILD_PLATFORM_CPU=${BUILD_PLATFORM_CPU}"
-        echo "export BUILD_TARGET=${BUILD_TARGET}"
-        echo "export BUILD_TARGET_ARCH=${BUILD_TARGET_ARCH}"
-        echo "export BUILD_TARGET_CPU=${BUILD_TARGET_CPU}"
-        echo "export BUILD_TYPE=${BUILD_TYPE}"
-        echo "export PATH_KBUILD=${PATH_KBUILD}"
-    fi
-    test -n "$DBG_OPT" && echo "dbg: finished" 1>&${DBG_REDIR}
-else
-    export PATH
-    if test -n "${FULL_OPT}"; then
-        export PATH_KBUILD
-        export BUILD_TYPE
-        export BUILD_PLATFORM
-        export BUILD_PLATFORM_ARCH
-        export BUILD_PLATFORM_CPU
-        export BUILD_TARGET
-        export BUILD_TARGET_ARCH
-        export BUILD_TARGET_CPU
-    fi
+if test -n "${VAR_OPT}"; then
+    # Echo variable values or variable export statements.
+    for var in ${VAR_OPT};
+    do
+        val=
+        case "$var" in 
+            PATH) 
+                val=$PATH 
+                ;;
+            KBUILD_PATH|PATH_KBUILD) 
+                val=$PATH_KBUILD 
+                ;;
+            KBUILD_BIN_PATH|PATH_KBUILD_BIN) 
+                val=$PATH_KBUILD_BIN
+                ;;
+            KBUILD_HOST|BUILD_PLATFORM) 
+                val=$BUILD_PLATFORM 
+                ;;
+            KBUILD_HOST_ARCH|BUILD_PLATFORM_ARCH) 
+                val=$BUILD_PLATFORM_ARCH
+                ;;
+            KBUILD_HOST_CPU|BUILD_PLATFORM_CPU) 
+                val=$BUILD_PLATFORM_CPU
+                ;;
+            KBUILD_TARGET|BUILD_TARGET) 
+                val=$BUILD_TARGET 
+                ;;
+            KBUILD_TARGET_ARCH|BUILD_TARGET_ARCH) 
+                val=$BUILD_TARGET_ARCH
+                ;;
+            KBUILD_TARGET_CPU|BUILD_TARGET_CPU) 
+                val=$BUILD_TARGET_CPU
+                ;;
+            KBUILD_TYPE|BUILD_TYPE) 
+                val=$BUILD_TARGET_CPU
+                ;;
+            *)  
+                echo "$0: error: Unknown variable $var specified in --var request." 1>&${ERR_REDIR}
+                sleep 1
+                exit 1
+                ;;
+        esac
 
-    # Execute command or spawn shell.
-    if test $# -eq 0; then
-        test -z "${QUIET_OPT}" && echo "$0: info: Spawning work shell..." 1>&${ERR_REDIR}
-        if test "$TERM" != 'dumb'  -a  -n "$BASH"; then
-            export PS1='\[\033[01;32m\]\u@\h \[\033[01;34m\]\W \$ \[\033[00m\]'
+        if test -n "$EVAL_OPT"; then
+            echo "export $var=$val"
+        else
+            echo "$var=$val"
         fi
-        $SHELL -i
+    done
+else
+    if test -n "$EVAL_OPT"; then
+        # Echo statements for the shell to evaluate.
+        test -n "$DBG_OPT" && echo "dbg: echoing exported variables" 1>&${DBG_REDIR}
+        echo "export PATH=${PATH}"
+        if test -n "${FULL_OPT}"; then
+            echo "export BUILD_PLATFORM=${BUILD_PLATFORM}"
+            echo "export BUILD_PLATFORM_ARCH=${BUILD_PLATFORM_ARCH}"
+            echo "export BUILD_PLATFORM_CPU=${BUILD_PLATFORM_CPU}"
+            echo "export BUILD_TARGET=${BUILD_TARGET}"
+            echo "export BUILD_TARGET_ARCH=${BUILD_TARGET_ARCH}"
+            echo "export BUILD_TARGET_CPU=${BUILD_TARGET_CPU}"
+            echo "export BUILD_TYPE=${BUILD_TYPE}"
+            echo "export PATH_KBUILD=${PATH_KBUILD}"
+        fi
     else
-        test -z "${QUIET_OPT}" && echo "$0: info: Executing command: $*" 1>&${ERR_REDIR}
-        $*
+        # Export variables.
+        export PATH
+        if test -n "${FULL_OPT}"; then
+            export PATH_KBUILD
+            export BUILD_TYPE
+            export BUILD_PLATFORM
+            export BUILD_PLATFORM_ARCH
+            export BUILD_PLATFORM_CPU
+            export BUILD_TARGET
+            export BUILD_TARGET_ARCH
+            export BUILD_TARGET_CPU
+        fi
+    
+        # Execute command or spawn shell.
+        if test $# -eq 0; then
+            test -z "${QUIET_OPT}" && echo "$0: info: Spawning work shell..." 1>&${ERR_REDIR}
+            if test "$TERM" != 'dumb'  -a  -n "$BASH"; then
+                export PS1='\[\033[01;32m\]\u@\h \[\033[01;34m\]\W \$ \[\033[00m\]'
+            fi
+            $SHELL -i
+        else
+            test -z "${QUIET_OPT}" && echo "$0: info: Executing command: $*" 1>&${ERR_REDIR}
+            $*
+        fi
     fi
 fi
+test -n "$DBG_OPT" && echo "dbg: finished" 1>&${DBG_REDIR}
 
