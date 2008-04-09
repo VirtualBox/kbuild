@@ -1,5 +1,28 @@
-# $Id: Makefile.kmk 1475 2008-03-31 20:24:00Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+## @file
+# Top-Level Makefile for kBuild.
+#
 
+#
+# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
 
 DEPTH = .
 include $(PATH_KBUILD)/header.kmk
@@ -27,19 +50,19 @@ kBuild_bin_INST = $(TEMPLATE_BIN_INST)
 kBuild_bin_SOURCES =
 
 kBuild_bin_SOURCES.os2 = \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/libc062.dll=>libc062.dll
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc062.dll=>libc062.dll
 
-if1of ($(BUILD_TARGET), nt win)
-kBuild_bin_SOURCES.$(BUILD_TARGET) = \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/kmk_ash.exe=>kmk_ash.exe \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/cygwin1.dll=>cygwin1.dll
-kBuild_bin_SOURCES.$(BUILD_TARGET).x86 = \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll
-kBuild_bin_SOURCES.$(BUILD_TARGET).amd64 = \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/Microsoft.VC80.CRT/msvcr80.dll=>Microsoft.VC80.CRT/msvcr80.dll \
-	kBuild/bin/$(BUILD_TARGET).$(BUILD_TARGET_ARCH)/Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest=>Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
+if1of ($(KBUILD_TARGET), nt win)
+kBuild_bin_SOURCES.$(KBUILD_TARGET) = \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/kmk_ash.exe=>kmk_ash.exe \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/cygwin1.dll=>cygwin1.dll
+kBuild_bin_SOURCES.$(KBUILD_TARGET).x86 = \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll
+kBuild_bin_SOURCES.$(KBUILD_TARGET).amd64 = \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/msvcr80.dll=>Microsoft.VC80.CRT/msvcr80.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest=>Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
 endif
 
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
 

@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
 ## @file
-#
 # kDepPre - Precompiler base dependency generator.
 #
-# Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+
 #
+# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -20,23 +20,20 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
 
 PROGRAMS += kDepPre
-
 kDepPre_TEMPLATE        = BIN
 kDepPre_LIBS            = $(LIB_KDEP)
 kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
-ifeq ($(filter-out win32 win64 win nt,$(BUILD_TARGET)),)
+if1of ($(KBUILD_TARGET), win nt)
 kDepPre_DEFS           += NEED_ISBLANK=1 __WIN32__=1
 endif
 kDepPre_SOURCES         = $(PATH_CURRENT)/kDepPre.c
 
-
-ifndef DEPTH # Experiment in including stuff from the top level make.
-DEPTH = ../..
-include $(PATH_KBUILD)/rules.kmk
-endif
-
+include $(FILE_KBUILD_FOOTER)

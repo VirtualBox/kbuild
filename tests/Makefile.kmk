@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1401 2008-03-16 22:31:44Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
 ## @file
 # Tests - Top Level Makefile.
 #
@@ -31,4 +31,4 @@ SUBDIRS = \
 	inherit-target \
 	inherit-bld \
 
-include $(PATH_KBUILD)/footer.kmk
+include $(FILE_KBUILD_FOOTER)
