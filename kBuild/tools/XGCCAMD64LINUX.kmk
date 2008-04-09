@@ -1,4 +1,4 @@
-# $Id: XGCCAMD64LINUX.kmk 1355 2007-12-03 01:09:07Z knut.osmundsen@oracle.com $
+# $Id: XGCCAMD64LINUX.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - GCC Cross compiler for AMD64+Linux.
@@ -28,7 +28,7 @@ TOOL_XGCCAMD64LINUX := GCC Cross compiler for AMD64+Linux.
 
 # Tool Specific Properties
 TOOL_XGCCAMD64LINUX_HOSTSUFF_EXE ?= $(HOSTSUFF_EXE)
-ifeq ($(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH),linux.amd64)
+ifeq ($(KBUILD_HOST).$(KBUILD_HOST_ARCH),linux.amd64)
  # not x-compile, use the default gcc.
  TOOL_XGCCAMD64LINUX_PREFIX := $(TOOL_XGCCAMD64LINUX_PREFIX)
 else # x-compile:
@@ -38,7 +38,7 @@ else # x-compile:
   ifndef PATH_TOOL_XGCCAMD64LINUX
    PATH_TOOL_XGCCAMD64LINUX := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/x86_64-unknown-linux-gnu/*))
    ifeq ($(PATH_TOOL_XGCCAMD64LINUX),)
-    ifeq ($(filter-out win.amd64,$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)),) # these can use the windows build.
+    ifeq ($(filter-out win.amd64,$(KBUILD_HOST).$(KBUILD_HOST_ARCH)),) # these can use the windows build.
      TOOL_XGCCAMD64LINUX_EXEC_PREFIX ?= $(EXEC_X86_WIN32)
      TOOL_XGCCAMD64LINUX_HOSTSUFF_EXE := .exe
      PATH_TOOL_XGCCAMD64LINUX := $(sort $(wildcard $(PATH_DEVTOOLS)/win.x86/x86_64-unknown-linux-gnu/*))
@@ -67,7 +67,7 @@ TOOL_XGCCAMD64LINUX_AR  ?= $(TOOL_XGCCAMD64LINUX_PREFIX)ar$(TOOL_XGCCAMD64LINUX_
 TOOL_XGCCAMD64LINUX_LD  ?= $(TOOL_XGCCAMD64LINUX_PREFIX)g++$(TOOL_XGCCAMD64LINUX_HOSTSUFF_EXE)
 TOOL_XGCCAMD64LINUX_LD_SYSMOD ?= $(TOOL_XGCCAMD64LINUX_PREFIX)ld$(TOOL_XGCCAMD64LINUX_HOSTSUFF_EXE)
 
-TOOL_XGCCAMD64LINUX_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(BUILD_TARGET).$(BUILD_TYPE)) $($(1)_SONAME.$(BUILD_TARGET)) $($(1)_SONAME.$(BUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+TOOL_XGCCAMD64LINUX_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 TOOL_XGCCAMD64LINUX_LD_MAP ?= -Wl,-Map -Wl,$(1) -Wl,--cref
 TOOL_XGCCAMD64LINUX_LD_SYSMOD_MAP ?= -Map $(1) --cref
 TOOL_XGCCAMD64LINUX_LDFLAGS.dll ?= -shared
@@ -246,7 +246,7 @@ TOOL_XGCCAMD64LINUX_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(
 TOOL_XGCCAMD64LINUX_LINK_DLL_DEPORD =
 define TOOL_XGCCAMD64LINUX_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_XGCCAMD64LINUX_LD) $(TOOL_XGCCAMD64LINUX_LDFLAGS.dll) $(flags) -o $(out)\
-		$(if $(filter-out win32 os2, $(BUILD_TARGET)),$(call TOOL_XGCCAMD64LINUX_LD_SONAME,$(target),$(out)))\
+		$(if $(filter-out win32 os2, $(KBUILD_TARGET)),$(call TOOL_XGCCAMD64LINUX_LD_SONAME,$(target),$(out)))\
 		$(objs)\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(basename $(lib))), $(lib)))\

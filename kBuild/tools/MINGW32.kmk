@@ -1,4 +1,4 @@
-# $Id: MINGW32.kmk 1034 2007-06-04 02:05:30Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild Tool Config - MinGW32 GCC v3.3+.
@@ -51,7 +51,7 @@ ifndef TOOL_MINGW32_PREFIX
  else
   TOOL_MINGW32_PREFIX :=
  endif
- ifneq ($(BUILD_PLATFORM),win)
+ ifneq ($(KBUILD_HOST),win)
   # we're cross compiling either using an emulator (wine/odin) or a cross compiler.
   ifneq ($(PATH_TOOL_MINGW32),$(subst /win.x86,,$(subst /x86.win,,$(PATH_TOOL_MINGW32))))
    TOOL_MINGW32_PREFIX := $(EXEC_X86_WIN32) $(TOOL_MINGW32_PREFIX)
