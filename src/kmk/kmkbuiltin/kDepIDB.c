@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 1329 2007-12-02 20:49:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 1514 2008-04-09 12:22:41Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
@@ -204,12 +204,7 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
     pvFile = malloc(cbFile + 1);
     if (pvFile)
     {
-#if 1
-        long cbRead = (long)read(fileno(pInput), pvFile, cbFile);
-        if (cbRead == cbFile)
-#else
         if (fread(pvFile, cbFile, 1, pInput))
-#endif
         {
             ((uint8_t *)pvFile)[cbFile] = '\0';
             return pvFile;
