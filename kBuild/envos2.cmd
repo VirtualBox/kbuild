@@ -7,7 +7,7 @@ cancel & quit & exit
  *
  * Environment setup script for OS/2.
  *
- * Copyright (c) 1999-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+ * Copyright (c) 1999-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  *
  * This file is part of kBuild.
