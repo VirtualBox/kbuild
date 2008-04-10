@@ -1645,10 +1645,11 @@ main (int argc, char **argv, char **envp)
          a reference to this hidden variable is written instead. */
 #ifdef KMK
       (void) define_variable ("KMK_OVERRIDES", 13,
+			      "${-*-command-variables-*-}", o_env, 1);
 #else
       (void) define_variable ("MAKEOVERRIDES", 13,
-#endif
 			      "${-*-command-variables-*-}", o_env, 1);
+#endif
     }
 
   /* If there were -C flags, move ourselves about.  */
@@ -3301,9 +3302,21 @@ define_makeflags (int all, int makefile)
 
 #ifdef KMK
   v = define_variable ("KMK_FLAGS", 9,
+                       /* If there are switches, omit the leading dash
+                          unless it is a single long option with two
+                          leading dashes.  */
+                       &flagstring[(flagstring[0] == '-'
+                                    && flagstring[1] != '-')
+                                   ? 1 : 0],
+                       /* This used to use o_env, but that lost when a
+                          makefile defined MAKEFLAGS.  Makefiles set
+                          MAKEFLAGS to add switches, but we still want
+                          to redefine its value with the full set of
+                          switches.  Of course, an override or command
+                          definition will still take precedence.  */
+                       o_file, 1);
 #else
   v = define_variable ("MAKEFLAGS", 9,
-#endif
 		       /* If there are switches, omit the leading dash
 			  unless it is a single long option with two
 			  leading dashes.  */
@@ -3317,6 +3330,7 @@ define_makeflags (int all, int makefile)
 			  switches.  Of course, an override or command
 			  definition will still take precedence.  */
 		       o_file, 1);
+#endif
   if (! all)
     /* The first time we are called, set MAKEFLAGS to always be exported.
        We should not do this again on the second call, because that is
