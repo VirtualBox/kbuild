@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1520 2008-04-11 00:04:18Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1521 2008-04-11 00:05:32Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1843,7 +1843,6 @@ endif
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
-$$(warning $(_DEP_COMPILE_CMDS))
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
