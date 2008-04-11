@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1504 2008-04-09 00:04:42Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1520 2008-04-11 00:04:18Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild - File included at top of makefile.
@@ -1834,7 +1834,7 @@ endif
 
 ## wrapper the compile command dependency check.
 ifndef NO_COMPILE_CMDS_DEPS
- _DEP_COMPILE_CMDS = $$(comp-cmds-ex $$($(target)_$(source)_CMDS_PREV_),$$(commands $(obj)),FORCE)
+ _DEP_COMPILE_CMDS = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $(obj)),FORCE)
 else
  _DEP_COMPILE_CMDS =
 endif
@@ -1843,7 +1843,7 @@ endif
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
-
+$$(warning $(_DEP_COMPILE_CMDS))
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
@@ -1869,7 +1869,7 @@ $($(target)_$(source)_CMDS_)
 
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(source)_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(obj)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
