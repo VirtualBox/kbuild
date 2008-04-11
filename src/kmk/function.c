@@ -3643,7 +3643,7 @@ func_commands (char *o, char **argv, const char *funcname)
   recursive = 1;
 
   file = lookup_file (argv[0]);
-  if (file) 
+  if (file && file->cmds)
     {
       int i, cmd_sep_len;
       struct commands *cmds = file->cmds;
