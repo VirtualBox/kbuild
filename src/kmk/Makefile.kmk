@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1526 2008-04-13 02:18:58Z knut.osmundsen@oracle.com $
 ## @file
 # kmk / GNU Make
 #
@@ -34,7 +34,10 @@ include $(PATH_KBUILD)/header.kmk
 #
 TEMPLATE_BIN-KMK = Template for src/gmake binaries
 TEMPLATE_BIN-KMK_EXTENDS = BIN
-TEMPLATE_BIN-KMK_DEFS = HAVE_CONFIG_H $(TEMPLATE_BIN_DEFS)
+TEMPLATE_BIN-KMK_DEFS = \
+	HAVE_CONFIG_H \
+	$(TEMPLATE_BIN_DEFS) \
+	KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 TEMPLATE_BIN-KMK_DEPS = $(PATH_TARGET)/config.h
 TEMPLATE_BIN-KMK_CLEAN = $(TEMPLATE_BIN-KMK_DEPS)
 TEMPLATE_BIN-KMK_DEPS.solaris = \
