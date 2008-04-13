@@ -1,10 +1,10 @@
-/* $Id: redirect.c 1308 2007-12-02 02:05:11Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1527 2008-04-13 02:20:41Z knut.osmundsen@oracle.com $ */
 /** @file
- *
- * kmk_redirect - Do simple program <-> file redirection.
- *
- * Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ * kmk_redirect - Do simple program <-> file redirection (++).
+ */
+
+/*
+ * Copyright (c) 2007-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -41,6 +41,13 @@
 # include <unistd.h>
 #endif
 
+#ifdef __OS2__
+# define INCL_BASE
+# include <os2.h>
+# ifndef LIBPATHSTRICT
+#  define LIBPATHSTRICT 3
+# endif
+#endif 
 
 
 static int usage(FILE *pOut,  const char *argv0)
@@ -124,9 +131,10 @@ int main(int argc, char **argv)
             }
             if (*psz == 'V')
             {
-                printf("kmk_redirect - kBuild version %d.%d.%d\n"
-                       "Copyright (C) 2007 Knut St. Osmundsen\n",
-                       KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+                printf("kmk_redirect - kBuild version %d.%d.%d (r%u)\n"
+                       "Copyright (C) 2007-2008 Knut St. Osmundsen\n",
+                       KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
+                       KBUILD_SVN_REV);
                 return 0;
             }
 
@@ -147,6 +155,25 @@ int main(int argc, char **argv)
                     }
                     psz = argv[++i];
                 }
+#ifdef __OS2__
+                if (    !strncmp(psz, "BEGINLIBPATH=",  sizeof("BEGINLIBPATH=") - 1)
+                    ||  !strncmp(psz, "ENDLIBPATH=",    sizeof("ENDLIBPATH=") - 1)
+                    ||  !strncmp(psz, "LIBPATHSTRICT=", sizeof("LIBPATHSTRICT=") - 1))
+                {
+                    ULONG ulVar = *psz == 'B' ? BEGINLIBPATH
+                                : *psz == 'E' ? ENDLIBPATH
+                                :               LIBPATHSTRICT;
+                    const char *pszVal = strchr(psz, '=') + 1;
+                    APIRET rc = DosSetExtLIBPATH(pszVal, ulVar);
+                    if (rc)
+                    {
+                        fprintf(pStdErr, "%s: error: DosSetExtLibPath(\"%s\", %.*s (%ul)): %ul\n", 
+                                argv[0], pszVal, pszVal - psz - 1, psz, ulVar, rc);
+                        return 1;
+                    }
+                }
+                else
+#endif /* __OS2__ */
                 if (putenv(psz))
                 {
                     fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", argv[0], psz, strerror(errno));
