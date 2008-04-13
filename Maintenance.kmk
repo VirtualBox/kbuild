@@ -1,0 +1,122 @@
+# $Id: Maintenance.kmk 1525 2008-04-13 01:58:13Z knut.osmundsen@oracle.com $
+## @file
+# Maintenance Makefile for kBuild.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+DEPTH = .
+include $(PATH_KBUILD)/header.kmk
+
+RMTREE = $(ECHO) todo: $(RM) -Rf
+RMTREE = rm -Rf
+SVN = svn
+TAR = tar
+GZIP = gzip
+
+ifeq ($(strip $(KBUILD_SVN_INFO_KMK)),)
+$(error wtf? KBUILD_SVN_INFO_KMK is empty!)
+endif
+
+#
+# Creates the source tarballs.
+#
+$(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar.gz: | $(call DIRDEP,$(PATH_TARGET)) $(KBUILD_SVN_INFO_DEP)
+	$(RM) -f $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar.gz
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/
+	$(SVN) export . $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/
+	$(INSTALL) $(KBUILD_SVN_INFO_KMK) $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/SvnInfo.kmk
+	$(TAR) cvf $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar -C $(PATH_TARGET) kBuild-$(KBUILD_VERSION)/
+	$(GZIP) -9 $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/
+
+OTHER_CLEAN += \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar.gz
+
+
+$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar.gz: | $(call DIRDEP,$(PATH_TARGET)) $(KBUILD_SVN_INFO_DEP)
+	$(RM) -f $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar.gz
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/
+	$(SVN) export . $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/
+	$(INSTALL) $(KBUILD_SVN_INFO_KMK) $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/SvnInfo.kmk
+	$(TAR) cvf $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar -C $(PATH_TARGET) kBuild-$(KBUILD_SVN_REV)/
+	$(GZIP) -9 $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/
+
+OTHER_CLEAN += \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar.gz
+
+#
+# Creates the binary tarballs.
+#
+$(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar.gz: | $(call DIRDEP,$(PATH_TARGET))
+	$(RM) -f $(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar $(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar.gz
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/
+	$(MKDIR) -p $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)
+	$(SVN) export kBuild/ $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/kBuild/
+	$(TAR) cvf $(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar -C $(PATH_TARGET) kBuild-$(KBUILD_VERSION)/
+	$(GZIP) -9 $(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_VERSION)/
+
+OTHER_CLEAN += \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar.gz
+
+
+$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar.gz: | $(call DIRDEP,$(PATH_TARGET))
+	$(RM) -f $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar.gz
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/
+	$(MKDIR) -p $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)
+	$(SVN) export kBuild/ $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/kBuild/
+	$(TAR) cvf $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar -C $(PATH_TARGET) kBuild-$(KBUILD_SVN_REV)/
+	$(GZIP) -9 $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar
+	$(RMTREE) $(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)/
+
+OTHER_CLEAN += \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar.gz
+
+
+#
+# Aliases
+#
+tarballs: \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar.gz \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar.gz \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar.gz \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar.gz
+
+release: \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION).tar.gz \
+	$(PATH_TARGET)/kBuild-$(KBUILD_VERSION)-src.tar.gz \
+
+nightly: \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV).tar.gz \
+	$(PATH_TARGET)/kBuild-$(KBUILD_SVN_REV)-src.tar.gz
+
+.PHONY: tarballs release nightly
+
+include $(PATH_KBUILD)/footer.kmk
+
+
