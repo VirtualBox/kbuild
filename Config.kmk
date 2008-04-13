@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1522 2008-04-13 01:22:30Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1523 2008-04-13 01:57:23Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -39,6 +39,56 @@ DEFS += \
 	KBUILD_VERSION_MAJOR=$(KBUILD_VERSION_MAJOR) \
 	KBUILD_VERSION_MINOR=$(KBUILD_VERSION_MINOR) \
 	KBUILD_VERSION_PATCH=$(KBUILD_VERSION_PATCH)
+
+#
+# Get the svn version.
+# This is shipped with the tarballs in a SvnInfo.kmk in the root.
+#
+ifneq ($(wildcard $(PATH_ROOT)/SvnInfo.kmk),)
+# Shipped
+KBUILD_SVN_INFO_KMK := $(PATH_ROOT)/SvnInfo.kmk
+KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
+
+else ifneq ($(wildcard $(PATH_ROOT)/.svn/entries),)
+# Generate from svn info
+KBUILD_SVN_INFO_KMK := $(PATH_OBJ)/SvnInfo.kmk
+KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
+
+$(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/.svn/all-wcprops $(PATH_ROOT)/.svn/format
+	$(call MSG_GENERATE,,$(KBUILD_SVN_INFO_KMK))
+	@$(RM) -f $@ $@.tmp
+	@$(MKDIR) -p $(@D)
+	@$(REDIRECT) -o $@.tmp -- svn info $(DEPTH)
+	@$(SED) \
+		-e 's/URL: */KBUILD_SVN_URL := /' \
+		-e 's/Revision: */KBUILD_SVN_REV := /' \
+		-e '/KBUILD_SVN_/!d' \
+		--append $@ \
+		$@.tmp
+	@$(RM) -f $@.tmp
+	@$(CP) --changed -fv $@ $(KBUILD_SVN_INFO_KMK)
+
+ ifeq ($(DEPTH),.)
+OTHER_CLEAN += $(KBUILD_SVN_INFO_KMK) $(PATH_OBJ)/SvnInfo.ts
+ endif
+
+else
+# Some incomplete source export...
+KBUILD_SVN_INFO_KMK := $(PATH_OBJ)/SvnInfo.kmk
+KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
+$(warning Neither SvnInfo nor .svn/* was found in the root. Will have to cook up something too keep the build happy.)
+$(KBUILD_SVN_INFO_KMK): $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/.svn/all-wcprops $(PATH_ROOT)/.svn/format
+	$(RM) -f $@
+	$(APPEND) $@ 'KBUILD_SVN_REV := 0'
+	$(APPEND) $@ 'KBUILD_SVN_URL := /dev/null'
+
+ ifeq ($(DEPTH),.)
+OTHER_CLEAN += $(KBUILD_SVN_INFO_KMK)
+ endif
+
+endif
+include $(KBUILD_SVN_INFO_KMK)
+
 
 #
 # The OS and Architecture indicators.
@@ -193,4 +243,5 @@ TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 LIB_KDEP = $(PATH_OBJ)/src/lib/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 LIB_KUTIL = $(PATH_OBJ)/src/lib/kUtil/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kUtil$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
+
 
