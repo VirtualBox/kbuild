@@ -1,4 +1,4 @@
-# $Id: LIBSDL.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
+# $Id: LIBSDL.kmk 1528 2008-04-16 13:16:11Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - Simple DirectMedia Layer, targeting $(KBUILD_TARGET).
@@ -40,7 +40,7 @@ ifndef PATH_SDK_LIBSDL
   # Darwin might have a framework for it.
   ifeq ($(KBUILD_TARGET),darwin)
    PATH_SDK_LIBSDL := $(firstword $(wildcard \
-	/System/Library/Frameworks/SDL.frameworks/SDL \
+	/System/Library/Frameworks/SDL.framework/SDL \
 	/Library/Frameworks/SDL.framework/SDL \
 	) )
    ifneq ($(PATH_SDK_LIBSDL),)
