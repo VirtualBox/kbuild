@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 1512 2008-04-09 01:36:57Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 1529 2008-04-19 18:06:50Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -28,17 +28,17 @@
 #
 # ASSUMES:
 #   - KBUILD_TARGET, KBUILD_HOST, KBUILD_HOST_ARCH, and KBUILD_TYPE in the env.
-#   - PATH_KBUILD points to ./kBuild with an absolute path.
-#   - PATH_KBUILD_BIN must *NOT* be defined anywhere.
+#   - KBUILD_PATH points to ./kBuild with an absolute path.
+#   - KBUILD_BIN_PATH and PATH_KBUILD_BIN must *NOT* be defined anywhere.
 #   - Current directory == bootstrap.gmk directory.
 #   - mkdir -p works.
 #   - ln -s works
 #   - cp -f works
 #   - cd somedir && command works.
 #   - echo done > some-file works.
-#   - GNU make implements CURDIR, if not please define SRCDIR.
+#   - Recent GNU make that implements CURDIR, $(error) and ifdef.
 #
-# Tip: kBuild/env.sh --full (g)make -f bootstrap.kmk
+# Tip: kBuild/env.sh --full (g(nu))make -f bootstrap.kmk
 #
 #
 
@@ -77,6 +77,40 @@ endif
 
 ifndef KBUILD_PATH
  KBUILD_PATH := $(PATH_KBUILD)
+endif
+
+#
+# Check (some of) the assumptions.
+#
+ifndef KBUILD_TARGET
+ $(error KBUILD_TARGET not set)
+endif
+
+ifndef KBUILD_HOST
+ $(error KBUILD_HOST not set)
+endif
+
+ifndef KBUILD_HOST_ARCH
+ $(error KBUILD_HOST_ARCH not set)
+endif
+
+ifndef KBUILD_TYPE
+ $(error KBUILD_TYPE not set)
+endif
+
+ifndef KBUILD_TYPE
+ $(error KBUILD_TYPE not set)
+endif
+
+ifndef KBUILD_PATH
+ $(error KBUILD_PATH not set)
+endif
+
+ifdef KBUILD_BIN_PATH
+ $(error KBUILD_BIN_PATH is set)
+endif
+ifdef PATH_KBUILD_BIN
+ $(error PATH_KBUILD_BIN is set)
 endif
 
 
