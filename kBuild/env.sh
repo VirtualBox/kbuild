@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1517 2008-04-09 22:25:57Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1530 2008-04-19 21:56:31Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -32,19 +32,21 @@
 ERR_REDIR=1
 DBG_REDIR=1
 EVAL_OPT=
+EVAL_EXPORT="export "
 DBG_OPT=
 QUIET_OPT=
 FULL_OPT=
 LEGACY_OPT="true"
 VAR_OPT=
 VALUE_ONLY_OPT=
+EXP_TYPE_OPT=
 while test $# -gt 0; 
 do
     case "$1" in
-        "--debug")
+        "--debug-script")
             DBG_OPT="true"
             ;;
-        "--no-debug")
+        "--no-debug-script")
             DBG_OPT=
             ;;
         "--quiet")
@@ -70,6 +72,12 @@ do
             ERR_REDIR=2
             DBG_REDIR=2
             ;;
+        "--set")
+            EVAL_OPT="true"
+            EVAL_EXPORT=""
+            ERR_REDIR=2
+            DBG_REDIR=2
+            ;;
         "--var")
             shift
             VAR_OPT="${VAR_OPT} $1"
@@ -82,6 +90,22 @@ do
         "--name-and-value")
             VALUE_ONLY_OPT=
             ;;
+        "--release")
+            EXP_TYPE_OPT=1
+            KBUILD_TYPE=release
+            BUILD_TYPE=
+            ;;
+        "--debug")
+            EXP_TYPE_OPT=1
+            KBUILD_TYPE=debug
+            BUILD_TYPE=
+            ;;
+        "--profile")
+            EXP_TYPE_OPT=1
+            KBUILD_TYPE=profile
+            BUILD_TYPE=
+            ;;
+
         "--help")
             echo "kBuild Environment Setup Script, v0.1.3"
             echo ""
@@ -98,8 +122,10 @@ do
             echo "The forth form will only print the specified variable(s)."
             echo ""
             echo "Options:"
-            echo "  --debug, --no-debug"
-            echo "      Controls debug output. Default: --no-debug"
+            echo "  --debug, --release, --profile"
+            echo "      Alternative way of specifying KBUILD_TYPE."
+            echo "  --debug-script, --no-debug-script"
+            echo "      Controls debug output. Default: --no-debug-script"
             echo "  --quiet, --verbose"
             echo "      Controls informational output. Default: --verbose"
             echo "  --full, --normal"
@@ -108,6 +134,10 @@ do
             echo "      Include legacy variables in result. Default: --legacy"
             echo "  --value-only, --name-and-value"
             echo "      Controls what the result of a --var query. Default: --name-and-value"
+            echo "  --set, --export"
+            echo "      Whether --eval explicitly export the variables. --set is useful for"
+            echo "      getting a list of environment vars for a commandline, while --eval"
+            echo "      is useful for eval `env.sh`. Default: --export"
             echo ""
             exit 1
             ;;
@@ -472,7 +502,7 @@ if test -n "${VAR_OPT}"; then
         esac
 
         if test -n "$EVAL_OPT"; then
-            echo "export $var=$val"
+            echo "${EVAL_EXPORT} $var=$val"
         else
             if test -n "$VALUE_ONLY_OPT"; then
                 echo "$val"
@@ -485,34 +515,34 @@ else
     if test -n "$EVAL_OPT"; then
         # Echo statements for the shell to evaluate.
         test -n "$DBG_OPT" && echo "dbg: echoing exported variables" 1>&${DBG_REDIR}
-        echo "export PATH=${PATH}"
+        echo "${EVAL_EXPORT} PATH=${PATH}"
+        test -n "${FULL_OPT}" -o "${EXP_TYPE_OPT}" && echo "${EVAL_EXPORT} KBUILD_TYPE=${KBUILD_TYPE}"
         if test -n "${FULL_OPT}"; then
-            echo "export KBUILD_PATH=${KBUILD_PATH}"
-            echo "export KBUILD_TYPE=${KBUILD_TYPE}"
-            echo "export KBUILD_HOST=${KBUILD_HOST}"
-            echo "export KBUILD_HOST_ARCH=${KBUILD_HOST_ARCH}"
-            echo "export KBUILD_HOST_CPU=${KBUILD_HOST_CPU}"
-            echo "export KBUILD_TARGET=${KBUILD_TARGET}"
-            echo "export KBUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
-            echo "export KBUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
+            echo "${EVAL_EXPORT} KBUILD_PATH=${KBUILD_PATH}"
+            echo "${EVAL_EXPORT} KBUILD_HOST=${KBUILD_HOST}"
+            echo "${EVAL_EXPORT} KBUILD_HOST_ARCH=${KBUILD_HOST_ARCH}"
+            echo "${EVAL_EXPORT} KBUILD_HOST_CPU=${KBUILD_HOST_CPU}"
+            echo "${EVAL_EXPORT} KBUILD_TARGET=${KBUILD_TARGET}"
+            echo "${EVAL_EXPORT} KBUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
+            echo "${EVAL_EXPORT} KBUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
 
             if test -n "${LEGACY_OPT}"; then
-                echo "export PATH_KBUILD=${KBUILD_PATH}"
-                echo "export BUILD_TYPE=${KBUILD_TYPE}"
-                echo "export BUILD_PLATFORM=${KBUILD_HOST}"
-                echo "export BUILD_PLATFORM_ARCH=${KBUILD_HOST_ARCH}"
-                echo "export BUILD_PLATFORM_CPU=${KBUILD_HOST_CPU}"
-                echo "export BUILD_TARGET=${KBUILD_TARGET}"
-                echo "export BUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
-                echo "export BUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
+                echo "${EVAL_EXPORT} PATH_KBUILD=${KBUILD_PATH}"
+                echo "${EVAL_EXPORT} BUILD_TYPE=${KBUILD_TYPE}"
+                echo "${EVAL_EXPORT} BUILD_PLATFORM=${KBUILD_HOST}"
+                echo "${EVAL_EXPORT} BUILD_PLATFORM_ARCH=${KBUILD_HOST_ARCH}"
+                echo "${EVAL_EXPORT} BUILD_PLATFORM_CPU=${KBUILD_HOST_CPU}"
+                echo "${EVAL_EXPORT} BUILD_TARGET=${KBUILD_TARGET}"
+                echo "${EVAL_EXPORT} BUILD_TARGET_ARCH=${KBUILD_TARGET_ARCH}"
+                echo "${EVAL_EXPORT} BUILD_TARGET_CPU=${KBUILD_TARGET_CPU}"
             fi
         fi
     else
         # Export variables.
         export PATH
+        test -n "${FULL_OPT}" -o "${EXP_TYPE_OPT}" && export KBUILD_TYPE
         if test -n "${FULL_OPT}"; then
             export KBUILD_PATH
-            export KBUILD_TYPE
             export KBUILD_HOST
             export KBUILD_HOST_ARCH
             export KBUILD_HOST_CPU
