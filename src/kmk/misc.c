@@ -357,8 +357,12 @@ xmalloc (unsigned int size)
     fatal (NILF, _("virtual memory exhausted"));
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_allocations++;
-  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
-  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+  if (make_expensive_statistics)
+    {
+      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
+      make_stats_allocated += actual_size;
+      make_stats_allocated_sum += actual_size;
+    }
 #endif
   return result;
 }
@@ -369,10 +373,11 @@ xrealloc (void *ptr, unsigned int size)
 {
   void *result;
 #ifdef CONFIG_WITH_MAKE_STATS
-  if (ptr != NULL) 
+  if (make_expensive_statistics && ptr != NULL)
     {
-      make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
-      make_stats_allocated_sum -= SIZE_OF_HEAP_BLOCK (ptr);
+      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (ptr);
+      make_stats_allocated -= actual_size;
+      make_stats_allocated_sum -= actual_size;
     }
 #endif
 
@@ -383,8 +388,14 @@ xrealloc (void *ptr, unsigned int size)
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
 #ifdef CONFIG_WITH_MAKE_STATS
-  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
-  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+  if (!ptr)
+    make_stats_allocations++;
+  if (make_expensive_statistics)
+    {
+      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
+      make_stats_allocated += actual_size;
+      make_stats_allocated_sum += actual_size;
+    }
 #endif
   return result;
 }
@@ -406,8 +417,12 @@ xstrdup (const char *ptr)
 
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_allocations++;
-  make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
-  make_stats_allocated_sum += SIZE_OF_HEAP_BLOCK (result);
+  if (make_expensive_statistics)
+    {
+      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
+      make_stats_allocated += actual_size;
+      make_stats_allocated_sum += actual_size;
+    }
 #endif
 #ifdef HAVE_STRDUP
   return result;
@@ -937,10 +952,11 @@ close_stdout (void)
 #undef free
 void xfree(void *ptr)
 {
-  if (ptr) 
+  if (ptr)
     {
       make_stats_allocations--;
-      make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
+      if (make_expensive_statistics)
+        make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
       free (ptr);
     }
 }

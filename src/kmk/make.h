@@ -501,6 +501,10 @@ extern int second_expansion, clock_skew_detected, rebuilding_makefiles;
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
 extern int pretty_command_printing;
 #endif
+#ifdef CONFIG_WITH_MAKE_STATS
+extern int make_expensive_statistics;
+#endif
+
 
 /* can we run commands via 'sh -c xxx' or must we use batch files? */
 extern int batch_mode_shell;
