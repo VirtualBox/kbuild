@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1534 2008-04-20 10:14:14Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1537 2008-04-20 22:46:34Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -167,6 +167,7 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
   TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 \
                                   _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  endif
+ TEMPLATE_BIN_DEFS.profile      = NDEBUG
  TEMPLATE_BIN_DEFS.release      = NDEBUG
  TEMPLATE_BIN_CFLAGS            = -W3 -Zi -Zl
  TEMPLATE_BIN_CFLAGS.release    = -O2
