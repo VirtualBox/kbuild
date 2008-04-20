@@ -309,11 +309,19 @@ char cmd_prefix = '\t';
     3 = normal / nice 0;
     4 = high / nice -10;
     5 = realtime / nice -19; */
+
 int process_priority = 0;
 
 /* Process affinity mask; 0 means any CPU. */
+
 int process_affinity = 0;
 #endif /* KMK */
+
+#ifdef CONFIG_WITH_MAKE_STATS
+/* When set, we'll gather expensive statistics like for the heap. */
+
+int make_expensive_statistics = 0;
+#endif
 
 
 /* The usage output.  We write it this way to make life easier for the
@@ -403,6 +411,10 @@ static const char *const usage[] =
     N_("\
   --pretty-command-printing   Makes the command echo easier to read.\n"),
 #endif
+#ifdef CONFIG_WITH_MAKE_STATS
+    N_("\
+  --statistics                Gather extra statistics for $(make-stats ).\n"),
+#endif
     NULL
   };
 
@@ -458,6 +470,10 @@ static const struct command_switch switches[] =
     { 's', flag, &silent_flag, 1, 1, 0, 0, 0, "silent" },
     { 'S', flag_off, &keep_going_flag, 1, 1, 0, 0, &default_keep_going_flag,
       "no-keep-going" },
+#ifdef KMK
+    { CHAR_MAX+14, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
+       "statistics" },
+#endif
     { 't', flag, &touch_flag, 1, 1, 1, 0, 0, "touch" },
     { 'v', flag, &print_version_flag, 1, 1, 0, 0, 0, "version" },
     { CHAR_MAX+3, string, &verbosity_flags, 1, 1, 0, 0, 0,
@@ -3342,20 +3358,22 @@ define_makeflags (int all, int makefile)
   {
     char val[32];
     sprintf (val, "%u", job_slots);
-    define_variable ("KMK_OPTS_JOBS", sizeof("KMK_OPTS_JOBS") - 1, 
+    define_variable ("KMK_OPTS_JOBS", sizeof("KMK_OPTS_JOBS") - 1,
                      val, o_default, 1);
-    define_variable ("KMK_OPTS_KEEP_GOING", sizeof("KMK_OPTS_KEEP_GOING") - 1, 
+    define_variable ("KMK_OPTS_KEEP_GOING", sizeof("KMK_OPTS_KEEP_GOING") - 1,
                      keep_going_flag ? "1" : "0", o_default, 1);
-    define_variable ("KMK_OPTS_JUST_PRINT", sizeof("KMK_OPTS_JUST_PRINT") - 1, 
+    define_variable ("KMK_OPTS_JUST_PRINT", sizeof("KMK_OPTS_JUST_PRINT") - 1,
                      just_print_flag ? "1" : "0", o_default, 1);
-    define_variable ("KMK_OPTS_PRETTY_COMMAND_PRINTING", sizeof("KMK_OPTS_PRETTY_COMMAND_PRINTING") - 1, 
+    define_variable ("KMK_OPTS_PRETTY_COMMAND_PRINTING", sizeof("KMK_OPTS_PRETTY_COMMAND_PRINTING") - 1,
                      pretty_command_printing ? "1" : "0", o_default, 1);
     sprintf (val, "%u", process_priority);
-    define_variable ("KMK_OPTS_PRORITY", sizeof("KMK_OPTS_PRORITY") - 1, 
+    define_variable ("KMK_OPTS_PRORITY", sizeof("KMK_OPTS_PRORITY") - 1,
                      val, o_default, 1);
     sprintf (val, "%u", process_affinity);
-    define_variable ("KMK_OPTS_AFFINITY", sizeof("KMK_OPTS_AFFINITY") - 1, 
+    define_variable ("KMK_OPTS_AFFINITY", sizeof("KMK_OPTS_AFFINITY") - 1,
                      val, o_default, 1);
+    define_variable ("KMK_OPTS_STATISTICS", sizeof("KMK_OPTS_STATISTICS") - 1,
+                     make_expensive_statistics ? "1" : "0", o_default, 1);
   }
 #endif
 }
@@ -3392,10 +3410,10 @@ print_version (void)
 %s  The Regents of the University of California. All rights reserved.\n\
 %s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n\
 %s\n",
-          precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, 
+          precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR,
           KBUILD_VERSION_PATCH, KBUILD_SVN_REV,
           precede, version_string,
-          precede, precede, precede, precede, precede, precede, 
+          precede, precede, precede, precede, precede, precede,
           precede, precede);
 #else
   printf ("%sGNU Make %s\n\
