@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1530 2008-04-19 21:56:31Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1531 2008-04-20 02:31:10Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -40,7 +40,7 @@ LEGACY_OPT="true"
 VAR_OPT=
 VALUE_ONLY_OPT=
 EXP_TYPE_OPT=
-while test $# -gt 0; 
+while test $# -gt 0;
 do
     case "$1" in
         "--debug-script")
@@ -305,7 +305,7 @@ if test -z "$KBUILD_HOST_ARCH"; then
     # Use uname -m or isainfo (lots of guesses here, please help clean this up...)
     if test "$KBUILD_HOST" = "solaris"; then
         KBUILD_HOST_ARCH=`isainfo | cut -f 1 -d ' '`
-        
+
     else
         KBUILD_HOST_ARCH=`uname -m`
     fi
@@ -444,7 +444,7 @@ test -n "$DBG_OPT" && echo "dbg: PATH=$PATH" 1>&${DBG_REDIR}
 # Sanity and x bits.
 #
 if test ! -d "${KBUILD_BIN_PATH}/"; then
-    echo "$0: warning: The bin directory for this platform doesn't exists. (${KBUILD_BIN_PATH}/)" 1>&${ERR_REDIR}
+    echo "$0: warning: The bin directory for this platform doesn't exist. (${KBUILD_BIN_PATH}/)" 1>&${ERR_REDIR}
 else
     for prog in kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed;
     do
@@ -463,38 +463,38 @@ if test -n "${VAR_OPT}"; then
     for var in ${VAR_OPT};
     do
         val=
-        case "$var" in 
-            PATH) 
-                val=$PATH 
+        case "$var" in
+            PATH)
+                val=$PATH
                 ;;
-            KBUILD_PATH) 
-                val=$KBUILD_PATH 
+            KBUILD_PATH)
+                val=$KBUILD_PATH
                 ;;
-            KBUILD_BIN_PATH) 
+            KBUILD_BIN_PATH)
                 val=$KBUILD_BIN_PATH
                 ;;
-            KBUILD_HOST) 
-                val=$KBUILD_HOST 
+            KBUILD_HOST)
+                val=$KBUILD_HOST
                 ;;
-            KBUILD_HOST_ARCH) 
+            KBUILD_HOST_ARCH)
                 val=$KBUILD_HOST_ARCH
                 ;;
-            KBUILD_HOST_CPU) 
+            KBUILD_HOST_CPU)
                 val=$KBUILD_HOST_CPU
                 ;;
-            KBUILD_TARGET) 
-                val=$KBUILD_TARGET 
+            KBUILD_TARGET)
+                val=$KBUILD_TARGET
                 ;;
-            KBUILD_TARGET_ARCH) 
+            KBUILD_TARGET_ARCH)
                 val=$KBUILD_TARGET_ARCH
                 ;;
-            KBUILD_TARGET_CPU) 
+            KBUILD_TARGET_CPU)
                 val=$KBUILD_TARGET_CPU
                 ;;
-            KBUILD_TYPE) 
+            KBUILD_TYPE)
                 val=$KBUILD_TYPE
                 ;;
-            *)  
+            *)
                 echo "$0: error: Unknown variable $var specified in --var request." 1>&${ERR_REDIR}
                 sleep 1
                 exit 1
@@ -561,7 +561,7 @@ else
                 export BUILD_TARGET_CPU=$KBUILD_TARGET_CPU
             fi
         fi
-    
+
         # Execute command or spawn shell.
         if test $# -eq 0; then
             test -z "${QUIET_OPT}" && echo "$0: info: Spawning work shell..." 1>&${ERR_REDIR}
