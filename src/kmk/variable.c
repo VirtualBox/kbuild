@@ -129,21 +129,21 @@ static inline unsigned long variable_hash_2i(register const char *var, register 
     register const unsigned char *uvar_end = uvar + length;
     switch (length)
     {
-        default: 
+        default:
         case 32: //UPDATE_HASH(uvar_end[-16]);
-        case 31: UPDATE_HASH(uvar_end[-15]); 
-        case 30: //UPDATE_HASH(uvar_end[-14]); 
-        case 29: UPDATE_HASH(uvar_end[-13]); 
+        case 31: UPDATE_HASH(uvar_end[-15]);
+        case 30: //UPDATE_HASH(uvar_end[-14]);
+        case 29: UPDATE_HASH(uvar_end[-13]);
         case 28: //UPDATE_HASH(uvar_end[-12]);
-        case 27: UPDATE_HASH(uvar_end[-11]); 
-        case 26: //UPDATE_HASH(uvar_end[-10]); 
-        case 25: UPDATE_HASH(uvar_end[-9]); 
+        case 27: UPDATE_HASH(uvar_end[-11]);
+        case 26: //UPDATE_HASH(uvar_end[-10]);
+        case 25: UPDATE_HASH(uvar_end[-9]);
         case 24: //UPDATE_HASH(uvar[15]);
-        case 23: UPDATE_HASH(uvar[14]); 
+        case 23: UPDATE_HASH(uvar[14]);
         case 22: //UPDATE_HASH(uvar[13]);
-        case 21: UPDATE_HASH(uvar[12]); 
+        case 21: UPDATE_HASH(uvar[12]);
         case 20: //UPDATE_HASH(uvar[11]);
-        case 19: UPDATE_HASH(uvar[10]); 
+        case 19: UPDATE_HASH(uvar[10]);
         case 18: //UPDATE_HASH(uvar[9]);
         case 17: UPDATE_HASH(uvar[8]);
         case 16: //UPDATE_HASH(uvar_end[-8]);
@@ -162,7 +162,7 @@ static inline unsigned long variable_hash_2i(register const char *var, register 
         case 3:  UPDATE_HASH(uvar[2]);
         case 2:  //UPDATE_HASH(uvar[1]);
         case 1:  UPDATE_HASH(uvar[0]);
-        case 0:  
+        case 0:
             return hash;
     }
 # endif /* CONFIG_WITH_OPTIMIZATION_HACKS*/
@@ -188,7 +188,7 @@ static inline unsigned long variable_hash_1i(register const char *var, register 
     register unsigned long hash = ((5381 << 5) + 5381) + *uvar;
     switch (length)
     {
-        default: 
+        default:
 #if 0 /* seems to be a waste of time. */
         case 97: UPDATE_HASH(uvar_end[-77]);
         case 96: //UPDATE_HASH(uvar_end[-76]);
@@ -271,7 +271,7 @@ static inline unsigned long variable_hash_1i(register const char *var, register 
         case 22: UPDATE_HASH(uvar_end[-10]);
         case 21: UPDATE_HASH(uvar_end[-9]);
         case 20: UPDATE_HASH(uvar[7]);
-        case 19: UPDATE_HASH(uvar[6]);  
+        case 19: UPDATE_HASH(uvar[6]);
         case 18: UPDATE_HASH(uvar[5]);
         case 17: UPDATE_HASH(uvar[4]);
 
@@ -430,14 +430,14 @@ variable_hash_cmp (const void *xv, const void *yv)
 #  define PERFILE_VARIABLE_BUCKETS	64
 # else
 #define	PERFILE_VARIABLE_BUCKETS	23
-# endif 
+# endif
 #endif
 #ifndef	SMALL_SCOPE_VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? */
 #  define SMALL_SCOPE_VARIABLE_BUCKETS  32
 # else
 #define	SMALL_SCOPE_VARIABLE_BUCKETS	13
-# endif 
+# endif
 #endif
 
 static struct variable_set global_variable_set;

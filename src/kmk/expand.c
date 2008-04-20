@@ -184,12 +184,26 @@ reference_variable (char *o, const char *name, unsigned int length)
   if (v == 0 || (*v->value == '\0' && !v->append))
     return o;
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  if (!v->recursive)
+    {
+      assert (v->value_length == strlen (v->value));
+      o = variable_buffer_output (o, v->value, v->value_length);
+    }
+  else
+   {
+     value = recursively_expand (v);
+     o = variable_buffer_output (o, value, strlen (value));
+     free (value);
+   }
+#else  /* !CONFIG_WITH_VALUE_LENGTH */
   value = (v->recursive ? recursively_expand (v) : v->value);
 
   o = variable_buffer_output (o, value, strlen (value));
 
   if (v->recursive)
     free (value);
+#endif /* !CONFIG_WITH_VALUE_LENGTH */
 
   return o;
 }
@@ -564,18 +578,20 @@ variable_append (const char *name, unsigned int length,
      If we already have a value, first add a space.  */
   if (buf > variable_buffer)
     buf = variable_buffer_output (buf, " ", 1);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  assert (v->value_length == strlen (v->value));
+#endif
 
   /* Either expand it or copy it, depending.  */
   if (! v->recursive)
 #ifdef CONFIG_WITH_VALUE_LENGTH
-    return variable_buffer_output (buf, v->value,
-                                   v->value_length >= 0 ? v->value_length : strlen (v->value));
+    return variable_buffer_output (buf, v->value, v->value_length);
 #else
     return variable_buffer_output (buf, v->value, strlen (v->value));
 #endif
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  buf = variable_expand_string (buf, v->value, v->value_length >= 0 ? v->value_length : strlen (v->value));
+  buf = variable_expand_string (buf, v->value, v->value_length);
 #else
   buf = variable_expand_string (buf, v->value, strlen (v->value));
 #endif
