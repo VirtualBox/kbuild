@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1534 2008-04-20 10:14:14Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Makefile for kBuild.
 #
@@ -61,6 +61,9 @@ kBuild_bin_SOURCES.$(KBUILD_TARGET).x86 = \
 kBuild_bin_SOURCES.$(KBUILD_TARGET).amd64 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/msvcr80.dll=>Microsoft.VC80.CRT/msvcr80.dll \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest=>Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
+kBuild_bin_SOURCES.profile = \
+	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2.dll \
+	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2WinApiWrappers.dll
 endif
 
 

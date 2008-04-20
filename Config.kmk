@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1523 2008-04-13 01:57:23Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1534 2008-04-20 10:14:14Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -168,7 +168,6 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
                                   _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  endif
  TEMPLATE_BIN_DEFS.release      = NDEBUG
- TEMPLATE_BIN_SDKS              = WINPSDK
  TEMPLATE_BIN_CFLAGS            = -W3 -Zi -Zl
  TEMPLATE_BIN_CFLAGS.release    = -O2
  TEMPLATE_BIN_CFLAGS.profile    = -O2 -GH -Gh
@@ -177,24 +176,30 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
 	$(PATH_GNUMAKE_SRC)/w32/include \
 	$(PATH_GNUMAKE_SRC)/glob
  TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
- ifeq (1,0)
- TEMPLATE_BIN_CFLAGS           += -MT
- TEMPLATE_BIN_LIBS              = \
-	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
-	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+ ifeq ($(KBUILD_TYPE),profile)
+  TEMPLATE_BIN_SDKS              = WINPSDKINCS
+  TEMPLATE_BIN_CFLAGS          += -MT
+  TEMPLATE_BIN_LIBS             = \
+	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2.lib \
+	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2WinApiWrappersImp.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib \
+	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2WinApiWrappersImp.lib \
+	$(PATH_SDK_WINPSDKINCS_LIB)/AdvAPI32.lib \
+	$(PATH_SDK_WINPSDKINCS_LIB)/User32.lib
  else
- TEMPLATE_BIN_CFLAGS           += -MD
- TEMPLATE_BIN_LIBS              = \
-	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
- #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
+  TEMPLATE_BIN_SDKS              = WINPSDK
+  TEMPLATE_BIN_CFLAGS          += -MD
+  TEMPLATE_BIN_LIBS             = \
+  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
+  #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
  endif
- TEMPLATE_BIN_LIBS.profile      = Y:/coding/libc/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/debug/kStuff/lib/kPrf2.lib
  ifdef NIX_INSTALL_DIR
- TEMPLATE_BIN_INST              = $(NIX_INSTALL_DIR_BIN)/
+  TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
- TEMPLATE_BIN_INST              = kBuild/bin/win.$(KBUILD_TARGET_ARCH)/
+  TEMPLATE_BIN_INST             = kBuild/bin/win.$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
