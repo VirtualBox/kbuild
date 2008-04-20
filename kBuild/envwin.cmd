@@ -507,7 +507,6 @@ if ".%_KBUILD_OPT_DBG%" == ".1"         echo dbg: _KBUILD_NEW_PATH=%_KBUILD_NEW_
 REM
 REM Sanity check.
 REM
-rem echo ON
 if not exist "%_KBUILD_BIN_PATH%" goto missing_bin_path
 if not exist "%_KBUILD_BIN_PATH%" goto done_chekcing_for_tools
 set _KBUILD_TMP=kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed
@@ -522,7 +521,7 @@ REM
 REM The environment is in place, now take the requested action.
 REM
 if ".%_KBUILD_OPT_VAR%" == "." goto exec_or_setup_env
-rem goto show_variable
+goto show_variable
 
 REM
 REM Show a set of variables.
@@ -555,9 +554,6 @@ for %%i in ( %_KBUILD_OPT_VAR% ) do (
 )
 
 endlocal
-
-echo off
-exit /b 0
 goto end
 
 :no_delay_expansion
