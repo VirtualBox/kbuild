@@ -896,6 +896,7 @@ strip(const char *to_name)
 			stripbin = "strip";
 		execlp(stripbin, stripbin, to_name, (char *)NULL);
 		err(EX_OSERR, "exec(%s)", stripbin);
+                exit(EX_OSERR);
 	default:
 		if (waitpid(pid, &status, 0) == -1 || status) {
 			serrno = errno;
