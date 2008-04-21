@@ -889,7 +889,7 @@ strip(const char *to_name)
 		serrno = errno;
 		(void)unlink(to_name);
 		errno = serrno;
-		err(EX_TEMPFAIL, "fork");
+		return err(EX_TEMPFAIL, "fork");
 	case 0:
 		stripbin = getenv("STRIPBIN");
 		if (stripbin == NULL)
@@ -901,10 +901,11 @@ strip(const char *to_name)
 			serrno = errno;
 			(void)unlink(to_name);
                         errno = serrno;
-			err(EX_SOFTWARE, "waitpid");
+			return err(EX_SOFTWARE, "waitpid");
 			/* NOTREACHED */
 		}
 	}
+        return 0;
 #endif
 }
 
