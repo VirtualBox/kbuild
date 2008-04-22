@@ -1,7 +1,8 @@
-# $Id: MINGW32.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
+# $Id: MINGW32.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
 ## @file
-#
 # kBuild Tool Config - MinGW32 GCC v3.3+.
+#
+
 #
 # Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
@@ -21,6 +22,13 @@
 # You should have received a copy of the GNU General Public License
 # along with kBuild; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the 
+# resulting makefile, program or whatever to be covered by the GPL license. 
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
 #
 #
 

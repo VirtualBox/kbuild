@@ -1,11 +1,11 @@
-# $Id: up.kmk 1505 2008-04-09 00:13:14Z knut.osmundsen@oracle.com $
+# $Id: up.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
 ## @file
-#
 # kBuild - File included at top of a up forwarder makefile.
 #          This method is DEPRECATED. Use Makefile.kup files instead.
 #
-# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+
 #
+# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -24,8 +24,14 @@
 # Foundation, Inc., 59 Temple Place, Suite typetype0, Boston, MA  0sourcetargettargettarget-targettype07  USA
 #
 #
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the 
+# resulting makefile, program or whatever to be covered by the GPL license. 
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
+#
 
-# inlucde the header to get the right MAKE and to include config.kmk
+# include the header to get the right MAKE and to include config.kmk
 # files since these may contain global goals.
 include $(PATH_KBUILD)/header.kmk
 
