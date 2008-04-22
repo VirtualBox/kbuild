@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Portfile 1546 2008-04-22 01:54:00Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
