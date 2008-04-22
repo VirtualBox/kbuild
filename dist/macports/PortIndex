@@ -1,0 +1,4 @@
+kbuild 336
+variants universal description kBuild portdir devel/kbuild homepage http://svn.netlabs.org/kbuild epoch 0 platforms darwin name kbuild long_description {See http://svn.netlabs.org/kbuild (I'm lazy). Stable version, well, soon to be stable anyways.} maintainers bird-kBuild-spam@anduin.net categories devel version 0.1.3-beta revision 0
+kbuild-head 310
+variants universal description {kBuild subversion trunk} portdir devel/kbuild-head homepage http://svn.netlabs.org/kbuild epoch 0 platforms darwin name kbuild-head long_description {See http://svn.netlabs.org/kbuild (I'm lazy).} maintainers bird-kBuild-spam@anduin.net categories devel version 9999 revision 0
