@@ -53,9 +53,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include "err.h"
 #include <errno.h>
 #include <fcntl.h>
-#ifdef DO_RMTREE
-# include <fts.h>
-#endif
+#include <fts.h>
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -69,6 +67,15 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #endif
 #include "kmkbuiltin.h"
 
+#if defined(__EMX__) || defined(_MSC_VER)
+# define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
+# define HAVE_DOS_PATHS 1
+# define DEFAULT_REQUIRED_R_DEPTH 2
+#else
+# define IS_SLASH(ch)   ( (ch) == '/' )
+# undef HAVE_DOS_PATHS
+# define DEFAULT_REQUIRED_R_DEPTH 3
+#endif
 
 #ifdef __EMX__
 #undef S_IFWHT
@@ -84,6 +91,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 extern void strmode(mode_t mode, char *p);
 #endif
 
+static int protectionflag;
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 static uid_t uid;
 
@@ -93,6 +101,7 @@ static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
     { "version",   					no_argument, 0, 262 },
+    { "disable-protection",				no_argument, 0, 263 },
     { 0, 0,	0, 0 },
 };
 
@@ -101,9 +110,8 @@ static int	check(char *, char *, struct stat *);
 static void	checkdot(char **);
 static void	rm_file(char **);
 static int	rm_overwrite(char *, struct stat *);
-#ifdef DO_RMTREE
-static void	rm_tree(char **);
-#endif
+static void	rm_tree(char **, int);
+static int	count_path_components(const char *);
 static int	usage(FILE *);
 
 
@@ -123,6 +131,7 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 	/* reinitialize globals */
 	argv0 = argv[0];
 	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
+	protectionflag = 1;
 	uid = 0;
 
 	/* kmk: reset getopt and set program name. */
@@ -150,14 +159,11 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 			Pflag = 1;
 			break;
 		case 'R':
+#if 0
 		case 'r':			/* Compatibility. */
-#ifdef DO_RMTREE
+#endif 
 			rflag = 1;
 			break;
-#else
-			errno = EINVAL;
-			return err(1, "Recursion is not supported!");
-#endif
 		case 'v':
 			vflag = 1;
 			break;
@@ -171,6 +177,9 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
+		case 263:
+			protectionflag = 0;
+			break;
 		case '?':
 		default:
 			return usage(stderr);
@@ -189,26 +198,222 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 
 	if (*argv) {
 		stdin_ok = isatty(STDIN_FILENO);
-#ifdef DO_RMTREE
-		if (rflag)
-			rm_tree(argv);
-		else
-#endif
+		if (rflag) {
+			/* 
+			 * Get options from the environment before doing rm_tree(). 
+			 */
+			int required_r_depth = DEFAULT_REQUIRED_R_DEPTH;
+			int i;
+			for (i = 0; envp[i]; i++) {
+				if (!strncmp(envp[i], "KMK_RM_=", sizeof("KMK_RM_=") - 1)) {
+					if (!strncmp(envp[i], "KMK_RM_PROTECTION_DEPTH=", sizeof("KMK_RM_PROTECTION_DEPTH=") - 1)) {
+						char *ignore;
+						const char *val = envp[i] + sizeof("KMK_RM_PROTECTION_DEPTH=") - 1;
+						required_r_depth = isdigit(*val) ? strtol(val, &ignore, 0) : count_path_components(val);
+						if (required_r_depth < 1)
+							required_r_depth = DEFAULT_REQUIRED_R_DEPTH;
+					} else if (!strcmp(envp[i], "KMK_RM_DISABLE_PROTECTION=1")) {
+						protectionflag = 0;
+					}
+				}
+			}
+
+			if (!eval)
+				rm_tree(argv, required_r_depth);
+		} else {
 			rm_file(argv);
+		}
 	}
 
 	return eval;
 }
 
-#ifdef DO_RMTREE
+/**
+ * Counts the components in the specified sub path.
+ * This is a helper for count_path_components.
+ *
+ * etc = 1
+ * etc/ = 1
+ * etc/x11 = 2 
+ * and so and and so forth.
+ */
+static int
+count_sub_path_components(const char *path, int depth)
+{
+	for (;;) {
+		const char *end;
+		size_t len;
+
+		/* skip slashes. */
+		while (IS_SLASH(*path))
+			path++;
+		if (!*path)
+			break;
+
+		/* find end of component. */
+		end = path;
+		while (!IS_SLASH(*end) && *end)
+			end++;
+
+		/* count it, checking for '..' and '.'. */
+		len = end - path;
+		if (len == 2 && path[0] == '.' && path[1] == '.') {
+			if (depth > 0)
+				depth--;
+		} else if (len != 1 || path[0] != '.') {
+			depth++;
+		}
+
+		/* advance */
+		if (!*end)
+			break;
+		path = end + 1;
+	}
+	return depth;
+}
+
+/**
+ * Parses the specified path counting the number of components 
+ * relative to root.
+ *
+ * We don't check symbolic links and such, just some simple and cheap 
+ * path parsing.
+ *
+ * @param   path                The path to process.
+ *
+ * @returns 0 or higher on success.
+ *          On failure an error is printed, eval is set and -1 is returned.
+ */
+static int
+count_path_components(const char *path)
+{
+	int components = 0;
+
+	/*
+	 * Deal with root, UNC, drive letter.
+     */
+#if defined(_MSC_VER) || defined(__OS2__)
+    if (IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2])) {
+		/* skip the root - UNC */
+		path += 3; 
+		while (!IS_SLASH(*path) && *path) /* server name */
+			path++;
+		while (IS_SLASH(*path))
+			path++;
+		while (!IS_SLASH(*path) && *path) /* share name */
+			path++;
+		while (IS_SLASH(*path))
+			path++;
+	} else {
+		unsigned drive_letter = (unsigned)toupper(path[0]) - (unsigned)'A';
+		if (drive_letter <= (unsigned)('Z' - 'A') && path[1] == ':') {
+			drive_letter++; /* A == 1 */
+		} else {
+			drive_letter = 0; /* 0 == default */
+		}
+
+		if (IS_SLASH(path[drive_letter ? 2 : 0])) {
+			/* 
+			 * Relative path, must count cwd depth first.
+			 */
+			char *tmp = _getdcwd(drive_letter, NULL, 32);
+			if (!tmp) {
+				eval = err(1, "_getdcwd");
+				return -1;
+			}
+
+			if (IS_SLASH(cwd[0]) && IS_SLASH(cwd[1])) {
+				/* skip the root - UNC */
+				tmp = &cwd[2];
+				while (!IS_SLASH(*tmp) && *tmp) /* server name */
+					tmp++;
+				while (IS_SLASH(*tmp))
+					tmp++;
+				while (!IS_SLASH(*tmp) && *tmp) /* share name */
+					tmp++;
+			} else {
+				/* skip the drive letter and while we're at it, the root slash too. */
+				tmp = &cwd[1 + (cwd[1] == ':')];
+			}
+			components = count_sub_path_components(tmp, 0);
+			free(tmp);
+		} else {
+			/* skip the drive letter and while we're at it, the root slash too. */
+			path += drive_letter ? 3 : 1;
+		}
+	}
+#else
+	if (!IS_SLASH(path[0])) {
+		/*
+		 * Relative path, must count cwd depth first.
+         */
+		char cwd[4096];
+		if (!getcwd(cwd, sizeof(cwd))) {
+			eval = err(1, "getcwd");
+			return -1;
+		}
+		components = count_sub_path_components(cwd, 0);
+	}
+#endif
+
+	/* 
+	 * We're now past any UNC or drive letter crap, possibly positioned
+	 * at the root slash or at the start of a path component at the
+	 * given depth. Count the remainder.
+	 */
+	return count_sub_path_components(path, components);
+}
+
+
+/**
+ * Protect the upper layers of the file system against accidental 
+ * or malicious deletetion attempt from within a makefile.
+ *
+ * @param   path                The path to check.
+ * @param   required_depth      The minimum number of components in the 
+ *                              path counting from the root.
+ *
+ * @returns 0 on success. 
+ *          On failure an error is printed, eval is set and -1 is returned.
+ */
+static int
+enforce_protection(const char *path, unsigned required_depth)
+{
+	int components;
+
+	/*
+	 * Count the path and compare it with the required depth.
+     */
+	components = count_path_components(path);
+	if (components < 0)
+		return -1;
+	if (components < required_depth) {
+		eval = errx(1, "%s: protected", path);
+		return -1;
+	}
+	return 0;
+}
+
 static void
-rm_tree(char **argv)
+rm_tree(char **argv, int required_r_depth)
 {
 	FTS *fts;
 	FTSENT *p;
 	int needstat;
 	int flags;
 	int rval;
+
+	/*
+	 * Check up front before anything is deleted. This will not catch 
+	 * everything, but we'll check the individual items later.
+	 */
+	if (protectionflag) {
+		int i;
+		for (i = 0; argv[i]; i++) {
+			if (enforce_protection(argv[i], required_r_depth))
+				return;
+		}
+	}
 
 	/*
 	 * Remove a file hierarchy.  If forcing removal (-f), or interactive
@@ -244,7 +449,8 @@ rm_tree(char **argv)
 			continue;
 		case FTS_ERR:
 			eval = errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
-                        return;
+			fts_close(fts);
+			return;
 		case FTS_NS:
 			/*
 			 * Assume that since fts_read() couldn't stat the
@@ -283,6 +489,14 @@ rm_tree(char **argv)
 			if (!fflag &&
 			    !check(p->fts_path, p->fts_accpath, p->fts_statp))
 				continue;
+		}
+
+		/* 
+		 * Protect against deleting root files and directories.
+		 */
+		if (protectionflag && enforce_protection(p->fts_accpath, required_r_depth)) {
+			fts_close(fts);
+			return;
 		}
 
 		rval = 0;
@@ -357,10 +571,10 @@ err:
 	}
 	if (errno) {
 		fprintf(stderr, "%s: fts_read: %s\n", argv0, strerror(errno));
-                eval = 1;
-        }
+		eval = 1;
+	}
+	fts_close(fts);
 }
-#endif /* DO_RMTREE */
 
 static void
 rm_file(char **argv)
@@ -576,10 +790,24 @@ checkdot(char **argv)
 
 	complained = 0;
 	for (t = argv; *t;) {
+#ifdef HAVE_DOS_PATHS
+		const char *tmp = p = *t;
+		while (*tmp) {
+			switch (*tmp) {
+			case '/':
+			case '\\':
+			case ':':
+				p = (char *)tmp + 1;
+				break;
+			}
+			tmp++;
+		}
+#else
 		if ((p = strrchr(*t, '/')) != NULL)
 			++p;
 		else
 			p = *t;
+#endif
 		if (ISDOT(p)) {
 			if (!complained++)
 				fprintf(stderr, "%s: \".\" and \"..\" may not be removed\n", argv0);
@@ -595,9 +823,43 @@ checkdot(char **argv)
 static int
 usage(FILE *pf)
 {
-	fprintf(pf, "usage: %s [-f | -i] [-dPRrvW] file ...\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-			g_progname, g_progname, g_progname);
+	fprintf(pf, 
+		"usage: %s [-f | -i] [-dPRvW] [--disable-protection] file ...\n"
+		"   or: %s --help\n"
+		"   or: %s --version\n"
+		"\n"
+		"Options:\n"
+		"   -f\n"
+		"       Attempt to remove files without prompting, regardless of the file\n"
+		"       permission. Ignore non-existing files. Overrides previous -i's.\n"
+		"   -i\n"
+		"       Prompt for each file. Always.\n"
+		"   -d\n"
+		"       Attempt to remove directories as well as other kinds of files.\n"
+		"   -P\n"
+		"       Overwrite regular files before deleting; three passes: ff,0,ff\n"
+		"   -R\n"
+		"       Attempt to remove the file hierachy rooted in each file argument.\n"
+		"       This option implies -d and file protection.\n"
+		"   -v\n"
+		"       Be verbose, show files as they are removed.\n"
+		"   -W\n"
+		"       Undelete without files.\n"
+		"   --disable-protection\n"
+		"       Will disable the protection file protection applied by -R.\n"
+		"\n"
+		"Environment:\n"
+		"    KMK_RM_DISABLE_PROTECTION\n"
+		"       Same as --disable-protection.\n"
+		"    KMK_RM_PROTECTION_DEPTH\n"
+		"       Changes the protection depth, path or number. Default: %d\n"
+		"\n"
+		"The file protection of the top %d layers of the file hierarchy is there\n"
+		"to try prevent makefiles from doing bad things to your system. This\n"
+		"protection is not bulletproof, but should help prevent you from shooting\n"
+		"yourself in the foot. Not that it does NOT apply to normal file removal.\n"
+		,
+		g_progname, g_progname, g_progname, 
+		DEFAULT_REQUIRED_R_DEPTH, DEFAULT_REQUIRED_R_DEPTH);
 	return EX_USAGE;
 }
