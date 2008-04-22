@@ -1,4 +1,4 @@
-# $Id: Portfile 1546 2008-04-22 01:54:00Z knut.osmundsen@oracle.com $
+# $Id: Portfile 1548 2008-04-22 11:23:06Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
@@ -13,8 +13,8 @@ long_description \
 homepage        http://svn.netlabs.org/kbuild
 platforms       darwin
 fetch.type      svn
-#svn.url         http://svn.netlabs.org/repos/kbuild/trunk
-svn.url         svn://system360/svn-mirrors/kbuild/trunk
+svn.url         http://svn.netlabs.org/repos/kbuild/trunk
+#svn.url         svn://system360/svn-mirrors/kbuild/trunk
 svn.tag         1545
 worksrcdir   	trunk
 
