@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1531 2008-04-20 02:31:10Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1542 2008-04-22 01:20:45Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -458,6 +458,7 @@ fi
 #
 # The environment is in place, now take the requested action.
 #
+MY_RC=0
 if test -n "${VAR_OPT}"; then
     # Echo variable values or variable export statements.
     for var in ${VAR_OPT};
@@ -569,11 +570,15 @@ else
                 export PS1='\[\033[01;32m\]\u@\h \[\033[01;34m\]\W \$ \[\033[00m\]'
             fi
             $SHELL -i
+            MY_RC=$?
         else
             test -z "${QUIET_OPT}" && echo "$0: info: Executing command: $*" 1>&${ERR_REDIR}
             $*
+            MY_RC=$?
+            test -z "${QUIET_OPT}" -a "$MY_RC" -ne 0 && echo "$0: info: rc=$MY_RC: $*" 1>&${ERR_REDIR}
         fi
     fi
 fi
-test -n "$DBG_OPT" && echo "dbg: finished" 1>&${DBG_REDIR}
+test -n "$DBG_OPT" && echo "dbg: finished (rc=$MY_RC)" 1>&${DBG_REDIR}
+exit $MY_RC
 
