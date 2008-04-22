@@ -1,0 +1,36 @@
+# $Id$
+# Very crude atm, everything is exec'ed.
+
+PortSystem 1.0
+name            kbuild
+version         0.1.3-beta
+categories      devel
+maintainers     bird-kBuild-spam@anduin.net
+description     kBuild
+long_description \
+    See http://svn.netlabs.org/kbuild (I'm lazy). Stable version, well, soon to be stable anyways.
+
+homepage        http://svn.netlabs.org/kbuild
+platforms       darwin
+fetch.type      svn
+#svn.url         http://svn.netlabs.org/repos/kbuild/trunk
+svn.url         svn://system360/svn-mirrors/kbuild/trunk
+svn.tag         1545
+worksrcdir   	trunk
+
+test.run        no
+
+configure {}
+
+build {
+    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} -j ${buildmakejobs}"
+}
+
+test {
+    system "${workpath}/${worksrcdir}/out/darwin.x86/release/kBuild/bin/darwin.x86/kmk -C ${workpath}/${worksrcdir}/tests nothing"
+}
+
+destroot {
+    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} PATH_INS=${destroot}/"
+}
+
