@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1537 2008-04-20 22:46:34Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1540 2008-04-22 00:56:19Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -77,7 +77,7 @@ else
 KBUILD_SVN_INFO_KMK := $(PATH_OBJ)/SvnInfo.kmk
 KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
 $(warning Neither SvnInfo nor .svn/* was found in the root. Will have to cook up something too keep the build happy.)
-$(KBUILD_SVN_INFO_KMK): $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/.svn/all-wcprops $(PATH_ROOT)/.svn/format
+$(KBUILD_SVN_INFO_KMK): $(wildcard $(PATH_ROOT)/.svn $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/.svn/all-wcprops $(PATH_ROOT)/.svn/format $(PATH_ROOT)/.svn/props $(PATH_ROOT)/.svn/prop-base )
 	$(RM) -f $@
 	$(APPEND) $@ 'KBUILD_SVN_REV := 0'
 	$(APPEND) $@ 'KBUILD_SVN_URL := /dev/null'
