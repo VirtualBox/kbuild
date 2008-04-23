@@ -40,9 +40,6 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <sys/cdefs.h>
 //__FBSDID("$FreeBSD: src/bin/rm/rm.c,v 1.47 2004/04/06 20:06:50 markm Exp $");
 #endif
-#ifdef __EMX__
-# define DO_RMTREE
-#endif
 
 #include <sys/stat.h>
 #ifndef _MSC_VER
