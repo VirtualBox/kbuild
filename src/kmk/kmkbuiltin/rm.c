@@ -70,11 +70,11 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #if defined(__EMX__) || defined(_MSC_VER)
 # define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
 # define HAVE_DOS_PATHS 1
-# define DEFAULT_REQUIRED_R_DEPTH 2
+# define DEFAULT_PROTECTION_DEPTH 1
 #else
 # define IS_SLASH(ch)   ( (ch) == '/' )
 # undef HAVE_DOS_PATHS
-# define DEFAULT_REQUIRED_R_DEPTH 3
+# define DEFAULT_PROTECTION_DEPTH 2
 #endif
 
 #ifdef __EMX__
@@ -91,7 +91,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 extern void strmode(mode_t mode, char *p);
 #endif
 
-static int protectionflag;
+static int protectionflag, fullprotectionflag, protectiondepth;
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 static uid_t uid;
 
@@ -102,6 +102,10 @@ static struct option long_options[] =
     { "help",   					no_argument, 0, 261 },
     { "version",   					no_argument, 0, 262 },
     { "disable-protection",				no_argument, 0, 263 },
+    { "enable-protection",				no_argument, 0, 264 },
+    { "enable-full-protection",				no_argument, 0, 265 },
+    { "disable-full-protection",			no_argument, 0, 266 },
+    { "protection-depth",				required_argument, 0, 267 },
     { 0, 0,	0, 0 },
 };
 
@@ -110,8 +114,9 @@ static int	check(char *, char *, struct stat *);
 static void	checkdot(char **);
 static void	rm_file(char **);
 static int	rm_overwrite(char *, struct stat *);
-static void	rm_tree(char **, int);
+static void	rm_tree(char **);
 static int	count_path_components(const char *);
+static int  set_protection_depth(const char *);
 static int	usage(FILE *);
 
 
@@ -127,11 +132,14 @@ int
 kmk_builtin_rm(int argc, char *argv[], char **envp)
 {
 	int ch, rflag;
+	int i;
 
 	/* reinitialize globals */
 	argv0 = argv[0];
 	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
+	fullprotectionflag = 0;
 	protectionflag = 1;
+	protectiondepth = DEFAULT_PROTECTION_DEPTH;
 	uid = 0;
 
 	/* kmk: reset getopt and set program name. */
@@ -142,7 +150,7 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 	optind = 0; /* init */
 
 	Pflag = rflag = 0;
-	while ((ch = getopt_long(argc, argv, "dfiPRrvW", long_options, NULL)) != -1)
+	while ((ch = getopt_long(argc, argv, "dfiPRvW", long_options, NULL)) != -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -161,7 +169,7 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 		case 'R':
 #if 0
 		case 'r':			/* Compatibility. */
-#endif 
+#endif
 			rflag = 1;
 			break;
 		case 'v':
@@ -180,6 +188,18 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 		case 263:
 			protectionflag = 0;
 			break;
+		case 264:
+			protectionflag = 1;
+			break;
+		case 265:
+			fullprotectionflag = 1;
+			break;
+		case 266:
+			fullprotectionflag = 0;
+			break;
+		case 267:
+			set_protection_depth(optarg);
+			break;
 		case '?':
 		default:
 			return usage(stderr);
@@ -193,38 +213,76 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 		return usage(stderr);
 	}
 
+	/* Search the environment for option overrides (protection). */
+#define STR_SIZE_PAIR(str) str, sizeof(str) - 1
+	for (i = 0; envp[i]; i++) {
+		if (!strncmp(envp[i], "KMK_RM_", sizeof("KMK_RM_") - 1)) {
+			if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_PROTECTION_DEPTH="))) {
+				const char *val = envp[i] + sizeof("KMK_RM_PROTECTION_DEPTH=") - 1;
+				if (set_protection_depth(val))
+					return eval;
+			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_DISABLE_PROTECTION="))) {
+				if (protectionflag >= 0)
+					protectionflag = 0;
+			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_ENABLE_PROTECTION="))) {
+				protectionflag = -1;
+			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_DISABLE_FULL_PROTECTION="))) {
+				if (fullprotectionflag >= 0)
+					fullprotectionflag = 0;
+			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_ENABLE_FULL_PROTECTION="))) {
+				fullprotectionflag = protectionflag = -1;
+			}
+		}
+	}
+	if (fullprotectionflag)
+		protectionflag = 1;
+#undef STR_SIZE_PAIR
+
 	checkdot(argv);
 	uid = geteuid();
 
 	if (*argv) {
 		stdin_ok = isatty(STDIN_FILENO);
-		if (rflag) {
-			/* 
-			 * Get options from the environment before doing rm_tree(). 
-			 */
-			int required_r_depth = DEFAULT_REQUIRED_R_DEPTH;
-			int i;
-			for (i = 0; envp[i]; i++) {
-				if (!strncmp(envp[i], "KMK_RM_=", sizeof("KMK_RM_=") - 1)) {
-					if (!strncmp(envp[i], "KMK_RM_PROTECTION_DEPTH=", sizeof("KMK_RM_PROTECTION_DEPTH=") - 1)) {
-						char *ignore;
-						const char *val = envp[i] + sizeof("KMK_RM_PROTECTION_DEPTH=") - 1;
-						required_r_depth = isdigit(*val) ? strtol(val, &ignore, 0) : count_path_components(val);
-						if (required_r_depth < 1)
-							required_r_depth = DEFAULT_REQUIRED_R_DEPTH;
-					} else if (!strcmp(envp[i], "KMK_RM_DISABLE_PROTECTION=1")) {
-						protectionflag = 0;
-					}
-				}
-			}
-
-			if (!eval)
-				rm_tree(argv, required_r_depth);
-		} else {
+		if (rflag)
+			rm_tree(argv);
+		else
 			rm_file(argv);
-		}
 	}
 
+	return eval;
+}
+
+/**
+ * Sets protectiondepth according to the option argument.
+ *
+ * @returns eval, that is 0 on success and non-zero on failure
+ *
+ * @param   val		The value.
+ */
+static int
+set_protection_depth(const char *val)
+{
+	/* skip leading blanks, they don't count either way. */
+	while (isspace(*val))
+		val++;
+
+	/* number or path? */
+	if (!isdigit(*val) || strpbrk(val, ":/\\")) {
+		protectiondepth = count_path_components(val);
+	} else {
+		char *more = 0;
+		protectiondepth = strtol(val, &more, 0);
+		if (protectiondepth != 0 && more) {
+			/* trailing space is harmless. */
+			while (isspace(*more))
+				more++;
+		}
+		if (!protectiondepth || val == more || *more)
+			return eval = errx(1, "bogus protection depth: %s", val);
+	}
+
+	if (protectiondepth < 1)
+		return eval = errx(1, "bogus protection depth: %s", val);
 	return eval;
 }
 
@@ -234,7 +292,7 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
  *
  * etc = 1
  * etc/ = 1
- * etc/x11 = 2 
+ * etc/x11 = 2
  * and so and and so forth.
  */
 static int
@@ -273,10 +331,10 @@ count_sub_path_components(const char *path, int depth)
 }
 
 /**
- * Parses the specified path counting the number of components 
+ * Parses the specified path counting the number of components
  * relative to root.
  *
- * We don't check symbolic links and such, just some simple and cheap 
+ * We don't check symbolic links and such, just some simple and cheap
  * path parsing.
  *
  * @param   path                The path to process.
@@ -295,7 +353,7 @@ count_path_components(const char *path)
 #if defined(_MSC_VER) || defined(__OS2__)
     if (IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2])) {
 		/* skip the root - UNC */
-		path += 3; 
+		path += 3;
 		while (!IS_SLASH(*path) && *path) /* server name */
 			path++;
 		while (IS_SLASH(*path))
@@ -313,7 +371,7 @@ count_path_components(const char *path)
 		}
 
 		if (IS_SLASH(path[drive_letter ? 2 : 0])) {
-			/* 
+			/*
 			 * Relative path, must count cwd depth first.
 			 */
 			char *tmp = _getdcwd(drive_letter, NULL, 32);
@@ -356,7 +414,7 @@ count_path_components(const char *path)
 	}
 #endif
 
-	/* 
+	/*
 	 * We're now past any UNC or drive letter crap, possibly positioned
 	 * at the root slash or at the start of a path component at the
 	 * given depth. Count the remainder.
@@ -366,14 +424,14 @@ count_path_components(const char *path)
 
 
 /**
- * Protect the upper layers of the file system against accidental 
+ * Protect the upper layers of the file system against accidental
  * or malicious deletetion attempt from within a makefile.
  *
  * @param   path                The path to check.
- * @param   required_depth      The minimum number of components in the 
+ * @param   required_depth      The minimum number of components in the
  *                              path counting from the root.
  *
- * @returns 0 on success. 
+ * @returns 0 on success.
  *          On failure an error is printed, eval is set and -1 is returned.
  */
 static int
@@ -395,7 +453,7 @@ enforce_protection(const char *path, unsigned required_depth)
 }
 
 static void
-rm_tree(char **argv, int required_r_depth)
+rm_tree(char **argv)
 {
 	FTS *fts;
 	FTSENT *p;
@@ -404,13 +462,13 @@ rm_tree(char **argv, int required_r_depth)
 	int rval;
 
 	/*
-	 * Check up front before anything is deleted. This will not catch 
+	 * Check up front before anything is deleted. This will not catch
 	 * everything, but we'll check the individual items later.
 	 */
 	if (protectionflag) {
 		int i;
 		for (i = 0; argv[i]; i++) {
-			if (enforce_protection(argv[i], required_r_depth))
+			if (enforce_protection(argv[i], protectiondepth + 1))
 				return;
 		}
 	}
@@ -491,10 +549,10 @@ rm_tree(char **argv, int required_r_depth)
 				continue;
 		}
 
-		/* 
+		/*
 		 * Protect against deleting root files and directories.
 		 */
-		if (protectionflag && enforce_protection(p->fts_accpath, required_r_depth)) {
+		if (protectionflag && enforce_protection(p->fts_accpath, protectiondepth + 1)) {
 			fts_close(fts);
 			return;
 		}
@@ -582,6 +640,17 @@ rm_file(char **argv)
 	struct stat sb;
 	int rval;
 	char *f;
+
+	/*
+	 * Check up front before anything is deleted.
+	 */
+	if (fullprotectionflag) {
+		int i;
+		for (i = 0; argv[i]; i++) {
+			if (enforce_protection(argv[i], protectiondepth + 1))
+				return;
+		}
+	}
 
 	/*
 	 * Remove a file.  POSIX 1003.2 states that, by default, attempting
@@ -823,8 +892,8 @@ checkdot(char **argv)
 static int
 usage(FILE *pf)
 {
-	fprintf(pf, 
-		"usage: %s [-f | -i] [-dPRvW] [--disable-protection] file ...\n"
+	fprintf(pf,
+		"usage: %s [options] file ...\n"
 		"   or: %s --help\n"
 		"   or: %s --version\n"
 		"\n"
@@ -846,20 +915,34 @@ usage(FILE *pf)
 		"   -W\n"
 		"       Undelete without files.\n"
 		"   --disable-protection\n"
-		"       Will disable the protection file protection applied by -R.\n"
+		"       Will disable the protection file protection applied with -R.\n"
+		"   --enable-protection\n"
+		"       Will enable the protection file protection applied with -R.\n"
+		"   --enable-full-protection\n"
+		"       Will enable the protection file protection for all operations.\n"
+		"   --disable-full-protection\n"
+		"       Will disable the protection file protection for all operations.\n"
+		"   --protection-depth\n"
+		"       Number or path indicating the file protection depth. Default: %d\n"
 		"\n"
 		"Environment:\n"
 		"    KMK_RM_DISABLE_PROTECTION\n"
-		"       Same as --disable-protection.\n"
+		"       Same as --disable-protection. Overrides command line.\n"
+		"    KMK_RM_ENABLE_PROTECTION\n"
+		"       Same as --enable-protection. Overrides everyone else.\n"
+		"    KMK_RM_ENABLE_FULL_PROTECTION\n"
+		"       Same as --enable-full-protection. Overrides everyone else.\n"
+		"    KMK_RM_DISABLE_FULL_PROTECTION\n"
+		"       Same as --disable-full-protection. Overrides command line.\n"
 		"    KMK_RM_PROTECTION_DEPTH\n"
-		"       Changes the protection depth, path or number. Default: %d\n"
+		"       Same as --protection-depth. Overrides command line.\n"
 		"\n"
 		"The file protection of the top %d layers of the file hierarchy is there\n"
 		"to try prevent makefiles from doing bad things to your system. This\n"
 		"protection is not bulletproof, but should help prevent you from shooting\n"
-		"yourself in the foot. Not that it does NOT apply to normal file removal.\n"
+		"yourself in the foot.\n"
 		,
-		g_progname, g_progname, g_progname, 
-		DEFAULT_REQUIRED_R_DEPTH, DEFAULT_REQUIRED_R_DEPTH);
+		g_progname, g_progname, g_progname,
+		DEFAULT_PROTECTION_DEPTH, DEFAULT_PROTECTION_DEPTH);
 	return EX_USAGE;
 }
