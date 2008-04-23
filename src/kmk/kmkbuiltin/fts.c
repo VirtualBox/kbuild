@@ -401,7 +401,7 @@ fts_close(sp)
  */
 #define	NAPPEND(p)							\
 	(p->fts_level == FTS_ROOTLEVEL && p->fts_pathlen == 1 &&	\
-	    p->fts_path[0] == '/' ? 0 : p->fts_pathlen)
+	    IS_SLASH(p->fts_path[0]) ? 0 : p->fts_pathlen)
 
 FTSENT *
 fts_read(sp)
@@ -1074,6 +1074,10 @@ err:		memset(sbp, 0, sizeof(struct STAT));
 		 * number of symbolic links to directories is high enough,
 		 * something faster might be worthwhile.
 		 */
+
+#ifdef _MSC_VER
+		if (ino && dev) /** @todo ino emulation on windows... */
+#endif
 		for (t = p->fts_parent;
 		    t->fts_level >= FTS_ROOTLEVEL; t = t->fts_parent)
 			if (ino == t->fts_ino && dev == t->fts_dev) {
