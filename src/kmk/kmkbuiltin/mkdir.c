@@ -176,6 +176,7 @@ build(char *path, mode_t omode)
 	path = memcpy(p, path, len + 1);
 
 #if defined(_MSC_VER) || defined(__EMX__)
+	/* correct slashes. */
 	p = strchr(path, '\\');
 	while (p) {
 		*p++ = '/';
@@ -190,16 +191,19 @@ build(char *path, mode_t omode)
 	if (    (    (p[0] >= 'A' && p[0] <= 'Z')
 	         ||  (p[0] >= 'a' && p[0] <= 'z'))
 	    && p[1] == ':')
-		p += 2;
+		p += 2; /* skip the drive letter */
 	else if (   p[0] == '/'
 	         && p[1] == '/'
 	         && p[2] != '/')
 	{
-		char *p2;
+		/* UNC */
 		p += 2;
-		p2 = strchr(p, '/');
-		if (p2)
-			p = p2 + 1;
+		while (*p && *p != '/') /* server */
+			p++;
+		while (*p == '/')
+			p++;
+		while (*p && *p != '/') /* share */
+			p++;
 	}
 #endif
 	if (p[0] == '/')		/* Skip leading '/'. */
