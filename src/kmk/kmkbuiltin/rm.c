@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "getopt.h"
 #ifdef _MSC_VER
 # include "mscfakes.h"
@@ -377,9 +378,9 @@ count_path_components(const char *path)
 				return -1;
 			}
 
-			if (IS_SLASH(cwd[0]) && IS_SLASH(cwd[1])) {
+			if (IS_SLASH(tmp[0]) && IS_SLASH(tmp[1])) {
 				/* skip the root - UNC */
-				tmp = &cwd[2];
+				tmp += 2;
 				while (!IS_SLASH(*tmp) && *tmp) /* server name */
 					tmp++;
 				while (IS_SLASH(*tmp))
@@ -388,7 +389,7 @@ count_path_components(const char *path)
 					tmp++;
 			} else {
 				/* skip the drive letter and while we're at it, the root slash too. */
-				tmp = &cwd[1 + (cwd[1] == ':')];
+				tmp += 1 + (tmp[1] == ':');
 			}
 			components = count_sub_path_components(tmp, 0);
 			free(tmp);
@@ -432,7 +433,7 @@ count_path_components(const char *path)
  *          On failure an error is printed, eval is set and -1 is returned.
  */
 static int
-enforce_protection(const char *path, unsigned required_depth)
+enforce_protection(const char *path, int required_depth)
 {
 	int components;
 
@@ -620,7 +621,9 @@ rm_tree(char **argv)
 				}
 			}
 		}
+#ifdef UF_APPEND
 err:
+#endif
 		fprintf(stderr, "%s: %s: %s\n", argv0, p->fts_path, strerror(errno));
 		eval = 1;
 	}
