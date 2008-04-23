@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1543 2008-04-22 01:31:23Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1563 2008-04-23 02:37:23Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -144,16 +144,23 @@ TEMPLATE_BIN_INST               = kBuild/bin/os2.x86/
 endif
 
 ifeq ($(KBUILD_TARGET),darwin)
-TEMPLATE_BIN_TOOL               = GCC4MACHO
-TEMPLATE_BIN_CFLAGS             = -g
-TEMPLATE_BIN_CFLAGS.profile     = -O3 -pg
-TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            = -g
-TEMPLATE_BIN_LDFLAGS.profile    = -pg
+ ifndef KBUILD_MACOSX_VERSION
+  export KBUILD_MACOSX_VERSION := $(firstword $(subst ., ,$(shell uname -r)))
+ endif
+ KBUILD_MACOSX_SDK             ?= /Developer/SDKs/MacOSX10.4u.sdk
+ TEMPLATE_BIN_TOOL              = GCC4MACHO
+ TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.4 -isysroot $(KBUILD_MACOSX_SDK)
+ TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
+ TEMPLATE_BIN_CFLAGS.release    = -O3
+ TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.4 -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
+ ifneq ($(int-ge $(KBUILD_MACOSX_VERSION),9),) # >= 10.5
+  TEMPLATE_BIN_LDFLAGS          = -classic_ld
+ endif
+ TEMPLATE_BIN_LDFLAGS.profile   = -pg
  ifdef NIX_INSTALL_DIR
-TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
+  TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
-TEMPLATE_BIN_INST               = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
+  TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
