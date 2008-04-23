@@ -1,4 +1,4 @@
-# $Id: header.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1561 2008-04-23 02:31:31Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -64,13 +64,13 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1547 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1561 $  )
 
 
 #
 # Define the default goal.
 #
-.PHONY: all all_recursive 
+.PHONY: all all_recursive
 all: all_recursive
 
 #
@@ -194,7 +194,7 @@ endif
 
 
 #
-# Host platform legacy 
+# Host platform legacy
 # kmk deals with this, so this is only temporary until I've rebuilt everything.
 #
 ifndef KBUILD_HOST
@@ -255,7 +255,7 @@ else ifdef BUILD_TARGET
   ifeq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),environment:command line)
    KBUILD_TARGET := $(BUILD_TARGET)
   else ifneq ($(origin KBUILD_TARGET):$(origin BUILD_TARGET),command line:environment)
-   $(error kBuild: KBUILD_TARGET and BUILD_TARGET disagree) 
+   $(error kBuild: KBUILD_TARGET and BUILD_TARGET disagree)
   endif
  endif
 endif
@@ -270,7 +270,7 @@ else ifdef BUILD_TARGET_ARCH
   ifeq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),environment:command line)
    KBUILD_TARGET_ARCH := $(BUILD_TARGET_ARCH)
   else ifneq ($(origin KBUILD_TARGET_ARCH):$(origin BUILD_TARGET_ARCH),command line:environment)
-   $(error kBuild: KBUILD_TARGET_ARCH and BUILD_TARGET_ARCH disagree) 
+   $(error kBuild: KBUILD_TARGET_ARCH and BUILD_TARGET_ARCH disagree)
   endif
  endif
 endif
@@ -285,7 +285,7 @@ else ifdef BUILD_TARGET_CPU
   ifeq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),environment:command line)
    KBUILD_TARGET_CPU := $(BUILD_TARGET_CPU)
   else ifneq ($(origin KBUILD_TARGET_CPU):$(origin BUILD_TARGET_CPU),command line:environment)
-   $(error kBuild: KBUILD_TARGET_CPU and BUILD_TARGET_CPU disagree) 
+   $(error kBuild: KBUILD_TARGET_CPU and BUILD_TARGET_CPU disagree)
   endif
  endif
 endif
@@ -951,7 +951,7 @@ PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
 #
 ifndef KBUILD_VERBOSE
  ifndef KBUILD_QUIET
-  ifneq ($(filter --pretty-command-printing,$(MAKEFLAGS)),)
+  ifdef KMK_OPTS_PRETTY_COMMAND_PRINTING
    export KBUILD_VERBOSE := 2
   endif
  endif
