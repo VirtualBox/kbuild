@@ -1145,8 +1145,12 @@ define_automatic_variables (void)
   sprintf (buf, "%d", KBUILD_VERSION_PATCH);
   define_variable ("KBUILD_VERSION_PATCH", sizeof ("KBUILD_VERSION_PATCH") - 1,
                    buf, o_default, 0);
+  sprintf (buf, "%d", KBUILD_SVN_REV);
+  define_variable ("KBUILD_KMK_REVISION", sizeof ("KBUILD_KMK_REVISION") - 1,
+                   buf, o_default, 0);
 
-  sprintf (buf, "%d.%d.%d", KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+  sprintf (buf, "%d.%d.%d-r%d", KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR,
+           KBUILD_VERSION_PATCH, KBUILD_SVN_REV);
   define_variable ("KBUILD_VERSION", sizeof ("KBUILD_VERSION") - 1,
                    buf, o_default, 0);
 
