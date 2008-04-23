@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1563 2008-04-23 02:37:23Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1565 2008-04-23 16:06:29Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -154,7 +154,7 @@ ifeq ($(KBUILD_TARGET),darwin)
  TEMPLATE_BIN_CFLAGS.release    = -O3
  TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.4 -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
  ifneq ($(int-ge $(KBUILD_MACOSX_VERSION),9),) # >= 10.5
-  TEMPLATE_BIN_LDFLAGS          = -classic_ld
+  TEMPLATE_BIN_LDFLAGS         += -classic_ld
  endif
  TEMPLATE_BIN_LDFLAGS.profile   = -pg
  ifdef NIX_INSTALL_DIR
