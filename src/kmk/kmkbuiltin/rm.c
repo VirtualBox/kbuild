@@ -349,7 +349,7 @@ count_path_components(const char *path)
 	 * Deal with root, UNC, drive letter.
      */
 #if defined(_MSC_VER) || defined(__OS2__)
-    if (IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2])) {
+	if (IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2])) {
 		/* skip the root - UNC */
 		path += 3;
 		while (!IS_SLASH(*path) && *path) /* server name */
@@ -368,11 +368,12 @@ count_path_components(const char *path)
 			drive_letter = 0; /* 0 == default */
 		}
 
-		if (IS_SLASH(path[drive_letter ? 2 : 0])) {
+		if (!IS_SLASH(path[drive_letter ? 2 : 0])) {
 			/*
 			 * Relative path, must count cwd depth first.
 			 */
-			char *tmp = _getdcwd(drive_letter, NULL, 32);
+			char *cwd = _getdcwd(drive_letter, NULL, 32);
+			char *tmp = cwd;
 			if (!tmp) {
 				eval = err(1, "_getdcwd");
 				return -1;
@@ -392,7 +393,7 @@ count_path_components(const char *path)
 				tmp += 1 + (tmp[1] == ':');
 			}
 			components = count_sub_path_components(tmp, 0);
-			free(tmp);
+			free(cwd);
 		} else {
 			/* skip the drive letter and while we're at it, the root slash too. */
 			path += drive_letter ? 3 : 1;
