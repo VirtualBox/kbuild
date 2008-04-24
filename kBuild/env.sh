@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1542 2008-04-22 01:20:45Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1570 2008-04-24 22:52:54Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -36,7 +36,7 @@ EVAL_EXPORT="export "
 DBG_OPT=
 QUIET_OPT=
 FULL_OPT=
-LEGACY_OPT="true"
+LEGACY_OPT=
 VAR_OPT=
 VALUE_ONLY_OPT=
 EXP_TYPE_OPT=
@@ -114,7 +114,7 @@ do
             echo "    or: $0 [options] --eval"
             echo "    or: $0 [options] --eval --var <varname>"
             echo ""
-            echo "The first form will execute the command, or if no command is givne start"
+            echo "The first form will execute the command, or if no command is given start"
             echo "an interactive shell."
             echo "The second form will print the specfified variable(s)."
             echo "The third form will print all exported variables suitable for bourne shell"
@@ -131,7 +131,7 @@ do
             echo "  --full, --normal"
             echo "      Controls the variable set. Default: --normal"
             echo "  --legacy, --no-legacy"
-            echo "      Include legacy variables in result. Default: --legacy"
+            echo "      Include legacy variables in result. Default: --no-legacy"
             echo "  --value-only, --name-and-value"
             echo "      Controls what the result of a --var query. Default: --name-and-value"
             echo "  --set, --export"
