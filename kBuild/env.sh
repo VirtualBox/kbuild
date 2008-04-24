@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1570 2008-04-24 22:52:54Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1571 2008-04-24 23:25:26Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -424,14 +424,6 @@ if test -z "$KBUILD_BIN_PATH"; then
     KBUILD_BIN_PATH="${KBUILD_PATH}/bin/${KBUILD_HOST}.${KBUILD_HOST_ARCH}"
 fi
 test -n "$DBG_OPT" && echo "dbg: KBUILD_BIN_PATH=${KBUILD_BIN_PATH}" 1>&${DBG_REDIR}
-
-#
-# Make shell - OS/2 only.
-# Remove this!
-#
-if test "$KBUILD_HOST" = "os2"; then
-    export MAKESHELL="${KBUILD_BIN_PATH}/kmk_ash${_SUFF_EXE}";
-fi
 
 #
 # Add the bin/x.y/ directory to the PATH.
