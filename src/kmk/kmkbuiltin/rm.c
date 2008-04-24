@@ -212,29 +212,27 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 	}
 
 	/* Search the environment for option overrides (protection). */
-#define STR_SIZE_PAIR(str) str, sizeof(str) - 1
 	for (i = 0; envp[i]; i++) {
 		if (!strncmp(envp[i], "KMK_RM_", sizeof("KMK_RM_") - 1)) {
-			if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_PROTECTION_DEPTH="))) {
+			if (!strncmp(envp[i], "KMK_RM_PROTECTION_DEPTH=", sizeof("KMK_RM_PROTECTION_DEPTH=") - 1)) {
 				const char *val = envp[i] + sizeof("KMK_RM_PROTECTION_DEPTH=") - 1;
 				if (set_protection_depth(val))
 					return eval;
-			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_DISABLE_PROTECTION="))) {
+			} else if (!strncmp(envp[i], "KMK_RM_DISABLE_PROTECTION=", sizeof("KMK_RM_DISABLE_PROTECTION=") - 1)) {
 				if (protectionflag >= 0)
 					protectionflag = 0;
-			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_ENABLE_PROTECTION="))) {
+			} else if (!strncmp(envp[i], "KMK_RM_ENABLE_PROTECTION=", sizeof("KMK_RM_ENABLE_PROTECTION=") - 1)) {
 				protectionflag = -1;
-			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_DISABLE_FULL_PROTECTION="))) {
+			} else if (!strncmp(envp[i], "KMK_RM_DISABLE_FULL_PROTECTION=", sizeof("KMK_RM_DISABLE_FULL_PROTECTION=") - 1)) {
 				if (fullprotectionflag >= 0)
 					fullprotectionflag = 0;
-			} else if (!strncmp(envp[i], STR_SIZE_PAIR("KMK_RM_ENABLE_FULL_PROTECTION="))) {
+			} else if (!strncmp(envp[i], "KMK_RM_ENABLE_FULL_PROTECTION=", sizeof("KMK_RM_ENABLE_FULL_PROTECTION=") - 1)) {
 				fullprotectionflag = protectionflag = -1;
 			}
 		}
 	}
 	if (fullprotectionflag)
 		protectionflag = 1;
-#undef STR_SIZE_PAIR
 
 	checkdot(argv);
 	uid = geteuid();
