@@ -1,4 +1,4 @@
-/* $Id: redirect.c 1527 2008-04-13 02:20:41Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1576 2008-04-25 00:26:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -160,8 +160,8 @@ int main(int argc, char **argv)
                     ||  !strncmp(psz, "ENDLIBPATH=",    sizeof("ENDLIBPATH=") - 1)
                     ||  !strncmp(psz, "LIBPATHSTRICT=", sizeof("LIBPATHSTRICT=") - 1))
                 {
-                    ULONG ulVar = *psz == 'B' ? BEGINLIBPATH
-                                : *psz == 'E' ? ENDLIBPATH
+                    ULONG ulVar = *psz == 'B' ? BEGIN_LIBPATH
+                                : *psz == 'E' ? END_LIBPATH
                                 :               LIBPATHSTRICT;
                     const char *pszVal = strchr(psz, '=') + 1;
                     APIRET rc = DosSetExtLIBPATH(pszVal, ulVar);
