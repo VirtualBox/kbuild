@@ -2,13 +2,14 @@
 echo this is a rexx script!
 cancel & quit & exit
 */
-/* $Id: $ */
+/* $Id: envos2.cmd 1572 2008-04-25 00:13:35Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * Environment setup script for OS/2.
+ */
+ 
+/*
  *
  * Copyright (c) 1999-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
  *
  * This file is part of kBuild.
  *
@@ -46,139 +47,472 @@ end
 call FixCMDEnv;
 
 /*
- * Establish the kBuild environment variables.
+ * Globals
  */
+skBuildPath       = EnvGet("KBUILD_PATH");
+skBuildBinPath    = EnvGet("KBUILD_BIN_PATH");
+skBuildType       = EnvGet("KBUILD_TYPE");
+skBuildTarget     = EnvGet("KBUILD_TARGET");
+skBuildTargetArch = EnvGet("KBUILD_TARGET_ARCH");
+skBuildTargetCpu  = EnvGet("KBUILD_TARGET_CPU");
+skBuildHost       = EnvGet("KBUILD_HOST");
+skBuildHostArch   = EnvGet("KBUILD_HOST_ARCH");
+skBuildHostCpu    = EnvGet("KBUILD_HOST_CPU");
 
-/* kBuild path. */
-if (EnvGet("PATH_KBUILD") = "") then
-do
-    call EnvSet 0, "PATH_KBUILD", GetScriptDir();
-end
-if (  FileExists(EnvGet("PATH_KBUILD")||"\footer.kmk") = 0,
-    | FileExists(EnvGet("PATH_KBUILD")||"\header.kmk") = 0,
-    | FileExists(EnvGet("PATH_KBUILD")||"\rules.kmk") = 0) then
-do
-    say "kBuild: error: PATH_KBUILD ("||EnvGet("PATH_KBUILD")||") is not point to a populated kBuild directory.";
-    exit(1);
-end
-say "dbg: PATH_KBUILD="||EnvGet("PATH_KBUILD");
+/*
+ * Process arguments.
+ */
+fOptFull = 0
+fOptLegacy = 0
+fOptDbg = 0
+fOptQuiet = 0
+sOptVars = ""
+fOptValueOnly = 0
+sShowVarPrefix = "";
+fOptOverrideAll = 0
+fOptOverrideType = 0;
+fSetType = 0;
+fOptOverrideTarget = 0;
+fOptOverrideTargetArch = 0;
+fOptDefault = 0;
 
-/* Type. */
-if (EnvGet("BUILD_TYPE") = "") then
-    call EnvSet 0, "BUILD_TYPE", "release";
-call EnvSet 0, "BUILD_TYPE", ToLower(EnvGet("BUILD_TYPE"));
-say "dbg: BUILD_TYPE="||EnvGet("BUILD_TYPE");
+parse arg sArgs
+do while (sArgs <> '')
+    parse value sArgs with sArg sRest
+    say 'sArgs='sArgs';'
+    say ' sArg='sArg';'
+    say 'sRest='sRest';'
+    
+    select 
+        when (sArg = "--debug-script") then do
+            fOptDbg = 1;
+        end
+        when (sArg = "--no-debug-script") then do
+            fOptDbg = 0;
+        end
+        when (sArg = "--quiet") then do
+            fOptQuiet = 1;
+        end
+        when (sArg = "--verbose") then do
+            fOptQuiet = 0;
+        end
+        when (sArg = "--full") then do
+            fOptFull = 1;
+        end
+        when (sArg = "--normal") then do
+            fOptFull = 0;
+        end
+        when (sArg = "--legacy") then do
+            fOptLegacy = 1;
+        end
+        when (sArg = "--no-legacy") then do
+            fOptLegacy = 0;
+        end
+        when (sArg = "--eval") then do
+            say "error: --eval is not supported on OS/2."
+        end
+        when (sArg = "--var") then do
+            parse value sRest with sVar sRest2
+            sRest = sRest2;
+            if (sVar = '') then do
+                say "syntax error: --var is missing the variable name";
+                call SysSleep 1
+                exit 1;
+            end
+            if (sVar = "all" | sOptVars = "all") then
+                sOptVars = "all";
+            else
+                sOptVars = sOptVars || " " || sVar;
+        end
+        when (sArg = "--set") then do
+            sShowVarPrefix = "SET ";
+        end
+        when (sArg = "--no-set") then do
+            sShowVarPrefix = "";
+        end
+        when (sArg = "--value-only") then do
+            fOptValueOnly = 1;
+        end
+        when (sArg = "--name-and-value") then do
+            fOptValueOnly = 0;
+        end
+        when (sArg = "--release") then do
+            fOptOverrideType = 1;
+            fSetType = 1;
+            skBuildType = 'release';
+        end
+        when (sArg = "--debug") then do
+            fOptOverrideType = 1;
+            fSetType = 1;
+            skBuildType = 'debug';
+        end
+        when (sArg = "--profile") then do
+            fOptOverrideType = 1;
+            fSetType = 1;
+            skBuildType = 'profile';
+        end
+        when (sArg = "--defaults") then do
+            fOptOverrideAll = 1;
+            skBuildType = "";
+            skBuildTarget = "";
+            skBuildTargetArch = "";
+            skBuildTargetCpu = "";
+            skBuildHost = "";
+            skBuildHostArch = "";
+            skBuildHostCpu = "";
+            skBuildPath = "";
+            skBuildBinPath = "";
+        end
 
-
-/* Host platform. */
-if (EnvGet("BUILD_PLATFORM_CPU") = "") then
-    call EnvSet 0, "BUILD_PLATFORM_CPU", "blend";
-call EnvSet 0, "BUILD_PLATFORM_CPU", ToLower(EnvGet("BUILD_PLATFORM_CPU"));
-say "dbg: BUILD_PLATFORM_CPU="||EnvGet("BUILD_PLATFORM_CPU");
-
-if (EnvGet("BUILD_PLATFORM_ARCH") = "") then
-    call EnvSet 0, "BUILD_PLATFORM_ARCH", "x86";
-call EnvSet 0, "BUILD_PLATFORM_ARCH", ToLower(EnvGet("BUILD_PLATFORM_ARCH"));
-say "dbg: BUILD_PLATFORM_ARCH="||EnvGet("BUILD_PLATFORM_ARCH");
-
-if (EnvGet("BUILD_PLATFORM") = "") then
-    call EnvSet 0, "BUILD_PLATFORM", "os2";
-call EnvSet 0, "BUILD_PLATFORM", ToLower(EnvGet("BUILD_PLATFORM"));
-say "dbg: BUILD_PLATFORM="||EnvGet("BUILD_PLATFORM");
-
-
-/* Target platform. */
-if (  (  EnvGet("BUILD_TARGET") = "",
-       | EnvGet("BUILD_TARGET") = EnvGet("BUILD_PLATFORM")),
-    & (  EnvGet("BUILD_TARGET_ARCH") = "",
-       | EnvGet("BUILD_TARGET_ARCH") = EnvGet("BUILD_PLATFORM_ARCH")),
-    & (  EnvGet("BUILD_TARGET_CPU") = "", 
-       | EnvGet("BUILD_TARGET_CPU") = "blend")) then
-do
-    call EnvSet 0, "BUILD_TARGET", EnvGet("BUILD_PLATFORM");
-    call EnvSet 0, "BUILD_TARGET_ARCH", EnvGet("BUILD_PLATFORM_ARCH");
-    call EnvSet 0, "BUILD_TARGET_CPU", EnvGet("BUILD_PLATFORM_CPU");
-end
-if (  EnvGet("BUILD_TARGET") <> "",
-    & EnvGet("BUILD_TARGET_ARCH") = "",
-    & (  EnvGet("BUILD_TARGET_CPU") = "", 
-       | EnvGet("BUILD_TARGET_CPU") = "blend")) then
-do
-    select
-        when ( EnvGet("BUILD_TARGET") = "os2" ) then 
-        do
-            call EnvSet 0, "BUILD_TARGET_ARCH", "x86";
-            call EnvSet 0, "BUILD_TARGET_CPU", "blend";
+        when (sArg = "--help" | sArg = "-h" | sArg = "-?" | sArg = "/?" | sArg = "/h") then do
+            say "kBuild Environment Setup Script, v0.1.3"
+            say ""
+            say "syntax: envos2.cmd [options] [command [args]]"
+            say "    or: envos2.cmd [options] --var <varname>"
+            say ""
+            say "The first form will execute the command, or if no command is given"
+            say "modify the current invoking shell."
+            say "The second form will print the specfified variable(s)."
+            say ""
+            say "Options:"
+            say "  --debug, --release, --profile"
+            say "      Alternative way of specifying KBUILD_TYPE."
+            say "  --defaults"
+            say "      Enforce defaults for all the KBUILD_* values."
+            say "  --debug-script, --no-debug-script"
+            say "      Controls debug output. Default: --no-debug-script"
+            say "  --quiet, --verbose"
+            say "      Controls informational output. Default: --verbose"
+            say "  --full, --normal"
+            say "      Controls the variable set. Default: --normal"
+            say "  --legacy, --no-legacy"
+            say "      Include legacy variables in result. Default: --no-legacy"
+            say "  --value-only, --name-and-value"
+            say "      Controls what the result of a --var query. Default: --name-and-value"
+            say "  --set, --no-set"
+            say "      Whether to prefix the variable output with 'SET'."
+            say "      Default: --no-set"
+            say ""
+            exit 1
         end
         
-        otherwise
-            say "kBuild: error: can't figure out target arch/cpu from the BUILD_TARGET value ("||EnvGet("BUILD_TARGET")||")";
-            exit(1);
+        when (sArg = "--") then do
+            sArgs = sRest;
+            leave;
+        end
+        
+        when (left(sArg, 2) = '--') then do
+            say 'syntax error: unknown option: '||sArg
+            call SysSleep 1
+            exit 1
+        end
+        
+        otherwise do
+            leave
+        end
+    end
+    sArgs = sRest;
+end
+sCommand = strip(sArgs);        
+   
+/*
+ * Deal with legacy environment variables.
+ */
+if (\fOptOverrideAll) then do
+    if (EnvGet("PATH_KBUILD") <> '') then do
+        if (skBuildPath <> '' & skBuildPath <> EnvGet("PATH_KBUILD")) then do
+            say "error: KBUILD_PATH ("||skBuildPath||") and PATH_KBUILD ("||EnvGet("PATH_KBUILD")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildPath = EnvGet("PATH_KBUILD");
+    end
+    
+    if (EnvGet("PATH_KBUILD_BIN") <> '') then do
+        if (skBuildPath <> '' & skBuildBinPath <> EnvGet("PATH_KBUILD_BIN")) then do
+            say "error: KBUILD_BIN_PATH ("||skBuildBinPath||") and PATH_KBUILD_BIN ("||EnvGet("PATH_KBUILD_BIN")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildBinPath = EnvGet("PATH_KBUILD_BIN");
+    end
+
+    if (EnvGet("BUILD_TYPE") <> '') then do
+        if (skBuildType <> '' & skBuildType <> EnvGet("BUILD_TYPE")) then do
+            say "error: KBUILD_TYPE ("||skBuildType||") and BUILD_TYPE ("||EnvGet("BUILD_TYPE")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildType = EnvGet("BUILD_TYPE");
+    end
+
+    if (EnvGet("BUILD_TARGET") <> '') then do
+        if (skBuildTarget <> '' & skBuildTarget <> EnvGet("BUILD_TARGET")) then do
+            say "error: KBUILD_TARGET ("||skBuildTarget||") and BUILD_TARGET ("||EnvGet("BUILD_TARGET")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildTarget = EnvGet("BUILD_TARGET");
+    end
+
+    if (EnvGet("BUILD_TARGET_ARCH") <> '') then do
+        if (skBuildTargetArch <> '' & skBuildTargetArch <> EnvGet("BUILD_TARGET_ARCH")) then do
+            say "error: KBUILD_TARGET_ARCH ("||skBuildTargetArch ||") and BUILD_TARGET_ARCH ("||EnvGet("BUILD_TARGET_ARCH")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildTargetArch = EnvGet("BUILD_TARGET_ARCH");
+    end
+    
+    if (EnvGet("BUILD_TARGET_CPU") <> '') then do
+        if (skBuildTargetCpu <> '' & skBuildTargetCpu <> EnvGet("BUILD_TARGET_CPU")) then do
+            say "error: KBUILD_TARGET_CPU ("||skBuildTargetCpu ||") and BUILD_TARGET_CPU ("||EnvGet("BUILD_TARGET_CPU")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildTargetCpu = EnvGet("BUILD_TARGET_CPU");
+    end
+
+    if (EnvGet("BUILD_PLATFORM") <> '') then do
+        if (skBuildHost <> '' & skBuildHost <> EnvGet("BUILD_PLATFORM")) then do
+            say "error: KBUILD_HOST ("||skBuildHost||") and BUILD_PLATFORM ("||EnvGet("BUILD_PLATFORM")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildHost = EnvGet("BUILD_PLATFORM");
+    end
+
+    if (EnvGet("BUILD_PLATFORM_ARCH") <> '') then do
+        if (skBuildHostArch <> '' & skBuildHostArch <> EnvGet("BUILD_PLATFORM_ARCH")) then do
+            say "error: KBUILD_HOST_ARCH ("||skBuildHostArch ||") and BUILD_PLATFORM_ARCH ("||EnvGet("BUILD_PLATFORM_ARCH")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildHostArch = EnvGet("BUILD_PLATFORM_ARCH");
+    end
+    
+    if (EnvGet("BUILD_PLATFORM_CPU") <> '') then do
+        if (skBuildHostCpu <> '' & skBuildHostCpu <> EnvGet("BUILD_PLATFORM_CPU")) then do
+            say "error: KBUILD_HOST_CPU ("||skBuildHostCpu ||") and BUILD_PLATFORM_CPU ("||EnvGet("BUILD_PLATFORM_CPU")||") disagree."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildHostCpu = EnvGet("BUILD_PLATFORM_CPU");
     end
 end
-if (  EnvGet("BUILD_TARGET") <> "",
-    & EnvGet("BUILD_TARGET_ARCH") <> "",
-    & EnvGet("BUILD_TARGET_CPU") = "") then
-do
-    call EnvSet 0, "BUILD_TARGET_CPU", "blend";
+                        
+/*
+ * Set default build type.
+ */ 
+if (skBuildType = '') then 
+    skBuildType = 'release';
+if (fOptDbg <> 0) then say "dbg: KBUILD_TYPE="||skBuildType
+
+/*
+ * Determin the host platform (OS/2)
+ */
+if (skBuildHost = '') then 
+    skBuildHost = 'os2';
+if (fOptDbg <> 0) then say "dbg: KBUILD_HOST="||skBuildHost
+
+if (skBuildHostArch = '') then do
+    select 
+        when (skBuildHostCpu = 'i386',
+            | skBuildHostCpu = 'i486',
+            | skBuildHostCpu = 'i586',
+            | skBuildHostCpu = 'i686',
+            | skBuildHostCpu = 'i786',
+            | skBuildHostCpu = 'i886',
+            | skBuildHostCpu = 'i986') then do
+            skBuildHostArch = "x86";
+        end
+        otherwise do
+            skBuildHostArch = "x86";
+        end
+    end
 end
-if (  EnvGet("BUILD_TARGET_ARCH") = "",
-    | EnvGet("BUILD_TARGET_CPU") = "",
-    | EnvGet("BUILD_TARGET") = "") then
-do
-    say "kBuild: error: can't figure out all the target settings, try specify all three."
-    say "kBuild:  info: BUILD_TARGET="||EnvGet("BUILD_TARGET")
-    say "kBuild:  info: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU")
-    say "kBuild:  info: BUILD_TARGET_ARCH="||EnvGet("BUILD_TARGET_ARCH")
-    exit(1);
+if (fOptDbg <> 0) then say "dbg: KBUILD_HOST_ARCH="||skBuildHostArch
+
+if (skBuildHostCpu = '') then 
+    skBuildHostCpu = 'blend';
+if (fOptDbg <> 0) then say "dbg: KBUILD_HOST_CPU="||skBuildHostCpu
+
+
+/*
+ * The target platform.
+ * Defaults to the host when not specified.
+ */
+if (skBuildTarget = '') then
+    skBuildTarget = skBuildHost;
+if (fOptDbg <> 0) then say "dbg: KBUILD_TARGET="||skBuildTarget
+
+if (skBuildTargetArch = '') then
+    skBuildTargetArch = skBuildHostArch;
+if (fOptDbg <> 0) then say "dbg: KBUILD_TARGET_ARCH="||skBuildTargetArch
+
+if (skBuildTargetCpu = '') then do
+    if (skBuildTargetArch = skBuildHostArch) then
+        skBuildTargetCpu = skBuildHostCpu;
+    else
+        skBuildTargetCpu = "blend";
+end    
+if (fOptDbg <> 0) then say "dbg: KBUILD_TARGET_CPU="||skBuildTargetCpu
+
+
+/*
+ * Determin KBUILD_PATH from the script location and calc KBUILD_BIN_PATH from there.
+ */
+if (skBuildPath = '') then do
+    skBuildPath = GetScriptDir()
 end
-
-say "dbg: BUILD_TARGET="||EnvGet("BUILD_TARGET");
-say "dbg: BUILD_TARGET_ARCH="||EnvGet("BUILD_TARGET_ARCH");
-say "dbg: BUILD_TARGET_CPU="||EnvGet("BUILD_TARGET_CPU");
-
-
-sPlatformBin = EnvGet("PATH_KBUILD")||"\bin\"||EnvGet("BUILD_PLATFORM")||"."||EnvGet("BUILD_PLATFORM_ARCH");
-
-/* Make shell */
-call EnvSet 0, "MAKESHELL", translate(sPlatformBin||"/kmk_ash.exe", '/', '\');
-
-/* The PATH. */
-call EnvAddFront 0, "PATH", sPlatformBin;
-say "dbg: PATH="||EnvGet("PATH");
-
-/* The BEGINLIBPATH. */
-call EnvAddFront 0, "BEGINLIBPATH", sPlatformBin;
-say "dbg: BEGINLIBPATH="||EnvGet("BEGINLIBPATH");
-
-/* Sanity check */
-if (DirExists(sPlatformBin) = 0) then
-do
-    say "kBuild: warning: The bin directory for this platform doesn't exist. ("||sPlatformBin||")";
+skBuildPath = translate(skBuildPath, '/', '\')
+if (  FileExists(skBuildPath||"/footer.kmk") = 0,
+    | FileExists(skBuildPath||"/header.kmk") = 0,
+    | FileExists(skBuildPath||"/rules.kmk") = 0) then do
+    say "error: KBUILD_PATH ("skBuildPath||") is not pointing to a popluated kBuild directory."
+    call SysSleep 1
+    exit 1
 end
+if (fOptDbg <> 0) then say "dbg: KBUILD_PATH="||skBuildPath;
+
+if (skBuildBinPath = '') then do
+    skBuildBinPath = skBuildPath||'/bin/'||skBuildHost||'.'||skBuildHostArch;
+end
+skBuildBinPath = translate(skBuildBinPath, '/', '\')
+if (fOptDbg <> 0) then say "dbg: KBUILD_BIN_PATH="||skBuildBinPath;
+
+/*
+ * Add the bin/x.y/ directory to the PATH and BEGINLIBPATH.
+ * NOTE! Once bootstrapped this is the only thing that is actually necessary.
+ */
+sOldPath = EnvGet("PATH");
+say sOldPath
+call EnvAddFront 0, "PATH", translate(skBuildBinPath, '\', '/');
+sNewPath = EnvGet("PATH");
+call EnvSet 0, "PATH", sOldPath;
+if (fOptDbg <> 0) then say "dbg: PATH="||sNewPath;
+
+sOldBeginLibPath = EnvGet("BEGINLIBPATH");
+call EnvAddFront 0, "BEGINLIBPATH", translate(skBuildBinPath, '\', '/');
+sNewBeginLibPath = EnvGet("PATH");
+call EnvSet 0, "BEGINLIBPATH", sOldBeginLibPath;
+if (fOptDbg <> 0) then say "dbg: BEGINLIBPATH="||sNewBeginLibPath;
+
+/* 
+ * Sanity check 
+ */
+if (DirExists(skBuildBinPath) = 0) then
+    say "warning: The bin directory for the build platform doesn't exist. ("||skBuildBinPath||")";
 else
 do
-    sPrograms = "kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_rm kmk_rmdir kmk_sed";
+    sPrograms = "kmk kDepPre kDepIDB kmk_append kmk_ash kmk_cat kmk_cp kmk_echo kmk_install kmk_ln kmk_mkdir kmk_mv kmk_redirect kmk_rm kmk_rmdir kmk_sed";
     do i = 1 to words(sPrograms)
         sProgram = word(sPrograms, i);
-        if (FileExists(sPlatformBin||"\"||sProgram||".exe") = 0) then
-        do
-            say "kBuild: warning: The "||sProgram||" program doesn't exit for this platform. ("||sPlatformBin||")";
-        end
+        if (FileExists(skBuildBinPath||"\"||sProgram||".exe") = 0) then
+            say "warning: The "||sProgram||" program doesn't exit for this platform. ("||skBuildBinPath||")";
     end
 end
 
 
 /*
- * Execute command if any arguments was given.
+ * The environment is in place, now take the requested action.
  */
-parse arg sArgs
-if (strip(sArgs) <> "") then
+iRc = 0;
+if (sOptVars <> '') then 
 do
-    sArgs;
-    exit(rc);
+    if (sOptVars = "all") then
+        sOptVars = "KBUILD_PATH KBUILD_BIN_PATH KBUILD_TYPE ",
+                || "KBUILD_TARGET KBUILD_TARGET_ARCH KBUILD_TARGET_CPU ",
+                || "KBUILD_HOST KBUILD_HOST_ARCH KBUILD_HOST_CPU ";
+                
+    /* Echo variable values or variable export statements. */
+    do i = 1 to words(sOptVars)
+        sVar = word(sOptVars, i)
+        sVal = '';
+        select 
+            when (sVar = "PATH") then               sVal = sNewPath;
+            when (sVar = "BEGINLIBPATH") then       sVal = sNewBeginLibPath;
+            when (sVar = "KBUILD_PATH") then        sVal = skBuildPath;
+            when (sVar = "KBUILD_BIN_PATH") then    sVal = skBuildBinPath;
+            when (sVar = "KBUILD_TYPE") then        sVal = skBuildType;
+            when (sVar = "KBUILD_HOST") then        sVal = skBuildHost;
+            when (sVar = "KBUILD_HOST_ARCH") then   sVal = skBuildHostArch;
+            when (sVar = "KBUILD_HOST_CPU") then    sVal = skBuildHostCpu;
+            when (sVar = "KBUILD_TARGET") then      sVal = skBuildTarget;
+            when (sVar = "KBUILD_TARGET_ARCH") then sVal = skBuildTargetArch;
+            when (sVar = "KBUILD_TARGET_CPU") then  sVal = skBuildTargetCpu;
+            otherwise do
+                say "error: Unknown variable "||sVar||" specified in --var request."
+                call SysSleep 1
+                exit 1
+            end
+
+        end
+        if (fOptValueOnly <> 0) then 
+            say sVal
+        else
+            say sShowVarPrefix||sVar||"="||sVal;
+    end
 end
-exit(0);
+else
+do
+    /* Wipe out all variables - legacy included - with --default. */
+    if (fOptOverrideAll <> 0) then do
+        call EnvSet 0, KBUILD_PATH, ''
+        call EnvSet 0, KBUILD_BIN_PATH, ''
+        call EnvSet 0, KBUILD_HOST, ''
+        call EnvSet 0, KBUILD_HOST_ARCH, ''
+        call EnvSet 0, KBUILD_HOST_CPU, ''
+        call EnvSet 0, KBUILD_TARGET, ''
+        call EnvSet 0, KBUILD_TARGET_ARCH, ''
+        call EnvSet 0, KBUILD_TARGET_CPU, ''
+
+        call EnvSet 0, PATH_KBUILD, ''
+        call EnvSet 0, PATH_KBUILD_BIN, ''
+        call EnvSet 0, BUILD_PLATFORM, ''
+        call EnvSet 0, BUILD_PLATFORM_ARCH, ''
+        call EnvSet 0, BUILD_PLATFORM_CPU, ''
+        call EnvSet 0, BUILD_TARGET, ''
+        call EnvSet 0, BUILD_TARGET_ARCH, ''
+        call EnvSet 0, BUILD_TARGET_CPU, ''
+    end
+
+    /* Export the variables. */
+    call EnvSet 0, "PATH", sNewPath
+    call EnvSet 0, "BEGINLIBPATH", sNewBeginLibPath
+    if (fOptOverrideType <> 0) then call EnvSet 0, "KBUILD_TYPE", skBuildType
+    if (fOptFull <> 0) then do
+        call EnvSet 0, KBUILD_PATH,         skBuildPath
+        call EnvSet 0, KBUILD_HOST,         skBuildHost
+        call EnvSet 0, KBUILD_HOST_ARCH,    skBuildHostArch
+        call EnvSet 0, KBUILD_HOST_CPU,     skBuildHostCpu
+        call EnvSet 0, KBUILD_TARGET,       skBuildTarget
+        call EnvSet 0, KBUILD_TARGET_ARCH,  skBuildTargetArch
+        call EnvSet 0, KBUILD_TARGET_CPU,   skBuildTargetCpu
+
+        if (fOptLegacy <> 0) then do
+            call EnvSet 0, PATH_KBUILD,         skBuildPath      
+            call EnvSet 0, BUILD_PLATFORM,      skBuildHost      
+            call EnvSet 0, BUILD_PLATFORM_ARCH, skBuildHostArch  
+            call EnvSet 0, BUILD_PLATFORM_CPU,  skBuildHostCpu   
+            call EnvSet 0, BUILD_TARGET,        skBuildTarget    
+            call EnvSet 0, BUILD_TARGET_ARCH,   skBuildTargetArch
+            call EnvSet 0, BUILD_TARGET_CPU,    skBuildTargetCpu 
+        end
+    end
+        
+    /*
+     * Execute left over arguments.
+     */
+    if (strip(sCommand) <> '') then do
+        if (fOptQuiet <> 0) then say "info: Executing command: "|| sCommand
+        address CMD sCommand
+        iRc = rc;  
+        if (fOptQuiet <> 0 & iRc <> 0) then say "info: rc="||iRc||": "|| sCommand
+    end
+end
+if (fOptDbg <> 0) then say "dbg: finished (rc="||rc||")"
+exit (iRc);
 
 
 /*******************************************************************************
@@ -522,5 +856,5 @@ GetScriptDir: procedure
      */
     parse source . . sScript
     sScriptDir = filespec('drive', sScript) || strip(filespec('path', sScript), 'T', '\');
-return sScriptDir;
+return ToLower(sScriptDir);
 
