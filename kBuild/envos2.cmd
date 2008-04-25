@@ -2,7 +2,7 @@
 echo this is a rexx script!
 cancel & quit & exit
 */
-/* $Id: envos2.cmd 1573 2008-04-25 00:14:23Z knut.osmundsen@oracle.com $ */
+/* $Id: envos2.cmd 1574 2008-04-25 00:18:46Z knut.osmundsen@oracle.com $ */
 /** @file
  * Environment setup script for OS/2.
  */
@@ -279,7 +279,7 @@ if (\fOptOverrideAll) then do
             call SysSleep 1;
             exit 1;
         end
-        skBuildHost = EnvGet("BUILD_PLATFORM");
+        skBuildHost = ToLower(EnvGet("BUILD_PLATFORM")); /* ToLower is for legacy reasons. */
     end
 
     if (EnvGet("BUILD_PLATFORM_ARCH") <> '') then do
@@ -393,7 +393,7 @@ if (fOptDbg <> 0) then say "dbg: PATH="||sNewPath;
 
 sOldBeginLibPath = EnvGet("BEGINLIBPATH");
 call EnvAddFront 0, "BEGINLIBPATH", translate(skBuildBinPath, '\', '/');
-sNewBeginLibPath = EnvGet("PATH");
+sNewBeginLibPath = EnvGet("BEGINLIBPATH");
 call EnvSet 0, "BEGINLIBPATH", sOldBeginLibPath;
 if (fOptDbg <> 0) then say "dbg: BEGINLIBPATH="||sNewBeginLibPath;
 
@@ -749,69 +749,6 @@ DirExists: procedure
     if (sComplain <> '') then
         say sComplain ''''sDir'''.';
 return 0;
-
-
-
-/*
- * EMX/GCC 3.x.x - this environment must be used 'on' the ordinary EMX.
- * Note! bin.new has been renamed to bin!
- * Note! make .lib of every .a! in 4OS2: for /R %i in (*.a) do if not exist %@NAME[%i].lib emxomf %i
- */
-GCC3xx: procedure expose aCfg. aPath. sPathFile sPathTools sPathToolsF
-    parse arg sToolId,sOperation,fRM,fQuiet,sPathId
-
-    /*
-     * EMX/GCC main directory.
-     */
-    /*sGCC = PathQuery(sPathId, sToolId, sOperation);
-    if (sGCC = '') then
-        return 1;
-    /* If config operation we're done now. */
-    if (pos('config', sOperation) > 0) then
-        return 0;
-    */
-    sGCC = sPathTools'\x86.os2\gcc\staged'
-    sGCCBack    = translate(sGCC, '\', '/');
-    sGCCForw    = translate(sGCC, '/', '\');
-    chMajor     = '3';
-    chMinor     = left(right(sToolId, 2), 1);
-    chRel       = right(sToolId, 1);
-    sVer        = chMajor'.'chMinor'.'chRel
-
-    call EnvSet      fRM, 'PATH_IGCC',      sGCCBack;
-    call EnvSet      fRM, 'CCENV',          'IGCC'
-    call EnvSet      fRM, 'BUILD_ENV',      'IGCC'
-    call EnvSet      fRM, 'BUILD_PLATFORM', 'OS2'
-
-    call EnvAddFront fRM, 'BEGINLIBPATH',       sGCCBack'\lib;'
-    call EnvAddFront fRM, 'PATH',               sGCCForw'/bin;'sGCCBack'\bin;'
-    call EnvAddFront fRM, 'C_INCLUDE_PATH',     sGCCForw'/include'
-    call EnvAddFront fRM, 'LIBRARY_PATH',       sGCCForw'/lib/gcc-lib/i386-pc-os2-emx/'sVer';'sGCCForw'/lib;'sGCCForw'/lib/mt;'
-    call EnvAddFront fRm, 'CPLUS_INCLUDE_PATH', sGCCForw'/include;'
-    call EnvAddFront fRm, 'CPLUS_INCLUDE_PATH', sGCCForw'/include/c++/'sVer'/backward;'
-    call EnvAddFront fRm, 'CPLUS_INCLUDE_PATH', sGCCForw'/include/c++/'sVer'/i386-pc-os2-emx;'
-    call EnvAddFront fRm, 'CPLUS_INCLUDE_PATH', sGCCForw'/include/c++/'sVer';'
-    call EnvSet      fRM, 'PROTODIR',           sGCCForw'/include/cpp/gen'
-    call EnvSet      fRM, 'OBJC_INCLUDE_PATH',  sGCCForw'/include'
-    call EnvAddFront fRM, 'INFOPATH',           sGCCForw'/info'
-    call EnvSet      fRM, 'EMXBOOK',            'emxdev.inf+emxlib.inf+emxgnu.inf+emxbsd.inf'
-    call EnvAddFront fRM, 'HELPNDX',            'emxbook.ndx', '+', 1
-
-    /*
-     * Verify.
-     */
-    if (pos('verify', sOperation) <= 0) then
-        return 0;
-
-    if (rc = 0) then
-        rc = CheckCmdOutput('g++ --version', 0, fQuiet, sVer);
-    if (rc = 0) then
-    do
-        sVerAS = '2.14';
-        rc = CheckCmdOutput('as --version', 0, fQuiet, 'GNU assembler 'sVerAS);
-    end
-return rc;
-
 
 
 /**
