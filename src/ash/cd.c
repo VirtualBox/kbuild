@@ -382,7 +382,7 @@ find_curdir(int noerror)
 	 * c implementation of getcwd, that does not open a pipe to
 	 * /bin/pwd.
 	 */
-#if defined(__NetBSD__) || defined(__SVR4) || defined(__INNOTEK_LIBC__)
+#if defined(__NetBSD__) || defined(__SVR4) || defined(__INNOTEK_LIBC__) || 1 /* bird: nobody spawns pwd any more (we hope). */
 
 	for (i = MAXPWD;; i *= 2) {
 		pwd = stalloc(i);
