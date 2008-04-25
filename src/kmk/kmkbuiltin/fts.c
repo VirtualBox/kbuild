@@ -59,7 +59,11 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 
 #ifdef __sun__
 # include "solfakes.h"
-# define dirfd(dir) -1
+# ifndef __XOPEN_OR_POSIX
+#  define dirfd(dir) ((dir)->dd_fd)
+#else
+#  define dirfd(dir) ((dir)->d_fd)
+#endif
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
