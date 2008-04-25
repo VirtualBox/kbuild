@@ -2,7 +2,7 @@
 echo this is a rexx script!
 cancel & quit & exit
 */
-/* $Id: envos2.cmd 1572 2008-04-25 00:13:35Z knut.osmundsen@oracle.com $ */
+/* $Id: envos2.cmd 1573 2008-04-25 00:14:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Environment setup script for OS/2.
  */
@@ -386,7 +386,6 @@ if (fOptDbg <> 0) then say "dbg: KBUILD_BIN_PATH="||skBuildBinPath;
  * NOTE! Once bootstrapped this is the only thing that is actually necessary.
  */
 sOldPath = EnvGet("PATH");
-say sOldPath
 call EnvAddFront 0, "PATH", translate(skBuildBinPath, '\', '/');
 sNewPath = EnvGet("PATH");
 call EnvSet 0, "PATH", sOldPath;
