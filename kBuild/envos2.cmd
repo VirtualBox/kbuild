@@ -2,7 +2,7 @@
 echo this is a rexx script!
 cancel & quit & exit
 */
-/* $Id: envos2.cmd 1574 2008-04-25 00:18:46Z knut.osmundsen@oracle.com $ */
+/* $Id: envos2.cmd 1575 2008-04-25 00:24:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * Environment setup script for OS/2.
  */
@@ -279,7 +279,12 @@ if (\fOptOverrideAll) then do
             call SysSleep 1;
             exit 1;
         end
-        skBuildHost = ToLower(EnvGet("BUILD_PLATFORM")); /* ToLower is for legacy reasons. */
+        if (skBuildHost = '' & EnvGet("BUILD_PLATFORM") = "OS2") then do
+            say "error: BUILD_PLATFORM=OS2! Please unset it or change it to 'os2'."
+            call SysSleep 1;
+            exit 1;
+        end
+        skBuildHost = EnvGet("BUILD_PLATFORM");
     end
 
     if (EnvGet("BUILD_PLATFORM_ARCH") <> '') then do
