@@ -1,4 +1,4 @@
-/* $Id: redirect.c 1576 2008-04-25 00:26:53Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1577 2008-04-25 00:29:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -167,7 +167,7 @@ int main(int argc, char **argv)
                     APIRET rc = DosSetExtLIBPATH(pszVal, ulVar);
                     if (rc)
                     {
-                        fprintf(pStdErr, "%s: error: DosSetExtLibPath(\"%s\", %.*s (%ul)): %ul\n", 
+                        fprintf(pStdErr, "%s: error: DosSetExtLibPath(\"%s\", %.*s (%lu)): %lu\n", 
                                 argv[0], pszVal, pszVal - psz - 1, psz, ulVar, rc);
                         return 1;
                     }
