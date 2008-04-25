@@ -63,6 +63,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
+#if defined(__OS2__) || defined(_MSC_VER)
+# include <direct.h>
+# include <limits.h>
+#endif 
 #include "kmkbuiltin.h"
 
 #if defined(__EMX__) || defined(_MSC_VER)
@@ -370,7 +374,11 @@ count_path_components(const char *path)
 			/*
 			 * Relative path, must count cwd depth first.
 			 */
-			char *cwd = _getdcwd(drive_letter, NULL, 32);
+#ifdef __OS2__ /** @todo remove when ticket 194 has been fixed */
+			char *cwd = _getdcwd(drive_letter, NULL, PATH_MAX);
+#else
+			char *cwd = _getdcwd(drive_letter, NULL, 0);
+#endif
 			char *tmp = cwd;
 			if (!tmp) {
 				eval = err(1, "_getdcwd");
