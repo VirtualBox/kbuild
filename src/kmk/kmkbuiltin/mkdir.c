@@ -270,8 +270,8 @@ static int
 usage(FILE *pf)
 {
 	fprintf(pf, "usage: %s [-pv] [-m mode] directory ...\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-			g_progname, g_progname, g_progname);
+	            "   or: %s --help\n"
+	            "   or: %s --version\n",
+	        g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }
