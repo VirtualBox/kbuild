@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1599 2008-05-01 21:55:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -1489,7 +1489,7 @@ $(out) + $($(target)_$(srcname)_FETCH_OUTPUT_) +| $($(target)_$(srcname)_FETCH_O
 		| $($(target)_$(srcname)_FETCH_DEPORD_)
 	%$$(call MSG_FETCH_DL,$(target),$(source),$(out))
 	@## @todo do fancy stuff like download continuation.
-	$$(QUIET)$$(RM) -f $(out)
+	$$(QUIET)$$(RM) -f -- $(out)
 	$($(target)_$(srcname)_FETCH_CMDS_)
 	$$(QUIET)$(if $(md5),$$(MD5SUM_EXT) -b -C $(md5) $(out))
 
@@ -1498,7 +1498,7 @@ $(out) + $($(target)_$(srcname)_FETCH_OUTPUT_) +| $($(target)_$(srcname)_FETCH_O
 # Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
 $(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
 	%$$(call MSG_FETCH_CHK,$(target),$(source),$(out))
-	$$(QUIET)$$(RM) -f $$@
+	$$(QUIET)$$(RM) -f -- $$@
 	@# (re)fetch the file if it doesn't exist or if it doesn't matches the md5.
 	@## @todo do fancy stuff like download continuation.
 	$$(QUIET)( test -f $(out) && $(if $(md5),$$(MD5SUM_EXT) -b -C $(md5) $(out), true) ) \
@@ -1520,7 +1520,7 @@ $(out) + $($(target)_$(srcname)_UNPACK_OUTPUT_) +| $($(target)_$(srcname)_UNPACK
 		$($(target)_$(srcname)_UNPACK_DEPEND_) \
 		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
 	%$$(call MSG_FETCH_UP,$(target),$(archive),$(inst))
-	$$(QUIET)$$(RM) -f $(out)
+	$$(QUIET)$$(RM) -f -- $(out)
 	@# if the source archive doesn't exist fetch it (can have been deleted to save space).
 	$$(QUIET)test -f $(archive) \
 	         || (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
@@ -1724,25 +1724,25 @@ define def_fetch_rules
 
 $(out).lst: $(_TARGET_$(target)_UNPACKED) | $(call DIRDEP,$(inst))
 	%$$(call MSG_FETCH_OK,$(target))
-	$$(QUIET)$$(RM) -f $$@ $$@.tmp
+	$$(QUIET)$$(RM) -f -- $$@ $$@.tmp
 	$$(QUIET2)$$(APPEND) $$@.tmp '$(notdir $(out))'
 	$$(QUIET)$(if $(_TARGET_$(target)_UNPACKED),$$(CAT_EXT) $(_TARGET_$(target)_UNPACKED) >> $$@.tmp)
-	$$(QUIET)$$(MV) -f $$@.tmp $$@
+	$$(QUIET)$$(MV) -f -- $$@.tmp $$@
 
 $(out)_unfetched:
 	%$$(call MSG_UNFETCH,$(target))
-	$$(QUIET)$$(RM) -f $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
-	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@) \
+	$$(QUIET)$$(RM) -f -- $$(addprefix $(inst),$$(shell $$(CAT_EXT) $(out).lst 2> /dev/null | $$(SED) -e '/\/$$$$/d'))
+	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@) \
 		$$(addprefix $(inst),$$(sort $$(dir $$(shell $$(CAT_EXT) $(out).lst 2> /dev/null))))
-	$$(QUIET)$$(RM) -f $(out).lst $(out)
-	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@)
+	$$(QUIET)$$(RM) -f -- $(out).lst $(out)
+	$$(QUIET)$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@)
 
 $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE) | $(call DIRDEP,$(inst))
-	$$(QUIET)$$(RM) -f $$@
+	$$(QUIET)$$(RM) -f -- $$@
 	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(wildcard $(out).lst)\
 		,$$(call MSG_REFETCH,$(target)),$$(call MSG_FETCH,$(target))),$$(call MSG_UNFETCH,$(target)))
 	$$(QUIET)$$(if $$(wildcard $(out).lst      ),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched)
-	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $$(dir $$@))
+	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@))
 	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
 
 .NOTPARALLEL: $(out).lst $(out)_unfetched $(out)
@@ -1867,7 +1867,7 @@ $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) 
 		$$($(target)_INTERMEDIATES)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 ifdef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
-	$$(QUIET)$$(RM) -f $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
+	$$(QUIET)$$(RM) -f -- $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 endif
 endif
 
@@ -1913,7 +1913,7 @@ $(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
 		| \
 		$($(target)_DEPORD_)
 	%$$(call MSG_LINK,$(target),$$@,$(tool_do))
-	$$(QUIET)$$(RM) -f $(dep) $(out) $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
+	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 
 $(cmds)
 
@@ -1936,7 +1936,7 @@ endef
 define def_link_install_rule
 $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
-	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) $(out) $$@
+	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) -- $(out) $$@
 
 ifdef KBUILD_DO_AUTO_INSTALL
 $(basename $(notdir $(out))): $(INSTARGET_$(target))
@@ -2850,7 +2850,7 @@ else
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
-		$(flags)\
+		$(flags) -- \
 		$(srcsrc) $(insdst)
 endif
 
@@ -2866,7 +2866,7 @@ define def_install_symlink_rule
 # the install rule
 $(insdst) : | $(call DIRDEP,$(dir $(insdst)))
 	%$$(call MSG_INST_SYM,$(insdst),$(symdst))
-	$$(QUIET)$$(RM) -f $$@
+	$$(QUIET)$$(RM) -f -- $$@
 	$$(QUIET)$$(LN_SYMLINK) $(symdst) $(insdst)
 endef
 
@@ -2916,7 +2916,7 @@ $(insdst):
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
-		$(flags)\
+		$(flags) -- \
 		$(insdst)
 
 .NOTPARALLEL: $(insdst)
@@ -3053,7 +3053,7 @@ $(foreach directory,$(_INSTALLS_DIRS), $(eval _DIR_ALL := $(filter-out $(directo
 define def_mkdir_rule
 $(directory):
 	%$$(call MSG_MKDIR,$$@)
-	$$(QUIET)$$(MKDIR) -p $$@
+	$$(QUIET)$$(MKDIR) -p -- $$@
 endef
 
 $(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
@@ -3082,8 +3082,8 @@ endif
 #
 do-clean:
 	%$(call MSG_CLEAN)
-	$(QUIET)$(RM) -f $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
-	$(QUIET)$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
+	$(QUIET)$(RM) -f -- $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)
+	$(QUIET)$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $(rsort $(dir $(_OUT_FILES) $(_OBJS) $(_DEPFILES) $(_DEPFILES_INCLUDED) $(_CLEAN_FILES) $(OTHER_CLEAN)))
 
 
 
@@ -3231,7 +3231,7 @@ rebuild: clean
 
 # @todo make this a non-default pass!
 uninstall:
-	$(RM) -f $(_INSTALLS_FILES)
+	$(RM) -f -- $(_INSTALLS_FILES)
 
 install: pass_installs
 
