@@ -168,9 +168,9 @@ static int
 usage(FILE *fp)
 {
 	fprintf(fp, "usage: %s [-benstuv] [file ...]\n"
-				"   or: %s --help\n"
-				"   or: %s --version\n",
-			g_progname, g_progname, g_progname);
+	            "   or: %s --help\n"
+	            "   or: %s --version\n",
+	        g_progname, g_progname, g_progname);
 	return 1;
 }
 
