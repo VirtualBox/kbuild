@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1591 2008-05-01 19:31:12Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 1592 2008-05-01 19:37:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /**
  * Visual SlickEdit Documentation Macros.
  */
@@ -89,7 +89,7 @@ def  'C-S-L' = k_style_load
 #endif
 
 /* Remeber to change these! */
-static _str skUserInitials  = "kso";
+static _str skUserInitials  = "bird";
 static _str skUserName      = "knut st. osmundsen";
 static _str skUserEmail     = "bird-src-spam@anduin.net";
 
@@ -2913,13 +2913,12 @@ static k_menu_create()
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, 'User &Initials (' skUserInitials ')...',  "k_menu_user_initials", "userinitials");
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash preset");
     mhPre= _menu_insert(mhkDev,  -1, MF_SUBMENU, "P&resets", "", "");
-    /*rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Odin32",      "k_menu_preset javadoc, Odin32, Opt2Ind4,,Odin32",      "odin32");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "Linux Kernel","k_menu_preset linux, GPL, Opt1Ind4,,Linux",            "linux");*/
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "The Bird",    "k_menu_preset javadoc, GPL, Opt2Ind4",                 "bird");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLIBC",       "k_menu_preset javadoc, GPL, Opt2Ind4,, kLIBC",         "kLIBC");
     rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kBuild",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kBuild",        "kBuild");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "innotek",     "k_menu_preset javadoc, Confidential, Opt2Ind4, innotek GmbH", "innotek");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, innotek GmbH",   "VirtualBox");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kStuff",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kStuff",        "kStuff");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "sun",         "k_menu_preset javadoc, Confidential, Opt2Ind4, sun",   "sun");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, sun",     "VirtualBox");
 
     k_menu_doc_style();
     k_menu_license();
@@ -3084,6 +3083,8 @@ _command void k_menu_preset(_str sArgs = '')
     sNewLicense = strip(sNewLicense);
     sNewStyle   = strip(sNewStyle);
     sNewCompany = strip(sNewCompany);
+    if (sNewCompany == 'sun')
+        sNewCompany = 'Sun Microsystems, Inc.'
     sNewProgram = strip(sNewProgram);
     sNewChange  = strip(sNewChange);
 
