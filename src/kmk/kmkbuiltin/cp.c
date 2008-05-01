@@ -123,12 +123,30 @@ static int cp_ignore_non_existing, cp_changed_only;
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
 
+enum cp_arg {
+    CP_OPT_HELP = 261,
+    CP_OPT_VERSION,
+    CP_OPT_IGNORE_NON_EXISTING,
+    CP_OPT_CHANGED,
+    CP_OPT_DISABLE_PROTECTION,
+    CP_OPT_ENABLE_PROTECTION,
+    CP_OPT_ENABLE_FULL_PROTECTION,
+    CP_OPT_DISABLE_FULL_PROTECTION,
+    CP_OPT_PROTECTION_DEPTH
+};
 static struct option long_options[] =
 {
-    { "help",   					no_argument, 0, 261 },
-    { "version",   					no_argument, 0, 262 },
-    { "ignore-non-existing",				no_argument, 0, 263 },
-    { "changed",					no_argument, 0, 264 },
+    { "help",   					no_argument, 0, CP_OPT_HELP },
+    { "version",   					no_argument, 0, CP_OPT_VERSION },
+    { "ignore-non-existing",				no_argument, 0, CP_OPT_IGNORE_NON_EXISTING },
+    { "changed",					no_argument, 0, CP_OPT_CHANGED },
+/*
+    { "disable-protection",				no_argument, 0, CP_OPT_DISABLE_PROTECTION },
+    { "enable-protection",				no_argument, 0, CP_OPT_ENABLE_PROTECTION },
+    { "enable-full-protection",				no_argument, 0, CP_OPT_ENABLE_FULL_PROTECTION },
+    { "disable-full-protection",			no_argument, 0, CP_OPT_DISABLE_FULL_PROTECTION },
+    { "protection-depth",				required_argument, 0, CP_OPT_PROTECTION_DEPTH },
+*/
     { 0, 0,	0, 0 },
 };
 
@@ -211,15 +229,15 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		case 'v':
 			vflag = 1;
 			break;
-		case 261:
+		case CP_OPT_HELP:
 			usage(stdout);
 			return 0;
-		case 262:
+		case CP_OPT_VERSION:
 			return kbuild_version(argv[0]);
-		case 263:
+		case CP_OPT_IGNORE_NON_EXISTING:
 			cp_ignore_non_existing = 1;
 			break;
-		case 264:
+		case CP_OPT_CHANGED:
 			cp_changed_only = 1;
 			break;
 		default:
@@ -631,9 +649,9 @@ usage(FILE *fp)
 	            "\n"
 	            "Options:\n"
 	            "   -R  Recursive copy.\n"
-	            "   -H  Description. Only valid with -R.\n"
-	            "   -L  Description. Only valid with -R.\n"
-	            "   -P  Description. Only valid with -R\n"
+	            "   -H  Follow symbolic links on the commandline. Only valid with -R.\n"
+	            "   -L  Follow all symbolic links. Only valid with -R.\n"
+	            "   -P  Do not follow symbolic links. Default. Only valid with -R\n"
 	            "   -f  Force. Overrides -i and -n.\n"
 	            "   -i  Iteractive. Overrides -n and -f.\n"
 	            "   -n  Don't overwrite any files. Overrides -i and -f.\n"
