@@ -1,10 +1,10 @@
-/* $Id: $ */
+/* $Id: darwin.c 1593 2008-05-01 21:36:42Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * Missing BSD functions on Darwin / Mac OS X.
- *
- * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ */
+
+/*
+ * Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
