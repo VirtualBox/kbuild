@@ -593,11 +593,7 @@ test_access(struct stat *sp, mode_t stmode)
 		/* on some systems you can be in several groups */
 		if ((maxgroups = getgroups(0, NULL)) <= 0)
 			maxgroups = NGROUPS_MAX;	/* pre-POSIX system? */
-# ifdef kmk_builtin_test
-		groups = malloc((maxgroups + 1) * sizeof(gid_t));
-# else
 		groups = xmalloc((maxgroups + 1) * sizeof(gid_t));
-# endif
 		n = getgroups(maxgroups, groups);
 		while (--n >= 0) {
 			if (groups[n] == sp->st_gid) {
