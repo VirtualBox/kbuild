@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1588 2008-05-01 15:21:05Z knut.osmundsen@oracle.com $
 ## @file
 # Test - Target Inheritance.
 #
@@ -57,6 +57,33 @@ inherit-target8_EXTENDS = inherit-target7
 
 PROGRAMS += inherit-target9
 inherit-target9_EXTENDS = inherit-target8
+
+
+# More complicated, with a couple of SDKs and TEMPLATES.
+SDK_inh1 = target inherit test sdk 1
+SDK_inh1_DEFS = Z=42
+
+SDK_inh2 = target inherit test sdk 2
+SDK_inh2_DEFS = Y=128
+
+SDK_inh3 = target inherit test sdk 3
+SDK_inh3_DEFS = P=42
+
+TEMPLATE_inh1 = target inherit test template 1
+TEMPLATE_inh1_EXTENDS = TST
+TEMPLATE_inh1_DEFS = Q=256
+
+PROGRAMS += inherit-target10
+inherit-target10_TEMPLATE = inh1
+inherit-target10_SOURCES = ../dummy_defined_X.c
+inherit-target10_SDKS = inh1 inh2
+inherit-target10_DEFS = X=Z
+
+PROGRAMS += inherit-target11
+inherit-target11_EXTENDS = inherit-target10
+inherit-target11_SOURCES = ../dummy_defined_Y.c
+inherit-target11_SDKS = inh3
+inherit-target11_DEFS = Y=P
 
 
 include $(FILE_KBUILD_FOOTER)
