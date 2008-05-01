@@ -66,8 +66,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #if defined(__OS2__) || defined(_MSC_VER)
 # include <direct.h>
 # include <limits.h>
-#endif 
+#endif
 #include "kmkbuiltin.h"
+#include "kbuild_protection.h"
 
 #if defined(__EMX__) || defined(_MSC_VER)
 # define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
@@ -93,11 +94,11 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 extern void strmode(mode_t mode, char *p);
 #endif
 
-static int protectionflag, fullprotectionflag, protectiondepth;
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 static uid_t uid;
 
 static char *argv0;
+static KBUILDPROTECTION g_ProtData;
 
 static struct option long_options[] =
 {
@@ -114,9 +115,9 @@ static struct option long_options[] =
 
 static int	check(char *, char *, struct stat *);
 static void	checkdot(char **);
-static void	rm_file(char **);
+static int	rm_file(char **);
 static int	rm_overwrite(char *, struct stat *);
-static void	rm_tree(char **);
+static int	rm_tree(char **);
 static int	count_path_components(const char *);
 static int  set_protection_depth(const char *);
 static int	usage(FILE *);
@@ -139,10 +140,8 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 	/* reinitialize globals */
 	argv0 = argv[0];
 	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
-	fullprotectionflag = 0;
-	protectionflag = 1;
-	protectiondepth = DEFAULT_PROTECTION_DEPTH;
 	uid = 0;
+	kBuildProtectionInit(&g_ProtData);
 
 	/* kmk: reset getopt and set program name. */
 	g_progname = argv[0];
@@ -183,281 +182,65 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 			break;
 #endif
 		case 261:
+			kBuildProtectionTerm(&g_ProtData);
 			usage(stdout);
 			return 0;
 		case 262:
+			kBuildProtectionTerm(&g_ProtData);
 			return kbuild_version(argv[0]);
 		case 263:
-			protectionflag = 0;
+			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case 264:
-			protectionflag = 1;
+			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
 			break;
 		case 265:
-			fullprotectionflag = 1;
+			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case 266:
-			fullprotectionflag = 0;
+			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
 			break;
 		case 267:
-			set_protection_depth(optarg);
+			if (kBuildProtectionSetDepth(&g_ProtData, optarg)) {
+			    kBuildProtectionTerm(&g_ProtData);
+			    return 1;
+			}
 			break;
 		case '?':
 		default:
+			kBuildProtectionTerm(&g_ProtData);
 			return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
 
 	if (argc < 1) {
+		kBuildProtectionTerm(&g_ProtData);
 		if (fflag)
 			return (0);
 		return usage(stderr);
 	}
 
-	/* Search the environment for option overrides (protection). */
-	for (i = 0; envp[i]; i++) {
-		if (!strncmp(envp[i], "KMK_RM_", sizeof("KMK_RM_") - 1)) {
-			if (!strncmp(envp[i], "KMK_RM_PROTECTION_DEPTH=", sizeof("KMK_RM_PROTECTION_DEPTH=") - 1)) {
-				const char *val = envp[i] + sizeof("KMK_RM_PROTECTION_DEPTH=") - 1;
-				if (set_protection_depth(val))
-					return eval;
-			} else if (!strncmp(envp[i], "KMK_RM_DISABLE_PROTECTION=", sizeof("KMK_RM_DISABLE_PROTECTION=") - 1)) {
-				if (protectionflag >= 0)
-					protectionflag = 0;
-			} else if (!strncmp(envp[i], "KMK_RM_ENABLE_PROTECTION=", sizeof("KMK_RM_ENABLE_PROTECTION=") - 1)) {
-				protectionflag = -1;
-			} else if (!strncmp(envp[i], "KMK_RM_DISABLE_FULL_PROTECTION=", sizeof("KMK_RM_DISABLE_FULL_PROTECTION=") - 1)) {
-				if (fullprotectionflag >= 0)
-					fullprotectionflag = 0;
-			} else if (!strncmp(envp[i], "KMK_RM_ENABLE_FULL_PROTECTION=", sizeof("KMK_RM_ENABLE_FULL_PROTECTION=") - 1)) {
-				fullprotectionflag = protectionflag = -1;
-			}
+	if (!kBuildProtectionScanEnv(&g_ProtData, envp, "KMK_RM_")) {
+		checkdot(argv);
+		uid = geteuid();
+
+		if (*argv) {
+			stdin_ok = isatty(STDIN_FILENO);
+			if (rflag)
+				eval |= rm_tree(argv);
+			else
+				eval |= rm_file(argv);
 		}
-	}
-	if (fullprotectionflag)
-		protectionflag = 1;
-
-	checkdot(argv);
-	uid = geteuid();
-
-	if (*argv) {
-		stdin_ok = isatty(STDIN_FILENO);
-		if (rflag)
-			rm_tree(argv);
-		else
-			rm_file(argv);
+	} else {
+		eval = 1;
 	}
 
+	kBuildProtectionTerm(&g_ProtData);
 	return eval;
 }
 
-/**
- * Sets protectiondepth according to the option argument.
- *
- * @returns eval, that is 0 on success and non-zero on failure
- *
- * @param   val		The value.
- */
 static int
-set_protection_depth(const char *val)
-{
-	/* skip leading blanks, they don't count either way. */
-	while (isspace(*val))
-		val++;
-
-	/* number or path? */
-	if (!isdigit(*val) || strpbrk(val, ":/\\")) {
-		protectiondepth = count_path_components(val);
-	} else {
-		char *more = 0;
-		protectiondepth = strtol(val, &more, 0);
-		if (protectiondepth != 0 && more) {
-			/* trailing space is harmless. */
-			while (isspace(*more))
-				more++;
-		}
-		if (!protectiondepth || val == more || *more)
-			return eval = errx(1, "bogus protection depth: %s", val);
-	}
-
-	if (protectiondepth < 1)
-		return eval = errx(1, "bogus protection depth: %s", val);
-	return eval;
-}
-
-/**
- * Counts the components in the specified sub path.
- * This is a helper for count_path_components.
- *
- * etc = 1
- * etc/ = 1
- * etc/x11 = 2
- * and so and and so forth.
- */
-static int
-count_sub_path_components(const char *path, int depth)
-{
-	for (;;) {
-		const char *end;
-		size_t len;
-
-		/* skip slashes. */
-		while (IS_SLASH(*path))
-			path++;
-		if (!*path)
-			break;
-
-		/* find end of component. */
-		end = path;
-		while (!IS_SLASH(*end) && *end)
-			end++;
-
-		/* count it, checking for '..' and '.'. */
-		len = end - path;
-		if (len == 2 && path[0] == '.' && path[1] == '.') {
-			if (depth > 0)
-				depth--;
-		} else if (len != 1 || path[0] != '.') {
-			depth++;
-		}
-
-		/* advance */
-		if (!*end)
-			break;
-		path = end + 1;
-	}
-	return depth;
-}
-
-/**
- * Parses the specified path counting the number of components
- * relative to root.
- *
- * We don't check symbolic links and such, just some simple and cheap
- * path parsing.
- *
- * @param   path                The path to process.
- *
- * @returns 0 or higher on success.
- *          On failure an error is printed, eval is set and -1 is returned.
- */
-static int
-count_path_components(const char *path)
-{
-	int components = 0;
-
-	/*
-	 * Deal with root, UNC, drive letter.
-     */
-#if defined(_MSC_VER) || defined(__OS2__)
-	if (IS_SLASH(path[0]) && IS_SLASH(path[1]) && !IS_SLASH(path[2])) {
-		/* skip the root - UNC */
-		path += 3;
-		while (!IS_SLASH(*path) && *path) /* server name */
-			path++;
-		while (IS_SLASH(*path))
-			path++;
-		while (!IS_SLASH(*path) && *path) /* share name */
-			path++;
-		while (IS_SLASH(*path))
-			path++;
-	} else {
-		unsigned drive_letter = (unsigned)toupper(path[0]) - (unsigned)'A';
-		if (drive_letter <= (unsigned)('Z' - 'A') && path[1] == ':') {
-			drive_letter++; /* A == 1 */
-		} else {
-			drive_letter = 0; /* 0 == default */
-		}
-
-		if (!IS_SLASH(path[drive_letter ? 2 : 0])) {
-			/*
-			 * Relative path, must count cwd depth first.
-			 */
-#ifdef __OS2__ /** @todo remove when ticket 194 has been fixed */
-			char *cwd = _getdcwd(drive_letter, NULL, PATH_MAX);
-#else
-			char *cwd = _getdcwd(drive_letter, NULL, 0);
-#endif
-			char *tmp = cwd;
-			if (!tmp) {
-				eval = err(1, "_getdcwd");
-				return -1;
-			}
-
-			if (IS_SLASH(tmp[0]) && IS_SLASH(tmp[1])) {
-				/* skip the root - UNC */
-				tmp += 2;
-				while (!IS_SLASH(*tmp) && *tmp) /* server name */
-					tmp++;
-				while (IS_SLASH(*tmp))
-					tmp++;
-				while (!IS_SLASH(*tmp) && *tmp) /* share name */
-					tmp++;
-			} else {
-				/* skip the drive letter and while we're at it, the root slash too. */
-				tmp += 1 + (tmp[1] == ':');
-			}
-			components = count_sub_path_components(tmp, 0);
-			free(cwd);
-		} else {
-			/* skip the drive letter and while we're at it, the root slash too. */
-			path += drive_letter ? 3 : 1;
-		}
-	}
-#else
-	if (!IS_SLASH(path[0])) {
-		/*
-		 * Relative path, must count cwd depth first.
-         */
-		char cwd[4096];
-		if (!getcwd(cwd, sizeof(cwd))) {
-			eval = err(1, "getcwd");
-			return -1;
-		}
-		components = count_sub_path_components(cwd, 0);
-	}
-#endif
-
-	/*
-	 * We're now past any UNC or drive letter crap, possibly positioned
-	 * at the root slash or at the start of a path component at the
-	 * given depth. Count the remainder.
-	 */
-	return count_sub_path_components(path, components);
-}
-
-
-/**
- * Protect the upper layers of the file system against accidental
- * or malicious deletetion attempt from within a makefile.
- *
- * @param   path                The path to check.
- * @param   required_depth      The minimum number of components in the
- *                              path counting from the root.
- *
- * @returns 0 on success.
- *          On failure an error is printed, eval is set and -1 is returned.
- */
-static int
-enforce_protection(const char *path, int required_depth)
-{
-	int components;
-
-	/*
-	 * Count the path and compare it with the required depth.
-     */
-	components = count_path_components(path);
-	if (components < 0)
-		return -1;
-	if (components < required_depth) {
-		eval = errx(1, "%s: protected", path);
-		return -1;
-	}
-	return 0;
-}
-
-static void
 rm_tree(char **argv)
 {
 	FTS *fts;
@@ -470,11 +253,10 @@ rm_tree(char **argv)
 	 * Check up front before anything is deleted. This will not catch
 	 * everything, but we'll check the individual items later.
 	 */
-	if (protectionflag) {
-		int i;
-		for (i = 0; argv[i]; i++) {
-			if (enforce_protection(argv[i], protectiondepth + 1))
-				return;
+	int i;
+	for (i = 0; argv[i]; i++) {
+		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, argv[i])) {
+			return 1;
 		}
 	}
 
@@ -498,8 +280,7 @@ rm_tree(char **argv)
 		flags |= FTS_WHITEOUT;
 #endif
 	if (!(fts = fts_open(argv, flags, NULL))) {
-		eval = err(1, "fts_open");
-		return;
+		return err(1, "fts_open");
 	}
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
@@ -511,9 +292,8 @@ rm_tree(char **argv)
 			}
 			continue;
 		case FTS_ERR:
-			eval = errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
 			fts_close(fts);
-			return;
+			return errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
 		case FTS_NS:
 			/*
 			 * Assume that since fts_read() couldn't stat the
@@ -557,9 +337,9 @@ rm_tree(char **argv)
 		/*
 		 * Protect against deleting root files and directories.
 		 */
-		if (protectionflag && enforce_protection(p->fts_accpath, protectiondepth + 1)) {
+		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE, p->fts_accpath)) {
 			fts_close(fts);
-			return;
+			return 1;
 		}
 
 		rval = 0;
@@ -639,9 +419,10 @@ err:
 		eval = 1;
 	}
 	fts_close(fts);
+	return eval;
 }
 
-static void
+static int
 rm_file(char **argv)
 {
 	struct stat sb;
@@ -651,12 +432,10 @@ rm_file(char **argv)
 	/*
 	 * Check up front before anything is deleted.
 	 */
-	if (fullprotectionflag) {
-		int i;
-		for (i = 0; argv[i]; i++) {
-			if (enforce_protection(argv[i], protectiondepth + 1))
-				return;
-		}
+	int i;
+	for (i = 0; argv[i]; i++) {
+		if (kBuildProtectionEnforce(&g_ProtData, KBUILDPROTECTIONTYPE_FULL, argv[i]))
+			return 1;
 	}
 
 	/*
@@ -713,7 +492,7 @@ rm_file(char **argv)
 				rval = unlink(f);
 #ifdef _MSC_VER
 				if (rval != 0) {
-    					chmod(f, 0777);
+					chmod(f, 0777);
 					rval = unlink(f);
 				}
 #endif
@@ -726,6 +505,7 @@ rm_file(char **argv)
 		if (vflag && rval == 0)
 			(void)printf("%s\n", f);
 	}
+	return eval;
 }
 
 /*
@@ -835,18 +615,18 @@ check(char *path, char *name, struct stat *sp)
 #ifdef SF_APPEND
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			exit(err(1, "fflagstostr"));
-                (void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
-                    modep + 1, modep[9] == ' ' ? "" : " ",
-                    user_from_uid(sp->st_uid, 0),
-                    group_from_gid(sp->st_gid, 0),
-                    *flagsp ? flagsp : "", *flagsp ? " " : "",
-                    path);
+		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
+		              modep + 1, modep[9] == ' ' ? "" : " ",
+		              user_from_uid(sp->st_uid, 0),
+		              group_from_gid(sp->st_gid, 0),
+		              *flagsp ? flagsp : "", *flagsp ? " " : "",
+		              path);
 		free(flagsp);
 #else
-                (void)flagsp;
-                (void)fprintf(stderr, "override %s%s %d/%d for %s? ",
-                    modep + 1, modep[9] == ' ' ? "" : " ",
-                    sp->st_uid, sp->st_gid, path);
+		(void)flagsp;
+		(void)fprintf(stderr, "override %s%s %d/%d for %s? ",
+		              modep + 1, modep[9] == ' ' ? "" : " ",
+		              sp->st_uid, sp->st_gid, path);
 #endif
 	}
 	(void)fflush(stderr);
@@ -950,6 +730,6 @@ usage(FILE *pf)
 		"yourself in the foot.\n"
 		,
 		g_progname, g_progname, g_progname,
-		DEFAULT_PROTECTION_DEPTH, DEFAULT_PROTECTION_DEPTH);
+		kBuildProtectionDefaultDepth(), kBuildProtectionDefaultDepth());
 	return EX_USAGE;
 }
