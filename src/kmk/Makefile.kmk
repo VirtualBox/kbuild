@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1526 2008-04-13 02:18:58Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1598 2008-05-01 21:52:59Z knut.osmundsen@oracle.com $
 ## @file
 # kmk / GNU Make
 #
@@ -81,6 +81,7 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/kbuild_version.c \
+	kmkbuiltin/kbuild_protection.c \
 	getopt.c \
 	getopt1.c \
 	electric.c

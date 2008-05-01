@@ -74,6 +74,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/strmode.c \
 		kmkbuiltin/strlcpy.c \
 		kmkbuiltin/osdep.c \
+		kmkbuiltin/kbuild_protection.c \
 		kmkbuiltin/kbuild_version.c
 
 kmk_redirect_SOURCES = kmkbuiltin/redirect.c
