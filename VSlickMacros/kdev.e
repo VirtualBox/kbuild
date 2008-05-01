@@ -1,9 +1,10 @@
-/* $Id: kdev.e 1367 2007-12-07 12:24:22Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*-
- *
+/* $Id: kdev.e 1591 2008-05-01 19:31:12Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/**
  * Visual SlickEdit Documentation Macros.
- *
+ */
+
+/*
  * Copyright (c) 1999-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
