@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1604 2008-05-05 22:22:55Z knut.osmundsen@oracle.com $
 ## @file
 # sed
 #
@@ -56,6 +56,10 @@ kmk_sed_SOURCES = \
 	lib/getopt.c \
 	lib/utils.c
 kmk_sed_SOURCES.darwin = \
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
+kmk_sed_SOURCES.dragonfly = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c

@@ -202,7 +202,7 @@ static char *posixly_correct;
 
 #elif defined(_MSC_VER) || defined(__APPLE__) || defined(__FreeBSD__) \
    || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__sun__) \
-   || defined(__OS2__)
+   || defined(__OS2__) || defined(__DragonFly__)
 # include <stdlib.h>
 # include <string.h>
 # include <stdio.h>
