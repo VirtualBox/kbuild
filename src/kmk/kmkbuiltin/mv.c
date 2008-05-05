@@ -100,7 +100,7 @@ static int	usage(FILE *);
 extern void strmode(mode_t mode, char *p);
 #endif
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
+#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__)
 # ifdef __OS2__
 static
 # endif
@@ -119,7 +119,7 @@ const char *group_from_gid(gid_t id, int x)
 	sprintf(s_buf, "%ld", id);
 	return s_buf;
 }
-#endif
+#endif /* 'not in libc' */
 
 
 int

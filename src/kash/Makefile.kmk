@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1604 2008-05-05 22:22:55Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Makefile for kash.
 #
@@ -43,6 +43,8 @@ kash_DEFS.os2 = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
 	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
 kash_DEFS.darwin = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
