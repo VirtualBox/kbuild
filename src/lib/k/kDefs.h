@@ -1,4 +1,4 @@
-/* $Id: kDefs.h 3598 2007-10-04 18:46:12Z bird $ */
+/* $Id: kDefs.h 15 2008-05-05 22:14:33Z bird $ */
 /** @file
  *
  * kTypes - Defines and Macros.
@@ -38,24 +38,26 @@
 #define K_OS_UNKNOWN    0
 /** Darwin - aka Mac OS X. */
 #define K_OS_DARWIN     1
+/** DragonFly BSD. */
+#define K_OS_DRAGONFLY  2
 /** FreeBSD. */
-#define K_OS_FREEBSD    2
+#define K_OS_FREEBSD    3
 /** Linux. */
-#define K_OS_LINUX      3
+#define K_OS_LINUX      4
 /** NetBSD. */
-#define K_OS_NETBSD     4
+#define K_OS_NETBSD     5
 /** NT (native). */
-#define K_OS_NT         5
+#define K_OS_NT         6
 /** OpenBSD*/
-#define K_OS_OPENBSD    6
+#define K_OS_OPENBSD    7
 /** OS/2 */
-#define K_OS_OS2        7
+#define K_OS_OS2        8
 /** Solaris */
-#define K_OS_SOLARIS    8
+#define K_OS_SOLARIS    9
 /** Windows. */
-#define K_OS_WINDOWS    9
+#define K_OS_WINDOWS    10
 /** The max K_OS_* value (exclusive). */
-#define K_OS_MAX        10
+#define K_OS_MAX        11
 /** @} */
 
 /** @def K_OS
@@ -72,6 +74,8 @@
 #ifndef K_OS
 # if defined(__APPLE__)
 #  define K_OS      K_OS_DARWIN
+# elif defined(__DragonFly__)
+#  define K_OS      K_OS_DRAGONFLY
 # elif defined(__FreeBSD__) /*??*/
 #  define K_OS      K_OS_FREEBSD
 # elif defined(__gnu_linux__)
