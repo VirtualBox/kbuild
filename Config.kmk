@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1565 2008-04-23 16:06:29Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1600 2008-05-05 21:58:03Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -79,6 +79,7 @@ KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
 $(warning Neither SvnInfo nor .svn/* was found in the root. Will have to cook up something too keep the build happy.)
 $(KBUILD_SVN_INFO_KMK):
 	$(RM) -f $@
+	$(MKDIR) -p $(@D)
 	$(APPEND) $@ 'KBUILD_SVN_REV := 0'
 	$(APPEND) $@ 'KBUILD_SVN_URL := /dev/null'
 
