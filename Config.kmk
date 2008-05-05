@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1600 2008-05-05 21:58:03Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1605 2008-05-05 22:36:00Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -58,7 +58,7 @@ $(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(wildcard $(PATH_ROOT)/.svn $
 	$(call MSG_GENERATE,,$(KBUILD_SVN_INFO_KMK))
 	@$(RM) -f $@ $@.tmp
 	@$(MKDIR) -p $(@D)
-	@$(REDIRECT) -o $@.tmp -- svn info $(DEPTH)
+	@$(REDIRECT) -o $@.tmp -E 'LC_ALL=C' -- svn info $(DEPTH)
 	@$(SED) \
 		-e 's/URL: */KBUILD_SVN_URL := /' \
 		-e 's/Revision: */KBUILD_SVN_REV := /' \
