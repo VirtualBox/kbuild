@@ -1,4 +1,4 @@
-# $Id: header.kmk 1562 2008-04-23 02:33:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1602 2008-05-05 22:21:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1562 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1602 $  )
 
 
 #
@@ -159,7 +159,7 @@ KBUILD_BLD_TYPES := release profile debug
 # this keyword namespace is shared between OSes, architectures, cpus and
 # build types. (PORTME)
 #
-KBUILD_OSES   := darwin freebsd l4 linux netbsd nt openbsd os2 solaris win
+KBUILD_OSES   := darwin dragonfly freebsd l4 linux netbsd nt openbsd os2 solaris win
 KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 ia64 hppa32 hppa64 arm alpha
 
 
@@ -420,43 +420,29 @@ MAKEFILE            := $(firstword $(MAKEFILE_LIST))
 MAKEFILE_CURRENT    := $(MAKEFILE)
 
 
+## @todo this should be done via SUFF_XYZ.target/host...
+
 #
 # Build platform setup.
 # (PORTME)
 #
-
-# OS/2
-ifeq ($(KBUILD_HOST),os2)
-EXEC_X86_WIN32      := innopec.exe
-HOSTSUFF_EXE        := .exe
-endif
-
-# Linux
-ifeq ($(KBUILD_HOST),linux)
-EXEC_X86_WIN32      := wine
-HOSTSUFF_EXE        :=
-endif
-
-# Win, Win32, Win64, NT.
 if1of ($(KBUILD_HOST), win nt)
+# Win, Win32, Win64, NT.
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
-endif
 
-# FreeBSD
-ifeq ($(KBUILD_HOST),freebsd)
+# OS/2.
+else ifeq ($(KBUILD_HOST),os2)
+EXEC_X86_WIN32      := innopec.exe
+HOSTSUFF_EXE        := .exe
+
+else if1of ($(KBUILD_HOST), freebsd dragonfly linux openbsd netbsd)
+# Unix (like) systems with wine.
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
-endif
 
-# Darwin / Mac OS X
-ifeq ($(KBUILD_HOST),darwin)
-EXEC_X86_WIN32      := false
-HOSTSUFF_EXE        :=
-endif
-
-# Solaris
-ifeq ($(KBUILD_HOST),solaris)
+else
+# Unix (like) systems without wine.
 EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
 endif
@@ -493,7 +479,7 @@ SUFF_OBJ    := .o
 SUFF_LIB    := .a
 SUFF_DLL    := .so
 SUFF_EXE    :=
- if1of ($(KBUILD_TARGET), freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
+ if1of ($(KBUILD_TARGET), dragonfly freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
 SUFF_SYS    := .ko
  else
 SUFF_SYS    :=
