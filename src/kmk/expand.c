@@ -601,91 +601,59 @@ variable_append (const char *name, unsigned int length,
 #ifdef CONFIG_WITH_VALUE_LENGTH
 /* Expands the specified string, appending it to the specified variable value. */
 void
-append_expanded_string_to_variable (struct variable *v, const char *value)
+append_expanded_string_to_variable (struct variable *v, const char *value, int append)
 {
-#if 0 /* This isn't safe because the v->value will become invalid if the
-         variable buffer is reallocated to a new address. Sad but true. */
-  static char const empty_string[] = "";
-  unsigned int original_value_length = v->value_length;
-  char *p;
-
-  /* Switch the variable buffer to the variable value buffer. */
-  char *saved_buffer = variable_buffer;
-  unsigned int saved_buffer_length = variable_buffer_length;
-  variable_buffer = v->value;
-  variable_buffer_length = v->value_alloc_len;
-
-  /* Mark the variable as being expanding. */
-  if (v->value_alloc_len == -42)
-    fatal (*expanding_var, _("var=%s"), v->name);
-  assert (v->value_alloc_len >= 0);
-  v->value_alloc_len = -42;
-
-  /* Skip the current value and start appending a '\0' / space before
-     expanding the string so recursive references are handled correctly.
-     Alternatively, if it's an empty value, replace the value with a fixed
-     empty string. */
-  p = v->value + original_value_length;
-  if (original_value_length)
-    {
-      p = variable_buffer_output (p, " ", 1);
-      p[-1] = '\0';
-    }
-  else
-    v->value = (char *)&empty_string[0];
-  p = variable_expand_string (p, value, (long)-1);
-
-  /* Replace the '\0' with the space separator. */
-  if (original_value_length)
-    {
-      assert (variable_buffer[original_value_length] == '\0');
-      variable_buffer[original_value_length] = ' ';
-    }
+  unsigned int value_len = strlen (value);
+  char *p = (char *) memchr (value, '$', value_len);
+  if (!p)
+    /* fast path */
+    append_string_to_variable (v,value, value_len, append);
   else
     {
-      assert (v->value == (char *)&empty_string[0]);
-      assert (empty_string[0] == '\0');
+      unsigned int off_dollar = p - (char *)value;
+
+      /* Install a fresh variable buffer. */
+      char *saved_buffer;
+      unsigned int saved_buffer_length;
+      install_variable_buffer (&saved_buffer, &saved_buffer_length);
+
+      p = variable_buffer;
+      if (append || !v->value_length)
+        {
+          /* Copy the current value into it and append a space. */
+          if (v->value_length)
+            {
+              p = variable_buffer_output (p, v->value, v->value_length);
+              p = variable_buffer_output (p, " ", 1);
+            }
+
+          /* Append the assignment value. */
+          p = variable_buffer_output (p, value, off_dollar);
+          p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
+          p = strchr (p, '\0');
+        }
+      else
+        {
+          /* Expand the assignemnt value. */
+          p = variable_buffer_output (p, value, off_dollar);
+          p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
+          p = strchr (p, '\0');
+
+          /* Append a space followed by the old value. */
+          p = variable_buffer_output (p, " ", 1);
+          p = variable_buffer_output (p, v->value, v->value_length + 1) - 1;
+        }
+
+      /* Replace the variable with the variable buffer. */
+      free (v->value);
+      v->value = variable_buffer;
+      v->value_length = p - v->value;
+      v->value_alloc_len = variable_buffer_length;
+
+      /* Restore the variable buffer, but without freeing the current. */
+      variable_buffer = NULL;
+      restore_variable_buffer (saved_buffer, saved_buffer_length);
     }
-
-  /* Update the variable. (mind the variable_expand_string() return) */
-  p = strchr (p, '\0');
-  v->value = variable_buffer;
-  v->value_length = p - v->value;
-  v->value_alloc_len = variable_buffer_length;
-
-  /* Restore the variable buffer. */
-  variable_buffer = saved_buffer;
-  variable_buffer_length = saved_buffer_length;
-#else
-  char *p;
-
-  /* Install a fresh variable buffer. */
-  char *saved_buffer;
-  unsigned int saved_buffer_length;
-  install_variable_buffer (&saved_buffer, &saved_buffer_length);
-
-  /* Copy the current value into it and append a space. */
-  p = variable_buffer;
-  if (v->value_length)
-    {
-      p = variable_buffer_output (p, v->value, v->value_length);
-      p = variable_buffer_output (p, " ", 1);
-    }
-
-  /* Append the assignment value. */
-  p = variable_expand_string (p, value, (long)-1);
-  p = strchr (p, '\0');
-
-  /* Replace the variable with the variable buffer. */
-  free (v->value);
-  v->value = variable_buffer;
-  v->value_length = p - v->value;
-  v->value_alloc_len = variable_buffer_length;
-
-  /* Restore the variable buffer, but without freeing the current. */
-  variable_buffer = NULL;
-  restore_variable_buffer (saved_buffer, saved_buffer_length);
-#endif
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
