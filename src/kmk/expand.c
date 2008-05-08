@@ -603,27 +603,55 @@ variable_append (const char *name, unsigned int length,
 void
 append_expanded_string_to_variable (struct variable *v, const char *value)
 {
+  static char const empty_string[] = "";
+  unsigned int original_value_length = v->value_length;
   char *p;
 
-  /* switch the variable buffer to the variable value buffer. */
+  /* Switch the variable buffer to the variable value buffer. */
   char *saved_buffer = variable_buffer;
   unsigned int saved_buffer_length = variable_buffer_length;
   variable_buffer = v->value;
   variable_buffer_length = v->value_alloc_len;
 
-  /* skip the current value and start appending a space and the expanded string. */
-  p = v->value + v->value_length;
-  if (v->value_length != 0)
+  /* Mark the variable as being expanding. */
+  if (v->value_alloc_len == -42)
+    fatal (*expanding_var, _("var=%s"), v->name);
+  assert (v->value_alloc_len >= 0);
+  v->value_alloc_len = -42;
+
+  /* Skip the current value and start appending a '\0' / space before
+     expanding the string so recursive references are handled correctly.
+     Alternatively, if it's an empty value, replace the value with a fixed
+     empty string. */
+  p = v->value + original_value_length;
+  if (original_value_length)
+    {
       p = variable_buffer_output (p, " ", 1);
+      p[-1] = '\0';
+    }
+  else
+    v->value = (char *)&empty_string[0];
   p = variable_expand_string (p, value, (long)-1);
 
-  /* update the variable. (The variable_expand_string return is annoying!) */
+  /* Replace the '\0' with the space separator. */
+  if (original_value_length)
+    {
+      assert (variable_buffer[original_value_length] == '\0');
+      variable_buffer[original_value_length] = ' ';
+    }
+  else
+    {
+      assert (v->value == (char *)&empty_string[0]);
+      assert (empty_string[0] == '\0');
+    }
+
+  /* Update the variable. (mind the variable_expand_string() return) */
   p = strchr (p, '\0');
   v->value = variable_buffer;
   v->value_length = p - v->value;
   v->value_alloc_len = variable_buffer_length;
 
-  /* restore the variable buffer. */
+  /* Restore the variable buffer. */
   variable_buffer = saved_buffer;
   variable_buffer_length = saved_buffer_length;
 }
