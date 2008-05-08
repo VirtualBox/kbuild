@@ -88,7 +88,7 @@ struct variable
       origin ENUM_BITFIELD (4);	/* Variable origin.  */
 #else
       origin ENUM_BITFIELD (3);	/* Variable origin.  */
-#endif 
+#endif
     enum variable_export
       {
 	v_export,		/* Export this variable.  */
@@ -142,7 +142,7 @@ char *variable_expand_string (char *line, const char *string, long length);
 void install_variable_buffer (char **bufp, unsigned int *lenp);
 void restore_variable_buffer (char *buf, unsigned int len);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-extern void append_expanded_string_to_variable (struct variable *v, const char *value);
+extern void append_expanded_string_to_variable (struct variable *v, const char *value, int append);
 #endif
 
 /* function.c */
@@ -190,6 +190,8 @@ struct variable *lookup_variable_in_set (const char *name, unsigned int length,
                                          const struct variable_set *set);
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
+void append_string_to_variable (struct variable *v, const char *value,
+                                unsigned int value_len, int append);
 
 struct variable *define_variable_in_set (const char *name, unsigned int length,
                                          const char *value,
