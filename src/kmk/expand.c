@@ -662,7 +662,7 @@ append_expanded_string_to_variable (struct variable *v, const char *value)
   /* Install a fresh variable buffer. */
   char *saved_buffer;
   unsigned int saved_buffer_length;
-  install_variable_buffer (&saved_buffer, saved_buffer_length);
+  install_variable_buffer (&saved_buffer, &saved_buffer_length);
 
   /* Copy the current value into it and append a space. */
   if (v->value_length)
