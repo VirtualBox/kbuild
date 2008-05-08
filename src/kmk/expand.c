@@ -603,6 +603,8 @@ variable_append (const char *name, unsigned int length,
 void
 append_expanded_string_to_variable (struct variable *v, const char *value)
 {
+#if 0 /* This isn't safe because the v->value will become invalid if the
+         variable buffer is reallocated to a new address. Sad but true. */
   static char const empty_string[] = "";
   unsigned int original_value_length = v->value_length;
   char *p;
@@ -654,6 +656,35 @@ append_expanded_string_to_variable (struct variable *v, const char *value)
   /* Restore the variable buffer. */
   variable_buffer = saved_buffer;
   variable_buffer_length = saved_buffer_length;
+#else
+  char *p;
+
+  /* Install a fresh variable buffer. */
+  char *saved_buffer;
+  unsigned int saved_buffer_length;
+  install_variable_buffer (&saved_buffer, saved_buffer_length);
+
+  /* Copy the current value into it and append a space. */
+  if (v->value_length)
+    {
+      p = variable_buffer_output (variable_buffer, v->value, v->value_length);
+      p = variable_buffer_output (p, " ", 1);
+    }
+
+  /* Append the assignment value. */
+  p = variable_expand_string (p, value, (long)-1);
+  p = strchr (p, '\0');
+
+  /* Replace the variable with the variable buffer. */
+  free (v->value);
+  v->value = variable_buffer;
+  v->value_length = p - v->value;
+  v->value_alloc_len = variable_buffer_length;
+
+  /* Restore the variable buffer, but without freeing the current. */
+  variable_buffer = NULL;
+  restore_variable_buffer (saved_buffer, saved_buffer_length);
+#endif
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
