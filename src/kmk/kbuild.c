@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1611 2008-05-09 01:23:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -278,7 +278,7 @@ const char *get_kbuild_bin_path(void)
                   strcpy(pszSep + 1, ".");
                 else
                   strcpy(pszTmp2, ".");
-    
+
                 if (!my_abspath(pszTmp2, szTmpPath))
                     fatal(NILF, _("failed to determin KBUILD_BIN_PATH (pszTmp2=%s szTmpPath=%s)"), pszTmp2, szTmpPath);
 #endif /* !KBUILD_PATH */
@@ -1685,7 +1685,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pTool      = kbuild_get_source_tool(pTarget, pSource, pType, pBldTrg, pBldTrgArch, "tool");
     struct variable *pOutBase   = kbuild_get_object_base(pTarget, pSource, "outbase");
     struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
-    struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pOrderDeps, *pDirDep, *pDep, *pVar, *pOutput;
+    struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pOrderDeps, *pDirDep, *pDep, *pVar, *pOutput, *pOutputMaybe;
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
@@ -1770,7 +1770,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszSrc, "_OUTPUT_MAYBE", sizeof("_OUTPUT_MAYBE"));
     memcpy(pszDst, "_OUTPUT_MAYBE_", sizeof("_OUTPUT_MAYBE_"));
     pVar = kbuild_query_recursive_variable(pszSrcVar);
-    pOutput = do_variable_definition(NILF, pszDstVar, pVar ? pVar->value : "", o_file, f_simple, 0 /* !target_var */);
+    pOutputMaybe = do_variable_definition(NILF, pszDstVar, pVar ? pVar->value : "", o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPEND", sizeof("_DEPEND"));
     memcpy(pszDst, "_DEPEND_", sizeof("_DEPEND_"));
@@ -1797,13 +1797,15 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     free(pszVal);
 
     /*
-    _OUT_FILES      += $($(target)_$(source)_OUTPUT_)
+    _OUT_FILES      += $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_)
     */
     pVar = kbuild_get_variable("_OUT_FILES");
-    psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1);
+    psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length + 1);
     memcpy(psz, pVar->value, pVar->value_length); psz += pVar->value_length;
     *psz++ = ' ';
-    memcpy(psz, pOutput->value, pOutput->value_length + 1);
+    memcpy(psz, pOutput->value, pOutput->value_length); psz += pOutput->value_length;
+    *psz++ = ' ';
+    memcpy(psz, pOutputMaybe->value, pOutputMaybe->value_length + 1);
     do_variable_definition(NILF, "_OUT_FILES", pszVal, o_file, f_simple, 0 /* !target_var */);
     free(pszVal);
 
