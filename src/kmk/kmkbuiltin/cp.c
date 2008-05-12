@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #endif
 #include "cp_extern.h"
 #include "kmkbuiltin.h"
+#include "kbuild_protection.h"
 
 
 #ifndef S_IFWHT
@@ -111,6 +112,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 
 /* have wrappers for globals in cp_extern! */
 
+static KBUILDPROTECTION g_ProtData;
 const char *cp_argv0;
 static char emptystring[] = "";
 
@@ -140,19 +142,17 @@ static struct option long_options[] =
     { "version",   					no_argument, 0, CP_OPT_VERSION },
     { "ignore-non-existing",				no_argument, 0, CP_OPT_IGNORE_NON_EXISTING },
     { "changed",					no_argument, 0, CP_OPT_CHANGED },
-/*
     { "disable-protection",				no_argument, 0, CP_OPT_DISABLE_PROTECTION },
     { "enable-protection",				no_argument, 0, CP_OPT_ENABLE_PROTECTION },
     { "enable-full-protection",				no_argument, 0, CP_OPT_ENABLE_FULL_PROTECTION },
     { "disable-full-protection",			no_argument, 0, CP_OPT_DISABLE_FULL_PROTECTION },
     { "protection-depth",				required_argument, 0, CP_OPT_PROTECTION_DEPTH },
-*/
     { 0, 0,	0, 0 },
 };
 
 
 static int copy(char *[], enum op, int);
-static int mastercmp(const FTSENT * const *, const FTSENT * const *);
+static int mastercmp(const FTSENT **, const FTSENT **);
 #ifdef SIGINFO
 static void siginfo(int __unused);
 #endif
@@ -163,7 +163,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 {
 	struct stat to_stat, tmp_stat;
 	enum op type;
-	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash;
+	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash, rc;
 	char *target;
 
         /* init globals */
@@ -174,6 +174,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
         fflag = iflag = nflag = pflag = vflag = Rflag = rflag = 0;
         info = 0;
 	cp_ignore_non_existing = cp_changed_only = 0;
+	kBuildProtectionInit(&g_ProtData);
 
         /* reset getopt and set progname. */
         g_progname = argv[0];
@@ -198,12 +199,8 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
-#ifdef DO_CP_TREE
 			Rflag = 1;
 			break;
-#else
-			return errx(1, "recursive copy is not implemented!");
-#endif
 		case 'f':
 			fflag = 1;
 			iflag = nflag = 0;
@@ -219,20 +216,20 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		case 'p':
 			pflag = 1;
 			break;
+#if 0 /* only one -R */
 		case 'r':
-#ifdef DO_CP_TREE
 			rflag = 1;
 			break;
-#else
-			return errx(1, "recursive copy is not implemented!");
 #endif
 		case 'v':
 			vflag = 1;
 			break;
 		case CP_OPT_HELP:
 			usage(stdout);
+			kBuildProtectionTerm(&g_ProtData);
 			return 0;
 		case CP_OPT_VERSION:
+			kBuildProtectionTerm(&g_ProtData);
 			return kbuild_version(argv[0]);
 		case CP_OPT_IGNORE_NON_EXISTING:
 			cp_ignore_non_existing = 1;
@@ -240,29 +237,49 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		case CP_OPT_CHANGED:
 			cp_changed_only = 1;
 			break;
+		case CP_OPT_DISABLE_PROTECTION:
+			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			break;
+		case CP_OPT_ENABLE_PROTECTION:
+			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_RECURSIVE);
+			break;
+		case CP_OPT_ENABLE_FULL_PROTECTION:
+			kBuildProtectionEnable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			break;
+		case CP_OPT_DISABLE_FULL_PROTECTION:
+			kBuildProtectionDisable(&g_ProtData, KBUILDPROTECTIONTYPE_FULL);
+			break;
+		case CP_OPT_PROTECTION_DEPTH:
+			if (kBuildProtectionSetDepth(&g_ProtData, optarg)) {
+				kBuildProtectionTerm(&g_ProtData);
+				return 1;
+			}
+			break;
 		default:
+			kBuildProtectionTerm(&g_ProtData);
 		        return usage(stderr);
 		}
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 2)
+	if (argc < 2) {
+		kBuildProtectionTerm(&g_ProtData);
 		return usage(stderr);
+	}
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (rflag) {
-		if (Rflag)
+		if (Rflag) {
+			kBuildProtectionTerm(&g_ProtData);
 			return errx(1,
 		    "the -R and -r options may not be specified together.");
+		}
 		if (Hflag || Lflag || Pflag)
 			errx(1,
 	"the -H, -L, and -P options may not be specified with the -r option.");
-#ifdef DO_CP_TREE
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL;
-#endif
-	}
-#ifdef DO_CP_TREE
+        }
 	if (Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -270,9 +287,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	} else
-#endif
-	{
+	} else {
 		fts_options &= ~FTS_PHYSICAL;
 		fts_options |= FTS_LOGICAL | FTS_COMFOLLOW;
 	}
@@ -282,8 +297,10 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
-	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path))
+	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path)) {
+		kBuildProtectionTerm(&g_ProtData);
 		return errx(1, "%s: name too long", target);
+	}
 	to.p_end = to.p_path + strlen(to.p_path);
         if (to.p_path == to.p_end) {
 		*to.p_end++ = '.';
@@ -312,14 +329,18 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 	 * In (2), the real target is not directory, but "directory/source".
 	 */
 	r = stat(to.p_path, &to_stat);
-	if (r == -1 && errno != ENOENT)
+	if (r == -1 && errno != ENOENT) {
+		kBuildProtectionTerm(&g_ProtData);
 		return err(1, "%s", to.p_path);
+	}
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
 		 * Case (1).  Target is not a directory.
 		 */
-		if (argc > 1)
+		if (argc > 1) {
+			kBuildProtectionTerm(&g_ProtData);
 			return usage(stderr);
+		}
 		/*
 		 * Need to detect the case:
 		 *	cp -R dir foo
@@ -341,6 +362,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 			type = FILE_TO_FILE;
 
 		if (have_trailing_slash && type == FILE_TO_FILE) {
+			kBuildProtectionTerm(&g_ProtData);
 			if (r == -1)
 				return errx(1, "directory %s does not exist",
 				            to.p_path);
@@ -353,7 +375,19 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		 */
 		type = FILE_TO_DIR;
 
-	return copy(argv, type, fts_options);
+	/* Finally, check that the "to" directory isn't protected. */
+	if (kBuildProtectionEnforce(&g_ProtData,
+				    Rflag || rflag
+				    ? KBUILDPROTECTIONTYPE_RECURSIVE
+				    : KBUILDPROTECTIONTYPE_FULL,
+				    to.p_path)) {
+	    kBuildProtectionTerm(&g_ProtData);
+	    return 1;
+	}
+
+	rc = copy(argv, type, fts_options);
+	kBuildProtectionTerm(&g_ProtData);
+	return rc;
 }
 
 static int
@@ -612,7 +646,7 @@ copy(char *argv[], enum op type, int fts_options)
  *	files first reduces seeking.
  */
 static int
-mastercmp(const FTSENT * const *a, const FTSENT * const *b)
+mastercmp(const FTSENT **a, const FTSENT **b)
 {
 	int a_info, b_info;
 
@@ -642,24 +676,53 @@ siginfo(int sig __unused)
 static int
 usage(FILE *fp)
 {
-	fprintf(fp, "usage: %s [options] src target\n"
-	            "   or: %s [options] src1 ... srcN directory\n"
-	            "   or: %s --help\n"
-	            "   or: %s --version\n"
-	            "\n"
-	            "Options:\n"
-	            "   -R  Recursive copy.\n"
-	            "   -H  Follow symbolic links on the commandline. Only valid with -R.\n"
-	            "   -L  Follow all symbolic links. Only valid with -R.\n"
-	            "   -P  Do not follow symbolic links. Default. Only valid with -R\n"
-	            "   -f  Force. Overrides -i and -n.\n"
-	            "   -i  Iteractive. Overrides -n and -f.\n"
-	            "   -n  Don't overwrite any files. Overrides -i and -f.\n"
-	            "   --ignore-non-existing\n"
-	            "       Don't fail if the specified source file doesn't exist.\n"
-	            "   --changed\n"
-	            "       Only copy if changed (i.e. compare first). TODO.\n"
-	        ,
-	        g_progname, g_progname, g_progname, g_progname);
+	fprintf(fp,
+"usage: %s [options] src target\n"
+"   or: %s [options] src1 ... srcN directory\n"
+"   or: %s --help\n"
+"   or: %s --version\n"
+"\n"
+"Options:\n"
+"   -R  Recursive copy.\n"
+"   -H  Follow symbolic links on the commandline. Only valid with -R.\n"
+"   -L  Follow all symbolic links. Only valid with -R.\n"
+"   -P  Do not follow symbolic links. Default. Only valid with -R\n"
+"   -f  Force. Overrides -i and -n.\n"
+"   -i  Iteractive. Overrides -n and -f.\n"
+"   -n  Don't overwrite any files. Overrides -i and -f.\n"
+"   --ignore-non-existing\n"
+"       Don't fail if the specified source file doesn't exist.\n"
+"   --changed\n"
+"       Only copy if changed (i.e. compare first).\n"
+"   --disable-protection\n"
+"       Will disable the protection file protection applied with -R.\n"
+"   --enable-protection\n"
+"       Will enable the protection file protection applied with -R.\n"
+"   --enable-full-protection\n"
+"       Will enable the protection file protection for all operations.\n"
+"   --disable-full-protection\n"
+"       Will disable the protection file protection for all operations.\n"
+"   --protection-depth\n"
+"       Number or path indicating the file protection depth. Default: %d\n"
+"\n"
+"Environment:\n"
+"    KMK_CP_DISABLE_PROTECTION\n"
+"       Same as --disable-protection. Overrides command line.\n"
+"    KMK_CP_ENABLE_PROTECTION\n"
+"       Same as --enable-protection. Overrides everyone else.\n"
+"    KMK_CP_ENABLE_FULL_PROTECTION\n"
+"       Same as --enable-full-protection. Overrides everyone else.\n"
+"    KMK_CP_DISABLE_FULL_PROTECTION\n"
+"       Same as --disable-full-protection. Overrides command line.\n"
+"    KMK_CP_PROTECTION_DEPTH\n"
+"       Same as --protection-depth. Overrides command line.\n"
+"\n"
+"The file protection of the top %d layers of the file hierarchy is there\n"
+"to try prevent makefiles from doing bad things to your system. This\n"
+"protection is not bulletproof, but should help prevent you from shooting\n"
+"yourself in the foot.\n"
+		,
+	        g_progname, g_progname, g_progname, g_progname,
+	        kBuildProtectionDefaultDepth(), kBuildProtectionDefaultDepth());
 	return 1;
 }
