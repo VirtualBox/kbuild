@@ -1530,7 +1530,7 @@ func_evalctx (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
-/* A mix of func_eval and func_value, saves memory for the expansion. 
+/* A mix of func_eval and func_value, saves memory for the expansion.
   This implements both evalval and evalvalctx, the latter has its own
   variable context just like evalctx. */
 static char *
@@ -2271,14 +2271,14 @@ func_abspath (char *o, char **argv, const char *funcname UNUSED)
 }
 
 #ifdef CONFIG_WITH_ABSPATHEX
-/* Same as abspath except that the current path may be given as the 
+/* Same as abspath except that the current path may be given as the
    2nd argument. */
 static char *
 func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 {
   char *cwd = argv[1];
 
-  /* cwd needs leading spaces chopped and may be optional, 
+  /* cwd needs leading spaces chopped and may be optional,
      in which case we're exactly like $(abspath ). */
   while (isblank(*cwd))
     cwd++;
@@ -2294,7 +2294,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
       unsigned int len = 0;
       PATH_VAR (in);
       PATH_VAR (out);
-    
+
       while ((path = find_next_token (&p, &len)) != 0)
         {
           if (len < GET_PATH_MAX)
@@ -2321,7 +2321,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
                   memcpy (in, path, len);
                   in[len] = '\0';
                 }
-    
+
               if (abspath (in, out))
                 {
                   o = variable_buffer_output (o, out, strlen (out));
@@ -2330,12 +2330,12 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
                 }
             }
         }
-    
+
       /* Kill last space.  */
       if (doneany)
         --o;
     }
-  
+
    return o;
 }
 #endif
@@ -2659,7 +2659,7 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
   trailing spaces.
 
   comp-cmds will compare command by command, ignoring not only leading
-  and trailing spaces on each line but also leading one leading '@', 
+  and trailing spaces on each line but also leading one leading '@',
   '-', '+' and '%'
 */
 static char *
@@ -2786,11 +2786,11 @@ l_simple_compare:
 /*
   $(comp-cmds-ex cmds1,cmds2,not-equal-return)
 
-  Compares the two strings and return the string in the third argument 
+  Compares the two strings and return the string in the third argument
   if not equal. If equal, nothing is returned.
 
-  The comparision will be performed command by command, ignoring not 
-  only leading and trailing spaces on each line but also leading one 
+  The comparision will be performed command by command, ignoring not
+  only leading and trailing spaces on each line but also leading one
   leading '@', '-', '+' and '%'.
 */
 static char *
@@ -2991,6 +2991,7 @@ func_which (char *o, char **argv, const char *funcname UNUSED)
   const char *path;
   struct variable *path_var;
   unsigned i;
+  int first = 1;
   PATH_VAR (buf);
 
   path_var = lookup_variable ("PATH", 4);
@@ -3046,7 +3047,10 @@ func_which (char *o, char **argv, const char *funcname UNUSED)
 
                       if (func_which_test_x (buf))
                         {
+                          if (!first)
+                            o = variable_buffer_output (o, " ", 1);
                           o = variable_buffer_output (o, buf, strlen (buf));
+                          first = 0;
                           break;
                         }
                     }
@@ -3572,16 +3576,16 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 
   if (!argv[0] || (!argv[0][0] && !argv[1]))
     {
-      len = sprintf (buf, "alloc-cur: %5lu %6luKB (/%3luMB)  hash: %5lu %2lu%%", 
-                     make_stats_allocations, 
-                     make_stats_allocated / 1024, 
-                     make_stats_allocated_sum / (1024*1024), 
+      len = sprintf (buf, "alloc-cur: %5lu %6luKB (/%3luMB)  hash: %5lu %2lu%%",
+                     make_stats_allocations,
+                     make_stats_allocated / 1024,
+                     make_stats_allocated_sum / (1024*1024),
                      make_stats_ht_lookups,
                      (make_stats_ht_collisions * 100) / make_stats_ht_lookups);
       o = variable_buffer_output (o, buf, len);
     }
   else
-    { 
+    {
       /* selective */
       int i;
       for (i = 0; argv[i]; i++)
@@ -3602,7 +3606,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
           else if (!strcmp(argv[i], "ht_collisions_pct"))
             val = (make_stats_ht_collisions * 100) / make_stats_ht_lookups;
           else
-            {  
+            {
               o = variable_buffer_output (o, argv[i], strlen (argv[i]));
               continue;
             }
@@ -3617,17 +3621,17 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 
 #ifdef CONFIG_WITH_COMMANDS_FUNC
 /* Gets all the commands for a target, separated by newlines.
- 
+
    This is useful when creating and checking target dependencies since
    it reduces the amount of work and the memory consuption. A new prefix
-   character '%' has been introduced for skipping certain lines, like 
+   character '%' has been introduced for skipping certain lines, like
    for instance the one calling this function and pushing to a dep file.
    Blank lines are also skipped.
 
-   The commands function takes exactly one argument, which is the name of 
-   the target which commands should be returned. 
+   The commands function takes exactly one argument, which is the name of
+   the target which commands should be returned.
 
-   The commands-sc is identical to commands except that it uses a ';' to 
+   The commands-sc is identical to commands except that it uses a ';' to
    separate the commands.
 
    The commands-usr is similar to commands except that it takes a 2nd
@@ -3669,7 +3673,7 @@ func_commands (char *o, char **argv, const char *funcname)
       set_file_variables (file);
       chop_commands (cmds);
 
-      for (i = 0; i < cmds->ncommand_lines; i++) 
+      for (i = 0; i < cmds->ncommand_lines; i++)
         {
           char *p;
           char *in, *out, *ref;
@@ -3680,7 +3684,7 @@ func_commands (char *o, char **argv, const char *funcname)
           p = cmds->command_lines[i];
           while (isblank ((unsigned char)*p))
             p++;
-          if (*p == '\0') 
+          if (*p == '\0')
             continue;
 
           /* --- copied from new_job() in job.c --- */
@@ -3785,7 +3789,7 @@ func_commands (char *o, char **argv, const char *funcname)
 
           /* Skip it if it has a '%' prefix or is blank. */
           p = o;
-          while (isblank ((unsigned char)*o) 
+          while (isblank ((unsigned char)*o)
               || *o == '@'
               || *o == '-'
               || *o == '+')
@@ -4193,7 +4197,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
 #endif
       /* Expand the body in the context of the arguments, adding the result to
          the variable buffer.  */
-    
+
       v->exp_count = EXP_COUNT_MAX;
       o = variable_expand_string (o, body, flen+3);
       v->exp_count = 0;
@@ -4207,7 +4211,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
 
       if (!strcmp (funcname, "evalcall"))
         {
-          /* Evaluate the variable value without expanding it. We 
+          /* Evaluate the variable value without expanding it. We
              need a copy since eval_buffer is destructive.  */
 
           size_t off = o - variable_buffer;
