@@ -1,4 +1,4 @@
-# $Id: GXX32.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: GXX32.kmk 1612 2008-05-12 15:42:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later using the system GCC, for building C++ code.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -51,12 +51,12 @@ TOOL_GXX32_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(KBUILD_TARGET).$
 ifeq ($(KBUILD_TARGET),os2)
 TOOL_GXX32_LD_MAP ?= -Zmap=$(1)
 else
-TOOL_GXX32_LD_MAP ?= -Wl,-Map -Wl,$(1) -Wl,--cref
+TOOL_GXX32_LD_MAP ?=
 endif
 ifeq ($(KBUILD_TARGET),os2)
 TOOL_GXX32_LD_SYSMOD_MAP ?= -Zmap=$(1)
 else
-TOOL_GXX32_LD_SYSMOD_MAP ?= -Map $(1) --cref
+TOOL_GXX32_LD_SYSMOD_MAP ?=
 endif
 ifdef SLKRUNS
 TOOL_GXX32_CC  += -fmessage-length=0
