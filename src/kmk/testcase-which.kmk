@@ -1,5 +1,5 @@
 
-
 all:
 	@echo which kmk: $(which kmk)
+	@echo which kmk: $(which kmk kmk kmk )
 
