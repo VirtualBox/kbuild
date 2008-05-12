@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1618 2008-05-12 19:33:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1622 2008-05-12 21:28:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -722,7 +722,7 @@ kbuild_first_prop(struct variable *pTarget, struct variable *pSource,
             char chSaved = *pszEnd;
             *pszEnd = '\0';
             pVar = define_variable_vl(pszVarName, strlen(pszVarName), psz, pszEnd - psz,
-                                      1 /* duplicate */, o_file, 0 /* !recursive */);
+                                      1 /* duplicate */, o_local, 0 /* !recursive */);
             *pszEnd = chSaved;
             if (pVar)
                 return pVar;
@@ -980,7 +980,7 @@ kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const
      * Define the variable in the current set and return it.
      */
     return define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cch - 1,
-                              0 /* use pszResult */, o_file, 0 /* !recursive */);
+                              0 /* use pszResult */, o_local, 0 /* !recursive */);
 }
 
 
@@ -1506,7 +1506,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     cchTotal = psz - pszResult;
 
     pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cchTotal,
-                              0 /* take pszResult */ , o_file, 0 /* !recursive */);
+                              0 /* take pszResult */ , o_local, 0 /* !recursive */);
     return pVar;
 }
 
@@ -1581,14 +1581,14 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
     memcpy(psz, pOutBase->value, pOutBase->value_length);   psz += pOutBase->value_length;
     memcpy(psz, pObjSuff->value, pObjSuff->value_length);   psz += pObjSuff->value_length;
     memcpy(psz, pDepSuff->value, pDepSuff->value_length + 1);
-    *ppDep = define_variable_vl("dep", 3, pszResult, cch - 1, 1 /*dup*/, o_file, 0 /* !recursive */);
+    *ppDep = define_variable_vl("dep", 3, pszResult, cch - 1, 1 /*dup*/, o_local, 0 /* !recursive */);
 
     /*
      * obj
      */
     *psz = '\0';
     pObj = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, psz - pszResult,
-                              1/* dup */, o_file, 0 /* !recursive */);
+                              1/* dup */, o_local, 0 /* !recursive */);
 
     /*
      * PATH_$(target)_$(source) - this is global!
@@ -1653,7 +1653,7 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
         *psz++ = '/';
         *psz = '\0';
     }
-    *ppDirDep = define_variable_vl("dirdep", 6, pszResult, psz - pszResult, 1/*dup*/, o_file, 0 /* !recursive */);
+    *ppDirDep = define_variable_vl("dirdep", 6, pszResult, psz - pszResult, 1/*dup*/, o_local, 0 /* !recursive */);
 
     return pObj;
 }
