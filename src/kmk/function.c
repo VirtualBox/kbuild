@@ -3809,6 +3809,23 @@ func_commands (char *o, char **argv, const char *funcname)
 }
 #endif  /* CONFIG_WITH_COMMANDS_FUNC */
 
+#ifdef KMK
+/* Useful when debugging kmk and/or makefiles. */
+char *
+func_breakpoint (char *o, char **argv, const char *funcname)
+{
+#if defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386) \
+ || defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64)
+  __asm__ __volatile__ ("int3\n\t");
+#else
+  char *p = (char *)0;
+  *p = '\0';
+#endif
+  return o;
+}
+#endif /* KMK */
+
+
 /* Lookup table for builtin functions.
 
    This doesn't have to be sorted; we use a straight lookup.  We might gain
@@ -3944,6 +3961,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},
   { STRING_SIZE_TUPLE("kb-src-prop"),   4,  4,  0,  func_kbuild_source_prop},
   { STRING_SIZE_TUPLE("kb-src-one"),    0,  1,  0,  func_kbuild_source_one},
+#endif
+#ifdef KMK
+  { STRING_SIZE_TUPLE("breakpoint"),    0,  0,  0,  func_breakpoint},
 #endif
 };
 
