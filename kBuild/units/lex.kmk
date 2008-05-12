@@ -1,4 +1,4 @@
-# $Id: lex.kmk 1623 2008-05-12 21:32:21Z knut.osmundsen@oracle.com $
+# $Id: lex.kmk 1625 2008-05-12 21:42:23Z knut.osmundsen@oracle.com $
 ## @file
 # lex unit.
 #
@@ -78,7 +78,7 @@ endef # def_lex_rule
 # @param    source      The source file.
 # @param    lots more
 # @returns  quite a bit.
-define def_src_handler_lex_ctx
+define def_src_handler_lex
 # Figure out all the props.
 local type := LEX
 local tmp := $(kb-src-tool tool)
@@ -122,11 +122,6 @@ local orderdeps += $(TOOL_$(tool)_LEX_DEPORD)
 # generate the rule.
 $(eval $(def_lex_rule))
 
-endef # def_src_handler_lex_ctx
-
-## @todo the source handlers should be evaluated in a fresh context!
-define def_src_handler_lex
-$(evalvalctx def_src_handler_lex_ctx)
-endef
+endef # def_src_handler_lex
 
 
