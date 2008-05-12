@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1613 2008-05-12 15:55:50Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1614 2008-05-12 16:05:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1770,11 +1770,11 @@ endif
 _TARGET_$(target)_FETCHED :=
 _TARGET_$(target)_UNPACKED :=
 _TARGET_$(target)_DIGEST :=
-local clean_files := $($(target)_CLEAN)
+local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(KBUILD_TYPE))
 
 # The 'sources'.
-#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)))
-$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),\
+#$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(KBUILD_TARGET).$(bld_trg_arch)))
+$(foreach source,$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(bld_trg)) $($(target)_SOURCES.$(bld_trg_arch)) $($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)),\
 	$(evalval def_fetch_src))
 
 # The target.
@@ -2840,6 +2840,19 @@ local flags := \
 	$($(target)_$(srcsrc)_IFFLAGS) \
 	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg)) \
 	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg).$(bld_trg_arch))
+clean_files += \
+	$($(srcdst)_CLEAN) \
+	$($(srcdst)_CLEAN.$(bld_trg)) \
+	$($(srcdst)_CLEAN.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcsrc)_CLEAN) \
+	$($(srcsrc)_CLEAN.$(bld_trg)) \
+	$($(srcsrc)_CLEAN.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcdst)_CLEAN) \
+	$($(target)_$(srcdst)_CLEAN.$(bld_trg)) \
+	$($(target)_$(srcdst)_CLEAN.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcsrc)_CLEAN) \
+	$($(target)_$(srcsrc)_CLEAN.$(bld_trg)) \
+	$($(target)_$(srcsrc)_CLEAN.$(bld_trg).$(bld_trg_arch))
 
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
@@ -3004,6 +3017,8 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
 
+local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
+
 $(foreach directory,$($(target)_DIRS) $($(target)_DIRS.$(bld_trg)) $($(target)_DIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_DIRS.$(bld_trg_arch)) $($(target)_DIRS.$(bld_trg_cpu)) $($(target)_DIRS.$(bld_type)), \
 	$(evalval def_install_directory))
 
@@ -3023,13 +3038,13 @@ $(target): $(TARGET_$(target))
 _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
-_CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
+_CLEAN_FILES += $(clean_files)
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 endef
 
 ## process all install targets
 $(foreach target, $(INSTALLS) $(INSTALLS.$(KBUILD_TARGET)) $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
-	$(evalval def_install))
+	$(evalvalctx def_install))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
