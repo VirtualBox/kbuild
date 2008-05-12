@@ -119,7 +119,6 @@ static int	rm_file(char **);
 static int	rm_overwrite(char *, struct stat *);
 static int	rm_tree(char **);
 static int	count_path_components(const char *);
-static int  set_protection_depth(const char *);
 static int	usage(FILE *);
 
 
