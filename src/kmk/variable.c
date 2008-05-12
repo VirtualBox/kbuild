@@ -1589,6 +1589,10 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
   unsigned int new_value_len = value_len + (v->value_length != 0 ? 1 + v->value_length : 0);
   int done_1st_prepend_copy = 0;
 
+  /* Drop empty strings. Use $(NO_SUCH_VARIABLE) if a space is wanted. */
+  if (!value_len)
+      return;
+
   /* adjust the size. */
   if ((unsigned)v->value_alloc_len <= new_value_len + 1)
     {

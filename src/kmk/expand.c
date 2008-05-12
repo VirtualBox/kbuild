@@ -608,7 +608,7 @@ append_expanded_string_to_variable (struct variable *v, const char *value, int a
   if (!p)
     /* fast path */
     append_string_to_variable (v,value, value_len, append);
-  else
+  else if (value_len)
     {
       unsigned int off_dollar = p - (char *)value;
 
@@ -654,6 +654,7 @@ append_expanded_string_to_variable (struct variable *v, const char *value, int a
       variable_buffer = NULL;
       restore_variable_buffer (saved_buffer, saved_buffer_length);
     }
+  /* else: Drop empty strings. Use $(NO_SUCH_VARIABLE) if a space is wanted. */
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
