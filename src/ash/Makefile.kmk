@@ -75,7 +75,6 @@ kmk_ash_SOURCES = \
 	bltin/kill.c \
 	bltin/test.c \
 	$(PATH_TARGET)/arith.c \
-	$(PATH_TARGET)/arith_lex.c \
 	$(PATH_TARGET)/builtins.c \
 	$(PATH_TARGET)/init.c \
 	$(PATH_TARGET)/nodes.c
@@ -114,14 +113,13 @@ kmk_ash.man_SOURCES = \
 #ash.man_SYMLINKS = \
 #	ash.1.gz=>sh.1
 
-
-
-ifeq ($(filter-out nt win win32 win64,$(KBUILD_TARGET)),)
+if1of ($(KBUILD_TARGET), win nt)
 
 #
 # Use the pregenerated code.
 #
-kmk_ash_DEPS :=Ä
+kmk_ash_DEPS :=
+kmk_ash_SOURCES += $(PATH_TARGET)/arith_lex.c
 
 define def_copy_generated
 $(PATH_TARGET)/$(src): generated/$(src)
@@ -136,6 +134,15 @@ $(eval $(def_copy_generated)))
 include $(FILE_KBUILD_FOOTER)
 
 else
+
+ifeq (1,2) #disabled for now.
+kmk_ash_USES = lex #yacc
+kmk_ash_SOURCES += arith_lex.l
+kmk_ash_LEXTOOL = FLEX
+kmk_ash_LEXFLAGS = -8
+else
+kmk_ash_SOURCES += $(PATH_TARGET)/arith_lex.c
+endif
 
 include $(FILE_KBUILD_FOOTER)
 
@@ -157,8 +164,10 @@ $(PATH_TARGET)/arith.h + $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_
 	$(MV) -f y.tab.c $(PATH_TARGET)/arith.c
 	$(MV) -f y.tab.h $(PATH_TARGET)/arith.h
 
+ifndef kmk_ash_LEXTOOL
 $(PATH_TARGET)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_TARGET))
 	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
+endif
 
 $(PATH_TARGET)/builtins.h + $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
