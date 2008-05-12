@@ -2797,7 +2797,7 @@ static char *
 func_comp_cmds_ex (char *o, char **argv, const char *funcname)
 {
   const char *s1, *e1, *s2, *e2;
-  size_t l, l1, l2;
+  size_t l1, l2;
 
   /* the simple cases */
   s1 = argv[0];
@@ -3649,7 +3649,8 @@ func_commands (char *o, char **argv, const char *funcname)
   file = lookup_file (argv[0]);
   if (file && file->cmds)
     {
-      int i, cmd_sep_len;
+      unsigned int i;
+      int cmd_sep_len;
       struct commands *cmds = file->cmds;
       const char *cmd_sep;
 
@@ -3814,8 +3815,10 @@ func_commands (char *o, char **argv, const char *funcname)
 char *
 func_breakpoint (char *o, char **argv, const char *funcname)
 {
-#if defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386) \
- || defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64)
+#ifdef _MSC_VER
+  __debugbreak();
+#elif defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386) \
+   || defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64)
   __asm__ __volatile__ ("int3\n\t");
 #else
   char *p = (char *)0;
