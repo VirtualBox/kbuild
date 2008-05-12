@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1621 2008-05-12 19:44:45Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1625 2008-05-12 21:42:23Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2033,7 +2033,7 @@ local suff := $(suffix $(source))
 local src_handler := $(firstword $(filter $(suff):%, $($(target)_$(source)_SRC_HANDLERS) $($(source)_SRC_HANDLERS) $(target_src_handlers) ))
 local handler := $(patsubst $(suff):%,%,$(src_handler))
 ifneq ($(handler),)
- $(evalval $(handler))
+ $(evalvalctx $(handler))
 else
  othersrc += $(source)
 endif
