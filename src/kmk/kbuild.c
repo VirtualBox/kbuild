@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1611 2008-05-09 01:23:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1618 2008-05-12 19:33:51Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1511,7 +1511,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 }
 
 
-/* get a source property. Doesn't respect the default path. */
+/* get a source property. */
 char *
 func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 {
@@ -1534,7 +1534,13 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
     else
         fatal(NILF, _("incorrect direction argument `%s'!"), argv[2]);
     if (argv[3])
-        pDefPath = kbuild_get_variable("defpath");
+    {
+        const char *psz = argv[3];
+        while (isspace(*psz))
+            psz++;
+        if (*psz)
+            pDefPath = kbuild_get_variable("defpath");
+    }
 
     kbuild_get_sdks(&Sdks, pTarget, pSource, pBldType, pBldTrg, pBldTrgArch);
 
@@ -1547,7 +1553,6 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 
     kbuild_put_sdks(&Sdks);
     return o;
-
 }
 
 
