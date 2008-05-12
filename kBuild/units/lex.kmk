@@ -1,4 +1,4 @@
-# $Id: lex.kmk 1621 2008-05-12 19:44:45Z knut.osmundsen@oracle.com $
+# $Id: lex.kmk 1623 2008-05-12 21:32:21Z knut.osmundsen@oracle.com $
 ## @file
 # lex unit.
 #
@@ -85,20 +85,24 @@ local tmp := $(kb-src-tool tool)
 ifeq ($(tool),)
 $(error kBuild: $(target) / $(sources) does not a (lex) tool defined!)
 endif
+ifndef TOOL_$(tool)_LEX_CMDS
+$(error kBuild: TOOL_$(tool)_LEX_CMDS isn't defined! target=$(target) source=$(source) )
+endif
 local out := $(kb-obj-base outbase).c
 local tmp := $(kb-src-prop LEXFLAGS,flags,left-to-right,)
 local tmp := $(kb-src-prop DEPS,deps,left-to-right,$(defpath))
 local tmp := $(kb-src-prop ORDERDEPS,orderdeps,left-to-right,$(defpath))
+ifdef TOOL_$(tool)_LEX_OUT_FILE # .c/.cpp output depends on flags.
+ local out := $(strip $(TOOL_$(tool)_LEX_OUT_FILE))
+ ifeq ($(out),)
+  local out := $(outbase).c
+ endif
+endif
 local dirdep := $(call DIRDEP,$(dir $(out)))
-
-# workaround for bug in kb-src-prop - remove when it has been fixed.
-flags := $(patsubst /%,%,$(flags))
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- deps      := $(abspathex $(deps),$(defpath))
- orderdeps := $(abspathex $(orderdeps),$(defpath))
- source    := $(abspathex $(source),$(defpath))
+ local source := $(abspathex $(source),$(defpath))
 endif
 
 # dependency file.
@@ -108,27 +112,15 @@ ifndef NO_COMPILE_CMDS_DEPS
  $(eval includedep $(dep))
 endif
 
-# check that the tool is defined.
-ifndef TOOL_$(tool)_LEX_CMDS
-$(error kBuild: TOOL_$(tool)_LEX_CMDS isn't defined! target=$(target) source=$(source) )
-endif
-
 # call the tool
 local cmds := $(TOOL_$(tool)_LEX_CMDS)
 local output_extra := $(TOOL_$(tool)_LEX_OUTPUT)
 local output_maybe := $(TOOL_$(tool)_LEX_OUTPUT_MAYBE)
-deps += $(TOOL_$(tool)_DEPEND) $(source)
-orderdeps += $(TOOL_$(tool)_DEPORD)
+local deps += $(TOOL_$(tool)_LEX_DEPEND) $(source)
+local orderdeps += $(TOOL_$(tool)_LEX_DEPORD)
 
 # generate the rule.
 $(eval $(def_lex_rule))
-
-# cleanup (non-localized stuff)
-tool :=
-outbase :=
-flags :=
-deps :=
-orderdeps :=
 
 endef # def_src_handler_lex_ctx
 
