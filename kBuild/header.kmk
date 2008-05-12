@@ -1,4 +1,4 @@
-# $Id: header.kmk 1613 2008-05-12 15:55:50Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1621 2008-05-12 19:44:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1613 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1621 $  )
 
 
 #
@@ -656,6 +656,10 @@ KBUILD_TOOL_PATHS :=
 # List of paths (separated by space) where SDKs can be found.
 KBUILD_SDK_PATHS :=
 
+## KBUILD_UNIT_PATHS
+# List of paths (separated by space) where units (USES) can be found.
+KBUILD_UNIT_PATHS :=
+
 ## KBUILD_DEFAULT_PATHS
 # List of paths (separated by space) to search for stuff as a last resort.
 KBUILD_DEFAULT_PATHS :=
@@ -689,7 +693,7 @@ KBUILD_SRC_HANDLERS := \
 
 ## PROPS_TOOLS
 # This is a subset of PROPS_SINGLE.
-PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
+PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL LEXTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
 
 ## PROPS_SINGLE
 # The list of non-accumulative target properties.
@@ -700,7 +704,7 @@ PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARC
 ## PROPS_SINGLE_LNK
 # Subset of PROPS_SINGLE which applies to all linkable targets.
 PROPS_SINGLE_LNK := TOOL TEMPLATE CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL \
-    INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
+	INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
 	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF
 
 ## PROPS_DEFERRED
@@ -741,7 +745,7 @@ PROPS_ACCUMULATE_R_LNK := \
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_L := \
-	SDKS SOURCES SRC_HANDLERS INTERMEDIATES \
+	SDKS USES SOURCES SRC_HANDLERS INTERMEDIATES \
 	INCS CINCS CXXINCS OBJCINCS ASINCS RCINCS \
 	LIBS LIBPATH \
 	DIRS BLDDIRS CLEAN

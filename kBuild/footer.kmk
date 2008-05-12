@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1614 2008-05-12 16:05:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1621 2008-05-12 19:44:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1071,7 +1071,7 @@ endif
 
 
 #
-# Include tools & sdks
+# Include tools, sdks and units.
 #
 # The first part of this exercise is to figure out which TOOLS and SDKS
 # that should be included.
@@ -1083,6 +1083,10 @@ _SDKS  := $(SDKS.$(KBUILD_TARGET))   $(SDKS.$(KBUILD_TARGET_ARCH))   $(SDKS.$(KB
           $(SDKS.$(KBUILD_HOST)) $(SDKS.$(KBUILD_HOST_ARCH)) $(SDKS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)) \
 	  $(SDKS.$(KBUILD_TYPE)) \
 	  $(SDKS)
+_USES  := $(USES.$(KBUILD_TARGET))   $(USES.$(KBUILD_TARGET_ARCH))   $(USES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) \
+          $(USES.$(KBUILD_HOST)) $(USES.$(KBUILD_HOST_ARCH)) $(USES.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)) \
+	  $(USES.$(KBUILD_TYPE)) \
+	  $(USES)
 define def_tools_sdks_target_source
 $(eval _TOOLS += $(foreach prop, $(PROPS_TOOLS), \
 	$($(source)_$(prop).$(_bld_trg)) \
@@ -1104,6 +1108,17 @@ $(eval _SDKS += \
 	$($(target)_$(source)_SDKS.$(KBUILD_TYPE)) \
 	$($(source)_SDKS) \
 	$($(target)_$(source)_SDKS))
+$(eval _USES += \
+	$($(source)_USES.$(_bld_trg)) \
+	$($(target)_$(source)_USES.$(_bld_trg)) \
+	$($(source)_USES.$(_bld_trg).$(_bld_trg_arch)) \
+	$($(target)_$(source)_USES.$(_bld_trg).$(_bld_trg_arch)) \
+	$($(source)_USES.$(_bld_trg_arch)) \
+	$($(target)_$(source)_USES.$(_bld_trg_arch)) \
+	$($(source)_USES.$(KBUILD_TYPE)) \
+	$($(target)_$(source)_USES.$(KBUILD_TYPE)) \
+	$($(source)_USES) \
+	$($(target)_$(source)_USES))
 endef # def_tools_sdks_target_source
 
 define def_tools_sdks_target
@@ -1122,6 +1137,11 @@ $(eval _SDKS += \
 	$($(target)_SDKS.$(_bld_trg_arch)) \
 	$($(target)_SDKS.$(_bld_trg).$(_bld_trg_arch)) \
 	$($(target)_SDKS))
+$(eval _USES += \
+	$($(target)_USES.$(_bld_trg)) \
+	$($(target)_USES.$(_bld_trg_arch)) \
+	$($(target)_USES.$(_bld_trg).$(_bld_trg_arch)) \
+	$($(target)_USES))
 $(foreach source, \
 	$($(target)_SOURCES.$(_bld_trg)) \
 	$($(target)_SOURCES.$(_bld_trg_arch)) \
@@ -1192,6 +1212,21 @@ ifndef SDK_$(loading)
 endif
 endef # def_sdk_load_function
 
+## Unit load function.
+# @param loading    The unit name
+define def_unit_load_function
+ifndef UNIT_$(loading)
+ UNIT_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ ifeq ($(UNIT_$(loading)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the unit '$(loading)'! Searched: $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS))
+ endif
+ include $(UNIT_$(loading)_KMK_FILE)
+ ifndef UNIT_$(loading)
+  $(warning kBuild: UNIT_$(loading) was not defined by $(UNIT_$(loading)_KMK_FILE)!)
+ endif
+endif
+endef # def_unit_load_function
+
 
 properties :=
 properties_now_l :=
@@ -1218,10 +1253,13 @@ properties_deferred :=
 properties_deferred_l :=
 properties_deferred_r :=
 
+# No inheriting for the uses, they're just global 'code'.
+$(foreach loading, $(_USES), $(evalval def_unit_load_function))
+
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done tools and sdks)
+ $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done tools, sdks and units)
  $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
 endif
@@ -2015,6 +2053,15 @@ $(foreach source,\
 	$($(target)_SOURCES.$(bld_trg_arch))\
 	$($(target)_SOURCES.$(bld_trg_cpu))\
 	$($(target)_SOURCES.$(bld_type))\
+	,$(evalval def_src_handler_one) )
+
+$(foreach source,\
+	$($(target)_GEN_SOURCES_)\
+	$($(target)_GEN_SOURCES_.$(bld_trg))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_GEN_SOURCES_.$(bld_trg_arch))\
+	$($(target)_GEN_SOURCES_.$(bld_trg_cpu))\
+	$($(target)_GEN_SOURCES_.$(bld_type))\
 	,$(evalval def_src_handler_one) )
 endef
 
