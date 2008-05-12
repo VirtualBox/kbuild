@@ -134,7 +134,6 @@ int
 kmk_builtin_rm(int argc, char *argv[], char **envp)
 {
 	int ch, rflag;
-	int i;
 
 	/* reinitialize globals */
 	argv0 = argv[0];
