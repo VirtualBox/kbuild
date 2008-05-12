@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1599 2008-05-01 21:55:11Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1613 2008-05-12 15:55:50Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1589,6 +1589,11 @@ local size := $(firstword \
 	$($(srcname)_SIZE)\
 	$($(target)_SIZE)\
 )
+clean_files += \
+	$($(target)_$(source)_CLEAN)\
+	$($(target)_$(srcname)_CLEAN)\
+	$($(source)_CLEAN)\
+	$($(srcname)_CLEAN)
 local dep := # not legal for fetch and unpack tools
 
 
@@ -1765,6 +1770,7 @@ endif
 _TARGET_$(target)_FETCHED :=
 _TARGET_$(target)_UNPACKED :=
 _TARGET_$(target)_DIGEST :=
+local clean_files := $($(target)_CLEAN)
 
 # The 'sources'.
 #$ (warning dbg fetch: target=$(target) sources=$($(target)_SOURCES) $($(target)_SOURCES.$(KBUILD_TYPE)) $($(target)_SOURCES.$(KBUILD_TARGET)) $($(target)_SOURCES.$(KBUILD_TARGET_ARCH)) $($(target)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)))
@@ -1788,6 +1794,7 @@ _DOWNLOADS += $(_TARGET_$(target)_FETCHED)
 _UNPACKS += $(_TARGET_$(target)_UNPACKED)
 _UNFETCHES += $(out)_unfetched
 _DIRS += $(inst)
+_CLEAN_FILES += $(clean_files)
 
 endef
 
@@ -1795,7 +1802,7 @@ endef
 bld_trg := $(KBUILD_TARGET)
 bld_trg_arch := $(KBUILD_TARGET_ARCH)
 $(foreach target, $(FETCHES) $(FETCHES.$(KBUILD_TARGET)) $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
-	$(evalval def_fetch))
+	$(evalvalctx def_fetch))
 
 # some aliases.
 download: $(_DOWNLOADS)
