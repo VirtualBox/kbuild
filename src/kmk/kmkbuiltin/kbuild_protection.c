@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.c 1598 2008-05-01 21:52:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 1635 2008-05-13 00:55:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -33,6 +33,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#if defined(_MSC_VER) || defined(__OS2__)
+# include <limits.h>
+# include <direct.h>
+#endif 
 #include "kbuild_protection.h"
 
 
