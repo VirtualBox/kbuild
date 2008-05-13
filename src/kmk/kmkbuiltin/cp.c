@@ -376,16 +376,16 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		type = FILE_TO_DIR;
 
 	/* Finally, check that the "to" directory isn't protected. */
-	if (kBuildProtectionEnforce(&g_ProtData,
-				    Rflag || rflag
-				    ? KBUILDPROTECTIONTYPE_RECURSIVE
-				    : KBUILDPROTECTIONTYPE_FULL,
-				    to.p_path)) {
-	    kBuildProtectionTerm(&g_ProtData);
-	    return 1;
+	rc = 1;
+	if (!kBuildProtectionScanEnv(&g_ProtData, envp, "KMK_CP_")
+	 && !kBuildProtectionEnforce(&g_ProtData,
+				     Rflag || rflag
+				     ? KBUILDPROTECTIONTYPE_RECURSIVE
+				     : KBUILDPROTECTIONTYPE_FULL,
+				     to.p_path)) {
+	    rc = copy(argv, type, fts_options);
 	}
 
-	rc = copy(argv, type, fts_options);
 	kBuildProtectionTerm(&g_ProtData);
 	return rc;
 }
