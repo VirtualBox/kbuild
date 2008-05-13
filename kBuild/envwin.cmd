@@ -276,7 +276,7 @@ if ".%_KBUILD_OVERRIDE_TARGET%" == ".1" goto legacy_skip_target
 set _KBUILD_VARS=KBUILD_TARGET (%_KBUILD_TARGET%) and BUILD_TARGET (%BUILD_TARGET%)
 if not ".%BUILD_TARGET%" == "." if not ".%_KBUILD_TARGET%" == "." if ".%_KBUILD_TARGET%" == ".%BUILD_TARGET%" goto legacy_mismatch
 if not ".%BUILD_TARGET%" == "." set _KBUILD_TARGET=%BUILD_TARGET%
-:convert_skip_target
+:legacy_skip_target
 
 if ".%_KBUILD_OVERRIDE_TARGET%" == ".1" goto legacy_skip_target_arch
 set _KBUILD_VARS=KBUILD_TARGET_ARCH (%_KBUILD_TARGET_ARCH%) and BUILD_TARGET_ARCH (%BUILD_TARGET_ARCH%)
