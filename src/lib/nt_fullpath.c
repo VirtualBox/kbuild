@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 1368 2007-12-07 19:36:06Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 1643 2008-05-19 01:22:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -269,6 +269,18 @@ typedef struct _MY_FILE_FS_ATTRIBUTE_INFORMATION
     WCHAR FileSystemName[/*1*/64];
 } MY_FILE_FS_ATTRIBUTE_INFORMATION, *PMY_FILE_FS_ATTRIBUTE_INFORMATION;
 
+#define MY_FileFsDeviceInformation 4
+typedef struct MY_FILE_FS_DEVICE_INFORMATION
+{
+    ULONG DeviceType;
+    ULONG Characteristics;
+} MY_FILE_FS_DEVICE_INFORMATION, *PMY_FILE_FS_DEVICE_INFORMATION;
+#define MY_FILE_DEVICE_DISK              7
+#define MY_FILE_DEVICE_DISK_FILE_SYSTEM  8
+#define MY_FILE_DEVICE_FILE_SYSTEM       9
+#define MY_FILE_DEVICE_VIRTUAL_DISK     36
+
+
 typedef struct _IO_STATUS_BLOCK
 {
     union
@@ -410,7 +422,10 @@ nt_get_filename_info(const char *pszPath, char *pszFull, size_t cchFull)
                                                          MY_FileFsVolumeInformation);
                 if (rcNt >= 0)
                 {
-                    g_afNtfsDrives[iDrv] = 1;
+                    DWORD dwDriveType = GetDriveType(pszFull);
+                    if (    dwDriveType == DRIVE_FIXED
+                        ||  dwDriveType == DRIVE_RAMDISK)
+                        g_afNtfsDrives[iDrv] = 1;
                 }
             }
             CloseHandle(hFile);
