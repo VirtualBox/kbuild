@@ -1,4 +1,4 @@
-# $Id: header.kmk 1621 2008-05-12 19:44:45Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1646 2008-05-21 00:42:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1621 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1646 $  )
 
 
 #
@@ -892,10 +892,21 @@ PASS_OTHERS_pass    := others
 
 ## PASS: install
 # This pass installs the built entities to a sandbox area.
+## @todo split this up into build install (to sandbox) and real installation.
 PASS_INSTALLS       := Install
 PASS_INSTALLS_trgs  :=
 PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS _INSTALLS_FILES
 PASS_INSTALLS_pass  := installs
+
+## PASS: testing
+# This pass processes custom rules for executing tests.
+PASS_TESTING        := Tests
+PASS_TESTING_trgs   :=
+PASS_TESTING_vars   := _TESTING
+PASS_TESTING_pass   := testing
+# aliases
+.PHONY: check test
+check test: pass_testing
 
 ## PASS: packing
 # This pass processes custom packing rules.
@@ -903,7 +914,8 @@ PASS_PACKING        := Packing
 PASS_PACKING_trgs   :=
 PASS_PACKING_vars   := _PACKING
 PASS_PACKING_pass   := packing
-#alias
+# alias
+.PHONY: packing
 packing: pass_packing
 
 ## PASS: clean
@@ -913,6 +925,7 @@ PASS_CLEAN_trgs     := do-clean
 PASS_CLEAN_vars     :=
 PASS_CLEAN_pass     := clean
 # alias
+.PHONY: clean
 clean: pass_clean
 
 ## PASS: nothing
@@ -922,6 +935,7 @@ PASS_NOTHING_trgs   := do-nothing
 PASS_NOTHING_vars   :=
 PASS_NOTHING_pass   := nothing
 # alias
+.PHONY: nothing
 nothing: pass_nothing
 
 ## DEFAULT_PASSES
@@ -931,7 +945,7 @@ DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
 ## PASSES
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
-PASSES := FETCHES PATCHES $(DEFAULT_PASSES) NOTHING CLEAN
+PASSES := FETCHES PATCHES $(DEFAULT_PASSES) TESTING PACKING CLEAN NOTHING
 
 
 #
