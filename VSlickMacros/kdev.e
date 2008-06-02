@@ -1,4 +1,4 @@
-/* $Id: kdev.e 1592 2008-05-01 19:37:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 1647 2008-06-02 11:58:46Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /**
  * Visual SlickEdit Documentation Macros.
  */
@@ -1253,22 +1253,22 @@ void k_javadoc_moduleheader()
     _insert_text("\n");
 
     k_javadoc_box_start('@file');
-    if (skLicense == 'VirtualBox' || 1 /* it's now default */)
-    {
+    //if (1)
+    //{
         fSplit = 1;
         iCursorLine = p_RLine;
         k_javadoc_box_line();
         k_javadoc_box_end();
         _insert_text("\n");
         _insert_text(k_comment() "\n");
-    }
-    else
-    {
-        k_javadoc_box_line();
-        iCursorLine = p_RLine;
-        k_javadoc_box_line();
-        k_javadoc_box_line();
-    }
+    //}
+    //else
+    //{
+    //    k_javadoc_box_line();
+    //    iCursorLine = p_RLine;
+    //    k_javadoc_box_line();
+    //    k_javadoc_box_line();
+    //}
 
     if (skLicense == 'Confidential')
     {
@@ -1278,7 +1278,7 @@ void k_javadoc_moduleheader()
 
     if (skCompany != '')
     {
-        if (skLicense == 'VirtualBox')
+        if (skLicense != 'Confidential')
             k_javadoc_box_line('Copyright (C) ' k_year() ' ' skCompany);
         else
         {
@@ -1356,10 +1356,37 @@ void k_javadoc_moduleheader()
             k_javadoc_box_line('This file is part of VirtualBox Open Source Edition (OSE), as')
             k_javadoc_box_line('available from http://www.virtualbox.org. This file is free software;')
             k_javadoc_box_line('you can redistribute it and/or modify it under the terms of the GNU')
-            k_javadoc_box_line('General Public License as published by the Free Software Foundation,')
-            k_javadoc_box_line('in version 2 as it comes in the "COPYING" file of the VirtualBox OSE')
-            k_javadoc_box_line('distribution. VirtualBox OSE is distributed in the hope that it will')
-            k_javadoc_box_line('be useful, but WITHOUT ANY WARRANTY of any kind.')
+            k_javadoc_box_line('General Public License (GPL) as published by the Free Software')
+            k_javadoc_box_line('Foundation, in version 2 as it comes in the "COPYING" file of the')
+            k_javadoc_box_line('VirtualBox OSE distribution. VirtualBox OSE is distributed in the')
+            k_javadoc_box_line('hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.')
+            k_javadoc_box_line('')
+            k_javadoc_box_line('Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa')
+            k_javadoc_box_line('Clara, CA 95054 USA or visit http://www.sun.com if you need')
+            k_javadoc_box_line('additional information or have any questions.')
+            break;
+
+        case 'VirtualBoxGPLAndCDDL':
+            k_javadoc_box_line('This file is part of VirtualBox Open Source Edition (OSE), as')
+            k_javadoc_box_line('available from http://www.virtualbox.org. This file is free software;')
+            k_javadoc_box_line('you can redistribute it and/or modify it under the terms of the GNU')
+            k_javadoc_box_line('General Public License (GPL) as published by the Free Software')
+            k_javadoc_box_line('Foundation, in version 2 as it comes in the "COPYING" file of the')
+            k_javadoc_box_line('VirtualBox OSE distribution. VirtualBox OSE is distributed in the')
+            k_javadoc_box_line('hope that it will be useful, but WITHOUT ANY WARRANTY of any kind.')
+            k_javadoc_box_line('')
+            k_javadoc_box_line('The contents of this file may alternatively be used under the terms')
+            k_javadoc_box_line('of the Common Development and Distribution License Version 1.0')
+            k_javadoc_box_line('(CDDL) only, as it comes in the "COPYING.CDDL" file of the')
+            k_javadoc_box_line('VirtualBox OSE distribution, in which case the provisions of the')
+            k_javadoc_box_line('CDDL are applicable instead of those of the GPL.')
+            k_javadoc_box_line('')
+            k_javadoc_box_line('You may elect to license modified versions of this file under the')
+            k_javadoc_box_line('terms and conditions of either the GPL or the CDDL or both.')
+            k_javadoc_box_line('')
+            k_javadoc_box_line('Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa')
+            k_javadoc_box_line('Clara, CA 95054 USA or visit http://www.sun.com if you need')
+            k_javadoc_box_line('additional information or have any questions.')
             break;
 
         default:
@@ -2902,6 +2929,7 @@ static k_menu_create()
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&GPL",                 "k_menu_license GPL",           "GPL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&LGPL",                "k_menu_license LGPL",          "LGPL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&VirtualBox",          "k_menu_license VirtualBox",    "VirtualBox");
+    rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&VirtualBox GPL And CDDL","k_menu_license VirtualBoxGPLAndCDDL", "VirtualBoxGPLAndCDDL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Confidential",        "k_menu_license Confidential",  "Confidential");
 
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash vars");
