@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 1649 2008-06-08 04:02:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile or sub-makefile.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -64,16 +64,16 @@ else
 
  $(foreach target,\
 	$(ALL_TARGETS) \
-	$(FETCHES)     $(FETCHES.$(BUILD_TARGET))       $(FETCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PATCHES)     $(PATCHES.$(BUILD_TARGET))       $(PATCHES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(BLDPROGS)    $(BLDPROGS.$(BUILD_PLATFORM))    $(BLDPROGS.$(BUILD_PLATFORM).$(BUILD_PLATFORM_ARCH)) \
-	$(LIBRARIES)   $(LIBRARIES.$(BUILD_TARGET))     $(LIBRARIES.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(IMPORT_LIBS) $(IMPORT_LIBS.$(BUILD_TARGET))   $(IMPORT_LIBS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(DLLS)        $(DLLS.$(BUILD_TARGET))          $(DLLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(PROGRAMS)    $(PROGRAMS.$(BUILD_TARGET))      $(PROGRAMS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(SYSMODS)     $(SYSMODS.$(BUILD_TARGET))       $(SYSMODS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(INSTALLS)    $(INSTALLS.$(BUILD_TARGET))      $(INSTALLS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
-	$(OTHERS)      $(OTHERS.$(BUILD_TARGET))        $(OTHERS.$(BUILD_TARGET).$(BUILD_TARGET_ARCH)) \
+	$(FETCHES)     $(FETCHES.$(KBUILD_TARGET))      $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))     $(FETCHES.$(KBUILD_TARGET_ARCH))     $(FETCHES.$(KBUILD_TARGET_CPU))     $(FETCHES.$(KBUILD_TYPE))     \
+	$(PATCHES)     $(PATCHES.$(KBUILD_TARGET))      $(PATCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))     $(PATCHES.$(KBUILD_TARGET_ARCH))     $(PATCHES.$(KBUILD_TARGET_CPU))     $(PATCHES.$(KBUILD_TYPE))     \
+	$(BLDPROGS)    $(BLDPROGS.$(KBUILD_HOST))       $(BLDPROGS.$(KBUILD_HOST).$(BUILD_PLATFORM_ARCH))     $(BLDPROGS.$(KBUILD_HOST_ARCH))      $(BLDPROGS.$(KBUILD_HOST_CPU))      $(BLDPROGS.$(KBUILD_TYPE))    \
+	$(LIBRARIES)   $(LIBRARIES.$(KBUILD_TARGET))    $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))   $(LIBRARIES.$(KBUILD_TARGET_ARCH))   $(LIBRARIES.$(KBUILD_TARGET_CPU))   $(LIBRARIES.$(KBUILD_TYPE))   \
+	$(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET))  $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) $(IMPORT_LIBS.$(KBUILD_TARGET_ARCH)) $(IMPORT_LIBS.$(KBUILD_TARGET_CPU)) $(IMPORT_LIBS.$(KBUILD_TYPE)) \
+	$(DLLS)        $(DLLS.$(KBUILD_TARGET))         $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(DLLS.$(KBUILD_TARGET_ARCH))        $(DLLS.$(KBUILD_TARGET_CPU))        $(DLLS.$(KBUILD_TYPE))        \
+	$(PROGRAMS)    $(PROGRAMS.$(KBUILD_TARGET))     $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    $(PROGRAMS.$(KBUILD_TARGET_ARCH))    $(PROGRAMS.$(KBUILD_TARGET_CPU))    $(PROGRAMS.$(KBUILD_TYPE))    \
+	$(SYSMODS)     $(SYSMODS.$(KBUILD_TARGET))      $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))     $(SYSMODS.$(KBUILD_TARGET_ARCH))     $(SYSMODS.$(KBUILD_TARGET_CPU))     $(SYSMODS.$(KBUILD_TYPE))     \
+	$(INSTALLS)    $(INSTALLS.$(KBUILD_TARGET))     $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_CPU))    $(INSTALLS.$(KBUILD_TYPE))    \
+	$(OTHERS)      $(OTHERS.$(KBUILD_TARGET))       $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_CPU))      $(OTHERS.$(KBUILD_TYPE))      \
  ,$(eval $(def_subfooter)))
 
 
