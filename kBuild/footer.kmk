@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1646 2008-05-21 00:42:00Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1648 2008-06-08 03:42:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1356,7 +1356,7 @@ EXTPRE  := HOST
 definst := $(PATH_BIN)
 tool_prefix := LD
 bld_trg_base_var := PLATFORM
-$(foreach target, $(BLDPROGS) $(BLDPROGS.$(KBUILD_HOST)) $(BLDPROGS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)), \
+$(foreach target, $(_ALL_BLDPROGS), \
 	$(evalval def_pass1_bldprog))
 
 
@@ -1368,7 +1368,7 @@ EXTPRE  :=
 definst := $(PATH_LIB)
 tool_prefix := AR
 bld_trg_base_var := TARGET
-$(foreach target, $(LIBRARIES) $(LIBRARIES.$(KBUILD_TARGET)) $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_LIBRARIES), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1380,7 +1380,7 @@ EXTPRE  :=
 definst := $(PATH_DLL)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(DLLS) $(DLLS.$(KBUILD_TARGET)) $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_DLLS), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1396,7 +1396,7 @@ if1of ($(KBUILD_TARGET), nt os2 win win64 win32)
  definst := $(PATH_LIB)
  tool_prefix := AR
  bld_trg_base_var := TARGET
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+ $(foreach target, $(_ALL_IMPORT_LIBS), \
 	$(evalval def_pass1_link_common))
 else
  EXT     := DLL
@@ -1404,7 +1404,7 @@ else
  definst := $(PATH_DLL)
  tool_prefix := LD
  bld_trg_base_var := TARGET
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+ $(foreach target, $(_ALL_IMPORT_LIBS), \
 	$(evalval def_pass1_link_common))
 endif
 
@@ -1417,7 +1417,7 @@ EXTPRE  :=
 definst := $(PATH_BIN)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(KBUILD_TARGET)) $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_PROGRAMS), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1429,7 +1429,7 @@ EXTPRE  :=
 definst := $(PATH_SYS)
 tool_prefix := LD
 bld_trg_base_var := TARGET
-$(foreach target, $(SYSMODS) $(SYSMODS.$(KBUILD_TARGET)) $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_SYSMODS), \
 	$(evalval def_pass1_link_common))
 
 
@@ -1446,7 +1446,7 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 TARGET_$(target) := $(PATH_TARGET)/$(target).ins
 # INSTARGET_ later.
 endef
-$(foreach target, $(INSTALLS) $(INSTALLS.$(KBUILD_TARGET)) $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_INSTALLS), \
 	$(evalval def_pass1_install))
 
 ifdef KBUILD_PROFILE_SELF
@@ -1839,7 +1839,7 @@ endef
 # Walk the FETCH target lists.
 bld_trg := $(KBUILD_TARGET)
 bld_trg_arch := $(KBUILD_TARGET_ARCH)
-$(foreach target, $(FETCHES) $(FETCHES.$(KBUILD_TARGET)) $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_FETCHES), \
 	$(evalvalctx def_fetch))
 
 # some aliases.
@@ -1875,7 +1875,7 @@ endif
 #_PATCHES +=
 #endef
 #
-#$(foreach target, $(PATCHES) $(PATCHES.$(KBUILD_TARGET)) $(PATCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+#$(foreach target, $(_ALL_PATCHES), \
 #	$(evalval def_patch))
 #
 
@@ -2301,7 +2301,7 @@ definst := $(PATH_LIB)
 typevar := _LIBS
 tool_do := LINK_LIBRARY
 mode := 0644
-$(foreach target, $(LIBRARIES) $(LIBRARIES.$(KBUILD_TARGET)) $(LIBRARIES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_lib))
+$(foreach target, $(_ALL_LIBRARIES), $(evalval def_lib))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2667,7 +2667,7 @@ definst := $(PATH_BIN)
 typevar := _BLDPROGS
 mode    := 0755
 bld_trg_base_var := PLATFORM
-$(foreach target, $(BLDPROGS) $(BLDPROGS.$(KBUILD_HOST)) $(BLDPROGS.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)), $(evalval def_bldprog))
+$(foreach target, $(_ALL_BLDPROGS), $(evalval def_bldprog))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2689,7 +2689,7 @@ definst := $(PATH_DLL)
 typevar := _DLLS
 mode    := 0644
 bld_trg_base_var := TARGET
-$(foreach target, $(DLLS) $(DLLS.$(KBUILD_TARGET)) $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(_ALL_DLLS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2713,12 +2713,12 @@ ifeq ($(filter-out nt os2 win win64 win32,$(KBUILD_TARGET)),)
  EXT     := LIB
  tool_do := LINK_LIBRARY
  definst := $(PATH_LIB)
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_lib))
+ $(foreach target, $(_ALL_IMPORT_LIBS), $(evalval def_lib))
 else
  EXT     := DLL
  tool_do := LINK_DLL
  definst := $(PATH_DLL)
- $(foreach target, $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET)) $(IMPORT_LIBS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
+ $(foreach target, $(_ALL_IMPORT_LIBS), $(evalval def_link_common))
 endif
 
 ifdef KBUILD_PROFILE_SELF
@@ -2741,7 +2741,7 @@ definst := $(PATH_BIN)
 typevar := _PROGRAMS
 mode    := 0755
 bld_trg_base_var := TARGET
-$(foreach target, $(PROGRAMS) $(PROGRAMS.$(KBUILD_TARGET)) $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(_ALL_PROGRAMS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -2763,7 +2763,7 @@ definst := $(PATH_SYS)
 typevar := _SYSMODS
 mode    := 0644
 bld_trg_base_var := TARGET
-$(foreach target, $(SYSMODS) $(SYSMODS.$(KBUILD_TARGET)) $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), $(evalval def_link_common))
+$(foreach target, $(_ALL_SYSMODS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_NOW := $(nanots )
@@ -3090,7 +3090,7 @@ _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIR
 endef
 
 ## process all install targets
-$(foreach target, $(INSTALLS) $(INSTALLS.$(KBUILD_TARGET)) $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)), \
+$(foreach target, $(_ALL_INSTALLS), \
 	$(evalvalctx def_install))
 
 ifdef KBUILD_PROFILE_SELF
