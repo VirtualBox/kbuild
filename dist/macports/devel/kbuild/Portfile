@@ -1,9 +1,9 @@
-# $Id: Portfile 1548 2008-04-22 11:23:06Z knut.osmundsen@oracle.com $
+# $Id: Portfile 1651 2008-06-08 22:19:28Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
 name            kbuild
-version         0.1.3-beta
+version         0.1.3
 categories      devel
 maintainers     bird-kBuild-spam@anduin.net
 description     kBuild
@@ -14,8 +14,7 @@ homepage        http://svn.netlabs.org/kbuild
 platforms       darwin
 fetch.type      svn
 svn.url         http://svn.netlabs.org/repos/kbuild/trunk
-#svn.url         svn://system360/svn-mirrors/kbuild/trunk
-svn.tag         1545
+svn.tag         1651
 worksrcdir   	trunk
 
 test.run        no
