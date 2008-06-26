@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1648 2008-06-08 03:42:28Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1654 2008-06-26 23:57:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1237,11 +1237,11 @@ properties_deferred_r := $(PROPS_ACCUMULATE_R)
 
 src_prefix := TOOL_
 load_function := def_tools_load_function
-$(foreach trg, $(_TOOLS), $(evalval def_inherit))
+$(foreach trg, $(addprefix TOOL_,$(_TOOLS)), $(evalval def_inherit))
 
 src_prefix := SDK_
 load_function := def_sdk_load_function
-$(foreach trg, $(_SDKS) , $(evalval def_inherit))
+$(foreach trg, $(addprefix SDK_,$(_SDKS)), $(evalval def_inherit))
 
 # done inheriting.
 src_prefix :=
