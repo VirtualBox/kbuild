@@ -1,4 +1,4 @@
-# $Id: WINDDKW2K.kmk 1655 2008-06-26 23:59:41Z knut.osmundsen@oracle.com $
+# $Id: WINDDKW2K.kmk 1656 2008-06-27 00:01:29Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows Vista and Server 2008 DDKs, Targeting Windows 2000 (x86).
 #
@@ -32,7 +32,7 @@
 #
 
 SDK_WINDDKW2K := The Microsoft Windows Vista and Server 2008 DDKs, Targeting Windows 2000 (x86).
-SDK_WINDDKW2K_EXTENDS = WINDDK$(warning SDK_WINDDKW2K_EXTENDS referenced)
+SDK_WINDDKW2K_EXTENDS = WINDDK
 SDK_WINDDKW2K_DEFS          ?= WIN32=100 _WIN32_WINNT=0x0500 WINVER=0x0500 _WIN32_IE=0x0501 NTDDI_VERSION=0x05000400
 SDK_WINDDKW2K_LIBPATH.x86   ?= $(PATH_SDK_WINDDK_LIB_W2K.x86)
 
