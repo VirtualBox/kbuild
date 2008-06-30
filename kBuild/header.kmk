@@ -1,4 +1,4 @@
-# $Id: header.kmk 1661 2008-06-27 00:18:03Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1664 2008-06-30 21:10:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1661 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1664 $  )
 
 
 #
@@ -409,9 +409,11 @@ ifeq ($(strip $(KBUILD_BIN_PATH)),)
 endif
 
 # kBuild files which might be of interest.
-FILE_KBUILD_HEADER  := $(KBUILD_PATH)/header.kmk
-#FILE_KBUILD_CONFIG  := $(KBUILD_PATH)/config.kmk
-FILE_KBUILD_FOOTER  := $(KBUILD_PATH)/footer.kmk
+FILE_KBUILD_HEADER := $(KBUILD_PATH)/header.kmk
+#FILE_KBUILD_CONFIG := $(KBUILD_PATH)/config.kmk
+FILE_KBUILD_FOOTER := $(KBUILD_PATH)/footer.kmk
+FILE_KBUILD_SUB_HEADER := $(KBUILD_PATH)/subheader.kmk
+FILE_KBUILD_SUB_FOOTER := $(KBUILD_PATH)/subfooter.kmk
 
 ## MAKEFILE is the name of the main makefile.
 MAKEFILE            := $(firstword $(MAKEFILE_LIST))
