@@ -1,6 +1,6 @@
 # $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
 ## @file
-# kObjCache
+# Sub-makefile for kObjCache.
 #
 
 #
@@ -24,8 +24,7 @@
 #
 #
 
-DEPTH ?= ../..
-#SUB_DEPTH = ../..
+SUB_DEPTH = ../..
 include $(PATH_KBUILD)/subheader.kmk
 
 PROGRAMS += kObjCache

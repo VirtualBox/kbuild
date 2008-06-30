@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 1604 2008-05-05 22:22:55Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
 ## @file
-# sed
+# Sub-Makefile for kmk_sed.
 #
 
 #
@@ -24,8 +24,8 @@
 #
 #
 
-DEPTH = ../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
 
 #
 # kmk_sed
@@ -34,11 +34,11 @@ PROGRAMS += kmk_sed
 
 kmk_sed_TEMPLATE = BIN
 kmk_sed_DEPS = \
-	$(PATH_TARGET)/config.h \
-	$(PATH_TARGET)/regex.h
+	$(PATH_kmk_sed)/config.h \
+	$(PATH_kmk_sed)/regex.h
 kmk_sed_CLEAN = $(kmk_sed_DEPS)
 kmk_sed_INCS = \
-	$(PATH_TARGET) \
+	$(PATH_kmk_sed) \
 	. \
 	lib \
 	intl
@@ -78,19 +78,19 @@ kmk_sed_SOURCES.win = \
 	lib/getline.c \
 	../lib/startuphacks-win.c
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 
 #
 # Use checked in config.h instead of running ./configure for it.
 #
-config.h.$(KBUILD_TARGET) := config.h.$(KBUILD_TARGET)
+kmk_sed_config.h.$(KBUILD_TARGET) := $(kmk_sed_PATH)/config.h.$(KBUILD_TARGET)
 
-$(PATH_TARGET)/config.h: $(config.h.$(KBUILD_TARGET)) | $(call DIRDEP,$(PATH_TARGET))
-	$(CP) $^ $@
+$(PATH_kmk_sed)/config.h: $(kmk_sed_config.h.$(KBUILD_TARGET)) | $(call DIRDEP,$(PATH_kmk_sed))
+	$(CP) -f $^ $@
 
 #
 # Use the regex lib shipped with sed and not anything installed on the system.
 #
-$(PATH_TARGET)/regex.h: lib/regex_.h | $(call DIRDEP,$(PATH_TARGET))
-	$(CP) $^ $@
+$(PATH_kmk_sed)/regex.h: $(kmk_sed_PATH)/lib/regex_.h | $(call DIRDEP,$(PATH_kmk_sed))
+	$(CP) -f $^ $@
 
