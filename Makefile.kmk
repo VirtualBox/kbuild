@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 1544 2008-04-22 01:40:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
 ## @file
-# Top-Level Makefile for kBuild.
+# Top-Level Sub-Makefile for kBuild.
 #
 
 #
@@ -24,10 +24,10 @@
 #
 #
 
-DEPTH = .
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = .
+include $(KBUILD_PATH)/subheader.kmk
 
-SUBDIRS = src
+include $(PATH_SUB_CURRENT)/src/Makefile.kmk
 
 
 ifdef NIX_INSTALL_DIR
@@ -72,5 +72,5 @@ kBuild_bin_SOURCES.profile = \
 endif
 
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 

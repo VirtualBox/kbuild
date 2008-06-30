@@ -1,6 +1,6 @@
 # $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
 ## @file
-# ash
+# Sub-makefile for kmk_ash.
 #
 
 #
@@ -24,8 +24,8 @@
 #
 #
 
-DEPTH = ../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
 
 #INSTALLS = ash.man
 
@@ -45,8 +45,8 @@ kmk_ash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kmk_ash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
-kmk_ash_INCS = $(PATH_TARGET) . # (the last is because of error.h)
-kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug.
+kmk_ash_INCS = $(PATH_kmk_ash) . # (the last is because of error.h)
+kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug?
 kmk_ash_INCS.win = win
 kmk_ash_SOURCES = \
 	alias.c \
@@ -74,10 +74,10 @@ kmk_ash_SOURCES = \
 	bltin/echo.c \
 	bltin/kill.c \
 	bltin/test.c \
-	$(PATH_TARGET)/arith.c \
-	$(PATH_TARGET)/builtins.c \
-	$(PATH_TARGET)/init.c \
-	$(PATH_TARGET)/nodes.c
+	$(PATH_kmk_ash)/arith.c \
+	$(PATH_kmk_ash)/builtins.c \
+	$(PATH_kmk_ash)/init.c \
+	$(PATH_kmk_ash)/nodes.c
 kmk_ash_SOURCES.linux = \
 	sys_signame.c \
 	strlcpy.c \
@@ -95,17 +95,17 @@ kmk_ash_SOURCES.solaris = \
 	setmode.c
 
 kmk_ash_INTERMEDIATES = \
-	$(PATH_TARGET)/arith.h \
-	$(PATH_TARGET)/builtins.h \
-	$(PATH_TARGET)/nodes.h \
-	$(PATH_TARGET)/token.h
+	$(PATH_kmk_ash)/arith.h \
+	$(PATH_kmk_ash)/builtins.h \
+	$(PATH_kmk_ash)/nodes.h \
+	$(PATH_kmk_ash)/token.h
 kmk_ash_CLEAN = \
 	$(kmk_ash_INTERMEDIATES) \
-	$(PATH_TARGET)/arith.c \
-	$(PATH_TARGET)/arith_lex.c \
-	$(PATH_TARGET)/builtins.c \
-	$(PATH_TARGET)/init.c \
-	$(PATH_TARGET)/nodes.c
+	$(PATH_kmk_ash)/arith.c \
+	$(PATH_kmk_ash)/arith_lex.c \
+	$(PATH_kmk_ash)/builtins.c \
+	$(PATH_kmk_ash)/init.c \
+	$(PATH_kmk_ash)/nodes.c
 
 kmk_ash.man_TEMPLATE = usr.bin.man
 kmk_ash.man_SOURCES = \
@@ -114,26 +114,28 @@ kmk_ash.man_SOURCES = \
 #	ash.1.gz=>sh.1
 
 if1of ($(KBUILD_TARGET), win nt)
-
 #
 # Use the pregenerated code.
 #
 kmk_ash_DEPS :=
-kmk_ash_SOURCES += $(PATH_TARGET)/arith_lex.c
+kmk_ash_SOURCES += $(PATH_kmk_ash)/arith_lex.c
+
+include $(FILE_KBUILD_SUB_FOOTER)
 
 define def_copy_generated
-$(PATH_TARGET)/$(src): generated/$(src)
+$(PATH_kmk_ash)/$(src): generated/$(src)
 	$$(RM) -f $$@
 	$$(CP) -f $$^ $$@
-kmk_ash_DEPS += $(PATH_TARGET)/$(src)
 endef
 
 $(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
 $(eval $(def_copy_generated)))
 
-include $(FILE_KBUILD_FOOTER)
 
 else
+#
+# Generate the code on the fly.
+#
 
 ifeq (1,2) #disabled for now.
 kmk_ash_USES = lex #yacc
@@ -141,10 +143,10 @@ kmk_ash_SOURCES += arith_lex.l
 kmk_ash_LEXTOOL = FLEX
 kmk_ash_LEXFLAGS = -8
 else
-kmk_ash_SOURCES += $(PATH_TARGET)/arith_lex.c
+kmk_ash_SOURCES += $(PATH_kmk_ash)/arith_lex.c
 endif
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 
 #
 # ATTENTION! ATTENTION! ATTENTION!
@@ -159,30 +161,41 @@ ifndef YACC
  YACC := $(firstword $(which byacc) $(which yacc) yacc)
 endif
 
-$(PATH_TARGET)/arith.h + $(PATH_TARGET)/arith.c: arith.y | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/arith.h + $(PATH_kmk_ash)/arith.c: $(kmk_ash_PATH)/arith.y | $(call DIRDEP,$(PATH_kmk_ash))
 	$(YACC) -ld $^
-	$(MV) -f y.tab.c $(PATH_TARGET)/arith.c
-	$(MV) -f y.tab.h $(PATH_TARGET)/arith.h
+	$(MV) -f y.tab.c $(PATH_kmk_ash)/arith.c
+	$(MV) -f y.tab.h $(PATH_kmk_ash)/arith.h
 
 ifndef kmk_ash_LEXTOOL
-$(PATH_TARGET)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/arith_lex.c: $(kmk_ash_PATH)/arith_lex.l | $(call DIRDEP,$(PATH_kmk_ash))
 	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
 endif
 
-$(PATH_TARGET)/builtins.h + $(PATH_TARGET)/builtins.c: $(PATH_CURRENT)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/builtins.h + $(PATH_kmk_ash)/builtins.c: \
+		$(kmk_ash_PATH)/mkbuiltins \
+		$(kmk_ash_PATH)/shell.h \
+		$(kmk_ash_PATH)/builtins.def \
+		| $(call DIRDEP,$(PATH_kmk_ash))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
-	[ -f $(PATH_TARGET)/builtins.h ]
+	[ -f $(PATH_kmk_ash)/builtins.h ]
 
-$(PATH_TARGET)/nodes.h + $(PATH_TARGET)/nodes.c: $(PATH_CURRENT)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/nodes.h + $(PATH_kmk_ash)/nodes.c: \
+		$(kmk_ash_PATH)/mknodes.sh \
+		$(kmk_ash_PATH)/nodetypes \
+		$(kmk_ash_PATH)/nodes.c.pat \
+		| $(call DIRDEP,$(PATH_kmk_ash))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
-$(PATH_TARGET)/token.h: $(PATH_CURRENT)/mktokens | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/token.h: $(kmk_ash_PATH)/mktokens | $(call DIRDEP,$(PATH_kmk_ash))
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) token.h $@
 
-$(PATH_TARGET)/init.c: $(PATH_CURRENT)/mkinit.sh $(filter-out $(PATH_TARGET)/%,$(kmk_ash_SOURCES)) | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk_ash)/init.c: \
+		$(kmk_ash_PATH)/mkinit.sh \
+		$(abspathex $(filter-out $(PATH_kmk_ash)/%,$(kmk_ash_SOURCES)), $(kmk_ash_PATH)) \
+		| $(call DIRDEP,$(PATH_kmk_ash))
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
-endif
+endif # generate on the fly

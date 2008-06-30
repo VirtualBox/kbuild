@@ -1,6 +1,6 @@
 # $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
 ## @file
-# tstFileInfo / w32
+# Sub-makefile for tstFileInfo / w32.
 #
 
 #
@@ -24,9 +24,8 @@
 #
 #
 
-
-DEPTH = ../../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../../..
+include $(KBUILD_PATH)/subheader.kmk
 
 #
 # tstFileInfo
@@ -35,4 +34,5 @@ PROGRAMS.win += tstFileInfo
 tstFileInfo_TEMPLATE = BIN
 tstFileInfo_SOURCES = tstFileInfo.c
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
+

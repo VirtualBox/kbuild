@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 1509 2008-04-09 00:40:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
 ## @file
-# Various libraries and stuff.
+# Sub-makefile for various libraries and stuff.
 #
 
 #
@@ -24,8 +24,8 @@
 #
 #
 
-DEPTH = ../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
 
 LIBRARIES += kDep
 kDep_TEMPLATE = LIB
@@ -51,5 +51,5 @@ wrapper_TEMPLATE = BIN
 wrapper_SOURCES = wrapper.c
 wrapper_NOINST = 1
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 

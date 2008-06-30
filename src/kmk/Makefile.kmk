@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 1604 2008-05-05 22:22:55Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
 ## @file
-# kmk / GNU Make
+# Sub-makefile for kmk / GNU Make.
 #
 
 #
@@ -24,9 +24,8 @@
 #
 #
 
-
-DEPTH = ../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
 
 
 #
@@ -38,23 +37,23 @@ TEMPLATE_BIN-KMK_DEFS = \
 	HAVE_CONFIG_H \
 	$(TEMPLATE_BIN_DEFS) \
 	KBUILD_SVN_REV=$(KBUILD_SVN_REV)
-TEMPLATE_BIN-KMK_DEPS = $(PATH_TARGET)/config.h
+TEMPLATE_BIN-KMK_DEPS = $(PATH_kmk)/config.h
 TEMPLATE_BIN-KMK_CLEAN = $(TEMPLATE_BIN-KMK_DEPS)
 TEMPLATE_BIN-KMK_DEPS.solaris = \
-	$(PATH_TARGET)/fts.h \
-	$(PATH_TARGET)/paths.h
+	$(PATH_kmk)/fts.h \
+	$(PATH_kmk)/paths.h
 TEMPLATE_BIN-KMK_CLEAN.solaris = $(TEMPLATE_BIN-KMK_DEPS.solaris)
 TEMPLATE_BIN-KMK_DEPS.win     = \
-	$(PATH_TARGET)/fts.h \
-	$(PATH_TARGET)/sysexits.h \
-	$(PATH_TARGET)/unistd.h \
-	$(PATH_TARGET)/paths.h \
-	$(PATH_TARGET)/grp.h \
-	$(PATH_TARGET)/pwd.h \
-	$(PATH_TARGET)/inttypes.h
+	$(PATH_kmk)/fts.h \
+	$(PATH_kmk)/sysexits.h \
+	$(PATH_kmk)/unistd.h \
+	$(PATH_kmk)/paths.h \
+	$(PATH_kmk)/grp.h \
+	$(PATH_kmk)/pwd.h \
+	$(PATH_kmk)/inttypes.h
 TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
-TEMPLATE_BIN-KMK_INCS = $(PATH_TARGET) . $(TEMPLATE_BIN_INCS)
+TEMPLATE_BIN-KMK_INCS = $(PATH_kmk) . $(TEMPLATE_BIN_INCS)
 TEMPLATE_BIN-KMK_INCS.darwin = glob
 TEMPLATE_BIN-KMK_INCS.dragonfly = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
@@ -62,9 +61,9 @@ TEMPLATE_BIN-KMK_INCS.solaris = glob
 TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN_LIBS) $(TARGET_kmkmissing) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 ifeq ($(KBUILD_TARGET),win)
- TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) /FI$(PATH_CURRENT)/electric.h -DELECTRIC_HEAP=1
+ TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) /FI$(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
 else
- TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) -include $(PATH_CURRENT)/electric.h -DELECTRIC_HEAP=1
+ TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) -include $(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
 endif
 endif
 
@@ -376,39 +375,39 @@ kmk_gmake_SOURCES = \
 	remote-stub.c
 
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 
 
 #
 # Use checked in config.h instead of running ./Configure for it.
 #
-config.h.$(KBUILD_TARGET) := config.h.$(KBUILD_TARGET)
-$(PATH_TARGET)/config.h: $(config.h.$(KBUILD_TARGET))
+kmk_config.h.$(KBUILD_TARGET) := $(kmk_PATH)/config.h.$(KBUILD_TARGET)
+$(PATH_kmk)/config.h: $(kmk_config.h.$(KBUILD_TARGET))
 	$(MKDIR) -p $(dir $@)
 	$(CP) $^ $@
 
 #
 # Some missing headers.
 #
-$(PATH_TARGET)/fts.h: kmkbuiltin/ftsfake.h | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/fts.h: kmkbuiltin/ftsfake.h | $(call DIRDEP,$(PATH_kmk))
 	$(CP) $^ $@
 
-$(PATH_TARGET)/unistd.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/unistd.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
-$(PATH_TARGET)/sysexits.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/sysexits.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
-$(PATH_TARGET)/inttypes.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/inttypes.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
-$(PATH_TARGET)/paths.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/paths.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
-$(PATH_TARGET)/pwd.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/pwd.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
-$(PATH_TARGET)/grp.h: | $(call DIRDEP,$(PATH_TARGET))
+$(PATH_kmk)/grp.h: | $(call DIRDEP,$(PATH_kmk))
 	$(ECHO_EXT) > $@
 
 
@@ -462,16 +461,16 @@ test_shell_newline:
 
 
 test_stack:
-	$(MAKE) -f testcase-stack.kmk
+	$(MAKE) -f $(kmk_PATH)/testcase-stack.kmk
 
 test_math:
-	$(MAKE) -f testcase-math.kmk
+	$(MAKE) -f $(kmk_PATH)/testcase-math.kmk
 
 test_if1of:
-	$(MAKE) -f testcase-if1of.kmk
+	$(MAKE) -f $(kmk_PATH)/testcase-if1of.kmk
 
 test_local:
-	$(MAKE) -f testcase-local.kmk
+	$(MAKE) -f $(kmk_PATH)/testcase-local.kmk
 
 test_30_continued_on_failure_worker:
 	this_executable_does_not_exist.exe

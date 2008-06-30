@@ -1,6 +1,6 @@
 # $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
 ## @file
-# Testing the VAC308 tool / ancient dependency generator.
+# Sub-makefile for testing the VAC308 tool / ancient dependency generator.
 #
 
 #
@@ -24,8 +24,8 @@
 #
 #
 
-DEPTH = ../..
-include $(PATH_KBUILD)/header.kmk
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
 
 
 #
@@ -54,5 +54,5 @@ fastdll_INCS = f:/toolkit/v4.52/h
 fastdll_LIBPATH = f:/toolkit/v4.52/lib
 
 
-include $(FILE_KBUILD_FOOTER)
+include $(FILE_KBUILD_SUB_FOOTER)
 
