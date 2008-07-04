@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 1668 2008-07-04 04:02:50Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 1669 2008-07-04 04:04:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
@@ -35,8 +35,7 @@
 # Sanity check.
 #
 ifdef __footer_kmk__
- $(error kBuild: footer.kmk has already been included. Fix your sub-makefiles!\
- $(NL)Makefile list: $(subst $(SP),$(NL)$(TAB),$(MAKEFILE_LIST)))
+ $(error kBuild: footer.kmk has already been included. Fix your sub-makefiles! $(MAKEFILE_CURRENT))
 endif
 
 #
