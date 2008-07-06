@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1667 2008-06-30 23:08:25Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1670 2008-07-06 02:10:01Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1901,7 +1901,7 @@ $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OU
 		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
-		$$($(target)_INTERMEDIATES)
+		$$$$($(target)_INTERMEDIATES)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 else
 $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) : \
@@ -1909,7 +1909,7 @@ $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) 
 		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
-		$$($(target)_INTERMEDIATES)
+		$$$$($(target)_INTERMEDIATES)
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 ifdef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
 	$$(QUIET)$$(RM) -f -- $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
