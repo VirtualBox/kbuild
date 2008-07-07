@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1670 2008-07-06 02:10:01Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1672 2008-07-07 21:38:57Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -615,6 +615,44 @@ endef # def_inherit
 
 
 #
+# Load global units before doing any inheriting so they can add new properties.
+#
+# This only applies to the guys listed in the global USES since there is
+# no reliable way to deal with things on a target level without first
+# applying templates. So, to avoid having USES mess up all targets,
+# we'll make the global and per-target USES property work differently:
+#     The global USES does not apply to targets, just globally.
+#
+
+## Unit load function.
+# @param loading    The unit name
+define def_unit_load_function
+ifndef UNIT_$(loading)
+ UNIT_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
+ ifeq ($(UNIT_$(loading)_KMK_FILE),)
+  $(error kBuild: Cannot find include file for the unit '$(loading)'! Searched: $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS))
+ endif
+ include $(UNIT_$(loading)_KMK_FILE)
+ ifndef UNIT_$(loading)
+  $(warning kBuild: UNIT_$(loading) was not defined by $(UNIT_$(loading)_KMK_FILE)!)
+ endif
+endif
+endef # def_unit_load_function
+
+$(foreach loading, \
+	$(USES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) \
+	$(USES.$(KBUILD_TARGET_CPU)) \
+	$(USES.$(KBUILD_TARGET_ARCH)) \
+	$(USES.$(KBUILD_TARGET)) \
+	$(USES.$(KBUILD_HOST).$(KBUILD_HOST_ARCH)) \
+	$(USES.$(KBUILD_HOST_CPU)) \
+	$(USES.$(KBUILD_HOST_ARCH)) \
+	$(USES.$(KBUILD_TARGET)) \
+	$(USES.$(KBUILD_TYPE)) \
+	$(USES),$(evalval def_unit_load_function))
+
+
+#
 # Determin all the templates that is being used and make
 # sure they are present before we try collect keywords.
 #
@@ -1212,21 +1250,6 @@ ifndef SDK_$(loading)
 endif
 endef # def_sdk_load_function
 
-## Unit load function.
-# @param loading    The unit name
-define def_unit_load_function
-ifndef UNIT_$(loading)
- UNIT_$(loading)_KMK_FILE := $(firstword $(foreach path, $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS), $(wildcard $(path)/$(loading).kmk)))
- ifeq ($(UNIT_$(loading)_KMK_FILE),)
-  $(error kBuild: Cannot find include file for the unit '$(loading)'! Searched: $(KBUILD_UNIT_PATHS) $(KBUILD_PATH)/units $(KBUILD_DEFAULT_PATHS))
- endif
- include $(UNIT_$(loading)_KMK_FILE)
- ifndef UNIT_$(loading)
-  $(warning kBuild: UNIT_$(loading) was not defined by $(UNIT_$(loading)_KMK_FILE)!)
- endif
-endif
-endef # def_unit_load_function
-
 
 properties :=
 properties_now_l :=
@@ -1305,7 +1328,7 @@ local outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
 else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
-  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
+ $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
 endif
 ifeq ($(tool_prefix),AR) ## @todo fix this mess!
 local suff := $(firstword\
@@ -2129,10 +2152,8 @@ local name        := $(firstword\
 local outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
-else
- ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
-  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
- endif
+else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+ $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
 endif
 local suff        := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg).$(bld_trg_arch))\
@@ -2148,6 +2169,15 @@ TARGET_$(target)  := $(out)
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_OBJS_   :=
+
+# Do units pre source callouts.
+local units       := \
+	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_USES.$(bld_trg_arch))\
+	$($(target)_USES.$(bld_trg))\
+	$($(target)_USES.$(bld_type))\
+	$($(target)_USES)
+$(foreach unit,$(units),$(evalval def_unit_$(unit)_target_pre))
 
 # source -> object
 $(evalval def_target_sources)
@@ -2340,10 +2370,8 @@ local name        := $(firstword\
 local outbase     := $(call TARGET_BASE,$(name),$(target))
 ifndef PATH_$(target)
  PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
-else
- ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
-  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
- endif
+else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+ $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
 endif
 local suff        := $(firstword \
 	$($(target)_$(EXT)SUFF) \
@@ -2356,6 +2384,15 @@ local defpath     := $($(target)_PATH)
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_OBJS_   :=
+
+# Do units pre source callouts.
+local units       := \
+	$($(target)_USES.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_USES.$(bld_trg_arch))\
+	$($(target)_USES.$(bld_trg))\
+	$($(target)_USES.$(bld_type))\
+	$($(target)_USES)
+$(foreach unit,$(units),$(evalval def_unit_$(unit)_target_pre))
 
 # source -> object
 $(evalval def_target_sources)
