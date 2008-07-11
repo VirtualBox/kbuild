@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1673 2008-07-11 00:37:35Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -389,7 +389,7 @@ $(PATH_kmk)/config.h: $(kmk_config.h.$(KBUILD_TARGET))
 #
 # Some missing headers.
 #
-$(PATH_kmk)/fts.h: kmkbuiltin/ftsfake.h | $(call DIRDEP,$(PATH_kmk))
+$(PATH_kmk)/fts.h: $(kmk_PATH)/kmkbuiltin/ftsfake.h | $(call DIRDEP,$(PATH_kmk))
 	$(CP) $^ $@
 
 $(PATH_kmk)/unistd.h: | $(call DIRDEP,$(PATH_kmk))
