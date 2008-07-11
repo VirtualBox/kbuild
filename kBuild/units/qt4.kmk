@@ -1,6 +1,6 @@
-# $Id: qt4.kmk 1675 2008-07-11 02:03:20Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1676 2008-07-11 02:03:43Z knut.osmundsen@oracle.com $
 ## @file
-# lex unit.
+# Qt 4 unit.
 #
 
 #
