@@ -1,4 +1,4 @@
-/* $Id: redirect.c 1577 2008-04-25 00:29:25Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 1674 2008-07-11 00:49:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -47,7 +47,21 @@
 # ifndef LIBPATHSTRICT
 #  define LIBPATHSTRICT 3
 # endif
-#endif 
+#endif
+
+
+static const char *name(const char *pszName)
+{
+    const char *psz = strrchr(pszName, '/');
+#if defined(_MSC_VER) || defined(__OS2__)
+    const char *psz2 = strrchr(pszName, '\\');
+    if (!psz2)
+        psz2 = strrchr(pszName, ':');
+    if (psz2 && (!psz || psz2 > psz))
+        psz = psz2;
+#endif
+    return psz ? psz + 1 : pszName;
+}
 
 
 static int usage(FILE *pOut,  const char *argv0)
@@ -92,7 +106,7 @@ int main(int argc, char **argv)
      * Parse arguments.
      */
     if (argc <= 1)
-        return usage(pStdErr, argv[0]);
+        return usage(pStdErr, name(argv[0]));
     for (i = 1; i < argc; i++)
     {
         if (argv[i][0] == '-')
@@ -126,7 +140,7 @@ int main(int argc, char **argv)
              */
             if (*psz == 'h')
             {
-                usage(pStdOut, argv[0]);
+                usage(pStdOut, name(argv[0]));
                 return 0;
             }
             if (*psz == 'V')
@@ -150,7 +164,7 @@ int main(int argc, char **argv)
                 {
                     if (i + 1 >= argc)
                     {
-                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", argv[0], argv[i]);
+                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", name(argv[0]), argv[i]);
                         return 1;
                     }
                     psz = argv[++i];
@@ -167,8 +181,8 @@ int main(int argc, char **argv)
                     APIRET rc = DosSetExtLIBPATH(pszVal, ulVar);
                     if (rc)
                     {
-                        fprintf(pStdErr, "%s: error: DosSetExtLibPath(\"%s\", %.*s (%lu)): %lu\n", 
-                                argv[0], pszVal, pszVal - psz - 1, psz, ulVar, rc);
+                        fprintf(pStdErr, "%s: error: DosSetExtLibPath(\"%s\", %.*s (%lu)): %lu\n",
+                                name(argv[0]), pszVal, pszVal - psz - 1, psz, ulVar, rc);
                         return 1;
                     }
                 }
@@ -176,7 +190,7 @@ int main(int argc, char **argv)
 #endif /* __OS2__ */
                 if (putenv(psz))
                 {
-                    fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", argv[0], psz, strerror(errno));
+                    fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", name(argv[0]), psz, strerror(errno));
                     return 1;
                 }
                 continue;
@@ -194,7 +208,7 @@ int main(int argc, char **argv)
                 {
                     if (i + 1 >= argc)
                     {
-                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", argv[0], argv[i]);
+                        fprintf(pStdErr, "%s: syntax error: no argument for %s\n", name(argv[0]), argv[i]);
                         return 1;
                     }
                     psz = argv[++i];
@@ -222,7 +236,7 @@ int main(int argc, char **argv)
                     }
                 }
 #endif
-                fprintf(pStdErr, "%s: error: chdir(\"%s\"): %s\n", argv[0], psz, strerror(errno));
+                fprintf(pStdErr, "%s: error: chdir(\"%s\"): %s\n", name(argv[0]), psz, strerror(errno));
                 return 1;
             }
 
@@ -271,7 +285,7 @@ int main(int argc, char **argv)
                     break;
 
                 case '+':
-                    fprintf(pStdErr, "%s: syntax error: Unexpected '+' in '%s'\n", argv[0], argv[i]);
+                    fprintf(pStdErr, "%s: syntax error: Unexpected '+' in '%s'\n", name(argv[0]), argv[i]);
                     return 1;
 
                 default:
@@ -341,13 +355,13 @@ int main(int argc, char **argv)
                     fd = (int)strtol(psz, &psz, 0);
                     if (!fd)
                     {
-                        fprintf(pStdErr, "%s: error: failed to convert '%s' to a number\n", argv[0], argv[i]);
+                        fprintf(pStdErr, "%s: error: failed to convert '%s' to a number\n", name(argv[0]), argv[i]);
                         return 1;
 
                     }
                     if (fd < 0)
                     {
-                        fprintf(pStdErr, "%s: error: negative fd %d (%s)\n", argv[0], fd, argv[i]);
+                        fprintf(pStdErr, "%s: error: negative fd %d (%s)\n", name(argv[0]), fd, argv[i]);
                         return 1;
                     }
                     break;
@@ -356,7 +370,7 @@ int main(int argc, char **argv)
                  * Invalid argument.
                  */
                 default:
-                    fprintf(pStdErr, "%s: error: failed to convert '%s' ('%s') to a file descriptor\n", argv[0], psz, argv[i]);
+                    fprintf(pStdErr, "%s: error: failed to convert '%s' ('%s') to a file descriptor\n", name(argv[0]), psz, argv[i]);
                     return 1;
             }
 
@@ -367,7 +381,7 @@ int main(int argc, char **argv)
             {
                 if (*psz != ':' && *psz != '=')
                 {
-                    fprintf(pStdErr, "%s: syntax error: characters following the file descriptor: '%s' ('%s')\n", argv[0], psz, argv[i]);
+                    fprintf(pStdErr, "%s: syntax error: characters following the file descriptor: '%s' ('%s')\n", name(argv[0]), psz, argv[i]);
                     return 1;
                 }
                 psz++;
@@ -377,7 +391,7 @@ int main(int argc, char **argv)
                 i++;
                 if (i >= argc)
                 {
-                    fprintf(pStdErr, "%s: syntax error: missing filename argument.\n", argv[0]);
+                    fprintf(pStdErr, "%s: syntax error: missing filename argument.\n", name(argv[0]));
                     return 1;
                 }
                 psz = argv[i];
@@ -396,7 +410,7 @@ int main(int argc, char **argv)
                 fdOpened = dup(fileno(pStdErr));
                 if (fdOpened == -1)
                 {
-                    fprintf(pStdErr, "%s: error: failed to dup stderr (%d): %s\n", argv[0], fileno(pStdErr), strerror(errno));
+                    fprintf(pStdErr, "%s: error: failed to dup stderr (%d): %s\n", name(argv[0]), fileno(pStdErr), strerror(errno));
                     return 1;
                 }
 #ifdef _MSC_VER
@@ -406,7 +420,7 @@ int main(int argc, char **argv)
 #else
                 if (fcntl(fdOpened, F_SETFD, FD_CLOEXEC) == -1)
                 {
-                    fprintf(pStdErr, "%s: error: failed to make stderr (%d) close-on-exec: %s\n", argv[0], fdOpened, strerror(errno));
+                    fprintf(pStdErr, "%s: error: failed to make stderr (%d) close-on-exec: %s\n", name(argv[0]), fdOpened, strerror(errno));
                     return 1;
                 }
 #endif
@@ -414,7 +428,7 @@ int main(int argc, char **argv)
                 pNew = fdopen(fdOpened, "w");
                 if (!pNew)
                 {
-                    fprintf(pStdErr, "%s: error: failed to fdopen the new stderr (%d): %s\n", argv[0], fdOpened, strerror(errno));
+                    fprintf(pStdErr, "%s: error: failed to fdopen the new stderr (%d): %s\n", name(argv[0]), fdOpened, strerror(errno));
                     return 1;
                 }
                 if (pStdOut == pStdErr)
@@ -435,7 +449,7 @@ int main(int argc, char **argv)
             fdOpened = open(psz, fOpen, 0666);
             if (fdOpened == -1)
             {
-                fprintf(pStdErr, "%s: error: failed to open '%s' as %d: %s\n", argv[0], psz, fd, strerror(errno));
+                fprintf(pStdErr, "%s: error: failed to open '%s' as %d: %s\n", name(argv[0]), psz, fd, strerror(errno));
                 return 1;
             }
             if (fdOpened != fd)
@@ -443,7 +457,7 @@ int main(int argc, char **argv)
                 /* move it (dup2 returns 0 on MSC). */
                 if (dup2(fdOpened, fd) == -1)
                 {
-                    fprintf(pStdErr, "%s: error: failed to dup '%s' as %d: %s\n", argv[0], psz, fd, strerror(errno));
+                    fprintf(pStdErr, "%s: error: failed to dup '%s' as %d: %s\n", name(argv[0]), psz, fd, strerror(errno));
                     return 1;
                 }
                 close(fdOpened);
@@ -451,8 +465,8 @@ int main(int argc, char **argv)
         }
         else
         {
-            fprintf(pStdErr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
-            return usage(pStdErr, argv[0]);
+            fprintf(pStdErr, "%s: syntax error: Invalid argument '%s'.\n", name(argv[0]), argv[i]);
+            return usage(pStdErr, name(argv[0]));
         }
     }
 
@@ -461,27 +475,32 @@ int main(int argc, char **argv)
      */
     if (i >= argc)
     {
-        fprintf(pStdErr, "%s: syntax error: nothing to execute!\n", argv[0]);
-        return usage(pStdErr, argv[0]);
+        fprintf(pStdErr, "%s: syntax error: nothing to execute!\n", name(argv[0]));
+        return usage(pStdErr, name(argv[0]));
     }
 
 #if defined(_MSC_VER)
+    if (fileno(pStdErr) != 2) /* no close-on-exec flag on windows */
+    {
+        fclose(pStdErr);
+        pStdErr = NULL;
+    }
+
     /** @todo
      * We'll have to find the '--' in the commandline and pass that
      * on to CreateProcess or spawn. Otherwise, the argument qouting
      * is gonna be messed up.
      */
-    if (fileno(pStdErr) != 2)
-        fclose(pStdErr);
     rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
-    if (rc == -1 && fileno(pStdErr) != 2)
+    if (rc == -1 && pStdErr)
     {
-        fprintf(pStdErr, "%s: error: _spawnvp(_P_WAIT,%s,..) failed: %s\n", argv[0], argv[i], strerror(errno));
+        fprintf(pStdErr, "%s: error: _spawnvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
         rc = 1;
     }
     return rc;
 #else
     execvp(argv[i], &argv[i]);
+    fprintf(pStdErr, "%s: error: _execvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
     return 1;
 #endif
 }
