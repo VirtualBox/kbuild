@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1676 2008-07-11 02:03:43Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1677 2008-07-14 00:44:51Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -27,8 +27,8 @@
 UNIT_qt4 = qt4
 
 # Add our target properties.
-PROPS_SINGLE += QTTOOL MOCTOOL UICTOOL RCCTOOL LRCTOOL QT_TRANSLATIONS_INST QT_TRANSLATIONS_TEMPLATE
-PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS RCCFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS
+PROPS_SINGLE += QTTOOL MOCTOOL UICTOOL RCCTOOL LRCTOOL QT_TRANSLATIONS_INST QT_TRANSLATIONS_TEMPLATE QT_PREFIX
+PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS RCCFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS QT_MODULES
 
 
 #
@@ -37,8 +37,84 @@ PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS RCCFLAGS LRCFLAGS QT_TRANSLATION
 # This is implemented here rather than in sdks/QT4.kmk to enforce the global USES.
 # It also makes things easier to develop, with fewer files I mean.
 #
+## @todo the SDK might actually not be necessary as it turns out... For now it servers
+# a purpose if the host differs from the target, in theory at least.
 SDK_QT4 = Qt4
-## @todo
+
+# SDK Specific Properties
+ifndef PATH_SDK_QT4
+ PATH_SDK_QT4 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_TRG)/qt/v4*)))
+ ifeq ($(PATH_SDK_QT4),)
+  # If target == host, try look for Qt in the various platform specific places.
+  ifeq ($(KBUILD_TARGET),$(KBUILD_HOST))
+   ifeq ($(KBUILD_TARGET),darwin)
+    PATH_SDK_QT4 := $(patsubst %/Frameworks/QtCore.framework/Versions/4,%,$(firstword $(wildcard /Library/Frameworks/QtCore.framework/Versions/4)))
+   else ifeq ($(KBUILD_TARGET),win)
+    # No idea here yet...
+   else
+    # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT4_LIB* stuff if it doesn't work.
+    PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard /usr/bin/qt3to4 /usr/local/bin/qt3to4 /usr/qt/4/bin/qt3to4)))
+    ifneq ($(PATH_SDK_QT4),)
+     ifeq ($(PATH_SDK_QT4_INC),)
+      PATH_SDK_QT4_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard $(PATH_SDK_QT4)/include/QtCore/qglobal.h $(PATH_SDK_QT4)/include/qt4/QtCore/qglobal.h)))
+     endif
+     ifeq ($(PATH_SDK_QT4_LIB.x86),)
+      PATH_SDK_QT4_LIB.x86   := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
+	$(PATH_SDK_QT4)/lib32/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib32/qt4/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
+	)))
+     endif
+     ifeq ($(PATH_SDK_QT4_LIB.amd64),)
+      PATH_SDK_QT4_LIB.amd64 := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
+	$(PATH_SDK_QT4)/lib64/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib64/qt4/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/amd64/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
+	)))
+     endif
+     ifeq ($(PATH_SDK_QT4_LIB),)
+      PATH_SDK_QT4_LIB := $(PATH_SDK_QT4_LIB.$(KBUILD_TARGET))
+      ifeq ($(PATH_SDK_QT4_LIB),)
+       PATH_SDK_QT4_LIB := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
+	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
+	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
+	)))
+      endif
+     endif
+    endif
+   endif # Unices
+  endif
+  # Found it?
+  ifeq ($(PATH_SDK_QT4),)
+   $(warning kBuild: Couldn't find the Qt4 headers and libaries...)
+   PATH_SDK_QT4 := $(PATH_DEVTOOLS_TRG)/qt/not-found
+  endif
+ endif
+else
+ # Resolve any fancy stuff once and for all.
+ PATH_SDK_QT4 := $(PATH_SDK_QT4)
+endif
+
+# Libraries can be in either Frameworks or lib depending on how you
+# build it on the mac. The .dmg installs into Frameworks but builds into lib.
+ifeq ($(KBUILD_TARGET),darwin)
+ ifndef PATH_SDK_QT4_LIB
+  ifneq ($(wildcard $(PATH_SDK_QT4)/Frameworks),)
+   PATH_SDK_QT4_LIB ?= $(PATH_SDK_QT4)/Frameworks
+  else
+   PATH_SDK_QT4_LIB ?= $(PATH_SDK_QT4)/lib
+  endif
+ endif
+else
+ PATH_SDK_QT4_LIB ?= $(PATH_SDK_QT4)/lib
+ PATH_SDK_QT4_INC ?= $(PATH_SDK_QT4)/include
+endif
+
+# The bits that kBuild picks up.
+#  (nothing here)
 
 
 #
@@ -685,6 +761,31 @@ ifneq ($($(target)_QTTOOL),)
   $($(target)_LRCTOOL := $($(target)_QTTOOL)
  endif
 endif
+
+# Deal with QT_MODULES and QT_PREFIX.
+local qt_modules := \
+	$($(target)_QT_MODULES.$(_bld_trg)) \
+ 	$($(target)_QT_MODULES.$(_bld_trg_arch)) \
+ 	$($(target)_QT_MODULES.$(_bld_trg).$(_bld_trg_arch)) \
+ 	$($(target)_QT_MODULES.$(_bld_trg_cpu)) \
+ 	$($(target)_QT_MODULES.$(_bld_type)) \
+ 	$($(target)_QT_MODULES)
+local qt_prefix := $(firstword \
+	$($(target)_QT_PREFIX.$(_bld_trg)) \
+ 	$($(target)_QT_PREFIX.$(_bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(_bld_trg).$(_bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(_bld_trg_cpu)) \
+ 	$($(target)_QT_PREFIX.$(_bld_type)) \
+ 	$($(target)_QT_PREFIX))
+ifeq ($(bld_trg),darwin)
+ $(eval $(target)_LDFLAGS += -F$(PATH_SDK_QT4_LIB) $(addprefix -framework Qt$(qt_prefix),$(qt_modules)))
+ $(eval $(target)_INCS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module).framework/Versions/4/Headers))
+else
+ $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(SUFF_DLL)))
+ $(eval $(target)_INCS    += $(addprefix $(PATH_SDK_QT_INC)/Qt,$(qt_modules)))
+endif
+$(eval $(target)_DEFS     += $(foreach module,$(toupper $(qt_modules)), QT_$(module)_LIB))
+
 
 # Autodetect source files with Q_OBJECT references if QT_MOCSRCS is undefined. (slow)
 # Tip: Use target_QT_MOCSRCS = $(NO_SUCH_VARIABLE) to avoid this.
