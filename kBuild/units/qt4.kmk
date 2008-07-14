@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1680 2008-07-14 10:04:18Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1681 2008-07-14 21:35:13Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -778,17 +778,22 @@ local qt_prefix := $(firstword \
  	$($(target)_QT_PREFIX.$(_bld_type)) \
  	$($(target)_QT_PREFIX))
 ifeq ($(bld_trg),darwin)
- $(eval $(target)_LDFLAGS += -F$(PATH_SDK_QT4_LIB) $(addprefix -framework Qt$(qt_prefix),$(qt_modules)))
- $(eval $(target)_INCS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module).framework/Versions/4/Headers))
+ # Adding -F to CXXFLAGS is necessary to make #include <QtCore/qstring.h> stuff work...
+ $(eval $(target)_CXXFLAGS += -F$(PATH_SDK_QT4_LIB) )
+ $(eval $(target)_LDFLAGS  += -F$(PATH_SDK_QT4_LIB) $(addprefix -framework Qt$(qt_prefix),$(qt_modules)) )
+ $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module).framework/Versions/4/Headers) )
 else
  ifeq ($(bld_trg),win)
-  $(eval $(target)_LIBS   += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)4$(SUFF_LIB)))
+  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)4$(SUFF_LIB)) )
+  ifeq ($(tool_do),LINK_PROGRAM)
+   $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
+  endif
  else
-  $(eval $(target)_LIBS   += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/lib$(qt_prefix)Qt$(module)$(SUFF_DLL)))
+  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/lib$(qt_prefix)Qt$(module)$(SUFF_DLL)) )
  endif
- $(eval $(target)_INCS    += $(addprefix $(PATH_SDK_QT4_INC)/Qt,$(qt_modules)))
+ $(eval $(target)_INCS     += $(addprefix $(PATH_SDK_QT4_INC)/Qt,$(qt_modules)) $(PATH_SDK_QT4_INC) )
 endif
-$(eval $(target)_DEFS     += $(foreach module,$(toupper $(qt_modules)), QT_$(module)_LIB))
+$(eval $(target)_DEFS      += $(foreach module,$(toupper $(qt_modules)), QT_$(module)_LIB) )
 
 
 # Autodetect source files with Q_OBJECT references if QT_MOCSRCS is undefined. (slow)
