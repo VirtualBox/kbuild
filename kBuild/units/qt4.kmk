@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1681 2008-07-14 21:35:13Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1682 2008-07-15 00:49:49Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -24,11 +24,19 @@
 #
 #
 
+ifdef UNIT_qt4
+ $(error kBuild: The qt4 unit was included twice!)
+endif
 UNIT_qt4 = qt4
 
-# Add our target properties.
-PROPS_SINGLE += QTTOOL MOCTOOL UICTOOL RCCTOOL LRCTOOL QT_TRANSLATIONS_INST QT_TRANSLATIONS_TEMPLATE QT_PREFIX
-PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS RCCFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS QT_MODULES
+
+ifndef UNIT_qt3
+ # Add our target properties (same as qt3).
+ PROPS_SINGLE += QTTOOL MOCTOOL UICTOOL LRCTOOL QT_TRANSLATIONS_INST QT_TRANSLATIONS_TEMPLATE QT_PREFIX
+ PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS
+endif
+PROPS_SINGLE += RCCTOOL
+PROPS_ACCUMULATE_R += RCCFLAGS QT_MODULES
 
 
 #
@@ -749,16 +757,16 @@ define def_unit_qt4_target_pre
 # Make QTTOOL the default for the specific Qt tools instead of TOOL.
 ifneq ($($(target)_QTTOOL),)
  ifeq ($($(target)_MOCTOOL),)
-  $($(target)_MOCTOOL := $($(target)_QTTOOL)
+  $(target)_MOCTOOL := $($(target)_QTTOOL)
  endif
  ifeq ($($(target)_UICTOOL),)
-  $($(target)_UICTOOL := $($(target)_QTTOOL)
+  $(target)_UICTOOL := $($(target)_QTTOOL)
  endif
  ifeq ($($(target)_RCCTOOL),)
-  $($(target)_RCCTOOL := $($(target)_QTTOOL)
+  $(target)_RCCTOOL := $($(target)_QTTOOL)
  endif
  ifeq ($($(target)_LRCTOOL),)
-  $($(target)_LRCTOOL := $($(target)_QTTOOL)
+  $(target)_LRCTOOL := $($(target)_QTTOOL)
  endif
 endif
 
