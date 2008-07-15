@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1683 2008-07-15 02:25:16Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1685 2008-07-15 09:11:21Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -61,15 +61,19 @@ ifndef PATH_SDK_QT4
     # No idea here yet...
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT4_LIB* stuff if it doesn't work.
-    PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard /usr/bin/qt3to4 /usr/local/bin/qt3to4 /usr/qt/4/bin/qt3to4)))
+    PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard /usr/bin/qt3to4 /usr/local/bin/qt3to4 /usr/qt/4/bin/qt3to4 /usr/share/qt4/bin/qt3to4)))
     ifneq ($(PATH_SDK_QT4),)
      ifeq ($(PATH_SDK_QT4_INC),)
-      PATH_SDK_QT4_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard $(PATH_SDK_QT4)/include/QtCore/qglobal.h $(PATH_SDK_QT4)/include/qt4/QtCore/qglobal.h)))
+      PATH_SDK_QT4_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard $(PATH_SDK_QT4)/include/QtCore/qglobal.h $(PATH_SDK_QT4)/include/qt4/QtCore/qglobal.h /usr/include/qt4/QtCore/qtglobal.h)))
      endif
      ifeq ($(PATH_SDK_QT4_LIB.x86),)
       PATH_SDK_QT4_LIB.x86   := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT4)/lib32/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib32/qt4/libQtCore$(SUFF_DLL) \
+	/usr/lib32/libQtCore$(SUFF_DLL) \
+	/usr/lib32/qt4/libQtCore$(SUFF_DLL) \
+	/usr/local/lib32/libQtCore$(SUFF_DLL) \
+	/usr/local/lib32/qt4/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
 	)))
@@ -79,6 +83,12 @@ ifndef PATH_SDK_QT4
 	$(PATH_SDK_QT4)/lib64/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib64/qt4/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/amd64/libQtCore$(SUFF_DLL) \
+	/usr/lib64/libQtCore$(SUFF_DLL) \
+	/usr/lib64/qt4/libQtCore$(SUFF_DLL) \
+	/usr/lib/amd64/libQtCore$(SUFF_DLL) \
+	/usr/local/lib64/libQtCore$(SUFF_DLL) \
+	/usr/local/lib64/qt4/libQtCore$(SUFF_DLL) \
+	/usr/local/lib/amd64/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
 	)))
@@ -89,6 +99,10 @@ ifndef PATH_SDK_QT4
        PATH_SDK_QT4_LIB := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
 	$(PATH_SDK_QT4)/lib/qt4/libQtCore$(SUFF_DLL) \
+	/usr/lib/libQtCore$(SUFF_DLL) \
+	/usr/lib/qt4/libQtCore$(SUFF_DLL) \
+	/usr/local/lib/libQtCore$(SUFF_DLL) \
+	/usr/local/lib/qt4/libQtCore$(SUFF_DLL) \
 	)))
       endif
      endif
