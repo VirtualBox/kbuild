@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1684 2008-07-15 02:26:07Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1685 2008-07-15 09:11:21Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3 unit.
 #
@@ -36,13 +36,13 @@ ifndef UNIT_qt4
  PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS
 endif
 PROPS_SINGLE +=
-PROPS_ACCUMULATE_R +=
+PROPS_ACCUMULATE_R += QT_IMAGES
 
 
 #
 # The QT3 SDK.
 #
-# This is implemented here rather than in sdks/QT4.kmk to enforce the global USES.
+# This is implemented here rather than in sdks/QT3.kmk to enforce the global USES.
 # It also makes things easier to develop, with fewer files I mean.
 #
 ## @todo the SDK might actually not be necessary as it turns out... For now it servers
@@ -63,15 +63,19 @@ ifndef PATH_SDK_QT3
     # No idea here yet...
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT3_LIB* stuff if it doesn't work.
-    PATH_SDK_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard /usr/bin/qm2ts /usr/local/bin/qm2ts /usr/qt/3/bin/qm2ts)))
+    PATH_SDK_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard /usr/bin/qm2ts /usr/local/bin/qm2ts /usr/qt/3/bin/qm2ts /usr/share/qt3/bin/qm2ts)))
     ifneq ($(PATH_SDK_QT3),)
      ifeq ($(PATH_SDK_QT3_INC),)
-      PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard $(PATH_SDK_QT3)/include/private/qfiledefs_p.h $(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h)))
+      PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard $(PATH_SDK_QT3)/include/private/qfiledefs_p.h $(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h /usr/include/qt3/private/qfiledefs_p.h)))
      endif
      ifeq ($(PATH_SDK_QT3_LIB.x86),)
       PATH_SDK_QT3_LIB.x86   := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib32/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib32/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib32/libqt-mt$(SUFF_DLL) \
+	/usr/lib32/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib32/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib32/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	)))
@@ -81,6 +85,12 @@ ifndef PATH_SDK_QT3
 	$(PATH_SDK_QT3)/lib64/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib64/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/amd64/libqt-mt$(SUFF_DLL) \
+	/usr/lib64/libqt-mt$(SUFF_DLL) \
+	/usr/lib64/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib/amd64/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib64/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib64/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/amd64/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	)))
@@ -91,6 +101,10 @@ ifndef PATH_SDK_QT3
        PATH_SDK_QT3_LIB := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib/libqt-mt$(SUFF_DLL) \
+	/usr/lib/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/qt3/libqt-mt$(SUFF_DLL) \
 	)))
       endif
      endif
@@ -99,7 +113,7 @@ ifndef PATH_SDK_QT3
   endif
   # Found it?
   ifeq ($(PATH_SDK_QT3),)
-   $(warning kBuild: Couldn't find the Qt4 headers and libaries...)
+   $(warning kBuild: Couldn't find the Qt3 headers and libaries...)
    PATH_SDK_QT3 := $(PATH_DEVTOOLS_TRG)/qt/not-found
   endif
  endif
@@ -245,7 +259,7 @@ endef
 
 #
 #
-# Back to the Qt4 unit.
+# Back to the Qt3 unit.
 #
 #
 
