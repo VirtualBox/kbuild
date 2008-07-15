@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1682 2008-07-15 00:49:49Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1683 2008-07-15 02:25:16Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -305,9 +305,9 @@ endef
 
 ## wrapper for the lrelease (LRC) command dependencies.
 ifndef NO_COMPILE_CMDS_DEPS
- _UNIT_QT_LRC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT_LRC_CMDS_PREV_),$$(commands $(out)),FORCE)
+ _UNIT_QT4_LRC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT4_LRC_CMDS_PREV_),$$(commands $(out)),FORCE)
 else
- _UNIT_QT_LRC_CMDS_DEP =
+ _UNIT_QT4_LRC_CMDS_DEP =
 endif
 
 ##
@@ -321,7 +321,7 @@ define def_unit_qt4_target_pre_handle_translation_dx
 
 $(out) + $(more_output) +| $(maybe_output): \
 		$(deps) \
-		$(value _UNIT_QT_LRC_CMDS_DEP) \
+		$(value _UNIT_QT4_LRC_CMDS_DEP) \
 		| \
 		$(orderdeps)
 	%$$(call MSG_TOOL,lrelease,$(target),$(source),$$@)
@@ -331,7 +331,7 @@ $(cmds)
 
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT_LRC_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT4_LRC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
@@ -391,9 +391,9 @@ endef # def_unit_qt4_target_pre_handle_translation
 
 ## wrapper for the UIC command dependencies.
 ifndef NO_COMPILE_CMDS_DEPS
- _UNIT_QT_RCC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT_RCC_CMDS_PREV_),$$(commands $(out)),FORCE)
+ _UNIT_QT4_RCC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT4_RCC_CMDS_PREV_),$$(commands $(out)),FORCE)
 else
- _UNIT_QT_RCC_CMDS_DEP =
+ _UNIT_QT4_RCC_CMDS_DEP =
 endif
 
 ##
@@ -407,7 +407,7 @@ define def_unit_qt4_target_pre_handle_rcc_dx
 
 $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
-		$(value _UNIT_QT_RCC_CMDS_DEP) \
+		$(value _UNIT_QT4_RCC_CMDS_DEP) \
 		| \
 		$(orderdeps)
 	%$$(call MSG_TOOL,rcc,$(target),$(source),$$@)
@@ -418,7 +418,7 @@ $(cmds)
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT_RCC_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT4_RCC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
@@ -477,9 +477,9 @@ endef # def_unit_qt4_src_handler_qrc
 
 ## wrapper for the UIC command dependencies.
 ifndef NO_COMPILE_CMDS_DEPS
- _UNIT_QT_UIC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT_UIC_CMDS_PREV_),$$(commands $(out)),FORCE)
+ _UNIT_QT4_UIC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT4_UIC_CMDS_PREV_),$$(commands $(out)),FORCE)
 else
- _UNIT_QT_UIC_CMDS_DEP =
+ _UNIT_QT4_UIC_CMDS_DEP =
 endif
 
 ##
@@ -493,7 +493,7 @@ define def_unit_qt4_target_pre_handle_ui_dx
 
 $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
-		$(value _UNIT_QT_UIC_CMDS_DEP) \
+		$(value _UNIT_QT4_UIC_CMDS_DEP) \
 		| \
 		$(orderdeps)
 	%$$(call MSG_TOOL,uic,$(target),$(source),$$@)
@@ -504,7 +504,7 @@ $(cmds)
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT_UIC_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT4_UIC_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
@@ -562,9 +562,9 @@ endef # def_unit_qt4_src_handler_ui
 
 ## wrapper for the MOC command dependencies.
 ifndef NO_COMPILE_CMDS_DEPS
- _UNIT_QT_MOC_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT_MOC_CMDS_PREV_),$$(commands $(out)),FORCE)
+ _UNIT_QT4_MOC_HPP_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT4_MOC_HPP_CMDS_PREV_),$$(commands $(out)),FORCE)
 else
- _UNIT_QT_MOC_CMDS_DEP =
+ _UNIT_QT4_MOC_HPP_CMDS_DEP =
 endif
 
 ##
@@ -578,7 +578,7 @@ define def_unit_qt4_target_pre_handle_moc_hdr_dx
 
 $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
-		$(value _UNIT_QT_MOC_CMDS_DEP) \
+		$(value _UNIT_QT4_MOC_HPP_CMDS_DEP) \
 		| \
 		$(orderdeps)
 	%$$(call MSG_TOOL,moc,$(target),$(source),$$@)
@@ -589,7 +589,7 @@ $(cmds)
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT_MOC_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT4_MOC_HPP_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
@@ -601,7 +601,7 @@ $(target)_OUT_FILES += $(out) $(realout) $(more_output) $(maybe_output)
 endef
 
 ##
-# Handle a source file listed in QT_MOCHDRSS.
+# Handle a source file listed in QT_MOCHDRS.
 #
 # The files listed in QT_MOCHDRS uses the Q_OBJECT macro and we will
 # generate a .cpp file for each of them and add it to the generated
@@ -652,6 +652,13 @@ $(eval $(def_unit_qt4_target_pre_handle_moc_hdr_dx))
 endef # def_unit_qt4_target_pre_handle_moc_hdr
 
 
+## wrapper for the MOC command dependencies.
+ifndef NO_COMPILE_CMDS_DEPS
+ _UNIT_QT4_MOC_CPP_CMDS_DEP = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_QT4_MOC_CPP_CMDS_PREV_),$$(commands $(out)),FORCE)
+else
+ _UNIT_QT4_MOC_CPP_CMDS_DEP =
+endif
+
 ##
 # def_unit_qt4_target_pre_handle_moc_src helper that is expanded before evaluation.
 #
@@ -663,7 +670,7 @@ define def_unit_qt4_target_pre_handle_moc_src_dx
 
 $(out) +| $(realout) $(more_output) $(maybe_output): \
 		$(deps) \
-		$(value _UNIT_QT_MOC_CMDS_DEP) \
+		$(value _UNIT_QT4_MOC_CPP_CMDS_DEP) \
 		| \
 		$(orderdeps)
 	%$$(call MSG_TOOL,moc,$(target),$(source),$$@)
@@ -674,7 +681,7 @@ $(cmds)
 	$(QUIET)$(CP) --changed -f $(out) $(realout)
 ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT_MOC_CMDS_PREV_'
+	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_QT4_MOC_CPP_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(out)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
