@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1672 2008-07-07 21:38:57Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1686 2008-08-11 21:47:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1991,7 +1991,7 @@ ifndef NO_LINK_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(basename $(notdir $(out))): $(out)
+$(basename $(notdir $(out))):: $(out)
 
 endef
 
@@ -2007,7 +2007,7 @@ $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
 	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) -- $(out) $$@
 
 ifdef KBUILD_DO_AUTO_INSTALL
-$(basename $(notdir $(out))): $(INSTARGET_$(target))
+$(basename $(notdir $(out))):: $(INSTARGET_$(target))
 endif
 endef
 
