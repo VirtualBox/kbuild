@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1687 2008-08-22 20:39:30Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1688 2008-08-23 21:03:26Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -890,6 +890,8 @@ ifneq ($(strip $(translations)),)
  $(eval $(expr))
  ifdef $(target)_QT_TRANSLATIONS_TEMPLATE
   $(target)-inst-nls_TEMPLATE := $($(target)_QT_TRANSLATIONS_TEMPLATE)
+ else
+  $(target)-inst-nls_MODE := 0644
  endif
  ifdef $(target)_QT_TRANSLATIONS_INST
   $(target)-inst-nls_INST := $($(target)_QT_TRANSLATIONS_INST)
