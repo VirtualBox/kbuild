@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1688 2008-08-23 21:03:26Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1689 2008-08-26 18:42:40Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -271,7 +271,9 @@ define TOOL_QT4_RCC_QRC_CMDS
 		$(flags)\
 		-o $(out)\
 		$(source)
-	$(APPEND) $(dep) '$(source): \'
+	$(APPEND) $(dep) '\'
+	$(APPEND) $(dep) '$(out): \'
+	$(APPEND) $(dep) '$(source) \'
 	$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
