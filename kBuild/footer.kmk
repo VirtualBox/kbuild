@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1696 2008-08-31 20:42:53Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1697 2008-08-31 21:10:56Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1352,12 +1352,28 @@ local out := $(outbase)$(suff)
 TARGET_$(target) := $(out)
 
 # INSTARGET_*
-ifeq ($(strip $($(target)_NOINST)),)
-INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg)))
+ else ifneq ($(strip $($(target)_INST.$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_type)))
+ else ifneq ($(strip $($(target)_INST)),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST))
+ else
+  local inst := $(definst)/
+ endif
+ INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)),$(inst))
 
 else # NOINST
-INSTARGET_$(target) :=
+ INSTARGET_$(target) :=
 endif # NOINST
 
 endef
@@ -2099,21 +2115,37 @@ endef
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
 # @remark   Only library uses this now.
 define def_target_install_pluss
-ifeq ($(strip $($(target)_NOINST)),)
-INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg)))
+ else ifneq ($(strip $($(target)_INST.$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_type)))
+ else ifneq ($(strip $($(target)_INST)),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST))
+ else
+  local inst := $(definst)/
+ endif
+ INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)),$(inst))
 
 $(eval $(def_link_install_rule))
 
-_INSTALLS_FILES += $(INSTARGET_$(target))
+ _INSTALLS_FILES += $(INSTARGET_$(target))
 
-ifdef KBUILD_DO_AUTO_INSTALL
-$(typevar) += $(INSTARGET_$(target))
-else
-$(typevar) += $(out)
-endif
+ ifdef KBUILD_DO_AUTO_INSTALL
+  $(typevar) += $(INSTARGET_$(target))
+ else
+  $(typevar) += $(out)
+ endif
 else # _NOINST
-$(typevar) += $(out)
+ $(typevar) += $(out)
 endif
 
 _OUT_FILES += $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_) $(out)
@@ -2610,20 +2642,36 @@ endif
 local objs = $($(target)_OBJS_)
 
 # installation targets
-ifeq ($(strip $($(target)_NOINST)),)
-INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
-	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
-ifdef KBUILD_DO_AUTO_INSTALL
-$(typevar)  += $(INSTARGET_$(target))
-else
-$(typevar)  += $(out)
-endif
-# generate the install rule
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_type)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg_arch))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg_arch)))
+ else ifneq ($(strip $($(target)_INST.$(bld_trg))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg)))
+ else ifneq ($(strip $($(target)_INST.$(bld_type))),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_type)))
+ else ifneq ($(strip $($(target)_INST)),)
+  local inst := $(addprefix $(PATH_INS)/,$($(target)_INST))
+ else
+  local inst := $(definst)/
+ endif
+ INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)),$(inst))
+ ifdef KBUILD_DO_AUTO_INSTALL
+  $(typevar)  += $(INSTARGET_$(target))
+ else
+  $(typevar)  += $(out)
+ endif
+ # generate the install rule
 $(eval $(def_link_install_rule))
 
 else # NOINST
-INSTARGET_$(target) :=
-$(typevar)  += $(out)
+ INSTARGET_$(target) :=
+ $(typevar)  += $(out)
 endif # NOINST
 
 # dependency file
