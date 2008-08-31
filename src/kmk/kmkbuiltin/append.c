@@ -1,4 +1,4 @@
-/* $Id: append.c 1442 2008-03-30 06:45:10Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 1695 2008-08-31 20:24:55Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command - append text to file.
@@ -41,9 +41,18 @@
 static int usage(FILE *pf)
 {
     fprintf(pf,
-            "usage: %s [-cnv] file [string ...]\n"
+            "usage: %s [-dcntv] file [string ...]\n"
             "   or: %s --version\n"
-            "   or: %s --help\n",
+            "   or: %s --help\n"
+            "\n"
+            "Options:\n"
+            "  -d  Enclose the output in define ... endef, taking the name from\n"
+            "      the first argument following the file name.\n"
+            "  -c  Output the command for specified target(s). [builtin only]\n"
+            "  -n  Insert a new line between the strings.\n"
+            "  -t  Truncate the file instead of appending\n"
+            "  -v  Output the value(s) for specified variable(s). [builtin only]\n"
+            ,
             g_progname, g_progname, g_progname);
     return 1;
 }
@@ -56,12 +65,13 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
 {
     int i;
     int fFirst;
+    int iFile;
     FILE *pFile;
     int fNewLine = 0;
-#ifndef kmk_builtin_append
+    int fTruncate = 0;
+    int fDefine = 0;
     int fVariables = 0;
     int fCommands = 0;
-#endif
 
     g_progname = argv[0];
 
@@ -72,7 +82,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("-cnv", argv[i][1]) /* valid option char */
+       &&  strchr("-cdntv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
@@ -83,6 +93,11 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                 switch (*psz)
                 {
                     case 'c':
+                        if (fVariables)
+                        {
+                            errx(1, "Option '-c' clashes with '-v'.");
+                            return usage(stderr);
+                        }
 #ifndef kmk_builtin_append
                         fCommands = 1;
                         break;
@@ -90,10 +105,26 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                         errx(1, "Option '-c' isn't supported in external mode.");
                         return usage(stderr);
 #endif
+                    case 'd':
+                        if (fVariables)
+                        {
+                            errx(1, "Option '-d' must come before '-v'!");
+                            return usage(stderr);
+                        }
+                        fDefine = 1;
+                        break;
                     case 'n':
                         fNewLine = 1;
                         break;
+                    case 't':
+                        fTruncate = 1;
+                        break;
                     case 'v':
+                        if (fCommands)
+                        {
+                            errx(1, "Option '-v' clashes with '-c'.");
+                            return usage(stderr);
+                        }
 #ifndef kmk_builtin_append
                         fVariables = 1;
                         break;
@@ -119,17 +150,31 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         i++;
     }
 
+    if (i + fDefine >= argc)
+    {
+        if (i <= argc)
+            errx(1, "missing filename!");
+        else
+            errx(1, "missing define name!");
+        return usage(stderr);
+    }
+
     /*
      * Open the output file.
      */
-    if (i >= argc)
-    {
-        errx(1, "missing filename!");
-        return usage(stderr);
-    }
-    pFile = fopen(argv[i], "a");
+    iFile = i;
+    pFile = fopen(argv[i], fTruncate ? "w" : "a");
     if (!pFile)
         return err(1, "failed to open '%s'.", argv[i]);
+
+    /*
+     * Start define?
+     */
+    if (fDefine)
+    {
+        i++;
+        fprintf(pFile, "define %s\n", argv[i]);
+    }
 
     /*
      * Append the argument strings to the file
@@ -176,17 +221,22 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         fFirst = 0;
     }
 
-    /*
-     * Add the newline and close the file.
+    /* 
+     * Add the newline, closing the define if needed, and close the file.
      */
-    if (    fputc('\n', pFile) == EOF
+    if (    (  fDefine
+             ? fwrite(fFirst ?        "endef\n"      :        "\nendef\n", 
+                      1, 
+                      fFirst ? sizeof("endef\n") - 1 : sizeof("\nendef\n") - 1, 
+                      pFile) < sizeof("endef\n")
+             : fputc('\n', pFile) == EOF)
         ||  ferror(pFile))
     {
         fclose(pFile);
-        return errx(1, "error writing to '%s'!", argv[1]);
+        return errx(1, "error writing to '%s'!", argv[iFile]);
     }
     if (fclose(pFile))
-        return err(1, "failed to fclose '%s'!", argv[1]);
+        return err(1, "failed to fclose '%s'!", argv[iFile]);
     return 0;
 }
 
