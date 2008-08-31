@@ -1,0 +1,91 @@
+# $Id: testcase-includedep.kmk 1694 2008-08-31 19:48:24Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - testcase for the includedep directive.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is defined at the start of the testcase.)
+endif
+
+
+foo = testcase-includedep-sub
+includedep $(foo).kmk
+ifneq ($(testcase-includedep-sub.kmk),included)
+$(error The first test failed.)
+endif
+testcase-includedep-sub.kmk :=
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is persistent and does not want to be undefed.)
+endif
+
+
+foo = includedep
+includedep testcase-$(foo)-sub.kmk
+ifneq ($(testcase-includedep-sub.kmk),included)
+$(error The second test failed.)
+endif
+testcase-includedep-sub.kmk :=
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is persistent and does not want to be undefed.)
+endif
+
+
+foo = kmk
+includedep testcase-includedep-sub.$(foo)
+ifneq ($(testcase-includedep-sub.kmk),included)
+$(error The thrid test failed.)
+endif
+testcase-includedep-sub.kmk :=
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is persistent and does not want to be undefed.)
+endif
+
+
+includedep testcase-includedep-sub.kmk
+ifneq ($(testcase-includedep-sub.kmk),included)
+$(error The forth test failed.)
+endif
+testcase-includedep-sub.kmk :=
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is persistent and does not want to be undefed.)
+endif
+
+
+foo = asdf
+includedep testcase-$(foo)-sub.kmk
+ifeq ($(testcase-includedep-sub.kmk),included)
+$(error The fifth test failed.)
+endif
+testcase-includedep-sub.kmk :=
+ifdef testcase-includedep-sub.kmk
+$(error testcase-includedep-sub.kmk is persistent and does not want to be undefed.)
+endif
+
+
+all_recursive:
+	$(ECHO) "includedep works fine"
+
