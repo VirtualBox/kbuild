@@ -1,4 +1,4 @@
-# $Id: header.kmk 1664 2008-06-30 21:10:43Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1691 2008-08-31 17:29:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1664 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1691 $  )
 
 
 #
@@ -378,9 +378,9 @@ ifndef PATH_OUT_BASE
 endif
 ifndef PATH_OUT
  ifdef BUILD_TARGET_SUB # (BUILD_TARGET_SUB is not currently recognized by kBuild in any other places - obsolete)
-  PATH_OUT          := $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(KBUILD_TYPE)
+  PATH_OUT           = $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH).$(BUILD_TARGET_SUB)/$(KBUILD_TYPE)
  else
-  PATH_OUT          := $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/$(KBUILD_TYPE)
+  PATH_OUT           = $(PATH_OUT_BASE)/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/$(KBUILD_TYPE)
  endif
 endif # !define PATH_OUT
 PATH_OBJCACHE        = $(PATH_OUT_BASE)/kObjCache
@@ -1020,6 +1020,7 @@ endif
 # This prevents some trouble when users override the defaults for these
 # variables and uses relative paths or paths with incorrect case.
 #
+PATH_OUT_BASE := $(abspath PATH_OUT_BASE)
 PATH_OUT    := $(abspath $(PATH_OUT))
 PATH_OBJ    := $(abspath $(PATH_OBJ))
 PATH_TARGET := $(abspath $(PATH_TARGET))
