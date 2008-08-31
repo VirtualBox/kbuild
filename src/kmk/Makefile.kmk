@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1673 2008-07-11 00:37:35Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1694 2008-08-31 19:48:24Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -472,6 +472,9 @@ test_if1of:
 test_local:
 	$(MAKE) -f $(kmk_PATH)/testcase-local.kmk
 
+test_includedep:
+	$(MAKE) -f $(kmk_PATH)/testcase-includedep.kmk
+
 test_30_continued_on_failure_worker:
 	this_executable_does_not_exist.exe
 	echo "We shouldn't see this..."
@@ -487,5 +490,5 @@ test_30_continued_on_failure:
 	fi
 
 
-test_all:	test_math test_stack test_shell test_if1of test_local test_30_continued_on_failure
+test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_30_continued_on_failure
 
