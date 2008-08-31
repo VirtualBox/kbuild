@@ -3774,6 +3774,10 @@ func_commands (char *o, char **argv, const char *funcname)
                         }
                     }
                 }
+              /* Some of these can be amended ($< perhaps), but we're likely to be called while the
+                 dep expansion happens, so it would have to be on a hackish basis. sad... */
+              else if (*ref == '<' || *ref == '*' || *ref == '%' || *ref == '^' || *ref == '+')
+                error (reading_file, _("$(%s ) does not work reliably with $%c in all cases"), funcname, *ref);
             }
 
           /* There are no more references in this line to worry about.
