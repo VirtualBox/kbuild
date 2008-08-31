@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1686 2008-08-11 21:47:33Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1696 2008-08-31 20:42:53Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -91,8 +91,8 @@ _ALL_SRCNAME_TARGETS = \
 	$(_ALL_FETCHES) \
 	$(_ALL_PATCHES)
 
-# dependency files.
-_DEPFILES :=
+# Dependency files. (currently not on target level, only this global stuff)
+_DEPFILES        := $(DEPFILES)    $(DEPFILES.$(KBUILD_TARGET))      $(DEPFILES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(DEPFILES.$(KBUILD_TARGET_ARCH))    $(DEPFILES.$(KBUILD_TARGET_CPU))     $(DEPFILES.$(KBUILD_TYPE))
 
 # included dependency files.
 _DEPFILES_INCLUDED :=
@@ -1352,7 +1352,7 @@ local out := $(outbase)$(suff)
 TARGET_$(target) := $(out)
 
 # INSTARGET_*
-ifndef $(target)_NOINST
+ifeq ($(strip $($(target)_NOINST)),)
 INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
 	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
 
@@ -2099,7 +2099,7 @@ endef
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
 # @remark   Only library uses this now.
 define def_target_install_pluss
-ifndef $(target)_NOINST
+ifeq ($(strip $($(target)_NOINST)),)
 INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
 	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
 
@@ -2610,7 +2610,7 @@ endif
 local objs = $($(target)_OBJS_)
 
 # installation targets
-ifndef $(target)_NOINST
+ifeq ($(strip $($(target)_NOINST)),)
 INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)), \
 	$(if $($(target)_INST), $(addprefix $(PATH_INS)/,$($(target)_INST)), $(definst)/))
 ifdef KBUILD_DO_AUTO_INSTALL
