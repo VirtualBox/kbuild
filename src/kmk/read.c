@@ -1324,24 +1324,34 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifdef CONFIG_WITH_INCLUDEDEP
       if (word1eq ("includedep"))
         {
-            /* We have found an `includedep' line specifying a single nested
-               makefile to be read at this point. This include variation
-               does not globbing and doesn't support multiple names. It's
-               trying to save time by being dead simple. */
-            char *name = p2;
-            char *end = strchr(name, '\0');
-            char saved;
+          /* We have found an `includedep' line specifying a single makefile
+             to be read at this point. This include variation does no
+             globbing and do not support multiple names. It's trying to save
+             time by being dead simple as well as ignoring errors. */
+          char *free_me = NULL;
+          char *name = p2;
+          char *end = strchr (name, '\0');
+          char saved;
+          if (memchr (name, '$', end - name))
+            {
+              free_me = name = allocated_variable_expand (name);
+              while (isspace ((unsigned char)*name))
+                ++name;
+              end = strchr (name, '\0');
+            }
 
-            while (end > name && isspace ((unsigned char)end[-1]))
-              --end;
+          while (end > name && isspace ((unsigned char)end[-1]))
+            --end;
 
-            saved = *end; /* not sure if this is required... */
-            *end = '\0';
-            eval_include_dep (name, fstart);
-            *end = saved;
+          saved = *end; /* not sure if this is required... */
+          *end = '\0';
+          eval_include_dep (name, fstart);
+          *end = saved;
 
-            goto rule_complete;
-          }
+          if (free_me)
+            free (free_me);
+          goto rule_complete;
+        }
 #endif /* CONFIG_WITH_INCLUDEDEP */
 
       if (word1eq ("include") || word1eq ("-include") || word1eq ("sinclude"))
