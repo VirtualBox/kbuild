@@ -1,4 +1,4 @@
-# $Id: VCC80AMD64.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: VCC80AMD64.kmk 1690 2008-08-31 14:29:01Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting AMD64.
 #
@@ -266,7 +266,7 @@ endef
 TOOL_VCC80AMD64_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80AMD64_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
 TOOL_VCC80AMD64_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp
-TOOL_VCC80AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest
+TOOL_VCC80AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest $(PATH_LIB)/$(notdir $(outbase)).lib $(PATH_LIB)/$(notdir $(outbase)).exp
 define TOOL_VCC80AMD64_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_VCC80AMD64_LD) $(flags) \
 		/OUT:$(out) \
@@ -281,9 +281,7 @@ define TOOL_VCC80AMD64_LINK_DLL_CMDS
 		$(subst /,\\,$(libs))
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC80AMD64_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
-ifeq ($(filter %.exp .def,$(othersrc)),)
 	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_LIB)/
-endif
 $(eval _DIRS += $(PATH_LIB))
 endef
 
