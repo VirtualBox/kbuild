@@ -1,4 +1,4 @@
-# $Id: header.kmk 1691 2008-08-31 17:29:06Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1692 2008-08-31 17:32:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1691 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1692 $  )
 
 
 #
@@ -1020,7 +1020,7 @@ endif
 # This prevents some trouble when users override the defaults for these
 # variables and uses relative paths or paths with incorrect case.
 #
-PATH_OUT_BASE := $(abspath PATH_OUT_BASE)
+PATH_OUT_BASE := $(abspath $(PATH_OUT_BASE))
 PATH_OUT    := $(abspath $(PATH_OUT))
 PATH_OBJ    := $(abspath $(PATH_OBJ))
 PATH_TARGET := $(abspath $(PATH_TARGET))
