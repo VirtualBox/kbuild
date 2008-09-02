@@ -27,6 +27,7 @@
 #ifdef __sun__
 
 #include <stdarg.h>
+#include <sys/types.h>
 #include "getopt.h"
 #define _PATH_DEVNULL "/dev/null"
 #define ALLPERMS 0000777
