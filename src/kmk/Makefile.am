@@ -54,6 +54,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin.c \
 		kmkbuiltin/append.c \
 		kmkbuiltin/cat.c \
+		kmkbuiltin/chmod.c \
 		kmkbuiltin/cmp.c \
 		kmkbuiltin/cmp_util.c \
 		kmkbuiltin/cp.c \

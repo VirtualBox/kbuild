@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 1293 2007-12-01 03:42:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 1705 2008-09-02 03:17:42Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -207,6 +207,8 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
     else if (!strcmp(pszCmd, "test"))
         rc = kmk_builtin_test(argc, argv, environ, ppapszArgvToSpawn);
     /* rarely used commands: */
+    else if (!strcmp(pszCmd, "chmod"))
+        rc = kmk_builtin_chmod(argc, argv, environ);
     else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);
     else if (!strcmp(pszCmd, "ln"))
