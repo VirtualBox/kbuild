@@ -47,6 +47,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 # include <fcntl.h>
 #endif
 
+#ifdef KMK /* for get_online_cpu_count */
+# if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#  include <sys/sysctl.h>
+# endif
+# ifdef __OS2__
+#  define INCL_BASE
+#  include <os2.h>
+# endif 
+#endif /* KMK*/
+
 #if defined(HAVE_SYS_RESOURCE_H) && defined(HAVE_GETRLIMIT) && defined(HAVE_SETRLIMIT)
 # define SET_STACK_SIZE
 #endif
@@ -355,8 +365,14 @@ static const char *const usage[] =
     N_("\
   -I DIRECTORY, --include-dir=DIRECTORY\n\
                               Search DIRECTORY for included makefiles.\n"),
+#ifdef KMK
+    N_("\
+  -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no arg.\n\
+                              The default is the number of active CPUs.\n"),
+#else
     N_("\
   -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no arg.\n"),
+#endif 
     N_("\
   -k, --keep-going            Keep going when some targets can't be made.\n"),
     N_("\
@@ -1099,6 +1115,78 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
 
 #endif  /* WINDOWS32 */
 
+#ifdef KMK
+/* Determins the number of CPUs that are currently online.
+   This is used to setup the default number of job slots. */
+static int 
+get_online_cpu_count(void)
+{
+# ifdef WINDOWS32
+    /* Windows: Count the active CPUs. */
+    int cpus, i;
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    for (i = cpus = 0; i < sizeof(si.dwActiveProcessorMask) * 8; i++)
+      {
+        if (si.dwActiveProcessorMask & 1)
+          cpus++;
+        si.dwActiveProcessorMask >>= 1;
+      }
+    return cpus ? cpus : 1;
+
+# elif defined(__OS2__)
+    /* OS/2: Count the active CPUs. */
+    int cpus i, j;
+    MPAFFINITY mp;
+    if (DosQueryThreadAffinity(AFNTY_SYSTEM, &mp))
+      return 1;
+    for (j = cpus = 0; j < sizeof(mp.mask) / sizeof(mp.mask[0]); j++)
+      for (i = 0; i < 32; i++)
+        if (mp.mask[j] & (1UL << i))
+          cpus++;
+    return cpus ? cpus : 1;
+
+# else 
+  /* UNIX like systems, try sysconf and sysctl. */
+  int cpus = -1;
+#  if defined(CTL_HW)
+  int mib[2];
+  size_t sz;
+#  endif 
+
+#  ifdef _SC_NPROCESSORS_ONLN
+  cpus = sysconf(_SC_NPROCESSORS_ONLN);
+  if (cpus >= 1)
+      return cpus;
+  cpus = -1;
+#  endif
+
+#  if defined(CTL_HW)
+#   ifdef HW_AVAILCPU
+  sz = sizeof(cpus);
+  mib[0] = CTL_HW;
+  mib[1] = HW_AVAILCPU;
+  if (!sysctl(mib, 2, &cpus, &sz, NULL, 0)
+      && cpus >= 1)
+    return cpus;
+  cpus = -1;
+#   endif /* HW_AVAILCPU */
+
+  sz = sizeof(cpus);
+  mib[0] = CTL_HW;
+  mib[1] = HW_NCPU;
+  if (!sysctl(mib, 2, &cpus, &sz, NULL, 0)
+      && cpus >= 1)
+    return cpus;
+  cpus = -1;
+#  endif /* CTL_HW */
+
+  /* no idea / failure, just return 1. */
+  return 1;
+# endif
+}
+#endif /* KMK */
+
 #ifdef __MSDOS__
 static void
 msdos_return_to_initial_directory (void)
@@ -1415,6 +1503,11 @@ main (int argc, char **argv, char **envp)
   do_variable_definition (NILF, ".FEATURES", "prepend-assignment",
                           o_default, f_append, 0);
 #endif
+
+#ifdef KMK
+  /* Initialize the default number of jobs to the cpu/core/smt count. */
+  default_job_slots = job_slots = get_online_cpu_count ();
+#endif /* KMK */
 
   /* Read in variables from the environment.  It is important that this be
      done before $(MAKE) is figured out so its definitions will not be
