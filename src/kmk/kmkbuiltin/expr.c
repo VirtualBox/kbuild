@@ -11,25 +11,31 @@
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
+#ifdef KMK_WITH_REGEX
 #include <regex.h>
-#include <err.h>
+#endif 
+#include <setjmp.h>
+#include <assert.h>
+#include "err.h"
+#include "getopt.h"
+#include "kmkbuiltin.h"
 
-struct val	*make_int(int);
-struct val	*make_str(char *);
-void		 free_value(struct val *);
-int		 is_integer(struct val *, int *);
-int		 to_integer(struct val *);
-void		 to_string(struct val *);
-int		 is_zero_or_null(struct val *);
-void		 nexttoken(int);
-__dead void	 error(void);
-struct val	*eval6(void);
-struct val	*eval5(void);
-struct val	*eval4(void);
-struct val	*eval3(void);
-struct val	*eval2(void);
-struct val	*eval1(void);
-struct val	*eval0(void);
+static struct val	*make_int(int);
+static struct val	*make_str(char *);
+static void		 free_value(struct val *);
+static int		 is_integer(struct val *, int *);
+static int		 to_integer(struct val *);
+static void		 to_string(struct val *);
+static int		 is_zero_or_null(struct val *);
+static void		 nexttoken(int);
+static __dead void	 error(void);
+static struct val	*eval6(void);
+static struct val	*eval5(void);
+static struct val	*eval4(void);
+static struct val	*eval3(void);
+static struct val	*eval2(void);
+static struct val	*eval1(void);
+static struct val	*eval0(void);
 
 enum token {
 	OR, AND, EQ, LT, GT, ADD, SUB, MUL, DIV, MOD, MATCH, RP, LP,
@@ -48,50 +54,99 @@ struct val {
 	} u;
 };
 
-enum token	token;
-struct val     *tokval;
-char	      **av;
+static enum token	token;
+static struct val     *tokval;
+static char	      **av;
+static jmp_buf          g_expr_jmp;
+static void           **recorded_allocations;
+static int 		num_recorded_allocations;
 
-struct val *
+
+static void expr_mem_record_alloc(void *ptr)
+{
+	if (!(num_recorded_allocations & 31)) {
+    		void *newtab = realloc(recorded_allocations, (num_recorded_allocations + 33) * sizeof(void *));
+		if (!newtab)
+			longjmp(g_expr_jmp, err(3, NULL));
+		recorded_allocations = (void **)newtab;
+	}
+	recorded_allocations[num_recorded_allocations++] = ptr;
+}
+
+
+static void expr_mem_record_free(void *ptr)
+{
+	int i = num_recorded_allocations;
+	while (i-- > 0)
+		if (recorded_allocations[i] == ptr) {
+			num_recorded_allocations--;
+			recorded_allocations[i] = recorded_allocations[num_recorded_allocations];
+			return;
+		}
+	assert(i >= 0);
+}
+
+static void expr_mem_init(void)
+{
+	num_recorded_allocations = 0;
+	recorded_allocations = NULL;
+}
+
+static void expr_mem_cleanup(void)
+{
+	if (recorded_allocations) {
+		while (num_recorded_allocations-- > 0)
+			free(recorded_allocations[num_recorded_allocations]);
+		free(recorded_allocations);
+		recorded_allocations = NULL;
+	}
+}
+
+
+static struct val *
 make_int(int i)
 {
 	struct val     *vp;
 
 	vp = (struct val *) malloc(sizeof(*vp));
-	if (vp == NULL) {
-		err(3, NULL);
-	}
+	if (vp == NULL)
+		longjmp(g_expr_jmp, err(3, NULL));
+	expr_mem_record_alloc(vp);
 	vp->type = integer;
 	vp->u.i = i;
 	return vp;
 }
 
 
-struct val *
+static struct val *
 make_str(char *s)
 {
 	struct val     *vp;
 
 	vp = (struct val *) malloc(sizeof(*vp));
-	if (vp == NULL || ((vp->u.s = strdup(s)) == NULL)) {
-		err(3, NULL);
-	}
+	if (vp == NULL || ((vp->u.s = strdup(s)) == NULL))
+		longjmp(g_expr_jmp, err(3, NULL));
+	expr_mem_record_alloc(vp->u.s);
+	expr_mem_record_alloc(vp);
 	vp->type = string;
 	return vp;
 }
 
 
-void
+static void
 free_value(struct val *vp)
 {
-	if (vp->type == string)
+	if (vp->type == string) {
+		expr_mem_record_free(vp->u.s);
 		free(vp->u.s);
+	}
 	free(vp);
+	expr_mem_record_free(vp);
 }
 
 
 /* determine if vp is an integer; if so, return it's value in *r */
-int
+static int
 is_integer(struct val *vp, int *r)
 {
 	char	       *s;
@@ -133,7 +188,7 @@ is_integer(struct val *vp, int *r)
 
 
 /* coerce to vp to an integer */
-int
+static int
 to_integer(struct val *vp)
 {
 	int		r;
@@ -142,6 +197,7 @@ to_integer(struct val *vp)
 		return 1;
 
 	if (is_integer(vp, &r)) {
+		expr_mem_record_free(vp->u.s);
 		free(vp->u.s);
 		vp->u.i = r;
 		vp->type = integer;
@@ -153,7 +209,7 @@ to_integer(struct val *vp)
 
 
 /* coerce to vp to an string */
-void
+static void
 to_string(struct val *vp)
 {
 	char	       *tmp;
@@ -162,13 +218,14 @@ to_string(struct val *vp)
 		return;
 
 	if (asprintf(&tmp, "%d", vp->u.i) == -1)
-		err(3, NULL);
+		longjmp(g_expr_jmp, err(3, NULL));
+	expr_mem_record_alloc(tmp);
 
 	vp->type = string;
 	vp->u.s = tmp;
 }
 
-int
+static int
 is_zero_or_null(struct val *vp)
 {
 	if (vp->type == integer) {
@@ -179,7 +236,7 @@ is_zero_or_null(struct val *vp)
 	/* NOTREACHED */
 }
 
-void
+static void
 nexttoken(int pat)
 {
 	char	       *p;
@@ -219,14 +276,14 @@ nexttoken(int pat)
 	return;
 }
 
-__dead void
+static void
 error(void)
 {
-	errx(2, "syntax error");
+	longjmp(g_expr_jmp, errx(2, "syntax error"));
 	/* NOTREACHED */
 }
 
-struct val *
+static struct val *
 eval6(void)
 {
 	struct val     *v;
@@ -252,9 +309,10 @@ eval6(void)
 }
 
 /* Parse and evaluate match (regex) expressions */
-struct val *
+static struct val *
 eval5(void)
 {
+#ifdef KMK_WITH_REGEX
 	regex_t		rp;
 	regmatch_t	rm[2];
 	char		errbuf[256];
@@ -274,7 +332,7 @@ eval5(void)
 		/* compile regular expression */
 		if ((eval = regcomp(&rp, r->u.s, 0)) != 0) {
 			regerror(eval, &rp, errbuf, sizeof(errbuf));
-			errx(2, "%s", errbuf);
+			longjmp(g_expr_jmp, errx(2, "%s", errbuf));
 		}
 
 		/* compare string against pattern --  remember that patterns
@@ -304,10 +362,13 @@ eval5(void)
 	}
 
 	return l;
+#else
+	longjmp(g_expr_jmp, errx(2, "regex not supported, sorry."));
+#endif 
 }
 
 /* Parse and evaluate multiplication and division expressions */
-struct val *
+static struct val *
 eval4(void)
 {
 	struct val     *l, *r;
@@ -319,14 +380,14 @@ eval4(void)
 		r = eval5();
 
 		if (!to_integer(l) || !to_integer(r)) {
-			errx(2, "non-numeric argument");
+			longjmp(g_expr_jmp, errx(2, "non-numeric argument"));
 		}
 
 		if (op == MUL) {
 			l->u.i *= r->u.i;
 		} else {
 			if (r->u.i == 0) {
-				errx(2, "division by zero");
+				longjmp(g_expr_jmp, errx(2, "division by zero"));
 			}
 			if (op == DIV) {
 				l->u.i /= r->u.i;
@@ -342,7 +403,7 @@ eval4(void)
 }
 
 /* Parse and evaluate addition and subtraction expressions */
-struct val *
+static struct val *
 eval3(void)
 {
 	struct val     *l, *r;
@@ -354,7 +415,7 @@ eval3(void)
 		r = eval4();
 
 		if (!to_integer(l) || !to_integer(r)) {
-			errx(2, "non-numeric argument");
+			longjmp(g_expr_jmp, errx(2, "non-numeric argument"));
 		}
 
 		if (op == ADD) {
@@ -370,7 +431,7 @@ eval3(void)
 }
 
 /* Parse and evaluate comparison expressions */
-struct val *
+static struct val *
 eval2(void)
 {
 	struct val     *l, *r;
@@ -443,7 +504,7 @@ eval2(void)
 }
 
 /* Parse and evaluate & expressions */
-struct val *
+static struct val *
 eval1(void)
 {
 	struct val     *l, *r;
@@ -466,7 +527,7 @@ eval1(void)
 }
 
 /* Parse and evaluate | expressions */
-struct val *
+static struct val *
 eval0(void)
 {
 	struct val     *l, *r;
@@ -489,29 +550,46 @@ eval0(void)
 
 
 int
-main(int argc, char *argv[])
+kmk_builtin_expr(int argc, char *argv[], char **envp)
 {
 	struct val     *vp;
+	int rval;
 
+	/* re-init globals */
+	token = 0;
+	tokval = 0;
+	av = 0;
+	expr_mem_init();
+
+#ifdef kmk_builtin_expr /* kmk already does this. */
 	(void) setlocale(LC_ALL, "");
+#endif
 
 	if (argc > 1 && !strcmp(argv[1], "--"))
 		argv++;
 
 	av = argv + 1;
 
-	nexttoken(0);
-	vp = eval0();
+	rval = setjmp(g_expr_jmp);
+	if (!rval) {
+		nexttoken(0);
+		vp = eval0();
+	
+		if (token != EOI) {
+			error();
+			/* NOTREACHED */
+		}
+	
+		if (vp->type == integer)
+			printf("%d\n", vp->u.i);
+		else
+			printf("%s\n", vp->u.s);
+	
+		rval = is_zero_or_null(vp);
+	} 
+	/* else: longjmp */
 
-	if (token != EOI) {
-		error();
-		/* NOTREACHED */
-	}
-
-	if (vp->type == integer)
-		printf("%d\n", vp->u.i);
-	else
-		printf("%s\n", vp->u.s);
-
-	exit(is_zero_or_null(vp));
+	/* cleanup */
+	expr_mem_cleanup();
+	return rval;
 }

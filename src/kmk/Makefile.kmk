@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1705 2008-09-02 03:17:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1707 2008-09-02 04:06:42Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -212,6 +212,7 @@ kmk_SOURCES += \
 	kmkbuiltin/cp.c \
 	kmkbuiltin/cp_utils.c \
 	kmkbuiltin/echo.c \
+	kmkbuiltin/expr.c \
 	kmkbuiltin/install.c \
 	kmkbuiltin/kDepIDB.c \
 	kmkbuiltin/md5sum.c \
@@ -241,6 +242,7 @@ PROGRAMS += \
 	kmk_cp \
 	kmk_cmp \
 	kmk_echo \
+	kmk_expr \
 	kmk_md5sum \
 	kmk_mkdir \
 	kmk_mv \
@@ -286,6 +288,11 @@ kmk_echo_TEMPLATE = BIN-KMK
 kmk_echo_DEFS = kmk_builtin_echo=main
 kmk_echo_SOURCES = \
 	kmkbuiltin/echo.c
+
+kmk_expr_TEMPLATE = BIN-KMK
+kmk_expr_DEFS = kmk_builtin_expr=main
+kmk_expr_SOURCES = \
+	kmkbuiltin/expr.c
 
 kmk_install_TEMPLATE = BIN-KMK
 kmk_install_DEFS = kmk_builtin_install=main
