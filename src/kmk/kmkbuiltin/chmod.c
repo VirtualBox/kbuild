@@ -38,25 +38,43 @@ static char const copyright[] =
 static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #endif /* not lint */
 #endif
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/bin/chmod/chmod.c,v 1.33 2005/01/10 08:39:20 imp Exp $");
+/*#include <sys/cdefs.h> */
+/*__FBSDID("$FreeBSD: src/bin/chmod/chmod.c,v 1.33 2005/01/10 08:39:20 imp Exp $");*/
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <err.h>
+#include "err.h"
 #include <errno.h>
 #include <fts.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#ifndef _MSC_VER
+# include <unistd.h>
+#else
+# include "mscfakes.h"
+#endif 
+#include "getopt.h"
+#include "kmkbuiltin.h"
 
-void usage(void);
+#if defined(__APPLE__) && !defined(_DARWIN_FEATURE_UNIX_CONFORMANCE)
+extern int lchmod(const char *, mode_t);
+#endif
+
+static int usage(FILE *);
+
+static struct option long_options[] =
+{
+    { "help",   					no_argument, 0, 261 },
+    { "version",   					no_argument, 0, 262 },
+    { 0, 0,	0, 0 },
+};
+
 
 int
-main(int argc, char *argv[])
+kmk_builtin_chmod(int argc, char *argv[], char **envp)
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -67,9 +85,16 @@ main(int argc, char *argv[])
 	mode_t newmode;
 	int (*change_mode)(const char *, mode_t);
 
+	/* kmk: reset getopt and set progname */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+	optind = 0; /* init */
+
 	set = NULL;
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRXfghorstuvwx")) != -1)
+	while ((ch = getopt_long(argc, argv, "HLPRXfghorstuvwx", long_options, NULL)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -115,20 +140,25 @@ main(int argc, char *argv[])
 		case 'v':
 			vflag++;
 			break;
+		case 261:
+			usage(stdout);
+			return 0;
+		case 262:
+			return kbuild_version(argv[0]);
 		case '?':
 		default:
-			usage();
+			return usage(stderr);
 		}
 done:	argv += optind;
 	argc -= optind;
 
 	if (argc < 2)
-		usage();
+		return usage(stderr);
 
 	if (Rflag) {
 		fts_options = FTS_PHYSICAL;
 		if (hflag)
-			errx(1,
+			return errx(1,
 		"the -R and -h options may not be specified together.");
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -146,10 +176,10 @@ done:	argv += optind;
 
 	mode = *argv;
 	if ((set = setmode(mode)) == NULL)
-		errx(1, "invalid file mode: %s", mode);
+		return errx(1, "invalid file mode: %s", mode);
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
-		err(1, "fts_open");
+		return err(1, "fts_open");
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
@@ -207,15 +237,20 @@ done:	argv += optind;
 		}
 	}
 	if (errno)
-		err(1, "fts_read");
+		rval = err(1, "fts_read");
 	free(set);
-	exit(rval);
+	fts_close(ftsp);
+	return rval;
 }
 
-void
-usage(void)
+int
+usage(FILE *out)
 {
-	(void)fprintf(stderr,
-	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...\n");
-	exit(1);
+	(void)fprintf(out,
+	    "usage: %s [-fhv] [-R [-H | -L | -P]] mode file ...\n"
+	    "   or: %s --version\n"
+	    "   or: %s --help\n",
+	    g_progname, g_progname, g_progname);
+
+	return 1;
 }
