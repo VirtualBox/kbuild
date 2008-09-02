@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1707 2008-09-02 04:06:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1715 2008-09-02 23:05:55Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -157,6 +157,7 @@ kmk_DEFS = \
 	CONFIG_WITH_XARGS \
 	CONFIG_WITH_NANOTS \
 	CONFIG_WITH_SET_CONDITIONALS \
+	CONFIG_WITH_IF_CONDITIONALS \
 	CONFIG_WITH_DATE \
 	CONFIG_WITH_FILE_SIZE \
 	CONFIG_WITH_WHICH \
@@ -175,6 +176,7 @@ kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
 kmk_SOURCES = \
 	main.c \
 	read.c \
+	ifcond.c \
 	hash.c \
 	strcache.c \
 	variable.c \
