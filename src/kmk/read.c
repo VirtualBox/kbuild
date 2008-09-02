@@ -1997,11 +1997,15 @@ static int
 conditional_line (char *line, int len, const struct floc *flocp)
 {
   char *cmdname;
+  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, 
 #ifdef CONFIG_WITH_SET_CONDITIONALS
-  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, c_if1of, c_ifn1of, c_else, c_endif } cmdtype;
-#else
-  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, c_else, c_endif } cmdtype;
+    c_if1of, c_ifn1of, 
 #endif
+#ifdef CONFIG_WITH_IF_CONDITIONALS
+    c_ifcond,
+#endif
+    c_else, c_endif 
+  } cmdtype;
   unsigned int i;
   unsigned int o;
 
@@ -2018,6 +2022,9 @@ conditional_line (char *line, int len, const struct floc *flocp)
   else chkword ("if1of", c_if1of)
   else chkword ("ifn1of", c_ifn1of)
 #endif
+#ifdef CONFIG_WITH_IF_CONDITIONALS
+  else chkword ("if", c_ifcond)
+#endif 
   else chkword ("else", c_else)
   else chkword ("endif", c_endif)
   else
@@ -2156,6 +2163,15 @@ conditional_line (char *line, int len, const struct floc *flocp)
 
       free (var);
     }
+#ifdef CONFIG_WITH_IF_CONDITIONALS
+  else if (cmdtype == c_ifcond)
+    {
+      int rval = ifcond_eval (line, flocp);
+      if (rval == -1)
+          return rval;
+      conditionals->ignoring[o] = rval;
+    }
+#endif
   else
     {
 #ifdef CONFIG_WITH_SET_CONDITIONALS
