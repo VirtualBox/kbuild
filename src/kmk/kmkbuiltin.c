@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 1705 2008-09-02 03:17:42Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 1707 2008-09-02 04:06:42Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -211,6 +211,8 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
         rc = kmk_builtin_chmod(argc, argv, environ);
     else if (!strcmp(pszCmd, "cp"))
         rc = kmk_builtin_cp(argc, argv, environ);
+    else if (!strcmp(pszCmd, "expr"))
+        rc = kmk_builtin_expr(argc, argv, environ);
     else if (!strcmp(pszCmd, "ln"))
         rc = kmk_builtin_ln(argc, argv, environ);
     else if (!strcmp(pszCmd, "md5sum"))
