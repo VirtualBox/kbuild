@@ -73,3 +73,21 @@ int vasprintf(char **strp, const char *fmt, va_list va)
     return rc;
 }
 
+
+
+int sol_lchmod(const char *pszPath, mode_t mode)
+{
+    /*
+     * Weed out symbolic links.
+     */
+    struct stat s;
+    if (    !lstat(pszPath, &s)
+        &&  S_ISLNK(s.st_mode))
+    {
+        errno = -ENOSYS;
+        return -1;
+    }
+
+    return chmod(pszPath, mode);
+}
+
