@@ -1,0 +1,69 @@
+# $Id: testcase-2ndtargetexp.kmk 1701 2008-09-02 02:06:18Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - testcase for the 2nd target expansion feature.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+DEPTH = ../..
+include $(PATH_KBUILD)/header.kmk
+
+#
+# Enable it.
+#
+.SECONDTARGETEXPANSION:
+
+
+#
+# This is expanded immediately.
+#
+foo1 = foo1
+$(foo1):
+	$(if $(eq $@,foo1),$(ECHO) "foo1 works",$(ECHO) "foo1 is busted @=$@"; exit 1)
+
+# Mostly for making sure the ifeq test works below.
+flush_command_recoding := 1 # see record_waiting_files() in read.c
+ifeq ($(strip $(commands foo1)),)
+$(error No commands for foo1: $(commands foo1))
+endif
+
+
+#
+# This is expanded in the 2nd round.
+#
+$$(foo2):
+	$(if $(eq $@,foo2),$(ECHO) "foo2 works",$(ECHO) "foo2 is busted @=$@"; exit 1)
+
+# Check that a $(foo2) file exists.
+flush_command_recoding := 1 # see record_waiting_files() in read.c
+# $ (info $$(foo2) commands: $(commands $$(foo2)))
+ifeq ($(strip $(commands $$(foo2))),)
+$(error No commands for $$(foo2): $(commands $$(foo2)))
+endif
+
+
+all_recursive: foo1 foo2
+	$(ECHO) "2nd target expansion passes smoke testing"
+
+# define this last
+foo2 = foo2
+

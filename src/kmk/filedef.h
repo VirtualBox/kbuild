@@ -106,6 +106,12 @@ struct file
     unsigned int multi_maybe:1; /* Nonzero if this file isn't always updated
                                    by the explicit multi target rule. */
 #endif
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION	  
+    unsigned int need_2nd_target_expansion:1; /* Nonzero if this file needs 
+                                  second expansion of its name. Whether it
+                                  can receive this is decided at parse time,
+                                  and the expanding done in snap_deps. */
+#endif
 
   };
 

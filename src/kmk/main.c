@@ -558,6 +558,13 @@ int posix_pedantic;
 
 int second_expansion;
 
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+/* Nonzero if we have seen the '.SECONDTARGETEXPANSION' target.
+   This turns on secondary expansion of targets.  */
+
+int second_target_expansion;
+#endif
+
 #ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
 /* Nonzero if we have seen the `.NOTPARALLEL' target.
    This turns off parallel builds for this invocation of make.  */
