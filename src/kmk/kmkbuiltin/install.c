@@ -82,8 +82,8 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include "kmkbuiltin.h"
 
 
-extern void * setmode(const char *p);
-extern mode_t getmode(const void *bbox, mode_t omode);
+extern void * bsd_setmode(const char *p);
+extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 
 #ifndef __unused
 # define __unused
@@ -208,14 +208,10 @@ kmk_builtin_install(int argc, char *argv[], char **envp)
 			nommap = 1;
 			break;
                 case 'm':
-#ifdef __EMX__
 			if (!(set = bsd_setmode(optarg)))
-#else
-			if (!(set = setmode(optarg)))
-#endif
 				return errx(EX_USAGE, "invalid file mode: %s",
 				            optarg);
-			mode = getmode(set, 0);
+			mode = bsd_getmode(set, 0);
 			free(set);
 			break;
 		case 'o':

@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 1321 2007-12-02 10:28:19Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 1710 2008-09-02 21:50:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -39,10 +39,215 @@
 #undef timeval
 
 
+/**
+ * Makes corrections to a directory path that ends with a trailing slash.
+ *
+ * @returns temporary buffer to free.
+ * @param   ppszPath    The path pointer. This is updated when necessary.
+ * @param   pfMustBeDir This is set if it must be a directory, otherwise it's cleared.
+ */
+static char *
+msc_fix_path(const char **ppszPath, int *pfMustBeDir)
+{
+    const char *pszPath = *ppszPath;
+    const char *psz;
+    char *pszNew;
+    *pfMustBeDir = 0;
+
+    /*
+     * Skip any compusory trailing slashes
+     */
+    if (pszPath[0] == '/' || pszPath[0] == '\\')
+    {
+        if (   (pszPath[1] == '/' || pszPath[1] == '\\')
+            &&  pszPath[2] != '/'
+            &&  pszPath[2] != '\\')
+            /* unc */
+            pszPath += 2;
+        else
+            /* root slash(es) */
+            pszPath++;
+    }
+    else if (   isalpha(pszPath[0])
+             && pszPath[1] == ':')
+    {
+        if (pszPath[2] == '/' || pszPath[2] == '\\')
+            /* drive w/ slash */
+            pszPath += 3;
+        else
+            /* drive relative path. */
+            pszPath += 2;
+    }
+    /* else: relative path, no skipping necessary. */
+
+    /*
+     * Any trailing slashes to drop off?
+     */
+    psz = strchr(pszPath, '\0');
+    if (pszPath <= psz)
+        return NULL;
+    if (   psz[-1] != '/'
+        || psz[-1] != '\\')
+        return NULL;
+
+    /* figure how many, make a copy and strip them off. */
+    while (     psz > pszPath
+           &&   (   psz[-1] == '/'
+                 || psz[-1] == '\\'))
+        psz--;
+    pszNew = strdup(pszPath);
+    pszNew[psz - pszPath] = '\0';
+
+    *pfMustBeDir = 1;
+    *ppszPath = pszNew; /* use this one */
+    return pszNew;
+}
+
+
+static int
+msc_set_errno(DWORD dwErr)
+{
+    switch (dwErr)
+    {
+        default:
+        case ERROR_INVALID_FUNCTION:        errno = EINVAL; break;
+        case ERROR_FILE_NOT_FOUND:          errno = ENOENT; break;
+        case ERROR_PATH_NOT_FOUND:          errno = ENOENT; break;
+        case ERROR_TOO_MANY_OPEN_FILES:     errno = EMFILE; break;
+        case ERROR_ACCESS_DENIED:           errno = EACCES; break;
+        case ERROR_INVALID_HANDLE:          errno = EBADF; break;
+        case ERROR_ARENA_TRASHED:           errno = ENOMEM; break;
+        case ERROR_NOT_ENOUGH_MEMORY:       errno = ENOMEM; break;
+        case ERROR_INVALID_BLOCK:           errno = ENOMEM; break;
+        case ERROR_BAD_ENVIRONMENT:         errno = E2BIG; break;
+        case ERROR_BAD_FORMAT:              errno = ENOEXEC; break;
+        case ERROR_INVALID_ACCESS:          errno = EINVAL; break;
+        case ERROR_INVALID_DATA:            errno = EINVAL; break;
+        case ERROR_INVALID_DRIVE:           errno = ENOENT; break;
+        case ERROR_CURRENT_DIRECTORY:       errno = EACCES; break;
+        case ERROR_NOT_SAME_DEVICE:         errno = EXDEV; break;
+        case ERROR_NO_MORE_FILES:           errno = ENOENT; break;
+        case ERROR_LOCK_VIOLATION:          errno = EACCES; break;
+        case ERROR_BAD_NETPATH:             errno = ENOENT; break;
+        case ERROR_NETWORK_ACCESS_DENIED:   errno = EACCES; break;
+        case ERROR_BAD_NET_NAME:            errno = ENOENT; break;
+        case ERROR_FILE_EXISTS:             errno = EEXIST; break;
+        case ERROR_CANNOT_MAKE:             errno = EACCES; break;
+        case ERROR_FAIL_I24:                errno = EACCES; break;
+        case ERROR_INVALID_PARAMETER:       errno = EINVAL; break;
+        case ERROR_NO_PROC_SLOTS:           errno = EAGAIN; break;
+        case ERROR_DRIVE_LOCKED:            errno = EACCES; break;
+        case ERROR_BROKEN_PIPE:             errno = EPIPE; break;
+        case ERROR_DISK_FULL:               errno = ENOSPC; break;
+        case ERROR_INVALID_TARGET_HANDLE:   errno = EBADF; break;
+        case ERROR_WAIT_NO_CHILDREN:        errno = ECHILD; break;
+        case ERROR_CHILD_NOT_COMPLETE:      errno = ECHILD; break;
+        case ERROR_DIRECT_ACCESS_HANDLE:    errno = EBADF; break;
+        case ERROR_NEGATIVE_SEEK:           errno = EINVAL; break;
+        case ERROR_SEEK_ON_DEVICE:          errno = EACCES; break;
+        case ERROR_DIR_NOT_EMPTY:           errno = ENOTEMPTY; break;
+        case ERROR_NOT_LOCKED:              errno = EACCES; break;
+        case ERROR_BAD_PATHNAME:            errno = ENOENT; break;
+        case ERROR_MAX_THRDS_REACHED:       errno = EAGAIN; break;
+        case ERROR_LOCK_FAILED:             errno = EACCES; break;
+        case ERROR_ALREADY_EXISTS:          errno = EEXIST; break;
+        case ERROR_FILENAME_EXCED_RANGE:    errno = ENOENT; break;
+        case ERROR_NESTING_NOT_ALLOWED:     errno = EAGAIN; break;
+    }
+
+    return -1;
+}
+
 char *dirname(char *path)
 {
     /** @todo later */
     return path;
+}
+
+
+int lchmod(const char *pszPath, mode_t mode)
+{
+    int rc = 0;
+    int fMustBeDir;
+    char *pszPathFree = msc_fix_path(&pszPath, &fMustBeDir);
+
+    /*
+     * Get the current attributes
+     */
+    DWORD fAttr = GetFileAttributes(pszPath);
+    if (fAttr == INVALID_FILE_ATTRIBUTES)
+        rc = msc_set_errno(GetLastError());
+    else if (fMustBeDir & !(fAttr & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        errno = ENOTDIR;
+        rc = -1;
+    }
+    else
+    {
+        /*
+         * Modify the attributes and try set them.
+         */
+        if (mode & _S_IWRITE)
+            fAttr &= ~FILE_ATTRIBUTE_READONLY;
+        else
+            fAttr |= FILE_ATTRIBUTE_READONLY;
+        if (!SetFileAttributes(pszPath, fAttr))
+            rc = msc_set_errno(GetLastError());
+    }
+
+    if (pszPathFree)
+    {
+        int saved_errno = errno;
+        free(pszPathFree);
+        errno = saved_errno;
+    }
+    return rc;
+}
+
+
+int msc_chmod(const char *pszPath, mode_t mode)
+{
+    int rc = 0;
+    int saved_errno;
+    int fMustBeDir;
+    char *pszPathFree = msc_fix_path(&pszPath, &fMustBeDir);
+
+    /*
+     * Get the current attributes.
+     */
+    DWORD fAttr = GetFileAttributes(pszPath);
+    if (fAttr == INVALID_FILE_ATTRIBUTES)
+        rc = msc_set_errno(GetLastError());
+    else if (fMustBeDir & !(fAttr & FILE_ATTRIBUTE_DIRECTORY))
+    {
+        errno = ENOTDIR;
+        rc = -1;
+    }
+    else if (fAttr & FILE_ATTRIBUTE_REPARSE_POINT)
+    {
+        errno = ENOSYS; /** @todo resolve symbolic link / rewrite to NtSetInformationFile. */
+        rc = -1;
+    }
+    else
+    {
+        /*
+         * Modify the attributes and try set them.
+         */
+        if (mode & _S_IWRITE)
+            fAttr &= ~FILE_ATTRIBUTE_READONLY;
+        else
+            fAttr |= FILE_ATTRIBUTE_READONLY;
+        if (!SetFileAttributes(pszPath, fAttr))
+            rc = msc_set_errno(GetLastError());
+    }
+
+    if (pszPathFree)
+    {
+        int saved_errno = errno;
+        free(pszPathFree);
+        errno = saved_errno;
+    }
+    return rc;
 }
 
 

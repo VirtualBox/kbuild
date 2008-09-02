@@ -71,8 +71,8 @@ static struct option long_options[] =
 };
 
 
-extern void * setmode(const char *p);
-extern mode_t getmode(const void *bbox, mode_t omode);
+extern void * bsd_setmode(const char *p);
+extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 
 static int	build(char *, mode_t);
 static int	usage(FILE *);
@@ -126,9 +126,9 @@ kmk_builtin_mkdir(int argc, char *argv[], char **envp)
 	if (mode == NULL) {
 		omode = S_IRWXU | S_IRWXG | S_IRWXO;
 	} else {
-		if ((set = setmode(mode)) == NULL)
+		if ((set = bsd_setmode(mode)) == NULL)
                         return errx(1, "invalid file mode: %s", mode);
-		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
+		omode = bsd_getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 		free(set);
 	}
 

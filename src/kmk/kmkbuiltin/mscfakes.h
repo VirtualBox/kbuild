@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 1321 2007-12-02 10:28:19Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 1710 2008-09-02 21:50:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Unix fakes for MSC.
@@ -26,13 +26,11 @@
 #define __mscfakes_h__
 #ifdef _MSC_VER
 
-#define setmode setmode_msc
 #include <io.h>
 #include <direct.h>
 #include <time.h>
 #include <stdarg.h>
 #include <malloc.h>
-#undef setmode
 #include "getopt.h"
 
 #if defined(MSC_DO_64_BIT_IO) && _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
@@ -124,7 +122,9 @@ char *dirname(char *path);
 #define geteuid()  0
 #define getegid()  0
 #define lstat(path, s) stat(path, s)
-#define lchmod(path, mod) chmod(path, mod)
+int lchmod(const char *path, mode_t mode);
+int msc_chmod(const char *path, mode_t mode);
+#define chmod msc_chmod
 #define lchown(path, uid, gid) chown(path, uid, gid)
 #define lutimes(path, tvs) utimes(path, tvs)
 int link(const char *pszDst, const char *pszLink);

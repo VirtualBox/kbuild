@@ -96,9 +96,7 @@ static int	copy(char *, char *);
 #endif
 static int	usage(FILE *);
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
-extern void strmode(mode_t mode, char *p);
-#endif
+extern void bsd_strmode(mode_t mode, char *p);
 
 #if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__)
 # ifdef __OS2__
@@ -257,7 +255,7 @@ do_move(char *from, char *to)
 			(void)fprintf(stderr, "overwrite %s? %s", to, YESNO);
 			ask = 1;
 		} else if (access(to, W_OK) && !stat(to, &sb)) {
-			strmode(sb.st_mode, modep);
+			bsd_strmode(sb.st_mode, modep);
 			(void)fprintf(stderr, "override %s%s%s/%s for %s? %s",
 			    modep + 1, modep[9] == ' ' ? "" : " ",
 			    user_from_uid((unsigned long)sb.st_uid, 0),
