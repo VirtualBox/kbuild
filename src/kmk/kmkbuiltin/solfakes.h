@@ -31,7 +31,7 @@
 #define _PATH_DEVNULL "/dev/null"
 #define ALLPERMS 0000777
 #define lutimes(path, tvs) utimes(path, tvs)
-#define lchmod(path, mod) chmod(path, mod)
+#define lchmod sol_lchmod
 #define MAX(a,b) ((a) >= (b) ? (a) : (b))
 #ifndef USHRT_MAX
 # define USHRT_MAX 65535
@@ -39,6 +39,7 @@
 
 int vasprintf(char **strp, const char *fmt, va_list va);
 int asprintf(char **strp, const char *fmt, ...);
+int sol_lchmod(const char *pszPath, mode_t mode);
 
 #endif /* __sun__ */
 #endif /* __solfakes_h__ */

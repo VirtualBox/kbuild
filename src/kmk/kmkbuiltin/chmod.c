@@ -51,10 +51,13 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
+#ifdef _MSC_VER
 # include <unistd.h>
 #else
 # include "mscfakes.h"
+#endif
+#ifdef __sun__
+# include "solfakes.h"
 #endif
 #include "getopt.h"
 #include "kmkbuiltin.h"
