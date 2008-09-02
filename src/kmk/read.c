@@ -2520,6 +2520,10 @@ record_files (struct nameseq *filenames, const char *pattern,
         posix_pedantic = 1;
       else if (streq (name, ".SECONDEXPANSION"))
         second_expansion = 1;
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+      else if (streq (name, ".SECONDTARGETEXPANSION"))
+        second_target_expansion = 1;
+#endif
 
       implicit_percent = find_percent_cached (&name);
       implicit |= implicit_percent != 0;

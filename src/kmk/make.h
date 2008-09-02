@@ -498,6 +498,9 @@ extern int env_overrides, no_builtin_rules_flag, no_builtin_variables_flag;
 extern int print_version_flag, print_directory_flag, check_symlink_flag;
 extern int warn_undefined_variables_flag, posix_pedantic, not_parallel;
 extern int second_expansion, clock_skew_detected, rebuilding_makefiles;
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+extern int second_target_expansion;
+#endif
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
 extern int pretty_command_printing;
 #endif

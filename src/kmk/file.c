@@ -189,6 +189,12 @@ enter_file (const char *name)
       f->last = new;
     }
 
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+  /* Check if the name needs 2nd expansion or not. */
+  if (second_target_expansion && strchr (name, '$') != NULL)
+    new->need_2nd_target_expansion = 1;
+#endif 
+
   return new;
 }
 
@@ -331,6 +337,19 @@ rename_file (struct file *from_file, const char *to_hname)
       from_file = from_file->prev;
     }
 }
+
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+/* Performs secondary target name expansion and then renames
+   the file using rename_file. */
+static void 
+do_2nd_target_expansion (struct file *f)
+{
+   char *tmp_name = allocated_variable_expand (f->name);
+   const char *name = strcache_add (tmp_name);
+   free (tmp_name);
+   rename_file (f, name);
+}
+#endif /* CONFIG_WITH_2ND_TARGET_EXPANSION */
 
 /* Remove all nonprecious intermediate files.
    If SIG is nonzero, this was caused by a fatal signal,
@@ -649,6 +668,23 @@ snap_deps (void)
   /* Expand .SUFFIXES first; it's dependencies are used for $$* calculation. */
   for (f = lookup_file (".SUFFIXES"); f != 0; f = f->prev)
     expand_deps (f);
+
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+  /* Perform 2nd target expansion on files which requires this. This will
+     be re-inserting (delete+insert) hash table entries so we have to use
+     hash_dump(). */
+  file_slot_0 = (struct file **) hash_dump (&files, 0, 0);
+  file_end = file_slot_0 + files.ht_fill;
+  for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
+    for (f = *file_slot; f != 0; f = f->prev)
+      if (f->need_2nd_target_expansion)
+        do_2nd_target_expansion (f);
+  free (file_slot_0);
+
+  /* Disable second target expansion now since we won't expand files
+     entered after this point. (saves CPU cycles in enter_file()). */
+  second_target_expansion = 0;
+#endif /* CONFIG_WITH_2ND_TARGET_EXPANSION */
 
   /* For every target that's not .SUFFIXES, expand its dependencies.
      We must use hash_dump (), because within this loop we might add new files

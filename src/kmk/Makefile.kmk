@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1694 2008-08-31 19:48:24Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1701 2008-09-02 02:06:18Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -136,6 +136,7 @@ kmk_DEFS = \
 	CONFIG_WITH_EXPLICIT_MULTITARGET \
 	CONFIG_WITH_PREPEND_ASSIGNMENT \
 	CONFIG_WITH_LOCAL_VARIABLES \
+	CONFIG_WITH_2ND_TARGET_EXPANSION \
 	\
 	KMK \
 	KMK_HELPERS \
@@ -475,6 +476,9 @@ test_local:
 test_includedep:
 	$(MAKE) -f $(kmk_PATH)/testcase-includedep.kmk
 
+test_2ndtargetexp:
+	$(MAKE) -f $(kmk_PATH)/testcase-2ndtargetexp.kmk
+
 test_30_continued_on_failure_worker:
 	this_executable_does_not_exist.exe
 	echo "We shouldn't see this..."
@@ -490,5 +494,5 @@ test_30_continued_on_failure:
 	fi
 
 
-test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_30_continued_on_failure
+test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_2ndtargetexp test_30_continued_on_failure
 
