@@ -28,7 +28,7 @@ static int		 to_integer(struct val *);
 static void		 to_string(struct val *);
 static int		 is_zero_or_null(struct val *);
 static void		 nexttoken(int);
-static __dead void	 error(void);
+static void	 	 error(void);
 static struct val	*eval6(void);
 static struct val	*eval5(void);
 static struct val	*eval4(void);
