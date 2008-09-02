@@ -1,4 +1,4 @@
-# $Id: header.kmk 1692 2008-08-31 17:32:27Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1702 2008-09-02 02:20:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1692 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1702 $  )
 
 
 #
@@ -720,7 +720,7 @@ PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME SONAME
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_R := \
-	DEPS ORDERDEPS DEFS \
+	DEPS LNK_DEPS ORDERDEPS LNK_ORDERDEPS DEFS \
 	ARFLAGS \
 	CFLAGS CDEFS \
 	CXXFLAGS CXXDEFS \
@@ -733,7 +733,7 @@ PROPS_ACCUMULATE_R := \
 ## PROPS_ACCUMULATE_R_LNK
 # Subset of PROPS_ACCUMULATE_R which applies to all linkable targets.
 PROPS_ACCUMULATE_R_LNK := \
-	DEPS ORDERDEPS DEFS \
+	DEPS LNK_DEPS ORDERDEPS LNK_ORDERDEPS DEFS \
 	CFLAGS CDEFS \
 	CXXFLAGS CXXDEFS \
 	OBJCFLAGS OBJCDEFS \

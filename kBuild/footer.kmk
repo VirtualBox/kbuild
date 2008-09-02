@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1697 2008-08-31 21:10:56Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1702 2008-09-02 02:20:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2236,8 +2236,40 @@ local flags       :=\
 	$($(target)_ARFLAGS.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_ARFLAGS.$(bld_trg_cpu))
 local dirdep      := $(call DIRDEP,$(dir $(out)))
-local deps        := $($(target)_DEPS)
-local orderdeps   := $($(target)_ORDERDEPS)
+local deps        := \
+	$($(target)_DEPS.$(bld_trg_cpu)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg)) \
+	$($(target)_DEPS.$(bld_type)) \
+	$($(target)_DEPS) \
+	$($(target)_LNK_DEPS.$(bld_trg_cpu)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_LNK_DEPS.$(bld_trg_arch)) \
+	$($(target)_LNK_DEPS.$(bld_trg)) \
+	$($(target)_LNK_DEPS.$(bld_type)) \
+	$($(target)_LNK_DEPS)
+local orderdeps   := \
+	$($(target)_ORDERDEPS.$(bld_trg_cpu)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg)) \
+	$($(target)_ORDERDEPS.$(bld_type)) \
+	$($(target)_ORDERDEPS) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg_cpu)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg_arch)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
@@ -2249,6 +2281,7 @@ endif
 
 
 # Custom pre-link actions.
+## @todo bld_trg_cpu is missing here.
 ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type)
  local pre_cmds := $($(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch).$(bld_type))
 else ifdef $(target)_PRE_CMDS.$(bld_trg).$(bld_trg_arch)
@@ -2563,8 +2596,40 @@ local libpath    :=\
 	$(TOOL_$(tool)_LIBPATH.$(bld_type))\
 	$(TOOL_$(tool)_LIBPATH)
 local dirdep      := $(call DIRDEP,$(dir $(out)))
-local deps        := $($(target)_DEPS)
-local orderdeps   := $($(target)_ORDERDEPS)
+local deps        := \
+	$($(target)_DEPS.$(bld_trg_cpu)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg)) \
+	$($(target)_DEPS.$(bld_type)) \
+	$($(target)_DEPS) \
+	$($(target)_LNK_DEPS.$(bld_trg_cpu)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_LNK_DEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_LNK_DEPS.$(bld_trg_arch)) \
+	$($(target)_LNK_DEPS.$(bld_trg)) \
+	$($(target)_LNK_DEPS.$(bld_type)) \
+	$($(target)_LNK_DEPS)
+local orderdeps   := \
+	$($(target)_ORDERDEPS.$(bld_trg_cpu)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg)) \
+	$($(target)_ORDERDEPS.$(bld_type)) \
+	$($(target)_ORDERDEPS) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg_cpu)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg_arch)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_trg)) \
+	$($(target)_LNK_ORDERDEPS.$(bld_type)) \
+	$($(target)_LNK_ORDERDEPS)
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
