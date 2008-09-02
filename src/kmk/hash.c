@@ -114,7 +114,7 @@ hash_find_slot (struct hash_table *ht, const void *key)
 	    return slot;
 	  ht->ht_collisions++;
 #ifdef CONFIG_WITH_MAKE_STATS
-    make_stats_ht_collisions++;
+	  make_stats_ht_collisions++;
 #endif
 	}
       if (!hash_2)
