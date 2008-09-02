@@ -55,9 +55,13 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 # include <unistd.h>
 #else
 # include "mscfakes.h"
-#endif 
+#endif
 #include "getopt.h"
 #include "kmkbuiltin.h"
+
+extern void * bsd_setmode(const char *p);
+extern mode_t bsd_getmode(const void *bbox, mode_t omode);
+extern void bsd_strmode(mode_t mode, char *p);
 
 #if defined(__APPLE__) && !defined(_DARWIN_FEATURE_UNIX_CONFORMANCE)
 extern int lchmod(const char *, mode_t);
@@ -175,7 +179,7 @@ done:	argv += optind;
 		change_mode = chmod;
 
 	mode = *argv;
-	if ((set = setmode(mode)) == NULL)
+	if ((set = bsd_setmode(mode)) == NULL)
 		return errx(1, "invalid file mode: %s", mode);
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
@@ -209,7 +213,7 @@ done:	argv += optind;
 		default:
 			break;
 		}
-		newmode = getmode(set, p->fts_statp->st_mode);
+		newmode = bsd_getmode(set, p->fts_statp->st_mode);
 		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
 			continue;
 		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
@@ -222,8 +226,8 @@ done:	argv += optind;
 				if (vflag > 1) {
 					char m1[12], m2[12];
 
-					strmode(p->fts_statp->st_mode, m1);
-					strmode((p->fts_statp->st_mode &
+					bsd_strmode(p->fts_statp->st_mode, m1);
+					bsd_strmode((p->fts_statp->st_mode &
 					    S_IFMT) | newmode, m2);
 
 					(void)printf(": 0%o [%s] -> 0%o [%s]",

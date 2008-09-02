@@ -47,14 +47,14 @@ __RCSID("$NetBSD: strmode.c,v 1.16 2004/06/20 22:20:15 jmc Exp $");
 #include <unistd.h>
 #else
 #include "mscfakes.h"
-#endif 
+#endif
 
 #ifndef _DIAGASSERT
 #define _DIAGASSERT assert
-#endif 
+#endif
 
 void
-strmode(mode, p)
+bsd_strmode(mode, p)
 	mode_t mode;
 	char *p;
 {
@@ -73,7 +73,7 @@ strmode(mode, p)
 	case S_IFBLK:			/* block special */
 		*p++ = 'b';
 		break;
-#endif 
+#endif
 	case S_IFREG:			/* regular */
 #ifdef S_ARCH2
 		if ((mode & S_ARCH2) != 0) {
@@ -175,7 +175,7 @@ strmode(mode, p)
 	switch (mode & (S_IXOTH | S_ISVTX)) {
 #else
 	switch (mode & (S_IXOTH)) {
-#endif 
+#endif
 	case 0:
 		*p++ = '-';
 		break;

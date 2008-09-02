@@ -90,9 +90,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #define undelete(s) (-1)
 #endif
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__)
-extern void strmode(mode_t mode, char *p);
-#endif
+extern void bsd_strmode(mode_t mode, char *p);
 
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
 static uid_t uid;
@@ -609,7 +607,7 @@ check(char *path, char *name, struct stat *sp)
 #endif
                     )
 			return (1);
-		strmode(sp->st_mode, modep);
+		bsd_strmode(sp->st_mode, modep);
 #ifdef SF_APPEND
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			exit(err(1, "fflagstostr"));
