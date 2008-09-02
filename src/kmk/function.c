@@ -3643,9 +3643,17 @@ func_commands (char *o, char **argv, const char *funcname)
   static int recursive = 0;
 
   if (recursive)
-    return variable_buffer_output (o, "recursive", sizeof ("recursive") - 1);
+    {
+      error (reading_file, _("$(%s ) was invoked recursivly"), funcname);
+      return variable_buffer_output (o, "recursive", sizeof ("recursive") - 1);
+    }
+  if (*argv[0] == '\0')
+    {
+      error (reading_file, _("$(%s ) was invoked with an empty target name"), funcname);
+      return o;
+    }
   recursive = 1;
-
+  
   file = lookup_file (argv[0]);
   if (file && file->cmds)
     {
@@ -3805,7 +3813,7 @@ func_commands (char *o, char **argv, const char *funcname)
             o = p - cmd_sep_len;
           else
             o = p;
-        }
+        } /* for each command line */
     }
   /* else FIXME: bitch about it? */
 
