@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1715 2008-09-02 23:05:55Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1716 2008-09-03 01:40:13Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -133,6 +133,7 @@ kmk_DEFS = \
 	NO_ARCHIVES \
 	EXPERIMENTAL \
 	CONFIG_WITH_TOUPPER_TOLOWER \
+	CONFIG_WITH_DEFINED \
 	CONFIG_WITH_EXPLICIT_MULTITARGET \
 	CONFIG_WITH_PREPEND_ASSIGNMENT \
 	CONFIG_WITH_LOCAL_VARIABLES \

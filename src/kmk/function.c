@@ -2079,6 +2079,19 @@ func_not (char *o, char **argv, const char *funcname)
 #endif
 
 
+#ifdef CONFIG_WITH_DEFINED
+/* Similar to ifdef. */
+static char *
+func_defined (char *o, char **argv, const char *funcname)
+{
+  struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
+  int result = v != NULL && *v->value != '\0';
+  o = variable_buffer_output (o,  result ? "1" : "", result);
+  return o;
+}
+#endif /* CONFIG_WITH_DEFINED*/
+
+
 /* Return the absolute name of file NAME which does not contain any `.',
    `..' components nor any repeated path separators ('/').   */
 #ifdef KMK
@@ -3908,6 +3921,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
 #endif
+#ifdef CONFIG_WITH_DEFINED
+  { STRING_SIZE_TUPLE("defined"),       1,  1,  1,  func_defined},
+#endif 
 #ifdef CONFIG_WITH_TOUPPER_TOLOWER
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},
