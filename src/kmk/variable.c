@@ -1206,6 +1206,7 @@ define_automatic_variables (void)
 # if defined (CONFIG_WITH_RSORT) \
   && defined (CONFIG_WITH_ABSPATHEX) \
   && defined (CONFIG_WITH_TOUPPER_TOLOWER) \
+  && defined (CONFIG_WITH_DEFINED) \
   && defined (CONFIG_WITH_VALUE_LENGTH) && defined (CONFIG_WITH_COMPARE) \
   && defined (CONFIG_WITH_STACK) \
   && defined (CONFIG_WITH_MATH) \
@@ -1225,6 +1226,7 @@ define_automatic_variables (void)
                           " rsort"
                           " abspathex"
                           " toupper tolower"
+                          " defined"
                           " comp-vars comp-cmds comp-cmds-ex"
                           " stack"
                           " math-int"
@@ -1251,6 +1253,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_TOUPPER_TOLOWER)
   strcat (buf, " toupper tolower");
+#  endif
+#  if defined (CONFIG_WITH_DEFINED)
+  strcat (buf, " defined");
 #  endif
 #  if defined (CONFIG_WITH_VALUE_LENGTH) && defined(CONFIG_WITH_COMPARE)
   strcat (buf, " comp-vars comp-cmds comp-cmds-ex");
