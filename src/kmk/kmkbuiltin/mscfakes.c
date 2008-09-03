@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 1710 2008-09-02 21:50:04Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 1717 2008-09-03 13:21:01Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Fake Unix stuff for MSC.
@@ -372,7 +372,7 @@ static DWORD is_directory(const char *pszPath, const char *pszRelativeTo)
 
 int symlink(const char *pszDst, const char *pszLink)
 {
-    static BOOL (WINAPI *s_pfnCreateSymbolicLinkA)(LPCSTR, LPCSTR, DWORD) = 0;
+    static BOOLEAN (WINAPI *s_pfnCreateSymbolicLinkA)(LPCSTR, LPCSTR, DWORD) = 0;
     static BOOL s_fTried = FALSE;
 
     if (!s_fTried)
@@ -387,8 +387,8 @@ int symlink(const char *pszDst, const char *pszLink)
     {
         char *pszDstCopy = fix_slashes(strdup(pszDst));
         char *pszLinkCopy = fix_slashes(strdup(pszLink));
-        BOOL fRc = s_pfnCreateSymbolicLinkA(pszLinkCopy, pszDstCopy,
-                                            is_directory(pszDstCopy, pszLinkCopy));
+        BOOLEAN fRc = s_pfnCreateSymbolicLinkA(pszLinkCopy, pszDstCopy,
+                                               is_directory(pszDstCopy, pszLinkCopy));
         DWORD err = GetLastError();
         free(pszDstCopy);
         free(pszLinkCopy);
