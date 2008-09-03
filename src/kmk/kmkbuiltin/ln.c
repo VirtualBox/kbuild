@@ -193,7 +193,15 @@ linkit(const char *target, const char *source, int isdir)
 	if (isdir ||
 	    (lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
 	    (!hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
+#ifdef _MSC_VER || defined(__OS2__)
+		char *p2 = strrchr(target, '\\');
+		p = strrchr(target, '/');
+		if (p2 != NULL && (p == NULL || p2 > p))
+			p = p2;
+		if (p == NULL)
+#else
 		if ((p = strrchr(target, '/')) == NULL)
+#endif
 			p = target;
 		else
 			++p;
