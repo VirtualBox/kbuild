@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: ifcond.c 1722 2008-09-04 05:37:47Z knut.osmundsen@oracle.com $ */
+/* $Id: ifcond.c 1723 2008-09-04 14:10:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * ifcond - C like if expressions.
  */
@@ -42,7 +42,7 @@
 #include "debug.h"
 #include "hash.h"
 #include <ctype.h>
-#ifdef _MSC_VER
+#ifndef _MSC_VER
 # include <stdint.h>
 #endif
 #include <stdarg.h>
