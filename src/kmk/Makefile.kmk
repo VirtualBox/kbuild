@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1719 2008-09-04 02:49:36Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1722 2008-09-04 05:37:47Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -158,6 +158,7 @@ kmk_DEFS = \
 	CONFIG_WITH_XARGS \
 	CONFIG_WITH_NANOTS \
 	CONFIG_WITH_SET_CONDITIONALS \
+	CONFIG_WITH_IF_CONDITIONALS \
 	CONFIG_WITH_DATE \
 	CONFIG_WITH_FILE_SIZE \
 	CONFIG_WITH_WHICH \

@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: ifcond.c 1721 2008-09-04 03:19:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ifcond.c 1722 2008-09-04 05:37:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * ifcond - C like if expressions.
  */
@@ -88,6 +88,10 @@ typedef enum
     kIfCondVar_String,
     /** A simple string that doesn't need expanding. */
     kIfCondVar_SimpleString,
+    /** A quoted string in need of expanding (perhaps). */
+    kIfCondVar_QuotedString,
+    /** A simple quoted string that doesn't need expanding. */
+    kIfCondVar_QuotedSimpleString,
     /** The end of the valid variable types. */
     kIfCondVar_End
 } IFCONDVARTYPE;
@@ -414,6 +418,19 @@ static int ifcond_var_is_string(PCIFCONDVAR pVar)
 
 
 /**
+ * Checks if the variable contains a string that was quoted
+ * in the expression.
+ *
+ * @returns 1 if if was a quoted string, otherwise 0.
+ * @param   pVar    The variable.
+ */
+static int ifcond_var_was_quoted(PCIFCONDVAR pVar)
+{
+    return pVar->enmType >= kIfCondVar_QuotedString;
+}
+
+
+/**
  * Deletes a variable.
  *
  * @param   pVar    The variable.
@@ -439,11 +456,15 @@ static void ifcond_var_delete(PIFCONDVAR pVar)
  */
 static void ifcond_var_init_substring(PIFCONDVAR pVar, const char *psz, size_t cch, IFCONDVARTYPE enmType)
 {
-    if (    enmType != kIfCondVar_SimpleString
-        &&  memchr(psz, '$', cch))
-        pVar->enmType = kIfCondVar_String;
-    else
-        pVar->enmType = kIfCondVar_SimpleString;
+    /* convert string needing expanding into simple ones if possible.  */
+    if (    enmType == kIfCondVar_String
+        &&  !memchr(psz, '$', cch))
+        enmType = kIfCondVar_SimpleString;
+    else if (   enmType == kIfCondVar_QuotedString
+             && !memchr(psz, '$', cch))
+        enmType = kIfCondVar_QuotedSimpleString;
+
+    pVar->enmType = enmType;
     pVar->uVal.psz = xmalloc(cch + 1);
     memcpy(pVar->uVal.psz, psz, cch);
     pVar->uVal.psz[cch] = '\0';
@@ -513,6 +534,7 @@ static void ifcond_var_make_simple_string(PIFCONDVAR pVar)
         }
 
         case kIfCondVar_String:
+        case kIfCondVar_QuotedString:
         {
             char *psz;
             assert(strchr(pVar->uVal.psz, '$'));
@@ -521,11 +543,14 @@ static void ifcond_var_make_simple_string(PIFCONDVAR pVar)
             free(pVar->uVal.psz);
             pVar->uVal.psz = psz;
 
-            pVar->enmType = kIfCondVar_SimpleString;
+            pVar->enmType = pVar->enmType == kIfCondVar_String
+                          ? kIfCondVar_SimpleString
+                          : kIfCondVar_QuotedSimpleString;
             break;
         }
 
         case kIfCondVar_SimpleString:
+        case kIfCondVar_QuotedSimpleString:
             /* nothing to do. */
             break;
 
@@ -547,9 +572,12 @@ static void ifcond_var_make_string(PIFCONDVAR pVar)
     {
         case kIfCondVar_Num:
             ifcond_var_make_simple_string(pVar);
+            break;
 
         case kIfCondVar_String:
         case kIfCondVar_SimpleString:
+        case kIfCondVar_QuotedString:
+        case kIfCondVar_QuotedSimpleString:
             /* nothing to do. */
             break;
 
@@ -614,8 +642,52 @@ static IFCONDRET ifcond_var_make_num(PIFCOND pThis, PIFCONDVAR pVar)
             break;
         }
 
+        case kIfCondVar_QuotedString:
+        case kIfCondVar_QuotedSimpleString:
+            ifcond_error(pThis, "Cannot convert a quoted string to a number");
+            return kIfCondRet_Error;
+
         default:
             assert(0);
+            return kIfCondRet_Error;
+    }
+
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Try to turn the variable into a number.
+ *
+ * @returns status code.
+ * @param   pVar    The variable.
+ */
+static IFCONDRET ifcond_var_try_make_num(PIFCONDVAR pVar)
+{
+    switch (pVar->enmType)
+    {
+        case kIfCondVar_Num:
+            /* nothing to do. */
+            break;
+
+        case kIfCondVar_String:
+            ifcond_var_make_simple_string(pVar);
+            /* fall thru */
+        case kIfCondVar_SimpleString:
+        {
+            IFCONDINT64 i;
+            IFCONDRET rc = ifcond_string_to_num(NULL, &i, pVar->uVal.psz, 1 /* fQuiet */);
+            if (rc < kIfCondRet_Ok)
+                return rc;
+            ifcond_var_assign_num(pVar, i);
+            break;
+        }
+
+        default:
+            assert(0);
+        case kIfCondVar_QuotedString:
+        case kIfCondVar_QuotedSimpleString:
+            /* can't do this */
             return kIfCondRet_Error;
     }
 
@@ -684,6 +756,17 @@ static int ifcond_var_make_bool(PIFCONDVAR pVar)
             break;
         }
 
+        case kIfCondVar_QuotedString:
+            ifcond_var_make_simple_string(pVar);
+            /* fall thru */
+        case kIfCondVar_QuotedSimpleString:
+            /*
+             * Use GNU make boolean logic (not empty string means true).
+             * No stripping here, the string is quoted.
+             */
+            ifcond_var_assign_bool(pVar, *pVar->uVal.psz != '\0');
+            break;
+
         default:
             assert(0);
             break;
@@ -704,6 +787,204 @@ static void ifcond_pop_and_delete_var(PIFCOND pThis)
 }
 
 
+
+/**
+ * Tries to make the variables the same type.
+ *
+ * This will not convert numbers to strings, unless one of them
+ * is a quoted string.
+ *
+ * this will try convert both to numbers if neither is quoted. Both
+ * conversions will have to suceed for this to be commited.
+ *
+ * All strings will be simplified.
+ *
+ * @returns status code. Done complaining on failure.
+ *
+ * @param   pThis   The evaluator instance.
+ * @param   pVar1   The first variable.
+ * @param   pVar2   The second variable.
+ */
+static IFCONDRET ifcond_var_unify_types(PIFCOND pThis, PIFCONDVAR pVar1, PIFCONDVAR pVar2, const char *pszOp)
+{
+    /*
+     * Try make the variables the same type before comparing.
+     */
+    if (    !ifcond_var_was_quoted(pVar1)
+        &&  !ifcond_var_was_quoted(pVar2))
+    {
+        if (    ifcond_var_is_string(pVar1)
+            ||  ifcond_var_is_string(pVar2))
+        {
+            if (!ifcond_var_is_string(pVar1))
+                ifcond_var_try_make_num(pVar2);
+            else if (!ifcond_var_is_string(pVar2))
+                ifcond_var_try_make_num(pVar1);
+            else
+            {
+                /*
+                 * Both are strings, simplify them then see if both can be made into numbers.
+                 */
+                IFCONDINT64 iVar1;
+                IFCONDINT64 iVar2;
+
+                ifcond_var_make_simple_string(pVar1);
+                ifcond_var_make_simple_string(pVar2);
+
+                if (    ifcond_string_to_num(NULL, &iVar1, pVar1->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok
+                    &&  ifcond_string_to_num(NULL, &iVar2, pVar2->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok)
+                {
+                    ifcond_var_assign_num(pVar1, iVar1);
+                    ifcond_var_assign_num(pVar2, iVar2);
+                }
+            }
+        }
+    }
+    else
+    {
+        ifcond_var_make_simple_string(pVar1);
+        ifcond_var_make_simple_string(pVar2);
+    }
+
+    /*
+     * Complain if they aren't the same type now.
+     */
+    if (ifcond_var_is_string(pVar1) != ifcond_var_is_string(pVar2))
+    {
+        ifcond_error(pThis, "Unable to unify types for \"%s\"", pszOp);
+        return kIfCondRet_Error;
+    }
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Is variable defined, unary.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_defined(PIFCOND pThis)
+{
+    PIFCONDVAR          pVar = &pThis->aVars[pThis->iVar];
+    struct variable    *pMakeVar;
+    assert(pThis->iVar >= 0);
+
+    ifcond_var_make_simple_string(pVar);
+    pMakeVar = lookup_variable(pVar->uVal.psz, strlen(pVar->uVal.psz));
+    ifcond_var_assign_bool(pVar, pMakeVar && *pMakeVar->value != '\0');
+
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Is target defined, unary.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_target(PIFCOND pThis)
+{
+    PIFCONDVAR          pVar = &pThis->aVars[pThis->iVar];
+    struct file        *pFile = NULL;
+    assert(pThis->iVar >= 0);
+
+    /*
+     * Because of secondary target expansion, lookup the unexpanded
+     * name first.
+     */
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+    if (    pVar->enmType == kIfCondVar_String
+        ||  pVar->enmType == kIfCondVar_QuotedString)
+    {
+        pFile = lookup_file(pVar->uVal.psz);
+        if (    pFile
+            &&  !pFile->need_2nd_target_expansion)
+            pFile = NULL;
+    }
+    if (pFile)
+#endif
+    {
+        ifcond_var_make_simple_string(pVar);
+        pFile = lookup_file(pVar->uVal.psz);
+    }
+
+    /*
+     * Always inspect the head of a multiple target rule
+     * and look for a file with commands.
+     */
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+    if (pFile && pFile->multi_head)
+        pFile = pFile->multi_head;
+#endif
+
+    while (pFile && !pFile->cmds)
+        pFile = pFile->prev;
+
+    ifcond_var_assign_bool(pVar, pFile != NULL && pFile->is_target);
+
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Pluss (dummy / make_integer)
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_pluss(PIFCOND pThis)
+{
+    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 0);
+
+    return ifcond_var_make_num(pThis, pVar);
+}
+
+
+
+/**
+ * Minus (negate)
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_minus(PIFCOND pThis)
+{
+    IFCONDRET  rc;
+    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 0);
+
+    rc = ifcond_var_make_num(pThis, pVar);
+    if (rc >= kIfCondRet_Ok)
+        pVar->uVal.i = -pVar->uVal.i;
+
+    return rc;
+}
+
+
+
+/**
+ * Bitwise NOT.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_bitwise_not(PIFCOND pThis)
+{
+    IFCONDRET  rc;
+    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 0);
+
+    rc = ifcond_var_make_num(pThis, pVar);
+    if (rc >= kIfCondRet_Ok)
+        pVar->uVal.i = ~pVar->uVal.i;
+
+    return rc;
+}
+
+
 /**
  * Logical NOT.
  *
@@ -721,34 +1002,334 @@ static IFCONDRET ifcond_op_logical_not(PIFCOND pThis)
 }
 
 
-/////
+/**
+ * Multiplication.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_multiply(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i %= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
 
 
 /**
- * Not equal.
+ * Division.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_divide(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i /= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+
+/**
+ * Modulus.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_modulus(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i %= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+
+/**
+ * Addition (numeric).
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_add(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i += pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Subtract (numeric).
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_sub(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i -= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+/**
+ * Bitwise left shift.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_shift_left(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i <<= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Bitwise right shift.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_shift_right(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, pVar1);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, pVar2);
+        if (rc >= kIfCondRet_Ok)
+            pVar1->uVal.i >>= pVar2->uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Less than or equal
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_less_or_equal_than(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, "<=");
+    if (rc >= kIfCondRet_Ok)
+    {
+        if (!ifcond_var_is_string(pVar1))
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i <= pVar2->uVal.i);
+        else
+            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) <= 0);
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Less than.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_less_than(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, "<");
+    if (rc >= kIfCondRet_Ok)
+    {
+        if (!ifcond_var_is_string(pVar1))
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i < pVar2->uVal.i);
+        else
+            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) < 0);
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Greater or equal than
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_greater_or_equal_than(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, ">=");
+    if (rc >= kIfCondRet_Ok)
+    {
+        if (!ifcond_var_is_string(pVar1))
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i >= pVar2->uVal.i);
+        else
+            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) >= 0);
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Greater than.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_greater_than(PIFCOND pThis)
+{
+    IFCONDRET   rc = kIfCondRet_Ok;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, ">");
+    if (rc >= kIfCondRet_Ok)
+    {
+        if (!ifcond_var_is_string(pVar1))
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i > pVar2->uVal.i);
+        else
+            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) > 0);
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return rc;
+}
+
+
+/**
+ * Equal.
  *
  * @returns Status code.
  * @param   pThis       The instance.
  */
 static IFCONDRET ifcond_op_equal(PIFCOND pThis)
 {
+    IFCONDRET   rc = kIfCondRet_Ok;
     PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
     PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
     /*
-     * If it's the same type, things are simple.
+     * The same type?
      */
     if (ifcond_var_is_string(pVar1) == ifcond_var_is_string(pVar2))
     {
-        if (ifcond_var_is_string(pVar1))
+        if (!ifcond_var_is_string(pVar1))
+            /* numbers are simple */
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+        else
         {
+            /* try a normal string compare. */
             ifcond_var_make_simple_string(pVar1);
             ifcond_var_make_simple_string(pVar2);
-            ifcond_var_assign_bool(pVar1, !strcmp(pVar1->uVal.psz, pVar2->uVal.psz));
+            if (!strcmp(pVar1->uVal.psz, pVar2->uVal.psz))
+                ifcond_var_assign_bool(pVar1, 1);
+            /* try convert and compare as number instead. */
+            else if (   ifcond_var_try_make_num(pVar1) >= kIfCondRet_Ok
+                     && ifcond_var_try_make_num(pVar2) >= kIfCondRet_Ok)
+                ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+            /* ok, they really aren't equal. */
+            else
+                ifcond_var_assign_bool(pVar1, 0);
         }
-        else
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
     }
     else
     {
@@ -756,36 +1337,15 @@ static IFCONDRET ifcond_op_equal(PIFCOND pThis)
          * If the type differs, there are now two options:
          *  1. Convert the string to a valid number and compare the numbers.
          *  2. Convert an empty string to a 'false' boolean value and compare
-         *     numerically. This one is a bit questionable, so it's currently
-         *     not enabled.
+         *     numerically. This one is a bit questionable, so we don't try this.
          */
-        IFCONDINT64 iVal1;
-        PIFCONDVAR  pVarRet = pVar1;
-
-        /* switch so pVar1 is the string. */
-        if (!ifcond_var_is_string(pVar1))
-        {
-            pVar1 = pVar2;
-            pVar2 = pVarRet;
-        }
-
-        ifcond_var_make_simple_string(pVar1);
-        if (ifcond_string_to_num(NULL, &iVal1, pVar1->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok)
-            ifcond_var_assign_bool(pVar1, iVal1 == pVar2->uVal.i);
+        if (   ifcond_var_try_make_num(pVar1) >= kIfCondRet_Ok
+            && ifcond_var_try_make_num(pVar2) >= kIfCondRet_Ok)
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
         else
         {
-#if 0 /* bogus consept */
-            const char *psz = pVar1->uVal.psz;
-            while (isspace((unsigned char)*psz))
-                psz++;
-            if (!*psz)
-                ifcond_var_assign_bool(pVar1, iVal1 == pVar2->uVal.i);
-            else
-#endif
-            {
-                ifcond_error(pThis, "Cannot compare strings and numbers");
-                return kIfCondRet_Error;
-            }
+            ifcond_error(pThis, "Cannot compare strings and numbers");
+            rc = kIfCondRet_Error;
         }
     }
 
@@ -817,15 +1377,17 @@ static IFCONDRET ifcond_op_not_equal(PIFCOND pThis)
  */
 static IFCONDRET ifcond_op_bitwise_and(PIFCOND pThis)
 {
-    IFCONDRET rc;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    IFCONDRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar - 1]);
+    rc = ifcond_var_make_num(pThis, pVar1);
     if (rc >= kIfCondRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
+        rc = ifcond_var_make_num(pThis, pVar2);
         if (rc >= kIfCondRet_Ok)
-            pThis->aVars[pThis->iVar - 1].uVal.i &= pThis->aVars[pThis->iVar].uVal.i;
+            pVar1->uVal.i &= pVar2->uVal.i;
     }
 
     ifcond_pop_and_delete_var(pThis);
@@ -841,15 +1403,17 @@ static IFCONDRET ifcond_op_bitwise_and(PIFCOND pThis)
  */
 static IFCONDRET ifcond_op_bitwise_xor(PIFCOND pThis)
 {
-    IFCONDRET rc;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    IFCONDRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar - 1]);
+    rc = ifcond_var_make_num(pThis, pVar1);
     if (rc >= kIfCondRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
+        rc = ifcond_var_make_num(pThis, pVar2);
         if (rc >= kIfCondRet_Ok)
-            pThis->aVars[pThis->iVar - 1].uVal.i ^= pThis->aVars[pThis->iVar].uVal.i;
+            pVar1->uVal.i ^= pVar2->uVal.i;
     }
 
     ifcond_pop_and_delete_var(pThis);
@@ -865,15 +1429,17 @@ static IFCONDRET ifcond_op_bitwise_xor(PIFCOND pThis)
  */
 static IFCONDRET ifcond_op_bitwise_or(PIFCOND pThis)
 {
-    IFCONDRET rc;
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    IFCONDRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar - 1]);
+    rc = ifcond_var_make_num(pThis, pVar1);
     if (rc >= kIfCondRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
+        rc = ifcond_var_make_num(pThis, pVar2);
         if (rc >= kIfCondRet_Ok)
-            pThis->aVars[pThis->iVar - 1].uVal.i |= pThis->aVars[pThis->iVar].uVal.i;
+            pVar1->uVal.i |= pVar2->uVal.i;
     }
 
     ifcond_pop_and_delete_var(pThis);
@@ -889,12 +1455,15 @@ static IFCONDRET ifcond_op_bitwise_or(PIFCOND pThis)
  */
 static IFCONDRET ifcond_op_logical_and(PIFCOND pThis)
 {
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
-    if (   ifcond_var_make_bool(&pThis->aVars[pThis->iVar - 1])
-        && ifcond_var_make_bool(&pThis->aVars[pThis->iVar]))
-        ifcond_var_assign_bool(&pThis->aVars[pThis->iVar - 1], 1);
+
+    if (   ifcond_var_make_bool(pVar1)
+        && ifcond_var_make_bool(pVar2))
+        ifcond_var_assign_bool(pVar1, 1);
     else
-        ifcond_var_assign_bool(&pThis->aVars[pThis->iVar - 1], 0);
+        ifcond_var_assign_bool(pVar1, 0);
 
     ifcond_pop_and_delete_var(pThis);
     return kIfCondRet_Ok;
@@ -909,12 +1478,15 @@ static IFCONDRET ifcond_op_logical_and(PIFCOND pThis)
  */
 static IFCONDRET ifcond_op_logical_or(PIFCOND pThis)
 {
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
-    if (   ifcond_var_make_bool(&pThis->aVars[pThis->iVar - 1])
-        || ifcond_var_make_bool(&pThis->aVars[pThis->iVar]))
-        ifcond_var_assign_bool(&pThis->aVars[pThis->iVar - 1], 1);
+
+    if (   ifcond_var_make_bool(pVar1)
+        || ifcond_var_make_bool(pVar2))
+        ifcond_var_assign_bool(pVar1, 1);
     else
-        ifcond_var_assign_bool(&pThis->aVars[pThis->iVar - 1], 0);
+        ifcond_var_assign_bool(pVar1, 0);
 
     ifcond_pop_and_delete_var(pThis);
     return kIfCondRet_Ok;
@@ -979,14 +1551,14 @@ static const IFCONDOP g_aIfCondOps[] =
 {
 #define IFCOND_OP(szOp, iPrecedence, cArgs, pfn)  {  szOp, sizeof(szOp) - 1, '\0', iPrecedence, cArgs, pfn }
     /*        Name, iPrecedence,  cArgs,    pfn    */
-#if 0
     IFCOND_OP("defined",     90,      1,    ifcond_op_defined),
+    IFCOND_OP("target",      90,      1,    ifcond_op_target),
     IFCOND_OP("+",           80,      1,    ifcond_op_pluss),
     IFCOND_OP("-",           80,      1,    ifcond_op_minus),
     IFCOND_OP("~",           80,      1,    ifcond_op_bitwise_not),
     IFCOND_OP("*",           75,      2,    ifcond_op_multiply),
     IFCOND_OP("/",           75,      2,    ifcond_op_divide),
-    IFCOND_OP("%",           75,      2,    ifcond_op_mod),
+    IFCOND_OP("%",           75,      2,    ifcond_op_modulus),
     IFCOND_OP("+",           70,      2,    ifcond_op_add),
     IFCOND_OP("-",           70,      2,    ifcond_op_sub),
     IFCOND_OP("<<",          65,      2,    ifcond_op_shift_left),
@@ -995,7 +1567,6 @@ static const IFCONDOP g_aIfCondOps[] =
     IFCOND_OP("<",           60,      2,    ifcond_op_less_than),
     IFCOND_OP(">=",          60,      2,    ifcond_op_greater_or_equal_than),
     IFCOND_OP(">",           60,      2,    ifcond_op_greater_than),
-#endif
     IFCOND_OP("==",          55,      2,    ifcond_op_equal),
     IFCOND_OP("!=",          55,      2,    ifcond_op_not_equal),
     IFCOND_OP("!",           80,      1,    ifcond_op_logical_not),
@@ -1264,14 +1835,14 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
             pszStart++;
             while (*psz && *psz != '"')
                 psz++;
-            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_String);
+            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_QuotedString);
         }
         else if (*psz == '\'')
         {
             pszStart++;
             while (*psz && *psz != '\'')
                 psz++;
-            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_SimpleString);
+            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_QuotedSimpleString);
         }
         else
         {
