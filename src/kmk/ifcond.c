@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: ifcond.c 1719 2008-09-04 02:49:36Z knut.osmundsen@oracle.com $ */
+/* $Id: ifcond.c 1721 2008-09-04 03:19:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * ifcond - C like if expressions.
  */
@@ -705,6 +705,159 @@ static void ifcond_pop_and_delete_var(PIFCOND pThis)
 
 
 /**
+ * Logical NOT.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_logical_not(PIFCOND pThis)
+{
+    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 0);
+
+    ifcond_var_assign_bool(pVar, !ifcond_var_make_bool(pVar));
+
+    return kIfCondRet_Ok;
+}
+
+
+/////
+
+
+/**
+ * Not equal.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_equal(PIFCOND pThis)
+{
+    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    assert(pThis->iVar >= 1);
+
+    /*
+     * If it's the same type, things are simple.
+     */
+    if (ifcond_var_is_string(pVar1) == ifcond_var_is_string(pVar2))
+    {
+        if (ifcond_var_is_string(pVar1))
+        {
+            ifcond_var_make_simple_string(pVar1);
+            ifcond_var_make_simple_string(pVar2);
+            ifcond_var_assign_bool(pVar1, !strcmp(pVar1->uVal.psz, pVar2->uVal.psz));
+        }
+        else
+            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+    }
+    else
+    {
+        /*
+         * If the type differs, there are now two options:
+         *  1. Convert the string to a valid number and compare the numbers.
+         *  2. Convert an empty string to a 'false' boolean value and compare
+         *     numerically. This one is a bit questionable, so it's currently
+         *     not enabled.
+         */
+        IFCONDINT64 iVal1;
+        PIFCONDVAR  pVarRet = pVar1;
+
+        /* switch so pVar1 is the string. */
+        if (!ifcond_var_is_string(pVar1))
+        {
+            pVar1 = pVar2;
+            pVar2 = pVarRet;
+        }
+
+        ifcond_var_make_simple_string(pVar1);
+        if (ifcond_string_to_num(NULL, &iVal1, pVar1->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok)
+            ifcond_var_assign_bool(pVar1, iVal1 == pVar2->uVal.i);
+        else
+        {
+#if 0 /* bogus consept */
+            const char *psz = pVar1->uVal.psz;
+            while (isspace((unsigned char)*psz))
+                psz++;
+            if (!*psz)
+                ifcond_var_assign_bool(pVar1, iVal1 == pVar2->uVal.i);
+            else
+#endif
+            {
+                ifcond_error(pThis, "Cannot compare strings and numbers");
+                return kIfCondRet_Error;
+            }
+        }
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Not equal.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_not_equal(PIFCOND pThis)
+{
+    IFCONDRET rc = ifcond_op_equal(pThis);
+    if (rc >= kIfCondRet_Ok)
+        rc = ifcond_op_logical_not(pThis);
+    return rc;
+}
+
+
+/**
+ * Bitwise AND.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_bitwise_and(PIFCOND pThis)
+{
+    IFCONDRET rc;
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar - 1]);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
+        if (rc >= kIfCondRet_Ok)
+            pThis->aVars[pThis->iVar - 1].uVal.i &= pThis->aVars[pThis->iVar].uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return kIfCondRet_Ok;
+}
+
+
+/**
+ * Bitwise XOR.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static IFCONDRET ifcond_op_bitwise_xor(PIFCOND pThis)
+{
+    IFCONDRET rc;
+    assert(pThis->iVar >= 1);
+
+    rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar - 1]);
+    if (rc >= kIfCondRet_Ok)
+    {
+        rc = ifcond_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
+        if (rc >= kIfCondRet_Ok)
+            pThis->aVars[pThis->iVar - 1].uVal.i ^= pThis->aVars[pThis->iVar].uVal.i;
+    }
+
+    ifcond_pop_and_delete_var(pThis);
+    return kIfCondRet_Ok;
+}
+
+
+/**
  * Bitwise OR.
  *
  * @returns Status code.
@@ -842,13 +995,13 @@ static const IFCONDOP g_aIfCondOps[] =
     IFCOND_OP("<",           60,      2,    ifcond_op_less_than),
     IFCOND_OP(">=",          60,      2,    ifcond_op_greater_or_equal_than),
     IFCOND_OP(">",           60,      2,    ifcond_op_greater_than),
+#endif
     IFCOND_OP("==",          55,      2,    ifcond_op_equal),
     IFCOND_OP("!=",          55,      2,    ifcond_op_not_equal),
     IFCOND_OP("!",           80,      1,    ifcond_op_logical_not),
     IFCOND_OP("^",           45,      2,    ifcond_op_bitwise_xor),
-#endif
     IFCOND_OP("&&",          35,      2,    ifcond_op_logical_and),
-    /*IFCOND_OP("&",           50,      2,    ifcond_op_bitwise_and),*/
+    IFCOND_OP("&",           50,      2,    ifcond_op_bitwise_and),
     IFCOND_OP("||",          30,      2,    ifcond_op_logical_or),
     IFCOND_OP("|",           40,      2,    ifcond_op_bitwise_or),
             { "(", 1, ')',   10,      1,    ifcond_op_left_parenthesis },
@@ -1330,3 +1483,4 @@ int ifcond(char *line, const struct floc *flocp)
 
 
 #endif /* CONFIG_WITH_IF_CONDITIONALS */
+
