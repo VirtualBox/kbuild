@@ -1,0 +1,107 @@
+# $Id: testcase-ifcond.kmk 1720 2008-09-04 02:50:11Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - testcase for the if conditionals.
+#
+
+#
+# Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+#
+#
+
+#DEPTH = ../..
+#include $(PATH_KBUILD)/header.kmk
+
+ifeq (1,0)
+#
+# Some very basic tests.
+#
+if 1
+$(warning works)
+else
+$(error busted)
+endif
+
+if 1 || 1
+$(warning works)
+else
+$(error )
+endif
+
+if 0 || 0
+$(error )
+else
+$(warning works)
+endif
+
+if 1 || 0
+$(warning works)
+else
+$(error )
+endif
+
+if 0 || 1
+$(warning works)
+else
+$(error )
+endif
+
+if 0 || 0 || 0 || 0 || 0 || 0 || 0 
+$(error )
+else
+$(warning works)
+endif
+
+if 0 || 0 || 0 || 1 || 0 || 0 || 0 
+$(warning works)
+else
+$(error )
+endif
+
+if 0 && 1
+$(error )
+else
+$(warning works)
+endif
+
+if 0 || 1 && 1
+$(warning works)
+else
+$(error )
+endif
+endif # all
+
+#
+# Parenthesis
+#
+if (1)
+$(warning works)
+else
+$(error )
+endif
+
+if ((((1))))
+$(warning works)
+else
+$(error )
+endif
+
+
+all_recursive:
+	$(ECHO) "if works fine"
+
