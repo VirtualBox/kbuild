@@ -77,4 +77,4 @@ endif
 
 
 all_recursive:
-	$(ECHO) "if1of and ifn1of works fine"
+	$(ECHO) "if1of and ifn1of work fine"
