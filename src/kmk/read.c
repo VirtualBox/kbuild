@@ -2166,7 +2166,7 @@ conditional_line (char *line, int len, const struct floc *flocp)
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   else if (cmdtype == c_ifcond)
     {
-      int rval = ifcond_eval (line, flocp);
+      int rval = ifcond (line, flocp);
       if (rval == -1)
           return rval;
       conditionals->ignoring[o] = rval;
