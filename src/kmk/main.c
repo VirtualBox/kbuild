@@ -1136,7 +1136,7 @@ get_online_cpu_count(void)
 
 # elif defined(__OS2__)
     /* OS/2: Count the active CPUs. */
-    int cpus i, j;
+    int cpus, i, j;
     MPAFFINITY mp;
     if (DosQueryThreadAffinity(AFNTY_SYSTEM, &mp))
       return 1;
