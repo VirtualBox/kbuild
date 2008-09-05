@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 1270 2007-11-29 18:48:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 1734 2008-09-05 04:38:23Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDepPre - Dependency Generator using Precompiler output.
@@ -29,8 +29,14 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifdef _MSC_VER
+# include <io.h>
+#else
+# include <unistd.h>
+#endif 
 #include "kDep.h"
 
 #ifdef HAVE_FGETC_UNLOCKED
@@ -63,7 +69,7 @@ static int ParseCPrecompiler(FILE *pInput)
         C_EOF
     } enmMode = C_DISCOVER;
     PDEP    pDep = NULL;
-    int     ch;
+    int     ch = 0;
     char    szBuf[8192];
 
     for (;;)
@@ -452,7 +458,7 @@ int main(int argc, char *argv[])
      */
     if (iExec > 0)
     {
-        // later
+        /* later */
     }
 
     /*
