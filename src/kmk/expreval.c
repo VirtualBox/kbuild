@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 1728 2008-09-05 03:27:06Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 1729 2008-09-05 03:50:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -865,9 +865,8 @@ static EXPRRET expr_var_unify_types(PEXPR pThis, PEXPRVAR pVar1, PEXPRVAR pVar2,
  */
 static EXPRRET expr_op_defined(PEXPR pThis)
 {
-    PEXPRVAR          pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR            pVar = &pThis->aVars[pThis->iVar];
     struct variable    *pMakeVar;
-    assert(pThis->iVar >= 0);
 
     expr_var_make_simple_string(pVar);
     pMakeVar = lookup_variable(pVar->uVal.psz, strlen(pVar->uVal.psz));
@@ -885,9 +884,8 @@ static EXPRRET expr_op_defined(PEXPR pThis)
  */
 static EXPRRET expr_op_target(PEXPR pThis)
 {
-    PEXPRVAR          pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR            pVar = &pThis->aVars[pThis->iVar];
     struct file        *pFile = NULL;
-    assert(pThis->iVar >= 0);
 
     /*
      * Because of secondary target expansion, lookup the unexpanded
@@ -928,6 +926,56 @@ static EXPRRET expr_op_target(PEXPR pThis)
 
 
 /**
+ * Convert to boolean.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static EXPRRET expr_op_bool(PEXPR pThis)
+{
+    expr_var_make_bool(&pThis->aVars[pThis->iVar]);
+    return kExprRet_Ok;
+}
+
+
+/**
+ * Convert to number, works on quoted strings too.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static EXPRRET expr_op_num(PEXPR pThis)
+{
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
+
+    /* unquote the string */
+    if (pVar->enmType == kExprVar_QuotedSimpleString)
+        pVar->enmType = kExprVar_SimpleString;
+    else if (pVar->enmType == kExprVar_QuotedString)
+        pVar->enmType = kExprVar_String;
+
+    return expr_var_make_num(pThis, pVar);
+}
+
+
+/**
+ * Convert to string (simplified and quoted)
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static EXPRRET expr_op_str(PEXPR pThis)
+{
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
+
+    expr_var_make_simple_string(pVar);
+    pVar->enmType = kExprVar_QuotedSimpleString;
+
+    return kExprRet_Ok;
+}
+
+
+/**
  * Pluss (dummy / make_integer)
  *
  * @returns Status code.
@@ -935,12 +983,8 @@ static EXPRRET expr_op_target(PEXPR pThis)
  */
 static EXPRRET expr_op_pluss(PEXPR pThis)
 {
-    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 0);
-
-    return expr_var_make_num(pThis, pVar);
+    return expr_var_make_num(pThis, &pThis->aVars[pThis->iVar]);
 }
-
 
 
 /**
@@ -951,9 +995,8 @@ static EXPRRET expr_op_pluss(PEXPR pThis)
  */
 static EXPRRET expr_op_minus(PEXPR pThis)
 {
-    EXPRRET  rc;
-    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 0);
+    EXPRRET     rc;
+    PEXPRVAR    pVar = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar);
     if (rc >= kExprRet_Ok)
@@ -972,9 +1015,8 @@ static EXPRRET expr_op_minus(PEXPR pThis)
  */
 static EXPRRET expr_op_bitwise_not(PEXPR pThis)
 {
-    EXPRRET  rc;
-    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 0);
+    EXPRRET     rc;
+    PEXPRVAR    pVar = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar);
     if (rc >= kExprRet_Ok)
@@ -992,10 +1034,10 @@ static EXPRRET expr_op_bitwise_not(PEXPR pThis)
  */
 static EXPRRET expr_op_logical_not(PEXPR pThis)
 {
-    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 0);
+    PEXPRVAR    pVar = &pThis->aVars[pThis->iVar];
 
-    expr_var_assign_bool(pVar, !expr_var_make_bool(pVar));
+    expr_var_make_bool(pVar);
+    pVar->uVal.i = !pVar->uVal.i;
 
     return kExprRet_Ok;
 }
@@ -1009,10 +1051,9 @@ static EXPRRET expr_op_logical_not(PEXPR pThis)
  */
 static EXPRRET expr_op_multiply(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1036,10 +1077,9 @@ static EXPRRET expr_op_multiply(PEXPR pThis)
  */
 static EXPRRET expr_op_divide(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1063,10 +1103,9 @@ static EXPRRET expr_op_divide(PEXPR pThis)
  */
 static EXPRRET expr_op_modulus(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1090,10 +1129,9 @@ static EXPRRET expr_op_modulus(PEXPR pThis)
  */
 static EXPRRET expr_op_add(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1116,10 +1154,9 @@ static EXPRRET expr_op_add(PEXPR pThis)
  */
 static EXPRRET expr_op_sub(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1141,10 +1178,9 @@ static EXPRRET expr_op_sub(PEXPR pThis)
  */
 static EXPRRET expr_op_shift_left(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1167,10 +1203,9 @@ static EXPRRET expr_op_shift_left(PEXPR pThis)
  */
 static EXPRRET expr_op_shift_right(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1193,10 +1228,9 @@ static EXPRRET expr_op_shift_right(PEXPR pThis)
  */
 static EXPRRET expr_op_less_or_equal_than(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_unify_types(pThis, pVar1, pVar2, "<=");
     if (rc >= kExprRet_Ok)
@@ -1220,10 +1254,9 @@ static EXPRRET expr_op_less_or_equal_than(PEXPR pThis)
  */
 static EXPRRET expr_op_less_than(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_unify_types(pThis, pVar1, pVar2, "<");
     if (rc >= kExprRet_Ok)
@@ -1247,10 +1280,9 @@ static EXPRRET expr_op_less_than(PEXPR pThis)
  */
 static EXPRRET expr_op_greater_or_equal_than(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_unify_types(pThis, pVar1, pVar2, ">=");
     if (rc >= kExprRet_Ok)
@@ -1274,10 +1306,9 @@ static EXPRRET expr_op_greater_or_equal_than(PEXPR pThis)
  */
 static EXPRRET expr_op_greater_than(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     rc = expr_var_unify_types(pThis, pVar1, pVar2, ">");
     if (rc >= kExprRet_Ok)
@@ -1301,10 +1332,9 @@ static EXPRRET expr_op_greater_than(PEXPR pThis)
  */
 static EXPRRET expr_op_equal(PEXPR pThis)
 {
-    EXPRRET   rc = kExprRet_Ok;
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    EXPRRET     rc = kExprRet_Ok;
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     /*
      * The same type?
@@ -1376,10 +1406,9 @@ static EXPRRET expr_op_not_equal(PEXPR pThis)
  */
 static EXPRRET expr_op_bitwise_and(PEXPR pThis)
 {
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    EXPRRET   rc;
-    assert(pThis->iVar >= 1);
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET     rc;
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1402,10 +1431,9 @@ static EXPRRET expr_op_bitwise_and(PEXPR pThis)
  */
 static EXPRRET expr_op_bitwise_xor(PEXPR pThis)
 {
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    EXPRRET   rc;
-    assert(pThis->iVar >= 1);
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET     rc;
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1428,10 +1456,9 @@ static EXPRRET expr_op_bitwise_xor(PEXPR pThis)
  */
 static EXPRRET expr_op_bitwise_or(PEXPR pThis)
 {
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    EXPRRET   rc;
-    assert(pThis->iVar >= 1);
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET     rc;
 
     rc = expr_var_make_num(pThis, pVar1);
     if (rc >= kExprRet_Ok)
@@ -1454,9 +1481,8 @@ static EXPRRET expr_op_bitwise_or(PEXPR pThis)
  */
 static EXPRRET expr_op_logical_and(PEXPR pThis)
 {
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     if (   expr_var_make_bool(pVar1)
         && expr_var_make_bool(pVar2))
@@ -1477,9 +1503,8 @@ static EXPRRET expr_op_logical_and(PEXPR pThis)
  */
 static EXPRRET expr_op_logical_or(PEXPR pThis)
 {
-    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    assert(pThis->iVar >= 1);
+    PEXPRVAR    pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR    pVar2 = &pThis->aVars[pThis->iVar];
 
     if (   expr_var_make_bool(pVar1)
         || expr_var_make_bool(pVar2))
@@ -1532,6 +1557,7 @@ static EXPRRET expr_op_left_parenthesis(PEXPR pThis)
  */
 static EXPRRET expr_op_right_parenthesis(PEXPR pThis)
 {
+    assert(0);
     (void)pThis;
     return kExprRet_Ok;
 }
@@ -1553,6 +1579,9 @@ static const EXPROP g_aExprOps[] =
     /*        Name, iPrecedence,  cArgs,    pfn    */
     EXPR_OP("defined",     90,      1,    expr_op_defined),
     EXPR_OP("target",      90,      1,    expr_op_target),
+    EXPR_OP("bool",        90,      1,    expr_op_bool),
+    EXPR_OP("num",         90,      1,    expr_op_num),
+    EXPR_OP("str",         90,      1,    expr_op_str),
     EXPR_OP("+",           80,      1,    expr_op_pluss),
     EXPR_OP("-",           80,      1,    expr_op_minus),
     EXPR_OP("~",           80,      1,    expr_op_bitwise_not),
@@ -1953,6 +1982,7 @@ static EXPRRET expr_eval(PEXPR pThis)
                && pThis->apOps[pThis->iOp]->iPrecedence >= pThis->pPending->iPrecedence)
         {
             pOp = pThis->apOps[pThis->iOp--];
+            assert(pThis->iVar + 1 >= pOp->cArgs);
             rc = pOp->pfn(pThis);
             if (rc < kExprRet_Error)
                 break;
