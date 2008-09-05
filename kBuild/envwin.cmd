@@ -235,9 +235,9 @@ echo   --win64
 echo       Force AMD64 64-bit windows target platform.
 echo   --nt
 echo       Force NT target and host platform.
-echo   --win32
+echo   --nt32
 echo       Force x86 32-bit NT target platform.
-echo   --win64
+echo   --nt64
 echo       Force AMD64 64-bit NT target platform.
 echo   --debug, --release, --profile
 echo       Alternative way of specifying KBUILD_TYPE.
