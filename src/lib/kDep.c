@@ -1,4 +1,4 @@
-/* $Id: kDep.c 1285 2007-11-30 03:04:27Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 1733 2008-09-05 04:35:25Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kDep - Common Dependency Managemnt Code.
@@ -327,7 +327,8 @@ PDEP depAdd(const char *pszFilename, size_t cchFilename)
     pDep = (PDEP)malloc(sizeof(*pDep) + cchFilename);
     if (!pDep)
     {
-        fprintf(stderr, "\nOut of memory! (requested %#x bytes)\n\n", sizeof(*pDep) + cchFilename);
+        fprintf(stderr, "\nOut of memory! (requested %lx bytes)\n\n", 
+                (unsigned long)(sizeof(*pDep) + cchFilename));
         exit(1);
     }
 
