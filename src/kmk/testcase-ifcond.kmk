@@ -1,4 +1,4 @@
-# $Id: testcase-ifcond.kmk 1728 2008-09-05 03:27:06Z knut.osmundsen@oracle.com $
+# $Id: testcase-ifcond.kmk 1729 2008-09-05 03:50:10Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the if conditionals.
 #
@@ -720,11 +720,49 @@ endif
 #
 # bool
 #
+$(warning unary operator: bool )
+if bool("Asdf") != 1
+$(error )
+endif
+if bool("") != 0
+$(error )
+endif
 
 
 #
-# string
+# bool
 #
+$(warning unary operator: num )
+if num("1234") != 1235 - 1
+$(error )
+endif
+if num('1234') != 1233 + 1
+$(error )
+endif
+
+
+#
+# str
+#
+$(warning unary operator: str )
+if str(a < b) != 1
+$(error )
+endif
+if str(a < b) != '1'
+$(error )
+endif
+if str( 1 ) != "1"
+$(error )
+endif
+if str( 1 ) != "1"
+$(error )
+endif
+if str( num(0x1000) ) != "4096"
+$(error )
+endif
+if str(0x1000) != 0x1000
+$(error )
+endif
 
 
 
