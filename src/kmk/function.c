@@ -2714,7 +2714,6 @@ func_comp_vars (char *o, char **argv, const char *funcname)
 
     if (e1 - s1 != e2 - s2)
       return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
-l_simple_compare:
     if (!memcmp (s1, s2, e1 - s1))
       return variable_buffer_output (o, "", 0);     /* eq */
     return comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
@@ -3079,7 +3078,46 @@ func_which (char *o, char **argv, const char *funcname UNUSED)
 
   return variable_buffer_output (o, "", 0);
 }
-#endif
+#endif /* CONFIG_WITH_WHICH */
+
+#ifdef CONFIG_WITH_IF_CONDITIONALS
+
+/* Evaluates the expression given in the argument using the
+   same evaluator as for the new 'if' statements, except now
+   we don't force the result into a boolean like for 'if' and
+   '$(if-expr ,,)'. */
+static char *
+func_expr (char *o, char **argv, const char *funcname UNUSED)
+{
+  o = expr_eval_to_string (o, argv[0]);
+  return o;
+}
+
+/* Same as '$(if ,,)' except the first argument is evaluated
+   using the same evaluator as for the new 'if' statements. */
+static char *
+func_if_expr (char *o, char **argv, const char *funcname UNUSED)
+{
+    int rc;
+    char *to_expand;
+
+    /* Evaluate the condition in argv[0] and expand the 2nd or
+       3rd argument according to the result. */
+    rc = expr_eval_if_conditionals (argv[0], NULL);
+    to_expand = rc == 0 ? argv[1] : argv[2];
+    if (*to_expand)
+      {
+        char *expansion = expand_argument (to_expand, NULL);
+
+        o = variable_buffer_output (o, expansion, strlen (expansion));
+
+        free (expansion);
+      }
+
+    return o;
+}
+
+#endif /* CONFIG_WITH_IF_CONDITIONALS */
 
 #ifdef CONFIG_WITH_STACK
 
@@ -3098,7 +3136,6 @@ func_stack_pop_top (char *o, char **argv, const char *funcname)
 {
   struct variable *stack_var;
   const char *stack = argv[0];
-  const int return_item = argv[0][sizeof("stack-pop") - 1] == '\0';
 
   stack_var = lookup_variable (stack, strlen (stack) );
   if (stack_var)
@@ -3948,6 +3985,10 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_WHICH
   { STRING_SIZE_TUPLE("which"),         0,  0,  1,  func_which},
+#endif
+#ifdef CONFIG_WITH_IF_CONDITIONALS
+  { STRING_SIZE_TUPLE("expr"),          1,  1,  0,  func_expr},
+  { STRING_SIZE_TUPLE("if-expr"),       2,  3,  0,  func_if_expr},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},

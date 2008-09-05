@@ -1,4 +1,4 @@
-# $Id: testcase-ifcond.kmk 1722 2008-09-04 05:37:47Z knut.osmundsen@oracle.com $
+# $Id: testcase-ifcond.kmk 1727 2008-09-05 01:45:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the if conditionals.
 #
@@ -25,8 +25,8 @@
 #
 
 
-#DEPTH = ../..
-#include $(PATH_KBUILD)/header.kmk
+DEPTH = ../..
+include $(KBUILD_PATH)/header.kmk
 
 ifeq (1,0)
 #
@@ -222,6 +222,7 @@ endif
 #
 # target()
 #
+if 0
 trg_deps_only: foobar
 trg_with_cmds: foobar
 	echo $@
@@ -229,20 +230,21 @@ trg_with_cmds: foobar
 if target trg_with_cmds
 $(warning works)
 else
-$(error works)
+$(error target)
 endif
 
 if target trg_deps_only
-$(error works)
+$(error target)
 else
 $(warning works)
 endif
 
 if target foobar
-$(error works)
+$(error target)
 else
 $(warning works)
 endif
+endif 
 
 
 #
@@ -254,25 +256,59 @@ var_not_defined :=
 if defined var_defined
 $(warning works)
 else
-$(error works)
+$(error )
 endif
 
 if defined(var_defined)
 $(warning works)
 else
-$(error works)
+$(error )
 endif
 
 if defined (var_defined)
 $(warning works)
 else
-$(error works)
+$(error )
 endif
 
 if defined (var_not_defined)
-$(error works)
+$(error )
 else
 $(warning works)
+endif
+
+
+#
+# Quick check of $(if-expr ) and $(expr ).
+#
+ifeq ($(if-expr 0 || 2,42,500),42)
+$(warning if-expr test 1 succeeded)
+else
+$(error )
+endif
+
+ifeq ($(if-expr 5+3 == 231,42,500),42)
+$(error )
+else
+$(warning if-expr test 2 succeeded)
+endif
+
+ifeq ($(expr 5+3),8)
+$(warning expr test 1 succeeded)
+else
+$(error expr:$(expr 5+3) expected 8)
+endif
+
+ifeq ($(expr 25*25),625)
+$(warning expr test 2 succeeded)
+else
+$(error expr:$(expr 25*25) expected 625)
+endif
+
+ifeq ($(expr 100/3),3)
+$(error )
+else
+$(warning expr test 3 succeeded)
 endif
 
 
