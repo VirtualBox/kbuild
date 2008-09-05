@@ -727,6 +727,7 @@ extern void xfree (void *);
 #endif
 
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-extern int ifcond(char *line, const struct floc *flocp);
+extern int expr_eval_if_conditionals(char *line, const struct floc *flocp);
+extern char *expr_eval_to_string(char *o, char *expr);
 #endif
 
