@@ -2,7 +2,7 @@
 echo this is a rexx script!
 cancel & quit & exit
 */
-/* $Id: envos2.cmd 1575 2008-04-25 00:24:07Z knut.osmundsen@oracle.com $ */
+/* $Id: envos2.cmd 1731 2008-09-05 04:27:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * Environment setup script for OS/2.
  */
@@ -165,7 +165,7 @@ do while (sArgs <> '')
         end
 
         when (sArg = "--help" | sArg = "-h" | sArg = "-?" | sArg = "/?" | sArg = "/h") then do
-            say "kBuild Environment Setup Script, v0.1.3"
+            say "kBuild Environment Setup Script, v0.1.4"
             say ""
             say "syntax: envos2.cmd [options] [command [args]]"
             say "    or: envos2.cmd [options] --var <varname>"

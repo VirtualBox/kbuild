@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 1603 2008-05-05 22:21:53Z knut.osmundsen@oracle.com $
+# $Id: env.sh 1731 2008-09-05 04:27:14Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -107,7 +107,7 @@ do
             ;;
 
         "--help")
-            echo "kBuild Environment Setup Script, v0.1.3"
+            echo "kBuild Environment Setup Script, v0.1.4"
             echo ""
             echo "syntax: $0 [options] [command [args]]"
             echo "    or: $0 [options] --var <varname>"

@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1731 2008-09-05 04:27:14Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -33,8 +33,8 @@ KBUILD_DO_AUTO_INSTALL := 1
 #
 KBUILD_VERSION_MAJOR = 0
 KBUILD_VERSION_MINOR = 1
-KBUILD_VERSION_PATCH = 3
-KBUILD_VERSION = 0.1.3
+KBUILD_VERSION_PATCH = 4
+KBUILD_VERSION = 0.1.4
 DEFS += \
 	KBUILD_VERSION_MAJOR=$(KBUILD_VERSION_MAJOR) \
 	KBUILD_VERSION_MINOR=$(KBUILD_VERSION_MINOR) \
@@ -151,6 +151,9 @@ ifeq ($(KBUILD_TARGET),darwin)
  KBUILD_MACOSX_SDK             ?= /Developer/SDKs/MacOSX10.4u.sdk
  TEMPLATE_BIN_TOOL              = GCC4MACHO
  TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.4 -isysroot $(KBUILD_MACOSX_SDK)
+ ifeq ($(USER),bird)
+  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic
+ endif
  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
  TEMPLATE_BIN_CFLAGS.release    = -O3
  TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.4 -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
@@ -219,7 +222,10 @@ ifndef TEMPLATE_BIN_TOOL
  else
   TEMPLATE_BIN_TOOL              = GCC3PLAIN
  endif
- TEMPLATE_BIN_CFLAGS            = -g
+ TEMPLATE_BIN_CFLAGS            = -g 
+ ifeq ($(USER),bird)
+  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic
+ endif
  TEMPLATE_BIN_LDFLAGS           = -g
  TEMPLATE_BIN_CFLAGS.release    = -O3
  ifeq ($(KBUILD_TARGET),freebsd)
