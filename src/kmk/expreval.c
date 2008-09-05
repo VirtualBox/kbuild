@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 1726 2008-09-05 01:44:07Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 1728 2008-09-05 03:27:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -902,7 +902,7 @@ static EXPRRET expr_op_target(PEXPR pThis)
             &&  !pFile->need_2nd_target_expansion)
             pFile = NULL;
     }
-    if (pFile)
+    if (!pFile)
 #endif
     {
         expr_var_make_simple_string(pVar);
@@ -1827,22 +1827,26 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
          * It's an operand. Figure out where it ends and
          * push it onto the stack.
          */
-        const char *pszStart = psz;
+        const char *pszStart;
 
         rc = kExprRet_Ok;
         if (*psz == '"')
         {
-            pszStart++;
+            pszStart = ++psz;
             while (*psz && *psz != '"')
                 psz++;
             expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedString);
+            if (*psz)
+                psz++;
         }
         else if (*psz == '\'')
         {
-            pszStart++;
+            pszStart = ++psz;
             while (*psz && *psz != '\'')
                 psz++;
             expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedSimpleString);
+            if (*psz)
+                psz++;
         }
         else
         {
@@ -1851,6 +1855,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
             char    chEndPar = '\0';
             char    ch;
 
+            pszStart = psz;
             while ((ch = *psz) != '\0')
             {
                 /* $(adsf) or ${asdf} needs special handling. */

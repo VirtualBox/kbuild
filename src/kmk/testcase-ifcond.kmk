@@ -1,4 +1,4 @@
-# $Id: testcase-ifcond.kmk 1727 2008-09-05 01:45:52Z knut.osmundsen@oracle.com $
+# $Id: testcase-ifcond.kmk 1728 2008-09-05 03:27:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the if conditionals.
 #
@@ -28,86 +28,33 @@
 DEPTH = ../..
 include $(KBUILD_PATH)/header.kmk
 
-ifeq (1,0)
 #
-# Some very basic tests.
-#
-if 1
-$(warning works)
-else
-$(error busted)
-endif
-
-if 1 || 1
-$(warning works)
-else
-$(error )
-endif
-
-if 0 || 0
-$(error )
-else
-$(warning works)
-endif
-
-if 1 || 0
-$(warning works)
-else
-$(error )
-endif
-
-if 0 || 1
-$(warning works)
-else
-$(error )
-endif
-
-if 0 || 0 || 0 || 0 || 0 || 0 || 0
-$(error )
-else
-$(warning works)
-endif
-
-if 0 || 0 || 0 || 1 || 0 || 0 || 0
-$(warning works)
-else
-$(error )
-endif
-
-if 0 && 1
-$(error )
-else
-$(warning works)
-endif
-
-if 0 || 1 && 1
-$(warning works)
-else
-$(error )
-endif
-endif # all
+# Note! The testcase are ordered by ascending operator precedence 
+#       with the exception of equal and not-equal because these
+#       are kind of useful for performing tests on non-logical ops.
+# 
 
 #
 # Parenthesis
 #
+$(warning unary operators: ( and ) )
 if (1)
-$(warning works)
 else
 $(error )
 endif
 
 if ((((1))))
-$(warning works)
 else
 $(error )
 endif
 
 
 #
-# Equal and Not Equal.
+# Equal and Not Equal w/ some fundamental bits thrown in.
 #
+$(warning binary operators: == and != )
+
 if 1 == 1
-$(warning works)
 else
 $(error )
 endif
@@ -115,62 +62,267 @@ endif
 if 2 == 3
 $(error )
 else
-$(warning works)
 endif
 
 if 2 != 3
-$(warning works)
+else
+$(error )
+endif
+
+if a != b
+else
+$(error )
+endif
+
+if asdf == asdf
+else
+$(error )
+endif
+
+if "asdf" == asdf
+else
+$(error )
+endif
+
+if 'asdf' == asdf
+else
+$(error )
+endif
+
+if 'asdf' == "asdf"
+else
+$(error )
+endif
+
+if 'asdf' == 'asdf'
+else
+$(error )
+endif
+
+if "asdf" == "asdf"
+else
+$(error )
+endif
+
+if 0x1 == 1
+else
+$(error )
+endif
+
+if 0xfff == 4095
+else
+$(error )
+endif
+
+if 0xfff == 4095
+else
+$(error )
+endif
+
+if 0d10 == 10
+else
+$(error )
+endif
+
+if 0d10 == 10
+else
+$(error )
+endif
+
+if 0xa == 012
+else
+$(error )
+endif
+
+if 0b1110 == 016
 else
 $(error )
 endif
 
 
 #
-# XOR
+# Logical OR
 #
+$(warning binary operator: || )
+if 1
+else
+$(error busted)
+endif
+
+if 1 || 1
+else
+$(error )
+endif
+
+if 0 || 0
+$(error )
+else
+endif
+
+if 1 || 0
+else
+$(error )
+endif
+
+if 0 || 1
+else
+$(error )
+endif
+
+if 0 || 0 || 0 || 0 || 0 || 0 || 0
+$(error )
+else
+endif
+
+if 0 || 0 || 0 || 1 || 0 || 0 || 0
+else
+$(error )
+endif
+
+if "asdf" || 0
+else
+$(error )
+endif
+
+if 0 || "asdf"
+else
+$(error )
+endif
+
+if 'asdf' || 0
+else
+$(error )
+endif
+
+if "" || 0
+$(error )
+endif
+if "" || 1
+else
+$(error )
+endif
+if '' || 0
+$(error )
+endif
+if '' || 1
+else
+$(error )
+endif
+
+if "" || ''
+$(error )
+endif
+if "1" || ''
+else
+$(error )
+endif
+if "1" || '1'
+else
+$(error )
+endif
+if "" || '1'
+else
+$(error )
+endif
+
+
+#
+# Logical AND
+#
+$(warning binary operator: && )
+if 1 && 1
+else
+$(error )
+endif
+if 1 && 0
+$(error )
+endif
+if 1234 && 0
+$(error )
+endif
+if 123434 && 0 && 123435 && 1
+$(error )
+endif
+
+if "" && 1
+$(error )
+endif
+if ("asdf" && 1) != 1
+$(error )
+endif
+if "1" && 'asdf'
+else
+$(error )
+endif
+if "1" && 'asdf' && 0
+$(error )
+endif
+
+if 0 || 1 && 0
+$(error )
+endif
+
+
+#
+# Bitwise OR
+#
+$(warning binary operator: | )
+if 1 | 0
+else
+$(error )
+endif
+if 1 | 1
+else
+$(error )
+endif
+if 11234 | 343423
+else
+$(error )
+endif
+if (1|2)!=3
+$(error )
+endif
+if 1|2 != 3
+else
+$(error )
+endif
+if (1|2|4|8)!=0xf
+$(error )
+endif
+
+
+#
+# Bitwise XOR
+#
+$(warning binary operator: ^ )
 if 1 ^ 1
 $(error )
-else
-$(warning works)
 endif
 
-if 2 ^ 1 == 3
-$(warning works)
-else
+if (2 ^ 1) != 3
+$(error ) 
+endif
+
+if 7 != (2 ^ 1 ^ 4)
 $(error )
 endif
 
-if 7 == 2 ^ 1 ^ 4
-$(warning works)
-else
+if (2 ^ 1 | 2) != 3
 $(error )
 endif
 
 
 #
-# Logical NOT
+# Bitwise AND
 #
-if !1
-$(error )
-else
-$(warning works)
-endif
-
-if !42 == 0
-$(warning works)
-else
+$(warning binary operator: & )
+if (4097 & 1) != 1
 $(error )
 endif
-
-if !0 == 1
-$(warning works)
-else
+if (0xfff & 0x0f0) != 0xf0
 $(error )
 endif
-
-if !!0 == 0
-$(warning works)
-else
+if (0x1e3 & 0x100 | 3) != 0x103
 $(error )
 endif
 
@@ -178,137 +330,427 @@ endif
 #
 # Greater than
 #
+$(warning binary operator: > )
 if 1 > 0
-$(warning works)
 else
 $(error )
 endif
 
 if 1024 > 1023
-$(warning works)
 else
 $(error )
 endif
 
 if 999 > 1023
 $(error )
+endif
+
+if (5 > 4 | 2) != 3
+$(error )
+endif
+
+if (1 & 8 > 4) != 1
+$(error )
+endif
+
+if (8 > 4 ^ 16) != 17
+$(error )
+endif
+
+if "b" > 'a'
 else
-$(warning works)
+$(error )
+endif
+if "abcdef" > 'ffdas'
+$(error )
+endif
+if abcdef > ffdas
+$(error )
 endif
 
 
 #
 # Greater or equal than
 #
+$(warning binary operator: >= )
 if 20 > 0
-$(warning works)
 else
 $(error )
 endif
 
 if 20 >= 20
-$(warning works)
 else
 $(error )
 endif
 
 if 19 >= 20
 $(error )
+endif
+
+if (1 & 8 >= 4) != 1
+$(error )
+endif
+
+if "x" >= 'x'
 else
-$(warning works)
+$(error )
+endif
+if "abdc" >= 'abcd'
+else
+$(error )
+endif
+if "ffdaaa" >= 'ffdasd'
+$(error )
+endif
+if asdf >= asdf
+else
+$(error )
 endif
 
 
 #
-# target()
+# Less than
 #
-if 0
+if 1 < 1
+$(error )
+endif
+if -123 < -134
+$(error )
+endif
+if 123 <= 7777
+else
+$(error )
+endif
+
+if "b" < 'a'
+$(error )
+endif
+if b < a
+$(error )
+endif
+if 'foobar' < 'a$'
+$(error )
+endif
+if hhhh < ggggg 
+$(error )
+endif
+if qwerty < qwerty0
+else
+$(error )
+endif
+
+
+#
+# Less or equal than
+#
+$(warning binary operator: >> )
+if 1 <= 0
+$(error )
+endif
+if 1 <= 1
+else
+$(error )
+endif
+if 123 <= 123 != 1
+$(error )
+endif
+if 560 <= 456
+$(error )
+endif
+
+if "a" <= 'a'
+else
+$(error )
+endif
+if "abcdef" <= 'abcdef'
+else
+$(error )
+endif
+if q12345z6 <= q12345z
+$(error )
+endif
+if QWERTY <= ABCDE
+$(error )
+endif
+
+
+#
+# Shift right
+#
+$(warning binary operator: >> )
+if 1 >> 0 != 1
+$(error )
+endif
+if 1024 >> 2 != 256
+$(error )
+endif
+if 102435 >> 4 > 1234 != 1
+$(error )
+endif
+
+
+#
+# Shift left
+#
+$(warning binary operator: << )
+if 1 << 0 != 1
+$(error )
+endif
+if 1 << 1 != 2
+$(error )
+endif
+if 1 << 4 != 16
+$(error )
+endif
+if 1 << 10 != 1024
+$(error )
+endif
+if 34 << 10 != 0x8800
+$(error )
+endif
+if 1099511627776 << 21 != 2305843009213693952
+$(error )
+endif
+if 1 << 61 != 2305843009213693952
+$(error )
+endif
+
+if 2 << 60 > 123434323 != 1
+$(error )
+endif
+
+
+#
+# Subtraction
+#
+$(warning binary operator: - )
+if 1-1 != 0
+$(error )
+endif
+if 1023-511 != 512
+$(error )
+endif
+if 4 - 3 << 3 != 8
+$(error )
+endif
+
+
+#
+# Addition
+#
+$(warning binary operator: + )
+if 1+1 != 2
+$(error )
+endif
+if 1234+1000 != 2234
+$(error )
+endif
+if 2 + 2 << 4 != 64
+$(error )
+endif
+
+
+#
+# Modulus
+#
+$(warning binary operator: % )
+if 0%2 != 0
+$(error )
+endif
+if 10%7 != 3
+$(error )
+endif
+if 10 + 100%70 - 3 != 37
+$(error )
+endif
+
+
+#
+# Division
+#
+$(warning binary operator: / )
+if 0/1 != 0
+$(error )
+endif
+if 1000/2 != 500
+$(error )
+endif
+if 1000/2 + 4 != 504
+$(error )
+endif
+if 5 + 1000/4 != 255
+$(error )
+endif
+
+
+#
+# Multiplication
+#
+$(warning binary operator: * )
+if 1*1 != 1
+$(error )
+endif
+if 10*10 != 100
+$(error )
+endif
+if 1024*64 != 65536
+$(error )
+endif
+if 10*10 - 10 != 90
+$(error )
+endif
+if 1000 - 10*10 != 900
+$(error )
+endif
+
+
+#
+# Logical NOT
+#
+$(warning unary operator: ! )
+if !1
+$(error )
+endif
+
+if !42 == 0
+else
+$(error )
+endif
+
+if !0 == 1
+else
+$(error )
+endif
+
+if !!0 == 0
+else
+$(error )
+endif
+
+if !0 * 123 != 123
+$(error )
+endif
+if !!!0 * 512 != 512
+$(error )
+endif
+
+
+#
+# Bitwise NOT
+#
+$(warning unary operator: ~ )
+if ~0xfff != 0xfffffffffffff000
+$(error )
+endif
+
+
+#
+# Pluss
+#
+$(warning unary operator: + )
+if +2 != 2
+$(error )
+endif
+if 1++++++++++++2134 != 2135
+$(error )
+endif
+
+
+#
+# Minus (negation)
+#
+$(warning unary operator: - )
+if --2 != 2
+$(error )
+endif
+
+if 1 - -2 != 3
+$(error )
+endif
+
+
+#
+# target
+#
 trg_deps_only: foobar
 trg_with_cmds: foobar
 	echo $@
 
+$(warning unary operator: target ) # This flushes stuff in read.c
+
 if target trg_with_cmds
-$(warning works)
 else
-$(error target)
+$(error target trg_with_cmds)
 endif
-
-if target trg_deps_only
-$(error target)
-else
-$(warning works)
+if target(trg_deps_only)
+$(error target trg_deps_only)
 endif
-
-if target foobar
-$(error target)
-else
-$(warning works)
+if target ( foobar )
+$(error target foobar)
 endif
-endif 
 
 
 #
-# defined()
+# defined
 #
+$(warning unary operator: defined )
 var_defined := 1
 var_not_defined :=
 
 if defined var_defined
-$(warning works)
 else
 $(error )
 endif
-
 if defined(var_defined)
-$(warning works)
 else
 $(error )
 endif
-
 if defined (var_defined)
-$(warning works)
 else
 $(error )
 endif
-
+if !defined(var_defined)
+$(error )
+endif
 if defined (var_not_defined)
 $(error )
-else
-$(warning works)
 endif
+
+
+#
+# bool
+#
+
+
+#
+# string
+#
+
 
 
 #
 # Quick check of $(if-expr ) and $(expr ).
 #
+$(warning $$(if-expr ,,) )
 ifeq ($(if-expr 0 || 2,42,500),42)
-$(warning if-expr test 1 succeeded)
 else
 $(error )
 endif
-
 ifeq ($(if-expr 5+3 == 231,42,500),42)
 $(error )
-else
-$(warning if-expr test 2 succeeded)
 endif
 
+$(warning $$(expr ) )  
 ifeq ($(expr 5+3),8)
-$(warning expr test 1 succeeded)
 else
 $(error expr:$(expr 5+3) expected 8)
 endif
-
 ifeq ($(expr 25*25),625)
-$(warning expr test 2 succeeded)
 else
 $(error expr:$(expr 25*25) expected 625)
 endif
-
 ifeq ($(expr 100/3),3)
 $(error )
-else
-$(warning expr test 3 succeeded)
 endif
 
 
