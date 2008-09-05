@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 1184 2007-10-05 22:25:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 1732 2008-09-05 04:34:18Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -162,6 +162,7 @@ void FatalDie(const char *pszFormat, ...)
 }
 
 
+#if 0 /* unused */
 static void ErrorMsg(const char *pszFormat, ...)
 {
     va_list va;
@@ -175,6 +176,7 @@ static void ErrorMsg(const char *pszFormat, ...)
     vfprintf(stderr, pszFormat, va);
     va_end(va);
 }
+#endif /* unused */
 
 
 static void InfoMsg(unsigned uLevel, const char *pszFormat, ...)
@@ -1147,6 +1149,8 @@ static void kOCEntryCalcArgvSum(PKOCENTRY pEntry, const char * const *papszArgv,
             kOCSumUpdate(pSum, &Ctx, papszArgv[i], cch + 1);
     }
     kOCSumFinalize(pSum, &Ctx);
+
+    (void)pEntry;
 }
 
 
@@ -1361,7 +1365,7 @@ static void kOCEntryWrite(PKOCENTRY pEntry)
 
     fprintf(pFile, "magic=kObjCacheEntry-v0.1.0\n");
     CHECK_LEN(fprintf(pFile, "target=%s\n", pEntry->New.pszTarget ? pEntry->New.pszTarget : pEntry->Old.pszTarget));
-    CHECK_LEN(fprintf(pFile, "key=%u\n", (unsigned long)pEntry->uKey));
+    CHECK_LEN(fprintf(pFile, "key=%lu\n", (unsigned long)pEntry->uKey));
     CHECK_LEN(fprintf(pFile, "obj=%s\n", pEntry->New.pszObjName ? pEntry->New.pszObjName : pEntry->Old.pszObjName));
     CHECK_LEN(fprintf(pFile, "cpp=%s\n", pEntry->New.pszCppName ? pEntry->New.pszCppName : pEntry->Old.pszCppName));
     CHECK_LEN(fprintf(pFile, "cpp-size=%lu\n", pEntry->New.pszCppName ? pEntry->New.cbCpp : pEntry->Old.cbCpp));
@@ -1631,7 +1635,8 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsi
     if (WEXITSTATUS(iStatus))
         FatalDie("%s - failed with rc %d\n", pszMsg, WEXITSTATUS(iStatus));
 #endif
-    (void)cArgv;
+
+     (void)pEntry; (void)cArgv;
 }
 
 
@@ -1772,6 +1777,8 @@ static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *pFDs, const char *pszMsg)
     fcntl(pFDs[0], F_SETFD, FD_CLOEXEC);
     fcntl(pFDs[1], F_SETFD, FD_CLOEXEC);
 #endif
+
+    (void)pEntry;
 }
 
 
@@ -2599,8 +2606,8 @@ static int kOCEntryCompareOldAndNewOutput(PKOCENTRY pEntry)
      */
     if (kOCEntryReadCppOutput(pEntry, &pEntry->Old, 1 /* nonfatal */) == -1)
         return 0;
-    //if ()
-    //    return kOCEntryCompareBest(pEntry);
+    /*if ()
+        return kOCEntryCompareBest(pEntry);*/
     return kOCEntryCompareFast(pEntry);
 }
 
@@ -3044,7 +3051,7 @@ static void kObjCacheRead(PKOBJCACHE pCache)
         fBad = 1;
     }
     else if (   pCache->uGeneration
-             && pCache->uGeneration == atol(&g_szLine[sizeof("generation=") - 1]))
+             && (long)pCache->uGeneration == atol(&g_szLine[sizeof("generation=") - 1]))
     {
         InfoMsg(3, "drop re-read unmodified cache file\n");
         fBad = 0;
@@ -3642,6 +3649,8 @@ static int usage(FILE *pOut)
             "            --kObjCache-cpp <filename> <precompiler + args>\n"
             "            --kObjCache-cc <object> <compiler + args>\n"
             "            [--kObjCache-both [args]]\n"
+            );
+    fprintf(pOut,
             "            [--kObjCache-cpp|--kObjCache-cc [more args]]\n"
             "        kObjCache <-V|--version>\n"
             "        kObjCache [-?|/?|-h|/h|--help|/help]\n"
@@ -3788,7 +3797,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 1184 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 1732 $)\n"
                    "Copyright (C) 2007 Knut St. Osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
