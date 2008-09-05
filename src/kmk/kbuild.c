@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1622 2008-05-12 21:28:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1725 2008-09-05 01:43:19Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -51,12 +51,6 @@
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
 #endif
 
-
-/*******************************************************************************
-*   Internal Functions                                                         *
-*******************************************************************************/
-/* function.c */
-char * abspath(const char *name, char *apath);
 
 /*******************************************************************************
 *   Global Variables                                                           *
@@ -184,6 +178,8 @@ void init_kbuild(int argc, char **argv)
         g_pszExeName = argv[0];
     else
         g_pszExeName = xstrdup(szTmp);
+
+    (void)argc;
 }
 
 
@@ -433,7 +429,7 @@ static struct variable *
 kbuild_get_variable(const char *pszName)
 {
 #ifndef NDEBUG
-    unsigned i;
+    int i;
 #endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
@@ -466,7 +462,7 @@ static struct variable *
 kbuild_get_recursive_variable(const char *pszName)
 {
 #ifndef NDEBUG
-    unsigned i;
+    int i;
 #endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
@@ -497,7 +493,7 @@ static struct variable *
 kbuild_query_recursive_variable(const char *pszName)
 {
 #ifndef NDEBUG
-    unsigned i;
+    int i;
 #endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (pVar)
@@ -553,7 +549,7 @@ kbuild_lookup_variable(const char *pszName)
     if (pVar)
     {
 #ifndef NDEBUG
-        unsigned i = strlen(pVar->value);
+        int i = strlen(pVar->value);
         if (i != pVar->value_length)
         {
             printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
@@ -783,6 +779,7 @@ func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
                                                    argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
+    (void)pszFuncName;
     return o;
 
 }
@@ -830,6 +827,7 @@ func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName)
                                                      argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
+    (void)pszFuncName;
     return o;
 
 }
@@ -993,6 +991,7 @@ func_kbuild_object_base(char *o, char **argv, const char *pszFuncName)
                                                    argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
+    (void)pszFuncName;
     return o;
 
 }
@@ -1019,7 +1018,8 @@ static void
 kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct variable *pSource,
                 struct variable *pBldType, struct variable *pBldTrg, struct variable *pBldTrgArch)
 {
-    int i, j;
+    unsigned i;
+    unsigned j;
     size_t cchTmp, cch;
     char *pszTmp;
     unsigned cchCur;
@@ -1107,7 +1107,6 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     memset(pSdks->pa, 0, sizeof(pSdks->pa[0]) * i);
     for (i = j = 0; j < sizeof(pSdks->apsz) / sizeof(pSdks->apsz[0]); j++)
     {
-        int k = i;
         pszIterator = pSdks->apsz[j];
         while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         {
@@ -1552,6 +1551,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
 
     kbuild_put_sdks(&Sdks);
+    (void)pszFuncName;
     return o;
 }
 
@@ -1833,6 +1833,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     free(pszVal);
 
     kbuild_put_sdks(&Sdks);
+    (void)pszFuncName;
+    (void)argv;
     return variable_buffer_output(o, "", 1);
 }
 

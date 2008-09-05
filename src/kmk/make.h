@@ -731,3 +731,7 @@ extern int expr_eval_if_conditionals(char *line, const struct floc *flocp);
 extern char *expr_eval_to_string(char *o, char *expr);
 #endif
 
+#ifdef KMK
+extern char *abspath(const char *name, char *apath);
+extern char *func_breakpoint(char *o, char **argv, const char *funcname);
+#endif 
