@@ -124,11 +124,14 @@ static uid_t uid;
 static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static const char *suffix = BACKUP_SUFFIX;
+static int ignore_perm_errors;
 
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
     { "version",   					no_argument, 0, 262 },
+    { "ignore-perm-errors",   				no_argument, 0, 263 },
+    { "no-ignore-perm-errors",				no_argument, 0, 264 },
     { 0, 0,	0, 0 },
 };
 
@@ -148,7 +151,7 @@ static int	usage(FILE *);
 static char    *last_slash(const char *);
 
 int
-kmk_builtin_install(int argc, char *argv[], char **envp)
+kmk_builtin_install(int argc, char *argv[], char ** envp)
 {
 	struct stat from_sb, to_sb;
 	mode_t *set;
@@ -157,6 +160,7 @@ kmk_builtin_install(int argc, char *argv[], char **envp)
 	u_int iflags;
 	char *flags;
 	const char *group, *owner, *to_name;
+	(void)envp;
 
         /* reinitialize globals */
         mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
@@ -164,6 +168,7 @@ kmk_builtin_install(int argc, char *argv[], char **envp)
         gid = 0;
         uid = 0;
         dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = 0;
+	ignore_perm_errors = geteuid() != 0;
 
         /* reset getopt and set progname. */
         g_progname = argv[0];
@@ -234,6 +239,12 @@ kmk_builtin_install(int argc, char *argv[], char **envp)
 			return 0;
 		case 262:
 			return kbuild_version(argv[0]);
+		case 263:
+			ignore_perm_errors = 1;
+			break;
+		case 264:
+			ignore_perm_errors = 0;
+			break;
 		case '?':
 		default:
 			return usage(stderr);
@@ -613,20 +624,31 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if ((gid != (gid_t)-1 && gid != to_sb.st_gid) ||
 	    (uid != (uid_t)-1 && uid != to_sb.st_uid))
 		if (fchown(to_fd, uid, gid) == -1) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errno = serrno;
-			rc = err(EX_OSERR,"%s: chown/chgrp", to_name);
-			goto l_done;
+    			if (errno == EPERM && ignore_perm_errors) {
+				warn("%s: ignoring chown uid=%d gid=%d failure", to_name, (int)uid, (int)gid);
+			} else {
+				serrno = errno;
+				(void)unlink(to_name);
+				errno = serrno;
+				rc = err(EX_OSERR,"%s: chown/chgrp", to_name);
+				goto l_done;
+			}
 		}
 
 	if (mode != (to_sb.st_mode & ALLPERMS))
 		if (fchmod(to_fd, mode)) {
 			serrno = errno;
-			(void)unlink(to_name);
-			errno = serrno;
-			rc = err(EX_OSERR, "%s: chmod", to_name);
-			goto l_done;
+			if (serrno == EPERM && ignore_perm_errors) {
+				fchmod(to_fd, mode & (ALLPERMS & ~0007000));
+				errno = errno;
+				warn("%s: ignoring chmod 0%o failure", to_name, (int)(mode & ALLPERMS));
+			} else  {
+				serrno = errno;
+				(void)unlink(to_name);
+				errno = serrno;
+				rc = err(EX_OSERR, "%s: chmod", to_name);
+				goto l_done;
+			}
 		}
 
 	/*
@@ -842,7 +864,7 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		done_copy = 1;
 	}
 #else
-	(void)p;
+	(void)p; (void)size;
 #endif
 	if (!done_copy) {
 		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
@@ -948,11 +970,11 @@ install_dir(char *path)
 static int
 usage(FILE *pf)
 {
-	fprintf(stderr,
-"usage: %s [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"           [-o owner] file1 file2\n"
-"   or: %s [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
-"           [-o owner] file1 ... fileN directory\n"
+	fprintf(pf,
+"usage: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
+"            [-g group] [-m mode] [-o owner] file1 file2\n"
+"   or: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
+"            [-g group] [-m mode] [-o owner] file1 ... fileN directory\n"
 "   or: %s -d [-v] [-g group] [-m mode] [-o owner] directory ...\n"
 "   or: %s --help\n"
 "   or: %s --version\n",
