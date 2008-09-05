@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1722 2008-09-04 05:37:47Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1724 2008-09-05 00:34:53Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -177,7 +177,7 @@ kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
 kmk_SOURCES = \
 	main.c \
 	read.c \
-	ifcond.c \
+	expreval.c \
 	hash.c \
 	strcache.c \
 	variable.c \

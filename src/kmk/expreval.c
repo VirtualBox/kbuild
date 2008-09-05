@@ -1,7 +1,7 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: ifcond.c 1723 2008-09-04 14:10:08Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 1724 2008-09-05 00:34:53Z knut.osmundsen@oracle.com $ */
 /** @file
- * ifcond - C like if expressions.
+ * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
 
 /*
@@ -52,12 +52,12 @@
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
 /** The max length of a string representation of a number. */
-#define IFCOND_NUM_LEN  ((sizeof("-9223372036854775802") + 4) & ~3)
+#define EXPR_NUM_LEN  ((sizeof("-9223372036854775802") + 4) & ~3)
 
 /** The max operator stack depth. */
-#define IFCOND_MAX_OPERATORS  72
+#define EXPR_MAX_OPERATORS  72
 /** The max operand depth. */
-#define IFCOND_MAX_OPERANDS   128
+#define EXPR_MAX_OPERANDS   128
 
 
 /*******************************************************************************
@@ -65,14 +65,14 @@
 *******************************************************************************/
 /** The 64-bit signed integer type we're using. */
 #ifdef _MSC_VER
-typedef __int64 IFCONDINT64;
+typedef __int64 EXPRINT64;
 #else
 # include <stdint.h>
-typedef int64_t IFCONDINT64;
+typedef int64_t EXPRINT64;
 #endif
 
 /** Pointer to a evaluator instance. */
-typedef struct IFCOND *PIFCOND;
+typedef struct EXPR *PEXPR;
 
 
 /**
@@ -81,20 +81,20 @@ typedef struct IFCOND *PIFCOND;
 typedef enum
 {
     /** Invalid zero entry. */
-    kIfCondVar_Invalid = 0,
+    kExprVar_Invalid = 0,
     /** A number. */
-    kIfCondVar_Num,
+    kExprVar_Num,
     /** A string in need of expanding (perhaps). */
-    kIfCondVar_String,
+    kExprVar_String,
     /** A simple string that doesn't need expanding. */
-    kIfCondVar_SimpleString,
+    kExprVar_SimpleString,
     /** A quoted string in need of expanding (perhaps). */
-    kIfCondVar_QuotedString,
+    kExprVar_QuotedString,
     /** A simple quoted string that doesn't need expanding. */
-    kIfCondVar_QuotedSimpleString,
+    kExprVar_QuotedSimpleString,
     /** The end of the valid variable types. */
-    kIfCondVar_End
-} IFCONDVARTYPE;
+    kExprVar_End
+} EXPRVARTYPE;
 
 /**
  * Operand variable.
@@ -102,33 +102,33 @@ typedef enum
 typedef struct
 {
     /** The variable type. */
-    IFCONDVARTYPE enmType;
+    EXPRVARTYPE enmType;
     /** The variable. */
     union
     {
         /** Pointer to the string. */
         char *psz;
         /** The variable. */
-        IFCONDINT64 i;
+        EXPRINT64 i;
     } uVal;
-} IFCONDVAR;
+} EXPRVAR;
 /** Pointer to a operand variable. */
-typedef IFCONDVAR *PIFCONDVAR;
+typedef EXPRVAR *PEXPRVAR;
 /** Pointer to a const operand variable. */
-typedef IFCONDVAR const *PCIFCONDVAR;
+typedef EXPRVAR const *PCEXPRVAR;
 
 /**
  * Operator return statuses.
  */
 typedef enum
 {
-    kIfCondRet_Error = -1,
-    kIfCondRet_Ok = 0,
-    kIfCondRet_Operator,
-    kIfCondRet_Operand,
-    kIfCondRet_EndOfExpr,
-    kIfCondRet_End
-} IFCONDRET;
+    kExprRet_Error = -1,
+    kExprRet_Ok = 0,
+    kExprRet_Operator,
+    kExprRet_Operand,
+    kExprRet_EndOfExpr,
+    kExprRet_End
+} EXPRRET;
 
 /**
  * Operator.
@@ -147,15 +147,15 @@ typedef struct
     /** The number of arguments it takes. */
     signed char cArgs;
     /** Pointer to the method implementing the operator. */
-    IFCONDRET (*pfn)(PIFCOND pThis);
-} IFCONDOP;
+    EXPRRET (*pfn)(PEXPR pThis);
+} EXPROP;
 /** Pointer to a const operator. */
-typedef IFCONDOP const *PCIFCONDOP;
+typedef EXPROP const *PCEXPROP;
 
 /**
  * Expression evaluator instance.
  */
-typedef struct IFCOND
+typedef struct EXPR
 {
     /** The full expression. */
     const char *pszExpr;
@@ -164,16 +164,16 @@ typedef struct IFCOND
     /** The current file location, used for errors. */
     const struct floc *pFileLoc;
     /** Pending binary operator. */
-    PCIFCONDOP pPending;
+    PCEXPROP pPending;
     /** Top of the operator stack. */
     int iOp;
     /** Top of the operand stack. */
     int iVar;
     /** The operator stack. */
-    PCIFCONDOP apOps[IFCOND_MAX_OPERATORS];
+    PCEXPROP apOps[EXPR_MAX_OPERATORS];
     /** The operand stack. */
-    IFCONDVAR aVars[IFCOND_MAX_OPERANDS];
-} IFCOND;
+    EXPRVAR aVars[EXPR_MAX_OPERANDS];
+} EXPR;
 
 
 /*******************************************************************************
@@ -183,14 +183,14 @@ typedef struct IFCOND
  * This indicates which characters that are starting operators and which aren't. */
 static char g_auchOpStartCharMap[256];
 /** Whether we've initialized the map. */
-static int g_fIfCondInitializedMap = 0;
+static int g_fExprInitializedMap = 0;
 
 
 /*******************************************************************************
 *   Internal Functions                                                         *
 *******************************************************************************/
-static void ifcond_unget_op(PIFCOND pThis);
-static IFCONDRET ifcond_get_binary_or_eoe_or_rparen(PIFCOND pThis);
+static void expr_unget_op(PEXPR pThis);
+static EXPRRET expr_get_binary_or_eoe_or_rparen(PEXPR pThis);
 
 
 
@@ -204,7 +204,7 @@ static IFCONDRET ifcond_get_binary_or_eoe_or_rparen(PIFCOND pThis);
  * @param   pszError    The message format string.
  * @param   ...         The message format args.
  */
-static void ifcond_error(PIFCOND pThis, const char *pszError, ...)
+static void expr_error(PEXPR pThis, const char *pszError, ...)
 {
     char szTmp[256];
     va_list va;
@@ -221,14 +221,14 @@ static void ifcond_error(PIFCOND pThis, const char *pszError, ...)
  * Converts a number to a string.
  *
  * @returns pszDst.
- * @param   pszDst  The string buffer to write into. Assumes length of IFCOND_NUM_LEN.
+ * @param   pszDst  The string buffer to write into. Assumes length of EXPR_NUM_LEN.
  * @param   iSrc    The number to convert.
  */
-static char *ifcond_num_to_string(char *pszDst, IFCONDINT64 iSrc)
+static char *expr_num_to_string(char *pszDst, EXPRINT64 iSrc)
 {
     static const char s_szDigits[17] = "0123456789abcdef";
-    char szTmp[IFCOND_NUM_LEN];
-    char *psz = &szTmp[IFCOND_NUM_LEN - 1];
+    char szTmp[EXPR_NUM_LEN];
+    char *psz = &szTmp[EXPR_NUM_LEN - 1];
     int fNegative;
 
     fNegative = iSrc < 0;
@@ -260,7 +260,7 @@ static char *ifcond_num_to_string(char *pszDst, IFCONDINT64 iSrc)
 
     /* copy it into the output buffer. */
     psz++;
-    return (char *)memcpy(pszDst, psz, &szTmp[IFCOND_NUM_LEN] - psz);
+    return (char *)memcpy(pszDst, psz, &szTmp[EXPR_NUM_LEN] - psz);
 }
 
 
@@ -273,11 +273,11 @@ static char *ifcond_num_to_string(char *pszDst, IFCONDINT64 iSrc)
  * @param   pszSrc  The string to try convert.
  * @param   fQuiet  Whether we should be quiet or grumpy on failure.
  */
-static IFCONDRET ifcond_string_to_num(PIFCOND pThis, IFCONDINT64 *piDst, const char *pszSrc, int fQuiet)
+static EXPRRET expr_string_to_num(PEXPR pThis, EXPRINT64 *piDst, const char *pszSrc, int fQuiet)
 {
-    IFCONDRET rc = kIfCondRet_Ok;
+    EXPRRET rc = kExprRet_Ok;
     char const *psz = pszSrc;
-    IFCONDINT64 i;
+    EXPRINT64 i;
     unsigned uBase;
     int fNegative;
 
@@ -392,8 +392,8 @@ static IFCONDRET ifcond_string_to_num(PIFCOND pThis, IFCONDINT64 *piDst, const c
                 i = -i;
             *piDst = i;
             if (!fQuiet)
-                ifcond_error(pThis, "Invalid a number \"%.80s\"", pszSrc);
-            return kIfCondRet_Error;
+                expr_error(pThis, "Invalid a number \"%.80s\"", pszSrc);
+            return kExprRet_Error;
         }
 
         /* add the digit and advance */
@@ -411,9 +411,9 @@ static IFCONDRET ifcond_string_to_num(PIFCOND pThis, IFCONDINT64 *piDst, const c
  * @returns 1 if it's a string, 0 otherwise.
  * @param   pVar    The variable.
  */
-static int ifcond_var_is_string(PCIFCONDVAR pVar)
+static int expr_var_is_string(PCEXPRVAR pVar)
 {
-    return pVar->enmType >= kIfCondVar_String;
+    return pVar->enmType >= kExprVar_String;
 }
 
 
@@ -424,9 +424,9 @@ static int ifcond_var_is_string(PCIFCONDVAR pVar)
  * @returns 1 if if was a quoted string, otherwise 0.
  * @param   pVar    The variable.
  */
-static int ifcond_var_was_quoted(PCIFCONDVAR pVar)
+static int expr_var_was_quoted(PCEXPRVAR pVar)
 {
-    return pVar->enmType >= kIfCondVar_QuotedString;
+    return pVar->enmType >= kExprVar_QuotedString;
 }
 
 
@@ -435,14 +435,14 @@ static int ifcond_var_was_quoted(PCIFCONDVAR pVar)
  *
  * @param   pVar    The variable.
  */
-static void ifcond_var_delete(PIFCONDVAR pVar)
+static void expr_var_delete(PEXPRVAR pVar)
 {
-    if (ifcond_var_is_string(pVar))
+    if (expr_var_is_string(pVar))
     {
         free(pVar->uVal.psz);
         pVar->uVal.psz = NULL;
     }
-    pVar->enmType = kIfCondVar_Invalid;
+    pVar->enmType = kExprVar_Invalid;
 }
 
 
@@ -454,15 +454,15 @@ static void ifcond_var_delete(PIFCONDVAR pVar)
  * @param   cch     The number of chars to copy.
  * @param   enmType The string type.
  */
-static void ifcond_var_init_substring(PIFCONDVAR pVar, const char *psz, size_t cch, IFCONDVARTYPE enmType)
+static void expr_var_init_substring(PEXPRVAR pVar, const char *psz, size_t cch, EXPRVARTYPE enmType)
 {
     /* convert string needing expanding into simple ones if possible.  */
-    if (    enmType == kIfCondVar_String
+    if (    enmType == kExprVar_String
         &&  !memchr(psz, '$', cch))
-        enmType = kIfCondVar_SimpleString;
-    else if (   enmType == kIfCondVar_QuotedString
+        enmType = kExprVar_SimpleString;
+    else if (   enmType == kExprVar_QuotedString
              && !memchr(psz, '$', cch))
-        enmType = kIfCondVar_QuotedSimpleString;
+        enmType = kExprVar_QuotedSimpleString;
 
     pVar->enmType = enmType;
     pVar->uVal.psz = xmalloc(cch + 1);
@@ -479,9 +479,9 @@ static void ifcond_var_init_substring(PIFCONDVAR pVar, const char *psz, size_t c
  * @param   psz     The string value.
  * @param   enmType The string type.
  */
-static void ifcond_var_init_string(PIFCONDVAR pVar, const char *psz, IFCONDVARTYPE enmType)
+static void expr_var_init_string(PEXPRVAR pVar, const char *psz, EXPRVARTYPE enmType)
 {
-    ifcond_var_init_substring(pVar, psz, strlen(psz), enmType);
+    expr_var_init_substring(pVar, psz, strlen(psz), enmType);
 }
 
 
@@ -493,10 +493,10 @@ static void ifcond_var_init_string(PIFCONDVAR pVar, const char *psz, IFCONDVARTY
  * @param   cch     The number of chars to copy.
  * @param   enmType The string type.
  */
-static void ifcond_var_assign_substring(PIFCONDVAR pVar, const char *psz, size_t cch, IFCONDVARTYPE enmType)
+static void expr_var_assign_substring(PEXPRVAR pVar, const char *psz, size_t cch, EXPRVARTYPE enmType)
 {
-    ifcond_var_delete(pVar);
-    ifcond_var_init_substring(pVar, psz, cch, enmType);
+    expr_var_delete(pVar);
+    expr_var_init_substring(pVar, psz, cch, enmType);
 }
 
 
@@ -507,10 +507,10 @@ static void ifcond_var_assign_substring(PIFCONDVAR pVar, const char *psz, size_t
  * @param   psz     The string value.
  * @param   enmType The string type.
  */
-static void ifcond_var_assign_string(PIFCONDVAR pVar, const char *psz, IFCONDVARTYPE enmType)
+static void expr_var_assign_string(PEXPRVAR pVar, const char *psz, EXPRVARTYPE enmType)
 {
-    ifcond_var_delete(pVar);
-    ifcond_var_init_string(pVar, psz, enmType);
+    expr_var_delete(pVar);
+    expr_var_init_string(pVar, psz, enmType);
 }
 #endif /* unused */
 
@@ -520,21 +520,21 @@ static void ifcond_var_assign_string(PIFCONDVAR pVar, const char *psz, IFCONDVAR
  *
  * @param   pVar    The variable.
  */
-static void ifcond_var_make_simple_string(PIFCONDVAR pVar)
+static void expr_var_make_simple_string(PEXPRVAR pVar)
 {
     switch (pVar->enmType)
     {
-        case kIfCondVar_Num:
+        case kExprVar_Num:
         {
-            char *psz = (char *)xmalloc(IFCOND_NUM_LEN);
-            ifcond_num_to_string(psz, pVar->uVal.i);
+            char *psz = (char *)xmalloc(EXPR_NUM_LEN);
+            expr_num_to_string(psz, pVar->uVal.i);
             pVar->uVal.psz = psz;
-            pVar->enmType = kIfCondVar_SimpleString;
+            pVar->enmType = kExprVar_SimpleString;
             break;
         }
 
-        case kIfCondVar_String:
-        case kIfCondVar_QuotedString:
+        case kExprVar_String:
+        case kExprVar_QuotedString:
         {
             char *psz;
             assert(strchr(pVar->uVal.psz, '$'));
@@ -543,14 +543,14 @@ static void ifcond_var_make_simple_string(PIFCONDVAR pVar)
             free(pVar->uVal.psz);
             pVar->uVal.psz = psz;
 
-            pVar->enmType = pVar->enmType == kIfCondVar_String
-                          ? kIfCondVar_SimpleString
-                          : kIfCondVar_QuotedSimpleString;
+            pVar->enmType = pVar->enmType == kExprVar_String
+                          ? kExprVar_SimpleString
+                          : kExprVar_QuotedSimpleString;
             break;
         }
 
-        case kIfCondVar_SimpleString:
-        case kIfCondVar_QuotedSimpleString:
+        case kExprVar_SimpleString:
+        case kExprVar_QuotedSimpleString:
             /* nothing to do. */
             break;
 
@@ -566,18 +566,18 @@ static void ifcond_var_make_simple_string(PIFCONDVAR pVar)
  *
  * @param   pVar    The variable.
  */
-static void ifcond_var_make_string(PIFCONDVAR pVar)
+static void expr_var_make_string(PEXPRVAR pVar)
 {
     switch (pVar->enmType)
     {
-        case kIfCondVar_Num:
-            ifcond_var_make_simple_string(pVar);
+        case kExprVar_Num:
+            expr_var_make_simple_string(pVar);
             break;
 
-        case kIfCondVar_String:
-        case kIfCondVar_SimpleString:
-        case kIfCondVar_QuotedString:
-        case kIfCondVar_QuotedSimpleString:
+        case kExprVar_String:
+        case kExprVar_SimpleString:
+        case kExprVar_QuotedString:
+        case kExprVar_QuotedSimpleString:
             /* nothing to do. */
             break;
 
@@ -594,9 +594,9 @@ static void ifcond_var_make_string(PIFCONDVAR pVar)
  * @param   pVar    The new variable.
  * @param   i       The integer value.
  */
-static void ifcond_var_init_num(PIFCONDVAR pVar, IFCONDINT64 i)
+static void expr_var_init_num(PEXPRVAR pVar, EXPRINT64 i)
 {
-    pVar->enmType = kIfCondVar_Num;
+    pVar->enmType = kExprVar_Num;
     pVar->uVal.i = i;
 }
 
@@ -607,10 +607,10 @@ static void ifcond_var_init_num(PIFCONDVAR pVar, IFCONDINT64 i)
  * @param   pVar    The variable.
  * @param   i       The integer value.
  */
-static void ifcond_var_assign_num(PIFCONDVAR pVar, IFCONDINT64 i)
+static void expr_var_assign_num(PEXPRVAR pVar, EXPRINT64 i)
 {
-    ifcond_var_delete(pVar);
-    ifcond_var_init_num(pVar, i);
+    expr_var_delete(pVar);
+    expr_var_init_num(pVar, i);
 }
 
 
@@ -621,38 +621,38 @@ static void ifcond_var_assign_num(PIFCONDVAR pVar, IFCONDINT64 i)
  * @param   pThis   The evaluator instance.
  * @param   pVar    The variable.
  */
-static IFCONDRET ifcond_var_make_num(PIFCOND pThis, PIFCONDVAR pVar)
+static EXPRRET expr_var_make_num(PEXPR pThis, PEXPRVAR pVar)
 {
     switch (pVar->enmType)
     {
-        case kIfCondVar_Num:
+        case kExprVar_Num:
             /* nothing to do. */
             break;
 
-        case kIfCondVar_String:
-            ifcond_var_make_simple_string(pVar);
+        case kExprVar_String:
+            expr_var_make_simple_string(pVar);
             /* fall thru */
-        case kIfCondVar_SimpleString:
+        case kExprVar_SimpleString:
         {
-            IFCONDINT64 i;
-            IFCONDRET rc = ifcond_string_to_num(pThis, &i, pVar->uVal.psz, 0 /* fQuiet */);
-            if (rc < kIfCondRet_Ok)
+            EXPRINT64 i;
+            EXPRRET rc = expr_string_to_num(pThis, &i, pVar->uVal.psz, 0 /* fQuiet */);
+            if (rc < kExprRet_Ok)
                 return rc;
-            ifcond_var_assign_num(pVar, i);
+            expr_var_assign_num(pVar, i);
             break;
         }
 
-        case kIfCondVar_QuotedString:
-        case kIfCondVar_QuotedSimpleString:
-            ifcond_error(pThis, "Cannot convert a quoted string to a number");
-            return kIfCondRet_Error;
+        case kExprVar_QuotedString:
+        case kExprVar_QuotedSimpleString:
+            expr_error(pThis, "Cannot convert a quoted string to a number");
+            return kExprRet_Error;
 
         default:
             assert(0);
-            return kIfCondRet_Error;
+            return kExprRet_Error;
     }
 
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -662,36 +662,36 @@ static IFCONDRET ifcond_var_make_num(PIFCOND pThis, PIFCONDVAR pVar)
  * @returns status code.
  * @param   pVar    The variable.
  */
-static IFCONDRET ifcond_var_try_make_num(PIFCONDVAR pVar)
+static EXPRRET expr_var_try_make_num(PEXPRVAR pVar)
 {
     switch (pVar->enmType)
     {
-        case kIfCondVar_Num:
+        case kExprVar_Num:
             /* nothing to do. */
             break;
 
-        case kIfCondVar_String:
-            ifcond_var_make_simple_string(pVar);
+        case kExprVar_String:
+            expr_var_make_simple_string(pVar);
             /* fall thru */
-        case kIfCondVar_SimpleString:
+        case kExprVar_SimpleString:
         {
-            IFCONDINT64 i;
-            IFCONDRET rc = ifcond_string_to_num(NULL, &i, pVar->uVal.psz, 1 /* fQuiet */);
-            if (rc < kIfCondRet_Ok)
+            EXPRINT64 i;
+            EXPRRET rc = expr_string_to_num(NULL, &i, pVar->uVal.psz, 1 /* fQuiet */);
+            if (rc < kExprRet_Ok)
                 return rc;
-            ifcond_var_assign_num(pVar, i);
+            expr_var_assign_num(pVar, i);
             break;
         }
 
         default:
             assert(0);
-        case kIfCondVar_QuotedString:
-        case kIfCondVar_QuotedSimpleString:
+        case kExprVar_QuotedString:
+        case kExprVar_QuotedSimpleString:
             /* can't do this */
-            return kIfCondRet_Error;
+            return kExprRet_Error;
     }
 
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -701,9 +701,9 @@ static IFCONDRET ifcond_var_try_make_num(PIFCONDVAR pVar)
  * @param   pVar    The new variable.
  * @param   f       The boolean value.
  */
-static void ifcond_var_init_bool(PIFCONDVAR pVar, int f)
+static void expr_var_init_bool(PEXPRVAR pVar, int f)
 {
-    pVar->enmType = kIfCondVar_Num;
+    pVar->enmType = kExprVar_Num;
     pVar->uVal.i = !!f;
 }
 
@@ -714,10 +714,10 @@ static void ifcond_var_init_bool(PIFCONDVAR pVar, int f)
  * @param   pVar    The variable.
  * @param   f       The boolean value.
  */
-static void ifcond_var_assign_bool(PIFCONDVAR pVar, int f)
+static void expr_var_assign_bool(PEXPRVAR pVar, int f)
 {
-    ifcond_var_delete(pVar);
-    ifcond_var_init_bool(pVar, f);
+    expr_var_delete(pVar);
+    expr_var_init_bool(pVar, f);
 }
 
 
@@ -727,44 +727,44 @@ static void ifcond_var_assign_bool(PIFCONDVAR pVar, int f)
  * @returns the boolean interpretation.
  * @param   pVar    The variable.
  */
-static int ifcond_var_make_bool(PIFCONDVAR pVar)
+static int expr_var_make_bool(PEXPRVAR pVar)
 {
     switch (pVar->enmType)
     {
-        case kIfCondVar_Num:
+        case kExprVar_Num:
             pVar->uVal.i = !!pVar->uVal.i;
             break;
 
-        case kIfCondVar_String:
-            ifcond_var_make_simple_string(pVar);
+        case kExprVar_String:
+            expr_var_make_simple_string(pVar);
             /* fall thru */
-        case kIfCondVar_SimpleString:
+        case kExprVar_SimpleString:
         {
             /*
              * Try convert it to a number. If that fails, use the
              * GNU make boolean logic - not empty string means true.
              */
-            IFCONDINT64 iVal;
+            EXPRINT64 iVal;
             char const *psz = pVar->uVal.psz;
             while (isblank((unsigned char)*psz))
                 psz++;
             if (    *psz
-                &&  ifcond_string_to_num(NULL, &iVal, psz, 1 /* fQuiet */) >= kIfCondRet_Ok)
-                ifcond_var_assign_bool(pVar, iVal != 0);
+                &&  expr_string_to_num(NULL, &iVal, psz, 1 /* fQuiet */) >= kExprRet_Ok)
+                expr_var_assign_bool(pVar, iVal != 0);
             else
-                ifcond_var_assign_bool(pVar, *psz != '\0');
+                expr_var_assign_bool(pVar, *psz != '\0');
             break;
         }
 
-        case kIfCondVar_QuotedString:
-            ifcond_var_make_simple_string(pVar);
+        case kExprVar_QuotedString:
+            expr_var_make_simple_string(pVar);
             /* fall thru */
-        case kIfCondVar_QuotedSimpleString:
+        case kExprVar_QuotedSimpleString:
             /*
              * Use GNU make boolean logic (not empty string means true).
              * No stripping here, the string is quoted.
              */
-            ifcond_var_assign_bool(pVar, *pVar->uVal.psz != '\0');
+            expr_var_assign_bool(pVar, *pVar->uVal.psz != '\0');
             break;
 
         default:
@@ -780,9 +780,9 @@ static int ifcond_var_make_bool(PIFCONDVAR pVar)
  * Pops a varable off the stack and deletes it.
  * @param   pThis   The evaluator instance.
  */
-static void ifcond_pop_and_delete_var(PIFCOND pThis)
+static void expr_pop_and_delete_var(PEXPR pThis)
 {
-    ifcond_var_delete(&pThis->aVars[pThis->iVar]);
+    expr_var_delete(&pThis->aVars[pThis->iVar]);
     pThis->iVar--;
 }
 
@@ -805,56 +805,56 @@ static void ifcond_pop_and_delete_var(PIFCOND pThis)
  * @param   pVar1   The first variable.
  * @param   pVar2   The second variable.
  */
-static IFCONDRET ifcond_var_unify_types(PIFCOND pThis, PIFCONDVAR pVar1, PIFCONDVAR pVar2, const char *pszOp)
+static EXPRRET expr_var_unify_types(PEXPR pThis, PEXPRVAR pVar1, PEXPRVAR pVar2, const char *pszOp)
 {
     /*
      * Try make the variables the same type before comparing.
      */
-    if (    !ifcond_var_was_quoted(pVar1)
-        &&  !ifcond_var_was_quoted(pVar2))
+    if (    !expr_var_was_quoted(pVar1)
+        &&  !expr_var_was_quoted(pVar2))
     {
-        if (    ifcond_var_is_string(pVar1)
-            ||  ifcond_var_is_string(pVar2))
+        if (    expr_var_is_string(pVar1)
+            ||  expr_var_is_string(pVar2))
         {
-            if (!ifcond_var_is_string(pVar1))
-                ifcond_var_try_make_num(pVar2);
-            else if (!ifcond_var_is_string(pVar2))
-                ifcond_var_try_make_num(pVar1);
+            if (!expr_var_is_string(pVar1))
+                expr_var_try_make_num(pVar2);
+            else if (!expr_var_is_string(pVar2))
+                expr_var_try_make_num(pVar1);
             else
             {
                 /*
                  * Both are strings, simplify them then see if both can be made into numbers.
                  */
-                IFCONDINT64 iVar1;
-                IFCONDINT64 iVar2;
+                EXPRINT64 iVar1;
+                EXPRINT64 iVar2;
 
-                ifcond_var_make_simple_string(pVar1);
-                ifcond_var_make_simple_string(pVar2);
+                expr_var_make_simple_string(pVar1);
+                expr_var_make_simple_string(pVar2);
 
-                if (    ifcond_string_to_num(NULL, &iVar1, pVar1->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok
-                    &&  ifcond_string_to_num(NULL, &iVar2, pVar2->uVal.psz, 1 /* fQuiet */) >= kIfCondRet_Ok)
+                if (    expr_string_to_num(NULL, &iVar1, pVar1->uVal.psz, 1 /* fQuiet */) >= kExprRet_Ok
+                    &&  expr_string_to_num(NULL, &iVar2, pVar2->uVal.psz, 1 /* fQuiet */) >= kExprRet_Ok)
                 {
-                    ifcond_var_assign_num(pVar1, iVar1);
-                    ifcond_var_assign_num(pVar2, iVar2);
+                    expr_var_assign_num(pVar1, iVar1);
+                    expr_var_assign_num(pVar2, iVar2);
                 }
             }
         }
     }
     else
     {
-        ifcond_var_make_simple_string(pVar1);
-        ifcond_var_make_simple_string(pVar2);
+        expr_var_make_simple_string(pVar1);
+        expr_var_make_simple_string(pVar2);
     }
 
     /*
      * Complain if they aren't the same type now.
      */
-    if (ifcond_var_is_string(pVar1) != ifcond_var_is_string(pVar2))
+    if (expr_var_is_string(pVar1) != expr_var_is_string(pVar2))
     {
-        ifcond_error(pThis, "Unable to unify types for \"%s\"", pszOp);
-        return kIfCondRet_Error;
+        expr_error(pThis, "Unable to unify types for \"%s\"", pszOp);
+        return kExprRet_Error;
     }
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -864,17 +864,17 @@ static IFCONDRET ifcond_var_unify_types(PIFCOND pThis, PIFCONDVAR pVar1, PIFCOND
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_defined(PIFCOND pThis)
+static EXPRRET expr_op_defined(PEXPR pThis)
 {
-    PIFCONDVAR          pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR          pVar = &pThis->aVars[pThis->iVar];
     struct variable    *pMakeVar;
     assert(pThis->iVar >= 0);
 
-    ifcond_var_make_simple_string(pVar);
+    expr_var_make_simple_string(pVar);
     pMakeVar = lookup_variable(pVar->uVal.psz, strlen(pVar->uVal.psz));
-    ifcond_var_assign_bool(pVar, pMakeVar && *pMakeVar->value != '\0');
+    expr_var_assign_bool(pVar, pMakeVar && *pMakeVar->value != '\0');
 
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -884,9 +884,9 @@ static IFCONDRET ifcond_op_defined(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_target(PIFCOND pThis)
+static EXPRRET expr_op_target(PEXPR pThis)
 {
-    PIFCONDVAR          pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR          pVar = &pThis->aVars[pThis->iVar];
     struct file        *pFile = NULL;
     assert(pThis->iVar >= 0);
 
@@ -895,8 +895,8 @@ static IFCONDRET ifcond_op_target(PIFCOND pThis)
      * name first.
      */
 #ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
-    if (    pVar->enmType == kIfCondVar_String
-        ||  pVar->enmType == kIfCondVar_QuotedString)
+    if (    pVar->enmType == kExprVar_String
+        ||  pVar->enmType == kExprVar_QuotedString)
     {
         pFile = lookup_file(pVar->uVal.psz);
         if (    pFile
@@ -906,7 +906,7 @@ static IFCONDRET ifcond_op_target(PIFCOND pThis)
     if (pFile)
 #endif
     {
-        ifcond_var_make_simple_string(pVar);
+        expr_var_make_simple_string(pVar);
         pFile = lookup_file(pVar->uVal.psz);
     }
 
@@ -922,9 +922,9 @@ static IFCONDRET ifcond_op_target(PIFCOND pThis)
     while (pFile && !pFile->cmds)
         pFile = pFile->prev;
 
-    ifcond_var_assign_bool(pVar, pFile != NULL && pFile->is_target);
+    expr_var_assign_bool(pVar, pFile != NULL && pFile->is_target);
 
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -934,12 +934,12 @@ static IFCONDRET ifcond_op_target(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_pluss(PIFCOND pThis)
+static EXPRRET expr_op_pluss(PEXPR pThis)
 {
-    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 0);
 
-    return ifcond_var_make_num(pThis, pVar);
+    return expr_var_make_num(pThis, pVar);
 }
 
 
@@ -950,14 +950,14 @@ static IFCONDRET ifcond_op_pluss(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_minus(PIFCOND pThis)
+static EXPRRET expr_op_minus(PEXPR pThis)
 {
-    IFCONDRET  rc;
-    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    EXPRRET  rc;
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 0);
 
-    rc = ifcond_var_make_num(pThis, pVar);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar);
+    if (rc >= kExprRet_Ok)
         pVar->uVal.i = -pVar->uVal.i;
 
     return rc;
@@ -971,14 +971,14 @@ static IFCONDRET ifcond_op_minus(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_bitwise_not(PIFCOND pThis)
+static EXPRRET expr_op_bitwise_not(PEXPR pThis)
 {
-    IFCONDRET  rc;
-    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    EXPRRET  rc;
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 0);
 
-    rc = ifcond_var_make_num(pThis, pVar);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar);
+    if (rc >= kExprRet_Ok)
         pVar->uVal.i = ~pVar->uVal.i;
 
     return rc;
@@ -991,14 +991,14 @@ static IFCONDRET ifcond_op_bitwise_not(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_logical_not(PIFCOND pThis)
+static EXPRRET expr_op_logical_not(PEXPR pThis)
 {
-    PIFCONDVAR pVar = &pThis->aVars[pThis->iVar];
+    PEXPRVAR pVar = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 0);
 
-    ifcond_var_assign_bool(pVar, !ifcond_var_make_bool(pVar));
+    expr_var_assign_bool(pVar, !expr_var_make_bool(pVar));
 
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -1008,22 +1008,22 @@ static IFCONDRET ifcond_op_logical_not(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_multiply(PIFCOND pThis)
+static EXPRRET expr_op_multiply(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i %= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1035,22 +1035,22 @@ static IFCONDRET ifcond_op_multiply(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_divide(PIFCOND pThis)
+static EXPRRET expr_op_divide(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i /= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1062,22 +1062,22 @@ static IFCONDRET ifcond_op_divide(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_modulus(PIFCOND pThis)
+static EXPRRET expr_op_modulus(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i %= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1089,22 +1089,22 @@ static IFCONDRET ifcond_op_modulus(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_add(PIFCOND pThis)
+static EXPRRET expr_op_add(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i += pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1115,22 +1115,22 @@ static IFCONDRET ifcond_op_add(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_sub(PIFCOND pThis)
+static EXPRRET expr_op_sub(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i -= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1140,22 +1140,22 @@ static IFCONDRET ifcond_op_sub(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_shift_left(PIFCOND pThis)
+static EXPRRET expr_op_shift_left(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i <<= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1166,22 +1166,22 @@ static IFCONDRET ifcond_op_shift_left(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_shift_right(PIFCOND pThis)
+static EXPRRET expr_op_shift_right(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i >>= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1192,23 +1192,23 @@ static IFCONDRET ifcond_op_shift_right(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_less_or_equal_than(PIFCOND pThis)
+static EXPRRET expr_op_less_or_equal_than(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, "<=");
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_unify_types(pThis, pVar1, pVar2, "<=");
+    if (rc >= kExprRet_Ok)
     {
-        if (!ifcond_var_is_string(pVar1))
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i <= pVar2->uVal.i);
+        if (!expr_var_is_string(pVar1))
+            expr_var_assign_bool(pVar1, pVar1->uVal.i <= pVar2->uVal.i);
         else
-            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) <= 0);
+            expr_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) <= 0);
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1219,23 +1219,23 @@ static IFCONDRET ifcond_op_less_or_equal_than(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_less_than(PIFCOND pThis)
+static EXPRRET expr_op_less_than(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, "<");
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_unify_types(pThis, pVar1, pVar2, "<");
+    if (rc >= kExprRet_Ok)
     {
-        if (!ifcond_var_is_string(pVar1))
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i < pVar2->uVal.i);
+        if (!expr_var_is_string(pVar1))
+            expr_var_assign_bool(pVar1, pVar1->uVal.i < pVar2->uVal.i);
         else
-            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) < 0);
+            expr_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) < 0);
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1246,23 +1246,23 @@ static IFCONDRET ifcond_op_less_than(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_greater_or_equal_than(PIFCOND pThis)
+static EXPRRET expr_op_greater_or_equal_than(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, ">=");
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_unify_types(pThis, pVar1, pVar2, ">=");
+    if (rc >= kExprRet_Ok)
     {
-        if (!ifcond_var_is_string(pVar1))
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i >= pVar2->uVal.i);
+        if (!expr_var_is_string(pVar1))
+            expr_var_assign_bool(pVar1, pVar1->uVal.i >= pVar2->uVal.i);
         else
-            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) >= 0);
+            expr_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) >= 0);
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1273,23 +1273,23 @@ static IFCONDRET ifcond_op_greater_or_equal_than(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_greater_than(PIFCOND pThis)
+static EXPRRET expr_op_greater_than(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_unify_types(pThis, pVar1, pVar2, ">");
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_unify_types(pThis, pVar1, pVar2, ">");
+    if (rc >= kExprRet_Ok)
     {
-        if (!ifcond_var_is_string(pVar1))
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i > pVar2->uVal.i);
+        if (!expr_var_is_string(pVar1))
+            expr_var_assign_bool(pVar1, pVar1->uVal.i > pVar2->uVal.i);
         else
-            ifcond_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) > 0);
+            expr_var_assign_bool(pVar1, strcmp(pVar1->uVal.psz, pVar2->uVal.psz) > 0);
     }
 
-    ifcond_pop_and_delete_var(pThis);
+    expr_pop_and_delete_var(pThis);
     return rc;
 }
 
@@ -1300,35 +1300,35 @@ static IFCONDRET ifcond_op_greater_than(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_equal(PIFCOND pThis)
+static EXPRRET expr_op_equal(PEXPR pThis)
 {
-    IFCONDRET   rc = kIfCondRet_Ok;
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc = kExprRet_Ok;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
     /*
      * The same type?
      */
-    if (ifcond_var_is_string(pVar1) == ifcond_var_is_string(pVar2))
+    if (expr_var_is_string(pVar1) == expr_var_is_string(pVar2))
     {
-        if (!ifcond_var_is_string(pVar1))
+        if (!expr_var_is_string(pVar1))
             /* numbers are simple */
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+            expr_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
         else
         {
             /* try a normal string compare. */
-            ifcond_var_make_simple_string(pVar1);
-            ifcond_var_make_simple_string(pVar2);
+            expr_var_make_simple_string(pVar1);
+            expr_var_make_simple_string(pVar2);
             if (!strcmp(pVar1->uVal.psz, pVar2->uVal.psz))
-                ifcond_var_assign_bool(pVar1, 1);
+                expr_var_assign_bool(pVar1, 1);
             /* try convert and compare as number instead. */
-            else if (   ifcond_var_try_make_num(pVar1) >= kIfCondRet_Ok
-                     && ifcond_var_try_make_num(pVar2) >= kIfCondRet_Ok)
-                ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+            else if (   expr_var_try_make_num(pVar1) >= kExprRet_Ok
+                     && expr_var_try_make_num(pVar2) >= kExprRet_Ok)
+                expr_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
             /* ok, they really aren't equal. */
             else
-                ifcond_var_assign_bool(pVar1, 0);
+                expr_var_assign_bool(pVar1, 0);
         }
     }
     else
@@ -1339,18 +1339,18 @@ static IFCONDRET ifcond_op_equal(PIFCOND pThis)
          *  2. Convert an empty string to a 'false' boolean value and compare
          *     numerically. This one is a bit questionable, so we don't try this.
          */
-        if (   ifcond_var_try_make_num(pVar1) >= kIfCondRet_Ok
-            && ifcond_var_try_make_num(pVar2) >= kIfCondRet_Ok)
-            ifcond_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
+        if (   expr_var_try_make_num(pVar1) >= kExprRet_Ok
+            && expr_var_try_make_num(pVar2) >= kExprRet_Ok)
+            expr_var_assign_bool(pVar1, pVar1->uVal.i == pVar2->uVal.i);
         else
         {
-            ifcond_error(pThis, "Cannot compare strings and numbers");
-            rc = kIfCondRet_Error;
+            expr_error(pThis, "Cannot compare strings and numbers");
+            rc = kExprRet_Error;
         }
     }
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1360,11 +1360,11 @@ static IFCONDRET ifcond_op_equal(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_not_equal(PIFCOND pThis)
+static EXPRRET expr_op_not_equal(PEXPR pThis)
 {
-    IFCONDRET rc = ifcond_op_equal(pThis);
-    if (rc >= kIfCondRet_Ok)
-        rc = ifcond_op_logical_not(pThis);
+    EXPRRET rc = expr_op_equal(pThis);
+    if (rc >= kExprRet_Ok)
+        rc = expr_op_logical_not(pThis);
     return rc;
 }
 
@@ -1375,23 +1375,23 @@ static IFCONDRET ifcond_op_not_equal(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_bitwise_and(PIFCOND pThis)
+static EXPRRET expr_op_bitwise_and(PEXPR pThis)
 {
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    IFCONDRET   rc;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i &= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1401,23 +1401,23 @@ static IFCONDRET ifcond_op_bitwise_and(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_bitwise_xor(PIFCOND pThis)
+static EXPRRET expr_op_bitwise_xor(PEXPR pThis)
 {
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    IFCONDRET   rc;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i ^= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1427,23 +1427,23 @@ static IFCONDRET ifcond_op_bitwise_xor(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_bitwise_or(PIFCOND pThis)
+static EXPRRET expr_op_bitwise_or(PEXPR pThis)
 {
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
-    IFCONDRET   rc;
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    EXPRRET   rc;
     assert(pThis->iVar >= 1);
 
-    rc = ifcond_var_make_num(pThis, pVar1);
-    if (rc >= kIfCondRet_Ok)
+    rc = expr_var_make_num(pThis, pVar1);
+    if (rc >= kExprRet_Ok)
     {
-        rc = ifcond_var_make_num(pThis, pVar2);
-        if (rc >= kIfCondRet_Ok)
+        rc = expr_var_make_num(pThis, pVar2);
+        if (rc >= kExprRet_Ok)
             pVar1->uVal.i |= pVar2->uVal.i;
     }
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1453,20 +1453,20 @@ static IFCONDRET ifcond_op_bitwise_or(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_logical_and(PIFCOND pThis)
+static EXPRRET expr_op_logical_and(PEXPR pThis)
 {
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    if (   ifcond_var_make_bool(pVar1)
-        && ifcond_var_make_bool(pVar2))
-        ifcond_var_assign_bool(pVar1, 1);
+    if (   expr_var_make_bool(pVar1)
+        && expr_var_make_bool(pVar2))
+        expr_var_assign_bool(pVar1, 1);
     else
-        ifcond_var_assign_bool(pVar1, 0);
+        expr_var_assign_bool(pVar1, 0);
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1476,20 +1476,20 @@ static IFCONDRET ifcond_op_logical_and(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_logical_or(PIFCOND pThis)
+static EXPRRET expr_op_logical_or(PEXPR pThis)
 {
-    PIFCONDVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
-    PIFCONDVAR  pVar2 = &pThis->aVars[pThis->iVar];
+    PEXPRVAR  pVar1 = &pThis->aVars[pThis->iVar - 1];
+    PEXPRVAR  pVar2 = &pThis->aVars[pThis->iVar];
     assert(pThis->iVar >= 1);
 
-    if (   ifcond_var_make_bool(pVar1)
-        || ifcond_var_make_bool(pVar2))
-        ifcond_var_assign_bool(pVar1, 1);
+    if (   expr_var_make_bool(pVar1)
+        || expr_var_make_bool(pVar2))
+        expr_var_assign_bool(pVar1, 1);
     else
-        ifcond_var_assign_bool(pVar1, 0);
+        expr_var_assign_bool(pVar1, 0);
 
-    ifcond_pop_and_delete_var(pThis);
-    return kIfCondRet_Ok;
+    expr_pop_and_delete_var(pThis);
+    return kExprRet_Ok;
 }
 
 
@@ -1499,26 +1499,26 @@ static IFCONDRET ifcond_op_logical_or(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_left_parenthesis(PIFCOND pThis)
+static EXPRRET expr_op_left_parenthesis(PEXPR pThis)
 {
     /*
      * There should be a right parenthesis operator lined up for us now,
      * eat it. If not found there is an inbalance.
      */
-    IFCONDRET rc = ifcond_get_binary_or_eoe_or_rparen(pThis);
-    if (    rc == kIfCondRet_Operator
+    EXPRRET rc = expr_get_binary_or_eoe_or_rparen(pThis);
+    if (    rc == kExprRet_Operator
         &&  pThis->apOps[pThis->iOp]->szOp[0] == ')')
     {
         /* pop it and get another one which we can leave pending. */
         pThis->iOp--;
-        rc = ifcond_get_binary_or_eoe_or_rparen(pThis);
-        if (rc >= kIfCondRet_Ok)
-            ifcond_unget_op(pThis);
+        rc = expr_get_binary_or_eoe_or_rparen(pThis);
+        if (rc >= kExprRet_Ok)
+            expr_unget_op(pThis);
     }
     else
     {
-        ifcond_error(pThis, "Missing ')'");
-        rc = kIfCondRet_Error;
+        expr_error(pThis, "Missing ')'");
+        rc = kExprRet_Error;
     }
 
     return rc;
@@ -1531,9 +1531,9 @@ static IFCONDRET ifcond_op_left_parenthesis(PIFCOND pThis)
  * @returns Status code.
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_op_right_parenthesis(PIFCOND pThis)
+static EXPRRET expr_op_right_parenthesis(PEXPR pThis)
 {
-    return kIfCondRet_Ok;
+    return kExprRet_Ok;
 }
 
 
@@ -1547,43 +1547,43 @@ static IFCONDRET ifcond_op_right_parenthesis(PIFCOND pThis)
  * allowing for first match to return the correct operator. This
  * means that || must come before |, or else | will match all.
  */
-static const IFCONDOP g_aIfCondOps[] =
+static const EXPROP g_aExprOps[] =
 {
-#define IFCOND_OP(szOp, iPrecedence, cArgs, pfn)  {  szOp, sizeof(szOp) - 1, '\0', iPrecedence, cArgs, pfn }
+#define EXPR_OP(szOp, iPrecedence, cArgs, pfn)  {  szOp, sizeof(szOp) - 1, '\0', iPrecedence, cArgs, pfn }
     /*        Name, iPrecedence,  cArgs,    pfn    */
-    IFCOND_OP("defined",     90,      1,    ifcond_op_defined),
-    IFCOND_OP("target",      90,      1,    ifcond_op_target),
-    IFCOND_OP("+",           80,      1,    ifcond_op_pluss),
-    IFCOND_OP("-",           80,      1,    ifcond_op_minus),
-    IFCOND_OP("~",           80,      1,    ifcond_op_bitwise_not),
-    IFCOND_OP("*",           75,      2,    ifcond_op_multiply),
-    IFCOND_OP("/",           75,      2,    ifcond_op_divide),
-    IFCOND_OP("%",           75,      2,    ifcond_op_modulus),
-    IFCOND_OP("+",           70,      2,    ifcond_op_add),
-    IFCOND_OP("-",           70,      2,    ifcond_op_sub),
-    IFCOND_OP("<<",          65,      2,    ifcond_op_shift_left),
-    IFCOND_OP(">>",          65,      2,    ifcond_op_shift_right),
-    IFCOND_OP("<=",          60,      2,    ifcond_op_less_or_equal_than),
-    IFCOND_OP("<",           60,      2,    ifcond_op_less_than),
-    IFCOND_OP(">=",          60,      2,    ifcond_op_greater_or_equal_than),
-    IFCOND_OP(">",           60,      2,    ifcond_op_greater_than),
-    IFCOND_OP("==",          55,      2,    ifcond_op_equal),
-    IFCOND_OP("!=",          55,      2,    ifcond_op_not_equal),
-    IFCOND_OP("!",           80,      1,    ifcond_op_logical_not),
-    IFCOND_OP("^",           45,      2,    ifcond_op_bitwise_xor),
-    IFCOND_OP("&&",          35,      2,    ifcond_op_logical_and),
-    IFCOND_OP("&",           50,      2,    ifcond_op_bitwise_and),
-    IFCOND_OP("||",          30,      2,    ifcond_op_logical_or),
-    IFCOND_OP("|",           40,      2,    ifcond_op_bitwise_or),
-            { "(", 1, ')',   10,      1,    ifcond_op_left_parenthesis },
-            { ")", 1, '(',   10,      0,    ifcond_op_right_parenthesis },
- /*         { "?", 1, ':',    5,      2,    ifcond_op_question },
-            { ":", 1, '?',    5,      2,    ifcond_op_colon }, -- too weird for now. */
-#undef IFCOND_OP
+    EXPR_OP("defined",     90,      1,    expr_op_defined),
+    EXPR_OP("target",      90,      1,    expr_op_target),
+    EXPR_OP("+",           80,      1,    expr_op_pluss),
+    EXPR_OP("-",           80,      1,    expr_op_minus),
+    EXPR_OP("~",           80,      1,    expr_op_bitwise_not),
+    EXPR_OP("*",           75,      2,    expr_op_multiply),
+    EXPR_OP("/",           75,      2,    expr_op_divide),
+    EXPR_OP("%",           75,      2,    expr_op_modulus),
+    EXPR_OP("+",           70,      2,    expr_op_add),
+    EXPR_OP("-",           70,      2,    expr_op_sub),
+    EXPR_OP("<<",          65,      2,    expr_op_shift_left),
+    EXPR_OP(">>",          65,      2,    expr_op_shift_right),
+    EXPR_OP("<=",          60,      2,    expr_op_less_or_equal_than),
+    EXPR_OP("<",           60,      2,    expr_op_less_than),
+    EXPR_OP(">=",          60,      2,    expr_op_greater_or_equal_than),
+    EXPR_OP(">",           60,      2,    expr_op_greater_than),
+    EXPR_OP("==",          55,      2,    expr_op_equal),
+    EXPR_OP("!=",          55,      2,    expr_op_not_equal),
+    EXPR_OP("!",           80,      1,    expr_op_logical_not),
+    EXPR_OP("^",           45,      2,    expr_op_bitwise_xor),
+    EXPR_OP("&&",          35,      2,    expr_op_logical_and),
+    EXPR_OP("&",           50,      2,    expr_op_bitwise_and),
+    EXPR_OP("||",          30,      2,    expr_op_logical_or),
+    EXPR_OP("|",           40,      2,    expr_op_bitwise_or),
+            { "(", 1, ')',   10,      1,    expr_op_left_parenthesis },
+            { ")", 1, '(',   10,      0,    expr_op_right_parenthesis },
+ /*         { "?", 1, ':',    5,      2,    expr_op_question },
+            { ":", 1, '?',    5,      2,    expr_op_colon }, -- too weird for now. */
+#undef EXPR_OP
 };
 
 /** Dummy end of expression fake. */
-static const IFCONDOP g_IfCondEndOfExpOp =
+static const EXPROP g_ExprEndOfExpOp =
 {
               "", 0, '\0',    0,      0,    NULL
 };
@@ -1592,24 +1592,24 @@ static const IFCONDOP g_IfCondEndOfExpOp =
 /**
  * Initializes the opcode character map if necessary.
  */
-static void ifcond_map_init(void)
+static void expr_map_init(void)
 {
     int i;
-    if (g_fIfCondInitializedMap)
+    if (g_fExprInitializedMap)
         return;
 
     /*
      * Initialize it.
      */
     memset(&g_auchOpStartCharMap, 0, sizeof(g_auchOpStartCharMap));
-    for (i = 0; i < sizeof(g_aIfCondOps) / sizeof(g_aIfCondOps[0]); i++)
+    for (i = 0; i < sizeof(g_aExprOps) / sizeof(g_aExprOps[0]); i++)
     {
-        unsigned int ch = (unsigned int)g_aIfCondOps[i].szOp[0];
+        unsigned int ch = (unsigned int)g_aExprOps[i].szOp[0];
         if (!g_auchOpStartCharMap[ch])
             g_auchOpStartCharMap[ch] = (i << 1) | 1;
     }
 
-    g_fIfCondInitializedMap = 1;
+    g_fExprInitializedMap = 1;
 }
 
 
@@ -1624,7 +1624,7 @@ static void ifcond_map_init(void)
  *
  * @param   ch      The character.
  */
-static unsigned char ifcond_map_get(char ch)
+static unsigned char expr_map_get(char ch)
 {
     return g_auchOpStartCharMap[(unsigned int)ch];
 }
@@ -1635,40 +1635,40 @@ static unsigned char ifcond_map_get(char ch)
  *
  * @returns Pointer to the matching operator. NULL if not found.
  * @param   psz     Pointer to what can be an operator.
- * @param   uchVal  The ifcond_map_get value.
+ * @param   uchVal  The expr_map_get value.
  * @param   fUnary  Whether it must be an unary operator or not.
  */
-static PCIFCONDOP ifcond_lookup_op(char const *psz, unsigned char uchVal, int fUnary)
+static PCEXPROP expr_lookup_op(char const *psz, unsigned char uchVal, int fUnary)
 {
     char ch = *psz;
     int i;
 
-    for (i = uchVal >> 1; i < sizeof(g_aIfCondOps) / sizeof(g_aIfCondOps[0]); i++)
+    for (i = uchVal >> 1; i < sizeof(g_aExprOps) / sizeof(g_aExprOps[0]); i++)
     {
         /* compare the string... */
-        switch (g_aIfCondOps[i].cchOp)
+        switch (g_aExprOps[i].cchOp)
         {
             case 1:
-                if (g_aIfCondOps[i].szOp[0] != ch)
+                if (g_aExprOps[i].szOp[0] != ch)
                     continue;
                 break;
             case 2:
-                if (    g_aIfCondOps[i].szOp[0] != ch
-                    ||  g_aIfCondOps[i].szOp[1] != psz[1])
+                if (    g_aExprOps[i].szOp[0] != ch
+                    ||  g_aExprOps[i].szOp[1] != psz[1])
                     continue;
                 break;
             default:
-                if (    g_aIfCondOps[i].szOp[0] != ch
-                    ||  strncmp(&g_aIfCondOps[i].szOp[1], psz + 1, g_aIfCondOps[i].cchOp - 1))
+                if (    g_aExprOps[i].szOp[0] != ch
+                    ||  strncmp(&g_aExprOps[i].szOp[1], psz + 1, g_aExprOps[i].cchOp - 1))
                     continue;
                 break;
         }
 
         /* ... and the operator type. */
-        if (fUnary == (g_aIfCondOps[i].cArgs == 1))
+        if (fUnary == (g_aExprOps[i].cArgs == 1))
         {
             /* got a match! */
-            return &g_aIfCondOps[i];
+            return &g_aExprOps[i];
         }
     }
 
@@ -1683,7 +1683,7 @@ static PCIFCONDOP ifcond_lookup_op(char const *psz, unsigned char uchVal, int fU
  *
  * @param   pThis       The evaluator instance.
  */
-static void ifcond_unget_op(PIFCOND pThis)
+static void expr_unget_op(PEXPR pThis)
 {
     assert(pThis->pPending == NULL);
     assert(pThis->iOp >= 0);
@@ -1703,18 +1703,18 @@ static void ifcond_unget_op(PIFCOND pThis)
  * which of the two we found.
  *
  * @returns status code. Will grumble on failure.
- * @retval  kIfCondRet_EndOfExpr if we encountered the end of the expression.
- * @retval  kIfCondRet_Operator if we encountered a binary operator or right
+ * @retval  kExprRet_EndOfExpr if we encountered the end of the expression.
+ * @retval  kExprRet_Operator if we encountered a binary operator or right
  *          parenthesis. It's on the operator stack.
  *
  * @param   pThis       The evaluator instance.
  */
-static IFCONDRET ifcond_get_binary_or_eoe_or_rparen(PIFCOND pThis)
+static EXPRRET expr_get_binary_or_eoe_or_rparen(PEXPR pThis)
 {
     /*
      * See if there is anything pending first.
      */
-    PCIFCONDOP pOp = pThis->pPending;
+    PCEXPROP pOp = pThis->pPending;
     if (pOp)
         pThis->pPending = NULL;
     else
@@ -1730,34 +1730,34 @@ static IFCONDRET ifcond_get_binary_or_eoe_or_rparen(PIFCOND pThis)
         /* see what we've got. */
         if (*psz)
         {
-            unsigned char uchVal = ifcond_map_get(*psz);
+            unsigned char uchVal = expr_map_get(*psz);
             if (uchVal)
-                pOp = ifcond_lookup_op(psz, uchVal, 0 /* fUnary */);
+                pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
             if (!pOp)
             {
-                ifcond_error(pThis, "Expected binary operator, found \"%.42s\"...", psz);
-                return kIfCondRet_Error;
+                expr_error(pThis, "Expected binary operator, found \"%.42s\"...", psz);
+                return kExprRet_Error;
             }
             psz += pOp->cchOp;
         }
         else
-            pOp = &g_IfCondEndOfExpOp;
+            pOp = &g_ExprEndOfExpOp;
         pThis->psz = psz;
     }
 
     /*
      * Push it.
      */
-    if (pThis->iOp >= IFCOND_MAX_OPERATORS - 1)
+    if (pThis->iOp >= EXPR_MAX_OPERATORS - 1)
     {
-        ifcond_error(pThis, "Operator stack overflow");
-        return kIfCondRet_Error;
+        expr_error(pThis, "Operator stack overflow");
+        return kExprRet_Error;
     }
     pThis->apOps[++pThis->iOp] = pOp;
 
     return pOp->iPrecedence
-         ? kIfCondRet_Operator
-         : kIfCondRet_EndOfExpr;
+         ? kExprRet_Operator
+         : kExprRet_EndOfExpr;
 }
 
 
@@ -1772,18 +1772,18 @@ static IFCONDRET ifcond_get_binary_or_eoe_or_rparen(PIFCOND pThis)
  * indicates which it is.
  *
  * @returns status code. On failure we'll be done bitching already.
- * @retval  kIfCondRet_Operator if we encountered an unary operator.
+ * @retval  kExprRet_Operator if we encountered an unary operator.
  *          It's on the operator stack.
- * @retval  kIfCondRet_Operand if we encountered an operand operator.
+ * @retval  kExprRet_Operand if we encountered an operand operator.
  *          It's on the operand stack.
  *
  * @param   This        The evaluator instance.
  */
-static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
+static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
 {
-    IFCONDRET       rc;
+    EXPRRET       rc;
     unsigned char   uchVal;
-    PCIFCONDOP      pOp;
+    PCEXPROP      pOp;
     char const     *psz = pThis->psz;
 
     /*
@@ -1793,35 +1793,35 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
         psz++;
     if (!*psz)
     {
-        ifcond_error(pThis, "Unexpected end of expression");
-        return kIfCondRet_Error;
+        expr_error(pThis, "Unexpected end of expression");
+        return kExprRet_Error;
     }
 
     /*
      * Is it an operator?
      */
     pOp = NULL;
-    uchVal = ifcond_map_get(*psz);
+    uchVal = expr_map_get(*psz);
     if (uchVal)
-        pOp = ifcond_lookup_op(psz, uchVal, 1 /* fUnary */);
+        pOp = expr_lookup_op(psz, uchVal, 1 /* fUnary */);
     if (pOp)
     {
         /*
          * Push the operator onto the stack.
          */
-        if (pThis->iVar < IFCOND_MAX_OPERANDS - 1)
+        if (pThis->iVar < EXPR_MAX_OPERANDS - 1)
         {
             pThis->apOps[++pThis->iOp] = pOp;
-            rc = kIfCondRet_Operator;
+            rc = kExprRet_Operator;
         }
         else
         {
-            ifcond_error(pThis, "Operator stack overflow");
-            rc = kIfCondRet_Error;
+            expr_error(pThis, "Operator stack overflow");
+            rc = kExprRet_Error;
         }
         psz += pOp->cchOp;
     }
-    else if (pThis->iVar < IFCOND_MAX_OPERANDS - 1)
+    else if (pThis->iVar < EXPR_MAX_OPERANDS - 1)
     {
         /*
          * It's an operand. Figure out where it ends and
@@ -1829,20 +1829,20 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
          */
         const char *pszStart = psz;
 
-        rc = kIfCondRet_Ok;
+        rc = kExprRet_Ok;
         if (*psz == '"')
         {
             pszStart++;
             while (*psz && *psz != '"')
                 psz++;
-            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_QuotedString);
+            expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedString);
         }
         else if (*psz == '\'')
         {
             pszStart++;
             while (*psz && *psz != '\'')
                 psz++;
-            ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_QuotedSimpleString);
+            expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_QuotedSimpleString);
         }
         else
         {
@@ -1861,8 +1861,8 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
                     psz++;
                     if (iPar > sizeof(achPars) / sizeof(achPars[0]))
                     {
-                        ifcond_error(pThis, "Too deep nesting of variable expansions");
-                        rc = kIfCondRet_Error;
+                        expr_error(pThis, "Too deep nesting of variable expansions");
+                        rc = kExprRet_Error;
                         break;
                     }
                     achPars[++iPar] = chEndPar = ch == '(' ? ')' : '}';
@@ -1874,11 +1874,11 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
                 }
                 else if (!chEndPar)
                 {
-                    /** @todo combine isspace and ifcond_map_get! */
-                    unsigned chVal = ifcond_map_get(ch);
+                    /** @todo combine isspace and expr_map_get! */
+                    unsigned chVal = expr_map_get(ch);
                     if (chVal)
                     {
-                        PCIFCONDOP pOp = ifcond_lookup_op(psz, uchVal, 0 /* fUnary */);
+                        PCEXPROP pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
                         if (pOp)
                             break;
                     }
@@ -1890,14 +1890,14 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
                 psz++;
             }
 
-            if (rc == kIfCondRet_Ok)
-                ifcond_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kIfCondVar_String);
+            if (rc == kExprRet_Ok)
+                expr_var_init_substring(&pThis->aVars[++pThis->iVar], pszStart, psz - pszStart, kExprVar_String);
         }
     }
     else
     {
-        ifcond_error(pThis, "Operand stack overflow");
-        rc = kIfCondRet_Error;
+        expr_error(pThis, "Operand stack overflow");
+        rc = kExprRet_Error;
     }
     pThis->psz = psz;
 
@@ -1912,10 +1912,10 @@ static IFCONDRET ifcond_get_unary_or_operand(PIFCOND pThis)
  *
  * @param   pThis       The instance.
  */
-static IFCONDRET ifcond_eval(PIFCOND pThis)
+static EXPRRET expr_eval(PEXPR pThis)
 {
-    IFCONDRET  rc;
-    PCIFCONDOP pOp;
+    EXPRRET  rc;
+    PCEXPROP pOp;
 
     /*
      * The main loop.
@@ -1925,18 +1925,18 @@ static IFCONDRET ifcond_eval(PIFCOND pThis)
         /*
          * Eat unary operators until we hit an operand.
          */
-        do  rc = ifcond_get_unary_or_operand(pThis);
-        while (rc == kIfCondRet_Operator);
-        if (rc < kIfCondRet_Error)
+        do  rc = expr_get_unary_or_operand(pThis);
+        while (rc == kExprRet_Operator);
+        if (rc < kExprRet_Error)
             break;
 
         /*
          * Look for a binary operator, right parenthesis or end of expression.
          */
-        rc = ifcond_get_binary_or_eoe_or_rparen(pThis);
-        if (rc < kIfCondRet_Error)
+        rc = expr_get_binary_or_eoe_or_rparen(pThis);
+        if (rc < kExprRet_Error)
             break;
-        ifcond_unget_op(pThis);
+        expr_unget_op(pThis);
 
         /*
          * Pop operators and apply them.
@@ -1949,26 +1949,26 @@ static IFCONDRET ifcond_eval(PIFCOND pThis)
         {
             pOp = pThis->apOps[pThis->iOp--];
             rc = pOp->pfn(pThis);
-            if (rc < kIfCondRet_Error)
+            if (rc < kExprRet_Error)
                 break;
         }
-        if (rc < kIfCondRet_Error)
+        if (rc < kExprRet_Error)
             break;
 
         /*
          * Get the next binary operator or end of expression.
          * There should be no right parenthesis here.
          */
-        rc = ifcond_get_binary_or_eoe_or_rparen(pThis);
-        if (rc < kIfCondRet_Error)
+        rc = expr_get_binary_or_eoe_or_rparen(pThis);
+        if (rc < kExprRet_Error)
             break;
         pOp = pThis->apOps[pThis->iOp];
         if (!pOp->iPrecedence)
             break;  /* end of expression */
         if (!pOp->cArgs)
         {
-            ifcond_error(pThis, "Unexpected \"%s\"", pOp->szOp);
-            rc = kIfCondRet_Error;
+            expr_error(pThis, "Unexpected \"%s\"", pOp->szOp);
+            rc = kExprRet_Error;
             break;
         }
     }
@@ -1982,11 +1982,11 @@ static IFCONDRET ifcond_eval(PIFCOND pThis)
  *
  * @param   pThis       The instance to destroy.
  */
-static void ifcond_destroy(PIFCOND pThis)
+static void expr_destroy(PEXPR pThis)
 {
     while (pThis->iVar >= 0)
     {
-        ifcond_var_delete(pThis->aVars);
+        expr_var_delete(pThis->aVars);
         pThis->iVar--;
     }
     free(pThis);
@@ -1999,11 +1999,11 @@ static void ifcond_destroy(PIFCOND pThis)
  * @returns The instance.
  *
  * @param   pszExpr     What to parse.
- *                      This must stick around until ifcond_destroy.
+ *                      This must stick around until expr_destroy.
  */
-static PIFCOND ifcond_create(char const *pszExpr)
+static PEXPR expr_create(char const *pszExpr)
 {
-    PIFCOND pThis = (PIFCOND)xmalloc(sizeof(*pThis));
+    PEXPR pThis = (PEXPR)xmalloc(sizeof(*pThis));
     pThis->pszExpr = pszExpr;
     pThis->psz = pszExpr;
     pThis->pFileLoc = NULL;
@@ -2011,7 +2011,7 @@ static PIFCOND ifcond_create(char const *pszExpr)
     pThis->iVar = -1;
     pThis->iOp = -1;
 
-    ifcond_map_init();
+    expr_map_init();
     return pThis;
 }
 
@@ -2027,29 +2027,60 @@ static PIFCOND ifcond_create(char const *pszExpr)
  * @param   line    The expression. Can modify this as we like.
  * @param   flocp   The file location, used for errors.
  */
-int ifcond(char *line, const struct floc *flocp)
+int expr_eval_if_conditionals(char *line, const struct floc *flocp)
 {
     /*
      * Instantiate the expression evaluator and let
      * it have a go at it.
      */
     int rc = -1;
-    PIFCOND pIfCond = ifcond_create(line);
-    pIfCond->pFileLoc = flocp;
-    if (ifcond_eval(pIfCond) >= kIfCondRet_Ok)
+    PEXPR pExpr = expr_create(line);
+    pExpr->pFileLoc = flocp;
+    if (expr_eval(pExpr) >= kExprRet_Ok)
     {
         /*
          * Convert the result (on top of the stack) to boolean and
          * set our return value accordingly.
          */
-        if (ifcond_var_make_bool(&pIfCond->aVars[0]))
+        if (expr_var_make_bool(&pExpr->aVars[0]))
             rc = 0;
         else
             rc = 1;
     }
-    ifcond_destroy(pIfCond);
+    expr_destroy(pExpr);
 
     return rc;
+}
+
+
+/**
+ * Evaluates the given expression and returns the result as a string.
+ *
+ * @returns variable buffer position.
+ *
+ * @param   o       The current variable buffer position.
+ * @param   expr    The expression.
+ */
+char *expr_eval_to_string(char *o, char *expr)
+{
+    /*
+     * Instantiate the expression evaluator and let
+     * it have a go at it.
+     */
+    PEXPR pExpr = expr_create(expr);
+    if (expr_eval(pExpr) >= kExprRet_Ok)
+    {
+        /*
+         * Convert the result (on top of the stack) to a string
+         * and copy it out the variable buffer.
+         */
+        PEXPRVAR pVar = &pExpr->aVars[0];
+        expr_var_make_simple_string(pVar);
+        o = variable_buffer_output(o, pVar->uVal.psz, strlen(pVar->uVal.psz));
+    }
+    expr_destroy(pExpr);
+
+    return o;
 }
 
 

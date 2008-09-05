@@ -448,7 +448,7 @@ eval_makefile (const char *filename, int flags)
    if (stream_buf)
      free (stream_buf);
   }
-#endif 
+#endif
   free (ebuf.bufstart);
   alloca (0);
   return r;
@@ -1997,14 +1997,14 @@ static int
 conditional_line (char *line, int len, const struct floc *flocp)
 {
   char *cmdname;
-  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq, 
+  enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq,
 #ifdef CONFIG_WITH_SET_CONDITIONALS
-    c_if1of, c_ifn1of, 
+    c_if1of, c_ifn1of,
 #endif
 #ifdef CONFIG_WITH_IF_CONDITIONALS
     c_ifcond,
 #endif
-    c_else, c_endif 
+    c_else, c_endif
   } cmdtype;
   unsigned int i;
   unsigned int o;
@@ -2024,7 +2024,7 @@ conditional_line (char *line, int len, const struct floc *flocp)
 #endif
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   else chkword ("if", c_ifcond)
-#endif 
+#endif
   else chkword ("else", c_else)
   else chkword ("endif", c_endif)
   else
@@ -2166,7 +2166,7 @@ conditional_line (char *line, int len, const struct floc *flocp)
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   else if (cmdtype == c_ifcond)
     {
-      int rval = ifcond (line, flocp);
+      int rval = expr_eval_if_conditionals (line, flocp);
       if (rval == -1)
           return rval;
       conditionals->ignoring[o] = rval;
