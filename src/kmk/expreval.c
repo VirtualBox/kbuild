@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 1724 2008-09-05 00:34:53Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 1726 2008-09-05 01:44:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -259,7 +259,6 @@ static char *expr_num_to_string(char *pszDst, EXPRINT64 iSrc)
       *--psz = '-';
 
     /* copy it into the output buffer. */
-    psz++;
     return (char *)memcpy(pszDst, psz, &szTmp[EXPR_NUM_LEN] - psz);
 }
 
@@ -342,7 +341,7 @@ static EXPRRET expr_string_to_num(PEXPR pThis, EXPRINT64 *piDst, const char *psz
     i = 0;
     for (;;)
     {
-        int iDigit;
+        unsigned iDigit;
         int ch = *psz;
         switch (ch)
         {
@@ -1020,7 +1019,7 @@ static EXPRRET expr_op_multiply(PEXPR pThis)
     {
         rc = expr_var_make_num(pThis, pVar2);
         if (rc >= kExprRet_Ok)
-            pVar1->uVal.i %= pVar2->uVal.i;
+            pVar1->uVal.i *= pVar2->uVal.i;
     }
 
     expr_pop_and_delete_var(pThis);
@@ -1533,6 +1532,7 @@ static EXPRRET expr_op_left_parenthesis(PEXPR pThis)
  */
 static EXPRRET expr_op_right_parenthesis(PEXPR pThis)
 {
+    (void)pThis;
     return kExprRet_Ok;
 }
 
@@ -1594,7 +1594,7 @@ static const EXPROP g_ExprEndOfExpOp =
  */
 static void expr_map_init(void)
 {
-    int i;
+    unsigned i;
     if (g_fExprInitializedMap)
         return;
 
@@ -1641,7 +1641,7 @@ static unsigned char expr_map_get(char ch)
 static PCEXPROP expr_lookup_op(char const *psz, unsigned char uchVal, int fUnary)
 {
     char ch = *psz;
-    int i;
+    unsigned i;
 
     for (i = uchVal >> 1; i < sizeof(g_aExprOps) / sizeof(g_aExprOps[0]); i++)
     {
@@ -1859,7 +1859,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
                          || psz[1] == '{'))
                 {
                     psz++;
-                    if (iPar > sizeof(achPars) / sizeof(achPars[0]))
+                    if (iPar > (int)(sizeof(achPars) / sizeof(achPars[0])))
                     {
                         expr_error(pThis, "Too deep nesting of variable expansions");
                         rc = kExprRet_Error;
@@ -2078,6 +2078,8 @@ char *expr_eval_to_string(char *o, char *expr)
         expr_var_make_simple_string(pVar);
         o = variable_buffer_output(o, pVar->uVal.psz, strlen(pVar->uVal.psz));
     }
+    else
+        o = variable_buffer_output(o, "<expression evaluation failed>", sizeof("<expression evaluation failed>") - 1);
     expr_destroy(pExpr);
 
     return o;
