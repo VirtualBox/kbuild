@@ -13,7 +13,7 @@
 #include <ctype.h>
 #ifdef KMK_WITH_REGEX
 #include <regex.h>
-#endif 
+#endif
 #include <setjmp.h>
 #include <assert.h>
 #include "err.h"
@@ -247,7 +247,7 @@ nexttoken(int pat)
 	}
 	av++;
 
-	
+
 	if (pat == 0 && p[0] != '\0') {
 		if (p[1] == '\0') {
 			const char     *x = "|&=<>+-*/%:()";
@@ -317,11 +317,14 @@ eval5(void)
 	regmatch_t	rm[2];
 	char		errbuf[256];
 	int		eval;
-	struct val     *l, *r;
+	struct val     *r;
 	struct val     *v;
+#endif
+	struct val     *l;
 
 	l = eval6();
 	while (token == MATCH) {
+#ifdef KMK_WITH_REGEX
 		nexttoken(1);
 		r = eval6();
 
@@ -359,12 +362,12 @@ eval5(void)
 		regfree(&rp);
 
 		l = v;
+#else
+		longjmp(g_expr_jmp, errx(2, "regex not supported, sorry."));
+#endif
 	}
 
 	return l;
-#else
-	longjmp(g_expr_jmp, errx(2, "regex not supported, sorry."));
-#endif 
 }
 
 /* Parse and evaluate multiplication and division expressions */
@@ -574,19 +577,19 @@ kmk_builtin_expr(int argc, char *argv[], char **envp)
 	if (!rval) {
 		nexttoken(0);
 		vp = eval0();
-	
+
 		if (token != EOI) {
 			error();
 			/* NOTREACHED */
 		}
-	
+
 		if (vp->type == integer)
 			printf("%d\n", vp->u.i);
 		else
 			printf("%s\n", vp->u.s);
-	
+
 		rval = is_zero_or_null(vp);
-	} 
+	}
 	/* else: longjmp */
 
 	/* cleanup */
