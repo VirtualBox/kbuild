@@ -1236,6 +1236,7 @@ define_automatic_variables (void)
                           " set-conditionals"
                           " date"
                           " file-size"
+                          " expr if-expr"
                           " which"
                           " evalctx evalval evalvalctx evalcall evalcall2"
                           " make-stats"
@@ -1283,6 +1284,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_FILE_SIZE)
   strcat (buf, " file-size");
+#  endif
+#  if defined (CONFIG_WITH_IF_CONDITIONALS)
+  strcat (buf, " expr if-expr");
 #  endif
 #  if defined (CONFIG_WITH_WHICH)
   strcat (buf, " which");
