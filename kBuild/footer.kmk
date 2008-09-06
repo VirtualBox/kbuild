@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1754 2008-09-06 03:23:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1755 2008-09-06 03:34:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2199,7 +2199,7 @@ local suff        := $(firstword\
 	$(TOOL_$(tool)_ARLIBSUFF)\
 	$(SUFF_LIB))
 local out         := $(outbase)$(suff)
-local defpath     := $($(target)_PATH)
+local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 TARGET_$(target)  := $(out)
 # no local here - must be writable across some foreachs.
 othersrc          :=
@@ -2448,7 +2448,7 @@ local suff        := $(firstword \
 	$($(EXTPRE)SUFF_$(EXT)))
 local out         := $(outbase)$(suff)
 TARGET_$(target)  := $(out)
-local defpath     := $($(target)_PATH)
+local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_OBJS_   :=
@@ -2641,7 +2641,7 @@ ifneq ($(defpath),)
  local deps       := $(abspathex $(deps),$(defpath))
  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
- # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_PATH)/lib if relative to current dir!
+ # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_DEFPATH)/lib if relative to current dir!
 endif
 
 # Custom pre-link actions.
@@ -3056,8 +3056,9 @@ clean_files += \
 
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
-ifdef $(target)_PATH
- local srcsrc := $(abspathex $(srcsrc),$($(target)_PATH))
+local defpath := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
+ifneq ($(defpath),)
+ local srcsrc := $(abspathex $(srcsrc),$(defpath))
 endif
 
 # create the command

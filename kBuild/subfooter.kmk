@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 1669 2008-07-04 04:04:42Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 1755 2008-09-06 03:34:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
@@ -44,6 +44,9 @@ endif
 define def_subheader
  ifndef $(target)_PATH
   $(target)_PATH := $(PATH_SUB_CURRENT)
+ endif
+ ifndef $(target)_DEFPATH
+  $(target)_DEFPATH := $(PATH_SUB_CURRENT)
  endif
  ifndef $(target)_MAKEFILE
   $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
