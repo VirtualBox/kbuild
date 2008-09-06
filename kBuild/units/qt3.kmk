@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1688 2008-08-23 21:03:26Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1756 2008-09-06 06:31:34Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3 unit.
 #
@@ -72,27 +72,38 @@ ifndef PATH_SDK_QT3
       PATH_SDK_QT3_LIB.x86   := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib32/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib32/qt3/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib32/libqt-mt$(SUFF_DLL) \
 	/usr/lib32/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib32/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib32/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
      endif
      ifeq ($(PATH_SDK_QT3_LIB.amd64),)
       PATH_SDK_QT3_LIB.amd64 := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib64/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib64/qt3/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib64/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/amd64/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/64/libqt-mt$(SUFF_DLL) \
 	/usr/lib64/libqt-mt$(SUFF_DLL) \
 	/usr/lib64/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib64/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib/amd64/libqt-mt$(SUFF_DLL) \
+	/usr/lib/64/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib64/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib64/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib64/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/amd64/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/64/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
      endif
      ifeq ($(PATH_SDK_QT3_LIB),)
@@ -101,10 +112,13 @@ ifndef PATH_SDK_QT3
        PATH_SDK_QT3_LIB := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/qt3/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
       endif
      endif
@@ -659,9 +673,23 @@ local qt_prefix := $(firstword \
  	$($(target)_QT_PREFIX.$(_bld_type)) \
  	$($(target)_QT_PREFIX))
 ifeq ($(bld_trg),win)
- $(eval $(target)_LIBS    += $(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt$(SUFF_LIB)) )
+ local qt_lib := $(firstword $(wildcard \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)qt-mt3$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt3$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)qt-mt$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt3$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt3$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt$(SUFF_LIB) \
+	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt$(SUFF_LIB) )
+ $(eval $(target)_LIBS    += $(qt_lib) )
  ifeq ($(tool_do),LINK_PROGRAM)
-  $(eval $(target)_LIBS   += $(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
+  local qt_main_lib := $(firstword $(wildcard \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/qtmain$(SUFF_LIB)
+	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
+  $(eval $(target)_LIBS   += $(qt_main_lib) )
  endif
 else
  $(eval $(target)_LIBS    += $(PATH_SDK_QT3_LIB)/lib$(qt_prefix)qt-mt$(SUFF_DLL) )
