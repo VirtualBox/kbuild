@@ -673,17 +673,29 @@ snap_deps (void)
   /* Perform 2nd target expansion on files which requires this. This will
      be re-inserting (delete+insert) hash table entries so we have to use
      hash_dump(). */
-  file_slot_0 = (struct file **) hash_dump (&files, 0, 0);
-  file_end = file_slot_0 + files.ht_fill;
-  for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
-    for (f = *file_slot; f != 0; f = f->prev)
-      if (f->need_2nd_target_expansion)
-        do_2nd_target_expansion (f);
-  free (file_slot_0);
+  if (second_target_expansion)
+    {
+# ifdef KMK /* turn on warnings here. */
+      int save = warn_undefined_variables_flag;
+      warn_undefined_variables_flag = 1;
+# endif
 
-  /* Disable second target expansion now since we won't expand files
-     entered after this point. (saves CPU cycles in enter_file()). */
-  second_target_expansion = 0;
+      file_slot_0 = (struct file **) hash_dump (&files, 0, 0);
+      file_end = file_slot_0 + files.ht_fill;
+      for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
+        for (f = *file_slot; f != 0; f = f->prev)
+          if (f->need_2nd_target_expansion)
+            do_2nd_target_expansion (f);
+      free (file_slot_0);
+
+# ifdef KMK
+      warn_undefined_variables_flag = save;
+# endif 
+    
+      /* Disable second target expansion now since we won't expand files
+         entered after this point. (saves CPU cycles in enter_file()). */
+      second_target_expansion = 0;
+    }
 #endif /* CONFIG_WITH_2ND_TARGET_EXPANSION */
 
   /* For every target that's not .SUFFIXES, expand its dependencies.
