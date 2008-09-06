@@ -1,4 +1,4 @@
-# $Id: header.kmk 1702 2008-09-02 02:20:48Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1753 2008-09-06 03:21:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1702 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1753 $  )
 
 
 #
@@ -533,6 +533,9 @@ APPEND      := kmk_builtin_append
 CAT_EXT     := $(KBUILD_BIN_PATH)/kmk_cat$(HOSTSUFF_EXE)
 CAT         := kmk_builtin_cat
 
+CHMOD_EXT   := $(KBUILD_BIN_PATH)/kmk_chmod$(HOSTSUFF_EXE)
+CHMOD       := kmk_builtin_chmod
+
 CMP_EXT     := $(KBUILD_BIN_PATH)/kmk_cmp$(HOSTSUFF_EXE)
 CMP         := kmk_builtin_cmp
 
@@ -541,6 +544,9 @@ CP          := kmk_builtin_cp
 
 ECHO_EXT    := $(KBUILD_BIN_PATH)/kmk_echo$(HOSTSUFF_EXE)
 ECHO        := kmk_builtin_echo
+
+EXPR_EXT    := $(KBUILD_BIN_PATH)/kmk_expr$(HOSTSUFF_EXE)
+EXPR        := kmk_builtin_expr
 
 INSTALL_EXT := $(KBUILD_BIN_PATH)/kmk_install$(HOSTSUFF_EXE)
 INSTALL     := kmk_builtin_install
