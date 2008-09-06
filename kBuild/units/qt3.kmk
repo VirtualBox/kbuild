@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1759 2008-09-06 06:53:03Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1760 2008-09-06 07:03:38Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3 unit.
 #
@@ -695,7 +695,7 @@ ifeq ($(bld_trg),win)
  ifeq ($(tool_do),LINK_PROGRAM)
   local qt_main_lib := $(firstword $(wildcard \
 	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/qtmain$(SUFF_LIB)
+	$(PATH_SDK_QT3_LIB)/qtmain$(SUFF_LIB) \
 	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
   $(eval $(target)_LIBS   += $(qt_main_lib) )
  endif
