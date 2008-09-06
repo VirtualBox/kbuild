@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1760 2008-09-06 07:03:38Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1761 2008-09-06 07:15:43Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3 unit.
 #
@@ -674,22 +674,22 @@ endif
 
 # Deal with QT_MODULES and QT_PREFIX.
 local qt_prefix := $(firstword \
-	$($(target)_QT_PREFIX.$(_bld_trg)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg_arch)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg_cpu)) \
- 	$($(target)_QT_PREFIX.$(_bld_type)) \
+	$($(target)_QT_PREFIX.$(bld_trg)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg_cpu)) \
+ 	$($(target)_QT_PREFIX.$(bld_type)) \
  	$($(target)_QT_PREFIX))
 ifeq ($(bld_trg),win)
  local qt_lib := $(firstword $(wildcard \
-	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)qt-mt3$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt3$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)qt-mt3*$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt3*$(SUFF_LIB) \
 	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)qt-mt$(SUFF_LIB) \
 	$(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt3$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt3$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt$(SUFF_LIB) \
-	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt3*$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt3*$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/dynamic/$(qt_prefix)Qt*$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)Qt*$(SUFF_LIB) \
 	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qt-mt$(SUFF_LIB) )
  $(eval $(target)_LIBS    += $(qt_lib) )
  ifeq ($(tool_do),LINK_PROGRAM)
@@ -708,11 +708,11 @@ $(eval $(target)_INCS     += $(PATH_SDK_QT3_INC) )
 # Tip: Use target_QT_MOCSRCS = $(NO_SUCH_VARIABLE) to avoid this.
 ifndef $(target)_QT_MOCSRCS
  $(foreach source, $(filter %.cxx %.CXX %.cpp %.CPP %.cc %.CC,\
- 	$($(target)_SOURCES.$(_bld_trg)) \
- 	$($(target)_SOURCES.$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg_cpu)) \
- 	$($(target)_SOURCES.$(_bld_type)) \
+ 	$($(target)_SOURCES.$(bld_trg)) \
+ 	$($(target)_SOURCES.$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg_cpu)) \
+ 	$($(target)_SOURCES.$(bld_type)) \
  	$($(target)_SOURCES) \
  	), $(evalval def_unit_qt3_target_pre_cpp_source))
 endif
@@ -731,33 +731,33 @@ $(eval $(target)_INCS    += $(qtmocdir) $(qtuicdir) )
 
 # Calc .ui sources so we can add them to the QT_MOCSRCS and QT_MOCHDRS.
 local ui_sources := $(notdir $(basename $(filter %.ui %.UI, \
-	$($(target)_SOURCES.$(_bld_trg)) \
- 	$($(target)_SOURCES.$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg_cpu)) \
- 	$($(target)_SOURCES.$(_bld_type)) \
+	$($(target)_SOURCES.$(bld_trg)) \
+ 	$($(target)_SOURCES.$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg_cpu)) \
+ 	$($(target)_SOURCES.$(bld_type)) \
  	$($(target)_SOURCES) \
 	)))
 #$(error ui_sources:=$(ui_sources))
 
 # Deal with QT_MOCSRCS.
 $(foreach source, \
-	$($(target)_QT_MOCSRCS.$(_bld_trg)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_type)) \
+	$($(target)_QT_MOCSRCS.$(bld_trg)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_type)) \
  	$($(target)_QT_MOCSRCS) \
 	$(addsuffix .h,$(addprefix $(qtuicdir)/,$(notdir $(basename $(ui_sources))))) \
 	, $(evalvalctx def_unit_qt3_target_pre_handle_moc_src))
 
 # Deal with QT_MOCHDRS.
 $(foreach source, \
-	$($(target)_QT_MOCHDRS.$(_bld_trg)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_type)) \
+	$($(target)_QT_MOCHDRS.$(bld_trg)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_type)) \
  	$($(target)_QT_MOCHDRS) \
 	$(addsuffix .h,$(addprefix $(qtuicdir)/,$(notdir $(basename $(ui_sources))))) \
 	, $(evalvalctx def_unit_qt3_target_pre_handle_moc_hdr))
@@ -765,11 +765,11 @@ $(foreach source, \
 # Deal with QT_TRANSLATIONS.
 # ASSUMES (_ALL_)INSTALLS is processed after the targets using this unit.
 local translations := \
-	$($(target)_QT_TRANSLATIONS.$(_bld_trg)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg_arch)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_type)) \
+	$($(target)_QT_TRANSLATIONS.$(bld_trg)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg_arch)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_type)) \
  	$($(target)_QT_TRANSLATIONS)
 ifneq ($(strip $(translations)),)
  local expr := _ALL_INSTALLS += $(target)-inst-nls

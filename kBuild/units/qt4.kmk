@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1689 2008-08-26 18:42:40Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1761 2008-09-06 07:15:43Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -798,18 +798,18 @@ endif
 
 # Deal with QT_MODULES and QT_PREFIX.
 local qt_modules := \
-	$($(target)_QT_MODULES.$(_bld_trg)) \
- 	$($(target)_QT_MODULES.$(_bld_trg_arch)) \
- 	$($(target)_QT_MODULES.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_MODULES.$(_bld_trg_cpu)) \
- 	$($(target)_QT_MODULES.$(_bld_type)) \
+	$($(target)_QT_MODULES.$(bld_trg)) \
+ 	$($(target)_QT_MODULES.$(bld_trg_arch)) \
+ 	$($(target)_QT_MODULES.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_MODULES.$(bld_trg_cpu)) \
+ 	$($(target)_QT_MODULES.$(bld_type)) \
  	$($(target)_QT_MODULES)
 local qt_prefix := $(firstword \
-	$($(target)_QT_PREFIX.$(_bld_trg)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg_arch)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_PREFIX.$(_bld_trg_cpu)) \
- 	$($(target)_QT_PREFIX.$(_bld_type)) \
+	$($(target)_QT_PREFIX.$(bld_trg)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_PREFIX.$(bld_trg_cpu)) \
+ 	$($(target)_QT_PREFIX.$(bld_type)) \
  	$($(target)_QT_PREFIX))
 ifeq ($(bld_trg),darwin)
  # Adding -F to CXXFLAGS is necessary to make #include <QtCore/qstring.h> stuff work...
@@ -834,11 +834,11 @@ $(eval $(target)_DEFS      += $(foreach module,$(toupper $(qt_modules)), QT_$(mo
 # Tip: Use target_QT_MOCSRCS = $(NO_SUCH_VARIABLE) to avoid this.
 ifndef $(target)_QT_MOCSRCS
  $(foreach source, $(filter %.cxx %.CXX %.cpp %.CPP %.cc %.CC,\
- 	$($(target)_SOURCES.$(_bld_trg)) \
- 	$($(target)_SOURCES.$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_SOURCES.$(_bld_trg_cpu)) \
- 	$($(target)_SOURCES.$(_bld_type)) \
+ 	$($(target)_SOURCES.$(bld_trg)) \
+ 	$($(target)_SOURCES.$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_SOURCES.$(bld_trg_cpu)) \
+ 	$($(target)_SOURCES.$(bld_type)) \
  	$($(target)_SOURCES) \
  	), $(evalval def_unit_qt4_target_pre_cpp_source))
 endif
@@ -860,32 +860,32 @@ $(eval $(target)_INCS    += $(qtmocdir) $(qtuicdir))
 
 # Deal with QT_MOCSRCS.
 $(foreach source, \
-	$($(target)_QT_MOCSRCS.$(_bld_trg)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_MOCSRCS.$(_bld_type)) \
+	$($(target)_QT_MOCSRCS.$(bld_trg)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_MOCSRCS.$(bld_type)) \
  	$($(target)_QT_MOCSRCS) \
 	, $(evalvalctx def_unit_qt4_target_pre_handle_moc_src))
 
 # Deal with QT_MOCHDRS.
 $(foreach source, \
-	$($(target)_QT_MOCHDRS.$(_bld_trg)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_MOCHDRS.$(_bld_type)) \
+	$($(target)_QT_MOCHDRS.$(bld_trg)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_MOCHDRS.$(bld_type)) \
  	$($(target)_QT_MOCHDRS) \
 	, $(evalvalctx def_unit_qt4_target_pre_handle_moc_hdr))
 
 # Deal with QT_TRANSLATIONS.
 # ASSUMES (_ALL_)INSTALLS is processed after the targets using this unit.
 local translations := \
-	$($(target)_QT_TRANSLATIONS.$(_bld_trg)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg_arch)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg).$(_bld_trg_arch)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_trg_cpu)) \
- 	$($(target)_QT_TRANSLATIONS.$(_bld_type)) \
+	$($(target)_QT_TRANSLATIONS.$(bld_trg)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg_arch)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_trg_cpu)) \
+ 	$($(target)_QT_TRANSLATIONS.$(bld_type)) \
  	$($(target)_QT_TRANSLATIONS)
 ifneq ($(strip $(translations)),)
  local expr := _ALL_INSTALLS += $(target)-inst-nls
