@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1702 2008-09-02 02:20:48Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1754 2008-09-06 03:23:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1482,9 +1482,12 @@ local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
 local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
 local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 # TARGET_*
-TARGET_$(target) := $(PATH_TARGET)/$(target).ins
+TARGET_$(target)  := $(PATH_TARGET)/$(target).ins
 # INSTARGET_ later.
-endef
+# PATH_*
+local outbase     := $(call TARGET_BASE,$(target),$(target))
+PATH_$(target)    := $(patsubst %/,%,$(dir $(outbase)))
+endef # def_pass1_install
 $(foreach target, $(_ALL_INSTALLS), \
 	$(evalval def_pass1_install))
 
@@ -3213,6 +3216,12 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 
 INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
+local outbase := $(call TARGET_BASE,$(target),$(target))
+ifndef PATH_$(target)
+ PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
+else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
+ $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
+endif
 
 local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 
@@ -3236,7 +3245,7 @@ _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 _CLEAN_FILES += $(clean_files)
-_DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
+_DIRS += $(PATH_$(target)) $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 endef
 
 ## process all install targets
