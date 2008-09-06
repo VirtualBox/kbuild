@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1756 2008-09-06 06:31:34Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1757 2008-09-06 06:40:54Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3 unit.
 #
@@ -63,7 +63,7 @@ ifndef PATH_SDK_QT3
     # No idea here yet...
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT3_LIB* stuff if it doesn't work.
-    PATH_SDK_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard /usr/bin/qm2ts /usr/local/bin/qm2ts /usr/qt/3/bin/qm2ts /usr/share/qt3/bin/qm2ts)))
+    PATH_SDK_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard /usr/bin/qm2ts /usr/local/bin/qm2ts /usr/qt/3/bin/qm2ts /usr/share/qt3/bin/qm2ts /usr/lib/qt-3.3/bin/qm2ts /usr/lib64/qt-3.3/bin/qm2ts $(QTDIR)/bin/qm2ts)))
     ifneq ($(PATH_SDK_QT3),)
      ifeq ($(PATH_SDK_QT3_INC),)
       PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard $(PATH_SDK_QT3)/include/private/qfiledefs_p.h $(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h /usr/include/qt3/private/qfiledefs_p.h)))
