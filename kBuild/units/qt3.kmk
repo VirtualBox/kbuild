@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1764 2008-09-07 18:11:36Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1765 2008-09-07 23:28:08Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -50,6 +50,11 @@ PROPS_ACCUMULATE_R += QT_IMAGES
 SDK_QT3 = Qt3
 
 # SDK Specific Properties
+#       PATH_SDK_QT3           - the general location of the Qt3 SDK stuff.
+#       PATH_SDK_QT3_INC       - the Qt3 include directory.
+#       PATH_SDK_QT3_LIB       - the Qt3 library directory for KBUILD_TARGET.
+#       PATH_SDK_QT3_LIB.amd64 - the Qt3 library directory for AMD64.
+#       PATH_SDK_QT3_LIB.x86   - the Qt3 library directory for X86.
 ifndef PATH_SDK_QT3
  PATH_SDK_QT3 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_TRG)/qt/v3*)))
  ifeq ($(PATH_SDK_QT3),)
@@ -63,6 +68,8 @@ ifndef PATH_SDK_QT3
     # No idea here yet...
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT3_LIB* stuff if it doesn't work.
+    # Try find the general location of the thing by looking for the qm2ts program, then try looking for
+    # the moc program in likely and unlikely places save /usr[/local]/bin to avoid mistaking it with Qt4.
     PATH_SDK_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard \
 	/usr/lib/qt-3.3/bin/qm2ts \
 	/usr/lib64/qt-3.3/bin/qm2ts \
@@ -82,9 +89,21 @@ ifndef PATH_SDK_QT3
  	)))
     endif
     ifneq ($(PATH_SDK_QT3),)
+     # Found something! Export the variable for the benefit of recursive make instances.
+     export PATH_SDK_QT3
+
+     # Determin the include directory.
      ifeq ($(PATH_SDK_QT3_INC),)
-      PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard $(PATH_SDK_QT3)/include/private/qfiledefs_p.h $(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h /usr/include/qt3/private/qfiledefs_p.h)))
+      PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard \
+	$(PATH_SDK_QT3)/include/private/qfiledefs_p.h \
+	$(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h \
+	/usr/include/qt3/private/qfiledefs_p.h)))
+      ifneq ($(PATH_SDK_QT3_INC),)
+       export PATH_SDK_QT3_INC
+      endif
      endif
+
+     # Determin the most likely x86 and AMD64 lib directories (only used for making PATH_SDK_QT3_LIB).
      ifeq ($(PATH_SDK_QT3_LIB.x86),)
       PATH_SDK_QT3_LIB.x86   := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib32/libqt-mt$(SUFF_DLL) \
@@ -100,6 +119,9 @@ ifndef PATH_SDK_QT3
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
+      ifneq ($(PATH_SDK_QT3_LIB.x86),)
+       export PATH_SDK_QT3_LIB.x86
+      endif
      endif
      ifeq ($(PATH_SDK_QT3_LIB.amd64),)
       PATH_SDK_QT3_LIB.amd64 := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
@@ -122,7 +144,12 @@ ifndef PATH_SDK_QT3
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
+      ifneq ($(PATH_SDK_QT3_LIB.amd64),)
+       export PATH_SDK_QT3_LIB.amd64
+      endif
      endif
+
+     # Determin the KBUILD_TARGET lib directory.
      ifeq ($(PATH_SDK_QT3_LIB),)
       PATH_SDK_QT3_LIB := $(PATH_SDK_QT3_LIB.$(KBUILD_TARGET))
       ifeq ($(PATH_SDK_QT3_LIB),)
@@ -137,8 +164,12 @@ ifndef PATH_SDK_QT3
 	/usr/local/lib/qt3/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	)))
+       ifneq ($(PATH_SDK_QT3_LIB),)
+        export PATH_SDK_QT3_LIB
+       endif
       endif
      endif
+
     endif
    endif # Unices
   endif
@@ -170,46 +201,77 @@ PATH_SDK_QT3_INC ?= $(PATH_SDK_QT3)/include
 #
 TOOL_QT3 = Qt3
 
-# Tool Specific Properties
-ifndef PATH_TOOL_QT3
- PATH_TOOL_QT3 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v3*)))
- ifeq ($(PATH_TOOL_QT3),)
-  PATH_TOOL_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard \
-  	/usr/lib/qt-3.3/bin/qm2ts \
-  	/usr/lib64/qt-3.3/bin/qm2ts \
-  	/usr/qt/3/bin/qm2ts \
-  	$(if $(QTDIR),$(QTDIR)/bin/qm2ts) \
-  	/usr/bin/qm2ts \
-  	/usr/local/bin/qm2ts \
-  	/usr/share/qt3/bin/qm2ts \
-  	)))
-  ifeq ($(PATH_SDK_QT3),) # Try with moc, but not in /usr/bin and /usr/local/bin.
-   PATH_TOOL_QT3 := $(patsubst %/bin/moc,%,$(firstword $(wildcard \
-   	/usr/lib/qt-3.3/bin/moc \
-   	/usr/lib64/qt-3.3/bin/moc \
-   	/usr/qt/3/bin/moc \
-   	/usr/share/qt3/bin/moc \
-   	$(if $(QTDIR),$(QTDIR)/bin/moc) \
-   	)))
+# Tool Specific Properties (PATH_TOOL_QT3_BIN and TOOL_QT3_BIN_SUFF)
+#       TOOL_QT3_BIN_SUFF - the '-qt3' bit found on debian.
+#       PATH_TOOL_QT3_BIN - the directory containing moc, uic, lrelease, lupdate and qm2ts.
+ifndef PATH_TOOL_QT3_BIN
+ PATH_TOOL_QT3_BIN := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v3*/bin)))
+ ifeq ($(PATH_TOOL_QT3_BIN),)
+  if1of ($(KBUILD_HOST), win os2)
+   # sorry, no joy here.
+  else
+   ifdef TOOL_QT3_BIN_SUFF
+    TOOL_QT3_BIN_SUFF := $(TOOL_QT3_BIN_SUFF)
+   endif
+    PATH_TOOL_QT3_BIN := $(patsubst %/qm2ts$(TOOL_QT3_BIN_SUFF),%,$(firstword $(wildcard \
+    	/usr/lib/qt-3.3/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	/usr/lib64/qt-3.3/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	/usr/qt/3/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	$(if $(QTDIR),$(QTDIR)/bin/qm2ts$(TOOL_QT3_BIN_SUFF)) \
+    	/usr/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	/usr/local/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	/usr/share/qt3/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
+    	)))
+   ifeq ($(PATH_TOOL_QT3_BIN),)
+    # If we couldn't find the qt3 specific tool qm2ts, debian and other skip 
+    # this (thanks a bundle). Try with look for 'moc' with a '-qt3' extension,
+    # then for just moc. In the latter case don't search /usr[/local]/bin to 
+    # void finding the qt4 tools and messing up.
+    ifeq ($(TOOL_QT3_BIN_SUFF),)
+     PATH_TOOL_QT3_BIN := $(patsubst %/moc-qt3,%,$(firstword $(wildcard \
+     	/usr/bin/moc-qt3 \
+     	/usr/local/bin/moc-qt3 \
+     	/usr/lib/qt-3.3/bin/moc-qt3 \
+     	/usr/lib64/qt-3.3/bin/moc-qt3 \
+     	/usr/qt/3/bin/moc-qt3 \
+     	/usr/share/qt3/bin/moc-qt3 \
+     	$(if $(QTDIR),$(QTDIR)/bin/moc-qt3) \
+     	)))
+    endif
+    ifneq ($(PATH_TOOL_QT3_BIN),)
+     export TOOL_QT3_BIN_SUFF := -qt3
+    else
+     PATH_TOOL_QT3_BIN := $(patsubst %/moc$(TOOL_QT3_BIN_SUFF),%,$(firstword $(wildcard \
+    	/usr/lib/qt-3.3/bin/moc$(TOOL_QT3_BIN_SUFF) \
+    	/usr/lib64/qt-3.3/bin/moc$(TOOL_QT3_BIN_SUFF) \
+    	/usr/qt/3/bin/moc$(TOOL_QT3_BIN_SUFF) \
+    	/usr/share/qt3/bin/moc$(TOOL_QT3_BIN_SUFF) \
+    	$(if $(QTDIR),$(QTDIR)/bin/moc$(TOOL_QT3_BIN_SUFF)) \
+    	)))
+    endif
+   endif
+   ifneq ($(PATH_TOOL_QT3_BIN),)
+    export PATH_TOOL_QT3_BIN
+   endif
   endif
  endif
  # If not found, we'll enter the 'pathless' mode.
 else
  # Resolve any fancy stuff once and for all.
- PATH_TOOL_QT3 := $(PATH_TOOL_QT3)
+ PATH_TOOL_QT3_BIN := $(PATH_TOOL_QT3_BIN)
+ TOOL_QT3_BIN_SUFF := $(TOOL_QT3_BIN_SUFF)
 endif
-ifneq ($(PATH_TOOL_QT3),)
- PATH_TOOL_QT3_BIN  ?= $(PATH_TOOL_QT3)/bin
- TOOL_QT3_MOC       ?= $(PATH_TOOL_QT3_BIN)/moc$(HOST_SUFF_EXE)
- TOOL_QT3_UIC       ?= $(PATH_TOOL_QT3_BIN)/uic$(HOST_SUFF_EXE)
- TOOL_QT3_LRC       ?= $(PATH_TOOL_QT3_BIN)/lrelease$(HOST_SUFF_EXE)
- TOOL_QT3_LUPDATE   ?= $(PATH_TOOL_QT3_BIN)/lupdate$(HOST_SUFF_EXE)
+ifneq ($(PATH_TOOL_QT3_BIN),)
+ TOOL_QT3_MOC       ?= $(PATH_TOOL_QT3_BIN)/moc$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_UIC       ?= $(PATH_TOOL_QT3_BIN)/uic$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LRC       ?= $(PATH_TOOL_QT3_BIN)/lrelease$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LUPDATE   ?= $(PATH_TOOL_QT3_BIN)/lupdate$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
 else
  # Pathless, relies on the environment.
- TOOL_QT3_MOC       ?= moc$(HOST_SUFF_EXE)
- TOOL_QT3_UIC       ?= uic$(HOST_SUFF_EXE)
- TOOL_QT3_LRC       ?= lrelease$(HOST_SUFF_EXE)
- TOOL_QT3_LUPDATE   ?= lupdate$(HOST_SUFF_EXE)
+ TOOL_QT3_MOC       ?= moc$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_UIC       ?= uic$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LRC       ?= lrelease$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LUPDATE   ?= lupdate$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
 endif
 
 # General Properties used by kBuild and/or units/qt.kmk
