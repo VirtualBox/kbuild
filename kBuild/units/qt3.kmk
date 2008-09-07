@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1765 2008-09-07 23:28:08Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1766 2008-09-07 23:44:09Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -876,4 +876,23 @@ ifneq ($(strip $(translations)),)
 endif
 
 endef # def_unit_qt3_target_pre
+
+
+#
+# Rule for debugging.
+#
+unit-qt3-show-vars:
+	@$(ECHO) 'The Qt3 SDK variables:'
+	@$(ECHO) '  PATH_SDK_QT3           = "$(PATH_SDK_QT3)"'
+	@$(ECHO) '  PATH_SDK_QT3_INC       = "$(PATH_SDK_QT3_INC)"'
+	@$(ECHO) '  PATH_SDK_QT3_LIB       = "$(PATH_SDK_QT3_LIB)"'
+	@$(ECHO) '  PATH_SDK_QT3_LIB.amd64 = "$(PATH_SDK_QT3_LIB.amd64)"'
+	@$(ECHO) '  PATH_SDK_QT3_LIB.x86   = "$(PATH_SDK_QT3_LIB.x86)"'
+	@$(ECHO) 'The Qt3 TOOL variables:'
+	@$(ECHO) '  PATH_TOOL_QT3_BIN      = "$(PATH_TOOL_QT3_BIN)"'
+	@$(ECHO) '  TOOL_QT3_BIN_SUFF      = "$(TOOL_QT3_BIN_SUFF)"'
+	@$(ECHO) '  TOOL_QT3_MOC           = "$(TOOL_QT3_MOC)"'
+	@$(ECHO) '  TOOL_QT3_UIC           = "$(TOOL_QT3_UIC)"'
+	@$(ECHO) '  TOOL_QT3_LRC           = "$(TOOL_QT3_LRC)"'
+	@$(ECHO) '  TOOL_QT3_LUPDATE       = "$(TOOL_QT3_LUPDATE)"'
 
