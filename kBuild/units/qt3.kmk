@@ -1,6 +1,6 @@
-# $Id: qt3.kmk 1763 2008-09-07 17:56:36Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1764 2008-09-07 18:11:36Z knut.osmundsen@oracle.com $
 ## @file
-# Qt 3 unit.
+# Qt 3.3.x unit.
 #
 
 #
@@ -67,11 +67,20 @@ ifndef PATH_SDK_QT3
 	/usr/lib/qt-3.3/bin/qm2ts \
 	/usr/lib64/qt-3.3/bin/qm2ts \
 	/usr/qt/3/bin/qm2ts \
-	$(QTDIR)/bin/qm2ts \
+	$(if $(QTDIR),$(QTDIR)/bin/qm2ts) \
 	/usr/bin/qm2ts \
 	/usr/local/bin/qm2ts \
 	/usr/share/qt3/bin/qm2ts \
 	)))
+    ifeq ($(PATH_SDK_QT3),) # Try with moc, but not in /usr/bin and /usr/local/bin.
+     PATH_SDK_QT3 := $(patsubst %/bin/moc,%,$(firstword $(wildcard \
+ 	/usr/lib/qt-3.3/bin/moc \
+ 	/usr/lib64/qt-3.3/bin/moc \
+ 	/usr/qt/3/bin/moc \
+ 	/usr/share/qt3/bin/moc \
+ 	$(if $(QTDIR),$(QTDIR)/bin/moc) \
+ 	)))
+    endif
     ifneq ($(PATH_SDK_QT3),)
      ifeq ($(PATH_SDK_QT3_INC),)
       PATH_SDK_QT3_INC := $(patsubst %/private/qfiledefs_p.h,%,$(firstword $(wildcard $(PATH_SDK_QT3)/include/private/qfiledefs_p.h $(PATH_SDK_QT3)/include/qt3/private/qfiledefs_p.h /usr/include/qt3/private/qfiledefs_p.h)))
@@ -166,14 +175,23 @@ ifndef PATH_TOOL_QT3
  PATH_TOOL_QT3 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v3*)))
  ifeq ($(PATH_TOOL_QT3),)
   PATH_TOOL_QT3 := $(patsubst %/bin/qm2ts,%,$(firstword $(wildcard \
-	/usr/lib/qt-3.3/bin/qm2ts \
-	/usr/lib64/qt-3.3/bin/qm2ts \
-	/usr/qt/3/bin/qm2ts \
-	$(QTDIR)/bin/qm2ts \
-	/usr/bin/qm2ts \
-	/usr/local/bin/qm2ts \
-	/usr/share/qt3/bin/qm2ts \
-	)))
+  	/usr/lib/qt-3.3/bin/qm2ts \
+  	/usr/lib64/qt-3.3/bin/qm2ts \
+  	/usr/qt/3/bin/qm2ts \
+  	$(if $(QTDIR),$(QTDIR)/bin/qm2ts) \
+  	/usr/bin/qm2ts \
+  	/usr/local/bin/qm2ts \
+  	/usr/share/qt3/bin/qm2ts \
+  	)))
+  ifeq ($(PATH_SDK_QT3),) # Try with moc, but not in /usr/bin and /usr/local/bin.
+   PATH_TOOL_QT3 := $(patsubst %/bin/moc,%,$(firstword $(wildcard \
+   	/usr/lib/qt-3.3/bin/moc \
+   	/usr/lib64/qt-3.3/bin/moc \
+   	/usr/qt/3/bin/moc \
+   	/usr/share/qt3/bin/moc \
+   	$(if $(QTDIR),$(QTDIR)/bin/moc) \
+   	)))
+  endif
  endif
  # If not found, we'll enter the 'pathless' mode.
 else
