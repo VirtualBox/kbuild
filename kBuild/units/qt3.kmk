@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1766 2008-09-07 23:44:09Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 1770 2008-09-08 00:27:28Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -788,9 +788,22 @@ ifeq ($(bld_trg),win)
   $(eval $(target)_LIBS   += $(qt_main_lib) )
  endif
 else
- $(eval $(target)_LIBS    += $(PATH_SDK_QT3_LIB)/lib$(qt_prefix)qt-mt$(SUFF_DLL) )
+ local qt_lib := $(PATH_SDK_QT3_LIB)/lib$(qt_prefix)qt-mt$(SUFF_DLL)
+ $(eval $(target)_LIBS    += $(qt_lib) )
 endif
 $(eval $(target)_INCS     += $(PATH_SDK_QT3_INC) )
+
+# On Qt3 we will try pickup the QMAKE_PRL_DEFINES listed in the .prl file (in libs).
+local qt_prl := $(firstword $(wildcard \
+	$(patsubst %$(SUFF_DLL),%,$(patsubst %$(SUFF_LIB),%,$(qt_lib))).prl \
+	$(dir $(qt_lib))/$(qt_prefix)qt-mt.prl \
+	$(dir $(qt_lib))/*qt-mt*.prl \
+	$(dir $(qt_lib))/*qt*.prl \
+	))
+ifneq ($(qt_prl),)
+ include $(qt_prl)
+ $(eval $(target)_DEFS    += $(QMAKE_PRL_DEFINES))
+endif
 
 # Autodetect source files with Q_OBJECT references if QT_MOCSRCS is undefined. (slow)
 # Tip: Use target_QT_MOCSRCS = $(NO_SUCH_VARIABLE) to avoid this.
