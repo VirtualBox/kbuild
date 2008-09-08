@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1771 2008-09-08 02:07:02Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1773 2008-09-08 15:27:00Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -87,7 +87,7 @@ ifndef PATH_SDK_QT4
     endif
     ifneq ($(PATH_SDK_QT4),)
      export PATH_SDK_QT4
-     
+
      # Locate the include files.
      ifeq ($(PATH_SDK_QT4_INC),)
       PATH_SDK_QT4_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard \
@@ -96,6 +96,9 @@ ifndef PATH_SDK_QT4
 	/usr/include/qt4/QtCore/qtglobal.h \
 	/usr/local/include/qt4/QtCore/qtglobal.h \
 	)))
+      ifneq ($(PATH_SDK_QT4_INC),)
+       export PATH_SDK_QT4_INC
+      endif
      endif
 
      # Now for the libraries (mostly for helping out finding the KBUILD_TARGET libs).
@@ -194,8 +197,8 @@ TOOL_QT4 = Qt4
 
 # Tool Specific Properties
 #       PATH_TOOL_QT4     - Obsolete.
-#       PATH_TOOL_QT4_BIN - The 
-#       TOOL_QT4_BIN_SUFF - 
+#       PATH_TOOL_QT4_BIN - The
+#       TOOL_QT4_BIN_SUFF -
 if !defined(PATH_TOOL_QT4_BIN) && defined(PATH_TOOL_QT4)
  PATH_TOOL_QT4_BIN := $(PATH_TOOL_QT4)/bin
 endif
