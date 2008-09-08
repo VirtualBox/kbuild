@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1773 2008-09-08 15:27:00Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1774 2008-09-08 15:43:37Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -78,7 +78,7 @@ ifndef PATH_SDK_QT4
 	/usr/share/qt4/bin/qt3to4 \
     	)))
     ifeq ($(PATH_SDK_QT4),)
-     PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard \
+     PATH_SDK_QT4 := $(patsubst %/bin/rcc,%,$(firstword $(wildcard \
      	/usr/bin/rcc \
 	/usr/local/bin/rcc \
      	/usr/qt/4/bin/rcc \
@@ -208,35 +208,64 @@ ifndef PATH_TOOL_QT4_BIN
   ifdef TOOL_QT4_BIN_SUFF
    TOOL_QT4_BIN_SUFF := $(TOOL_QT4_BIN_SUFF)
   endif
-  # Try looking for qt3to4 first, then try moc-qt4/moc.
-  PATH_TOOL_QT4_BIN := $(patsubst %/qt3to4,%,$(firstword $(wildcard \
-  	/usr/lib/qt4/bin/qt3to4 \
-  	/usr/qt/4/bin/qt3to4 \
-  	/usr/share/qt4/bin/qt3to4 \
-  	/usr/local/bin/qt3to4 \
-  	/usr/bin/qt3to4\
-  	)))
-  ifeq ($(PATH_TOOL_QT4_BIN),)
-   ifeq ($(TOOL_QT4_BIN_SUFF),)
-    PATH_TOOL_QT4_BIN := $(patsubst %/moc-qt4,%,$(firstword $(wildcard \
-  	/usr/lib/qt4/bin/moc-qt4 \
-  	/usr/qt/4/bin/moc-qt4 \
-  	/usr/share/qt4/bin/moc-qt4 \
-  	/usr/local/bin/moc-qt4 \
-  	/usr/bin/moc-qt4 \
-  	)))
-   endif
+  # Try looking for moc-qt4 / moc-$(suffix) first.
+  ifneq ($(TOOL_QT4_BIN_SUFF),)
+   PATH_TOOL_QT4_BIN := $(patsubst %/moc$(TOOL_QT4_BIN_SUFF),%,$(firstword $(wildcard \
+	 /usr/lib/qt4/bin/moc$(TOOL_QT4_BIN_SUFF) \
+	 /usr/qt/4/bin/moc$(TOOL_QT4_BIN_SUFF) \
+	 /usr/share/qt4/bin/moc$(TOOL_QT4_BIN_SUFF) \
+	 /usr/local/bin/moc$(TOOL_QT4_BIN_SUFF) \
+	 /usr/bin/moc$(TOOL_QT4_BIN_SUFF) \
+	 )))
+  else
+   PATH_TOOL_QT4_BIN := $(patsubst %/moc-qt4,%,$(firstword $(wildcard \
+	/usr/lib/qt4/bin/moc-qt4 \
+	/usr/qt/4/bin/moc-qt4 \
+	/usr/share/qt4/bin/moc-qt4 \
+	/usr/local/bin/moc-qt4 \
+	/usr/bin/moc-qt4 \
+	)))
    ifneq ($(PATH_TOOL_QT4_BIN),)
-    export TOOL_QT4_BIN_SUFF := -qt4
+    TOOL_QT4_BIN_SUFF := -qt4
    else
-    PATH_TOOL_QT4_BIN := $(patsubst %/moc$(TOOL_QT4_BIN_SUFF),%,$(firstword $(wildcard \
-         /usr/lib/qt4/bin/moc$(TOOL_QT4_BIN_SUFF) \
-         /usr/qt/4/bin/moc$(TOOL_QT4_BIN_SUFF) \
-         /usr/share/qt4/bin/moc$(TOOL_QT4_BIN_SUFF) \
-         /usr/local/bin/moc$(TOOL_QT4_BIN_SUFF) \
-         /usr/bin/moc$(TOOL_QT4_BIN_SUFF) \
-         )))
+    # If no luck, try looking for moc in the qt4 specific locations.
+    PATH_TOOL_QT4_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
+	/usr/lib/qt4/bin/moc \
+	/usr/qt/4/bin/moc \
+	/usr/share/qt4/bin/moc \
+	)))
    endif
+  endif
+  # If still no go, try looking for qt3to4 and rcc.
+  ifeq ($(PATH_TOOL_QT4_BIN),)
+   PATH_TOOL_QT4_BIN := $(patsubst %/qt3to4,%,$(firstword $(wildcard \
+	/usr/lib/qt4/bin/qt3to4 \
+	/usr/qt/4/bin/qt3to4 \
+	/usr/share/qt4/bin/qt3to4 \
+	/usr/local/bin/qt3to4 \
+	/usr/bin/qt3to4 \
+	)))
+  endif
+  ifeq ($(PATH_TOOL_QT4_BIN),)
+   PATH_TOOL_QT4_BIN := $(patsubst %/rcc$(TOOL_QT4_BIN_SUFF),%,$(firstword $(wildcard \
+	/usr/lib/qt4/bin/rcc$(TOOL_QT4_BIN_SUFF) \
+	/usr/qt/4/bin/rcc$(TOOL_QT4_BIN_SUFF) \
+	/usr/share/qt4/bin/rcc$(TOOL_QT4_BIN_SUFF) \
+	/usr/local/bin/rcc$(TOOL_QT4_BIN_SUFF) \
+	/usr/bin/rcc$(TOOL_QT4_BIN_SUFF) \
+	)))
+  endif
+  if "$(PATH_TOOL_QT4_BIN)" == "" && "$(TOOL_QT4_BIN_SUFF)" != ""
+   PATH_TOOL_QT4_BIN := $(patsubst %/rcc,%,$(firstword $(wildcard \
+	/usr/lib/qt4/bin/rcc \
+	/usr/qt/4/bin/rcc \
+	/usr/share/qt4/bin/rcc \
+	/usr/local/bin/rcc \
+	/usr/bin/rcc \
+	)))
+  endif
+  ifneq ($(PATH_TOOL_QT4_BIN),)
+   export PATH_TOOL_QT4_BIN
   endif
  endif
  # If not found, we'll enter the 'pathless' mode.
@@ -247,14 +276,19 @@ endif
 ifneq ($(PATH_TOOL_QT4_BIN),)
  TOOL_QT4_MOC       ?= $(PATH_TOOL_QT4_BIN)/moc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_UIC       ?= $(PATH_TOOL_QT4_BIN)/uic$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT4_RCC       ?= $(PATH_TOOL_QT4_BIN)/rcc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
+ ifndef TOOL_QT4_RCC
+  TOOL_QT4_RCC      := $(PATH_TOOL_QT4_BIN)/rcc$(HOST_SUFF_EXE)
+  ifeq ($(wildcard $(TOOL_QT4_RCC)),)
+   TOOL_QT4_RCC     := $(PATH_TOOL_QT4_BIN)/rcc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
+  endif
+ endif
  TOOL_QT4_LRC       ?= $(PATH_TOOL_QT4_BIN)/lrelease$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_LUPDATE   ?= $(PATH_TOOL_QT4_BIN)/lupdate$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
 else
  # Pathless, relies on the environment.
  TOOL_QT4_MOC       ?= moc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_UIC       ?= uic$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT4_RCC       ?= rcc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT4_RCC       ?= rcc$(HOST_SUFF_EXE)
  TOOL_QT4_LRC       ?= lrelease$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_LUPDATE   ?= lupdate$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
 endif
