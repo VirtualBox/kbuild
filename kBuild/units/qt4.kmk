@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1767 2008-09-08 00:05:35Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1768 2008-09-08 00:06:23Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -239,7 +239,7 @@ else
  # Resolve any fancy stuff once and for all.
  PATH_TOOL_QT4_BIN := $(PATH_TOOL_QT4_BIN)
 endif
-ifneq ($(PATH_TOOL_QT4),)
+ifneq ($(PATH_TOOL_QT4_BIN),)
  TOOL_QT4_MOC       ?= $(PATH_TOOL_QT4_BIN)/moc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_UIC       ?= $(PATH_TOOL_QT4_BIN)/uic$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
  TOOL_QT4_RCC       ?= $(PATH_TOOL_QT4_BIN)/rcc$(TOOL_QT4_BIN_SUFF)$(HOST_SUFF_EXE)
