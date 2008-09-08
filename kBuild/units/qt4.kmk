@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1769 2008-09-08 00:13:13Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 1771 2008-09-08 02:07:02Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -464,8 +464,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
-local deps      := $(abspathex $(deps) $(source),$($(target)_PATH))
-local incs      := $(abspathex $(incs),$($(target)_PATH))
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
 else
 local deps      += $(source)
 endif
@@ -550,8 +551,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
-local deps      := $(abspathex $(deps) $(source),$($(target)_PATH))
-local incs      := $(abspathex $(incs),$($(target)_PATH))
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
 else
 local deps      += $(source)
 endif
@@ -635,8 +637,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
-local deps      := $(abspathex $(deps) $(source),$($(target)_PATH))
-local incs      := $(abspathex $(incs),$($(target)_PATH))
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
 else
 local deps      += $(source)
 endif
@@ -728,8 +731,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
-local deps      := $(abspathex $(deps) $(source),$($(target)_PATH))
-local incs      := $(abspathex $(incs),$($(target)_PATH))
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
 else
 local deps      += $(source)
 endif
@@ -816,8 +820,9 @@ local orderdeps := $(call DIRDEP,$(dir $(outbase))) $(kb-src-prop ORDERDEPS,dumm
 
 # default path + source dep.
 ifneq ($(defpath),)
-local deps      := $(abspathex $(deps) $(source),$($(target)_PATH))
-local incs      := $(abspathex $(incs),$($(target)_PATH))
+local source    := $(abspathex $(source),$(defpath))
+local deps      := $(abspathex $(deps),$(defpath)) $(source)
+local incs      := $(abspathex $(incs),$(defpath))
 else
 local deps      += $(source)
 endif
