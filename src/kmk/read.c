@@ -837,7 +837,7 @@ eval_include_dep (const char *name, struct floc *f)
                         --endp;
 
                       if (src != value_start)
-                        *dst++ = '\n';
+                        *dst++ = ' ';
                       memcpy (dst, src, endp - src);
                       dst += endp - src;
                       src = nextp;
