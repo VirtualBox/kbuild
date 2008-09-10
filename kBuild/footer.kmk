@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1755 2008-09-06 03:34:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1781 2008-09-10 04:32:29Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3551,7 +3551,7 @@ $(foreach prop,$(PROPS_DEFERRED), \
 # Include dependency files.
 #
 ifneq ($(_DEPFILES),)
- includedep $(_DEPFILES)
+ $(foreach dep, $(_DEPFILES), $(eval includedep $(dep)))
 endif
 
 
@@ -3559,9 +3559,14 @@ ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_FOOTER_END := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_PREV)) - end of footer.kmk)
  $(info prof: footer.kmk: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_FOOTER_START)))
+ $(info prof: ALL=$(words $(_ALL_TARGETS)) BLDPROGS=$(words $(_ALL_BLDPROGS)) LIBRARIES=$(words $(_ALL_LIBRARIES)) IMPORT_LIBS=$(words $(IMPORT_LIBS)) DLLS=$(words $(DLLS)) PROGRAMS=$(words $(_ALL_PROGRAMS)) )
+ $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
+ $(info prof: DIRS=$(words $(_DIR_ALL)) TOOLS=$(words $(_TOOLS)) SDKS=$(words $(_SDKS)) USES=$(words $(_USES)) OUT_FILES=$(words $(_OUT_FILES)) OBJS=$(words $(_OBJS)) CLEAN_FILES=$(words $(CLEAN_FILES) $(OTHER_CLEAN)) )
+ $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
  $(info stat: $(make-stats ))
  _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_END)
 endif
+
 
 # end-of-file-content
 __footer_kmk__ := target
