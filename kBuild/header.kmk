@@ -1,4 +1,4 @@
-# $Id: header.kmk 1777 2008-09-09 21:21:46Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 1782 2008-09-12 22:39:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -64,7 +64,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1777 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 1782 $  )
 
 
 #
@@ -81,11 +81,13 @@ FORCE:
 
 
 #
-# Enable delete on error and second expansion of prerequisites.
+# Enable delete on error and second expansion of prerequisites and targets.
 #
 .DELETE_ON_ERROR:
 
 .SECONDEXPANSION:
+
+.SECONDTARGETEXPANSION:
 
 
 #
