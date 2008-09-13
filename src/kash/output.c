@@ -132,7 +132,7 @@ outstr(const char *p, struct output *file)
 {
 	while (*p)
 		outc(*p++, file);
-	if (file == file->psh->out2)
+	if (file->psh && file == file->psh->out2)
 		flushout(file);
 }
 

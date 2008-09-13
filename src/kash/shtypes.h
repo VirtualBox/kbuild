@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 1286 2007-11-30 03:08:25Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
@@ -31,6 +31,9 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
+#ifndef _MSC_VER
+# include <sys/signal.h>
+#endif
 
 #ifdef _MSC_VER
 # include <io.h> /* intptr_t and uintptr_t */
@@ -94,6 +97,20 @@ typedef intptr_t        ssize_t;
 
 struct shinstance;
 typedef struct shinstance shinstance;
+
+#ifdef _MSC_VER
+typedef uint32_t shsigset_t;
+#else
+typedef sigset_t shsigset_t;
+#endif
+
+typedef void (*shsig_t)(shinstance *, int);
+typedef struct shsigaction
+{
+    shsig_t     sh_handler;
+    shsigset_t  sh_mask;
+    int         sh_flags;
+} shsigaction_t;
 
 #endif
 

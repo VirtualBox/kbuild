@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -42,6 +42,7 @@
 #include "shtypes.h"
 #include "shthread.h"
 #include "shfile.h"
+#include "shell.h"
 #include "output.h"
 #include "options.h"
 
@@ -127,6 +128,7 @@ struct shinstance
     pid_t               pid;            /**< The (fake) process id of this shell instance. */
     shtid               tid;            /**< The thread identifier of the thread for this shell. */
     shfdtab             fdtab;          /**< The file descriptor table. */
+    shsigaction_t       sigactions[NSIG]; /**< The signal actions registered with this shell instance. */
 
     /* alias.c */
 #define ATABSIZE 39
@@ -331,20 +333,10 @@ char **sh_environ(shinstance *);
 const char *sh_gethomedir(shinstance *, const char *);
 
 /* signals */
-typedef void (*shsig_t)(shinstance *, int);
-#ifdef _MSC_VER
-    typedef uint32_t shsigset_t;
-#else
-    typedef sigset_t shsigset_t;
-#endif
-struct shsigaction
-{
-    shsig_t     sh_handler;
-    shsigset_t  sh_mask;
-    int         sh_flags;
-};
+#define SH_SIG_UNK ((shsig_t)(intptr_t)-199)
 #define SH_SIG_DFL ((shsig_t)SIG_DFL)
 #define SH_SIG_IGN ((shsig_t)SIG_IGN)
+#define SH_SIG_ERR ((shsig_t)SIG_ERR)
 #ifdef _MSC_VER
 #   define SIG_BLOCK         1
 #   define SIG_UNBLOCK       2
@@ -369,6 +361,10 @@ int sh_sigaction(shinstance *, int, const struct shsigaction *, struct shsigacti
 shsig_t sh_signal(shinstance *, int, shsig_t);
 int sh_siginterrupt(shinstance *, int, int);
 void sh_sigemptyset(shsigset_t *);
+int sh_sigfillset(shsigset_t *);
+void sh_sigaddset(shsigset_t *, int);
+void sh_sigdelset(shsigset_t *, int);
+int sh_sigismember(shsigset_t *, int);
 int sh_sigprocmask(shinstance *, int, shsigset_t const *, shsigset_t *);
 void sh_abort(shinstance *) __attribute__((__noreturn__));
 void sh_raise_sigint(shinstance *);
@@ -417,7 +413,7 @@ int sh_sysconf_clk_tck(void);
 #endif
 pid_t sh_fork(shinstance *);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
-void sh__exit(shinstance *, int) __attribute__((__noreturn__));;
+void sh__exit(shinstance *, int) __attribute__((__noreturn__));
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
 uid_t sh_getuid(shinstance *);
 uid_t sh_geteuid(shinstance *);
