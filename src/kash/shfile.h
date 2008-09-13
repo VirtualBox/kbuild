@@ -1,4 +1,4 @@
-/* $Id: shfile.h 1240 2007-10-10 02:32:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -90,7 +90,7 @@
 # define W_OK       2
 # define R_OK       4
 
-# define O_NONBLOCK 0 /// @todo
+# define O_NONBLOCK 0 /** @todo */
 
 #endif
 

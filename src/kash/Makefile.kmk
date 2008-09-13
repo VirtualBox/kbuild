@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1665 2008-06-30 21:14:11Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -37,6 +37,7 @@ kash_DEFS += SH_STUB_MODE # for the time being.
 kash_DEFS.debug = DEBUG
 kash_DEFS.linux = BSD
 kash_DEFS.solaris = BSD
+## @todo bring over PC_SLASHES?
 kash_DEFS.win = \
 	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS YY_NO_UNISTD_H
 kash_DEFS.os2 = \
@@ -49,6 +50,9 @@ kash_DEFS.dragonfly = \
 kash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_INCS = $(PATH_kash) . # (the last is because of error.h)
+if "$(USER)" == "bird" && "$(KBUILD_TARGET)" != "win"
+kash_CFLAGS += -std=gnu99
+endif
 kash_SOURCES = \
 	main.c \
 	alias.c \
@@ -96,13 +100,13 @@ kash_SOURCES.solaris = \
 	sys_signame.c \
 	strlcpy.c
 
-kash_ORDERDEPS = \
+kash_INTERMEDIATES = \
 	$(PATH_kash)/arith.h \
 	$(PATH_kash)/builtins.h \
 	$(PATH_kash)/nodes.h \
 	$(PATH_kash)/token.h
 kash_CLEAN = \
-	$(kash_ORDERDEPS)	\
+	$(kash_INTERMEDIATES) \
 	$(PATH_kash)/arith.c \
 	$(PATH_kash)/arith_lex.c \
 	$(PATH_kash)/builtins.c \
@@ -117,7 +121,7 @@ kash_CLEAN = \
 #kash.man_SOURCES = sh.1=>kash.1
 
 
-ifeq ($(filter-out win,$(KBUILD_TARGET)),)
+if1of ($(KBUILD_TARGET), win)
 
 #
 # Use the pregenerated code.
@@ -126,11 +130,7 @@ kash_ORDERDEPS :=
 kash_INCS += generated
 kash_SOURCES := $(patsubst $(PATH_kash)/%,generated/%,$(kash_SOURCES))
 
-include $(FILE_KBUILD_SUB_FOOTER)
-
 else
-
-include $(FILE_KBUILD_SUB_FOOTER)
 
 #
 # ATTENTION! ATTENTION! ATTENTION!
@@ -141,30 +141,46 @@ include $(FILE_KBUILD_SUB_FOOTER)
 # So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
-YACC ?= yacc
+ifndef YACC
+ YACC := $(firstword $(which byacc) $(which yacc) yacc)
+endif
 
-$(PATH_kash)/arith.h $(PATH_kash)/arith.c: arith.y | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/arith.h + $$(PATH_kash)/arith.c: arith.y | $$(dir $$@)
 	$(YACC) -ld $^
 	$(MV) -f y.tab.c $(PATH_kash)/arith.c
 	$(MV) -f y.tab.h $(PATH_kash)/arith.h
 
-$(PATH_kash)/arith_lex.c: arith_lex.l | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/arith_lex.c: $$(kash_DEFPATH)/arith_lex.l | $$(dir $$@)
 	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
 
-$(PATH_kash)/builtins.h $(PATH_kash)/builtins.c: $(kash_PATH)/mkbuiltins shell.h builtins.def | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/builtins.h + $$(PATH_kash)/builtins.c: \
+		$$(kash_DEFPATH)/mkbuiltins \
+		$$(kash_DEFPATH)/shell.h \
+		$$(kash_DEFPATH)/builtins.def \
+		| $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(PATH_kash)/builtins.h ]
 
-$(PATH_kash)/nodes.h $(PATH_kash)/nodes.c: $(kash_PATH)/mknodes.sh nodetypes nodes.c.pat | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/nodes.h + $$(PATH_kash)/nodes.c: \
+	$$(kash_DEFPATH)/mknodes.sh \
+	$$(kash_DEFPATH)/nodetypes \
+	$$(kash_DEFPATH)/nodes.c.pat \
+	| $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
-$(PATH_kash)/token.h: $(kash_PATH)/mktokens | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/token.h: $$(kash_DEFPATH)/mktokens | $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) token.h $@
 
-$(PATH_kash)/init.c: $(kash_PATH)/mkinit.sh $(filter-out $(PATH_kash)/%,$(kash_SOURCES)) | $(call DIRDEP,$(PATH_kash))
+$$(PATH_kash)/init.c: \
+		$$(kash_DEFPATH)/mkinit.sh \
+		$$(abspathex $$(filter-out $$(PATH_kash)/%,$$(kash_SOURCES)), $$(kash_DEFPATH)) \
+		| $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
 endif
+
+include $(FILE_KBUILD_SUB_FOOTER)
+
