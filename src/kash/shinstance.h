@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 1785 2008-09-14 17:31:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -49,6 +49,7 @@
 #include "expand.h"
 #include "exec.h"
 #include "var.h"
+#include "show.h"
 
 #ifdef _MSC_VER
 # define strcasecmp stricmp
@@ -455,5 +456,14 @@ int sh_tcsetpgrp(shinstance *, int, pid_t);
 #endif
 int sh_getrlimit(shinstance *, int, shrlimit *);
 int sh_setrlimit(shinstance *, int, const shrlimit *);
+
+
+#ifdef DEBUG
+# define TRACE2(param)	trace param
+# define TRACE2V(param)	tracev param
+#else
+# define TRACE2(param)
+# define TRACE2V(param)
+#endif
 
 #endif

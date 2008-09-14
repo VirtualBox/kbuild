@@ -847,7 +847,8 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 			pgrp = sh_getpid(psh);
 		else
 			pgrp = jp->ps[0].pid;
-		/* This can fail because we are doing it in the parent also */
+		/* This can fail because we are doing it in the parent also.
+                   And we must ignore SIGTTOU at this point or we'll be stopped! */
 		(void)sh_setpgid(psh, 0, pgrp);
 		if (mode == FORK_FG) {
 			if (sh_tcsetpgrp(psh, psh->ttyfd, pgrp) == -1)

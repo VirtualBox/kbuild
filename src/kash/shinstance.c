@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 1785 2008-09-14 17:31:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -319,10 +319,12 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
 #ifndef _MSC_VER
             g_sig_state[signo].sa = old;
 #else
-            g_sig_state[signo].sa.sa_handle = SIG_DFL;
+            g_sig_state[signo].sa.sa_handler = SIG_DFL;
             g_sig_state[signo].sa.sa_flags = 0;
             g_sig_state[signo].sa.sa_mask = shold.sh_mask;
 #endif
+            TRACE2((psh, "sh_int_lazy_init_sigaction: signo=%d:%s sa_handler=%p sa_flags=%#x\n",
+                    signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
 
             /* update all shells */
             for (cur = g_sh_head; cur; cur = cur->next)
@@ -344,13 +346,17 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
  */
 static void sh_sig_common_handler(int signo)
 {
-
+    fprintf(stderr, "sh_sig_common_handler: signo=%d:%s\n", signo, sys_signame[signo]);
 }
 
 
 int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, struct shsigaction *oldp)
 {
-    printf("sh_sigaction: signo=%d newp=%p oldp=%p\n", signo, newp, oldp);
+    if (newp)
+        TRACE2((psh, "sh_sigaction: signo=%d:%s newp=%p:{.sh_handler=%p, .sh_flags=%#x} oldp=%p\n",
+                signo, sys_signame[signo], newp, newp->sh_handler, newp->sh_flags, oldp));
+    else
+        TRACE2((psh, "sh_sigaction: signo=%d:%s newp=NULL oldp=%p\n", signo, sys_signame[signo], oldp));
 
     /*
      * Input validation.
@@ -421,11 +427,13 @@ int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, str
             ||  g_sig_state[signo].num_ignore != g_num_shells)
             g_sig_state[signo].sa.sa_handler = sh_sig_common_handler;
         else if (g_sig_state[signo].num_ignore)
-            g_sig_state[signo].sa.sa_handler = SIG_DFL;
+            g_sig_state[signo].sa.sa_handler = SIG_IGN;
         else
             g_sig_state[signo].sa.sa_handler = SIG_DFL;
         g_sig_state[signo].sa.sa_flags = psh->sigactions[signo].sh_flags & SA_RESTART;
 
+        TRACE2((psh, "sh_sigaction: setting signo=%d:%s to {.sa_handler=%p, .sa_flags=%#x}\n",
+                    signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
 # ifdef _MSC_VER
         if (signal(signo, g_sig_state[signo].sa.sa_handler) == SIG_ERR)
 # else
@@ -532,54 +540,73 @@ int sh_sigprocmask(shinstance *psh, int operation, shsigset_t const *newp, shsig
 
 void sh_abort(shinstance *psh)
 {
+    TRACE2((psh, "sh_abort\n"));
+
 #ifdef SH_PURE_STUB_MODE
 #elif defined(SH_STUB_MODE)
-    (void)psh;
     abort();
 #else
 #endif
+
+    TRACE2((psh, "sh_abort returns!\n"));
+    (void)psh;
 }
 
 void sh_raise_sigint(shinstance *psh)
 {
+    TRACE2((psh, "sh_raise(SIGINT)\n"));
+
 #ifdef SH_PURE_STUB_MODE
 #elif defined(SH_STUB_MODE)
     (void)psh;
     raise(SIGINT);
 #else
 #endif
+
+    TRACE2((psh, "sh_raise(SIGINT) returns\n"));
+    (void)psh;
 }
 
 int sh_kill(shinstance *psh, pid_t pid, int signo)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
     //fprintf(stderr, "kill(%d, %d)\n", pid, signo);
-    return kill(pid, signo);
+    rc = kill(pid, signo);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_kill(%d, %d) -> %d [%d]\n", pid, signo, rc, errno));
+    (void)psh;
+    return rc;
 }
 
 int sh_killpg(shinstance *psh, pid_t pgid, int signo)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
     //fprintf(stderr, "killpg(%d, %d)\n", pgid, signo);
-    return killpg(pgid, signo);
+    rc = killpg(pgid, signo);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_killpg(%d, %d) -> %d [%d]\n", pgid, signo, rc, errno));
+    (void)psh;
+    return rc;
 }
 
 clock_t sh_times(shinstance *psh, shtms *tmsp)
@@ -612,43 +639,55 @@ int sh_sysconf_clk_tck(void)
 
 pid_t sh_fork(shinstance *psh)
 {
+    pid_t pid;
+    TRACE2((psh, "sh_fork\n"));
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    pid = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    pid = -1;
 # else
-    return fork();
+    pid = fork();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_fork -> %d [%d]\n", pid, errno));
+    (void)psh;
+    return pid;
 }
 
 pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
 {
+    pid_t pidret;
+
     *statusp = 0;
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    pidret = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    pidret = -1;
 # else
-    pid = waitpid(pid, statusp, flags);
-    //fprintf(stderr, "waitpid -> %d *statusp=%d (rc=%d) flags=%#x\n",  pid, *statusp, WEXITSTATUS(*statusp), flags);
-    return pid;
+    pidret = waitpid(pid, statusp, flags);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "waitpid(%d, %p, %#x) -> %d [%d] *statusp=%#x (rc=%d)\n", pid, statusp, flags,
+            pidret, errno, *statusp, WEXITSTATUS(*statusp)));
+    (void)psh;
+    return pidret;
 }
 
 void sh__exit(shinstance *psh, int rc)
 {
+    TRACE2((psh, "sh__exit(%d)\n", rc));
+    (void)psh;
+
 #ifdef SH_PURE_STUB_MODE
     return -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
     _exit(rc);
 #else
 #endif
@@ -656,199 +695,252 @@ void sh__exit(shinstance *psh, int rc)
 
 int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const char * const *envp)
 {
+    int rc;
+
+#ifdef DEBUG
+    /* log it all */
+    TRACE2((psh, "sh_execve(%p:{%s}, %p, %p}\n", exe, exe, argv, envp));
+    for (rc = 0; argv[rc]; rc++)
+        TRACE2((psh, "  argv[%d]=%p:{%s}\n", rc, argv[rc], argv[rc]));
+#endif
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
-    return execve(exe, (char **)argv, (char **)envp);
+    rc = execve(exe, (char **)argv, (char **)envp);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_execve -> %d [%d]\n", rc, errno));
+    (void)psh;
+    return rc;
 }
 
 uid_t sh_getuid(shinstance *psh)
 {
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    uid_t uid = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return 0;
+    uid_t uid = 0;
 # else
-    return getuid();
+    uid_t uid = getuid();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getuid() -> %d [%d]\n", uid, errno));
+    (void)psh;
+    return uid;
 }
 
 uid_t sh_geteuid(shinstance *psh)
 {
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    uid_t euid = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return 0;
+    uid_t euid = 0;
 # else
-    return geteuid();
+    uid_t euid = geteuid();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_geteuid() -> %d [%d]\n", euid, errno));
+    (void)psh;
+    return euid;
 }
 
 gid_t sh_getgid(shinstance *psh)
 {
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    gid_t gid = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return 0;
+    gid_t gid = 0;
 # else
-    return getgid();
+    gid_t gid = getgid();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getgid() -> %d [%d]\n", gid, errno));
+    (void)psh;
+    return gid;
 }
 
 gid_t sh_getegid(shinstance *psh)
 {
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    gid_t egid = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return 0;
+    gid_t egid = 0;
 # else
-    return getegid();
+    gid_t egid = getegid();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getegid() -> %d [%d]\n", egid, errno));
+    (void)psh;
+    return egid;
 }
 
 pid_t sh_getpid(shinstance *psh)
 {
+    pid_t pid;
+
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    pid = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return _getpid();
+    pid = _getpid();
 # else
-    return getpid();
+    pid = getpid();
 # endif
 #else
 #endif
+
+    (void)psh;
+    return pid;
 }
 
 pid_t sh_getpgrp(shinstance *psh)
 {
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    pid_t pgrp = 0;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return _getpid();
+    pid_t pgrp _getpid();
 # else
-    return getpgrp();
+    pid_t pgrp = getpgrp();
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getpgrp() -> %d [%d]\n", pgrp, errno));
+    (void)psh;
+    return pgrp;
 }
 
 pid_t sh_getpgid(shinstance *psh, pid_t pid)
 {
 #ifdef SH_PURE_STUB_MODE
-    return pid;
+    pid_t pgid = pid;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return pid;
+    pid_t pgid = pid;
 # else
-    return getpgid(pid);
+    pid_t pgid = getpgid(pid);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getpgid(%d) -> %d [%d]\n", pid, pgid, errno));
+    (void)psh;
+    return pgid;
 }
 
 int sh_setpgid(shinstance *psh, pid_t pid, pid_t pgid)
 {
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    int rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    int rc = -1;
 # else
-    int rc;
-    rc = setpgid(pid, pgid);
-    //fprintf(stderr, "setpgid(%d,%d) -> %d\n",  pid, pgid, rc);
-    return rc;
+    int rc = setpgid(pid, pgid);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_setpgid(%d, %d) -> %d [%d]\n", pid, pgid, rc, errno));
+    (void)psh;
+    return rc;
 }
 
 pid_t sh_tcgetpgrp(shinstance *psh, int fd)
 {
+    pid_t pgrp;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    pgrp = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    pgrp = -1;
 # else
-    return tcgetpgrp(fd);
+    pgrp = tcgetpgrp(fd);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_tcgetpgrp(%d) -> %d [%d]\n", fd, pgrp, errno));
+    (void)psh;
+    return pgrp;
 }
 
 int sh_tcsetpgrp(shinstance *psh, int fd, pid_t pgrp)
 {
+    int rc;
+    TRACE2((psh, "sh_tcsetpgrp(%d, %d)\n", fd, pgrp));
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
-    return tcsetpgrp(fd, pgrp);
+    rc = tcsetpgrp(fd, pgrp);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_tcsetpgrp(%d, %d) -> %d [%d]\n", fd, pgrp, rc, errno));
+    (void)psh;
+    return rc;
 }
 
 int sh_getrlimit(shinstance *psh, int resid, shrlimit *limp)
 {
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    int rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    int rc = -1;
 # else
-    return getrlimit(resid, limp);
+    int rc = getrlimit(resid, limp);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_getrlimit(%d, %p) -> %d [%d] {%ld,%ld}\n",
+            resid, limp, rc, errno, (long)limp->rlim_cur, (long)limp->rlim_max));
+    (void)psh;
+    return rc;
 }
 
 int sh_setrlimit(shinstance *psh, int resid, const shrlimit *limp)
 {
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    int rc = -1;
 #elif defined(SH_STUB_MODE)
-    (void)psh;
 # ifdef _MSC_VER
-    return -1;
+    int rc = -1;
 # else
-    return setrlimit(resid, limp);
+    int rc = setrlimit(resid, limp);
 # endif
 #else
 #endif
+
+    TRACE2((psh, "sh_setrlimit(%d, %p:{%ld,%ld}) -> %d [%d]\n",
+            resid, limp, (long)limp->rlim_cur, (long)limp->rlim_max, rc, errno));
+    (void)psh;
+    return rc;
 }
 
