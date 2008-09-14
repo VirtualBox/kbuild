@@ -1,4 +1,4 @@
-/* $Id: shfile.c 1286 2007-11-30 03:08:25Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 1785 2008-09-14 17:31:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -25,6 +25,7 @@
  */
 
 #include "shfile.h"
+#include "shinstance.h" /* TRACE2 */
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -42,12 +43,17 @@
 
 int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 {
+    int fd;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    fd = -1;
 #elif defined(SH_STUB_MODE)
-    return open(name, flags, mode);
+    fd = open(name, flags, mode);
 #else
 #endif
+
+    TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
+    return fd;
 }
 
 int shfile_pipe(shfdtab *pfdtab, int fds[2])
@@ -66,22 +72,31 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
 
 int shfile_dup(shfdtab *pfdtab, int fd)
 {
+    int rc;
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    return dup(fd);
+    rc = dup(fd);
 #else
 #endif
+
+    TRACE2((NULL, "shfile_dup(%d) -> %d [%d]\n", fd, rc, errno));
+    return rc;
 }
 
 int shfile_close(shfdtab *pfdtab, unsigned fd)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
-    return close(fd);
+    rc = close(fd);
 #else
 #endif
+
+    TRACE2((NULL, "shfile_close(%d) -> %d [%d]\n", fd, rc, errno));
+    return rc;
 }
 
 long shfile_read(shfdtab *pfdtab, int fd, void *buf, size_t len)
@@ -201,48 +216,58 @@ int shfile_access(shfdtab *pfdtab, const char *path, int type)
 
 int shfile_isatty(shfdtab *pfdtab, int fd)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return 0;
+    rc = 0;
 #elif defined(SH_STUB_MODE)
-    return isatty(fd);
+    rc = isatty(fd);
 #else
 #endif
+
+    TRACE2((NULL, "isatty(%d) -> %d [%d]\n", fd, rc, errno));
+    return rc;
 }
 
 
 int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
-    int rc = fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0)
-                              | (closeit ? FD_CLOEXEC : 0));
-    //fprintf(stderr, "shfile_cloexec(%d, %d) -> %d\n", fd, closeit, rc);
-    return rc;
+    rc = fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0)
+                          | (closeit ? FD_CLOEXEC : 0));
 # endif
 #else
 #endif
 
+    TRACE2((NULL, "shfile_cloexec(%d, %d) -> %d [%d]\n", fd, closeit, rc, errno));
+    return rc;
 }
 
 
 int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 {
+    int rc;
+
 #ifdef SH_PURE_STUB_MODE
-    return -1;
+    rc = -1;
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
-    return -1;
+    rc = -1;
 # else
-    int rc = ioctl(fd, request, buf);
-    //fprintf(stderr, "ioctl(%d, %#x, %p) -> %d\n", fd, request, buf, rc);
-    return rc;
+    rc = ioctl(fd, request, buf);
 # endif
 #else
 #endif
+
+    TRACE2((NULL, "ioctl(%d, %#x, %p) -> %d\n", fd, request, buf, rc));
+    return rc;
 }
 
 

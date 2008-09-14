@@ -283,14 +283,17 @@ void
 trace(shinstance *psh, const char *fmt, ...)
 {
 #ifdef DEBUG
+	int savederrno = errno;
 	va_list va;
 
-	if (debug(psh) != 1)
+	if ((psh || !tracefile) && debug(psh) != 1)
 		return;
         fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	va_start(va, fmt);
 	(void) vfprintf(tracefile, fmt, va);
 	va_end(va);
+
+	errno = savederrno;
 #endif
 }
 
@@ -298,10 +301,14 @@ void
 tracev(shinstance *psh, const char *fmt, va_list va)
 {
 #ifdef DEBUG
-	if (debug(psh) != 1)
+	int savederrno = errno;
+
+	if ((psh || !tracefile) && debug(psh) != 1)
 		return;
         fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	(void) vfprintf(tracefile, fmt, va);
+
+	errno = savederrno;
 #endif
 }
 
@@ -310,19 +317,24 @@ tracev(shinstance *psh, const char *fmt, va_list va)
 void
 trputs(shinstance *psh, const char *s)
 {
-	if (debug(psh) != 1)
+	int savederrno = errno;
+
+	if ((psh || !tracefile) && debug(psh) != 1)
 		return;
 	fputs(s, tracefile);
+
+	errno = savederrno;
 }
 
 
 static void
 trstring(shinstance *psh, char *s)
 {
+	int savederrno = errno;
 	char *p;
 	char c;
 
-	if (debug(psh) != 1)
+	if ((psh || !tracefile) && debug(psh) != 1)
 		return;
 	putc('"', tracefile);
 	for (p = s ; *p ; p++) {
@@ -353,6 +365,8 @@ backslash:	  putc('\\', tracefile);
 		}
 	}
 	putc('"', tracefile);
+
+	errno = savederrno;
 }
 #endif
 
@@ -361,7 +375,9 @@ void
 trargs(shinstance *psh, char **ap)
 {
 #ifdef DEBUG
-	if (debug(psh) != 1)
+	int savederrno = errno;
+
+	if ((psh || !tracefile) && debug(psh) != 1)
 		return;
 	while (*ap) {
 		trstring(psh, *ap++);
@@ -370,6 +386,8 @@ trargs(shinstance *psh, char **ap)
 		else
 			putc('\n', tracefile);
 	}
+
+	errno = savederrno;
 #endif
 }
 
