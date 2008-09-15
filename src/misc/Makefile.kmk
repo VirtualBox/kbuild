@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 785 2007-01-24 22:21:56Z bird $
+# $Id: Makefile.kmk 1789 2008-09-15 01:13:07Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk_time.
 #
