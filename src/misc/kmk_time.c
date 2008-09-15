@@ -1,4 +1,4 @@
-/* $Id: redirect.c 1674 2008-07-11 00:49:29Z bird $ */
+/* $Id: kmk_time.c 1789 2008-09-15 01:13:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
