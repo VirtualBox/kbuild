@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1731 2008-09-05 04:27:14Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1791 2008-09-18 15:42:42Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -222,7 +222,7 @@ ifndef TEMPLATE_BIN_TOOL
  else
   TEMPLATE_BIN_TOOL              = GCC3PLAIN
  endif
- TEMPLATE_BIN_CFLAGS            = -g 
+ TEMPLATE_BIN_CFLAGS            = -g
  ifeq ($(USER),bird)
   TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic
  endif
@@ -263,5 +263,4 @@ TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 LIB_KDEP = $(PATH_OBJ)/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 LIB_KUTIL = $(PATH_OBJ)/kUtil/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kUtil$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
-
 
