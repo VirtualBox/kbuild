@@ -216,7 +216,7 @@ vmsstat_dir (char *name, struct stat *st)
 # define DIRECTORY_BUCKETS 4096
 # else
 #define DIRECTORY_BUCKETS 199
-# endif 
+# endif
 #endif
 
 struct directory_contents
@@ -561,8 +561,16 @@ find_directory (const char *name)
                 dc->dirfiles.ht_vec = 0;
 	      else
 		{
+#ifdef KMK
+		  int buckets = st.st_nlink * 2;
+		  if (buckets < DIRFILE_BUCKETS)
+		    buckets = DIRFILE_BUCKETS;
+		  hash_init (&dc->dirfiles, buckets,
+			     dirfile_hash_1, dirfile_hash_2, dirfile_hash_cmp);
+#else
 		  hash_init (&dc->dirfiles, DIRFILE_BUCKETS,
 			     dirfile_hash_1, dirfile_hash_2, dirfile_hash_cmp);
+#endif
 		  /* Keep track of how many directories are open.  */
 		  ++open_directories;
 		  if (open_directories == MAX_OPEN_DIRECTORIES)
@@ -683,9 +691,9 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       ENULLLOOP (d, readdir (dir->dirstream));
       if (d == 0)
         {
-/* bird: Workaround for smbfs mounts returning EBADF at the end of the search. 
+/* bird: Workaround for smbfs mounts returning EBADF at the end of the search.
          To exactly determin the cause here, I should probably do some smbfs
-         tracing, but for now just ignoring the EBADF on seems to work. 
+         tracing, but for now just ignoring the EBADF on seems to work.
          (The smb server is 64-bit vista, btw.) */
 #if defined (__FreeBSD__)
           struct statfs stfs;
@@ -696,7 +704,7 @@ dir_contents_file_exists_p (struct directory_contents *dir,
            && !(stfs.f_flags & MNT_LOCAL)
            && !strcmp(stfs.f_fstypename, "smbfs"))
             {
-              /*fprintf (stderr, "EBADF on remote fs! dirfd=%d errno=%d\n", 
+              /*fprintf (stderr, "EBADF on remote fs! dirfd=%d errno=%d\n",
                        dirfd (dir->dirstream), errno);*/
               saved_errno = 0;
             }
@@ -1099,7 +1107,7 @@ print_dir_data_base (void)
               fputs ("# ", stdout);
               hash_print_stats (&dir->contents->dirfiles, stdout);
               fputs ("\n", stdout);
-#endif 
+#endif
 	    }
 	}
     }
@@ -1121,7 +1129,7 @@ print_dir_data_base (void)
   fputs ("\n# directory_contents: ", stdout);
   hash_print_stats (&directory_contents, stdout);
   fputs ("\n", stdout);
-#endif 
+#endif
 }
 
 /* Hooks for globbing.  */
