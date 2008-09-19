@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 1789 2008-09-15 01:13:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 1796 2008-09-19 23:51:20Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -169,7 +169,7 @@ int main(int argc, char **argv)
         iElapsed -= iStart;
         iElapsed /= 10; /* to usecs */
 
-        printf("%s: %um%d.%06ds\n", name(argv[0]),
+        printf("%s: %um%u.%06us\n", name(argv[0]),
                (unsigned)(iElapsed / (60 * 1000000)),
                (unsigned)(iElapsed % (60 * 1000000)) / 1000000,
                (unsigned)(iElapsed % 1000000));
@@ -200,10 +200,10 @@ int main(int argc, char **argv)
             tv.tv_usec = tv.tv_usec + 1000000 - tvStart.tv_usec;
         }
 
-        printf("%s: %um%d.%06ds\n", name(argv[0]),
-               tv.tv_sec / 60,
-               tv.tv_sec % 60,
-               tv.tv_usec);
+        printf("%s: %um%u.%06us\n", name(argv[0]),
+               (unsigned)(tv.tv_sec / 60),
+               (unsigned)(tv.tv_sec % 60),
+               (unsigned)tv.tv_usec);
     }
     else if (!pid)
     {
