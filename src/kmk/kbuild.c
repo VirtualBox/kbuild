@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1725 2008-09-05 01:43:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1792 2008-09-19 23:30:17Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1697,6 +1697,39 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     unsigned cchSavedVarBuf;
     size_t cch;
     struct kbuild_sdks Sdks;
+    int iVer;
+
+    /*
+     * argv[0] is the function version. Prior to r1792 (early 0.1.5) this
+     * was undefined and footer.kmk always passed an empty string.
+     *
+     * Version 2, implemented in r1792, will delay the inclusion of the the
+     * dependency file till the end of footer.kmk using _DEPFILES.
+     */
+    if (!argv[0][0])
+        iVer = 0;
+    else
+        switch (argv[0][0] | (argv[0][1] << 8))
+        {
+            case '2': iVer = 2; break;
+            case '3': iVer = 3; break;
+            case '4': iVer = 4; break;
+            case '5': iVer = 5; break;
+            case '6': iVer = 6; break;
+            case '7': iVer = 7; break;
+            case '8': iVer = 8; break;
+            case '9': iVer = 9; break;
+            case '0': iVer = 0; break;
+            case '1': iVer = 1; break;
+            default:
+                iVer = 0;
+                psz = argv[0];
+                while (isblank((unsigned char)*psz))
+                    psz++;
+                if (*psz)
+                    iVer = atoi(psz);
+                break;
+        }
 
     /*
      * Gather properties.
@@ -1735,8 +1768,14 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable("NO_COMPILE_CMDS_DEPS") != NULL;
     if (!s_fNoCompileCmdsDepsDefined)
     {
-        do_variable_definition(NILF, "_DEPFILES_INCLUDED", pDep->value, o_file, f_append, 0 /* !target_var */);
-        eval_include_dep(pDep->value, NILF);
+
+        if (iVer >= 2)
+            do_variable_definition(NILF, "_DEPFILES", pDep->value, o_file, f_append, 0 /* !target_var */);
+        else
+        {
+            do_variable_definition(NILF, "_DEPFILES_INCLUDED", pDep->value, o_file, f_append, 0 /* !target_var */);
+            eval_include_dep(pDep->value, NILF);
+        }
     }
 
     /*
@@ -1834,7 +1873,6 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     kbuild_put_sdks(&Sdks);
     (void)pszFuncName;
-    (void)argv;
     return variable_buffer_output(o, "", 1);
 }
 
