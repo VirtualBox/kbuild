@@ -697,7 +697,7 @@ static inline void *__my_memchr (__const void *__s, int __c, size_t __n)
 #endif /* __EMX__ (bird) */
 
 #ifdef CONFIG_WITH_MAKE_STATS
-extern unsigned long make_stats_allocations;
+extern long make_stats_allocations;
 extern unsigned long make_stats_allocated;
 extern unsigned long make_stats_allocated_sum;
 extern unsigned long make_stats_ht_lookups;
@@ -734,4 +734,4 @@ extern char *expr_eval_to_string(char *o, char *expr);
 #ifdef KMK
 extern char *abspath(const char *name, char *apath);
 extern char *func_breakpoint(char *o, char **argv, const char *funcname);
-#endif 
+#endif

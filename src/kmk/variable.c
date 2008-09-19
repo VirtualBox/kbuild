@@ -419,22 +419,22 @@ variable_hash_cmp (const void *xv, const void *yv)
 }
 
 #ifndef	VARIABLE_BUCKETS
-# ifdef KMK /* Move to Makefile.kmk? */
-#  define VARIABLE_BUCKETS		16384
+# ifdef KMK /* Move to Makefile.kmk? (insanely high, but wtf, it gets the collitions down) */
+#  define VARIABLE_BUCKETS		65535
 # else  /*!KMK*/
 #define VARIABLE_BUCKETS		523
 # endif /*!KMK*/
 #endif
 #ifndef	PERFILE_VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? */
-#  define PERFILE_VARIABLE_BUCKETS	64
+#  define PERFILE_VARIABLE_BUCKETS	127
 # else
 #define	PERFILE_VARIABLE_BUCKETS	23
 # endif
 #endif
 #ifndef	SMALL_SCOPE_VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? */
-#  define SMALL_SCOPE_VARIABLE_BUCKETS  32
+#  define SMALL_SCOPE_VARIABLE_BUCKETS  63
 # else
 #define	SMALL_SCOPE_VARIABLE_BUCKETS	13
 # endif
