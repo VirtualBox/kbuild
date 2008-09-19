@@ -117,7 +117,7 @@ function_table_entry_hash_cmp (const void *xv, const void *yv)
 static struct hash_table function_table;
 
 #ifdef CONFIG_WITH_MAKE_STATS
-unsigned long make_stats_allocations = 0;
+long          make_stats_allocations = 0;
 unsigned long make_stats_allocated = 0;
 unsigned long make_stats_allocated_sum = 0;
 unsigned long make_stats_ht_lookups = 0;
@@ -3626,7 +3626,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 
   if (!argv[0] || (!argv[0][0] && !argv[1]))
     {
-      len = sprintf (buf, "alloc-cur: %5lu %6luKB (/%3luMB)  hash: %5lu %2lu%%",
+      len = sprintf (buf, "alloc-cur: %5ld %6luKB (/%3luMB)  hash: %5lu %2lu%%",
                      make_stats_allocations,
                      make_stats_allocated / 1024,
                      make_stats_allocated_sum / (1024*1024),
@@ -3703,7 +3703,7 @@ func_commands (char *o, char **argv, const char *funcname)
       return o;
     }
   recursive = 1;
-  
+
   file = lookup_file (argv[0]);
   if (file && file->cmds)
     {
@@ -3960,7 +3960,7 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef CONFIG_WITH_DEFINED
   { STRING_SIZE_TUPLE("defined"),       1,  1,  1,  func_defined},
-#endif 
+#endif
 #ifdef CONFIG_WITH_TOUPPER_TOLOWER
   { STRING_SIZE_TUPLE("toupper"),       0,  1,  1,  func_toupper_tolower},
   { STRING_SIZE_TUPLE("tolower"),       0,  1,  1,  func_toupper_tolower},

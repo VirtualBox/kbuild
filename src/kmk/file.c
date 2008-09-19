@@ -193,7 +193,7 @@ enter_file (const char *name)
   /* Check if the name needs 2nd expansion or not. */
   if (second_target_expansion && strchr (name, '$') != NULL)
     new->need_2nd_target_expansion = 1;
-#endif 
+#endif
 
   return new;
 }
@@ -341,7 +341,7 @@ rename_file (struct file *from_file, const char *to_hname)
 #ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
 /* Performs secondary target name expansion and then renames
    the file using rename_file. */
-static void 
+static void
 do_2nd_target_expansion (struct file *f)
 {
    char *tmp_name = allocated_variable_expand (f->name);
@@ -690,8 +690,8 @@ snap_deps (void)
 
 # ifdef KMK
       warn_undefined_variables_flag = save;
-# endif 
-    
+# endif
+
       /* Disable second target expansion now since we won't expand files
          entered after this point. (saves CPU cycles in enter_file()). */
       second_target_expansion = 0;
@@ -1182,7 +1182,7 @@ void
 init_hash_files (void)
 {
 #ifdef KMK
-  hash_init (&files, 8192, file_hash_1, file_hash_2, file_hash_cmp);
+  hash_init (&files, /*65535*/ 32755, file_hash_1, file_hash_2, file_hash_cmp);
 #else
   hash_init (&files, 1000, file_hash_1, file_hash_2, file_hash_cmp);
 #endif

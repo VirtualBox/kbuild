@@ -190,7 +190,7 @@ void
 strcache_init (void)
 {
 #ifdef KMK
-  hash_init (&strings, 16384, str_hash_1, str_hash_2, str_hash_cmp);
+  hash_init (&strings, 65535, str_hash_1, str_hash_2, str_hash_cmp);
 #else
   hash_init (&strings, 8000, str_hash_1, str_hash_2, str_hash_cmp);
 #endif
