@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1781 2008-09-10 04:32:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1795 2008-09-19 23:50:32Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2036,27 +2036,27 @@ endef
 # @{
 define def_src_handler_c
 local type := C
- $(kb-src-one )
+ $(kb-src-one 2)
 endef
 
 define def_src_handler_cxx
 local type := CXX
- $(kb-src-one )
+ $(kb-src-one 2)
 endef
 
 define def_src_handler_objc
 local type := OBJC
- $(kb-src-one )
+ $(kb-src-one 2)
 endef
 
 define def_src_handler_asm
 local type := AS
- $(kb-src-one )
+ $(kb-src-one 2)
 endef
 
 define def_src_handler_rc
 local type := RC
- $(kb-src-one )
+ $(kb-src-one 2)
 endef
 
 define def_src_handler_obj
@@ -2352,8 +2352,12 @@ local objs = $($(target)_OBJS_)
 # dependency file
 local dep := $(out)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
- _DEPFILES_INCLUDED += $(dep)
- $(eval includedep $(dep))
+ ifndef ($(_KB_TEST),)
+  _DEPFILES += $(dep)
+ else
+  _DEPFILES_INCLUDED += $(dep)
+  $(eval includedep $(dep))
+ endif
 endif
 
 # check that the tool is defined.
@@ -2745,8 +2749,12 @@ endif # NOINST
 # dependency file
 local dep := $(outbase)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
- _DEPFILES_INCLUDED += $(dep)
- $(eval includedep $(dep))
+ ifndef ($(_KB_TEST),)
+  _DEPFILES += $(dep)
+ else
+  _DEPFILES_INCLUDED += $(dep)
+  $(eval includedep $(dep))
+ endif
 endif
 
 # check that the tool is defined.
@@ -3559,11 +3567,11 @@ ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_FOOTER_END := $(nanots )
  $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_PREV)) - end of footer.kmk)
  $(info prof: footer.kmk: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_FOOTER_START)))
+ $(info stat: $(make-stats ))
  $(info prof: ALL=$(words $(_ALL_TARGETS)) BLDPROGS=$(words $(_ALL_BLDPROGS)) LIBRARIES=$(words $(_ALL_LIBRARIES)) IMPORT_LIBS=$(words $(IMPORT_LIBS)) DLLS=$(words $(DLLS)) PROGRAMS=$(words $(_ALL_PROGRAMS)) )
  $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
  $(info prof: DIRS=$(words $(_DIR_ALL)) TOOLS=$(words $(_TOOLS)) SDKS=$(words $(_SDKS)) USES=$(words $(_USES)) OUT_FILES=$(words $(_OUT_FILES)) OBJS=$(words $(_OBJS)) CLEAN_FILES=$(words $(CLEAN_FILES) $(OTHER_CLEAN)) )
- $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
- $(info stat: $(make-stats ))
+ $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(_DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
  _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_END)
 endif
 
