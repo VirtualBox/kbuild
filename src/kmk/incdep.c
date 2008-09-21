@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1801 2008-09-21 14:29:24Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1802 2008-09-21 18:40:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Simple dependency files.
  */
@@ -29,6 +29,8 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+/*#define PARSE_IN_WORKER*/
+
 #ifdef __OS2__
 # define INCL_BASE
 # define INCL_ERRORS
@@ -77,12 +79,74 @@
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
 *******************************************************************************/
+
+struct incdep_variable_in_set
+{
+    struct incdep_variable_in_set *next;
+    /* the parameters */
+    char *name;                     /* xmalloc'ed -> strcache */
+    unsigned int name_length;
+    const char *value;              /* xmalloc'ed */
+    unsigned int value_length;
+    int duplicate_value;            /* 0 */
+    enum variable_origin origin;
+    int recursive;
+    struct variable_set *set;
+    const struct floc *flocp;       /* NILF */
+};
+
+struct incdep_variable_def
+{
+    struct incdep_variable_def *next;
+    /* the parameters */
+    const struct floc *flocp;       /* NILF */
+    char *name;                     /* xmalloc'ed -> strcache */
+    unsigned int name_length;       /* (not an actual parameter) */
+    char *value;                    /* xmalloc'ed, free it */
+    enum variable_origin origin;
+    enum variable_flavor flavor;
+    int target_var;
+};
+
+struct incdep_recorded_files
+{
+    struct incdep_recorded_files *next;
+
+    /* the parameters */
+    struct nameseq *filenames;      /* only one file? its name needs be strcache'ed */
+    const char *pattern;            /* NULL */
+    const char *pattern_percent;    /* NULL */
+    struct dep *deps;               /* names need to be strcache'ed */
+    unsigned int cmds_started;      /* 0 */
+    char *commands;                 /* NULL */
+    unsigned int commands_idx;      /* 0 */
+    int two_colon;                  /* 0 */
+    const struct floc *flocp;       /* NILF */
+};
+
+
 /* per dep file structure. */
 struct incdep
 {
   struct incdep *next;
   char *file_base;
   char *file_end;
+
+  int is_worker;
+#ifdef PARSE_IN_WORKER
+  unsigned int err_line_no;
+  const char *err_msg;
+
+  struct incdep_variable_in_set *recorded_variables_in_set_head;
+  struct incdep_variable_in_set *recorded_variables_in_set_tail;
+
+  struct incdep_variable_def *recorded_variable_defs_head;
+  struct incdep_variable_def *recorded_variable_defs_tail;
+
+  struct incdep_recorded_files *recorded_files_head;
+  struct incdep_recorded_files *recorded_files_tail;
+#endif
+
   char name[1];
 };
 
@@ -145,6 +209,7 @@ static int volatile incdep_terminate;
 *   Internal Functions                                                         *
 *******************************************************************************/
 static void incdep_flush_it (struct floc *);
+static void eval_include_dep_file (struct incdep *, struct floc *, int);
 
 
 
@@ -302,6 +367,20 @@ incdep_read_file (struct incdep *cur, struct floc *f)
   return -1;
 }
 
+/* Free the incdep structure. */
+static void
+incdep_free (struct incdep *cur)
+{
+#ifdef PARSE_IN_WORKER
+  assert (!cur->recorded_variables_in_set_head);
+  assert (!cur->recorded_variable_defs_head);
+  assert (!cur->recorded_files_head);
+#endif
+
+  free (cur->file_base);
+  free (cur);
+}
+
 /* A worker thread. */
 void
 incdep_worker (void)
@@ -328,6 +407,9 @@ incdep_worker (void)
 
       incdep_unlock ();
       incdep_read_file (cur, NILF);
+#ifdef PARSE_IN_WORKER
+      eval_include_dep_file (cur, NILF, 1 /* is_worker */);
+#endif
       incdep_lock ();
 
       /* insert finished job into the done list. */
@@ -505,24 +587,258 @@ incdep_flush_and_term (void)
   incdep_initialized = 0;
 }
 
-/* A quick wrapper around strcache_add_len which avoid the unnecessary
-   copying of the string in order to terminate it. The incdep buffer is
-   always writable, but the eval function like to use const char to avoid
-   silly mistakes and encourage compiler optimizations. */
-static char *
-incdep_strcache_add_len (const char *str, int len)
+#ifdef PARSE_IN_WORKER
+/* Flushes the recorded instructions. */
+static void
+incdep_flush_recorded_instructions (struct incdep *cur)
 {
-#if 1
-  char *ret;
-  char ch = str[len];
-  ((char *)str)[len] = '\0';
-  ret = strcache_add_len (str, len);
-  ((char *)str)[len] = ch;
-  return ret;
-#else
-  return strcache_add_len (str, len);
+  struct incdep_variable_in_set *rec_vis;
+  struct incdep_variable_def *rec_vd;
+  struct incdep_recorded_files *rec_f;
+
+  /* define_variable_in_set */
+
+  rec_vis = cur->recorded_variables_in_set_head;
+  cur->recorded_variables_in_set_head = cur->recorded_variables_in_set_tail = NULL;
+  if (rec_vis)
+    do
+      {
+        void *free_me = rec_vis;
+        define_variable_in_set (strcache_add_len (rec_vis->name, rec_vis->name_length),
+                                rec_vis->name_length,
+                                rec_vis->value,
+                                rec_vis->value_length,
+                                rec_vis->duplicate_value,
+                                rec_vis->origin,
+                                rec_vis->recursive,
+                                rec_vis->set,
+                                rec_vis->flocp);
+        free (rec_vis->name);
+        rec_vis = rec_vis->next;
+        free (free_me);
+      }
+    while (rec_vis);
+
+  /* do_variable_definition */
+
+  rec_vd = cur->recorded_variable_defs_head;
+  cur->recorded_variable_defs_head = cur->recorded_variable_defs_tail = NULL;
+  if (rec_vd)
+    do
+      {
+        void *free_me = rec_vd;
+        do_variable_definition (rec_vd->flocp,
+                                strcache_add_len(rec_vd->name, rec_vd->name_length),
+                                rec_vd->value,
+                                rec_vd->origin,
+                                rec_vd->flavor,
+                                rec_vd->target_var);
+        free (rec_vd->name);
+        free (rec_vd->value);
+        rec_vd = rec_vd->next;
+        free (free_me);
+      }
+    while (rec_vd);
+
+  /* record_files */
+
+  rec_f = cur->recorded_files_head;
+  cur->recorded_files_head = cur->recorded_files_tail = NULL;
+  if (rec_f)
+    do
+      {
+        void *free_me = rec_f;
+        struct dep *dep;
+        const char *newname;
+
+        for (dep = rec_f->deps; dep; dep = dep->next)
+          {
+            newname = strcache_add (dep->name);
+            free ((char *)dep->name);
+            dep->name = newname;
+          }
+
+        newname = strcache_add (rec_f->filenames->name);
+        free ((char *)rec_f->filenames->name);
+        rec_f->filenames->name = newname;
+
+        record_files (rec_f->filenames,
+                      rec_f->pattern,
+                      rec_f->pattern_percent,
+                      rec_f->deps,
+                      rec_f->cmds_started,
+                      rec_f->commands,
+                      rec_f->commands_idx,
+                      rec_f->two_colon,
+                      rec_f->flocp);
+
+        rec_f = rec_f->next;
+        free (free_me);
+      }
+    while (rec_f);
+}
+#endif /* PARSE_IN_WORKER */
+
+/* Record / issue a warning about a misformed dep file. */
+static void
+incdep_warn (struct incdep *cur, unsigned int line_no, const char *msg)
+{
+  if (!cur->is_worker)
+    error (NILF, "%s(%d): %s", cur->name, line_no, msg);
+#ifdef PARSE_IN_WORKER
+  else
+    {
+      cur->err_line_no = line_no;
+      cur->err_msg = msg;
+    }
 #endif
 }
+
+/* Record / execute a strcache add. */
+static const char *
+incdep_record_strcache (struct incdep *cur, const char *str, int len)
+{
+  const char *ret;
+  if (!cur->is_worker)
+    {
+      /* Make sure the string is terminated before we hand it to
+         strcache_add_len so it does have to make a temporary copy
+         of it on the stack. */
+      char ch = str[len];
+      ((char *)str)[len] = '\0';
+      ret = strcache_add_len (str, len);
+      ((char *)str)[len] = ch;
+    }
+  else
+    {
+      /* Duplicate the string. The other recorders knows which arguments
+         needs to be added to the string cache later. */
+      char *newstr = xmalloc (len + 1);
+      memcpy (newstr, str, len);
+      newstr[len] = '\0';
+      ret = newstr;
+    }
+  return ret;
+}
+
+/* Record / perform a variable definition in a set.
+   The NAME is in the string cache.
+   The VALUE is on the heap.
+   The DUPLICATE_VALUE is always 0. */
+static void
+incdep_record_variable_in_set (struct incdep *cur,
+                               const char *name, unsigned int name_length,
+                               const char *value,
+                               unsigned int value_length,
+                               int duplicate_value,
+                               enum variable_origin origin,
+                               int recursive,
+                               struct variable_set *set,
+                               const struct floc *flocp)
+{
+  assert (!duplicate_value);
+  if (!cur->is_worker)
+    define_variable_in_set (name, name_length, value, value_length,
+                            duplicate_value, origin, recursive, set, flocp);
+#ifdef PARSE_IN_WORKER
+  else
+    {
+      struct incdep_variable_in_set *rec = xmalloc (sizeof (*rec));
+      rec->name = (char *)name;
+      rec->name_length = name_length;
+      rec->value = value;
+      rec->value_length = value_length;
+      rec->duplicate_value = duplicate_value;
+      rec->origin = origin;
+      rec->recursive = recursive;
+      rec->set = set;
+      rec->flocp = flocp;
+
+      rec->next = NULL;
+      if (cur->recorded_variables_in_set_tail)
+        cur->recorded_variables_in_set_tail->next = rec;
+      else
+        cur->recorded_variables_in_set_head = rec;
+      cur->recorded_variables_in_set_tail = rec;
+    }
+#endif
+}
+
+/* Record / perform a variable definition. The VALUE should be disposed of. */
+static void
+incdep_record_variable_def (struct incdep *cur,
+                            const struct floc *flocp,
+                            const char *name,
+                            unsigned int name_length,
+                            char *value,
+                            enum variable_origin origin,
+                            enum variable_flavor flavor,
+                            int target_var)
+{
+  if (!cur->is_worker)
+    {
+      do_variable_definition (flocp, name, value, origin, flavor, target_var);
+      free (value);
+    }
+#ifdef PARSE_IN_WORKER
+  else
+    {
+      struct incdep_variable_def *rec = xmalloc (sizeof (*rec));
+      rec->flocp = flocp;
+      rec->name = (char *)name;
+      rec->name_length = name_length;
+      rec->value = value;
+      rec->origin = origin;
+      rec->flavor = flavor;
+      rec->target_var = target_var;
+
+      rec->next = NULL;
+      if (cur->recorded_variable_defs_tail)
+        cur->recorded_variable_defs_tail->next = rec;
+      else
+        cur->recorded_variable_defs_head = rec;
+      cur->recorded_variable_defs_tail = rec;
+    }
+#endif
+}
+
+/* Record files.*/
+static void
+incdep_record_files (struct incdep *cur,
+                     struct nameseq *filenames, const char *pattern,
+                     const char *pattern_percent, struct dep *deps,
+                     unsigned int cmds_started, char *commands,
+                     unsigned int commands_idx, int two_colon,
+                     const struct floc *flocp)
+{
+  if (!cur->is_worker)
+    record_files (filenames, pattern, pattern_percent, deps, cmds_started,
+                  commands, commands_idx, two_colon, flocp);
+#ifdef PARSE_IN_WORKER
+  else
+    {
+      struct incdep_recorded_files *rec = xmalloc (sizeof (*rec));
+
+      rec->filenames = filenames;
+      rec->pattern = pattern;
+      rec->pattern_percent = pattern_percent;
+      rec->deps = deps;
+      rec->cmds_started = cmds_started;
+      rec->commands = commands;
+      rec->commands_idx = commands_idx;
+      rec->two_colon = two_colon;
+      rec->flocp = flocp;
+
+      rec->next = NULL;
+      if (cur->recorded_files_tail)
+        cur->recorded_files_tail->next = rec;
+      else
+        cur->recorded_files_head = rec;
+      cur->recorded_files_tail = rec;
+    }
+#endif
+}
+
 
 /* no nonsense dependency file including.
 
@@ -544,7 +860,7 @@ incdep_strcache_add_len (const char *str, int len)
 
    */
 static void
-eval_include_dep_file (struct incdep *curdep, struct floc *f)
+eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
 {
   unsigned line_no = 1;
   const char *file_end = curdep->file_end;
@@ -553,10 +869,8 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
   /* if no file data, just return immediately. */
   if (!cur)
-    {
-      free (curdep);
-      return;
-    }
+    return;
+  curdep->is_worker = is_worker;
 
   /* now parse the file. */
   while (cur < file_end)
@@ -616,11 +930,10 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
           var_len = endp - cur;
           if (!var_len)
           {
-              error (f, "%s(%d): bogus define statement.",
-                     curdep->name, line_no);
+              incdep_warn (curdep, line_no, "bogus define statement.");
               break;
           }
-          var = incdep_strcache_add_len (cur, var_len);
+          var = incdep_record_strcache (curdep, cur, var_len);
 
           /* find the end of the variable. */
           cur = value_end = value_start = value_start + 1;
@@ -653,15 +966,13 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
           if (!found_endef)
             {
-              error (f, "%s(%d): missing endef, dropping the rest of the file.",
-                     curdep->name, line_no);
+              incdep_warn (curdep, line_no, "missing endef, dropping the rest of the file.");
               break;
             }
           value_len = value_end - value_start;
           if (memchr (value_start, '\0', value_len))
             {
-              error (f, "%s(%d): '\\0' in define, dropping the rest of the file.",
-                     curdep->name, line_no);
+              incdep_warn (curdep, line_no, "'\\0' in define, dropping the rest of the file.");
               break;
             }
 
@@ -692,10 +1003,11 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
             memcpy (value, value_start, value_len);
           value [value_len] = '\0';
 
-          define_variable_in_set (var, var_len, value, value_len,
-                                  0 /* don't duplicate */, o_file,
-                                  0 /* defines are recursive but this is faster */,
-                                  NULL /* global set */, f);
+          incdep_record_variable_in_set (curdep,
+                                         var, var_len, value, value_len,
+                                         0 /* don't duplicate */, o_file,
+                                         0 /* defines are recursive but this is faster */,
+                                         NULL /* global set */, f);
         }
 
       /* file: deps
@@ -729,8 +1041,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               if (   !equalp
                   || (!endp && memchr (cur, '\n', equalp - cur)))
                 {
-                  error (f, "%s(%d): no colon.",
-                         curdep->name, line_no);
+                  incdep_warn (curdep, line_no, "no colon.");
                   break;
                 }
             }
@@ -770,19 +1081,17 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               var_len = endp - cur;
               if (!var_len)
                 {
-                  error (f, "%s(%d): empty variable. (includedep)",
-                         curdep->name, line_no);
+                  incdep_warn (curdep, line_no, "empty variable. (includedep)");
                   break;
                 }
               if (   memchr (cur, '$', var_len)
                   || memchr (cur, ' ', var_len)
                   || memchr (cur, '\t', var_len))
                 {
-                  error (f, "%s(%d): fancy variable name. (includedep)",
-                         curdep->name, line_no);
+                  incdep_warn (curdep, line_no, "fancy variable name. (includedep)");
                   break;
                 }
-              var = incdep_strcache_add_len (cur, var_len);
+              var = incdep_record_strcache (curdep, cur, var_len);
 
               /* find the start of the value. */
               cur = equalp + 1;
@@ -807,8 +1116,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   --value_end;
                   if (value_end - 1 >= cur && value_end[-1] == '\\')
                     {
-                      error (f, "%s(%d): fancy escaping! (includedep)",
-                             curdep->name, line_no);
+                      incdep_warn (curdep, line_no, "fancy escaping! (includedep)");
                       cur = NULL;
                       break;
                     }
@@ -864,16 +1172,15 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               if (flavor == f_recursive
                || (   flavor == f_simple
                    && !memchr (value, '$', value_len)))
-                define_variable_in_set (var, var_len, value, value_len,
-                                        0 /* don't duplicate */, o_file,
-                                        flavor == f_recursive /* recursive */,
-                                        NULL /* global set */, f);
+                incdep_record_variable_in_set (curdep,
+                                               var, var_len, value, value_len,
+                                               0 /* don't duplicate */, o_file,
+                                               flavor == f_recursive /* recursive */,
+                                               NULL /* global set */, f);
               else
-                {
-                  do_variable_definition (f, var, value, o_file, flavor,
-                                          0 /* not target var */);
-                  free (value);
-                }
+                incdep_record_variable_def (curdep,
+                                            f, var, var_len, value, o_file, flavor,
+                                            0 /* not target var */);
             }
           else
             {
@@ -883,7 +1190,6 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               struct dep *deps = 0;
               struct dep **nextdep = &deps;
               struct dep *dep;
-/*              int next_line = 1; */
 
               /* extract the filename, ASSUME a single one. */
               endp = colonp;
@@ -891,21 +1197,19 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                 --endp;
               if (cur == endp)
                 {
-                  error (f, "%s(%d): empty filename.",
-                         curdep->name, line_no);
+                  incdep_warn (curdep, line_no, "empty filename.");
                   break;
                 }
               if (   memchr (cur, '$', endp - cur)
                   || memchr (cur, ' ', endp - cur)
                   || memchr (cur, '\t', endp - cur))
                 {
-                  error (f, "%s(%d): multiple / fancy file name. (includedep)",
-                         curdep->name, line_no);
+                  incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
                   break;
                 }
               filenames = xmalloc (sizeof (struct nameseq));
               memset (filenames, 0, sizeof (*filenames));
-              filenames->name = incdep_strcache_add_len (cur, endp - cur);
+              filenames->name = incdep_record_strcache (curdep, cur, endp - cur);
 
               /* parse any dependencies. */
               cur = colonp + 1;
@@ -944,20 +1248,25 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
                   /* add it to the list. */
                   *nextdep = dep = alloc_dep ();
-                  dep->name = incdep_strcache_add_len (cur, endp - cur);
+                  dep->name = incdep_record_strcache (curdep, cur, endp - cur);
                   nextdep = &dep->next;
 
                   cur = endp;
                 }
 
               /* enter the file with its dependencies. */
-              record_files (filenames, NULL, NULL, deps, 0, NULL, 0, 0, f);
+              incdep_record_files (curdep,
+                                   filenames, NULL, NULL, deps, 0, NULL, 0, 0, f);
             }
         }
     }
 
-  free (curdep->file_base);
-  free (curdep);
+  /* free the file data */
+  if (is_worker)
+    {
+      free (curdep->file_base);
+      curdep->file_base = curdep->file_end = NULL;
+    }
 }
 
 /* Flushes the incdep todo and done lists. */
@@ -980,7 +1289,8 @@ incdep_flush_it (struct floc *f)
           incdep_unlock ();
 
           incdep_read_file (cur, f);
-          eval_include_dep_file (cur, f); /* eats cur */
+          eval_include_dep_file (cur, f, 0);
+          incdep_free (cur);
 
           incdep_lock ();
           continue;
@@ -1004,7 +1314,12 @@ incdep_flush_it (struct floc *f)
       while (cur)
         {
           struct incdep *next = cur->next;
-          eval_include_dep_file (cur, f); /* eats cur */
+#ifdef PARSE_IN_WORKER
+          incdep_flush_recorded_instructions (cur);
+#else
+          eval_include_dep_file (cur, f, 0);
+#endif
+          incdep_free (cur);
           cur = next;
         }
 
@@ -1034,6 +1349,17 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
        cur->file_base = cur->file_end = NULL;
        memcpy (cur->name, name, name_len);
        cur->name[name_len] = '\0';
+       cur->is_worker = 0;
+#ifdef PARSE_IN_WORKER
+       cur->err_line_no = 0;
+       cur->err_msg = NULL;
+       cur->recorded_variables_in_set_head = NULL;
+       cur->recorded_variables_in_set_tail = NULL;
+       cur->recorded_variable_defs_head = NULL;
+       cur->recorded_variable_defs_tail = NULL;
+       cur->recorded_files_head = NULL;
+       cur->recorded_files_tail = NULL;
+#endif
 
        cur->next = NULL;
        if (tail)
@@ -1052,7 +1378,7 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
         {
           struct incdep *next = cur->next;
           incdep_read_file (cur, f);
-          eval_include_dep_file (cur, f); /* eats cur */
+          eval_include_dep_file (cur, f, 0); /* eats cur */
           cur = next;
         }
     }
