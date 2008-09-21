@@ -1,7 +1,7 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1802 2008-09-21 18:40:44Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1803 2008-09-21 18:41:07Z knut.osmundsen@oracle.com $ */
 /** @file
- * expreval - Simple dependency files.
+ * incdep - Simple dependency files.
  */
 
 /*
