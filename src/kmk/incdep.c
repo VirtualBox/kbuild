@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1799 2008-09-21 01:17:50Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1800 2008-09-21 01:43:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Simple dependency files.
  */
@@ -500,6 +500,25 @@ incdep_flush_and_term (void)
   incdep_initialized = 0;
 }
 
+/* A quick wrapper around strcache_add_len which avoid the unnecessary
+   copying of the string in order to terminate it. The incdep buffer is
+   always writable, but the eval function like to use const char to avoid
+   silly mistakes and encourage compiler optimizations. */
+static char *
+incdep_strcache_add_len (const char *str, int len)
+{
+#if 1
+  char *ret;
+  char ch = str[len];
+  ((char *)str)[len] = '\0';
+  ret = strcache_add_len (str, len);
+  ((char *)str)[len] = ch;
+  return ret;
+#else
+  return strcache_add_len (str, len);
+#endif
+}
+
 /* no nonsense dependency file including.
 
    Because nobody wants bogus dependency files to break their incremental
@@ -596,7 +615,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                      curdep->name, line_no);
               break;
           }
-          var = strcache_add_len (cur, var_len);
+          var = incdep_strcache_add_len (cur, var_len);
 
           /* find the end of the variable. */
           cur = value_end = value_start = value_start + 1;
@@ -758,7 +777,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                          curdep->name, line_no);
                   break;
                 }
-              var = strcache_add_len (cur, var_len);
+              var = incdep_strcache_add_len (cur, var_len);
 
               /* find the start of the value. */
               cur = equalp + 1;
@@ -881,7 +900,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                 }
               filenames = xmalloc (sizeof (struct nameseq));
               memset (filenames, 0, sizeof (*filenames));
-              filenames->name = strcache_add_len (cur, endp - cur);
+              filenames->name = incdep_strcache_add_len (cur, endp - cur);
 
               /* parse any dependencies. */
               cur = colonp + 1;
@@ -920,7 +939,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
                   /* add it to the list. */
                   *nextdep = dep = alloc_dep ();
-                  dep->name = strcache_add_len (cur, endp - cur);
+                  dep->name = incdep_strcache_add_len (cur, endp - cur);
                   nextdep = &dep->next;
 
                   cur = endp;
