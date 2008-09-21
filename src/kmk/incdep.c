@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1803 2008-09-21 18:41:07Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1804 2008-09-21 19:55:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -29,8 +29,6 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-/*#define PARSE_IN_WORKER*/
-
 #ifdef __OS2__
 # define INCL_BASE
 # define INCL_ERRORS
@@ -63,7 +61,9 @@
 
 #ifdef WINDOWS32
 # include <io.h>
+# include <process.h>
 # include <Windows.h>
+# define PARSE_IN_WORKER
 #endif
 
 #ifdef __OS2__
@@ -193,13 +193,13 @@ static struct incdep * volatile incdep_tail_done;
 
 /* The handles to the worker threads. */
 #ifdef HAVE_PTHREAD
-static pthread_t incdep_threads[4];
+static pthread_t incdep_threads[2];
 #elif defined (WINDOWS32)
-static HANDLE incdep_threads[4];
+static HANDLE incdep_threads[2];
 #elif defined (__OS2__)
-static TID incdep_threads[4];
+static TID incdep_threads[2];
 #endif
-static unsigned incdep_num_threads = 1;
+static unsigned incdep_num_threads;
 
 /* flag indicating whether the worker threads should terminate or not. */
 static int volatile incdep_terminate;
@@ -536,7 +536,7 @@ incdep_init (struct floc *f)
       tid = 0;
       hThread = _beginthreadex (NULL, 128*1024, incdep_worker_windows,
                                 NULL, 0, &tid);
-      if (hThread != 0 && hThread != ~(uintptr_t)0)
+      if (hThread == 0 || hThread == ~(uintptr_t)0)
         fatal (f, _("_beginthreadex failed: err=%d"), errno);
       incdep_threads[i] = (HANDLE)hThread;
 
