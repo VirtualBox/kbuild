@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1795 2008-09-19 23:50:32Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1798 2008-09-21 01:06:36Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2352,11 +2352,11 @@ local objs = $($(target)_OBJS_)
 # dependency file
 local dep := $(out)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
- ifndef ($(_KB_TEST),)
-  _DEPFILES += $(dep)
+ _DEPFILES_INCLUDED += $(dep)
+ ifdef KB_HAVE_INCLUDEDEP_QUEUE
+  includedep-queue $(dep)
  else
-  _DEPFILES_INCLUDED += $(dep)
-  $(eval includedep $(dep))
+  includedep $(dep)
  endif
 endif
 
@@ -2749,11 +2749,10 @@ endif # NOINST
 # dependency file
 local dep := $(outbase)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
- ifndef ($(_KB_TEST),)
-  _DEPFILES += $(dep)
+ ifdef KB_HAVE_INCLUDEDEP_QUEUE
+  includedep-queue $(dep)
  else
-  _DEPFILES_INCLUDED += $(dep)
-  $(eval includedep $(dep))
+  includedep $(dep)
  endif
 endif
 
@@ -3558,8 +3557,16 @@ $(foreach prop,$(PROPS_DEFERRED), \
 #
 # Include dependency files.
 #
-ifneq ($(_DEPFILES),)
- $(foreach dep, $(_DEPFILES), $(eval includedep $(dep)))
+ifdef _DEPFILES
+ # TODO: first works the second doesn't, provided _KB_INCLUDE_DEPS is undefined:
+ #   if "$(_KB_INCLUDE_DEPS)" == "1"
+ #   if $(_KB_INCLUDE_DEPS) == "1"
+
+ ifdef KB_HAVE_INCLUDEDEP_QUEUE
+  includedep-queue $(_DEPFILES)
+ else
+  $(foreach dep, $(_DEPFILES), $(eval includedep $(dep)))
+ endif
 endif
 
 
