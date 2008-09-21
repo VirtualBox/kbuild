@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1800 2008-09-21 01:43:59Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1801 2008-09-21 14:29:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Simple dependency files.
  */
@@ -129,12 +129,13 @@ static struct incdep * volatile incdep_tail_done;
 
 /* The handles to the worker threads. */
 #ifdef HAVE_PTHREAD
-static pthread_t incdep_threads[1];
+static pthread_t incdep_threads[4];
 #elif defined (WINDOWS32)
-static HANDLE incdep_threads[1];
+static HANDLE incdep_threads[4];
 #elif defined (__OS2__)
-static TID incdep_threads[1];
+static TID incdep_threads[4];
 #endif
+static unsigned incdep_num_threads = 1;
 
 /* flag indicating whether the worker threads should terminate or not. */
 static int volatile incdep_terminate;
@@ -430,7 +431,10 @@ incdep_init (struct floc *f)
   /* create the worker threads. */
 
   incdep_terminate = 0;
-  for (i = 0; i < sizeof (incdep_threads) / sizeof (incdep_threads[0]); i++)
+  incdep_num_threads = sizeof (incdep_threads) / sizeof (incdep_threads[0]);
+  if (incdep_num_threads + 1 > job_slots)
+    incdep_num_threads = job_slots <= 1 ? 1 : job_slots - 1;
+  for (i = 0; i < incdep_num_threads; i++)
     {
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
@@ -488,10 +492,11 @@ incdep_flush_and_term (void)
 
   /* wait for the threads to quit */
 
-  for (i = 0; i < sizeof (incdep_threads) / sizeof (incdep_threads[0]); i++)
+  for (i = 0; i < incdep_num_threads; i++)
     {
       /* later? */
     }
+  incdep_num_threads = 0;
 
   /* destroy the lock and condition variables / event objects. */
 
