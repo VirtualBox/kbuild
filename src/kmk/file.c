@@ -693,10 +693,17 @@ snap_deps (void)
 # endif
 
       /* Disable second target expansion now since we won't expand files
-         entered after this point. (saves CPU cycles in enter_file()). */
+         entered after this point. (Saves CPU cycles in enter_file()). */
       second_target_expansion = 0;
     }
 #endif /* CONFIG_WITH_2ND_TARGET_EXPANSION */
+
+#ifdef CONFIG_WITH_INCLUDEDEP
+  /* Process any queued includedep files.  Since includedep is supposed
+     to be *simple* stuff, we can do this after the second target expansion
+     and thereby save a little time.  */
+  incdep_flush_and_term ();
+#endif
 
   /* For every target that's not .SUFFIXES, expand its dependencies.
      We must use hash_dump (), because within this loop we might add new files

@@ -33,16 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef KMK
 # include "kbuild.h"
 #endif
-#ifdef CONFIG_WITH_INCLUDEDEP
-# ifdef HAVE_FCNTL_H
-#  include <fcntl.h>
-# else
-#  include <sys/file.h>
-#endif
-# ifdef WINDOWS32
-#  include <io.h>
-# endif
-#endif
 
 #ifndef WINDOWS32
 #ifndef _AMIGA
@@ -146,11 +136,13 @@ static long readline (struct ebuffer *ebuf);
 static void do_define (char *name, unsigned int namelen,
                        enum variable_origin origin, struct ebuffer *ebuf);
 static int conditional_line (char *line, int len, const struct floc *flocp);
+#ifndef CONFIG_WITH_INCLUDEDEP
 static void record_files (struct nameseq *filenames, const char *pattern,
                           const char *pattern_percent, struct dep *deps,
                           unsigned int cmds_started, char *commands,
                           unsigned int commands_idx, int two_colon,
                           const struct floc *flocp);
+#endif /* !KMK */
 static void record_target_var (struct nameseq *filenames, char *defn,
                                enum variable_origin origin, int enabled,
                                const struct floc *flocp);
@@ -485,463 +477,6 @@ eval_buffer (char *buffer)
   alloca (0);
   return r;
 }
-
-#ifdef CONFIG_WITH_INCLUDEDEP
-/* no nonsense dependency file including.
-
-   Because nobody wants bogus dependency files to break their incremental
-   builds with hard to comprehend error messages, this function does not
-   use the normal eval routine but does all the parsing itself. This isn't,
-   as much work as it sounds, because the necessary feature set is very
-   limited.
-
-   eval_include_dep groks:
-
-   define var
-   endef
-
-   var [|:|?|>]= value [\]
-
-   [\]
-   file: [deps] [\]
-
-   */
-void
-eval_include_dep (const char *name, struct floc *f)
-{
-  int fd;
-  char *file_base;
-  const char *file_end, *cur, *endp;
-  struct stat st;
-  unsigned line_no;
-
-  /* open and read it into memory. ignore non-existing dependency files
-     or that we can't read. */
-  errno = 0;
-#ifdef O_BINARY
-  fd = open (name, O_RDONLY | O_BINARY, 0);
-#else
-  fd = open (name, O_RDONLY, 0);
-#endif
-  if (fd < 0)
-    {
-      int err = errno;
-      if (err == ENOENT || !file_exists_p (name))
-        return;
-      error (f, "%s: %s", name, strerror (err));
-      return;
-    }
-  if (fstat (fd, &st))
-    {
-      error (f, "%s: fstat: %s", name, strerror (errno));
-      close (fd);
-      return;
-    }
-  file_base = xmalloc (st.st_size + 1);
-  if (read (fd, file_base, st.st_size) != st.st_size)
-    {
-      error (f, "%s: read: %s", name, strerror (errno));
-      close (fd);
-      free (file_base);
-      return;
-    }
-  close (fd);
-  file_end = file_base + st.st_size;
-  file_base[st.st_size] = '\0';
-
-  /* now parse the file. */
-  line_no = 1;
-  cur = file_base;
-  while (cur < file_end)
-    {
-      /* skip empty lines */
-      while (cur < file_end && isspace ((unsigned char)*cur) && *cur != '\n')
-        ++cur;
-      if (cur >= file_end)
-        break;
-      if (*cur == '#')
-        {
-          cur = memchr (cur, '\n', file_end - cur);
-          if (!cur)
-            break;
-        }
-      if (*cur == '\\')
-        {
-          unsigned eol_len = (file_end - cur > 1 && cur[1] == '\n') ? 2
-                           : (file_end - cur > 2 && cur[1] == '\r' && cur[2] == '\n') ? 3
-                           : (file_end - cur == 1) ? 1 : 0;
-           if (eol_len)
-             {
-               cur += eol_len;
-               line_no++;
-               continue;
-             }
-        }
-      if (*cur == '\n')
-        {
-          cur++;
-          line_no++;
-          continue;
-        }
-
-      /* define var
-         ...
-         endef */
-      if (strneq (cur, "define ", 7))
-        {
-          const char *var;
-          unsigned var_len;
-          const char *value_start;
-          const char *value_end;
-          char *value;
-          unsigned value_len;
-          int found_endef = 0;
-
-          /* extract the variable name. */
-          cur += 7;
-          while (isblank ((unsigned char)*cur))
-            ++cur;
-          value_start = endp = memchr (cur, '\n', file_end - cur);
-          if (!endp)
-              endp = cur;
-          while (endp > cur && isspace ((unsigned char)endp[-1]))
-            --endp;
-          var_len = endp - cur;
-          if (!var_len)
-          {
-              error (f, "%s(%d): bogus define statement.", name, line_no);
-              break;
-          }
-          var = strcache_add_len (cur, var_len);
-
-          /* find the end of the variable. */
-          cur = value_end = value_start = value_start + 1;
-          ++line_no;
-          while (cur < file_end)
-            {
-              /* check for endef, don't bother with skipping leading spaces. */
-              if (   file_end - cur >= 5
-                  && strneq (cur, "endef", 5))
-                {
-                  endp = cur + 5;
-                  while (endp < file_end && isspace ((unsigned char)*endp) && *endp != '\n')
-                    endp++;
-                  if (endp >= file_end || *endp == '\n')
-                    {
-                      found_endef = 1;
-                      cur = endp >= file_end ? file_end : endp + 1;
-                      break;
-                    }
-                }
-
-              /* skip a line ahead. */
-              cur = value_end = memchr (cur, '\n', file_end - cur);
-              if (cur != NULL)
-                ++cur;
-              else
-                cur = value_end = file_end;
-              ++line_no;
-            }
-
-          if (!found_endef)
-            {
-              error (f, "%s(%d): missing endef, dropping the rest of the file.", name, line_no);
-              break;
-            }
-          value_len = value_end - value_start;
-          if (memchr (value_start, '\0', value_len))
-            {
-              error (f, "%s(%d): '\\0' in define, dropping the rest of the file.", name, line_no);
-              break;
-            }
-
-          /* make a copy of the value, converting \r\n to \n, and define it. */
-          value = xmalloc (value_len + 1);
-          endp = memchr (value_start, '\r', value_len);
-          if (endp)
-            {
-              const char *src = value_start;
-              char *dst = value;
-              for (;;)
-                {
-                  size_t len = endp - src;
-                  memcpy (dst, src, len);
-                  dst += len;
-                  src = endp;
-                  if (src + 1 < file_end && src[1] == '\n')
-                      src++; /* skip the '\r' */
-                  if (src >= value_end)
-                    break;
-                  endp = memchr (endp + 1, '\r', src - value_end);
-                  if (!endp)
-                    endp = value_end;
-                }
-              value_len = dst - value;
-            }
-          else
-            memcpy (value, value_start, value_len);
-          value [value_len] = '\0';
-
-          define_variable_in_set (var, var_len, value, value_len,
-                                  0 /* don't duplicate */, o_file,
-                                  0 /* defines are recursive but this is faster */,
-                                  NULL /* global set */, f);
-        }
-
-      /* file: deps
-         OR
-         variable [:]= value */
-      else
-        {
-          const char *colonp;
-          const char *equalp;
-
-          /* Look for a colon and an equal sign, optimize for colon.
-             Only one file is support and the colon / equal must be on
-             the same line. */
-          colonp = memchr (cur, ':', file_end - cur);
-#ifdef HAVE_DOS_PATHS
-          while (   colonp
-                 && colonp + 1 < file_end
-                 && (colonp[1] == '/' || colonp[1] == '\\')
-                 && colonp > cur
-                 && isalpha ((unsigned char)colonp[-1])
-                 && (   colonp == cur + 1
-                     || strchr (" \t(", colonp[-2]) != 0))
-              colonp = memchr (colonp + 1, ':', file_end - (colonp + 1));
-#endif
-          endp = NULL;
-          if (   !colonp
-              ||  (endp = memchr (cur, '\n', colonp - cur)))
-            {
-              colonp = NULL;
-              equalp = memchr (cur, '=', (endp ? endp : file_end) - cur);
-              if (   !equalp
-                  || (!endp && memchr (cur, '\n', equalp - cur)))
-                {
-                  error (f, "%s(%d): no colon.", name, line_no);
-                  break;
-                }
-            }
-          else
-            equalp = memchr (cur, '=', (colonp + 2 <= file_end
-                                        ? colonp + 2 : file_end) - cur);
-          if (equalp)
-            {
-              /* An assignment of some sort. */
-              const char *var;
-              unsigned var_len;
-              const char *value_start;
-              const char *value_end;
-              char *value;
-              unsigned value_len;
-              unsigned multi_line = 0;
-              enum variable_flavor flavor;
-
-              /* figure the flavor first. */
-              flavor = f_recursive;
-              if (equalp > cur)
-                {
-                  if (equalp[-1] == ':')
-                    flavor = f_simple;
-                  else if (equalp[-1] == '?')
-                    flavor = f_conditional;
-                  else if (equalp[-1] == '+')
-                    flavor = f_append;
-                  else if (equalp[-1] == '>')
-                    flavor = f_prepend;
-                }
-
-              /* extract the variable name. */
-              endp = flavor == f_recursive ? equalp : equalp - 1;
-              while (endp > cur && isblank ((unsigned char)endp[-1]))
-                --endp;
-              var_len = endp - cur;
-              if (!var_len)
-                {
-                  error (f, "%s(%d): empty variable. (includedep)", name, line_no);
-                  break;
-                }
-              if (   memchr (cur, '$', var_len)
-                  || memchr (cur, ' ', var_len)
-                  || memchr (cur, '\t', var_len))
-                {
-                  error (f, "%s(%d): fancy variable name. (includedep)", name, line_no);
-                  break;
-                }
-              var = strcache_add_len (cur, var_len);
-
-              /* find the start of the value. */
-              cur = equalp + 1;
-              while (cur < file_end && isblank ((unsigned char)*cur))
-                cur++;
-              value_start = cur;
-
-              /* find the end of the value / line (this isn't 101% correct). */
-              value_end = cur;
-              while (cur < file_end)
-                {
-                  endp = value_end = memchr (cur, '\n', file_end - cur);
-                  if (!value_end)
-                    value_end = file_end;
-                  if (value_end - 1 >= cur && value_end[-1] == '\r')
-                    --value_end;
-                  if (value_end - 1 < cur || value_end[-1] != '\\')
-                    {
-                      cur = endp ? endp + 1 : file_end;
-                      break;
-                    }
-                  --value_end;
-                  if (value_end - 1 >= cur && value_end[-1] == '\\')
-                    {
-                      error (f, "%s(%d): fancy escaping! (includedep)", name, line_no);
-                      cur = NULL;
-                      break;
-                    }
-                  if (!endp)
-                    {
-                      cur = file_end;
-                      break;
-                    }
-
-                  cur = endp + 1;
-                  ++multi_line;
-                  ++line_no;
-                }
-              if (!cur)
-                break;
-              ++line_no;
-
-              /* make a copy of the value, converting \r\n to \n, and define it. */
-              value_len = value_end - value_start;
-              value = xmalloc (value_len + 1);
-              if (!multi_line)
-                  memcpy (value, value_start, value_len);
-              else
-                {
-                  /* unescape it */
-                  const char *src = value_start;
-                  char *dst = value;
-                  while (src < value_end)
-                    {
-                      const char *nextp;
-
-                      endp = memchr (src, '\n', value_end - src);
-                      if (!endp)
-                        nextp = endp = value_end;
-                      else
-                        nextp = endp + 1;
-                      if (endp > src && endp[-1] == '\r')
-                        --endp;
-                      if (endp > src && endp[-1] == '\\')
-                        --endp;
-
-                      if (src != value_start)
-                        *dst++ = ' ';
-                      memcpy (dst, src, endp - src);
-                      dst += endp - src;
-                      src = nextp;
-                    }
-                  value_len = dst - value;
-                }
-              value [value_len] = '\0';
-
-              /* do the definition */
-              if (flavor == f_recursive
-               || (   flavor == f_simple
-                   && !memchr (value, '$', value_len)))
-                define_variable_in_set (var, var_len, value, value_len,
-                                        0 /* don't duplicate */, o_file,
-                                        flavor == f_recursive /* recursive */,
-                                        NULL /* global set */, f);
-              else
-                {
-                  do_variable_definition (f, var, value, o_file, flavor,
-                                          0 /* not target var */);
-                  free (value);
-                }
-            }
-          else
-            {
-              /* file: dependencies */
-
-              struct nameseq *filenames = 0;
-              struct dep *deps = 0;
-              struct dep **nextdep = &deps;
-              struct dep *dep;
-              int next_line = 1;
-
-              /* extract the filename, ASSUME a single one. */
-              endp = colonp;
-              while (endp > cur && isblank ((unsigned char)endp[-1]))
-                --endp;
-              if (cur == endp)
-                {
-                  error (f, "%s(%d): empty filename.", name, line_no);
-                  break;
-                }
-              if (   memchr (cur, '$', endp - cur)
-                  || memchr (cur, ' ', endp - cur)
-                  || memchr (cur, '\t', endp - cur))
-                {
-                  error (f, "%s(%d): multiple / fancy file name. (includedep)", name, line_no);
-                  break;
-                }
-              filenames = xmalloc (sizeof (struct nameseq));
-              memset (filenames, 0, sizeof (*filenames));
-              filenames->name = strcache_add_len (cur, endp - cur);
-
-              /* parse any dependencies. */
-              cur = colonp + 1;
-              while (cur < file_end)
-                {
-                  /* skip blanks and count lines. */
-                  while (cur < file_end && isspace ((unsigned char)*cur) && *cur != '\n')
-                    ++cur;
-                  if (cur >= file_end)
-                    break;
-                  if (*cur == '\n')
-                    {
-                      cur++;
-                      line_no++;
-                      break;
-                    }
-
-                  /* continuation + eol? */
-                  if (*cur == '\\')
-                    {
-                      unsigned eol_len = (file_end - cur > 1 && cur[1] == '\n') ? 2
-                                       : (file_end - cur > 2 && cur[1] == '\r' && cur[2] == '\n') ? 3
-                                       : (file_end - cur == 1) ? 1 : 0;
-                      if (eol_len)
-                        {
-                          cur += eol_len;
-                          line_no++;
-                          continue;
-                        }
-                    }
-
-                  /* find the end of the filename */
-                  endp = cur;
-                  while (endp < file_end && !isspace ((unsigned char)*endp))
-                    ++endp;
-
-                  /* add it to the list. */
-                  *nextdep = dep = alloc_dep ();
-                  dep->name = strcache_add_len (cur, endp - cur);
-                  nextdep = &dep->next;
-
-                  cur = endp;
-                }
-
-              /* enter the file with its dependencies. */
-              record_files (filenames, NULL, NULL, deps, 0, NULL, 0, 0, f);
-            }
-        }
-    }
-  free (file_base);
-}
-#endif /* CONFIG_WITH_INCLUDEDEP */
 
 
 /* Read file FILENAME as a makefile and add its contents to the data base.
@@ -1322,12 +857,16 @@ eval (struct ebuffer *ebuf, int set_default)
 	}
 
 #ifdef CONFIG_WITH_INCLUDEDEP
-      if (word1eq ("includedep"))
+      if (word1eq ("includedep") || word1eq ("includedep-queue") || word1eq ("includedep-flush"))
         {
-          /* We have found an `includedep' line specifying a single makefile
+          /* We have found an `includedep' line specifying one or more dep files
              to be read at this point. This include variation does no
              globbing and do not support multiple names. It's trying to save
              time by being dead simple as well as ignoring errors. */
+          enum incdep_op op = p[wlen - 1] == 'p'
+                            ? incdep_read_it
+                            : p[wlen - 1] == 'e'
+                            ? incdep_queue : incdep_flush;
           char *free_me = NULL;
           char *name = p2;
           char *end = strchr (name, '\0');
@@ -1345,7 +884,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
           saved = *end; /* not sure if this is required... */
           *end = '\0';
-          eval_include_dep (name, fstart);
+          eval_include_dep (name, fstart, op);
           *end = saved;
 
           if (free_me)
@@ -2483,7 +2022,11 @@ record_target_var (struct nameseq *filenames, char *defn,
    The links of FILENAMES are freed, and so are any names in it
    that are not incorporated into other data structures.  */
 
+#ifndef CONFIG_WITH_INCLUDEDEP
 static void
+#else
+void
+#endif
 record_files (struct nameseq *filenames, const char *pattern,
               const char *pattern_percent, struct dep *deps,
               unsigned int cmds_started, char *commands,

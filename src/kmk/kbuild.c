@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1792 2008-09-19 23:30:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1797 2008-09-21 01:05:36Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1703,8 +1703,10 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
      * argv[0] is the function version. Prior to r1792 (early 0.1.5) this
      * was undefined and footer.kmk always passed an empty string.
      *
-     * Version 2, implemented in r1792, will delay the inclusion of the the
-     * dependency file till the end of footer.kmk using _DEPFILES.
+     * Version 2, as implemented in r1796, will make use of the async
+     * includedep queue feature. This means the files will be read by one or
+     * more background threads, leaving the eval'ing to be done later on by
+     * the main thread (in snap_deps).
      */
     if (!argv[0][0])
         iVer = 0;
@@ -1768,14 +1770,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable("NO_COMPILE_CMDS_DEPS") != NULL;
     if (!s_fNoCompileCmdsDepsDefined)
     {
-
-        if (iVer >= 2)
-            do_variable_definition(NILF, "_DEPFILES", pDep->value, o_file, f_append, 0 /* !target_var */);
-        else
-        {
-            do_variable_definition(NILF, "_DEPFILES_INCLUDED", pDep->value, o_file, f_append, 0 /* !target_var */);
-            eval_include_dep(pDep->value, NILF);
-        }
+        do_variable_definition(NILF, "_DEPFILES_INCLUDED", pDep->value, o_file, f_append, 0 /* !target_var */);
+        eval_include_dep(pDep->value, NILF, iVer >= 2 ? incdep_queue : incdep_read_it);
     }
 
     /*

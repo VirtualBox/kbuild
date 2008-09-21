@@ -80,6 +80,16 @@ int update_goal_chain (struct dep *goals);
 void uniquize_deps (struct dep *);
 
 #ifdef CONFIG_WITH_INCLUDEDEP
-void eval_include_dep (const char *name, struct floc *f);
+/* incdep.c */
+enum incdep_op { incdep_read_it, incdep_queue, incdep_flush };
+void eval_include_dep (const char *name, struct floc *f, enum incdep_op op);
+void incdep_flush_and_term (void);
+
+/* read.c */
+void record_files (struct nameseq *filenames, const char *pattern,
+                   const char *pattern_percent, struct dep *deps,
+                   unsigned int cmds_started, char *commands,
+                   unsigned int commands_idx, int two_colon,
+                   const struct floc *flocp);
 #endif
 
