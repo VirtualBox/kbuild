@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1797 2008-09-21 01:05:36Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1799 2008-09-21 01:17:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Simple dependency files.
  */
@@ -88,12 +88,6 @@ struct incdep
 
 
 /*******************************************************************************
-*   Internal Functions                                                         *
-*******************************************************************************/
-static void incdep_flush_it (struct floc *);
-
-
-/*******************************************************************************
 *   Global Variables                                                           *
 *******************************************************************************/
 
@@ -145,6 +139,11 @@ static TID incdep_threads[1];
 /* flag indicating whether the worker threads should terminate or not. */
 static int volatile incdep_terminate;
 
+
+/*******************************************************************************
+*   Internal Functions                                                         *
+*******************************************************************************/
+static void incdep_flush_it (struct floc *);
 
 
 
@@ -346,6 +345,7 @@ incdep_worker (void)
   incdep_unlock ();
 }
 
+/* Thread library specific thread functions wrapping incdep_wroker. */
 #ifdef HAVE_PTHREAD
 static void *
 incdep_worker_pthread (void *ignore)
@@ -372,7 +372,6 @@ incdep_worker_os2 (void *ignore)
   (void)ignore;
 }
 #endif
-
 
 /* Creates the the worker threads. */
 static void
@@ -466,7 +465,8 @@ incdep_init (struct floc *f)
   incdep_initialized = 1;
 }
 
-/* Flushes outstanding work and terminates the worker threads. */
+/* Flushes outstanding work and terminates the worker threads.
+   This is called from snap_deps(). */
 void
 incdep_flush_and_term (void)
 {
@@ -490,7 +490,7 @@ incdep_flush_and_term (void)
 
   for (i = 0; i < sizeof (incdep_threads) / sizeof (incdep_threads[0]); i++)
     {
-      /* later */
+      /* later? */
     }
 
   /* destroy the lock and condition variables / event objects. */
@@ -530,7 +530,6 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
   /* if no file data, just return immediately. */
   if (!cur)
     {
-fprintf (stderr, "empty: %s\n", curdep->name);
       free (curdep);
       return;
     }
@@ -1060,5 +1059,5 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
     }
 }
 
-#endif
+#endif /* CONFIG_WITH_INCLUDEDEP */
 
