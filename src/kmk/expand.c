@@ -233,9 +233,43 @@ variable_expand_string (char *line, const char *string, long length)
 
   if (length == 0)
     {
+#ifdef KMK /* this is a bug fix. The 2 vs 1 thing is the strlen + 1 in the loop below. */
+      variable_buffer_output (o, "\0", 2);
+      return (variable_buffer + line_offset);
+#else
       variable_buffer_output (o, "", 1);
       return (variable_buffer);
+#endif
     }
+
+  /* Simple first, 50% of the kBuild calls to this function does
+     not need any expansion at all. Should be worth a special case. */
+#ifdef KMK
+  if (length > 0)
+    {
+      p1 = (const char *)memchr (string, '$', length);
+      if (p1 == 0)
+        {
+          if (string[length] == '\0')
+            o = variable_buffer_output (o, string, length);
+          else
+            o = variable_buffer_output (o, string, length);
+          variable_buffer_output (o, "\0", 2);
+          return (variable_buffer + line_offset);
+        }
+    }
+  else
+    {
+      p1 = strchr (string, '$');
+      if (p1 == 0)
+      {
+          length = strlen (string);
+          o = variable_buffer_output (o, string, length);
+          variable_buffer_output (o, "\0", 2);
+          return (variable_buffer + line_offset);
+      }
+    }
+#endif /* KMK - optimization */
 
   /* If we want a subset of the string, allocate a temporary buffer for it.
      Most of the functions we use here don't work with length limits.  */
@@ -244,6 +278,9 @@ variable_expand_string (char *line, const char *string, long length)
       abuf = xmalloc(length+1);
       memcpy(abuf, string, length);
       abuf[length] = '\0';
+#ifdef KMK
+      p1 += abuf - string;
+#endif /* KMK - optimization */
       string = abuf;
     }
   p = string;
@@ -254,7 +291,9 @@ variable_expand_string (char *line, const char *string, long length)
          variable output buffer, and skip them.  Uninteresting chars end
 	 at the next $ or the end of the input.  */
 
+#ifndef KMK
       p1 = strchr (p, '$');
+#endif /* !KMK - optimization  */
 
       o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p) + 1);
 
@@ -434,6 +473,9 @@ variable_expand_string (char *line, const char *string, long length)
 	break;
       else
 	++p;
+#ifdef KMK
+      p1 = strchr (p, '$');
+#endif /* KMK - optimization */
     }
 
   if (abuf)
@@ -442,6 +484,282 @@ variable_expand_string (char *line, const char *string, long length)
   variable_buffer_output (o, "", 1);
   return (variable_buffer + line_offset);
 }
+#ifdef KMK
+
+/* Same as variable_expand_string except that the pointer at EOL will
+   point to the end of the returned string. */
+char *
+variable_expand_string_2 (char *line, const char *string, long length, char **eol)
+{
+  struct variable *v;
+  const char *p, *p1;
+  char *abuf = NULL;
+  char *o;
+  unsigned int line_offset;
+
+  if (!line)
+    line = initialize_variable_output();
+  o = line;
+  line_offset = line - variable_buffer;
+
+  if (length == 0)
+    {
+      o = variable_buffer_output (o, "\0", 2);
+      *eol = o - 2;
+#ifdef KMK /* this is a bug fix. */
+      return (variable_buffer + line_offset);
+#else
+      return (variable_buffer);
+#endif
+    }
+
+  /* Simple first, 50% of the kBuild calls to this function does
+     not need any expansion at all. Should be worth a special case. */
+#ifdef KMK
+  if (length > 0)
+    {
+      p1 = (const char *)memchr (string, '$', length);
+      if (p1 == 0)
+        {
+          if (string[length] == '\0')
+            o = variable_buffer_output (o, string, length);
+          else
+            o = variable_buffer_output (o, string, length);
+          o = variable_buffer_output (o, "\0", 2);
+          *eol = o - 2;
+          return (variable_buffer + line_offset);
+        }
+    }
+  else
+    {
+      p1 = strchr (string, '$');
+      if (p1 == 0)
+      {
+          length = strlen (string);
+          o = variable_buffer_output (o, string, length + 1);
+          o = variable_buffer_output (o, "\0", 2);
+          *eol = o - 2;
+          return (variable_buffer + line_offset);
+      }
+    }
+#endif /* KMK */
+
+  /* If we want a subset of the string, allocate a temporary buffer for it.
+     Most of the functions we use here don't work with length limits.  */
+  if (length > 0 && string[length] != '\0')
+    {
+      abuf = xmalloc(length+1);
+      memcpy(abuf, string, length);
+      abuf[length] = '\0';
+#ifdef KMK
+      p1 += abuf - string;
+#endif
+      string = abuf;
+    }
+  p = string;
+
+  while (1)
+    {
+      /* Copy all following uninteresting chars all at once to the
+         variable output buffer, and skip them.  Uninteresting chars end
+	 at the next $ or the end of the input.  */
+
+#ifndef KMK
+      p1 = strchr (p, '$');
+#endif /* !KMK */
+
+      /*o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p) + 1); - why +1 ? */
+      o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p));
+
+      if (p1 == 0)
+	break;
+      p = p1 + 1;
+
+      /* Dispatch on the char that follows the $.  */
+
+      switch (*p)
+	{
+	case '$':
+	  /* $$ seen means output one $ to the variable output buffer.  */
+	  o = variable_buffer_output (o, p, 1);
+	  break;
+
+	case '(':
+	case '{':
+	  /* $(...) or ${...} is the general case of substitution.  */
+	  {
+	    char openparen = *p;
+	    char closeparen = (openparen == '(') ? ')' : '}';
+            const char *begp;
+	    const char *beg = p + 1;
+	    char *op;
+            char *abeg = NULL;
+	    const char *end, *colon;
+
+	    op = o;
+	    begp = p;
+	    if (handle_function (&op, &begp))
+	      {
+		o = op;
+		p = begp;
+		break;
+	      }
+
+	    /* Is there a variable reference inside the parens or braces?
+	       If so, expand it before expanding the entire reference.  */
+
+	    end = strchr (beg, closeparen);
+	    if (end == 0)
+              /* Unterminated variable reference.  */
+              fatal (*expanding_var, _("unterminated variable reference"));
+	    p1 = lindex (beg, end, '$');
+	    if (p1 != 0)
+	      {
+		/* BEG now points past the opening paren or brace.
+		   Count parens or braces until it is matched.  */
+		int count = 0;
+		for (p = beg; *p != '\0'; ++p)
+		  {
+		    if (*p == openparen)
+		      ++count;
+		    else if (*p == closeparen && --count < 0)
+		      break;
+		  }
+		/* If COUNT is >= 0, there were unmatched opening parens
+		   or braces, so we go to the simple case of a variable name
+		   such as `$($(a)'.  */
+		if (count < 0)
+		  {
+		    abeg = expand_argument (beg, p); /* Expand the name.  */
+		    beg = abeg;
+		    end = strchr (beg, '\0');
+		  }
+	      }
+	    else
+	      /* Advance P to the end of this reference.  After we are
+                 finished expanding this one, P will be incremented to
+                 continue the scan.  */
+	      p = end;
+
+	    /* This is not a reference to a built-in function and
+	       any variable references inside are now expanded.
+	       Is the resultant text a substitution reference?  */
+
+	    colon = lindex (beg, end, ':');
+	    if (colon)
+	      {
+		/* This looks like a substitution reference: $(FOO:A=B).  */
+		const char *subst_beg, *subst_end, *replace_beg, *replace_end;
+
+		subst_beg = colon + 1;
+		subst_end = lindex (subst_beg, end, '=');
+		if (subst_end == 0)
+		  /* There is no = in sight.  Punt on the substitution
+		     reference and treat this as a variable name containing
+		     a colon, in the code below.  */
+		  colon = 0;
+		else
+		  {
+		    replace_beg = subst_end + 1;
+		    replace_end = end;
+
+		    /* Extract the variable name before the colon
+		       and look up that variable.  */
+		    v = lookup_variable (beg, colon - beg);
+		    if (v == 0)
+		      warn_undefined (beg, colon - beg);
+
+                    /* If the variable is not empty, perform the
+                       substitution.  */
+		    if (v != 0 && *v->value != '\0')
+		      {
+			char *pattern, *replace, *ppercent, *rpercent;
+			char *value = (v->recursive
+                                       ? recursively_expand (v)
+				       : v->value);
+
+                        /* Copy the pattern and the replacement.  Add in an
+                           extra % at the beginning to use in case there
+                           isn't one in the pattern.  */
+                        pattern = alloca (subst_end - subst_beg + 2);
+                        *(pattern++) = '%';
+                        memcpy (pattern, subst_beg, subst_end - subst_beg);
+                        pattern[subst_end - subst_beg] = '\0';
+
+                        replace = alloca (replace_end - replace_beg + 2);
+                        *(replace++) = '%';
+                        memcpy (replace, replace_beg,
+                               replace_end - replace_beg);
+                        replace[replace_end - replace_beg] = '\0';
+
+                        /* Look for %.  Set the percent pointers properly
+                           based on whether we find one or not.  */
+			ppercent = find_percent (pattern);
+			if (ppercent)
+                          {
+                            ++ppercent;
+                            rpercent = find_percent (replace);
+                            if (rpercent)
+                              ++rpercent;
+                          }
+			else
+                          {
+                            ppercent = pattern;
+                            rpercent = replace;
+                            --pattern;
+                            --replace;
+                          }
+
+                        o = patsubst_expand_pat (o, value, pattern, replace,
+                                                 ppercent, rpercent);
+
+			if (v->recursive)
+			  free (value);
+		      }
+		  }
+	      }
+
+	    if (colon == 0)
+	      /* This is an ordinary variable reference.
+		 Look up the value of the variable.  */
+		o = reference_variable (o, beg, end - beg);
+
+	  if (abeg)
+	    free (abeg);
+	  }
+	  break;
+
+	case '\0':
+	  break;
+
+	default:
+	  if (isblank ((unsigned char)p[-1]))
+	    break;
+
+	  /* A $ followed by a random char is a variable reference:
+	     $a is equivalent to $(a).  */
+          o = reference_variable (o, p, 1);
+
+	  break;
+	}
+
+      if (*p == '\0')
+	break;
+      else
+	++p;
+#ifdef KMK
+      p1 = strchr (p, '$');
+#endif
+    }
+
+  if (abuf)
+    free (abuf);
+
+  o = variable_buffer_output (o, "\0", 2); /* KMK: compensate for the strlen + 1 that was removed above. */
+  *eol = o - 2;
+  return (variable_buffer + line_offset);
+}
+#endif /* KMK - optimization */
 
 /* Scan LINE for variable references and expansion-function calls.
    Build in `variable_buffer' the result of expanding the references and calls.
@@ -590,12 +908,23 @@ variable_append (const char *name, unsigned int length,
     return variable_buffer_output (buf, v->value, strlen (v->value));
 #endif
 
-#ifdef CONFIG_WITH_VALUE_LENGTH
+#ifndef KMK
+# ifdef CONFIG_WITH_VALUE_LENGTH
   buf = variable_expand_string (buf, v->value, v->value_length);
-#else
+# else
   buf = variable_expand_string (buf, v->value, strlen (v->value));
-#endif
+# endif
   return (buf + strlen (buf));
+#else  /* KMK - optimization */
+# ifdef CONFIG_WITH_VALUE_LENGTH
+  variable_expand_string_2 (buf, v->value, v->value_length, &buf);
+# else
+  variable_expand_string_2 (buf, v->value, strlen (v->value), &buf);
+#  error "huh, this is supposed to be defined"
+# endif
+  assert (*buf == '\0');
+  return buf;
+#endif /* KMK - optimization */
 }
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
@@ -603,6 +932,7 @@ variable_append (const char *name, unsigned int length,
 void
 append_expanded_string_to_variable (struct variable *v, const char *value, int append)
 {
+char *tmp;
   unsigned int value_len = strlen (value);
   char *p = (char *) memchr (value, '$', value_len);
   if (!p)
@@ -629,15 +959,29 @@ append_expanded_string_to_variable (struct variable *v, const char *value, int a
 
           /* Append the assignment value. */
           p = variable_buffer_output (p, value, off_dollar);
+# ifndef KMK
           p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
           p = strchr (p, '\0');
+# else
+          tmp = variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
+          assert (*p == '\0');
+          tmp = strchr (tmp, '\0');
+          assert (tmp == p);
+# endif
         }
       else
         {
           /* Expand the assignemnt value. */
           p = variable_buffer_output (p, value, off_dollar);
+#ifndef KMK
           p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
           p = strchr (p, '\0');
+#else
+          tmp = variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
+          assert (*p == '\0');
+          tmp = strchr (tmp, '\0');
+          assert (tmp == p);
+#endif
 
           /* Append a space followed by the old value. */
           p = variable_buffer_output (p, " ", 1);
@@ -706,6 +1050,33 @@ allocated_variable_expand_for_file (const char *line, struct file *file)
   return value;
 }
 
+#ifdef KMK /* possible optimization... */
+/* The special, and most comment case, of
+   allocated_variable_expand_for_file. */
+
+char *
+allocated_variable_expand_2 (const char *line, long length)
+{
+  char *value;
+  char *obuf = variable_buffer;
+  unsigned int olen = variable_buffer_length;
+
+  variable_buffer = 0;
+
+#if 0 /* for profiling */
+  if (length < 0)
+    length = strlen (line);
+#endif
+
+  value = variable_expand_string (NULL, line, length);
+
+  variable_buffer = obuf;
+  variable_buffer_length = olen;
+
+  return value;
+}
+
+#endif
 /* Install a new variable_buffer context, returning the current one for
    safe-keeping.  */
 
