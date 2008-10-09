@@ -135,10 +135,19 @@ char *variable_expand_for_file (const char *line, struct file *file);
 char *variable_expand_for_file_2 (char *o, const char *line, struct file *file);
 #endif
 char *allocated_variable_expand_for_file (const char *line, struct file *file);
+#ifndef KMK
 #define	allocated_variable_expand(line) \
   allocated_variable_expand_for_file (line, (struct file *) 0)
+#else  /* KMK */
+# define allocated_variable_expand(line) \
+  allocated_variable_expand_2 (line, -1)
+char *allocated_variable_expand_2(const char *line, long length);
+#endif
 char *expand_argument (const char *str, const char *end);
 char *variable_expand_string (char *line, const char *string, long length);
+#ifdef KMK
+char *variable_expand_string_2 (char *line, const char *string, long length, char **eol);
+#endif
 void install_variable_buffer (char **bufp, unsigned int *lenp);
 void restore_variable_buffer (char *buf, unsigned int len);
 #ifdef CONFIG_WITH_VALUE_LENGTH

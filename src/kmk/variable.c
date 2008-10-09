@@ -1982,7 +1982,9 @@ parse_variable_definition (struct variable *v, char *line)
   register char *beg;
   register char *end;
   enum variable_flavor flavor = f_bogus;
+#ifndef KMK
   char *name;
+#endif /* KMK - optimization */
 
   while (1)
     {
@@ -2066,10 +2068,20 @@ parse_variable_definition (struct variable *v, char *line)
 #endif
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
+#ifndef KMK
   name = alloca (end - beg + 1);
   memcpy (name, beg, end - beg);
   name[end - beg] = '\0';
   v->name = allocated_variable_expand (name);
+#else  /* KMK - optimizations */
+  //if (memchr (beg, '$', end - beg)) /* (Mostly for cleaning up the profiler result.) */
+      v->name = allocated_variable_expand_2 (beg, end - beg);
+  //else
+  //  {
+  //    v->name = memcpy (xmalloc (end - beg + 1), beg, end - beg);
+  //    v->name[end - beg] = '\0';
+  //  }
+#endif /* KMK - optimizations */
 
   if (v->name[0] == '\0')
     fatal (&v->fileinfo, _("empty variable name"));
