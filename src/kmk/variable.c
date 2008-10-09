@@ -1711,7 +1711,11 @@ do_variable_definition (const struct floc *flocp, const char *varname,
          We have to allocate memory since otherwise it'll clobber the
 	 variable buffer, and we may still need that if we're looking at a
          target-specific variable.  */
+#if !defined(KMK) || !defined(CONFIG_WITH_VALUE_LENGTH)
       p = alloc_value = allocated_variable_expand (value);
+#else  /* KMK - optimization */
+      p = alloc_value = allocated_variable_expand_2 (value, -1, &value_len);
+#endif /* KMK - optimization */
       break;
     case f_conditional:
       /* A conditional variable definition "var ?= value".
@@ -2075,7 +2079,7 @@ parse_variable_definition (struct variable *v, char *line)
   v->name = allocated_variable_expand (name);
 #else  /* KMK - optimizations */
   //if (memchr (beg, '$', end - beg)) /* (Mostly for cleaning up the profiler result.) */
-      v->name = allocated_variable_expand_2 (beg, end - beg);
+      v->name = allocated_variable_expand_2 (beg, end - beg, NULL);
   //else
   //  {
   //    v->name = memcpy (xmalloc (end - beg + 1), beg, end - beg);
