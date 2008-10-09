@@ -2822,7 +2822,6 @@ readstring (struct ebuffer *ebuf)
 #endif
       if (!eol)
         {
-
           ebuf->bufnext = ebuf->bufstart + ebuf->size + 1;
           return 0;
         }
