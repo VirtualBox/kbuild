@@ -2790,6 +2790,9 @@ static unsigned long
 readstring (struct ebuffer *ebuf)
 {
   char *eol;
+#ifdef KMK
+  char *end;
+#endif
 
   /* If there is nothing left in this buffer, return 0.  */
   if (ebuf->bufnext >= ebuf->bufstart + ebuf->size)
@@ -2799,6 +2802,9 @@ readstring (struct ebuffer *ebuf)
      next logical line (taking into account backslash/newline pairs).  */
 
   eol = ebuf->buffer = ebuf->bufnext;
+#ifdef KMK
+  end = ebuf->bufstart + ebuf->size;
+#endif
 
   while (1)
     {
@@ -2807,9 +2813,16 @@ readstring (struct ebuffer *ebuf)
       char *p;
 
       /* Find the next newline.  At EOS, stop.  */
+#ifndef KMK
       eol = p = strchr (eol , '\n');
+#else
+      p = (char *)memchr (eol, '\n', end - eol);
+      assert (!memchr (eol, '\0', p != 0 ? p - eol : end - eol));
+      eol = p;
+#endif
       if (!eol)
         {
+
           ebuf->bufnext = ebuf->bufstart + ebuf->size + 1;
           return 0;
         }
