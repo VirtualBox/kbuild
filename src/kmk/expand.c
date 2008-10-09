@@ -225,6 +225,9 @@ variable_expand_string (char *line, const char *string, long length)
   char *abuf = NULL;
   char *o;
   unsigned int line_offset;
+#ifdef KMK
+  const char *eos;
+#endif
 
   if (!line)
     line = initialize_variable_output();
@@ -242,33 +245,19 @@ variable_expand_string (char *line, const char *string, long length)
 #endif
     }
 
+#ifdef KMK
   /* Simple first, 50% of the kBuild calls to this function does
      not need any expansion at all. Should be worth a special case. */
-#ifdef KMK
-  if (length > 0)
+  if (length < 0)
+    length = strlen (string);
+  p1 = (const char *)memchr (string, '$', length);
+  if (p1 == 0)
     {
-      p1 = (const char *)memchr (string, '$', length);
-      if (p1 == 0)
-        {
-          if (string[length] == '\0')
-            o = variable_buffer_output (o, string, length);
-          else
-            o = variable_buffer_output (o, string, length);
-          variable_buffer_output (o, "\0", 2);
-          return (variable_buffer + line_offset);
-        }
+      o = variable_buffer_output (o, string, length);
+      variable_buffer_output (o, "\0", 2);
+      return (variable_buffer + line_offset);
     }
-  else
-    {
-      p1 = strchr (string, '$');
-      if (p1 == 0)
-      {
-          length = strlen (string);
-          o = variable_buffer_output (o, string, length);
-          variable_buffer_output (o, "\0", 2);
-          return (variable_buffer + line_offset);
-      }
-    }
+  eos = string + length;
 #endif /* KMK - optimization */
 
   /* If we want a subset of the string, allocate a temporary buffer for it.
@@ -280,6 +269,7 @@ variable_expand_string (char *line, const char *string, long length)
       abuf[length] = '\0';
 #ifdef KMK
       p1 += abuf - string;
+      eos += abuf - string;
 #endif /* KMK - optimization */
       string = abuf;
     }
@@ -334,7 +324,11 @@ variable_expand_string (char *line, const char *string, long length)
 	    /* Is there a variable reference inside the parens or braces?
 	       If so, expand it before expanding the entire reference.  */
 
+#ifndef KMK
 	    end = strchr (beg, closeparen);
+#else  /* KMK - optimization */
+	    end = memchr (beg, closeparen, eos - beg);
+#endif /* KMK - optimization */
 	    if (end == 0)
               /* Unterminated variable reference.  */
               fatal (*expanding_var, _("unterminated variable reference"));
@@ -474,7 +468,7 @@ variable_expand_string (char *line, const char *string, long length)
       else
 	++p;
 #ifdef KMK
-      p1 = strchr (p, '$');
+      p1 = memchr (p, '$', eos - p);
 #endif /* KMK - optimization */
     }
 
@@ -496,6 +490,9 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
   char *abuf = NULL;
   char *o;
   unsigned int line_offset;
+#ifdef KMK
+  const char *eos;
+#endif
 
   if (!line)
     line = initialize_variable_output();
@@ -513,36 +510,21 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 #endif
     }
 
+#ifdef KMK
   /* Simple first, 50% of the kBuild calls to this function does
      not need any expansion at all. Should be worth a special case. */
-#ifdef KMK
-  if (length > 0)
+  if (length < 0)
+    length = strlen (string);
+  p1 = (const char *)memchr (string, '$', length);
+  if (p1 == 0)
     {
-      p1 = (const char *)memchr (string, '$', length);
-      if (p1 == 0)
-        {
-          if (string[length] == '\0')
-            o = variable_buffer_output (o, string, length);
-          else
-            o = variable_buffer_output (o, string, length);
-          o = variable_buffer_output (o, "\0", 2);
-          *eol = o - 2;
-          return (variable_buffer + line_offset);
-        }
+      o = variable_buffer_output (o, string, length);
+      o = variable_buffer_output (o, "\0", 2);
+      *eol = o - 2;
+      return (variable_buffer + line_offset);
     }
-  else
-    {
-      p1 = strchr (string, '$');
-      if (p1 == 0)
-      {
-          length = strlen (string);
-          o = variable_buffer_output (o, string, length + 1);
-          o = variable_buffer_output (o, "\0", 2);
-          *eol = o - 2;
-          return (variable_buffer + line_offset);
-      }
-    }
-#endif /* KMK */
+  eos = string + length;
+#endif /* KMK - optimization */
 
   /* If we want a subset of the string, allocate a temporary buffer for it.
      Most of the functions we use here don't work with length limits.  */
@@ -553,6 +535,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
       abuf[length] = '\0';
 #ifdef KMK
       p1 += abuf - string;
+      eos += abuf - string;
 #endif
       string = abuf;
     }
@@ -608,7 +591,11 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	    /* Is there a variable reference inside the parens or braces?
 	       If so, expand it before expanding the entire reference.  */
 
+#ifndef KMK
 	    end = strchr (beg, closeparen);
+#else  /* KMK - optimization */
+	    end = memchr (beg, closeparen, eos - beg);
+#endif /* KMK - optimization */
 	    if (end == 0)
               /* Unterminated variable reference.  */
               fatal (*expanding_var, _("unterminated variable reference"));
@@ -748,8 +735,8 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
       else
 	++p;
 #ifdef KMK
-      p1 = strchr (p, '$');
-#endif
+      p1 = memchr (p, '$', eos - p);
+#endif /* KMK - optimization */
     }
 
   if (abuf)
@@ -1055,7 +1042,7 @@ allocated_variable_expand_for_file (const char *line, struct file *file)
    allocated_variable_expand_for_file. */
 
 char *
-allocated_variable_expand_2 (const char *line, long length)
+allocated_variable_expand_2 (const char *line, long length, unsigned int *value_len)
 {
   char *value;
   char *obuf = variable_buffer;
@@ -1068,7 +1055,14 @@ allocated_variable_expand_2 (const char *line, long length)
     length = strlen (line);
 #endif
 
-  value = variable_expand_string (NULL, line, length);
+  if (!value_len)
+    value = variable_expand_string (NULL, line, length);
+  else
+    {
+      char *eol;
+      value = variable_expand_string_2 (NULL, line, length, &eol);
+      *value_len = eol - value;
+    }
 
   variable_buffer = obuf;
   variable_buffer_length = olen;

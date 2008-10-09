@@ -140,8 +140,8 @@ char *allocated_variable_expand_for_file (const char *line, struct file *file);
   allocated_variable_expand_for_file (line, (struct file *) 0)
 #else  /* KMK */
 # define allocated_variable_expand(line) \
-  allocated_variable_expand_2 (line, -1)
-char *allocated_variable_expand_2(const char *line, long length);
+  allocated_variable_expand_2 (line, -1, NULL)
+char *allocated_variable_expand_2(const char *line, long length, unsigned int *value_len);
 #endif
 char *expand_argument (const char *str, const char *end);
 char *variable_expand_string (char *line, const char *string, long length);
