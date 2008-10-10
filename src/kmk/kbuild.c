@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1799 2008-09-21 01:17:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1809 2008-10-10 02:27:38Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1770,7 +1770,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable("NO_COMPILE_CMDS_DEPS") != NULL;
     if (!s_fNoCompileCmdsDepsDefined)
     {
-        do_variable_definition(NILF, "_DEPFILES_INCLUDED", pDep->value, o_file, f_append, 0 /* !target_var */);
+        do_variable_definition_2(NILF, "_DEPFILES_INCLUDED", pDep->value, pDep->value_length,
+                                 pDep->flavor == f_simple, 0, o_file, f_append, 0 /* !target_var */);
         eval_include_dep(pDep->value, NILF, iVer >= 2 ? incdep_queue : incdep_read_it);
     }
 
@@ -1800,17 +1801,23 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszSrc, "_CMDS", sizeof("_CMDS"));
     memcpy(pszDst, "_CMDS_", sizeof("_CMDS_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
-    do_variable_definition(NILF, pszDstVar, pVar->value, o_file, f_simple, 0 /* !target_var */);
+    do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                             pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT", sizeof("_OUTPUT"));
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
-    pOutput = do_variable_definition(NILF, pszDstVar, pVar->value, o_file, f_simple, 0 /* !target_var */);
+    pOutput = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                                       pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT_MAYBE", sizeof("_OUTPUT_MAYBE"));
     memcpy(pszDst, "_OUTPUT_MAYBE_", sizeof("_OUTPUT_MAYBE_"));
     pVar = kbuild_query_recursive_variable(pszSrcVar);
-    pOutputMaybe = do_variable_definition(NILF, pszDstVar, pVar ? pVar->value : "", o_file, f_simple, 0 /* !target_var */);
+    if (pVar)
+        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
+                                                pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
+    else
+        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPEND", sizeof("_DEPEND"));
     memcpy(pszDst, "_DEPEND_", sizeof("_DEPEND_"));
@@ -1821,8 +1828,9 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pDeps->value, pDeps->value_length);     psz += pDeps->value_length;
     *psz++ = ' ';
     memcpy(psz, pSource->value, pSource->value_length + 1);
-    do_variable_definition(NILF, pszDstVar, pszVal, o_file, f_simple, 0 /* !target_var */);
-    free(pszVal);
+    do_variable_definition_2(NILF, pszDstVar, pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
+                             pVar->flavor == f_simple && pDeps->flavor == f_simple && pSource->flavor == f_simple,
+                             pszVal, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPORD", sizeof("_DEPORD"));
     memcpy(pszDst, "_DEPORD_", sizeof("_DEPORD_"));
@@ -1833,12 +1841,15 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pDirDep->value, pDirDep->value_length); psz += pDirDep->value_length;
     *psz++ = ' ';
     memcpy(psz, pOrderDeps->value, pOrderDeps->value_length + 1);
-    do_variable_definition(NILF, pszDstVar, pszVal, o_file, f_simple, 0 /* !target_var */);
-    free(pszVal);
+    do_variable_definition_2(NILF, pszDstVar, pszVal,
+                             pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
+                             pVar->flavor == f_simple && pDirDep->flavor == f_simple && pOrderDeps->flavor == f_simple,
+                             pszVal, o_file, f_simple, 0 /* !target_var */);
 
     /*
     _OUT_FILES      += $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_)
     */
+    /** @todo use append? */
     pVar = kbuild_get_variable("_OUT_FILES");
     psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length + 1);
     memcpy(psz, pVar->value, pVar->value_length); psz += pVar->value_length;
@@ -1846,14 +1857,17 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pOutput->value, pOutput->value_length); psz += pOutput->value_length;
     *psz++ = ' ';
     memcpy(psz, pOutputMaybe->value, pOutputMaybe->value_length + 1);
-    do_variable_definition(NILF, "_OUT_FILES", pszVal, o_file, f_simple, 0 /* !target_var */);
-    free(pszVal);
+    do_variable_definition_2(NILF, "_OUT_FILES", pszVal,
+                             pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length,
+                             pVar->flavor == f_simple && pOutput->flavor == f_simple && pOutputMaybe->flavor == f_simple,
+                             pszVal, o_file, f_simple, 0 /* !target_var */);
 
     /*
     $(target)_OBJS_ += $(obj)
     */
     memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
-    do_variable_definition(NILF, pszDstVar, pObj->value, o_file, f_append, 0 /* !target_var */);
+    do_variable_definition_2(NILF, pszDstVar, pObj->value, pObj->value_length,
+                             pObj->flavor == f_simple, 0, o_file, f_append, 0 /* !target_var */);
 
     /*
     $(eval $(def_target_source_rule))

@@ -923,9 +923,9 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
   char *varname = expand_argument (argv[0], NULL);
   char *list = expand_argument (argv[1], NULL);
   const char *body = argv[2];
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   long body_len = strlen (body);
-#endif /* KMK - optimization */
+#endif
 
   int doneany = 0;
   const char *list_iterator = list;
@@ -939,10 +939,18 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
   /* loop through LIST,  put the value in VAR and expand BODY */
   while ((p = find_next_token (&list_iterator, &len)) != 0)
     {
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
       char *result = 0;
-#endif /* KMK - optimization */
-#ifdef CONFIG_WITH_VALUE_LENGTH
+
+      free (var->value);
+      var->value = savestring (p, len);
+      result = allocated_variable_expand (body);
+
+      o = variable_buffer_output (o, result, strlen (result));
+      o = variable_buffer_output (o, " ", 1);
+      doneany = 1;
+      free (result);
+#else  /* CONFIG_WITH_VALUE_LENGTH */
       if (len >= (unsigned int)var->value_alloc_len)
         {
           free (var->value);
@@ -952,23 +960,11 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
       memcpy (var->value, p, len);
       var->value[len] = '\0';
       var->value_length = len;
-#else
-      free (var->value);
-      var->value = savestring (p, len);
-#endif
 
-#ifndef KMK
-      result = allocated_variable_expand (body);
-
-      o = variable_buffer_output (o, result, strlen (result));
-      o = variable_buffer_output (o, " ", 1);
-      doneany = 1;
-      free (result);
-#else  /* KMK - optimization */
       variable_expand_string_2 (o, body, body_len, &o);
       o = variable_buffer_output (o, " ", 1);
       doneany = 1;
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
     }
 
   if (doneany)
@@ -4302,15 +4298,15 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
          the variable buffer.  */
 
       v->exp_count = EXP_COUNT_MAX;
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
       o = variable_expand_string (o, body, flen+3);
       v->exp_count = 0;
 
       o += strlen (o);
-#else  /* KMK - optimization */
+#else  /* CONFIG_WITH_VALUE_LENGTH */
       variable_expand_string_2 (o, body, flen+3, &o);
       v->exp_count = 0;
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 #ifdef CONFIG_WITH_EVALPLUS
     }
   else

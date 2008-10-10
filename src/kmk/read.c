@@ -414,9 +414,9 @@ eval_makefile (const char *filename, int flags)
     struct stat st;
     if (!fstat (fileno (ebuf.fp), &st))
       {
-        unsigned int stream_buf_size = 256*1024;
+        int stream_buf_size = 256*1024;
         if (st.st_size < stream_buf_size)
-          stream_buf_size = (st.st_size + 0xfff) & ~0xfffU;
+          stream_buf_size = (st.st_size + 0xfff) & ~0xfff;
         stream_buf = xmalloc (stream_buf_size);
         setvbuf (ebuf.fp, stream_buf, _IOFBF, stream_buf_size);
       }
@@ -2790,7 +2790,7 @@ static unsigned long
 readstring (struct ebuffer *ebuf)
 {
   char *eol;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   char *end;
 #endif
 
@@ -2802,7 +2802,7 @@ readstring (struct ebuffer *ebuf)
      next logical line (taking into account backslash/newline pairs).  */
 
   eol = ebuf->buffer = ebuf->bufnext;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   end = ebuf->bufstart + ebuf->size;
 #endif
 
@@ -2813,7 +2813,7 @@ readstring (struct ebuffer *ebuf)
       char *p;
 
       /* Find the next newline.  At EOS, stop.  */
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
       eol = p = strchr (eol , '\n');
 #else
       p = (char *)memchr (eol, '\n', end - eol);

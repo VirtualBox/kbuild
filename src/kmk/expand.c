@@ -225,7 +225,7 @@ variable_expand_string (char *line, const char *string, long length)
   char *abuf = NULL;
   char *o;
   unsigned int line_offset;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   const char *eos;
 #endif
 
@@ -245,7 +245,7 @@ variable_expand_string (char *line, const char *string, long length)
 #endif
     }
 
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   /* Simple first, 50% of the kBuild calls to this function does
      not need any expansion at all. Should be worth a special case. */
   if (length < 0)
@@ -258,7 +258,7 @@ variable_expand_string (char *line, const char *string, long length)
       return (variable_buffer + line_offset);
     }
   eos = string + length;
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   /* If we want a subset of the string, allocate a temporary buffer for it.
      Most of the functions we use here don't work with length limits.  */
@@ -267,10 +267,10 @@ variable_expand_string (char *line, const char *string, long length)
       abuf = xmalloc(length+1);
       memcpy(abuf, string, length);
       abuf[length] = '\0';
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
       p1 += abuf - string;
       eos += abuf - string;
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
       string = abuf;
     }
   p = string;
@@ -281,9 +281,9 @@ variable_expand_string (char *line, const char *string, long length)
          variable output buffer, and skip them.  Uninteresting chars end
 	 at the next $ or the end of the input.  */
 
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
       p1 = strchr (p, '$');
-#endif /* !KMK - optimization  */
+#endif
 
       o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p) + 1);
 
@@ -324,11 +324,11 @@ variable_expand_string (char *line, const char *string, long length)
 	    /* Is there a variable reference inside the parens or braces?
 	       If so, expand it before expanding the entire reference.  */
 
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	    end = strchr (beg, closeparen);
-#else  /* KMK - optimization */
+#else
 	    end = memchr (beg, closeparen, eos - beg);
-#endif /* KMK - optimization */
+#endif
 	    if (end == 0)
               /* Unterminated variable reference.  */
               fatal (*expanding_var, _("unterminated variable reference"));
@@ -467,9 +467,9 @@ variable_expand_string (char *line, const char *string, long length)
 	break;
       else
 	++p;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
       p1 = memchr (p, '$', eos - p);
-#endif /* KMK - optimization */
+#endif
     }
 
   if (abuf)
@@ -478,7 +478,7 @@ variable_expand_string (char *line, const char *string, long length)
   variable_buffer_output (o, "", 1);
   return (variable_buffer + line_offset);
 }
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
 
 /* Same as variable_expand_string except that the pointer at EOL will
    point to the end of the returned string. */
@@ -490,7 +490,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
   char *abuf = NULL;
   char *o;
   unsigned int line_offset;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   const char *eos;
 #endif
 
@@ -510,7 +510,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 #endif
     }
 
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
   /* Simple first, 50% of the kBuild calls to this function does
      not need any expansion at all. Should be worth a special case. */
   if (length < 0)
@@ -524,7 +524,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
       return (variable_buffer + line_offset);
     }
   eos = string + length;
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   /* If we want a subset of the string, allocate a temporary buffer for it.
      Most of the functions we use here don't work with length limits.  */
@@ -533,7 +533,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
       abuf = xmalloc(length+1);
       memcpy(abuf, string, length);
       abuf[length] = '\0';
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
       p1 += abuf - string;
       eos += abuf - string;
 #endif
@@ -547,9 +547,9 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
          variable output buffer, and skip them.  Uninteresting chars end
 	 at the next $ or the end of the input.  */
 
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
       p1 = strchr (p, '$');
-#endif /* !KMK */
+#endif
 
       /*o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p) + 1); - why +1 ? */
       o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p));
@@ -591,11 +591,11 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	    /* Is there a variable reference inside the parens or braces?
 	       If so, expand it before expanding the entire reference.  */
 
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	    end = strchr (beg, closeparen);
-#else  /* KMK - optimization */
+#else
 	    end = memchr (beg, closeparen, eos - beg);
-#endif /* KMK - optimization */
+#endif
 	    if (end == 0)
               /* Unterminated variable reference.  */
               fatal (*expanding_var, _("unterminated variable reference"));
@@ -734,9 +734,9 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	break;
       else
 	++p;
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
       p1 = memchr (p, '$', eos - p);
-#endif /* KMK - optimization */
+#endif
     }
 
   if (abuf)
@@ -746,7 +746,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
   *eol = o - 2;
   return (variable_buffer + line_offset);
 }
-#endif /* KMK - optimization */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* Scan LINE for variable references and expansion-function calls.
    Build in `variable_buffer' the result of expanding the references and calls.
@@ -895,32 +895,22 @@ variable_append (const char *name, unsigned int length,
     return variable_buffer_output (buf, v->value, strlen (v->value));
 #endif
 
-#ifndef KMK
-# ifdef CONFIG_WITH_VALUE_LENGTH
-  buf = variable_expand_string (buf, v->value, v->value_length);
-# else
-  buf = variable_expand_string (buf, v->value, strlen (v->value));
-# endif
-  return (buf + strlen (buf));
-#else  /* KMK - optimization */
-# ifdef CONFIG_WITH_VALUE_LENGTH
+#ifdef CONFIG_WITH_VALUE_LENGTH
   variable_expand_string_2 (buf, v->value, v->value_length, &buf);
-# else
-  variable_expand_string_2 (buf, v->value, strlen (v->value), &buf);
-#  error "huh, this is supposed to be defined"
-# endif
-  assert (*buf == '\0');
   return buf;
-#endif /* KMK - optimization */
+#else
+  buf = variable_expand_string (buf, v->value, strlen (v->value));
+  return (buf + strlen (buf));
+#endif
 }
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
-/* Expands the specified string, appending it to the specified variable value. */
+/* Expands the specified string, appending it to the specified
+   variable value. */
 void
-append_expanded_string_to_variable (struct variable *v, const char *value, int append)
+append_expanded_string_to_variable (struct variable *v, const char *value,
+                                    unsigned int value_len, int append)
 {
-char *tmp;
-  unsigned int value_len = strlen (value);
   char *p = (char *) memchr (value, '$', value_len);
   if (!p)
     /* fast path */
@@ -946,29 +936,13 @@ char *tmp;
 
           /* Append the assignment value. */
           p = variable_buffer_output (p, value, off_dollar);
-# ifndef KMK
-          p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
-          p = strchr (p, '\0');
-# else
-          tmp = variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
-          assert (*p == '\0');
-          tmp = strchr (tmp, '\0');
-          assert (tmp == p);
-# endif
+          variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
         }
       else
         {
           /* Expand the assignemnt value. */
           p = variable_buffer_output (p, value, off_dollar);
-#ifndef KMK
-          p = variable_expand_string (p, value + off_dollar, value_len - off_dollar);
-          p = strchr (p, '\0');
-#else
-          tmp = variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
-          assert (*p == '\0');
-          tmp = strchr (tmp, '\0');
-          assert (tmp == p);
-#endif
+          variable_expand_string_2 (p, value + off_dollar, value_len - off_dollar, &p);
 
           /* Append a space followed by the old value. */
           p = variable_buffer_output (p, " ", 1);
@@ -1037,12 +1011,13 @@ allocated_variable_expand_for_file (const char *line, struct file *file)
   return value;
 }
 
-#ifdef KMK /* possible optimization... */
-/* The special, and most comment case, of
-   allocated_variable_expand_for_file. */
+#ifdef CONFIG_WITH_VALUE_LENGTH
+/* Handle the most common case in allocated_variable_expand_for_file
+   specially and provide some additional string lenght features. */
 
 char *
-allocated_variable_expand_2 (const char *line, long length, unsigned int *value_len)
+allocated_variable_expand_2 (const char *line, unsigned int length,
+                             unsigned int *value_len)
 {
   char *value;
   char *obuf = variable_buffer;
@@ -1050,17 +1025,13 @@ allocated_variable_expand_2 (const char *line, long length, unsigned int *value_
 
   variable_buffer = 0;
 
-#if 0 /* for profiling */
-  if (length < 0)
-    length = strlen (line);
-#endif
-
   if (!value_len)
-    value = variable_expand_string (NULL, line, length);
+    value = variable_expand_string (NULL, line, length != ~0U ? length : -1);
   else
     {
       char *eol;
-      value = variable_expand_string_2 (NULL, line, length, &eol);
+      value = variable_expand_string_2 (NULL, line,
+                                        length != ~0U ? length : -1, &eol);
       *value_len = eol - value;
     }
 
@@ -1069,8 +1040,8 @@ allocated_variable_expand_2 (const char *line, long length, unsigned int *value_
 
   return value;
 }
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
-#endif
 /* Install a new variable_buffer context, returning the current one for
    safe-keeping.  */
 
