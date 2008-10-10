@@ -1,5 +1,9 @@
 #include <string.h>
+#ifdef _MSC_VER
+_inline void *
+#else
 static __inline__ void *
+#endif
 my_inline_memchr(const void *pv, int ch, register size_t cb)
 {
     register const unsigned int   uch = (unsigned)ch;
