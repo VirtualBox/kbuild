@@ -19,6 +19,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "make.h"
 #include "dep.h"
 #include "debug.h"
+#ifdef CONFIG_WITH_VALUE_LENGTH
+# include <assert.h>
+#endif
 
 /* All bcopy calls in this file can be replaced by memcpy and save a tick or two. */
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
@@ -81,16 +84,28 @@ alpha_compare (const void *v1, const void *v2)
    Backslash-backslash-newline combinations become backslash-newlines.
    This is done by copying the text at LINE into itself.  */
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 void
 collapse_continuations (char *line)
+#else
+char *
+collapse_continuations (char *line, unsigned int linelen)
+#endif
 {
   register char *in, *out, *p;
   register int backslash;
   register unsigned int bs_write;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   in = strchr (line, '\n');
   if (in == 0)
     return;
+#else
+  assert (strlen (line) == linelen);
+  in = memchr (line, '\n', linelen);
+  if (in == 0)
+      return line + linelen;
+#endif
 
   out = in;
   while (out > line && out[-1] == '\\')
@@ -156,6 +171,10 @@ collapse_continuations (char *line)
     }
 
   *out = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  assert (strchr (line, '\0') == out);
+  return out;
+#endif
 }
 
 /* Print N spaces (used in debug for target-depth).  */

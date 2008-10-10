@@ -190,6 +190,10 @@ struct variable *do_variable_definition (const struct floc *flocp,
                                          enum variable_origin origin,
                                          enum variable_flavor flavor,
                                          int target_var);
+struct variable *parse_variable_definition (struct variable *v, char *line);
+struct variable *try_variable_definition (const struct floc *flocp, char *line,
+                                          enum variable_origin origin,
+                                          int target_var);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
 # define do_variable_definition(flocp, varname, value, origin, flavor, target_var) \
     do_variable_definition_2 ((flocp), (varname), (value), ~0U, 0, NULL, \
@@ -203,11 +207,13 @@ struct variable *do_variable_definition_2 (const struct floc *flocp,
                                            enum variable_origin origin,
                                            enum variable_flavor flavor,
                                            int target_var);
-#endif /* CONFIG_WITH_VALUE_LENGTH */
-struct variable *parse_variable_definition (struct variable *v, char *line);
+struct variable *parse_variable_definition (struct variable *v, char *line,
+                                            char *eos);
 struct variable *try_variable_definition (const struct floc *flocp, char *line,
+                                          char *eos,
                                           enum variable_origin origin,
                                           int target_var);
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 void init_hash_global_variable_set (void);
 void hash_init_function_table (void);
 struct variable *lookup_variable (const char *name, unsigned int length);

@@ -384,7 +384,11 @@ char *xstrdup (const char *);
 char *find_next_token (const char **, unsigned int *);
 char *next_token (const char *);
 char *end_of_token (const char *);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 void collapse_continuations (char *);
+#else
+char *collapse_continuations (char *, unsigned int);
+#endif
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS /* memchr is usually compiler intrinsic, thus faster. */
 # define lindex(s, limit, c) ((char *)memchr((s), (c), (limit) - (s)))
 #else

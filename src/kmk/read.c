@@ -53,6 +53,9 @@ struct ebuffer
     char *buffer;       /* Start of the current line in the buffer.  */
     char *bufnext;      /* Start of the next line in the buffer.  */
     char *bufstart;     /* Start of the entire buffer.  */
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    char *eol;          /* End of the current line in the buffer. */
+#endif
     unsigned int size;  /* Malloc'd size of buffer. */
     FILE *fp;           /* File, or NULL if this is an internal buffer.  */
     struct floc floc;   /* Info on the file in fp (if any).  */
@@ -148,7 +151,11 @@ static void record_target_var (struct nameseq *filenames, char *defn,
                                const struct floc *flocp);
 static enum make_word_type get_next_mword (char *buffer, char *delim,
                                            char **startp, unsigned int *length);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static void remove_comments (char *line);
+#else
+static char *remove_comments (char *line, char *eol);
+#endif
 static char *find_char_unquote (char *string, int stop1, int stop2,
                                 int blank, int ignorevars);
 
@@ -426,6 +433,9 @@ eval_makefile (const char *filename, int flags)
 
   ebuf.size = 200;
   ebuf.buffer = ebuf.bufnext = ebuf.bufstart = xmalloc (ebuf.size);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  ebuf.eol = NULL;
+#endif
 
   curfile = reading_file;
   reading_file = &ebuf.floc;
@@ -460,6 +470,9 @@ eval_buffer (char *buffer)
   ebuf.size = strlen (buffer);
   ebuf.buffer = ebuf.bufnext = ebuf.bufstart = buffer;
   ebuf.fp = NULL;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  ebuf.eol = ebuf.buffer + ebuf.size;
+#endif
 
   ebuf.floc = *reading_file;
 
@@ -541,6 +554,9 @@ eval (struct ebuffer *ebuf, int set_default)
   while (1)
     {
       unsigned int linelen;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      char *eol;
+#endif
       char *line;
       unsigned int wlen;
       char *p;
@@ -559,7 +575,12 @@ eval (struct ebuffer *ebuf, int set_default)
       if (line[0] == '\0')
         continue;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       linelen = strlen (line);
+#else
+      linelen = ebuf->eol - line;
+      assert (strlen (line) == linelen);
+#endif
 
       /* Check for a shell command line first.
 	 If it is not one, we can stop treating tab specially.  */
@@ -607,10 +628,19 @@ eval (struct ebuffer *ebuf, int set_default)
             free (collapsed);
 	  collapsed = xmalloc (collapsed_length);
 	}
+#ifndef CONFIG_WITH_VALUE_LENGTH
       strcpy (collapsed, line);
       /* Collapse continuation lines.  */
       collapse_continuations (collapsed);
       remove_comments (collapsed);
+#else
+      memcpy (collapsed, line, linelen + 1);
+      /* Collapse continuation lines.  */
+      eol = collapse_continuations (collapsed, linelen);
+      assert (strchr (collapsed, '\0') == eol);
+      eol = remove_comments (collapsed, eol);
+      assert (strchr (collapsed, '\0') == eol);
+#endif
 
       /* Compare a word, both length and contents. */
 #define	word1eq(s) 	(wlen == sizeof(s)-1 && strneq (s, p, sizeof(s)-1))
@@ -718,7 +748,11 @@ eval (struct ebuffer *ebuf, int set_default)
 		}
 	    }
 	  else if (!ignoring
+#ifndef CONFIG_WITH_VALUE_LENGTH
 		   && !try_variable_definition (fstart, p2, o_override, 0))
+#else
+		   && !try_variable_definition (fstart, p2, eol, o_override, 0))
+#endif
 	    error (fstart, _("invalid `override' directive"));
 
 	  continue;
@@ -752,7 +786,11 @@ eval (struct ebuffer *ebuf, int set_default)
                 }
             }
           else if (!ignoring
+# ifndef CONFIG_WITH_VALUE_LENGTH
                    && !try_variable_definition (fstart, p2, o_local, 0))
+# else
+                   && !try_variable_definition (fstart, p2, eol, o_local, 0))
+# endif
             error (fstart, _("invalid `local' directive"));
 
           continue;
@@ -773,7 +811,11 @@ eval (struct ebuffer *ebuf, int set_default)
             {
               struct variable *v;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
               v = try_variable_definition (fstart, p2, o_file, 0);
+#else
+              v = try_variable_definition (fstart, p2, eol, o_file, 0);
+#endif
               if (v != 0)
                 v->export = v_export;
               else
@@ -784,7 +826,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
                   /* Expand the line so we can use indirect and constructed
                      variable names in an export command.  */
-                  cp = ap = allocated_variable_expand (p2);
+                  cp = ap = allocated_variable_expand (p2); ///// FIXME
 
                   for (p = find_next_token (&cp, &l); p != 0;
                        p = find_next_token (&cp, &l))
@@ -814,7 +856,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
               /* Expand the line so we can use indirect and constructed
                  variable names in an unexport command.  */
-              cp = ap = allocated_variable_expand (p2);
+              cp = ap = allocated_variable_expand (p2); ///// FIXME
 
               for (p = find_next_token (&cp, &l); p != 0;
                    p = find_next_token (&cp, &l))
@@ -857,6 +899,7 @@ eval (struct ebuffer *ebuf, int set_default)
 	}
 
 #ifdef CONFIG_WITH_INCLUDEDEP
+      assert (strchr (p2, '\0') == eol);
       if (word1eq ("includedep") || word1eq ("includedep-queue") || word1eq ("includedep-flush"))
         {
           /* We have found an `includedep' line specifying one or more dep files
@@ -869,23 +912,20 @@ eval (struct ebuffer *ebuf, int set_default)
                             ? incdep_queue : incdep_flush;
           char *free_me = NULL;
           char *name = p2;
-          char *end = strchr (name, '\0');
-          char saved;
-          if (memchr (name, '$', end - name))
+
+          if (memchr (name, '$', eol - name))
             {
               free_me = name = allocated_variable_expand (name);
               while (isspace ((unsigned char)*name))
                 ++name;
-              end = strchr (name, '\0');
+              eol = strchr (name, '\0');
             }
 
-          while (end > name && isspace ((unsigned char)end[-1]))
-            --end;
+          while (eol > name && isspace ((unsigned char)eol[-1]))
+            --eol;
 
-          saved = *end; /* not sure if this is required... */
-          *end = '\0';
+          *eol = '\0';
           eval_include_dep (name, fstart, op);
-          *end = saved;
 
           if (free_me)
             free (free_me);
@@ -904,7 +944,7 @@ eval (struct ebuffer *ebuf, int set_default)
 	     exist.  "sinclude" is an alias for this from SGI.  */
 	  int noerror = (p[0] != 'i');
 
-	  p = allocated_variable_expand (p2);
+	  p = allocated_variable_expand (p2); //// FIXME
 
           /* If no filenames, it's a no-op.  */
 	  if (*p == '\0')
@@ -951,7 +991,11 @@ eval (struct ebuffer *ebuf, int set_default)
           goto rule_complete;
 	}
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       if (try_variable_definition (fstart, p, o_file, 0))
+#else
+      if (try_variable_definition (fstart, p, eol, o_file, 0))
+#endif
 	/* This line has been dealt with.  */
 	goto rule_complete;
 
@@ -999,7 +1043,11 @@ eval (struct ebuffer *ebuf, int set_default)
           *(cmdleft++) = '\0';
         semip = cmdleft;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
         collapse_continuations (line);
+#else
+        collapse_continuations (line, strlen (line)); /**@todo fix this */
+#endif
 
         /* We can't expand the entire line, since if it's a per-target
            variable we don't want to expand it.  So, walk from the
@@ -1405,8 +1453,13 @@ eval (struct ebuffer *ebuf, int set_default)
 /* Remove comments from LINE.
    This is done by copying the text at LINE onto itself.  */
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static void
 remove_comments (char *line)
+#else
+static char *
+remove_comments (char *line, char *eol)
+#endif
 {
   char *comment;
 
@@ -1415,6 +1468,13 @@ remove_comments (char *line)
   if (comment != 0)
     /* Cut off the line at the #.  */
     *comment = '\0';
+
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  if (comment)
+    eol = comment;
+  assert (strchr (line, '\0') == eol);
+  return eol;
+#endif
 }
 
 /* Execute a `define' directive.
@@ -1455,7 +1515,11 @@ do_define (char *name, unsigned int namelen,
 
       line = ebuf->buffer;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       collapse_continuations (line);
+#else
+      ebuf->eol = collapse_continuations (line, ebuf->eol - line);
+#endif
 
       /* If the line doesn't begin with a tab, test to see if it introduces
          another define, or ends one.  */
@@ -1464,7 +1528,12 @@ do_define (char *name, unsigned int namelen,
       if (line[0] != cmd_prefix)
         {
           p = next_token (line);
+#ifndef CONFIG_WITH_VALUE_LENGTH
           len = strlen (p);
+#else
+          len = ebuf->eol - p;
+          assert (len == strlen (p));
+#endif
 
           /* If this is another 'define', increment the level count.  */
           if ((len == 6 || (len > 6 && isblank ((unsigned char)p[6])))
@@ -1477,7 +1546,11 @@ do_define (char *name, unsigned int namelen,
                    && strneq (p, "endef", 5))
             {
               p += 5;
+#ifndef CONFIG_WITH_VALUE_LENGTH
               remove_comments (p);
+#else
+              ebuf->eol = remove_comments (p, ebuf->eol);
+#endif
               if (*next_token (p) != '\0')
                 error (&ebuf->floc,
                        _("Extraneous text after `endef' directive"));
@@ -1500,7 +1573,12 @@ do_define (char *name, unsigned int namelen,
         }
 
       /* Otherwise add this line to the variable definition.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
       len = strlen (line);
+#else
+      len = ebuf->eol - line;
+      assert (len == strlen (line));
+#endif
       if (idx + len + 1 > length)
         {
           length = (idx + len) * 2;
@@ -1951,7 +2029,11 @@ record_target_var (struct nameseq *filenames, char *defn,
           p->variable.fileinfo = *flocp;
           /* I don't think this can fail since we already determined it was a
              variable definition.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
           v = parse_variable_definition (&p->variable, defn);
+#else
+          v = parse_variable_definition (&p->variable, defn, NULL);
+#endif
           assert (v != 0);
 
           if (v->flavor == f_simple)
@@ -1979,7 +2061,11 @@ record_target_var (struct nameseq *filenames, char *defn,
           fname = f->name;
 
           current_variable_set_list = f->variables;
+#ifndef CONFIG_WITH_VALUE_LENGTH
           v = try_variable_definition (flocp, defn, origin, 1);
+#else
+          v = try_variable_definition (flocp, defn, NULL, origin, 1);
+#endif
           if (!v)
             error (flocp, _("Malformed target-specific variable definition"));
           current_variable_set_list = global;
@@ -2823,6 +2909,9 @@ readstring (struct ebuffer *ebuf)
       if (!eol)
         {
           ebuf->bufnext = ebuf->bufstart + ebuf->size + 1;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          ebuf->eol = end;
+#endif
           return 0;
         }
 
@@ -2837,6 +2926,9 @@ readstring (struct ebuffer *ebuf)
   /* Overwrite the newline char.  */
   *eol = '\0';
   ebuf->bufnext = eol+1;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  ebuf->eol = eol;
+#endif
 
   return 0;
 }
@@ -2861,6 +2953,9 @@ readline (struct ebuffer *ebuf)
   p = start = ebuf->bufstart;
   end = p + ebuf->size;
   *p = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  ebuf->eol = p;
+#endif
 
   while (fgets (p, end - p, ebuf->fp) != 0)
     {
@@ -2914,13 +3009,21 @@ readline (struct ebuffer *ebuf)
       if (!backslash)
 	{
 	  p[-1] = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          ebuf->eol = p - 1;
+#endif
 	  break;
 	}
 
       /* It was a backslash/newline combo.  If we have more space, read
          another line.  */
       if (end - p >= 80)
-        continue;
+        {
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          ebuf->eol = p;
+#endif
+          continue;
+        }
 
       /* We need more space at the end of our buffer, so realloc it.
          Make sure to preserve the current offset of p.  */
@@ -2932,6 +3035,9 @@ readline (struct ebuffer *ebuf)
         p = start + off;
         end = start + ebuf->size;
         *p = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+        ebuf->eol = p;
+#endif
       }
     }
 
@@ -3477,3 +3583,4 @@ multi_glob (struct nameseq *chain, unsigned int size)
 
   return new;
 }
+
