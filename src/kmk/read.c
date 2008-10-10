@@ -2417,8 +2417,16 @@ record_files (struct nameseq *filenames, const char *pattern,
 
                       if (f->cmds != 0)
                         {
+#ifndef KMK /* bugfix: Don't chop the chain! */
                           this->next = *d_ptr;
                           *d_ptr = this;
+#else   /* KMK */
+                          struct dep *this_last = this;
+                          while (this_last->next)
+                            this_last = this_last->next;
+                          this_last->next = *d_ptr;
+                          *d_ptr = this;
+#endif  /* KMK */
                         }
                       else
                         (*d_ptr)->next = this;
