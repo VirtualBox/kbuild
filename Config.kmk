@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1791 2008-09-18 15:42:42Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1815 2008-10-10 06:29:49Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -130,6 +130,8 @@ PATH_GNUMAKE_SRC               ?= $(PATH_ROOT)/src/kmk
 TEMPLATE_BIN = Commandline binary
 
 TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
+TEMPLATE_BIN_DEFS.profile       = NDEBUG
+TEMPLATE_BIN_DEFS.release       = NDEBUG
 
 ifeq ($(KBUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
@@ -152,7 +154,7 @@ ifeq ($(KBUILD_TARGET),darwin)
  TEMPLATE_BIN_TOOL              = GCC4MACHO
  TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.4 -isysroot $(KBUILD_MACOSX_SDK)
  ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic
+  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic -Wno-unused-parameter
  endif
  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
  TEMPLATE_BIN_CFLAGS.release    = -O3
@@ -178,8 +180,6 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
   TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 \
                                   _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
  endif
- TEMPLATE_BIN_DEFS.profile      = NDEBUG
- TEMPLATE_BIN_DEFS.release      = NDEBUG
  TEMPLATE_BIN_CFLAGS            = -W3 -Zi -Zl
  TEMPLATE_BIN_CFLAGS.release    = -O2
  TEMPLATE_BIN_CFLAGS.profile    = -O2 -GH -Gh
@@ -224,7 +224,7 @@ ifndef TEMPLATE_BIN_TOOL
  endif
  TEMPLATE_BIN_CFLAGS            = -g
  ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic
+  TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic -Wunused-parameter
  endif
  TEMPLATE_BIN_LDFLAGS           = -g
  TEMPLATE_BIN_CFLAGS.release    = -O3
