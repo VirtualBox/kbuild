@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1809 2008-10-10 02:27:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1812 2008-10-10 06:01:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -524,11 +524,12 @@ kbuild_simplify_variable(struct variable *pVar)
 {
     if (memchr(pVar->value, '$', pVar->value_length))
     {
-        char *pszExpanded = allocated_variable_expand(pVar->value);
+        unsigned int value_len;
+        char *pszExpanded = allocated_variable_expand_2(pVar->value, pVar->value_length, &value_len);
         free(pVar->value);
         pVar->value = pszExpanded;
-        pVar->value_length = strlen(pVar->value);
-        pVar->value_alloc_len = pVar->value_length + 1;
+        pVar->value_length = value_len;
+        pVar->value_alloc_len = value_len + 1;
     }
     pVar->recursive = 0;
     return pVar;
@@ -1043,12 +1044,12 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the global sdks. */
     pSdks->iGlobal = i;
     pSdks->cGlobal = 0;
-    sprintf(pszTmp, "$(SDKS) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s.%s)",
-            pBldType->value,
-            pBldTrg->value,
-            pBldTrgArch->value,
-            pBldTrg->value, pBldTrgArch->value);
-    pszIterator = pSdks->apsz[0] = allocated_variable_expand(pszTmp);
+    cch = sprintf(pszTmp, "$(SDKS) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s) $(SDKS.%s.%s)",
+                  pBldType->value,
+                  pBldTrg->value,
+                  pBldTrgArch->value,
+                  pBldTrg->value, pBldTrgArch->value);
+    pszIterator = pSdks->apsz[0] = allocated_variable_expand_2(pszTmp, cch, NULL);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cGlobal++;
     i += pSdks->cGlobal;
@@ -1056,13 +1057,13 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the target sdks.*/
     pSdks->iTarget = i;
     pSdks->cTarget = 0;
-    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
-            pTarget->value,
-            pTarget->value, pBldType->value,
-            pTarget->value, pBldTrg->value,
-            pTarget->value, pBldTrgArch->value,
-            pTarget->value, pBldTrg->value, pBldTrgArch->value);
-    pszIterator = pSdks->apsz[1] = allocated_variable_expand(pszTmp);
+    cch = sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+                  pTarget->value,
+                  pTarget->value, pBldType->value,
+                  pTarget->value, pBldTrg->value,
+                  pTarget->value, pBldTrgArch->value,
+                  pTarget->value, pBldTrg->value, pBldTrgArch->value);
+    pszIterator = pSdks->apsz[1] = allocated_variable_expand_2(pszTmp, cch, NULL);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTarget++;
     i += pSdks->cTarget;
@@ -1070,13 +1071,13 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
     /* the source sdks.*/
     pSdks->iSource = i;
     pSdks->cSource = 0;
-    sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
-            pSource->value,
-            pSource->value, pBldType->value,
-            pSource->value, pBldTrg->value,
-            pSource->value, pBldTrgArch->value,
-            pSource->value, pBldTrg->value, pBldTrgArch->value);
-    pszIterator = pSdks->apsz[2] = allocated_variable_expand(pszTmp);
+    cch = sprintf(pszTmp, "$(%s_SDKS) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s) $(%s_SDKS.%s.%s)",
+                  pSource->value,
+                  pSource->value, pBldType->value,
+                  pSource->value, pBldTrg->value,
+                  pSource->value, pBldTrgArch->value,
+                  pSource->value, pBldTrg->value, pBldTrgArch->value);
+    pszIterator = pSdks->apsz[2] = allocated_variable_expand_2(pszTmp, cch, NULL);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cSource++;
     i += pSdks->cSource;
@@ -1091,7 +1092,7 @@ kbuild_get_sdks(struct kbuild_sdks *pSdks, struct variable *pTarget, struct vari
                   pTarget->value, pSource->value, pBldTrgArch->value,
                   pTarget->value, pSource->value, pBldTrg->value, pBldTrgArch->value);
     assert(cch < cchTmp); (void)cch;
-    pszIterator = pSdks->apsz[3] = allocated_variable_expand(pszTmp);
+    pszIterator = pSdks->apsz[3] = allocated_variable_expand_2(pszTmp, cch, NULL);
     while ((pszCur = find_next_token(&pszIterator, &cchCur)) != 0)
         pSdks->cTargetSource++;
     i += pSdks->cTargetSource;
@@ -1467,16 +1468,17 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
         paVars[iVar].cchExp = 0;
         if (!paVars[iVar].pVar)
             continue;
-        if (    paVars[iVar].pVar->flavor == f_simple
-            ||  !strchr(paVars[iVar].pVar->value, '$'))
+        if (    !paVars[iVar].pVar->recursive
+            ||  !memchr(paVars[iVar].pVar->value, '$', paVars[iVar].pVar->value_length))
         {
             paVars[iVar].pszExp = paVars[iVar].pVar->value;
             paVars[iVar].cchExp = paVars[iVar].pVar->value_length;
         }
         else
         {
-            paVars[iVar].pszExp = allocated_variable_expand(paVars[iVar].pVar->value);
-            paVars[iVar].cchExp = strlen(paVars[iVar].pszExp);
+            unsigned int cchExp;
+            paVars[iVar].pszExp = allocated_variable_expand_2(paVars[iVar].pVar->value, paVars[iVar].pVar->value_length, &cchExp);
+            paVars[iVar].cchExp = cchExp;
         }
         if (pDefPath)
             kbuild_apply_defpath(pDefPath, &paVars[iVar].pszExp, &paVars[iVar].cchExp, NULL,
@@ -1771,7 +1773,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     if (!s_fNoCompileCmdsDepsDefined)
     {
         do_variable_definition_2(NILF, "_DEPFILES_INCLUDED", pDep->value, pDep->value_length,
-                                 pDep->flavor == f_simple, 0, o_file, f_append, 0 /* !target_var */);
+                                 !pDep->recursive, 0, o_file, f_append, 0 /* !target_var */);
         eval_include_dep(pDep->value, NILF, iVer >= 2 ? incdep_queue : incdep_read_it);
     }
 
@@ -1802,7 +1804,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszDst, "_CMDS_", sizeof("_CMDS_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
     do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                             pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
+                             !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT", sizeof("_OUTPUT"));
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
@@ -1829,7 +1831,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     *psz++ = ' ';
     memcpy(psz, pSource->value, pSource->value_length + 1);
     do_variable_definition_2(NILF, pszDstVar, pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
-                             pVar->flavor == f_simple && pDeps->flavor == f_simple && pSource->flavor == f_simple,
+                             !pVar->recursive && !pDeps->recursive && !pSource->recursive,
                              pszVal, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPORD", sizeof("_DEPORD"));
@@ -1843,7 +1845,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pOrderDeps->value, pOrderDeps->value_length + 1);
     do_variable_definition_2(NILF, pszDstVar, pszVal,
                              pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
-                             pVar->flavor == f_simple && pDirDep->flavor == f_simple && pOrderDeps->flavor == f_simple,
+                             !pVar->recursive && !pDirDep->recursive && !pOrderDeps->recursive,
                              pszVal, o_file, f_simple, 0 /* !target_var */);
 
     /*
@@ -1859,7 +1861,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pOutputMaybe->value, pOutputMaybe->value_length + 1);
     do_variable_definition_2(NILF, "_OUT_FILES", pszVal,
                              pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length,
-                             pVar->flavor == f_simple && pOutput->flavor == f_simple && pOutputMaybe->flavor == f_simple,
+                             !pVar->recursive && !pOutput->recursive && !pOutputMaybe->recursive,
                              pszVal, o_file, f_simple, 0 /* !target_var */);
 
     /*
@@ -1867,13 +1869,13 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     */
     memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
     do_variable_definition_2(NILF, pszDstVar, pObj->value, pObj->value_length,
-                             pObj->flavor == f_simple, 0, o_file, f_append, 0 /* !target_var */);
+                             !pObj->recursive, 0, o_file, f_append, 0 /* !target_var */);
 
     /*
     $(eval $(def_target_source_rule))
     */
     pVar = kbuild_get_recursive_variable("def_target_source_rule");
-    pszVal = allocated_variable_expand(pVar->value);
+    pszVal = allocated_variable_expand_2(pVar->value, pVar->value_length, NULL);
 
     install_variable_buffer(&pszSavedVarBuf, &cchSavedVarBuf);
     eval_buffer(pszVal);
