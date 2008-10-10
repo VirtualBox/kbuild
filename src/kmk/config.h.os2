@@ -459,3 +459,5 @@
 #define INCLUDEDIR "."
 #define LIBDIR "."
 
+#include "inlined_memchr.h"
+
