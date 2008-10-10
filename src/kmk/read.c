@@ -138,7 +138,11 @@ static int eval (struct ebuffer *buffer, int flags);
 static long readline (struct ebuffer *ebuf);
 static void do_define (char *name, unsigned int namelen,
                        enum variable_origin origin, struct ebuffer *ebuf);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static int conditional_line (char *line, int len, const struct floc *flocp);
+#else
+static int conditional_line (char *line, char *eol, int len, const struct floc *flocp);
+#endif
 #ifndef CONFIG_WITH_INCLUDEDEP
 static void record_files (struct nameseq *filenames, const char *pattern,
                           const char *pattern_percent, struct dep *deps,
@@ -187,7 +191,11 @@ read_all_makefiles (const char **makefiles)
       int save = warn_undefined_variables_flag;
       warn_undefined_variables_flag = 0;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       value = allocated_variable_expand ("$(MAKEFILES)");
+#else
+      value = allocated_variable_expand_2 (STRING_SIZE_TUPLE("$(MAKEFILES)"), NULL);
+#endif
 
       warn_undefined_variables_flag = save;
     }
@@ -681,7 +689,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
       if (!in_ignored_define)
 	{
+#ifndef CONFIG_WITH_VALUE_LENGTH
  	  int i = conditional_line (p, wlen, fstart);
+#else
+ 	  int i = conditional_line (p, eol, wlen, fstart);
+#endif
           if (i != -2)
             {
               if (i == -1)
@@ -826,7 +838,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
                   /* Expand the line so we can use indirect and constructed
                      variable names in an export command.  */
-                  cp = ap = allocated_variable_expand (p2); ///// FIXME
+#ifndef CONFIG_WITH_VALUE_LENGTH
+                  cp = ap = allocated_variable_expand (p2);
+#else
+                  cp = ap = allocated_variable_expand_2 (p2, eol - p2, NULL);
+#endif
 
                   for (p = find_next_token (&cp, &l); p != 0;
                        p = find_next_token (&cp, &l))
@@ -856,7 +872,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
               /* Expand the line so we can use indirect and constructed
                  variable names in an unexport command.  */
-              cp = ap = allocated_variable_expand (p2); ///// FIXME
+#ifndef CONFIG_WITH_VALUE_LENGTH
+              cp = ap = allocated_variable_expand (p2);
+#else
+              cp = ap = allocated_variable_expand_2 (p2, eol - p2, NULL);
+#endif
 
               for (p = find_next_token (&cp, &l); p != 0;
                    p = find_next_token (&cp, &l))
@@ -915,10 +935,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
           if (memchr (name, '$', eol - name))
             {
-              free_me = name = allocated_variable_expand (name);
+              unsigned int name_len;
+              free_me = name = allocated_variable_expand_2 (name, eol - name, &name_len);
+              eol = name + name_len;
               while (isspace ((unsigned char)*name))
                 ++name;
-              eol = strchr (name, '\0');
             }
 
           while (eol > name && isspace ((unsigned char)eol[-1]))
@@ -944,7 +965,11 @@ eval (struct ebuffer *ebuf, int set_default)
 	     exist.  "sinclude" is an alias for this from SGI.  */
 	  int noerror = (p[0] != 'i');
 
-	  p = allocated_variable_expand (p2); //// FIXME
+#ifndef CONFIG_WITH_VALUE_LENGTH
+	  p = allocated_variable_expand (p2);
+#else
+	  p = allocated_variable_expand_2 (p2, eol - p2, NULL);
+#endif
 
           /* If no filenames, it's a no-op.  */
 	  if (*p == '\0')
@@ -1611,7 +1636,11 @@ do_define (char *name, unsigned int namelen,
    1 if following text should be ignored.  */
 
 static int
+#ifndef CONFIG_WITH_VALUE_LENGTH
 conditional_line (char *line, int len, const struct floc *flocp)
+#else
+conditional_line (char *line, char *eol, int len, const struct floc *flocp)
+#endif
 {
   char *cmdname;
   enum { c_ifdef, c_ifndef, c_ifeq, c_ifneq,
@@ -1625,6 +1654,9 @@ conditional_line (char *line, int len, const struct floc *flocp)
   } cmdtype;
   unsigned int i;
   unsigned int o;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  assert (strchr (line, '\0') == eol);
+#endif
 
   /* Compare a word, both length and contents. */
 #define	word1eq(s)      (len == sizeof(s)-1 && strneq (s, line, sizeof(s)-1))
@@ -1710,7 +1742,11 @@ conditional_line (char *line, int len, const struct floc *flocp)
 
       /* If it's 'else' or 'endif' or an illegal conditional, fail.  */
       if (word1eq("else") || word1eq("endif")
+#ifndef CONFIG_WITH_VALUE_LENGTH
           || conditional_line (line, len, flocp) < 0)
+#else
+          || conditional_line (line, eol, len, flocp) < 0)
+#endif
 	EXTRANEOUS ();
       else
         {
@@ -1763,7 +1799,11 @@ conditional_line (char *line, int len, const struct floc *flocp)
 
       /* Expand the thing we're looking up, so we can use indirect and
          constructed variable names.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
       var = allocated_variable_expand (line);
+#else
+      var = allocated_variable_expand_2 (line, eol - line, NULL);
+#endif
 
       /* Make sure there's only one variable name to test.  */
       p = end_of_token (var);
@@ -1799,6 +1839,9 @@ conditional_line (char *line, int len, const struct floc *flocp)
       char *s1, *s2;
       unsigned int l;
       char termin = *line == '(' ? ',' : *line;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      char *buf_pos;
+#endif
 
       if (termin != ',' && termin != '"' && termin != '\'')
 	return -1;
@@ -1830,16 +1873,29 @@ conditional_line (char *line, int len, const struct floc *flocp)
 	  while (isblank ((unsigned char)p[-1]))
 	    --p;
 	  *p = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          l = p - s1;
+#endif
 	}
       else
-	*line++ = '\0';
+        {
+#ifdef CONFIG_WITH_VALUE_LENGTH
+          l = line - s1;
+#endif
+	  *line++ = '\0';
+        }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       s2 = variable_expand (s1);
       /* We must allocate a new copy of the expanded string because
 	 variable_expand re-uses the same buffer.  */
       l = strlen (s2);
       s1 = alloca (l + 1);
       memcpy (s1, s2, l + 1);
+#else
+      s1 = variable_expand_string_2 (NULL, s1, l, &buf_pos);
+      ++buf_pos;
+#endif
 
       if (termin != ',')
 	/* Find the start of the second string.  */
@@ -1879,11 +1935,21 @@ conditional_line (char *line, int len, const struct floc *flocp)
 	return -1;
 
       *line = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      l = line - s2;
+#endif
       line = next_token (++line);
       if (*line != '\0')
 	EXTRANEOUS ();
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       s2 = variable_expand (s2);
+#else
+      if ((size_t)buf_pos & 7)
+        buf_pos = variable_buffer_output (buf_pos, "\0\0\0\0\0\0\0\0",
+                                          8 - (size_t)buf_pos & 7);
+      s2 = variable_expand_string (buf_pos, s2, l);
+#endif
 #ifdef CONFIG_WITH_SET_CONDITIONALS
       if (cmdtype == c_if1of || cmdtype == c_ifn1of)
         {
@@ -3382,7 +3448,11 @@ tilde_expand (const char *name)
 	int save = warn_undefined_variables_flag;
 	warn_undefined_variables_flag = 0;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	home_dir = allocated_variable_expand ("$(HOME)");
+#else
+	home_dir = allocated_variable_expand_2 (STRING_SIZE_TUPLE("$(HOME)"), NULL);
+#endif
 
 	warn_undefined_variables_flag = save;
       }
