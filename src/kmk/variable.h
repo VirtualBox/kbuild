@@ -135,23 +135,24 @@ char *variable_expand_for_file (const char *line, struct file *file);
 char *variable_expand_for_file_2 (char *o, const char *line, struct file *file);
 #endif
 char *allocated_variable_expand_for_file (const char *line, struct file *file);
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
 #define	allocated_variable_expand(line) \
   allocated_variable_expand_for_file (line, (struct file *) 0)
-#else  /* KMK */
+#else  /* CONFIG_WITH_VALUE_LENGTH */
 # define allocated_variable_expand(line) \
   allocated_variable_expand_2 (line, -1, NULL)
-char *allocated_variable_expand_2(const char *line, long length, unsigned int *value_len);
-#endif
+char *allocated_variable_expand_2(const char *line, unsigned int length, unsigned int *value_len);
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 char *expand_argument (const char *str, const char *end);
 char *variable_expand_string (char *line, const char *string, long length);
-#ifdef KMK
+#ifdef CONFIG_WITH_VALUE_LENGTH
 char *variable_expand_string_2 (char *line, const char *string, long length, char **eol);
 #endif
 void install_variable_buffer (char **bufp, unsigned int *lenp);
 void restore_variable_buffer (char *buf, unsigned int len);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-extern void append_expanded_string_to_variable (struct variable *v, const char *value, int append);
+void append_expanded_string_to_variable (struct variable *v, const char *value,
+                                         unsigned int value_len, int append);
 #endif
 
 /* function.c */
@@ -183,11 +184,26 @@ void print_file_variables (const struct file *file);
 void print_variable_set (struct variable_set *set, char *prefix);
 void merge_variable_set_lists (struct variable_set_list **to_list,
                                struct variable_set_list *from_list);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 struct variable *do_variable_definition (const struct floc *flocp,
                                          const char *name, const char *value,
                                          enum variable_origin origin,
                                          enum variable_flavor flavor,
                                          int target_var);
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+# define do_variable_definition(flocp, varname, value, origin, flavor, target_var) \
+    do_variable_definition_2 ((flocp), (varname), (value), ~0U, 0, NULL, \
+                              (origin), (flavor), (target_var))
+
+struct variable *do_variable_definition_2 (const struct floc *flocp,
+                                           const char *varname,
+                                           const char *value,
+                                           unsigned int value_len,
+                                           int simple_value, char *free_value,
+                                           enum variable_origin origin,
+                                           enum variable_flavor flavor,
+                                           int target_var);
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 struct variable *parse_variable_definition (struct variable *v, char *line);
 struct variable *try_variable_definition (const struct floc *flocp, char *line,
                                           enum variable_origin origin,

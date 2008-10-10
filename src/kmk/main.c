@@ -54,7 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 # ifdef __OS2__
 #  define INCL_BASE
 #  include <os2.h>
-# endif 
+# endif
 #endif /* KMK*/
 
 #if defined(HAVE_SYS_RESOURCE_H) && defined(HAVE_GETRLIMIT) && defined(HAVE_SETRLIMIT)
@@ -372,7 +372,7 @@ static const char *const usage[] =
 #else
     N_("\
   -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no arg.\n"),
-#endif 
+#endif
     N_("\
   -k, --keep-going            Keep going when some targets can't be made.\n"),
     N_("\
@@ -1118,7 +1118,7 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
 #ifdef KMK
 /* Determins the number of CPUs that are currently online.
    This is used to setup the default number of job slots. */
-static int 
+static int
 get_online_cpu_count(void)
 {
 # ifdef WINDOWS32
@@ -1146,13 +1146,13 @@ get_online_cpu_count(void)
           cpus++;
     return cpus ? cpus : 1;
 
-# else 
+# else
   /* UNIX like systems, try sysconf and sysctl. */
   int cpus = -1;
 #  if defined(CTL_HW)
   int mib[2];
   size_t sz;
-#  endif 
+#  endif
 
 #  ifdef _SC_NPROCESSORS_ONLN
   cpus = sysconf(_SC_NPROCESSORS_ONLN);

@@ -464,9 +464,10 @@ init_hash_global_variable_set (void)
 #ifdef CONFIG_WITH_VALUE_LENGTH
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
-                        const char *value, unsigned int value_length, int duplicate_value,
-                        enum variable_origin origin, int recursive,
-                        struct variable_set *set, const struct floc *flocp)
+                        const char *value, unsigned int value_len,
+                        int duplicate_value, enum variable_origin origin,
+                        int recursive, struct variable_set *set,
+                        const struct floc *flocp)
 #else
 struct variable *
 define_variable_in_set (const char *name, unsigned int length,
@@ -507,28 +508,28 @@ define_variable_in_set (const char *name, unsigned int length,
       if ((int) origin >= (int) v->origin)
 	{
 #ifdef CONFIG_WITH_VALUE_LENGTH
-          if (value_length == ~0U)
-            value_length = strlen (value);
+          if (value_len == ~0U)
+            value_len = strlen (value);
           else
-            assert (value_length == strlen (value));
+            assert (value_len == strlen (value));
           if (!duplicate_value)
             {
               if (v->value != 0)
                 free (v->value);
               v->value = (char *)value;
-              v->value_alloc_len = value_length + 1;
+              v->value_alloc_len = value_len + 1;
             }
           else
             {
-              if ((unsigned int)v->value_alloc_len <= value_length)
+              if ((unsigned int)v->value_alloc_len <= value_len)
                 {
                   free (v->value);
-                  v->value_alloc_len = (value_length + 0x40) & ~0x3f;
+                  v->value_alloc_len = (value_len + 0x40) & ~0x3f;
                   v->value = xmalloc (v->value_alloc_len);
                 }
-              memcpy (v->value, value, value_length + 1);
+              memcpy (v->value, value, value_len + 1);
             }
-          v->value_length = value_length;
+          v->value_length = value_len;
 #else
           if (v->value != 0)
             free (v->value);
@@ -555,21 +556,21 @@ define_variable_in_set (const char *name, unsigned int length,
 #endif
   hash_insert_at (&set->table, v, var_slot);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  if (value_length == ~0U)
-    value_length = strlen (value);
+  if (value_len == ~0U)
+    value_len = strlen (value);
   else
-    assert (value_length == strlen (value));
-  v->value_length = value_length;
+    assert (value_len == strlen (value));
+  v->value_length = value_len;
   if (!duplicate_value)
     {
-      v->value_alloc_len = value_length + 1;
+      v->value_alloc_len = value_len + 1;
       v->value = (char *)value;
     }
   else
     {
-      v->value_alloc_len = (value_length + 32) & ~31;
+      v->value_alloc_len = (value_len + 32) & ~31;
       v->value = xmalloc (v->value_alloc_len);
-      memcpy (v->value, value, value_length + 1);
+      memcpy (v->value, value, value_len + 1);
     }
 #else
   v->value = xstrdup (value);
@@ -1606,7 +1607,7 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
   if ((unsigned)v->value_alloc_len <= new_value_len + 1)
     {
       v->value_alloc_len *= 2;
-      if (v->value_alloc_len < new_value_len + 1)
+      if ((unsigned)v->value_alloc_len < new_value_len + 1)
           v->value_alloc_len = (new_value_len + 1 + value_len + 0x7f) + ~0x7fU;
       if (append || !v->value_length)
         v->value = xrealloc (v->value, v->value_alloc_len);
@@ -1643,8 +1644,10 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
 }
 
 static struct variable *
-do_variable_definition_append (const struct floc *flocp, struct variable *v, const char *value,
-                               enum variable_origin origin, int append)
+do_variable_definition_append (const struct floc *flocp, struct variable *v,
+                               const char *value, unsigned int value_len,
+                               int simple_value, enum variable_origin origin,
+                               int append)
 {
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -1667,13 +1670,15 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
 
   /* The juicy bits, append the specified value to the variable
      This is a heavily exercised code path in kBuild. */
-  if (v->recursive)
-    append_string_to_variable (v, value, strlen (value), append);
+  if (value_len == ~0U)
+    value_len = strlen (value);
+  if (v->recursive || simple_value)
+    append_string_to_variable (v, value, value_len, append);
   else
     /* The previous definition of the variable was simple.
        The new value comes from the old value, which was expanded
        when it was set; and from the expanded new value. */
-    append_expanded_string_to_variable (v, value, append);
+    append_expanded_string_to_variable (v, value, value_len, append);
 
   /* update the variable */
   return v;
@@ -1684,9 +1689,19 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v, con
    See the try_variable_definition() function for details on the parameters. */
 
 struct variable *
+#ifndef CONFIG_WITH_VALUE_LENGTH
 do_variable_definition (const struct floc *flocp, const char *varname,
                         const char *value, enum variable_origin origin,
                         enum variable_flavor flavor, int target_var)
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+do_variable_definition_2 (const struct floc *flocp,
+                          const char *varname, const char *value,
+                          unsigned int value_len, int simple_value,
+                          char *free_value,
+                          enum variable_origin origin,
+                          enum variable_flavor flavor,
+                          int target_var)
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 {
   const char *p;
   char *alloc_value = NULL;
@@ -1695,7 +1710,7 @@ do_variable_definition (const struct floc *flocp, const char *varname,
   int conditional = 0;
   const size_t varname_len = strlen (varname); /* bird */
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  unsigned int value_len = ~0U;
+  assert (value_len == ~0U || value_len == strlen (value));
 #endif
 
   /* Calculate the variable's new value in VALUE.  */
@@ -1711,11 +1726,25 @@ do_variable_definition (const struct floc *flocp, const char *varname,
          We have to allocate memory since otherwise it'll clobber the
 	 variable buffer, and we may still need that if we're looking at a
          target-specific variable.  */
-#if !defined(KMK) || !defined(CONFIG_WITH_VALUE_LENGTH)
+#ifndef CONFIG_WITH_VALUE_LENGTH
       p = alloc_value = allocated_variable_expand (value);
-#else  /* KMK - optimization */
-      p = alloc_value = allocated_variable_expand_2 (value, -1, &value_len);
-#endif /* KMK - optimization */
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+      if (!simple_value)
+        p = alloc_value = allocated_variable_expand_2 (value, value_len, &value_len);
+      else
+      {
+        if (value_len == ~0U)
+          value_len = strlen (value);
+        if (!free_value)
+          p = alloc_value = savestring (value, value_len);
+        else
+          {
+            assert (value == free_value);
+            p = alloc_value = free_value;
+            free_value = 0;
+          }
+      }
+#endif /* CONFIG_WITH_VALUE_LENGTH */
       break;
     case f_conditional:
       /* A conditional variable definition "var ?= value".
@@ -1776,11 +1805,16 @@ do_variable_definition (const struct floc *flocp, const char *varname,
           {
 #ifdef CONFIG_WITH_VALUE_LENGTH
             v->append = append;
+            v = do_variable_definition_append (flocp, v, value, value_len,
+                                               simple_value, origin,
 # ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
-            return do_variable_definition_append (flocp, v, value, origin, org_flavor == f_append);
+                                               org_flavor == f_append);
 # else
-            return do_variable_definition_append (flocp, v, value, origin, 1);
+                                               1);
 # endif
+            if (free_value)
+               free (free_value);
+            return v;
 #else /* !CONFIG_WITH_VALUE_LENGTH */
 
             /* Paste the old and new values together in VALUE.  */
@@ -1960,6 +1994,9 @@ do_variable_definition (const struct floc *flocp, const char *varname,
 #ifndef CONFIG_WITH_VALUE_LENGTH
   if (alloc_value)
     free (alloc_value);
+#else
+  if (free_value)
+    free (free_value);
 #endif
 
   return v;
@@ -1986,9 +2023,9 @@ parse_variable_definition (struct variable *v, char *line)
   register char *beg;
   register char *end;
   enum variable_flavor flavor = f_bogus;
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
   char *name;
-#endif /* KMK - optimization */
+#endif
 
   while (1)
     {
@@ -2072,20 +2109,14 @@ parse_variable_definition (struct variable *v, char *line)
 #endif
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
-#ifndef KMK
+#ifndef CONFIG_WITH_VALUE_LENGTH
   name = alloca (end - beg + 1);
   memcpy (name, beg, end - beg);
   name[end - beg] = '\0';
   v->name = allocated_variable_expand (name);
-#else  /* KMK - optimizations */
-  //if (memchr (beg, '$', end - beg)) /* (Mostly for cleaning up the profiler result.) */
-      v->name = allocated_variable_expand_2 (beg, end - beg, NULL);
-  //else
-  //  {
-  //    v->name = memcpy (xmalloc (end - beg + 1), beg, end - beg);
-  //    v->name[end - beg] = '\0';
-  //  }
-#endif /* KMK - optimizations */
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+  v->name = allocated_variable_expand_2 (beg, end - beg, NULL);
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   if (v->name[0] == '\0')
     fatal (&v->fileinfo, _("empty variable name"));
