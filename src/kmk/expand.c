@@ -1022,16 +1022,16 @@ allocated_variable_expand_2 (const char *line, unsigned int length,
   char *value;
   char *obuf = variable_buffer;
   unsigned int olen = variable_buffer_length;
+  long len = length == ~0U ? -1L : (long)length;
 
   variable_buffer = 0;
 
   if (!value_len)
-    value = variable_expand_string (NULL, line, length != ~0U ? length : -1);
+    value = variable_expand_string (NULL, line, len);
   else
     {
       char *eol;
-      value = variable_expand_string_2 (NULL, line,
-                                        length != ~0U ? length : -1, &eol);
+      value = variable_expand_string_2 (NULL, line, len, &eol);
       *value_len = eol - value;
     }
 
