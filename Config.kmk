@@ -1,4 +1,4 @@
-# $Id: Config.kmk 1815 2008-10-10 06:29:49Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 1823 2008-10-10 20:27:55Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -227,7 +227,9 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic -Wunused-parameter
  endif
  TEMPLATE_BIN_LDFLAGS           = -g
+ TEMPLATE_BIN_LDFLAGS.profile   = -pg -p
  TEMPLATE_BIN_CFLAGS.release    = -O3
+ TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg -p
  ifeq ($(KBUILD_TARGET),freebsd)
   TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
  endif
