@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1812 2008-10-10 06:01:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1814 2008-10-10 06:09:00Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1810,14 +1810,14 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
     pOutput = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                       pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
+                                       !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT_MAYBE", sizeof("_OUTPUT_MAYBE"));
     memcpy(pszDst, "_OUTPUT_MAYBE_", sizeof("_OUTPUT_MAYBE_"));
     pVar = kbuild_query_recursive_variable(pszSrcVar);
     if (pVar)
         pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                                pVar->flavor == f_simple, 0, o_file, f_simple, 0 /* !target_var */);
+                                                !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
     else
         pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_file, f_simple, 0 /* !target_var */);
 
