@@ -2799,7 +2799,11 @@ handle_non_switch_argument (char *arg, int env)
   if (arg[0] == '-' && arg[1] == '\0')
     /* Ignore plain `-' for compatibility.  */
     return;
+#ifndef CONFIG_WITH_VALUE_LENGTH
   v = try_variable_definition (0, arg, o_command, 0);
+#else
+  v = try_variable_definition (0, arg, NULL, o_command, 0);
+#endif
   if (v != 0)
     {
       /* It is indeed a variable definition.  If we don't already have this

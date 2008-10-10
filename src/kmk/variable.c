@@ -914,10 +914,17 @@ initialize_file_variables (struct file *file, int reading)
                 }
               else
                 {
+#ifndef CONFIG_WITH_VALUE_LENGTH
                   v = do_variable_definition (
                     &p->variable.fileinfo, p->variable.name,
                     p->variable.value, p->variable.origin,
                     p->variable.flavor, 1);
+#else
+                  v = do_variable_definition_2 (
+                    &p->variable.fileinfo, p->variable.name,
+                    p->variable.value, p->variable.value_length, 0, 0,
+                    p->variable.origin, p->variable.flavor, 1);
+#endif
                 }
 
               /* Also mark it as a per-target and copy export status. */
@@ -2016,7 +2023,11 @@ do_variable_definition_2 (const struct floc *flocp,
    returned.  */
 
 struct variable *
+#ifndef CONFIG_WITH_VALUE_LENGTH
 parse_variable_definition (struct variable *v, char *line)
+#else
+parse_variable_definition (struct variable *v, char *line, char *eos)
+#endif
 {
   register int c;
   register char *p = line;
@@ -2105,7 +2116,9 @@ parse_variable_definition (struct variable *v, char *line)
   p = next_token (p);
   v->value = p;
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  v->value_length = v->value_alloc_len = -1;
+  v->value_alloc_len = -1;
+  v->value_length = eos != NULL ? eos - p : -1;
+  assert (eos == NULL || strchr (p, '\0') == eos);
 #endif
 
   /* Expand the name, so "$(foo)bar = baz" works.  */
@@ -2138,8 +2151,13 @@ parse_variable_definition (struct variable *v, char *line)
    returned.  */
 
 struct variable *
+#ifndef CONFIG_WITH_VALUE_LENGTH
 try_variable_definition (const struct floc *flocp, char *line,
                          enum variable_origin origin, int target_var)
+#else
+try_variable_definition (const struct floc *flocp, char *line, char *eos,
+                         enum variable_origin origin, int target_var)
+#endif
 {
   struct variable v;
   struct variable *vp;
@@ -2149,11 +2167,20 @@ try_variable_definition (const struct floc *flocp, char *line,
   else
     v.fileinfo.filenm = 0;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   if (!parse_variable_definition (&v, line))
     return 0;
 
   vp = do_variable_definition (flocp, v.name, v.value,
                                origin, v.flavor, target_var);
+#else
+  if (!parse_variable_definition (&v, line, eos))
+    return 0;
+
+  vp = do_variable_definition_2 (flocp, v.name, v.value,
+                                 v.value_length != -1 ? v.value_length : ~0U,
+                                 0, NULL, origin, v.flavor, target_var);
+#endif
 
   free (v.name);
 
