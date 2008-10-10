@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1804 2008-09-21 19:55:08Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1824 2008-10-10 20:40:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -627,14 +627,16 @@ incdep_flush_recorded_instructions (struct incdep *cur)
     do
       {
         void *free_me = rec_vd;
-        do_variable_definition (rec_vd->flocp,
-                                strcache_add_len(rec_vd->name, rec_vd->name_length),
-                                rec_vd->value,
-                                rec_vd->origin,
-                                rec_vd->flavor,
-                                rec_vd->target_var);
+        do_variable_definition_2 (rec_vd->flocp,
+                                  strcache_add_len(rec_vd->name, rec_vd->name_length),
+                                  rec_vd->value,
+                                  rec_vd->value_len,
+                                  0,
+                                  rec_vd->value,
+                                  rec_vd->origin,
+                                  rec_vd->flavor,
+                                  rec_vd->target_var);
         free (rec_vd->name);
-        free (rec_vd->value);
         rec_vd = rec_vd->next;
         free (free_me);
       }
@@ -771,15 +773,14 @@ incdep_record_variable_def (struct incdep *cur,
                             const char *name,
                             unsigned int name_length,
                             char *value,
+                            unsigned int value_length,
                             enum variable_origin origin,
                             enum variable_flavor flavor,
                             int target_var)
 {
   if (!cur->is_worker)
-    {
-      do_variable_definition (flocp, name, value, origin, flavor, target_var);
-      free (value);
-    }
+    do_variable_definition_2 (flocp, name, value, value_length, 0, value,
+                              origin, flavor, target_var);
 #ifdef PARSE_IN_WORKER
   else
     {
@@ -788,6 +789,7 @@ incdep_record_variable_def (struct incdep *cur,
       rec->name = (char *)name;
       rec->name_length = name_length;
       rec->value = value;
+      rec->value_length = value_length;
       rec->origin = origin;
       rec->flavor = flavor;
       rec->target_var = target_var;
@@ -799,6 +801,8 @@ incdep_record_variable_def (struct incdep *cur,
         cur->recorded_variable_defs_head = rec;
       cur->recorded_variable_defs_tail = rec;
     }
+#else
+  (void)name_length;
 #endif
 }
 
@@ -1179,8 +1183,8 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
                                                NULL /* global set */, f);
               else
                 incdep_record_variable_def (curdep,
-                                            f, var, var_len, value, o_file, flavor,
-                                            0 /* not target var */);
+                                            f, var, var_len, value, value_len,
+                                            o_file, flavor, 0 /* not target var */);
             }
           else
             {
