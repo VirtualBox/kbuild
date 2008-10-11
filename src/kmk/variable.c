@@ -130,37 +130,37 @@ static inline unsigned long variable_hash_2i(register const char *var, register 
     switch (length)
     {
         default:
-        case 32: //UPDATE_HASH(uvar_end[-16]);
+        case 32: /*UPDATE_HASH(uvar_end[-16]);*/
         case 31: UPDATE_HASH(uvar_end[-15]);
-        case 30: //UPDATE_HASH(uvar_end[-14]);
+        case 30: /*UPDATE_HASH(uvar_end[-14]);*/
         case 29: UPDATE_HASH(uvar_end[-13]);
-        case 28: //UPDATE_HASH(uvar_end[-12]);
+        case 28: /*UPDATE_HASH(uvar_end[-12]);*/
         case 27: UPDATE_HASH(uvar_end[-11]);
-        case 26: //UPDATE_HASH(uvar_end[-10]);
+        case 26: /*UPDATE_HASH(uvar_end[-10]);*/
         case 25: UPDATE_HASH(uvar_end[-9]);
-        case 24: //UPDATE_HASH(uvar[15]);
+        case 24: /*UPDATE_HASH(uvar[15]);*/
         case 23: UPDATE_HASH(uvar[14]);
-        case 22: //UPDATE_HASH(uvar[13]);
+        case 22: /*UPDATE_HASH(uvar[13]);*/
         case 21: UPDATE_HASH(uvar[12]);
-        case 20: //UPDATE_HASH(uvar[11]);
+        case 20: /*UPDATE_HASH(uvar[11]);*/
         case 19: UPDATE_HASH(uvar[10]);
-        case 18: //UPDATE_HASH(uvar[9]);
+        case 18: /*UPDATE_HASH(uvar[9]);*/
         case 17: UPDATE_HASH(uvar[8]);
-        case 16: //UPDATE_HASH(uvar_end[-8]);
+        case 16: /*UPDATE_HASH(uvar_end[-8]);*/
         case 15: UPDATE_HASH(uvar_end[-7]);
-        case 14: //UPDATE_HASH(uvar_end[-6]);
+        case 14: /*UPDATE_HASH(uvar_end[-6]);*/
         case 13: UPDATE_HASH(uvar_end[-5]);
-        case 12: //UPDATE_HASH(uvar_end[-4]);
+        case 12: /*UPDATE_HASH(uvar_end[-4]);*/
         case 11: UPDATE_HASH(uvar_end[-3]);
-        case 10: //UPDATE_HASH(uvar_end[-2]);
+        case 10: /*UPDATE_HASH(uvar_end[-2]);*/
         case 9:  UPDATE_HASH(uvar_end[-1]);
-        case 8:  //UPDATE_HASH(uvar[7]);
+        case 8:  /*UPDATE_HASH(uvar[7]);*/
         case 7:  UPDATE_HASH(uvar[6]);
-        case 6:  //UPDATE_HASH(uvar[5]);
+        case 6:  /*UPDATE_HASH(uvar[5]);*/
         case 5:  UPDATE_HASH(uvar[4]);
-        case 4:  //UPDATE_HASH(uvar[3]);
+        case 4:  /*UPDATE_HASH(uvar[3]);*/
         case 3:  UPDATE_HASH(uvar[2]);
-        case 2:  //UPDATE_HASH(uvar[1]);
+        case 2:  /*UPDATE_HASH(uvar[1]);*/
         case 1:  UPDATE_HASH(uvar[0]);
         case 0:
             return hash;
@@ -191,70 +191,70 @@ static inline unsigned long variable_hash_1i(register const char *var, register 
         default:
 #if 0 /* seems to be a waste of time. */
         case 97: UPDATE_HASH(uvar_end[-77]);
-        case 96: //UPDATE_HASH(uvar_end[-76]);
-        case 95: //UPDATE_HASH(uvar_end[-75]);
-        case 94: //UPDATE_HASH(uvar_end[-74]);
+        case 96: /*UPDATE_HASH(uvar_end[-76]);*/
+        case 95: /*UPDATE_HASH(uvar_end[-75]);*/
+        case 94: /*UPDATE_HASH(uvar_end[-74]);*/
         case 93: UPDATE_HASH(uvar_end[-73]);
-        case 92: //UPDATE_HASH(uvar_end[-72]);
-        case 91: //UPDATE_HASH(uvar_end[-71]);
-        case 90: //UPDATE_HASH(uvar_end[-70]);
+        case 92: /*UPDATE_HASH(uvar_end[-72]);*/
+        case 91: /*UPDATE_HASH(uvar_end[-71]);*/
+        case 90: /*UPDATE_HASH(uvar_end[-70]);*/
         case 89: UPDATE_HASH(uvar_end[-69]);
-        case 88: //UPDATE_HASH(uvar_end[-68]);
-        case 87: //UPDATE_HASH(uvar_end[-67]);
-        case 86: //UPDATE_HASH(uvar_end[-66]);
+        case 88: /*UPDATE_HASH(uvar_end[-68]);*/
+        case 87: /*UPDATE_HASH(uvar_end[-67]);*/
+        case 86: /*UPDATE_HASH(uvar_end[-66]);*/
         case 85: UPDATE_HASH(uvar_end[-65]);
-        case 84: //UPDATE_HASH(uvar_end[-64]);
-        case 83: //UPDATE_HASH(uvar_end[-63]);
-        case 82: //UPDATE_HASH(uvar_end[-62]);
+        case 84: /*UPDATE_HASH(uvar_end[-64]);*/
+        case 83: /*UPDATE_HASH(uvar_end[-63]);*/
+        case 82: /*UPDATE_HASH(uvar_end[-62]);*/
         case 81: UPDATE_HASH(uvar_end[-61]);
-        case 80: //UPDATE_HASH(uvar_end[-60]);
-        case 79: //UPDATE_HASH(uvar_end[-59]);
-        case 78: //UPDATE_HASH(uvar_end[-58]);
+        case 80: /*UPDATE_HASH(uvar_end[-60]);*/
+        case 79: /*UPDATE_HASH(uvar_end[-59]);*/
+        case 78: /*UPDATE_HASH(uvar_end[-58]);*/
         case 77: UPDATE_HASH(uvar_end[-57]);
-        case 76: //UPDATE_HASH(uvar_end[-56]);
-        case 75: //UPDATE_HASH(uvar_end[-55]);
-        case 74: //UPDATE_HASH(uvar_end[-54]);
+        case 76: /*UPDATE_HASH(uvar_end[-56]);*/
+        case 75: /*UPDATE_HASH(uvar_end[-55]);*/
+        case 74: /*UPDATE_HASH(uvar_end[-54]);*/
         case 73: UPDATE_HASH(uvar_end[-53]);
-        case 72: //UPDATE_HASH(uvar_end[-52]);
-        case 71: //UPDATE_HASH(uvar_end[-51]);
-        case 70: //UPDATE_HASH(uvar_end[-50]);
+        case 72: /*UPDATE_HASH(uvar_end[-52]);*/
+        case 71: /*UPDATE_HASH(uvar_end[-51]);*/
+        case 70: /*UPDATE_HASH(uvar_end[-50]);*/
         case 69: UPDATE_HASH(uvar_end[-49]);
-        case 68: //UPDATE_HASH(uvar_end[-48]);
-        case 67: //UPDATE_HASH(uvar_end[-47]);
-        case 66: //UPDATE_HASH(uvar_end[-46]);
+        case 68: /*UPDATE_HASH(uvar_end[-48]);*/
+        case 67: /*UPDATE_HASH(uvar_end[-47]);*/
+        case 66: /*UPDATE_HASH(uvar_end[-46]);*/
         case 65: UPDATE_HASH(uvar_end[-49]);
-        case 64: //UPDATE_HASH(uvar_end[-48]);
-        case 63: //UPDATE_HASH(uvar_end[-47]);
-        case 62: //UPDATE_HASH(uvar_end[-46]);
+        case 64: /*UPDATE_HASH(uvar_end[-48]);*/
+        case 63: /*UPDATE_HASH(uvar_end[-47]);*/
+        case 62: /*UPDATE_HASH(uvar_end[-46]);*/
         case 61: UPDATE_HASH(uvar_end[-45]);
-        case 60: //UPDATE_HASH(uvar_end[-44]);
-        case 59: //UPDATE_HASH(uvar_end[-43]);
-        case 58: //UPDATE_HASH(uvar_end[-42]);
+        case 60: /*UPDATE_HASH(uvar_end[-44]);*/
+        case 59: /*UPDATE_HASH(uvar_end[-43]);*/
+        case 58: /*UPDATE_HASH(uvar_end[-42]);*/
         case 57: UPDATE_HASH(uvar_end[-41]);
-        case 56: //UPDATE_HASH(uvar_end[-40]);
-        case 55: //UPDATE_HASH(uvar_end[-39]);
-        case 54: //UPDATE_HASH(uvar_end[-38]);
+        case 56: /*UPDATE_HASH(uvar_end[-40]);*/
+        case 55: /*UPDATE_HASH(uvar_end[-39]);*/
+        case 54: /*UPDATE_HASH(uvar_end[-38]);*/
         case 53: UPDATE_HASH(uvar_end[-37]);
-        case 52: //UPDATE_HASH(uvar_end[-36]);
+        case 52: /*UPDATE_HASH(uvar_end[-36]);*/
         case 51: UPDATE_HASH(uvar_end[-35]);
-        case 50: //UPDATE_HASH(uvar_end[-34]);
+        case 50: /*UPDATE_HASH(uvar_end[-34]);*/
         case 49: UPDATE_HASH(uvar_end[-33]);
 #endif
-        case 48: //UPDATE_HASH(uvar_end[-32]);
+        case 48: /*UPDATE_HASH(uvar_end[-32]);*/
         case 47: UPDATE_HASH(uvar_end[-31]);
-        case 46: //UPDATE_HASH(uvar_end[-30]);
+        case 46: /*UPDATE_HASH(uvar_end[-30]);*/
         case 45: UPDATE_HASH(uvar_end[-29]);
-        case 44: //UPDATE_HASH(uvar_end[-28]);
+        case 44: /*UPDATE_HASH(uvar_end[-28]);*/
         case 43: UPDATE_HASH(uvar_end[-27]);
-        case 42: //UPDATE_HASH(uvar_end[-26]);
+        case 42: /*UPDATE_HASH(uvar_end[-26]);*/
         case 41: UPDATE_HASH(uvar_end[-25]);
-        case 40: //UPDATE_HASH(uvar_end[-24]);
+        case 40: /*UPDATE_HASH(uvar_end[-24]);*/
         case 39: UPDATE_HASH(uvar_end[-23]);
-        case 38: //UPDATE_HASH(uvar_end[-22]);
+        case 38: /*UPDATE_HASH(uvar_end[-22]);*/
         case 37: UPDATE_HASH(uvar_end[-21]);
-        case 36: //UPDATE_HASH(uvar_end[-20]);
+        case 36: /*UPDATE_HASH(uvar_end[-20]);*/
         case 35: UPDATE_HASH(uvar_end[-19]);
-        case 34: //UPDATE_HASH(uvar_end[-18]);
+        case 34: /*UPDATE_HASH(uvar_end[-18]);*/
         case 33: UPDATE_HASH(uvar_end[-17]);
 
         case 32: UPDATE_HASH(uvar_end[-16]);
@@ -1566,7 +1566,11 @@ target_environment (struct file *file)
 	if (v->recursive
 	    && v->origin != o_env && v->origin != o_env_override)
 	  {
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	    char *value = recursively_expand_for_file (v, file);
+#else
+	    char *value = recursively_expand_for_file (v, file, NULL);
+#endif
 #ifdef WINDOWS32
 	    if (strcmp(v->name, "Path") == 0 ||
 		strcmp(v->name, "PATH") == 0)
@@ -2178,7 +2182,7 @@ try_variable_definition (const struct floc *flocp, char *line, char *eos,
     return 0;
 
   vp = do_variable_definition_2 (flocp, v.name, v.value,
-                                 v.value_length != -1 ? v.value_length : ~0U,
+                                 v.value_length != -1 ? (unsigned int)v.value_length : ~0U, /* FIXME */
                                  0, NULL, origin, v.flavor, target_var);
 #endif
 
