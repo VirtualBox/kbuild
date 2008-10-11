@@ -126,9 +126,58 @@ struct pattern_var
 
 extern char *variable_buffer;
 extern struct variable_set_list *current_variable_set_list;
+#ifdef KMK
+extern unsigned int variable_buffer_length;
+#define VARIABLE_BUFFER_ZONE    5
+#endif
 
 /* expand.c */
+#ifndef KMK
 char *variable_buffer_output (char *ptr, const char *string, unsigned int length);
+#else /* KMK */
+/* Subroutine of variable_expand and friends:
+   The text to add is LENGTH chars starting at STRING to the variable_buffer.
+   The text is added to the buffer at PTR, and the updated pointer into
+   the buffer is returned as the value.  Thus, the value returned by
+   each call to variable_buffer_output should be the first argument to
+   the following call.  */
+
+__inline static char *
+variable_buffer_output (char *ptr, const char *string, unsigned int length)
+{
+  register unsigned int newlen = length + (ptr - variable_buffer);
+
+  if ((newlen + VARIABLE_BUFFER_ZONE) > variable_buffer_length)
+    {
+      unsigned int offset = ptr - variable_buffer;
+      variable_buffer_length = variable_buffer_length <= 1024
+                             ? 2048 : variable_buffer_length * 4;
+      if (variable_buffer_length < newlen + 100)
+          variable_buffer_length = (newlen + 100 + 1023) & ~1023U;
+      variable_buffer = xrealloc (variable_buffer, variable_buffer_length);
+      ptr = variable_buffer + offset;
+    }
+
+# ifndef _MSC_VER
+  switch (length)
+    {
+      case 4: ptr[3] = string[3];
+      case 3: ptr[2] = string[2];
+      case 2: ptr[1] = string[1];
+      case 1: ptr[0] = string[0];
+      case 0:
+          break;
+      default:
+          memcpy (ptr, string, length);
+          break;
+    }
+# else
+  memcpy (ptr, string, length);
+# endif
+  return ptr + length;
+}
+
+#endif /* KMK */
 char *variable_expand (const char *line);
 char *variable_expand_for_file (const char *line, struct file *file);
 #ifdef CONFIG_WITH_COMMANDS_FUNC

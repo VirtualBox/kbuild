@@ -44,9 +44,14 @@ const struct floc **expanding_var = &reading_file;
 
 #define VARIABLE_BUFFER_ZONE    5
 
+#ifndef KMK
 static unsigned int variable_buffer_length;
+#else
+unsigned int variable_buffer_length;
+#endif
 char *variable_buffer;
 
+#ifndef KMK
 /* Subroutine of variable_expand and friends:
    The text to add is LENGTH chars starting at STRING to the variable_buffer.
    The text is added to the buffer at PTR, and the updated pointer into
@@ -62,16 +67,9 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
   if ((newlen + VARIABLE_BUFFER_ZONE) > variable_buffer_length)
     {
       unsigned int offset = ptr - variable_buffer;
-#ifdef KMK
-      variable_buffer_length = variable_buffer_length <= 1024
-                             ? 2048 : variable_buffer_length * 4;
-      if (variable_buffer_length < newlen + 100)
-          variable_buffer_length = (newlen + 100 + 1023) & ~1023U;
-#else
       variable_buffer_length = (newlen + 100 > 2 * variable_buffer_length
                                ? newlen + 100
                                : 2 * variable_buffer_length);
-#endif
       variable_buffer = xrealloc (variable_buffer, variable_buffer_length);
       ptr = variable_buffer + offset;
     }
@@ -79,6 +77,7 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
   memcpy (ptr, string, length);
   return ptr + length;
 }
+#endif
 
 /* Return a pointer to the beginning of the variable buffer.  */
 
