@@ -1421,7 +1421,18 @@ eval (struct ebuffer *ebuf, int set_default)
           {
             /* Put all the prerequisites here; they'll be parsed later.  */
             deps = alloc_dep ();
+#ifndef CONFIG_WITH_VALUE_LENGTH
             deps->name = strcache_add_len (beg, end - beg + 1);
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+            {
+              /* Make sure the strcache_add_len input is terminated so it
+                 doesn't have to make a temporary copy on the stack. */
+              char saved = end[1];
+              ((char *)end)[1] = '\0';
+            deps->name = strcache_add_len (beg, end - beg + 1);
+              ((char *)end)[1] = saved;
+            }
+#endif /* CONFIG_WITH_VALUE_LENGTH */
           }
         else
           deps = 0;
@@ -2966,9 +2977,18 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 	  name = strcache_add_len (qbase, p1 - qbase);
 	  free (qbase);
 	}
-#else
+#elif !defined(CONFIG_WITH_VALUE_LENGTH)
 	name = strcache_add_len (q, p - q);
-#endif
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+       {
+         /* Make sure it's terminated, strcache_add_len has to make a
+            temp copy on the stack otherwise. */
+         char saved = *p;
+         *p = '\0';
+         name = strcache_add_len (q, p - q);
+         *p = saved;
+       }
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
       /* Add it to the front of the chain.  */
       new1 = xmalloc (size);
