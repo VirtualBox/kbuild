@@ -55,8 +55,18 @@ file_hash_2 (const void *key)
 static int
 file_hash_cmp (const void *x, const void *y)
 {
+#ifdef KMK
+ /* since the names live in the strcache, there is a raging likelylood
+    that we'll match on the string pointer.  Which is wee bit faster...  */
+ struct file const *xf = ((struct file const *) x);
+ struct file const *yf = ((struct file const *) y);
+  if (xf->hname == yf->hname)
+    return 0;
+  return_ISTRING_COMPARE (xf->hname, yf->hname);
+#else
   return_ISTRING_COMPARE (((struct file const *) x)->hname,
 			  ((struct file const *) y)->hname);
+#endif
 }
 
 #ifndef	FILE_BUCKETS
