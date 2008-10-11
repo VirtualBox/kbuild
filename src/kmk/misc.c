@@ -488,9 +488,32 @@ lindex (const char *s, const char *limit, int c)
 char *
 end_of_token (const char *s)
 {
+#ifdef KMK
+    for (;;)
+      {
+        unsigned char ch0, ch1, ch2, ch3;
+
+        ch0 = *s;
+        if (MY_PREDICT_FALSE(isblank(ch0) || ch0 == '\0'))
+          return (char *)s;
+        ch1 = s[1];
+        if (MY_PREDICT_FALSE(isblank(ch1) || ch1 == '\0'))
+          return (char *)s + 1;
+        ch2 = s[2];
+        if (MY_PREDICT_FALSE(isblank(ch2) || ch2 == '\0'))
+          return (char *)s + 2;
+        ch3 = s[3];
+        if (MY_PREDICT_FALSE(isblank(ch3) || ch3 == '\0'))
+          return (char *)s + 3;
+
+        s += 4;
+      }
+
+#else
   while (*s != '\0' && !isblank ((unsigned char)*s))
     ++s;
   return (char *)s;
+#endif
 }
 
 #ifdef WINDOWS32
@@ -528,9 +551,32 @@ end_of_token_w32 (const char *s, char stopchar)
 char *
 next_token (const char *s)
 {
+#ifdef KMK
+  for (;;)
+    {
+      unsigned char ch0, ch1, ch2, ch3;
+
+      ch0 = *s;
+      if (MY_PREDICT_FALSE(!isblank(ch0)))
+          return (char *)s;
+      ch1 = s[1];
+      if (MY_PREDICT_FALSE(!isblank(ch1)))
+        return (char *)s + 1;
+      ch2 = s[2];
+      if (MY_PREDICT_FALSE(!isblank(ch2)))
+        return (char *)s + 2;
+      ch3 = s[3];
+      if (MY_PREDICT_TRUE(!isblank(ch3)))
+        return (char *)s + 3;
+
+      s += 4;
+    }
+
+#else  /* !KMK */
   while (isblank ((unsigned char)*s))
     ++s;
   return (char *)s;
+#endif /* !KMK */
 }
 
 /* Find the next token in PTR; return the address of it, and store the length
