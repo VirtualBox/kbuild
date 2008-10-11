@@ -756,13 +756,6 @@ expand_argument (const char *str, const char *end)
 #ifndef CONFIG_WITH_VALUE_LENGTH
   if (!end || *end == '\0')
     return allocated_variable_expand (str);
-#else
-  if (!end)
-      return allocated_variable_expand_2 (str, ~0U, NULL);
-  if (*end == '\0')
-    return allocated_variable_expand_2 (str, end - str, NULL);
-#endif
-
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
   {
     const char saved_char = *end;
@@ -786,6 +779,11 @@ expand_argument (const char *str, const char *end)
   return allocated_variable_expand_2 (tmp, end - str, NULL);
 # endif
 #endif
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+  if (!end)
+      return allocated_variable_expand_2 (str, ~0U, NULL);
+  return allocated_variable_expand_2 (str, end - str, NULL);
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 }
 
 /* Expand LINE for FILE.  Error messages refer to the file and line where
