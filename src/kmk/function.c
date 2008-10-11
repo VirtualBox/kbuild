@@ -2726,7 +2726,7 @@ comp_vars_ne (char *o, const char *s1, const char *e1, const char *s2, const cha
 
         /* emit the result. */
         if (s1 == e1 && s2 == e2)
-          o = variable_buffer_output (o, "", 1);
+          o = variable_buffer_output (o, "", 1) - 1; /** @todo check why this was necessary back the... */
         else
           o = variable_buffer_output (o, ne_retval, strlen (ne_retval));
       }
@@ -2861,7 +2861,7 @@ func_comp_vars (char *o, char **argv, const char *funcname)
       || memcmp (s1, s2, e1 - s1))
       o = comp_vars_ne (o, s1, e1, s2, e2, argv[2], funcname);
   else
-      o = variable_buffer_output (o, "", 1);        /* eq */
+      o = variable_buffer_output (o, "", 1) - 1;    /* eq */ /** @todo check why this was necessary back the... */
   if (a1)
     free (a1);
   if (a2)
