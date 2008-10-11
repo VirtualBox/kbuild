@@ -502,6 +502,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
       o = variable_buffer_output (o, string, length);
       o = variable_buffer_output (o, "\0", 2);
       *eolp = o - 2;
+      assert (strchr (variable_buffer + line_offset, '\0') == *eolp);
       return (variable_buffer + line_offset);
     }
 
@@ -703,6 +704,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 
   o = variable_buffer_output (o, "\0", 2); /* KMK: compensate for the strlen + 1 that was removed above. */
   *eolp = o - 2;
+  assert (strchr (variable_buffer + line_offset, '\0') == *eolp);
   return (variable_buffer + line_offset);
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
