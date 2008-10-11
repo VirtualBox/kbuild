@@ -108,7 +108,6 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 # ifdef _MSC_VER
 #  define inline _inline
 typedef signed int int32_t;
-typedef signed short int int16_t;
 # endif
 static inline unsigned long variable_hash_2i(register const char *var, register int length)
 {
@@ -338,6 +337,7 @@ variable_hash_2 (const void *keyv)
 #endif
 }
 
+#ifndef VARIABLE_HASH
 static int
 variable_hash_cmp (const void *xv, const void *yv)
 {
@@ -346,8 +346,204 @@ variable_hash_cmp (const void *xv, const void *yv)
   int result = x->length - y->length;
   if (result)
     return result;
-#ifdef VARIABLE_HASH
-#ifdef VARIABLE_HASH_STRICT /* bird */
+  return_STRING_N_COMPARE (x->name, y->name, x->length);
+}
+#else /* VARIABLE_HASH */
+
+# ifdef __GNUC__
+#  define PREDICT_TRUE(expr)  __builtin_expect(!!(expr), 1)
+#  define PREDICT_FALSE(expr) __builtin_expect(!!(expr), 0)
+# else
+#  define PREDICT_TRUE(expr)  (expr)
+#  define PREDICT_FALSE(expr) (expr)
+# endif
+
+inline static int
+variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
+{
+  /* short string compare - ~50% of the kBuild calls. */
+  assert ( !((size_t)ys & 3) );
+  if (!((size_t)xs & 3))
+    {
+      /* aligned */
+      int result;
+      switch (length)
+        {
+          case 8:
+              result  = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 7:
+              result  = xs[6] - ys[6];
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 6:
+              result  = xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 5:
+              result  = xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 4:
+              return *(int32_t*)xs - *(int32_t*)ys;
+          case 3:
+              result  = xs[2] - ys[2];
+              result |= xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 2:
+              result  = xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 1:
+              return *xs - *ys;
+          case 0:
+              return 0;
+        }
+    }
+  else
+    {
+      /* unaligned */
+      int result = 0;
+      switch (length)
+        {
+          case 8: result |= xs[7] - ys[7];
+          case 7: result |= xs[6] - ys[6];
+          case 6: result |= xs[5] - ys[5];
+          case 5: result |= xs[4] - ys[4];
+          case 4: result |= xs[3] - ys[3];
+          case 3: result |= xs[2] - ys[2];
+          case 2: result |= xs[1] - ys[1];
+          case 1: result |= xs[0] - ys[0];
+          case 0:
+              return result;
+        }
+    }
+
+  /* memcmp for longer strings */
+# ifdef __GNUC__
+  return __builtin_memcmp (xs, ys, length);
+# else
+  return memcmp (xs, ys, length);
+# endif
+}
+
+inline static int
+variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
+{
+  assert ( !((size_t)ys & 3) );
+  if (!((size_t)xs & 3))
+    {
+      int result;
+      /* aligned */
+      while (length >= 8)
+        {
+          result  = *(int32_t*)xs - *(int32_t*)ys;
+          result |= *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+          if (PREDICT_FALSE(result))
+            return result;
+          xs += 8;
+          ys += 8;
+          length -= 8;
+        }
+      switch (length)
+        {
+          case 7:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[6] - ys[6];
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              return result;
+          case 6:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              return result;
+          case 5:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[4] - ys[4];
+              return result;
+          case 4:
+              return *(int32_t*)xs - *(int32_t*)ys;
+          case 3:
+              result  = xs[2] - ys[2];
+              result |= xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 2:
+              result  = xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 1:
+              return *xs - *ys;
+          default:
+          case 0:
+              return 0;
+        }
+    }
+  else
+    {
+      /* unaligned */
+      int result;
+      while (length >= 8)
+        {
+#if defined(__i386__) || defined(__x86_64__)
+          result  = (  ((int32_t)xs[3] << 24)
+                     | ((int32_t)xs[2] << 16)
+                     | ((int32_t)xs[1] <<  8)
+                     |           xs[0]       )
+                  - *(int32_t*)ys;
+          result |= (  ((int32_t)xs[7] << 24)
+                     | ((int32_t)xs[6] << 16)
+                     | ((int32_t)xs[5] <<  8)
+                     |           xs[4]       )
+                  - *(int32_t*)(ys + 4);
+#else
+          result  = xs[3] - ys[3];
+          result |= xs[2] - ys[2];
+          result |= xs[1] - ys[1];
+          result |= xs[0] - ys[0];
+          result |= xs[7] - ys[7];
+          result |= xs[6] - ys[6];
+          result |= xs[5] - ys[5];
+          result |= xs[4] - ys[4];
+#endif
+          if (PREDICT_FALSE(result))
+            return result;
+          xs += 8;
+          ys += 8;
+          length -= 8;
+        }
+      result = 0;
+      switch (length)
+        {
+          case 7: result |= xs[6] - ys[6];
+          case 6: result |= xs[5] - ys[5];
+          case 5: result |= xs[4] - ys[4];
+          case 4: result |= xs[3] - ys[3];
+          case 3: result |= xs[2] - ys[2];
+          case 2: result |= xs[1] - ys[1];
+          case 1: result |= xs[0] - ys[0];
+              return result;
+          default:
+          case 0:
+              return 0;
+        }
+    }
+}
+
+inline static int
+variable_hash_cmp (const void *xv, const void *yv)
+{
+  struct variable const *x = (struct variable const *) xv;
+  struct variable const *y = (struct variable const *) yv;
+  int result;
+
+# ifdef VARIABLE_HASH_STRICT
   if (x->hash1 != variable_hash_1i (x->name, x->length))
     __asm__("int3");
   if (x->hash2 && x->hash2 != variable_hash_2i (x->name, x->length))
@@ -356,67 +552,34 @@ variable_hash_cmp (const void *xv, const void *yv)
     __asm__("int3");
   if (y->hash2 && y->hash2 != variable_hash_2i (y->name, y->length))
     __asm__("int3");
-#endif
-  /* hash 1 */
-  result = x->hash1 - y->hash1;
-  if (result)
+# endif /* VARIABLE_HASH_STRICT */
+
+  /* hash 1 & length */
+  result = (x->hash1 - y->hash1)
+         | (x->length - y->length);
+  if (PREDICT_TRUE(result))
     return result;
-#endif
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS /* bird: speed */
-  {
-    const char *xs = x->name;
-    const char *ys = y->name;
-    switch (x->length)
-      {
-        case 8:
-            result = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
-            if (result)
-              return result;
-            return *(int32_t*)xs - *(int32_t*)ys;
-        case 7:
-            result = xs[6] - ys[6];
-            if (result)
-                return result;
-        case 6:
-            result = *(int32_t*)xs - *(int32_t*)ys;
-            if (result)
-                return result;
-            return *(int16_t*)(xs + 4) - *(int16_t*)(ys + 4);
-        case 5:
-            result = xs[4] - ys[4];
-            if (result)
-                return result;
-        case 4:
-            return *(int32_t*)xs - *(int32_t*)ys;
-        case 3:
-            result = xs[2] - ys[2];
-            if (result)
-                return result;
-        case 2:
-            return *(int16_t*)xs - *(int16_t*)ys;
-        case 1:
-            return *xs - *ys;
-        case 0:
-            return 0;
-      }
-  }
-#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
-#ifdef VARIABLE_HASH
-  /* hash 2 */
-  if (!x->hash2)
-    ((struct variable *)x)->hash2 = variable_hash_2i (x->name, x->length);
-  if (!y->hash2)
-    ((struct variable *)y)->hash2 = variable_hash_2i (y->name, y->length);
-  result = x->hash2 - y->hash2;
-  if (result)
-    return result;
-#endif
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
-  return memcmp (x->name, y->name, x->length);
-#else
-  return_STRING_N_COMPARE (x->name, y->name, x->length);
-#endif
+
+# if 0 /* too few hits at this point. */
+  /* hash 2, but only if X has it since lookup_variable will give us an X
+     which resides on the stack and which result will be lost to us. */
+  if (x->hash2)
+    {
+      if (!y->hash2)
+        ((struct variable *)y)->hash2 = variable_hash_2i (y->name, y->length);
+      result = x->hash2 - y->hash2;
+      if (result)
+        return result;
+    }
+# endif
+
+# if 0
+  return variable_hash_cmp_2_memcmp(x->name, y->name, x->length);
+# else
+  return variable_hash_cmp_2_inlined(x->name, y->name, x->length);
+# endif
 }
+#endif /* VARIABLE_HASH */
 
 #ifndef	VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? (insanely high, but wtf, it gets the collitions down) */
@@ -735,7 +898,7 @@ lookup_variable (const char *name, unsigned int length)
                 {
 # ifdef VARIABLE_HASH_STRICT /* bird */
                   struct variable *v2 = (struct variable *) hash_find_item ((struct hash_table *) &setlist->set->table, &var_key);
-                  assert(v2 == v);
+                  assert (v2 == v);
 # endif
                   return v->special ? handle_special_var (v) : v;
                 }
