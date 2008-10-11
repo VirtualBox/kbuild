@@ -350,14 +350,6 @@ variable_hash_cmp (const void *xv, const void *yv)
 }
 #else /* VARIABLE_HASH */
 
-# ifdef __GNUC__
-#  define PREDICT_TRUE(expr)  __builtin_expect(!!(expr), 1)
-#  define PREDICT_FALSE(expr) __builtin_expect(!!(expr), 0)
-# else
-#  define PREDICT_TRUE(expr)  (expr)
-#  define PREDICT_FALSE(expr) (expr)
-# endif
-
 inline static int
 variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
 {
@@ -444,7 +436,7 @@ variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length
         {
           result  = *(int32_t*)xs - *(int32_t*)ys;
           result |= *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
-          if (PREDICT_FALSE(result))
+          if (MY_PREDICT_FALSE(result))
             return result;
           xs += 8;
           ys += 8;
@@ -512,7 +504,7 @@ variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length
           result |= xs[5] - ys[5];
           result |= xs[4] - ys[4];
 #endif
-          if (PREDICT_FALSE(result))
+          if (MY_PREDICT_FALSE(result))
             return result;
           xs += 8;
           ys += 8;
@@ -557,7 +549,7 @@ variable_hash_cmp (const void *xv, const void *yv)
   /* hash 1 & length */
   result = (x->hash1 - y->hash1)
          | (x->length - y->length);
-  if (PREDICT_TRUE(result))
+  if (MY_PREDICT_TRUE(result))
     return result;
 
 # if 0 /* too few hits at this point. */

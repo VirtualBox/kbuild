@@ -543,61 +543,69 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
 #ifdef KMK
   const char *p = *ptr;
   const char *e;
-  unsigned char ch;
 
   /* skip blanks */
   for (;;)
     {
-      ch = *p;
-      if (!isblank(ch))
-        break;
-      ch = p[1];
-      if (!isblank(ch))
+      unsigned char ch0, ch1, ch2, ch3;
+
+      ch0 = *p;
+      if (MY_PREDICT_FALSE(!isblank(ch0)))
         {
+          if (!ch0)
+              return NULL;
+          break;
+        }
+      ch1 = p[1];
+      if (MY_PREDICT_FALSE(!isblank(ch1)))
+        {
+          if (!ch1)
+              return NULL;
           p += 1;
           break;
         }
-      ch = p[2];
-      if (!isblank(ch))
+      ch2 = p[2];
+      if (MY_PREDICT_FALSE(!isblank(ch2)))
         {
+          if (!ch2)
+              return NULL;
           p += 2;
           break;
         }
-      ch = p[3];
-      if (!isblank(ch))
+      ch3 = p[3];
+      if (MY_PREDICT_TRUE(!isblank(ch3)))
         {
+          if (!ch3)
+              return NULL;
           p += 3;
           break;
         }
       p += 4;
-    }
-  if (!ch)
-    {
-      *ptr = p;
-      return 0;
     }
 
   /* skip ahead until EOS or blanks. */
   e = p + 1;
   for (;;)
     {
-      ch = *e;
-      if (isblank(ch) || ch == '\0')
+      unsigned char ch0, ch1, ch2, ch3;
+
+      ch0 = *e;
+      if (MY_PREDICT_FALSE(isblank(ch0) || ch0 == '\0'))
         break;
-      ch = e[1];
-      if (isblank(ch) || ch == '\0')
+      ch1 = e[1];
+      if (MY_PREDICT_FALSE(isblank(ch1) || ch1 == '\0'))
         {
           e += 1;
           break;
         }
-      ch = e[2];
-      if (isblank(ch) || ch == '\0')
+      ch2 = e[2];
+      if (MY_PREDICT_FALSE(isblank(ch2) || ch2 == '\0'))
         {
           e += 2;
           break;
         }
-      ch = e[3];
-      if (isblank(ch) || ch == '\0')
+      ch3 = e[3];
+      if (MY_PREDICT_FALSE(isblank(ch3) || ch3 == '\0'))
         {
           e += 3;
           break;
