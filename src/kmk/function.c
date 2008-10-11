@@ -286,9 +286,19 @@ patsubst_expand_pat (char *o, const char *text,
 	  doneany = 1;
 	}
     }
+#ifndef CONFIG_WITH_VALUE_LENGTH
   if (doneany)
     /* Kill the last space.  */
     --o;
+#else
+  /* Kill the last space and make sure there is a terminator there
+     so that strcache_add_len doesn't have to do a lot of exacty work
+     when expand_deps sends the output its way. */
+  if (doneany)
+    *--o = '\0';
+  else
+    o = variable_buffer_output (o, "\0", 1) - 1;
+#endif
 
   return o;
 }
