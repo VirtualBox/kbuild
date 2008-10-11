@@ -484,6 +484,8 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 
   if (length < 0)
     length = strlen (string);
+  else
+    MY_ASSERT_MSG (string + length == (p1 = memchr (string, '\0', length)) || !p1, ("len=%ld p1=%p %s\n", length, p1, line));
 
   /* Simple 1: Emptry string. */
 
@@ -548,6 +550,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	      {
 		o = op;
 		p = begp;
+                assert (!memchr (variable_buffer + line_offset, '\0', o - variable_buffer + line_offset));
 		break;
 	      }
 
@@ -704,7 +707,10 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 
   o = variable_buffer_output (o, "\0", 2); /* KMK: compensate for the strlen + 1 that was removed above. */
   *eolp = o - 2;
-  assert (strchr (variable_buffer + line_offset, '\0') == *eolp);
+  MY_ASSERT_MSG (strchr (variable_buffer + line_offset, '\0') == *eolp,
+                 ("expected=%d actual=%d\nlength=%ld string=%.*s\n",
+                  (int)(*eolp - variable_buffer + line_offset), (int)strlen(variable_buffer + line_offset),
+                  length, (int)length, string));
   return (variable_buffer + line_offset);
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */

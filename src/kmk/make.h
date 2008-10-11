@@ -149,6 +149,24 @@ unsigned int get_path_max (void);
 # define CHAR_BIT 8
 #endif
 
+#ifdef KMK
+# ifdef _MSC_VER
+#  define MY_INLINE  _inline static
+# elif defined(__GNUC__)
+#  define MY_INLINE  static __inline__
+# else
+#  define MY_INLINE  static
+# endif
+#endif /* KMK */
+#if defined(CONFIG_WITH_VALUE_LENGTH) || defined(KMK)
+# ifndef NDEBUG
+#  define MY_ASSERT_MSG(expr, printfargs) \
+    do { if (!(expr)) { printf printfargs; assert(expr); } } while (0)
+# else
+#  define MY_ASSERT_MSG(expr, printfargs)   do { } while (0)
+# endif
+#endif
+
 /* Nonzero if the integer type T is signed.  */
 #define INTEGER_TYPE_SIGNED(t) ((t) -1 < 0)
 

@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1832 2008-10-11 15:10:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1834 2008-10-11 19:07:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -49,13 +49,6 @@
 #include <stdarg.h>
 #ifndef va_copy
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
-#endif
-#ifdef _MSC_VER
-# define MY_INLINE  _inline static
-#elif defined(__GNUC__)
-# define MY_INLINE  static __inline__
-#else
-# define MY_INLINE  static
 #endif
 
 
