@@ -540,6 +540,78 @@ next_token (const char *s)
 char *
 find_next_token (const char **ptr, unsigned int *lengthptr)
 {
+#ifdef KMK
+  const char *p = *ptr;
+  const char *e;
+  unsigned char ch;
+
+  /* skip blanks */
+  for (;;)
+    {
+      ch = *p;
+      if (!isblank(ch))
+        break;
+      ch = p[1];
+      if (!isblank(ch))
+        {
+          p += 1;
+          break;
+        }
+      ch = p[2];
+      if (!isblank(ch))
+        {
+          p += 2;
+          break;
+        }
+      ch = p[3];
+      if (!isblank(ch))
+        {
+          p += 3;
+          break;
+        }
+      p += 4;
+    }
+  if (!ch)
+    {
+      *ptr = p;
+      return 0;
+    }
+
+  /* skip ahead until EOS or blanks. */
+  e = p + 1;
+  for (;;)
+    {
+      ch = *e;
+      if (isblank(ch) || ch == '\0')
+        break;
+      ch = e[1];
+      if (isblank(ch) || ch == '\0')
+        {
+          e += 1;
+          break;
+        }
+      ch = e[2];
+      if (isblank(ch) || ch == '\0')
+        {
+          e += 2;
+          break;
+        }
+      ch = e[3];
+      if (isblank(ch) || ch == '\0')
+        {
+          e += 3;
+          break;
+        }
+      e += 4;
+    }
+
+  *ptr = e;
+  if (lengthptr != 0)
+    *lengthptr = e - p;
+
+  return (char *)p;
+
+#else
   const char *p = next_token (*ptr);
 
   if (*p == '\0')
@@ -550,6 +622,7 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
     *lengthptr = *ptr - p;
 
   return (char *)p;
+#endif
 }
 
 
