@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1831 2008-10-11 13:11:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1832 2008-10-11 15:10:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -50,6 +50,14 @@
 #ifndef va_copy
 # define va_copy(dst, src) do {(dst) = (src);} while (0)
 #endif
+#ifdef _MSC_VER
+# define MY_INLINE  _inline static
+#elif defined(__GNUC__)
+# define MY_INLINE  static __inline__
+#else
+# define MY_INLINE  static
+#endif
+
 
 
 /*******************************************************************************
@@ -417,25 +425,25 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcc
     }
 }
 
-
 /**
  * Gets a variable that must exist.
  * Will cause a fatal failure if the variable doesn't exist.
  *
  * @returns Pointer to the variable.
  * @param   pszName     The variable name.
+ * @param   cchName     The name length.
  */
-static struct variable *
-kbuild_get_variable(const char *pszName)
+MY_INLINE struct variable *
+kbuild_get_variable_n(const char *pszName, size_t cchName)
 {
 #ifndef NDEBUG
     int i;
 #endif
-    struct variable *pVar = lookup_variable(pszName, strlen(pszName));
+    struct variable *pVar = lookup_variable(pszName, cchName);
     if (!pVar)
-        fatal(NILF, _("variable `%s' isn't defined!"), pszName);
+        fatal(NILF, _("variable `%.*s' isn't defined!"), (int)cchName, pszName);
     if (pVar->recursive)
-        fatal(NILF, _("variable `%s' is defined as `recursive' instead of `simple'!"), pszName);
+        fatal(NILF, _("variable `%.*s' is defined as `recursive' instead of `simple'!"), (int)cchName, pszName);
 #ifndef NDEBUG
     i = strlen(pVar->value);
     if (i != pVar->value_length)
@@ -449,6 +457,22 @@ kbuild_get_variable(const char *pszName)
 #endif
     return pVar;
 }
+
+
+#if 0 /* unused */
+/**
+ * Gets a variable that must exist.
+ * Will cause a fatal failure if the variable doesn't exist.
+ *
+ * @returns Pointer to the variable.
+ * @param   pszName     The variable name.
+ */
+static struct variable *
+kbuild_get_variable(const char *pszName)
+{
+    return kbuild_get_variable_n(pszName, strlen(pszName));
+}
+#endif
 
 
 /**
@@ -542,11 +566,12 @@ kbuild_simplify_variable(struct variable *pVar)
  *
  * @returns Pointer to the variable. NULL if not found.
  * @param   pszName     The variable name.
+ * @param   cchName     The name length.
  */
-static struct variable *
-kbuild_lookup_variable(const char *pszName)
+MY_INLINE struct variable *
+kbuild_lookup_variable_n(const char *pszName, size_t cchName)
 {
-    struct variable *pVar = lookup_variable(pszName, strlen(pszName));
+    struct variable *pVar = lookup_variable(pszName, cchName);
     if (pVar)
     {
 #ifndef NDEBUG
@@ -569,6 +594,39 @@ kbuild_lookup_variable(const char *pszName)
 
 
 /**
+ * Looks up a variable.
+ * The value_length field is valid upon successful return.
+ *
+ * @returns Pointer to the variable. NULL if not found.
+ * @param   pszName     The variable name.
+ */
+MY_INLINE struct variable *
+kbuild_lookup_variable(const char *pszName)
+{
+    return kbuild_lookup_variable_n(pszName, strlen(pszName));
+}
+
+
+/**
+ * Looks up a variable and applies default a path to all relative paths.
+ * The value_length field is valid upon successful return.
+ *
+ * @returns Pointer to the variable. NULL if not found.
+ * @param   pDefPath    The default path.
+ * @param   pszName     The variable name.
+ * @param   cchName     The name length.
+ */
+MY_INLINE struct variable *
+kbuild_lookup_variable_defpath_n(struct variable *pDefPath, const char *pszName, size_t cchName)
+{
+    struct variable *pVar = kbuild_lookup_variable_n(pszName, cchName);
+    if (pVar && pDefPath)
+        kbuild_apply_defpath(pDefPath, &pVar->value, &pVar->value_length, &pVar->value_alloc_len, 1);
+    return pVar;
+}
+
+
+/**
  * Looks up a variable and applies default a path to all relative paths.
  * The value_length field is valid upon successful return.
  *
@@ -576,7 +634,7 @@ kbuild_lookup_variable(const char *pszName)
  * @param   pDefPath    The default path.
  * @param   pszName     The variable name.
  */
-static struct variable *
+MY_INLINE struct variable *
 kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
 {
     struct variable *pVar = kbuild_lookup_variable(pszName);
@@ -588,7 +646,7 @@ kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
 
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
  * will be substituted with the values of the variables in the va list. */
-static struct variable *
+struct variable *
 kbuild_lookup_variable_fmt_va(struct variable *pDefPath, size_t cchName, const char *pszNameFmt, va_list va)
 {
     va_list va2;
@@ -617,7 +675,7 @@ kbuild_lookup_variable_fmt_va(struct variable *pDefPath, size_t cchName, const c
         }
         assert(*pszFmt == '%');
     };
-    pszName = alloca(cchName);
+    pszName = alloca(cchName + 1);
 
     /* second pass format it. */
     pszFmt = pszNameFmt;
@@ -645,27 +703,26 @@ kbuild_lookup_variable_fmt_va(struct variable *pDefPath, size_t cchName, const c
     va_end(va2);
 
     if (pDefPath)
-        return kbuild_lookup_variable_defpath(pDefPath, pszName);
-    return kbuild_lookup_variable(pszName);
+        return kbuild_lookup_variable_defpath_n(pDefPath, pszName, psz - pszName - 1);
+    return kbuild_lookup_variable_n(pszName, psz - pszName - 1);
 }
 
 
-/** Helper for use with kbuild_lookup_variable_fmt. */
-#define ST(strconst) sizeof(strconst), strconst
+/** Helper for passing a string constant to kbuild_lookup_variable_fmt or
+ *  kbuild_lookup_variable_NN. */
+#define ST(strconst) strconst, sizeof(strconst) - 1
+/** Helper for passing a variable to kbuild_lookup_variable_NN. */
+#define VT(var)      (var)->value_length, (var)->value
 
 
 /** Same as kbuild_lookup_variable except that a '%s' in the name string
  * will be substituted with the values of the variables in the ellipsis.  */
-#ifdef _MSC_VER
-_inline struct variable *
-#else
-static __inline__ struct variable *
-#endif
-kbuild_lookup_variable_fmt(struct variable *pDefPath, size_t cchNameFmt, const char *pszNameFmt, ...)
+MY_INLINE struct variable *
+kbuild_lookup_variable_fmt(struct variable *pDefPath, const char *pszNameFmt, size_t cchNameFmt, ...)
 {
     struct variable *pVar;
     va_list va;
-    va_start(va, pszNameFmt);
+    va_start(va, cchNameFmt);
     pVar = kbuild_lookup_variable_fmt_va(pDefPath, cchNameFmt, pszNameFmt, va);
     va_end(va);
     return pVar;
@@ -679,50 +736,309 @@ static struct variable *
 kbuild_first_prop(struct variable *pTarget, struct variable *pSource,
                   struct variable *pTool, struct variable *pType,
                   struct variable *pBldTrg, struct variable *pBldTrgArch,
-                  const char *pszPropF1, const char *pszPropF2, const char *pszVarName)
+                  const char *pszPropF1, char cchPropF1,
+                  const char *pszPropF2, char cchPropF2,
+                  const char *pszVarName)
 {
     struct variable *pVar;
-    struct variable PropF1, PropF2;
+    size_t cchBuf;
+    char *pszBuf;
+    char *psz, *psz1, *psz2, *psz3, *psz4;
 
-    PropF1.value = (char *)pszPropF1;
-    PropF1.value_length = strlen(pszPropF1);
+    /* calc and allocate a too big name buffer. */
+    cchBuf = cchPropF2 + 1
+           + cchPropF1 + 1
+           + pTarget->value_length + 1
+           + pSource->value_length + 1
+           + (pTool ? pTool->value_length + 1 : 0)
+           + pType->value_length + 1
+           + pBldTrg->value_length + 1
+           + pBldTrgArch->value_length + 1;
+    pszBuf = xmalloc(cchBuf);
 
-    PropF2.value = (char *)pszPropF2;
-    PropF2.value_length = strlen(pszPropF2);
+#if 1
+# define my_memcpy(dst, src, len) \
+    do { \
+        if (len > 4) \
+            memcpy(dst, src, len); \
+        else \
+            switch (len) \
+            { \
+                case 8: dst[7] = src[7]; \
+                case 7: dst[6] = src[6]; \
+                case 6: dst[5] = src[5]; \
+                case 5: dst[4] = src[4]; \
+                case 4: dst[3] = src[3]; \
+                case 3: dst[2] = src[2]; \
+                case 2: dst[1] = src[1]; \
+                case 1: dst[0] = src[0]; \
+                case 0: break; \
+            } \
+    } while (0)
+#elif defined(__GNUC__)
+# define my_memcpy __builtin_memcpy
+#elif defined(_MSC_VER)
+# pragma instrinic(memcpy)
+# define my_memcpy memcpy
+#endif
+#define ADD_VAR(pVar)           do { my_memcpy(psz, (pVar)->value, (pVar)->value_length); psz += (pVar)->value_length; } while (0)
+#define ADD_STR(pszStr, cchStr) do { my_memcpy(psz, (pszStr), (cchStr)); psz += (cchStr); } while (0)
+#define ADD_CSTR(pszStr)        do { my_memcpy(psz, pszStr, sizeof(pszStr) - 1); psz += sizeof(pszStr) - 1; } while (0)
+#define ADD_CH(ch)              do { *psz++ = (ch); } while (0)
 
-    if (    (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%%.%.%"),pTarget, pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%%.%"),  pTarget, pSource, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%%"),    pTarget, pSource, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%.%.%"), pTarget, pSource, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%.%"),   pTarget, pSource, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%_%"),     pTarget, pSource, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%.%.%"),  pSource, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%.%"),    pSource, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%"),      pSource, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%.%.%"),   pSource, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%.%"),     pSource, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%"),       pSource, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%.%.%"),  pTarget, pType, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%.%"),    pTarget, pType, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%%"),      pTarget, pType, &PropF2))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%.%.%"),   pTarget, &PropF2, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%.%"),     pTarget, &PropF2, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%_%"),       pTarget, &PropF2))
+    /*
+     * $(target)_$(source)_$(type)$(propf2).$(bld_trg).$(bld_trg_arch)
+     */
+    psz = pszBuf;
+    ADD_VAR(pTarget);
+    ADD_CH('_');
+    ADD_VAR(pSource);
+    ADD_CH('_');
+    psz2 = psz;
+    ADD_VAR(pType);
+    ADD_STR(pszPropF2, cchPropF2);
+    psz3 = psz;
+    ADD_CH('.');
+    ADD_VAR(pBldTrg);
+    psz4 = psz;
+    ADD_CH('.');
+    ADD_VAR(pBldTrgArch);
+    pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
 
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%%.%.%"),   pTool, pType, &PropF2, pBldTrg, pBldTrgArch)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%%.%"),     pTool, pType, &PropF2, pBldTrg)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%%"),       pTool, pType, &PropF2)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%.%.%"),    pTool, &PropF2, pBldTrg, pBldTrgArch)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%.%"),      pTool, &PropF2, pBldTrg)))
-        ||  (pTool && (pVar = kbuild_lookup_variable_fmt(NULL, ST("TOOL_%_%"),        pTool, &PropF2)))
+    /* $(target)_$(source)_$(type)$(propf2).$(bld_trg) */
+    if (!pVar)
+        pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
 
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%%.%.%"),    pType, &PropF1, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%%.%"),      pType, &PropF1, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%%"),        pType, &PropF1))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%.%.%"),     &PropF1, pBldTrg, pBldTrgArch))
-        ||  (pVar = kbuild_lookup_variable_fmt(NULL, ST("%.%"),       &PropF1, pBldTrg))
-        ||  (pVar = kbuild_lookup_variable(pszPropF1))
-       )
+    /* $(target)_$(source)_$(type)$(propf2) */
+    if (!pVar)
+        pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+
+    /*
+     * $(target)_$(source)_$(propf2).$(bld_trg).$(bld_trg_arch)
+     */
+    if (!pVar)
+    {
+        psz = psz2;
+        ADD_STR(pszPropF2, cchPropF2);
+        psz3 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrg);
+        psz4 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrgArch);
+        pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+        /* $(target)_$(source)_$(propf2).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* $(target)_$(source)_$(propf2) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+    }
+
+
+    /*
+     * $(source)_$(type)$(propf2).$(bld_trg).$(bld_trg_arch)
+     */
+    if (!pVar)
+    {
+        psz = pszBuf;
+        ADD_VAR(pSource);
+        ADD_CH('_');
+        psz2 = psz;
+        ADD_VAR(pType);
+        ADD_STR(pszPropF2, cchPropF2);
+        psz3 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrg);
+        psz4 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrgArch);
+        pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+        /* $(source)_$(type)$(propf2).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* $(source)_$(type)$(propf2) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+
+        /*
+         * $(source)_$(propf2).$(bld_trg).$(bld_trg_arch)
+         */
+        if (!pVar)
+        {
+            psz = psz2;
+            ADD_STR(pszPropF2, cchPropF2);
+            psz3 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrg);
+            psz4 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrgArch);
+            pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+            /* $(source)_$(propf2).$(bld_trg) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+            /* $(source)_$(propf2) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+        }
+    }
+
+    /*
+     * $(target)_$(type)$(propf2).$(bld_trg).$(bld_trg_arch)
+     */
+    if (!pVar)
+    {
+        psz = pszBuf;
+        ADD_VAR(pTarget);
+        ADD_CH('_');
+        psz2 = psz;
+        ADD_VAR(pType);
+        ADD_STR(pszPropF2, cchPropF2);
+        psz3 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrg);
+        psz4 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrgArch);
+        pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+        /* $(target)_$(type)$(propf2).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* $(target)_$(type)$(propf2) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+
+        /* $(target)_$(propf2).$(bld_trg).$(bld_trg_arch) */
+        if (!pVar)
+        {
+            psz = psz2;
+            ADD_STR(pszPropF2, cchPropF2);
+            psz3 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrg);
+            psz4 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrgArch);
+            pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+        }
+
+        /* $(target)_$(propf2).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* $(target)_$(propf2) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+    }
+
+    /*
+     * TOOL_$(tool)_$(type)$(propf2).$(bld_trg).$(bld_trg_arch)
+     */
+    if (!pVar && pTool)
+    {
+        psz = pszBuf;
+        ADD_CSTR("TOOL_");
+        ADD_VAR(pTool);
+        ADD_CH('_');
+        psz2 = psz;
+        ADD_VAR(pType);
+        ADD_STR(pszPropF2, cchPropF2);
+        psz3 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrg);
+        psz4 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrgArch);
+        pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+        /* TOOL_$(tool)_$(type)$(propf2).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* TOOL_$(tool)_$(type)$(propf2) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+
+        /* TOOL_$(tool)_$(propf2).$(bld_trg).$(bld_trg_arch) */
+        if (!pVar)
+        {
+            psz = psz2;
+            ADD_STR(pszPropF2, cchPropF2);
+            psz3 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrg);
+            psz4 = psz;
+            ADD_CH('.');
+            ADD_VAR(pBldTrgArch);
+            pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+            /* TOOL_$(tool)_$(propf2).$(bld_trg) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+            /* TOOL_$(tool)_$(propf2) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+        }
+    }
+
+    /*
+     * $(type)$(propf1).$(bld_trg).$(bld_trg_arch)
+     */
+    if (!pVar)
+    {
+        psz = pszBuf;
+        ADD_VAR(pType);
+        ADD_STR(pszPropF1, cchPropF1);
+        psz3 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrg);
+        psz4 = psz;
+        ADD_CH('.');
+        ADD_VAR(pBldTrgArch);
+        pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf);
+
+        /* $(type)$(propf1).$(bld_trg) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz4 - pszBuf);
+
+        /* $(type)$(propf1) */
+        if (!pVar)
+            pVar = kbuild_lookup_variable_n(pszBuf, psz3 - pszBuf);
+
+        /*
+         * $(propf1).$(bld_trg).$(bld_trg_arch)
+         */
+        if (!pVar)
+        {
+            psz1 = pszBuf + pType->value_length;
+            pVar = kbuild_lookup_variable_n(psz1, psz - psz1);
+
+            /* $(propf1).$(bld_trg) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(psz1, psz4 - psz1);
+
+            /* $(propf1) */
+            if (!pVar)
+                pVar = kbuild_lookup_variable_n(pszPropF1, cchPropF1);
+        }
+    }
+    free(pszBuf);
+#undef ADD_VAR
+#undef ADD_STR
+#undef ADD_CSTR
+#undef ADD_CH
+
+    if (pVar)
     {
         /* strip it */
         char *psz = pVar->value;
@@ -778,7 +1094,9 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
                        struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
     struct variable *pVar = kbuild_first_prop(pTarget, pSource, NULL, pType, pBldTrg, pBldTrgArch,
-                                              "TOOL", "TOOL", pszVarName);
+                                              "TOOL", sizeof("TOOL") - 1,
+                                              "TOOL", sizeof("TOOL") - 1,
+                                              pszVarName);
     if (!pVar)
         fatal(NILF, _("no tool for source `%s' in target `%s'!"), pSource->value, pTarget->value);
     return pVar;
@@ -789,11 +1107,11 @@ kbuild_get_source_tool(struct variable *pTarget, struct variable *pSource, struc
 char *
 func_kbuild_source_tool(char *o, char **argv, const char *pszFuncName)
 {
-    struct variable *pVar = kbuild_get_source_tool(kbuild_get_variable("target"),
-                                                   kbuild_get_variable("source"),
-                                                   kbuild_get_variable("type"),
-                                                   kbuild_get_variable("bld_trg"),
-                                                   kbuild_get_variable("bld_trg_arch"),
+    struct variable *pVar = kbuild_get_source_tool(kbuild_get_variable_n(ST("target")),
+                                                   kbuild_get_variable_n(ST("source")),
+                                                   kbuild_get_variable_n(ST("type")),
+                                                   kbuild_get_variable_n(ST("bld_trg")),
+                                                   kbuild_get_variable_n(ST("bld_trg_arch")),
                                                    argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
@@ -825,7 +1143,9 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
                          struct variable *pBldTrg, struct variable *pBldTrgArch, const char *pszVarName)
 {
     struct variable *pVar = kbuild_first_prop(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch,
-                                              "SUFF_OBJ", "OBJSUFF", pszVarName);
+                                              "SUFF_OBJ", sizeof("SUFF_OBJ") - 1,
+                                              "OBJSUFF",  sizeof("OBJSUFF")  - 1,
+                                              pszVarName);
     if (!pVar)
         fatal(NILF, _("no OBJSUFF attribute or SUFF_OBJ default for source `%s' in target `%s'!"), pSource->value, pTarget->value);
     return pVar;
@@ -836,12 +1156,12 @@ kbuild_get_object_suffix(struct variable *pTarget, struct variable *pSource,
 char *
 func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName)
 {
-    struct variable *pVar = kbuild_get_object_suffix(kbuild_get_variable("target"),
-                                                     kbuild_get_variable("source"),
-                                                     kbuild_get_variable("tool"),
-                                                     kbuild_get_variable("type"),
-                                                     kbuild_get_variable("bld_trg"),
-                                                     kbuild_get_variable("bld_trg_arch"),
+    struct variable *pVar = kbuild_get_object_suffix(kbuild_get_variable_n(ST("target")),
+                                                     kbuild_get_variable_n(ST("source")),
+                                                     kbuild_get_variable_n(ST("tool")),
+                                                     kbuild_get_variable_n(ST("type")),
+                                                     kbuild_get_variable_n(ST("bld_trg")),
+                                                     kbuild_get_variable_n(ST("bld_trg_arch")),
                                                      argv[0]);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
@@ -864,9 +1184,9 @@ _OBJECT_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(basena
 static struct variable *
 kbuild_get_object_base(struct variable *pTarget, struct variable *pSource, const char *pszVarName)
 {
-    struct variable *pPathTarget = kbuild_get_variable("PATH_TARGET");
-    struct variable *pPathRoot   = kbuild_get_variable("PATH_ROOT");
-    struct variable *pPathSubCur = kbuild_get_variable("PATH_SUB_CURRENT");
+    struct variable *pPathTarget = kbuild_get_variable_n(ST("PATH_TARGET"));
+    struct variable *pPathRoot   = kbuild_get_variable_n(ST("PATH_ROOT"));
+    struct variable *pPathSubCur = kbuild_get_variable_n(ST("PATH_SUB_CURRENT"));
     const char *pszSrcPrefix = NULL;
     size_t      cchSrcPrefix = 0;
     size_t      cchSrc = 0;
@@ -1282,7 +1602,9 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
                            struct variable *pType, struct variable *pBldType,
                            struct variable *pBldTrg, struct variable *pBldTrgArch, struct variable *pBldTrgCpu,
                            struct variable *pDefPath,
-                           const char *pszProp, const char *pszVarName, int iDirection)
+                           const char *pszProp, size_t cchProp,
+                           const char *pszVarName, size_t cchVarName,
+                           int iDirection)
 {
     struct variable *pVar;
     unsigned iSdk, iSdkEnd;
@@ -1298,7 +1620,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     struct variable Prop = {0};
     Prop.value = (char *)pszProp;
-    Prop.value_length = strlen(pszProp);
+    Prop.value_length = cchProp;
 
     assert(iDirection == 1 || iDirection == -1);
 
@@ -1523,7 +1845,7 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
     *psz = '\0';
     cchTotal = psz - pszResult;
 
-    pVar = define_variable_vl(pszVarName, strlen(pszVarName), pszResult, cchTotal,
+    pVar = define_variable_vl(pszVarName, cchVarName, pszResult, cchTotal,
                               0 /* take pszResult */ , o_local, 0 /* !recursive */);
     return pVar;
 }
@@ -1533,15 +1855,15 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 char *
 func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
 {
-    struct variable *pTarget = kbuild_get_variable("target");
-    struct variable *pSource = kbuild_get_variable("source");
+    struct variable *pTarget = kbuild_get_variable_n(ST("target"));
+    struct variable *pSource = kbuild_get_variable_n(ST("source"));
     struct variable *pDefPath = NULL;
-    struct variable *pType = kbuild_get_variable("type");
-    struct variable *pTool = kbuild_get_variable("tool");
-    struct variable *pBldType = kbuild_get_variable("bld_type");
-    struct variable *pBldTrg = kbuild_get_variable("bld_trg");
-    struct variable *pBldTrgArch = kbuild_get_variable("bld_trg_arch");
-    struct variable *pBldTrgCpu = kbuild_get_variable("bld_trg_cpu");
+    struct variable *pType = kbuild_get_variable_n(ST("type"));
+    struct variable *pTool = kbuild_get_variable_n(ST("tool"));
+    struct variable *pBldType = kbuild_get_variable_n(ST("bld_type"));
+    struct variable *pBldTrg = kbuild_get_variable_n(ST("bld_trg"));
+    struct variable *pBldTrgArch = kbuild_get_variable_n(ST("bld_trg_arch"));
+    struct variable *pBldTrgCpu = kbuild_get_variable_n(ST("bld_trg_cpu"));
     struct variable *pVar;
     struct kbuild_sdks Sdks;
     int iDirection;
@@ -1557,7 +1879,7 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
         while (isspace(*psz))
             psz++;
         if (*psz)
-            pDefPath = kbuild_get_variable("defpath");
+            pDefPath = kbuild_get_variable_n(ST("defpath"));
     }
 
     kbuild_get_sdks(&Sdks, pTarget, pSource, pBldType, pBldTrg, pBldTrgArch);
@@ -1565,7 +1887,9 @@ func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName)
     pVar = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType,
                                       pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu,
                                       pDefPath,
-                                      argv[0], argv[1], iDirection);
+                                      argv[0], strlen(argv[0]),
+                                      argv[1], strlen(argv[1]),
+                                      iDirection);
     if (pVar)
          o = variable_buffer_output(o, pVar->value, pVar->value_length);
 
@@ -1587,7 +1911,7 @@ kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(struct variable
                                                                  const char *pszVarName, struct variable **ppDep,
                                                                  struct variable **ppDirDep)
 {
-    struct variable *pDepSuff = kbuild_get_variable("SUFF_DEP");
+    struct variable *pDepSuff = kbuild_get_variable_n(ST("SUFF_DEP"));
     struct variable *pObj;
     size_t cch = pOutBase->value_length + pObjSuff->value_length + pDepSuff->value_length + 1;
     char *pszResult = alloca(cch);
@@ -1698,14 +2022,14 @@ char *
 func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 {
     static int s_fNoCompileCmdsDepsDefined = -1;
-    struct variable *pTarget    = kbuild_get_variable("target");
-    struct variable *pSource    = kbuild_get_variable("source");
-    struct variable *pDefPath   = kbuild_get_variable("defpath");
-    struct variable *pType      = kbuild_get_variable("type");
-    struct variable *pBldType   = kbuild_get_variable("bld_type");
-    struct variable *pBldTrg    = kbuild_get_variable("bld_trg");
-    struct variable *pBldTrgArch= kbuild_get_variable("bld_trg_arch");
-    struct variable *pBldTrgCpu = kbuild_get_variable("bld_trg_cpu");
+    struct variable *pTarget    = kbuild_get_variable_n(ST("target"));
+    struct variable *pSource    = kbuild_get_variable_n(ST("source"));
+    struct variable *pDefPath   = kbuild_get_variable_n(ST("defpath"));
+    struct variable *pType      = kbuild_get_variable_n(ST("type"));
+    struct variable *pBldType   = kbuild_get_variable_n(ST("bld_type"));
+    struct variable *pBldTrg    = kbuild_get_variable_n(ST("bld_trg"));
+    struct variable *pBldTrgArch= kbuild_get_variable_n(ST("bld_trg_arch"));
+    struct variable *pBldTrgCpu = kbuild_get_variable_n(ST("bld_trg_cpu"));
     struct variable *pTool      = kbuild_get_source_tool(pTarget, pSource, pType, pBldTrg, pBldTrgArch, "tool");
     struct variable *pOutBase   = kbuild_get_object_base(pTarget, pSource, "outbase");
     struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
@@ -1713,7 +2037,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
-    unsigned cchSavedVarBuf, cchVal;
+    unsigned cchSavedVarBuf;
     size_t cch;
     struct kbuild_sdks Sdks;
     int iVer;
@@ -1760,15 +2084,15 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     if (pDefPath && !pDefPath->value_length)
         pDefPath = NULL;
     pDefs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
-                                            "DEFS", "defs", 1/* left-to-right */);
+                                            ST("DEFS"),  ST("defs"), 1/* left-to-right */);
     pIncs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
-                                            "INCS", "incs", -1/* right-to-left */);
+                                            ST("INCS"),  ST("incs"), -1/* right-to-left */);
     pFlags     = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
-                                            "FLAGS", "flags", 1/* left-to-right */);
+                                            ST("FLAGS"), ST("flags"), 1/* left-to-right */);
     pDeps      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
-                                            "DEPS", "deps", 1/* left-to-right */);
+                                            ST("DEPS"),  ST("deps"), 1/* left-to-right */);
     pOrderDeps = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
-                                            "ORDERDEPS", "orderdeps", 1/* left-to-right */);
+                                            ST("ORDERDEPS"), ST("orderdeps"), 1/* left-to-right */);
 
     /*
      * If we've got a default path, we must expand the source now.
@@ -1786,7 +2110,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     endif
      */
     if (s_fNoCompileCmdsDepsDefined == -1)
-        s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable("NO_COMPILE_CMDS_DEPS") != NULL;
+        s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable_n(ST("NO_COMPILE_CMDS_DEPS")) != NULL;
     if (!s_fNoCompileCmdsDepsDefined)
     {
         do_variable_definition_2(NILF, "_DEPFILES_INCLUDED", pDep->value, pDep->value_length,
@@ -1869,7 +2193,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     _OUT_FILES      += $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_)
     */
     /** @todo use append? */
-    pVar = kbuild_get_variable("_OUT_FILES");
+    pVar = kbuild_get_variable_n(ST("_OUT_FILES"));
     psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length + 1);
     memcpy(psz, pVar->value, pVar->value_length); psz += pVar->value_length;
     *psz++ = ' ';
@@ -1892,17 +2216,18 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     $(eval $(def_target_source_rule))
     */
     pVar = kbuild_get_recursive_variable("def_target_source_rule");
-    pszVal = allocated_variable_expand_2(pVar->value, pVar->value_length, &cchVal); /** @todo we can use the variable buffer here. */
+    pszVal = variable_expand_string_2 (o, pVar->value, pVar->value_length, &psz);
+    assert (!((size_t)pszVal & 3));
 
     install_variable_buffer(&pszSavedVarBuf, &cchSavedVarBuf);
-    eval_buffer(pszVal, pszVal + cchVal);
+    eval_buffer(pszVal, psz);
     restore_variable_buffer(pszSavedVarBuf, cchSavedVarBuf);
-
-    free(pszVal);
 
     kbuild_put_sdks(&Sdks);
     (void)pszFuncName;
-    return variable_buffer_output(o, "", 1) - 1; /** @todo why? */
+
+    *pszVal = '\0';
+    return pszVal;
 }
 
 
