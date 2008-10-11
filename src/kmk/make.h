@@ -149,19 +149,24 @@ unsigned int get_path_max (void);
 # define CHAR_BIT 8
 #endif
 
-#ifdef KMK
+#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH)
 # ifdef _MSC_VER
-#  define MY_INLINE  _inline static
+#  define MY_INLINE     _inline static
+#  define MY_DBGBREAK   __debugbreak()
 # elif defined(__GNUC__)
-#  define MY_INLINE  static __inline__
+#  define MY_INLINE     static __inline__
+#  if defined(__i386__) || defined(__x86_64__)
+#   define MY_DBGBREAK  __asm__ __volatile__ ("int3")
+#else
+#   define MY_DBGBREAK  assert(0)
+#  endif
 # else
-#  define MY_INLINE  static
+#  define MY_INLINE     static
+#  define MY_DBGBREAK  assert(0)
 # endif
-#endif /* KMK */
-#if defined(CONFIG_WITH_VALUE_LENGTH) || defined(KMK)
 # ifndef NDEBUG
 #  define MY_ASSERT_MSG(expr, printfargs) \
-    do { if (!(expr)) { printf printfargs; assert(expr); } } while (0)
+    do { if (!(expr)) { printf printfargs; MY_DBGBREAK; } } while (0)
 # else
 #  define MY_ASSERT_MSG(expr, printfargs)   do { } while (0)
 # endif
