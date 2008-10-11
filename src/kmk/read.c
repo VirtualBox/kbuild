@@ -157,11 +157,29 @@ static enum make_word_type get_next_mword (char *buffer, char *delim,
                                            char **startp, unsigned int *length);
 #ifndef CONFIG_WITH_VALUE_LENGTH
 static void remove_comments (char *line);
-#else
-static char *remove_comments (char *line, char *eol);
-#endif
 static char *find_char_unquote (char *string, int stop1, int stop2,
                                 int blank, int ignorevars);
+#else
+__inline static char *remove_comments (char *line, char *eol);
+__inline static char *find_char_unquote_0 (char *string, int stop1, char **eosp);
+static char * find_char_unquote_2 (char *string, int stop1, int stop2,
+                                   int blank, int ignorevars,
+                                   unsigned int string_len);
+__inline static char *
+find_char_unquote (char *string, int stop1, int stop2, int blank, int ignorevars)
+{
+    if (!stop2 && !blank && !ignorevars)
+      {
+        char *p = strchr (string, stop1);
+        if (!p)
+          return NULL;
+        if (p <= string || p[-1] != '\\')
+          return p;
+        /* fall back on find_char_unquote_2 */
+      }
+    return find_char_unquote_2 (string, stop1, stop2, blank, ignorevars, 0);
+}
+#endif
 
 /* Read in all the makefiles and return the chain of their names.  */
 
@@ -531,6 +549,9 @@ eval (struct ebuffer *ebuf, int set_default)
   const char *pattern_percent;
   struct floc *fstart;
   struct floc fi;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  unsigned int tmp_len;
+#endif
 
 #define record_waiting_files()						      \
   do									      \
@@ -1063,7 +1084,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
         /* Search the line for an unquoted ; that is not after an
            unquoted #.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
         cmdleft = find_char_unquote (line, ';', '#', 0, 1);
+#else
+        cmdleft = find_char_unquote_2 (line, ';', '#', 0, 1, ebuf->eol - line);
+#endif
         if (cmdleft != 0 && *cmdleft == '#')
           {
             /* We found a comment before a semicolon.  */
@@ -1106,7 +1131,13 @@ eval (struct ebuffer *ebuf, int set_default)
             break;
           }
 
+
+#ifndef CONFIG_WITH_VALUE_LENGTH
         p2 = variable_expand_string(NULL, lb_next, wlen);
+#else
+        p2 = variable_expand_string_2 (NULL, lb_next, wlen, &eol);
+        assert (strchr (p2, '\0') == eol);
+#endif
 
         while (1)
           {
@@ -1114,13 +1145,19 @@ eval (struct ebuffer *ebuf, int set_default)
             if (cmdleft == 0)
               {
                 /* Look for a semicolon in the expanded line.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
                 cmdleft = find_char_unquote (p2, ';', 0, 0, 0);
+#else
+                cmdleft = find_char_unquote_0 (p2, ';', &eol);
+#endif
 
                 if (cmdleft != 0)
                   {
                     unsigned long p2_off = p2 - variable_buffer;
                     unsigned long cmd_off = cmdleft - variable_buffer;
+#ifndef CONFIG_WITH_VALUE_LENGTH
                     char *pend = p2 + strlen(p2);
+#endif
 
                     /* Append any remnants of lb, then cut the line short
                        at the semicolon.  */
@@ -1134,14 +1171,24 @@ eval (struct ebuffer *ebuf, int set_default)
                        entirely consistent, since we do an unconditional
                        expand below once we know we don't have a
                        target-specific variable. */
+#ifndef CONFIG_WITH_VALUE_LENGTH
                     (void)variable_expand_string(pend, lb_next, (long)-1);
                     lb_next += strlen(lb_next);
+#else
+                    tmp_len = strlen (lb_next);
+                    variable_expand_string_2 (eol, lb_next, tmp_len, &eol);
+                    lb_next += tmp_len;
+#endif
                     p2 = variable_buffer + p2_off;
                     cmdleft = variable_buffer + cmd_off + 1;
                   }
               }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
             colonp = find_char_unquote(p2, ':', 0, 0, 0);
+#else
+            colonp = find_char_unquote_0 (p2, ':', &eol);
+#endif
 #ifdef HAVE_DOS_PATHS
             /* The drive spec brain-damage strikes again...  */
             /* Note that the only separators of targets in this context
@@ -1150,7 +1197,11 @@ eval (struct ebuffer *ebuf, int set_default)
             while (colonp && (colonp[1] == '/' || colonp[1] == '\\') &&
                    colonp > p2 && isalpha ((unsigned char)colonp[-1]) &&
                    (colonp == p2 + 1 || strchr (" \t(", colonp[-2]) != 0))
+# ifndef CONFIG_WITH_VALUE_LENGTH
               colonp = find_char_unquote(colonp + 1, ':', 0, 0, 0);
+# else
+              colonp = find_char_unquote_0 (colonp + 1, ':', &eol);
+# endif
 #endif
             if (colonp != 0)
               break;
@@ -1159,9 +1210,14 @@ eval (struct ebuffer *ebuf, int set_default)
             if (wtype == w_eol)
               break;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
             p2 += strlen(p2);
             *(p2++) = ' ';
             p2 = variable_expand_string(p2, lb_next, wlen);
+#else
+            *(eol++) = ' ';
+            p2 = variable_expand_string_2 (eol, lb_next, wlen, &eol);
+#endif
             /* We don't need to worry about cmdleft here, because if it was
                found in the variable_buffer the entire buffer has already
                been expanded... we'll never get here.  */
@@ -1272,13 +1328,22 @@ eval (struct ebuffer *ebuf, int set_default)
         if (*lb_next != '\0')
           {
             unsigned int l = p2 - variable_buffer;
+#ifndef CONFIG_WITH_VALUE_LENGTH
             (void) variable_expand_string (p2 + plen, lb_next, (long)-1);
+#else
+            char *eos;
+            (void) variable_expand_string_2 (p2 + plen, lb_next, (long)-1, &eos);
+#endif
             p2 = variable_buffer + l;
 
             /* Look for a semicolon in the expanded line.  */
             if (cmdleft == 0)
               {
+#ifndef CONFIG_WITH_VALUE_LENGTH
                 cmdleft = find_char_unquote (p2, ';', 0, 0, 0);
+#else
+                cmdleft = find_char_unquote_0 (p2, ';', &eos);
+#endif
                 if (cmdleft != 0)
                   *(cmdleft++) = '\0';
               }
@@ -1488,10 +1553,6 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifndef CONFIG_WITH_VALUE_LENGTH
 static void
 remove_comments (char *line)
-#else
-static char *
-remove_comments (char *line, char *eol)
-#endif
 {
   char *comment;
 
@@ -1500,14 +1561,63 @@ remove_comments (char *line, char *eol)
   if (comment != 0)
     /* Cut off the line at the #.  */
     *comment = '\0';
-
-#ifdef CONFIG_WITH_VALUE_LENGTH
-  if (comment)
-    eol = comment;
-  assert (strchr (line, '\0') == eol);
-  return eol;
-#endif
 }
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+__inline static char *
+remove_comments (char *line, char *eol)
+{
+  unsigned int string_len = eol - line;
+  register int ch;
+  char *p;
+
+  /* Hope for simple (no comments). */
+  p = memchr (line, '#', string_len);
+  if (!p)
+    return eol;
+
+  /* Found potential comment, enter the slow route. */
+  for (;;)
+    {
+      if (p > line && p[-1] == '\\')
+	{
+	  /* Search for more backslashes.  */
+	  int i = -2;
+	  while (&p[i] >= line && p[i] == '\\')
+	    --i;
+	  ++i;
+
+	  /* The number of backslashes is now -I.
+	     Copy P over itself to swallow half of them.  */
+	  memmove (&p[i], &p[i/2], (string_len - (p - line)) - (i/2) + 1);
+	  p += i/2;
+	  if (i % 2 == 0)
+            {
+	      /* All the backslashes quoted each other; the STOPCHAR was
+                 unquoted.  */
+              *p = '\0';
+              return p;
+            }
+
+	  /* The '#' was quoted by a backslash.  Look for another.  */
+	}
+      else
+        {
+	  /* No backslash in sight.  */
+          *p = '\0';
+	  return p;
+        }
+
+      /* lazy, string_len isn't correct so do it the slow way. */
+      while ((ch = *p) != '#')
+        {
+          if (ch == '\0')
+            return p;
+          ++p;
+        }
+    }
+  /* won't ever get here. */
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* Execute a `define' directive.
    The first line has already been read, and NAME is the name of
@@ -2529,13 +2639,24 @@ record_files (struct nameseq *filenames, const char *pattern,
 
    STOPCHAR _cannot_ be '$' if IGNOREVARS is true.  */
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static char *
 find_char_unquote (char *string, int stop1, int stop2, int blank,
                    int ignorevars)
+#else
+static char *
+find_char_unquote_2 (char *string, int stop1, int stop2, int blank,
+                     int ignorevars, unsigned int string_len)
+#endif
 {
+#ifndef CONFIG_WITH_VALUE_LENGTH
   unsigned int string_len = 0;
+#endif
   char *p = string;
   register int ch; /* bird: 'optimiziations' */
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  assert (string_len == 0 || string_len == strlen (string));
+#endif
 
   if (ignorevars)
     ignorevars = '$';
@@ -2620,6 +2741,27 @@ find_char_unquote (char *string, int stop1, int stop2, int blank,
   /* Never hit a STOPCHAR or blank (with BLANK nonzero).  */
   return 0;
 }
+
+#ifdef CONFIG_WITH_VALUE_LENGTH
+/* Special case version of find_char_unquote that only takes stop1.
+   This is so common that it makes a lot of sense to specialize this.
+   */
+__inline static char *
+find_char_unquote_0 (char *string, int stop1, char **eosp)
+{
+  unsigned int string_len = *eosp - string;
+  char *p = (char *)memchr (string, stop1, string_len);
+  assert (strlen (string) == string_len);
+  if (!p)
+    return NULL;
+  if (p <= string || p[-1] != '\\')
+    return p;
+
+  p = find_char_unquote_2 (string, stop1, 0, 0, 0, string_len);
+  *eosp = memchr (string, '\0', string_len);
+  return p;
+}
+#endif
 
 /* Search PATTERN for an unquoted % and handle quoting.  */
 

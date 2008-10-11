@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1827 2008-10-11 07:12:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1831 2008-10-11 13:11:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1902,7 +1902,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     kbuild_put_sdks(&Sdks);
     (void)pszFuncName;
-    return variable_buffer_output(o, "", 1); /** @todo not right. */
+    return variable_buffer_output(o, "", 1) - 1; /** @todo why? */
 }
 
 
