@@ -319,39 +319,99 @@ patsubst_expand (char *o, const char *text, char *pattern, char *replace)
                               pattern_percent, replace_percent);
 }
 
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+#if defined (CONFIG_WITH_OPTIMIZATION_HACKS) || defined (CONFIG_WITH_VALUE_LENGTH)
 /* The maximum length of a function, once reached there is
    it can't be function and we can skip the hash lookup drop out. */
 
-# ifdef KMK
-#  define MAX_FUNCTION_LENGTH 12
-# else
-#  define MAX_FUNCTION_LENGTH 10
-# endif
-#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
+# define MAX_FUNCTION_LENGTH 12
+# define MIN_FUNCTION_LENGTH 2
+
+/* char map containing the valid function name characters. */
+static char func_char_map[256];
+
+/* Do the hash table lookup. */
+
+__inline static const struct function_table_entry *
+lookup_function_in_hash_tab (const char *s, unsigned char len)
+{
+    struct function_table_entry function_table_entry_key;
+    function_table_entry_key.name = s;
+    function_table_entry_key.len = len;
+
+    return hash_find_item (&function_table, &function_table_entry_key);
+}
 
 /* Look up a function by name.  */
 
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
-__inline
-#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
+__inline static const struct function_table_entry *
+lookup_function (const char *s, unsigned int len)
+{
+  unsigned char ch;
+# if 0 /* insane loop unroll */
+
+  if (len > MAX_FUNCTION_LENGTH)
+      len = MAX_FUNCTION_LENGTH + 1;
+
+#  define X(idx) \
+        if (!func_char_map[ch = s[idx]]) \
+          { \
+            if (isblank (ch)) \
+              return lookup_function_in_hash_tab (s, idx); \
+            return 0; \
+          }
+#  define Z(idx) \
+        return lookup_function_in_hash_tab (s, idx);
+
+  switch (len)
+    {
+      default:
+        assert (0);
+      case  0: return 0;
+      case  1: return 0;
+      case  2: X(0); X(1); Z(2);
+      case  3: X(0); X(1); X(2); Z(3);
+      case  4: X(0); X(1); X(2); X(3); Z(4);
+      case  5: X(0); X(1); X(2); X(3); X(4); Z(5);
+      case  6: X(0); X(1); X(2); X(3); X(4); X(5); Z(6);
+      case  7: X(0); X(1); X(2); X(3); X(4); X(5); X(6); Z(7);
+      case  8: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); Z(8);
+      case  9: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); X(8); Z(9);
+      case 10: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); X(8); X(9); Z(10);
+      case 11: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); X(8); X(9); X(10); Z(11);
+      case 12: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); X(8); X(9); X(10); X(11); Z(12);
+      case 13: X(0); X(1); X(2); X(3); X(4); X(5); X(6); X(7); X(8); X(9); X(10); X(11); X(12);
+        if ((ch = s[12]) == '\0' || isblank (ch))
+          return lookup_function_in_hash_tab (s, 12);
+        return 0;
+    }
+#  undef Z
+#  undef X
+
+# else   /* normal loop */
+  const char *e = s;
+  if (len > MAX_FUNCTION_LENGTH)
+      len = MAX_FUNCTION_LENGTH;
+  while (func_char_map[ch = *e])
+    {
+      if (!len--)
+        return 0;
+      e++;
+    }
+  if (ch == '\0' || isblank ((unsigned char) ch))
+    return lookup_function_in_hash_tab (s, e - s);
+  return 0;
+# endif /* normal loop */
+}
+
+#else  /* original code */
+/* Look up a function by name.  */
+
 static const struct function_table_entry *
 lookup_function (const char *s)
 {
   const char *e = s;
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
-  int left = MAX_FUNCTION_LENGTH;
-  int ch;
-  while (((ch = *e) >= 'a' && ch <='z') || ch == '-')
-    {
-      if (!left--)
-        return 0;
-      e++;
-    }
-#else
   while (*e && ( (*e >= 'a' && *e <= 'z') || *e == '-'))
     e++;
-#endif
   if (*e == '\0' || isblank ((unsigned char) *e))
     {
       struct function_table_entry function_table_entry_key;
@@ -362,6 +422,7 @@ lookup_function (const char *s)
     }
   return 0;
 }
+#endif /* original code */
 
 
 /* Return 1 if PATTERN matches STR, 0 if not.  */
@@ -1504,7 +1565,11 @@ func_eval (char *o, char **argv, const char *funcname UNUSED)
 
   install_variable_buffer (&buf, &len);
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   eval_buffer (argv[0]);
+#else
+  eval_buffer (argv[0], strchr (argv[0], '\0'));
+#endif
 
   restore_variable_buffer (buf, len);
 
@@ -1528,7 +1593,7 @@ func_evalctx (char *o, char **argv, const char *funcname UNUSED)
 
   push_new_variable_scope ();
 
-  eval_buffer (argv[0]);
+  eval_buffer (argv[0], strchr (argv[0], '\0'));
 
   pop_variable_scope ();
 
@@ -1557,9 +1622,8 @@ func_evalval (char *o, char **argv, const char *funcname)
          eval_buffer will make changes to its input. */
 
       off = o - variable_buffer;
-      o = variable_buffer_output (o, v->value, v->value_length + 1);
+      variable_buffer_output (o, v->value, v->value_length + 1);
       o = variable_buffer + off;
-      assert (!o[v->value_length]);
 
       /* Eval the value.  Pop the current variable buffer setting so that the
          eval'd code can use its own without conflicting. (really necessary?)  */
@@ -1571,7 +1635,8 @@ func_evalval (char *o, char **argv, const char *funcname)
       if (v->fileinfo.filenm)
         reading_file = &v->fileinfo;
 
-      eval_buffer (o);
+      assert (!o[v->value_length]);
+      eval_buffer (o, o + v->value_length);
 
       reading_file = reading_file_saved;
       if (var_ctx)
@@ -1593,7 +1658,9 @@ func_value (char *o, char **argv, const char *funcname UNUSED)
   if (v)
 #ifdef CONFIG_WITH_VALUE_LENGTH
     o = variable_buffer_output (o, v->value,
-                                v->value_length >= 0 ? v->value_length : strlen(v->value));
+                                v->value_length >= 0
+                                ? (unsigned int)v->value_length /* FIXME */
+                                : strlen(v->value));
 #else
     o = variable_buffer_output (o, v->value, strlen(v->value));
 #endif
@@ -3051,7 +3118,7 @@ func_which (char *o, char **argv, const char *funcname UNUSED)
                 {
                   const char *src = comp;
                   const char *end = strchr (comp, PATH_SEPARATOR_CHAR);
-                  size_t comp_len = end ? end - comp : strlen (comp);
+                  size_t comp_len = end ? (size_t)(end - comp) : strlen (comp);
                   if (!comp_len)
                     {
                       comp_len = 1;
@@ -4186,14 +4253,26 @@ handle_function2 (const struct function_table_entry *entry_p, char **op, const c
   return 1;
 }
 
-int
-handle_function (char **op, const char **stringp) /* bird split it up */
+
+int  /* bird split it up */
+#ifndef CONFIG_WITH_VALUE_LENGTH
+handle_function (char **op, const char **stringp)
 {
   const struct function_table_entry *entry_p = lookup_function (*stringp + 1);
   if (!entry_p)
     return 0;
   return handle_function2 (entry_p, op, stringp);
 }
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+handle_function (char **op, const char **stringp, const char *eol)
+{
+  const char *fname = *stringp + 1;
+  const struct function_table_entry *entry_p = lookup_function (fname, eol - fname);
+  if (!entry_p)
+    return 0;
+  return handle_function2 (entry_p, op, stringp);
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 
 /* User-defined functions.  Expand the first argument as either a builtin
@@ -4234,7 +4313,11 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
 
   /* Are we invoking a builtin function?  */
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   entry_p = lookup_function (fname);
+#else
+  entry_p = lookup_function (fname, cp - fname + 1);
+#endif
   if (entry_p)
     {
       /* How many arguments do we have?  */
@@ -4283,8 +4366,12 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
     {
       char num[11];
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       sprintf (num, "%d", i);
       define_variable (num, strlen (num), "", o_automatic, 0);
+#else
+      define_variable (num, sprintf (num, "%d", i), "", o_automatic, 0);
+#endif
     }
 
   saved_args = max_args;
@@ -4312,6 +4399,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   else
     {
       const struct floc *reading_file_saved = reading_file;
+      char *eos;
 
       if (!strcmp (funcname, "evalcall"))
         {
@@ -4319,7 +4407,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
              need a copy since eval_buffer is destructive.  */
 
           size_t off = o - variable_buffer;
-          o = variable_buffer_output (o, v->value, v->value_length + 1);
+          eos = variable_buffer_output (o, v->value, v->value_length + 1) - 1;
           o = variable_buffer + off;
           if (v->fileinfo.filenm)
             reading_file = &v->fileinfo;
@@ -4329,12 +4417,12 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
           /* Expand the body first and then evaluate the output. */
 
           v->exp_count = EXP_COUNT_MAX;
-          o = variable_expand_string (o, body, flen+3);
+          o = variable_expand_string_2 (o, body, flen+3, &eos);
           v->exp_count = 0;
         }
 
       install_variable_buffer (&buf, &len);
-      eval_buffer (o);
+      eval_buffer (o, eos);
       restore_variable_buffer (buf, len);
       reading_file = reading_file_saved;
     }
@@ -4355,11 +4443,18 @@ hash_init_function_table (void)
 	     function_table_entry_hash_cmp);
   hash_load (&function_table, function_table_init,
 	     FUNCTION_TABLE_ENTRIES, sizeof (struct function_table_entry));
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+#if defined (CONFIG_WITH_OPTIMIZATION_HACKS) || defined (CONFIG_WITH_VALUE_LENGTH)
   {
-    unsigned i;
+    unsigned int i;
+    for (i = 'a'; i <= 'z'; i++)
+      func_char_map[i] = 1;
+    func_char_map[(unsigned int)'-'] = 1;
+
     for (i = 0; i < FUNCTION_TABLE_ENTRIES; i++)
+      {
         assert (function_table_init[i].len <= MAX_FUNCTION_LENGTH);
+        assert (function_table_init[i].len >= MIN_FUNCTION_LENGTH);
+      }
   }
 #endif
 }

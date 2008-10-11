@@ -75,7 +75,11 @@ struct dep *copy_dep_chain (const struct dep *d);
 void free_dep_chain (struct dep *d);
 void free_ns_chain (struct nameseq *n);
 struct dep *read_all_makefiles (const char **makefiles);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 int eval_buffer (char *buffer);
+#else
+int eval_buffer (char *buffer, char *eos);
+#endif
 int update_goal_chain (struct dep *goals);
 void uniquize_deps (struct dep *);
 

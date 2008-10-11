@@ -465,7 +465,11 @@ eval_makefile (const char *filename, int flags)
 }
 
 int
+#ifndef CONFIG_WITH_VALUE_LENGTH
 eval_buffer (char *buffer)
+#else
+eval_buffer (char *buffer, char *eos)
+#endif
 {
   struct ebuffer ebuf;
   struct conditionals *saved;
@@ -475,12 +479,15 @@ eval_buffer (char *buffer)
 
   /* Evaluate the buffer */
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   ebuf.size = strlen (buffer);
+#else
+  ebuf.size = eos - buffer;
+  ebuf.eol = eos;
+  assert(strchr(buffer, '\0') == eos);
+#endif
   ebuf.buffer = ebuf.bufnext = ebuf.bufstart = buffer;
   ebuf.fp = NULL;
-#ifdef CONFIG_WITH_VALUE_LENGTH
-  ebuf.eol = ebuf.buffer + ebuf.size;
-#endif
 
   ebuf.floc = *reading_file;
 
@@ -1947,8 +1954,8 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
 #else
       if ((size_t)buf_pos & 7)
         buf_pos = variable_buffer_output (buf_pos, "\0\0\0\0\0\0\0\0",
-                                          8 - (size_t)buf_pos & 7);
-      s2 = variable_expand_string (buf_pos, s2, l);
+                                          8 - ((size_t)buf_pos & 7));
+      s2 = variable_expand_string_2 (buf_pos, s2, l, &buf_pos);
 #endif
 #ifdef CONFIG_WITH_SET_CONDITIONALS
       if (cmdtype == c_if1of || cmdtype == c_ifn1of)

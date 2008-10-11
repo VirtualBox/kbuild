@@ -141,13 +141,20 @@ char *allocated_variable_expand_for_file (const char *line, struct file *file);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
 # define allocated_variable_expand(line) \
   allocated_variable_expand_2 (line, -1, NULL)
-char *allocated_variable_expand_2(const char *line, unsigned int length, unsigned int *value_len);
+char *allocated_variable_expand_2(const char *line, unsigned int length, unsigned int *value_lenp);
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 char *expand_argument (const char *str, const char *end);
+#ifndef CONFIG_WITH_VALUE_LENGTH
 char *variable_expand_string (char *line, const char *string, long length);
-#ifdef CONFIG_WITH_VALUE_LENGTH
+#else  /* CONFIG_WITH_VALUE_LENGTH */
 char *variable_expand_string_2 (char *line, const char *string, long length, char **eol);
-#endif
+__inline static char *
+variable_expand_string (char *line, const char *string, long length)
+{
+    char *ignored;
+    return variable_expand_string_2 (line, string, length, &ignored);
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 void install_variable_buffer (char **bufp, unsigned int *lenp);
 void restore_variable_buffer (char *buf, unsigned int len);
 #ifdef CONFIG_WITH_VALUE_LENGTH
@@ -156,7 +163,11 @@ void append_expanded_string_to_variable (struct variable *v, const char *value,
 #endif
 
 /* function.c */
+#ifndef CONFIG_WITH_VALUE_LENGTH
 int handle_function (char **op, const char **stringp);
+#else
+int handle_function (char **op, const char **stringp, const char *eol);
+#endif
 int pattern_matches (const char *pattern, const char *percent, const char *str);
 char *subst_expand (char *o, const char *text, const char *subst,
                     const char *replace, unsigned int slen, unsigned int rlen,
@@ -170,8 +181,14 @@ char *func_commands (char *o, char **argv, const char *funcname);
 #endif
 
 /* expand.c */
+#ifndef CONFIG_WITH_VALUE_LENGTH
 char *recursively_expand_for_file (struct variable *v, struct file *file);
 #define recursively_expand(v)   recursively_expand_for_file (v, NULL)
+#else
+char *recursively_expand_for_file (struct variable *v, struct file *file,
+                                   unsigned int *value_lenp);
+#define recursively_expand(v)   recursively_expand_for_file (v, NULL, NULL)
+#endif
 
 /* variable.c */
 struct variable_set_list *create_new_variable_set (void);

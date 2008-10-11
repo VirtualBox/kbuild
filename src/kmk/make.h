@@ -286,7 +286,7 @@ char *strsignal (int signum);
 #endif
 #define strneq(a, b, l) (strncmp ((a), (b), (l)) == 0)
 
-#if defined(__GNUC__) || defined(ENUM_BITFIELDS)
+#if (defined(__GNUC__) || defined(ENUM_BITFIELDS)) && !defined(NO_ENUM_BITFIELDS)
 # define ENUM_BITFIELD(bits)    :bits
 #else
 # define ENUM_BITFIELD(bits)

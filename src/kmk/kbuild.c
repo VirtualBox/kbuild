@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1818 2008-10-10 07:43:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1827 2008-10-11 07:12:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -1713,7 +1713,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
-    unsigned cchSavedVarBuf;
+    unsigned cchSavedVarBuf, cchVal;
     size_t cch;
     struct kbuild_sdks Sdks;
     int iVer;
@@ -1892,17 +1892,17 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     $(eval $(def_target_source_rule))
     */
     pVar = kbuild_get_recursive_variable("def_target_source_rule");
-    pszVal = allocated_variable_expand_2(pVar->value, pVar->value_length, NULL);
+    pszVal = allocated_variable_expand_2(pVar->value, pVar->value_length, &cchVal); /** @todo we can use the variable buffer here. */
 
     install_variable_buffer(&pszSavedVarBuf, &cchSavedVarBuf);
-    eval_buffer(pszVal);
+    eval_buffer(pszVal, pszVal + cchVal);
     restore_variable_buffer(pszSavedVarBuf, cchSavedVarBuf);
 
     free(pszVal);
 
     kbuild_put_sdks(&Sdks);
     (void)pszFuncName;
-    return variable_buffer_output(o, "", 1);
+    return variable_buffer_output(o, "", 1); /** @todo not right. */
 }
 
 
