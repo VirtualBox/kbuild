@@ -550,7 +550,8 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	      {
 		o = op;
 		p = begp;
-                assert (!memchr (variable_buffer + line_offset, '\0', o - variable_buffer + line_offset));
+                MY_ASSERT_MSG (!(p1 = memchr (variable_buffer + line_offset, '\0', o - (variable_buffer + line_offset))),
+                               ("line=%p o/exp_end=%p act_end=%p\n", variable_buffer + line_offset, o, p1));
 		break;
 	      }
 
