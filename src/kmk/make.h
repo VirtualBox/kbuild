@@ -180,6 +180,25 @@ unsigned int get_path_max (void);
 # endif
 #endif
 
+#ifdef KMK
+# include <ctype.h>
+# if 1 /* See if this speeds things up (Windows is doing this anyway, so,
+          we might as well try be consistent in speed + features).  */
+#  if 1
+#   define MY_IS_BLANK(ch)          ((ch) == ' ' || (ch) == '\t')
+#   define MY_IS_BLANK_OR_EOS(ch)   ((ch) == ' ' || (ch) == '\t' || (ch) == '\0')
+#  else
+#   define MY_IS_BLANK(ch)          (((ch) == ' ') | ((ch) == '\t'))
+#   define MY_IS_BLANK_OR_EOS(ch)   (((ch) == ' ') | ((ch) == '\t') | ((ch) == '\0'))
+#  endif
+#  undef isblank
+#  define isblank(ch)               MY_IS_BLANK(ch)
+# else
+#  define MY_IS_BLANK(ch)           isblank ((unsigned char)(ch))
+#  define MY_IS_BLANK_OR_EOS(ch)    (isblank ((unsigned char)(ch)) || (ch) == '\0')
+# endif
+#endif
+
 /* Nonzero if the integer type T is signed.  */
 #define INTEGER_TYPE_SIGNED(t) ((t) -1 < 0)
 

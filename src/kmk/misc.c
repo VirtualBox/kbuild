@@ -494,16 +494,16 @@ end_of_token (const char *s)
         unsigned char ch0, ch1, ch2, ch3;
 
         ch0 = *s;
-        if (MY_PREDICT_FALSE(isblank(ch0) || ch0 == '\0'))
+        if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch0)))
           return (char *)s;
         ch1 = s[1];
-        if (MY_PREDICT_FALSE(isblank(ch1) || ch1 == '\0'))
+        if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch1)))
           return (char *)s + 1;
         ch2 = s[2];
-        if (MY_PREDICT_FALSE(isblank(ch2) || ch2 == '\0'))
+        if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch2)))
           return (char *)s + 2;
         ch3 = s[3];
-        if (MY_PREDICT_FALSE(isblank(ch3) || ch3 == '\0'))
+        if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch3)))
           return (char *)s + 3;
 
         s += 4;
@@ -557,16 +557,16 @@ next_token (const char *s)
       unsigned char ch0, ch1, ch2, ch3;
 
       ch0 = *s;
-      if (MY_PREDICT_FALSE(!isblank(ch0)))
+      if (MY_PREDICT_FALSE(!MY_IS_BLANK(ch0)))
           return (char *)s;
       ch1 = s[1];
-      if (MY_PREDICT_FALSE(!isblank(ch1)))
+      if (MY_PREDICT_TRUE(!MY_IS_BLANK(ch1)))
         return (char *)s + 1;
       ch2 = s[2];
-      if (MY_PREDICT_FALSE(!isblank(ch2)))
+      if (MY_PREDICT_FALSE(!MY_IS_BLANK(ch2)))
         return (char *)s + 2;
       ch3 = s[3];
-      if (MY_PREDICT_TRUE(!isblank(ch3)))
+      if (MY_PREDICT_TRUE(!MY_IS_BLANK(ch3)))
         return (char *)s + 3;
 
       s += 4;
@@ -591,75 +591,95 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
   const char *e;
 
   /* skip blanks */
-  for (;;)
+# if 0 /* a moderate version */
+  for (;; p++)
+    {
+      unsigned char ch = *p;
+      if (!MY_IS_BLANK(ch))
+        {
+          if (!ch)
+            return NULL;
+          break;
+        }
+    }
+
+# else  /* (too) big unroll */
+  for (;; p += 4)
     {
       unsigned char ch0, ch1, ch2, ch3;
 
       ch0 = *p;
-      if (MY_PREDICT_FALSE(!isblank(ch0)))
+      if (MY_PREDICT_FALSE(!MY_IS_BLANK(ch0)))
         {
           if (!ch0)
-              return NULL;
+            return NULL;
           break;
         }
       ch1 = p[1];
-      if (MY_PREDICT_FALSE(!isblank(ch1)))
+      if (MY_PREDICT_TRUE(!MY_IS_BLANK(ch1)))
         {
           if (!ch1)
-              return NULL;
+            return NULL;
           p += 1;
           break;
         }
       ch2 = p[2];
-      if (MY_PREDICT_FALSE(!isblank(ch2)))
+      if (MY_PREDICT_FALSE(!MY_IS_BLANK(ch2)))
         {
           if (!ch2)
-              return NULL;
+            return NULL;
           p += 2;
           break;
         }
       ch3 = p[3];
-      if (MY_PREDICT_TRUE(!isblank(ch3)))
+      if (MY_PREDICT_TRUE(!MY_IS_BLANK(ch3)))
         {
           if (!ch3)
-              return NULL;
+            return NULL;
           p += 3;
           break;
         }
-      p += 4;
     }
+# endif
 
   /* skip ahead until EOS or blanks. */
-  e = p + 1;
-  for (;;)
+# if 0 /* a moderate version */
+  for (e = p + 1;  ; e++)
+    {
+      unsigned char ch = *e;
+      if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch)))
+        break;
+    }
+# else  /* (too) big unroll */
+  for (e = p + 1;  ; e += 4)
     {
       unsigned char ch0, ch1, ch2, ch3;
 
       ch0 = *e;
-      if (MY_PREDICT_FALSE(isblank(ch0) || ch0 == '\0'))
+      if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch0)))
         break;
       ch1 = e[1];
-      if (MY_PREDICT_FALSE(isblank(ch1) || ch1 == '\0'))
+      if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch1)))
         {
           e += 1;
           break;
         }
       ch2 = e[2];
-      if (MY_PREDICT_FALSE(isblank(ch2) || ch2 == '\0'))
+      if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch2)))
         {
           e += 2;
           break;
         }
       ch3 = e[3];
-      if (MY_PREDICT_FALSE(isblank(ch3) || ch3 == '\0'))
+      if (MY_PREDICT_FALSE(MY_IS_BLANK_OR_EOS(ch3)))
         {
           e += 3;
           break;
         }
-      e += 4;
     }
-
+# endif
   *ptr = e;
+
   if (lengthptr != 0)
     *lengthptr = e - p;
 
