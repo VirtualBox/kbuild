@@ -1242,6 +1242,10 @@ open_tmpfile(char **name, const char *template)
 #endif
 }
 
+#if defined(set_space_map_entry) /*bird*/
+char space_map[space_map_size];
+#endif 
+
 
 #ifdef _AMIGA
 int
@@ -1268,6 +1272,15 @@ main (int argc, char **argv, char **envp)
   unixy_shell = 0;
   no_default_sh_exe = 1;
 #endif
+# if defined(set_space_map_entry) /* bird */
+  memset (space_map, '\0', sizeof(space_map));
+  set_space_map_entry (' ');
+  set_space_map_entry ('\f');
+  set_space_map_entry ('\n');
+  set_space_map_entry ('\r');
+  set_space_map_entry ('\t');
+  set_space_map_entry ('\v');
+# endif 
 
 #ifdef SET_STACK_SIZE
  /* Get rid of any avoidable limit on stack size.  */
