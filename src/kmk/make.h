@@ -149,7 +149,7 @@ unsigned int get_path_max (void);
 # define CHAR_BIT 8
 #endif
 
-#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH)
+#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH) || defined (VARIABLE_HASH)
 # ifdef _MSC_VER
 #  define MY_INLINE     _inline static
 #  define MY_DBGBREAK   __debugbreak()
@@ -169,6 +169,14 @@ unsigned int get_path_max (void);
     do { if (!(expr)) { printf printfargs; MY_DBGBREAK; } } while (0)
 # else
 #  define MY_ASSERT_MSG(expr, printfargs)   do { } while (0)
+# endif
+
+# ifdef __GNUC__
+#  define MY_PREDICT_TRUE(expr)  __builtin_expect(!!(expr), 1)
+#  define MY_PREDICT_FALSE(expr) __builtin_expect(!!(expr), 0)
+# else
+#  define MY_PREDICT_TRUE(expr)  (expr)
+#  define MY_PREDICT_FALSE(expr) (expr)
 # endif
 #endif
 
