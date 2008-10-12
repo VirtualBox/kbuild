@@ -129,6 +129,11 @@ add_string(const char *str, int len)
 
 /* Hash table of strings in the cache.  */
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+static const char *lookup_string;
+static unsigned int lookup_string_len;
+#endif
+
 static unsigned long
 str_hash_1 (const void *key)
 {
@@ -144,6 +149,20 @@ str_hash_2 (const void *key)
 static int
 str_hash_cmp (const void *x, const void *y)
 {
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  /* Use the string length to avoid some unncessary comparing.
+     X is either the add_hash input (during hash_find_slot)
+     or a cache entry (during rare hash_insert_at calls).
+     This catches 520253 out of 1341947 calls in the typical
+     kBuild scenario.  */
+
+  if (x == lookup_string)
+    {
+      assert (lookup_string_len == strlen ((const char *)x));
+      if (strcache_get_len ((const char *)y) != lookup_string_len)
+        return -1;
+    }
+#endif
   return_ISTRING_COMPARE ((const char *) x, (const char *) y);
 }
 
@@ -154,8 +173,18 @@ static const char *
 add_hash (const char *str, int len)
 {
   /* Look up the string in the hash.  If it's there, return it.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
   char *const *slot = (char *const *) hash_find_slot (&strings, str);
   const char *key = *slot;
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+  char *const *slot;
+  const char *key;
+
+  lookup_string = str;
+  lookup_string_len = len;
+  slot = (char *const *) hash_find_slot (&strings, str);
+  key = *slot;
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   /* Count the total number of adds we performed.  */
   ++total_adds;
