@@ -502,6 +502,15 @@ int strcache_iscached (const char *str);
 const char *strcache_add (const char *str);
 const char *strcache_add_len (const char *str, int len);
 int strcache_setbufsize (int size);
+#ifdef CONFIG_WITH_VALUE_LENGTH
+MY_INLINE unsigned int strcache_get_len (const char *str)
+{
+  unsigned int len = ((unsigned int *)str)[-1];
+  MY_ASSERT_MSG (strcache_iscached (str), ("\n"));
+  MY_ASSERT_MSG (strlen (str) == len, ("\n"));
+  return len;
+}
+#endif
 
 #ifdef  HAVE_VFORK_H
 # include <vfork.h>
