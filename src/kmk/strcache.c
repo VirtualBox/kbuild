@@ -115,14 +115,12 @@ add_string(const char *str, int len)
   res = tmp;
   memcpy (tmp, str, str_len);
   tmp += str_len;
-  do
-    *(tmp++) = '\0';
-  while (tmp < best->end);
+  *(tmp++) = '\0';
 
   best->bytesfree -= len + 1;
   ++best->count;
 
-  assert (tmp == best->end);
+  assert (tmp <= best->end);
   assert (!((size_t)res & (sizeof(void *) - 1)));
 #endif /* CONFIG_WITH_VALUE_LENGTH */
   return res;
