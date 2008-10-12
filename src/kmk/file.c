@@ -511,10 +511,16 @@ expand_deps (struct file *f)
 
 #ifdef CONFIG_WITH_INCLUDEDEP
       /* Dependencies loaded by includedep can be passed right thru. */
+
       if (d->includedep)
         {
           new = alloc_dep();
-          new->name = d->name;
+          new->staticpattern = 0;
+          new->need_2nd_expansion = 0;
+          new->includedep = 1;
+          new->file = lookup_file (d->name);
+          if (new->file == 0)
+            new->file = enter_file (d->name);
         }
       else
         {
@@ -649,10 +655,6 @@ expand_deps (struct file *f)
             }
         }
 
-#ifdef CONFIG_WITH_INCLUDEDEP
-        }
-#endif
-
       /* Enter them as files. */
       for (d1 = new; d1 != 0; d1 = d1->next)
         {
@@ -663,6 +665,10 @@ expand_deps (struct file *f)
           d1->staticpattern = 0;
           d1->need_2nd_expansion = 0;
         }
+
+#ifdef CONFIG_WITH_INCLUDEDEP
+        }
+#endif
 
       /* Add newly parsed deps to f->deps. If this is the last dependency
          line and this target has commands then put it in front so the
