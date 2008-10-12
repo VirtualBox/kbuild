@@ -43,6 +43,9 @@ struct dep
     unsigned int ignore_mtime : 1;
     unsigned int staticpattern : 1;
     unsigned int need_2nd_expansion : 1;
+#ifdef CONFIG_WITH_INCLUDEDEP
+    unsigned int includedep : 1;
+#endif
   };
 
 

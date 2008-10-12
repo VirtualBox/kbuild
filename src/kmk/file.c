@@ -509,6 +509,17 @@ expand_deps (struct file *f)
       if (! d->name)
         continue;
 
+#ifdef CONFIG_WITH_INCLUDEDEP
+      /* Dependencies loaded by includedep can be passed right thru. */
+      if (d->includedep)
+        {
+          new = alloc_dep();
+          new->name = d->name;
+        }
+      else
+        {
+#endif
+
       /* Create the dependency list.
          If we're not doing 2nd expansion, then it's just the name.  We will
          still need to massage it though.  */
@@ -569,12 +580,7 @@ expand_deps (struct file *f)
         }
 
       /* Parse the prerequisites.  */
-#ifndef CONFIG_WITH_VALUE_LENGTH
       new = parse_prereqs (p);
-#else
-      /** @todo make use of len here! */
-      new = parse_prereqs (p);
-#endif
 
       /* If this dep list was from a static pattern rule, expand the %s.  We
          use patsubst_expand to translate the prerequisites' patterns into
@@ -642,6 +648,10 @@ expand_deps (struct file *f)
               dp = dp->next;
             }
         }
+
+#ifdef CONFIG_WITH_INCLUDEDEP
+        }
+#endif
 
       /* Enter them as files. */
       for (d1 = new; d1 != 0; d1 = d1->next)

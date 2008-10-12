@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1825 2008-10-10 21:04:14Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1848 2008-10-12 16:41:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -1254,6 +1254,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
                   /* add it to the list. */
                   *nextdep = dep = alloc_dep ();
                   dep->name = incdep_record_strcache (curdep, cur, endp - cur);
+                  dep->includedep = 1;
                   nextdep = &dep->next;
 
                   cur = endp;
