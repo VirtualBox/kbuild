@@ -1429,7 +1429,7 @@ eval (struct ebuffer *ebuf, int set_default)
                  doesn't have to make a temporary copy on the stack. */
               char saved = end[1];
               ((char *)end)[1] = '\0';
-            deps->name = strcache_add_len (beg, end - beg + 1);
+              deps->name = strcache_add_len (beg, end - beg + 1);
               ((char *)end)[1] = saved;
             }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
