@@ -510,17 +510,32 @@ expand_deps (struct file *f)
         continue;
 
 #ifdef CONFIG_WITH_INCLUDEDEP
-      /* Dependencies loaded by includedep can be passed right thru. */
+      /* Dependencies loaded by includedep are ready for use and we skip
+         the expensive parsing and globbing for them. To avoid wasting
+         lots of time walking the f->deps chain, we will advance D and
+         process all subsequent includedep records. */
 
       if (d->includedep)
         {
-          new = alloc_dep();
-          new->staticpattern = 0;
-          new->need_2nd_expansion = 0;
-          new->includedep = 1;
-          new->file = lookup_file (d->name);
-          if (new->file == 0)
-            new->file = enter_file (d->name);
+          new = d1 = alloc_dep();
+          d1->staticpattern = 0;
+          d1->need_2nd_expansion = 0;
+          d1->includedep = 1;
+          d1->file = lookup_file (d->name);
+          if (d1->file == 0)
+            d1->file = enter_file (d->name);
+
+          while (d->next && d->next->includedep)
+            {
+              d = d->next;
+              d1 = d1->next = alloc_dep();
+              d1->staticpattern = 0;
+              d1->need_2nd_expansion = 0;
+              d1->includedep = 1;
+              d1->file = lookup_file (d->name);
+              if (d1->file == 0)
+                d1->file = enter_file (d->name);
+            }
         }
       else
         {
