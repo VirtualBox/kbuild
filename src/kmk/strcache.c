@@ -66,6 +66,16 @@ add_string(const char *str, int len)
   struct strcache *best = NULL;
   struct strcache *sp;
   const char *res;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  int str_len = len;
+  char *tmp;
+
+  /* Add space a length prefix and the terminator and assure
+     (somewhat) natural alignment. */
+  len += sizeof(unsigned int) + 1;
+  len = (len + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+  --len;
+#endif
 
   /* If the string we want is too large to fit into a single buffer, then
      we're screwed; nothing will ever fit!  Change the maximum size of the
@@ -87,13 +97,34 @@ add_string(const char *str, int len)
   assert (best->bytesfree > len);
 
   /* Add the string to the best cache.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
   res = best->end;
   memcpy (best->end, str, len);
   best->end += len;
   *(best->end++) = '\0';
   best->bytesfree -= len + 1;
   ++best->count;
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+  tmp = best->end;
+  best->end += len + 1;
+  assert(!((size_t)tmp & (sizeof(void *) - 1)));
 
+  *(unsigned int *)tmp = str_len; /* length prefix */
+  tmp += sizeof(unsigned int);
+
+  res = tmp;
+  memcpy (tmp, str, str_len);
+  tmp += str_len;
+  do
+    *(tmp++) = '\0';
+  while (tmp < best->end);
+
+  best->bytesfree -= len + 1;
+  ++best->count;
+
+  assert (tmp == best->end);
+  assert (!((size_t)res & (sizeof(void *) - 1)));
+#endif /* CONFIG_WITH_VALUE_LENGTH */
   return res;
 }
 
