@@ -502,6 +502,9 @@ expand_deps (struct file *f)
       size_t buffer_offset; /* bird */
       struct dep *new, *d1;
       char *p;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      unsigned int len;
+#endif
 
       if (! d->name)
         continue;
@@ -513,7 +516,12 @@ expand_deps (struct file *f)
         {
           p = variable_expand ("");
           buffer_offset = p - variable_buffer;
+#ifndef CONFIG_WITH_VALUE_LENGTH
           variable_buffer_output (p, d->name, strlen (d->name) + 1);
+#else
+          len = strcache_get_len (d->name);
+          variable_buffer_output (p, d->name, len + 1);
+#endif
           p = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. (observed it) */
         }
       else
@@ -549,14 +557,24 @@ expand_deps (struct file *f)
 
           set_file_variables (f);
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
           p = variable_expand_for_file (d->name, f);
+#else
+          len = strcache_get_len (d->name);
+          p = variable_expand_for_file_2 (NULL, d->name, len, f, &len);
+#endif
 
           if (d->stem != 0)
             f->stem = file_stem;
         }
 
       /* Parse the prerequisites.  */
+#ifndef CONFIG_WITH_VALUE_LENGTH
       new = parse_prereqs (p);
+#else
+      /** @todo make use of len here! */
+      new = parse_prereqs (p);
+#endif
 
       /* If this dep list was from a static pattern rule, expand the %s.  We
          use patsubst_expand to translate the prerequisites' patterns into
@@ -571,10 +589,22 @@ expand_deps (struct file *f)
           while (dp != 0)
             {
               char *percent;
+#ifndef KMK
               int nl = strlen (dp->name) + 1;
               char *nm = alloca (nl);
               memcpy (nm, dp->name, nl);
               percent = find_percent (nm);
+#else  /* KMK - don't make a stack copy unless it's actually required! */
+              unsigned int nl = strcache_get_len (dp->name);
+              char *nm;
+              percent = memchr (nm, '%', nl);
+              if (percent)
+                {
+                  nm = alloca (nl + 1);
+                  memcpy (nm, dp->name, nl + 1);
+                  percent = find_percent (nm);
+                }
+#endif /* KMK */
               if (percent)
                 {
                   char *o;
