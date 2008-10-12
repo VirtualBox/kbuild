@@ -624,7 +624,7 @@ expand_deps (struct file *f)
 #else  /* KMK - don't make a stack copy unless it's actually required! */
               unsigned int nl = strcache_get_len (dp->name);
               char *nm;
-              percent = memchr (nm, '%', nl);
+              percent = memchr (dp->name, '%', nl);
               if (percent)
                 {
                   nm = alloca (nl + 1);
