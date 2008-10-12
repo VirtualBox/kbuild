@@ -181,7 +181,8 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
 char *variable_expand (const char *line);
 char *variable_expand_for_file (const char *line, struct file *file);
 #ifdef CONFIG_WITH_COMMANDS_FUNC
-char *variable_expand_for_file_2 (char *o, const char *line, struct file *file);
+char *variable_expand_for_file_2 (char *o, const char *line, unsigned int lenght,
+                                  struct file *file, unsigned int *value_lenp);
 #endif
 char *allocated_variable_expand_for_file (const char *line, struct file *file);
 #ifndef CONFIG_WITH_VALUE_LENGTH

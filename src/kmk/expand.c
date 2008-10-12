@@ -748,7 +748,9 @@ variable_expand (const char *line)
 char *
 expand_argument (const char *str, const char *end)
 {
+#ifndef CONFIG_WITH_VALUE_LENGTH /** @todo the hacks are no longer required. Clean up !! */
   char *tmp;
+#endif
 
   if (str == end)
     return xstrdup("");
@@ -816,29 +818,40 @@ variable_expand_for_file (const char *line, struct file *file)
    FILE's commands were found.  Expansion uses FILE's variable set list.
 
    Differs from variable_expand_for_file in that it takes a pointer to
-   where in the variable buffer to start outputting the expanded string.  */
+   where in the variable buffer to start outputting the expanded string,
+   and that it can returned the length of the string if you wish.  */
 
 char *
-variable_expand_for_file_2 (char *o, const char *line, struct file *file)
+variable_expand_for_file_2 (char *o, const char *line, unsigned int length,
+                            struct file *file, unsigned int *value_lenp)
 {
   char *result;
   struct variable_set_list *save;
   const struct floc *reading_file_saved;
+  long len = length == ~0U ? (long)-1 : (long)length;
   char *eol;
 
-  if (file == 0)
-    return variable_expand_string_2 (o, line, (long)-1, &eol);
+  if (!o)
+    o = initialize_variable_output();
 
-  save = current_variable_set_list;
-  current_variable_set_list = file->variables;
-  reading_file_saved = reading_file;
-  if (file->cmds && file->cmds->fileinfo.filenm)
-    reading_file = &file->cmds->fileinfo;
+  if (file == 0)
+     result = variable_expand_string_2 (o, line, len, &eol);
   else
-    reading_file = 0;
-  result = variable_expand_string_2 (o, line, (long)-1, &eol);
-  current_variable_set_list = save;
-  reading_file = reading_file_saved;
+    {
+      save = current_variable_set_list;
+      current_variable_set_list = file->variables;
+      reading_file_saved = reading_file;
+      if (file->cmds && file->cmds->fileinfo.filenm)
+        reading_file = &file->cmds->fileinfo;
+      else
+        reading_file = 0;
+      result = variable_expand_string_2 (o, line, len, &eol);
+      current_variable_set_list = save;
+      reading_file = reading_file_saved;
+    }
+
+  if (value_lenp)
+    *value_lenp = eol - result;
 
   return result;
 }

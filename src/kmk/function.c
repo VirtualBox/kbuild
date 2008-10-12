@@ -3932,7 +3932,7 @@ func_commands (char *o, char **argv, const char *funcname)
           /* Finally, expand the line.  */
           if (i)
             o = variable_buffer_output (o, cmd_sep, cmd_sep_len);
-          o = variable_expand_for_file_2 (o, cmds->command_lines[i], file);
+          o = variable_expand_for_file_2 (o, cmds->command_lines[i], ~0U, file, NULL);
 
           /* Skip it if it has a '%' prefix or is blank. */
           p = o;
