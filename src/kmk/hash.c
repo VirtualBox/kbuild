@@ -123,6 +123,54 @@ hash_find_slot (struct hash_table *ht, const void *key)
     }
 }
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+/* A variant of hash_find_slot that takes the hash values as arguments.
+   The HASH_2 argument is optional, pass 0 if not available.
+   Not having to call ht_hash_1 and perhaps also not ht_hash_2 does save
+   a whole bunch of cycles in some of the kBuild use cases (strcache sees
+   serious usage there). */
+void **
+hash_find_slot_prehashed (struct hash_table *ht, const void *key,
+                          unsigned int hash_1, unsigned int hash_2)
+{
+  void **slot;
+  void **deleted_slot = 0;
+
+  ht->ht_lookups++;
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_ht_lookups++;
+#endif
+  for (;;)
+    {
+      hash_1 &= (ht->ht_size - 1);
+      slot = &ht->ht_vec[hash_1];
+
+      if (*slot == 0)
+	return (deleted_slot ? deleted_slot : slot);
+      if (*slot == hash_deleted_item)
+	{
+	  if (deleted_slot == 0)
+	    deleted_slot = slot;
+	}
+      else
+	{
+	  if (key == *slot)
+	    return slot;
+	  if ((*ht->ht_compare) (key, *slot) == 0)
+	    return slot;
+	  ht->ht_collisions++;
+#ifdef CONFIG_WITH_MAKE_STATS
+	  make_stats_ht_collisions++;
+#endif
+	}
+      if (!hash_2)
+	  hash_2 = (*ht->ht_hash_2) (key) | 1;
+      hash_1 += hash_2;
+    }
+}
+
+#endif /* CONFIG_WITH_VALUE_LENGTH */
+
 void *
 hash_find_item (struct hash_table *ht, const void *key)
 {

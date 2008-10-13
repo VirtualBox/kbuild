@@ -163,9 +163,11 @@ static struct strcache_pref *lookup_prefix;
 static unsigned long
 str_hash_1 (const void *key)
 {
+#if 0
 #ifdef CONFIG_WITH_VALUE_LENGTH
   if (MY_PREDICT_TRUE ((const char *) key == lookup_string))
     return lookup_prefix->hash1;
+#endif
 #endif
   return_ISTRING_HASH_1 ((const char *) key);
 }
@@ -236,7 +238,7 @@ add_hash (const char *str, int len)
 static const char *
 add_hash (const char *str, int len, unsigned long hash1, unsigned long hash2)
 {
-  char *const *slot;
+  void const **slot;
   const char *key;
   struct strcache_pref prefix;
 
@@ -250,8 +252,8 @@ add_hash (const char *str, int len, unsigned long hash1, unsigned long hash2)
   lookup_string = str;
   lookup_prefix = &prefix;
 
-  slot = (char *const *) hash_find_slot (&strings, str);
-  key = *slot;
+  slot = hash_find_slot_prehashed (&strings, str, prefix.hash1, prefix.hash2);
+  key = *(const char **)slot;
 
   /* Count the total number of adds we performed.  */
   ++total_adds;

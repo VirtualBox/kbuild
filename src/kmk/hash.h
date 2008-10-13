@@ -62,6 +62,10 @@ void hash_init __P((struct hash_table *ht, unsigned long size,
 void hash_load __P((struct hash_table *ht, void *item_table,
 		    unsigned long cardinality, unsigned long size));
 void **hash_find_slot __P((struct hash_table *ht, void const *key));
+#ifdef CONFIG_WITH_VALUE_LENGTH
+void **hash_find_slot_prehashed __P((struct hash_table *ht, const void *key,
+                                     unsigned int hash_1, unsigned int hash_2));
+#endif
 void *hash_find_item __P((struct hash_table *ht, void const *key));
 void *hash_insert __P((struct hash_table *ht, const void *item));
 void *hash_insert_at __P((struct hash_table *ht, const void *item, void const *slot));
