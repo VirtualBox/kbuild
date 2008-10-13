@@ -502,6 +502,12 @@ int strcache_iscached (const char *str);
 const char *strcache_add (const char *str);
 const char *strcache_add_len (const char *str, int len);
 int strcache_setbufsize (int size);
+#ifdef CONFIG_WITH_INCLUDEDEP
+const char *strcache_add_prehashed (const char *str, int len,
+                                    unsigned long hash1, unsigned long hash2);
+void strcache_prehash_str (const char *str, unsigned long *hash1p,
+                           unsigned long *hash2p);
+#endif
 #ifdef CONFIG_WITH_VALUE_LENGTH
 MY_INLINE unsigned int strcache_get_len (const char *str)
 {
