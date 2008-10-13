@@ -130,19 +130,34 @@ add_string(const char *str, int len)
 /* Hash table of strings in the cache.  */
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
+/* Hackish globals for passing data to the hash functions.
+   There isn't really any other way without running the
+   risk of breaking rehashing. */
 static const char *lookup_string;
 static unsigned int lookup_string_len;
-#endif
+# ifdef CONFIG_WITH_INCLUDEDEP
+static unsigned long lookup_string_hash1;
+static unsigned long lookup_string_hash2;
+# endif /* CONFIG_WITH_INCLUDEDEP */
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 static unsigned long
 str_hash_1 (const void *key)
 {
+#ifdef CONFIG_WITH_INCLUDEDEP
+  if ((const char *) key == lookup_string && lookup_string_hash1)
+    return lookup_string_hash1;
+#endif
   return_ISTRING_HASH_1 ((const char *) key);
 }
 
 static unsigned long
 str_hash_2 (const void *key)
 {
+#ifdef CONFIG_WITH_INCLUDEDEP
+  if ((const char *) key == lookup_string && lookup_string_hash2)
+    return lookup_string_hash2;
+#endif
   return_ISTRING_HASH_2 ((const char *) key);
 }
 
@@ -156,7 +171,7 @@ str_hash_cmp (const void *x, const void *y)
      This catches 520253 out of 1341947 calls in the typical
      kBuild scenario.  */
 
-  if (x == lookup_string)
+  if ((const char *) x == lookup_string)
     {
       assert (lookup_string_len == strlen ((const char *)x));
       if (strcache_get_len ((const char *)y) != lookup_string_len)
@@ -235,6 +250,41 @@ strcache_add_len (const char *str, int len)
 
   return add_hash (str, len);
 }
+
+#ifdef CONFIG_WITH_INCLUDEDEP
+
+/* A special variant used by the includedep worker threads, it off loads
+   the main thread when it adds the strings to the cache later. */
+const char *
+strcache_add_prehashed (const char *str, int len, unsigned long hash1,
+                        unsigned long hash2)
+{
+  const char *retstr;
+
+  assert (hash1 == str_hash_1 (str));
+  assert (hash2 == str_hash_2 (str));
+
+  lookup_string_hash1 = hash1;
+  lookup_string_hash2 = hash2;
+
+  retstr = add_hash (str, len);
+
+  lookup_string_hash1 = 0;
+  lookup_string_hash2 = 0;
+
+  return retstr;
+}
+
+/* Performs the prehashing for use with strcache_add_prehashed(). */
+void
+strcache_prehash_str (const char *str, unsigned long *hash1p,
+                      unsigned long *hash2p)
+{
+  *hash1p = str_hash_1 (str);
+  *hash2p = str_hash_2 (str);
+}
+
+#endif /* CONFIG_WITH_INCLUDEDEP */
 
 int
 strcache_setbufsize(int size)

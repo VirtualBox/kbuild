@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1852 2008-10-13 00:16:34Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1854 2008-10-13 01:50:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -84,13 +84,20 @@
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
 *******************************************************************************/
+struct incdep_strcache_entry
+{
+    unsigned int length;
+    unsigned int alignment;
+    unsigned long hash1;
+    unsigned long hash2;
+    char str[1];
+};
 
 struct incdep_variable_in_set
 {
     struct incdep_variable_in_set *next;
     /* the parameters */
-    char *name;                     /* xmalloc'ed -> strcache */
-    unsigned int name_length;
+    struct incdep_strcache_entry *name_entry;
     const char *value;              /* xmalloc'ed */
     unsigned int value_length;
     int duplicate_value;            /* 0 */
@@ -105,8 +112,7 @@ struct incdep_variable_def
     struct incdep_variable_def *next;
     /* the parameters */
     const struct floc *flocp;       /* NILF */
-    char *name;                     /* xmalloc'ed -> strcache */
-    unsigned int name_length;       /* (not an actual parameter) */
+    struct incdep_strcache_entry *name_entry;
     char *value;                    /* xmalloc'ed, free it */
     unsigned int value_length;
     enum variable_origin origin;
@@ -119,10 +125,10 @@ struct incdep_recorded_files
     struct incdep_recorded_files *next;
 
     /* the parameters */
-    struct nameseq *filenames;      /* only one file? its name needs be strcache'ed */
+    struct nameseq *filenames;      /* One only, its name is a strcache entry. */
     const char *pattern;            /* NULL */
     const char *pattern_percent;    /* NULL */
-    struct dep *deps;               /* names need to be strcache'ed */
+    struct dep *deps;               /* All the names are strcache entries. */
     unsigned int cmds_started;      /* 0 */
     char *commands;                 /* NULL */
     unsigned int commands_idx;      /* 0 */
@@ -664,6 +670,18 @@ incdep_flush_and_term (void)
 }
 
 #ifdef PARSE_IN_WORKER
+/* Flushes a strcache entry returning the actual string cache entry.
+   The input is freed! */
+static const char *
+incdep_flush_strcache_entry (const void *pv_entry)
+{
+  struct incdep_strcache_entry *entry = (struct incdep_strcache_entry *)pv_entry;
+  const char *result;
+  result = strcache_add_prehashed (entry->str, entry->length, entry->hash1, entry->hash2);
+  free (entry);
+  return result;
+}
+
 /* Flushes the recorded instructions. */
 static void
 incdep_flush_recorded_instructions (struct incdep *cur)
@@ -680,8 +698,9 @@ incdep_flush_recorded_instructions (struct incdep *cur)
     do
       {
         void *free_me = rec_vis;
-        define_variable_in_set (strcache_add_len (rec_vis->name, rec_vis->name_length),
-                                rec_vis->name_length,
+        unsigned int name_length = rec_vis->name_entry->length;
+        define_variable_in_set (incdep_flush_strcache_entry (rec_vis->name_entry),
+                                name_length,
                                 rec_vis->value,
                                 rec_vis->value_length,
                                 rec_vis->duplicate_value,
@@ -689,7 +708,6 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                 rec_vis->recursive,
                                 rec_vis->set,
                                 rec_vis->flocp);
-        incdep_xfree (cur, rec_vis->name);
         rec_vis = rec_vis->next;
         incdep_xfree (cur, free_me);
       }
@@ -704,7 +722,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
       {
         void *free_me = rec_vd;
         do_variable_definition_2 (rec_vd->flocp,
-                                  strcache_add_len(rec_vd->name, rec_vd->name_length),
+                                  incdep_flush_strcache_entry (rec_vd->name_entry),
                                   rec_vd->value,
                                   rec_vd->value_length,
                                   0,
@@ -712,7 +730,6 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                   rec_vd->origin,
                                   rec_vd->flavor,
                                   rec_vd->target_var);
-        incdep_xfree (cur, rec_vd->name);
         rec_vd = rec_vd->next;
         incdep_xfree (cur, free_me);
       }
@@ -727,18 +744,10 @@ incdep_flush_recorded_instructions (struct incdep *cur)
       {
         void *free_me = rec_f;
         struct dep *dep;
-        const char *newname;
 
         for (dep = rec_f->deps; dep; dep = dep->next)
-          {
-            newname = strcache_add (dep->name);
-            free ((char *)dep->name);
-            dep->name = newname;
-          }
-
-        newname = strcache_add (rec_f->filenames->name);
-        incdep_xfree (cur, (char *)rec_f->filenames->name);
-        rec_f->filenames->name = newname;
+          dep->name = incdep_flush_strcache_entry (dep->name);
+        rec_f->filenames->name = incdep_flush_strcache_entry (rec_f->filenames->name);
 
         record_files (rec_f->filenames,
                       rec_f->pattern,
@@ -789,12 +798,15 @@ incdep_record_strcache (struct incdep *cur, const char *str, int len)
     }
   else
     {
-      /* Duplicate the string. The other recorders knows which arguments
-         needs to be added to the string cache later. */
-      char *newstr = incdep_xmalloc (cur, len + 1);
-      memcpy (newstr, str, len);
-      newstr[len] = '\0';
-      ret = newstr;
+      /* Allocate a strcache record for it, pre-hashing the string to save
+         time later on in the main thread. */
+      struct incdep_strcache_entry *entry = incdep_xmalloc (cur, sizeof (*entry) + len);
+      memcpy (entry->str, str, len);
+      entry->str[len] = '\0';
+      entry->length = len;
+      strcache_prehash_str (entry->str, &entry->hash1, &entry->hash2);
+
+      ret = (const char *)entry;
     }
   return ret;
 }
@@ -822,8 +834,7 @@ incdep_record_variable_in_set (struct incdep *cur,
   else
     {
       struct incdep_variable_in_set *rec = incdep_xmalloc (cur, sizeof (*rec));
-      rec->name = (char *)name;
-      rec->name_length = name_length;
+      rec->name_entry = (struct incdep_strcache_entry *)name;
       rec->value = value;
       rec->value_length = value_length;
       rec->duplicate_value = duplicate_value;
@@ -862,8 +873,7 @@ incdep_record_variable_def (struct incdep *cur,
     {
       struct incdep_variable_def *rec = incdep_xmalloc (cur, sizeof (*rec));
       rec->flocp = flocp;
-      rec->name = (char *)name;
-      rec->name_length = name_length;
+      rec->name_entry = (struct incdep_strcache_entry *)name;
       rec->value = value;
       rec->value_length = value_length;
       rec->origin = origin;
