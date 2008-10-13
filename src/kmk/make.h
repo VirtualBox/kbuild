@@ -509,13 +509,42 @@ void strcache_prehash_str (const char *str, unsigned long *hash1p,
                            unsigned long *hash2p);
 #endif
 #ifdef CONFIG_WITH_VALUE_LENGTH
+struct strcache_pref
+{
+    unsigned long hash1;
+    unsigned long hash2;
+    unsigned int len;
+};
+
+int strcache_check_sanity (const char *str);
+unsigned long strcache_get_hash2_fallback (const char *str);
+
 MY_INLINE unsigned int strcache_get_len (const char *str)
 {
-  unsigned int len = ((unsigned int *)str)[-1];
-  MY_ASSERT_MSG (strcache_iscached (str), ("\n"));
-  MY_ASSERT_MSG (strlen (str) == len, ("\n"));
+  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
+  unsigned int len = prefix->len;
+  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
   return len;
 }
+
+MY_INLINE unsigned int strcache_get_hash1 (const char *str)
+{
+  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
+  unsigned long hash1 = prefix->hash1;
+  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
+  return hash1;
+}
+
+MY_INLINE unsigned long strcache_get_hash2 (const char *str)
+{
+  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
+  unsigned long hash2 = prefix->hash2;
+  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
+  if (!hash2)
+    return strcache_get_hash2_fallback (str);
+  return hash2;
+}
+
 #endif
 
 #ifdef  HAVE_VFORK_H

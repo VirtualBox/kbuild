@@ -40,6 +40,7 @@ int snapped_deps = 0;
 
 /* Hash table of files the makefile knows how to make.  */
 
+#ifndef KMK
 static unsigned long
 file_hash_1 (const void *key)
 {
@@ -55,19 +56,58 @@ file_hash_2 (const void *key)
 static int
 file_hash_cmp (const void *x, const void *y)
 {
-#ifdef KMK
- /* since the names live in the strcache, there is a raging likelylood
-    that we'll match on the string pointer.  Which is wee bit faster...  */
- struct file const *xf = ((struct file const *) x);
- struct file const *yf = ((struct file const *) y);
-  if (xf->hname == yf->hname)
-    return 0;
-  return_ISTRING_COMPARE (xf->hname, yf->hname);
-#else
   return_ISTRING_COMPARE (((struct file const *) x)->hname,
 			  ((struct file const *) y)->hname);
-#endif
 }
+#else  /* KMK */
+
+static unsigned long
+file_hash_1 (const void *key)
+{
+  struct file const *f = (struct file const *)key;
+
+  /* If it's cached, get the hash from the strcache. */
+  if (f->name != (const char *)f)
+    return strcache_get_hash1 (f->hname);
+
+  return_ISTRING_HASH_1 (f->hname);
+}
+
+static unsigned long
+file_hash_2 (const void *key)
+{
+  struct file const *f = (struct file const *)key;
+
+  /* If it's cached, get the hash from the strcache. */
+  if (f->name != (const char *)f)
+    return strcache_get_hash2 (f->hname);
+
+  return_ISTRING_HASH_2 (f->hname);
+}
+
+static int
+file_hash_cmp (const void *x, const void *y)
+{
+  struct file const *xf = ((struct file const *) x);
+  struct file const *yf = ((struct file const *) y);
+
+  /* The file name strings all live in the strcache. However,
+     lookup_file may or may not have a string from the cache. It indicates
+     that it's responsible for the lookup by setting file::name to point
+     to the file structure itself. So, when file::name points elsewhere
+     we can omit the string compare, while when it isn't we can only
+     check if they match that way. */
+
+  if (xf->hname == yf->hname)
+    return 0;
+  if (   xf->name != (const char *)xf
+      && yf->name != (const char *)yf)
+    return 1;
+
+  return_ISTRING_COMPARE (xf->hname, yf->hname);
+}
+
+#endif /* KMK */
 
 #ifndef	FILE_BUCKETS
 #define FILE_BUCKETS	1007
@@ -82,8 +122,13 @@ static int all_secondary = 0;
                 or nil if there is none.
 */
 
+#ifndef KMK
 struct file *
 lookup_file (const char *name)
+#else  /* KMK */
+MY_INLINE struct file *
+lookup_file_common (const char *name, int cached)
+#endif /* KMK */
 {
   struct file *f;
   struct file file_key;
@@ -131,6 +176,10 @@ lookup_file (const char *name)
     name = "./";
 #endif
 
+#ifdef KMK
+  /* uncached lookup indicator hack. */
+  file_key.name = !cached ? (const char *)&file_key : NULL;
+#endif
   file_key.hname = name;
   f = hash_find_item (&files, &file_key);
 #if defined(VMS) && !defined(WANT_CASE_SENSITIVE_TARGETS)
@@ -140,6 +189,27 @@ lookup_file (const char *name)
 
   return f;
 }
+
+#ifdef KMK
+/* Given a name, return the struct file * for that name,
+  or nil if there is none. */
+
+struct file *
+lookup_file (const char *name)
+{
+  return lookup_file_common (name, 0 /* cached */);
+}
+
+/* Given a name in the strcache, return the struct file * for that name,
+  or nil if there is none. */
+struct file *
+lookup_file_cached (const char *name)
+{
+  assert (strcache_iscached (name));
+  return lookup_file_common (name, 1 /* cached */);
+}
+#endif /* KMK */
+
 
 /* Look up a file record for file NAME and return it.
    Create a new record if one doesn't exist.  NAME will be stored in the
@@ -220,6 +290,12 @@ rehash_file (struct file *from_file, const char *to_hname)
   struct file *to_file;
   struct file *deleted_file;
   struct file *f;
+
+#ifdef KMK
+  assert (strcache_iscached (to_hname));
+  assert (strcache_iscached (from_file->hname));
+  file_key.name = NULL; /* cached lookup indicator hack. */
+#endif
 
   /* If it's already that name, we're done.  */
   file_key.hname = to_hname;

@@ -106,8 +106,8 @@ struct file
     unsigned int multi_maybe:1; /* Nonzero if this file isn't always updated
                                    by the explicit multi target rule. */
 #endif
-#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION	  
-    unsigned int need_2nd_target_expansion:1; /* Nonzero if this file needs 
+#ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
+    unsigned int need_2nd_target_expansion:1; /* Nonzero if this file needs
                                   second expansion of its name. Whether it
                                   can receive this is decided at parse time,
                                   and the expanding done in snap_deps. */
@@ -121,6 +121,9 @@ extern char **default_goal_name;
 
 
 struct file *lookup_file (const char *name);
+#ifdef KMK
+struct file *lookup_file_cached (const char *name);
+#endif
 struct file *enter_file (const char *name);
 struct dep *parse_prereqs (char *prereqs);
 void remove_intermediates (int sig);
