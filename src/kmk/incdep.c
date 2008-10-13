@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1848 2008-10-12 16:41:07Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1852 2008-10-13 00:16:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -73,6 +73,11 @@
 
 #ifdef HAVE_PTHREAD
 # include <pthread.h>
+#endif
+
+#ifdef __APPLE__
+# include <malloc/malloc.h>
+# define PARSE_IN_WORKER
 #endif
 
 
@@ -194,7 +199,7 @@ static struct incdep * volatile incdep_tail_done;
 
 /* The handles to the worker threads. */
 #ifdef HAVE_PTHREAD
-static pthread_t incdep_threads[2];
+static pthread_t incdep_threads[1];
 #elif defined (WINDOWS32)
 static HANDLE incdep_threads[2];
 #elif defined (__OS2__)
@@ -205,12 +210,71 @@ static unsigned incdep_num_threads;
 /* flag indicating whether the worker threads should terminate or not. */
 static int volatile incdep_terminate;
 
+#ifdef __APPLE__
+/* malloc zone for the incdep threads. */
+static malloc_zone_t *incdep_zone;
+#endif
+
 
 /*******************************************************************************
 *   Internal Functions                                                         *
 *******************************************************************************/
 static void incdep_flush_it (struct floc *);
-static void eval_include_dep_file (struct incdep *, struct floc *, int);
+static void eval_include_dep_file (struct incdep *, struct floc *);
+
+
+/* xmalloc wrapper.
+   For working around multithreaded performance problems found on Darwin,
+   Linux (glibc), and possibly other systems. */
+static void *incdep_xmalloc (struct incdep *cur, size_t size)
+{
+  void *ptr;
+
+#ifdef __APPLE__
+  if (cur && cur->is_worker)
+    {
+      ptr = malloc_zone_malloc (incdep_zone, size);
+      if (!ptr)
+        fatal (NILF, _("virtual memory exhausted"));
+    }
+  else
+    ptr = xmalloc (size);
+#else
+  ptr = xmalloc (size);
+#endif
+
+  (void)cur;
+  return ptr;
+}
+
+/* memset(malloc(sz),'\0',sz) wrapper. */
+static void *incdep_xcalloc (struct incdep *cur, size_t size)
+{
+  void *ptr;
+
+#ifdef __APPLE__
+  if (cur && cur->is_worker)
+    ptr = malloc_zone_calloc (incdep_zone, size, 1);
+  else
+    ptr = calloc (size, 1);
+#else
+  ptr = calloc (size, 1);
+#endif
+  if (!ptr)
+    fatal (NILF, _("virtual memory exhausted"));
+
+  (void)cur;
+  return ptr;
+}
+
+/* free wrapper */
+static void incdep_xfree (struct incdep *cur, void *ptr)
+{
+  /* free() *must* work for the allocation hacks above because
+     of free_dep_chain. */
+  free (ptr);
+  (void)cur;
+}
 
 
 
@@ -346,7 +410,7 @@ incdep_read_file (struct incdep *cur, struct floc *f)
     }
   if (!fstat (fd, &st))
     {
-      cur->file_base = xmalloc (st.st_size + 1);
+      cur->file_base = incdep_xmalloc (cur, st.st_size + 1);
       if (read (fd, cur->file_base, st.st_size) == st.st_size)
         {
           close (fd);
@@ -358,7 +422,7 @@ incdep_read_file (struct incdep *cur, struct floc *f)
       /* bail out */
 
       error (f, "%s: read: %s", cur->name, strerror (errno));
-      free (cur->file_base);
+      incdep_xfree (cur, cur->file_base);
     }
   else
     error (f, "%s: fstat: %s", cur->name, strerror (errno));
@@ -370,7 +434,7 @@ incdep_read_file (struct incdep *cur, struct floc *f)
 
 /* Free the incdep structure. */
 static void
-incdep_free (struct incdep *cur)
+incdep_freeit (struct incdep *cur)
 {
 #ifdef PARSE_IN_WORKER
   assert (!cur->recorded_variables_in_set_head);
@@ -378,7 +442,7 @@ incdep_free (struct incdep *cur)
   assert (!cur->recorded_files_head);
 #endif
 
-  free (cur->file_base);
+  incdep_xfree (cur, cur->file_base);
   free (cur);
 }
 
@@ -407,10 +471,12 @@ incdep_worker (void)
       /* read the file. */
 
       incdep_unlock ();
+      cur->is_worker = 1;
       incdep_read_file (cur, NILF);
 #ifdef PARSE_IN_WORKER
-      eval_include_dep_file (cur, NILF, 1 /* is_worker */);
+      eval_include_dep_file (cur, NILF);
 #endif
+      cur->is_worker = 0;
       incdep_lock ();
 
       /* insert finished job into the done list. */
@@ -474,6 +540,15 @@ incdep_init (struct floc *f)
   int rc;
   int tid;
 #endif
+
+  /* heap hacks */
+
+#ifdef __APPLE__
+  incdep_zone = malloc_create_zone (0, 0);
+  if (!incdep_zone)
+    incdep_zone = malloc_default_zone ();
+#endif
+
 
   /* create the mutex and two condition variables / event objects. */
 
@@ -614,9 +689,9 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                 rec_vis->recursive,
                                 rec_vis->set,
                                 rec_vis->flocp);
-        free (rec_vis->name);
+        incdep_xfree (cur, rec_vis->name);
         rec_vis = rec_vis->next;
-        free (free_me);
+        incdep_xfree (cur, free_me);
       }
     while (rec_vis);
 
@@ -637,9 +712,9 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                   rec_vd->origin,
                                   rec_vd->flavor,
                                   rec_vd->target_var);
-        free (rec_vd->name);
+        incdep_xfree (cur, rec_vd->name);
         rec_vd = rec_vd->next;
-        free (free_me);
+        incdep_xfree (cur, free_me);
       }
     while (rec_vd);
 
@@ -662,7 +737,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
           }
 
         newname = strcache_add (rec_f->filenames->name);
-        free ((char *)rec_f->filenames->name);
+        incdep_xfree (cur, (char *)rec_f->filenames->name);
         rec_f->filenames->name = newname;
 
         record_files (rec_f->filenames,
@@ -676,7 +751,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                       rec_f->flocp);
 
         rec_f = rec_f->next;
-        free (free_me);
+        incdep_xfree (cur, free_me);
       }
     while (rec_f);
 }
@@ -716,7 +791,7 @@ incdep_record_strcache (struct incdep *cur, const char *str, int len)
     {
       /* Duplicate the string. The other recorders knows which arguments
          needs to be added to the string cache later. */
-      char *newstr = xmalloc (len + 1);
+      char *newstr = incdep_xmalloc (cur, len + 1);
       memcpy (newstr, str, len);
       newstr[len] = '\0';
       ret = newstr;
@@ -746,7 +821,7 @@ incdep_record_variable_in_set (struct incdep *cur,
 #ifdef PARSE_IN_WORKER
   else
     {
-      struct incdep_variable_in_set *rec = xmalloc (sizeof (*rec));
+      struct incdep_variable_in_set *rec = incdep_xmalloc (cur, sizeof (*rec));
       rec->name = (char *)name;
       rec->name_length = name_length;
       rec->value = value;
@@ -785,7 +860,7 @@ incdep_record_variable_def (struct incdep *cur,
 #ifdef PARSE_IN_WORKER
   else
     {
-      struct incdep_variable_def *rec = xmalloc (sizeof (*rec));
+      struct incdep_variable_def *rec = incdep_xmalloc (cur, sizeof (*rec));
       rec->flocp = flocp;
       rec->name = (char *)name;
       rec->name_length = name_length;
@@ -822,7 +897,7 @@ incdep_record_files (struct incdep *cur,
 #ifdef PARSE_IN_WORKER
   else
     {
-      struct incdep_recorded_files *rec = xmalloc (sizeof (*rec));
+      struct incdep_recorded_files *rec = incdep_xmalloc (cur, sizeof (*rec));
 
       rec->filenames = filenames;
       rec->pattern = pattern;
@@ -865,7 +940,7 @@ incdep_record_files (struct incdep *cur,
 
    */
 static void
-eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
+eval_include_dep_file (struct incdep *curdep, struct floc *f)
 {
   unsigned line_no = 1;
   const char *file_end = curdep->file_end;
@@ -875,7 +950,6 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
   /* if no file data, just return immediately. */
   if (!cur)
     return;
-  curdep->is_worker = is_worker;
 
   /* now parse the file. */
   while (cur < file_end)
@@ -982,7 +1056,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
             }
 
           /* make a copy of the value, converting \r\n to \n, and define it. */
-          value = xmalloc (value_len + 1);
+          value = incdep_xmalloc (curdep, value_len + 1);
           endp = memchr (value_start, '\r', value_len);
           if (endp)
             {
@@ -1141,7 +1215,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
 
               /* make a copy of the value, converting \r\n to \n, and define it. */
               value_len = value_end - value_start;
-              value = xmalloc (value_len + 1);
+              value = incdep_xmalloc (curdep, value_len + 1);
               if (!multi_line)
                   memcpy (value, value_start, value_len);
               else
@@ -1212,7 +1286,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
                   incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
                   break;
                 }
-              filenames = xmalloc (sizeof (struct nameseq));
+              filenames = incdep_xmalloc (curdep, sizeof (struct nameseq));
               memset (filenames, 0, sizeof (*filenames));
               filenames->name = incdep_record_strcache (curdep, cur, endp - cur);
 
@@ -1252,7 +1326,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
                     ++endp;
 
                   /* add it to the list. */
-                  *nextdep = dep = alloc_dep ();
+                  *nextdep = dep = incdep_xcalloc (curdep, sizeof (*dep));
                   dep->name = incdep_record_strcache (curdep, cur, endp - cur);
                   dep->includedep = 1;
                   nextdep = &dep->next;
@@ -1268,11 +1342,8 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f, int is_worker)
     }
 
   /* free the file data */
-  if (is_worker)
-    {
-      free (curdep->file_base);
-      curdep->file_base = curdep->file_end = NULL;
-    }
+  incdep_xfree (curdep, curdep->file_base);
+  curdep->file_base = curdep->file_end = NULL;
 }
 
 /* Flushes the incdep todo and done lists. */
@@ -1295,8 +1366,8 @@ incdep_flush_it (struct floc *f)
           incdep_unlock ();
 
           incdep_read_file (cur, f);
-          eval_include_dep_file (cur, f, 0);
-          incdep_free (cur);
+          eval_include_dep_file (cur, f);
+          incdep_freeit (cur);
 
           incdep_lock ();
           continue;
@@ -1323,9 +1394,9 @@ incdep_flush_it (struct floc *f)
 #ifdef PARSE_IN_WORKER
           incdep_flush_recorded_instructions (cur);
 #else
-          eval_include_dep_file (cur, f, 0);
+          eval_include_dep_file (cur, f);
 #endif
-          incdep_free (cur);
+          incdep_freeit (cur);
           cur = next;
         }
 
@@ -1351,7 +1422,7 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
 
   while ((name = find_next_token (&names_iterator, &name_len)) != 0)
     {
-       cur = xmalloc (sizeof (*cur) + name_len);
+       cur = xmalloc (sizeof (*cur) + name_len); /* not incdep_xmalloc here */
        cur->file_base = cur->file_end = NULL;
        memcpy (cur->name, name, name_len);
        cur->name[name_len] = '\0';
@@ -1384,7 +1455,8 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
         {
           struct incdep *next = cur->next;
           incdep_read_file (cur, f);
-          eval_include_dep_file (cur, f, 0); /* eats cur */
+          eval_include_dep_file (cur, f);
+          incdep_freeit (cur);
           cur = next;
         }
     }
