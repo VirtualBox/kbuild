@@ -1513,7 +1513,11 @@ eval (struct ebuffer *ebuf, int set_default)
                       }
                     for (d2 = suffix_file->deps; d2 != 0; d2 = d2->next)
                       {
+#ifndef CONFIG_WITH_VALUE_LENGTH
                         unsigned int l = strlen (dep_name (d2));
+#else
+                        unsigned int l = strcache_get_len (dep_name (d2));
+#endif
                         if (!strneq (name, dep_name (d2), l))
                           continue;
                         if (streq (name + l, dep_name (d)))
