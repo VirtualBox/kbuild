@@ -94,12 +94,20 @@ set_file_variables (struct file *file)
 #endif
 	{
 	  name = file->name;
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	  len = strlen (name);
+#else
+	  len = strcache_get_len (name);
+#endif
 	}
 
       for (d = enter_file (strcache_add (".SUFFIXES"))->deps; d ; d = d->next)
 	{
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	  unsigned int slen = strlen (dep_name (d));
+#else
+	  unsigned int slen = strcache_get_len (dep_name (d));
+#endif
 	  if (len > slen && strneq (dep_name (d), name + (len - slen), slen))
 	    {
 	      file->stem = strcache_add_len (name, len - slen);
@@ -154,7 +162,11 @@ set_file_variables (struct file *file)
     plus_len = 0;
     for (d = file->deps; d != 0; d = d->next)
       if (! d->ignore_mtime)
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	plus_len += strlen (dep_name (d)) + 1;
+#else
+	plus_len += strcache_get_len (dep_name (d)) + 1;
+#endif
     if (plus_len == 0)
       plus_len++;
 
@@ -176,7 +188,11 @@ set_file_variables (struct file *file)
             }
           else
 #endif
+#ifndef CONFIG_WITH_VALUE_LENGTH
             len = strlen (c);
+#else
+            len = strcache_get_len (c);
+#endif
 
           memcpy (cp, c, len);
           cp += len;
@@ -199,7 +215,11 @@ set_file_variables (struct file *file)
     bar_len = 0;
     for (d = file->deps; d != 0; d = d->next)
       if (d->ignore_mtime)
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	bar_len += strlen (dep_name (d)) + 1;
+#else
+	bar_len += strcache_get_len (dep_name (d)) + 1;
+#endif
     if (bar_len == 0)
       bar_len++;
 
@@ -227,7 +247,11 @@ set_file_variables (struct file *file)
 	  }
 	else
 #endif
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	  len = strlen (c);
+#else
+	  len = strcache_get_len (c);
+#endif
 
         if (d->ignore_mtime)
           {
@@ -333,7 +357,7 @@ chop_commands (struct commands *cmds)
   cmds->lines_flags = xmalloc (nlines * sizeof (cmds->lines_flags[0]));
 #else
   cmds->lines_flags = xmalloc (nlines);
-#endif 
+#endif
   for (idx = 0; idx < nlines; ++idx)
     {
       int flags = 0;
