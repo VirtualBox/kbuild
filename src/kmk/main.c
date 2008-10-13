@@ -3681,7 +3681,7 @@ die (int status)
       if (print_data_base_flag)
 	print_data_base ();
 
-#ifndef NDEBUG /* bird: Don't waste time on debug sanity checks.  */
+#ifdef NDEBUG /* bird: Don't waste time on debug sanity checks.  */
       if (print_data_base_flag || db_level)
 #endif
         verify_file_data_base ();
