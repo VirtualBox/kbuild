@@ -700,12 +700,41 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
 }
 
 
+#ifdef KMK
+/* Cache free struct dep to save time in free during snap_deps.
+   free is esp. slow on darwin for some reason. */
+static struct dep *free_deps;
+
+static struct dep *
+alloc_dep_int (void)
+{
+    struct dep *d = free_deps;
+    if (d)
+      free_deps = d->next;
+    else
+      d = xmalloc (sizeof (struct dep));
+    return d;
+}
+
+static void
+free_dep_int (struct dep *d)
+{
+  d->next = free_deps;
+  free_deps = d;
+}
+#endif /* KMK */
+
+
 /* Allocate a new `struct dep' with all fields initialized to 0.   */
 
 struct dep *
 alloc_dep ()
 {
+#ifndef KMK
   struct dep *d = xmalloc (sizeof (struct dep));
+#else
+  struct dep *d = alloc_dep_int ();
+#endif
   memset (d, '\0', sizeof (struct dep));
   return d;
 }
@@ -716,7 +745,11 @@ alloc_dep ()
 void
 free_dep (struct dep *d)
 {
+#ifndef KMK
   free (d);
+#else
+  free_dep_int (d);
+#endif
 }
 
 /* Copy a chain of `struct dep', making a new chain
@@ -730,7 +763,11 @@ copy_dep_chain (const struct dep *d)
 
   while (d != 0)
     {
+#ifndef KMK
       struct dep *c = xmalloc (sizeof (struct dep));
+#else
+      struct dep *c = alloc_dep_int ();
+#endif
       memcpy (c, d, sizeof (struct dep));
 
       c->next = 0;
@@ -754,7 +791,11 @@ free_dep_chain (struct dep *d)
     {
       struct dep *df = d;
       d = d->next;
+#ifndef KMK
       free_dep (df);
+#else
+      free_dep_int (df);
+#endif
     }
 }
 
