@@ -60,22 +60,13 @@ new_cache()
   return new;
 }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static const char *
 add_string(const char *str, int len)
 {
   struct strcache *best = NULL;
   struct strcache *sp;
   const char *res;
-#ifdef CONFIG_WITH_VALUE_LENGTH
-  int str_len = len;
-  char *tmp;
-
-  /* Add space a length prefix and the terminator and assure
-     (somewhat) natural alignment. */
-  len += sizeof(unsigned int) + 1;
-  len = (len + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
-  --len;
-#endif
 
   /* If the string we want is too large to fit into a single buffer, then
      we're screwed; nothing will ever fit!  Change the maximum size of the
@@ -97,56 +88,84 @@ add_string(const char *str, int len)
   assert (best->bytesfree > len);
 
   /* Add the string to the best cache.  */
-#ifndef CONFIG_WITH_VALUE_LENGTH
   res = best->end;
   memcpy (best->end, str, len);
   best->end += len;
   *(best->end++) = '\0';
   best->bytesfree -= len + 1;
   ++best->count;
-#else  /* CONFIG_WITH_VALUE_LENGTH */
-  tmp = best->end;
-  best->end += len + 1;
-  assert(!((size_t)tmp & (sizeof(void *) - 1)));
-
-  *(unsigned int *)tmp = str_len; /* length prefix */
-  tmp += sizeof(unsigned int);
-
-  res = tmp;
-  memcpy (tmp, str, str_len);
-  tmp += str_len;
-  *(tmp++) = '\0';
-
-  best->bytesfree -= len + 1;
-  ++best->count;
-
-  assert (tmp <= best->end);
-  assert (!((size_t)res & (sizeof(void *) - 1)));
-#endif /* CONFIG_WITH_VALUE_LENGTH */
   return res;
 }
 
+#else  /* CONFIG_WITH_VALUE_LENGTH */
 
-/* Hash table of strings in the cache.  */
+static const char *
+add_string(const char *str, struct strcache_pref *prefix)
+{
+  struct strcache *best = NULL;
+  struct strcache *sp;
+  struct strcache_pref *real_prefix;
+  int len;
+  const char *res;
+  char *dst;
 
-#ifdef CONFIG_WITH_VALUE_LENGTH
+  /* Calc the entry length; the prefix data + the string + alignment. */
+  len = sizeof(struct strcache_pref) + prefix->len + 1;
+  len = (len + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
+
+  /* If the string we want is too large to fit into a single buffer, then
+     we're screwed; nothing will ever fit!  Change the maximum size of the
+     cache to be big enough.  */
+  if (len > bufsize)
+    bufsize = len * 2;
+
+  /* First, find a cache with enough free space.  We always look through all
+     the blocks and choose the one with the best fit (the one that leaves the
+     least amount of space free).  */
+  for (sp = strcache; sp != NULL; sp = sp->next)
+    if (sp->bytesfree >= len && (!best || best->bytesfree > sp->bytesfree))
+      best = sp;
+
+  /* If nothing is big enough, make a new cache.  */
+  if (!best)
+    best = new_cache();
+
+  assert (best->bytesfree >= len);
+
+  /* Add the string to the best cache.  */
+  real_prefix = (struct strcache_pref *)best->end;
+  *real_prefix = *prefix;
+
+  res = dst = (char *)(real_prefix + 1);
+  assert(!((size_t)res & (sizeof(void *) - 1)));
+  memcpy (dst, str, prefix->len);
+  dst += prefix->len;
+  *(dst++) = '\0';
+
+  best->end += len;
+  best->bytesfree -= len;
+  ++best->count;
+
+  return res;
+}
+
 /* Hackish globals for passing data to the hash functions.
    There isn't really any other way without running the
    risk of breaking rehashing. */
 static const char *lookup_string;
-static unsigned int lookup_string_len;
-# ifdef CONFIG_WITH_INCLUDEDEP
-static unsigned long lookup_string_hash1;
-static unsigned long lookup_string_hash2;
-# endif /* CONFIG_WITH_INCLUDEDEP */
+static struct strcache_pref *lookup_prefix;
+
 #endif /* CONFIG_WITH_VALUE_LENGTH */
+
+
+/* Hash table of strings in the cache.  */
 
 static unsigned long
 str_hash_1 (const void *key)
 {
-#ifdef CONFIG_WITH_INCLUDEDEP
-  if ((const char *) key == lookup_string && lookup_string_hash1)
-    return lookup_string_hash1;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  if (MY_PREDICT_TRUE ((const char *) key == lookup_string))
+    return lookup_prefix->hash1;
 #endif
   return_ISTRING_HASH_1 ((const char *) key);
 }
@@ -154,9 +173,17 @@ str_hash_1 (const void *key)
 static unsigned long
 str_hash_2 (const void *key)
 {
-#ifdef CONFIG_WITH_INCLUDEDEP
-  if ((const char *) key == lookup_string && lookup_string_hash2)
-    return lookup_string_hash2;
+#ifdef CONFIG_WITH_VALUE_LENGTH
+  if (MY_PREDICT_TRUE ((const char *) key == lookup_string))
+    {
+      if (lookup_prefix->hash2)
+        {
+          unsigned long hash2 = 0;
+          ISTRING_HASH_2 ((const char *)key, hash2);
+          lookup_prefix->hash2 = hash2;
+        }
+      return lookup_prefix->hash2;
+    }
 #endif
   return_ISTRING_HASH_2 ((const char *) key);
 }
@@ -171,10 +198,10 @@ str_hash_cmp (const void *x, const void *y)
      This catches 520253 out of 1341947 calls in the typical
      kBuild scenario.  */
 
-  if ((const char *) x == lookup_string)
+  if (MY_PREDICT_TRUE ((const char *) x == lookup_string))
     {
-      assert (lookup_string_len == strlen ((const char *)x));
-      if (strcache_get_len ((const char *)y) != lookup_string_len)
+      assert (lookup_prefix->len == strlen ((const char *)x));
+      if (strcache_get_len ((const char *)y) != lookup_prefix->len)
         return -1;
     }
 #endif
@@ -184,22 +211,13 @@ str_hash_cmp (const void *x, const void *y)
 static struct hash_table strings;
 static unsigned long total_adds = 0;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 static const char *
 add_hash (const char *str, int len)
 {
   /* Look up the string in the hash.  If it's there, return it.  */
-#ifndef CONFIG_WITH_VALUE_LENGTH
   char *const *slot = (char *const *) hash_find_slot (&strings, str);
   const char *key = *slot;
-#else  /* CONFIG_WITH_VALUE_LENGTH */
-  char *const *slot;
-  const char *key;
-
-  lookup_string = str;
-  lookup_string_len = len;
-  slot = (char *const *) hash_find_slot (&strings, str);
-  key = *slot;
-#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   /* Count the total number of adds we performed.  */
   ++total_adds;
@@ -212,6 +230,92 @@ add_hash (const char *str, int len)
   hash_insert_at (&strings, key, slot);
   return key;
 }
+
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+
+static const char *
+add_hash (const char *str, int len, unsigned long hash1, unsigned long hash2)
+{
+  char *const *slot;
+  const char *key;
+  struct strcache_pref prefix;
+
+  /* Look up the string in the hash.  If it's there, return it.  */
+  prefix.len = len;
+  prefix.hash2 = hash2;
+  if (!hash1 && !hash2)
+    ISTRING_HASH_1 (str, hash1);
+  prefix.hash1 = hash1;
+
+  lookup_string = str;
+  lookup_prefix = &prefix;
+
+  slot = (char *const *) hash_find_slot (&strings, str);
+  key = *slot;
+
+  /* Count the total number of adds we performed.  */
+  ++total_adds;
+
+  if (!HASH_VACANT (key))
+    return key;
+
+  /* Not there yet so add it to a buffer, then into the hash table.  */
+  key = add_string (str,  &prefix);
+  hash_insert_at (&strings, key, slot);
+  return key;
+}
+
+/* Verifies that a string cache entry didn't change and that the
+   prefix is still valid. */
+int
+strcache_check_sanity (const char *str)
+{
+  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
+  unsigned long hash;
+
+  if (strlen (str) != prefix->len)
+    {
+      MY_ASSERT_MSG (0, ("len: %u != %u - '%s'\n", (unsigned int)strlen (str),
+                         prefix->len, str));
+      return -1;
+    }
+
+  hash = 0;
+  ISTRING_HASH_1 (str, hash);
+  if (hash != prefix->hash1)
+    {
+      MY_ASSERT_MSG (0, ("hash1: %lx != %lx - '%s'\n", hash, prefix->hash1, str));
+      return -1;
+    }
+
+  if (prefix->hash2)
+    {
+      hash = 0;
+      ISTRING_HASH_2 (str, hash);
+      if (hash != prefix->hash2)
+        {
+          MY_ASSERT_MSG (0, ("hash2: %lx != %lx - '%s'\n", hash, prefix->hash2, str));
+          return -1;
+        }
+    }
+
+  return 0;
+}
+
+/* Fallback for when the hash2 value isn't present. */
+unsigned long
+strcache_get_hash2_fallback (const char *str)
+{
+  struct strcache_pref *prefix = (struct strcache_pref *)str - 1;
+  unsigned long hash2 = 0;
+
+  ISTRING_HASH_2 (str, hash2);
+  prefix->hash2 = hash2;
+
+  return hash2;
+}
+
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* Returns true if the string is in the cache; false if not.  */
 int
@@ -232,7 +336,12 @@ strcache_iscached (const char *str)
 const char *
 strcache_add (const char *str)
 {
+#ifndef CONFIG_WITH_VALUE_LENGTH
   return add_hash (str, strlen (str));
+#else
+  /* XXX: calc the hash1 while determining the string length. */
+  return add_hash (str, strlen (str), 0, 0);
+#endif
 }
 
 const char *
@@ -248,7 +357,12 @@ strcache_add_len (const char *str, int len)
       str = key;
     }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
   return add_hash (str, len);
+#else
+  /* XXX: eliminate the alloca mess using the prefixing? */
+  return add_hash (str, len, 0, 0);
+#endif
 }
 
 #ifdef CONFIG_WITH_INCLUDEDEP
@@ -259,20 +373,7 @@ const char *
 strcache_add_prehashed (const char *str, int len, unsigned long hash1,
                         unsigned long hash2)
 {
-  const char *retstr;
-
-  assert (hash1 == str_hash_1 (str));
-  assert (hash2 == str_hash_2 (str));
-
-  lookup_string_hash1 = hash1;
-  lookup_string_hash2 = hash2;
-
-  retstr = add_hash (str, len);
-
-  lookup_string_hash1 = 0;
-  lookup_string_hash2 = 0;
-
-  return retstr;
+  return add_hash (str, len, hash1, hash2);
 }
 
 /* Performs the prehashing for use with strcache_add_prehashed(). */

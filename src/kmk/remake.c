@@ -382,7 +382,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
   if (file->multi_head != NULL && file->multi_head != file)
     {
-      DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"), 
+      DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"),
                           file->name, file->multi_head->name));
       file = file->multi_head;
     }
@@ -501,7 +501,7 @@ update_file_1 (struct file *file, unsigned int depth)
     }
 
   /* Update all non-intermediate files we depend on, if necessary,
-     and see whether any of them is more recent than this file.  
+     and see whether any of them is more recent than this file.
      For explicit multitarget rules we must iterate all the output
      files to get the correct picture. */
 
@@ -519,12 +519,12 @@ update_file_1 (struct file *file, unsigned int depth)
           FILE_TIMESTAMP mtime;
           int maybe_make;
           int dontcare = 0;
-    
+
           check_renamed (d->file);
-    
+
           mtime = file_mtime (d->file);
           check_renamed (d->file);
-    
+
           if (is_updating (d->file))
             {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
@@ -557,33 +557,33 @@ update_file_1 (struct file *file, unsigned int depth)
               d = d->next;
               continue;
             }
-    
+
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
           d->file->parent = f2;
 #else
           d->file->parent = file;
 #endif
           maybe_make = must_make;
-    
+
           /* Inherit dontcare flag from our parent. */
           if (rebuilding_makefiles)
             {
               dontcare = d->file->dontcare;
               d->file->dontcare = file->dontcare;
             }
-    
-    
+
+
           dep_status |= check_dep (d->file, depth, this_mtime, &maybe_make);
-    
+
           /* Restore original dontcare flag. */
           if (rebuilding_makefiles)
             d->file->dontcare = dontcare;
-    
+
           if (! d->ignore_mtime)
             must_make = maybe_make;
-    
+
           check_renamed (d->file);
-    
+
           {
             register struct file *f = d->file;
             if (f->double_colon)
@@ -596,16 +596,16 @@ update_file_1 (struct file *file, unsigned int depth)
               }
             while (f != 0);
           }
-    
+
           if (dep_status != 0 && !keep_going_flag)
             break;
-    
+
           if (!running)
             /* The prereq is considered changed if the timestamp has changed while
                it was built, OR it doesn't exist.  */
             d->changed = ((file_mtime (d->file) != mtime)
                           || (mtime == NONEXISTENT_MTIME));
-    
+
           lastd = d;
           d = d->next;
         }
@@ -629,7 +629,7 @@ update_file_1 (struct file *file, unsigned int depth)
           if (d->file->intermediate)
             {
               int dontcare = 0;
-   
+
               FILE_TIMESTAMP mtime = file_mtime (d->file);
               check_renamed (d->file);
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
@@ -637,23 +637,23 @@ update_file_1 (struct file *file, unsigned int depth)
 #else
               d->file->parent = file;
 #endif
-   
+
               /* Inherit dontcare flag from our parent. */
               if (rebuilding_makefiles)
                 {
                   dontcare = d->file->dontcare;
                   d->file->dontcare = file->dontcare;
                 }
-   
-   
+
+
               dep_status |= update_file (d->file, depth);
-   
+
               /* Restore original dontcare flag. */
               if (rebuilding_makefiles)
                 d->file->dontcare = dontcare;
-   
+
               check_renamed (d->file);
-                  
+
               {
                 register struct file *f = d->file;
                 if (f->double_colon)
@@ -666,10 +666,10 @@ update_file_1 (struct file *file, unsigned int depth)
           	}
                 while (f != 0);
               }
-   
+
               if (dep_status != 0 && !keep_going_flag)
                 break;
-   
+
               if (!running)
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
                 d->changed = ((f2->phony && f2->cmds != 0)
@@ -737,7 +737,7 @@ update_file_1 (struct file *file, unsigned int depth)
           continue;
 #endif
         check_renamed (d->file);
-  
+
         if (! d->ignore_mtime)
           {
 #if 1
@@ -749,19 +749,19 @@ update_file_1 (struct file *file, unsigned int depth)
                  exist and is not intermediate.  */
               must_make = 1;
 #endif
-  
+
             /* Set DEPS_CHANGED if this dep actually changed.  */
             deps_changed |= d->changed;
           }
-  
+
         /* Set D->changed if either this dep actually changed,
            or its dependent, FILE, is older or does not exist.  */
         d->changed |= noexist || d_mtime > this_mtime;
-  
+
         if (!noexist && ISDB (DB_BASIC|DB_VERBOSE))
           {
             const char *fmt = 0;
-  
+
             if (d->ignore_mtime)
               {
                 if (ISDB (DB_VERBOSE))
@@ -779,7 +779,7 @@ update_file_1 (struct file *file, unsigned int depth)
               }
             else if (ISDB (DB_VERBOSE))
               fmt = _("Prerequisite `%s' is older than target `%s'.\n");
-  
+
             if (fmt)
               {
                 print_spaces (depth);

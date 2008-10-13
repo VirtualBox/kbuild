@@ -414,7 +414,11 @@ eval_makefile (const char *filename, int flags)
   deps = alloc_dep ();
   deps->next = read_makefiles;
   read_makefiles = deps;
+#ifndef KMK
   deps->file = lookup_file (filename);
+#else
+  deps->file = lookup_file_cached (filename);
+#endif
   if (deps->file == 0)
     deps->file = enter_file (filename);
   filename = deps->file->name;
@@ -2293,9 +2297,17 @@ record_target_var (struct nameseq *filenames, char *defn,
              We don't want to just call enter_file() because that allocates a
              new entry if the file is a double-colon, which we don't want in
              this situation.  */
+#ifndef KMK
           f = lookup_file (name);
           if (!f)
             f = enter_file (strcache_add (name));
+#else  /* KMK */
+           /* XXX: this is probably already a cached string. */
+          fname = strcache_add (name);
+          f = lookup_file_cached (fname);
+          if (!f)
+            f = enter_file (fname);
+#endif
           else if (f->double_colon)
             f = f->double_colon;
 
@@ -2635,14 +2647,22 @@ record_files (struct nameseq *filenames, const char *pattern,
       else
 	{
 	  /* Double-colon.  Make a new record even if there already is one.  */
+#ifndef KMK
 	  f = lookup_file (name);
+#else  /* KMK - the name is already in the cache, don't waste time.  */
+	  f = lookup_file_cached (name);
+#endif
 
 	  /* Check for both : and :: rules.  Check is_target so
 	     we don't lose on default suffix rules or makefiles.  */
 	  if (f != 0 && f->is_target && !f->double_colon)
 	    fatal (flocp,
                    _("target file `%s' has both : and :: entries"), f->name);
+#ifndef KMK
 	  f = enter_file (strcache_add (name));
+#else  /* KMK - the name is already in the cache, don't waste time.  */
+	  f = enter_file (name);
+#endif
 	  /* If there was an existing entry and it was a double-colon entry,
 	     enter_file will have returned a new one, making it the prev
 	     pointer of the old one, and setting its double_colon pointer to
