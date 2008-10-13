@@ -1244,7 +1244,7 @@ open_tmpfile(char **name, const char *template)
 
 #if defined(set_space_map_entry) /*bird*/
 char space_map[space_map_size];
-#endif 
+#endif
 
 
 #ifdef _AMIGA
@@ -1280,7 +1280,7 @@ main (int argc, char **argv, char **envp)
   set_space_map_entry ('\r');
   set_space_map_entry ('\t');
   set_space_map_entry ('\v');
-# endif 
+# endif
 
 #ifdef SET_STACK_SIZE
  /* Get rid of any avoidable limit on stack size.  */
@@ -3681,7 +3681,10 @@ die (int status)
       if (print_data_base_flag)
 	print_data_base ();
 
-      verify_file_data_base ();
+#ifndef NDEBUG /* bird: Don't waste time on debug sanity checks.  */
+      if (print_data_base_flag || db_level)
+#endif
+        verify_file_data_base ();
 
       clean_jobserver (status);
 
