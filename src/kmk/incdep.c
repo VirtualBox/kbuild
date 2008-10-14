@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1854 2008-10-13 01:50:33Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1862 2008-10-14 01:04:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -149,6 +149,9 @@ struct incdep
   unsigned int err_line_no;
   const char *err_msg;
 
+  struct dep *dep_start;            /* start of the current dep block. */
+  struct dep *dep_end;              /* end of the current dep block. */
+
   struct incdep_variable_in_set *recorded_variables_in_set_head;
   struct incdep_variable_in_set *recorded_variables_in_set_tail;
 
@@ -232,7 +235,8 @@ static void eval_include_dep_file (struct incdep *, struct floc *);
 /* xmalloc wrapper.
    For working around multithreaded performance problems found on Darwin,
    Linux (glibc), and possibly other systems. */
-static void *incdep_xmalloc (struct incdep *cur, size_t size)
+static void *
+incdep_xmalloc (struct incdep *cur, size_t size)
 {
   void *ptr;
 
@@ -254,7 +258,8 @@ static void *incdep_xmalloc (struct incdep *cur, size_t size)
 }
 
 /* memset(malloc(sz),'\0',sz) wrapper. */
-static void *incdep_xcalloc (struct incdep *cur, size_t size)
+static void *
+incdep_xcalloc (struct incdep *cur, size_t size)
 {
   void *ptr;
 
@@ -274,7 +279,8 @@ static void *incdep_xcalloc (struct incdep *cur, size_t size)
 }
 
 /* free wrapper */
-static void incdep_xfree (struct incdep *cur, void *ptr)
+static void
+incdep_xfree (struct incdep *cur, void *ptr)
 {
   /* free() *must* work for the allocation hacks above because
      of free_dep_chain. */
@@ -282,6 +288,17 @@ static void incdep_xfree (struct incdep *cur, void *ptr)
   (void)cur;
 }
 
+/* alloc a dep structure. These are allocated in bunches to save time. */
+struct dep *
+incdep_alloc_dep (struct incdep *cur)
+{
+  if (cur->dep_start != cur->dep_end)
+    return cur->dep_start++;
+
+  cur->dep_start = (struct dep *)incdep_xcalloc (cur, sizeof(struct dep) * 256);
+  cur->dep_end = cur->dep_start + 256;
+  return cur->dep_start++;
+}
 
 
 /* acquires the lock */
@@ -456,6 +473,11 @@ incdep_freeit (struct incdep *cur)
 void
 incdep_worker (void)
 {
+#ifdef PARSE_IN_WORKER
+  struct dep *dep_start = NULL;
+  struct dep *dep_end = NULL;
+#endif
+
   incdep_lock ();
 
   while (!incdep_terminate)
@@ -479,9 +501,19 @@ incdep_worker (void)
       incdep_unlock ();
       cur->is_worker = 1;
       incdep_read_file (cur, NILF);
+
 #ifdef PARSE_IN_WORKER
+      cur->dep_start = dep_start;
+      cur->dep_end = dep_end;
+
       eval_include_dep_file (cur, NILF);
+
+      dep_start = cur->dep_start;
+      cur->dep_start = NULL;
+      dep_end = cur->dep_end;
+      cur->dep_end = NULL;
 #endif
+
       cur->is_worker = 0;
       incdep_lock ();
 
@@ -1336,7 +1368,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                     ++endp;
 
                   /* add it to the list. */
-                  *nextdep = dep = incdep_xcalloc (curdep, sizeof (*dep));
+                  *nextdep = dep = incdep_alloc_dep (curdep);
                   dep->name = incdep_record_strcache (curdep, cur, endp - cur);
                   dep->includedep = 1;
                   nextdep = &dep->next;
@@ -1440,6 +1472,8 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
 #ifdef PARSE_IN_WORKER
        cur->err_line_no = 0;
        cur->err_msg = NULL;
+       cur->dep_start = NULL;
+       cur->dep_end = NULL;
        cur->recorded_variables_in_set_head = NULL;
        cur->recorded_variables_in_set_tail = NULL;
        cur->recorded_variable_defs_head = NULL;

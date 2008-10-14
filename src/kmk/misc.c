@@ -703,17 +703,26 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
 #ifdef KMK
 /* Cache free struct dep to save time in free during snap_deps.
    free is esp. slow on darwin for some reason. */
-static struct dep *free_deps;
+static struct dep *free_deps = NULL;
+static struct dep *free_deps_start = NULL;
+static struct dep *free_deps_end = NULL;
 
 static struct dep *
 alloc_dep_int (void)
 {
-    struct dep *d = free_deps;
-    if (d)
-      free_deps = d->next;
-    else
-      d = xmalloc (sizeof (struct dep));
-    return d;
+  struct dep *d = free_deps;
+  if (MY_PREDICT_TRUE(d))
+    free_deps = d->next;
+  else if (free_deps_start != free_deps_end)
+    d = free_deps_start++;
+  else
+    {
+      /* allocate another chunk block. */
+      free_deps_start = xmalloc (sizeof (struct dep) * 256);
+      free_deps_end = free_deps_start + 256;
+      d = free_deps_start++;
+    }
+  return d;
 }
 
 static void

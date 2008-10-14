@@ -3067,7 +3067,14 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
       /* Add it to the front of the chain.  */
+#if !defined(KMK) || !defined(NO_ARCHIVES)
       new1 = xmalloc (size);
+#else
+      if (sizeof (struct dep) == size) /* use the cache */
+        new1 = (struct nameseq *)alloc_dep ();
+      else
+        new1 = xmalloc (size);
+#endif
       new1->name = name;
       new1->next = new;
       new = new1;
@@ -3873,7 +3880,12 @@ multi_glob (struct nameseq *chain, unsigned int size)
 		else
 #endif /* !NO_ARCHIVES */
 		  {
+#if !defined(KMK) && !defined(NO_ARCHIVES)
 		    struct nameseq *elt = xmalloc (size);
+#else
+		    struct nameseq *elt = size == sizeof(struct dep)
+                                        ? (void *)alloc_dep() : xmalloc (size);
+#endif
                     memset (elt, '\0', size);
 		    elt->name = strcache_add (gl.gl_pathv[i]);
 		    elt->next = new;
@@ -3884,7 +3896,14 @@ multi_glob (struct nameseq *chain, unsigned int size)
             if (gl.gl_pathv != (char **)&gname)
 #endif
 	    globfree (&gl);
+#if !defined(KMK) && !defined(NO_ARCHIVES)
 	    free (old);
+#else
+	    if (size == sizeof(struct dep))
+	      free_dep ((struct dep *)old);
+	    else
+	      free (old);
+#endif
 	    break;
 	  }
 
