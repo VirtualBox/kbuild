@@ -238,7 +238,11 @@ update_goal_chain (struct dep *goals)
 		lastgoal->next = g->next;
 
 	      /* Free the storage.  */
+#ifndef KMK
 	      free (g);
+#else
+              free_dep (g);
+#endif
 
 	      g = lastgoal == 0 ? goals : lastgoal->next;
 
