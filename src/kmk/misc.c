@@ -700,52 +700,18 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
 }
 
 
-#ifdef KMK
-/* Cache free struct dep to save time in free during snap_deps.
-   free is esp. slow on darwin for some reason. */
-static struct dep *free_deps = NULL;
-static struct dep *free_deps_start = NULL;
-static struct dep *free_deps_end = NULL;
-
-static struct dep *
-alloc_dep_int (void)
-{
-  struct dep *d = free_deps;
-  if (MY_PREDICT_TRUE(d))
-    free_deps = d->next;
-  else if (free_deps_start != free_deps_end)
-    d = free_deps_start++;
-  else
-    {
-      /* allocate another chunk block. */
-      free_deps_start = xmalloc (sizeof (struct dep) * 256);
-      free_deps_end = free_deps_start + 256;
-      d = free_deps_start++;
-    }
-  return d;
-}
-
-static void
-free_dep_int (struct dep *d)
-{
-  d->next = free_deps;
-  free_deps = d;
-}
-#endif /* KMK */
-
-
 /* Allocate a new `struct dep' with all fields initialized to 0.   */
 
 struct dep *
 alloc_dep ()
 {
-#ifndef KMK
+#ifndef CONFIG_WITH_ALLOC_CACHES
   struct dep *d = xmalloc (sizeof (struct dep));
-#else
-  struct dep *d = alloc_dep_int ();
-#endif
   memset (d, '\0', sizeof (struct dep));
   return d;
+#else
+  return (struct dep *) alloccache_calloc (&dep_cache);
+#endif
 }
 
 
@@ -754,10 +720,10 @@ alloc_dep ()
 void
 free_dep (struct dep *d)
 {
-#ifndef KMK
+#ifndef CONFIG_WITH_ALLOC_CACHES
   free (d);
 #else
-  free_dep_int (d);
+  alloccache_free (&dep_cache, d);
 #endif
 }
 
@@ -772,10 +738,10 @@ copy_dep_chain (const struct dep *d)
 
   while (d != 0)
     {
-#ifndef KMK
+#ifndef CONFIG_WITH_ALLOC_CACHES
       struct dep *c = xmalloc (sizeof (struct dep));
 #else
-      struct dep *c = alloc_dep_int ();
+      struct dep *c = (struct dep *) alloccache_alloc (&dep_cache);
 #endif
       memcpy (c, d, sizeof (struct dep));
 
@@ -800,10 +766,10 @@ free_dep_chain (struct dep *d)
     {
       struct dep *df = d;
       d = d->next;
-#ifndef KMK
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free_dep (df);
 #else
-      free_dep_int (df);
+      alloccache_free (&dep_cache, df);
 #endif
     }
 }
@@ -818,7 +784,11 @@ free_ns_chain (struct nameseq *ns)
     {
       struct nameseq *t = ns;
       ns = ns->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free (t);
+#else
+      alloccache_free (&nameseq_cache, t);
+#endif
     }
 }
 
@@ -1178,3 +1148,142 @@ void xfree(void *ptr)
 }
 #endif
 
+
+#ifdef CONFIG_WITH_ALLOC_CACHES
+
+/* Default allocator. */
+static void *
+alloccache_default_grow_alloc(void *ignore, unsigned int size)
+{
+  return xmalloc (size);
+}
+
+/* Worker for growing the cache. */
+struct alloccache_free_ent *
+alloccache_alloc_grow (struct alloccache *cache)
+{
+  void *item;
+  unsigned int items = (64*1024 - 32) / cache->size;
+  cache->free_start  = cache->grow_alloc (cache->grow_arg, items * cache->size);
+  cache->free_end    = cache->free_start + items * cache->size;
+  cache->total_count+= items;
+
+#ifndef NDEBUG /* skip the first item so the heap can detect free(). */
+  cache->total_count--;
+  cache->free_start += cache->size;
+#endif
+
+  item = cache->free_start;
+  cache->free_start += cache->size;
+  /* caller counts */
+  return (struct alloccache_free_ent *)item;
+}
+
+/* List of alloc caches, for printing. */
+static struct alloccache *alloccache_head = NULL;
+
+/* Initializes an alloc cache */
+void
+alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
+                 void *(*grow_alloc)(void *grow_arg, unsigned int size), void *grow_arg)
+{
+  /* ensure aligned and min sizeof (struct alloccache_free_ent). */
+  if (size & (sizeof (void *) - 1))
+    size += sizeof (void *) - (size & (sizeof (void *) - 1));
+
+  cache->free_start  = NULL;
+  cache->free_end    = NULL;
+  cache->free_head   = NULL;
+  cache->size        = size;
+  cache->alloc_count = 0;
+  cache->total_count = 0;
+  cache->name        = name;
+  cache->grow_arg    = grow_arg;
+  cache->grow_alloc  = grow_alloc ? grow_alloc : alloccache_default_grow_alloc;
+
+  cache->next        = alloccache_head;
+  alloccache_head    = cache;
+}
+
+/* Joins to caches, unlinking the 2nd one. */
+void
+alloccache_join (struct alloccache *cache, struct alloccache *eat)
+{
+  assert (cache->size == eat->size);
+
+#if 0 /* probably a waste of time */ /* FIXME: Optimize joining, avoid all list walking. */
+  /* add the free list... */
+  if (eat->free_head)
+    {
+     if (!cache->free_head)
+       cache->free_head = eat->free_head;
+     else if (eat->total_count - eat->alloc_count < cache->total_count - cache->alloc_count)
+       {
+         struct alloccache_free_ent *last = eat->free_head;
+         while (last->next)
+           last = last->next;
+         last->next = cache->free_head;
+         cache->free_head = eat->free_head;
+       }
+     else
+       {
+         struct alloccache_free_ent *last = cache->free_head;
+         while (last->next)
+           last = last->next;
+         last->next = eat->free_head;
+       }
+    }
+
+  /* ... and the free space. */
+  while (eat->free_start != eat->free_end)
+    {
+      struct alloccache_free_ent *f = (struct alloccache_free_ent *)eat->free_start;
+      eat->free_start += eat->size;
+      f->next = cache->free_head;
+      cache->free_head = f;
+    }
+
+  /* and statistics */
+  cache->alloc_count += eat->alloc_count;
+  cache->total_count += eat->total_count;
+#else
+  /* and statistics */
+  cache->alloc_count += eat->alloc_count;
+  cache->total_count += eat->alloc_count;
+#endif
+
+  /* unlink and disable the eat cache */
+  if (alloccache_head == eat)
+    alloccache_head = eat->next;
+  else
+    {
+      struct alloccache *cur = alloccache_head;
+      while (cur->next != eat)
+        cur = cur->next;
+      assert (cur && cur->next == eat);
+      cur->next = eat->next;
+    }
+
+  eat->size = 0;
+  eat->free_end = eat->free_start = NULL;
+  eat->free_head = NULL;
+}
+
+/* Print one alloc cache. */
+void
+alloccache_print (struct alloccache *cache)
+{
+  printf (_("\n# Alloc Cache: %s item size: %u  alloc: %d  total: %u\n"),
+          cache->name, cache->size, (int)cache->alloc_count, cache->total_count);
+}
+
+/* Print all alloc caches. */
+void
+alloccache_print_all (void)
+{
+  struct alloccache *cur;
+  for (cur = alloccache_head; cur; cur = cur->next)
+    alloccache_print (cur);
+}
+
+#endif /* CONFIG_WITH_ALLOC_CACHES */

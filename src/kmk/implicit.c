@@ -63,6 +63,10 @@ try_implicit_rule (struct file *file, unsigned int depth)
 }
 
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+struct alloccache idep_cache;
+#endif
+
 /* Struct idep captures information about implicit prerequisites
    that come from implicit rules. */
 struct idep
@@ -83,7 +87,11 @@ free_idep_chain (struct idep *p)
   for (; p != 0; p = n)
     {
       n = p->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free (p);
+#else
+      alloccache_free (&idep_cache, p);
+#endif
     }
 }
 
@@ -251,6 +259,11 @@ pattern_search (struct file *file, int archive,
   struct dep **d_ptr;
 
   PATH_VAR (stem_str); /* @@ Need to get rid of stem, stemlen, etc. */
+
+#ifdef CONFIG_WITH_ALLOC_CACHES
+  if (!idep_cache.size)
+    alloccache_init (&idep_cache, sizeof(struct idep), "dep", NULL, NULL);
+#endif
 
 #ifndef	NO_ARCHIVES
   if (archive || ar_name (filename))
@@ -580,12 +593,21 @@ pattern_search (struct file *file, int archive,
                       for (; *id_ptr; id_ptr = &(*id_ptr)->next)
                         ;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
                       *id_ptr = (struct idep *)
                         multi_glob (
                           parse_file_seq (&p2,
                                           order_only ? '\0' : '|',
                                           sizeof (struct idep),
                                           1), sizeof (struct idep));
+#else
+                      *id_ptr = (struct idep *)
+                        multi_glob (
+                          parse_file_seq (&p2,
+                                          order_only ? '\0' : '|',
+                                          &idep_cache, 1),
+                          &idep_cache);
+#endif
 
                       /* @@ It would be nice to teach parse_file_seq or
                          multi_glob to add prefix. This would save us some

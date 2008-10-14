@@ -1012,10 +1012,15 @@ eval (struct ebuffer *ebuf, int set_default)
 
 	  /* Parse the list of file names.  */
 	  p2 = p;
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	  files = multi_glob (parse_file_seq (&p2, '\0',
 					      sizeof (struct nameseq),
 					      1),
 			      sizeof (struct nameseq));
+#else
+          files = multi_glob (parse_file_seq (&p2, '\0', &nameseq_cache, 1),
+                              &nameseq_cache);
+#endif
 	  free (p);
 
 	  /* Save the state of conditionals and start
@@ -1033,7 +1038,11 @@ eval (struct ebuffer *ebuf, int set_default)
 	      const char *name = files->name;
               int r;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	      free (files);
+#else
+	      alloccache_free (&nameseq_cache, files);
+#endif
 	      files = next;
 
               r = eval_makefile (name, (RM_INCLUDED | RM_NO_TILDE
@@ -1246,10 +1255,15 @@ eval (struct ebuffer *ebuf, int set_default)
         /* Make the colon the end-of-string so we know where to stop
            looking for targets.  */
         *colonp = '\0';
+#ifndef CONFIG_WITH_ALLOC_CACHES
         filenames = multi_glob (parse_file_seq (&p2, '\0',
                                                 sizeof (struct nameseq),
                                                 1),
                                 sizeof (struct nameseq));
+#else
+        filenames = multi_glob (parse_file_seq (&p2, '\0', &nameseq_cache, 1),
+                                &nameseq_cache);
+#endif
         *p2 = ':';
 
         if (!filenames)
@@ -1401,7 +1415,11 @@ eval (struct ebuffer *ebuf, int set_default)
         if (p != 0)
           {
             struct nameseq *target;
+#ifndef CONFIG_WITH_ALLOC_CACHES
             target = parse_file_seq (&p2, ':', sizeof (struct nameseq), 1);
+#else
+            target = parse_file_seq (&p2, ':', &nameseq_cache, 1);
+#endif
             ++p2;
             if (target == 0)
               fatal (fstart, _("missing target pattern"));
@@ -1411,7 +1429,11 @@ eval (struct ebuffer *ebuf, int set_default)
             pattern = target->name;
             if (pattern_percent == 0)
               fatal (fstart, _("target pattern contains no `%%' (target `%s')"), target->name); /* bird */
+#ifndef CONFIG_WITH_ALLOC_CACHES
             free (target);
+#else
+            alloccache_free (&nameseq_cache, target);
+#endif
           }
         else
           pattern = 0;
@@ -2414,7 +2436,11 @@ record_files (struct nameseq *filenames, const char *pattern,
       const char *implicit_percent;
 
       nextf = filenames->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free (filenames);
+#else
+      alloccache_free (&nameseq_cache, filenames);
+#endif
 
       /* Check for special targets.  Do it here instead of, say, snap_deps()
          so that we can immediately use the value.  */
@@ -2947,8 +2973,13 @@ find_percent_cached (const char **string)
 
    If STRIP is nonzero, strip `./'s off the beginning.  */
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
 struct nameseq *
 parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
+#else
+struct nameseq *
+parse_file_seq (char **stringp, int stopchar, struct alloccache *cache, int strip)
+#endif
 {
   struct nameseq *new = 0;
   struct nameseq *new1;
@@ -3067,13 +3098,10 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
       /* Add it to the front of the chain.  */
-#if !defined(KMK) || !defined(NO_ARCHIVES)
+#ifndef CONFIG_WITH_ALLOC_CACHES
       new1 = xmalloc (size);
 #else
-      if (sizeof (struct dep) == size) /* use the cache */
-        new1 = (struct nameseq *)alloc_dep ();
-      else
-        new1 = xmalloc (size);
+      new1 = (struct nameseq *)alloccache_alloc (cache);
 #endif
       new1->name = name;
       new1->next = new;
@@ -3126,7 +3154,11 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 		/* N was just "lib(", part of something like "lib( a b)".
 		   Edit it out of the chain and free its storage.  */
 		lastn->next = n->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
 		free (n);
+#else
+                alloccache_free (cache, n);
+#endif
 		/* LASTN->next is the new stopping elt for the loop below.  */
 		n = lastn->next;
 	      }
@@ -3146,7 +3178,11 @@ parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip)
 		  lastnew1->next = new1->next;
 		lastn = new1;
 		new1 = new1->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
 		free (lastn);
+#else
+                alloccache_free (cache, lastn);
+#endif
 	      }
 	    else
 	      {
@@ -3778,8 +3814,13 @@ tilde_expand (const char *name)
    This is useful if we want them actually to be other structures
    that have room for additional info.  */
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
 struct nameseq *
 multi_glob (struct nameseq *chain, unsigned int size)
+#else
+struct nameseq *
+multi_glob (struct nameseq *chain, struct alloccache *cache)
+#endif
 {
   void dir_setup_glob (glob_t *);
   struct nameseq *new = 0;
@@ -3880,13 +3921,12 @@ multi_glob (struct nameseq *chain, unsigned int size)
 		else
 #endif /* !NO_ARCHIVES */
 		  {
-#if !defined(KMK) && !defined(NO_ARCHIVES)
+#ifndef CONFIG_WITH_ALLOC_CACHES
 		    struct nameseq *elt = xmalloc (size);
-#else
-		    struct nameseq *elt = size == sizeof(struct dep)
-                                        ? (void *)alloc_dep() : xmalloc (size);
-#endif
                     memset (elt, '\0', size);
+#else
+		    struct nameseq *elt = alloccache_calloc (cache);
+#endif
 		    elt->name = strcache_add (gl.gl_pathv[i]);
 		    elt->next = new;
 		    new = elt;
@@ -3896,13 +3936,10 @@ multi_glob (struct nameseq *chain, unsigned int size)
             if (gl.gl_pathv != (char **)&gname)
 #endif
 	    globfree (&gl);
-#if !defined(KMK) && !defined(NO_ARCHIVES)
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	    free (old);
 #else
-	    if (size == sizeof(struct dep))
-	      free_dep ((struct dep *)old);
-	    else
-	      free (old);
+            alloccache_free (cache, old);
 #endif
 	    break;
 	  }

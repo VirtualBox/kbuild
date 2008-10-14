@@ -58,11 +58,20 @@ struct nameseq
   };
 
 
+
+#ifndef CONFIG_WITH_ALLOC_CACHES
 struct nameseq *multi_glob (struct nameseq *chain, unsigned int size);
+#else
+struct nameseq *multi_glob (struct nameseq *chain, struct alloccache *cache);
+#endif
 #ifdef VMS
 struct nameseq *parse_file_seq ();
 #else
+# ifndef CONFIG_WITH_ALLOC_CACHES
 struct nameseq *parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip);
+# else
+struct nameseq *parse_file_seq (char **stringp, int stopchar, struct alloccache *cache, int strip);
+# endif
 #endif
 char *tilde_expand (const char *name);
 

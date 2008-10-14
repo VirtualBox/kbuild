@@ -507,6 +507,7 @@ string_glob (char *line)
   struct nameseq *chain;
   unsigned int idx;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   chain = multi_glob (parse_file_seq
 		      (&line, '\0', sizeof (struct nameseq),
 		       /* We do not want parse_file_seq to strip `./'s.
@@ -514,6 +515,15 @@ string_glob (char *line)
 			  $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
 		       0),
 		      sizeof (struct nameseq));
+#else
+  chain = multi_glob (parse_file_seq
+                      (&line, '\0', &nameseq_cache,
+                       /* We do not want parse_file_seq to strip `./'s.
+                          That would break examples like:
+                          $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
+                       0),
+                      &nameseq_cache);
+#endif
 
   if (result == 0)
     {
@@ -528,7 +538,11 @@ string_glob (char *line)
       unsigned int len = strlen (name);
 
       struct nameseq *next = chain->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free (chain);
+#else
+      alloccache_free (&nameseq_cache, chain);
+#endif
       chain = next;
 
       /* multi_glob will pass names without globbing metacharacters

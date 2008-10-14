@@ -495,6 +495,88 @@ void close_stdout (void);
 
 char *strip_whitespace (const char **begpp, const char **endpp);
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+/* alloccache (misc.c) */
+
+struct alloccache_free_ent
+{
+  struct alloccache_free_ent *next;
+};
+
+struct alloccache
+{
+  char *free_start;
+  char *free_end;
+  struct alloccache_free_ent *free_head;
+  unsigned int size;
+  unsigned int alloc_count;
+  unsigned int total_count;
+  const char *name;
+  struct alloccache *next;
+  void *grow_arg;
+  void *(*grow_alloc)(void *grow_arg, unsigned int size);
+};
+
+void alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
+                      void *(*grow_alloc)(void *grow_arg, unsigned int size), void *grow_arg);
+void alloccache_join (struct alloccache *cache, struct alloccache *eat);
+void alloccache_print (struct alloccache *cache);
+void alloccache_print_all (void);
+struct alloccache_free_ent *alloccache_alloc_grow (struct alloccache *cache);
+
+/* Allocate an item. */
+MY_INLINE void *
+alloccache_alloc (struct alloccache *cache)
+{
+  struct alloccache_free_ent *f = cache->free_head;
+  if (f)
+    cache->free_head = f->next;
+  else if (cache->free_start != cache->free_end)
+    {
+      f = (struct alloccache_free_ent *)cache->free_start;
+      cache->free_start += cache->size;
+    }
+  else
+    f = alloccache_alloc_grow (cache);
+  cache->alloc_count++;
+  return f;
+}
+
+/* Allocate a cleared item. */
+MY_INLINE void *
+alloccache_calloc (struct alloccache *cache)
+{
+  void *item = alloccache_alloc (cache);
+  memset (item, '\0', cache->size);
+  return item;
+}
+
+/* Free an item. */
+MY_INLINE void
+alloccache_free (struct alloccache *cache, void *item)
+{
+  struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
+#if 0 /*ndef NDEBUG*/
+  struct alloccache_free_ent *c;
+  unsigned int i = 0;
+  for (c = cache->free_head; c != NULL; c = c->next, i++)
+    MY_ASSERT_MSG (c != f && i < 0x10000000,
+                   ("i=%u total_count=%u\n", i, cache->total_count));
+#endif
+
+  f->next = cache->free_head;
+  cache->free_head = f;
+  cache->alloc_count--;
+}
+
+/* the alloc caches */
+extern struct alloccache dep_cache;
+extern struct alloccache nameseq_cache;
+extern struct alloccache variable_cache;
+
+#endif /* CONFIG_WITH_ALLOC_CACHES */
+
+
 /* String caching  */
 void strcache_init (void);
 void strcache_print_stats (const char *prefix);
