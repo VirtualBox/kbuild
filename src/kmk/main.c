@@ -639,6 +639,20 @@ bsd_signal (int sig, bsd_signal_ret_t func)
 # endif
 #endif
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+struct alloccache dep_cache;
+struct alloccache nameseq_cache;
+struct alloccache variable_cache;
+
+static void
+initialize_global_alloc_caches (void)
+{
+  alloccache_init (&dep_cache,      sizeof (struct dep),      "dep",      NULL, NULL);
+  alloccache_init (&nameseq_cache,  sizeof (struct nameseq),  "nameseq",  NULL, NULL);
+  alloccache_init (&variable_cache, sizeof (struct variable), "variable", NULL, NULL);
+}
+#endif
+
 static void
 initialize_global_hash_tables (void)
 {
@@ -1266,7 +1280,7 @@ main (int argc, char **argv, char **envp)
 
 #ifndef ELECTRIC_HEAP /* Drop this because it prevent JIT debugging. */
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
-#endif /* !ELECTRICT_HEAP */
+#endif /* !ELECTRIC_HEAP */
 
   /* start off assuming we have no shell */
   unixy_shell = 0;
@@ -1463,6 +1477,9 @@ main (int argc, char **argv, char **envp)
   /* Set up to access user data (files).  */
   user_access ();
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+  initialize_global_alloc_caches ();
+#endif
   initialize_global_hash_tables ();
 
   /* Figure out where we are.  */
@@ -2669,9 +2686,15 @@ main (int argc, char **argv, char **envp)
                     struct nameseq *ns;
                     char *p = *default_goal_name;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
                     ns = multi_glob (
                       parse_file_seq (&p, '\0', sizeof (struct nameseq), 1),
                       sizeof (struct nameseq));
+#else
+                    ns = multi_glob (
+                      parse_file_seq (&p, '\0', &nameseq_cache, 1),
+                      &nameseq_cache);
+#endif
 
                     /* .DEFAULT_GOAL should contain one target. */
                     if (ns->next != 0)
@@ -3596,6 +3619,9 @@ print_data_base ()
   print_file_data_base ();
   print_vpath_data_base ();
   strcache_print_stats ("#");
+#ifdef CONFIG_WITH_ALLOC_CACHES
+  alloccache_print_all ();
+#endif
 
   when = time ((time_t *) 0);
   printf (_("\n# Finished Make data base on %s\n"), ctime (&when));

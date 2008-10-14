@@ -427,7 +427,9 @@ variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
 inline static int
 variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
 {
+#ifndef ELECTRIC_HEAP
   assert ( !((size_t)ys & 3) );
+#endif
   if (!((size_t)xs & 3))
     {
       int result;

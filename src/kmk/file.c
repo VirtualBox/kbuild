@@ -519,9 +519,14 @@ remove_intermediates (int sig)
 struct dep *
 parse_prereqs (char *p)
 {
+#ifndef CONFIG_WITH_ALLOC_CACHES
   struct dep *new = (struct dep *)
     multi_glob (parse_file_seq (&p, '|', sizeof (struct dep), 1),
                 sizeof (struct dep));
+#else
+  struct dep *new = (struct dep *)
+    multi_glob (parse_file_seq (&p, '|', &dep_cache, 1), &dep_cache);
+#endif
 
   if (*p)
     {
@@ -530,10 +535,14 @@ parse_prereqs (char *p)
       struct dep *ood;
 
       ++p;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       ood = (struct dep *)
         multi_glob (parse_file_seq (&p, '\0', sizeof (struct dep), 1),
                     sizeof (struct dep));
-
+#else
+      ood = (struct dep *)
+        multi_glob (parse_file_seq (&p, '\0', &dep_cache, 1), &dep_cache);
+#endif
       if (! new)
         new = ood;
       else

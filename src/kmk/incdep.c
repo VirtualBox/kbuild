@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1862 2008-10-14 01:04:03Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1863 2008-10-14 09:46:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -144,13 +144,10 @@ struct incdep
   char *file_base;
   char *file_end;
 
-  int is_worker;
+  int worker_tid;
 #ifdef PARSE_IN_WORKER
   unsigned int err_line_no;
   const char *err_msg;
-
-  struct dep *dep_start;            /* start of the current dep block. */
-  struct dep *dep_end;              /* end of the current dep block. */
 
   struct incdep_variable_in_set *recorded_variables_in_set_head;
   struct incdep_variable_in_set *recorded_variables_in_set_tail;
@@ -206,13 +203,22 @@ static int volatile incdep_num_reading;
 static struct incdep * volatile incdep_head_done;
 static struct incdep * volatile incdep_tail_done;
 
+
 /* The handles to the worker threads. */
 #ifdef HAVE_PTHREAD
 static pthread_t incdep_threads[1];
+static struct alloccache incdep_dep_caches[1];
+static struct alloccache incdep_nameseq_caches[1];
+
 #elif defined (WINDOWS32)
 static HANDLE incdep_threads[2];
+static struct alloccache incdep_dep_caches[2];
+static struct alloccache incdep_nameseq_caches[2];
+
 #elif defined (__OS2__)
 static TID incdep_threads[2];
+static struct alloccache incdep_dep_caches[2];
+static struct alloccache incdep_nameseq_caches[2];
 #endif
 static unsigned incdep_num_threads;
 
@@ -241,7 +247,7 @@ incdep_xmalloc (struct incdep *cur, size_t size)
   void *ptr;
 
 #ifdef __APPLE__
-  if (cur && cur->is_worker)
+  if (cur && cur->worker_tid != -1)
     {
       ptr = malloc_zone_malloc (incdep_zone, size);
       if (!ptr)
@@ -257,6 +263,7 @@ incdep_xmalloc (struct incdep *cur, size_t size)
   return ptr;
 }
 
+#if 0
 /* memset(malloc(sz),'\0',sz) wrapper. */
 static void *
 incdep_xcalloc (struct incdep *cur, size_t size)
@@ -264,7 +271,7 @@ incdep_xcalloc (struct incdep *cur, size_t size)
   void *ptr;
 
 #ifdef __APPLE__
-  if (cur && cur->is_worker)
+  if (cur && cur->worker_tid != -1)
     ptr = malloc_zone_calloc (incdep_zone, size, 1);
   else
     ptr = calloc (size, 1);
@@ -277,6 +284,7 @@ incdep_xcalloc (struct incdep *cur, size_t size)
   (void)cur;
   return ptr;
 }
+#endif /* unused */
 
 /* free wrapper */
 static void
@@ -288,18 +296,41 @@ incdep_xfree (struct incdep *cur, void *ptr)
   (void)cur;
 }
 
+/* alloc a nameseq structure.  */
+struct nameseq *
+incdep_alloc_nameseq (struct incdep *cur)
+{
+  struct alloccache *cache;
+  if (cur->worker_tid != -1)
+    cache = &incdep_nameseq_caches[cur->worker_tid];
+  else
+    cache = &nameseq_cache;
+  return alloccache_calloc (cache);
+}
+
 /* alloc a dep structure. These are allocated in bunches to save time. */
 struct dep *
 incdep_alloc_dep (struct incdep *cur)
 {
-  if (cur->dep_start != cur->dep_end)
-    return cur->dep_start++;
-
-  cur->dep_start = (struct dep *)incdep_xcalloc (cur, sizeof(struct dep) * 256);
-  cur->dep_end = cur->dep_start + 256;
-  return cur->dep_start++;
+  struct alloccache *cache;
+  if (cur->worker_tid != -1)
+    cache = &incdep_dep_caches[cur->worker_tid];
+  else
+    cache = &dep_cache;
+  return alloccache_calloc (cache);
 }
 
+/* grow a cache. */
+static void *
+incdep_cache_allocator (void *thrd, unsigned int size)
+{
+  (void)thrd;
+#ifdef __APPLE__
+  return malloc_zone_malloc (incdep_zone, size);
+#else
+  return xmalloc (size);
+#endif
+}
 
 /* acquires the lock */
 void
@@ -471,13 +502,8 @@ incdep_freeit (struct incdep *cur)
 
 /* A worker thread. */
 void
-incdep_worker (void)
+incdep_worker (int thrd)
 {
-#ifdef PARSE_IN_WORKER
-  struct dep *dep_start = NULL;
-  struct dep *dep_end = NULL;
-#endif
-
   incdep_lock ();
 
   while (!incdep_terminate)
@@ -499,22 +525,14 @@ incdep_worker (void)
       /* read the file. */
 
       incdep_unlock ();
-      cur->is_worker = 1;
+      cur->worker_tid = thrd;
+
       incdep_read_file (cur, NILF);
-
 #ifdef PARSE_IN_WORKER
-      cur->dep_start = dep_start;
-      cur->dep_end = dep_end;
-
       eval_include_dep_file (cur, NILF);
-
-      dep_start = cur->dep_start;
-      cur->dep_start = NULL;
-      dep_end = cur->dep_end;
-      cur->dep_end = NULL;
 #endif
 
-      cur->is_worker = 0;
+      cur->worker_tid = -1;
       incdep_lock ();
 
       /* insert finished job into the done list. */
@@ -536,28 +554,25 @@ incdep_worker (void)
 /* Thread library specific thread functions wrapping incdep_wroker. */
 #ifdef HAVE_PTHREAD
 static void *
-incdep_worker_pthread (void *ignore)
+incdep_worker_pthread (void *thrd)
 {
-  incdep_worker ();
-  (void)ignore;
+  incdep_worker ((size_t)thrd);
   return NULL;
 }
 
 #elif defined (WINDOWS32)
 static unsigned __stdcall
-incdep_worker_windows (void *ignore)
+incdep_worker_windows (void *thrd)
 {
-  incdep_worker ();
-  (void)ignore;
+  incdep_worker ((size_t)thrd);
   return 0;
 }
 
 #elif defined (__OS2__)
 static void
-incdep_worker_os2 (void *ignore)
+incdep_worker_os2 (void *thrd)
 {
-  incdep_worker ();
-  (void)ignore;
+  incdep_worker ((size_t)thrd);
 }
 #endif
 
@@ -632,6 +647,11 @@ incdep_init (struct floc *f)
     incdep_num_threads = job_slots <= 1 ? 1 : job_slots - 1;
   for (i = 0; i < incdep_num_threads; i++)
     {
+      alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
+                       incdep_cache_allocator, (void *)i);
+      alloccache_init (&incdep_nameseq_caches[i], sizeof(struct nameseq),
+                       "incdep nameseq", incdep_cache_allocator, (void *)i);
+
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
       if (rc)
@@ -640,8 +660,8 @@ incdep_init (struct floc *f)
       rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
       if (rc)
         fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
-      rc = pthread_create (&incdep_threads[i], &attr,
-                           incdep_worker_pthread, f);
+      rc = pthread_create(&incdep_threads[i], &attr,
+                           incdep_worker_pthread, (void *)i);
       if (rc)
         fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
       pthread_attr_destroy (&attr);
@@ -649,13 +669,13 @@ incdep_init (struct floc *f)
 #elif defined (WINDOWS32)
       tid = 0;
       hThread = _beginthreadex (NULL, 128*1024, incdep_worker_windows,
-                                NULL, 0, &tid);
+                                (void *)i, 0, &tid);
       if (hThread == 0 || hThread == ~(uintptr_t)0)
         fatal (f, _("_beginthreadex failed: err=%d"), errno);
       incdep_threads[i] = (HANDLE)hThread;
 
 #elif defined (__OS2__)
-      tid = _beginthread (incdep_worker_os2, NULL, 128*1024, NULL);
+      tid = _beginthread (incdep_worker_os2, NULL, 128*1024, (void *)i);
       if (tid <= 0)
         fatal (f, _("_beginthread failed: err=%d"), errno);
       incdep_threads[i] = tid;
@@ -690,7 +710,10 @@ incdep_flush_and_term (void)
 
   for (i = 0; i < incdep_num_threads; i++)
     {
-      /* later? */
+      /* more later? */
+
+      alloccache_join (&dep_cache, &incdep_dep_caches[i]);
+      alloccache_join (&nameseq_cache, &incdep_nameseq_caches[i]);
     }
   incdep_num_threads = 0;
 
@@ -802,7 +825,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
 static void
 incdep_warn (struct incdep *cur, unsigned int line_no, const char *msg)
 {
-  if (!cur->is_worker)
+  if (cur->worker_tid == -1)
     error (NILF, "%s(%d): %s", cur->name, line_no, msg);
 #ifdef PARSE_IN_WORKER
   else
@@ -818,7 +841,7 @@ static const char *
 incdep_record_strcache (struct incdep *cur, const char *str, int len)
 {
   const char *ret;
-  if (!cur->is_worker)
+  if (cur->worker_tid == -1)
     {
       /* Make sure the string is terminated before we hand it to
          strcache_add_len so it does have to make a temporary copy
@@ -859,7 +882,7 @@ incdep_record_variable_in_set (struct incdep *cur,
                                const struct floc *flocp)
 {
   assert (!duplicate_value);
-  if (!cur->is_worker)
+  if (cur->worker_tid == -1)
     define_variable_in_set (name, name_length, value, value_length,
                             duplicate_value, origin, recursive, set, flocp);
 #ifdef PARSE_IN_WORKER
@@ -897,7 +920,7 @@ incdep_record_variable_def (struct incdep *cur,
                             enum variable_flavor flavor,
                             int target_var)
 {
-  if (!cur->is_worker)
+  if (cur->worker_tid == -1)
     do_variable_definition_2 (flocp, name, value, value_length, 0, value,
                               origin, flavor, target_var);
 #ifdef PARSE_IN_WORKER
@@ -933,7 +956,7 @@ incdep_record_files (struct incdep *cur,
                      unsigned int commands_idx, int two_colon,
                      const struct floc *flocp)
 {
-  if (!cur->is_worker)
+  if (cur->worker_tid == -1)
     record_files (filenames, pattern, pattern_percent, deps, cmds_started,
                   commands, commands_idx, two_colon, flocp);
 #ifdef PARSE_IN_WORKER
@@ -1328,7 +1351,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
                   break;
                 }
-              filenames = incdep_xmalloc (curdep, sizeof (struct nameseq));
+              filenames = incdep_alloc_nameseq (curdep);
               memset (filenames, 0, sizeof (*filenames));
               filenames->name = incdep_record_strcache (curdep, cur, endp - cur);
 
@@ -1468,12 +1491,10 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
        cur->file_base = cur->file_end = NULL;
        memcpy (cur->name, name, name_len);
        cur->name[name_len] = '\0';
-       cur->is_worker = 0;
+       cur->worker_tid = -1;
 #ifdef PARSE_IN_WORKER
        cur->err_line_no = 0;
        cur->err_msg = NULL;
-       cur->dep_start = NULL;
-       cur->dep_end = NULL;
        cur->recorded_variables_in_set_head = NULL;
        cur->recorded_variables_in_set_tail = NULL;
        cur->recorded_variable_defs_head = NULL;
@@ -1490,7 +1511,11 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
        tail = cur;
     }
 
+#ifdef ELECTRIC_HEAP
+  if (1)
+#else
   if (op == incdep_read_it)
+#endif
     {
       /* work our way thru the files directly */
 

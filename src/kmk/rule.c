@@ -376,9 +376,15 @@ install_pattern_rule (struct pspec *p, int terminal)
   ++r->suffixes[0];
 
   ptr = p->dep;
+#ifndef CONFIG_WITH_ALLOC_CACHES
   r->deps = (struct dep *) multi_glob (parse_file_seq (&ptr, '\0',
                                                        sizeof (struct dep), 1),
 				       sizeof (struct dep));
+#else
+  r->deps = (struct dep *) multi_glob (parse_file_seq (&ptr, '\0',
+						       &dep_cache, 1),
+				       &dep_cache);
+#endif
 
   if (new_pattern_rule (r, 0))
     {
