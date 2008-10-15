@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1866 2008-10-15 01:11:41Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1868 2008-10-15 23:10:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -77,6 +77,10 @@
 
 #ifdef __APPLE__
 # include <malloc/malloc.h>
+# define PARSE_IN_WORKER
+#endif
+
+#if defined(__gnu_linux__) || defined(__linux__)
 # define PARSE_IN_WORKER
 #endif
 
@@ -633,7 +637,7 @@ incdep_init (struct floc *f)
   for (i = 0; i < incdep_num_threads; i++)
     {
       alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
-                       incdep_cache_allocator, (void *)i);
+                       incdep_cache_allocator, (void *)(size_t)i);
 
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
@@ -644,7 +648,7 @@ incdep_init (struct floc *f)
       if (rc)
         fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
       rc = pthread_create(&incdep_threads[i], &attr,
-                           incdep_worker_pthread, (void *)i);
+                           incdep_worker_pthread, (void *)(size_t)i);
       if (rc)
         fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
       pthread_attr_destroy (&attr);
