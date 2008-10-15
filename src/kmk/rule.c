@@ -389,7 +389,11 @@ install_pattern_rule (struct pspec *p, int terminal)
   if (new_pattern_rule (r, 0))
     {
       r->terminal = terminal;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       r->cmds = xmalloc (sizeof (struct commands));
+#else
+      r->cmds = alloccache_alloc (&commands_cache);
+#endif
       r->cmds->fileinfo.filenm = 0;
       r->cmds->fileinfo.lineno = 0;
       /* These will all be string literals, but we malloc space for them
