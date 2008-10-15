@@ -641,6 +641,8 @@ bsd_signal (int sig, bsd_signal_ret_t func)
 
 #ifdef CONFIG_WITH_ALLOC_CACHES
 struct alloccache dep_cache;
+struct alloccache file_cache;
+struct alloccache commands_cache;
 struct alloccache nameseq_cache;
 struct alloccache variable_cache;
 struct alloccache variable_set_cache;
@@ -650,6 +652,8 @@ static void
 initialize_global_alloc_caches (void)
 {
   alloccache_init (&dep_cache,               sizeof (struct dep),               "dep",               NULL, NULL);
+  alloccache_init (&file_cache,              sizeof (struct file),              "file",              NULL, NULL);
+  alloccache_init (&commands_cache,          sizeof (struct commands),          "commands",          NULL, NULL);
   alloccache_init (&nameseq_cache,           sizeof (struct nameseq),           "nameseq",           NULL, NULL);
   alloccache_init (&variable_cache,          sizeof (struct variable),          "variable",          NULL, NULL);
   alloccache_init (&variable_set_cache,      sizeof (struct variable_set),      "variable_set",      NULL, NULL);

@@ -251,8 +251,12 @@ enter_file (const char *name)
   if (! HASH_VACANT (f) && !f->double_colon)
     return f;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   new = xmalloc (sizeof (struct file));
   memset (new, '\0', sizeof (struct file));
+#else
+  new = alloccache_calloc (&file_cache);
+#endif
   new->name = new->hname = name;
   new->update_status = -1;
 

@@ -2289,7 +2289,11 @@ record_target_var (struct nameseq *filenames, char *defn,
       struct pattern_var *p;
 
       nextf = filenames->next;
+#ifndef CONFIG_WITH_ALLOC_CACHES
       free (filenames);
+#else
+      alloccache_free (&nameseq_cache, filenames);
+#endif
 
       /* If it's a pattern target, then add it to the pattern-specific
          variable list.  */
@@ -2419,7 +2423,11 @@ record_files (struct nameseq *filenames, const char *pattern,
 
   if (commands_idx > 0)
     {
+#ifndef CONFIG_WITH_ALLOC_CACHES
       cmds = xmalloc (sizeof (struct commands));
+#else
+      cmds = alloccache_alloc (&commands_cache);
+#endif
       cmds->fileinfo.filenm = flocp->filenm;
       cmds->fileinfo.lineno = cmds_started;
       cmds->commands = savestring (commands, commands_idx);
