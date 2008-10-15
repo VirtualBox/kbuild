@@ -704,7 +704,11 @@ define_variable_in_set (const char *name, unsigned int length,
 
   /* Create a new variable definition and add it to the hash table.  */
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   v = xmalloc (sizeof (struct variable));
+#else
+  v = alloccache_alloc (&variable_cache);
+#endif
   v->name = savestring (name, length);
   v->length = length;
 #ifdef VARIABLE_HASH /* bird */
@@ -1009,9 +1013,16 @@ initialize_file_variables (struct file *file, int reading)
 
   if (l == 0)
     {
+#ifndef CONFIG_WITH_ALLOC_CACHES
       l = (struct variable_set_list *)
 	xmalloc (sizeof (struct variable_set_list));
       l->set = xmalloc (sizeof (struct variable_set));
+#else
+      l = (struct variable_set_list *)
+        alloccache_alloc (&variable_set_list_cache);
+      l->set = (struct variable_set *)
+        alloccache_alloc (&variable_set_cache);
+#endif
       hash_init (&l->set->table, PERFILE_VARIABLE_BUCKETS,
                  variable_hash_1, variable_hash_2, variable_hash_cmp);
       file->variables = l;
@@ -1113,12 +1124,21 @@ create_new_variable_set (void)
   register struct variable_set_list *setlist;
   register struct variable_set *set;
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   set = xmalloc (sizeof (struct variable_set));
+#else
+  set = (struct variable_set *) alloccache_alloc (&variable_set_cache);
+#endif
   hash_init (&set->table, SMALL_SCOPE_VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   setlist = (struct variable_set_list *)
     xmalloc (sizeof (struct variable_set_list));
+#else
+  setlist = (struct variable_set_list *)
+    alloccache_alloc (&variable_set_list_cache);
+#endif
   setlist->set = set;
   setlist->next = current_variable_set_list;
 
@@ -1137,9 +1157,15 @@ void
 free_variable_set (struct variable_set_list *list)
 {
   hash_map (&list->set->table, free_variable_name_and_value);
+#ifndef CONFIG_WITH_ALLOC_CACHES
   hash_free (&list->set->table, 1);
   free (list->set);
   free (list);
+#else
+  hash_free_cached (&list->set->table, 1, &variable_cache);
+  alloccache_free (&variable_set_cache, list->set);
+  alloccache_free (&variable_set_list_cache, list);
+#endif
 }
 
 /* Create a new variable set and push it on the current setlist.
@@ -1195,10 +1221,17 @@ pop_variable_scope (void)
     }
 
   /* Free the one we no longer need.  */
+#ifndef CONFIG_WITH_ALLOC_CACHES
   free (setlist);
   hash_map (&set->table, free_variable_name_and_value);
   hash_free (&set->table, 1);
   free (set);
+#else
+  alloccache_free (&variable_set_list_cache, setlist);
+  hash_map (&set->table, free_variable_name_and_value);
+  hash_free_cached (&set->table, 1, &variable_cache);
+  alloccache_free (&variable_set_cache, set);
+#endif
 }
 
 /* Merge FROM_SET into TO_SET, freeing unused storage in FROM_SET.  */

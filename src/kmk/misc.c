@@ -1273,7 +1273,8 @@ alloccache_join (struct alloccache *cache, struct alloccache *eat)
 void
 alloccache_print (struct alloccache *cache)
 {
-  printf (_("\n# Alloc Cache: %s item size: %u  alloc: %d  total: %u\n"),
+  printf (_("\n# Alloc Cache: %s\n"
+              "#  Items: size = %-3u  in-use = %-6d  total = %-6u\n"),
           cache->name, cache->size, (int)cache->alloc_count, cache->total_count);
 }
 
@@ -1282,6 +1283,7 @@ void
 alloccache_print_all (void)
 {
   struct alloccache *cur;
+  puts ("");
   for (cur = alloccache_head; cur; cur = cur->next)
     alloccache_print (cur);
 }

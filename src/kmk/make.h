@@ -573,6 +573,8 @@ alloccache_free (struct alloccache *cache, void *item)
 extern struct alloccache dep_cache;
 extern struct alloccache nameseq_cache;
 extern struct alloccache variable_cache;
+extern struct alloccache variable_set_cache;
+extern struct alloccache variable_set_list_cache;
 
 #endif /* CONFIG_WITH_ALLOC_CACHES */
 

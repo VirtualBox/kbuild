@@ -245,6 +245,24 @@ hash_free_items (struct hash_table *ht)
   ht->ht_empty_slots = ht->ht_size;
 }
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+void
+hash_free_items_cached (struct hash_table *ht, struct alloccache *cache)
+{
+  void **vec = ht->ht_vec;
+  void **end = &vec[ht->ht_size];
+  for (; vec < end; vec++)
+    {
+      void *item = *vec;
+      if (!HASH_VACANT (item))
+	alloccache_free (cache, item);
+      *vec = 0;
+    }
+  ht->ht_fill = 0;
+  ht->ht_empty_slots = ht->ht_size;
+}
+#endif /* CONFIG_WITH_ALLOC_CACHES */
+
 void
 hash_delete_items (struct hash_table *ht)
 {
@@ -273,6 +291,23 @@ hash_free (struct hash_table *ht, int free_items)
   ht->ht_vec = 0;
   ht->ht_capacity = 0;
 }
+
+#ifdef CONFIG_WITH_ALLOC_CACHES
+void
+hash_free_cached (struct hash_table *ht, int free_items, struct alloccache *cache)
+{
+  if (free_items)
+    hash_free_items_cached (ht, cache);
+  else
+    {
+      ht->ht_fill = 0;
+      ht->ht_empty_slots = ht->ht_size;
+    }
+  free (ht->ht_vec);
+  ht->ht_vec = 0;
+  ht->ht_capacity = 0;
+}
+#endif /* CONFIG_WITH_ALLOC_CACHES */
 
 void
 hash_map (struct hash_table *ht, hash_map_func_t map)
