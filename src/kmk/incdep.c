@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1865 2008-10-15 01:08:24Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1866 2008-10-15 01:11:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -208,17 +208,14 @@ static struct incdep * volatile incdep_tail_done;
 #ifdef HAVE_PTHREAD
 static pthread_t incdep_threads[1];
 static struct alloccache incdep_dep_caches[1];
-static struct alloccache incdep_nameseq_caches[1];
 
 #elif defined (WINDOWS32)
 static HANDLE incdep_threads[2];
 static struct alloccache incdep_dep_caches[2];
-static struct alloccache incdep_nameseq_caches[2];
 
 #elif defined (__OS2__)
 static TID incdep_threads[2];
 static struct alloccache incdep_dep_caches[2];
-static struct alloccache incdep_nameseq_caches[2];
 #endif
 static unsigned incdep_num_threads;
 
@@ -294,18 +291,6 @@ incdep_xfree (struct incdep *cur, void *ptr)
      of free_dep_chain. */
   free (ptr);
   (void)cur;
-}
-
-/* alloc a nameseq structure.  */
-struct nameseq *
-incdep_alloc_nameseq (struct incdep *cur)
-{
-  struct alloccache *cache;
-  if (cur->worker_tid != -1)
-    cache = &incdep_nameseq_caches[cur->worker_tid];
-  else
-    cache = &nameseq_cache;
-  return alloccache_calloc (cache);
 }
 
 /* alloc a dep structure. These are allocated in bunches to save time. */
@@ -649,8 +634,6 @@ incdep_init (struct floc *f)
     {
       alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
                        incdep_cache_allocator, (void *)i);
-      alloccache_init (&incdep_nameseq_caches[i], sizeof(struct nameseq),
-                       "incdep nameseq", incdep_cache_allocator, (void *)i);
 
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
@@ -713,7 +696,6 @@ incdep_flush_and_term (void)
       /* more later? */
 
       alloccache_join (&dep_cache, &incdep_dep_caches[i]);
-      alloccache_join (&nameseq_cache, &incdep_nameseq_caches[i]);
     }
   incdep_num_threads = 0;
 
