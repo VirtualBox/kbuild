@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1863 2008-10-14 09:46:23Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1865 2008-10-15 01:08:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -125,7 +125,7 @@ struct incdep_recorded_files
     struct incdep_recorded_files *next;
 
     /* the parameters */
-    struct nameseq *filenames;      /* One only, its name is a strcache entry. */
+    struct incdep_strcache_entry *filename_entry; /* Converted to a nameseq record. */
     const char *pattern;            /* NULL */
     const char *pattern_percent;    /* NULL */
     struct dep *deps;               /* All the names are strcache entries. */
@@ -799,12 +799,16 @@ incdep_flush_recorded_instructions (struct incdep *cur)
       {
         void *free_me = rec_f;
         struct dep *dep;
+        struct nameseq *filenames;
 
         for (dep = rec_f->deps; dep; dep = dep->next)
           dep->name = incdep_flush_strcache_entry (dep->name);
-        rec_f->filenames->name = incdep_flush_strcache_entry (rec_f->filenames->name);
 
-        record_files (rec_f->filenames,
+        filenames = (struct nameseq *) alloccache_alloc (&nameseq_cache);
+        filenames->next = 0;
+        filenames->name = incdep_flush_strcache_entry (rec_f->filename_entry);
+
+        record_files (filenames,
                       rec_f->pattern,
                       rec_f->pattern_percent,
                       rec_f->deps,
@@ -950,21 +954,26 @@ incdep_record_variable_def (struct incdep *cur,
 /* Record files.*/
 static void
 incdep_record_files (struct incdep *cur,
-                     struct nameseq *filenames, const char *pattern,
+                     const char *filename, const char *pattern,
                      const char *pattern_percent, struct dep *deps,
                      unsigned int cmds_started, char *commands,
                      unsigned int commands_idx, int two_colon,
                      const struct floc *flocp)
 {
   if (cur->worker_tid == -1)
-    record_files (filenames, pattern, pattern_percent, deps, cmds_started,
-                  commands, commands_idx, two_colon, flocp);
+    {
+      struct nameseq *filenames = (struct nameseq *) alloccache_alloc (&nameseq_cache);
+      filenames->next = 0;
+      filenames->name = filename;
+      record_files (filenames, pattern, pattern_percent, deps, cmds_started,
+                    commands, commands_idx, two_colon, flocp);
+    }
 #ifdef PARSE_IN_WORKER
   else
     {
       struct incdep_recorded_files *rec = incdep_xmalloc (cur, sizeof (*rec));
 
-      rec->filenames = filenames;
+      rec->filename_entry = (struct incdep_strcache_entry *)filename;
       rec->pattern = pattern;
       rec->pattern_percent = pattern_percent;
       rec->deps = deps;
@@ -1330,7 +1339,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
             {
               /* file: dependencies */
 
-              struct nameseq *filenames = 0;
+              const char *filename;
               struct dep *deps = 0;
               struct dep **nextdep = &deps;
               struct dep *dep;
@@ -1351,9 +1360,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
                   break;
                 }
-              filenames = incdep_alloc_nameseq (curdep);
-              memset (filenames, 0, sizeof (*filenames));
-              filenames->name = incdep_record_strcache (curdep, cur, endp - cur);
+              filename = incdep_record_strcache (curdep, cur, endp - cur);
 
               /* parse any dependencies. */
               cur = colonp + 1;
@@ -1401,7 +1408,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
               /* enter the file with its dependencies. */
               incdep_record_files (curdep,
-                                   filenames, NULL, NULL, deps, 0, NULL, 0, 0, f);
+                                   filename, NULL, NULL, deps, 0, NULL, 0, 0, f);
             }
         }
     }
