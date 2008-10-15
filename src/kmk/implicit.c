@@ -262,7 +262,7 @@ pattern_search (struct file *file, int archive,
 
 #ifdef CONFIG_WITH_ALLOC_CACHES
   if (!idep_cache.size)
-    alloccache_init (&idep_cache, sizeof(struct idep), "dep", NULL, NULL);
+    alloccache_init (&idep_cache, sizeof (struct idep), "idep", NULL, NULL);
 #endif
 
 #ifndef	NO_ARCHIVES

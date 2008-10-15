@@ -643,13 +643,17 @@ bsd_signal (int sig, bsd_signal_ret_t func)
 struct alloccache dep_cache;
 struct alloccache nameseq_cache;
 struct alloccache variable_cache;
+struct alloccache variable_set_cache;
+struct alloccache variable_set_list_cache;
 
 static void
 initialize_global_alloc_caches (void)
 {
-  alloccache_init (&dep_cache,      sizeof (struct dep),      "dep",      NULL, NULL);
-  alloccache_init (&nameseq_cache,  sizeof (struct nameseq),  "nameseq",  NULL, NULL);
-  alloccache_init (&variable_cache, sizeof (struct variable), "variable", NULL, NULL);
+  alloccache_init (&dep_cache,               sizeof (struct dep),               "dep",               NULL, NULL);
+  alloccache_init (&nameseq_cache,           sizeof (struct nameseq),           "nameseq",           NULL, NULL);
+  alloccache_init (&variable_cache,          sizeof (struct variable),          "variable",          NULL, NULL);
+  alloccache_init (&variable_set_cache,      sizeof (struct variable_set),      "variable_set",      NULL, NULL);
+  alloccache_init (&variable_set_list_cache, sizeof (struct variable_set_list), "variable_set_list", NULL, NULL);
 }
 #endif
 
@@ -2927,7 +2931,7 @@ print_usage (int bad)
 #ifdef KMK
   if (!remote_description || *remote_description == '\0')
     printf (_("\nThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
-            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
+            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
   else
     printf (_("\nThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
             KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);

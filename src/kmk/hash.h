@@ -74,6 +74,10 @@ void *hash_delete_at __P((struct hash_table *ht, void const *slot));
 void hash_delete_items __P((struct hash_table *ht));
 void hash_free_items __P((struct hash_table *ht));
 void hash_free __P((struct hash_table *ht, int free_items));
+#ifdef CONFIG_WITH_ALLOC_CACHES
+void hash_free_items_cached __P((struct hash_table *ht, struct alloccache *cache));
+void hash_free_cached __P((struct hash_table *ht, int free_items, struct alloccache *cache));
+#endif
 void hash_map __P((struct hash_table *ht, hash_map_func_t map));
 void hash_map_arg __P((struct hash_table *ht, hash_map_arg_func_t map, void *arg));
 void hash_print_stats __P((struct hash_table *ht, FILE *out_FILE));
