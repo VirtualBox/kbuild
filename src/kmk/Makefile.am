@@ -48,6 +48,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		\
 		expreval.c \
 		incdep.c \
+		strcache2.c \
 		kbuild.c \
 		electric.c \
 		../lib/md5.c \
