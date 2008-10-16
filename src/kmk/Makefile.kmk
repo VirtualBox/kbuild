@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1863 2008-10-14 09:46:23Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1869 2008-10-16 05:05:04Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -182,6 +182,7 @@ kmk_SOURCES = \
 	incdep.c \
 	hash.c \
 	strcache.c \
+	strcache2.c \
 	variable.c \
 	ar.c \
 	arscan.c \
