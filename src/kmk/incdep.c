@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1871 2008-10-16 23:38:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -51,7 +51,7 @@
 #include "variable.h"
 #include "rule.h"
 #include "debug.h"
-#include "hash.h"
+#include "strcache2.h"
 
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
@@ -88,20 +88,11 @@
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
 *******************************************************************************/
-struct incdep_strcache_entry
-{
-    unsigned int length;
-    unsigned int alignment;
-    unsigned long hash1;
-    unsigned long hash2;
-    char str[1];
-};
-
 struct incdep_variable_in_set
 {
     struct incdep_variable_in_set *next;
     /* the parameters */
-    struct incdep_strcache_entry *name_entry;
+    struct strcache2_entry *name_entry; /* dep strcache */
     const char *value;              /* xmalloc'ed */
     unsigned int value_length;
     int duplicate_value;            /* 0 */
@@ -116,7 +107,7 @@ struct incdep_variable_def
     struct incdep_variable_def *next;
     /* the parameters */
     const struct floc *flocp;       /* NILF */
-    struct incdep_strcache_entry *name_entry;
+    struct strcache2_entry *name_entry; /* dep strcache */
     char *value;                    /* xmalloc'ed, free it */
     unsigned int value_length;
     enum variable_origin origin;
@@ -129,10 +120,10 @@ struct incdep_recorded_files
     struct incdep_recorded_files *next;
 
     /* the parameters */
-    struct incdep_strcache_entry *filename_entry; /* Converted to a nameseq record. */
+    struct strcache2_entry *filename_entry; /* dep strcache; converted to a nameseq record. */
     const char *pattern;            /* NULL */
     const char *pattern_percent;    /* NULL */
-    struct dep *deps;               /* All the names are strcache entries. */
+    struct dep *deps;               /* All the names are dep strcache entries. */
     unsigned int cmds_started;      /* 0 */
     char *commands;                 /* NULL */
     unsigned int commands_idx;      /* 0 */
@@ -212,14 +203,17 @@ static struct incdep * volatile incdep_tail_done;
 #ifdef HAVE_PTHREAD
 static pthread_t incdep_threads[1];
 static struct alloccache incdep_dep_caches[1];
+static struct strcache2 incdep_dep_strcaches[1];
 
 #elif defined (WINDOWS32)
 static HANDLE incdep_threads[2];
 static struct alloccache incdep_dep_caches[2];
+static struct strcache2 incdep_dep_strcaches[2];
 
 #elif defined (__OS2__)
 static TID incdep_threads[2];
 static struct alloccache incdep_dep_caches[2];
+static struct strcache2 incdep_dep_strcaches[2];
 #endif
 static unsigned incdep_num_threads;
 
@@ -628,7 +622,7 @@ incdep_init (struct floc *f)
   incdep_hev_done_waiters = 0;
 #endif
 
-  /* create the worker threads. */
+  /* create the worker threads and associated per thread data. */
 
   incdep_terminate = 0;
   incdep_num_threads = sizeof (incdep_threads) / sizeof (incdep_threads[0]);
@@ -636,9 +630,21 @@ incdep_init (struct floc *f)
     incdep_num_threads = job_slots <= 1 ? 1 : job_slots - 1;
   for (i = 0; i < incdep_num_threads; i++)
     {
+      /* init caches */
       alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
                        incdep_cache_allocator, (void *)(size_t)i);
+      strcache2_init(&incdep_dep_strcaches[i],
+                     "incdep dep",  /* name */
+                     65536,         /* hash size */
+                     0,             /* default segment size*/
+#ifdef HAVE_CASE_INSENSITIVE_FS
+                     1,             /* case insensitive */
+#else
+                     0,             /* case insensitive */
+#endif
+                     0);            /* thread safe */
 
+      /* create the thread. */
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
       if (rc)
@@ -700,6 +706,7 @@ incdep_flush_and_term (void)
       /* more later? */
 
       alloccache_join (&dep_cache, &incdep_dep_caches[i]);
+      strcache2_term (&incdep_dep_strcaches[i]);
     }
   incdep_num_threads = 0;
 
@@ -714,13 +721,14 @@ incdep_flush_and_term (void)
 /* Flushes a strcache entry returning the actual string cache entry.
    The input is freed! */
 static const char *
-incdep_flush_strcache_entry (const void *pv_entry)
+incdep_flush_strcache_entry (struct strcache2_entry *entry)
 {
-  struct incdep_strcache_entry *entry = (struct incdep_strcache_entry *)pv_entry;
-  const char *result;
-  result = strcache_add_prehashed (entry->str, entry->length, entry->hash1, entry->hash2);
-  free (entry);
-  return result;
+  if (!entry->user)
+    entry->user = (void *)strcache_add_prehashed ((const char *)(entry + 1),
+                                                  entry->length,
+                                                  entry->hash1,
+                                                  entry->hash2);
+  return (const char *)entry->user;
 }
 
 /* Flushes the recorded instructions. */
@@ -788,7 +796,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
         struct nameseq *filenames;
 
         for (dep = rec_f->deps; dep; dep = dep->next)
-          dep->name = incdep_flush_strcache_entry (dep->name);
+          dep->name = incdep_flush_strcache_entry ((struct strcache2_entry *)dep->name);
 
         filenames = (struct nameseq *) alloccache_alloc (&nameseq_cache);
         filenames->next = 0;
@@ -843,15 +851,9 @@ incdep_record_strcache (struct incdep *cur, const char *str, int len)
     }
   else
     {
-      /* Allocate a strcache record for it, pre-hashing the string to save
-         time later on in the main thread. */
-      struct incdep_strcache_entry *entry = incdep_xmalloc (cur, sizeof (*entry) + len);
-      memcpy (entry->str, str, len);
-      entry->str[len] = '\0';
-      entry->length = len;
-      strcache_prehash_str (entry->str, len, &entry->hash1, &entry->hash2);
-
-      ret = (const char *)entry;
+      /* Add it out the strcache of the thread. */
+      ret = strcache2_add (&incdep_dep_strcaches[cur->worker_tid], str, len);
+      ret = (const char *)strcache2_get_entry(&incdep_dep_strcaches[cur->worker_tid], ret);
     }
   return ret;
 }
@@ -879,7 +881,7 @@ incdep_record_variable_in_set (struct incdep *cur,
   else
     {
       struct incdep_variable_in_set *rec = incdep_xmalloc (cur, sizeof (*rec));
-      rec->name_entry = (struct incdep_strcache_entry *)name;
+      rec->name_entry = (struct strcache2_entry *)name;
       rec->value = value;
       rec->value_length = value_length;
       rec->duplicate_value = duplicate_value;
@@ -918,7 +920,7 @@ incdep_record_variable_def (struct incdep *cur,
     {
       struct incdep_variable_def *rec = incdep_xmalloc (cur, sizeof (*rec));
       rec->flocp = flocp;
-      rec->name_entry = (struct incdep_strcache_entry *)name;
+      rec->name_entry = (struct strcache2_entry *)name;
       rec->value = value;
       rec->value_length = value_length;
       rec->origin = origin;
@@ -959,7 +961,7 @@ incdep_record_files (struct incdep *cur,
     {
       struct incdep_recorded_files *rec = incdep_xmalloc (cur, sizeof (*rec));
 
-      rec->filename_entry = (struct incdep_strcache_entry *)filename;
+      rec->filename_entry = (struct strcache2_entry *)filename;
       rec->pattern = pattern;
       rec->pattern_percent = pattern_percent;
       rec->deps = deps;
