@@ -982,6 +982,7 @@ allocated_variable_append (const struct variable *v)
 
   variable_buffer = 0;
 
+  assert (v->length == strlen (v->name));
   val = variable_append (v->name, strlen (v->name), current_variable_set_list);
   variable_buffer_output (val, "", 1);
   val = variable_buffer;

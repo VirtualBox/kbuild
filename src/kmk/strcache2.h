@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1869 2008-10-16 05:05:04Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -50,11 +50,16 @@ struct strcache2
 {
     struct strcache2_entry **hash_tab;  /* The hash table. */
     int case_insensitive;               /* case insensitive or not. */
-    unsigned int hash_size;             /* The hash table size. */
+    unsigned int hash_mask;             /* The AND mask matching hash_size.*/
+    unsigned long lookup_count;         /* The number of lookups. */
+    unsigned long collision_1st_count;  /* The number of 1st level collisions. */
+    unsigned long collision_2nd_count;  /* The number of 2nd level collisions. */
+    unsigned long collision_3rd_count;  /* The number of 3rd level collisions. */
     unsigned int count;                 /* Number entries in the cache. */
     unsigned int rehash_count;          /* When to rehash the table. */
-    unsigned long collision_count;      /* The number of collisions. */
-    unsigned long lookup_count;         /* The number of lookups. */
+    unsigned int init_size;             /* The initial hash table size. */
+    unsigned int hash_size;             /* The hash table size. */
+    unsigned int def_seg_size;          /* The default segment size. */
     void *lock;                         /* The lock handle. */
     struct strcache2_seg *seg_head;     /* The memory segment list. */
     struct strcache2 *next;             /* The next string cache. */
@@ -62,13 +67,19 @@ struct strcache2
 };
 
 
-void strcache2_init (struct strcache2 *cache, const char *name, int case_insensitive, int thread_safe);
+void strcache2_init (struct strcache2 *cache, const char *name, unsigned int size,
+                     unsigned int def_seg_size, int case_insensitive, int thread_safe);
 void strcache2_term (struct strcache2 *cache);
 void strcache2_print_stats (struct strcache2 *cache, const char *prefix);
 void strcache2_print_stats_all (const char *prefix);
 const char *strcache2_add (struct strcache2 *cache, const char *str, unsigned int length);
+const char *strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
+                                  unsigned int hash1, unsigned int hash2);
+int strcache2_is_cached (struct strcache2 *cache, const char *str);
 int strcache2_verify_entry (struct strcache2 *cache, const char *str);
 unsigned int strcache2_get_hash2_fallback (struct strcache2 *cache, const char *str);
+unsigned int strcache2_hash_str (const char *str, unsigned int length, unsigned int *hash2p);
+unsigned int strcache2_hash_istr (const char *str, unsigned int length, unsigned int *hash2p);
 
 /* Get the hash table entry pointer. */
 MY_INLINE struct strcache2_entry const *
@@ -99,7 +110,7 @@ MY_INLINE unsigned int
 strcache2_get_hash2 (struct strcache2 *cache, const char *str)
 {
   unsigned int hash2 = strcache2_get_entry (cache, str)->hash2;
-  if (hash2)
+  if (!hash2)
     hash2 = strcache2_get_hash2_fallback (cache, str);
   return hash2;
 }

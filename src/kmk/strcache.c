@@ -15,10 +15,12 @@ GNU Make; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
+#ifndef CONFIG_WITH_STRCACHE2
 
 #include <assert.h>
 
 #include "hash.h"
+
 
 /* The size (in bytes) of each cache buffer.
    Try to pick something that will map well into the heap.  */
@@ -380,9 +382,10 @@ strcache_add_prehashed (const char *str, int len, unsigned long hash1,
 
 /* Performs the prehashing for use with strcache_add_prehashed(). */
 void
-strcache_prehash_str (const char *str, unsigned long *hash1p,
+strcache_prehash_str (const char *str, unsigned int len, unsigned long *hash1p,
                       unsigned long *hash2p)
 {
+  (void)len;
   *hash1p = str_hash_1 (str);
   *hash2p = str_hash_2 (str);
 }
@@ -459,3 +462,33 @@ strcache_print_stats (const char *prefix)
   fputs (_("\n# strcache hash-table stats:\n# "), stdout);
   hash_print_stats (&strings, stdout);
 }
+
+#else /* CONFIG_WITH_STRCACHE2 */
+
+#include "strcache2.h"
+
+/* The file string cache. */
+struct strcache2 file_strcache;
+
+void strcache_init (void)
+{
+  strcache2_init(&file_strcache,
+                 "file",        /* name */
+                 65536,         /* hash size */
+                 0,             /* default segment size*/
+#ifdef HAVE_CASE_INSENSITIVE_FS
+                 1,             /* case insensitive */
+#else
+                 0,             /* case insensitive */
+#endif
+                 0);            /* thread safe */
+}
+
+void
+strcache_print_stats (const char *prefix)
+{
+  strcache2_print_stats (&file_strcache, prefix);
+}
+
+
+#endif /* CONFIG_WITH_STRCACHE2 */
