@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1868 2008-10-15 23:10:08Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -849,7 +849,7 @@ incdep_record_strcache (struct incdep *cur, const char *str, int len)
       memcpy (entry->str, str, len);
       entry->str[len] = '\0';
       entry->length = len;
-      strcache_prehash_str (entry->str, &entry->hash1, &entry->hash2);
+      strcache_prehash_str (entry->str, len, &entry->hash1, &entry->hash2);
 
       ret = (const char *)entry;
     }

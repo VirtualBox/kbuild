@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1869 2008-10-16 05:05:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -139,6 +139,7 @@ kmk_DEFS = \
 	CONFIG_WITH_LOCAL_VARIABLES \
 	CONFIG_WITH_2ND_TARGET_EXPANSION \
 	CONFIG_WITH_ALLOC_CACHES \
+	CONFIG_WITH_STRCACHE2 \
 	\
 	KMK \
 	KMK_HELPERS \
