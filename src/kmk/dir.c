@@ -342,6 +342,11 @@ directory_contents_hash_cmp (const void *xv, const void *yv)
 /* Table of directory contents hashed by device and inode number.  */
 static struct hash_table directory_contents;
 
+#ifdef CONFIG_WITH_ALLOC_CACHES
+/* Allocation cache for directory contents. */
+struct alloccache directory_contents_cache;
+#endif
+
 struct directory
   {
     const char *name;			/* Name of the directory.  */
@@ -373,6 +378,11 @@ directory_hash_cmp (const void *x, const void *y)
 
 /* Table of directories hashed by name.  */
 static struct hash_table directories;
+
+#ifdef CONFIG_WITH_ALLOC_CACHES
+/* Allocation cache for directories. */
+struct alloccache directories_cache;
+#endif
 
 /* Never have more than this many directories open at once.  */
 
@@ -416,6 +426,12 @@ dirfile_hash_cmp (const void *xv, const void *yv)
 #ifndef	DIRFILE_BUCKETS
 #define DIRFILE_BUCKETS 107
 #endif
+
+#ifdef CONFIG_WITH_ALLOC_CACHES
+/* Allocation cache for dirfiles. */
+struct alloccache dirfile_cache;
+#endif
+
 
 static int dir_contents_file_exists_p (struct directory_contents *dir,
                                        const char *filename);
@@ -457,7 +473,11 @@ find_directory (const char *name)
       /* The directory was not found.  Create a new entry for it.  */
 
       p = name + strlen (name);
+#ifndef CONFIG_WITH_ALLOC_CACHES
       dir = xmalloc (sizeof (struct directory));
+#else
+      dir = alloccache_alloc (&directories_cache);
+#endif
       dir->name = strcache_add_len (name, p - name);
       hash_insert_at (&directories, dir, dir_slot);
       /* The directory is not in the name hash table.
@@ -517,8 +537,13 @@ find_directory (const char *name)
 	    {
 	      /* Nope; this really is a directory we haven't seen before.  */
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	      dc = (struct directory_contents *)
 		xmalloc (sizeof (struct directory_contents));
+#else
+              dc = (struct directory_contents *)
+                    alloccache_alloc (&directory_contents_cache);
+#endif
 
 	      /* Enter it in the contents hash table.  */
 	      dc->dev = st.st_dev;
@@ -739,7 +764,11 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       if (! rehash || HASH_VACANT (*dirfile_slot))
 #endif
 	{
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	  df = xmalloc (sizeof (struct dirfile));
+#else
+	  df = alloccache_alloc (&dirfile_cache);
+#endif
 	  df->name = strcache_add_len (d->d_name, len);
 	  df->length = len;
 	  df->impossible = 0;
@@ -900,8 +929,13 @@ file_impossible (const char *filename)
     {
       /* The directory could not be stat'd.  We allocate a contents
 	 structure for it, but leave it out of the contents hash table.  */
+#ifndef CONFIG_WITH_ALLOC_CACHES
       dir->contents = xmalloc (sizeof (struct directory_contents));
+#else
+      dir->contents = alloccache_alloc (&directory_contents_cache);
+#endif
       memset (dir->contents, '\0', sizeof (struct directory_contents));
+
     }
 
   if (dir->contents->dirfiles.ht_vec == 0)
@@ -912,7 +946,11 @@ file_impossible (const char *filename)
 
   /* Make a new entry and put it in the table.  */
 
+#ifndef CONFIG_WITH_ALLOC_CACHES
   new = xmalloc (sizeof (struct dirfile));
+#else
+  new = alloccache_alloc (&dirfile_cache);
+#endif
   new->length = strlen (filename);
   new->name = strcache_add_len (filename, new->length);
   new->impossible = 1;
@@ -1268,4 +1306,12 @@ hash_init_directories (void)
   hash_init (&directory_contents, DIRECTORY_BUCKETS,
 	     directory_contents_hash_1, directory_contents_hash_2,
              directory_contents_hash_cmp);
+#ifdef CONFIG_WITH_ALLOC_CACHES
+  alloccache_init (&directories_cache, sizeof (struct directory),
+                   "directories", NULL, NULL);
+  alloccache_init (&directory_contents_cache, sizeof (struct directory_contents),
+                   "directory_contents", NULL, NULL);
+  alloccache_init (&dirfile_cache, sizeof (struct dirfile),
+                   "dirfile", NULL, NULL);
+#endif
 }
