@@ -1205,6 +1205,17 @@ alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
   alloccache_head    = cache;
 }
 
+/* Terminate an alloc cache, free all the memory it contains. */
+void
+alloccache_term (struct alloccache *cache,
+                 void (*term_free)(void *term_arg, void *ptr, unsigned int size), void *term_arg)
+{
+    cache->size = 0;
+    (void)term_free;
+    (void)term_arg;
+    /* FIXME: Implement memory segment tracking and cleanup. */
+}
+
 /* Joins to caches, unlinking the 2nd one. */
 void
 alloccache_join (struct alloccache *cache, struct alloccache *eat)

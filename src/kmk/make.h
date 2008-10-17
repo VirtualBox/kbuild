@@ -519,6 +519,8 @@ struct alloccache
 
 void alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
                       void *(*grow_alloc)(void *grow_arg, unsigned int size), void *grow_arg);
+void alloccache_term (struct alloccache *cache,
+                      void (*term_free)(void *term_arg, void *ptr, unsigned int size), void *term_arg);
 void alloccache_join (struct alloccache *cache, struct alloccache *eat);
 void alloccache_print (struct alloccache *cache);
 void alloccache_print_all (void);
