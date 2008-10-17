@@ -3626,7 +3626,11 @@ print_data_base ()
   print_rule_data_base ();
   print_file_data_base ();
   print_vpath_data_base ();
+#ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
+#else
+  strcache2_print_stats_all ("#");
+#endif
 #ifdef CONFIG_WITH_ALLOC_CACHES
   alloccache_print_all ();
 #endif
