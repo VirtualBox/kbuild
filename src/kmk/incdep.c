@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1874 2008-10-17 00:41:33Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1875 2008-10-17 01:02:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -667,23 +667,23 @@ incdep_init (struct floc *f)
                        incdep_cache_allocator, (void *)(size_t)i);
       alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
                        incdep_cache_allocator, (void *)(size_t)i);
-      strcache2_init(&incdep_dep_strcaches[i],
-                     "incdep dep",  /* name */
-                     65536,         /* hash size */
-                     0,             /* default segment size*/
+      strcache2_init (&incdep_dep_strcaches[i],
+                      "incdep dep", /* name */
+                      65536,        /* hash size */
+                      0,            /* default segment size*/
 #ifdef HAVE_CASE_INSENSITIVE_FS
-                     1,             /* case insensitive */
+                      1,            /* case insensitive */
 #else
-                     0,             /* case insensitive */
+                      0,            /* case insensitive */
 #endif
-                     0);            /* thread safe */
+                      0);           /* thread safe */
 
-      strcache2_init(&incdep_var_strcaches[i],
-                     "incdep var",  /* name */
-                     32768,         /* hash size */
-                     0,             /* default segment size*/
-                     0,             /* case insensitive */
-                     0);            /* thread safe */
+      strcache2_init (&incdep_var_strcaches[i],
+                      "incdep var", /* name */
+                      32768,        /* hash size */
+                      0,            /* default segment size*/
+                      0,            /* case insensitive */
+                      0);           /* thread safe */
 
       /* create the thread. */
 #ifdef HAVE_PTHREAD
