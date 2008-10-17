@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1872 2008-10-17 00:05:27Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1873 2008-10-17 00:10:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -309,6 +309,13 @@ static void *
 incdep_alloc_rec (struct incdep *cur)
 {
   return alloccache_alloc (&incdep_rec_caches[cur->worker_tid]);
+}
+
+/* free a record. */
+static void
+incdep_free_rec (struct incdep *cur, void *rec)
+{
+  alloccache_free (&incdep_rec_caches[cur->worker_tid], rec);
 }
 
 
@@ -773,6 +780,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
   if (rec_vis)
     do
       {
+        void *free_me = rec_vis;
         unsigned int name_length = rec_vis->name_entry->length;
         define_variable_in_set (incdep_flush_strcache_entry (rec_vis->name_entry),
                                 name_length,
@@ -784,6 +792,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                 rec_vis->set,
                                 rec_vis->flocp);
         rec_vis = rec_vis->next;
+        incdep_free_rec (cur, free_me);
       }
     while (rec_vis);
 
@@ -794,6 +803,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
   if (rec_vd)
     do
       {
+        void *free_me = rec_vd;
         do_variable_definition_2 (rec_vd->flocp,
                                   incdep_flush_strcache_entry (rec_vd->name_entry),
                                   rec_vd->value,
@@ -804,6 +814,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                                   rec_vd->flavor,
                                   rec_vd->target_var);
         rec_vd = rec_vd->next;
+        incdep_free_rec (cur, free_me);
       }
     while (rec_vd);
 
@@ -814,6 +825,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
   if (rec_f)
     do
       {
+        void *free_me = rec_f;
         struct dep *dep;
         struct nameseq *filenames;
 
@@ -835,6 +847,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
                       rec_f->flocp);
 
         rec_f = rec_f->next;
+        incdep_free_rec (cur, free_me);
       }
     while (rec_f);
 }
