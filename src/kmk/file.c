@@ -434,8 +434,10 @@ rename_file (struct file *from_file, const char *to_hname)
 static void
 do_2nd_target_expansion (struct file *f)
 {
-   char *tmp_name = allocated_variable_expand (f->name);
-   const char *name = strcache_add (tmp_name);
+   unsigned int len;
+   char *tmp_name = allocated_variable_expand_2 (
+       f->name, strcache_get_len(f->name), &len);
+   const char *name = strcache_add_len (tmp_name, len);
    free (tmp_name);
    rename_file (f, name);
 }
