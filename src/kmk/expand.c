@@ -748,7 +748,7 @@ variable_expand (const char *line)
 char *
 expand_argument (const char *str, const char *end)
 {
-#ifndef CONFIG_WITH_VALUE_LENGTH /** @todo the hacks are no longer required. Clean up !! */
+#ifndef CONFIG_WITH_VALUE_LENGTH
   char *tmp;
 #endif
 
@@ -758,29 +758,9 @@ expand_argument (const char *str, const char *end)
 #ifndef CONFIG_WITH_VALUE_LENGTH
   if (!end || *end == '\0')
     return allocated_variable_expand (str);
-#ifdef CONFIG_WITH_OPTIMIZATION_HACKS
-  {
-    const char saved_char = *end;
-    *(char *)end = '\0';
-# ifndef CONFIG_WITH_VALUE_LENGTH
-    tmp = allocated_variable_expand ((char *)str);
-# else
-    tmp = allocated_variable_expand_2 ((char *)str, end - str, NULL);
-# endif
-    *(char *)end = saved_char;
-    return tmp;
-  }
-#else
   tmp = alloca (end - str + 1);
   memcpy (tmp, str, end - str);
   tmp[end - str] = '\0';
-
-# ifndef CONFIG_WITH_VALUE_LENGTH
-  return allocated_variable_expand (tmp);
-# else
-  return allocated_variable_expand_2 (tmp, end - str, NULL);
-# endif
-#endif
 #else  /* CONFIG_WITH_VALUE_LENGTH */
   if (!end)
       return allocated_variable_expand_2 (str, ~0U, NULL);
