@@ -2708,7 +2708,11 @@ main (int argc, char **argv, char **envp)
                     if (ns->next != 0)
                       fatal (NILF, _(".DEFAULT_GOAL contains more than one target"));
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
                     default_goal_file = enter_file (strcache_add (ns->name));
+#else
+                    default_goal_file = enter_file (ns->name);
+#endif
 
                     ns->name = 0; /* It was reused by enter_file(). */
                     free_ns_chain (ns);
