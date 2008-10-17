@@ -1187,20 +1187,32 @@ void
 alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
                  void *(*grow_alloc)(void *grow_arg, unsigned int size), void *grow_arg)
 {
-  /* ensure aligned and min sizeof (struct alloccache_free_ent). */
-  if (size & (sizeof (void *) - 1))
-    size += sizeof (void *) - (size & (sizeof (void *) - 1));
+  unsigned act_size;
 
+  /* ensure OK alignment and min sizeof (struct alloccache_free_ent). */
+  if (size <= sizeof (struct alloccache_free_ent))
+    act_size = sizeof (struct alloccache_free_ent);
+  else if (size <= 32)
+    {
+      act_size = 4;
+      while (act_size < size)
+        act_size <<= 1;
+    }
+  else
+    act_size = (size + 31U) & ~(size_t)31;
+
+  /* align the structure. */
   cache->free_start  = NULL;
   cache->free_end    = NULL;
   cache->free_head   = NULL;
-  cache->size        = size;
+  cache->size        = act_size;
   cache->alloc_count = 0;
   cache->total_count = 0;
   cache->name        = name;
   cache->grow_arg    = grow_arg;
   cache->grow_alloc  = grow_alloc ? grow_alloc : alloccache_default_grow_alloc;
 
+  /* link it. */
   cache->next        = alloccache_head;
   alloccache_head    = cache;
 }
@@ -1210,7 +1222,8 @@ void
 alloccache_term (struct alloccache *cache,
                  void (*term_free)(void *term_arg, void *ptr, unsigned int size), void *term_arg)
 {
-    cache->size = 0;
+    /*cache->size = 0;*/
+    (void)cache;
     (void)term_free;
     (void)term_arg;
     /* FIXME: Implement memory segment tracking and cleanup. */
