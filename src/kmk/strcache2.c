@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1879 2008-10-17 01:53:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -753,7 +753,7 @@ void
 strcache2_print_stats_all (const char *prefix)
 {
   struct strcache2 *cur;
-  for (cur = strcache_head; cur; cur++)
+  for (cur = strcache_head; cur; cur = cur->next)
     strcache2_print_stats (cur, prefix);
 }
 
