@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1873 2008-10-17 00:10:24Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1874 2008-10-17 00:41:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -216,6 +216,7 @@ static TID incdep_threads[INCDEP_MAX_THREADS];
 static struct alloccache incdep_rec_caches[INCDEP_MAX_THREADS];
 static struct alloccache incdep_dep_caches[INCDEP_MAX_THREADS];
 static struct strcache2 incdep_dep_strcaches[INCDEP_MAX_THREADS];
+static struct strcache2 incdep_var_strcaches[INCDEP_MAX_THREADS];
 static unsigned incdep_num_threads;
 
 /* flag indicating whether the worker threads should terminate or not. */
@@ -315,7 +316,7 @@ incdep_alloc_rec (struct incdep *cur)
 static void
 incdep_free_rec (struct incdep *cur, void *rec)
 {
-  alloccache_free (&incdep_rec_caches[cur->worker_tid], rec);
+  /*alloccache_free (&incdep_rec_caches[cur->worker_tid], rec); - doesn't work of course. */
 }
 
 
@@ -505,6 +506,7 @@ incdep_freeit (struct incdep *cur)
 #endif
 
   incdep_xfree (cur, cur->file_base);
+  cur->next = NULL;
   free (cur);
 }
 
@@ -676,6 +678,13 @@ incdep_init (struct floc *f)
 #endif
                      0);            /* thread safe */
 
+      strcache2_init(&incdep_var_strcaches[i],
+                     "incdep var",  /* name */
+                     32768,         /* hash size */
+                     0,             /* default segment size*/
+                     0,             /* case insensitive */
+                     0);            /* thread safe */
+
       /* create the thread. */
 #ifdef HAVE_PTHREAD
       rc = pthread_attr_init (&attr);
@@ -741,6 +750,7 @@ incdep_flush_and_term (void)
       alloccache_term (&incdep_rec_caches[i], incdep_cache_deallocator, (void *)(size_t)i);
       alloccache_join (&dep_cache, &incdep_dep_caches[i]);
       strcache2_term (&incdep_dep_strcaches[i]);
+      strcache2_term (&incdep_var_strcaches[i]);
     }
   incdep_num_threads = 0;
 
@@ -868,9 +878,9 @@ incdep_warn (struct incdep *cur, unsigned int line_no, const char *msg)
 #endif
 }
 
-/* Record / execute a strcache add. */
+/* Dependency or file strcache allocation / recording. */
 static const char *
-incdep_record_strcache (struct incdep *cur, const char *str, int len)
+incdep_dep_strcache (struct incdep *cur, const char *str, int len)
 {
   const char *ret;
   if (cur->worker_tid == -1)
@@ -888,6 +898,27 @@ incdep_record_strcache (struct incdep *cur, const char *str, int len)
       /* Add it out the strcache of the thread. */
       ret = strcache2_add (&incdep_dep_strcaches[cur->worker_tid], str, len);
       ret = (const char *)strcache2_get_entry(&incdep_dep_strcaches[cur->worker_tid], ret);
+    }
+  return ret;
+}
+
+/* Variable name allocation / recording. */
+static const char *
+incdep_var_strcache (struct incdep *cur, const char *str, int len)
+{
+  const char *ret;
+  if (cur->worker_tid == -1)
+    {
+      /* XXX: we're leaking this memory now! This will be fixed later. */
+      ret = xmalloc (len + 1);
+      memcpy ((char *)ret, str, len);
+      ((char *)ret)[len] = '\0';
+    }
+  else
+    {
+      /* Add it out the strcache of the thread. */
+      ret = strcache2_add (&incdep_var_strcaches[cur->worker_tid], str, len);
+      ret = (const char *)strcache2_get_entry(&incdep_var_strcaches[cur->worker_tid], ret);
     }
   return ret;
 }
@@ -1111,7 +1142,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
               incdep_warn (curdep, line_no, "bogus define statement.");
               break;
           }
-          var = incdep_record_strcache (curdep, cur, var_len);
+          var = incdep_var_strcache (curdep, cur, var_len);
 
           /* find the end of the variable. */
           cur = value_end = value_start = value_start + 1;
@@ -1269,7 +1300,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   incdep_warn (curdep, line_no, "fancy variable name. (includedep)");
                   break;
                 }
-              var = incdep_record_strcache (curdep, cur, var_len);
+              var = incdep_var_strcache (curdep, cur, var_len);
 
               /* find the start of the value. */
               cur = equalp + 1;
@@ -1385,7 +1416,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                   incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
                   break;
                 }
-              filename = incdep_record_strcache (curdep, cur, endp - cur);
+              filename = incdep_dep_strcache (curdep, cur, endp - cur);
 
               /* parse any dependencies. */
               cur = colonp + 1;
@@ -1424,7 +1455,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
                   /* add it to the list. */
                   *nextdep = dep = incdep_alloc_dep (curdep);
-                  dep->name = incdep_record_strcache (curdep, cur, endp - cur);
+                  dep->name = incdep_dep_strcache (curdep, cur, endp - cur);
                   dep->includedep = 1;
                   nextdep = &dep->next;
 
