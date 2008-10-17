@@ -601,6 +601,9 @@ static struct variable_set global_variable_set;
 static struct variable_set_list global_setlist
   = { 0, &global_variable_set };
 struct variable_set_list *current_variable_set_list = &global_setlist;
+#ifdef CONFIG_WITH_STRCACHE2
+static struct strcache2 variable_strcache;
+#endif
 
 /* Implement variables.  */
 
@@ -609,6 +612,9 @@ init_hash_global_variable_set (void)
 {
   hash_init (&global_variable_set.table, VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
+#ifdef CONFIG_WITH_STRCACHE2
+  strcache2_init (&variable_strcache, "variable", 65536, 0, 0, 0);
+#endif
 }
 
 /* Define variable named NAME with value VALUE in SET.  VALUE is copied.
@@ -709,7 +715,11 @@ define_variable_in_set (const char *name, unsigned int length,
 #else
   v = alloccache_alloc (&variable_cache);
 #endif
+#ifndef CONFIG_WITH_STRCACHE2
   v->name = savestring (name, length);
+#else
+  v->name = strcache2_add (&variable_strcache, name, length);
+#endif
   v->length = length;
 #ifdef VARIABLE_HASH /* bird */
   v->hash1 = variable_hash_1i (name, length);
@@ -1149,7 +1159,9 @@ static void
 free_variable_name_and_value (const void *item)
 {
   struct variable *v = (struct variable *) item;
+#ifndef CONFIG_WITH_STRCACHE2
   free (v->name);
+#endif
   free (v->value);
 }
 
@@ -1684,8 +1696,14 @@ target_environment (struct file *file)
 	      {
 		struct variable *gv;
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
 		gv = lookup_variable_in_set (v->name, strlen(v->name),
                                              &global_variable_set);
+#else
+                assert ((int)strlen(v->name) == v->length);
+                gv = lookup_variable_in_set (v->name, v->length,
+                                                     &global_variable_set);
+#endif
 		if (gv)
 		  v->export = gv->export;
 	      }
@@ -2500,6 +2518,10 @@ print_variable_data_base (void)
     else
       printf (_("\n# %u pattern-specific variable values"), rules);
   }
+
+#ifdef CONFIG_WITH_STRCACHE2
+  strcache2_print_stats (&variable_strcache, "# ");
+#endif
 }
 
 

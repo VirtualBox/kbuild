@@ -56,7 +56,11 @@ enum variable_flavor
 
 struct variable
   {
+#ifndef CONFIG_WITH_STRCACHE2
     char *name;			/* Variable name.  */
+#else
+    const char *name;		/* Variable name.  */
+#endif
     int length;			/* strlen (name) */
 #ifdef VARIABLE_HASH /* bird */
     int hash1;                  /* the primary hash */
