@@ -919,7 +919,11 @@ pattern_search (struct file *file, int archive,
       memcpy (sp, filename, dirlen);
       memcpy (sp + dirlen, stem, stemlen);
       sp[fullstemlen] = '\0';
+#ifndef CONFIG_WITH_VALUE_LENGTH
       file->stem = strcache_add (sp);
+#else
+      file->stem = strcache_add_len (sp, fullstemlen);
+#endif
     }
 
   file->cmds = rule->cmds;
