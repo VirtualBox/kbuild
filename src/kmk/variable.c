@@ -108,56 +108,27 @@ static struct strcache2 variable_strcache;
 
 /* Hash table of all global variable definitions.  */
 
-#if defined(VARIABLE_HASH) || defined(CONFIG_WITH_OPTIMIZATION_HACKS) || defined(CONFIG_WITH_STRCACHE2)
-MY_INLINE unsigned long variable_hash_2i(register const char *var, register int length)
-{
-    /* all requests are served from the cache. */
-    return strcache2_get_hash2 (&variable_strcache, var);
-}
-
-MY_INLINE unsigned long variable_hash_1i(register const char *var, register int length)
-{
-    /* all requests are served from the cache. */
-    return strcache2_get_hash1 (&variable_strcache, var);
-}
-#endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
-
 static unsigned long
 variable_hash_1 (const void *keyv)
 {
   struct variable const *key = (struct variable const *) keyv;
-#ifdef VARIABLE_HASH /* bird */
-# ifdef VARIABLE_HASH_STRICT
-  if (key->hash1 != variable_hash_1i (key->name, key->length))
-    __asm__("int3");
-  if (key->hash2 && key->hash2 != variable_hash_2i (key->name, key->length))
-    __asm__("int3");
-# endif
-  return key->hash1;
-#else
-# if defined(CONFIG_WITH_STRCACHE2)
-  return variable_hash_1i (key->name, key->length);
-# else
+#ifndef CONFIG_WITH_STRCACHE2
   return_STRING_N_HASH_1 (key->name, key->length);
-# endif
+#else
+  /* all requests are served from the cache. */
+  return strcache2_get_hash1 (&variable_strcache, key->name);
 #endif
 }
 
 static unsigned long
 variable_hash_2 (const void *keyv)
 {
-#ifdef VARIABLE_HASH /* bird */
-  struct variable *key = (struct variable *) keyv;
-  if (!key->hash2)
-    key->hash2 = variable_hash_2i (key->name, key->length);
-  return key->hash2;
-#else
   struct variable const *key = (struct variable const *) keyv;
-# ifdef CONFIG_WITH_STRCACHE2
-  return variable_hash_2i (key->name, key->length);
-# else
+#ifndef CONFIG_WITH_STRCACHE2
   return_STRING_N_HASH_2 (key->name, key->length);
-# endif
+#else
+  /* all requests are served from the cache. */
+  return strcache2_get_hash2 (&variable_strcache, key->name);
 #endif
 }
 
@@ -250,14 +221,9 @@ define_variable_in_set (const char *name, unsigned int length,
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
 #else
-  var_key.value = NULL; /* hack: name cached. (value != var) */
   var_key.name = name = strcache2_add (&variable_strcache, name, length);
 #endif
   var_key.length = length;
-#ifdef VARIABLE_HASH /* bird */
-  var_key.hash1 = variable_hash_1i (name, length);
-  var_key.hash2 = 0;
-#endif
   var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
 
   if (env_overrides && origin == o_env)
@@ -327,10 +293,6 @@ define_variable_in_set (const char *name, unsigned int length,
   v->name = name; /* already cached. */
 #endif
   v->length = length;
-#ifdef VARIABLE_HASH /* bird */
-  v->hash1 = variable_hash_1i (name, length); /* FIXME: Unnecessary! */
-  v->hash2 = 0;
-#endif
   hash_insert_at (&set->table, v, var_slot);
 #ifdef CONFIG_WITH_VALUE_LENGTH
   if (value_len == ~0U)
@@ -482,7 +444,7 @@ lookup_variable (const char *name, unsigned int length)
 {
   const struct variable_set_list *setlist;
   struct variable var_key;
-#if defined(KMK) && !defined(VARIABLE_HASH)
+#ifdef KMK
   unsigned int hash_2 = 0;
 #endif
 #ifdef CONFIG_WITH_STRCACHE2
@@ -498,10 +460,6 @@ lookup_variable (const char *name, unsigned int length)
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef VARIABLE_HASH /* bird */
-  var_key.hash1 = variable_hash_1i (name, length);
-  var_key.hash2 = 0;
-#endif
 #ifdef CONFIG_WITH_STRCACHE2
   var_key.value = (char *)&var_key; /* hack: name not cached */
 #endif
@@ -509,13 +467,9 @@ lookup_variable (const char *name, unsigned int length)
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
     {
-#if defined(KMK) /* bird: speed */
+#ifdef KMK /* bird: speed */
       struct hash_table *ht = &setlist->set->table;
-# ifdef VARIABLE_HASH
-      unsigned int hash_1 = var_key.hash1;
-# else
       unsigned int hash_1 = strcache2_get_hash1 (&variable_strcache, name);
-# endif
       struct variable *v;
 
       ht->ht_lookups++;
@@ -530,7 +484,7 @@ lookup_variable (const char *name, unsigned int length)
             {
               if (variable_hash_cmp(&var_key, v) == 0)
                 {
-# ifdef VARIABLE_HASH_STRICT /* bird */
+# ifndef NDEBUG
                   struct variable *v2 = (struct variable *) hash_find_item ((struct hash_table *) &setlist->set->table, &var_key);
                   assert (v2 == v);
 # endif
@@ -538,28 +492,22 @@ lookup_variable (const char *name, unsigned int length)
                 }
               ht->ht_collisions++;
             }
-# ifdef VARIABLE_HASH
-          if (!var_key.hash2)
-             var_key.hash2 = variable_hash_2i(name, length);
-          hash_1 += (var_key.hash2 | 1);
-# else
           if (!hash_2)
             {
-              hash_2 = strcache2_get_hash2 (&variable_strcache, name, length);
+              hash_2 = strcache2_get_hash2 (&variable_strcache, name);
               assert (hash_2 & 1);
             }
           hash_1 += hash_2;
-# endif
         }
 
-#else /* !VARIABLE_HASH */
+#else /* !KMK */
       const struct variable_set *set = setlist->set;
       struct variable *v;
 
       v = (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
       if (v)
 	return v->special ? handle_special_var (v) : v;
-#endif /* !VARIABLE_HASH */
+#endif /* !KMK */
     }
 
 #ifdef VMS
@@ -644,10 +592,6 @@ lookup_variable_in_set (const char *name, unsigned int length,
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef VARIABLE_HASH /* bird */
-  var_key.hash1 = variable_hash_1i (name, length);
-  var_key.hash2 = 0;
-#endif
 #ifdef CONFIG_WITH_STRCACHE2
   var_key.value = (char *)&var_key; /* hack: name not cached */
 #endif
@@ -1315,6 +1259,9 @@ target_environment (struct file *file)
   struct variable makelevel_key;
   char **result_0;
   char **result;
+#ifdef CONFIG_WITH_STRCACHE2
+  const char *cached_name;
+#endif
 
   if (file == 0)
     set_list = current_variable_set_list;
@@ -1402,32 +1349,18 @@ target_environment (struct file *file)
 #ifndef CONFIG_WITH_STRCACHE2
   makelevel_key.name = MAKELEVEL_NAME;
   makelevel_key.length = MAKELEVEL_LENGTH;
-#ifdef VARIABLE_HASH /* bird */
-  makelevel_key.hash1 = variable_hash_1i (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
-  makelevel_key.hash2 = 0;
-#endif
-#ifdef CONFIG_WITH_STRCACHE2
-  makelevel_key.value = (char *)&makelevel_key; /* hack: name not cached */
-#endif
   hash_delete (&table, &makelevel_key);
 #else  /* CONFIG_WITH_STRCACHE2 */
   /* lookup the name in the string case, if it's not there it won't
      be in any of the sets either. */
-  {
-    const char *cached_name = strcache2_lookup(&variable_strcache,
-                                               MAKELEVEL_NAME, MAKELEVEL_LENGTH);
-    if (cached_name)
-      {
-        makelevel_key.name = cached_name;
-        makelevel_key.length = MAKELEVEL_LENGTH;
-#ifdef VARIABLE_HASH /* bird */
-        makelevel_key.hash1 = variable_hash_1i (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
-        makelevel_key.hash2 = 0;
-#endif
-        makelevel_key.value = NULL;
-        hash_delete (&table, &makelevel_key);
-      }
-  }
+  cached_name = strcache2_lookup(&variable_strcache,
+                                 MAKELEVEL_NAME, MAKELEVEL_LENGTH);
+  if (cached_name)
+    {
+      makelevel_key.name = cached_name;
+      makelevel_key.length = MAKELEVEL_LENGTH;
+      hash_delete (&table, &makelevel_key);
+    }
 #endif /* CONFIG_WITH_STRCACHE2 */
 
   result = result_0 = xmalloc ((table.ht_fill + 2) * sizeof (char *));
@@ -2065,7 +1998,11 @@ try_variable_definition (const struct floc *flocp, char *line, char *eos,
                                  0, NULL, origin, v.flavor, target_var);
 #endif
 
+#ifndef CONFIG_WITH_STRCACHE2
   free (v.name);
+#else
+  free ((char *)v.name);
+#endif
 
   return vp;
 }
