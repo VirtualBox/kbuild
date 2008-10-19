@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1885 2008-10-19 21:30:02Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1887 2008-10-19 23:08:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -81,6 +81,7 @@ const char *strcache2_iadd (struct strcache2 *cache, const char *str, unsigned i
 #endif
 const char *strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
                                   unsigned int hash1, unsigned int hash2);
+const char *strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length);
 int strcache2_is_cached (struct strcache2 *cache, const char *str);
 int strcache2_verify_entry (struct strcache2 *cache, const char *str);
 unsigned int strcache2_get_hash2_fallback (struct strcache2 *cache, const char *str);
