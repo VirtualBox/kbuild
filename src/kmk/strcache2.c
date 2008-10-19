@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1879 2008-10-17 01:53:05Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1885 2008-10-19 21:30:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -59,6 +59,12 @@
 /* The default hash table shift (hash size give as a power of two). */
 #define STRCACHE2_HASH_SHIFT        16
 
+
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+/* List of initialized string caches. */
+static struct strcache2 *strcache_head;
 
 
 
@@ -374,10 +380,11 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
   unsigned int hash2;
-  unsigned int hash1 = cache->case_insensitive
-    ? strcache2_case_insensitive_hash_1 (str, length)
-    : strcache2_case_sensitive_hash_1 (str, length);
+  unsigned int hash1 = strcache2_case_sensitive_hash_1 (str, length);
   unsigned int idx;
+
+  assert (!cache->case_insensitive);
+
 
   cache->lookup_count++;
 
@@ -393,9 +400,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
     {
       cache->collision_1st_count++;
 
-      hash2 = cache->case_insensitive
-        ? strcache2_case_insensitive_hash_2 (str, length)
-        : strcache2_case_sensitive_hash_2 (str, length);
+      hash2 = strcache2_case_sensitive_hash_2 (str, length);
       idx += hash2;
       idx &= cache->hash_mask;
       entry = cache->hash_tab[idx];
@@ -487,6 +492,63 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
   /* Not found, add it at IDX. */
   return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
 }
+
+#if defined(HAVE_CASE_INSENSITIVE_FS)
+
+/* The public add/lookup string interface for case insensitive strings. */
+const char *
+strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
+{
+  struct strcache2_entry const *entry;
+  unsigned int hash2;
+  unsigned int hash1 = strcache2_case_insensitive_hash_1 (str, length);
+  unsigned int idx;
+
+  assert (cache->case_insensitive);
+  cache->lookup_count++;
+
+  /* Lookup the entry in the hash table, hoping for an
+     early match. */
+  idx = hash1 & cache->hash_mask;
+  entry = cache->hash_tab[idx];
+  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return (const char *)(entry + 1);
+  if (!entry)
+    hash2 = 0;
+  else
+    {
+      cache->collision_1st_count++;
+
+      hash2 = strcache2_case_insensitive_hash_2 (str, length);
+      idx += hash2;
+      idx &= cache->hash_mask;
+      entry = cache->hash_tab[idx];
+      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return (const char *)(entry + 1);
+
+      if (entry)
+        {
+          cache->collision_2nd_count++;
+          do
+            {
+              idx += hash2;
+              idx &= cache->hash_mask;
+              entry = cache->hash_tab[idx];
+              cache->collision_3rd_count++;
+              if (strcache2_is_equal (cache, entry, str, length, hash1))
+                return (const char *)(entry + 1);
+            }
+          while (entry);
+        }
+    }
+
+  /* Not found, add it at IDX. */
+  return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
+}
+
+/* strcache_ilookup later */
+
+#endif /* HAVE_CASE_INSENSITIVE_FS */
 
 /* Is the given string cached? returns 1 if it is, 0 if it isn't. */
 int
@@ -590,8 +652,6 @@ unsigned int strcache2_hash_istr (const char *str, unsigned int length, unsigned
 }
 
 
-/* List of initialized string caches. */
-static struct strcache2 *strcache_head;
 
 /* Initalizes a new cache. */
 void

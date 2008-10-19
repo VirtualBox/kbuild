@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1885 2008-10-19 21:30:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -73,6 +73,12 @@ void strcache2_term (struct strcache2 *cache);
 void strcache2_print_stats (struct strcache2 *cache, const char *prefix);
 void strcache2_print_stats_all (const char *prefix);
 const char *strcache2_add (struct strcache2 *cache, const char *str, unsigned int length);
+const char *strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length);
+#ifdef HAVE_CASE_INSENSITIVE_FS
+# define strcache2_add_file(cache, str, length) strcache2_iadd((cache), (str), (length))
+#else
+# define strcache2_add_file(cache, str, length) strcache2_add((cache), (str), (length))
+#endif
 const char *strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
                                   unsigned int hash1, unsigned int hash2);
 int strcache2_is_cached (struct strcache2 *cache, const char *str);

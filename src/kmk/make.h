@@ -642,8 +642,8 @@ MY_INLINE unsigned long strcache_get_hash2 (const char *str)
 extern struct strcache2 file_strcache;
 
 # define strcache_iscached(str)     strcache2_is_cached(&file_strcache, str)
-# define strcache_add(str)          strcache2_add(&file_strcache, str, strlen (str))
-# define strcache_add_len(str, len) strcache2_add(&file_strcache, str, len)
+# define strcache_add(str)          strcache2_add_file(&file_strcache, str, strlen (str))
+# define strcache_add_len(str, len) strcache2_add_file(&file_strcache, str, len)
 # ifdef CONFIG_WITH_INCLUDEDEP
 #  define strcache_add_prehashed(str, len, hash1, hash2) \
     strcache2_add_hashed(&file_strcache, str, len, hash1, hash2)
