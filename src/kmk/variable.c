@@ -545,7 +545,7 @@ lookup_variable (const char *name, unsigned int length)
 # else
           if (!hash_2)
             {
-              hash_2 = strcache2_get_hash2 (&variable_cache, name, length);
+              hash_2 = strcache2_get_hash2 (&variable_strcache, name, length);
               assert (hash_2 & 1);
             }
           hash_1 += hash_2;

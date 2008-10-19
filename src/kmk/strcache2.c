@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1887 2008-10-19 23:08:10Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1888 2008-10-19 23:20:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -568,7 +568,6 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
   unsigned int idx;
 
   assert (!cache->case_insensitive);
-
 
   cache->lookup_count++;
 
