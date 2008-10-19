@@ -106,10 +106,9 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 
 #if defined(VARIABLE_HASH) || defined(CONFIG_WITH_OPTIMIZATION_HACKS)
 # ifdef _MSC_VER
-#  define inline _inline
 typedef signed int int32_t;
 # endif
-static inline unsigned long variable_hash_2i(register const char *var, register int length)
+MY_INLINE unsigned long variable_hash_2i(register const char *var, register int length)
 {
 # define UPDATE_HASH(ch) hash = (ch) + (hash << 6) + (hash << 16) - hash
 # ifndef CONFIG_WITH_OPTIMIZATION_HACKS
@@ -168,7 +167,7 @@ static inline unsigned long variable_hash_2i(register const char *var, register 
 # undef UPDATE_HASH
 }
 
-static inline unsigned long variable_hash_1i(register const char *var, register int length)
+MY_INLINE unsigned long variable_hash_1i(register const char *var, register int length)
 {
 # define UPDATE_HASH(ch) hash = ((hash << 5) + hash) + (ch)
 # ifndef CONFIG_WITH_OPTIMIZATION_HACKS
@@ -337,20 +336,9 @@ variable_hash_2 (const void *keyv)
 #endif
 }
 
-#ifndef VARIABLE_HASH
-static int
-variable_hash_cmp (const void *xv, const void *yv)
-{
-  struct variable const *x = (struct variable const *) xv;
-  struct variable const *y = (struct variable const *) yv;
-  int result = x->length - y->length;
-  if (result)
-    return result;
-  return_STRING_N_COMPARE (x->name, y->name, x->length);
-}
-#else /* VARIABLE_HASH */
+#if defined(VARIABLE_HASH) || defined(KMK)
 
-inline static int
+MY_INLINE int
 variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
 {
   /* short string compare - ~50% of the kBuild calls. */
@@ -424,7 +412,7 @@ variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
 # endif
 }
 
-inline static int
+MY_INLINE int
 variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
 {
 #ifndef ELECTRIC_HEAP
@@ -530,7 +518,47 @@ variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length
     }
 }
 
-inline static int
+#endif /* VARIABLE_HASH || KMK */
+
+#ifndef VARIABLE_HASH
+static int
+variable_hash_cmp (const void *xv, const void *yv)
+{
+  struct variable const *x = (struct variable const *) xv;
+  struct variable const *y = (struct variable const *) yv;
+# ifndef CONFIG_WITH_STRCACHE2
+  int result = x->length - y->length;
+  if (result)
+    return result;
+# else  /* CONFIG_WITH_STRCACHE2 */
+  int result;
+
+  if (x->value != (char *)x) /* hack: strcache indicator  */
+    {
+      assert (y->value != (char *)y);
+      return x->name == y->name ? 0 : -1;
+    }
+
+  /* lookup path:  */
+  result = x->length - y->length;
+  if (result)
+    return result;
+# endif /* CONFIG_WITH_STRCACHE2 */
+
+# ifndef KMK
+  return_STRING_N_COMPARE (x->name, y->name, x->length);
+# else  /* KMK */
+#  if 0
+  return variable_hash_cmp_2_memcmp(x->name, y->name, x->length);
+#  else
+  return variable_hash_cmp_2_inlined(x->name, y->name, x->length);
+#  endif
+# endif /* KMK */
+}
+
+#else /* VARIABLE_HASH */
+
+MY_INLINE int
 variable_hash_cmp (const void *xv, const void *yv)
 {
   struct variable const *x = (struct variable const *) xv;
@@ -547,6 +575,15 @@ variable_hash_cmp (const void *xv, const void *yv)
   if (y->hash2 && y->hash2 != variable_hash_2i (y->name, y->length))
     __asm__("int3");
 # endif /* VARIABLE_HASH_STRICT */
+
+# ifdef CONFIG_WITH_STRCACHE2
+  /* strcaching */
+  if (x->value != (char *)x) /* hack: strcache indicator  */
+    {
+      assert (y->value != (char *)y);
+      return x->name == y->name ? 0 : -1;
+    }
+#endif
 
   /* hash 1 & length */
   result = (x->hash1 - y->hash1)
@@ -646,7 +683,12 @@ define_variable_in_set (const char *name, unsigned int length,
   if (set == NULL)
     set = &global_variable_set;
 
+#ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
+#else
+  var_key.value = NULL; /* hack: name cached. (value != var) */
+  var_key.name = name = strcache2_add (&variable_strcache, name, length);
+#endif
   var_key.length = length;
 #ifdef VARIABLE_HASH /* bird */
   var_key.hash1 = variable_hash_1i (name, length);
@@ -718,11 +760,11 @@ define_variable_in_set (const char *name, unsigned int length,
 #ifndef CONFIG_WITH_STRCACHE2
   v->name = savestring (name, length);
 #else
-  v->name = strcache2_add (&variable_strcache, name, length);
+  v->name = name; /* already cached. */
 #endif
   v->length = length;
 #ifdef VARIABLE_HASH /* bird */
-  v->hash1 = variable_hash_1i (name, length);
+  v->hash1 = variable_hash_1i (name, length); /* FIXME: Unnecessary! */
   v->hash2 = 0;
 #endif
   hash_insert_at (&set->table, v, var_slot);
@@ -883,6 +925,9 @@ lookup_variable (const char *name, unsigned int length)
   var_key.hash1 = variable_hash_1i (name, length);
   var_key.hash2 = 0;
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+  var_key.value = (char *)&var_key; /* hack: name not cached */
+#endif
 
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
@@ -1002,6 +1047,9 @@ lookup_variable_in_set (const char *name, unsigned int length,
 #ifdef VARIABLE_HASH /* bird */
   var_key.hash1 = variable_hash_1i (name, length);
   var_key.hash2 = 0;
+#endif
+#ifdef CONFIG_WITH_STRCACHE2
+  var_key.value = (char *)&var_key; /* hack: name not cached */
 #endif
 
   return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
@@ -1756,6 +1804,9 @@ target_environment (struct file *file)
 #ifdef VARIABLE_HASH /* bird */
   makelevel_key.hash1 = variable_hash_1i (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
   makelevel_key.hash2 = 0;
+#endif
+#ifdef CONFIG_WITH_STRCACHE2
+  makelevel_key.value = (char *)&makelevel_key; /* hack: name not cached */
 #endif
   hash_delete (&table, &makelevel_key);
 
