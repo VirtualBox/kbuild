@@ -220,9 +220,6 @@ define_variable_in_set (const char *name, unsigned int length,
 
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
-#else
-  var_key.name = name = strcache2_add (&variable_strcache, name, length);
-#endif
   var_key.length = length;
   var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
 
@@ -230,6 +227,18 @@ define_variable_in_set (const char *name, unsigned int length,
     origin = o_env_override;
 
   v = *var_slot;
+#else  /* CONFIG_WITH_STRCACHE2 */
+  var_key.name = name = strcache2_add (&variable_strcache, name, length);
+  var_key.length = length;
+  if (   set != &global_variable_set
+      || !(v = strcache2_get_user_val (&variable_strcache, var_key.name)))
+    {
+      var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
+      v = *var_slot;
+    }
+  else
+    assert (!v || (v->name == name && !HASH_VACANT (v)));
+#endif /* CONFIG_WITH_STRCACHE2 */
   if (! HASH_VACANT (v))
     {
       if (env_overrides && v->origin == o_env)
@@ -342,6 +351,11 @@ define_variable_in_set (const char *name, unsigned int length,
         v->exportable = 0;
     }
 
+#ifdef CONFIG_WITH_STRCACHE2
+  /* If it's the global set, remember the variable. */
+  if (set == &global_variable_set)
+    strcache2_set_user_val (&variable_strcache, v->name, v);
+#endif
   return v;
 }
 
@@ -460,9 +474,6 @@ lookup_variable (const char *name, unsigned int length)
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef CONFIG_WITH_STRCACHE2
-  var_key.value = (char *)&var_key; /* hack: name not cached */
-#endif
 
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
@@ -583,18 +594,24 @@ lookup_variable_in_set (const char *name, unsigned int length,
   const char *cached_name;
 
   /* lookup the name in the string case, if it's not there it won't
-     be in any of the sets either. */
+     be in any of the sets either.  Optimize lookups in the global set. */
   cached_name = strcache2_lookup(&variable_strcache, name, length);
   if (!cached_name)
     return NULL;
+
+  if (set == &global_variable_set)
+    {
+      struct variable *v;
+      v = strcache2_get_user_val (&variable_strcache, cached_name);
+      assert (!v || v->name == cached_name);
+      return v;
+    }
+
   name = cached_name;
 #endif /* CONFIG_WITH_STRCACHE2 */
 
   var_key.name = (char *) name;
   var_key.length = length;
-#ifdef CONFIG_WITH_STRCACHE2
-  var_key.value = (char *)&var_key; /* hack: name not cached */
-#endif
 
   return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
 }
