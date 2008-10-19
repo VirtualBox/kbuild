@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 1883 2008-10-19 20:06:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 1884 2008-10-19 20:40:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
          */
         GetSystemTimeAsFileTime(&ftStart);
         rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
-        if (rc != -1)
+        if (rc == -1)
         {
             fprintf(stderr, "%s: error: _spawnvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
             return 8;
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 
         printf("%s: ", name(argv[0]));
         if (cTimes != 1)
-            printf("#%u ", j + 1);
+            printf("#%02u ", j + 1);
         printf("%um%u.%06us - exit code: %d\n",
                (unsigned)(usCur / (60 * 1000000)),
                (unsigned)(usCur % (60 * 1000000)) / 1000000,
@@ -354,7 +354,7 @@ int main(int argc, char **argv)
 
         printf("%s: ", name(argv[0]));
         if (cTimes != 1)
-            printf("#%u ", j + 1);
+            printf("#%02u ", j + 1);
         printf("%um%u.%06us",
                (unsigned)(tv.tv_sec / 60),
                (unsigned)(tv.tv_sec % 60),
