@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 1796 2008-09-19 23:51:20Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 1883 2008-10-19 20:06:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -44,6 +44,7 @@
 #else
 # include <unistd.h>
 # include <sys/times.h>
+# include <signal.h>
 #endif
 
 #ifdef __OS2__
@@ -54,6 +55,113 @@
 # endif
 #endif
 
+#ifndef _MSC_VER
+static const char *my_strsignal(int signo)
+{
+#define CASE_SIG_RET_STR(sig) if (signo == SIG##sig) return #sig
+#ifdef SIGHUP
+    CASE_SIG_RET_STR(HUP);
+#endif
+#ifdef SIGINT
+    CASE_SIG_RET_STR(INT);
+#endif
+#ifdef SIGQUIT
+    CASE_SIG_RET_STR(QUIT);
+#endif
+#ifdef SIGILL
+    CASE_SIG_RET_STR(ILL);
+#endif
+#ifdef SIGTRAP
+    CASE_SIG_RET_STR(TRAP);
+#endif
+#ifdef SIGABRT
+    CASE_SIG_RET_STR(ABRT);
+#endif
+#ifdef SIGIOT
+    CASE_SIG_RET_STR(IOT);
+#endif
+#ifdef SIGBUS
+    CASE_SIG_RET_STR(BUS);
+#endif
+#ifdef SIGFPE
+    CASE_SIG_RET_STR(FPE);
+#endif
+#ifdef SIGKILL
+    CASE_SIG_RET_STR(KILL);
+#endif
+#ifdef SIGUSR1
+    CASE_SIG_RET_STR(USR1);
+#endif
+#ifdef SIGSEGV
+    CASE_SIG_RET_STR(SEGV);
+#endif
+#ifdef SIGUSR2
+    CASE_SIG_RET_STR(USR2);
+#endif
+#ifdef SIGPIPE
+    CASE_SIG_RET_STR(PIPE);
+#endif
+#ifdef SIGALRM
+    CASE_SIG_RET_STR(ALRM);
+#endif
+#ifdef SIGTERM
+    CASE_SIG_RET_STR(TERM);
+#endif
+#ifdef SIGSTKFLT
+    CASE_SIG_RET_STR(STKFLT);
+#endif
+#ifdef SIGCHLD
+    CASE_SIG_RET_STR(CHLD);
+#endif
+#ifdef SIGCONT
+    CASE_SIG_RET_STR(CONT);
+#endif
+#ifdef SIGSTOP
+    CASE_SIG_RET_STR(STOP);
+#endif
+#ifdef SIGTSTP
+    CASE_SIG_RET_STR(TSTP);
+#endif
+#ifdef SIGTTIN
+    CASE_SIG_RET_STR(TTIN);
+#endif
+#ifdef SIGTTOU
+    CASE_SIG_RET_STR(TTOU);
+#endif
+#ifdef SIGURG
+    CASE_SIG_RET_STR(URG);
+#endif
+#ifdef SIGXCPU
+    CASE_SIG_RET_STR(XCPU);
+#endif
+#ifdef SIGXFSZ
+    CASE_SIG_RET_STR(XFSZ);
+#endif
+#ifdef SIGVTALRM
+    CASE_SIG_RET_STR(VTALRM);
+#endif
+#ifdef SIGPROF
+    CASE_SIG_RET_STR(PROF);
+#endif
+#ifdef SIGWINCH
+    CASE_SIG_RET_STR(WINCH);
+#endif
+#ifdef SIGIO
+    CASE_SIG_RET_STR(IO);
+#endif
+#ifdef SIGPWR
+    CASE_SIG_RET_STR(PWR);
+#endif
+#ifdef SIGSYS
+    CASE_SIG_RET_STR(SYS);
+#endif
+#ifdef SIGBREAK
+    CASE_SIG_RET_STR(BREAK);
+#endif
+#undef CASE_SIG_RET_STR
+    return "???";
+}
+#endif /* unix */
 
 static const char *name(const char *pszName)
 {
@@ -83,14 +191,18 @@ static int usage(FILE *pOut,  const char *argv0)
 
 int main(int argc, char **argv)
 {
-    int i;
+    int                 i, j;
+    int                 cTimes = 3;
 #if defined(_MSC_VER)
-    FILETIME ftStart, ft;
-    intptr_t rc;
+    FILETIME ftStart,   ft;
+    unsigned _int64     usMin, usMax, usAvg, usTotal, usCur;
+    unsigned _int64     iStart;
+    intptr_t            rc;
 #else
-    struct timeval tvStart, tv;
-    pid_t pid;
-    int rc;
+    struct timeval      tvStart, tv;
+    unsigned long long  usMin, usMax, usAvg, usTotal, usCur;
+    pid_t               pid;
+    int                 rc;
 #endif
 
     /*
@@ -118,6 +230,8 @@ int main(int argc, char **argv)
                 psz = "h";
             else if (!strcmp(psz, "-version"))
                 psz = "V";
+            else if (!strcmp(psz, "-iterations"))
+                psz = "i";
         }
 
         switch (*psz)
@@ -132,6 +246,20 @@ int main(int argc, char **argv)
                        KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
                        KBUILD_SVN_REV);
                 return 0;
+
+            case 'i':
+                if (i + 1 >= argc)
+                {
+                    fprintf(stderr, "%s: syntax error: missing iteration count\n", name(argv[0]));
+                    return 1;
+                }
+                cTimes = atoi(argv[++i]);
+                if (cTimes <= 0)
+                {
+                    fprintf(stderr, "%s: error: invalid interation count '%s'.\n", name(argv[0]), argv[i]);
+                    return 1;
+                }
+                break;
 
             default:
                 fprintf(stderr, "%s: error: syntax error '%s'\n", name(argv[0]), argv[i]);
@@ -149,45 +277,67 @@ int main(int argc, char **argv)
     }
 
     /*
-     * Execute the program (it's actually supposed to be a command I think, but wtf).
+     * Execute the program the specified number of times.
      */
-#if defined(_MSC_VER)
-    /** @todo
-     * We'll have to find the '--' in the commandline and pass that
-     * on to CreateProcess or spawn. Otherwise, the argument qouting
-     * is gonna be messed up.
-     */
-    GetSystemTimeAsFileTime(&ftStart);
-    rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
-    if (rc != -1)
+    usMax = usMin = usTotal = 0;
+    usMin--; /* wraps to max value */
+    for (j = 0; j < cTimes; j++)
     {
-        unsigned _int64 iStart, iElapsed;
+        /*
+         * Execute the program (it's actually supposed to be a command I think, but wtf).
+         */
+
+#if defined(_MSC_VER)
+        /** @todo
+         * We'll have to find the '--' in the commandline and pass that
+         * on to CreateProcess or spawn. Otherwise, the argument qouting
+         * is gonna be messed up.
+         */
+        GetSystemTimeAsFileTime(&ftStart);
+        rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
+        if (rc != -1)
+        {
+            fprintf(stderr, "%s: error: _spawnvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
+            return 8;
+        }
+
         GetSystemTimeAsFileTime(&ft);
 
         iStart = ftStart.dwLowDateTime | ((unsigned _int64)ftStart.dwHighDateTime << 32);
-        iElapsed = ft.dwLowDateTime | ((unsigned _int64)ft.dwHighDateTime << 32);
-        iElapsed -= iStart;
-        iElapsed /= 10; /* to usecs */
+        usCur = ft.dwLowDateTime | ((unsigned _int64)ft.dwHighDateTime << 32);
+        usCur -= iStart;
+        usCur /= 10; /* to usecs */
 
-        printf("%s: %um%u.%06us\n", name(argv[0]),
-               (unsigned)(iElapsed / (60 * 1000000)),
-               (unsigned)(iElapsed % (60 * 1000000)) / 1000000,
-               (unsigned)(iElapsed % 1000000));
-    }
-    else
-    {
-        fprintf(stderr, "%s: error: _spawnvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
+        printf("%s: ", name(argv[0]));
+        if (cTimes != 1)
+            printf("#%u ", j + 1);
+        printf("%um%u.%06us - exit code: %d\n",
+               (unsigned)(usCur / (60 * 1000000)),
+               (unsigned)(usCur % (60 * 1000000)) / 1000000,
+               (unsigned)(usCur % 1000000),
+               rc);
+
+#else /* unix: */
         rc = 1;
-    }
-    return rc;
+        gettimeofday(&tvStart, NULL);
+        pid = fork();
+        if (!pid)
+        {
+            /* child */
+            execvp(argv[i], &argv[i]);
+            fprintf(stderr, "%s: error: _execvp(\"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
+            return 8;
+        }
+        if (pid < 0)
+        {
+            fprintf(stderr, "%s: error: fork() failed: %s\n", name(argv[0]), strerror(errno));
+            return 8;
+        }
 
-#else
-    rc = 1;
-    gettimeofday(&tvStart, NULL);
-    pid = fork();
-    if (pid > 0)
-    {
-        waitpid(pid, &rc, 0);
+        /* parent, wait for child. */
+        rc = 9;
+        while (waitpid(pid, &rc, 0) == -1 && errno == EINTR)
+            /* nothing */;
         gettimeofday(&tv, NULL);
 
         /* calc elapsed time */
@@ -199,21 +349,48 @@ int main(int argc, char **argv)
             tv.tv_sec--;
             tv.tv_usec = tv.tv_usec + 1000000 - tvStart.tv_usec;
         }
+        usCur = tv.tv_sec * 1000000ULL
+              + tv.tv_usec;
 
-        printf("%s: %um%u.%06us\n", name(argv[0]),
+        printf("%s: ", name(argv[0]));
+        if (cTimes != 1)
+            printf("#%u ", j + 1);
+        printf("%um%u.%06us",
                (unsigned)(tv.tv_sec / 60),
                (unsigned)(tv.tv_sec % 60),
                (unsigned)tv.tv_usec);
+        if (WIFEXITED(rc))
+            printf(" - normal exit: %d\n", WEXITSTATUS(rc));
+        else if (WIFSIGNALED(rc) && WCOREDUMP(rc))
+            printf(" - dumped core: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));
+        else if (WIFSIGNALED(rc))
+            printf(" -   killed by: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));
+        else if (WIFSTOPPED(rc))
+            printf(" -  stopped by: %s (%d)\n", my_strsignal(WSTOPSIG(rc)), WSTOPSIG(rc));
+        else
+            printf(" unknown exit status %#x (%d)\n", rc, rc);
+#endif /* unix */
+
+        /* calc min/max/avg */
+        usTotal += usCur;
+        if (usMax < usCur)
+            usMax = usCur;
+        if (usMin > usCur)
+            usMin = usCur;
     }
-    else if (!pid)
+
+    /*
+     * Summary if more than one run.
+     */
+    if (cTimes != 1)
     {
-        execvp(argv[i], &argv[i]);
-        fprintf(stderr, "%s: error: _execvp(\"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
+        usAvg = usTotal / cTimes;
+
+        printf("%s: avg %um%u.%06us\n", name(argv[0]), (unsigned)(usAvg / 60000000), (unsigned)(usAvg % 60000000) / 1000000, (unsigned)(usAvg % 1000000));
+        printf("%s: min %um%u.%06us\n", name(argv[0]), (unsigned)(usMin / 60000000), (unsigned)(usMin % 60000000) / 1000000, (unsigned)(usMin % 1000000));
+        printf("%s: max %um%u.%06us\n", name(argv[0]), (unsigned)(usMax / 60000000), (unsigned)(usMax % 60000000) / 1000000, (unsigned)(usMax % 1000000));
     }
-    else
-        fprintf(stderr, "%s: error: fork() failed: %s\n", name(argv[0]), strerror(errno));
 
     return rc;
-#endif
 }
 
