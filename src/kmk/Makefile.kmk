@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1870 2008-10-16 23:15:30Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1887 2008-10-19 23:08:10Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -143,7 +143,6 @@ kmk_DEFS = \
 	\
 	KMK \
 	KMK_HELPERS \
-	VARIABLE_HASH \
 	CONFIG_NO_DEFAULT_SUFFIXES \
 	CONFIG_NO_DEFAULT_PATTERN_RULES	\
 	CONFIG_NO_DEFAULT_TERMINAL_RULES \

@@ -102,198 +102,23 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
   return p;
 }
 
+#ifdef CONFIG_WITH_STRCACHE2
+static struct strcache2 variable_strcache;
+#endif
+
 /* Hash table of all global variable definitions.  */
 
-#if defined(VARIABLE_HASH) || defined(CONFIG_WITH_OPTIMIZATION_HACKS)
-# ifdef _MSC_VER
-typedef signed int int32_t;
-# endif
+#if defined(VARIABLE_HASH) || defined(CONFIG_WITH_OPTIMIZATION_HACKS) || defined(CONFIG_WITH_STRCACHE2)
 MY_INLINE unsigned long variable_hash_2i(register const char *var, register int length)
 {
-# define UPDATE_HASH(ch) hash = (ch) + (hash << 6) + (hash << 16) - hash
-# ifndef CONFIG_WITH_OPTIMIZATION_HACKS
-#  if 1
-    register const unsigned char *uvar = (const unsigned char *)var;
-    register unsigned long hash = 0;
-    while (length-- > 0)
-        UPDATE_HASH(*uvar++);
-    return hash;
-#  else
-    return_STRING_N_HASH_2 (var, length);
-#  endif
-# else /* CONFIG_WITH_OPTIMIZATION_HACKS */
-    register unsigned long hash = 0;
-    register const unsigned char *uvar = (const unsigned char *)var;
-    register const unsigned char *uvar_end = uvar + length;
-    switch (length)
-    {
-        default:
-        case 32: /*UPDATE_HASH(uvar_end[-16]);*/
-        case 31: UPDATE_HASH(uvar_end[-15]);
-        case 30: /*UPDATE_HASH(uvar_end[-14]);*/
-        case 29: UPDATE_HASH(uvar_end[-13]);
-        case 28: /*UPDATE_HASH(uvar_end[-12]);*/
-        case 27: UPDATE_HASH(uvar_end[-11]);
-        case 26: /*UPDATE_HASH(uvar_end[-10]);*/
-        case 25: UPDATE_HASH(uvar_end[-9]);
-        case 24: /*UPDATE_HASH(uvar[15]);*/
-        case 23: UPDATE_HASH(uvar[14]);
-        case 22: /*UPDATE_HASH(uvar[13]);*/
-        case 21: UPDATE_HASH(uvar[12]);
-        case 20: /*UPDATE_HASH(uvar[11]);*/
-        case 19: UPDATE_HASH(uvar[10]);
-        case 18: /*UPDATE_HASH(uvar[9]);*/
-        case 17: UPDATE_HASH(uvar[8]);
-        case 16: /*UPDATE_HASH(uvar_end[-8]);*/
-        case 15: UPDATE_HASH(uvar_end[-7]);
-        case 14: /*UPDATE_HASH(uvar_end[-6]);*/
-        case 13: UPDATE_HASH(uvar_end[-5]);
-        case 12: /*UPDATE_HASH(uvar_end[-4]);*/
-        case 11: UPDATE_HASH(uvar_end[-3]);
-        case 10: /*UPDATE_HASH(uvar_end[-2]);*/
-        case 9:  UPDATE_HASH(uvar_end[-1]);
-        case 8:  /*UPDATE_HASH(uvar[7]);*/
-        case 7:  UPDATE_HASH(uvar[6]);
-        case 6:  /*UPDATE_HASH(uvar[5]);*/
-        case 5:  UPDATE_HASH(uvar[4]);
-        case 4:  /*UPDATE_HASH(uvar[3]);*/
-        case 3:  UPDATE_HASH(uvar[2]);
-        case 2:  /*UPDATE_HASH(uvar[1]);*/
-        case 1:  UPDATE_HASH(uvar[0]);
-        case 0:
-            return hash;
-    }
-# endif /* CONFIG_WITH_OPTIMIZATION_HACKS*/
-# undef UPDATE_HASH
+    /* all requests are served from the cache. */
+    return strcache2_get_hash2 (&variable_strcache, var);
 }
 
 MY_INLINE unsigned long variable_hash_1i(register const char *var, register int length)
 {
-# define UPDATE_HASH(ch) hash = ((hash << 5) + hash) + (ch)
-# ifndef CONFIG_WITH_OPTIMIZATION_HACKS
-#  if 1
-    register const unsigned char *uvar = (const unsigned char *)var;
-    register unsigned long hash = 5381;
-    while (length-- > 0)
-      UPDATE_HASH(*uvar++);
-    return hash;
-#  else
-    return_STRING_N_HASH_1 (var, length);
-#  endif
-# else /* CONFIG_WITH_OPTIMIZATION_HACKS */
-    register const unsigned char *uvar = (const unsigned char *)var;
-    register const unsigned char *uvar_end = (const unsigned char *)var + length;
-    register unsigned long hash = ((5381 << 5) + 5381) + *uvar;
-    switch (length)
-    {
-        default:
-#if 0 /* seems to be a waste of time. */
-        case 97: UPDATE_HASH(uvar_end[-77]);
-        case 96: /*UPDATE_HASH(uvar_end[-76]);*/
-        case 95: /*UPDATE_HASH(uvar_end[-75]);*/
-        case 94: /*UPDATE_HASH(uvar_end[-74]);*/
-        case 93: UPDATE_HASH(uvar_end[-73]);
-        case 92: /*UPDATE_HASH(uvar_end[-72]);*/
-        case 91: /*UPDATE_HASH(uvar_end[-71]);*/
-        case 90: /*UPDATE_HASH(uvar_end[-70]);*/
-        case 89: UPDATE_HASH(uvar_end[-69]);
-        case 88: /*UPDATE_HASH(uvar_end[-68]);*/
-        case 87: /*UPDATE_HASH(uvar_end[-67]);*/
-        case 86: /*UPDATE_HASH(uvar_end[-66]);*/
-        case 85: UPDATE_HASH(uvar_end[-65]);
-        case 84: /*UPDATE_HASH(uvar_end[-64]);*/
-        case 83: /*UPDATE_HASH(uvar_end[-63]);*/
-        case 82: /*UPDATE_HASH(uvar_end[-62]);*/
-        case 81: UPDATE_HASH(uvar_end[-61]);
-        case 80: /*UPDATE_HASH(uvar_end[-60]);*/
-        case 79: /*UPDATE_HASH(uvar_end[-59]);*/
-        case 78: /*UPDATE_HASH(uvar_end[-58]);*/
-        case 77: UPDATE_HASH(uvar_end[-57]);
-        case 76: /*UPDATE_HASH(uvar_end[-56]);*/
-        case 75: /*UPDATE_HASH(uvar_end[-55]);*/
-        case 74: /*UPDATE_HASH(uvar_end[-54]);*/
-        case 73: UPDATE_HASH(uvar_end[-53]);
-        case 72: /*UPDATE_HASH(uvar_end[-52]);*/
-        case 71: /*UPDATE_HASH(uvar_end[-51]);*/
-        case 70: /*UPDATE_HASH(uvar_end[-50]);*/
-        case 69: UPDATE_HASH(uvar_end[-49]);
-        case 68: /*UPDATE_HASH(uvar_end[-48]);*/
-        case 67: /*UPDATE_HASH(uvar_end[-47]);*/
-        case 66: /*UPDATE_HASH(uvar_end[-46]);*/
-        case 65: UPDATE_HASH(uvar_end[-49]);
-        case 64: /*UPDATE_HASH(uvar_end[-48]);*/
-        case 63: /*UPDATE_HASH(uvar_end[-47]);*/
-        case 62: /*UPDATE_HASH(uvar_end[-46]);*/
-        case 61: UPDATE_HASH(uvar_end[-45]);
-        case 60: /*UPDATE_HASH(uvar_end[-44]);*/
-        case 59: /*UPDATE_HASH(uvar_end[-43]);*/
-        case 58: /*UPDATE_HASH(uvar_end[-42]);*/
-        case 57: UPDATE_HASH(uvar_end[-41]);
-        case 56: /*UPDATE_HASH(uvar_end[-40]);*/
-        case 55: /*UPDATE_HASH(uvar_end[-39]);*/
-        case 54: /*UPDATE_HASH(uvar_end[-38]);*/
-        case 53: UPDATE_HASH(uvar_end[-37]);
-        case 52: /*UPDATE_HASH(uvar_end[-36]);*/
-        case 51: UPDATE_HASH(uvar_end[-35]);
-        case 50: /*UPDATE_HASH(uvar_end[-34]);*/
-        case 49: UPDATE_HASH(uvar_end[-33]);
-#endif
-        case 48: /*UPDATE_HASH(uvar_end[-32]);*/
-        case 47: UPDATE_HASH(uvar_end[-31]);
-        case 46: /*UPDATE_HASH(uvar_end[-30]);*/
-        case 45: UPDATE_HASH(uvar_end[-29]);
-        case 44: /*UPDATE_HASH(uvar_end[-28]);*/
-        case 43: UPDATE_HASH(uvar_end[-27]);
-        case 42: /*UPDATE_HASH(uvar_end[-26]);*/
-        case 41: UPDATE_HASH(uvar_end[-25]);
-        case 40: /*UPDATE_HASH(uvar_end[-24]);*/
-        case 39: UPDATE_HASH(uvar_end[-23]);
-        case 38: /*UPDATE_HASH(uvar_end[-22]);*/
-        case 37: UPDATE_HASH(uvar_end[-21]);
-        case 36: /*UPDATE_HASH(uvar_end[-20]);*/
-        case 35: UPDATE_HASH(uvar_end[-19]);
-        case 34: /*UPDATE_HASH(uvar_end[-18]);*/
-        case 33: UPDATE_HASH(uvar_end[-17]);
-
-        case 32: UPDATE_HASH(uvar_end[-16]);
-        case 31: UPDATE_HASH(uvar_end[-15]);
-        case 30: UPDATE_HASH(uvar_end[-14]);
-        case 29: UPDATE_HASH(uvar_end[-13]);
-        case 28: UPDATE_HASH(uvar[15]);
-        case 27: UPDATE_HASH(uvar[14]);
-        case 26: UPDATE_HASH(uvar[13]);
-        case 25: UPDATE_HASH(uvar[12]);
-
-        case 24: UPDATE_HASH(uvar_end[-12]);
-        case 23: UPDATE_HASH(uvar_end[-11]);
-        case 22: UPDATE_HASH(uvar_end[-10]);
-        case 21: UPDATE_HASH(uvar_end[-9]);
-        case 20: UPDATE_HASH(uvar[7]);
-        case 19: UPDATE_HASH(uvar[6]);
-        case 18: UPDATE_HASH(uvar[5]);
-        case 17: UPDATE_HASH(uvar[4]);
-
-        case 16: UPDATE_HASH(uvar_end[-8]);
-        case 15: UPDATE_HASH(uvar_end[-7]);
-        case 14: UPDATE_HASH(uvar_end[-6]);
-        case 13: UPDATE_HASH(uvar_end[-5]);
-        case 12: UPDATE_HASH(uvar[11]);
-        case 11: UPDATE_HASH(uvar[10]);
-        case 10: UPDATE_HASH(uvar[9]);
-        case 9:  UPDATE_HASH(uvar[8]);
-
-        case 8:  UPDATE_HASH(uvar_end[-4]);
-        case 7:  UPDATE_HASH(uvar_end[-3]);
-        case 6:  UPDATE_HASH(uvar_end[-2]);
-        case 5:  UPDATE_HASH(uvar_end[-1]);
-        case 4:  UPDATE_HASH(uvar[3]);
-        case 3:  UPDATE_HASH(uvar[2]);
-        case 2:  UPDATE_HASH(uvar[1]);
-        case 1:  return hash;
-        case 0:  return 5381; /* shouldn't happen */
-    }
-# endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
-# undef UPDATE_HASH
+    /* all requests are served from the cache. */
+    return strcache2_get_hash1 (&variable_strcache, var);
 }
 #endif /* CONFIG_WITH_OPTIMIZATION_HACKS */
 
@@ -310,7 +135,7 @@ variable_hash_1 (const void *keyv)
 # endif
   return key->hash1;
 #else
-# ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+# if defined(CONFIG_WITH_STRCACHE2)
   return variable_hash_1i (key->name, key->length);
 # else
   return_STRING_N_HASH_1 (key->name, key->length);
@@ -328,7 +153,7 @@ variable_hash_2 (const void *keyv)
   return key->hash2;
 #else
   struct variable const *key = (struct variable const *) keyv;
-# ifdef CONFIG_WITH_OPTIMIZATION_HACKS
+# ifdef CONFIG_WITH_STRCACHE2
   return variable_hash_2i (key->name, key->length);
 # else
   return_STRING_N_HASH_2 (key->name, key->length);
@@ -336,281 +161,23 @@ variable_hash_2 (const void *keyv)
 #endif
 }
 
-#if defined(VARIABLE_HASH) || defined(KMK)
-
-MY_INLINE int
-variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
-{
-  /* short string compare - ~50% of the kBuild calls. */
-  assert ( !((size_t)ys & 3) );
-  if (!((size_t)xs & 3))
-    {
-      /* aligned */
-      int result;
-      switch (length)
-        {
-          case 8:
-              result  = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 7:
-              result  = xs[6] - ys[6];
-              result |= xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 6:
-              result  = xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 5:
-              result  = xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 4:
-              return *(int32_t*)xs - *(int32_t*)ys;
-          case 3:
-              result  = xs[2] - ys[2];
-              result |= xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 2:
-              result  = xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 1:
-              return *xs - *ys;
-          case 0:
-              return 0;
-        }
-    }
-  else
-    {
-      /* unaligned */
-      int result = 0;
-      switch (length)
-        {
-          case 8: result |= xs[7] - ys[7];
-          case 7: result |= xs[6] - ys[6];
-          case 6: result |= xs[5] - ys[5];
-          case 5: result |= xs[4] - ys[4];
-          case 4: result |= xs[3] - ys[3];
-          case 3: result |= xs[2] - ys[2];
-          case 2: result |= xs[1] - ys[1];
-          case 1: result |= xs[0] - ys[0];
-          case 0:
-              return result;
-        }
-    }
-
-  /* memcmp for longer strings */
-# ifdef __GNUC__
-  return __builtin_memcmp (xs, ys, length);
-# else
-  return memcmp (xs, ys, length);
-# endif
-}
-
-MY_INLINE int
-variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
-{
-#ifndef ELECTRIC_HEAP
-  assert ( !((size_t)ys & 3) );
-#endif
-  if (!((size_t)xs & 3))
-    {
-      int result;
-      /* aligned */
-      while (length >= 8)
-        {
-          result  = *(int32_t*)xs - *(int32_t*)ys;
-          result |= *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
-          if (MY_PREDICT_FALSE(result))
-            return result;
-          xs += 8;
-          ys += 8;
-          length -= 8;
-        }
-      switch (length)
-        {
-          case 7:
-              result  = *(int32_t*)xs - *(int32_t*)ys;
-              result |= xs[6] - ys[6];
-              result |= xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              return result;
-          case 6:
-              result  = *(int32_t*)xs - *(int32_t*)ys;
-              result |= xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              return result;
-          case 5:
-              result  = *(int32_t*)xs - *(int32_t*)ys;
-              result |= xs[4] - ys[4];
-              return result;
-          case 4:
-              return *(int32_t*)xs - *(int32_t*)ys;
-          case 3:
-              result  = xs[2] - ys[2];
-              result |= xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 2:
-              result  = xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 1:
-              return *xs - *ys;
-          default:
-          case 0:
-              return 0;
-        }
-    }
-  else
-    {
-      /* unaligned */
-      int result;
-      while (length >= 8)
-        {
-#if defined(__i386__) || defined(__x86_64__)
-          result  = (  ((int32_t)xs[3] << 24)
-                     | ((int32_t)xs[2] << 16)
-                     | ((int32_t)xs[1] <<  8)
-                     |           xs[0]       )
-                  - *(int32_t*)ys;
-          result |= (  ((int32_t)xs[7] << 24)
-                     | ((int32_t)xs[6] << 16)
-                     | ((int32_t)xs[5] <<  8)
-                     |           xs[4]       )
-                  - *(int32_t*)(ys + 4);
-#else
-          result  = xs[3] - ys[3];
-          result |= xs[2] - ys[2];
-          result |= xs[1] - ys[1];
-          result |= xs[0] - ys[0];
-          result |= xs[7] - ys[7];
-          result |= xs[6] - ys[6];
-          result |= xs[5] - ys[5];
-          result |= xs[4] - ys[4];
-#endif
-          if (MY_PREDICT_FALSE(result))
-            return result;
-          xs += 8;
-          ys += 8;
-          length -= 8;
-        }
-      result = 0;
-      switch (length)
-        {
-          case 7: result |= xs[6] - ys[6];
-          case 6: result |= xs[5] - ys[5];
-          case 5: result |= xs[4] - ys[4];
-          case 4: result |= xs[3] - ys[3];
-          case 3: result |= xs[2] - ys[2];
-          case 2: result |= xs[1] - ys[1];
-          case 1: result |= xs[0] - ys[0];
-              return result;
-          default:
-          case 0:
-              return 0;
-        }
-    }
-}
-
-#endif /* VARIABLE_HASH || KMK */
-
-#ifndef VARIABLE_HASH
 static int
 variable_hash_cmp (const void *xv, const void *yv)
 {
   struct variable const *x = (struct variable const *) xv;
   struct variable const *y = (struct variable const *) yv;
-# ifndef CONFIG_WITH_STRCACHE2
+#ifndef CONFIG_WITH_STRCACHE2
   int result = x->length - y->length;
   if (result)
     return result;
-# else  /* CONFIG_WITH_STRCACHE2 */
-  int result;
 
-  if (x->value != (char *)x) /* hack: strcache indicator  */
-    {
-      assert (y->value != (char *)y);
-      return x->name == y->name ? 0 : -1;
-    }
-
-  /* lookup path:  */
-  result = x->length - y->length;
-  if (result)
-    return result;
-# endif /* CONFIG_WITH_STRCACHE2 */
-
-# ifndef KMK
   return_STRING_N_COMPARE (x->name, y->name, x->length);
-# else  /* KMK */
-#  if 0
-  return variable_hash_cmp_2_memcmp(x->name, y->name, x->length);
-#  else
-  return variable_hash_cmp_2_inlined(x->name, y->name, x->length);
-#  endif
-# endif /* KMK */
+#else  /* CONFIG_WITH_STRCACHE2 */
+
+  /* everything is in the cache. */
+  return x->name == y->name ? 0 : -1;
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
-
-#else /* VARIABLE_HASH */
-
-MY_INLINE int
-variable_hash_cmp (const void *xv, const void *yv)
-{
-  struct variable const *x = (struct variable const *) xv;
-  struct variable const *y = (struct variable const *) yv;
-  int result;
-
-# ifdef VARIABLE_HASH_STRICT
-  if (x->hash1 != variable_hash_1i (x->name, x->length))
-    __asm__("int3");
-  if (x->hash2 && x->hash2 != variable_hash_2i (x->name, x->length))
-    __asm__("int3");
-  if (y->hash1 != variable_hash_1i (y->name, y->length))
-    __asm__("int3");
-  if (y->hash2 && y->hash2 != variable_hash_2i (y->name, y->length))
-    __asm__("int3");
-# endif /* VARIABLE_HASH_STRICT */
-
-# ifdef CONFIG_WITH_STRCACHE2
-  /* strcaching */
-  if (x->value != (char *)x) /* hack: strcache indicator  */
-    {
-      assert (y->value != (char *)y);
-      return x->name == y->name ? 0 : -1;
-    }
-#endif
-
-  /* hash 1 & length */
-  result = (x->hash1 - y->hash1)
-         | (x->length - y->length);
-  if (MY_PREDICT_TRUE(result))
-    return result;
-
-# if 0 /* too few hits at this point. */
-  /* hash 2, but only if X has it since lookup_variable will give us an X
-     which resides on the stack and which result will be lost to us. */
-  if (x->hash2)
-    {
-      if (!y->hash2)
-        ((struct variable *)y)->hash2 = variable_hash_2i (y->name, y->length);
-      result = x->hash2 - y->hash2;
-      if (result)
-        return result;
-    }
-# endif
-
-# if 0
-  return variable_hash_cmp_2_memcmp(x->name, y->name, x->length);
-# else
-  return variable_hash_cmp_2_inlined(x->name, y->name, x->length);
-# endif
-}
-#endif /* VARIABLE_HASH */
 
 #ifndef	VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? (insanely high, but wtf, it gets the collitions down) */
@@ -638,9 +205,6 @@ static struct variable_set global_variable_set;
 static struct variable_set_list global_setlist
   = { 0, &global_variable_set };
 struct variable_set_list *current_variable_set_list = &global_setlist;
-#ifdef CONFIG_WITH_STRCACHE2
-static struct strcache2 variable_strcache;
-#endif
 
 /* Implement variables.  */
 
@@ -918,6 +482,19 @@ lookup_variable (const char *name, unsigned int length)
 {
   const struct variable_set_list *setlist;
   struct variable var_key;
+#if defined(KMK) && !defined(VARIABLE_HASH)
+  unsigned int hash_2 = 0;
+#endif
+#ifdef CONFIG_WITH_STRCACHE2
+  const char *cached_name;
+
+  /* lookup the name in the string case, if it's not there it won't
+     be in any of the sets either. */
+  cached_name = strcache2_lookup(&variable_strcache, name, length);
+  if (!cached_name)
+    return NULL;
+  name = cached_name;
+#endif /* CONFIG_WITH_STRCACHE2 */
 
   var_key.name = (char *) name;
   var_key.length = length;
@@ -932,9 +509,13 @@ lookup_variable (const char *name, unsigned int length)
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
     {
-#ifdef VARIABLE_HASH /* bird: speed */
+#if defined(KMK) /* bird: speed */
       struct hash_table *ht = &setlist->set->table;
+# ifdef VARIABLE_HASH
       unsigned int hash_1 = var_key.hash1;
+# else
+      unsigned int hash_1 = strcache2_get_hash1 (&variable_strcache, name);
+# endif
       struct variable *v;
 
       ht->ht_lookups++;
@@ -957,9 +538,18 @@ lookup_variable (const char *name, unsigned int length)
                 }
               ht->ht_collisions++;
             }
+# ifdef VARIABLE_HASH
           if (!var_key.hash2)
              var_key.hash2 = variable_hash_2i(name, length);
           hash_1 += (var_key.hash2 | 1);
+# else
+          if (!hash_2)
+            {
+              hash_2 = strcache2_get_hash2 (&variable_cache, name, length);
+              assert (hash_2 & 1);
+            }
+          hash_1 += hash_2;
+# endif
         }
 
 #else /* !VARIABLE_HASH */
@@ -1041,6 +631,16 @@ lookup_variable_in_set (const char *name, unsigned int length,
                         const struct variable_set *set)
 {
   struct variable var_key;
+#ifdef CONFIG_WITH_STRCACHE2
+  const char *cached_name;
+
+  /* lookup the name in the string case, if it's not there it won't
+     be in any of the sets either. */
+  cached_name = strcache2_lookup(&variable_strcache, name, length);
+  if (!cached_name)
+    return NULL;
+  name = cached_name;
+#endif /* CONFIG_WITH_STRCACHE2 */
 
   var_key.name = (char *) name;
   var_key.length = length;
@@ -1799,6 +1399,7 @@ target_environment (struct file *file)
 	  }
     }
 
+#ifndef CONFIG_WITH_STRCACHE2
   makelevel_key.name = MAKELEVEL_NAME;
   makelevel_key.length = MAKELEVEL_LENGTH;
 #ifdef VARIABLE_HASH /* bird */
@@ -1809,6 +1410,25 @@ target_environment (struct file *file)
   makelevel_key.value = (char *)&makelevel_key; /* hack: name not cached */
 #endif
   hash_delete (&table, &makelevel_key);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  /* lookup the name in the string case, if it's not there it won't
+     be in any of the sets either. */
+  {
+    const char *cached_name = strcache2_lookup(&variable_strcache,
+                                               MAKELEVEL_NAME, MAKELEVEL_LENGTH);
+    if (cached_name)
+      {
+        makelevel_key.name = cached_name;
+        makelevel_key.length = MAKELEVEL_LENGTH;
+#ifdef VARIABLE_HASH /* bird */
+        makelevel_key.hash1 = variable_hash_1i (MAKELEVEL_NAME, MAKELEVEL_LENGTH);
+        makelevel_key.hash2 = 0;
+#endif
+        makelevel_key.value = NULL;
+        hash_delete (&table, &makelevel_key);
+      }
+  }
+#endif /* CONFIG_WITH_STRCACHE2 */
 
   result = result_0 = xmalloc ((table.ht_fill + 2) * sizeof (char *));
 

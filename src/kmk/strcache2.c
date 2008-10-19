@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1885 2008-10-19 21:30:02Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1887 2008-10-19 23:08:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -258,6 +258,190 @@ strcache2_case_insensitive_hash_2 (const char *str, unsigned int len)
   return hash;
 }
 
+#if 0 /* FIXME: Use this (salvaged from variable.c) */
+
+MY_INLINE int
+variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
+{
+  /* short string compare - ~50% of the kBuild calls. */
+  assert ( !((size_t)ys & 3) );
+  if (!((size_t)xs & 3))
+    {
+      /* aligned */
+      int result;
+      switch (length)
+        {
+          case 8:
+              result  = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 7:
+              result  = xs[6] - ys[6];
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 6:
+              result  = xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 5:
+              result  = xs[4] - ys[4];
+              result |= *(int32_t*)xs - *(int32_t*)ys;
+              return result;
+          case 4:
+              return *(int32_t*)xs - *(int32_t*)ys;
+          case 3:
+              result  = xs[2] - ys[2];
+              result |= xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 2:
+              result  = xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 1:
+              return *xs - *ys;
+          case 0:
+              return 0;
+        }
+    }
+  else
+    {
+      /* unaligned */
+      int result = 0;
+      switch (length)
+        {
+          case 8: result |= xs[7] - ys[7];
+          case 7: result |= xs[6] - ys[6];
+          case 6: result |= xs[5] - ys[5];
+          case 5: result |= xs[4] - ys[4];
+          case 4: result |= xs[3] - ys[3];
+          case 3: result |= xs[2] - ys[2];
+          case 2: result |= xs[1] - ys[1];
+          case 1: result |= xs[0] - ys[0];
+          case 0:
+              return result;
+        }
+    }
+
+  /* memcmp for longer strings */
+# ifdef __GNUC__
+  return __builtin_memcmp (xs, ys, length);
+# else
+  return memcmp (xs, ys, length);
+# endif
+}
+
+MY_INLINE int
+variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
+{
+#ifndef ELECTRIC_HEAP
+  assert ( !((size_t)ys & 3) );
+#endif
+  if (!((size_t)xs & 3))
+    {
+      int result;
+      /* aligned */
+      while (length >= 8)
+        {
+          result  = *(int32_t*)xs - *(int32_t*)ys;
+          result |= *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+          if (MY_PREDICT_FALSE(result))
+            return result;
+          xs += 8;
+          ys += 8;
+          length -= 8;
+        }
+      switch (length)
+        {
+          case 7:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[6] - ys[6];
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              return result;
+          case 6:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[5] - ys[5];
+              result |= xs[4] - ys[4];
+              return result;
+          case 5:
+              result  = *(int32_t*)xs - *(int32_t*)ys;
+              result |= xs[4] - ys[4];
+              return result;
+          case 4:
+              return *(int32_t*)xs - *(int32_t*)ys;
+          case 3:
+              result  = xs[2] - ys[2];
+              result |= xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 2:
+              result  = xs[1] - ys[1];
+              result |= xs[0] - ys[0];
+              return result;
+          case 1:
+              return *xs - *ys;
+          default:
+          case 0:
+              return 0;
+        }
+    }
+  else
+    {
+      /* unaligned */
+      int result;
+      while (length >= 8)
+        {
+#if defined(__i386__) || defined(__x86_64__)
+          result  = (  ((int32_t)xs[3] << 24)
+                     | ((int32_t)xs[2] << 16)
+                     | ((int32_t)xs[1] <<  8)
+                     |           xs[0]       )
+                  - *(int32_t*)ys;
+          result |= (  ((int32_t)xs[7] << 24)
+                     | ((int32_t)xs[6] << 16)
+                     | ((int32_t)xs[5] <<  8)
+                     |           xs[4]       )
+                  - *(int32_t*)(ys + 4);
+#else
+          result  = xs[3] - ys[3];
+          result |= xs[2] - ys[2];
+          result |= xs[1] - ys[1];
+          result |= xs[0] - ys[0];
+          result |= xs[7] - ys[7];
+          result |= xs[6] - ys[6];
+          result |= xs[5] - ys[5];
+          result |= xs[4] - ys[4];
+#endif
+          if (MY_PREDICT_FALSE(result))
+            return result;
+          xs += 8;
+          ys += 8;
+          length -= 8;
+        }
+      result = 0;
+      switch (length)
+        {
+          case 7: result |= xs[6] - ys[6];
+          case 6: result |= xs[5] - ys[5];
+          case 5: result |= xs[4] - ys[4];
+          case 4: result |= xs[3] - ys[3];
+          case 3: result |= xs[2] - ys[2];
+          case 2: result |= xs[1] - ys[1];
+          case 1: result |= xs[0] - ys[0];
+              return result;
+          default:
+          case 0:
+              return 0;
+        }
+    }
+}
+
+#endif
+
 MY_INLINE int
 strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry,
                     const char *str, unsigned int length, unsigned int hash1)
@@ -374,7 +558,7 @@ strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
   return str_copy;
 }
 
-/* The public add/lookup string interface. */
+/* The public add string interface. */
 const char *
 strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 {
@@ -427,7 +611,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
   return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
 }
 
-/* The public add/lookup string interface for prehashed strings.
+/* The public add string interface for prehashed strings.
    Use strcache2_hash_str to calculate the hash of a string. */
 const char *
 strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
@@ -493,9 +677,61 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
   return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
 }
 
+/* The public lookup string interface. */
+const char *
+strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
+{
+  struct strcache2_entry const *entry;
+  unsigned int hash2;
+  unsigned int hash1 = strcache2_case_sensitive_hash_1 (str, length);
+  unsigned int idx;
+
+  assert (!cache->case_insensitive);
+
+  cache->lookup_count++;
+
+  /* Lookup the entry in the hash table, hoping for an
+     early match. */
+  idx = hash1 & cache->hash_mask;
+  entry = cache->hash_tab[idx];
+  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return (const char *)(entry + 1);
+  if (!entry)
+    hash2 = 0;
+  else
+    {
+      cache->collision_1st_count++;
+
+      hash2 = strcache2_case_sensitive_hash_2 (str, length);
+      idx += hash2;
+      idx &= cache->hash_mask;
+      entry = cache->hash_tab[idx];
+      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return (const char *)(entry + 1);
+
+      if (entry)
+        {
+          cache->collision_2nd_count++;
+          do
+            {
+              idx += hash2;
+              idx &= cache->hash_mask;
+              entry = cache->hash_tab[idx];
+              cache->collision_3rd_count++;
+              if (strcache2_is_equal (cache, entry, str, length, hash1))
+                return (const char *)(entry + 1);
+            }
+          while (entry);
+        }
+    }
+
+  /* Not found. */
+  return NULL;
+}
+
 #if defined(HAVE_CASE_INSENSITIVE_FS)
 
-/* The public add/lookup string interface for case insensitive strings. */
+/* The public add string interface for case insensitive strings. */
 const char *
 strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 {
