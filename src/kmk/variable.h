@@ -59,13 +59,9 @@ struct variable
 #ifndef CONFIG_WITH_STRCACHE2
     char *name;			/* Variable name.  */
 #else
-    const char *name;		/* Variable name.  */
+    const char *name;		/* Variable name (in varaible_strcache).  */
 #endif
     int length;			/* strlen (name) */
-#ifdef VARIABLE_HASH /* bird */
-    int hash1;                  /* the primary hash */
-    int hash2;                  /* the secondary hash */
-#endif
 #ifdef CONFIG_WITH_VALUE_LENGTH
     int value_length;		/* The length of the value, usually unused.  */
     int value_alloc_len;	/* The amount of memory we've actually allocated. */

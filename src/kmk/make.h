@@ -149,7 +149,7 @@ unsigned int get_path_max (void);
 # define CHAR_BIT 8
 #endif
 
-#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH) || defined (VARIABLE_HASH)
+#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH)
 # ifdef _MSC_VER
 #  define MY_INLINE     _inline static
 #  define MY_DBGBREAK   __debugbreak()
