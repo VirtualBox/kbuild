@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 1884 2008-10-19 20:40:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 1894 2008-10-20 15:52:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -43,7 +43,8 @@
 # include <Windows.h>
 #else
 # include <unistd.h>
-# include <sys/times.h>
+# include <sys/time.h>
+# include <sys/wait.h>
 # include <signal.h>
 #endif
 
