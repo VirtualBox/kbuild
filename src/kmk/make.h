@@ -616,6 +616,8 @@ MY_INLINE unsigned int strcache_get_len (const char *str)
   return len;
 }
 
+/* FIXME: make a 2nd version of this which uses the unique string address, it
+   is more efficient than the string hash we calculate on most systems. */
 MY_INLINE unsigned int strcache_get_hash1 (const char *str)
 {
   struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
