@@ -40,74 +40,37 @@ int snapped_deps = 0;
 
 /* Hash table of files the makefile knows how to make.  */
 
-#ifndef KMK
 static unsigned long
 file_hash_1 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct file const *) key)->hname);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  return strcache_get_hash1 (((struct file const *) key)->hname);
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 static unsigned long
 file_hash_2 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct file const *) key)->hname);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  return strcache_get_hash1 (((struct file const *) key)->hname);
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 static int
 file_hash_cmp (const void *x, const void *y)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_COMPARE (((struct file const *) x)->hname,
 			  ((struct file const *) y)->hname);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  return ((struct file const *) x)->hname
+      == ((struct file const *) y)->hname ? 0 : -1;
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
-#else  /* KMK */
-
-static unsigned long
-file_hash_1 (const void *key)
-{
-  struct file const *f = (struct file const *)key;
-
-  /* If it's cached, get the hash from the strcache. */
-  if (f->name != (const char *)f)
-    return strcache_get_hash1 (f->hname);
-
-  return_ISTRING_HASH_1 (f->hname);
-}
-
-static unsigned long
-file_hash_2 (const void *key)
-{
-  struct file const *f = (struct file const *)key;
-
-  /* If it's cached, get the hash from the strcache. */
-  if (f->name != (const char *)f)
-    return strcache_get_hash2 (f->hname);
-
-  return_ISTRING_HASH_2 (f->hname);
-}
-
-static int
-file_hash_cmp (const void *x, const void *y)
-{
-  struct file const *xf = ((struct file const *) x);
-  struct file const *yf = ((struct file const *) y);
-
-  /* The file name strings all live in the strcache. However,
-     lookup_file may or may not have a string from the cache. It indicates
-     that it's responsible for the lookup by setting file::name to point
-     to the file structure itself. So, when file::name points elsewhere
-     we can omit the string compare, while when it isn't we can only
-     check if they match that way. */
-
-  if (xf->hname == yf->hname)
-    return 0;
-  if (   xf->name != (const char *)xf
-      && yf->name != (const char *)yf)
-    return 1;
-
-  return_ISTRING_COMPARE (xf->hname, yf->hname);
-}
-
-#endif /* KMK */
 
 #ifndef	FILE_BUCKETS
 #define FILE_BUCKETS	1007
@@ -176,12 +139,25 @@ lookup_file_common (const char *name, int cached)
     name = "./";
 #endif
 
-#ifdef KMK
-  /* uncached lookup indicator hack. */
-  file_key.name = !cached ? (const char *)&file_key : NULL;
-#endif
+#ifndef CONFIG_WITH_STRCACHE2
   file_key.hname = name;
   f = hash_find_item (&files, &file_key);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  if (!cached)
+    {
+      file_key.hname = strcache2_lookup (&file_strcache, name, strlen (name));
+      if (file_key.hname)
+        f = hash_find_item (&files, &file_key);
+      else
+        f = NULL;
+    }
+  else
+    {
+      file_key.hname = name;
+      f = hash_find_item (&files, &file_key);
+    }
+
+#endif /* CONFIG_WITH_STRCACHE2 */
 #if defined(VMS) && !defined(WANT_CASE_SENSITIVE_TARGETS)
   if (*name != '.')
     free (lname);
@@ -295,10 +271,9 @@ rehash_file (struct file *from_file, const char *to_hname)
   struct file *deleted_file;
   struct file *f;
 
-#ifdef KMK
+#ifdef CONFIG_WITH_STRCACHE2
   assert (strcache_iscached (to_hname));
   assert (strcache_iscached (from_file->hname));
-  file_key.name = NULL; /* cached lookup indicator hack. */
 #endif
 
   /* If it's already that name, we're done.  */
