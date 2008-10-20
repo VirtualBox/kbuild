@@ -228,7 +228,11 @@ struct directory_contents
      * filesystems. The most unique attribute I can come up with is the fully
      * qualified name of the directory. Beware though, this is also
      * unreliable. I'm open to suggestion on a better way to emulate inode.  */
+# ifndef CONFIG_WITH_STRCACHE2
     char *path_key;
+# else
+    char const *path_key; /* strcache'ed */
+# endif
     int   ctime;
     int   mtime;        /* controls check for stale directory cache */
     int   fs_flags;     /* FS_FAT, FS_NTFS, ... */
@@ -253,8 +257,12 @@ directory_contents_hash_1 (const void *key_0)
   unsigned long hash;
 
 #ifdef WINDOWS32
+# ifndef CONFIG_WITH_STRCACHE2
   hash = 0;
   ISTRING_HASH_1 (key->path_key, hash);
+# else  /* CONFIG_WITH_STRCACHE2 */
+  hash = strcache_get_hash1 (key->path_key);
+# endif /* CONFIG_WITH_STRCACHE2 */
   hash ^= ((unsigned int) key->dev << 4) ^ (unsigned int) key->ctime;
 #else
 # ifdef VMS
@@ -276,8 +284,12 @@ directory_contents_hash_2 (const void *key_0)
   unsigned long hash;
 
 #ifdef WINDOWS32
+# ifndef CONFIG_WITH_STRCACHE2
   hash = 0;
   ISTRING_HASH_2 (key->path_key, hash);
+# else  /* CONFIG_WITH_STRCACHE2 */
+  hash = strcache_get_hash2 (key->path_key);
+# endif /* CONFIG_WITH_STRCACHE2 */
   hash ^= ((unsigned int) key->dev << 4) ^ (unsigned int) ~key->ctime;
 #else
 # ifdef VMS
@@ -312,9 +324,14 @@ directory_contents_hash_cmp (const void *xv, const void *yv)
   int result;
 
 #ifdef WINDOWS32
+# ifndef CONFIG_WITH_STRCACHE2
   ISTRING_COMPARE (x->path_key, y->path_key, result);
   if (result)
     return result;
+# else  /* CONFIG_WITH_STRCACHE2 */
+  if (x->path_key != y->path_key)
+    return -1;
+# endif /* CONFIG_WITH_STRCACHE2 */
   result = MAKECMP(x->ctime, y->ctime);
   if (result)
     return result;
@@ -360,20 +377,33 @@ struct directory
 static unsigned long
 directory_hash_1 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((const struct directory *) key)->name);
+#else
+  return strcache_get_hash1 (((const struct directory *) key)->name);
+#endif
 }
 
 static unsigned long
 directory_hash_2 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((const struct directory *) key)->name);
+#else
+  return strcache_get_hash2 (((const struct directory *) key)->name);
+#endif
 }
 
 static int
 directory_hash_cmp (const void *x, const void *y)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_COMPARE (((const struct directory *) x)->name,
 			  ((const struct directory *) y)->name);
+#else
+  return ((const struct directory *) x)->name
+      == ((const struct directory *) y)->name ? 0 : -1;
+#endif
 }
 
 /* Table of directories hashed by name.  */
@@ -403,13 +433,21 @@ struct dirfile
 static unsigned long
 dirfile_hash_1 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct dirfile const *) key)->name);
+#else
+  return strcache_get_hash1 (((struct dirfile const *) key)->name);
+#endif
 }
 
 static unsigned long
 dirfile_hash_2 (const void *key)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct dirfile const *) key)->name);
+#else
+  return strcache_get_hash2 (((struct dirfile const *) key)->name);
+#endif
 }
 
 static int
@@ -417,10 +455,14 @@ dirfile_hash_cmp (const void *xv, const void *yv)
 {
   const struct dirfile *x = xv;
   const struct dirfile *y = yv;
+#ifndef CONFIG_WITH_STRCACHE2
   int result = x->length - y->length;
   if (result)
     return result;
   return_ISTRING_COMPARE (x->name, y->name);
+#else
+  return x->name == y->name ? 0 : -1;
+#endif
 }
 
 #ifndef	DIRFILE_BUCKETS
@@ -462,7 +504,12 @@ find_directory (const char *name)
     name = vmsify (name,1);
 #endif
 
+#ifndef CONFIG_WITH_STRCACHE2
   dir_key.name = name;
+#else
+  p = name + strlen (name);
+  dir_key.name = strcache_add_len (name, p - name);
+#endif
   dir_slot = (struct directory **) hash_find_slot (&directories, &dir_key);
   dir = *dir_slot;
 
@@ -472,13 +519,19 @@ find_directory (const char *name)
 
       /* The directory was not found.  Create a new entry for it.  */
 
+#ifndef CONFIG_WITH_STRCACHE2
       p = name + strlen (name);
+#endif
 #ifndef CONFIG_WITH_ALLOC_CACHES
       dir = xmalloc (sizeof (struct directory));
 #else
       dir = alloccache_alloc (&directories_cache);
 #endif
+#ifndef CONFIG_WITH_STRCACHE2
       dir->name = strcache_add_len (name, p - name);
+#else
+      dir->name = dir_key.name;
+#endif
       hash_insert_at (&directories, dir, dir_slot);
       /* The directory is not in the name hash table.
 	 Find its device and inode numbers, and look it up by them.  */
@@ -519,7 +572,12 @@ find_directory (const char *name)
 
 	  dc_key.dev = st.st_dev;
 #ifdef WINDOWS32
+# ifndef CONFIG_WITH_STRCACHE2
 	  dc_key.path_key = w32_path = w32ify (name, 1);
+# else  /* CONFIG_WITH_STRCACHE2 */
+	  w32_path = w32ify (name, 1);
+	  dc_key.path_key = strcache_add (w32_path);
+# endif /* CONFIG_WITH_STRCACHE2 */
 	  dc_key.ctime = st.st_ctime;
 #else
 # ifdef VMS
@@ -548,7 +606,12 @@ find_directory (const char *name)
 	      /* Enter it in the contents hash table.  */
 	      dc->dev = st.st_dev;
 #ifdef WINDOWS32
+# ifndef CONFIG_WITH_STRCACHE2
               dc->path_key = xstrdup (w32_path);
+# else  /* CONFIG_WITH_STRCACHE2 */
+              dc->path_key = dc_key.path_key;
+# endif /* CONFIG_WITH_STRCACHE2 */
+
 	      dc->ctime = st.st_ctime;
               dc->mtime = st.st_mtime;
 
@@ -659,8 +722,14 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 	  /* Checking if the directory exists.  */
 	  return 1;
 	}
+#ifndef CONFIG_WITH_STRCACHE2
       dirfile_key.name = filename;
       dirfile_key.length = strlen (filename);
+#else  /* CONFIG_WITH_STRCACHE2 */
+      dirfile_key.length = strlen (filename);
+      dirfile_key.name = filename
+        = strcache_add_len (filename, dirfile_key.length);
+#endif /* CONFIG_WITH_STRCACHE2 */
       df = hash_find_item (&dir->dirfiles, &dirfile_key);
       if (df)
         return !df->impossible;
@@ -753,7 +822,11 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 	continue;
 
       len = NAMLEN (d);
+#ifndef CONFIG_WITH_STRCACHE2
       dirfile_key.name = d->d_name;
+#else
+      dirfile_key.name = strcache_add_len (d->d_name, len);
+#endif
       dirfile_key.length = len;
       dirfile_slot = (struct dirfile **) hash_find_slot (&dir->dirfiles, &dirfile_key);
 #ifdef WINDOWS32
@@ -769,13 +842,21 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 #else
 	  df = alloccache_alloc (&dirfile_cache);
 #endif
+#ifndef CONFIG_WITH_STRCACHE2
 	  df->name = strcache_add_len (d->d_name, len);
+#else
+	  df->name = dirfile_key.name;
+#endif
 	  df->length = len;
 	  df->impossible = 0;
 	  hash_insert_at (&dir->dirfiles, df, dirfile_slot);
 	}
       /* Check if the name matches the one we're searching for.  */
+#ifndef CONFIG_WITH_STRCACHE2
       if (filename != 0 && strieq (d->d_name, filename))
+#else
+      if (filename != 0 && dirfile_key.name == filename)
+#endif
         return 1;
     }
 
@@ -1030,8 +1111,13 @@ file_impossible_p (const char *filename)
   filename = vmsify (p, 1);
 #endif
 
+#ifndef CONFIG_WITH_STRCACHE2
   dirfile_key.name = filename;
   dirfile_key.length = strlen (filename);
+#else
+  dirfile_key.length = strlen (filename);
+  dirfile_key.name = strcache_add_len (filename, dirfile_key.length);
+#endif
   dirfile = hash_find_item (&dir->dirfiles, &dirfile_key);
   if (dirfile)
     return dirfile->impossible;
