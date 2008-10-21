@@ -46,7 +46,7 @@ file_hash_1 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct file const *) key)->hname);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache_get_hash1 (((struct file const *) key)->hname);
+  return strcache2_get_ptr_hash (&file_cache, ((struct file const *) key)->hname);
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
 
@@ -56,7 +56,7 @@ file_hash_2 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct file const *) key)->hname);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache_get_hash1 (((struct file const *) key)->hname);
+  return strcache2_get_ptr_hash (&file_cache, ((struct file const *) key)->hname);
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
 

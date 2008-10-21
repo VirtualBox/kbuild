@@ -261,7 +261,7 @@ directory_contents_hash_1 (const void *key_0)
   hash = 0;
   ISTRING_HASH_1 (key->path_key, hash);
 # else  /* CONFIG_WITH_STRCACHE2 */
-  hash = strcache_get_hash1 (key->path_key);
+  hash = strcache2_get_ptr_hash (&file_cache, key->path_key);
 # endif /* CONFIG_WITH_STRCACHE2 */
   hash ^= ((unsigned int) key->dev << 4) ^ (unsigned int) key->ctime;
 #else
@@ -288,7 +288,7 @@ directory_contents_hash_2 (const void *key_0)
   hash = 0;
   ISTRING_HASH_2 (key->path_key, hash);
 # else  /* CONFIG_WITH_STRCACHE2 */
-  hash = strcache_get_hash2 (key->path_key);
+  hash = strcache2_get_hash1 (&file_cache, key->path_key);
 # endif /* CONFIG_WITH_STRCACHE2 */
   hash ^= ((unsigned int) key->dev << 4) ^ (unsigned int) ~key->ctime;
 #else
@@ -380,7 +380,7 @@ directory_hash_1 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((const struct directory *) key)->name);
 #else
-  return strcache_get_hash1 (((const struct directory *) key)->name);
+  return strcache2_get_ptr_hash (&file_cache, ((const struct directory *) key)->name);
 #endif
 }
 
@@ -390,7 +390,7 @@ directory_hash_2 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((const struct directory *) key)->name);
 #else
-  return strcache_get_hash2 (((const struct directory *) key)->name);
+  return strcache2_get_hash1 (&file_cache, ((const struct directory *) key)->name);
 #endif
 }
 
@@ -436,7 +436,7 @@ dirfile_hash_1 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct dirfile const *) key)->name);
 #else
-  return strcache_get_hash1 (((struct dirfile const *) key)->name);
+  return strcache2_get_ptr_hash (&file_cache, ((struct dirfile const *) key)->name);
 #endif
 }
 
@@ -446,7 +446,7 @@ dirfile_hash_2 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct dirfile const *) key)->name);
 #else
-  return strcache_get_hash2 (((struct dirfile const *) key)->name);
+  return strcache2_get_hash1 (&file_cache, ((struct dirfile const *) key)->name);
 #endif
 }
 
