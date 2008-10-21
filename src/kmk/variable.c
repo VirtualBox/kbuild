@@ -437,6 +437,127 @@ handle_special_var (struct variable *var)
 }
 
 
+#ifdef KMK /* bird: speed */
+MY_INLINE struct variable *
+lookup_cached_variable (const char *name)
+{
+  const struct variable_set_list *setlist = current_variable_set_list;
+  struct hash_table *ht;
+  unsigned int hash_1;
+  unsigned int hash_2;
+  unsigned int idx;
+  struct variable *v;
+
+  /* first set, first entry, both unrolled. */
+
+  if (setlist->set == &global_variable_set)
+    {
+      v = (struct variable *) strcache2_get_user_val (&variable_strcache, name);
+      if (MY_PREDICT_TRUE (v))
+        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+      assert (setlist->next == 0);
+      return 0;
+    }
+
+  hash_1 = strcache2_get_ptr_hash (&variable_strcache, name);
+  ht = &setlist->set->table;
+  idx = hash_1 & (ht->ht_size - 1);
+  v = ht->ht_vec[idx];
+  if (v != 0)
+    {
+      if (   (void *)v != hash_deleted_item
+          && v->name == name)
+        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+
+      /* the rest of the loop  */
+      hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
+      for (;;)
+        {
+          idx += hash_2;
+          idx &= (ht->ht_size - 1);
+          v = (struct variable *) ht->ht_vec[idx];
+          ht->ht_collisions++; /* there are hardly any deletions, so don't bother with not counting deleted clashes. */
+
+          if (v == 0)
+            break;
+          if (   (void *)v != hash_deleted_item
+              && v->name == name)
+            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+        } /* inner collision loop */
+    }
+  else
+    hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
+
+
+  /* The other sets, if any. */
+
+  setlist = setlist->next;
+  while (setlist)
+    {
+      if (setlist->set == &global_variable_set)
+        {
+          v = (struct variable *) strcache2_get_user_val (&variable_strcache, name);
+          if (MY_PREDICT_TRUE (v))
+            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+          assert (setlist->next == 0);
+          return 0;
+        }
+
+      /* first iteration unrolled */
+      ht = &setlist->set->table;
+      idx = hash_1 & (ht->ht_size - 1);
+      v = ht->ht_vec[idx];
+      if (v != 0)
+        {
+          if (   (void *)v != hash_deleted_item
+              && v->name == name)
+            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+
+          /* the rest of the loop  */
+          for (;;)
+            {
+              idx += hash_2;
+              idx &= (ht->ht_size - 1);
+              v = (struct variable *) ht->ht_vec[idx];
+              ht->ht_collisions++; /* see reason above */
+
+              if (v == 0)
+                break;
+              if (   (void *)v != hash_deleted_item
+                  && v->name == name)
+                return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+            } /* inner collision loop */
+        }
+
+      /* next */
+      setlist = setlist->next;
+    }
+
+  return 0;
+}
+
+# ifndef NDEBUG
+struct variable *
+lookup_variable_for_assert (const char *name, unsigned int length)
+{
+  const struct variable_set_list *setlist;
+  struct variable var_key;
+  var_key.name = name;
+  var_key.length = length;
+
+  for (setlist = current_variable_set_list;
+       setlist != 0; setlist = setlist->next)
+    {
+      struct variable *v;
+      v = (struct variable *) hash_find_item_strcached (&setlist->set->table, &var_key);
+      if (v)
+        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+    }
+  return 0;
+}
+# endif  /* !NDEBUG */
+#endif /* KMK - need for speed */
+
 /* Lookup a variable whose name is a string starting at NAME
    and with LENGTH chars.  NAME need not be null-terminated.
    Returns address of the `struct variable' containing all info
@@ -445,11 +566,12 @@ handle_special_var (struct variable *var)
 struct variable *
 lookup_variable (const char *name, unsigned int length)
 {
+#ifndef KMK
   const struct variable_set_list *setlist;
   struct variable var_key;
-#ifdef KMK
-  unsigned int hash_2 = 0;
-#endif
+#else /* KMK */
+  struct variable *v;
+#endif /* KMK */
 #ifdef CONFIG_WITH_STRCACHE2
   const char *cached_name;
 
@@ -460,6 +582,7 @@ lookup_variable (const char *name, unsigned int length)
     return NULL;
   name = cached_name;
 #endif /* CONFIG_WITH_STRCACHE2 */
+#ifndef KMK
 
   var_key.name = (char *) name;
   var_key.length = length;
@@ -467,43 +590,6 @@ lookup_variable (const char *name, unsigned int length)
   for (setlist = current_variable_set_list;
        setlist != 0; setlist = setlist->next)
     {
-#ifdef KMK /* bird: speed */
-      struct hash_table *ht = &setlist->set->table;
-      unsigned int hash_1 = strcache2_get_ptr_hash (&variable_strcache, name);
-      struct variable *v;
-
-      ht->ht_lookups++;
-      for (;;)
-        {
-          hash_1 &= (ht->ht_size - 1);
-          v = (struct variable *)ht->ht_vec[hash_1];
-
-          if (v == 0)
-            {
-# ifndef NDEBUG
-              struct variable *v2 = (struct variable *) hash_find_item_strcached ((struct hash_table *) &setlist->set->table, &var_key);
-              assert (v2 == 0);
-# endif
-              break;
-            }
-          if ((void *)v != hash_deleted_item)
-            {
-              if (v->name == cached_name)
-                {
-# ifndef NDEBUG
-                  struct variable *v2 = (struct variable *) hash_find_item_strcached ((struct hash_table *) &setlist->set->table, &var_key);
-                  assert (v2 == v);
-# endif
-                  return v->special ? handle_special_var (v) : v;
-                }
-              ht->ht_collisions++;
-            }
-          if (!hash_2)
-            hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
-          hash_1 += hash_2;
-        }
-
-#else /* !KMK */
       const struct variable_set *set = setlist->set;
       struct variable *v;
 
@@ -514,9 +600,17 @@ lookup_variable (const char *name, unsigned int length)
 # endif /* CONFIG_WITH_STRCACHE2 */
       if (v)
 	return v->special ? handle_special_var (v) : v;
-#endif /* !KMK */
     }
 
+#else  /* KMK - need for speed */
+
+  v = lookup_cached_variable (name);
+  assert (lookup_variable_for_assert(name, length) == v);
+#ifdef VMS
+  if (v)
+#endif
+    return v;
+#endif /* KMK - need for speed */
 #ifdef VMS
   /* since we don't read envp[] on startup, try to get the
      variable via getenv() here.  */
@@ -573,7 +667,9 @@ lookup_variable (const char *name, unsigned int length)
   }
 #endif /* VMS */
 
+#if !defined (KMK) || defined(VMS)
   return 0;
+#endif
 }
 
 /* Lookup a variable whose name is a string starting at NAME
