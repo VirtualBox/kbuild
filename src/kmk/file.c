@@ -46,7 +46,7 @@ file_hash_1 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct file const *) key)->hname);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache2_get_ptr_hash (&file_cache, ((struct file const *) key)->hname);
+  return strcache2_get_ptr_hash (&file_strcache, ((struct file const *) key)->hname);
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
 
@@ -56,7 +56,7 @@ file_hash_2 (const void *key)
 #ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct file const *) key)->hname);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache2_get_ptr_hash (&file_cache, ((struct file const *) key)->hname);
+  return strcache2_get_ptr_hash (&file_strcache, ((struct file const *) key)->hname);
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
 
@@ -222,7 +222,11 @@ enter_file (const char *name)
 #endif
 
   file_key.hname = name;
+#ifndef CONFIG_WITH_STRCACHE2
   file_slot = (struct file **) hash_find_slot (&files, &file_key);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  file_slot = (struct file **) hash_find_slot_strcached (&files, &file_key);
+#endif /* CONFIG_WITH_STRCACHE2 */
   f = *file_slot;
   if (! HASH_VACANT (f) && !f->double_colon)
     return f;
@@ -297,7 +301,11 @@ rehash_file (struct file *from_file, const char *to_hname)
 
   /* Find where the newly renamed file will go in the hash.  */
   file_key.hname = to_hname;
+#ifndef CONFIG_WITH_STRCACHE2
   file_slot = (struct file **) hash_find_slot (&files, &file_key);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  file_slot = (struct file **) hash_find_slot_strcached (&files, &file_key);
+#endif /* CONFIG_WITH_STRCACHE2 */
   to_file = *file_slot;
 
   /* Change the hash name for this file.  */
