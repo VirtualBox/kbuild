@@ -1535,10 +1535,10 @@ eval (struct ebuffer *ebuf, int set_default)
                       }
                     for (d2 = suffix_file->deps; d2 != 0; d2 = d2->next)
                       {
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
                         unsigned int l = strlen (dep_name (d2));
 #else
-                        unsigned int l = strcache_get_len (dep_name (d2));
+                        unsigned int l = strcache2_get_len (&file_strcache, dep_name (d2));
 #endif
                         if (!strneq (name, dep_name (d2), l))
                           continue;
@@ -2146,7 +2146,7 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
 }
 
 /* Remove duplicate dependencies in CHAIN.  */
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 
 static unsigned long
 dep_hash_1 (const void *key)
@@ -2177,7 +2177,7 @@ dep_hash_cmp (const void *x, const void *y)
   return cmp;
 }
 
-#else  /* CONFIG_WITH_VALUE_LENGTH */
+#else  /* CONFIG_WITH_STRCACHE2 */
 
 /* Exploit the fact that all names are in the string cache. This means equal
    names shall have the same storage and there is no need for hashing or
@@ -2188,7 +2188,7 @@ static unsigned long
 dep_hash_1 (const void *key)
 {
   const char *name = dep_name ((struct dep const *) key);
-  assert (strcache_iscached (name));
+  assert (strcache2_is_cached (&file_strcache, name));
   return (size_t) name / sizeof(void *);
 }
 
@@ -2196,7 +2196,7 @@ static unsigned long
 dep_hash_2 (const void *key)
 {
   const char *name = dep_name ((struct dep const *) key);
-  return strcache_get_len (name);
+  return strcache2_get_len (&file_strcache, name);
 }
 
 static int
@@ -2209,8 +2209,8 @@ dep_hash_cmp (const void *x, const void *y)
   int cmp = dxname == dyname ? 0 : 1;
 
   /* check preconds: both cached and the cache contains no duplicates. */
-  assert (strcache_iscached (dxname));
-  assert (strcache_iscached (dyname));
+  assert (strcache2_is_cached (&file_strcache, dxname));
+  assert (strcache2_is_cached (&file_strcache, dyname));
   assert (cmp == 0 || strcmp (dxname, dyname) != 0);
 
   /* If the names are the same but ignore_mtimes are not equal, one of these
@@ -2223,7 +2223,7 @@ dep_hash_cmp (const void *x, const void *y)
   return cmp;
 }
 
-#endif /* CONFIG_WITH_VALUE_LENGTH */
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 void
 uniquize_deps (struct dep *chain)

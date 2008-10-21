@@ -94,19 +94,19 @@ set_file_variables (struct file *file)
 #endif
 	{
 	  name = file->name;
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 	  len = strlen (name);
 #else
-	  len = strcache_get_len (name);
+	  len = strcache2_get_len (&file_strcache, name);
 #endif
 	}
 
       for (d = enter_file (strcache_add (".SUFFIXES"))->deps; d ; d = d->next)
 	{
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 	  unsigned int slen = strlen (dep_name (d));
 #else
-	  unsigned int slen = strcache_get_len (dep_name (d));
+	  unsigned int slen = strcache2_get_len (&file_strcache, dep_name (d));
 #endif
 	  if (len > slen && strneq (dep_name (d), name + (len - slen), slen))
 	    {
@@ -162,10 +162,10 @@ set_file_variables (struct file *file)
     plus_len = 0;
     for (d = file->deps; d != 0; d = d->next)
       if (! d->ignore_mtime)
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 	plus_len += strlen (dep_name (d)) + 1;
 #else
-	plus_len += strcache_get_len (dep_name (d)) + 1;
+	plus_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
 #endif
     if (plus_len == 0)
       plus_len++;
@@ -188,10 +188,10 @@ set_file_variables (struct file *file)
             }
           else
 #endif
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
             len = strlen (c);
 #else
-            len = strcache_get_len (c);
+            len = strcache2_get_len (&file_strcache, c);
 #endif
 
           memcpy (cp, c, len);
@@ -215,10 +215,10 @@ set_file_variables (struct file *file)
     bar_len = 0;
     for (d = file->deps; d != 0; d = d->next)
       if (d->ignore_mtime)
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 	bar_len += strlen (dep_name (d)) + 1;
 #else
-	bar_len += strcache_get_len (dep_name (d)) + 1;
+	bar_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
 #endif
     if (bar_len == 0)
       bar_len++;
@@ -247,10 +247,10 @@ set_file_variables (struct file *file)
 	  }
 	else
 #endif
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
 	  len = strlen (c);
 #else
-	  len = strcache_get_len (c);
+	  len = strcache2_get_len (&file_strcache, c);
 #endif
 
         if (d->ignore_mtime)
