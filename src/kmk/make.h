@@ -591,53 +591,6 @@ int strcache_iscached (const char *str);
 const char *strcache_add (const char *str);
 const char *strcache_add_len (const char *str, int len);
 int strcache_setbufsize (int size);
-# ifdef CONFIG_WITH_INCLUDEDEP
-const char *strcache_add_prehashed (const char *str, int len,
-                                    unsigned long hash1, unsigned long hash2);
-void strcache_prehash_str (const char *str, unsigned int len, unsigned long *hash1p,
-                           unsigned long *hash2p);
-#endif
-#ifdef CONFIG_WITH_VALUE_LENGTH
-struct strcache_pref
-{
-    unsigned long hash1;
-    unsigned long hash2;
-    unsigned int len;
-};
-
-int strcache_check_sanity (const char *str);
-unsigned long strcache_get_hash2_fallback (const char *str);
-
-MY_INLINE unsigned int strcache_get_len (const char *str)
-{
-  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
-  unsigned int len = prefix->len;
-  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
-  return len;
-}
-
-/* FIXME: make a 2nd version of this which uses the unique string address, it
-   is more efficient than the string hash we calculate on most systems. */
-MY_INLINE unsigned int strcache_get_hash1 (const char *str)
-{
-  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
-  unsigned long hash1 = prefix->hash1;
-  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
-  return hash1;
-}
-
-MY_INLINE unsigned long strcache_get_hash2 (const char *str)
-{
-  struct strcache_pref const *prefix = (struct strcache_pref const *)str - 1;
-  unsigned long hash2 = prefix->hash2;
-  MY_ASSERT_MSG (strcache_check_sanity (str) == 0, ("!\n"));
-  if (!hash2)
-    return strcache_get_hash2_fallback (str);
-  return hash2;
-}
-
-# endif /* CONFIG_WITH_VALUE_LENGTH*/
-
 #else  /* CONFIG_WITH_STRCACHE2 */
 
 # include "strcache2.h"
@@ -646,22 +599,9 @@ extern struct strcache2 file_strcache;
 # define strcache_iscached(str)     strcache2_is_cached(&file_strcache, str)
 # define strcache_add(str)          strcache2_add_file(&file_strcache, str, strlen (str))
 # define strcache_add_len(str, len) strcache2_add_file(&file_strcache, str, len)
-# ifdef CONFIG_WITH_INCLUDEDEP
-#  define strcache_add_prehashed(str, len, hash1, hash2) \
-    strcache2_add_hashed(&file_strcache, str, len, hash1, hash2)
-#  ifdef HAVE_CASE_INSENSITIVE_FS
-#   define strcache_prehash_str(str, length, hash1p, hash2p) \
-     do { *(hash1p) = strcache2_hash_istr (str, length, (hash2p)); } while (0)
-#  else
-#   define strcache_prehash_str(str, length, hash1p, hash2p) \
-     do { *(hash1p) = strcache2_hash_str (str, length, (hash2p)); } while (0)
-#  endif
-# endif /* CONFIG_WITH_INCLUDEDEP */
-# ifdef CONFIG_WITH_VALUE_LENGTH
-#  define strcache_get_len(str)     strcache2_get_len(&file_strcache, str)
-#  define strcache_get_hash1(str)   strcache2_get_hash1(&file_strcache, str)
-#  define strcache_get_hash2(str)   strcache2_get_hash2(&file_strcache, str)
-# endif /* CONFIG_WITH_VALUE_LENGTH */
+# define strcache_get_len(str)      strcache2_get_len(&file_strcache, str)
+# define strcache_get_hash1(str)    strcache2_get_hash1(&file_strcache, str)
+# define strcache_get_hash2(str)    strcache2_get_hash2(&file_strcache, str)
 
 #endif /* CONFIG_WITH_STRCACHE2 */
 
