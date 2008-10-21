@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1899 2008-10-21 01:51:48Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1903 2008-10-21 04:25:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -267,10 +267,14 @@ strcache2_case_insensitive_hash_2 (const char *str, unsigned int len)
   return hash;
 }
 
-#if 0 /* FIXME: Use this (salvaged from variable.c) */
+#ifdef _MSC_VER
+  typedef unsigned int int32_t;
+#else
+# include <stdint.h>
+#endif
 
 MY_INLINE int
-variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
+strcache2_memcmp_inline_short (const char *xs, const char *ys, unsigned int length)
 {
   /* short string compare - ~50% of the kBuild calls. */
   assert ( !((size_t)ys & 3) );
@@ -344,7 +348,7 @@ variable_hash_cmp_2_memcmp (const char *xs, const char *ys, unsigned int length)
 }
 
 MY_INLINE int
-variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length)
+strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
 {
 #ifndef ELECTRIC_HEAP
   assert ( !((size_t)ys & 3) );
@@ -449,26 +453,44 @@ variable_hash_cmp_2_inlined (const char *xs, const char *ys, unsigned int length
     }
 }
 
-#endif
-
 MY_INLINE int
 strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry,
                     const char *str, unsigned int length, unsigned int hash1)
 {
+  assert (!cache->case_insensitive);
+
   /* the simple stuff first. */
   if (   entry == NULL
       || entry->hash1 != hash1
       || entry->length != length)
       return 0;
 
-  return !cache->case_insensitive
-    ? memcmp (entry + 1, str, length) == 0
-#if defined(_MSC_VER) || defined(__OS2__)
-    : _memicmp (entry + 1, str, length) == 0
+#if 1
+  return memcmp (entry + 1, str, length) == 0;
+#elif 0
+  return strcache2_memcmp_inlined (entry + 1, str, length) == 0;
 #else
-    : strncasecmp ((const char *)(entry + 1), str, length) == 0
+  return strcache2_memcmp_inline_short (entry + 1, str, length) == 0;
 #endif
-    ;
+}
+
+MY_INLINE int
+strcache2_is_iequal (struct strcache2 *cache, struct strcache2_entry const *entry,
+                     const char *str, unsigned int length, unsigned int hash1)
+{
+  assert (cache->case_insensitive);
+
+  /* the simple stuff first. */
+  if (   entry == NULL
+      || entry->hash1 != hash1
+      || entry->length != length)
+      return 0;
+
+#if defined(_MSC_VER) || defined(__OS2__)
+  return _memicmp (entry + 1, str, length) == 0;
+#else
+  return strncasecmp ((const char *)(entry + 1), str, length) == 0;
+#endif
 }
 
 static void
@@ -631,15 +653,12 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
 #ifndef NDEBUG
   unsigned correct_hash;
 
-  correct_hash = cache->case_insensitive
-               ? strcache2_case_insensitive_hash_1 (str, length)
-               : strcache2_case_sensitive_hash_1 (str, length);
+  assert (!cache->case_insensitive);
+  correct_hash = strcache2_case_sensitive_hash_1 (str, length);
   MY_ASSERT_MSG (hash1 == correct_hash, ("%#x != %#x\n", hash1, correct_hash));
   if (hash2)
     {
-      correct_hash = cache->case_insensitive
-                   ? strcache2_case_insensitive_hash_2 (str, length)
-                   : strcache2_case_sensitive_hash_2 (str, length);
+      correct_hash = strcache2_case_sensitive_hash_2 (str, length);
       MY_ASSERT_MSG (hash2 == correct_hash, ("%#x != %#x\n", hash2, correct_hash));
     }
 #endif /* NDEBUG */
@@ -686,7 +705,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
   return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
 }
 
-/* The public lookup string interface. */
+/* The public lookup (case sensitive) string interface. */
 const char *
 strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 {
@@ -756,7 +775,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
      early match. */
   idx = hash1 & cache->hash_mask;
   entry = cache->hash_tab[idx];
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+  if (strcache2_is_iequal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
   if (!entry)
     hash2 = 0;
@@ -768,7 +787,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
       idx += hash2;
       idx &= cache->hash_mask;
       entry = cache->hash_tab[idx];
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+      if (strcache2_is_iequal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
 
       if (entry)
@@ -780,7 +799,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
               idx &= cache->hash_mask;
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
-              if (strcache2_is_equal (cache, entry, str, length, hash1))
+              if (strcache2_is_iequal (cache, entry, str, length, hash1))
                 return (const char *)(entry + 1);
             }
           while (entry);
@@ -791,7 +810,118 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
   return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
 }
 
-/* strcache_ilookup later */
+/* The public add string interface for prehashed case insensitive strings.
+   Use strcache2_hash_istr to calculate the hash of a string. */
+const char *
+strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int length,
+                       unsigned int hash1, unsigned int hash2)
+{
+  struct strcache2_entry const *entry;
+  unsigned int idx;
+#ifndef NDEBUG
+  unsigned correct_hash;
+
+  assert (cache->case_insensitive);
+  correct_hash = strcache2_case_insensitive_hash_1 (str, length);
+  MY_ASSERT_MSG (hash1 == correct_hash, ("%#x != %#x\n", hash1, correct_hash));
+  if (hash2)
+    {
+      correct_hash = strcache2_case_insensitive_hash_2 (str, length);
+      MY_ASSERT_MSG (hash2 == correct_hash, ("%#x != %#x\n", hash2, correct_hash));
+    }
+#endif /* NDEBUG */
+
+  cache->lookup_count++;
+
+  /* Lookup the entry in the hash table, hoping for an
+     early match. */
+  idx = hash1 & cache->hash_mask;
+  entry = cache->hash_tab[idx];
+  if (strcache2_is_iequal (cache, entry, str, length, hash1))
+    return (const char *)(entry + 1);
+  if (entry)
+    {
+      cache->collision_1st_count++;
+
+      if (!hash2)
+        hash2 = strcache2_case_insensitive_hash_2 (str, length);
+      idx += hash2;
+      idx &= cache->hash_mask;
+      entry = cache->hash_tab[idx];
+      if (strcache2_is_iequal (cache, entry, str, length, hash1))
+        return (const char *)(entry + 1);
+
+      if (entry)
+        {
+          cache->collision_2nd_count++;
+          do
+            {
+              idx += hash2;
+              idx &= cache->hash_mask;
+              entry = cache->hash_tab[idx];
+              cache->collision_3rd_count++;
+              if (strcache2_is_iequal (cache, entry, str, length, hash1))
+                return (const char *)(entry + 1);
+            }
+          while (entry);
+        }
+    }
+
+  /* Not found, add it at IDX. */
+  return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
+}
+
+/* The public lookup (case insensitive) string interface. */
+const char *
+strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
+{
+  struct strcache2_entry const *entry;
+  unsigned int hash2;
+  unsigned int hash1 = strcache2_case_insensitive_hash_1 (str, length);
+  unsigned int idx;
+
+  assert (cache->case_insensitive);
+
+  cache->lookup_count++;
+
+  /* Lookup the entry in the hash table, hoping for an
+     early match. */
+  idx = hash1 & cache->hash_mask;
+  entry = cache->hash_tab[idx];
+  if (strcache2_is_iequal (cache, entry, str, length, hash1))
+    return (const char *)(entry + 1);
+  if (!entry)
+    hash2 = 0;
+  else
+    {
+      cache->collision_1st_count++;
+
+      hash2 = strcache2_case_insensitive_hash_2 (str, length);
+      idx += hash2;
+      idx &= cache->hash_mask;
+      entry = cache->hash_tab[idx];
+      if (strcache2_is_iequal (cache, entry, str, length, hash1))
+        return (const char *)(entry + 1);
+
+      if (entry)
+        {
+          cache->collision_2nd_count++;
+          do
+            {
+              idx += hash2;
+              idx &= cache->hash_mask;
+              entry = cache->hash_tab[idx];
+              cache->collision_3rd_count++;
+              if (strcache2_is_iequal (cache, entry, str, length, hash1))
+                return (const char *)(entry + 1);
+            }
+          while (entry);
+        }
+    }
+
+  /* Not found. */
+  return NULL;
+}
 
 #endif /* HAVE_CASE_INSENSITIVE_FS */
 

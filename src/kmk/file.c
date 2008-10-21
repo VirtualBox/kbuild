@@ -139,7 +139,7 @@ lookup_file_common (const char *name, int cached)
 #else  /* CONFIG_WITH_STRCACHE2 */
   if (!cached)
     {
-      file_key.hname = strcache2_lookup (&file_strcache, name, strlen (name));
+      file_key.hname = strcache2_lookup_file (&file_strcache, name, strlen (name));
       if (file_key.hname)
         f = hash_find_item_strcached (&files, &file_key);
       else
