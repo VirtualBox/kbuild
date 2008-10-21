@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1903 2008-10-21 04:25:19Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1908 2008-10-21 21:35:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -30,6 +30,8 @@
 #ifndef CHAR_BIT
 # error "include after make.h!"
 #endif
+
+#define STRCACHE2_USE_MASK 1
 
 /* string cache memory segment. */
 struct strcache2_seg
@@ -70,7 +72,11 @@ struct strcache2
 {
     struct strcache2_entry **hash_tab;  /* The hash table. */
     int case_insensitive;               /* case insensitive or not. */
+#ifdef STRCACHE2_USE_MASK
     unsigned int hash_mask;             /* The AND mask matching hash_size.*/
+#else
+    unsigned int hash_div;              /* The number (prime) to mod by. */
+#endif
     unsigned long lookup_count;         /* The number of lookups. */
     unsigned long collision_1st_count;  /* The number of 1st level collisions. */
     unsigned long collision_2nd_count;  /* The number of 2nd level collisions. */
