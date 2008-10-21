@@ -108,28 +108,19 @@ static struct strcache2 variable_strcache;
 
 /* Hash table of all global variable definitions.  */
 
+#ifndef CONFIG_WITH_STRCACHE2
 static unsigned long
 variable_hash_1 (const void *keyv)
 {
   struct variable const *key = (struct variable const *) keyv;
-#ifndef CONFIG_WITH_STRCACHE2
   return_STRING_N_HASH_1 (key->name, key->length);
-#else
-  /* all requests are served from the cache. */
-  return strcache2_get_ptr_hash (&variable_strcache, key->name);
-#endif
 }
 
 static unsigned long
 variable_hash_2 (const void *keyv)
 {
   struct variable const *key = (struct variable const *) keyv;
-#ifndef CONFIG_WITH_STRCACHE2
   return_STRING_N_HASH_2 (key->name, key->length);
-#else
-  /* all requests are served from the cache. */
-  return strcache2_get_hash2 (&variable_strcache, key->name);
-#endif
 }
 
 static int
@@ -137,18 +128,13 @@ variable_hash_cmp (const void *xv, const void *yv)
 {
   struct variable const *x = (struct variable const *) xv;
   struct variable const *y = (struct variable const *) yv;
-#ifndef CONFIG_WITH_STRCACHE2
   int result = x->length - y->length;
   if (result)
     return result;
 
   return_STRING_N_COMPARE (x->name, y->name, x->length);
-#else  /* CONFIG_WITH_STRCACHE2 */
-
-  /* everything is in the cache. */
-  return x->name == y->name ? 0 : -1;
-#endif /* CONFIG_WITH_STRCACHE2 */
 }
+#endif /* !CONFIG_WITH_STRCACHE2 */
 
 #ifndef	VARIABLE_BUCKETS
 # ifdef KMK /* Move to Makefile.kmk? (insanely high, but wtf, it gets the collitions down) */
@@ -182,11 +168,14 @@ struct variable_set_list *current_variable_set_list = &global_setlist;
 void
 init_hash_global_variable_set (void)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   hash_init (&global_variable_set.table, VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
-#ifdef CONFIG_WITH_STRCACHE2
+#else  /* CONFIG_WITH_STRCACHE2 */
   strcache2_init (&variable_strcache, "variable", 65536, 0, 0, 0);
-#endif
+  hash_init_strcached (&global_variable_set.table, VARIABLE_BUCKETS,
+                       &variable_strcache, offsetof (struct variable, name));
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 /* Define variable named NAME with value VALUE in SET.  VALUE is copied.
@@ -233,7 +222,7 @@ define_variable_in_set (const char *name, unsigned int length,
   if (   set != &global_variable_set
       || !(v = strcache2_get_user_val (&variable_strcache, var_key.name)))
     {
-      var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
+      var_slot = (struct variable **) hash_find_slot_strcached (&set->table, &var_key);
       v = *var_slot;
     }
   else
@@ -490,13 +479,19 @@ lookup_variable (const char *name, unsigned int length)
           v = (struct variable *)ht->ht_vec[hash_1];
 
           if (v == 0)
+            {
+# ifndef NDEBUG
+              struct variable *v2 = (struct variable *) hash_find_item_strcached ((struct hash_table *) &setlist->set->table, &var_key);
+              assert (v2 == 0);
+# endif
               break;
+            }
           if ((void *)v != hash_deleted_item)
             {
-              if (variable_hash_cmp(&var_key, v) == 0)
+              if (v->name == cached_name)
                 {
 # ifndef NDEBUG
-                  struct variable *v2 = (struct variable *) hash_find_item ((struct hash_table *) &setlist->set->table, &var_key);
+                  struct variable *v2 = (struct variable *) hash_find_item_strcached ((struct hash_table *) &setlist->set->table, &var_key);
                   assert (v2 == v);
 # endif
                   return v->special ? handle_special_var (v) : v;
@@ -504,10 +499,7 @@ lookup_variable (const char *name, unsigned int length)
               ht->ht_collisions++;
             }
           if (!hash_2)
-            {
-              hash_2 = strcache2_get_hash2 (&variable_strcache, name);
-              assert (hash_2 & 1);
-            }
+            hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
           hash_1 += hash_2;
         }
 
@@ -515,7 +507,11 @@ lookup_variable (const char *name, unsigned int length)
       const struct variable_set *set = setlist->set;
       struct variable *v;
 
+# ifndef CONFIG_WITH_STRCACHE2
       v = (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
+# else  /* CONFIG_WITH_STRCACHE2 */
+      v = (struct variable *) hash_find_item_strcached ((struct hash_table *) &set->table, &var_key);
+# endif /* CONFIG_WITH_STRCACHE2 */
       if (v)
 	return v->special ? handle_special_var (v) : v;
 #endif /* !KMK */
@@ -590,7 +586,12 @@ lookup_variable_in_set (const char *name, unsigned int length,
                         const struct variable_set *set)
 {
   struct variable var_key;
-#ifdef CONFIG_WITH_STRCACHE2
+#ifndef CONFIG_WITH_STRCACHE2
+  var_key.name = (char *) name;
+  var_key.length = length;
+
+  return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
+#else  /* CONFIG_WITH_STRCACHE2 */
   const char *cached_name;
 
   /* lookup the name in the string case, if it's not there it won't
@@ -607,13 +608,12 @@ lookup_variable_in_set (const char *name, unsigned int length,
       return v;
     }
 
-  name = cached_name;
-#endif /* CONFIG_WITH_STRCACHE2 */
-
-  var_key.name = (char *) name;
+  var_key.name = cached_name;
   var_key.length = length;
 
-  return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
+  return (struct variable *) hash_find_item_strcached (
+    (struct hash_table *) &set->table, &var_key);
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 /* Initialize FILE's variable set list.  If FILE already has a variable set
@@ -636,14 +636,19 @@ initialize_file_variables (struct file *file, int reading)
       l = (struct variable_set_list *)
 	xmalloc (sizeof (struct variable_set_list));
       l->set = xmalloc (sizeof (struct variable_set));
-#else
+#else  /* CONFIG_WITH_ALLOC_CACHES */
       l = (struct variable_set_list *)
         alloccache_alloc (&variable_set_list_cache);
       l->set = (struct variable_set *)
         alloccache_alloc (&variable_set_cache);
-#endif
+#endif /* CONFIG_WITH_ALLOC_CACHES */
+#ifndef CONFIG_WITH_STRCACHE2
       hash_init (&l->set->table, PERFILE_VARIABLE_BUCKETS,
                  variable_hash_1, variable_hash_2, variable_hash_cmp);
+#else  /* CONFIG_WITH_STRCACHE2 */
+      hash_init_strcached (&l->set->table, PERFILE_VARIABLE_BUCKETS,
+                           &variable_strcache, offsetof (struct variable, name));
+#endif /* CONFIG_WITH_STRCACHE2 */
       file->variables = l;
     }
 
@@ -748,8 +753,13 @@ create_new_variable_set (void)
 #else
   set = (struct variable_set *) alloccache_alloc (&variable_set_cache);
 #endif
+#ifndef CONFIG_WITH_STRCACHE2
   hash_init (&set->table, SMALL_SCOPE_VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  hash_init_strcached (&set->table, SMALL_SCOPE_VARIABLE_BUCKETS,
+                       &variable_strcache, offsetof (struct variable, name));
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 #ifndef CONFIG_WITH_ALLOC_CACHES
   setlist = (struct variable_set_list *)
@@ -869,7 +879,12 @@ merge_variable_sets (struct variable_set *to_set,
       {
 	struct variable *from_var = *from_var_slot;
 	struct variable **to_var_slot
+#ifndef CONFIG_WITH_STRCACHE2
 	  = (struct variable **) hash_find_slot (&to_set->table, *from_var_slot);
+#else  /* CONFIG_WITH_STRCACHE2 */
+	  = (struct variable **) hash_find_slot_strcached (&to_set->table,
+                                                           *from_var_slot);
+#endif /* CONFIG_WITH_STRCACHE2 */
 	if (HASH_VACANT (*to_var_slot))
 	  hash_insert_at (&to_set->table, from_var, to_var_slot);
 	else
@@ -1285,8 +1300,13 @@ target_environment (struct file *file)
   else
     set_list = file->variables;
 
+#ifndef CONFIG_WITH_STRCACHE2
   hash_init (&table, VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  hash_init_strcached (&table, VARIABLE_BUCKETS,
+                       &variable_strcache, offsetof (struct variable, name));
+#endif /* CONFIG_WITH_STRCACHE2 */
 
   /* Run through all the variable sets in the list,
      accumulating variables in TABLE.  */
@@ -1357,7 +1377,11 @@ target_environment (struct file *file)
 		break;
 	      }
 
+#ifndef CONFIG_WITH_STRCACHE2
 	    new_slot = (struct variable **) hash_find_slot (&table, v);
+#else  /* CONFIG_WITH_STRCACHE2 */
+	    new_slot = (struct variable **) hash_find_slot_strcached (&table, v);
+#endif /* CONFIG_WITH_STRCACHE2 */
 	    if (HASH_VACANT (*new_slot))
 	      hash_insert_at (&table, v, new_slot);
 	  }
@@ -1370,13 +1394,13 @@ target_environment (struct file *file)
 #else  /* CONFIG_WITH_STRCACHE2 */
   /* lookup the name in the string case, if it's not there it won't
      be in any of the sets either. */
-  cached_name = strcache2_lookup(&variable_strcache,
-                                 MAKELEVEL_NAME, MAKELEVEL_LENGTH);
+  cached_name = strcache2_lookup (&variable_strcache,
+                                  MAKELEVEL_NAME, MAKELEVEL_LENGTH);
   if (cached_name)
     {
       makelevel_key.name = cached_name;
       makelevel_key.length = MAKELEVEL_LENGTH;
-      hash_delete (&table, &makelevel_key);
+      hash_delete_strcached (&table, &makelevel_key);
     }
 #endif /* CONFIG_WITH_STRCACHE2 */
 

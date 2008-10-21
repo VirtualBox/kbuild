@@ -374,37 +374,26 @@ struct directory
     struct directory_contents *contents;
   };
 
+#ifndef CONFIG_WITH_STRCACHE2
 static unsigned long
 directory_hash_1 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((const struct directory *) key)->name);
-#else
-  return strcache2_get_ptr_hash (&file_strcache, ((const struct directory *) key)->name);
-#endif
 }
 
 static unsigned long
 directory_hash_2 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((const struct directory *) key)->name);
-#else
-  return strcache2_get_hash1 (&file_strcache, ((const struct directory *) key)->name);
-#endif
 }
 
 static int
 directory_hash_cmp (const void *x, const void *y)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_COMPARE (((const struct directory *) x)->name,
 			  ((const struct directory *) y)->name);
-#else
-  return ((const struct directory *) x)->name
-      == ((const struct directory *) y)->name ? 0 : -1;
-#endif
 }
+#endif /* !CONFIG_WITH_STRCACHE2 */
 
 /* Table of directories hashed by name.  */
 static struct hash_table directories;
@@ -430,24 +419,17 @@ struct dirfile
     short impossible;		/* This file is impossible.  */
   };
 
+#ifndef CONFIG_WITH_STRCACHE2
 static unsigned long
 dirfile_hash_1 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct dirfile const *) key)->name);
-#else
-  return strcache2_get_ptr_hash (&file_strcache, ((struct dirfile const *) key)->name);
-#endif
 }
 
 static unsigned long
 dirfile_hash_2 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct dirfile const *) key)->name);
-#else
-  return strcache2_get_hash1 (&file_strcache, ((struct dirfile const *) key)->name);
-#endif
 }
 
 static int
@@ -455,15 +437,12 @@ dirfile_hash_cmp (const void *xv, const void *yv)
 {
   const struct dirfile *x = xv;
   const struct dirfile *y = yv;
-#ifndef CONFIG_WITH_STRCACHE2
   int result = x->length - y->length;
   if (result)
     return result;
   return_ISTRING_COMPARE (x->name, y->name);
-#else
-  return x->name == y->name ? 0 : -1;
-#endif
 }
+#endif /* !CONFIG_WITH_STRCACHE2 */
 
 #ifndef	DIRFILE_BUCKETS
 #define DIRFILE_BUCKETS 107
@@ -506,11 +485,12 @@ find_directory (const char *name)
 
 #ifndef CONFIG_WITH_STRCACHE2
   dir_key.name = name;
+  dir_slot = (struct directory **) hash_find_slot (&directories, &dir_key);
 #else
   p = name + strlen (name);
   dir_key.name = strcache_add_len (name, p - name);
+  dir_slot = (struct directory **) hash_find_slot_strcached (&directories, &dir_key);
 #endif
-  dir_slot = (struct directory **) hash_find_slot (&directories, &dir_key);
   dir = *dir_slot;
 
   if (HASH_VACANT (dir))
@@ -653,11 +633,17 @@ find_directory (const char *name)
 		  int buckets = st.st_nlink * 2;
 		  if (buckets < DIRFILE_BUCKETS)
 		    buckets = DIRFILE_BUCKETS;
-		  hash_init (&dc->dirfiles, buckets,
-			     dirfile_hash_1, dirfile_hash_2, dirfile_hash_cmp);
+		  hash_init_strcached (&dc->dirfiles, buckets, &file_strcache,
+                                       offsetof (struct dirfile, name));
 #else
+# ifndef CONFIG_WITH_STRCACHE2
 		  hash_init (&dc->dirfiles, DIRFILE_BUCKETS,
 			     dirfile_hash_1, dirfile_hash_2, dirfile_hash_cmp);
+# else  /* CONFIG_WITH_STRCACHE2 */
+                  hash_init_strcached (&dc->dirfiles, DIRFILE_BUCKETS,
+                                       &file_strcache,
+                                       offsetof (struct dirfile, name));
+# endif /* CONFIG_WITH_STRCACHE2 */
 #endif
 		  /* Keep track of how many directories are open.  */
 		  ++open_directories;
@@ -725,12 +711,13 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 #ifndef CONFIG_WITH_STRCACHE2
       dirfile_key.name = filename;
       dirfile_key.length = strlen (filename);
+      df = hash_find_item (&dir->dirfiles, &dirfile_key);
 #else  /* CONFIG_WITH_STRCACHE2 */
       dirfile_key.length = strlen (filename);
       dirfile_key.name = filename
         = strcache_add_len (filename, dirfile_key.length);
+      df = hash_find_item_strcached (&dir->dirfiles, &dirfile_key);
 #endif /* CONFIG_WITH_STRCACHE2 */
-      df = hash_find_item (&dir->dirfiles, &dirfile_key);
       if (df)
         return !df->impossible;
     }
@@ -806,7 +793,7 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 #endif
 /* bird: end */
           if (errno)
-            fatal (NILF, "INTERNAL: readdir(%p): %s (filename=%s)\n", dir, strerror (errno), filename);
+            fatal (NILF, "INTERNAL: readdir(%p): %s (filename=%s)\n", (void *)dir, strerror (errno), filename);
           break;
         }
 
@@ -824,11 +811,13 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       len = NAMLEN (d);
 #ifndef CONFIG_WITH_STRCACHE2
       dirfile_key.name = d->d_name;
-#else
-      dirfile_key.name = strcache_add_len (d->d_name, len);
-#endif
       dirfile_key.length = len;
       dirfile_slot = (struct dirfile **) hash_find_slot (&dir->dirfiles, &dirfile_key);
+#else
+      dirfile_key.name = strcache_add_len (d->d_name, len);
+      dirfile_key.length = len;
+      dirfile_slot = (struct dirfile **) hash_find_slot_strcached (&dir->dirfiles, &dirfile_key);
+#endif
 #ifdef WINDOWS32
       /*
        * If re-reading a directory, don't cache files that have
@@ -1021,8 +1010,13 @@ file_impossible (const char *filename)
 
   if (dir->contents->dirfiles.ht_vec == 0)
     {
+#ifndef CONFIG_WITH_STRCACHE2
       hash_init (&dir->contents->dirfiles, DIRFILE_BUCKETS,
 		 dirfile_hash_1, dirfile_hash_2, dirfile_hash_cmp);
+#else  /* CONFIG_WITH_STRCACHE2 */
+      hash_init_strcached (&dir->contents->dirfiles, DIRFILE_BUCKETS,
+                           &file_strcache, offsetof (struct dirfile, name));
+#endif /* CONFIG_WITH_STRCACHE2 */
     }
 
   /* Make a new entry and put it in the table.  */
@@ -1114,11 +1108,12 @@ file_impossible_p (const char *filename)
 #ifndef CONFIG_WITH_STRCACHE2
   dirfile_key.name = filename;
   dirfile_key.length = strlen (filename);
+  dirfile = hash_find_item (&dir->dirfiles, &dirfile_key);
 #else
   dirfile_key.length = strlen (filename);
   dirfile_key.name = strcache_add_len (filename, dirfile_key.length);
+  dirfile = hash_find_item_strcached (&dir->dirfiles, &dirfile_key);
 #endif
-  dirfile = hash_find_item (&dir->dirfiles, &dirfile_key);
   if (dirfile)
     return dirfile->impossible;
 
@@ -1387,8 +1382,13 @@ dir_setup_glob (glob_t *gl)
 void
 hash_init_directories (void)
 {
+#ifndef CONFIG_WITH_STRCACHE2
   hash_init (&directories, DIRECTORY_BUCKETS,
 	     directory_hash_1, directory_hash_2, directory_hash_cmp);
+#else  /*  */
+  hash_init_strcached (&directories, DIRECTORY_BUCKETS, &file_strcache,
+                       offsetof (struct directory, name));
+#endif /*  */
   hash_init (&directory_contents, DIRECTORY_BUCKETS,
 	     directory_contents_hash_1, directory_contents_hash_2,
              directory_contents_hash_cmp);
