@@ -411,7 +411,7 @@ do_2nd_target_expansion (struct file *f)
 {
    unsigned int len;
    char *tmp_name = allocated_variable_expand_2 (
-       f->name, strcache_get_len(f->name), &len);
+       f->name, strcache2_get_len (&file_strcache, f->name), &len);
    const char *name = strcache_add_len (tmp_name, len);
    free (tmp_name);
    rename_file (f, name);
@@ -614,10 +614,10 @@ expand_deps (struct file *f)
         {
           p = variable_expand ("");
           buffer_offset = p - variable_buffer;
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
           variable_buffer_output (p, d->name, strlen (d->name) + 1);
 #else
-          len = strcache_get_len (d->name);
+          len = strcache2_get_len (&file_strcache, d->name);
           variable_buffer_output (p, d->name, len + 1);
 #endif
           p = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. (observed it) */
@@ -655,10 +655,10 @@ expand_deps (struct file *f)
 
           set_file_variables (f);
 
-#ifndef CONFIG_WITH_VALUE_LENGTH
+#ifndef CONFIG_WITH_STRCACHE2
           p = variable_expand_for_file (d->name, f);
 #else
-          len = strcache_get_len (d->name);
+          len = strcache2_get_len (&file_strcache, d->name);
           p = variable_expand_for_file_2 (NULL, d->name, len, f, &len);
 #endif
 
@@ -688,7 +688,7 @@ expand_deps (struct file *f)
               memcpy (nm, dp->name, nl);
               percent = find_percent (nm);
 #else  /* KMK - don't make a stack copy unless it's actually required! */
-              unsigned int nl = strcache_get_len (dp->name);
+              unsigned int nl = strcache2_get_len (&file_strcache, dp->name);
               char *nm;
               percent = memchr (dp->name, '%', nl);
               if (percent)
