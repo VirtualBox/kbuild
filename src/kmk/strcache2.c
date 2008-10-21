@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1905 2008-10-21 05:13:12Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1906 2008-10-21 05:38:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -472,11 +472,11 @@ strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry
       return 0;
 
 #if 0
-  return memcmp (entry + 1, str, length) == 0;
+  return memcmp (str, entry + 1, length) == 0;
 #elif 1
-  return strcache2_memcmp_inlined ((const char *)(entry + 1), str, length) == 0;
+  return strcache2_memcmp_inlined (str, (const char *)(entry + 1), length) == 0;
 #else
-  return strcache2_memcmp_inline_short ((const char *)(entry + 1), str, length) == 0;
+  return strcache2_memcmp_inline_short (str, (const char *)(entry + 1), length) == 0;
 #endif
 }
 
