@@ -18,6 +18,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
 #include "make.h"
 #include "hash.h"
+#ifdef CONFIG_WITH_STRCACHE2
+# include <assert.h>
+#endif
+
 
 #define	CALLOC(t, n) ((t *) calloc (sizeof (t), (n)))
 #define MALLOC(t, n) ((t *) xmalloc (sizeof (t) * (n)))
@@ -61,7 +65,30 @@ hash_init (struct hash_table *ht, unsigned long size,
   ht->ht_hash_1 = hash_1;
   ht->ht_hash_2 = hash_2;
   ht->ht_compare = hash_cmp;
+#ifdef CONFIG_WITH_STRCACHE2
+  ht->ht_strcache = 0;
+  ht->ht_off_string = 0;
+#endif
 }
+
+#ifdef CONFIG_WITH_STRCACHE2
+/* Same as hash_init, except that no callbacks are needed since all
+   keys - including the ones being searched for - are from a string
+   cache.  This means that any give string will only have one pointer
+   value and that the hash and length can be retrived very cheaply,
+   thus permitting some nice optimizations.
+
+   STRCACHE points to the string cache, while OFF_STRING gives the
+   offset of the string pointer in the item structures the hash table
+   entries points to.  */
+void hash_init_strcached (struct hash_table *ht, unsigned long size,
+                          struct strcache2 *strcache, unsigned int off_string)
+{
+  hash_init (ht, size, 0, 0, 0);
+  ht->ht_strcache = strcache;
+  ht->ht_off_string = off_string;
+}
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 /* Load an array of items into `ht'.  */
 
@@ -70,11 +97,26 @@ hash_load (struct hash_table *ht, void *item_table,
            unsigned long cardinality, unsigned long size)
 {
   char *items = (char *) item_table;
+#ifndef CONFIG_WITH_STRCACHE2
   while (cardinality--)
     {
       hash_insert (ht, items);
       items += size;
     }
+#else  /* CONFIG_WITH_STRCACHE2 */
+  if (ht->ht_strcache)
+    while (cardinality--)
+      {
+        hash_insert_strcached (ht, items);
+        items += size;
+      }
+  else
+    while (cardinality--)
+      {
+        hash_insert (ht, items);
+        items += size;
+      }
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 /* Returns the address of the table slot matching `key'.  If `key' is
@@ -90,6 +132,10 @@ hash_find_slot (struct hash_table *ht, const void *key)
   unsigned int hash_2 = 0;
   unsigned int hash_1 = (*ht->ht_hash_1) (key);
 
+#ifdef CONFIG_WITH_STRCACHE2
+  assert (ht->ht_strcache == 0);
+#endif
+
   ht->ht_lookups++;
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_ht_lookups++;
@@ -123,23 +169,51 @@ hash_find_slot (struct hash_table *ht, const void *key)
     }
 }
 
-#ifdef CONFIG_WITH_VALUE_LENGTH
-/* A variant of hash_find_slot that takes the hash values as arguments.
-   The HASH_2 argument is optional, pass 0 if not available.
-   Not having to call ht_hash_1 and perhaps also not ht_hash_2 does save
-   a whole bunch of cycles in some of the kBuild use cases (strcache sees
-   serious usage there). */
+#ifdef CONFIG_WITH_STRCACHE2
+/* hash_find_slot version for tables created with hash_init_strcached.  */
 void **
-hash_find_slot_prehashed (struct hash_table *ht, const void *key,
-                          unsigned int hash_1, unsigned int hash_2)
+hash_find_slot_strcached (struct hash_table *ht, const void *key)
 {
   void **slot;
   void **deleted_slot = 0;
+  const char *str1 = *(const char **)((const char *)key + ht->ht_off_string);
+  const char *str2;
+  unsigned int hash_1 = strcache2_get_ptr_hash (ht->ht_strcache, str1);
+  unsigned int hash_2;
+
+#ifdef CONFIG_WITH_STRCACHE2
+  assert (ht->ht_strcache != 0);
+#endif
 
   ht->ht_lookups++;
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_ht_lookups++;
 #endif
+
+  /* first iteration unrolled. */
+
+  hash_1 &= (ht->ht_size - 1);
+  slot = &ht->ht_vec[hash_1];
+  if (*slot == 0)
+    return slot;
+  if (*slot != hash_deleted_item)
+    {
+      str2 = *(const char **)((const char *)(*slot) + ht->ht_off_string);
+      if (str1 == str2)
+        return slot;
+
+      ht->ht_collisions++;
+#ifdef CONFIG_WITH_MAKE_STATS
+      make_stats_ht_collisions++;
+#endif
+    }
+  else
+    deleted_slot = slot;
+
+  /* the rest of the loop. */
+
+  hash_2 = strcache2_get_hash1 (ht->ht_strcache, str1) | 1;
+  hash_1 += hash_2;
   for (;;)
     {
       hash_1 &= (ht->ht_size - 1);
@@ -154,22 +228,20 @@ hash_find_slot_prehashed (struct hash_table *ht, const void *key,
 	}
       else
 	{
-	  if (key == *slot)
+          str2 = *(const char **)((const char *)(*slot) + ht->ht_off_string);
+          if (str1 == str2)
 	    return slot;
-	  if ((*ht->ht_compare) (key, *slot) == 0)
-	    return slot;
+
 	  ht->ht_collisions++;
 #ifdef CONFIG_WITH_MAKE_STATS
 	  make_stats_ht_collisions++;
 #endif
 	}
-      if (!hash_2)
-	  hash_2 = (*ht->ht_hash_2) (key) | 1;
+
       hash_1 += hash_2;
     }
 }
-
-#endif /* CONFIG_WITH_VALUE_LENGTH */
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 void *
 hash_find_item (struct hash_table *ht, const void *key)
@@ -177,6 +249,15 @@ hash_find_item (struct hash_table *ht, const void *key)
   void **slot = hash_find_slot (ht, key);
   return ((HASH_VACANT (*slot)) ? 0 : *slot);
 }
+
+#ifdef CONFIG_WITH_STRCACHE2
+void *
+hash_find_item_strcached (struct hash_table *ht, const void *key)
+{
+  void **slot = hash_find_slot_strcached (ht, key);
+  return ((HASH_VACANT (*slot)) ? 0 : *slot);
+}
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 void *
 hash_insert (struct hash_table *ht, const void *item)
@@ -186,6 +267,17 @@ hash_insert (struct hash_table *ht, const void *item)
   hash_insert_at (ht, item, slot);
   return (void *)((HASH_VACANT (old_item)) ? 0 : old_item);
 }
+
+#ifdef CONFIG_WITH_STRCACHE2
+void *
+hash_insert_strcached (struct hash_table *ht, const void *item)
+{
+  void **slot = hash_find_slot_strcached (ht, item);
+  const void *old_item = slot ? *slot : 0;
+  hash_insert_at (ht, item, slot);
+  return (void *)((HASH_VACANT (old_item)) ? 0 : old_item);
+}
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 void *
 hash_insert_at (struct hash_table *ht, const void *item, const void *slot)
@@ -202,6 +294,10 @@ hash_insert_at (struct hash_table *ht, const void *item, const void *slot)
   if (ht->ht_empty_slots < ht->ht_size - ht->ht_capacity)
     {
       hash_rehash (ht);
+#ifdef CONFIG_WITH_STRCACHE2
+      if (ht->ht_strcache)
+        return (void *)hash_find_slot_strcached (ht, item);
+#endif /* CONFIG_WITH_STRCACHE2 */
       return (void *) hash_find_slot (ht, item);
     }
   else
@@ -214,6 +310,15 @@ hash_delete (struct hash_table *ht, const void *item)
   void **slot = hash_find_slot (ht, item);
   return hash_delete_at (ht, slot);
 }
+
+#ifdef CONFIG_WITH_STRCACHE2
+void *
+hash_delete_strcached (struct hash_table *ht, const void *item)
+{
+  void **slot = hash_find_slot_strcached (ht, item);
+  return hash_delete_at (ht, slot);
+}
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 void *
 hash_delete_at (struct hash_table *ht, const void *slot)
@@ -352,6 +457,7 @@ hash_rehash (struct hash_table *ht)
   ht->ht_rehashes++;
   ht->ht_vec = (void **) CALLOC (struct token *, ht->ht_size);
 
+#ifndef CONFIG_WITH_STRCACHE2
   for (ovp = old_vec; ovp < &old_vec[old_ht_size]; ovp++)
     {
       if (! HASH_VACANT (*ovp))
@@ -360,6 +466,26 @@ hash_rehash (struct hash_table *ht)
 	  *slot = *ovp;
 	}
     }
+#else  /* CONFIG_WITH_STRCACHE2 */
+  if (ht->ht_strcache)
+    for (ovp = old_vec; ovp < &old_vec[old_ht_size]; ovp++)
+      {
+        if (! HASH_VACANT (*ovp))
+          {
+            void **slot = hash_find_slot_strcached (ht, *ovp);
+            *slot = *ovp;
+          }
+      }
+  else
+    for (ovp = old_vec; ovp < &old_vec[old_ht_size]; ovp++)
+      {
+        if (! HASH_VACANT (*ovp))
+          {
+            void **slot = hash_find_slot (ht, *ovp);
+            *slot = *ovp;
+          }
+      }
+#endif /* CONFIG_WITH_STRCACHE2 */
   ht->ht_empty_slots = ht->ht_size - ht->ht_fill;
   free (old_vec);
 }

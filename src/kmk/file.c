@@ -40,25 +40,19 @@ int snapped_deps = 0;
 
 /* Hash table of files the makefile knows how to make.  */
 
+#ifndef CONFIG_WITH_STRCACHE2
 static unsigned long
 file_hash_1 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_1 (((struct file const *) key)->hname);
-#else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache2_get_ptr_hash (&file_strcache, ((struct file const *) key)->hname);
-#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 static unsigned long
 file_hash_2 (const void *key)
 {
-#ifndef CONFIG_WITH_STRCACHE2
   return_ISTRING_HASH_2 (((struct file const *) key)->hname);
-#else  /* CONFIG_WITH_STRCACHE2 */
-  return strcache2_get_ptr_hash (&file_strcache, ((struct file const *) key)->hname);
-#endif /* CONFIG_WITH_STRCACHE2 */
 }
+#endif /* !CONFIG_WITH_STRCACHE2 */
 
 static int
 file_hash_cmp (const void *x, const void *y)
@@ -147,14 +141,14 @@ lookup_file_common (const char *name, int cached)
     {
       file_key.hname = strcache2_lookup (&file_strcache, name, strlen (name));
       if (file_key.hname)
-        f = hash_find_item (&files, &file_key);
+        f = hash_find_item_strcached (&files, &file_key);
       else
         f = NULL;
     }
   else
     {
       file_key.hname = name;
-      f = hash_find_item (&files, &file_key);
+      f = hash_find_item_strcached (&files, &file_key);
     }
 
 #endif /* CONFIG_WITH_STRCACHE2 */
@@ -294,7 +288,11 @@ rehash_file (struct file *from_file, const char *to_hname)
     abort ();
 
   /* Remove the "from" file from the hash.  */
+#ifndef CONFIG_WITH_STRCACHE2
   deleted_file = hash_delete (&files, from_file);
+#else
+  deleted_file = hash_delete_strcached (&files, from_file);
+#endif
   if (deleted_file != from_file)
     /* from_file isn't the one stored in files */
     abort ();
@@ -1333,10 +1331,20 @@ build_target_list (char *value)
 void
 init_hash_files (void)
 {
-#ifdef KMK
+#ifndef CONFIG_WITH_STRCACHE2
+# ifdef KMK
   hash_init (&files, /*65535*/ 32755, file_hash_1, file_hash_2, file_hash_cmp);
-#else
+# else
   hash_init (&files, 1000, file_hash_1, file_hash_2, file_hash_cmp);
+# endif
+#else
+# ifdef KMK
+  hash_init_strcached (&files, 32755, &file_strcache,
+                       offsetof (struct file, hname));
+# else
+  hash_init_strcached (&files, 1000, &file_strcache,
+                       offsetof (struct file, hname));
+# endif
 #endif
 }
 

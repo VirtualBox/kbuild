@@ -53,6 +53,10 @@ struct hash_table
   hash_func_t ht_hash_1;	/* primary hash function */
   hash_func_t ht_hash_2;	/* secondary hash function */
   hash_cmp_func_t ht_compare;	/* comparison function */
+#ifdef CONFIG_WITH_STRCACHE2
+  struct strcache2 *ht_strcache; /* the string cache pointer. */
+  unsigned int ht_off_string;  /* offsetof (struct key, string) */
+#endif
 };
 
 typedef int (*qsort_cmp_t) __P((void const *, void const *));
@@ -62,10 +66,6 @@ void hash_init __P((struct hash_table *ht, unsigned long size,
 void hash_load __P((struct hash_table *ht, void *item_table,
 		    unsigned long cardinality, unsigned long size));
 void **hash_find_slot __P((struct hash_table *ht, void const *key));
-#ifdef CONFIG_WITH_VALUE_LENGTH
-void **hash_find_slot_prehashed __P((struct hash_table *ht, const void *key,
-                                     unsigned int hash_1, unsigned int hash_2));
-#endif
 void *hash_find_item __P((struct hash_table *ht, void const *key));
 void *hash_insert __P((struct hash_table *ht, const void *item));
 void *hash_insert_at __P((struct hash_table *ht, const void *item, void const *slot));
@@ -82,6 +82,15 @@ void hash_map __P((struct hash_table *ht, hash_map_func_t map));
 void hash_map_arg __P((struct hash_table *ht, hash_map_arg_func_t map, void *arg));
 void hash_print_stats __P((struct hash_table *ht, FILE *out_FILE));
 void **hash_dump __P((struct hash_table *ht, void **vector_0, qsort_cmp_t compare));
+
+#ifdef CONFIG_WITH_STRCACHE2
+void hash_init_strcached __P((struct hash_table *ht, unsigned long size,
+                              struct strcache2 *strcache, unsigned int off_strptr));
+void **hash_find_slot_strcached __P((struct hash_table *ht, const void *key));
+void *hash_find_item_strcached __P((struct hash_table *ht, void const *key));
+void *hash_insert_strcached __P((struct hash_table *ht, const void *item));
+void *hash_delete_strcached __P((struct hash_table *ht, void const *item));
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 extern void *hash_deleted_item;
 #define HASH_VACANT(item) ((item) == 0 || (void *) (item) == hash_deleted_item)
