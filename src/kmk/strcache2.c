@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1903 2008-10-21 04:25:19Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1904 2008-10-21 04:46:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -276,75 +276,76 @@ strcache2_case_insensitive_hash_2 (const char *str, unsigned int len)
 MY_INLINE int
 strcache2_memcmp_inline_short (const char *xs, const char *ys, unsigned int length)
 {
-  /* short string compare - ~50% of the kBuild calls. */
-  assert ( !((size_t)ys & 3) );
-  if (!((size_t)xs & 3))
+  if (length <= 8)
     {
-      /* aligned */
-      int result;
-      switch (length)
+      /* short string compare - ~50% of the kBuild calls. */
+      assert ( !((size_t)ys & 3) );
+      if (!((size_t)xs & 3))
         {
-          case 8:
-              result  = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 7:
-              result  = xs[6] - ys[6];
-              result |= xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 6:
-              result  = xs[5] - ys[5];
-              result |= xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 5:
-              result  = xs[4] - ys[4];
-              result |= *(int32_t*)xs - *(int32_t*)ys;
-              return result;
-          case 4:
-              return *(int32_t*)xs - *(int32_t*)ys;
-          case 3:
-              result  = xs[2] - ys[2];
-              result |= xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 2:
-              result  = xs[1] - ys[1];
-              result |= xs[0] - ys[0];
-              return result;
-          case 1:
-              return *xs - *ys;
-          case 0:
-              return 0;
+          /* aligned */
+          int result;
+          switch (length)
+            {
+              default: /* memcmp for longer strings */
+                  return memcmp (xs, ys, length);
+              case 8:
+                  result  = *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
+                  result |= *(int32_t*)xs - *(int32_t*)ys;
+                  return result;
+              case 7:
+                  result  = xs[6] - ys[6];
+                  result |= xs[5] - ys[5];
+                  result |= xs[4] - ys[4];
+                  result |= *(int32_t*)xs - *(int32_t*)ys;
+                  return result;
+              case 6:
+                  result  = xs[5] - ys[5];
+                  result |= xs[4] - ys[4];
+                  result |= *(int32_t*)xs - *(int32_t*)ys;
+                  return result;
+              case 5:
+                  result  = xs[4] - ys[4];
+                  result |= *(int32_t*)xs - *(int32_t*)ys;
+                  return result;
+              case 4:
+                  return *(int32_t*)xs - *(int32_t*)ys;
+              case 3:
+                  result  = xs[2] - ys[2];
+                  result |= xs[1] - ys[1];
+                  result |= xs[0] - ys[0];
+                  return result;
+              case 2:
+                  result  = xs[1] - ys[1];
+                  result |= xs[0] - ys[0];
+                  return result;
+              case 1:
+                  return *xs - *ys;
+              case 0:
+                  return 0;
+            }
         }
-    }
-  else
-    {
-      /* unaligned */
-      int result = 0;
-      switch (length)
+      else
         {
-          case 8: result |= xs[7] - ys[7];
-          case 7: result |= xs[6] - ys[6];
-          case 6: result |= xs[5] - ys[5];
-          case 5: result |= xs[4] - ys[4];
-          case 4: result |= xs[3] - ys[3];
-          case 3: result |= xs[2] - ys[2];
-          case 2: result |= xs[1] - ys[1];
-          case 1: result |= xs[0] - ys[0];
-          case 0:
-              return result;
+          /* unaligned */
+          int result = 0;
+          switch (length)
+            {
+              case 8: result |= xs[7] - ys[7];
+              case 7: result |= xs[6] - ys[6];
+              case 6: result |= xs[5] - ys[5];
+              case 5: result |= xs[4] - ys[4];
+              case 4: result |= xs[3] - ys[3];
+              case 3: result |= xs[2] - ys[2];
+              case 2: result |= xs[1] - ys[1];
+              case 1: result |= xs[0] - ys[0];
+              case 0:
+                  return result;
+            }
         }
     }
 
   /* memcmp for longer strings */
-# ifdef __GNUC__
-  return __builtin_memcmp (xs, ys, length);
-# else
   return memcmp (xs, ys, length);
-# endif
 }
 
 MY_INLINE int
@@ -465,12 +466,12 @@ strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry
       || entry->length != length)
       return 0;
 
-#if 1
+#if 0
   return memcmp (entry + 1, str, length) == 0;
-#elif 0
-  return strcache2_memcmp_inlined (entry + 1, str, length) == 0;
+#elif 1
+  return strcache2_memcmp_inlined ((const char *)(entry + 1), str, length) == 0;
 #else
-  return strcache2_memcmp_inline_short (entry + 1, str, length) == 0;
+  return strcache2_memcmp_inline_short ((const char *)(entry + 1), str, length) == 0;
 #endif
 }
 
