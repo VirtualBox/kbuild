@@ -145,10 +145,6 @@ extern int errno;
 unsigned int get_path_max (void);
 #endif
 
-#ifndef CHAR_BIT
-# define CHAR_BIT 8
-#endif
-
 #if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH)
 # ifdef _MSC_VER
 #  define MY_INLINE     _inline static
@@ -197,6 +193,10 @@ unsigned int get_path_max (void);
 #  define MY_IS_BLANK(ch)           isblank ((unsigned char)(ch))
 #  define MY_IS_BLANK_OR_EOS(ch)    (isblank ((unsigned char)(ch)) || (ch) == '\0')
 # endif
+#endif
+
+#ifndef CHAR_BIT
+# define CHAR_BIT 8
 #endif
 
 /* Nonzero if the integer type T is signed.  */
