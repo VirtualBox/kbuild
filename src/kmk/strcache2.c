@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1906 2008-10-21 05:38:50Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1908 2008-10-21 21:35:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -55,9 +55,15 @@
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
 /* The default size of a memory segment (1MB). */
-#define STRCACHE2_SEG_SIZE          (1024U*1024U)
+#define STRCACHE2_SEG_SIZE              (1024U*1024U)
 /* The default hash table shift (hash size give as a power of two). */
-#define STRCACHE2_HASH_SHIFT        16
+#define STRCACHE2_HASH_SHIFT            16
+/** Does the modding / masking of a hash number into an index. */
+#ifdef STRCACHE2_USE_MASK
+# define STRCACHE2_MOD_IT(cache, hash)  ((hash) & (cache)->hash_mask)
+#else
+# define STRCACHE2_MOD_IT(cache, hash)  ((hash) % (cache)->hash_div)
+#endif
 
 
 /*******************************************************************************
@@ -67,6 +73,38 @@
 static struct strcache2 *strcache_head;
 
 
+
+/** Finds the closest primary number for power of two value (or something else
+ *  useful if not support).   */
+MY_INLINE strcache2_find_prime(unsigned int shift)
+{
+  switch (shift)
+    {
+      case  5:  return 31;
+      case  6:  return 61;
+      case  7:  return 127;
+      case  8:  return 251;
+      case  9:  return 509;
+      case 10:  return 1021;
+      case 11:  return 2039;
+      case 12:  return 4093;
+      case 13:  return 8191;
+      case 14:  return 16381;
+      case 15:  return 32749;
+      case 16:  return 65521;
+      case 17:  return 131063;
+      case 18:  return 262139;
+      case 19:  return 524269;
+      case 20:  return 1048573;
+      case 21:  return 2097143;
+      case 22:  return 4194301;
+      case 23:  return 8388593;
+
+      default:
+          assert (0);
+          return (1 << shift) - 1;
+    }
+}
 
 static struct strcache2_seg *
 strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
@@ -104,6 +142,7 @@ strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
 MY_INLINE unsigned int
 strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
 {
+#if 1
   /* Note! This implementation is 18% faster than return_STRING_N_HASH_1
            when running the two 100 times over typical kBuild strings that
            end up here (did a fprintf here and built kBuild).
@@ -143,6 +182,53 @@ strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
   else
     hash = 0;
   return hash;
+#else
+# if 1
+  /* This is SDBM.  This specific form and loop unroll was benchmarked to
+     be 28% faster than return_STRING_N_HASH_1.  (Now the weird thing is
+     that putting the (ch) first in the assignment made it noticably slower.)
+
+     However, it is noticably slower in practice, most likely because of more
+     collisions. Hrmpf.
+     */
+#  define UPDATE_HASH(ch) hash = (hash << 6) + (hash << 16) - hash + (ch)
+  unsigned int hash = 0;
+# else
+ /* This is DJB2.  This specific form/unroll was benchmarked to be 27%
+    fast than return_STRING_N_HASH_1.
+
+    Ditto. 2x Hrmpf */
+#  define UPDATE_HASH(ch) hash = (hash << 5) + hash + (ch)
+  unsigned int hash = 5381;
+# endif
+  while (len >= 4)
+    {
+      UPDATE_HASH (str[0]);
+      UPDATE_HASH (str[1]);
+      UPDATE_HASH (str[2]);
+      UPDATE_HASH (str[3]);
+      str += 4;
+      len -= 4;
+    }
+  switch (len)
+    {
+      default:
+      case 0:
+        return hash;
+      case 1:
+        UPDATE_HASH (str[0]);
+        return hash;
+      case 2:
+        UPDATE_HASH (str[0]);
+        UPDATE_HASH (str[1]);
+        return hash;
+      case 3:
+        UPDATE_HASH (str[0]);
+        UPDATE_HASH (str[1]);
+        UPDATE_HASH (str[2]);
+        return hash;
+    }
+#endif
 }
 
 MY_INLINE unsigned int
@@ -505,25 +591,43 @@ strcache2_rehash (struct strcache2 *cache)
   unsigned int src = cache->hash_size;
   struct strcache2_entry **src_tab = cache->hash_tab;
   struct strcache2_entry **dst_tab;
+#ifdef STRCACHE2_USE_MASK
   unsigned int hash_mask;
+#else
+  unsigned int hash_div;
+#endif
 
   /* Allocate a new hash table twice the size of the current. */
   cache->hash_size <<= 1;
+#ifdef STRCACHE2_USE_MASK
   cache->hash_mask <<= 1;
   cache->hash_mask |= 1;
+#else
+  for (hash_div = 1; (1U << hash_div) < cache->hash_size; hash_div++)
+    /* nothing */;
+  cache->hash_div = strcache2_find_prime(hash_div);
+#endif
   cache->rehash_count <<= 1;
   cache->hash_tab = dst_tab = (struct strcache2_entry **)
     xmalloc (cache->hash_size * sizeof (struct strcache2_entry *));
   memset (dst_tab, '\0', cache->hash_size * sizeof (struct strcache2_entry *));
 
   /* Copy the entries from the old to the new hash table. */
+#ifdef STRCACHE2_USE_MASK
   hash_mask = cache->hash_mask;
+#else
+  hash_div = cache->hash_div;
+#endif
   while (src-- > 0)
     {
       struct strcache2_entry *entry = src_tab[src];
       if (entry)
         {
+#ifdef STRCACHE2_USE_MASK
           unsigned int dst = entry->hash1 & hash_mask;
+#else
+          unsigned int dst = entry->hash1 % hash_div;
+#endif
           if (dst_tab[dst])
             {
               unsigned int hash2 = entry->hash2;
@@ -532,11 +636,19 @@ strcache2_rehash (struct strcache2 *cache)
                   ? strcache2_case_insensitive_hash_2 ((const char *)(entry + 1), entry->length)
                   : strcache2_case_sensitive_hash_2 ((const char *)(entry + 1), entry->length);
               dst += hash2;
+#ifdef STRCACHE2_USE_MASK
               dst &= hash_mask;
+#else
+              dst %= hash_div;
+#endif
               while (dst_tab[dst])
                 {
                   dst += hash2;
+#ifdef STRCACHE2_USE_MASK
                   dst &= hash_mask;
+#else
+                  dst %= hash_div;
+#endif
                 }
             }
 
@@ -611,7 +723,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_equal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -623,7 +735,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 
       hash2 = strcache2_case_sensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_equal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -634,7 +746,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_equal (cache, entry, str, length, hash1))
@@ -673,7 +785,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_equal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -686,7 +798,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
           ? strcache2_case_insensitive_hash_2 (str, length)
           : strcache2_case_sensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_equal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -697,7 +809,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_equal (cache, entry, str, length, hash1))
@@ -726,7 +838,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_equal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -738,7 +850,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
       hash2 = strcache2_case_sensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_equal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -749,7 +861,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_equal (cache, entry, str, length, hash1))
@@ -779,7 +891,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_iequal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -791,7 +903,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 
       hash2 = strcache2_case_insensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_iequal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -802,7 +914,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_iequal (cache, entry, str, length, hash1))
@@ -841,7 +953,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int le
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_iequal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -852,7 +964,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int le
       if (!hash2)
         hash2 = strcache2_case_insensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_iequal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -863,7 +975,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int le
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_iequal (cache, entry, str, length, hash1))
@@ -892,7 +1004,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = hash1 & cache->hash_mask;
+  idx = STRCACHE2_MOD_IT(cache, hash1);
   entry = cache->hash_tab[idx];
   if (strcache2_is_iequal (cache, entry, str, length, hash1))
     return (const char *)(entry + 1);
@@ -904,7 +1016,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
       hash2 = strcache2_case_insensitive_hash_2 (str, length);
       idx += hash2;
-      idx &= cache->hash_mask;
+      idx = STRCACHE2_MOD_IT(cache, idx);
       entry = cache->hash_tab[idx];
       if (strcache2_is_iequal (cache, entry, str, length, hash1))
         return (const char *)(entry + 1);
@@ -915,7 +1027,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
           do
             {
               idx += hash2;
-              idx &= cache->hash_mask;
+              idx = STRCACHE2_MOD_IT(cache, idx);
               entry = cache->hash_tab[idx];
               cache->collision_3rd_count++;
               if (strcache2_is_iequal (cache, entry, str, length, hash1))
@@ -1063,7 +1175,11 @@ strcache2_init (struct strcache2 *cache, const char *name, unsigned int size,
 
   /* init the structure. */
   cache->case_insensitive = case_insensitive;
+#ifdef STRCACHE2_USE_MASK
   cache->hash_mask = (1U << hash_shift) - 1U;
+#else
+  cache->hash_div = strcache2_find_prime(hash_shift);
+#endif
   cache->count = 0;
   cache->lookup_count = 0;
   cache->collision_1st_count = 0;
@@ -1180,8 +1296,13 @@ strcache2_print_stats (struct strcache2 *cache, const char *prefix)
       rehashes++;
     }
 
+#ifdef STRCACHE2_USE_MASK
   printf (_("%s  hash size = %u  mask = %#x  rehashed %u times  lookups = %lu\n"),
           prefix, cache->hash_size, cache->hash_mask, rehashes, cache->lookup_count);
+#else
+  printf (_("%s  hash size = %u  div = %#x  rehashed %u times  lookups = %lu\n"),
+          prefix, cache->hash_size, cache->hash_div, rehashes, cache->lookup_count);
+#endif
   printf (_("%s  hash collisions 1st = %lu (%u%%)  2nd = %lu (%u%%)  3rd = %lu (%u%%)\n"),
           prefix,
           cache->collision_1st_count, (unsigned int)((float)cache->collision_1st_count * 100 / cache->lookup_count),
