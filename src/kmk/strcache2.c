@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1904 2008-10-21 04:46:23Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1905 2008-10-21 05:13:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -104,6 +104,11 @@ strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
 MY_INLINE unsigned int
 strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
 {
+  /* Note! This implementation is 18% faster than return_STRING_N_HASH_1
+           when running the two 100 times over typical kBuild strings that
+           end up here (did a fprintf here and built kBuild).
+           Compiler was 32-bit gcc 4.0.1, darwin, with -O2. */
+
   unsigned int hash = 0;
   if (MY_PREDICT_TRUE(len >= 2))
     {
