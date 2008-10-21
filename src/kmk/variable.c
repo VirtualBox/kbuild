@@ -116,7 +116,7 @@ variable_hash_1 (const void *keyv)
   return_STRING_N_HASH_1 (key->name, key->length);
 #else
   /* all requests are served from the cache. */
-  return strcache2_get_hash1 (&variable_strcache, key->name);
+  return strcache2_get_ptr_hash (&variable_strcache, key->name);
 #endif
 }
 
@@ -480,7 +480,7 @@ lookup_variable (const char *name, unsigned int length)
     {
 #ifdef KMK /* bird: speed */
       struct hash_table *ht = &setlist->set->table;
-      unsigned int hash_1 = strcache2_get_hash1 (&variable_strcache, name);
+      unsigned int hash_1 = strcache2_get_ptr_hash (&variable_strcache, name);
       struct variable *v;
 
       ht->ht_lookups++;

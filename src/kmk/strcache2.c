@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1888 2008-10-19 23:20:26Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1897 2008-10-21 01:21:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -525,7 +525,7 @@ strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
   /* Allocate space for the string. */
 
   size = length + 1 + sizeof (struct strcache2_entry);
-  size = (size + sizeof (void *) - 1) & ~(sizeof (void *) - 1U);
+  size = (size + STRCACHE2_ENTRY_ALIGNMENT - 1) & ~(STRCACHE2_ENTRY_ALIGNMENT - 1U);
 
   seg = cache->seg_head;
   if (MY_PREDICT_FALSE(seg->avail < size))

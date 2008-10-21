@@ -599,9 +599,7 @@ extern struct strcache2 file_strcache;
 # define strcache_iscached(str)     strcache2_is_cached(&file_strcache, str)
 # define strcache_add(str)          strcache2_add_file(&file_strcache, str, strlen (str))
 # define strcache_add_len(str, len) strcache2_add_file(&file_strcache, str, len)
-# define strcache_get_len(str)      strcache2_get_len(&file_strcache, str)
-# define strcache_get_hash1(str)    strcache2_get_hash1(&file_strcache, str)
-# define strcache_get_hash2(str)    strcache2_get_hash2(&file_strcache, str)
+# define strcache_get_len(str)      strcache2_get_len(&file_strcache, str) /* FIXME: replace this and related checks ... */
 
 #endif /* CONFIG_WITH_STRCACHE2 */
 
