@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1909 2008-10-22 18:49:48Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1910 2008-10-22 19:50:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -34,6 +34,14 @@
 #include <assert.h>
 
 #include "debug.h"
+
+#ifdef _MSC_VER
+typedef unsigned char  uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int   uint32_t;
+#else
+# include <stdint.h>
+#endif
 
 #ifdef WINDOWS32
 # include <io.h>
@@ -73,7 +81,6 @@
 static struct strcache2 *strcache_head;
 
 
-
 /** Finds the closest primary number for power of two value (or something else
  *  useful if not support).   */
 MY_INLINE unsigned int strcache2_find_prime(unsigned int shift)
@@ -106,43 +113,85 @@ MY_INLINE unsigned int strcache2_find_prime(unsigned int shift)
     }
 }
 
-static struct strcache2_seg *
-strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
-{
-  struct strcache2_seg *seg;
-  size_t size;
-  size_t off;
-
-  size = cache->def_seg_size;
-  if (size < (size_t)minlen + sizeof (struct strcache2_seg) + STRCACHE2_ENTRY_ALIGNMENT)
-    {
-      size = (size_t)minlen * 2;
-      size = (size + 0xfff) & ~(size_t)0xfff;
-    }
-
-  seg = xmalloc (size);
-  seg->start = (char *)(seg + 1);
-  seg->size  = size - sizeof (struct strcache2_seg);
-  off = (size_t)seg->start & (STRCACHE2_ENTRY_ALIGNMENT - 1);
-  if (off)
-    {
-      seg->start += off;
-      seg->size  -= off;
-    }
-  assert (seg->size > minlen);
-  seg->cursor = seg->start;
-  seg->avail  = seg->size;
-
-  seg->next = cache->seg_head;
-  cache->seg_head = seg;
-
-  return seg;
-}
-
 MY_INLINE unsigned int
 strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
 {
 #if 1
+  /* Paul Hsieh hash SuperFast function:
+     http://www.azillionmonkeys.com/qed/hash.html
+
+     This performs very good and as a sligtly better distribution than
+     STRING_N_HASH_1 on a typical kBuild run.
+
+     It is also 37% faster than return_STRING_N_HASH_1 when running the
+     two 100 times over typical kBuild strings that end up here (did a
+     fprintf here and built kBuild). Compiler was 32-bit gcc 4.0.1, darwin,
+     with -O2.
+
+     FIXME: A path for well aligned data should be added to speed up
+            execution on alignment sensitive systems.  */
+
+# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64) \
+ || defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)
+#  define strcache2_get_unaligned_16bits(ptr)   ( *((const uint16_t *)(ptr)))
+# else
+   /* (endian doesn't matter) */
+#  define strcache2_get_unaligned_16bits(ptr)   (   (((const uint8_t *)(ptr))[0] << 8) \
+                                                  | (((const uint8_t *)(ptr))[1]) )
+# endif
+  uint32_t hash = len;
+  uint32_t tmp;
+  int rem;
+
+  assert (sizeof (uint8_t) == sizeof (char));
+  if (len == 0)
+    return 0;
+
+  /* main loop, walking on 2 x uint16_t */
+  rem = len & 3;
+  len >>= 2;
+  while (len > 0)
+    {
+      hash += strcache2_get_unaligned_16bits (str);
+      tmp   = (strcache2_get_unaligned_16bits (str + 2) << 11) ^ hash;
+      hash  = (hash << 16) ^ tmp;
+      str  += 2 * sizeof (uint16_t);
+      hash += hash >> 11;
+      len--;
+    }
+
+  /* the remainer */
+  switch (rem)
+    {
+      case 3:
+        hash += strcache2_get_unaligned_16bits (str);
+        hash ^= hash << 16;
+        hash ^= str[sizeof (uint16_t)] << 18;
+        hash += hash >> 11;
+        break;
+      case 2:
+        hash += strcache2_get_unaligned_16bits (str);
+        hash ^= hash << 11;
+        hash += hash >> 17;
+        break;
+      case 1:
+        hash += *str;
+        hash ^= hash << 10;
+        hash += hash >> 1;
+        break;
+    }
+
+  /* force "avalanching" of final 127 bits. */
+  hash ^= hash << 3;
+  hash += hash >> 5;
+  hash ^= hash << 4;
+  hash += hash >> 17;
+  hash ^= hash << 25;
+  hash += hash >> 6;
+
+  return hash;
+
+#elif 1
   /* Note! This implementation is 18% faster than return_STRING_N_HASH_1
            when running the two 100 times over typical kBuild strings that
            end up here (did a fprintf here and built kBuild).
@@ -182,25 +231,30 @@ strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
   else
     hash = 0;
   return hash;
-#else
-# if 1
-  /* This is SDBM.  This specific form and loop unroll was benchmarked to
-     be 28% faster than return_STRING_N_HASH_1.  (Now the weird thing is
-     that putting the (ch) first in the assignment made it noticably slower.)
+
+#elif 1
+# if 0
+  /* This is SDBM.  This specific form/unroll was benchmarked to be 28% faster
+     than return_STRING_N_HASH_1.  (Now the weird thing is that putting the (ch)
+     first in the assignment made it noticably slower.)
 
      However, it is noticably slower in practice, most likely because of more
-     collisions. Hrmpf.
-     */
+     collisions.  Hrmpf.  */
+
 #  define UPDATE_HASH(ch) hash = (hash << 6) + (hash << 16) - hash + (ch)
   unsigned int hash = 0;
+
 # else
  /* This is DJB2.  This specific form/unroll was benchmarked to be 27%
     fast than return_STRING_N_HASH_1.
 
-    Ditto. 2x Hrmpf */
+    Ditto.  */
+
 #  define UPDATE_HASH(ch) hash = (hash << 5) + hash + (ch)
   unsigned int hash = 5381;
 # endif
+
+
   while (len >= 4)
     {
       UPDATE_HASH (str[0]);
@@ -365,12 +419,6 @@ strcache2_case_insensitive_hash_2 (const char *str, unsigned int len)
   return 1;
 #endif /* STRCACHE2_USE_CHAINING */
 }
-
-#ifdef _MSC_VER
-  typedef unsigned int int32_t;
-#else
-# include <stdint.h>
-#endif
 
 MY_INLINE int
 strcache2_memcmp_inline_short (const char *xs, const char *ys, unsigned int length)
@@ -560,8 +608,7 @@ strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry
   assert (!cache->case_insensitive);
 
   /* the simple stuff first. */
-  if (   entry == NULL
-      || entry->hash1 != hash1
+  if (   entry->hash1 != hash1
       || entry->length != length)
       return 0;
 
@@ -581,8 +628,7 @@ strcache2_is_iequal (struct strcache2 *cache, struct strcache2_entry const *entr
   assert (cache->case_insensitive);
 
   /* the simple stuff first. */
-  if (   entry == NULL
-      || entry->hash1 != hash1
+  if (   entry->hash1 != hash1
       || entry->length != length)
       return 0;
 
@@ -619,14 +665,28 @@ strcache2_rehash (struct strcache2 *cache)
   memset (dst_tab, '\0', cache->hash_size * sizeof (struct strcache2_entry *));
 
   /* Copy the entries from the old to the new hash table. */
+#ifdef STRCACHE2_USE_CHAINING
+  cache->collision_count = 0;
+  while (src-- > 0)
+    {
+      struct strcache2_entry *entry = src_tab[src];
+      while (entry)
+        {
+          struct strcache2_entry *next = entry->next;
+          unsigned int dst = STRCACHE2_MOD_IT (cache, entry->hash1);
+          if ((entry->next = dst_tab[dst]) != 0)
+            cache->collision_count++;
+          dst_tab[dst] = entry;
+
+          entry = next;
+        }
+    }
+#else  /* !STRCACHE2_USE_CHAINING */
   while (src-- > 0)
     {
       struct strcache2_entry *entry = src_tab[src];
       if (entry)
         {
-#ifdef STRCACHE2_USE_CHAINING
-assert(!"todo");
-#else
           unsigned int dst = STRCACHE2_MOD_IT (cache, entry->hash1);
           if (dst_tab[dst])
             {
@@ -643,14 +703,46 @@ assert(!"todo");
                   dst = STRCACHE2_MOD_IT (cache, dst);
                 }
             }
-
           dst_tab[dst] = entry;
-#endif
         }
     }
+#endif /* !STRCACHE2_USE_CHAINING */
 
   /* That's it, just free the old table and we're done. */
   free (src_tab);
+}
+
+static struct strcache2_seg *
+strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
+{
+  struct strcache2_seg *seg;
+  size_t size;
+  size_t off;
+
+  size = cache->def_seg_size;
+  if (size < (size_t)minlen + sizeof (struct strcache2_seg) + STRCACHE2_ENTRY_ALIGNMENT)
+    {
+      size = (size_t)minlen * 2;
+      size = (size + 0xfff) & ~(size_t)0xfff;
+    }
+
+  seg = xmalloc (size);
+  seg->start = (char *)(seg + 1);
+  seg->size  = size - sizeof (struct strcache2_seg);
+  off = (size_t)seg->start & (STRCACHE2_ENTRY_ALIGNMENT - 1);
+  if (off)
+    {
+      seg->start += off;
+      seg->size  -= off;
+    }
+  assert (seg->size > minlen);
+  seg->cursor = seg->start;
+  seg->avail  = seg->size;
+
+  seg->next = cache->seg_head;
+  cache->seg_head = seg;
+
+  return seg;
 }
 
 /* Internal worker that enters a new string into the cache. */
@@ -695,17 +787,11 @@ strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
   str_copy = (char *) memcpy (entry + 1, str, length);
   str_copy[length] = '\0';
 
-#ifndef STRCACHE2_USE_CHAINING
-  cache->hash_tab[idx] = entry;
-#else  /* STRCACHE2_USE_CHAINING */
-  if ((entry->next = cache->hash_tab[idx]) == 0)
-    cache->hash_tab[idx] = entry;
-  else
-    {
-      cache->hash_tab[idx] = entry;
-      cache->collision_count++;
-    }
+#ifdef STRCACHE2_USE_CHAINING
+  if ((entry->next = cache->hash_tab[idx]) != 0)
+    cache->collision_count++;
 #endif /* STRCACHE2_USE_CHAINING */
+  cache->hash_tab[idx] = entry;
   cache->count++;
   if (cache->count >= cache->rehash_count)
     strcache2_rehash (cache);
@@ -1383,7 +1469,7 @@ strcache2_print_stats (struct strcache2 *cache, const char *prefix)
           prefix, cache->collision_count,(unsigned int)((100.0 * cache->collision_count) / cache->count));
   printf (_("%s  %5u (%u%%) empty hash table slots\n"),
           prefix, chain_depths[0],       (unsigned int)((100.0 * chain_depths[0])  / cache->hash_size));
-  printf (_("%s  %5u (%u%%) in used hash table slots\n"),
+  printf (_("%s  %5u (%u%%) occupied hash table slots\n"),
           prefix, chain_depths[1],       (unsigned int)((100.0 * chain_depths[1])  / cache->hash_size));
   for (idx = 2; idx < 32; idx++)
     {
