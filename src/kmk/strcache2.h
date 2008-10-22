@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1913 2008-10-22 21:24:04Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1914 2008-10-22 21:25:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -146,7 +146,7 @@ strcache2_get_hash (struct strcache2 *cache, const char *str)
   return strcache2_get_entry (cache, str)->hash;
 }
 
-/* Get the pointer hash value for the string.
+/* Calc the pointer hash value for the string.
 
    This takes the string address, shift out the bits that are always zero
    due to alignment, and then returns the unsigned integer value of it.
@@ -155,7 +155,7 @@ strcache2_get_hash (struct strcache2 *cache, const char *str)
    other hash values.  It is also sligtly faster code as it does not
    involve any memory accesses, just a right SHIFT and an optional AND. */
 MY_INLINE unsigned int
-strcache2_get_ptr_hash (struct strcache2 *cache, const char *str)
+strcache2_calc_ptr_hash (struct strcache2 *cache, const char *str)
 {
   (void)cache;
   return (size_t)str >> STRCACHE2_ENTRY_ALIGN_SHIFT;

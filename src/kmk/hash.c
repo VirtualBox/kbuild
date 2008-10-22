@@ -178,7 +178,7 @@ hash_find_slot_strcached (struct hash_table *ht, const void *key)
   void **deleted_slot = 0;
   const char *str1 = *(const char **)((const char *)key + ht->ht_off_string);
   const char *str2;
-  unsigned int hash_1 = strcache2_get_ptr_hash (ht->ht_strcache, str1);
+  unsigned int hash_1 = strcache2_calc_ptr_hash (ht->ht_strcache, str1);
   unsigned int hash_2;
 
 #ifdef CONFIG_WITH_STRCACHE2
