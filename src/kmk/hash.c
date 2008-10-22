@@ -212,7 +212,7 @@ hash_find_slot_strcached (struct hash_table *ht, const void *key)
 
   /* the rest of the loop. */
 
-  hash_2 = strcache2_get_hash1 (ht->ht_strcache, str1) | 1;
+  hash_2 = strcache2_get_hash (ht->ht_strcache, str1) | 1;
   hash_1 += hash_2;
   for (;;)
     {

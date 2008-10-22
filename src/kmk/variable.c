@@ -470,7 +470,7 @@ lookup_cached_variable (const char *name)
         return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
 
       /* the rest of the loop  */
-      hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
+      hash_2 = strcache2_get_hash (&variable_strcache, name) | 1;
       for (;;)
         {
           idx += hash_2;
@@ -486,7 +486,7 @@ lookup_cached_variable (const char *name)
         } /* inner collision loop */
     }
   else
-    hash_2 = strcache2_get_hash1 (&variable_strcache, name) | 1;
+    hash_2 = strcache2_get_hash (&variable_strcache, name) | 1;
 
 
   /* The other sets, if any. */

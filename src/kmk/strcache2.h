@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1912 2008-10-22 21:17:27Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1913 2008-10-22 21:24:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -48,7 +48,7 @@ struct strcache2_entry
 {
     struct strcache2_entry *next;       /* Collision chain. */
     void *user;
-    unsigned int hash1;
+    unsigned int hash;
     unsigned int length;
 };
 
@@ -101,10 +101,10 @@ void strcache2_print_stats (struct strcache2 *cache, const char *prefix);
 void strcache2_print_stats_all (const char *prefix);
 const char *strcache2_add (struct strcache2 *cache, const char *str, unsigned int length);
 const char *strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length);
-const char *strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
-                                  unsigned int hash1, unsigned int hash2);
-const char *strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int length,
-                                   unsigned int hash1, unsigned int hash2);
+const char *strcache2_add_hashed (struct strcache2 *cache, const char *str,
+                                  unsigned int length, unsigned int hash);
+const char *strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
+                                   unsigned int length, unsigned int hash);
 const char *strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length);
 const char *strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length);
 #ifdef HAVE_CASE_INSENSITIVE_FS
@@ -141,9 +141,9 @@ strcache2_get_len (struct strcache2 *cache, const char *str)
 
 /* Get the first hash value for the string. */
 MY_INLINE unsigned int
-strcache2_get_hash1 (struct strcache2 *cache, const char *str)
+strcache2_get_hash (struct strcache2 *cache, const char *str)
 {
-  return strcache2_get_entry (cache, str)->hash1;
+  return strcache2_get_entry (cache, str)->hash;
 }
 
 /* Get the pointer hash value for the string.

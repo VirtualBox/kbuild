@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1912 2008-10-22 21:17:27Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1913 2008-10-22 21:24:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -511,12 +511,12 @@ strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
 
 MY_INLINE int
 strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry,
-                    const char *str, unsigned int length, unsigned int hash1)
+                    const char *str, unsigned int length, unsigned int hash)
 {
   assert (!cache->case_insensitive);
 
   /* the simple stuff first. */
-  if (   entry->hash1 != hash1
+  if (   entry->hash != hash
       || entry->length != length)
       return 0;
 
@@ -531,12 +531,12 @@ strcache2_is_equal (struct strcache2 *cache, struct strcache2_entry const *entry
 
 MY_INLINE int
 strcache2_is_iequal (struct strcache2 *cache, struct strcache2_entry const *entry,
-                     const char *str, unsigned int length, unsigned int hash1)
+                     const char *str, unsigned int length, unsigned int hash)
 {
   assert (cache->case_insensitive);
 
   /* the simple stuff first. */
-  if (   entry->hash1 != hash1
+  if (   entry->hash != hash
       || entry->length != length)
       return 0;
 
@@ -580,7 +580,7 @@ strcache2_rehash (struct strcache2 *cache)
       while (entry)
         {
           struct strcache2_entry *next = entry->next;
-          unsigned int dst = STRCACHE2_MOD_IT (cache, entry->hash1);
+          unsigned int dst = STRCACHE2_MOD_IT (cache, entry->hash);
           if ((entry->next = dst_tab[dst]) != 0)
             cache->collision_count++;
           dst_tab[dst] = entry;
@@ -630,7 +630,7 @@ strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
 static const char *
 strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
                         const char *str, unsigned int length,
-                        unsigned int hash1, unsigned hash2)
+                        unsigned int hash)
 {
   struct strcache2_entry *entry;
   struct strcache2_seg *seg;
@@ -661,7 +661,7 @@ strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
 
   entry->user = NULL;
   entry->length = length;
-  entry->hash1 = hash1;
+  entry->hash = hash;
   str_copy = (char *) memcpy (entry + 1, str, length);
   str_copy[length] = '\0';
 
@@ -680,8 +680,7 @@ const char *
 strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash1 = strcache2_case_sensitive_hash_1 (str, length);
-  unsigned int hash2 = 0;
+  unsigned int hash = strcache2_case_sensitive_hash_1 (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -690,28 +689,28 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest.  */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
-        return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return strcache2_enter_string (cache, idx, str, length, hash);
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -721,8 +720,8 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 /* The public add string interface for prehashed strings.
    Use strcache2_hash_str to calculate the hash of a string. */
 const char *
-strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int length,
-                      unsigned int hash1, unsigned int hash2)
+strcache2_add_hashed (struct strcache2 *cache, const char *str,
+                      unsigned int length, unsigned int hash)
 {
   struct strcache2_entry const *entry;
   unsigned int idx;
@@ -731,40 +730,35 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str, unsigned int len
 
   assert (!cache->case_insensitive);
   correct_hash = strcache2_case_sensitive_hash_1 (str, length);
-  MY_ASSERT_MSG (hash1 == correct_hash, ("%#x != %#x\n", hash1, correct_hash));
-  if (hash2)
-    {
-      correct_hash = strcache2_case_sensitive_hash_2 (str, length);
-      MY_ASSERT_MSG (hash2 == correct_hash, ("%#x != %#x\n", hash2, correct_hash));
-    }
+  MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
   cache->lookup_count++;
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest.  */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
-        return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return strcache2_enter_string (cache, idx, str, length, hash);
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -776,7 +770,7 @@ const char *
 strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash1 = strcache2_case_sensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_sensitive_hash_1 (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -785,28 +779,28 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
     return NULL;
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
     return NULL;
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest. */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
         return NULL;
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -820,8 +814,7 @@ const char *
 strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash1 = strcache2_case_insensitive_hash_1 (str, length);
-  unsigned int hash2 = 0;
+  unsigned int hash = strcache2_case_insensitive_hash_1 (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -830,28 +823,28 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest. */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
-        return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return strcache2_enter_string (cache, idx, str, length, hash);
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -861,8 +854,8 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 /* The public add string interface for prehashed case insensitive strings.
    Use strcache2_hash_istr to calculate the hash of a string. */
 const char *
-strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int length,
-                       unsigned int hash1, unsigned int hash2)
+strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
+                       unsigned int length, unsigned int hash)
 {
   struct strcache2_entry const *entry;
   unsigned int idx;
@@ -871,40 +864,35 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str, unsigned int le
 
   assert (!cache->case_insensitive);
   correct_hash = strcache2_case_insensitive_hash_1 (str, length);
-  MY_ASSERT_MSG (hash1 == correct_hash, ("%#x != %#x\n", hash1, correct_hash));
-  if (hash2)
-    {
-      correct_hash = strcache2_case_insensitive_hash_2 (str, length);
-      MY_ASSERT_MSG (hash2 == correct_hash, ("%#x != %#x\n", hash2, correct_hash));
-    }
+  MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
   cache->lookup_count++;
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
-    return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+    return strcache2_enter_string (cache, idx, str, length, hash);
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest. */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
-        return strcache2_enter_string (cache, idx, str, length, hash1, hash2);
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+        return strcache2_enter_string (cache, idx, str, length, hash);
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -916,7 +904,7 @@ const char *
 strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash1 = strcache2_case_insensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_insensitive_hash_1 (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -925,28 +913,28 @@ strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
-  idx = STRCACHE2_MOD_IT (cache, hash1);
+  idx = STRCACHE2_MOD_IT (cache, hash);
   entry = cache->hash_tab[idx];
   if (!entry)
     return NULL;
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_1st_count++;
 
   entry = entry->next;
   if (!entry)
     return NULL;
-  if (strcache2_is_equal (cache, entry, str, length, hash1))
+  if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
   cache->collision_2nd_count++;
 
-  /* (We've established hash2, so we can do a straight loop now.)  */
+  /* Loop the rest. */
   for (;;)
     {
       entry = entry->next;
       if (!entry)
         return NULL;
-      if (strcache2_is_equal (cache, entry, str, length, hash1))
+      if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
       cache->collision_3rd_count++;
     }
@@ -1003,11 +991,11 @@ strcache2_verify_entry (struct strcache2 *cache, const char *str)
   hash = cache->case_insensitive
     ? strcache2_case_insensitive_hash_1 (str, entry->length)
     : strcache2_case_sensitive_hash_1 (str, entry->length);
-  if (hash != entry->hash1)
+  if (hash != entry->hash)
     {
       fprintf (stderr,
                "strcache2[%s]: corrupt entry %p, hash#1: %x, expected %x;\nstring: %s\n",
-               cache->name, (void *)entry, hash, entry->hash1, str);
+               cache->name, (void *)entry, hash, entry->hash, str);
       return -1;
     }
 
