@@ -1,4 +1,4 @@
-/* $Id: strcache2.h 1909 2008-10-22 18:49:48Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.h 1912 2008-10-22 21:17:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache - New string cache.
  */
@@ -32,7 +32,6 @@
 #endif
 
 #define STRCACHE2_USE_MASK 1
-#define STRCACHE2_USE_CHAINING 1
 
 /* string cache memory segment. */
 struct strcache2_seg
@@ -47,14 +46,9 @@ struct strcache2_seg
 /* string cache hash table entry. */
 struct strcache2_entry
 {
-#ifdef STRCACHE2_USE_CHAINING
     struct strcache2_entry *next;       /* Collision chain. */
-#endif
     void *user;
     unsigned int hash1;
-#ifndef STRCACHE2_USE_CHAINING
-    unsigned int hash2;
-#endif
     unsigned int length;
 };
 
@@ -88,9 +82,7 @@ struct strcache2
     unsigned long collision_2nd_count;  /* The number of 2nd level collisions. */
     unsigned long collision_3rd_count;  /* The number of 3rd level collisions. */
     unsigned int count;                 /* Number entries in the cache. */
-#ifdef STRCACHE2_USE_CHAINING
     unsigned int collision_count;       /* Number of entries in chains. */
-#endif
     unsigned int rehash_count;          /* When to rehash the table. */
     unsigned int init_size;             /* The initial hash table size. */
     unsigned int hash_size;             /* The hash table size. */
@@ -153,18 +145,6 @@ strcache2_get_hash1 (struct strcache2 *cache, const char *str)
 {
   return strcache2_get_entry (cache, str)->hash1;
 }
-
-#ifndef STRCACHE2_USE_CHAINING
-/* Get the second hash value for the string. */
-MY_INLINE unsigned int
-strcache2_get_hash2 (struct strcache2 *cache, const char *str)
-{
-  unsigned int hash2 = strcache2_get_entry (cache, str)->hash2;
-  if (!hash2)
-    hash2 = strcache2_get_hash2_fallback (cache, str);
-  return hash2;
-}
-#endif
 
 /* Get the pointer hash value for the string.
 
