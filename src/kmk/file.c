@@ -27,6 +27,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "variable.h"
 #include "debug.h"
 #include "hash.h"
+#ifdef CONFIG_WITH_STRCACHE2
+# include <stddef.h>
+#endif
 
 
 /* Remember whether snap_deps has been invoked: we need this to be sure we

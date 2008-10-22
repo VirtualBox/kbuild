@@ -658,7 +658,7 @@ extern int second_target_expansion;
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
 extern int pretty_command_printing;
 #endif
-#ifdef CONFIG_WITH_MAKE_STATS
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
 extern int make_expensive_statistics;
 #endif
 
@@ -878,6 +878,13 @@ extern unsigned long make_stats_ht_collisions;
 extern void xfree (void *);
 # endif
 
+# define MAKE_STATS_3(expr) do { expr; } while (0)
+# define MAKE_STATS_2(expr) do { expr; } while (0)
+# define MAKE_STATS(expr)   do { expr; } while (0)
+#else
+# define MAKE_STATS_3(expr) do { } while (0)
+# define MAKE_STATS_2(expr) do { } while (0)
+# define MAKE_STATS(expr)   do { } while (0)
 #endif
 
 #ifdef CONFIG_WITH_IF_CONDITIONALS

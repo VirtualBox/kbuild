@@ -327,7 +327,7 @@ int process_priority = 0;
 int process_affinity = 0;
 #endif /* KMK */
 
-#ifdef CONFIG_WITH_MAKE_STATS
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
 /* When set, we'll gather expensive statistics like for the heap. */
 
 int make_expensive_statistics = 0;
@@ -486,7 +486,7 @@ static const struct command_switch switches[] =
     { 's', flag, &silent_flag, 1, 1, 0, 0, 0, "silent" },
     { 'S', flag_off, &keep_going_flag, 1, 1, 0, 0, &default_keep_going_flag,
       "no-keep-going" },
-#ifdef KMK
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
     { CHAR_MAX+14, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
        "statistics" },
 #endif
@@ -824,7 +824,8 @@ set_make_priority_and_affinity (void)
     }
   errno = 0;
   if (nice (nice_level) == -1 && errno != 0)
-    fprintf (stderr, "warning: nice (%d) failed: %s\n", nice, strerror (errno));
+    fprintf (stderr, "warning: nice (%d) failed: %s\n",
+             nice_level, strerror (errno));
 #endif
 }
 #endif
@@ -1835,10 +1836,10 @@ main (int argc, char **argv, char **envp)
   if (makefiles == 0)
     {
       struct stat st;
-      if ((   stat ("Makefile.kup", &st) == 0
-           && S_ISREG (st.st_mode) )
-       || (   stat ("makefile.kup", &st) == 0
-           && S_ISREG (st.st_mode) )
+      if ((   (   stat ("Makefile.kup", &st) == 0
+               && S_ISREG (st.st_mode) )
+           || (   stat ("makefile.kup", &st) == 0
+               && S_ISREG (st.st_mode) ) )
        && stat ("Makefile.kmk", &st) < 0
        && stat ("makefile.kmk", &st) < 0)
         {
@@ -3524,8 +3525,10 @@ define_makeflags (int all, int makefile)
     sprintf (val, "%u", process_affinity);
     define_variable ("KMK_OPTS_AFFINITY", sizeof("KMK_OPTS_AFFINITY") - 1,
                      val, o_default, 1);
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
     define_variable ("KMK_OPTS_STATISTICS", sizeof("KMK_OPTS_STATISTICS") - 1,
                      make_expensive_statistics ? "1" : "0", o_default, 1);
+# endif
   }
 #endif
 }
@@ -3596,7 +3599,7 @@ print_version (void)
 # endif /* !KBUILD_PATH */
   if (!remote_description || *remote_description == '\0')
     printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
-            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
+            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
   else
     printf (_("\n%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
             precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);

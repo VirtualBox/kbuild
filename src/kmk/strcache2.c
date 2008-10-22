@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1913 2008-10-22 21:24:04Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1915 2008-10-22 21:59:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -685,7 +685,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 
   assert (!cache->case_insensitive);
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
@@ -695,14 +695,14 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest.  */
   for (;;)
@@ -712,7 +712,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
         return strcache2_enter_string (cache, idx, str, length, hash);
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
@@ -733,7 +733,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str,
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
@@ -743,14 +743,14 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str,
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest.  */
   for (;;)
@@ -760,7 +760,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str,
         return strcache2_enter_string (cache, idx, str, length, hash);
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
@@ -775,7 +775,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 
   assert (!cache->case_insensitive);
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
@@ -785,14 +785,14 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
     return NULL;
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return NULL;
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest. */
   for (;;)
@@ -802,7 +802,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
         return NULL;
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
@@ -819,7 +819,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 
   assert (!cache->case_insensitive);
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
@@ -829,14 +829,14 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest. */
   for (;;)
@@ -846,7 +846,7 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
         return strcache2_enter_string (cache, idx, str, length, hash);
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
@@ -867,7 +867,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match.  If not found, enter the string at IDX. */
@@ -877,14 +877,14 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return strcache2_enter_string (cache, idx, str, length, hash);
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest. */
   for (;;)
@@ -894,7 +894,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
         return strcache2_enter_string (cache, idx, str, length, hash);
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
@@ -909,7 +909,7 @@ strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length
 
   assert (!cache->case_insensitive);
 
-  cache->lookup_count++;
+  MAKE_STATS (cache->lookup_count++);
 
   /* Lookup the entry in the hash table, hoping for an
      early match. */
@@ -919,14 +919,14 @@ strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length
     return NULL;
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_1st_count++;
+  MAKE_STATS (cache->collision_1st_count++);
 
   entry = entry->next;
   if (!entry)
     return NULL;
   if (strcache2_is_equal (cache, entry, str, length, hash))
     return (const char *)(entry + 1);
-  cache->collision_2nd_count++;
+  MAKE_STATS (cache->collision_2nd_count++);
 
   /* Loop the rest. */
   for (;;)
@@ -936,7 +936,7 @@ strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length
         return NULL;
       if (strcache2_is_equal (cache, entry, str, length, hash))
         return (const char *)(entry + 1);
-      cache->collision_3rd_count++;
+      MAKE_STATS (cache->collision_3rd_count++);
     }
   /* not reached */
 }
