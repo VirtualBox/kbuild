@@ -459,7 +459,7 @@ lookup_cached_variable (const char *name)
       return 0;
     }
 
-  hash_1 = strcache2_get_ptr_hash (&variable_strcache, name);
+  hash_1 = strcache2_calc_ptr_hash (&variable_strcache, name);
   ht = &setlist->set->table;
   idx = hash_1 & (ht->ht_size - 1);
   v = ht->ht_vec[idx];
