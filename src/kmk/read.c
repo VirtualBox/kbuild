@@ -1960,7 +1960,7 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
 #ifndef CONFIG_WITH_VALUE_LENGTH
       var = allocated_variable_expand (line);
 #else
-      var = allocated_variable_expand_2 (line, eol - line, NULL);
+      var = variable_expand_string_2 (NULL, line, eol - line, &p);
 #endif
 
       /* Make sure there's only one variable name to test.  */
@@ -1976,7 +1976,9 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
       conditionals->ignoring[o] =
         ((v != 0 && *v->value != '\0') == (cmdtype == c_ifndef));
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
       free (var);
+#endif
     }
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   else if (cmdtype == c_ifcond)
