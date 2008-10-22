@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 1903 2008-10-21 04:25:19Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 1909 2008-10-22 18:49:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -772,7 +772,11 @@ incdep_flush_strcache_entry (struct strcache2_entry *entry)
                                                      (const char *)(entry + 1),
                                                      entry->length,
                                                      entry->hash1,
+#ifdef STRCACHE2_USE_CHAINING
+                                                     1);
+#else
                                                      entry->hash2);
+#endif
   return (const char *)entry->user;
 }
 
