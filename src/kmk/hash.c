@@ -136,10 +136,8 @@ hash_find_slot (struct hash_table *ht, const void *key)
   assert (ht->ht_strcache == 0);
 #endif
 
-  ht->ht_lookups++;
-#ifdef CONFIG_WITH_MAKE_STATS
-  make_stats_ht_lookups++;
-#endif
+  MAKE_STATS (ht->ht_lookups++);
+  MAKE_STATS_3 (make_stats_ht_lookups++);
   for (;;)
     {
       hash_1 &= (ht->ht_size - 1);
@@ -158,10 +156,8 @@ hash_find_slot (struct hash_table *ht, const void *key)
 	    return slot;
 	  if ((*ht->ht_compare) (key, *slot) == 0)
 	    return slot;
-	  ht->ht_collisions++;
-#ifdef CONFIG_WITH_MAKE_STATS
-	  make_stats_ht_collisions++;
-#endif
+	  MAKE_STATS (ht->ht_collisions++);
+	  MAKE_STATS_3 (make_stats_ht_collisions++);
 	}
       if (!hash_2)
 	  hash_2 = (*ht->ht_hash_2) (key) | 1;
@@ -185,10 +181,8 @@ hash_find_slot_strcached (struct hash_table *ht, const void *key)
   assert (ht->ht_strcache != 0);
 #endif
 
-  ht->ht_lookups++;
-#ifdef CONFIG_WITH_MAKE_STATS
-  make_stats_ht_lookups++;
-#endif
+  MAKE_STATS (ht->ht_lookups++);
+  MAKE_STATS_3 (make_stats_ht_lookups++);
 
   /* first iteration unrolled. */
 
@@ -202,10 +196,8 @@ hash_find_slot_strcached (struct hash_table *ht, const void *key)
       if (str1 == str2)
         return slot;
 
-      ht->ht_collisions++;
-#ifdef CONFIG_WITH_MAKE_STATS
-      make_stats_ht_collisions++;
-#endif
+      MAKE_STATS (ht->ht_collisions++);
+      MAKE_STATS_3 (make_stats_ht_collisions++);
     }
   else
     deleted_slot = slot;
@@ -232,10 +224,8 @@ hash_find_slot_strcached (struct hash_table *ht, const void *key)
           if (str1 == str2)
 	    return slot;
 
-	  ht->ht_collisions++;
-#ifdef CONFIG_WITH_MAKE_STATS
-	  make_stats_ht_collisions++;
-#endif
+	  MAKE_STATS (ht->ht_collisions++);
+	  MAKE_STATS_3 (make_stats_ht_collisions++);
 	}
 
       hash_1 += hash_2;

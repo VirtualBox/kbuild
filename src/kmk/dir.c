@@ -47,6 +47,10 @@ char *vmsify (char *name, int type);
 #endif
 /* bird: end */
 
+#ifdef CONFIG_WITH_STRCACHE2
+# include <stddef.h>
+#endif
+
 /* In GNU systems, <dirent.h> defines this macro for us.  */
 #ifdef _D_NAMLEN
 # undef NAMLEN

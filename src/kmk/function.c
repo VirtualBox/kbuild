@@ -3714,7 +3714,7 @@ func_os2_libpath (char *o, char **argv, const char *funcname UNUSED)
 }
 #endif  /* CONFIG_WITH_OS2_LIBPATH */
 
-#ifdef CONFIG_WITH_MAKE_STATS
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
 /* Retrieve make statistics. */
 static char *
 func_make_stats (char *o, char **argv, const char *funcname UNUSED)
@@ -3724,6 +3724,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 
   if (!argv[0] || (!argv[0][0] && !argv[1]))
     {
+# ifdef CONFIG_WITH_MAKE_STATS
       len = sprintf (buf, "alloc-cur: %5ld %6luKB (/%3luMB)  hash: %5lu %2lu%%",
                      make_stats_allocations,
                      make_stats_allocated / 1024,
@@ -3731,6 +3732,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
                      make_stats_ht_lookups,
                      (make_stats_ht_collisions * 100) / make_stats_ht_lookups);
       o = variable_buffer_output (o, buf, len);
+#endif
     }
   else
     {
@@ -3741,7 +3743,10 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
           unsigned long val;
           if (i != 0)
             o = variable_buffer_output (o, " ", 1);
-          if (!strcmp(argv[i], "allocations"))
+          if (0)
+              continue;
+# ifdef CONFIG_WITH_MAKE_STATS
+          else if (!strcmp(argv[i], "allocations"))
             val = make_stats_allocations;
           else if (!strcmp(argv[i], "allocated"))
             val = make_stats_allocated;
@@ -3753,6 +3758,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
             val = make_stats_ht_collisions;
           else if (!strcmp(argv[i], "ht_collisions_pct"))
             val = (make_stats_ht_collisions * 100) / make_stats_ht_lookups;
+#endif
           else
             {
               o = variable_buffer_output (o, argv[i], strlen (argv[i]));
@@ -3763,6 +3769,7 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
           o = variable_buffer_output (o, buf, len);
         }
     }
+
   return o;
 }
 #endif  /* CONFIG_WITH_MAKE_STATS */

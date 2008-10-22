@@ -33,6 +33,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef KMK
 # include "kbuild.h"
 #endif
+#ifdef CONFIG_WITH_STRCACHE2
+# include <stddef.h>
+#endif
 
 /* Chain of all pattern-specific variables.  */
 
@@ -226,7 +229,10 @@ define_variable_in_set (const char *name, unsigned int length,
       v = *var_slot;
     }
   else
-    assert (!v || (v->name == name && !HASH_VACANT (v)));
+    {
+      assert (!v || (v->name == name && !HASH_VACANT (v)));
+      var_slot = 0;
+    }
 #endif /* CONFIG_WITH_STRCACHE2 */
   if (! HASH_VACANT (v))
     {
@@ -461,6 +467,7 @@ lookup_cached_variable (const char *name)
 
   hash_1 = strcache2_calc_ptr_hash (&variable_strcache, name);
   ht = &setlist->set->table;
+  MAKE_STATS (ht->ht_lookups++);
   idx = hash_1 & (ht->ht_size - 1);
   v = ht->ht_vec[idx];
   if (v != 0)
@@ -476,7 +483,7 @@ lookup_cached_variable (const char *name)
           idx += hash_2;
           idx &= (ht->ht_size - 1);
           v = (struct variable *) ht->ht_vec[idx];
-          ht->ht_collisions++; /* there are hardly any deletions, so don't bother with not counting deleted clashes. */
+          MAKE_STATS (ht->ht_collisions++); /* there are hardly any deletions, so don't bother with not counting deleted clashes. */
 
           if (v == 0)
             break;
@@ -505,6 +512,7 @@ lookup_cached_variable (const char *name)
 
       /* first iteration unrolled */
       ht = &setlist->set->table;
+      MAKE_STATS (ht->ht_lookups++);
       idx = hash_1 & (ht->ht_size - 1);
       v = ht->ht_vec[idx];
       if (v != 0)
@@ -519,7 +527,7 @@ lookup_cached_variable (const char *name)
               idx += hash_2;
               idx &= (ht->ht_size - 1);
               v = (struct variable *) ht->ht_vec[idx];
-              ht->ht_collisions++; /* see reason above */
+              MAKE_STATS (ht->ht_collisions++); /* see reason above */
 
               if (v == 0)
                 break;
@@ -1148,7 +1156,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_FILE_SIZE) \
   && defined (CONFIG_WITH_WHICH) \
   && defined (CONFIG_WITH_EVALPLUS) \
-  && defined (CONFIG_WITH_MAKE_STATS) \
+  && (defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)) \
   && defined (CONFIG_WITH_COMMANDS_FUNC) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
@@ -1224,7 +1232,7 @@ define_automatic_variables (void)
 #  if defined (CONFIG_WITH_EVALPLUS)
   strcat (buf, " evalctx evalval evalvalctx evalcall evalcall2");
 #  endif
-#  if defined (CONFIG_WITH_MAKE_STATS)
+#  if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
   strcat (buf, " make-stats");
 #  endif
 #  if defined (CONFIG_WITH_COMMANDS_FUNC)
