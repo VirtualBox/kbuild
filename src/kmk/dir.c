@@ -288,7 +288,7 @@ directory_contents_hash_2 (const void *key_0)
   hash = 0;
   ISTRING_HASH_2 (key->path_key, hash);
 # else  /* CONFIG_WITH_STRCACHE2 */
-  hash = strcache2_get_hash1 (&file_strcache, key->path_key);
+  hash = strcache2_get_hash (&file_strcache, key->path_key);
 # endif /* CONFIG_WITH_STRCACHE2 */
   hash ^= ((unsigned int) key->dev << 4) ^ (unsigned int) ~key->ctime;
 #else
