@@ -22,6 +22,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #ifdef CONFIG_WITH_VALUE_LENGTH
 # include <assert.h>
 #endif
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+# ifdef __APPLE__
+#  include <malloc/malloc.h>
+# endif
+#endif
 
 /* All bcopy calls in this file can be replaced by memcpy and save a tick or two. */
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
@@ -1313,3 +1318,57 @@ alloccache_print_all (void)
 }
 
 #endif /* CONFIG_WITH_ALLOC_CACHES */
+
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+/* Print heap statistics if supported by the platform. */
+void print_heap_stats (void)
+{
+  /* Darwin / Mac OS X */
+# ifdef __APPLE__
+  malloc_statistics_t s;
+
+  malloc_zone_statistics (NULL, &s);
+  printf (_("\n# CRT Heap: %zu bytes in use, in %u block, avg %zu bytes/block\n"),
+          s.size_in_use, s.blocks_in_use, s.size_in_use / s.blocks_in_use);
+  printf (_("#           %zu bytes max in use (high water mark)\n"),
+          s.max_size_in_use);
+  printf (_("#           %zu bytes reserved,  %zu bytes free (estimate)\n"),
+          s.size_allocated, s.size_allocated - s.size_in_use);
+# endif /* __APPLE__ */
+
+  /* Darwin Libc sources indicates that something like this may be
+     found in GLIBC, however, it's not in any current one...  */
+# if 0 /* ??? */
+  struct mstats m;
+
+  m = mstats();
+  printf (_("\n# CRT Heap: %zu blocks / %zu bytes in use,  %zu blocks / %zu bytes free\n"),
+          m.chunks_used, m.bytes_used, m.chunks_free, m.bytes_free);
+  printf (_("#           %zu bytes reserved\n"),
+          m.bytes_total);
+# endif /* ??? */
+
+   /* XVID2/XPG mallinfo (displayed per GLIBC documentation).  */
+# if 0 && defined(__GLIBC__) /* XXX: finish on linux, check older glibc versions. */
+  struct mallinfo m;
+
+  m = mallinfo();
+  printf (_("\n# CRT Heap: %d bytes in use,  %d bytes free\n"),
+          m.uordblks, s.fordblks);
+
+  printf (_("#           # free chunks=%d,  # fastbin blocks=%d\n"),
+          m.ordblks, m.smblks);
+  printf (_("#           # mapped regions=%d,  space in mapped regions=%d\n"),
+          m.hblks, m.hblkhd);
+  printf (_("#           non-mapped space allocated from system=%d\n"),
+          m.arena);
+  printf (_("#           maximum total allocated space=%d\n"),
+          m.usmblks);
+  printf (_("#           top-most releasable space=%d\n"),
+          m.keepcost);
+# endif /* __GLIBC__ */
+
+  /* XXX: windows */
+}
+#endif /* CONFIG_WITH_PRINT_STATS_SWITCH */
+

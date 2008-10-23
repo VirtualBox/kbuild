@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1915 2008-10-22 21:59:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1918 2008-10-23 21:27:11Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -167,6 +167,7 @@ kmk_DEFS = \
 	CONFIG_WITH_MINIMAL_STATS \
 	CONFIG_WITH_COMMANDS_FUNC \
 	CONFIG_PRETTY_COMMAND_PRINTING \
+	CONFIG_WITH_PRINT_STATS_SWITCH \
 	\
 	KBUILD_HOST=\"$(KBUILD_TARGET)\" \
 	KBUILD_HOST_ARCH=\"$(KBUILD_TARGET_ARCH)\" \
