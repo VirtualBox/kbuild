@@ -82,6 +82,11 @@ void print_vpath_data_base (void);
 
 void verify_file_data_base (void);
 
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+void print_variable_stats (void);
+void print_file_stats (void);
+#endif
+
 #if defined HAVE_WAITPID || defined HAVE_WAIT3
 # define HAVE_WAIT_NOHANG
 #endif
@@ -170,6 +175,12 @@ int just_print_flag;
 /* Nonzero means to print commands argument for argument skipping blanks. */
 
 int pretty_command_printing;
+#endif
+
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+/* Nonzero means to print internal statistics before exiting. */
+
+int print_stats_flag;
 #endif
 
 /* Print debugging info (--debug).  */
@@ -473,10 +484,14 @@ static const struct command_switch switches[] =
     { CHAR_MAX+10, flag, (char *) &pretty_command_printing, 1, 1, 1, 0, 0,
        "pretty-command-printing" },
 #endif
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+    { CHAR_MAX+11, flag, (char *) &print_stats_flag, 1, 1, 1, 0, 0,
+       "print-stats" },
+#endif
 #ifdef KMK
-    { CHAR_MAX+11, positive_int, (char *) &process_priority, 1, 1, 0,
+    { CHAR_MAX+12, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
-    { CHAR_MAX+12, positive_int, (char *) &process_affinity, 1, 1, 0,
+    { CHAR_MAX+14, positive_int, (char *) &process_affinity, 1, 1, 0,
       (char *) &process_affinity, (char *) &process_affinity, "affinity" },
 #endif
     { 'q', flag, &question_flag, 1, 1, 1, 0, 0, "question" },
@@ -487,7 +502,7 @@ static const struct command_switch switches[] =
     { 'S', flag_off, &keep_going_flag, 1, 1, 0, 0, &default_keep_going_flag,
       "no-keep-going" },
 #if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
-    { CHAR_MAX+14, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
+    { CHAR_MAX+15, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
        "statistics" },
 #endif
     { 't', flag, &touch_flag, 1, 1, 1, 0, 0, "touch" },
@@ -3645,6 +3660,32 @@ print_data_base ()
   when = time ((time_t *) 0);
   printf (_("\n# Finished Make data base on %s\n"), ctime (&when));
 }
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+
+static void
+print_stats ()
+{
+  time_t when;
+
+  when = time ((time_t *) 0);
+  printf (_("\n# Make statistics, printed on %s"), ctime (&when));
+
+  print_variable_stats ();
+  print_file_stats ();
+# ifndef CONFIG_WITH_STRCACHE2
+  strcache_print_stats ("#");
+# else
+  strcache2_print_stats_all ("#");
+# endif
+# ifdef CONFIG_WITH_ALLOC_CACHES
+  alloccache_print_all ();
+# endif
+  print_heap_stats ();
+
+  when = time ((time_t *) 0);
+  printf (_("\n# Finished Make statistics on %s\n"), ctime (&when));
+}
+#endif
 
 static void
 clean_jobserver (int status)
@@ -3725,6 +3766,11 @@ die (int status)
 
       if (print_data_base_flag)
 	print_data_base ();
+
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+      if (print_stats_flag)
+        print_stats ();
+#endif
 
 #ifdef NDEBUG /* bird: Don't waste time on debug sanity checks.  */
       if (print_data_base_flag || db_level)

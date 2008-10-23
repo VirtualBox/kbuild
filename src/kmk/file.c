@@ -1249,6 +1249,16 @@ print_file_data_base (void)
   fputs (_("\n# files hash-table stats:\n# "), stdout);
   hash_print_stats (&files, stdout);
 }
+
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+void
+print_file_stats (void)
+{
+  fputs (_("\n# files hash-table stats:\n# "), stdout);
+  hash_print_stats (&files, stdout);
+  fputs ("\n", stdout);
+}
+#endif
 
 /* Verify the integrity of the data base of files.  */
 

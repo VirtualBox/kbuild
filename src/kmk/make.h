@@ -431,6 +431,9 @@ char *concat (const char *, const char *, const char *);
 void *xmalloc (unsigned int);
 void *xrealloc (void *, unsigned int);
 char *xstrdup (const char *);
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+void print_heap_stats (void);
+#endif
 char *find_next_token (const char **, unsigned int *);
 char *next_token (const char *);
 char *end_of_token (const char *);

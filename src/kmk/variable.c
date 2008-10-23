@@ -2277,6 +2277,15 @@ print_variable_data_base (void)
 #endif
 }
 
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+void
+print_variable_stats (void)
+{
+  fputs (_("\n# Global variable hash-table stats:\n# "), stdout);
+  hash_print_stats (&global_variable_set.table, stdout);
+  fputs ("\n", stdout);
+}
+#endif
 
 /* Print all the local variables of FILE.  */
 
