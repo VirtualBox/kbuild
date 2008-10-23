@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1798 2008-09-21 01:06:36Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1919 2008-10-23 22:22:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1995,10 +1995,10 @@ endif
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
 $(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
-		$($(target)_DEPEND_) \
+		$$$$($(target)_DEPEND_) \
 		$(value _DEP_LINK_CMDS) \
 		| \
-		$($(target)_DEPORD_)
+		$$$$($(target)_DEPORD_)
 	%$$(call MSG_LINK,$(target),$$@,$(tool_do))
 	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 
@@ -3244,10 +3244,10 @@ $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)
 
 # the collection target
 TARGET_$(target) := $(PATH_TARGET)/$(target).ins
-$(TARGET_$(target)): $(INSTARGET_$(target)) | $(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
+$(TARGET_$(target)): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
 	@$(QUIET2)$(APPEND) $@
 
-$(target): $(TARGET_$(target))
+$(target): $$(TARGET_$(target))
 
 _INSTALLS += $(TARGET_$(target))
 _INSTALLS_FILES += $(INSTARGET_$(target))
@@ -3439,7 +3439,7 @@ endef # def_pass_strict
 # @param	$(PASS)		Uppercase pass name.
 define def_pass_nonstrict
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
-pass_$(pass)_doit: $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var)))
+pass_$(pass)_doit: $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$$$$($(var)))
 pass_$(pass):	pass_$(pass)_doit
 endef # def_pass_nonstrict
 
@@ -3516,16 +3516,16 @@ uninstall:
 
 install: pass_installs
 
-# misc shortcuts.
+# misc shortcuts (use secondary expansion here to save strcache[file] space).
 targets:   bldprogs libraries dlls programs sysmods others installs
-objects:   $(_OBJS)
-bldprogs:  $(_BLDPROGS)
-libraries: $(_LIBS) $(_IMPORT_LIBS) $(_OTHER_LIBRARIES)
-dlls:      $(_DLLS)
-programs:  $(_PROGRAMS)
-sysmods:   $(_SYSMODS)
-others:    $(_OTHERS)
-installs:  $(_INSTALLS) $(_INSTALLS_DIRS) $(_INSTALLS_FILES)
+objects:   $$(_OBJS)
+bldprogs:  $$(_BLDPROGS)
+libraries: $$(_LIBS) $$(_IMPORT_LIBS) $$(_OTHER_LIBRARIES)
+dlls:      $$(_DLLS)
+programs:  $$(_PROGRAMS)
+sysmods:   $$(_SYSMODS)
+others:    $$(_OTHERS)
+installs:  $$(_INSTALLS) $$(_INSTALLS_DIRS) $$(_INSTALLS_FILES)
 
 
 
