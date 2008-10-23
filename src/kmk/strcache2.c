@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1915 2008-10-22 21:59:51Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1916 2008-10-23 13:34:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -39,6 +39,9 @@
 typedef unsigned char  uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int   uint32_t;
+typedef signed char    int8_t;
+typedef signed short   int16_t;
+typedef signed int     int32_t;
 #else
 # include <stdint.h>
 #endif
