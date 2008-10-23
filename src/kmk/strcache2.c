@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1916 2008-10-23 13:34:40Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1917 2008-10-23 21:26:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -1191,11 +1191,12 @@ strcache2_print_stats (struct strcache2 *cache, const char *prefix)
   printf (_("%s  hash size = %u  div = %#x  rehashed %u times  lookups = %lu\n"),
           prefix, cache->hash_size, cache->hash_div, rehashes, cache->lookup_count);
 #endif
-  printf (_("%s  hash collisions 1st = %lu (%u%%)  2nd = %lu (%u%%)  3rd = %lu (%u%%)\n"),
-          prefix,
-          cache->collision_1st_count, (unsigned int)((100.0 * cache->collision_1st_count) / cache->lookup_count),
-          cache->collision_2nd_count, (unsigned int)((100.0 * cache->collision_2nd_count) / cache->lookup_count),
-          cache->collision_3rd_count, (unsigned int)((100.0 * cache->collision_3rd_count) / cache->lookup_count));
+  if (cache->lookup_count)
+    printf (_("%s  hash collisions 1st = %lu (%u%%)  2nd = %lu (%u%%)  3rd = %lu (%u%%)\n"),
+            prefix,
+            cache->collision_1st_count,  (unsigned int)((100.0 * cache->collision_1st_count) / cache->lookup_count),
+            cache->collision_2nd_count,  (unsigned int)((100.0 * cache->collision_2nd_count) / cache->lookup_count),
+            cache->collision_3rd_count,  (unsigned int)((100.0 * cache->collision_3rd_count) / cache->lookup_count));
   printf (_("%s  hash insert collisions = %u (%u%%)\n"),
           prefix, cache->collision_count,(unsigned int)((100.0 * cache->collision_count) / cache->count));
   printf (_("%s  %5u (%u%%) empty hash table slots\n"),
