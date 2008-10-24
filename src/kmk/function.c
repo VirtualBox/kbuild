@@ -330,14 +330,9 @@ patsubst_expand (char *o, const char *text, char *pattern, char *replace)
 }
 
 #if defined (CONFIG_WITH_OPTIMIZATION_HACKS) || defined (CONFIG_WITH_VALUE_LENGTH)
-/* The maximum length of a function, once reached there is
-   it can't be function and we can skip the hash lookup drop out. */
 
-# define MAX_FUNCTION_LENGTH 12
-# define MIN_FUNCTION_LENGTH 2
-
-/* char map containing the valid function name characters. */
-static char func_char_map[256];
+/* Char map containing the valid function name characters. */
+char func_char_map[256];
 
 /* Do the hash table lookup. */
 
@@ -407,7 +402,7 @@ lookup_function (const char *s, unsigned int len)
         return 0;
       e++;
     }
-  if (ch == '\0' || isblank ((unsigned char) ch))
+  if (ch == '\0' || isblank (ch))
     return lookup_function_in_hash_tab (s, e - s);
   return 0;
 # endif /* normal loop */
@@ -4285,7 +4280,7 @@ handle_function2 (const struct function_table_entry *entry_p, char **op, const c
 }
 
 
-int  /* bird split it up */
+int  /* bird split it up and hacked it. */
 #ifndef CONFIG_WITH_VALUE_LENGTH
 handle_function (char **op, const char **stringp)
 {
@@ -4295,10 +4290,11 @@ handle_function (char **op, const char **stringp)
   return handle_function2 (entry_p, op, stringp);
 }
 #else  /* CONFIG_WITH_VALUE_LENGTH */
-handle_function (char **op, const char **stringp, const char *eol)
+handle_function (char **op, const char **stringp, const char *nameend, const char *eol)
 {
   const char *fname = *stringp + 1;
-  const struct function_table_entry *entry_p = lookup_function (fname, eol - fname);
+  const struct function_table_entry *entry_p =
+      lookup_function_in_hash_tab (fname, nameend - fname);
   if (!entry_p)
     return 0;
   return handle_function2 (entry_p, op, stringp);
@@ -4477,12 +4473,14 @@ hash_init_function_table (void)
 #if defined (CONFIG_WITH_OPTIMIZATION_HACKS) || defined (CONFIG_WITH_VALUE_LENGTH)
   {
     unsigned int i;
-    for (i = 'a'; i <= 'z'; i++)
-      func_char_map[i] = 1;
-    func_char_map[(unsigned int)'-'] = 1;
-
     for (i = 0; i < FUNCTION_TABLE_ENTRIES; i++)
       {
+        const char *fn = function_table_init[i].name;
+        while (*fn)
+          {
+            func_char_map[(int)*fn] = 1;
+            fn++;
+          }
         assert (function_table_init[i].len <= MAX_FUNCTION_LENGTH);
         assert (function_table_init[i].len >= MIN_FUNCTION_LENGTH);
       }
