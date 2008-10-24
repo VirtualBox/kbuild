@@ -2176,6 +2176,394 @@ func_not (char *o, char **argv, const char *funcname)
 }
 #endif
 
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+
+/* This is also in file.c (bad).  */
+# if VMS
+#  define FILE_LIST_SEPARATOR ','
+# else
+#  define FILE_LIST_SEPARATOR ' '
+# endif
+
+/* Implements $^ and $+.
+
+   The first is somes with with FUNCNAME 'dep', the second as 'dep-all'.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps (char *o, char **argv, const char *funcname)
+{
+  unsigned int idx = 0;
+  struct file *file;
+
+  /* Handle the argument if present. */
+
+  if (argv[1])
+    {
+      char *p = argv[1];
+      while (isspace ((unsigned int)*p))
+        p++;
+      if (*p != '\0')
+        {
+          char *n;
+          long l = strtol (p, &n, 0);
+          while (isspace ((unsigned int)*n))
+            n++;
+          idx = l;
+          if (*n != '\0' || l < 0 || (long)idx != l)
+            fatal (NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
+        }
+    }
+
+  /* Find the file and select the list corresponding to FUNCNAME. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps = funcname[4] != '\0' && file->org_deps
+                       ? file->org_deps : file->deps;
+      struct dep *d;
+
+      if (idx == 0 /* all */)
+        {
+          unsigned int total_len = 0;
+
+          /* calc the result length. */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime)
+              {
+                const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                if (ar_name (c))
+                  {
+                    c = strchr (c, '(') + 1;
+                    total_len += strlen (c);
+                  }
+                else
+#else
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+#endif
+              }
+
+          if (total_len)
+            {
+              /* prepare the variable buffer dude wrt to the output size and
+                 pass along the strings.  */
+
+              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
+
+              for (d = deps; d; d = d->next)
+                if (!d->ignore_mtime)
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c);
+                      }
+                    else
+#else
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    o[-1] = FILE_LIST_SEPARATOR;
+                  }
+
+                --o;        /* nuke the last list separator */
+                *o = '\0';
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime)
+              {
+                if (--idx == 0) /* 1 based indexing */
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c) - ;
+                      }
+                    else
+#else
+                        len = strcache2_get_len (&file_strcache, c);
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    break;
+                  }
+              }
+        }
+    }
+
+  return o;
+}
+
+/* Implements $?.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps_newer (char *o, char **argv, const char *funcname)
+{
+  unsigned int idx = 0;
+  struct file *file;
+
+  /* Handle the argument if present. */
+
+  if (argv[1])
+    {
+      char *p = argv[1];
+      while (isspace ((unsigned int)*p))
+        p++;
+      if (*p != '\0')
+        {
+          char *n;
+          long l = strtol (p, &n, 0);
+          while (isspace ((unsigned int)*n))
+            n++;
+          idx = l;
+          if (*n != '\0' || l < 0 || (long)idx != l)
+            fatal (NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
+        }
+    }
+
+  /* Find the file. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps = file->deps;
+      struct dep *d;
+
+      if (idx == 0 /* all */)
+        {
+          unsigned int total_len = 0;
+
+          /* calc the result length. */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime && d->changed)
+              {
+                const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                if (ar_name (c))
+                  {
+                    c = strchr (c, '(') + 1;
+                    total_len += strlen (c);
+                  }
+                else
+#else
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+#endif
+              }
+
+          if (total_len)
+            {
+              /* prepare the variable buffer dude wrt to the output size and
+                 pass along the strings.  */
+
+              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
+
+              for (d = deps; d; d = d->next)
+                if (!d->ignore_mtime && d->changed)
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c);
+                      }
+                    else
+#else
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    o[-1] = FILE_LIST_SEPARATOR;
+                  }
+
+                --o;        /* nuke the last list separator */
+                *o = '\0';
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (!d->ignore_mtime && d->changed)
+              {
+                if (--idx == 0) /* 1 based indexing */
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c) - ;
+                      }
+                    else
+#else
+                        len = strcache2_get_len (&file_strcache, c);
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    break;
+                  }
+              }
+        }
+    }
+
+  return o;
+}
+
+/* Implements $|, the order only dependency list.
+
+   If no second argument is given, or if it's empty, or if it's zero,
+   all dependencies will be returned.  If the second argument is non-zero
+   the dependency at that position will be returned.  If the argument is
+   negative a fatal error is thrown.  */
+static char *
+func_deps_order_only (char *o, char **argv, const char *funcname)
+{
+  unsigned int idx = 0;
+  struct file *file;
+
+  /* Handle the argument if present. */
+
+  if (argv[1])
+    {
+      char *p = argv[1];
+      while (isspace ((unsigned int)*p))
+        p++;
+      if (*p != '\0')
+        {
+          char *n;
+          long l = strtol (p, &n, 0);
+          while (isspace ((unsigned int)*n))
+            n++;
+          idx = l;
+          if (*n != '\0' || l < 0 || (long)idx != l)
+            fatal (NILF, _("%s: invalid index value: `%s'\n"), funcname, p);
+        }
+    }
+
+  /* Find the file. */
+
+  file = lookup_file (argv[0]);
+  if (file)
+    {
+      struct dep *deps = file->deps;
+      struct dep *d;
+
+      if (idx == 0 /* all */)
+        {
+          unsigned int total_len = 0;
+
+          /* calc the result length. */
+
+          for (d = deps; d; d = d->next)
+            if (d->ignore_mtime)
+              {
+                const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                if (ar_name (c))
+                  {
+                    c = strchr (c, '(') + 1;
+                    total_len += strlen (c);
+                  }
+                else
+#else
+                  total_len += strcache2_get_len (&file_strcache, c) + 1;
+#endif
+              }
+
+          if (total_len)
+            {
+              /* prepare the variable buffer dude wrt to the output size and
+                 pass along the strings.  */
+
+              o = variable_buffer_output (o + total_len, "", 0) - total_len; /* a hack */
+
+              for (d = deps; d; d = d->next)
+                if (d->ignore_mtime)
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c);
+                      }
+                    else
+#else
+                      len = strcache2_get_len (&file_strcache, c) + 1;
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    o[-1] = FILE_LIST_SEPARATOR;
+                  }
+
+                --o;        /* nuke the last list separator */
+                *o = '\0';
+            }
+        }
+      else
+        {
+          /* Dependency given by index.  */
+
+          for (d = deps; d; d = d->next)
+            if (d->ignore_mtime)
+              {
+                if (--idx == 0) /* 1 based indexing */
+                  {
+                    unsigned int len;
+                    const char *c = dep_name (d);
+
+#ifndef	NO_ARCHIVES
+                    if (ar_name (c))
+                      {
+                        c = strchr (c, '(') + 1;
+                        len += strlen (c) - ;
+                      }
+                    else
+#else
+                        len = strcache2_get_len (&file_strcache, c);
+#endif
+                    o = variable_buffer_output (o, c, len);
+                    break;
+                  }
+              }
+        }
+    }
+
+  return o;
+}
+#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
+
 
 #ifdef CONFIG_WITH_DEFINED
 /* Similar to ifdef. */
@@ -3834,7 +4222,7 @@ func_commands (char *o, char **argv, const char *funcname)
         }
 
       initialize_file_variables (file, 1 /* reading - FIXME: we don't know? */);
-      set_file_variables (file);
+      set_file_variables (file); /* FIXME: this must *NOT* be done twice! */
       chop_commands (cmds);
 
       for (i = 0; i < cmds->ncommand_lines; i++)
@@ -4062,6 +4450,12 @@ static struct function_table_entry function_table_init[] =
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
+#endif
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+  { STRING_SIZE_TUPLE("deps"),          1,  2,  1,  func_deps},
+  { STRING_SIZE_TUPLE("deps-all"),      1,  2,  1,  func_deps},
+  { STRING_SIZE_TUPLE("deps-newer"),    1,  2,  1,  func_deps_newer},
+  { STRING_SIZE_TUPLE("deps-oo"),       1,  2,  1,  func_deps_order_only},
 #endif
 #ifdef CONFIG_WITH_DEFINED
   { STRING_SIZE_TUPLE("defined"),       1,  1,  1,  func_defined},

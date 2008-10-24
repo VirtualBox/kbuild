@@ -1400,6 +1400,12 @@ define_automatic_variables (void)
   define_variable ("?F", 2, "$(notdir $?)", o_automatic, 1);
   define_variable ("^F", 2, "$(notdir $^)", o_automatic, 1);
   define_variable ("+F", 2, "$(notdir $+)", o_automatic, 1);
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+  define_variable ("^", 1, "$(deps $@)", o_automatic, 1);
+  define_variable ("+", 1, "$(deps-all $@)", o_automatic, 1);
+  define_variable ("?", 1, "$(deps-newer $@)", o_automatic, 1);
+  define_variable ("|", 1, "$(deps-oo $@)", o_automatic, 1);
+#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
 }
 
 int export_all_variables;

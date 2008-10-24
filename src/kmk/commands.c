@@ -26,6 +26,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include <windows.h>
 #include "w32err.h"
 #endif
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+# include <assert.h>
+#endif
 
 #if VMS
 # define FILE_LIST_SEPARATOR ','
@@ -173,6 +176,7 @@ set_file_variables (struct file *file)
     DEFINE_VARIABLE ("%", 1, percent);
 #endif /* CONFIG_WITH_RDONLY_VARIABLE_VALUE */
 
+#ifndef CONFIG_WITH_LAZY_DEPS_VARS
   /* Compute the values for $^, $+, $?, and $|.  */
 
   {
@@ -315,6 +319,18 @@ set_file_variables (struct file *file)
     DEFINE_VARIABLE ("|", 1, bar_value);
   }
 
+#else  /* CONFIG_WITH_LAZY_DEPS_VARS */
+
+  /* Make a copy of the current dependency chain for later use in
+     potential $(dep-pluss $@) calls.  Then drop duplicate deps.  */
+
+  /* assert (file->org_deps == NULL); - FIXME? */
+  free_dep_chain (file->org_deps);
+  file->org_deps = copy_dep_chain (file->deps);
+
+  uniquize_deps (file->deps);
+
+#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
 #undef	DEFINE_VARIABLE
 }
 
