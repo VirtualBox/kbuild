@@ -29,6 +29,10 @@ struct file
     const char *hname;          /* Hashed filename */
     const char *vpath;          /* VPATH/vpath pathname */
     struct dep *deps;		/* all dependencies, including duplicates */
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+    struct dep *org_deps;	/* original dependencies before
+                                   duplicates were dropped. */
+#endif
     struct commands *cmds;	/* Commands to execute for this target.  */
     int command_flags;		/* Flags OR'd in for cmds; see commands.h.  */
     const char *stem;		/* Implicit stem, if an implicit

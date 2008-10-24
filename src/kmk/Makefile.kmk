@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1932 2008-10-24 20:22:22Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1934 2008-10-24 22:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -169,6 +169,7 @@ kmk_DEFS = \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	CONFIG_WITH_PRINT_STATS_SWITCH \
 	CONFIG_WITH_RDONLY_VARIABLE_VALUE \
+	CONFIG_WITH_LAZY_DEPS_VARS \
 	\
 	KBUILD_HOST=\"$(KBUILD_TARGET)\" \
 	KBUILD_HOST_ARCH=\"$(KBUILD_TARGET_ARCH)\" \
@@ -516,6 +517,10 @@ test_30_continued_on_failure:
 		echo "$@: SUCCESS"; \
 	fi
 
+test_lazy_deps_vars:
+	$(MAKE) -C $(kmk_PATH) -f testcase-lazy-deps-vars.kmk
 
-test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_2ndtargetexp test_30_continued_on_failure
+
+test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_2ndtargetexp test_30_continued_on_failure test_lazy_deps_vars
+
 
