@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1924 2008-10-24 02:41:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1932 2008-10-24 20:22:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -571,7 +571,13 @@ kbuild_simplify_variable(struct variable *pVar)
     {
         unsigned int value_len;
         char *pszExpanded = allocated_variable_expand_2(pVar->value, pVar->value_length, &value_len);
-        free(pVar->value);
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+        if (pVar->rdonly_val)
+            pVar->rdonly_val = 0;
+        else
+#endif
+            free(pVar->value);
+        assert (pVar->origin != o_automatic);
         pVar->value = pszExpanded;
         pVar->value_length = value_len;
         pVar->value_alloc_len = value_len + 1;
@@ -642,7 +648,13 @@ kbuild_lookup_variable_defpath_n(struct variable *pDefPath, const char *pszName,
 {
     struct variable *pVar = kbuild_lookup_variable_n(pszName, cchName);
     if (pVar && pDefPath)
+    {
+        assert(pVar->origin != o_automatic);
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+        assert(!pVar->rdonly_val);
+#endif
         kbuild_apply_defpath(pDefPath, &pVar->value, (unsigned int *)&pVar->value_length, &pVar->value_alloc_len, 1);
+    }
     return pVar;
 }
 
@@ -660,7 +672,13 @@ kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
 {
     struct variable *pVar = kbuild_lookup_variable(pszName);
     if (pVar && pDefPath)
+    {
+        assert(pVar->origin != o_automatic);
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+        assert(!pVar->rdonly_val);
+#endif
         kbuild_apply_defpath(pDefPath, &pVar->value, (unsigned int *)&pVar->value_length, &pVar->value_alloc_len, 1);
+    }
     return pVar;
 }
 
@@ -2043,7 +2061,14 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
      * our 'source' value isn't what the user expects.
      */
     if (pDefPath)
+    {
+        /** @todo assert(pSource->origin != o_automatic);  We're changing 'source'
+         *        from the foreach loop!  */
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+        assert(!pSource->rdonly_val);
+#endif
         kbuild_apply_defpath(pDefPath, &pSource->value, (unsigned int *)&pSource->value_length, &pSource->value_alloc_len, 1 /* can free */);
+    }
 
     /*
     # dependencies
