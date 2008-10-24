@@ -900,7 +900,8 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifndef CONFIG_WITH_VALUE_LENGTH
                   cp = ap = allocated_variable_expand (p2);
 #else
-                  cp = ap = allocated_variable_expand_2 (p2, eol - p2, NULL);
+                  unsigned int buf_len;
+                  cp = ap = allocated_variable_expand_3 (p2, eol - p2, NULL, &buf_len);
 #endif
 
                   for (p = find_next_token (&cp, &l); p != 0;
@@ -912,7 +913,11 @@ eval (struct ebuffer *ebuf, int set_default)
                       v->export = v_export;
                     }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
                   free (ap);
+#else
+                  recycle_variable_buffer (ap, buf_len);
+#endif
                 }
             }
           goto rule_complete;
@@ -934,7 +939,8 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifndef CONFIG_WITH_VALUE_LENGTH
               cp = ap = allocated_variable_expand (p2);
 #else
-              cp = ap = allocated_variable_expand_2 (p2, eol - p2, NULL);
+              unsigned int buf_len;
+              cp = ap = allocated_variable_expand_3 (p2, eol - p2, NULL, &buf_len);
 #endif
 
               for (p = find_next_token (&cp, &l); p != 0;
@@ -947,7 +953,11 @@ eval (struct ebuffer *ebuf, int set_default)
                   v->export = v_noexport;
                 }
 
+#ifndef CONFIG_WITH_VALUE_LENGTH
               free (ap);
+#else
+              recycle_variable_buffer (ap, buf_len);
+#endif
             }
           goto rule_complete;
 	}
@@ -990,12 +1000,13 @@ eval (struct ebuffer *ebuf, int set_default)
                             : p[wlen - 1] == 'e'
                             ? incdep_queue : incdep_flush;
           char *free_me = NULL;
+          unsigned int buf_len;
           char *name = p2;
 
           if (memchr (name, '$', eol - name))
             {
               unsigned int name_len;
-              free_me = name = allocated_variable_expand_2 (name, eol - name, &name_len);
+              free_me = name = allocated_variable_expand_3 (name, eol - name, &name_len, &buf_len);
               eol = name + name_len;
               while (isspace ((unsigned char)*name))
                 ++name;
@@ -1008,7 +1019,7 @@ eval (struct ebuffer *ebuf, int set_default)
           eval_include_dep (name, fstart, op);
 
           if (free_me)
-            free (free_me);
+            recycle_variable_buffer (free_me, buf_len);
           goto rule_complete;
         }
 #endif /* CONFIG_WITH_INCLUDEDEP */
@@ -1027,13 +1038,18 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifndef CONFIG_WITH_VALUE_LENGTH
 	  p = allocated_variable_expand (p2);
 #else
-	  p = allocated_variable_expand_2 (p2, eol - p2, NULL);
+          unsigned int buf_len;
+	  p = allocated_variable_expand_3 (p2, eol - p2, NULL, &buf_len);
 #endif
 
           /* If no filenames, it's a no-op.  */
 	  if (*p == '\0')
             {
+#ifndef CONFIG_WITH_VALUE_LENGTH
               free (p);
+#else
+              recycle_variable_buffer (p, buf_len);
+#endif
               continue;
             }
 
@@ -1048,7 +1064,11 @@ eval (struct ebuffer *ebuf, int set_default)
           files = multi_glob (parse_file_seq (&p2, '\0', &nameseq_cache, 1),
                               &nameseq_cache);
 #endif
+#ifndef CONFIG_WITH_VALUE_LENGTH
 	  free (p);
+#else
+          recycle_variable_buffer (p, buf_len);
+#endif
 
 	  /* Save the state of conditionals and start
 	     the included makefile with a clean slate.  */

@@ -191,7 +191,10 @@ char *allocated_variable_expand_for_file (const char *line, struct file *file);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
 # define allocated_variable_expand(line) \
   allocated_variable_expand_2 (line, -1, NULL)
-char *allocated_variable_expand_2(const char *line, unsigned int length, unsigned int *value_lenp);
+char *allocated_variable_expand_2 (const char *line, unsigned int length, unsigned int *value_lenp);
+char *allocated_variable_expand_3 (const char *line, unsigned int length,
+                                   unsigned int *value_lenp, unsigned int *buffer_lengthp);
+void recycle_variable_buffer (char *buffer, unsigned int length);
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 char *expand_argument (const char *str, const char *end);
 #ifndef CONFIG_WITH_VALUE_LENGTH
