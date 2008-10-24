@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1917 2008-10-23 21:26:42Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1920 2008-10-24 00:00:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -76,6 +76,15 @@ typedef signed int     int32_t;
 # define STRCACHE2_MOD_IT(cache, hash)  ((hash) % (cache)->hash_div)
 #endif
 
+# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64) \
+ || defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)
+#  define strcache2_get_unaligned_16bits(ptr)   ( *((const uint16_t *)(ptr)))
+# else
+   /* (endian doesn't matter) */
+#  define strcache2_get_unaligned_16bits(ptr)   (   (((const uint8_t *)(ptr))[0] << 8) \
+                                                  | (((const uint8_t *)(ptr))[1]) )
+# endif
+
 
 /*******************************************************************************
 *   Global Variables                                                           *
@@ -116,8 +125,69 @@ MY_INLINE unsigned int strcache2_find_prime(unsigned int shift)
     }
 }
 
+/* The following is a bit experiment. It produces longer chains, i.e. worse
+   distribution of the strings in the table, however the actual make
+   performances is better (<time).  The explanation is probably that the
+   collisions only really increase for entries that aren't looked up that
+   much and that it actually improoves the situation for those that is. Or
+   that we spend so much less time hashing that it makes up (and more) for
+   the pentalty we suffer from the longer chains and worse distribution.
+
+   XXX: Check how this works out with different path lengths. I suspect it
+        might depend on the length of PATH_ROOT and the depth of the files
+        in the project as well. If it does, this might make matters worse
+        for some and better for others which isn't very cool...  */
+
+#define BIG_HASH_SIZE   32
+#define BIG_HASH_TAIL   12
+#define BIG_HASH_HEAD   16
+
+#ifdef BIG_HASH_SIZE
+/* long string: hash head and tail, drop the middle. */
 MY_INLINE unsigned int
-strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
+strcache2_case_sensitive_hash_big (const char *str, unsigned int len)
+{
+  uint32_t hash = len;
+  uint32_t tmp;
+  unsigned int head;
+
+  /* head BIG_HASH_HEAD bytes */
+  head = (BIG_HASH_HEAD >> 2);
+  while (head-- > 0)
+    {
+      hash += strcache2_get_unaligned_16bits (str);
+      tmp   = (strcache2_get_unaligned_16bits (str + 2) << 11) ^ hash;
+      hash  = (hash << 16) ^ tmp;
+      str  += 2 * sizeof (uint16_t);
+      hash += hash >> 11;
+    }
+
+  /* tail BIG_HASH_TAIL bytes (minus the odd ones) */
+  str += (len - BIG_HASH_HEAD - BIG_HASH_TAIL) & ~3U;
+  head = (BIG_HASH_TAIL >> 2);
+  while (head-- > 0)
+    {
+      hash += strcache2_get_unaligned_16bits (str);
+      tmp   = (strcache2_get_unaligned_16bits (str + 2) << 11) ^ hash;
+      hash  = (hash << 16) ^ tmp;
+      str  += 2 * sizeof (uint16_t);
+      hash += hash >> 11;
+    }
+
+  /* force "avalanching" of final 127 bits. */
+  hash ^= hash << 3;
+  hash += hash >> 5;
+  hash ^= hash << 4;
+  hash += hash >> 17;
+  hash ^= hash << 25;
+  hash += hash >> 6;
+
+  return hash;
+}
+#endif /* BIG_HASH_SIZE */
+
+MY_INLINE unsigned int
+strcache2_case_sensitive_hash (const char *str, unsigned int len)
 {
 #if 1
   /* Paul Hsieh hash SuperFast function:
@@ -133,24 +203,20 @@ strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
 
      FIXME: A path for well aligned data should be added to speed up
             execution on alignment sensitive systems.  */
-
-# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64) \
- || defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)
-#  define strcache2_get_unaligned_16bits(ptr)   ( *((const uint16_t *)(ptr)))
-# else
-   /* (endian doesn't matter) */
-#  define strcache2_get_unaligned_16bits(ptr)   (   (((const uint8_t *)(ptr))[0] << 8) \
-                                                  | (((const uint8_t *)(ptr))[1]) )
-# endif
-  uint32_t hash = len;
+  unsigned int rem;
+  uint32_t hash;
   uint32_t tmp;
-  int rem;
 
   assert (sizeof (uint8_t) == sizeof (char));
-  if (len == 0)
-    return 0;
 
-  /* main loop, walking on 2 x uint16_t */
+# ifdef BIG_HASH_SIZE
+  /* long string? */
+  if (len >= BIG_HASH_SIZE)
+    return strcache2_case_sensitive_hash_big (str, len);
+# endif
+
+  /* short string: main loop, walking on 2 x uint16_t */
+  hash = len;
   rem = len & 3;
   len >>= 2;
   while (len > 0)
@@ -163,7 +229,7 @@ strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
       len--;
     }
 
-  /* the remainer */
+  /* the remainder */
   switch (rem)
     {
       case 3:
@@ -289,7 +355,7 @@ strcache2_case_sensitive_hash_1 (const char *str, unsigned int len)
 }
 
 MY_INLINE unsigned int
-strcache2_case_insensitive_hash_1 (const char *str, unsigned int len)
+strcache2_case_insensitive_hash (const char *str, unsigned int len)
 {
   unsigned int hash = 0;
   if (MY_PREDICT_TRUE(len >= 2))
@@ -683,7 +749,7 @@ const char *
 strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash = strcache2_case_sensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_sensitive_hash (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -732,7 +798,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str,
   unsigned correct_hash;
 
   assert (!cache->case_insensitive);
-  correct_hash = strcache2_case_sensitive_hash_1 (str, length);
+  correct_hash = strcache2_case_sensitive_hash (str, length);
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
@@ -773,7 +839,7 @@ const char *
 strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash = strcache2_case_sensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_sensitive_hash (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -817,7 +883,7 @@ const char *
 strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash = strcache2_case_insensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_insensitive_hash (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -866,7 +932,7 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
   unsigned correct_hash;
 
   assert (!cache->case_insensitive);
-  correct_hash = strcache2_case_insensitive_hash_1 (str, length);
+  correct_hash = strcache2_case_insensitive_hash (str, length);
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
 
@@ -907,7 +973,7 @@ const char *
 strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length)
 {
   struct strcache2_entry const *entry;
-  unsigned int hash = strcache2_case_insensitive_hash_1 (str, length);
+  unsigned int hash = strcache2_case_insensitive_hash (str, length);
   unsigned int idx;
 
   assert (!cache->case_insensitive);
@@ -992,8 +1058,8 @@ strcache2_verify_entry (struct strcache2 *cache, const char *str)
     }
 
   hash = cache->case_insensitive
-    ? strcache2_case_insensitive_hash_1 (str, entry->length)
-    : strcache2_case_sensitive_hash_1 (str, entry->length);
+    ? strcache2_case_insensitive_hash (str, entry->length)
+    : strcache2_case_sensitive_hash (str, entry->length);
   if (hash != entry->hash)
     {
       fprintf (stderr,
@@ -1011,7 +1077,7 @@ strcache2_verify_entry (struct strcache2 *cache, const char *str)
 unsigned int strcache2_hash_str (const char *str, unsigned int length, unsigned int *hash2p)
 {
   *hash2p = 1;
-  return    strcache2_case_sensitive_hash_1 (str, length);
+  return    strcache2_case_sensitive_hash (str, length);
 }
 
 /* Calculates the case insensitive hash values of the string.
@@ -1019,7 +1085,7 @@ unsigned int strcache2_hash_str (const char *str, unsigned int length, unsigned 
 unsigned int strcache2_hash_istr (const char *str, unsigned int length, unsigned int *hash2p)
 {
   *hash2p = 1;
-  return    strcache2_case_insensitive_hash_1 (str, length);
+  return    strcache2_case_insensitive_hash (str, length);
 }
 
 
