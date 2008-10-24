@@ -858,7 +858,11 @@ snap_deps (void)
   file_end = file_slot_0 + files.ht_fill;
   for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
     for (f = *file_slot; f != 0; f = f->prev)
+#ifndef CONFIG_WITH_STRCACHE2
       if (strcmp (f->name, ".SUFFIXES") != 0)
+#else
+      if (f->name != suffixes_strcached)
+#endif
         expand_deps (f);
   free (file_slot_0);
 

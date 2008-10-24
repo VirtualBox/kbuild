@@ -637,6 +637,7 @@ int strcache_setbufsize (int size);
 
 # include "strcache2.h"
 extern struct strcache2 file_strcache;
+extern const char *suffixes_strcached;
 
 # define strcache_iscached(str)     strcache2_is_cached(&file_strcache, str)
 # define strcache_add(str)          strcache2_add_file(&file_strcache, str, strlen (str))
