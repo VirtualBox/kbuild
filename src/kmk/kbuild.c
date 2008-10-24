@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1922 2008-10-24 02:10:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1923 2008-10-24 02:11:32Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -46,16 +46,11 @@
 #include "kbuild.h"
 
 #include <assert.h>
-#include <stdarg.h>
 
 
 /*******************************************************************************
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
-#ifndef va_copy
-# define va_copy(dst, src) do {(dst) = (src);} while (0)
-#endif
-
 /** Helper for passing a string constant to kbuild_get_variable_n. */
 #define ST(strconst) strconst, sizeof(strconst) - 1
 
