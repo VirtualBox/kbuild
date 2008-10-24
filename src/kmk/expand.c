@@ -59,14 +59,7 @@ struct recycled_buffer
   unsigned int length;
 };
 struct recycled_buffer *recycled_head;
-static char *
-allocated_variable_expand_3 (const char *line, unsigned int length,
-                             unsigned int *value_lenp,
-                             unsigned int *buffer_lengthp);
-static void
-recycle_variable_buffer (char *buffer, unsigned int length);
-
-#endif
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 
 
@@ -1063,12 +1056,12 @@ allocated_variable_expand_2 (const char *line, unsigned int length,
   return value;
 }
 
-/* Handles a special case for variable_expand_string2 where the variable
-   name is expanded.  This variant allows the variable_buffer to
-   be recycled and thus avoid bothering with a slow free implementation
-   (darwin is horrible here).  */
+/* Initially created for handling a special case for variable_expand_string2
+   where the variable name is expanded and freed right afterwards.  This
+   variant allows the variable_buffer to be recycled and thus avoid bothering
+   with a slow free implementation. (Darwin is horrible slow.)  */
 
-static char *
+char *
 allocated_variable_expand_3 (const char *line, unsigned int length,
                              unsigned int *value_lenp,
                              unsigned int *buffer_lengthp)
@@ -1082,7 +1075,8 @@ allocated_variable_expand_3 (const char *line, unsigned int length,
   variable_buffer = 0;
 
   value = variable_expand_string_2 (NULL, line, len, &eol);
-  *value_lenp = eol - value;
+  if (value_lenp)
+    *value_lenp = eol - value;
   *buffer_lengthp = variable_buffer_length;
 
   variable_buffer = obuf;
@@ -1092,7 +1086,8 @@ allocated_variable_expand_3 (const char *line, unsigned int length,
 }
 
 /* recycle a buffer. */
-static void
+
+void
 recycle_variable_buffer (char *buffer, unsigned int length)
 {
     struct recycled_buffer *recycled = (struct recycled_buffer *)buffer;
@@ -1125,7 +1120,12 @@ install_variable_buffer (char **bufp, unsigned int *lenp)
 void
 restore_variable_buffer (char *buf, unsigned int len)
 {
+#ifndef CONFIG_WITH_VALUE_LENGTH
   free (variable_buffer);
+#else
+  if (variable_buffer)
+    recycle_variable_buffer (variable_buffer, variable_buffer_length);
+#endif
 
   variable_buffer = buf;
   variable_buffer_length = len;
