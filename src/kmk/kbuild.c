@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1923 2008-10-24 02:11:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1924 2008-10-24 02:41:34Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -353,7 +353,7 @@ const char *get_default_kbuild_shell(void)
  * @param   fCanFree        Whether *ppsz should be freed when we replace it.
  */
 static void
-kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, int *pcch, int *pcchAlloc, int fCanFree)
+kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch, int *pcchAlloc, int fCanFree)
 {
     const char *pszIterator;
     const char *pszInCur;
@@ -642,7 +642,7 @@ kbuild_lookup_variable_defpath_n(struct variable *pDefPath, const char *pszName,
 {
     struct variable *pVar = kbuild_lookup_variable_n(pszName, cchName);
     if (pVar && pDefPath)
-        kbuild_apply_defpath(pDefPath, &pVar->value, &pVar->value_length, &pVar->value_alloc_len, 1);
+        kbuild_apply_defpath(pDefPath, &pVar->value, (unsigned int *)&pVar->value_length, &pVar->value_alloc_len, 1);
     return pVar;
 }
 
@@ -660,7 +660,7 @@ kbuild_lookup_variable_defpath(struct variable *pDefPath, const char *pszName)
 {
     struct variable *pVar = kbuild_lookup_variable(pszName);
     if (pVar && pDefPath)
-        kbuild_apply_defpath(pDefPath, &pVar->value, &pVar->value_length, &pVar->value_alloc_len, 1);
+        kbuild_apply_defpath(pDefPath, &pVar->value, (unsigned int *)&pVar->value_length, &pVar->value_alloc_len, 1);
     return pVar;
 }
 
@@ -1529,13 +1529,13 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 {
     struct variable *pVar;
     unsigned iSdk, iSdkEnd;
-    int cVars, iVar, iVarEnd;
+    int cVars, iVar;
     size_t cchTotal, cchBuf;
     char *pszResult, *pszBuf, *psz, *psz2, *psz3;
     struct
     {
         struct variable    *pVar;
-        int                 cchExp;
+        unsigned int        cchExp;
         char               *pszExp;
     } *paVars;
 
@@ -1558,21 +1558,52 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     /*
      * Get the variables.
+     *
+     * The compiler will get a heart attack when it sees this code ... ;-)
      */
     cVars = 12 * (pSdks->c + 5);
     paVars = alloca(cVars * sizeof(paVars[0]));
 
     iVar = 0;
+    cchTotal = 0;
 
 #define ADD_VAR(pVar)           do { my_memcpy(psz, (pVar)->value, (pVar)->value_length); psz += (pVar)->value_length; } while (0)
 #define ADD_STR(pszStr, cchStr) do { my_memcpy(psz, (pszStr), (cchStr)); psz += (cchStr); } while (0)
 #define ADD_CSTR(pszStr)        do { my_memcpy(psz, pszStr, sizeof(pszStr) - 1); psz += sizeof(pszStr) - 1; } while (0)
 #define ADD_CH(ch)              do { *psz++ = (ch); } while (0)
-# define DO_VAR_LOOKUP() \
+#define DO_VAR_LOOKUP() \
     do { \
         pVar = kbuild_lookup_variable_n(pszBuf, psz - pszBuf); \
-        /*if (pVar)*/ \
-            paVars[iVar++].pVar = pVar; \
+        if (pVar) \
+        { \
+            paVars[iVar].pVar = pVar; \
+            if (    !pVar->recursive \
+                ||  !memchr(pVar->value, '$', pVar->value_length)) \
+            { \
+                paVars[iVar].pszExp = pVar->value; \
+                paVars[iVar].cchExp = pVar->value_length; \
+                if (pDefPath && paVars[iVar].cchExp) \
+                    kbuild_apply_defpath(pDefPath, &paVars[iVar].pszExp, &paVars[iVar].cchExp, NULL, 0); \
+                if (paVars[iVar].cchExp) \
+                { \
+                    cchTotal += paVars[iVar].cchExp + 1; \
+                    iVar++; \
+                } \
+            } \
+            else \
+            { \
+                paVars[iVar].pszExp = allocated_variable_expand_2(pVar->value, pVar->value_length, &paVars[iVar].cchExp); \
+                if (pDefPath && paVars[iVar].cchExp) \
+                    kbuild_apply_defpath(pDefPath, &paVars[iVar].pszExp, &paVars[iVar].cchExp, NULL, 1); \
+                if (paVars[iVar].cchExp) \
+                { \
+                    cchTotal += paVars[iVar].cchExp + 1; \
+                    iVar++; \
+                } \
+                else \
+                    free(paVars[iVar].pszExp); \
+            } \
+        } \
     } while (0)
 #define DO_SINGLE_PSZ3_VARIATION() \
     do {                           \
@@ -1706,64 +1737,47 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
 
     free(pszBuf);
 
-    /*assert(iVar <= cVars);
-    cVars = iVar;*/
-    assert(iVar == cVars);
+    assert(iVar <= cVars);
+    cVars = iVar;
 
-    if (!cVars)
+    /*
+     * Construct the result value.
+     */
+    if (!cVars || !cchTotal)
         pVar = define_variable_vl(pszVarName, cchVarName, "", 0,
                                   1 /* duplicate value */ , o_local, 0 /* !recursive */);
     else
     {
-        /*
-         * Expand the variables and calculate the total length.
-         */
-        cchTotal = 0;
-        iVarEnd = iDirection == 1 ? cVars : 0;
-        for (iVar = iDirection == 1 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
-        {
-            if (!paVars[iVar].pVar)
-            {
-                paVars[iVar].cchExp = 0;
-                continue;
-            }
-            if (    !paVars[iVar].pVar->recursive
-                ||  !memchr(paVars[iVar].pVar->value, '$', paVars[iVar].pVar->value_length))
-            {
-                paVars[iVar].pszExp = paVars[iVar].pVar->value;
-                paVars[iVar].cchExp = paVars[iVar].pVar->value_length;
-            }
-            else
-            {
-                unsigned int cchExp;
-                paVars[iVar].pszExp = allocated_variable_expand_2(paVars[iVar].pVar->value, paVars[iVar].pVar->value_length, &cchExp);
-                paVars[iVar].cchExp = cchExp;
-            }
-            if (pDefPath)
-                kbuild_apply_defpath(pDefPath, &paVars[iVar].pszExp, &paVars[iVar].cchExp, NULL,
-                                     paVars[iVar].pszExp != paVars[iVar].pVar->value);
-            cchTotal += paVars[iVar].cchExp + 1;
-        }
-
-        /*
-         * Construct the result value.
-         */
         psz = pszResult = xmalloc(cchTotal + 1);
-        iVarEnd = iDirection == 1 ? cVars : 0;
-        for (iVar = iDirection == 1 ? 0 : cVars - 1; iVar != iVarEnd; iVar += iDirection)
+        if (iDirection == 1)
         {
-            if (!paVars[iVar].cchExp)
-                continue;
-            memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
-            psz += paVars[iVar].cchExp;
-            *psz++ = ' ';
-            if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
-                free(paVars[iVar].pszExp);
+            for (iVar = 0; iVar < cVars; iVar++)
+            {
+                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
+                psz += paVars[iVar].cchExp;
+                *psz++ = ' ';
+                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
+                    free(paVars[iVar].pszExp);
+            }
         }
-        if (psz != pszResult)
-            psz--;
-        *psz = '\0';
-        cchTotal = psz - pszResult;
+        else
+        {
+            iVar = cVars;
+            while (iVar-- > 0)
+            {
+                my_memcpy(psz, paVars[iVar].pszExp, paVars[iVar].cchExp);
+                psz += paVars[iVar].cchExp;
+                *psz++ = ' ';
+                if (paVars[iVar].pszExp != paVars[iVar].pVar->value)
+                    free(paVars[iVar].pszExp);
+            }
+
+        }
+        assert(psz != pszResult);
+        assert(cchTotal == (size_t)(psz - pszResult));
+        psz[-1] = '\0';
+        cchTotal--;
+
         pVar = define_variable_vl(pszVarName, cchVarName, pszResult, cchTotal,
                                   0 /* take pszResult */ , o_local, 0 /* !recursive */);
     }
@@ -2029,7 +2043,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
      * our 'source' value isn't what the user expects.
      */
     if (pDefPath)
-        kbuild_apply_defpath(pDefPath, &pSource->value, &pSource->value_length, &pSource->value_alloc_len, 1 /* can free */);
+        kbuild_apply_defpath(pDefPath, &pSource->value, (unsigned int *)&pSource->value_length, &pSource->value_alloc_len, 1 /* can free */);
 
     /*
     # dependencies
