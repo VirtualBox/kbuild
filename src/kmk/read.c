@@ -1958,15 +1958,6 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
   if (conditionals->if_cmds > conditionals->allocated)
     {
 #ifdef KMK
-#if 0
-      if (conditionals->allocated == 0)
-        {
-          conditionals->allocated = sizeof (conditionals->ignoring_first);
-          conditionals->ignoring  = conditionals->ignoring_first;
-          conditionals->seen_else = conditionals->seen_else_first;
-        }
-      else
-#endif
       if (conditionals->allocated <= sizeof (conditionals->ignoring_first))
         {
           assert (conditionals->allocated == sizeof (conditionals->ignoring_first));
