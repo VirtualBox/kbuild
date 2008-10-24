@@ -51,6 +51,25 @@ unsigned int variable_buffer_length;
 #endif
 char *variable_buffer;
 
+
+#ifdef CONFIG_WITH_VALUE_LENGTH
+struct recycled_buffer
+{
+  struct recycled_buffer *next;
+  unsigned int length;
+};
+struct recycled_buffer *recycled_head;
+static char *
+allocated_variable_expand_3 (const char *line, unsigned int length,
+                             unsigned int *value_lenp,
+                             unsigned int *buffer_lengthp);
+static void
+recycle_variable_buffer (char *buffer, unsigned int length);
+
+#endif
+
+
+
 #ifndef KMK
 /* Subroutine of variable_expand and friends:
    The text to add is LENGTH chars starting at STRING to the variable_buffer.
@@ -86,16 +105,31 @@ initialize_variable_output (void)
 {
   /* If we don't have a variable output buffer yet, get one.  */
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
   if (variable_buffer == 0)
     {
-#ifdef KMK
-      variable_buffer_length = 384;
+      struct recycled_buffer *recycled = recycled_head;
+      if (recycled)
+        {
+          recycled_head = recycled->next;
+          variable_buffer_length = recycled->length;
+          variable_buffer = (char *)recycled;
+        }
+      else
+        {
+          variable_buffer_length = 384;
+          variable_buffer = xmalloc (variable_buffer_length);
+        }
+      variable_buffer[0] = '\0';
+    }
 #else
+  if (variable_buffer == 0)
+    {
       variable_buffer_length = 200;
-#endif
       variable_buffer = xmalloc (variable_buffer_length);
       variable_buffer[0] = '\0';
     }
+#endif
 
   return variable_buffer;
 }
@@ -542,6 +576,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 	    const char *beg = p + 1;
 	    char *op;
             char *abeg = NULL;
+            unsigned int alen = 0;
 	    const char *end, *colon;
 
 	    op = o;
@@ -587,8 +622,8 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 
                      /* Expand the name.  */
                     saved = *p;
-                    *(char *)p = '\0'; /* XXX: proove that this is safe! */
-                    abeg = allocated_variable_expand_2 (beg, p - beg, &len);
+                    *(char *)p = '\0'; /* XXX: proove that this is safe! XXX2: shouldn't be necessary any longer! */
+                    abeg = allocated_variable_expand_3 (beg, p - beg, &len, &alen);
                     beg = abeg;
                     end = beg + len;
                     *(char *)p = saved;
@@ -684,7 +719,7 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 		o = reference_variable (o, beg, end - beg);
 
 	  if (abeg)
-	    free (abeg);
+            recycle_variable_buffer (abeg, alen);
 	  }
 	  break;
 
@@ -1027,6 +1062,48 @@ allocated_variable_expand_2 (const char *line, unsigned int length,
 
   return value;
 }
+
+/* Handles a special case for variable_expand_string2 where the variable
+   name is expanded.  This variant allows the variable_buffer to
+   be recycled and thus avoid bothering with a slow free implementation
+   (darwin is horrible here).  */
+
+static char *
+allocated_variable_expand_3 (const char *line, unsigned int length,
+                             unsigned int *value_lenp,
+                             unsigned int *buffer_lengthp)
+{
+  char        *obuf = variable_buffer;
+  unsigned int olen = variable_buffer_length;
+  long         len  = (long)length;
+  char *value;
+  char *eol;
+
+  variable_buffer = 0;
+
+  value = variable_expand_string_2 (NULL, line, len, &eol);
+  *value_lenp = eol - value;
+  *buffer_lengthp = variable_buffer_length;
+
+  variable_buffer = obuf;
+  variable_buffer_length = olen;
+
+  return value;
+}
+
+/* recycle a buffer. */
+static void
+recycle_variable_buffer (char *buffer, unsigned int length)
+{
+    struct recycled_buffer *recycled = (struct recycled_buffer *)buffer;
+
+    assert (!(length & 31));
+    assert (length >= 384);
+    recycled->length = length;
+    recycled->next = recycled_head;
+    recycled_head = recycled;
+}
+
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* Install a new variable_buffer context, returning the current one for
