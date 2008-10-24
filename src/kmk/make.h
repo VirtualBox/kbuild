@@ -195,6 +195,44 @@ unsigned int get_path_max (void);
 # endif
 #endif
 
+#ifdef CONFIG_WITH_MAKE_STATS
+extern long make_stats_allocations;
+extern unsigned long make_stats_allocated;
+extern unsigned long make_stats_allocated_sum;
+extern unsigned long make_stats_ht_lookups;
+extern unsigned long make_stats_ht_collisions;
+
+# ifdef __APPLE__
+#  include <malloc/malloc.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_size(ptr)
+
+# elif defined(__linux__) /* glibc */
+#  include <malloc.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_usable_size(ptr)
+
+# elif defined(_MSC_VER) || defined(__OS2__)
+#  define SIZE_OF_HEAP_BLOCK(ptr)   _msize(ptr)
+
+# else
+#  include <stdlib.h>
+#  define SIZE_OF_HEAP_BLOCK(ptr)   0
+#endif
+
+# if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
+#  define free xfree
+extern void xfree (void *);
+# endif
+
+# define MAKE_STATS_3(expr) do { expr; } while (0)
+# define MAKE_STATS_2(expr) do { expr; } while (0)
+# define MAKE_STATS(expr)   do { expr; } while (0)
+#else
+# define MAKE_STATS_3(expr) do { } while (0)
+# define MAKE_STATS_2(expr) do { } while (0)
+# define MAKE_STATS(expr)   do { } while (0)
+#endif
+
+
 #ifndef CHAR_BIT
 # define CHAR_BIT 8
 #endif
@@ -512,8 +550,9 @@ struct alloccache
   char *free_end;
   struct alloccache_free_ent *free_head;
   unsigned int size;
-  unsigned int alloc_count;
   unsigned int total_count;
+  unsigned long alloc_count;
+  unsigned long free_count;
   const char *name;
   struct alloccache *next;
   void *grow_arg;
@@ -543,7 +582,7 @@ alloccache_alloc (struct alloccache *cache)
     }
   else
     f = alloccache_alloc_grow (cache);
-  cache->alloc_count++;
+  MAKE_STATS(cache->alloc_count++;);
   return f;
 }
 
@@ -571,7 +610,7 @@ alloccache_free (struct alloccache *cache, void *item)
 
   f->next = cache->free_head;
   cache->free_head = f;
-  cache->alloc_count--;
+  MAKE_STATS(cache->free_count++;);
 }
 
 /* the alloc caches */
@@ -852,43 +891,6 @@ static inline void *__my_memchr (__const void *__s, int __c, size_t __n)
 }
 
 #endif /* __EMX__ (bird) */
-
-#ifdef CONFIG_WITH_MAKE_STATS
-extern long make_stats_allocations;
-extern unsigned long make_stats_allocated;
-extern unsigned long make_stats_allocated_sum;
-extern unsigned long make_stats_ht_lookups;
-extern unsigned long make_stats_ht_collisions;
-
-# ifdef __APPLE__
-#  include <malloc/malloc.h>
-#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_size(ptr)
-
-# elif defined(__linux__) /* glibc */
-#  include <malloc.h>
-#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_usable_size(ptr)
-
-# elif defined(_MSC_VER) || defined(__OS2__)
-#  define SIZE_OF_HEAP_BLOCK(ptr)   _msize(ptr)
-
-# else
-#  include <stdlib.h>
-#  define SIZE_OF_HEAP_BLOCK(ptr)   0
-#endif
-
-# if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
-#  define free xfree
-extern void xfree (void *);
-# endif
-
-# define MAKE_STATS_3(expr) do { expr; } while (0)
-# define MAKE_STATS_2(expr) do { expr; } while (0)
-# define MAKE_STATS(expr)   do { expr; } while (0)
-#else
-# define MAKE_STATS_3(expr) do { } while (0)
-# define MAKE_STATS_2(expr) do { } while (0)
-# define MAKE_STATS(expr)   do { } while (0)
-#endif
 
 #ifdef CONFIG_WITH_IF_CONDITIONALS
 extern int expr_eval_if_conditionals(char *line, const struct floc *flocp);

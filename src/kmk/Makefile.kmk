@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1918 2008-10-23 21:27:11Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1925 2008-10-24 03:32:21Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -175,9 +175,11 @@ kmk_DEFS = \
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
+kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 
 kmk_SOURCES = \
 	main.c \
+	kbuild.c \
 	read.c \
 	expreval.c \
 	incdep.c \
@@ -201,8 +203,7 @@ kmk_SOURCES = \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c \
-	kbuild.c
+	remote-stub.c
 
 #
 # kmkbuiltin commands
