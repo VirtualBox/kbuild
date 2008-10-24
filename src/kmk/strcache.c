@@ -250,6 +250,8 @@ strcache_print_stats (const char *prefix)
 
 #include "strcache2.h"
 
+const char *suffixes_strcached;
+
 /* The file string cache. */
 struct strcache2 file_strcache;
 
@@ -265,6 +267,11 @@ void strcache_init (void)
                  0,             /* case insensitive */
 #endif
                  0);            /* thread safe */
+
+  /* .SUFFIXES is referenced in several loops, keep the added pointer in a
+     global var so these can be optimized. */
+
+  suffixes_strcached = strcache_add_len (".SUFFIXES", sizeof (".SUFFIXES")-1);
 }
 
 void

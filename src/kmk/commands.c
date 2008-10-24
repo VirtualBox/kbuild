@@ -83,12 +83,6 @@ set_file_variables (struct file *file)
 	 explicit rules.  We store this in the `stem' member.  */
       const char *name;
       unsigned int len;
-#ifdef CONFIG_WITH_STRCACHE2
-      static const char *suffixes_strcache = 0; /* XXX: make this global */
-
-      if (!suffixes_strcache)
-        suffixes_strcache = strcache_add_len (".SUFFIXES", sizeof (".SUFFIXES") - 1);
-#endif /* CONFIG_WITH_STRCACHE2 */
 
 #ifndef	NO_ARCHIVES
       if (ar_name (file->name))
@@ -112,7 +106,7 @@ set_file_variables (struct file *file)
 	{
 	  unsigned int slen = strlen (dep_name (d));
 #else
-      for (d = enter_file (suffixes_strcache)->deps; d ; d = d->next)
+      for (d = enter_file (suffixes_strcached)->deps; d ; d = d->next)
         {
 	  unsigned int slen = strcache2_get_len (&file_strcache, dep_name (d));
 #endif
