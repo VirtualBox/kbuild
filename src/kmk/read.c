@@ -85,9 +85,24 @@ struct conditionals
                                    0=interpreting, 1=not yet interpreted,
                                    2=already interpreted */
     char *seen_else;		/* Have we already seen an `else'?  */
+#ifdef KMK
+    char ignoring_first[8];
+    char seen_else_first[8];
+#endif
   };
 
+#ifdef KMK
+static struct conditionals toplevel_conditionals =
+{
+    0,
+    sizeof (toplevel_conditionals.ignoring_first),
+    &toplevel_conditionals.ignoring_first[0],
+    &toplevel_conditionals.seen_else_first[0],
+    "", ""
+};
+#else /* !KMK */
 static struct conditionals toplevel_conditionals;
+#endif /* !KMK */
 static struct conditionals *conditionals = &toplevel_conditionals;
 
 
@@ -328,7 +343,14 @@ install_conditionals (struct conditionals *new)
 {
   struct conditionals *save = conditionals;
 
+#ifndef KMK
   memset (new, '\0', sizeof (*new));
+#else  /* KMK */
+  new->if_cmds   = 0;
+  new->allocated = sizeof (new->ignoring_first);
+  new->ignoring  = new->ignoring_first;
+  new->seen_else = new->seen_else_first;
+#endif /* KMK */
   conditionals = new;
 
   return save;
@@ -340,10 +362,15 @@ static void
 restore_conditionals (struct conditionals *saved)
 {
   /* Free any space allocated by conditional_line.  */
-  if (conditionals->ignoring)
-    free (conditionals->ignoring);
-  if (conditionals->seen_else)
-    free (conditionals->seen_else);
+#ifdef KMK
+  if (conditionals->allocated > sizeof (conditionals->ignoring_first))
+#endif
+    {
+      if (conditionals->ignoring)
+        free (conditionals->ignoring);
+      if (conditionals->seen_else)
+        free (conditionals->seen_else);
+    }
 
   /* Restore state.  */
   conditionals = saved;
@@ -1918,21 +1945,52 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
       goto DONE;
     }
 
+#ifndef KMK
   if (conditionals->allocated == 0)
     {
       conditionals->allocated = 5;
       conditionals->ignoring = xmalloc (conditionals->allocated);
       conditionals->seen_else = xmalloc (conditionals->allocated);
     }
+#endif
 
   o = conditionals->if_cmds++;
   if (conditionals->if_cmds > conditionals->allocated)
     {
-      conditionals->allocated += 5;
-      conditionals->ignoring = xrealloc (conditionals->ignoring,
-                                         conditionals->allocated);
-      conditionals->seen_else = xrealloc (conditionals->seen_else,
-                                          conditionals->allocated);
+#ifdef KMK
+#if 0
+      if (conditionals->allocated == 0)
+        {
+          conditionals->allocated = sizeof (conditionals->ignoring_first);
+          conditionals->ignoring  = conditionals->ignoring_first;
+          conditionals->seen_else = conditionals->seen_else_first;
+        }
+      else
+#endif
+      if (conditionals->allocated <= sizeof (conditionals->ignoring_first))
+        {
+          assert (conditionals->allocated == sizeof (conditionals->ignoring_first));
+          conditionals->allocated += 16;
+          conditionals->ignoring = xmalloc (conditionals->allocated);
+          memcpy (conditionals->ignoring, conditionals->ignoring_first,
+                  sizeof (conditionals->ignoring_first));
+          conditionals->seen_else = xmalloc (conditionals->allocated);
+          memcpy (conditionals->seen_else, conditionals->seen_else_first,
+                  sizeof (conditionals->seen_else_first));
+        }
+      else
+        {
+          conditionals->allocated *= 2;
+#else  /* !KMK */
+          conditionals->allocated += 5;
+#endif /* !KMK */
+          conditionals->ignoring = xrealloc (conditionals->ignoring,
+                                             conditionals->allocated);
+          conditionals->seen_else = xrealloc (conditionals->seen_else,
+                                              conditionals->allocated);
+#ifdef KMK
+        }
+#endif
     }
 
   /* Record that we have seen an `if...' but no `else' so far.  */
@@ -2905,7 +2963,7 @@ find_percent_cached (const char **string)
 {
   const char *p = *string;
   char *new = 0;
-  int slen;
+  int slen = 0;
 
   /* If the first char is a % return now.  This lets us avoid extra tests
      inside the loop.  */
