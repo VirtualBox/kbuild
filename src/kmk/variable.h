@@ -216,7 +216,7 @@ void append_expanded_string_to_variable (struct variable *v, const char *value,
 #ifndef CONFIG_WITH_VALUE_LENGTH
 int handle_function (char **op, const char **stringp);
 #else
-int handle_function (char **op, const char **stringp, const char *eol);
+int handle_function (char **op, const char **stringp, const char *nameend, const char *eol);
 #endif
 int pattern_matches (const char *pattern, const char *percent, const char *str);
 char *subst_expand (char *o, const char *text, const char *subst,
@@ -229,6 +229,49 @@ char *patsubst_expand (char *o, const char *text, char *pattern, char *replace);
 #ifdef CONFIG_WITH_COMMANDS_FUNC
 char *func_commands (char *o, char **argv, const char *funcname);
 #endif
+#if defined (CONFIG_WITH_VALUE_LENGTH)
+/* Avoid calling handle_function for every variable, do the
+   basic checks in variable_expand_string_2. */
+extern char func_char_map[256];
+# define MAX_FUNCTION_LENGTH    12
+# define MIN_FUNCTION_LENGTH    2
+MY_INLINE const char *
+may_be_function_name (const char *name, const char *eos)
+{
+  unsigned char ch;
+  unsigned int len = name - eos;
+
+  /* Minimum length is MIN + whitespace. Check this directly.
+     ASSUMES: MIN_FUNCTION_LENGTH == 2 */
+
+  if (MY_PREDICT_TRUE(len < MIN_FUNCTION_LENGTH + 1
+                      || !func_char_map[(int)(name[0])]
+                      || !func_char_map[(int)(name[1])]))
+    return 0;
+  if (MY_PREDICT_TRUE(!func_char_map[ch = name[2]]))
+    return isspace (ch) ? name + 2 : 0;
+
+  name += 3;
+  if (len > MAX_FUNCTION_LENGTH)
+    len = MAX_FUNCTION_LENGTH - 3;
+  else if (len == 3)
+    len -= 3;
+  if (!len)
+    return 0;
+
+  /* Loop over the remaining possiblities. */
+
+  while (func_char_map[ch = *name])
+    {
+      if (!len--)
+        return 0;
+      name++;
+    }
+  if (ch == '\0' || isblank (ch))
+    return name;
+  return 0;
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* expand.c */
 #ifndef CONFIG_WITH_VALUE_LENGTH

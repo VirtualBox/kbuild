@@ -546,7 +546,9 @@ variable_expand_string_2 (char *line, const char *string, long length, char **eo
 
 	    op = o;
 	    begp = p;
-	    if (handle_function (&op, &begp, eos))
+            end = may_be_function_name (p + 1, eos);
+	    if (    end
+                &&  handle_function (&op, &begp, end, eos))
 	      {
 		o = op;
 		p = begp;
@@ -761,6 +763,7 @@ expand_argument (const char *str, const char *end)
   tmp = alloca (end - str + 1);
   memcpy (tmp, str, end - str);
   tmp[end - str] = '\0';
+  return allocated_variable_expand (tmp);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
   if (!end)
       return allocated_variable_expand_2 (str, ~0U, NULL);
