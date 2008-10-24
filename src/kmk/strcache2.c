@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1920 2008-10-24 00:00:27Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1921 2008-10-24 00:30:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -138,9 +138,19 @@ MY_INLINE unsigned int strcache2_find_prime(unsigned int shift)
         in the project as well. If it does, this might make matters worse
         for some and better for others which isn't very cool...  */
 
-#define BIG_HASH_SIZE   32
-#define BIG_HASH_TAIL   12
-#define BIG_HASH_HEAD   16
+#if 0
+# define BIG_HASH_SIZE  32 /* kinda fast */
+# define BIG_HASH_HEAD  16
+# define BIG_HASH_TAIL  12
+#elif 0
+# define BIG_HASH_SIZE  68 /* kinda safe */
+# define BIG_HASH_HEAD  24
+# define BIG_HASH_TAIL  24
+#elif 0
+# define BIG_HASH_SIZE 128 /* safe */
+# define BIG_HASH_HEAD  32
+# define BIG_HASH_TAIL  32
+#endif
 
 #ifdef BIG_HASH_SIZE
 /* long string: hash head and tail, drop the middle. */
@@ -211,7 +221,11 @@ strcache2_case_sensitive_hash (const char *str, unsigned int len)
 
 # ifdef BIG_HASH_SIZE
   /* long string? */
+#  if 0 /*BIG_HASH_SIZE > 128*/
+  if (MY_PREDICT_FALSE(len >= BIG_HASH_SIZE))
+#  else
   if (len >= BIG_HASH_SIZE)
+#  endif
     return strcache2_case_sensitive_hash_big (str, len);
 # endif
 
