@@ -81,6 +81,9 @@ struct variable
     unsigned int exp_count:EXP_COUNT_BITS;
                                 /* If >1, allow this many self-referential
                                    expansions.  */
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+    unsigned int rdonly_val:1;  /* VALUE is read only (strcache/const). */
+#endif
     enum variable_flavor
       flavor ENUM_BITFIELD (3);	/* Variable flavor.  */
     enum variable_origin

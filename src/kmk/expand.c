@@ -968,7 +968,12 @@ append_expanded_string_to_variable (struct variable *v, const char *value,
         }
 
       /* Replace the variable with the variable buffer. */
-      free (v->value);
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+      if (v->rdonly_val)
+        v->rdonly_val = 0;
+      else
+#endif
+        free (v->value);
       v->value = variable_buffer;
       v->value_length = p - v->value;
       v->value_alloc_len = variable_buffer_length;

@@ -1033,7 +1033,12 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
 #else  /* CONFIG_WITH_VALUE_LENGTH */
       if (len >= (unsigned int)var->value_alloc_len)
         {
-          free (var->value);
+# ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+          if (var->rdonly_val)
+            var->rdonly_val = 0;
+          else
+# endif
+            free (var->value);
           var->value_alloc_len = (len + 32) & ~31;
           var->value = xmalloc (var->value_alloc_len);
         }

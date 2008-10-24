@@ -83,6 +83,12 @@ set_file_variables (struct file *file)
 	 explicit rules.  We store this in the `stem' member.  */
       const char *name;
       unsigned int len;
+#ifdef CONFIG_WITH_STRCACHE2
+      static const char *suffixes_strcache = 0; /* XXX: make this global */
+
+      if (!suffixes_strcache)
+        suffixes_strcache = strcache_add_len (".SUFFIXES", sizeof (".SUFFIXES") - 1);
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 #ifndef	NO_ARCHIVES
       if (ar_name (file->name))
@@ -101,11 +107,13 @@ set_file_variables (struct file *file)
 #endif
 	}
 
+#ifndef CONFIG_WITH_STRCACHE2
       for (d = enter_file (strcache_add (".SUFFIXES"))->deps; d ; d = d->next)
 	{
-#ifndef CONFIG_WITH_STRCACHE2
 	  unsigned int slen = strlen (dep_name (d));
 #else
+      for (d = enter_file (suffixes_strcache)->deps; d ; d = d->next)
+        {
 	  unsigned int slen = strcache2_get_len (&file_strcache, dep_name (d));
 #endif
 	  if (len > slen && strneq (dep_name (d), name + (len - slen), slen))
@@ -138,10 +146,38 @@ set_file_variables (struct file *file)
 
   /* Define the variables.  */
 
+#ifndef CONFIG_WITH_RDONLY_VARIABLE_VALUE
   DEFINE_VARIABLE ("<", 1, less);
   DEFINE_VARIABLE ("*", 1, star);
   DEFINE_VARIABLE ("@", 1, at);
   DEFINE_VARIABLE ("%", 1, percent);
+#else  /* CONFIG_WITH_RDONLY_VARIABLE_VALUE */
+# define DEFINE_VARIABLE_RO_VAL(name, len, value, value_len) \
+  define_variable_in_set((name), (len), (value), (value_len), -1, \
+        (o_automatic), 0, (file)->variables->set, NILF)
+
+  if (*less == '\0')
+    DEFINE_VARIABLE_RO_VAL ("<", 1, "", 0);
+  else if (less != at || at == file->name)
+    DEFINE_VARIABLE_RO_VAL ("<", 1, less, strcache_get_len (less));
+  else
+    DEFINE_VARIABLE ("<", 1, less);
+
+  if (*star == '\0')
+    DEFINE_VARIABLE_RO_VAL ("*", 1, "", 0);
+  else
+    DEFINE_VARIABLE_RO_VAL ("*", 1, star, strcache_get_len (star));
+
+  if (at == file->name)
+    DEFINE_VARIABLE_RO_VAL ("@", 1, at, strcache_get_len (at));
+  else
+    DEFINE_VARIABLE ("@", 1, at);
+
+  if (*percent == '\0')
+    DEFINE_VARIABLE_RO_VAL ("%", 1, "", 0);
+  else
+    DEFINE_VARIABLE ("%", 1, percent);
+#endif /* CONFIG_WITH_RDONLY_VARIABLE_VALUE */
 
   /* Compute the values for $^, $+, $?, and $|.  */
 
