@@ -1211,8 +1211,9 @@ alloccache_init (struct alloccache *cache, unsigned int size, const char *name,
   cache->free_end    = NULL;
   cache->free_head   = NULL;
   cache->size        = act_size;
-  cache->alloc_count = 0;
   cache->total_count = 0;
+  cache->alloc_count = 0;
+  cache->free_count  = 0;
   cache->name        = name;
   cache->grow_arg    = grow_arg;
   cache->grow_alloc  = grow_alloc ? grow_alloc : alloccache_default_grow_alloc;
@@ -1244,9 +1245,11 @@ alloccache_join (struct alloccache *cache, struct alloccache *eat)
   /* add the free list... */
   if (eat->free_head)
     {
+     unsigned int eat_in_use = eat->alloc_count - eat->free_count;
+     unsigned int dst_in_use = cache->alloc_count - cache->free_count;
      if (!cache->free_head)
        cache->free_head = eat->free_head;
-     else if (eat->total_count - eat->alloc_count < cache->total_count - cache->alloc_count)
+     else if (eat->total_count - eat_in_use < cache->total_count - dst_ins_use)
        {
          struct alloccache_free_ent *last = eat->free_head;
          while (last->next)
@@ -1274,12 +1277,13 @@ alloccache_join (struct alloccache *cache, struct alloccache *eat)
 
   /* and statistics */
   cache->alloc_count += eat->alloc_count;
-  cache->total_count += eat->total_count;
+  cache->free_count  += eat->free_count;
 #else
   /* and statistics */
   cache->alloc_count += eat->alloc_count;
-  cache->total_count += eat->alloc_count;
+  cache->free_count  += eat->free_count;
 #endif
+  cache->total_count += eat->total_count;
 
   /* unlink and disable the eat cache */
   if (alloccache_head == eat)
@@ -1303,8 +1307,13 @@ void
 alloccache_print (struct alloccache *cache)
 {
   printf (_("\n# Alloc Cache: %s\n"
-              "#  Items: size = %-3u  in-use = %-6d  total = %-6u\n"),
-          cache->name, cache->size, (int)cache->alloc_count, cache->total_count);
+              "#  Items: size = %-3u  total = %-6u"),
+          cache->name, cache->size, cache->total_count);
+  MAKE_STATS(printf (_("  in-use = %-6lu"),
+                     cache->alloc_count - cache->free_count););
+  MAKE_STATS(printf (_("\n#         alloc calls = %-7lu  free calls = %-7lu"),
+                     cache->alloc_count, cache->free_count););
+  printf ("\n");
 }
 
 /* Print all alloc caches. */
