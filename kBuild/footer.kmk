@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1919 2008-10-23 22:22:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 1936 2008-10-25 15:05:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -784,6 +784,7 @@ else
  $(prefix)_$(src)_EXTENDS_STATUS_ := 42
 endif
 endef # def_keyword_ordering
+$(eval-opt-var def_keyword_ordering)
 
 # Look for keywords which extends others and their parents, and from this
 # construct two lists.
@@ -1088,6 +1089,7 @@ $(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulat
 $(foreach prop,$(PROPS_ACCUMULATE_R),$(eval $(def_inherit_template_one_accumulate_r))) # use <= (kmk addition)
 endif
 endef
+$(eval-opt-var def_inherit_template)
 
 # Inherit template properties
 bld_trg := $(KBUILD_TARGET)
@@ -1158,6 +1160,7 @@ $(eval _USES += \
 	$($(source)_USES) \
 	$($(target)_$(source)_USES))
 endef # def_tools_sdks_target_source
+$(eval-opt-var def_tools_sdks_target_source)
 
 define def_tools_sdks_target
 local _bld_type := $(firstword $($(target)_BLD_TYPE) $(KBUILD_TYPE))
@@ -1189,6 +1192,7 @@ $(foreach source, \
 	$($(target)_SOURCES) \
 	, $(evalval def_tools_sdks_target_source))
 endef # def_tools_sdks_target
+$(eval-opt-var def_tools_sdks_target)
 
 define def_tools_srcname_target
 local _bld_type := $(firstword $($(target)_BLD_TYPE) $(KBUILD_TYPE))
@@ -1205,6 +1209,7 @@ $(foreach source, $(notdir\
 	$($(target)_SOURCES) \
 	), $(evalval def_tools_sdks_target_source))
 endef # def_tools_srcname_target
+$(eval-opt-var def_tools_srcname_target)
 
 bld_trg := $(KBUILD_TARGET)
 bld_trg_arch := $(KBUILD_TARGET_ARCH)
@@ -1377,6 +1382,7 @@ else # NOINST
 endif # NOINST
 
 endef
+$(eval-opt-var def_pass1_link_common)
 
 
 #
@@ -1488,6 +1494,7 @@ TARGET_$(target)  := $(PATH_TARGET)/$(target).ins
 local outbase     := $(call TARGET_BASE,$(target),$(target))
 PATH_$(target)    := $(patsubst %/,%,$(dir $(outbase)))
 endef # def_pass1_install
+$(eval-opt-var def_pass1_install)
 $(foreach target, $(_ALL_INSTALLS), \
 	$(evalval def_pass1_install))
 
@@ -1591,7 +1598,8 @@ _TARGET_$(target)_FETCHED += $(out) $(out).checked_$(md5)_$(size)
 # Just a little precaution.
 .NOTPARALLEL: $(out) $(out).checked_$(md5)_$(size)
 
-endef
+endef # def_fetch_src_fetch_rule
+$(eval-opt-var def_fetch_src_fetch_rule)
 
 ## generates the unpack rule
 define def_fetch_src_unpack_rule
@@ -1614,7 +1622,8 @@ _TARGET_$(target)_DIGEST := $(_TARGET_$(target)_DIGEST)-$(srcname)_$(md5)_$(size
 
 .NOTPARALLEL: $(out)
 
-endef
+endef # def_fetch_src_unpack_rule
+$(eval-opt-var def_fetch_src_unpack_rule)
 
 ## Processes a fetch source
 #
@@ -1793,7 +1802,8 @@ $(eval $(def_fetch_src_unpack_rule))
 
 _DIRS += $(inst) $(fetchdir)
 
-endef
+endef #	def_fetch_src
+$(eval-opt-var def_fetch_src)
 
 
 ##
@@ -1877,6 +1887,7 @@ _DIRS += $(inst)
 _CLEAN_FILES += $(clean_files)
 
 endef
+$(eval-opt-var def_fetch)
 
 # Walk the FETCH target lists.
 bld_trg := $(KBUILD_TARGET)
@@ -1972,7 +1983,8 @@ $(basename $(notdir $(obj))).obj: $(obj)
 
 ## @todo make this 'local cmds' in 0.2.x or when a new kb-src-one is added.
 $(target)_$(source)_CMDS_ :=
-endef
+endef # def_target_source_rule
+$(eval-opt-var def_target_source_rule)
 
 
 ## wrapper the link command dependency check.
@@ -2012,7 +2024,8 @@ endif
 
 $(basename $(notdir $(out))):: $(out)
 
-endef
+endef # def_link_rule
+$(eval-opt-var def_link_rule)
 
 
 ## Generate the link & lib install rule
@@ -2028,7 +2041,7 @@ $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
 ifdef KBUILD_DO_AUTO_INSTALL
 $(basename $(notdir $(out))):: $(INSTARGET_$(target))
 endif
-endef
+endef # def_link_install_rule
 
 
 ## def_src_handler_*
@@ -2105,7 +2118,8 @@ $(foreach source,\
 	$($(target)_GEN_SOURCES_.$(bld_trg_cpu))\
 	$($(target)_GEN_SOURCES_.$(bld_type))\
 	,$(evalval def_src_handler_one) )
-endef
+endef # def_target_sources
+$(eval-opt-var def_target_sources)
 
 
 
@@ -2156,7 +2170,7 @@ _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLE
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _OBJS += $($(target)_OBJS_)
 
-endef
+endef # def_target_install_pluss
 
 
 
@@ -2397,6 +2411,7 @@ $(eval $(def_link_rule))
 # installing and globals
 $(evalval def_target_install_pluss)
 endef
+$(eval-opt-var def_lib)
 
 # Process libraries
 definst := $(PATH_LIB)
@@ -2798,7 +2813,8 @@ _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLE
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _INSTALLS_FILES += $(INSTARGET_$(target))
 
-endef
+endef # def_link_common
+$(eval-opt-var def_link_common)
 
 
 #
@@ -2950,6 +2966,7 @@ $(insdst) : $(srcsrc) | $(call DIRDEP,$(dir $(insdst)))
 	%$$(call MSG_INST_FILE,$(srcsrc),$(insdst))
 	$$(QUIET)$(inscmd)
 endef
+$(eval-opt-var def_install_src_rule)
 
 ## install one file
 define def_install_src
@@ -3086,7 +3103,8 @@ endif
 $(eval $(def_install_src_rule))
 
 INSTARGET_$(target) += $(insdst)
-endef
+endef # def_install_src
+$(eval-opt-var def_install_src)
 
 
 ## generate the symlink rule
@@ -3096,7 +3114,8 @@ $(insdst) : | $(call DIRDEP,$(dir $(insdst)))
 	%$$(call MSG_INST_SYM,$(insdst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
 	$$(QUIET)$$(LN_SYMLINK) $(symdst) $(insdst)
-endef
+endef # def_install_symlink_rule
+$(eval-opt-var def_install_symlink_rule)
 
 ## create one symlink
 define def_install_symlink
@@ -3132,7 +3151,8 @@ local insdst := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
 $(eval $(def_install_symlink_rule))
 
 INSTARGET_$(target) += $(insdst)
-endef
+endef # def_install_symlink
+$(optmize def_install_symlink)
 
 
 ## generate the install rule
@@ -3148,7 +3168,8 @@ $(insdst):
 		$(insdst)
 
 .NOTPARALLEL: $(insdst)
-endef
+endef # def_install_directory_rule
+$(eval-opt-var def_install_directory_rule)
 
 
 ## create one directory
@@ -3211,7 +3232,8 @@ local insdst := $(inst)/$(directory)/
 $(eval $(def_install_directory_rule))
 
 INSTARGET_DIRS_$(target) += $(insdst)
-endef
+endef # def_install_directory
+$(eval-opt-var def_install_directory)
 
 
 ## process one install target.
@@ -3254,7 +3276,8 @@ _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 _CLEAN_FILES += $(clean_files)
 _DIRS += $(PATH_$(target)) $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
-endef
+endef # def_install
+$(eval-opt-var def_install)
 
 ## process all install targets
 $(foreach target, $(_ALL_INSTALLS), \
@@ -3369,6 +3392,7 @@ ifeq ($(_KBUILD_STRICT_PASS_ORDER),nonstrict)
  endif
 endif # _KBUILD_STRICT_PASS_ORDER == nonstrict
 endef # def_pass_setup_and_optimize
+$(eval-opt-var def_pass_setup_and_optimize)
 
 ## PASS: Setup & optimization.
 # Check if we can apply the non-strict pass order optimzation (no SUBDIRS_* and MAKEFILES_*),
@@ -3433,6 +3457,7 @@ endif # !KBUILD_SAFE_PARALLEL
 
 #$ (warning pass=$(pass) PASS=$(PASS): $(PASS_$(PASS)_trgs) $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var))))
 endef # def_pass_strict
+$(eval-opt-var def_pass_strict)
 
 ## Execute a pass, non-strict pass ordering.
 # @param	$(pass)		Lowercase pass name.
@@ -3472,6 +3497,7 @@ pass_$(pass)_order: \
 endif # !KBUILD_SAFE_PARALLEL
 $(eval pass_prev := pass_$(pass)_order)
 endef # def_pass_order_strict
+$(eval-opt-var def_pass_order_strict)
 
 ## Pass order, non-strict.
 # @param	$(pass)		Current pass name.
@@ -3486,6 +3512,7 @@ pass_$(pass)_order: \
 		pass_$(pass)
 $(eval pass_prev := pass_$(pass)_order)
 endef # def_pass_order_nonstrict
+$(eval-opt-var def_pass_order_nonstrict)
 
 ## PASS: order
 # Use dependencies to ensure correct pass order.
