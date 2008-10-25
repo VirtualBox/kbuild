@@ -117,7 +117,8 @@ sub toplevel
   $cwd = ".";                 # don't we wish we knew
   $cwdslash = "";             # $cwd . $pathsep, but "" rather than "./"
 
-  &get_osname;  # sets $osname, $vos, $pathsep, and $short_filenames
+  &get_osname;  # sets $osname, $vos, $pathsep, $short_filenames,
+                # and $case_insensitive_fs
 
   &set_defaults;  # suite-defined
 
@@ -286,6 +287,19 @@ sub get_osname
     unlink (".ostest>ick");
     rmdir (".ostest") || &error ("Couldn't rmdir .ostest: $!\n", 1);
   }
+
+  # Check for case insensitive file system (bird)
+  # The deal is that the 2nd unlink will fail because the first one
+  # will already have removed the file if the fs ignore case.
+  $case_insensitive_fs = 0;
+  my $testfile1 = $short_filenames ? "CaseFs.rmt" : "CaseInSensitiveFs.check";
+  my $testfile2 = $short_filenames ? "casEfS.rmt" : "casEiNsensitivEfS.Check";
+  (open (TOUCHFD, "> $testfile1") &&  close (TOUCHFD))
+    || &error ("Couldn't create $testfile1: $!\n", 1);
+  (open (TOUCHFD, "> $testfile2") &&  close (TOUCHFD))
+    || &error ("Couldn't create $testfile2: $!\n", 1);
+  unlink ($testfile1) || &error ("Couldn't unlink $testfile1: $!\n", 1);
+  unlink ($testfile2) || ($case_insensitive_fs = 1);
 }
 
 sub parse_command_line

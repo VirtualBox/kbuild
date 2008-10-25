@@ -263,6 +263,7 @@ sub set_more_defaults
 
    print "Port type: $port_type\n" if $debug;
    print "Make path: $make_path\n" if $debug;
+   print "fs type  : case insensitive\n" if $debug && $case_insensitive_fs;
 
    # Find the full pathname of Make.  For DOS systems this is more
    # complicated, so we ask make itself.
