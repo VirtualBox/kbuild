@@ -110,6 +110,19 @@ collapse_continuations (char *line, unsigned int linelen)
   in = memchr (line, '\n', linelen);
   if (in == 0)
       return line + linelen;
+  if (in == line || in[-1] != '\\')
+    {
+      do
+        {
+          unsigned int off_in = in - line;
+          if (off_in == linelen)
+            return in;
+          in = memchr (in + 1, '\n', linelen - off_in - 1);
+          if (in == 0)
+            return line + linelen;
+        }
+      while (in[-1] != '\\');
+    }
 #endif
 
   out = in;

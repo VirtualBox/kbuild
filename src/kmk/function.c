@@ -1670,6 +1670,72 @@ func_evalval (char *o, char **argv, const char *funcname)
 
   return o;
 }
+
+/* Optimizes the content of one or more variables to save time in
+   the eval functions.  This function will collapse line continuations
+   and remove comments.  */
+static char *
+func_eval_optimize_variable (char *o, char **argv, const char *funcname)
+{
+  unsigned int i;
+
+  for (i = 0; argv[i]; i++)
+    {
+      struct variable *v = lookup_variable (argv[i], strlen (argv[i]));
+      if (v && !v->rdonly_val)
+        {
+          char *eos, *src;
+
+          eos = collapse_continuations (v->value, v->value_length);
+          v->value_length = eos - v->value;
+
+          /* remove comments */
+
+          src = memchr (v->value, '#', v->value_length);
+          if (src)
+            {
+              unsigned char ch;
+              char *dst = src;
+              do
+                {
+                  /* drop blanks preceeding the comment */
+                  while (dst > v->value)
+                    {
+                      ch = (unsigned char)dst[-1];
+                      if (!isblank (ch))
+                        break;
+                      dst--;
+                    }
+
+                  /* advance SRC to eol / eos. */
+                  src = memchr (src, '\n', eos - src);
+                  if (!src)
+                      break;
+
+                  /* drop a preceeding newline if possible (full line comment) */
+                  if (dst > v->value && dst[-1] == '\n')
+                    dst--;
+
+                  /* copy till next comment or eol. */
+                  while (src < eos)
+                    {
+                      ch = *src++;
+                      if (ch == '#')
+                        break;
+                      *dst++ = ch;
+                    }
+                }
+              while (ch == '#' && src < eos);
+
+              *dst = '\0';
+              v->value_length = dst - v->value;
+            }
+        }
+    }
+
+  return o;
+}
+
 #endif /* CONFIG_WITH_EVALPLUS */
 
 static char *
@@ -4446,6 +4512,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("evalvalctx"),    1,  1,  1,  func_evalval},
   { STRING_SIZE_TUPLE("evalcall"),      1,  0,  1,  func_call},
   { STRING_SIZE_TUPLE("evalcall2"),     1,  0,  1,  func_call},
+  { STRING_SIZE_TUPLE("eval-opt-var"),  1,  0,  1,  func_eval_optimize_variable},
 #endif
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
