@@ -1195,7 +1195,7 @@ define_automatic_variables (void)
                           " file-size"
                           " expr if-expr"
                           " which"
-                          " evalctx evalval evalvalctx evalcall evalcall2"
+                          " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var"
                           " make-stats"
                           " commands"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
@@ -1249,7 +1249,7 @@ define_automatic_variables (void)
   strcat (buf, " which");
 #  endif
 #  if defined (CONFIG_WITH_EVALPLUS)
-  strcat (buf, " evalctx evalval evalvalctx evalcall evalcall2");
+  strcat (buf, " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var");
 #  endif
 #  if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
   strcat (buf, " make-stats");
