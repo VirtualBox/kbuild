@@ -720,8 +720,12 @@ expand_deps (struct file *f)
                       o = variable_buffer_output (buffer, nm, strlen (nm) + 1);
                     }
                   else
-                    o = patsubst_expand_pat (buffer, d->stem, pattern, nm,
-                                             pattern+1, percent+1);
+                    {
+                      o = patsubst_expand_pat (buffer, d->stem, pattern, nm,
+                                               pattern+1, percent+1);
+                      o = variable_buffer_output (o, "", 1); /* bird fix - patsubst_expand_pat doesn't terminate,
+                                                                the if case does and strcache would appreciate it. */
+                    }
                   buffer = variable_buffer + buffer_offset; /* bird fix - variable_buffer may have been reallocated. */
 
 
