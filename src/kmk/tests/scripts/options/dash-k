@@ -53,7 +53,7 @@ else {
   $error_code = 512;
 }
 
-&run_make_with_options($makefile, "-k", &get_logfile, $error_code);
+&run_make_with_options($makefile, "-j1 -k", &get_logfile, $error_code);
 
 # Create the answer to what should be produced by this Makefile
 $answer = "cc -c main.c
