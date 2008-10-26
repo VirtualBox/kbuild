@@ -2954,11 +2954,11 @@ print_usage (int bad)
 
 #ifdef KMK
   if (!remote_description || *remote_description == '\0')
-    printf (_("\nThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
-            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
+    fprintf (usageto, _("\nThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
+             KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
   else
-    printf (_("\nThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
-            KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
+    fprintf (usageto, _("\nThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
+             KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
 #else  /* !KMK */
   if (!remote_description || *remote_description == '\0')
     fprintf (usageto, _("\nThis program built for %s\n"), make_host);
