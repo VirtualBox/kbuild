@@ -181,9 +181,12 @@ set_file_variables (struct file *file)
     DEFINE_VARIABLE ("%", 1, percent);
 #endif /* CONFIG_WITH_RDONLY_VARIABLE_VALUE */
 
-#ifndef CONFIG_WITH_LAZY_DEPS_VARS
   /* Compute the values for $^, $+, $?, and $|.  */
-
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+  if (   file->double_colon
+      && (   file->double_colon != file
+          || file->last != file))
+#endif
   {
     static char *plus_value=0, *bar_value=0, *qmark_value=0;
     static unsigned int plus_max=0, bar_max=0, qmark_max=0;
@@ -323,18 +326,18 @@ set_file_variables (struct file *file)
     bp[bp > bar_value ? -1 : 0] = '\0';
     DEFINE_VARIABLE ("|", 1, bar_value);
   }
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+  else
+    {
+      /* Make a copy of the current dependency chain for later use in
+         potential $(dep-pluss $@) calls.  Then drop duplicate deps.  */
 
-#else  /* CONFIG_WITH_LAZY_DEPS_VARS */
+      /* assert (file->org_deps == NULL); - FIXME? */
+      free_dep_chain (file->org_deps);
+      file->org_deps = copy_dep_chain (file->deps);
 
-  /* Make a copy of the current dependency chain for later use in
-     potential $(dep-pluss $@) calls.  Then drop duplicate deps.  */
-
-  /* assert (file->org_deps == NULL); - FIXME? */
-  free_dep_chain (file->org_deps);
-  file->org_deps = copy_dep_chain (file->deps);
-
-  uniquize_deps (file->deps);
-
+      uniquize_deps (file->deps);
+   }
 #endif /* CONFIG_WITH_LAZY_DEPS_VARS */
 #undef	DEFINE_VARIABLE
 }

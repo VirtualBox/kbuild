@@ -2293,6 +2293,12 @@ func_deps (char *o, char **argv, const char *funcname)
                        ? file->org_deps : file->deps;
       struct dep *d;
 
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          error (NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+                 funcname, file->name);
+
       if (idx == 0 /* all */)
         {
           unsigned int total_len = 0;
@@ -2418,6 +2424,12 @@ func_deps_newer (char *o, char **argv, const char *funcname)
       struct dep *deps = file->deps;
       struct dep *d;
 
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          error (NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+                 funcname, file->name);
+
       if (idx == 0 /* all */)
         {
           unsigned int total_len = 0;
@@ -2542,6 +2554,12 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
     {
       struct dep *deps = file->deps;
       struct dep *d;
+
+      if (   file->double_colon
+          && (   file->double_colon != file
+              || file->last != file))
+          error (NILF, _("$(%s ) cannot be used on files with multiple double colon rules like `%s'\n"),
+                 funcname, file->name);
 
       if (idx == 0 /* all */)
         {
