@@ -1698,7 +1698,7 @@ func_eval_optimize_variable (char *o, char **argv, const char *funcname)
           src = memchr (v->value, '#', v->value_length);
           if (src)
             {
-              unsigned char ch;
+              unsigned char ch = '\0';
               char *dst = src;
               do
                 {
@@ -2323,8 +2323,10 @@ func_deps (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                   total_len += strcache2_get_len (&file_strcache, c) + 1;
+#else
+                  total_len += strlen (c) + 1;
 #endif
               }
 
@@ -2345,11 +2347,13 @@ func_deps (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c);
+                        len = strlen (c);
                       }
                     else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                       len = strcache2_get_len (&file_strcache, c) + 1;
+#else
+                      len = strlen (c) + 1;
 #endif
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
@@ -2375,11 +2379,13 @@ func_deps (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c) - ;
+                        len = strlen (c) - 1;
                       }
                     else
+#elif defined (CONFIG_WITH_STRCACHE2)
+                      len = strcache2_get_len (&file_strcache, c);
 #else
-                        len = strcache2_get_len (&file_strcache, c);
+                      len = strlen (c);
 #endif
                     o = variable_buffer_output (o, c, len);
                     break;
@@ -2454,8 +2460,10 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                   total_len += strcache2_get_len (&file_strcache, c) + 1;
+#else
+                  total_len += strlen (c) + 1;
 #endif
               }
 
@@ -2476,11 +2484,13 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c);
+                        len = strlen (c);
                       }
                     else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                       len = strcache2_get_len (&file_strcache, c) + 1;
+#else
+                      len = strlen (c) + 1;
 #endif
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
@@ -2506,11 +2516,13 @@ func_deps_newer (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c) - ;
+                        len = strlen (c) - 1;
                       }
                     else
+#elif defined (CONFIG_WITH_STRCACHE2)
+                      len = strcache2_get_len (&file_strcache, c);
 #else
-                        len = strcache2_get_len (&file_strcache, c);
+                      len = strlen (c);
 #endif
                     o = variable_buffer_output (o, c, len);
                     break;
@@ -2585,8 +2597,10 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                     total_len += strlen (c);
                   }
                 else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                   total_len += strcache2_get_len (&file_strcache, c) + 1;
+#else
+                  total_len += strlen (c) + 1;
 #endif
               }
 
@@ -2607,11 +2621,13 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c);
+                        len = strlen (c);
                       }
                     else
-#else
+#elif defined (CONFIG_WITH_STRCACHE2)
                       len = strcache2_get_len (&file_strcache, c) + 1;
+#else
+                      len = strlen (c) + 1;
 #endif
                     o = variable_buffer_output (o, c, len);
                     o[-1] = FILE_LIST_SEPARATOR;
@@ -2637,11 +2653,13 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
                     if (ar_name (c))
                       {
                         c = strchr (c, '(') + 1;
-                        len += strlen (c) - ;
+                        len = strlen (c) - 1;
                       }
                     else
+#elif defined (CONFIG_WITH_STRCACHE2)
+                      len = strcache2_get_len (&file_strcache, c);
 #else
-                        len = strcache2_get_len (&file_strcache, c);
+                      len = strlen (c);
 #endif
                     o = variable_buffer_output (o, c, len);
                     break;
