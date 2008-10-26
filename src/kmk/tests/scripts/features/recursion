@@ -9,11 +9,11 @@ all:
 	$(MAKE) -f #MAKEFILE# foo
 foo:
 	@echo $(MAKE)
-	@echo MAKELEVEL = $(MAKELEVEL)
+	@echo MAKELEVEL = $('. (!$is_kmk ? 'MAKELEVEL' : 'KMK_LEVEL') .')
 	$(MAKE) -f #MAKEFILE# last
 last:
 	@echo $(MAKE)
-	@echo MAKELEVEL = $(MAKELEVEL)
+	@echo MAKELEVEL = $('. (!$is_kmk ? 'MAKELEVEL' : 'KMK_LEVEL') .')
 	@echo THE END
 ',
               ('CFLAGS=-O -w' . ($parallel_jobs ? '-j 2' : '')),
@@ -45,7 +45,7 @@ THE END
 # Test command line overrides.
 run_make_test('
 recur: all ; @$(MAKE) --no-print-directory -f #MAKEFILE# a=AA all
-all: ; @echo "MAKEOVERRIDES = $(MAKEOVERRIDES)"
+all: ; @echo "MAKEOVERRIDES = $('. (!$is_kmk ? 'MAKEOVERRIDES' : 'KMK_OVERRIDES') .')"
 ',
               'a=ZZ',
               'MAKEOVERRIDES = a=ZZ
