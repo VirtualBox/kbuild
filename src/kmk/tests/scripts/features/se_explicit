@@ -5,6 +5,8 @@ $details = "";
 
 # TEST #0: Test handing of '$' in prerequisites with and without second
 # expansion.
+# bird: Modified this test to use ${PRE} instead of $(PRE) as it failes
+#       when make is built with NO_ARCHIVES defined.
 
 run_make_test(q!
 ifdef SE
@@ -12,13 +14,13 @@ ifdef SE
 endif
 foo$$bar: bar$$baz bar$$biz ; @echo '$@ : $^'
 PRE = one two
-bar$$baz: $$(PRE)
-baraz: $$(PRE)
+bar$$baz: $${PRE}
+baraz: $${PRE}
 PRE = three four
 .DEFAULT: ; @echo '$@'
 !,
               '',
-              "\$\nbar\$biz\nfoo\$bar : bar\$baz bar\$biz");
+              "\${PRE}\nbar\$biz\nfoo\$bar : bar\$baz bar\$biz");
 
 run_make_test(undef, 'SE=1', "three\nfour\nbariz\nfoo\$bar : baraz bariz");
 
