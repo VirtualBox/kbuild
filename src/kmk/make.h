@@ -146,7 +146,8 @@ unsigned int get_path_max (void);
 #endif
 
 #if defined (KMK) || defined (CONFIG_WITH_VALUE_LENGTH) \
- || defined (CONFIG_WITH_ALLOC_CACHES)
+ || defined (CONFIG_WITH_ALLOC_CACHES) \
+ || defined (CONFIG_WITH_STRCACHE2)
 # ifdef _MSC_VER
 #  define MY_INLINE     _inline static
 # elif defined(__GNUC__)
