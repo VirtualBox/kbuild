@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1934 2008-10-24 22:24:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 1974 2008-10-26 22:48:23Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -380,6 +380,84 @@ kmk_gmake_SOURCES = \
 	read.c \
 	hash.c \
 	strcache.c \
+	variable.c \
+	ar.c \
+	arscan.c \
+	commands.c \
+	default.c \
+	dir.c \
+	expand.c \
+	file.c \
+	function.c \
+	implicit.c \
+	job.c \
+	misc.c \
+	remake.c \
+	rule.c \
+	signame.c \
+	version.c \
+	vpath.c \
+	remote-stub.c
+
+
+#
+# kmk_fmake - Faster GNU Make.
+#
+PROGRAMS += kmk_fgmake
+
+kmk_fgmake_TEMPLATE = BIN-KMK
+kmk_fgmake_DEFS = \
+	HAVE_CONFIG_H \
+	NO_ARCHIVES \
+	CONFIG_WITH_TOUPPER_TOLOWER \
+	EXPERIMENTAL \
+	\
+	CONFIG_WITH_ALLOC_CACHES \
+	CONFIG_WITH_LAZY_DEPS_VARS \
+	CONFIG_WITH_STRCACHE2 \
+
+MY_TODOS = \
+	CONFIG_WITH_DEFINED \
+	CONFIG_WITH_EXPLICIT_MULTITARGET \
+	CONFIG_WITH_PREPEND_ASSIGNMENT \
+	CONFIG_WITH_LOCAL_VARIABLES \
+	CONFIG_WITH_2ND_TARGET_EXPANSION \
+	\
+	KMK \
+	KMK_HELPERS \
+	CONFIG_NO_DEFAULT_SUFFIXES \
+	CONFIG_NO_DEFAULT_PATTERN_RULES	\
+	CONFIG_NO_DEFAULT_TERMINAL_RULES \
+	CONFIG_NO_DEFAULT_SUFFIX_RULES \
+	CONFIG_NO_DEFAULT_VARIABLES \
+	CONFIG_WITH_EXTENDED_NOTPARALLEL \
+	CONFIG_WITH_INCLUDEDEP \
+	CONFIG_WITH_VALUE_LENGTH \
+	CONFIG_WITH_RSORT \
+	CONFIG_WITH_ABSPATHEX \
+	CONFIG_WITH_COMPARE \
+	CONFIG_WITH_STACK \
+	CONFIG_WITH_MATH \
+	CONFIG_WITH_XARGS \
+	CONFIG_WITH_NANOTS \
+	CONFIG_WITH_SET_CONDITIONALS \
+	CONFIG_WITH_IF_CONDITIONALS \
+	CONFIG_WITH_DATE \
+	CONFIG_WITH_FILE_SIZE \
+	CONFIG_WITH_WHICH \
+	CONFIG_WITH_EVALPLUS \
+	CONFIG_WITH_MINIMAL_STATS \
+	CONFIG_WITH_COMMANDS_FUNC \
+	CONFIG_PRETTY_COMMAND_PRINTING \
+	CONFIG_WITH_PRINT_STATS_SWITCH \
+	CONFIG_WITH_RDONLY_VARIABLE_VALUE \
+
+kmk_fgmake_SOURCES = \
+	main.c \
+	read.c \
+	hash.c \
+	strcache.c \
+	strcache2.c \
 	variable.c \
 	ar.c \
 	arscan.c \
