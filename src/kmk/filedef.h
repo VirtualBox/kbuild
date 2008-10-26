@@ -125,7 +125,7 @@ extern char **default_goal_name;
 
 
 struct file *lookup_file (const char *name);
-#ifdef KMK
+#ifdef CONFIG_WITH_STRCACHE2
 struct file *lookup_file_cached (const char *name);
 #endif
 struct file *enter_file (const char *name);

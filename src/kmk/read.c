@@ -441,7 +441,7 @@ eval_makefile (const char *filename, int flags)
   deps = alloc_dep ();
   deps->next = read_makefiles;
   read_makefiles = deps;
-#ifndef KMK
+#ifndef CONFIG_WITH_STRCACHE2
   deps->file = lookup_file (filename);
 #else
   deps->file = lookup_file_cached (filename);
@@ -2398,17 +2398,17 @@ record_target_var (struct nameseq *filenames, char *defn,
              We don't want to just call enter_file() because that allocates a
              new entry if the file is a double-colon, which we don't want in
              this situation.  */
-#ifndef KMK
+#ifndef CONFIG_WITH_STRCACHE2
           f = lookup_file (name);
           if (!f)
             f = enter_file (strcache_add (name));
-#else  /* KMK */
+#else  /* CONFIG_WITH_STRCACHE2 */
            /* XXX: this is probably already a cached string. */
           fname = strcache_add (name);
           f = lookup_file_cached (fname);
           if (!f)
             f = enter_file (fname);
-#endif
+#endif /* CONFIG_WITH_STRCACHE2 */
           else if (f->double_colon)
             f = f->double_colon;
 
@@ -2770,11 +2770,11 @@ record_files (struct nameseq *filenames, const char *pattern,
       else
 	{
 	  /* Double-colon.  Make a new record even if there already is one.  */
-#ifndef KMK
+#ifndef CONFIG_WITH_STRCACHE2
 	  f = lookup_file (name);
-#else  /* KMK - the name is already in the cache, don't waste time.  */
+#else  /* CONFIG_WITH_STRCACHE2 - the name is already in the cache, don't waste time.  */
 	  f = lookup_file_cached (name);
-#endif
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 	  /* Check for both : and :: rules.  Check is_target so
 	     we don't lose on default suffix rules or makefiles.  */

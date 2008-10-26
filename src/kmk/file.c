@@ -82,13 +82,13 @@ static int all_secondary = 0;
                 or nil if there is none.
 */
 
-#ifndef KMK
+#ifndef CONFIG_WITH_STRCACHE2
 struct file *
 lookup_file (const char *name)
-#else  /* KMK */
+#else  /* CONFIG_WITH_STRCACHE2 */
 MY_INLINE struct file *
 lookup_file_common (const char *name, int cached)
-#endif /* KMK */
+#endif /* CONFIG_WITH_STRCACHE2 */
 {
   struct file *f;
   struct file file_key;
@@ -163,7 +163,7 @@ lookup_file_common (const char *name, int cached)
   return f;
 }
 
-#ifdef KMK
+#ifdef CONFIG_WITH_STRCACHE2
 /* Given a name, return the struct file * for that name,
   or nil if there is none. */
 
@@ -181,7 +181,7 @@ lookup_file_cached (const char *name)
   assert (strcache_iscached (name));
   return lookup_file_common (name, 1 /* cached */);
 }
-#endif /* KMK */
+#endif /* CONFIG_WITH_STRCACHE2 */
 
 
 /* Look up a file record for file NAME and return it.
@@ -577,7 +577,7 @@ expand_deps (struct file *f)
       size_t buffer_offset; /* bird */
       struct dep *new, *d1;
       char *p;
-#ifdef CONFIG_WITH_VALUE_LENGTH
+#ifdef CONFIG_WITH_STRCACHE2
       unsigned int len;
 #endif
 
@@ -664,7 +664,7 @@ expand_deps (struct file *f)
 
           set_file_variables (f);
 
-#ifndef CONFIG_WITH_STRCACHE2
+#if !defined (CONFIG_WITH_VALUE_LENGTH) || !defined (CONFIG_WITH_STRCACHE2)
           p = variable_expand_for_file (d->name, f);
 #else
           len = strcache2_get_len (&file_strcache, d->name);
