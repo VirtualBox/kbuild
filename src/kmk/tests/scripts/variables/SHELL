@@ -49,8 +49,9 @@ all:;@echo "$(SHELL) $$SHELL"
 
 $extraENV{SHELL} = $mshell;
 
+# bird: This was wrong, see Savannah bug #24655. Fixed in kBuild.
 run_make_test("all: export SHELL := /./$mshell\n".'
 all:;@echo "$(SHELL) $$SHELL"
-', '', "/./$mshell $mshell");
+', '', "/./$mshell /./$mshell");
 
 1;
