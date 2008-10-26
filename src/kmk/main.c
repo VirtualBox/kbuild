@@ -1612,8 +1612,19 @@ main (int argc, char **argv, char **envp)
 #ifndef __MSDOS__
                 v->export = v_noexport;
 #endif
+#ifndef CONFIG_WITH_STRCACHE2
                 shell_var.name = "SHELL";
+#else
+                shell_var.name = v->name;
+#endif
+                shell_var.length = 5; /* bird - gotta set the length too! */
+#ifndef CONFIG_WITH_VALUE_LENGTH
                 shell_var.value = xstrdup (ep + 1);
+#else
+                shell_var.value = savestring (v->value, v->value_length);
+                shell_var.value_length = v->value_length;
+#endif
+
               }
 
             /* If MAKE_RESTARTS is set, remember it but don't export it.  */
