@@ -55,9 +55,11 @@ $answer = "cp foo.f foo.e\ncp foo.e foo.d\nrm foo.e\n";
 &compare_output($answer, &get_logfile(1));
 
 # TEST #3
+# kmk: differs because of different hashing.
 
 &run_make_with_options($makefile,'foo.c',&get_logfile);
-$answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\nrm bar.e foo.e\n";
+$answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\n"
+        . (!$is_kmk ? "rm bar.e foo.e\n" : "rm foo.e bar.e\n");
 &compare_output($answer, &get_logfile(1));
 
 # TEST #4
@@ -67,12 +69,14 @@ $answer = "$make_name: `foo.c' is up to date.\n";
 &compare_output($answer, &get_logfile(1));
 
 # TEST #5
+# kmk: differs because of different hashing.
 
 &utouch(-10, 'foo.c');
 &touch('foo.f');
 
 &run_make_with_options($makefile,'foo.c',&get_logfile);
-$answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\nrm bar.e foo.e\n";
+$answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\n"
+        . (!$is_kmk ? "rm bar.e foo.e\n" : "rm foo.e bar.e\n");
 &compare_output($answer, &get_logfile(1));
 
 # TEST #6 -- added for PR/1669: don't remove files mentioned on the cmd line.
