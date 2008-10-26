@@ -417,7 +417,11 @@ handle_special_var (struct variable *var)
   if (streq (var->name, ".VARIABLES")
       && global_variable_set.table.ht_fill != last_var_count)
     {
+#ifndef CONFIG_WITH_VALUE_LENGTH
       unsigned long max = EXPANSION_INCREMENT (strlen (var->value));
+#else
+      unsigned long max = EXPANSION_INCREMENT (var->value_length);
+#endif
       unsigned long len;
       char *p;
       struct variable **vp = (struct variable **) global_variable_set.table.ht_vec;
@@ -450,6 +454,10 @@ handle_special_var (struct variable *var)
             *(p++) = ' ';
           }
       *(p-1) = '\0';
+#ifdef CONFIG_WITH_VALUE_LENGTH
+      var->value_length = p - var->value - 1;
+      var->value_alloc_len = max;
+#endif
 
       /* Remember how many variables are in our current count.  Since we never
          remove variables from the list, this is a reliable way to know whether
