@@ -183,9 +183,12 @@ set_file_variables (struct file *file)
 
   /* Compute the values for $^, $+, $?, and $|.  */
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
-  if (   file->double_colon
-      && (   file->double_colon != file
-          || file->last != file))
+  /* Lazy doesn't work for double colon rules with multiple files with
+     commands, nor for files that has been thru rehash_file() (vpath).  */
+  if (   (   file->double_colon
+          && (   file->double_colon != file
+             || file->last != file))
+      || file->name != file->hname) /* XXX: Rehashed files should be fixable! */
 #endif
   {
     static char *plus_value=0, *bar_value=0, *qmark_value=0;
