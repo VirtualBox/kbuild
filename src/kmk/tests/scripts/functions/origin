@@ -15,6 +15,9 @@ defined per the following list:
 'override'             defined by override in makefile
 'automatic'            Automatic variable\n";
 
+# kmk: CC isn't a default.
+$CC_origin = $is_kmk ? "undefined" : "default";
+
 # Set an environment variable
 $extraENV{MAKETEST} = 1;
 
@@ -35,9 +38,9 @@ all: auto
 auto :
 	@echo $(av)',
 	      '-e WHITE=WHITE CFLAGS=',
-	      'undefined default environment default file command line override automatic
+	      'undefined '. $CC_origin .' environment default file command line override automatic
 undefined
-default
+'. $CC_origin .'
 environment
 default
 file
