@@ -3177,16 +3177,18 @@ parse_file_seq (char **stringp, int stopchar, struct alloccache *cache, int stri
 	  name = strcache_add_len (qbase, p1 - qbase);
 	  free (qbase);
 	}
-#elif !defined(CONFIG_WITH_VALUE_LENGTH)
+#elif !defined (CONFIG_WITH_VALUE_LENGTH) || defined (CONFIG_WITH_STRCACHE2)
 	name = strcache_add_len (q, p - q);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
        {
          /* Make sure it's terminated, strcache_add_len has to make a
             temp copy on the stack otherwise. */
          char saved = *p;
-         *p = '\0';
+         if (!saved)
+           *p = '\0';
          name = strcache_add_len (q, p - q);
-         *p = saved;
+         if (saved)
+           *p = saved;
        }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
