@@ -722,7 +722,7 @@ expand_deps (struct file *f)
                   else
                     o = patsubst_expand_pat (buffer, d->stem, pattern, nm,
                                              pattern+1, percent+1);
-                  buffer = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. */
+                  buffer = variable_buffer + buffer_offset; /* bird fix - variable_buffer may have been reallocated. */
 
 
                   /* If the name expanded to the empty string, ignore it.  */
@@ -738,7 +738,7 @@ expand_deps (struct file *f)
                     }
 
                   /* Save the name.  */
-                  dp->name = strcache_add_len (buffer, o - buffer);
+                  dp->name = strcache_add_len (buffer, o - buffer - 1); /* bird fix - don't include the terminator. */
                 }
               dl = dp;
               dp = dp->next;
