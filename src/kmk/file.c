@@ -864,6 +864,21 @@ snap_deps (void)
       if (f->name != suffixes_strcached)
 #endif
         expand_deps (f);
+#ifdef KMK
+  /* This is a HACK to work around the still broken test #9 in
+     features/double_colon.  It produces the wrong result if the build is
+     parallel because of changed evaluation order.  Just make these
+     problematic rules execute in single field till a proper fix is
+     forthcomming...  */
+
+  for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
+    if (   (f = *file_slot) != 0
+        && f->double_colon
+        && (   f->double_colon != f
+            || f->last != f))
+      for (f2 = f->double_colon; f2 != 0; f2 = f2->prev)
+        f2->command_flags |= COMMANDS_NOTPARALLEL;
+#endif
   free (file_slot_0);
 
   /* Now manage all the special targets.  */
