@@ -2439,7 +2439,9 @@ record_target_var (struct nameseq *filenames, char *defn,
 #ifndef CONFIG_WITH_STRCACHE2
           int len = strlen(v->name);
 #else
-          int len = strcache2_get_len (&variable_strcache, v->name);
+          int len = !percent
+                  ? strcache2_get_len (&variable_strcache, v->name)
+                  : strlen(v->name);
 #endif
 
           gv = lookup_variable (v->name, len);
