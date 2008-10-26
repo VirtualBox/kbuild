@@ -106,7 +106,7 @@ lookup_pattern_var (struct pattern_var *start, const char *target)
 }
 
 #ifdef CONFIG_WITH_STRCACHE2
-static struct strcache2 variable_strcache;
+struct strcache2 variable_strcache;
 #endif
 
 /* Hash table of all global variable definitions.  */
@@ -604,7 +604,7 @@ lookup_variable (const char *name, unsigned int length)
 
   /* lookup the name in the string case, if it's not there it won't
      be in any of the sets either. */
-  cached_name = strcache2_lookup(&variable_strcache, name, length);
+  cached_name = strcache2_lookup (&variable_strcache, name, length);
   if (!cached_name)
     return NULL;
   name = cached_name;

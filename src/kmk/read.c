@@ -2436,14 +2436,26 @@ record_target_var (struct nameseq *filenames, char *defn,
       if (origin != o_override)
         {
           struct variable *gv;
+#ifndef CONFIG_WITH_STRCACHE2
           int len = strlen(v->name);
+#else
+          int len = strcache2_get_len (&variable_strcache, v->name);
+#endif
 
           gv = lookup_variable (v->name, len);
           if (gv && (gv->origin == o_env_override || gv->origin == o_command))
             {
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+              assert (!v->rdonly_val); /* paranoia */
+#endif
               if (v->value != 0)
                 free (v->value);
+#ifndef CONFIG_WITH_VALUE_LENGTH
               v->value = xstrdup (gv->value);
+#else
+              v->value = savestring (gv->value, gv->value_length);
+              v->value_length = gv->value_length;
+#endif
               v->origin = gv->origin;
               v->recursive = gv->recursive;
               v->append = 0;
