@@ -14,7 +14,9 @@ types of foreach loops are tested\n";
 # TEST 0
 
 # Set an environment variable that we can test in the makefile.
+# kmk: CC isn't a default.
 $extraENV{FOOFOO} = 'foo foo';
+$CC_origin = $is_kmk ? "undefined" : "default";
 
 run_make_test("space = ' '".'
 null :=
@@ -28,8 +30,8 @@ all: auto for2
 auto : ; @echo $(av)
 for2: ; @echo $(fe)',
               '-e WHITE=WHITE CFLAGS=',
-              "undefined file default file environment default file command line override automatic automatic
-foo.o bletch.o null.o @.o garf.o .o    .o undefined.o file.o default.o file.o environment.o default.o file.o command.o line.o override.o automatic.o automatic.o");
+              "undefined file ". $CC_origin ." file environment default file command line override automatic automatic
+foo.o bletch.o null.o @.o garf.o .o    .o undefined.o file.o ". $CC_origin .".o file.o environment.o default.o file.o command.o line.o override.o automatic.o automatic.o");
 
 delete $extraENV{FOOFOO};
 
