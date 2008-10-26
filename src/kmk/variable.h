@@ -426,6 +426,9 @@ struct pattern_var *create_pattern_var (const char *target,
                                         const char *suffix);
 
 extern int export_all_variables;
+#ifdef CONFIG_WITH_STRCACHE2
+extern struct strcache2 variable_strcache;
+#endif
 
 #ifdef KMK
 # define MAKELEVEL_NAME "KMK_LEVEL"
