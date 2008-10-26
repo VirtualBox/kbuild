@@ -145,26 +145,14 @@ extern int errno;
 unsigned int get_path_max (void);
 #endif
 
-#if defined(KMK) || defined(CONFIG_WITH_VALUE_LENGTH)
+#if defined (KMK) || defined (CONFIG_WITH_VALUE_LENGTH) \
+ || defined (CONFIG_WITH_ALLOC_CACHES)
 # ifdef _MSC_VER
 #  define MY_INLINE     _inline static
-#  define MY_DBGBREAK   __debugbreak()
 # elif defined(__GNUC__)
 #  define MY_INLINE     static __inline__
-#  if defined(__i386__) || defined(__x86_64__)
-#   define MY_DBGBREAK  __asm__ __volatile__ ("int3")
-#else
-#   define MY_DBGBREAK  assert(0)
-#  endif
 # else
 #  define MY_INLINE     static
-#  define MY_DBGBREAK  assert(0)
-# endif
-# ifndef NDEBUG
-#  define MY_ASSERT_MSG(expr, printfargs) \
-    do { if (!(expr)) { printf printfargs; MY_DBGBREAK; } } while (0)
-# else
-#  define MY_ASSERT_MSG(expr, printfargs)   do { } while (0)
 # endif
 
 # ifdef __GNUC__
@@ -173,6 +161,26 @@ unsigned int get_path_max (void);
 # else
 #  define MY_PREDICT_TRUE(expr)  (expr)
 #  define MY_PREDICT_FALSE(expr) (expr)
+# endif
+#endif
+
+#if defined (KMK) || defined (CONFIG_WITH_VALUE_LENGTH)
+# ifdef _MSC_VER
+#  define MY_DBGBREAK   __debugbreak()
+# elif defined(__GNUC__)
+#  if defined(__i386__) || defined(__x86_64__)
+#   define MY_DBGBREAK  __asm__ __volatile__ ("int3")
+#  else
+#   define MY_DBGBREAK  assert(0)
+#  endif
+# else
+#  define MY_DBGBREAK   assert(0)
+# endif
+# ifndef NDEBUG
+#  define MY_ASSERT_MSG(expr, printfargs) \
+    do { if (!(expr)) { printf printfargs; MY_DBGBREAK; } } while (0)
+# else
+#  define MY_ASSERT_MSG(expr, printfargs)   do { } while (0)
 # endif
 #endif
 

@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #include "make.h"
 #include "dep.h"
 #include "debug.h"
-#ifdef CONFIG_WITH_VALUE_LENGTH
+#if defined (CONFIG_WITH_VALUE_LENGTH) || defined (CONFIG_WITH_ALLOC_CACHES)
 # include <assert.h>
 #endif
 #ifdef CONFIG_WITH_PRINT_STATS_SWITCH

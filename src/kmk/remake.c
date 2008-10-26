@@ -238,7 +238,7 @@ update_goal_chain (struct dep *goals)
 		lastgoal->next = g->next;
 
 	      /* Free the storage.  */
-#ifndef KMK
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	      free (g);
 #else
               free_dep (g);
