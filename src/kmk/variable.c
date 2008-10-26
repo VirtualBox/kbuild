@@ -1522,6 +1522,7 @@ target_environment (struct file *file)
 #ifndef CONFIG_WITH_STRCACHE2
 	    new_slot = (struct variable **) hash_find_slot (&table, v);
 #else  /* CONFIG_WITH_STRCACHE2 */
+	    assert (strcache2_is_cached (&variable_strcache, v->name));
 	    new_slot = (struct variable **) hash_find_slot_strcached (&table, v);
 #endif /* CONFIG_WITH_STRCACHE2 */
 	    if (HASH_VACANT (*new_slot))
