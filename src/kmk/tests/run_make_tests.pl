@@ -144,6 +144,8 @@ sub run_make_with_options {
 
   if ($options) {
     $command .= " $options";
+  } elsif ($is_kmk) {
+#    $command .= " -j1";
   }
 
   if ($valgrind) {

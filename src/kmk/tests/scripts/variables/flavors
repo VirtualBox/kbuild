@@ -173,7 +173,7 @@ endef
 all: foo bar
 foo: ; $(FOO)
 bar: ; @$(BAR)
-', '', 'hello
+', '-j1', 'hello
 echo world
 world
 hello
