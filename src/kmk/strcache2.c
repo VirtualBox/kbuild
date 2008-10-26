@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1943 2008-10-26 02:19:06Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1944 2008-10-26 02:37:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -768,6 +768,7 @@ strcache2_add (struct strcache2 *cache, const char *str, unsigned int length)
   unsigned int idx;
 
   assert (!cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
 
   MAKE_STATS (cache->lookup_count++);
 
@@ -813,6 +814,7 @@ strcache2_add_hashed (struct strcache2 *cache, const char *str,
   unsigned correct_hash;
 
   assert (!cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
   correct_hash = strcache2_case_sensitive_hash (str, length);
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
@@ -858,6 +860,7 @@ strcache2_lookup (struct strcache2 *cache, const char *str, unsigned int length)
   unsigned int idx;
 
   assert (!cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
 
   MAKE_STATS (cache->lookup_count++);
 
@@ -901,7 +904,8 @@ strcache2_iadd (struct strcache2 *cache, const char *str, unsigned int length)
   unsigned int hash = strcache2_case_insensitive_hash (str, length);
   unsigned int idx;
 
-  assert (!cache->case_insensitive);
+  assert (cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
 
   MAKE_STATS (cache->lookup_count++);
 
@@ -946,7 +950,8 @@ strcache2_iadd_hashed (struct strcache2 *cache, const char *str,
 #ifndef NDEBUG
   unsigned correct_hash;
 
-  assert (!cache->case_insensitive);
+  assert (cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
   correct_hash = strcache2_case_insensitive_hash (str, length);
   MY_ASSERT_MSG (hash == correct_hash, ("%#x != %#x\n", hash, correct_hash));
 #endif /* NDEBUG */
@@ -991,7 +996,8 @@ strcache2_ilookup (struct strcache2 *cache, const char *str, unsigned int length
   unsigned int hash = strcache2_case_insensitive_hash (str, length);
   unsigned int idx;
 
-  assert (!cache->case_insensitive);
+  assert (cache->case_insensitive);
+  assert (!memchr (str, '\0', length));
 
   MAKE_STATS (cache->lookup_count++);
 
