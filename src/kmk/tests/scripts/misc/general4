@@ -19,12 +19,15 @@ dir/subdir/%.a: dir/subdir/%.b ; @echo cp $< $@',
               '', "mkdir -p dir/subdir\ntouch dir/subdir/file.b\ncp dir/subdir/file.b dir/subdir/file.a\n");
 
 # Test implicit rules
+# kmk: No default implicit rules.
 
 &touch('foo.c');
 run_make_test('foo: foo.o',
               'CC="@echo cc" OUTPUT_OPTION=',
-              'cc -c foo.c
-cc foo.o -o foo');
+	      !$is_kmk ? 'cc -c foo.c
+cc foo.o -o foo' :
+"#MAKE#: *** No rule to make target `foo.o', needed by `foo'.  Stop.",
+!$is_kmk ? 0 : 512);
 unlink('foo.c');
 
 
