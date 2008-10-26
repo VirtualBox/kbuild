@@ -117,6 +117,7 @@ sub toplevel
   $cwd = ".";                 # don't we wish we knew
   $cwdslash = "";             # $cwd . $pathsep, but "" rather than "./"
   $is_kmk = 0;                # kmk flag.
+  $is_fast = 0;               # kmk_fgmake flag.
 
   &get_osname;  # sets $osname, $vos, $pathsep, $short_filenames,
                 # and $case_insensitive_fs
@@ -355,6 +356,10 @@ sub parse_command_line
     elsif ($option =~ /^-kmk/i)
     {
       $is_kmk = 1;
+    }
+    elsif ($option =~ /^-fast/i)
+    {
+      $is_fast = 1;
     }
     elsif (&valid_option($option))
     {
