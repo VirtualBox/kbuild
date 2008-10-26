@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 1925 2008-10-24 03:32:21Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 1940 2008-10-26 01:59:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -696,6 +696,7 @@ strcache2_new_seg (struct strcache2 *cache, unsigned int minlen)
   off = (size_t)seg->start & (STRCACHE2_ENTRY_ALIGNMENT - 1);
   if (off)
     {
+      off = STRCACHE2_ENTRY_ALIGNMENT - off;
       seg->start += off;
       seg->size  -= off;
     }
@@ -736,7 +737,7 @@ strcache2_enter_string (struct strcache2 *cache, unsigned int idx,
     }
 
   entry = (struct strcache2_entry *) seg->cursor;
-  assert ((size_t)entry & (STRCACHE2_ENTRY_ALIGNMENT - 1));
+  assert (!((size_t)entry & (STRCACHE2_ENTRY_ALIGNMENT - 1)));
   seg->cursor += size;
   seg->avail -= size;
 
@@ -1053,15 +1054,15 @@ strcache2_verify_entry (struct strcache2 *cache, const char *str)
   unsigned hash;
   const char *end;
 
-  if ((size_t)str & (sizeof (void *) - 1))
+  entry = (struct strcache2_entry const *)str - 1;
+  if ((size_t)entry & (STRCACHE2_ENTRY_ALIGNMENT - 1))
     {
       fprintf (stderr,
-               "strcache2[%s]: missaligned string %p\nstring: %s\n",
-               cache->name, (void *)str, str);
+               "strcache2[%s]: missaligned entry %p\nstring: %p=%s\n",
+               cache->name, (void *)entry, (void *)str, str);
       return -1;
     }
 
-  entry = (struct strcache2_entry const *)str - 1;
   end = memchr (str, '\0', entry->length);
   if ((size_t)(end - str) == entry->length)
     {
@@ -1077,7 +1078,7 @@ strcache2_verify_entry (struct strcache2 *cache, const char *str)
   if (hash != entry->hash)
     {
       fprintf (stderr,
-               "strcache2[%s]: corrupt entry %p, hash#1: %x, expected %x;\nstring: %s\n",
+               "strcache2[%s]: corrupt entry %p, hash: %x, expected %x;\nstring: %s\n",
                cache->name, (void *)entry, hash, entry->hash, str);
       return -1;
     }
