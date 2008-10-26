@@ -1033,7 +1033,11 @@ file_impossible (const char *filename)
   new->length = strlen (filename);
   new->name = strcache_add_len (filename, new->length);
   new->impossible = 1;
+#ifndef CONFIG_WITH_STRCACHE2
   hash_insert (&dir->contents->dirfiles, new);
+#else  /* CONFIG_WITH_STRCACHE2 */
+  hash_insert_strcached (&dir->contents->dirfiles, new);
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 /* Return nonzero if FILENAME has been marked impossible.  */
