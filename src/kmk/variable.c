@@ -912,7 +912,10 @@ free_variable_name_and_value (const void *item)
 #ifndef CONFIG_WITH_STRCACHE2
   free (v->name);
 #endif
-  free (v->value);
+#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+  if (!v->rdonly_val)
+#endif
+    free (v->value);
 }
 
 void
