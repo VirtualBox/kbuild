@@ -49,6 +49,9 @@ set_file_variables (struct file *file)
 {
   const struct dep *d;
   const char *at, *percent, *star, *less;
+#ifdef CONFIG_WITH_STRCACHE2
+  const char *org_stem = file->stem;
+#endif
 
 #ifndef	NO_ARCHIVES
   /* If the target is an archive member `lib(member)',
@@ -162,8 +165,10 @@ set_file_variables (struct file *file)
 
   if (*star == '\0')
     DEFINE_VARIABLE_RO_VAL ("*", 1, "", 0);
-  else
+  else if (file->stem != org_stem)
     DEFINE_VARIABLE_RO_VAL ("*", 1, star, strcache_get_len (star));
+  else
+    DEFINE_VARIABLE ("*", 1, star);
 
   if (at == file->name)
     DEFINE_VARIABLE_RO_VAL ("@", 1, at, strcache_get_len (at));
