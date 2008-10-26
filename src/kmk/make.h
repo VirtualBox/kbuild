@@ -164,7 +164,8 @@ unsigned int get_path_max (void);
 # endif
 #endif
 
-#if defined (KMK) || defined (CONFIG_WITH_VALUE_LENGTH)
+#if defined (KMK) || defined (CONFIG_WITH_VALUE_LENGTH) \
+ || defined (CONFIG_WITH_STRCACHE2)
 # ifdef _MSC_VER
 #  define MY_DBGBREAK   __debugbreak()
 # elif defined(__GNUC__)
