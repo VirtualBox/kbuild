@@ -110,7 +110,11 @@ $(dir)/foo.bar:
 
 ',
 "dir=$dir",
-"#MAKE#: *** [$dir/foo.bar] Error 1",
+(!$is_kmk) ?
+"#MAKE#: *** [$dir/foo.bar] Error 1" :
+"#MAKE#: *** [$dir/foo.bar] Error 1" . '
+The failing command:
+ @touch $@ && exit 1',
 512);
 
 unlink("$dir/foo.bar");
@@ -137,7 +141,7 @@ foo.in:
 	touch $@
 
 ',
-'',
+'-j1',
 'touch foo.in
 touch foo.h
 touch foo.c
