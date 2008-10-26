@@ -60,7 +60,7 @@ close(MAKEFILE);
 
 # TEST #1
 
-&run_make_with_options($makefile, "one two three", &get_logfile);
+&run_make_with_options($makefile, "-j1 one two three", &get_logfile);
 $answer = "one bar\nfoo two\nBAR=1000\nfoo bar\n";
 &compare_output($answer,&get_logfile(1));
 
