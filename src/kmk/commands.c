@@ -450,7 +450,7 @@ chop_commands (struct commands *cmds)
           && (strstr (p, "$(MAKE)") != 0 || strstr (p, "${MAKE}") != 0))
 #else
           && (strstr (p, "$(KMK)") != 0 || strstr (p, "${KMK}") != 0 ||
-              strstr (p, "${MAKE}") != 0 || strstr (p, "${MAKE}") != 0))
+              strstr (p, "$(MAKE)") != 0 || strstr (p, "${MAKE}") != 0))
 #endif
         flags |= COMMANDS_RECURSE;
 
