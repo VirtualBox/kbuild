@@ -116,6 +116,7 @@ sub toplevel
   $default_input_stack_level = 0;   # used by attach_default_input, etc.
   $cwd = ".";                 # don't we wish we knew
   $cwdslash = "";             # $cwd . $pathsep, but "" rather than "./"
+  $is_kmk = 0;                # kmk flag.
 
   &get_osname;  # sets $osname, $vos, $pathsep, $short_filenames,
                 # and $case_insensitive_fs
@@ -350,6 +351,10 @@ sub parse_command_line
     elsif ($option =~ /^-keep$/i)
     {
       $keep = 1;
+    }
+    elsif ($option =~ /^-kmk/i)
+    {
+      $is_kmk = 1;
     }
     elsif (&valid_option($option))
     {
