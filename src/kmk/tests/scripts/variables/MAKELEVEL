@@ -8,11 +8,19 @@ open(MAKEFILE,"> $makefile");
 
 # The Contents of the MAKEFILE ...
 
-print MAKEFILE <<EOF;
+if (!$is_kmk) {
+  print MAKEFILE <<EOF;
 all:
 \t\@echo MAKELEVEL is \$(MAKELEVEL)
 \techo \$\$MAKELEVEL
 EOF
+} else {
+  print MAKEFILE <<EOF;
+all:
+\t\@echo KMK_LEVEL is \$(KMK_LEVEL)
+\techo \$\$KMK_LEVEL
+EOF
+}
 
 # END of Contents of MAKEFILE
 
@@ -24,7 +32,11 @@ close(MAKEFILE);
 
 # SET ANSWER
 
-$answer = "MAKELEVEL is 0\necho \$MAKELEVEL\n1\n";
+if (!$is_kmk) {
+  $answer = "MAKELEVEL is 0\necho \$MAKELEVEL\n1\n";
+} else {
+  $answer = "KMK_LEVEL is 0\necho \$KMK_LEVEL\n1\n";
+}
 
 # COMPARE RESULTS
 
