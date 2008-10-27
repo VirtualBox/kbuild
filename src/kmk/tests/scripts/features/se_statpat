@@ -21,7 +21,7 @@ foo.a foo.b: foo.%: $$@.1 \
                     $$*.6
 
 ',
-'',
+'-j1',
 'bar.a
 baz.a
 biz.a
@@ -94,7 +94,7 @@ baz.a baz.b: baz.%: baz.%.2
 baz.a baz.b: ; @:
 
 ',
-'',
+'-j1',
 'foo.a.1
 foo.a.2
 foo.a.3
