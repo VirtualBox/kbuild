@@ -217,9 +217,9 @@ vmsstat_dir (char *name, struct stat *st)
 
 #ifndef	DIRECTORY_BUCKETS
 #ifdef KMK
-# define DIRECTORY_BUCKETS 4096
+#  define DIRECTORY_BUCKETS 4096
 # else
-#define DIRECTORY_BUCKETS 199
+#  define DIRECTORY_BUCKETS 199
 # endif
 #endif
 
@@ -1009,7 +1009,6 @@ file_impossible (const char *filename)
       dir->contents = alloccache_alloc (&directory_contents_cache);
 #endif
       memset (dir->contents, '\0', sizeof (struct directory_contents));
-
     }
 
   if (dir->contents->dirfiles.ht_vec == 0)
@@ -1229,7 +1228,6 @@ print_dir_data_base (void)
 		puts (_(" so far."));
 	      files += f;
 	      impossible += im;
-
 #ifdef KMK
               fputs ("# ", stdout);
               hash_print_stats (&dir->contents->dirfiles, stdout);
@@ -1380,7 +1378,7 @@ dir_setup_glob (glob_t *gl)
   gl->gl_readdir = read_dirstream;
   gl->gl_closedir = ansi_free;
   gl->gl_stat = local_stat;
-#ifdef __EMX__ /* The FreeBSD implemenation actually uses gl_lstat!! */
+#ifdef __EMX__ /* The FreeBSD implementation actually uses gl_lstat!! */
   gl->gl_lstat = local_stat;
 #endif
   /* We don't bother setting gl_lstat, since glob never calls it.
@@ -1393,10 +1391,10 @@ hash_init_directories (void)
 #ifndef CONFIG_WITH_STRCACHE2
   hash_init (&directories, DIRECTORY_BUCKETS,
 	     directory_hash_1, directory_hash_2, directory_hash_cmp);
-#else  /*  */
+#else  /* CONFIG_WITH_STRCACHE2 */
   hash_init_strcached (&directories, DIRECTORY_BUCKETS, &file_strcache,
                        offsetof (struct directory, name));
-#endif /*  */
+#endif /* CONFIG_WITH_STRCACHE2 */
   hash_init (&directory_contents, DIRECTORY_BUCKETS,
 	     directory_contents_hash_1, directory_contents_hash_2,
              directory_contents_hash_cmp);
@@ -1407,5 +1405,5 @@ hash_init_directories (void)
                    "directory_contents", NULL, NULL);
   alloccache_init (&dirfile_cache, sizeof (struct dirfile),
                    "dirfile", NULL, NULL);
-#endif
+#endif /* CONFIG_WITH_ALLOC_CACHES */
 }

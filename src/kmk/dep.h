@@ -58,7 +58,6 @@ struct nameseq
   };
 
 
-
 #ifndef CONFIG_WITH_ALLOC_CACHES
 struct nameseq *multi_glob (struct nameseq *chain, unsigned int size);
 #else

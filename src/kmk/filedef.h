@@ -210,7 +210,7 @@ FILE_TIMESTAMP f_mtime (struct file *file, int search);
 #define ORDINARY_MTIME_MIN (OLD_MTIME + 1)
 #define ORDINARY_MTIME_MAX ((FILE_TIMESTAMP_S (NEW_MTIME) \
 			     << FILE_TIMESTAMP_LO_BITS) \
-			    + ORDINARY_MTIME_MIN + (FILE_TIMESTAMPS_PER_S - 1)) /* bird: MSC overflow fix */
+			    + ORDINARY_MTIME_MIN + (FILE_TIMESTAMPS_PER_S - 1)) /* bird: MSC overflow fix - XXX: darwin is bitching, check it again, org: ORDINARY_MTIME_MIN + FILE_TIMESTAMPS_PER_S - 1) */
 
 /* Modtime value to use for `infinitely new'.  We used to get the current time
    from the system and use that whenever we wanted `new'.  But that causes
