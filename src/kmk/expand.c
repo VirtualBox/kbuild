@@ -80,8 +80,8 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
     {
       unsigned int offset = ptr - variable_buffer;
       variable_buffer_length = (newlen + 100 > 2 * variable_buffer_length
-                               ? newlen + 100
-                               : 2 * variable_buffer_length);
+				? newlen + 100
+				: 2 * variable_buffer_length);
       variable_buffer = xrealloc (variable_buffer, variable_buffer_length);
       ptr = variable_buffer + offset;
     }
@@ -115,14 +115,14 @@ initialize_variable_output (void)
         }
       variable_buffer[0] = '\0';
     }
-#else
+#else  /* CONFIG_WITH_VALUE_LENGTH */
   if (variable_buffer == 0)
     {
       variable_buffer_length = 200;
       variable_buffer = xmalloc (variable_buffer_length);
       variable_buffer[0] = '\0';
     }
-#endif
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
   return variable_buffer;
 }
@@ -208,8 +208,10 @@ recursively_expand_for_file (struct variable *v, struct file *file,
 
 /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
 
-#if defined(__GNUC__) || defined(_MSC_VER) /* bird added MSC */
+#if defined(__GNUC__)
 __inline
+#elif defined (MY_INLINE) /* bird */
+MY_INLINE
 #endif
 static char *
 reference_variable (char *o, const char *name, unsigned int length)
@@ -234,6 +236,8 @@ reference_variable (char *o, const char *name, unsigned int length)
    {
      unsigned int value_len;
 
+     /* XXX: Inline recursively_expand_for_file() here and what it calls, try
+             make use of O directly instead wasting time on an intermediate buffer.  */
      value = recursively_expand_for_file (v, NULL, &value_len);
      o = variable_buffer_output (o, value, value_len);
      free (value);
@@ -756,7 +760,7 @@ variable_expand (const char *line)
 {
 #ifndef CONFIG_WITH_VALUE_LENGTH
   return variable_expand_string(NULL, line, (long)-1);
-#else
+#else  /* CONFIG_WITH_VALUE_LENGTH */
   char *s;
 
   /* this function is abused a lot like this: variable_expand(""). */
@@ -766,7 +770,7 @@ variable_expand (const char *line)
       return s - 2;
     }
   return variable_expand_string_2 (NULL, line, (long)-1, &s);
-#endif
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 }
 
 /* Expand an argument for an expansion function.
@@ -788,9 +792,11 @@ expand_argument (const char *str, const char *end)
 #ifndef CONFIG_WITH_VALUE_LENGTH
   if (!end || *end == '\0')
     return allocated_variable_expand (str);
+
   tmp = alloca (end - str + 1);
   memcpy (tmp, str, end - str);
   tmp[end - str] = '\0';
+
   return allocated_variable_expand (tmp);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
   if (!end)
@@ -837,8 +843,8 @@ variable_expand_for_file_2 (char *o, const char *line, unsigned int length,
                             struct file *file, unsigned int *value_lenp)
 {
   char *result;
-  struct variable_set_list *save;
-  const struct floc *reading_file_saved;
+  struct variable_set_list *savev;
+  const struct floc *savef;
   long len = length == ~0U ? (long)-1 : (long)length;
   char *eol;
 
@@ -849,16 +855,19 @@ variable_expand_for_file_2 (char *o, const char *line, unsigned int length,
      result = variable_expand_string_2 (o, line, len, &eol);
   else
     {
-      save = current_variable_set_list;
+      savev = current_variable_set_list;
       current_variable_set_list = file->variables;
-      reading_file_saved = reading_file;
+
+      savef = reading_file;
       if (file->cmds && file->cmds->fileinfo.filenm)
         reading_file = &file->cmds->fileinfo;
       else
         reading_file = 0;
+
       result = variable_expand_string_2 (o, line, len, &eol);
-      current_variable_set_list = save;
-      reading_file = reading_file_saved;
+
+      current_variable_set_list = savev;
+      reading_file = savef;
     }
 
   if (value_lenp)
@@ -998,7 +1007,7 @@ allocated_variable_append (const struct variable *v)
 
   variable_buffer = 0;
 
-  assert ((unsigned int)v->length == strlen (v->name));
+  assert ((unsigned int)v->length == strlen (v->name)); /* bird */
   val = variable_append (v->name, strlen (v->name), current_variable_set_list);
   variable_buffer_output (val, "", 1);
   val = variable_buffer;

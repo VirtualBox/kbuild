@@ -174,13 +174,13 @@ static enum make_word_type get_next_mword (char *buffer, char *delim,
 static void remove_comments (char *line);
 static char *find_char_unquote (char *string, int stop1, int stop2,
                                 int blank, int ignorevars);
-#else
+#else  /* CONFIG_WITH_VALUE_LENGTH */
 __inline static char *remove_comments (char *line, char *eol);
 __inline static char *find_char_unquote_0 (char *string, int stop1, char **eosp);
 static char * find_char_unquote_2 (char *string, int stop1, int stop2,
                                    int blank, int ignorevars,
                                    unsigned int string_len);
-__inline static char *
+MY_INLINE char *
 find_char_unquote (char *string, int stop1, int stop2, int blank, int ignorevars)
 {
     if (!stop2 && !blank && !ignorevars)
@@ -194,7 +194,7 @@ find_char_unquote (char *string, int stop1, int stop2, int blank, int ignorevars
       }
     return find_char_unquote_2 (string, stop1, stop2, blank, ignorevars, 0);
 }
-#endif
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
 /* Read in all the makefiles and return the chain of their names.  */
 

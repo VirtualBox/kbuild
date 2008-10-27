@@ -533,6 +533,7 @@ parse_prereqs (char *p)
       ood = (struct dep *)
         multi_glob (parse_file_seq (&p, '\0', &dep_cache, 1), &dep_cache);
 #endif
+
       if (! new)
         new = ood;
       else
@@ -853,7 +854,7 @@ snap_deps (void)
      to be *simple* stuff, we can do this after the second target expansion
      and thereby save a little time.  */
   incdep_flush_and_term ();
-#endif
+#endif /* CONFIG_WITH_INCLUDEDEP */
 
   /* For every target that's not .SUFFIXES, expand its dependencies.
      We must use hash_dump (), because within this loop we might add new files
@@ -882,7 +883,7 @@ snap_deps (void)
             || f->last != f))
       for (f2 = f->double_colon; f2 != 0; f2 = f2->prev)
         f2->command_flags |= COMMANDS_NOTPARALLEL;
-#endif
+#endif /* KMK */
   free (file_slot_0);
 
   /* Now manage all the special targets.  */
@@ -1373,7 +1374,7 @@ init_hash_files (void)
 # else
   hash_init (&files, 1000, file_hash_1, file_hash_2, file_hash_cmp);
 # endif
-#else
+#else  /* CONFIG_WITH_STRCACHE2 */
 # ifdef KMK
   hash_init_strcached (&files, 32755, &file_strcache,
                        offsetof (struct file, hname));
@@ -1381,7 +1382,7 @@ init_hash_files (void)
   hash_init_strcached (&files, 1000, &file_strcache,
                        offsetof (struct file, hname));
 # endif
-#endif
+#endif /* CONFIG_WITH_STRCACHE2 */
 }
 
 /* EOF */

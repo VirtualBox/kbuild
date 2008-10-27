@@ -336,7 +336,7 @@ char func_char_map[256];
 
 /* Do the hash table lookup. */
 
-__inline static const struct function_table_entry *
+MY_INLINE const struct function_table_entry *
 lookup_function_in_hash_tab (const char *s, unsigned char len)
 {
     struct function_table_entry function_table_entry_key;
@@ -348,7 +348,7 @@ lookup_function_in_hash_tab (const char *s, unsigned char len)
 
 /* Look up a function by name.  */
 
-__inline static const struct function_table_entry *
+MY_INLINE const struct function_table_entry *
 lookup_function (const char *s, unsigned int len)
 {
   unsigned char ch;
@@ -510,7 +510,7 @@ string_glob (char *line)
 			  $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
 		       0),
 		      sizeof (struct nameseq));
-#else
+#else  /* CONFIG_WITH_ALLOC_CACHES */
   chain = multi_glob (parse_file_seq
                       (&line, '\0', &nameseq_cache,
                        /* We do not want parse_file_seq to strip `./'s.
@@ -518,7 +518,7 @@ string_glob (char *line)
                           $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
                        0),
                       &nameseq_cache);
-#endif
+#endif /* CONFIG_WITH_ALLOC_CACHES */
 
   if (result == 0)
     {
@@ -1024,6 +1024,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
 
       free (var->value);
       var->value = savestring (p, len);
+
       result = allocated_variable_expand (body);
 
       o = variable_buffer_output (o, result, strlen (result));

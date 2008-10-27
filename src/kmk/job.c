@@ -775,9 +775,9 @@ reap_children (int block, int err)
                   == COMMANDS_SILENT)
                 message (0, "The failing command:\n%s", c->file->cmds->command_lines[c->command_line - 1]);
             }
-#else
+#else  /* !KMK */
             child_error (c->file->name, exit_code, exit_sig, coredump, 0);
-#endif
+#endif /* !KMK */
 
           c->file->update_status = 2;
           if (delete_on_error == -1)
@@ -1052,7 +1052,7 @@ start_job_command (struct child *child)
 #ifdef CONFIG_WITH_COMMANDS_FUNC
       else if (*p == '%')
         flags |= COMMAND_GETTER_SKIP_IT;
-#endif 
+#endif
       else if (!isblank ((unsigned char)*p))
 #ifndef CONFIG_WITH_KMK_BUILTIN
         break;
@@ -1228,10 +1228,10 @@ start_job_command (struct child *child)
           rc = kmk_builtin_command_parsed (argc, argv, &argv_spawn, &child->pid);
         }
 
-#ifndef VMS
+# ifndef VMS
       free (argv[0]);
       free ((char *) argv);
-#endif
+# endif
 
       /* synchronous command execution? */
       if (!rc && !argv_spawn)
@@ -2809,11 +2809,11 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
                   if (p[1] != '\\' && p[1] != '\''
                       && !isspace ((unsigned char)p[1])
 # ifdef KMK
-                      && strchr (sh_chars, p[1]) == 0 
+                      && strchr (sh_chars, p[1]) == 0
                       && (p[1] != '"' || !unixy_shell))
 # else
                       && strchr (sh_chars_sh, p[1]) == 0)
-# endif 
+# endif
                     /* back up one notch, to copy the backslash */
                     --p;
 #endif  /* HAVE_DOS_PATHS */

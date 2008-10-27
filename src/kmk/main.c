@@ -674,7 +674,7 @@ initialize_global_alloc_caches (void)
   alloccache_init (&variable_set_cache,      sizeof (struct variable_set),      "variable_set",      NULL, NULL);
   alloccache_init (&variable_set_list_cache, sizeof (struct variable_set_list), "variable_set_list", NULL, NULL);
 }
-#endif
+#endif /* CONFIG_WITH_ALLOC_CACHES */
 
 static void
 initialize_global_hash_tables (void)
@@ -782,7 +782,7 @@ decode_debug_flags (void)
             case 'k':
               db_level |= DB_KMK;
               break;
-#endif
+#endif /* DB_KMK */
             default:
               fatal (NILF, _("unknown debug level specification `%s'"), p);
             }
@@ -804,7 +804,7 @@ decode_debug_flags (void)
 static void
 set_make_priority_and_affinity (void)
 {
-#ifdef WINDOWS32
+# ifdef WINDOWS32
   DWORD dwPriority;
   if (process_affinity)
     if (!SetProcessAffinityMask (GetCurrentProcess (), process_affinity))
@@ -825,7 +825,7 @@ set_make_priority_and_affinity (void)
     fprintf (stderr, "warning: SetPriorityClass (,%#x) failed with last error %d\n",
              dwPriority, GetLastError ());
 
-#else /*#elif HAVE_NICE */
+# else /*#elif HAVE_NICE */
   int nice_level = 0;
   switch (process_priority)
     {
@@ -841,9 +841,9 @@ set_make_priority_and_affinity (void)
   if (nice (nice_level) == -1 && errno != 0)
     fprintf (stderr, "warning: nice (%d) failed: %s\n",
              nice_level, strerror (errno));
-#endif
+# endif
 }
-#endif
+#endif /* KMK */
 
 
 #ifdef WINDOWS32
@@ -1282,7 +1282,7 @@ open_tmpfile(char **name, const char *template)
 
 #if defined(set_space_map_entry) /*bird*/
 char space_map[space_map_size];
-#endif
+#endif /* set_space_map_entry */
 
 
 #ifdef _AMIGA
@@ -1302,7 +1302,7 @@ main (int argc, char **argv, char **envp)
   char *unix_path = NULL;
   char *windows32_path = NULL;
 
-#ifndef ELECTRIC_HEAP /* Drop this because it prevent JIT debugging. */
+#ifndef ELECTRIC_HEAP /* Drop this because it prevents JIT debugging. */
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
 #endif /* !ELECTRIC_HEAP */
 

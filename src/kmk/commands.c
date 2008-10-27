@@ -410,20 +410,20 @@ chop_commands (struct commands *cmds)
   cmds->command_lines = lines;
 
   cmds->any_recurse = 0;
-#ifdef CONFIG_WITH_COMMANDS_FUNC
-  cmds->lines_flags = xmalloc (nlines * sizeof (cmds->lines_flags[0]));
-#else
+#ifndef CONFIG_WITH_COMMANDS_FUNC
   cmds->lines_flags = xmalloc (nlines);
+#else
+  cmds->lines_flags = xmalloc (nlines * sizeof (cmds->lines_flags[0]));
 #endif
   for (idx = 0; idx < nlines; ++idx)
     {
       int flags = 0;
 
       for (p = lines[idx];
-#ifdef CONFIG_WITH_COMMANDS_FUNC
-           isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+' || *p == '%';
+#ifndef CONFIG_WITH_COMMANDS_FUNC
+            isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+';
 #else
-           isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+';
+           isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+' || *p == '%';
 #endif
            ++p)
         switch (*p)
@@ -531,7 +531,7 @@ fatal_error_signal (int sig)
 
   exit (10);
 #else /* not Amiga */
-#if defined(WINDOWS32) && !defined(CONFIG_NEW_WIN32_CTRL_EVENT)
+#if defined (WINDOWS32) && !defined (CONFIG_NEW_WIN32_CTRL_EVENT)
   extern HANDLE main_thread;
 
   /* Windows creates a sperate thread for handling Ctrl+C, so we need
@@ -613,10 +613,10 @@ fatal_error_signal (int sig)
 #endif
 
 #ifdef WINDOWS32
-#ifndef CONFIG_NEW_WIN32_CTRL_EVENT
+# ifndef CONFIG_NEW_WIN32_CTRL_EVENT
   if (main_thread)
     CloseHandle (main_thread);
-#endif /* !CONFIG_NEW_WIN32_CTRL_EVENT */
+# endif /* !CONFIG_NEW_WIN32_CTRL_EVENT */
   /* Cannot call W32_kill with a pid (it needs a handle).  The exit
      status of 130 emulates what happens in Bash.  */
   exit (130);
