@@ -207,14 +207,14 @@ unsigned int get_path_max (void);
 
 #ifdef CONFIG_WITH_MAKE_STATS
 extern long make_stats_allocations;
+extern long make_stats_reallocations;
 extern unsigned long make_stats_allocated;
-extern unsigned long make_stats_allocated_sum;
 extern unsigned long make_stats_ht_lookups;
 extern unsigned long make_stats_ht_collisions;
 
 # ifdef __APPLE__
 #  include <malloc/malloc.h>
-#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_size(ptr)
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_good_size(ptr)
 
 # elif defined(__linux__) /* glibc */
 #  include <malloc.h>
@@ -227,11 +227,6 @@ extern unsigned long make_stats_ht_collisions;
 #  include <stdlib.h>
 #  define SIZE_OF_HEAP_BLOCK(ptr)   0
 #endif
-
-# if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
-#  define free xfree
-extern void xfree (void *);
-# endif
 
 # define MAKE_STATS_3(expr) do { expr; } while (0)
 # define MAKE_STATS_2(expr) do { expr; } while (0)

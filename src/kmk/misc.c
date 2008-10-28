@@ -392,14 +392,13 @@ xmalloc (unsigned int size)
   void *result = malloc (size ? size : 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
+
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_allocations++;
   if (make_expensive_statistics)
-    {
-      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
-      make_stats_allocated += actual_size;
-      make_stats_allocated_sum += actual_size;
-    }
+    make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  else
+    make_stats_allocated += size;
 #endif
   return result;
 }
@@ -411,11 +410,11 @@ xrealloc (void *ptr, unsigned int size)
   void *result;
 #ifdef CONFIG_WITH_MAKE_STATS
   if (make_expensive_statistics && ptr != NULL)
-    {
-      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (ptr);
-      make_stats_allocated -= actual_size;
-      make_stats_allocated_sum -= actual_size;
-    }
+    make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
+  if (ptr)
+    make_stats_reallocations++;
+  else
+    make_stats_allocations++;
 #endif
 
   /* Some older implementations of realloc() don't conform to ANSI.  */
@@ -424,15 +423,12 @@ xrealloc (void *ptr, unsigned int size)
   result = ptr ? realloc (ptr, size) : malloc (size);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
+
 #ifdef CONFIG_WITH_MAKE_STATS
-  if (!ptr)
-    make_stats_allocations++;
   if (make_expensive_statistics)
-    {
-      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
-      make_stats_allocated += actual_size;
-      make_stats_allocated_sum += actual_size;
-    }
+    make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  else
+    make_stats_allocated += size;
 #endif
   return result;
 }
@@ -455,11 +451,9 @@ xstrdup (const char *ptr)
 #ifdef CONFIG_WITH_MAKE_STATS
   make_stats_allocations++;
   if (make_expensive_statistics)
-    {
-      unsigned int actual_size = SIZE_OF_HEAP_BLOCK (result);
-      make_stats_allocated += actual_size;
-      make_stats_allocated_sum += actual_size;
-    }
+    make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  else
+    make_stats_allocated += strlen (ptr) + 1;
 #endif
 #ifdef HAVE_STRDUP
   return result;
@@ -1152,21 +1146,6 @@ close_stdout (void)
     }
 }
 
-#if defined(CONFIG_WITH_MAKE_STATS) && !defined(ELECTRIC_HEAP)
-#undef free
-void xfree(void *ptr)
-{
-  if (ptr)
-    {
-      make_stats_allocations--;
-      if (make_expensive_statistics)
-        make_stats_allocated -= SIZE_OF_HEAP_BLOCK (ptr);
-      free (ptr);
-    }
-}
-#endif
-
-
 #ifdef CONFIG_WITH_ALLOC_CACHES
 
 /* Default allocator. */
@@ -1389,6 +1368,13 @@ void print_heap_stats (void)
   printf (_("#           top-most releasable space=%d\n"),
           m.keepcost);
 # endif /* __GLIBC__ */
+
+# ifdef CONFIG_WITH_MAKE_STATS
+  printf(_("#            %lu malloc calls,  %lu realloc calls\n"),
+         make_stats_allocations, make_stats_reallocations);
+  printf(_("#            %lu MBs alloc sum, not counting freed, add pinch of salt\n"), /* XXX: better wording */
+         make_stats_allocated / (1024*1024));
+# endif
 
   /* XXX: windows */
 }
