@@ -269,12 +269,14 @@ reference_recursive_variable (char *o, struct variable *v)
 
 /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
 
+#ifdef MY_INLINE) /* bird */
+MY_INLINE
+#else
 #if defined(__GNUC__)
 __inline
-#elif defined (MY_INLINE) /* bird */
-MY_INLINE
 #endif
 static char *
+#endif
 reference_variable (char *o, const char *name, unsigned int length)
 {
   struct variable *v;
