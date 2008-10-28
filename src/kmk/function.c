@@ -118,8 +118,8 @@ static struct hash_table function_table;
 
 #ifdef CONFIG_WITH_MAKE_STATS
 long          make_stats_allocations = 0;
+long          make_stats_reallocations = 0;
 unsigned long make_stats_allocated = 0;
-unsigned long make_stats_allocated_sum = 0;
 unsigned long make_stats_ht_lookups = 0;
 unsigned long make_stats_ht_collisions = 0;
 #endif
@@ -4222,10 +4222,10 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
   if (!argv[0] || (!argv[0][0] && !argv[1]))
     {
 # ifdef CONFIG_WITH_MAKE_STATS
-      len = sprintf (buf, "alloc-cur: %5ld %6luKB (/%3luMB)  hash: %5lu %2lu%%",
+      len = sprintf (buf, "alloc-cur: %5ld/%3ld %3luMB  hash: %5lu %2lu%%",
                      make_stats_allocations,
-                     make_stats_allocated / 1024,
-                     make_stats_allocated_sum / (1024*1024),
+                     make_stats_reallocations,
+                     make_stats_allocated / (1024*1024),
                      make_stats_ht_lookups,
                      (make_stats_ht_collisions * 100) / make_stats_ht_lookups);
       o = variable_buffer_output (o, buf, len);
@@ -4245,10 +4245,10 @@ func_make_stats (char *o, char **argv, const char *funcname UNUSED)
 # ifdef CONFIG_WITH_MAKE_STATS
           else if (!strcmp(argv[i], "allocations"))
             val = make_stats_allocations;
+          else if (!strcmp(argv[i], "reallocations"))
+            val = make_stats_reallocations;
           else if (!strcmp(argv[i], "allocated"))
             val = make_stats_allocated;
-          else if (!strcmp(argv[i], "allocated_sum"))
-            val = make_stats_allocated_sum;
           else if (!strcmp(argv[i], "ht_lookups"))
             val = make_stats_ht_lookups;
           else if (!strcmp(argv[i], "ht_collisions"))
@@ -4628,7 +4628,7 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_OS2_LIBPATH
   { STRING_SIZE_TUPLE("libpath"),       1,  2,  1,  func_os2_libpath},
 #endif
-#ifdef CONFIG_WITH_MAKE_STATS
+#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
   { STRING_SIZE_TUPLE("make-stats"),    0,  0,  0,  func_make_stats},
 #endif
 #ifdef CONFIG_WITH_COMMANDS_FUNC
