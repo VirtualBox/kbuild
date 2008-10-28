@@ -206,6 +206,67 @@ recursively_expand_for_file (struct variable *v, struct file *file,
   return value;
 }
 
+#ifdef CONFIG_WITH_VALUE_LENGTH
+/* Static worker for reference_variable() that expands the recursive
+   variable V. The main difference between this and
+   recursively_expand[_for_file] is that this worker avoids the temporary
+   buffer and outputs directly into the current variable buffer (O).  */
+static char *
+reference_recursive_variable (char *o, struct variable *v)
+{
+  const struct floc *this_var;
+  const struct floc **saved_varp;
+  int set_reading = 0;
+
+  /* Don't install a new location if this location is empty.
+     This can happen for command-line variables, builtin variables, etc.  */
+  saved_varp = expanding_var;
+  if (v->fileinfo.filenm)
+    {
+      this_var = &v->fileinfo;
+      expanding_var = &this_var;
+    }
+
+  /* If we have no other file-reading context, use the variable's context. */
+  if (!reading_file)
+    {
+      set_reading = 1;
+      reading_file = &v->fileinfo;
+    }
+
+  if (v->expanding)
+    {
+      if (!v->exp_count)
+        /* Expanding V causes infinite recursion.  Lose.  */
+        fatal (*expanding_var,
+               _("Recursive variable `%s' references itself (eventually)"),
+               v->name);
+      --v->exp_count;
+    }
+
+  v->expanding = 1;
+  if (!v->append)
+    /* Expand directly into the variable buffer.  */
+    variable_expand_string_2 (o, v->value, v->value_length, &o);
+  else
+    {
+      /* XXX: Feel free to optimize appending target variables as well.  */
+      char *value = allocated_variable_append (v);
+      unsigned int value_len = strlen (value);
+      o = variable_buffer_output (o, value, value_len);
+      free (value);
+    }
+  v->expanding = 0;
+
+  if (set_reading)
+    reading_file = 0;
+
+  expanding_var = saved_varp;
+
+  return o;
+}
+#endif /* CONFIG_WITH_VALUE_LENGTH */
+
 /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
 
 #if defined(__GNUC__)
@@ -217,7 +278,9 @@ static char *
 reference_variable (char *o, const char *name, unsigned int length)
 {
   struct variable *v;
+#ifndef CONFIG_WITH_VALUE_LENGTH
   char *value;
+#endif
 
   v = lookup_variable (name, length);
 
@@ -233,15 +296,7 @@ reference_variable (char *o, const char *name, unsigned int length)
   if (!v->recursive)
     o = variable_buffer_output (o, v->value, v->value_length);
   else
-   {
-     unsigned int value_len;
-
-     /* XXX: Inline recursively_expand_for_file() here and what it calls, try
-             make use of O directly instead wasting time on an intermediate buffer.  */
-     value = recursively_expand_for_file (v, NULL, &value_len);
-     o = variable_buffer_output (o, value, value_len);
-     free (value);
-   }
+    o = reference_recursive_variable (o, v);
 #else  /* !CONFIG_WITH_VALUE_LENGTH */
   value = (v->recursive ? recursively_expand (v) : v->value);
 
