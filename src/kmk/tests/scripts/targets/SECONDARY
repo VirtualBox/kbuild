@@ -123,7 +123,6 @@ unlink('version2');
 
 # TEST #9 -- Savannah bug #15919
 # The original fix for this bug caused a new bug, shown here.
-# kmk: suspect the -j1 actually hides a bug, 'cp 2.a 2.b' is executed twice.
 
 touch(qw(1.a 2.a));
 
