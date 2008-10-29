@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 1894 2008-10-20 15:52:06Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 2002 2008-10-29 22:23:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -193,7 +193,7 @@ static int usage(FILE *pOut,  const char *argv0)
 int main(int argc, char **argv)
 {
     int                 i, j;
-    int                 cTimes = 3;
+    int                 cTimes = 1;
 #if defined(_MSC_VER)
     FILETIME ftStart,   ft;
     unsigned _int64     usMin, usMax, usAvg, usTotal, usCur;
