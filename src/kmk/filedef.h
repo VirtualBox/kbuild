@@ -208,9 +208,14 @@ FILE_TIMESTAMP f_mtime (struct file *file, int search);
 
 /* The smallest and largest ordinary timestamps.  */
 #define ORDINARY_MTIME_MIN (OLD_MTIME + 1)
+#if FILE_TIMESTAMP_HI_RES == 0 /* bird: shut up annoying warnings!
+  ASSUMES: unsinged FILE_TIMESTAMP ++. */
+# define ORDINARY_MTIME_MAX  ( ~ (FILE_TIMESTAMP) 0 )
+#else
 #define ORDINARY_MTIME_MAX ((FILE_TIMESTAMP_S (NEW_MTIME) \
 			     << FILE_TIMESTAMP_LO_BITS) \
-			    + ORDINARY_MTIME_MIN + (FILE_TIMESTAMPS_PER_S - 1)) /* bird: MSC overflow fix - XXX: darwin is bitching, check it again, org: ORDINARY_MTIME_MIN + FILE_TIMESTAMPS_PER_S - 1) */
+			    + ORDINARY_MTIME_MIN + FILE_TIMESTAMPS_PER_S - 1)
+#endif
 
 /* Modtime value to use for `infinitely new'.  We used to get the current time
    from the system and use that whenever we wanted `new'.  But that causes
