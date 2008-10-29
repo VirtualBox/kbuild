@@ -1,20 +1,20 @@
 /* Job execution and handling for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 
@@ -1084,7 +1084,9 @@ start_job_command (struct child *child)
 #ifdef VMS
     argv = p;
 #else
-    argv = construct_command_argv (p, &end, child->file, &child->sh_batch_file);
+    argv = construct_command_argv (p, &end, child->file,
+				   child->file->cmds->lines_flags[child->command_line - 1],
+				   &child->sh_batch_file);
 #endif
     if (end == NULL)
       child->command_ptr = NULL;
@@ -1559,7 +1561,8 @@ start_waiting_job (struct child *c)
 {
   struct file *f = c->file;
 #ifdef DB_KMK
-  DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x slots=%d/%d\n"), c, c->file->name, c->file->command_flags, job_slots_used, job_slots));
+  DB (DB_KMK, (_("start_waiting_job %p (`%s') command_flags=%#x slots=%d/%d\n"),
+               (void *)c, c->file->name, c->file->command_flags, job_slots_used, job_slots));
 #endif
 
   /* If we can start a job remotely, we always want to, and don't care about
@@ -1572,7 +1575,7 @@ start_waiting_job (struct child *c)
   if (c->file->command_flags & COMMANDS_NOTPARALLEL)
     {
       DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_job]\n"),
-                   not_parallel, not_parallel + 1, c->file, c->file->name));
+                   not_parallel, not_parallel + 1, (void *)c->file, c->file->name));
       assert(not_parallel >= 0);
       ++not_parallel;
     }
@@ -1614,7 +1617,7 @@ start_waiting_job (struct child *c)
         }
       else /* FIXME: insert after the last node with COMMANDS_NOTPARALLEL set */
         waiting_jobs = c;
-      DB (DB_KMK, (_("queued child %p (`%s')\n"), c, c->file->name));
+      DB (DB_KMK, (_("queued child %p (`%s')\n"), (void *)c, c->file->name));
 #endif /* CONFIG_WITH_EXTENDED_NOTPARALLEL */
       return 0;
     }
@@ -1898,13 +1901,13 @@ new_job (struct file *file)
   ++jobserver_tokens;
 
   /* The job is now primed.  Start it running.
-     (This will notice if there are in fact no commands.)  */
+     (This will notice if there is in fact no recipe.)  */
   if (cmds->fileinfo.filenm)
-    DB (DB_BASIC, (_("Invoking commands from %s:%lu to update target `%s'.\n"),
+    DB (DB_BASIC, (_("Invoking recipe from %s:%lu to update target `%s'.\n"),
                    cmds->fileinfo.filenm, cmds->fileinfo.lineno,
                    c->file->name));
   else
-    DB (DB_BASIC, (_("Invoking builtin commands to update target `%s'.\n"),
+    DB (DB_BASIC, (_("Invoking builtin recipe to update target `%s'.\n"),
                    c->file->name));
 
 
@@ -2109,7 +2112,7 @@ start_waiting_jobs (void)
 #ifndef WINDOWS32
 
 /* EMX: Start a child process. This function returns the new pid.  */
-# if defined __MSDOS__ || defined __EMX__
+# if defined __EMX__
 int
 child_execute_job (int stdin_fd, int stdout_fd, char **argv, char **envp)
 {
@@ -2410,11 +2413,17 @@ void clean_tmp (void)
    If *RESTP is NULL, newlines will be ignored.
 
    SHELL is the shell to use, or nil to use the default shell.
-   IFS is the value of $IFS, or nil (meaning the default).  */
+   IFS is the value of $IFS, or nil (meaning the default).
+
+   FLAGS is the value of lines_flags for this command line.  It is
+   used in the WINDOWS32 port to check whether + or $(MAKE) were found
+   in this command line, in which case the effect of just_print_flag
+   is overridden.  */
 
 static char **
 construct_command_argv_internal (char *line, char **restp, char *shell,
-                                 char *ifs, char **batch_filename_ptr)
+                                 char *ifs, int flags,
+				 char **batch_filename_ptr)
 {
 #ifdef __MSDOS__
   /* MSDOS supports both the stock DOS shell and ports of Unixy shells.
@@ -2708,9 +2717,6 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
                   *(ap++) = *(p++);
                   *(ap++) = *p;
                 }
-              /* If there's a command prefix char here, skip it.  */
-              if (p[1] == cmd_prefix)
-                ++p;
             }
 	  else if (*p == '\n' && restp != NULL)
 	    {
@@ -2775,11 +2781,6 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 	      {
 		/* Throw out the backslash and newline.  */
                 ++p;
-
-		/* If there is a command prefix after a backslash-newline,
-		   remove it.  */
-		if (p[1] == cmd_prefix)
-                  ++p;
 
                 /* If there's nothing in this argument yet, skip any
                    whitespace before the start of the next word.  */
@@ -3013,9 +3014,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 	  }
 	else if (*p == '\\' && p[1] == '\n')
 	  {
-	    /* POSIX says we keep the backslash-newline, but throw out
-               the next char if it's a TAB.  If we don't have a POSIX
-               shell on DOS/Windows/OS2, mimic the pre-POSIX behavior
+	    /* POSIX says we keep the backslash-newline.  If we don't have a
+               POSIX shell on DOS/Windows/OS2, mimic the pre-POSIX behavior
                and remove the backslash/newline.  */
 #if defined (__MSDOS__) || defined (__EMX__) || defined (WINDOWS32)
 # define PRESERVE_BSNL  unixy_shell
@@ -3025,17 +3025,14 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 	    if (PRESERVE_BSNL)
 	      {
 		*(ap++) = '\\';
-#ifdef KMK /* see test in Makefile.kmk, required on windows. */
-                if (!batch_mode_shell)
-#endif
-		*(ap++) = '\\';
+		/* Only non-batch execution needs another backslash,
+		   because it will be passed through a recursive
+		   invocation of this function.  */
+		if (!batch_mode_shell)
+		  *(ap++) = '\\';
 		*(ap++) = '\n';
 	      }
-
 	    ++p;
-	    if (p[1] == cmd_prefix)
-	      ++p;
-
 	    continue;
 	  }
 
@@ -3065,7 +3062,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     /* Some shells do not work well when invoked as 'sh -c xxx' to run a
        command line (e.g. Cygnus GNUWIN32 sh.exe on WIN32 systems).  In these
        cases, run commands via a script file.  */
-    if (just_print_flag) {
+    if (just_print_flag && !(flags & COMMANDS_RECURSE)) {
       /* Need to allocate new_argv, although it's unused, because
         start_job_command will want to free it and its 0'th element.  */
       new_argv = xmalloc(2 * sizeof (char *));
@@ -3098,6 +3095,8 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
       fputs (command_ptr, batch);
       fputc ('\n', batch);
       fclose (batch);
+      DB (DB_JOBS, (_("Batch file contents:%s\n\t%s\n"),
+		    !unixy_shell ? "\n\t@echo off" : "", command_ptr));
 
       /* create argv */
       new_argv = xmalloc(3 * sizeof (char *));
@@ -3112,7 +3111,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     } else
 #endif /* WINDOWS32 */
     if (unixy_shell)
-      new_argv = construct_command_argv_internal (new_line, 0, 0, 0, 0);
+      new_argv = construct_command_argv_internal (new_line, 0, 0, 0, flags, 0);
 #ifdef __EMX__
     else if (!unixy_shell)
       {
@@ -3127,12 +3126,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
         while (*q != '\0')
           {
             if (q[0] == '\\' && q[1] == '\n')
-              {
-                q += 2; /* remove '\\' and '\n' */
-		/* Remove any command prefix in the next line */
-                if (q[0] == cmd_prefix)
-                  q++;
-              }
+              q += 2; /* remove '\\' and '\n' */
             else
               *p++ = *q++;
           }
@@ -3223,7 +3217,7 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 
 char **
 construct_command_argv (char *line, char **restp, struct file *file,
-                        char **batch_filename_ptr)
+                        int cmd_flags, char **batch_filename_ptr)
 {
   char *shell, *ifs;
   char **argv;
@@ -3355,7 +3349,8 @@ construct_command_argv (char *line, char **restp, struct file *file,
 # endif
     unixy_shell = 1;
     batch_mode_shell = 0;
-    argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
+    argv = construct_command_argv_internal (line, restp, shell, ifs,
+                                            cmd_flags, batch_filename_ptr);
     batch_mode_shell = saved_batch_mode_shell;
     unixy_shell = saved_unixy_shell;
 # ifdef WINDOWS32
@@ -3364,7 +3359,8 @@ construct_command_argv (char *line, char **restp, struct file *file,
   }
   else
 #endif /* CONFIG_WITH_KMK_BUILTIN */
-  argv = construct_command_argv_internal (line, restp, shell, ifs, batch_filename_ptr);
+  argv = construct_command_argv_internal (line, restp, shell, ifs,
+                                          cmd_flags, batch_filename_ptr);
 
   free (shell);
   free (ifs);

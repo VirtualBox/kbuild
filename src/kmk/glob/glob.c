@@ -1,4 +1,5 @@
-/* Copyright (C) 1991,92,93,94,95,96,97,98,99 Free Software Foundation, Inc.
+/* Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999 Free
+Software Foundation, Inc.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Library General Public License as
@@ -190,12 +191,15 @@ __inline
 #   include <malloc.h>
 static void *
 my_realloc (void *p, unsigned int n)
+#  elif defined(__DJGPP__)
+static void *
+my_realloc (void *p, size_t n)
 #  else
 static char *
 my_realloc (p, n)
      char *p;
      unsigned int n;
-# endif
+#  endif
 {
   /* These casts are the for sake of the broken Ultrix compiler,
      which warns of illegal pointer combinations otherwise.  */

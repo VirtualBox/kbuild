@@ -1,20 +1,20 @@
 /* Basic dependency engine for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 #include "filedef.h"
@@ -500,7 +500,7 @@ update_file_1 (struct file *file, unsigned int depth)
   if (file->cmds == 0 && !file->is_target
       && default_file != 0 && default_file->cmds != 0)
     {
-      DBF (DB_IMPLICIT, _("Using default commands for `%s'.\n"));
+      DBF (DB_IMPLICIT, _("Using default recipe for `%s'.\n"));
       file->cmds = default_file->cmds;
     }
 
@@ -807,7 +807,7 @@ update_file_1 (struct file *file, unsigned int depth)
     {
       must_make = 0;
       DBF (DB_VERBOSE,
-           _("No commands for `%s' and no prerequisites actually changed.\n"));
+           _("No recipe for `%s' and no prerequisites actually changed.\n"));
     }
   else if (!must_make && file->cmds != 0 && always_make_flag)
     {
@@ -857,7 +857,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
   if (file->command_state != cs_finished)
     {
-      DBF (DB_VERBOSE, _("Commands of `%s' are being run.\n"));
+      DBF (DB_VERBOSE, _("Recipe of `%s' is being run.\n"));
       return 0;
     }
 
@@ -898,6 +898,7 @@ notice_finished_file (struct file *file)
   int touched = 0;
   DB (DB_JOBS, (_("notice_finished_file - entering: file=%p `%s' update_status=%d command_state=%d\n"), /* bird */
                   file, file->name, file->update_status, file->command_state));
+
   file->command_state = cs_finished;
   file->updated = 1;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
@@ -1158,6 +1159,12 @@ check_dep (struct file *file, unsigned int depth,
              necessary, and see whether any of them is more recent than the
              file on whose behalf we are checking.  */
 	  struct dep *lastd;
+          int deps_running = 0;
+
+          /* Reset this target's state so that we check it fresh.  It could be
+             that it's already been checked as part of an order-only
+             prerequisite and so wasn't rebuilt then, but should be now.  */
+          set_command_state (file, cs_not_started);
 
 	  lastd = 0;
 	  d = file->deps;
@@ -1196,14 +1203,17 @@ check_dep (struct file *file, unsigned int depth,
 
 	      if (d->file->command_state == cs_running
 		  || d->file->command_state == cs_deps_running)
-		/* Record that some of FILE's deps are still being made.
-		   This tells the upper levels to wait on processing it until
-		   the commands are finished.  */
-		set_command_state (file, cs_deps_running);
+		deps_running = 1;
 
 	      lastd = d;
 	      d = d->next;
 	    }
+
+          if (deps_running)
+            /* Record that some of FILE's deps are still being made.
+               This tells the upper levels to wait on processing it until the
+               commands are finished.  */
+            set_command_state (file, cs_deps_running);
 	}
     }
 
@@ -1473,8 +1483,14 @@ f_mtime (struct file *file, int search)
                 (FILE_TIMESTAMP_S (mtime) - FILE_TIMESTAMP_S (now)
                  + ((FILE_TIMESTAMP_NS (mtime) - FILE_TIMESTAMP_NS (now))
                     / 1e9));
-              error (NILF, _("Warning: File `%s' has modification time %.2g s in the future"),
-                     file->name, from_now);
+              char from_now_string[100];
+
+              if (from_now >= 99 && from_now <= ULONG_MAX)
+                sprintf (from_now_string, "%lu", (unsigned long) from_now);
+              else
+                sprintf (from_now_string, "%.2g", from_now);
+              error (NILF, _("Warning: File `%s' has modification time %s s in the future"),
+                     file->name, from_now_string);
 #endif
               clock_skew_detected = 1;
             }

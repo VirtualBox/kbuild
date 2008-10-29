@@ -6,15 +6,15 @@ This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 #include "dep.h"
@@ -372,7 +372,7 @@ static const char *const usage[] =
     N_("\
   -h, --help                  Print this message and exit.\n"),
     N_("\
-  -i, --ignore-errors         Ignore errors from commands.\n"),
+  -i, --ignore-errors         Ignore errors from recipes.\n"),
     N_("\
   -I DIRECTORY, --include-dir=DIRECTORY\n\
                               Search DIRECTORY for included makefiles.\n"),
@@ -393,20 +393,20 @@ static const char *const usage[] =
   -L, --check-symlink-times   Use the latest mtime between symlinks and target.\n"),
     N_("\
   -n, --just-print, --dry-run, --recon\n\
-                              Don't actually run any commands; just print them.\n"),
+                              Don't actually run any recipe; just print them.\n"),
     N_("\
   -o FILE, --old-file=FILE, --assume-old=FILE\n\
                               Consider FILE to be very old and don't remake it.\n"),
     N_("\
   -p, --print-data-base       Print make's internal database.\n"),
     N_("\
-  -q, --question              Run no commands; exit status says if up to date.\n"),
+  -q, --question              Run no recipe; exit status says if up to date.\n"),
     N_("\
   -r, --no-builtin-rules      Disable the built-in implicit rules.\n"),
     N_("\
   -R, --no-builtin-variables  Disable the built-in variable settings.\n"),
     N_("\
-  -s, --silent, --quiet       Don't echo commands.\n"),
+  -s, --silent, --quiet       Don't echo recipes.\n"),
     N_("\
   -S, --no-keep-going, --stop\n\
                               Turns off -k.\n"),
@@ -1532,6 +1532,7 @@ main (int argc, char **argv, char **envp)
   /* Initialize the special variables.  */
   define_variable (".VARIABLES", 10, "", o_default, 0)->special = 1;
   /* define_variable (".TARGETS", 8, "", o_default, 0)->special = 1; */
+  define_variable (".RECIPEPREFIX", 13, "", o_default, 0)->special = 1;
 
   /* Set up .FEATURES */
   define_variable (".FEATURES", 9,
@@ -3572,70 +3573,71 @@ print_version (void)
     /* Do it only once.  */
     return;
 
+#ifdef KMK
+  printf ("%skmk - kBuild version %d.%d.%d (r%u)\n\
+\n",
+          precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR,
+          KBUILD_VERSION_PATCH, KBUILD_SVN_REV);
+
+  printf("%sBased on GNU Make %s:\n", precede, version_string);
+
+#else  /* !KMK */
+  printf ("%sGNU Make %s\n", precede, version_string);
+
+  if (!remote_description || *remote_description == '\0')
+    printf (_("%sBuilt for %s\n"), precede, make_host);
+  else
+    printf (_("%sBuilt for %s (%s)\n"),
+            precede, make_host, remote_description);
+#endif /* !KMK */
+
   /* Print this untranslated.  The coding standards recommend translating the
      (C) to the copyright symbol, but this string is going to change every
      year, and none of the rest of it should be translated (including the
      word "Copyright", so it hardly seems worth it.  */
 
+  printf ("%sCopyright (C) 2007  Free Software Foundation, Inc.\n", precede);
+
+  printf (_("%sLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
+%sThis is free software: you are free to change and redistribute it.\n\
+%sThere is NO WARRANTY, to the extent permitted by law.\n"),
+            precede, precede, precede);
+
 #ifdef KMK
-  printf ("%skmk - kBuild version %d.%d.%d (r%u)\n\
-\n\
-%sBased on GNU Make %s:\n\
-%s Copyright (C) 2006  Free Software Foundation, Inc.\n\
-\n\
+  printf ("\n\
 %skBuild modifications:\n\
 %s Copyright (C) 2005-2008  Knut St. Osmundsen.\n\
 \n\
 %skmkbuiltin commands derived from *BSD sources:\n\
 %s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
 %s  The Regents of the University of California. All rights reserved.\n\
-%s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n\
-%s\n",
-          precede, KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR,
-          KBUILD_VERSION_PATCH, KBUILD_SVN_REV,
-          precede, version_string,
-          precede, precede, precede, precede, precede, precede,
-          precede, precede);
-#else
-  printf ("%sGNU Make %s\n\
-%sCopyright (C) 2006  Free Software Foundation, Inc.\n",
-          precede, version_string, precede);
-#endif
+%s Copyright (c) 1998  Todd C. Miller <Todd.Miller@courtesan.com>\n",
+          precede, precede, precede, precede, precede, precede);
 
-  printf (_("%sThis is free software; see the source for copying conditions.\n\
-%sThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n\
-%sPARTICULAR PURPOSE.\n"),
-            precede, precede, precede);
-
-#ifdef KMK
 # ifdef KBUILD_PATH
-  printf (_("%s\n\
+  printf (_("\n\
 %sKBUILD_PATH:     '%s' (default '%s')\n\
-%sKBUILD_BIN_PATH: '%s' (default '%s')\n"),
-          precede,
+%sKBUILD_BIN_PATH: '%s' (default '%s')\n\
+\n"),
           precede, get_kbuild_path(), KBUILD_PATH,
           precede, get_kbuild_bin_path(), KBUILD_BIN_PATH);
 # else  /* !KBUILD_PATH */
-  printf (_("%s\n\
+  printf ("\n\
 %sKBUILD_PATH:     '%s'\n\
-%sKBUILD_BIN_PATH: '%s'\n"),
-          precede,
+%sKBUILD_BIN_PATH: '%s'\n\
+\n",
           precede, get_kbuild_path(),
           precede, get_kbuild_bin_path());
 # endif /* !KBUILD_PATH */
+
   if (!remote_description || *remote_description == '\0')
-    printf (_("\n%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n"),
+    printf (_("%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n\n"),
             precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
   else
-    printf (_("\n%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n"),
+    printf (_("%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n\n"),
             precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
-#else
-  if (!remote_description || *remote_description == '\0')
-    printf (_("\n%sThis program built for %s\n"), precede, make_host);
-  else
-    printf (_("\n%sThis program built for %s (%s)\n"),
-            precede, make_host, remote_description);
-#endif
+
+#endif /* KMK */
 
   printed_version = 1;
 

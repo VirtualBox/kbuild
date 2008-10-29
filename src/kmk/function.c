@@ -1,20 +1,20 @@
 /* Builtin function expansion for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 #include "filedef.h"
@@ -1968,7 +1968,8 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
 
 #ifndef __MSDOS__
   /* Construct the argument list.  */
-  command_argv = construct_command_argv (argv[0], NULL, NULL, &batch_filename);
+  command_argv = construct_command_argv (argv[0], NULL, NULL, 0,
+                                         &batch_filename);
   if (command_argv == 0)
     return o;
 #endif
@@ -2158,8 +2159,8 @@ func_shell (char *o, char **argv, const char *funcname)
   char* batch_filename = NULL;
 
   /* Construct the argument list.  */
-  command_argv = construct_command_argv (argv[0], (char **) NULL,
-                                         (struct file *) 0, &batch_filename);
+  command_argv = construct_command_argv (argv[0], NULL, NULL, 0,
+                                         &batch_filename);
   if (command_argv == 0)
     return o;
 
