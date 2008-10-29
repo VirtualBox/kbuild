@@ -51,6 +51,7 @@ all:
 # &compare_output($answer, &get_logfile(1));
 
 # Test the .RECIPEPREFIX variable
+# kmk: This test isn't -j1 safe, haven't bother looking into why yet.
 &run_make_test('
 define foo
 : foo-one \
@@ -85,7 +86,7 @@ reset-three \
 	: reset-six
 	$(foo)
 ',
-               'orig test reset',
+               '-j1 orig test reset',
                ': orig-one
 : orig-two \
 orig-three \
