@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 1707 2008-09-02 04:06:42Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 2003 2008-10-29 23:15:18Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kMk Builtin command execution.
@@ -221,6 +221,8 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
         rc = kmk_builtin_cmp(argc, argv, environ);
     else if (!strcmp(pszCmd, "cat"))
         rc = kmk_builtin_cat(argc, argv, environ);
+    else if (!strcmp(pszCmd, "sleep"))
+        rc = kmk_builtin_sleep(argc, argv, environ);
     else
     {
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);

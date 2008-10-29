@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 1979 2008-10-26 23:09:29Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2003 2008-10-29 23:15:18Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -232,6 +232,7 @@ kmk_SOURCES += \
 	kmkbuiltin/printf.c \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
+	kmkbuiltin/sleep.c \
 	kmkbuiltin/test.c \
 
 ## @todo kmkbuiltin/redirect.c
@@ -262,6 +263,7 @@ PROGRAMS += \
 	kmk_redirect \
 	kmk_rm \
 	kmk_rmdir \
+	kmk_sleep \
 	kmk_test \
 	kDepIDB \
 
@@ -349,6 +351,11 @@ kmk_rmdir_TEMPLATE = BIN-KMK
 kmk_rmdir_DEFS = kmk_builtin_rmdir=main
 kmk_rmdir_SOURCES = \
 	kmkbuiltin/rmdir.c
+
+kmk_sleep_TEMPLATE = BIN-KMK
+kmk_sleep_DEFS = kmk_builtin_sleep=main
+kmk_sleep_SOURCES = \
+	kmkbuiltin/sleep.c
 
 kmk_test_TEMPLATE = BIN-KMK
 kmk_test_DEFS = kmk_builtin_test=main

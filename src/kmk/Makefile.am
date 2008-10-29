@@ -74,6 +74,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/printf.c \
 		kmkbuiltin/rm.c \
 		kmkbuiltin/rmdir.c \
+		kmkbuiltin/sleep.c \
 		kmkbuiltin/test.c \
 		kmkbuiltin/err.c \
 		kmkbuiltin/setmode.c \
