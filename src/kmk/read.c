@@ -1,20 +1,20 @@
 /* Reading and parsing of makefiles for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 
@@ -586,7 +586,7 @@ eval (struct ebuffer *ebuf, int set_default)
 
 #define record_waiting_files()						      \
   do									      \
-    { 									      \
+    {									      \
       if (filenames != 0)						      \
         {                                                                     \
 	  fi.lineno = tgts_started;                                           \
@@ -667,18 +667,31 @@ eval (struct ebuffer *ebuf, int set_default)
 		/* Yep, this is a shell command, and we don't care.  */
 		continue;
 
-	      /* Append this command line to the line being accumulated.  */
+	      /* Append this command line to the line being accumulated.
+                 Strip command prefix chars that appear after newlines.  */
 	      if (commands_idx == 0)
 		cmds_started = ebuf->floc.lineno;
 
-	      if (linelen + 1 + commands_idx > commands_len)
+	      if (linelen + commands_idx > commands_len)
 		{
-		  commands_len = (linelen + 1 + commands_idx) * 2;
+		  commands_len = (linelen + commands_idx) * 2;
 		  commands = xrealloc (commands, commands_len);
 		}
-	      memcpy (&commands[commands_idx], line, linelen);
-	      commands_idx += linelen;
-	      commands[commands_idx++] = '\n';
+              p = &commands[commands_idx];
+              p2 = line + 1;
+              while (--linelen)
+                {
+                  ++commands_idx;
+                  *(p++) = *p2;
+                  if (p2[0] == '\n' && p2[1] == cmd_prefix)
+                    {
+                      ++p2;
+                      --linelen;
+                    }
+                  ++p2;
+                }
+              *p = '\n';
+              ++commands_idx;
 
 	      continue;
 	    }
@@ -710,7 +723,7 @@ eval (struct ebuffer *ebuf, int set_default)
 #endif
 
       /* Compare a word, both length and contents. */
-#define	word1eq(s) 	(wlen == sizeof(s)-1 && strneq (s, p, sizeof(s)-1))
+#define	word1eq(s)	(wlen == sizeof(s)-1 && strneq (s, p, sizeof(s)-1))
       p = collapsed;
       while (isspace ((unsigned char)*p))
 	++p;
@@ -1116,7 +1129,7 @@ eval (struct ebuffer *ebuf, int set_default)
          was no preceding target, and the line might have been usable as a
          variable definition.  But now we know it is definitely lossage.  */
       if (line[0] == cmd_prefix)
-        fatal(fstart, _("commands commence before first target"));
+        fatal(fstart, _("recipe commences before first target"));
 
       /* This line describes some target files.  This is complicated by
          the existence of target-specific variables, because we can't
@@ -1175,7 +1188,7 @@ eval (struct ebuffer *ebuf, int set_default)
           {
           case w_eol:
             if (cmdleft != 0)
-              fatal(fstart, _("missing rule before commands"));
+              fatal(fstart, _("missing rule before recipe"));
             /* This line contained something but turned out to be nothing
                but whitespace (a comment?).  */
             continue;
@@ -1294,8 +1307,8 @@ eval (struct ebuffer *ebuf, int set_default)
               /* There's no need to be ivory-tower about this: check for
                  one of the most common bugs found in makefiles...  */
               fatal (fstart, _("missing separator%s"),
-                     !strneq(line, "        ", 8) ? ""
-                     : _(" (did you mean TAB instead of 8 spaces?)"));
+                     (cmd_prefix == '\t' && !strneq(line, "        ", 8))
+                     ? "" : _(" (did you mean TAB instead of 8 spaces?)"));
             continue;
           }
 
@@ -2504,7 +2517,7 @@ record_files (struct nameseq *filenames, const char *pattern,
      at this time, since they won't get snapped and we'll get core dumps.
      See Savannah bug # 12124.  */
   if (snapped_deps)
-    fatal (flocp, _("prerequisites cannot be defined in command scripts"));
+    fatal (flocp, _("prerequisites cannot be defined in recipes"));
 
   if (commands_idx > 0)
     {
@@ -2663,10 +2676,10 @@ record_files (struct nameseq *filenames, const char *pattern,
 	  else if (cmds != 0 && f->cmds != 0 && f->is_target)
 	    {
 	      error (&cmds->fileinfo,
-                     _("warning: overriding commands for target `%s'"),
+                     _("warning: overriding recipe for target `%s'"),
                      f->name);
 	      error (&f->cmds->fileinfo,
-                     _("warning: ignoring old commands for target `%s'"),
+                     _("warning: ignoring old recipe for target `%s'"),
                      f->name);
 	    }
 
@@ -3195,8 +3208,9 @@ parse_file_seq (char **stringp, int stopchar, struct alloccache *cache, int stri
       /* Add it to the front of the chain.  */
 #ifndef CONFIG_WITH_ALLOC_CACHES
       new1 = xmalloc (size);
+      memset (new1, '\0', size);
 #else
-      new1 = (struct nameseq *)alloccache_alloc (cache);
+      new1 = (struct nameseq *) alloccache_calloc (cache);
 #endif
       new1->name = name;
       new1->next = new;
@@ -3806,7 +3820,7 @@ construct_include_path (const char **arg_dirs)
             --len;
           if (len > max_incl_len)
             max_incl_len = len;
-          dirs[idx++] = strcache_add_len (*cpp, len - 1);
+          dirs[idx++] = strcache_add_len (*cpp, len);
         }
     }
 

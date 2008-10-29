@@ -1,20 +1,20 @@
 /* Target file management for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 
@@ -335,18 +335,18 @@ rehash_file (struct file *from_file, const char *to_hname)
              but give a message to let the user know what's going on.  */
           if (to_file->cmds->fileinfo.filenm != 0)
             error (&from_file->cmds->fileinfo,
-                   _("Commands were specified for file `%s' at %s:%lu,"),
+                   _("Recipe was specified for file `%s' at %s:%lu,"),
                    from_file->name, to_file->cmds->fileinfo.filenm,
                    to_file->cmds->fileinfo.lineno);
           else
             error (&from_file->cmds->fileinfo,
-                   _("Commands for file `%s' were found by implicit rule search,"),
+                   _("Recipe for file `%s' was found by implicit rule search,"),
                    from_file->name);
           error (&from_file->cmds->fileinfo,
                  _("but `%s' is now considered the same file as `%s'."),
                  from_file->name, to_hname);
           error (&from_file->cmds->fileinfo,
-                 _("Commands for `%s' will be ignored in favor of those for `%s'."),
+                 _("Recipe for `%s' will be ignored in favor of the one for `%s'."),
                  to_hname, from_file->name);
         }
     }
@@ -454,7 +454,7 @@ remove_intermediates (int sig)
 	struct file *f = *file_slot;
         /* Is this file eligible for automatic deletion?
            Yes, IFF: it's marked intermediate, it's not secondary, it wasn't
-           given on the command-line, and it's either a -include makefile or
+           given on the command line, and it's either a -include makefile or
            it's not precious.  */
 	if (f->intermediate && (f->dontcare || !f->precious)
 	    && !f->secondary && !f->cmd_target)
@@ -575,7 +575,6 @@ expand_deps (struct file *f)
 
   for (d = old; d != 0; d = d->next)
     {
-      size_t buffer_offset; /* bird */
       struct dep *new, *d1;
       char *p;
 #ifdef CONFIG_WITH_STRCACHE2
@@ -623,14 +622,13 @@ expand_deps (struct file *f)
       if (! d->need_2nd_expansion)
         {
           p = variable_expand ("");
-          buffer_offset = p - variable_buffer;
 #ifndef CONFIG_WITH_STRCACHE2
           variable_buffer_output (p, d->name, strlen (d->name) + 1);
 #else
           len = strcache2_get_len (&file_strcache, d->name);
           variable_buffer_output (p, d->name, len + 1);
 #endif
-          p = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. (observed it) */
+          p = variable_buffer;
         }
       else
         {
@@ -640,12 +638,12 @@ expand_deps (struct file *f)
             {
               char *o;
               char *buffer = variable_expand ("");
-              buffer_offset = buffer - variable_buffer; /* bird */
 
               o = subst_expand (buffer, d->name, "%", "$*", 1, 2, 0);
-              buffer = variable_buffer + buffer_offset; /* bird - variable_buffer may have been reallocated. */
+              buffer = variable_buffer; /* bird - variable_buffer may have been reallocated. */
 
-              d->name = strcache_add_len (buffer, o - buffer);
+              d->name = strcache_add_len (variable_buffer,
+                                          o - variable_buffer);
               d->staticpattern = 0; /* Clear staticpattern so that we don't
                                        re-expand %s below. */
             }
@@ -686,7 +684,6 @@ expand_deps (struct file *f)
         {
           const char *pattern = "%";
           char *buffer = variable_expand ("");
-          const size_t buffer_offset = buffer - variable_buffer; /* bird */
           struct dep *dp = new, *dl = 0;
 
           while (dp != 0)
@@ -727,7 +724,7 @@ expand_deps (struct file *f)
                       o = variable_buffer_output (o, "", 1); /* bird fix - patsubst_expand_pat doesn't terminate,
                                                                 the if case does and strcache would appreciate it. */
                     }
-                  buffer = variable_buffer + buffer_offset; /* bird fix - variable_buffer may have been reallocated. */
+                  buffer = variable_buffer; /* bird fix - variable_buffer may have been reallocated. */
 
 
                   /* If the name expanded to the empty string, ignore it.  */
@@ -1184,7 +1181,7 @@ print_file (const void *item)
   if (f->phony)
     puts (_("#  Phony target (prerequisite of .PHONY)."));
   if (f->cmd_target)
-    puts (_("#  Command-line target."));
+    puts (_("#  Command line target."));
   if (f->dontcare)
     puts (_("#  A default, MAKEFILES, or -include/sinclude makefile."));
   puts (f->tried_implicit
@@ -1218,10 +1215,10 @@ print_file (const void *item)
   switch (f->command_state)
     {
     case cs_running:
-      puts (_("#  Commands currently running (THIS IS A BUG)."));
+      puts (_("#  Recipe currently running (THIS IS A BUG)."));
       break;
     case cs_deps_running:
-      puts (_("#  Dependencies commands running (THIS IS A BUG)."));
+      puts (_("#  Dependencies recipe running (THIS IS A BUG)."));
       break;
     case cs_not_started:
     case cs_finished:

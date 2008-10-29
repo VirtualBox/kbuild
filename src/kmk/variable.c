@@ -1,20 +1,20 @@
 /* Internals of variables for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 
@@ -384,7 +384,7 @@ define_variable_in_set (const char *name, unsigned int length,
 #define EXPANSION_INCREMENT(_l)  ((((_l) / 500) + 1) * 500)
 
 static struct variable *
-handle_special_var (struct variable *var)
+lookup_special_var (struct variable *var)
 {
   static unsigned long last_var_count = 0;
 
@@ -487,7 +487,7 @@ lookup_cached_variable (const char *name)
     {
       v = (struct variable *) strcache2_get_user_val (&variable_strcache, name);
       if (MY_PREDICT_TRUE (v))
-        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+        return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
       assert (setlist->next == 0);
       return 0;
     }
@@ -501,7 +501,7 @@ lookup_cached_variable (const char *name)
     {
       if (   (void *)v != hash_deleted_item
           && v->name == name)
-        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+        return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
 
       /* the rest of the loop  */
       hash_2 = strcache2_get_hash (&variable_strcache, name) | 1;
@@ -516,7 +516,7 @@ lookup_cached_variable (const char *name)
             break;
           if (   (void *)v != hash_deleted_item
               && v->name == name)
-            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+            return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
         } /* inner collision loop */
     }
   else
@@ -532,7 +532,7 @@ lookup_cached_variable (const char *name)
         {
           v = (struct variable *) strcache2_get_user_val (&variable_strcache, name);
           if (MY_PREDICT_TRUE (v))
-            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+            return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
           assert (setlist->next == 0);
           return 0;
         }
@@ -546,7 +546,7 @@ lookup_cached_variable (const char *name)
         {
           if (   (void *)v != hash_deleted_item
               && v->name == name)
-            return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+            return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
 
           /* the rest of the loop  */
           for (;;)
@@ -560,7 +560,7 @@ lookup_cached_variable (const char *name)
                 break;
               if (   (void *)v != hash_deleted_item
                   && v->name == name)
-                return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+                return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
             } /* inner collision loop */
         }
 
@@ -586,7 +586,7 @@ lookup_variable_for_assert (const char *name, unsigned int length)
       struct variable *v;
       v = (struct variable *) hash_find_item_strcached (&setlist->set->table, &var_key);
       if (v)
-        return MY_PREDICT_FALSE (v->special) ? handle_special_var (v) : v;
+        return MY_PREDICT_FALSE (v->special) ? lookup_special_var (v) : v;
     }
   return 0;
 }
@@ -634,7 +634,7 @@ lookup_variable (const char *name, unsigned int length)
       v = (struct variable *) hash_find_item_strcached ((struct hash_table *) &set->table, &var_key);
 # endif /* CONFIG_WITH_STRCACHE2 */
       if (v)
-	return v->special ? handle_special_var (v) : v;
+	return v->special ? lookup_special_var (v) : v;
     }
 
 #else  /* KMK - need for speed */
@@ -1356,6 +1356,9 @@ define_automatic_variables (void)
   /* This won't override any definition, but it will provide one if there
      isn't one there.  */
   v = define_variable ("SHELL", 5, default_shell, o_default, 0);
+#ifdef __MSDOS__
+  v->export = v_export;  /*  Export always SHELL.  */
+#endif
 
   /* On MSDOS we do use SHELL from environment, since it isn't a standard
      environment variable on MSDOS, so whoever sets it, does that on purpose.
@@ -1506,15 +1509,18 @@ target_environment (struct file *file)
 		break;
 
 	      case v_noexport:
-                /* If this is the SHELL variable and it's not exported, then
-                   add the value from our original environment.  */
-                if (streq (v->name, "SHELL"))
-                  {
-                    extern struct variable shell_var;
-                    v = &shell_var;
-                    break;
-                  }
-                continue;
+		{
+		  /* If this is the SHELL variable and it's not exported,
+		     then add the value from our original environment, if
+		     the original environment defined a value for SHELL.  */
+		  extern struct variable shell_var;
+		  if (streq (v->name, "SHELL") && shell_var.value)
+		    {
+		      v = &shell_var;
+		      break;
+		    }
+		  continue;
+		}
 
 	      case v_ifset:
 		if (v->origin == o_default)
@@ -1704,6 +1710,20 @@ do_variable_definition_append (const struct floc *flocp, struct variable *v,
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 
+static struct variable *
+set_special_var (struct variable *var)
+{
+  if (streq (var->name, RECIPEPREFIX_NAME))
+    {
+      /* The user is resetting the command introduction prefix.  This has to
+         happen immediately, so that subsequent rules are interpreted
+         properly.  */
+      cmd_prefix = var->value[0]=='\0' ? RECIPEPREFIX_DEFAULT : var->value[0];
+    }
+
+  return var;
+}
+
 /* Given a variable, a value, and a flavor, define the variable.
    See the try_variable_definition() function for details on the parameters. */
 
@@ -1770,7 +1790,15 @@ do_variable_definition_2 (const struct floc *flocp,
          The value is set IFF the variable is not defined yet. */
       v = lookup_variable (varname, varname_len);
       if (v)
-        return v;
+#ifndef CONFIG_WITH_VALUE_LENGTH
+        return v->special ? set_special_var (v) : v;
+#else  /* CONFIG_WITH_VALUE_LENGTH */
+        {
+          if (free_value)
+            free (free_value);
+          return v->special ? set_special_var (v) : v;
+        }
+#endif /* CONFIG_WITH_VALUE_LENGTH */
 
       conditional = 1;
       flavor = f_recursive;
@@ -1984,7 +2012,24 @@ do_variable_definition_2 (const struct floc *flocp,
           no_default_sh_exe = 0;
         }
       else
-        v = lookup_variable (varname, varname_len);
+        {
+          if (alloc_value)
+            free (alloc_value);
+
+          alloc_value = allocated_variable_expand (p);
+          if (find_and_set_default_shell (alloc_value))
+            {
+              v = define_variable_in_set (varname, varname_len, p,
+                                          origin, flavor == f_recursive,
+                                          (target_var
+                                           ? current_variable_set_list->set
+                                           : NULL),
+                                          flocp);
+              no_default_sh_exe = 0;
+            }
+          else
+            v = lookup_variable (varname, varname_len);
+        }
     }
   else
 #endif
@@ -2018,7 +2063,7 @@ do_variable_definition_2 (const struct floc *flocp,
     free (free_value);
 #endif
 
-  return v;
+  return v->special ? set_special_var (v) : v;
 }
 
 /* Try to interpret LINE (a null-terminated string) as a variable definition.

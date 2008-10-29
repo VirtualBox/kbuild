@@ -1,20 +1,20 @@
 /* Directory hashing for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 #include "hash.h"
@@ -520,24 +520,27 @@ find_directory (const char *name)
       /* The directory is not in the name hash table.
 	 Find its device and inode numbers, and look it up by them.  */
 
-#ifdef WINDOWS32
-      /* Remove any trailing '\'.  Windows32 stat fails even on valid
-         directories if they end in '\'. */
-      if (p[-1] == '\\')
-        ((char *)p)[-1] = '\0';
-#endif
-
 #ifdef VMS
       r = vmsstat_dir (name, &st);
+#elif defined(WINDOWS32)
+      {
+        char tem[MAXPATHLEN], *tstart, *tend;
+
+        /* Remove any trailing slashes.  Windows32 stat fails even on
+           valid directories if they end in a slash. */
+        memcpy (tem, name, p - name + 1);
+        tstart = tem;
+        if (tstart[1] == ':')
+          tstart += 2;
+        for (tend = tem + (p - name - 1);
+             tend > tstart && (*tend == '/' || *tend == '\\');
+             tend--)
+          *tend = '\0';
+
+        r = stat (tem, &st);
+      }
 #else
       EINTRLOOP (r, stat (name, &st));
-#endif
-
-#ifdef WINDOWS32
-      /* Put back the trailing '\'.  If we don't, we're permanently
-         truncating the value!  */
-      if (p[-1] == '\0')
-        ((char *)p)[-1] = '\\';
 #endif
 
       if (r < 0)

@@ -12,20 +12,21 @@
 #                        (and others)
 
 # Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-# 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+# 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 # This file is part of GNU Make.
 #
-# GNU Make is free software; you can redistribute it and/or modify it under the
-# terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2, or (at your option) any later version.
+# GNU Make is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
 #
 # GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 #
 # You should have received a copy of the GNU General Public License along with
-# GNU Make; see the file COPYING.  If not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+# this program.  If not, see <http://www.gnu.org/licenses/>.
 
 $valgrind = 0;              # invoke make with valgrind
 $valgrind_args = '--num-callers=15 --tool=memcheck --leak-check=full';
@@ -81,7 +82,7 @@ $old_makefile = undef;
 
 sub run_make_test
 {
-  local ($makestring, $options, $answer, $err_code) = @_;
+  local ($makestring, $options, $answer, $err_code, $timeout) = @_;
 
   # If the user specified a makefile string, create a new makefile to contain
   # it.  If the first value is not defined, use the last one (if there is
@@ -120,7 +121,8 @@ sub run_make_test
   $answer =~ s/#MAKE#/$make_name/g;
   $answer =~ s/#PWD#/$pwd/g;
 
-  &run_make_with_options($makefile, $options, &get_logfile(0), $err_code);
+  run_make_with_options($makefile, $options, &get_logfile(0),
+                        $err_code, $timeout);
   &compare_output($answer, &get_logfile(1));
 
   $old_makefile = $makefile;
@@ -129,7 +131,7 @@ sub run_make_test
 
 # The old-fashioned way...
 sub run_make_with_options {
-  local ($filename,$options,$logname,$expected_code) = @_;
+  local ($filename,$options,$logname,$expected_code,$timeout) = @_;
   local($code);
   local($command) = $make_path;
 
@@ -150,7 +152,15 @@ sub run_make_with_options {
     print VALGRIND "\n\nExecuting: $command\n";
   }
 
-  $code = &run_command_with_output($logname,$command);
+
+  {
+      my $old_timeout = $test_timeout;
+      $test_timeout = $timeout if $timeout;
+
+      $code = &run_command_with_output($logname,$command);
+
+      $test_timeout = $old_timeout;
+  }
 
   # Check to see if we have Purify errors.  If so, keep the logfile.
   # For this to work you need to build with the Purify flag -exit-status=yes

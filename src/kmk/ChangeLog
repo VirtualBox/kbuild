@@ -1,3 +1,212 @@
+2008-09-30  Eli Zaretskii  <eliz@gnu.org>
+
+	* build_w32.bat (GCCBuild): Use "-gdwarf-2 -g3" instead of
+	"-gstabs+ -ggdb3".
+
+	* w32/subproc/build.bat (GCCBuild): Likewise.
+
+2008-09-30  David Russo  <d-russo@ti.com>  (tiny change)
+
+	* job.c (construct_command_argv_internal): Avoid extra backslash
+	in batch-mode Unixy shells.  Under DB_JOBS, display the contents
+	of the batch file.
+
+2008-05-31  Eli Zaretskii  <eliz@gnu.org>
+
+	* README.W32.template: Remove obsolete text about non-support for
+	-jN without Unixy shell.  Remove obsolete text about not supplying
+	Visual Studio project files (we do supply them).  Modify text to
+	prefer GCC builds to MSC builds.
+
+2008-04-02  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* doc/make.texi (Empty Targets): Fix typo.
+
+2008-03-27  Paul Smith  <psmith@gnu.org>
+
+	Fix Savannah bug #22379:
+	* ar.c (ar_glob_match): Zero the allocated structure.
+	* read.c (parse_file_seq): Ditto.
+
+2008-03-08  Brian Dessent  <brian@dessent.net>
+
+	* maintMakefile: Update Translation Project location.
+
+2008-01-26  Eli Zaretskii  <eliz@gnu.org>
+
+	* variable.c (target_environment): Don't use shell_var if its
+	`value' field is NULL.
+
+2007-12-22  Eli Zaretskii  <eliz@gnu.org>
+
+	Suggested by Juan Manuel Guerrero <juan.guerrero@gmx.de>:
+
+	* Makefile.DOS.template (info_TEXINFOS): Remove unused variable.
+	(TEXINFOS): Value changed to `doc/make.texi'.
+	(.SUFFIXES): Use .texi instead of .texinfo.
+	(make.info, make.dvi): Depend on doc/make.texi.
+	(.texi.info): New target, instead of ".texinfo.info".  Change -I
+	switch to $(MAKEINFO) to look in doc/.  Use --no-split.
+	(.texi): New target, instead of ".texinfo".  Change -I switch to
+	$(MAKEINFO) to look in doc/.  Use --no-split.
+	(.texi.dvi): New target, instead of ".texinfo.dvi".  Change -I
+	switch to $(MAKEINFO) to look in doc/.
+	(install-info-am, uninstall-info): Don't look for "*.i[0-9]" and
+	"*.i[0-9][0-9]" (due to --no-split above).
+	(noinst_TEXINFOS, TEXI2HTML, TEXI2HTML_FLAGS): New variables.
+	(html, make_1.html): New targets.
+	(.PHONY): Add "html".
+	(.SUFFIXES): Add .html.
+
+2007-12-22  Juan Manuel Guerrero  <juan.guerrero@gmx.de>  (tiny change)
+
+	* configh.dos.template [__DJGPP__]: Replace HAVE_SYS_SIGLIST with
+	HAVE_DECL_SYS_SIGLIST.
+
+	* job.c (child_execute_job): Remove __MSDOS__ because MSDOS/DJGPP
+	build does not use child_execute_job.
+
+	* variable.c (define_automatic_variables) [__MSDOS__]: Always
+	export the SHELL environment variable to the child.
+
+2007-12-22  Eli Zaretskii  <eliz@gnu.org>
+
+	* config.h.W32: Include sys/types.h.
+	[!_PID_T_] (pid_t): Define only if not already defined by sys/types.h.
+
+	* vpath.c (construct_vpath_list) [HAVE_DOS_PATHS]: Support VPATH
+	values that use `:' in drive letters, when PATH_SEPARATOR_CHAR is
+	also `:'.
+
+2007-11-04  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi: Convert references to "commands", "command
+	lines", and "command script" to "recipe".
+	* NEWS: Ditto.
+	* commands.c, file.c, job.c, remake.c, read.c, variable.c, main.c:
+	Ditto.
+
+2007-10-27  Bruno Haible  <bruno@clisp.org>
+
+	* remake.c (f_mtime): Print time difference values between 100 and
+	ULONG_MAX in fixed-point notation rather than in exponention notation.
+
+2007-10-12  Eli Zaretskii  <eliz@gnu.org>
+
+	* variable.c (do_variable_definition): Allow $(SHELL) to expand to
+	a more complex value than a simple shell: if it's not a default
+	shell now then expand it and see if is a default shell then.
+
+2007-10-10  Eli Zaretskii  <eliz@gnu.org>
+
+	* dir.c (find_directory) [WINDOWS32]: Remove trailing slashes from
+	pathnames, with const strings.
+	* build_w32.bat [WINDOWS32]: If no config.h.W32 exists, create one
+	from the template (used for building from CVS, not a dist).
+
+2007-10-10  Paul Smith  <psmith@gnu.org>
+
+	* make.h: Add a prototype for w32_kill() (change suggested by
+	Yongwei Wu <wuyongwei@gmail.com>).
+
+2007-09-21  Eli Zaretskii  <eliz@gnu.org>
+
+	* w32/pathstuff.c (convert_Path_to_windows32): Handle quoted
+	directories in Path.
+
+2007-09-12  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi: Applied wording cleanups from Savannah patch #6195.
+	Provided by Diego Biurrun <diego@biurrun.de>
+	(Complex Makefile): Remove .PHONY setting for tar: patch #6196.
+	Provided by Diego Biurrun <diego@biurrun.de>
+
+2007-09-11  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Special Variables): Moved this into the "How to
+	Use Variables" chapter.  Added a table entry for .RECIPEPREFIX.
+	(MAKEFILE_LIST) No longer a section; this was added into the
+	"Special Variables" section.
+	(Rule Introduction): Reference .RECIPEPREFIX.
+	(Simple Makefile): Ditto.
+	(Rule Syntax): Ditto.
+	(Command Syntax): Ditto.
+	(Error Messages): Ditto.
+
+2007-09-10  Paul Smith  <psmith@gnu.org>
+
+	* commands.c (print_commands): Don't print an extra line in the
+	command scripts.  Prefix the command scripts with cmd_prefix, not \t.
+
+	* read.c (construct_include_path): Add the full string to the cache; we
+	were chopping the last char.
+
+	* NEWS: Announce the .RECIPEPREFIX special variable.
+	* variable.c (lookup_special_var): Rename from handle_special_var().
+	(lookup_variable): Call the new name.
+	(set_special_var): New function: handle setting of special variables.
+	When setting .RECIPEPREFIX, reset the cmd_prefix global variable.
+	(do_variable_definition): Call it.
+	* make.h (RECIPEPREFIX_DEFAULT): Define the default command prefix char.
+	(RECIPEPREFIX_NAME): Define the command prefix special variable name.
+	* main.c (main): Create the .RECIPEPREFIX special variable.
+	* read.c (eval): Remove the cmd_prefix characters from the command
+	scripts here, so they're not stored in the commands array at all,
+	rather than waiting and stripping them out during command construction.
+	* job.c (construct_command_argv_internal): Don't skip cmd_prefix here.
+
+2007-08-15  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (GNU Free Documentation License): The fdl.texi
+	file has had the section info removed, so add some to make.texi
+	before we include it.
+
+2007-08-15  Icarus Sparry  <savannah@icarus.freeuk.com>
+
+	* remake.c (check_dep): Reset the target state for intermediate
+	files.  They might have been considered before but not updated
+	then (order-only for example) but they will be this time.
+	Fixes Savannah bug #'s 3330 and 15919.
+
+2007-07-21  Eli Zaretskii  <eliz@gnu.org>
+
+	Fix Savannah bug #20549:
+	* function.c (func_shell): Call construct_command_argv with zero
+	value of FLAGS.
+	* job.c (construct_command_argv_internal): New argument FLAGS; all
+	callers changed.
+	[WINDOWS32]: If FLAGS has the COMMANDS_RECURSE bit set, ignore
+	just_print_flag.
+	* job.h (construct_command_argv_internal): Update prototype.
+
+2007-07-13  Paul Smith  <psmith@gnu.org>
+
+	* file.c (expand_deps): Use variable_buffer as the start of the
+	buffer, not the original pointer (in case it was reallocated).
+	Fix suggested by Rafi Einstein <rafi.einstein@formalism-labs.com>.
+	Fixes Savannah bug #20452.
+
+2007-07-04  Paul Smith  <psmith@gnu.org>
+
+	* (ALL FILES): Update to GPLv3.
+	* (ALL FILES): Update copyright for 2007.
+
+	* main.c (print_version): Move the host type info to the second line.
+
+2007-06-29  Thiemo Seufer  <ths@mips.com>
+
+	* maintMakefile: Update Translation Project location.
+
+2007-06-13  Paul Smith  <psmith@gnu.org>
+
+	* doc/make.texi (Reading Makefiles): "Expansion of deferred" ->
+	"Expansion of a deferred"
+	Fixes Savannah bug #20018.
+
+	* expand.c (variable_expand_for_file): Preserve the value of
+	reading_file rather than setting it to 0 at the end.
+	Fixes Savannah bug #20033.
+
 2007-05-11  Paul Smith  <psmith@gnu.org>
 
 	* job.c (new_job): Add debug info to specify where make found the
@@ -2953,18 +3162,18 @@ See ChangeLog.2, available in the CVS repository at:
 for earlier changes.
 
 
-Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+this program.  If not, see <http://www.gnu.org/licenses/>.

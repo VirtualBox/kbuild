@@ -6,20 +6,21 @@
 # Modified 92-02-11 through 92-02-22 by Chris Arthur to further generalize.
 #
 # Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-# 2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+# 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 # This file is part of GNU Make.
 #
-# GNU Make is free software; you can redistribute it and/or modify it under the
-# terms of the GNU General Public License as published by the Free Software
-# Foundation; either version 2, or (at your option) any later version.
+# GNU Make is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
 #
 # GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
 #
 # You should have received a copy of the GNU General Public License along with
-# GNU Make; see the file COPYING.  If not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+# this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 # Test driver routines used by a number of test suites, including
@@ -28,7 +29,7 @@
 # this routine controls the whole mess; each test suite sets up a few
 # variables and then calls &toplevel, which does all the real work.
 
-# $Id: test_driver.pl,v 1.21 2007/03/20 03:02:26 psmith Exp $
+# $Id: test_driver.pl,v 1.24 2007/11/04 21:54:02 psmith Exp $
 
 
 # The number of test categories we've run
@@ -47,6 +48,10 @@ $tests_passed = 0;
 
 # Yeesh.  This whole test environment is such a hack!
 $test_passed = 1;
+
+
+# Timeout in seconds.  If the test takes longer than this we'll fail it.
+$test_timeout = 5;
 
 
 # %makeENV is the cleaned-out environment.
@@ -680,15 +685,23 @@ sub compare_output
     $answer_matched = 1;
   } else {
     # See if it is a slash or CRLF problem
-    local ($answer_mod) = $answer;
+    local ($answer_mod, $slurp_mod) = ($answer, $slurp);
 
     $answer_mod =~ tr,\\,/,;
     $answer_mod =~ s,\r\n,\n,gs;
 
-    $slurp =~ tr,\\,/,;
-    $slurp =~ s,\r\n,\n,gs;
+    $slurp_mod =~ tr,\\,/,;
+    $slurp_mod =~ s,\r\n,\n,gs;
 
-    $answer_matched = ($slurp eq $answer_mod);
+    $answer_matched = ($slurp_mod eq $answer_mod);
+
+    # If it still doesn't match, see if the answer might be a regex.
+    if (!$answer_matched && $answer =~ m,^/(.+)/$,) {
+      $answer_matched = ($slurp =~ /$1/);
+      if (!$answer_matched && $answer_mod =~ m,^/(.+)/$,) {
+          $answer_matched = ($slurp_mod =~ /$1/);
+      }
+    }
   }
 
   if ($answer_matched && $test_passed)
@@ -789,21 +802,43 @@ sub detach_default_output
          || &error ("ddo: $! closing SAVEDOSerr\n", 1);
 }
 
-# run one command (passed as a list of arg 0 - n), returning 0 on success
-# and nonzero on failure.
-
-sub run_command
+# This runs a command without any debugging info.
+sub _run_command
 {
-  local ($code);
+  my $code;
 
   # We reset this before every invocation.  On Windows I think there is only
   # one environment, not one per process, so I think that variables set in
   # test scripts might leak into subsequent tests if this isn't reset--???
   resetENV();
 
+  eval {
+      local $SIG{ALRM} = sub { die "timeout\n"; };
+      alarm $test_timeout;
+      $code = system @_;
+      alarm 0;
+  };
+  if ($@) {
+      # The eval failed.  If it wasn't SIGALRM then die.
+      $@ eq "timeout\n" or die;
+
+      # Timed out.  Resend the alarm to our process group to kill the children.
+      $SIG{ALRM} = 'IGNORE';
+      kill -14, $$;
+      $code = 14;
+  }
+
+  return $code;
+}
+
+# run one command (passed as a list of arg 0 - n), returning 0 on success
+# and nonzero on failure.
+
+sub run_command
+{
   print "\nrun_command: @_\n" if $debug;
-  $code = system @_;
-  print "run_command: \"@_\" returned $code.\n" if $debug;
+  my $code = _run_command(@_);
+  print "run_command returned $code.\n" if $debug;
 
   return $code;
 }
@@ -815,19 +850,13 @@ sub run_command
 
 sub run_command_with_output
 {
-  local ($filename) = shift;
-  local ($code);
+  my $filename = shift;
 
-  # We reset this before every invocation.  On Windows I think there is only
-  # one environment, not one per process, so I think that variables set in
-  # test scripts might leak into subsequent tests if this isn't reset--???
-  resetENV();
-
+  print "\nrun_command_with_output($filename): @_\n" if $debug;
   &attach_default_output ($filename);
-  $code = system @_;
+  my $code = _run_command(@_);
   &detach_default_output;
-
-  print "run_command_with_output: '@_' returned $code.\n" if $debug;
+  print "run_command_with_output returned $code.\n" if $debug;
 
   return $code;
 }

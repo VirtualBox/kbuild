@@ -1,20 +1,20 @@
 /* Variable expansion functions for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
 Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
-Foundation; either version 2, or (at your option) any later version.
+Foundation; either version 3 of the License, or (at your option) any later
+version.
 
 GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-GNU Make; see the file COPYING.  If not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
+this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "make.h"
 
@@ -869,20 +869,25 @@ char *
 variable_expand_for_file (const char *line, struct file *file)
 {
   char *result;
-  struct variable_set_list *save;
+  struct variable_set_list *savev;
+  const struct floc *savef;
 
   if (file == 0)
     return variable_expand (line);
 
-  save = current_variable_set_list;
+  savev = current_variable_set_list;
   current_variable_set_list = file->variables;
+
+  savef = reading_file;
   if (file->cmds && file->cmds->fileinfo.filenm)
     reading_file = &file->cmds->fileinfo;
   else
     reading_file = 0;
+
   result = variable_expand (line);
-  current_variable_set_list = save;
-  reading_file = 0;
+
+  current_variable_set_list = savev;
+  reading_file = savef;
 
   return result;
 }
