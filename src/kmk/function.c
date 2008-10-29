@@ -1032,7 +1032,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
       doneany = 1;
       free (result);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
-      if (len >= (unsigned int)var->value_alloc_len)
+      if (len >= var->value_alloc_len)
         {
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
           if (var->rdonly_val)
@@ -1040,7 +1040,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
           else
 # endif
             free (var->value);
-          var->value_alloc_len = (len + 32) & ~31;
+          var->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (len + 1);
           var->value = xmalloc (var->value_alloc_len);
         }
       memcpy (var->value, p, len);

@@ -257,18 +257,18 @@ define_variable_in_set (const char *name, unsigned int length,
               if (v->value != 0 && !v->rdonly_val)
                   free (v->value);
               v->rdonly_val = duplicate_value == -1;
-              v->value = (char *)value;
+              v->value = (char *) value;
               v->value_alloc_len = 0;
 # else
               if (v->value != 0)
                 free (v->value);
-              v->value = (char *)value;
+              v->value = (char *) value;
               v->value_alloc_len = value_len + 1;
 # endif
             }
           else
             {
-              if ((unsigned int)v->value_alloc_len <= value_len)
+              if (v->value_alloc_len <= value_len)
                 {
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
                   if (v->rdonly_val)
@@ -276,7 +276,7 @@ define_variable_in_set (const char *name, unsigned int length,
                   else
 # endif
                     free (v->value);
-                  v->value_alloc_len = (value_len + 0x40) & ~0x3f;
+                  v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (value_len + 1);
                   v->value = xmalloc (v->value_alloc_len);
                 }
               memcpy (v->value, value, value_len + 1);
@@ -330,13 +330,13 @@ define_variable_in_set (const char *name, unsigned int length,
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
       v->rdonly_val = 0;
 # endif
-      v->value_alloc_len = (value_len + 32) & ~31;
+      v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (value_len + 1);
       v->value = xmalloc (v->value_alloc_len);
       memcpy (v->value, value, value_len + 1);
     }
-#else
+#else  /* !CONFIG_WITH_VALUE_LENGTH */
   v->value = xstrdup (value);
-#endif
+#endif /* !CONFIG_WITH_VALUE_LENGTH */
   if (flocp != 0)
     v->fileinfo = *flocp;
   else
@@ -1620,11 +1620,11 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
       return;
 
   /* adjust the size. */
-  if ((unsigned)v->value_alloc_len <= new_value_len + 1)
+  if (v->value_alloc_len <= new_value_len + 1)
     {
       v->value_alloc_len *= 2;
-      if ((unsigned)v->value_alloc_len < new_value_len + 1)
-          v->value_alloc_len = (new_value_len + 1 + value_len + 0x7f) + ~0x7fU;
+      if (v->value_alloc_len < new_value_len + 1)
+          v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (new_value_len + 1 + value_len + 1);
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
       if ((append || !v->value_length) && !v->rdonly_val)
 # else
@@ -2173,7 +2173,7 @@ parse_variable_definition (struct variable *v, char *line, char *eos)
   p = next_token (p);
   v->value = p;
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  v->value_alloc_len = -1;
+  v->value_alloc_len = ~(unsigned int)0;
   v->value_length = eos != NULL ? eos - p : -1;
   assert (eos == NULL || strchr (p, '\0') == eos);
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE

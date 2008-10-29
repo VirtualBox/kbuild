@@ -53,6 +53,9 @@ enum variable_flavor
 
 #define EXP_COUNT_BITS  15      /* This gets all the bitfields into 32 bits */
 #define EXP_COUNT_MAX   ((1<<EXP_COUNT_BITS)-1)
+#ifdef CONFIG_WITH_VALUE_LENGTH
+#define VAR_ALIGN_VALUE_ALLOC(len)  ( ((len) + (unsigned int)31) & ~(unsigned int)31 )
+#endif
 
 struct variable
   {
@@ -64,7 +67,7 @@ struct variable
     int length;			/* strlen (name) */
 #ifdef CONFIG_WITH_VALUE_LENGTH
     int value_length;		/* The length of the value, usually unused.  */
-    int value_alloc_len;	/* The amount of memory we've actually allocated. */
+    unsigned int value_alloc_len; /* The amount of memory we've actually allocated. */
     /* FIXME: make lengths unsigned! */
 #endif
     char *value;		/* Variable value.  */
