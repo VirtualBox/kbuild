@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1932 2008-10-24 20:22:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 1998 2008-10-29 21:33:16Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -353,7 +353,7 @@ const char *get_default_kbuild_shell(void)
  * @param   fCanFree        Whether *ppsz should be freed when we replace it.
  */
 static void
-kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch, int *pcchAlloc, int fCanFree)
+kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch, unsigned int *pcchAlloc, int fCanFree)
 {
     const char *pszIterator;
     const char *pszInCur;
