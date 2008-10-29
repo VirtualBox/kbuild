@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.h 1598 2008-05-01 21:52:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.h 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -45,8 +45,8 @@ typedef enum
  */
 typedef struct KBUILDPROTECTION
 {
-    unsigned        uMagic;
-    unsigned        cProtectionDepth;
+    unsigned int    uMagic;
+    unsigned int    cProtectionDepth;
     unsigned char   afTypes[KBUILDPROTECTIONTYPE_MAX];
 } KBUILDPROTECTION;
 typedef KBUILDPROTECTION  *PKBUILDPROTECTION;

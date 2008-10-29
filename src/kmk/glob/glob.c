@@ -388,7 +388,7 @@ glob (pattern, flags, errfunc, pglob)
 	{
 	  /* Allocate working buffer large enough for our work.  Note that
 	    we have at least an opening and closing brace.  */
-	  int firstc;
+	  size_t firstc;
 	  char *alt_start;
 	  const char *p;
 	  const char *next;

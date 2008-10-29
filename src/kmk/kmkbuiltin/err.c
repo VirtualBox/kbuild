@@ -1,4 +1,4 @@
-/* $Id: err.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Override err.h so we get the program name right.
@@ -74,7 +74,6 @@ void warn(const char *fmt, ...)
 
 void warnx(const char *fmt, ...)
 {
-    int err = errno;
     va_list args;
     fprintf(stderr, "%s: ", g_progname);
     va_start(args, fmt);

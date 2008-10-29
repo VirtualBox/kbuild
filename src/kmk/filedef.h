@@ -209,8 +209,8 @@ FILE_TIMESTAMP f_mtime (struct file *file, int search);
 /* The smallest and largest ordinary timestamps.  */
 #define ORDINARY_MTIME_MIN (OLD_MTIME + 1)
 #if FILE_TIMESTAMP_HI_RES == 0 /* bird: shut up annoying warnings!
-  ASSUMES: unsinged FILE_TIMESTAMP ++. */
-# define ORDINARY_MTIME_MAX  ( ~ (FILE_TIMESTAMP) 0 )
+  ASSUMES: unsigned FILE_TIMESTAMP ++. */
+# define ORDINARY_MTIME_MAX     ( ~ (FILE_TIMESTAMP) 0 )
 #else
 #define ORDINARY_MTIME_MAX ((FILE_TIMESTAMP_S (NEW_MTIME) \
 			     << FILE_TIMESTAMP_LO_BITS) \
@@ -223,7 +223,11 @@ FILE_TIMESTAMP f_mtime (struct file *file, int search);
    different ideas about what time it is; and can also lose for `force'
    targets, which need to be considered newer than anything that depends on
    them, even if said dependents' modtimes are in the future.  */
+#if 1 /* bird: ASSUME the type is unsigned and the wrath of a pedantic gcc.  */
+# define NEW_MTIME              ( ~ (FILE_TIMESTAMP) 0 )
+#else
 #define NEW_MTIME INTEGER_TYPE_MAXIMUM (FILE_TIMESTAMP)
+#endif
 
 #define check_renamed(file) \
   while ((file)->renamed != 0) (file) = (file)->renamed /* No ; here.  */

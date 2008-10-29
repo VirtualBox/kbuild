@@ -897,7 +897,7 @@ notice_finished_file (struct file *file)
   int ran = file->command_state == cs_running;
   int touched = 0;
   DB (DB_JOBS, (_("notice_finished_file - entering: file=%p `%s' update_status=%d command_state=%d\n"), /* bird */
-                  file, file->name, file->update_status, file->command_state));
+                  (void *) file, file->name, file->update_status, file->command_state));
 
   file->command_state = cs_finished;
   file->updated = 1;
@@ -920,7 +920,7 @@ notice_finished_file (struct file *file)
          == COMMANDS_NOTPARALLEL)
     {
       DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [notice_finished_file]\n"), not_parallel,
-                   not_parallel - 1, file, file->name));
+                   not_parallel - 1, (void *) file, file->name));
       assert(not_parallel >= 1);
       --not_parallel;
     }

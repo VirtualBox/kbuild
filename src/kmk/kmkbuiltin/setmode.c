@@ -395,7 +395,7 @@ addcmd(set, op, who, oparg, mask)
 	case '-':
 	case 'X':
 		set->cmd = op;
-		set->bits = (who ? who : mask) & oparg;
+		set->bits = (who ? (mode_t)who : mask) & oparg;
 		break;
 
 	case 'u':

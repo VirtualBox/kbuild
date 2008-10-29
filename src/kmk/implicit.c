@@ -114,7 +114,11 @@ get_next_word (const char *buffer, unsigned int *length)
   c = *(p++);
 
   if (c == '\0')
-    return 0;
+    {
+      if (length)   /* bird: shut up gcc. */
+        *length = 0;
+      return 0;
+    }
 
 
   /* We already found the first value of "c", above.  */
