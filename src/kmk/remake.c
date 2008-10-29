@@ -1163,8 +1163,16 @@ check_dep (struct file *file, unsigned int depth,
 
           /* Reset this target's state so that we check it fresh.  It could be
              that it's already been checked as part of an order-only
-             prerequisite and so wasn't rebuilt then, but should be now.  */
-          set_command_state (file, cs_not_started);
+             prerequisite and so wasn't rebuilt then, but should be now.
+
+             bird: What if we're already running the recipe?  We don't wish
+                   it to be started once again do we?  This happens with the
+                   SECONDARY Test #9 here now... If the idea is to re-evaluate
+                   the target regardless of whether it's running or no, then
+                   perhaps saving and restoring is a better idea?
+                   See bug #15919.  */
+          if (file->command_state != cs_running) /* bird */
+            set_command_state (file, cs_not_started);
 
 	  lastd = 0;
 	  d = file->deps;

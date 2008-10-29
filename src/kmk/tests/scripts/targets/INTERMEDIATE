@@ -56,9 +56,8 @@ $answer = "cp foo.f foo.e\ncp foo.e foo.d\nrm foo.e\n";
 
 # TEST #3
 # kmk+fast: differs because of different hashing.
-# kmk: suspect the -j1 actually hides a bug, 'cp bar.f bar.e' is executed twice.
 
-&run_make_with_options($makefile,'-j1 foo.c',&get_logfile);
+&run_make_with_options($makefile,'foo.c',&get_logfile);
 $answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\n"
         . (!$is_kmk && !$is_fast ? "rm bar.e foo.e\n" : "rm foo.e bar.e\n");
 &compare_output($answer, &get_logfile(1));
@@ -71,12 +70,11 @@ $answer = "$make_name: `foo.c' is up to date.\n";
 
 # TEST #5
 # kmk+fast: differs because of different hashing.
-# kmk: suspect the -j1 actually hides a bug, 'cp bar.f bar.e' is executed twice.
 
 &utouch(-10, 'foo.c');
 &touch('foo.f');
 
-&run_make_with_options($makefile,'-j1 foo.c',&get_logfile);
+&run_make_with_options($makefile,'foo.c',&get_logfile);
 $answer = "cp foo.f foo.e\ncp bar.f bar.e\ncat foo.e bar.e > foo.c\n"
         . (!$is_kmk && !$is_fast ? "rm bar.e foo.e\n" : "rm foo.e bar.e\n");
 &compare_output($answer, &get_logfile(1));
