@@ -66,7 +66,7 @@ struct variable
 #endif
     int length;			/* strlen (name) */
 #ifdef CONFIG_WITH_VALUE_LENGTH
-    int value_length;		/* The length of the value, usually unused.  */
+    unsigned int value_length;	/* The length of the value.  */
     unsigned int value_alloc_len; /* The amount of memory we've actually allocated. */
     /* FIXME: make lengths unsigned! */
 #endif
