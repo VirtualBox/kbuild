@@ -1,4 +1,4 @@
-/* $Id: electric.c 1453 2008-03-30 14:06:49Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.c 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * A simple electric heap implementation.
@@ -53,7 +53,7 @@ static void fatal_error (const char *msg)
 #else
   fprintf (stderr, "electric heap error: %s (errno=%d)\n", msg, errno);
   __asm__ ("int3"); /* not portable... */
-#endif 
+#endif
   abort ();
   exit (1);
 }
@@ -187,5 +187,7 @@ xstrdup (const char *ptr)
   return memcpy (result, ptr, size);
 }
 
-#endif /* ELECTRIC_HEAP */
+#else /* !ELECTRIC_HEAP */
+extern void electric_heap_keep_ansi_c_quiet (void);
+#endif /* !ELECTRIC_HEAP */
 

@@ -2095,7 +2095,7 @@ start_waiting_jobs (void)
       if (job->file->command_flags & COMMANDS_NOTPARALLEL)
         {
           DB (DB_KMK, (_("not_parallel %d -> %d (file=%p `%s') [start_waiting_jobs]\n"),
-                       not_parallel, not_parallel - 1, job->file, job->file->name));
+                       not_parallel, not_parallel - 1, (void *) job->file, job->file->name));
           assert(not_parallel > 0);
           --not_parallel;
         }

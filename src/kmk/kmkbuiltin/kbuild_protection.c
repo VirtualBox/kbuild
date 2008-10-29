@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.c 1635 2008-05-13 00:55:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -36,8 +36,11 @@
 #if defined(_MSC_VER) || defined(__OS2__)
 # include <limits.h>
 # include <direct.h>
-#endif 
+#else
+# include <unistd.h>
+#endif
 #include "kbuild_protection.h"
+#include "err.h"
 
 
 /*******************************************************************************
@@ -184,7 +187,7 @@ static int countPathComponents(const char *pszPath)
             pszPath += uDriveLetter ? 3 : 1;
         }
     }
-#else
+#else  /* !WIN && !OS2 */
     if (!IS_SLASH(pszPath[0]))
     {
         /*
@@ -198,7 +201,7 @@ static int countPathComponents(const char *pszPath)
         }
         cComponents = countSubPathComponents(szCwd, 0);
     }
-#endif
+#endif /* !WIN && !OS2 */
 
     /*
      * We're now past any UNC or drive letter crap, possibly positioned
@@ -351,7 +354,7 @@ int  kBuildProtectionEnforce(PCKBUILDPROTECTION pThis, KBUILDPROTECTIONTYPE enmT
         int cComponents = countPathComponents(pszPath);
         if (cComponents < 0)
             return -1;
-        if (cComponents <= pThis->cProtectionDepth)
+        if ((unsigned int)cComponents <= pThis->cProtectionDepth)
         {
             errx(1, "%s: protected", pszPath);
             return -1;
