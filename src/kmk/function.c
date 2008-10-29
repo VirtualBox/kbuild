@@ -1754,10 +1754,10 @@ func_value (char *o, char **argv, const char *funcname UNUSED)
   /* Copy its value into the output buffer without expanding it.  */
   if (v)
 #ifdef CONFIG_WITH_VALUE_LENGTH
-    o = variable_buffer_output (o, v->value,
-                                v->value_length >= 0
-                                ? (unsigned int)v->value_length /* FIXME */
-                                : strlen(v->value));
+    {
+      assert (v->value_length == strlen (v->value));
+      o = variable_buffer_output (o, v->value, v->value_length);
+    }
 #else
     o = variable_buffer_output (o, v->value, strlen(v->value));
 #endif

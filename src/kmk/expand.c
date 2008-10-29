@@ -294,7 +294,7 @@ reference_variable (char *o, const char *name, unsigned int length)
     return o;
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  assert ((unsigned int)v->value_length == strlen (v->value));
+  assert (v->value_length == strlen (v->value));
   if (!v->recursive)
     o = variable_buffer_output (o, v->value, v->value_length);
   else
@@ -973,7 +973,7 @@ variable_append (const char *name, unsigned int length,
   if (buf > variable_buffer)
     buf = variable_buffer_output (buf, " ", 1);
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  assert ((unsigned int)v->value_length == strlen (v->value)); /* FIXME */
+  assert (v->value_length == strlen (v->value));
 #endif
 
   /* Either expand it or copy it, depending.  */

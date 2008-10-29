@@ -1368,18 +1368,18 @@ define_automatic_variables (void)
   /* Don't let SHELL come from the environment.  */
   if (*v->value == '\0' || v->origin == o_env || v->origin == o_env_override)
     {
-#ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
+# ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
       if (v->rdonly_val)
         v->rdonly_val = 0;
       else
-#endif
+# endif
         free (v->value);
       v->origin = o_file;
       v->value = xstrdup (default_shell);
-#ifdef CONFIG_WITH_VALUE_LENGTH
+# ifdef CONFIG_WITH_VALUE_LENGTH
       v->value_length = strlen (v->value);
       v->value_alloc_len = v->value_length + 1;
-#endif
+# endif
     }
 #endif
 
@@ -2237,8 +2237,7 @@ try_variable_definition (const struct floc *flocp, char *line, char *eos,
   if (!parse_variable_definition (&v, line, eos))
     return 0;
 
-  vp = do_variable_definition_2 (flocp, v.name, v.value,
-                                 v.value_length != -1 ? (unsigned int)v.value_length : ~0U, /* FIXME */
+  vp = do_variable_definition_2 (flocp, v.name, v.value, v.value_length,
                                  0, NULL, origin, v.flavor, target_var);
 #endif
 
