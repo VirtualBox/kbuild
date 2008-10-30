@@ -294,6 +294,7 @@ define_variable_in_set (const char *name, unsigned int length,
             v->fileinfo.filenm = 0;
 	  v->origin = origin;
 	  v->recursive = recursive;
+          MAKE_STATS_2(v->changes++);
 	}
       return v;
     }
@@ -1627,9 +1628,12 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
   /* adjust the size. */
   if (v->value_alloc_len <= new_value_len + 1)
     {
-      v->value_alloc_len *= 2;
+      if (v->value_alloc_len < 256)
+        v->value_alloc_len = 256;
+      else
+        v->value_alloc_len *= 2;
       if (v->value_alloc_len < new_value_len + 1)
-          v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (new_value_len + 1 + value_len + 1);
+        v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (new_value_len + 1 + value_len); /* extra for future */
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
       if ((append || !v->value_length) && !v->rdonly_val)
 # else
@@ -2070,7 +2074,6 @@ do_variable_definition_2 (const struct floc *flocp,
     free (free_value);
 #endif
 
-  MAKE_STATS_2(v->changes++);
   return v->special ? set_special_var (v) : v;
 }
 
@@ -2258,6 +2261,11 @@ try_variable_definition (const struct floc *flocp, char *line, char *eos,
   return vp;
 }
 
+#ifdef CONFIG_WITH_MAKE_STATS
+static unsigned long var_stats_changes, var_stats_changed;
+static unsigned long var_stats_reallocs, var_stats_realloced;
+#endif
+
 /* Print information for variable V, prefixing it with PREFIX.  */
 
 static void
@@ -2304,8 +2312,16 @@ print_variable (const void *item, void *arg)
   if (v->fileinfo.filenm)
     printf (_(" (from `%s', line %lu)"),
             v->fileinfo.filenm, v->fileinfo.lineno);
-  MAKE_STATS_2(if (v->changes != 1) printf(_(", %u changes"), v->changes));
-  MAKE_STATS_2(if (v->reallocs != 0) printf(_(", %u reallocs"), v->reallocs));
+#ifdef CONFIG_WITH_MAKE_STATS
+  if (v->changes != 0)
+      printf(_(", %u changes"), v->changes);
+  var_stats_changes += v->changes;
+  var_stats_changed += (v->changes != 0);
+  if (v->reallocs != 0)
+      printf(_(", %u reallocs"), v->reallocs);
+  var_stats_reallocs += v->reallocs;
+  var_stats_realloced += (v->reallocs != 0);
+#endif /* CONFIG_WITH_MAKE_STATS */
   putchar ('\n');
   fputs (prefix, stdout);
 
@@ -2344,7 +2360,27 @@ print_variable (const void *item, void *arg)
 void
 print_variable_set (struct variable_set *set, char *prefix)
 {
+#ifdef CONFIG_WITH_MAKE_STATS
+  var_stats_changes = var_stats_changed = var_stats_reallocs
+      = var_stats_realloced = 0;
+
   hash_map_arg (&set->table, print_variable, prefix);
+
+  if (var_stats_changed || var_stats_realloced)
+    printf(_("# variable set modification stats:\n"));
+  if (var_stats_changed)
+    printf(_("#     changed %5lu (%2u%%),        changes %6lu\n"),
+           var_stats_changed,
+           (unsigned int)((100.0 * var_stats_changed) / set->table.ht_fill),
+           var_stats_changes);
+  if (var_stats_realloced)
+    printf(_("# reallocated %5lu (%2u%%),  reallocations %6lu\n"),
+           var_stats_realloced,
+           (unsigned int)((100.0 * var_stats_realloced) / set->table.ht_fill),
+           var_stats_reallocs);
+#else
+  hash_map_arg (&set->table, print_variable, prefix);
+#endif
 
   fputs (_("# variable set hash-table stats:\n"), stdout);
   fputs ("# ", stdout);

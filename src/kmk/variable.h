@@ -54,7 +54,7 @@ enum variable_flavor
 #define EXP_COUNT_BITS  15      /* This gets all the bitfields into 32 bits */
 #define EXP_COUNT_MAX   ((1<<EXP_COUNT_BITS)-1)
 #ifdef CONFIG_WITH_VALUE_LENGTH
-#define VAR_ALIGN_VALUE_ALLOC(len)  ( ((len) + (unsigned int)31) & ~(unsigned int)31 )
+#define VAR_ALIGN_VALUE_ALLOC(len)  ( ((len) + (unsigned int)15) & ~(unsigned int)15 )
 #endif
 
 struct variable
