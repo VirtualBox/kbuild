@@ -1633,7 +1633,7 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
       else
         v->value_alloc_len *= 2;
       if (v->value_alloc_len < new_value_len + 1)
-        v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (new_value_len + 1 + value_len); /* extra for future */
+        v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (new_value_len + 1 + value_len /*future*/ );
 # ifdef CONFIG_WITH_RDONLY_VARIABLE_VALUE
       if ((append || !v->value_length) && !v->rdonly_val)
 # else
@@ -2264,6 +2264,8 @@ try_variable_definition (const struct floc *flocp, char *line, char *eos,
 #ifdef CONFIG_WITH_MAKE_STATS
 static unsigned long var_stats_changes, var_stats_changed;
 static unsigned long var_stats_reallocs, var_stats_realloced;
+static unsigned long var_stats_val_len, var_stats_val_alloc_len;
+static unsigned long var_stats_val_rdonly_len;
 #endif
 
 /* Print information for variable V, prefixing it with PREFIX.  */
@@ -2314,13 +2316,20 @@ print_variable (const void *item, void *arg)
             v->fileinfo.filenm, v->fileinfo.lineno);
 #ifdef CONFIG_WITH_MAKE_STATS
   if (v->changes != 0)
-      printf(_(", %u changes"), v->changes);
+      printf (_(", %u changes"), v->changes);
   var_stats_changes += v->changes;
   var_stats_changed += (v->changes != 0);
   if (v->reallocs != 0)
-      printf(_(", %u reallocs"), v->reallocs);
+      printf (_(", %u reallocs"), v->reallocs);
   var_stats_reallocs += v->reallocs;
   var_stats_realloced += (v->reallocs != 0);
+  var_stats_val_len += v->value_length;
+  if (v->value_alloc_len)
+    var_stats_val_alloc_len += v->value_alloc_len;
+  else
+    var_stats_val_rdonly_len += v->value_length;
+  assert (v->value_length == strlen (v->value));
+  /*assert (v->rdonly_val ? !v->value_alloc_len : v->value_alloc_len > v->value_length); - FIXME */
 #endif /* CONFIG_WITH_MAKE_STATS */
   putchar ('\n');
   fputs (prefix, stdout);
@@ -2362,22 +2371,37 @@ print_variable_set (struct variable_set *set, char *prefix)
 {
 #ifdef CONFIG_WITH_MAKE_STATS
   var_stats_changes = var_stats_changed = var_stats_reallocs
-      = var_stats_realloced = 0;
+      = var_stats_realloced = var_stats_val_len = var_stats_val_alloc_len
+      = var_stats_val_rdonly_len = 0;
 
   hash_map_arg (&set->table, print_variable, prefix);
 
-  if (var_stats_changed || var_stats_realloced)
-    printf(_("# variable set modification stats:\n"));
-  if (var_stats_changed)
-    printf(_("#     changed %5lu (%2u%%),        changes %6lu\n"),
-           var_stats_changed,
-           (unsigned int)((100.0 * var_stats_changed) / set->table.ht_fill),
-           var_stats_changes);
-  if (var_stats_realloced)
-    printf(_("# reallocated %5lu (%2u%%),  reallocations %6lu\n"),
-           var_stats_realloced,
-           (unsigned int)((100.0 * var_stats_realloced) / set->table.ht_fill),
-           var_stats_reallocs);
+  if (set->table.ht_fill)
+    {
+      unsigned long fragmentation;
+
+      fragmentation = var_stats_val_alloc_len - (var_stats_val_len - var_stats_val_rdonly_len);
+      printf(_("# variable set value stats:\n\
+#     strings %7lu bytes,       readonly %6lu bytes\n"),
+             var_stats_val_len, var_stats_val_rdonly_len, var_stats_val_alloc_len);
+
+      if (var_stats_val_alloc_len)
+        printf(_("#   allocated %7lu bytes,  fragmentation %6lu bytes (%u%%)\n"),
+               var_stats_val_alloc_len, fragmentation,
+               (unsigned int)((100.0 * fragmentation) / var_stats_val_alloc_len));
+
+      if (var_stats_changed)
+        printf(_("#     changed %5lu (%2u%%),          changes %6lu\n"),
+               var_stats_changed,
+               (unsigned int)((100.0 * var_stats_changed) / set->table.ht_fill),
+               var_stats_changes);
+
+      if (var_stats_realloced)
+        printf(_("# reallocated %5lu (%2u%%),    reallocations %6lu\n"),
+               var_stats_realloced,
+               (unsigned int)((100.0 * var_stats_realloced) / set->table.ht_fill),
+               var_stats_reallocs);
+      }
 #else
   hash_map_arg (&set->table, print_variable, prefix);
 #endif
