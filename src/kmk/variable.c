@@ -278,6 +278,7 @@ define_variable_in_set (const char *name, unsigned int length,
                     free (v->value);
                   v->value_alloc_len = VAR_ALIGN_VALUE_ALLOC (value_len + 1);
                   v->value = xmalloc (v->value_alloc_len);
+                  MAKE_STATS_2(v->reallocs++);
                 }
               memcpy (v->value, value, value_len + 1);
             }
@@ -349,6 +350,8 @@ define_variable_in_set (const char *name, unsigned int length,
   v->per_target = 0;
   v->append = 0;
   v->export = v_default;
+  MAKE_STATS_2(v->changes = 0);
+  MAKE_STATS_2(v->reallocs = 0);
 
   v->exportable = 1;
   if (*name != '_' && (*name < 'A' || *name > 'Z')
@@ -429,6 +432,7 @@ lookup_special_var (struct variable *var)
 
       /* Make sure we have at least MAX bytes in the allocated buffer.  */
       var->value = xrealloc (var->value, max);
+      MAKE_STATS_2(var->reallocs++);
 
       /* Walk through the hash of variables, constructing a list of names.  */
       p = var->value;
@@ -447,6 +451,7 @@ lookup_special_var (struct variable *var)
                 max += EXPANSION_INCREMENT (l + 1);
                 var->value = xrealloc (var->value, max);
                 p = &var->value[off];
+                MAKE_STATS_2(var->reallocs++);
               }
 
             memcpy (p, v->name, l);
@@ -1645,6 +1650,7 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
             free (v->value);
           v->value = new_buf;
         }
+      MAKE_STATS_2(v->reallocs++);
     }
 
   /* insert the new bits */
@@ -1861,6 +1867,7 @@ do_variable_definition_2 (const struct floc *flocp,
 # endif
             if (free_value)
                free (free_value);
+            MAKE_STATS_2(v->changes++);
             return v;
 #else /* !CONFIG_WITH_VALUE_LENGTH */
 
@@ -2063,6 +2070,7 @@ do_variable_definition_2 (const struct floc *flocp,
     free (free_value);
 #endif
 
+  MAKE_STATS_2(v->changes++);
   return v->special ? set_special_var (v) : v;
 }
 
@@ -2296,6 +2304,8 @@ print_variable (const void *item, void *arg)
   if (v->fileinfo.filenm)
     printf (_(" (from `%s', line %lu)"),
             v->fileinfo.filenm, v->fileinfo.lineno);
+  MAKE_STATS_2(if (v->changes != 1) printf(_(", %u changes"), v->changes));
+  MAKE_STATS_2(if (v->reallocs != 0) printf(_(", %u reallocs"), v->reallocs));
   putchar ('\n');
   fputs (prefix, stdout);
 

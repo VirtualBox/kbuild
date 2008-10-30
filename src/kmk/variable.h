@@ -102,6 +102,10 @@ struct variable
 	v_ifset,		/* Export it if it has a non-default value.  */
 	v_default		/* Decide in target_environment.  */
       } export ENUM_BITFIELD (2);
+#ifdef CONFIG_WITH_MAKE_STATS
+    unsigned int changes;
+    unsigned int reallocs;
+#endif
   };
 
 /* Structure that represents a variable set.  */
