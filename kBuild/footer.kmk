@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2007 2008-10-31 03:28:31Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2008 2008-10-31 03:55:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -34,10 +34,8 @@
 ifndef __footer_kmk__
 # start-of-file-content
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_FOOTER_START := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_START), $(_KBUILD_TS_PREV)) - start of footer.kmk)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_START)
+ $(evalcall def_profile_self, start of footer.kmk)
+ _KBUILD_TS_FOOTER_START := $(_KBUILD_TS_PREV)
 endif
 
 #
@@ -848,10 +846,7 @@ _KEYWORDS := $(_KEYWORDS_ORDERED) $(_KEYWORDS_EXTENDS) \
 	$(foreach bld_trg,$(_BLD_TARGETS),$(addprefix $(bld_trg).,$(_BLD_ARCHES)))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done keywords)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done keywords)
 endif
 
 
@@ -929,10 +924,7 @@ properties_deferred := $(PROPS_INSTALLS_DEFERRED)
 $(foreach trg, $(_ALL_INSTALLS),$(evalval def_inherit))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done target inheritance)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done target inheritance)
 endif
 
 
@@ -968,10 +960,7 @@ properties_deferred_l :=
 properties_deferred_r :=
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template inheritance)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done template inheritance)
 endif
 
 
@@ -1172,10 +1161,7 @@ bld_trg_cpu := $(KBUILD_HOST_CPU)
 $(foreach target, $(_ALL_HOST_TARGETS),$(evalval def_inherit_template))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done template/target expansion)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done template/target expansion)
 endif
 
 
@@ -1355,10 +1341,7 @@ $(foreach loading, $(_USES), $(evalval def_unit_load_function))
 
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done tools, sdks and units)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done tools + sdks + units)
 endif
 
 
@@ -1568,10 +1551,7 @@ $(foreach target, $(_ALL_INSTALLS), \
 	$(evalval def_pass1_install))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done pass 1)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done pass 1)
 endif
 
 
@@ -1971,10 +1951,7 @@ fetch: $(_FETCHES)
 unfetch: $(_UNFETCHES)
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done fetching targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done fetching targets)
 endif
 
 
@@ -2490,10 +2467,7 @@ mode := 0644
 $(foreach target, $(_ALL_LIBRARIES), $(evalval def_lib))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done library targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done library targets)
 endif
 
 
@@ -2915,10 +2889,7 @@ bld_trg_base_var := PLATFORM
 $(foreach target, $(_ALL_BLDPROGS), $(evalval def_bldprog))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done build program targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done build program targets)
 endif
 
 
@@ -2937,10 +2908,7 @@ bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_DLLS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done dll targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done dll targets)
 endif
 
 
@@ -2967,10 +2935,7 @@ else
 endif
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done import library targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done import library targets)
 endif
 
 
@@ -2989,10 +2954,7 @@ bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_PROGRAMS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done program targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done program targets)
 endif
 
 
@@ -3011,10 +2973,7 @@ bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_SYSMODS), $(evalval def_link_common))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done sysmod targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done sysmod targets)
 endif
 
 
@@ -3353,10 +3312,7 @@ $(foreach target, $(_ALL_INSTALLS), \
 	$(evalvalctx def_install))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done install targets)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done install targets)
 endif
 
 #
@@ -3392,10 +3348,7 @@ endef
 $(foreach directory,$(_DIR_ALL),$(eval $(def_mkdir_rule)))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done directories)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done directories)
 endif
 
 
@@ -3403,11 +3356,13 @@ endif
 # NOTHING
 #
 do-nothing:
-ifdef KBUILD_PROFILE_SELF
-	@$(ECHO) 'prof: $(int-sub $(nanots ), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(nanots ), $(_KBUILD_TS_PREV)) - executing $@'
-	@$(ECHO) 'stat: $(make-stats )'
-endif
 	%$(call MSG_NOTHING)
+ifdef KBUILD_PROFILE_SELF
+	@$(ECHO) 'prof: $(call _KBUILD_FMT_ELAPSED_EX, $(nanots ), $(_KBUILD_TS_HEADER_START)) - $(call _KBUILD_FMT_ELAPSED_EX, $(nanots ), $(_KBUILD_TS_PREV)) - executing $@'
+ ifeq ($(KBUILD_PROFILE_SELF),2)
+	@$(ECHO) 'stat: $(make-stats )'
+ endif
+endif
 
 
 #
@@ -3591,10 +3546,7 @@ $(foreach PASS,$(DEFAULT_PASSES),\
 	$(eval $(def_pass_order_$(_KBUILD_STRICT_PASS_ORDER))))
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - done passes)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, done passes)
 endif
 
 
@@ -3667,15 +3619,15 @@ endif
 
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_FOOTER_END := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_PREV)) - end of footer.kmk)
- $(info prof: footer.kmk: $(int-sub $(_KBUILD_TS_FOOTER_END), $(_KBUILD_TS_FOOTER_START)))
- $(info stat: $(make-stats ))
- $(info prof: ALL=$(words $(_ALL_TARGETS)) BLDPROGS=$(words $(_ALL_BLDPROGS)) LIBRARIES=$(words $(_ALL_LIBRARIES)) IMPORT_LIBS=$(words $(IMPORT_LIBS)) DLLS=$(words $(DLLS)) PROGRAMS=$(words $(_ALL_PROGRAMS)) )
- $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
- $(info prof: DIRS=$(words $(_DIR_ALL)) TOOLS=$(words $(_TOOLS)) SDKS=$(words $(_SDKS)) USES=$(words $(_USES)) OUT_FILES=$(words $(_OUT_FILES)) OBJS=$(words $(_OBJS)) CLEAN_FILES=$(words $(CLEAN_FILES) $(OTHER_CLEAN)) )
- $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(_DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
- _KBUILD_TS_PREV := $(_KBUILD_TS_FOOTER_END)
+ $(evalcall def_profile_self, end of footer.kmk)
+ _KBUILD_TS_FOOTER_END := $(_KBUILD_TS_PREV)
+
+ ifneq ($(KBUILD_PROFILE_SELF),0)
+  $(info prof: ALL=$(words $(_ALL_TARGETS)) BLDPROGS=$(words $(_ALL_BLDPROGS)) LIBRARIES=$(words $(_ALL_LIBRARIES)) IMPORT_LIBS=$(words $(IMPORT_LIBS)) DLLS=$(words $(DLLS)) PROGRAMS=$(words $(_ALL_PROGRAMS)) )
+  $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
+  $(info prof: DIRS=$(words $(_DIR_ALL)) TOOLS=$(words $(_TOOLS)) SDKS=$(words $(_SDKS)) USES=$(words $(_USES)) OUT_FILES=$(words $(_OUT_FILES)) OBJS=$(words $(_OBJS)) CLEAN_FILES=$(words $(CLEAN_FILES) $(OTHER_CLEAN)) )
+  $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(_DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
+ endif
 endif
 
 
