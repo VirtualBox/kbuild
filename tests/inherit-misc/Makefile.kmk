@@ -1,6 +1,6 @@
 # $Id: Makefile.kmk 2007 2008-10-31 03:28:31Z knut.osmundsen@oracle.com $
 ## @file
-# Tests - Top Level Makefile.
+# Test - Misc Inheritance.
 #
 
 #
@@ -25,11 +25,28 @@
 #
 
 
+DEPTH = ../..
 include $(PATH_KBUILD)/header.kmk
 
-SUBDIRS = \
-	inherit-target \
-	inherit-bld \
-	inherit-misc \
+#
+# Search for SDKs in the current directory.
+#
+KBUILD_SDK_PATHS := $(PATH_SUB_CURRENT)
+
+#
+# Tests for checking that prepending and appending of properties
+# that have been defined as simple variables work. Ticket #51.
+# (This is a little bit out of place, but so what.)
+#
+PROGRAMS += inherit-misc51a
+inherit-misc51a_TEMPLATE := tmpl51a
+inherit-misc51a_SDKS := sdk51a-xz
+inherit-misc51a_DEFS := X=z
+inherit-misc51a_SOURCES := ../dummy_defined_X.c
+
+TEMPLATE_tmpl51a = inherit-misc51 template
+TEMPLATE_tmpl51a_EXTENDS = TST
+TEMPLATE_tmpl51a_DEFS = $(SDK_sdk51a-xz_SPECIAL_DEFS)
 
 include $(FILE_KBUILD_FOOTER)
+

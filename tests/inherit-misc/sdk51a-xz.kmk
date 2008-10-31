@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 2007 2008-10-31 03:28:31Z knut.osmundsen@oracle.com $
+# $Id: sdk51a-xz.kmk 2007 2008-10-31 03:28:31Z knut.osmundsen@oracle.com $
 ## @file
-# Tests - Top Level Makefile.
+# Test - Misc Inheritance Issues.
 #
 
 #
@@ -24,12 +24,5 @@
 #
 #
 
-
-include $(PATH_KBUILD)/header.kmk
-
-SUBDIRS = \
-	inherit-target \
-	inherit-bld \
-	inherit-misc \
-
-include $(FILE_KBUILD_FOOTER)
+SDK_sdk51a-xz = for inherit-misc51a
+SDK_sdk51a-xz_SPECIAL_DEFS = z=42

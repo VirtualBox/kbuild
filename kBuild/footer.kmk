@@ -1,4 +1,4 @@
-# $Id: footer.kmk 1936 2008-10-25 15:05:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2007 2008-10-31 03:28:31Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -164,6 +164,15 @@ _INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/)
 
 
 
+## Converts a variable from simple to recursive flavor.
+# This is used by def_inherit_template_one_accumulate_l and def_inherit_template_one_accumulate_r.
+# @param    $1              The variable name.
+define def_simple_2_recursive
+$1_DEFERRED := $$($1)
+$1 = $$($1_DEFERRED)
+endef
+
+
 ## Inherit one keyword in a non-accumulative manner.
 # @param    $(trg)          Target object.
 # @param    $(prop)     	The property.
@@ -276,6 +285,9 @@ endef
 # @param    $(trg_key)      Target keyword.
 define def_inherit_one_keyword_prepending_deferred_l
 ifdef $(trg)_$(prop).$(src_key)
+ ifeq ($$(flavor $(trg)_$(prop).$(trg_key)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop).$(trg_key))
+ endif
  $(trg)_$(prop).$(trg_key) <= $$($(trg)_$(prop).$(src_key))
 endif
 endef
@@ -283,7 +295,10 @@ endef
 ## @copydoc def_inherit_one_prepending_deferred_l
 define def_inherit_one_keyword_prepending_deferred_r
 ifdef $(trg)_$(prop).$(src_key)
-  $(trg)_$(prop).$(trg_key) += $$($(trg)_$(prop).$(src_key))
+ ifeq ($$(flavor $(trg)_$(prop).$(trg_key)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop).$(trg_key))
+ endif
+ $(trg)_$(prop).$(trg_key) += $$($(trg)_$(prop).$(src_key))
 endif
 endef
 
@@ -329,6 +344,9 @@ endef
 # @param    $(trg_key)      Target keyword.
 define def_inherit_one_keyword_appending_deferred_l
 ifdef $(trg)_$(prop).$(src_key)
+ ifeq ($$(flavor $(trg)_$(prop).$(trg_key)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop).$(trg_key))
+ endif
  $(trg)_$(prop).$(trg_key) += $$($(trg)_$(prop).$(src_key))
 endif
 endef
@@ -336,7 +354,10 @@ endef
 ## @copydoc def_inherit_one_appending_deferred_l
 define def_inherit_one_keyword_appending_deferred_r
 ifdef $(trg)_$(prop).$(src_key)
-  $(trg)_$(prop).$(trg_key) <= $$($(trg)_$(prop).$(src_key))
+ ifeq ($$(flavor $(trg)_$(prop).$(trg_key)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop).$(trg_key))
+ endif
+ $(trg)_$(prop).$(trg_key) <= $$($(trg)_$(prop).$(src_key))
 endif
 endef
 
@@ -474,6 +495,9 @@ endef
 # @param    $(trg)          Target (child) object.
 define def_inherit_one_prepending_deferred_l
 ifdef $(src)_$(prop)
+ ifeq ($$(flavor $(trg)_$(prop)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop))
+ endif
  $(trg)_$(prop) <= $$($(src)_$(prop))
 endif
 endef
@@ -481,7 +505,10 @@ endef
 ## @copydoc def_inherit_one_prepending_deferred_l
 define def_inherit_one_prepending_deferred_r
 ifdef $(src)_$(prop)
-  $(trg)_$(prop) += $$($(src)_$(prop))
+ ifeq ($$(flavor $(trg)_$(prop)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop))
+ endif
+ $(trg)_$(prop) += $$($(src)_$(prop))
 endif
 endef
 
@@ -524,6 +551,9 @@ endef
 # @param    $(trg)          Target (child) object.
 define def_inherit_one_appending_deferred_l
 ifdef $(src)_$(prop)
+ ifeq ($$(flavor $(trg)_$(prop)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop))
+ endif
  $(trg)_$(prop) += $$($(src)_$(prop))
 endif
 endef
@@ -531,7 +561,10 @@ endef
 ## @copydoc def_inherit_one_appending_deferred_l
 define def_inherit_one_appending_deferred_r
 ifdef $(src)_$(prop)
-  $(trg)_$(prop) <= $$($(src)_$(prop))
+ ifeq ($$(flavor $(trg)_$(prop)),simple)
+  $$(evalcall2 def_simple_2_recursive,$(trg)_$(prop))
+ endif
+ $(trg)_$(prop) <= $$($(src)_$(prop))
 endif
 endef
 
@@ -1022,21 +1055,39 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate_l
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ ifeq ($$(flavor $(target)_$(prop)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
+ endif
 $(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+ ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
+ endif
 $(target)_$(prop).$(KBUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
+ endif
 $(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
+ endif
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
+ endif
 $(target)_$(prop).$(bld_trg_cpu) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
+ endif
 $(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
@@ -1046,21 +1097,39 @@ endef
 # @param    $(target)	Target name
 define def_inherit_template_one_accumulate_r
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ ifeq ($$(flavor $(target)_$(prop)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
+ endif
 $(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+ ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
+ endif
 $(target)_$(prop).$(KBUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
+ endif
 $(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
+ endif
 $(target)_$(prop).$(bld_trg).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
+ endif
 $(target)_$(prop).$(bld_trg_cpu) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
 endif
 ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
+ endif
 $(target)_$(prop).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
 endif
 endef
