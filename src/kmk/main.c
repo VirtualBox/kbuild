@@ -3631,11 +3631,11 @@ print_version (void)
 # endif /* !KBUILD_PATH */
 
   if (!remote_description || *remote_description == '\0')
-    printf (_("%sThis program is built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n\n"),
-            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
+    printf (_("%sThis program is a %s build, built for %s/%s/%s [" __DATE__ " " __TIME__ "]\n\n"),
+            precede, KBUILD_TYPE, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU);
   else
-    printf (_("%sThis program is built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n\n"),
-            precede, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
+    printf (_("%sThis program is a %s build, built for %s/%s/%s (%s) [" __DATE__ " " __TIME__ "]\n\n"),
+            precede, KBUILD_TYPE, KBUILD_HOST, KBUILD_HOST_ARCH, KBUILD_HOST_CPU, remote_description);
 
 #endif /* KMK */
 

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2003 2008-10-29 23:15:18Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2009 2008-10-31 03:56:37Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -36,7 +36,8 @@ TEMPLATE_BIN-KMK_EXTENDS = BIN
 TEMPLATE_BIN-KMK_DEFS = \
 	HAVE_CONFIG_H \
 	$(TEMPLATE_BIN_DEFS) \
-	KBUILD_SVN_REV=$(KBUILD_SVN_REV)
+	KBUILD_SVN_REV=$(KBUILD_SVN_REV) \
+	KBUILD_TYPE=\"$(KBUILD_TYPE)\"
 TEMPLATE_BIN-KMK_DEPS = $(PATH_kmk)/config.h
 TEMPLATE_BIN-KMK_CLEAN = $(TEMPLATE_BIN-KMK_DEPS)
 TEMPLATE_BIN-KMK_DEPS.solaris = \
