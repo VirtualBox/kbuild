@@ -1,4 +1,4 @@
-# $Id: header.kmk 1782 2008-09-12 22:39:39Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2008 2008-10-31 03:55:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -35,10 +35,25 @@ ifndef __header_kmk__
 # start-of-file-content
 ifdef KBUILD_PROFILE_SELF
  _KBUILD_TS_HEADER_START := $(nanots ) # just a dummy warm up query
- $(info prof: since start - since previous - event description)
- $(info stat: $(make-stats ))
+ $(info prof: since start - since previous -- event description)
+ ifeq ($(KBUILD_PROFILE_SELF),2)
+  $(info stat: $(make-stats ))
+ endif
  _KBUILD_TS_HEADER_START := $(nanots )
  _KBUILD_TS_PREV := $(_KBUILD_TS_HEADER_START)
+
+ _KBUILD_FMT_ELAPSED_EX = $(int-div $(int-add $(int-sub $1, $2),500000),1000000)ms
+ _KBUILD_FMT_ELAPSED = $(call _KBUILD_FMT_ELAPSED_EX,$(_KBUILD_TS_NOW),$1)
+
+define def_profile_self
+ _KBUILD_TS_NOW := $(nanots )
+ $(info prof: $(call _KBUILD_FMT_ELAPSED,$(_KBUILD_TS_HEADER_START)) - $(call _KBUILD_FMT_ELAPSED, $(_KBUILD_TS_PREV)) -- $(strip $1))
+ ifeq ($(KBUILD_PROFILE_SELF),2)
+  $(info stat: $(make-stats ))
+ endif
+ _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+endef
+
 endif
 
 
@@ -64,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 1782 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2008 $  )
 
 
 #
@@ -1005,17 +1020,9 @@ endif
 
 # Include the config.kmk we found file (or the default one).
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - including $(_CFGFILE))
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
-
+ $(evalcall def_profile_self, including $(_CFGFILE))
  include $(_CFGFILE)
-
- _KBUILD_TS_NOW := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_NOW), $(_KBUILD_TS_PREV)) - included $(_CFGFILE))
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_NOW)
+ $(evalcall def_profile_self, included $(_CFGFILE))
 else
  include $(_CFGFILE)
 endif
@@ -1203,10 +1210,8 @@ endif
 
 
 ifdef KBUILD_PROFILE_SELF
- _KBUILD_TS_HEADER_END := $(nanots )
- $(info prof: $(int-sub $(_KBUILD_TS_HEADER_END), $(_KBUILD_TS_HEADER_START)) - $(int-sub $(_KBUILD_TS_HEADER_END), $(_KBUILD_TS_PREV)) - end of header.kmk)
- $(info stat: $(make-stats ))
- _KBUILD_TS_PREV := $(_KBUILD_TS_HEADER_END)
+ $(evalcall def_profile_self, end of header.kmk)
+ _KBUILD_TS_HEADER_END := $(_KBUILD_TS_PREV)
 endif
 
 # end-of-file-content
