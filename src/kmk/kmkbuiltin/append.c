@@ -1,10 +1,10 @@
-/* $Id: append.c 1695 2008-08-31 20:24:55Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 2015 2008-11-01 22:16:55Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * kMk Builtin command - append text to file.
- *
- * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ */
+
+/*
+ * Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -41,7 +41,7 @@
 static int usage(FILE *pf)
 {
     fprintf(pf,
-            "usage: %s [-dcntv] file [string ...]\n"
+            "usage: %s [-dcnNtv] file [string ...]\n"
             "   or: %s --version\n"
             "   or: %s --help\n"
             "\n"
@@ -50,6 +50,7 @@ static int usage(FILE *pf)
             "      the first argument following the file name.\n"
             "  -c  Output the command for specified target(s). [builtin only]\n"
             "  -n  Insert a new line between the strings.\n"
+            "  -N  Suppress the trailing new line.\n"
             "  -t  Truncate the file instead of appending\n"
             "  -v  Output the value(s) for specified variable(s). [builtin only]\n"
             ,
@@ -68,6 +69,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int iFile;
     FILE *pFile;
     int fNewLine = 0;
+    int fNoTrailingNewLine = 0;
     int fTruncate = 0;
     int fDefine = 0;
     int fVariables = 0;
@@ -82,7 +84,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("-cdntv", argv[i][1]) /* valid option char */
+       &&  strchr("-cdnNtv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
@@ -115,6 +117,9 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                         break;
                     case 'n':
                         fNewLine = 1;
+                        break;
+                    case 'N':
+                        fNoTrailingNewLine = 1;
                         break;
                     case 't':
                         fTruncate = 1;
@@ -221,15 +226,22 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         fFirst = 0;
     }
 
-    /* 
-     * Add the newline, closing the define if needed, and close the file.
+    /*
+     * End the define?
      */
-    if (    (  fDefine
-             ? fwrite(fFirst ?        "endef\n"      :        "\nendef\n", 
-                      1, 
-                      fFirst ? sizeof("endef\n") - 1 : sizeof("\nendef\n") - 1, 
-                      pFile) < sizeof("endef\n")
-             : fputc('\n', pFile) == EOF)
+    if (fDefine)
+    {
+        if (fFirst)
+            fwrite("\nendef", 1, sizeof("\nendef") - 1, pFile);
+        else
+            fwrite("endef", 1, sizeof("endef") - 1, pFile);
+    }
+
+    /*
+     * Add the final newline (unless supressed) and close the file.
+     */
+    if (    (   !fNoTrailingNewLine
+             && fputc('\n', pFile) == EOF)
         ||  ferror(pFile))
     {
         fclose(pFile);
