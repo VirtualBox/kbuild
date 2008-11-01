@@ -1,4 +1,4 @@
-/* $Id: append.c 2015 2008-11-01 22:16:55Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 2016 2008-11-01 22:18:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -49,8 +49,8 @@ static int usage(FILE *pf)
             "  -d  Enclose the output in define ... endef, taking the name from\n"
             "      the first argument following the file name.\n"
             "  -c  Output the command for specified target(s). [builtin only]\n"
-            "  -n  Insert a new line between the strings.\n"
-            "  -N  Suppress the trailing new line.\n"
+            "  -n  Insert a newline between the strings.\n"
+            "  -N  Suppress the trailing newline.\n"
             "  -t  Truncate the file instead of appending\n"
             "  -v  Output the value(s) for specified variable(s). [builtin only]\n"
             ,
@@ -68,8 +68,8 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int fFirst;
     int iFile;
     FILE *pFile;
-    int fNewLine = 0;
-    int fNoTrailingNewLine = 0;
+    int fNewline = 0;
+    int fNoTrailingNewline = 0;
     int fTruncate = 0;
     int fDefine = 0;
     int fVariables = 0;
@@ -116,10 +116,10 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                         fDefine = 1;
                         break;
                     case 'n':
-                        fNewLine = 1;
+                        fNewline = 1;
                         break;
                     case 'N':
-                        fNoTrailingNewLine = 1;
+                        fNoTrailingNewline = 1;
                         break;
                     case 't':
                         fTruncate = 1;
@@ -190,7 +190,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         const char *psz = argv[i];
         size_t cch = strlen(psz);
         if (!fFirst)
-            fputc(fNewLine ? '\n' : ' ', pFile);
+            fputc(fNewline ? '\n' : ' ', pFile);
 #ifndef kmk_builtin_append
         if (fCommands)
         {
@@ -240,7 +240,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     /*
      * Add the final newline (unless supressed) and close the file.
      */
-    if (    (   !fNoTrailingNewLine
+    if (    (   !fNoTrailingNewline
              && fputc('\n', pFile) == EOF)
         ||  ferror(pFile))
     {
