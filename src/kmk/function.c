@@ -4643,6 +4643,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("kb-obj-suff"),   1,  1,  0,  func_kbuild_object_suffix},
   { STRING_SIZE_TUPLE("kb-src-prop"),   3,  4,  0,  func_kbuild_source_prop},
   { STRING_SIZE_TUPLE("kb-src-one"),    0,  1,  0,  func_kbuild_source_one},
+  { STRING_SIZE_TUPLE("kb-exp-tmpl"),   6,  6,  1,  func_kbuild_expand_template},
 #endif
 #ifdef KMK
   { STRING_SIZE_TUPLE("breakpoint"),    0,  0,  0,  func_breakpoint},
