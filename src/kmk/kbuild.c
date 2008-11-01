@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2013 2008-11-01 14:46:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2014 2008-11-01 14:50:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2035,8 +2035,21 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable_n(ST("NO_COMPILE_CMDS_DEPS")) != NULL;
     if (!s_fNoCompileCmdsDepsDefined)
     {
-        do_variable_definition_2(NILF, "_DEPFILES_INCLUDED", pDep->value, pDep->value_length,
-                                 !pDep->recursive, 0, o_file, f_append, 0 /* !target_var */);
+        pVar = kbuild_query_recursive_variable_n("_DEPFILES_INCLUDED", sizeof("_DEPFILES_INCLUDED") - 1);
+        if (pVar)
+        {
+            if (pVar->recursive)
+                pVar = kbuild_simplify_variable(pVar);
+            append_string_to_variable(pVar, pDep->value, pDep->value_length, 1 /* append */);
+        }
+        else
+            define_variable_vl_global("_DEPFILES_INCLUDED", sizeof("_DEPFILES_INCLUDED") - 1,
+                                      pDep->value, pDep->value_length,
+                                      1 /* duplicate_value */,
+                                      o_file,
+                                      0 /* recursive */,
+                                      NULL /* flocp */);
+
         eval_include_dep(pDep->value, NILF, iVer >= 2 ? incdep_queue : incdep_read_it);
     }
 
@@ -2128,7 +2141,6 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     {
         if (pVar->recursive)
             pVar = kbuild_simplify_variable(pVar);
-        assert(!pObj->recursive);
         append_string_to_variable(pVar, pObj->value, pObj->value_length, 1 /* append */);
     }
     else
