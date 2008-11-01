@@ -1,10 +1,10 @@
-/* $Id: kbuild.c 2012 2008-11-01 14:27:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2013 2008-11-01 14:46:00Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * kBuild specific make functionality.
- *
- * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ */
+
+/*
+ * Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -464,7 +464,7 @@ kbuild_get_variable_n(const char *pszName, size_t cchName)
         fatal(NILF, _("variable `%.*s' is defined as `recursive' instead of `simple'!"), (int)cchName, pszName);
 
     MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
-                  ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
+                  ("%u != %u %.*s\n", pVar->value_length, (unsigned int)strlen(pVar->value), (int)cchName, pVar->name));
     return pVar;
 }
 
@@ -484,7 +484,7 @@ kbuild_get_recursive_variable(const char *pszName)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
 
     MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
-                  ("%u != %u %s\n", pVar->value_length, strlen(pVar->value), pVar->name));
+                  ("%u != %u %s\n", pVar->value_length, (unsigned int)strlen(pVar->value), pVar->name));
     return pVar;
 }
 
@@ -502,7 +502,7 @@ kbuild_query_recursive_variable_n(const char *pszName, size_t cchName)
 {
     struct variable *pVar = lookup_variable(pszName, cchName);
     MY_ASSERT_MSG(!pVar || strlen(pVar->value) == pVar->value_length,
-                  ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
+                  ("%u != %u %.*s\n", pVar->value_length, (unsigned int)strlen(pVar->value), (int)cchName, pVar->name));
     return pVar;
 }
 
@@ -539,7 +539,7 @@ kbuild_simplify_variable(struct variable *pVar)
         else
 #endif
             free(pVar->value);
-        assert (pVar->origin != o_automatic);
+        assert(pVar->origin != o_automatic);
         pVar->value = pszExpanded;
         pVar->value_length = value_len;
         pVar->value_alloc_len = value_len + 1;
@@ -564,7 +564,7 @@ kbuild_lookup_variable_n(const char *pszName, size_t cchName)
     if (pVar)
     {
         MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
-                      ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
+                      ("%u != %u %.*s\n", pVar->value_length, (unsigned int)strlen(pVar->value), (int)cchName, pVar->name));
 
         /* Make sure the variable is simple, convert it if necessary. */
         if (pVar->recursive)
@@ -2114,32 +2114,37 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     /*
     _OUT_FILES      += $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_)
     */
-    /** @todo use append? */
     pVar = kbuild_get_variable_n(ST("_OUT_FILES"));
-    psz = pszVal = xmalloc(pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length + 1);
-    memcpy(psz, pVar->value, pVar->value_length); psz += pVar->value_length;
-    *psz++ = ' ';
-    memcpy(psz, pOutput->value, pOutput->value_length); psz += pOutput->value_length;
-    *psz++ = ' ';
-    memcpy(psz, pOutputMaybe->value, pOutputMaybe->value_length + 1);
-    do_variable_definition_2(NILF, "_OUT_FILES", pszVal,
-                             pVar->value_length + 1 + pOutput->value_length + 1 + pOutputMaybe->value_length,
-                             !pVar->recursive && !pOutput->recursive && !pOutputMaybe->recursive,
-                             pszVal, o_file, f_simple, 0 /* !target_var */);
+    append_string_to_variable(pVar, pOutput->value, pOutput->value_length, 1 /* append */);
+    if (pOutputMaybe->value_length)
+        append_string_to_variable(pVar, pOutputMaybe->value, pOutputMaybe->value_length, 1 /* append */);
 
     /*
     $(target)_OBJS_ += $(obj)
     */
     memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
-    do_variable_definition_2(NILF, pszDstVar, pObj->value, pObj->value_length,
-                             !pObj->recursive, 0, o_file, f_append, 0 /* !target_var */);
+    pVar = kbuild_query_recursive_variable_n(pszDstVar, pTarget->value_length + sizeof("_OBJS_") - 1);
+    if (pVar)
+    {
+        if (pVar->recursive)
+            pVar = kbuild_simplify_variable(pVar);
+        assert(!pObj->recursive);
+        append_string_to_variable(pVar, pObj->value, pObj->value_length, 1 /* append */);
+    }
+    else
+        define_variable_vl_global(pszDstVar, pTarget->value_length + sizeof("_OBJS_") - 1,
+                                  pObj->value, pObj->value_length,
+                                  1 /* duplicate_value */,
+                                  o_file,
+                                  0 /* recursive */,
+                                  NULL /* flocp */);
 
     /*
     $(eval $(def_target_source_rule))
     */
     pVar = kbuild_get_recursive_variable("def_target_source_rule");
     pszVal = variable_expand_string_2 (o, pVar->value, pVar->value_length, &psz);
-    assert (!((size_t)pszVal & 3));
+    assert(!((size_t)pszVal & 3));
 
     install_variable_buffer(&pszSavedVarBuf, &cchSavedVarBuf);
     eval_buffer(pszVal, psz);
