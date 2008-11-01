@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2011 2008-11-01 14:15:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2012 2008-11-01 14:27:34Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -2356,19 +2356,13 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
     struct variable    *pProps;
     struct kbet_prop
     {
-        unsigned int        cch;
         const char         *pch;
+        unsigned int        cch;
+        enum kbet_prop_enum { kPropSingle, kPropDeferred, kPropAccumulateL, kPropAccumulateR }
+                            enmType;
     }                  *paProps;
     unsigned int        cProps;
     unsigned int        iProp;
-    unsigned int        iPropsSingle;
-    unsigned int        iPropsSingleEnd;
-    unsigned int        iPropsDeferred;
-    unsigned int        iPropsDeferredEnd;
-    unsigned int        iPropsAccumulateL;
-    unsigned int        iPropsAccumulateLEnd;
-    unsigned int        iPropsAccumulateR;
-    unsigned int        iPropsAccumulateREnd;
     size_t              cchMaxProp;
     struct variable    *pVarTrg;
     struct variable    *pVarSrc;
@@ -2448,48 +2442,53 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
     paProps = xmalloc(sizeof(*pProps) * cProps);
 
     pProps = kbuild_get_variable_n(ST("PROPS_SINGLE"));
-    iPropsSingle = iProp;
     pszIter = pProps->value;
     while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
-       if (++iProp >= cProps)
-       {
-           cProps += PROP_ALLOC_INC;
-           paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
-       }
-    iPropsSingleEnd = iProp;
+    {
+        paProps[iProp].enmType = kPropSingle;
+        if (++iProp >= cProps)
+        {
+            cProps += PROP_ALLOC_INC;
+            paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
+        }
+
+    }
 
     pProps = kbuild_get_variable_n(ST("PROPS_DEFERRED"));
-    iPropsDeferred = iProp;
     pszIter = pProps->value;
     while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+    {
+        paProps[iProp].enmType = kPropDeferred;
         if (++iProp >= cProps)
         {
             cProps += PROP_ALLOC_INC;
             paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
         }
-    iPropsDeferredEnd = iProp;
+    }
 
     pProps = kbuild_get_variable_n(ST("PROPS_ACCUMULATE_L"));
-    iPropsAccumulateL = iProp;
     pszIter = pProps->value;
     while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+    {
+        paProps[iProp].enmType = kPropAccumulateL;
         if (++iProp >= cProps)
         {
             cProps += PROP_ALLOC_INC;
             paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
         }
-    iPropsAccumulateLEnd = iProp;
+    }
 
     pProps = kbuild_get_variable_n(ST("PROPS_ACCUMULATE_R"));
-    iPropsAccumulateR = iProp;
     pszIter = pProps->value;
     while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+    {
+        paProps[iProp].enmType = kPropAccumulateR;
         if (++iProp >= cProps)
         {
             cProps += PROP_ALLOC_INC;
             paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
         }
-    iPropsAccumulateREnd = iProp;
+    }
 #undef PROP_ALLOC_INC
     cProps = iProp;
 
@@ -2609,8 +2608,7 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
          */
 #define BY_REF_LIMIT   64 /*(cchSrcVar * 4 > 64 ? cchSrcVar * 4 : 64)*/
 
-        /* single: copy template prop if target doesn't define it. */
-        for (iProp = iPropsSingle; iProp < iPropsSingleEnd; iProp++)
+        for (iProp = 0; iProp < cProps; iProp++)
         {
             memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
             pszTrgKey = pszTrgProp + paProps[iProp].cch;
@@ -2636,227 +2634,66 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
                 pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
                 *pszTrgEnd = '\0';
                 pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
-                if (pVarTrg)
-                    continue;
 
-                /* copy the variable if its short, otherwise reference it. */
-                if (pVarSrc->value_length < BY_REF_LIMIT)
-                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                              pVarSrc->value, pVarSrc->value_length,
-                                              1 /* duplicate_value */,
-                                              o_file,
-                                              pVarSrc->recursive,
-                                              NULL /* flocp */);
-                else
+                switch (paProps[iProp].enmType)
                 {
-                    pszSrc[cchSrcVar] = ')';
-                    pszSrc[cchSrcVar + 1] = '\0';
-                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                              pszSrcRef, 2 + cchSrcVar + 1,
-                                              1 /* duplicate_value */,
-                                              o_file,
-                                              1 /* recursive */,
-                                              NULL /* flocp */);
+                    case kPropAccumulateL:
+                    case kPropAccumulateR:
+                        if (pVarTrg)
+                        {
+                            /* Append to existing variable. If the source is recursive,
+                               or we append by reference, we'll have to make sure the
+                               target is recusive as well. */
+                            if (    !pVarTrg->recursive
+                                &&  (   pVarSrc->value_length >= BY_REF_LIMIT
+                                     || pVarSrc->recursive))
+                                pVarTrg->recursive = 1;
+
+                            if (pVarSrc->value_length < BY_REF_LIMIT)
+                                append_string_to_variable(pVarTrg, pVarSrc->value, pVarSrc->value_length,
+                                                          paProps[iProp].enmType == kPropAccumulateL /* append */);
+                            else
+                            {
+                                pszSrc[cchSrcVar] = ')';
+                                pszSrc[cchSrcVar + 1] = '\0';
+                                append_string_to_variable(pVarTrg, pszSrcRef, 2 + cchSrcVar + 1,
+                                                          paProps[iProp].enmType == kPropAccumulateL /* append */);
+                            }
+                            break;
+                        }
+                        /* else: the target variable doesn't exist, create it. */
+                        /* fall thru */
+
+                    case kPropSingle:
+                    case kPropDeferred:
+                        if (pVarTrg)
+                            continue; /* skip ahead if it already exists. */
+
+                        /* copy the variable if its short, otherwise reference it. */
+                        if (pVarSrc->value_length < BY_REF_LIMIT)
+                            define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                      pVarSrc->value, pVarSrc->value_length,
+                                                      1 /* duplicate_value */,
+                                                      o_file,
+                                                      pVarSrc->recursive,
+                                                      NULL /* flocp */);
+                        else
+                        {
+                            pszSrc[cchSrcVar] = ')';
+                            pszSrc[cchSrcVar + 1] = '\0';
+                            define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                      pszSrcRef, 2 + cchSrcVar + 1,
+                                                      1 /* duplicate_value */,
+                                                      o_file,
+                                                      1 /* recursive */,
+                                                      NULL /* flocp */);
+                        }
+                        break;
+
                 }
+
             } /* foreach key */
-        } /* foreach single prop */
-
-        /* deferred: copy template prop if target doesn't define it. */
-        for (iProp = iPropsDeferred; iProp < iPropsDeferredEnd; iProp++)
-        {
-            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszTrgKey = pszTrgProp + paProps[iProp].cch;
-
-            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszSrcKey = pszSrcProp + paProps[iProp].cch;
-
-            for (iKey = 0; iKey < cKeys; iKey++)
-            {
-                char *pszTrgEnd;
-                size_t cchSrcVar;
-
-                /* lookup source, skip ahead if it doesn't exist. */
-                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
-                pszSrc[cchSrcVar] = '\0';
-                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
-                if (!pVarSrc)
-                    continue;
-
-                /* lookup target, skip ahead if it exists. */
-                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
-                *pszTrgEnd = '\0';
-                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
-                if (pVarTrg)
-                    continue;
-
-                /* copy the variable if its short, otherwise reference it. */
-                if (pVarSrc->value_length < BY_REF_LIMIT)
-                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                              pVarSrc->value, pVarSrc->value_length,
-                                              1 /* duplicate_value */,
-                                              o_file,
-                                              pVarSrc->recursive,
-                                              NULL /* flocp */);
-                else
-                {
-                    pszSrc[cchSrcVar] = ')';
-                    pszSrc[cchSrcVar + 1] = '\0';
-                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                              pszSrcRef, 2 + cchSrcVar + 1,
-                                              1 /* duplicate_value */,
-                                              o_file,
-                                              1 /* recursive */,
-                                              NULL /* flocp */);
-                }
-            }  /* foreach key */
-        } /* foreach deferred prop */
-
-        /* accumulate_l: append the unexpanded template variable to the . */
-        for (iProp = iPropsAccumulateL; iProp < iPropsAccumulateLEnd; iProp++)
-        {
-            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszTrgKey = pszTrgProp + paProps[iProp].cch;
-
-            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszSrcKey = pszSrcProp + paProps[iProp].cch;
-
-            for (iKey = 0; iKey < cKeys; iKey++)
-            {
-                char *pszTrgEnd;
-                size_t cchSrcVar;
-
-                /* lookup source, skip ahead if it doesn't exist. */
-                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
-                pszSrc[cchSrcVar] = '\0';
-                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
-                if (!pVarSrc)
-                    continue;
-
-                /* lookup target, skip ahead if it exists. */
-                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
-                *pszTrgEnd = '\0';
-                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
-                if (!pVarTrg)
-                {
-                    /* The target doesn't exist, copy the source if it's short,
-                       otherwise just reference it. */
-                    if (pVarSrc->value_length < BY_REF_LIMIT)
-                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                                  pVarSrc->value, pVarSrc->value_length,
-                                                  1 /* duplicate_value */,
-                                                  o_file,
-                                                  pVarSrc->recursive,
-                                                  NULL /* flocp */);
-                    else
-                    {
-                        pszSrc[cchSrcVar] = ')';
-                        pszSrc[cchSrcVar + 1] = '\0';
-                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                                  pszSrcRef, 2 + cchSrcVar + 1,
-                                                  1 /* duplicate_value */,
-                                                  o_file,
-                                                  1 /* recursive */,
-                                                  NULL /* flocp */);
-                    }
-                }
-                else
-                {
-                    /* Append to existing variable. If the source is recursive,
-                       or we append by reference, we'll have to make sure the
-                       target is recusive as well. */
-                    if (    !pVarTrg->recursive
-                        &&  (   pVarSrc->value_length >= BY_REF_LIMIT
-                             || pVarSrc->recursive))
-                        pVarTrg->recursive = 1;
-
-                    if (pVarSrc->value_length < BY_REF_LIMIT)
-                        append_string_to_variable(pVarTrg, pVarSrc->value, pVarSrc->value_length, 1 /* append */);
-                    else
-                    {
-                        pszSrc[cchSrcVar] = ')';
-                        pszSrc[cchSrcVar + 1] = '\0';
-                        append_string_to_variable(pVarTrg, pszSrcRef, 2 + cchSrcVar + 1, 1 /* append */);
-                    }
-                }
-            } /* foreach key */
-        } /* foreach accumulate_l prop */
-
-        /* accumulate_r: prepend the unexpanded template variable to the . */
-        for (iProp = iPropsAccumulateR; iProp < iPropsAccumulateREnd; iProp++)
-        {
-            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszTrgKey = pszTrgProp + paProps[iProp].cch;
-
-            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
-            pszSrcKey = pszSrcProp + paProps[iProp].cch;
-
-            for (iKey = 0; iKey < cKeys; iKey++)
-            {
-                char *pszTrgEnd;
-                size_t cchSrcVar;
-
-                /* lookup source, skip ahead if it doesn't exist. */
-                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
-                pszSrc[cchSrcVar] = '\0';
-                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
-                if (!pVarSrc)
-                    continue;
-
-                /* lookup target, skip ahead if it exists. */
-                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
-                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
-                *pszTrgEnd = '\0';
-                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
-                if (!pVarTrg)
-                {
-                    /* The target doesn't exist, copy the source if it's short,
-                       otherwise just reference it. */
-                    if (pVarSrc->value_length < BY_REF_LIMIT)
-                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                                  pVarSrc->value, pVarSrc->value_length,
-                                                  1 /* duplicate_value */,
-                                                  o_file,
-                                                  pVarSrc->recursive,
-                                                  NULL /* flocp */);
-                    else
-                    {
-                        pszSrc[cchSrcVar] = ')';
-                        pszSrc[cchSrcVar + 1] = '\0';
-                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
-                                                  pszSrcRef, 2 + cchSrcVar + 1,
-                                                  1 /* duplicate_value */,
-                                                  o_file,
-                                                  1 /* recursive */,
-                                                  NULL /* flocp */);
-                    }
-                }
-                else
-                {
-                    /* Append to existing variable. If the source is recursive,
-                       or we append by reference, we'll have to make sure the
-                       target is recusive as well. */
-                    if (    !pVarTrg->recursive
-                        &&  (   pVarSrc->value_length >= BY_REF_LIMIT
-                             || pVarSrc->recursive))
-                        pVarTrg->recursive = 1;
-
-                    if (pVarSrc->value_length < BY_REF_LIMIT)
-                        append_string_to_variable(pVarTrg, pVarSrc->value, pVarSrc->value_length, 0 /* prepend */);
-                    else
-                    {
-                        pszSrc[cchSrcVar] = ')';
-                        pszSrc[cchSrcVar + 1] = '\0';
-                        append_string_to_variable(pVarTrg, pszSrcRef, 2 + cchSrcVar + 1, 0 /* append */);
-                    }
-                }
-            } /* foreach key */
-        } /* foreach accumulate_r prop */
-
+        } /* foreach prop */
 #undef BY_REF_LIMIT
     } /* foreach target */
 
