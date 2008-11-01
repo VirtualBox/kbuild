@@ -1215,7 +1215,7 @@ define_automatic_variables (void)
                           " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var"
                           " make-stats"
                           " commands"
-                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one "
+                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
@@ -1275,7 +1275,7 @@ define_automatic_variables (void)
   strcat (buf, " commands");
 #  endif
 #  if defined (KMK_HELPERS)
-  strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one");
+  strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl");
 #  endif
   (void) define_variable ("KMK_FEATURES", 12, buf, o_default, 0);
 # endif
@@ -2383,7 +2383,7 @@ print_variable_set (struct variable_set *set, char *prefix)
       fragmentation = var_stats_val_alloc_len - (var_stats_val_len - var_stats_val_rdonly_len);
       printf(_("# variable set value stats:\n\
 #     strings %7lu bytes,       readonly %6lu bytes\n"),
-             var_stats_val_len, var_stats_val_rdonly_len, var_stats_val_alloc_len);
+             var_stats_val_len, var_stats_val_rdonly_len);
 
       if (var_stats_val_alloc_len)
         printf(_("#   allocated %7lu bytes,  fragmentation %6lu bytes (%u%%)\n"),

@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2008 2008-10-31 03:55:06Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2011 2008-11-01 14:15:50Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -360,7 +360,7 @@ endif
 endef
 
 
-## Worker fro def_inherit that deals with one keyword that makes
+## Worker for def_inherit that deals with one keyword that makes
 # use of inheritance.
 # @param    prefix_keyword        key_prefix:keyword. The cool join/split game as usual.
 # @param    trg                   Object to consider for inheriting.
@@ -974,6 +974,12 @@ endif
 # However it does eat a good deal of memory.
 #
 
+if1of ($(KMK_FEATURES), kb-exp-tmpl)
+ $(kb-exp-tmpl 1,$(_ALL_TARGET_TARGETS),$(KBUILD_TARGET),$(KBUILD_TARGET_ARCH),$(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
+ $(kb-exp-tmpl 1,$(_ALL_HOST_TARGETS),$(KBUILD_HOST),$(KBUILD_HOST_ARCH),$(KBUILD_HOST_CPU),$(KBUILD_TYPE))
+
+else  # !kb-exp-tmpl
+
 ## Inherit one template property in a non-accumulative manner.
 # @param    $(prop)     Property name
 # @param    $(target)	Target name
@@ -1160,6 +1166,7 @@ bld_trg_arch := $(KBUILD_HOST_ARCH)
 bld_trg_cpu := $(KBUILD_HOST_CPU)
 $(foreach target, $(_ALL_HOST_TARGETS),$(evalval def_inherit_template))
 
+endif # !kb-exp-tmpl
 ifdef KBUILD_PROFILE_SELF
  $(evalcall def_profile_self, done template/target expansion)
 endif

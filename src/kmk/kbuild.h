@@ -1,4 +1,4 @@
-/* $Id: kbuild.h 1503 2008-04-08 23:16:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.h 2011 2008-11-01 14:15:50Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -32,6 +32,7 @@ char *func_kbuild_object_base(char *o, char **argv, const char *pszFuncName);
 char *func_kbuild_object_suffix(char *o, char **argv, const char *pszFuncName);
 char *func_kbuild_source_prop(char *o, char **argv, const char *pszFuncName);
 char *func_kbuild_source_one(char *o, char **argv, const char *pszFuncName);
+char *func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName);
 
 void init_kbuild(int argc, char **argv);
 const char *get_kbuild_path(void);

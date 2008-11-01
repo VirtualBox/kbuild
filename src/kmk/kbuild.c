@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 1999 2008-10-29 21:47:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2011 2008-11-01 14:15:50Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * kBuild specific make functionality.
@@ -457,43 +457,16 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
 MY_INLINE struct variable *
 kbuild_get_variable_n(const char *pszName, size_t cchName)
 {
-#ifndef NDEBUG
-    int i;
-#endif
     struct variable *pVar = lookup_variable(pszName, cchName);
     if (!pVar)
         fatal(NILF, _("variable `%.*s' isn't defined!"), (int)cchName, pszName);
     if (pVar->recursive)
         fatal(NILF, _("variable `%.*s' is defined as `recursive' instead of `simple'!"), (int)cchName, pszName);
-#ifndef NDEBUG
-    i = strlen(pVar->value);
-    if (i != pVar->value_length)
-    {
-        printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
-# ifdef _MSC_VER
-        __debugbreak();
-# endif
-        assert(0);
-    }
-#endif
+
+    MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
+                  ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
     return pVar;
 }
-
-
-#if 0 /* unused */
-/**
- * Gets a variable that must exist.
- * Will cause a fatal failure if the variable doesn't exist.
- *
- * @returns Pointer to the variable.
- * @param   pszName     The variable name.
- */
-static struct variable *
-kbuild_get_variable(const char *pszName)
-{
-    return kbuild_get_variable_n(pszName, strlen(pszName));
-}
-#endif
 
 
 /**
@@ -506,23 +479,30 @@ kbuild_get_variable(const char *pszName)
 static struct variable *
 kbuild_get_recursive_variable(const char *pszName)
 {
-#ifndef NDEBUG
-    int i;
-#endif
     struct variable *pVar = lookup_variable(pszName, strlen(pszName));
     if (!pVar)
         fatal(NILF, _("variable `%s' isn't defined!"), pszName);
-#ifndef NDEBUG
-    i = strlen(pVar->value);
-    if (i != pVar->value_length)
-    {
-        printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
-# ifdef _MSC_VER
-        __debugbreak();
-# endif
-        assert(0);
-    }
-#endif
+
+    MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
+                  ("%u != %u %s\n", pVar->value_length, strlen(pVar->value), pVar->name));
+    return pVar;
+}
+
+
+/**
+ * Gets a variable that doesn't have to exit, but if it does can be recursive.
+ *
+ * @returns Pointer to the variable.
+ *          NULL if not found.
+ * @param   pszName     The variable name. Doesn't need to be terminated.
+ * @param   cchName     The name length.
+ */
+static struct variable *
+kbuild_query_recursive_variable_n(const char *pszName, size_t cchName)
+{
+    struct variable *pVar = lookup_variable(pszName, cchName);
+    MY_ASSERT_MSG(!pVar || strlen(pVar->value) == pVar->value_length,
+                  ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
     return pVar;
 }
 
@@ -537,25 +517,7 @@ kbuild_get_recursive_variable(const char *pszName)
 static struct variable *
 kbuild_query_recursive_variable(const char *pszName)
 {
-#ifndef NDEBUG
-    int i;
-#endif
-    struct variable *pVar = lookup_variable(pszName, strlen(pszName));
-    if (pVar)
-    {
-#ifndef NDEBUG
-        i = strlen(pVar->value);
-        if (i != pVar->value_length)
-        {
-            printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
-# ifdef _MSC_VER
-            __debugbreak();
-# endif
-            assert(0);
-        }
-#endif
-    }
-    return pVar;
+    return kbuild_query_recursive_variable_n(pszName, strlen(pszName));
 }
 
 
@@ -601,17 +563,9 @@ kbuild_lookup_variable_n(const char *pszName, size_t cchName)
     struct variable *pVar = lookup_variable(pszName, cchName);
     if (pVar)
     {
-#ifndef NDEBUG
-        int i = strlen(pVar->value);
-        if (i != pVar->value_length)
-        {
-            printf("%d != %d %s\n", pVar->value_length, i, pVar->name);
-# ifdef _MSC_VER
-            __debugbreak();
-# endif
-            assert(0);
-        }
-#endif
+        MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
+                      ("%u != %u %.*s\n", pVar->value_length, strlen(pVar->value), (int)cchName, pVar->name));
+
         /* Make sure the variable is simple, convert it if necessary. */
         if (pVar->recursive)
             kbuild_simplify_variable(pVar);
@@ -2198,6 +2152,725 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     return pszVal;
 }
 
+/*
+
+## Inherit one template property in a non-accumulative manner.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+# @todo fix the precedence order for some properties.
+define def_inherit_template_one
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ifndef $(target)_$(prop)
+$(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ifndef $(target)_$(prop).$(bld_trg)
+$(target)_$(prop).$(bld_trg) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ifndef $(target)_$(prop).$(bld_trg_cpu)
+$(target)_$(prop).$(bld_trg_cpu) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+endif
+endif
+endef
+
+## Inherit one template property in a non-accumulative manner, deferred expansion.
+# @param    1: $(prop)     Property name
+# @param    2: $(target)	Target name
+# @todo fix the precedence order for some properties.
+# @remark this define relies on double evaluation
+define def_inherit_template_one_deferred
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ifndef $(target)_$(prop)
+$(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ifndef $(target)_$(prop).$(bld_trg)
+$(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ifndef $(target)_$(prop).$(bld_trg_arch)
+$(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ifndef $(target)_$(prop).$(bld_trg_cpu)
+$(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+endif
+endif
+endef
+
+## Inherit one acculumlative template property where the 'most significant' items are at the left end.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+define def_inherit_template_one_accumulate_l
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ ifeq ($$(flavor $(target)_$(prop)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
+ endif
+$(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+ ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
+ endif
+$(target)_$(prop).$(KBUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
+ endif
+$(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
+ endif
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
+ endif
+$(target)_$(prop).$(bld_trg_cpu) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
+ endif
+$(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endef
+
+## Inherit one acculumlative template property where the 'most significant' items are at the right end.
+# @param    $(prop)     Property name
+# @param    $(target)	Target name
+define def_inherit_template_one_accumulate_r
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
+ ifeq ($$(flavor $(target)_$(prop)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
+ endif
+$(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
+ ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
+ endif
+$(target)_$(prop).$(KBUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
+ endif
+$(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
+ endif
+$(target)_$(prop).$(bld_trg).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
+ endif
+$(target)_$(prop).$(bld_trg_cpu) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
+endif
+ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
+ ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
+ $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
+ endif
+$(target)_$(prop).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
+endif
+endef
+
+
+## Inherit template properties for on target.
+# @param    $(target)    Target name.
+define def_inherit_template
+# sanity check.
+ifdef _$(target)_ALREADY_PROCESSED
+ $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s))
+endif
+_$(target)_ALREADY_PROCESSED := 1
+
+# Inherit any default template.
+ifdef TEMPLATE
+ifeq ($($(target)_TEMPLATE),)
+$(eval $(target)_TEMPLATE:=$(TEMPLATE))
+endif
+endif
+# Expand the template if specified.
+ifneq ($($(target)_TEMPLATE),)
+$(foreach prop,$(PROPS_SINGLE),$(evalval def_inherit_template_one))
+$(foreach prop,$(PROPS_DEFERRED),$(eval $(def_inherit_template_one_deferred))) # exploits the 2 evaluation, so no value!
+$(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulate_l))) # += works fine without value
+$(foreach prop,$(PROPS_ACCUMULATE_R),$(eval $(def_inherit_template_one_accumulate_r))) # use <= (kmk addition)
+endif
+endef
+
+
+Invoked like this:
+ $(kb-exp-tmpl 1,$(_ALL_TARGET_TARGETS),$(KBUILD_TARGET),$(KBUILD_TARGET_ARCH),$(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
+*/
+char *
+func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
+{
+    const char         *pszVersion    = argv[0];
+    const char         *pszBldTrg     = argv[2];
+    const char         *pszBldTrgArch = argv[3];
+    const char         *pszBldTrgCpu  = argv[4];
+    const char         *pszBldType    = argv[5];
+    size_t              cchBldTrg     = strlen(pszBldTrg);
+    size_t              cchBldTrgArch = strlen(pszBldTrgArch);
+    size_t              cchBldTrgCpu  = strlen(pszBldTrgCpu);
+    size_t              cchBldType    = strlen(pszBldType);
+    size_t              cchMaxBld     = cchBldTrg + cchBldTrgArch + cchBldTrgCpu + cchBldType; /* too big, but so what. */
+    struct kbet_key
+    {
+        unsigned int        cch;
+        char               *psz;
+    }                   aKeys[6];
+    unsigned int const  cKeys = 6;
+    unsigned int        iKey;
+    struct variable    *pDefTemplate;
+    struct variable    *pProps;
+    struct kbet_prop
+    {
+        unsigned int        cch;
+        const char         *pch;
+    }                  *paProps;
+    unsigned int        cProps;
+    unsigned int        iProp;
+    unsigned int        iPropsSingle;
+    unsigned int        iPropsSingleEnd;
+    unsigned int        iPropsDeferred;
+    unsigned int        iPropsDeferredEnd;
+    unsigned int        iPropsAccumulateL;
+    unsigned int        iPropsAccumulateLEnd;
+    unsigned int        iPropsAccumulateR;
+    unsigned int        iPropsAccumulateREnd;
+    size_t              cchMaxProp;
+    struct variable    *pVarTrg;
+    struct variable    *pVarSrc;
+    const char         *pszIter;
+    const char         *pszTarget;
+    unsigned int        cchTarget;
+    char               *pszSrc    = 0;
+    char               *pszSrcRef = 0;
+    char               *pszSrcBuf = 0;
+    size_t              cchSrcBuf = 0;
+    char               *pszTrg    = 0;
+    size_t              cchTrg    = 0;
+
+    /*
+     * Validate input.
+     */
+    if (pszVersion[0] != '1' || pszVersion[1])
+      fatal(NULL, "%s: Unsupported version `%s'", pszFuncName, pszVersion);
+
+    if (!cchBldTrg)
+      fatal(NULL, "%s: missing bldtrg", pszFuncName);
+
+    if (!cchBldTrgArch)
+      fatal(NULL, "%s: missing bld_trg_arch", pszFuncName);
+
+    if (!cchBldTrgCpu)
+      fatal(NULL, "%s: missing bld_trg_cpu", pszFuncName);
+
+    if (!cchBldType)
+      fatal(NULL, "%s: missing bld_type", pszFuncName);
+
+    /*
+     * Prepare the keywords, prepending dots for quicker copying.
+     * This allows for an inner loop when processing properties, saving code
+     * at the expense of a few xmallocs.
+     */
+    /* the first entry is empty. */
+    aKeys[0].cch = 0;
+    aKeys[0].psz = NULL;
+
+    aKeys[1].cch = cchBldType + 1;
+    aKeys[1].psz = xmalloc (aKeys[1].cch + 1);
+    aKeys[1].psz[0] = '.';
+    memcpy(aKeys[1].psz + 1, pszBldType, cchBldType + 1);
+
+    aKeys[2].cch = cchBldTrg + 1;
+    aKeys[2].psz = xmalloc (aKeys[2].cch + 1);
+    aKeys[2].psz[0] = '.';
+    memcpy(aKeys[2].psz + 1, pszBldTrg, cchBldTrg + 1);
+
+    aKeys[3].cch = cchBldTrg + 1 + cchBldTrgArch + 1;
+    aKeys[3].psz = xmalloc (aKeys[3].cch + 1);
+    aKeys[3].psz[0] = '.';
+    memcpy(aKeys[3].psz + 1, pszBldTrg, cchBldTrg);
+    aKeys[3].psz[1 + cchBldTrg] = '.';
+    memcpy(aKeys[3].psz + 1 + cchBldTrg + 1, pszBldTrgArch, cchBldTrgArch + 1);
+
+    aKeys[4].cch = cchBldTrgCpu + 1;
+    aKeys[4].psz = xmalloc (aKeys[4].cch + 1);
+    aKeys[4].psz[0] = '.';
+    memcpy(aKeys[4].psz + 1, pszBldTrgCpu, cchBldTrgCpu + 1);
+
+    aKeys[5].cch = cchBldTrgArch + 1;
+    aKeys[5].psz = xmalloc (aKeys[5].cch + 1);
+    aKeys[5].psz[0] = '.';
+    memcpy(aKeys[5].psz + 1, pszBldTrgArch, cchBldTrgArch + 1);
+
+
+    /*
+     * Prepare the properties, folding them into an array.
+     * This way we won't have to reparse them for each an every target, though
+     * it comes at the expense of one or more heap calls.
+     */
+#define PROP_ALLOC_INC  128
+    iProp = 0;
+    cProps = PROP_ALLOC_INC;
+    paProps = xmalloc(sizeof(*pProps) * cProps);
+
+    pProps = kbuild_get_variable_n(ST("PROPS_SINGLE"));
+    iPropsSingle = iProp;
+    pszIter = pProps->value;
+    while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+       if (++iProp >= cProps)
+       {
+           cProps += PROP_ALLOC_INC;
+           paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
+       }
+    iPropsSingleEnd = iProp;
+
+    pProps = kbuild_get_variable_n(ST("PROPS_DEFERRED"));
+    iPropsDeferred = iProp;
+    pszIter = pProps->value;
+    while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+        if (++iProp >= cProps)
+        {
+            cProps += PROP_ALLOC_INC;
+            paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
+        }
+    iPropsDeferredEnd = iProp;
+
+    pProps = kbuild_get_variable_n(ST("PROPS_ACCUMULATE_L"));
+    iPropsAccumulateL = iProp;
+    pszIter = pProps->value;
+    while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+        if (++iProp >= cProps)
+        {
+            cProps += PROP_ALLOC_INC;
+            paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
+        }
+    iPropsAccumulateLEnd = iProp;
+
+    pProps = kbuild_get_variable_n(ST("PROPS_ACCUMULATE_R"));
+    iPropsAccumulateR = iProp;
+    pszIter = pProps->value;
+    while ((paProps[iProp].pch = find_next_token(&pszIter, &paProps[iProp].cch)))
+        if (++iProp >= cProps)
+        {
+            cProps += PROP_ALLOC_INC;
+            paProps = xrealloc(paProps, sizeof(*paProps) * cProps);
+        }
+    iPropsAccumulateREnd = iProp;
+#undef PROP_ALLOC_INC
+    cProps = iProp;
+
+    /* find the max prop length. */
+    cchMaxProp = paProps[0].cch;
+    while (--iProp > 0)
+        if (paProps[iProp].cch > cchMaxProp)
+            cchMaxProp = paProps[iProp].cch;
+
+    /*
+     * Query and prepare (strip) the default template
+     * (given by the TEMPLATE variable).
+     */
+    pDefTemplate = kbuild_lookup_variable_n(ST("TEMPLATE"));
+    if (pDefTemplate)
+    {
+        if (   pDefTemplate->value_length
+            && (   isspace(pDefTemplate->value[0])
+                || isspace(pDefTemplate->value[pDefTemplate->value_length - 1])))
+        {
+            unsigned int off;
+            if (pDefTemplate->rdonly_val)
+                fatal(NULL, "%s: TEMPLATE is read-only", pszFuncName);
+
+            /* head */
+            for (off = 0; isspace(pDefTemplate->value[off]); off++)
+                /* nothing */;
+            if (off)
+            {
+                pDefTemplate->value_length -= off;
+                memmove(pDefTemplate->value, pDefTemplate->value + off, pDefTemplate->value_length + 1);
+            }
+
+            /* tail */
+            off = pDefTemplate->value_length;
+            while (off > 0 && isspace(pDefTemplate->value[off - 1]))
+                off--;
+            pDefTemplate->value_length = off;
+            pDefTemplate->value[off] = '\0';
+        }
+
+        if (!pDefTemplate->value_length)
+            pDefTemplate = NULL;
+    }
+
+    /*
+     * Iterate the target list.
+     */
+    pszIter = argv[1];
+    while ((pszTarget = find_next_token(&pszIter, &cchTarget)))
+    {
+        char *pszTrgProp, *pszSrcProp;
+        char *pszTrgKey, *pszSrcKey;
+        struct variable *pTmpl;
+        const char *pszTmpl;
+        size_t cchTmpl, cchMax;
+
+        /* resize the target buffer. */
+        cchMax = cchTarget + cchMaxProp + cchMaxBld + 10;
+        if (cchTrg < cchMax)
+        {
+            cchTrg = (cchMax + 31U) & ~(size_t)31;
+            pszTrg = xrealloc(pszTrg, cchTrg);
+        }
+
+        /*
+         * Query the TEMPLATE property, if not found or zero-length fall back on the default.
+         */
+        memcpy(pszTrg, pszTarget, cchTarget);
+        pszTrgProp = pszTrg + cchTarget;
+        memcpy(pszTrgProp, "_TEMPLATE", sizeof("_TEMPLATE"));
+        pszTrgProp++; /* after '_'. */
+
+        /** @todo Change this to a recursive lookup with simplification below. That
+         *        will allow target_TEMPLATE = $(NO_SUCH_TEMPLATE) instead of having
+         *        to use target_TEMPLATE = DUMMY */
+        pTmpl = kbuild_lookup_variable_n(pszTrg, cchTarget + sizeof("_TEMPLATE") - 1);
+        if (!pTmpl || !pTmpl->value_length)
+        {
+            if (!pDefTemplate)
+                continue; /* no template */
+            pszTmpl = pDefTemplate->value;
+            cchTmpl = pDefTemplate->value_length;
+        }
+        else
+        {
+            pszTmpl = pTmpl->value;
+            cchTmpl = pTmpl->value_length;
+            while (isspace(*pszTmpl))
+                cchTmpl--, pszTmpl++;
+            if (!cchTmpl)
+                continue; /* no template */
+        }
+
+        /* resize the source buffer. */
+        cchMax = sizeof("TEMPLATE_") + cchTmpl + cchMaxProp + cchMaxBld + 10 + sizeof(void *);
+        if (cchSrcBuf < cchMax)
+        {
+            cchSrcBuf = (cchMax + 31U) & ~(size_t)31;
+            pszSrcBuf = xrealloc(pszSrcBuf, cchSrcBuf);
+            pszSrc = pszSrcBuf + sizeof(void *);  assert(sizeof(void *) >= 2);
+            pszSrcRef = pszSrc - 2;
+            pszSrcRef[0] = '$';
+            pszSrcRef[1] = '(';
+        }
+
+        /* prepare the source buffer */
+        memcpy(pszSrc, "TEMPLATE_", sizeof("TEMPLATE_") - 1);
+        pszSrcProp = pszSrc + sizeof("TEMPLATE_") - 1;
+        memcpy(pszSrcProp, pszTmpl, cchTmpl);
+        pszSrcProp += cchTmpl;
+        *pszSrcProp++ = '_';
+
+        /*
+         * Process properties.
+         * Note! The single and deferred are handled in the same way now.
+         */
+#define BY_REF_LIMIT   64 /*(cchSrcVar * 4 > 64 ? cchSrcVar * 4 : 64)*/
+
+        /* single: copy template prop if target doesn't define it. */
+        for (iProp = iPropsSingle; iProp < iPropsSingleEnd; iProp++)
+        {
+            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszTrgKey = pszTrgProp + paProps[iProp].cch;
+
+            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszSrcKey = pszSrcProp + paProps[iProp].cch;
+
+            for (iKey = 0; iKey < cKeys; iKey++)
+            {
+                char *pszTrgEnd;
+                size_t cchSrcVar;
+
+                /* lookup source, skip ahead if it doesn't exist. */
+                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
+                pszSrc[cchSrcVar] = '\0';
+                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
+                if (!pVarSrc)
+                    continue;
+
+                /* lookup target, skip ahead if it exists. */
+                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
+                *pszTrgEnd = '\0';
+                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
+                if (pVarTrg)
+                    continue;
+
+                /* copy the variable if its short, otherwise reference it. */
+                if (pVarSrc->value_length < BY_REF_LIMIT)
+                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                              pVarSrc->value, pVarSrc->value_length,
+                                              1 /* duplicate_value */,
+                                              o_file,
+                                              pVarSrc->recursive,
+                                              NULL /* flocp */);
+                else
+                {
+                    pszSrc[cchSrcVar] = ')';
+                    pszSrc[cchSrcVar + 1] = '\0';
+                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                              pszSrcRef, 2 + cchSrcVar + 1,
+                                              1 /* duplicate_value */,
+                                              o_file,
+                                              1 /* recursive */,
+                                              NULL /* flocp */);
+                }
+            } /* foreach key */
+        } /* foreach single prop */
+
+        /* deferred: copy template prop if target doesn't define it. */
+        for (iProp = iPropsDeferred; iProp < iPropsDeferredEnd; iProp++)
+        {
+            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszTrgKey = pszTrgProp + paProps[iProp].cch;
+
+            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszSrcKey = pszSrcProp + paProps[iProp].cch;
+
+            for (iKey = 0; iKey < cKeys; iKey++)
+            {
+                char *pszTrgEnd;
+                size_t cchSrcVar;
+
+                /* lookup source, skip ahead if it doesn't exist. */
+                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
+                pszSrc[cchSrcVar] = '\0';
+                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
+                if (!pVarSrc)
+                    continue;
+
+                /* lookup target, skip ahead if it exists. */
+                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
+                *pszTrgEnd = '\0';
+                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
+                if (pVarTrg)
+                    continue;
+
+                /* copy the variable if its short, otherwise reference it. */
+                if (pVarSrc->value_length < BY_REF_LIMIT)
+                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                              pVarSrc->value, pVarSrc->value_length,
+                                              1 /* duplicate_value */,
+                                              o_file,
+                                              pVarSrc->recursive,
+                                              NULL /* flocp */);
+                else
+                {
+                    pszSrc[cchSrcVar] = ')';
+                    pszSrc[cchSrcVar + 1] = '\0';
+                    define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                              pszSrcRef, 2 + cchSrcVar + 1,
+                                              1 /* duplicate_value */,
+                                              o_file,
+                                              1 /* recursive */,
+                                              NULL /* flocp */);
+                }
+            }  /* foreach key */
+        } /* foreach deferred prop */
+
+        /* accumulate_l: append the unexpanded template variable to the . */
+        for (iProp = iPropsAccumulateL; iProp < iPropsAccumulateLEnd; iProp++)
+        {
+            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszTrgKey = pszTrgProp + paProps[iProp].cch;
+
+            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszSrcKey = pszSrcProp + paProps[iProp].cch;
+
+            for (iKey = 0; iKey < cKeys; iKey++)
+            {
+                char *pszTrgEnd;
+                size_t cchSrcVar;
+
+                /* lookup source, skip ahead if it doesn't exist. */
+                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
+                pszSrc[cchSrcVar] = '\0';
+                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
+                if (!pVarSrc)
+                    continue;
+
+                /* lookup target, skip ahead if it exists. */
+                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
+                *pszTrgEnd = '\0';
+                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
+                if (!pVarTrg)
+                {
+                    /* The target doesn't exist, copy the source if it's short,
+                       otherwise just reference it. */
+                    if (pVarSrc->value_length < BY_REF_LIMIT)
+                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                  pVarSrc->value, pVarSrc->value_length,
+                                                  1 /* duplicate_value */,
+                                                  o_file,
+                                                  pVarSrc->recursive,
+                                                  NULL /* flocp */);
+                    else
+                    {
+                        pszSrc[cchSrcVar] = ')';
+                        pszSrc[cchSrcVar + 1] = '\0';
+                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                  pszSrcRef, 2 + cchSrcVar + 1,
+                                                  1 /* duplicate_value */,
+                                                  o_file,
+                                                  1 /* recursive */,
+                                                  NULL /* flocp */);
+                    }
+                }
+                else
+                {
+                    /* Append to existing variable. If the source is recursive,
+                       or we append by reference, we'll have to make sure the
+                       target is recusive as well. */
+                    if (    !pVarTrg->recursive
+                        &&  (   pVarSrc->value_length >= BY_REF_LIMIT
+                             || pVarSrc->recursive))
+                        pVarTrg->recursive = 1;
+
+                    if (pVarSrc->value_length < BY_REF_LIMIT)
+                        append_string_to_variable(pVarTrg, pVarSrc->value, pVarSrc->value_length, 1 /* append */);
+                    else
+                    {
+                        pszSrc[cchSrcVar] = ')';
+                        pszSrc[cchSrcVar + 1] = '\0';
+                        append_string_to_variable(pVarTrg, pszSrcRef, 2 + cchSrcVar + 1, 1 /* append */);
+                    }
+                }
+            } /* foreach key */
+        } /* foreach accumulate_l prop */
+
+        /* accumulate_r: prepend the unexpanded template variable to the . */
+        for (iProp = iPropsAccumulateR; iProp < iPropsAccumulateREnd; iProp++)
+        {
+            memcpy(pszTrgProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszTrgKey = pszTrgProp + paProps[iProp].cch;
+
+            memcpy(pszSrcProp, paProps[iProp].pch, paProps[iProp].cch);
+            pszSrcKey = pszSrcProp + paProps[iProp].cch;
+
+            for (iKey = 0; iKey < cKeys; iKey++)
+            {
+                char *pszTrgEnd;
+                size_t cchSrcVar;
+
+                /* lookup source, skip ahead if it doesn't exist. */
+                memcpy(pszSrcKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                cchSrcVar = pszSrcKey - pszSrc + aKeys[iKey].cch;
+                pszSrc[cchSrcVar] = '\0';
+                pVarSrc = kbuild_query_recursive_variable_n(pszSrc, cchSrcVar);
+                if (!pVarSrc)
+                    continue;
+
+                /* lookup target, skip ahead if it exists. */
+                memcpy(pszTrgKey, aKeys[iKey].psz, aKeys[iKey].cch);
+                pszTrgEnd = pszTrgKey + aKeys[iKey].cch;
+                *pszTrgEnd = '\0';
+                pVarTrg = kbuild_query_recursive_variable_n(pszTrg, pszTrgEnd - pszTrg);
+                if (!pVarTrg)
+                {
+                    /* The target doesn't exist, copy the source if it's short,
+                       otherwise just reference it. */
+                    if (pVarSrc->value_length < BY_REF_LIMIT)
+                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                  pVarSrc->value, pVarSrc->value_length,
+                                                  1 /* duplicate_value */,
+                                                  o_file,
+                                                  pVarSrc->recursive,
+                                                  NULL /* flocp */);
+                    else
+                    {
+                        pszSrc[cchSrcVar] = ')';
+                        pszSrc[cchSrcVar + 1] = '\0';
+                        define_variable_vl_global(pszTrg, pszTrgEnd - pszTrg,
+                                                  pszSrcRef, 2 + cchSrcVar + 1,
+                                                  1 /* duplicate_value */,
+                                                  o_file,
+                                                  1 /* recursive */,
+                                                  NULL /* flocp */);
+                    }
+                }
+                else
+                {
+                    /* Append to existing variable. If the source is recursive,
+                       or we append by reference, we'll have to make sure the
+                       target is recusive as well. */
+                    if (    !pVarTrg->recursive
+                        &&  (   pVarSrc->value_length >= BY_REF_LIMIT
+                             || pVarSrc->recursive))
+                        pVarTrg->recursive = 1;
+
+                    if (pVarSrc->value_length < BY_REF_LIMIT)
+                        append_string_to_variable(pVarTrg, pVarSrc->value, pVarSrc->value_length, 0 /* prepend */);
+                    else
+                    {
+                        pszSrc[cchSrcVar] = ')';
+                        pszSrc[cchSrcVar + 1] = '\0';
+                        append_string_to_variable(pVarTrg, pszSrcRef, 2 + cchSrcVar + 1, 0 /* append */);
+                    }
+                }
+            } /* foreach key */
+        } /* foreach accumulate_r prop */
+
+#undef BY_REF_LIMIT
+    } /* foreach target */
+
+    /*
+     * Cleanup.
+     */
+    free(pszSrcBuf);
+    free(pszTrg);
+    free(paProps);
+    for (iKey = 1; iKey < cKeys; iKey++)
+        free(aKeys[iKey].psz);
+
+    return o;
+}
 
 #endif /* KMK_HELPERS */
 
