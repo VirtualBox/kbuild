@@ -1,4 +1,4 @@
-# $Id: if-expr 2022 2008-11-02 02:15:00Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+# $Id: if-expr 2023 2008-11-02 05:39:50Z knut.osmundsen@oracle.com $                                        -*-perl-*-
 ## @file
 # $(if-expr expr, if-expand, else-expand)
 #
@@ -23,7 +23,7 @@
 #
 #
 
-$description = "Tests the $(if-expr ) function";
+$description = "Tests the \$(if-expr ) function";
 
 $details = "A few simple tests, nothing spectacular. More comprehensive testing
 is preformed by functions/expr and features/ifcond.";
