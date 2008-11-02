@@ -1,0 +1,74 @@
+# $Id: expr 2022 2008-11-02 02:15:00Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(expr expr)
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the \$(expr ) function";
+
+$details = "Much of the basic testing is taken care of by features/ifcond.
+We only make sure \$(expr ) works here).";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(expr 1+1),2)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - basics, the $(expr test checks the rest).
+   # ---------------------------------------------------
+   run_make_test('
+ifneq ($(expr 1==1),1)
+$(error sub-test 0 failed)
+endif
+ifneq ($(expr 1!=1),0)
+$(error sub-test 1 failed)
+endif
+ifneq ($(expr 2*2),4)
+$(error sub-test 1 failed)
+endif
+ifneq ($(expr 25*25),625)
+$(error sub-test 1 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+}
+
+
+
+# Indicate that we're done.
+1;
+
+

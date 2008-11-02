@@ -1,6 +1,6 @@
-# $Id: testcase-ifcond.kmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
+# $Id: ifcond 2022 2008-11-02 02:15:00Z knut.osmundsen@oracle.com $                                        -*-perl-*-
 ## @file
-# kBuild - testcase for the if conditionals.
+# if conditionals.
 #
 
 #
@@ -23,8 +23,27 @@
 #
 #
 
-DEPTH = ../..
-include $(KBUILD_PATH)/header.kmk
+$description = "Tests the if conditionals";
+
+$details = "...";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(if-expr 1+1,1,0),1)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - A more comprehensive, yet a bit large, test.
+   # ------------------------------------------------------
+   run_make_test('
 
 #
 # Note! The testcase are ordered by ascending operator precedence
@@ -32,10 +51,13 @@ include $(KBUILD_PATH)/header.kmk
 #       are kind of useful for performing tests on non-logical ops.
 #
 
+.PHONY: all
+all: ; @:
+
 #
 # Parenthesis
 #
-$(warning unary operators: ( and ) )
+$(info unary operators: ( and ))
 if (1)
 else
 $(error )
@@ -50,7 +72,7 @@ endif
 #
 # Equal and Not Equal w/ some fundamental bits thrown in.
 #
-$(warning binary operators: == and != )
+$(info binary operators: == and !=)
 
 if 1 == 1
 else
@@ -82,17 +104,17 @@ else
 $(error )
 endif
 
-if 'asdf' == asdf
+if \'asdf\' == asdf
 else
 $(error )
 endif
 
-if 'asdf' == "asdf"
+if \'asdf\' == "asdf"
 else
 $(error )
 endif
 
-if 'asdf' == 'asdf'
+if \'asdf\' == \'asdf\'
 else
 $(error )
 endif
@@ -141,7 +163,7 @@ endif
 #
 # Logical OR
 #
-$(warning binary operator: || )
+$(info binary operator: ||)
 if 1
 else
 $(error busted)
@@ -187,7 +209,7 @@ else
 $(error )
 endif
 
-if 'asdf' || 0
+if \'asdf\' || 0
 else
 $(error )
 endif
@@ -199,26 +221,26 @@ if "" || 1
 else
 $(error )
 endif
-if '' || 0
+if \'\' || 0
 $(error )
 endif
-if '' || 1
+if \'\' || 1
 else
 $(error )
 endif
 
-if "" || ''
+if "" || \'\'
 $(error )
 endif
-if "1" || ''
+if "1" || \'\'
 else
 $(error )
 endif
-if "1" || '1'
+if "1" || \'1\'
 else
 $(error )
 endif
-if "" || '1'
+if "" || \'1\'
 else
 $(error )
 endif
@@ -227,7 +249,7 @@ endif
 #
 # Logical AND
 #
-$(warning binary operator: && )
+$(info binary operator: &&)
 if 1 && 1
 else
 $(error )
@@ -248,11 +270,11 @@ endif
 if ("asdf" && 1) != 1
 $(error )
 endif
-if "1" && 'asdf'
+if "1" && \'asdf\'
 else
 $(error )
 endif
-if "1" && 'asdf' && 0
+if "1" && \'asdf\' && 0
 $(error )
 endif
 
@@ -264,7 +286,7 @@ endif
 #
 # Bitwise OR
 #
-$(warning binary operator: | )
+$(info binary operator: |)
 if 1 | 0
 else
 $(error )
@@ -292,7 +314,7 @@ endif
 #
 # Bitwise XOR
 #
-$(warning binary operator: ^ )
+$(info binary operator: ^)
 if 1 ^ 1
 $(error )
 endif
@@ -313,7 +335,7 @@ endif
 #
 # Bitwise AND
 #
-$(warning binary operator: & )
+$(info binary operator: &)
 if (4097 & 1) != 1
 $(error )
 endif
@@ -328,7 +350,7 @@ endif
 #
 # Greater than
 #
-$(warning binary operator: > )
+$(info binary operator: >)
 if 1 > 0
 else
 $(error )
@@ -355,11 +377,11 @@ if (8 > 4 ^ 16) != 17
 $(error )
 endif
 
-if "b" > 'a'
+if "b" > \'a\'
 else
 $(error )
 endif
-if "abcdef" > 'ffdas'
+if "abcdef" > \'ffdas\'
 $(error )
 endif
 if abcdef > ffdas
@@ -370,7 +392,7 @@ endif
 #
 # Greater or equal than
 #
-$(warning binary operator: >= )
+$(info binary operator: >=)
 if 20 > 0
 else
 $(error )
@@ -389,15 +411,15 @@ if (1 & 8 >= 4) != 1
 $(error )
 endif
 
-if "x" >= 'x'
+if "x" >= \'x\'
 else
 $(error )
 endif
-if "abdc" >= 'abcd'
+if "abdc" >= \'abcd\'
 else
 $(error )
 endif
-if "ffdaaa" >= 'ffdasd'
+if "ffdaaa" >= \'ffdasd\'
 $(error )
 endif
 if asdf >= asdf
@@ -420,13 +442,13 @@ else
 $(error )
 endif
 
-if "b" < 'a'
+if "b" < \'a\'
 $(error )
 endif
 if b < a
 $(error )
 endif
-if 'foobar' < 'a$'
+if \'foobar\' < \'a$\'
 $(error )
 endif
 if hhhh < ggggg
@@ -441,7 +463,7 @@ endif
 #
 # Less or equal than
 #
-$(warning binary operator: >> )
+$(info binary operator: >>)
 if 1 <= 0
 $(error )
 endif
@@ -456,11 +478,11 @@ if 560 <= 456
 $(error )
 endif
 
-if "a" <= 'a'
+if "a" <= \'a\'
 else
 $(error )
 endif
-if "abcdef" <= 'abcdef'
+if "abcdef" <= \'abcdef\'
 else
 $(error )
 endif
@@ -475,7 +497,7 @@ endif
 #
 # Shift right
 #
-$(warning binary operator: >> )
+$(info binary operator: >>)
 if 1 >> 0 != 1
 $(error )
 endif
@@ -490,7 +512,7 @@ endif
 #
 # Shift left
 #
-$(warning binary operator: << )
+$(info binary operator: <<)
 if 1 << 0 != 1
 $(error )
 endif
@@ -521,7 +543,7 @@ endif
 #
 # Subtraction
 #
-$(warning binary operator: - )
+$(info binary operator: -)
 if 1-1 != 0
 $(error )
 endif
@@ -536,7 +558,7 @@ endif
 #
 # Addition
 #
-$(warning binary operator: + )
+$(info binary operator: +)
 if 1+1 != 2
 $(error )
 endif
@@ -551,7 +573,7 @@ endif
 #
 # Modulus
 #
-$(warning binary operator: % )
+$(info binary operator: %)
 if 0%2 != 0
 $(error )
 endif
@@ -566,7 +588,7 @@ endif
 #
 # Division
 #
-$(warning binary operator: / )
+$(info binary operator: /)
 if 0/1 != 0
 $(error )
 endif
@@ -584,7 +606,7 @@ endif
 #
 # Multiplication
 #
-$(warning binary operator: * )
+$(info binary operator: *)
 if 1*1 != 1
 $(error )
 endif
@@ -605,7 +627,7 @@ endif
 #
 # Logical NOT
 #
-$(warning unary operator: ! )
+$(info unary operator: !)
 if !1
 $(error )
 endif
@@ -636,7 +658,7 @@ endif
 #
 # Bitwise NOT
 #
-$(warning unary operator: ~ )
+$(info unary operator: ~)
 if ~0xfff != 0xfffffffffffff000
 $(error )
 endif
@@ -645,7 +667,7 @@ endif
 #
 # Pluss
 #
-$(warning unary operator: + )
+$(info unary operator: +)
 if +2 != 2
 $(error )
 endif
@@ -657,7 +679,7 @@ endif
 #
 # Minus (negation)
 #
-$(warning unary operator: - )
+$(info unary operator: -)
 if --2 != 2
 $(error )
 endif
@@ -674,7 +696,7 @@ trg_deps_only: foobar
 trg_with_cmds: foobar
 	echo $@
 
-$(warning unary operator: target ) # This flushes stuff in read.c
+$(info unary operator: target) # This flushes stuff in read.c
 
 if target trg_with_cmds
 else
@@ -691,7 +713,7 @@ endif
 #
 # defined
 #
-$(warning unary operator: defined )
+$(info unary operator: defined)
 var_defined := 1
 var_not_defined :=
 
@@ -718,7 +740,7 @@ endif
 #
 # bool
 #
-$(warning unary operator: bool )
+$(info unary operator: bool)
 if bool("Asdf") != 1
 $(error )
 endif
@@ -730,11 +752,11 @@ endif
 #
 # bool
 #
-$(warning unary operator: num )
+$(info unary operator: num)
 if num("1234") != 1235 - 1
 $(error )
 endif
-if num('1234') != 1233 + 1
+if num(\'1234\') != 1233 + 1
 $(error )
 endif
 
@@ -742,11 +764,11 @@ endif
 #
 # str
 #
-$(warning unary operator: str )
+$(info unary operator: str)
 if str(a < b) != 1
 $(error )
 endif
-if str(a < b) != '1'
+if str(a < b) != \'1\'
 $(error )
 endif
 if str( 1 ) != "1"
@@ -767,7 +789,7 @@ endif
 #
 # Quick check of $(if-expr ) and $(expr ).
 #
-$(warning $$(if-expr ,,) )
+$(info $$(if-expr ,,))
 ifeq ($(if-expr 0 || 2,42,500),42)
 else
 $(error )
@@ -776,7 +798,7 @@ ifeq ($(if-expr 5+3 == 231,42,500),42)
 $(error )
 endif
 
-$(warning $$(expr ) )
+$(info $$(expr ))
 ifeq ($(expr 5+3),8)
 else
 $(error expr:$(expr 5+3) expected 8)
@@ -788,9 +810,141 @@ endif
 ifeq ($(expr 100/3),3)
 $(error )
 endif
+',
+'',
+'unary operators: ( and )
+binary operators: == and !=
+binary operator: ||
+binary operator: &&
+binary operator: |
+binary operator: ^
+binary operator: &
+binary operator: >
+binary operator: >=
+binary operator: >>
+binary operator: >>
+binary operator: <<
+binary operator: -
+binary operator: +
+binary operator: %
+binary operator: /
+binary operator: *
+unary operator: !
+unary operator: ~
+unary operator: +
+unary operator: -
+unary operator: target
+unary operator: defined
+unary operator: bool
+unary operator: num
+unary operator: str
+$(if-expr ,,)
+$(expr )
+');
+
+}
+
+
+   # TEST #2 - A bug.
+   # ------------------------------------------------------
+   run_make_test('
+.PHONY: all
+all: ; @:
+
+#
+# Assert sanity first on simple strings.
+#
+if abcd != "abcd"
+$(error )
+endif
+
+if \'abcd\' != abcd
+$(error )
+endif
+
+if abcd != abcd
+$(error )
+endif
+
+
+#
+# String by reference, start with a few simple cases.
+#
+STR1 = abcd
+
+if "$(STR1)" != "abcd"
+$(error )
+endif
+
+if \'$(STR1)\' == "abcd" # not expanded.
+$(error )
+endif
+
+if \'$(STR1)\' != \'$(STR1)\'
+$(error )
+endif
+
+if "$(STR1)" != "$(STR1)"
+$(error )
+endif
+
+#
+# Now for the kmk 0.1.4 bug...
+#
+if $(STR1) != "$(STR1)"
+$(error )
+endif
+
+if "$(STR1)" != $(STR1)
+$(error )
+endif
+
+if $(STR1) != $(STR1)
+$(error )
+endif
+
+#
+# And some extra for good measure.
+#
+STR2 = STR
+NUM1 = 1
+
+if $($(STR2)$(NUM1)) != "abcd"
+$(error )
+endif
+
+if "abcd" != $($(STR2)$(NUM1))
+$(error )
+endif
+
+if "abcd" != $(${STR2}$(NUM1))
+$(error )
+endif
+
+if "abcd" != ${$(STR2)$(NUM1)}
+$(error )
+endif
+
+if "abcd" != ${${STR2}${NUM1}}
+$(error )
+endif
+
+if ${${STR2}${NUM1}} != \'abcd\'
+$(error )
+endif
+
+if "${${STR2}${NUM1}}" != \'abcd\'
+$(error )
+endif
+
+
+',
+'',
+'');
 
 
 
-all_recursive:
-	$(ECHO) "if works fine"
+# Indicate that we're done.
+1;
+
 

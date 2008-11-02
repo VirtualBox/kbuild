@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 2022 2008-11-02 02:15:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -1881,15 +1881,15 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
             char    achPars[20];
             int     iPar = -1;
             char    chEndPar = '\0';
-            char    ch;
+            char    ch, ch2;
 
             pszStart = psz;
             while ((ch = *psz) != '\0')
             {
                 /* $(adsf) or ${asdf} needs special handling. */
                 if (    ch == '$'
-                    &&  (   psz[1] == '('
-                         || psz[1] == '{'))
+                    &&  (   (ch2 = psz[1]) == '('
+                         || ch2 == '{'))
                 {
                     psz++;
                     if (iPar > (int)(sizeof(achPars) / sizeof(achPars[0])))
@@ -1898,7 +1898,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
                         rc = kExprRet_Error;
                         break;
                     }
-                    achPars[++iPar] = chEndPar = ch == '(' ? ')' : '}';
+                    achPars[++iPar] = chEndPar = ch2 == '(' ? ')' : '}';
                 }
                 else if (ch == chEndPar)
                 {
