@@ -1,3 +1,29 @@
+/* $Id: $ */
+/** @file
+ * Test program for some NtQueryInformationFile functionality.
+ */
+
+/*
+ * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ *
+ * This file is part of kBuild.
+ *
+ * kBuild is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * kBuild is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+ *
+ */
+
+
 
 #include <stdio.h>
 #include <Windows.h>
@@ -52,7 +78,7 @@ typedef struct _FILE_NAME_INFORMATION
 
 typedef LONG NTSTATUS;
 
-typedef struct _IO_STATUS_BLOCK 
+typedef struct _IO_STATUS_BLOCK
 {
     union
     {
@@ -62,11 +88,11 @@ typedef struct _IO_STATUS_BLOCK
     ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
-NTSYSAPI 
+NTSYSAPI
 NTSTATUS
 NTAPI
-NtQueryInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation, 
-                       ULONG Length, FILE_INFORMATION_CLASS FileInformationClass); 
+NtQueryInformationFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,
+                       ULONG Length, FILE_INFORMATION_CLASS FileInformationClass);
 
 
 
@@ -75,8 +101,8 @@ int main(int argc, char **argv)
     int rc = 0;
     int i;
 
-    NTSTATUS (NTAPI *pfnNtQueryInformationFile)(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,  
-                                                ULONG Length, FILE_INFORMATION_CLASS FileInformationClass); 
+    NTSTATUS (NTAPI *pfnNtQueryInformationFile)(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,
+                                                ULONG Length, FILE_INFORMATION_CLASS FileInformationClass);
 
     pfnNtQueryInformationFile = GetProcAddress(LoadLibrary("ntdll.dll"), "NtQueryInformationFile");
 
@@ -103,9 +129,9 @@ int main(int argc, char **argv)
                 PFILE_NAME_INFORMATION pFileNameInfo = (PFILE_NAME_INFORMATION)abBuf;
                 printf("#%d: %s - rcNt=%#x - FileNameInformation:\n"
                        "        FileName: %ls\n"
-                       "  FileNameLength: %lu\n", 
-                       i, argv[i], rcNt, 
-                       pFileNameInfo->FileName, 
+                       "  FileNameLength: %lu\n",
+                       i, argv[i], rcNt,
+                       pFileNameInfo->FileName,
                        pFileNameInfo->FileNameLength
                        );
             }
@@ -122,3 +148,4 @@ int main(int argc, char **argv)
     }
     return rc;
 }
+

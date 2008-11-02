@@ -1,8 +1,11 @@
-/* $Id: startuphacks-win.c 1106 2007-09-23 04:20:22Z knut.osmundsen@oracle.com $ */
+/* $Id: startuphacks-win.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * kBuild - Alternative argument parser for the windows startup code.
  *
+ * @todo Update license when SED is updated.
+ */
+
+/*
  * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
  *
  * parse_args(): Copyright (c) 1992-1998 by Eberhard Mattes
@@ -25,7 +28,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
 
 /*******************************************************************************
 *   Header Files                                                               *

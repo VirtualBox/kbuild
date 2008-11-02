@@ -1,16 +1,16 @@
-/* $Id: kDep.c 1733 2008-09-05 04:35:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * kDep - Common Dependency Managemnt Code.
- *
- * Copyright (c) 2004-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ */
+
+/*
+ * Copyright (c) 2004-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
  * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * kBuild is distributed in the hope that it will be useful,
@@ -19,11 +19,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with kBuild; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
-
 
 /*******************************************************************************
 *   Header Files                                                               *
@@ -327,7 +325,7 @@ PDEP depAdd(const char *pszFilename, size_t cchFilename)
     pDep = (PDEP)malloc(sizeof(*pDep) + cchFilename);
     if (!pDep)
     {
-        fprintf(stderr, "\nOut of memory! (requested %lx bytes)\n\n", 
+        fprintf(stderr, "\nOut of memory! (requested %lx bytes)\n\n",
                 (unsigned long)(sizeof(*pDep) + cchFilename));
         exit(1);
     }

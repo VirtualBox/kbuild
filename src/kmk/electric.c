@@ -1,24 +1,25 @@
-/* $Id: electric.c 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * A simple electric heap implementation.
+ */
+
+/*
+ * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * This file is part of kBuild.
  *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation; either version 2 of the License, or
+ * kBuild is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * kBuild is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with This program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * You should have received a copy of the GNU General Public License
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
 
