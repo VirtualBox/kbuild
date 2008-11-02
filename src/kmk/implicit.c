@@ -558,7 +558,11 @@ pattern_search (struct file *file, int archive,
                          value.  */
                       if (!file_variables_set)
                         {
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+                          set_file_variables (file, 0 /* real call */);
+#else
                           set_file_variables (file);
+#endif
                           file_variables_set = 1;
                         }
 

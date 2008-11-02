@@ -661,7 +661,11 @@ expand_deps (struct file *f)
           if (d->stem != 0)
             f->stem = d->stem;
 
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+          set_file_variables (f, 0 /* real call, f->deps == 0 so we're ok. */);
+#else
           set_file_variables (f);
+#endif
 
 #if !defined (CONFIG_WITH_VALUE_LENGTH) || !defined (CONFIG_WITH_STRCACHE2)
           p = variable_expand_for_file (d->name, f);

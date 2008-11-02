@@ -1186,6 +1186,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_MATH) \
   && defined (CONFIG_WITH_XARGS) \
   && defined (CONFIG_WITH_EXPLICIT_MULTITARGET) \
+  && defined (CONFIG_WITH_DOT_MUST_MAKE) \
   && defined (CONFIG_WITH_PREPEND_ASSIGNMENT) \
   && defined (CONFIG_WITH_SET_CONDITIONALS) \
   && defined (CONFIG_WITH_DATE) \
@@ -1206,6 +1207,7 @@ define_automatic_variables (void)
                           " math-int"
                           " xargs"
                           " explicit-multitarget"
+                          " dot-must-make"
                           " prepend-assignment"
                           " set-conditionals intersects"
                           " date"
@@ -1246,6 +1248,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_EXPLICIT_MULTITARGET)
   strcat (buf, " explicit-multitarget");
+#  endif
+#  if defined (CONFIG_WITH_DOT_MUST_MAKE)
+  strcat (buf, " dot-must-make");
 #  endif
 #  if defined (CONFIG_WITH_PREPEND_ASSIGNMENT)
   strcat (buf, " prepend-assignment");

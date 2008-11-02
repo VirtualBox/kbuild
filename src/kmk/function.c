@@ -4354,8 +4354,8 @@ func_commands (char *o, char **argv, const char *funcname)
           cmd_sep_len = strlen (cmd_sep);
         }
 
-      initialize_file_variables (file, 1 /* reading - FIXME: we don't know? */);
-      set_file_variables (file); /* FIXME: this must *NOT* be done twice! */
+      initialize_file_variables (file, 1 /* don't search for pattern vars */);
+      set_file_variables (file, 1 /* early call */);
       chop_commands (cmds);
 
       for (i = 0; i < cmds->ncommand_lines; i++)
