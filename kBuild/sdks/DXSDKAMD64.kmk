@@ -1,11 +1,10 @@
-# $Id: DXSDKAMD64.kmk 1547 2008-04-22 02:02:09Z knut.osmundsen@oracle.com $
+# $Id: DXSDKAMD64.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Direct X SDK, targeting AMD64.
 #
 
 #
 # Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
-#
 #
 # This file is part of kBuild.
 #
@@ -25,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #

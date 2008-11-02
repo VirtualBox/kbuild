@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 1774 2008-09-08 15:43:37Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -23,6 +23,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
+#
+#
+
 
 ifdef UNIT_qt4
  $(error kBuild: The qt4 unit was included twice!)

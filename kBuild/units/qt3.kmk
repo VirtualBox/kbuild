@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 1771 2008-09-08 02:07:02Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -23,6 +23,14 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+# As a special exception you are granted permission to include this file, via
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
+# This exception does not however invalidate any other reasons why the makefile,
+# program, whatever should not be covered the GPL.
+#
+#
+
 
 ifdef UNIT_qt3
  $(error kBuild: The qt3 unit was included twice!)
@@ -223,9 +231,9 @@ ifndef PATH_TOOL_QT3_BIN
     	/usr/share/qt3/bin/qm2ts$(TOOL_QT3_BIN_SUFF) \
     	)))
    ifeq ($(PATH_TOOL_QT3_BIN),)
-    # If we couldn't find the qt3 specific tool qm2ts, debian and other skip 
+    # If we couldn't find the qt3 specific tool qm2ts, debian and other skip
     # this (thanks a bundle). Try with look for 'moc' with a '-qt3' extension,
-    # then for just moc. In the latter case don't search /usr[/local]/bin to 
+    # then for just moc. In the latter case don't search /usr[/local]/bin to
     # void finding the qt4 tools and messing up.
     ifeq ($(TOOL_QT3_BIN_SUFF),)
      PATH_TOOL_QT3_BIN := $(patsubst %/moc-qt3,%,$(firstword $(wildcard \
