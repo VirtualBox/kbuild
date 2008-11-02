@@ -64,6 +64,9 @@ static int update_file (struct file *file, unsigned int depth);
 static int update_file_1 (struct file *file, unsigned int depth);
 static int check_dep (struct file *file, unsigned int depth,
                       FILE_TIMESTAMP this_mtime, int *must_make_ptr);
+#ifdef CONFIG_WITH_DOT_MUST_MAKE
+static int call_must_make_target_var (struct file *file);
+#endif
 static int touch_file (struct file *file);
 static void remake_file (struct file *file);
 static FILE_TIMESTAMP name_mtime (const char *name);
@@ -507,7 +510,8 @@ update_file_1 (struct file *file, unsigned int depth)
   /* Update all non-intermediate files we depend on, if necessary,
      and see whether any of them is more recent than this file.
      For explicit multitarget rules we must iterate all the output
-     files to get the correct picture. */
+     files to get the correct picture.  The special .MUST_MAKE
+     target variable call is also done from this context.  */
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   for (f2 = file; f2; f2 = f2->multi_next)
@@ -613,6 +617,18 @@ update_file_1 (struct file *file, unsigned int depth)
           lastd = d;
           d = d->next;
         }
+
+#ifdef CONFIG_WITH_DOT_MUST_MAKE
+      /* Check with the .MUST_MAKE target variable if it's
+         not already decided to make the file.  */
+      if (!must_make)
+# ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+        must_make = call_must_make_target_var (f2);
+# else
+        must_make = call_must_make_target_var (file);
+# endif
+#endif
+
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
       if (dep_status != 0 && !keep_going_flag)
         break;
@@ -880,6 +896,52 @@ update_file_1 (struct file *file, unsigned int depth)
   file->updated = 1;
   return file->update_status;
 }
+#ifdef CONFIG_WITH_DOT_MUST_MAKE
+
+/* Consider the .MUST_MAKE target variable if present.
+
+   Returns 1 if must remake, 0 if not.
+
+   The deal is that .MUST_MAKE returns non-zero if it thinks the target needs
+   updating.  We have to initialize file variables (for the sake of pattern
+   vars) and set the most important file variables before calling (expanding)
+   the .MUST_MAKE variable.
+
+   The file variables keeping the dependency lists, $+, $^, $? and $| are not
+   available at this point because $? depends on things happening after we've
+   decided to make the file.  So, to keep things simple all 4 of them are
+   undefined in this call.  */
+static int
+call_must_make_target_var (struct file *file)
+{
+  struct variable *var;
+  unsigned char ch;
+  const char *str;
+
+  if (file->variables)
+    {
+      var = lookup_variable_in_set (".MUST_MAKE", sizeof (".MUST_MAKE") - 1,
+                                    file->variables->set);
+      if (var)
+        {
+          initialize_file_variables (file, 0);
+          set_file_variables (file, 1 /* called early, no dep lists please */);
+
+          str = variable_expand_for_file_2 (NULL,
+                                            var->value, var->value_length,
+                                            file, NULL);
+
+          /* stripped string should be non-zero.  */
+          do
+            ch = *str++;
+          while (isspace (ch));
+
+          return (ch != '\0');
+        }
+    }
+  return 0;
+}
+#endif /* CONFIG_WITH_DOT_MUST_MAKE */
 
 /* Set FILE's `updated' flag and re-check its mtime and the mtime's of all
    files listed in its `also_make' member.  Under -t, this function also

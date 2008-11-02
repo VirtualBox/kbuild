@@ -45,7 +45,11 @@ int getpid ();
 /* Set FILE's automatic variables up.  */
 
 void
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+set_file_variables (struct file *file, int called_early)
+#else
 set_file_variables (struct file *file)
+#endif
 {
   const struct dep *d;
   const char *at, *percent, *star, *less;
@@ -180,6 +184,13 @@ set_file_variables (struct file *file)
   else
     DEFINE_VARIABLE ("%", 1, percent);
 #endif /* CONFIG_WITH_RDONLY_VARIABLE_VALUE */
+
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+  /* The $^, $+, $? and $| variables should not be set if we're called
+     early by a .MUST_MAKE invocation or $(commands ).  */
+  if (called_early)
+    return;
+#endif
 
   /* Compute the values for $^, $+, $?, and $|.  */
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
@@ -496,7 +507,11 @@ execute_file_commands (struct file *file)
 
   initialize_file_variables (file, 0);
 
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+  set_file_variables (file, 0 /* final call */);
+#else
   set_file_variables (file);
+#endif
 
   /* Start the commands running.  */
   new_job (file);

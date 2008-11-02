@@ -41,7 +41,7 @@ struct commands
 #ifdef CONFIG_WITH_EXTENDED_NOTPARALLEL
 # define COMMANDS_NOTPARALLEL   32  /* kmk: The commands must be executed alone. */
 # define COMMANDS_NO_COMMANDS   64  /* kmk: No commands. */
-#endif 
+#endif
 #ifdef CONFIG_WITH_KMK_BUILTIN
 # define COMMANDS_KMK_BUILTIN   128 /* kmk: kmk builtin command. */
 #endif
@@ -53,4 +53,8 @@ void execute_file_commands (struct file *file);
 void print_commands (const struct commands *cmds);
 void delete_child_targets (struct child *child);
 void chop_commands (struct commands *cmds);
+#if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
+void set_file_variables (struct file *file, int called_early);
+#else
 void set_file_variables (struct file *file);
+#endif

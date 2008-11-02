@@ -1,0 +1,81 @@
+# $Id: must_make 2024 2008-11-02 05:43:17Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# .MUST_MAKE target variable.
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the .MUST_MAKE target variable";
+
+$details = "The .MUST_MAKE target variable is expanded when make is deciding
+whether a file needs to be made or not.  If it returns a non-empty string,
+when stripped, it will force the file to be made.  If it returns an empty
+string GNU make decides the normal way.  Note that .MUST_MAKE does NOT have
+to be expanded if make already knows the file needs building.  Also, note
+that for multi target rules it may be invoked for each file.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check to see that it gets called and is made.
+   # -------------------------------------------------------
+   &touch('foobar.1');
+   run_make_test('
+
+foobar.1: .MUST_MAKE = $(info mustmake:{@=$@,<=$<})FORCE
+foobar.1: ;touch $@
+',
+'',
+'mustmake:{@=foobar.1,<=}
+touch foobar.1'
+);
+   unlink('foobar.1');
+
+   # TEST #1 - check to see that it gets called and isn't made.
+   # ----------------------------------------------------------
+   &touch('foobar.1');
+   run_make_test('
+
+foobar.1: .MUST_MAKE = $(info mustmake:{@=$@,<=$<})
+foobar.1: ;touch $@
+',
+'',
+'mustmake:{@=foobar.1,<=}
+#MAKE#: `foobar.1\' is up to date.'
+);
+   unlink('foobar.1');
+
+   # TEST #2 - check to see that it doesn't get called unnecessary.
+   # --------------------------------------------------------------
+   run_make_test('
+foobar.1: .MUST_MAKE = $(info mustmake:{@=$@,<=$})FORCE
+foobar.1: ;@echo making $@
+',
+'',
+'making foobar.1');
+
+}
+
+
+
+# Indicate that we're done.
+1;
+
+
