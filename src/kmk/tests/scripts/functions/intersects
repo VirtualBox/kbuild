@@ -1,0 +1,94 @@
+# $Id: intersects 2021 2008-11-02 01:18:47Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(intersects set-a,set-b)
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(intersecs ) predicate function";
+
+$details = "A few simple tests, nothing spectacular.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(intersects a b c d e f, a),1)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+ifneq ($(intersects a b c d e f, f),1)
+$(error sub-test 0 failed)
+endif
+ifneq ($(intersects a b c d e f, f),1)
+$(error sub-test 1 failed)
+endif
+ifneq ($(intersects a b c d e f, d),1)
+$(error sub-test 2 failed)
+endif
+ifneq ($(intersects b c d e f, a),)
+$(error sub-test 3 failed)
+endif
+ifneq ($(intersects a b c d e f, a b c d e f),1)
+$(error sub-test 4 failed)
+endif
+ifneq ($(intersects a b c d e f, f e d c b a),1)
+$(error sub-test 5 failed)
+endif
+ifneq ($(intersects f e d c b a, a b c d e f),1)
+$(error sub-test 6 failed)
+endif
+
+SET-A = make foo bar
+SET-B = $(SET-A)
+ifeq ($(intersects $(SET-A),$(SET-B)),)
+$(error sub-test 7 failed)
+endif
+SET-B = foo
+ifeq ($(intersects $(SET-A),$(SET-B)),)
+$(error sub-test 8 failed)
+endif
+SET-B = foobar
+ifneq ($(intersects $(SET-A),$(SET-B)),)
+$(error sub-test 9 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+}
+
+
+
+# Indicate that we're done.
+1;
+

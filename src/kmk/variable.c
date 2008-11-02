@@ -1207,7 +1207,7 @@ define_automatic_variables (void)
                           " xargs"
                           " explicit-multitarget"
                           " prepend-assignment"
-                          " set-conditionals"
+                          " set-conditionals intersects"
                           " date"
                           " file-size"
                           " expr if-expr"
@@ -1251,7 +1251,7 @@ define_automatic_variables (void)
   strcat (buf, " prepend-assignment");
 #  endif
 #  if defined (CONFIG_WITH_SET_CONDITIONALS)
-  strcat (buf, " set-conditionals");
+  strcat (buf, " set-conditionals intersects");
 #  endif
 #  if defined (CONFIG_WITH_DATE)
   strcat (buf, " date");
