@@ -2261,7 +2261,7 @@ func_not (char *o, char **argv, const char *funcname)
 
 /* Implements $^ and $+.
 
-   The first is somes with with FUNCNAME 'dep', the second as 'dep-all'.
+   The first is somes with with FUNCNAME 'deps', the second as 'deps-all'.
 
    If no second argument is given, or if it's empty, or if it's zero,
    all dependencies will be returned.  If the second argument is non-zero
