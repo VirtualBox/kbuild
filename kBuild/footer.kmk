@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2026 2008-11-02 06:29:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1992,15 +1992,24 @@ endif
 
 ## wrapper the compile command dependency check.
 ifndef NO_COMPILE_CMDS_DEPS
- _DEP_COMPILE_CMDS = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $(obj)),FORCE)
+ if1of ($(KMK_FEATURES),dot-must-make)
+  _DEP_COMPILE_CMDS =
+  # for debugging:  $$(warning MUST_MAKE=$$$$(comp-cmds-ex $$$$($(target)_$(subst :,_,$(source))_CMDS_PREV_), $$$$(commands $$@)) -> $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $$@),FORCE))
+ else
+  _DEP_COMPILE_CMDS = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $(obj)),FORCE)
+ endif
 else
  _DEP_COMPILE_CMDS =
 endif
+
 
 ## Generates the rules for building a specific object, and the aliases
 # for building a source file.
 # @param    $(obj)    The object file.
 define def_target_source_rule
+ifndef NO_COMPILE_CMDS_DEPS
+$(obj): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $$@),FORCE)
+endif
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
@@ -2042,7 +2051,11 @@ $(eval-opt-var def_target_source_rule)
 
 ## wrapper the link command dependency check.
 ifndef NO_LINK_CMDS_DEPS
- _DEP_LINK_CMDS = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $(out)),FORCE)
+ if1of ($(KMK_FEATURES),dot-must-make)
+  _DEP_LINK_CMDS =
+ else
+  _DEP_LINK_CMDS = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $(out)),FORCE)
+ endif
 else
  _DEP_LINK_CMDS =
 endif
@@ -2059,6 +2072,9 @@ endif
 # @param    $(cmds)                 The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
+ifndef NO_LINK_CMDS_DEPS
+$(out): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $$@),FORCE)
+endif
 $(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
 		$$$$($(target)_DEPEND_) \
 		$(value _DEP_LINK_CMDS) \
