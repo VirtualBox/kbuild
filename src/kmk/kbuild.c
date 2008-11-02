@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2020 2008-11-02 00:52:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -1948,6 +1948,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
     struct variable *pDefs, *pIncs, *pFlags, *pDeps, *pOrderDeps, *pDirDep, *pDep, *pVar, *pOutput, *pOutputMaybe;
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
+    int fInstallOldVars = 0;
     char *pszDstVar, *pszDst, *pszSrcVar, *pszSrc, *pszVal, *psz;
     char *pszSavedVarBuf;
     unsigned cchSavedVarBuf;
@@ -2060,6 +2061,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     $(target)_$(source)_DEPORD_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPORD) $(dirdep)
     */
     cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_OUTPUT_MAYBE");
+    if (cch < pTarget->value_length + sizeof("$(_2_OBJS)"))
+        cch = pTarget->value_length + sizeof("$(_2_OBJS)");
     psz = pszSrcVar = alloca(cch);
     memcpy(psz, "TOOL_", sizeof("TOOL_") - 1);          psz += sizeof("TOOL_") - 1;
     memcpy(psz, pTool->value, pTool->value_length);     psz += pTool->value_length;
@@ -2131,10 +2134,11 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         append_string_to_variable(pVar, pOutputMaybe->value, pOutputMaybe->value_length, 1 /* append */);
 
     /*
-    $(target)_OBJS_ += $(obj)
+    $(target)_2_OBJS += $(obj)
     */
-    memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
-    pVar = kbuild_query_recursive_variable_n(pszDstVar, pTarget->value_length + sizeof("_OBJS_") - 1);
+    memcpy(pszDstVar + pTarget->value_length, "_2_OBJS", sizeof("_2_OBJS"));
+    pVar = kbuild_query_recursive_variable_n(pszDstVar, pTarget->value_length + sizeof("_2_OBJS") - 1);
+    fInstallOldVars |= iVer <= 2 && (!pVar || !pVar->value_length);
     if (pVar)
     {
         if (pVar->recursive)
@@ -2142,12 +2146,34 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         append_string_to_variable(pVar, pObj->value, pObj->value_length, 1 /* append */);
     }
     else
-        define_variable_vl_global(pszDstVar, pTarget->value_length + sizeof("_OBJS_") - 1,
+        define_variable_vl_global(pszDstVar, pTarget->value_length + sizeof("_2_OBJS") - 1,
                                   pObj->value, pObj->value_length,
                                   1 /* duplicate_value */,
                                   o_file,
                                   0 /* recursive */,
                                   NULL /* flocp */);
+
+    /*
+     * Install legacy variables.
+     */
+    if (fInstallOldVars)
+    {
+        /* $(target)_OBJS_ = $($(target)_2_OBJS)*/
+        memcpy(pszDstVar + pTarget->value_length, "_OBJS_", sizeof("_OBJS_"));
+
+        pszSrcVar[0] = '$';
+        pszSrcVar[1] = '(';
+        memcpy(pszSrcVar + 2, pTarget->value, pTarget->value_length);
+        psz = pszSrcVar + 2 + pTarget->value_length;
+        memcpy(psz, "_2_OBJS)", sizeof("_2_OBJS)"));
+
+        define_variable_vl_global(pszDstVar, pTarget->value_length + sizeof("_OBJS_") - 1,
+                                  pszSrcVar, pTarget->value_length + sizeof("$(_2_OBJS)") - 1,
+                                  1 /* duplicate_value */,
+                                  o_file,
+                                  1 /* recursive */,
+                                  NULL /* flocp */);
+    }
 
     /*
     $(eval $(def_target_source_rule))
