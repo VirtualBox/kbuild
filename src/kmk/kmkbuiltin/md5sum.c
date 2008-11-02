@@ -1,16 +1,16 @@
-/* $Id: md5sum.c 1393 2008-03-07 02:05:46Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
 
 /*
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
  * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * kBuild is distributed in the hope that it will be useful,
@@ -19,11 +19,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with kBuild; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
 
+/*******************************************************************************
+*   Header Files                                                               *
+*******************************************************************************/
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -558,7 +560,7 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
  * @param   fText           The mode to open the file in.
  * @param   fQuiet          Whether to be quiet or verbose about errors.
  * @param   fProgress       Whether to show an progress indicator on large files.
- * @param   pOutput         Where to write the list. Progress is always written to stdout. 
+ * @param   pOutput         Where to write the list. Progress is always written to stdout.
  */
 static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet, unsigned fProgress, FILE *pOutput)
 {

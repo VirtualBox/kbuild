@@ -1,24 +1,25 @@
-/* $Id: kdev.e 1647 2008-06-02 11:58:46Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
-/**
+/* $Id: kdev.e 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/** @file
  * Visual SlickEdit Documentation Macros.
  */
 
 /*
- * Copyright (c) 1999-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+ * Copyright (c) 1999-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
- * This program is free software; you can redistribute it and/or modify
+ * This file is part of kBuild.
+ *
+ * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * kBuild is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with This program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
 
@@ -99,7 +100,7 @@ static _str skUserEmail     = "bird-src-spam@anduin.net";
 *******************************************************************************/
 static _str     skCodeStyle     = 'Opt2Ind4'; /* coding style scheme. */
 static _str     skDocStyle      = 'javadoc';/* options: javadoc, */
-static _str     skLicense       = 'GPL';    /* options: GPL, LGPL, Odin32, Confidential */
+static _str     skLicense       = 'GPLv3';  /* options: GPL, LGPL, Odin32, Confidential, ++ */
 static _str     skCompany       = '';       /* empty or company name for copyright */
 static _str     skProgram       = '';       /* Current program name - used by [L]GPL */
 static _str     skChange        = '';       /* Current change identifier. */
@@ -1247,28 +1248,20 @@ void k_javadoc_moduleheader()
     int iCursorLine;
     int fSplit = 0;
 
+    _insert_text("\n");
+    up();
     _begin_line();
     k_insert_comment('$':+'I':+'d: $', KIC_CURSOR_AT_END, -1);
     _end_line();
     _insert_text("\n");
 
     k_javadoc_box_start('@file');
-    //if (1)
-    //{
-        fSplit = 1;
-        iCursorLine = p_RLine;
-        k_javadoc_box_line();
-        k_javadoc_box_end();
-        _insert_text("\n");
-        _insert_text(k_comment() "\n");
-    //}
-    //else
-    //{
-    //    k_javadoc_box_line();
-    //    iCursorLine = p_RLine;
-    //    k_javadoc_box_line();
-    //    k_javadoc_box_line();
-    //}
+    fSplit = 1;
+    iCursorLine = p_RLine;
+    k_javadoc_box_line();
+    k_javadoc_box_end();
+    _insert_text("\n");
+    _insert_text(k_comment() "\n");
 
     if (skLicense == 'Confidential')
     {
@@ -1290,6 +1283,7 @@ void k_javadoc_moduleheader()
     else
         k_javadoc_box_line('Copyright (c) ' k_year() ' 'skUserName' <' skUserEmail '>');
     k_javadoc_box_line();
+    _str sProg = skProgram;
     switch (skLicense)
     {
         case 'Odin32':
@@ -1297,7 +1291,6 @@ void k_javadoc_moduleheader()
             break;
 
         case 'GPL':
-            _str sProg = skProgram;
             if (!fSplit)
                 k_javadoc_box_line();
             if (sProg == '')
@@ -1323,7 +1316,6 @@ void k_javadoc_moduleheader()
             break;
 
         case 'LGPL':
-            sProg = skProgram;
             if (!fSplit)
                 k_javadoc_box_line();
             if (sProg == '')
@@ -1348,7 +1340,60 @@ void k_javadoc_moduleheader()
             k_javadoc_box_line('Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA');
             break;
 
+        case 'GPLv3':
+            if (!fSplit)
+                k_javadoc_box_line();
+            if (sProg == '')
+                sProg = 'This program';
+            else
+            {
+                k_javadoc_box_line('This file is part of ' sProg '.');
+                k_javadoc_box_line();
+            }
+            k_javadoc_box_line(sProg ' is free software; you can redistribute it and/or modify');
+            k_javadoc_box_line('it under the terms of the GNU General Public License as published by');
+            k_javadoc_box_line('the Free Software Foundation; either version 3 of the License, or');
+            k_javadoc_box_line('(at your option) any later version.');
+            k_javadoc_box_line();
+            k_javadoc_box_line(sProg ' is distributed in the hope that it will be useful,');
+            k_javadoc_box_line('but WITHOUT ANY WARRANTY; without even the implied warranty of');
+            k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
+            k_javadoc_box_line('GNU General Public License for more details.');
+            k_javadoc_box_line();
+            k_javadoc_box_line('You should have received a copy of the GNU General Public License');
+            k_javadoc_box_line('along with ' sProg '.  If not, see <http://www.gnu.org/licenses/>');
+            break;
+
+        case 'LGPLv3':
+            if (!fSplit)
+                k_javadoc_box_line();
+            if (sProg == '')
+                sProg = 'This program';
+            else
+            {
+                k_javadoc_box_line('This file is part of ' sProg '.');
+                k_javadoc_box_line();
+            }
+            k_javadoc_box_line(sProg ' is free software; you can redistribute it and/or');
+            k_javadoc_box_line('modify it under the terms of the GNU Lesser General Public');
+            k_javadoc_box_line('License as published by the Free Software Foundation; either');
+            k_javadoc_box_line('version 3 of the License, or (at your option) any later version.');
+            k_javadoc_box_line();
+            k_javadoc_box_line(sProg ' is distributed in the hope that it will be useful,');
+            k_javadoc_box_line('but WITHOUT ANY WARRANTY; without even the implied warranty of');
+            k_javadoc_box_line('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the');
+            k_javadoc_box_line('GNU Lesser General Public License for more details.');
+            k_javadoc_box_line();
+            k_javadoc_box_line('You should have received a copy of the GNU Lesser General Public License');
+            k_javadoc_box_line('along with ' sProg '.  If not, see <http://www.gnu.org/licenses/>');
+            break;
+
         case 'Confidential':
+            k_javadoc_box_line('All Rights Reserved');
+            break;
+
+        case 'ConfidentialNoAuthor':
+            k_javadoc_box_line(skCompany ' confidential');
             k_javadoc_box_line('All Rights Reserved');
             break;
 
@@ -2928,9 +2973,12 @@ static k_menu_create()
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Odin32",              "k_menu_license Odin32",        "Odin32");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&GPL",                 "k_menu_license GPL",           "GPL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&LGPL",                "k_menu_license LGPL",          "LGPL");
+    rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&GPLv3",               "k_menu_license GPLv3",         "GPLv3");
+    rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&LGPLv3",              "k_menu_license LGPLv3",        "LGPLv3");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&VirtualBox",          "k_menu_license VirtualBox",    "VirtualBox");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&VirtualBox GPL And CDDL","k_menu_license VirtualBoxGPLAndCDDL", "VirtualBoxGPLAndCDDL");
     rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Confidential",        "k_menu_license Confidential",  "Confidential");
+    rc   = _menu_insert(mhLic,   -1, MF_ENABLED | MF_UNCHECKED, "&Confidential No Author", "k_menu_license ConfidentialNoAuthor",  "ConfidentialNoAuthor");
 
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash vars");
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, skChange  == '' ? '&Change...'  : '&Change (' skChange ')...',   "k_menu_change", "");
@@ -2941,12 +2989,12 @@ static k_menu_create()
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, 'User &Initials (' skUserInitials ')...',  "k_menu_user_initials", "userinitials");
     rc   = _menu_insert(mhkDev,  -1, MF_ENABLED, "-", "", "dash preset");
     mhPre= _menu_insert(mhkDev,  -1, MF_SUBMENU, "P&resets", "", "");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "The Bird",    "k_menu_preset javadoc, GPL, Opt2Ind4",                 "bird");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLIBC",       "k_menu_preset javadoc, GPL, Opt2Ind4,, kLIBC",         "kLIBC");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kBuild",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kBuild",        "kBuild");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kStuff",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kStuff",        "kStuff");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "sun",         "k_menu_preset javadoc, Confidential, Opt2Ind4, sun",   "sun");
-    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, sun",     "VirtualBox");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "The Bird",    "k_menu_preset javadoc, GPL, Opt2Ind4",                         "bird");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kLIBC",       "k_menu_preset javadoc, GPL, Opt2Ind4,, kLIBC",                 "kLIBC");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kBuild",      "k_menu_preset javadoc, GPLv3, Opt2Ind4,, kBuild",              "kBuild");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "kStuff",      "k_menu_preset javadoc, GPL, Opt2Ind4,, kStuff",                "kStuff");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "sun",         "k_menu_preset javadoc, ConfidentialNoAuthor, Opt2Ind4, sun",   "sun");
+    rc   = _menu_insert(mhPre,   -1, MF_ENABLED, "VirtualBox",  "k_menu_preset javadoc, VirtualBox, Opt2Ind4, sun",             "VirtualBox");
 
     k_menu_doc_style();
     k_menu_license();
@@ -3052,6 +3100,7 @@ _command void k_menu_doc_style(_str sNewDocStyle = '')
         skDocStyle = sNewDocStyle
     _menu_set_state(mhDoc, "javadoc",   MF_UNCHECKED);
     _menu_set_state(mhDoc, "linux",     MF_UNCHECKED | MF_GRAYED);
+
     _menu_set_state(mhDoc, skDocStyle,  MF_CHECKED);
 }
 
@@ -3067,7 +3116,13 @@ _command void k_menu_license(_str sNewLicense = '')
     _menu_set_state(mhLic, "Odin32",        MF_UNCHECKED);
     _menu_set_state(mhLic, "GPL",           MF_UNCHECKED);
     _menu_set_state(mhLic, "LGPL",          MF_UNCHECKED);
+    _menu_set_state(mhLic, "GPLv3",         MF_UNCHECKED);
+    _menu_set_state(mhLic, "LGPLv3",        MF_UNCHECKED);
+    _menu_set_state(mhLic, "VirtualBox",    MF_UNCHECKED);
+    _menu_set_state(mhLic, "VirtualBoxGPLAndCDDL", MF_UNCHECKED);
     _menu_set_state(mhLic, "Confidential",  MF_UNCHECKED);
+    _menu_set_state(mhLic, "ConfidentialNoAuthor", MF_UNCHECKED);
+
     _menu_set_state(mhLic, skLicense,       MF_CHECKED);
 }
 

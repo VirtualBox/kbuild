@@ -1,16 +1,16 @@
-# $Id: testcase-ifcond.kmk 1729 2008-09-05 03:50:10Z knut.osmundsen@oracle.com $
+# $Id: testcase-ifcond.kmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the if conditionals.
 #
 
 #
-# Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
 # kBuild is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
+# the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
 #
 # kBuild is distributed in the hope that it will be useful,
@@ -19,20 +19,18 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with kBuild; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
 #
 #
-
 
 DEPTH = ../..
 include $(KBUILD_PATH)/header.kmk
 
 #
-# Note! The testcase are ordered by ascending operator precedence 
+# Note! The testcase are ordered by ascending operator precedence
 #       with the exception of equal and not-equal because these
 #       are kind of useful for performing tests on non-logical ops.
-# 
+#
 
 #
 # Parenthesis
@@ -300,7 +298,7 @@ $(error )
 endif
 
 if (2 ^ 1) != 3
-$(error ) 
+$(error )
 endif
 
 if 7 != (2 ^ 1 ^ 4)
@@ -431,7 +429,7 @@ endif
 if 'foobar' < 'a$'
 $(error )
 endif
-if hhhh < ggggg 
+if hhhh < ggggg
 $(error )
 endif
 if qwerty < qwerty0
@@ -778,7 +776,7 @@ ifeq ($(if-expr 5+3 == 231,42,500),42)
 $(error )
 endif
 
-$(warning $$(expr ) )  
+$(warning $$(expr ) )
 ifeq ($(expr 5+3),8)
 else
 $(error expr:$(expr 5+3) expected 8)

@@ -1,29 +1,30 @@
-/* $Id: mscfakes.h 1710 2008-09-02 21:50:04Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * Unix fakes for MSC.
+ */
+
+/*
+ * Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
- * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+ * This file is part of kBuild.
  *
- *
- * This program is free software; you can redistribute it and/or modify
+ * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * kBuild is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with This program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
 
-#ifndef __mscfakes_h__
-#define __mscfakes_h__
+#ifndef ___mscfakes_h
+#define ___mscfakes_h
 #ifdef _MSC_VER
 
 #include <io.h>

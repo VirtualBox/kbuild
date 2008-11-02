@@ -1,16 +1,16 @@
-/* $Id: osdep.c 947 2007-05-27 05:54:27Z knut.osmundsen@oracle.com $ */
+/* $Id: osdep.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * Include all the OS dependent bits when bootstrapping.
- *
- * Copyright (c) 2005-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
- *
+ */
+
+/*
+ * Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
  *
  * This file is part of kBuild.
  *
  * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * kBuild is distributed in the hope that it will be useful,
@@ -19,8 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with kBuild; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
 

@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.c 2001 2008-10-29 22:14:48Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -10,7 +10,7 @@
  *
  * kBuild is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * kBuild is distributed in the hope that it will be useful,
@@ -19,11 +19,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with kBuild; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * along with kBuild.  If not, see <http://www.gnu.org/licenses/>
  *
  */
-
 
 /*******************************************************************************
 *   Header Files                                                               *
