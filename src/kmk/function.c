@@ -3694,26 +3694,49 @@ func_expr (char *o, char **argv, const char *funcname UNUSED)
 static char *
 func_if_expr (char *o, char **argv, const char *funcname UNUSED)
 {
-    int rc;
-    char *to_expand;
+  int rc;
+  char *to_expand;
 
-    /* Evaluate the condition in argv[0] and expand the 2nd or
-       3rd argument according to the result. */
-    rc = expr_eval_if_conditionals (argv[0], NULL);
-    to_expand = rc == 0 ? argv[1] : argv[2];
-    if (*to_expand)
-      {
-        char *expansion = expand_argument (to_expand, NULL);
+  /* Evaluate the condition in argv[0] and expand the 2nd or
+     3rd argument according to the result. */
+  rc = expr_eval_if_conditionals (argv[0], NULL);
+  to_expand = rc == 0 ? argv[1] : argv[2];
+  if (*to_expand)
+    {
+      char *expansion = expand_argument (to_expand, NULL);
 
-        o = variable_buffer_output (o, expansion, strlen (expansion));
+      o = variable_buffer_output (o, expansion, strlen (expansion));
 
-        free (expansion);
-      }
+      free (expansion);
+    }
 
-    return o;
+  return o;
 }
 
 #endif /* CONFIG_WITH_IF_CONDITIONALS */
+
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+static char *
+func_set_intersects (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char *s1_cur;
+  unsigned int s1_len;
+  const char *s1_iterator = argv[0];
+
+  while ((s1_cur = find_next_token (&s1_iterator, &s1_len)) != 0)
+    {
+      const char *s2_cur;
+      unsigned int s2_len;
+      const char *s2_iterator = argv[1];
+      while ((s2_cur = find_next_token (&s2_iterator, &s2_len)) != 0)
+        if (s2_len == s1_len
+         && strneq (s2_cur, s1_cur, s1_len) )
+          return variable_buffer_output (o, "1", 1); /* found intersection */
+    }
+
+  return o; /* no intersection */
+}
+#endif /* CONFIG_WITH_SET_CONDITIONALS */
 
 #ifdef CONFIG_WITH_STACK
 
@@ -4599,6 +4622,9 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   { STRING_SIZE_TUPLE("expr"),          1,  1,  0,  func_expr},
   { STRING_SIZE_TUPLE("if-expr"),       2,  3,  0,  func_if_expr},
+#endif
+#ifdef CONFIG_WITH_SET_CONDITIONALS
+  { STRING_SIZE_TUPLE("intersects"),    2,  2,  1,  func_set_intersects},
 #endif
 #ifdef CONFIG_WITH_STACK
   { STRING_SIZE_TUPLE("stack-push"),    2,  2,  1,  func_stack_push},
