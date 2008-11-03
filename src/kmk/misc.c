@@ -1329,13 +1329,42 @@ void print_heap_stats (void)
   malloc_statistics_t s;
 
   malloc_zone_statistics (NULL, &s);
-  printf (_("\n# CRT Heap: %zu bytes in use, in %u block, avg %zu bytes/block\n"),
+  printf (_("\n# CRT Heap: %zu bytes in use, in %u blocks, avg %zu bytes/block\n"),
           s.size_in_use, s.blocks_in_use, s.size_in_use / s.blocks_in_use);
   printf (_("#           %zu bytes max in use (high water mark)\n"),
           s.max_size_in_use);
   printf (_("#           %zu bytes reserved,  %zu bytes free (estimate)\n"),
           s.size_allocated, s.size_allocated - s.size_in_use);
 # endif /* __APPLE__ */
+
+  /* MSC / Windows  */
+# ifdef _MSC_VER
+  unsigned int blocks_used = 0;
+  unsigned int bytes_used = 0;
+  unsigned int blocks_avail = 0;
+  unsigned int bytes_avail = 0;
+  _HEAPINFO hinfo;
+
+  memset (&hinfo, '\0', sizeof (hinfo));
+  while (_heapwalk(&hinfo) == _HEAPOK)
+    {
+      if (hinfo._useflag == _USEDENTRY)
+        {
+          blocks_used++;
+          bytes_used += hinfo._size;
+        }
+      else
+        {
+          blocks_avail++;
+          bytes_avail += hinfo._size;
+        }
+    }
+
+  printf (_("\n# CRT Heap: %u bytes in use, in %u blocks, avg %u bytes/block\n"),
+          bytes_used, blocks_used, bytes_used / blocks_used);
+  printf (_("#           %u bytes avail, in %u blocks, avg %u bytes/block\n"),
+          bytes_avail, blocks_avail, bytes_avail / blocks_avail);
+# endif /* _MSC_VER */
 
   /* Darwin Libc sources indicates that something like this may be
      found in GLIBC, however, it's not in any current one...  */
