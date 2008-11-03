@@ -602,7 +602,7 @@ alloccache_calloc (struct alloccache *cache)
 
 /* Free an item. */
 MY_INLINE void
-alloccache_free (struct alloccache *cache, void *item)
+alloccache_free (struct alloccache *cache, void volatile *item)
 {
   struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
 #if 0 /*ndef NDEBUG*/
