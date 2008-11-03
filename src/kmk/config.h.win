@@ -532,7 +532,7 @@ extern int my_stat(const char *, struct stat *);
 #  include <intrin.h>
 #  pragma intrinsic(_bittest)
 #  pragma intrinsic(_bittestandset)
-#  define space_map_size          8
+#  define space_map_size          32
 #  define set_space_map_entry(ch) _bittestandset((long *)&space_map[0], (unsigned char)(ch))
 #  define isspace(ch)             _bittest((long *)&space_map[0], (unsigned char)(ch))
 # else
