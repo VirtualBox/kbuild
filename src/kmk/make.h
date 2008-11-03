@@ -572,6 +572,7 @@ void alloccache_join (struct alloccache *cache, struct alloccache *eat);
 void alloccache_print (struct alloccache *cache);
 void alloccache_print_all (void);
 struct alloccache_free_ent *alloccache_alloc_grow (struct alloccache *cache);
+void alloccache_free (struct alloccache *cache, void *item);
 
 /* Allocate an item. */
 MY_INLINE void *
@@ -600,30 +601,6 @@ alloccache_calloc (struct alloccache *cache)
   return item;
 }
 
-/* Free an item. */
-MY_INLINE void
-alloccache_free (struct alloccache *cache, void *item)
-{
-  struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
-#if 0 /*ndef NDEBUG*/
-  struct alloccache_free_ent *c;
-  unsigned int i = 0;
-  for (c = cache->free_head; c != NULL; c = c->next, i++)
-    MY_ASSERT_MSG (c != f && i < 0x10000000,
-                   ("i=%u total_count=%u\n", i, cache->total_count));
-#endif
-#ifdef __GNUC__ 
-/* GCC 3.2.3 has been observed having aliasing issues, so, setup a 
-   barrier for it here. */
-# if (__GNUC__ == 3 && __GNUC_PATCHLEVEL__ <= 3) || __GNUC__ < 3
-  __asm__ __volatile__ ("" ::: "memory");
-# endif
-#endif
-
-  f->next = cache->free_head;
-  cache->free_head = f;
-  MAKE_STATS(cache->free_count++;);
-}
 
 /* the alloc caches */
 extern struct alloccache dep_cache;

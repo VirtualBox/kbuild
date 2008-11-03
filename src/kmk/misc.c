@@ -1151,6 +1151,25 @@ close_stdout (void)
 
 #ifdef CONFIG_WITH_ALLOC_CACHES
 
+/* Free am item. 
+   This was not inlined because of aliasing issues arrising with GCC. */
+void
+alloccache_free (struct alloccache *cache, void *item)
+{
+  struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
+#if 0 /*ndef NDEBUG*/
+  struct alloccache_free_ent *c;
+  unsigned int i = 0;
+  for (c = cache->free_head; c != NULL; c = c->next, i++)
+    MY_ASSERT_MSG (c != f && i < 0x10000000,
+                   ("i=%u total_count=%u\n", i, cache->total_count));
+#endif
+
+  f->next = cache->free_head;
+  cache->free_head = f;
+  MAKE_STATS(cache->free_count++;);
+}
+
 /* Default allocator. */
 static void *
 alloccache_default_grow_alloc(void *ignore, unsigned int size)
