@@ -1,4 +1,4 @@
-/* $Id: sleep.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: sleep.c 2046 2008-11-03 13:54:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_sleep - suspend execution for an interval of time.
  */
@@ -67,7 +67,7 @@ static int usage(FILE *pOut,  const char *argv0)
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
-            "Only unsinged integer values are accepted.\n"
+            "Only integer values are accepted.\n"
             ,
             argv0, argv0, argv0, argv0, argv0, argv0, argv0);
     return 1;
