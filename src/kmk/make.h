@@ -604,13 +604,20 @@ alloccache_calloc (struct alloccache *cache)
 MY_INLINE void
 alloccache_free (struct alloccache *cache, void *item)
 {
-  struct alloccache_free_ent *f = (struct alloccache_free_ent *)item; /* aliasing problem :-( */
+  struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
 #if 0 /*ndef NDEBUG*/
   struct alloccache_free_ent *c;
   unsigned int i = 0;
   for (c = cache->free_head; c != NULL; c = c->next, i++)
     MY_ASSERT_MSG (c != f && i < 0x10000000,
                    ("i=%u total_count=%u\n", i, cache->total_count));
+#endif
+#ifdef __GNUC__ 
+/* GCC 3.2.3 has been observed having aliasing issues, so, setup a 
+   barrier for it here. */
+# if (__GNUC__ == 3 && __GNUC_PATCHLEVEL__ <= 3) || __GNUC__ < 3
+  __asm__ __volatile__ ("" ::: "memory");
+# endif
 #endif
 
   f->next = cache->free_head;

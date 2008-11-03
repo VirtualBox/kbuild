@@ -1102,7 +1102,6 @@ eval (struct ebuffer *ebuf, int set_default)
 	      free (files);
 #else
 	      alloccache_free (&nameseq_cache, files);
-              files = 0;
 #endif
 	      files = next;
 
