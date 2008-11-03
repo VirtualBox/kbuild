@@ -2036,6 +2036,9 @@ do_variable_definition_2 (const struct floc *flocp,
           if (find_and_set_default_shell (alloc_value))
             {
               v = define_variable_in_set (varname, varname_len, p,
+#ifdef CONFIG_WITH_VALUE_LENGTH
+                                          ~0U, 1 /* duplicate_value */,
+#endif
                                           origin, flavor == f_recursive,
                                           (target_var
                                            ? current_variable_set_list->set
