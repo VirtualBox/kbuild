@@ -656,6 +656,9 @@ delete_target (struct file *file, const char *on_behalf_of)
 
   if (file->precious || file->phony)
     return;
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  assert (!file->multi_maybe);
+#endif
 
 #ifndef NO_ARCHIVES
   if (ar_name (file->name))
@@ -709,6 +712,19 @@ delete_child_targets (struct child *child)
   /* Also remove any non-precious targets listed in the `also_make' member.  */
   for (d = child->file->also_make; d != 0; d = d->next)
     delete_target (d->file, child->file->name);
+
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  /* Also remove any multi target siblings, except for the 'maybe' ones (we
+     handle that here) and precious ones (delete_target deals with that).
+     Note that CHILD is always the multi target head (see remake.c).  */
+  if (child->file == child->file->multi_head)
+    {
+      struct file *f2;
+      for (f2 = child->file->multi_next; f2; f2 = f2->multi_next)
+        if (!f2->multi_maybe)
+          delete_target (f2, child->file->name);
+    }
+#endif
 
   child->deleted = 1;
 }
