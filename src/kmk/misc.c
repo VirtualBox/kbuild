@@ -26,6 +26,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 # ifdef __APPLE__
 #  include <malloc/malloc.h>
 # endif
+# if defined(__GLIBC__)
+#  include <malloc.h>
+# endif
 #endif
 
 /* All bcopy calls in this file can be replaced by memcpy and save a tick or two. */
@@ -1379,12 +1382,12 @@ void print_heap_stats (void)
 # endif /* ??? */
 
    /* XVID2/XPG mallinfo (displayed per GLIBC documentation).  */
-# if 0 && defined(__GLIBC__) /* XXX: finish on linux, check older glibc versions. */
+# if defined(__GLIBC__)
   struct mallinfo m;
 
   m = mallinfo();
   printf (_("\n# CRT Heap: %d bytes in use,  %d bytes free\n"),
-          m.uordblks, s.fordblks);
+          m.uordblks, m.fordblks);
 
   printf (_("#           # free chunks=%d,  # fastbin blocks=%d\n"),
           m.ordblks, m.smblks);
