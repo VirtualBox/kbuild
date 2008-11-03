@@ -65,7 +65,10 @@ static int update_file_1 (struct file *file, unsigned int depth);
 static int check_dep (struct file *file, unsigned int depth,
                       FILE_TIMESTAMP this_mtime, int *must_make_ptr);
 #ifdef CONFIG_WITH_DOT_MUST_MAKE
-static int call_must_make_target_var (struct file *file);
+static int call_must_make_target_var (struct file *file, unsigned int depth);
+#endif
+#ifdef CONFIG_WITH_DOT_IS_CHANGED
+static int call_is_changed_target_var (struct file *file);
 #endif
 static int touch_file (struct file *file);
 static void remake_file (struct file *file);
@@ -618,22 +621,25 @@ update_file_1 (struct file *file, unsigned int depth)
           d = d->next;
         }
 
-#ifdef CONFIG_WITH_DOT_MUST_MAKE
-      /* Check with the .MUST_MAKE target variable if it's
-         not already decided to make the file.  */
-      if (!must_make)
-# ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-        must_make = call_must_make_target_var (f2);
-# else
-        must_make = call_must_make_target_var (file);
-# endif
-#endif
-
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
       if (dep_status != 0 && !keep_going_flag)
         break;
     }
 #endif
+
+#ifdef CONFIG_WITH_DOT_MUST_MAKE
+  /* Check with the .MUST_MAKE target variable if it's
+     not already decided to make the file.  */
+
+# ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  if (!must_make)
+    for (f2 = file; f2 && !must_make; f2 = f2->multi_next)
+      must_make = call_must_make_target_var (f2, depth);
+# else
+  if (!must_make)
+    must_make = call_must_make_target_var (file, depth);
+# endif
+#endif /* CONFIG_WITH_DOT_MUST_MAKE */
 
   /* Now we know whether this target needs updating.
      If it does, update all the intermediate files we depend on.  */
@@ -912,7 +918,7 @@ update_file_1 (struct file *file, unsigned int depth)
    decided to make the file.  So, to keep things simple all 4 of them are
    undefined in this call.  */
 static int
-call_must_make_target_var (struct file *file)
+call_must_make_target_var (struct file *file, unsigned int depth)
 {
   struct variable *var;
   unsigned char ch;
@@ -936,12 +942,66 @@ call_must_make_target_var (struct file *file)
             ch = *str++;
           while (isspace (ch));
 
-          return (ch != '\0');
+          if (ch != '\0')
+            {
+              if (ISDB (DB_BASIC))
+                {
+                  print_spaces (depth);
+                  printf (_(".MUST_MAKE returned `%s' for target `%s'.\n"),
+                          str, file->name);
+                }
+              return 1;
+            }
         }
     }
   return 0;
 }
 #endif /* CONFIG_WITH_DOT_MUST_MAKE */
+#ifdef CONFIG_WITH_DOT_IS_CHANGED
+
+/* Consider the .IS_CHANGED target variable if present.
+
+   Returns 1 if the file should be considered modified, 0 if not.
+
+   The calling context and restrictions are the same as for .MUST_MAKE.
+   Make uses the information from this 'function' for determining whether to
+   make a file which lists this as a prerequisite.  So, this is the feature you
+   use to check MD5 sums, file sizes, time stamps and the like with data from
+   a previous run.
+
+   FIXME: Would be nice to know which file is currently being considered.
+   FIXME: Is currently not invoked for intermediate files.  */
+static int
+call_is_changed_target_var (struct file *file)
+{
+  struct variable *var;
+  unsigned char ch;
+  const char *str;
+
+  if (file->variables)
+    {
+      var = lookup_variable_in_set (".IS_CHANGED", sizeof (".IS_CHANGED") - 1,
+                                    file->variables->set);
+      if (var)
+        {
+          initialize_file_variables (file, 0);
+          set_file_variables (file, 1 /* called early, no dep lists please */);
+
+          str = variable_expand_for_file_2 (NULL,
+                                            var->value, var->value_length,
+                                            file, NULL);
+
+          /* stripped string should be non-zero.  */
+          do
+            ch = *str++;
+          while (isspace (ch));
+
+          return (ch != '\0');
+        }
+    }
+  return 0;
+}
+#endif /* CONFIG_WITH_DOT_IS_CHANGED */
 
 /* Set FILE's `updated' flag and re-check its mtime and the mtime's of all
    files listed in its `also_make' member.  Under -t, this function also
@@ -1187,6 +1247,11 @@ check_dep (struct file *file, unsigned int depth,
       check_renamed (file);
       if (mtime == NONEXISTENT_MTIME || mtime > this_mtime)
 	*must_make_ptr = 1;
+#ifdef CONFIG_WITH_DOT_IS_CHANGED
+      else if (   *must_make_ptr == 0
+               && call_is_changed_target_var (file))
+        *must_make_ptr = 1;
+#endif /* CONFIG_WITH_DOT_IS_CHANGED */
     }
   else
     {
