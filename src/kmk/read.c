@@ -4032,10 +4032,10 @@ multi_glob (struct nameseq *chain, struct alloccache *cache)
 		  {
 #ifndef CONFIG_WITH_ALLOC_CACHES
 		    struct nameseq *elt = xmalloc (size);
-#else
-		    struct nameseq *elt = alloccache_alloc (cache);
-#endif
                     memset (elt, '\0', size);
+#else
+		    struct nameseq *elt = alloccache_calloc (cache);
+#endif
 		    elt->name = strcache_add (gl.gl_pathv[i]);
 		    elt->next = new;
 		    new = elt;
