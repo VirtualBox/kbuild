@@ -400,6 +400,9 @@ install_pattern_rule (struct pspec *p, int terminal)
 	 anyway because somebody might want to free them later.  */
       r->cmds->commands = xstrdup (p->commands);
       r->cmds->command_lines = 0;
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+      r->cmds->refs = 1000;
+#endif
     }
 }
 
@@ -484,6 +487,9 @@ create_pattern_rule (const char **targets, const char **target_percents,
 
   if (new_pattern_rule (r, override))
     r->terminal = terminal;
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+  commands->refs = 1000;
+#endif
 }
 
 /* Print the data base of rules.  */

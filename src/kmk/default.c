@@ -582,10 +582,17 @@ install_default_suffix_rules (void)
       /* Don't clobber cmds given in a makefile if there were any.  */
       if (f->cmds == 0)
 	{
+#ifndef CONFIG_WITH_ALLOC_CACHES
 	  f->cmds = xmalloc (sizeof (struct commands));
+#else
+	  f->cmds = alloccache_alloc (&commands_cache);
+#endif
 	  f->cmds->fileinfo.filenm = 0;
 	  f->cmds->commands = s[1];
 	  f->cmds->command_lines = 0;
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+          f->cmds->refs = 1000;
+#endif
 	}
     }
 }
