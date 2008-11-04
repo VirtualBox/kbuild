@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2053 2008-11-04 00:26:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -584,6 +584,48 @@ incdep_worker_os2 (void *thrd)
 }
 #endif
 
+/* Checks if threads are enabled or not.
+
+   This is a special hack so that is possible to disable the threads when in a
+   debian fakeroot environment.  Thus, in addition to the KMK_THREADS_DISABLED
+   and KMK_THREADS_ENABLED environment variable check we also check for signs
+   of fakeroot.  */
+static int
+incdep_are_threads_enabled (void)
+{
+  if (getenv("KMK_THREADS_DISABLED"))
+    return 0;
+  if (getenv("KMK_THREADS_ENABLED"))
+    return 1;
+#if defined(__gnu_linux__) || defined(__linux__)
+  if (getenv("FAKEROOTKEY"))
+    return 0;
+  if (getenv("FAKEROOTUID"))
+    return 0;
+  if (getenv("FAKEROOTGID"))
+    return 0;
+  if (getenv("FAKEROOTEUID"))
+    return 0;
+  if (getenv("FAKEROOTEGID"))
+    return 0;
+  if (getenv("FAKEROOTSUID"))
+    return 0;
+  if (getenv("FAKEROOTSGID"))
+    return 0;
+  if (getenv("FAKEROOTFUID"))
+    return 0;
+  if (getenv("FAKEROOTFGID"))
+    return 0;
+  if (getenv("FAKEROOTDONTTRYCHOWN"))
+    return 0;
+  if (getenv("FAKEROOT_FD_BASE"))
+    return 0;
+  if (getenv("FAKEROOT_DB_SEARCH_PATHS"))
+    return 0;
+#endif /* GNU/Linux */
+  return 1;
+}
+
 /* Creates the the worker threads. */
 static void
 incdep_init (struct floc *f)
@@ -650,69 +692,74 @@ incdep_init (struct floc *f)
   /* create the worker threads and associated per thread data. */
 
   incdep_terminate = 0;
-  incdep_num_threads = sizeof (incdep_threads) / sizeof (incdep_threads[0]);
-  if (incdep_num_threads + 1 > job_slots)
-    incdep_num_threads = job_slots <= 1 ? 1 : job_slots - 1;
-  for (i = 0; i < incdep_num_threads; i++)
+  if (incdep_are_threads_enabled())
     {
-      /* init caches */
-      unsigned rec_size = sizeof (struct incdep_variable_in_set);
-      if (rec_size < sizeof (struct incdep_variable_def))
-        rec_size = sizeof (struct incdep_variable_def);
-      if (rec_size < sizeof (struct incdep_recorded_files))
-        rec_size = sizeof (struct incdep_recorded_files);
-      alloccache_init (&incdep_rec_caches[i], rec_size, "incdep rec",
-                       incdep_cache_allocator, (void *)(size_t)i);
-      alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
-                       incdep_cache_allocator, (void *)(size_t)i);
-      strcache2_init (&incdep_dep_strcaches[i],
-                      "incdep dep", /* name */
-                      65536,        /* hash size */
-                      0,            /* default segment size*/
+      incdep_num_threads = sizeof (incdep_threads) / sizeof (incdep_threads[0]);
+      if (incdep_num_threads + 1 > job_slots)
+        incdep_num_threads = job_slots <= 1 ? 1 : job_slots - 1;
+      for (i = 0; i < incdep_num_threads; i++)
+        {
+          /* init caches */
+          unsigned rec_size = sizeof (struct incdep_variable_in_set);
+          if (rec_size < sizeof (struct incdep_variable_def))
+            rec_size = sizeof (struct incdep_variable_def);
+          if (rec_size < sizeof (struct incdep_recorded_files))
+            rec_size = sizeof (struct incdep_recorded_files);
+          alloccache_init (&incdep_rec_caches[i], rec_size, "incdep rec",
+                           incdep_cache_allocator, (void *)(size_t)i);
+          alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
+                           incdep_cache_allocator, (void *)(size_t)i);
+          strcache2_init (&incdep_dep_strcaches[i],
+                          "incdep dep", /* name */
+                          65536,        /* hash size */
+                          0,            /* default segment size*/
 #ifdef HAVE_CASE_INSENSITIVE_FS
-                      1,            /* case insensitive */
+                          1,            /* case insensitive */
 #else
-                      0,            /* case insensitive */
+                          0,            /* case insensitive */
 #endif
-                      0);           /* thread safe */
+                          0);           /* thread safe */
 
-      strcache2_init (&incdep_var_strcaches[i],
-                      "incdep var", /* name */
-                      32768,        /* hash size */
-                      0,            /* default segment size*/
-                      0,            /* case insensitive */
-                      0);           /* thread safe */
+          strcache2_init (&incdep_var_strcaches[i],
+                          "incdep var", /* name */
+                          32768,        /* hash size */
+                          0,            /* default segment size*/
+                          0,            /* case insensitive */
+                          0);           /* thread safe */
 
-      /* create the thread. */
+          /* create the thread. */
 #ifdef HAVE_PTHREAD
-      rc = pthread_attr_init (&attr);
-      if (rc)
-        fatal (f, _("pthread_attr_init failed: err=%d"), rc);
-      /*rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE); */
-      rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
-      if (rc)
-        fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
-      rc = pthread_create(&incdep_threads[i], &attr,
-                           incdep_worker_pthread, (void *)(size_t)i);
-      if (rc)
-        fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
-      pthread_attr_destroy (&attr);
+          rc = pthread_attr_init (&attr);
+          if (rc)
+            fatal (f, _("pthread_attr_init failed: err=%d"), rc);
+          /*rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE); */
+          rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
+          if (rc)
+            fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
+          rc = pthread_create(&incdep_threads[i], &attr,
+                               incdep_worker_pthread, (void *)(size_t)i);
+          if (rc)
+            fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
+          pthread_attr_destroy (&attr);
 
 #elif defined (WINDOWS32)
-      tid = 0;
-      hThread = _beginthreadex (NULL, 128*1024, incdep_worker_windows,
-                                (void *)i, 0, &tid);
-      if (hThread == 0 || hThread == ~(uintptr_t)0)
-        fatal (f, _("_beginthreadex failed: err=%d"), errno);
-      incdep_threads[i] = (HANDLE)hThread;
+          tid = 0;
+          hThread = _beginthreadex (NULL, 128*1024, incdep_worker_windows,
+                                    (void *)i, 0, &tid);
+          if (hThread == 0 || hThread == ~(uintptr_t)0)
+            fatal (f, _("_beginthreadex failed: err=%d"), errno);
+          incdep_threads[i] = (HANDLE)hThread;
 
 #elif defined (__OS2__)
-      tid = _beginthread (incdep_worker_os2, NULL, 128*1024, (void *)i);
-      if (tid <= 0)
-        fatal (f, _("_beginthread failed: err=%d"), errno);
-      incdep_threads[i] = tid;
+          tid = _beginthread (incdep_worker_os2, NULL, 128*1024, (void *)i);
+          if (tid <= 0)
+            fatal (f, _("_beginthread failed: err=%d"), errno);
+          incdep_threads[i] = tid;
 #endif
+        }
     }
+  else
+    incdep_num_threads = 0;
 
   incdep_initialized = 1;
 }
