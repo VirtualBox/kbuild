@@ -2530,6 +2530,9 @@ record_files (struct nameseq *filenames, const char *pattern,
       cmds->fileinfo.lineno = cmds_started;
       cmds->commands = savestring (commands, commands_idx);
       cmds->command_lines = 0;
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+      cmds->refs = 0;
+#endif
     }
   else
     cmds = 0;

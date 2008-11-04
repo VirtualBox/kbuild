@@ -938,6 +938,31 @@ free_child (struct child *child)
       free (child->environment);
     }
 
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+  /* Free the chopped command lines for simple targets when
+     there are no more active references to them.  */
+
+  child->file->cmds->refs--;
+  if (   !child->file->intermediate
+      && !child->file->pat_variables
+      && child->file->cmds->refs == 0)
+    {
+      struct commands *cmds = child->file->cmds;
+      unsigned int i;
+
+      for (i = 0; i < cmds->ncommand_lines; ++i)
+        {
+          free (cmds->command_lines[i]);
+          cmds->command_lines[i] = 0;
+        }
+      free (cmds->command_lines);
+      cmds->command_lines = 0;
+      free (cmds->lines_flags);
+      cmds->lines_flags = 0;
+      cmds->ncommand_lines = 0;
+    }
+#endif /* CONFIG_WITH_MEMORY_OPTIMIZATIONS */
+
   free (child);
 }
 
@@ -1675,6 +1700,9 @@ new_job (struct file *file)
 
   /* Chop the commands up into lines if they aren't already.  */
   chop_commands (cmds);
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+  cmds->refs++; /* retain the chopped lines.  */
+#endif
 
   /* Expand the command lines and store the results in LINES.  */
   lines = xmalloc (cmds->ncommand_lines * sizeof (char *));

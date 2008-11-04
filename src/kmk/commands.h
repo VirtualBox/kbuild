@@ -32,6 +32,9 @@ struct commands
 #endif
     int any_recurse;		/* Nonzero if any `lines_recurse' elt has */
 				/* the COMMANDS_RECURSE bit set.  */
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
+    int refs;			/* References.  */
+#endif
   };
 
 /* Bits in `lines_flags'.  */
