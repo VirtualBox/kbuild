@@ -26,7 +26,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 # ifdef __APPLE__
 #  include <malloc/malloc.h>
 # endif
-# if defined(__GLIBC__)
+# if defined(__GLIBC__) || defined(HAVE_MALLINFO)
 #  include <malloc.h>
 # endif
 #endif
@@ -1401,7 +1401,7 @@ void print_heap_stats (void)
 # endif /* ??? */
 
    /* XVID2/XPG mallinfo (displayed per GLIBC documentation).  */
-# if defined(__GLIBC__)
+# if defined(__GLIBC__) || defined(HAVE_MALLINFO)
   struct mallinfo m;
 
   m = mallinfo();
@@ -1418,7 +1418,7 @@ void print_heap_stats (void)
           m.usmblks);
   printf (_("#           top-most releasable space=%d\n"),
           m.keepcost);
-# endif /* __GLIBC__ */
+# endif /* __GLIBC__ || HAVE_MALLINFO */
 
 # ifdef CONFIG_WITH_MAKE_STATS
   printf(_("#            %lu malloc calls,  %lu realloc calls\n"),
