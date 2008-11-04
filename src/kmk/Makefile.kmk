@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2056 2008-11-04 03:25:19Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2057 2008-11-04 19:23:30Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -208,6 +208,9 @@ kmk_SOURCES = \
 	version.c \
 	vpath.c \
 	remote-stub.c
+
+#kmk_LIBS.solaris = malloc
+#kmk_DEFS.solaris += HAVE_MALLINFO
 
 #
 # kmkbuiltin commands
