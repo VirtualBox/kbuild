@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2026 2008-11-02 06:29:20Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2058 2008-11-05 23:45:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3448,6 +3448,12 @@ _KBUILD_STRICT_PASS_ORDER := nonstrict
 $(foreach PASS, $(PASSES), $(evalval def_pass_setup_and_optimize))
 #$ (error _KBUILD_STRICT_PASS_ORDER=$(_KBUILD_STRICT_PASS_ORDER))
 
+ifeq ($(_KBUILD_STRICT_PASS_ORDER),strict)
+ ifndef KBUILD_SAFE_PARALLEL
+_KBUILD_STRICT_PASS_ORDER := strict_unsafe
+ endif
+endif
+
 
 ## Subdir
 # @param	$(pass)		Lowercase pass name.
@@ -3474,7 +3480,7 @@ endef
 # @param	$(PASS)		Uppercase pass name.
 define def_pass_strict
 $(eval tag:=_before)
-$(eval dep:=)
+$(eval dep:= )
 $(foreach subdir,  $(SUBDIRS_$(PASS))          $(SUBDIRS_$(PASS).$(KBUILD_TARGET))          $(SUBDIRS_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
 $(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
 
@@ -3483,15 +3489,31 @@ $(eval dep:=pass_$(pass)_doit)
 $(foreach subdir,  $(SUBDIRS_AFTER_$(PASS))    $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET))    $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
 $(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
 
-ifdef KBUILD_SAFE_PARALLEL
 .NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_this pass_$(pass)_doit
-pass_$(pass)_doit:      $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$(var))
+pass_$(pass)_doit:      $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var)))
 pass_$(pass)_this:      pass_$(pass)_before
 	+ $$(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)_doit
 pass_$(pass)_after::    pass_$(pass)_this
 pass_$(pass):           pass_$(pass)_after
-else  # !KBUILD_SAFE_PARALLEL
+#$ (warning pass=$(pass) PASS=$(PASS): $(PASS_$(PASS)_trgs) $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var))))
+endef # def_pass_strict
+$(eval-opt-var def_pass_strict)
+
+## Execute a pass, strict order.
+# @param	$(pass)		Lowercase pass name.
+# @param	$(PASS)		Uppercase pass name.
+define def_pass_strict_unsafe
+$(eval tag:=_before)
+$(eval dep:= )
+$(foreach subdir,  $(SUBDIRS_$(PASS))          $(SUBDIRS_$(PASS).$(KBUILD_TARGET))          $(SUBDIRS_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_BEFORE_$(PASS)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET)) $(MAKEFILES_BEFORE_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)),$(eval $(def_pass_makefile)))
+
+$(eval tag:=_after)
+$(eval dep:=pass_$(pass)_doit)
+$(foreach subdir,  $(SUBDIRS_AFTER_$(PASS))    $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET))    $(SUBDIRS_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))   ,$(eval $(def_pass_subdir)))
+$(foreach makefile,$(MAKEFILES_AFTER_$(PASS))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET))  $(MAKEFILES_AFTER_$(PASS).$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)) ,$(eval $(def_pass_makefile)))
+
 .PHONY:       pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
 .NOTPARALLEL: pass_$(pass) pass_$(pass)_before pass_$(pass)_after pass_$(pass)_doit
 pass_$(pass)_doit: pass_$(pass)_before \
@@ -3500,11 +3522,9 @@ pass_$(pass): \
 		pass_$(pass)_before \
 		pass_$(pass)_doit \
 		pass_$(pass)_after
-endif # !KBUILD_SAFE_PARALLEL
-
 #$ (warning pass=$(pass) PASS=$(PASS): $(PASS_$(PASS)_trgs) $(PASS_$(PASS)_trgs) $(foreach var,$(PASS_$(PASS)_vars),$($(var))))
-endef # def_pass_strict
-$(eval-opt-var def_pass_strict)
+endef # def_pass_strict_unsafe
+$(eval-opt-var def_pass_strict_unsafe)
 
 ## Execute a pass, non-strict pass ordering.
 # @param	$(pass)		Lowercase pass name.
@@ -3526,25 +3546,29 @@ $(foreach PASS, $(PASSES), \
 # @param	$(pass)		Current pass name.
 # @param	$(prev_pass)	The previous pass name.
 define def_pass_order_strict
-ifdef KBUILD_SAFE_PARALLEL
 .PHONY:       pass_$(pass)_order
 .NOTPARALLEL: pass_$(pass)_order
 pass_$(pass)_order: $(pass_prev)
 	%$$(call MSG_PASS,$$(if $$(PASS_$(PASS)),$$(PASS_$(PASS)),$(pass)))
 	+ $$(QUIET)$$(MAKE) -f $$(MAKEFILE) pass_$(pass)
-else  # !KBUILD_SAFE_PARALLEL
-.NOTPARALLEL: pass_$(pass)_order pass_$(pass)_banner
-.PHONY:       pass_$(pass)_order pass_$(pass)_banner
-pass_$(pass)_banner:
-	%$$(call MSG_PASS,$$(if $$(PASS_$(PASS)),$$(PASS_$(PASS)),$(pass)))
-pass_$(pass)_order: \
-		$(pass_prev) \
-		pass_$(pass)_banner \
-		pass_$(pass)
-endif # !KBUILD_SAFE_PARALLEL
 $(eval pass_prev := pass_$(pass)_order)
 endef # def_pass_order_strict
 $(eval-opt-var def_pass_order_strict)
+
+## Pass order, strict unsafe.
+# @param	$(pass)		Current pass name.
+# @param	$(prev_pass)	The previous pass name.
+define def_pass_order_strict_unsafe
+.NOTPARALLEL: pass_$(pass)_order pass_$(pass)_banner
+.PHONY:       pass_$(pass)_order pass_$(pass)_banner
+pass_$(pass)_banner: $(pass_prev)
+	%$$(call MSG_PASS,$$(if $$(PASS_$(PASS)),$$(PASS_$(PASS)),$(pass)))
+pass_$(pass)_order:  $(pass_prev) \
+		pass_$(pass)_banner \
+		pass_$(pass)
+$(eval pass_prev := pass_$(pass)_order)
+endef # def_pass_order_strict_unsafe
+$(eval-opt-var def_pass_order_strict_unsafe)
 
 ## Pass order, non-strict.
 # @param	$(pass)		Current pass name.
