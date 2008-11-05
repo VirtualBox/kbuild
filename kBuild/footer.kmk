@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2058 2008-11-05 23:45:38Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2059 2008-11-05 23:52:05Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3449,7 +3449,7 @@ $(foreach PASS, $(PASSES), $(evalval def_pass_setup_and_optimize))
 #$ (error _KBUILD_STRICT_PASS_ORDER=$(_KBUILD_STRICT_PASS_ORDER))
 
 ifeq ($(_KBUILD_STRICT_PASS_ORDER),strict)
- ifndef KBUILD_SAFE_PARALLEL
+ if !defined(KBUILD_SAFE_PARALLEL) || "$(KMK_OPT_JOBS)" == "1"
 _KBUILD_STRICT_PASS_ORDER := strict_unsafe
  endif
 endif
