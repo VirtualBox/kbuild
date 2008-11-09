@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include <string.h>
 
 #ifdef _MSC_VER
