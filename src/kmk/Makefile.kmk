@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2057 2008-11-04 19:23:30Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2062 2008-11-09 22:18:54Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -202,6 +202,7 @@ kmk_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
+	alloccache.c \
 	remake.c \
 	rule.c \
 	signame.c \
@@ -415,7 +416,9 @@ kmk_gmake_SOURCES = \
 #
 # kmk_fmake - Faster GNU Make.
 #
+ifeq ($(USER),bird) # for experimental purposes only.
 PROGRAMS += kmk_fgmake
+endif
 
 kmk_fgmake_TEMPLATE = BIN-KMK
 kmk_fgmake_DEFS = \
@@ -451,6 +454,7 @@ kmk_fgmake_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
+	alloccache.c \
 	remake.c \
 	rule.c \
 	signame.c \
