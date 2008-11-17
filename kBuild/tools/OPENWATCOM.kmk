@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2069 2008-11-17 02:27:44Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2070 2008-11-17 02:31:23Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -57,6 +57,7 @@ ifneq ($(PATH_TOOL_OPENWATCOM),)
   PATH_TOOL_OPENWATCOM_BIN   = $(PATH_TOOL_OPENWATCOM)/binp
   TOOL_OPENWATCOM_ENV_SETUP ?= $(REDIRECT) \
  	-E 'BEGINLIBPATH=$(PATH_TOOL_OPENWATCOM)/binp/dll;$(BEGINLIBPATH)' \
+ 	-E 'LIBPATHSTRICT=T' \
  	-E 'PATH=$(PATH_TOOL_OPENWATCOM_BIN)' \
  	-E 'WATCOM=$(PATH_TOOL_OPENWATCOM)' \
  	-E 'LIB=$1' \
@@ -125,7 +126,7 @@ TOOL_OPENWATCOM_RCFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_RCFLAGS.win      ?= -bt=nt
 TOOL_OPENWATCOM_RCINCS           ?= $(PATH_TOOL_OPENWATCOM)/h
 
-TOOL_OPENWATCOM_ARFLAGS          ?=
+TOOL_OPENWATCOM_ARFLAGS          ?= -q
 TOOL_OPENWATCOM_ARLIBSUFF        ?= .lib
 
 TOOL_OPENWATCOM_LDFLAGS          ?= -zq -y
