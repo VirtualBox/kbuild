@@ -1,4 +1,4 @@
-# $Id: WATCOMC11C-16.kmk 2065 2008-11-17 00:47:59Z knut.osmundsen@oracle.com $
+# $Id: WATCOMC11C-16.kmk 2068 2008-11-17 01:18:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Watcom C v11.0c, 16-bit targets.
 #
@@ -34,6 +34,11 @@
 
 TOOL_WATCOMC11C-16 = Watcom C/C++ v11.0c - 16-bit targets.
 TOOL_WATCOMC11C-16_EXTENDS = WATCOMC11C
+TOOL_WATCOMC11C-16_ASFLAGS.win  ?= -bt=windows
+TOOL_WATCOMC11C-16_CFLAGS.win   ?= -bt=windows
+TOOL_WATCOMC11C-16_CXXFLAGS.win ?= -bt=windows
+TOOL_WATCOMC11C-16_RCFLAGS.win  ?= -bt=windows
+TOOL_WATCOMC11C-16_LDFLAGS.win  ?= -bt=windows
 						
 TOOL_WATCOMC11C-16_COMPILE_C_DEPEND =
 TOOL_WATCOMC11C-16_COMPILE_C_DEPORD =
