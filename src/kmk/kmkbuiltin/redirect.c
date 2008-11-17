@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2074 2008-11-17 02:55:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -65,7 +65,7 @@ static const char *name(const char *pszName)
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s [-[rwa+tb]<fd> <file>] [-E <var=val>] [-C <dir>] -- <program> [args]\n"
+            "usage: %s [-[rwa+tb]<fd> <file>] [-c<fd>] [-Z] [-E <var=val>] [-C <dir>] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
@@ -74,6 +74,10 @@ static int usage(FILE *pOut,  const char *argv0)
             "   i = stdin\n"
             "   o = stdout\n"
             "   e = stderr\n"
+            "\n"
+            "The -c switch will close the specified file descriptor.\n"
+            "\n"
+            "The -Z switch zaps the environment.\n"
             "\n"
             "The -E switch is for making changes to the environment in a putenv\n"
             "fashion.\n"
@@ -91,7 +95,7 @@ static int usage(FILE *pOut,  const char *argv0)
 }
 
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **envp)
 {
     int i;
 #if defined(_MSC_VER)
@@ -131,6 +135,10 @@ int main(int argc, char **argv)
                     psz = "E";
                 else if (!strcmp(psz, "-chdir"))
                     psz = "C";
+                else if (!strcmp(psz, "-zap-env"))
+                    psz = "Z";
+                else if (!strcmp(psz, "-close"))
+                    psz = "c";
             }
 
             /*
@@ -236,6 +244,70 @@ int main(int argc, char **argv)
 #endif
                 fprintf(pStdErr, "%s: error: chdir(\"%s\"): %s\n", name(argv[0]), psz, strerror(errno));
                 return 1;
+            }
+
+            /*
+             * Zap environment switch?
+             * This is a bit of a hack.
+             */
+            if (*psz == 'Z')
+            {
+                unsigned i = 0;
+                while (envp[i] != NULL)
+                    i++;
+                while (i-- > 0)
+                {
+                    char *pszEqual = strchr(envp[i], '=');
+                    char *pszCopy;
+                    
+                    if (pszEqual)
+                        *pszEqual = '\0';
+                    pszCopy = strdup(envp[i]);
+                    if (pszEqual)
+                        *pszEqual = '=';
+
+#if defined(_MSC_VER) || defined(__OS2__) 
+                    putenv(pszCopy);
+#else
+                    unsetenv(pszCopy);
+#endif 
+                    free(pszCopy);
+                }
+                continue;
+            }
+
+            /*
+             * Close the specified file descriptor (no stderr/out/in aliases).
+             */
+            if (*psz == 'c')
+            {
+                psz++;
+                if (!*psz)
+                {
+                    i++;
+                    if (i >= argc)
+                    {
+                        fprintf(pStdErr, "%s: syntax error: missing filename argument.\n", name(argv[0]));
+                        return 1;
+                    }
+                    psz = argv[i];
+                }
+
+                fd = (int)strtol(psz, &psz, 0);
+                if (!fd || *psz)
+                {
+                    fprintf(pStdErr, "%s: error: failed to convert '%s' to a number\n", name(argv[0]), argv[i]);
+                    return 1;
+
+                }
+                if (fd < 0)
+                {
+                    fprintf(pStdErr, "%s: error: negative fd %d (%s)\n", name(argv[0]), fd, argv[i]);
+                    return 1;
+                }
+                /** @todo deal with stderr */
+                close(fd);
+                continue;
             }
 
             /*
