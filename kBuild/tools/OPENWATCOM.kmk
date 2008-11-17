@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2068 2008-11-17 01:18:09Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2069 2008-11-17 02:27:44Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -102,30 +102,28 @@ else
 endif
 							
 # General Properties used by kBuild
+TOOL_OPENWATCOM_ASOBJSUFF         ?= .obj
+TOOL_OPENWATCOM_ASFLAGS           ?= -zq
+TOOL_OPENWATCOM_ASFLAGS.os2       ?= -bt=os2
+TOOL_OPENWATCOM_ASFLAGS.win       ?= -bt=nt
+
 TOOL_OPENWATCOM_COBJSUFF         ?= .obj
 TOOL_OPENWATCOM_CFLAGS           ?= -zq
 TOOL_OPENWATCOM_CFLAGS.os2       ?= -bt=os2
 TOOL_OPENWATCOM_CFLAGS.win       ?= -bt=nt
-TOOL_OPENWATCOM_CFLAGS.debug     ?=
-TOOL_OPENWATCOM_CFLAGS.release   ?=
 TOOL_OPENWATCOM_CINCS            ?= $(PATH_TOOL_OPENWATCOM)/h
-TOOL_OPENWATCOM_CDEFS            ?=
 
 TOOL_OPENWATCOM_CXXOBJSUFF       ?= .obj
 TOOL_OPENWATCOM_CXXFLAGS         ?= -zq
 TOOL_OPENWATCOM_CXXFLAGS.os2     ?= -bt=os2
 TOOL_OPENWATCOM_CXXFLAGS.win     ?= -bt=nt
-TOOL_OPENWATCOM_CXXFLAGS.debug   ?=
-TOOL_OPENWATCOM_CXXFLAGS.release ?=
 TOOL_OPENWATCOM_CXXINCS          ?= $(PATH_TOOL_OPENWATCOM)/h
-TOOL_OPENWATCOM_CXXDEFS          ?=
 
 TOOL_OPENWATCOM_RCOBJSUFF        ?= .res
 TOOL_OPENWATCOM_RCFLAGS          ?= -r
 TOOL_OPENWATCOM_RCFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_RCFLAGS.win      ?= -bt=nt
 TOOL_OPENWATCOM_RCINCS           ?= $(PATH_TOOL_OPENWATCOM)/h
-TOOL_OPENWATCOM_RCDEFS           ?=
 
 TOOL_OPENWATCOM_ARFLAGS          ?=
 TOOL_OPENWATCOM_ARLIBSUFF        ?= .lib
@@ -133,9 +131,24 @@ TOOL_OPENWATCOM_ARLIBSUFF        ?= .lib
 TOOL_OPENWATCOM_LDFLAGS          ?= -zq -y
 TOOL_OPENWATCOM_LDFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_LDFLAGS.win      ?= -bt=nt
-TOOL_OPENWATCOM_LDFLAGS.debug    ?=
 
 
+TOOL_OPENWATCOM_COMPILE_AS_DEPEND =
+TOOL_OPENWATCOM_COMPILE_AS_DEPORD =
+TOOL_OPENWATCOM_COMPILE_AS_OUTPUT = $(obj).err
+define TOOL_OPENWATCOM_COMPILE_AS_CMDS
+	$(QUIET) $(call TOOL_OPENWATCOM_ENV_SETUP) $(TOOL_OPENWATCOM_AS) \
+		$(flags) \
+		$(addsuffix , $(addprefix -i=, $(subst /,\\,$(incs)))) \
+		$(addprefix -d, $(defs)) \
+		-fo=$(subst /,\\,$(obj)) \
+		-fr=$(subst /,\\,$(obj)).err \
+		$(subst /,\\,$(abspath $(source)))
+	$(QUIET)$(APPEND) -n $(obj).err
+## @todo dependencies	
+endef
+
+										  
 TOOL_OPENWATCOM_COMPILE_C_DEPEND =
 TOOL_OPENWATCOM_COMPILE_C_DEPORD =
 TOOL_OPENWATCOM_COMPILE_C_OUTPUT = $(obj).err
@@ -183,12 +196,8 @@ TOOL_OPENWATCOM_LINK_LIBRARY_OUTPUT = ## @todo $(outbase).rsp
 TOOL_OPENWATCOM_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_OPENWATCOM_LINK_LIBRARY_DEPORD =
 define TOOL_OPENWATCOM_LINK_LIBRARY_CMDS
-	$(if $(strip $(othersrc)),\
-		$(QUIET)$(TOOL_OPENWATCOM_ENV_SETUP) \
-		$(TOOL_OPENWATCOM_IMP) $(TOOL_OPENWATCOM_IMPFLAGS) $(subst /,\\,$(out)) $(subst /,\\,$(othersrc)) )
-	$(if $(strip $(objs)),$(QUIET)$(TOOL_OPENWATCOM_ENV_SETUP) \
-		$(QUIET)$(TOOL_OPENWATCOM_ENV_SETUP) \
-		$(TOOL_OPENWATCOM_AR) $(flags) $(subst /,\\,$(out)) $(foreach obj,$(subst /,\\,$(objs)),+"$(obj)") ";" )
+	$(QUIET)$(APPEND) -tn $(outbase).rsp $(foreach obj,$(subst /,\,$(objs) $(othersrc)),'+"$(obj)"')
+	$(QUIET)$(TOOL_OPENWATCOM_ENV_SETUP) $(TOOL_OPENWATCOM_AR) $(flags) $(subst /,\\,$(out)) @$(outbase).rsp
 endef
 
 TOOL_OPENWATCOM_LINK_PROGRAM_OUTPUT = $(outbase).map
