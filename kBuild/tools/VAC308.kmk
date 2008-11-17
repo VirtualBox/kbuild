@@ -1,4 +1,4 @@
-# $Id: VAC308.kmk 2064 2008-11-16 13:39:23Z knut.osmundsen@oracle.com $
+# $Id: VAC308.kmk 2065 2008-11-17 00:47:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - VisualAge for C++ v3.08.
 #
@@ -33,8 +33,6 @@
 
 TOOL_VAC308 := VisualAge for C++ v3.08
 
-TOOL_VAC308_ENV_SETUP ?=
-
 # Determin VAC308 location.
 ifndef PATH_TOOL_VAC308
  PATH_TOOL_VAC308 := $(wildcard $(PATH_DEVTOOLS_BLD)/vac/v3.0.8*)
@@ -56,30 +54,34 @@ else
  PATH_TOOL_VAC308 := $(PATH_TOOL_VAC308)
 endif
 ifneq ($(PATH_TOOL_VAC308),)
- TOOL_VAC308_PATHLESS := yes
- 
+ TOOL_VAC308_PATHLESS :=
+
  PATH_TOOL_VAC308_BIN    ?= $(PATH_TOOL_VAC308)/bin
  PATH_TOOL_VAC308_LIB    ?= $(PATH_TOOL_VAC308)/lib
  PATH_TOOL_VAC308_INC    ?= $(PATH_TOOL_VAC308)/include
  PATH_TOOL_VAC308_DLL    ?= $(PATH_TOOL_VAC308)/dll
  PATH_TOOL_VAC308_HELP   ?= $(PATH_TOOL_VAC308)/help
  PATH_TOOL_VAC308_LOCALE ?= $(PATH_TOOL_VAC308)/locale
- 
- TOOL_VAC308_REDIRECT ?= $(REDIRECT) \
+
+ TOOL_VAC308_ENV_SETUP ?= $(REDIRECT) \
 	-E 'BEGINLIBPATH=$(PATH_TOOL_VAC308_DLL);$(BEGINLIBPATH)' \
 	-E 'DPATH=$(PATH_TOOL_VAC308_LOCALE);$(PATH_TOOL_VAC308_HELP);$(DPATH)' \
 	-E 'LIB=' \
 	-E 'INCLUDE=' \
 	--
- TOOL_VAC308_CC  ?= $(TOOL_VAC308_REDIRECT) $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
- TOOL_VAC308_CXX ?= $(TOOL_VAC308_REDIRECT) $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
- TOOL_VAC308_AR  ?= $(TOOL_VAC308_REDIRECT) $(PATH_TOOL_VAC308_BIN)/ilib$(HOSTSUFF_EXE)
- TOOL_VAC308_LD  ?= $(TOOL_VAC308_REDIRECT) $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
- TOOL_VAC308_RC  ?= $(TOOL_VAC308_REDIRECT) $(PATH_TOOL_VAC308_BIN)/rc$(HOSTSUFF_EXE)
+ TOOL_VAC308_CC  ?= $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
+ TOOL_VAC308_CXX ?= $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
+ TOOL_VAC308_AR  ?= $(PATH_TOOL_VAC308_BIN)/ilib$(HOSTSUFF_EXE)
+ TOOL_VAC308_LD  ?= $(PATH_TOOL_VAC308_BIN)/icc$(HOSTSUFF_EXE)
+ TOOL_VAC308_RC  ?= $(PATH_TOOL_VAC308_BIN)/rc$(HOSTSUFF_EXE)
 
 else
  # Pathless, relies on the environment.
- TOOL_VAC308_PATHLESS :=
+ TOOL_VAC308_PATHLESS := yes
+ TOOL_VAC308_ENV_SETUP ?= $(REDIRECT) \
+	-E 'LIB=' \
+	-E 'INCLUDE=' \
+	--
  TOOL_VAC308_CC  ?= icc$(HOSTSUFF_EXE)
  TOOL_VAC308_CXX ?= icc$(HOSTSUFF_EXE)
  TOOL_VAC308_AR  ?= ilib$(HOSTSUFF_EXE)
@@ -121,183 +123,82 @@ TOOL_VAC308_LDFLAGS.debug    ?= -Ti+
 
 
 
-## Compile C source.
-# @param    $(target)   Normalized main target name.
-# @param    $(source)   Source filename (relative).
-# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
-# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
-# @param    $(flags)    Flags.
-# @param    $(defs)     Definitions. No -D or something.
-# @param    $(incs)     Includes. No -I or something.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
-# @param    $(objsuff)  Object suffix.
 TOOL_VAC308_COMPILE_C_DEPEND =
 TOOL_VAC308_COMPILE_C_DEPORD =
 TOOL_VAC308_COMPILE_C_OUTPUT =
 define TOOL_VAC308_COMPILE_C_CMDS
-	$(QUIET) $(TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CC) -c\
+	$(QUIET) $(call TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fo$(obj)\
 		$(abspath $(source))
-	$(QUIET) $(TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CC) -P+ -Pd+ \
+	$(QUIET) $(call TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CC) -P+ -Pd+ \
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(abspath $(source)) \
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
 endef
 
-
-## Compile C++ source.
-# @param    $(target)   Normalized main target name.
-# @param    $(source)   Source filename (relative).
-# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
-# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
-# @param    $(flags)    Flags.
-# @param    $(defs)     Definitions. No -D or something.
-# @param    $(incs)     Includes. No -I or something.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
-# @param    $(objsuff)  Object suffix.
 TOOL_VAC308_COMPILE_CXX_DEPEND =
 TOOL_VAC308_COMPILE_CXX_DEPORD =
 TOOL_VAC308_COMPILE_CXX_OUTPUT =
 define TOOL_VAC308_COMPILE_CXX_CMDS
-	$(QUIET) $(TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CXX) -c\
+	$(QUIET) $(call TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fo$(obj)\
 		$(abspath $(source))
-	$(QUIET) $(TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CXX) -P+ -Pd+ \
+	$(QUIET) $(call TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_CXX) -P+ -Pd+ \
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(abspath $(source)) \
 		| $(DEP_PRE) -f -s -o $(dep) -t $(obj) -
 endef
 
-
-## Compile resource source.
-# @param    $(target)   Normalized main target name.
-# @param    $(source)   Source filename (relative).
-# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
-# @param    $(dep)      Dependcy file. This shall be (re)created by the compilation.
-# @param    $(flags)    Flags.
-# @param    $(defs)     Definitions. No -D or something.
-# @param    $(incs)     Includes. No -I or something.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)     Other dependencies.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
-# @param    $(objsuff)  Object suffix.
 TOOL_VAC308_COMPILE_RC_OUTPUT =
 TOOL_VAC308_COMPILE_RC_DEPEND =
 TOOL_VAC308_COMPILE_RC_DEPORD =
 define TOOL_VAC308_COMPILE_RC_CMDS
-	$(QUIET) $(TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_RC) -r\
+	$(QUIET) $(call TOOL_VAC308_ENV_SETUP) $(TOOL_VAC308_RC) -r\
 		$(flags) $(addprefix -i, $(subst /,\\,$(incs))) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(abspath $(source))) \
 		$(obj)
 endef
 
-
-## Link library
-# @param    $(target)   Normalized main target name.
-# @param    $(out)		Library name.
-# @param    $(objs)     Object files to put in the library.
-# @param    $(flags)    Flags.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-# @param    $(othersrc) Unhandled sources.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
-TOOL_VAC308_LINK_LIBRARY_OUTPUT = ## @todo $(outbase).rsp 
+TOOL_VAC308_LINK_LIBRARY_OUTPUT = ## @todo $(outbase).rsp
 TOOL_VAC308_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VAC308_LINK_LIBRARY_DEPORD =
 define TOOL_VAC308_LINK_LIBRARY_CMDS
 	$(if $(strip $(othersrc)),\
-		$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
+		$(QUIET)$(call TOOL_VAC308_ENV_SETUP) \
 		$(TOOL_VAC308_IMP) $(TOOL_VAC308_IMPFLAGS) $(subst /,\\,$(out)) $(subst /,\\,$(othersrc)) )
-	$(if $(strip $(objs)),$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
-		$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
+	$(if $(strip $(objs)),$(QUIET)$(call TOOL_VAC308_ENV_SETUP) \
 		$(TOOL_VAC308_AR) $(flags) $(subst /,\\,$(out)) $(foreach obj,$(subst /,\\,$(objs)),+"$(obj)") ";" )
 endef
 
-
-## Link program
-# @param    $(target)   Normalized main target name.
-# @param    $(out)		Program name.
-# @param    $(objs)     Object files to link together.
-# @param    $(libs)     Libraries to search.
-# @param    $(libpath)  Library search paths.
-# @param    $(flags)    Flags.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-# @param    $(othersrc) Unhandled sources.
-# @param    $(custom_pre)   Custom step invoked before linking.
-# @param    $(custom_post)  Custom step invoked after linking.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VAC308_LINK_PROGRAM_OUTPUT = $(outbase).map
 TOOL_VAC308_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VAC308_LINK_PROGRAM_DEPORD =
 define TOOL_VAC308_LINK_PROGRAM_CMDS
-	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
-	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
+	$(QUIET)$(call TOOL_VAC308_ENV_SETUP,$(subst $(SP),;,$(libpath))) \
 		$(TOOL_VAC308_LD) $(flags) -Fe$(out) -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
-	$(if $(filter %.res,$(objs)), $(QUIET)$(TOOL_VAC308_ENV_SETUP) \
+	$(if $(filter %.res,$(objs)), $(QUIET)$(call TOOL_VAC308_ENV_SETUP) \
 		$(TOOL_VAC308_RC) $(filter %.res,$(objs)) $(out))
 endef
 
-
-## Link DLL
-# @param    $(target)   Normalized main target name.
-# @param    $(out)		Program name.
-# @param    $(objs)     Object files to link together.
-# @param    $(libs)     Libraries to search.
-# @param    $(libpath)  Library search paths.
-# @param    $(flags)    Flags.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-# @param    $(othersrc) Unhandled sources.
-# @param    $(custom_pre)   Custom step invoked before linking.
-# @param    $(custom_post)  Custom step invoked after linking.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VAC308_LINK_DLL_OUTPUT = $(outbase).map
 TOOL_VAC308_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VAC308_LINK_DLL_DEPORD =
 define TOOL_VAC308_LINK_DLL_CMDS
-	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
-	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
+	$(QUIET)$(call TOOL_VAC308_ENV_SETUP,$(subst $(SP),;,$(libpath))) \
 		$(TOOL_VAC308_LD) /B"/DLL" $(flags) -Fe$(out) -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
-	$(if $(filter %.res,$(objs)), $(QUIET)$(TOOL_VAC308_ENV_SETUP) \
+	$(if $(filter %.res,$(objs)), $(QUIET)$(call TOOL_VAC308_ENV_SETUP) \
 		$(TOOL_VAC308_RC) $(filter %.res,$(objs)) $(out))
 endef
 
-
-## Link system module (windows aka driver, linux aka kernel module)
-# @param    $(target)   Normalized main target name.
-# @param    $(out)		System module name.
-# @param    $(objs)     Object files to link together.
-# @param    $(libs)     Libraries to search.
-# @param    $(libpath)  Library search paths.
-# @param    $(flags)    Flags.
-# @param    $(dirdep)   Directory creation dependency.
-# @param    $(deps)		Other dependencies.
-# @param    $(othersrc) Unhandled sources.
-# @param    $(custom_pre)   Custom step invoked before linking.
-# @param    $(custom_post)  Custom step invoked after linking.
-#
-# @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VAC308_LINK_SYSMOD_OUTPUT = $(outbase).map
 TOOL_VAC308_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VAC308_LINK_SYSMOD_DEPORD =
 define TOOL_VAC308_LINK_SYSMOD_CMDS
-	$(QUIET)$(TOOL_VAC308_ENV_SETUP) \
-	$(if $(strip $(libpath)),LIB="$(subst ; ,;,$(foreach lp,$(libpath),$(lp);))$(LIB)") \
-		$(TOOL_VAC308_LD) $(flags) -Fe$(out)  -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
-	$(if $(filter %.res,$(objs)), $(QUIET)$(TOOL_VAC308_ENV_SETUP) \
+	$(QUIET)$(call TOOL_VAC308_ENV_SETUP,$(subst $(SP),;,$(libpath))) \
+		$(TOOL_VAC308_LD) $(flags) -Fe$(out) -Fm$(outbase).map $(filter-out %.res,$(objs)) $(libs) $(othersrc)
+	$(if $(filter %.res,$(objs)), $(QUIET)$(call TOOL_VAC308_ENV_SETUP) \
 		$(TOOL_VAC308_RC) $(filter %.res,$(objs)) $(out))
 endef
 
