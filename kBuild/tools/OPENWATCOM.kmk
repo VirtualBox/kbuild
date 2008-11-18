@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2075 2008-11-18 00:12:18Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2078 2008-11-18 00:52:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -43,8 +43,10 @@ ifeq ($(PATH_TOOL_OPENWATCOM),)
  ifeq ($(PATH_TOOL_OPENWATCOM),)
   PATH_TOOL_OPENWATCOM := $(wildcard $(PATH_DEVTOOLS)/common/openwatcom/v*)
  endif
- if1of ($(USER) $(USERNAME) $(LOGNAME), bird)
-  PATH_TOOL_OPENWATCOM := $(wildcard d:/dev/Watcom/v1.*)
+ ifeq ($(PATH_TOOL_OPENWATCOM)$(KBUILD_HOST),os2)
+  if1of ($(USER) $(USERNAME) $(LOGNAME), bird)
+   PATH_TOOL_OPENWATCOM := $(wildcard d:/dev/Watcom/v1.*)
+  endif
  endif
  PATH_TOOL_OPENWATCOM := $(firstword $(sort $(PATH_TOOL_OPENWATCOM)))
  # if not found, we'll enter 'pathless' mode.
