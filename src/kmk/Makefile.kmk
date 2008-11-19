@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2089 2008-11-19 22:53:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2091 2008-11-19 23:21:53Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -213,7 +213,8 @@ kmk_SOURCES = \
 #kmk_LIBS.solaris = malloc
 #kmk_DEFS.solaris += HAVE_MALLINFO
 
-kmk_LIBS.freebsd = pthread
+kmk_LIBS.freebsd.amd64 = pthread
+kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
 #
 # kmkbuiltin commands
