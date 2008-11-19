@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2059 2008-11-05 23:52:05Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2080 2008-11-19 01:44:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2141,6 +2141,15 @@ local type := RC
  $(kb-src-one 2)
 endef
 
+if $(KBUILD_VERSION_PATCH) != 4
+define def_src_handler_obj
+ifeq ($(defpath),)
+ $(target)_2_OBJS += $(source)
+else
+ $(target)_2_OBJS += $(abspathex $(source), $(defpath))
+endif
+endef
+else  # legacy - remove
 define def_src_handler_obj
 ifeq ($(defpath),)
  $(target)_OBJS_ += $(source)
@@ -2148,6 +2157,7 @@ else
  $(target)_OBJS_ += $(abspathex $(source), $(defpath))
 endif
 endef
+endif # legacy - remove
 ## @}
 
 ## Handle one source.
