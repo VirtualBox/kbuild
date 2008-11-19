@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2081 2008-11-19 01:55:39Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2086 2008-11-19 02:41:24Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -123,31 +123,41 @@ endif
 # General Properties used by kBuild
 TOOL_OPENWATCOM_ASOBJSUFF        ?= .obj
 TOOL_OPENWATCOM_ASFLAGS          ?= -zq
+TOOL_OPENWATCOM_ASFLAGS.dos      ?= -bt=dos
 TOOL_OPENWATCOM_ASFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_ASFLAGS.win      ?= -bt=nt
 
 TOOL_OPENWATCOM_COBJSUFF         ?= .obj
 TOOL_OPENWATCOM_CFLAGS           ?= -zq
+TOOL_OPENWATCOM_CFLAGS.dos       ?= -bt=dos
 TOOL_OPENWATCOM_CFLAGS.os2       ?= -bt=os2
 TOOL_OPENWATCOM_CFLAGS.win       ?= -bt=nt
-TOOL_OPENWATCOM_CINCS            ?= $(PATH_TOOL_OPENWATCOM)/h
+ifdef PATH_TOOL_OPENWATCOM
+ TOOL_OPENWATCOM_CINCS           ?= $(PATH_TOOL_OPENWATCOM)/h
+endif
 
 TOOL_OPENWATCOM_CXXOBJSUFF       ?= .obj
 TOOL_OPENWATCOM_CXXFLAGS         ?= -zq
+TOOL_OPENWATCOM_CXXFLAGS.dos     ?= -bt=dos
 TOOL_OPENWATCOM_CXXFLAGS.os2     ?= -bt=os2
 TOOL_OPENWATCOM_CXXFLAGS.win     ?= -bt=nt
-TOOL_OPENWATCOM_CXXINCS          ?= $(PATH_TOOL_OPENWATCOM)/h
+ifdef PATH_TOOL_OPENWATCOM
+ TOOL_OPENWATCOM_CXXINCS         ?= $(PATH_TOOL_OPENWATCOM)/h
+endif
 
 TOOL_OPENWATCOM_RCOBJSUFF        ?= .res
 TOOL_OPENWATCOM_RCFLAGS          ?= -r
 TOOL_OPENWATCOM_RCFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_RCFLAGS.win      ?= -bt=nt
-TOOL_OPENWATCOM_RCINCS           ?= $(PATH_TOOL_OPENWATCOM)/h
+ifdef PATH_TOOL_OPENWATCOM
+ TOOL_OPENWATCOM_RCINCS          ?= $(PATH_TOOL_OPENWATCOM)/h
+endif
 
 TOOL_OPENWATCOM_ARFLAGS          ?= -q
 TOOL_OPENWATCOM_ARLIBSUFF        ?= .lib
 
 TOOL_OPENWATCOM_LDFLAGS          ?= -zq -y
+TOOL_OPENWATCOM_LDFLAGS.dos      ?= -bt=dos
 TOOL_OPENWATCOM_LDFLAGS.os2      ?= -bt=os2
 TOOL_OPENWATCOM_LDFLAGS.win      ?= -bt=nt
 
