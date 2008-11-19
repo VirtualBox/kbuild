@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2080 2008-11-19 01:44:02Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2084 2008-11-19 02:35:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -50,6 +50,7 @@ _ALL_IMPORT_LIBS := $(IMPORT_LIBS) $(IMPORT_LIBS.$(KBUILD_TARGET))   $(IMPORT_LI
 _ALL_DLLS        := $(DLLS)        $(DLLS.$(KBUILD_TARGET))          $(DLLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))            $(DLLS.$(KBUILD_TARGET_ARCH))        $(DLLS.$(KBUILD_TARGET_CPU))         $(DLLS.$(KBUILD_TYPE))
 _ALL_PROGRAMS    := $(PROGRAMS)    $(PROGRAMS.$(KBUILD_TARGET))      $(PROGRAMS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(PROGRAMS.$(KBUILD_TARGET_ARCH))    $(PROGRAMS.$(KBUILD_TARGET_CPU))     $(PROGRAMS.$(KBUILD_TYPE))
 _ALL_SYSMODS     := $(SYSMODS)     $(SYSMODS.$(KBUILD_TARGET))       $(SYSMODS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         $(SYSMODS.$(KBUILD_TARGET_ARCH))     $(SYSMODS.$(KBUILD_TARGET_CPU))      $(SYSMODS.$(KBUILD_TYPE))
+_ALL_MISCBINS    := $(MISCBINS)    $(MISCBINS.$(KBUILD_TARGET))      $(MISCBINS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(MISCBINS.$(KBUILD_TARGET_ARCH))    $(MISCBINS.$(KBUILD_TARGET_CPU))     $(MISCBINS.$(KBUILD_TYPE))
 _ALL_OTHERS      := $(OTHERS)      $(OTHERS.$(KBUILD_TARGET))        $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))          $(OTHERS.$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_CPU))       $(OTHERS.$(KBUILD_TYPE))
 _ALL_INSTALLS    := $(INSTALLS)    $(INSTALLS.$(KBUILD_TARGET))      $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))        $(INSTALLS.$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_CPU))     $(INSTALLS.$(KBUILD_TYPE))
 _ALL_FETCHES     := $(FETCHES)     $(FETCHES.$(KBUILD_TARGET))       $(FETCHES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))         $(FETCHES.$(KBUILD_TARGET_ARCH))     $(FETCHES.$(KBUILD_TARGET_CPU))      $(FETCHES.$(KBUILD_TYPE))
@@ -65,6 +66,7 @@ _ALL_TARGETS = \
 	$(_ALL_DLLS) \
 	$(_ALL_PROGRAMS) \
 	$(_ALL_SYSMODS) \
+	$(_ALL_MISCBINS) \
 	$(_ALL_INSTALLS) \
 	$(_ALL_OTHERS)
 
@@ -77,6 +79,7 @@ _ALL_TARGET_TARGETS = \
 	$(_ALL_DLLS) \
 	$(_ALL_PROGRAMS) \
 	$(_ALL_SYSMODS) \
+	$(_ALL_MISCBINS) \
 	$(_ALL_INSTALLS) \
 	$(_ALL_OTHERS)
 
@@ -116,6 +119,7 @@ _LIBS     :=
 _DLLS     :=
 _PROGRAMS :=
 _SYSMODS  :=
+_MISCBINS :=
 _INSTALLS :=
 _INSTALLS_FILES :=
 _INSTALLS_DIRS :=
@@ -916,6 +920,13 @@ properties_now_r    := $(PROPS_SYSMODS_ACCUMULATE_R)
 properties_deferred := $(PROPS_SYSMODS_DEFERRED)
 $(foreach trg, $(_ALL_SYSMODS),$(evalval def_inherit))
 
+# Misc binaries.
+properties          := $(PROPS_MISCBINS_SINGLE)
+properties_now_l    := $(PROPS_MISCBINS_ACCUMULATE_L)
+properties_now_r    := $(PROPS_MISCBINS_ACCUMULATE_R)
+properties_deferred := $(PROPS_MISCBINS_DEFERRED)
+$(foreach trg, $(_ALL_MISCBINS),$(evalval def_inherit))
+
 # Installs.
 properties          := $(PROPS_INSTALLS_SINGLE)
 properties_now_l    := $(PROPS_INSTALLS_ACCUMULATE_L)
@@ -1534,6 +1545,18 @@ definst := $(PATH_SYS)
 tool_prefix := LD
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_SYSMODS), \
+	$(evalval def_pass1_link_common))
+
+
+#
+# MISCBINS (Pass 1)
+#
+EXT     := BIN
+EXTPRE  :=
+definst := $(PATH_BIN)
+tool_prefix := LD
+bld_trg_base_var := TARGET
+$(foreach target, $(_ALL_MISCBINS), \
 	$(evalval def_pass1_link_common))
 
 
@@ -3011,6 +3034,25 @@ endif
 
 
 #
+# MISCBINS
+#
+
+# Process MISCBINS
+EXT     := BIN
+EXTPRE  :=
+tool_do := LINK_MISCBIN
+definst := $(PATH_BIN)
+typevar := _MISCBINS
+mode    := 0644
+bld_trg_base_var := TARGET
+$(foreach target, $(_ALL_MISCBINS), $(evalval def_link_common))
+
+ifdef KBUILD_PROFILE_SELF
+ $(evalcall def_profile_self, done misc binary targets)
+endif
+
+
+#
 # OTHERS
 #
 _OTHERS = $(OTHERS) $(OTHERS.$(KBUILD_TARGET)) $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))
@@ -3622,13 +3664,14 @@ uninstall:
 install: pass_installs
 
 # misc shortcuts (use secondary expansion here to save strcache[file] space).
-targets:   bldprogs libraries dlls programs sysmods others installs
+targets:   bldprogs libraries dlls programs sysmods miscbins others installs
 objects:   $$(_OBJS)
 bldprogs:  $$(_BLDPROGS)
 libraries: $$(_LIBS) $$(_IMPORT_LIBS) $$(_OTHER_LIBRARIES)
 dlls:      $$(_DLLS)
 programs:  $$(_PROGRAMS)
 sysmods:   $$(_SYSMODS)
+miscbins:  $$(_MISCBINS)
 others:    $$(_OTHERS)
 installs:  $$(_INSTALLS) $$(_INSTALLS_DIRS) $$(_INSTALLS_FILES)
 
@@ -3681,7 +3724,7 @@ ifdef KBUILD_PROFILE_SELF
 
  ifneq ($(KBUILD_PROFILE_SELF),0)
   $(info prof: ALL=$(words $(_ALL_TARGETS)) BLDPROGS=$(words $(_ALL_BLDPROGS)) LIBRARIES=$(words $(_ALL_LIBRARIES)) IMPORT_LIBS=$(words $(IMPORT_LIBS)) DLLS=$(words $(DLLS)) PROGRAMS=$(words $(_ALL_PROGRAMS)) )
-  $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
+  $(info prof: SYSMODS=$(words $(_ALL_SYSMODS)) MISCBINS=$(words $(_ALL_MISCBINS)) OTHERS=$(words $(_ALL_OTHERS)) INSTALLS=$(words $(_ALL_INSTALLS)) FETCHES=$(words $(_ALL_FETCHES)) PACKING=$(words $(_PACKING)) TESTING=$(words $(TESTING)) )
   $(info prof: DIRS=$(words $(_DIR_ALL)) TOOLS=$(words $(_TOOLS)) SDKS=$(words $(_SDKS)) USES=$(words $(_USES)) OUT_FILES=$(words $(_OUT_FILES)) OBJS=$(words $(_OBJS)) CLEAN_FILES=$(words $(CLEAN_FILES) $(OTHER_CLEAN)) )
   $(info prof: DEPFILES_INCLUDED=$(words $(_DEPFILES_INCLUDED)) DEPFILES=$(words $(_DEPFILES)) MAKEFILES=$(words $(MAKEFILE_LIST)) )
  endif

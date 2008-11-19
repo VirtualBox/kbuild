@@ -1,4 +1,4 @@
-# $Id: header.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2084 2008-11-19 02:35:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2018 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2084 $  )
 
 
 #
@@ -818,6 +818,14 @@ PROPS_SYSMODS_ACCUMULATE_R   := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
 PROPS_SYSMODS_ACCUMULATE_L   := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 ## @}
 
+## @name Properties valid on misc binaries (MISCBINS)
+## @{
+PROPS_MISCBINS_SINGLE        := $(PROPS_SINGLE_LNK) LDTOOL BINSUFF
+PROPS_MISCBINS_DEFERRED      := $(PROPS_DEFERRED)
+PROPS_MISCBINS_ACCUMULATE_R  := $(PROPS_ACCUMULATE_R_LNK) LDFLAGS
+PROPS_MISCBINS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
+## @}
+
 ## @name Properties valid on installs (INSTALLS)
 ## @{
 PROPS_INSTALLS_SINGLE        := TOOL TEMPLATE INST NOINST
@@ -851,7 +859,7 @@ $(prop) =
 endif
 endef
 $(foreach prop, $(PROPS_ALL) \
-	FETCHES PATCHES BLDPROGS LIBRARIES IMPORT_LIBS DLLS PROGRAMS SYSMODS INSTALLS OTHERS \
+	FETCHES PATCHES BLDPROGS LIBRARIES IMPORT_LIBS DLLS PROGRAMS SYSMODS MISCBINS INSTALLS OTHERS \
 	SUBDIRS MAKEFILES BLDDIRS \
 	,$(eval $(value def_nuke_environment_prop)))
 
@@ -905,7 +913,7 @@ PASS_DLLS_pass      := dlls
 # This pass builds binary targets, i.e. programs, system modules and stuff.
 PASS_BINARIES       := Programs
 PASS_BINARIES_trgs  :=
-PASS_BINARIES_vars  := _PROGRAMS _SYSMODS _OTHER_BINARIES
+PASS_BINARIES_vars  := _PROGRAMS _SYSMODS _MISC_BINS _OTHER_BINARIES
 PASS_BINARIES_pass  := binaries
 
 ## PASS: others
