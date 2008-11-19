@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2063 2008-11-15 11:23:20Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2091 2008-11-19 23:21:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -343,7 +343,7 @@ incdep_cache_deallocator (void *thrd, void *ptr, unsigned int size)
 void
 incdep_lock(void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_mutex_lock (&incdep_mtx);
 #elif defined (WINDOWS32)
   EnterCriticalSection (&incdep_mtx);
@@ -356,7 +356,7 @@ incdep_lock(void)
 void
 incdep_unlock(void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_mutex_unlock (&incdep_mtx);
 #elif defined(WINDOWS32)
   LeaveCriticalSection (&incdep_mtx);
@@ -369,7 +369,7 @@ incdep_unlock(void)
 static void
 incdep_signal_done (void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_cond_broadcast (&incdep_cond_done);
 #elif defined (WINDOWS32)
   if (incdep_hev_done_waiters)
@@ -384,7 +384,7 @@ incdep_signal_done (void)
 static void
 incdep_wait_done (void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_cond_wait (&incdep_cond_done, &incdep_mtx);
 
 #elif defined (WINDOWS32)
@@ -410,7 +410,7 @@ incdep_wait_done (void)
 static void
 incdep_signal_todo (void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_cond_broadcast (&incdep_cond_todo);
 #elif defined(WINDOWS32)
   if (incdep_hev_todo_waiters)
@@ -425,7 +425,7 @@ incdep_signal_todo (void)
 static void
 incdep_wait_todo (void)
 {
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   pthread_cond_wait (&incdep_cond_todo, &incdep_mtx);
 
 #elif defined (WINDOWS32)
@@ -593,6 +593,10 @@ incdep_worker_os2 (void *thrd)
 static int
 incdep_are_threads_enabled (void)
 {
+#if defined (CONFIG_WITHOUT_THREADS)
+  return 0;
+#endif
+
   if (getenv("KMK_THREADS_DISABLED"))
     return 0;
   if (getenv("KMK_THREADS_ENABLED"))
@@ -655,7 +659,7 @@ incdep_init (struct floc *f)
 
   /* create the mutex and two condition variables / event objects. */
 
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   rc = pthread_mutex_init (&incdep_mtx, NULL);
   if (rc)
     fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
@@ -728,7 +732,7 @@ incdep_init (struct floc *f)
                           0);           /* thread safe */
 
           /* create the thread. */
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
           rc = pthread_attr_init (&attr);
           if (rc)
             fatal (f, _("pthread_attr_init failed: err=%d"), rc);
