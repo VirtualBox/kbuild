@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2084 2008-11-19 02:35:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2094 2008-11-20 01:53:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1685,10 +1685,13 @@ define def_fetch_src_unpack_rule
 # This is the unpack rule. it has an order-only dependency on the download check.
 $(out) + $($(target)_$(srcname)_UNPACK_OUTPUT_) +| $($(target)_$(srcname)_UNPACK_OUTPUT_MAYBE_) : \
 		$($(target)_$(srcname)_UNPACK_DEPEND_) \
-		| $($(target)_$(srcname)_UNPACK_DEPORD_) $(archive).checked_$(md5)_$(size)
+		| $($(target)_$(srcname)_UNPACK_DEPORD_) \
+		$(archive).checked_$(md5)_$(size) \
+		$(dir $(out))
 	%$$(call MSG_FETCH_UP,$(target),$(archive),$(inst))
 	$$(QUIET)$$(RM) -f -- $(out)
-	@# if the source archive doesn't exist fetch it (can have been deleted to save space).
+	$$(QUIET)$$(MKDIR) -p -- $(dir $(out))
+	@# if the source archive doesn't exist fetch it (may have been deleted to save space).
 	$$(QUIET)test -f $(archive) \
 	         || (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
 	             && $$(MAKE)      $(archive).checked_$(md5)_$(size) -f $(MAKEFILE) --no-print-directory )
@@ -1913,9 +1916,9 @@ $(out)_unfetched:
 
 $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE) | $(call DIRDEP,$(inst))
 	$$(QUIET)$$(RM) -f -- $$@
-	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(wildcard $(out).lst)\
+	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(shell $$(TEST_EXT) -f $(out).lst -- $$(ECHO_EXT) file-exist)\
 		,$$(call MSG_REFETCH,$(target)),$$(call MSG_FETCH,$(target))),$$(call MSG_UNFETCH,$(target)))
-	$$(QUIET)$$(if $$(wildcard $(out).lst      ),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched)
+	$$(QUIET)$(TEST_EXT) -f $(out).lst -- $$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched
 	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@))
 	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
 
