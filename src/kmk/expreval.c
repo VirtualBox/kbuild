@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 2022 2008-11-02 02:15:00Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 2096 2008-11-20 02:18:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -876,6 +876,24 @@ static EXPRRET expr_op_defined(PEXPR pThis)
 
 
 /**
+ * Does file(/dir/whatever) exist, unary.
+ *
+ * @returns Status code.
+ * @param   pThis       The instance.
+ */
+static EXPRRET expr_op_exists(PEXPR pThis)
+{
+    PEXPRVAR            pVar = &pThis->aVars[pThis->iVar];
+    struct stat         st;
+
+    expr_var_make_simple_string(pVar);
+    expr_var_assign_bool(pVar, stat(pVar->uVal.psz, &st) == 0);
+
+    return kExprRet_Ok;
+}
+
+
+/**
  * Is target defined, unary.
  *
  * @returns Status code.
@@ -1577,6 +1595,7 @@ static const EXPROP g_aExprOps[] =
 #define EXPR_OP(szOp, iPrecedence, cArgs, pfn)  {  szOp, sizeof(szOp) - 1, '\0', iPrecedence, cArgs, pfn }
     /*        Name, iPrecedence,  cArgs,    pfn    */
     EXPR_OP("defined",     90,      1,    expr_op_defined),
+    EXPR_OP("exists",      90,      1,    expr_op_exists),
     EXPR_OP("target",      90,      1,    expr_op_target),
     EXPR_OP("bool",        90,      1,    expr_op_bool),
     EXPR_OP("num",         90,      1,    expr_op_num),
