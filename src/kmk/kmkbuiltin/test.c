@@ -265,10 +265,10 @@ int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn
 # if defined(_MSC_VER)
 			res = _spawnvp(_P_WAIT, argv_spawn[0], argv_spawn);
 			if (res == -1)
-			    res = err(1, "_spawnvp(_P_WAIT,%s,..)", argv_spawn[i]);
+			    res = err(1, "_spawnvp(_P_WAIT,%s,..)", argv_spawn[0]);
 # else
-			execvp(argv_spawn[i], &argv_spawn[i]);
-			res = err(1, "execvp(%s,..)", argv_spawn[i]);
+			execvp(argv_spawn[0], argv_spawn);
+			res = err(1, "execvp(%s,..)", argv_spawn[0]);
 # endif
 #else /* in kmk */
 			/* let job.c spawn the process, make a job.c style argv_spawn copy. */
