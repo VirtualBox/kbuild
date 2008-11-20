@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2094 2008-11-20 01:53:09Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2095 2008-11-20 02:14:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1916,7 +1916,7 @@ $(out)_unfetched:
 
 $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE) | $(call DIRDEP,$(inst))
 	$$(QUIET)$$(RM) -f -- $$@
-	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(shell $$(TEST_EXT) -f $(out).lst -- $$(ECHO_EXT) file-exist)\
+	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(eq $$(file-size $(out).lst),-1)\
 		,$$(call MSG_REFETCH,$(target)),$$(call MSG_FETCH,$(target))),$$(call MSG_UNFETCH,$(target)))
 	$$(QUIET)$(TEST_EXT) -f $(out).lst -- $$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched
 	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@))
