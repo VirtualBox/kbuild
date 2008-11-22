@@ -391,7 +391,7 @@ complain (const struct file *file)
         msg_joke =
 # ifdef HAVE_UNISTD_H
                    getuid () == 0 ? "Okay.\n" :
-#endif
+# endif
                    "What? Make it yourself!\n";
       if (msg_joke)
         {
