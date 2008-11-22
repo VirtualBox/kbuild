@@ -361,6 +361,46 @@ complain (const struct file *file)
   const char *msg_parent
     = _("%sNo rule to make target `%s', needed by `%s'%s");
 
+#ifdef KMK
+  /* jokes */
+  if (!keep_going_flag && file->parent == 0)
+    {
+      const char *msg_joke = 0;
+      extern struct dep *goals;
+
+      /* classics */
+      if (!strcmp (file->name, "fire")
+       || !strcmp (file->name, "Fire"))
+        msg_joke = "No matches.\n";
+      else if (!strcmp (file->name, "love")
+            || !strcmp (file->name, "Love")
+            || !strcmp (file->name, "peace")
+            || !strcmp (file->name, "Peace"))
+        msg_joke = "Not war.\n";
+      else if (!strcmp (file->name, "war"))
+        msg_joke = "Don't know how to make war.\n";
+
+      /* http://xkcd.com/149/ - GNU Make bug #23273. */
+      else if ((   !strcmp (file->name, "me")
+                && goals != 0
+                && !strcmp (dep_name(goals), "me")
+                && goals->next != 0
+                && !strcmp (dep_name(goals->next), "a")
+                && goals->next->next != 0)
+            || !strncmp (file->name, "me a ", 5))
+        msg_joke =
+# ifdef HAVE_UNISTD_H
+                   getuid () == 0 ? "Okay.\n" :
+#endif
+                   "What? Make it yourself!\n";
+      if (msg_joke)
+        {
+          fputs (msg_joke, stderr);
+          die (2);
+        }
+    }
+#endif /* KMK */
+
   if (!keep_going_flag)
     {
       if (file->parent == 0)

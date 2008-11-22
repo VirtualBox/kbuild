@@ -535,7 +535,10 @@ static struct option long_option_aliases[] =
 
 /* List of goal targets.  */
 
-static struct dep *goals, *lastgoal;
+#ifndef KMK
+static
+#endif
+struct dep *goals, *lastgoal;
 
 /* List of variables which were defined on the command line
    (or, equivalently, in MAKEFLAGS).  */
