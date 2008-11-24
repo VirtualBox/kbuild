@@ -44,12 +44,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_FILE_SIZE) /* bird */
 # include <ctype.h>
-# ifdef _MSC_VER
-typedef __int64 math_int;
-# else
-#  include <stdint.h>
-typedef int64_t math_int;
-# endif
+typedef big_int math_int;
 static char *math_int_to_variable_buffer (char *, math_int);
 #endif
 
@@ -4091,53 +4086,7 @@ func_int_cmp (char *o, char **argv, const char *funcname)
 static char *
 func_nanots (char *o, char **argv, const char *funcname)
 {
-  math_int ts;
-
-#if defined (WINDOWS32)
-  static int s_state = -1;
-  static LARGE_INTEGER s_freq;
-
-  if (s_state == -1)
-    s_state = QueryPerformanceFrequency (&s_freq);
-  if (s_state)
-    {
-      LARGE_INTEGER pc;
-      if (!QueryPerformanceCounter (&pc))
-        {
-          s_state = 0;
-          return func_nanots (o, argv, funcname);
-        }
-      ts = (math_int)((long double)pc.QuadPart / (long double)s_freq.QuadPart * 1000000000);
-    }
-  else
-    {
-      /* fall back to low resolution system time. */
-      LARGE_INTEGER bigint;
-      FILETIME ft = {0,0};
-      GetSystemTimeAsFileTime (&ft);
-      bigint.u.LowPart = ft.dwLowDateTime;
-      bigint.u.HighPart = ft.dwLowDateTime;
-      ts = bigint.QuadPart * 100;
-    }
-
-/* FIXME: Linux and others have the realtime clock_* api, detect and use it. */
-
-#elif HAVE_GETTIMEOFDAY
-  struct timeval tv;
-  if (!gettimeofday (&tv, NULL))
-    ts = (math_int)tv.tv_sec * 1000000000
-       + tv.tv_usec * 1000;
-  else
-    {
-      error (NILF, _("$(nanots): gettimeofday failed"));
-      ts = 0;
-    }
-
-#else
-# error "PORTME"
-#endif
-
-  return math_int_to_variable_buffer (o, ts);
+  return math_int_to_variable_buffer (o, nano_timestamp ());
 }
 #endif
 

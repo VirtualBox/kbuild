@@ -66,6 +66,9 @@ struct child
     unsigned int good_stdin:1;	/* Nonzero if this child has a good stdin.  */
     unsigned int deleted:1;	/* Nonzero if targets have been deleted.  */
     unsigned int dontcare:1;    /* Saved dontcare flag.  */
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+    big_int start_ts;           /* nano_timestamp of the first command.  */
+#endif
   };
 
 extern struct child *children;

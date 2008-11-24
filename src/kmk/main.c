@@ -183,6 +183,16 @@ int pretty_command_printing;
 int print_stats_flag;
 #endif
 
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+/* Minimum number of seconds to report, -1 if disabled. */
+
+int print_time_min = -1;
+static int default_print_time_min = -1;
+static int no_val_print_time_min = 0;
+static big_int make_start_ts = -1;
+int print_time_width = 5;
+#endif
+
 /* Print debugging info (--debug).  */
 
 static struct stringlist *db_flags;
@@ -488,10 +498,15 @@ static const struct command_switch switches[] =
     { CHAR_MAX+11, flag, (char *) &print_stats_flag, 1, 1, 1, 0, 0,
        "print-stats" },
 #endif
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+    { CHAR_MAX+12, positive_int, (char *) &print_time_min, 1, 1, 0,
+      (char *) &no_val_print_time_min, (char *) &default_print_time_min,
+      "print-time" },
+#endif
 #ifdef KMK
-    { CHAR_MAX+12, positive_int, (char *) &process_priority, 1, 1, 0,
+    { CHAR_MAX+14, positive_int, (char *) &process_priority, 1, 1, 0,
       (char *) &process_priority, (char *) &process_priority, "priority" },
-    { CHAR_MAX+14, positive_int, (char *) &process_affinity, 1, 1, 0,
+    { CHAR_MAX+15, positive_int, (char *) &process_affinity, 1, 1, 0,
       (char *) &process_affinity, (char *) &process_affinity, "affinity" },
 #endif
     { 'q', flag, &question_flag, 1, 1, 1, 0, 0, "question" },
@@ -502,7 +517,7 @@ static const struct command_switch switches[] =
     { 'S', flag_off, &keep_going_flag, 1, 1, 0, 0, &default_keep_going_flag,
       "no-keep-going" },
 #if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
-    { CHAR_MAX+15, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
+    { CHAR_MAX+16, flag, (char *) &make_expensive_statistics, 1, 1, 1, 0, 0,
        "statistics" },
 #endif
     { 't', flag, &touch_flag, 1, 1, 1, 0, 0, "touch" },
@@ -1308,6 +1323,10 @@ main (int argc, char **argv, char **envp)
 #ifndef ELECTRIC_HEAP /* Drop this because it prevents JIT debugging. */
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
 #endif /* !ELECTRIC_HEAP */
+
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+  make_start_ts = nano_timestamp ();
+#endif
 
   /* start off assuming we have no shell */
   unixy_shell = 0;
@@ -3559,6 +3578,11 @@ define_makeflags (int all, int makefile)
     define_variable ("KMK_OPTS_STATISTICS", sizeof("KMK_OPTS_STATISTICS") - 1,
                      make_expensive_statistics ? "1" : "0", o_default, 1);
 # endif
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+    sprintf (val, "%u", print_time_min);
+    define_variable ("KMK_OPTS_PRINT_TIME", sizeof("KMK_OPTS_PRINT_TIME") - 1,
+                     val, o_default, 1);
+#endif
   }
 #endif
 }
@@ -3802,6 +3826,19 @@ die (int status)
          of relative pathnames fail.  */
       if (directory_before_chdir != 0)
 	chdir (directory_before_chdir);
+
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+      if (print_time_min != -1)
+        {
+          big_int elapsed = nano_timestamp () - make_start_ts;
+          if (elapsed >= print_time_min * BIG_INT_C(1000000000))
+            {
+              char buf[64];
+              format_elapsed_nano (buf, sizeof (buf), elapsed);
+              message (1, _("%*s"), print_time_width, buf);
+            }
+        }
+#endif
 
       log_working_directory (0);
     }
