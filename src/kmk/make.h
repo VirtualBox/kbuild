@@ -442,6 +442,24 @@ struct floc
 
 #define STRING_SIZE_TUPLE(_s) (_s), (sizeof (_s)-1)
 
+#if defined (CONFIG_WITH_MATH) \
+ || defined (CONFIG_WITH_NANOTS) \
+ || defined (CONFIG_WITH_FILE_SIZE) \
+ || defined (CONFIG_WITH_PRINT_TIME_SWITCH) /* bird */
+# ifdef _MSC_VER
+typedef __int64 big_int;
+#  define BIG_INT_C(c)      (c ## LL)
+typedef unsigned __int64 big_uint;
+#  define BIG_UINT_C(c)     (c ## ULL)
+# else
+#  include <stdint.h>
+typedef int64_t big_int;
+#  define BIG_INT_C(c)      INT64_C(c)
+typedef uint64_t big_uint;
+#  define BIG_UINT_C(c)     UINT64_C(c)
+# endif
+#endif
+
 
 /* We have to have stdarg.h or varargs.h AND v*printf or doprnt to use
    variadic versions of these functions.  */
@@ -690,6 +708,9 @@ extern int second_target_expansion;
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
 extern int pretty_command_printing;
 #endif
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+extern int print_time_min, print_time_width;
+#endif
 #if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
 extern int make_expensive_statistics;
 #endif
@@ -894,3 +915,10 @@ extern char *expr_eval_to_string(char *o, char *expr);
 extern char *abspath(const char *name, char *apath);
 extern char *func_breakpoint(char *o, char **argv, const char *funcname);
 #endif
+
+#if defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_PRINT_TIME_SWITCH)
+/* misc.c */
+extern big_int nano_timestamp (void);
+extern int format_elapsed_nano (char *buf, size_t size, big_int ts);
+#endif
+

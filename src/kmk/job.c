@@ -208,6 +208,9 @@ static void start_job_command (struct child *child);
 static int load_too_high (void);
 static int job_next_command (struct child *);
 static int start_waiting_job (struct child *);
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+static void print_job_time (struct child *);
+#endif
 
 /* Chain of all live (or recently deceased) children.  */
 
@@ -895,6 +898,9 @@ reap_children (int block, int err)
 static void
 free_child (struct child *child)
 {
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+  print_job_time (child);
+#endif
   if (!jobserver_tokens)
     fatal (NILF, "INTERNAL: Freeing child 0x%08lx (%s) but no tokens left!\n",
            (unsigned long int) child, child->file->name);
@@ -1057,6 +1063,11 @@ start_job_command (struct child *child)
   /* If we have a completely empty commandset, stop now.  */
   if (!child->command_ptr)
     goto next_command;
+
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+  if (child->start_ts == -1)
+    child->start_ts = nano_timestamp ();
+#endif
 
   /* Combine the flags parsed for the line itself with
      the flags specified globally for this target.  */
@@ -1814,6 +1825,9 @@ new_job (struct file *file)
   c->file = file;
   c->command_lines = lines;
   c->sh_batch_file = NULL;
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+  c->start_ts = -1;
+#endif
 
   /* Cache dontcare flag because file->dontcare can be changed once we
      return. Check dontcare inheritance mechanism for details.  */
@@ -3409,6 +3423,27 @@ dup2 (int old, int new)
   return fd;
 }
 #endif /* !HAPE_DUP2 && !_AMIGA */
+
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+/* Prints the time elapsed while executing the commands for the given job. */
+void print_job_time (struct child *c)
+{
+  if (   !handling_fatal_signal
+      && print_time_min != -1
+      && c->start_ts != -1)
+    {
+      big_int elapsed = nano_timestamp () - c->start_ts;
+      if (elapsed >= print_time_min * BIG_INT_C(1000000000))
+        {
+          char buf[64];
+          int len = format_elapsed_nano (buf, sizeof (buf), elapsed);
+          if (len > print_time_width)
+            print_time_width = len;
+          message (1, _("%*s - %s"), print_time_width, buf, c ->file->name);
+        }
+    }
+}
+#endif
 
 /* On VMS systems, include special VMS functions.  */
 

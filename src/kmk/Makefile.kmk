@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2091 2008-11-19 23:21:53Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2101 2008-11-24 23:35:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -169,6 +169,7 @@ kmk_DEFS = \
 	CONFIG_WITH_COMMANDS_FUNC \
 	CONFIG_PRETTY_COMMAND_PRINTING \
 	CONFIG_WITH_PRINT_STATS_SWITCH \
+	CONFIG_WITH_PRINT_TIME_SWITCH \
 	CONFIG_WITH_RDONLY_VARIABLE_VALUE \
 	CONFIG_WITH_LAZY_DEPS_VARS \
 	CONFIG_WITH_MEMORY_OPTIMIZATIONS \

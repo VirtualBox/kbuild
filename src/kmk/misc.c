@@ -31,6 +31,12 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 # endif
 #endif
 
+#if defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_PRINT_TIME_SWITCH)
+# ifdef WINDOWS32
+#  include <Windows.h>
+# endif
+#endif
+
 /* All bcopy calls in this file can be replaced by memcpy and save a tick or two. */
 #ifdef CONFIG_WITH_OPTIMIZATION_HACKS
 # undef bcopy
@@ -1151,7 +1157,8 @@ close_stdout (void)
 
 #ifdef CONFIG_WITH_PRINT_STATS_SWITCH
 /* Print heap statistics if supported by the platform. */
-void print_heap_stats (void)
+void
+print_heap_stats (void)
 {
   /* Darwin / Mac OS X */
 # ifdef __APPLE__
@@ -1238,3 +1245,101 @@ void print_heap_stats (void)
 }
 #endif /* CONFIG_WITH_PRINT_STATS_SWITCH */
 
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+/* Get a nanosecond timestamp, from a monotonic time source if
+   possible.  Returns -1 after calling error() on failure.  */
+
+big_int
+nano_timestamp (void)
+{
+  big_int ts;
+#if defined (WINDOWS32)
+  static int s_state = -1;
+  static LARGE_INTEGER s_freq;
+
+  if (s_state == -1)
+    s_state = QueryPerformanceFrequency (&s_freq);
+  if (s_state)
+    {
+      LARGE_INTEGER pc;
+      if (!QueryPerformanceCounter (&pc))
+        {
+          s_state = 0;
+          return nano_timestamp ();
+        }
+      ts = (big_int)((long double)pc.QuadPart / (long double)s_freq.QuadPart * 1000000000);
+    }
+  else
+    {
+      /* fall back to low resolution system time. */
+      LARGE_INTEGER bigint;
+      FILETIME ft = {0,0};
+      GetSystemTimeAsFileTime (&ft);
+      bigint.u.LowPart = ft.dwLowDateTime;
+      bigint.u.HighPart = ft.dwLowDateTime;
+      ts = bigint.QuadPart * 100;
+    }
+
+#elif HAVE_GETTIMEOFDAY
+/* FIXME: Linux and others have the realtime clock_* api, detect and use it. */
+  struct timeval tv;
+  if (!gettimeofday (&tv, NULL))
+    ts = (big_int)tv.tv_sec * 1000000000
+       + tv.tv_usec * 1000;
+  else
+    {
+      error (NILF, _("gettimeofday failed"));
+      ts = -1;
+    }
+
+#else
+# error "PORTME"
+#endif
+
+  return ts;
+}
+
+/* Formats the elapsed time (nano seconds) in the manner easiest
+   to read, with millisecond percision for larger numbers.  */
+
+int
+format_elapsed_nano (char *buf, size_t size, big_int ts)
+{
+  int sz;
+  if (ts < 1000)
+    sz = sprintf (buf, "%uns", (unsigned)ts);
+  else if (ts < 100000)
+    sz = sprintf (buf, "%u.%03uus",
+                  (unsigned)(ts / 1000),
+                  (unsigned)(ts % 1000));
+  else
+    {
+      ts /= 1000;
+      if (ts < 1000)
+        sz = sprintf (buf, "%uus", (unsigned)ts);
+      else if (ts < 100000)
+        sz = sprintf (buf, "%u.%03ums",
+                      (unsigned)(ts / 1000),
+                      (unsigned)(ts % 1000));
+      else
+        {
+          ts /= 1000;
+          if (ts < BIG_INT_C(60000))
+            sz = sprintf (buf,
+                          "%u.%03us",
+                          (unsigned)(ts / 1000),
+                          (unsigned)(ts % 1000));
+          else
+            sz = sprintf (buf,
+                          "%um%u.%03us",
+                          (unsigned)( ts / BIG_INT_C(60000)),
+                          (unsigned)((ts % BIG_INT_C(60000)) / 1000),
+                          (unsigned)((ts % BIG_INT_C(60000)) % 1000));
+        }
+    }
+  if (sz >= size)
+    fatal (NILF, _("format_elapsed_nano buffer overflow: %d written, %d buffer"),
+           sz, size);
+  return sz;
+}
+#endif /* CONFIG_WITH_PRINT_TIME_SWITCH */
