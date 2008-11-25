@@ -448,6 +448,14 @@ static const char *const usage[] =
     N_("\
   --pretty-command-printing   Makes the command echo easier to read.\n"),
 #endif
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+    N_("\
+  --print-stats               Print make statistics.\n"),
+#endif
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+    N_("\
+  --print-time[=MIN-SEC]      Print file build times starting at arg.\n"),
+#endif
 #ifdef CONFIG_WITH_MAKE_STATS
     N_("\
   --statistics                Gather extra statistics for $(make-stats ).\n"),
