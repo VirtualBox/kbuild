@@ -1324,10 +1324,6 @@ main (int argc, char **argv, char **envp)
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
 #endif /* !ELECTRIC_HEAP */
 
-#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
-  make_start_ts = nano_timestamp ();
-#endif
-
   /* start off assuming we have no shell */
   unixy_shell = 0;
   no_default_sh_exe = 1;
@@ -1341,6 +1337,10 @@ main (int argc, char **argv, char **envp)
   set_space_map_entry ('\t');
   set_space_map_entry ('\v');
 # endif
+
+#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+  make_start_ts = nano_timestamp ();
+#endif
 
 #ifdef SET_STACK_SIZE
  /* Get rid of any avoidable limit on stack size.  */
