@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 2104 2008-11-26 01:52:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -779,7 +779,7 @@ static int ProcessIDB(FILE *pInput)
 
 static void usage(const char *argv0)
 {
-    printf("usage: %s -o <output> -t <target> [-f] [-s] <vc idb-file>\n"
+    printf("usage: %s -o <output> -t <target> [-fqs] <vc idb-file>\n"
            "   or: %s --help\n"
            "   or: %s --version\n",
            argv0, argv0, argv0);
@@ -799,6 +799,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
     int         fFixCase = 0;
     /* Argument parsing. */
     int         fInput = 0;             /* set when we've found input argument. */
+    int         fQuiet = 0;
 
     argv0 = argv[0];
 
@@ -817,10 +818,12 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
             const char *psz = &argv[i][1];
             if (*psz == '-')
             {
-                if (!strcmp(psz, "-help"))
+                if (!strcmp(psz, "-quiet"))
+                    psz = "q";
+                else if (!strcmp(psz, "-help"))
                     psz = "?";
                 else if (!strcmp(psz, "-version"))
-                    psz = "v";
+                    psz = "V";
             }
 
             switch (*psz)
@@ -890,6 +893,15 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                 }
 
                 /*
+                 * Quiet.
+                 */
+                case 'q':
+                {
+                    fQuiet = 1;
+                    break;
+                }
+
+                /*
                  * Generate stubs.
                  */
                 case 's':
@@ -904,6 +916,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
                 case '?':
                     usage(argv[0]);
                     return 0;
+                case 'V':
                 case 'v':
                     return kbuild_version(argv[0]);
 
@@ -971,7 +984,7 @@ int kmk_builtin_kDepIDB(int argc, char *argv[], char **envp)
      */
     if (!i)
     {
-        depOptimize(fFixCase);
+        depOptimize(fFixCase, fQuiet);
         fprintf(pOutput, "%s:", pszTarget);
         depPrint(pOutput);
         if (fStubs)
