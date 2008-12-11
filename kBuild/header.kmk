@@ -1,4 +1,4 @@
-# $Id: header.kmk 2105 2008-12-11 04:46:00Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2107 2008-12-11 05:10:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2105 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2107 $  )
 
 
 #
@@ -938,10 +938,6 @@ PASS_TESTING        := Tests
 PASS_TESTING_trgs   :=
 PASS_TESTING_vars   := _TESTING
 PASS_TESTING_pass   := testing
-# aliases
-.PHONY: check test
-check:: pass_testing
-test::  pass_testing
 
 ## PASS: packing
 # This pass processes custom packing rules.
@@ -949,9 +945,6 @@ PASS_PACKING        := Packing
 PASS_PACKING_trgs   :=
 PASS_PACKING_vars   := _PACKING
 PASS_PACKING_pass   := packing
-# alias
-.PHONY: packing
-packing: pass_packing
 
 ## PASS: clean
 # This pass removes all generated files.
@@ -959,9 +952,6 @@ PASS_CLEAN          := Clean
 PASS_CLEAN_trgs     := do-clean
 PASS_CLEAN_vars     :=
 PASS_CLEAN_pass     := clean
-# alias
-.PHONY: clean
-clean: pass_clean
 
 ## PASS: nothing
 # This pass just walks the tree.
@@ -969,9 +959,6 @@ PASS_NOTHING        := Nothing
 PASS_NOTHING_trgs   := do-nothing
 PASS_NOTHING_vars   :=
 PASS_NOTHING_pass   := nothing
-# alias
-.PHONY: nothing
-nothing: pass_nothing
 
 ## DEFAULT_PASSES
 # The default passes and their order.
