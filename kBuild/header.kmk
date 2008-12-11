@@ -1,4 +1,4 @@
-# $Id: header.kmk 2088 2008-11-19 03:27:29Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2105 2008-12-11 04:46:00Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2088 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2105 $  )
 
 
 #
@@ -940,7 +940,8 @@ PASS_TESTING_vars   := _TESTING
 PASS_TESTING_pass   := testing
 # aliases
 .PHONY: check test
-check test: pass_testing
+check:: pass_testing
+test::  pass_testing
 
 ## PASS: packing
 # This pass processes custom packing rules.
