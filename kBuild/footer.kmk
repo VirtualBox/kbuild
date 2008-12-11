@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2106 2008-12-11 04:47:43Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2107 2008-12-11 05:10:52Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3649,6 +3649,24 @@ $(foreach PASS,$(DEFAULT_PASSES),\
 
 ifdef KBUILD_PROFILE_SELF
  $(evalcall def_profile_self, done passes)
+endif
+
+# Some common pass aliases
+ifndef KBUILD_NO_PASS_ALIASES
+.PHONY:  clean
+clean:   pass_clean
+
+.PHONY:  nothing
+nothing: pass_nothing
+
+.PHONY:  packing
+packing: pass_packing
+
+.PHONY:  check
+check::  pass_testing
+
+.PHONY:  test
+test::   pass_testing
 endif
 
 
