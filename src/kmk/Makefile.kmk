@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2101 2008-11-24 23:35:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2108 2008-12-11 22:19:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -510,7 +510,7 @@ parallel: parallel_1 parallel_2 parallel_3 parallel_4 parallel_5
 parallel_1 parallel_2 parallel_3 parallel_4 parallel_5:
 	echo $@_start ; sleep 1; echo $@_done
 
-test:
+my_test:
 	echo "1"
 	echo "2"
 	echo "3"
