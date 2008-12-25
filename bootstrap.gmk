@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2136 2008-12-25 15:26:49Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2139 2008-12-25 18:25:31Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -252,6 +252,8 @@ distclean: clean
 		src/sed/doc/Makefile.in \
 		src/sed/doc/stamp-vti \
 		src/sed/doc/sed.info \
+		src/sed/doc/sed.info-1 \
+		src/sed/doc/sed.info-2 \
 		src/sed/doc/version.texi \
 		src/sed/INSTALL	\
 		src/sed/lib/Makefile.in	\
