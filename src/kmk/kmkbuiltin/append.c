@@ -1,4 +1,4 @@
-/* $Id: append.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 2121 2008-12-25 14:07:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -35,6 +35,9 @@
 #endif
 #include <string.h>
 #include <stdio.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 #include "err.h"
 #include "kmkbuiltin.h"
 

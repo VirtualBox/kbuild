@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 #include "getopt.h"
 #include "kmkbuiltin.h"
 
