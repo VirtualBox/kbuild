@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)mv.c	8.2 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #endif
 
+#include "config.h"
 #include <sys/types.h>
 #ifndef _MSC_VER
 # ifndef __OS2__

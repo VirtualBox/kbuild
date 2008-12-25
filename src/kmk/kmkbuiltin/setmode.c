@@ -42,6 +42,7 @@ __RCSID("$NetBSD: setmode.c,v 1.30 2003/08/07 16:42:56 agc Exp $");
 #endif /* LIBC_SCCS and not lint */
 
 /*#include "namespace.h"*/
+#include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 

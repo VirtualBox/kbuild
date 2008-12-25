@@ -34,6 +34,7 @@
 static char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 __RCSID("$NetBSD: cmp.c,v 1.15 2006/01/19 20:44:57 garbled Exp $"); */
 
+#include "config.h"
 #include <sys/types.h>
 #include "err.h"
 #include <errno.h>

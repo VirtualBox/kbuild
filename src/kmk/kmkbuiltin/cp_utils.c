@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #endif
 #endif /* not lint */
 
+#include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
 #endif

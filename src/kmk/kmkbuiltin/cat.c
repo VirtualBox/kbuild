@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #define NO_UDOM_SUPPORT /* kmk */
 #endif
 
+#include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
 #endif

@@ -1,4 +1,4 @@
-/* $Id: sleep.c 2046 2008-11-03 13:54:11Z knut.osmundsen@oracle.com $ */
+/* $Id: sleep.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_sleep - suspend execution for an interval of time.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

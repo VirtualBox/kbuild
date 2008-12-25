@@ -1,4 +1,4 @@
-/* $Id: darwin.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: darwin.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * Missing BSD functions on Darwin / Mac OS X.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <sys/stat.h>
 #include <unistd.h>
 

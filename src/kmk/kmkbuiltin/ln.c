@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #endif
 #include <sys/stat.h>
 
+#include "config.h"
 #include "err.h"
 #include <errno.h>
 #include <limits.h>

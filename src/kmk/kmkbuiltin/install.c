@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 ssouhlal Exp $");
 #endif
 
+#include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
 # ifdef USE_MMAP

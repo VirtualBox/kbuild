@@ -42,6 +42,7 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 
+#include "config.h"
 /*#include "namespace.h"*/
 #ifndef _MSC_VER
 #include <sys/param.h>

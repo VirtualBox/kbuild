@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
  * in "to") to form the final target path.
  */
 
+#include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 

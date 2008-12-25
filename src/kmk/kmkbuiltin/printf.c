@@ -45,6 +45,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #endif
 #endif*/ /* not lint */
 
+#include "config.h"
 #include <sys/types.h>
 
 #include <ctype.h>

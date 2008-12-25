@@ -15,6 +15,7 @@
 __RCSID("$NetBSD: test.c,v 1.33 2007/06/24 18:54:58 christos Exp $");
 #endif*/
 
+#include "config.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 

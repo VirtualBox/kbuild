@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2074 2008-11-17 02:55:56Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -259,18 +260,18 @@ int main(int argc, char **argv, char **envp)
                 {
                     char *pszEqual = strchr(envp[i], '=');
                     char *pszCopy;
-                    
+
                     if (pszEqual)
                         *pszEqual = '\0';
                     pszCopy = strdup(envp[i]);
                     if (pszEqual)
                         *pszEqual = '=';
 
-#if defined(_MSC_VER) || defined(__OS2__) 
+#if defined(_MSC_VER) || defined(__OS2__)
                     putenv(pszCopy);
 #else
                     unsetenv(pszCopy);
-#endif 
+#endif
                     free(pszCopy);
                 }
                 continue;
