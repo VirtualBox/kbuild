@@ -488,7 +488,8 @@ create_pattern_rule (const char **targets, const char **target_percents,
   if (new_pattern_rule (r, override))
     r->terminal = terminal;
 #ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
-  commands->refs = 1000;
+  if (commands != NULL)
+    commands->refs = 1000;
 #endif
 }
 
