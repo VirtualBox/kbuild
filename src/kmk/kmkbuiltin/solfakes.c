@@ -1,4 +1,4 @@
-/* $Id: solfakes.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: solfakes.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for Solaris.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>

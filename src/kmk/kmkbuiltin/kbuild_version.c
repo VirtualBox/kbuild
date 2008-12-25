@@ -1,4 +1,4 @@
-/* $Id: kbuild_version.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_version.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * kbuild_version(), helper function.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include "kmkbuiltin.h"
 #include <string.h>
 #include <stdio.h>

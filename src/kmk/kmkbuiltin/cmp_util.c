@@ -35,6 +35,7 @@
 /*__COPYRIGHT("@(#) Copyright (c) 1987, 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n");*/
 
+#include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__NetBSD__) /** @todo more mmap capable OSes. */

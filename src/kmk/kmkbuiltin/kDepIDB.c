@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 2104 2008-11-26 01:52:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>

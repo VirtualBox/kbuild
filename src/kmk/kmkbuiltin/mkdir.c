@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $");
 #endif
 
+#include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 

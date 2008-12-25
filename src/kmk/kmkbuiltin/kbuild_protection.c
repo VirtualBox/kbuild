@@ -1,4 +1,4 @@
-/* $Id: kbuild_protection.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
@@ -26,6 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "config.h"
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>

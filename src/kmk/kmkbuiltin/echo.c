@@ -41,10 +41,11 @@ static char sccsid[] = "@(#)echo.c	8.1 (Berkeley) 5/31/93";
 //__FBSDID("$FreeBSD: src/bin/echo/echo.c,v 1.17 2004/04/06 20:06:46 markm Exp $");
 #endif
 
+#include "config.h"
 #include <sys/types.h>
 #ifndef _MSC_VER
 #include <sys/uio.h>
-#endif 
+#endif
 
 #include <stdio.h>
 #include <assert.h>
@@ -56,7 +57,7 @@ static char sccsid[] = "@(#)echo.c	8.1 (Berkeley) 5/31/93";
 #include <unistd.h>
 #else
 #include "mscfakes.h"
-#endif 
+#endif
 
 #ifndef IOV_MAX
 #define IOV_MAX 1024
@@ -78,7 +79,7 @@ errexit(const char *prog, const char *reason)
 	write(STDERR_FILENO, errstr, strlen(errstr));
 	write(STDERR_FILENO, "\n", 1);
 }
-	
+
 int
 kmk_builtin_echo(int argc, char *argv[])
 {
@@ -106,7 +107,7 @@ kmk_builtin_echo(int argc, char *argv[])
 
 	while (argv[0] != NULL) {
 		size_t len;
-		
+
 		len = strlen(argv[0]);
 
 		/*
