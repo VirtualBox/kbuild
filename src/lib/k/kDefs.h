@@ -354,7 +354,7 @@
 #else
 # define K_LE2H_U16(u16)        K_E2E_U16(u16)
 # define K_LE2H_U32(u32)        K_E2E_U32(u32)
-# define K_LE2H_U32(u64)        K_E2E_U64(u64)
+# define K_LE2H_U64(u64)        K_E2E_U64(u64)
 # define K_BE2H_U16(u16)        ((KU16)(u16))
 # define K_BE2H_U32(u32)        ((KU32)(u32))
 # define K_BE2H_U64(u64)        ((KU64)(u32))
