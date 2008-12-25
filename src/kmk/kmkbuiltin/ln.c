@@ -41,12 +41,12 @@ static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 __FBSDID("$FreeBSD: src/bin/ln/ln.c,v 1.33 2005/02/09 17:37:37 ru Exp $");
 #endif /* no $id */
 
+#include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
 #endif
 #include <sys/stat.h>
 
-#include "config.h"
 #include "err.h"
 #include <errno.h>
 #include <limits.h>
