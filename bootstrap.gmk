@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2135 2008-12-25 15:22:04Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2136 2008-12-25 15:26:49Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -119,6 +119,7 @@ endif
 #
 SRCDIR = $(CURDIR)
 OUTDIR = $(SRCDIR)/out/$(KBUILD_HOST).$(KBUILD_HOST_ARCH)/$(KBUILD_TYPE)/bootstrap
+SVN = svn
 
 # Override this on the make commandline if you need to (FreeBSD).
 AUTORECONF = autoreconf
@@ -241,12 +242,11 @@ clean:
 		$(SRCDIR)/src/kmk/config/config.guess \
 		$(SRCDIR)/src/kmk/config/config.sub \
 		$(SRCDIR)/src/kmk/config/install-sh \
-		$(SRCDIR)/src/kmk/w32/Makefile.in
+		$(SRCDIR)/src/kmk/w32/Makefile.in \
+		$(SRCDIR)/src/sed/config_h.in~
 
 distclean: clean
-	svn revert \
-		src/kmk/config.h.solaris \
-		src/sed/config.h.solaris \
+	$(SVN) revert \
 		src/sed/configure \
 		src/sed/Makefile.in \
 		src/sed/doc/Makefile.in \
@@ -266,6 +266,9 @@ distclean: clean
 		src/sed/config/texinfo.tex \
 		src/sed/config/install-sh \
 		src/sed/aclocal.m4
+	$(SVN) revert \
+		src/kmk/config.h.solaris \
+		src/sed/config.h.solaris
 
 
 
