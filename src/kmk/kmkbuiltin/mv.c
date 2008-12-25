@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #include "config.h"
 #include <sys/types.h>
 #ifndef _MSC_VER
-# ifndef __OS2__
+# ifdef CROSS_DEVICE_MOVE
 #  include <sys/acl.h>
 # endif
 # include <sys/param.h>
