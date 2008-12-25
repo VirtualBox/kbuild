@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2020 2008-11-02 00:52:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2116 2008-12-25 13:45:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -150,7 +150,7 @@ void init_kbuild(int argc, char **argv)
 #elif defined(__sun__)
     {
         char szTmp2[64];
-        snprintf(szTmp2, sizeof(szTmp2), "/proc/%d/path/a.out", getpid());
+        snprintf(szTmp2, sizeof(szTmp2), "/proc/%ld/path/a.out", (long)getpid());
         rc = readlink(szTmp2, szTmp, GET_PATH_MAX - 1);
         if (rc < 0 || rc == GET_PATH_MAX - 1)
             rc = -1;
@@ -241,7 +241,7 @@ const char *get_kbuild_path(void)
         if (    !pszEnvVar
             ||  !my_abspath(pszEnvVar, szTmpPath))
         {
-            const char *pszEnvVar = getenv("PATH_KBUILD");
+            pszEnvVar = getenv("PATH_KBUILD");
             if (    !pszEnvVar
                 ||  !my_abspath(pszEnvVar, szTmpPath))
             {
