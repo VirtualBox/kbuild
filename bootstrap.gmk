@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2123 2008-12-25 14:15:52Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2135 2008-12-25 15:22:04Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -242,6 +242,31 @@ clean:
 		$(SRCDIR)/src/kmk/config/config.sub \
 		$(SRCDIR)/src/kmk/config/install-sh \
 		$(SRCDIR)/src/kmk/w32/Makefile.in
+
+distclean: clean
+	svn revert \
+		src/kmk/config.h.solaris \
+		src/sed/config.h.solaris \
+		src/sed/configure \
+		src/sed/Makefile.in \
+		src/sed/doc/Makefile.in \
+		src/sed/doc/stamp-vti \
+		src/sed/doc/sed.info \
+		src/sed/doc/version.texi \
+		src/sed/INSTALL	\
+		src/sed/lib/Makefile.in	\
+		src/sed/sed/Makefile.in	\
+		src/sed/config_h.in \
+		src/sed/testsuite/Makefile.in \
+		src/sed/config/depcomp \
+		src/sed/config/config.guess \
+		src/sed/config/config.sub \
+		src/sed/config/mdate-sh	\
+		src/sed/config/missing \
+		src/sed/config/texinfo.tex \
+		src/sed/config/install-sh \
+		src/sed/aclocal.m4
+
 
 
 # can't hurt...
