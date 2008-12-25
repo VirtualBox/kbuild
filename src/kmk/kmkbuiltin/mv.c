@@ -106,7 +106,8 @@ static
 const char *user_from_uid(uid_t id, int x)
 {
 	static char s_buf[64];
-	sprintf(s_buf, "%ld", id);
+	sprintf(s_buf, "%ld", (long int)id);
+	(void)x;
 	return s_buf;
 }
 # ifdef __OS2__
@@ -115,7 +116,8 @@ static
 const char *group_from_gid(gid_t id, int x)
 {
 	static char s_buf[64];
-	sprintf(s_buf, "%ld", id);
+	sprintf(s_buf, "%ld", (long int)id);
+	(void)x;
 	return s_buf;
 }
 #endif /* 'not in libc' */
