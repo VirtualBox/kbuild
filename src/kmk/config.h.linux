@@ -285,7 +285,7 @@
 /* Define to 1 if `vfork' works. */
 #define HAVE_WORKING_VFORK 1
 
-/* Build host information. */
+/* Build host information. (not used by kmk) */
 #define MAKE_HOST "i686-pc-linux-gnu"
 
 /* Define to 1 to enable job server support in GNU make. */

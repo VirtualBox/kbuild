@@ -373,7 +373,7 @@ AM_CONDITIONAL(USE_LOCAL_GLOB, test "$make_cv_sys_gnu_glob" = no)
 
 # Let the makefile know what our build host is
 
-AC_DEFINE_UNQUOTED(MAKE_HOST,"$host",[Build host information.])
+AC_DEFINE_UNQUOTED(MAKE_HOST,"$host",[Build host information. (not used by kmk)])
 MAKE_HOST="$host"
 AC_SUBST(MAKE_HOST)
 
