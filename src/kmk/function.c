@@ -35,6 +35,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef KMK_HELPERS
 # include "kbuild.h"
 #endif
+#ifdef CONFIG_WITH_PRINTF
+# include "kmkbuiltin.h"
+#endif
 #ifdef CONFIG_WITH_XARGS /* bird */
 # ifdef HAVE_LIMITS_H
 #  include <limits.h>
@@ -4533,6 +4536,9 @@ static struct function_table_entry function_table_init[] =
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
+#endif
+#ifdef CONFIG_WITH_PRINTF
+  { STRING_SIZE_TUPLE("printf"),        1,  0,  1,  kmk_builtin_func_printf},
 #endif
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
   { STRING_SIZE_TUPLE("deps"),          1,  2,  1,  func_deps},

@@ -45,7 +45,13 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #endif
 #endif*/ /* not lint */
 
-#include "config.h"
+#if !defined(kmk_builtin_printf) && !defined(BUILTIN) && !defined(SHELL)
+# include "../make.h"
+# include "../filedef.h"
+# include "../variable.h"
+#else
+# include "config.h"
+#endif
 #include <sys/types.h>
 
 #include <ctype.h>
@@ -67,7 +73,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 # include "mscfakes.h"
 #endif
 
-#include "kmkbuiltin.h"
+#include "../kmkbuiltin.h"
 
 
 #ifdef __GNUC__
@@ -81,6 +87,9 @@ static size_t	b_length;
 static char	*b_fmt;
 static int	rval;
 static char  **gargv;
+#if !defined(kmk_builtin_printf) && !defined(BUILTIN) && !defined(SHELL)
+static char *g_o = NULL;
+#endif
 static struct option long_options[] =
 {
     { "help",   					no_argument, 0, 261 },
@@ -89,6 +98,7 @@ static struct option long_options[] =
 };
 
 
+static int	 common_printf(int argc, char *argv[]);
 static void	 conv_escape_str(char *, void (*)(int));
 static char	*conv_escape(char *, char *);
 static char	*conv_expand(const char *);
@@ -104,6 +114,8 @@ static int	 usage(FILE *);
 
 static void	b_count(int);
 static void	b_output(int);
+static int	wrap_putchar(int ch);
+static int	wrap_printf(const char *, ...);
 
 #ifdef BUILTIN		/* csh builtin */
 #define kmk_builtin_printf progprintf
@@ -117,13 +129,13 @@ static void	b_output(int);
 #define PF(f, func) { \
 	if (fieldwidth != -1) { \
 		if (precision != -1) \
-			(void)printf(f, fieldwidth, precision, func); \
+			(void)wrap_printf(f, fieldwidth, precision, func); \
 		else \
-			(void)printf(f, fieldwidth, func); \
+			(void)wrap_printf(f, fieldwidth, func); \
 	} else if (precision != -1) \
-		(void)printf(f, precision, func); \
+		(void)wrap_printf(f, precision, func); \
 	else \
-		(void)printf(f, func); \
+		(void)wrap_printf(f, func); \
 }
 
 #define APF(cpp, f, func) { \
@@ -140,17 +152,8 @@ static void	b_output(int);
 
 int kmk_builtin_printf(int argc, char *argv[], char **envp)
 {
-	char *fmt, *start;
-	int fieldwidth, precision;
-	char nextch;
-	char *format;
+	int rc;
 	int ch;
-
-	/* kmk: reinitialize globals */
-	b_length = 0;
-	b_fmt = NULL;
-	rval = 0;
-	gargv = NULL;
 
 	/* kmk: reset getopt and set progname */
 	g_progname = argv[0];
@@ -182,6 +185,46 @@ int kmk_builtin_printf(int argc, char *argv[], char **envp)
 		return usage(stderr);
 	}
 
+	rc = common_printf(argc, argv);
+	return rc;
+}
+
+#ifndef kmk_builtin_printf
+/* entry point used by function.c $(printf ..,..). */
+char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname)
+{
+	int rc;
+	int argc;
+
+	for (argc = 0; argv[argc] != NULL; argc++)
+		/* nothing */;
+
+	g_o = o;
+	rc = common_printf(argc, argv);
+	o = g_o;
+	g_o = NULL;
+
+	(void)funcname;
+	if (rc != 0)
+		fatal (NILF, _("$(%s): failure rc=%d\n"), rc);
+	return o;
+}
+#endif
+
+static int common_printf(int argc, char *argv[])
+{
+	char *fmt, *start;
+	int fieldwidth, precision;
+	char nextch;
+	char *format;
+	int ch;
+
+	/* kmk: reinitialize globals */
+	b_length = 0;
+	b_fmt = NULL;
+	rval = 0;
+	gargv = NULL;
+
 	format = *argv;
 	gargv = ++argv;
 
@@ -202,11 +245,11 @@ int kmk_builtin_printf(int argc, char *argv[], char **envp)
 			if (ch == '\\') {
 				char c_ch;
 				fmt = conv_escape(fmt, &c_ch);
-				putchar(c_ch);
+				wrap_putchar(c_ch);
 				continue;
 			}
 			if (ch != '%' || (*fmt == '%' && ++fmt)) {
-				(void)putchar(ch);
+				(void)wrap_putchar(ch);
 				continue;
 			}
 
@@ -271,7 +314,7 @@ int kmk_builtin_printf(int argc, char *argv[], char **envp)
 				/* Output leading spaces and data bytes */
 				conv_escape_str(cp, b_output);
 				/* Add any trailing spaces */
-				printf("%s", b_fmt);
+				wrap_printf("%s", b_fmt);
 				break;
 			}
 			case 'c': {
@@ -345,13 +388,52 @@ b_output(int ch)
 			b_fmt--;
 			return;
 		case ' ':
-			putchar(' ');
+			wrap_putchar(' ');
 			break;
 		default:
-			putchar(ch);
+			wrap_putchar(ch);
 			return;
 		}
 	}
+}
+
+static int wrap_putchar(int ch)
+{
+#ifndef kmk_builtin_printf
+	if (g_o) {
+		char sz[2];
+		sz[0] = ch; sz[1] = '\0';
+		g_o = variable_buffer_output(g_o, sz, 1);
+		return ch;
+	}
+#endif
+	return putchar(ch);
+}
+
+static int wrap_printf(const char * fmt, ...)
+{
+	int rc;
+	va_list va;
+
+#ifndef kmk_builtin_printf
+	if (g_o) {
+		char *str;
+
+		va_start(va, fmt);
+		rc = vasprintf(&str, fmt, va);
+		va_end(va);
+		if (rc >= 0) {
+			g_o = variable_buffer_output(g_o, str, rc);
+			free(str);
+		}
+		return rc;
+	}
+#endif
+
+	va_start(va, fmt);
+	rc = vprintf(fmt, va);
+	va_end(va);
+	return rc;
 }
 
 

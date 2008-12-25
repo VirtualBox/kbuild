@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2108 2008-12-11 22:19:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2141 2008-12-25 20:21:22Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -164,6 +164,7 @@ kmk_DEFS = \
 	CONFIG_WITH_DATE \
 	CONFIG_WITH_FILE_SIZE \
 	CONFIG_WITH_WHICH \
+	CONFIG_WITH_PRINTF \
 	CONFIG_WITH_EVALPLUS \
 	CONFIG_WITH_MINIMAL_STATS \
 	CONFIG_WITH_COMMANDS_FUNC \
