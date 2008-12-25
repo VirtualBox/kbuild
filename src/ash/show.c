@@ -46,6 +46,8 @@ __RCSID("$NetBSD: show.c,v 1.26 2003/11/14 10:46:13 dsl Exp $");
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <sys/fcntl.h>
+#include <unistd.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -384,6 +386,9 @@ opentrace(void)
 #ifdef O_APPEND
 	int flags;
 #endif
+#if 1
+	int fd;
+#endif
 
 	if (debug != 1) {
 		if (tracefile)
@@ -412,12 +417,34 @@ opentrace(void)
 			debug = 0;
 			return;
 		}
+		trace("opentrace: fno=%d - freopen\n", fileno(tracefile));
 	} else {
+#if 0
 		if ((tracefile = fopen(s, "a")) == NULL) {
+#else
+		fd = open(s, O_APPEND | O_RDWR | O_CREAT, 0600);
+		if (fd != -1) {
+			int fd2 = fcntl(fd, F_DUPFD, 199);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 99);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 49);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 18);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 10);
+			if (fd2 != -1) {
+				close(fd);
+				fd = fd2;
+			}
+		}
+		if (fd == -1 || (tracefile = fdopen(fd, "a")) == NULL) {
+#endif
 			fprintf(stderr, "Can't open %s\n", s);
 			debug = 0;
 			return;
 		}
+		trace("opentrace: fno=%d\n", fileno(tracefile));
 	}
 #ifdef O_APPEND
 	if ((flags = fcntl(fileno(tracefile), F_GETFL, 0)) >= 0)
