@@ -235,9 +235,8 @@ done:	argv += optind;
 					    S_IFMT) | newmode, m2);
 
 					(void)printf(": 0%o [%s] -> 0%o [%s]",
-					    p->fts_statp->st_mode, m1,
-					    (p->fts_statp->st_mode & S_IFMT) |
-					    newmode, m2);
+					    (unsigned int)p->fts_statp->st_mode, m1,
+					    (unsigned int)((p->fts_statp->st_mode & S_IFMT) | newmode), m2);
 				}
 				(void)printf("\n");
 			}
