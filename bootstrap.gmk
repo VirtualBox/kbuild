@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2112 2008-12-25 12:37:46Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2120 2008-12-25 13:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -189,7 +189,11 @@ $(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/sed/sed
 	cp -f $< $@
 
 $(OUTDIR)/kmk/kmk_ash:
+ifeq ($(KBUILD_TARGET),solaris)
+	ln -s /usr/bin/bash $@
+else
 	ln -s /bin/sh $@
+endif
 
 $(OUTDIR)/kmk/kmk_echo:
 	ln -s /bin/echo $@
