@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 2115 2008-12-25 13:41:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -35,6 +35,7 @@
 #include <ctype.h>
 #if !defined(_MSC_VER)
 # include <stdint.h>
+# include <unistd.h>
 #else
 # define USE_WIN_MMAP
 # include <io.h>
@@ -153,7 +154,6 @@ void *ReadFileIntoMemory(FILE *pInput, size_t *pcbFile)
 {
     void       *pvFile;
     long        cbFile;
-    int         rc = 0;
 
     /*
      * Figure out file size.
@@ -231,13 +231,13 @@ static void FreeFileMemory(void *pvFile)
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
+/*/////////////////////////////////////////////////////////////////////////////
 //
 //
 //  P D B   7 . 0
 //
 //
-///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////*/
 
 /** A PDB 7.0 Page number. */
 typedef uint32_t PDB70PAGE;
@@ -334,12 +334,14 @@ static int Pdb70ValidateHeader(PPDB70HDR pHdr, size_t cbFile)
     return 0;
 }
 
+#ifdef DEBUG
 static size_t Pdb70Align(PPDB70HDR pHdr, size_t cb)
 {
     if (cb == ~(uint32_t)0 || !cb)
         return 0;
     return ((cb + pHdr->cbPage - 1) / pHdr->cbPage) * pHdr->cbPage;
 }
+#endif /* DEBUG */
 
 static size_t Pdb70Pages(PPDB70HDR pHdr, size_t cb)
 {
@@ -377,7 +379,7 @@ static void *Pdb70AllocAndRead(PPDB70HDR pHdr, size_t cb, PPDB70PAGE paiPageMap)
         pbBuf[cPages * cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %u bytes\n", argv0, cPages * cbPage + 1);
+        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", argv0, (unsigned long)(cPages * cbPage + 1));
     return pbBuf;
 }
 
@@ -427,7 +429,7 @@ static void *Pdb70AllocAndReadStream(PPDB70HDR pHdr, PPDB70ROOT pRoot, unsigned 
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(uint32_t)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", iStream);
+        fprintf(stderr, "%s: error: Invalid stream %d\n", argv0, iStream);
         return NULL;
     }
 
@@ -446,7 +448,7 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
     PPDB70HDR   pHdr = (PPDB70HDR)pbFile;
     PPDB70ROOT  pRoot;
     PPDB70NAMES pNames;
-    size_t      cbStream;
+    size_t      cbStream = 0;
     unsigned    fDone = 0;
     unsigned    iStream;
     int         rc = 0;
@@ -546,13 +548,13 @@ static int Pdb70Process(uint8_t *pbFile, size_t cbFile)
 
 
 
-///////////////////////////////////////////////////////////////////////////////
+/*/////////////////////////////////////////////////////////////////////////////
 //
 //
 //  P D B   2 . 0
 //
 //
-///////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////*/
 
 
 /** A PDB 2.0 Page number. */
@@ -645,7 +647,7 @@ static void *Pdb20AllocAndRead(PPDB20HDR pHdr, size_t cb, PPDB20PAGE paiPageMap)
         pbBuf[cPages * pHdr->cbPage] = '\0';
     }
     else
-        fprintf(stderr, "%s: error: failed to allocate %d bytes\n", argv0, cPages * pHdr->cbPage + 1);
+        fprintf(stderr, "%s: error: failed to allocate %lu bytes\n", argv0, (unsigned long)(cPages * pHdr->cbPage + 1));
     return pbBuf;
 }
 
@@ -689,7 +691,7 @@ static void *Pdb20AllocAndReadStream(PPDB20HDR pHdr, PPDB20ROOT pRoot, unsigned 
     if (    iStream >= pRoot->cStreams
         ||  cbStream == ~(uint32_t)0)
     {
-        fprintf(stderr, "%s: error: Invalid stream %d\n", iStream);
+        fprintf(stderr, "%s: error: Invalid stream %d\n", argv0, iStream);
         return NULL;
     }
 
@@ -778,12 +780,12 @@ static int ProcessIDB(FILE *pInput)
 }
 
 
-static void usage(const char *argv0)
+static void usage(const char *a_argv0)
 {
     printf("usage: %s -o <output> -t <target> [-fqs] <vc idb-file>\n"
            "   or: %s --help\n"
            "   or: %s --version\n",
-           argv0, argv0, argv0);
+           a_argv0, a_argv0, a_argv0);
 }
 
 
