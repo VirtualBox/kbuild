@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 2125 2008-12-25 14:21:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <assert.h>
+#include <sys/stat.h>
 #ifdef _MSC_VER
 # include <io.h>
 #endif
