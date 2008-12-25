@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2109 2008-12-25 12:15:32Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -132,6 +132,7 @@ stage1: \
     $(OUTDIR)/kmk/kmk \
     $(OUTDIR)/kmk/kmk_ash \
     $(OUTDIR)/kmk/kmk_sed \
+    $(OUTDIR)/kmk/kmk_echo \
     $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET) \
     $(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET)
 
@@ -145,7 +146,12 @@ $(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
 	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure
 	echo done > $@
 
-$(OUTDIR)/kmk/config.h: $(OUTDIR)/kmk/ts-configured
+$(OUTDIR)/kmk/fts.h:
+	ln -s $(SRCDIR)/src/kmk/kmkbuiltin/ftsfake.h $@
+
+$(OUTDIR)/kmk/config.h: \
+		$(OUTDIR)/kmk/ts-configured \
+		$(OUTDIR)/kmk/fts.h
 
 $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET): $(OUTDIR)/kmk/config.h
 	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET)
@@ -176,6 +182,9 @@ $(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/sed/sed
 
 $(OUTDIR)/kmk/kmk_ash:
 	ln -s /bin/sh $@
+
+$(OUTDIR)/kmk/kmk_echo:
+	ln -s /bin/echo $@
 
 #
 # Stage 2 - Build kBuild using the bootstrap tools from the previous step
