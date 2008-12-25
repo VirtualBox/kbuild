@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2107 2008-12-11 05:10:52Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2143 2008-12-25 22:56:28Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1405,22 +1405,15 @@ ifndef PATH_$(target)
 else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
 endif
-ifeq ($(tool_prefix),AR) ## @todo fix this mess!
-local suff := $(firstword\
+## @todo fix the fun at the last line (AR != LIB => mess).
+local suff := $(firstword \
 	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(EXT)SUFF.$(bld_trg))\
 	$($(target)_$(EXT)SUFF)\
 	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
 	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF.$(bld_trg))\
 	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF)\
-	$(SUFF_LIB))
-else
-local suff := $(firstword \
-	$($(target)_$(EXT)SUFF) \
-	$($(target)_$(EXT)SUFF) \
-	$(TOOL_$(tool)_$(tool_prefix)$(EXT)SUFF) \
-	$($(EXTPRE)SUFF_$(EXT)))
-endif
+	$(if $(eq $(tool_prefix),AR),$(SUFF_LIB),$($(EXTPRE)SUFF_$(EXT))) )
 local out := $(outbase)$(suff)
 
 # TARGET_*
@@ -2562,11 +2555,14 @@ ifndef PATH_$(target)
 else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
  $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
 endif
-local suff        := $(firstword \
-	$($(target)_$(EXT)SUFF) \
-	$($(target)_$(EXT)SUFF) \
-	$(TOOL_$(tool)_LD$(EXT)SUFF) \
-	$($(EXTPRE)SUFF_$(EXT)))
+local suff := $(firstword \
+	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_$(EXT)SUFF.$(bld_trg))\
+	$($(target)_$(EXT)SUFF)\
+	$(TOOL_$(tool)_LD$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
+	$(TOOL_$(tool)_LD$(EXT)SUFF.$(bld_trg))\
+	$(TOOL_$(tool)_LD$(EXT)SUFF)\
+	$($(EXTPRE)SUFF_$(EXT)) )
 local out         := $(outbase)$(suff)
 TARGET_$(target)  := $(out)
 local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
