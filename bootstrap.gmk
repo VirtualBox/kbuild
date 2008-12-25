@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2109 2008-12-25 12:15:32Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2110 2008-12-25 12:21:38Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -142,16 +142,17 @@ $(OUTDIR)/kmk/ts-autoreconf:
 	cd $(SRCDIR)/src/kmk && $(AUTORECONF) -i -v
 	echo done > $@
 
-$(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/ts-autoreconf
+$(OUTDIR)/kmk/ts-configured: \
+		$(OUTDIR)/kmk/ts-autoreconf \
+		$(OUTDIR)/kmk/fts.h
 	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure
 	echo done > $@
 
 $(OUTDIR)/kmk/fts.h:
 	ln -s $(SRCDIR)/src/kmk/kmkbuiltin/ftsfake.h $@
 
-$(OUTDIR)/kmk/config.h: \
-		$(OUTDIR)/kmk/ts-configured \
-		$(OUTDIR)/kmk/fts.h
+$(OUTDIR)/kmk/config.h:	$(OUTDIR)/kmk/ts-configured
+
 
 $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET): $(OUTDIR)/kmk/config.h
 	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET)
