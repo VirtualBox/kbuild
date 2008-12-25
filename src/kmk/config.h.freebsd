@@ -285,7 +285,7 @@
 /* Define to 1 if `vfork' works. */
 #define HAVE_WORKING_VFORK 1
 
-/* Build host information. */
+/* Build host information. (not used by kmk) */
 #if defined(__X86__) || defined(__i386__) || defined(__I386__)
 #define MAKE_HOST "i386-unknown-freebsd6.2"
 #else
