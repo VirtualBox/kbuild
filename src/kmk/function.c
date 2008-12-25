@@ -2221,7 +2221,7 @@ func_shell (char *o, char **argv, const char *funcname)
   equality. Return is string-boolean, ie, the empty string is false.
  */
 static char *
-func_eq (char *o, char **argv, const char *funcname)
+func_eq (char *o, char **argv, const char *funcname UNUSED)
 {
   int result = ! strcmp (argv[0], argv[1]);
   o = variable_buffer_output (o,  result ? "1" : "", result);
@@ -2233,7 +2233,7 @@ func_eq (char *o, char **argv, const char *funcname)
   string-boolean not operator.
  */
 static char *
-func_not (char *o, char **argv, const char *funcname)
+func_not (char *o, char **argv, const char *funcname UNUSED)
 {
   const char *s = argv[0];
   int result = 0;
@@ -2673,7 +2673,7 @@ func_deps_order_only (char *o, char **argv, const char *funcname)
 #ifdef CONFIG_WITH_DEFINED
 /* Similar to ifdef. */
 static char *
-func_defined (char *o, char **argv, const char *funcname)
+func_defined (char *o, char **argv, const char *funcname UNUSED)
 {
   struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
   int result = v != NULL && *v->value != '\0';
@@ -4084,7 +4084,7 @@ func_int_cmp (char *o, char **argv, const char *funcname)
    Tip. Use this with int-sub to profile makefile reading
         and similar. */
 static char *
-func_nanots (char *o, char **argv, const char *funcname)
+func_nanots (char *o, char **argv UNUSED, const char *funcname UNUSED)
 {
   return math_int_to_variable_buffer (o, nano_timestamp ());
 }
@@ -4355,7 +4355,7 @@ func_commands (char *o, char **argv, const char *funcname)
                   char openparen = *ref;
                   char closeparen = openparen == '(' ? ')' : '}';
                   int count;
-                  char *p;
+                  char *p2;
 
                   *out++ = *in++;	/* Copy OPENPAREN.  */
                   /* IN now points past the opening paren or brace.
@@ -4372,7 +4372,7 @@ func_commands (char *o, char **argv, const char *funcname)
                              any following whitespace.  */
 
                           int quoted = 0;
-                          for (p = in - 1; p > ref && *p == '\\'; --p)
+                          for (p2 = in - 1; p2 > ref && *p2 == '\\'; --p2)
                             quoted = !quoted;
 
                           if (quoted)
@@ -4450,7 +4450,7 @@ func_commands (char *o, char **argv, const char *funcname)
 #ifdef KMK
 /* Useful when debugging kmk and/or makefiles. */
 char *
-func_breakpoint (char *o, char **argv, const char *funcname)
+func_breakpoint (char *o, char **argv UNUSED, const char *funcname UNUSED)
 {
 #ifdef _MSC_VER
   __debugbreak();
@@ -4776,7 +4776,7 @@ handle_function (char **op, const char **stringp)
   return handle_function2 (entry_p, op, stringp);
 }
 #else  /* CONFIG_WITH_VALUE_LENGTH */
-handle_function (char **op, const char **stringp, const char *nameend, const char *eol)
+handle_function (char **op, const char **stringp, const char *nameend, const char *eol UNUSED)
 {
   const char *fname = *stringp + 1;
   const struct function_table_entry *entry_p =
