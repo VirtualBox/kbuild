@@ -36,6 +36,8 @@ char *alloca ();
 #   endif
 #  endif
 # endif
+#elif defined(__sun__) && defined (HAVE_ALLOCA_H) /* bird: kill warnings. */
+# include <alloca.h>
 #endif
 
 

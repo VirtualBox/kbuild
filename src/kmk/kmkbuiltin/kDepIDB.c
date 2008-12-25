@@ -1,4 +1,4 @@
-/* $Id: kDepIDB.c 2115 2008-12-25 13:41:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepIDB.c 2121 2008-12-25 14:07:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepIDB - Extract dependency information from a MS Visual C++ .idb file.
  */
@@ -33,6 +33,9 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 #if !defined(_MSC_VER)
 # include <stdint.h>
 # include <unistd.h>

@@ -57,6 +57,9 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 
 #ifdef __sun__
 # include "solfakes.h"

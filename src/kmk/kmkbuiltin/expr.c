@@ -17,6 +17,9 @@
 #endif
 #include <setjmp.h>
 #include <assert.h>
+#ifdef HAVE_ALLOCA_H
+# include <alloca.h>
+#endif
 #include "err.h"
 #include "getopt.h"
 #include "kmkbuiltin.h"
