@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2110 2008-12-25 12:21:38Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2111 2008-12-25 12:25:44Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -147,6 +147,13 @@ $(OUTDIR)/kmk/ts-configured: \
 		$(OUTDIR)/kmk/fts.h
 	cd $(OUTDIR)/kmk && $(SRCDIR)/src/kmk/configure
 	echo done > $@
+
+ifeq ($(KBUILD_HOST),solaris)
+$(OUTDIR)/kmk/ts-configured: $(OUTDIR)/kmk/paths.h
+
+$(OUTDIR)/kmk/paths.h:
+	echo > $@
+endif
 
 $(OUTDIR)/kmk/fts.h:
 	ln -s $(SRCDIR)/src/kmk/kmkbuiltin/ftsfake.h $@
