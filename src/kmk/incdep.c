@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2091 2008-11-19 23:21:53Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2117 2008-12-25 13:49:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -635,7 +635,7 @@ static void
 incdep_init (struct floc *f)
 {
   unsigned i;
-#ifdef HAVE_PTHREAD
+#if defined (HAVE_PTHREAD) && !defined (CONFIG_WITHOUT_THREADS)
   int rc;
   pthread_attr_t attr;
 
@@ -647,6 +647,7 @@ incdep_init (struct floc *f)
   int rc;
   int tid;
 #endif
+  (void)f;
 
   /* heap hacks */
 

@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 2096 2008-11-20 02:18:06Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 2117 2008-12-25 13:49:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -1829,9 +1829,9 @@ static EXPRRET expr_get_binary_or_eoe_or_rparen(PEXPR pThis)
 static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
 {
     EXPRRET       rc;
-    unsigned char   uchVal;
+    unsigned char uchVal;
     PCEXPROP      pOp;
-    char const     *psz = pThis->psz;
+    char const   *psz = pThis->psz;
 
     /*
      * Eat white space and make sure there is something after it.
@@ -1930,7 +1930,7 @@ static EXPRRET expr_get_unary_or_operand(PEXPR pThis)
                     unsigned chVal = expr_map_get(ch);
                     if (chVal)
                     {
-                        PCEXPROP pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
+                        pOp = expr_lookup_op(psz, uchVal, 0 /* fUnary */);
                         if (pOp)
                             break;
                     }
