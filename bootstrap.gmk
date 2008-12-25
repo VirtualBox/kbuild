@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2120 2008-12-25 13:58:59Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2122 2008-12-25 14:10:55Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -163,6 +163,8 @@ $(OUTDIR)/kmk/config.h:	$(OUTDIR)/kmk/ts-configured
 
 $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET): $(OUTDIR)/kmk/config.h
 	cp -f $(OUTDIR)/kmk/config.h $(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET)
+	echo "" >> $@
+	echo '#include "inlined_memchr.h"' >> $@
 
 $(OUTDIR)/kmk/kmk: $(OUTDIR)/kmk/ts-configured
 	$(MAKE) -C $(@D)
