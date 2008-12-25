@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2111 2008-12-25 12:25:44Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2112 2008-12-25 12:37:46Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -183,7 +183,7 @@ $(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET): $(OUTDIR)/sed/config.h
 	cp -f $< $@
 
 $(OUTDIR)/sed/sed/sed: $(OUTDIR)/sed/ts-configured
-	$(MAKE) -C $(@D)/..
+	$(MAKE) $(SED_MAKE_DEFS) -C $(@D)/..
 
 $(OUTDIR)/kmk/kmk_sed: $(OUTDIR)/sed/sed/sed
 	cp -f $< $@
