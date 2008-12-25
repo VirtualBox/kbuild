@@ -331,6 +331,7 @@ static void
 b_count(int ch)
 {
 	b_length++;
+	(void)ch;
 }
 
 /* Output one converted character for every 'x' in the 'format' */
