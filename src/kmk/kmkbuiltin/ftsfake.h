@@ -141,36 +141,19 @@ typedef struct _ftsent {
 	char fts_name[1];		/* file name */
 } FTSENT;
 
-#ifndef __sun__
-#ifndef _MSC_VER
-#include <sys/cdefs.h>
-__BEGIN_DECLS
-#else
-#define __RENAME(a)
-#endif
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#if defined(__LIBC12_SOURCE__) || defined(__sun__)
 FTSENT	*fts_children(FTS *, int);
 int	 fts_close(FTS *);
 FTS	*fts_open(char * const *, int,
 	    int (*)(const FTSENT **, const FTSENT **));
 FTSENT	*fts_read(FTS *);
 int	 fts_set(FTS *, FTSENT *, int);
-#else
-FTSENT	*fts_children(FTS *, int)		__RENAME(__fts_children13);
-int	 fts_close(FTS *)			__RENAME(__fts_close13);
-FTS	*fts_open(char * const *, int,
-	    int (*)(const FTSENT **, const FTSENT **))
-						__RENAME(__fts_open13);
-FTSENT	*fts_read(FTS *)			__RENAME(__fts_read13);
-int	 fts_set(FTS *, FTSENT *, int)	__RENAME(__fts_set13);
-#endif
 
-#ifndef __sun__
-#ifndef _MSC_VER
-__END_DECLS
-#endif
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* !_FTS_H_ */

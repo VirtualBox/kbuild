@@ -286,7 +286,7 @@
 #define HAVE_WORKING_VFORK 1
 
 /* Build host information. (not used by kmk) */
-#define MAKE_HOST "i686-apple-darwin8.8.1"
+#define MAKE_HOST "i386-apple-darwin9.4.0"
 
 /* Define to 1 to enable job server support in GNU make. */
 #define MAKE_JOBSERVER 1
@@ -426,4 +426,3 @@
 /* #undef vfork */
 
 #include "inlined_memchr.h"
-

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2141 2008-12-25 20:21:22Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2145 2008-12-26 12:54:01Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -37,14 +37,14 @@ TEMPLATE_BIN-KMK_DEFS = \
 	$(TEMPLATE_BIN_DEFS) \
 	KBUILD_SVN_REV=$(KBUILD_SVN_REV) \
 	KBUILD_TYPE=\"$(KBUILD_TYPE)\"
-TEMPLATE_BIN-KMK_DEPS = $(PATH_kmk)/config.h
+TEMPLATE_BIN-KMK_DEPS = \
+	$(PATH_kmk)/config.h \
+	$(PATH_kmk)/fts.h
 TEMPLATE_BIN-KMK_CLEAN = $(TEMPLATE_BIN-KMK_DEPS)
 TEMPLATE_BIN-KMK_DEPS.solaris = \
-	$(PATH_kmk)/fts.h \
 	$(PATH_kmk)/paths.h
 TEMPLATE_BIN-KMK_CLEAN.solaris = $(TEMPLATE_BIN-KMK_DEPS.solaris)
 TEMPLATE_BIN-KMK_DEPS.win     = \
-	$(PATH_kmk)/fts.h \
 	$(PATH_kmk)/sysexits.h \
 	$(PATH_kmk)/unistd.h \
 	$(PATH_kmk)/paths.h \
@@ -78,6 +78,7 @@ kmkmissing_DEFS = KMK
 kmkmissing_NOINST = 1
 kmkmissing_SOURCES = \
 	kmkbuiltin/err.c \
+	kmkbuiltin/fts.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/kbuild_version.c \
@@ -105,14 +106,12 @@ kmkmissing_SOURCES.linux += \
 kmkmissing_SOURCES.solaris = \
 	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/solfakes.c \
-	kmkbuiltin/fts.c \
 	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.win += \
 	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/mscfakes.c \
-	kmkbuiltin/fts.c \
 	glob/glob.c \
 	glob/fnmatch.c \
 	getloadavg.c \
