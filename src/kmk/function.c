@@ -2949,7 +2949,7 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 
 #ifdef CONFIG_WITH_XARGS
 /* Create one or more command lines avoiding the max argument
-   lenght restriction of the host OS.
+   length restriction of the host OS.
 
    The last argument is the list of arguments that the normal
    xargs command would be fed from stdin.
