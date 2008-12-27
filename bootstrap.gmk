@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2139 2008-12-25 18:25:31Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2150 2008-12-27 21:54:46Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -224,7 +224,7 @@ $(OUTDIR)/ts-stage2-install: $(OUTDIR)/ts-stage2-build
 
 
 #
-# Clean the output files...
+# Clean the output files... Very enjoyable exercise.
 #
 clean:
 	rm -Rf $(SRCDIR)/out/ \
@@ -243,7 +243,48 @@ clean:
 		$(SRCDIR)/src/kmk/config/config.sub \
 		$(SRCDIR)/src/kmk/config/install-sh \
 		$(SRCDIR)/src/kmk/w32/Makefile.in \
-		$(SRCDIR)/src/sed/config_h.in~
+		$(SRCDIR)/src/sed/config_h.in~ \
+		$(SRCDIR)/src/sed/intl/printf-args.h \
+		$(SRCDIR)/src/sed/intl/printf.c \
+		$(SRCDIR)/src/sed/intl/localcharset.h \
+		$(SRCDIR)/src/sed/intl/libgnuintl.h.in \
+		$(SRCDIR)/src/sed/intl/vasnwprintf.h \
+		$(SRCDIR)/src/sed/intl/vasnprintf.c \
+		$(SRCDIR)/src/sed/intl/vasnprintf.h \
+		$(SRCDIR)/src/sed/intl/wprintf-parse.h \
+		$(SRCDIR)/src/sed/intl/relocatable.c \
+		$(SRCDIR)/src/sed/intl/relocatable.h \
+		$(SRCDIR)/src/sed/intl/xsize.h \
+		$(SRCDIR)/src/sed/intl/printf-parse.c \
+		$(SRCDIR)/src/sed/intl/printf-parse.h \
+		$(SRCDIR)/src/sed/intl/log.c \
+		$(SRCDIR)/src/sed/intl/printf-args.c \
+		$(SRCDIR)/src/sed/po/remove-potcdate.sin \
+		$(SRCDIR)/src/sed/po/Makevars.template \
+		$(SRCDIR)/src/sed/config/printf-posix.m4 \
+		$(SRCDIR)/src/sed/config/uintmax_t.m4 \
+		$(SRCDIR)/src/sed/config/signed.m4 \
+		$(SRCDIR)/src/sed/config/longlong.m4 \
+		$(SRCDIR)/src/sed/config/inttypes.m4 \
+		$(SRCDIR)/src/sed/config/inttypes_h.m4 \
+		$(SRCDIR)/src/sed/config/longdouble.m4 \
+		$(SRCDIR)/src/sed/config/nls.m4 \
+		$(SRCDIR)/src/sed/config/intmax.m4 \
+		$(SRCDIR)/src/sed/config/mkinstalldirs \
+		$(SRCDIR)/src/sed/config/xsize.m4 \
+		$(SRCDIR)/src/sed/config/ulonglong.m4 \
+		$(SRCDIR)/src/sed/config/wint_t.m4 \
+		$(SRCDIR)/src/sed/config/inttypes-pri.m4 \
+		$(SRCDIR)/src/sed/config/stdint_h.m4 \
+		$(SRCDIR)/src/sed/config/intdiv0.m4 \
+		$(SRCDIR)/src/sed/config/isc-posix.m4 \
+		$(SRCDIR)/src/sed/config/po.m4 \
+		$(SRCDIR)/src/sed/config/size_max.m4 \
+		$(SRCDIR)/src/sed/config/wchar_t.m4 \
+		$(SRCDIR)/src/sed/*~ \
+		$(SRCDIR)/src/sed/config/*~ \
+		$(SRCDIR)/src/sed/intl/*~ \
+		$(SRCDIR)/src/sed/po/*~ \
 
 distclean: clean
 	$(SVN) revert \
@@ -267,10 +308,60 @@ distclean: clean
 		src/sed/config/missing \
 		src/sed/config/texinfo.tex \
 		src/sed/config/install-sh \
-		src/sed/aclocal.m4
+		src/sed/aclocal.m4 \
+		src/sed/ABOUT-NLS \
+		src/sed/doc/sed.1 \
+		src/sed/intl/plural-exp.h  \
+		src/sed/intl/Makefile.in \
+		src/sed/intl/explodename.c \
+		src/sed/intl/localcharset.c \
+		src/sed/intl/VERSION \
+		src/sed/intl/dcigettext.c \
+		src/sed/intl/dngettext.c \
+		src/sed/intl/localealias.c \
+		src/sed/intl/textdomain.c \
+		src/sed/intl/bindtextdom.c \
+		src/sed/intl/ref-del.sin \
+		src/sed/intl/intl-compat.c \
+		src/sed/intl/dgettext.c \
+		src/sed/intl/dcgettext.c \
+		src/sed/intl/plural.c \
+		src/sed/intl/loadinfo.h \
+		src/sed/intl/localename.c \
+		src/sed/intl/ngettext.c \
+		src/sed/intl/ChangeLog \
+		src/sed/intl/locale.alias \
+		src/sed/intl/os2compat.c \
+		src/sed/intl/finddomain.c \
+		src/sed/intl/ref-add.sin \
+		src/sed/intl/gettextP.h \
+		src/sed/intl/dcngettext.c \
+		src/sed/intl/osdep.c \
+		src/sed/intl/config.charset \
+		src/sed/intl/l10nflist.c \
+		src/sed/intl/os2compat.h \
+		src/sed/intl/loadmsgcat.c \
+		src/sed/intl/gettext.c \
+		src/sed/intl/plural.y \
+		src/sed/intl/gmo.h \
+		src/sed/intl/plural-exp.c \
+		src/sed/intl/eval-plural.h \
+		src/sed/intl/hash-string.h \
+		src/sed/config.h.darwin \
+		src/sed/po/Makefile.in.in \
+		src/sed/po/Rules-quot \
+		src/sed/config/lib-prefix.m4 \
+		src/sed/config/lib-link.m4 \
+		src/sed/config/lib-ld.m4 \
+		src/sed/config/lcmessage.m4 \
+		src/sed/config/config.rpath \
+		src/sed/config/progtest.m4 \
+		src/sed/config/iconv.m4 \
+		src/sed/config/gettext.m4
 	$(SVN) revert \
 		src/kmk/config.h.solaris \
 		src/sed/config.h.solaris
+	$(SVN) status --no-ignore
 
 
 
