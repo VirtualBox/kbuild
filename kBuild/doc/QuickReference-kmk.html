@@ -1,0 +1,1082 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="Docutils 0.4: http://docutils.sourceforge.net/" />
+<title>kmk Quick Reference</title>
+<style type="text/css">
+
+/*
+:Author: David Goodger
+:Contact: goodger@users.sourceforge.net
+:Date: $Date: 2008-12-27 21:22:53 +0100 (Sat, 27 Dec 2008) $
+:Revision: $Revision: 2146 $
+:Copyright: This stylesheet has been placed in the public domain.
+
+Default cascading style sheet for the HTML output of Docutils.
+
+See http://docutils.sf.net/docs/howto/html-stylesheets.html for how to
+customize this style sheet.
+*/
+
+/* used to remove borders from tables and images */
+.borderless, table.borderless td, table.borderless th {
+  border: 0 }
+
+table.borderless td, table.borderless th {
+  /* Override padding for "table.docutils td" with "! important".
+     The right padding separates the table cells. */
+  padding: 0 0.5em 0 0 ! important }
+
+.first {
+  /* Override more specific margin styles with "! important". */
+  margin-top: 0 ! important }
+
+.last, .with-subtitle {
+  margin-bottom: 0 ! important }
+
+.hidden {
+  display: none }
+
+a.toc-backref {
+  text-decoration: none ;
+  color: black }
+
+blockquote.epigraph {
+  margin: 2em 5em ; }
+
+dl.docutils dd {
+  margin-bottom: 0.5em }
+
+/* Uncomment (and remove this text!) to get bold-faced definition list terms
+dl.docutils dt {
+  font-weight: bold }
+*/
+
+div.abstract {
+  margin: 2em 5em }
+
+div.abstract p.topic-title {
+  font-weight: bold ;
+  text-align: center }
+
+div.admonition, div.attention, div.caution, div.danger, div.error,
+div.hint, div.important, div.note, div.tip, div.warning {
+  margin: 2em ;
+  border: medium outset ;
+  padding: 1em }
+
+div.admonition p.admonition-title, div.hint p.admonition-title,
+div.important p.admonition-title, div.note p.admonition-title,
+div.tip p.admonition-title {
+  font-weight: bold ;
+  font-family: sans-serif }
+
+div.attention p.admonition-title, div.caution p.admonition-title,
+div.danger p.admonition-title, div.error p.admonition-title,
+div.warning p.admonition-title {
+  color: red ;
+  font-weight: bold ;
+  font-family: sans-serif }
+
+/* Uncomment (and remove this text!) to get reduced vertical space in
+   compound paragraphs.
+div.compound .compound-first, div.compound .compound-middle {
+  margin-bottom: 0.5em }
+
+div.compound .compound-last, div.compound .compound-middle {
+  margin-top: 0.5em }
+*/
+
+div.dedication {
+  margin: 2em 5em ;
+  text-align: center ;
+  font-style: italic }
+
+div.dedication p.topic-title {
+  font-weight: bold ;
+  font-style: normal }
+
+div.figure {
+  margin-left: 2em ;
+  margin-right: 2em }
+
+div.footer, div.header {
+  clear: both;
+  font-size: smaller }
+
+div.line-block {
+  display: block ;
+  margin-top: 1em ;
+  margin-bottom: 1em }
+
+div.line-block div.line-block {
+  margin-top: 0 ;
+  margin-bottom: 0 ;
+  margin-left: 1.5em }
+
+div.sidebar {
+  margin-left: 1em ;
+  border: medium outset ;
+  padding: 1em ;
+  background-color: #ffffee ;
+  width: 40% ;
+  float: right ;
+  clear: right }
+
+div.sidebar p.rubric {
+  font-family: sans-serif ;
+  font-size: medium }
+
+div.system-messages {
+  margin: 5em }
+
+div.system-messages h1 {
+  color: red }
+
+div.system-message {
+  border: medium outset ;
+  padding: 1em }
+
+div.system-message p.system-message-title {
+  color: red ;
+  font-weight: bold }
+
+div.topic {
+  margin: 2em }
+
+h1.section-subtitle, h2.section-subtitle, h3.section-subtitle,
+h4.section-subtitle, h5.section-subtitle, h6.section-subtitle {
+  margin-top: 0.4em }
+
+h1.title {
+  text-align: center }
+
+h2.subtitle {
+  text-align: center }
+
+hr.docutils {
+  width: 75% }
+
+img.align-left {
+  clear: left }
+
+img.align-right {
+  clear: right }
+
+ol.simple, ul.simple {
+  margin-bottom: 1em }
+
+ol.arabic {
+  list-style: decimal }
+
+ol.loweralpha {
+  list-style: lower-alpha }
+
+ol.upperalpha {
+  list-style: upper-alpha }
+
+ol.lowerroman {
+  list-style: lower-roman }
+
+ol.upperroman {
+  list-style: upper-roman }
+
+p.attribution {
+  text-align: right ;
+  margin-left: 50% }
+
+p.caption {
+  font-style: italic }
+
+p.credits {
+  font-style: italic ;
+  font-size: smaller }
+
+p.label {
+  white-space: nowrap }
+
+p.rubric {
+  font-weight: bold ;
+  font-size: larger ;
+  color: maroon ;
+  text-align: center }
+
+p.sidebar-title {
+  font-family: sans-serif ;
+  font-weight: bold ;
+  font-size: larger }
+
+p.sidebar-subtitle {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+p.topic-title {
+  font-weight: bold }
+
+pre.address {
+  margin-bottom: 0 ;
+  margin-top: 0 ;
+  font-family: serif ;
+  font-size: 100% }
+
+pre.literal-block, pre.doctest-block {
+  margin-left: 2em ;
+  margin-right: 2em ;
+  background-color: #eeeeee }
+
+span.classifier {
+  font-family: sans-serif ;
+  font-style: oblique }
+
+span.classifier-delimiter {
+  font-family: sans-serif ;
+  font-weight: bold }
+
+span.interpreted {
+  font-family: sans-serif }
+
+span.option {
+  white-space: nowrap }
+
+span.pre {
+  white-space: pre }
+
+span.problematic {
+  color: red }
+
+span.section-subtitle {
+  /* font-size relative to parent (h1..h6 element) */
+  font-size: 80% }
+
+table.citation {
+  border-left: solid 1px gray;
+  margin-left: 1px }
+
+table.docinfo {
+  margin: 2em 4em }
+
+table.docutils {
+  margin-top: 0.5em ;
+  margin-bottom: 0.5em }
+
+table.footnote {
+  border-left: solid 1px black;
+  margin-left: 1px }
+
+table.docutils td, table.docutils th,
+table.docinfo td, table.docinfo th {
+  padding-left: 0.5em ;
+  padding-right: 0.5em ;
+  vertical-align: top }
+
+table.docutils th.field-name, table.docinfo th.docinfo-name {
+  font-weight: bold ;
+  text-align: left ;
+  white-space: nowrap ;
+  padding-left: 0 }
+
+h1 tt.docutils, h2 tt.docutils, h3 tt.docutils,
+h4 tt.docutils, h5 tt.docutils, h6 tt.docutils {
+  font-size: 100% }
+
+tt.docutils {
+  background-color: #eeeeee }
+
+ul.auto-toc {
+  list-style-type: none }
+
+</style>
+</head>
+<body>
+<div class="document" id="kmk-quick-reference">
+<h1 class="title">kmk Quick Reference</h1>
+<p>This appendix summarizes the directives, text manipulation functions, and
+special variables which <tt class="docutils literal"><span class="pre">kmk</span></tt> understands.</p>
+<!-- See section Special Built-in Target Names and Summary of Options, for other
+summaries. -->
+<div class="section">
+<h1><a id="directives" name="directives">Directives</a></h1>
+<p>Here is a summary of the directives <tt class="docutils literal"><span class="pre">kmk</span></tt> recognizes:</p>
+<blockquote>
+<p>Define a multi-line, recursively-expanded variable:</p>
+<pre class="literal-block">
+define variable
+endef
+</pre>
+<p>Conditionally evaluate part of the makefile:</p>
+<pre class="literal-block">
+ifdef variable
+ifndef variable
+ifeq (a,b)
+ifeq &quot;a&quot; &quot;b&quot;
+ifeq 'a' 'b'
+ifneq (a,b)
+ifneq &quot;a&quot; &quot;b&quot;
+ifneq 'a' 'b'
+if1of (set-a,set-b)
+ifn1of (set-a,set-b)
+if expression
+else
+endif
+</pre>
+<p>Include another makefile:</p>
+<pre class="literal-block">
+include file
+-include file
+sinclude file
+</pre>
+<p>Include another dependency file:</p>
+<pre class="literal-block">
+includedep file
+</pre>
+<p>Define a variable, overriding any previous definition, even one from the
+command line:</p>
+<pre class="literal-block">
+override variable = value
+override variable := value
+override variable += value
+override variable &lt;= value
+override variable ?= value
+override define variable
+endef
+</pre>
+<p>Tell <tt class="docutils literal"><span class="pre">kmk</span></tt> to export all variables to child processes by default:</p>
+<pre class="literal-block">
+export
+</pre>
+<p>Tell <tt class="docutils literal"><span class="pre">kmk</span></tt> whether or not to export a particular variable to child
+processes:</p>
+<pre class="literal-block">
+export variable
+export variable = value
+export variable := value
+export variable += value
+export variable &lt;= value
+export variable ?= value
+unexport variable
+</pre>
+<p>Define a variable in the local context instead of the global one:</p>
+<pre class="literal-block">
+local variable = value
+local variable := value
+local variable += value
+local variable &lt;= value
+local variable ?= value
+local define variable
+endef
+</pre>
+<p>Specify a search path for files matching a <tt class="docutils literal"><span class="pre">%</span></tt> pattern:</p>
+<pre class="literal-block">
+vpath pattern path
+</pre>
+<p>Remove all search paths previously specified for pattern:</p>
+<pre class="literal-block">
+vpath pattern
+</pre>
+<p>Remove all search paths previously specified in any vpath directive:</p>
+<pre class="literal-block">
+vpath
+</pre>
+</blockquote>
+</div>
+<div class="section">
+<h1><a id="automatic-variables" name="automatic-variables">Automatic variables</a></h1>
+<p>Here is a summary of the automatic variables.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="14%" />
+<col width="86%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Variable</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">$&#64;</span></tt></td>
+<td>The file name of the target.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$&lt;</span></tt></td>
+<td>The name of the first prerequisite.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$?</span></tt></td>
+<td>The names of all the prerequisites that are newer than the
+target, with spaces between them.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$^</span></tt></td>
+<td>The names of all the prerequisites, duplicates omitted.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$+</span></tt></td>
+<td>The names of all the prerequisites, duplicates and order
+preserved</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$*</span></tt></td>
+<td>The stem with which an implicit rule matches.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$|</span></tt></td>
+<td>The name of all the order only prerequisites.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(&#64;D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$&#64;</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(&lt;D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$&lt;</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(?D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$?</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(^D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">%^</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(+D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$+</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(*D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$*</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(|D)</span></tt></td>
+<td>The directory part of <tt class="docutils literal"><span class="pre">$|</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(&#64;F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$&#64;</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(&lt;F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$&lt;</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(?F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$?</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(^F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$^</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(+F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$+</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(*F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$*</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">$(|F)</span></tt></td>
+<td>The file-within-directory part of <tt class="docutils literal"><span class="pre">$|</span></tt>.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<h1><a id="special-variables" name="special-variables">Special variables</a></h1>
+<p>All variables starting with a <tt class="docutils literal"><span class="pre">.</span></tt> is reserved by <tt class="docutils literal"><span class="pre">kmk</span></tt>. The following
+variables are specially used or/and defined by <tt class="docutils literal"><span class="pre">kmk</span></tt>:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="34%" />
+<col width="66%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Variable</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">.DEFAULT_GOAL</span></tt></td>
+<td>The makefile default goal. You can set this in
+the makefile, if you don't it will default to
+the first target that is encountered.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">.FEATURES</span></tt></td>
+<td>List of GNU <tt class="docutils literal"><span class="pre">make</span></tt> features. Do not set this.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">.INCLUDE_DIRS</span></tt></td>
+<td>List of include directories, <tt class="docutils literal"><span class="pre">-I</span></tt> arguments
+and defaults. Do not set this.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">.RECIPEPREFIX</span></tt></td>
+<td>Recipe prefix, defaults to tab.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">.VARIABLES</span></tt></td>
+<td>Special variable which exands to the list of
+variable. Do not set this.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">CURDIR</span></tt></td>
+<td>Set to the pathname of the current working
+directory (after all <tt class="docutils literal"><span class="pre">-C</span></tt> options are
+processed, if any). Do not set this.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_VERSION</span></tt>,
+<tt class="docutils literal"><span class="pre">KBUILD_VERSION_MAJOR</span></tt>,
+<tt class="docutils literal"><span class="pre">KBUILD_VERSION_MINOR</span></tt>,
+<tt class="docutils literal"><span class="pre">KBUILD_VERSION_PATCH</span></tt>,
+<tt class="docutils literal"><span class="pre">KBUILD_KMK_REVISION</span></tt></td>
+<td>The kBuild version string and the break down
+into individual components.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST</span></tt></td>
+<td>The host operating system.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_ARCH</span></tt></td>
+<td>The host architecture.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_CPU</span></tt></td>
+<td>The host CPU <tt class="docutils literal"><span class="pre">kmk</span></tt> is built for, set to
+<tt class="docutils literal"><span class="pre">blend</span></tt> if not any particular CPU.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_PATH</span></tt></td>
+<td>Where the kBuild scripts are.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_BIN_PATH</span></tt></td>
+<td>Where the host specific kBuild binaries are.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK</span></tt>,
+<tt class="docutils literal"><span class="pre">MAKE</span></tt></td>
+<td>The name with which <tt class="docutils literal"><span class="pre">kmk</span></tt> was invoked. Using
+this variable in recipes has special meaning.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_BUILTIN</span></tt></td>
+<td>List of built-in commands.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_FEATURES</span></tt></td>
+<td>List of <tt class="docutils literal"><span class="pre">kmk</span></tt> specific features.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_FLAGS</span></tt></td>
+<td><p class="first">The flags given to <tt class="docutils literal"><span class="pre">kmk</span></tt>. You can set this in
+the environment or a makefile to set flags.</p>
+<p class="last">It is never appropriate to use <tt class="docutils literal"><span class="pre">KMK_FLAGS</span></tt>
+directly in a recipe line: its contents may not
+be quoted correctly for use in the shell. Always
+allow recursive <tt class="docutils literal"><span class="pre">kmk</span></tt>'s to obtain these values
+through the environment from its parent.</p>
+</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_LEVEL</span></tt></td>
+<td>The number of levels of recursion (sub-makes).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_VERSION</span></tt></td>
+<td>The GNU <tt class="docutils literal"><span class="pre">make</span></tt> version number.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">MAKECMDGOALS</span></tt></td>
+<td>The targets given to <tt class="docutils literal"><span class="pre">kmk</span></tt> on the command line.
+Do not set this.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">MAKEFILES</span></tt></td>
+<td>Makefiles to be read on every invocation of
+<tt class="docutils literal"><span class="pre">kmk</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">MAKEFILE_LIST</span></tt></td>
+<td>List of the makefiles that <tt class="docutils literal"><span class="pre">kmk</span></tt> has opened.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">MAKESHELL</span></tt></td>
+<td>OS/2 and MS-DOS only, the name of the command
+interpreter that is to be used by <tt class="docutils literal"><span class="pre">kmk</span></tt>. This
+value takes precedence over the value of SHELL.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">SHELL</span></tt></td>
+<td>The name of the default command interpreter,
+kmk_ash. You can set SHELL in the makefile to
+change the shell used to run recipes. The SHELL
+variable is handled specially when importing
+from and exporting to the environment.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">SUFFIXES</span></tt></td>
+<td>The default list of suffixes before <tt class="docutils literal"><span class="pre">kmk</span></tt>
+reads any makefiles (always empty).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">VPATH</span></tt></td>
+<td>Directory search path for files not found in the
+current directory.</td>
+</tr>
+</tbody>
+</table>
+<p>The following variables reflects <tt class="docutils literal"><span class="pre">kmk</span></tt> options. Do not set these.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="49%" />
+<col width="51%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Variable</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_JOBS</span></tt></td>
+<td>-j slots, <tt class="docutils literal"><span class="pre">0</span></tt> if not given.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_KEEP_GOING</span></tt></td>
+<td>-k indictor (<tt class="docutils literal"><span class="pre">0</span></tt>/<tt class="docutils literal"><span class="pre">1</span></tt>).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_JUST_PRINT</span></tt></td>
+<td>-n indicator (<tt class="docutils literal"><span class="pre">0</span></tt>/<tt class="docutils literal"><span class="pre">1</span></tt>).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_PRORITY</span></tt></td>
+<td>--priority level, <tt class="docutils literal"><span class="pre">0</span></tt> if not given.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_AFFINITY</span></tt></td>
+<td>--affinity mask, <tt class="docutils literal"><span class="pre">0</span></tt> if not given.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_STATISTICS</span></tt></td>
+<td>--statistics indicator (<tt class="docutils literal"><span class="pre">0</span></tt>/<tt class="docutils literal"><span class="pre">1</span></tt>).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_PRINT_TIME</span></tt></td>
+<td>The --print-time value.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_OPTS_PRETTY_COMMAND_PRINTING</span></tt></td>
+<td>--pretty-command-printing indicator.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<h1><a id="built-in-functions" name="built-in-functions">Built-in functions</a></h1>
+<p>String Manipulation Functions:</p>
+<blockquote>
+<p>Replace <tt class="docutils literal"><span class="pre">from</span></tt> with <tt class="docutils literal"><span class="pre">to</span></tt> in <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(subst from,to,text)
+</pre>
+<p>Replace words matching <tt class="docutils literal"><span class="pre">pattern</span></tt> with <tt class="docutils literal"><span class="pre">replacement</span></tt> in <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(patsubst pattern,replacement,text)
+</pre>
+<p>Remove excess whitespace characters from <tt class="docutils literal"><span class="pre">string</span></tt>:</p>
+<pre class="literal-block">
+$(strip string)
+</pre>
+<p>Locate <tt class="docutils literal"><span class="pre">find</span></tt> in <tt class="docutils literal"><span class="pre">text</span></tt>, returning <tt class="docutils literal"><span class="pre">find</span></tt> if found:</p>
+<pre class="literal-block">
+$(findstring find,text)
+</pre>
+<p>Select words in <tt class="docutils literal"><span class="pre">text</span></tt> that match one of the <tt class="docutils literal"><span class="pre">pattern</span></tt> words:</p>
+<pre class="literal-block">
+$(filter pattern...,text)
+</pre>
+<p>Select words in <tt class="docutils literal"><span class="pre">text</span></tt> that do not match any of the <tt class="docutils literal"><span class="pre">pattern</span></tt> words:</p>
+<pre class="literal-block">
+$(filter-out pattern...,text)
+</pre>
+<p>Sort the words in <tt class="docutils literal"><span class="pre">list</span></tt> lexicographically, removing duplicates:</p>
+<pre class="literal-block">
+$(sort list)
+</pre>
+<p>Sort the words in <tt class="docutils literal"><span class="pre">list</span></tt> lexicographically in reserve order, removing
+duplicates:</p>
+<pre class="literal-block">
+$(rsort list)
+</pre>
+<p>Count the number of words in <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(words text)
+</pre>
+<p>Extract the <tt class="docutils literal"><span class="pre">n</span></tt>th word (one-origin) of <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(word n,text)
+</pre>
+<p>Returns the list of words in <tt class="docutils literal"><span class="pre">text</span></tt> from <tt class="docutils literal"><span class="pre">s</span></tt> to <tt class="docutils literal"><span class="pre">e</span></tt> (one-origin):</p>
+<pre class="literal-block">
+$(wordlist s,e,text)
+</pre>
+<p>Extract the first word of <tt class="docutils literal"><span class="pre">names</span></tt>:</p>
+<pre class="literal-block">
+$(firstword names...)
+</pre>
+<p>Extract the last word of <tt class="docutils literal"><span class="pre">names</span></tt>:</p>
+<pre class="literal-block">
+$(lastword names...)
+</pre>
+<p>Join two parallel lists of words:</p>
+<pre class="literal-block">
+$(join list1,list2)
+</pre>
+<p>Fold <tt class="docutils literal"><span class="pre">text</span></tt> to upper case:</p>
+<pre class="literal-block">
+$(toupper text)
+</pre>
+<p>Fold <tt class="docutils literal"><span class="pre">text</span></tt> to lower case:</p>
+<pre class="literal-block">
+$(tolower text)
+</pre>
+<p>String formatting a la the unix <tt class="docutils literal"><span class="pre">printf</span></tt> command:</p>
+<pre class="literal-block">
+$(printf fmt, arg...)
+</pre>
+</blockquote>
+<p>Functions for file names:</p>
+<blockquote>
+<p>Extract the directory part of each file <tt class="docutils literal"><span class="pre">name</span></tt>:</p>
+<pre class="literal-block">
+$(dir names...)
+</pre>
+<p>Extract the non-directory part of each file <tt class="docutils literal"><span class="pre">name</span></tt>:</p>
+<pre class="literal-block">
+$(notdir names...)
+</pre>
+<p>Extract the suffix (the last <tt class="docutils literal"><span class="pre">.</span></tt> and following characters) of each file
+<tt class="docutils literal"><span class="pre">name</span></tt>:</p>
+<pre class="literal-block">
+$(suffix names...)
+</pre>
+<p>Extract the base name (name without suffix) of each file name:</p>
+<pre class="literal-block">
+$(basename names...)
+</pre>
+<p>Append <tt class="docutils literal"><span class="pre">suffix</span></tt> to each word in <tt class="docutils literal"><span class="pre">names</span></tt>:</p>
+<pre class="literal-block">
+$(addsuffix suffix,names...)
+</pre>
+<p>Prepend <tt class="docutils literal"><span class="pre">prefix</span></tt> to each word in <tt class="docutils literal"><span class="pre">names</span></tt>:</p>
+<pre class="literal-block">
+$(addprefix prefix,names...)
+</pre>
+<p>Find file names matching a shell file name <tt class="docutils literal"><span class="pre">pattern</span></tt> (not a <tt class="docutils literal"><span class="pre">%</span></tt>
+pattern):</p>
+<pre class="literal-block">
+$(wildcard pattern...)
+</pre>
+<p>For each file name in <tt class="docutils literal"><span class="pre">names</span></tt>, expand to an absolute name that does not
+contain any <tt class="docutils literal"><span class="pre">.</span></tt>, <tt class="docutils literal"><span class="pre">..</span></tt>, nor symlinks:</p>
+<pre class="literal-block">
+$(realpath names...)
+</pre>
+<p>For each file name in <tt class="docutils literal"><span class="pre">names</span></tt>, expand to an absolute name that does not
+contain any <tt class="docutils literal"><span class="pre">.</span></tt> or <tt class="docutils literal"><span class="pre">..</span></tt> components, but preserves symlinks:</p>
+<pre class="literal-block">
+$(abspath names...)
+</pre>
+<p>Same as <tt class="docutils literal"><span class="pre">$(abspath</span> <span class="pre">)</span></tt> except that the current directory can be
+specified as <tt class="docutils literal"><span class="pre">curdir</span></tt>:</p>
+<pre class="literal-block">
+$(abspathex names...[, curdir])
+</pre>
+</blockquote>
+<p>Arithmetic Functions:</p>
+<blockquote>
+<p>Returns the sum of the arguments:</p>
+<pre class="literal-block">
+$(int-add addend1, addend2[, addendN])
+</pre>
+<p>Returns the difference between the first argument and the sum of the rest:</p>
+<pre class="literal-block">
+$(int-sub minuend, subtrahend[, subtrahendN])
+</pre>
+<p>Returns the product of the arguments:</p>
+<pre class="literal-block">
+$(int-mul factor1, factor2[, factorN])
+</pre>
+<p>Returns the quotient of first argument and the rest:</p>
+<pre class="literal-block">
+$(int-div dividend, divisor[, divisorN])
+</pre>
+<p>Returns the modulus of the two arguments:</p>
+<pre class="literal-block">
+$(int-mod dividend, divisor)
+</pre>
+<p>Returns the bitwise two-complement of argument:</p>
+<pre class="literal-block">
+$(int-not val)
+</pre>
+<p>Returns the result of a bitwise AND of the arguments:</p>
+<pre class="literal-block">
+$(int-and val1, val2[, valN])
+</pre>
+<p>Returns the result of a bitwise OR of the arguments:</p>
+<pre class="literal-block">
+$(int-or val1, val2[, valN])
+</pre>
+<p>Returns the result of a bitwise XOR of the arguments:</p>
+<pre class="literal-block">
+$(int-xor val1, val2[, valN])
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean (true = non-empty, false = empty) result
+of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">==</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-eq val1, val2)
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean result of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">!=</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-ne val1, val2)
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean result of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">&gt;</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-gt val1, val2)
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean result of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">&gt;=</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-ge val1, val2)
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean result of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">&lt;</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-lt val1, val2)
+</pre>
+<p>Returns the <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean result of <tt class="docutils literal"><span class="pre">val1</span> <span class="pre">&lt;=</span> <span class="pre">val2</span></tt>:</p>
+<pre class="literal-block">
+$(int-le val1, val2)
+</pre>
+</blockquote>
+<p>(Mostly) Boolean Functions:</p>
+<blockquote>
+<p>Condition is false if the <tt class="docutils literal"><span class="pre">condition</span></tt> evaluates to an empty string
+(stripped). Evaluate the <tt class="docutils literal"><span class="pre">true-part</span></tt> if the condition is true, otherwise
+the <tt class="docutils literal"><span class="pre">false-part</span></tt>:</p>
+<pre class="literal-block">
+$(if condition,true-part[,false-part])
+</pre>
+<p>Test if any of the conditions evalues to non-empty string, returning the
+first one:</p>
+<pre class="literal-block">
+$(or condition1[,condition2[,condition3[...]]])
+</pre>
+<p>Test if all of the conditions evaluates to non-empty strings, returning the
+last one:</p>
+<pre class="literal-block">
+$(and condition1[,condition2[,condition3[...]]])
+</pre>
+<p>Test if the two strings are identical, returning <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean (true =
+non-empty, false = empty):</p>
+<pre class="literal-block">
+$(eq str1, str2)
+</pre>
+<p>Invert a <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean value:</p>
+<pre class="literal-block">
+$(not val)
+</pre>
+<p>Test if <tt class="docutils literal"><span class="pre">variable</span></tt> is defined, returning a <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean value:</p>
+<pre class="literal-block">
+$(defined variable)
+</pre>
+<p>Test if <tt class="docutils literal"><span class="pre">set-a</span></tt> and <tt class="docutils literal"><span class="pre">set-b</span></tt> intersects, returning a <tt class="docutils literal"><span class="pre">kmk</span></tt> boolean
+value:</p>
+<pre class="literal-block">
+$(intersects set-a, set-b)
+</pre>
+<p>Same as <tt class="docutils literal"><span class="pre">$(if</span> <span class="pre">)</span></tt> execpt that the condition is a <tt class="docutils literal"><span class="pre">kmk</span></tt> expression:</p>
+<pre class="literal-block">
+$(if kmk-expression,true-part[,false-part])
+</pre>
+<p>Evalutate the <tt class="docutils literal"><span class="pre">kmk</span></tt> expression returning what it evalues as. This is
+the preferred way of doing arithmentic now:</p>
+<pre class="literal-block">
+$(expr kmk-expression)
+</pre>
+</blockquote>
+<p>Stack Fuctions:</p>
+<blockquote>
+<p>Push <tt class="docutils literal"><span class="pre">item</span></tt> onto the <tt class="docutils literal"><span class="pre">stack-var</span></tt>, returning the empty string:</p>
+<pre class="literal-block">
+$(stack-push stack-var, item)
+</pre>
+<p>Pop the top item off the <tt class="docutils literal"><span class="pre">stack-var</span></tt>:</p>
+<pre class="literal-block">
+$(stack-pop stack-var)
+</pre>
+<p>Pop the top item off the <tt class="docutils literal"><span class="pre">stack-var</span></tt>, returning the empty string:</p>
+<pre class="literal-block">
+$(stack-popv stack-var)
+</pre>
+<p>Get the top item of the <tt class="docutils literal"><span class="pre">stack-var</span></tt>, returning the empty string:</p>
+<pre class="literal-block">
+$(stack-top stack-var)
+</pre>
+</blockquote>
+<p>Advanced Functions:</p>
+<blockquote>
+<p>Evaluates to the contents of the variable <tt class="docutils literal"><span class="pre">var</span></tt>, with no expansion
+performed on it:</p>
+<pre class="literal-block">
+$(value var)
+</pre>
+<p>Evaluate <tt class="docutils literal"><span class="pre">text</span></tt> with <tt class="docutils literal"><span class="pre">var</span></tt> bound to each word in <tt class="docutils literal"><span class="pre">words</span></tt>, and
+concatenate the results (spaced):</p>
+<pre class="literal-block">
+$(foreach var,words,text)
+</pre>
+<p>Evaluate the variable <tt class="docutils literal"><span class="pre">var</span></tt> replacing any references to <tt class="docutils literal"><span class="pre">$(1)</span></tt>,
+<tt class="docutils literal"><span class="pre">$(2)</span></tt> with the first, second, etc. <tt class="docutils literal"><span class="pre">param</span></tt> values:</p>
+<pre class="literal-block">
+$(call var,param,...)
+</pre>
+<p>Evaluate <tt class="docutils literal"><span class="pre">text</span></tt> then read the results as makefile commands. Expands
+to the empty string:</p>
+<pre class="literal-block">
+$(eval text)
+</pre>
+<p>Same as <tt class="docutils literal"><span class="pre">$(eval</span> <span class="pre">text)</span></tt> except that the <tt class="docutils literal"><span class="pre">text</span></tt> is expanded in its
+own variable context:</p>
+<pre class="literal-block">
+$(evalctx text)
+</pre>
+<p>Same as <tt class="docutils literal"><span class="pre">$(eval</span> <span class="pre">$(value</span> <span class="pre">var))</span></tt>:</p>
+<pre class="literal-block">
+$(evalval var)
+</pre>
+<p>Same as <tt class="docutils literal"><span class="pre">$(evalctx</span> <span class="pre">$(value</span> <span class="pre">var))</span></tt>:</p>
+<pre class="literal-block">
+$(evalvalctx var)
+</pre>
+<p>A combination of <tt class="docutils literal"><span class="pre">$(eval</span> <span class="pre">)</span></tt>, <tt class="docutils literal"><span class="pre">$(call</span> <span class="pre">)</span></tt> and <tt class="docutils literal"><span class="pre">$(value</span> <span class="pre">)</span></tt>:</p>
+<pre class="literal-block">
+$(evalcall var)
+</pre>
+<p>A combination of <tt class="docutils literal"><span class="pre">$(eval</span> <span class="pre">)</span></tt> and <tt class="docutils literal"><span class="pre">$(call</span> <span class="pre">)</span></tt>:</p>
+<pre class="literal-block">
+$(evalcall var)
+</pre>
+<p>Remove comments and blank lines from the variable <tt class="docutils literal"><span class="pre">var</span></tt>. Expands to
+the empty string:</p>
+<pre class="literal-block">
+$(eval-opt-var var)
+</pre>
+<p>Returns accessing <tt class="docutils literal"><span class="pre">$&lt;</span></tt> of <tt class="docutils literal"><span class="pre">target</span></tt>, either retriving the whole thing
+or the file at <tt class="docutils literal"><span class="pre">pos</span></tt> (one-origin):</p>
+<pre class="literal-block">
+$(deps target[, pos])
+</pre>
+<p>Returns accessing <tt class="docutils literal"><span class="pre">$+</span></tt> (order + duplicates) of <tt class="docutils literal"><span class="pre">target</span></tt>, either
+retriving the whole thing or the file at <tt class="docutils literal"><span class="pre">pos</span></tt> (one-origin):</p>
+<pre class="literal-block">
+$(deps-all target[, pos])
+</pre>
+<p>Returns accessing <tt class="docutils literal"><span class="pre">$?</span></tt>  of <tt class="docutils literal"><span class="pre">target</span></tt>, either retriving the whole
+thing or the file at <tt class="docutils literal"><span class="pre">pos</span></tt> (one-origin):</p>
+<pre class="literal-block">
+$(deps-newer target[, pos])
+</pre>
+<p>Returns accessing <tt class="docutils literal"><span class="pre">$|</span></tt> (order only)  of <tt class="docutils literal"><span class="pre">target</span></tt>, either retriving the
+whole thing or the file at <tt class="docutils literal"><span class="pre">pos</span></tt> (one-origin):</p>
+<pre class="literal-block">
+$(deps-oo target[, pos])
+</pre>
+</blockquote>
+<p>Command Functions:</p>
+<blockquote>
+<p>Create one or more command lines avoiding the max argument
+length restriction of the host OS:</p>
+<pre class="literal-block">
+$(xargs ar cas mylib.a,$(objects))
+$(xargs ar cas mylib.a,ar as mylib.a,$(objects))
+</pre>
+<p>Returns the commands for the specified target separated by new-line, space,
+or a user defined string. Note that this might not produce the 100% correct
+result if any of the prerequisite automatic variables are used:</p>
+<pre class="literal-block">
+$(commands target)
+$(commands-sc target)
+$(commands-usr target,sep)
+</pre>
+<p>Compares two commands returning the empty string if equal and the 3rd
+argument if not. This differs from <tt class="docutils literal"><span class="pre">$(comp-vars</span> <span class="pre">v1,v2,ne)</span></tt> in that
+line by line is stripped of leading spaces, command prefixes and
+trailing spaces before comparing:</p>
+<pre class="literal-block">
+$(comp-cmds cmds-var1, cmds-var2, ne)
+$(comp-cmds-ex cmds1, cmd2, ne)
+</pre>
+<p>Compares the values of the two variables returning the empty string if
+equal and the 3rd argument if not. Leading and trailing spaces is ignored:</p>
+<pre class="literal-block">
+$(comp-var var1, var2, ne)
+</pre>
+</blockquote>
+<p>Utility functions:</p>
+<blockquote>
+<p>When this function is evaluated, <tt class="docutils literal"><span class="pre">kmk</span></tt> generates a fatal error with the
+message <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(error text...)
+</pre>
+<p>When this function is evaluated, <tt class="docutils literal"><span class="pre">kmk</span></tt> generates a warning with the
+message <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(warning text...)
+</pre>
+<p>When this function is evaluated, <tt class="docutils literal"><span class="pre">kmk</span></tt> generates a info with the
+message <tt class="docutils literal"><span class="pre">text</span></tt>:</p>
+<pre class="literal-block">
+$(info text...)
+</pre>
+<p>Execute a shell <tt class="docutils literal"><span class="pre">command</span></tt> and return its output:</p>
+<pre class="literal-block">
+$(shell command)
+</pre>
+<p>Return a string describing how the <tt class="docutils literal"><span class="pre">kmk</span></tt> variable <tt class="docutils literal"><span class="pre">variable</span></tt> was defined:</p>
+<pre class="literal-block">
+$(origin variable)
+</pre>
+<p>Return a string describing the flavor of the <tt class="docutils literal"><span class="pre">kmk</span></tt> variable <tt class="docutils literal"><span class="pre">variable</span></tt>:</p>
+<pre class="literal-block">
+$(flavor variable)
+</pre>
+<p>Returns the current local time and date formatted in the <tt class="docutils literal"><span class="pre">strftime</span></tt>
+style specifier <tt class="docutils literal"><span class="pre">fmt</span></tt>. <tt class="docutils literal"><span class="pre">fmt</span></tt> defaults to <tt class="docutils literal"><span class="pre">%Y-%m-%dT%H:%M:%S</span></tt> when
+not specified:</p>
+<pre class="literal-block">
+$(date fmt)
+</pre>
+<p>Returns the current UTC time and date formatted in the <tt class="docutils literal"><span class="pre">strftime</span></tt>
+style specifier <tt class="docutils literal"><span class="pre">fmt</span></tt>. <tt class="docutils literal"><span class="pre">fmt</span></tt> defaults to <tt class="docutils literal"><span class="pre">%Y-%m-%dT%H:%M:%SZ</span></tt> when
+not specified:</p>
+<pre class="literal-block">
+$(date-utc fmt)
+</pre>
+<p>Reformats the <tt class="docutils literal"><span class="pre">in</span></tt> time and date using <tt class="docutils literal"><span class="pre">fmt</span></tt>. The <tt class="docutils literal"><span class="pre">in-fmt</span></tt> defaults
+to <tt class="docutils literal"><span class="pre">fmt</span></tt> if not specified. While <tt class="docutils literal"><span class="pre">fmt</span></tt> defaults to
+<tt class="docutils literal"><span class="pre">%Y-%m-%dT%H:%M:%SZ</span></tt> if not specified:</p>
+<pre class="literal-block">
+$(date-utc fmt,time,in-fmt)
+</pre>
+<p>Returns the current nanosecond timestamp (monotonic when possible):</p>
+<pre class="literal-block">
+$(nanots )
+</pre>
+<p>Returns the size of the specified file, or -1 if the size could not
+be obtained. This can be used to check if a file exist or not:</p>
+<pre class="literal-block">
+$(file-size file)
+</pre>
+<p>Searches the <tt class="docutils literal"><span class="pre">PATH</span></tt> <tt class="docutils literal"><span class="pre">kmk</span></tt> variable for the specified <tt class="docutils literal"><span class="pre">files</span></tt>:</p>
+<pre class="literal-block">
+$(which files...)
+</pre>
+<p>OS/2: Returns the specified LIBPATH variable value:</p>
+<pre class="literal-block">
+$(libpath var)
+</pre>
+<p>OS/2: Sets the specified LIBPATH variable value, returning the empty string:</p>
+<pre class="literal-block">
+$(libpath var,value)
+</pre>
+</blockquote>
+<p>Debugging Functions:</p>
+<blockquote>
+<p>Returns various make statistics, if no item is specified a default
+selection is returned:</p>
+<pre class="literal-block">
+$(make-stats item[,itemN])
+</pre>
+<p>Raise a debug breakpoint. Used for debugging <tt class="docutils literal"><span class="pre">kmk</span></tt> makefile parsing:</p>
+<pre class="literal-block">
+$(breakpoint )
+</pre>
+</blockquote>
+</div>
+<div class="section">
+<h1><a id="special-targets" name="special-targets">Special targets</a></h1>
+<p>todo</p>
+<hr class="docutils" />
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2146 2008-12-27 20:22:53Z knut.osmundsen@oracle.com $</p>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
+2007 Free Software Foundation, Inc.</p>
+<p class="last">Copyright (C) 2008 Knut St. Osmundsen</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</body>
+</html>
