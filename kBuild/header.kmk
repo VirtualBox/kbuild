@@ -1,4 +1,4 @@
-# $Id: header.kmk 2107 2008-12-11 05:10:52Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2148 2008-12-27 20:51:57Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2107 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2148 $  )
 
 
 #
@@ -517,96 +517,98 @@ MAKE        := $(KMK)
 
 GMAKE       := $(KBUILD_BIN_PATH)/kmk_gmake$(HOSTSUFF_EXE)
 
-DEP_EXT     := $(KBUILD_BIN_PATH)/kDep$(HOSTSUFF_EXE)
-if1of (kDep, $(KMK_BUILTIN))
-DEP         := kmk_builtin_kDep
-else
-DEP         := $(DEP_EXT)
-endif
+#DEP_EXT     := $(KBUILD_BIN_PATH)/kDep$(HOSTSUFF_EXE)
+#DEP_INT     := $(KBUILD_BIN_PATH)/kDep$(HOSTSUFF_EXE)
+#DEP         := $(DEP_INT)
 
 DEP_IDB_EXT := $(KBUILD_BIN_PATH)/kDepIDB$(HOSTSUFF_EXE)
-if1of (kDepIDB, $(KMK_BUILTIN))
-DEP_IDB     := kmk_builtin_kDepIDB
-else
-DEP_IDB     := $(DEP_IDB_EXT)
-endif
+DEP_IDB_INT := kmk_builtin_kDepIDB
+DEP_IDB     := $(DEP_IDB_INT)
 
-DEP_PRE_EXT := $(KBUILD_BIN_PATH)/kDepPre$(HOSTSUFF_EXE)
-if1of (kDepPre, $(KMK_BUILTIN))
-DEP_PRE     := kmk_builtin_kDepPre
-else
-DEP_PRE     := $(DEP_PRE_EXT)
-endif
+DEP_PRE     := $(KBUILD_BIN_PATH)/kDepPre$(HOSTSUFF_EXE)
 
 KOBJCACHE_EXT := $(KBUILD_BIN_PATH)/kObjCache$(HOSTSUFF_EXE)
-if1of (kObjCache, $(KMK_BUILTIN))
-KOBJCACHE   := kmk_builtin_kObjCache
-else
 KOBJCACHE   := $(KOBJCACHE_EXT)
-endif
 
 APPEND_EXT  := $(KBUILD_BIN_PATH)/kmk_append$(HOSTSUFF_EXE)
-APPEND      := kmk_builtin_append
+APPEND_INT  := kmk_builtin_append
+APPEND      := $(APPEND_INT)
 
 CAT_EXT     := $(KBUILD_BIN_PATH)/kmk_cat$(HOSTSUFF_EXE)
-CAT         := kmk_builtin_cat
+CAT_INT     := kmk_builtin_cat
+CAT         := $(CAT_INT)
 
 CHMOD_EXT   := $(KBUILD_BIN_PATH)/kmk_chmod$(HOSTSUFF_EXE)
-CHMOD       := kmk_builtin_chmod
+CHMOD_INT   := kmk_builtin_chmod
+CHMOD       := $(CHMOD_INT)
 
 CMP_EXT     := $(KBUILD_BIN_PATH)/kmk_cmp$(HOSTSUFF_EXE)
-CMP         := kmk_builtin_cmp
+CMP_INT     := kmk_builtin_cmp
+CMP         := $(CMP_INT)
 
 CP_EXT      := $(KBUILD_BIN_PATH)/kmk_cp$(HOSTSUFF_EXE)
-CP          := kmk_builtin_cp
+CP_INT      := kmk_builtin_cp
+CP          := $(CP_INT)
 
 ECHO_EXT    := $(KBUILD_BIN_PATH)/kmk_echo$(HOSTSUFF_EXE)
-ECHO        := kmk_builtin_echo
+ECHO_INT    := kmk_builtin_echo
+ECHO        := $(ECHO_INT)
 
 EXPR_EXT    := $(KBUILD_BIN_PATH)/kmk_expr$(HOSTSUFF_EXE)
-EXPR        := kmk_builtin_expr
+EXPR_INT    := kmk_builtin_expr
+EXPR        := $(EXPR_INT)
 
 INSTALL_EXT := $(KBUILD_BIN_PATH)/kmk_install$(HOSTSUFF_EXE)
-INSTALL     := kmk_builtin_install
+INSTALL_INT := kmk_builtin_install
+INSTALL     := $(INSTALL_INT)
 
 LN_EXT      := $(KBUILD_BIN_PATH)/kmk_ln$(HOSTSUFF_EXE)
-LN          := kmk_builtin_ln
+LN_INT      := kmk_builtin_ln
+LN          := $(LN_INT)
 
 MD5SUM_EXT  := $(KBUILD_BIN_PATH)/kmk_md5sum$(HOSTSUFF_EXE)
-MD5SUM      := kmk_builtin_md5sum
+MD5SUM_INT  := kmk_builtin_md5sum
+MD5SUM      := $(MD5SUM_INT)
 
 MKDIR_EXT   := $(KBUILD_BIN_PATH)/kmk_mkdir$(HOSTSUFF_EXE)
-MKDIR       := kmk_builtin_mkdir
+MKDIR_INT   := kmk_builtin_mkdir
+MKDIR       := $(MKDIR_INT)
 
 MV_EXT      := $(KBUILD_BIN_PATH)/kmk_mv$(HOSTSUFF_EXE)
-MV          := kmk_builtin_mv
+MV_INT      := kmk_builtin_mv
+MV          := $(MV_INT)
 
 PRINTF_EXT  := $(KBUILD_BIN_PATH)/kmk_printf$(HOSTSUFF_EXE)
-PRINTF      := kmk_builtin_printf
+PRINTF_INT  := kmk_builtin_printf
+PRINTF      := $(PRINTF_INT)
 
 REDIRECT_EXT:= $(KBUILD_BIN_PATH)/kmk_redirect$(HOSTSUFF_EXE)
-if1of (redirect, $(KMK_BUILTIN))
-REDIRECT    := kmk_builtin_redirect
-else
-REDIRECT    := $(REDIRECT_EXT)
-endif
+REDIRECT_INT:= $(REDIRECT_EXT)
+REDIRECT    := $(REDIRECT_INT)
 
 RM_EXT      := $(KBUILD_BIN_PATH)/kmk_rm$(HOSTSUFF_EXE)
-RM          := kmk_builtin_rm
+RM_INT      := kmk_builtin_rm
+RM          := $(RM_INT)
 
 RMDIR_EXT   := $(KBUILD_BIN_PATH)/kmk_rmdir$(HOSTSUFF_EXE)
-RMDIR       := kmk_builtin_rmdir
+RMDIR_INT   := kmk_builtin_rmdir
+RMDIR       := $(RMDIR_INT)
 
 SED_EXT     := $(KBUILD_BIN_PATH)/kmk_sed$(HOSTSUFF_EXE)
-if1of (sed, $(KMK_BUILTIN))
-SED_INT     := kmk_builtin_sed
-else
 SED_INT     := $(SED_EXT)
-endif
 SED         := $(SED_EXT)
 
+SLEEP_INT   := kmk_builtin_sleep
+SLEEP_EXT   := $(KBUILD_BIN_PATH)/kmk_sleep$(HOSTSUFF_EXE)
+SLEEP       := $(SLEEP_EXT)
+
 TEST_EXT    := $(KBUILD_BIN_PATH)/kmk_test$(HOSTSUFF_EXE)
-TEST        := kmk_builtin_test
+TEST_INT    := kmk_builtin_test
+TEST        := $(TEST_INT)
+
+TIME_EXT    := $(KBUILD_BIN_PATH)/kmk_time$(HOSTSUFF_EXE)
+TIME_INT    := $(TIME_EXT)
+TIME        := $(TIME_INT)
 
 # Our default shell is the Almquist shell from *BSD.
 ASH         := $(KBUILD_BIN_PATH)/kmk_ash$(HOSTSUFF_EXE)
