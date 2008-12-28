@@ -1195,6 +1195,8 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_EVALPLUS) \
   && (defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)) \
   && defined (CONFIG_WITH_COMMANDS_FUNC) \
+  && defined (CONFIG_WITH_PRINTF) \
+  && defined (CONFIG_WITH_STRING_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath includedep-queue"
@@ -1217,6 +1219,8 @@ define_automatic_variables (void)
                           " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var"
                           " make-stats"
                           " commands"
+                          " printf"
+                          " length insert pos lastpos substr translate"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
@@ -1278,6 +1282,12 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_COMMANDS_FUNC)
   strcat (buf, " commands");
+#  endif
+#  if defined (CONFIG_WITH_PRINTF)
+  strcat (buf, " printf");
+#  endif
+#  if defined (CONFIG_WITH_STRING_FUNCTIONS)
+  strcat (buf, " length insert pos lastpos substr translate");
 #  endif
 #  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl");

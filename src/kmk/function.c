@@ -49,6 +49,7 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 # include <ctype.h>
 typedef big_int math_int;
 static char *math_int_to_variable_buffer (char *, math_int);
+static math_int math_int_from_string (const char *str);
 #endif
 
 #ifdef CONFIG_WITH_NANOTS /* bird */
@@ -2247,6 +2248,336 @@ func_not (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 #endif
+
+#ifdef CONFIG_WITH_STRING_FUNCTIONS
+/*
+  $(length string)
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_length (char *o, char **argv, const char *funcname UNUSED)
+{
+  size_t len = strlen (argv[0]);
+  return math_int_to_variable_buffer (o, len);
+}
+/*
+  $(length-var var)
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_length_var (char *o, char **argv, const char *funcname UNUSED)
+{
+  struct variable *var = lookup_variable (argv[0], strlen (argv[0]));
+  return math_int_to_variable_buffer (o, var ? var->value_length : 0);
+}
+
+/* func_insert helper. */
+static char *
+helper_insert_pad (char *o, size_t to_add, const char *pad, size_t pad_len)
+{
+  while (to_add > 0)
+    {
+      size_t size = to_add > pad_len ? pad_len : to_add;
+      o = variable_buffer_output (o, pad, size);
+      to_add -= size;
+    }
+  return o;
+}
+
+/*
+  $(insert in, str[, n[, length[, pad]]])
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_insert (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char *in      = argv[0];
+  size_t      in_len  = strlen (in);
+  const char *str     = argv[1];
+  size_t      str_len = strlen (str);
+  math_int    n       = 0;
+  math_int    length  = str_len;
+  const char *pad     = "                ";
+  size_t      pad_len = 16;
+  size_t      i;
+
+  if (argv[2] != NULL)
+    {
+      n = math_int_from_string (argv[2]);
+      if (n > 0)
+        n--;            /* one-origin */
+      else if (n == 0)
+        n = str_len;    /* append */
+      else
+        { /* n < 0: from the end */
+          n = str_len + n;
+          if (n < 0)
+            n = 0;
+        }
+      if (n > 16*1024*1024) /* 16MB */
+        fatal (NILF, _("$(insert ): n=%s is out of bounds\n"), argv[2]);
+
+      if (argv[3] != NULL)
+        {
+          length = math_int_from_string (argv[3]);
+          if (length < 0 || length > 16*1024*1024 /* 16MB */)
+              fatal (NILF, _("$(insert ): length=%s is out of bounds\n"), argv[3]);
+
+          if (argv[4] != NULL)
+            {
+              const char *tmp = argv[4];
+              for (i = 0; tmp[i] == ' '; i++)
+                /* nothing */;
+              if (tmp[i] != '\0')
+                {
+                  pad = argv[4];
+                  pad_len = strlen (pad);
+                }
+              /* else: it was all default spaces. */
+            }
+        }
+    }
+
+  /* the head of the original string */
+  if (n > 0)
+    {
+      if (n <= str_len)
+        o = variable_buffer_output (o, str, n);
+      else
+        {
+          o = variable_buffer_output (o, str, str_len);
+          o = helper_insert_pad (o, n - str_len, pad, pad_len);
+        }
+    }
+
+  /* insert the string */
+  if (length <= in_len)
+    o = variable_buffer_output (o, in, length);
+  else
+    {
+      o = variable_buffer_output (o, in, in_len);
+      o = helper_insert_pad (o, length - in_len, pad, pad_len);
+    }
+
+  /* the tail of the original string */
+  if (n < str_len)
+    o = variable_buffer_output (o, str + n, str_len - n);
+
+  return o;
+}
+
+/*
+  $(pos needle, haystack[, start])
+  $(lastpos needle, haystack[, start])
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_pos (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char *needle       = *argv[0] ? argv[0] : " ";
+  size_t      needle_len   = strlen (needle);
+  const char *haystack     = argv[1];
+  size_t      haystack_len = strlen (haystack);
+  math_int    start        = 0;
+  const char *hit;
+
+  if (argv[2] != NULL)
+    {
+      start = math_int_from_string (argv[2]);
+      if (start > 0)
+        start--;            /* one-origin */
+      else if (start < 0)
+        start = haystack_len + start; /* from the end */
+      if (start < 0 || start + needle_len > haystack_len)
+        return math_int_to_variable_buffer (o, 0);
+    }
+
+  /* do the searching */
+  if (funcname[0] != 'l')
+    { /* pos */
+      if (needle_len == 1)
+        hit = strchr (haystack + start, *needle);
+      else
+        hit = strstr (haystack + start, needle);
+    }
+  else
+    { /* last pos */
+      int    ch  = *needle;
+      size_t off = start + 1;
+
+      hit = NULL;
+      while (off-- > 0)
+        {
+          if (   haystack[off] == ch
+              && (   needle_len == 1
+                  || strncmp (&haystack[off], needle, needle_len) == 0))
+            {
+              hit = haystack + off;
+              break;
+            }
+        }
+    }
+
+  return math_int_to_variable_buffer (o, hit ? hit - haystack + 1 : 0);
+}
+
+/*
+  $(substr str, start[, length[, pad]])
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_substr (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char *str     = argv[0];
+  size_t      str_len = strlen (str);
+  math_int    start   = math_int_from_string (argv[1]);
+  math_int    length  = 0;
+  const char *pad     = NULL;
+  size_t      pad_len = 0;
+
+  if (argv[2] != NULL)
+    {
+      if (argv[3] != NULL)
+        {
+          pad = argv[3];
+          for (pad_len = 0; pad[pad_len] == ' '; pad_len++)
+            /* nothing */;
+          if (pad[pad_len] != '\0')
+              pad_len = strlen (pad);
+          else
+            {
+              pad = "                ";
+              pad_len = 16;
+            }
+        }
+      length = math_int_from_string (argv[1]);
+      if (length < 0 || (pad != NULL && length > 16*1024*1024 /* 16MB */))
+        fatal (NILF, _("$(substr ): length=%s is out of bounds\n"), argv[3]);
+      if (length == 0)
+        return o;
+    }
+
+  /* adjust start and length. */
+  if (pad == NULL)
+    {
+      if (start > str_len)
+        {
+          start--;      /* one-origin */
+          if (start >= str_len)
+            return o;
+          if (length == 0 || start + length > str_len)
+            length = str_len - start;
+        }
+      else
+        {
+          start = str_len + start;
+          if (start <= 0)
+            {
+              start += length;
+              if (start <= 0)
+                return o;
+              length = start;
+              start = 0;
+            }
+          else if (length == 0)
+            length = str_len - start;
+        }
+
+      o = variable_buffer_output (o, str + start, length);
+    }
+  else
+    {
+      if (start > str_len)
+        {
+          start--;      /* one-origin */
+          if (start >= str_len)
+            return length ? helper_insert_pad (o, length, pad, pad_len) : o;
+          if (length == 0)
+            length = str_len - start;
+        }
+      else
+        {
+          start = str_len + start;
+          if (start <= 0)
+            {
+              if (start + length <= 0)
+                return o;
+              o = helper_insert_pad (o, -start, pad, pad_len);
+              return variable_buffer_output (o, str, length + length);
+            }
+          if (length == 0)
+            length = str_len - start;
+        }
+      if (start + length <= str_len)
+        o = variable_buffer_output (o, str + start, length);
+      else
+        {
+          o = variable_buffer_output (o, str + start, str_len - start);
+          o = helper_insert_pad (o, start + length - start, pad, pad_len);
+        }
+    }
+
+  return o;
+}
+
+/*
+  $(translate string, new-set[, old-set[, pad-char]])
+
+  XXX: This doesn't take multibyte locales into account.
+ */
+static char *
+func_translate (char *o, char **argv, const char *funcname UNUSED)
+{
+  const unsigned char *str     = argv[0];
+  const unsigned char *new_set = argv[1];
+  const char          *old_set = argv[2];
+  char                 trans_tab[1 << CHAR_BIT];
+  int                  i;
+  char                 ch;
+
+  /* init the array. */
+  for (i = 0; i < (1 << CHAR_BIT); i++)
+    trans_tab[i] = i;
+
+  while (   (i = *old_set) != '\0'
+         && (ch = *new_set) != '\0')
+    {
+      trans_tab[i] = ch;
+      old_set++;
+      new_set++;
+    }
+
+  if (i != '\0')
+    {
+      ch = '\0';                        /* no padding == remove char */
+      if (argv[2] != NULL && argv[3] != NULL)
+        {
+          ch = argv[3][0];
+          if (ch && argv[3][1])
+            fatal (NILF, _("$(translate ): pad=`%s' expected a single char\n"), argv[3]);
+          if (ch == '\0')               /* no char == space */
+            ch = ' ';
+        }
+      while ((i = *old_set++) != '\0')
+        trans_tab[i] = ch;
+    }
+
+  /* do the translation */
+  while ((i = *str++) != '\0')
+    {
+      ch = trans_tab[i];
+      if (ch)
+        o = variable_buffer_output (o, &ch, 1);
+    }
+
+  return o;
+}
+#endif /* CONFIG_WITH_STRING_FUNCTIONS */
 
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
 
@@ -4536,6 +4867,15 @@ static struct function_table_entry function_table_init[] =
 #ifdef EXPERIMENTAL
   { STRING_SIZE_TUPLE("eq"),            2,  2,  1,  func_eq},
   { STRING_SIZE_TUPLE("not"),           0,  1,  1,  func_not},
+#endif
+#ifdef CONFIG_WITH_STRING_FUNCTIONS
+  { STRING_SIZE_TUPLE("length"),        1,  1,  1,  func_length},
+  { STRING_SIZE_TUPLE("length-var"),    1,  1,  1,  func_length_var},
+  { STRING_SIZE_TUPLE("insert"),        3,  3,  1,  func_insert},
+  { STRING_SIZE_TUPLE("pos"),           2,  3,  1,  func_pos},
+  { STRING_SIZE_TUPLE("lastpos"),       2,  3,  1,  func_pos},
+  { STRING_SIZE_TUPLE("substr"),        2,  4,  1,  func_substr},
+  { STRING_SIZE_TUPLE("translate"),     2,  4,  1,  func_translate},
 #endif
 #ifdef CONFIG_WITH_PRINTF
   { STRING_SIZE_TUPLE("printf"),        1,  0,  1,  kmk_builtin_func_printf},
