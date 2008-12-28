@@ -2395,6 +2395,8 @@ func_pos (char *o, char **argv, const char *funcname UNUSED)
       if (start < 0 || start + needle_len > haystack_len)
         return math_int_to_variable_buffer (o, 0);
     }
+  else if (funcname[0] == 'l')
+    start = haystack_len - 1;
 
   /* do the searching */
   if (funcname[0] != 'l')
@@ -2533,9 +2535,9 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
 static char *
 func_translate (char *o, char **argv, const char *funcname UNUSED)
 {
-  const unsigned char *str     = argv[0];
-  const unsigned char *new_set = argv[1];
-  const char          *old_set = argv[2];
+  const unsigned char *str     = (const unsigned char *)argv[0];
+  const unsigned char *new_set = (const unsigned char *)argv[1];
+  const char          *old_set = argv[2] != NULL ? argv[2] : "";
   char                 trans_tab[1 << CHAR_BIT];
   int                  i;
   char                 ch;
@@ -4871,7 +4873,7 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_STRING_FUNCTIONS
   { STRING_SIZE_TUPLE("length"),        1,  1,  1,  func_length},
   { STRING_SIZE_TUPLE("length-var"),    1,  1,  1,  func_length_var},
-  { STRING_SIZE_TUPLE("insert"),        3,  3,  1,  func_insert},
+  { STRING_SIZE_TUPLE("insert"),        2,  5,  1,  func_insert},
   { STRING_SIZE_TUPLE("pos"),           2,  3,  1,  func_pos},
   { STRING_SIZE_TUPLE("lastpos"),       2,  3,  1,  func_pos},
   { STRING_SIZE_TUPLE("substr"),        2,  4,  1,  func_substr},

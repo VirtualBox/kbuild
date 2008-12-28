@@ -1,0 +1,118 @@
+# $Id: lastpos 2152 2008-12-28 13:43:22Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(lastpos needle, haystack[, start])
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(lastpos ) function";
+
+$details = "A few simple tests, nothing spectacular.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(lastpos b,abc),2)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+ifneq ($(lastpos t,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 0 failed)
+endif
+ifneq ($(lastpos tu,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 1 failed)
+endif
+ifneq ($(lastpos tuv,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 2 failed)
+endif
+ifneq ($(lastpos tuvw,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 3 failed)
+endif
+ifneq ($(lastpos tuvwx,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 4 failed)
+endif
+ifneq ($(lastpos tuvwxy,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 5 failed)
+endif
+ifneq ($(lastpos tuvwxyz,abcdefghijklmnopqrstuvwxyz),20)
+$(error sub-test 6 failed)
+endif
+ifneq ($(lastpos tuvwxyz!,abcdefghijklmnopqrstuvwxyz),0)
+$(error sub-test 7 failed)
+endif
+
+ifneq ($(lastpos a,ababababab),9)
+$(error sub-test 10 failed)
+endif
+ifneq ($(lastpos a,ababababab,8),7)
+$(error sub-test 11 failed)
+endif
+ifneq ($(lastpos a,ababababab,7),7)
+$(error sub-test 12 failed)
+endif
+ifneq ($(lastpos a,ababababab,4),3)
+$(error sub-test 13 failed)
+endif
+ifneq ($(lastpos a,ababababab,3),3)
+$(error sub-test 14 failed)
+endif
+ifneq ($(lastpos a,ababababab,2),1)
+$(error sub-test 15 failed)
+endif
+ifneq ($(lastpos a,ababababab,1),1)
+$(error sub-test 16 failed)
+endif
+ifneq ($(lastpos a,ababababab,-1),9)
+$(error sub-test 17 failed)
+endif
+ifneq ($(lastpos a,ababababab,-2),9)
+$(error sub-test 18 failed)
+endif
+ifneq ($(lastpos a,ababababab,-10),1)
+$(error sub-test 19 failed)
+endif
+ifneq ($(lastpos a,ababababab,-11),0)
+$(error sub-test 20 failed)
+endif
+
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+}
+
+
+
+# Indicate that we're done.
+1;
+
