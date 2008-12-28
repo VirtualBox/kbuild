@@ -1,0 +1,106 @@
+# $Id: insert 2152 2008-12-28 13:43:22Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(insert in, str[, n[, length[, pad]]])
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(insert ) function";
+
+$details = "Testing edges and some simple stuff.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(insert a,b),ab)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+ifneq ($(insert a,b,1),ab)
+$(error sub-test 0 failed)
+endif
+ifneq ($(insert a,b,2),ba)
+$(error sub-test 1 failed)
+endif
+ifneq ($(insert a,b,3),b a)
+$(error sub-test 2 failed)
+endif
+ifneq ($(insert a,b,0),ba)
+$(error sub-test 3 failed)
+endif
+ifneq ($(insert a,b,-1),ab)
+$(error sub-test 4 failed)
+endif
+ifneq ($(insert a,b,-2),ab)
+$(error sub-test 5 failed)
+endif
+ifneq ($(insert a,b,-10),ab)
+$(error sub-test 6 failed)
+endif
+
+ifneq ($(insert a,b,-10,0),b)
+$(error sub-test 10 failed)
+endif
+ifneq ($(insert aAAA,b,4,1),b  a)
+$(error sub-test 11 failed)
+endif
+ifneq ($(insert a,bBbBbBb,4,4),bBba   BbBb)
+$(error sub-test 12 failed)
+endif
+
+ifneq ($(insert a,bBbBbBb,4,4,z),bBbazzzBbBb)
+$(error sub-test 20 failed)
+endif
+ifneq ($(insert a,bBbBbBb,4,4,xy),bBbaxyxBbBb)
+$(error sub-test 21 failed)
+endif
+ifneq ($(insert a,bBbBbBb,4,4,xyz),bBbaxyzBbBb)
+$(error sub-test 22 failed)
+endif
+ifneq ($(insert a,bBbBbBb,4,4,xyzXYZ),bBbaxyzBbBb)
+$(error sub-test 23 failed)
+endif
+ifneq ($(insert a,bBbBbBb,4,4,),bBba   BbBb)
+$(error sub-test 24 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+}
+
+
+
+# Indicate that we're done.
+1;
+
