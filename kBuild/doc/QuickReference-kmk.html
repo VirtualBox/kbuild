@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-29 02:01:43 +0100 (Mon, 29 Dec 2008) $
-:Revision: $Revision: 2155 $
+:Date: $Date: 2008-12-29 23:20:11 +0100 (Mon, 29 Dec 2008) $
+:Revision: $Revision: 2161 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -912,10 +912,23 @@ performed on it:</p>
 <pre class="literal-block">
 $(value var)
 </pre>
-<p>Evaluate <tt class="docutils literal"><span class="pre">text</span></tt> with <tt class="docutils literal"><span class="pre">var</span></tt> bound to each word in <tt class="docutils literal"><span class="pre">words</span></tt>, and
+<p>Evaluate <tt class="docutils literal"><span class="pre">body</span></tt> with <tt class="docutils literal"><span class="pre">var</span></tt> bound to each word in <tt class="docutils literal"><span class="pre">words</span></tt>, and
 concatenate the results (spaced):</p>
 <pre class="literal-block">
-$(foreach var,words,text)
+$(foreach var,words,body)
+</pre>
+<p>C-style for-loop. Start by evaluating <tt class="docutils literal"><span class="pre">init</span></tt>. Each iteration will
+first check whether the <tt class="docutils literal"><span class="pre">condition</span></tt> (<tt class="docutils literal"><span class="pre">kmk</span></tt>-expression) is true,
+then expand <tt class="docutils literal"><span class="pre">body</span></tt> concatenating the result to the previous iterations
+(spaced), and finally evaluate <tt class="docutils literal"><span class="pre">next</span></tt>:</p>
+<pre class="literal-block">
+$(for init,conditions,next,body)
+</pre>
+<p>C-style while-loop. Each iteration will check whether the <tt class="docutils literal"><span class="pre">condition</span></tt>
+(<tt class="docutils literal"><span class="pre">kmk</span></tt>-expression) is true, then expand <tt class="docutils literal"><span class="pre">body</span></tt> concatenating the
+result to the previous iterations:</p>
+<pre class="literal-block">
+$(while conditions,body)
 </pre>
 <p>Evaluate the variable <tt class="docutils literal"><span class="pre">var</span></tt> replacing any references to <tt class="docutils literal"><span class="pre">$(1)</span></tt>,
 <tt class="docutils literal"><span class="pre">$(2)</span></tt> with the first, second, etc. <tt class="docutils literal"><span class="pre">param</span></tt> values:</p>
@@ -1102,7 +1115,7 @@ $(breakpoint )
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2155 2008-12-29 01:01:43Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2161 2008-12-29 22:20:11Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,

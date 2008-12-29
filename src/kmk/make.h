@@ -909,8 +909,8 @@ static inline void *__my_memchr (__const void *__s, int __c, size_t __n)
 #endif /* __EMX__ (bird) */
 
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-extern int expr_eval_if_conditionals(char *line, const struct floc *flocp);
-extern char *expr_eval_to_string(char *o, char *expr);
+extern int expr_eval_if_conditionals(const char *line, const struct floc *flocp);
+extern char *expr_eval_to_string(char *o, const char *expr);
 #endif
 
 #ifdef KMK

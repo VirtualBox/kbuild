@@ -1,0 +1,73 @@
+# $Id: while 2161 2008-12-29 22:20:11Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(while condition,body)
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(while ) loop function";
+
+$details = "A few simple tests, nothing spectacular.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+VAR    := 0
+OUTPUT := $(while $(VAR)==0,$(eval VAR=1)works)
+ifneq ($(OUTPUT),works)
+$(error sub-test 0 failed:$(OUTPUT))
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+VAR    := 0
+OUTPUT := $(while $(VAR) < 3,$(eval VAR:=$(expr $(VAR) + 1))$(VAR))
+ifneq ($(OUTPUT),1 2 3)
+$(error sub-test 0 failed:$(OUTPUT))
+endif
+
+ifneq (.$(while 0,asdfasdfadsf).,..)
+$(error sub-test 1 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+}
+
+
+
+# Indicate that we're done.
+1;
+
+
+
