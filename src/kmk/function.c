@@ -5232,7 +5232,6 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   len = sprintf (num, "%d", i - 1);
   define_variable_vl (".ARGC", sizeof (".ARGC") - 1, num, len,
                       1 /* dup val */, o_automatic, 0);
-  define_variable (".ARGC", sizeof (".ARGC") - 1, num, o_automatic, 0);
 #endif
 
   /* If the number of arguments we have is < max_args, it means we're inside
