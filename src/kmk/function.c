@@ -2528,16 +2528,16 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
 }
 
 /*
-  $(translate string, new-set[, old-set[, pad-char]])
+  $(translate string, from-set[, to-set[, pad-char]])
 
   XXX: This doesn't take multibyte locales into account.
  */
 static char *
 func_translate (char *o, char **argv, const char *funcname UNUSED)
 {
-  const unsigned char *str     = (const unsigned char *)argv[0];
-  const unsigned char *new_set = (const unsigned char *)argv[1];
-  const char          *old_set = argv[2] != NULL ? argv[2] : "";
+  const unsigned char *str      = (const unsigned char *)argv[0];
+  const unsigned char *from_set = (const unsigned char *)argv[1];
+  const char          *to_set   = argv[2] != NULL ? argv[2] : "";
   char                 trans_tab[1 << CHAR_BIT];
   int                  i;
   char                 ch;
@@ -2546,12 +2546,12 @@ func_translate (char *o, char **argv, const char *funcname UNUSED)
   for (i = 0; i < (1 << CHAR_BIT); i++)
     trans_tab[i] = i;
 
-  while (   (i = *old_set) != '\0'
-         && (ch = *new_set) != '\0')
+  while (   (i = *from_set) != '\0'
+         && (ch = *to_set) != '\0')
     {
       trans_tab[i] = ch;
-      old_set++;
-      new_set++;
+      from_set++;
+      to_set++;
     }
 
   if (i != '\0')
@@ -2565,7 +2565,7 @@ func_translate (char *o, char **argv, const char *funcname UNUSED)
           if (ch == '\0')               /* no char == space */
             ch = ' ';
         }
-      while ((i = *old_set++) != '\0')
+      while ((i = *from_set++) != '\0')
         trans_tab[i] = ch;
     }
 
