@@ -1,4 +1,4 @@
-# $Id: evalcall 2158 2008-12-29 15:43:31Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+# $Id: evalcall 2159 2008-12-29 16:08:15Z knut.osmundsen@oracle.com $                                        -*-perl-*-
 ## @file
 # $(evalcall var,argN...)
 #
@@ -76,7 +76,8 @@ ifneq ($(evalcall POP,stack-var),a)
 $(error sub-test 2a failed)
 endif
 
-# negative tests:
+
+# Negative tests:
 
 .RETURN = $2 $1
 FUNC =
@@ -90,13 +91,27 @@ ifneq ($(evalcall FUNC,a,b),)
 $(error sub-test 11 failed)
 endif
 
+
+# Test .ARGC:
+
+FUNC = local .RETURN = $(.ARGC)
+ifneq ($(evalcall FUNC,a,b),2)
+$(error sub-test 20 failed)
+endif
+ifneq ($(evalcall FUNC),0)
+$(error sub-test 21 failed)
+endif
+ifneq ($(evalcall FUNC,aasdfasdf),1)
+$(error sub-test 22 failed)
+endif
+
+
 .PHONY: all
 all: ; @:
 ',
 '',
 '');
 }
-
 
 
 # Indicate that we're done.
