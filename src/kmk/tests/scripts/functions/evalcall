@@ -1,0 +1,104 @@
+# $Id: evalcall 2158 2008-12-29 15:43:31Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(evalcall var,argN...)
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(evalcall ) function";
+
+$details = "A few simple tests, nothing spectacular.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+FUNC = local .RETURN = $2 $1
+ifneq ($(evalcall FUNC,a,b),b a)
+$(error sub-test 0 failed: $(evalcall FUNC,a,b))
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+
+FUNC = local .RETURN = $2 $1
+ifneq ($(evalcall FUNC,a,b),b a)
+$(error sub-test 0 failed)
+endif
+
+ADD = local .RETURN = $(expr $1 + $2)
+ifneq ($(evalcall ADD,1,2),3)
+$(error sub-test 1 failed)
+endif
+
+define POP
+local words := $(words $($1))
+local .RETURN := $(word $(words), $($1))
+$1 := $(wordlist 1, $(expr $(words) - 1), $($1))
+endef
+stack-var = a b c d
+ifneq ($(evalcall POP,stack-var),d)
+$(error sub-test 2d failed)
+endif
+ifneq ($(evalcall POP,stack-var),c)
+$(error sub-test 2c failed)
+endif
+ifneq ($(evalcall POP,stack-var),b)
+$(error sub-test 2b failed)
+endif
+ifneq ($(evalcall POP,stack-var),a)
+$(error sub-test 2a failed)
+endif
+
+# negative tests:
+
+.RETURN = $2 $1
+FUNC =
+ifneq ($(evalcall FUNC,a,b),)
+$(error sub-test 10 failed)
+endif
+
+.RETURN =
+FUNC = .RETURN = $2 $1
+ifneq ($(evalcall FUNC,a,b),)
+$(error sub-test 11 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+}
+
+
+
+# Indicate that we're done.
+1;
+
