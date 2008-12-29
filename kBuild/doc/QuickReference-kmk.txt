@@ -554,10 +554,23 @@ Advanced Functions:
 
         $(value var)
 
-    Evaluate ``text`` with ``var`` bound to each word in ``words``, and
+    Evaluate ``body`` with ``var`` bound to each word in ``words``, and
     concatenate the results (spaced)::
 
-        $(foreach var,words,text)
+        $(foreach var,words,body)
+
+    C-style for-loop. Start by evaluating ``init``. Each iteration will
+    first check whether the ``condition`` (``kmk``-expression) is true,
+    then expand ``body`` concatenating the result to the previous iterations
+    (spaced), and finally evaluate ``next``::
+
+        $(for init,conditions,next,body)
+
+    C-style while-loop. Each iteration will check whether the ``condition``
+    (``kmk``-expression) is true, then expand ``body`` concatenating the
+    result to the previous iterations::
+
+        $(while conditions,body)
 
     Evaluate the variable ``var`` replacing any references to ``$(1)``,
     ``$(2)`` with the first, second, etc. ``param`` values::
@@ -753,7 +766,7 @@ todo
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2155 2008-12-29 01:01:43Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2161 2008-12-29 22:20:11Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.

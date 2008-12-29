@@ -1063,6 +1063,94 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+#ifdef CONFIG_WITH_LOOP_FUNCTIONS
+
+/* Helper for func_for that evaluates the INIT and NEXT parts. */
+static void
+helper_eval (char *text, size_t text_len)
+{
+    unsigned int buf_len;
+    char *buf;
+
+    install_variable_buffer (&buf, &buf_len);
+    eval_buffer (text, text + text_len);
+    restore_variable_buffer (buf, buf_len);
+}
+
+/*
+  $(for init,condition,next,body)
+  */
+static char *
+func_for (char *o, char **argv, const char *funcname UNUSED)
+{
+  char        *init     = argv[0];
+  const char  *cond     = argv[1];
+  const char  *next     = argv[2];
+  size_t       next_len = strlen (next);
+  char        *next_buf = xmalloc (next_len + 1);
+  const char  *body     = argv[3];
+  size_t       body_len = strlen (body);
+  unsigned int doneany  = 0;
+
+  push_new_variable_scope ();
+
+  /* Evaluate INIT. */
+
+  helper_eval (init, strlen (init));
+
+  /* Loop till COND is false. */
+
+  while (expr_eval_if_conditionals (cond, NULL) == 0 /* true */)
+    {
+      /* Expand BODY. */
+
+      if (!doneany)
+        doneany = 1;
+      else
+        o = variable_buffer_output (o, " ", 1);
+      variable_expand_string_2 (o, body, body_len, &o);
+
+      /* Evaluate NEXT. */
+
+      memcpy (next_buf, next, next_len + 1);
+      helper_eval (next_buf, next_len);
+    }
+
+  pop_variable_scope ();
+  free (next_buf);
+
+  return o;
+}
+
+/*
+  $(while condition,body)
+ */
+static char *
+func_while (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char  *cond     = argv[0];
+  const char  *body     = argv[1];
+  size_t       body_len = strlen (body);
+  unsigned int doneany  = 0;
+
+  push_new_variable_scope ();
+
+  while (expr_eval_if_conditionals (cond, NULL) == 0 /* true */)
+    {
+      if (!doneany)
+        doneany = 1;
+      else
+        o = variable_buffer_output (o, " ", 1);
+      variable_expand_string_2 (o, body, body_len, &o);
+    }
+
+  pop_variable_scope ();
+
+  return o;
+}
+
+#endif /* CONFIG_WITH_LOOP_FUNCTIONS */
+
 struct a_word
 {
   struct a_word *next;
@@ -4850,6 +4938,10 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("words"),         0,  1,  1,  func_words},
   { STRING_SIZE_TUPLE("origin"),        0,  1,  1,  func_origin},
   { STRING_SIZE_TUPLE("foreach"),       3,  3,  0,  func_foreach},
+#ifdef CONFIG_WITH_LOOP_FUNCTIONS
+  { STRING_SIZE_TUPLE("for"),           4,  4,  0,  func_for},
+  { STRING_SIZE_TUPLE("while"),         2,  2,  0,  func_while},
+#endif
   { STRING_SIZE_TUPLE("call"),          1,  0,  1,  func_call},
   { STRING_SIZE_TUPLE("info"),          0,  1,  1,  func_error},
   { STRING_SIZE_TUPLE("error"),         0,  1,  1,  func_error},
