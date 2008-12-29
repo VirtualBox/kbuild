@@ -2261,6 +2261,7 @@ func_length (char *o, char **argv, const char *funcname UNUSED)
   size_t len = strlen (argv[0]);
   return math_int_to_variable_buffer (o, len);
 }
+
 /*
   $(length-var var)
 
@@ -2273,9 +2274,9 @@ func_length_var (char *o, char **argv, const char *funcname UNUSED)
   return math_int_to_variable_buffer (o, var ? var->value_length : 0);
 }
 
-/* func_insert helper. */
+/* func_insert and func_substr helper. */
 static char *
-helper_insert_pad (char *o, size_t to_add, const char *pad, size_t pad_len)
+helper_pad (char *o, size_t to_add, const char *pad, size_t pad_len)
 {
   while (to_add > 0)
     {
@@ -2349,7 +2350,7 @@ func_insert (char *o, char **argv, const char *funcname UNUSED)
       else
         {
           o = variable_buffer_output (o, str, str_len);
-          o = helper_insert_pad (o, n - str_len, pad, pad_len);
+          o = helper_pad (o, n - str_len, pad, pad_len);
         }
     }
 
@@ -2359,7 +2360,7 @@ func_insert (char *o, char **argv, const char *funcname UNUSED)
   else
     {
       o = variable_buffer_output (o, in, in_len);
-      o = helper_insert_pad (o, length - in_len, pad, pad_len);
+      o = helper_pad (o, length - in_len, pad, pad_len);
     }
 
   /* the tail of the original string */
@@ -2498,7 +2499,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
         {
           start--;      /* one-origin */
           if (start >= str_len)
-            return length ? helper_insert_pad (o, length, pad, pad_len) : o;
+            return length ? helper_pad (o, length, pad, pad_len) : o;
           if (length == 0)
             length = str_len - start;
         }
@@ -2508,8 +2509,8 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
           if (start <= 0)
             {
               if (start + length <= 0)
-                return length ? helper_insert_pad (o, length, pad, pad_len) : o;
-              o = helper_insert_pad (o, -start, pad, pad_len);
+                return length ? helper_pad (o, length, pad, pad_len) : o;
+              o = helper_pad (o, -start, pad, pad_len);
               return variable_buffer_output (o, str, length + start);
             }
           if (length == 0)
@@ -2520,7 +2521,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
       else
         {
           o = variable_buffer_output (o, str + start, str_len - start);
-          o = helper_insert_pad (o, start + length - str_len, pad, pad_len);
+          o = helper_pad (o, start + length - str_len, pad, pad_len);
         }
     }
 
@@ -5286,6 +5287,22 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
       eval_buffer (o, eos);
       restore_variable_buffer (buf, len);
       reading_file = reading_file_saved;
+
+      /* Deal with the .RETURN value if present. */
+
+      v = lookup_variable_in_set (".RETURN", sizeof (".RETURN") - 1,
+                                  current_variable_set_list->set);
+      if (v && v->value_length)
+        {
+          if (v->recursive)
+            {
+              v->exp_count = EXP_COUNT_MAX;
+              variable_expand_string_2 (o, v->value, v->value_length, &o);
+              v->exp_count = 0;
+            }
+          else
+            o = variable_buffer_output (o, v->value, v->value_length);
+        }
     }
 #endif /* CONFIG_WITH_EVALPLUS */
 
