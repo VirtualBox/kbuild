@@ -1,4 +1,4 @@
-# $Id: printf 2152 2008-12-28 13:43:22Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+# $Id: printf 2156 2008-12-29 01:12:41Z knut.osmundsen@oracle.com $                                        -*-perl-*-
 ## @file
 # $(printf fmt[,args...])
 #
@@ -56,12 +56,13 @@ endif
 ifneq ($(printf %.2s%.3s,abc,zde),abzde)
 $(error sub-test 3 failed)
 endif
-
-ifneq ($(printf %#x,127),0x7f)
+define HASH
+#
+endef
+ifneq ($(printf %$(HASH)x,127),0x7f)
 $(error sub-test 4 failed)
 endif
-
-ifneq ($(printf %#X,127),0X7F)
+ifneq ($(printf %$(HASH)X,127),0X7F)
 $(error sub-test 5 failed)
 endif
 
