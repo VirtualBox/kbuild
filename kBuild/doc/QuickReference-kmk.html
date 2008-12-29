@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-27 21:36:13 +0100 (Sat, 27 Dec 2008) $
-:Revision: $Revision: 2147 $
+:Date: $Date: 2008-12-29 02:01:43 +0100 (Mon, 29 Dec 2008) $
+:Revision: $Revision: 2155 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -698,6 +698,35 @@ $(tolower text)
 <pre class="literal-block">
 $(printf fmt, arg...)
 </pre>
+<p>Return the length of a string or a (unexpanded) variable:</p>
+<pre class="literal-block">
+$(length string)
+$(length-var var)
+</pre>
+<p>Find the position of <tt class="docutils literal"><span class="pre">needle</span></tt> in <tt class="docutils literal"><span class="pre">haystack</span></tt>, returns 0 if not found.
+Negative <tt class="docutils literal"><span class="pre">start</span></tt> indices are relative to the end of <tt class="docutils literal"><span class="pre">haystack</span></tt>, while
+positive ones are one based:</p>
+<pre class="literal-block">
+$(pos needle, haystack[, start])
+$(lastpos needle, haystack[, start])
+</pre>
+<p>Returns the specified substring. The <tt class="docutils literal"><span class="pre">start</span></tt> works like with <tt class="docutils literal"><span class="pre">$(pos</span> <span class="pre">)</span></tt>.
+If the substring is partially outside the <tt class="docutils literal"><span class="pre">string</span></tt> the result will be
+padded with <tt class="docutils literal"><span class="pre">pad</span></tt> if present:</p>
+<pre class="literal-block">
+$(substr string, start[, length[, pad]])
+</pre>
+<p>Insert <tt class="docutils literal"><span class="pre">in</span></tt> into <tt class="docutils literal"><span class="pre">str</span></tt> at the specified position. <tt class="docutils literal"><span class="pre">n</span></tt> works like with
+<tt class="docutils literal"><span class="pre">$(pos</span> <span class="pre">)</span></tt>, except that <tt class="docutils literal"><span class="pre">0</span></tt> is the end of the string:</p>
+<pre class="literal-block">
+$(insert in, str[, n[, length[, pad]]])
+</pre>
+<p>Translate <tt class="docutils literal"><span class="pre">string</span></tt> exchanging characters in <tt class="docutils literal"><span class="pre">from-set</span></tt> with <tt class="docutils literal"><span class="pre">to-set</span></tt>,
+optionally completing <tt class="docutils literal"><span class="pre">to-set</span></tt> with <tt class="docutils literal"><span class="pre">pad-char</span></tt> if specified. If no
+<tt class="docutils literal"><span class="pre">pad-char</span></tt> characters absent in <tt class="docutils literal"><span class="pre">to-set</span></tt> will be deleted:</p>
+<pre class="literal-block">
+$(translate string, from-set[, to-set[, pad-char]])
+</pre>
 </blockquote>
 <p>Functions for file names:</p>
 <blockquote>
@@ -1073,7 +1102,7 @@ $(breakpoint )
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2147 2008-12-27 20:36:13Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2155 2008-12-29 01:01:43Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
