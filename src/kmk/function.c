@@ -5157,6 +5157,9 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   char *buf;
   unsigned int len;
 #endif
+#if defined (CONFIG_WITH_EVALPLUS) || defined (CONFIG_WITH_VALUE_LENGTH)
+  char num[11];
+#endif
 
   /* There is no way to define a variable with a space in the name, so strip
      leading and trailing whitespace as a favor to the user.  */
@@ -5212,12 +5215,25 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
   push_new_variable_scope ();
 
   for (i=0; *argv; ++i, ++argv)
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    define_variable (num, sprintf (num, "%d", i), *argv, o_automatic, 0);
+#else
     {
       char num[11];
 
       sprintf (num, "%d", i);
       define_variable (num, strlen (num), *argv, o_automatic, 0);
     }
+#endif
+
+#ifdef CONFIG_WITH_EVALPLUS
+  /* $(.ARGC) is the argument count. */
+
+  len = sprintf (num, "%d", i - 1);
+  define_variable_vl (".ARGC", sizeof (".ARGC") - 1, num, len,
+                      1 /* dup val */, o_automatic, 0);
+  define_variable (".ARGC", sizeof (".ARGC") - 1, num, o_automatic, 0);
+#endif
 
   /* If the number of arguments we have is < max_args, it means we're inside
      a recursive invocation of $(call ...).  Fill in the remaining arguments
@@ -5225,16 +5241,16 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
      invocation.  */
 
   for (; i < max_args; ++i)
+#ifdef CONFIG_WITH_VALUE_LENGTH
+    define_variable (num, sprintf (num, "%d", i), "", o_automatic, 0);
+#else
     {
       char num[11];
 
-#ifndef CONFIG_WITH_VALUE_LENGTH
       sprintf (num, "%d", i);
       define_variable (num, strlen (num), "", o_automatic, 0);
-#else
-      define_variable (num, sprintf (num, "%d", i), "", o_automatic, 0);
-#endif
     }
+#endif
 
   saved_args = max_args;
   max_args = i;
