@@ -2457,7 +2457,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
               pad_len = 16;
             }
         }
-      length = math_int_from_string (argv[1]);
+      length = math_int_from_string (argv[2]);
       if (length < 0 || (pad != NULL && length > 16*1024*1024 /* 16MB */))
         fatal (NILF, _("$(substr ): length=%s is out of bounds\n"), argv[3]);
       if (length == 0)
@@ -2467,7 +2467,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
   /* adjust start and length. */
   if (pad == NULL)
     {
-      if (start > str_len)
+      if (start > 0)
         {
           start--;      /* one-origin */
           if (start >= str_len)
@@ -2486,7 +2486,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
               length = start;
               start = 0;
             }
-          else if (length == 0)
+          else if (length == 0 || start + length > str_len)
             length = str_len - start;
         }
 
@@ -2494,7 +2494,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
     }
   else
     {
-      if (start > str_len)
+      if (start > 0)
         {
           start--;      /* one-origin */
           if (start >= str_len)
@@ -2508,9 +2508,9 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
           if (start <= 0)
             {
               if (start + length <= 0)
-                return o;
+                return length ? helper_insert_pad (o, length, pad, pad_len) : o;
               o = helper_insert_pad (o, -start, pad, pad_len);
-              return variable_buffer_output (o, str, length + length);
+              return variable_buffer_output (o, str, length + start);
             }
           if (length == 0)
             length = str_len - start;
@@ -2520,7 +2520,7 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
       else
         {
           o = variable_buffer_output (o, str + start, str_len - start);
-          o = helper_insert_pad (o, start + length - start, pad, pad_len);
+          o = helper_insert_pad (o, start + length - str_len, pad, pad_len);
         }
     }
 
