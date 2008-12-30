@@ -37,7 +37,7 @@ close(MAKEFILE);
 
 &touch(@files_to_touch);
 
-&run_make_with_options($makefile,"",&get_logfile);
+&run_make_with_options($makefile,"-j1",&get_logfile);
 
 # Create the answer to what should be produced by this Makefile
 $answer = "cc -c main.c\ncc -c kbd.c\ncc -c commands.c\ncc -c display.c
