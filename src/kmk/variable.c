@@ -1196,6 +1196,7 @@ define_automatic_variables (void)
   && (defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)) \
   && defined (CONFIG_WITH_COMMANDS_FUNC) \
   && defined (CONFIG_WITH_PRINTF) \
+  && defined (CONFIG_WITH_LOOP_FUNCTIONS) \
   && defined (CONFIG_WITH_STRING_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
@@ -1214,12 +1215,13 @@ define_automatic_variables (void)
                           " set-conditionals intersects"
                           " date"
                           " file-size"
-                          " expr if-expr"
+                          " expr if-expr select"
                           " which"
                           " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var"
                           " make-stats"
                           " commands"
                           " printf"
+                          " for while"
                           " length insert pos lastpos substr translate"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
                           , o_default, 0);
@@ -1269,7 +1271,7 @@ define_automatic_variables (void)
   strcat (buf, " file-size");
 #  endif
 #  if defined (CONFIG_WITH_IF_CONDITIONALS)
-  strcat (buf, " expr if-expr");
+  strcat (buf, " expr if-expr select");
 #  endif
 #  if defined (CONFIG_WITH_WHICH)
   strcat (buf, " which");
@@ -1285,6 +1287,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_PRINTF)
   strcat (buf, " printf");
+#  endif
+#  if defined (CONFIG_WITH_LOOP_FUNCTIONS)
+  strcat (buf, " for while");
 #  endif
 #  if defined (CONFIG_WITH_STRING_FUNCTIONS)
   strcat (buf, " length insert pos lastpos substr translate");
