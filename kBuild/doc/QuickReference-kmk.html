@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-29 23:20:11 +0100 (Mon, 29 Dec 2008) $
-:Revision: $Revision: 2161 $
+:Date: $Date: 2008-12-30 01:57:13 +0100 (Tue, 30 Dec 2008) $
+:Revision: $Revision: 2163 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -840,7 +840,7 @@ $(int-lt val1, val2)
 $(int-le val1, val2)
 </pre>
 </blockquote>
-<p>(Mostly) Boolean Functions:</p>
+<p>Boolean and Conditional Functions:</p>
 <blockquote>
 <p>Condition is false if the <tt class="docutils literal"><span class="pre">condition</span></tt> evaluates to an empty string
 (stripped). Evaluate the <tt class="docutils literal"><span class="pre">true-part</span></tt> if the condition is true, otherwise
@@ -878,7 +878,12 @@ $(intersects set-a, set-b)
 </pre>
 <p>Same as <tt class="docutils literal"><span class="pre">$(if</span> <span class="pre">)</span></tt> execpt that the condition is a <tt class="docutils literal"><span class="pre">kmk</span></tt> expression:</p>
 <pre class="literal-block">
-$(if kmk-expression,true-part[,false-part])
+$(if-expr kmk-expression,true-part[,false-part])
+</pre>
+<p>Select the first true condition (<tt class="docutils literal"><span class="pre">kmk</span></tt> expression) and expand the
+following body. Special condition strings <tt class="docutils literal"><span class="pre">default</span></tt> and <tt class="docutils literal"><span class="pre">otherwise</span></tt>:</p>
+<pre class="literal-block">
+$(select when1-cond, when1-body[, whenN-cond, whenN-body])
 </pre>
 <p>Evalutate the <tt class="docutils literal"><span class="pre">kmk</span></tt> expression returning what it evalues as. This is
 the preferred way of doing arithmentic now:</p>
@@ -1115,7 +1120,7 @@ $(breakpoint )
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2161 2008-12-29 22:20:11Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2163 2008-12-30 00:57:13Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,

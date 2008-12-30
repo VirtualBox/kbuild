@@ -4122,12 +4122,50 @@ func_if_expr (char *o, char **argv, const char *funcname UNUSED)
   rc = expr_eval_if_conditionals (argv[0], NULL);
   to_expand = rc == 0 ? argv[1] : argv[2];
   if (*to_expand)
+    variable_expand_string_2 (o, to_expand, -1, &o);
+
+  return o;
+}
+
+/*
+  $(select when1-cond, when1-body[,whenN-cond, whenN-body]).
+  */
+static char *
+func_select (char *o, char **argv, const char *funcname UNUSED)
+{
+  int i;
+
+  /* Test WHEN-CONDs until one matches. The check for 'otherwise[:]'
+     and 'default[:]' make this a bit more fun... */
+
+  for (i = 0; argv[i] != NULL; i += 2)
     {
-      char *expansion = expand_argument (to_expand, NULL);
+      const char *cond = argv[i];
+      int is_otherwise = 0;
 
-      o = variable_buffer_output (o, expansion, strlen (expansion));
+      if (argv[i + 1] == NULL)
+        fatal (NILF, _("$(select ): not an even argument count\n"));
 
-      free (expansion);
+      while (isspace ((unsigned char)*cond))
+        cond++;
+      if (   (*cond == 'o' && strncmp (cond, "otherwise", 9) == 0)
+          || (*cond == 'd' && strncmp (cond, "default",   7) == 0))
+        {
+          const char *end = cond + (*cond == 'o' ? 9 : 7);
+          while (isspace ((unsigned char)*end))
+            end++;
+          if (*end == ':')
+            do end++;
+            while (isspace ((unsigned char)*end));
+          is_otherwise = *end == '\0';
+        }
+
+      if (   is_otherwise
+          || expr_eval_if_conditionals (cond, NULL) == 0 /* true */)
+        {
+          variable_expand_string_2 (o, argv[i + 1], -1, &o);
+          break;
+        }
     }
 
   return o;
@@ -5012,6 +5050,7 @@ static struct function_table_entry function_table_init[] =
 #ifdef CONFIG_WITH_IF_CONDITIONALS
   { STRING_SIZE_TUPLE("expr"),          1,  1,  0,  func_expr},
   { STRING_SIZE_TUPLE("if-expr"),       2,  3,  0,  func_if_expr},
+  { STRING_SIZE_TUPLE("select"),        2,  0,  0,  func_select},
 #endif
 #ifdef CONFIG_WITH_SET_CONDITIONALS
   { STRING_SIZE_TUPLE("intersects"),    2,  2,  1,  func_set_intersects},
