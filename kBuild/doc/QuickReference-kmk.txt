@@ -267,7 +267,67 @@ The following variables reflects ``kmk`` options. Do not set these. [1]_
 Special Targets
 ---------------
 
-todo
+Certain names have special meanings if they appear as targets.
+
++-------------------------------+---------------------------------------------+
+| Target                        | Description                                 |
++===============================+=============================================+
+| ``.DEFAULT``                  | The recipe is used for any target for which |
+|                               | no rules are found.                         |
++-------------------------------+---------------------------------------------+
+| ``.DELETE_ON_ERROR``          | If mentioned, ``kmk`` will delete the       |
+|                               | targets of a rule if it has changed and its |
+|                               | recipe fails or is interrupted.             |
++-------------------------------+---------------------------------------------+
+| ``.EXPORT_ALL_VARIABLES``     | If mentioned, all variables will by default |
+|                               | be exported to child processes.             |
++-------------------------------+---------------------------------------------+
+| ``.IGNORE``                   | Ignore errors in the execution of the recipe|
+|                               | for the targets ``.IGNORE`` depends on, if  |
+|                               | no prequisites all targets are affected.    |
++-------------------------------+---------------------------------------------+
+| ``.INTERMEDIATE``             | The prerequisites are treated as            |
+|                               | intermediate files (implicite rules).       |
++-------------------------------+---------------------------------------------+
+| ``.LOW_RESOLUTION_TIME``      | ``kmk`` will assume prerequisite files are  |
+|                               | created with low resolution time stamps.    |
++-------------------------------+---------------------------------------------+
+| ``.NOTPARALLEL``              | If mentioned without any prerequisites,     |
+|                               | ``kmk`` will run serially as if -j1 was     |
+|                               | given. If it has prerequisites ``kmk`` [1]_ |
+|                               | will only do this for the targets among     |
+|                               | them.                                       |
++-------------------------------+---------------------------------------------+
+| ``.PHONY``                    | The prerequisites are considered phony and  |
+|                               | will be rebuilt unconditionally.            |
++-------------------------------+---------------------------------------------+
+| ``.PRECIOUS``                 | The targets which ``.PRECIOUS`` depends     |
+|                               | will to be deleted if ``kmk`` is killed or  |
+|                               | interrupted while their building.           |
++-------------------------------+---------------------------------------------+
+| ``.SECONDARY``                | The prerequisites are treated as            |
+|                               | intermediate files, except that they are    |
+|                               | never automatically deleted. If used with   |
+|                               | no prerequisites all targets gets this      |
+|                               | treatement.                                 |
++-------------------------------+---------------------------------------------+
+| ``.SECONDEXPANSION``          | If mentioned, all prerequisite lists after  |
+|                               | it will be expanded a second time after all |
+|                               | makefiles have been read.                   |
++-------------------------------+---------------------------------------------+
+| ``.SECONDTARGETEXPANSION``    | If mentioned, all targets after it will be  |
+| [1]_                          | expanded a second time after all makefiles  |
+|                               | have been read.                             |
++-------------------------------+---------------------------------------------+
+| ``.SILENT``                   | ``kmk`` will not print the recipe for       |
+|                               | targets listed as prerequisites, if none    |
+|                               | then it applies to all targets.             |
++-------------------------------+---------------------------------------------+
+| ``.SUFFIXES``                 | The prerequisites are the list of suffixes  |
+|                               | used in checking for suffix rules. If it    |
+|                               | appears without prerequisites it the suffix |
+|                               | will be cleared.                            |
++-------------------------------+---------------------------------------------+
 
 
 
@@ -915,7 +975,7 @@ Debugging Functions:
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2170 2008-12-30 20:39:35Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2171 2008-12-30 22:18:10Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
