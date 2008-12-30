@@ -66,49 +66,49 @@ $answer = "one bar\nfoo two\nBAR=1000\nfoo bar\n";
 
 # TEST #2
 
-&run_make_with_options($makefile, "one two FOO=1 BAR=2", &get_logfile);
+&run_make_with_options($makefile, "-j1 one two FOO=1 BAR=2", &get_logfile);
 $answer = "one 2\n1 2\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #3
 
-&run_make_with_options($makefile, "four", &get_logfile);
+&run_make_with_options($makefile, "-j1 four", &get_logfile);
 $answer = "x ok  ok\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #4
 
-&run_make_with_options($makefile, "seven", &get_logfile);
+&run_make_with_options($makefile, "-j1 seven", &get_logfile);
 $answer = "eight: seven eight\nseven: seven seven\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #5
 
-&run_make_with_options($makefile, "nine", &get_logfile);
+&run_make_with_options($makefile, "-j1 nine", &get_logfile);
 $answer = "wallace bar wallace bar\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #5-a
 
-&run_make_with_options($makefile, "nine-a", &get_logfile);
+&run_make_with_options($makefile, "-j1 nine-a", &get_logfile);
 $answer = "baz\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #6
 
-&run_make_with_options($makefile, "ten", &get_logfile);
+&run_make_with_options($makefile, "-j1 ten", &get_logfile);
 $answer = "one=two\none bar\n=\nfoo two\nten\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #6
 
-&run_make_with_options($makefile, "foo.q bar.q", &get_logfile);
+&run_make_with_options($makefile, "-j1 foo.q bar.q", &get_logfile);
 $answer = "qvar = rvar\nqvar =\n";
 &compare_output($answer,&get_logfile(1));
 
 # TEST #7
 
-&run_make_with_options($makefile, "foo.t bar.s", &get_logfile);
+&run_make_with_options($makefile, "-j1 foo.t bar.s", &get_logfile);
 $answer = "qvar = qvar\nqvar =\n";
 &compare_output($answer,&get_logfile(1));
 
