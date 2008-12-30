@@ -46,7 +46,8 @@ close(MAKEFILE);
 
 &touch(@files_to_touch);
 
-&run_make_with_options($makefile,"",&get_logfile);
+# kmk: this requires -j1 because of ordering.
+&run_make_with_options($makefile,"-j1",&get_logfile);
 
 # Create the answer to what should be produced by this Makefile
 $answer = "cc -c $workdir${pathsep}main.c\ncc -c kbd.c\ncc -c commands.c\n"
