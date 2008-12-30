@@ -7,7 +7,7 @@ special targets, built-in commands, external commands, and ``kmk``-expressions.
 Since *all* the features are included, the quickness of this reference can be
 disputed. ;-)
 
-Features that are
+
 
 Directives
 ----------
@@ -240,7 +240,7 @@ variables are specially used or/and defined by ``kmk``:
 +--------------------------+--------------------------------------------------+
 
 
-The following variables reflects ``kmk`` options. Do not set these.
+The following variables reflects ``kmk`` options. Do not set these. [1]_
 
 +-------------------------------------+---------------------------------------+
 | Variable                            | Description                           |
@@ -274,8 +274,8 @@ todo
 Commands
 --------
 
-Builtin commands all start with ``kmk_builtin_``, so in order to save space
-this prefix has been omitted in the table below. All commands comes in an
+Builtin commands [1]_ all start with ``kmk_builtin_``, so in order to save
+space this prefix has been omitted in the table below. All commands comes in an
 external edition that can be used by/in the shell, these are prefixed ``kmk_``.
 
 +---------------+-------------------------------------------------------------+
@@ -346,10 +346,11 @@ environment (``kSomething`` command are not prefixed with ``kmk_``):
 kmk-expression
 --------------
 
-``kmk``-expressions are related to the C/C++ preprocessor in some ways as well
-as ``nmake`` and BSD ``make``. There are however some peculiarities because of
-the way GNU ``make`` choose to represent booleans in its function library, so,
-strings can be turned into boolean by taking any non-empty string as true.
+``kmk``-expressions [1]_ are related to the C/C++ preprocessor in some ways as
+well as ``nmake`` and BSD ``make``. There are however some peculiarities
+because of the way GNU ``make`` choose to represent booleans in its function
+library, so, strings can be turned into boolean by taking any non-empty string
+as true.
 
 Quoting using single quotes results in hard strings, while double quotes and
 unquoted string results in soft strings that can be converted to number or
@@ -454,7 +455,7 @@ String Manipulation Functions:
         $(sort list)
 
     Sort the words in ``list`` lexicographically in reserve order, removing
-    duplicates::
+    duplicates [1]_::
 
         $(rsort list)
 
@@ -482,44 +483,44 @@ String Manipulation Functions:
 
         $(join list1,list2)
 
-    Fold ``text`` to upper case::
+    Fold ``text`` to upper case [1]_::
 
         $(toupper text)
 
-    Fold ``text`` to lower case::
+    Fold ``text`` to lower case [1]_::
 
         $(tolower text)
 
-    String formatting a la the unix ``printf`` command::
+    String formatting a la the unix ``printf`` command [1]_::
 
         $(printf fmt, arg...)
 
-    Return the length of a string or a (unexpanded) variable::
+    Return the length of a string or a (unexpanded) variable [1]_::
 
         $(length string)
         $(length-var var)
 
     Find the position of ``needle`` in ``haystack``, returns 0 if not found.
     Negative ``start`` indices are relative to the end of ``haystack``, while
-    positive ones are one based::
+    positive ones are one based [1]_::
 
         $(pos needle, haystack[, start])
         $(lastpos needle, haystack[, start])
 
     Returns the specified substring. The ``start`` works like with ``$(pos )``.
     If the substring is partially outside the ``string`` the result will be
-    padded with ``pad`` if present::
+    padded with ``pad`` if present [1]_::
 
         $(substr string, start[, length[, pad]])
 
     Insert ``in`` into ``str`` at the specified position. ``n`` works like with
-    ``$(pos )``, except that ``0`` is the end of the string::
+    ``$(pos )``, except that ``0`` is the end of the string [1]_::
 
         $(insert in, str[, n[, length[, pad]]])
 
     Translate ``string`` exchanging characters in ``from-set`` with ``to-set``,
     optionally completing ``to-set`` with ``pad-char`` if specified. If no
-    ``pad-char`` characters absent in ``to-set`` will be deleted::
+    ``pad-char`` characters absent in ``to-set`` will be deleted [1]_::
 
         $(translate string, from-set[, to-set[, pad-char]])
 
@@ -567,71 +568,72 @@ Functions for file names:
         $(abspath names...)
 
     Same as ``$(abspath )`` except that the current directory can be
-    specified as ``curdir``::
+    specified as ``curdir`` [1]_::
 
         $(abspathex names...[, curdir])
 
 
 Arithmetic Functions:
 
-    Returns the sum of the arguments::
+    Returns the sum of the arguments [1]_::
 
         $(int-add addend1, addend2[, addendN])
 
-    Returns the difference between the first argument and the sum of the rest::
+    Returns the difference between the first argument and the sum of the
+    rest [1]_::
 
         $(int-sub minuend, subtrahend[, subtrahendN])
 
-    Returns the product of the arguments::
+    Returns the product of the arguments [1]_::
 
         $(int-mul factor1, factor2[, factorN])
 
-    Returns the quotient of first argument and the rest::
+    Returns the quotient of first argument and the rest [1]_::
 
         $(int-div dividend, divisor[, divisorN])
 
-    Returns the modulus of the two arguments::
+    Returns the modulus of the two arguments [1]_::
 
         $(int-mod dividend, divisor)
 
-    Returns the bitwise two-complement of argument::
+    Returns the bitwise two-complement of argument [1]_::
 
         $(int-not val)
 
-    Returns the result of a bitwise AND of the arguments::
+    Returns the result of a bitwise AND of the arguments [1]_::
 
         $(int-and val1, val2[, valN])
 
-    Returns the result of a bitwise OR of the arguments::
+    Returns the result of a bitwise OR of the arguments [1]_::
 
         $(int-or val1, val2[, valN])
 
-    Returns the result of a bitwise XOR of the arguments::
+    Returns the result of a bitwise XOR of the arguments [1]_::
 
         $(int-xor val1, val2[, valN])
 
     Returns the ``kmk`` boolean (true = non-empty, false = empty) result
-    of ``val1 == val2``::
+    of ``val1 == val2`` [1]_::
 
         $(int-eq val1, val2)
 
-    Returns the ``kmk`` boolean result of ``val1 != val2``::
+    Returns the ``kmk`` boolean result of ``val1 != val2`` [1]_::
 
         $(int-ne val1, val2)
 
-    Returns the ``kmk`` boolean result of ``val1 > val2``::
+    Returns the ``kmk`` boolean result of ``val1 > val2`` [1]_::
 
         $(int-gt val1, val2)
 
-    Returns the ``kmk`` boolean result of ``val1 >= val2``::
+    Returns the ``kmk`` boolean result of ``val1 >= val2`` [1]_::
 
         $(int-ge val1, val2)
 
-    Returns the ``kmk`` boolean result of ``val1 < val2``::
+    Returns the ``kmk`` boolean result of ``val1 < val2`` [1]_::
 
         $(int-lt val1, val2)
 
-    Returns the ``kmk`` boolean result of ``val1 <= val2``::
+    Returns the ``kmk`` boolean result of ``val1 <= val2`` [1]_::
 
         $(int-le val1, val2)
 
@@ -656,53 +658,54 @@ Boolean and Conditional Functions:
 
 
     Test if the two strings are identical, returning ``kmk`` boolean (true =
-    non-empty, false = empty)::
+    non-empty, false = empty) [2]_::
 
         $(eq str1, str2)
 
-    Invert a ``kmk`` boolean value::
+    Invert a ``kmk`` boolean value [2]_::
 
         $(not val)
 
-    Test if ``variable`` is defined, returning a ``kmk`` boolean value::
+    Test if ``variable`` is defined, returning a ``kmk`` boolean value [1]_::
 
         $(defined variable)
 
     Test if ``set-a`` and ``set-b`` intersects, returning a ``kmk`` boolean
-    value::
+    value [1]_::
 
         $(intersects set-a, set-b)
 
-    Same as ``$(if )`` execpt that the condition is a ``kmk``-expression::
+    Same as ``$(if )`` execpt that the condition is a ``kmk``-expression [1]_::
 
         $(if-expr kmk-expression,true-part[,false-part])
 
     Select the first true condition (``kmk``-expression) and expand the
-    following body. Special condition strings ``default`` and ``otherwise``::
+    following body. Special condition strings ``default`` and
+    ``otherwise`` [1]_::
 
         $(select when1-cond, when1-body[, whenN-cond, whenN-body])
 
     Evalutate the ``kmk-expression`` returning what it evalues as. This is
-    the preferred way of doing arithmentic now::
+    the preferred way of doing arithmentic now [1]_::
 
         $(expr kmk-expression)
 
 
 Stack Fuctions:
 
-      Push ``item`` onto the ``stack-var``, returning the empty string::
+      Push ``item`` onto the ``stack-var``, returning the empty string [1]_::
 
             $(stack-push stack-var, item)
 
-      Pop the top item off the ``stack-var``::
+      Pop the top item off the ``stack-var`` [1]_::
 
             $(stack-pop stack-var)
 
-      Pop the top item off the ``stack-var``, returning the empty string::
+      Pop the top item off the ``stack-var``, returning the empty string [1]_::
 
             $(stack-popv stack-var)
 
-      Get the top item of the ``stack-var``, returning the empty string::
+      Get the top item of the ``stack-var``, returning the empty string [1]_::
 
             $(stack-top stack-var)
 
@@ -722,13 +725,13 @@ Advanced Functions:
     C-style for-loop. Start by evaluating ``init``. Each iteration will
     first check whether the ``condition`` (``kmk``-expression) is true,
     then expand ``body`` concatenating the result to the previous iterations
-    (spaced), and finally evaluate ``next``::
+    (spaced), and finally evaluate ``next`` [1]_::
 
         $(for init,conditions,next,body)
 
     C-style while-loop. Each iteration will check whether the ``condition``
     (``kmk``-expression) is true, then expand ``body`` concatenating the
-    result to the previous iterations::
+    result to the previous iterations [1]_::
 
         $(while conditions,body)
 
@@ -743,48 +746,48 @@ Advanced Functions:
         $(eval text)
 
     Same as ``$(eval text)`` except that the ``text`` is expanded in its
-    own variable context::
+    own variable context [1]_::
 
         $(evalctx text)
 
-    Same as ``$(eval $(value var))``::
+    Same as ``$(eval $(value var))`` [1]_::
 
         $(evalval var)
 
-    Same as ``$(evalctx $(value var))``::
+    Same as ``$(evalctx $(value var))`` [1]_::
 
         $(evalvalctx var)
 
-    A combination of ``$(eval )``, ``$(call )`` and ``$(value )``::
+    A combination of ``$(eval )``, ``$(call )`` and ``$(value )`` [1]_::
 
         $(evalcall var)
 
-    A combination of ``$(eval )`` and ``$(call )``::
+    A combination of ``$(eval )`` and ``$(call )`` [1]_::
 
         $(evalcall var)
 
     Remove comments and blank lines from the variable ``var``. Expands to
-    the empty string::
+    the empty string [1]_::
 
         $(eval-opt-var var)
 
     Returns accessing ``$<`` of ``target``, either retriving the whole thing
-    or the file at ``pos`` (one-origin)::
+    or the file at ``pos`` (one-origin) [1]_::
 
         $(deps target[, pos])
 
     Returns accessing ``$+`` (order + duplicates) of ``target``, either
-    retriving the whole thing or the file at ``pos`` (one-origin)::
+    retriving the whole thing or the file at ``pos`` (one-origin) [1]_::
 
         $(deps-all target[, pos])
 
     Returns accessing ``$?``  of ``target``, either retriving the whole
-    thing or the file at ``pos`` (one-origin)::
+    thing or the file at ``pos`` (one-origin) [1]_::
 
         $(deps-newer target[, pos])
 
     Returns accessing ``$|`` (order only)  of ``target``, either retriving the
-    whole thing or the file at ``pos`` (one-origin)::
+    whole thing or the file at ``pos`` (one-origin) [1]_::
 
         $(deps-oo target[, pos])
 
@@ -792,7 +795,7 @@ Advanced Functions:
 Command Functions:
 
     Create one or more command lines avoiding the max argument
-    length restriction of the host OS::
+    length restriction of the host OS [1]_::
 
         $(xargs ar cas mylib.a,$(objects))
         $(xargs ar cas mylib.a,ar as mylib.a,$(objects))
@@ -800,7 +803,7 @@ Command Functions:
 
     Returns the commands for the specified target separated by new-line, space,
     or a user defined string. Note that this might not produce the 100% correct
-    result if any of the prerequisite automatic variables are used::
+    result if any of the prerequisite automatic variables are used [1]_::
 
         $(commands target)
         $(commands-sc target)
@@ -809,14 +812,15 @@ Command Functions:
     Compares two commands returning the empty string if equal and the 3rd
     argument if not. This differs from ``$(comp-vars v1,v2,ne)`` in that
     line by line is stripped of leading spaces, command prefixes and
-    trailing spaces before comparing::
+    trailing spaces before comparing [1]_::
 
         $(comp-cmds cmds-var1, cmds-var2, ne)
         $(comp-cmds-ex cmds1, cmd2, ne)
 
 
     Compares the values of the two variables returning the empty string if
-    equal and the 3rd argument if not. Leading and trailing spaces is ignored::
+    equal and the 3rd argument if not. Leading and trailing spaces is
+    ignored [1]_::
 
         $(comp-var var1, var2, ne)
 
@@ -852,40 +856,41 @@ Utility functions:
 
     Returns the current local time and date formatted in the ``strftime``
     style specifier ``fmt``. ``fmt`` defaults to ``%Y-%m-%dT%H:%M:%S`` when
-    not specified::
+    not specified [1]_::
 
         $(date fmt)
 
     Returns the current UTC time and date formatted in the ``strftime``
     style specifier ``fmt``. ``fmt`` defaults to ``%Y-%m-%dT%H:%M:%SZ`` when
-    not specified::
+    not specified [1]_::
 
         $(date-utc fmt)
 
     Reformats the ``in`` time and date using ``fmt``. The ``in-fmt`` defaults
     to ``fmt`` if not specified. While ``fmt`` defaults to
-    ``%Y-%m-%dT%H:%M:%SZ`` if not specified::
+    ``%Y-%m-%dT%H:%M:%SZ`` if not specified [1]_::
 
         $(date-utc fmt,time,in-fmt)
 
-    Returns the current nanosecond timestamp (monotonic when possible)::
+    Returns the current nanosecond timestamp (monotonic when possible) [1]_::
 
         $(nanots )
 
     Returns the size of the specified file, or -1 if the size could not
-    be obtained. This can be used to check if a file exist or not::
+    be obtained. This can be used to check if a file exist or not [1]_::
 
         $(file-size file)
 
-    Searches the ``PATH`` ``kmk`` variable for the specified ``files``::
+    Searches the ``PATH`` ``kmk`` variable for the specified ``files`` [1]_::
 
         $(which files...)
 
-    OS/2: Returns the specified LIBPATH variable value::
+    OS/2: Returns the specified LIBPATH variable value [1]_::
 
         $(libpath var)
 
-    OS/2: Sets the specified LIBPATH variable value, returning the empty string::
+    OS/2: Sets the specified LIBPATH variable value, returning the empty
+    string [1]_::
 
         $(libpath var,value)
 
@@ -893,11 +898,12 @@ Utility functions:
 Debugging Functions:
 
     Returns various make statistics, if no item is specified a default
-    selection is returned::
+    selection is returned [1]_::
 
         $(make-stats item[,itemN])
 
-    Raise a debug breakpoint. Used for debugging ``kmk`` makefile parsing::
+    Raise a debug breakpoint. Used for debugging ``kmk`` makefile
+    parsing [1]_::
 
         $(breakpoint )
 
@@ -905,10 +911,11 @@ Debugging Functions:
 -----
 
 .. [1] ``kmk`` only feature.
+.. [2] Experimental GNU ``make`` feature that is not enabled by default.
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2169 2008-12-30 17:07:09Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2170 2008-12-30 20:39:35Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
