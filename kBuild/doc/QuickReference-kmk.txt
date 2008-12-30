@@ -3,7 +3,7 @@ kmk Quick Reference
 ===================
 
 This is an attempt at summarizing all directives, functions, special variables,
-special targets, built-in commands, external commands, and ``kmk`` expressions.
+special targets, built-in commands, external commands, and ``kmk``-expressions.
 Since *all* the features are included, the quickness of this reference can be
 disputed. ;-)
 
@@ -517,16 +517,16 @@ Boolean and Conditional Functions:
 
         $(intersects set-a, set-b)
 
-    Same as ``$(if )`` execpt that the condition is a ``kmk`` expression::
+    Same as ``$(if )`` execpt that the condition is a ``kmk``-expression::
 
         $(if-expr kmk-expression,true-part[,false-part])
 
-    Select the first true condition (``kmk`` expression) and expand the
+    Select the first true condition (``kmk``-expression) and expand the
     following body. Special condition strings ``default`` and ``otherwise``::
 
         $(select when1-cond, when1-body[, whenN-cond, whenN-body])
 
-    Evalutate the ``kmk`` expression returning what it evalues as. This is
+    Evalutate the ``kmk-expression`` returning what it evalues as. This is
     the preferred way of doing arithmentic now::
 
         $(expr kmk-expression)
@@ -828,13 +828,82 @@ environment (``kSomething`` command are not prefixed with ``kmk_``):
 kmk-expression
 --------------
 
-todo
+``kmk``-expressions are related to the C/C++ preprocessor in some ways as well
+as ``nmake`` and BSD ``make``. There are however some peculiarities because of
+the way GNU ``make`` choose to represent booleans in its function library, so,
+strings can be turned into boolean by taking any non-empty string as true.
+
+Quoting using single quotes results in hard strings, while double quotes and
+unquoted string results in soft strings that can be converted to number or
+boolean to fit the situation.
+
+Here's the operator table in decending precedence order:
+
++---------------+--------+-----------------------------------------------------+
+| Operator      | Type   | Description                                         |
++===============+========+=====================================================+
+| ``defined``   | Unary  | Checks if the following variable exists.            |
++---------------+        +-----------------------------------------------------+
+| ``exists``    |        | Checks if the following file exists.                |
++---------------+        +-----------------------------------------------------+
+| ``target``    |        | Checks if the following target exists.              |
++---------------+        +-----------------------------------------------------+
+| ``bool``      |        | Casts the following value to boolean.               |
++---------------+        +-----------------------------------------------------+
+| ``num``       |        | Casts the following value to a number.              |
++---------------+        +-----------------------------------------------------+
+| ``str``       |        | Casts the following value to a string.              |
++---------------+--------+-----------------------------------------------------+
+| ``!``         | Unary  | Logical NOT.                                        |
++---------------+        +-----------------------------------------------------+
+| ``+``         |        | Pluss prefix.                                       |
++---------------+        +-----------------------------------------------------+
+| ``-``         |        | Minus prefix.                                       |
++---------------+        +-----------------------------------------------------+
+| ``~``         |        | Bitwise one's complement.                           |
++---------------+--------+-----------------------------------------------------+
+| ``*``         | Binary | Multiplication (product).                           |
++---------------+        +-----------------------------------------------------+
+| ``/``         |        | Division (quotient).                                |
++---------------+        +-----------------------------------------------------+
+| ``%``         |        | Modulus (remainder).                                |
++---------------+--------+-----------------------------------------------------+
+| ``+``         | Binary | Addition (sum).                                     |
++---------------+        +-----------------------------------------------------+
+| ``-``         |        | Subtraction (difference).                           |
++---------------+--------+-----------------------------------------------------+
+| ``<<``        | Binary | Bitwise left shift.                                 |
++---------------+        +-----------------------------------------------------+
+| ``>>``        |        | Bitwise right shift.                                |
++---------------+--------+-----------------------------------------------------+
+| ``<=``        | Binary | Less or equal than.                                 |
++---------------+        +-----------------------------------------------------+
+| ``<``         |        | Less than.                                          |
++---------------+        +-----------------------------------------------------+
+| ``>=``        |        | Greater or equal than.                              |
++---------------+        +-----------------------------------------------------+
+| ``>``         |        | Greater than.                                       |
++---------------+--------+-----------------------------------------------------+
+| ``==``        | Binary | Equal to.                                           |
++---------------+        +-----------------------------------------------------+
+| ``!=``        |        | Not equal to.                                       |
++---------------+--------+-----------------------------------------------------+
+| ``&``         | Binary | Bitwise AND.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``^``         | Binary | Bitwise XOR.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``|``         | Binary | Bitwise OR.                                         |
++---------------+--------+-----------------------------------------------------+
+| ``&&``        | Binary | Logical AND.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``||``        | Binary | Logical OR.                                         |
++---------------+--------+-----------------------------------------------------+
 
 
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2166 2008-12-30 16:09:46Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2167 2008-12-30 16:45:46Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
