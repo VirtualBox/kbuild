@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-30 01:57:13 +0100 (Tue, 30 Dec 2008) $
-:Revision: $Revision: 2163 $
+:Date: $Date: 2008-12-30 17:09:46 +0100 (Tue, 30 Dec 2008) $
+:Revision: $Revision: 2166 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -292,10 +292,10 @@ ul.auto-toc {
 <body>
 <div class="document" id="kmk-quick-reference">
 <h1 class="title">kmk Quick Reference</h1>
-<p>This appendix summarizes the directives, text manipulation functions, and
-special variables which <tt class="docutils literal"><span class="pre">kmk</span></tt> understands.</p>
-<!-- See section Special Built-in Target Names and Summary of Options, for other
-summaries. -->
+<p>This is an attempt at summarizing all directives, functions, special variables,
+special targets, built-in commands, external commands, and <tt class="docutils literal"><span class="pre">kmk</span></tt> expressions.
+Since <em>all</em> the features are included, the quickness of this reference can be
+disputed. ;-)</p>
 <div class="section">
 <h1><a id="directives" name="directives">Directives</a></h1>
 <p>Here is a summary of the directives <tt class="docutils literal"><span class="pre">kmk</span></tt> recognizes:</p>
@@ -1109,8 +1109,115 @@ $(breakpoint )
 <p>todo</p>
 </div>
 <div class="section">
-<h1><a id="built-in-commands" name="built-in-commands">Built-in Commands</a></h1>
-<p>todo</p>
+<h1><a id="commands" name="commands">Commands</a></h1>
+<p>Builtin commands all start with <tt class="docutils literal"><span class="pre">kmk_builtin_</span></tt>, so in order to save space
+this prefix has been omitted in the table below. All commands comes in an
+external edition that can be used by/in the shell, these are prefixed <tt class="docutils literal"><span class="pre">kmk_</span></tt>.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Command</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">append</span></tt></td>
+<td>Append text to a file. The builtin version can output the
+value of a variable or the commands of a target.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cat</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cat</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">chmod</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">chmod</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cmp</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cmp</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cp</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cp</span></tt> command with some twaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">echo</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">echo</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">expr</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">expr</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">install</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">install</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">kDepIDB</span></tt></td>
+<td>Extract dependencies from a Visual C++ .IDB file.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">ln</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">ln</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">md5sum</span></tt></td>
+<td>Typical MD5 sum program, custom kBuild version.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">mkdir</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">mkdir</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">mv</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">mv</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">printf</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">printf</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">rm</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">rm</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">rmdir</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">rmdir</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">sleep</span></tt></td>
+<td>Typical <tt class="docutils literal"><span class="pre">sleep</span></tt> program, custom kBuild version.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">test</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">test</span></tt> program with some tweaking.</td>
+</tr>
+</tbody>
+</table>
+<p>Some additional external commands are available in the <tt class="docutils literal"><span class="pre">kmk</span></tt> / <tt class="docutils literal"><span class="pre">kBuild</span></tt>
+environment (<tt class="docutils literal"><span class="pre">kSomething</span></tt> command are not prefixed with <tt class="docutils literal"><span class="pre">kmk_</span></tt>):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Command</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">kDepPre</span></tt></td>
+<td>Extract dependencies from the C/C++ preprocessor output.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">kObjCache</span></tt></td>
+<td>Simple object file cache program.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">ash</span></tt></td>
+<td>Almquist's shell (NetBSD variant).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">gmake</span></tt></td>
+<td>Vanilla GNU <tt class="docutils literal"><span class="pre">make</span></tt> from same sources as <tt class="docutils literal"><span class="pre">kmk</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">redirect</span></tt></td>
+<td>Shell avoidance tool. Sets up file descriptors, environment
+variables and current directory before kicking of program.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">sed</span></tt></td>
+<td>GNU <tt class="docutils literal"><span class="pre">sed</span></tt> with some tweaks to avoid involving the shell.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">time</span></tt></td>
+<td>Stopwatch utility for measuring program execution time(s).</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div class="section">
 <h1><a id="kmk-expression" name="kmk-expression">kmk-expression</a></h1>
@@ -1120,7 +1227,7 @@ $(breakpoint )
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2163 2008-12-30 00:57:13Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2166 2008-12-30 16:09:46Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,

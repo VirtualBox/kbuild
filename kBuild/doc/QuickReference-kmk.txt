@@ -2,11 +2,10 @@
 kmk Quick Reference
 ===================
 
-This appendix summarizes the directives, text manipulation functions, and
-special variables which ``kmk`` understands.
-
-.. See section Special Built-in Target Names and Summary of Options, for other
-   summaries.
+This is an attempt at summarizing all directives, functions, special variables,
+special targets, built-in commands, external commands, and ``kmk`` expressions.
+Since *all* the features are included, the quickness of this reference can be
+disputed. ;-)
 
 
 Directives
@@ -755,11 +754,75 @@ todo
 
 
 
-Built-in Commands
------------------
+Commands
+--------
 
-todo
+Builtin commands all start with ``kmk_builtin_``, so in order to save space
+this prefix has been omitted in the table below. All commands comes in an
+external edition that can be used by/in the shell, these are prefixed ``kmk_``.
 
++---------------+-------------------------------------------------------------+
+| Command       | Description                                                 |
++===============+=============================================================+
+| ``append``    | Append text to a file. The builtin version can output the   |
+|               | value of a variable or the commands of a target.            |
++---------------+-------------------------------------------------------------+
+| ``cat``       | The BSD ``cat`` command.                                    |
++---------------+-------------------------------------------------------------+
+| ``chmod``     | The BSD ``chmod`` command.                                  |
++---------------+-------------------------------------------------------------+
+| ``cmp``       | The BSD ``cmp`` command.                                    |
++---------------+-------------------------------------------------------------+
+| ``cp``        | The BSD ``cp`` command with some twaking.                   |
++---------------+-------------------------------------------------------------+
+| ``echo``      | The BSD ``echo`` command.                                   |
++---------------+-------------------------------------------------------------+
+| ``expr``      | The BSD ``expr`` command.                                   |
++---------------+-------------------------------------------------------------+
+| ``install``   | The BSD ``install`` command with some tweaking.             |
++---------------+-------------------------------------------------------------+
+| ``kDepIDB``   | Extract dependencies from a Visual C++ .IDB file.           |
++---------------+-------------------------------------------------------------+
+| ``ln``        | The BSD ``ln`` command.                                     |
++---------------+-------------------------------------------------------------+
+| ``md5sum``    | Typical MD5 sum program, custom kBuild version.             |
++---------------+-------------------------------------------------------------+
+| ``mkdir``     | The BSD ``mkdir`` command.                                  |
++---------------+-------------------------------------------------------------+
+| ``mv``        | The BSD ``mv`` command with some tweaking.                  |
++---------------+-------------------------------------------------------------+
+| ``printf``    | The BSD ``printf`` command.                                 |
++---------------+-------------------------------------------------------------+
+| ``rm``        | The BSD ``rm`` command with some tweaking.                  |
++---------------+-------------------------------------------------------------+
+| ``rmdir``     | The BSD ``rmdir`` command with some tweaking.               |
++---------------+-------------------------------------------------------------+
+| ``sleep``     | Typical ``sleep`` program, custom kBuild version.           |
++---------------+-------------------------------------------------------------+
+| ``test``      | The BSD ``test`` program with some tweaking.                |
++---------------+-------------------------------------------------------------+
+
+Some additional external commands are available in the ``kmk`` / ``kBuild``
+environment (``kSomething`` command are not prefixed with ``kmk_``):
+
++---------------+-------------------------------------------------------------+
+| Command       | Description                                                 |
++===============+=============================================================+
+| ``kDepPre``   | Extract dependencies from the C/C++ preprocessor output.    |
++---------------+-------------------------------------------------------------+
+| ``kObjCache`` | Simple object file cache program.                           |
++---------------+-------------------------------------------------------------+
+| ``ash``       | Almquist's shell (NetBSD variant).                          |
++---------------+-------------------------------------------------------------+
+| ``gmake``     | Vanilla GNU ``make`` from same sources as ``kmk``.          |
++---------------+-------------------------------------------------------------+
+| ``redirect``  | Shell avoidance tool. Sets up file descriptors, environment |
+|               | variables and current directory before kicking of program.  |
++---------------+-------------------------------------------------------------+
+| ``sed``       | GNU ``sed`` with some tweaks to avoid involving the shell.  |
++---------------+-------------------------------------------------------------+
+| ``time``      | Stopwatch utility for measuring program execution time(s).  |
++---------------+-------------------------------------------------------------+
 
 
 kmk-expression
@@ -771,7 +834,7 @@ todo
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2163 2008-12-30 00:57:13Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2166 2008-12-30 16:09:46Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
