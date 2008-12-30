@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-30 17:52:13 +0100 (Tue, 30 Dec 2008) $
-:Revision: $Revision: 2168 $
+:Date: $Date: 2008-12-30 18:07:09 +0100 (Tue, 30 Dec 2008) $
+:Revision: $Revision: 2169 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -296,6 +296,7 @@ ul.auto-toc {
 special targets, built-in commands, external commands, and <tt class="docutils literal"><span class="pre">kmk</span></tt>-expressions.
 Since <em>all</em> the features are included, the quickness of this reference can be
 disputed. ;-)</p>
+<p>Features that are</p>
 <div class="section">
 <h1><a id="directives" name="directives">Directives</a></h1>
 <p>Here is a summary of the directives <tt class="docutils literal"><span class="pre">kmk</span></tt> recognizes:</p>
@@ -315,9 +316,9 @@ ifeq 'a' 'b'
 ifneq (a,b)
 ifneq &quot;a&quot; &quot;b&quot;
 ifneq 'a' 'b'
-if1of (set-a,set-b)
-ifn1of (set-a,set-b)
-if expression
+if1of (set-a,set-b)             [1]
+ifn1of (set-a,set-b)            [1]
+if expression                   [1]
 else
 endif
 </pre>
@@ -327,7 +328,7 @@ include file
 -include file
 sinclude file
 </pre>
-<p>Include another dependency file:</p>
+<p>Include another dependency file <a class="footnote-reference" href="#id15" id="id1" name="id1">[1]</a>:</p>
 <pre class="literal-block">
 includedep file
 </pre>
@@ -337,7 +338,7 @@ command line:</p>
 override variable = value
 override variable := value
 override variable += value
-override variable &lt;= value
+override variable &lt;= value      [1]
 override variable ?= value
 override define variable
 endef
@@ -353,11 +354,11 @@ export variable
 export variable = value
 export variable := value
 export variable += value
-export variable &lt;= value
+export variable &lt;= value        [1]
 export variable ?= value
 unexport variable
 </pre>
-<p>Define a variable in the local context instead of the global one:</p>
+<p>Define a variable in the local context instead of the global one <a class="footnote-reference" href="#id15" id="id2" name="id2">[1]</a>:</p>
 <pre class="literal-block">
 local variable = value
 local variable := value
@@ -508,36 +509,36 @@ processed, if any). Do not set this.</td>
 <tt class="docutils literal"><span class="pre">KBUILD_VERSION_PATCH</span></tt>,
 <tt class="docutils literal"><span class="pre">KBUILD_KMK_REVISION</span></tt></td>
 <td>The kBuild version string and the break down
-into individual components.</td>
+into individual components. <a class="footnote-reference" href="#id15" id="id3" name="id3">[1]</a></td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST</span></tt> <a class="footnote-reference" href="#id15" id="id4" name="id4">[1]</a></td>
 <td>The host operating system.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_ARCH</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_ARCH</span></tt> <a class="footnote-reference" href="#id15" id="id5" name="id5">[1]</a></td>
 <td>The host architecture.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_CPU</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_HOST_CPU</span></tt> <a class="footnote-reference" href="#id15" id="id6" name="id6">[1]</a></td>
 <td>The host CPU <tt class="docutils literal"><span class="pre">kmk</span></tt> is built for, set to
 <tt class="docutils literal"><span class="pre">blend</span></tt> if not any particular CPU.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KBUILD_PATH</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_PATH</span></tt> <a class="footnote-reference" href="#id15" id="id7" name="id7">[1]</a></td>
 <td>Where the kBuild scripts are.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KBUILD_BIN_PATH</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KBUILD_BIN_PATH</span></tt> <a class="footnote-reference" href="#id15" id="id8" name="id8">[1]</a></td>
 <td>Where the host specific kBuild binaries are.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK</span></tt>,
+<tr><td><tt class="docutils literal"><span class="pre">KMK</span></tt> <a class="footnote-reference" href="#id15" id="id9" name="id9">[1]</a>,
 <tt class="docutils literal"><span class="pre">MAKE</span></tt></td>
 <td>The name with which <tt class="docutils literal"><span class="pre">kmk</span></tt> was invoked. Using
 this variable in recipes has special meaning.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK_BUILTIN</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_BUILTIN</span></tt> <a class="footnote-reference" href="#id15" id="id10" name="id10">[1]</a></td>
 <td>List of built-in commands.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK_FEATURES</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_FEATURES</span></tt> <a class="footnote-reference" href="#id15" id="id11" name="id11">[1]</a></td>
 <td>List of <tt class="docutils literal"><span class="pre">kmk</span></tt> specific features.</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK_FLAGS</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_FLAGS</span></tt> <a class="footnote-reference" href="#id15" id="id12" name="id12">[1]</a></td>
 <td><p class="first">The flags given to <tt class="docutils literal"><span class="pre">kmk</span></tt>. You can set this in
 the environment or a makefile to set flags.</p>
 <p class="last">It is never appropriate to use <tt class="docutils literal"><span class="pre">KMK_FLAGS</span></tt>
@@ -547,10 +548,10 @@ allow recursive <tt class="docutils literal"><span class="pre">kmk</span></tt>'s
 through the environment from its parent.</p>
 </td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK_LEVEL</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_LEVEL</span></tt> <a class="footnote-reference" href="#id15" id="id13" name="id13">[1]</a></td>
 <td>The number of levels of recursion (sub-makes).</td>
 </tr>
-<tr><td><tt class="docutils literal"><span class="pre">KMK_VERSION</span></tt></td>
+<tr><td><tt class="docutils literal"><span class="pre">KMK_VERSION</span></tt> <a class="footnote-reference" href="#id15" id="id14" name="id14">[1]</a></td>
 <td>The GNU <tt class="docutils literal"><span class="pre">make</span></tt> version number.</td>
 </tr>
 <tr><td><tt class="docutils literal"><span class="pre">MAKECMDGOALS</span></tt></td>
@@ -1341,11 +1342,18 @@ $(breakpoint )
 </pre>
 </blockquote>
 <hr class="docutils" />
+<table class="docutils footnote" frame="void" id="id15" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a name="id15">[1]</a></td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id2">2</a>, <a class="fn-backref" href="#id3">3</a>, <a class="fn-backref" href="#id4">4</a>, <a class="fn-backref" href="#id5">5</a>, <a class="fn-backref" href="#id6">6</a>, <a class="fn-backref" href="#id7">7</a>, <a class="fn-backref" href="#id8">8</a>, <a class="fn-backref" href="#id9">9</a>, <a class="fn-backref" href="#id10">10</a>, <a class="fn-backref" href="#id11">11</a>, <a class="fn-backref" href="#id12">12</a>, <a class="fn-backref" href="#id13">13</a>, <a class="fn-backref" href="#id14">14</a>)</em> <tt class="docutils literal"><span class="pre">kmk</span></tt> only feature.</td></tr>
+</tbody>
+</table>
+<hr class="docutils" />
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2168 2008-12-30 16:52:13Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2169 2008-12-30 17:07:09Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,

@@ -7,6 +7,7 @@ special targets, built-in commands, external commands, and ``kmk``-expressions.
 Since *all* the features are included, the quickness of this reference can be
 disputed. ;-)
 
+Features that are
 
 Directives
 ----------
@@ -28,9 +29,9 @@ Here is a summary of the directives ``kmk`` recognizes:
         ifneq (a,b)
         ifneq "a" "b"
         ifneq 'a' 'b'
-        if1of (set-a,set-b)
-        ifn1of (set-a,set-b)
-        if expression
+        if1of (set-a,set-b)   		[1]
+        ifn1of (set-a,set-b)		[1]
+        if expression			[1]
         else
         endif
 
@@ -40,7 +41,7 @@ Here is a summary of the directives ``kmk`` recognizes:
         -include file
         sinclude file
 
-    Include another dependency file::
+    Include another dependency file [1]_::
 
         includedep file
 
@@ -50,7 +51,7 @@ Here is a summary of the directives ``kmk`` recognizes:
         override variable = value
         override variable := value
         override variable += value
-        override variable <= value
+        override variable <= value	[1]
         override variable ?= value
         override define variable
         endef
@@ -66,11 +67,11 @@ Here is a summary of the directives ``kmk`` recognizes:
         export variable = value
         export variable := value
         export variable += value
-        export variable <= value
+        export variable <= value        [1]
         export variable ?= value
         unexport variable
 
-    Define a variable in the local context instead of the global one::
+    Define a variable in the local context instead of the global one [1]_::
 
         local variable = value
         local variable := value
@@ -177,30 +178,30 @@ variables are specially used or/and defined by ``kmk``:
 |                          | processed, if any). Do not set this.             |
 +--------------------------+--------------------------------------------------+
 | ``KBUILD_VERSION``,      | The kBuild version string and the break down     |
-| ``KBUILD_VERSION_MAJOR``,| into individual components.                      |
+| ``KBUILD_VERSION_MAJOR``,| into individual components. [1]_                 |
 | ``KBUILD_VERSION_MINOR``,|                                                  |
 | ``KBUILD_VERSION_PATCH``,|                                                  |
 | ``KBUILD_KMK_REVISION``  |                                                  |
 +--------------------------+--------------------------------------------------+
-| ``KBUILD_HOST``          | The host operating system.                       |
+| ``KBUILD_HOST`` [1]_     | The host operating system.                       |
 +--------------------------+--------------------------------------------------+
-| ``KBUILD_HOST_ARCH``     | The host architecture.                           |
+| ``KBUILD_HOST_ARCH`` [1]_| The host architecture.                           |
 +--------------------------+--------------------------------------------------+
-| ``KBUILD_HOST_CPU``      | The host CPU ``kmk`` is built for, set to        |
+| ``KBUILD_HOST_CPU`` [1]_ | The host CPU ``kmk`` is built for, set to        |
 |                          | ``blend`` if not any particular CPU.             |
 +--------------------------+--------------------------------------------------+
-| ``KBUILD_PATH``          | Where the kBuild scripts are.                    |
+| ``KBUILD_PATH`` [1]_     | Where the kBuild scripts are.                    |
 +--------------------------+--------------------------------------------------+
-| ``KBUILD_BIN_PATH``      | Where the host specific kBuild binaries are.     |
+| ``KBUILD_BIN_PATH`` [1]_ | Where the host specific kBuild binaries are.     |
 +--------------------------+--------------------------------------------------+
-| ``KMK``,                 | The name with which ``kmk`` was invoked. Using   |
+| ``KMK`` [1]_,            | The name with which ``kmk`` was invoked. Using   |
 | ``MAKE``                 | this variable in recipes has special meaning.    |
 +--------------------------+--------------------------------------------------+
-| ``KMK_BUILTIN``          | List of built-in commands.                       |
+| ``KMK_BUILTIN`` [1]_     | List of built-in commands.                       |
 +--------------------------+--------------------------------------------------+
-| ``KMK_FEATURES``         | List of ``kmk`` specific features.               |
+| ``KMK_FEATURES`` [1]_    | List of ``kmk`` specific features.               |
 +--------------------------+--------------------------------------------------+
-| ``KMK_FLAGS``            | The flags given to ``kmk``. You can set this in  |
+| ``KMK_FLAGS`` [1]_       | The flags given to ``kmk``. You can set this in  |
 |                          | the environment or a makefile to set flags.      |
 |                          |                                                  |
 |                          | It is never appropriate to use ``KMK_FLAGS``     |
@@ -209,9 +210,9 @@ variables are specially used or/and defined by ``kmk``:
 |                          | allow recursive ``kmk``'s to obtain these values |
 |                          | through the environment from its parent.         |
 +--------------------------+--------------------------------------------------+
-| ``KMK_LEVEL``            | The number of levels of recursion (sub-makes).   |
+| ``KMK_LEVEL`` [1]_       | The number of levels of recursion (sub-makes).   |
 +--------------------------+--------------------------------------------------+
-| ``KMK_VERSION``          | The GNU ``make`` version number.                 |
+| ``KMK_VERSION`` [1]_     | The GNU ``make`` version number.                 |
 +--------------------------+--------------------------------------------------+
 | ``MAKECMDGOALS``         | The targets given to ``kmk`` on the command line.|
 |                          | Do not set this.                                 |
@@ -903,7 +904,11 @@ Debugging Functions:
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2168 2008-12-30 16:52:13Z knut.osmundsen@oracle.com $
+.. [1] ``kmk`` only feature.
+
+-----
+
+:Status: $Id: QuickReference-kmk.txt 2169 2008-12-30 17:07:09Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
