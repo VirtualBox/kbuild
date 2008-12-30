@@ -263,6 +263,161 @@ The following variables reflects ``kmk`` options. Do not set these.
 
 
 
+Special Targets
+---------------
+
+todo
+
+
+
+Commands
+--------
+
+Builtin commands all start with ``kmk_builtin_``, so in order to save space
+this prefix has been omitted in the table below. All commands comes in an
+external edition that can be used by/in the shell, these are prefixed ``kmk_``.
+
++---------------+-------------------------------------------------------------+
+| Command       | Description                                                 |
++===============+=============================================================+
+| ``append``    | Append text to a file. The builtin version can output the   |
+|               | value of a variable or the commands of a target.            |
++---------------+-------------------------------------------------------------+
+| ``cat``       | The BSD ``cat`` command.                                    |
++---------------+-------------------------------------------------------------+
+| ``chmod``     | The BSD ``chmod`` command.                                  |
++---------------+-------------------------------------------------------------+
+| ``cmp``       | The BSD ``cmp`` command.                                    |
++---------------+-------------------------------------------------------------+
+| ``cp``        | The BSD ``cp`` command with some twaking.                   |
++---------------+-------------------------------------------------------------+
+| ``echo``      | The BSD ``echo`` command.                                   |
++---------------+-------------------------------------------------------------+
+| ``expr``      | The BSD ``expr`` command.                                   |
++---------------+-------------------------------------------------------------+
+| ``install``   | The BSD ``install`` command with some tweaking.             |
++---------------+-------------------------------------------------------------+
+| ``kDepIDB``   | Extract dependencies from a Visual C++ .IDB file.           |
++---------------+-------------------------------------------------------------+
+| ``ln``        | The BSD ``ln`` command.                                     |
++---------------+-------------------------------------------------------------+
+| ``md5sum``    | Typical MD5 sum program, custom kBuild version.             |
++---------------+-------------------------------------------------------------+
+| ``mkdir``     | The BSD ``mkdir`` command.                                  |
++---------------+-------------------------------------------------------------+
+| ``mv``        | The BSD ``mv`` command with some tweaking.                  |
++---------------+-------------------------------------------------------------+
+| ``printf``    | The BSD ``printf`` command.                                 |
++---------------+-------------------------------------------------------------+
+| ``rm``        | The BSD ``rm`` command with some tweaking.                  |
++---------------+-------------------------------------------------------------+
+| ``rmdir``     | The BSD ``rmdir`` command with some tweaking.               |
++---------------+-------------------------------------------------------------+
+| ``sleep``     | Typical ``sleep`` program, custom kBuild version.           |
++---------------+-------------------------------------------------------------+
+| ``test``      | The BSD ``test`` program with some tweaking.                |
++---------------+-------------------------------------------------------------+
+
+Some additional external commands are available in the ``kmk`` / ``kBuild``
+environment (``kSomething`` command are not prefixed with ``kmk_``):
+
++---------------+-------------------------------------------------------------+
+| Command       | Description                                                 |
++===============+=============================================================+
+| ``kDepPre``   | Extract dependencies from the C/C++ preprocessor output.    |
++---------------+-------------------------------------------------------------+
+| ``kObjCache`` | Simple object file cache program.                           |
++---------------+-------------------------------------------------------------+
+| ``ash``       | Almquist's shell (NetBSD variant).                          |
++---------------+-------------------------------------------------------------+
+| ``gmake``     | Vanilla GNU ``make`` from same sources as ``kmk``.          |
++---------------+-------------------------------------------------------------+
+| ``redirect``  | Shell avoidance tool. Sets up file descriptors, environment |
+|               | variables and current directory before kicking of program.  |
++---------------+-------------------------------------------------------------+
+| ``sed``       | GNU ``sed`` with some tweaks to avoid involving the shell.  |
++---------------+-------------------------------------------------------------+
+| ``time``      | Stopwatch utility for measuring program execution time(s).  |
++---------------+-------------------------------------------------------------+
+
+
+
+kmk-expression
+--------------
+
+``kmk``-expressions are related to the C/C++ preprocessor in some ways as well
+as ``nmake`` and BSD ``make``. There are however some peculiarities because of
+the way GNU ``make`` choose to represent booleans in its function library, so,
+strings can be turned into boolean by taking any non-empty string as true.
+
+Quoting using single quotes results in hard strings, while double quotes and
+unquoted string results in soft strings that can be converted to number or
+boolean to fit the situation.
+
+Here's the operator table in decending precedence order:
+
++---------------+--------+-----------------------------------------------------+
+| Operator      | Type   | Description                                         |
++===============+========+=====================================================+
+| ``defined``   | Unary  | Checks if the following variable exists.            |
++---------------+        +-----------------------------------------------------+
+| ``exists``    |        | Checks if the following file exists.                |
++---------------+        +-----------------------------------------------------+
+| ``target``    |        | Checks if the following target exists.              |
++---------------+        +-----------------------------------------------------+
+| ``bool``      |        | Casts the following value to boolean.               |
++---------------+        +-----------------------------------------------------+
+| ``num``       |        | Casts the following value to a number.              |
++---------------+        +-----------------------------------------------------+
+| ``str``       |        | Casts the following value to a string.              |
++---------------+--------+-----------------------------------------------------+
+| ``!``         | Unary  | Logical NOT.                                        |
++---------------+        +-----------------------------------------------------+
+| ``+``         |        | Pluss prefix.                                       |
++---------------+        +-----------------------------------------------------+
+| ``-``         |        | Minus prefix.                                       |
++---------------+        +-----------------------------------------------------+
+| ``~``         |        | Bitwise one's complement.                           |
++---------------+--------+-----------------------------------------------------+
+| ``*``         | Binary | Multiplication (product).                           |
++---------------+        +-----------------------------------------------------+
+| ``/``         |        | Division (quotient).                                |
++---------------+        +-----------------------------------------------------+
+| ``%``         |        | Modulus (remainder).                                |
++---------------+--------+-----------------------------------------------------+
+| ``+``         | Binary | Addition (sum).                                     |
++---------------+        +-----------------------------------------------------+
+| ``-``         |        | Subtraction (difference).                           |
++---------------+--------+-----------------------------------------------------+
+| ``<<``        | Binary | Bitwise left shift.                                 |
++---------------+        +-----------------------------------------------------+
+| ``>>``        |        | Bitwise right shift.                                |
++---------------+--------+-----------------------------------------------------+
+| ``<=``        | Binary | Less or equal than.                                 |
++---------------+        +-----------------------------------------------------+
+| ``<``         |        | Less than.                                          |
++---------------+        +-----------------------------------------------------+
+| ``>=``        |        | Greater or equal than.                              |
++---------------+        +-----------------------------------------------------+
+| ``>``         |        | Greater than.                                       |
++---------------+--------+-----------------------------------------------------+
+| ``==``        | Binary | Equal to.                                           |
++---------------+        +-----------------------------------------------------+
+| ``!=``        |        | Not equal to.                                       |
++---------------+--------+-----------------------------------------------------+
+| ``&``         | Binary | Bitwise AND.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``^``         | Binary | Bitwise XOR.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``|``         | Binary | Bitwise OR.                                         |
++---------------+--------+-----------------------------------------------------+
+| ``&&``        | Binary | Logical AND.                                        |
++---------------+--------+-----------------------------------------------------+
+| ``||``        | Binary | Logical OR.                                         |
++---------------+--------+-----------------------------------------------------+
+
+
+
 Built-in functions
 ------------------
 
@@ -746,164 +901,9 @@ Debugging Functions:
         $(breakpoint )
 
 
-
-Special Targets
----------------
-
-todo
-
-
-
-Commands
---------
-
-Builtin commands all start with ``kmk_builtin_``, so in order to save space
-this prefix has been omitted in the table below. All commands comes in an
-external edition that can be used by/in the shell, these are prefixed ``kmk_``.
-
-+---------------+-------------------------------------------------------------+
-| Command       | Description                                                 |
-+===============+=============================================================+
-| ``append``    | Append text to a file. The builtin version can output the   |
-|               | value of a variable or the commands of a target.            |
-+---------------+-------------------------------------------------------------+
-| ``cat``       | The BSD ``cat`` command.                                    |
-+---------------+-------------------------------------------------------------+
-| ``chmod``     | The BSD ``chmod`` command.                                  |
-+---------------+-------------------------------------------------------------+
-| ``cmp``       | The BSD ``cmp`` command.                                    |
-+---------------+-------------------------------------------------------------+
-| ``cp``        | The BSD ``cp`` command with some twaking.                   |
-+---------------+-------------------------------------------------------------+
-| ``echo``      | The BSD ``echo`` command.                                   |
-+---------------+-------------------------------------------------------------+
-| ``expr``      | The BSD ``expr`` command.                                   |
-+---------------+-------------------------------------------------------------+
-| ``install``   | The BSD ``install`` command with some tweaking.             |
-+---------------+-------------------------------------------------------------+
-| ``kDepIDB``   | Extract dependencies from a Visual C++ .IDB file.           |
-+---------------+-------------------------------------------------------------+
-| ``ln``        | The BSD ``ln`` command.                                     |
-+---------------+-------------------------------------------------------------+
-| ``md5sum``    | Typical MD5 sum program, custom kBuild version.             |
-+---------------+-------------------------------------------------------------+
-| ``mkdir``     | The BSD ``mkdir`` command.                                  |
-+---------------+-------------------------------------------------------------+
-| ``mv``        | The BSD ``mv`` command with some tweaking.                  |
-+---------------+-------------------------------------------------------------+
-| ``printf``    | The BSD ``printf`` command.                                 |
-+---------------+-------------------------------------------------------------+
-| ``rm``        | The BSD ``rm`` command with some tweaking.                  |
-+---------------+-------------------------------------------------------------+
-| ``rmdir``     | The BSD ``rmdir`` command with some tweaking.               |
-+---------------+-------------------------------------------------------------+
-| ``sleep``     | Typical ``sleep`` program, custom kBuild version.           |
-+---------------+-------------------------------------------------------------+
-| ``test``      | The BSD ``test`` program with some tweaking.                |
-+---------------+-------------------------------------------------------------+
-
-Some additional external commands are available in the ``kmk`` / ``kBuild``
-environment (``kSomething`` command are not prefixed with ``kmk_``):
-
-+---------------+-------------------------------------------------------------+
-| Command       | Description                                                 |
-+===============+=============================================================+
-| ``kDepPre``   | Extract dependencies from the C/C++ preprocessor output.    |
-+---------------+-------------------------------------------------------------+
-| ``kObjCache`` | Simple object file cache program.                           |
-+---------------+-------------------------------------------------------------+
-| ``ash``       | Almquist's shell (NetBSD variant).                          |
-+---------------+-------------------------------------------------------------+
-| ``gmake``     | Vanilla GNU ``make`` from same sources as ``kmk``.          |
-+---------------+-------------------------------------------------------------+
-| ``redirect``  | Shell avoidance tool. Sets up file descriptors, environment |
-|               | variables and current directory before kicking of program.  |
-+---------------+-------------------------------------------------------------+
-| ``sed``       | GNU ``sed`` with some tweaks to avoid involving the shell.  |
-+---------------+-------------------------------------------------------------+
-| ``time``      | Stopwatch utility for measuring program execution time(s).  |
-+---------------+-------------------------------------------------------------+
-
-
-kmk-expression
---------------
-
-``kmk``-expressions are related to the C/C++ preprocessor in some ways as well
-as ``nmake`` and BSD ``make``. There are however some peculiarities because of
-the way GNU ``make`` choose to represent booleans in its function library, so,
-strings can be turned into boolean by taking any non-empty string as true.
-
-Quoting using single quotes results in hard strings, while double quotes and
-unquoted string results in soft strings that can be converted to number or
-boolean to fit the situation.
-
-Here's the operator table in decending precedence order:
-
-+---------------+--------+-----------------------------------------------------+
-| Operator      | Type   | Description                                         |
-+===============+========+=====================================================+
-| ``defined``   | Unary  | Checks if the following variable exists.            |
-+---------------+        +-----------------------------------------------------+
-| ``exists``    |        | Checks if the following file exists.                |
-+---------------+        +-----------------------------------------------------+
-| ``target``    |        | Checks if the following target exists.              |
-+---------------+        +-----------------------------------------------------+
-| ``bool``      |        | Casts the following value to boolean.               |
-+---------------+        +-----------------------------------------------------+
-| ``num``       |        | Casts the following value to a number.              |
-+---------------+        +-----------------------------------------------------+
-| ``str``       |        | Casts the following value to a string.              |
-+---------------+--------+-----------------------------------------------------+
-| ``!``         | Unary  | Logical NOT.                                        |
-+---------------+        +-----------------------------------------------------+
-| ``+``         |        | Pluss prefix.                                       |
-+---------------+        +-----------------------------------------------------+
-| ``-``         |        | Minus prefix.                                       |
-+---------------+        +-----------------------------------------------------+
-| ``~``         |        | Bitwise one's complement.                           |
-+---------------+--------+-----------------------------------------------------+
-| ``*``         | Binary | Multiplication (product).                           |
-+---------------+        +-----------------------------------------------------+
-| ``/``         |        | Division (quotient).                                |
-+---------------+        +-----------------------------------------------------+
-| ``%``         |        | Modulus (remainder).                                |
-+---------------+--------+-----------------------------------------------------+
-| ``+``         | Binary | Addition (sum).                                     |
-+---------------+        +-----------------------------------------------------+
-| ``-``         |        | Subtraction (difference).                           |
-+---------------+--------+-----------------------------------------------------+
-| ``<<``        | Binary | Bitwise left shift.                                 |
-+---------------+        +-----------------------------------------------------+
-| ``>>``        |        | Bitwise right shift.                                |
-+---------------+--------+-----------------------------------------------------+
-| ``<=``        | Binary | Less or equal than.                                 |
-+---------------+        +-----------------------------------------------------+
-| ``<``         |        | Less than.                                          |
-+---------------+        +-----------------------------------------------------+
-| ``>=``        |        | Greater or equal than.                              |
-+---------------+        +-----------------------------------------------------+
-| ``>``         |        | Greater than.                                       |
-+---------------+--------+-----------------------------------------------------+
-| ``==``        | Binary | Equal to.                                           |
-+---------------+        +-----------------------------------------------------+
-| ``!=``        |        | Not equal to.                                       |
-+---------------+--------+-----------------------------------------------------+
-| ``&``         | Binary | Bitwise AND.                                        |
-+---------------+--------+-----------------------------------------------------+
-| ``^``         | Binary | Bitwise XOR.                                        |
-+---------------+--------+-----------------------------------------------------+
-| ``|``         | Binary | Bitwise OR.                                         |
-+---------------+--------+-----------------------------------------------------+
-| ``&&``        | Binary | Logical AND.                                        |
-+---------------+--------+-----------------------------------------------------+
-| ``||``        | Binary | Logical OR.                                         |
-+---------------+--------+-----------------------------------------------------+
-
-
-
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2167 2008-12-30 16:45:46Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2168 2008-12-30 16:52:13Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.

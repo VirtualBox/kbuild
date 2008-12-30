@@ -10,8 +10,8 @@
 /*
 :Author: David Goodger
 :Contact: goodger@users.sourceforge.net
-:Date: $Date: 2008-12-30 17:45:46 +0100 (Tue, 30 Dec 2008) $
-:Revision: $Revision: 2167 $
+:Date: $Date: 2008-12-30 17:52:13 +0100 (Tue, 30 Dec 2008) $
+:Revision: $Revision: 2168 $
 :Copyright: This stylesheet has been placed in the public domain.
 
 Default cascading style sheet for the HTML output of Docutils.
@@ -626,6 +626,243 @@ current directory.</td>
 </table>
 </div>
 <div class="section">
+<h1><a id="special-targets" name="special-targets">Special Targets</a></h1>
+<p>todo</p>
+</div>
+<div class="section">
+<h1><a id="commands" name="commands">Commands</a></h1>
+<p>Builtin commands all start with <tt class="docutils literal"><span class="pre">kmk_builtin_</span></tt>, so in order to save space
+this prefix has been omitted in the table below. All commands comes in an
+external edition that can be used by/in the shell, these are prefixed <tt class="docutils literal"><span class="pre">kmk_</span></tt>.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Command</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">append</span></tt></td>
+<td>Append text to a file. The builtin version can output the
+value of a variable or the commands of a target.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cat</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cat</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">chmod</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">chmod</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cmp</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cmp</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">cp</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">cp</span></tt> command with some twaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">echo</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">echo</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">expr</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">expr</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">install</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">install</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">kDepIDB</span></tt></td>
+<td>Extract dependencies from a Visual C++ .IDB file.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">ln</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">ln</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">md5sum</span></tt></td>
+<td>Typical MD5 sum program, custom kBuild version.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">mkdir</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">mkdir</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">mv</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">mv</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">printf</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">printf</span></tt> command.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">rm</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">rm</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">rmdir</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">rmdir</span></tt> command with some tweaking.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">sleep</span></tt></td>
+<td>Typical <tt class="docutils literal"><span class="pre">sleep</span></tt> program, custom kBuild version.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">test</span></tt></td>
+<td>The BSD <tt class="docutils literal"><span class="pre">test</span></tt> program with some tweaking.</td>
+</tr>
+</tbody>
+</table>
+<p>Some additional external commands are available in the <tt class="docutils literal"><span class="pre">kmk</span></tt> / <tt class="docutils literal"><span class="pre">kBuild</span></tt>
+environment (<tt class="docutils literal"><span class="pre">kSomething</span></tt> command are not prefixed with <tt class="docutils literal"><span class="pre">kmk_</span></tt>):</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Command</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">kDepPre</span></tt></td>
+<td>Extract dependencies from the C/C++ preprocessor output.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">kObjCache</span></tt></td>
+<td>Simple object file cache program.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">ash</span></tt></td>
+<td>Almquist's shell (NetBSD variant).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">gmake</span></tt></td>
+<td>Vanilla GNU <tt class="docutils literal"><span class="pre">make</span></tt> from same sources as <tt class="docutils literal"><span class="pre">kmk</span></tt>.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">redirect</span></tt></td>
+<td>Shell avoidance tool. Sets up file descriptors, environment
+variables and current directory before kicking of program.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">sed</span></tt></td>
+<td>GNU <tt class="docutils literal"><span class="pre">sed</span></tt> with some tweaks to avoid involving the shell.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">time</span></tt></td>
+<td>Stopwatch utility for measuring program execution time(s).</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<h1><a id="kmk-expression" name="kmk-expression">kmk-expression</a></h1>
+<p><tt class="docutils literal"><span class="pre">kmk</span></tt>-expressions are related to the C/C++ preprocessor in some ways as well
+as <tt class="docutils literal"><span class="pre">nmake</span></tt> and BSD <tt class="docutils literal"><span class="pre">make</span></tt>. There are however some peculiarities because of
+the way GNU <tt class="docutils literal"><span class="pre">make</span></tt> choose to represent booleans in its function library, so,
+strings can be turned into boolean by taking any non-empty string as true.</p>
+<p>Quoting using single quotes results in hard strings, while double quotes and
+unquoted string results in soft strings that can be converted to number or
+boolean to fit the situation.</p>
+<p>Here's the operator table in decending precedence order:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="11%" />
+<col width="70%" />
+</colgroup>
+<thead valign="bottom">
+<tr><th class="head">Operator</th>
+<th class="head">Type</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr><td><tt class="docutils literal"><span class="pre">defined</span></tt></td>
+<td rowspan="6">Unary</td>
+<td>Checks if the following variable exists.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">exists</span></tt></td>
+<td>Checks if the following file exists.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">target</span></tt></td>
+<td>Checks if the following target exists.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">bool</span></tt></td>
+<td>Casts the following value to boolean.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">num</span></tt></td>
+<td>Casts the following value to a number.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">str</span></tt></td>
+<td>Casts the following value to a string.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">!</span></tt></td>
+<td rowspan="4">Unary</td>
+<td>Logical NOT.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">+</span></tt></td>
+<td>Pluss prefix.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">-</span></tt></td>
+<td>Minus prefix.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">~</span></tt></td>
+<td>Bitwise one's complement.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">*</span></tt></td>
+<td rowspan="3">Binary</td>
+<td>Multiplication (product).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">/</span></tt></td>
+<td>Division (quotient).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">%</span></tt></td>
+<td>Modulus (remainder).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">+</span></tt></td>
+<td rowspan="2">Binary</td>
+<td>Addition (sum).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">-</span></tt></td>
+<td>Subtraction (difference).</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&lt;&lt;</span></tt></td>
+<td rowspan="2">Binary</td>
+<td>Bitwise left shift.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&gt;&gt;</span></tt></td>
+<td>Bitwise right shift.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&lt;=</span></tt></td>
+<td rowspan="4">Binary</td>
+<td>Less or equal than.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&lt;</span></tt></td>
+<td>Less than.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&gt;=</span></tt></td>
+<td>Greater or equal than.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&gt;</span></tt></td>
+<td>Greater than.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">==</span></tt></td>
+<td rowspan="2">Binary</td>
+<td>Equal to.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">!=</span></tt></td>
+<td>Not equal to.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&amp;</span></tt></td>
+<td>Binary</td>
+<td>Bitwise AND.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">^</span></tt></td>
+<td>Binary</td>
+<td>Bitwise XOR.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">|</span></tt></td>
+<td>Binary</td>
+<td>Bitwise OR.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">&amp;&amp;</span></tt></td>
+<td>Binary</td>
+<td>Logical AND.</td>
+</tr>
+<tr><td><tt class="docutils literal"><span class="pre">||</span></tt></td>
+<td>Binary</td>
+<td>Logical OR.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
 <h1><a id="built-in-functions" name="built-in-functions">Built-in functions</a></h1>
 <p>String Manipulation Functions:</p>
 <blockquote>
@@ -1103,249 +1340,12 @@ $(make-stats item[,itemN])
 $(breakpoint )
 </pre>
 </blockquote>
-</div>
-<div class="section">
-<h1><a id="special-targets" name="special-targets">Special Targets</a></h1>
-<p>todo</p>
-</div>
-<div class="section">
-<h1><a id="commands" name="commands">Commands</a></h1>
-<p>Builtin commands all start with <tt class="docutils literal"><span class="pre">kmk_builtin_</span></tt>, so in order to save space
-this prefix has been omitted in the table below. All commands comes in an
-external edition that can be used by/in the shell, these are prefixed <tt class="docutils literal"><span class="pre">kmk_</span></tt>.</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="20%" />
-<col width="80%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Command</th>
-<th class="head">Description</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td><tt class="docutils literal"><span class="pre">append</span></tt></td>
-<td>Append text to a file. The builtin version can output the
-value of a variable or the commands of a target.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">cat</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">cat</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">chmod</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">chmod</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">cmp</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">cmp</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">cp</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">cp</span></tt> command with some twaking.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">echo</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">echo</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">expr</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">expr</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">install</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">install</span></tt> command with some tweaking.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">kDepIDB</span></tt></td>
-<td>Extract dependencies from a Visual C++ .IDB file.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">ln</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">ln</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">md5sum</span></tt></td>
-<td>Typical MD5 sum program, custom kBuild version.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">mkdir</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">mkdir</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">mv</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">mv</span></tt> command with some tweaking.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">printf</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">printf</span></tt> command.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">rm</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">rm</span></tt> command with some tweaking.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">rmdir</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">rmdir</span></tt> command with some tweaking.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">sleep</span></tt></td>
-<td>Typical <tt class="docutils literal"><span class="pre">sleep</span></tt> program, custom kBuild version.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">test</span></tt></td>
-<td>The BSD <tt class="docutils literal"><span class="pre">test</span></tt> program with some tweaking.</td>
-</tr>
-</tbody>
-</table>
-<p>Some additional external commands are available in the <tt class="docutils literal"><span class="pre">kmk</span></tt> / <tt class="docutils literal"><span class="pre">kBuild</span></tt>
-environment (<tt class="docutils literal"><span class="pre">kSomething</span></tt> command are not prefixed with <tt class="docutils literal"><span class="pre">kmk_</span></tt>):</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="20%" />
-<col width="80%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Command</th>
-<th class="head">Description</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td><tt class="docutils literal"><span class="pre">kDepPre</span></tt></td>
-<td>Extract dependencies from the C/C++ preprocessor output.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">kObjCache</span></tt></td>
-<td>Simple object file cache program.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">ash</span></tt></td>
-<td>Almquist's shell (NetBSD variant).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">gmake</span></tt></td>
-<td>Vanilla GNU <tt class="docutils literal"><span class="pre">make</span></tt> from same sources as <tt class="docutils literal"><span class="pre">kmk</span></tt>.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">redirect</span></tt></td>
-<td>Shell avoidance tool. Sets up file descriptors, environment
-variables and current directory before kicking of program.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">sed</span></tt></td>
-<td>GNU <tt class="docutils literal"><span class="pre">sed</span></tt> with some tweaks to avoid involving the shell.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">time</span></tt></td>
-<td>Stopwatch utility for measuring program execution time(s).</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="section">
-<h1><a id="kmk-expression" name="kmk-expression">kmk-expression</a></h1>
-<p><tt class="docutils literal"><span class="pre">kmk</span></tt>-expressions are related to the C/C++ preprocessor in some ways as well
-as <tt class="docutils literal"><span class="pre">nmake</span></tt> and BSD <tt class="docutils literal"><span class="pre">make</span></tt>. There are however some peculiarities because of
-the way GNU <tt class="docutils literal"><span class="pre">make</span></tt> choose to represent booleans in its function library, so,
-strings can be turned into boolean by taking any non-empty string as true.</p>
-<p>Quoting using single quotes results in hard strings, while double quotes and
-unquoted string results in soft strings that can be converted to number or
-boolean to fit the situation.</p>
-<p>Here's the operator table in decending precedence order:</p>
-<table border="1" class="docutils">
-<colgroup>
-<col width="20%" />
-<col width="11%" />
-<col width="70%" />
-</colgroup>
-<thead valign="bottom">
-<tr><th class="head">Operator</th>
-<th class="head">Type</th>
-<th class="head">Description</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr><td><tt class="docutils literal"><span class="pre">defined</span></tt></td>
-<td rowspan="6">Unary</td>
-<td>Checks if the following variable exists.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">exists</span></tt></td>
-<td>Checks if the following file exists.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">target</span></tt></td>
-<td>Checks if the following target exists.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">bool</span></tt></td>
-<td>Casts the following value to boolean.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">num</span></tt></td>
-<td>Casts the following value to a number.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">str</span></tt></td>
-<td>Casts the following value to a string.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">!</span></tt></td>
-<td rowspan="4">Unary</td>
-<td>Logical NOT.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">+</span></tt></td>
-<td>Pluss prefix.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">-</span></tt></td>
-<td>Minus prefix.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">~</span></tt></td>
-<td>Bitwise one's complement.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">*</span></tt></td>
-<td rowspan="3">Binary</td>
-<td>Multiplication (product).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">/</span></tt></td>
-<td>Division (quotient).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">%</span></tt></td>
-<td>Modulus (remainder).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">+</span></tt></td>
-<td rowspan="2">Binary</td>
-<td>Addition (sum).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">-</span></tt></td>
-<td>Subtraction (difference).</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&lt;&lt;</span></tt></td>
-<td rowspan="2">Binary</td>
-<td>Bitwise left shift.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&gt;&gt;</span></tt></td>
-<td>Bitwise right shift.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&lt;=</span></tt></td>
-<td rowspan="4">Binary</td>
-<td>Less or equal than.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&lt;</span></tt></td>
-<td>Less than.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&gt;=</span></tt></td>
-<td>Greater or equal than.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&gt;</span></tt></td>
-<td>Greater than.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">==</span></tt></td>
-<td rowspan="2">Binary</td>
-<td>Equal to.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">!=</span></tt></td>
-<td>Not equal to.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&amp;</span></tt></td>
-<td>Binary</td>
-<td>Bitwise AND.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">^</span></tt></td>
-<td>Binary</td>
-<td>Bitwise XOR.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">|</span></tt></td>
-<td>Binary</td>
-<td>Bitwise OR.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">&amp;&amp;</span></tt></td>
-<td>Binary</td>
-<td>Logical AND.</td>
-</tr>
-<tr><td><tt class="docutils literal"><span class="pre">||</span></tt></td>
-<td>Binary</td>
-<td>Logical OR.</td>
-</tr>
-</tbody>
-</table>
 <hr class="docutils" />
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2167 2008-12-30 16:45:46Z knut.osmundsen@oracle.com $</p>
+<tr class="field"><th class="field-name">Status:</th><td class="field-body"><p class="first">$Id: QuickReference-kmk.html 2168 2008-12-30 16:52:13Z knut.osmundsen@oracle.com $</p>
 </td>
 </tr>
 <tr class="field"><th class="field-name">Copyright:</th><td class="field-body"><p class="first">Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
