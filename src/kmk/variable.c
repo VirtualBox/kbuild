@@ -1197,6 +1197,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_COMMANDS_FUNC) \
   && defined (CONFIG_WITH_PRINTF) \
   && defined (CONFIG_WITH_LOOP_FUNCTIONS) \
+  && defined (CONFIG_WITH_ROOT_FUNC) \
   && defined (CONFIG_WITH_STRING_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
@@ -1222,6 +1223,7 @@ define_automatic_variables (void)
                           " commands"
                           " printf"
                           " for while"
+                          " root"
                           " length insert pos lastpos substr translate"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
                           , o_default, 0);
@@ -1290,6 +1292,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_LOOP_FUNCTIONS)
   strcat (buf, " for while");
+#  endif
+#  if defined (CONFIG_WITH_ROOT_FUNC)
+  strcat (buf, " root");
 #  endif
 #  if defined (CONFIG_WITH_STRING_FUNCTIONS)
   strcat (buf, " length insert pos lastpos substr translate");

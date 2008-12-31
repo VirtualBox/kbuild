@@ -604,6 +604,11 @@ Functions for file names:
 
         $(basename names...)
 
+    Extract the root specification of each file name (a bit complicated on
+    Windows & OS/2) [1]_::
+
+        $(root names...)
+
     Append ``suffix`` to each word in ``names``::
 
         $(addsuffix suffix,names...)
@@ -975,7 +980,7 @@ Debugging Functions:
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2171 2008-12-30 22:18:10Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2172 2008-12-31 00:03:02Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.

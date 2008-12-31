@@ -800,6 +800,98 @@ func_basename_dir (char *o, char **argv, const char *funcname)
   return o;
 }
 
+#ifdef CONFIG_WITH_ROOT_FUNC
+/*
+ $(root path)
+
+ This is mainly for dealing with drive letters and UNC paths on Windows
+ and OS/2.
+ */
+static char *
+func_root (char *o, char **argv, const char *funcname UNUSED)
+{
+  const char  *paths = argv[0] ? argv[0] : "";
+  int          doneany = 0;
+  const char  *p;
+  unsigned int len;
+
+  while ((p = find_next_token (&paths, &len)) != 0)
+    {
+      const char *p2 = p;
+
+#ifdef HAVE_DOS_PATHS
+      if (   len >= 2
+          && p2[1] == ':'
+          && (   (p2[0] >= 'A' && p2[0] <= 'Z')
+              || (p2[0] >= 'a' && p2[0] <= 'z')))
+        {
+          p2 += 2;
+          len -= 2;
+        }
+      else if (len >= 4 && IS_PATHSEP(p2[0]) && IS_PATHSEP(p2[1])
+               && !IS_PATHSEP(p2[2]))
+        {
+          /* Min recognized UNC: "//./" - find the next slash
+             Typical root: "//srv/shr/" */
+          /* XXX: Check if //./ needs special handling. */
+
+          p2 += 3;
+          len -= 3;
+          while (len > 0 && !IS_PATHSEP(*p2))
+            p2++, len--;
+
+          if (len && IS_PATHSEP(p2[0]) && (len == 1 || !IS_PATHSEP(p2[1])))
+            {
+              p2++;
+              len--;
+
+              if (len) /* optional share */
+                while (len > 0 && !IS_PATHSEP(*p2))
+                  p2++, len--;
+            }
+          else
+            p2 = NULL;
+        }
+      else if (IS_PATHSEP(*p2))
+        {
+          p2++;
+          len--;
+        }
+      else
+        p2 = NULL;
+
+#elif defined (VMS) || defined (AMGIA)
+      /* XXX: VMS and AMGIA */
+      fatal (NILF, _("$(root ) is not implemented on this platform"));
+#else
+      if (IS_PATHSEP(*p2))
+        {
+          p2++;
+          len--;
+        }
+      else
+        p2 = NULL;
+#endif
+      if (p2 != NULL)
+        {
+          /* Include all subsequent path seperators. */
+
+          while (len > 0 && IS_PATHSEP(*p2))
+            p2++, len--;
+          o = variable_buffer_output (o, p, p2 - p);
+          o = variable_buffer_output (o, " ", 1);
+          doneany = 1;
+        }
+    }
+
+  if (doneany)
+    /* Kill last space.  */
+    --o;
+
+  return o;
+}
+#endif /* CONFIG_WITH_ROOT_FUNC */
+
 static char *
 func_addsuffix_addprefix (char *o, char **argv, const char *funcname)
 {
@@ -4953,6 +5045,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("basename"),      0,  1,  1,  func_basename_dir},
   { STRING_SIZE_TUPLE("dir"),           0,  1,  1,  func_basename_dir},
   { STRING_SIZE_TUPLE("notdir"),        0,  1,  1,  func_notdir_suffix},
+#ifdef CONFIG_WITH_ROOT_FUNC
+  { STRING_SIZE_TUPLE("root"),          0,  1,  1,  func_root},
+#endif
   { STRING_SIZE_TUPLE("subst"),         3,  3,  1,  func_subst},
   { STRING_SIZE_TUPLE("suffix"),        0,  1,  1,  func_notdir_suffix},
   { STRING_SIZE_TUPLE("filter"),        2,  2,  1,  func_filter_filterout},
