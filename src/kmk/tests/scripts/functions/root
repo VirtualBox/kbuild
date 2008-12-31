@@ -1,0 +1,172 @@
+# $Id: root 2172 2008-12-31 00:03:02Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+## @file
+# $(root path...)
+#
+
+#
+# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+$description = "Tests the $(path ) function";
+
+$details = "Testing edges and some simple stuff.";
+
+if ($is_kmk) {
+
+   # TEST #0 - check that the feature is present.
+   # --------------------------------------------
+   run_make_test('
+ifneq ($(root /a),/)
+$(error sub-test 0 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+   # TEST #1 - the real test.
+   # ------------------------
+   run_make_test('
+ifneq ($(root /asdf/asdf/adsf),/)
+$(error sub-test 0 failed:$(root /asdf/asdf/adsf))
+endif
+ifneq ($(root asdf/asdf/adsf),)
+$(error sub-test 1 failed)
+endif
+ifneq ($(root asdf/asdf/adsf/),)
+$(error sub-test 2 failed)
+endif
+ifneq ($(root asdf/asdf/adsf/),)
+$(error sub-test 3 failed)
+endif
+ifneq ($(root a),)
+$(error sub-test 4 failed)
+endif
+ifneq ($(root ),)
+$(error sub-test 5 failed)
+endif
+ifneq ($(root //a),//)
+$(error sub-test 6 failed)
+endif
+ifneq ($(root /a),/)
+$(error sub-test 7 failed)
+endif
+ifneq ($(root ///a),///)
+$(error sub-test 8 failed)
+endif
+ifneq ($(root /a /b /c d /e),/ / / /)
+$(error sub-test 9 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+
+   # TEST #2 - DOS PATH stuff.
+   # ------------------------
+   if ($port_type eq 'W32' || $port_type eq 'OS/2' || $port_type eq 'DOS') {
+      run_make_test('
+ifneq ($(root D:),D:)
+$(error sub-test 0 failed)
+endif
+ifneq ($(root D:/),D:/)
+$(error sub-test 1 failed)
+endif
+ifneq ($(root D:\\),D:\\)
+$(error sub-test 2 failed)
+endif
+ifneq ($(root D:\\\\),D:\\\\)
+$(error sub-test 3 failed)
+endif
+ifneq ($(root D:\\\\a),D:\\\\)
+$(error sub-test 4 failed)
+endif
+ifneq ($(root D:\\/a),D:\\/)
+$(error sub-test 5 failed)
+endif
+ifneq ($(root a:\\\\//asdf/asdf\\asdf),a:\\\\//)
+$(error sub-test 6 failed)
+endif
+ifneq ($(root z://\\\\asdf/asdf\\asdf),z://\\\\)
+$(error sub-test 7 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+      }
+
+   # TEST #3 - UNC PATH stuff.
+   # ------------------------
+   if ($port_type eq 'W32' || $port_type eq 'OS/2') {
+      run_make_test('
+ifneq ($(root //./),//./)
+$(error sub-test 0 failed)
+endif
+ifneq ($(root \\\\.\\),\\\\.\\)
+$(error sub-test 1 failed)
+endif
+ifneq ($(root \\\\\\.\\),\\\\\\)
+$(error sub-test 2 failed)
+endif
+ifneq ($(root ///.\\),///)
+$(error sub-test 3 failed)
+endif
+ifneq ($(root /\\.\\),/\\.\\)
+$(error sub-test 4 failed)
+endif
+ifneq ($(root \\/.\\),\\/.\\)
+$(error sub-test 5 failed)
+endif
+ifneq ($(root //srv/),//srv/)
+$(error sub-test 6 failed)
+endif
+ifneq ($(root //srv),)
+$(error sub-test 7 failed)
+endif
+ifneq ($(root //srv/share),//srv/share)
+$(error sub-test 8 failed)
+endif
+ifneq ($(root //srv/share/),//srv/share/)
+$(error sub-test 9 failed)
+endif
+ifneq ($(root //srv/share/asdf),//srv/share/)
+$(error sub-test 10 failed)
+endif
+
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+      }
+
+}
+
+
+
+# Indicate that we're done.
+1;
+
