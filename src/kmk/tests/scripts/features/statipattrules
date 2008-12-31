@@ -47,7 +47,7 @@ run_make_test('
 .DEFAULT: ; @echo $@
 foo: foo%: % %.x % % % y.% % ; @echo $@
 ',
-              '', ".x\ny.\nfoo");
+              '-j1', ".x\ny.\nfoo");
 
 
 # TEST #4 -- bug #12180: core dump on a stat pattern rule with an empty
