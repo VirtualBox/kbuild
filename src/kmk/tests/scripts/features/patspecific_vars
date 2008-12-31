@@ -36,28 +36,28 @@ close(MAKEFILE);
 
 # TEST #1 -- basics
 
-&run_make_with_options($makefile, "", &get_logfile);
+&run_make_with_options($makefile, "-j1", &get_logfile);
 $answer = "one.x: one two baz\ntwo.x: foo four baz\nthree.x: foo four three\n";
 &compare_output($answer,&get_logfile(1));
 
 
 # TEST #2 -- try the override feature
 
-&run_make_with_options($makefile, "BAZ=five", &get_logfile);
+&run_make_with_options($makefile, "-j1 BAZ=five", &get_logfile);
 $answer = "one.x: one two five\ntwo.x: foo four five\nthree.x: foo four three\n";
 &compare_output($answer,&get_logfile(1));
 
 
 # TEST #3 -- make sure patterns are inherited properly
 
-&run_make_with_options($makefile, "four.x", &get_logfile);
+&run_make_with_options($makefile, "-j1 four.x", &get_logfile);
 $answer = "baz: foo two baz\nfour.x: foo two baz\n";
 &compare_output($answer,&get_logfile(1));
 
 
 # TEST #4 -- test multiple patterns matching the same target
 
-&run_make_with_options($makefile, "ab", &get_logfile);
+&run_make_with_options($makefile, "-j1 ab", &get_logfile);
 $answer = "aaa bbb\nccc ddd\n";
 &compare_output($answer,&get_logfile(1));
 
@@ -68,7 +68,7 @@ run_make_test('
 
 /bar:
 	@echo $(foo) $$foo
-', '', 'foo foo');
+', '-j1', 'foo foo');
 
 
 # TEST #6 -- test expansion of pattern-specific simple variables
@@ -108,7 +108,7 @@ endif
 
 global := new $$t
 ',
-'',
+'-j1',
 'normal: global: orginal $t pattern:  inherit: ;
 pattrn: global: orginal $t pattern:  inherit: ;');
 
@@ -116,7 +116,7 @@ pattrn: global: orginal $t pattern:  inherit: ;');
 # TEST #7 -- test expansion of pattern-specific recursive variables
 #
 run_make_test(undef, # reuse previous makefile
-'rec=1',
+'-j1 rec=1',
 'normal: global: new $t pattern: good $t inherit: good $t;
 pattrn: global: new $t pattern: good $t inherit: good $t;');
 
