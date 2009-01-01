@@ -29,7 +29,7 @@ fe = $(foreach var2, $(for_var),$(subst .c,.o, $(var2) ) )
 all: auto for2
 auto : ; @echo $(av)
 for2: ; @echo $(fe)',
-              '-e WHITE=WHITE CFLAGS=',
+              '-j1 -e WHITE=WHITE CFLAGS=',
               "undefined file ". $CC_origin ." file environment default file command line override automatic automatic
 foo.o bletch.o null.o @.o garf.o .o    .o undefined.o file.o ". $CC_origin .".o file.o environment.o default.o file.o command.o line.o override.o automatic.o automatic.o");
 
