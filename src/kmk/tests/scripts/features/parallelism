@@ -118,7 +118,8 @@ Fail
 #MAKE#: *** [fail.3] Error 1
 The failing command:
 @exit 1
-Ok done',
+Ok done
+#MAKE#: *** Exiting with status 2',
              512);
 
 
