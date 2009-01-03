@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2178 2009-01-03 00:26:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -47,8 +47,12 @@ extern int my_other_stat(const char *, struct stat *);
 
 
 
-#define S_ISDIR(m)  (((m) & _S_IFMT) == _S_IFDIR)
-#define S_ISREG(m)  (((m) & _S_IFMT) == _S_IFREG)
+#ifndef S_ISDIR
+# define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+#ifndef S_ISREG
+# define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+#endif
 #define S_ISLNK(m)  0
 #define	S_IRWXU (_S_IREAD | _S_IWRITE | _S_IEXEC)
 #define	S_IXUSR _S_IEXEC
@@ -66,7 +70,9 @@ extern int my_other_stat(const char *, struct stat *);
 #define	S_ISGID 0002000
 #define ALLPERMS 0000777
 
-#define PATH_MAX _MAX_PATH
+#undef  PATH_MAX
+#define PATH_MAX   _MAX_PATH
+#undef  MAXPATHLEN
 #define MAXPATHLEN _MAX_PATH
 
 #define EX_OK 0
@@ -87,12 +93,16 @@ extern int my_other_stat(const char *, struct stat *);
 
 #define _PATH_DEVNULL "/dev/null"
 
-#define MAX(a,b) ((a) >= (b) ? (a) : (b))
+#ifndef MAX
+# define MAX(a,b) ((a) >= (b) ? (a) : (b))
+#endif
 
 typedef int mode_t;
 typedef unsigned short nlink_t;
+#if 0 /* found in config.h */
 typedef unsigned short uid_t;
 typedef unsigned short gid_t;
+#endif
 typedef long ssize_t;
 typedef unsigned long u_long;
 typedef unsigned int u_int;
@@ -113,7 +123,9 @@ struct iovec
 };
 
 typedef __int64 intmax_t;
+#if 0 /* found in config.h */
 typedef unsigned __int64 uintmax_t;
+#endif
 
 #define chown(path, uid, gid) 0         /** @todo implement fchmod! */
 char *dirname(char *path);
