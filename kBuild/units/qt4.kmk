@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2181 2009-01-03 00:39:23Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2183 2009-01-03 01:15:03Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -404,7 +404,7 @@ define TOOL_QT4_RCC_QRC_CMDS
 	$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
-		-e 's|^[^/]|$(abspathex $(dir $(source)),$(defpath))/&|' \
+		-e 's|^[^/][^:]|$(abspathex $(dir $(source)),$(defpath))/&|' \
 		-e 's|$$$$| \\|' \
 		--append $(dep) \
 		$(source)
@@ -412,7 +412,7 @@ define TOOL_QT4_RCC_QRC_CMDS
 	$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
-		-e 's|^[^/]|$(abspathex $(dir $(source)),$(defpath))/&|' \
+		-e 's|^[^/][^:]|$(abspathex $(dir $(source)),$(defpath))/&|' \
 		-e 's|$$$$|:\n|' \
 		--append $(dep) \
 		$(source)
