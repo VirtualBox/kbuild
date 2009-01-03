@@ -1,4 +1,4 @@
-# $Id: header.kmk 2148 2008-12-27 20:51:57Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2182 2009-01-03 00:52:10Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2148 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2182 $  )
 
 
 #
@@ -524,6 +524,9 @@ GMAKE       := $(KBUILD_BIN_PATH)/kmk_gmake$(HOSTSUFF_EXE)
 DEP_IDB_EXT := $(KBUILD_BIN_PATH)/kDepIDB$(HOSTSUFF_EXE)
 DEP_IDB_INT := kmk_builtin_kDepIDB
 DEP_IDB     := $(DEP_IDB_INT)
+if $(KMK_REVISION) >= 2121 # temporary hack, remove after next build cycle.
+DEP_IDB_Q   := -q
+endif
 
 DEP_PRE     := $(KBUILD_BIN_PATH)/kDepPre$(HOSTSUFF_EXE)
 
