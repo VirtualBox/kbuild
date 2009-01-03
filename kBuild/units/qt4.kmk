@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2176 2009-01-02 23:17:52Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2177 2009-01-03 00:24:33Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -957,7 +957,9 @@ ifeq ($(bld_trg),darwin)
  $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/4/Headers) )
 else
  ifeq ($(bld_trg),win)
-  local qt_infix ?= 4
+  ifndef qt_infix
+   local qt_infix := 4
+  endif
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_LIB)) )
   ifeq ($(tool_do),LINK_PROGRAM)
    $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(qt_infix)$(SUFF_LIB) )
