@@ -3851,6 +3851,13 @@ die (int status)
       log_working_directory (0);
     }
 
+#ifdef KMK
+  /* The failure might be lost in a -j <lots> run, so mention the
+     failure again before exiting. */
+  if (status && job_slots != 1)
+    error (NILF, _("*** Exiting with status %d"), status);
+#endif
+
   exit (status);
 }
 
