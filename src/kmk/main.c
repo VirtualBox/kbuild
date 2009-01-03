@@ -3791,6 +3791,9 @@ void
 die (int status)
 {
   static char dying = 0;
+#ifdef KMK
+  static char need_2nd_error = 0;
+#endif 
 
   if (!dying)
     {
@@ -3800,6 +3803,15 @@ die (int status)
 
       if (print_version_flag)
 	print_version ();
+
+#ifdef KMK
+      /*  Flag 2nd error message. */
+      if (status != 0 
+          && (   job_slots_used > 0 
+              || print_data_base_flag
+              || print_stats_flag))
+        need_2nd_error = 1;
+#endif /* KMK */      
 
       /* Wait for children to die.  */
       err = (status != 0);
@@ -3854,7 +3866,7 @@ die (int status)
 #ifdef KMK
   /* The failure might be lost in a -j <lots> run, so mention the
      failure again before exiting. */
-  if (status != 0 && job_slots != 1)
+  if (need_2nd_error != 0)
     error (NILF, _("*** Exiting with status %d"), status);
 #endif
 
