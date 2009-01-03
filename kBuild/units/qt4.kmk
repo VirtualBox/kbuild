@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2177 2009-01-03 00:24:33Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2181 2009-01-03 00:39:23Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -962,7 +962,7 @@ else
   endif
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_LIB)) )
   ifeq ($(tool_do),LINK_PROGRAM)
-   $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(qt_infix)$(SUFF_LIB) )
+   $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
   endif
  else
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/lib$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_DLL)) )
