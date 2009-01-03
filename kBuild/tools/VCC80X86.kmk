@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 2018 2008-11-02 00:08:56Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 2182 2009-01-03 00:52:10Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -135,7 +135,7 @@ define TOOL_VCC80X86_COMPILE_C_CMDS
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
+	$(QUIET)$(DEP_IDB) -f -s $(DEP_IDB_Q) -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 
 
@@ -163,7 +163,7 @@ define TOOL_VCC80X86_COMPILE_CXX_CMDS
 		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(DEP_IDB) -f -s -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
+	$(QUIET)$(DEP_IDB) -f -s $(DEP_IDB_Q) -o $(dep) -t $(obj) $(call TOOL_VCC80X86_PDB,$(outbase)-obj,idb)
 endef
 
 ## @todo configure the assembler template.
@@ -266,7 +266,7 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VCC80X86_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC80X86_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
-TOOL_VCC80X86_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp 
+TOOL_VCC80X86_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp
 TOOL_VCC80X86_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest $(PATH_LIB)/$(notdir $(outbase)).lib $(PATH_LIB)/$(notdir $(outbase)).exp
 define TOOL_VCC80X86_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_VCC80X86_LD) $(flags) \
