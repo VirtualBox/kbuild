@@ -146,7 +146,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define HAVE_LIMITS_H 1
 
 /* Define to 1 if you have the <locale.h> header file. */
-/*#define HAVE_LOCALE_H 1*/
+#define HAVE_LOCALE_H 1
 
 /* Define to 1 if you have the <mach/mach.h> header file. */
 /* #undef HAVE_MACH_MACH_H */
@@ -443,14 +443,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define uid_t int
 
 /* Define uintmax_t if not defined in <stdint.h> or <inttypes.h>. */
+#if 0
 #define uintmax_t unsigned long
+#else
+#define uintmax_t unsigned __int64
+#endif
 
 /* Define as `fork' if `vfork' does not work. */
 /*#define vfork fork*/
 
+#if 0/* see above */
 /* Define to `unsigned long' or `unsigned long long'
    if <inttypes.h> doesn't define.  */
 #define uintmax_t unsigned long
+#endif
 
 /* Define if you support file names longer than 14 characters.  */
 #define HAVE_LONG_FILE_NAMES 1
@@ -526,7 +532,7 @@ extern int my_stat(const char *, struct stat *);
 
 #include "inlined_memchr.h"
 
-#if 1
+#ifdef CONFIG_WITH_FAST_IS_SPACE
 # include <ctype.h>
 # if _MSC_VER >= 1400
 #  include <intrin.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2172 2008-12-31 00:03:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2178 2009-01-03 00:26:23Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -183,7 +183,7 @@ kmk_DEFS = \
 	KBUILD_HOST_CPU=\"$(KBUILD_TARGET_CPU)\"
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
-kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT
+kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT CONFIG_WITH_FAST_IS_SPACE
 kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 
 kmk_SOURCES = \
