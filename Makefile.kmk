@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2187 2009-01-04 00:58:05Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -42,6 +42,8 @@ kBuild_SOURCES := \
 				kBuild/tools/*.kmk \
 				kBuild/sdks/*.kmk \
 				kBuild/units/*.kmk \
+				kBuild/doc/*.txt \
+				kBuild/doc/*.html \
 				kBuild/msgstyles/* \
 				kBuild/templates/*),\
 			$(src)=>$(subst kBuild/,,$(src)))
