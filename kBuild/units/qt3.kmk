@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2144 2008-12-26 00:32:00Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2197 2009-01-05 13:13:30Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -415,7 +415,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(target)_CLEAN += $(out) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(more_output) $(maybe_output) $(dep)
 $(target)-inst-nls_SOURCES += $(out)
 
 endef # def_unit_qt3_target_pre_handle_translation_dx
@@ -506,7 +506,7 @@ endif
 
 $(target)_INTERMEDIATES += $(realout.h)
 $(target)_GEN_SOURCES_ += $(realout.cpp)
-$(target)_CLEAN += $(out.h) $(out.cpp) $(realout.h) $(realout.cpp) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out.h) $(out.cpp) $(realout.h) $(realout.cpp) $(more_output) $(maybe_output) $(dep)
 
 endef # def_unit_qt3_target_pre_handle_ui_dx
 
@@ -595,7 +595,7 @@ endif
 
 $(target)_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef
 
@@ -685,7 +685,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 endif
 
 $(target)_INTERMEDIATES += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef
 
