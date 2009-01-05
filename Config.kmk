@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2044 2008-11-03 12:29:45Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2190 2009-01-05 03:27:48Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -138,7 +138,7 @@ TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024 -g
- ifdef NIX_INSTALL_DIR
+ if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
 TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
  else
 TEMPLATE_BIN_INST               = kBuild/bin/os2.x86/
@@ -163,7 +163,7 @@ ifeq ($(KBUILD_TARGET),darwin)
   TEMPLATE_BIN_LDFLAGS         += -classic_ld
  endif
  TEMPLATE_BIN_LDFLAGS.profile   = -pg
- ifdef NIX_INSTALL_DIR
+ if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
   TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
   TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
@@ -208,7 +208,7 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
   #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
  endif
- ifdef NIX_INSTALL_DIR
+ if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
   TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
   TEMPLATE_BIN_INST             = kBuild/bin/win.$(KBUILD_TARGET_ARCH)/
@@ -253,7 +253,7 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_LIBS            += rt
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
  endif
- ifdef NIX_INSTALL_DIR
+ if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
   TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
  else
   TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
