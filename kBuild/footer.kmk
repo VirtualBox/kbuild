@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2188 2009-01-05 01:54:34Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2189 2009-01-05 01:58:07Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3368,7 +3368,8 @@ $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)
 	$(evalval def_install_symlink))
 
 # the collection target
-TARGET_$(target) := $(PATH_TARGET)/$(target).ins
+local clean_files += $(PATH_TARGET)/$(target).ins
+TARGET_$(target)  := $(PATH_TARGET)/$(target).ins
 $(TARGET_$(target)): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
 	@$(QUIET2)$(APPEND) $@
 
