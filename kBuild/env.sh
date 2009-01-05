@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 2098 2008-11-21 16:35:31Z knut.osmundsen@oracle.com $
+# $Id: env.sh 2191 2009-01-05 03:51:51Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -36,6 +36,7 @@ EVAL_EXPORT="export "
 DBG_OPT=
 QUIET_OPT=
 FULL_OPT=
+FULL_WITH_BIN_OPT=
 LEGACY_OPT=
 VAR_OPT=
 VALUE_ONLY_OPT=
@@ -57,6 +58,10 @@ do
             ;;
         "--full")
             FULL_OPT="true"
+            ;;
+        "--full-with-bin")
+            FULL_OPT="true"
+            FULL_WITH_BIN_OPT="true"
             ;;
         "--normal")
             FULL_OPT=
@@ -128,7 +133,7 @@ do
             echo "      Controls debug output. Default: --no-debug-script"
             echo "  --quiet, --verbose"
             echo "      Controls informational output. Default: --verbose"
-            echo "  --full, --normal"
+            echo "  --full, --full-with-bin, --normal"
             echo "      Controls the variable set. Default: --normal"
             echo "  --legacy, --no-legacy"
             echo "      Include legacy variables in result. Default: --no-legacy"
@@ -515,6 +520,9 @@ else
         test -n "${FULL_OPT}" -o "${EXP_TYPE_OPT}" && echo "${EVAL_EXPORT} KBUILD_TYPE=${KBUILD_TYPE}"
         if test -n "${FULL_OPT}"; then
             echo "${EVAL_EXPORT} KBUILD_PATH=${KBUILD_PATH}"
+            if test -n "{FULL_WITH_BIN_OPT}"; then
+                echo "${EVAL_EXPORT} KBUILD_BIN_PATH=${KBUILD_BIN_PATH}"
+            fi
             echo "${EVAL_EXPORT} KBUILD_HOST=${KBUILD_HOST}"
             echo "${EVAL_EXPORT} KBUILD_HOST_ARCH=${KBUILD_HOST_ARCH}"
             echo "${EVAL_EXPORT} KBUILD_HOST_CPU=${KBUILD_HOST_CPU}"
@@ -524,6 +532,9 @@ else
 
             if test -n "${LEGACY_OPT}"; then
                 echo "${EVAL_EXPORT} PATH_KBUILD=${KBUILD_PATH}"
+                if test -n "${FULL_WITH_BIN_OPT}"; then 
+                    echo "${EVAL_EXPORT} PATH_KBUILD_BIN=${KBUILD_PATH_BIN}"
+                fi 
                 echo "${EVAL_EXPORT} BUILD_TYPE=${KBUILD_TYPE}"
                 echo "${EVAL_EXPORT} BUILD_PLATFORM=${KBUILD_HOST}"
                 echo "${EVAL_EXPORT} BUILD_PLATFORM_ARCH=${KBUILD_HOST_ARCH}"
@@ -539,6 +550,9 @@ else
         test -n "${FULL_OPT}" -o "${EXP_TYPE_OPT}" && export KBUILD_TYPE
         if test -n "${FULL_OPT}"; then
             export KBUILD_PATH
+            if test -n "${FULL_WITH_BIN_OPT}"; then
+                export KBUILD_BIN_PATH
+            fi
             export KBUILD_HOST
             export KBUILD_HOST_ARCH
             export KBUILD_HOST_CPU
@@ -548,6 +562,9 @@ else
 
             if test -n "${LEGACY_OPT}"; then
                 export PATH_KBUILD=$KBUILD_PATH
+                if test -n "${FULL_WITH_BIN_OPT}"; then
+                    export PATH_KBUILD_BIN=$KBUILD_BIN_PATH
+                fi
                 export BUILD_TYPE=$KBUILD_TYPE
                 export BUILD_PLATFORM=$KBUILD_HOST
                 export BUILD_PLATFORM_ARCH=$KBUILD_HOST_ARCH
