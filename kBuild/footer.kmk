@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2189 2009-01-05 01:58:07Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2196 2009-01-05 13:13:09Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2030,6 +2030,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 $(obj): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_$(subst :,_,$(source))_CMDS_PREV_),$$(commands $$@),FORCE)
 endif
 ifdef TOOL_$(tool)_COMPILE_$(type)_USES_KOBJCACHE
+_OUT_FILES += $(outbase).koc
 $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_) : \
 		$($(target)_$(source)_DEPEND_) \
 		$(value _DEP_COMPILE_CMDS) \
