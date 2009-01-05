@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #ifdef _MSC_VER
 # define MSC_DO_64_BIT_IO
 # include "mscfakes.h"
+#else
+# include <sys/time.h>
 #endif
 #include "cp_extern.h"
 #include "cmp_extern.h"
