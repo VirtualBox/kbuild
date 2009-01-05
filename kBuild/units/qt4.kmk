@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2183 2009-01-03 01:15:03Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2197 2009-01-05 13:13:30Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -482,7 +482,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
 endif
 
-$(target)_CLEAN += $(out) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(more_output) $(maybe_output) $(dep)
 $(target)-inst-nls_SOURCES += $(out)
 
 endef # def_unit_qt4_target_pre_handle_translation_dx
@@ -572,7 +572,7 @@ endif
 
 $(target)_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef # def_unit_qt4_target_pre_handle_rcc_dx
 
@@ -658,7 +658,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 endif
 
 $(target)_INTERMEDIATES += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef # def_unit_qt4_target_pre_handle_ui_dx
 
@@ -745,7 +745,7 @@ endif
 
 $(target)_INTERMEDIATES += $(realout)
 $(target)_GEN_SOURCES_ += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef
 
@@ -837,7 +837,7 @@ ifndef NO_COMPILE_CMDS_DEPS
 endif
 
 $(target)_INTERMEDIATES += $(realout)
-$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output)
+$(target)_CLEAN += $(out) $(realout) $(more_output) $(maybe_output) $(dep)
 
 endef
 
