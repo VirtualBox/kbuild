@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2143 2008-12-25 22:56:28Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2188 2009-01-05 01:54:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2862,6 +2862,7 @@ endif # NOINST
 # dependency file
 local dep := $(outbase)$(SUFF_DEP)
 ifndef NO_LINK_CMDS_DEPS
+ _DEPFILES_INCLUDED += $(dep)
  ifdef KB_HAVE_INCLUDEDEP_QUEUE
   includedep-queue $(dep)
  else
