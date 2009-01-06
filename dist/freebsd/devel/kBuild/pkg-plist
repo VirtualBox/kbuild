@@ -1,27 +1,29 @@
+bin/kDepIDB
+bin/kDepPre
+bin/kObjCache
 bin/kmk
 bin/kmk_append
+bin/kmk_ash
 bin/kmk_cat
 bin/kmk_chmod
-bin/kmk_cp
 bin/kmk_cmp
+bin/kmk_cp
 bin/kmk_echo
 bin/kmk_expr
+bin/kmk_gmake
+bin/kmk_install
+bin/kmk_ln
 bin/kmk_md5sum
 bin/kmk_mkdir
 bin/kmk_mv
-bin/kmk_install
-bin/kmk_ln
 bin/kmk_printf
 bin/kmk_redirect
 bin/kmk_rm
 bin/kmk_rmdir
-bin/kmk_test
-bin/kDepIDB
-bin/kmk_gmake
 bin/kmk_sed
-bin/kDepPre
-bin/kObjCache
-bin/kmk_ash
+bin/kmk_sleep
+bin/kmk_test
+bin/kmk_time
 %%DATADIR%%/footer.kmk
 %%DATADIR%%/header.kmk
 %%DATADIR%%/rules.kmk
@@ -44,15 +46,27 @@ bin/kmk_ash
 %%DATADIR%%/tools/GXX3PLAIN.kmk
 %%DATADIR%%/tools/GXX4MACHO.kmk
 %%DATADIR%%/tools/GXX64.kmk
+%%DATADIR%%/tools/MASM510.kmk
+%%DATADIR%%/tools/MASM600.kmk
+%%DATADIR%%/tools/MASM610.kmk
+%%DATADIR%%/tools/MASM6PLUS.kmk
+%%DATADIR%%/tools/MASM710.kmk
 %%DATADIR%%/tools/MINGW32.kmk
-%%DATADIR%%/tools/NASM.kmk
+%%DATADIR%%/tools/MSLINK510.kmk
 %%DATADIR%%/tools/TAR.kmk
+%%DATADIR%%/tools/NASM.kmk
+%%DATADIR%%/tools/OPENWATCOM-16.kmk
+%%DATADIR%%/tools/OPENWATCOM-WL.kmk
+%%DATADIR%%/tools/OPENWATCOM.kmk
 %%DATADIR%%/tools/TARGZ.kmk
 %%DATADIR%%/tools/VAC308.kmk
 %%DATADIR%%/tools/VCC70.kmk
 %%DATADIR%%/tools/VCC80.kmk
 %%DATADIR%%/tools/VCC80AMD64.kmk
 %%DATADIR%%/tools/VCC80X86.kmk
+%%DATADIR%%/tools/WATCOMC11C-16.kmk
+%%DATADIR%%/tools/WATCOMC11C-WL.kmk
+%%DATADIR%%/tools/WATCOMC11C.kmk
 %%DATADIR%%/tools/WGET.kmk
 %%DATADIR%%/tools/XGCCAMD64LINUX.kmk
 %%DATADIR%%/tools/YASM.kmk
@@ -66,6 +80,7 @@ bin/kmk_ash
 %%DATADIR%%/sdks/MACOSX105.kmk
 %%DATADIR%%/sdks/MACOSX105INCS.kmk
 %%DATADIR%%/sdks/NT4DDK.kmk
+%%DATADIR%%/sdks/OS2DDKBASE32.kmk
 %%DATADIR%%/sdks/W2K3DDK.kmk
 %%DATADIR%%/sdks/W2K3DDKAMD64.kmk
 %%DATADIR%%/sdks/W2K3DDKX86.kmk
@@ -80,8 +95,17 @@ bin/kmk_ash
 %%DATADIR%%/sdks/WINDDKWXP.kmk
 %%DATADIR%%/sdks/WINPSDK.kmk
 %%DATADIR%%/sdks/WINPSDKINCS.kmk
+%%DATADIR%%/units/lex.kmk
+%%DATADIR%%/units/qt3.kmk
+%%DATADIR%%/units/qt4.kmk
+%%DATADIR%%/doc/QuickReference-kmk.txt
+%%DATADIR%%/doc/QuickReference-kmk.html
 %%DATADIR%%/msgstyles/brief.kmk
-@dirrm %%DATADIR%%/tools
-@dirrm %%DATADIR%%/sdks
+%%DATADIR%%/templates/DUMMY.kmk
+@dirrm %%DATADIR%%/doc
 @dirrm %%DATADIR%%/msgstyles
+@dirrm %%DATADIR%%/sdks
+@dirrm %%DATADIR%%/templates
+@dirrm %%DATADIR%%/tools
+@dirrm %%DATADIR%%/units
 @dirrm %%DATADIR%%
