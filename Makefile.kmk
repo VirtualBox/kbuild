@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2187 2009-01-04 00:58:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2202 2009-01-06 14:33:42Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -37,16 +37,16 @@ INSTALLS += kBuild
 kBuild_INST = $(NIX_INSTALL_DIR_SHARE)
 kBuild_SOURCES := \
         $(foreach src,\
-			$(wildcard \
-				kBuild/*.kmk \
-				kBuild/tools/*.kmk \
-				kBuild/sdks/*.kmk \
-				kBuild/units/*.kmk \
-				kBuild/doc/*.txt \
-				kBuild/doc/*.html \
-				kBuild/msgstyles/* \
-				kBuild/templates/*),\
-			$(src)=>$(subst kBuild/,,$(src)))
+		$(wildcard \
+			kBuild/*.kmk \
+			kBuild/tools/*.kmk \
+			kBuild/sdks/*.kmk \
+			kBuild/units/*.kmk \
+			kBuild/doc/*.txt \
+			kBuild/doc/*.html \
+			kBuild/msgstyles/* \
+			kBuild/templates/*),\
+		$(src)=>$(subst kBuild/,,$(src)))
 endif
 
 #
@@ -57,7 +57,10 @@ kBuild_bin_INST = $(TEMPLATE_BIN_INST)
 kBuild_bin_SOURCES =
 
 kBuild_bin_SOURCES.os2 = \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc062.dll=>libc062.dll
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc06.dll=>libc06.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc061.dll=>libc061.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc062.dll=>libc062.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc063.dll=>libc063.dll
 
 if1of ($(KBUILD_TARGET), nt win)
 kBuild_bin_SOURCES.$(KBUILD_TARGET) = \

@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2190 2009-01-05 03:27:48Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2202 2009-01-06 14:33:42Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -131,6 +131,11 @@ TEMPLATE_BIN = Commandline binary
 TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
 TEMPLATE_BIN_DEFS.profile       = NDEBUG
 TEMPLATE_BIN_DEFS.release       = NDEBUG
+if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
+ TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
+else
+ TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
+endif
 
 ifeq ($(KBUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
@@ -138,11 +143,6 @@ TEMPLATE_BIN_CFLAGS             = -g
 TEMPLATE_BIN_CFLAGS.profile     = -pg
 TEMPLATE_BIN_CFLAGS.release     = -O3
 TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024 -g
- if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
-TEMPLATE_BIN_INST               = $(NIX_INSTALL_DIR_BIN)/
- else
-TEMPLATE_BIN_INST               = kBuild/bin/os2.x86/
- endif
 endif
 
 ifeq ($(KBUILD_TARGET),darwin)
@@ -163,11 +163,6 @@ ifeq ($(KBUILD_TARGET),darwin)
   TEMPLATE_BIN_LDFLAGS         += -classic_ld
  endif
  TEMPLATE_BIN_LDFLAGS.profile   = -pg
- if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
-  TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
- else
-  TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
- endif
 endif
 
 ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
@@ -208,11 +203,6 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
   #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
  endif
- if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
-  TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
- else
-  TEMPLATE_BIN_INST             = kBuild/bin/win.$(KBUILD_TARGET_ARCH)/
- endif
 endif
 
 ifndef TEMPLATE_BIN_TOOL
@@ -252,11 +242,6 @@ ifndef TEMPLATE_BIN_TOOL
  ifeq ($(KBUILD_TARGET),solaris)
   TEMPLATE_BIN_LIBS            += rt
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
- endif
- if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
-  TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
- else
-  TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
  endif
 endif
 
