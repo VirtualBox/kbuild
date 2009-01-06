@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2178 2009-01-03 00:26:23Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2204 2009-01-06 21:40:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -161,7 +161,6 @@ int snprintf(char *buf, size_t size, const char *fmt, ...);
 #else
 #define snprintf _snprintf
 #endif
-size_t strlcpy(char *, const char *, size_t);
 int symlink(const char *pszDst, const char *pszLink);
 int utimes(const char *pszPath, const struct timeval *paTimes);
 int writev(int fd, const struct iovec *vector, int count);
