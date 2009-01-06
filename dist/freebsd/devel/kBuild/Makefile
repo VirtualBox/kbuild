@@ -57,7 +57,7 @@ do-configure:
 
 do-build:
 	cd ${WRKSRC} && ${SETENV} ${KBUILD_ENV} ./kBuild/env.sh --full ${GMAKE} NIX_INSTALL_DIR=${PREFIX} -f bootstrap.gmk
-	cd ${WRKSRC} && ./kBuild/env.sh --full-with-bin kmk NIX_INSTALL_DIR=${PREFIX} BUILD_TYPE=release -C ${WRKSRC}
+	cd ${WRKSRC} && ./kBuild/env.sh --full-with-bin kmk NIX_INSTALL_DIR=${PREFIX}
 
 do-install:
 .for bin in ${KBUILD_BINS}
