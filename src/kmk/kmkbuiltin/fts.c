@@ -780,7 +780,7 @@ fts_build(sp, type)
 	 * Open the directory for reading.  If this fails, we're done.
 	 * If being called from fts_read, set the fts_info field.
 	 */
-#ifdef FTS_WHITEOUT
+#if defined(FTS_WHITEOUT) && !defined(__OS2__)
 	if (ISSET(FTS_WHITEOUT))
 		oflag = DTF_NODUP|DTF_REWIND;
 	else

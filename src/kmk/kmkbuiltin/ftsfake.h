@@ -44,7 +44,7 @@ typedef struct {
 	struct _ftsent **fts_array;	/* sort array */
 	dev_t fts_dev;			/* starting device # */
 	char *fts_path;			/* path for this descent */
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__OS2__)
 	char *fts_rdir;		        /* path of root */
 #else
 	int fts_rfd;			/* fd for root */
