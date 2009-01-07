@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2220 2009-01-07 03:07:18Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2222 2009-01-07 22:22:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3670,12 +3670,14 @@ nothing: pass_nothing
 .PHONY:  packing
 packing: pass_packing
 
+ ifndef KBUILD_NO_TESTING_PASS_ALIASES
 .PHONY:  check
 check::  pass_testing
 
 .PHONY:  test
 test::   pass_testing
-endif
+ endif # KBUILD_NO_TESTING_PASS_ALIASES
+endif # KBUILD_NO_PASS_ALIASES
 
 
 #
