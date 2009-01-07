@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2205 2009-01-06 21:49:49Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2220 2009-01-07 03:07:18Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3076,6 +3076,15 @@ $(eval-opt-var def_install_src_rule)
 define def_install_src
 
 # deal with '=>' in the source file name.
+ifeq ($(src),=>)
+ $(error kBuild: Install target '$(target)' has a bad source specifier containing '=>' without any file names)
+endif
+ifeq ($(substr $(src),1,2),=>)
+ $(warning kBuild: Install target '$(target)' has a bad source specifier: $(src))
+endif
+ifeq ($(substr $(src),-2),=>)
+ $(warning kBuild: Install target '$(target)' has a bad source specifier: $(src))
+endif
 local srcdst := $(subst =>, ,$(src))
 local srcsrc := $(firstword $(srcdst))
 local srcdstdir := $(dir $(word 2,$(srcdst)))
