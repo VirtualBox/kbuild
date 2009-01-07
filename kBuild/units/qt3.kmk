@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2197 2009-01-05 13:13:30Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2219 2009-01-07 02:45:34Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -71,9 +71,9 @@ ifndef PATH_SDK_QT3
    ifeq ($(KBUILD_TARGET),darwin)
     # No idea here yet...
    else ifeq ($(KBUILD_TARGET),os2)
-    # No idea here yet...
+    # No idea here yet... Check QTDIR perhaps, but for now users have toset PATH_SDK_QT3.
    else ifeq ($(KBUILD_TARGET),win)
-    # No idea here yet...
+    # No idea here yet... Check QTDIR perhaps, but for now users have toset PATH_SDK_QT3.
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT3_LIB* stuff if it doesn't work.
     # Try find the general location of the thing by looking for the qm2ts program, then try looking for
@@ -216,7 +216,7 @@ ifndef PATH_TOOL_QT3_BIN
  PATH_TOOL_QT3_BIN := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v3*/bin)))
  ifeq ($(PATH_TOOL_QT3_BIN),)
   if1of ($(KBUILD_HOST), win os2)
-   # sorry, no joy here.
+   # Sorry, no joy here. Check QTDIR perhaps, but for now users have to set PATH_TOOL_QT3_BIN.
   else
    ifdef TOOL_QT3_BIN_SUFF
     TOOL_QT3_BIN_SUFF := $(TOOL_QT3_BIN_SUFF)
@@ -270,10 +270,13 @@ else
  TOOL_QT3_BIN_SUFF := $(TOOL_QT3_BIN_SUFF)
 endif
 ifneq ($(PATH_TOOL_QT3_BIN),)
- TOOL_QT3_MOC       ?= $(PATH_TOOL_QT3_BIN)/moc$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT3_UIC       ?= $(PATH_TOOL_QT3_BIN)/uic$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT3_LRC       ?= $(PATH_TOOL_QT3_BIN)/lrelease$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT3_LUPDATE   ?= $(PATH_TOOL_QT3_BIN)/lupdate$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ ifeq ($(KBUILD_HOST),os2)
+  TOOL_QT3_ENV_SETUP ?= $(REDIRECT) -E 'BEGINLIBPATH=$(PATH_TOOL_QT3_BIN);$(libpath BEGINLIBPATH)' --
+ endif
+ TOOL_QT3_MOC       ?= $(TOOL_QT3_ENV_SETUP) $(PATH_TOOL_QT3_BIN)/moc$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_UIC       ?= $(TOOL_QT3_ENV_SETUP) $(PATH_TOOL_QT3_BIN)/uic$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LRC       ?= $(TOOL_QT3_ENV_SETUP) $(PATH_TOOL_QT3_BIN)/lrelease$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT3_LUPDATE   ?= $(TOOL_QT3_ENV_SETUP) $(PATH_TOOL_QT3_BIN)/lupdate$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
 else
  # Pathless, relies on the environment.
  TOOL_QT3_MOC       ?= moc$(TOOL_QT3_BIN_SUFF)$(HOST_SUFF_EXE)
@@ -799,6 +802,22 @@ ifeq ($(bld_trg),win)
 	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
   $(eval $(target)_LIBS   += $(qt_main_lib) )
  endif
+else if ($(bld_trg),os2)
+ # This is a real PITA since the dll/lib can be called (almost) anything. :-(
+ local qt_lib := $(firstword $(wildcard \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)*qt3*$(SUFF_LIB) \
+	$(PATH_SDK_QT3_LIB)/$(qt_prefix)*qt*$(SUFF_LIB) \
+	))
+ ifeq ($(qt_lib),)
+  local qt_prls := $(basename $(wildcard $(PATH_SDK_QT3_LIB)/$(qt_prefix)*.prl))
+  local qt_defs := $(basename $(wildcard $(PATH_SDK_QT3_LIB)/$(qt_prefix)*.def))
+  local qt_dlls := $(basename $(wildcard $(PATH_SDK_QT3_LIB)/$(qt_prefix)*.dll))
+  local qt_libs := $(basename $(wildcard $(PATH_SDK_QT3_LIB)/$(qt_prefix)*.lib))
+  local qt_lib := $(firstword \
+  	$(addsuffix .lib,$(filter $(qt_prls), $(filter $(qt_defs), $(filter $(qt_dlls), $(qt_libs))))) \
+	$(PATH_SDK_QT3_LIB)/myqt.lib )
+ endif
+ $(eval $(target)_LIBS    += $(qt_lib) )
 else
  local qt_lib := $(PATH_SDK_QT3_LIB)/lib$(qt_prefix)qt-mt$(SUFF_DLL)
  $(eval $(target)_LIBS    += $(qt_lib) )
