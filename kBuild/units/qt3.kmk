@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2219 2009-01-07 02:45:34Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2221 2009-01-07 03:16:27Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -802,7 +802,7 @@ ifeq ($(bld_trg),win)
 	) $(PATH_SDK_QT3_LIB)/$(qt_prefix)qtmain$(SUFF_LIB) )
   $(eval $(target)_LIBS   += $(qt_main_lib) )
  endif
-else if ($(bld_trg),os2)
+else ifeq ($(bld_trg),os2)
  # This is a real PITA since the dll/lib can be called (almost) anything. :-(
  local qt_lib := $(firstword $(wildcard \
 	$(PATH_SDK_QT3_LIB)/$(qt_prefix)*qt3*$(SUFF_LIB) \
