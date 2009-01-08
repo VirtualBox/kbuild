@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2202 2009-01-06 14:33:42Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2226 2009-01-08 22:31:25Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -31,26 +31,36 @@ include $(PATH_SUB_CURRENT)/src/Makefile.kmk
 
 ifdef NIX_INSTALL_DIR
 #
-# When doing a unix install, install all the kBuild scripts.
+# When doing a unix install, install all the kBuild scripts and docs.
+# TODO: Make this default and make it possible to disable it for in-tree development.
 #
-INSTALLS += kBuild
-kBuild_INST = $(NIX_INSTALL_DIR_SHARE)
-kBuild_SOURCES := \
+INSTALLS += kBuild-data
+kBuild-data_TEMPLATE = DATA
+kBuild-data_SOURCES := \
         $(foreach src,\
 		$(wildcard \
 			kBuild/*.kmk \
 			kBuild/tools/*.kmk \
 			kBuild/sdks/*.kmk \
 			kBuild/units/*.kmk \
+			kBuild/msgstyles/*.kmk \
+			kBuild/templates/*.kmk),\
+		$(src)=>$(subst kBuild/,,$(src)))
+
+INSTALLS += kBuild-doc
+kBuild-doc_TEMPLATE = DOC
+kBuild-doc_SOURCES := \
+        $(foreach src,\
+		$(wildcard \
 			kBuild/doc/*.txt \
 			kBuild/doc/*.html \
-			kBuild/msgstyles/* \
-			kBuild/templates/*),\
-		$(src)=>$(subst kBuild/,,$(src)))
+		 ),\
+		$(src)=>$(subst kBuild/doc/,,$(src)))
 endif
 
 #
 # And install any binary only tools and dlls.
+# TODO: Ship env.sh and envos2.cmd / envwin.cmd where applicable.
 #
 INSTALLS += kBuild_bin
 kBuild_bin_INST = $(TEMPLATE_BIN_INST)

@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2202 2009-01-06 14:33:42Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2226 2009-01-08 22:31:25Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -91,6 +91,12 @@ include $(KBUILD_SVN_INFO_KMK)
 
 
 #
+# Where to fine the GNU Make stuff (for FreeBSD and Windows).
+#
+PATH_GNUMAKE_SRC ?= $(PATH_ROOT)/src/kmk
+
+
+#
 # The OS and Architecture indicators.
 #
 DEFS.darwin  += KBUILD_OS_DARWIN
@@ -109,18 +115,64 @@ DEFS.amd64   += KBUILD_ARCH_AMD64
 #
 # Check if we're building a *nix installation.
 #
+# There are a few optional overrides here for customizing the install location
+# and how it is installed:
+#	MY_INST_BIN        - the bin/ directory (the trailing slash is mandatory).
+#	MY_INST_DATA       - the share/kBuild/ directory (the trailing slash is mandatory).
+#	MY_INST_DOC        - the share/doc/kBuild-x.y.z/ directory (the trailing slash is mandatory).
+#	MY_INST_UID        - the default install UID or user name.
+#	MY_INST_GID        - the default install GID or group name.
+#	MY_INST_MODE       - the default install mode mask, ",a+x" is added for executables and files.
+#	MY_INST_DATA_UID   - data specialization.
+#	MY_INST_DATA_GID   - data specialization.
+#	MY_INST_DATA_MODE  - data specialization.
+#	MY_INST_DOC_UID    - doc specialization.
+#	MY_INST_DOC_GID    - doc specialization.
+#	MY_INST_DOC_MODE   - doc specialization.
+#	MY_INST_BIN_UID    - binary (executable) specialization.
+#	MY_INST_BIN_GID    - binary (executable) specialization.
+#	MY_INST_BIN_MODE   - binary (executable) specialization.
+#
+# When running kmk install, you can use PATH_INS like you use DESTDIR in other makefile
+# systems. (These things will be improved in 0.2.x btw, so will be possible to enable a
+# mode where PREFIX and DESTDIR will.)
+#
+#
 ifdef NIX_INSTALL_DIR
-NIX_INSTALL_DIR_BIN   := $(patsubst /%,%,$(NIX_INSTALL_DIR))/bin
-NIX_INSTALL_DIR_SHARE := $(patsubst /%,%,$(NIX_INSTALL_DIR))/share/kBuild
+ MY_INST_ROOT := $(patsubst /%,%,$(NIX_INSTALL_DIR))/
+ ifndef MY_INST_BIN
+  MY_INST_BIN := $(MY_INST_ROOT)bin/
+ endif
+ ifndef MY_INST_DATA
+  MY_INST_DATA := $(MY_INST_ROOT)share/kBuild/
+ endif
+ ifndef MY_INST_DOC
+  MY_INST_DOC := $(MY_INST_ROOT)share/doc/kBuild-$(KBUILD_VERSION)/
+ endif
+ if !defined(MY_INST_BIN_MODE) && defined(MY_INST_MODE)
+  MY_INST_BIN_MODE := $(MY_INST_MODE),a+x
+ endif
+
 DEFS += \
-	KBUILD_PATH=\"/$(NIX_INSTALL_DIR_SHARE)\" \
-	KBUILD_BIN_PATH=\"/$(NIX_INSTALL_DIR_BIN)\"
+	KBUILD_PATH=\"/$(patsubst %/,%,$(MY_INST_DATA))\" \
+	KBUILD_BIN_PATH=\"/$(patsubst %/,%,$(MY_INST_BIN))\"
 endif
 
+
 #
-# Where to fine the GNU Make stuff (for FreeBSD and Windows).
+# Templates for installing docs and make scripts.
 #
-PATH_GNUMAKE_SRC               ?= $(PATH_ROOT)/src/kmk
+TEMPLATE_DATA = Data installation template.
+TEMPLATE_DATA_INST   = $(MY_INST_DATA)
+TEMPLATE_DATA_MODE  ?= $(firstword $(MY_INST_DATA_MODE) $(MY_INST_MODE) a+r)
+TEMPLATE_DATA_UID   ?= $(firstword $(MY_INST_DATA_UID)  $(MY_INST_UID))
+TEMPLATE_DATA_GID   ?= $(firstword $(MY_INST_DATA_GID)  $(MY_INST_GID))
+
+TEMPLATE_DOC  = Documentation installation template.
+TEMPLATE_DOC_INST   = $(MY_INST_DOC)
+TEMPLATE_DOC_MODE   ?= $(firstword $(MY_INST_DOC_MODE) $(MY_INST_MODE) a+r)
+TEMPLATE_DOC_UID    ?= $(firstword $(MY_INST_DOC_UID)  $(MY_INST_UID))
+TEMPLATE_DOC_GID    ?= $(firstword $(MY_INST_DOC_GID)  $(MY_INST_GID))
 
 
 #
@@ -132,10 +184,14 @@ TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
 TEMPLATE_BIN_DEFS.profile       = NDEBUG
 TEMPLATE_BIN_DEFS.release       = NDEBUG
 if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
- TEMPLATE_BIN_INST             = $(NIX_INSTALL_DIR_BIN)/
+ TEMPLATE_BIN_INST             = $(MY_INST_BIN)
+ TEMPLATE_BIN_MODE            ?= $(firstword $(MY_INST_BIN_MODE) a+rx)
+ TEMPLATE_BIN_UID             ?= $(firstword $(MY_INST_BIN_UID) $(MY_INST_UID))
+ TEMPLATE_BIN_GID             ?= $(firstword $(MY_INST_BIN_GID) $(MY_INST_GID))
 else
  TEMPLATE_BIN_INST             = kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/
 endif
+
 
 ifeq ($(KBUILD_TARGET),os2)
 TEMPLATE_BIN_TOOL               = GCC3OMF
