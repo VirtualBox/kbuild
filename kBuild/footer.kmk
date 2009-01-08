@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2222 2009-01-07 22:22:03Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2225 2009-01-08 22:29:21Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2125,7 +2125,7 @@ $(eval-opt-var def_link_rule)
 define def_link_install_rule
 $(INSTARGET_$(target)) : $(out) | $(call DIRDEP,$(dir $(INSTARGET_$(target))))
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
-	$$(QUIET)$$(INSTALL) $$(if $(mode),-m $(mode)) -- $(out) $$@
+	$$(QUIET)$$(INSTALL) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $(out) $$@
 
 ifdef KBUILD_DO_AUTO_INSTALL
 $(basename $(notdir $(out))):: $(INSTARGET_$(target))
@@ -2250,7 +2250,32 @@ ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOI
   local inst := $(definst)/
  endif
  INSTARGET_$(target) := $(patsubst %/,%/$(notdir $(out)),$(inst))
+ local mode := $(firstword \
+ 	$($(target)_MODE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_MODE.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_MODE.$(bld_trg).$(bld_type)) \
+ 	$($(target)_MODE.$(bld_trg_arch)) \
+ 	$($(target)_MODE.$(bld_trg)) \
+ 	$($(target)_MODE.$(bld_type)) \
+ 	$($(target)_MODE) )
+ local uid := $(firstword \
+ 	$($(target)_UID.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_UID.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_UID.$(bld_trg).$(bld_type)) \
+ 	$($(target)_UID.$(bld_trg_arch)) \
+ 	$($(target)_UID.$(bld_trg)) \
+ 	$($(target)_UID.$(bld_type)) \
+ 	$($(target)_UID) )
+ local gid := $(firstword \
+ 	$($(target)_GID.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_GID.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_GID.$(bld_trg).$(bld_type)) \
+ 	$($(target)_GID.$(bld_trg_arch)) \
+ 	$($(target)_GID.$(bld_trg)) \
+ 	$($(target)_GID.$(bld_type)) \
+ 	$($(target)_GID) )
 
+ # generate the install rule
 $(eval $(def_link_install_rule))
 
  _INSTALLS_FILES += $(INSTARGET_$(target))
@@ -2852,6 +2877,31 @@ ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOI
  else
   $(typevar)  += $(out)
  endif
+ local mode := $(firstword \
+ 	$($(target)_MODE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_MODE.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_MODE.$(bld_trg).$(bld_type)) \
+ 	$($(target)_MODE.$(bld_trg_arch)) \
+ 	$($(target)_MODE.$(bld_trg)) \
+ 	$($(target)_MODE.$(bld_type)) \
+ 	$($(target)_MODE) )
+ local uid := $(firstword \
+ 	$($(target)_UID.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_UID.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_UID.$(bld_trg).$(bld_type)) \
+ 	$($(target)_UID.$(bld_trg_arch)) \
+ 	$($(target)_UID.$(bld_trg)) \
+ 	$($(target)_UID.$(bld_type)) \
+ 	$($(target)_UID) )
+ local gid := $(firstword \
+ 	$($(target)_GID.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+ 	$($(target)_GID.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_GID.$(bld_trg).$(bld_type)) \
+ 	$($(target)_GID.$(bld_trg_arch)) \
+ 	$($(target)_GID.$(bld_trg)) \
+ 	$($(target)_GID.$(bld_type)) \
+ 	$($(target)_GID) )
+
  # generate the install rule
 $(eval $(def_link_install_rule))
 
