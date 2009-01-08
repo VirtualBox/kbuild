@@ -4,7 +4,7 @@
 #
 
 #
-# Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2005-2009 knut st. osmundsen <bird-src-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -76,7 +76,6 @@ kmk_ash_SOURCES = \
 	bltin/echo.c \
 	bltin/kill.c \
 	bltin/test.c \
-	$(PATH_kmk_ash)/arith.c \
 	$(PATH_kmk_ash)/builtins.c \
 	$(PATH_kmk_ash)/init.c \
 	$(PATH_kmk_ash)/nodes.c
@@ -97,14 +96,11 @@ kmk_ash_SOURCES.solaris = \
 	setmode.c
 
 kmk_ash_INTERMEDIATES = \
-	$(PATH_kmk_ash)/arith.h \
 	$(PATH_kmk_ash)/builtins.h \
 	$(PATH_kmk_ash)/nodes.h \
 	$(PATH_kmk_ash)/token.h
 kmk_ash_CLEAN = \
 	$(kmk_ash_INTERMEDIATES) \
-	$(PATH_kmk_ash)/arith.c \
-	$(PATH_kmk_ash)/arith_lex.c \
 	$(PATH_kmk_ash)/builtins.c \
 	$(PATH_kmk_ash)/init.c \
 	$(PATH_kmk_ash)/nodes.c
@@ -139,14 +135,17 @@ else
 # Generate the code on the fly.
 #
 
-ifeq (1,2) #disabled for now.
-kmk_ash_USES = lex #yacc
-kmk_ash_SOURCES += arith_lex.l
+USES += lex yacc
+kmk_ash_USES = lex yacc
 kmk_ash_LEXTOOL = FLEX
 kmk_ash_LEXFLAGS = -8
-else
-kmk_ash_SOURCES += $(PATH_kmk_ash)/arith_lex.c
-endif
+#kmk_ash_YACCTOOL = BISON
+kmk_ash_YACCTOOL = YACC
+kmk_ash_YACCFLAGS = -ld
+kmk_ash_SOURCES += \
+	arith.y \
+	arith_lex.l
+
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
@@ -159,19 +158,6 @@ include $(FILE_KBUILD_SUB_FOOTER)
 # So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
-ifndef YACC
- YACC := $(firstword $(which byacc) $(which yacc) yacc)
-endif
-
-$(PATH_kmk_ash)/arith.h + $(PATH_kmk_ash)/arith.c: $(kmk_ash_PATH)/arith.y | $(call DIRDEP,$(PATH_kmk_ash))
-	$(YACC) -ld $^
-	$(MV) -f y.tab.c $(PATH_kmk_ash)/arith.c
-	$(MV) -f y.tab.h $(PATH_kmk_ash)/arith.h
-
-ifndef kmk_ash_LEXTOOL
-$(PATH_kmk_ash)/arith_lex.c: $(kmk_ash_PATH)/arith_lex.l | $(call DIRDEP,$(PATH_kmk_ash))
-	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
-endif
 
 $(PATH_kmk_ash)/builtins.h + $(PATH_kmk_ash)/builtins.c: \
 		$(kmk_ash_PATH)/mkbuiltins \
@@ -201,3 +187,4 @@ $(PATH_kmk_ash)/init.c: \
 	$(MV) init.c $@
 
 endif # generate on the fly
+
