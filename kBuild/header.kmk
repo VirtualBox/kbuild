@@ -1,4 +1,4 @@
-# $Id: header.kmk 2223 2009-01-08 01:10:56Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2225 2009-01-08 22:29:21Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2223 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2225 $  )
 
 
 #
@@ -791,12 +791,14 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance for templates, sdks, tools and targets.
 PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
-	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF BINSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF
+	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF BINSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
+	MODE UID GID
 ## PROPS_SINGLE_LNK
 # Subset of PROPS_SINGLE which applies to all linkable targets.
 PROPS_SINGLE_LNK := TOOL TEMPLATE CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL \
 	INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
-	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF
+	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF ASOBJSUFF RCOBJSUFF \
+	MODE UID GID
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
