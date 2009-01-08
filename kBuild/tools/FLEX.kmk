@@ -1,4 +1,4 @@
-# $Id: FLEX.kmk 2224 2009-01-08 01:19:16Z knut.osmundsen@oracle.com $
+# $Id: FLEX.kmk 2230 2009-01-08 23:46:30Z knut.osmundsen@oracle.com $
 ## @file
 # flex tool
 #
@@ -41,6 +41,6 @@ TOOL_FLEX_LEX_OUTPUT_MAYBE =
 TOOL_FLEX_LEX_DEPEND =
 TOOL_FLEX_LEX_DEPORD =
 define TOOL_FLEX_LEX_CMDS
-	$(QUIET)$(TOOL_FLEX_LEX) $(flags) -o $(out) $(source)
+	$(QUIET)$(TOOL_FLEX_LEX) $(flags) -o$(out) $(source)
 endef
 
