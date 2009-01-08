@@ -1,10 +1,10 @@
-# $Id: header.kmk 2182 2009-01-03 00:52:10Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2223 2009-01-08 01:10:56Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
 
 #
-# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spam@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2182 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2223 $  )
 
 
 #
@@ -669,6 +669,66 @@ TARGET_BASE = $(PATH_TARGET)/$(2)/$(call no-root-slash,$(call no-drive,$(1)))
 # @param    $1      normalized main target
 TARGET_PATH = $(PATH_TARGET)/$(1)
 
+##
+# Checks if the specified short option ($1) is found in the flags ($2),
+# assuming getopt style options.
+#
+# @returns $3 if present, $4 not.
+#
+# @param   $1	The option (single char!).
+# @param   $2   The option arguments.
+# @param   $3   Eval and return if present.
+# @param   $4   Eval and return if not present.
+#
+# @todo    May confuse option values starting with '-' for options.
+# @remarks Invoke like this: $(evalcall KB_FN_OPT_TEST_SHORT,d,$(flags),present,not-present)
+#
+define KB_FN_OPT_TEST_SHORT
+local options := $(translate $(strip $(filter -%,$(filter-out --%,$2))),$(SP)-,)
+local .RETURN := $(if-expr $(pos $1,$(options)) != 0,$3,$4)
+endef
+
+##
+# Checks if the specified long option ($1) is found in the flags ($2),
+# assuming getopt style options.
+#
+# @returns $3 if present, $4 not.
+#
+# @param   $1	The long option, dashes included. No % chars.
+# @param   $2   The option arguments.
+# @param   $3   Eval and return if present.
+# @param   $4   Eval and return if not present.
+#
+# @todo    May confuse option values starting with '--' for options.
+# @remarks Invoke like this: $(evalcall KBFN_OPT_TEST_SHORT,--defined,$(flags),present,not-present)
+#
+define KB_FN_OPT_TEST_LONG
+local options := $(filter-out =delete=%,$(subst :, =delete=,$(subst =, =delete=,$2)))
+local .RETURN := $(if-expr "$(filter $1,$(options))" != "",$3,$4)
+endef
+
+##
+# Checks if the specified short ($1) or long ($2) option is found in the flags ($2),
+# assuming getopt style options.
+#
+# @returns $4 if present, $5 not.
+#
+# @param   $1	The short option (single char!).
+# @param   $2	The long option, dashes included. No % chars.
+# @param   $3   The option arguments.
+# @param   $4   Eval and return if present.
+# @param   $5   Eval and return if not present.
+#
+# @todo    May confuse option values starting with '--' for options.
+# @remarks Invoke like this: $(evalcall KB_FN_OPT_TEST_SHORT_LONG,d,--defined,$(flags),present,not-present)
+#
+define KB_FN_OPT_TEST_SHORT_LONG
+local short_options := $(translate $(strip $(filter -%,$(filter-out --%,$3))),$(SP)-,)
+local long_options := $(filter-out =delete=%,$(subst :, =delete=,$(subst =, =delete=,$3)))
+local .RETURN := $(if-expr $(pos $1,$(short_options)) != 0 || "$(filter $2,$(long_options))" != "",$4,$5)
+endef
+
+
 
 #
 # Initialize some of the globals which the Config.kmk and
@@ -724,7 +784,7 @@ KBUILD_SRC_HANDLERS := \
 
 ## PROPS_TOOLS
 # This is a subset of PROPS_SINGLE.
-PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL LEXTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
+PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL ASTOOL RCTOOL ARTOOL LDTOOL FETCHTOOL UNPACKTOOL PATCHTOOL
 
 ## PROPS_SINGLE
 # The list of non-accumulative target properties.
