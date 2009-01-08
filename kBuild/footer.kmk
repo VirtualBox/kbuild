@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2225 2009-01-08 22:29:21Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2227 2009-01-08 22:40:22Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3450,6 +3450,15 @@ $(foreach target, $(_ALL_INSTALLS), \
 ifdef KBUILD_PROFILE_SELF
  $(evalcall def_profile_self, done install targets)
 endif
+
+# Some introspection targets that can be useful for package maintainers.
+.PHONY: kbuild-show-install-files kbuild-show-install-dirs
+kbuild-show-install-files::
+	$(addprefix $(NL)$(TAB)$(QUIET)$(ECHO) , $(subst $(PATH_INS)/,,$(_INSTALLS_FILES)))
+
+kbuild-show-install-dirs::
+	$(addprefix $(NL)$(TAB)$(QUIET)$(ECHO) , $(subst $(PATH_INS)/,,$(_INSTALLS_DIRS)))
+
 
 #
 # TESTING
