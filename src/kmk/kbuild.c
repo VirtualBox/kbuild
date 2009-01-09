@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2124 2008-12-25 14:19:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2235 2009-01-09 02:50:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2060,6 +2060,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     $(target)_$(source)_DEPEND_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPEND) $(deps) $(source)
     $(target)_$(source)_DEPORD_ := $(TOOL_$(tool)_COMPILE_$(type)_DEPORD) $(dirdep)
     */
+    /** @todo Make all these local variables, if someone needs the info later it
+     *        can be recalculated. (Ticket #80.) */
     cch = sizeof("TOOL_") + pTool->value_length + sizeof("_COMPILE_") + pType->value_length + sizeof("_OUTPUT_MAYBE");
     if (cch < pTarget->value_length + sizeof("$(_2_OBJS)"))
         cch = pTarget->value_length + sizeof("$(_2_OBJS)");
