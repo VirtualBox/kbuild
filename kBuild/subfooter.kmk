@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 2240 2009-01-09 03:48:32Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
@@ -41,23 +41,24 @@ endif
 #
 # Set the default path for all new targets.
 #
+## @todo use $(evalval ) instead of doubly expanded $(eval )?
 define def_subheader
  ifndef $(target)_PATH
   ifdef $(target)_DEFPATH
-   $(target)_PATH := $($(target)_DEFPATH)
+   $(target)_PATH := $$($(target)_DEFPATH)
   else
-   $(target)_PATH := $(PATH_SUB_CURRENT)
-   $(target)_DEFPATH := $(PATH_SUB_CURRENT)
+   $(target)_PATH := $$(PATH_SUB_CURRENT)
+   $(target)_DEFPATH := $$(PATH_SUB_CURRENT)
   endif
  else ifndef $(target)_DEFPATH
-  $(target)_DEFPATH := $($(target)_PATH)
+  $(target)_DEFPATH := $$($(target)_PATH)
  endif
  ifndef $(target)_MAKEFILE
-  $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
+  $(target)_MAKEFILE := $$(MAKEFILE_CURRENT)
  endif
  ifndef $(target)_0_OUTDIR
-  $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
-  PATH_$(target) := $($(target)_0_OUTDIR)
+  $(target)_0_OUTDIR := $$(call TARGET_PATH,$(target))
+  PATH_$(target) := $$($(target)_0_OUTDIR)
  endif
 endef
 
