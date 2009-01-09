@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2227 2009-01-08 22:40:22Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2234 2009-01-09 02:49:56Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1644,18 +1644,18 @@ endif
 define def_fetch_src_fetch_rule
 # Indirect goal for downloading something.
 .PRECIOUS: $(out)
-$(out) + $($(target)_$(srcname)_FETCH_OUTPUT_) +| $($(target)_$(srcname)_FETCH_OUTPUT_MAYBE_)  : \
-		| $($(target)_$(srcname)_FETCH_DEPORD_)
+$(out) + $($(target)_$(srcname)_FETCH_2_OUTPUT) +| $($(target)_$(srcname)_FETCH_2_OUTPUT_MAYBE)  : \
+		| $($(target)_$(srcname)_FETCH_2_DEPORD)
 	%$$(call MSG_FETCH_DL,$(target),$(source),$(out))
 	@## @todo do fancy stuff like download continuation.
 	$$(QUIET)$$(RM) -f -- $(out)
-	$($(target)_$(srcname)_FETCH_CMDS_)
+	$(cmds)
 	$$(QUIET)$(if $(md5),$$(MD5SUM_EXT) -b -C $(md5) $(out))
 
 
 
 # Intermediate goal for making sure the md5 and size matches. it will (re) fetch the archive if necessary.
-$(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_DEPEND_) | $($(target)_$(srcname)_FETCH_DEPORD_)
+$(out).checked_$(md5)_$(size): $($(target)_$(srcname)_FETCH_2_DEPEND) | $($(target)_$(srcname)_FETCH_2_DEPORD)
 	%$$(call MSG_FETCH_CHK,$(target),$(source),$(out))
 	$$(QUIET)$$(RM) -f -- $$@
 	@# (re)fetch the file if it doesn't exist or if it doesn't matches the md5.
@@ -1676,9 +1676,9 @@ $(eval-opt-var def_fetch_src_fetch_rule)
 ## generates the unpack rule
 define def_fetch_src_unpack_rule
 # This is the unpack rule. it has an order-only dependency on the download check.
-$(out) + $($(target)_$(srcname)_UNPACK_OUTPUT_) +| $($(target)_$(srcname)_UNPACK_OUTPUT_MAYBE_) : \
-		$($(target)_$(srcname)_UNPACK_DEPEND_) \
-		| $($(target)_$(srcname)_UNPACK_DEPORD_) \
+$(out) + $($(target)_$(srcname)_UNPACK_2_OUTPUT) +| $($(target)_$(srcname)_UNPACK_2_OUTPUT_MAYBE) : \
+		$($(target)_$(srcname)_UNPACK_2_DEPEND) \
+		| $($(target)_$(srcname)_UNPACK_2_DEPORD) \
 		$(archive).checked_$(md5)_$(size) \
 		$(dir $(out))
 	%$$(call MSG_FETCH_UP,$(target),$(archive),$(inst))
@@ -1688,7 +1688,7 @@ $(out) + $($(target)_$(srcname)_UNPACK_OUTPUT_) +| $($(target)_$(srcname)_UNPACK
 	$$(QUIET)test -f $(archive) \
 	         || (   $$(RM_EXT) -f $(archive).checked_$(md5)_$(size) \
 	             && $$(MAKE)      $(archive).checked_$(md5)_$(size) -f $(MAKEFILE) --no-print-directory )
-	$($(target)_$(srcname)_UNPACK_CMDS_)
+	$(cmds)
 	$$(QUIET2)$$(APPEND) $(out) $(notdir $(archive).checked_$(md5)_$(size))
 	$$(QUIET2)$$(APPEND) $(out) $(notdir $(out))
 
@@ -1807,11 +1807,11 @@ $(error kBuild: TOOL_$(tool)_FETCH_CMDS is not defined. source=$(source) target=
 endif
 
 # call the tool
-$(target)_$(srcname)_FETCH_CMDS_   := $(TOOL_$(tool)_FETCH_CMDS)
-$(target)_$(srcname)_FETCH_OUTPUT_ := $(TOOL_$(tool)_FETCH_OUTPUT)
-$(target)_$(srcname)_FETCH_OUTPUT_MAYBE_ := $(TOOL_$(tool)_FETCH_OUTPUT_MAYBE)
-$(target)_$(srcname)_FETCH_DEPEND_ := $(TOOL_$(tool)_FETCH_DEPEND) $(deps)
-$(target)_$(srcname)_FETCH_DEPORD_ := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep) $(orderdeps)
+local cmds := $(TOOL_$(tool)_FETCH_CMDS)
+$(target)_$(srcname)_FETCH_2_OUTPUT := $(TOOL_$(tool)_FETCH_OUTPUT)
+$(target)_$(srcname)_FETCH_2_OUTPUT_MAYBE := $(TOOL_$(tool)_FETCH_OUTPUT_MAYBE)
+$(target)_$(srcname)_FETCH_2_DEPEND := $(TOOL_$(tool)_FETCH_DEPEND) $(deps)
+$(target)_$(srcname)_FETCH_2_DEPORD := $(TOOL_$(tool)_FETCH_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the fetch rule.
 $(eval $(def_fetch_src_fetch_rule))
@@ -1866,11 +1866,11 @@ $(error kBuild: TOOL_$(tool)_UNPACK_CMDS is not defined. source=$(source) target
 endif
 
 # call the tool
-$(target)_$(srcname)_UNPACK_CMDS_   := $(TOOL_$(tool)_UNPACK_CMDS)
-$(target)_$(srcname)_UNPACK_OUTPUT_ := $(TOOL_$(tool)_UNPACK_OUTPUT)
-$(target)_$(srcname)_UNPACK_OUTPUT_MAYBE_ := $(TOOL_$(tool)_UNPACK_OUTPUT_MAYBE)
-$(target)_$(srcname)_UNPACK_DEPEND_ := $(TOOL_$(tool)_UNPACK_DEPEND) $(deps)
-$(target)_$(srcname)_UNPACK_DEPORD_ := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep) $(orderdeps)
+local cmds := $(TOOL_$(tool)_UNPACK_CMDS)
+$(target)_$(srcname)_UNPACK_2_OUTPUT := $(TOOL_$(tool)_UNPACK_OUTPUT)
+$(target)_$(srcname)_UNPACK_2_OUTPUT_MAYBE := $(TOOL_$(tool)_UNPACK_OUTPUT_MAYBE)
+$(target)_$(srcname)_UNPACK_2_DEPEND := $(TOOL_$(tool)_UNPACK_DEPEND) $(deps)
+$(target)_$(srcname)_UNPACK_2_DEPORD := $(TOOL_$(tool)_UNPACK_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the fetch rule.
 $(eval $(def_fetch_src_unpack_rule))
@@ -2063,8 +2063,12 @@ endif
 $(basename $(notdir $(obj))).o: $(obj)
 $(basename $(notdir $(obj))).obj: $(obj)
 
-## @todo make this 'local cmds' in 0.2.x or when a new kb-src-one is added.
+## @todo make this 'local cmds,output,output_maybe,depend and depord' in 0.2.x or when a new kb-src-one is added.
 $(target)_$(source)_CMDS_ :=
+$(target)_$(source)_OUTPUT_ :=
+$(target)_$(source)_OUTPUT_MAYBE_ :=
+$(target)_$(source)_DEPEND_ :=
+$(target)_$(source)_DEPORD_ :=
 endef # def_target_source_rule
 $(eval-opt-var def_target_source_rule)
 
@@ -2085,23 +2089,23 @@ endif
 # @param    $(dirdep)               Directories we depend upon begin created before linking.
 # @param    $(dep)                  The name of the dependency file.
 # @param    $(out)
-# @param    $($(target)_OUTPUT_)    Output files from the link.
-# @param    $($(target)_OUTPUT_MAYBE_)	Output files that the link may perhaps create.
-# @param    $($(target)_DEPEND_)    Dependencies.
-# @param    $($(target)_DEPORD_)    Dependencies which should only affect build order.
+# @param    $($(target)_2_OUTPUT)   Output files from the link.
+# @param    $($(target)_2_OUTPUT_MAYBE)	Output files that the link may perhaps create.
+# @param    $($(target)_2_DEPEND)   Dependencies.
+# @param    $($(target)_2_DEPORD)   Dependencies which should only affect build order.
 # @param    $(cmds)                 The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
 ifndef NO_LINK_CMDS_DEPS
 $(out): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $$@),FORCE)
 endif
-$(out) + $($(target)_OUTPUT_) +| $($(target)_OUTPUT_MAYBE_) : \
-		$$$$($(target)_DEPEND_) \
+$(out) + $($(target)_2_OUTPUT) +| $($(target)_2_OUTPUT_MAYBE) : \
+		$$$$($(target)_2_DEPEND) \
 		$(value _DEP_LINK_CMDS) \
 		| \
-		$$$$($(target)_DEPORD_)
+		$$$$($(target)_2_DEPORD)
 	%$$(call MSG_LINK,$(target),$$@,$(tool_do))
-	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
+	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE)
 
 $(cmds)
 
@@ -2289,7 +2293,7 @@ else # _NOINST
  $(typevar) += $(out)
 endif
 
-_OUT_FILES += $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_) $(out)
+_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _OBJS += $($(target)_OBJS_)
@@ -2524,10 +2528,10 @@ endif
 ifneq ($(post_cmds),)
  local cmds  := $(cmds)$(NL)$(TAB)$(post_cmds)
 endif
-$(target)_OUTPUT_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
-$(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
-$(target)_DEPEND_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_OBJS_)
-$(target)_DEPORD_ := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
+$(target)_2_OUTPUT := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
+$(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
+$(target)_2_DEPEND := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_OBJS_)
+$(target)_2_DEPORD := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
 $(eval $(def_link_rule))
@@ -2947,10 +2951,10 @@ endif
 ifneq ($(post_cmds),)
  local cmds  := $(cmds)$(NL)$(TAB)$(post_cmds)
 endif
-$(target)_OUTPUT_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
-$(target)_OUTPUT_MAYBE_ := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
-$(target)_DEPEND_ := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_OBJS_)
-$(target)_DEPORD_ := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
+$(target)_2_OUTPUT := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
+$(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
+$(target)_2_DEPEND := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_OBJS_)
+$(target)_2_DEPORD := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
 $(eval $(def_link_rule))
@@ -2958,7 +2962,7 @@ $(eval $(def_link_rule))
 
 # Update globals.
 _OBJS += $($(target)_OBJS_)
-_OUT_FILES += $($(target)_OUTPUT_) $($(target)_OUTPUT_MAYBE_) $(out)
+_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _INSTALLS_FILES += $(INSTARGET_$(target))
