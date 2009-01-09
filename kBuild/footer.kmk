@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2234 2009-01-09 02:49:56Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2236 2009-01-09 02:59:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2165,7 +2165,6 @@ local type := RC
  $(kb-src-one 2)
 endef
 
-if $(KBUILD_VERSION_PATCH) != 4
 define def_src_handler_obj
 ifeq ($(defpath),)
  $(target)_2_OBJS += $(source)
@@ -2173,15 +2172,6 @@ else
  $(target)_2_OBJS += $(abspathex $(source), $(defpath))
 endif
 endef
-else  # legacy - remove
-define def_src_handler_obj
-ifeq ($(defpath),)
- $(target)_OBJS_ += $(source)
-else
- $(target)_OBJS_ += $(abspathex $(source), $(defpath))
-endif
-endef
-endif # legacy - remove
 ## @}
 
 ## Handle one source.
@@ -2201,7 +2191,7 @@ endef
 # @param    $(target)   Normalized target name.
 # @param    $(defpath)
 # @param    much-more...
-# @returns  othersrc, $(target)_OBJS_, ++
+# @returns  othersrc, $(target)_2_OBJS, ++
 define def_target_sources
 local target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
 $(foreach source,\
@@ -2296,7 +2286,7 @@ endif
 _OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
-_OBJS += $($(target)_OBJS_)
+_OBJS += $($(target)_2_OBJS)
 
 endef # def_target_install_pluss
 
@@ -2345,7 +2335,7 @@ local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 TARGET_$(target)  := $(out)
 # no local here - must be writable across some foreachs.
 othersrc          :=
-$(target)_OBJS_   :=
+$(target)_2_OBJS  :=
 
 # Do units pre source callouts.
 local units       := \
@@ -2418,7 +2408,7 @@ local orderdeps   := \
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- $(target)_OBJS_  := $(abspathex $($(target)_OBJS_),$(defpath))
+ $(target)_2_OBJS := $(abspathex $($(target)_2_OBJS),$(defpath))
  local deps       := $(abspathex $(deps),$(defpath))
  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
@@ -2489,7 +2479,7 @@ else
 endif
 
 # eliminate this guy?
-local objs = $($(target)_OBJS_)
+local objs = $($(target)_2_OBJS)
 
 # dependency file
 local dep := $(out)$(SUFF_DEP)
@@ -2530,7 +2520,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_2_OUTPUT := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
-$(target)_2_DEPEND := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_OBJS_)
+$(target)_2_DEPEND := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_2_OBJS)
 $(target)_2_DEPORD := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
@@ -2598,7 +2588,7 @@ TARGET_$(target)  := $(out)
 local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 # no local here - must be writable across some foreachs.
 othersrc          :=
-$(target)_OBJS_   :=
+$(target)_2_OBJS  :=
 
 # Do units pre source callouts.
 local units       := \
@@ -2784,7 +2774,7 @@ local orderdeps   := \
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
  local libpath    := $(abspathex $(libpath),$(defpath))
- $(target)_OBJS_  := $(abspathex $($(target)_OBJS_),$(defpath))
+ $(target)_2_OBJS := $(abspathex $($(target)_2_OBJS),$(defpath))
  local deps       := $(abspathex $(deps),$(defpath))
  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
@@ -2854,7 +2844,7 @@ else
 endif
 
 # eliminate this guy?
-local objs = $($(target)_OBJS_)
+local objs = $($(target)_2_OBJS)
 
 # installation targets
 ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
@@ -2953,7 +2943,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_2_OUTPUT := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
-$(target)_2_DEPEND := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_OBJS_)
+$(target)_2_DEPEND := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_2_OBJS)
 $(target)_2_DEPORD := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
@@ -2961,7 +2951,7 @@ $(eval $(def_link_rule))
 
 
 # Update globals.
-_OBJS += $($(target)_OBJS_)
+_OBJS += $($(target)_2_OBJS)
 _OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
@@ -3781,7 +3771,7 @@ show_targets:
 	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
 	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
-$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) OBJS_ CLEAN, \
+$(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) 2_OBJS CLEAN, \
 	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(KBUILD_TARGET))) \
 	$(if $($(target)_$(prop).$(_tmp)),\
 		@$(ECHO) "  $(target)_$(prop).$(_tmp)=$($(target)_$(prop).$(_tmp))" $(NLTAB)) \
