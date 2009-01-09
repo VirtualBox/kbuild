@@ -1,28 +1,29 @@
-bin/kDepIDB
-bin/kDepPre
-bin/kObjCache
+bin/kmk_sed
 bin/kmk
 bin/kmk_append
-bin/kmk_ash
 bin/kmk_cat
 bin/kmk_chmod
-bin/kmk_cmp
 bin/kmk_cp
+bin/kmk_cmp
 bin/kmk_echo
 bin/kmk_expr
-bin/kmk_gmake
-bin/kmk_install
-bin/kmk_ln
 bin/kmk_md5sum
 bin/kmk_mkdir
 bin/kmk_mv
+bin/kmk_install
+bin/kmk_ln
 bin/kmk_printf
 bin/kmk_redirect
 bin/kmk_rm
 bin/kmk_rmdir
-bin/kmk_sed
 bin/kmk_sleep
 bin/kmk_test
+bin/kDepIDB
+bin/kmk_gmake
+bin/kmk_fgmake
+bin/kmk_ash
+bin/kDepPre
+bin/kObjCache
 bin/kmk_time
 %%DATADIR%%/footer.kmk
 %%DATADIR%%/header.kmk
@@ -31,6 +32,7 @@ bin/kmk_time
 %%DATADIR%%/subheader.kmk
 %%DATADIR%%/up.kmk
 %%DATADIR%%/tools/ALP.kmk
+%%DATADIR%%/tools/BISON.kmk
 %%DATADIR%%/tools/FLEX.kmk
 %%DATADIR%%/tools/GCC.kmk
 %%DATADIR%%/tools/GCC3.kmk
@@ -53,11 +55,11 @@ bin/kmk_time
 %%DATADIR%%/tools/MASM710.kmk
 %%DATADIR%%/tools/MINGW32.kmk
 %%DATADIR%%/tools/MSLINK510.kmk
-%%DATADIR%%/tools/TAR.kmk
 %%DATADIR%%/tools/NASM.kmk
 %%DATADIR%%/tools/OPENWATCOM-16.kmk
 %%DATADIR%%/tools/OPENWATCOM-WL.kmk
 %%DATADIR%%/tools/OPENWATCOM.kmk
+%%DATADIR%%/tools/TAR.kmk
 %%DATADIR%%/tools/TARGZ.kmk
 %%DATADIR%%/tools/VAC308.kmk
 %%DATADIR%%/tools/VCC70.kmk
@@ -69,6 +71,7 @@ bin/kmk_time
 %%DATADIR%%/tools/WATCOMC11C.kmk
 %%DATADIR%%/tools/WGET.kmk
 %%DATADIR%%/tools/XGCCAMD64LINUX.kmk
+%%DATADIR%%/tools/YACC.kmk
 %%DATADIR%%/tools/YASM.kmk
 %%DATADIR%%/tools/ZIP.kmk
 %%DATADIR%%/sdks/DXSDK.kmk
@@ -98,14 +101,15 @@ bin/kmk_time
 %%DATADIR%%/units/lex.kmk
 %%DATADIR%%/units/qt3.kmk
 %%DATADIR%%/units/qt4.kmk
-%%DATADIR%%/doc/QuickReference-kmk.txt
-%%DATADIR%%/doc/QuickReference-kmk.html
+%%DATADIR%%/units/yacc.kmk
 %%DATADIR%%/msgstyles/brief.kmk
 %%DATADIR%%/templates/DUMMY.kmk
-@dirrm %%DATADIR%%/doc
+%%DOCSDIR%%/QuickReference-kmk.txt
+%%DOCSDIR%%/QuickReference-kmk.html
 @dirrm %%DATADIR%%/msgstyles
 @dirrm %%DATADIR%%/sdks
 @dirrm %%DATADIR%%/templates
 @dirrm %%DATADIR%%/tools
 @dirrm %%DATADIR%%/units
 @dirrm %%DATADIR%%
+@dirrm %%DOCSDIR%%
