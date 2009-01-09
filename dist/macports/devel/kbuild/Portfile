@@ -1,35 +1,40 @@
-# $Id: Portfile 1651 2008-06-08 22:19:28Z knut.osmundsen@oracle.com $
+# $Id: Portfile 2232 2009-01-09 01:21:17Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
 name            kbuild
-version         0.1.3
+version         0.1.5
 categories      devel
 maintainers     bird-kBuild-spam@anduin.net
 description     kBuild
 long_description \
-    See http://svn.netlabs.org/kbuild (I'm lazy). Stable version, well, soon to be stable anyways.
+    See http://svn.netlabs.org/kbuild (I'm lazy).
 
 homepage        http://svn.netlabs.org/kbuild
 platforms       darwin
-fetch.type      svn
-svn.url         http://svn.netlabs.org/repos/kbuild/trunk
-svn.tag         1651
-worksrcdir   	trunk
+
+master_sites    ftp://ftp.netlabs.org/pub/kbuild \
+                ftp://ftp.netlabs.org/incoming/kbuild
+
+distfiles	kBuild-${version}-src.tar.gz
+
+checksums	kBuild-${version}-src.tar.gz md5 92e64cace9a3e7269bae1d8d854466e9
+
+worksrcdir      kBuild-${version}
 
 test.run        no
 
 configure {}
 
 build {
-    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} -j ${buildmakejobs}"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full gnumake -f bootstrap.gmk NIX_INSTALL_DIR=${prefix} "
 }
 
 test {
-    system "${workpath}/${worksrcdir}/out/darwin.x86/release/kBuild/bin/darwin.x86/kmk -C ${workpath}/${worksrcdir}/tests nothing"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full-with-bin kmk -C tests nothing "
 }
 
 destroot {
-    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} PATH_INS=${destroot}/"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full-with-bin kmk NIX_INSTALL_DIR=${prefix} PATH_INS=${destroot}/ "
 }
 
