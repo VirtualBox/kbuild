@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2197 2009-01-05 13:13:30Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -499,7 +499,7 @@ local type      := LRC
 
 # fetch the properties.
 local tool      := $(kb-src-tool dummy_var)
-local qtnlsdir  := $(PATH_$(target))/qtnls
+local qtnlsdir  := $($(target)_0_OUTDIR)/qtnls
 local outbase   := $(qtnlsdir)/$(notdir $(basename $(source)))
 local out       := $(outbase).qm
 local dep       := $(out).dep
@@ -585,7 +585,7 @@ local type      := RCC
 
 # fetch the properties.
 local tool      := $(kb-src-tool dummy_var)
-local qtrccdir  := $(PATH_$(target))/qtrcc
+local qtrccdir  := $($(target)_0_OUTDIR)/qtrcc
 local outbase   := $(qtrccdir)/$(notdir $(basename $(source)))
 local out       := $(outbase).tmp.gen.cpp
 local realout   := $(outbase).gen.cpp
@@ -671,7 +671,7 @@ local type      := UIC
 
 # fetch the properties.
 local tool      := $(kb-src-tool dummy_var)
-local qtuicdir  := $(PATH_$(target))/qtuic
+local qtuicdir  := $($(target)_0_OUTDIR)/qtuic
 local outbase   := $(qtuicdir)/$(notdir $(basename $(source)))
 local out       := $(outbase).tmp.gen.h
 local realout   := $(outbase).gen.h
@@ -993,10 +993,10 @@ $(target)_SRC_HANDLERS += \
 	.qrc:def_unit_qt4_src_handler_qrc
 
 # Calc the MOC and UI output directories and add them to BLDDIRS and INCS.
-local qtmocdir := $(PATH_$(target))/qtmoc
-local qtuicdir := $(PATH_$(target))/qtuic
-local qtrccdir := $(PATH_$(target))/qtrcc
-local qtnlsdir := $(PATH_$(target))/qtnls
+local qtmocdir := $($(target)_0_OUTDIR)/qtmoc
+local qtuicdir := $($(target)_0_OUTDIR)/qtuic
+local qtrccdir := $($(target)_0_OUTDIR)/qtrcc
+local qtnlsdir := $($(target)_0_OUTDIR)/qtnls
 $(eval $(target)_BLDDIRS += $(qtmocdir) $(qtuicdir) $(qtrccdir) $(qtnlsdir))
 $(eval $(target)_INCS    += $(qtmocdir) $(qtuicdir))
 

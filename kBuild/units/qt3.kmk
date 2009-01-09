@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2221 2009-01-07 03:16:27Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -435,7 +435,7 @@ local type      := LRC
 
 # fetch the properties.
 local tool      := $(kb-src-tool dummy_var)
-local qtnlsdir  := $(PATH_$(target))/qtnls
+local qtnlsdir  := $($(target)_0_OUTDIR)/qtnls
 local outbase   := $(qtnlsdir)/$(notdir $(basename $(source)))
 local out       := $(outbase).qm
 local dep       := $(out).dep
@@ -522,7 +522,7 @@ local type      := UIC
 
 # fetch the properties.
 local tool      := $(kb-src-tool dummy_var)
-local qtuicdir  := $(PATH_$(target))/qtuic
+local qtuicdir  := $($(target)_0_OUTDIR)/qtuic
 local outbase   := $(qtuicdir)/$(notdir $(basename $(source)))
 local out.h     := $(outbase).tmp.h
 local out.cpp   := $(outbase).tmp.cpp
@@ -855,9 +855,9 @@ $(target)_SRC_HANDLERS += \
 	 .UI:def_unit_qt3_src_handler_ui
 
 # Calc the MOC and UI output directories and add them to BLDDIRS and INCS.
-local qtmocdir := $(PATH_$(target))/qtmoc
-local qtuicdir := $(PATH_$(target))/qtuic
-local qtnlsdir := $(PATH_$(target))/qtnls
+local qtmocdir := $($(target)_0_OUTDIR)/qtmoc
+local qtuicdir := $($(target)_0_OUTDIR)/qtuic
+local qtnlsdir := $($(target)_0_OUTDIR)/qtnls
 $(eval $(target)_BLDDIRS += $(qtmocdir) $(qtuicdir) $(qtnlsdir) )
 $(eval $(target)_INCS    += $(qtmocdir) $(qtuicdir) )
 

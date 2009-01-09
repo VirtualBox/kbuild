@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2238 2009-01-09 03:17:33Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1400,11 +1400,8 @@ local name        := $(firstword\
 	$($(target)_NAME)\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
-ifndef PATH_$(target)
- PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
-else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
- $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
-endif
+$(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target)    := $($(target)_0_OUTDIR)
 ## @todo fix the fun at the last line (AR != LIB => mess).
 local suff := $(firstword \
 	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
@@ -1569,7 +1566,8 @@ $(target)_1_TARGET:= $(PATH_TARGET)/$(target).ins
 # INSTARGET_ later.
 # PATH_*
 local outbase     := $(call TARGET_BASE,$(target),$(target))
-PATH_$(target)    := $(patsubst %/,%,$(dir $(outbase)))
+$(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target)    := $($(target)_0_OUTDIR)
 endef # def_pass1_install
 $(eval-opt-var def_pass1_install)
 $(foreach target, $(_ALL_INSTALLS), \
@@ -2320,11 +2318,8 @@ local name        := $(firstword\
 	$($(target)_NAME)\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
-ifndef PATH_$(target)
- PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
-else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
- $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
-endif
+$(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target)    := $($(target)_0_OUTDIR)
 local suff        := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LIBSUFF.$(bld_trg))\
@@ -2574,11 +2569,8 @@ local name        := $(firstword\
 	$($(target)_NAME)\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
-ifndef PATH_$(target)
- PATH_$(target)   := $(patsubst %/,%,$(dir $(outbase)))
-else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
- $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
-endif
+$(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target)    := $($(target)_0_OUTDIR)
 local suff := $(firstword \
 	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(EXT)SUFF.$(bld_trg))\
@@ -3409,11 +3401,8 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
 local outbase := $(call TARGET_BASE,$(target),$(target))
-ifndef PATH_$(target)
- PATH_$(target) := $(patsubst %/,%,$(dir $(outbase)))
-else ifneq ($(PATH_$(target)),$(patsubst %/,%,$(dir $(outbase))))
- $(error kBuild internal error: PATH_$(target)=$(PATH_$(target)) expected $(patsubst %/,%,$(dir $(outbase))))
-endif
+$(target)_0_OUTDIR := $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target) := $($(target)_0_OUTDIR)
 
 local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 
@@ -3438,7 +3427,7 @@ _INSTALLS += $($(target)_1_TARGET)
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 _CLEAN_FILES += $(clean_files)
-_DIRS += $(PATH_$(target)) $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
+_DIRS += $($(target)_0_OUTDIR) $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 endef # def_install
 $(eval-opt-var def_install)
 
@@ -3773,7 +3762,7 @@ installs:  $$(_INSTALLS) $$(_INSTALLS_DIRS) $$(_INSTALLS_FILES)
 show_targets:
 	@$(foreach target, $(_ALL_TARGETS),\
 	@$(ECHO) "target: $(target)" $(NLTAB)\
-	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
+	@$(ECHO) "  $(target)_0_OUTDIR=$($(target)_0_OUTDIR)" $(NLTAB)\
 	@$(ECHO) "  $(target)_1_TARGET=$($(target)_1_TARGET)" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
 $(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) 2_OBJS CLEAN, \
