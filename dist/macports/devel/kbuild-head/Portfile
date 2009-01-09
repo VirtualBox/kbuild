@@ -1,4 +1,4 @@
-# $Id: Portfile 1548 2008-04-22 11:23:06Z knut.osmundsen@oracle.com $
+# $Id: Portfile 2233 2009-01-09 01:22:47Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
@@ -22,14 +22,14 @@ test.run        no
 configure {}
 
 build {
-    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} -j ${buildmakejobs}"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full gnumake -f bootstrap.gmk NIX_INSTALL_DIR=${prefix} "
 }
 
 test {
-    system "${workpath}/${worksrcdir}/out/darwin.x86/release/kBuild/bin/darwin.x86/kmk -C ${workpath}/${worksrcdir}/tests nothing"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full-with-bin kmk -C tests nothing "
 }
 
 destroot {
-    system "${workpath}/${worksrcdir}/kBuild/env.sh --release kmk -C ${workpath}/${worksrcdir} NIX_INSTALL_DIR=${prefix} PATH_INS=${destroot}/"
+    system "cd ${workpath}/${worksrcdir} && ./kBuild/env.sh --full-with-bin kmk NIX_INSTALL_DIR=${prefix} PATH_INS=${destroot}/ "
 }
 
