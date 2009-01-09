@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2241 2009-01-09 03:59:26Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1556,18 +1556,19 @@ $(foreach target, $(_ALL_MISCBINS), \
 # 	Note! INSTARGET_* for INSTALLS aren't available until later.
 #
 define def_pass1_install
-local bld_type    := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
-local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
-local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
-local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
+local bld_type     := $(firstword $($(target)_BLD_TYPE)     $(KBUILD_TYPE))
+local bld_trg      := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
+local bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 # TARGET_*
-$(target)_1_TARGET:= $(PATH_TARGET)/$(target).ins
+$(target)_1_TARGET := $(PATH_TARGET)/$(target).ins
+TARGET_$(target)   := $($(target)_1_TARGET)
 
 # INSTARGET_ later.
 # PATH_*
-local outbase     := $(call TARGET_BASE,$(target),$(target))
-$(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target)    := $($(target)_0_OUTDIR)
+local outbase      := $(call TARGET_BASE,$(target),$(target))
+$(target)_0_OUTDIR := $(patsubst %/,%,$(dir $(outbase)))
+PATH_$(target)     := $($(target)_0_OUTDIR)
 endef # def_pass1_install
 $(eval-opt-var def_pass1_install)
 $(foreach target, $(_ALL_INSTALLS), \
@@ -3418,6 +3419,7 @@ $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)
 # the collection target
 local clean_files  += $(PATH_TARGET)/$(target).ins
 $(target)_1_TARGET := $(PATH_TARGET)/$(target).ins
+TARGET_$(target)   := $($(target)_1_TARGET)
 $($(target)_1_TARGET): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
 	@$(QUIET2)$(APPEND) $@
 
