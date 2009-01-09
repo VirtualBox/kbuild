@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2236 2009-01-09 02:59:39Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2238 2009-01-09 03:17:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1417,7 +1417,8 @@ local suff := $(firstword \
 local out := $(outbase)$(suff)
 
 # TARGET_*
-TARGET_$(target) := $(out)
+TARGET_$(target)   := $(out)
+$(target)_1_TARGET := $(out)
 
 # INSTARGET_*
 ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
@@ -1563,7 +1564,8 @@ local bld_trg     := $(firstword $($(target)_BLD_TRG)      $(KBUILD_TARGET))
 local bld_trg_arch:= $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
 local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 # TARGET_*
-TARGET_$(target)  := $(PATH_TARGET)/$(target).ins
+$(target)_1_TARGET:= $(PATH_TARGET)/$(target).ins
+
 # INSTARGET_ later.
 # PATH_*
 local outbase     := $(call TARGET_BASE,$(target),$(target))
@@ -1767,6 +1769,7 @@ local dep := # not legal for fetch and unpack tools
 local out := $(fetchdir)/$(srcname)
 local archive := $(out)
 TARGET_$(target)_$(srcname) := $(out)
+$(target)_$(srcname)_1_TARGET = $(TARGET_$(target)_$(srcname))
 local dirdep := $(call DIRDEP,$(fetchdir))
 local tool := $(firstword \
 	$($(target)_$(source)_FETCHTOOL)\
@@ -2333,6 +2336,7 @@ local suff        := $(firstword\
 local out         := $(outbase)$(suff)
 local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 TARGET_$(target)  := $(out)
+$(target)_1_TARGET:= $(out)
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_2_OBJS  :=
@@ -2585,6 +2589,7 @@ local suff := $(firstword \
 	$($(EXTPRE)SUFF_$(EXT)) )
 local out         := $(outbase)$(suff)
 TARGET_$(target)  := $(out)
+$(target)_1_TARGET:= $(out)
 local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
 # no local here - must be writable across some foreachs.
 othersrc          :=
@@ -3422,14 +3427,14 @@ $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)
 	$(evalval def_install_symlink))
 
 # the collection target
-local clean_files += $(PATH_TARGET)/$(target).ins
-TARGET_$(target)  := $(PATH_TARGET)/$(target).ins
-$(TARGET_$(target)): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
+local clean_files  += $(PATH_TARGET)/$(target).ins
+$(target)_1_TARGET := $(PATH_TARGET)/$(target).ins
+$($(target)_1_TARGET): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
 	@$(QUIET2)$(APPEND) $@
 
-$(target): $$(TARGET_$(target))
+$(target): $$($(target)_1_TARGET)
 
-_INSTALLS += $(TARGET_$(target))
+_INSTALLS += $($(target)_1_TARGET)
 _INSTALLS_FILES += $(INSTARGET_$(target))
 _INSTALLS_DIRS += $(INSTARGET_DIRS_$(target))
 _CLEAN_FILES += $(clean_files)
@@ -3769,7 +3774,7 @@ show_targets:
 	@$(foreach target, $(_ALL_TARGETS),\
 	@$(ECHO) "target: $(target)" $(NLTAB)\
 	@$(ECHO) "  PATH_$(target)=$(PATH_$(target))" $(NLTAB)\
-	@$(ECHO) "  TARGET_$(target)=$(TARGET_$(target))" $(NLTAB)\
+	@$(ECHO) "  $(target)_1_TARGET=$($(target)_1_TARGET)" $(NLTAB)\
 	@$(ECHO) "  INSTARGET_$(target)=$(INSTARGET_$(target))" $(NLTAB)\
 $(foreach prop,$(PROPS_SINGLE) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R) 2_OBJS CLEAN, \
 	$(eval _tmp:=$(firstword $($(target)_BLD_TRG) $(KBUILD_TARGET))) \
