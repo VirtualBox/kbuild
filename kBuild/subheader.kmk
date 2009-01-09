@@ -1,4 +1,4 @@
-# $Id: subheader.kmk 2084 2008-11-19 02:35:03Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 2239 2009-01-09 03:36:01Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile or sub-makefile.
 #
@@ -66,8 +66,9 @@ else
   ifndef $(target)_MAKEFILE
    $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
   endif
-  ifndef PATH_$(target)
-   PATH_$(target) := $(call TARGET_PATH,$(target))
+  ifndef $(target)_0_OUTDIR
+   $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
+   PATH_$(target) := $($(target)_0_OUTDIR)
   endif
  endef
 
