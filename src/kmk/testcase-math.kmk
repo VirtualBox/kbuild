@@ -1,10 +1,10 @@
-# $Id: testcase-math.kmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
+# $Id: testcase-math.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the math functions.
 #
 
 #
-# Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

@@ -1,10 +1,10 @@
-# $Id: OS2DDKBASE32.kmk 2073 2008-11-17 02:55:01Z knut.osmundsen@oracle.com $
+# $Id: OS2DDKBASE32.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The OS/2 DDK, 32-bit base headers and libraries.
 
 #
-# Copyright (c) 2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #

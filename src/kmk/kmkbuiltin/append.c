@@ -1,10 +1,10 @@
-/* $Id: append.c 2121 2008-12-25 14:07:56Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
 
 /*
- * Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

@@ -1,10 +1,10 @@
-/* $Id: dummy_defined_X.c 1404 2008-03-17 08:02:15Z knut.osmundsen@oracle.com $ */
+/* $Id: dummy_defined_X.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Tests - Dummy test program checking that X == 42, possibly doing this via y.
  */
 
 /*
- * Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

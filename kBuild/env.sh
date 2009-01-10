@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: env.sh 2191 2009-01-05 03:51:51Z knut.osmundsen@oracle.com $
+# $Id: env.sh 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
 
 #
-# Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -532,9 +532,9 @@ else
 
             if test -n "${LEGACY_OPT}"; then
                 echo "${EVAL_EXPORT} PATH_KBUILD=${KBUILD_PATH}"
-                if test -n "${FULL_WITH_BIN_OPT}"; then 
+                if test -n "${FULL_WITH_BIN_OPT}"; then
                     echo "${EVAL_EXPORT} PATH_KBUILD_BIN=${KBUILD_PATH_BIN}"
-                fi 
+                fi
                 echo "${EVAL_EXPORT} BUILD_TYPE=${KBUILD_TYPE}"
                 echo "${EVAL_EXPORT} BUILD_PLATFORM=${KBUILD_HOST}"
                 echo "${EVAL_EXPORT} BUILD_PLATFORM_ARCH=${KBUILD_HOST_ARCH}"

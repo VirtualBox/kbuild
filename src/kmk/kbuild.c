@@ -1,10 +1,10 @@
-/* $Id: kbuild.c 2235 2009-01-09 02:50:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
 
 /*
- * Copyright (c) 2006-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2006-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

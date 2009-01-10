@@ -1,10 +1,10 @@
-/* $Id: mytypes.h 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: mytypes.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * mytypes - wrapper that ensures the necessary uintXY_t types are defined.
  */
 
 /*
- * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

@@ -1,10 +1,10 @@
-/* $Id: avl.c 7 2002-10-15 21:00:40Z knut.osmundsen@oracle.com $
+/* $Id: avl.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
  *
  * AVL-Tree (lookalike) implementation.
  *
  * Copyright (c) 1999 knut st. osmundsen
  *
- * Project Odin Software License can be found in LICENSE.TXT
+ * GPL
  *
  */
 

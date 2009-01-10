@@ -1,10 +1,10 @@
-# $Id: VCC70.kmk 2237 2009-01-09 03:02:49Z knut.osmundsen@oracle.com $
+# $Id: VCC70.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 7.0 (aka Visual Studio .NET), targeting x86.
 #
 
 #
-# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

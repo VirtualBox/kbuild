@@ -1,10 +1,10 @@
-# $Id: header.kmk 2237 2009-01-09 03:02:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
 
 #
-# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2237 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2243 $  )
 
 
 #

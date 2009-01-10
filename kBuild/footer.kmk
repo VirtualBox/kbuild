@@ -1,10 +1,10 @@
-# $Id: footer.kmk 2241 2009-01-09 03:59:26Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
 
 #
-# Copyright (c) 2004-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

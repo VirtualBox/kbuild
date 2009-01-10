@@ -1,10 +1,10 @@
-# $Id: MASM510.kmk 2065 2008-11-17 00:47:59Z knut.osmundsen@oracle.com $
+# $Id: MASM510.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - MASM v5.10
 #
 
 #
-# Copyright (c) 2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -24,8 +24,8 @@
 #
 #
 # As a special exception you are granted permission to include this file, via
-# the kmk include directive, as you wish without this in itself causing the 
-# resulting makefile, program or whatever to be covered by the GPL license. 
+# the kmk include directive, as you wish without this in itself causing the
+# resulting makefile, program or whatever to be covered by the GPL license.
 # This exception does not however invalidate any other reasons why the makefile,
 # program, whatever should not be covered the GPL.
 #
@@ -80,7 +80,7 @@ TOOL_MASM510_ASFLAGS ?= -t -z -Zd -Zi -t
 #
 # @remarks  MASM v5.10 has severe length limitations in several places and will respond with
 #           crashing when these are exceeded. Thus, we use MASM and INCLUDE to avoid exceeding
-#           the command line length (and the MASM length). 
+#           the command line length (and the MASM length).
 #           The closing of file handles and zapping of environment is to make sure it doesn't
 #           mess up due handles left behind by some device init or because the env is too big.
 TOOL_MASM510_COMPILE_AS_OUTPUT = $(outbase).lst

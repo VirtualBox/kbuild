@@ -1,10 +1,10 @@
-/* $Id: mscfakes.h 2204 2009-01-06 21:40:08Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
 
 /*
- * Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

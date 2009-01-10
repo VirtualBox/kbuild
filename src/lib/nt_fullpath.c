@@ -1,10 +1,10 @@
-/* $Id: nt_fullpath.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
 
 /*
- * Copyright (c) 2004-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

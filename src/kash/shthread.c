@@ -1,9 +1,9 @@
-/* $Id: shthread.c 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
  *
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  *
  * This file is part of kBuild.
@@ -31,7 +31,7 @@
 # include <process.h>
 #else
 # include <pthread.h>
-#endif 
+#endif
 
 
 void shthread_set_shell(struct shinstance *psh)

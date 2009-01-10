@@ -1,11 +1,11 @@
-# $Id: Makefile 785 2007-01-24 22:21:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 
 #
 # Odin32 API
 #
 #   Makefile for the Quick-and-Dirty dependency utility. (FastDep)
 #
-#   Copyright (c) 1999-2002 knut st. osmundsen (bird-kBuild-spam@anduin.net)
+#   Copyright (c) 1999-2009 knut st. osmundsen (bird-kBuild-spamix@anduin.net)
 #
 #   GPL
 #

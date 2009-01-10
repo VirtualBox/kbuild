@@ -1,11 +1,11 @@
-# $Id: testcase-includedep-sub.kmk 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $
+# $Id: testcase-includedep-sub.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the includdep directive, helper file
 #          that gets included all the time.
 #
 
 #
-# Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

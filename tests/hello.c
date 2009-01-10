@@ -1,10 +1,10 @@
-/* $Id: hello.c 1406 2008-03-17 18:10:33Z knut.osmundsen@oracle.com $ */
+/* $Id: hello.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Tests - Hello world test program.
  */
 
 /*
- * Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

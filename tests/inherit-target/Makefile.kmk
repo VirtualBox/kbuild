@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 1588 2008-05-01 15:21:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # Test - Target Inheritance.
 #
 
 #
-# Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

@@ -1,10 +1,10 @@
-/* $Id: kmkbuiltin.h 2141 2008-12-25 20:21:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
 
 /*
- * Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *
