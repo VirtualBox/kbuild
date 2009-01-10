@@ -1,10 +1,10 @@
-# $Id: subfooter.kmk 2240 2009-01-09 03:48:32Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 2242 2009-01-10 02:16:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
 
 #
-# Copyright (c) 2006-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2006-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -41,24 +41,23 @@ endif
 #
 # Set the default path for all new targets.
 #
-## @todo use $(evalval ) instead of doubly expanded $(eval )?
 define def_subheader
  ifndef $(target)_PATH
   ifdef $(target)_DEFPATH
-   $(target)_PATH := $$($(target)_DEFPATH)
+   $(target)_PATH := $($(target)_DEFPATH)
   else
-   $(target)_PATH := $$(PATH_SUB_CURRENT)
-   $(target)_DEFPATH := $$(PATH_SUB_CURRENT)
+   $(target)_PATH := $(PATH_SUB_CURRENT)
+   $(target)_DEFPATH := $(PATH_SUB_CURRENT)
   endif
  else ifndef $(target)_DEFPATH
-  $(target)_DEFPATH := $$($(target)_PATH)
+  $(target)_DEFPATH := $($(target)_PATH)
  endif
  ifndef $(target)_MAKEFILE
-  $(target)_MAKEFILE := $$(MAKEFILE_CURRENT)
+  $(target)_MAKEFILE := $(MAKEFILE_CURRENT)
  endif
  ifndef $(target)_0_OUTDIR
-  $(target)_0_OUTDIR := $$(call TARGET_PATH,$(target))
-  PATH_$(target) := $$($(target)_0_OUTDIR)
+  $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
+  PATH_$(target) := $($(target)_0_OUTDIR)
  endif
 endef
 
@@ -75,7 +74,7 @@ $(foreach target,\
 	$(MISCBINS)    $(MISCBINS.$(KBUILD_TARGET))     $(MISCBINS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    $(MISCBINS.$(KBUILD_TARGET_ARCH))    $(MISCBINS.$(KBUILD_TARGET_CPU))    $(MISCBINS.$(KBUILD_TYPE))    \
 	$(INSTALLS)    $(INSTALLS.$(KBUILD_TARGET))     $(INSTALLS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_ARCH))    $(INSTALLS.$(KBUILD_TARGET_CPU))    $(INSTALLS.$(KBUILD_TYPE))    \
 	$(OTHERS)      $(OTHERS.$(KBUILD_TARGET))       $(OTHERS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_ARCH))      $(OTHERS.$(KBUILD_TARGET_CPU))      $(OTHERS.$(KBUILD_TYPE))      \
-,$(eval $(def_subheader)))
+,$(evalval def_subheader))
 
 
 
