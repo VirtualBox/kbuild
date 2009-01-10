@@ -1,9 +1,9 @@
-/* $Id: shthread.h 1233 2007-10-09 23:24:41Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell thread methods.
  *
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  *
  * This file is part of kBuild.

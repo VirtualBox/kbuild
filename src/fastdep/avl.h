@@ -1,4 +1,4 @@
-/* $Id: avl.h 7 2002-10-15 21:00:40Z knut.osmundsen@oracle.com $
+/* $Id: avl.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
  *
  * AVL-Tree (lookalike) declaration.
  *
@@ -10,9 +10,9 @@
  * TREETYPE: Case Sensitive Strings (Key is pointer).
  *
  *
- * Copyright (c) 1999-2000 knut st. osmundsen
+ * Copyright (c) 1999-2009 knut st. osmundsen
  *
- * Project Odin Software License can be found in LICENSE.TXT
+ * GPL
  *
  */
 #ifndef _AVL_H_

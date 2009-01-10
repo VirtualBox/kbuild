@@ -1,10 +1,10 @@
-/* $Id: kDep.c 2104 2008-11-26 01:52:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
 
 /*
- * Copyright (c) 2004-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

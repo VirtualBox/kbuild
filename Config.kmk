@@ -1,10 +1,10 @@
-# $Id: Config.kmk 2226 2009-01-08 22:31:25Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
 
 #
-# Copyright (c) 2005-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+# Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #

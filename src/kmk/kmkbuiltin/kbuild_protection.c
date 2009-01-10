@@ -1,10 +1,10 @@
-/* $Id: kbuild_protection.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_protection.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Simple File Protection.
  */
 
 /*
- * Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

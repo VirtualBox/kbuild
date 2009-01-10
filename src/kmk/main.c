@@ -3641,7 +3641,7 @@ print_version (void)
 #ifdef KMK
   printf ("\n\
 %skBuild modifications:\n\
-%s Copyright (C) 2005-2008  Knut St. Osmundsen.\n\
+%s Copyright (c) 2005-2009 knut st. osmundsen.\n\
 \n\
 %skmkbuiltin commands derived from *BSD sources:\n\
 %s Copyright (c) 1983 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994\n\
@@ -3793,7 +3793,7 @@ die (int status)
   static char dying = 0;
 #ifdef KMK
   static char need_2nd_error = 0;
-#endif 
+#endif
 
   if (!dying)
     {
@@ -3806,12 +3806,12 @@ die (int status)
 
 #ifdef KMK
       /*  Flag 2nd error message. */
-      if (status != 0 
-          && (   job_slots_used > 0 
+      if (status != 0
+          && (   job_slots_used > 0
               || print_data_base_flag
               || print_stats_flag))
         need_2nd_error = 1;
-#endif /* KMK */      
+#endif /* KMK */
 
       /* Wait for children to die.  */
       err = (status != 0);

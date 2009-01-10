@@ -1,4 +1,4 @@
-/* $Id: startuphacks-win.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: startuphacks-win.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild - Alternative argument parser for the windows startup code.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2006-2007 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+ * Copyright (c) 2006-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * parse_args(): Copyright (c) 1992-1998 by Eberhard Mattes
  *

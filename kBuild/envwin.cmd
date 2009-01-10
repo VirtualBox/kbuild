@@ -5,7 +5,7 @@ REM Environment setup script.
 REM
 
 REM
-REM Copyright (c) 2005-2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+REM Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 REM
 REM This file is part of kBuild.
 REM

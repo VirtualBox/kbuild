@@ -1,4 +1,4 @@
-/* $Id: alloccache.c 2062 2008-11-09 22:18:54Z knut.osmundsen@oracle.com $ */
+/* $Id: alloccache.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * alloccache - Fixed sized allocation cache.
  *
@@ -15,7 +15,7 @@
  */
 
 /*
- * Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *

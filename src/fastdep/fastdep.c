@@ -1,8 +1,8 @@
-/* $Id: fastdep.c 1149 2007-09-27 23:10:32Z knut.osmundsen@oracle.com $
+/* $Id: fastdep.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
  *
  * Fast dependents. (Fast = Quick and Dirty!)
  *
- * Copyright (c) 1999-2002 knut st. osmundsen (bird-kBuild-spam@anduin.net)
+ * Copyright (c) 1999-2009 knut st. osmundsen (bird-kBuild-spamix@anduin.net)
  *
  * GPL
  *
@@ -1005,7 +1005,7 @@ void syntax(void)
         "   <files>         Files to scan. Wildchars are allowed.\n"
         "\n"
         "Options and files could be mixed.\n"
-        " copyright (c) 1999-2002 knut st. osmundsen (bird-kBuild-spam@anduin.net)\n",
+        " copyright (c) 1999-2009 knut st. osmundsen (bird-kBuild-spamix@anduin.net)\n",
         ODIN32_BUILD_NR,
         pszDefaultDepFile
         );

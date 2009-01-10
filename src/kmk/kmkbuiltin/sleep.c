@@ -1,10 +1,10 @@
-/* $Id: sleep.c 2113 2008-12-25 13:21:58Z knut.osmundsen@oracle.com $ */
+/* $Id: sleep.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_sleep - suspend execution for an interval of time.
  */
 
 /*
- * Copyright (c) 2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -104,7 +104,7 @@ int kmk_builtin_sleep(int argc, char **argv, char **envp)
         || !strcmp(argv[1], "--version"))
     {
         printf("kmk_sleep - kBuild version %d.%d.%d (r%u)\n"
-               "Copyright (C) 2008 Knut St. Osmundsen\n",
+               "Copyright (c) 2008-2009 knut st. osmundsen\n",
                KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
                KBUILD_SVN_REV);
         return 0;

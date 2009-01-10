@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -6,7 +6,7 @@
  */
 
 /*
- * Copyright (c) 2007-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 
             case 'V':
                 printf("kmk_time - kBuild version %d.%d.%d (r%u)\n"
-                       "Copyright (C) 2007-2008 Knut St. Osmundsen\n",
+                       "Copyright (C) 2007-2009 knut st. osmundsen\n",
                        KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
                        KBUILD_SVN_REV);
                 return 0;

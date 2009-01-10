@@ -1,9 +1,9 @@
-/* $Id: shtypes.h 1784 2008-09-13 03:27:59Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
  *
- * Copyright (c) 2007 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  *
  * This file is part of kBuild.

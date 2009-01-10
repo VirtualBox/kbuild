@@ -1,10 +1,10 @@
-/* $Id: kdev.e 2019 2008-11-02 00:21:05Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
 
 /*
- * Copyright (c) 1999-2008 knut st. osmundsen <bird-src-spam@anduin.net>
+ * Copyright (c) 1999-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -92,7 +92,7 @@ def  'C-S-L' = k_style_load
 /* Remeber to change these! */
 static _str skUserInitials  = "bird";
 static _str skUserName      = "knut st. osmundsen";
-static _str skUserEmail     = "bird-src-spam@anduin.net";
+static _str skUserEmail     = "bird-kBuild-spamix@anduin.net";
 
 
 /*******************************************************************************

@@ -1,10 +1,10 @@
-/* $Id: os2fake-win.c 7 2002-10-15 21:00:40Z knut.osmundsen@oracle.com $
- * 
+/* $Id: os2fake-win.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+ *
  * OS/2 Fake library for Win32.
- * 
+ *
  * Copyright (c) 2001 knut st. osmundsen (knut.stange.osmundsen@mynd.no)
  *
- * Project Odin Software License can be found in LICENSE.TXT
+ * GPL
  *
  */
 
@@ -43,14 +43,14 @@ ULONG ConvertAttributes(DWORD dwFileAttributes)
     {
         ULONG   ulWin;
         ULONG   ulOs2;
-    }       aConvAttr[] = 
-    {                                  
+    }       aConvAttr[] =
+    {
         {FILE_ATTRIBUTE_READONLY,   FILE_READONLY},
         {FILE_ATTRIBUTE_HIDDEN,     FILE_HIDDEN},
         {FILE_ATTRIBUTE_SYSTEM,     FILE_SYSTEM},
         {FILE_ATTRIBUTE_DIRECTORY,  FILE_DIRECTORY},
         {FILE_ATTRIBUTE_ARCHIVE,    FILE_ARCHIVED}
-    };                                    
+    };
     ULONG   ulOS2Attr = 0;
     int     i;
 
@@ -128,11 +128,11 @@ APIRET OS2ENTRY         DosQueryPathInfo(
             if (cbInfoBuf == sizeof(FILESTATUS3))
             {
                 WIN32_FILE_ATTRIBUTE_DATA   fad;
-                
+
                 if (GetFileAttributesEx(pszPathName, GetFileExInfoStandard, &fad)) //W98, NT4 and above.
                 {
                     PFILESTATUS3    pfst3 = (PFILESTATUS3)(pInfoBuf);
-                    
+
                     if (fad.nFileSizeHigh > 0)
                         rc = ERROR_BAD_LENGTH;
                     pfst3->cbFile = pfst3->cbFileAlloc = fad.nFileSizeLow;
@@ -155,7 +155,7 @@ APIRET OS2ENTRY         DosQueryPathInfo(
 
     return rc;
 }
-            
+
 
 APIRET OS2ENTRY         DosFindFirst(
                             PCSZ        pszFileSpec,
@@ -218,7 +218,7 @@ APIRET OS2ENTRY         DosFindFirst(
     if (*phdir != (HDIR)INVALID_HANDLE_VALUE)
     {
         PFILEFINDBUF3   pfindbuf = (PFILEFINDBUF3)pFindBuf;
-        
+
         memcpy(pfindbuf->achName, FindData.cFileName, pfindbuf->cchName = strlen(FindData.cFileName) + 1);
         pfindbuf->cbFile = pfindbuf->cbFileAlloc = FindData.nFileSizeHigh > 0 ? 0xffffffff : FindData.nFileSizeLow;
         pfindbuf->attrFile = ConvertAttributes(FindData.dwFileAttributes);
@@ -266,7 +266,7 @@ APIRET OS2ENTRY         DosFindNext(
     if (FindNextFile((HANDLE)hDir, &FindData))
     {
         PFILEFINDBUF3   pfindbuf = (PFILEFINDBUF3)pFindBuf;
-        
+
         memcpy(pfindbuf->achName, FindData.cFileName, pfindbuf->cchName = strlen(FindData.cFileName) + 1);
         pfindbuf->cbFile = pfindbuf->cbFileAlloc = FindData.nFileSizeHigh > 0 ? 0xffffffff : FindData.nFileSizeLow;
         pfindbuf->attrFile = ConvertAttributes(FindData.dwFileAttributes);
@@ -294,4 +294,4 @@ APIRET OS2ENTRY         DosFindClose(
 }
 
 
-                   
+

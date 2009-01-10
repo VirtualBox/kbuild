@@ -1,23 +1,23 @@
-/* $Id: os2fake.h 7 2002-10-15 21:00:40Z knut.osmundsen@oracle.com $
- * 
- * Structures, defines and function prototypes for the OS/2 fake library.
- * 
- * Copyright (c) 2001 knut st. osmundsen (knut.stange.osmundsen@mynd.no)
+/* $Id: os2fake.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
  *
- * Project Odin Software License can be found in LICENSE.TXT
+ * Structures, defines and function prototypes for the OS/2 fake library.
+ *
+ * Copyright (c) 2001-2009 knut st. osmundsen (knut.stange.osmundsen@mynd.no)
+ *
+ * GPL
  *
  */
- 
- 
+
+
 #ifndef _os2fake_h_
 #define _os2fake_h_
 
-                    
+
 /*******************************************************************************
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
 #ifndef OS2ENTRY
-#define OS2ENTRY    
+#define OS2ENTRY
 #endif
 
 #ifndef CCHMAXPATHCOMP
@@ -34,7 +34,7 @@
 #define FIL_QUERYEASFROMLIST    3
 #define FIL_QUERYFULLNAME       5
 #endif
-   
+
 #define FILE_NORMAL             0x0000
 #define FILE_READONLY           0x0001
 #define FILE_HIDDEN             0x0002
@@ -93,7 +93,7 @@ typedef BOOL *          PBOOL;
 typedef void            VOID;
 #endif
 #if !defined(_WINNT_) && !defined(PVOID)
-typedef VOID *          PVOID;  
+typedef VOID *          PVOID;
 #endif
 
 typedef unsigned long   HDIR;
@@ -148,7 +148,7 @@ typedef FILESTATUS3 *PFILESTATUS3;
 
 typedef struct _FILEFINDBUF3    /* findbuf3 */
 {
-    ULONG   oNextEntryOffset;    
+    ULONG   oNextEntryOffset;
     FDATE   fdateCreation;
     FTIME   ftimeCreation;
     FDATE   fdateLastAccess;
@@ -157,7 +157,7 @@ typedef struct _FILEFINDBUF3    /* findbuf3 */
     FTIME   ftimeLastWrite;
     ULONG   cbFile;
     ULONG   cbFileAlloc;
-    ULONG   attrFile;            
+    ULONG   attrFile;
     UCHAR   cchName;
     CHAR    achName[CCHMAXPATHCOMP];
 } FILEFINDBUF3;

@@ -1,10 +1,10 @@
-# $Id: MASM710.kmk 2076 2008-11-18 00:36:21Z knut.osmundsen@oracle.com $
+# $Id: MASM710.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - MASM v7.10
 #
 
 #
-# Copyright (c) 2008 knut st. osmundsen <bird-kBuild-spam@anduin.net>
+# Copyright (c) 2008-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
 #
 # This file is part of kBuild.
 #
