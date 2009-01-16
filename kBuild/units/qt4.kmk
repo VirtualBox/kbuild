@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2244 2009-01-16 17:04:40Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2245 2009-01-16 17:07:44Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -957,15 +957,9 @@ ifeq ($(bld_trg),darwin)
  $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/4/Headers) )
 else
  ifeq ($(bld_trg),win)
-  ifndef qt_infix
-   local qt_infix  := 4
-   local qt_infix2 :=
-  else
-   local qt_infix2 := $(qt_infix)
-  endif
-  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_LIB)) )
+  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)4$(SUFF_LIB)) )
   ifeq ($(tool_do),LINK_PROGRAM)
-   $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(qt_infix2)$(SUFF_LIB) )
+   $(eval $(target)_LIBS   += $(PATH_SDK_QT4_LIB)/$(qt_prefix)qtmain$(qt_infix)$(SUFF_LIB) )
   endif
  else
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/lib$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_DLL)) )
