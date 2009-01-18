@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2247 2009-01-18 04:08:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -39,6 +39,10 @@
 #endif
 #if defined(__APPLE__)
 # include <mach-o/dyld.h>
+#endif
+#if defined(__FreeBSD__)
+# include <dlfcn.h>
+# include <sys/link_elf.h>
 #endif
 
 #include "kbuild.h"
@@ -132,11 +136,29 @@ void init_kbuild(int argc, char **argv)
 #elif defined(__FreeBSD__)
     rc = readlink("/proc/curproc/file", szTmp, GET_PATH_MAX - 1);
     if (rc < 0 || rc == GET_PATH_MAX - 1)
+    {
+        /* /proc is optional, try rtdl. */
+        void *hExe = dlopen(NULL, 0);
         rc = -1;
+        if (hExe)
+        {
+            struct link_map const *pLinkMap = 0;
+            if (dlinfo(hExe, RTLD_DI_LINKMAP, &pLinkMap) == 0)
+            {
+                const char *pszImageName = pLinkMap->l_name;
+                size_t cchImageName = strlen(pszImageName);
+                if (cchImageName < GET_PATH_MAX)
+                {
+                    memcpy(szTmp, pszImageName, cchImageName + 1);
+                    rc = 0;
+                }
+            }    
+        }
+    }
     else
         szTmp[rc] = '\0';
 
-#elif defined(__gnu_linux__) /** @todo find proper define... */
+#elif defined(__gnu_linux__) || defined(__linux__)
     rc = readlink("/proc/self/exe", szTmp, GET_PATH_MAX - 1);
     if (rc < 0 || rc == GET_PATH_MAX - 1)
         rc = -1;
