@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2247 2009-01-18 04:08:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2248 2009-01-19 04:34:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -137,6 +137,8 @@ void init_kbuild(int argc, char **argv)
     rc = readlink("/proc/curproc/file", szTmp, GET_PATH_MAX - 1);
     if (rc < 0 || rc == GET_PATH_MAX - 1)
     {
+        rc = -1;
+# if 0 /* doesn't work because l_name isn't always absolute, it's just argv0 from exec or something. */
         /* /proc is optional, try rtdl. */
         void *hExe = dlopen(NULL, 0);
         rc = -1;
@@ -153,7 +155,9 @@ void init_kbuild(int argc, char **argv)
                     rc = 0;
                 }
             }    
+
         }
+# endif
     }
     else
         szTmp[rc] = '\0';
