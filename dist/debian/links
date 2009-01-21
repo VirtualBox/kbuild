@@ -1,0 +1,27 @@
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_append.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_ash.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_cat.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_chmod.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_cmp.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_cp.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_echo.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_expr.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_fgmake.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_mkdir.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_mv.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_install.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_ln.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_md5sum.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_printf.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_redirect.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_rm.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_rmdir.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_gmake.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_sed.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_sleep.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_test.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kmk_time.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kDepPre.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kDepIDB.1.gz
+/usr/share/man/man1/kmk.1.gz /usr/share/man/man1/kObjCache.1.gz
+
