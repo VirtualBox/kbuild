@@ -12,8 +12,9 @@ kmk and its helper tools are an extension to GNU make to ease writing
 portable Makefile. There is not a lot of documentation though. A
 starting point is L<http://svn.netlabs.org/kbuild>.
 
-On Debian systems the kBuild binaries can be found in F</usr/bin> and its data
-files in F</usr/share/kBuild>.
+On Debian systems the kBuild binaries can be found in F</usr/bin>, its data
+files in F</usr/share/kBuild> and its documentation in 
+F</usr/share/doc/kbuild>.
 
 =head1 SEE ALSO
 
