@@ -1,0 +1,206 @@
+kbuild (1:0.1.5svn2062-1) unstable; urgency=low
+
+  * new upstream version
+  * Remove patch lazy.diff that has been applied upstream.
+
+ -- Torsten Werner <twerner@debian.org>  Wed, 12 Nov 2008 21:54:38 +0100
+
+kbuild (1:0.1.5svn2059-2) unstable; urgency=low
+
+  * Create SvnInfo.kmk during build process because the upstream svn does not
+    ship it anymore.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 08 Nov 2008 09:17:10 +0100
+
+kbuild (1:0.1.5svn2059-1) unstable; urgency=low
+
+  * new upstream version
+  * Add patch lazy.diff to fix build process.
+  * Add more manpage symlinks.
+
+ -- Torsten Werner <twerner@debian.org>  Fri, 07 Nov 2008 23:25:40 +0100
+
+kbuild (1:0.1.4svn1804-1) unstable; urgency=low
+
+  * new upstream version
+  * Bump up Standards-Version: 3.8.0 (no changes).
+
+ -- Torsten Werner <twerner@debian.org>  Tue, 07 Oct 2008 20:50:48 +0200
+
+kbuild (1:0.1.3svn1610-1) unstable; urgency=low
+
+  * new upstream version (Closes: #479046, #480012)
+  * Remove patch cpu.diff that has been applied upstream.
+
+ -- Torsten Werner <twerner@debian.org>  Thu, 08 May 2008 20:20:07 +0200
+
+kbuild (1:0.1.3svn1587-1) unstable; urgency=low
+
+  * new upstream version
+  * Add support for armv5tejl.
+
+ -- Torsten Werner <twerner@debian.org>  Thu, 17 Apr 2008 22:08:34 +0200
+
+kbuild (1:0.1.2svn1393-2) unstable; urgency=high
+
+  * Add patch to fix build on parisc.
+  * Set urgency to high because we are fixing a FTBFS bug on 1 arch.
+
+ -- Torsten Werner <twerner@debian.org>  Thu, 10 Apr 2008 22:42:26 +0200
+
+kbuild (1:0.1.2svn1393-1) unstable; urgency=low
+
+  * new upstream release
+  * Remove our patch because it has been applied upstream.
+
+ -- Torsten Werner <twerner@debian.org>  Sun, 09 Mar 2008 22:29:26 +0100
+
+kbuild (1:0.1.2svn1377-5) unstable; urgency=low
+
+  * Add support for s390x.
+
+ -- Torsten Werner <twerner@debian.org>  Sun, 30 Dec 2007 23:54:18 +0100
+
+kbuild (1:0.1.2svn1377-4) unstable; urgency=low
+
+  * Add support for mips.
+
+ -- Torsten Werner <twerner@debian.org>  Sun, 30 Dec 2007 22:53:09 +0100
+
+kbuild (1:0.1.2svn1377-3) unstable; urgency=low
+
+  * Add support for armv5tel.
+
+ -- Torsten Werner <twerner@debian.org>  Fri, 28 Dec 2007 23:39:11 +0100
+
+kbuild (1:0.1.2svn1377-2) unstable; urgency=low
+
+  * Add support for PA-RISC.
+
+ -- Torsten Werner <twerner@debian.org>  Fri, 28 Dec 2007 13:20:11 +0100
+
+kbuild (1:0.1.2svn1377-1) unstable; urgency=low
+
+  * Use version number (KBUILD_VERSION) from file Config.kmk for our package.
+  * Always bootstrap kBuild because it is required.
+  * Add Build-Depends: autoconf, automake, cvs.
+  * Remove Build-Depends: doxygen, kbuild.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 22 Dec 2007 11:53:03 +0100
+
+kbuild (1377-2) unstable; urgency=low
+
+  * Add patch cpu.diff to support Debian's architectures.
+  * Set LDFLAGS to -Wl,--as-needed to avoid linking of unneeded libraries.
+  * Use the freshly built kmk for the installation step instead of the old one
+    used for the build step. Rationale: that is a very basic test that the new
+    kmk is really working.
+
+ -- Torsten Werner <twerner@debian.org>  Fri, 21 Dec 2007 18:06:38 +0100
+
+kbuild (1377-1) unstable; urgency=low
+
+  * new upstream version
+  * Add some debugging output (gcc macros).
+  * Update Homepage and Vcs headers in debian/control.
+  * Change Standards-Version: 3.7.3.
+  * Add manpage symlinks for kmk_redirect and kmk_test.
+
+ -- Torsten Werner <twerner@debian.org>  Fri, 21 Dec 2007 12:30:37 +0100
+
+kbuild (1366-1) unstable; urgency=low
+
+  * new upstream version
+    - Does not ship kBuild.Doxyfile any more.
+  * Remove all references to the obsoleted documentation files.
+    (Closes: #454038)
+  * Remove Depends: autoconf, automake1.9.
+
+ -- Torsten Werner <twerner@debian.org>  Mon, 03 Dec 2007 18:59:04 +0100
+
+kbuild (1258-1) unstable; urgency=low
+
+  * new upstream release
+  * Remove the last patch because it has been applied upstream.
+
+ -- Torsten Werner <twerner@debian.org>  Sun, 28 Oct 2007 23:05:09 +0100
+
+kbuild (1173-1) unstable; urgency=low
+
+  * new upstream release
+  * Fix the get-orig-source target in debian/rules.
+  * Removed all patches that have been applied upstream.
+  * Add more man page symlinks (kmk_cmp and kmk_md5sum).
+
+ -- Torsten Werner <twerner@debian.org>  Tue, 02 Oct 2007 21:59:51 +0200
+
+kbuild (1096-1) unstable; urgency=low
+
+  * new upstream version
+  * Add kbuild to Build-Depends.
+  * Fix clean target. (Closes: #442611)
+  * Comment the patches.
+
+ -- Torsten Werner <twerner@debian.org>  Sun, 16 Sep 2007 19:06:22 +0200
+
+kbuild (1080-2) unstable; urgency=low
+
+  * Add patch arm.diff to support armv4l too.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 21 Jul 2007 12:26:46 +0200
+
+kbuild (1080-1) unstable; urgency=low
+
+  * New upstream version
+  * Add a patch debug.diff that fixes debugging output.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 21 Jul 2007 08:27:12 +0200
+
+kbuild (1060-1) unstable; urgency=low
+
+  * New upstream version
+  * Bootstrap every architecture again because some binaries are buggy.
+
+ -- Torsten Werner <twerner@debian.org>  Sat,  9 Jun 2007 07:42:44 +0200
+
+kbuild (894-5) unstable; urgency=low
+
+  * Remove directory 'out' in clean target. (Closes: #424426)
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 19 May 2007 23:25:17 +0200
+
+kbuild (894-4) unstable; urgency=low
+
+  * Add hppa, ia64, mips, mipsel, powerpc, s390 to already bootstrapped
+    architectures.
+  * Add patch unused.diff to fix a build problem on alpha.
+
+ -- Torsten Werner <twerner@debian.org>  Mon, 14 May 2007 05:30:43 +0200
+
+kbuild (894-3) unstable; urgency=low
+
+  * Add yet another fix for the missing architectures.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 12 May 2007 18:32:30 +0200
+
+kbuild (894-2) unstable; urgency=low
+
+  * Complete the last (incomplete) patch.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 12 May 2007 15:20:34 +0200
+
+kbuild (894-1) unstable; urgency=low
+
+  * New upstream revision.
+  * Use the revision number from debian/changelog for debian/orig-tar.sh.
+  * Add Build-Depends: kbuild [amd64 i386].
+  * Add a patch to support all Debian architectures.
+
+ -- Torsten Werner <twerner@debian.org>  Sat, 12 May 2007 14:38:49 +0200
+
+kbuild (893-1) unstable; urgency=low
+
+  * Initial release (Closes: #422367)
+
+ -- Torsten Werner <twerner@debian.org>  Fri,  4 May 2007 20:35:40 +0200
+
