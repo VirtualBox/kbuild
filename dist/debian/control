@@ -3,7 +3,7 @@ Section: devel
 Priority: extra
 Maintainer: Torsten Werner <twerner@debian.org>
 Build-Depends: autoconf, automake, byacc, cdbs, cvs, debhelper (>= 5), flex,
- libacl1-dev, quilt
+ quilt
 Standards-Version: 3.8.0
 Homepage: http://svn.netlabs.org/kbuild
 Vcs-Svn: https://bollin.googlecode.com/svn/kbuild/trunk
