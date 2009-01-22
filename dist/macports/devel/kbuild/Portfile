@@ -1,4 +1,4 @@
-# $Id: Portfile 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Portfile 2261 2009-01-22 01:00:16Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
@@ -18,7 +18,7 @@ master_sites    ftp://ftp.netlabs.org/pub/kbuild \
 
 distfiles	kBuild-${version}-src.tar.gz
 
-checksums	kBuild-${version}-src.tar.gz md5 92e64cace9a3e7269bae1d8d854466e9
+checksums	kBuild-${version}-src.tar.gz md5 df7e0905232e67728643f97d63cbf3f3
 
 worksrcdir      kBuild-${version}
 
