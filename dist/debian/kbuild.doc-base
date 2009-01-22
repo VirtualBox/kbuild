@@ -1,0 +1,9 @@
+Document: kBuild
+Title: kmk Quick Reference
+Author: Knut St. Osmundsen
+Abstract: Brief description of all the features of the make program.
+Section: Devel/Tools
+     
+Format: HTML
+Index: /usr/share/doc/kbuild/kmk-QuickReference-kmk.html
+Files: /usr/share/doc/kbuild*.html
