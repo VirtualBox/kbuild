@@ -1,3 +1,11 @@
+
+kbuild (1:0.1.5-1) unstable; urgency=low
+
+  * New upstream version.
+  * Adopted for tarball use.
+
+ -- bird <bird-kBuild-spamix@anudin.net>  Thu, 22 Jan 2009 01:05:00 +0100
+
 kbuild (1:0.1.5svn2062-1) unstable; urgency=low
 
   * new upstream version
