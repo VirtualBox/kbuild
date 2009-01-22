@@ -42,9 +42,15 @@ endif
 ## ftp://ftp.netlabs.org/incoming/kbuild when KBUILD_FROM_SVN isn't
 ## defined... (fetch the kBuild-x.y.z-src.tar.gz file)
 
+ifdef KBUILD_FROM_SVN
 get-orig-info:
 	svn info $(SVNROOT)
 
 get-orig-source:
 	sh debian/orig-tar.sh $(SVNROOT) $(DEB_UPSTREAM_VERSION) $(REVISION)
+else
+get-orig-source:
+	wget -O ../tarballs/kbuild_$(DEB_UPSTREAM_VERSION).orig.tar.gz \
+	  ftp://ftp.netlabs.org/incoming/kbuild/kBuild-$(DEB_UPSTREAM_VERSION)-src.tar.gz	
+endif
 
