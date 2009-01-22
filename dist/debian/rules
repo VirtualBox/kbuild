@@ -6,6 +6,8 @@ include /usr/share/cdbs/1/rules/patchsys-quilt.mk
 YACC      := YACC=/usr/bin/byacc
 BOOTSTRAP := ASH=/bin/bash ECHO=/bin/echo MKDIR=/bin/mkdir CP=/bin/cp \
   RM=/bin/rm INSTALL=/usr/bin/install $(YACC)
+
+ifdef KBUILD_FROM_SVN
 SVNROOT   := http://svn.netlabs.org/repos/kbuild/trunk
 REVISION  := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -e's,.*svn,,')
 
@@ -13,6 +15,7 @@ makebuilddir:: SvnInfo.kmk
 SvnInfo.kmk:
 	echo "KBUILD_SVN_URL := $(SVNROOT)"  >  $@
 	echo "KBUILD_SVN_REV := $(REVISION)" >> $@
+endif
 
 build/kbuild:: debian/stamp-build
 debian/stamp-build:
@@ -25,13 +28,19 @@ debian/stamp-build:
 	touch $@
 
 install/kbuild::
-	kBuild/env.sh kmk install NIX_INSTALL_DIR=/usr LDFLAGS=-Wl,--as-needed
-	cd out/*.*/release/usr/share/kBuild && chmod a-x *.kmk */*.kmk
+	kBuild/env.sh kmk install NIX_INSTALL_DIR=/usr \
+	  MY_INST_DOC=share/doc/kbuild/ LDFLAGS=-Wl,--as-needed
 
 clean::
 	-kBuild/env.sh kmk uninstall
-	$(RM) -r debian/stamp-* debian/kmk.1 out kBuild/bin/*/* SvnInfo.kmk
+	$(RM) -r debian/stamp-* debian/kmk.1 out kBuild/bin/*/*
+ifdef KBUILD_FROM_SVN
+	$(RM) SvnInfo.kmk
+endif
 
+## @todo fetch from ftp://ftp.netlabs.org/pub/kbuild or
+## ftp://ftp.netlabs.org/incoming/kbuild when KBUILD_FROM_SVN isn't
+## defined... (fetch the kBuild-x.y.z-src.tar.gz file)
 
 get-orig-info:
 	svn info $(SVNROOT)
