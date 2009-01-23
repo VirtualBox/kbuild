@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2265 2009-01-23 00:41:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1591,21 +1591,21 @@ endif
 ## @page pg_fetches 	Fetching Tools, Sources and Similar.
 #
 # The targets listed in the the FETCHES target list have the following attributes:
-#	SOURCES
-#	INST
-#   FETCHTOOL
-#   FETCHFLAGS
-#   FETCHDIR
-#   UNPACKTOOL
-#   UNPACKFLAGS
+#       SOURCES
+#       INST
+#       FETCHTOOL
+#       FETCHFLAGS
+#       FETCHDIR
+#       UNPACKTOOL
+#       UNPACKFLAGS
 #
 # As usual the target name is an alias for 'creating' the target. Other
 # aliases are:
-#	pass_fetches
-#	fetch
-#	unfetch
-# 	download
-# 	unpack
+#       pass_fetches
+#       fetch
+#       unfetch
+#       download
+#       unpack
 #
 # @remark
 #
@@ -1637,6 +1637,7 @@ endif
 #   it makes use of includedep to avoid too many unnecessary files.
 #
 # @todo
+#   0. Move the fetches out into a unit.
 #   1. Download corruption / continuation.
 #   2. It's quite possible that there is one too many indirect dependency now...
 #
