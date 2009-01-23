@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2263 2009-01-23 00:22:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -34,8 +34,11 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include "k/kDefs.h"
+#include "k/kTypes.h"
 #if K_OS == K_OS_WINDOWS
-# include <windows.h>
+# define USE_WIN_MMAP
+# include <io.h>
+# include <Windows.h>
  extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
 #else
 # include <dirent.h>
@@ -293,12 +296,12 @@ void depPrintStubs(FILE *pOutput)
    experimenting with different constants, and turns out to be a prime.
    this is one of the algorithms used in berkeley db (see sleepycat) and
    elsewhere. */
-static unsigned sdbm(const char *str)
+static unsigned sdbm(const char *str, size_t size)
 {
     unsigned hash = 0;
     int c;
 
-    while ((c = *(unsigned const char *)str++))
+    while (size-- > 0 && (c = *(unsigned const char *)str++))
         hash = c + (hash << 6) + (hash << 16) - hash;
 
     return hash;
@@ -309,14 +312,14 @@ static unsigned sdbm(const char *str)
  * Adds a dependency.
  *
  * @returns Pointer to the allocated dependency.
- * @param   pszFilename     The filename.
+ * @param   pszFilename     The filename. Does not need to be terminated.
  * @param   cchFilename     The length of the filename.
  */
 PDEP depAdd(const char *pszFilename, size_t cchFilename)
 {
-    unsigned uHash = sdbm(pszFilename);
-    PDEP    pDep;
-    PDEP    pDepPrev;
+    unsigned    uHash = sdbm(pszFilename, cchFilename);
+    PDEP        pDep;
+    PDEP        pDepPrev;
 
     /*
      * Check if we've already got this one.
@@ -340,7 +343,8 @@ PDEP depAdd(const char *pszFilename, size_t cchFilename)
     }
 
     pDep->cchFilename = cchFilename;
-    memcpy(pDep->szFilename, pszFilename, cchFilename + 1);
+    memcpy(pDep->szFilename, pszFilename, cchFilename);
+    pDep->szFilename[cchFilename] = '\0';
     pDep->uHash = uHash;
 
     if (pDepPrev)
@@ -370,5 +374,133 @@ void depCleanup(void)
         pDep = pDep->pNext;
         free(pFree);
     }
+}
+
+
+/**
+ * Performs a hexdump.
+ */
+void depHexDump(const KU8 *pb, size_t cb, size_t offBase)
+{
+    const unsigned      cchWidth = 16;
+    size_t              off = 0;
+    while (off < cb)
+    {
+        unsigned i;
+        printf("%s%0*x %04x:", off ? "\n" : "", sizeof(pb) * 2, offBase + off, off);
+        for (i = 0; i < cchWidth && off + i < cb ; i++)
+            printf(off + i < cb ? !(i & 7) && i ? "-%02x" : " %02x" : "   ", pb[i]);
+
+        while (i++ < cchWidth)
+                printf("   ");
+        printf(" ");
+
+        for (i = 0; i < cchWidth && off + i < cb; i++)
+        {
+            const KU8 u8 = pb[i];
+            printf("%c", u8 < 127 && u8 >= 32 ? u8 : '.', 1);
+        }
+        off += cchWidth;
+        pb  += cchWidth;
+    }
+    printf("\n");
+}
+
+
+/**
+ * Reads the file specified by the pInput file stream into memory.
+ *
+ * @returns The address of the memory mapping on success. This must be
+ *          freed by calling depFreeFileMemory.
+ *
+ * @param   pInput      The file stream to load or map into memory.
+ * @param   pcbFile     Where to return the mapping (file) size.
+ * @param   ppvOpaque   Opaque data when mapping, otherwise NULL.
+ */
+void *depReadFileIntoMemory(FILE *pInput, size_t *pcbFile, void **ppvOpaque)
+{
+    void       *pvFile;
+    long        cbFile;
+
+    /*
+     * Figure out file size.
+     */
+#if defined(_MSC_VER)
+    cbFile = _filelength(fileno(pInput));
+    if (cbFile < 0)
+#else
+    if (    fseek(pInput, 0, SEEK_END) < 0
+        ||  (cbFile = ftell(pInput)) < 0
+        ||  fseek(pInput, 0, SEEK_SET))
+#endif
+    {
+        fprintf(stderr, "kDep: error: Failed to determin file size.\n");
+        return NULL;
+    }
+    if (pcbFile)
+        *pcbFile = cbFile;
+
+    /*
+     * Try mmap first.
+     */
+#ifdef USE_WIN_MMAP
+    {
+        HANDLE hMapObj = CreateFileMapping((HANDLE)_get_osfhandle(fileno(pInput)),
+                                           NULL, PAGE_READONLY, 0, cbFile, NULL);
+        if (hMapObj != NULL)
+        {
+            pvFile = MapViewOfFile(hMapObj, FILE_MAP_READ, 0, 0, cbFile);
+            if (pvFile)
+            {
+                *ppvOpaque = hMapObj;
+                return pvFile;
+            }
+            fprintf(stderr, "kDep: warning: MapViewOfFile failed, %d.\n", GetLastError());
+            CloseHandle(hMapObj);
+        }
+        else
+            fprintf(stderr, "kDep: warning: CreateFileMapping failed, %d.\n", GetLastError());
+    }
+
+#endif
+
+    /*
+     * Allocate memory and read the file.
+     */
+    pvFile = malloc(cbFile + 1);
+    if (pvFile)
+    {
+        if (fread(pvFile, cbFile, 1, pInput))
+        {
+            ((KU8 *)pvFile)[cbFile] = '\0';
+            *ppvOpaque = NULL;
+            return pvFile;
+        }
+        fprintf(stderr, "kDep: error: Failed to read %ld bytes.\n", cbFile);
+        free(pvFile);
+    }
+    else
+        fprintf(stderr, "kDep: error: Failed to allocate %ld bytes (file mapping).\n", cbFile);
+    return NULL;
+}
+
+
+/**
+ * Free resources allocated by depReadFileIntoMemory.
+ *
+ * @param   pvFile      The address of the memory mapping.
+ * @param   pvOpaque    The opaque value returned together with the mapping.
+ */
+void depFreeFileMemory(void *pvFile, void *pvOpaque)
+{
+#if defined(USE_WIN_MMAP)
+    if (pvOpaque)
+    {
+        UnmapViewOfFile(pvFile);
+        CloseHandle(pvOpaque);
+        return;
+    }
+#endif
+    free(pvFile);
 }
 
