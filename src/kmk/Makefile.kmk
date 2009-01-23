@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2263 2009-01-23 00:22:47Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -239,6 +239,7 @@ kmk_SOURCES += \
 	kmkbuiltin/expr.c \
 	kmkbuiltin/install.c \
 	kmkbuiltin/kDepIDB.c \
+	kmkbuiltin/kDepObj.c \
 	kmkbuiltin/md5sum.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/mv.c \
@@ -280,6 +281,7 @@ PROGRAMS += \
 	kmk_sleep \
 	kmk_test \
 	kDepIDB \
+	kDepObj \
 
 kmk_append_TEMPLATE = BIN-KMK
 kmk_append_DEFS = kmk_builtin_append=main
@@ -382,6 +384,13 @@ kDepIDB_INCS = .
 kDepIDB_LIBS = $(LIB_KDEP)
 kDepIDB_SOURCES = \
 	kmkbuiltin/kDepIDB.c
+
+kDepObj_TEMPLATE = BIN-KMK
+kDepObj_DEFS = kmk_builtin_kDepObj=main
+kDepObj_INCS = .
+kDepObj_LIBS = $(LIB_KDEP)
+kDepObj_SOURCES = \
+	kmkbuiltin/kDepObj.c
 
 
 #

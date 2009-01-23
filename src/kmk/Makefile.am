@@ -68,6 +68,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/expr.c \
 		kmkbuiltin/install.c \
 		kmkbuiltin/kDepIDB.c \
+		kmkbuiltin/kDepObj.c \
 		kmkbuiltin/ln.c \
 		kmkbuiltin/md5sum.c \
 		kmkbuiltin/mkdir.c \
