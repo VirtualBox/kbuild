@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 2264 2009-01-23 00:31:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -203,6 +203,7 @@ int main(int argc, char **argv)
     pid_t               pid;
     int                 rc;
 #endif
+    int                 rcExit = 0;
 
     /*
      * Parse arguments.
@@ -317,7 +318,6 @@ int main(int argc, char **argv)
                rc);
 
 #else /* unix: */
-        rc = 1;
         gettimeofday(&tvStart, NULL);
         pid = fork();
         if (!pid)
@@ -330,7 +330,7 @@ int main(int argc, char **argv)
         if (pid < 0)
         {
             fprintf(stderr, "%s: error: fork() failed: %s\n", name(argv[0]), strerror(errno));
-            return 8;
+            return 9;
         }
 
         /* parent, wait for child. */
@@ -359,16 +359,33 @@ int main(int argc, char **argv)
                (unsigned)(tv.tv_sec % 60),
                (unsigned)tv.tv_usec);
         if (WIFEXITED(rc))
+        {
             printf(" - normal exit: %d\n", WEXITSTATUS(rc));
+            rc = WEXITSTATUS(rc);
+        }
         else if (WIFSIGNALED(rc) && WCOREDUMP(rc))
+        {
             printf(" - dumped core: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));
+            rc = 10;
+        }
         else if (WIFSIGNALED(rc))
+        {
             printf(" -   killed by: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));
+            rc = 11;
+        }
         else if (WIFSTOPPED(rc))
+        {
             printf(" -  stopped by: %s (%d)\n", my_strsignal(WSTOPSIG(rc)), WSTOPSIG(rc));
+            rc = 12;
+        }
         else
+        {
             printf(" unknown exit status %#x (%d)\n", rc, rc);
+            rc = 13;
+        }
 #endif /* unix */
+        if (rc && !rcExit)
+            rcExit = (int)rc;
 
         /* calc min/max/avg */
         usTotal += usCur;
@@ -390,6 +407,6 @@ int main(int argc, char **argv)
         printf("%s: max %um%u.%06us\n", name(argv[0]), (unsigned)(usMax / 60000000), (unsigned)(usMax % 60000000) / 1000000, (unsigned)(usMax % 1000000));
     }
 
-    return rc;
+    return rcExit;
 }
 
