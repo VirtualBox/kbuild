@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2263 2009-01-23 00:22:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2270 2009-01-26 00:01:01Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -398,7 +398,7 @@ void depHexDump(const KU8 *pb, size_t cb, size_t offBase)
         for (i = 0; i < cchWidth && off + i < cb; i++)
         {
             const KU8 u8 = pb[i];
-            printf("%c", u8 < 127 && u8 >= 32 ? u8 : '.', 1);
+            printf("%c", u8 < 127 && u8 >= 32 ? u8 : '.');
         }
         off += cchWidth;
         pb  += cchWidth;
