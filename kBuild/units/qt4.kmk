@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2245 2009-01-16 17:07:44Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2272 2009-02-19 01:22:28Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -66,7 +66,7 @@ SDK_QT4 = Qt4
 #       PATH_SDK_QT4_LIB.x86   - The lib directory for X86.
 #       PATH_SDK_QT4_LIB       - The lib directory for KBUILD_TARGET.
 ifndef PATH_SDK_QT4
- PATH_SDK_QT4 := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_TRG)/qt/v4*)))
+ PATH_SDK_QT4 := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/qt/v4*)))
  ifeq ($(PATH_SDK_QT4),)
   # If target == host, try look for Qt in the various platform specific places.
   ifeq ($(KBUILD_TARGET),$(KBUILD_HOST))
@@ -168,7 +168,7 @@ ifndef PATH_SDK_QT4
   # Found it?
   ifeq ($(PATH_SDK_QT4),)
    $(warning kBuild: Couldn't find the Qt4 headers and libaries...)
-   PATH_SDK_QT4 := $(PATH_DEVTOOLS_TRG)/qt/not-found
+   PATH_SDK_QT4 := $(KBUILD_DEVTOOLS_TRG)/qt/not-found
   endif
  endif
 else
@@ -211,7 +211,10 @@ if !defined(PATH_TOOL_QT4_BIN) && defined(PATH_TOOL_QT4)
  PATH_TOOL_QT4_BIN := $(PATH_TOOL_QT4)/bin
 endif
 ifndef PATH_TOOL_QT4_BIN
- PATH_TOOL_QT4_BIN := $(firstword $(rsort $(wildcard $(PATH_DEVTOOLS_BLD)/qt/v4*/bin)))
+ PATH_TOOL_QT4_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/qt/v4*/bin)))
+ if "$(PATH_TOOL_QT4_BIN)" == "" && "$(KBUILD_DEVTOOLS_HST_ALT)" != ""
+  PATH_TOOL_QT4_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/qt/v4*/bin)))
+ endif
  ifeq ($(PATH_TOOL_QT4_BIN),)
   ifdef TOOL_QT4_BIN_SUFF
    TOOL_QT4_BIN_SUFF := $(TOOL_QT4_BIN_SUFF)
