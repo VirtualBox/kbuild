@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 2273 2009-02-20 23:44:53Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
 #
@@ -205,7 +205,7 @@ endef
 TOOL_VCC80X86_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_VCC80X86_LINK_LIBRARY_DEPORD =
 TOOL_VCC80X86_LINK_LIBRARY_OUTPUT = $(outbase).rsp
-TOOL_VCC80X86_LINK_LIBRARY_OUTPUT_OUTPUT = $(outbase).lst $(outbase).exp $(outbase).pdb
+TOOL_VCC80X86_LINK_LIBRARY_OUTPUT_MAYBE = $(outbase).lst $(outbase).exp $(outbase).pdb
 define TOOL_VCC80X86_LINK_LIBRARY_CMDS
 	$(QUIET)$(APPEND) -n $(outbase).rsp \
 		$(foreach arg,\
