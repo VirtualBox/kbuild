@@ -1,4 +1,4 @@
-# $Id: TAR.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: TAR.kmk 2275 2009-02-20 23:46:29Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - tar unpacker.
 #
@@ -39,7 +39,7 @@ ifndef TOOL_TAR_TAR
  ifeq ($(TOOL_TAR_TAR),)
   TOOL_TAR_TAR := $(wildcard $(PATH_DEVTOOLS_BLD)/bin/tar$(HOSTSUFF_EXE))
  endif
- ifeq ($(TOOL_TAR_TAR),)
+ ifneq ($(TOOL_TAR_TAR),)
   TOOL_TAR_TAR := $(lastword $(sort $(TOOL_TAR_TAR)))
  else
   TOOL_TAR_TAR := tar$(HOSTSUFF_EXE)
@@ -64,12 +64,12 @@ TOOL_TAR_UNPACK_DEPORD =
 ifeq ($(KBUILD_HOST),win) # hacking with buggy unxutils on windows. it doesn't like driver letters.
 define TOOL_TAR_UNPACK_CMDS
 	$(QUIET)$(TOOL_TAR_UNPACK) -x $(flags) -C $(subst G:,,$(inst)) -f $(archive)
-	$(QUIET)$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive) > $(out)
+	$(QUIET)$(TOOL_TAR_UNPACK) -t $(filter-out -v --verbose,$(flags)) -f $(archive) > $(out)
 endef
 else
 define TOOL_TAR_UNPACK_CMDS
 	$(QUIET)$(TOOL_TAR_UNPACK) -x $(flags) -C $(inst) -f $(archive)
-	$(QUIET)$(TOOL_TAR_UNPACK) -t $(flags) -f $(archive) > $(out)
+	$(QUIET)$(TOOL_TAR_UNPACK) -t $(filter-out -v --verbose,$(flags)) -f $(archive) > $(out)
 endef
 endif
 
