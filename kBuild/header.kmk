@@ -1,4 +1,4 @@
-# $Id: header.kmk 2271 2009-02-19 01:20:50Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2274 2009-02-20 23:45:49Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2271 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2274 $  )
 
 
 #
@@ -888,7 +888,6 @@ PROPS_ACCUMULATE_L_LNK := \
 # List of all the properties.
 PROPS_ALL = $(PROPS_SINGLE) $(PROPS_DEFERRED) $(PROPS_ACCUMULATE_L) $(PROPS_ACCUMULATE_R)
 
-
 ## @name Properties valid on programs (BLDPROGS and PROGRAMS)
 ## @{
 PROPS_PROGRAMS_SINGLE        := $(PROPS_SINGLE_LNK) LDTOOL EXESUFF
@@ -944,6 +943,33 @@ PROPS_FETCHES_DEFERRED       :=
 PROPS_FETCHES_ACCUMULATE_R   := FETCHFLAGS UNPACKFLAGS PATCHFLAGS
 PROPS_FETCHES_ACCUMULATE_L   := SOURCES CLEAN
 ## @}
+
+## KBUILD_COMPILE_CATEGTORIES
+# Tools categories for compiling.
+KBUILD_COMPILE_CATEGTORIES   := AS C CXX OBJC OBJCXX RC
+
+## KBUILD_GENERIC_CATEGORIES
+# Generic tool categories.
+KBUILD_GENERIC_CATEGORIES    := FETCH UNPACK PATCH $(addprefix LINK_,LIBRARY PROGRAM DLL SYSMOD MISCBIN)
+
+## PROPS_TOOLS_ONLY
+# Properties found only on tools.
+# This is expanded in a deferred manner, so it will pick up changes made to
+# KBUILD_COMPILE_CATEGTORIES and KBUILD_GENERIC_CATEGORIES made by units.
+PROPS_TOOLS_ONLY              = \
+	$(foreach cat, $(KBUILD_COMPILE_CATEGTORIES), \
+		COMPILE_$(cat)_CMDS \
+		COMPILE_$(cat)_OUTPUT \
+		COMPILE_$(cat)_OUTPUT_MAYBE \
+		COMPILE_$(cat)_DEPEND \
+		COMPILE_$(cat)_DEPORD \
+		COMPILE_$(cat)_USES_KOBJCACHE ) \
+	$(foreach cat, $(KBUILD_GENERIC_CATEGORIES), \
+		$(cat)_CMDS \
+		$(cat)_OUTPUT \
+		$(cat)_OUTPUT_MAYBE \
+		$(cat)_DEPEND \
+		$(cat)_DEPORD ))
 
 
 #
