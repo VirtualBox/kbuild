@@ -1,4 +1,4 @@
-# $Id: if-expr 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $                                        -*-perl-*-
+# $Id: if-expr 2277 2009-02-24 02:18:24Z knut.osmundsen@oracle.com $                                        -*-perl-*-
 ## @file
 # $(if-expr expr, if-expand, else-expand)
 #
@@ -52,6 +52,22 @@ $(error sub-test 0 failed)
 endif
 ifneq ($(if-expr 1!=1,$(IF-EXPAND),$(ELSE-EXPAND)),-7)
 $(error sub-test 1 failed)
+endif
+.PHONY: all
+all: ; @:
+',
+'',
+'');
+
+
+   # TEST #2 - Checks that the optional 3 argument can be omitted.
+   # -------------------------------------------------------------
+   run_make_test('
+ifneq ($(if-expr 1==1,true),true)
+$(error sub-test 0 failed)
+endif
+ifneq ($(if-expr 2==1,true),)
+$(error sub-test 0 failed)
 endif
 .PHONY: all
 all: ; @:
