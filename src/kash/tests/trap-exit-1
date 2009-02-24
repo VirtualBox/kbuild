@@ -1,0 +1,7 @@
+#!/bin/sh
+
+trap 'echo "trap-exit-1: overriding exit 1"; exit 0' EXIT
+exit 1
+exit 2
+
+

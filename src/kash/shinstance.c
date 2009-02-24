@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2282 2009-02-24 04:08:51Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -346,7 +346,26 @@ static void sh_int_lazy_init_sigaction(shinstance *psh, int signo)
  */
 static void sh_sig_common_handler(int signo)
 {
+    shmtxtmp tmp;
+    shinstance *psh;
+
     fprintf(stderr, "sh_sig_common_handler: signo=%d:%s\n", signo, sys_signame[signo]);
+    shmtx_enter(&g_sh_mtx, &tmp);
+
+/** @todo signal focus chain or something? Atm there will only be one shell,
+ *        so it's not really important until we go threaded for real... */
+    psh = g_sh_tail;
+    while (psh != NULL)
+    {
+        if (psh->sigactions[signo].sh_handler == SH_SIG_DFL)
+            /* implement... */;
+        else if (psh->sigactions[signo].sh_handler != SIG_IGN)
+            psh->sigactions[signo].sh_handler(psh, signo);
+
+        psh = psh->prev;
+    }
+
+    shmtx_leave(&g_sh_mtx, &tmp);
 }
 
 
@@ -577,7 +596,7 @@ int sh_kill(shinstance *psh, pid_t pid, int signo)
 # ifdef _MSC_VER
     rc = -1;
 # else
-    //fprintf(stderr, "kill(%d, %d)\n", pid, signo);
+    fprintf(stderr, "kill(%d, %d)\n", pid, signo);
     rc = kill(pid, signo);
 # endif
 #else
