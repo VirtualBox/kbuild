@@ -400,6 +400,7 @@ opentrace(shinstance *psh)
 #if defined(O_APPEND) && !defined(_MSC_VER)
 	int flags;
 #endif
+	int fd;
 
 	if (debug(psh) != 1) {
 		if (tracefile)
@@ -429,16 +430,28 @@ opentrace(shinstance *psh)
 			return;
 		}
 	} else {
-		if ((tracefile = fopen(s, "a")) == NULL) {
+		fd = shfile_open(&psh->fdtab, s, O_APPEND | O_RDWR | O_CREAT, 0600);
+		if (fd != -1) {
+			int fd2 = fcntl(fd, F_DUPFD, 199);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 99);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 49);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 18);
+			if (fd2 == -1)
+				fd2 = fcntl(fd, F_DUPFD, 10);
+			if (fd2 != -1) {
+				close(fd);
+				fd = fd2;
+			}
+		}
+		if (fd == -1 || (tracefile = fdopen(fd, "a")) == NULL) {
 			fprintf(stderr, "Can't open %s\n", s);
 			debug(psh) = 0;
 			return;
 		}
 	}
-#if defined(O_APPEND) && !defined(_MSC_VER)
-	if ((flags = shfile_fcntl(&psh->fdtab, fileno(tracefile), F_GETFL, 0)) >= 0)
-		shfile_fcntl(&psh->fdtab, fileno(tracefile), F_SETFL, flags | O_APPEND);
-#endif
 	setvbuf(tracefile, (char *)NULL, _IOLBF, 0); //setlinebuf(tracefile);
 	fputs("\nTracing started.\n", tracefile);
 }
