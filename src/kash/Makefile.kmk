@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2282 2009-02-24 04:08:51Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -181,5 +181,9 @@ $$(PATH_kash)/init.c: \
 
 endif
 
+# Include the sub-makefile.
+include $(PATH_SUB_CURRENT)/tests/Makefile.kmk
+
 include $(FILE_KBUILD_SUB_FOOTER)
+
 

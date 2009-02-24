@@ -1,0 +1,54 @@
+# $Id: Makefile.kmk 2282 2009-02-24 04:08:51Z knut.osmundsen@oracle.com $
+## @file
+# Sub-makefile for kash tests.
+#
+
+#
+# Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+SUB_DEPTH = ../..
+include $(KBUILD_PATH)/subheader.kmk
+
+#
+# The program.
+#
+
+TESTING += kash_tests
+
+KASH_TEST_BIN   = $(if $(kash_1_TARGET),$(kash_1_TARGET),$(PATH_INS)/$(TEMPLATE_BIN_INST)kash$(SUFF_EXE))
+KASH_TESTCASES := $(addprefix $(PATH_SUB_CURRENT)/,\
+	trap-exit-1 \
+	trap-int-1 \
+	trap-term-1 \
+	)
+
+
+kash_tests:
+	$(ECHO) "kash tests..."
+	$(foreach test,$(KASH_TESTCASES)\
+		,@$(ECHO) " * $(KASH_TEST_BIN) $(test)" $(NLTAB)\
+		@if $(KASH_TEST_BIN) $(test); then echo " *   ==> SUCCESS"; else echo " *   ==> FAILURE!"; exit 1; fi $(NLTAB)\
+		)
+
+
+
+include $(FILE_KBUILD_SUB_FOOTER)
+
+
