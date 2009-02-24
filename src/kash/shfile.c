@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2281 2009-02-24 04:08:14Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -40,6 +40,10 @@
 # include <dirent.h>
 #endif
 
+#ifdef DEBUG
+extern FILE *tracefile;
+#endif
+
 
 int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 {
@@ -52,7 +56,10 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 #else
 #endif
 
-    TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
+#ifdef DEBUG
+    if (tracefile)
+        TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
+#endif
     return fd;
 }
 
