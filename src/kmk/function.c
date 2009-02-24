@@ -4210,10 +4210,10 @@ func_if_expr (char *o, char **argv, const char *funcname UNUSED)
   char *to_expand;
 
   /* Evaluate the condition in argv[0] and expand the 2nd or
-     3rd argument according to the result. */
+     3rd (optional) argument according to the result. */
   rc = expr_eval_if_conditionals (argv[0], NULL);
   to_expand = rc == 0 ? argv[1] : argv[2];
-  if (*to_expand)
+  if (to_expand && *to_expand)
     variable_expand_string_2 (o, to_expand, -1, &o);
 
   return o;
