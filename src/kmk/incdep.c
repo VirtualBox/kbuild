@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2283 2009-02-24 04:54:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -597,36 +597,53 @@ incdep_are_threads_enabled (void)
   return 0;
 #endif
 
-  if (getenv("KMK_THREADS_DISABLED"))
-    return 0;
-  if (getenv("KMK_THREADS_ENABLED"))
+  /* Generic overrides. */
+  if (getenv ("KMK_THREADS_DISABLED"))
+    {
+      message (1, "Threads disabled (environment)");
+      return 0;
+    }
+  if (getenv ("KMK_THREADS_ENABLED"))
     return 1;
-#if defined(__gnu_linux__) || defined(__linux__)
-  if (getenv("FAKEROOTKEY"))
-    return 0;
-  if (getenv("FAKEROOTUID"))
-    return 0;
-  if (getenv("FAKEROOTGID"))
-    return 0;
-  if (getenv("FAKEROOTEUID"))
-    return 0;
-  if (getenv("FAKEROOTEGID"))
-    return 0;
-  if (getenv("FAKEROOTSUID"))
-    return 0;
-  if (getenv("FAKEROOTSGID"))
-    return 0;
-  if (getenv("FAKEROOTFUID"))
-    return 0;
-  if (getenv("FAKEROOTFGID"))
-    return 0;
-  if (getenv("FAKEROOTDONTTRYCHOWN"))
-    return 0;
-  if (getenv("FAKEROOT_FD_BASE"))
-    return 0;
-  if (getenv("FAKEROOT_DB_SEARCH_PATHS"))
-    return 0;
-#endif /* GNU/Linux */
+
+#if defined (__gnu_linux__) || defined (__linux__)
+  /* Try detect fakeroot. */
+  if (getenv ("FAKEROOTKEY")
+   || getenv ("FAKEROOTUID")
+   || getenv ("FAKEROOTGID")
+   || getenv ("FAKEROOTEUID")
+   || getenv ("FAKEROOTEGID")
+   || getenv ("FAKEROOTSUID")
+   || getenv ("FAKEROOTSGID")
+   || getenv ("FAKEROOTFUID")
+   || getenv ("FAKEROOTFGID")
+   || getenv ("FAKEROOTDONTTRYCHOWN")
+   || getenv ("FAKEROOT_FD_BASE")
+   || getenv ("FAKEROOT_DB_SEARCH_PATHS"))
+    {
+      message (1, "Threads disabled (fakeroot)");
+      return 0;
+    }
+
+  /* LD_PRELOAD could indicate undetected debian fakeroot or some
+     other ingenius library which cannot deal correctly with threads. */
+  if (getenv ("LD_PRELOAD"))
+    {
+      message (1, "Threads disabled (LD_PRELOAD)");
+      return 0;
+    }
+
+#elif defined(__APPLE__) \
+   || defined(__sun__) || defined(__SunOS__) || defined(__sun) || defined(__SunOS) \
+   || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+  /* No broken preload libraries known to be in common use on these platforms... */
+
+#elif defined(_MSC_VER) || defined(_WIN32) || defined(__OS2__)
+  /* No preload mess to care about. */
+
+#else
+# error "Add your self to the appropriate case above and send a patch to bird."
+#endif
   return 1;
 }
 
