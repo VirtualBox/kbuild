@@ -1,0 +1,10 @@
+#!/bin/sh
+
+VAR=`echo "echoed string"`
+if test "$VAR" != "echoed string"; then
+    echo "tick-1: failure: VAR=$VAR"
+    exit 1
+fi
+echo 'tick-1: success'
+exit 0
+

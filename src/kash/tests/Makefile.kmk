@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2282 2009-02-24 04:08:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2284 2009-02-25 03:58:14Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash tests.
 #
@@ -33,19 +33,35 @@ include $(KBUILD_PATH)/subheader.kmk
 TESTING += kash_tests
 
 KASH_TEST_BIN   = $(if $(kash_1_TARGET),$(kash_1_TARGET),$(PATH_INS)/$(TEMPLATE_BIN_INST)kash$(SUFF_EXE))
-KASH_TESTCASES := $(addprefix $(PATH_SUB_CURRENT)/,\
+KASH_TEST_DIR  := $(PATH_SUB_CURRENT)
+KASH_TESTCASES := $(addprefix $(KASH_TEST_DIR)/,\
 	trap-exit-1 \
 	trap-int-1 \
 	trap-term-1 \
+	tick-1 \
+	redirect-1 \
+	redirect-2 \
+	redirect-3 \
 	)
 
 
-kash_tests:
+kash_tests::
 	$(ECHO) "kash tests..."
+	@export KASH_TEST_DIR=$(KASH_TEST_DIR); \
+	KASH_FAILURE=0; \
 	$(foreach test,$(KASH_TESTCASES)\
-		,@$(ECHO) " * $(KASH_TEST_BIN) $(test)" $(NLTAB)\
-		@if $(KASH_TEST_BIN) $(test); then echo " *   ==> SUCCESS"; else echo " *   ==> FAILURE!"; exit 1; fi $(NLTAB)\
-		)
+		,echo " * $(KASH_TEST_BIN) $(test)"; \
+		if ! $(KASH_TEST_BIN) $(test); then \
+			echo " => FAILURE!"; \
+			KASH_FAILURE=`$(EXPR_EXT) $${KASH_FAILURE} + 1`; \
+		fi; \
+		) \
+	if test $$KASH_FAILURE -eq 0; then \
+		echo 'kash tests: All tests succeeded.'; \
+	else \
+		echo "kash tests: $$KASH_FAILURE kash test failed"'!!'; \
+		exit 1; \
+	fi
 
 
 

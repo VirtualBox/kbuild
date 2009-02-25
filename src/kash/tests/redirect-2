@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Redirect output from builtin commands in a subshell.
+
+. ${KASH_TEST_DIR}/common-include.sh
+
+TMPFILE="/tmp/redirect-2.$$.tmp"
+
+(echo -n 1 ; echo -n 2 ; echo -n 3 ) > $TMPFILE
+VAR=`$CMD_CAT $TMPFILE`
+$CMD_RM -f $TMPFILE
+if test "$VAR" != "123"; then
+    echo "redirect-2: FAILURE - VAR=$VAR"
+    exit 1
+fi
+echo "redirect-2: SUCCESS"
+exit 0
+
+
