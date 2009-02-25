@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2281 2009-02-24 04:08:14Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2288 2009-02-25 06:21:10Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -67,12 +67,14 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     return _pipe(fds, PIPE_BUF, O_BINARY);
 # else
     return pipe(fds);
 # endif
+
 #else
 #endif
 }
@@ -82,8 +84,10 @@ int shfile_dup(shfdtab *pfdtab, int fd)
     int rc;
 #ifdef SH_PURE_STUB_MODE
     rc = -1;
+
 #elif defined(SH_STUB_MODE)
     rc = dup(fd);
+
 #else
 #endif
 
@@ -97,8 +101,10 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
 
 #ifdef SH_PURE_STUB_MODE
     rc = -1;
+
 #elif defined(SH_STUB_MODE)
     rc = close(fd);
+
 #else
 #endif
 
@@ -110,12 +116,14 @@ long shfile_read(shfdtab *pfdtab, int fd, void *buf, size_t len)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     return read(fd, buf, (unsigned)len);
 # else
     return read(fd, buf, len);
 # endif
+
 #else
 #endif
 }
@@ -124,12 +132,14 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     return write(fd, buf, (unsigned)len);
 # else
     return write(fd, buf, len);
 # endif
+
 #else
 #endif
 }
@@ -138,32 +148,130 @@ long shfile_lseek(shfdtab *pfdtab, int fd, long off, int whench)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
     return lseek(fd, off, whench);
+
 #else
 #endif
 }
 
 int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 {
+    int rc;
 #ifdef SH_PURE_STUB_MODE
-    return -1;
-#elif defined(SH_STUB_MODE)
+    rc = -1;
+
+#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
-    return -1;
+    switch (cmd)
+    {
+        /* Just enough F_GETFL/F_SETFL to get along with. */
+        case F_GETFL:
+            errno = 0;
+            rc = _isatty(fd);
+            if (errno == EBADF)
+                rc = -1;
+            break;
+
+        case F_SETFL:
+            errno = 0;
+            rc = _isatty(fd);
+            if (errno != EBADF)
+            {
+                if (!arg)
+                    rc = 0;
+                else
+                {
+                    errno = EINVAL;
+                    rc = -1;
+                }
+            }
+            else
+                rc = -1;
+            break;
+
+        case F_DUPFD:
+        {
+#  if 1
+            /* the brute force approach. */
+            int i = 0;
+            int fds[256];
+            for (i = 0; i < 256; i++)
+            {
+                fds[i] = -1;
+                rc = _dup(fd);
+                if (rc >= arg)
+                    break;
+                fds[i] = rc;
+            }
+            while (i-- > 0)
+                close(fds[i]);
+            if (rc < arg)
+            {
+                errno = EMFILE;
+                rc = -1;
+            }
+#  else
+            /* A much quick approach which is spoiled by crash validation in the CRT. */
+            int fdnew = arg;
+            rc = -2;
+            for (fdnew = arg; fdnew < 1024; fdnew++)
+            {
+                /* is the file open? */
+                errno = 0;
+                _isatty(fdnew);
+                if (errno == EBADF)
+                {
+                    rc = _dup2(fd, fdnew);
+                    break;
+                }
+            }
+            if (rc == -2)
+            {
+                errno = EMFILE;
+                rc = -1;
+            }
+#  endif
+            break;
+        }
+    }
 # else
-    return fcntl(fd, cmd, arg);
+    rc = fcntl(fd, cmd, arg);
 # endif
+
 #else
 #endif
+
+#ifdef DEBUG
+    if (tracefile)
+        switch (cmd)
+        {
+            case F_GETFL:
+                TRACE2((NULL, "shfile_fcntl(%d,F_GETFL,ignored=%d) -> %d [%d]\n", fd, arg, rc, errno));
+                break;
+            case F_SETFL:
+                TRACE2((NULL, "shfile_fcntl(%d,F_SETFL,newflags=%#x) -> %d [%d]\n", fd, arg, rc, errno));
+                break;
+            case F_DUPFD:
+                TRACE2((NULL, "shfile_fcntl(%d,F_DUPFS,minfd=%d) -> %d [%d]\n", fd, arg, rc, errno));
+                break;
+            default:
+                TRACE2((NULL, "shfile_fcntl(%d,%d,%d) -> %d [%d]\n", fd, cmd, arg, rc, errno));
+                break;
+        }
+#endif
+    return rc;
 }
 
 int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
     return stat(path, pst);
+
 #else
 #endif
 }
@@ -172,12 +280,14 @@ int shfile_lstat(shfdtab *pfdtab, const char *link, struct stat *pst)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     return stat(link, pst);
 # else
     return lstat(link, pst);
 # endif
+
 #else
 #endif
 }
@@ -186,12 +296,14 @@ int shfile_chdir(shfdtab *pfdtab, const char *path)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER //???
     return chdir(path);
 # else
     return chdir(path);
 # endif
+
 #else
 #endif
 }
@@ -200,8 +312,10 @@ char *shfile_getcwd(shfdtab *pfdtab, char *buf, int len)
 {
 #ifdef SH_PURE_STUB_MODE
     return NULL;
+
 #elif defined(SH_STUB_MODE)
     return getcwd(buf, len);
+
 #else
 #endif
 }
@@ -210,6 +324,7 @@ int shfile_access(shfdtab *pfdtab, const char *path, int type)
 {
 #ifdef SH_PURE_STUB_MODE
     return -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
     type &= ~X_OK;
@@ -217,6 +332,7 @@ int shfile_access(shfdtab *pfdtab, const char *path, int type)
 # else
     return access(path, type);
 # endif
+
 #else
 #endif
 }
@@ -243,13 +359,16 @@ int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 
 #ifdef SH_PURE_STUB_MODE
     rc = -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
+    errno = ENOSYS;
     rc = -1;
 # else
     rc = fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0)
                           | (closeit ? FD_CLOEXEC : 0));
 # endif
+
 #else
 #endif
 
@@ -264,12 +383,15 @@ int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 
 #ifdef SH_PURE_STUB_MODE
     rc = -1;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
+    errno = ENOSYS;
     rc = -1;
 # else
     rc = ioctl(fd, request, buf);
 # endif
+
 #else
 #endif
 
@@ -282,8 +404,10 @@ mode_t shfile_get_umask(shfdtab *pfdtab)
 {
 #ifdef SH_PURE_STUB_MODE
     return 022;
+
 #elif defined(SH_STUB_MODE)
     return 022;
+
 #else
 #endif
 }
@@ -293,12 +417,15 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 {
 #ifdef SH_PURE_STUB_MODE
     return NULL;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
+    errno = ENOSYS;
     return NULL;
 # else
     return (shdir *)opendir(dir);
 # endif
+
 #else
 #endif
 }
@@ -307,13 +434,16 @@ shdirent *shfile_readdir(struct shdir *pdir)
 {
 #ifdef SH_PURE_STUB_MODE
     return NULL;
+
 #elif defined(SH_STUB_MODE)
 # ifdef _MSC_VER
+    errno = ENOSYS;
     return NULL;
 # else
     struct dirent *pde = readdir((DIR *)pdir);
     return pde ? (shdirent *)&pde->d_name[0] : NULL;
 # endif
+
 #else
 #endif
 }
@@ -322,10 +452,14 @@ void shfile_closedir(struct shdir *pdir)
 {
 #ifdef SH_PURE_STUB_MODE
     return NULL;
+
 #elif defined(SH_STUB_MODE)
-# ifndef _MSC_VER
+# ifdef _MSC_VER
+    errno = ENOSYS;
+# else
     closedir((DIR *)pdir);
 # endif
+
 #else
 #endif
 }

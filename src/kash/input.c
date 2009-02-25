@@ -411,7 +411,7 @@ setinputfile(shinstance *psh, const char *fname, int push)
 void
 setinputfd(shinstance *psh, int fd, int push)
 {
-	(void) shfile_fcntl(&psh->fdtab, fd, F_SETFD, FD_CLOEXEC);
+	(void) shfile_cloexec(&psh->fdtab, fd, 1 /* close it */);
 	if (push) {
 		pushfile(psh);
 		psh->parsefile->buf = ckmalloc(BUFSIZ);

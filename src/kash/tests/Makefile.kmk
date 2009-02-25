@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2285 2009-02-25 04:06:49Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2288 2009-02-25 06:21:10Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash tests.
 #
@@ -61,7 +61,8 @@ kash_tests::
 	if test $$KASH_FAILURE -eq 0; then \
 		echo 'kash tests: All tests succeeded.'; \
 	else \
-		echo "kash tests: $$KASH_FAILURE kash test failed"'!!'; \
+		echo "kash tests: $$KASH_FAILURE tests failed"'!!'; \
+		echo ""; \
 		exit 1; \
 	fi
 
