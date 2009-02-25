@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2286 2009-02-25 05:25:38Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2287 2009-02-25 05:40:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -341,6 +341,7 @@ const char *sh_gethomedir(shinstance *, const char *);
 #define SH_SIG_IGN ((shsig_t)SIG_IGN)
 #define SH_SIG_ERR ((shsig_t)SIG_ERR)
 #ifdef _MSC_VER
+#   define SA_RESTART       0x02
 #   define SIG_BLOCK         1
 #   define SIG_UNBLOCK       2
 #   define SIG_SETMASK       3
@@ -367,7 +368,7 @@ void sh_sigemptyset(shsigset_t *);
 void sh_sigfillset(shsigset_t *);
 void sh_sigaddset(shsigset_t *, int);
 void sh_sigdelset(shsigset_t *, int);
-int sh_sigismember(shsigset_t *, int);
+int sh_sigismember(shsigset_t const *, int);
 int sh_sigprocmask(shinstance *, int, shsigset_t const *, shsigset_t *);
 void sh_abort(shinstance *) __attribute__((__noreturn__));
 void sh_raise_sigint(shinstance *);

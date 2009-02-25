@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2286 2009-02-25 05:25:38Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2287 2009-02-25 05:40:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -650,7 +650,7 @@ void sh_sigdelset(shsigset_t *setp, int signo)
 #endif
 }
 
-int sh_sigismember(shsigset_t *setp, int signo)
+int sh_sigismember(shsigset_t const *setp, int signo)
 {
 #ifdef _MSC_VER
     return !!(*setp & (1U << signo));
@@ -688,12 +688,12 @@ int sh_sigprocmask(shinstance *psh, int operation, shsigset_t const *newp, shsig
             case SIG_BLOCK:
                 for (rc = 0; rc < NSIG; rc++)
                     if (sh_sigismember(newp, rc))
-                        sh_sigaddset(&mask);
+                        sh_sigaddset(&mask, rc);
                 break;
             case SIG_UNBLOCK:
                 for (rc = 0; rc < NSIG; rc++)
                     if (sh_sigismember(newp, rc))
-                        sh_sigdelset(&mask);
+                        sh_sigdelset(&mask, rc);
                 break;
             case SIG_SETMASK:
                 mask = *newp;
@@ -861,7 +861,7 @@ pid_t sh_fork(shinstance *psh)
     *(char *)1 = 0x1;
 #  else
     pid = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 #  endif
 # else
     pid = fork();
@@ -887,7 +887,7 @@ pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     pidret = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     pidret = waitpid(pid, statusp, flags);
 # endif
@@ -918,7 +918,11 @@ void sh__exit(shinstance *psh, int rc)
 
 int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const char * const *envp)
 {
+#ifdef _MSC_VER
+    intptr_t rc;
+#else
     int rc;
+#endif
 
 #ifdef DEBUG
     /* log it all */
@@ -945,7 +949,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
 
     TRACE2((psh, "sh_execve -> %d [%d]\n", rc, errno));
     (void)psh;
-    return rc;
+    return (int)rc;
 }
 
 uid_t sh_getuid(shinstance *psh)
@@ -1055,7 +1059,7 @@ pid_t sh_getpgrp(shinstance *psh)
 
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
-    pid_t pgrp _getpid();
+    pid_t pgrp = _getpid();
 # else
     pid_t pgrp = getpgrp();
 # endif
@@ -1096,7 +1100,7 @@ int sh_setpgid(shinstance *psh, pid_t pid, pid_t pgid)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     int rc = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     int rc = setpgid(pid, pgid);
 # endif
@@ -1119,7 +1123,7 @@ pid_t sh_tcgetpgrp(shinstance *psh, int fd)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     pgrp = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     pgrp = tcgetpgrp(fd);
 # endif
@@ -1143,7 +1147,7 @@ int sh_tcsetpgrp(shinstance *psh, int fd, pid_t pgrp)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     rc = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     rc = tcsetpgrp(fd, pgrp);
 # endif
@@ -1164,7 +1168,7 @@ int sh_getrlimit(shinstance *psh, int resid, shrlimit *limp)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     int rc = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     int rc = getrlimit(resid, limp);
 # endif
@@ -1187,7 +1191,7 @@ int sh_setrlimit(shinstance *psh, int resid, const shrlimit *limp)
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     int rc = -1;
-    error = ENOSYS;
+    errno = ENOSYS;
 # else
     int rc = setrlimit(resid, limp);
 # endif
