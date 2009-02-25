@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2282 2009-02-24 04:08:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2287 2009-02-25 05:40:29Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -125,7 +125,7 @@ if1of ($(KBUILD_TARGET), win)
 #
 # Use the pregenerated code.
 #
-kash_ORDERDEPS :=
+kash_INTERMEDIATES :=
 kash_INCS += generated
 kash_SOURCES := $(patsubst $(PATH_kash)/%,generated/%,$(kash_SOURCES))
 

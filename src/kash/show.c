@@ -432,15 +432,15 @@ opentrace(shinstance *psh)
 	} else {
 		fd = shfile_open(&psh->fdtab, s, O_APPEND | O_RDWR | O_CREAT, 0600);
 		if (fd != -1) {
-			int fd2 = fcntl(fd, F_DUPFD, 199);
+			int fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 199);
 			if (fd2 == -1)
-				fd2 = fcntl(fd, F_DUPFD, 99);
+				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 99);
 			if (fd2 == -1)
-				fd2 = fcntl(fd, F_DUPFD, 49);
+				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 49);
 			if (fd2 == -1)
-				fd2 = fcntl(fd, F_DUPFD, 18);
+				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 18);
 			if (fd2 == -1)
-				fd2 = fcntl(fd, F_DUPFD, 10);
+				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 10);
 			if (fd2 != -1) {
 				close(fd);
 				fd = fd2;
@@ -452,7 +452,7 @@ opentrace(shinstance *psh)
 			return;
 		}
 	}
-	setvbuf(tracefile, (char *)NULL, _IOLBF, 0); //setlinebuf(tracefile);
+	setvbuf(tracefile, (char *)NULL, _IOLBF, 1024);
 	fputs("\nTracing started.\n", tracefile);
 }
 #endif /* DEBUG */
