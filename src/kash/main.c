@@ -83,7 +83,7 @@ STATIC union node *prevcmd;
 
 STATIC void read_profile(struct shinstance *, const char *);
 STATIC char *find_dot_file(struct shinstance *, char *);
-int main(int, char **);
+int main(int, char **, char **);
 int shell_main(shinstance *, int, char **);
 #ifdef _MSC_VER
 extern void init_syntax(void);
@@ -100,7 +100,7 @@ STATIC int version(const char *argv0);
  */
 
 int
-main(int argc, char **argv)
+main(int argc, char **argv, char **envp)
 {
 	shinstance *psh;
 
@@ -125,7 +125,7 @@ main(int argc, char **argv)
 	/*
 	 * Create the root shell instance.
 	 */
-	psh = sh_create_root_shell(NULL, argc, argv);
+	psh = sh_create_root_shell(NULL, argc, argv, envp);
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);

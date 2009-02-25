@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2286 2009-02-25 05:25:38Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -130,6 +130,8 @@ struct shinstance
     shtid               tid;            /**< The thread identifier of the thread for this shell. */
     shfdtab             fdtab;          /**< The file descriptor table. */
     shsigaction_t       sigactions[NSIG]; /**< The signal actions registered with this shell instance. */
+    shsigset_t          sigmask;        /**< Our signal mask. */
+    char              **shenviron;      /**< The environment vector. */
 
     /* alias.c */
 #define ATABSIZE 39
@@ -326,7 +328,7 @@ struct shinstance
 };
 
 
-extern shinstance *sh_create_root_shell(shinstance *, int, char **);
+extern shinstance *sh_create_root_shell(shinstance *, int, char **, char **);
 
 /* environment & pwd.h */
 char *sh_getenv(shinstance *, const char *);
@@ -362,7 +364,7 @@ int sh_sigaction(shinstance *, int, const struct shsigaction *, struct shsigacti
 shsig_t sh_signal(shinstance *, int, shsig_t);
 int sh_siginterrupt(shinstance *, int, int);
 void sh_sigemptyset(shsigset_t *);
-int sh_sigfillset(shsigset_t *);
+void sh_sigfillset(shsigset_t *);
 void sh_sigaddset(shsigset_t *, int);
 void sh_sigdelset(shsigset_t *, int);
 int sh_sigismember(shsigset_t *, int);
