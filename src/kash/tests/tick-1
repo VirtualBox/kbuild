@@ -5,6 +5,6 @@ if test "$VAR" != "echoed string"; then
     echo "tick-1: failure: VAR=$VAR"
     exit 1
 fi
-echo 'tick-1: success'
+echo 'tick-1: SUCCESS'
 exit 0
 
