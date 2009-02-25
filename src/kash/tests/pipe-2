@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# Pipes input from an builtin command thru an external one.
+
+. ${KASH_TEST_DIR}/common-include.sh
+
+TMPFILE="/tmp/pipe-2.$$.tmp"
+echo piped > $TMPFILE
+$CMD_CAT $TMPFILE \
+	| $CMD_SED -e 's/piped/abc/' \
+	| $CMD_SED -e 's/abc/def/'  \
+	| $CMD_SED -e 's/def/ghi/'  \
+	| $CMD_SED -e 's/ghi/jkl/'  \
+	| $CMD_SED -e 's/jkl/mno/'  \
+	| $CMD_SED -e 's/mno/pqr/'  \
+	| $CMD_SED -e 's/pqr/stu/'  \
+	| $CMD_SED -e 's/stu/vwx/'  \
+	| $CMD_SED -e 's/vwx/yz_/'  \
+	> $TMPFILE
+
+VAR=`$CMD_CAT $TMPFILE`
+$CMD_RM -f $TMPFILE
+if test "$VAR" != "yz_"; then
+    echo "pipe-2: FAILURE - VAR=$VAR"
+    exit 1
+fi
+echo "pipe-2: SUCCESS"
+exit 0
+
