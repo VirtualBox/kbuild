@@ -1,4 +1,4 @@
-/* $Id: shthread.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.h 2289 2009-02-26 04:58:49Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell thread methods.
@@ -34,10 +34,17 @@ typedef struct shmtx
     char b[64];
 } shmtx;
 
+typedef struct shmtxtmp { int i; } shmtxtmp;
+
 typedef uintptr_t shtid;
 
 void shthread_set_shell(struct shinstance *);
 struct shinstance *shthread_get_shell(void);
+
+int shmtx_init(shmtx *pmtx);
+void shmtx_delete(shmtx *pmtx);
+void shmtx_enter(shmtx *pmtx, shmtxtmp *ptmp);
+void shmtx_leave(shmtx *pmtx, shmtxtmp *ptmp);
 
 #endif
 
