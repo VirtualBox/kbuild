@@ -396,10 +396,7 @@ trargs(shinstance *psh, char **ap)
 void
 opentrace(shinstance *psh)
 {
-	char s[100];
-#if defined(O_APPEND) && !defined(_MSC_VER)
-	int flags;
-#endif
+    static const char s[] = "./trace";
 	int fd;
 
 	if (debug(psh) != 1) {
@@ -408,21 +405,7 @@ opentrace(shinstance *psh)
 		/* leave open because libedit might be using it */
 		return;
 	}
-#ifdef not_this_way
-	{
-		char *p;
-		if ((p = getenv("HOME")) == NULL) {
-			if (sh_geteuid(psh) == 0)
-				p = "/";
-			else
-				p = "/tmp";
-		}
-		scopy(p, s);
-		strcat(s, "/trace");
-	}
-#else
-	scopy("./trace", s);
-#endif /* not_this_way */
+
 	if (tracefile) {
 		if (!freopen(s, "a", tracefile)) {
 			fprintf(stderr, "Can't re-open %s\n", s);
@@ -430,21 +413,37 @@ opentrace(shinstance *psh)
 			return;
 		}
 	} else {
-		fd = shfile_open(&psh->fdtab, s, O_APPEND | O_RDWR | O_CREAT, 0600);
+		fd = open(s, O_APPEND | O_RDWR | O_CREAT, 0600);
 		if (fd != -1) {
-			int fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 199);
-			if (fd2 == -1)
-				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 99);
-			if (fd2 == -1)
-				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 49);
-			if (fd2 == -1)
-				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 18);
-			if (fd2 == -1)
-				fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, 10);
+# if K_OS == K_OS_WINDOWS
+            int fds[50];
+            int i = 0;
+            while (i < 50) {
+                fds[i] = _dup(fd);
+                if (fds[i] == -1 || fds[i] > 199)
+                    break;
+                i++;
+            }
+            if (i > 0) {
+                close(fd);
+                fd = fds[--i];
+            }
+            while (i-- > 0)
+                close(fds[i]);
+# else
+            int fdTarget = 199;
+            while (fdTarget > 10)
+            {
+                int fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, fdTarget);
+                if (fd2 != -1)
+                    break;
+                fdTarget = (fdTarget + 1 / 2) - 1;
+            }
 			if (fd2 != -1) {
 				close(fd);
 				fd = fd2;
 			}
+# endif
 		}
 		if (fd == -1 || (tracefile = fdopen(fd, "a")) == NULL) {
 			fprintf(stderr, "Can't open %s\n", s);
