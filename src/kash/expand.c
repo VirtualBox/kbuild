@@ -308,7 +308,7 @@ removerecordregions(shinstance *psh, int endoff)
 			struct ifsregion *ifsp;
 			INTOFF;
 			ifsp = psh->ifsfirst.next->next;
-			ckfree(psh->ifsfirst.next);
+			ckfree(psh, psh->ifsfirst.next);
 			psh->ifsfirst.next = ifsp;
 			INTON;
 		}
@@ -328,7 +328,7 @@ removerecordregions(shinstance *psh, int endoff)
 		struct ifsregion *ifsp;
 		INTOFF;
 		ifsp = psh->ifslastp->next->next;
-		ckfree(psh->ifslastp->next);
+		ckfree(psh, psh->ifslastp->next);
 		psh->ifslastp->next = ifsp;
 		INTON;
 	}
@@ -462,7 +462,7 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 	if (in.fd >= 0)
 		shfile_close(&psh->fdtab, in.fd);
 	if (in.buf)
-		ckfree(in.buf);
+		ckfree(psh, in.buf);
 	if (in.jp)
 		psh->back_exitstatus = waitforjob(psh, in.jp);
 	if (quoted == 0)
@@ -921,7 +921,7 @@ recordregion(shinstance *psh, int start, int end, int inquotes)
 			psh->ifslastp->endoff = end;
 			return;
 		}
-		ifsp = (struct ifsregion *)ckmalloc(sizeof (struct ifsregion));
+		ifsp = (struct ifsregion *)ckmalloc(psh, sizeof (struct ifsregion));
 		psh->ifslastp->next = ifsp;
 	}
 	psh->ifslastp = ifsp;
@@ -1044,7 +1044,7 @@ ifsfree(shinstance *psh)
 		struct ifsregion *ifsp;
 		INTOFF;
 		ifsp = psh->ifsfirst.next->next;
-		ckfree(psh->ifsfirst.next);
+		ckfree(psh, psh->ifsfirst.next);
 		psh->ifsfirst.next = ifsp;
 		INTON;
 	}
@@ -1085,11 +1085,11 @@ expandmeta(shinstance *psh, struct strlist *str, int flag)
 		INTOFF;
 		if (psh->expdir == NULL) {
 			size_t i = strlen(str->text);
-			psh->expdir = ckmalloc(i < 2048 ? 2048 : i); /* XXX */
+			psh->expdir = ckmalloc(psh, i < 2048 ? 2048 : i); /* XXX */
 		}
 
 		expmeta(psh, psh->expdir, str->text);
-		ckfree(psh->expdir);
+		ckfree(psh, psh->expdir);
 		psh->expdir = NULL;
 		INTON;
 		if (psh->exparg.lastp == savelastp) {

@@ -70,16 +70,16 @@ setalias(shinstance *psh, char *name, char *val)
 	for (ap = *app; ap; ap = ap->next) {
 		if (equal(name, ap->name)) {
 			INTOFF;
-			ckfree(ap->val);
-			ap->val	= savestr(val);
+			ckfree(psh, ap->val);
+			ap->val	= savestr(psh, val);
 			INTON;
 			return;
 		}
 	}
 	/* not found */
 	INTOFF;
-	ap = ckmalloc(sizeof (struct alias));
-	ap->name = savestr(name);
+	ap = ckmalloc(psh, sizeof (struct alias));
+	ap->name = savestr(psh, name);
 	/*
 	 * XXX - HACK: in order that the parser will not finish reading the
 	 * alias value off the input before processing the next alias, we
@@ -98,11 +98,11 @@ setalias(shinstance *psh, char *name, char *val)
 	 * idea ------- ***NOT***
 	 */
 #ifdef notyet
-	ap->val = savestr(val);
+	ap->val = savestr(psh, val);
 #else /* hack */
 	{
 	size_t len = strlen(val);
-	ap->val = ckmalloc(len + 2);
+	ap->val = ckmalloc(psh, len + 2);
 	memcpy(ap->val, val, len);
 	ap->val[len] = ' ';	/* fluff */
 	ap->val[len+1] = '\0';
@@ -134,9 +134,9 @@ unalias(shinstance *psh, char *name)
 			else {
 				INTOFF;
 				*app = ap->next;
-				ckfree(ap->name);
-				ckfree(ap->val);
-				ckfree(ap);
+				ckfree(psh, ap->name);
+				ckfree(psh, ap->val);
+				ckfree(psh, ap);
 				INTON;
 			}
 			return (0);
@@ -165,11 +165,11 @@ rmaliases(shinstance *psh)
 		ap = psh->atab[i];
 		psh->atab[i] = NULL;
 		while (ap) {
-			ckfree(ap->name);
-			ckfree(ap->val);
+			ckfree(psh, ap->name);
+			ckfree(psh, ap->val);
 			tmp = ap;
 			ap = ap->next;
-			ckfree(tmp);
+			ckfree(psh, tmp);
 		}
 	}
 	INTON;

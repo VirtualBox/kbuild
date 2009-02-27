@@ -252,7 +252,7 @@ updatepwd(shinstance *psh, char *dir)
 	 */
 	if (dir == NULL || psh->curdir == NULL)  {
 		if (psh->prevdir)
-			ckfree(psh->prevdir);
+			ckfree(psh, psh->prevdir);
 		INTOFF;
 		psh->prevdir = psh->curdir;
 		psh->curdir = NULL;
@@ -288,9 +288,9 @@ updatepwd(shinstance *psh, char *dir)
 	STACKSTRNUL(psh, new);
 	INTOFF;
 	if (psh->prevdir)
-		ckfree(psh->prevdir);
+		ckfree(psh, psh->prevdir);
 	psh->prevdir = psh->curdir;
-	psh->curdir = savestr(stackblock(psh));
+	psh->curdir = savestr(psh, stackblock(psh));
 	setvar(psh, "PWD", psh->curdir, VEXPORT);
 	INTON;
 }
@@ -351,7 +351,7 @@ getpwd(shinstance *psh, int noerror)
 		    shfile_stat(&psh->fdtab, pwd, &stpwd) != -1 &&
 		    stdot.st_dev == stpwd.st_dev &&
 		    stdot.st_ino == stpwd.st_ino) {
-			psh->curdir = savestr(pwd);
+			psh->curdir = savestr(psh, pwd);
 			return psh->curdir;
 		}
 	}
@@ -384,7 +384,7 @@ find_curdir(shinstance *psh, int noerror)
 	for (i = MAXPWD;; i *= 2) {
 		pwd = stalloc(psh, i);
 		if (shfile_getcwd(&psh->fdtab, pwd, i) != NULL) {
-			psh->curdir = savestr(pwd);
+			psh->curdir = savestr(psh, pwd);
 			return;
 		}
 		stunalloc(psh, pwd);

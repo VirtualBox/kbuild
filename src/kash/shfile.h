@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2289 2009-02-26 04:58:49Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2290 2009-02-27 04:08:07Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -149,6 +149,7 @@ typedef struct sh_winsize
 typedef struct winsize sh_winsize;
 #endif
 mode_t shfile_get_umask(shfdtab *);
+void   shfile_set_umask(shfdtab *, mode_t);
 
 
 typedef struct sh_dirent

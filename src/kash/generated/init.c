@@ -188,7 +188,7 @@ reset(shinstance *psh) {
 	      psh->out1 = &psh->output;
 	      psh->out2 = &psh->errout;
 	      if (psh->memout.buf != NULL) {
-		      ckfree(psh->memout.buf);
+		      ckfree(psh, psh->memout.buf);
 		      psh->memout.buf = NULL;
 	      }
       }

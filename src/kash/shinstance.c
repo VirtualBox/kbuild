@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2289 2009-02-26 04:58:49Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2290 2009-02-27 04:08:07Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance methods.
@@ -168,7 +168,7 @@ static void sh_int_unlink(shinstance *psh)
 static void sh_destroy(shinstance *psh)
 {
     memset(psh, 0, sizeof(*psh));
-    free(psh);
+    sh_free(NULL, psh);
 }
 
 /**
@@ -189,7 +189,7 @@ static int sh_env_clone(char ***dstp, char **src)
        items++;
 
    /* alloc clone array. */
-   *dstp = dst = malloc(sizeof(*dst) * items + 1);
+   *dstp = dst = sh_malloc(NULL, sizeof(*dst) * items + 1);
    if (!dst)
        return -1;
 
@@ -197,13 +197,13 @@ static int sh_env_clone(char ***dstp, char **src)
    dst[items] = NULL;
    while (items-- > 0)
    {
-       dst[items] = strdup(src[items]);
+       dst[items] = sh_strdup(NULL, src[items]);
        if (!dst[items])
        {
            /* allocation error, clean up. */
            while (dst[++items])
-               free(dst[items]);
-           free(dst);
+               sh_free(NULL, dst[items]);
+           sh_free(NULL, dst);
            errno = ENOMEM;
            return -1;
        }
@@ -230,7 +230,7 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
     /*
      * The allocations.
      */
-    psh = calloc(sizeof(*psh), 1);
+    psh = sh_calloc(NULL, sizeof(*psh), 1);
     if (psh)
     {
         /* Init it enought for sh_destroy() to not get upset */
@@ -343,6 +343,44 @@ const char *sh_gethomedir(shinstance *psh, const char *user)
 #endif
 
     return ret;
+}
+
+/** malloc() */
+void *sh_malloc(shinstance *psh, size_t size)
+{
+    (void)psh;
+    return malloc(size);
+}
+
+/** calloc() */
+void *sh_calloc(shinstance *psh, size_t num, size_t size)
+{
+    (void)psh;
+    return calloc(num, size);
+}
+
+/** realloc() */
+void *sh_realloc(shinstance *psh, void *old, size_t new_size)
+{
+    return realloc(old, new_size);
+}
+
+/** strdup() */
+char *sh_strdup(shinstance *psh, const char *string)
+{
+    size_t len = strlen(string);
+    char *ret = sh_malloc(psh, len + 1);
+    if (ret)
+        memcpy(ret, string, len + 1);
+    return ret;
+}
+
+/** free() */
+void sh_free(shinstance *psh, void *ptr)
+{
+    if (ptr)
+        free(ptr);
+    (void)psh;
 }
 
 /**

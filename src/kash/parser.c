@@ -1150,7 +1150,7 @@ endword:
 	grabstackblock(psh, len);
 	psh->wordtext = out;
 	if (dblquotep != NULL)
-	    ckfree(dblquotep);
+	    ckfree(psh, dblquotep);
 	return psh->lasttoken = TWORD;
 /* end of readtoken routine */
 
@@ -1346,7 +1346,7 @@ badsub:			synerror(psh, "Bad substitution");
 		if (subtype != VSNORMAL) {
 			varnest++;
 			if (varnest >= maxnest) {
-				dblquotep = ckrealloc(dblquotep, maxnest / 8);
+				dblquotep = ckrealloc(psh, dblquotep, maxnest / 8);
 				dblquotep[(maxnest / 32) - 1] = 0;
 				maxnest += 32;
 			}
@@ -1379,7 +1379,7 @@ parsebackq: {
 	savepbq = psh->parsebackquote;
 	if (setjmp(jmploc.loc)) {
 		if (str)
-			ckfree(str);
+			ckfree(psh, str);
 		psh->parsebackquote = 0;
 		psh->handler = savehandler;
 		longjmp(psh->handler->loc, 1);
@@ -1388,7 +1388,7 @@ parsebackq: {
 	str = NULL;
 	savelen = (int)(out - stackblock(psh));
 	if (savelen > 0) {
-		str = ckmalloc(savelen);
+		str = ckmalloc(psh, savelen);
 		memcpy(str, stackblock(psh), savelen);
 	}
 	savehandler = psh->handler;
@@ -1494,7 +1494,7 @@ done:
 		memcpy(out, str, savelen);
 		STADJUST(psh, savelen, out);
 		INTOFF;
-		ckfree(str);
+		ckfree(psh, str);
 		str = NULL;
 		INTON;
 	}

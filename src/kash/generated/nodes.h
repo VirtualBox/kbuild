@@ -155,5 +155,5 @@ struct nodelist {
 };
 
 
-union node *copyfunc(union node *);
-void freefunc(union node *);
+union node *copyfunc(struct shinstance *, union node *);
+void freefunc(struct shinstance *, union node *);

@@ -212,7 +212,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
 		}
 		initshellproc(psh);
 		setinputfile(psh, cmd, 0);
-		psh->commandname = psh->arg0 = savestr(argv[0]);
+		psh->commandname = psh->arg0 = savestr(psh, argv[0]);
 #ifdef EXEC_HASH_BANG_SCRIPT
 		pgetc(psh); pungetc(psh);		/* fill up input buffer */
 		p = psh->parsenextc;
@@ -295,7 +295,7 @@ break2:;
 	if (i == 0)
 		error(psh, "Bad #! line");
 	for (ap2 = argv ; *ap2++ != NULL ; );
-	new = ckmalloc(i + ((char *)ap2 - (char *)argv));
+	new = ckmalloc(psh, i + ((char *)ap2 - (char *)argv));
 	ap = newargs, ap2 = new;
 	while ((i -= sizeof (char **)) >= 0)
 		*ap2++ = *ap++;
@@ -867,7 +867,7 @@ clearcmdentry(shinstance *psh, int firstchange)
 			 || (cmdp->cmdtype == CMDBUILTIN &&
 			     psh->builtinloc >= firstchange)) {
 				*pp = cmdp->next;
-				ckfree(cmdp);
+				ckfree(psh, cmdp);
 			} else {
 				pp = &cmdp->next;
 			}
@@ -907,8 +907,8 @@ deletefuncs(shinstance *psh)
 		while ((cmdp = *pp) != NULL) {
 			if (cmdp->cmdtype == CMDFUNCTION) {
 				*pp = cmdp->next;
-				freefunc(cmdp->param.func);
-				ckfree(cmdp);
+				freefunc(psh, cmdp->param.func);
+				ckfree(psh, cmdp);
 			} else {
 				pp = &cmdp->next;
 			}
@@ -951,7 +951,7 @@ cmdlookup(shinstance *psh, const char *name, int add)
 	}
 	if (add && cmdp == NULL) {
 		INTOFF;
-		cmdp = *pp = ckmalloc(sizeof (struct tblentry) - ARB
+		cmdp = *pp = ckmalloc(psh, sizeof (struct tblentry) - ARB
 					+ strlen(name) + 1);
 		cmdp->next = NULL;
 		cmdp->cmdtype = CMDUNKNOWN;
@@ -975,7 +975,7 @@ delete_cmd_entry(shinstance *psh)
 	INTOFF;
 	cmdp = *lastcmdentry;
 	*lastcmdentry = cmdp->next;
-	ckfree(cmdp);
+	ckfree(psh, cmdp);
 	INTON;
 }
 
@@ -1012,7 +1012,7 @@ addcmdentry(shinstance *psh, char *name, struct cmdentry *entry)
 	cmdp = cmdlookup(psh, name, 1);
 	if (cmdp->cmdtype != CMDSPLBLTIN) {
 		if (cmdp->cmdtype == CMDFUNCTION) {
-			freefunc(cmdp->param.func);
+			freefunc(psh, cmdp->param.func);
 		}
 		cmdp->cmdtype = entry->cmdtype;
 		cmdp->param = entry->u;
@@ -1026,13 +1026,13 @@ addcmdentry(shinstance *psh, char *name, struct cmdentry *entry)
  */
 
 void
-defun(shinstance *psh,char *name, union node *func)
+defun(shinstance *psh, char *name, union node *func)
 {
 	struct cmdentry entry;
 
 	INTOFF;
 	entry.cmdtype = CMDFUNCTION;
-	entry.u.func = copyfunc(func);
+	entry.u.func = copyfunc(psh, func);
 	addcmdentry(psh, name, &entry);
 	INTON;
 }
@@ -1049,7 +1049,7 @@ unsetfunc(shinstance *psh, char *name)
 
 	if ((cmdp = cmdlookup(psh, name, 0)) != NULL &&
 	    cmdp->cmdtype == CMDFUNCTION) {
-		freefunc(cmdp->param.func);
+		freefunc(psh, cmdp->param.func);
 		delete_cmd_entry(psh);
 		return (0);
 	}
