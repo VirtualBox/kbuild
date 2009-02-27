@@ -58,6 +58,7 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
 #include "miscbltin.h"
 #include "mystring.h"
 #include "shinstance.h"
+#include "shfile.h"
 
 #undef rflag
 
@@ -219,10 +220,7 @@ umaskcmd(shinstance *psh, int argc, char **argv)
 		symbolic_mode = 1;
 	}
 
-	INTOFF;
-	mask = umask(0);
-	umask(mask);
-	INTON;
+	mask = shfile_get_umask(&psh->fdtab);
 
 	if ((ap = *psh->argptr) == NULL) {
 		if (symbolic_mode) {
@@ -267,20 +265,20 @@ umaskcmd(shinstance *psh, int argc, char **argv)
 					error(psh, "Illegal number: %s", argv[1]);
 				mask = (mask << 3) + (*ap - '0');
 			} while (*++ap != '\0');
-			umask(mask);
+			shfile_set_umask(&psh->fdtab, mask);
 		} else {
 			void *set;
 
 			INTOFF;
 			if ((set = bsd_setmode(psh, ap)) != 0) {
 				mask = bsd_getmode(set, ~mask & 0777);
-				ckfree(set);
+				ckfree(psh, set);
 			}
 			INTON;
 			if (!set)
 				error(psh, "Illegal mode: %s", ap);
 
-			umask(~mask & 0777);
+			shfile_set_umask(&psh->fdtab, ~mask & 0777);
 		}
 	}
 	return 0;

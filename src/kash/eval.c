@@ -613,11 +613,11 @@ syspath(shinstance *psh)
 
 	if (sys_path == NULL) {
 		if (sysctl(mib, 2, 0, &len, 0, 0) != -1 &&
-		    (sys_path = ckmalloc(len + 5)) != NULL &&
+		    (sys_path = ckmalloc(psh, len + 5)) != NULL &&
 		    sysctl(mib, 2, sys_path + 5, &len, 0, 0) != -1) {
 			memcpy(sys_path, "PATH=", 5);
 		} else {
-			ckfree(sys_path);
+			ckfree(psh, sys_path);
 			/* something to keep things happy */
 			sys_path = def_path;
 		}
@@ -934,10 +934,10 @@ normal_fork:
 		INTON;
 		if (setjmp(jmploc.loc)) {
 			if (psh->exception == EXSHELLPROC) {
-				freeparam((volatile struct shparam *)
+				freeparam(psh, (volatile struct shparam *)
 				    &saveparam);
 			} else {
-				freeparam(&psh->shellparam);
+				freeparam(psh, &psh->shellparam);
 				psh->shellparam = saveparam;
 			}
 			poplocalvars(psh);
@@ -956,7 +956,7 @@ normal_fork:
 		INTOFF;
 		poplocalvars(psh);
 		psh->localvars = savelocalvars;
-		freeparam(&psh->shellparam);
+		freeparam(psh, &psh->shellparam);
 		psh->shellparam = saveparam;
 		psh->handler = savehandler;
 		popredir(psh);

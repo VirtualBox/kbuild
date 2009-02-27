@@ -55,13 +55,13 @@ __RCSID("$NetBSD: memalloc.c,v 1.28 2003/08/07 09:05:34 agc Exp $");
  */
 
 pointer
-ckmalloc(size_t nbytes)
+ckmalloc(shinstance *psh, size_t nbytes)
 {
 	pointer p;
 
-	p = malloc(nbytes);
+	p = sh_malloc(psh, nbytes);
 	if (p == NULL)
-		error(NULL, "Out of space");
+		error(psh, "Out of space");
 	return p;
 }
 
@@ -71,11 +71,11 @@ ckmalloc(size_t nbytes)
  */
 
 pointer
-ckrealloc(pointer p, size_t nbytes)
+ckrealloc(struct shinstance *psh, pointer p, size_t nbytes)
 {
-	p = realloc(p, nbytes);
+	p = sh_realloc(psh, p, nbytes);
 	if (p == NULL)
-		error(NULL, "Out of space");
+		error(psh, "Out of space");
 	return p;
 }
 
@@ -85,12 +85,13 @@ ckrealloc(pointer p, size_t nbytes)
  */
 
 char *
-savestr(const char *s)
+savestr(struct shinstance *psh, const char *s)
 {
 	char *p;
+    size_t len = strlen(s);
 
-	p = ckmalloc(strlen(s) + 1);
-	scopy(s, p);
+	p = ckmalloc(psh, len + 1);
+	memcpy(p, s, len + 1);
 	return p;
 }
 
@@ -133,7 +134,7 @@ stalloc(shinstance *psh, size_t nbytes)
 		if (blocksize < MINSIZE)
 			blocksize = MINSIZE;
 		INTOFF;
-		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + blocksize);
+		sp = ckmalloc(psh, sizeof(struct stack_block) - MINSIZE + blocksize);
 		sp->prev = psh->stackp;
 		psh->stacknxt = sp->space;
 		psh->stacknleft = (int)blocksize;
@@ -181,7 +182,7 @@ popstackmark(shinstance *psh, struct stackmark *mark)
 	while (psh->stackp != mark->stackp) {
 		sp = psh->stackp;
 		psh->stackp = sp->prev;
-		ckfree(sp);
+		ckfree(psh, sp);
 	}
 	psh->stacknxt = mark->stacknxt;
 	psh->stacknleft = mark->stacknleft;
@@ -213,7 +214,7 @@ growstackblock(shinstance *psh)
 		oldstackp = psh->stackp;
 		sp = psh->stackp;
 		psh->stackp = sp->prev;
-		sp = ckrealloc((pointer)sp,
+		sp = ckrealloc(psh, (pointer)sp,
 		    sizeof(struct stack_block) - MINSIZE + newlen);
 		sp->prev = psh->stackp;
 		psh->stackp = sp;

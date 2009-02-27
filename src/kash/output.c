@@ -88,7 +88,7 @@ RESET {
 	psh->out1 = &psh->output;
 	psh->out2 = &psh->errout;
 	if (psh->memout.buf != NULL) {
-		ckfree(psh->memout.buf);
+		ckfree(psh, psh->memout.buf);
 		psh->memout.buf = NULL;
 	}
 }
@@ -152,7 +152,7 @@ emptyoutbuf(struct output *dest)
 		dest->flags |= OUTPUT_ERR;
 	} else if (dest->buf == NULL) {
 		INTOFF;
-		dest->buf = ckmalloc(dest->bufsize);
+		dest->buf = ckmalloc(psh, dest->bufsize);
 		dest->nextc = dest->buf;
 		dest->nleft = dest->bufsize;
 		INTON;
@@ -160,7 +160,7 @@ emptyoutbuf(struct output *dest)
 		offset = dest->bufsize;
 		INTOFF;
 		dest->bufsize <<= 1;
-		dest->buf = ckrealloc(dest->buf, dest->bufsize);
+		dest->buf = ckrealloc(psh, dest->buf, dest->bufsize);
 		dest->nleft = dest->bufsize - offset;
 		dest->nextc = dest->buf + offset;
 		INTON;
@@ -197,7 +197,7 @@ freestdout(shinstance *psh)
 {
 	INTOFF;
 	if (psh->output.buf) {
-		ckfree(psh->output.buf);
+		ckfree(psh, psh->output.buf);
 		psh->output.buf = NULL;
 		psh->output.nleft = 0;
 	}

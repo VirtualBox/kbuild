@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2287 2009-02-25 05:40:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2290 2009-02-27 04:08:07Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * The shell instance and it's methods.
@@ -334,6 +334,13 @@ extern shinstance *sh_create_root_shell(shinstance *, int, char **, char **);
 char *sh_getenv(shinstance *, const char *);
 char **sh_environ(shinstance *);
 const char *sh_gethomedir(shinstance *, const char *);
+
+/* heap */
+void *sh_malloc(shinstance *, size_t);
+void *sh_calloc(shinstance *, size_t, size_t);
+void *sh_realloc(shinstance *, void *, size_t);
+char *sh_strdup(shinstance *, const char *);
+void  sh_free(shinstance *, void *);
 
 /* signals */
 #define SH_SIG_UNK ((shsig_t)(intptr_t)-199)

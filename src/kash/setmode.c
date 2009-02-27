@@ -166,9 +166,9 @@ common:			if (set->cmd2 & CMD2_CLR) {
 	if (set >= endset) {						\
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
-		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
+		newset = sh_realloc(NULL, saveset, sizeof(BITCMD) * setlen);	\
 		if (newset == NULL) {					\
-			free(saveset);					\
+			sh_free(NULL, saveset);					\
 			return (NULL);					\
 		}							\
 		set = newset + (set - saveset);				\
@@ -201,7 +201,7 @@ bsd_setmode(shinstance *psh, const char *p)
 
 	setlen = SET_LEN + 2;
 
-	if ((set = malloc(sizeof(BITCMD) * setlen)) == NULL)
+	if ((set = sh_malloc(NULL, sizeof(BITCMD) * setlen)) == NULL)
 		return (NULL);
 	saveset = set;
 	endset = set + (setlen - 2);
@@ -213,7 +213,7 @@ bsd_setmode(shinstance *psh, const char *p)
 	if (isdigit((unsigned char)*p)) {
 		perm = (mode_t)strtol(p, &ep, 8);
 		if (*ep || perm & ~(STANDARD_BITS|S_ISTXT)) {
-			free(saveset);
+			sh_free(NULL, saveset);
 			return (NULL);
 		}
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
@@ -247,7 +247,7 @@ bsd_setmode(shinstance *psh, const char *p)
 		}
 
 getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
-			free(saveset);
+			sh_free(NULL, saveset);
 			return (NULL);
 		}
 		if (op == '=')

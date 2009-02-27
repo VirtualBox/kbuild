@@ -342,7 +342,7 @@ pushstring(shinstance *psh, char *s, size_t len, void *ap)
 	INTOFF;
 /*dprintf("*** calling pushstring: %s, %d\n", s, len);*/
 	if (psh->parsefile->strpush) {
-		sp = ckmalloc(sizeof (struct strpush));
+		sp = ckmalloc(psh, sizeof (struct strpush));
 		sp->prev = psh->parsefile->strpush;
 		psh->parsefile->strpush = sp;
 	} else
@@ -372,7 +372,7 @@ popstring(shinstance *psh)
 		sp->ap->flag &= ~ALIASINUSE;
 	psh->parsefile->strpush = sp->prev;
 	if (sp != &(psh->parsefile->basestrpush))
-		ckfree(sp);
+		ckfree(psh, sp);
 	INTON;
 }
 
@@ -414,13 +414,13 @@ setinputfd(shinstance *psh, int fd, int push)
 	(void) shfile_cloexec(&psh->fdtab, fd, 1 /* close it */);
 	if (push) {
 		pushfile(psh);
-		psh->parsefile->buf = ckmalloc(BUFSIZ);
+		psh->parsefile->buf = ckmalloc(psh, BUFSIZ);
 	}
 	if (psh->parsefile->fd > 0)
 		shfile_close(&psh->fdtab, psh->parsefile->fd);
 	psh->parsefile->fd = fd;
 	if (psh->parsefile->buf == NULL)
-		psh->parsefile->buf = ckmalloc(BUFSIZ);
+		psh->parsefile->buf = ckmalloc(psh, BUFSIZ);
 	psh->parselleft = psh->parsenleft = 0;
 	psh->plinno = 1;
 }
@@ -459,7 +459,7 @@ pushfile(shinstance *psh)
 	psh->parsefile->lleft = psh->parselleft;
 	psh->parsefile->nextc = psh->parsenextc;
 	psh->parsefile->linno = psh->plinno;
-	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
+	pf = (struct parsefile *)ckmalloc(psh, sizeof (struct parsefile));
 	pf->prev = psh->parsefile;
 	pf->fd = -1;
 	pf->strpush = NULL;
@@ -477,11 +477,11 @@ popfile(shinstance *psh)
 	if (pf->fd >= 0)
 		shfile_close(&psh->fdtab, pf->fd);
 	if (pf->buf)
-		ckfree(pf->buf);
+		ckfree(psh, pf->buf);
 	while (pf->strpush)
 		popstring(psh);
 	psh->parsefile = pf->prev;
-	ckfree(pf);
+	ckfree(psh, pf);
 	psh->parsenleft = psh->parsefile->nleft;
 	psh->parselleft = psh->parsefile->lleft;
 	psh->parsenextc = psh->parsefile->nextc;

@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2289 2009-02-26 04:58:49Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2290 2009-02-27 04:08:07Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -149,7 +149,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned flags, int f
         int         new_size = pfdtab->size + SHFILE_GROW;
         while (new_size < fdMin)
             new_size += SHFILE_GROW;
-        new_tab = realloc(pfdtab->tab, new_size * sizeof(shfile));
+        new_tab = sh_realloc(NULL, pfdtab->tab, new_size * sizeof(shfile));
         if (new_tab)
         {
             fd = i = pfdtab->size;
@@ -229,7 +229,6 @@ static void shfile_put(shfdtab *pfdtab, shfile *file, shmtxtmp *ptmp)
     (void)file;
 }
 
-
 /**
  * Constructs a path from the current directory and the passed in path.
  *
@@ -256,7 +255,7 @@ int shfile_make_path(shfdtab *pfdtab, const char *path, char *buf)
     if (    *path == '/'
 #if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
         ||  *path == '\\'
-        ||  (   !*path
+        ||  (   *path
              && path[1] == ':'
              && (   (*path >= 'A' && *path <= 'Z')
                  || (*path >= 'a' && *path <= 'z')))
@@ -1047,6 +1046,11 @@ mode_t shfile_get_umask(shfdtab *pfdtab)
 
 #else
 #endif
+}
+
+void shfile_set_umask(shfdtab *pfdtab, mode_t mask)
+{
+    (void)mask;
 }
 
 

@@ -518,7 +518,7 @@ freejob(shinstance *psh, struct job *jp)
 {
 	INTOFF;
 	if (jp->ps != &jp->ps0) {
-		ckfree(jp->ps);
+		ckfree(psh, jp->ps);
 		jp->ps = &jp->ps0;
 	}
 	jp->nprocs = 0;
@@ -722,15 +722,15 @@ makejob(shinstance *psh, union node *node, int nprocs)
 		if (--i < 0) {
 			INTOFF;
 			if (psh->njobs == 0) {
-				psh->jobtab = ckmalloc(4 * sizeof psh->jobtab[0]);
+				psh->jobtab = ckmalloc(psh, 4 * sizeof psh->jobtab[0]);
 			} else {
-				jp = ckmalloc((psh->njobs + 4) * sizeof psh->jobtab[0]);
+				jp = ckmalloc(psh, (psh->njobs + 4) * sizeof psh->jobtab[0]);
 				memcpy(jp, psh->jobtab, psh->njobs * sizeof jp[0]);
 				/* Relocate `ps' pointers */
 				for (i = 0; i < psh->njobs; i++)
 					if (jp[i].ps == &psh->jobtab[i].ps0)
 						jp[i].ps = &jp[i].ps0;
-				ckfree(psh->jobtab);
+				ckfree(psh, psh->jobtab);
 				psh->jobtab = jp;
 			}
 			jp = psh->jobtab + psh->njobs;
@@ -751,7 +751,7 @@ makejob(shinstance *psh, union node *node, int nprocs)
 	set_curjob(psh, jp, 1);
 #endif
 	if (nprocs > 1) {
-		jp->ps = ckmalloc(nprocs * sizeof (struct procstat));
+		jp->ps = ckmalloc(psh, nprocs * sizeof (struct procstat));
 	} else {
 		jp->ps = &jp->ps0;
 	}

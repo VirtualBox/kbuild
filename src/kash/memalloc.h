@@ -47,9 +47,9 @@ extern int stacknleft;
 extern int sstrnleft;
 extern int herefd;*/
 
-pointer ckmalloc(size_t);
-pointer ckrealloc(pointer, size_t);
-char *savestr(const char *);
+pointer ckmalloc(struct shinstance *, size_t);
+pointer ckrealloc(struct shinstance *, pointer, size_t);
+char *savestr(struct shinstance *, const char *);
 pointer stalloc(struct shinstance *, size_t);
 void stunalloc(struct shinstance *, pointer);
 void setstackmark(struct shinstance *, struct stackmark *);
@@ -74,4 +74,4 @@ void ungrabstackstr(struct shinstance *, char *, char *);
 #define STADJUST(psh, amount, p)    (p += (amount), (psh)->sstrnleft -= (amount))
 #define grabstackstr(psh, p)        stalloc((psh), stackblocksize(psh) - (psh)->sstrnleft)
 
-#define ckfree(p)	free((pointer)(p))
+#define ckfree(psh, p)	            sh_free(psh, (pointer)(p))

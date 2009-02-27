@@ -116,7 +116,7 @@ redirect(shinstance *psh, union node *redir, int flags)
 		/* We don't have to worry about REDIR_VFORK here, as
 		 * flags & REDIR_PUSH is never true if REDIR_VFORK is set.
 		 */
-		sv = ckmalloc(sizeof (struct redirtab));
+		sv = ckmalloc(psh, sizeof (struct redirtab));
 		for (i = 0 ; i < 10 ; i++)
 			sv->renamed[i] = EMPTY;
 		sv->next = psh->redirlist;
@@ -310,7 +310,7 @@ popredir(shinstance *psh)
 	}
 	INTOFF;
 	psh->redirlist = rp->next;
-	ckfree(rp);
+	ckfree(psh, rp);
 	INTON;
 }
 
