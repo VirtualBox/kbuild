@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2294 2009-02-28 08:33:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -180,13 +180,14 @@ static void sh_destroy(shinstance *psh)
 }
 
 /**
- * Clones an environment vector.
+ * Clones a string vector like enviorn or argv.
  *
  * @returns 0 on success, -1 and errno on failure.
+ * @param   psh     The shell to associate the allocations with.
  * @param   dstp    Where to store the clone.
  * @param   src     The vector to be cloned.
  */
-static int sh_env_clone(char ***dstp, char **src)
+static int sh_clone_string_vector(shinstance *psh, char ***dstp, char **src)
 {
    char **dst;
    size_t items;
@@ -197,7 +198,7 @@ static int sh_env_clone(char ***dstp, char **src)
        items++;
 
    /* alloc clone array. */
-   *dstp = dst = sh_malloc(NULL, sizeof(*dst) * items + 1);
+   *dstp = dst = sh_malloc(psh, sizeof(*dst) * items + 1);
    if (!dst)
        return -1;
 
@@ -205,13 +206,13 @@ static int sh_env_clone(char ***dstp, char **src)
    dst[items] = NULL;
    while (items-- > 0)
    {
-       dst[items] = sh_strdup(NULL, src[items]);
+       dst[items] = sh_strdup(psh, src[items]);
        if (!dst[items])
        {
            /* allocation error, clean up. */
            while (dst[++items])
-               sh_free(NULL, dst[items]);
-           sh_free(NULL, dst);
+               sh_free(psh, dst[items]);
+           sh_free(psh, dst);
            errno = ENOMEM;
            return -1;
        }
@@ -245,7 +246,8 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
           /* ... */
 
         /* Call the basic initializers. */
-        if (    !sh_env_clone(&psh->shenviron, envp)
+        if (    !sh_clone_string_vector(psh, &psh->shenviron, envp)
+            &&  !sh_clone_string_vector(psh, &psh->argptr, argv)
             &&  !shfile_init(&psh->fdtab, inherit ? &inherit->fdtab : NULL))
         {
             /* the special stuff. */
@@ -915,6 +917,10 @@ pid_t sh_fork(shinstance *psh)
 
 #elif K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
     pid = shfork_do_it(psh);
+# ifdef DEBUG
+    if (!pid)
+        opentrace(psh);
+# endif
 
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
@@ -927,6 +933,14 @@ pid_t sh_fork(shinstance *psh)
 #else
 
 #endif
+
+    /* child: update the pid */
+    if (!pid)
+# ifdef _MSC_VER
+        psh->pid = _getpid();
+# else
+        psh->pid = getpid();
+# endif
 
     TRACE2((psh, "sh_fork -> %d [%d]\n", pid, errno));
     (void)psh;
