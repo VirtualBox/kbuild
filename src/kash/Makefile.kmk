@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2287 2009-02-25 05:40:29Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2291 2009-02-28 01:06:16Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -87,6 +87,7 @@ kash_SOURCES = \
 	\
 	setmode.c \
 	shinstance.c \
+	shheap.c \
 	shthread.c \
 	shfile.c
 kash_SOURCES.linux = \
