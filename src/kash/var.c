@@ -254,7 +254,7 @@ initvar(shinstance *psh)
 			continue;
 		vp->next = *vpp;
 		*vpp = vp;
-		vp->text = strdup(ip->text);
+		vp->text = sh_strdup(psh, ip->text);
 		vp->flags = ip->flags;
 		vp->func = ip->func;
 	}
@@ -264,7 +264,7 @@ initvar(shinstance *psh)
 	if (find_var(psh, "PS1", &vpp, &psh->vps1.name_len) == NULL) {
 		psh->vps1.next = *vpp;
 		*vpp = &psh->vps1;
-		psh->vps1.text = strdup(sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
+		psh->vps1.text = sh_strdup(psh, sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
 		psh->vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 }

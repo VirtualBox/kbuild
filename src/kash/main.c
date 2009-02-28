@@ -133,7 +133,7 @@ main(int argc, char **argv, char **envp)
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);
-	return shell_main(psh, argc, argv);
+	return shell_main(psh, argc, psh->argptr);
 }
 
 int
