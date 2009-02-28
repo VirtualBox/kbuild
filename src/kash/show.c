@@ -273,7 +273,7 @@ FILE *tracefile;
 void
 trputc(shinstance *psh, int c)
 {
-	if (debug(psh) != 1)
+	if (psh && debug(psh) != 1)
 		return;
 	putc(c, tracefile);
 }
@@ -286,9 +286,9 @@ trace(shinstance *psh, const char *fmt, ...)
 	int savederrno = errno;
 	va_list va;
 
-	if ((psh || !tracefile) && debug(psh) != 1)
+	if (!tracefile || (psh && debug(psh) != 1))
 		return;
-        fprintf(tracefile, "[%d] ", sh_getpid(psh));
+	fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	va_start(va, fmt);
 	(void) vfprintf(tracefile, fmt, va);
 	va_end(va);
@@ -303,9 +303,9 @@ tracev(shinstance *psh, const char *fmt, va_list va)
 #ifdef DEBUG
 	int savederrno = errno;
 
-	if ((psh || !tracefile) && debug(psh) != 1)
+	if (!tracefile || (psh && debug(psh) != 1))
 		return;
-        fprintf(tracefile, "[%d] ", sh_getpid(psh));
+	fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	(void) vfprintf(tracefile, fmt, va);
 
 	errno = savederrno;
@@ -319,7 +319,7 @@ trputs(shinstance *psh, const char *s)
 {
 	int savederrno = errno;
 
-	if ((psh || !tracefile) && debug(psh) != 1)
+	if (!tracefile || (psh && debug(psh) != 1))
 		return;
 	fputs(s, tracefile);
 
@@ -334,7 +334,7 @@ trstring(shinstance *psh, char *s)
 	char *p;
 	char c;
 
-	if ((psh || !tracefile) && debug(psh) != 1)
+	if (!tracefile || (psh && debug(psh) != 1))
 		return;
 	putc('"', tracefile);
 	for (p = s ; *p ; p++) {
@@ -377,7 +377,7 @@ trargs(shinstance *psh, char **ap)
 #ifdef DEBUG
 	int savederrno = errno;
 
-	if ((psh || !tracefile) && debug(psh) != 1)
+	if (!tracefile || (psh && debug(psh) != 1))
 		return;
 	while (*ap) {
 		trstring(psh, *ap++);
@@ -399,7 +399,7 @@ opentrace(shinstance *psh)
     static const char s[] = "./trace";
 	int fd;
 
-	if (debug(psh) != 1) {
+	if (psh && debug(psh) != 1) {
 		if (tracefile)
 			fflush(tracefile);
 		/* leave open because libedit might be using it */

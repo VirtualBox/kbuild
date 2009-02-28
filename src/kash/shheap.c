@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2292 2009-02-28 04:46:25Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -135,6 +135,52 @@ int shheap_init(void)
 }
 
 #ifdef SHHEAP_IN_USE
+
+# if K_OS == K_OS_WINDOWS
+/**
+ * Copies the heap into the child process.
+ *
+ * @returns 0 on success, -1 and errno on failure.
+ * @param   hChild      Handle to the child process.
+ */
+int shheap_fork_copy_to_child(void *hChild)
+{
+    shmemchunk *chunk;
+    shmtxtmp tmp;
+    int err = 0;
+
+    shmtx_enter(&g_sh_heap_mtx, &tmp);
+
+    for (chunk = g_sh_heap; chunk; chunk = chunk->next)
+    {
+        void *chld_chnk;
+
+        chld_chnk = (shmemchunk *)VirtualAllocEx(hChild, chunk, chunk->size,
+                                                 MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+        if (chld_chnk != chunk)
+        {
+            err = GetLastError();
+            fprintf(stderr, "shfork: VirtualAllocEx(,%p,%p,) -> %d\n", chunk, chunk->size, err);
+            break;
+        }
+
+        if (!WriteProcessMemory(hChild, chunk, chunk, chunk->size, NULL /* pNumberOfBytesWritten */))
+        {
+            err = GetLastError();
+            fprintf(stderr, "shfork: WriteProcessMemory(,%p,,%p,) -> %d\n", chunk, chunk->size, err);
+            break;
+        }
+    }
+
+    shmtx_leave(&g_sh_heap_mtx, &tmp);
+
+    if (!err)
+        return 0;
+    errno = EINVAL;
+    return -1;
+}
+# endif
+
 
 /**
  * Checks a heap chunk.

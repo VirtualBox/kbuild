@@ -1,4 +1,4 @@
-/* $Id: shheap.h 2292 2009-02-28 04:46:25Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.h 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -32,6 +32,8 @@
 
 /* heap */
 int shheap_init(void);
+int shheap_fork_copy_to_child(void *);
+
 void *sh_malloc(shinstance *, size_t);
 void *sh_calloc(shinstance *, size_t, size_t);
 void *sh_realloc(shinstance *, void *, size_t);
