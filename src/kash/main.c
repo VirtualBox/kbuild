@@ -100,7 +100,11 @@ STATIC int version(const char *argv0);
  */
 
 int
+#if K_OS == K_OS_WINDOWS
+real_main(int argc, char **argv, char **envp)
+#else
 main(int argc, char **argv, char **envp)
+#endif
 {
 	shinstance *psh;
 
