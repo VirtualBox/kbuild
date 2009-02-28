@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2291 2009-02-28 01:06:16Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2292 2009-02-28 04:46:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -28,6 +28,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#include "shheap.h"
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
