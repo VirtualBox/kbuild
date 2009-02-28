@@ -6,6 +6,13 @@
 #include <string.h>
 #include <locale.h>
 #include "shinstance.h"
+#include <Windows.h>
+
+/*******************************************************************************
+*   Defined Constants And Macros                                               *
+*******************************************************************************/
+/** The stack size. This is also defined in shforkA-win.asm. */
+#define SHFORK_STACK_SIZE (1*1024*1024)
 
 
 /*******************************************************************************
@@ -25,7 +32,7 @@ extern void shfork_resume(void *cur, void *base, void *limit);
 
 /* called by shforkA-win.asm: */
 void *shfork_maybe_forked(int argc, char **argv, char **envp);
-extern int shfork_body(uintptr_t stack_ptr);
+extern int shfork_body(shinstance *psh, void *stack_ptr);
 
 
 /***
@@ -55,15 +62,19 @@ void *shfork_maybe_forked(int argc, char **argv, char **envp)
         ||  strcmp(argv[4], "--stack-base")
         ||  strcmp(argv[6], "--stack-limit"))
     {
+        char *stack;
         shheap_init();
-        return (char *)sh_malloc(NULL, 1*1024*1024) + 1*1024*1024;
+        stack = (char *)sh_malloc(NULL, SHFORK_STACK_SIZE) + SHFORK_STACK_SIZE;
+        g_stack_base = stack + SHFORK_STACK_SIZE;
+        g_stack_limit = stack;
+        return stack;
     }
 
     /*
      * Do any init that needs to be done before resuming the
      * fork() call.
      */
-	setlocale(LC_ALL, "");
+    setlocale(LC_ALL, "");
 
     /*
      * Convert the stack addresses.
@@ -120,6 +131,7 @@ static void *shfork_string_to_ptr(const char *str, const char *argv0, const char
         }
         ptr <<= 4;
         ptr |= digit;
+        str++;
     }
     return (void *)ptr;
 }
@@ -131,10 +143,119 @@ static void *shfork_string_to_ptr(const char *str, const char *argv0, const char
  * Called by shfork_do_it() in shforkA-win.asm.
  *
  * @returns child pid on success, -1 and errno on failure.
+ * @param   psh             The shell that's forking.
  * @param   stack_ptr       The stack address at which the guest is suppost to resume.
  */
-int shfork_body(uintptr_t stack_ptr)
+int shfork_body(shinstance *psh, void *stack_ptr)
 {
-    errno = ENOSYS;
-    return -1;
+    PROCESS_INFORMATION ProcInfo;
+    STARTUPINFO StrtInfo;
+    intptr_t hndls[3];
+    char szExeName[1024];
+    char szCmdLine[1024+256];
+    DWORD cch;
+    int rc = 0;
+
+    /*
+     * Mark all handles inheritable and get the three standard handles.
+     */
+    shfile_fork_win(&psh->fdtab, 1 /* set */, &hndls[0]);
+
+    /*
+     * Create the process.
+     */
+    cch = GetModuleFileName(GetModuleHandle(NULL), szExeName, sizeof(szExeName));
+    if (cch > 0)
+    {
+#if 0 /* quoting the program name doesn't seems to be working :/ */
+        szCmdLine[0] = '"';
+        memcpy(&szCmdLine[1], szExeName, cch);
+        szCmdLine[++cch] = '"';
+#else
+        memcpy(&szCmdLine[0], szExeName, cch);
+#endif
+        cch += sprintf(&szCmdLine[cch], " --!forked!-- --stack-address %p --stack-base %p --stack-limit %p",
+                       stack_ptr, g_stack_base, g_stack_limit);
+        szCmdLine[cch+1] = '\0';
+
+        memset(&StrtInfo, '\0', sizeof(StrtInfo)); /* just in case. */
+        StrtInfo.cb = sizeof(StrtInfo);
+        StrtInfo.lpReserved = NULL;
+        StrtInfo.lpDesktop = NULL;
+        StrtInfo.lpTitle = NULL;
+        StrtInfo.dwX = 0;
+        StrtInfo.dwY = 0;
+        StrtInfo.dwXSize = 0;
+        StrtInfo.dwYSize = 0;
+        StrtInfo.dwXCountChars = 0;
+        StrtInfo.dwYCountChars = 0;
+        StrtInfo.dwFillAttribute = 0;
+        StrtInfo.dwFlags = 0;
+        StrtInfo.wShowWindow = 0;
+        StrtInfo.cbReserved2 = 0;
+        StrtInfo.lpReserved2 = NULL;
+        StrtInfo.hStdInput  = (HANDLE)hndls[0];
+        StrtInfo.hStdOutput = (HANDLE)hndls[1];
+        StrtInfo.hStdError  = (HANDLE)hndls[2];
+        if (CreateProcess(szExeName,
+                          szCmdLine,
+                          NULL,         /* pProcessAttributes */
+                          NULL,         /* pThreadAttributes */
+                          TRUE,         /* bInheritHandles */
+                          CREATE_SUSPENDED,
+                          NULL,         /* pEnvironment */
+                          NULL,         /* pCurrentDirectory */
+                          &StrtInfo,
+                          &ProcInfo))
+        {
+            /*
+             * Copy the memory to the child.
+             */
+            rc = shheap_fork_copy_to_child(ProcInfo.hProcess);
+            if (!rc)
+            {
+                if (ResumeThread(ProcInfo.hThread) != (DWORD)-1)
+                {
+                    rc = sh_add_child(psh, ProcInfo.dwProcessId, ProcInfo.hProcess);
+                    if (!rc)
+                        rc = (int)ProcInfo.dwProcessId;
+                }
+                else
+                {
+                    DWORD dwErr = GetLastError();
+                    fprintf(stderr, "shfork: ResumeThread() -> %d\n", dwErr);
+                    errno = EINVAL;
+                    rc = -1;
+                }
+            }
+            if (rc == -1)
+            {
+                TerminateProcess(ProcInfo.hProcess, 127);
+                /* needed?: ResumeThread(ProcInfo.hThread); */
+                CloseHandle(ProcInfo.hProcess);
+            }
+            CloseHandle(ProcInfo.hThread);
+        }
+        else
+        {
+            DWORD dwErr = GetLastError();
+            fprintf(stderr, "shfork: CreateProcess(%s) -> %d\n", szExeName, dwErr);
+            errno = EINVAL;
+            rc = -1;
+        }
+    }
+    else
+    {
+        DWORD dwErr = GetLastError();
+        fprintf(stderr, "shfork: GetModuleFileName() -> %d\n", dwErr);
+        errno = EINVAL;
+        rc = -1;
+    }
+
+    /*
+     * Restore the handle inherit property.
+     */
+    shfile_fork_win(&psh->fdtab, 0 /* restore */, NULL);
+
+    return rc;
 }

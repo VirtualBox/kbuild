@@ -1,4 +1,4 @@
-; $Id: shforkA-win.asm 2292 2009-02-28 04:46:25Z knut.osmundsen@oracle.com $
+; $Id: shforkA-win.asm 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $
 ;; @file
 ; shforkA-win.asm - assembly routines used when forking on Windows.
 ;
@@ -31,6 +31,9 @@
 %else
  %define NAME(name) _ %+ name
 %endif
+
+;; The stack size. This is also defined in shfork-win.c.
+%define SHFORK_STACK_SIZE (1*1024*1024)
 
 
 ;*******************************************************************************
@@ -107,7 +110,7 @@ global NAME(main)
         jb      .below
         mov     [gs:08h], rax
 .below:
-        lea     r9, [rax - 1*1024*1024]
+        lea     r9, [rax - SHFORK_STACK_SIZE]
         cmp     r9, r11
         ja      .above
         mov     [gs:10h], r9
@@ -131,7 +134,7 @@ global NAME(main)
         jb      .below
         mov     [fs:04h], rax
 .below:
-        lea     edx, [eax - 1*1024*1024]
+        lea     edx, [eax - SHFORK_STACK_SIZE]
         cmp     edx, ecx
         ja      .above
         mov     [fs:08h], edx
@@ -174,6 +177,9 @@ global NAME(main)
 
 ;;
 ; sh_fork() worker
+;
+; @returns      See fork().
+; @param        psh
 ;
 NAME(shfork_do_it):
 global NAME(shfork_do_it)
@@ -229,14 +235,18 @@ global NAME(shfork_do_it)
         ; Call the shfork_body that will spawn the child and all that.
         ;
 %ifdef KBUILD_ARCH_AMD64
-        mov     rcx, rsp
-%else
-        mov     ecx, esp
-        sub     esp, 20h
-        mov     [esp], ecx
-%endif
+        ;mov     rcx, rcx               ; psh
+        mov     rdx, rsp                ; stack_ptr
+        sub     rsp, 20h
         call    NAME(shfork_body)
-%ifdef KBUILD_ARCH_AMD64
+        lea     rsp, [rsp + 20h]
+%else
+        mov     edx, esp
+        mov     ecx, [ebp + 8h]         ; psh
+        sub     esp, 20h
+        mov     [esp    ], edx
+        mov     [esp + 4], ecx          ; stack_ptr
+        call    NAME(shfork_body)
         lea     esp, [esp + 20h]
 %endif
 

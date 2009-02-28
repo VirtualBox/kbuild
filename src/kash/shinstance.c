@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2292 2009-02-28 04:46:25Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -37,10 +37,13 @@
 # include <unistd.h>
 # include <pwd.h>
 #endif
+#if K_OS == K_OS_WINDOWS
+# include <Windows.h>
+#endif
 #include "shinstance.h"
 
 #if K_OS == K_OS_WINDOWS
-extern pid_t shfork_do_it(void); /* shforkA-win.asm */
+extern pid_t shfork_do_it(shinstance *psh); /* shforkA-win.asm */
 #endif
 
 
@@ -307,6 +310,7 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
     return NULL;
 }
 
+/** getenv() */
 char *sh_getenv(shinstance *psh, const char *var)
 {
     size_t  len;
@@ -867,6 +871,40 @@ int sh_sysconf_clk_tck(void)
 #endif
 }
 
+/**
+ * Adds a child to the shell
+ *
+ * @returns 0 on success, on failure -1 and errno set to ENOMEM.
+ *
+ * @param   psh     The shell instance.
+ * @param   pid     The child pid.
+ * @param   hChild  Windows child handle.
+ */
+int sh_add_child(shinstance *psh, pid_t pid, void *hChild)
+{
+    /* get a free table entry. */
+    int i = psh->num_children++;
+    if (!(i % 32))
+    {
+        void *ptr = sh_realloc(psh, psh->children, sizeof(*psh->children) * (i + 32));
+        if (!ptr)
+        {
+            psh->num_children--;
+            errno = ENOMEM;
+            return -1;
+        }
+        psh->children = ptr;
+    }
+
+    /* add it */
+    psh->children[i].pid = pid;
+#if K_OS == K_OS_WINDOWS
+    psh->children[i].hChild = hChild;
+#endif
+    (void)hChild;
+    return 0;
+}
+
 pid_t sh_fork(shinstance *psh)
 {
     pid_t pid;
@@ -876,7 +914,7 @@ pid_t sh_fork(shinstance *psh)
     pid = -1;
 
 #elif K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
-    pid = shfork_do_it();
+    pid = shfork_do_it(psh);
 
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
@@ -895,15 +933,108 @@ pid_t sh_fork(shinstance *psh)
     return pid;
 }
 
+/** waitpid() */
 pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
 {
     pid_t pidret;
-
-    *statusp = 0;
 #ifdef SH_PURE_STUB_MODE
+    *statusp = 0;
     pidret = -1;
 
+#elif K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
+    DWORD   dwRet;
+    HANDLE  hChild = INVALID_HANDLE_VALUE;
+    int     i;
+
+    *statusp = 0;
+    pidret = -1;
+    if (pid != -1)
+    {
+        /*
+         * A specific child, try look it up in the child process table
+         * and wait for it.
+         */
+        for (i = 0; i < psh->num_children; i++)
+            if (psh->children[i].pid == pid)
+                break;
+        if (i < psh->num_children)
+        {
+            dwRet = WaitForSingleObject(psh->children[i].hChild,
+                                        flags & WNOHANG ? 0 : INFINITE);
+            if (dwRet == WAIT_OBJECT_0)
+                hChild = psh->children[i].hChild;
+            else if (dwRet == WAIT_TIMEOUT)
+            {
+                i = -1; /* don't try close anything */
+                pidret = 0;
+            }
+            else
+                errno = ECHILD;
+        }
+        else
+            errno = ECHILD;
+    }
+    else if (psh->num_children <= MAXIMUM_WAIT_OBJECTS)
+    {
+        HANDLE ahChildren[64];
+        for (i = 0; i < psh->num_children; i++)
+            ahChildren[i] = psh->children[i].hChild;
+        dwRet = WaitForMultipleObjects(psh->num_children, &ahChildren[0],
+                                       FALSE,
+                                       flags & WNOHANG ? 0 : INFINITE);
+        i = dwRet - WAIT_OBJECT_0;
+        if ((unsigned)i < (unsigned)psh->num_children)
+        {
+            hChild = psh->children[i].hChild;
+        }
+        else if (dwRet == WAIT_TIMEOUT)
+        {
+            i = -1; /* don't try close anything */
+            pidret = 0;
+        }
+        else
+        {
+            i = -1; /* don't try close anything */
+            errno = EINVAL;
+        }
+    }
+    else
+    {
+        fprintf(stderr, "panic! too many children!\n");
+        i = -1;
+        *(char *)1 = '\0'; /** @todo implement this! */
+    }
+
+    /*
+     * Close the handle, and if we succeeded collect the exit code first.
+     */
+    if (    i >= 0
+        &&  i < psh->num_children)
+    {
+        if (hChild != INVALID_HANDLE_VALUE)
+        {
+            DWORD dwExitCode = 127;
+            if (GetExitCodeProcess(hChild, &dwExitCode))
+            {
+                pidret = psh->children[i].pid;
+                if (dwExitCode && !W_EXITCODE(dwExitCode, 0))
+                    dwExitCode |= 16;
+                *statusp = W_EXITCODE(dwExitCode, 0);
+            }
+            else
+                errno = EINVAL;
+        }
+
+        /* remove and close */
+        hChild = psh->children[i].hChild;
+        psh->num_children--;
+        if (i < psh->num_children)
+            psh->children[i] = psh->children[psh->num_children];
+        i = CloseHandle(hChild); assert(i);
+    }
+
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+    *statusp = 0;
 # ifdef _MSC_VER
     pidret = -1;
     errno = ENOSYS;

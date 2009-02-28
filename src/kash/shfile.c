@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2290 2009-02-27 04:08:07Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -449,6 +449,54 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
     }
     return rc;
 }
+
+#if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE) //&& defined(SH_FORKED_MODE)
+/**
+ * Helper for shfork.
+ *
+ * @param   pfdtab  The file descriptor table.
+ * @param   set     Whether to make all handles inheritable (1) or
+ *                  to restore them to the rigth state (0).
+ * @param   hndls   Where to store the three standard handles.
+ */
+void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
+{
+    shmtxtmp tmp;
+    unsigned i;
+
+    shmtx_enter(&pfdtab->mtx, &tmp);
+
+    i = pfdtab->size;
+    while (i-- > 0)
+    {
+        if (pfdtab->tab[i].fd == i)
+        {
+            HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
+            DWORD  fFlag = set || !pfdtab->tab[i].cloexec ? HANDLE_FLAG_INHERIT : 0;
+            if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
+            {
+                DWORD err = GetLastError();
+                assert(0);
+            }
+        }
+    }
+
+    if (hndls)
+    {
+        for (i = 0; i < 3; i++)
+        {
+            if (    pfdtab->size > i
+                &&  pfdtab->tab[i].fd == 0)
+                hndls[i] = pfdtab->tab[i].native;
+            else
+                hndls[i] = (intptr_t)INVALID_HANDLE_VALUE;
+        }
+    }
+
+    shmtx_leave(&pfdtab->mtx, &tmp);
+}
+#endif
+
 
 /**
  * open().
