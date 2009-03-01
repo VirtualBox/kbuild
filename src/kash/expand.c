@@ -456,8 +456,13 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 
 	/* Eat all trailing newlines */
 	p = stackblock(psh) + startloc;
-	while (dest > p && dest[-1] == '\n')
+	while (dest > p && dest[-1] == '\n') {
 		STUNPUTC(psh, dest);
+#ifdef SH_DEAL_WITH_CRLF
+		if (dest > p && dest[-1] == '\r')
+			STUNPUTC(psh, dest);
+#endif
+	}
 
 	if (in.fd >= 0)
 		shfile_close(&psh->fdtab, in.fd);
