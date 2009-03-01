@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2302 2009-03-01 05:42:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2303 2009-03-01 07:25:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1054,11 +1054,7 @@ SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
 
 int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const char * const *envp)
 {
-#ifdef _MSC_VER
-    intptr_t rc;
-#else
     int rc;
-#endif
 
 #ifdef DEBUG
     /* log it all */
@@ -1070,21 +1066,122 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
     if (!envp)
         envp = sh_environ(psh);
 
-#if defined(SH_FORKED_MODE)
-    errno = 0;
+#if defined(SH_FORKED_MODE) && K_OS != K_OS_WINDOWS
 # ifdef _MSC_VER
     errno = 0;
-    rc = _spawnve(_P_WAIT, exe, (char **)argv, (char **)envp);
-    if (rc != -1)
     {
-        TRACE2((psh, "sh_execve: child exited, rc=%d. (errno=%d)\n", rc, errno));
-        exit((int)rc);
+        intptr_t rc2 = _spawnve(_P_WAIT, exe, (char **)argv, (char **)envp);
+        if (rc2 != -1)
+        {
+            TRACE2((psh, "sh_execve: child exited, rc=%d. (errno=%d)\n", rc, errno));
+            rc = (int)rc2;
+            if (!rc && rc2)
+                rc = 16;
+            exit(rc);
+        }
     }
+    rc = -1;
 # else
     rc = execve(exe, (char **)argv, (char **)envp);
 # endif
 
 #else
+# if K_OS == K_OS_WINDOWS
+    {
+        /*
+         * This ain't quite straight forward on Windows...
+         */
+        PROCESS_INFORMATION ProcInfo;
+        STARTUPINFO StrtInfo;
+        intptr_t hndls[3];
+        char *cwd = shfile_getcwd(&psh->fdtab, NULL, 0);
+        char *cmdline;
+        size_t cmdline_size;
+        char *envblock;
+        size_t env_size;
+        char *p;
+        int i;
+
+        /* Create the environment block. */
+        if (!envp)
+            envp = sh_environ(psh);
+        env_size = 2;
+        for (i = 0; envp[i]; i++)
+            env_size += strlen(envp[i]) + 1;
+        envblock = p = sh_malloc(psh, env_size);
+        for (i = 0; envp[i]; i++)
+        {
+            size_t len = strlen(envp[i]) + 1;
+            memcpy(p, envp[i], len);
+            p += len;
+        }
+        *p = '\0';
+
+        /* Create the command line. */
+        cmdline_size = 2;
+        for (i = 0; argv[i]; i++)
+            cmdline_size += strlen(argv[i]) + 3;
+        cmdline = p = sh_malloc(psh, env_size);
+        for (i = 0; argv[i]; i++)
+        {
+            size_t len = strlen(argv[i]);
+            int quoted = !!strpbrk(argv[i], " \t"); /** @todo Do this quoting business right. */
+            if (i != 0)
+                *(p++) = ' ';
+            if (quoted)
+                *(p++) = '"';
+            memcpy(p, argv[i], len);
+            p += len;
+            if (quoted)
+                *(p++) = '"';
+        }
+        p[0] = p[1] = '\0';
+
+        /* Init the info structure */
+        memset(&StrtInfo, '\0', sizeof(StrtInfo));
+        StrtInfo.cb = sizeof(StrtInfo);
+
+        /* File handles. */
+        StrtInfo.lpReserved2 = shfile_exec_win(&psh->fdtab, 1 /* prepare */, &StrtInfo.cbReserved2, hndls);
+        StrtInfo.hStdInput  = (HANDLE)hndls[0];
+        StrtInfo.hStdOutput = (HANDLE)hndls[1];
+        StrtInfo.hStdError  = (HANDLE)hndls[2];
+
+        /* Get going... */
+        if (CreateProcess(exe,
+                          cmdline,
+                          NULL,         /* pProcessAttributes */
+                          NULL,         /* pThreadAttributes */
+                          TRUE,         /* bInheritHandles */
+                          0,            /* dwCreationFlags */
+                          envblock,
+                          cwd,
+                          &StrtInfo,
+                          &ProcInfo))
+        {
+            DWORD dwErr;
+            DWORD dwExitCode;
+
+            CloseHandle(ProcInfo.hThread);
+            dwErr = WaitForSingleObject(ProcInfo.hProcess, INFINITE);
+            assert(dwErr == WAIT_OBJECT_0);
+
+            if (GetExitCodeProcess(ProcInfo.hProcess, &dwExitCode))
+            {
+                CloseHandle(ProcInfo.hProcess);
+                _exit(dwExitCode);
+            }
+            errno = EINVAL;
+        }
+
+        shfile_exec_win(&psh->fdtab, 0 /* done */, NULL, NULL);
+    }
+    rc = -1;
+
+# else
+    errno = ENOSYS;
+    rc = -1;
+# endif
 #endif
 
     TRACE2((psh, "sh_execve -> %d [%d]\n", rc, errno));
