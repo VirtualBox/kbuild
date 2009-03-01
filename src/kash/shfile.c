@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2297 2009-03-01 02:04:38Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -40,10 +40,6 @@
 # include <unistd.h>
 # include <fcntl.h>
 # include <dirent.h>
-#endif
-
-#if defined(DEBUG) && defined(TRACE_VIA_STDIO)
-extern FILE *tracefile;
 #endif
 
 
@@ -610,10 +606,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
     fd = open(name, flags, mode);
 #endif
 
-#if defined(DEBUG) && defined(TRACE_VIA_STDIO)
-    if (tracefile)
-#endif
-        TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
+    TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
     return fd;
 }
 
@@ -998,26 +991,13 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 # endif
 #endif
 
-#ifdef DEBUG
-# ifdef TRACE_VIA_STDIO
-    if (tracefile)
-# endif
-        switch (cmd)
-        {
-            case F_GETFL:
-                TRACE2((NULL, "shfile_fcntl(%d,F_GETFL,ignored=%d) -> %d [%d]\n", fd, arg, rc, errno));
-                break;
-            case F_SETFL:
-                TRACE2((NULL, "shfile_fcntl(%d,F_SETFL,newflags=%#x) -> %d [%d]\n", fd, arg, rc, errno));
-                break;
-            case F_DUPFD:
-                TRACE2((NULL, "shfile_fcntl(%d,F_DUPFS,minfd=%d) -> %d [%d]\n", fd, arg, rc, errno));
-                break;
-            default:
-                TRACE2((NULL, "shfile_fcntl(%d,%d,%d) -> %d [%d]\n", fd, cmd, arg, rc, errno));
-                break;
-        }
-#endif
+    switch (cmd)
+    {
+        case F_GETFL: TRACE2((NULL, "shfile_fcntl(%d,F_GETFL,ignored=%d) -> %d [%d]\n", fd, arg, rc, errno));  break;
+        case F_SETFL: TRACE2((NULL, "shfile_fcntl(%d,F_SETFL,newflags=%#x) -> %d [%d]\n", fd, arg, rc, errno)); break;
+        case F_DUPFD: TRACE2((NULL, "shfile_fcntl(%d,F_DUPFS,minfd=%d) -> %d [%d]\n", fd, arg, rc, errno)); break;
+        default:  TRACE2((NULL, "shfile_fcntl(%d,%d,%d) -> %d [%d]\n", fd, cmd, arg, rc, errno)); break;
+    }
     return rc;
 }
 

@@ -38,10 +38,10 @@
 
 union node;
 void showtree(struct shinstance *, union node *);
+#ifdef DEBUG
 void trace(struct shinstance *, const char *, ...);
 void tracev(struct shinstance *, const char *, va_list);
 void trargs(struct shinstance *, char **);
-#ifdef DEBUG
 void trputc(struct shinstance *, int);
 void trputs(struct shinstance *, const char *);
 void opentrace(struct shinstance *);
