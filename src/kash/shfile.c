@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2303 2009-03-01 07:25:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2307 2009-03-01 09:48:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -83,7 +83,26 @@
 # define FAPPEND            0x20
 # define FDEV               0x40
 # define FTEXT              0x80
-#endif
+
+# define MY_ObjectBasicInformation 0
+typedef LONG (NTAPI * PFN_NtQueryObject)(HANDLE, int, void *, size_t, size_t *);
+
+typedef struct MY_OBJECT_BASIC_INFORMATION
+{
+    ULONG           Attributes;
+	ACCESS_MASK     GrantedAccess;
+	ULONG           HandleCount;
+	ULONG           PointerCount;
+	ULONG           PagedPoolUsage;
+	ULONG           NonPagedPoolUsage;
+	ULONG           Reserved[3];
+	ULONG           NameInformationLength;
+	ULONG           TypeInformationLength;
+	ULONG           SecurityDescriptorLength;
+	LARGE_INTEGER   CreateTime;
+} MY_OBJECT_BASIC_INFORMATION;
+
+#endif /* K_OS_WINDOWS */
 
 
 #ifdef SHFILE_IN_USE
@@ -116,11 +135,12 @@ static void shfile_native_close(intptr_t native, unsigned flags)
  * @returns The file descriptor number. -1 and errno on failure.
  * @param   pfdtab      The file descriptor table.
  * @param   native      The native file handle.
- * @param   flags       The flags the it was created with.
+ * @param   oflags      The flags the it was opened/created with.
+ * @param   shflags     The shell file flags.
  * @param   fdMin       The minimum file descriptor number, pass -1 if any is ok.
  * @param   who         Who we're doing this for (for logging purposes).
  */
-static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned flags, int fdMin, const char *who)
+static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsigned shflags, int fdMin, const char *who)
 {
     shmtxtmp tmp;
     int fd;
@@ -163,7 +183,8 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned flags, int f
             for (i = pfdtab->size; i < new_size; i++)
             {
                 new_tab[i].fd = -1;
-                new_tab[i].flags = 0;
+                new_tab[i].oflags = 0;
+                new_tab[i].shflags = 0;
                 new_tab[i].native = -1;
             }
 
@@ -182,12 +203,12 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned flags, int f
     if (fd != -1)
     {
         pfdtab->tab[fd].fd = fd;
-        pfdtab->tab[fd].flags = flags;
-        pfdtab->tab[fd].cloexec = 0;
+        pfdtab->tab[fd].oflags = oflags;
+        pfdtab->tab[fd].shflags = shflags;
         pfdtab->tab[fd].native = native;
     }
     else
-        shfile_native_close(native, flags);
+        shfile_native_close(native, oflags);
 
     shmtx_leave(&pfdtab->mtx, &tmp);
 
@@ -304,6 +325,7 @@ int shfile_make_path(shfdtab *pfdtab, const char *path, char *buf)
 }
 
 # if K_OS == K_OS_WINDOWS
+
 /**
  * Converts a DOS(/Windows) error code to errno,
  * assigning it to errno.
@@ -363,6 +385,31 @@ static int shfile_dos2errno(int err)
     }
     return -1;
 }
+
+DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
+{
+    static PFN_NtQueryObject        s_pfnNtQueryObject = NULL;
+    MY_OBJECT_BASIC_INFORMATION     BasicInfo;
+    LONG                            Status;
+
+    if (!s_pfnNtQueryObject)
+    {
+        s_pfnNtQueryObject = (PFN_NtQueryObject)GetProcAddress(GetModuleHandle("NTDLL"), "NtQueryObject");
+        if (!s_pfnNtQueryObject)
+            return ERROR_NOT_SUPPORTED;
+    }
+
+    Status = s_pfnNtQueryObject(h, MY_ObjectBasicInformation, &BasicInfo, sizeof(BasicInfo), NULL);
+    if (Status >= 0)
+    {
+        *pMask = BasicInfo.GrantedAccess;
+        return NO_ERROR;
+    }
+    if (Status != STATUS_INVALID_HANDLE)
+        return ERROR_GEN_FAILURE;
+    return ERROR_INVALID_HANDLE;
+}
+
 # endif /* K_OS == K_OS_WINDOWS */
 
 #endif /* SHFILE_IN_USE */
@@ -396,15 +443,17 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                 static const struct
                 {
                     DWORD dwStdHandle;
-                    unsigned flags;
+                    unsigned fFlags;
                 } aStdHandles[3] =
                 {
                     { STD_INPUT_HANDLE,   _O_RDONLY },
                     { STD_OUTPUT_HANDLE,  _O_WRONLY },
                     { STD_ERROR_HANDLE,   _O_WRONLY }
                 };
-                unsigned            i;
-                STARTUPINFO         Info;
+                int             i;
+                STARTUPINFO     Info;
+                ACCESS_MASK     Mask;
+                DWORD           dwErr;
 
                 rc = 0;
 
@@ -414,34 +463,96 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                 } __except (EXCEPTION_EXECUTE_HANDLER) {
                     memset(&Info, 0, sizeof(Info));
                 }
-                if (    Info.cbReserved2 <= sizeof(int)
+
+                if (    Info.cbReserved2 > sizeof(int)
                     &&  (uintptr_t)Info.lpReserved2 >= 0x1000
-                    &&  *(int *)Info.lpReserved2 * (sizeof(int) + sizeof(intptr_t)) + 4 <= Info.cbReserved2
-                    &&  *(int *)Info.lpReserved2 <= 2048
-                    &&  *(int *)Info.lpReserved2 >= 1)
+                    &&  (i = *(int *)Info.lpReserved2) >= 1
+                    &&  i <= 2048
+                    &&  (   Info.cbReserved2 == i * 5 + 4
+                         //|| Info.cbReserved2 == i * 5 + 1 - check the cygwin sources.
+                         || Info.cbReserved2 == i * 9 + 4))
                 {
-                    unsigned    c       = *(int *)Info.lpReserved2;
-                    char       *aosfile = (char *)Info.lpReserved2 + sizeof(int);
-                    intptr_t   *aosfhnd = (intptr_t *)(aosfile + c);
+                    uint8_t    *paf    = (uint8_t *)Info.lpReserved2 + sizeof(int);
+                    int         dwPerH = 1 + (Info.cbReserved2 == i * 9 + 4);
+                    DWORD      *ph     = (DWORD *)(paf + i) + dwPerH * i;
+                    HANDLE      aStdHandles2[3];
+                    int         j;
 
-                    /** @todo process */
+                    //if (Info.cbReserved2 == i * 5 + 1) - check the cygwin sources.
+                    //    i--;
 
+                    for (j = 0; j < 3; j++)
+                        aStdHandles2[j] = GetStdHandle(aStdHandles[j].dwStdHandle);
+
+                    while (i-- > 0)
+                    {
+                        ph -= dwPerH;
+
+                        if (    (paf[i] & (FOPEN | FNOINHERIT)) == FOPEN
+                            &&  *ph != (uint32_t)INVALID_HANDLE_VALUE)
+                        {
+                            HANDLE  h = (HANDLE)(intptr_t)*ph;
+                            int     fd2;
+                            int     fFlags;
+                            int     fFlags2;
+
+                            if (    h == aStdHandles2[j = 0]
+                                ||  h == aStdHandles2[j = 1]
+                                ||  h == aStdHandles2[j = 2])
+                                fFlags = aStdHandles[j].fFlags;
+                            else
+                            {
+                                dwErr = shfile_query_handle_access_mask(h, &Mask);
+                                if (dwErr == ERROR_INVALID_HANDLE)
+                                    continue;
+                                else if (dwErr == NO_ERROR)
+                                {
+                                    fFlags = 0;
+                                    if (    (Mask & (GENERIC_READ | FILE_READ_DATA))
+                                        &&  (Mask & (GENERIC_WRITE | FILE_WRITE_DATA | FILE_APPEND_DATA)))
+                                        fFlags |= O_RDWR;
+                                    else if (Mask & (GENERIC_READ | FILE_READ_DATA))
+                                        fFlags |= O_RDONLY;
+                                    else if (Mask & (GENERIC_WRITE | FILE_WRITE_DATA | FILE_APPEND_DATA))
+                                        fFlags |= O_WRONLY;
+                                    else
+                                        fFlags |= O_RDWR;
+                                    if ((Mask & (FILE_WRITE_DATA | FILE_APPEND_DATA)) == FILE_APPEND_DATA)
+                                        fFlags |= O_APPEND;
+                                }
+                                else
+                                    fFlags = O_RDWR;
+                            }
+
+                            if (paf[i] & FPIPE)
+                                fFlags2 = SHFILE_FLAGS_PIPE;
+                            else if (paf[i] & FDEV)
+                                fFlags2 = SHFILE_FLAGS_TTY;
+                            else
+                                fFlags2 = 0;
+
+                            fd2 = shfile_insert(pfdtab, (intptr_t)h, fFlags, fFlags2, i, "shtab_init");
+                            assert(fd2 == i); (void)fd2;
+                            if (fd2 != i)
+                                rc = -1;
+                        }
+                    }
                 }
 
                 /* Check the three standard handles. */
                 for (i = 0; i < 3; i++)
-                {
-                    HANDLE hFile = GetStdHandle(aStdHandles[i].dwStdHandle);
-                    if (    hFile != INVALID_HANDLE_VALUE
-                        &&  (   (unsigned)i >= pfdtab->size
-                             || pfdtab->tab[i].fd == -1))
+                    if (    (unsigned)i >= pfdtab->size
+                        ||  pfdtab->tab[i].fd == -1)
                     {
-                        int fd2 = shfile_insert(pfdtab, (intptr_t)hFile, aStdHandles[i].flags, i, "shtab_init");
-                        assert(fd2 == i); (void)fd2;
-                        if (fd2 != i)
-                            rc = -1;
+                        HANDLE hFile = GetStdHandle(aStdHandles[i].dwStdHandle);
+                        if (hFile != INVALID_HANDLE_VALUE)
+                        {
+                            int fd2 = shfile_insert(pfdtab, (intptr_t)hFile, aStdHandles[i].fFlags, 0, i, "shtab_init");
+                            assert(fd2 == i); (void)fd2;
+                            if (fd2 != i)
+                                rc = -1;
+                        }
                     }
-                }
 # else
 # endif
             }
@@ -485,8 +596,8 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
         {
             HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
             if (set)
-                TRACE2((NULL, "  #%d: native=%#x flags=%#x cloexec=%d\n",
-                        i, pfdtab->tab[i].flags, hFile, pfdtab->tab[i].cloexec));
+                TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
+                        i, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags, hFile));
             if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
             {
                 DWORD err = GetLastError();
@@ -537,6 +648,8 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
     count  = pfdtab->size < (0x10000-4) / (1 + sizeof(HANDLE))
            ? pfdtab->size
            : (0x10000-4) / (1 + sizeof(HANDLE));
+    while (count > 3 && pfdtab->tab[count].fd == -1)
+        count--;
 
     if (prepare)
     {
@@ -551,11 +664,11 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
         while (i-- > 0)
         {
             if (    pfdtab->tab[i].fd == i
-                &&  !pfdtab->tab[i].cloexec)
+                &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
             {
                 HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
-                TRACE2((NULL, "  #%d: native=%#x flags=%#x\n",
-                        i, pfdtab->tab[i].flags, hFile));
+                TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
+                        i, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags, hFile));
 
                 if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
                 {
@@ -563,10 +676,15 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
                     assert(0);
                 }
                 paf[i] = FOPEN;
-                if (pfdtab->tab[i].flags & _O_APPEND)
-                    paf[i] = FAPPEND;
-                if (pfdtab->tab[i].flags & _O_TEXT)
-                    paf[i] = FTEXT;
+                if (pfdtab->tab[i].oflags & _O_APPEND)
+                    paf[i] |= FAPPEND;
+                if (pfdtab->tab[i].oflags & _O_TEXT)
+                    paf[i] |= FTEXT;
+                switch (pfdtab->tab[i].shflags & SHFILE_FLAGS_TYPE_MASK)
+                {
+                    case SHFILE_FLAGS_TTY:  paf[i] |= FDEV; break;
+                    case SHFILE_FLAGS_PIPE: paf[i] |= FPIPE; break;
+                }
                 pah[i] = hFile;
             }
             else
@@ -596,7 +714,7 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
         while (i-- > 0)
         {
             if (    pfdtab->tab[i].fd == i
-                &&  !pfdtab->tab[i].cloexec)
+                &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
             {
                 HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
                 if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, 0))
@@ -688,7 +806,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
                             dwFlagsAndAttributes,
                             NULL /* hTemplateFile */);
         if (hFile != INVALID_HANDLE_VALUE)
-            fd = shfile_insert(pfdtab, (intptr_t)hFile, flags, -1, "shfile_open");
+            fd = shfile_insert(pfdtab, (intptr_t)hFile, flags, 0, -1, "shfile_open");
         else
             fd = shfile_dos2errno(GetLastError());
     }
@@ -705,7 +823,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
             close(fd);
             errno = s;
             if (native != -1)
-                fd = shfile_insert(pfdtab, native, flags, -1, "shfile_open");
+                fd = shfile_insert(pfdtab, native, flags, 0, -1, "shfile_open");
             else
                 fd = -1;
         }
@@ -738,10 +856,10 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     fds[1] = fds[0] = -1;
     if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
     {
-        fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, -1, "shfile_pipe");
+        fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
         if (fds[0] != -1)
         {
-            fds[1] = shfile_insert(pfdtab, (intptr_t)hWrite, O_WRONLY, -1, "shfile_pipe");
+            fds[1] = shfile_insert(pfdtab, (intptr_t)hWrite, O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
             if (fds[1] != -1)
                 rc = 0;
         }
@@ -752,10 +870,10 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     fds[1] = fds[0] = -1;
     if (!pipe(native_fds))
     {
-        fds[0] = shfile_insert(pfdtab, native_fds[0], O_RDONLY, -1, "shfile_pipe");
+        fds[0] = shfile_insert(pfdtab, native_fds[0], O_RDONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
         if (fds[0] != -1)
         {
-            fds[1] = shfile_insert(pfdtab, native_fds[1], O_WRONLY, -1, "shfile_pipe");
+            fds[1] = shfile_insert(pfdtab, native_fds[1], O_WRONLY, SHFILE_FLAGS_PIPE, -1, "shfile_pipe");
             if (fds[1] != -1)
                 rc = 0;
         }
@@ -769,7 +887,8 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
                 shmtx_enter(&pfdtab->mtx, &tmp);
                 rc = fds[0];
                 pfdtab->tab[rc].fd = -1;
-                pfdtab->tab[rc].flags = 0;
+                pfdtab->tab[rc].oflags = 0;
+                pfdtab->tab[rc].shflags = 0;
                 pfdtab->tab[rc].native = -1;
                 shmtx_leave(&pfdtab->mtx, &tmp);
             }
@@ -821,10 +940,11 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
     shfile     *file = shfile_get(pfdtab, fd, &tmp);
     if (file)
     {
-        shfile_native_close(file->native, file->flags);
+        shfile_native_close(file->native, file->oflags);
 
         file->fd = -1;
-        file->flags = 0;
+        file->oflags = 0;
+        file->shflags = 0;
         file->native = -1;
 
         shfile_put(pfdtab, file, &tmp);
@@ -950,7 +1070,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
         switch (cmd)
         {
             case F_GETFL:
-                rc = file->flags;
+                rc = file->oflags;
                 break;
 
             case F_SETFL:
@@ -965,7 +1085,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 # ifdef O_SYNC
                 mask |= O_SYNC;
 # endif
-                if ((file->flags & mask) == (arg & mask))
+                if ((file->oflags & mask) == (arg & mask))
                     rc = 0;
                 else
                 {
@@ -993,13 +1113,13 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
                                     0,
                                     FALSE /* bInheritHandle */,
                                     DUPLICATE_SAME_ACCESS))
-                    rc = shfile_insert(pfdtab, (intptr_t)hNew, file->flags, arg, "shfile_fcntl");
+                    rc = shfile_insert(pfdtab, (intptr_t)hNew, file->oflags, file->shflags, arg, "shfile_fcntl");
                 else
                     rc = shfile_dos2errno(GetLastError());
 # else
                 int nativeNew = fcntl(file->native F_DUPFD, SHFILE_UNIX_MIN_FD);
                 if (nativeNew != -1)
-                    rc = shfile_insert(pfdtab, nativeNew, file->flags, arg, "shfile_fcntl");
+                    rc = shfile_insert(pfdtab, nativeNew, file->oflags, file->shflags, arg, "shfile_fcntl");
 # endif
                 break;
             }
@@ -1203,7 +1323,10 @@ int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
     shfile     *file = shfile_get(pfdtab, fd, &tmp);
     if (file)
     {
-        file->cloexec = !!(closeit);
+        if (closeit)
+            file->shflags |= SHFILE_FLAGS_CLOSE_ON_EXEC;
+        else
+            file->shflags &= ~SHFILE_FLAGS_CLOSE_ON_EXEC;
         shfile_put(pfdtab, file, &tmp);
     }
     else
