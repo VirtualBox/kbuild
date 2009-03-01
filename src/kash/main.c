@@ -84,7 +84,7 @@ STATIC union node *prevcmd;
 STATIC void read_profile(struct shinstance *, const char *);
 STATIC char *find_dot_file(struct shinstance *, char *);
 int main(int, char **, char **);
-int shell_main(shinstance *, int, char **);
+SH_NORETURN_1 void shell_main(shinstance *, int, char **) SH_NORETURN_2;
 #ifdef _MSC_VER
 extern void init_syntax(void);
 #endif
@@ -133,10 +133,12 @@ main(int argc, char **argv, char **envp)
 	if (!psh)
 		return 2;
 	shthread_set_shell(psh);
-	return shell_main(psh, argc, psh->argptr);
+	shell_main(psh, argc, psh->argptr);
+	/* Not reached. */
+	return 89;
 }
 
-int
+SH_NORETURN_1 void
 shell_main(shinstance *psh, int argc, char **argv)
 {
 	struct jmploc jmploc;
@@ -250,7 +252,6 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
 	}
 	exitshell(psh, psh->exitstatus);
 	/* NOTREACHED */
-	return 1;
 }
 
 

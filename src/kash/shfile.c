@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2297 2009-03-01 02:04:38Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -624,7 +624,8 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     SecurityAttributes.lpSecurityDescriptor = NULL;
     SecurityAttributes.bInheritHandle = TRUE;
 
-    if (!CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
+    fds[1] = fds[0] = -1;
+    if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
     {
         fds[0] = shfile_insert(pfdtab, (intptr_t)hRead, O_RDONLY, -1, "shfile_pipe");
         if (fds[0] != -1)
@@ -636,9 +637,10 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
 
 # else
     int native_fds[2];
+
+    fds[1] = fds[0] = -1;
     if (!pipe(native_fds))
     {
-        fds[1] = -1;
         fds[0] = shfile_insert(pfdtab, native_fds[0], O_RDONLY, -1, "shfile_pipe");
         if (fds[0] != -1)
         {
@@ -672,6 +674,13 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
             errno = s;
             rc = -1;
         }
+    }
+    else
+    {
+# if K_OS == K_OS_WINDOWS
+        errno = shfile_dos2errno(GetLastError());
+# endif
+        rc = -1;
     }
 
 #elif defined(SH_PURE_STUB_MODE)

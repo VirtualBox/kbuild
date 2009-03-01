@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
@@ -111,6 +111,16 @@ typedef struct shsigaction
     shsigset_t  sh_mask;
     int         sh_flags;
 } shsigaction_t;
+
+/* SH_NORETURN_1 must be both on prototypes and definitions, while
+   SH_NORETURN_2 should at least be on the prototype. */
+#ifdef _MSC_VER
+# define SH_NORETURN_1 __declspec(noreturn)
+# define SH_NORETURN_2
+#else
+# define SH_NORETURN_1
+# define SH_NORETURN_2 __attribute__((__noreturn__));
+#endif
 
 #endif
 

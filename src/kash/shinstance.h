@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -389,7 +389,7 @@ void sh_sigaddset(shsigset_t *, int);
 void sh_sigdelset(shsigset_t *, int);
 int sh_sigismember(shsigset_t const *, int);
 int sh_sigprocmask(shinstance *, int, shsigset_t const *, shsigset_t *);
-void sh_abort(shinstance *) __attribute__((__noreturn__));
+SH_NORETURN_1 void sh_abort(shinstance *) SH_NORETURN_2;
 void sh_raise_sigint(shinstance *);
 int sh_kill(shinstance *, pid_t, int);
 int sh_killpg(shinstance *, pid_t, int);
@@ -437,7 +437,7 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild);
 #endif
 pid_t sh_fork(shinstance *);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);
-void sh__exit(shinstance *, int) __attribute__((__noreturn__));
+SH_NORETURN_1 void sh__exit(shinstance *, int) SH_NORETURN_2;
 int sh_execve(shinstance *, const char *, const char * const*, const char * const *);
 uid_t sh_getuid(shinstance *);
 uid_t sh_geteuid(shinstance *);

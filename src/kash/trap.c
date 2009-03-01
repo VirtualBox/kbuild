@@ -433,7 +433,7 @@ setinteractive(shinstance *psh, int on)
  * Called to exit the shell.
  */
 
-void
+SH_NORETURN_1 void
 exitshell(shinstance *psh, int status)
 {
 	struct jmploc loc1, loc2;

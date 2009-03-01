@@ -97,22 +97,22 @@ extern volatile int intpending;*/
 # define __attribute__(a)
 #endif
 
-void exraise(struct shinstance *, int) __attribute__((__noreturn__));
+SH_NORETURN_1 void exraise(struct shinstance *, int) SH_NORETURN_2;
 void onint(struct shinstance *);
-void error(struct shinstance *, const char *, ...) __attribute__((__noreturn__));
-void exerror(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
+SH_NORETURN_1 void error(struct shinstance *, const char *, ...) SH_NORETURN_2;
+SH_NORETURN_1 void exerror(struct shinstance *, int, const char *, ...) SH_NORETURN_2;
 const char *errmsg(struct shinstance *, int, int);
 
-void sh_err(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
-void sh_verr(struct shinstance *, int, const char *, va_list) __attribute__((__noreturn__));
-void sh_errx(struct shinstance *, int, const char *, ...) __attribute__((__noreturn__));
-void sh_verrx(struct shinstance *, int, const char *, va_list) __attribute__((__noreturn__));
+SH_NORETURN_1 void sh_err(struct shinstance *, int, const char *, ...) SH_NORETURN_2;
+SH_NORETURN_1 void sh_verr(struct shinstance *, int, const char *, va_list) SH_NORETURN_2;
+SH_NORETURN_1 void sh_errx(struct shinstance *, int, const char *, ...) SH_NORETURN_2;
+SH_NORETURN_1 void sh_verrx(struct shinstance *, int, const char *, va_list) SH_NORETURN_2;
 void sh_warn(struct shinstance *, const char *, ...);
 void sh_vwarn(struct shinstance *, const char *, va_list);
 void sh_warnx(struct shinstance *, const char *, ...);
 void sh_vwarnx(struct shinstance *, const char *, va_list);
 
-void sh_exit(struct shinstance *, int) __attribute__((__noreturn__));
+SH_NORETURN_1 void sh_exit(struct shinstance *, int) SH_NORETURN_2;
 
 
 /*

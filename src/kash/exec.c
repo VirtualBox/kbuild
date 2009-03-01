@@ -116,7 +116,7 @@ extern char *const parsekwd[];
  * have to change the find_command routine as well.
  */
 
-void
+SH_NORETURN_1 void
 shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, int vforked)
 {
 	char *cmdname;
