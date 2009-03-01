@@ -10,7 +10,7 @@ echo 1 > $TMPFILE
 echo 2 >> $TMPFILE
 echo 3 >> $TMPFILE
 VAR=`$CMD_SED -e '/2/!d' < $TMPFILE`
-#$CMD_RM -f $TMPFILE
+$CMD_RM -f $TMPFILE
 if test "$VAR" != "2"; then
     echo "redirect-3: FAILURE - VAR=$VAR."
     exit 1
