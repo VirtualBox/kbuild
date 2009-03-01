@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2303 2009-03-01 07:25:29Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2307 2009-03-01 09:48:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -101,10 +101,21 @@
 typedef struct shfile
 {
     int                 fd;             /**< The shell file descriptor number. */
-    int                 flags;          /**< Open flags. */
-    unsigned            cloexec : 1;    /**< Close on exec flag. */
+    unsigned            oflags;         /**< Open flags. */
+    unsigned            shflags;        /**< The shell file descriptor flags. */
     intptr_t            native;         /**< The native file descriptor number. */
 } shfile;
+
+/** @name shfile::shflags values.
+ * @{
+ */
+#define SHFILE_FLAGS_CLOSE_ON_EXEC      0x0001
+#define SHFILE_FLAGS_TYPE_MASK          0x00f0
+#define SHFILE_FLAGS_FILE               0x0000
+#define SHFILE_FLAGS_PIPE               0x0010
+#define SHFILE_FLAGS_DIR                0x0020
+#define SHFILE_FLAGS_TTY                0x0030
+/** @} */
 
 /**
  * The file descriptor table for a shell.
