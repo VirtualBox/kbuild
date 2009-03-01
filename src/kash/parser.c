@@ -115,8 +115,8 @@ STATIC int readtoken(shinstance *);
 STATIC int xxreadtoken(shinstance *);
 STATIC int readtoken1(shinstance *, int, char const *, char *, int);
 STATIC int noexpand(shinstance *, char *);
-STATIC void synexpect(shinstance *, int) __attribute__((__noreturn__));
-STATIC void synerror(shinstance *, const char *) __attribute__((__noreturn__));
+SH_NORETURN_1 STATIC void synexpect(shinstance *, int) SH_NORETURN_2;
+SH_NORETURN_1 STATIC void synerror(shinstance *, const char *) SH_NORETURN_2;
 STATIC void setprompt(shinstance *, int);
 
 
@@ -1595,7 +1595,7 @@ goodname(const char *name)
  * occur at this point.
  */
 
-STATIC void
+SH_NORETURN_1 STATIC void
 synexpect(shinstance *psh, int token)
 {
 	char msg[64];
@@ -1611,7 +1611,7 @@ synexpect(shinstance *psh, int token)
 }
 
 
-STATIC void
+SH_NORETURN_1 STATIC void
 synerror(shinstance *psh, const char *msg)
 {
 	if (psh->commandname)

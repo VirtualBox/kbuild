@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -743,7 +743,7 @@ int sh_sigprocmask(shinstance *psh, int operation, shsigset_t const *newp, shsig
     return rc;
 }
 
-void sh_abort(shinstance *psh)
+SH_NORETURN_1 void sh_abort(shinstance *psh)
 {
     shsigset_t set;
     TRACE2((psh, "sh_abort\n"));
@@ -909,6 +909,7 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild)
     (void)hChild;
     return 0;
 }
+#include <setjmp.h>
 
 pid_t sh_fork(shinstance *psh)
 {
@@ -920,10 +921,6 @@ pid_t sh_fork(shinstance *psh)
 
 #elif K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
     pid = shfork_do_it(psh);
-# ifdef DEBUG
-    if (!pid)
-        opentrace(psh);
-# endif
 
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
@@ -1068,7 +1065,7 @@ pid_t sh_waitpid(shinstance *psh, pid_t pid, int *statusp, int flags)
     return pidret;
 }
 
-void sh__exit(shinstance *psh, int rc)
+SH_NORETURN_1 void sh__exit(shinstance *psh, int rc)
 {
     TRACE2((psh, "sh__exit(%d)\n", rc));
     (void)psh;
