@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2301 2009-03-01 05:37:11Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2302 2009-03-01 05:42:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -53,8 +53,7 @@
  * Whether the file descriptor table stuff is actually in use or not.
  */
 #if K_OS == K_OS_WINDOWS \
- || (   !defined(SH_STUB_MODE) \
-     && !defined(SH_FORKED_MODE))
+ || !defined(SH_FORKED_MODE)
 # define SHFILE_IN_USE
 #endif
 /** The max file table size. */
@@ -599,7 +598,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 
 # endif /* K_OS != K_OS_WINDOWS */
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#elif defined(SH_FORKED_MODE)
     fd = open(name, flags, mode);
 #endif
 
@@ -680,12 +679,8 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
         rc = -1;
     }
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    rc = _pipe(fds, PIPE_BUF, O_BINARY);
-# else
+#elif defined(SH_FORKED_MODE)
     rc = pipe(fds);
-# endif
 #endif
 
     TRACE2((NULL, "shfile_pipe() -> %d{%d,%d} [%d]\n", rc, fds[0], fds[1], errno));
@@ -695,7 +690,7 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
 int shfile_dup(shfdtab *pfdtab, int fd)
 {
     int rc;
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
     rc = dup(fd);
 
 #else
@@ -728,7 +723,7 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
     else
         rc = -1;
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#elif defined(SH_FORKED_MODE)
     rc = close(fd);
 #endif
 
@@ -762,12 +757,8 @@ long shfile_read(shfdtab *pfdtab, int fd, void *buf, size_t len)
     else
         rc = -1;
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    rc = read(fd, buf, (unsigned)len);
-# else
+#elif defined(SH_FORKED_MODE)
     rc = read(fd, buf, len);
-# endif
 #endif
     return rc;
 }
@@ -798,12 +789,8 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
     else
         rc = -1;
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    rc = write(fd, buf, (unsigned)len);
-# else
+#elif defined(SH_FORKED_MODE)
     rc = write(fd, buf, len);
-# endif
 #endif
     return rc;
 }
@@ -835,7 +822,7 @@ long shfile_lseek(shfdtab *pfdtab, int fd, long off, int whench)
     else
         rc = -1;
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#elif defined(SH_FORKED_MODE)
     rc = lseek(fd, off, whench);
 #endif
 
@@ -918,61 +905,8 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
     else
         rc = -1;
 
-#elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    switch (cmd)
-    {
-        /* Just enough F_GETFL/F_SETFL to get along with. */
-        case F_GETFL:
-            errno = 0;
-            rc = _isatty(fd);
-            if (errno == EBADF)
-                rc = -1;
-            break;
-
-        case F_SETFL:
-            errno = 0;
-            rc = _isatty(fd);
-            if (errno != EBADF)
-            {
-                if (!arg)
-                    rc = 0;
-                else
-                {
-                    errno = EINVAL;
-                    rc = -1;
-                }
-            }
-            else
-                rc = -1;
-            break;
-
-        case F_DUPFD:
-        {
-            /* the brute force approach. */
-            int i = 0;
-            int fds[256];
-            for (i = 0; i < 256; i++)
-            {
-                fds[i] = -1;
-                rc = _dup(fd);
-                if (rc >= arg)
-                    break;
-                fds[i] = rc;
-            }
-            while (i-- > 0)
-                close(fds[i]);
-            if (rc < arg)
-            {
-                errno = EMFILE;
-                rc = -1;
-            }
-            break;
-        }
-    }
-# else
+#elif defined(SH_FORKED_MODE)
     rc = fcntl(fd, cmd, arg);
-# endif
 #endif
 
     switch (cmd)
@@ -987,7 +921,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 
 int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
     return stat(path, pst);
 
 #else
@@ -996,7 +930,7 @@ int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
 
 int shfile_lstat(shfdtab *pfdtab, const char *link, struct stat *pst)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     return stat(link, pst);
 # else
@@ -1009,7 +943,7 @@ int shfile_lstat(shfdtab *pfdtab, const char *link, struct stat *pst)
 
 int shfile_chdir(shfdtab *pfdtab, const char *path)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER //???
     return chdir(path);
 # else
@@ -1022,7 +956,7 @@ int shfile_chdir(shfdtab *pfdtab, const char *path)
 
 char *shfile_getcwd(shfdtab *pfdtab, char *buf, int len)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
     return getcwd(buf, len);
 
 #else
@@ -1031,7 +965,7 @@ char *shfile_getcwd(shfdtab *pfdtab, char *buf, int len)
 
 int shfile_access(shfdtab *pfdtab, const char *path, int type)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     type &= ~X_OK;
     return access(path, type);
@@ -1047,7 +981,7 @@ int shfile_isatty(shfdtab *pfdtab, int fd)
 {
     int rc;
 
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
     rc = isatty(fd);
 #else
 #endif
@@ -1061,7 +995,7 @@ int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 {
     int rc;
 
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     errno = ENOSYS;
     rc = -1;
@@ -1082,7 +1016,7 @@ int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 {
     int rc;
 
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     errno = ENOSYS;
     rc = -1;
@@ -1100,7 +1034,7 @@ int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 
 mode_t shfile_get_umask(shfdtab *pfdtab)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
     return 022;
 
 #else
@@ -1115,7 +1049,7 @@ void shfile_set_umask(shfdtab *pfdtab, mode_t mask)
 
 shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     errno = ENOSYS;
     return NULL;
@@ -1129,7 +1063,7 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 
 shdirent *shfile_readdir(struct shdir *pdir)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     errno = ENOSYS;
     return NULL;
@@ -1144,7 +1078,7 @@ shdirent *shfile_readdir(struct shdir *pdir)
 
 void shfile_closedir(struct shdir *pdir)
 {
-#if defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     errno = ENOSYS;
 # else
