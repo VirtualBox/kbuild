@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2295 2009-03-01 01:54:05Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2308 2009-03-01 10:01:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -421,11 +421,12 @@ void sh_free(shinstance *psh, void *ptr)
 
         if (mem->magic == SHMEMHDR_MAGIC_FREE)
         {
-            SHHEAP_ASSERT(left->next2 == mem);
-            SHHEAP_ASSERT(mem->prev2 == left);
-            left->next2 = mem->next2;
             if (mem->next2)
-                mem->next2->prev2 = left;
+                mem->next2->prev2 = mem->prev2;
+            if (mem->prev2)
+                mem->prev2->next2 = mem->next2;
+            else
+                mem->chunk->free_head = mem->next2;
         }
 
         left->size += sizeof(*mem) + mem->size;
