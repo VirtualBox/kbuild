@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2307 2009-03-01 09:48:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2309 2009-03-01 10:01:39Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1220,6 +1220,8 @@ int shfile_chdir(shfdtab *pfdtab, const char *path)
         }
         sh_free(psh, free_me);
     }
+    else
+        rc = -1;
 #else
     rc = chdir(path);
 #endif
@@ -1274,14 +1276,34 @@ char *shfile_getcwd(shfdtab *pfdtab, char *buf, int size)
     return ret;
 }
 
+/**
+ * access().
+ */
 int shfile_access(shfdtab *pfdtab, const char *path, int type)
 {
+    int         rc;
+#ifdef SHFILE_IN_USE
+    char        abspath[SHFILE_MAX_PATH];
+
+    rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+    {
 # ifdef _MSC_VER
-    type &= ~X_OK;
-    return access(path, type);
-# else
-    return access(path, type);
+        if (type & X_OK)
+            type = (type & ~X_OK) | R_OK;
 # endif
+        rc = access(abspath, type);
+    }
+#else
+# ifdef _MSC_VER
+    if (type & X_OK)
+        type = (type & ~X_OK) | R_OK;
+# endif
+    rc = access(path, type);
+#endif
+
+    TRACE2((NULL, "shfile_access(,%s,%#x) -> %d [%d]\n", path, type, rc, errno));
+    return rc;
 }
 
 /**
@@ -1296,7 +1318,7 @@ int shfile_isatty(shfdtab *pfdtab, int fd)
     if (file)
     {
 # if K_OS == K_OS_WINDOWS
-        errno = ENOSYS;
+        rc = (file->shflags & SHFILE_FLAGS_TYPE_MASK) == SHFILE_FLAGS_TTY;
 # else
         rc = isatty(file->native);
 # endif
