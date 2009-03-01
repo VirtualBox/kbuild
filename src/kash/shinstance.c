@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2294 2009-02-28 08:33:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -301,6 +301,9 @@ shinstance *sh_create_root_shell(shinstance *inherit, int argc, char **argv, cha
 # error asdf
 #endif
             psh->ttyfd = -1;
+
+            /* show.c */
+            psh->tracefd = -1;
 
             /* link it. */
             sh_int_link(psh);

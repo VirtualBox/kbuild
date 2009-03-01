@@ -1,4 +1,4 @@
-/* $Id: shthread.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
@@ -26,23 +26,85 @@
 
 #include "shthread.h"
 #include "shinstance.h"
+#include <assert.h>
 
-#if defined(_MSC_VER) || defined(__EMX__)
-# include <process.h>
+#if K_OS == K_OS_WINDOWS
+# include <Windows.h>
+#elif K_OS == K_OS_OS2
+# include <InnoTekLIBC/FastInfoBlocks.h>
+# include <InnoTekLIBC/thread.h>
 #else
 # include <pthread.h>
 #endif
 
 
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+#if K_OS == K_OS_WINDOWS
+static DWORD sh_tls = TLS_OUT_OF_INDEXES;
+#elif K_OS == K_OS_OS2
+static int sh_tls = -1;
+#else
+static int sh_tls_inited = 0;
+static int sh_tls;
+#endif
+
+
+/**
+ * Stores the shell instance pointer in a TLS entry.
+ *
+ * This will allocate the TLS entry on the first call. We assume
+ * there will no be races at that time.
+ *
+ * @param   psh     The shell instance.
+ */
 void shthread_set_shell(struct shinstance *psh)
 {
+#if K_OS == K_OS_WINDOWS
+    if (sh_tls == TLS_OUT_OF_INDEXES)
+    {
+        sh_tls = TlsAlloc();
+        assert(sh_tls != TLS_OUT_OF_INDEXES);
+    }
+    if (!TlsSetValue(sh_tls, psh))
+        assert(0);
 
+#elif K_OS == K_OS_OS2
+    if (sh_tls == -1)
+    {
+        sh_tls = __libc_TLSAlloc();
+        assert(sh_tls != -1);
+    }
+    if (__libc_TLSSet(sh_tls, psh) == -1)
+        assert(0);
+#else
+    if (!sh_tls_inited)
+    {
+        if (pthread_key_create(&sh_tls, NULL) != 0)
+            assert(0);
+        sh_tls_inited = 1;
+    }
+    if (pthread_setspecific(sh_tls, psh) != 0)
+        assert(0);
+#endif
 }
 
+/**
+ * Get the shell instance pointer from TLS.
+ *
+ * @returns The shell instance.
+ */
 struct shinstance *shthread_get_shell(void)
 {
-    shinstance *psh = NULL;
+    shinstance *psh;
+#if K_OS == K_OS_WINDOWS
+    psh = (shinstance *)TlsGetValue(sh_tls);
+#elif K_OS == K_OS_OS2
+    psh = (shinstance *)__libc_TLSGet(iTls)
+#else
+    psh = (shinstance *)pthread_getspecific(sh_tls);
+#endif
     return psh;
 }
-
 

@@ -43,6 +43,7 @@ __RCSID("$NetBSD: show.c,v 1.26 2003/11/14 10:46:13 dsl Exp $");
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -265,17 +266,140 @@ indent(int amount, char *pfx, FILE *fp)
  * Debugging stuff.
  */
 
-
-FILE *tracefile;
-
-
 #ifdef DEBUG
+#ifdef TRACE_VIA_STDIO
+FILE *tracefile;
+#endif
+
+/** @def TRY_GET_PSH_OR_RETURN
+ * Make sure @a psh is valid, trying to fetch it from TLS
+ * if it's NULL and returning (void) if that fails. */
+# define TRY_GET_PSH_OR_RETURN(psh)  \
+	if (!(psh)) { \
+		psh = shthread_get_shell(); \
+		if (!psh) \
+			return; \
+	} else do { } while (0)
+
+/** @def RETURN_IF_NOT_TRACING
+ * Return if we're not tracing. */
+# ifdef TRACE_VIA_STDIO
+#  define RETURN_IF_NOT_TRACING(psh) \
+	if (debug(psh) != 1 || !tracefile)
+		return; \
+	else do	{} while (0)
+# else
+#  define RETURN_IF_NOT_TRACING(psh) \
+	if (debug(psh) != 1 || psh->tracefd == -1) \
+		return; \
+	else do	{} while (0)
+# endif
+
+/** @def TRACE_PUTC
+ * putc/trace_char wrapper. The @a psh / @a tracefile
+ * is taken from the context and not as a paramenter. */
+# ifdef TRACE_VIA_STDIO
+#  define TRACE_PUTC(c) 	fputc(c, tracefile)
+# else
+#  define TRACE_PUTC(c) 	trace_char(psh, c)
+# endif
+
+
+# ifndef TRACE_VIA_STDIO
+/* Flushes the tracebuf. */
+static void
+trace_flush(shinstance *psh)
+{
+	size_t pos = psh->tracepos;
+
+	if (pos > sizeof(psh->tracebuf)) {
+		char *end;
+		assert(0);
+		end = memchr(psh->tracebuf, '\0', sizeof(psh->tracebuf));
+		pos = end ? end - &psh->tracebuf[0] : 0;
+	}
+
+	if (pos) {
+		char 	prefix[40];
+		size_t 	len;
+
+		len = sprintf(prefix, "[%d] ", sh_getpid(psh));
+		shfile_write(&psh->fdtab, psh->tracefd, prefix, len);
+		shfile_write(&psh->fdtab, psh->tracefd, psh->tracebuf, pos);
+
+		psh->tracepos = 0;
+		psh->tracebuf[0] = '\0';
+	}
+}
+
+/* Adds a char to the trace buffer. */
+static void
+trace_char(shinstance *psh, int c)
+{
+	size_t pos = psh->tracepos;
+	if (pos >= sizeof(psh->tracebuf) - 1) {
+		trace_flush(psh);
+		pos = psh->tracepos;
+	}
+	psh->tracebuf[pos] = c;
+	psh->tracepos = pos + 1;
+	if (c == '\n')
+		trace_flush(psh);
+	else
+		psh->tracebuf[pos + 1] = '\0';
+}
+
+/* Add a string to the trace buffer. */
+static void
+trace_string(shinstance *psh, const char *str)
+{
+	/* push it out line by line. */
+	while (*str) {
+		/* find line/string length. */
+		size_t		pos;
+		size_t 		len;
+		const char *end = str;
+		int 		flush_it = 0;
+		while (*end) {
+			if (*end++ == '\n') {
+				flush_it = 1;
+				break;
+			}
+		}
+		len = end - str;
+
+		/* copy to the buffer */
+		pos = psh->tracepos;
+		if (pos + len <= sizeof(psh->tracebuf)) {
+			memcpy(&psh->tracebuf[pos], str, len);
+			psh->tracepos = pos + len;
+			if (flush_it)
+				trace_flush(psh);
+		} else {
+			/* it's too big for some reason... */
+			trace_flush(psh);
+			shfile_write(&psh->fdtab, psh->tracefd, str, len);
+			if (!flush_it)
+				shfile_write(&psh->fdtab, psh->tracefd, "[too long]\n", sizeof( "[too long]\n") - 1);
+		}
+
+		/* advance */
+		str = end;
+	}
+}
+# endif
+
 void
 trputc(shinstance *psh, int c)
 {
-	if (psh && debug(psh) != 1)
-		return;
-	putc(c, tracefile);
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
+# ifdef TRACE_VIA_STDIO
+    putc(c, tracefile);
+# else
+	trace_char(psh, c);
+# endif
 }
 #endif
 
@@ -285,13 +409,28 @@ trace(shinstance *psh, const char *fmt, ...)
 #ifdef DEBUG
 	int savederrno = errno;
 	va_list va;
+# ifndef TRACE_VIA_STDIO
+	char buf[2048];
+# endif
 
-	if (!tracefile || (psh && debug(psh) != 1))
-		return;
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
+# ifdef TRACE_VIA_STDIO
 	fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	va_start(va, fmt);
 	(void) vfprintf(tracefile, fmt, va);
 	va_end(va);
+# else
+	va_start(va, fmt);
+#  ifdef _MSC_VER
+	_vsnprintf(buf, sizeof(buf), fmt, va);
+#  else
+	vsnprintf(buf, sizeof(buf), fmt, va);
+#  endif
+	va_end(va);
+	trace_string(psh, buf);
+# endif
 
 	errno = savederrno;
 #endif
@@ -302,11 +441,24 @@ tracev(shinstance *psh, const char *fmt, va_list va)
 {
 #ifdef DEBUG
 	int savederrno = errno;
+# ifndef TRACE_VIA_STDIO
+	char buf[2048];
+# endif
 
-	if (!tracefile || (psh && debug(psh) != 1))
-		return;
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
+# ifdef TRACE_VIA_STDIO
 	fprintf(tracefile, "[%d] ", sh_getpid(psh));
 	(void) vfprintf(tracefile, fmt, va);
+# else
+#  ifdef _MSC_VER
+	_vsnprintf(buf, sizeof(buf), fmt, va);
+#  else
+	vsnprintf(buf, sizeof(buf), fmt, va);
+#  endif
+	trace_string(psh, buf);
+# endif
 
 	errno = savederrno;
 #endif
@@ -319,9 +471,14 @@ trputs(shinstance *psh, const char *s)
 {
 	int savederrno = errno;
 
-	if (!tracefile || (psh && debug(psh) != 1))
-		return;
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
+# ifdef TRACE_VIA_STDIO
 	fputs(s, tracefile);
+# else
+	trace_string(psh, s);
+# endif
 
 	errno = savederrno;
 }
@@ -334,9 +491,10 @@ trstring(shinstance *psh, char *s)
 	char *p;
 	char c;
 
-	if (!tracefile || (psh && debug(psh) != 1))
-		return;
-	putc('"', tracefile);
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
+	TRACE_PUTC('"');
 	for (p = s ; *p ; p++) {
 		switch (*p) {
 		case '\n':  c = 'n';  goto backslash;
@@ -349,22 +507,22 @@ trstring(shinstance *psh, char *s)
 		case CTLVAR+CTLQUOTE:  c = 'V';  goto backslash;
 		case CTLBACKQ:  c = 'q';  goto backslash;
 		case CTLBACKQ+CTLQUOTE:  c = 'Q';  goto backslash;
-backslash:	  putc('\\', tracefile);
-			putc(c, tracefile);
+backslash:	  TRACE_PUTC('\\');
+			TRACE_PUTC(c);
 			break;
 		default:
 			if (*p >= ' ' && *p <= '~')
-				putc(*p, tracefile);
+				TRACE_PUTC(*p);
 			else {
-				putc('\\', tracefile);
-				putc(*p >> 6 & 03, tracefile);
-				putc(*p >> 3 & 07, tracefile);
-				putc(*p & 07, tracefile);
+				TRACE_PUTC('\\');
+				TRACE_PUTC(*p >> 6 & 03);
+				TRACE_PUTC(*p >> 3 & 07);
+				TRACE_PUTC(*p & 07);
 			}
 			break;
 		}
 	}
-	putc('"', tracefile);
+	TRACE_PUTC('"');
 
 	errno = savederrno;
 }
@@ -377,14 +535,15 @@ trargs(shinstance *psh, char **ap)
 #ifdef DEBUG
 	int savederrno = errno;
 
-	if (!tracefile || (psh && debug(psh) != 1))
-		return;
+	TRY_GET_PSH_OR_RETURN(psh);
+	RETURN_IF_NOT_TRACING(psh);
+
 	while (*ap) {
 		trstring(psh, *ap++);
 		if (*ap)
-			putc(' ', tracefile);
+			TRACE_PUTC(' ');
 		else
-			putc('\n', tracefile);
+			TRACE_PUTC('\n');
 	}
 
 	errno = savederrno;
@@ -397,15 +556,27 @@ void
 opentrace(shinstance *psh)
 {
     static const char s[] = "./trace";
+# ifdef TRACE_VIA_STDIO
 	int fd;
+# endif
 
-	if (psh && debug(psh) != 1) {
+	TRY_GET_PSH_OR_RETURN(psh);
+	if (debug(psh) != 1) {
+# ifdef TRACE_VIA_STDIO
 		if (tracefile)
 			fflush(tracefile);
 		/* leave open because libedit might be using it */
+# else
+		if (psh->tracefd != -1) {
+			trace_flush(psh);
+			shfile_close(&psh->fdtab, psh->tracefd);
+			psh->tracefd = -1;
+		}
+# endif
 		return;
 	}
 
+# ifdef TRACE_VIA_STDIO
 	if (tracefile) {
 		if (!freopen(s, "a", tracefile)) {
 			fprintf(stderr, "Can't re-open %s\n", s);
@@ -415,7 +586,7 @@ opentrace(shinstance *psh)
 	} else {
 		fd = open(s, O_APPEND | O_RDWR | O_CREAT, 0600);
 		if (fd != -1) {
-# if K_OS == K_OS_WINDOWS
+#  if K_OS == K_OS_WINDOWS
             int fds[50];
             int i = 0;
             while (i < 50) {
@@ -430,20 +601,19 @@ opentrace(shinstance *psh)
             }
             while (i-- > 0)
                 close(fds[i]);
-# else
+#  else
             int fdTarget = 199;
             while (fdTarget > 10)
             {
                 int fd2 = shfile_fcntl(&psh->fdtab, fd, F_DUPFD, fdTarget);
-                if (fd2 != -1)
-                    break;
+				if (fd2 != -1) {
+					close(fd);
+					fd = fd2;
+					break;
+				}
                 fdTarget = (fdTarget + 1 / 2) - 1;
             }
-			if (fd2 != -1) {
-				close(fd);
-				fd = fd2;
-			}
-# endif
+#  endif
 		}
 		if (fd == -1 || (tracefile = fdopen(fd, "a")) == NULL) {
 			fprintf(stderr, "Can't open %s\n", s);
@@ -453,5 +623,33 @@ opentrace(shinstance *psh)
 	}
 	setvbuf(tracefile, (char *)NULL, _IOLBF, 1024);
 	fputs("\nTracing started.\n", tracefile);
+
+# else  /* !TRACE_VIA_STDIO */
+	if (psh->tracefd != -1) {
+		return;
+	}
+	psh->tracefd = shfile_open(&psh->fdtab, s, O_APPEND | O_RDWR | O_CREAT, 0600);
+	if (psh->tracefd != -1) {
+		/* relocate it */
+		int fdTarget = 199;
+		while (fdTarget > 10)
+		{
+			int fd2 = shfile_fcntl(&psh->fdtab, psh->tracefd, F_DUPFD, fdTarget);
+			if (fd2 != -1) {
+				shfile_close(&psh->fdtab, psh->tracefd);
+				psh->tracefd = fd2;
+				break;
+			}
+			fdTarget = (fdTarget + 1 / 2) - 1;
+		}
+	}
+	if (psh->tracefd == -1) {
+		fprintf(stderr, "Can't open %s\n", s);
+		debug(psh) = 0;
+		return;
+	}
+	trace_string(psh, "Tracing started.\n");
+
+# endif /* !TRACE_VIA_STDIO */
 }
 #endif /* DEBUG */

@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2293 2009-02-28 07:25:12Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -296,6 +296,11 @@ struct shinstance
     /* redir.c */
     struct redirtab    *redirlist;
     int                 fd0_redirected/* = 0*/;
+
+    /* show.c */
+    char                tracebuf[1024];
+    size_t              tracepos;
+    int                 tracefd;
 
     /* trap.h */
     int                 pendingsigs;    /**< indicates some signal received */
