@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2300 2009-03-01 05:30:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1102,8 +1102,15 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
     rc = -1;
 
 #elif defined(SH_STUB_MODE) || defined(SH_FORKED_MODE)
+    errno = 0;
 # ifdef _MSC_VER
+    errno = 0;
     rc = _spawnve(_P_WAIT, exe, (char **)argv, (char **)envp);
+    if (rc != -1)
+    {
+        TRACE2((psh, "sh_execve: child exited, rc=%d. (errno=%d)\n", rc, errno));
+        exit(rc);
+    }
 # else
     rc = execve(exe, (char **)argv, (char **)envp);
 # endif
