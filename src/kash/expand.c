@@ -418,6 +418,9 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
 	int saveherefd;
 	int quotes = flag & (EXP_FULL | EXP_CASE);
+#ifdef SH_DEAL_WITH_CRLF
+	int pending_cr = 0;
+#endif
 
 	INTOFF;
 	saveifs = psh->ifsfirst;
@@ -447,22 +450,37 @@ expbackq(shinstance *psh, union node *cmd, int quoted, int flag)
 			in.nleft = i - 1;
 		}
 		lastc = *p++;
+#ifdef SH_DEAL_WITH_CRLF
+		if (pending_cr) {
+			pending_cr = 0;
+			if (lastc != '\n') {
+				if (quotes && syntax[(int)'\r'] == CCTL)
+					STPUTC(psh, CTLESC, dest);
+				STPUTC(psh, '\r', dest);
+			}
+		}
+		if (lastc == '\r')
+			pending_cr = '\r';
+		else
+#endif
 		if (lastc != '\0') {
 			if (quotes && syntax[(int)lastc] == CCTL)
 				STPUTC(psh, CTLESC, dest);
 			STPUTC(psh, lastc, dest);
 		}
 	}
+#ifdef SH_DEAL_WITH_CRLF
+	if (pending_cr) {
+		if (quotes && syntax[(int)'\r'] == CCTL)
+			STPUTC(psh, CTLESC, dest);
+		STPUTC(psh, '\r', dest);
+	}
+#endif
 
 	/* Eat all trailing newlines */
 	p = stackblock(psh) + startloc;
-	while (dest > p && dest[-1] == '\n') {
+	while (dest > p && dest[-1] == '\n')
 		STUNPUTC(psh, dest);
-#ifdef SH_DEAL_WITH_CRLF
-		if (dest > p && dest[-1] == '\r')
-			STUNPUTC(psh, dest);
-#endif
-	}
 
 	if (in.fd >= 0)
 		shfile_close(&psh->fdtab, in.fd);
