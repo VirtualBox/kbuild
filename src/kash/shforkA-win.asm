@@ -1,4 +1,4 @@
-; $Id: shforkA-win.asm 2294 2009-02-28 08:33:26Z knut.osmundsen@oracle.com $
+; $Id: shforkA-win.asm 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $
 ;; @file
 ; shforkA-win.asm - assembly routines used when forking on Windows.
 ;
@@ -106,7 +106,6 @@ global NAME(main)
         mov     r11, [gs:10h]           ; StackLimit (the lower value)
         mov     [rax - 10h], r10
         mov     [rax - 18h], r11
-int3
         cmp     rax, r10
         jb      .below
         mov     [gs:08h], rax

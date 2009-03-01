@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2294 2009-02-28 08:33:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -42,7 +42,7 @@
 # include <dirent.h>
 #endif
 
-#ifdef DEBUG
+#if defined(DEBUG) && defined(TRACE_VIA_STDIO)
 extern FILE *tracefile;
 #endif
 
@@ -149,18 +149,19 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned flags, int f
         int         new_size = pfdtab->size + SHFILE_GROW;
         while (new_size < fdMin)
             new_size += SHFILE_GROW;
-        new_tab = sh_realloc(NULL, pfdtab->tab, new_size * sizeof(shfile));
+        new_tab = sh_realloc(shthread_get_shell(), pfdtab->tab, new_size * sizeof(shfile));
         if (new_tab)
         {
-            fd = i = pfdtab->size;
-            if (fd < fdMin)
-                fd = fdMin;
             for (i = pfdtab->size; i < new_size; i++)
             {
                 new_tab[i].fd = -1;
                 new_tab[i].flags = 0;
                 new_tab[i].native = -1;
             }
+
+            fd = pfdtab->size;
+            if (fd < fdMin)
+                fd = fdMin;
 
             pfdtab->tab = new_tab;
             pfdtab->size = new_size;
@@ -609,10 +610,10 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
     fd = open(name, flags, mode);
 #endif
 
-#ifdef DEBUG
+#if defined(DEBUG) && defined(TRACE_VIA_STDIO)
     if (tracefile)
-        TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
 #endif
+        TRACE2((NULL, "shfile_open(%p:{%s}, %#x, 0%o) -> %d [%d]\n", name, name, flags, mode, fd, errno));
     return fd;
 }
 
@@ -998,7 +999,9 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 #endif
 
 #ifdef DEBUG
+# ifdef TRACE_VIA_STDIO
     if (tracefile)
+# endif
         switch (cmd)
         {
             case F_GETFL:
