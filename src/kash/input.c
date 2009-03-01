@@ -220,6 +220,21 @@ retry:
                         }
                 }
                 nr = -1;
+	} else {
+#ifdef SH_DEAL_WITH_CRLF
+		char *cr = memchr(buf, '\r', nr);
+		while (cr) {
+			size_t left = nr - (cr - buf);
+			if (left > 1 && cr[1] == '\n') {
+				left--;
+				nr--;
+				memmove(cr, cr + 1, left);
+				cr = memchr(cr, '\r', left);
+			} else {
+				cr = memchr(cr + 1, '\r', left);
+			}
+		}
+#endif
 	}
 	return nr;
 }
