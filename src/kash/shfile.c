@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2302 2009-03-01 05:42:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2303 2009-03-01 07:25:29Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -72,6 +72,18 @@
         errno = (err); \
         return (rc); \
     } while (0)
+
+#if K_OS == K_OS_WINDOWS
+ /* See msdos.h for description. */
+# define FOPEN              0x01
+# define FEOFLAG            0x02
+# define FCRLF              0x04
+# define FPIPE              0x08
+# define FNOINHERIT         0x10
+# define FAPPEND            0x20
+# define FDEV               0x40
+# define FTEXT              0x80
+#endif
 
 
 #ifdef SHFILE_IN_USE
@@ -447,7 +459,8 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
     return rc;
 }
 
-#if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE) //&& defined(SH_FORKED_MODE)
+#if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE)
+
 /**
  * Helper for shfork.
  *
@@ -460,6 +473,7 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
 {
     shmtxtmp tmp;
     unsigned i;
+    DWORD fFlag = set ? HANDLE_FLAG_INHERIT : 0;
 
     shmtx_enter(&pfdtab->mtx, &tmp);
     TRACE2((NULL, "shfile_fork_win:\n"));
@@ -470,12 +484,9 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
         if (pfdtab->tab[i].fd == i)
         {
             HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
-            DWORD  fFlag = (set || !pfdtab->tab[i].cloexec)
-                         ? HANDLE_FLAG_INHERIT : 0;
             if (set)
-                TRACE2((NULL, "  #%d: native=%#x flags=%#x cloexec=%d fFlag=%#x\n",
-                        i, pfdtab->tab[i].flags, hFile, pfdtab->tab[i].cloexec, fFlag));
-
+                TRACE2((NULL, "  #%d: native=%#x flags=%#x cloexec=%d\n",
+                        i, pfdtab->tab[i].flags, hFile, pfdtab->tab[i].cloexec));
             if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
             {
                 DWORD err = GetLastError();
@@ -498,7 +509,111 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
 
     shmtx_leave(&pfdtab->mtx, &tmp);
 }
-#endif
+
+/**
+ * Helper for sh_execve.
+ *
+ * This is called before and after CreateProcess. On the first call it
+ * will mark the non-close-on-exec handles as inheritable and produce
+ * the startup info for the CRT. On the second call, after CreateProcess,
+ * it will restore the handle inheritability properties.
+ *
+ * @returns Pointer to CRT data if prepare is 1, NULL if prepare is 0.
+ * @param   pfdtab  The file descriptor table.
+ * @param   prepare Which call, 1 if before and 0 if after.
+ * @param   sizep   Where to store the size of the returned data.
+ * @param   hndls   Where to store the three standard handles.
+ */
+void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intptr_t *hndls)
+{
+    void       *pvRet;
+    shmtxtmp    tmp;
+    unsigned    count;
+    unsigned    i;
+
+    shmtx_enter(&pfdtab->mtx, &tmp);
+    TRACE2((NULL, "shfile_fork_win:\n"));
+
+    count  = pfdtab->size < (0x10000-4) / (1 + sizeof(HANDLE))
+           ? pfdtab->size
+           : (0x10000-4) / (1 + sizeof(HANDLE));
+
+    if (prepare)
+    {
+        size_t      cbData = sizeof(int) + count * (1 + sizeof(HANDLE));
+        uint8_t    *pbData = sh_malloc(shthread_get_shell(), cbData);
+        uint8_t    *paf = pbData + sizeof(int);
+        HANDLE     *pah = (HANDLE *)(paf + count);
+
+        *(int *)pbData = count;
+
+        i = count;
+        while (i-- > 0)
+        {
+            if (    pfdtab->tab[i].fd == i
+                &&  !pfdtab->tab[i].cloexec)
+            {
+                HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
+                TRACE2((NULL, "  #%d: native=%#x flags=%#x\n",
+                        i, pfdtab->tab[i].flags, hFile));
+
+                if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
+                {
+                    DWORD err = GetLastError();
+                    assert(0);
+                }
+                paf[i] = FOPEN;
+                if (pfdtab->tab[i].flags & _O_APPEND)
+                    paf[i] = FAPPEND;
+                if (pfdtab->tab[i].flags & _O_TEXT)
+                    paf[i] = FTEXT;
+                pah[i] = hFile;
+            }
+            else
+            {
+                paf[i] = 0;
+                pah[i] = INVALID_HANDLE_VALUE;
+            }
+        }
+
+        for (i = 0; i < 3; i++)
+        {
+            if (    count > i
+                &&  pfdtab->tab[i].fd == 0)
+                hndls[i] = pfdtab->tab[i].native;
+            else
+                hndls[i] = (intptr_t)INVALID_HANDLE_VALUE;
+        }
+
+        *sizep = (unsigned short)cbData;
+        pvRet = pbData;
+    }
+    else
+    {
+        assert(!hndls);
+        assert(!sizep);
+        i = count;
+        while (i-- > 0)
+        {
+            if (    pfdtab->tab[i].fd == i
+                &&  !pfdtab->tab[i].cloexec)
+            {
+                HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
+                if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, 0))
+                {
+                    DWORD err = GetLastError();
+                    assert(0);
+                }
+            }
+        }
+        pvRet = NULL;
+    }
+
+    shmtx_leave(&pfdtab->mtx, &tmp);
+    return pvRet;
+}
+
+#endif /* K_OS_WINDOWS */
 
 
 /**
@@ -537,7 +652,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 
     SecurityAttributes.nLength = sizeof(SecurityAttributes);
     SecurityAttributes.lpSecurityDescriptor = NULL;
-    SecurityAttributes.bInheritHandle = (flags & _O_NOINHERIT) == 0;
+    SecurityAttributes.bInheritHandle = FALSE;
 
     if (flags & _O_CREAT)
     {
@@ -598,7 +713,7 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 
 # endif /* K_OS != K_OS_WINDOWS */
 
-#elif defined(SH_FORKED_MODE)
+#else
     fd = open(name, flags, mode);
 #endif
 
@@ -618,7 +733,7 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
 
     SecurityAttributes.nLength = sizeof(SecurityAttributes);
     SecurityAttributes.lpSecurityDescriptor = NULL;
-    SecurityAttributes.bInheritHandle = TRUE;
+    SecurityAttributes.bInheritHandle = FALSE;
 
     fds[1] = fds[0] = -1;
     if (CreatePipe(&hRead, &hWrite, &SecurityAttributes, 4096))
@@ -679,7 +794,7 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
         rc = -1;
     }
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = pipe(fds);
 #endif
 
@@ -687,17 +802,12 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
     return rc;
 }
 
+/**
+ * dup().
+ */
 int shfile_dup(shfdtab *pfdtab, int fd)
 {
-    int rc;
-#if defined(SH_FORKED_MODE)
-    rc = dup(fd);
-
-#else
-#endif
-
-    TRACE2((NULL, "shfile_dup(%d) -> %d [%d]\n", fd, rc, errno));
-    return rc;
+    return shfile_fcntl(pfdtab,fd, F_DUPFD, 0);
 }
 
 /**
@@ -723,7 +833,7 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
     else
         rc = -1;
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = close(fd);
 #endif
 
@@ -757,7 +867,7 @@ long shfile_read(shfdtab *pfdtab, int fd, void *buf, size_t len)
     else
         rc = -1;
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = read(fd, buf, len);
 #endif
     return rc;
@@ -789,7 +899,7 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
     else
         rc = -1;
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = write(fd, buf, len);
 #endif
     return rc;
@@ -822,7 +932,7 @@ long shfile_lseek(shfdtab *pfdtab, int fd, long off, int whench)
     else
         rc = -1;
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = lseek(fd, off, whench);
 #endif
 
@@ -881,7 +991,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
                                     GetCurrentProcess(),
                                     &hNew,
                                     0,
-                                    TRUE /* bInheritHandle */,
+                                    FALSE /* bInheritHandle */,
                                     DUPLICATE_SAME_ACCESS))
                     rc = shfile_insert(pfdtab, (intptr_t)hNew, file->flags, arg, "shfile_fcntl");
                 else
@@ -905,7 +1015,7 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
     else
         rc = -1;
 
-#elif defined(SH_FORKED_MODE)
+#else
     rc = fcntl(fd, cmd, arg);
 #endif
 
@@ -921,90 +1031,186 @@ int shfile_fcntl(shfdtab *pfdtab, int fd, int cmd, int arg)
 
 int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
 {
-#if defined(SH_FORKED_MODE)
-    return stat(path, pst);
-
-#else
-#endif
-}
-
-int shfile_lstat(shfdtab *pfdtab, const char *link, struct stat *pst)
-{
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    return stat(link, pst);
+#ifdef SHFILE_IN_USE
+    char    abspath[SHFILE_MAX_PATH];
+    int     rc;
+    rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+    {
+# if K_OS == K_OS_WINDOWS
+        rc = stat(abspath, pst); /** @todo re-implement stat. */
 # else
-    return lstat(link, pst);
+        rc = stat(abspath, pst);
 # endif
-
+    }
+    TRACE2((NULL, "shfile_stat(,%s,) -> %d [%d]\n", path, rc, errno));
+    return rc;
 #else
+    return stat(path, pst);
 #endif
 }
 
+int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
+{
+    int     rc;
+#ifdef SHFILE_IN_USE
+    char    abspath[SHFILE_MAX_PATH];
+
+    rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+    {
+# if K_OS == K_OS_WINDOWS
+        rc = stat(abspath, pst); /** @todo implement lstat. */
+# else
+        rc = lstat(abspath, pst);
+# endif
+    }
+#else
+    rc = stat(path, pst);
+#endif
+    TRACE2((NULL, "shfile_stat(,%s,) -> %d [%d]\n", path, rc, errno));
+    return rc;
+}
+
+/**
+ * chdir().
+ */
 int shfile_chdir(shfdtab *pfdtab, const char *path)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER //???
-    return chdir(path);
-# else
-    return chdir(path);
-# endif
+    shinstance *psh = shthread_get_shell();
+    int         rc;
+#ifdef SHFILE_IN_USE
+    char        abspath[SHFILE_MAX_PATH];
 
+    rc = shfile_make_path(pfdtab, path, &abspath[0]);
+    if (!rc)
+    {
+        char *abspath_copy = sh_strdup(psh, abspath);
+        char *free_me = abspath_copy;
+        rc = chdir(path);
+        if (!rc)
+        {
+            shmtxtmp    tmp;
+            shmtx_enter(&pfdtab->mtx, &tmp);
+
+            free_me = pfdtab->cwd;
+            pfdtab->cwd = abspath_copy;
+
+            shmtx_leave(&pfdtab->mtx, &tmp);
+        }
+        sh_free(psh, free_me);
+    }
 #else
+    rc = chdir(path);
 #endif
+
+    TRACE2((psh, "shfile_chdir(,%s) -> %d [%d]\n", path, rc, errno));
+    return rc;
 }
 
-char *shfile_getcwd(shfdtab *pfdtab, char *buf, int len)
+/**
+ * getcwd().
+ */
+char *shfile_getcwd(shfdtab *pfdtab, char *buf, int size)
 {
-#if defined(SH_FORKED_MODE)
-    return getcwd(buf, len);
+    char       *ret;
+#ifdef SHFILE_IN_USE
 
+    ret = NULL;
+    if (buf && !size)
+        errno = -EINVAL;
+    else
+    {
+        size_t      cwd_size;
+        shmtxtmp    tmp;
+        shmtx_enter(&pfdtab->mtx, &tmp);
+
+        cwd_size = strlen(pfdtab->cwd) + 1;
+        if (buf)
+        {
+            if (cwd_size <= (size_t)size)
+                ret = memcpy(buf, pfdtab->cwd, cwd_size);
+            else
+                errno = ERANGE;
+        }
+        else
+        {
+            if (size < cwd_size)
+                size = (int)cwd_size;
+            ret = sh_malloc(shthread_get_shell(), size);
+            if (ret)
+                ret = memcpy(ret, pfdtab->cwd, cwd_size);
+            else
+                errno = ENOMEM;
+        }
+
+        shmtx_leave(&pfdtab->mtx, &tmp);
+    }
 #else
+    ret = getcwd(buf, size);
 #endif
+
+    TRACE2((NULL, "shfile_getcwd(,%p,%d) -> %s [%d]\n", buf, size, ret, errno));
+    return ret;
 }
 
 int shfile_access(shfdtab *pfdtab, const char *path, int type)
 {
-#if defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
     type &= ~X_OK;
     return access(path, type);
 # else
     return access(path, type);
 # endif
-
-#else
-#endif
 }
 
+/**
+ * isatty()
+ */
 int shfile_isatty(shfdtab *pfdtab, int fd)
 {
-    int rc;
-
-#if defined(SH_FORKED_MODE)
-    rc = isatty(fd);
+    int         rc;
+#ifdef SHFILE_IN_USE
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fd, &tmp);
+    if (file)
+    {
+# if K_OS == K_OS_WINDOWS
+        errno = ENOSYS;
+# else
+        rc = isatty(file->native);
+# endif
+        shfile_put(pfdtab, file, &tmp);
+    }
+    else
+        rc = 0;
 #else
+    rc = isatty(fd);
 #endif
 
     TRACE2((NULL, "isatty(%d) -> %d [%d]\n", fd, rc, errno));
     return rc;
 }
 
-
+/**
+ * fcntl F_SETFD / FD_CLOEXEC.
+ */
 int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 {
-    int rc;
-
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    errno = ENOSYS;
-    rc = -1;
-# else
+    int         rc;
+#ifdef SHFILE_IN_USE
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fd, &tmp);
+    if (file)
+    {
+        file->cloexec = !!(closeit);
+        shfile_put(pfdtab, file, &tmp);
+    }
+    else
+        rc = -1;
+#else
     rc = fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0)
                           | (closeit ? FD_CLOEXEC : 0));
-# endif
-
-#else
 #endif
 
     TRACE2((NULL, "shfile_cloexec(%d, %d) -> %d [%d]\n", fd, closeit, rc, errno));
@@ -1014,17 +1220,24 @@ int shfile_cloexec(shfdtab *pfdtab, int fd, int closeit)
 
 int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 {
-    int rc;
-
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
-    errno = ENOSYS;
-    rc = -1;
+    int         rc;
+#ifdef SHFILE_IN_USE
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fd, &tmp);
+    if (file)
+    {
+# if K_OS == K_OS_WINDOWS
+        rc = -1;
+        errno = ENOSYS;
 # else
-    rc = ioctl(fd, request, buf);
+        rc = ioctl(file->native, request, buf);
 # endif
-
+        shfile_put(pfdtab, file, &tmp);
+    }
+    else
+        rc = -1;
 #else
+    rc = ioctl(fd, request, buf);
 #endif
 
     TRACE2((NULL, "ioctl(%d, %#x, %p) -> %d\n", fd, request, buf, rc));
@@ -1034,57 +1247,44 @@ int shfile_ioctl(shfdtab *pfdtab, int fd, unsigned long request, void *buf)
 
 mode_t shfile_get_umask(shfdtab *pfdtab)
 {
-#if defined(SH_FORKED_MODE)
+    /** @todo */
     return 022;
-
-#else
-#endif
 }
 
 void shfile_set_umask(shfdtab *pfdtab, mode_t mask)
 {
+    /** @todo */
     (void)mask;
 }
 
 
 shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef SHFILE_IN_USE
     errno = ENOSYS;
     return NULL;
-# else
-    return (shdir *)opendir(dir);
-# endif
-
 #else
+    return (shdir *)opendir(dir);
 #endif
 }
 
 shdirent *shfile_readdir(struct shdir *pdir)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef SHFILE_IN_USE
     errno = ENOSYS;
     return NULL;
-# else
+#else
     struct dirent *pde = readdir((DIR *)pdir);
     return pde ? (shdirent *)&pde->d_name[0] : NULL;
-# endif
-
-#else
 #endif
 }
 
 void shfile_closedir(struct shdir *pdir)
 {
-#if defined(SH_FORKED_MODE)
-# ifdef _MSC_VER
+#ifdef SHFILE_IN_USE
     errno = ENOSYS;
-# else
-    closedir((DIR *)pdir);
-# endif
-
 #else
+    closedir((DIR *)pdir);
 #endif
 }
+
