@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2302 2009-03-01 05:42:54Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2304 2009-03-01 07:48:14Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -39,7 +39,7 @@ kash_DEFS.linux = BSD
 kash_DEFS.solaris = BSD
 ## @todo bring over PC_SLASHES?
 kash_DEFS.win = \
-	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS YY_NO_UNISTD_H
+	BSD PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS YY_NO_UNISTD_H SH_DEAL_WITH_CRLF
 kash_DEFS.os2 = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME \
 	EXEC_HASH_BANG_SCRIPT PC_OS2_LIBPATHS PC_PATH_SEP PC_DRIVE_LETTERS PC_EXE_EXTS
