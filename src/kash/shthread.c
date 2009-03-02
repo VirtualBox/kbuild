@@ -1,4 +1,4 @@
-/* $Id: shthread.c 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 2312 2009-03-02 01:14:43Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
@@ -47,7 +47,7 @@ static DWORD sh_tls = TLS_OUT_OF_INDEXES;
 static int sh_tls = -1;
 #else
 static int sh_tls_inited = 0;
-static int sh_tls;
+static pthread_key_t sh_tls;
 #endif
 
 

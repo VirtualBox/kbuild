@@ -1345,7 +1345,7 @@ badsub:			synerror(psh, "Bad substitution");
 		*(stackblock(psh) + typeloc) = subtype | flags;
 		if (subtype != VSNORMAL) {
 			varnest++;
-			if (varnest >= maxnest) {
+			if (varnest >= (int)maxnest) {
 				dblquotep = ckrealloc(psh, dblquotep, maxnest / 8);
 				dblquotep[(maxnest / 32) - 1] = 0;
 				maxnest += 32;
