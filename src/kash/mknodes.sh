@@ -114,8 +114,8 @@ echo "	union node *n;"
 echo "};"
 echo
 echo
-echo "union node *copyfunc(union node *);"
-echo "void freefunc(union node *);"
+echo "union node *copyfunc(struct shinstance *, union node *);"
+echo "void freefunc(struct shinstance *, union node *);"
 
 exec <$nodes_pat
 exec >$objdir/nodes.c.tmp

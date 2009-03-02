@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 2311 2009-03-02 00:46:13Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
@@ -119,7 +119,7 @@ typedef struct shsigaction
 # define SH_NORETURN_2
 #else
 # define SH_NORETURN_1
-# define SH_NORETURN_2 __attribute__((__noreturn__));
+# define SH_NORETURN_2 __attribute__((__noreturn__))
 #endif
 
 #endif
