@@ -33,6 +33,7 @@
  */
 
 #include <ctype.h>
+#include <limits.h>
 
 /* Syntax classes */
 #define CWORD 0			/* character is nothing special */

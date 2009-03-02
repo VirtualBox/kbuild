@@ -1,4 +1,4 @@
-; $Id: shforkA-win.asm 2313 2009-03-02 01:26:01Z knut.osmundsen@oracle.com $
+; $Id: shforkA-win.asm 2314 2009-03-02 01:31:03Z knut.osmundsen@oracle.com $
 ;; @file
 ; shforkA-win.asm - assembly routines used when forking on Windows.
 ;
@@ -130,9 +130,9 @@ global NAME(main)
         mov     ecx, [fs:08h]           ; StackLimit (the lower value)
         mov     [eax - 10h], edx
         mov     [eax - 18h], ecx
-        cmp     rax, edx
+        cmp     eax, edx
         jb      .below
-        mov     [fs:04h], rax
+        mov     [fs:04h], eax
 .below:
         lea     edx, [eax - SHFORK_STACK_SIZE]
         cmp     edx, ecx
