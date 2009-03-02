@@ -1,4 +1,4 @@
-/* $Id: shtypes.h 2311 2009-03-02 00:46:13Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 2314 2009-03-02 01:31:03Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Wrapper for missing types and such.
@@ -36,7 +36,6 @@
 #endif
 
 #ifdef _MSC_VER
-# include <io.h> /* intptr_t and uintptr_t */
 typedef signed char     int8_t;
 typedef unsigned char   uint8_t;
 typedef short           int16_t;
@@ -45,6 +44,12 @@ typedef int             int32_t;
 typedef unsigned int    uint32_t;
 typedef _int64          int64_t;
 typedef unsigned _int64 uint64_t;
+# if _MSC_VER >= 1400
+#  include <io.h> /* intptr_t and uintptr_t */
+# else
+typedef KIPTR           intptr_t;
+typedef KUPTR           uintptr_t;
+# endif
 
 #define INT16_C(c)      (c)
 #define INT32_C(c)      (c)
