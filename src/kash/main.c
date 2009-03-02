@@ -237,7 +237,7 @@ state3:
 		    SIGPIPE
 		};
 #define SIGSSIZE (sizeof(sigs)/sizeof(sigs[0]))
-		int i;
+		unsigned i;
 
 		for (i = 0; i < SIGSSIZE; i++)
 		    setsignal(psh, sigs[i], 0);
@@ -434,7 +434,7 @@ exitcmd(struct shinstance *psh, int argc, char **argv)
 
 
 STATIC const char *
-strip_argv0(const char *argv0, size_t *lenp)
+strip_argv0(const char *argv0, unsigned *lenp)
 {
 	const char *tmp;
 
@@ -446,14 +446,14 @@ strip_argv0(const char *argv0, size_t *lenp)
 	tmp = strrchr(argv0, '.');
 	if (!tmp)
 		tmp = strchr(argv0, '\0');
-	*lenp = tmp - argv0;
+	*lenp = (unsigned)(tmp - argv0);
 	return argv0;
 }
 
 STATIC int
 usage(const char *argv0)
 {
-	size_t len;
+	unsigned len;
 	argv0 = strip_argv0(argv0, &len);
 
 	fprintf(stdout,
@@ -472,7 +472,7 @@ usage(const char *argv0)
 STATIC int
 version(const char *argv0)
 {
-	size_t len;
+	unsigned len;
 	strip_argv0(argv0, &len);
 
 	fprintf(stdout,
