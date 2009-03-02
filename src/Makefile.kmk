@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2315 2009-03-02 02:35:00Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for the source directory.
 #
@@ -29,7 +29,9 @@ include $(KBUILD_PATH)/subheader.kmk
 include $(PATH_SUB_CURRENT)/lib/Makefile.kmk
 include $(PATH_SUB_CURRENT)/sed/Makefile.kmk
 include $(PATH_SUB_CURRENT)/kmk/Makefile.kmk
-ifneq ($(KBUILD_TARGET),win)
+if1of ($(KBUILD_TARGET), win)
+ include $(PATH_SUB_CURRENT)/kash/Makefile.kmk
+else
  include $(PATH_SUB_CURRENT)/ash/Makefile.kmk
 endif
 include $(PATH_SUB_CURRENT)/kDepPre/Makefile.kmk
