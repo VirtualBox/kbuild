@@ -196,7 +196,7 @@ printsignals(shinstance *psh, struct output *out)
 	int sig;
 	size_t len, nl;
 	const char *name;
-	int termwidth = 80;
+	unsigned termwidth = 80;
 
 	if (shfile_isatty(&psh->fdtab, out->fd)) {
 		sh_winsize win;

@@ -59,7 +59,7 @@ __RCSID("$NetBSD: mail.c,v 1.16 2003/08/07 09:05:33 agc Exp $");
 /*#define MAXMBOXES 10*/
 
 
-/*STATIC int nmboxes;			/* number of mailboxes */
+/*STATIC int nmboxes;*/			/* number of mailboxes */
 /*STATIC time_t mailtime[MAXMBOXES];*/	/* times of mailboxes */
 
 

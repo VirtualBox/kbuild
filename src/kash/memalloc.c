@@ -126,7 +126,7 @@ stalloc(shinstance *psh, size_t nbytes)
 	char *p;
 
 	nbytes = SHELL_ALIGN(nbytes);
-	if (nbytes > psh->stacknleft) {
+	if (nbytes > (size_t)psh->stacknleft || psh->stacknleft < 0) {
 		size_t blocksize;
 		struct stack_block *sp;
 

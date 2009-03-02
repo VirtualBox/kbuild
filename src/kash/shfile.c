@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2309 2009-03-01 10:01:39Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2312 2009-03-02 01:14:43Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -842,7 +842,6 @@ int shfile_open(shfdtab *pfdtab, const char *name, unsigned flags, mode_t mode)
 int shfile_pipe(shfdtab *pfdtab, int fds[2])
 {
     int rc;
-    int s;
 #ifdef SHFILE_IN_USE
 # if K_OS == K_OS_WINDOWS
     HANDLE hRead  = INVALID_HANDLE_VALUE;
@@ -878,9 +877,9 @@ int shfile_pipe(shfdtab *pfdtab, int fds[2])
                 rc = 0;
         }
 # endif
-        s = errno;
         if (fds[1] == -1)
         {
+            int s = errno;
             if (fds[0] != -1)
             {
                 shmtxtmp tmp;
