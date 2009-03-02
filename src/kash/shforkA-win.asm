@@ -1,4 +1,4 @@
-; $Id: shforkA-win.asm 2296 2009-03-01 01:54:30Z knut.osmundsen@oracle.com $
+; $Id: shforkA-win.asm 2313 2009-03-02 01:26:01Z knut.osmundsen@oracle.com $
 ;; @file
 ; shforkA-win.asm - assembly routines used when forking on Windows.
 ;
@@ -66,9 +66,9 @@ global NAME(main)
         [allocstack 0x40]
         sub     rsp, 40h
         and     rsp, ~1fh
-        mov     [rsp    ], rcx          ; argc
-        mov     [rsp+ 8h], rdx          ; argv
-        mov     [rsp+10h], r8           ; envp
+        mov     [rbp-08h], rcx          ; argc
+        mov     [rbp-10h], rdx          ; argv
+        mov     [rbp-18h], r8           ; envp
         [endprolog]
 %else
         push    ebp
@@ -116,9 +116,9 @@ global NAME(main)
         mov     [gs:10h], r9
 .above:
 
-        mov     rcx, [rsp      ]        ; argc
-        mov     rdx, [rsp + 08h]        ; argv
-        mov     r8,  [rsp + 10h]        ; envp
+        mov     rcx, [rbp - 08h]        ; argc
+        mov     rdx, [rbp - 10h]        ; argv
+        mov     r8,  [rbp - 18h]        ; envp
 
         lea     rsp, [eax - 40h]        ; Switch!
 %else
@@ -244,8 +244,8 @@ global NAME(shfork_do_it)
         mov     edx, esp
         mov     ecx, [ebp + 8h]         ; psh
         sub     esp, 20h
-        mov     [esp    ], edx
-        mov     [esp + 4], ecx          ; stack_ptr
+        mov     [esp    ], ecx
+        mov     [esp + 4], edx          ; stack_ptr
         call    NAME(shfork_body)
         lea     esp, [esp + 20h]
 %endif
