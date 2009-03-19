@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2274 2009-02-20 23:45:49Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2318 2009-03-19 20:35:46Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2410,7 +2410,6 @@ local orderdeps   := \
 
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
- $(target)_2_OBJS := $(abspathex $($(target)_2_OBJS),$(defpath))
  local deps       := $(abspathex $(deps),$(defpath))
  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
@@ -2774,7 +2773,6 @@ local orderdeps   := \
 # Adjust paths if we got a default path.
 ifneq ($(defpath),)
  local libpath    := $(abspathex $(libpath),$(defpath))
- $(target)_2_OBJS := $(abspathex $($(target)_2_OBJS),$(defpath))
  local deps       := $(abspathex $(deps),$(defpath))
  local orderdeps  := $(abspathex $(orderdeps),$(defpath))
  othersrc := $(abspathex $(othersrc),$(defpath))
