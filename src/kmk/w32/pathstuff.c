@@ -100,14 +100,19 @@ w32ify(const char *filename, int resolve)
     static char w32_path[FILENAME_MAX];
     char *p;
 
-    if (resolve) {
 #if 1 /* bird */
+    if (resolve) {
         nt_fullpath(filename, w32_path, sizeof(w32_path));
+    } else {
+        w32_path[0] = '\0';
+        strncat(w32_path, filename, sizeof(w32_path));
+    }
 #else   /* !bird */
+    if (resolve) {
         _fullpath(w32_path, filename, sizeof (w32_path));
-#endif  /* !bird */
     } else
         strncpy(w32_path, filename, sizeof (w32_path));
+#endif  /* !bird */
 
     for (p = w32_path; p && *p; p++)
         if (*p == '\\')
@@ -123,7 +128,12 @@ getcwd_fs(char* buf, int len)
 
 	if (p) {
 		char *q = w32ify(buf, 0);
+#if 1  /* bird */
+		buf[0] = '\0';
+		strncat(buf, q, len);
+#else  /* !bird */
 		strncpy(buf, q, len);
+#endif /* !bird */
 	}
 
 	return p;
