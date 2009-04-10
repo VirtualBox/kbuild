@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2272 2009-02-19 01:22:28Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2319 2009-04-10 14:33:45Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -146,7 +146,7 @@ ifndef PATH_SDK_QT4
 
      # And finally, the library path for KBUILD_TARGET.
      ifeq ($(PATH_SDK_QT4_LIB),)
-      PATH_SDK_QT4_LIB := $(PATH_SDK_QT4_LIB.$(KBUILD_TARGET))
+      PATH_SDK_QT4_LIB := $(PATH_SDK_QT4_LIB.$(KBUILD_TARGET_ARCH))
       ifeq ($(PATH_SDK_QT4_LIB),)
        PATH_SDK_QT4_LIB := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
        	$(PATH_SDK_QT4)/lib/libQtCore$(SUFF_DLL) \
