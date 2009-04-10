@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2320 2009-04-10 14:34:33Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -159,7 +159,7 @@ ifndef PATH_SDK_QT3
 
      # Determin the KBUILD_TARGET lib directory.
      ifeq ($(PATH_SDK_QT3_LIB),)
-      PATH_SDK_QT3_LIB := $(PATH_SDK_QT3_LIB.$(KBUILD_TARGET))
+      PATH_SDK_QT3_LIB := $(PATH_SDK_QT3_LIB.$(KBUILD_TARGET_ARCH))
       ifeq ($(PATH_SDK_QT3_LIB),)
        PATH_SDK_QT3_LIB := $(patsubst %/libqt-mt$(SUFF_DLL),%,$(firstword $(wildcard \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
