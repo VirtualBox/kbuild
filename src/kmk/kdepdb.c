@@ -47,12 +47,13 @@
 # include <sys/file.h>
 #endif
 
-#ifdef WINDOWS32
-# include <io.h>
-# include <process.h>
+#if K_OS == K_WINDOWS
 # include <Windows.h>
-# define PARSE_IN_WORKER
+#else
+# include <unistd.h>
+# include <sys/mman.h>
 #endif
+
 
 /*******************************************************************************
 *   Defined Constants And Macros                                               *
@@ -352,11 +353,11 @@ typedef struct KDEPDBINTSTRTAB
     KDEPDBFH        hHash;
     /** The string table file. */
     KDEPDBSTRTAB   *pStrTab;
+    /** The handle of the string table file. */
+    KDEPDBFH        hStrTab;
     /** The end of the allocated string table indexes (i.e. when to grow the
      * file). */
     KU32            iStringAlloced;
-    /** The handle of the string table file. */
-    KDEPDBFH        hStrTab;
 } KDEPDBINTSTRTAB;
 
 
@@ -411,7 +412,9 @@ typedef struct KDEPDB
 *******************************************************************************/
 static void *kDepDbAlloc(KSIZE cb);
 static void kDepDbFree(void *pv);
-static int  kDepDbFHOpen(KDEPDBFH *pFH, const char *pszFilename);
+static void kDepDbFHInit(KDEPDBFH *pFH);
+static int  kDepDbFHUpdateSize(KDEPDBFH *pFH);
+static int  kDepDbFHOpen(KDEPDBFH *pFH, const char *pszFilename, KBOOL fCreate, KBOOL *pfNew);
 static int  kDepDbFHClose(KDEPDBFH *pFH);
 static int  kDepDbFHWriteAt(KDEPDBFH *pFH, KU32 off, void const *pvBuf, KSIZE cbBuf);
 static int  kDepDbFHMap(KDEPDBFH *pFH, void **ppvMap);
@@ -426,7 +429,6 @@ static void *kDepDbAlloc(KSIZE cb)
     return xmalloc(cb);
 }
 
-
 /** free wrapper. */
 static void kDepDbFree(void *pv)
 {
@@ -434,6 +436,347 @@ static void kDepDbFree(void *pv)
         free(pv);
 }
 
+
+/**
+ * Initializes the file handle structure so closing it without first opening it
+ * will work smoothly.
+ *
+ * @param   pFH         The file handle structure.
+ */
+static void kDepDbFHInit(KDEPDBFH *pFH)
+{
+#if K_OS == K_OS_WINDOWS
+    pFH->hFile   = INVALID_HANDLE_VALUE;
+    pFH->hMapObj = INVALID_HANDLE_VALUE;
+#else
+    pFH->fd = -1;
+#endif
+    pFH->cb = 0;
+}
+
+/**
+ * Updates the file size.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ * @param   pFH             The file handle structure.
+ */
+static int  kDepDbFHUpdateSize(KDEPDBFH *pFH)
+{
+#if K_OS == K_OS_WINDOWS
+    DWORD   rc;
+    DWORD   dwHigh;
+    DWORD   dwLow;
+
+    SetLastError(0);
+    dwLow = GetFileSize(File, &High);
+    rc = GetLastError();
+    if (rc)
+    {
+        pFH->cb = 0;
+        return (int)rc;
+    }
+    if (High)
+        pFH->cb = KU32_MAX;
+    else
+        pFH->cb = dwLow;
+#else
+    off_t cb;
+
+    cb = lseek(pFH->fd, 0, SEEK_END);
+    if (cb == -1)
+    {
+        pFH->cb = 0;
+        return errno;
+    }
+    pFH->cb = cb;
+    if ((off_t)pFH->cb != cb)
+        pFH->cb = KU32_MAX;
+#endif
+    return 0;
+}
+
+/**
+ * Opens an existing file or creates a new one.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH             The file handle structure.
+ * @param   pszFilename     The name of the file.
+ * @param   fCreate         Whether we should create the file or not.
+ * @param   pfCreated       Where to return whether we created it or not.
+ */
+static int  kDepDbFHOpen(KDEPDBFH *pFH, const char *pszFilename, KBOOL fCreate, KBOOL *pfCreated)
+{
+    int                 rc;
+#if K_OS == K_OS_WINDOWS
+    SECURITY_ATTRIBUTES SecAttr;
+
+    SecAttr.bInheritHandle = FALSE;
+    SecAttr.lpSecurityDescriptor = NULL;
+    SecAttr.nLength = 0;
+    pFH->cb = 0;
+    SetLastError(0);
+    pFH->hFile = CreateFile(pszFilename, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, &SecAttr,
+                            fCreate ? OPEN_ALWAYS : OPEN_EXISTING, 0, NULL);
+    if (pFH->hFile == INVALID_HANDLE_VALUE)
+        return GetLastError();
+    *pfCreated = GetLastError() == 0;
+
+#else
+    int fFlags = O_RDWR;
+# ifdef O_BINARY
+    fFlags |= O_BINARY;
+# endif
+    pFH->cb = 0;
+    pFH->fd = open(pszFilename, fFlags, 0);
+    if (pFH->fd >= 0)
+        *pfCreated = K_FALSE;
+    else if (!fCreate)
+        return errno;
+    else
+    {
+        pFH->fd = open(pszFilename, fFlags | O_EXCL | O_CREATE, 0666);
+        if (pFH->fd < 0)
+            return errno;
+        *pfCreated = K_TRUE;
+    }
+    fcntl(pFH->fd, F_SETFD, FD_CLOEXEC);
+#endif
+
+    /* update the size */
+    rc = kDepDbFHUpdateSize(pFH);
+    if (rc)
+        kDepDbFHClose(pFH);
+    return rc;
+}
+
+/**
+ * Closes an open file.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH         The file handle structure.
+ */
+static int  kDepDbFHClose(KDEPDBFH *pFH)
+{
+#if K_OS == K_OS_WINDOWS
+    if (pFH->hFile != INVALID_HANDLE_VALUE)
+    {
+        if (!CloseHandle(pFH->hFile))
+            return GetLastError();
+        pFH->hFile = INVALID_HANDLE_VALUE;
+    }
+
+#else
+    if (pFH->fd >= 0)
+    {
+        if (close(pFH->fd) != 0)
+            return errno;
+        pFH->fd = -1;
+    }
+#endif
+    pFH->cb = 0;
+    return 0;
+}
+
+/**
+ * Writes to a file.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH         The file handle structure.
+ * @param   off         The offset into the file to start writing at.
+ * @param   pvBuf       What to write.
+ * @param   cbBuf       How much to write.
+ */
+static int  kDepDbFHWriteAt(KDEPDBFH *pFH, KU32 off, void const *pvBuf, KSIZE cbBuf)
+{
+#if K_OS == K_OS_WINDOWS
+    ULONG cbWritten;
+
+    if (SetFilePointer(pFH->hFile, off, NULL, FILE_CURRENT) == INVALID_SET_FILE_POINTER)
+        return GetLastError();
+
+    if (!WriteFile(pFH->hFile, pvBuf, cbBuf, &cbWritten, NULL))
+        return GetLastError();
+    if (cbWritten != cbBuf)
+        return -1;
+
+#else
+    ssize_t cbWritten;
+    if (lseek(pFH->fd, off, SEEK_SET) == -1)
+        return errno;
+    errno = 0;
+    cbWritten = write(pFH->fd, pvBuf, cbBuf);
+    if ((size_t)cbWritten != cbBuf)
+        return errno ? errno : EIO;
+#endif
+    return kDepDbFHUpdateSize(pFH);
+}
+
+
+/**
+ * Creates a memory mapping of the file.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH         The file handle structure.
+ * @param   ppvMap      Where to return the map address.
+ */
+static int  kDepDbFHMap(KDEPDBFH *pFH, void **ppvMap)
+{
+#if K_OS == K_OS_WINDOWS
+    *ppvMap = NULL;
+    return -1;
+#else
+    *ppvMap = mmap(NULL, pFH->cb, PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, pFH->fd, 0);
+    if (*ppvMap == (void *)-1)
+    {
+        *ppvMap = NULL;
+        return errno;
+    }
+#endif
+    return 0;
+}
+
+
+/**
+ * Flushes and destroys a memory of the file.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH         The file handle structure.
+ * @param   ppvMap      The pointer to the mapping pointer. This will be set to
+ *                      NULL on success.
+ */
+static int  kDepDbFHUnmap(KDEPDBFH *pFH, void **ppvMap)
+{
+#if K_OS == K_OS_WINDOWS
+    return -1;
+#else
+    if (msync(*ppvMap, pFH->cb, MS_SYNC) == -1)
+        return errno;
+    if (munmap(*ppvMap, pFH->cb) == -1)
+        return errno;
+    *ppvMap = NULL;
+#endif
+    return 0;
+}
+
+
+/**
+ * Grows the memory mapping of the file.
+ *
+ * The content of the new space is undefined.
+ *
+ * @returns 0 on success. Some non-zero native error code on failure.
+ *
+ * @param   pFH         The file handle structure.
+ * @param   cbNew       The new mapping size.
+ * @param   ppvMap      The pointer to the mapping pointer. This may change and
+ *                      may be set to NULL on failure.
+ */
+static int  kDepDbFHGrow(KDEPDBFH *pFH, KSIZE cbNew, void **ppvMap)
+{
+#if K_OS == K_OS_WINDOWS
+    return -1;
+#else
+    if ((KU32)cbNew != cbNew)
+        return ERANGE;
+    if (cbNew <= pFH->cb)
+        return 0;
+
+    if (munmap(*ppvMap, pFH->cb) == -1)
+        return errno;
+    *ppvMap = NULL;
+
+    pFH->cb = cbNew;
+    return kDepDbFHMap(pFH, ppvMap);
+#endif
+}
+
+
+/** Macro for reading an potentially unaligned 16-bit word from a string. */
+# if K_ARCH == K_ARCH_AMD64 \
+  || K_ARCH == K_ARCH_X86_32 \
+  || K_ARCH == K_ARCH_X86_16
+#  define kDepDbHashString_get_unaligned_16bits(ptr)   ( *((const KU16 *)(ptr)) )
+# elif K_ENDIAN == K_ENDIAN_LITTLE
+#  define kDepDbHashString_get_unaligned_16bits(ptr)   (  (((const KU8 *)(ptr))[0]) \
+                                                        | (((const KU8 *)(ptr))[1] << 8) )
+# else
+#  define kDepDbHashString_get_unaligned_16bits(ptr)   (  (((const KU8 *)(ptr))[0] << 8) \
+                                                        | (((const KU8 *)(ptr))[1]) )
+# endif
+
+
+/**
+ * Hash a string.
+ *
+ * @returns Hash value.
+ *
+ * @param   pszString       The string to hash.
+ * @param   cchString       How much to hash.
+ */
+static KU32 kDepDbHashString(const char *pszString, size_t cchString)
+{
+    /*
+     * Paul Hsieh hash SuperFast function:
+     * http://www.azillionmonkeys.com/qed/hash.html
+     */
+    /** @todo A path for well aligned data should be added to speed up execution on
+     *        alignment sensitive systems. */
+    unsigned int uRem;
+    KU32 uHash;
+    KU32 uTmp;
+
+    assert(sizeof(KU8) == sizeof(char));
+
+    /* main loop, walking on 2 x KU16 */
+    uHash = cchString;
+    uRem  = cchString & 3;
+    cchString >>= 2;
+    while (cchString > 0)
+    {
+        uHash      += kDepDbHashString_get_unaligned_16bits(pszString);
+        uTmp        = (kDepDbHashString_get_unaligned_16bits(pszString + 2) << 11) ^ uHash;
+        uHash       = (uHash << 16) ^ uTmp;
+        pszString  += 2 * sizeof(KU16);
+        uHash      += uHash >> 11;
+        cchString--;
+    }
+
+    /* the remainder */
+    switch (uRem)
+    {
+        case 3:
+            uHash += kDepDbHashString_get_unaligned_16bits(pszString);
+            uHash ^= uHash << 16;
+            uHash ^= pszString[sizeof(KU16)] << 18;
+            uHash += uHash >> 11;
+            break;
+        case 2:
+            uHash += kDepDbHashString_get_unaligned_16bits(pszString);
+            uHash ^= uHash << 11;
+            uHash += uHash >> 17;
+            break;
+        case 1:
+            uHash += *pszString;
+            uHash ^= uHash << 10;
+            uHash += uHash >> 1;
+            break;
+    }
+
+    /* force "avalanching" of final 127 bits. */
+    uHash ^= uHash << 3;
+    uHash += uHash >> 5;
+    uHash ^= uHash << 4;
+    uHash += uHash >> 17;
+    uHash ^= uHash << 25;
+    uHash += uHash >> 6;
+
+    return uHash;
+}
 
 
 /***
@@ -453,7 +796,7 @@ static KU32 kDepDbStrTabLookupHashed(KDEPDBINTSTRTAB const *pStrTab, const char 
     KU32 const          cchString  = (KU32)cchStringIn;
     KDEPDBHASH const   *pHash      = pStrTab->pHash;
     KDEPDBSTRING const *paStrings  = &pStrTab->pStrTab->aStrings[0];
-    KU32 const          iStringEnd = pStrTab->pStrTab->iStringEnd;
+    KU32 const          iStringEnd = K_LE2H_U32(pStrTab->pStrTab->iStringEnd);
     KU32                iHash;
 
     /* sanity */
@@ -466,12 +809,12 @@ static KU32 kDepDbStrTabLookupHashed(KDEPDBINTSTRTAB const *pStrTab, const char 
     iHash = uHash % pHash->cEntries;
     for (;;)
     {
-        KU32 iString = pHash->auEntries[iHash];
+        KU32 iString = K_LE2H_U32(pHash->auEntries[iHash]);
         if (iString < iStringEnd)
         {
             KDEPDBSTRING const *pString = &paStrings[iString];
-            if (    pString->uHash     == uHash
-                &&  pString->cchString == cchString
+            if (    K_LE2H_U32(pString->uHash)     == uHash
+                &&  K_LE2H_U32(pString->cchString) == cchString
                 &&  !memcmp(pString->szString, pszString, cchString))
                 return iString;
         }
@@ -491,11 +834,12 @@ static KU32 kDepDbStrTabLookupHashed(KDEPDBINTSTRTAB const *pStrTab, const char 
  *
  * @returns 0 on success, -1 on failure.
  * @param   pStrTab         The string table.
+ * @todo    Rebuild from string table, we'll be accessing it anyways.
  */
 static int kDepDbStrTabReHash(KDEPDBINTSTRTAB *pStrTab)
 {
     KDEPDBSTRING const *paStrings   = &pStrTab->pStrTab->aStrings[0];
-    KU32 const          iStringEnd  = pStrTab->pStrTab->iStringEnd;
+    KU32 const          iStringEnd  = K_LE2H_U32(pStrTab->pStrTab->iStringEnd);
     KDEPDBHASH         *pHash       = pStrTab->pHash;
     KDEPDBHASH          HashHdr     = *pHash;
     KU32               *pauNew;
@@ -524,33 +868,36 @@ static int kDepDbStrTabReHash(KDEPDBINTSTRTAB *pStrTab)
     /*
      * Popuplate the new table.
      */
-    HashHdr.cEntries     = cEntriesNew;
+    HashHdr.cEntries     = K_LE2H_U32(cEntriesNew);
     HashHdr.cCollisions  = 0;
     HashHdr.cUsedEntries = 0;
     i = pHash->cEntries;
     while (i-- > 0)
     {
-        KU32 iString = pHash->auEntries[i];
+        KU32 iString = K_LE2H_U32(pHash->auEntries[i]);
         if (iString < iStringEnd)
         {
             KU32 iHash = (paStrings[iString].uHash % cEntriesNew);
-            if (pauNew[iHash] != KDEPDBHASH_UNUSED)
+            if (pauNew[iHash] != K_H2LE_U32(KDEPDBHASH_UNUSED))
             {
                 do
                 {
                     iHash = (iHash + 1) % cEntriesNew;
                     HashHdr.cCollisions++;
-                } while (pauNew[iHash] != KDEPDBHASH_UNUSED);
+                } while (pauNew[iHash] != K_H2LE_U32(KDEPDBHASH_UNUSED));
             }
             pauNew[iHash] = iString;
-            HashHdr.cEntries++;
+            HashHdr.cUsedEntries++;
         }
         else if (   iString != KDEPDBHASH_UNUSED
                  && iString != KDEPDBHASH_DELETED)
         {
-            /* ignore any invalid entires for now */;
+            kDepDbFree(pauNew);
+            return -1;
         }
     }
+    HashHdr.cCollisions  = K_H2LE_U32(HashHdr.cCollisions);
+    HashHdr.cUsedEntries = K_H2LE_U32(HashHdr.cUsedEntries);
 
     /*
      * Unmap the hash, write the new hash table and map it again.
@@ -592,7 +939,7 @@ static KU32 kDepDbStrTabAddHashed(KDEPDBINTSTRTAB *pStrTab, const char *pszStrin
     KU32 const          cchString   = (KU32)cchStringIn;
     KDEPDBHASH         *pHash       = pStrTab->pHash;
     KDEPDBSTRING       *paStrings   = &pStrTab->pStrTab->aStrings[0];
-    KU32 const          iStringEnd  = pStrTab->pStrTab->iStringEnd;
+    KU32 const          iStringEnd  = K_LE2H_U32(pStrTab->pStrTab->iStringEnd);
     KU32                iInsertAt   = KDEPDBHASH_UNUSED;
     KU32                cCollisions = 0;
     KU32                iHash;
@@ -605,17 +952,18 @@ static KU32 kDepDbStrTabAddHashed(KDEPDBINTSTRTAB *pStrTab, const char *pszStrin
         return KDEPDBG_STRTAB_IDX_NOT_FOUND;
 
     /*
-     * Hash lookup of the string.
+     * Hash lookup of the string, finding either an existing copy or where to
+     * insert the new string at in the hash table.
      */
     iHash = uHash % pHash->cEntries;
     for (;;)
     {
-        iString = pHash->auEntries[iHash];
+        iString = K_LE2H_U32(pHash->auEntries[iHash]);
         if (iString < iStringEnd)
         {
             KDEPDBSTRING const *pString = &paStrings[iString];
-            if (    pString->uHash     == uHash
-                &&  pString->cchString == cchString
+            if (    K_LE2H_U32(pString->uHash)     == uHash
+                &&  K_LE2H_U32(pString->cchString) == cchString
                 &&  !memcmp(pString->szString, pszString, cchString))
                 return iString;
         }
@@ -643,28 +991,33 @@ static KU32 kDepDbStrTabAddHashed(KDEPDBINTSTRTAB *pStrTab, const char *pszStrin
              : (cchString + 1 - sizeof(paStrings[0].szString) + sizeof(KDEPDBSTRING) - 1) / sizeof(KDEPDBSTRING);
     if (iStringEnd + cEntries > pStrTab->iStringAlloced)
     {
-        KSIZE   cbNewSize = K_ALIGN_Z((iStringEnd + cEntries) * sizeof(KDEPDBSTRING) + 64*1024, 256*1024);
+        KSIZE cbNewSize      = K_ALIGN_Z((iStringEnd + cEntries) * sizeof(KDEPDBSTRING) + 64*1024, 256*1024);
+        KU32  iStringAlloced = (pStrTab->hStrTab.cb - K_OFFSETOF(KDEPDBSTRTAB, aStrings)) / sizeof(KDEPDBSTRING);
+        if (    iStringAlloced <= pStrTab->iStringAlloced
+            ||  iStringAlloced >= KDEPDBG_STRTAB_IDX_END
+            ||  iStringAlloced >= KDEPDBHASH_END)
+            return KDEPDBG_STRTAB_IDX_ERROR;
         if (kDepDbFHGrow(&pStrTab->hStrTab, cbNewSize, (void **)&pStrTab->pStrTab) != 0)
             return KDEPDBG_STRTAB_IDX_ERROR;
-
-        pStrTab->iStringAlloced = (cbNewSize - K_OFFSETOF(KDEPDBSTRTAB, aStrings)) / sizeof(KDEPDBSTRING);
+        pStrTab->iStringAlloced = iStringAlloced;
         paStrings = &pStrTab->pStrTab->aStrings[0];
     }
+
     pNewString = &paStrings[iStringEnd];
-    pNewString->uHash     = uHash;
-    pNewString->cchString = cchString;
+    pNewString->uHash     = K_H2LE_U32(uHash);
+    pNewString->cchString = K_H2LE_U32(cchString);
     memcpy(&pNewString->szString, pszString, cchString);
     pNewString->szString[cchString] = '\0';
 
-    pStrTab->pStrTab->iStringEnd = iStringEnd + cEntries;
+    pStrTab->pStrTab->iStringEnd = K_H2LE_U32(iStringEnd + cEntries);
 
     /*
      * Insert hash table entry, rehash it if necessary.
      */
-    pHash->auEntries[iInsertAt] = iStringEnd;
-    pHash->cUsedEntries++;
-    pHash->cCollisions += cCollisions;
-    if (    pHash->cUsedEntries > pHash->cEntries / 3 * 2
+    pHash->auEntries[iInsertAt] = K_H2LE_U32(iStringEnd);
+    pHash->cUsedEntries = K_H2LE_U32(K_LE2H_U32(pHash->cUsedEntries) + 1);
+    pHash->cCollisions  = K_H2LE_U32(K_LE2H_U32(pHash->cCollisions)  + cCollisions);
+    if (    K_LE2H_U32(pHash->cUsedEntries) > K_LE2H_U32(pHash->cEntries) / 3 * 2
         &&  kDepDbStrTabReHash(pStrTab) != 0)
         return KDEPDBG_STRTAB_IDX_ERROR;
 
@@ -700,4 +1053,33 @@ static KU32 kDepDbStrTabAdd(KDEPDBINTSTRTAB *pStrTab, const char *pszString)
 }
 
 
+/**
+ * Opens the string table files, creating them if necessary.
+ */
+static int kDepDbStrTabInit(KDEPDBINTSTRTAB *pStrTab, const char *pszFilenameBase)
+{
+    size_t  cchFilenameBase = strlen(pszFilenameBase);
+    char    szPath[4096];
+    int     rc;
+
+    /* Basic member init, so kDepDbStrTabTerm always works. */
+    pStrTab->pHash = NULL;
+    kDepDbFHInit(&pStrTab->hHash);
+    pStrTab->pStrTab = NULL;
+    kDepDbFHInit(&pStrTab->hStrTab);
+    pStrTab->iStringAlloced = 0;
+
+    /* check the length. */
+    if (cchFilenameBase + sizeof(".strtab.hash") > sizeof(szPath))
+        return -1;
+
+    /*
+     * Open the string table first.
+     */
+    memcpy(szPath, pszFilenameBase, cchFilenameBase);
+    memcpy(&szPath[cchFilenameBase], ".strtab", sizeof(".strtab"));
+    rc = kDepDbFHOpen(&pStrTab->hStrTab, szPath, &fNew);
+
+
+}
 
