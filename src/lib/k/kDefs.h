@@ -360,6 +360,34 @@
 # define K_BE2H_U64(u64)        ((KU64)(u32))
 #endif
 
+/** @def K_H2LE_U16
+ * Unsigned 16-bit host endian to little-endian.. */
+/** @def K_H2LE_U32
+ * Unsigned 32-bit host endian to little-endian.. */
+/** @def K_H2LE_U64
+ * Unsigned 64-bit host endian to little-endian.. */
+/** @def K_H2BE_U16
+ * Unsigned 16-bit host endian to big-endian.. */
+/** @def K_H2BE_U32
+ * Unsigned 32-bit host endian to big-endian.. */
+/** @def K_H2BE_U64
+ * Unsigned 64-bit host endian to big-endian.. */
+#if K_ENDIAN == K_ENDIAN_LITTLE
+# define K_H2LE_U16(u16)        ((KU16)(u16))
+# define K_H2LE_U32(u32)        ((KU32)(u32))
+# define K_H2LE_U64(u64)        ((KU64)(u32))
+# define K_H2BE_U16(u16)        K_E2E_U16(u16)
+# define K_H2BE_U32(u32)        K_E2E_U32(u32)
+# define K_H2BE_U64(u64)        K_E2E_U64(u64)
+#else
+# define K_H2LE_U16(u16)        K_E2E_U16(u16)
+# define K_H2LE_U32(u32)        K_E2E_U32(u32)
+# define K_H2LE_U64(u64)        K_E2E_U64(u64)
+# define K_H2BE_U16(u16)        ((KU16)(u16))
+# define K_H2BE_U32(u32)        ((KU32)(u32))
+# define K_H2BE_U64(u64)        ((KU64)(u32))
+#endif
+
 
 
 /** @def K_INLINE
