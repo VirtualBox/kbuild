@@ -1,6 +1,16 @@
+TXTFILES = \
+	QuickReference-kmk.txt \
+	QuickReference-kBuild.txt
 
-QuickReference-kmk.html: QuickReference-kmk.txt
-	LC_ALL=C rst2html.py --no-generator $< $@
+define genrule
+all: $(name).html
+clean::
+	kmk_rm -f $(name).html
+$(name).html: $(name).txt
+	LC_ALL=C rst2html.py --no-generator $$< $$@
+$(name).o: $(name).html
+.PHONY: $(name).o
+endef
 
-QuickReference-kmk.o: QuickReference-kmk.html
-.PHONY: QuickReference-kmk.o
+$(foreach name, $(basename $(TXTFILES)), $(eval $(genrule)))
+

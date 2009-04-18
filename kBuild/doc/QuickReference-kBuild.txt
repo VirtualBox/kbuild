@@ -1,0 +1,106 @@
+
+kBuild Quick Reference
+======================
+
+This is an attempt at summarizing the magic of kBuild makefiles.
+
+
+The anatomy of a kBuild Makefile
+--------------------------------
+
+A typical template::
+
+    # $Id: $
+    ## @file
+    # Makefile descriptions
+    #
+
+    #
+    # Copyright (c) year
+    # License and other legal stuff.
+    #
+
+    SUB_DEPTH = ../..
+    include $(KBUILD_PATH)/subheader.kmk
+
+    #
+    # Global variables (optional).
+    #
+    MYPREFIX_SOMETHING = or another
+
+    #
+    # Target lists.
+    #
+    DLLS += mydll
+    PROGRAMS += myprogs
+
+    #
+    # mydll - description.
+    #
+    mydll_TEMPLATE = MYDLL
+    mydll_SOURCES = mydll.c
+    mydll_SOURCES.win = $(mydll_0_OUTDIR)/mydll.def
+
+    #
+    # myprog - description.
+    #
+    myprog_TEMPLATE = MYPROG
+    myprog_SOURCES = myprog.c
+
+    #
+    # Custom rules (optional of course).
+    #
+    $$(mydll_0_OUTDIR)/mydll.def:
+    	$(APPEND) -t $@ LIBRARY mydll.dll
+    	$(APPEND)    $@ EXPORTS
+    	$(APPEND)    $@ '    myfunction'
+
+    include $(FILE_KBUILD_SUB_FOOTER)
+
+    #
+    # More optional rules.
+    #
+
+That's it.
+
+
+Target lists
+------------
+
+The table gives the target lists in the typical pass order.
+
++----------------------+-------------------------------------------------------+
+| Name                 | Description                                           |
++======================+=======================================================+
+| ``BLDPROGS``         | Build programs, targets the host platform.            |
++----------------------+-------------------------------------------------------+
+| ``LIBRARIES``        | Libraries (not shared).                               |
++----------------------+-------------------------------------------------------+
+| ``IMPORT_LIBS``      | Import libraries or stub shared libraries.            |
++----------------------+-------------------------------------------------------+
+| ``DLL``              | DLLs, Shared Libraries, DYLIBs, etc.                  |
++----------------------+-------------------------------------------------------+
+| ``PROGRAMS``         | Executable programs.                                  |
++----------------------+-------------------------------------------------------+
+| ``SYSMODS``          | System modules (kexts, kernel modules, drivers, etc). |
++----------------------+-------------------------------------------------------+
+| ``MISCBINS``         | Miscellanceous binaries like BIOS images and such.    |
++----------------------+-------------------------------------------------------+
+| ``OTHERS``           | List of targets made during the others pass.          |
++----------------------+-------------------------------------------------------+
+| ``INSTALLS``         | Things to install. [1]_                               |
++----------------------+-------------------------------------------------------+
+| ``FETCHES``          | Things to fetch. [1]_                                 |
++----------------------+-------------------------------------------------------+
+
+
+
+-----
+
+.. [1] Normally not one of the default passes.
+
+-----
+
+:Status: $Id$
+:Copyright: Copyright (c) 2009 knut st. osmundsen
+
