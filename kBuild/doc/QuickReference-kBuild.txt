@@ -10,7 +10,7 @@ The anatomy of a kBuild Makefile
 
 A typical template::
 
-    # $Id: $
+    # $Id: QuickReference-kBuild.txt 2342 2009-04-18 22:47:20Z knut.osmundsen@oracle.com $
     ## @file
     # Makefile descriptions
     #
@@ -101,6 +101,6 @@ The table gives the target lists in the typical pass order.
 
 -----
 
-:Status: $Id$
+:Status: $Id: QuickReference-kBuild.txt 2342 2009-04-18 22:47:20Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (c) 2009 knut st. osmundsen
 
