@@ -973,6 +973,52 @@ Debugging Functions:
         $(breakpoint )
 
 
+Recipes
+-------
+
+    A typical recipe takes one of the two following forms::
+
+        targets : normal-prerequisites | order-only-prerequisites
+        	command
+        	...
+
+        targets : normal-prerequisites | order-only-prerequisites ; command
+        	command
+        	...
+
+    Specifying more than one file in the ``targets`` lists is the same as
+    repeating the recipe for each of the files.
+
+    Use ``+`` and ``+|`` in the list of ``targets`` to tell ``kmk`` that the
+    recipe has more than one output. [1]_ The files after a ``+`` will
+    always be remade, while the files after a ``+|`` don't have to be remade.
+    The latter is frequently employed to update files which prerequisites
+    change wihtout the output files necessarily changing. See also
+    ``kmk_cp --changed``.
+
+
+Double colon recipes
+
+    Double colon recipes are written with ``::`` instead of ``:`` and are
+    handled differently from ordinary recipes if the target appears in more
+    than one recipe. First, all the recipes must be of the double colon type.
+    Second, the recipes are executed individually and may be omitted depending
+    on the state of their prerequisites. Double colon recipes without any
+    prerequisites will always be executed.
+
+
+Pattern rules
+
+    A couple of examples::
+
+        %.o : %.c
+		gcc -o $@ $<
+        %.tab.c %.tab.h : %.y
+		bison -d $<
+
+    The latter has two outputs.
+
+
 -----
 
 .. [1] ``kmk`` only feature.
@@ -980,7 +1026,7 @@ Debugging Functions:
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2340 2009-04-18 12:05:47Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
