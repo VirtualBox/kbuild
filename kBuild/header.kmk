@@ -1,4 +1,4 @@
-# $Id: header.kmk 2274 2009-02-20 23:45:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2344 2009-04-19 23:30:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2274 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2344 $  )
 
 
 #
@@ -880,7 +880,7 @@ PROPS_ACCUMULATE_L := \
 ## PROPS_ACCUMULATE_L_LNK
 # Subset of PROPS_ACCUMULATE_L which applies to all linkable targets.
 PROPS_ACCUMULATE_L_LNK := \
-	SDKS SOURCES SRC_HANDLERS \
+	SDKS USES SOURCES SRC_HANDLERS INTERMEDIATES \
 	INCS CINCS CXXINCS OBJCINCS ASINCS RCINCS \
 	BLDDIRS CLEAN
 
