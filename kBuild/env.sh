@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: env.sh 2347 2009-05-04 00:18:42Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -112,7 +112,7 @@ do
             ;;
 
         "--help")
-            echo "kBuild Environment Setup Script, v0.1.4"
+            echo "kBuild Environment Setup Script, v0.2.0-pre"
             echo ""
             echo "syntax: $0 [options] [command [args]]"
             echo "    or: $0 [options] --var <varname>"
@@ -123,7 +123,7 @@ do
             echo "an interactive shell."
             echo "The second form will print the specfified variable(s)."
             echo "The third form will print all exported variables suitable for bourne shell"
-            echo "evalutation."
+            echo "evaluation."
             echo "The forth form will only print the specified variable(s)."
             echo ""
             echo "Options:"
@@ -142,7 +142,7 @@ do
             echo "  --set, --export"
             echo "      Whether --eval explicitly export the variables. --set is useful for"
             echo "      getting a list of environment vars for a commandline, while --eval"
-            echo "      is useful for eval `env.sh`. Default: --export"
+            echo '      is useful for eval `env.sh`. Default: --export'
             echo ""
             exit 1
             ;;
