@@ -1,5 +1,5 @@
 @echo off
-REM $Id: $
+REM $Id: envwin.cmd 2346 2009-05-04 00:18:18Z knut.osmundsen@oracle.com $
 REM REM @file
 REM Environment setup script.
 REM
