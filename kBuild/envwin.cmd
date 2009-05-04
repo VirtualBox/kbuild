@@ -1,5 +1,5 @@
 @echo off
-REM $Id: envwin.cmd 2346 2009-05-04 00:18:18Z knut.osmundsen@oracle.com $
+REM $Id: envwin.cmd 2348 2009-05-04 00:19:10Z knut.osmundsen@oracle.com $
 REM REM @file
 REM Environment setup script.
 REM
@@ -393,7 +393,7 @@ goto try_by_pwd
 cd "%_KBUILD_SELF%\.."
 for /f "tokens=*" %%d in ('cd') do set _KBUILD_PATH=%%d
 cd "%_KBUILD_CURDIR%"
-if exist "%_KBUILD_PATH%\footer.kmk"      goto found_kbuild
+if exist "%_KBUILD_PATH%\footer.kmk"    goto found_kbuild
 
 REM Try relative to the current directory.
 :try_by_pwd
