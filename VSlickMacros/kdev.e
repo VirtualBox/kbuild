@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2349 2009-05-17 11:13:35Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -184,10 +184,22 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
     if (sLexer)
     {
         /* multiline */
+#if __VERSION__>=14.0
+        _str aComments[];
+        GetComments(aComments, "mlcomment", sLexer)
+        for (i = 0; i < aComments._length(); i++)
+            if (!pos("documentation", aComments[i]) > 0)
+            {
+                sLine = aComments[i];
+                break;
+            }
+        if (sLine != '')
+#else
         rc = _ini_get_value(slick_path_search("user.vlx"), sLexer, 'mlcomment', sLine);
         if (rc)
             rc = _ini_get_value(slick_path_search("vslick.vlx"), sLexer, 'mlcomment', sLine);
         if (!rc)
+#endif
         {
             sLeft  = strip(word(sLine, 1));
             sRight = strip(word(sLine, 2));
@@ -196,10 +208,21 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
         }
 
         /* failed, try single line. */
+#if __VERSION__>=14.0
+        GetComments(aComments, "linecomment", sLexer)
+        for (i = 0; i < aComments._length(); i++)
+            if (!pos("documentation", aComments[i]) > 0)
+            {
+                sLine = aComments[i];
+                break;
+            }
+        if (sLine != '')
+#else
         rc = _ini_get_value(slick_path_search("user.vlx"), sLexer, 'linecomment', sLine);
         if (rc)
             rc = _ini_get_value(slick_path_search("vslick.vlx"), sLexer, 'linecomment', sLine);
         if (!rc)
+#endif
         {
             sLeft = strip(word(sLine, 1));
             sRight = '';
@@ -1171,6 +1194,7 @@ void k_javadoc_funcbox()
     _str    sArgs = "";
     int     iCursorLine;
     int     iPadd = k_alignup(11, p_SyntaxIndent);
+
     /* look for parameters */
     boolean fFoundFn = !k_func_goto_nearest_function();
     if (fFoundFn)
@@ -1195,11 +1219,13 @@ void k_javadoc_funcbox()
         for (i = 0; i < cArgs; i++)
         {
             _str sName, sType, sDefault;
-            if (!k_func_enumparams(sArgs, i, sType, sName, sDefault)
+            if (   !k_func_enumparams(sArgs, i, sType, sName, sDefault)
                 && iPadd2 < length(sName))
                 iPadd2 = length(sName);
         }
         iPadd2 = k_alignup((iPadd + iPadd2), p_SyntaxIndent);
+        if (iPadd2 < 28)
+            iPadd2 = k_alignup(28, p_SyntaxIndent);
 
         /*
          * Insert parameter.
@@ -1209,7 +1235,7 @@ void k_javadoc_funcbox()
             _str sName, sType, sDefault;
             if (!k_func_enumparams(sArgs, i, sType, sName, sDefault))
             {
-                _str sStr3 = '';
+                _str sStr3 = '.';
                 if (sDefault != "")
                     sStr3 = '(default='sDefault')';
                 k_javadoc_box_line('@param', iPadd, sName, iPadd2, sStr3);
