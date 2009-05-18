@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2349 2009-05-17 11:13:35Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2350 2009-05-18 10:06:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -2754,6 +2754,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
 
         case 'nuke-trailing-whitespace-p':
         {
+#if 0
             _str sName = 'def-koptions-'p_buf_id;
             int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
             if (!idx)
@@ -2766,6 +2767,7 @@ static int k_style_emacs_var(_str sVar, _str sVal)
                     set_name_info(idx, "saveoptions: -S");
                 say 'sVal=' sVal;
             }
+#endif
             break;
         }
 
@@ -2898,12 +2900,17 @@ void k_style_load()
 void _buffer_add_kdev(int buf_id)
 {
     _str sName = 'def-koptions-'buf_id;
-    int idx = insert_name(sName, MISC_TYPE, "kstyledoc");
-    if (!idx)
-        idx = find_index(sName, MISC_TYPE);
+    int idx = find_index(sName, MISC_TYPE);
     if (idx)
-        set_name_info(idx, "");
-    //message("_buffer_add_kdev: " idx);
+        delete_name(idx);
+    //message("_buffer_add_kdev: " idx " name=" sName);
+
+    sName = 'def-kstyledoc-'buf_id;
+    idx = find_index(sName, MISC_TYPE);
+    if (idx)
+        delete_name(idx);
+
+    //k_style_load();
 }
 
 
@@ -3341,9 +3348,9 @@ btnCancel.lbutton_up()
 definit()
 {
     /* do cleanup. */
-    for (i = 0; i < 200; i++)
+    for (i = 0; i < 999; i++)
     {
-        index = name_match("def-koptions-", 1, MISC_TYPE);
+        index = name_match("def-koptions-", 1 /*find_first*/, MISC_TYPE);
         if (!index)
             break;
         delete_name(index);
