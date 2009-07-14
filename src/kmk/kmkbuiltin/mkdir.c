@@ -241,7 +241,7 @@ build(char *path, mode_t omode)
 		if (last)
 			(void)umask(oumask);
 		if (mkdir(path, last ? omode : S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
-			if (errno == EEXIST || errno == EISDIR || errno == ENOSYS /* (solaris crap) */) {
+			if (errno == EEXIST || errno == EISDIR || errno == ENOSYS  /* (solaris crap) */ || errno == EACCES /* (ditto) */) {
 				if (stat(path, &sb) < 0) {
 					warn("%s", path);
 					retval = 1;
