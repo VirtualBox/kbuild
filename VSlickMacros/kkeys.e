@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2353 2009-08-11 15:11:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -41,6 +41,10 @@ def  'C-DOWN'   = kkeys_scroll_up
 def  'C-PGUP'   = prev_window
 def  'C-PGDN'   = next_window
 def  'C-DEL'    = kkeys_delete_right
+#if __VERSION__ >= 14.0
+def  'S-A-]'    = next_buff_tab
+def  'S-A-['    = prev_buff_tab
+#endif
 /* For the mac (A/M mix, all except A-z): */
 def  'M-UP'     = find_prev
 def  'M-DOWN'   = find_next
@@ -51,6 +55,10 @@ def  'M-o'      = kkeys_duplicate_line
 def  'M-s'      = kkeys_switch_lines
 def  'M-u'      = undo_cursor
 def  'M-g'      = goto_line
+#if __VERSION__ >= 14.0
+def  'S-M-]'    = next_buff_tab
+def  'S-M-['    = prev_buff_tab
+#endif
 /* Fixing brainfucked slickedit silliness: */
 def  'M-v'      = paste
 
