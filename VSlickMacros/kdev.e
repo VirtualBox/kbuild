@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2350 2009-05-18 10:06:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2354 2009-08-11 15:12:52Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -69,7 +69,7 @@ def  'C-S-M' = k_javadoc_moduleheader
 def  'C-S-O' = k_oneliner
 def  'C-S-P' = k_mark_modified_line
 def  'C-S-S' = k_box_structs
-def  'C-S-T' = odin32_maketagfile
+def  'C-S-T' = k_rebuild_tagfile
 def  'C-S-L' = k_style_load
 
 //optional stuff
@@ -1969,33 +1969,22 @@ static void klib_klog_file_int(boolean fAsk)
     }
 }
 
-
-/*******************************************************************************
-*   Odin32 backward compatibility                                              *
-*******************************************************************************/
-_command void odin32_maketagfile()
+/** @todo move to kkeys.e */
+_command void k_rebuild_tagfile()
 {
-    /* We'll */
+#if 1 /*__VERSION__ < 14.0*/
     if (file_match('-p 'maybe_quote_filename(strip_filename(_project_name,'e'):+TAG_FILE_EXT),1) != "")
-    {
-        _project_update_files_retag(false,false,false,false);
-        /*
-        RetagFilesInTagFile2(project_tag_file, orig_view_id, temp_view_id, rebuild_all, false,
-                             doRemove,false,true,true);*/
-    }
+        _project_update_files_retag(false, false, false, false);
     else
-        _project_update_files_retag(true,false,false,true);
+        _project_update_files_retag(true,  false, false, true);
+#else
+    _str sArgs = "-refs=on";
+    if (file_match('-p 'maybe_quote_filename(strip_filename(_project_name,'e'):+TAG_FILE_EXT),1) != "")
+        sArgs = sArgs :+ " -retag";
+    sArgs = sArgs :+ " " :+ _workspace_filename;
+    build_workspace_tagfiles(sArgs);
+#endif
 }
-
-_command void odin32_setcurrentdir()
-{
-    //_ini_get_value(_project_name,"COMPILER","WORKINGDIR", workingdir);
-    //cd(workingdir);
-    /* Go the the directory containing the project filename */
-    cd(strip_filename(_project_name, 'NE'));
-}
-
-
 
 
 /*******************************************************************************
