@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2318 2009-03-19 20:35:46Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2355 2009-09-01 20:38:33Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2040,7 +2040,12 @@ $(outbase).koc +| $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OU
 		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
-		$$$$($(target)_INTERMEDIATES)
+		$$$$($(target)_INTERMEDIATES) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg_arch)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg_cpu)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_type))
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 else
 $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) : \
@@ -2048,7 +2053,12 @@ $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) 
 		$(value _DEP_COMPILE_CMDS) \
 		| \
 		$($(target)_$(source)_DEPORD_) \
-		$$$$($(target)_INTERMEDIATES)
+		$$$$($(target)_INTERMEDIATES) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg).$(bld_trg_arch)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg_arch)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_trg_cpu)) \
+		$$$$($(target)_INTERMEDIATES.$(bld_type))
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
 ifdef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
 	$$(QUIET)$$(RM) -f -- $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
