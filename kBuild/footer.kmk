@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2356 2009-10-12 07:51:08Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2359 2009-10-12 09:28:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2170,7 +2170,7 @@ local type := OBJC
 endef
 
 define def_src_handler_objcxx
-local type := OBJC
+local type := OBJCXX
  $(kb-src-one 2)
 endef
 
