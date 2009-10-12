@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2319 2009-04-10 14:33:45Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2357 2009-10-12 07:53:20Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -956,6 +956,7 @@ local qt_infix := $(firstword \
 ifeq ($(bld_trg),darwin)
  # Adding -F to CXXFLAGS is necessary to make #include <QtCore/qstring.h> stuff work...
  $(eval $(target)_CXXFLAGS += -F$(PATH_SDK_QT4_LIB) )
+ $(eval $(target)_OBJCCXXFLAGS += -F$(PATH_SDK_QT4_LIB) )
  $(eval $(target)_LDFLAGS  += -F$(PATH_SDK_QT4_LIB) $(foreach module,$(qt_modules), -framework $(qt_prefix)Qt$(module)$(qt_infix)) )
  $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT4_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/4/Headers) )
 else
