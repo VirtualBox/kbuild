@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 2356 2009-10-12 07:51:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
 #
@@ -34,11 +34,12 @@
 TOOL_GCC4MACHO := GCC v4 targeting Darwin (Mac OS X) Mach-o.
 
 # Tool Specific Properties
-TOOL_GCC4MACHO_CC  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_CXX ?= g++$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_OBJC?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_AS  ?= gcc$(HOSTSUFF_EXE)
-TOOL_GCC4MACHO_LD  ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_CC        ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_CXX       ?= g++$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_OBJC      ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_OBJCXX    ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_AS        ?= gcc$(HOSTSUFF_EXE)
+TOOL_GCC4MACHO_LD        ?= gcc$(HOSTSUFF_EXE)
 TOOL_GCC4MACHO_LD_SYSMOD ?= gcc$(HOSTSUFF_EXE)
 ifndef TOOL_GCC4MACHO_LDFLAGS.$(KBUILD_TARGET)
 TOOL_GCC4MACHO_LDFLAGS.dll ?= -dynamiclib
@@ -49,9 +50,10 @@ TOOL_GCC4MACHO_LDFLAGS.sysmod ?= -r
 #TOOL_GCC4MACHO_LD_SONAME = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 
 ifdef SLKRUNS
-TOOL_GCC4MACHO_CC  += -fmessage-length=0
-TOOL_GCC4MACHO_CXX += -fmessage-length=0
-TOOL_GCC4MACHO_OBJC+= -fmessage-length=0
+TOOL_GCC4MACHO_CC        += -fmessage-length=0
+TOOL_GCC4MACHO_CXX       += -fmessage-length=0
+TOOL_GCC4MACHO_OBJC      += -fmessage-length=0
+TOOL_GCC4MACHO_OBJCXX    += -fmessage-length=0
 endif
 
 # General Properties used by kBuild
@@ -64,7 +66,6 @@ TOOL_GCC4MACHO_CINCS            ?=
 TOOL_GCC4MACHO_CDEFS            ?=
 
 TOOL_GCC4MACHO_CXXOBJSUFF       ?= .o
-TOOL_GCC4MACHO_CXXOBJSUFF       ?= .o
 TOOL_GCC4MACHO_CXXFLAGS         ?=
 TOOL_GCC4MACHO_CXXFLAGS.debug   ?= -g
 TOOL_GCC4MACHO_CXXFLAGS.profile ?= -g -O2 #-pg
@@ -73,13 +74,20 @@ TOOL_GCC4MACHO_CXXINCS          ?=
 TOOL_GCC4MACHO_CXXDEFS          ?=
 
 TOOL_GCC4MACHO_OBJCOBJSUFF      ?= .o
-TOOL_GCC4MACHO_OBJCOBJSUFF      ?= .o
 TOOL_GCC4MACHO_OBJCFLAGS        ?=
 TOOL_GCC4MACHO_OBJCFLAGS.debug  ?= -g
 TOOL_GCC4MACHO_OBJCFLAGS.profile?= -O2 #-g -pg
 TOOL_GCC4MACHO_OBJCFLAGS.release?= -O2
 TOOL_GCC4MACHO_OBJCINCS         ?=
 TOOL_GCC4MACHO_OBJCDEFS         ?=
+
+TOOL_GCC4MACHO_OBJCXXOBJSUFF        ?= .o
+TOOL_GCC4MACHO_OBJCXXFLAGS          ?=
+TOOL_GCC4MACHO_OBJCXXFLAGS.debug    ?= -g
+TOOL_GCC4MACHO_OBJCXXFLAGS.profile  ?= -O2 #-g -pg
+TOOL_GCC4MACHO_OBJCXXFLAGS.release  ?= -O2
+TOOL_GCC4MACHO_OBJCXXINCS           ?=
+TOOL_GCC4MACHO_OBJCXXDEFS           ?=
 
 TOOL_GCC4MACHO_ASFLAGS          ?= -x assembler-with-cpp
 TOOL_GCC4MACHO_ASFLAGS.debug    ?= -g
@@ -214,6 +222,48 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_GCC4MACHO_COMPILE_OBJC_OUTPUT =
 define TOOL_GCC4MACHO_COMPILE_OBJC_CMDS
 	$(QUIET)$(TOOL_GCC4MACHO_OBJC) -c\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		-o $(obj)\
+		$(abspath $(source))
+endef
+endif # !KBUILD_USE_KOBJCACHE
+
+
+## Compile Objective-C++ source.
+# @param    $(target)   Normalized main target name.
+# @param    $(source)   Source filename (relative).
+# @param    $(obj)      Object file name. This shall be (re)created by the compilation.
+# @param    $(dep)	    Dependcy file. This shall be (re)created by the compilation.
+# @param    $(flags)    Flags.
+# @param    $(defs)     Definitions. No -D or something.
+# @param    $(incs)     Includes. No -I or something.
+# @param    $(dirdep)   Directory creation dependency.
+# @param    $(deps)		Other dependencies.
+# @param    $(outbase)  Output basename (full). Use this for list files and such.
+# @param    $(objsuff)  Object suffix.
+TOOL_GCC4MACHO_COMPILE_OBJCXX_DEPEND =
+TOOL_GCC4MACHO_COMPILE_OBJCXX_DEPORD =
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_GCC4MACHO_COMPILE_OBJCXX_USES_KOBJCACHE = 1
+TOOL_GCC4MACHO_COMPILE_OBJCXX_OUTPUT = $(outbase).mii
+define TOOL_GCC4MACHO_COMPILE_OBJCXX_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -p\
+		--kObjCache-cpp $(outbase).mii\
+		$(TOOL_GCC4MACHO_OBJCXX) -E -o -\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
+		$(abspath $(source))\
+		--kObjCache-cc $(obj)\
+		$(TOOL_GCC4MACHO_OBJCXX) -c\
+		$(flags) -fpreprocessed -x cbjective-c\
+		-o $(obj)\
+		-
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_GCC4MACHO_COMPILE_OBJCXX_OUTPUT =
+define TOOL_GCC4MACHO_COMPILE_OBJCXX_CMDS
+	$(QUIET)$(TOOL_GCC4MACHO_OBJCXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
