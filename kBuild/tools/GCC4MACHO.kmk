@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 2356 2009-10-12 07:51:08Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 2360 2009-10-27 13:37:24Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
 #
@@ -256,7 +256,7 @@ define TOOL_GCC4MACHO_COMPILE_OBJCXX_CMDS
 		$(abspath $(source))\
 		--kObjCache-cc $(obj)\
 		$(TOOL_GCC4MACHO_OBJCXX) -c\
-		$(flags) -fpreprocessed -x cbjective-c\
+		$(flags) -fpreprocessed -x objective-c++\
 		-o $(obj)\
 		-
 endef
