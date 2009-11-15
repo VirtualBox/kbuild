@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2358 2009-10-12 08:50:19Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2361 2009-11-15 12:58:43Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -401,25 +401,25 @@ define TOOL_QT4_RCC_QRC_CMDS
 		$(flags)\
 		-o $(out)\
 		$(source)
-	$(APPEND) $(dep) '\'
-	$(APPEND) $(dep) '$(out): \'
-	$(APPEND) $(dep) '$(source) \'
-	$(SED) \
+	$(QUIET2)$(APPEND) $(dep) '\'
+	$(QUIET2)$(APPEND) $(dep) '$(out): \'
+	$(QUIET2)$(APPEND) $(dep) '$(source) \'
+	$(QUIET2)$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
 		-e 's|^[^/][^:]|$(abspathex $(dir $(source)),$(defpath))/&|' \
 		-e 's|$$$$| \\|' \
 		--append $(dep) \
 		$(source)
-	$(APPEND) $(dep)
-	$(SED) \
+	$(QUIET2)$(APPEND) $(dep)
+	$(QUIET2)$(SED) \
 		-e '/^[[:blank:]]*<file[[:blank:]][^>]*>/!d' \
 		-e 's/^.*<file[[:blank:]][^>]*>\([^<]*\)<\/file>.*$$$$/\1/' \
 		-e 's|^[^/][^:]|$(abspathex $(dir $(source)),$(defpath))/&|' \
 		-e 's|$$$$|:\n|' \
 		--append $(dep) \
 		$(source)
-	$(APPEND) $(dep)
+	$(QUIET2)$(APPEND) $(dep)
 endef
 
 ## Compile a Qt translation file (.ts).
