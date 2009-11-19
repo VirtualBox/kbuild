@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2311 2009-03-02 00:46:13Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2362 2009-11-19 11:14:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1119,7 +1119,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         cmdline_size = 2;
         for (i = 0; argv[i]; i++)
             cmdline_size += strlen(argv[i]) + 3;
-        cmdline = p = sh_malloc(psh, env_size);
+        cmdline = p = sh_malloc(psh, cmdline_size);
         for (i = 0; argv[i]; i++)
         {
             size_t len = strlen(argv[i]);
