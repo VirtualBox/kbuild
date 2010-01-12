@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2375 2010-01-12 23:42:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -1962,8 +1962,8 @@ static void kOCEntryPreCompileConsumer(PKOCENTRY pEntry, int fdIn)
         if (cbLeft <= 1)
         {
             size_t off = psz - pEntry->New.pszCppMapping;
-            cbLeft = 4*1024*1024;
-            cbAlloc += cbLeft;
+            cbLeft  += 4*1024*1024;
+            cbAlloc += 4*1024*1024;
             pEntry->New.pszCppMapping = xrealloc(pEntry->New.pszCppMapping, cbAlloc);
             psz = pEntry->New.pszCppMapping + off;
         }
@@ -3795,7 +3795,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2243 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2375 $)\n"
                    "Copyright (c) 2007-2009  knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
