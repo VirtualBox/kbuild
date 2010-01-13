@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2315 2009-03-02 02:35:00Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -188,6 +188,15 @@ $$(PATH_kash)/init.c: \
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
+endif
+
+#
+# For debugging file handle inheritance on Windows.
+#
+if "$(KBUILD_TARGET)" == win && 0
+PROGRAMS += tstDump
+tstDump_TEMPLATE = BIN
+tstDump_SOURCES = tstDump.c
 endif
 
 # Include the sub-makefile.
