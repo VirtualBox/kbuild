@@ -190,7 +190,7 @@ int shfork_body(shinstance *psh, void *stack_ptr)
         StrtInfo.dwXCountChars = 0;
         StrtInfo.dwYCountChars = 0;
         StrtInfo.dwFillAttribute = 0;
-        StrtInfo.dwFlags = 0;
+        StrtInfo.dwFlags = STARTF_USESTDHANDLES;;
         StrtInfo.wShowWindow = 0;
         StrtInfo.cbReserved2 = 0;
         StrtInfo.lpReserved2 = NULL;
