@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2382 2010-01-13 22:41:05Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -85,8 +85,6 @@ kash_SOURCES = \
 	bltin/kill.c \
 	bltin/test.c \
 	\
-	$(PATH_kash)/arith.c \
-	$(PATH_kash)/arith_lex.c \
 	$(PATH_kash)/builtins.c \
 	$(PATH_kash)/init.c \
 	$(PATH_kash)/nodes.c \
@@ -109,14 +107,11 @@ kash_SOURCES.solaris = \
 	strlcpy.c
 
 kash_INTERMEDIATES = \
-	$(PATH_kash)/arith.h \
 	$(PATH_kash)/builtins.h \
 	$(PATH_kash)/nodes.h \
 	$(PATH_kash)/token.h
 kash_CLEAN = \
 	$(kash_INTERMEDIATES) \
-	$(PATH_kash)/arith.c \
-	$(PATH_kash)/arith_lex.c \
 	$(PATH_kash)/builtins.c \
 	$(PATH_kash)/init.c \
 	$(PATH_kash)/nodes.c
@@ -134,11 +129,35 @@ if1of ($(KBUILD_TARGET), win)
 #
 # Use the pregenerated code.
 #
-kash_INTERMEDIATES :=
-kash_INCS += generated
-kash_SOURCES := $(patsubst $(PATH_kash)/%,generated/%,$(kash_SOURCES))
+kash_SOURCES += \
+	$(kash_0_OUTDIR)/arith.c \
+	$(kash_0_OUTDIR)/arith_lex.c
+
+define def_copy_generated
+$$(kash_0_OUTDIR)/$(src): $(PATH_SUB_CURRENT)/generated/$(src)
+	$$(RM) -f $$@
+	$$(CP) -f $$^ $$@
+endef
+
+$(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
+$(eval $(def_copy_generated)))
 
 else
+
+#
+# Generate the code on the fly.
+#
+
+USES += lex yacc
+kash_USES = lex yacc
+kash_LEXTOOL = FLEX
+kash_LEXFLAGS = -8
+#kash_YACCTOOL = BISON
+kash_YACCTOOL = YACC
+kash_YACCFLAGS = -ld
+kash_SOURCES += \
+	arith.y \
+	arith_lex.l
 
 #
 # ATTENTION! ATTENTION! ATTENTION!
@@ -149,17 +168,6 @@ else
 # So, when building for the frist time, setting BOOSTRAP_SHELL=/bin/bash is good idea.
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
-ifndef YACC
- YACC := $(firstword $(which byacc) $(which yacc) yacc)
-endif
-
-$$(PATH_kash)/arith.h + $$(PATH_kash)/arith.c: arith.y | $$(dir $$@)
-	$(YACC) -ld $^
-	$(MV) -f y.tab.c $(PATH_kash)/arith.c
-	$(MV) -f y.tab.h $(PATH_kash)/arith.h
-
-$$(PATH_kash)/arith_lex.c: $$(kash_DEFPATH)/arith_lex.l | $$(dir $$@)
-	flex -8 -o$@ $^                     # 8-bit lex scanner for arithmetic
 
 $$(PATH_kash)/builtins.h + $$(PATH_kash)/builtins.c: \
 		$$(kash_DEFPATH)/mkbuiltins \

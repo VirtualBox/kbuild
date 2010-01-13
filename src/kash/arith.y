@@ -190,8 +190,10 @@ error(s)
 void
 yyerror(const char *s)
 {
-   shinstance *psh = arith_psh;
+    shinstance *psh = arith_psh;
+#ifndef YYBISON /* yyerrok references yyerrstatus which is a local variable in yyparse().*/
 	yyerrok;
+#endif
 	yyclearin;
 	arith_lex_reset();	/* reprime lex */
 /** @todo unlock */
