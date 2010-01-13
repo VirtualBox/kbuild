@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2266 2009-01-23 00:43:08Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2380 2010-01-13 22:20:45Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -203,19 +203,33 @@ endif
 
 ifeq ($(KBUILD_TARGET),darwin)
  ifndef KBUILD_MACOSX_VERSION
-  export KBUILD_MACOSX_VERSION := $(firstword $(subst ., ,$(shell uname -r)))
+  export KBUILD_MACOSX_VERSION := $(expr $(firstword $(subst ., ,$(shell uname -r))) - 4)
  endif
- KBUILD_MACOSX_SDK             ?= /Developer/SDKs/MacOSX10.4u.sdk
+ ifndef KBUILD_MACOSX_TARGET_VERSION
+  if $(KBUILD_TARGET_ARCH) == amd64
+    KBUILD_MACOSX_TARGET_VERSION = 6
+  else
+    KBUILD_MACOSX_TARGET_VERSION = 4
+  endif
+ endif
+ if $(KBUILD_MACOSX_TARGET_VERSION) == 4
+  TOOL_GCC4MACHO_SUFFIX	        = -4.0
+  TOOL_GXX4MACHO_SUFFIX		= -4.0
+ else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
+  TOOL_GCC4MACHO_SUFFIX	        = -4.2
+  TOOL_GXX4MACHO_SUFFIX		= -4.2
+ endif
+ KBUILD_MACOSX_SDK             ?= /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
  TEMPLATE_BIN_TOOL              = GCC4MACHO
- TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.4 -isysroot $(KBUILD_MACOSX_SDK)
+ TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) -isysroot $(KBUILD_MACOSX_SDK)
  ifeq ($(USER),bird)
   TEMPLATE_BIN_CFLAGS          += -Wall -Wextra -pedantic -Wno-unused-parameter
   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
  endif
  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
  TEMPLATE_BIN_CFLAGS.release    = -O3
- TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.4 -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
- ifneq ($(int-ge $(KBUILD_MACOSX_VERSION),9),) # >= 10.5
+ TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
+ if $(KBUILD_MACOSX_TARGET_VERSION) == 4 && $(KBUILD_MACOSX_VERSION) >= 5
   TEMPLATE_BIN_LDFLAGS         += -classic_ld
  endif
  TEMPLATE_BIN_LDFLAGS.profile   = -pg
