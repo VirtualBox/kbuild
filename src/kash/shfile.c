@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2312 2009-03-02 01:14:43Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -547,7 +547,17 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
                         HANDLE hFile = GetStdHandle(aStdHandles[i].dwStdHandle);
                         if (hFile != INVALID_HANDLE_VALUE)
                         {
-                            int fd2 = shfile_insert(pfdtab, (intptr_t)hFile, aStdHandles[i].fFlags, 0, i, "shtab_init");
+                            DWORD       dwType  = GetFileType(hFile);
+                            unsigned    fFlags  = aStdHandles[i].fFlags;
+                            unsigned    fFlags2;
+                            int         fd2;
+                            if (dwType == FILE_TYPE_CHAR)
+                                fFlags2 = SHFILE_FLAGS_TTY;
+                            else if (dwType == FILE_TYPE_PIPE)
+                                fFlags2 = SHFILE_FLAGS_PIPE;
+                            else
+                                fFlags2 = SHFILE_FLAGS_FILE;
+                            fd2 = shfile_insert(pfdtab, (intptr_t)hFile, fFlags, fFlags2, i, "shtab_init");
                             assert(fd2 == i); (void)fd2;
                             if (fd2 != i)
                                 rc = -1;
@@ -587,7 +597,7 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
     DWORD fFlag = set ? HANDLE_FLAG_INHERIT : 0;
 
     shmtx_enter(&pfdtab->mtx, &tmp);
-    TRACE2((NULL, "shfile_fork_win:\n"));
+    TRACE2((NULL, "shfile_fork_win: set=%d\n", set));
 
     i = pfdtab->size;
     while (i-- > 0)
@@ -597,7 +607,7 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
             HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
             if (set)
                 TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
-                        i, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags, hFile));
+                        i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
             if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
             {
                 DWORD err = GetLastError();
@@ -611,10 +621,12 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
         for (i = 0; i < 3; i++)
         {
             if (    pfdtab->size > i
-                &&  pfdtab->tab[i].fd == 0)
+                &&  pfdtab->tab[i].fd == i)
                 hndls[i] = pfdtab->tab[i].native;
             else
                 hndls[i] = (intptr_t)INVALID_HANDLE_VALUE;
+            TRACE2((NULL, "shfile_fork_win: i=%d size=%d fd=%d native=%d hndls[%d]=%p\n",
+                    i, pfdtab->size, pfdtab->tab[i].fd, pfdtab->tab[i].native, i, hndls[i]));
         }
     }
 
@@ -643,12 +655,12 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
     unsigned    i;
 
     shmtx_enter(&pfdtab->mtx, &tmp);
-    TRACE2((NULL, "shfile_fork_win:\n"));
+    TRACE2((NULL, "shfile_exec_win: prepare=%p\n", prepare));
 
     count  = pfdtab->size < (0x10000-4) / (1 + sizeof(HANDLE))
            ? pfdtab->size
            : (0x10000-4) / (1 + sizeof(HANDLE));
-    while (count > 3 && pfdtab->tab[count].fd == -1)
+    while (count > 3 && pfdtab->tab[count - 1].fd == -1)
         count--;
 
     if (prepare)
@@ -668,7 +680,7 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
             {
                 HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
                 TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
-                        i, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags, hFile));
+                        i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
 
                 if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
                 {
@@ -696,11 +708,13 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
 
         for (i = 0; i < 3; i++)
         {
-            if (    count > i
-                &&  pfdtab->tab[i].fd == 0)
+            if (    i < count
+                &&  pfdtab->tab[i].fd == i)
                 hndls[i] = pfdtab->tab[i].native;
             else
                 hndls[i] = (intptr_t)INVALID_HANDLE_VALUE;
+            TRACE2((NULL, "shfile_exec_win: i=%d count=%d fd=%d native=%d hndls[%d]=\n",
+                    i, count, pfdtab->tab[i].fd, pfdtab->tab[i].native, i, hndls[i]));
         }
 
         *sizep = (unsigned short)cbData;

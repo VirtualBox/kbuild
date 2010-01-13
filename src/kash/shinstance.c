@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2362 2009-11-19 11:14:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -898,6 +898,8 @@ pid_t sh_fork(shinstance *psh)
 
 #if K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
     pid = shfork_do_it(psh);
+    if (pid == 0)
+        shthread_set_shell(psh);
 
 #elif defined(SH_FORKED_MODE)
 # ifdef _MSC_VER
@@ -1140,6 +1142,7 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         StrtInfo.cb = sizeof(StrtInfo);
 
         /* File handles. */
+        StrtInfo.dwFlags   |= STARTF_USESTDHANDLES;
         StrtInfo.lpReserved2 = shfile_exec_win(&psh->fdtab, 1 /* prepare */, &StrtInfo.cbReserved2, hndls);
         StrtInfo.hStdInput  = (HANDLE)hndls[0];
         StrtInfo.hStdOutput = (HANDLE)hndls[1];

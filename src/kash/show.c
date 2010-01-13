@@ -272,8 +272,8 @@ indent(int amount, char *pfx, FILE *fp)
  * if it's NULL and returning (void) if that fails. */
 # define TRY_GET_PSH_OR_RETURN(psh)  \
 	if (!(psh)) { \
-		psh = shthread_get_shell(); \
-		if (!psh) \
+		(psh) = shthread_get_shell(); \
+		if (!(psh)) \
 			return; \
 	} else do { } while (0)
 
