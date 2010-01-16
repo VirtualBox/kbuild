@@ -1167,7 +1167,20 @@ breakcmd(shinstance *psh, int argc, char **argv)
 int
 returncmd(shinstance *psh, int argc, char **argv)
 {
+#if 0
 	int ret = argc > 1 ? number(psh, argv[1]) : psh->exitstatus;
+#else
+	int ret;
+	if (argc > 1)  {
+		/* make return -1 and VSC lite work ... */
+    		if (argv[1][0] != '-' || !is_number(&argv[1][1]))
+			ret = number(psh, argv[1]);
+		else
+			ret = -number(psh, &argv[1][1]) & 255; /* take the bash approach */
+	} else {
+    		ret = psh->exitstatus;
+	}
+#endif
 
 	if (psh->funcnest) {
 		psh->evalskip = SKIPFUNC;
