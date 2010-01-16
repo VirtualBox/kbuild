@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2385 2010-01-16 01:01:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -478,7 +478,7 @@ static void sh_sig_common_handler(int signo)
 {
     shinstance *psh;
 
-    fprintf(stderr, "sh_sig_common_handler: signo=%d:%s\n", signo, sys_signame[signo]);
+/*    fprintf(stderr, "sh_sig_common_handler: signo=%d:%s\n", signo, sys_signame[signo]); */
 
     /*
      * No need to take locks if there is only one shell.
@@ -800,7 +800,7 @@ int sh_kill(shinstance *psh, pid_t pid, int signo)
     errno = ENOSYS;
     rc = -1;
 # else
-    fprintf(stderr, "kill(%d, %d)\n", pid, signo);
+/*    fprintf(stderr, "kill(%d, %d)\n", pid, signo);*/
     rc = kill(pid, signo);
 # endif
 
