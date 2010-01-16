@@ -1130,7 +1130,7 @@ bltincmd(shinstance *psh, int argc, char **argv)
 	 * Preserve psh->exitstatus of a previous possible redirection
 	 * as POSIX mandates
 	 */
-	return psh->exitstatus;
+	return psh->back_exitstatus;
 }
 
 
