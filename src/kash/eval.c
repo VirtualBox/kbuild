@@ -705,7 +705,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	/* First expand the arguments. */
 	TRACE((psh, "evalcommand(0x%lx, %d) called\n", (long)cmd, flags));
 	setstackmark(psh, &smark);
-	psh->exitstatus = 0;
+	psh->back_exitstatus = 0;
 
 	arglist.lastp = &arglist.list;
 	varflag = 1;
