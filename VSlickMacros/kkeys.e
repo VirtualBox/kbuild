@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2353 2009-08-11 15:11:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2388 2010-01-26 15:12:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -44,6 +44,7 @@ def  'C-DEL'    = kkeys_delete_right
 #if __VERSION__ >= 14.0
 def  'S-A-]'    = next_buff_tab
 def  'S-A-['    = prev_buff_tab
+def  'S-A-U'    = kkeys_gen_uuid
 #endif
 /* For the mac (A/M mix, all except A-z): */
 def  'M-UP'     = find_prev
@@ -58,9 +59,26 @@ def  'M-g'      = goto_line
 #if __VERSION__ >= 14.0
 def  'S-M-]'    = next_buff_tab
 def  'S-M-['    = prev_buff_tab
+def  'S-M-U'    = kkeys_gen_uuid
 #endif
 /* Fixing brainfucked slickedit silliness: */
 def  'M-v'      = paste
+
+
+/** Saves the cursor position. */
+static long kkeys_save_cur_pos()
+{
+   long offset = _QROffset();
+   message(offset);
+   return offset;
+}
+
+/** Restores a saved cursor position. */
+static void kkeys_restore_cur_pos(long lSavedCurPos)
+{
+   _GoToROffset(lSavedCurPos);
+}
+
 
 _command kkeys_switch_lines()
 {
@@ -148,11 +166,9 @@ _command kkeys_scroll_down()
 
 _command boxer_paste()
 {
-   int rc;
-   offset = _QROffset();
-   message(offset);
-   rc = paste();
-   _GoToROffset(offset);
+   long lSavedCurPos = kkeys_save_cur_pos()
+   paste();
+   kkeys_restore_cur_pos(lSavedCurPos);
 }
 
 _command kkeys_fullscreen()
@@ -245,6 +261,19 @@ _command boxer_select()
          p_col--;
    }
 }
+
+
+#if __VERSION__ >= 14.0
+_command kkeys_gen_uuid()
+{
+   _str uuid = guid_create_string('G');
+   uuid = lowcase(uuid);
+
+   long lSavedCurPos = kkeys_save_cur_pos();
+   _insert_text(uuid);
+   kkeys_restore_cur_pos(lSavedCurPos);
+}
+#endif
 
 
 void nop()
