@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2359 2009-10-12 09:28:45Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2389 2010-01-27 16:29:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3542,7 +3542,7 @@ define def_pass_setup_and_optimize
 
 # The setup. ## @todo This is looks a bit weird...
 ifndef SUBDIRS_$(PASS)
- SUBDIRS_$(PASS)          := $(SUBDIRS)          $(SUBDIRS.$(KBUILD_TARGET))          $(SUBDIRS.$(KBUILD_TARGET.$(KBUILD_TARGET_ARCH)))
+ SUBDIRS_$(PASS)          := $(SUBDIRS)          $(SUBDIRS.$(KBUILD_TARGET))          $(SUBDIRS.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))
 endif
 ifndef SUBDIRS_AFTER_$(PASS)
  SUBDIRS_AFTER_$(PASS)    := $(SUBDIRS_AFTER)    $(SUBDIRS_AFTER.$(KBUILD_TARGET))    $(SUBDIRS_AFTER.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH))
