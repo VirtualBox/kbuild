@@ -47,8 +47,8 @@
 #include "shinstance.h"
 
 
-int     funcblocksize;		/* size of structures in function */
-int     funcstringsize;		/* size of strings in node */
+size_t  funcblocksize;		/* size of structures in function */
+size_t  funcstringsize;		/* size of strings in node */
 pointer funcblock;		/* block to allocate function from */
 char   *funcstring;		/* block to allocate strings from */
 
