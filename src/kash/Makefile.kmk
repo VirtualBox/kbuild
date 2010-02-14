@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2382 2010-01-13 22:41:05Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2390 2010-02-14 22:52:14Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -50,7 +50,7 @@ kash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
-kash_INCS = $(PATH_kash) . # (the last is because of error.h)
+kash_INCS = $(kash_0_OUTDIR) . # (the last is because of error.h)
 kash_ASFLAGS.win = -g cv8
 kash_ASFLAGS.win.x86   = -f win32
 kash_ASFLAGS.win.amd64 = -f win64
@@ -85,9 +85,9 @@ kash_SOURCES = \
 	bltin/kill.c \
 	bltin/test.c \
 	\
-	$(PATH_kash)/builtins.c \
-	$(PATH_kash)/init.c \
-	$(PATH_kash)/nodes.c \
+	$(kash_0_OUTDIR)/builtins.c \
+	$(kash_0_OUTDIR)/init.c \
+	$(kash_0_OUTDIR)/nodes.c \
 	\
 	setmode.c \
 	shinstance.c \
@@ -107,14 +107,14 @@ kash_SOURCES.solaris = \
 	strlcpy.c
 
 kash_INTERMEDIATES = \
-	$(PATH_kash)/builtins.h \
-	$(PATH_kash)/nodes.h \
-	$(PATH_kash)/token.h
+	$(kash_0_OUTDIR)/builtins.h \
+	$(kash_0_OUTDIR)/nodes.h \
+	$(kash_0_OUTDIR)/token.h
 kash_CLEAN = \
 	$(kash_INTERMEDIATES) \
-	$(PATH_kash)/builtins.c \
-	$(PATH_kash)/init.c \
-	$(PATH_kash)/nodes.c
+	$(kash_0_OUTDIR)/builtins.c \
+	$(kash_0_OUTDIR)/init.c \
+	$(kash_0_OUTDIR)/nodes.c
 
 ##
 ## The manual page.
@@ -132,9 +132,11 @@ if1of ($(KBUILD_TARGET), win)
 kash_SOURCES += \
 	$(kash_0_OUTDIR)/arith.c \
 	$(kash_0_OUTDIR)/arith_lex.c
+kash_INTERMEDIATES += \
+	$(kash_0_OUTDIR)/arith.h
 
 define def_copy_generated
-$$(kash_0_OUTDIR)/$(src): $(PATH_SUB_CURRENT)/generated/$(src)
+$$$$(kash_0_OUTDIR)/$(src): $(PATH_SUB_CURRENT)/generated/$(src)
 	$$(RM) -f $$@
 	$$(CP) -f $$^ $$@
 endef
@@ -169,15 +171,15 @@ kash_SOURCES += \
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
 
-$$(PATH_kash)/builtins.h + $$(PATH_kash)/builtins.c: \
+$$(kash_0_OUTDIR)/builtins.h + $$(kash_0_OUTDIR)/builtins.c: \
 		$$(kash_DEFPATH)/mkbuiltins \
 		$$(kash_DEFPATH)/shell.h \
 		$$(kash_DEFPATH)/builtins.def \
 		| $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
-	[ -f $(PATH_kash)/builtins.h ]
+	[ -f $(kash_0_OUTDIR)/builtins.h ]
 
-$$(PATH_kash)/nodes.h + $$(PATH_kash)/nodes.c: \
+$$(kash_0_OUTDIR)/nodes.h + $$(kash_0_OUTDIR)/nodes.c: \
 	$$(kash_DEFPATH)/mknodes.sh \
 	$$(kash_DEFPATH)/nodetypes \
 	$$(kash_DEFPATH)/nodes.c.pat \
@@ -185,13 +187,13 @@ $$(PATH_kash)/nodes.h + $$(PATH_kash)/nodes.c: \
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
-$$(PATH_kash)/token.h: $$(kash_DEFPATH)/mktokens | $$(dir $$@)
+$$(kash_0_OUTDIR)/token.h: $$(kash_DEFPATH)/mktokens | $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) token.h $@
 
-$$(PATH_kash)/init.c: \
+$$(kash_0_OUTDIR)/init.c: \
 		$$(kash_DEFPATH)/mkinit.sh \
-		$$(abspathex $$(filter-out $$(PATH_kash)/%,$$(kash_SOURCES)), $$(kash_DEFPATH)) \
+		$$(abspathex $$(filter-out $$(kash_0_OUTDIR)/%,$$(kash_SOURCES)), $$(kash_DEFPATH)) \
 		| $$(dir $$@)
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
