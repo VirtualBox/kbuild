@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2298 2009-03-01 05:18:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2392 2010-02-15 00:20:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -364,13 +364,22 @@ const char *sh_gethomedir(shinstance *, const char *);
 #   define SIG_BLOCK         1
 #   define SIG_UNBLOCK       2
 #   define SIG_SETMASK       3
-#   define SIGHUP            5
-#   define SIGQUIT           9
-#   define SIGPIPE          12
-#   define SIGTTOU          17
-#   define SIGTSTP          18
-#   define SIGTTIN          19
+
+#   define SIGHUP            1          /* _SIGHUP_IGNORE */
+/*# define SIGINT            2 */
+#   define SIGQUIT           3          /* _SIGQUIT_IGNORE */
+/*# define SIGILL            4 */
+/*# define SIGFPE            8 */
+/*# define SIGSEGV          11 */
+#   define SIGPIPE          13          /* _SIGPIPE_IGNORE */
+/*# define SIGTERM          15 */
+#   define SIGTTIN          16          /* _SIGIOINT_IGNORE */
+#   define SIGTSTP          17          /* _SIGSTOP_IGNORE */
+#   define SIGTTOU          18
 #   define SIGCONT          20
+/*# define SIGBREAK         21 */
+/*# define SIGABRT          22 */
+
 #   define sys_siglist      sys_signame
 #endif /* _MSC_VER */
 #ifdef __sun__
