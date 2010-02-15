@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2308 2009-03-01 10:01:02Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2394 2010-02-15 00:58:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -94,7 +94,7 @@ typedef struct shmemchunk
 *******************************************************************************/
 #define SHHEAP_ALIGN(sz)        (((sz) + 31) & ~(size_t)31)
 #define SHHEAP_CHUNK_ALIGN(sz)  (((sz) + 0xffff) & ~(size_t)0xffff)
-#define SHHEAP_MIN_CHUNK        0x10000 //(1024*1024)
+#define SHHEAP_MIN_CHUNK        0x80000 //(1024*1024)
 #ifdef NDEBUG
 # define SHHEAP_CHECK()         do { } while (0)
 # define SHHEAP_CHECK_2()       do { } while (0)
@@ -160,7 +160,7 @@ int shheap_fork_copy_to_child(void *hChild)
         if (chld_chnk != chunk)
         {
             err = GetLastError();
-            fprintf(stderr, "shfork: VirtualAllocEx(,%p,%p,) -> %d\n", chunk, chunk->size, err);
+            fprintf(stderr, "shfork: VirtualAllocEx(,%p,%p,) -> %p/%d\n", chunk, chunk->size, chld_chnk, err);
             break;
         }
 
