@@ -264,7 +264,11 @@ initvar(shinstance *psh)
 	if (find_var(psh, "PS1", &vpp, &psh->vps1.name_len) == NULL) {
 		psh->vps1.next = *vpp;
 		*vpp = &psh->vps1;
+#ifdef KBUILD_VERSION_MAJOR
+		psh->vps1.text = sh_strdup(psh, sh_geteuid(psh) ? "PS1=kash$ " : "PS1=kash# ");
+#else
 		psh->vps1.text = sh_strdup(psh, sh_geteuid(psh) ? "PS1=$ " : "PS1=# ");
+#endif
 		psh->vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 }
