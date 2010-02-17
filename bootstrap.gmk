@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 2396 2010-02-17 10:52:05Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -215,7 +215,7 @@ $(OUTDIR)/ts-stage2-build: \
 		$(SRCDIR)/src/kmk/config.h.$(KBUILD_TARGET) \
                 $(SRCDIR)/src/sed/config.h.$(KBUILD_TARGET) \
 		$(OUTDIR)/kmk/kmk
-	$(OUTDIR)/kmk/kmk -C $(SRCDIR) KBUILD_BOOTSTRAP=1
+	$(OUTDIR)/kmk/kmk -C $(SRCDIR) KBUILD_BOOTSTRAP=1 BOOTSTRAP_SHELL=$(OUTDIR)/kmk/kmk_ash
 	echo done > $@
 
 $(OUTDIR)/ts-stage2-install: $(OUTDIR)/ts-stage2-build
