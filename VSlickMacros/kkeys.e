@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2388 2010-01-26 15:12:12Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2400 2010-03-07 14:08:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -23,6 +23,15 @@
  *
  */
 
+/*******************************************************************************
+*  Header Files                                                                *
+*******************************************************************************/
+#include 'slick.sh'
+
+
+/*******************************************************************************
+*  Global Variables                                                            *
+*******************************************************************************/
 defeventtab default_keys
 def  'A-UP'     = find_prev
 def  'A-DOWN'   = find_next
@@ -52,8 +61,11 @@ def  'M-DOWN'   = find_next
 def  'M-PGUP'   = prev_proc
 def  'M-PGDN'   = next_proc
 def  'M-d'      = delete_line
+def  'M-f'      = kkeys_open_file_menu
+def  'M-e'      = kkeys_open_edit_menu
 def  'M-o'      = kkeys_duplicate_line
 def  'M-s'      = kkeys_switch_lines
+def  'M-t'      = kkeys_open_tools_menu
 def  'M-u'      = undo_cursor
 def  'M-g'      = goto_line
 #if __VERSION__ >= 14.0
@@ -275,6 +287,28 @@ _command kkeys_gen_uuid()
 }
 #endif
 
+/** @name Mac OS X Hacks: Alt+[fet] -> drop down menu
+ *
+ * This only works when the alt menu hotkeys are enabled in the
+ * settings.  Al
+ *
+ * @{
+ */
+_command void kkeys_open_file_menu()
+{
+   call_key(A_F)
+}
+
+_command void kkeys_open_edit_menu()
+{
+   call_key(A_E)
+}
+
+_command void kkeys_open_tools_menu()
+{
+   call_key(A_T)
+}
+/** @} */
 
 void nop()
 {
