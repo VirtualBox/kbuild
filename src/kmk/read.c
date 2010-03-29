@@ -480,7 +480,12 @@ eval_makefile (const char *filename, int flags)
       {
         int stream_buf_size = 256*1024;
         if (st.st_size < stream_buf_size)
-          stream_buf_size = (st.st_size + 0xfff) & ~0xfff;
+          {
+            if (st.st_size)
+              stream_buf_size = (st.st_size + 0xfff) & ~0xfff;
+            else
+              stream_buf_size = 0x1000;
+          }
         stream_buf = xmalloc (stream_buf_size);
         setvbuf (ebuf.fp, stream_buf, _IOFBF, stream_buf_size);
       }
