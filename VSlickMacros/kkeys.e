@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2400 2010-03-07 14:08:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2407 2010-06-10 12:52:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -51,6 +51,8 @@ def  'C-PGUP'   = prev_window
 def  'C-PGDN'   = next_window
 def  'C-DEL'    = kkeys_delete_right
 #if __VERSION__ >= 14.0
+def  'C-/'      = kkeys_push_ref
+def  'S-C-/'    = push_ref
 def  'S-A-]'    = next_buff_tab
 def  'S-A-['    = prev_buff_tab
 def  'S-A-U'    = kkeys_gen_uuid
@@ -274,8 +276,47 @@ _command boxer_select()
    }
 }
 
-
 #if __VERSION__ >= 14.0
+
+/**
+ * Search for references only in the current workspace.
+ */
+_command kkeys_push_ref()
+{
+   if (_isEditorCtl())
+   {
+      sProjTagFile = project_tags_filename();
+      sLangId      = p_LangId;
+      if (sProjTagFile != '')
+      {
+
+         /* HACK ALERT: Make sure gtag_filelist_last_ext has the right value. */
+         _update_tag_filelist_ext(sLangId);
+
+         /* save */
+         boolean saved_gtag_filelist_cache_updated = gtag_filelist_cache_updated;
+         _str    saved_gtag_filelist_ext[]         = gtag_filelist_ext;
+
+         /* HACK ALERT: Replace the tag file list for this language. */
+         gtag_filelist_ext._makeempty();
+         gtag_filelist_ext[0] = sProjTagFile;
+         saved_gtag_filelist_cache_updated = true;
+
+         /* Do the reference searching. */
+         push_ref('-e ' :+ sLangId);
+
+         /* restore*/
+         gtag_filelist_cache_updated = saved_gtag_filelist_cache_updated;
+         gtag_filelist_ext           = saved_gtag_filelist_ext;
+      }
+      else
+         push_ref();
+   }
+   else
+      push_ref();
+}
+
+
 _command kkeys_gen_uuid()
 {
    _str uuid = guid_create_string('G');
@@ -285,7 +326,8 @@ _command kkeys_gen_uuid()
    _insert_text(uuid);
    kkeys_restore_cur_pos(lSavedCurPos);
 }
-#endif
+
+#endif /* >= 14.0 */
 
 /** @name Mac OS X Hacks: Alt+[fet] -> drop down menu
  *
