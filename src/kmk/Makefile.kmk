@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2351 2009-05-22 09:15:12Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2406 2010-06-10 09:55:29Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -215,12 +215,13 @@ kmk_SOURCES = \
 	vpath.c \
 	remote-stub.c
 
+kmk_LIBS.dragonfly = pthread
+
+kmk_LIBS.freebsd = pthread
+kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
+
 #kmk_LIBS.solaris = malloc
 #kmk_DEFS.solaris += HAVE_MALLINFO
-
-kmk_LIBS.freebsd.amd64 = pthread
-kmk_LIBS.freebsd.sparc64 = pthread
-kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
 #
 # kmkbuiltin commands
