@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2375 2010-01-12 23:42:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2409 2010-06-16 23:46:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -69,6 +69,7 @@
 #endif
 #if defined(__WIN__)
 # include <Windows.h>
+# include "quoted_spawn.h"
 #endif
 
 #include "crc32.h"
@@ -324,9 +325,51 @@ static char *MakePathFromDirAndFile(const char *pszName, const char *pszDir)
  * @returns 1 if equal, 0 otherwise.
  * @param   pszPath1    The first path.
  * @param   pszPath2    The second path.
+ */
+static int ArePathsIdentical(const char *pszPath1, const char *pszPath2)
+{
+#if defined(__OS2__) || defined(__WIN__)
+    if (stricmp(pszPath1, pszPath2))
+    {
+        /* Slashes may differ, compare char by char. */
+        const char *psz1 = pszPath1;
+        const char *psz2 = pszPath2;
+        for (;;)
+        {
+            if (*psz1 != *psz2)
+            {
+                if (    tolower(*psz1) != tolower(*psz2)
+                    &&  toupper(*psz1) != toupper(*psz2)
+                    &&  *psz1 != '/'
+                    &&  *psz1 != '\\'
+                    &&  *psz2 != '/'
+                    &&  *psz2 != '\\')
+                    return 0;
+            }
+            if (!*psz1)
+                break;
+            psz1++;
+            psz2++;
+        }
+    }
+    return 1;
+#else
+    return !strcmp(pszPath1, pszPath2);
+#endif
+}
+
+/**
+ * Compares two path strings to see if they are identical.
+ *
+ * This doesn't do anything fancy, just the case ignoring and
+ * slash unification.
+ *
+ * @returns 1 if equal, 0 otherwise.
+ * @param   pszPath1    The first path.
+ * @param   pszPath2    The second path.
  * @param   cch         The number of characters to compare.
  */
-static int ArePathsIdentical(const char *pszPath1, const char *pszPath2, size_t cch)
+static int ArePathsIdenticalN(const char *pszPath1, const char *pszPath2, size_t cch)
 {
 #if defined(__OS2__) || defined(__WIN__)
     if (strnicmp(pszPath1, pszPath2, cch))
@@ -334,7 +377,7 @@ static int ArePathsIdentical(const char *pszPath1, const char *pszPath2, size_t 
         /* Slashes may differ, compare char by char. */
         const char *psz1 = pszPath1;
         const char *psz2 = pszPath2;
-        for (;cch; psz1++, psz2++, cch--)
+        for ( ; cch; psz1++, psz2++, cch--)
         {
             if (*psz1 != *psz2)
             {
@@ -371,7 +414,7 @@ static char *CalcRelativeName(const char *pszPath, const char *pszDir)
     /*
      * This is indeed a bit tricky, so we'll try the easy way first...
      */
-    if (ArePathsIdentical(pszPath, pszDir, cchDir))
+    if (ArePathsIdenticalN(pszPath, pszDir, cchDir))
     {
         if (pszPath[cchDir])
             pszRet = (char *)pszPath + cchDir;
@@ -381,7 +424,7 @@ static char *CalcRelativeName(const char *pszPath, const char *pszDir)
     else
     {
         pszAbsPath = AbsPath(pszPath);
-        if (ArePathsIdentical(pszAbsPath, pszDir, cchDir))
+        if (ArePathsIdenticalN(pszAbsPath, pszDir, cchDir))
         {
             if (pszPath[cchDir])
                 pszRet = pszAbsPath + cchDir;
@@ -1143,7 +1186,7 @@ static void kOCEntryCalcArgvSum(PKOCENTRY pEntry, const char * const *papszArgv,
     {
         size_t cch = strlen(papszArgv[i]);
         if (    cch < cchIgnorePath
-            ||  !ArePathsIdentical(papszArgv[i] + cch - cchIgnorePath, pszIgnorePath, cch))
+            ||  !ArePathsIdenticalN(papszArgv[i] + cch - cchIgnorePath, pszIgnorePath, cch))
             kOCSumUpdate(pSum, &Ctx, papszArgv[i], cch + 1);
     }
     kOCSumFinalize(pSum, &Ctx);
@@ -1580,12 +1623,16 @@ static void kOCEntrySpawn(PCKOCENTRY pEntry, const char * const *papszArgv, unsi
     }
 
     errno = 0;
+# ifdef __WIN__
+    rc = quoted_spawnvp(_P_WAIT, papszArgv[0], papszArgv);
+# else
     rc = _spawnvp(_P_WAIT, papszArgv[0], papszArgv);
+# endif
     if (rc < 0)
         FatalDie("%s - _spawnvp failed (rc=0x%p): %s\n", pszMsg, rc, strerror(errno));
     if (rc > 0)
         FatalDie("%s - failed rc=%d\n", pszMsg, (int)rc);
-    if (fdStdOut)
+    if (fdStdOut != -1)
     {
         close(STDOUT_FILENO);
         fdStdOut = dup2(fdStdOut, STDOUT_FILENO);
@@ -1683,7 +1730,11 @@ static pid_t kOCEntrySpawnChild(PCKOCENTRY pEntry, const char * const *papszArgv
      */
 #if defined(__OS2__) || defined(__WIN__)
     errno = 0;
+# ifdef __WIN__
+    pid = quoted_spawnvp(_P_NOWAIT, papszArgv[0], papszArgv);
+# else
     pid = _spawnvp(_P_NOWAIT, papszArgv[0], papszArgv);
+# endif
     if (pid == -1)
         FatalDie("precompile - _spawnvp failed: %s\n", strerror(errno));
 
@@ -3489,7 +3540,7 @@ static void kObjCacheRemoveEntry(PKOBJCACHE pCache, PCKOCENTRY pEntry)
     {
         PKOCDIGEST pDigest = &pCache->paDigests[i];
         if (ArePathsIdentical(kOCDigestAbsPath(pDigest, pCache->pszDir),
-                              kOCEntryAbsPath(pEntry), ~0U))
+                              kOCEntryAbsPath(pEntry)))
         {
             unsigned cLeft;
             kOCDigestPurge(pDigest);
@@ -3795,7 +3846,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2375 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2409 $)\n"
                    "Copyright (c) 2007-2009  knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;

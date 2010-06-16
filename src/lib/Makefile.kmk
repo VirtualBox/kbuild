@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2409 2010-06-16 23:46:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -37,7 +37,9 @@ LIBRARIES += kUtil
 kUtil_TEMPLATE = LIB
 kUtil_DEFS.win = __WIN__
 kUtil_SOURCES = crc32.c md5.c
-kUtil_SOURCES.win = nt_fullpath.c
+kUtil_SOURCES.win = \
+	nt_fullpath.c \
+	quoted_spawn.c
 kUtil_NOINST = 1
 
 LIBRARIES.win += kWinStartup
