@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2407 2010-06-10 12:52:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2410 2010-06-21 12:17:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -51,6 +51,7 @@ def  'C-PGUP'   = prev_window
 def  'C-PGDN'   = next_window
 def  'C-DEL'    = kkeys_delete_right
 #if __VERSION__ >= 14.0
+def  'S-C-='    = svn_diff_with_base
 def  'C-/'      = kkeys_push_ref
 def  'S-C-/'    = push_ref
 def  'S-A-]'    = next_buff_tab
