@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2411 2010-06-27 23:29:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2412 2010-08-21 20:59:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -59,6 +59,7 @@ def  'S-A-['    = prev_buff_tab
 def  'S-A-U'    = kkeys_gen_uuid
 #endif
 /* For the mac (A/M mix, all except A-z): */
+def  'M-1'      = cursor_error
 def  'M-UP'     = find_prev
 def  'M-DOWN'   = find_next
 def  'M-PGUP'   = prev_proc
