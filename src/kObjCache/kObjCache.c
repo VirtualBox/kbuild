@@ -1,10 +1,10 @@
-/* $Id: kObjCache.c 2409 2010-06-16 23:46:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
 
 /*
- * Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -3846,7 +3846,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2409 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2413 $)\n"
                    "Copyright (c) 2007-2009  knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;

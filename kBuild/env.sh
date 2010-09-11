@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: env.sh 2347 2009-05-04 00:18:42Z knut.osmundsen@oracle.com $
+# $Id: env.sh 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
 
 #
-# Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+# Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #

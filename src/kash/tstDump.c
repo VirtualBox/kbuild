@@ -1,10 +1,10 @@
-/* $Id: tstDump.c 2376 2010-01-13 01:45:49Z knut.osmundsen@oracle.com $ */
+/* $Id: tstDump.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * tstDump - dump inherited file handle information on Windows.
  */
 
 /*
- * Copyright (c) 2010  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  *
  * This file is part of kBuild.

@@ -1,10 +1,10 @@
-/* $Id: shinstance.h 2392 2010-02-15 00:20:31Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
 
 /*
- * Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  *
  * This file is part of kBuild.

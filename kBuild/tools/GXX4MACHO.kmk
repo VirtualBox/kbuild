@@ -1,10 +1,10 @@
-# $Id: GXX4MACHO.kmk 2379 2010-01-13 22:20:22Z knut.osmundsen@oracle.com $
+# $Id: GXX4MACHO.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o, for building C++ code.
 #
 
 #
-# Copyright (c) 2004-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+# Copyright (c) 2004-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #

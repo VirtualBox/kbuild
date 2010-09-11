@@ -1,10 +1,10 @@
-/* $Id: shheap.c 2394 2010-02-15 00:58:58Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
 
 /*
- * Copyright (c) 2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2009-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  *
  * This file is part of kBuild.

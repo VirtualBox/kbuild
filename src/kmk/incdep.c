@@ -1,11 +1,11 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2283 2009-02-24 04:54:00Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
 
 /*
- * Copyright (c) 2007-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *

@@ -1,10 +1,10 @@
-/* $Id: quoted_spawn.c 2409 2010-06-16 23:46:56Z knut.osmundsen@oracle.com $ */
+/* $Id: quoted_spawn.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * quote_spawn - Correctly Quote The _spawnvp arguments, windows specific.
  */
 
 /*
- * Copyright (c) 2010 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *

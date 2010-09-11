@@ -1,9 +1,9 @@
-/* $Id: shfile.h 2307 2009-03-01 09:48:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
  *
- * Copyright (c) 2007-2009  knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  *
  * This file is part of kBuild.
