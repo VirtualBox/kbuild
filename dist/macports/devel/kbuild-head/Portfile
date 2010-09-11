@@ -1,11 +1,11 @@
-# $Id: Portfile 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $
+# $Id: Portfile 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
 # Very crude atm, everything is exec'ed.
 
 PortSystem 1.0
 name            kbuild-head
 version         9999
 categories      devel
-maintainers     bird-kBuild-spamix@anduin.net
+maintainers     bird-kBuild-spamx@anduin.net
 description     kBuild subversion trunk
 long_description \
     See http://svn.netlabs.org/kbuild (I'm lazy).

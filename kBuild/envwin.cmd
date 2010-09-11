@@ -1,11 +1,11 @@
 @echo off
-REM $Id: envwin.cmd 2348 2009-05-04 00:19:10Z knut.osmundsen@oracle.com $
+REM $Id: envwin.cmd 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
 REM REM @file
 REM Environment setup script.
 REM
 
 REM
-REM Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+REM Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 REM
 REM This file is part of kBuild.
 REM

@@ -1,10 +1,10 @@
-/* $Id: kdev.e 2399 2010-03-07 14:08:17Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
 
 /*
- * Copyright (c) 1999-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 1999-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *

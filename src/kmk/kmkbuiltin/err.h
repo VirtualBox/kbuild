@@ -1,10 +1,10 @@
-/* $Id: err.h 2243 2009-01-10 02:24:02Z knut.osmundsen@oracle.com $ */
+/* $Id: err.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h stuff so we get the program names right.
  */
 
 /*
- * Copyright (c) 2005-2009 knut st. osmundsen <bird-kBuild-spamix@anduin.net>
+ * Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
