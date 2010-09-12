@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 2414 2010-09-12 18:42:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -169,8 +169,8 @@ static void *open_file(const char *pszFilename, unsigned fText)
 #elif defined(_O_SEQUENTIAL)
     fFlags |= _O_SEQUENTIAL;
 #endif
-#ifdef _O_BINARY
-    if (!fText)     fFlags |= _O_BINARY;
+#ifdef O_BINARY
+    if (!fText)     fFlags |= O_BINARY;
 #elif defined(_O_BINARY)
     if (!fText)     fFlags |= _O_BINARY;
 #endif
