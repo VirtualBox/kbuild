@@ -56,6 +56,13 @@ void yyerror(const char *);
 #ifdef TESTARITH
 int main(int , char *[]);
 int error(char *);
+#else
+# undef  malloc
+# define malloc(cb)        sh_malloc(NULL, (cb))
+# undef  realloc
+# define realloc(pv,cb)    sh_realloc(NULL, (pv), (cb))
+# undef  free
+# define free(pv)          sh_free(NULL, (pv))
 #endif
 
 %}

@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2415 2010-09-13 23:13:20Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -172,7 +172,7 @@ typedef struct sh_dirent
 
 typedef struct shdir
 {
-    shfdtab    *shfdtab;
+    shfdtab    *pshfdtab;
     void       *native;
     shdirent    ent;
 } shdir;

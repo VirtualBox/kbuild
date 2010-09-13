@@ -1,4 +1,34 @@
+%option never-interactive
 %option noyywrap
+%option noinput
+%option nounput
+%option noyyget_out
+%option noyy_push_state
+%option noyy_pop_state
+%option noyy_top_state
+%option noyy_scan_buffer
+%option noyy_scan_bytes
+%option noyy_scan_string
+%option noyyget_extra
+%option noyyset_extra
+%option noyyget_leng
+%option noyyget_text
+%option noyyget_lineno
+%option noyyset_lineno
+%option noyyget_in
+%option noyyset_in
+%option noyyget_out
+%option noyyset_out
+%option noyyget_lval
+%option noyyset_lval
+%option noyyget_lloc
+%option noyyset_lloc
+%option noyyget_debug
+%option noyyset_debug
+%option noyyalloc
+%option noyyrealloc
+%option noyyfree
+/** @todo %option reentrant */
 %{
 /*	$NetBSD: arith_lex.l,v 1.13 2005/03/21 22:37:09 dsl Exp $	*/
 
@@ -42,6 +72,7 @@ __RCSID("$NetBSD: arith_lex.l,v 1.13 2005/03/21 22:37:09 dsl Exp $");
 #endif /* not lint */
 #endif
 
+#include <stdio.h>
 #include "arith.h"
 #include "error.h"
 #include "expand.h"
@@ -55,6 +86,25 @@ extern char *arith_buf, *arith_startbuf;
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
 #define YY_NO_UNPUT
+
+/* Avoid unnecessary libc bits. */
+#undef  ECHO
+#define ECHO \
+	do {} while (0)
+#undef  stdin
+#define stdin  \
+	NULL
+#undef  stdout
+#define stdout \
+	NULL
+#undef  fprintf
+#define fprintf(a, b, c) \
+	((void)0)
+#undef  exit
+#define exit(rc) \
+	do {} while (0)
+#define YY_FATAL_ERROR(msg) \
+	error(arith_psh, "arith: fatal error: %s", msg)
 %}
 
 %%
@@ -101,3 +151,22 @@ arith_lex_reset() {
 	YY_NEW_FILE;
 #endif
 }
+
+void *
+yyalloc(yy_size_t cb)
+{
+	return sh_malloc(NULL, cb);
+}
+
+void *
+yyrealloc(void *pv, yy_size_t cb)
+{
+	return sh_realloc(NULL, pv, cb);
+}
+
+void
+yyfree(void *pv)
+{
+	sh_free(NULL, pv);
+}
+

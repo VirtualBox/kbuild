@@ -109,6 +109,24 @@
 #define	CMD2_UBITS	0x10
 #undef  STANDARD_BITS
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
+#undef  SHMEMHDR_MAGIC_FREE
+#define SHMEMHDR_MAGIC_FREE     0xbeeff00d
+#undef  SHMEMHDR_MAGIC_USED
+#define SHMEMHDR_MAGIC_USED     0xfeedface
+#undef  SHMEMCHUNK_MAGIC
+#define SHMEMCHUNK_MAGIC        0x12345678
+#undef  SHHEAP_MIN_CHUNK
+#define SHHEAP_MIN_CHUNK        0x80000 //(1024*1024)
+#undef  SHFILE_MAX
+#define SHFILE_MAX          1024
+#undef  SHFILE_GROW
+#define SHFILE_GROW         64
+#undef  SHFILE_UNIX_MIN_FD
+#define SHFILE_UNIX_MIN_FD  32
+#undef  SHFILE_MAX_PATH
+#define SHFILE_MAX_PATH     4096
+#undef  YY_NO_UNPUT
+#define YY_NO_UNPUT
 
 
 
@@ -131,22 +149,22 @@ struct redirtab {
 void
 init(shinstance *psh) {
 
-      /* from exec.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/exec.c: */
       {
 	      hash_special_builtins(psh);
       }
 
-      /* from input.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/input.c: */
       {
 	      psh->basepf.nextc = psh->basepf.buf = psh->basebuf;
       }
 
-      /* from options.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/options.c: */
       {
 	      memcpy(&psh->optlist[0], &ro_optlist[0], sizeof(psh->optlist));
       }
 
-      /* from var.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/var.c: */
       {
 	      char **envp;
 
@@ -169,21 +187,21 @@ init(shinstance *psh) {
 void
 reset(shinstance *psh) {
 
-      /* from eval.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/eval.c: */
       {
 	      psh->evalskip = 0;
 	      psh->loopnest = 0;
 	      psh->funcnest = 0;
       }
 
-      /* from input.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/input.c: */
       {
 	      if (psh->exception != EXSHELLPROC)
 		      psh->parselleft = psh->parsenleft = 0;	/* clear input buffer */
 	      popallfiles(psh);
       }
 
-      /* from output.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/output.c: */
       {
 	      psh->out1 = &psh->output;
 	      psh->out2 = &psh->errout;
@@ -193,13 +211,13 @@ reset(shinstance *psh) {
 	      }
       }
 
-      /* from parser.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/parser.c: */
       {
 	      psh->tokpushback = 0;
 	      psh->checkkwd = 0;
       }
 
-      /* from redir.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/redir.c: */
       {
 	      while (psh->redirlist)
 		      popredir(psh);
@@ -215,27 +233,27 @@ reset(shinstance *psh) {
 void
 initshellproc(shinstance *psh) {
 
-      /* from alias.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/alias.c: */
       {
 	      rmaliases(psh);
       }
 
-      /* from eval.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/eval.c: */
       {
 	      psh->exitstatus = 0;
       }
 
-      /* from exec.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/exec.c: */
       {
 	      deletefuncs(psh);
       }
 
-      /* from input.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/input.c: */
       {
 	      popallfiles(psh);
       }
 
-      /* from jobs.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/jobs.c: */
       {
 	      psh->backgndpid = -1;
 #if JOBS
@@ -243,7 +261,7 @@ initshellproc(shinstance *psh) {
 #endif
       }
 
-      /* from options.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/options.c: */
       {
 	      int i;
 
@@ -253,12 +271,12 @@ initshellproc(shinstance *psh) {
 
       }
 
-      /* from redir.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/redir.c: */
       {
 	      clearredir(psh, 0);
       }
 
-      /* from trap.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/trap.c: */
       {
 	      char *sm;
 
@@ -269,7 +287,7 @@ initshellproc(shinstance *psh) {
 	      }
       }
 
-      /* from var.c: */
+      /* from /Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/var.c: */
       {
 	      shprocvar(psh);
       }
