@@ -1,6 +1,6 @@
-#line 2 "/home/bird/vax/gdrive/coding/kbuild/svn/trunk/out/linux.x86/release/obj/src/kash/arith_lex.c"
+#line 2 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/out/darwin.x86/release/obj/kash/arith_lex.c"
 
-#line 4 "/home/bird/vax/gdrive/coding/kbuild/svn/trunk/out/linux.x86/release/obj/src/kash/arith_lex.c"
+#line 4 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/out/darwin.x86/release/obj/kash/arith_lex.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -477,8 +477,10 @@ int yy_flex_debug = 0;
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
 char *yytext;
-#line 1 "arith_lex.l"
-#line 3 "arith_lex.l"
+#line 1 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
+#define YY_NO_INPUT 1
+/** @todo %option reentrant */
+#line 33 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 /*	$NetBSD: arith_lex.l,v 1.13 2005/03/21 22:37:09 dsl Exp $	*/
 
 /*-
@@ -521,6 +523,7 @@ __RCSID("$NetBSD: arith_lex.l,v 1.13 2005/03/21 22:37:09 dsl Exp $");
 #endif /* not lint */
 #endif
 
+#include <stdio.h>
 #include "arith.h"
 #include "error.h"
 #include "expand.h"
@@ -534,7 +537,20 @@ extern char *arith_buf, *arith_startbuf;
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
 #define YY_NO_UNPUT
-#line 538 "/home/bird/vax/gdrive/coding/kbuild/svn/trunk/out/linux.x86/release/obj/src/kash/arith_lex.c"
+
+/* Avoid unnecessary libc bits. */
+#undef  ECHO
+#define ECHO \
+	do {} while (0)
+#undef  stdin
+#define stdin  \
+	NULL
+#undef  stdout
+#define stdout \
+	NULL
+#define YY_FATAL_ERROR(msg) \
+	error(arith_psh, "arith: fatal error: %s", msg)
+#line 554 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/out/darwin.x86/release/obj/kash/arith_lex.c"
 
 #define INITIAL 0
 
@@ -564,8 +580,6 @@ extern int yywrap (void );
 #endif
 #endif
 
-    static void yyunput (int c,char *buf_ptr  );
-    
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char *,yyconst char *,int );
 #endif
@@ -687,9 +701,9 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
     
-#line 60 "arith_lex.l"
+#line 104 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 
-#line 693 "/home/bird/vax/gdrive/coding/kbuild/svn/trunk/out/linux.x86/release/obj/src/kash/arith_lex.c"
+#line 707 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/out/darwin.x86/release/obj/kash/arith_lex.c"
 
 	if ( !(yy_init) )
 		{
@@ -748,16 +762,12 @@ yy_match:
 			yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
 			++yy_cp;
 			}
-		while ( yy_base[yy_current_state] != 48 );
+		while ( yy_current_state != 38 );
+		yy_cp = (yy_last_accepting_cpos);
+		yy_current_state = (yy_last_accepting_state);
 
 yy_find_action:
 		yy_act = yy_accept[yy_current_state];
-		if ( yy_act == 0 )
-			{ /* have to back up */
-			yy_cp = (yy_last_accepting_cpos);
-			yy_current_state = (yy_last_accepting_state);
-			yy_act = yy_accept[yy_current_state];
-			}
 
 		YY_DO_BEFORE_ACTION;
 
@@ -775,27 +785,27 @@ do_action:	/* This label is used only to access EOF actions. */
 case 1:
 /* rule 1 can match eol */
 YY_RULE_SETUP
-#line 61 "arith_lex.l"
+#line 105 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { ; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 62 "arith_lex.l"
+#line 106 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 63 "arith_lex.l"
+#line 107 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 64 "arith_lex.l"
+#line 108 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { yylval = strtol(yytext, 0, 0); return(ARITH_NUM); }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 65 "arith_lex.l"
+#line 109 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { char *v = lookupvar(arith_psh, yytext);
 			if (v) {
 				yylval = strtol(v, &v, 0);
@@ -807,125 +817,125 @@ YY_RULE_SETUP
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 73 "arith_lex.l"
+#line 117 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_LPAREN); }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 74 "arith_lex.l"
+#line 118 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_RPAREN); }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 75 "arith_lex.l"
+#line 119 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_OR); }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 76 "arith_lex.l"
+#line 120 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_AND); }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 77 "arith_lex.l"
+#line 121 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_BOR); }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 78 "arith_lex.l"
+#line 122 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_BXOR); }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 79 "arith_lex.l"
+#line 123 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_BAND); }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 80 "arith_lex.l"
+#line 124 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_EQ); }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 81 "arith_lex.l"
+#line 125 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_NE); }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 82 "arith_lex.l"
+#line 126 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_GT); }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 83 "arith_lex.l"
+#line 127 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_GE); }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 84 "arith_lex.l"
+#line 128 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_LT); }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 85 "arith_lex.l"
+#line 129 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_LE); }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 86 "arith_lex.l"
+#line 130 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_LSHIFT); }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 87 "arith_lex.l"
+#line 131 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_RSHIFT); }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 88 "arith_lex.l"
+#line 132 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_MUL); }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 89 "arith_lex.l"
+#line 133 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_DIV); }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 90 "arith_lex.l"
+#line 134 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_REM); }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 91 "arith_lex.l"
+#line 135 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_ADD); }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 92 "arith_lex.l"
+#line 136 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_SUB); }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 93 "arith_lex.l"
+#line 137 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_BNOT); }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 94 "arith_lex.l"
+#line 138 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { return(ARITH_NOT); }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 95 "arith_lex.l"
+#line 139 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 { error(arith_psh, "arith: syntax error: \"%s\"", arith_startbuf); }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 96 "arith_lex.l"
+#line 140 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 ECHO;
 	YY_BREAK
-#line 929 "/home/bird/vax/gdrive/coding/kbuild/svn/trunk/out/linux.x86/release/obj/src/kash/arith_lex.c"
+#line 939 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/out/darwin.x86/release/obj/kash/arith_lex.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -992,7 +1002,8 @@ case YY_STATE_EOF(INITIAL):
 
 			else
 				{
-				yy_cp = (yy_c_buf_p);
+				yy_cp = (yy_last_accepting_cpos);
+				yy_current_state = (yy_last_accepting_state);
 				goto yy_find_action;
 				}
 			}
@@ -1246,43 +1257,6 @@ static int yy_get_next_buffer (void)
 	return yy_is_jam ? 0 : yy_current_state;
 }
 
-    static void yyunput (int c, register char * yy_bp )
-{
-	register char *yy_cp;
-    
-    yy_cp = (yy_c_buf_p);
-
-	/* undo effects of setting up yytext */
-	*yy_cp = (yy_hold_char);
-
-	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
-		{ /* need to shift things up to make room */
-		/* +2 for EOB chars. */
-		register int number_to_move = (yy_n_chars) + 2;
-		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
-					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
-		register char *source =
-				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move];
-
-		while ( source > YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
-			*--dest = *--source;
-
-		yy_cp += (int) (dest - source);
-		yy_bp += (int) (dest - source);
-		YY_CURRENT_BUFFER_LVALUE->yy_n_chars =
-			(yy_n_chars) = YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
-
-		if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
-			YY_FATAL_ERROR( "flex scanner push-back overflow" );
-		}
-
-	*--yy_cp = (char) c;
-
-	(yytext_ptr) = yy_bp;
-	(yy_hold_char) = *yy_cp;
-	(yy_c_buf_p) = yy_cp;
-}
-
 #ifndef YY_NO_INPUT
 #ifdef __cplusplus
     static int yyinput (void)
@@ -1331,7 +1305,7 @@ static int yy_get_next_buffer (void)
 				case EOB_ACT_END_OF_FILE:
 					{
 					if ( yywrap( ) )
-						return EOF;
+						return 0;
 
 					if ( ! (yy_did_buffer_switch_on_eof) )
 						YY_NEW_FILE;
@@ -1467,20 +1441,6 @@ static void yy_load_buffer_state  (void)
 	yyfree((void *) b  );
 }
 
-#ifndef _UNISTD_H /* assume unistd.h has isatty() for us */
-#ifdef __cplusplus
-extern "C" {
-#endif
-#ifdef __THROW /* this is a gnuism */
-extern int isatty (int ) __THROW;
-#else
-extern int isatty (int );
-#endif
-#ifdef __cplusplus
-}
-#endif
-#endif
-    
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
  * such as during a yyrestart() or at EOF.
@@ -1504,7 +1464,7 @@ extern int isatty (int );
         b->yy_bs_column = 0;
     }
 
-        b->yy_is_interactive = file ? (isatty( fileno(file) ) > 0) : 0;
+        b->yy_is_interactive = 0;
     
 	errno = oerrno;
 }
@@ -1630,92 +1590,6 @@ static void yyensure_buffer_stack (void)
 	}
 }
 
-/** Setup the input buffer state to scan directly from a user-specified character buffer.
- * @param base the character buffer
- * @param size the size in bytes of the character buffer
- * 
- * @return the newly allocated buffer state object. 
- */
-YY_BUFFER_STATE yy_scan_buffer  (char * base, yy_size_t  size )
-{
-	YY_BUFFER_STATE b;
-    
-	if ( size < 2 ||
-	     base[size-2] != YY_END_OF_BUFFER_CHAR ||
-	     base[size-1] != YY_END_OF_BUFFER_CHAR )
-		/* They forgot to leave room for the EOB's. */
-		return 0;
-
-	b = (YY_BUFFER_STATE) yyalloc(sizeof( struct yy_buffer_state )  );
-	if ( ! b )
-		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_buffer()" );
-
-	b->yy_buf_size = size - 2;	/* "- 2" to take care of EOB's */
-	b->yy_buf_pos = b->yy_ch_buf = base;
-	b->yy_is_our_buffer = 0;
-	b->yy_input_file = 0;
-	b->yy_n_chars = b->yy_buf_size;
-	b->yy_is_interactive = 0;
-	b->yy_at_bol = 1;
-	b->yy_fill_buffer = 0;
-	b->yy_buffer_status = YY_BUFFER_NEW;
-
-	yy_switch_to_buffer(b  );
-
-	return b;
-}
-
-/** Setup the input buffer state to scan a string. The next call to yylex() will
- * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
- * 
- * @return the newly allocated buffer state object.
- * @note If you want to scan bytes that may contain NUL values, then use
- *       yy_scan_bytes() instead.
- */
-YY_BUFFER_STATE yy_scan_string (yyconst char * yystr )
-{
-    
-	return yy_scan_bytes(yystr,strlen(yystr) );
-}
-
-/** Setup the input buffer state to scan the given bytes. The next call to yylex() will
- * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
- * 
- * @return the newly allocated buffer state object.
- */
-YY_BUFFER_STATE yy_scan_bytes  (yyconst char * yybytes, int  _yybytes_len )
-{
-	YY_BUFFER_STATE b;
-	char *buf;
-	yy_size_t n;
-	int i;
-    
-	/* Get memory for full buffer, including space for trailing EOB's. */
-	n = _yybytes_len + 2;
-	buf = (char *) yyalloc(n  );
-	if ( ! buf )
-		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_bytes()" );
-
-	for ( i = 0; i < _yybytes_len; ++i )
-		buf[i] = yybytes[i];
-
-	buf[_yybytes_len] = buf[_yybytes_len+1] = YY_END_OF_BUFFER_CHAR;
-
-	b = yy_scan_buffer(buf,n );
-	if ( ! b )
-		YY_FATAL_ERROR( "bad buffer in yy_scan_bytes()" );
-
-	/* It's okay to grow etc. this buffer, and we should throw it
-	 * away when we're done.
-	 */
-	b->yy_is_our_buffer = 1;
-
-	return b;
-}
-
 #ifndef YY_EXIT_FAILURE
 #define YY_EXIT_FAILURE 2
 #endif
@@ -1745,83 +1619,9 @@ static void yy_fatal_error (yyconst char* msg )
 
 /* Accessor  methods (get/set functions) to struct members. */
 
-/** Get the current line number.
- * 
- */
-int yyget_lineno  (void)
-{
-        
-    return yylineno;
-}
-
-/** Get the input stream.
- * 
- */
-FILE *yyget_in  (void)
-{
-        return yyin;
-}
-
-/** Get the output stream.
- * 
- */
-FILE *yyget_out  (void)
-{
-        return yyout;
-}
-
-/** Get the length of the current token.
- * 
- */
-int yyget_leng  (void)
-{
-        return yyleng;
-}
-
 /** Get the current token.
  * 
  */
-
-char *yyget_text  (void)
-{
-        return yytext;
-}
-
-/** Set the current line number.
- * @param line_number
- * 
- */
-void yyset_lineno (int  line_number )
-{
-    
-    yylineno = line_number;
-}
-
-/** Set the input stream. This does not discard the current
- * input buffer.
- * @param in_str A readable stream.
- * 
- * @see yy_switch_to_buffer
- */
-void yyset_in (FILE *  in_str )
-{
-        yyin = in_str ;
-}
-
-void yyset_out (FILE *  out_str )
-{
-        yyout = out_str ;
-}
-
-int yyget_debug  (void)
-{
-        return yy_flex_debug;
-}
-
-void yyset_debug (int  bdebug )
-{
-        yy_flex_debug = bdebug ;
-}
 
 static int yy_init_globals (void)
 {
@@ -1897,31 +1697,9 @@ static int yy_flex_strlen (yyconst char * s )
 }
 #endif
 
-void *yyalloc (yy_size_t  size )
-{
-	return (void *) malloc( size );
-}
-
-void *yyrealloc  (void * ptr, yy_size_t  size )
-{
-	/* The cast to (char *) in the following accommodates both
-	 * implementations that use char* generic pointers, and those
-	 * that use void* generic pointers.  It works with the latter
-	 * because both ANSI C and C++ allow castless assignment from
-	 * any pointer type to void*, and deal with argument conversions
-	 * as though doing an assignment.
-	 */
-	return (void *) realloc( (char *) ptr, size );
-}
-
-void yyfree (void * ptr )
-{
-	free( (char *) ptr );	/* see yyrealloc() for (char *) cast */
-}
-
 #define YYTABLES_NAME "yytables"
 
-#line 96 "arith_lex.l"
+#line 140 "/Volumes/ScratchHFS/bird/kBuild/svn/trunk/src/kash/arith_lex.l"
 
 
 
@@ -1931,4 +1709,23 @@ arith_lex_reset() {
 	YY_NEW_FILE;
 #endif
 }
+
+void *
+yyalloc(yy_size_t cb)
+{
+	return sh_malloc(NULL, cb);
+}
+
+void *
+yyrealloc(void *pv,yy_size_t cb)
+{
+	return sh_realloc(NULL, pv, cb);
+}
+
+void
+yyfree(void *pv)
+{
+	sh_free(NULL, pv);
+}
+
 

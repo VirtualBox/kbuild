@@ -45,13 +45,15 @@
 #define CMDSPLBLTIN	3	/* command is a special shell builtin */
 
 
+union param {
+        int index;
+        int (*bltin)(struct shinstance*, int, char**);
+        union node *func;
+};
+
 struct cmdentry {
 	int cmdtype;
-	union param {
-		int index;
-		int (*bltin)(struct shinstance*, int, char**);
-		union node *func;
-	} u;
+        union param u;
 };
 
 
