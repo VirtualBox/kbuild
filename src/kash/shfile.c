@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2417 2010-09-14 00:42:43Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1519,7 +1519,7 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
                                 GENERIC_READ,
                                 FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 &SecurityAttributes,
-                                OPEN_ALWAYS,
+                                OPEN_EXISTING,
                                 FILE_ATTRIBUTE_DIRECTORY | FILE_FLAG_BACKUP_SEMANTICS,
                                 NULL /* hTemplateFile */);
             if (hFile != INVALID_HANDLE_VALUE)
