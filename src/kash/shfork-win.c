@@ -5,6 +5,7 @@
 *******************************************************************************/
 #include <string.h>
 #include <locale.h>
+#include <assert.h>
 #include "shinstance.h"
 #include <Windows.h>
 
@@ -28,14 +29,16 @@ static void *g_stack_limit = 0;
 static void *shfork_string_to_ptr(const char *str, const char *argv0, const char *what);
 
 /* in shforkA-win.asm: */
+extern pid_t shfork_do_it(shinstance *psh);
 extern void shfork_resume(void *cur, void *base, void *limit);
 
 /* called by shforkA-win.asm: */
 void *shfork_maybe_forked(int argc, char **argv, char **envp);
 extern int shfork_body(shinstance *psh, void *stack_ptr);
+extern void init_syntax(void);
 
 
-/***
+/**
  * Called by shforkA-win.asm to check whether we're a forked child
  * process or not.
  *
@@ -63,10 +66,9 @@ void *shfork_maybe_forked(int argc, char **argv, char **envp)
         ||  strcmp(argv[6], "--stack-limit"))
     {
         char *stack;
-        shheap_init();
-        stack = (char *)sh_malloc(NULL, SHFORK_STACK_SIZE) + SHFORK_STACK_SIZE;
-        g_stack_base = stack + SHFORK_STACK_SIZE;
-        g_stack_limit = stack;
+        shheap_init(NULL);
+        g_stack_limit = stack = (char *)sh_malloc(NULL, SHFORK_STACK_SIZE);
+        g_stack_base = stack += SHFORK_STACK_SIZE;
         return stack;
     }
 
@@ -82,6 +84,8 @@ void *shfork_maybe_forked(int argc, char **argv, char **envp)
     stack_ptr     = shfork_string_to_ptr(argv[3], argv[0], "--stack-address");
     g_stack_base  = shfork_string_to_ptr(argv[5], argv[0], "--stack-base");
     g_stack_limit = shfork_string_to_ptr(argv[7], argv[0], "--stack-limit");
+    assert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
+    assert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
 
     /*
      * Switch stack and jump to the fork resume point.
@@ -136,7 +140,28 @@ static void *shfork_string_to_ptr(const char *str, const char *argv0, const char
     return (void *)ptr;
 }
 
-/***
+/**
+ * Do the fork.
+ * @returns same as fork().
+ * @param   psh             The shell that's forking.
+ */
+int shfork_do(shinstance *psh)
+{
+    /* save globals */
+    void *pheap_head = shheap_get_head();
+    pid_t pid = shfork_do_it(psh);
+    if (pid == 0)
+    {
+        /* reinit stuff, only the heap is copied! */
+        shthread_set_shell(psh);
+        shheap_init(pheap_head);
+        setlocale(LC_ALL, "");
+        init_syntax();
+    }
+    return pid;
+}
+
+/**
  * Create the child process making sure it inherits all our handles,
  * copy of the forkable heap and kick it off.
  *
@@ -155,6 +180,9 @@ int shfork_body(shinstance *psh, void *stack_ptr)
     char szCmdLine[1024+256];
     DWORD cch;
     int rc = 0;
+
+    assert((uintptr_t)stack_ptr < (uintptr_t)g_stack_base);
+    assert((uintptr_t)stack_ptr > (uintptr_t)g_stack_limit);
 
     /*
      * Mark all handles inheritable and get the three standard handles.
@@ -177,6 +205,7 @@ int shfork_body(shinstance *psh, void *stack_ptr)
         cch += sprintf(&szCmdLine[cch], " --!forked!-- --stack-address %p --stack-base %p --stack-limit %p",
                        stack_ptr, g_stack_base, g_stack_limit);
         szCmdLine[cch+1] = '\0';
+        TRACE2((NULL, "shfork_body: szCmdLine=%s\n", szCmdLine));
 
         memset(&StrtInfo, '\0', sizeof(StrtInfo)); /* just in case. */
         StrtInfo.cb = sizeof(StrtInfo);

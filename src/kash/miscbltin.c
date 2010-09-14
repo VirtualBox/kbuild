@@ -107,7 +107,7 @@ readcmd(shinstance *psh, int argc, char **argv)
 			rflag = 1;
 	}
 
-	if (prompt && isatty(0)) {
+	if (prompt && shfile_isatty(&psh->fdtab, 0)) {
 		out2str(psh, prompt);
 		output_flushall(psh);
 	}

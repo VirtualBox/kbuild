@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -38,7 +38,13 @@
 # ifndef PIPE_BUF
 #  define PIPE_BUF 512
 # endif
+# include <ntstatus.h>
+# define WIN32_NO_STATUS
 # include <Windows.h>
+# if !defined(_WIN32_WINNT)
+#  define _WIN32_WINNT 0x0502 /* Windows Server 2003 */
+# endif
+# include <winternl.h> //NTSTATUS
 #else
 # include <unistd.h>
 # include <fcntl.h>
@@ -85,9 +91,9 @@
 # define FTEXT              0x80
 
 # define MY_ObjectBasicInformation 0
-typedef LONG (NTAPI * PFN_NtQueryObject)(HANDLE, int, void *, size_t, size_t *);
+# define MY_FileNamesInformation 12
 
-typedef struct MY_OBJECT_BASIC_INFORMATION
+typedef struct
 {
     ULONG           Attributes;
 	ACCESS_MASK     GrantedAccess;
@@ -102,6 +108,46 @@ typedef struct MY_OBJECT_BASIC_INFORMATION
 	LARGE_INTEGER   CreateTime;
 } MY_OBJECT_BASIC_INFORMATION;
 
+#if 0
+typedef struct
+{
+    union
+    {
+        LONG    Status;
+        PVOID   Pointer;
+    };
+    ULONG_PTR   Information;
+} MY_IO_STATUS_BLOCK;
+#else
+typedef IO_STATUS_BLOCK MY_IO_STATUS_BLOCK;
+#endif
+typedef MY_IO_STATUS_BLOCK *PMY_IO_STATUS_BLOCK;
+
+typedef struct
+{
+    ULONG   NextEntryOffset;
+    ULONG   FileIndex;
+    ULONG   FileNameLength;
+    WCHAR   FileName[1];
+} MY_FILE_NAMES_INFORMATION, *PMY_FILE_NAMES_INFORMATION;
+
+typedef NTSTATUS (NTAPI * PFN_NtQueryObject)(HANDLE, int, void *, size_t, size_t *);
+typedef NTSTATUS (NTAPI * PFN_NtQueryDirectoryFile)(HANDLE, HANDLE, void *,  void *, PMY_IO_STATUS_BLOCK, void *,
+                                                    ULONG, int, int, PUNICODE_STRING, int);
+typedef NTSTATUS (NTAPI * PFN_RtlUnicodeStringToAnsiString)(PANSI_STRING, PCUNICODE_STRING, int);
+
+
+#endif /* K_OS_WINDOWS */
+
+
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+#if K_OS == K_OS_WINDOWS
+static int                              g_shfile_globals_initialized = 0;
+static PFN_NtQueryObject                g_pfnNtQueryObject = NULL;
+static PFN_NtQueryDirectoryFile         g_pfnNtQueryDirectoryFile = NULL;
+static PFN_RtlUnicodeStringToAnsiString g_pfnRtlUnicodeStringToAnsiString = NULL;
 #endif /* K_OS_WINDOWS */
 
 
@@ -386,26 +432,37 @@ static int shfile_dos2errno(int err)
     return -1;
 }
 
+/**
+ * Converts an NT status code to errno,
+ * assigning it to errno.
+ *
+ * @returns -1
+ * @param   rcNt        The NT status code.
+ */
+static int shfile_nt2errno(NTSTATUS rcNt)
+{
+    switch (rcNt)
+    {
+        default:                            errno = EINVAL; break;
+    }
+    return -1;
+}
+
 DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
 {
-    static PFN_NtQueryObject        s_pfnNtQueryObject = NULL;
     MY_OBJECT_BASIC_INFORMATION     BasicInfo;
-    LONG                            Status;
+    NTSTATUS                        rcNt;
 
-    if (!s_pfnNtQueryObject)
-    {
-        s_pfnNtQueryObject = (PFN_NtQueryObject)GetProcAddress(GetModuleHandle("NTDLL"), "NtQueryObject");
-        if (!s_pfnNtQueryObject)
-            return ERROR_NOT_SUPPORTED;
-    }
+    if (!g_pfnNtQueryObject)
+        return ERROR_NOT_SUPPORTED;
 
-    Status = s_pfnNtQueryObject(h, MY_ObjectBasicInformation, &BasicInfo, sizeof(BasicInfo), NULL);
-    if (Status >= 0)
+    rcNt = g_pfnNtQueryObject(h, MY_ObjectBasicInformation, &BasicInfo, sizeof(BasicInfo), NULL);
+    if (rcNt >= 0)
     {
         *pMask = BasicInfo.GrantedAccess;
         return NO_ERROR;
     }
-    if (Status != STATUS_INVALID_HANDLE)
+    if (rcNt != STATUS_INVALID_HANDLE)
         return ERROR_GEN_FAILURE;
     return ERROR_INVALID_HANDLE;
 }
@@ -413,6 +470,28 @@ DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
 # endif /* K_OS == K_OS_WINDOWS */
 
 #endif /* SHFILE_IN_USE */
+
+/**
+ * Initializes the global variables in this file.
+ */
+static void shfile_init_globals(void)
+{
+#if K_OS == K_OS_WINDOWS
+    if (!g_shfile_globals_initialized)
+    {
+        HMODULE hNtDll = GetModuleHandle("NTDLL");
+        g_pfnNtQueryObject                = (PFN_NtQueryObject)       GetProcAddress(hNtDll, "NtQueryObject");
+        g_pfnNtQueryDirectoryFile         = (PFN_NtQueryDirectoryFile)GetProcAddress(hNtDll, "NtQueryDirectoryFile");
+        g_pfnRtlUnicodeStringToAnsiString = (PFN_RtlUnicodeStringToAnsiString)GetProcAddress(hNtDll, "RtlUnicodeStringToAnsiString");
+        if (   !g_pfnRtlUnicodeStringToAnsiString
+            || !g_pfnNtQueryDirectoryFile)
+        {
+            /* fatal error */
+        }
+        g_shfile_globals_initialized = 1;
+    }
+#endif
+}
 
 /**
  * Initializes a file descriptor table.
@@ -425,6 +504,8 @@ DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
 int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
 {
     int rc;
+
+    shfile_init_globals();
 
     pfdtab->cwd  = NULL;
     pfdtab->size = 0;
@@ -1416,11 +1497,50 @@ void shfile_set_umask(shfdtab *pfdtab, mode_t mask)
 }
 
 
+
 shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 {
 #ifdef SHFILE_IN_USE
-    errno = ENOSYS;
-    return NULL;
+    shdir  *pdir = NULL;
+
+    if (g_pfnNtQueryDirectoryFile)
+    {
+        char abspath[SHFILE_MAX_PATH];
+        if (shfile_make_path(pfdtab, dir, &abspath[0]) == 0)
+        {
+            HANDLE              hFile;
+            SECURITY_ATTRIBUTES SecurityAttributes;
+
+            SecurityAttributes.nLength = sizeof(SecurityAttributes);
+            SecurityAttributes.lpSecurityDescriptor = NULL;
+            SecurityAttributes.bInheritHandle = FALSE;
+
+            hFile = CreateFileA(abspath,
+                                GENERIC_READ,
+                                FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                &SecurityAttributes,
+                                OPEN_ALWAYS,
+                                FILE_ATTRIBUTE_DIRECTORY | FILE_FLAG_BACKUP_SEMANTICS,
+                                NULL /* hTemplateFile */);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                pdir = (shdir *)sh_malloc(shthread_get_shell(), sizeof(*pdir));
+                if (pdir)
+                {
+                    pdir->pfdtab = pfdtab;
+                    pdir->native = hFile;
+                    pdir->off    = ~(size_t)0;
+                }
+                else
+                    CloseHandle(hFile);
+            }
+            else
+                shfile_dos2errno(GetLastError());
+        }
+    }
+    else
+        errno = ENOSYS;
+    return pdir;
 #else
     return (shdir *)opendir(dir);
 #endif
@@ -1429,7 +1549,64 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 shdirent *shfile_readdir(struct shdir *pdir)
 {
 #ifdef SHFILE_IN_USE
-    errno = ENOSYS;
+    if (pdir)
+    {
+        NTSTATUS rcNt;
+
+        if (   pdir->off == ~(size_t)0
+            || pdir->off + sizeof(MY_FILE_NAMES_INFORMATION) >= pdir->cb)
+        {
+            MY_IO_STATUS_BLOCK Ios;
+
+            memset(&Ios, 0, sizeof(Ios));
+            rcNt = g_pfnNtQueryDirectoryFile(pdir->native,
+                                             NULL /*Event*/,
+                                             NULL /*ApcRoutine*/,
+                                             NULL /*ApcContext*/,
+                                             &Ios,
+                                             &pdir->buf[0],
+                                             sizeof(pdir->buf),
+                                             MY_FileNamesInformation,
+                                             FALSE /*ReturnSingleEntry*/,
+                                             NULL /*FileName*/,
+                                             pdir->off == ~(size_t)0 /*RestartScan*/);
+            if (rcNt >= 0 && rcNt != STATUS_PENDING)
+            {
+                pdir->cb  = Ios.Information;
+                pdir->off = 0;
+            }
+            else if (rcNt == STATUS_NO_MORE_FILES)
+                errno = 0; /* wrong? */
+            else
+                shfile_nt2errno(rcNt);
+        }
+
+        if (   pdir->off != ~(size_t)0
+            && pdir->off + sizeof(MY_FILE_NAMES_INFORMATION) <= pdir->cb)
+        {
+            PMY_FILE_NAMES_INFORMATION  pcur = (PMY_FILE_NAMES_INFORMATION)&pdir->buf[pdir->off];
+            ANSI_STRING                 astr;
+            UNICODE_STRING              ustr;
+
+            astr.Length = astr.MaximumLength = sizeof(pdir->ent.name);
+            astr.Buffer = &pdir->ent.name[0];
+
+            ustr.Length = ustr.MaximumLength = pcur->FileNameLength < ~(USHORT)0 ? (USHORT)pcur->FileNameLength : ~(USHORT)0;
+            ustr.Buffer = &pcur->FileName[0];
+
+            rcNt = g_pfnRtlUnicodeStringToAnsiString(&astr, &ustr, 0/*AllocateDestinationString*/);
+            if (rcNt < 0)
+                sprintf(pdir->ent.name, "conversion-failed-%08x-rcNt=%08x-len=%u",
+                        pcur->FileIndex, rcNt, pcur->FileNameLength);
+            if (pcur->NextEntryOffset)
+                pdir->off += pcur->NextEntryOffset;
+            else
+                pdir->off = pdir->cb;
+            return &pdir->ent;
+        }
+    }
+    else
+        errno = EINVAL;
     return NULL;
 #else
     struct dirent *pde = readdir((DIR *)pdir);
@@ -1440,7 +1617,15 @@ shdirent *shfile_readdir(struct shdir *pdir)
 void shfile_closedir(struct shdir *pdir)
 {
 #ifdef SHFILE_IN_USE
-    errno = ENOSYS;
+    if (pdir)
+    {
+        CloseHandle(pdir->native);
+        pdir->pfdtab = NULL;
+        pdir->native = INVALID_HANDLE_VALUE;
+        sh_free(shthread_get_shell(), pdir);
+    }
+    else
+        errno = EINVAL;
 #else
     closedir((DIR *)pdir);
 #endif
