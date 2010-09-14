@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -41,7 +41,7 @@
 
 #if K_OS == K_OS_WINDOWS
 # include <Windows.h>
-extern pid_t shfork_do_it(shinstance *psh); /* shforkA-win.asm */
+extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
 #endif
 
 
@@ -897,9 +897,7 @@ pid_t sh_fork(shinstance *psh)
     TRACE2((psh, "sh_fork\n"));
 
 #if K_OS == K_OS_WINDOWS //&& defined(SH_FORKED_MODE)
-    pid = shfork_do_it(psh);
-    if (pid == 0)
-        shthread_set_shell(psh);
+    pid = shfork_do(psh);
 
 #elif defined(SH_FORKED_MODE)
 # ifdef _MSC_VER

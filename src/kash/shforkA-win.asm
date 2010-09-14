@@ -1,4 +1,4 @@
-; $Id: shforkA-win.asm 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+; $Id: shforkA-win.asm 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $
 ;; @file
 ; shforkA-win.asm - assembly routines used when forking on Windows.
 ;
@@ -120,7 +120,7 @@ global NAME(main)
         mov     rdx, [rbp - 10h]        ; argv
         mov     r8,  [rbp - 18h]        ; envp
 
-        lea     rsp, [eax - 40h]        ; Switch!
+        lea     rsp, [rax - 40h]        ; Switch!
 %else
         mov     [esp + 18h], eax
         mov     [eax - 4], esp

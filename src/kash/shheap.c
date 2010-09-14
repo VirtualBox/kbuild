@@ -1,4 +1,4 @@
-/* $Id: shheap.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shheap.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell memory heap methods.
  */
@@ -122,12 +122,13 @@ static shmemchunk  *g_sh_heap;
 #endif
 
 
-int shheap_init(void)
+int shheap_init(void *phead)
 {
     int rc;
 #ifdef SHHEAP_IN_USE
     SHHEAP_ASSERT(SHHEAP_ALIGN(sizeof(shmemhdr)) == sizeof(shmemhdr));
     rc = shmtx_init(&g_sh_heap_mtx);
+    g_sh_heap = (shmemchunk *)phead; /* non-zero on fork() */
 #else
     rc = 0;
 #endif
@@ -137,6 +138,17 @@ int shheap_init(void)
 #ifdef SHHEAP_IN_USE
 
 # if K_OS == K_OS_WINDOWS
+
+/**
+ * Get the head so the child can pass it to shheap_init() after fork().
+ *
+ * @returns g_sh_heap.
+ */
+void *shheap_get_head(void)
+{
+    return g_sh_heap;
+}
+
 /**
  * Copies the heap into the child process.
  *
@@ -179,8 +191,8 @@ int shheap_fork_copy_to_child(void *hChild)
     errno = EINVAL;
     return -1;
 }
-# endif
 
+# endif /* K_OS == K_OS_WINDOWS */
 
 /**
  * Checks a heap chunk.
