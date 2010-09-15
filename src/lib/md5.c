@@ -19,18 +19,10 @@
 #include "md5.h"
 #define uint32 uint32_t
 
-#if 0 /* don't need 100% correct md5, just fast md5. */
-#ifdef sgi
-#define HIGHFIRST
-#endif
+#include "k/kDefs.h"
 
-#ifdef sun
-#define HIGHFIRST
-#endif
-#endif /* skip this */
-
-#ifndef HIGHFIRST
-#define byteReverse(buf, len)	/* Nothing */
+#if K_ENDIAN == K_ENDIAN_LITTLE
+# define byteReverse(buf, len)	do { /* Nothing */ } while (0)
 #else
 /*
  * Note: this code is harmless on little-endian machines.
@@ -111,7 +103,7 @@ void MD5Update(struct MD5Context *ctx, const unsigned char *buf, unsigned len)
 }
 
 /*
- * Final wrapup - pad to 64-byte boundary with the bit pattern 
+ * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void MD5Final(unsigned char digest[16], struct MD5Context *ctx)
