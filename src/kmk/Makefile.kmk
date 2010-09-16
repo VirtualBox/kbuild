@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2419 2010-09-16 22:14:54Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -403,9 +403,9 @@ PROGRAMS += kmk_gmake
 kmk_gmake_TEMPLATE = BIN-KMK
 kmk_gmake_DEFS = \
 	HAVE_CONFIG_H \
-	NO_ARCHIVES \
 	CONFIG_WITH_TOUPPER_TOLOWER \
 	EXPERIMENTAL
+#	NO_ARCHIVES 
 
 kmk_gmake_SOURCES = \
 	main.c \
