@@ -99,7 +99,7 @@ static int	usage(FILE *);
 
 extern void bsd_strmode(mode_t mode, char *p);
 
-#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__)
+#if !defined(__FreeBSD__) && !defined(__APPLE__) && !defined(__DragonFly__) && !defined(__OpenBSD__)
 # ifdef __OS2__
 static
 # endif
