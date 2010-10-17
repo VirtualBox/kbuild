@@ -47,6 +47,8 @@ kmk_ash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kmk_ash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kmk_ash_DEFS.openbsd = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kmk_ash_INCS = $(PATH_kmk_ash) . # (the last is because of error.h)
 kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug?
 kmk_ash_INCS.win = win

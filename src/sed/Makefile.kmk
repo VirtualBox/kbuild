@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2422 2010-10-17 21:28:35Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -63,6 +63,10 @@ kmk_sed_SOURCES.dragonfly = \
 	lib/obstack.c \
 	lib/getline.c
 kmk_sed_SOURCES.freebsd = \
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
+kmk_sed_SOURCES.openbsd = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c
