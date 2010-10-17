@@ -515,6 +515,7 @@ opentrace(shinstance *psh)
 			}
 			want_fd = ((want_fd + 1) / 2) - 1;
 		}
+		shfile_cloexec(&psh->fdtab, psh->tracefd, 1 /* close it */);
 	}
 	if (psh->tracefd == -1) {
 		fprintf(stderr, "Can't open %s\n", s);
