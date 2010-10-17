@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1079,8 +1079,11 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         }
     }
     rc = -1;
+
 # else
-    rc = execve(exe, (char **)argv, (char **)envp);
+    rc = shfile_exec_unix(&psh->fdtab);
+    if (!rc)
+        rc = execve(exe, (char **)argv, (char **)envp);
 # endif
 
 #else

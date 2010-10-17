@@ -382,3 +382,33 @@ copyfd(shinstance *psh, int from, int to)
 	}
 	return newfd;
 }
+
+
+/*
+ * Copy a file descriptor to be = to.  Returns -1
+ * if the source file descriptor is closed, EMPTY if there are no unused
+ * file descriptors left.
+ */
+
+int
+copyfd2(shinstance *psh, int from, int to)
+{
+	int newfd;
+
+	/** @todo Use dup2()... */
+	newfd = shfile_fcntl(&psh->fdtab, from, F_DUPFD, to);
+	if (newfd < 0) {
+		if (errno == EMFILE)
+			return EMPTY;
+		else
+			error(psh, "%d: %s", from, strerror(errno));
+	}
+	else if (newfd != to) {
+		error(psh, "%d: F_DUPFD returned %d, expected %d", from, newfd, to);
+		close(newfd);
+		newfd = -1;
+	}
+
+	return newfd;
+}
+

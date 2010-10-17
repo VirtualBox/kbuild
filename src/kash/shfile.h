@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2416 2010-09-14 00:30:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -131,6 +131,7 @@ typedef struct shfdtab
 int shfile_init(shfdtab *, shfdtab *);
 void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls);
 void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intptr_t *hndls);
+int shfile_exec_unix(shfdtab *pfdtab);
 
 int shfile_open(shfdtab *, const char *, unsigned, mode_t);
 int shfile_pipe(shfdtab *, int [2]);

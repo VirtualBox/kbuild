@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -30,8 +30,8 @@ include $(KBUILD_PATH)/subheader.kmk
 # The program.
 #
 PROGRAMS += kash
-kash_TEMPLATE = BIN
-kash_NAME.win = kmk_ash
+kash_TEMPLATE = BIN-THREADED
+kash_NAME = kmk_ash
 kash_ASTOOL = YASM
 kash_DEFS = lint SHELL SMALL
 kash_DEFS += SH_FORKED_MODE
@@ -49,6 +49,8 @@ kash_DEFS.darwin = \
 kash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_DEFS.freebsd = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kash_DEFS.openbsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_INCS = $(kash_0_OUTDIR) . # (the last is because of error.h)
 kash_ASFLAGS.win = -g cv8

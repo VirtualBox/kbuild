@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash tests.
 #
@@ -23,7 +23,7 @@
 #
 #
 
-SUB_DEPTH = ../..
+SUB_DEPTH = ../../..
 include $(KBUILD_PATH)/subheader.kmk
 
 #
@@ -32,7 +32,7 @@ include $(KBUILD_PATH)/subheader.kmk
 
 TESTING += kash_tests
 
-KASH_TEST_BIN   = $(if $(kash_1_TARGET),$(kash_1_TARGET),$(PATH_INS)/$(TEMPLATE_BIN_INST)kash$(SUFF_EXE))
+KASH_TEST_BIN   = $(if $(kash_1_TARGET),$(kash_1_TARGET),$(PATH_INS)/$(TEMPLATE_BIN_INST)kmk_ash$(SUFF_EXE))
 KASH_TEST_DIR  := $(PATH_SUB_CURRENT)
 KASH_TESTCASES := $(addprefix $(KASH_TEST_DIR)/,\
 	trap-exit-1 \
@@ -44,6 +44,7 @@ KASH_TESTCASES := $(addprefix $(KASH_TEST_DIR)/,\
 	redirect-3 \
 	pipe-1 \
 	pipe-2 \
+	exec-1 \
 	)
 
 
