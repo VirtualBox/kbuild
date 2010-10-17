@@ -67,7 +67,7 @@ extern void * bsd_setmode(const char *p);
 extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 extern void bsd_strmode(mode_t mode, char *p);
 
-#if defined(__APPLE__) && !defined(_DARWIN_FEATURE_UNIX_CONFORMANCE)
+#if (defined(__APPLE__) && !defined(_DARWIN_FEATURE_UNIX_CONFORMANCE)) || defined(__OpenBSD__)
 extern int lchmod(const char *, mode_t);
 #endif
 

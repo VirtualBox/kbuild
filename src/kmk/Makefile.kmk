@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2419 2010-09-16 22:14:54Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2421 2010-10-17 21:27:53Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -31,7 +31,7 @@ include $(KBUILD_PATH)/subheader.kmk
 # Template for kmk and the kmk_* binaries in this makefile.
 #
 TEMPLATE_BIN-KMK = Template for src/gmake binaries
-TEMPLATE_BIN-KMK_EXTENDS = BIN
+TEMPLATE_BIN-KMK_EXTENDS = BIN-THREADED
 TEMPLATE_BIN-KMK_DEFS = \
 	HAVE_CONFIG_H \
 	$(TEMPLATE_BIN_DEFS) \
@@ -51,19 +51,20 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 	$(PATH_kmk)/grp.h \
 	$(PATH_kmk)/pwd.h \
 	$(PATH_kmk)/inttypes.h
-TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN_CFLAGS.win.amd64) -wd4244 -wd4267
+TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN-THREADED_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
-TEMPLATE_BIN-KMK_INCS = $(PATH_kmk) . $(TEMPLATE_BIN_INCS)
+TEMPLATE_BIN-KMK_INCS = $(PATH_kmk) . $(TEMPLATE_BIN-THREADED_INCS)
 TEMPLATE_BIN-KMK_INCS.darwin = glob
 TEMPLATE_BIN-KMK_INCS.dragonfly = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
+TEMPLATE_BIN-KMK_INCS.openbsd = glob
 TEMPLATE_BIN-KMK_INCS.solaris = glob
-TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN_LIBS) $(TARGET_kmkmissing) $(LIB_KUTIL)
+TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(TARGET_kmkmissing) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 ifeq ($(KBUILD_TARGET),win)
- TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) /FI$(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
+ TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) /FI$(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
 else
- TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN_CFLAGS) -include $(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
+ TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) -include $(kmk_PATH)/electric.h -DELECTRIC_HEAP=1
 endif
 endif
 
@@ -102,6 +103,10 @@ kmkmissing_SOURCES.freebsd = \
 
 kmkmissing_SOURCES.linux += \
 	kmkbuiltin/strlcpy.c
+
+kmkmissing_SOURCES.openbsd = \
+	kmkbuiltin/openbsd.c \
+	glob/glob.c
 
 kmkmissing_SOURCES.solaris = \
 	kmkbuiltin/strlcpy.c \
@@ -215,9 +220,6 @@ kmk_SOURCES = \
 	vpath.c \
 	remote-stub.c
 
-kmk_LIBS.dragonfly = pthread
-
-kmk_LIBS.freebsd = pthread
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
 #kmk_LIBS.solaris = malloc
