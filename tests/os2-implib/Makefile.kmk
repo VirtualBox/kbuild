@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 2420 2010-10-17 00:33:38Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z bird $
 ## @file
-# Tests - Top Level Makefile.
+# Tests - OS/2 import library.
 #
 
 #
-# Copyright (c) 2008-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -25,14 +25,14 @@
 #
 
 
+DEPTH = ../..
 include $(PATH_KBUILD)/header.kmk
+ifeq ($(KBUILD_HOST),os2)
 
-SUBDIRS = \
-	inherit-target \
-	inherit-bld \
-	inherit-misc \
+LIBRARIES = os2-implib-1
+os2-implib-1_TOOL = GCC3OMF
+os2-implib-1_SOURCES = os2-implib.def
 
-SUBDIRS.os2 = \
-	os2-impdef
-
+endif
 include $(FILE_KBUILD_FOOTER)
+
