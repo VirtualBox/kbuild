@@ -510,16 +510,12 @@ evalpipe(shinstance *psh, union node *n)
 		if (forkshell(psh, jp, lp->n, n->npipe.backgnd ? FORK_BG : FORK_FG) == 0) {
 			INTON;
 			if (prevfd > 0) {
-				shfile_close(&psh->fdtab, 0);
-				copyfd(psh, prevfd, 0);
-				shfile_close(&psh->fdtab, prevfd);
+				movefd(psh, prevfd, 0);
 			}
 			if (pip[1] >= 0) {
 				shfile_close(&psh->fdtab, pip[0]);
 				if (pip[1] != 1) {
-					shfile_close(&psh->fdtab, 1);
-					copyfd(psh, pip[1], 1);
-					shfile_close(&psh->fdtab, pip[1]);
+					movefd(psh, pip[1], 1);
 				}
 			}
 			evaltree(psh, lp->n, EV_EXIT);
@@ -581,9 +577,7 @@ evalbackcmd(shinstance *psh, union node *n, struct backcmd *result)
 			FORCEINTON;
 			shfile_close(&psh->fdtab, pip[0]);
 			if (pip[1] != 1) {
-				shfile_close(&psh->fdtab, 1);
-				copyfd(psh, pip[1], 1);
-				shfile_close(&psh->fdtab, pip[1]);
+				movefd(psh, pip[1], 1);
 			}
 			eflag(psh) = 0;
 			evaltree(psh, n, EV_EXIT);
@@ -910,9 +904,7 @@ normal_fork:
 			}
 			shfile_close(&psh->fdtab, pip[0]);
 			if (pip[1] != 1) {
-				shfile_close(&psh->fdtab, 1);
-				copyfd(psh, pip[1], 1);
-				shfile_close(&psh->fdtab, pip[1]);
+				movefd(psh, pip[1], 1);
 			}
 		}
 		flags |= EV_EXIT;

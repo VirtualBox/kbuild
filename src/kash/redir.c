@@ -232,8 +232,7 @@ openredirect(shinstance *psh, union node *redir, char memory[10], int flags)
 	}
 
 	if (f != fd) {
-		copyfd(psh, f, fd);
-		shfile_close(&psh->fdtab, f);
+		movefd(psh, f, fd);
 	}
 	INTON;
 	return;
@@ -301,10 +300,10 @@ popredir(shinstance *psh)
 		if (rp->renamed[i] != EMPTY) {
                         if (i == 0)
                                 psh->fd0_redirected--;
-			shfile_close(&psh->fdtab, i);
 			if (rp->renamed[i] >= 0) {
-				copyfd(psh, rp->renamed[i], i);
-				shfile_close(&psh->fdtab, rp->renamed[i]);
+				movefd(psh, rp->renamed[i], i);
+			} else {
+				shfile_close(&psh->fdtab, i);
 			}
 		}
 	}
@@ -377,38 +376,50 @@ copyfd(shinstance *psh, int from, int to)
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
-		else
-			error(psh, "%d: %s", from, strerror(errno));
+		error(psh, "%d: %s", from, strerror(errno));
 	}
 	return newfd;
 }
 
 
 /*
- * Copy a file descriptor to be = to.  Returns -1
+ * Move a file descriptor to be == to.  Returns -1
  * if the source file descriptor is closed, EMPTY if there are no unused
  * file descriptors left.
  */
 
 int
-copyfd2(shinstance *psh, int from, int to)
+movefd(shinstance *psh, int from, int to)
 {
 	int newfd;
 
-	/** @todo Use dup2()... */
-	newfd = shfile_fcntl(&psh->fdtab, from, F_DUPFD, to);
+	newfd = shfile_movefd(&psh->fdtab, from, to);
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
-		else
-			error(psh, "%d: %s", from, strerror(errno));
+		error(psh, "%d: %s", from, strerror(errno));
 	}
-	else if (newfd != to) {
-		error(psh, "%d: F_DUPFD returned %d, expected %d", from, newfd, to);
-		close(newfd);
-		newfd = -1;
-	}
+	return newfd;
+}
 
+
+/*
+ * Move a file descriptor to be >= to.  Returns -1
+ * if the source file descriptor is closed, EMPTY if there are no unused
+ * file descriptors left.
+ */
+
+int
+movefd_above(shinstance *psh, int from, int to)
+{
+	int newfd;
+
+	newfd = shfile_movefd_above(&psh->fdtab, from, to);
+	if (newfd < 0) {
+		if (errno == EMFILE)
+			return EMPTY;
+		error(psh, "%d: %s", from, strerror(errno));
+	}
 	return newfd;
 }
 

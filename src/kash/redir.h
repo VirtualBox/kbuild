@@ -45,4 +45,6 @@ void popredir(struct shinstance *);
 int fd0_redirected_p(struct shinstance *);
 void clearredir(struct shinstance *, int);
 int copyfd(struct shinstance *, int, int);
+int movefd(struct shinstance *, int, int);
+int movefd_above(struct shinstance *, int, int);
 

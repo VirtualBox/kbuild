@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2424 2010-10-18 08:52:03Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -64,6 +64,7 @@
  || !defined(SH_FORKED_MODE)
 # define SHFILE_IN_USE
 #endif
+# define SHFILE_IN_USE
 /** The max file table size. */
 #define SHFILE_MAX          1024
 /** The file table growth rate. */
@@ -175,6 +176,46 @@ static void shfile_native_close(intptr_t native, unsigned flags)
 }
 
 /**
+ * Grows the descriptor table, making sure that it can hold @a fdMin,
+ *
+ * @returns The max(fdMin, fdFirstNew) on success, -1 on failure.
+ * @param   pfdtab      The table to grow.
+ * @param   fdMin       Grow to include this index.
+ */
+static int shfile_grow_tab_locked(shfdtab *pfdtab, int fdMin)
+{
+    /*
+     * Grow the descriptor table.
+     */
+    int         fdRet = -1;
+    shfile     *new_tab;
+    int         new_size = pfdtab->size + SHFILE_GROW;
+    while (new_size < fdMin)
+        new_size += SHFILE_GROW;
+    new_tab = sh_realloc(shthread_get_shell(), pfdtab->tab, new_size * sizeof(shfile));
+    if (new_tab)
+    {
+        int     i;
+        for (i = pfdtab->size; i < new_size; i++)
+        {
+            new_tab[i].fd = -1;
+            new_tab[i].oflags = 0;
+            new_tab[i].shflags = 0;
+            new_tab[i].native = -1;
+        }
+
+        fdRet = pfdtab->size;
+        if (fdRet < fdMin)
+            fdRet = fdMin;
+
+        pfdtab->tab = new_tab;
+        pfdtab->size = new_size;
+    }
+
+    return fdRet;
+}
+
+/**
  * Inserts the file into the descriptor table.
  *
  * If we're out of memory and cannot extend the table, we'll close the
@@ -218,41 +259,14 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
      * Search for a fitting unused location.
      */
     fd = -1;
-    for (i = 0; (unsigned)i < pfdtab->size; i++)
-        if (    i >= fdMin
-            &&  pfdtab->tab[i].fd == -1)
+    for (i = fdMin >= 0 ? fdMin : 0; (unsigned)i < pfdtab->size; i++)
+        if (pfdtab->tab[i].fd == -1)
         {
             fd = i;
             break;
         }
     if (fd == -1)
-    {
-        /*
-         * Grow the descriptor table.
-         */
-        shfile     *new_tab;
-        int         new_size = pfdtab->size + SHFILE_GROW;
-        while (new_size < fdMin)
-            new_size += SHFILE_GROW;
-        new_tab = sh_realloc(shthread_get_shell(), pfdtab->tab, new_size * sizeof(shfile));
-        if (new_tab)
-        {
-            for (i = pfdtab->size; i < new_size; i++)
-            {
-                new_tab[i].fd = -1;
-                new_tab[i].oflags = 0;
-                new_tab[i].shflags = 0;
-                new_tab[i].native = -1;
-            }
-
-            fd = pfdtab->size;
-            if (fd < fdMin)
-                fd = fdMin;
-
-            pfdtab->tab = new_tab;
-            pfdtab->size = new_size;
-        }
-    }
+        fd = shfile_grow_tab_locked(pfdtab, fdMin);
 
     /*
      * Fill in the entry if we've found one.
@@ -1133,6 +1147,122 @@ int shfile_dup(shfdtab *pfdtab, int fd)
 }
 
 /**
+ * Move the file descriptor, closing any existing descriptor at @a fdto.
+ *
+ * @returns fdto on success, -1 and errno on failure.
+ * @param   pfdtab          The file descriptor table.
+ * @param   fdfrom          The descriptor to move.
+ * @param   fdto            Where to move it.
+ */
+int shfile_movefd(shfdtab *pfdtab, int fdfrom, int fdto)
+{
+#ifdef SHFILE_IN_USE
+    int         rc;
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fdfrom, &tmp);
+    if (file)
+    {
+        /* prepare the new entry */
+        if (fdto >= (int)pfdtab->size)
+            shfile_grow_tab_locked(pfdtab, fdto);
+        if (fdto < (int)pfdtab->size)
+        {
+            if (pfdtab->tab[fdto].fd != -1)
+                shfile_native_close(pfdtab->tab[fdto].native, pfdtab->tab[fdto].oflags);
+
+            /* setup the target. */
+            pfdtab->tab[fdto].fd      = fdto;
+            pfdtab->tab[fdto].oflags  = file->oflags;
+            pfdtab->tab[fdto].shflags = file->shflags;
+            pfdtab->tab[fdto].native  = file->native;
+
+            /* close the source. */
+            file->fd        = -1;
+            file->oflags    = 0;
+            file->shflags   = 0;
+            file->native    = -1;
+
+            rc = fdto;
+        }
+        else
+        {
+            errno = EMFILE;
+            rc = -1;
+        }
+
+        shfile_put(pfdtab, file, &tmp);
+    }
+    else
+        rc = -1;
+    return rc;
+
+#else
+    return dup2(fdfrom, fdto);
+#endif
+}
+
+/**
+ * Move the file descriptor to somewhere at @a fdMin or above.
+ *
+ * @returns the new file descriptor success, -1 and errno on failure.
+ * @param   pfdtab          The file descriptor table.
+ * @param   fdfrom          The descriptor to move.
+ * @param   fdMin           The minimum descriptor.
+ */
+int shfile_movefd_above(shfdtab *pfdtab, int fdfrom, int fdMin)
+{
+#ifdef SHFILE_IN_USE
+    int         fdto;
+    shmtxtmp    tmp;
+    shfile     *file = shfile_get(pfdtab, fdfrom, &tmp);
+    if (file)
+    {
+        /* find a new place */
+        int i;
+        fdto = -1;
+        for (i = fdMin; (unsigned)i < pfdtab->size; i++)
+            if (pfdtab->tab[i].fd == -1)
+            {
+                fdto = i;
+                break;
+            }
+        if (fdto == -1)
+            fdto = shfile_grow_tab_locked(pfdtab, fdMin);
+        if (fdto != -1)
+        {
+            /* setup the target. */
+            pfdtab->tab[fdto].fd      = fdto;
+            pfdtab->tab[fdto].oflags  = file->oflags;
+            pfdtab->tab[fdto].shflags = file->shflags;
+            pfdtab->tab[fdto].native  = file->native;
+
+            /* close the source. */
+            file->fd        = -1;
+            file->oflags    = 0;
+            file->shflags   = 0;
+            file->native    = -1;
+        }
+        else
+        {
+            errno = EMFILE;
+            fdto = -1;
+        }
+
+        shfile_put(pfdtab, file, &tmp);
+    }
+    else
+        fdto = -1;
+    return fdto;
+
+#else
+    int fdnew = fcntl(fdfrom, F_DUPFD, fdMin);
+    if (fdnew >= 0)
+        close(fdfrom);
+    return fdnew;
+#endif
+}
+
+/**
  * close().
  */
 int shfile_close(shfdtab *pfdtab, unsigned fd)
@@ -1157,12 +1287,6 @@ int shfile_close(shfdtab *pfdtab, unsigned fd)
         rc = -1;
 
 #else
-    fsync(fd);
-    {
-        struct stat s;
-        fstat(fd, &s);
-        TRACE2((NULL, "shfile_close(%d) - %lu bytes\n", fd, (long)s.st_size));
-    }
     rc = close(fd);
 #endif
 
@@ -1429,9 +1553,9 @@ int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
  */
 int shfile_chdir(shfdtab *pfdtab, const char *path)
 {
-    shinstance *psh = shthread_get_shell();
     int         rc;
 #ifdef SHFILE_IN_USE
+    shinstance *psh = shthread_get_shell();
     char        abspath[SHFILE_MAX_PATH];
 
     rc = shfile_make_path(pfdtab, path, &abspath[0]);
@@ -1458,7 +1582,7 @@ int shfile_chdir(shfdtab *pfdtab, const char *path)
     rc = chdir(path);
 #endif
 
-    TRACE2((psh, "shfile_chdir(,%s) -> %d [%d]\n", path, rc, errno));
+    TRACE2((NULL, "shfile_chdir(,%s) -> %d [%d]\n", path, rc, errno));
     return rc;
 }
 

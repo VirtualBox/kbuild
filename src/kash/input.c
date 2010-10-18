@@ -407,8 +407,7 @@ setinputfile(shinstance *psh, const char *fname, int push)
 	if ((fd = shfile_open(&psh->fdtab, fname, O_RDONLY, 0)) < 0)
 		error(psh, "Can't open %s", fname);
 	if (fd < 10) {
-		fd2 = copyfd(psh, fd, 10);
-		shfile_close(&psh->fdtab, fd);
+		fd2 = movefd_above(psh, fd, 10);
 		if (fd2 < 0)
 			error(psh, "Out of file descriptors");
 		fd = fd2;
