@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2424 2010-10-18 08:52:03Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2425 2010-10-18 08:52:22Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -64,7 +64,6 @@
  || !defined(SH_FORKED_MODE)
 # define SHFILE_IN_USE
 #endif
-# define SHFILE_IN_USE
 /** The max file table size. */
 #define SHFILE_MAX          1024
 /** The file table growth rate. */
