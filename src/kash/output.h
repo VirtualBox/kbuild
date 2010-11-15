@@ -38,6 +38,13 @@
 
 #include <stdarg.h>
 
+/* The stupid, stupid, unix specification guys added dprintf to stdio.h!
+   Wonder what kind of weed they were smoking when doing that... */
+#include <stdio.h>
+#undef dprintf
+#define dprintf mydprintf
+
+
 struct output {
 	char *nextc;
 	int nleft;
