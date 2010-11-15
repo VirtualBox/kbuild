@@ -2087,7 +2087,7 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
       unsigned int l;
       char termin = *line == '(' ? ',' : *line;
 #ifdef CONFIG_WITH_VALUE_LENGTH
-      char *buf_pos;
+      char *s1_end, *s2_end;
 #endif
 
       if (termin != ',' && termin != '"' && termin != '\'')
@@ -2140,8 +2140,7 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
       s1 = alloca (l + 1);
       memcpy (s1, s2, l + 1);
 #else
-      s1 = variable_expand_string_2 (NULL, s1, l, &buf_pos);
-      ++buf_pos;
+      s1 = variable_expand_string_2 (NULL, s1, l, &s1_end);
 #endif
 
       if (termin != ',')
@@ -2192,10 +2191,9 @@ conditional_line (char *line, char *eol, int len, const struct floc *flocp)
 #ifndef CONFIG_WITH_VALUE_LENGTH
       s2 = variable_expand (s2);
 #else
-      if ((size_t)buf_pos & 7)
-        buf_pos = variable_buffer_output (buf_pos, "\0\0\0\0\0\0\0\0",
-                                          8 - ((size_t)buf_pos & 7));
-      s2 = variable_expand_string_2 (buf_pos, s2, l, &buf_pos);
+      s2 = variable_expand_string_2 (s1_end + 1, s2, l, &s2_end);
+      if (s2 != s1_end + 1)
+        s1 += s2 - s1_end - 1;  /* the variable buffer was reallocated */
 #endif
 #ifdef CONFIG_WITH_SET_CONDITIONALS
       if (cmdtype == c_if1of || cmdtype == c_ifn1of)
