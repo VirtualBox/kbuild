@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2429 2010-11-16 15:20:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -985,199 +985,28 @@ endif
 # However it does eat a good deal of memory.
 #
 
-if1of ($(KMK_FEATURES), kb-exp-tmpl)
- $(kb-exp-tmpl 1,$(_ALL_TARGET_TARGETS),$(KBUILD_TARGET),$(KBUILD_TARGET_ARCH),$(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
- $(kb-exp-tmpl 1,$(_ALL_HOST_TARGETS),$(KBUILD_HOST),$(KBUILD_HOST_ARCH),$(KBUILD_HOST_CPU),$(KBUILD_TYPE))
+define def_inherit_template_workaround_target
+local _tmpl         := $(firstword $($(target)_TEMPLATE) $(TEMPLATE))
+local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
+local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(tmpl)_BLD_TRG)      $(KBUILD_TARGET))
+local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(tmpl)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(tmpl)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
+$(kb-exp-tmpl 1,$(target),$(_bld_trg),$(_bld_trg_arch),$(_bld_trg_cpu),$(_bld_type))
+endef # def_inherit_template_workaround_target
+#$(kb-exp-tmpl 1,$(_ALL_TARGET_TARGETS),$(KBUILD_TARGET),$(KBUILD_TARGET_ARCH),$(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
+$(foreach target,$(_ALL_TARGET_TARGETS),$(evalval def_inherit_template_workaround_target))
 
-else  # !kb-exp-tmpl
+define def_inherit_template_workaround_host
+local _tmpl         := $(firstword $($(target)_TEMPLATE) $(TEMPLATE))
+local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
+local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(tmpl)_BLD_TRG)      $(KBUILD_HOST))
+local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(tmpl)_BLD_TRG_ARCH) $(KBUILD_HOST_ARCH))
+local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(tmpl)_BLD_TRG_CPU)  $(KBUILD_HOST_CPU))
+$(kb-exp-tmpl 1,$(target),$(_bld_trg),$(_bld_trg_arch),$(_bld_trg_cpu),$(_bld_type))
+endef # def_inherit_template_workaround_target
+#$(kb-exp-tmpl 1,$(_ALL_HOST_TARGETS),$(KBUILD_HOST),$(KBUILD_HOST_ARCH),$(KBUILD_HOST_CPU),$(KBUILD_TYPE))
+$(foreach target,$(_ALL_HOST_TARGETS),$(evalval def_inherit_template_workaround_host))
 
-## Inherit one template property in a non-accumulative manner.
-# @param    $(prop)     Property name
-# @param    $(target)	Target name
-# @todo fix the precedence order for some properties.
-define def_inherit_template_one
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-ifndef $(target)_$(prop)
-$(target)_$(prop) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-ifndef $(target)_$(prop).$(bld_trg)
-$(target)_$(prop).$(bld_trg) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-ifndef $(target)_$(prop).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg_arch) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-ifndef $(target)_$(prop).$(bld_trg_cpu)
-$(target)_$(prop).$(bld_trg_cpu) := $(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
-endif
-endif
-endef
-
-## Inherit one template property in a non-accumulative manner, deferred expansion.
-# @param    1: $(prop)     Property name
-# @param    2: $(target)	Target name
-# @todo fix the precedence order for some properties.
-# @remark this define relies on double evaluation
-define def_inherit_template_one_deferred
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
-ifndef $(target)_$(prop)
-$(target)_$(prop) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
-ifndef $(target)_$(prop).$(bld_trg)
-$(target)_$(prop).$(bld_trg) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
-ifndef $(target)_$(prop).$(bld_trg).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
-ifndef $(target)_$(prop).$(bld_trg_arch)
-$(target)_$(prop).$(bld_trg_arch) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
-endif
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
-ifndef $(target)_$(prop).$(bld_trg_cpu)
-$(target)_$(prop).$(bld_trg_cpu) = $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
-endif
-endif
-endef
-
-## Inherit one acculumlative template property where the 'most significant' items are at the left end.
-# @param    $(prop)     Property name
-# @param    $(target)	Target name
-define def_inherit_template_one_accumulate_l
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
- ifeq ($$(flavor $(target)_$(prop)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
- endif
-$(target)_$(prop) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
- ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
- endif
-$(target)_$(prop).$(KBUILD_TYPE) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
- endif
-$(target)_$(prop).$(bld_trg) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
- endif
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
- endif
-$(target)_$(prop).$(bld_trg_cpu) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
- endif
-$(target)_$(prop).$(bld_trg_arch) += $$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
-endif
-endef
-
-## Inherit one acculumlative template property where the 'most significant' items are at the right end.
-# @param    $(prop)     Property name
-# @param    $(target)	Target name
-define def_inherit_template_one_accumulate_r
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop)
- ifeq ($$(flavor $(target)_$(prop)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop))
- endif
-$(target)_$(prop) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE)
- ifeq ($$(flavor $(target)_$(prop).$(KBUILD_TYPE)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(KBUILD_TYPE))
- endif
-$(target)_$(prop).$(KBUILD_TYPE) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(KBUILD_TYPE))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg))
- endif
-$(target)_$(prop).$(bld_trg) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg).$(bld_trg_arch)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg).$(bld_trg_arch))
- endif
-$(target)_$(prop).$(bld_trg).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg).$(bld_trg_arch))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg_cpu)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_cpu))
- endif
-$(target)_$(prop).$(bld_trg_cpu) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_cpu))
-endif
-ifdef TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch)
- ifeq ($$(flavor $(target)_$(prop).$(bld_trg_arch)),simple)
- $$(evalcall2 def_simple_2_recursive,$(target)_$(prop).$(bld_trg_arch))
- endif
-$(target)_$(prop).$(bld_trg_arch) <=$$(TEMPLATE_$($(target)_TEMPLATE)_$(prop).$(bld_trg_arch))
-endif
-endef
-
-
-## Inherit template properties for on target.
-# @param    $(target)    Target name.
-define def_inherit_template
-# sanity check.
-ifdef _$(target)_ALREADY_PROCESSED
- $(error kBuild: The target $(target) appears more than once in the target lists! Please correct the makefile(s))
-endif
-_$(target)_ALREADY_PROCESSED := 1
-
-# Inherit any default template.
-ifdef TEMPLATE
-ifeq ($($(target)_TEMPLATE),)
-$(eval $(target)_TEMPLATE:=$(TEMPLATE))
-endif
-endif
-# Expand the template if specified.
-ifneq ($($(target)_TEMPLATE),)
-$(foreach prop,$(PROPS_SINGLE),$(evalval def_inherit_template_one))
-$(foreach prop,$(PROPS_DEFERRED),$(eval $(def_inherit_template_one_deferred))) # exploits the 2 evaluation, so no value!
-$(foreach prop,$(PROPS_ACCUMULATE_L),$(eval $(def_inherit_template_one_accumulate_l))) # += works fine without value
-$(foreach prop,$(PROPS_ACCUMULATE_R),$(eval $(def_inherit_template_one_accumulate_r))) # use <= (kmk addition)
-endif
-endef
-$(eval-opt-var def_inherit_template)
-
-# Inherit template properties
-bld_trg := $(KBUILD_TARGET)
-bld_trg_arch := $(KBUILD_TARGET_ARCH)
-bld_trg_cpu := $(KBUILD_TARGET_CPU)
-$(foreach target, $(_ALL_TARGET_TARGETS),$(evalval def_inherit_template))
-
-bld_trg := $(KBUILD_HOST)
-bld_trg_arch := $(KBUILD_HOST_ARCH)
-bld_trg_cpu := $(KBUILD_HOST_CPU)
-$(foreach target, $(_ALL_HOST_TARGETS),$(evalval def_inherit_template))
-
-endif # !kb-exp-tmpl
 ifdef KBUILD_PROFILE_SELF
  $(evalcall def_profile_self, done template/target expansion)
 endif
