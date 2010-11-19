@@ -1,4 +1,4 @@
-# $Id: GXX4MACHO.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: GXX4MACHO.kmk 2431 2010-11-19 11:06:42Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o, for building C++ code.
 #
@@ -135,6 +135,7 @@ define TOOL_GXX4MACHO_COMPILE_C_CMDS
 		$(flags) -fpreprocessed -x c\
 		-o $(obj)\
 		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else  # !KBUILD_USE_KOBJCACHE
 TOOL_GXX4MACHO_COMPILE_C_OUTPUT =
@@ -144,6 +145,7 @@ define TOOL_GXX4MACHO_COMPILE_C_CMDS
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 endif # !KUSE_OBJCACHE
 
@@ -177,6 +179,7 @@ define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
 		$(flags) -fpreprocessed -x c++\
 		-o $(obj)\
 		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else  # !KBUILD_USE_KOBJCACHE
 TOOL_GXX4MACHO_COMPILE_CXX_OUTPUT =
@@ -186,6 +189,7 @@ define TOOL_GXX4MACHO_COMPILE_CXX_CMDS
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 endif # !KUSE_OBJCACHE
 
@@ -219,6 +223,7 @@ define TOOL_GXX4MACHO_COMPILE_OBJC_CMDS
 		$(flags) -fpreprocessed -x objective-c \
 		-o $(obj)\
 		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else  # !KBUILD_USE_KOBJCACHE
 TOOL_GXX4MACHO_COMPILE_OBJC_OUTPUT =
@@ -228,6 +233,7 @@ define TOOL_GXX4MACHO_COMPILE_OBJC_CMDS
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 endif # !KUSE_OBJCACHE
 
@@ -261,6 +267,7 @@ define TOOL_GXX4MACHO_COMPILE_OBJCXX_CMDS
 		$(flags) -fpreprocessed -x objective-c++ \
 		-o $(obj)\
 		-
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else  # !KBUILD_USE_KOBJCACHE
 TOOL_GXX4MACHO_COMPILE_OBJCXX_OUTPUT =
@@ -270,6 +277,7 @@ define TOOL_GXX4MACHO_COMPILE_OBJCXX_CMDS
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 endif # !KUSE_OBJCACHE
 
@@ -296,6 +304,7 @@ define TOOL_GXX4MACHO_COMPILE_AS_CMDS
 		-Wp,-MD,$(dep) -Wp,-MT,$(obj) -Wp,-MP\
 		-o $(obj)\
 		$(abspath $(source))
+	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 
 
