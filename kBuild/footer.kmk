@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2429 2010-11-16 15:20:59Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2432 2010-11-29 16:50:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -987,10 +987,10 @@ endif
 
 define def_inherit_template_workaround_target
 local _tmpl         := $(firstword $($(target)_TEMPLATE) $(TEMPLATE))
-local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
-local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(tmpl)_BLD_TRG)      $(KBUILD_TARGET))
-local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(tmpl)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
-local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(tmpl)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
+local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(_tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
+local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(_tmpl)_BLD_TRG)      $(KBUILD_TARGET))
+local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(_tmpl)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH))
+local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(_tmpl)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 $(kb-exp-tmpl 1,$(target),$(_bld_trg),$(_bld_trg_arch),$(_bld_trg_cpu),$(_bld_type))
 endef # def_inherit_template_workaround_target
 #$(kb-exp-tmpl 1,$(_ALL_TARGET_TARGETS),$(KBUILD_TARGET),$(KBUILD_TARGET_ARCH),$(KBUILD_TARGET_CPU),$(KBUILD_TYPE))
@@ -998,10 +998,10 @@ $(foreach target,$(_ALL_TARGET_TARGETS),$(evalval def_inherit_template_workaroun
 
 define def_inherit_template_workaround_host
 local _tmpl         := $(firstword $($(target)_TEMPLATE) $(TEMPLATE))
-local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
-local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(tmpl)_BLD_TRG)      $(KBUILD_HOST))
-local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(tmpl)_BLD_TRG_ARCH) $(KBUILD_HOST_ARCH))
-local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(tmpl)_BLD_TRG_CPU)  $(KBUILD_HOST_CPU))
+local _bld_type     := $(firstword $($(target)_BLD_TYPE)     $(TEMPLATE_$(_tmpl)_BLD_TYPE)     $(KBUILD_TYPE))
+local _bld_trg      := $(firstword $($(target)_BLD_TRG)      $(TEMPLATE_$(_tmpl)_BLD_TRG)      $(KBUILD_HOST))
+local _bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(TEMPLATE_$(_tmpl)_BLD_TRG_ARCH) $(KBUILD_HOST_ARCH))
+local _bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(TEMPLATE_$(_tmpl)_BLD_TRG_CPU)  $(KBUILD_HOST_CPU))
 $(kb-exp-tmpl 1,$(target),$(_bld_trg),$(_bld_trg_arch),$(_bld_trg_cpu),$(_bld_type))
 endef # def_inherit_template_workaround_target
 #$(kb-exp-tmpl 1,$(_ALL_HOST_TARGETS),$(KBUILD_HOST),$(KBUILD_HOST_ARCH),$(KBUILD_HOST_CPU),$(KBUILD_TYPE))
