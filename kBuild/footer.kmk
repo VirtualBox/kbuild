@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2432 2010-11-29 16:50:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2433 2010-12-13 16:22:49Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -142,6 +142,8 @@ pass_prev :=
 # @param    $2           tooltype.
 # @param    bld_trg      build target.
 # @param    bld_trg_arch build target architecture.
+# @param    bld_type     build target type.
+if 0
 _TARGET_TOOL = $(strip $(firstword \
 	$($(1)_$(2)TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$($(1)_$(2)TOOL.$(bld_trg)) \
@@ -155,7 +157,38 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$(TOOL.$(bld_trg)) \
 	$(TOOL) \
+else
+_TARGET_TOOL = $(strip $(firstword \
+	$($(1)_$(2)TOOL.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(1)_$(2)TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$($(1)_$(2)TOOL.$(bld_trg).$(bld_type)) \
+	$($(1)_$(2)TOOL.$(bld_trg_arch)) \
+	$($(1)_$(2)TOOL.$(bld_trg)) \
+	$($(1)_$(2)TOOL.$(bld_type)) \
+	$($(1)_$(2)TOOL) \
+	$($(1)_TOOL.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(1)_TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$($(1)_TOOL.$(bld_trg).$(bld_type)) \
+	$($(1)_TOOL.$(bld_trg_arch)) \
+	$($(1)_TOOL.$(bld_trg)) \
+	$($(1)_TOOL.$(bld_type)) \
+	$($(1)_TOOL) \
+	$($(2)TOOL.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(2)TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$($(2)TOOL.$(bld_trg).$(bld_type)) \
+	$($(2)TOOL.$(bld_trg_arch)) \
+	$($(2)TOOL.$(bld_trg)) \
+	$($(2)TOOL.$(bld_type)) \
+	$($(2)TOOL) \
+	$(TOOL.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$(TOOL.$(bld_trg).$(bld_trg_arch)) \
+	$(TOOL.$(bld_trg).$(bld_type)) \
+	$(TOOL.$(bld_trg_arch)) \
+	$(TOOL.$(bld_trg)) \
+	$(TOOL.$(bld_type)) \
+	$(TOOL) \
 	))
+endif
 
 ## Figure out the actual name of an installed file.
 # @param	$1		The file to install.
@@ -1223,7 +1256,9 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_bas
 
 local tool        := $(call _TARGET_TOOL,$(target),$(tool_prefix))
 local name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg).$(bld_type))\
 	$($(target)_NAME.$(bld_trg_arch))\
 	$($(target)_NAME.$(bld_trg))\
 	$($(target)_NAME.$(bld_type))\
@@ -1248,7 +1283,7 @@ TARGET_$(target)   := $(out)
 $(target)_1_TARGET := $(out)
 
 # INSTARGET_*
-ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_type))),)
  ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
   local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
  else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
@@ -2045,7 +2080,9 @@ local target_src_handlers := $($(target)_SRC_HANDLERS) $(KBUILD_SRC_HANDLERS)
 $(foreach source,\
 	$($(target)_SOURCES)\
 	$($(target)_SOURCES.$(bld_trg))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_type))\
 	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_SOURCES.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_SOURCES.$(bld_trg_arch))\
 	$($(target)_SOURCES.$(bld_trg_cpu))\
 	$($(target)_SOURCES.$(bld_type))\
@@ -2054,7 +2091,9 @@ $(foreach source,\
 $(foreach source,\
 	$($(target)_GEN_SOURCES_)\
 	$($(target)_GEN_SOURCES_.$(bld_trg))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_type))\
 	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_GEN_SOURCES_.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_GEN_SOURCES_.$(bld_trg_arch))\
 	$($(target)_GEN_SOURCES_.$(bld_trg_cpu))\
 	$($(target)_GEN_SOURCES_.$(bld_type))\
@@ -2073,7 +2112,7 @@ $(eval-opt-var def_target_sources)
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
 # @remark   Only library uses this now.
 define def_target_install_pluss
-ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_type))),)
  ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
   local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
  else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
@@ -2158,7 +2197,9 @@ ifeq ($(tool),)
 $(error kBuild: Library target $(target) does not have a tool defined!)
 endif
 local name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg).$(bld_type))\
 	$($(target)_NAME.$(bld_trg_arch))\
 	$($(target)_NAME.$(bld_trg))\
 	$($(target)_NAME.$(bld_type))\
@@ -2198,7 +2239,9 @@ $(evalval def_target_sources)
 # library linking
 local tool        := $(call _TARGET_TOOL,$(target),AR)
 local name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg).$(bld_type))\
 	$($(target)_NAME.$(bld_trg_arch))\
 	$($(target)_NAME.$(bld_trg))\
 	$($(target)_NAME.$(bld_type))\
@@ -2408,7 +2451,9 @@ local bld_trg_cpu := $(firstword $($(target)_BLD_TRG_CPU)  $(BUILD_$(bld_trg_bas
 
 local tool        := $(call _TARGET_TOOL,$(target),LD)
 local name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg).$(bld_type))\
 	$($(target)_NAME.$(bld_trg_arch))\
 	$($(target)_NAME.$(bld_trg))\
 	$($(target)_NAME.$(bld_type))\
@@ -2448,7 +2493,9 @@ $(evalval def_target_sources)
 # more link stuff.
 local tool        := $(call _TARGET_TOOL,$(target),LD)
 local name        := $(firstword\
+	$($(target)_NAME.$(bld_trg).$(bld_trg_arch).$(bld_type))\
 	$($(target)_NAME.$(bld_trg).$(bld_trg_arch))\
+	$($(target)_NAME.$(bld_trg).$(bld_type))\
 	$($(target)_NAME.$(bld_trg_arch))\
 	$($(target)_NAME.$(bld_trg))\
 	$($(target)_NAME.$(bld_type))\
@@ -2689,7 +2736,7 @@ endif
 local objs = $($(target)_2_OBJS)
 
 # installation targets
-ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_trg_type))),)
+ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_type))),)
  ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type))),)
   local inst := $(addprefix $(PATH_INS)/,$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)))
  else ifneq ($(strip $($(target)_INST.$(bld_trg).$(bld_trg_arch))),)
