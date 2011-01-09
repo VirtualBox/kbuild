@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2422 2010-10-17 21:28:35Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -33,11 +33,11 @@ PROGRAMS += kmk_sed
 
 kmk_sed_TEMPLATE = BIN
 kmk_sed_DEPS = \
-	$(PATH_kmk_sed)/config.h \
-	$(PATH_kmk_sed)/regex.h
+	$(kmk_sed_0_OUTDIR)/config.h \
+	$(kmk_sed_0_OUTDIR)/regex.h
 kmk_sed_CLEAN = $(kmk_sed_DEPS)
 kmk_sed_INCS = \
-	$(PATH_kmk_sed) \
+	$(kmk_sed_0_OUTDIR) \
 	. \
 	lib \
 	intl
@@ -86,14 +86,14 @@ include $(FILE_KBUILD_SUB_FOOTER)
 #
 # Use checked in config.h instead of running ./configure for it.
 #
-kmk_sed_config.h.$(KBUILD_TARGET) := $(kmk_sed_PATH)/config.h.$(KBUILD_TARGET)
+kmk_sed_config.h.$(KBUILD_TARGET) := $(kmk_sed_DEFPATH)/config.h.$(KBUILD_TARGET)
 
-$(PATH_kmk_sed)/config.h: $(kmk_sed_config.h.$(KBUILD_TARGET)) | $(call DIRDEP,$(PATH_kmk_sed))
+$(kmk_sed_0_OUTDIR)/config.h: $(kmk_sed_config.h.$(KBUILD_TARGET)) | $(call DIRDEP,$(kmk_sed_0_OUTDIR))
 	$(CP) -f $^ $@
 
 #
 # Use the regex lib shipped with sed and not anything installed on the system.
 #
-$(PATH_kmk_sed)/regex.h: $(kmk_sed_PATH)/lib/regex_.h | $(call DIRDEP,$(PATH_kmk_sed))
+$(kmk_sed_0_OUTDIR)/regex.h: $(kmk_sed_DEFPATH)/lib/regex_.h | $(call DIRDEP,$(kmk_sed_0_OUTDIR))
 	$(CP) -f $^ $@
 

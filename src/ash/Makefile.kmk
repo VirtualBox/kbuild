@@ -49,7 +49,7 @@ kmk_ash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kmk_ash_DEFS.openbsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
-kmk_ash_INCS = $(PATH_kmk_ash) . # (the last is because of error.h)
+kmk_ash_INCS = $(kmk_ash_0_OUTDIR) . # (the last is because of error.h)
 kmk_ash_CFLAGS.win = -I. ## @todo kBuild bug?
 kmk_ash_INCS.win = win
 kmk_ash_SOURCES = \
@@ -78,9 +78,9 @@ kmk_ash_SOURCES = \
 	bltin/echo.c \
 	bltin/kill.c \
 	bltin/test.c \
-	$(PATH_kmk_ash)/builtins.c \
-	$(PATH_kmk_ash)/init.c \
-	$(PATH_kmk_ash)/nodes.c
+	$(kmk_ash_0_OUTDIR)/builtins.c \
+	$(kmk_ash_0_OUTDIR)/init.c \
+	$(kmk_ash_0_OUTDIR)/nodes.c
 kmk_ash_SOURCES.linux = \
 	sys_signame.c \
 	strlcpy.c \
@@ -98,14 +98,14 @@ kmk_ash_SOURCES.solaris = \
 	setmode.c
 
 kmk_ash_INTERMEDIATES = \
-	$(PATH_kmk_ash)/builtins.h \
-	$(PATH_kmk_ash)/nodes.h \
-	$(PATH_kmk_ash)/token.h
+	$(kmk_ash_0_OUTDIR)/builtins.h \
+	$(kmk_ash_0_OUTDIR)/nodes.h \
+	$(kmk_ash_0_OUTDIR)/token.h
 kmk_ash_CLEAN = \
 	$(kmk_ash_INTERMEDIATES) \
-	$(PATH_kmk_ash)/builtins.c \
-	$(PATH_kmk_ash)/init.c \
-	$(PATH_kmk_ash)/nodes.c
+	$(kmk_ash_0_OUTDIR)/builtins.c \
+	$(kmk_ash_0_OUTDIR)/init.c \
+	$(kmk_ash_0_OUTDIR)/nodes.c
 
 kmk_ash.man_TEMPLATE = usr.bin.man
 kmk_ash.man_SOURCES = \
@@ -118,12 +118,12 @@ if1of ($(KBUILD_TARGET), win nt)
 # Use the pregenerated code.
 #
 kmk_ash_DEPS :=
-kmk_ash_SOURCES += $(PATH_kmk_ash)/arith_lex.c
+kmk_ash_SOURCES += $(kmk_ash_0_OUTDIR)/arith_lex.c
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
 define def_copy_generated
-$(PATH_kmk_ash)/$(src): generated/$(src)
+$(kmk_ash_0_OUTDIR)/$(src): generated/$(src)
 	$$(RM) -f $$@
 	$$(CP) -f $$^ $$@
 endef
@@ -161,30 +161,30 @@ include $(FILE_KBUILD_SUB_FOOTER)
 #
 BOOTSTRAP_SHELL ?= $(SHELL)
 
-$(PATH_kmk_ash)/builtins.h + $(PATH_kmk_ash)/builtins.c: \
+$(kmk_ash_0_OUTDIR)/builtins.h + $(kmk_ash_0_OUTDIR)/builtins.c: \
 		$(kmk_ash_PATH)/mkbuiltins \
 		$(kmk_ash_PATH)/shell.h \
 		$(kmk_ash_PATH)/builtins.def \
-		| $(call DIRDEP,$(PATH_kmk_ash))
+		| $(call DIRDEP,$(kmk_ash_0_OUTDIR))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
-	[ -f $(PATH_kmk_ash)/builtins.h ]
+	[ -f $(kmk_ash_0_OUTDIR)/builtins.h ]
 
-$(PATH_kmk_ash)/nodes.h + $(PATH_kmk_ash)/nodes.c: \
+$(kmk_ash_0_OUTDIR)/nodes.h + $(kmk_ash_0_OUTDIR)/nodes.c: \
 		$(kmk_ash_PATH)/mknodes.sh \
 		$(kmk_ash_PATH)/nodetypes \
 		$(kmk_ash_PATH)/nodes.c.pat \
-		| $(call DIRDEP,$(PATH_kmk_ash))
+		| $(call DIRDEP,$(kmk_ash_0_OUTDIR))
 	$(BOOTSTRAP_SHELL) $+ $(dir $@)
 	[ -f $(dir $@)/nodes.h ]
 
-$(PATH_kmk_ash)/token.h: $(kmk_ash_PATH)/mktokens | $(call DIRDEP,$(PATH_kmk_ash))
+$(kmk_ash_0_OUTDIR)/token.h: $(kmk_ash_PATH)/mktokens | $(call DIRDEP,$(kmk_ash_0_OUTDIR))
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) token.h $@
 
-$(PATH_kmk_ash)/init.c: \
+$(kmk_ash_0_OUTDIR)/init.c: \
 		$(kmk_ash_PATH)/mkinit.sh \
-		$(abspathex $(filter-out $(PATH_kmk_ash)/%,$(kmk_ash_SOURCES)), $(kmk_ash_PATH)) \
-		| $(call DIRDEP,$(PATH_kmk_ash))
+		$(abspathex $(filter-out $(kmk_ash_0_OUTDIR)/%,$(kmk_ash_SOURCES)), $(kmk_ash_PATH)) \
+		| $(call DIRDEP,$(kmk_ash_0_OUTDIR))
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
