@@ -1,4 +1,4 @@
-# $Id: subfooter.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
@@ -43,12 +43,10 @@ endif
 #
 define def_subheader
  ifndef $(target)_PATH
-  ifdef $(target)_DEFPATH
-   $(target)_PATH := $($(target)_DEFPATH)
-  else
-   $(target)_PATH := $(PATH_SUB_CURRENT)
+  ifndef $(target)_DEFPATH
    $(target)_DEFPATH := $(PATH_SUB_CURRENT)
   endif
+  $(call KB_FN_ASSIGN_DEPRECATED,$(target)_PATH,$($(target)_DEFPATH), $(target)_DEFPATH)
  else ifndef $(target)_DEFPATH
   $(target)_DEFPATH := $($(target)_PATH)
  endif
@@ -57,7 +55,7 @@ define def_subheader
  endif
  ifndef $(target)_0_OUTDIR
   $(target)_0_OUTDIR := $(call TARGET_PATH,$(target))
-  PATH_$(target) := $($(target)_0_OUTDIR)
+  $(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
  endif
 endef
 

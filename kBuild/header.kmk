@@ -1,4 +1,4 @@
-# $Id: header.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2413 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2434 $  )
 
 
 #
@@ -763,6 +763,18 @@ local long_options := $(filter-out =delete=%,$(subst :, =delete=,$(subst =, =del
 local .RETURN := $(if-expr $(pos $1,$(short_options)) != 0 || "$(filter $2,$(long_options))" != "",$4,$5)
 endef
 
+##
+# Make an assignment to a deprecated variable.
+#
+# @param   $1   The variable name.
+# @param   $2   The value.
+# @param   $3   The variable to use instead.
+#
+ifdef KBUILD_WITH_DEPREATED_AS_ERROR
+ KB_FN_ASSIGN_DEPRECATED = $(eval $1 = $2$$(error $1 is deprecated, use $3 instead))
+else
+ KB_FN_ASSIGN_DEPRECATED = $(eval $1 = $2$$(warning $1 is deprecated, use $3 instead))
+endif
 
 
 #

@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2433 2010-12-13 16:22:49Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -157,6 +157,7 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(bld_trg).$(bld_trg_arch)) \
 	$(TOOL.$(bld_trg)) \
 	$(TOOL) \
+))
 else
 _TARGET_TOOL = $(strip $(firstword \
 	$($(1)_$(2)TOOL.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
@@ -187,7 +188,7 @@ _TARGET_TOOL = $(strip $(firstword \
 	$(TOOL.$(bld_trg)) \
 	$(TOOL.$(bld_type)) \
 	$(TOOL) \
-	))
+))
 endif
 
 ## Figure out the actual name of an installed file.
@@ -2217,7 +2218,10 @@ local suff        := $(firstword\
 	$(TOOL_$(tool)_ARLIBSUFF)\
 	$(SUFF_LIB))
 local out         := $(outbase)$(suff)
-local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
+local defpath     := $($(target)_DEFPATH)
+ifeq ($(defpath),)
+ local defpath    := $($(target)_PATH)
+endif
 TARGET_$(target)  := $(out)
 $(target)_1_TARGET:= $(out)
 # no local here - must be writable across some foreachs.
@@ -2473,7 +2477,10 @@ local suff := $(firstword \
 local out         := $(outbase)$(suff)
 TARGET_$(target)  := $(out)
 $(target)_1_TARGET:= $(out)
-local defpath     := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
+local defpath     := $($(target)_DEFPATH)
+ifeq ($(defpath),)
+ local defpath    := $($(target)_PATH)
+endif
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_2_OBJS  :=
@@ -3126,7 +3133,10 @@ clean_files += \
 
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
-local defpath := $(firstword $($(target)_PATH) $($(target)_DEFPATH))
+local defpath     := $($(target)_DEFPATH)
+ifeq ($(defpath),)
+ local defpath    := $($(target)_PATH)
+endif
 ifneq ($(defpath),)
  local srcsrc := $(abspathex $(srcsrc),$(defpath))
 endif
