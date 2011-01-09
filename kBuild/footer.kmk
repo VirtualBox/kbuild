@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2436 2011-01-09 23:44:44Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1267,7 +1267,8 @@ local name        := $(firstword\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
 $(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target)    := $($(target)_0_OUTDIR)
+$(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
+
 ## @todo fix the fun at the last line (AR != LIB => mess).
 local suff := $(firstword \
 	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
@@ -1280,8 +1281,8 @@ local suff := $(firstword \
 local out := $(outbase)$(suff)
 
 # TARGET_*
-TARGET_$(target)   := $(out)
 $(target)_1_TARGET := $(out)
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)_1_TARGET)
 
 # INSTARGET_*
 ifeq ($(strip $($(target)_NOINST) $($(target)_NOINST.$(bld_trg)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg).$(bld_trg_arch).$(bld_type))  $($(target)_NOINST.$(bld_trg_arch)) $($(target)_NOINST.$(bld_trg_cpu)) $($(target)_NOINST.$(bld_type))),)
@@ -1428,13 +1429,13 @@ local bld_trg_arch := $(firstword $($(target)_BLD_TRG_ARCH) $(KBUILD_TARGET_ARCH
 local bld_trg_cpu  := $(firstword $($(target)_BLD_TRG_CPU)  $(KBUILD_TARGET_CPU))
 # TARGET_*
 $(target)_1_TARGET := $(PATH_TARGET)/$(target).ins
-TARGET_$(target)   := $($(target)_1_TARGET)
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)_1_TARGET)
 
 # INSTARGET_ later.
 # PATH_*
 local outbase      := $(call TARGET_BASE,$(target),$(target))
 $(target)_0_OUTDIR := $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target)     := $($(target)_0_OUTDIR)
+$(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
 endef # def_pass1_install
 $(eval-opt-var def_pass1_install)
 $(foreach target, $(_ALL_INSTALLS), \
@@ -1634,8 +1635,9 @@ local dep := # not legal for fetch and unpack tools
 #
 local out := $(fetchdir)/$(srcname)
 local archive := $(out)
-TARGET_$(target)_$(srcname) := $(out)
 $(target)_$(srcname)_1_TARGET = $(TARGET_$(target)_$(srcname))
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target)_$(srcname),$(TARGET_$(target)_$(srcname)),TARGET_$(target)_$(srcname))
+
 local dirdep := $(call DIRDEP,$(fetchdir))
 local tool := $(firstword \
 	$($(target)_$(source)_FETCHTOOL)\
@@ -2208,7 +2210,7 @@ local name        := $(firstword\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
 $(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target)    := $($(target)_0_OUTDIR)
+$(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
 local suff        := $(firstword\
 	$($(target)_LIBSUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_LIBSUFF.$(bld_trg))\
@@ -2222,8 +2224,8 @@ local defpath     := $($(target)_DEFPATH)
 ifeq ($(defpath),)
  local defpath    := $($(target)_PATH)
 endif
-TARGET_$(target)  := $(out)
 $(target)_1_TARGET:= $(out)
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)_1_TARGET)
 # no local here - must be writable across some foreachs.
 othersrc          :=
 $(target)_2_OBJS  :=
@@ -2465,7 +2467,7 @@ local name        := $(firstword\
 	$(target))
 local outbase     := $(call TARGET_BASE,$(name),$(target))
 $(target)_0_OUTDIR:= $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target)    := $($(target)_0_OUTDIR)
+$(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
 local suff := $(firstword \
 	$($(target)_$(EXT)SUFF.$(bld_trg).$(bld_trg_arch))\
 	$($(target)_$(EXT)SUFF.$(bld_trg))\
@@ -2475,8 +2477,8 @@ local suff := $(firstword \
 	$(TOOL_$(tool)_LD$(EXT)SUFF)\
 	$($(EXTPRE)SUFF_$(EXT)) )
 local out         := $(outbase)$(suff)
-TARGET_$(target)  := $(out)
 $(target)_1_TARGET:= $(out)
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)_1_TARGET)
 local defpath     := $($(target)_DEFPATH)
 ifeq ($(defpath),)
  local defpath    := $($(target)_PATH)
@@ -3304,7 +3306,7 @@ INSTARGET_$(target) := $($(target)_GOALS)
 INSTARGET_DIRS_$(target) :=
 local outbase := $(call TARGET_BASE,$(target),$(target))
 $(target)_0_OUTDIR := $(patsubst %/,%,$(dir $(outbase)))
-PATH_$(target) := $($(target)_0_OUTDIR)
+$(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
 
 local clean_files := $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 
@@ -3320,7 +3322,7 @@ $(foreach src,$($(target)_SYMLINKS) $($(target)_SYMLINKS.$(bld_trg)) $($(target)
 # the collection target
 local clean_files  += $(PATH_TARGET)/$(target).ins
 $(target)_1_TARGET := $(PATH_TARGET)/$(target).ins
-TARGET_$(target)   := $($(target)_1_TARGET)
+$(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)_1_TARGET)
 $($(target)_1_TARGET): $$(INSTARGET_$(target)) | $$(INSTARGET_DIRS_$(target)) $(call DIRDEP,$(PATH_TARGET))
 	@$(QUIET2)$(APPEND) $@
 
