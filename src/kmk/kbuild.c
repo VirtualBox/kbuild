@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2435 2011-01-09 17:45:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2472,16 +2472,19 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
     aKeys[0].cch = 0;
     aKeys[0].psz = NULL;
 
+    /* .$(bld_type) */
     aKeys[1].cch = cchBldType + 1;
     aKeys[1].psz = xmalloc (aKeys[1].cch + 1);
     aKeys[1].psz[0] = '.';
     memcpy(aKeys[1].psz + 1, pszBldType, cchBldType + 1);
 
+    /* .$(bld_trg) */
     aKeys[2].cch = cchBldTrg + 1;
     aKeys[2].psz = xmalloc (aKeys[2].cch + 1);
     aKeys[2].psz[0] = '.';
     memcpy(aKeys[2].psz + 1, pszBldTrg, cchBldTrg + 1);
 
+    /* .$(bld_trg).$(bld_trg_arch) */
     aKeys[3].cch = cchBldTrg + 1 + cchBldTrgArch + 1;
     aKeys[3].psz = xmalloc (aKeys[3].cch + 1);
     aKeys[3].psz[0] = '.';
@@ -2489,11 +2492,13 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
     aKeys[3].psz[1 + cchBldTrg] = '.';
     memcpy(aKeys[3].psz + 1 + cchBldTrg + 1, pszBldTrgArch, cchBldTrgArch + 1);
 
+    /* .$(bld_trg_cpu) */
     aKeys[4].cch = cchBldTrgCpu + 1;
     aKeys[4].psz = xmalloc (aKeys[4].cch + 1);
     aKeys[4].psz[0] = '.';
     memcpy(aKeys[4].psz + 1, pszBldTrgCpu, cchBldTrgCpu + 1);
 
+    /* .$(bld_trg_arch) */
     aKeys[5].cch = cchBldTrgArch + 1;
     aKeys[5].psz = xmalloc (aKeys[5].cch + 1);
     aKeys[5].psz[0] = '.';
