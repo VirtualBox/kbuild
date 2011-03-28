@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2428 2010-11-16 14:47:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2437 2011-03-28 19:17:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -135,18 +135,31 @@ _command kkeys_duplicate_line()
 
 _command kkeys_delete_right()
 {
-   col=p_col
-   search('[ \t]#|?|$|^','r+');
-   if ( match_length()&& get_text(1,match_length('s'))=='' )
-   {
-      _nrseek(match_length('s'));
-      _delete_text(match_length());
-   }
-   else
+   col=p_col;
+
+   /* virtual space hack*/
+   keyin(" ");
+   left();
+   _delete_char();
+
+   /* are we in a word, delete it? */
+   ch = get_text();
+   if (ch != ' ' && ch != "\t" && ch != "\r" && ch != "\n")
       delete_word();
+
+   /* delete spaces and newlines until the next word. */
+   ch = get_text();
+   if (ch == ' ' || ch == "\t" || ch == "\r" || ch == "\n")
+   {
+      if (search('[ \t\n\r]#','r+') == 0)
+      {
+         _nrseek(match_length('s'));
+         _delete_text(match_length());
+      }
+   }
+
    p_col=col
    //retrieve_command_results()
-
 }
 
 _command kkeys_delete_left()
