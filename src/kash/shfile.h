@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2424 2010-10-18 08:52:03Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2438 2011-07-04 14:34:34Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -38,7 +38,7 @@
 # if !defined(__sun__)
 #  include <paths.h>
 # endif
-# ifdef _PATH_DEVNULL
+# ifndef _PATH_DEVNULL
 #  define _PATH_DEVNULL "/dev/null"
 # endif
 # ifndef _PATH_DEFPATH
