@@ -1,4 +1,4 @@
-# $Id: header.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2441 2011-07-06 12:18:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2434 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2441 $  )
 
 
 #
@@ -771,9 +771,9 @@ endef
 # @param   $3   The variable to use instead.
 #
 ifdef KBUILD_WITH_DEPREATED_AS_ERROR
- KB_FN_ASSIGN_DEPRECATED = $(eval $1 = $2$$(error $1 is deprecated, use $3 instead))
+ KB_FN_ASSIGN_DEPRECATED = $(eval $(subst :,$$(COLON),$1) = $2$$(error $1 is deprecated, use $3 instead))
 else
- KB_FN_ASSIGN_DEPRECATED = $(eval $1 = $2$$(warning $1 is deprecated, use $3 instead))
+ KB_FN_ASSIGN_DEPRECATED = $(eval $(subst :,$$(COLON),$1) = $2$$(warning $1 is deprecated, use $3 instead))
 endif
 
 
