@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2440 2011-07-06 12:17:51Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -72,9 +72,6 @@ kBuild_bin_SOURCES.os2 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc063.dll=>libc063.dll
 
 if1of ($(KBUILD_TARGET), nt win)
-kBuild_bin_SOURCES.$(KBUILD_TARGET) = \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/kmk_ash.exe=>kmk_ash.exe \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/cygwin1.dll=>cygwin1.dll
 kBuild_bin_SOURCES.$(KBUILD_TARGET).x86 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll
 kBuild_bin_SOURCES.$(KBUILD_TARGET).amd64 = \
