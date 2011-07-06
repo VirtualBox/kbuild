@@ -1,4 +1,4 @@
-/* $Id: mytypes.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: mytypes.h 2442 2011-07-06 12:19:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * mytypes - wrapper that ensures the necessary uintXY_t types are defined.
  */
@@ -27,6 +27,7 @@
 #define ___mytypes_h__
 
 #include <stdlib.h>
+#include <stddef.h> /* MSC: intptr_t */
 #include <sys/types.h>
 
 #if defined(_MSC_VER)
