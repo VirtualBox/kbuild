@@ -476,9 +476,9 @@ version(const char *argv0)
 	strip_argv0(argv0, &len);
 
 	fprintf(stdout,
-			"%.*s - kBuild version %d.%d.%d\n",
+			"%.*s - kBuild version %d.%d.%d (r%u)\n",
 		    len, argv0,
-		    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
+		    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH, KBUILD_SVN_REV);
 	return 0;
 }
 

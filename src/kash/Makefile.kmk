@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2457 2011-07-07 23:53:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -117,6 +117,8 @@ kash_CLEAN = \
 	$(kash_0_OUTDIR)/builtins.c \
 	$(kash_0_OUTDIR)/init.c \
 	$(kash_0_OUTDIR)/nodes.c
+
+kash_main.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 ##
 ## The manual page.
