@@ -1077,11 +1077,11 @@ merge_variable_set_lists (struct variable_set_list **setlist0,
     }
 }
 
-#if defined(KMK) && !defined(WINDOWS32) 
+#if defined(KMK) && !defined(WINDOWS32)
 /* Parses out the next number from the uname release level string.  Fast
    forwards to the end of the string when encountering some non-conforming
    chars. */
- 
+
 static unsigned long parse_release_number (const char **ppsz)
 {
   unsigned long ul;
@@ -1121,7 +1121,7 @@ define_automatic_variables (void)
   struct variable *envvar1;
   struct variable *envvar2;
 # ifdef WINDOWS32
-  OSVERSIONINFOEX vix;
+  OSVERSIONINFOEX oix;
 # else
   struct utsname uts;
 # endif
@@ -1202,7 +1202,7 @@ define_automatic_variables (void)
 
   /* The host kernel version. */
 #if defined(WINDOWS32)
-  memset (&oix, sizeof (oix));
+  memset (&oix, '\0', sizeof (oix));
   oix.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
   if (!GetVersionEx ((LPOSVERSIONINFO)&oix))
     {
@@ -1218,13 +1218,13 @@ define_automatic_variables (void)
       ul4th   = oix.wServicePackMinor;
     }
   else
-    { 
+    {
       ulMajor = oix.dwPlatformId == 1 ? 0 /*Win95/98/ME*/
-              ? oix.dwPlatformId == 3 ? 1 /*WinCE*/
+              : oix.dwPlatformId == 3 ? 1 /*WinCE*/
               : 2; /*??*/
       ulMinor = oix.dwMajorVersion;
       ulPatch = oix.dwMinorVersion;
-      ul4th   = oix.WservicePackMajor;
+      ul4th   = oix.wServicePackMajor;
     }
 #else
   memset (&uts, 0, sizeof(uts));
