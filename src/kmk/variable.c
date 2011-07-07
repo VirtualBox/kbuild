@@ -32,6 +32,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "hash.h"
 #ifdef KMK
 # include "kbuild.h"
+# ifdef WINDOWS32
+#  include <Windows.h>
+# else
+#  include <sys/utsname.h>
+# endif
 #endif
 #ifdef CONFIG_WITH_STRCACHE2
 # include <stddef.h>
@@ -1072,6 +1077,30 @@ merge_variable_set_lists (struct variable_set_list **setlist0,
     }
 }
 
+#if defined(KMK) && !defined(WINDOWS32) 
+/* Parses out the next number from the uname release level string.  Fast
+   forwards to the end of the string when encountering some non-conforming
+   chars. */
+ 
+static unsigned long parse_release_number (const char **ppsz)
+{
+  unsigned long ul;
+  char *psz = (char *)*ppsz;
+  if (ISDIGIT (*psz))
+  {
+      ul = strtoul (psz, &psz, 10);
+      if (psz != NULL && *psz == '.')
+          psz++;
+      else
+          psz = strchr (*ppsz, '\0');
+      *ppsz = psz;
+  }
+  else
+      ul = 0;
+  return ul;
+}
+#endif
+
 /* Define the automatic variables, and record the addresses
    of their structures so we can change their values quickly.  */
 
@@ -1091,6 +1120,12 @@ define_automatic_variables (void)
   const char *val;
   struct variable *envvar1;
   struct variable *envvar2;
+# ifdef WINDOWS32
+  OSVERSIONINFOEX vix;
+# else
+  struct utsname uts;
+# endif
+  unsigned long ulMajor = 0, ulMinor = 0, ulPatch = 0, ul4th = 0;
 #endif
 
   sprintf (buf, "%u", makelevel);
@@ -1164,6 +1199,58 @@ define_automatic_variables (void)
   if (!envvar2)
     define_variable ("BUILD_PLATFORM_CPU", sizeof ("BUILD_PLATFORM_CPU") - 1,
                      val, o_default, 0);
+
+  /* The host kernel version. */
+#if defined(WINDOWS32)
+  memset (&oix, sizeof (oix));
+  oix.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+  if (!GetVersionEx ((LPOSVERSIONINFO)&oix))
+    {
+      memset (&oix, '\0', sizeof (oix));
+      oix.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
+      GetVersionEx ((LPOSVERSIONINFO)&oix);
+    }
+  if (oix.dwPlatformId == VER_PLATFORM_WIN32_NT)
+    {
+      ulMajor = oix.dwMajorVersion;
+      ulMinor = oix.dwMinorVersion;
+      ulPatch = oix.wServicePackMajor;
+      ul4th   = oix.wServicePackMinor;
+    }
+  else
+    { 
+      ulMajor = oix.dwPlatformId == 1 ? 0 /*Win95/98/ME*/
+              ? oix.dwPlatformId == 3 ? 1 /*WinCE*/
+              : 2; /*??*/
+      ulMinor = oix.dwMajorVersion;
+      ulPatch = oix.dwMinorVersion;
+      ul4th   = oix.WservicePackMajor;
+    }
+#else
+  memset (&uts, 0, sizeof(uts));
+  uname (&uts);
+  val = uts.release;
+  ulMajor = parse_release_number (&val);
+  ulMinor = parse_release_number (&val);
+  ulPatch = parse_release_number (&val);
+  ul4th   = parse_release_number (&val);
+#endif
+
+  sprintf (buf, "%lu.%lu.%lu.%lu", ulMajor, ulMinor, ulPatch, ul4th);
+  define_variable ("KBUILD_HOST_VERSION", sizeof ("KBUILD_HOST_VERSION") - 1,
+                   buf, o_default, 0);
+
+  sprintf (buf, "%lu", ulMajor);
+  define_variable ("KBUILD_HOST_VERSION_MAJOR", sizeof ("KBUILD_HOST_VERSION_MAJOR") - 1,
+                   buf, o_default, 0);
+
+  sprintf (buf, "%lu", ulMinor);
+  define_variable ("KBUILD_HOST_VERSION_MINOR", sizeof ("KBUILD_HOST_VERSION_MINOR") - 1,
+                   buf, o_default, 0);
+
+  sprintf (buf, "%lu", ulPatch);
+  define_variable ("KBUILD_HOST_VERSION_PATCH", sizeof ("KBUILD_HOST_VERSION_PATCH") - 1,
+                   buf, o_default, 0);
 
   /* The kBuild locations. */
   define_variable ("KBUILD_PATH", sizeof ("KBUILD_PATH") - 1,
