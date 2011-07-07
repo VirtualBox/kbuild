@@ -115,6 +115,10 @@ Usage: %s [OPTION]... {script-only-if-no-other-script} [input-file]...\n\
                  edit files in place (makes backup if extension supplied)\n"));
   fprintf(out, _("  -l N, --line-length=N\n\
                  specify the desired line-wrap length for the `l' command\n"));
+#ifndef CONFIG_WITHOUT_O_LANG_C
+  fprintf(out, _("  --lang_c\n\
+                 specify C locale\n"));
+#endif
   fprintf(out, _("  --posix\n\
                  disable all GNU extensions.\n"));
 #ifndef CONFIG_WITHOUT_O_OPT
@@ -176,6 +180,9 @@ main(argc, argv)
     {"file", 1, NULL, 'f'},
     {"in-place", 2, NULL, 'i'},
     {"line-length", 1, NULL, 'l'},
+#ifndef CONFIG_WITHOUT_O_LANG_C
+    {"lang_c", 0, NULL, 'L'},
+#endif
     {"quiet", 0, NULL, 'n'},
     {"posix", 0, NULL, 'p'},
     {"silent", 0, NULL, 'n'},
@@ -289,30 +296,41 @@ main(argc, argv)
 	  lcmd_out_line_len = ATOI(optarg);
 	  break;
 
+#ifndef CONFIG_WITHOUT_O_LANG_C
+	case 'L':
+	  setlocale (LC_ALL, "C");
+	  initialize_mbcs ();
+# if ENABLE_NLS
+	  bindtextdomain (PACKAGE, LOCALEDIR);
+	  textdomain (PACKAGE);
+# endif
+	  break;
+#endif
+
 #ifndef CONFIG_WITHOUT_O_OPT
-        case 'o':
-          sed_stdout = ck_fopen (optarg, "w", true /* fail on error */);
-          break;
+	case 'o':
+	  sed_stdout = ck_fopen (optarg, "w", true /* fail on error */);
+	  break;
 
-        case 300:
-          sed_stdout = ck_fopen (optarg, "wb", true /* fail on error */);
-          break;
+	case 300:
+	  sed_stdout = ck_fopen (optarg, "wb", true /* fail on error */);
+	  break;
 
-        case 301:
-          sed_stdout = ck_fopen (optarg, "wt", true /* fail on error */);
-          break;
+	case 301:
+	  sed_stdout = ck_fopen (optarg, "wt", true /* fail on error */);
+	  break;
 
-        case 302:
-          sed_stdout = ck_fopen (optarg, "a", true /* fail on error */);
-          break;
+	case 302:
+	  sed_stdout = ck_fopen (optarg, "a", true /* fail on error */);
+	  break;
 
-        case 303:
-          sed_stdout = ck_fopen (optarg, "ab", true /* fail on error */);
-          break;
+	case 303:
+	  sed_stdout = ck_fopen (optarg, "ab", true /* fail on error */);
+	  break;
 
-        case 304:
-          sed_stdout = ck_fopen (optarg, "at", true /* fail on error */);
-          break;
+	case 304:
+	  sed_stdout = ck_fopen (optarg, "at", true /* fail on error */);
+	  break;
 #endif
 
 	case 'p':
