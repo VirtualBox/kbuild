@@ -535,7 +535,7 @@ static int  kDepDbFHOpen(KDEPDBFH *pFH, const char *pszFilename, KBOOL fCreate, 
         return errno;
     else
     {
-        pFH->fd = open(pszFilename, fFlags | O_EXCL | O_CREATE, 0666);
+        pFH->fd = open(pszFilename, fFlags | O_EXCL | O_CREAT, 0666);
         if (pFH->fd < 0)
             return errno;
         *pfCreated = K_TRUE;
@@ -1061,6 +1061,7 @@ static int kDepDbStrTabInit(KDEPDBINTSTRTAB *pStrTab, const char *pszFilenameBas
     size_t  cchFilenameBase = strlen(pszFilenameBase);
     char    szPath[4096];
     int     rc;
+    KBOOL   fNew;
 
     /* Basic member init, so kDepDbStrTabTerm always works. */
     pStrTab->pHash = NULL;
@@ -1078,8 +1079,9 @@ static int kDepDbStrTabInit(KDEPDBINTSTRTAB *pStrTab, const char *pszFilenameBas
      */
     memcpy(szPath, pszFilenameBase, cchFilenameBase);
     memcpy(&szPath[cchFilenameBase], ".strtab", sizeof(".strtab"));
-    rc = kDepDbFHOpen(&pStrTab->hStrTab, szPath, &fNew);
+    rc = kDepDbFHOpen(&pStrTab->hStrTab, szPath, K_TRUE, &fNew);
 
 
+    return -1;
 }
 
