@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2446 2011-07-07 11:58:12Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2447 2011-07-07 11:59:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -209,6 +209,7 @@ static int dlsym_libc(const char *pszSymbol, void **ppvSym)
     return 0;
 }
 
+#undef fopen
 FILE *fopen(const char *pszName, const char *pszMode)
 {
     static union
@@ -228,6 +229,7 @@ FILE *fopen(const char *pszName, const char *pszMode)
     return pFile;
 }
 
+#undef fopen64
 FILE *fopen64(const char *pszName, const char *pszMode)
 {
     static union
