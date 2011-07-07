@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2450 2011-07-07 17:54:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
 
 #
-# Copyright (c) 2004-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2004-2011 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -59,7 +59,7 @@ TEMPLATE_BIN-KMK_INCS.dragonfly = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
 TEMPLATE_BIN-KMK_INCS.openbsd = glob
 TEMPLATE_BIN-KMK_INCS.solaris = glob
-TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(TARGET_kmkmissing) $(LIB_KUTIL)
+TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 ifeq ($(KBUILD_TARGET),win)
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) /FI$(kmk_DEFPATH)/electric.h -DELECTRIC_HEAP=1
@@ -218,7 +218,7 @@ kmk_SOURCES = \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c 
 
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
