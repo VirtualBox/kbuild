@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2447 2011-07-07 11:59:15Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2449 2011-07-07 12:05:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -42,6 +42,9 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stddef.h>
+#ifdef KBUILD_OS_SOLARIS
+# undef __PRAGMA_REDEFINE_EXTNAME
+#endif
 #include <stdio.h>
 
 
