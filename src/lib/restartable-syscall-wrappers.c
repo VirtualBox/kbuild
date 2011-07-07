@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2444 2011-07-06 13:48:18Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2445 2011-07-07 10:20:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -37,9 +37,12 @@
 *******************************************************************************/
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <dlfcn.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
 
 
 /*******************************************************************************
@@ -52,6 +55,13 @@
 # define WRAP(a_name) __##a_name
 #else
 # error "Port Me"
+#endif
+
+/** Optional '64' suffix string for dlsym.  */
+#if !defined(_LP64) && _FILE_OFFSET_BITS == 64
+# define SYM_64_SUFFIX "64"
+#else
+# define SYM_64_SUFFIX ""
 #endif
 
 /** Mangle a syscall name with optional '64' suffix. */
@@ -139,4 +149,68 @@ ssize_t write(int fd, void *pvBuf, size_t cbBuf)
     return cbWritten;
 }
 
+static int dlsym_libc(const char *pszSymbol, void **ppvSym)
+{
+    static void *s_pvLibc = NULL;
+    void        *pvLibc;
+    void        *pvSym;
+
+    /*
+     * Open libc.
+     */
+    pvLibc = s_pvLibc;
+    if (!pvLibc)
+    {
+#ifdef RTLD_NOLOAD
+        pvLibc = dlopen("/libc/libc.so", RTLD_NOLOAD);
+#else
+        pvLibc = dlopen("/libc/libc.so", RTLD_GLOBAL);
+#endif
+        if (!pvLibc)
+        {
+            fprintf(stderr, "restartable-syscall-wrappers: failed to dlopen libc for resolving %s: %s\n",
+                    pszSymbol, dlerror());
+            errno = ENOSYS;
+            return -1;
+        }
+        /** @todo check standard symbol? */
+    }
+
+    /*
+     * Resolve the symbol.
+     */
+    pvSym = dlsym(pvLibc, pszSymbol);
+    if (!pvSym)
+    {
+        fprintf(stderr, "restartable-syscall-wrappers: failed to resolve %s: %s\n",
+                pszSymbol, dlerror());
+        errno = ENOSYS;
+        return -1;
+    }
+
+    *ppvSym = pvSym;
+    return 0;
+}
+
+FILE *fopen(const char *pszName, const char *pszMode)
+{
+    static union
+    {
+        FILE *(* pfnFopen)(const char *, const char *);
+        void *pvSym;
+    } s_u;
+    FILE *pFile;
+
+    if (   !s_u.pfnFopen
+        && dlsym_libc("fopen" SYM_64_SUFFIX, &s_u.pvSym) != 0)
+        return NULL;
+
+    do
+        pFile = s_u.pfnFopen(pszName, pszMode);
+    while (!pFile && SHOULD_RESTART());
+    return pFile;
+}
+
 /** @todo chmod, chown, chgrp, times, and possible some more. */
+
+
