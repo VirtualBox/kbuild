@@ -1,4 +1,4 @@
-/* $Id: nt_fullpath.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: nt_fullpath.c 2455 2011-07-07 23:16:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * fixcase - fixes the case of paths, windows specific.
  */
@@ -283,14 +283,14 @@ typedef struct MY_FILE_FS_DEVICE_INFORMATION
 #define MY_FILE_DEVICE_VIRTUAL_DISK     36
 
 
-typedef struct _IO_STATUS_BLOCK
+typedef struct
 {
     union
     {
-        LONG Status;
-        PVOID Pointer;
+        LONG    Status;
+        PVOID   Pointer;
     };
-    ULONG_PTR Information;
+    ULONG_PTR   Information;
 } MY_IO_STATUS_BLOCK, *PMY_IO_STATUS_BLOCK;
 
 static BOOL                             g_fInitialized = FALSE;
