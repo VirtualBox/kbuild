@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2456 2011-07-07 23:25:30Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2463 2011-07-08 11:54:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -3862,7 +3862,7 @@ int main(int argc, char **argv)
     unsigned cArgvCompile = 0;
     const char *pszObjName = NULL;
     int fRedirCompileStdIn = 0;
-    const char *pszNmPipeCompile;
+    const char *pszNmPipeCompile = NULL;
 
     const char *pszTarget = NULL;
 
@@ -3984,7 +3984,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2456 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2463 $)\n"
                    "Copyright (c) 2007-2011 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
