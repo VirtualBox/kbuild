@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2450 2011-07-07 17:54:56Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2462 2011-07-08 08:42:53Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -584,6 +584,9 @@ test_local:
 test_includedep:
 	$(MAKE) -f $(kmk_DEFPATH)/testcase-includedep.kmk
 
+test_root:
+	$(MAKE) -f $(kmk_DEFPATH)/testcase-root.kmk
+
 test_2ndtargetexp:
 	$(MAKE) -f $(kmk_DEFPATH)/testcase-2ndtargetexp.kmk
 
@@ -605,6 +608,16 @@ test_lazy_deps_vars:
 	$(MAKE) -C $(kmk_DEFPATH) -f testcase-lazy-deps-vars.kmk
 
 
-test_all:	test_math test_stack test_shell test_if1of test_local test_includedep test_2ndtargetexp test_30_continued_on_failure test_lazy_deps_vars
+test_all: \
+        test_math \
+        test_stack \
+        test_shell \
+        test_if1of \
+        test_local \
+        test_root \
+        test_includedep \
+        test_2ndtargetexp \
+        test_30_continued_on_failure \
+        test_lazy_deps_vars
 
 

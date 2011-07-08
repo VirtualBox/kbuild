@@ -1,0 +1,30 @@
+#
+# The $(root ...) and $(notroot ) functions.
+#
+
+
+
+x := $(root /a)
+y := $(notroot /a)
+ifneq ($x,/)
+ $(error x=$x)
+endif
+ifneq ($y,a)
+ $(error y=$y)
+endif
+
+x := $(root /a /b /)
+y := $(notroot /a /b /)
+ifneq ($x,/ / /)
+ $(error x=$x)
+endif
+ifneq ($y,a b .)
+ $(error y=$y)
+endif
+
+
+# dummy
+all:
+	echo The root and notroot functions works.
+
+
