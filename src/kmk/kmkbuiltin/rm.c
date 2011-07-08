@@ -119,6 +119,13 @@ static int	rm_overwrite(char *, struct stat *);
 static int	rm_tree(char **);
 static int	usage(FILE *);
 
+#if 1
+#define CUR_LINE_H2(x)  "[line " #x "]"
+#define CUR_LINE_H1(x)  CUR_LINE_H2(x)
+#define CUR_LINE()      CUR_LINE_H1(__LINE__)
+#else
+# define CUR_LINE()
+#endif
 
 
 /*
@@ -282,14 +289,14 @@ rm_tree(char **argv)
 		switch (p->fts_info) {
 		case FTS_DNR:
 			if (!fflag || p->fts_errno != ENOENT) {
-				fprintf(stderr, "%s: %s: %s\n",
+				fprintf(stderr, "%s: %s: %s" CUR_LINE() "\n",
 				        argv0, p->fts_path, strerror(p->fts_errno));
 				eval = 1;
 			}
 			continue;
 		case FTS_ERR:
 			fts_close(fts);
-			return errx(1, "%s: %s", p->fts_path, strerror(p->fts_errno));
+			return errx(1, "%s: %s " CUR_LINE(), p->fts_path, strerror(p->fts_errno));
 		case FTS_NS:
 			/*
 			 * Assume that since fts_read() couldn't stat the
@@ -298,8 +305,8 @@ rm_tree(char **argv)
 			if (!needstat)
 				break;
 			if (!fflag || p->fts_errno != ENOENT) {
-				fprintf(stderr, "%s: %s: %s\n",
-				        argv0, p->fts_path, strerror(p->fts_errno));
+				fprintf(stderr, "%s: %s: %s " CUR_LINE() "\n",
+				        argv0, p->fts_path, strerror(p->fts_errno), __LINE__);
 				eval = 1;
 			}
 			continue;
@@ -407,11 +414,11 @@ rm_tree(char **argv)
 #ifdef UF_APPEND
 err:
 #endif
-		fprintf(stderr, "%s: %s: %s\n", argv0, p->fts_path, strerror(errno));
+		fprintf(stderr, "%s: %s: %s " CUR_LINE() "\n", argv0, p->fts_path, strerror(errno));
 		eval = 1;
 	}
 	if (errno) {
-		fprintf(stderr, "%s: fts_read: %s\n", argv0, strerror(errno));
+		fprintf(stderr, "%s: fts_read: %s " CUR_LINE() "\n", argv0, strerror(errno));
 		eval = 1;
 	}
 	fts_close(fts);
@@ -449,7 +456,7 @@ rm_file(char **argv)
 			{
 #endif
 				if (!fflag || errno != ENOENT) {
-					fprintf(stderr, "%s: %s: %s\n", argv0, f, strerror(errno));
+					fprintf(stderr, "%s: %s: %s " CUR_LINE() "\n", argv0, f, strerror(errno));
 					eval = 1;
 				}
 				continue;
@@ -495,7 +502,7 @@ rm_file(char **argv)
 			}
 		}
 		if (rval && (!fflag || errno != ENOENT)) {
-			fprintf(stderr, "%s: %s: %s\n", argv0, f, strerror(errno));
+			fprintf(stderr, "%s: %s: %s" CUR_LINE() "\n", argv0, f, strerror(errno));
 			eval = 1;
 		}
 		if (vflag && rval == 0)
@@ -573,7 +580,7 @@ err:	eval = 1;
 		free(buf);
 	if (fd != -1)
 		close(fd);
-	fprintf(stderr, "%s: %s: %s\n", argv0, file, strerror(errno));
+	fprintf(stderr, "%s: %s: %s" CUR_LINE() "\n", argv0, file, strerror(errno));
 	return (0);
 }
 
