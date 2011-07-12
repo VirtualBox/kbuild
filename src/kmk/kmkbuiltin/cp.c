@@ -336,7 +336,7 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 	r = stat(to.p_path, &to_stat);
 	if (r == -1 && errno != ENOENT) {
 		kBuildProtectionTerm(&g_ProtData);
-		return err(1, "%s", to.p_path);
+		return err(1, "stat: %s", to.p_path);
 	}
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
@@ -423,14 +423,14 @@ copy(char *argv[], enum op type, int fts_options)
 			if (   cp_ignore_non_existing
 			    && curr->fts_errno == ENOENT) {
 				if (vflag) {
-					warnx("%s: %s", curr->fts_path,
+					warnx("fts: %s: %s", curr->fts_path,
 					      strerror(curr->fts_errno));
 				}
 				continue;
 			}
 		case FTS_DNR:
 		case FTS_ERR:
-			warnx("%s: %s",
+			warnx("fts: %s: %s",
 			    curr->fts_path, strerror(curr->fts_errno));
 			badcp = rval = 1;
 			continue;
@@ -593,10 +593,10 @@ copy(char *argv[], enum op type, int fts_options)
 			if (dne) {
 				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
-					return err(1, "%s", to.p_path);
+					return err(1, "mkdir: %s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
 				errno = ENOTDIR;
-				return err(1, "%s", to.p_path);
+				return err(1, "to-mode: %s", to.p_path);
 			}
 			/*
 			 * Arrange to correct directory attributes later

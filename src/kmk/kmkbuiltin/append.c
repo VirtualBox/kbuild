@@ -1,4 +1,4 @@
-/* $Id: append.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 2466 2011-07-12 09:52:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -177,7 +177,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     iFile = i;
     pFile = fopen(argv[i], fTruncate ? "w" : "a");
     if (!pFile)
-        return err(1, "failed to open '%s'.", argv[i]);
+        return err(1, "failed to open '%s'", argv[i]);
 
     /*
      * Start define?

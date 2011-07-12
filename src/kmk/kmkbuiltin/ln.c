@@ -154,10 +154,10 @@ kmk_builtin_ln(int argc, char *argv[], char **envp)
 		 * the target--simulate "not a directory" error
 		 */
 		errno = ENOTDIR;
-		return err(1, "%s", sourcedir);
+		return err(1, "st_mode: %s", sourcedir);
 	}
 	if (stat(sourcedir, &sb))
-		return err(1, "%s", sourcedir);
+		return err(1, "stat: %s", sourcedir);
 	if (!S_ISDIR(sb.st_mode))
 		return usage(stderr);
 	for (exitval = 0; *argv != sourcedir; ++argv)
@@ -176,13 +176,13 @@ linkit(const char *target, const char *source, int isdir)
 	if (!sflag) {
 		/* If target doesn't exist, quit now. */
 		if (stat(target, &sb)) {
-			warn("%s", target);
+			warn("stat: %s", target);
 			return (1);
 		}
 		/* Only symbolic links to directories. */
 		if (S_ISDIR(sb.st_mode)) {
 			errno = EISDIR;
-			warn("%s", target);
+			warn("st_mode: %s", target);
 			return (1);
 		}
 	}
@@ -209,7 +209,7 @@ linkit(const char *target, const char *source, int isdir)
 		if (snprintf(path, sizeof(path), "%s/%s", source, p) >=
 		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
-			warn("%s", target);
+			warn("snprintf: %s", target);
 			return (1);
 		}
 		source = path;
@@ -222,7 +222,7 @@ linkit(const char *target, const char *source, int isdir)
 	 */
 	if (fflag && exists) {
 		if (unlink(source)) {
-			warn("%s", source);
+			warn("unlink: %s", source);
 			return (1);
 		}
 	} else if (iflag && exists) {
@@ -238,14 +238,14 @@ linkit(const char *target, const char *source, int isdir)
 		}
 
 		if (unlink(source)) {
-			warn("%s", source);
+			warn("unlink: %s", source);
 			return (1);
 		}
 	}
 
 	/* Attempt the link. */
 	if ((*linkf)(target, source)) {
-		warn("%s", source);
+		warn("%s: %s", linkf == link ? "link" : "symlink", source);
 		return (1);
 	}
 	if (vflag)
