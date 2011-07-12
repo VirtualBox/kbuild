@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2468 2011-07-12 12:50:50Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2470 2011-07-12 13:11:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -36,6 +36,13 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #include <sys/types.h>
+#ifdef KBUILD_OS_SOLARIS
+# include <string.h> /* Try drag in feature_tests.h. */
+# include <ctype.h>
+# undef  _RESTRICT_KYWD
+# define _RESTRICT_KYWD 
+# undef  __PRAGMA_REDEFINE_EXTNAME
+#endif
 #include <sys/stat.h>
 #include <utime.h>
 #include <dlfcn.h>
@@ -43,9 +50,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stddef.h>
-#ifdef KBUILD_OS_SOLARIS
-# undef __PRAGMA_REDEFINE_EXTNAME
-#endif
 #include <stdio.h>
 
 
@@ -143,7 +147,7 @@ static int dlsym_libc(const char *pszSymbol, void **ppvSym)
 }
 
 
-
+#undef open
 int open(const char *pszPath, int fFlags, ...)
 {
     mode_t      fMode;
@@ -169,6 +173,7 @@ int open(const char *pszPath, int fFlags, ...)
     return fd;
 }
 
+#undef open64
 int open64(const char *pszPath, int fFlags, ...)
 {
     mode_t      fMode;
@@ -234,13 +239,13 @@ WRAP_FN(link, (const char *pszFrom, const char *pszTo), (pszFrom, pszTo), int, -
 
 #undef stat
 WRAP_FN(stat, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
-#undef stat64
-WRAP_FN(stat64, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
-
 #undef lstat
 WRAP_FN(lstat, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+
+#undef stat64
+WRAP_FN(stat64, (const char *pszPath, struct stat64 *pStBuf), (pszPath, pStBuf), int, -1);
 #undef lstat64
-WRAP_FN(lstat64, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+WRAP_FN(lstat64, (const char *pszPath, struct stat64 *pStBuf), (pszPath, pStBuf), int, -1);
 
 #undef read
 WRAP_FN(read, (int fd, void *pvBuf, size_t cbBuf), (fd, pvBuf, cbBuf), ssize_t, -1);
@@ -272,4 +277,6 @@ WRAP_FN(utimes, (const char *pszPath, const struct timeval *paTimes), (pszPath, 
 #undef pathconf
 WRAP_FN(pathconf, (const char *pszPath, int iCfgNm), (pszPath, iCfgNm), long, -1);
 
+#undef readlink
+WRAP_FN(readlink, (const char *pszPath, char *pszBuf, size_t cbBuf), (pszPath, pszBuf, cbBuf), ssize_t, -1);
 
