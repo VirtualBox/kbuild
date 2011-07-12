@@ -3,8 +3,8 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#define _XOPEN_SOURCE
-#define _BSD_SOURCE
+//#define _XOPEN_SOURCE
+//#define _BSD_SOURCE
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
@@ -13,9 +13,11 @@
 #include <errno.h>
 
 
+volatile unsigned long g_cInts = 0;
+
 static void SigAlaramHandler(int iSig)
 {
-    /* ignore */
+    g_cInts++;
     (void)iSig;
 }
 
@@ -26,6 +28,7 @@ int main(int argc, char **argv)
     void (*rcSig)(int);
     int i;
     int rc;
+    char szName[256];
 
     /*
      * Set up the timer signal.
@@ -41,29 +44,40 @@ int main(int argc, char **argv)
 
     memset(&TmrVal, '\0', sizeof(TmrVal));
     TmrVal.it_interval.tv_sec  = TmrVal.it_value.tv_sec  = 0;
-    TmrVal.it_interval.tv_usec = TmrVal.it_value.tv_usec = 1000;
+    TmrVal.it_interval.tv_usec = TmrVal.it_value.tv_usec = 1;
     rc = setitimer(ITIMER_REAL, &TmrVal, NULL);
     if (rc != 0)
     {
         fprintf(stderr, "setitimer failed: %s\n", strerror(errno));
         return 1;
     }
+    printf("interval %d.%06d\n", (int)TmrVal.it_interval.tv_sec, (int)TmrVal.it_interval.tv_usec);
 
     /*
      * Do path related stuff.
      */
+    snprintf(szName, sizeof(szName), "%s/fooled/you", argv[0]);
     for (i = 0; i < 100*1000*1000; i++)
     {
         struct stat St;
         rc = stat(argv[0], &St);
-        if (rc != 0)
+        if (rc == 0)
+            rc = stat(szName, &St);
+        if (rc != 0 && errno == EINTR)
         {
-            printf("iteration %d: stat: %u\n", i, errno);
+            printf("iteration %d: stat: %s (%u)\n", i, strerror(errno), errno);
             break;
+        }
+        if ((i % 100000) == 0)
+        {
+            printf("."); 
+            if ((i % 1000000) == 0)
+                printf("[%u/%lu]", i, g_cInts);
+            fflush(stdout);
         }
     }
 
-    if (rc)
+    if (!rc)
         printf("No EINTR in %d iterations - system is working nicely!\n", i);
 
     TmrVal.it_interval.tv_sec  = TmrVal.it_value.tv_sec  = 0;
