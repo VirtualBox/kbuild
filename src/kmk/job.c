@@ -1008,6 +1008,7 @@ static void
 set_child_handler_action_flags (int set_handler, int set_alarm)
 {
   struct sigaction sa;
+  int rval = 0;
 
 #if defined(__EMX__) && !defined(__KLIBC__) /* bird */
   /* The child handler must be turned off here.  */
@@ -1018,11 +1019,13 @@ set_child_handler_action_flags (int set_handler, int set_alarm)
   sa.sa_handler = child_handler;
   sa.sa_flags = set_handler ? 0 : SA_RESTART;
 #if defined SIGCHLD
-  sigaction (SIGCHLD, &sa, NULL);
+  rval = sigaction (SIGCHLD, &sa, NULL);
 #endif
 #if defined SIGCLD && SIGCLD != SIGCHLD
-  sigaction (SIGCLD, &sa, NULL);
+  rval = sigaction (SIGCLD, &sa, NULL);
 #endif
+  if (rval != 0) 
+    fprintf (stderr, "sigaction: %s (%d)\n", strerror (errno), errno);
 #if defined SIGALRM
   if (set_alarm)
     {
