@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2448 2011-07-07 11:59:34Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2468 2011-07-12 12:50:50Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -41,6 +41,8 @@ kUtil_SOURCES.win = \
 	nt_fullpath.c \
 	quoted_spawn.c
 kUtil_SOURCES.solaris = \
+	restartable-syscall-wrappers.c
+kUtil_SOURCES.linux = \
 	restartable-syscall-wrappers.c
 kUtil_NOINST = 1
 

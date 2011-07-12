@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2449 2011-07-07 12:05:30Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2468 2011-07-12 12:50:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -37,6 +37,7 @@
 *******************************************************************************/
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <utime.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -79,77 +80,6 @@
 /** Returns the expanded argument as a string. */
 #define XSTR(x)         XSTR_INNER(x)
 
-
-
-extern int WRAP64(open)(const char *pszName, int fFlags, ...);
-int open(const char *pszName, int fFlags, ...)
-{
-    mode_t      fMode;
-    va_list     va;
-    int         fd;
-
-    va_start(va, fFlags);
-    fMode = va_arg(va, mode_t);
-    va_end(va);
-
-    do
-        fd = WRAP64(open)(pszName, fFlags, fMode);
-    while (fd == -1 && SHOULD_RESTART());
-    return fd;
-}
-
-
-#if !defined(KBUILD_OS_LINUX) /* no wrapper */
-extern int WRAP(mkdir)(const char *pszName, mode_t fMode);
-int mkdir(const char *pszName, mode_t fMode)
-{
-    int rc;
-    do
-        rc = WRAP(mkdir)(pszName, fMode);
-    while (rc == -1 && SHOULD_RESTART());
-    return rc;
-}
-#endif
-
-extern int WRAP64(stat)(const char *pszName, struct stat *pStBuf);
-int stat(const char *pszName, struct stat *pStBuf)
-{
-    int rc;
-    do
-        rc = WRAP64(stat)(pszName, pStBuf);
-    while (rc == -1 && SHOULD_RESTART());
-    return rc;
-}
-
-extern int WRAP64(lstat)(const char *pszName, struct stat *pStBuf);
-int lstat(const char *pszName, struct stat *pStBuf)
-{
-    int rc;
-    do
-        rc = WRAP64(lstat)(pszName, pStBuf);
-    while (rc == -1 && SHOULD_RESTART());
-    return rc;
-}
-
-extern ssize_t WRAP(read)(int fd, void *pvBuf, size_t cbBuf);
-ssize_t read(int fd, void *pvBuf, size_t cbBuf)
-{
-    ssize_t cbRead;
-    do
-        cbRead = WRAP(read)(fd, pvBuf, cbBuf);
-    while (cbRead == -1 && SHOULD_RESTART());
-    return cbRead;
-}
-
-extern ssize_t WRAP(write)(int fd, void *pvBuf, size_t cbBuf);
-ssize_t write(int fd, void *pvBuf, size_t cbBuf)
-{
-    ssize_t cbWritten;
-    do
-        cbWritten = WRAP(write)(fd, pvBuf, cbBuf);
-    while (cbWritten == -1 && SHOULD_RESTART());
-    return cbWritten;
-}
 
 static int dlsym_libc(const char *pszSymbol, void **ppvSym)
 {
@@ -212,45 +142,134 @@ static int dlsym_libc(const char *pszSymbol, void **ppvSym)
     return 0;
 }
 
+
+
+int open(const char *pszPath, int fFlags, ...)
+{
+    mode_t      fMode;
+    va_list     va;
+    int         fd;
+    static union
+    {
+        int (* pfnReal)(const char *, int, mode_t);
+        void *pvSym;
+    } s_u;
+
+    if (   !s_u.pfnReal
+        && dlsym_libc("open", &s_u.pvSym) != 0)
+        return -1;
+
+    va_start(va, fFlags);
+    fMode = va_arg(va, mode_t);
+    va_end(va);
+
+    do
+        fd = s_u.pfnReal(pszPath, fFlags, fMode);
+    while (fd == -1 && SHOULD_RESTART());
+    return fd;
+}
+
+int open64(const char *pszPath, int fFlags, ...)
+{
+    mode_t      fMode;
+    va_list     va;
+    int         fd;
+    static union
+    {
+        int (* pfnReal)(const char *, int, mode_t);
+        void *pvSym;
+    } s_u;
+
+    if (   !s_u.pfnReal
+        && dlsym_libc("open64", &s_u.pvSym) != 0)
+        return -1;
+
+    va_start(va, fFlags);
+    fMode = va_arg(va, mode_t);
+    va_end(va);
+
+    do
+        fd = s_u.pfnReal(pszPath, fFlags, fMode);
+    while (fd == -1 && SHOULD_RESTART());
+    return fd;
+}
+
+#define WRAP_FN(a_Name, a_ParamsWithTypes, a_ParamsNoType, a_RetType, a_RetFailed) \
+    a_RetType a_Name a_ParamsWithTypes \
+    { \
+        static union \
+        { \
+            a_RetType (* pfnReal) a_ParamsWithTypes; \
+            void *pvSym; \
+        } s_u; \
+        a_RetType rc; \
+        \
+        if (   !s_u.pfnReal \
+            && dlsym_libc(#a_Name, &s_u.pvSym) != 0) \
+            return a_RetFailed; \
+        \
+        do \
+            rc = s_u.pfnReal a_ParamsNoType; \
+        while (rc == a_RetFailed && SHOULD_RESTART()); \
+        return rc; \
+    } typedef int ignore_semi_colon_##a_Name
+
+#undef mkdir
+WRAP_FN(mkdir, (const char *pszPath, mode_t fMode), (pszPath, fMode), int, -1);
+
+#undef rmdir
+WRAP_FN(rmdir, (const char *pszPath, mode_t fMode), (pszPath, fMode), int, -1);
+
+#undef unlink
+WRAP_FN(unlink, (const char *pszPath), (pszPath), int, -1);
+
+#undef remove
+WRAP_FN(remove, (const char *pszPath), (pszPath), int, -1);
+
+#undef symlink
+WRAP_FN(symlink, (const char *pszFrom, const char *pszTo), (pszFrom, pszTo), int, -1);
+
+#undef link
+WRAP_FN(link, (const char *pszFrom, const char *pszTo), (pszFrom, pszTo), int, -1);
+
+#undef stat
+WRAP_FN(stat, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+#undef stat64
+WRAP_FN(stat64, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+
+#undef lstat
+WRAP_FN(lstat, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+#undef lstat64
+WRAP_FN(lstat64, (const char *pszPath, struct stat *pStBuf), (pszPath, pStBuf), int, -1);
+
+#undef read
+WRAP_FN(read, (int fd, void *pvBuf, size_t cbBuf), (fd, pvBuf, cbBuf), ssize_t, -1);
+
+#undef write
+WRAP_FN(write, (int fd, void *pvBuf, size_t cbBuf), (fd, pvBuf, cbBuf), ssize_t, -1);
+
 #undef fopen
-FILE *fopen(const char *pszName, const char *pszMode)
-{
-    static union
-    {
-        FILE *(* pfnFOpen)(const char *, const char *);
-        void *pvSym;
-    } s_u;
-    FILE *pFile;
-
-    if (   !s_u.pfnFOpen
-        && dlsym_libc("fopen", &s_u.pvSym) != 0)
-        return NULL;
-
-    do
-        pFile = s_u.pfnFOpen(pszName, pszMode);
-    while (!pFile && SHOULD_RESTART());
-    return pFile;
-}
-
+WRAP_FN(fopen, (const char *pszPath, const char *pszMode), (pszPath, pszMode), FILE *, NULL);
 #undef fopen64
-FILE *fopen64(const char *pszName, const char *pszMode)
-{
-    static union
-    {
-        FILE *(* pfnFOpen64)(const char *, const char *);
-        void *pvSym;
-    } s_u;
-    FILE *pFile;
+WRAP_FN(fopen64, (const char *pszPath, const char *pszMode), (pszPath, pszMode), FILE *, NULL);
 
-    if (   !s_u.pfnFOpen64
-        && dlsym_libc("fopen64", &s_u.pvSym) != 0)
-        return NULL;
+#undef chmod
+WRAP_FN(chmod, (const char *pszPath, mode_t fMode), (pszPath, fMode), int, -1);
+#undef lchmod
+WRAP_FN(lchmod, (const char *pszPath, mode_t fMode), (pszPath, fMode), int, -1);
 
-    do
-        pFile = s_u.pfnFOpen64(pszName, pszMode);
-    while (!pFile && SHOULD_RESTART());
-    return pFile;
-}
+#undef chown
+WRAP_FN(chown, (const char *pszPath, uid_t uid, gid_t gid), (pszPath, uid, gid), int, -1);
+#undef lchown
+WRAP_FN(lchown, (const char *pszPath, uid_t uid, gid_t gid), (pszPath, uid, gid), int, -1);
 
-/** @todo chmod, chown, chgrp, times, and possible some more. */
+#undef utime
+WRAP_FN(utime, (const char *pszPath, const struct utimbuf *pTimes), (pszPath, pTimes), int, -1);
+
+#undef utimes
+WRAP_FN(utimes, (const char *pszPath, const struct timeval *paTimes), (pszPath, paTimes), int, -1);
+
+#undef pathconf
+WRAP_FN(pathconf, (const char *pszPath, int iCfgNm), (pszPath, iCfgNm), long, -1);
+
 
