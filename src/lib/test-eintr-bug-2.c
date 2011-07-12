@@ -7,12 +7,14 @@
 #define _GNU_SOURCE
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <unistd.h>
 
 
 /*******************************************************************************
@@ -20,6 +22,8 @@
 *******************************************************************************/
 /** The number of signals. */
 static volatile long    g_cSigs = 0;
+/** Number of signals received on threads other than the main one. */
+static volatile long    g_cSigsOther = 0;
 /** Whether to shutdown or not. */
 static volatile int     g_fShutdown = 0;
 /** The handle of the main thread. */
@@ -29,6 +33,8 @@ static pthread_t        g_hMainThread;
 static void SigHandler(int iSig)
 {
     g_cSigs++;
+    if (pthread_self() != g_hMainThread)
+        g_cSigsOther++;
 
     (void)iSig;
 }
@@ -45,13 +51,16 @@ static void NanoSleep(unsigned long cNanoSecs)
 
 static void *ThreadProc(void *pvIgnored)
 {
+    int volatile i = 0;
     while (!g_fShutdown)
     {
-        NanoSleep(850);
+//        NanoSleep(850);
         if (g_fShutdown)
             break;
 
         pthread_kill(g_hMainThread, SIGALRM);
+        for (i = 6666; i > 0; i--) 
+            /* nothing */;
     }
     return NULL;
 }
@@ -100,6 +109,7 @@ int main(int argc, char **argv)
     for (i = 0; i < 100*1000*1000; i++)
     {
         struct stat St;
+        int fd;
 
         rc = stat(argv[0], &St);
         if (rc == 0 || errno != EINTR)
@@ -109,11 +119,27 @@ int main(int argc, char **argv)
             printf("iteration %d: stat: %u\n", i, errno);
             break;
         }
+        
+        fd = open(szName, O_CREAT | O_RDWR, 0666);
+        if (errno == EINTR && fd < 0)
+        {
+            printf("iteration %d: open: %u\n", i, errno);
+            break;
+        }
+        close(fd);
+        rc = unlink(szName);
+        if (errno == EINTR && rc != 0)
+        {
+            printf("iteration %d: unlink: %u\n", i, errno);
+            break;
+        }
+        
+        /* Show progress info */
         if ((i % 100000) == 0)
         {
             printf(".");
             if ((i % 1000000) == 0)
-                printf("[%d/%ld]", i, g_cSigs);
+                printf("[%d/%ld/%ld]\n", i, g_cSigs, g_cSigsOther);
             fflush(stdout);
         }
     }
