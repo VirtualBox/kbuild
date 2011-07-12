@@ -143,9 +143,9 @@ kmk_builtin_mkdir(int argc, char *argv[], char **envp)
 				success = 0;
 		} else if (mkdir(*argv, omode) < 0) {
 			if (errno == ENOTDIR || errno == ENOENT)
-				warn("%s [mkdir]", dirname(*argv));
+				warn("mkdir: %s", dirname(*argv));
 			else
-                                warn("%s [mkdir]", *argv);
+                                warn("mkdir: %s", *argv);
 			success = 0;
 		} else if (vflag)
 			(void)printf("%s\n", *argv);
@@ -160,7 +160,7 @@ kmk_builtin_mkdir(int argc, char *argv[], char **envp)
 		 * as chmod will (obviously) ignore the umask.
 		 */
 		if (success && mode != NULL && chmod(*argv, omode) == -1) {
-			warn("%s [chmod]", *argv);
+			warn("chmod: %s", *argv);
 			exitval = 1;
 		}
 	}
@@ -245,7 +245,7 @@ build(char *path, mode_t omode)
 			    || errno == ENOSYS  /* (solaris crap) */
 			    || errno == EACCES /* (ditto) */) {
 				if (stat(path, &sb) < 0) {
-					warn("%s [stat]", path);
+					warn("stat: %s", path);
 					retval = 1;
 					break;
 				} else if (!S_ISDIR(sb.st_mode)) {
@@ -253,12 +253,12 @@ build(char *path, mode_t omode)
 						errno = EEXIST;
 					else
 						errno = ENOTDIR;
-					warn("%s [st_mode]", path);
+					warn("st_mode: %s", path);
 					retval = 1;
 					break;
 				}
 			} else {
-				warn("%s [mkdir]", path);
+				warn("mkdir: %s", path);
 				retval = 1;
 				break;
 			}

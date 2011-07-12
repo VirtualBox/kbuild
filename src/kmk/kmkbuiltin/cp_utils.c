@@ -97,7 +97,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	*pcopied = 0;
 
 	if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
-		warn("%s", entp->fts_path);
+		warn("open: %s", entp->fts_path);
 		return (1);
 	}
 
@@ -123,7 +123,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 			if (lseek(from_fd, 0, SEEK_SET) != 0) {
     				close(from_fd);
 				if ((from_fd = open(entp->fts_path, O_RDONLY | O_BINARY, 0)) == -1) {
-					warn("%s", entp->fts_path);
+					warn("open: %s", entp->fts_path);
 					return (1);
 				}
 			}
@@ -161,7 +161,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 		    fs->st_mode & ~(S_ISUID | S_ISGID));
 
 	if (to_fd == -1) {
-		warn("%s", to.p_path);
+		warn("open: %s", to.p_path);
 		(void)close(from_fd);
 		return (1);
 	}
@@ -179,7 +179,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 	    fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
 		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
-			warn("%s", entp->fts_path);
+			warn("mmap: %s", entp->fts_path);
 			rval = 1;
 		} else {
 			wtotal = 0;
@@ -199,12 +199,12 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn("%s", to.p_path);
+				warn("write[%zd != %zu]: %s", wcount, wresid, to.p_path);
 				rval = 1;
 			}
 			/* Some systems don't unmap on close(2). */
 			if (munmap(p, fs->st_size) < 0) {
-				warn("%s", entp->fts_path);
+				warn("munmap: %s", entp->fts_path);
 				rval = 1;
 			}
 		}
@@ -229,13 +229,13 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 					break;
 			}
 			if (wcount != (ssize_t)wresid) {
-				warn("%s", to.p_path);
+				warn("write[%zd != %zu]: %s", wcount, wresid, to.p_path);
 				rval = 1;
 				break;
 			}
 		}
 		if (rcount < 0) {
-			warn("%s", entp->fts_path);
+			warn("read: %s", entp->fts_path);
 			rval = 1;
 		}
 	}
@@ -251,7 +251,7 @@ copy_file(const FTSENT *entp, int dne, int changed_only, int *pcopied)
 		rval = 1;
 	(void)close(from_fd);
 	if (close(to_fd)) {
-		warn("%s", to.p_path);
+		warn("close: %s", to.p_path);
 		rval = 1;
 	}
 	return (rval);
