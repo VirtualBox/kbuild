@@ -609,6 +609,11 @@ Functions for file names:
 
         $(root names...)
 
+    Extract the non-root part of each file name (a bit complicated on
+    Windows & OS/2) [1]_::
+
+        $(notroot names...)
+
     Append ``suffix`` to each word in ``names``::
 
         $(addsuffix suffix,names...)
@@ -829,7 +834,7 @@ Advanced Functions:
 
     A combination of ``$(eval )`` and ``$(call )`` [1]_::
 
-        $(evalcall var)
+        $(evalcall2 var)
 
     Remove comments and blank lines from the variable ``var``. Expands to
     the empty string [1]_::
@@ -1026,7 +1031,7 @@ Pattern rules
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2340 2009-04-18 12:05:47Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2475 2011-07-16 20:08:07Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
