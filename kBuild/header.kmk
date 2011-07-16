@@ -1,4 +1,4 @@
-# $Id: header.kmk 2441 2011-07-06 12:18:41Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2475 2011-07-16 20:08:07Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2441 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2475 $  )
 
 
 #
@@ -389,6 +389,36 @@ else
  CURSUBDIR          := .
 endif
 
+# Install directory layout.  Relative to PATH_INS.
+INST_BIN             = bin/
+if1of ($(KBUILD_TARGET), win)
+INST_DLL             = bin/
+else
+INST_DLL             = lib/
+endif
+if1of ($(KBUILD_TARGET), os2 win)
+INST_SYS             = drivers/
+else
+INST_SYS             = kernel/
+endif
+INST_LIB             = lib/
+INST_DOC             = share/doc/
+INST_DEBUG           = debug/
+INST_SBIN            = sbin/
+INST_LIBEXEC         = libexec/
+INST_SHARE           = share/
+
+# Staging directory layout. Relative to PATH_STAGE.
+STAGE_BIN            = $(INST_BIN)
+STAGE_DLL            = $(INST_DLL)
+STAGE_SYS            = $(INST_SYS)
+STAGE_LIB            = $(INST_LIB)
+STAGE_DOC            = $(INST_DOC)
+STAGE_DEBUG          = $(INST_DEBUG)
+STAGE_SBIN           = $(INST_SBIN)
+STAGE_LIBEXEC        = $(INST_LIBEXEC)
+STAGE_SHARE          = $(INST_SHARE)
+
 # Output directories.
 ifndef PATH_OUT_BASE
  PATH_OUT_BASE      := $(PATH_ROOT)/out
@@ -403,12 +433,14 @@ endif # !define PATH_OUT
 PATH_OBJCACHE        = $(PATH_OUT_BASE)/kObjCache
 PATH_OBJ             = $(PATH_OUT)/obj
 PATH_TARGET          = $(PATH_OBJ)/$(CURSUBDIR)
-PATH_INS             = $(PATH_OUT)
-PATH_BIN             = $(PATH_INS)/bin
-PATH_DLL             = $(PATH_INS)/bin
-PATH_SYS             = $(PATH_INS)/bin
-PATH_LIB             = $(PATH_INS)/lib
-PATH_DOC             = $(PATH_INS)/doc
+PATH_STAGE           = $(PATH_OUT)/stage
+ifndef PATH_INS
+ ifdef DESTROOT
+PATH_INS             = $(DESTROOT)
+ else
+PATH_INS             = $(PATH_OUT)/dist
+ endif
+endif
 
 # Development tool tree.
 KBUILD_DEVTOOLS      = $(if $(PATH_DEVTOOLS),$(PATH_DEVTOOLS),$(PATH_ROOT)/tools)
@@ -839,7 +871,7 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOOL ARTOOL LDTOO
 # The list of non-accumulative target properties.
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance for templates, sdks, tools and targets.
-PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
+PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INSTTYPE INST STAGE NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
 	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF OBJCXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF BINSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
 	MODE UID GID
 ## PROPS_SINGLE_LNK
@@ -852,7 +884,7 @@ PROPS_SINGLE_LNK := TOOL TEMPLATE CTOOL CXXTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOO
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
 # functions, and thus should not be expanded until the very last moment.
-PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS NAME SONAME
+PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS PRE_INST_CMDS POST_INST_CMDS NAME SONAME
 
 ## PROPS_ACCUMULATE_R
 # The list of accumulative target properties where the right most value/flag
@@ -948,11 +980,11 @@ PROPS_MISCBINS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 ## @{
 PROPS_INSTALLS_SINGLE        := TOOL TEMPLATE INST NOINST
 PROPS_INSTALLS_DEFERRED      := INSTFUN INSTALLER
-PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS
+PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS GOALS INST_ONLY_GOALS STAGE_ONLY_GOALS
 PROPS_INSTALLS_ACCUMULATE_L  := SOURCES DIRS CLEAN
 ## @}
 
-## @name Properties valid on fetches (INSTALLS)
+## @name Properties valid on fetches (FETCHES)
 ## @{
 PROPS_FETCHES_SINGLE         := TOOL TEMPLATE FETCHTOOL UNPACKTOOL PATCHTOOL INST FETCHDIR
 PROPS_FETCHES_DEFERRED       :=
@@ -1068,12 +1100,20 @@ PASS_OTHERS_trgs    :=
 PASS_OTHERS_vars    := _OTHERS
 PASS_OTHERS_pass    := others
 
-## PASS: install
+## PASS: staging
 # This pass installs the built entities to a sandbox area.
 ## @todo split this up into build install (to sandbox) and real installation.
+PASS_STAGING        := Staging
+PASS_STAGING_trgs   :=
+PASS_STAGING_vars   := _STAGING_DIRS _INSTALLS _STAGING_FILES
+PASS_STAGING_pass   := staging
+
+## PASS: install
+# This pass installs the built entities to where they will be used (using
+# DESTROOT or PATH_INS to indicate where this is).
 PASS_INSTALLS       := Install
 PASS_INSTALLS_trgs  :=
-PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS _INSTALLS_FILES
+PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS_FILES
 PASS_INSTALLS_pass  := installs
 
 ## PASS: testing
@@ -1106,12 +1146,12 @@ PASS_NOTHING_pass   := nothing
 
 ## DEFAULT_PASSES
 # The default passes and their order.
-DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS INSTALLS
+DEFAULT_PASSES := BLDPROGS LIBRARIES DLLS BINARIES OTHERS STAGING
 
 ## PASSES
 # The passes that should be defined. This must include
 # all passes mentioned by DEFAULT_PASSES.
-PASSES := FETCHES PATCHES $(DEFAULT_PASSES) TESTING PACKING CLEAN NOTHING
+PASSES := FETCHES PATCHES $(DEFAULT_PASSES) INSTALLS TESTING PACKING CLEAN NOTHING
 
 
 #
@@ -1177,15 +1217,36 @@ endif
 # variables and uses relative paths or paths with incorrect case.
 #
 PATH_OUT_BASE := $(abspath $(PATH_OUT_BASE))
-PATH_OUT    := $(abspath $(PATH_OUT))
-PATH_OBJ    := $(abspath $(PATH_OBJ))
-PATH_TARGET := $(abspath $(PATH_TARGET))
-PATH_INS    := $(abspath $(PATH_INS))
-PATH_BIN    := $(abspath $(PATH_BIN))
-PATH_DLL    := $(abspath $(PATH_DLL))
-PATH_SYS    := $(abspath $(PATH_SYS))
-PATH_LIB    := $(abspath $(PATH_LIB))
-PATH_DOC    := $(abspath $(PATH_DOC))
+PATH_OUT      := $(abspath $(PATH_OUT))
+PATH_OBJ      := $(abspath $(PATH_OBJ))
+PATH_TARGET   := $(abspath $(PATH_TARGET))
+PATH_INS      := $(abspath $(PATH_INS))
+PATH_STAGE    := $(abspath $(PATH_STAGE))
+
+# Finalize the install and staging directory layouts.
+define def_kbuild_finalize_inst
+local val := $(strip $($(y)_$(x)))
+ifeq ($(val),)
+ $(error kBuild: '$(y)_$(x)' is set to an empty value.)
+endif
+ifneq ($(words $(val)),1)
+ $(error kBuild: The '$(y)_$(x)' value '$(val)' should not contain spaces.)
+endif
+ifneq ($(pos \,$(val)), 0)
+ $(error kBuild: The '$(y)_$(x)' value '$(val)' contains DOS slashes: not allowed.)
+endif
+ifneq ($(pos $(COLON),$(val)), 0)
+ $(error kBuild: The '$(y)_$(x)' value '$(val)' contains colon: not allowed.)
+endif
+ifneq ($(substr $(val),-1), /)
+ $(error kBuild: The '$(y)_$(x)' value '$(val)' has no trailing slash.)
+endif
+if $(pos /../,$(val)) != 0 || "$(substr $(val), 3)" == "../"
+ $(error kBuild: The '$(y)_$(x)' value '$(val)' contains dot-dot escape.)
+endif
+$($(y)_$(x) := $(val)
+endef
+$(foreach y, INST STAGE, $(foreach x, BIN DLL SYS LIB DOC SBIN LIBEXEC SHARE DEBUG, $(evalcall def_kbuild_finalize_inst)))
 
 
 #
