@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2478 2011-07-20 09:52:13Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -1031,7 +1031,7 @@ local translations := \
  	$($(target)_QT_TRANSLATIONS.$(bld_type)) \
  	$($(target)_QT_TRANSLATIONS)
 ifneq ($(strip $(translations)),)
- local expr := _ALL_INSTALLS += $(target)-inst-nls/
+ local expr := _ALL_INSTALLS_IMPLICIT += $(target)-inst-nls
  $(eval $(expr))
  ifdef $(target)_QT_TRANSLATIONS_TEMPLATE
   $(target)-inst-nls_TEMPLATE := $($(target)_QT_TRANSLATIONS_TEMPLATE)

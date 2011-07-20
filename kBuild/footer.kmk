@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2477 2011-07-20 09:51:55Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -129,6 +129,9 @@ _OTHERS   :=
 _PACKING  :=
 _DIRS     := $(PATH_TARGET)/ $(PATH_TARGET) $(BLDDIRS)
 _IMPORT_LIBS :=
+
+# Implicit targets added while processing other targets (usually by units).
+_ALL_INSTALLS_IMPLICIT :=
 
 # misc
 pass_prev :=
@@ -2148,7 +2151,7 @@ $($(target)_1_STAGE_TARGET): $(out) | $(dir $($(target)_1_STAGE_TARGET))
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
 	$(pre_install_cmds)
 
-	$$(QUIET)$$(INSTALL) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $(out) $$@
+	$$(QUIET)$$(INSTALL_STAGING) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $(out) $$@
 	$(post_install_cmds)
 
 
@@ -3022,13 +3025,15 @@ endif
 local stage    := $(stage)$(dir $(srcdstdir))
 local stagedst := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_STAGE))
 
-local inst     := $(firstword $($(srcsrc)_INST) $($(target)_1_INST))
-ifneq ($(substr $(inst),-1),/)
- $(warning kBuild: File $(srcsrc) in install target $(target) has a INST property without a trailing slash.)
- local inst    := $(inst)/
+ifeq ($(insttype),both)
+ local inst     := $(firstword $($(srcsrc)_INST) $($(target)_1_INST))
+ ifneq ($(substr $(inst),-1),/)
+  $(warning kBuild: File $(srcsrc) in install target $(target) has a INST property without a trailing slash.)
+  local inst    := $(inst)/
+ endif
+ local inst     := $(inst)$(dir $(srcdstdir))
+ local instdst  := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
 endif
-local inst     := $(inst)$(dir $(srcdstdir))
-local instdst  := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
 
 #$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) inst=$(inst) => instdst=$(instdst); stage=$(stage) => stagedst=$(stagedst))
 
@@ -3116,34 +3121,36 @@ ifneq ($(defpath),)
  local srcsrc := $(abspathex $(srcsrc),$(defpath))
 endif
 
-# create the commands
+# Generate the staging rule (requires double evaluation).
 ifdef $(srcsrc)_INSTALLER
- local stagecmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(stagedst),$(target),$(flags))
- local instcmd  := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags))
+ local stagecmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(stagedst),$(target),$(flags),stage)
 else ifdef $(target)_INSTALLER
- local stagecmd := $(call $(target)_INSTALLER,$(srcsrc),$(stagedst),$(target),$(flags))
- local instcmd  := $(call $(target)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags))
+ local stagecmd := $(call $(target)_INSTALLER,$(srcsrc),$(stagedst),$(target),$(flags),stage)
 else
- local stagecmd := $$(INSTALL)\
+ local stagecmd := $$(INSTALL_STAGING)\
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
 		$(flags) -- \
 		$(srcsrc) $(stagedst)
- local instcmd := $$(INSTALL)\
-		$(if $(uid),-o $(uid))\
-		$(if $(gid),-g $(gid))\
-		$(if $(mode),-m $(mode))\
-		$(flags) -- \
-		$(srcsrc) $(instdst)
 endif
-
-# Generate the staging rule (requires double evaluation).
 $(eval $(def_install_src_rule_staging))
 $(target)_2_STAGE_TARGETS += $(stagedst)
 
 # Generate the install rule
 ifeq ($(insttype),both)
+ ifdef $(srcsrc)_INSTALLER
+  local instcmd  := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
+ else ifdef $(target)_INSTALLER
+  local instcmd  := $(call $(target)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
+ else
+  local instcmd := $$(INSTALL)\
+  		$(if $(uid),-o $(uid))\
+  		$(if $(gid),-g $(gid))\
+  		$(if $(mode),-m $(mode))\
+  		$(flags) -- \
+  		$(srcsrc) $(instdst)
+ endif
  $(eval $(def_install_src_rule_installing))
  $(target)_2_INST_TARGETS += $(instdst)
 endif
@@ -3442,7 +3449,12 @@ INSTARGET_DIRS_$(target) := $($(target)_2_STAGE_DIR_TARGETS)
 endef # def_install
 $(eval-opt-var def_install)
 
-## process all install targets
+## Do pass 1 on the implicit targets and add them to the list.
+$(foreach target, $(_ALL_INSTALLS_IMPLICIT), \
+	$(evalval def_pass1_install))
+_ALL_INSTALLS += $(_ALL_INSTALLS_IMPLICIT)
+
+## Do pass 2 on all install targets.
 $(foreach target, $(_ALL_INSTALLS), \
 	$(evalvalctx def_install))
 

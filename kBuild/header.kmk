@@ -1,4 +1,4 @@
-# $Id: header.kmk 2475 2011-07-16 20:08:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2475 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2479 $  )
 
 
 #
@@ -390,6 +390,7 @@ else
 endif
 
 # Install directory layout.  Relative to PATH_INS.
+KBUILD_INST_PATHS   := BIN DLL SYS LIB DOC DEBUG SBIN LIBEXEC SHARE
 INST_BIN             = bin/
 if1of ($(KBUILD_TARGET), win)
 INST_DLL             = bin/
@@ -418,6 +419,12 @@ STAGE_DEBUG          = $(INST_DEBUG)
 STAGE_SBIN           = $(INST_SBIN)
 STAGE_LIBEXEC        = $(INST_LIBEXEC)
 STAGE_SHARE          = $(INST_SHARE)
+
+# Install and staging directory paths.
+$(foreach path, $(KBUILD_INST_PATHS), \
+	$(eval PATH_STAGE_$(path) = $$(patsubst %/,%,$$(PATH_STAGE)/$$(STAGE_$(path)))) \
+	$(eval PATH_INST_$(path) = $$(patsubst %/,%,$$(PATH_INS)/$$(INST_$(path)))) \
+)
 
 # Output directories.
 ifndef PATH_OUT_BASE
@@ -688,6 +695,13 @@ export SHELL MAKESHELL
 
 # Symlinking is problematic on some platforms...
 LN_SYMLINK  := $(LN) -s
+
+# When copying to the staging area, use hard links to save time and space.
+if1of ($(KMK_FEATURES), install-hard-linking)
+INSTALL_STAGING := $(INSTALL) --hard-link-files-when-possible
+else
+INSTALL_STAGING := $(INSTALL)
+endif
 
 
 #
@@ -1245,8 +1259,14 @@ if $(pos /../,$(val)) != 0 || "$(substr $(val), 3)" == "../"
  $(error kBuild: The '$(y)_$(x)' value '$(val)' contains dot-dot escape.)
 endif
 $($(y)_$(x) := $(val)
+
+local val := $(strip $(PATH_$(y)_$(x)))
+ifeq ($(val),)
+ $(error kBuild: 'PATH_$(y)_$(x)' is set to an empty value.)
+endif
+PATH_$(y)_$(x) := $(val)
 endef
-$(foreach y, INST STAGE, $(foreach x, BIN DLL SYS LIB DOC SBIN LIBEXEC SHARE DEBUG, $(evalcall def_kbuild_finalize_inst)))
+$(foreach y, INST STAGE, $(foreach x, $(KBUILD_INST_PATHS), $(evalcall def_kbuild_finalize_inst)))
 
 
 #
