@@ -345,7 +345,8 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 		if (to_sb.st_dev == from_sb.st_dev &&
                     to_sb.st_dev != 0 &&
 		    to_sb.st_ino == from_sb.st_ino &&
-		    to_sb.st_ino != 0)
+		    to_sb.st_ino != 0 &&
+		    !hard_link_files_when_possible)
 			return errx(EX_USAGE,
 			            "%s and %s are the same file", *argv, to_name);
 	}
@@ -447,7 +448,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			why_not = "backup (-b/-B)";
 		} else if (safecopy) {
 			why_not = "safe copy (-S)";
-		} else if (mode_given && mode != (from_sb.st_mode & ALLPERMS)) {
+		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
+			printf("mode=%04o st_mode=%04o (%s)\n", mode, (from_sb.st_mode & ALLPERMS), from_name);
 			why_not = "mode mismatch";
 		} else if (uid != (uid_t)-1 && gid != from_sb.st_uid) {
 			why_not = "uid mismatch";
