@@ -1288,7 +1288,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_STRING_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
-                          "append-dash-n abspath includedep-queue"
+                          "append-dash-n abspath includedep-queue install-hard-linking"
                           " rsort"
                           " abspathex"
                           " toupper tolower"
@@ -1316,7 +1316,7 @@ define_automatic_variables (void)
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
-  strcpy (buf, "append-dash-n abspath includedep-queue");
+  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking");
 #  if defined (CONFIG_WITH_RSORT)
   strcat (buf, " rsort");
 #  endif
