@@ -122,10 +122,11 @@ extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 
 static gid_t gid;
 static uid_t uid;
-static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
+static int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose, mode_given;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static const char *suffix = BACKUP_SUFFIX;
 static int ignore_perm_errors;
+static int hard_link_files_when_possible;
 
 static struct option long_options[] =
 {
@@ -133,6 +134,8 @@ static struct option long_options[] =
     { "version",   					no_argument, 0, 262 },
     { "ignore-perm-errors",   				no_argument, 0, 263 },
     { "no-ignore-perm-errors",				no_argument, 0, 264 },
+    { "hard-link-files-when-possible",			no_argument, 0, 265 },
+    { "no-hard-link-files-when-possible",		no_argument, 0, 266 },
     { 0, 0,	0, 0 },
 };
 
@@ -168,8 +171,9 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
         suffix = BACKUP_SUFFIX;
         gid = 0;
         uid = 0;
-        dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = 0;
+        dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = mode_given = 0;
 	ignore_perm_errors = geteuid() != 0;
+        hard_link_files_when_possible = 0;
 
         /* reset getopt and set progname. */
         g_progname = argv[0];
@@ -219,6 +223,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 				            optarg);
 			mode = bsd_getmode(set, 0);
 			free(set);
+			mode_given = 1;
 			break;
 		case 'o':
 			owner = optarg;
@@ -246,6 +251,12 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 		case 264:
 			ignore_perm_errors = 0;
 			break;
+                case 265:
+                        hard_link_files_when_possible = 1;
+                        break;
+                case 266:
+                        hard_link_files_when_possible = 0;
+                        break;
 		case '?':
 		default:
 			return usage(stderr);
@@ -384,9 +395,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 #if defined(__EMX__) || defined(_MSC_VER)
 	    || (   stricmp(from_name, _PATH_DEVNULL)
 		&& stricmp(from_name, "nul")
-#ifdef __EMX__
+# ifdef __EMX__
 		&& stricmp(from_name, "/dev/nul")
-#endif
+# endif
 	       )
 #else
 	    || strcmp(from_name, _PATH_DEVNULL)
@@ -421,6 +432,49 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 	/* Only copy safe if the target exists. */
 	tempcopy = safecopy && target;
+
+	/* Try hard linking if wanted and possible. */
+	if (hard_link_files_when_possible)
+	{
+		const char *why_not = NULL;
+		if (devnull) {
+			why_not = "/dev/null";
+		} else if (dostrip) {
+			why_not = "strip (-s)";
+		} else if (docompare) {
+			why_not = "compare (-C)";
+		} else if (dobackup) {
+			why_not = "backup (-b/-B)";
+		} else if (safecopy) {
+			why_not = "safe copy (-S)";
+		} else if (mode_given && mode != (from_sb.st_mode & ALLPERMS)) {
+			why_not = "mode mismatch";
+		} else if (uid != (uid_t)-1 && gid != from_sb.st_uid) {
+			why_not = "uid mismatch";
+		} else if (gid != (gid_t)-1 && gid != from_sb.st_gid) {
+			why_not = "gid mismatch";
+		} else {
+			int rcLink = link(from_name, to_name);
+			if (rcLink != 0 && errno == EEXIST) {
+			    unlink(to_name);
+			    rcLink = link(from_name, to_name);
+			}
+			if (rcLink == 0) {
+			    if (verbose)
+				    printf("install: %s -> %s (hardlinked)\n", from_name, to_name);
+			    goto l_done;
+			}
+			if (verbose)
+				printf("install: hard linking '%s' to '%s' failed: %s\n",
+				       to_name, from_name, strerror(errno));
+			why_not = NULL;
+		}
+		if (verbose && why_not)
+		    printf("install: not hard linking '%s' to '%s' because: %s\n",
+			   to_name, from_name, why_not);
+
+		/* Can't hard link or we failed, continue as nothing happend. */
+	}
 
 	if (!devnull && (from_fd = open(from_name, O_RDONLY | O_BINARY, 0)) < 0)
 		return err(EX_OSERR, "%s", from_name);
@@ -972,7 +1026,8 @@ static int
 usage(FILE *pf)
 {
 	fprintf(pf,
-"usage: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
+"usage: %s [-bCcpSsv] [--[no-]hard-link-files-when-possible]\n"
+"            [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
 "            [-g group] [-m mode] [-o owner] file1 file2\n"
 "   or: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
 "            [-g group] [-m mode] [-o owner] file1 ... fileN directory\n"
