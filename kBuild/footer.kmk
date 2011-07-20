@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2481 2011-07-20 14:43:53Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2294,6 +2294,7 @@ endef # def_fn_prop_get_first_defined
 # @param	$(out)      The output file.
 # @param	$(definst)  The default _INST value.
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
+# @param	$(target_type_mode) The default file mode implied by the target type.
 define def_target_install_only
 ifneq ($($(target)_1_INSTTYPE),none)
  local mode := $(firstword \
@@ -2519,6 +2520,7 @@ $(target)_2_DEPORD := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 $(eval $(def_link_rule))
 
 # installing and globals.
+local target_type_mode := a+r,o+w
 $(evalval def_target_install_only)
 
 _OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
@@ -2789,6 +2791,7 @@ local post_cmds := $(evalcall def_fn_prop_get_first_defined,POST_CMDS)
 local objs = $($(target)_2_OBJS)
 
 # installation targets
+local target_type_mode :=
 $(evalval def_target_install_only)
 
 # dependency file
