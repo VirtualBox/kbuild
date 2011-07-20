@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2475 2011-07-16 20:08:07Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2477 2011-07-20 09:51:55Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -197,8 +197,8 @@ endif
 # @param	$1		The file to install.
 # @param	$2		The target name.
 # @param	$3		The _INST value (can be empty).
-# @param	$4		The default directory to use when $3 is empty.
-_INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(PATH_INS)/$(3),$(4)/))
+# @param	$4		The installation root directory.
+_INSTALL_FILE = $(patsubst %/,%/$(notdir $(1)),$(if $(3),$(4)/$(3),$(4)/))
 
 
 
@@ -3014,20 +3014,20 @@ else
  local instfun := $(top_instfun)
 endif
 
-local stage    := $(firstword $($(srcsrc)_STAGE) $($(target)_1_STAGE))
+local stage    := $(firstword $($(srcsrc)_STAGE) $($(srcsrc)_INST) $($(target)_1_STAGE))
 ifneq ($(substr $(stage),-1),/)
  $(warning kBuild: File $(srcsrc) in install target $(target) has a STAGE property without a trailing slash.)
  local stage   := $(stage)/
 endif
-local stage    := $(stage)/$(dir $(srcdstdir))
+local stage    := $(stage)$(dir $(srcdstdir))
 local stagedst := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_STAGE))
 
-local inst     := $(firstword $($(srcsrc)_STAGE) $($(target)_1_STAGE))
+local inst     := $(firstword $($(srcsrc)_INST) $($(target)_1_INST))
 ifneq ($(substr $(inst),-1),/)
  $(warning kBuild: File $(srcsrc) in install target $(target) has a INST property without a trailing slash.)
  local inst    := $(inst)/
 endif
-local inst     := $(inst)/$(dir $(srcdstdir))
+local inst     := $(inst)$(dir $(srcdstdir))
 local instdst  := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
 
 #$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) inst=$(inst) => instdst=$(instdst); stage=$(stage) => stagedst=$(stagedst))
@@ -3105,7 +3105,13 @@ clean_files += \
 
 
 # Adjust the source if we got a default PATH. (This must be done this late!)
-local defpath := $(firstword $($(target)_DEFPATH) $($(target)_PATH))
+ifdef $(target)_DEFPATH
+local defpath := $($(target)_DEFPATH)
+else ifdef $(target)_PATH
+local defpath := $($(target)_PATH)
+else
+local defpath :=
+endif
 ifneq ($(defpath),)
  local srcsrc := $(abspathex $(srcsrc),$(defpath))
 endif
@@ -3183,20 +3189,20 @@ else
  local instfun := $(top_instfun)
 endif
 
-local stage    := $(firstword $($(symlnk)_STAGE) $($(target)_1_STAGE))
+local stage    := $(firstword $($(symlnk)_STAGE) $(symlnk)_INST) $($(target)_1_STAGE))
 ifneq ($(substr $(stage),-1),/)
  $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE property without a trailing slash.)
  local stage   := $(stage)/
 endif
-local stage    := $(stage)/$(dir $(srcdstdir))
+local stage    := $(stage)$(dir $(srcdstdir))
 local stagedst := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
 
-local inst     := $(firstword $($(symlnk)_STAGE) $($(target)_1_STAGE))
+local inst     := $(firstword $($(symlnk)_INST) $($(target)_1_INST))
 ifneq ($(substr $(inst),-1),/)
  $(warning kBuild: Symlnk $(symlnk) in install target $(target) has a INST property without a trailing slash.)
  local inst    := $(inst)/
 endif
-local inst     := $(inst)/$(dir $(srcdstdir))
+local inst     := $(inst)$(dir $(srcdstdir))
 local instdst  := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
 #$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
 
@@ -3250,6 +3256,8 @@ ifneq ($(substr $(inst),-1),/)
 endif
 ifdef $(directory)_STAGE
  local stage := $($(directory)_STAGE)
+else ifdef $(directory)_INST
+ local stage := $($(directory)_INST)
 else
  local stage := $($(target)_1_STAGE)
 endif
@@ -3355,7 +3363,7 @@ ifneq ($(insttype),none)
  local top_ifflags := \
  	$($(target)_IFFLAGS) \
  	$($(target)_IFFLAGS.$(bld_trg)) \
- 	$($(target)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_IFFLAGS.$(bld_trg).$(bld_trg_arch))
  local top_idflags := \
  	$($(target)_IDFLAGS) \
  	$($(target)_IDFLAGS.$(bld_trg)) \
