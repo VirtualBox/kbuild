@@ -1,4 +1,4 @@
-# $Id: VCC80X86.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: VCC80X86.kmk 2487 2011-07-21 20:01:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 8.0 (aka Visual .NET 2005, or MSC v14), targeting x86.
 #
@@ -265,9 +265,9 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_VCC80X86_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
-TOOL_VCC80X86_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_LIB))
+TOOL_VCC80X86_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_STAGE_LIB))
 TOOL_VCC80X86_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp
-TOOL_VCC80X86_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest $(PATH_LIB)/$(notdir $(outbase)).lib $(PATH_LIB)/$(notdir $(outbase)).exp
+TOOL_VCC80X86_LINK_DLL_OUTPUT_MAYBE = $(outbase).pdb $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
 define TOOL_VCC80X86_LINK_DLL_CMDS
 	$(QUIET)$(TOOL_VCC80X86_LD) $(flags) \
 		/OUT:$(out) \
@@ -282,8 +282,8 @@ define TOOL_VCC80X86_LINK_DLL_CMDS
 		$(subst /,\\,$(libs))
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC80X86_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
-	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_LIB)/
-$(eval _DIRS += $(PATH_LIB))
+	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_STAGE_LIB)/
+$(eval _DIRS += $(PATH_STAGE_LIB))
 endef
 
 
