@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2481 2011-07-20 14:43:53Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2483 2011-07-21 13:33:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -2304,7 +2304,8 @@ ifneq ($($(target)_1_INSTTYPE),none)
  	$($(target)_MODE.$(bld_trg_arch)) \
  	$($(target)_MODE.$(bld_trg)) \
  	$($(target)_MODE.$(bld_type)) \
- 	$($(target)_MODE) )
+ 	$($(target)_MODE) \
+	$(target_type_mode) )
  local uid := $(firstword \
  	$($(target)_UID.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
  	$($(target)_UID.$(bld_trg).$(bld_trg_arch)) \
@@ -2520,7 +2521,7 @@ $(target)_2_DEPORD := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 $(eval $(def_link_rule))
 
 # installing and globals.
-local target_type_mode := a+r,o+w
+local target_type_mode := a+r,u+w
 $(evalval def_target_install_only)
 
 _OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
@@ -3042,19 +3043,19 @@ endif
 
 # mode, uid and gid
 local mode := $(firstword \
-	$($(target)_$(srcsrc)_MODE.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_$(srcsrc)_MODE.$(bld_trg)) \
-	$($(target)_$(srcsrc)_MODE) \
-	$($(target)_$(srcdst)_MODE.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_$(srcdst)_MODE.$(bld_trg)) \
-	$($(target)_$(srcdst)_MODE) \
-	$($(srcsrc)_MODE.$(bld_trg).$(bld_trg_arch)) \
-	$($(srcsrc)_MODE.$(bld_trg)) \
-	$($(srcsrc)_MODE) \
-	$($(srcdst)_MODE.$(bld_trg).$(bld_trg_arch)) \
-	$($(srcdst)_MODE.$(bld_trg)) \
-	$($(srcdst)_MODE) \
-	$(top_mode))
+	$($(target)_$(srcsrc)$(source_type_prefix)_MODE.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcsrc)$(source_type_prefix)_MODE.$(bld_trg)) \
+	$($(target)_$(srcsrc)$(source_type_prefix)_MODE) \
+	$($(target)_$(srcdst)$(source_type_prefix)_MODE.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcdst)$(source_type_prefix)_MODE.$(bld_trg)) \
+	$($(target)_$(srcdst)$(source_type_prefix)_MODE) \
+	$($(srcsrc)$(source_type_prefix)_MODE.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcsrc)$(source_type_prefix)_MODE.$(bld_trg)) \
+	$($(srcsrc)$(source_type_prefix)_MODE) \
+	$($(srcdst)$(source_type_prefix)_MODE.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcdst)$(source_type_prefix)_MODE.$(bld_trg)) \
+	$($(srcdst)$(source_type_prefix)_MODE) \
+	$(source_type_mode))
 local uid := $(firstword \
 	$($(target)_$(srcsrc)_UID.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_$(srcsrc)_UID.$(bld_trg)) \
@@ -3085,18 +3086,18 @@ local gid := $(firstword \
 	$(top_gid))
 local flags := \
 	$(top_ifflags) \
-	$($(srcdst)_IFFLAGS) \
-	$($(srcdst)_IFFLAGS.$(bld_trg)) \
-	$($(srcdst)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
-	$($(srcsrc)_IFFLAGS) \
-	$($(srcsrc)_IFFLAGS.$(bld_trg)) \
-	$($(srcsrc)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_$(srcdst)_IFFLAGS) \
-	$($(target)_$(srcdst)_IFFLAGS.$(bld_trg)) \
-	$($(target)_$(srcdst)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_$(srcsrc)_IFFLAGS) \
-	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg)) \
-	$($(target)_$(srcsrc)_IFFLAGS.$(bld_trg).$(bld_trg_arch))
+	$($(srcdst)$(source_type_prefix)_IFFLAGS) \
+	$($(srcdst)$(source_type_prefix)_IFFLAGS.$(bld_trg)) \
+	$($(srcdst)$(source_type_prefix)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(srcsrc)$(source_type_prefix)_IFFLAGS) \
+	$($(srcsrc)$(source_type_prefix)_IFFLAGS.$(bld_trg)) \
+	$($(srcsrc)$(source_type_prefix)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcdst)$(source_type_prefix)_IFFLAGS) \
+	$($(target)_$(srcdst)$(source_type_prefix)_IFFLAGS.$(bld_trg)) \
+	$($(target)_$(srcdst)$(source_type_prefix)_IFFLAGS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_$(srcsrc)$(source_type_prefix)_IFFLAGS) \
+	$($(target)_$(srcsrc)$(source_type_prefix)_IFFLAGS.$(bld_trg)) \
+	$($(target)_$(srcsrc)$(source_type_prefix)_IFFLAGS.$(bld_trg).$(bld_trg_arch))
 clean_files += \
 	$($(srcdst)_CLEAN) \
 	$($(srcdst)_CLEAN.$(bld_trg)) \
@@ -3362,6 +3363,10 @@ ifneq ($(insttype),none)
  	$($(target)_MODE.$(bld_trg).$(bld_trg_arch)) \
  	$($(target)_MODE.$(bld_trg)) \
  	$($(target)_MODE) )
+ local top_exec_mode := $(firstword \
+ 	$($(target)_EXEC_MODE.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_EXEC_MODE.$(bld_trg)) \
+ 	$($(target)_EXEC_MODE) )
  local top_uid := $(firstword \
  	$($(target)_UID.$(bld_trg).$(bld_trg_arch)) \
  	$($(target)_UID.$(bld_trg)) \
@@ -3401,6 +3406,8 @@ ifneq ($(insttype),none)
  	$($(target)_CLEAN.$(bld_trg_cpu)) \
  	$($(target)_CLEAN.$(bld_type))
 
+ local source_type_prefix :=
+ local source_type_mode := $(firstword $(top_mode) a+r,u+w)
  $(foreach src,\
  	$($(target)_SOURCES) \
  	$($(target)_SOURCES.$(bld_trg)) \
@@ -3408,6 +3415,17 @@ ifneq ($(insttype),none)
  	$($(target)_SOURCES.$(bld_trg_arch)) \
  	$($(target)_SOURCES.$(bld_trg_cpu)) \
  	$($(target)_SOURCES.$(bld_type)), \
+ 	$(evalval def_install_src))
+
+ local source_type_prefix := EXEC_
+ local source_type_mode := $(firstword $(top_exec_mode) a+xr,u+w)
+ $(foreach src,\
+ 	$($(target)_EXEC_SOURCES) \
+ 	$($(target)_EXEC_SOURCES.$(bld_trg)) \
+ 	$($(target)_EXEC_SOURCES.$(bld_trg).$(bld_trg_arch)) \
+ 	$($(target)_EXEC_SOURCES.$(bld_trg_arch)) \
+ 	$($(target)_EXEC_SOURCES.$(bld_trg_cpu)) \
+ 	$($(target)_EXEC_SOURCES.$(bld_type)), \
  	$(evalval def_install_src))
 
  $(foreach src,\
