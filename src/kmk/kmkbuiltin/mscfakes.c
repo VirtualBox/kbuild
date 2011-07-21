@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2476 2011-07-20 00:52:30Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2484 2011-07-21 19:01:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -215,7 +215,6 @@ int lchmod(const char *pszPath, mode_t mode)
 int msc_chmod(const char *pszPath, mode_t mode)
 {
     int rc = 0;
-    int saved_errno;
     int fMustBeDir;
     char *pszPathFree = msc_fix_path(&pszPath, &fMustBeDir);
 
@@ -258,9 +257,30 @@ int msc_chmod(const char *pszPath, mode_t mode)
 }
 
 
+typedef BOOL (WINAPI *PFNCREATEHARDLINKA)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
 int link(const char *pszDst, const char *pszLink)
 {
-    if (CreateHardLink(pszDst, pszLink, NULL))
+    static PFNCREATEHARDLINKA   s_pfnCreateHardLinkA = NULL;
+    static int                  s_fTried = FALSE;
+
+    /* The API was introduced in Windows 2000, so resolve it dynamically. */
+    if (!s_pfnCreateHardLinkA)
+    {
+        if (!s_fTried)
+        {
+            HMODULE hmod = LoadLibrary("KERNEL32.DLL");
+            if (hmod)
+                *(FARPROC *)&s_pfnCreateHardLinkA = GetProcAddress(hmod, "CreateHardLinkA");
+            s_fTried = TRUE;
+        }
+        if (!s_pfnCreateHardLinkA)
+        {
+            errno = ENOSYS;
+            return -1;
+        }
+    }
+
+    if (s_pfnCreateHardLinkA(pszLink, pszDst, NULL))
         return 0;
     return msc_set_errno(GetLastError());
 }
