@@ -448,7 +448,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			why_not = "backup (-b/-B)";
 		} else if (safecopy) {
 			why_not = "safe copy (-S)";
+#if defined(KBUILD_OS_WINDOWS)
+		} else if ((mode & S_IWUSR) != (from_sb.st_mode & S_IWUSR)) {
+#else
 		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
+#endif
 			printf("install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
 			       "install: src path '%s'\n"
 			       "install: dst path '%s'\n",
@@ -742,7 +746,7 @@ l_done:
 		(void)close(to_fd);
 	if (temp_fd >= 0)
 		(void)close(temp_fd);
-	if (!devnull)
+	if (from_fd >= 0 && !devnull)
 		(void)close(from_fd);
 	return rc;
 }
