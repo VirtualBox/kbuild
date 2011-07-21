@@ -1,4 +1,4 @@
-# $Id: header.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2483 2011-07-21 13:33:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2479 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2483 $  )
 
 
 #
@@ -915,7 +915,7 @@ PROPS_ACCUMULATE_R := \
 	ASFLAGS ASDEFS \
 	RCFLAGS RCDEFS \
 	LDFLAGS \
-	IDFLAGS IFDLAGS ISFLAGS \
+	IDFLAGS IFFLAGS EXEC_IFFLAGS ISFLAGS \
 	FETCHFLAGS UNPACKFLAGS PATCHFLAGS
 ## PROPS_ACCUMULATE_R_LNK
 # Subset of PROPS_ACCUMULATE_R which applies to all linkable targets.
@@ -927,7 +927,7 @@ PROPS_ACCUMULATE_R_LNK := \
 	OBJCXXFLAGS OBJCXXDEFS \
 	ASFLAGS ASDEFS \
 	RCFLAGS RCDEFS \
-	IDFLAGS IFDLAGS ISFLAGS
+	IDFLAGS IFFLAGS ISFLAGS
 
 ## PROPS_ACCUMULATE
 # The list of accumulative target properties where the left most value/flag
@@ -935,7 +935,7 @@ PROPS_ACCUMULATE_R_LNK := \
 # A Config.kmk file can add it's own properties to this list and kBuild
 # will do the necessary inheritance from templates to targets.
 PROPS_ACCUMULATE_L := \
-	SDKS USES SOURCES SRC_HANDLERS INTERMEDIATES \
+	SDKS USES SOURCES EXEC_SOURCES SRC_HANDLERS INTERMEDIATES \
 	INCS CINCS CXXINCS OBJCINCS OBJCXXINCS ASINCS RCINCS \
 	LIBS LIBPATH \
 	DIRS BLDDIRS CLEAN
@@ -992,10 +992,10 @@ PROPS_MISCBINS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 
 ## @name Properties valid on installs (INSTALLS)
 ## @{
-PROPS_INSTALLS_SINGLE        := TOOL TEMPLATE INST NOINST
+PROPS_INSTALLS_SINGLE        := TOOL TEMPLATE INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU MODE UID GID
 PROPS_INSTALLS_DEFERRED      := INSTFUN INSTALLER
-PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS GOALS INST_ONLY_GOALS STAGE_ONLY_GOALS
-PROPS_INSTALLS_ACCUMULATE_L  := SOURCES DIRS CLEAN
+PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS GOALS INST_ONLY_GOALS STAGE_ONLY_GOALS IFFLAGS EXEC_IFFLAGS
+PROPS_INSTALLS_ACCUMULATE_L  := SOURCES EXEC_SOURCES DIRS CLEAN
 ## @}
 
 ## @name Properties valid on fetches (FETCHES)
