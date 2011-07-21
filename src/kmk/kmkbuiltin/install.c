@@ -449,8 +449,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		} else if (safecopy) {
 			why_not = "safe copy (-S)";
 		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
-			printf("mode=%04o st_mode=%04o (%s)\n", mode, (from_sb.st_mode & ALLPERMS), from_name);
-			why_not = "mode mismatch";
+			printf("install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
+			       "install: src path '%s'\n"
+			       "install: dst path '%s'\n",
+			       (from_sb.st_mode & ALLPERMS), mode, from_name, to_name);
+			why_not = NULL;
 		} else if (uid != (uid_t)-1 && gid != from_sb.st_uid) {
 			why_not = "uid mismatch";
 		} else if (gid != (gid_t)-1 && gid != from_sb.st_gid) {
