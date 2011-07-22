@@ -437,6 +437,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/* Try hard linking if wanted and possible. */
 	if (hard_link_files_when_possible)
 	{
+#ifdef KBUILD_OS_OS2
+		const char *why_not = "not supported on OS/2";
+#else
 		const char *why_not = NULL;
 		if (devnull) {
 			why_not = "/dev/null";
@@ -448,11 +451,11 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			why_not = "backup (-b/-B)";
 		} else if (safecopy) {
 			why_not = "safe copy (-S)";
-#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
+# if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
 		} else if ((mode & S_IWUSR) != (from_sb.st_mode & S_IWUSR)) {
-#else
+# else
 		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
-#endif
+# endif
 			printf("install: warning: Not hard linking, mode differs: 0%03o, desires 0%03o\n"
 			       "install: src path '%s'\n"
 			       "install: dst path '%s'\n",
@@ -478,6 +481,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				       to_name, from_name, strerror(errno));
 			why_not = NULL;
 		}
+#endif
 		if (verbose && why_not)
 		    printf("install: not hard linking '%s' to '%s' because: %s\n",
 			   to_name, from_name, why_not);
