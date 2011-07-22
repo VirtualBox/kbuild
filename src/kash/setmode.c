@@ -93,7 +93,7 @@ static void	 dumpmode(BITCMD *);
  * bits) followed by a '+' (set bits).
  */
 mode_t
-bsd_getmode(const void *bbox, mode_t omode)
+kash_getmode(const void *bbox, mode_t omode)
 {
 	const BITCMD *set;
 	mode_t clrval, newmode, value;
@@ -181,7 +181,7 @@ common:			if (set->cmd2 & CMD2_CLR) {
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
 
 void *
-bsd_setmode(shinstance *psh, const char *p)
+kash_setmode(shinstance *psh, const char *p)
 {
 	int perm, who;
 	char op, *ep;

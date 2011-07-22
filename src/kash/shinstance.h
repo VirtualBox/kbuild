@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -32,6 +32,7 @@
 #include <signal.h> /* NSIG */
 #ifndef _MSC_VER
 # include <termios.h>
+# include <sys/types.h>
 # include <sys/ioctl.h>
 # include <sys/resource.h>
 #endif

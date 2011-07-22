@@ -1,4 +1,4 @@
-/* $Id: shthread.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shthread.c 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * Shell Thread Management.
@@ -101,7 +101,7 @@ struct shinstance *shthread_get_shell(void)
 #if K_OS == K_OS_WINDOWS
     psh = (shinstance *)TlsGetValue(sh_tls);
 #elif K_OS == K_OS_OS2
-    psh = (shinstance *)__libc_TLSGet(iTls)
+    psh = (shinstance *)__libc_TLSGet(sh_tls);
 #else
     psh = (shinstance *)pthread_getspecific(sh_tls);
 #endif

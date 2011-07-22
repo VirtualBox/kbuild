@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2457 2011-07-07 23:53:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -128,7 +128,7 @@ kash_main.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 #kash.man_SOURCES = sh.1=>kash.1
 
 
-if1of ($(KBUILD_TARGET), win)
+if1of ($(KBUILD_TARGET), win os2)
 
 #
 # Use the pregenerated code.
