@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2483 2011-07-21 13:33:41Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2488 2011-07-22 07:49:47Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1319,24 +1319,24 @@ endif
 $(target)_1_INSTTYPE := $(insttype)
 
 if1of ($(insttype), stage both)
- local stage := $(strip $(firstword \
-	$($(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_STAGE.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_STAGE.$(bld_trg).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_type)) \
-	$($(target)_STAGE.$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg_arch)) \
-	$($(target)_STAGE.$(bld_trg)) \
-	$($(target)_INST.$(bld_trg)) \
-	$($(target)_STAGE.$(bld_type)) \
-	$($(target)_INST.$(bld_type)) \
-	$($(target)_STAGE) \
-	$($(target)_INST) \
-	$(definst) ))
+ local stage := $(evalcall FIRST-DEFINED-VAR, \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_type) \
+	$(target)_STAGE.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg) \
+	$(target)_INST.$(bld_trg) \
+	$(target)_STAGE.$(bld_type) \
+	$(target)_INST.$(bld_type) \
+	$(target)_STAGE \
+	$(target)_INST \
+	definst )
  $(target)_1_STAGE := $(stage)
- $(target)_1_STAGE_TARGET := $(PATH_STAGE)/$(stage)$(notdir $(out))
+ $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(addsuffix $(notdir $(out)),$(stage)))
 else
  $(target)_1_STAGE :=
  $(target)_1_STAGE_TARGET :=
@@ -1344,17 +1344,17 @@ endif
 INSTARGET_$(target) := $($(target)_1_STAGE_TARGET)
 
 if1of ($(insttype), both)
- local inst := $(strip $(firstword \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg).$(bld_type)) \
-	$($(target)_INST.$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg)) \
-	$($(target)_INST.$(bld_type)) \
-	$($(target)_INST) \
-	$(definst) ))
+ local inst := $(evalcall FIRST-DEFINED-VAR, \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg).$(bld_type) \
+	$(target)_INST.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg) \
+	$(target)_INST.$(bld_type) \
+	$(target)_INST \
+	definst )
  $(target)_1_INST := $(inst)
- $(target)_1_INST_TARGET := $(PATH_INS)/$(inst)$(notdir $(out))
+ $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(addsuffix $(notdir $(out)),$(stage)))
 else
  $(target)_1_INST :=
  $(target)_1_INST_TARGET :=
@@ -1513,37 +1513,45 @@ $(target)_1_INSTTYPE    := $(insttype)
 
 # Determine the actual INST and STAGE sub-dirs to use for this target.
 if1of ($(insttype), stage both)
- local stage := $(strip $(firstword \
-	$($(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_STAGE.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_STAGE.$(bld_trg).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_type)) \
-	$($(target)_STAGE.$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg_arch)) \
-	$($(target)_STAGE.$(bld_trg)) \
-	$($(target)_INST.$(bld_trg)) \
-	$($(target)_STAGE.$(bld_type)) \
-	$($(target)_INST.$(bld_type)) \
-	$($(target)_STAGE) \
-	$($(target)_INST) \
-	$(definst) ))
+ local stage := $(evalcall FIRST-DEFINED-VAR, \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_type) \
+	$(target)_STAGE.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg) \
+	$(target)_INST.$(bld_trg) \
+	$(target)_STAGE.$(bld_type) \
+	$(target)_INST.$(bld_type) \
+	$(target)_STAGE \
+	$(target)_INST \
+	definst )
+ if $(words $(stage)) > 1
+  $(warning kBuild: The STAGE/INST property of install '$(target)' specifies multiple location, that is not supported.)
+  local stage := $(word 1, $(stage))
+ endif
  $(target)_1_STAGE := $(stage)
 else
  $(target)_1_STAGE = $(error _1_STAGE not used)
 endif
 
 if1of ($(insttype), both)
- local inst := $(strip $(firstword \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
-	$($(target)_INST.$(bld_trg).$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg).$(bld_type)) \
-	$($(target)_INST.$(bld_trg_arch)) \
-	$($(target)_INST.$(bld_trg)) \
-	$($(target)_INST.$(bld_type)) \
-	$($(target)_INST) \
-	$(definst) ))
+ local inst := $(evalcall FIRST-DEFINED-VAR, \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg).$(bld_type) \
+	$(target)_INST.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg) \
+	$(target)_INST.$(bld_type) \
+	$(target)_INST \
+	definst )
+ if $(words $(inst)) > 1
+  $(warning kBuild: The INST property of install '$(target)' specifies multiple location, that is not supported.)
+  local inst := $(word 1, $(inst))
+ endif
  $(target)_1_INST := $(inst)
 else
  $(target)_1_INST = $(error _1_INST not used)
@@ -2132,13 +2140,12 @@ $(eval-opt-var def_link_rule)
 # Implicit parameters: target, out, $(target)_1_STAGE_TARGET, mode,
 #                      pre_install_cmds, post_install_cmds
 define def_link_install_rule
-$($(target)_1_INST_TARGET): $(out) | $(dir $($(target)_1_INST_TARGET))
+$($(target)_1_INST_TARGET): $(out) | $$$$(dir $$$$@)
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
 	$(pre_install_cmds)
 
 	$$(QUIET)$$(INSTALL) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $(out) $$@
 	$(post_install_cmds)
-
 
 endef
 
@@ -2147,7 +2154,7 @@ endef
 # Implicit parameters: target, out, $(target)_1_STAGE_TARGET, mode,
 #                      pre_install_cmds, post_install_cmds
 define def_link_stage_rule
-$($(target)_1_STAGE_TARGET): $(out) | $(dir $($(target)_1_STAGE_TARGET))
+$($(target)_1_STAGE_TARGET): $(out) | $$$$(dir $$$$@)
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
 	$(pre_install_cmds)
 
@@ -2292,7 +2299,6 @@ endef # def_fn_prop_get_first_defined
 #
 # @param	$(target)   Normalized target name.
 # @param	$(out)      The output file.
-# @param	$(definst)  The default _INST value.
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
 # @param	$(target_type_mode) The default file mode implied by the target type.
 define def_target_install_only

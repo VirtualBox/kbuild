@@ -1,4 +1,4 @@
-# $Id: header.kmk 2485 2011-07-21 19:23:09Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2488 2011-07-22 07:49:47Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2485 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2488 $  )
 
 
 #
@@ -741,6 +741,22 @@ no-drive    = $(word $(words $(subst :, ,$(1))),$(subst :, ,$(1)))
 ## Removes the root slash from a path (if it has one)
 # @param	$1 		the path
 no-root-slash = $(patsubst /%,%,$(1))
+
+##
+# Similar to firstword, except it returns the value of first defined variable.
+# @param        $1              list of variables to probe.
+define FIRST-DEFINED-VAR
+ if "$1" != ""
+  local var := $(word 1,$1)
+  ifdef $(var)
+   local .RETURN := $(strip $($(var)))
+  else
+   local .RETURN := $(evalcall FIRST-DEFINED-VAR, $(wordlist 2,32,$1))
+  endif
+ else
+  local .RETURN :=
+ endif
+endef
 
 ## Figure out where to put object files.
 # @param    $1      real target name.
