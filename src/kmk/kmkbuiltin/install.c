@@ -448,7 +448,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			why_not = "backup (-b/-B)";
 		} else if (safecopy) {
 			why_not = "safe copy (-S)";
-#if defined(KBUILD_OS_WINDOWS)
+#if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
 		} else if ((mode & S_IWUSR) != (from_sb.st_mode & S_IWUSR)) {
 #else
 		} else if (mode != (from_sb.st_mode & ALLPERMS)) {
