@@ -1,4 +1,4 @@
-# $Id: header.kmk 2491 2011-07-22 11:17:10Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2493 2011-07-22 11:25:25Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -70,8 +70,8 @@ ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
   $(warning kBuild: kmk minor version mismatch! Expected '1' but found '$(KBUILD_VERSION_MINOR)'!)
  endif
 else
- ifneq ($(int-ge $(KBUILD_VERSION_PATCH),4),1)
-  $(warning kBuild: kmk version mismatch! Expected 0.1.4 or later. Actual version is $(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR).$(KBUILD_VERSION_PATCH).)
+ if $(KBUILD_VERSION_PATCH) < 5
+  $(warning kBuild: kmk version mismatch! Expected 0.1.5 or later. Actual version is $(KBUILD_VERSION).)
  endif
 endif
 
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2491 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2493 $  )
 
 
 #
