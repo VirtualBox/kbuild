@@ -1013,6 +1013,117 @@ func_subst (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+#ifdef CONFIG_WITH_DEFINED_FUNCTIONS
+
+/* Used by func_firstdefined and func_lastdefined to parse the optional last
+   argument.  Returns 0 if the variable name is to be returned and 1 if it's
+   the variable value value. */
+static int
+parse_value_name_argument (const char *arg1, const char *funcname)
+{
+  const char *end;
+  int rc;
+
+  if (arg1 == NULL)
+    return 0;
+
+  end = strchr (arg1, '\0');
+  strip_whitespace (&arg1, &end);
+
+  if (!strncmp (arg1, "name", end - arg1))
+    rc = 0;
+  else if (!strncmp (arg1, "value", end - arg1))
+    rc = 1;
+  else
+    {
+#if 0 /* FIXME: later */
+      /* check the expanded form */
+      char *exp = expand_argument (arg1, strchr (arg1, '\0'));
+      arg1 = exp;
+      end = strchr (arg1, '\0');
+      strip_whitespace (&arg1, &end);
+
+      if (!strncmp (arg1, "name", end - arg1))
+        rc = 0;
+      else if (!strncmp (arg1, "value", end - arg1))
+        rc = 1;
+      else
+#endif
+        fatal (*expanding_var,
+               _("second argument to `%s' function must be `name' or `value', not `%s'"),
+               funcname, exp);
+#if 0
+      free (exp);
+#endif
+    }
+
+  return rc;
+}
+
+/* Given a list of variable names (ARGV[0]), returned the first variable which
+   is defined (i.e. value is not empty).  ARGV[1] indicates whether to return
+   the variable name or its value. */
+static char *
+func_firstdefined (char *o, char **argv, const char *funcname)
+{
+  unsigned int i;
+  const char *words = argv[0];    /* Use a temp variable for find_next_token */
+  const char *p;
+  int ret_value = parse_value_name_argument (argv[1], funcname);
+
+  /* FIXME: Optimize by not expanding the arguments, but instead expand them
+     one by one here.  This will require a find_next_token variant which
+     takes `$(' and `)' into account. */
+  while ((p = find_next_token (&words, &i)) != NULL)
+    {
+      struct variable *v = lookup_variable (p, i);
+      if (v && v->value_length)
+        {
+          if (ret_value)
+            variable_expand_string_2 (o, v->value, v->value_length, &o);
+          else
+            o = variable_buffer_output (o, p, i);
+          break;
+        }
+    }
+
+  return o;
+}
+
+/* Given a list of variable names (ARGV[0]), returned the last variable which
+   is defined (i.e. value is not empty).  ARGV[1] indicates whether to return
+   the variable name or its value. */
+static char *
+func_lastdefined (char *o, char **argv, const char *funcname)
+{
+  struct variable *last_v = NULL;
+  unsigned int i;
+  const char *words = argv[0];    /* Use a temp variable for find_next_token */
+  const char *p;
+  int ret_value = parse_value_name_argument (argv[1], funcname);
+
+  /* FIXME: Optimize this.  Walk from the end on unexpanded arguments. */
+  while ((p = find_next_token (&words, &i)) != NULL)
+    {
+      struct variable *v = lookup_variable (p, i);
+      if (v && v->value_length)
+        {
+          last_v = v;
+          break;
+        }
+    }
+
+  if (last_v != NULL)
+    {
+      if (ret_value)
+        variable_expand_string_2 (o, last_v->value, last_v->value_length, &o);
+      else
+        o = variable_buffer_output (o, last_v->name, last_v->length);
+    }
+  return o;
+}
+
+#endif /* CONFIG_WITH_DEFINED_FUNCTIONS */
 
 static char *
 func_firstword (char *o, char **argv, const char *funcname UNUSED)
@@ -5136,9 +5247,15 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("filter"),        2,  2,  1,  func_filter_filterout},
   { STRING_SIZE_TUPLE("filter-out"),    2,  2,  1,  func_filter_filterout},
   { STRING_SIZE_TUPLE("findstring"),    2,  2,  1,  func_findstring},
+#ifdef CONFIG_WITH_DEFINED_FUNCTIONS
+  { STRING_SIZE_TUPLE("firstdefined"),  0,  2,  1,  func_firstdefined},
+#endif
   { STRING_SIZE_TUPLE("firstword"),     0,  1,  1,  func_firstword},
   { STRING_SIZE_TUPLE("flavor"),        0,  1,  1,  func_flavor},
   { STRING_SIZE_TUPLE("join"),          2,  2,  1,  func_join},
+#ifdef CONFIG_WITH_DEFINED_FUNCTIONS
+  { STRING_SIZE_TUPLE("lastdefined"),   0,  2,  1,  func_lastdefined},
+#endif
   { STRING_SIZE_TUPLE("lastword"),      0,  1,  1,  func_lastword},
   { STRING_SIZE_TUPLE("patsubst"),      3,  3,  1,  func_patsubst},
   { STRING_SIZE_TUPLE("realpath"),      0,  1,  1,  func_realpath},

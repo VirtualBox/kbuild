@@ -1286,6 +1286,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_LOOP_FUNCTIONS) \
   && defined (CONFIG_WITH_ROOT_FUNC) \
   && defined (CONFIG_WITH_STRING_FUNCTIONS) \
+  && defined (CONFIG_WITH_DEFINED_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath includedep-queue install-hard-linking"
@@ -1313,6 +1314,7 @@ define_automatic_variables (void)
                           " root"
                           " length insert pos lastpos substr translate"
                           " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
+                          " firstdefined lastdefined "
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
@@ -1385,6 +1387,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_STRING_FUNCTIONS)
   strcat (buf, " length insert pos lastpos substr translate");
+#  endif
+#  if defined (CONFIG_WITH_DEFINED_FUNCTIONS)
+  strcat (buf, " firstdefined lastdefined");
 #  endif
 #  if defined (KMK_HELPERS)
   strcat (buf, " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl");
