@@ -62,8 +62,8 @@ __RCSID("$NetBSD: miscbltin.c,v 1.35 2005/03/19 14:22:50 dsl Exp $");
 
 #undef rflag
 
-void *bsd_setmode(shinstance *psh, const char *p);
-mode_t bsd_getmode(const void *bbox, mode_t omode);
+void *kash_setmode(shinstance *psh, const char *p);
+mode_t kash_getmode(const void *bbox, mode_t omode);
 
 
 /*
@@ -270,8 +270,8 @@ umaskcmd(shinstance *psh, int argc, char **argv)
 			void *set;
 
 			INTOFF;
-			if ((set = bsd_setmode(psh, ap)) != 0) {
-				mask = bsd_getmode(set, ~mask & 0777);
+			if ((set = kash_setmode(psh, ap)) != 0) {
+				mask = kash_getmode(set, ~mask & 0777);
 				ckfree(psh, set);
 			}
 			INTON;

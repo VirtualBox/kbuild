@@ -1,4 +1,4 @@
-/* $Id: shfile.h 2438 2011-07-04 14:34:34Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.h 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -152,7 +152,7 @@ int shfile_access(shfdtab *, const char *, int);
 int shfile_isatty(shfdtab *, int);
 int shfile_cloexec(shfdtab *, int, int);
 int shfile_ioctl(shfdtab *, int, unsigned long, void *);
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__OS2__)
 # define TIOCGWINSZ         0x4201
 typedef struct sh_winsize
 {
