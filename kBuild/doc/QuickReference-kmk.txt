@@ -543,6 +543,16 @@ String Manipulation Functions:
 
         $(join list1,list2)
 
+    Extract the first defined variable from ``variables``, returning its name
+    (default) or value::
+
+        $(firstdefined variables[, name|value])
+
+    Extract the last defined variable from ``variables``, returning its name
+    (default) or value::
+
+        $(lastdefined variables[, name|value])
+
     Fold ``text`` to upper case [1]_::
 
         $(toupper text)
@@ -1031,7 +1041,7 @@ Pattern rules
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2475 2011-07-16 20:08:07Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2490 2011-07-22 11:16:39Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.
