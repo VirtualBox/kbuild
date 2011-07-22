@@ -1035,8 +1035,12 @@ parse_value_name_argument (const char *arg1, const char *funcname)
   else if (!strncmp (arg1, "value", end - arg1))
     rc = 1;
   else
+#if 1 /* FIXME: later */
+    fatal (*expanding_var,
+           _("second argument to `%s' function must be `name' or `value', not `%s'"),
+           funcname, arg1);
+#else
     {
-#if 0 /* FIXME: later */
       /* check the expanded form */
       char *exp = expand_argument (arg1, strchr (arg1, '\0'));
       arg1 = exp;
@@ -1048,14 +1052,12 @@ parse_value_name_argument (const char *arg1, const char *funcname)
       else if (!strncmp (arg1, "value", end - arg1))
         rc = 1;
       else
-#endif
         fatal (*expanding_var,
                _("second argument to `%s' function must be `name' or `value', not `%s'"),
                funcname, exp);
-#if 0
       free (exp);
-#endif
     }
+#endif
 
   return rc;
 }
