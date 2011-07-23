@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2492 2011-07-22 11:25:05Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2506 2011-07-23 10:58:06Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -322,6 +322,8 @@ ifndef TEMPLATE_BIN_TOOL
  ifeq ($(KBUILD_TARGET),solaris)
   TEMPLATE_BIN_LIBS            += rt dl
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
+  TEMPLATE_BIN_DEFS.x86        += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
+  TEMPLATE_BIN_DEFS.sparc32    += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
  endif
 endif
 

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2439 2011-07-04 14:35:01Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2506 2011-07-23 10:58:06Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -43,6 +43,9 @@ kmk_sed_INCS = \
 	intl
 kmk_sed_DEFS = \
 	HAVE_CONFIG_H
+ifdef KBUILD_SOLARIS_10
+ kmk_sed_CFLAGS += -std=gnu99
+endif
 kmk_sed_SOURCES = \
 	sed/sed.c \
 	lib/regex.c \
