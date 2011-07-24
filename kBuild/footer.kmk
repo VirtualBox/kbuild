@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2488 2011-07-22 07:49:47Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2509 2011-07-24 18:52:29Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3206,9 +3206,9 @@ else
  local instfun := $(top_instfun)
 endif
 
-local stage    := $(firstword $($(symlnk)_STAGE) $(symlnk)_INST) $($(target)_1_STAGE))
+local stage    := $(firstword $($(symlnk)_STAGE) $($(symlnk)_INST) $($(target)_1_STAGE))
 ifneq ($(substr $(stage),-1),/)
- $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE property without a trailing slash.)
+ $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE property without a trailing slash: '$(stage)')
  local stage   := $(stage)/
 endif
 local stage    := $(stage)$(dir $(srcdstdir))
@@ -3216,7 +3216,7 @@ local stagedst := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
 
 local inst     := $(firstword $($(symlnk)_INST) $($(target)_1_INST))
 ifneq ($(substr $(inst),-1),/)
- $(warning kBuild: Symlnk $(symlnk) in install target $(target) has a INST property without a trailing slash.)
+ $(warning kBuild: Symlnk $(symlnk) in install target $(target) has a INST property without a trailing slash: '$(inst)')
  local inst    := $(inst)/
 endif
 local inst     := $(inst)$(dir $(srcdstdir))
