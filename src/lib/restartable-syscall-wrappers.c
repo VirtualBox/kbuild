@@ -1,4 +1,4 @@
-/* $Id: restartable-syscall-wrappers.c 2470 2011-07-12 13:11:42Z knut.osmundsen@oracle.com $ */
+/* $Id: restartable-syscall-wrappers.c 2507 2011-07-24 15:42:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * restartable-syscall-wrappers.c - Workaround for annoying S11 "features".
  *
@@ -155,7 +155,7 @@ int open(const char *pszPath, int fFlags, ...)
     int         fd;
     static union
     {
-        int (* pfnReal)(const char *, int, mode_t);
+        int (* pfnReal)(const char *, int, ...);
         void *pvSym;
     } s_u;
 
@@ -181,7 +181,7 @@ int open64(const char *pszPath, int fFlags, ...)
     int         fd;
     static union
     {
-        int (* pfnReal)(const char *, int, mode_t);
+        int (* pfnReal)(const char *, int, ...);
         void *pvSym;
     } s_u;
 
