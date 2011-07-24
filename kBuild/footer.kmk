@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2509 2011-07-24 18:52:29Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2510 2011-07-24 19:56:44Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1336,7 +1336,11 @@ if1of ($(insttype), stage both)
 	$(target)_INST \
 	definst )
  $(target)_1_STAGE := $(stage)
- $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(addsuffix $(notdir $(out)),$(stage)))
+ if "$(substr $(stage),-1,1)" == "/" || "$(stage)" == ""
+  $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(addsuffix $(notdir $(out)),$(stage)))
+ else
+  $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(stage))
+ endif
 else
  $(target)_1_STAGE :=
  $(target)_1_STAGE_TARGET :=
@@ -1354,7 +1358,11 @@ if1of ($(insttype), both)
 	$(target)_INST \
 	definst )
  $(target)_1_INST := $(inst)
- $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(addsuffix $(notdir $(out)),$(stage)))
+ if "$(substr $(inst),-1,1)" == "/" || "$(inst)" == ""
+  $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(addsuffix $(notdir $(out)),$(inst)))
+ else
+  $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(inst))
+ endif
 else
  $(target)_1_INST :=
  $(target)_1_INST_TARGET :=
