@@ -1,4 +1,4 @@
-# $Id: header.kmk 2493 2011-07-22 11:25:25Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2512 2011-07-25 11:26:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -70,8 +70,8 @@ ifneq ($(KBUILD_VERSION_MAJOR).$(KBUILD_VERSION_MINOR),0.1)
   $(warning kBuild: kmk minor version mismatch! Expected '1' but found '$(KBUILD_VERSION_MINOR)'!)
  endif
 else
- if $(KBUILD_VERSION_PATCH) < 5
-  $(warning kBuild: kmk version mismatch! Expected 0.1.5 or later. Actual version is $(KBUILD_VERSION).)
+ if $(KBUILD_VERSION_PATCH) < 999
+  $(error kBuild: kmk version mismatch! Expected 0.1.999 or later. Actual version is $(KBUILD_VERSION).)
  endif
 endif
 
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2493 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2512 $  )
 
 
 #
@@ -697,11 +697,10 @@ export SHELL MAKESHELL
 LN_SYMLINK  := $(LN) -s
 
 # When copying to the staging area, use hard links to save time and space.
-INSTALL_STAGING := $(INSTALL)
 ifndef KBUILD_NO_HARD_LINKING
- if1of ($(KMK_FEATURES), install-hard-linking)
-  INSTALL_STAGING := $(INSTALL) --hard-link-files-when-possible
- endif
+ INSTALL_STAGING := $(INSTALL) --hard-link-files-when-possible
+else
+ INSTALL_STAGING := $(INSTALL)
 endif
 
 
@@ -745,24 +744,9 @@ no-root-slash = $(patsubst /%,%,$(1))
 ##
 # Similar to firstword, except it returns the value of first defined variable.
 # @param        $1              list of variables to probe.
-if1of ($(KMK_FEATURES), firstdefined)
- define FIRST-DEFINED-VAR
-  local .RETURN := $(strip $(firstdefined $1, value))
- endef
-else
- define FIRST-DEFINED-VAR
-  if "$1" != ""
-   local var := $(word 1,$1)
-   ifdef $(var)
-    local .RETURN := $(strip $($(var)))
-   else
-    local .RETURN := $(evalcall FIRST-DEFINED-VAR, $(wordlist 2,32,$1))
-   endif
-  else
-   local .RETURN :=
-  endif
- endef
-endif
+define FIRST-DEFINED-VAR
+local .RETURN := $(strip $(firstdefined $1, value))
+endef
 
 ## Figure out where to put object files.
 # @param    $1      real target name.
