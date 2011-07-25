@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2511 2011-07-25 09:04:27Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2514 2011-07-25 13:41:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3330,13 +3330,13 @@ local flags := \
  #$(warning directory=$(directory) inst=$(inst) stage=$(stage) mode=$(mode) gid=$(gid) uid=$(uid))
 
 # The staging rule (requires double evaluation).
-local insdst := $(PATH_STAGE)$(stage)$(directory)/
+local insdst := $(PATH_STAGE)/$(stage)$(directory)/
 $(target)_2_STAGE_DIR_TARGETS += $(insdst)
 $(eval $(def_install_directory_rule))
 
 # The install rule.
 ifeq ($(insttype),both)
- local insdst := $(PATH_INS)$(inst)$(directory)/
+ local insdst := $(PATH_INS)/$(inst)$(directory)/
  $(target)_2_INST_DIR_TARGETS += $(insdst)
  $(eval $(def_install_directory_rule))
 endif
