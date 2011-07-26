@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2518 2011-07-26 12:08:37Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2519 2011-07-26 12:13:55Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -3360,8 +3360,8 @@ ifeq ($(insttype),both)
   $(warning kBuild: Directory $(directory) in install target $(target) has a INST property without a trailing slash: '$(inst)')
   local inst  := $(inst)/
  endif
- ifeq ($(root $(stage)),)
-  $(error kBuild: Directory $(directory) in install target $(target) has a INST property with an absoluate path: '$(inst)')
+ ifneq ($(root $(stage)),)
+  $(error kBuild: Directory $(directory) in install target $(target) has a INST property with an absolute path: '$(inst)')
  endif
  local insdst := $(PATH_INS)/$(inst)$(directory)/
  $(target)_2_INST_DIR_TARGETS += $(insdst)
