@@ -1,4 +1,4 @@
-# $Id: header.kmk 2515 2011-07-26 09:07:53Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2520 2011-07-26 13:12:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2515 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2520 $  )
 
 
 #
@@ -161,6 +161,14 @@ EQUAL := =
 ##
 # Percent character.
 PERCENT := %
+
+##
+# Single quote character.
+SQUOTE := '
+
+##
+# Double quote character.
+DQUOTE := "
 
 
 #
