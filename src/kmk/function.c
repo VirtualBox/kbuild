@@ -2671,9 +2671,9 @@ static char *
 func_insert (char *o, char **argv, const char *funcname UNUSED)
 {
   const char *in      = argv[0];
-  size_t      in_len  = strlen (in);
+  math_int    in_len  = (math_int)strlen (in);
   const char *str     = argv[1];
-  size_t      str_len = strlen (str);
+  math_int    str_len = (math_int)strlen (str);
   math_int    n       = 0;
   math_int    length  = str_len;
   const char *pad     = "                ";
@@ -2812,7 +2812,7 @@ static char *
 func_substr (char *o, char **argv, const char *funcname UNUSED)
 {
   const char *str     = argv[0];
-  size_t      str_len = strlen (str);
+  math_int    str_len = (math_int)strlen (str);
   math_int    start   = math_int_from_string (argv[1]);
   math_int    length  = 0;
   const char *pad     = NULL;
@@ -3596,9 +3596,10 @@ func_abspathex (char *o, char **argv, const char *funcname UNUSED)
 
   /* cwd needs leading spaces chopped and may be optional,
      in which case we're exactly like $(abspath ). */
-  while (isblank(*cwd))
-    cwd++;
-  if (!*cwd)
+  if (cwd)
+    while (isblank (*cwd))
+      cwd++;
+  if (!cwd || !*cwd)
     o = func_abspath (o, argv, funcname);
   else
     {
@@ -4638,7 +4639,7 @@ math_int_from_string (const char *str)
         ch -= 'A' - 10;
       else
         {
-          error (NILF, _("bad number: '%s' (base=%d, pos=%d)\n"), start, base, str - start);
+          error (NILF, _("bad number: '%s' (base=%u, pos=%lu)\n"), start, base, (unsigned long)(str - start));
           return 0;
         }
       num *= base;
