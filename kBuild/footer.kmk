@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2514 2011-07-25 13:41:59Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2517 2011-07-26 11:34:10Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1319,7 +1319,7 @@ endif
 $(target)_1_INSTTYPE := $(insttype)
 
 if1of ($(insttype), stage both)
- local stage := $(evalcall FIRST-DEFINED-VAR, \
+ local stage := $(strip $(firstdefined \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
@@ -1334,7 +1334,8 @@ if1of ($(insttype), stage both)
 	$(target)_INST.$(bld_type) \
 	$(target)_STAGE \
 	$(target)_INST \
-	definst )
+	definst \
+	,value))
  $(target)_1_STAGE := $(stage)
  if "$(substr $(stage),-1,1)" == "/" # Multicast support requires addprefix/suffix.
   $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(addsuffix $(notdir $(out)),$(stage)))
@@ -1350,7 +1351,7 @@ endif
 INSTARGET_$(target) := $($(target)_1_STAGE_TARGET)
 
 if1of ($(insttype), both)
- local inst := $(evalcall FIRST-DEFINED-VAR, \
+ local inst := $(strip $(firstdefined \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
 	$(target)_INST.$(bld_trg).$(bld_type) \
@@ -1358,7 +1359,8 @@ if1of ($(insttype), both)
 	$(target)_INST.$(bld_trg) \
 	$(target)_INST.$(bld_type) \
 	$(target)_INST \
-	definst )
+	definst \
+	,value))
  $(target)_1_INST := $(inst)
  if "$(substr $(inst),-1,1)" == "/" # Multicast support requires addprefix/suffix.
   $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(addsuffix $(notdir $(out)),$(inst)))
@@ -1525,7 +1527,7 @@ $(target)_1_INSTTYPE    := $(insttype)
 
 # Determine the actual INST and STAGE sub-dirs to use for this target.
 if1of ($(insttype), stage both)
- local stage := $(evalcall FIRST-DEFINED-VAR, \
+ local stage := $(strip $(firstdefined \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
@@ -1540,7 +1542,8 @@ if1of ($(insttype), stage both)
 	$(target)_INST.$(bld_type) \
 	$(target)_STAGE \
 	$(target)_INST \
-	definst )
+	definst \
+	,value))
  if $(words $(stage)) > 1
   $(warning kBuild: The STAGE/INST property of install '$(target)' specifies multiple location, that is not supported.)
   local stage := $(word 1, $(stage))
@@ -1551,7 +1554,7 @@ else
 endif
 
 if1of ($(insttype), both)
- local inst := $(evalcall FIRST-DEFINED-VAR, \
+ local inst := $(strip $(firstdefined \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
 	$(target)_INST.$(bld_trg).$(bld_type) \
@@ -1559,10 +1562,14 @@ if1of ($(insttype), both)
 	$(target)_INST.$(bld_trg) \
 	$(target)_INST.$(bld_type) \
 	$(target)_INST \
-	definst )
+	definst \
+	,value))
  if $(words $(inst)) > 1
   $(warning kBuild: The INST property of install '$(target)' specifies multiple location, that is not supported.)
   local inst := $(word 1, $(inst))
+ endif
+ ifneq ($(root $(stage)),)
+  $(error kBuild: The INST property should not start with a root specification)
  endif
  $(target)_1_INST := $(inst)
 else
@@ -3032,34 +3039,12 @@ local srcsrc    := $(firstword $(srcdst))
 local srcdstdir := $(dir $(word 2,$(srcdst)))
 local srcdst    := $(word $(words $(srcdst)),$(srcdst))
 
-# Calc destinations.
+# instfun, mode, uid and gid
 ifdef $(srcsrc)_INSTFUN
  local instfun := $(srcsrc)_INSTFUN
 else
  local instfun := $(top_instfun)
 endif
-
-local stage    := $(firstword $($(srcsrc)_STAGE) $($(srcsrc)_INST) $($(target)_1_STAGE))
-ifneq ($(substr $(stage),-1),/)
- $(warning kBuild: File $(srcsrc) in install target $(target) has a STAGE property without a trailing slash.)
- local stage   := $(stage)/
-endif
-local stage    := $(stage)$(dir $(srcdstdir))
-local stagedst := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_STAGE))
-
-ifeq ($(insttype),both)
- local inst     := $(firstword $($(srcsrc)_INST) $($(target)_1_INST))
- ifneq ($(substr $(inst),-1),/)
-  $(warning kBuild: File $(srcsrc) in install target $(target) has a INST property without a trailing slash.)
-  local inst    := $(inst)/
- endif
- local inst     := $(inst)$(dir $(srcdstdir))
- local instdst  := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
-endif
-
-#$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) inst=$(inst) => instdst=$(instdst); stage=$(stage) => stagedst=$(stagedst))
-
-# mode, uid and gid
 local mode := $(firstword \
 	$($(target)_$(srcsrc)$(source_type_prefix)_MODE.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_$(srcsrc)$(source_type_prefix)_MODE.$(bld_trg)) \
@@ -3144,6 +3129,23 @@ ifneq ($(defpath),)
 endif
 
 # Generate the staging rule (requires double evaluation).
+local stage      := $(strip $(firstdefined $(srcsrc)_STAGE $(srcsrc)_INST $(target)_1_STAGE,value))
+if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
+ $(warning kBuild: File $(srcsrc) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
+ local stage     := $(stage)/
+endif
+local stage      := $(stage)$(dir $(srcdstdir))
+ifeq ($(root $(stage)),)
+ local stagedst  := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_STAGE))
+else
+ local stage     := $(abspath $(stage))
+ ifeq ($(pos $(PATH_OBJ),$(stage)),1)
+  local stage    := $(substr $(stage), 1, $(length-var PATH_OBJ))
+  local stagedst := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_OBJ))
+ else
+  $(error kBuild: File $(srcsrc) in install target $(target) has a STAGE/INST property with an absolute path outside PATH_OBJ: '$(stage)')
+ endif
+endif
 ifdef $(srcsrc)_INSTALLER
  local stagecmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(stagedst),$(target),$(flags),stage)
 else ifdef $(target)_INSTALLER
@@ -3161,10 +3163,21 @@ $(target)_2_STAGE_TARGETS += $(stagedst)
 
 # Generate the install rule
 ifeq ($(insttype),both)
+ local inst     := $(strip $(firstdefined $(srcsrc)_INST $(target)_1_INST,value))
+ if "$(substr $(inst),-1)" != "/" && "$(inst)" != ""
+  $(warning kBuild: File $(srcsrc) in install target $(target) has a INST property without a trailing slash: '$(inst)')
+  local inst    := $(inst)/
+ endif
+ local inst     := $(inst)$(dir $(srcdstdir))
+ ifneq ($(root $(inst)),)
+  $(error kBuild: File $(srcsrc) in install target $(target) has a INST property with an absolute path: '$(inst)')
+ endif
+ local instdst  := $(call $(instfun),$(srcdst),$(target),$(inst),$(PATH_INS))
+
  ifdef $(srcsrc)_INSTALLER
-  local instcmd  := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
+  local instcmd := $(call $(srcsrc)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
  else ifdef $(target)_INSTALLER
-  local instcmd  := $(call $(target)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
+  local instcmd := $(call $(target)_INSTALLER,$(srcsrc),$(instdst),$(target),$(flags),install)
  else
   local instcmd := $$(INSTALL)\
   		$(if $(uid),-o $(uid))\
@@ -3177,6 +3190,7 @@ ifeq ($(insttype),both)
  $(target)_2_INST_TARGETS += $(instdst)
 endif
 
+#$(warning instfun=$(instfun) srcdst=$(srcdst) target=$(target) inst=$(inst) => instdst=$(instdst); stage=$(stage) => stagedst=$(stagedst))
 endef # def_install_src
 $(eval-opt-var def_install_src)
 
@@ -3211,40 +3225,52 @@ local symdst := $(subst =>, ,$(src))
 local symlnk := $(firstword $(symdst))
 local symdst := $(word $(words $(symdst)),$(symdst))
 
-# Calc destinations
+# Figure which install function to use below.
 ifdef $(symlnk)_INSTFUN
  local instfun := $(symlnk)_INSTFUN
 else
  local instfun := $(top_instfun)
 endif
 
-local stage    := $(firstword $($(symlnk)_STAGE) $($(symlnk)_INST) $($(target)_1_STAGE))
-ifneq ($(substr $(stage),-1),/)
- $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE property without a trailing slash: '$(stage)')
- local stage   := $(stage)/
+# Calc stage destination and generate the rule (requires double evaluation).
+local stage      := $(strip $(firstdefined $(symlnk)_STAGE $(symlnk)_INST $(target)_1_STAGE,value))
+if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
+ $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
+ local stage     := $(stage)/
 endif
-local stage    := $(stage)$(dir $(srcdstdir))
-local stagedst := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
-
-local inst     := $(firstword $($(symlnk)_INST) $($(target)_1_INST))
-ifneq ($(substr $(inst),-1),/)
- $(warning kBuild: Symlnk $(symlnk) in install target $(target) has a INST property without a trailing slash: '$(inst)')
- local inst    := $(inst)/
+local stage      := $(stage)$(dir $(srcdstdir))
+ifeq ($(root $(stage)),)
+ local stagedst  := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
+else
+ local stage     := $(abspath $(stage))
+ ifeq ($(pos $(PATH_OBJ),$(stage)),1)
+  local stage    := $(substr $(stage), 1, $(length-var PATH_OBJ))
+  local stagedst := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_OBJ))
+ else
+  $(error kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property with an absolute path outside PATH_OBJ: '$(stage)')
+ endif
 endif
-local inst     := $(inst)$(dir $(srcdstdir))
-local instdst  := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
-#$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
 
-# Generate the staging rule (requires double evaluation).
 $(eval $(def_install_symlink_rule_staging))
 $(target)_2_STAGE_TARGETS += $(stagedst)
 
-# Generate the install rule.
+# Calcuate the install destiation and generate the rule (if necessary).
 ifeq ($(instmode),both)
+ local inst    := $(strip $(firstdefined $(symlnk)_INST $(target)_1_INST,value))
+ if "$(substr $(inst),-1)" != "/" && "$(inst)" != ""
+  $(warning kBuild: Symlink $(symlnk) in install target $(target) has a INST property without a trailing slash: '$(inst)')
+  local inst   := $(inst)/
+ endif
+ ifneq ($(root $(inst)),)
+  $(error kBuild: Symlink $(symlnk) in install target $(target) has a INST property with an absolute path: '$(inst)')
+ endif
+ local inst    := $(inst)$(dir $(srcdstdir))
+ local instdst := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
  $(eval $(def_install_symlink_rule_installing))
  $(target)_2_INST_TARGETS += $(instdst)
 endif
 
+#$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
 endef # def_install_symlink
 $(optmize def_install_symlink)
 
@@ -3274,27 +3300,6 @@ $(eval-opt-var def_install_directory_rule)
 define def_install_directory
 
 # gather common properties.
-ifdef $(directory)_INST
- local inst := $($(directory)_INST)
-else
- local inst := $($(target)_1_INST)
-endif
-ifneq ($(substr $(inst),-1),/)
- $(warning kBuild: Directory $(directory) in install target $(target) has a INST property without a trailing slash.)
- local inst := $(inst)/
-endif
-ifdef $(directory)_STAGE
- local stage := $($(directory)_STAGE)
-else ifdef $(directory)_INST
- local stage := $($(directory)_INST)
-else
- local stage := $($(target)_1_STAGE)
-endif
-ifneq ($(substr $(stage),-1),/)
- $(warning kBuild: Directory $(directory) in install target $(target) has a INST property without a trailing slash.)
- local stage := $(stage)/
-endif
-
 local mode := $(firstword \
 	$($(target)_$(directory)_MODE.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_$(directory)_MODE.$(bld_trg)) \
@@ -3327,20 +3332,43 @@ local flags := \
 	$($(target)_$(directory)_IDFLAGS) \
 	$($(target)_$(directory)_IDFLAGS.$(bld_trg)) \
 	$($(target)_$(directory)_IDFLAGS.$(bld_trg).$(bld_trg_arch)) \
- #$(warning directory=$(directory) inst=$(inst) stage=$(stage) mode=$(mode) gid=$(gid) uid=$(uid))
 
 # The staging rule (requires double evaluation).
-local insdst := $(PATH_STAGE)/$(stage)$(directory)/
+local stage    := $(strip $(firstdefined $(directory)_STAGE $(directory)_INST $(target)_1_STAGE,value))
+if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
+ $(warning kBuild: Directory $(directory) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
+ local stage   := $(stage)/
+endif
+ifeq ($(root $(stage)),)
+ local insdst  := $(PATH_STAGE)/$(stage)$(directory)/
+else
+ local stage   := $(abspath $(stage))
+ ifeq ($(pos $(PATH_OBJ),$(stage)),1)
+  local insdst := $(stage)$(directory)/
+ else
+  $(error kBuild: Directory $(directory) in install target $(target) has a STAGE/INST property with an absolute path outside PATH_OBJ: '$(stage)')
+ endif
+endif
+
 $(target)_2_STAGE_DIR_TARGETS += $(insdst)
 $(eval $(def_install_directory_rule))
 
 # The install rule.
 ifeq ($(insttype),both)
+ local inst   := $(strip $(firstdefined $(directory)_INST $(target)_1_INST,value))
+ ifneq ($(substr $(inst),-1),/)
+  $(warning kBuild: Directory $(directory) in install target $(target) has a INST property without a trailing slash: '$(inst)')
+  local inst  := $(inst)/
+ endif
+ ifeq ($(root $(stage)),)
+  $(error kBuild: Directory $(directory) in install target $(target) has a INST property with an absoluate path: '$(inst)')
+ endif
  local insdst := $(PATH_INS)/$(inst)$(directory)/
  $(target)_2_INST_DIR_TARGETS += $(insdst)
  $(eval $(def_install_directory_rule))
 endif
 
+#$(warning directory=$(directory) inst=$(inst) stage=$(stage) mode=$(mode) gid=$(gid) uid=$(uid))
 endef # def_install_directory
 $(eval-opt-var def_install_directory)
 
