@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2517 2011-07-26 11:34:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2518 2011-07-26 12:08:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of makefile.
 #
@@ -1569,7 +1569,7 @@ if1of ($(insttype), both)
   local inst := $(word 1, $(inst))
  endif
  ifneq ($(root $(stage)),)
-  $(error kBuild: The INST property should not start with a root specification)
+  $(error kBuild: The effective INST property of install '$(target)' should not start with a root specification)
  endif
  $(target)_1_INST := $(inst)
 else
@@ -3039,7 +3039,7 @@ local srcsrc    := $(firstword $(srcdst))
 local srcdstdir := $(dir $(word 2,$(srcdst)))
 local srcdst    := $(word $(words $(srcdst)),$(srcdst))
 
-# instfun, mode, uid and gid
+# instfun, mode, uid and gid.
 ifdef $(srcsrc)_INSTFUN
  local instfun := $(srcsrc)_INSTFUN
 else
@@ -3138,9 +3138,9 @@ local stage      := $(stage)$(dir $(srcdstdir))
 ifeq ($(root $(stage)),)
  local stagedst  := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_STAGE))
 else
- local stage     := $(abspath $(stage))
+ local stage     := $(abspath $(stage))/
  ifeq ($(pos $(PATH_OBJ),$(stage)),1)
-  local stage    := $(substr $(stage), 1, $(length-var PATH_OBJ))
+  local stage    := $(substr $(stage), $(expr $(length-var PATH_OBJ) + 2))
   local stagedst := $(call $(instfun),$(srcdst),$(target),$(stage),$(PATH_OBJ))
  else
   $(error kBuild: File $(srcsrc) in install target $(target) has a STAGE/INST property with an absolute path outside PATH_OBJ: '$(stage)')
@@ -3242,9 +3242,9 @@ local stage      := $(stage)$(dir $(srcdstdir))
 ifeq ($(root $(stage)),)
  local stagedst  := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
 else
- local stage     := $(abspath $(stage))
+ local stage     := $(abspath $(stage))/
  ifeq ($(pos $(PATH_OBJ),$(stage)),1)
-  local stage    := $(substr $(stage), 1, $(length-var PATH_OBJ))
+  local stage    := $(substr $(stage), $(expr $(length-var PATH_OBJ) + 2))
   local stagedst := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_OBJ))
  else
   $(error kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property with an absolute path outside PATH_OBJ: '$(stage)')
@@ -3342,7 +3342,7 @@ endif
 ifeq ($(root $(stage)),)
  local insdst  := $(PATH_STAGE)/$(stage)$(directory)/
 else
- local stage   := $(abspath $(stage))
+ local stage   := $(abspath $(stage))/
  ifeq ($(pos $(PATH_OBJ),$(stage)),1)
   local insdst := $(stage)$(directory)/
  else
