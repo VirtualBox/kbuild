@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2521 2011-07-26 18:18:19Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2522 2011-07-28 14:01:10Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile.
 #
@@ -210,6 +210,7 @@ include $(KBUILD_PATH)/footer-pass1.kmk
 include $(KBUILD_PATH)/footer-pass2-fetches.kmk
 include $(KBUILD_PATH)/footer-pass2-patches.kmk
 include $(KBUILD_PATH)/footer-pass2-compiling-targets.kmk
+include $(KBUILD_PATH)/footer-pass2-installs.kmk
 include $(KBUILD_PATH)/footer-misc.kmk
 include $(KBUILD_PATH)/footer-passes.kmk
 
