@@ -1,4 +1,4 @@
-# $Id: footer-pass1.kmk 2521 2011-07-26 18:18:19Z knut.osmundsen@oracle.com $
+# $Id: footer-pass1.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 1.
 #
@@ -84,13 +84,14 @@ $(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)
 
 # Staging and install directory target variables.
 local insttype := $(firstword \
-	$($(target)_INSTTYPE) \
-	$($(target)_INSTTYPE.$(bld_trg)) \
-	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_INSTTYPE.$(bld_trg).$(bld_type)) \
 	$($(target)_INSTTYPE.$(bld_trg_arch)) \
 	$($(target)_INSTTYPE.$(bld_trg_cpu)) \
+	$($(target)_INSTTYPE.$(bld_trg)) \
 	$($(target)_INSTTYPE.$(bld_type)) \
+	$($(target)_INSTTYPE) \
 	)
 ifeq ($(insttype),)
  ifneq ($(firstword \
@@ -112,22 +113,27 @@ endif
 $(target)_1_INSTTYPE := $(insttype)
 
 if1of ($(insttype), stage both)
- local stage := $(strip $(firstdefined \
-	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+ local inst := $(strip $(firstdefined \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
-	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
 	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
-	$(target)_STAGE.$(bld_trg).$(bld_type) \
 	$(target)_INST.$(bld_trg).$(bld_type) \
-	$(target)_STAGE.$(bld_trg_arch) \
 	$(target)_INST.$(bld_trg_arch) \
-	$(target)_STAGE.$(bld_trg) \
+	$(target)_INST.$(bld_trg_cpu) \
 	$(target)_INST.$(bld_trg) \
-	$(target)_STAGE.$(bld_type) \
 	$(target)_INST.$(bld_type) \
-	$(target)_STAGE \
 	$(target)_INST \
 	definst \
+	,value))
+ local stage := $(strip $(firstdefined \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg).$(bld_type) \
+	$(target)_STAGE.$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg_cpu) \
+	$(target)_STAGE.$(bld_trg) \
+	$(target)_STAGE.$(bld_type) \
+	$(target)_STAGE \
+	inst \
 	,value))
  $(target)_1_STAGE := $(stage)
  if "$(substr $(stage),-1,1)" == "/" # Multicast support requires addprefix/suffix.
@@ -144,16 +150,6 @@ endif
 INSTARGET_$(target) := $($(target)_1_STAGE_TARGET)
 
 if1of ($(insttype), both)
- local inst := $(strip $(firstdefined \
-	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
-	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INST.$(bld_trg).$(bld_type) \
-	$(target)_INST.$(bld_trg_arch) \
-	$(target)_INST.$(bld_trg) \
-	$(target)_INST.$(bld_type) \
-	$(target)_INST \
-	definst \
-	,value))
  $(target)_1_INST := $(inst)
  if "$(substr $(inst),-1,1)" == "/" # Multicast support requires addprefix/suffix.
   $(target)_1_INST_TARGET := $(addprefix $(PATH_INS)/,$(addsuffix $(notdir $(out)),$(inst)))
@@ -166,6 +162,81 @@ else
  $(target)_1_INST :=
  $(target)_1_INST_TARGET :=
 endif
+
+# Debug info related stuff.
+local debug_insttype := $(firstword \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg).$(bld_type)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg_arch)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg_cpu)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_trg)) \
+	$($(target)_DEBUG_INSTTYPE.$(bld_type)) \
+	$($(target)_DEBUG_INSTTYPE) \
+	$(insttype) )
+ifn1of ($(debug_insttype), none both stage)
+ $(error kBuild: Unknown value '$(debug_insttype)' for '$(target)_DEBUG_INSTTYPE'. Valid values are 'none', 'both' and 'stage'.)
+endif
+$(target)_1_DEBUG_INSTTYPE := $(debug_insttype)
+
+if1of ($(debug_insttype), stage both)
+ ifn1of ($(insttype), stage both)
+  $(error kBuild: DEBUG_INSTTYPE=$(debug_insttype) and INSTTYPE=$(insttype) for target '$(target)' are not compatible)
+ endif
+ local debug_stage := $(firstdefined \
+	$(target)_DEBUG_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_DEBUG_STAGE.$(bld_trg).$(bld_trg_arch) \
+	$(target)_DEBUG_STAGE.$(bld_trg).$(bld_type) \
+	$(target)_DEBUG_STAGE.$(bld_trg_arch) \
+	$(target)_DEBUG_STAGE.$(bld_trg_cpu) \
+	$(target)_DEBUG_STAGE.$(bld_trg) \
+	$(target)_DEBUG_STAGE.$(bld_type) \
+	$(target)_DEBUG_STAGE \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_type) \
+	$(target)_DEBUG_INST.$(bld_trg_arch) \
+	$(target)_DEBUG_INST.$(bld_trg_cpu) \
+	$(target)_DEBUG_INST.$(bld_trg) \
+	$(target)_DEBUG_INST.$(bld_type) \
+	$(target)_DEBUG_INST)
+ ifneq ($(debug_stage),)
+  $(target)_1_DEBUG_STAGE := $($(debug_stage))
+ else
+  $(target)_1_DEBUG_STAGE := $(addprefix $(STAGE_DEBUG),$(stage))
+ endif
+ ifndef $(target)_1_DEBUG_STAGE
+  $(target)_1_DEBUG_STAGE := ./
+ endif
+else
+ $(target)_1_DEBUG_STAGE :=
+endif
+
+if1of ($(debug_insttype), both)
+ ifn1of ($(insttype), both)
+  $(error kBuild: DEBUG_INSTTYPE=$(debug_insttype) and INSTTYPE=$(insttype) for target '$(target)' are not compatible)
+ endif
+ local debug_inst := $(firstdefined \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_DEBUG_INST.$(bld_trg).$(bld_type) \
+	$(target)_DEBUG_INST.$(bld_trg_arch) \
+	$(target)_DEBUG_INST.$(bld_trg_cpu) \
+	$(target)_DEBUG_INST.$(bld_trg) \
+	$(target)_DEBUG_INST.$(bld_type) \
+	$(target)_DEBUG_INST)
+ ifneq ($(debug_inst),)
+  $(target)_1_DEBUG_INST := $($(debug_inst))
+ else
+  $(target)_1_DEBUG_INST := $(addprefix $(INST_DEBUG),$(inst))
+ endif
+ ifndef $(target)_1_DEBUG_INST
+  $(target)_1_DEBUG_INST := ./
+ endif
+else
+ $(target)_1_DEBUG_INST :=
+endif
+#$(warning $(NLTAB)$(target)_1_DEBUG_INST=$($(target)_1_DEBUG_INST)$(NLTAB)$(target)_1_DEBUG_STAGE=$($(target)_1_DEBUG_STAGE)$(NLTAB)insttype=$(insttype)$(NLTAB)debug_insttype=$(debug_insttype))
 
 endef # def_pass1_link_common
 $(eval-opt-var def_pass1_link_common)
@@ -291,13 +362,14 @@ $(call KB_FN_ASSIGN_DEPRECATED,TARGET_$(target),$($(target)_1_TARGET), $(target)
 
 # Determine and set 1_INSTTYPE.
 local insttype := $(firstword \
-	$($(target)_INSTTYPE) \
-	$($(target)_INSTTYPE.$(bld_trg)) \
-	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch)) \
 	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_INSTTYPE.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_INSTTYPE.$(bld_trg).$(bld_type)) \
 	$($(target)_INSTTYPE.$(bld_trg_arch)) \
 	$($(target)_INSTTYPE.$(bld_trg_cpu)) \
+	$($(target)_INSTTYPE.$(bld_trg)) \
 	$($(target)_INSTTYPE.$(bld_type)) \
+	$($(target)_INSTTYPE) \
 	)
 ifeq ($(insttype),)
  ifneq ($(firstword \
@@ -322,18 +394,20 @@ $(target)_1_INSTTYPE    := $(insttype)
 if1of ($(insttype), stage both)
  local stage := $(strip $(firstdefined \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
-	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_STAGE.$(bld_trg).$(bld_trg_arch) \
-	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
 	$(target)_STAGE.$(bld_trg).$(bld_type) \
-	$(target)_INST.$(bld_trg).$(bld_type) \
 	$(target)_STAGE.$(bld_trg_arch) \
-	$(target)_INST.$(bld_trg_arch) \
+	$(target)_STAGE.$(bld_trg_cpu) \
 	$(target)_STAGE.$(bld_trg) \
-	$(target)_INST.$(bld_trg) \
 	$(target)_STAGE.$(bld_type) \
-	$(target)_INST.$(bld_type) \
 	$(target)_STAGE \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
+	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg).$(bld_type) \
+	$(target)_INST.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg_cpu) \
+	$(target)_INST.$(bld_trg) \
+	$(target)_INST.$(bld_type) \
 	$(target)_INST \
 	definst \
 	,value))
@@ -352,6 +426,7 @@ if1of ($(insttype), both)
 	$(target)_INST.$(bld_trg).$(bld_trg_arch) \
 	$(target)_INST.$(bld_trg).$(bld_type) \
 	$(target)_INST.$(bld_trg_arch) \
+	$(target)_INST.$(bld_trg_cpu) \
 	$(target)_INST.$(bld_trg) \
 	$(target)_INST.$(bld_type) \
 	$(target)_INST \

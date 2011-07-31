@@ -1,4 +1,4 @@
-# $Id: footer.kmk 2522 2011-07-28 14:01:10Z knut.osmundsen@oracle.com $
+# $Id: footer.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile.
 #
@@ -125,6 +125,10 @@ _STAGE_DIRS :=
 _INSTALLS :=
 _INSTALLS_FILES :=
 _INSTALLS_DIRS :=
+_DEBUG_STAGE_FILES :=
+_DEBUG_STAGE_DIRS :=
+_DEBUG_INSTALL_FILES :=
+_DEBUG_INSTALL_DIRS :=
 _OTHERS   :=
 _PACKING  :=
 _DIRS     := $(PATH_TARGET)/ $(PATH_TARGET) $(BLDDIRS)
@@ -240,6 +244,8 @@ miscbins:  $$(_MISCBINS)
 others:    $$(_OTHERS)
 stagings:  $$(_INSTALLS) $$(_STAGE_DIRS) $$(_STAGE_FILES)
 installs:  $$(_INSTALLS_DIRS) $$(_INSTALLS_FILES)
+
+install-debug:  $$(_DEBUG_INSTALL_DIRS) $$(_DEBUG_INSTALL_FILES)
 
 
 

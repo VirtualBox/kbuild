@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2521 2011-07-26 18:18:19Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -136,13 +136,20 @@ define def_link_rule
 ifndef NO_LINK_CMDS_DEPS
 $(out): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $$@),FORCE)
 endif
-$(out) + $($(target)_2_OUTPUT) +| $($(target)_2_OUTPUT_MAYBE) : \
+$(out) \
++ $($(target)_2_OUTPUT) \
++ $($(target)_2_OUTPUT_DEBUG_FILES) \
++ $($(target)_2_OUTPUT_DEBUG_DIRS) \
++| $($(target)_2_OUTPUT_MAYBE) : \
 		$$$$($(target)_2_DEPEND) \
 		$(value _DEP_LINK_CMDS) \
 		| \
 		$$$$($(target)_2_DEPORD)
 	%$$(call MSG_LINK,$(target),$$@,$(tool_do))
-	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE)
+	$$(QUIET)$$(RM) -f -- $(dep) $(out) $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $($(target)_2_OUTPUT_DEBUG_FILES)
+ifdef $(target)_2_OUTPUT_DEBUG_DIRS
+	$$(QUIET)$$(RM) -Rf -- $($(target)_2_OUTPUT_DEBUG_DIRS)
+endif
 
 $(cmds)
 
@@ -280,41 +287,145 @@ $(eval-opt-var def_target_sources)
 # Function for getting the first defined propert value.
 #
 # @param   1            The property name.
+# @param   2            The default property name, empty if none.
+# @param   3            What to return if all variables are empty. (optional)
 # @note    Implicit parameters: target, bld_trg, bld_trg_arch, bld_trg_cpu, bld_type.
 # @returns Expanded property value.
 #
-## @todo bld_trg_cpu is missing here.
 define def_fn_prop_get_first_defined
-ifdef $(target)_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type)
- local .RETURN := $($(target)_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type))
-else ifdef $(target)_$(1).$(bld_trg).$(bld_trg_arch)
- local .RETURN := $($(target)_$(1).$(bld_trg).$(bld_trg_arch))
-else ifdef $(target)_$(1).$(bld_trg).$(bld_type)
- local .RETURN := $($(target)_$(1).$(bld_trg).$(bld_type))
-else ifdef $(target)_$(1).$(bld_trg_arch)
- local .RETURN := $($(target)_$(1).$(bld_trg_arch))
-else ifdef $(target)_$(1).$(bld_trg)
- local .RETURN := $($(target)_$(1).$(bld_trg))
-else ifdef $(target)_$(1).$(bld_type)
- local .RETURN := $($(target)_$(1).$(bld_type))
-else ifdef $(target)_$(1)
- local .RETURN := $($(target)_$(1))
-else ifdef $(1).$(bld_trg).$(bld_trg_arch).$(bld_type)
- local .RETURN := $($(1).$(bld_trg).$(bld_trg_arch).$(bld_type))
-else ifdef $(1).$(bld_trg).$(bld_trg_arch)
- local .RETURN := $($(1).$(bld_trg).$(bld_trg_arch))
-else ifdef $(1).$(bld_trg).$(bld_type)
- local .RETURN := $($(1).$(bld_trg).$(bld_type))
-else ifdef $(1).$(bld_trg_arch)
- local .RETURN := $($(1).$(bld_trg_arch))
-else ifdef $(1).$(bld_trg)
- local .RETURN := $($(1).$(bld_trg))
-else ifdef $(1).$(bld_type)
- local .RETURN := $($(1).$(bld_type))
-else
- local .RETURN := $($(1))
+local .RETURN := $(firstdefined \
+    $(target)_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type) \
+    $(target)_$(1).$(bld_trg).$(bld_trg_arch) \
+    $(target)_$(1).$(bld_trg).$(bld_type) \
+    $(target)_$(1).$(bld_trg_cpu) \
+    $(target)_$(1).$(bld_trg_arch) \
+    $(target)_$(1).$(bld_trg) \
+    $(target)_$(1).$(bld_type) \
+    $(target)_$(1) \
+)
+ifeq ($(.RETURN),)
+ ifneq ($(2),)
+  local .RETURN := $(firstdefined \
+    $(2).$(bld_trg).$(bld_trg_arch).$(bld_type) \
+    $(2).$(bld_trg).$(bld_trg_arch) \
+    $(2).$(bld_trg).$(bld_type) \
+    $(2).$(bld_trg_cpu) \
+    $(2).$(bld_trg_arch) \
+    $(2).$(bld_trg) \
+    $(2).$(bld_type) \
+    $(2) \
+    3 \
+  )
+ else
+  local .RETURN := $(firstdefined \
+    kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type) \
+    kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_trg_arch) \
+    kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_type) \
+    kBuildGlobalDefaults_$(1).$(bld_trg_cpu) \
+    kBuildGlobalDefaults_$(1).$(bld_trg_arch) \
+    kBuildGlobalDefaults_$(1).$(bld_trg) \
+    kBuildGlobalDefaults_$(1).$(bld_type) \
+    kBuildGlobalDefaults_$(1) \
+    3 \
+  )
+ endif
 endif
+local .RETURN := $(strip $($(.RETURN)))
 endef # def_fn_prop_get_first_defined
+
+##
+# Function for getting the first property value (ignoring empty defines).
+#
+# @param   1            The property name.
+# @param   2            The default property name, empty if none.
+# @param   3            What to return if all variables are empty. (optional)
+# @note    Implicit parameters: target, bld_trg, bld_trg_arch, bld_trg_cpu, bld_type.
+# @returns First word.
+#
+define def_fn_prop_get_first_word
+local .RETURN := $(firstword \
+    $($(target)_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+    $($(target)_$(1).$(bld_trg).$(bld_trg_arch)) \
+    $($(target)_$(1).$(bld_trg).$(bld_type)) \
+    $($(target)_$(1).$(bld_trg_cpu)) \
+    $($(target)_$(1).$(bld_trg_arch)) \
+    $($(target)_$(1).$(bld_trg)) \
+    $($(target)_$(1).$(bld_type)) \
+    $($(target)_$(1)) \
+)
+ifeq ($(.RETURN),)
+ ifneq ($(2),)
+  local .RETURN := $(firstword \
+    $($(2).$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+    $($(2).$(bld_trg).$(bld_trg_arch)) \
+    $($(2).$(bld_trg).$(bld_type)) \
+    $($(2).$(bld_trg_cpu)) \
+    $($(2).$(bld_trg_arch)) \
+    $($(2).$(bld_trg)) \
+    $($(2).$(bld_type)) \
+    $($(2)) \
+    $(3) \
+  )
+ else
+  local .RETURN := $(firstword \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_trg_arch)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg).$(bld_type)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg_cpu)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg_arch)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_trg)) \
+    $(kBuildGlobalDefaults_$(1).$(bld_type)) \
+    $(kBuildGlobalDefaults_$(1)) \
+    $(3) \
+  )
+ endif
+endif
+endef # def_fn_prop_get_first_word
+
+##
+# Install a debug directory.
+# @param    debug_dir           The directory name.
+define def_link_install_debug_dir_rule
+local dir := $(debug_inst_path)/$(debug_inst)$(debug_dir)
+$$(dir): | $$$$(dir $$$$(patsubst %/,%,$$$$@))
+	%$$(call MSG_INST_DIR,$$@)
+	$$(QUIET)$$(MKDIR) -p -- $$@
+$(target)_2_DEBUG_$(debug_var)_TARGET_DIRS += $$(dir)
+endef # def_link_install_debug_dir_rule
+
+##
+# Install a debug file. 
+# @param    debug_file          Src=>Dst file pair.
+define def_link_install_debug_file_rule
+local dst := $(debug_inst_path)/$(debug_inst)$(word 2, $(subst =>,$(SP),$(debug_file)))
+$$(dst): $(word 1, $(subst =>,$(SP),$(debug_file))) | $$$$(dir $$$$@)
+	%$$(call MSG_INST_FILE,$$@,$$<)
+	$$(QUIET)$(debug_install_cmd) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $$< $$@
+$(target)_2_DEBUG_$(debug_var)_TARGET_FILES += $$(dst)
+endef # def_link_install_debug_file_rule
+
+##
+# Install debug info to $(debug_inst), where debug_inst can be a directory or 
+# file (just like $(inst) and $(stage).  Used for both staging and installing.
+define def_target_install_only_debug
+if "$(substr $(debug_inst),-1,1)" == "/"
+ if "$(debug_inst)" == "./"
+  local debug_inst := 
+ endif
+ local debug_dirs  := $(patsubst $($(target)_0_OUTDIR)/%,%,$($(target)_2_OUTPUT_DEBUG_DIRS))
+ ifneq ($(strip $(root $(debug_dirs))),)
+  $(error kBuild: Bad tool? debug_dirs='$(debug_dirs)', expected all to be under '$(outbase)')
+ endif
+ local debug_files := $(foreach file, $(patsubst $($(target)_0_OUTDIR)/%,%,$($(target)_2_OUTPUT_DEBUG_FILES)) \
+                        ,$($(target)_0_OUTDIR)/$(file)=>$(file))
+else
+ local debug_files := $(call TOOL_$(tool)_$(tool_do)_DEBUG_INSTALL_FN,$(out),$(outbase),$(debug_inst))
+ local debug_dirs  := $(filter     %/,$(debug_files))
+ local debug_files := $(filter-out %/,$(debug_files))
+endif
+$(foreach debug_dir, $(debug_dirs), $(eval $(def_link_install_debug_dir_rule)))
+$(foreach debug_file, $(debug_files), $(eval $(def_link_install_debug_file_rule)))
+endef
 
 
 ## Generic macro for generating the install rule(s) for a target.
@@ -364,6 +475,44 @@ $(eval $(def_link_stage_rule))
 else  # INSTTYPE == none
  $(typevar) += $(out)
 endif # INSTTYPE == none
+
+# Install debug info.
+$(target)_2_DEBUG_STAGE_TARGET_DIRS :=
+$(target)_2_DEBUG_STAGE_TARGET_FILES :=
+$(target)_2_DEBUG_INSTALL_TARGET_DIRS :=
+$(target)_2_DEBUG_INSTALL_TARGET_FILES :=
+
+if  (   defined($(target)_2_OUTPUT_DEBUG_DIRS) \
+     || defined($(target)_2_OUTPUT_DEBUG_FILES) ) \
+ && "$($(target)_1_DEBUG_INSTTYPE)" != "none"
+ local mode := $(if $(mode),$(mode)$(COMMA)a-x,0644)
+
+ ifeq ($($(target)_1_DEBUG_INSTTYPE),both)
+  local debug_inst_path   := $(PATH_INS)
+  local debug_install_cmd := $(INSTALL)
+  local debug_var         := INSTALL
+  $(foreach debug_inst, $($(target)_1_DEBUG_INST), $(evalval def_target_install_only_debug))
+ endif
+
+ local debug_inst_path    := $(PATH_STAGE)
+ local debug_install_cmd  := $(INSTALL_STAGING)
+ local debug_var          := STAGE
+ if1of ($($(target)_1_DEBUG_INSTTYPE), stage both)
+  $(foreach debug_inst, $($(target)_1_DEBUG_STAGE), $(evalval def_target_install_only_debug))
+ endif
+ if1of ($($(target)_1_INSTTYPE), stage both)
+  ifndef debug_nostage
+   $(foreach debug_inst,$($(target)_1_STAGE), $(evalval def_target_install_only_debug))
+  endif
+ endif
+
+ _DEBUG_STAGE_DIRS    += $($(target)_2_DEBUG_STAGE_TARGET_DIRS)
+ _DEBUG_STAGE_FILES   += $($(target)_2_DEBUG_STAGE_TARGET_FILES)
+ _DEBUG_INSTALL_DIRS  += $($(target)_2_DEBUG_INSTALL_TARGET_DIRS)
+ _DEBUG_INSTALL_FILES += $($(target)_2_DEBUG_INSTALL_TARGET_FILES)
+
+ $(basename $(notdir $(out))):: $($(target)_2_DEBUG_STAGE_TARGET_DIRS) $($(target)_2_DEBUG_STAGE_TARGET_FILES)
+endif
 
 endef # def_target_install_only
 
@@ -533,12 +682,12 @@ $(error kBuild: TOOL_$(tool)_LINK_LIBRARY_CMDS isn't defined! target=$(target) )
 endif
 
 # call the tool
-local cmds := $(TOOL_$(tool)_LINK_LIBRARY_CMDS)
+local  cmds := $(TOOL_$(tool)_LINK_LIBRARY_CMDS)
 ifneq ($(pre_cmds),)
  local cmds := $(TAB)$(pre_cmds)$(NL)$(TAB)$(cmds)
 endif
 ifneq ($(post_cmds),)
- local cmds  := $(cmds)$(NL)$(TAB)$(post_cmds)
+ local cmds := $(cmds)$(NL)$(TAB)$(post_cmds)
 endif
 $(target)_2_OUTPUT := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
@@ -812,16 +961,18 @@ ifneq ($(defpath),)
  # libs are not subject to this because of the the -l<lib> stuff. Use $(<target>_DEFPATH)/lib if relative to current dir!
 endif
 
+# Debug info.
+local ld_debug      := $(evalcall def_fn_prop_get_first_defined,LD_DEBUG)
+local debug_inst    := $(evalcall def_fn_prop_get_first_defined,DEBUG_INST)
+local debug_stage   := $(evalcall def_fn_prop_get_first_defined,DEBUG_STAGE)
+local debug_nostage := $(evalcall def_fn_prop_get_first_word,DEBUG_NOSTAGE)
+
 # Custom pre/post-link actions.
-local pre_cmds  := $(evalcall def_fn_prop_get_first_defined,PRE_CMDS)
-local post_cmds := $(evalcall def_fn_prop_get_first_defined,POST_CMDS)
+local pre_cmds      := $(evalcall def_fn_prop_get_first_defined,PRE_CMDS)
+local post_cmds     := $(evalcall def_fn_prop_get_first_defined,POST_CMDS)
 
 # eliminate this guy?
 local objs = $($(target)_2_OBJS)
-
-# installation targets
-local target_type_mode :=
-$(evalval def_target_install_only)
 
 # dependency file
 local dep := $(outbase)$(SUFF_DEP)
@@ -860,14 +1011,24 @@ endif
 ifneq ($(post_cmds),)
  local cmds  := $(cmds)$(NL)$(TAB)$(post_cmds)
 endif
-$(target)_2_OUTPUT := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
-$(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
-$(target)_2_DEPEND := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_2_OBJS)
-$(target)_2_DEPORD := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
+$(target)_2_OUTPUT              := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
+$(target)_2_OUTPUT_MAYBE        := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
+if1of ($(ld_debug), split)
+ $(target)_2_OUTPUT_DEBUG_FILES := $(filter-out %/,$(TOOL_$(tool)_$(tool_do)_OUTPUT_DEBUG))
+ $(target)_2_OUTPUT_DEBUG_DIRS  := $(filter     %/,$(TOOL_$(tool)_$(tool_do)_OUTPUT_DEBUG))
+else
+ $(target)_2_OUTPUT_DEBUG_FILES :=
+ $(target)_2_OUTPUT_DEBUG_DIRS  :=
+endif
+$(target)_2_DEPEND              := $(TOOL_$(tool)_$(tool_do)_DEPEND) $(deps) $($(target)_2_OBJS)
+$(target)_2_DEPORD              := $(TOOL_$(tool)_$(tool_do)_DEPORD) $(dirdep) $(orderdeps)
 
 # generate the link rule.
 $(eval $(def_link_rule))
 
+# installation targets
+local target_type_mode :=
+$(evalval def_target_install_only)
 
 # Update globals.
 _OBJS += $($(target)_2_OBJS)
