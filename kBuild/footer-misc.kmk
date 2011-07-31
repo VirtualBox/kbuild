@@ -1,4 +1,4 @@
-# $Id: footer-misc.kmk 2521 2011-07-26 18:18:19Z knut.osmundsen@oracle.com $
+# $Id: footer-misc.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Misc.
 #
@@ -67,8 +67,18 @@ _PACKING += $(PACKING) \
 #
 # DIRECTORIES
 #
-_DIR_ALL := $(sort $(addsuffix /,$(patsubst %/,%,$(_DIRS))) $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS_FILES) $(_STAGE_FILES)))
-$(foreach directory,$(_INSTALLS_DIRS) $(_STAGE_DIRS), $(eval _DIR_ALL := $(filter-out $(directory),$(_DIR_ALL))))
+_DIR_ALL := $(sort \
+    $(addsuffix /,$(patsubst %/,%,$(_DIRS) )) \
+    $(dir $(_OUT_FILES) $(_OBJS) $(_INSTALLS_FILES) $(_DEBUG_INSTALL_FILES) $(_STAGE_FILES) $(_DEBUG_STAGE_FILES) ) \
+    $(foreach path, $(KBUILD_INST_PATHS), $(PATH_INS)/$(INST_$(path)) $(PATH_STAGE)/$(STAGE_$(path)) ) \
+    $(dir $(patsubst %/,%, $(_INSTALLS_DIRS) $(_STAGE_DIRS) $(_DEBUG_INSTALL_DIRS) $(_DEBUG_STAGE_DIRS)) ) \
+    )
+$(foreach directory, \
+    $(_INSTALLS_DIRS) \
+    $(_STAGE_DIRS) \
+    $(_DEBUG_INSTALL_DIRS) \
+    $(_DEBUG_STAGE_DIRS) \
+    , $(eval _DIR_ALL := $(filter-out $(directory),$(_DIR_ALL))) )
 
 
 define def_mkdir_rule

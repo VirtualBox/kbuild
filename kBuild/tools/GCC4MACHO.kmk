@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 2431 2010-11-19 11:06:42Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
 #
@@ -50,6 +50,7 @@ TOOL_GCC4MACHO_LDFLAGS.dll ?= $(TOOL_GCC4MACHO_LDFLAGS.$(KBUILD_TARGET))
 endif
 TOOL_GCC4MACHO_LDFLAGS.sysmod ?= -r
 #TOOL_GCC4MACHO_LD_SONAME = -Wl,-dylib_install_name $(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
+TOOL_GCC4MACHO_DSYMUTIL  ?= dsymutil
 
 ifdef SLKRUNS
 TOOL_GCC4MACHO_CC        += -fmessage-length=0
@@ -103,6 +104,32 @@ TOOL_GCC4MACHO_ARLIBSUFF        ?= .a
 TOOL_GCC4MACHO_LDFLAGS          ?=
 TOOL_GCC4MACHO_LDFLAGS.debug    ?= -g
 TOOL_GCC4MACHO_LDFLAGS.profile  ?= -g
+
+
+##
+# Calculate the files in the debug bundle.
+# @param    1           The whole output filename.
+# @param    2   	The output filename sans suffix. 
+TOOL_GCC4MACHO_DEBUG_BUNDLE_FN = \
+    $(1).dSYM/ \
+    $(1).dSYM/Contents/ \
+    $(1).dSYM/Contents/Resources/ \
+    $(1).dSYM/Contents/Resources/DWARF/ \
+    $(1).dSYM/Contents/Info.plist \
+    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1))
+
+##
+# Calculate the files in the debug bundle.
+# @param    1           The whole linker output filename.
+# @param    2   	The linker output filename sans suffix. 
+# @param    3           The desired install name (no dir slash).
+TOOL_GCC4MACHO_DEBUG_INSTALL_FN= \
+    $(3).dSYM/ \
+    $(3).dSYM/Contents/ \
+    $(3).dSYM/Contents/Resources/ \
+    $(3).dSYM/Contents/Resources/DWARF/ \
+    $(1).dSYM/Contents/Info.plist=>$(3).dSYM/Contents/Info.plist \
+    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1))=>$(3).dSYM/Contents/Resources/DWARF/$(notdir $(1))
 
 
 ## Compile C source.
@@ -349,6 +376,8 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC4MACHO_LINK_PROGRAM_OUTPUT = $(outbase).rsp
+TOOL_GCC4MACHO_LINK_PROGRAM_OUTPUT_DEBUG = $(call TOOL_GCC4MACHO_DEBUG_BUNDLE_FN,$(out))
+TOOL_GCC4MACHO_LINK_PROGRAM_DEBUG_INSTALL_FN = $(TOOL_GCC4MACHO_DEBUG_INSTALL_FN)
 TOOL_GCC4MACHO_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC4MACHO_LINK_PROGRAM_DEPORD =
 define TOOL_GCC4MACHO_LINK_PROGRAM_CMDS
@@ -357,7 +386,11 @@ define TOOL_GCC4MACHO_LINK_PROGRAM_CMDS
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
+ ifeq ($(ld_debug),split)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+ endif
 endef
+
 
 
 ## Link DLL
@@ -374,6 +407,8 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC4MACHO_LINK_DLL_OUTPUT = $(outbase).rsp
+TOOL_GCC4MACHO_LINK_DLL_OUTPUT_DEBUG = $(call TOOL_GCC4MACHO_DEBUG_BUNDLE_FN,$(out))
+TOOL_GCC4MACHO_LINK_DLL_DEBUG_INSTALL_FN = $(TOOL_GCC4MACHO_DEBUG_INSTALL_FN)
 TOOL_GCC4MACHO_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC4MACHO_LINK_DLL_DEPORD =
 define TOOL_GCC4MACHO_LINK_DLL_CMDS
@@ -383,6 +418,9 @@ define TOOL_GCC4MACHO_LINK_DLL_CMDS
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
+ ifeq ($(ld_debug),split)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+ endif
 endef
 
 
@@ -400,6 +438,8 @@ endef
 # @param    $(custom_post)  Custom step invoked after linking.
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC4MACHO_LINK_SYSMOD_OUTPUT = $(outbase).rsp
+TOOL_GCC4MACHO_LINK_SYSMOD_OUTPUT_DEBUG = $(call TOOL_GCC4MACHO_DEBUG_BUNDLE_FN,$(out))
+TOOL_GCC4MACHO_LINK_SYSMOD_DEBUG_INSTALL_FN = $(TOOL_GCC4MACHO_DEBUG_INSTALL_FN)
 TOOL_GCC4MACHO_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC4MACHO_LINK_SYSMOD_DEPORD =
 define TOOL_GCC4MACHO_LINK_SYSMOD_CMDS
@@ -408,5 +448,8 @@ define TOOL_GCC4MACHO_LINK_SYSMOD_CMDS
 		-filelist $(outbase).rsp\
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
+ ifeq ($(ld_debug),split)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+ endif
 endef
 

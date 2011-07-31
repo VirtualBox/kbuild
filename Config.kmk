@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2506 2011-07-23 10:58:06Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -325,6 +325,9 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_DEFS.x86        += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
   TEMPLATE_BIN_DEFS.sparc32    += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
  endif
+endif
+if1of ($(KBUILD_TARGET), darwin win)
+ TEMPLATE_BIN_LD_DEBUG = split
 endif
 
 #

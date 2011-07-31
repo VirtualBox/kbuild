@@ -1,4 +1,4 @@
-# $Id: header.kmk 2520 2011-07-26 13:12:43Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2520 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2523 $  )
 
 
 #
@@ -913,13 +913,13 @@ PROPS_TOOLS := TOOL CTOOL CXXTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOOL ARTOOL LDTOO
 # will do the necessary inheritance for templates, sdks, tools and targets.
 PROPS_SINGLE := $(PROPS_TOOLS) TEMPLATE INSTTYPE INST STAGE NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU FETCHDIR \
 	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF OBJCXXOBJSUFF ASOBJSUFF RCOBJSUFF SYSSUFF BINSUFF EXESUFF DLLSUFF LIBSUFF ARLIBSUFF \
-	MODE UID GID
+	MODE UID GID LD_DEBUG DEBUG_INSTTYPE DEBUG_INST DEBUG_STAGE
 ## PROPS_SINGLE_LNK
 # Subset of PROPS_SINGLE which applies to all linkable targets.
 PROPS_SINGLE_LNK := TOOL TEMPLATE CTOOL CXXTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOOL \
 	INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU \
 	OBJSUFF COBJSUFF CXXOBJSUFF OBJCOBJSUFF OBJCXXOBJSUFF ASOBJSUFF RCOBJSUFF \
-	MODE UID GID
+	MODE UID GID LD_DEBUG DEBUG_INSTTYPE DEBUG_INST DEBUG_STAGE
 
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
@@ -1145,7 +1145,7 @@ PASS_OTHERS_pass    := others
 ## @todo split this up into build install (to sandbox) and real installation.
 PASS_STAGING        := Staging
 PASS_STAGING_trgs   :=
-PASS_STAGING_vars   := _STAGING_DIRS _INSTALLS _STAGING_FILES
+PASS_STAGING_vars   := _STAGE_DIRS _INSTALLS _STAGE_FILES _DEBUG_STAGE_DIRS _DEBUG_STAGE_FILES
 PASS_STAGING_pass   := staging
 
 ## PASS: install
@@ -1153,7 +1153,7 @@ PASS_STAGING_pass   := staging
 # DESTROOT or PATH_INS to indicate where this is).
 PASS_INSTALLS       := Install
 PASS_INSTALLS_trgs  :=
-PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS_FILES
+PASS_INSTALLS_vars  := _INSTALLS_DIRS _INSTALLS_FILES _DEBUG_INSTALL_DIRS _DEBUG_INSTALL_FILES
 PASS_INSTALLS_pass  := installs
 
 ## PASS: testing
