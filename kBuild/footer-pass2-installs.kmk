@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2521 2011-07-26 18:18:19Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 2526 2011-08-01 14:35:35Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -272,7 +272,7 @@ if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
  $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
  local stage     := $(stage)/
 endif
-local stage      := $(stage)$(dir $(srcdstdir))
+local stage      := $(stage)$(dir $(symlnk))
 ifeq ($(root $(stage)),)
  local stagedst  := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
 else
@@ -298,7 +298,7 @@ ifeq ($(instmode),both)
  ifneq ($(root $(inst)),)
   $(error kBuild: Symlink $(symlnk) in install target $(target) has a INST property with an absolute path: '$(inst)')
  endif
- local inst    := $(inst)$(dir $(srcdstdir))
+ local inst    := $(inst)$(dir $(symlnk))
  local instdst := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
  $(eval $(def_install_symlink_rule_installing))
  $(target)_2_INST_TARGETS += $(instdst)
