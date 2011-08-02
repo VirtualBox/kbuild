@@ -1,4 +1,4 @@
-# $Id: GCC4MACHO.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 2535 2011-08-02 19:05:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
 #
@@ -105,11 +105,15 @@ TOOL_GCC4MACHO_LDFLAGS          ?=
 TOOL_GCC4MACHO_LDFLAGS.debug    ?= -g
 TOOL_GCC4MACHO_LDFLAGS.profile  ?= -g
 
+TOOL_GCC4MACHO_STRIP_PROGRAM    ?= strip -SXxru
+TOOL_GCC4MACHO_STRIP_DLL        ?= strip -Sxru
+TOOL_GCC4MACHO_STRIP_SYSMOD     ?= strip -Sru
+
 
 ##
 # Calculate the files in the debug bundle.
 # @param    1           The whole output filename.
-# @param    2   	The output filename sans suffix. 
+# @param    2   	The output filename sans suffix.
 TOOL_GCC4MACHO_DEBUG_BUNDLE_FN = \
     $(1).dSYM/ \
     $(1).dSYM/Contents/ \
@@ -121,15 +125,18 @@ TOOL_GCC4MACHO_DEBUG_BUNDLE_FN = \
 ##
 # Calculate the files in the debug bundle.
 # @param    1           The whole linker output filename.
-# @param    2   	The linker output filename sans suffix. 
+# @param    2   	The linker output filename sans suffix.
 # @param    3           The desired install name (no dir slash).
+# @remarks  The Info.plist has some reference to the original name, but gdb
+#           does not care and only check for a symbol file in the DWARF
+#           directory with the same name as the debugged module.
 TOOL_GCC4MACHO_DEBUG_INSTALL_FN= \
     $(3).dSYM/ \
     $(3).dSYM/Contents/ \
     $(3).dSYM/Contents/Resources/ \
     $(3).dSYM/Contents/Resources/DWARF/ \
     $(1).dSYM/Contents/Info.plist=>$(3).dSYM/Contents/Info.plist \
-    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1))=>$(3).dSYM/Contents/Resources/DWARF/$(notdir $(1))
+    $(1).dSYM/Contents/Resources/DWARF/$(notdir $(1))=>$(3).dSYM/Contents/Resources/DWARF/$(notdir $(3))
 
 
 ## Compile C source.
@@ -387,7 +394,8 @@ define TOOL_GCC4MACHO_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
  ifeq ($(ld_debug),split)
-	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_STRIP_PROGRAM) $(out)
  endif
 endef
 
@@ -419,7 +427,8 @@ define TOOL_GCC4MACHO_LINK_DLL_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
  ifeq ($(ld_debug),split)
-	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_STRIP_DLL) $(out)
  endif
 endef
 
@@ -449,7 +458,8 @@ define TOOL_GCC4MACHO_LINK_SYSMOD_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))
  ifeq ($(ld_debug),split)
-	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) --verbose -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_DSYMUTIL) -o $(out).dSYM/ $(out)
+	$(QUIET)$(TOOL_GCC4MACHO_STRIP_SYSMOD) $(out)
  endif
 endef
 
