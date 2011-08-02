@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -133,6 +133,7 @@ endif
 # @param    $(cmds)                 The link commands.
 # @param    $($(target)_CMDS_PREV_) The link commands from the previous run.
 define def_link_rule
+$$(call KB_FN_ASSERT_ABSPATH,out)
 ifndef NO_LINK_CMDS_DEPS
 $(out): .MUST_MAKE = $$(comp-cmds-ex $$($(target)_CMDS_PREV_),$$(commands $$@),FORCE)
 endif
@@ -169,6 +170,7 @@ $(eval-opt-var def_link_rule)
 # Implicit parameters: target, out, $(target)_1_STAGE_TARGET, mode,
 #                      pre_install_cmds, post_install_cmds
 define def_link_install_rule
+$$(call KB_FN_ASSERT_ABSPATH,$(target)_1_INST_TARGET)
 $($(target)_1_INST_TARGET): $(out) | $$$$(dir $$$$@)
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
 	$(pre_install_cmds)
@@ -183,6 +185,7 @@ endef
 # Implicit parameters: target, out, $(target)_1_STAGE_TARGET, mode,
 #                      pre_install_cmds, post_install_cmds
 define def_link_stage_rule
+$$(call KB_FN_ASSERT_ABSPATH,$(target)_1_STAGE_TARGET)
 $($(target)_1_STAGE_TARGET): $(out) | $$$$(dir $$$$@)
 	%$$(call MSG_INST_TRG,$(target),$(out),$$@)
 	$(pre_install_cmds)
@@ -387,6 +390,7 @@ endef # def_fn_prop_get_first_word
 # @param    debug_dir           The directory name.
 define def_link_install_debug_dir_rule
 local dir := $(debug_inst_path)/$(debug_inst)$(debug_dir)
+$$(call KB_FN_ASSERT_ABSPATH,dir)
 $$(dir): | $$$$(dir $$$$(patsubst %/,%,$$$$@))
 	%$$(call MSG_INST_DIR,$$@)
 	$$(QUIET)$$(MKDIR) -p -- $$@
@@ -394,23 +398,26 @@ $(target)_2_DEBUG_$(debug_var)_TARGET_DIRS += $$(dir)
 endef # def_link_install_debug_dir_rule
 
 ##
-# Install a debug file. 
+# Install a debug file.
 # @param    debug_file          Src=>Dst file pair.
 define def_link_install_debug_file_rule
 local dst := $(debug_inst_path)/$(debug_inst)$(word 2, $(subst =>,$(SP),$(debug_file)))
-$$(dst): $(word 1, $(subst =>,$(SP),$(debug_file))) | $$$$(dir $$$$@)
+$$(call KB_FN_ASSERT_ABSPATH,dst)
+local src := $(word 1, $(subst =>,$(SP),$(debug_file)))
+$$(call KB_FN_ASSERT_ABSPATH,src)
+$$(dst): $$(src) | $$$$(dir $$$$@)
 	%$$(call MSG_INST_FILE,$$@,$$<)
 	$$(QUIET)$(debug_install_cmd) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $$< $$@
 $(target)_2_DEBUG_$(debug_var)_TARGET_FILES += $$(dst)
 endef # def_link_install_debug_file_rule
 
 ##
-# Install debug info to $(debug_inst), where debug_inst can be a directory or 
+# Install debug info to $(debug_inst), where debug_inst can be a directory or
 # file (just like $(inst) and $(stage).  Used for both staging and installing.
 define def_target_install_only_debug
 if "$(substr $(debug_inst),-1,1)" == "/"
  if "$(debug_inst)" == "./"
-  local debug_inst := 
+  local debug_inst :=
  endif
  local debug_dirs  := $(patsubst $($(target)_0_OUTDIR)/%,%,$($(target)_2_OUTPUT_DEBUG_DIRS))
  ifneq ($(strip $(root $(debug_dirs))),)
