@@ -676,6 +676,29 @@ func_flavor (char *o, char **argv, const char *funcname UNUSED)
   return o;
 }
 
+#ifdef CONFIG_WITH_WHERE_FUNCTION
+static char *
+func_where (char *o, char **argv, const char *funcname UNUSED)
+{
+  struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
+  char buf[64];
+
+  if (v == 0)
+    o = variable_buffer_output (o, "undefined", 9);
+  else
+    if (v->fileinfo.filenm)
+      {
+        o = variable_buffer_output (o, v->fileinfo.filenm, strlen(v->fileinfo.filenm));
+        sprintf (buf, ":%lu", v->fileinfo.lineno);
+        o = variable_buffer_output (o, buf, strlen(buf));
+      }
+    else
+      o = variable_buffer_output (o, "no-location", 11);
+
+  return o;
+}
+#endif /* CONFIG_WITH_WHERE_FUNCTION */
+
 #ifdef VMS
 # define IS_PATHSEP(c) ((c) == ']')
 #else
@@ -5268,6 +5291,9 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("shell"),         0,  1,  1,  func_shell},
   { STRING_SIZE_TUPLE("sort"),          0,  1,  1,  func_sort},
   { STRING_SIZE_TUPLE("strip"),         0,  1,  1,  func_strip},
+#ifdef CONFIG_WITH_WHERE_FUNCTION
+  { STRING_SIZE_TUPLE("where"),         0,  1,  1,  func_where},
+#endif
   { STRING_SIZE_TUPLE("wildcard"),      0,  1,  1,  func_wildcard},
   { STRING_SIZE_TUPLE("word"),          2,  2,  1,  func_word},
   { STRING_SIZE_TUPLE("wordlist"),      3,  3,  1,  func_wordlist},
