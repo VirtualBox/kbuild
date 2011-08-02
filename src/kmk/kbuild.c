@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2435 2011-01-09 17:45:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2539 2011-08-02 20:01:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2109,22 +2109,22 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(pszDst, "_CMDS_", sizeof("_CMDS_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
     do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                             !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
+                             !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT", sizeof("_OUTPUT"));
     memcpy(pszDst, "_OUTPUT_", sizeof("_OUTPUT_"));
     pVar = kbuild_get_recursive_variable(pszSrcVar);
     pOutput = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                       !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
+                                       !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_OUTPUT_MAYBE", sizeof("_OUTPUT_MAYBE"));
     memcpy(pszDst, "_OUTPUT_MAYBE_", sizeof("_OUTPUT_MAYBE_"));
     pVar = kbuild_query_recursive_variable(pszSrcVar);
     if (pVar)
         pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, pVar->value, pVar->value_length,
-                                                !pVar->recursive, 0, o_file, f_simple, 0 /* !target_var */);
+                                                !pVar->recursive, 0, o_local, f_simple, 0 /* !target_var */);
     else
-        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_file, f_simple, 0 /* !target_var */);
+        pOutputMaybe = do_variable_definition_2(NILF, pszDstVar, "", 0, 1, 0, o_local, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPEND", sizeof("_DEPEND"));
     memcpy(pszDst, "_DEPEND_", sizeof("_DEPEND_"));
@@ -2137,7 +2137,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     memcpy(psz, pSource->value, pSource->value_length + 1);
     do_variable_definition_2(NILF, pszDstVar, pszVal, pVar->value_length + 1 + pDeps->value_length + 1 + pSource->value_length,
                              !pVar->recursive && !pDeps->recursive && !pSource->recursive,
-                             pszVal, o_file, f_simple, 0 /* !target_var */);
+                             pszVal, o_local, f_simple, 0 /* !target_var */);
 
     memcpy(pszSrc, "_DEPORD", sizeof("_DEPORD"));
     memcpy(pszDst, "_DEPORD_", sizeof("_DEPORD_"));
@@ -2151,7 +2151,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     do_variable_definition_2(NILF, pszDstVar, pszVal,
                              pVar->value_length + 1 + pDirDep->value_length + 1 + pOrderDeps->value_length,
                              !pVar->recursive && !pDirDep->recursive && !pOrderDeps->recursive,
-                             pszVal, o_file, f_simple, 0 /* !target_var */);
+                             pszVal, o_local, f_simple, 0 /* !target_var */);
 
     /*
     _OUT_FILES      += $($(target)_$(source)_OUTPUT_) $($(target)_$(source)_OUTPUT_MAYBE_)
