@@ -1,4 +1,4 @@
-# $Id: header.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2533 2011-08-02 13:06:27Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2531 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2533 $  )
 
 
 #
@@ -849,13 +849,46 @@ else
 endif
 
 ##
+# Show an assertion message.
+#
+# @param   $1   The assertion name.
+# @param   $2   The details.
+#
+define KB_FN_ASSERT_MSG
+$(info !! kBuild $1 Assertion Failed !!)
+ifdef target
+ $(info !! target:   $(target))
+ local varloc := $(where $(target))
+ if "$(varloc)" == "undefined"
+  local varloc := $(where $(target)_TEMPLATE)
+ endif
+ if "$(varloc)" == "undefined"
+  local varloc := $(where $(target)_SOURCES)
+ endif
+ if "$(varloc)" == "undefined"
+  local varloc := $(where $(target)_EXTENDS)
+ endif
+ if "$(varloc)" == "undefined"
+  local varloc := $(where target)
+ endif
+ ifneq ($(varloc),)
+  $(info !! location: $(varloc))
+ else
+  $(info !! probable location: $($(target)_DEFPATH)/Makefile.kmk)
+ endif
+endif
+$(info !! $2)
+$(error fixme)
+endef
+
+##
 # Throw an error if the given path $1 isn't absolute and assertions are enabled.
 #
 # @param   $1   The name of the path variable to check.
 #
 ifdef KBUILD_INTERNAL_STRICT
  KB_FN_ASSERT_ABSPATH = $(if-expr "$(abspath $($(strip $1)))" != "$(strip $($(strip $1)))",\
- 	$(error kBuild abspath assertion failed: target=$(target) $1=$($(strip $1))))
+ 	$(evalcall KB_FN_ASSERT_MSG,abspath,$1 is:$(NLTAB)'$($(strip $1))'$(NLTAB)expected:$(NLTAB)'$(abspath $($(strip $1)))'))
 else
  KB_FN_ASSERT_ABSPATH :=
 endif
