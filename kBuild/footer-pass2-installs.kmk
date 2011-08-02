@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2526 2011-08-01 14:35:35Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 2529 2011-08-02 10:07:51Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -258,6 +258,10 @@ define def_install_symlink
 local symdst := $(subst =>, ,$(src))
 local symlnk := $(firstword $(symdst))
 local symdst := $(word $(words $(symdst)),$(symdst))
+local symlnkdir := $(dir $(symlnk))
+ifeq ($(symlnkdir),./)
+ local symlnkdir :=
+endif
 
 # Figure which install function to use below.
 ifdef $(symlnk)_INSTFUN
@@ -268,11 +272,12 @@ endif
 
 # Calc stage destination and generate the rule (requires double evaluation).
 local stage      := $(strip $(firstdefined $(symlnk)_STAGE $(symlnk)_INST $(target)_1_STAGE,value))
+$(info stage:=$(stage))
 if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
  $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
  local stage     := $(stage)/
 endif
-local stage      := $(stage)$(dir $(symlnk))
+local stage      := $(stage)$(symlnkdir)
 ifeq ($(root $(stage)),)
  local stagedst  := $(call $(instfun),$(symlnk),$(target),$(stage),$(PATH_STAGE))
 else
@@ -298,13 +303,13 @@ ifeq ($(instmode),both)
  ifneq ($(root $(inst)),)
   $(error kBuild: Symlink $(symlnk) in install target $(target) has a INST property with an absolute path: '$(inst)')
  endif
- local inst    := $(inst)$(dir $(symlnk))
+ local inst    := $(inst)$(symlnkdir)
  local instdst := $(call $(instfun),$(symlnk),$(target),$(inst),$(PATH_INS))
  $(eval $(def_install_symlink_rule_installing))
  $(target)_2_INST_TARGETS += $(instdst)
 endif
 
-#$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
+$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
 endef # def_install_symlink
 $(optmize def_install_symlink)
 
