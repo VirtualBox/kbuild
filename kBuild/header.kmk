@@ -1,4 +1,4 @@
-# $Id: header.kmk 2528 2011-08-01 14:40:56Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2528 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2531 $  )
 
 
 #
@@ -846,6 +846,18 @@ ifdef KBUILD_WITH_DEPREATED_AS_ERROR
  KB_FN_ASSIGN_DEPRECATED = $(eval $(subst :,$$(COLON),$1) = $2$$(error $1 is deprecated, use $3 instead))
 else
  KB_FN_ASSIGN_DEPRECATED = $(eval $(subst :,$$(COLON),$1) = $2$$(warning $1 is deprecated, use $3 instead))
+endif
+
+##
+# Throw an error if the given path $1 isn't absolute and assertions are enabled.
+#
+# @param   $1   The name of the path variable to check.
+#
+ifdef KBUILD_INTERNAL_STRICT
+ KB_FN_ASSERT_ABSPATH = $(if-expr "$(abspath $($(strip $1)))" != "$(strip $($(strip $1)))",\
+ 	$(error kBuild abspath assertion failed: target=$(target) $1=$($(strip $1))))
+else
+ KB_FN_ASSERT_ABSPATH :=
 endif
 
 

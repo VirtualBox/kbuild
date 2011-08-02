@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2530 2011-08-02 10:57:48Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -40,6 +40,8 @@
 # Generate the staging rules.
 #
 define def_install_src_rule_staging
+$$(call KB_FN_ASSERT_ABSPATH, stagedst)
+$$(call KB_FN_ASSERT_ABSPATH, srcsrc)
 $(stagedst) : $(srcsrc) | $(dir $(stagedst))
 	%$$(call MSG_INST_FILE,$(srcsrc),$(stagedst))
 	$$(QUIET)$(stagecmd)
@@ -47,6 +49,8 @@ endef
 $(eval-opt-var def_install_src_rule_staging)
 
 define def_install_src_rule_installing
+$$(call KB_FN_ASSERT_ABSPATH, instdst)
+$$(call KB_FN_ASSERT_ABSPATH, srcsrc)
 $(instdst) : $(srcsrc) | $(dir $(instdst))
 	%$$(call MSG_INST_FILE,$(srcsrc),$(instdst))
 	$$(QUIET)$(instcmd)
@@ -71,6 +75,9 @@ endif
 local srcdst    := $(subst =>, ,$(src))
 local srcsrc    := $(firstword $(srcdst))
 local srcdstdir := $(dir $(word 2,$(srcdst)))
+ifeq ($(srcdstdir),./)
+ local srcdstdir:=
+endif
 local srcdst    := $(word $(words $(srcdst)),$(srcdst))
 
 # instfun, mode, uid and gid.
@@ -233,6 +240,7 @@ $(eval-opt-var def_install_src)
 # Generate the symlink rules.
 #
 define def_install_symlink_rule_staging
+$$(call KB_FN_ASSERT_ABSPATH, stagedst)
 $(stagedst) : | $(dir $(stagedst))
 	%$$(call MSG_INST_SYM,$(stagedst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
@@ -241,6 +249,7 @@ endef
 $(eval-opt-var def_install_symlink_rule_staging)
 
 define def_install_symlink_rule_installing
+$$(call KB_FN_ASSERT_ABSPATH, instdst)
 $(instdst) : | $(dir $(instdst))
 	%$$(call MSG_INST_SYM,$(instdst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
@@ -318,7 +327,7 @@ $(optmize def_install_symlink)
 # Note. Used both for staging and real install rules.
 #
 define def_install_directory_rule
-# the install rule
+$$(call KB_FN_ASSERT_ABSPATH, insdst)
 $(insdst):
 	%$$(call MSG_INST_DIR,$(insdst))
 	$$(QUIET)$$(INSTALL) -d \
