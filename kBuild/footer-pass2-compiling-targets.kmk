@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2535 2011-08-02 19:05:34Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -389,7 +389,7 @@ endef # def_fn_prop_get_first_word
 # Install a debug directory.
 # @param    debug_dir           The directory name.
 define def_link_install_debug_dir_rule
-local dir := $(debug_inst_path)/$(debug_inst)$(debug_dir)
+local dir := $(debug_inst_path)/$(debug_inst2)$(debug_dir)
 $$(call KB_FN_ASSERT_ABSPATH,dir)
 $$(dir): | $$$$(dir $$$$(patsubst %/,%,$$$$@))
 	%$$(call MSG_INST_DIR,$$@)
@@ -401,12 +401,12 @@ endef # def_link_install_debug_dir_rule
 # Install a debug file.
 # @param    debug_file          Src=>Dst file pair.
 define def_link_install_debug_file_rule
-local dst := $(debug_inst_path)/$(debug_inst)$(word 2, $(subst =>,$(SP),$(debug_file)))
+local dst := $(debug_inst_path)/$(debug_inst2)$(word 2, $(subst =>,$(SP),$(debug_file)))
 $$(call KB_FN_ASSERT_ABSPATH,dst)
 local src := $(word 1, $(subst =>,$(SP),$(debug_file)))
 $$(call KB_FN_ASSERT_ABSPATH,src)
 $$(dst): $$(src) | $$$$(dir $$$$@)
-	%$$(call MSG_INST_FILE,$$@,$$<)
+	%$$(call MSG_INST_FILE,$$<,$$@)
 	$$(QUIET)$(debug_install_cmd) $(if $(mode),-m $(mode)) $(if $(uid),-o $(uid)) $(if $(gid),-g $(gid)) -- $$< $$@
 $(target)_2_DEBUG_$(debug_var)_TARGET_FILES += $$(dst)
 endef # def_link_install_debug_file_rule
@@ -417,7 +417,9 @@ endef # def_link_install_debug_file_rule
 define def_target_install_only_debug
 if "$(substr $(debug_inst),-1,1)" == "/"
  if "$(debug_inst)" == "./"
-  local debug_inst :=
+  local debug_inst2 :=
+ else
+  local debug_inst2 := $(debug_inst)
  endif
  local debug_dirs  := $(patsubst $($(target)_0_OUTDIR)/%,%,$($(target)_2_OUTPUT_DEBUG_DIRS))
  ifneq ($(strip $(root $(debug_dirs))),)
@@ -426,7 +428,9 @@ if "$(substr $(debug_inst),-1,1)" == "/"
  local debug_files := $(foreach file, $(patsubst $($(target)_0_OUTDIR)/%,%,$($(target)_2_OUTPUT_DEBUG_FILES)) \
                         ,$($(target)_0_OUTDIR)/$(file)=>$(file))
 else
- local debug_files := $(call TOOL_$(tool)_$(tool_do)_DEBUG_INSTALL_FN,$(out),$(outbase),$(debug_inst))
+ local debug_notdir:= $(notdir $(debug_inst))
+ local debug_inst2 := $(dir $(debug_inst))
+ local debug_files := $(call TOOL_$(tool)_$(tool_do)_DEBUG_INSTALL_FN,$(out),$(outbase),$(debug_notdir))
  local debug_dirs  := $(filter     %/,$(debug_files))
  local debug_files := $(filter-out %/,$(debug_files))
 endif
