@@ -926,6 +926,11 @@ Utility functions:
 
         $(shell command)
 
+    Return a string with the location where the ``kmk`` variable ``variable``
+    was defined::
+
+        $(where variable)
+
     Return a string describing how the ``kmk`` variable ``variable`` was defined::
 
         $(origin variable)
@@ -1041,7 +1046,7 @@ Pattern rules
 
 -----
 
-:Status: $Id: QuickReference-kmk.txt 2490 2011-07-22 11:16:39Z knut.osmundsen@oracle.com $
+:Status: $Id: QuickReference-kmk.txt 2532 2011-08-02 13:05:37Z knut.osmundsen@oracle.com $
 :Copyright: Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
             1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006,
             2007 Free Software Foundation, Inc.

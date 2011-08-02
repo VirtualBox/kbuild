@@ -1278,6 +1278,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_SET_CONDITIONALS) \
   && defined (CONFIG_WITH_DATE) \
   && defined (CONFIG_WITH_FILE_SIZE) \
+  && defined (CONFIG_WITH_WHERE_FUNCTION) \
   && defined (CONFIG_WITH_WHICH) \
   && defined (CONFIG_WITH_EVALPLUS) \
   && (defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)) \
@@ -1305,6 +1306,7 @@ define_automatic_variables (void)
                           " date"
                           " file-size"
                           " expr if-expr select"
+                          " where"
                           " which"
                           " evalctx evalval evalvalctx evalcall evalcall2 eval-opt-var"
                           " make-stats"
@@ -1363,6 +1365,9 @@ define_automatic_variables (void)
 #  endif
 #  if defined (CONFIG_WITH_IF_CONDITIONALS)
   strcat (buf, " expr if-expr select");
+#  endif
+#  if defined (CONFIG_WITH_WHERE_FUNCTION)
+  strcat (buf, " where");
 #  endif
 #  if defined (CONFIG_WITH_WHICH)
   strcat (buf, " which");

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2489 2011-07-22 11:12:06Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2532 2011-08-02 13:05:37Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -167,6 +167,7 @@ kmk_DEFS = \
 	CONFIG_WITH_RSORT \
 	CONFIG_WITH_STACK \
 	CONFIG_WITH_STRING_FUNCTIONS \
+	CONFIG_WITH_WHERE_FUNCTION \
 	CONFIG_WITH_WHICH \
 	CONFIG_WITH_XARGS \
 	\
