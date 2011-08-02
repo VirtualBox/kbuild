@@ -1,4 +1,4 @@
-# $Id: GXX64.kmk 2431 2010-11-19 11:06:42Z knut.osmundsen@oracle.com $
+# $Id: GXX64.kmk 2534 2011-08-02 14:13:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 64-bit GCC v3.2.x or later using the system GCC, for building C++ code.
 #
@@ -58,6 +58,12 @@ TOOL_GXX64_LD_SYSMOD_MAP ?= -Zmap=$(1)
 else
 TOOL_GXX64_LD_SYSMOD_MAP ?=
 endif
+if1of ($(KBUILD_HOST), solaris)
+ TOOL_GXX64_OBJCOPY ?= gobjcopy$(HOSTSUFF_EXE)
+else
+ TOOL_GXX64_OBJCOPY ?= objcopy$(HOSTSUFF_EXE)
+endif
+
 ifdef SLKRUNS
 TOOL_GXX64_CC  += -fmessage-length=0
 TOOL_GXX64_CXX += -fmessage-length=0
@@ -247,6 +253,8 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GXX64_LINK_PROGRAM_OUTPUT =
 TOOL_GXX64_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).map
+TOOL_GXX64_LINK_PROGRAM_OUTPUT_DEBUG = $(outbase).debug
+TOOL_GXX64_LINK_PROGRAM_DEBUG_INSTALL_FN = $(2).debug=>$(basename $(3)).debug
 TOOL_GXX64_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GXX64_LINK_PROGRAM_DEPORD =
 define TOOL_GXX64_LINK_PROGRAM_CMDS
@@ -254,6 +262,12 @@ define TOOL_GXX64_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GXX64_LD_MAP,$(outbase).map)
+ ifeq ($(ld_debug),split)
+	$(TOOL_GXX64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(CHMOD) a-x $(outbase).debug
+	$(TOOL_GXX64_OBJCOPY) --strip-debug $(out)
+	$(TOOL_GXX64_OBJCOPY) --add-gnu-debuglink=$(outbase).debug $(out)
+ endif
 endef
 
 
