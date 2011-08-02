@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2529 2011-08-02 10:07:51Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 2530 2011-08-02 10:57:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -272,7 +272,6 @@ endif
 
 # Calc stage destination and generate the rule (requires double evaluation).
 local stage      := $(strip $(firstdefined $(symlnk)_STAGE $(symlnk)_INST $(target)_1_STAGE,value))
-$(info stage:=$(stage))
 if "$(substr $(stage),-1)" != "/" && "$(stage)" != ""
  $(warning kBuild: Symlink $(symlnk) in install target $(target) has a STAGE/INST property without a trailing slash: '$(stage)')
  local stage     := $(stage)/
@@ -309,7 +308,7 @@ ifeq ($(instmode),both)
  $(target)_2_INST_TARGETS += $(instdst)
 endif
 
-$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
+#$(warning symlnk=$(symlnk) symdst=$(symdst) instdst=$(instdst) stagedst=$(stagedst) instfun=$(instfun) inst=$(inst) stage='$(stage)')
 endef # def_install_symlink
 $(optmize def_install_symlink)
 
