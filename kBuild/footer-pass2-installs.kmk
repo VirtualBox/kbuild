@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2531 2011-08-02 12:07:35Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 2537 2011-08-02 19:44:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -44,7 +44,9 @@ $$(call KB_FN_ASSERT_ABSPATH, stagedst)
 $$(call KB_FN_ASSERT_ABSPATH, srcsrc)
 $(stagedst) : $(srcsrc) | $(dir $(stagedst))
 	%$$(call MSG_INST_FILE,$(srcsrc),$(stagedst))
+	$(top_pre_file_cmds)
 	$$(QUIET)$(stagecmd)
+	$(top_post_file_cmds)
 endef
 $(eval-opt-var def_install_src_rule_staging)
 
@@ -53,7 +55,9 @@ $$(call KB_FN_ASSERT_ABSPATH, instdst)
 $$(call KB_FN_ASSERT_ABSPATH, srcsrc)
 $(instdst) : $(srcsrc) | $(dir $(instdst))
 	%$$(call MSG_INST_FILE,$(srcsrc),$(instdst))
+	$(top_pre_file_cmds)
 	$$(QUIET)$(instcmd)
+	$(top_post_file_cmds)
 endef
 $(eval-opt-var def_install_src_rule_installing)
 
@@ -244,7 +248,9 @@ $$(call KB_FN_ASSERT_ABSPATH, stagedst)
 $(stagedst) : | $(dir $(stagedst))
 	%$$(call MSG_INST_SYM,$(stagedst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
+	$(top_pre_sym_cmds)
 	$$(QUIET)$$(LN_SYMLINK) $(symdst) $(stagedst)
+	$(top_post_sym_cmds)
 endef
 $(eval-opt-var def_install_symlink_rule_staging)
 
@@ -253,7 +259,9 @@ $$(call KB_FN_ASSERT_ABSPATH, instdst)
 $(instdst) : | $(dir $(instdst))
 	%$$(call MSG_INST_SYM,$(instdst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
+	$(top_pre_sym_cmds)
 	$$(QUIET)$$(LN_SYMLINK) $(symdst) $(instdst)
+	$(top_post_sym_cmds)
 endef
 $(eval-opt-var def_install_symlink_rule_installing)
 
@@ -330,12 +338,14 @@ define def_install_directory_rule
 $$(call KB_FN_ASSERT_ABSPATH, insdst)
 $(insdst):
 	%$$(call MSG_INST_DIR,$(insdst))
+	$(top_pre_dir_cmds)
 	$$(QUIET)$$(INSTALL) -d \
 		$(if $(uid),-o $(uid))\
 		$(if $(gid),-g $(gid))\
 		$(if $(mode),-m $(mode))\
 		$(flags) -- \
 		$(insdst)
+	$(top_post_dir_cmds)
 
 .NOTPARALLEL: $(insdst)
 endef # def_install_directory_rule
@@ -451,7 +461,7 @@ $(target)_0_OUTDIR := $(patsubst %/,%,$(dir $(outbase)))
 $(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
 
 ifneq ($(insttype),none)
- # cache top level target properties.
+ # Cache top level target properties.
  local top_mode := $(firstword \
  	$($(target)_MODE.$(bld_trg).$(bld_trg_arch)) \
  	$($(target)_MODE.$(bld_trg)) \
@@ -481,6 +491,13 @@ ifneq ($(insttype),none)
  else
    local top_instfun := _INSTALL_FILE
  endif
+ # The user have to use double expansion and can only use the above locals. Not 100% optimal...
+ local top_pre_file_cmds  := $(evalcall def_fn_prop_get_first_defined,PRE_XFILE_CMDS)
+ local top_post_file_cmds := $(evalcall def_fn_prop_get_first_defined,POST_XFILE_CMDS)
+ local top_pre_sym_cmds   := $(evalcall def_fn_prop_get_first_defined,PRE_SYMLINK_CMDS)
+ local top_post_sym_cmds  := $(evalcall def_fn_prop_get_first_defined,POST_SYMLINK_CMDS)
+ local top_pre_dir_cmds   := $(evalcall def_fn_prop_get_first_defined,PRE_DIRECTORY_CMDS)
+ local top_post_dir_cmds  := $(evalcall def_fn_prop_get_first_defined,POST_DIRECTORY_CMDS)
 
  $(foreach directory, \
  	$($(target)_DIRS) \

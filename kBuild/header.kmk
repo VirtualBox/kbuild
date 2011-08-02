@@ -1,4 +1,4 @@
-# $Id: header.kmk 2536 2011-08-02 19:06:11Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2537 2011-08-02 19:44:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2536 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2537 $  )
 
 
 #
@@ -969,7 +969,9 @@ PROPS_SINGLE_LNK := TOOL TEMPLATE CTOOL CXXTOOL OBJCTOOL OBJCXXTOOL ASTOOL RCTOO
 ## PROPS_DEFERRED
 # This list of non-accumulative target properties which are or may be
 # functions, and thus should not be expanded until the very last moment.
-PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS PRE_INST_CMDS POST_INST_CMDS NAME SONAME
+PROPS_DEFERRED := INSTFUN INSTALLER PRE_CMDS POST_CMDS PRE_INST_CMDS POST_INST_CMDS \
+	PRE_FILE_CMDS POST_FILE_CMDS PRE_SYMLINK_CMDS POST_SYMLINK_CMDS PRE_DIRECTORY_CMDS POST_DIRECTORY_CMDS \
+	NAME SONAME
 
 ## PROPS_ACCUMULATE_R
 # The list of accumulative target properties where the right most value/flag
@@ -1064,7 +1066,8 @@ PROPS_MISCBINS_ACCUMULATE_L  := $(PROPS_ACCUMULATE_L_LNK) LIBS LIBPATH
 ## @name Properties valid on installs (INSTALLS)
 ## @{
 PROPS_INSTALLS_SINGLE        := TOOL TEMPLATE INST NOINST BLD_TYPE BLD_TRG BLD_TRG_ARCH BLD_TRG_CPU MODE UID GID
-PROPS_INSTALLS_DEFERRED      := INSTFUN INSTALLER
+PROPS_INSTALLS_DEFERRED      := INSTFUN INSTALLER PRE_FILE_CMDS POST_FILE_CMDS PRE_SYMLINK_CMDS POST_SYMLINK_CMDS \
+	PRE_DIRECTORY_CMDS POST_DIRECTORY_CMDS
 PROPS_INSTALLS_ACCUMULATE_R  := DEPS ORDERDEPS GOALS INST_ONLY_GOALS STAGE_ONLY_GOALS IFFLAGS EXEC_IFFLAGS
 PROPS_INSTALLS_ACCUMULATE_L  := SOURCES EXEC_SOURCES DIRS CLEAN
 ## @}
