@@ -1,4 +1,4 @@
-# $Id: GCC64.kmk 2431 2010-11-19 11:06:42Z knut.osmundsen@oracle.com $
+# $Id: GCC64.kmk 2541 2011-08-03 09:51:30Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 64-bit GCC v3.2.x or later Using The System GCC.
 #
@@ -58,9 +58,15 @@ TOOL_GCC64_LD_SYSMOD_MAP ?= -Zmap=$(1)
 else
 TOOL_GCC64_LD_SYSMOD_MAP ?=
 endif
+if1of ($(KBUILD_HOST), solaris)
+ TOOL_GCC64_OBJCOPY ?= gobjcopy$(HOSTSUFF_EXE)
+else
+ TOOL_GCC64_OBJCOPY ?= objcopy$(HOSTSUFF_EXE)
+endif
+
 ifdef SLKRUNS
-TOOL_GCC64_CC  += -fmessage-length=0
-TOOL_GCC64_CXX += -fmessage-length=0
+ TOOL_GCC64_CC  += -fmessage-length=0
+ TOOL_GCC64_CXX += -fmessage-length=0
 endif
 
 # General Properties used by kBuild
@@ -171,7 +177,6 @@ define TOOL_GCC64_COMPILE_CXX_CMDS
 	$(QUIET)$(APPEND) -n "$(dep)" "" "$(source):" ""
 endef
 else # !KBUILD_USE_KOBJCACHE
-
 TOOL_GCC64_COMPILE_CXX_OUTPUT =
 define TOOL_GCC64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_GCC64_CXX) -c\
@@ -248,6 +253,8 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC64_LINK_PROGRAM_OUTPUT =
 TOOL_GCC64_LINK_PROGRAM_OUTPUT_MAYBE = $(outbase).map
+TOOL_GCC64_LINK_PROGRAM_OUTPUT_DEBUG = $(outbase).debug
+TOOL_GCC64_LINK_PROGRAM_DEBUG_INSTALL_FN = $(2).debug=>$(basename $(3)).debug
 TOOL_GCC64_LINK_PROGRAM_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC64_LINK_PROGRAM_DEPORD =
 define TOOL_GCC64_LINK_PROGRAM_CMDS
@@ -255,6 +262,11 @@ define TOOL_GCC64_LINK_PROGRAM_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_MAP,$(outbase).map)
+ ifeq ($(ld_debug),split)
+	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(CHMOD) a-x $(outbase).debug
+	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+ endif
 endef
 
 
@@ -273,6 +285,8 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC64_LINK_DLL_OUTPUT =
 TOOL_GCC64_LINK_DLL_OUTPUT_MAYBE = $(outbase).map
+TOOL_GCC64_LINK_DLL_OUTPUT_DEBUG = $(outbase).debug
+TOOL_GCC64_LINK_DLL_DEBUG_INSTALL_FN = $(2).debug=>$(basename $(3)).debug
 TOOL_GCC64_LINK_DLL_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC64_LINK_DLL_DEPORD =
 define TOOL_GCC64_LINK_DLL_CMDS
@@ -282,6 +296,11 @@ define TOOL_GCC64_LINK_DLL_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_MAP,$(outbase).map)
+ ifeq ($(ld_debug),split)
+	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(CHMOD) a-x $(outbase).debug
+	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+ endif
 endef
 
 
@@ -300,6 +319,8 @@ endef
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 TOOL_GCC64_LINK_SYSMOD_OUTPUT =
 TOOL_GCC64_LINK_SYSMOD_OUTPUT_MAYBE = $(outbase).map
+TOOL_GCC64_LINK_SYSMOD_OUTPUT_DEBUG = $(outbase).debug
+TOOL_GCC64_LINK_SYSMOD_DEBUG_INSTALL_FN = $(2).debug=>$(basename $(3)).debug
 TOOL_GCC64_LINK_SYSMOD_DEPEND = $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib)))
 TOOL_GCC64_LINK_SYSMOD_DEPORD =
 define TOOL_GCC64_LINK_SYSMOD_CMDS
@@ -307,5 +328,10 @@ define TOOL_GCC64_LINK_SYSMOD_CMDS
 		$(foreach p,$(libpath), -L$(p))\
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_SYSMOD_MAP,$(outbase).map)
+ ifeq ($(ld_debug),split)
+	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(CHMOD) a-x $(outbase).debug
+	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+ endif
 endef
 
