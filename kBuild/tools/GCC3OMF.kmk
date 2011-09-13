@@ -1,4 +1,4 @@
-# $Id: GCC3OMF.kmk 2534 2011-08-02 14:13:06Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 2545 2011-09-13 19:09:05Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
 #
@@ -252,9 +252,6 @@ define TOOL_GCC3OMF_LINK_PROGRAM_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(QUIET)$(TOOL_GCC3OMF_LD) @$(outbase).rsp
-if1of ($(ld_debug), split)
- $(warning kBuild: Debug splitting is requrested for $(target), but this feature is not supported by GCC3OMF.)
-endif
 endef
 
 
@@ -286,9 +283,6 @@ define TOOL_GCC3OMF_LINK_DLL_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(TOOL_GCC3OMF_LD) @$(outbase).rsp
-if1of ($(ld_debug), split)
- $(warning kBuild: Debug splitting is requrested for $(target), but this feature is not supported by GCC3OMF.)
-endif
 endef
 
 
@@ -320,8 +314,5 @@ define TOOL_GCC3OMF_LINK_SYSMOD_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		-Zmap=$(outbase).map
 	$(QUIET)$(TOOL_GCC3OMF_LD_SYSMOD) @$(outbase).rsp
-if1of ($(ld_debug), split)
- $(warning kBuild: Debug splitting is requrested for $(target), but this feature is not supported by GCC3OMF.)
-endif
 endef
 
