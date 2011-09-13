@@ -1,4 +1,4 @@
-# $Id: qt3.kmk 2479 2011-07-20 14:16:19Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2544 2011-09-13 19:00:25Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
@@ -119,13 +119,15 @@ ifndef PATH_SDK_QT3
 	$(PATH_SDK_QT3)/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib32/libqt-mt$(SUFF_DLL) \
 	/usr/lib32/qt3/libqt-mt$(SUFF_DLL) \
-	/usr/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
+	/usr/lib/i386-linux-gnu/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib32/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib32/qt3/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib32/qt3-3/lib/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/i386-linux-gnu/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/i386-linux-gnu/libqt-mt$(SUFF_DLL) \
 	)))
       ifneq ($(PATH_SDK_QT3_LIB.x86),)
        export PATH_SDK_QT3_LIB.x86
@@ -143,14 +145,17 @@ ifndef PATH_SDK_QT3
 	/usr/lib64/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/lib/amd64/libqt-mt$(SUFF_DLL) \
 	/usr/lib/64/libqt-mt$(SUFF_DLL) \
+	/usr/lib/x86_64-linux-gnu/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib64/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib64/qt3/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib64/qt3-3/lib/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/amd64/libqt-mt$(SUFF_DLL) \
 	/usr/local/lib/64/libqt-mt$(SUFF_DLL) \
+	/usr/local/lib/x86_64-linux-gnu/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3/libqt-mt$(SUFF_DLL) \
 	$(PATH_SDK_QT3)/lib/qt3-3/lib/libqt-mt$(SUFF_DLL) \
+	$(PATH_SDK_QT3)/lib/x86_64-linux-gnu/libqt-mt$(SUFF_DLL) \
 	)))
       ifneq ($(PATH_SDK_QT3_LIB.amd64),)
        export PATH_SDK_QT3_LIB.amd64
