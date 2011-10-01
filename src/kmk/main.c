@@ -55,6 +55,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #  define INCL_BASE
 #  include <os2.h>
 # endif
+# ifdef __HAIKU__
+#  include <OS.h>
+# endif
 #endif /* KMK*/
 
 #if defined(HAVE_SYS_RESOURCE_H) && defined(HAVE_GETRLIMIT) && defined(HAVE_SETRLIMIT)
@@ -835,7 +838,7 @@ set_make_priority_and_affinity (void)
   if (process_affinity)
     if (!SetProcessAffinityMask (GetCurrentProcess (), process_affinity))
       fprintf (stderr, "warning: SetPriorityClass (,%#x) failed with last error %d\n",
-               process_affinity, GetLastError());
+               process_affinity, GetLastError ());
 
   switch (process_priority)
     {
@@ -845,11 +848,30 @@ set_make_priority_and_affinity (void)
       case 3:     dwPriority = NORMAL_PRIORITY_CLASS; break;
       case 4:     dwPriority = HIGH_PRIORITY_CLASS; break;
       case 5:     dwPriority = REALTIME_PRIORITY_CLASS; break;
-      default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+      default:    fatal (NILF, _("invalid priority %d\n"), process_priority);
     }
   if (!SetPriorityClass (GetCurrentProcess (), dwPriority))
     fprintf (stderr, "warning: SetPriorityClass (,%#x) failed with last error %d\n",
              dwPriority, GetLastError ());
+
+#elif defined(__HAIKU__)
+  int32 iNewPriority;
+  status_t error;
+
+  switch (process_priority)
+    {
+      case 0:     return;
+      case 1:     iNewPriority = B_LOWEST_ACTIVE_PRIORITY; break;
+      case 2:     iNewPriority = B_LOW_PRIORITY; break;
+      case 3:     iNewPriority = B_NORMAL_PRIORITY; break;
+      case 4:     iNewPriority = B_URGENT_DISPLAY_PRIORITY; break;
+      case 5:     iNewPriority = B_REAL_TIME_DISPLAY_PRIORITY; break;
+      default:    fatal (NILF, _("invalid priority %d\n"), process_priority);
+    }
+  error = set_thread_priority (find_thread (NULL), iNewPriority);
+  if (error != B_OK)
+    fprintf (stderr, "warning: set_thread_priority (,%d) failed: %s\n",
+             newPriority, strerror (error));
 
 # else /*#elif HAVE_NICE */
   int nice_level = 0;
@@ -861,7 +883,7 @@ set_make_priority_and_affinity (void)
       case 3:     nice_level = 0; break;
       case 4:     nice_level = -10; break;
       case 5:     nice_level = -19; break;
-      default:    fatal(NILF, _("invalid priority %d\n"), process_priority);
+      default:    fatal (NILF, _("invalid priority %d\n"), process_priority);
     }
   errno = 0;
   if (nice (nice_level) == -1 && errno != 0)

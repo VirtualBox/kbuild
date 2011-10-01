@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2538 2011-08-02 20:00:46Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -99,7 +99,7 @@ PATH_GNUMAKE_SRC ?= $(PATH_ROOT)/src/kmk
 #
 # Various platform specific hacks.
 #
-ifn1of ($(KBUILD_TARGET), openbsd)
+ifn1of ($(KBUILD_TARGET), haiku openbsd)
  GCC_Wextra = -Wextra
 endif
 if1of ($(KBUILD_TARGET), openbsd)

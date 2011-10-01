@@ -59,7 +59,11 @@
  * inner scope, and restore handler on exit from the scope.
  */
 
-#include <setjmp.h>
+#ifndef __HAIKU__
+# include <setjmp.h>
+#else
+# include <posix/setjmp.h> /** @todo silly */
+#endif
 
 struct jmploc {
 	jmp_buf loc;
@@ -120,7 +124,8 @@ SH_NORETURN_1 void sh_exit(struct shinstance *, int) SH_NORETURN_2;
  * so we use _setjmp instead.
  */
 
-#if defined(BSD) && !defined(__SVR4) && !defined(__GLIBC__) && !defined(__KLIBC__) && !defined(_MSC_VER)
+#if defined(BSD) && !defined(__SVR4) && !defined(__GLIBC__) \
+  && !defined(__KLIBC__) && !defined(_MSC_VER) && !defined(__HAIKU__)
 #define setjmp(jmploc)	_setjmp(jmploc)
 #define longjmp(jmploc, val)	_longjmp(jmploc, val)
 #endif

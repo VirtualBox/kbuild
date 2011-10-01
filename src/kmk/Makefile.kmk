@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2532 2011-08-02 13:05:37Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -57,6 +57,7 @@ TEMPLATE_BIN-KMK_INCS = $(kmk_0_OUTDIR) . $(TEMPLATE_BIN-THREADED_INCS)
 TEMPLATE_BIN-KMK_INCS.darwin = glob
 TEMPLATE_BIN-KMK_INCS.dragonfly = glob
 TEMPLATE_BIN-KMK_INCS.freebsd = glob
+TEMPLATE_BIN-KMK_INCS.haiku = glob
 TEMPLATE_BIN-KMK_INCS.openbsd = glob
 TEMPLATE_BIN-KMK_INCS.solaris = glob
 TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
@@ -98,6 +99,11 @@ kmkmissing_SOURCES.dragonfly = \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.freebsd = \
+	glob/glob.c \
+	glob/fnmatch.c
+
+kmkmissing_SOURCES.haiku = \
+	kmkbuiltin/haikufakes.c \
 	glob/glob.c \
 	glob/fnmatch.c
 

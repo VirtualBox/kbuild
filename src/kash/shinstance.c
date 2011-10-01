@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2423 2010-10-17 23:43:35Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -889,7 +889,6 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild)
     (void)hChild;
     return 0;
 }
-#include <setjmp.h>
 
 pid_t sh_fork(shinstance *psh)
 {

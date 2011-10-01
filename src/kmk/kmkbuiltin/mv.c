@@ -55,7 +55,9 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 # include <sys/param.h>
 # include <sys/time.h>
 # include <sys/wait.h>
-# include <sys/mount.h>
+# ifndef __HAIKU__
+#  include <sys/mount.h>
+# endif
 #endif
 #include <sys/stat.h>
 
@@ -69,11 +71,16 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
+#ifndef __HAIKU__
+# include <sysexits.h>
+#endif
 #include <unistd.h>
 #include "getopt.h"
 #ifdef __sun__
 # include "solfakes.h"
+#endif
+#ifdef __HAIKU__
+# include "haikufakes.h"
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"

@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -444,6 +444,9 @@ int sh_add_child(shinstance *psh, pid_t pid, void *hChild);
 #   define W_STOPCODE(sig)         ((sig) << 8 | _WSTOPPED)
 #else
 #   include <sys/wait.h>
+#   ifdef __HAIKU__
+#       define WCOREDUMP(x) (0) /** @todo check the haiku headers and see if this information is available or not... */
+#   endif
 #endif
 pid_t sh_fork(shinstance *);
 pid_t sh_waitpid(shinstance *, pid_t, int *, int);

@@ -53,12 +53,17 @@ __FBSDID("$FreeBSD: src/bin/mkdir/mkdir.c,v 1.28 2004/04/06 20:06:48 markm Exp $
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
+#ifndef __HAIKU__
+# include <sysexits.h>
+#endif
 #include <unistd.h>
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
 #include "getopt.h"
+#ifdef __HAIKU__
+# include "haikufakes.h"
+#endif
 #ifdef _MSC_VER
 # include <malloc.h>
 # include "mscfakes.h"

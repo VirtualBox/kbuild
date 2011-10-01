@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2498 2011-07-22 12:05:57Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -36,6 +36,7 @@ kash_ASTOOL = YASM
 kash_DEFS = lint SHELL SMALL
 kash_DEFS += SH_FORKED_MODE
 kash_DEFS.debug = DEBUG=2
+kash_DEFS.haiku = BSD
 kash_DEFS.linux = BSD
 kash_DEFS.solaris = BSD
 ## @todo bring over PC_SLASHES?
@@ -96,17 +97,20 @@ kash_SOURCES = \
 	shheap.c \
 	shthread.c \
 	shfile.c
+kash_SOURCES.haiku = \
+	sys_signame.c \
+	strlcpy.c
 kash_SOURCES.linux = \
 	sys_signame.c \
 	strlcpy.c
+kash_SOURCES.solaris = \
+	sys_signame.c \
+        strlcpy.c
 kash_SOURCES.win = \
 	sys_signame.c \
 	strlcpy.c \
 	shfork-win.c \
 	shforkA-win.asm
-kash_SOURCES.solaris = \
-	sys_signame.c \
-	strlcpy.c
 
 kash_INTERMEDIATES = \
 	$(kash_0_OUTDIR)/builtins.h \

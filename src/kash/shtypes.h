@@ -1,8 +1,9 @@
-/* $Id: shtypes.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shtypes.h 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
- *
  * Wrapper for missing types and such.
- *
+ */
+
+/*
  * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  *
@@ -31,7 +32,9 @@
 
 #include <sys/types.h>
 #include <stdlib.h>
-#ifndef _MSC_VER
+#ifdef __HAIKU__
+# include <posix/signal.h> /* silly */
+#elif !defined(_MSC_VER)
 # include <sys/signal.h>
 #endif
 

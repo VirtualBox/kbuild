@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2463 2011-07-08 11:54:37Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -72,6 +72,9 @@
 #if defined(__WIN__)
 # include <Windows.h>
 # include "quoted_spawn.h"
+#endif
+#if defined(__HAIKU__)
+# include <posix/sys/file.h>
 #endif
 
 #include "crc32.h"
@@ -3984,7 +3987,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2463 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2546 $)\n"
                    "Copyright (c) 2007-2011 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;

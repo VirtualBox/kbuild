@@ -1,4 +1,4 @@
-# $Id: header.kmk 2537 2011-08-02 19:44:43Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2537 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2546 $  )
 
 
 #
@@ -188,7 +188,7 @@ KBUILD_BLD_TYPES := release profile debug
 # this keyword namespace is shared between OSes, architectures, cpus and
 # build types. (PORTME)
 #
-KBUILD_OSES   := darwin dos dragonfly freebsd l4 linux netbsd nt openbsd os2 solaris win os-agnostic
+KBUILD_OSES   := darwin dos dragonfly freebsd haiku l4 linux netbsd nt openbsd os2 solaris win os-agnostic
 KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 ia64 hppa32 hppa64 arm alpha
 
 

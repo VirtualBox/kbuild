@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #endif
 #endif /* not lint */
 
+#define MSC_DO_64_BIT_IO
 #include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
@@ -52,13 +53,17 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <sysexits.h>
+#ifndef __HAIKU__
+# include <sysexits.h>
+#endif
 #include <unistd.h>
 #ifdef __sun__
 # include "solfakes.h"
 #endif
+#ifdef __HAIKU__
+# include "haikufakes.h"
+#endif
 #ifdef _MSC_VER
-# define MSC_DO_64_BIT_IO
 # include "mscfakes.h"
 #else
 # include <sys/time.h>
