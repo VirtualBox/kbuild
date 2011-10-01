@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2506 2011-07-23 10:58:06Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -69,13 +69,16 @@ kmk_sed_SOURCES.freebsd = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c
+kmk_sed_SOURCES.haiku = \
+	lib/strverscmp.c \
+	lib/obstack.c
 kmk_sed_SOURCES.openbsd = \
 	lib/strverscmp.c \
 	lib/obstack.c \
 	lib/getline.c
 kmk_sed_SOURCES.solaris = \
 	lib/strverscmp.c \
-	lib/obstack.c 
+	lib/obstack.c
 ifdef KBUILD_SOLARIS_10
 kmk_sed_SOURCES.solaris += \
 	lib/getline.c

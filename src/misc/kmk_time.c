@@ -1,4 +1,4 @@
-/* $Id: kmk_time.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_time.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_time - Time program execution.
  *
@@ -363,11 +363,13 @@ int main(int argc, char **argv)
             printf(" - normal exit: %d\n", WEXITSTATUS(rc));
             rc = WEXITSTATUS(rc);
         }
+# ifndef __HAIKU__ /**@todo figure how haiku signals that a core was dumped. */
         else if (WIFSIGNALED(rc) && WCOREDUMP(rc))
         {
             printf(" - dumped core: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));
             rc = 10;
         }
+# endif
         else if (WIFSIGNALED(rc))
         {
             printf(" -   killed by: %s (%d)\n", my_strsignal(WTERMSIG(rc)), WTERMSIG(rc));

@@ -75,7 +75,7 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 #endif
 
 #if ! HAVE_NBTOOL_CONFIG_H
-# if !defined(__sun__) && !defined(__gnu_linux__)
+# if !defined(__sun__) && !defined(__gnu_linux__) && !defined(__HAIKU__)
 #  define HAVE_STRUCT_DIRENT_D_NAMLEN 1
 # endif
 #endif

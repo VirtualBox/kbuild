@@ -42,22 +42,24 @@
 #define K_OS_DRAGONFLY  2
 /** FreeBSD. */
 #define K_OS_FREEBSD    3
+/** Haiku. */
+#define K_OS_HAIKU      4
 /** Linux. */
-#define K_OS_LINUX      4
+#define K_OS_LINUX      5
 /** NetBSD. */
-#define K_OS_NETBSD     5
+#define K_OS_NETBSD     6
 /** NT (native). */
-#define K_OS_NT         6
+#define K_OS_NT         7
 /** OpenBSD*/
-#define K_OS_OPENBSD    7
+#define K_OS_OPENBSD    8
 /** OS/2 */
-#define K_OS_OS2        8
+#define K_OS_OS2        9
 /** Solaris */
-#define K_OS_SOLARIS    9
+#define K_OS_SOLARIS    10
 /** Windows. */
-#define K_OS_WINDOWS    10
+#define K_OS_WINDOWS    11
 /** The max K_OS_* value (exclusive). */
-#define K_OS_MAX        11
+#define K_OS_MAX        12
 /** @} */
 
 /** @def K_OS
@@ -78,6 +80,8 @@
 #  define K_OS      K_OS_DRAGONFLY
 # elif defined(__FreeBSD__) /*??*/
 #  define K_OS      K_OS_FREEBSD
+# elif defined(__HAIKU__)
+#  define K_OS      K_OS_HAIKU
 # elif defined(__gnu_linux__)
 #  define K_OS      K_OS_LINUX
 # elif defined(__NetBSD__) /*??*/

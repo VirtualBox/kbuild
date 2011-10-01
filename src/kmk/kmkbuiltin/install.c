@@ -52,7 +52,9 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 # ifdef USE_MMAP
 #  include <sys/mman.h>
 # endif
-# include <sys/mount.h>
+# ifndef __HAIKU__
+#  include <sys/mount.h>
+# endif
 # include <sys/wait.h>
 # include <sys/time.h>
 #endif /* !_MSC_VER */
@@ -68,7 +70,9 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
+#ifndef __HAIKU__
+# include <sysexits.h>
+#endif
 #include <unistd.h>
 #if defined(__EMX__) || defined(_MSC_VER)
 # include <process.h>
@@ -79,6 +83,9 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
+#endif
+#ifdef __HAIKU__
+# include "haikufakes.h"
 #endif
 #include "kmkbuiltin.h"
 

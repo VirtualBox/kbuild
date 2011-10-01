@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 
 #include "config.h"
 #include <sys/stat.h>
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) && !defined(__HAIKU__)
 # include <sys/param.h>
 # include <sys/mount.h>
 #endif
@@ -57,10 +57,15 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
+#ifndef __HAIKU__
+# include <sysexits.h>
+#endif
 #include <unistd.h>
 #include <ctype.h>
 #include "getopt.h"
+#ifdef __HAIKU__
+# include "haikufakes.h"
+#endif
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif

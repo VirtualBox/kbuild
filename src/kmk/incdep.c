@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -635,7 +635,8 @@ incdep_are_threads_enabled (void)
 
 #elif defined(__APPLE__) \
    || defined(__sun__) || defined(__SunOS__) || defined(__sun) || defined(__SunOS) \
-   || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+   || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) \
+   || defined(__HAIKU__)
   /* No broken preload libraries known to be in common use on these platforms... */
 
 #elif defined(_MSC_VER) || defined(_WIN32) || defined(__OS2__)
