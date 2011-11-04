@@ -1,6 +1,6 @@
-# $Id: GCC4MACHO.kmk 2535 2011-08-02 19:05:34Z knut.osmundsen@oracle.com $
+# $Id: GCC4MACHO.kmk 2547 2011-11-04 21:58:53Z knut.osmundsen@oracle.com $
 ## @file
-# kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-o.
+# kBuild Tool Config - GCC v4 targeting Darwin (Mac OS X) Mach-O.
 #
 
 #
@@ -31,7 +31,7 @@
 #
 #
 
-TOOL_GCC4MACHO := GCC v4 targeting Darwin (Mac OS X) Mach-o.
+TOOL_GCC4MACHO := GCC v4 targeting Darwin (Mac OS X) Mach-O.
 
 # Tool Specific Properties
 TOOL_GCC4MACHO_PREFIX    ?=
