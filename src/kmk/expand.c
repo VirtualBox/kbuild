@@ -1108,7 +1108,7 @@ allocated_variable_expand_for_file (const char *line, struct file *file)
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
 /* Handle the most common case in allocated_variable_expand_for_file
-   specially and provide some additional string lenght features. */
+   specially and provide some additional string length features. */
 
 char *
 allocated_variable_expand_2 (const char *line, unsigned int length,

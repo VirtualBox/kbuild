@@ -1268,7 +1268,8 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_ABSPATHEX) \
   && defined (CONFIG_WITH_TOUPPER_TOLOWER) \
   && defined (CONFIG_WITH_DEFINED) \
-  && defined (CONFIG_WITH_VALUE_LENGTH) && defined (CONFIG_WITH_COMPARE) \
+  && defined (CONFIG_WITH_VALUE_LENGTH) \
+  && defined (CONFIG_WITH_COMPARE) \
   && defined (CONFIG_WITH_STACK) \
   && defined (CONFIG_WITH_MATH) \
   && defined (CONFIG_WITH_XARGS) \
@@ -1291,6 +1292,7 @@ define_automatic_variables (void)
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
                           "append-dash-n abspath includedep-queue install-hard-linking"
+                          " kBuild-define"
                           " rsort"
                           " abspathex"
                           " toupper tolower"
@@ -1320,7 +1322,8 @@ define_automatic_variables (void)
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
-  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking");
+  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking"
+               " kBuild-define");
 #  if defined (CONFIG_WITH_RSORT)
   strcat (buf, " rsort");
 #  endif

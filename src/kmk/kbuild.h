@@ -1,4 +1,4 @@
-/* $Id: kbuild.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.h 2548 2011-11-08 21:28:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -37,6 +37,13 @@ void init_kbuild(int argc, char **argv);
 const char *get_kbuild_path(void);
 const char *get_kbuild_bin_path(void);
 const char *get_default_kbuild_shell(void);
+
+struct kbuild_eval_data;
+
+int eval_kbuild_define(struct kbuild_eval_data **kdata, const struct floc *flocp,
+                       const char *word, unsigned int wlen, const char *line, const char *eos, int ignoring);
+int eval_kbuild_endef(struct kbuild_eval_data **kdata, const struct floc *flocp,
+                      const char *word, unsigned int wlen, const char *line, const char *eos, int ignoring);
 
 #endif
 
