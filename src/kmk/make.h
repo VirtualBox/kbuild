@@ -500,6 +500,9 @@ void print_heap_stats (void);
 char *find_next_token (const char **, unsigned int *);
 char *next_token (const char *);
 char *end_of_token (const char *);
+#ifdef KMK
+char *find_next_token_eos (const char **ptr, const char *eos, unsigned int *lengthptr);
+#endif
 #ifndef CONFIG_WITH_VALUE_LENGTH
 void collapse_continuations (char *);
 #else

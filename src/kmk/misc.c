@@ -719,6 +719,62 @@ find_next_token (const char **ptr, unsigned int *lengthptr)
   return (char *)p;
 #endif
 }
+#ifdef KMK
+
+/* Same as find_next_token with two exception:
+      - The string ends at EOS or '\0'.
+      - We keep track of $() and ${}, allowing functions to be used. */
+
+char *
+find_next_token_eos (const char **ptr, const char *eos, unsigned int *lengthptr)
+{
+  const char *p = *ptr;
+  const char *e;
+  int level = 0;
+
+  /* skip blanks */
+  for (; p != eos; p++)
+    {
+      unsigned char ch = *p;
+      if (!MY_IS_BLANK(ch))
+        {
+          if (!ch)
+            return NULL;
+          break;
+        }
+    }
+  if (p == eos)
+    return NULL;
+
+  /* skip ahead until EOS or blanks. */
+  for (e = p; e != eos; e++)
+    {
+      unsigned char ch = *e;
+      if (MY_IS_BLANK_OR_EOS(ch))
+        {
+          if (!ch || level == 0)
+            break;
+        }
+      else if (ch == '$')
+        {
+          if (&e[1] != eos && (e[1] == '(' || e[1] == '{'))
+            {
+              level++;
+              e++;
+            }
+        }
+      else if ((ch == ')' || ch == '}') &&  level > 0)
+        level--;
+    }
+
+  *ptr = e;
+  if (lengthptr != 0)
+    *lengthptr = e - p;
+
+  return (char *)p;
+}
+
+#endif /* KMK */
 
 
 /* Allocate a new `struct dep' with all fields initialized to 0.   */

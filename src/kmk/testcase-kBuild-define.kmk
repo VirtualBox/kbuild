@@ -1,0 +1,53 @@
+# $Id: testcase-kBuild-define.kmk 2548 2011-11-08 21:28:16Z knut.osmundsen@oracle.com $
+## @file
+# kBuild - testcase for the kBuild-define-* directives.
+#
+
+#
+# Copyright (c) 2011 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+#
+# This file is part of kBuild.
+#
+# kBuild is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# kBuild is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with kBuild.  If not, see <http://www.gnu.org/licenses/>
+#
+#
+
+DEPTH = ../..
+#include $(PATH_KBUILD)/header.kmk
+
+kBuild-define-target MyTarget
+
+TEMPLATE = MyTemplate
+SOURCES = MySourceFile.c
+
+kBuild-endef-target  MyTarget
+
+
+INDIRECT_NAME = MyTarget$(strip $1)
+kBuild-define-target $(call INDIRECT_NAME, 2)
+
+TEMPLATE = MyTemplate2
+SOURCES = MySourceFile2.c
+
+kBuild-endef-target  $(call INDIRECT_NAME, 2)
+
+
+
+
+all_recursive:
+	$(ECHO) "kBuild-define-xxxx works fine"
+
+
+
+

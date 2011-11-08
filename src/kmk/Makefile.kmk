@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2548 2011-11-08 21:28:16Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -204,6 +204,7 @@ kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 kmk_SOURCES = \
 	main.c \
 	kbuild.c \
+	kbuild-read.c \
 	read.c \
 	expreval.c \
 	incdep.c \

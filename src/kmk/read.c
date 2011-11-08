@@ -588,6 +588,10 @@ eval (struct ebuffer *ebuf, int set_default)
 #ifdef CONFIG_WITH_VALUE_LENGTH
   unsigned int tmp_len;
 #endif
+#ifdef KMK
+  struct kbuild_eval_data *kdata = 0;
+  int krc;
+#endif
 
 #define record_waiting_files()						      \
   do									      \
@@ -891,6 +895,24 @@ eval (struct ebuffer *ebuf, int set_default)
 	   can appear in the middle of a rule.  */
 	continue;
 
+#ifdef KMK
+      /* Check for the kBuild language extensions. */
+      if (   wlen >= sizeof("kBuild-define") - 1
+          && strneq (p, "kBuild-define", sizeof("kBuild-define") - 1))
+        krc = eval_kbuild_define (&kdata, fstart, p, wlen, p2, eol, ignoring);
+      else if (   wlen >= sizeof("kBuild-endef") - 1
+               && strneq (p, "kBuild-endef", sizeof("kBuild-endef") - 1))
+        krc = eval_kbuild_endef (&kdata, fstart, p, wlen, p2, eol, ignoring);
+      else
+        krc = 42;
+      if (krc != 42)
+        {
+          if (krc != 0)
+            error (fstart, _("krc=%d"), krc);
+          continue;
+        }
+
+#endif /* KMK */
       if (word1eq ("export"))
 	{
           /* 'export' by itself causes everything to be exported. */
@@ -1641,6 +1663,11 @@ eval (struct ebuffer *ebuf, int set_default)
 
   if (conditionals->if_cmds)
     fatal (fstart, _("missing `endif'"));
+#ifdef KMK
+
+  if (kdata != NULL)
+    fatal (fstart, _("missing `kBuild-endef-*'"));
+#endif
 
   /* At eof, record the last rule.  */
   record_waiting_files ();
