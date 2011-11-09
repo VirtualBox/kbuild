@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2537 2011-08-02 19:44:43Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2551 2011-11-09 13:28:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -347,7 +347,8 @@ endef
 # @param	$(typevar)  The name of the variable with all the root targets of its type.
 # @param	$(target_type_mode) The default file mode implied by the target type.
 define def_target_install_only
-ifneq ($($(target)_1_INSTTYPE),none)
+if1of ($($(target)_1_INSTTYPE) $($(target)_1_DEBUG_INSTTYPE), both stage)
+ # Determin common variables.
  local mode := $(firstword \
  	$($(target)_MODE.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
  	$($(target)_MODE.$(bld_trg).$(bld_trg_arch)) \
@@ -375,7 +376,9 @@ ifneq ($($(target)_1_INSTTYPE),none)
  	$($(target)_GID) )
  local pre_install_cmds  := $(evalcall def_fn_prop_get_first_defined,PRE_INST_CMDS)
  local post_install_cmds := $(evalcall def_fn_prop_get_first_defined,POST_INST_CMDS)
+endif
 
+ifneq ($($(target)_1_INSTTYPE),none)
  # Generate the rules
  ifeq ($($(target)_1_INSTTYPE),both)
 $(eval $(def_link_install_rule))
