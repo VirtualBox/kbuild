@@ -1,4 +1,4 @@
-# $Id: footer-pass1.kmk 2523 2011-07-31 23:45:20Z knut.osmundsen@oracle.com $
+# $Id: footer-pass1.kmk 2551 2011-11-09 13:28:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 1.
 #
@@ -180,9 +180,6 @@ endif
 $(target)_1_DEBUG_INSTTYPE := $(debug_insttype)
 
 if1of ($(debug_insttype), stage both)
- ifn1of ($(insttype), stage both)
-  $(error kBuild: DEBUG_INSTTYPE=$(debug_insttype) and INSTTYPE=$(insttype) for target '$(target)' are not compatible)
- endif
  local debug_stage := $(firstdefined \
 	$(target)_DEBUG_STAGE.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_DEBUG_STAGE.$(bld_trg).$(bld_trg_arch) \
@@ -213,9 +210,6 @@ else
 endif
 
 if1of ($(debug_insttype), both)
- ifn1of ($(insttype), both)
-  $(error kBuild: DEBUG_INSTTYPE=$(debug_insttype) and INSTTYPE=$(insttype) for target '$(target)' are not compatible)
- endif
  local debug_inst := $(firstdefined \
 	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch).$(bld_type) \
 	$(target)_DEBUG_INST.$(bld_trg).$(bld_trg_arch) \
