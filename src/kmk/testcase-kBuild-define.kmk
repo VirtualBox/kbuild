@@ -1,4 +1,4 @@
-# $Id: testcase-kBuild-define.kmk 2548 2011-11-08 21:28:16Z knut.osmundsen@oracle.com $
+# $Id: testcase-kBuild-define.kmk 2549 2011-11-09 01:22:04Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the kBuild-define-* directives.
 #
@@ -28,25 +28,28 @@ DEPTH = ../..
 
 kBuild-define-target MyTarget
 
-TEMPLATE = MyTemplate
-SOURCES = MySourceFile.c
+_TEMPLATE = MyTemplate
+_SOURCES  = MySourceFile.c
 
 kBuild-endef-target  MyTarget
+$(if "$(MyTarget_TEMPLATE)" == "MyTemplate",,$(error MyTarget's _TEMPLATE wasn't set correctly in the global space))
+$(if "$(MyTarget_SOURCES)" == "MySourceFile.c",,$(error MyTarget's _TEMPLATE wasn't set correctly in the global space))
 
 
 INDIRECT_NAME = MyTarget$(strip $1)
 kBuild-define-target $(call INDIRECT_NAME, 2)
 
-TEMPLATE = MyTemplate2
-SOURCES = MySourceFile2.c
+local _TEMPLATE = MyTemplate2
+_SOURCES  = MySourceFile2.c
 
 kBuild-endef-target  $(call INDIRECT_NAME, 2)
+$(if "$(_TEMPLATE)" == "",,$(error _TEMPLATE has leaked out into the global space))
 
 
 
 
 all_recursive:
-	$(ECHO) "kBuild-define-xxxx works fine"
+	#$(ECHO) "kBuild-define-xxxx works fine"
 
 
 

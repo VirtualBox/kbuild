@@ -1,4 +1,4 @@
-/* $Id: kbuild-read.c 2548 2011-11-08 21:28:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-read.c 2549 2011-11-09 01:22:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality related to read.c.
  */
@@ -75,25 +75,78 @@ struct kbuild_eval_data
 {
     /** The kind of define. */
     enum kBuildDef              enmKind;
-    /** Pointer to the element below us on the stack. */
-    struct kbuild_eval_data    *pDown;
-
     /** The bare name of the define. */
     char                       *pszName;
+    /** The file location where this define was declared. */
+    struct floc                 FileLoc;
+
+    /** Pointer to the next element in the global list. */
+    struct kbuild_eval_data    *pGlobalNext;
+    /** Pointer to the element below us on the stack. */
+    struct kbuild_eval_data    *pStackDown;
+
+    /** The variable set associated with this define. */
+    struct variable_set_list   *pVariables;
+    /** The saved current variable set, for restoring in kBuild-endef. */
+    struct variable_set_list   *pVariablesSaved;
 
     /** The parent name, NULL if none. */
     char                       *pszParent;
     /** The inheritance method. */
     enum kBuildExtendBy         enmExtendBy;
+    /** Pointer to the parent. Resolved lazily, so it can be NULL even if we have
+     *  a parent. */
+    struct kbuild_eval_data    *pParent;
 
     /** The template, NULL if none. Only applicable to targets. */
     char                       *pszTemplate;
+    /** Pointer to the template. Resolved lazily, so it can be NULL even if we have
+     *  a parent. */
+    struct kbuild_eval_data    *pTemplate;
 
-    /** The variable prefix*/
+    /** The variable prefix.  */
     char                       *pszVarPrefix;
     /** The length of the variable prefix. */
     size_t                      cchVarPrefix;
 };
+
+
+/*******************************************************************************
+*   Header Files                                                               *
+*******************************************************************************/
+/** Linked list (LIFO) of kBuild defines.
+ * @todo use a hash! */
+struct kbuild_eval_data *g_pHeadKbDefs = NULL;
+/** Stack of kBuild defines. */
+struct kbuild_eval_data *g_pTopKbDef = NULL;
+
+
+struct variable_set *
+get_top_kbuild_variable_set(void)
+{
+    struct kbuild_eval_data *pTop = g_pTopKbDef;
+    assert(pTop != NULL);
+    return pTop->pVariables->set;
+}
+
+
+char *
+kbuild_prefix_variable(const char *pszName, unsigned int *pcchName)
+{
+    struct kbuild_eval_data *pTop = g_pTopKbDef;
+    char        *pszPrefixed;
+    unsigned int cchPrefixed;
+
+    assert(pTop != NULL);
+
+    cchPrefixed = pTop->cchVarPrefix + *pcchName;
+    pszPrefixed = xmalloc(cchPrefixed + 1);
+    memcpy(pszPrefixed, pTop->pszVarPrefix, pTop->cchVarPrefix);
+    memcpy(&pszPrefixed[pTop->cchVarPrefix], pszName, *pcchName);
+    pszPrefixed[cchPrefixed] = '\0';
+    *pcchName = cchPrefixed;
+    return pszPrefixed;
+}
 
 
 static const char *
@@ -111,42 +164,122 @@ eval_kbuild_kind_to_string(enum kBuildDef enmKind)
     }
 }
 
+static char *
+allocate_expanded_next_token(const char **ppszCursor, const char *pszEos, unsigned int *pcchToken, int fStrip)
+{
+    unsigned int cchToken;
+    char *pszToken = find_next_token_eos(ppszCursor, pszEos, &cchToken);
+    if (pszToken)
+    {
+        pszToken = allocated_variable_expand_2(pszToken, cchToken, &cchToken);
+        if (pszToken)
+        {
+            if (fStrip)
+            {
+                unsigned int off = 0;
+                while (MY_IS_BLANK(pszToken[off]))
+                    off++;
+                if (off)
+                {
+                    cchToken -= off;
+                    memmove(pszToken, &pszToken[off], cchToken + 1);
+                }
+
+                while (cchToken > 0 && MY_IS_BLANK(pszToken[cchToken - 1]))
+                    pszToken[--cchToken] = '\0';
+            }
+
+            assert(cchToken == strlen(pszToken));
+            if (pcchToken)
+                *pcchToken = cchToken;
+        }
+    }
+    return pszToken;
+}
+
+static struct kbuild_eval_data *
+eval_kbuild_resolve_parent(struct kbuild_eval_data *pData)
+{
+    if (   !pData->pParent
+        && pData->pszParent)
+    {
+        struct kbuild_eval_data *pCur = g_pHeadKbDefs;
+        while (pCur)
+        {
+            if (   pCur->enmKind == pData->enmKind
+                && !strcmp(pCur->pszName, pData->pszParent))
+            {
+                if (    pCur->pszParent
+                    &&  (   pCur->pParent == pData
+                         || !strcmp(pCur->pszParent, pData->pszName)) )
+                    fatal(&pData->FileLoc, _("'%s' and '%s' are both trying to be each other children..."),
+                          pData->pszName, pCur->pszName);
+
+                pData->pParent = pCur;
+                pData->pVariables->next = pData->pVariables;
+                break;
+            }
+            pCur = pCur->pGlobalNext;
+        }
+    }
+    return pData->pParent;
+}
 
 static int
 eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFileLoc,
                         const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildDef enmKind)
 {
-    unsigned int             cch;
-    char                    *psz;
+    unsigned int            cch;
+    unsigned int            cchName;
+    char                    ch;
+    char                   *psz;
+    const char             *pszPrefix;
     struct kbuild_eval_data *pData;
 
-    /*
-     * Create a new kBuild eval data item unless we're in ignore-mode.
-     */
     if (fIgnoring)
         return 0;
 
+    /*
+     * Create a new kBuild eval data item.
+     */
     pData = xmalloc(sizeof(*pData));
-    pData->enmKind      = enmKind;
-    pData->pszName      = NULL;
-    pData->pszParent    = NULL;
-    pData->enmExtendBy  = kBuildExtendBy_NoParent;
-    pData->pszTemplate  = NULL;
-    pData->pszVarPrefix = NULL;
-    pData->cchVarPrefix = 0;
-    pData->pDown        = *ppData;
-    *ppData             = pData;
+    pData->enmKind          = enmKind;
+    pData->pszName          = NULL;
+    pData->FileLoc          = *pFileLoc;
+
+    pData->pGlobalNext      = g_pHeadKbDefs;
+    g_pHeadKbDefs           = pData;
+
+    pData->pStackDown       = *ppData;
+    *ppData = g_pTopKbDef   = pData;
+    pData->pVariables       = create_new_variable_set();
+    pData->pVariablesSaved  = NULL;
+
+    pData->pszParent        = NULL;
+    pData->enmExtendBy      = kBuildExtendBy_NoParent;
+    pData->pParent          = NULL;
+
+    pData->pszTemplate      = NULL;
+    pData->pTemplate        = NULL;
+
+    pData->pszVarPrefix     = NULL;
+    pData->cchVarPrefix     = 0;
 
     /*
      * The first word is the name.
      */
-    pData->pszName = find_next_token_eos(&pszLine, pszEos, &cch);
-    if (!pData->pszName)
-    {
-        error(pFileLoc, _("The kBuild define requires a name"));
-        return 0;
-    }
-    pData->pszName = allocated_variable_expand_2(pData->pszName, cch, &cch);
+    pData->pszName = allocate_expanded_next_token(&pszLine, pszEos, &cchName, 1 /*strip*/);
+    if (!pData->pszName || !*pData->pszName)
+        fatal(pFileLoc, _("The kBuild define requires a name"));
+
+    psz = pData->pszName;
+    while ((ch = *psz++) != '\0')
+        if (!isgraph(ch))
+        {
+            error(pFileLoc, _("The 'kBuild-define-%s' name '%s' contains one or more invalid characters"),
+                  eval_kbuild_kind_to_string(enmKind), pData->pszName);
+            break;
+        }
 
     /*
      * Parse subsequent words.
@@ -159,9 +292,7 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
             /* Inheritance directive. */
             if (pData->pszParent != NULL)
                 fatal(pFileLoc, _("'extending' can only occure once"));
-            pData->pszParent = find_next_token_eos(&pszLine, pszEos, &cch);
-            if (pData->pszParent)
-                pData->pszParent = allocated_variable_expand_2(pData->pszParent, cch, &cch);
+            pData->pszParent = allocate_expanded_next_token(&pszLine, pszEos, &cch, 1 /*strip*/);
             if (!pData->pszParent || !*pData->pszParent)
                 fatal(pFileLoc, _("'extending' requires a parent name"));
 
@@ -186,15 +317,15 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
                 psz = find_next_token_eos(&pszLine, pszEos, &cch);
             }
         }
-        else if (   WORD_IS(psz, cch, "using")
-                 && enmKind == kBuildDef_Tool)
+        else if (WORD_IS(psz, cch, "using"))
         {
             /* Template directive. */
-            if (pData->pszTemplate != NULL )
+            if (enmKind != kBuildDef_Tool)
+                fatal(pFileLoc, _("'using <template>' can only be used with 'kBuild-define-target'"));
+            if (pData->pszTemplate != NULL)
                 fatal(pFileLoc, _("'using' can only occure once"));
-            pData->pszTemplate = find_next_token_eos(&pszLine, pszEos, &cch);
-            if (pData->pszTemplate)
-                pData->pszTemplate = allocated_variable_expand_2(pData->pszTemplate, cch, &cch);
+
+            pData->pszTemplate = allocate_expanded_next_token(&pszLine, pszEos, &cch, 1 /*fStrip*/);
             if (!pData->pszTemplate || !*pData->pszTemplate)
                 fatal(pFileLoc, _("'using' requires a template name"));
 
@@ -208,9 +339,29 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
     /*
      * Calc the variable prefix.
      */
+    switch (enmKind)
+    {
+        case kBuildDef_Target:      pszPrefix = ""; break;
+        case kBuildDef_Template:    pszPrefix = "TEMPLATE_"; break;
+        case kBuildDef_Tool:        pszPrefix = "TOOL_"; break;
+        case kBuildDef_Sdk:         pszPrefix = "SDK_"; break;
+        case kBuildDef_Unit:        pszPrefix = "UNIT_"; break;
+        default:
+            fatal(pFileLoc, _("enmKind=%d"), enmKind);
+            return -1;
+    }
+    cch = strlen(pszPrefix);
+    pData->cchVarPrefix = cch + cchName;
+    pData->pszVarPrefix = xmalloc(pData->cchVarPrefix + 1);
+    memcpy(pData->pszVarPrefix, pszPrefix, cch);
+    memcpy(&pData->pszVarPrefix[cch], pData->pszName, cchName);
 
-    /** @todo continue here...  */
-
+    /*
+     * Try resolve the parent and change the current variable set.
+     */
+    eval_kbuild_resolve_parent(pData);
+    pData->pVariablesSaved = current_variable_set_list;
+    current_variable_set_list = pData->pVariables;
 
     return 0;
 }
@@ -241,20 +392,16 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
      * ... and does it have a matching kind?
      */
     if (pData->enmKind != enmKind)
-    {
         error(pFileLoc, _("'kBuild-endef-%s' does not match 'kBuild-define-%s %s'"),
               eval_kbuild_kind_to_string(enmKind), eval_kbuild_kind_to_string(pData->enmKind), pData->pszName);
-        return 0;
-    }
 
     /*
      * The endef-kbuild may optionally be followed by the target name.
      * It should match the name given to the kBuild-define.
      */
-    pszName = find_next_token_eos(&pszLine, pszEos, &cchName);
+    pszName = allocate_expanded_next_token(&pszLine, pszEos, &cchName, 1 /*fStrip*/);
     if (pszName)
     {
-        pszName = allocated_variable_expand_2(pszName, cchName, &cchName);
         if (strcmp(pszName, pData->pszName))
             error(pFileLoc, _("'kBuild-endef-%s %s' does not match 'kBuild-define-%s %s'"),
                   eval_kbuild_kind_to_string(enmKind), pszName,
@@ -265,12 +412,11 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     /*
      * Pop a define off the stack.
      */
-    *ppData = pData->pDown;
-    free(pData->pszName);
-    free(pData->pszParent);
-    free(pData->pszTemplate);
-    free(pData->pszVarPrefix);
-    free(pData);
+    assert(pData == g_pTopKbDef);
+    *ppData = g_pTopKbDef  = pData->pStackDown;
+    pData->pStackDown      = NULL;
+    current_variable_set_list = pData->pVariablesSaved;
+    pData->pVariablesSaved = NULL;
 
     return 0;
 }
@@ -323,5 +469,43 @@ int eval_kbuild_endef(struct kbuild_eval_data **kdata, const struct floc *flocp,
 
     error(flocp, _("Unknown syntax 'kBuild-endef%.*s'"), (int)wlen, word);
     return 0;
+}
+
+void print_kbuild_data_base(void)
+{
+    struct kbuild_eval_data *pCur;
+
+    puts(_("\n# kBuild defines"));
+
+    for (pCur = g_pHeadKbDefs; pCur; pCur = pCur->pGlobalNext)
+    {
+        printf("\nkBuild-define-%s %s",
+               eval_kbuild_kind_to_string(pCur->enmKind), pCur->pszName);
+        if (pCur->pszParent)
+        {
+            printf(" extending %s", pCur->pszParent);
+            switch (pCur->enmExtendBy)
+            {
+                case kBuildExtendBy_Overriding: break;
+                case kBuildExtendBy_Appending:  printf(" by appending"); break;
+                case kBuildExtendBy_Prepending: printf(" by prepending"); break;
+                default:                        printf(" by ?!?");
+            }
+        }
+        if (pCur->pszTemplate)
+            printf(" using %s", pCur->pszTemplate);
+        putchar('\n');
+
+        print_variable_set(pCur->pVariables->set, "");
+
+        printf("kBuild-endef-%s  %s\n",
+               eval_kbuild_kind_to_string(pCur->enmKind), pCur->pszName);
+    }
+    /** @todo hash stats. */
+}
+
+void print_kbuild_define_stats(void)
+{
+    /* later when hashing stuff */
 }
 

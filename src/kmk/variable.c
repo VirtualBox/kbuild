@@ -212,8 +212,37 @@ define_variable_in_set (const char *name, unsigned int length,
   struct variable **var_slot;
   struct variable var_key;
 
+#ifndef KMK
   if (set == NULL)
     set = &global_variable_set;
+#else
+  if (set == NULL)
+    {
+      /* underscore prefixed variables are automatically local in
+         kBuild-define-* scopes.  They also get a global definition with
+         the current scope prefix. */
+      if (g_pTopKbDef && length > 0 && name[0] == '_')
+        {
+          char         *prefixed_nm;
+          unsigned int  prefixed_nm_len;
+
+          set = get_top_kbuild_variable_set();
+          v = define_variable_in_set(name, length, value, value_len,
+                                     1 /* duplicate_value */,
+                                     origin, recursive, set, flocp);
+
+          prefixed_nm_len = length;
+          prefixed_nm = kbuild_prefix_variable(name, &prefixed_nm_len);
+          define_variable_in_set(prefixed_nm, prefixed_nm_len,
+                                 value, value_len, duplicate_value,
+                                 origin, recursive, &global_variable_set,
+                                 flocp);
+          free(prefixed_nm);
+          return v;
+        }
+      set = &global_variable_set;
+    }
+#endif
 
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;

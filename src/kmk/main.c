@@ -3718,6 +3718,9 @@ print_data_base ()
   print_rule_data_base ();
   print_file_data_base ();
   print_vpath_data_base ();
+#ifdef KMK
+  print_kbuild_data_base ();
+#endif
 #ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
 #else
@@ -3742,6 +3745,9 @@ print_stats ()
 
   print_variable_stats ();
   print_file_stats ();
+# ifdef KMK
+  print_kbuild_define_stats ();
+# endif
 # ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
 # else
