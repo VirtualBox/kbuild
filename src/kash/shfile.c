@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2425 2010-10-18 08:52:22Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2553 2011-11-25 21:44:21Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -790,8 +790,10 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
                         i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
             if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
             {
+#if 0  /* Seems to happen for console handles, ignore it. */
                 DWORD err = GetLastError();
                 assert(0);
+#endif
             }
         }
     }
@@ -864,8 +866,10 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
 
                 if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
                 {
+#if 0 /* Seems to fail for console handles, ignore. */
                     DWORD err = GetLastError();
                     assert(0);
+#endif
                 }
                 paf[i] = FOPEN;
                 if (pfdtab->tab[i].oflags & _O_APPEND)
