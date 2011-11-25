@@ -68,6 +68,12 @@ extern APIRET
 
 #endif
 
+#if defined(_MSC_VER) || defined(_WIN32)
+    /* On Windows the PATH variable is called "Path". */
+# define PC_MIXED_PATH_VAR_NAME
+#endif
+
+
 
 /*
  * Shell variables.
@@ -150,10 +156,6 @@ const struct varinit varinit[] = {
 	  NULL },
 	{ offsetof(shinstance, vpath),	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
 	  changepath },
-#ifdef _MSC_VER
-	{ offsetof(shinstance, vpath2),	VSTRFIXED|VTEXTFIXED,		"Path=",
-	  changepath },
-#endif
 	/*
 	 * vps1 depends on uid
 	 */
@@ -397,6 +399,20 @@ setvareq(shinstance *psh, char *s, int flags)
 	/* not found */
 	if (flags & VNOSET)
 		return;
+
+#ifdef PC_MIXED_PATH_VAR_NAME
+    if (   nlen == 4 
+        && (s[0] == 'p' || s[0] == 'P')
+        && (s[1] == 'a' || s[1] == 'A')
+        && (s[2] == 't' || s[2] == 'T')
+        && (s[3] == 'h' || s[3] == 'H') ) {
+        s[0] = 'P';
+        s[1] = 'A';
+        s[2] = 'T';
+        s[3] = 'H';
+    }
+#endif
+
 	vp = ckmalloc(psh, sizeof (*vp));
 	vp->flags = flags & ~VNOFUNC;
 	vp->text = s;
@@ -910,6 +926,22 @@ find_var(shinstance *psh, const char *name, struct var ***vppp, int *lenp)
 	while (*p && *p != '=')
 		hashval = 2 * hashval + (unsigned char)*p++;
 	len = (int)(p - name);
+
+#ifdef PC_MIXED_PATH_VAR_NAME
+    /* On Windows the PATH variable is called "Path". */
+    if (   len == 4 
+        && (name[0] == 'p' || name[0] == 'P') 
+        && (name[1] == 'a' || name[1] == 'A') 
+        && (name[2] == 't' || name[2] == 'T') 
+        && (name[3] == 'h' || name[3] == 'H') )
+    {
+        name = "PATH";
+		hashval = (unsigned char)'P';
+		hashval = hashval * 2 + (unsigned char)'A';
+		hashval = hashval * 2 + (unsigned char)'T';
+		hashval = hashval * 2 + (unsigned char)'H';
+    }
+#endif
 
 	if (lenp)
 		*lenp = len;
