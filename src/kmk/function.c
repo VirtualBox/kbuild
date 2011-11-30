@@ -77,6 +77,12 @@ static math_int math_int_from_string (const char *str);
   extern APIRET APIENTRY DosQueryHeaderInfo(HMODULE hmod, ULONG ulIndex, PVOID pvBuffer, ULONG cbBuffer, ULONG ulSubFunction);
 #endif /* CONFIG_WITH_OS2_LIBPATH */
 
+#ifdef KMK
+/** Checks if the @a_cch characters (bytes) in @a a_psz equals @a a_szConst. */
+# define STR_N_EQUALS(a_psz, a_cch, a_szConst) \
+    ( (a_cch) == sizeof (a_szConst) - 1 && !strncmp ((a_psz), (a_szConst), sizeof (a_szConst) - 1) )
+#endif
+
 
 struct function_table_entry
   {
@@ -5246,15 +5252,23 @@ func_get_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
   int off;
   mode_t u;
   int symbolic = 0;
+  const char *psz = argv[0];
 
-  if (argv[0])
+  if (psz)
     {
-      if (   !strcmp (argv[0], "S")
-          || !strcmp (argv[0], "-S")
-          || !strcmp (argv[0], "symbolic") )
-        symbolic = 1;
-      else
-        error (reading_file, _("$(%s ) invalid argument `%s'"), funcname, argv[0]);
+      const char *pszEnd = strchr (psz, '\0');
+      strip_whitespace (&psz, &pszEnd);
+
+      if (pszEnd != psz)
+        {
+          if (   STR_N_EQUALS (psz, pszEnd - pszEnd, "S")
+              || STR_N_EQUALS (psz, pszEnd - pszEnd, "-S")
+              || STR_N_EQUALS (psz, pszEnd - pszEnd, "symbolic") )
+            symbolic = 1;
+          else
+            error (reading_file, _("$(%s ) invalid argument `%s'"),
+                   funcname, argv[0]);
+        }
     }
 
   u = umask (002);
@@ -5315,10 +5329,13 @@ func_set_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
       while (*psz)
         {
           u <<= 3;
-          if (*psz >= '0' && *psz < '8')
-            u += *psz - '0';
-          else
-            error (reading_file, _("$(%s ) illegal number `%s'"), funcname, argv[0]);
+          if (*psz < '0' || *psz >= '8')
+            {
+              error (reading_file, _("$(%s ) illegal number `%s'"), funcname, argv[0]);
+              break;
+            }
+          u += *psz - '0';
+          psz++;
         }
 
       if (argv[1] != NULL)
