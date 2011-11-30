@@ -1320,7 +1320,7 @@ define_automatic_variables (void)
   && defined (CONFIG_WITH_DEFINED_FUNCTIONS) \
   && defined (KMK_HELPERS)
   (void) define_variable ("KMK_FEATURES", 12,
-                          "append-dash-n abspath includedep-queue install-hard-linking"
+                          "append-dash-n abspath includedep-queue install-hard-linking umask"
                           " kBuild-define"
                           " rsort"
                           " abspathex"
@@ -1346,12 +1346,12 @@ define_automatic_variables (void)
                           " for while"
                           " root"
                           " length insert pos lastpos substr translate"
-                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl "
-                          " firstdefined lastdefined "
+                          " kb-src-tool kb-obj-base kb-obj-suff kb-src-prop kb-src-one kb-exp-tmpl"
+                          " firstdefined lastdefined"
                           , o_default, 0);
 # else /* MSC can't deal with strings mixed with #if/#endif, thus the slow way. */
 #  error "All features should be enabled by default!"
-  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking"
+  strcpy (buf, "append-dash-n abspath includedep-queue install-hard-linking umask"
                " kBuild-define");
 #  if defined (CONFIG_WITH_RSORT)
   strcat (buf, " rsort");
