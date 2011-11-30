@@ -5220,8 +5220,8 @@ func_commands (char *o, char **argv, const char *funcname)
   return o;
 }
 #endif  /* CONFIG_WITH_COMMANDS_FUNC */
-
 #ifdef KMK
+
 /* Useful when debugging kmk and/or makefiles. */
 char *
 func_breakpoint (char *o, char **argv UNUSED, const char *funcname UNUSED)
@@ -5237,6 +5237,105 @@ func_breakpoint (char *o, char **argv UNUSED, const char *funcname UNUSED)
 #endif
   return o;
 }
+
+/* umask | umask -S. */
+char *
+func_get_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
+{
+  char sz[80];
+  int off;
+  mode_t u;
+  int symbolic = 0;
+
+  if (argv[0])
+    {
+      if (   !strcmp (argv[0], "S")
+          || !strcmp (argv[0], "-S")
+          || !strcmp (argv[0], "symbolic") )
+        symbolic = 1;
+      else
+        error (reading_file, _("$(%s ) invalid argument `%s'"), funcname, argv[0]);
+    }
+
+  u = umask (002);
+  umask (u);
+
+  if (symbolic)
+    {
+      off = 0;
+      sz[off++] = 'u';
+      sz[off++] = '=';
+      if ((u & S_IRUSR) == 0)
+        sz[off++] = 'r';
+      if ((u & S_IWUSR) == 0)
+        sz[off++] = 'w';
+      if ((u & S_IXUSR) == 0)
+        sz[off++] = 'x';
+      sz[off++] = ',';
+      sz[off++] = 'g';
+      sz[off++] = '=';
+      if ((u & S_IRGRP) == 0)
+        sz[off++] = 'r';
+      if ((u & S_IWGRP) == 0)
+        sz[off++] = 'w';
+      if ((u & S_IXGRP) == 0)
+        sz[off++] = 'x';
+      sz[off++] = ',';
+      sz[off++] = 'o';
+      sz[off++] = '=';
+      if ((u & S_IROTH) == 0)
+        sz[off++] = 'r';
+      if ((u & S_IWOTH) == 0)
+        sz[off++] = 'w';
+      if ((u & S_IXOTH) == 0)
+        sz[off++] = 'x';
+    }
+  else
+    off = sprintf (sz, "%.4o", u);
+
+  return variable_buffer_output (o, sz, off);
+}
+
+
+/* umask 0002 | umask u=rwx,g=rwx,o=rx. */
+char *
+func_set_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
+{
+  mode_t u;
+  const char *psz;
+
+  /* Figure what kind of input this is. */
+  psz = argv[0];
+  while (isblank ((unsigned char)*psz))
+    psz++;
+
+  if (isdigit ((unsigned char)*psz))
+   {
+      u = 0;
+      while (*psz)
+        {
+          u <<= 3;
+          if (*psz >= '0' && *psz < '8')
+            u += *psz - '0';
+          else
+            error (reading_file, _("$(%s ) illegal number `%s'"), funcname, argv[0]);
+        }
+
+      if (argv[1] != NULL)
+          error (reading_file, _("$(%s ) too many arguments for octal mode"), funcname);
+  }
+  else
+  {
+      u = umask(0);
+      umask(u);
+      error (reading_file, _("$(%s ) symbol mode is not implemented"), funcname);
+  }
+
+  umask(u);
+
+  return o;
+}
+
 #endif /* KMK */
 
 
@@ -5426,6 +5525,8 @@ static struct function_table_entry function_table_init[] =
 #endif
 #ifdef KMK
   { STRING_SIZE_TUPLE("breakpoint"),    0,  0,  0,  func_breakpoint},
+  { STRING_SIZE_TUPLE("set-umask"),     1,  3,  1,  func_set_umask},
+  { STRING_SIZE_TUPLE("get-umask"),     0,  0,  0,  func_get_umask},
 #endif
 };
 
