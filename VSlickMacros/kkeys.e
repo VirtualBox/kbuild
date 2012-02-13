@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2437 2011-03-28 19:17:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2558 2012-02-13 12:36:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
@@ -137,7 +137,7 @@ _command kkeys_delete_right()
 {
    col=p_col;
 
-   /* virtual space hack*/
+   /* virtual space hack */
    keyin(" ");
    left();
    _delete_char();
@@ -145,12 +145,23 @@ _command kkeys_delete_right()
    /* are we in a word, delete it? */
    ch = get_text();
    if (ch != ' ' && ch != "\t" && ch != "\r" && ch != "\n")
+   {
+      /* Delete word and any trailing spaces, but stop at new line. */
       delete_word();
 
-   /* delete spaces and newlines until the next word. */
-   ch = get_text();
-   if (ch == ' ' || ch == "\t" || ch == "\r" || ch == "\n")
+      ch = get_text();
+      if (ch == ' ' || ch == "\t" || ch == "\r" || ch == "\n")
+      {
+         if (search('[ \t]#','r+') == 0)
+         {
+            _nrseek(match_length('s'));
+            _delete_text(match_length());
+         }
+      }
+   }
+   else
    {
+      /* delete spaces and newlines until the next word. */
       if (search('[ \t\n\r]#','r+') == 0)
       {
          _nrseek(match_length('s'));
@@ -160,25 +171,6 @@ _command kkeys_delete_right()
 
    p_col=col
    //retrieve_command_results()
-}
-
-_command kkeys_delete_left()
-{
-   //denne virker ikkje som den skal!!!
-   message "not implemented"
-/*
-   return;
-   col=p_col
-   search('[ \t]#|?|$|^','r-');
-   if ( match_length()&& get_text(1,match_length('s'))=='' )
-   {
-      _nrseek(match_length('s'));
-      _delete_text(match_length());
-   }
-   else
-      delete_word();
-   p_col=col
-*/
 }
 
 _command kkeys_scroll_up()
