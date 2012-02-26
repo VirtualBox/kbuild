@@ -1,4 +1,4 @@
-# $Id: header.kmk 2550 2011-11-09 12:51:50Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2559 2012-02-26 17:40:55Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2550 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2559 $  )
 
 
 #
@@ -188,8 +188,10 @@ KBUILD_BLD_TYPES := release profile debug
 # this keyword namespace is shared between OSes, architectures, cpus and
 # build types. (PORTME)
 #
-KBUILD_OSES   := darwin dos dragonfly freebsd haiku l4 linux netbsd nt openbsd os2 solaris win os-agnostic
-KBUILD_ARCHES := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 ia64 hppa32 hppa64 arm alpha
+KBUILD_OSES      := darwin dos dragonfly freebsd haiku l4 linux netbsd nt openbsd os2 solaris win os-agnostic
+KBUILD_ARCHES    := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 ia64 hppa32 hppa64 arm alpha
+KBUILD_ARCHES_64 := amd64 sparc64 s390x ppc64 mips64 ia64 hppa64 alpha
+KBUILD_ARCHES_32 := x86 sparc32 s390 ppc32 mips32 hppa32 arm
 
 
 #
@@ -1250,6 +1252,72 @@ ifdef USE_KOBJCACHE
  ifndef KBUILD_USE_KOBJCACHE
   export KBUILD_USE_KOBJCACHE := $(USE_KOBJCACHE)
  endif
+endif
+
+
+#
+# Library path searching hints (target OS + arch).
+#
+# 	 KBUILD_LIB_SEARCH_SUBS  - Subdirs typically containing the right libraries.
+#    KBUILD_LIB_SEARCH_ROOTS - Roots to search for library subdirs.
+#    KBUILD_LIB_SEARCH_PATHS - ROOTS + SUBS.
+#
+ifeq ($(KBUILD_TARGET),darwin)
+ KBUILD_LIB_SEARCH_ROOTS := \
+	/usr/ \
+	/Developer/usr/
+ KBUILD_LIB_SEARCH_SUBS  := lib/
+ KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
+
+else if1of ($(KBUILD_TARGET), freebsd netbsd openbsd dragonfly)
+ KBUILD_LIB_SEARCH_ROOTS := \
+	/ \
+	/usr/ \
+	/usr/local/
+ KBUILD_LIB_SEARCH_SUBS := lib/
+ KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
+
+else ifeq ($(KBUILD_TARGET),linux)
+ KBUILD_LIB_SEARCH_ROOTS := \
+	/ \
+	/usr/ \
+	/usr/local/
+ ifeq ($(KBUILD_TARGET_ARCH),amd64)
+  KBUILD_LIB_SEARCH_SUBS := \
+	lib/x86_64-linux-gnu/ \
+	lib64/ \
+	lib/
+ else ifeq ($(KBUILD_TARGET_ARCH),x86)
+  KBUILD_LIB_SEARCH_SUBS := \
+	lib/i686-linux-gnu/ \
+	lib/i386-linux-gnu/ \
+	lib32/ \
+	lib/
+ else
+  KBUILD_LIB_SEARCH_SUBS := lib/
+ endif
+ KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
+
+else ifeq ($(KBUILD_TARGET),solaris)
+ KBUILD_LIB_SEARCH_ROOTS := \
+	/ \
+	/usr/ \
+	/usr/sfw/ \
+	/usr/local/ \
+	/sw/
+ ifeq ($(KBUILD_TARGET_ARCH),amd64)
+  KBUILD_LIB_SEARCH_SUBS := lib/amd64/ lib/
+ else ifeq ($(KBUILD_TARGET_ARCH),sparc64)
+  KBUILD_LIB_SEARCH_SUBS := lib/sparcv9/ lib/
+ else
+  KBUILD_LIB_SEARCH_SUBS := lib/
+ endif
+ KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
+
+else
+ KBUILD_LIB_SEARCH_SUBS  :=
+ KBUILD_LIB_SEARCH_ROOTS :=
+ KBUILD_LIB_SEARCH_PATHS :=
 endif
 
 
