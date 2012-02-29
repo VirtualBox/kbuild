@@ -1,4 +1,4 @@
-# $Id: header.kmk 2559 2012-02-26 17:40:55Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2562 2012-02-29 13:05:36Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2559 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2562 $  )
 
 
 #
@@ -1267,7 +1267,6 @@ ifeq ($(KBUILD_TARGET),darwin)
 	/usr/ \
 	/Developer/usr/
  KBUILD_LIB_SEARCH_SUBS  := lib/
- KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
 
 else if1of ($(KBUILD_TARGET), freebsd netbsd openbsd dragonfly)
  KBUILD_LIB_SEARCH_ROOTS := \
@@ -1275,7 +1274,6 @@ else if1of ($(KBUILD_TARGET), freebsd netbsd openbsd dragonfly)
 	/usr/ \
 	/usr/local/
  KBUILD_LIB_SEARCH_SUBS := lib/
- KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
 
 else ifeq ($(KBUILD_TARGET),linux)
  KBUILD_LIB_SEARCH_ROOTS := \
@@ -1296,7 +1294,6 @@ else ifeq ($(KBUILD_TARGET),linux)
  else
   KBUILD_LIB_SEARCH_SUBS := lib/
  endif
- KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
 
 else ifeq ($(KBUILD_TARGET),solaris)
  KBUILD_LIB_SEARCH_ROOTS := \
@@ -1312,13 +1309,12 @@ else ifeq ($(KBUILD_TARGET),solaris)
  else
   KBUILD_LIB_SEARCH_SUBS := lib/
  endif
- KBUILD_LIB_SEARCH_PATHS := $(addsuffix $(KBUILD_LIB_SEARCH_SUBS),$(KBUILD_LIB_SEARCH_ROOTS))
 
 else
  KBUILD_LIB_SEARCH_SUBS  :=
  KBUILD_LIB_SEARCH_ROOTS :=
- KBUILD_LIB_SEARCH_PATHS :=
 endif
+KBUILD_LIB_SEARCH_PATHS  := $(foreach root, $(KBUILD_LIB_SEARCH_ROOTS), $(addprefix $(root),$(KBUILD_LIB_SEARCH_SUBS)))
 
 
 #
