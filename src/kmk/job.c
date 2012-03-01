@@ -591,7 +591,7 @@ reap_children (int block, int err)
 		pid = WAIT_NOHANG (&status);
 	      else
 #endif
-		pid = wait (&status);
+		EINTRLOOP(pid, wait (&status));
 #endif /* !VMS */
 	    }
 	  else
