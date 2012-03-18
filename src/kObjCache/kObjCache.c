@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2568 2012-03-18 17:59:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -662,7 +662,10 @@ static int MakePath(const char *pszPath)
             &&  errno != EEXIST)
 #else
         if (    mkdir(pszAbsPath, 0777)
-            &&  errno != EEXIST)
+            &&  errno != EEXIST
+            &&  errno != ENOSYS /* Solaris nonsensical mkdir crap. */
+            &&  errno != EACCES /* Solaris nonsensical mkdir crap. */
+            )
 #endif
         {
             iErr = errno;
@@ -3987,7 +3990,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2546 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2568 $)\n"
                    "Copyright (c) 2007-2011 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
