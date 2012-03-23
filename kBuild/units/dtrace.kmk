@@ -1,4 +1,4 @@
-# $Id: dtrace.kmk 2567 2012-03-17 19:27:32Z knut.osmundsen@oracle.com $
+# $Id: dtrace.kmk 2569 2012-03-23 10:02:52Z knut.osmundsen@oracle.com $
 ## @file
 # DTrace unit.
 #
@@ -117,7 +117,7 @@ endif
 
 # update globals
 _OUT_FILES += $(out)
-$(target)_2_OBJS += $(out)
+$(target)_2_OBJS <= $(out)
 
 endef # def_dtrace_hdr_rule
 
