@@ -1,4 +1,4 @@
-# $Id: dtrace.kmk 2569 2012-03-23 10:02:52Z knut.osmundsen@oracle.com $
+# $Id: dtrace.kmk 2570 2012-03-23 13:47:32Z knut.osmundsen@oracle.com $
 ## @file
 # DTrace unit.
 #
@@ -89,7 +89,7 @@ endef # def_dtrace_hdr_rule
 
 
 ##
-# Generates the rule for creating a DTrace object file from a D source file 
+# Generates the rule for creating a DTrace object file from a D source file
 # and a bunch of object files.
 #
 # @param    out         The output file.
@@ -125,14 +125,14 @@ endef # def_dtrace_hdr_rule
 ##
 # Handler for .d files listed in the SOURCES properties.
 #
-# .d files are transformed into .h that is used when compiling, thus needing 
+# .d files are transformed into .h that is used when compiling, thus needing
 # to be generated before anything is compiled, and into object files that needs
-# to go into the linking.  Mac does not create object files.  
+# to go into the linking.  Mac does not create object files.
 #
-# The step producing the object file requires all the object files with dtrace 
-# probes in them as input/output as well, because it adjusts the dtrace symbols 
-# from UNDEF to IGNORE.  This is really ugly and cannot be expressed in make 
-# syntax (prerequisite object files being modified).  Fortunately, it works 
+# The step producing the object file requires all the object files with dtrace
+# probes in them as input/output as well, because it adjusts the dtrace symbols
+# from UNDEF to IGNORE.  This is really ugly and cannot be expressed in make
+# syntax (prerequisite object files being modified).  Fortunately, it works
 # fine because the object files won't be used by anyone else before the dtrace
 # object file exists.
 #
@@ -179,8 +179,8 @@ endif
 
 # call the tool
 local cmds := $(TOOL_$(tool)_DTRACE_HDR_CMDS)
-local deps += $(source)
-local orderdeps += $(dirdep)
+local deps += $(TOOL_$(tool)_DTRACE_DEPEND) $(source)
+local orderdeps += $(TOOL_$(tool)_DTRACE_DEPORD) $(dirdep)
 
 # generate the rule.
 $(eval $(def_dtrace_hdr_rule))
@@ -200,24 +200,24 @@ ifn1of ($(bld_trg), $(TOOL_$(tool)_DTRACE_OBJ_NOT_NEEDED))
  local tmp := $(kb-src-prop DEPS,deps,left-to-right,$(defpath))
  local tmp := $(kb-src-prop ORDERDEPS,orderdeps,left-to-right,$(defpath))
  local dirdep := $(call DIRDEP,$(dir $(out)))
- 
+
  # Adjust paths if we got a default path.
  ifneq ($(defpath),)
   local source := $(abspathex $(source),$(defpath))
  endif
- 
+
  # dependency file.
  local dep := $(out)$(SUFF_DEP)
  ifndef NO_COMPILE_CMDS_DEPS
   _DEPFILES_INCLUDED += $(dep)
   $(eval includedep $(dep))
  endif
- 
+
  # call the tool
  local cmds := $(TOOL_$(tool)_DTRACE_OBJ_CMDS)
- local deps += $(source)
- local orderdeps += $(dirdep)
- 
+ local deps += $(TOOL_$(tool)_DTRACE_DEPEND) $(source)
+ local orderdeps += $(TOOL_$(tool)_DTRACE_DEPORD) $(dirdep)
+
  # generate the rule.
  $(eval $(def_dtrace_obj_rule))
 endif
