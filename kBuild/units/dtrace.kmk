@@ -1,4 +1,4 @@
-# $Id: dtrace.kmk 2570 2012-03-23 13:47:32Z knut.osmundsen@oracle.com $
+# $Id: dtrace.kmk 2571 2012-04-15 11:12:31Z knut.osmundsen@oracle.com $
 ## @file
 # DTrace unit.
 #
@@ -99,7 +99,7 @@ endef # def_dtrace_hdr_rule
 define def_dtrace_obj_rule
 $(out): \
 		$(deps) \
-		$$(filter-out %-dtrace-object-format.o, $$($(target)_2_OBJS)) \
+		$$$$(filter-out %-dtrace-object-format.o, $$$$($(target)_2_OBJS)) \
 		$(value _DEP_DTRACE_OBJ_CMDS) \
 		| \
 		$(orderdeps)
