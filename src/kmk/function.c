@@ -5236,7 +5236,11 @@ func_breakpoint (char *o, char **argv UNUSED, const char *funcname UNUSED)
   __debugbreak();
 #elif defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386) \
    || defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64)
+# ifdef __sun__
+  __asm__ __volatile__ ("int $3\n\t");
+# else
   __asm__ __volatile__ ("int3\n\t");
+# endif
 #else
   char *p = (char *)0;
   *p = '\0';
