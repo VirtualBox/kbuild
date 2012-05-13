@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 2573 2012-05-13 19:39:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -1979,14 +1979,14 @@ static EXPRRET expr_eval(PEXPR pThis)
          */
         do  rc = expr_get_unary_or_operand(pThis);
         while (rc == kExprRet_Operator);
-        if (rc < kExprRet_Error)
+        if (rc < kExprRet_Ok)
             break;
 
         /*
          * Look for a binary operator, right parenthesis or end of expression.
          */
         rc = expr_get_binary_or_eoe_or_rparen(pThis);
-        if (rc < kExprRet_Error)
+        if (rc < kExprRet_Ok)
             break;
         expr_unget_op(pThis);
 
@@ -2002,10 +2002,10 @@ static EXPRRET expr_eval(PEXPR pThis)
             pOp = pThis->apOps[pThis->iOp--];
             assert(pThis->iVar + 1 >= pOp->cArgs);
             rc = pOp->pfn(pThis);
-            if (rc < kExprRet_Error)
+            if (rc < kExprRet_Ok)
                 break;
         }
-        if (rc < kExprRet_Error)
+        if (rc < kExprRet_Ok)
             break;
 
         /*
@@ -2013,7 +2013,7 @@ static EXPRRET expr_eval(PEXPR pThis)
          * There should be no right parenthesis here.
          */
         rc = expr_get_binary_or_eoe_or_rparen(pThis);
-        if (rc < kExprRet_Error)
+        if (rc < kExprRet_Ok)
             break;
         pOp = pThis->apOps[pThis->iOp];
         if (!pOp->iPrecedence)
