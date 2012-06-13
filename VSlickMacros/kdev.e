@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2583 2012-06-13 15:12:15Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3329,7 +3329,190 @@ btnCancel.lbutton_up()
     p_active_form._delete_window("\r");
 }
 
+static _str aCLikeIncs[] = 
+{ 
+    "c", "ansic", "java", "rul", "vera", "ch", "as", "idl", "asm", "s", "imakefile", "rc", "lex", "yacc", "antlr"
+};
 
+static _str aMyLangIds[] =
+{
+    "ansic", 
+    "antlr", 
+    "as", 
+    "asm", 
+    "c", 
+    "csh", 
+    "css", 
+    "ch", 
+    "conf", 
+    "d", 
+    "docbook", 
+    "dtd", 
+    "html", 
+    "idl", 
+    "imakefile", 
+    "ini", 
+    "java", 
+    "js", 
+    "lex", 
+    "mak", 
+    "masm", 
+    "phpscript", 
+    "powershell", 
+    "py",
+    "rexx",
+    "rc", 
+    "rul", 
+    "tcl", 
+    "s", 
+    "unixasm", 
+    "vbs", 
+    "xhtml", 
+    "xml", 
+    "xmldoc", 
+    "xsd", 
+    "yacc"
+};
+
+#if __VERSION__ >= 17.0
+# require "se/lang/api/LanguageSettings.e"
+using se.lang.api.LanguageSettings;
+#endif
+
+/**
+ * Loads the standard bird settings.
+ */
+_command void kdev_load_settings()
+{
+    typeless nt1; 
+    typeless nt2;
+    typeless nt3;
+    typeless nt4;
+    typeless nt5;
+    typeless nt6;
+    typeless i7;
+    _str sRest;
+    _str sTmp;
+
+    /*
+     * Generl stuff.
+     */
+    _default_option('A', '0');          /* ALT menu */
+    def_alt_menu = 0;
+    _default_option('R', '130');        /* Vertical line in column 130. */
+    def_mfsearch_init_flags = 2 | 4;    /* MFSEARCH_INIT_CURWORD | MFSEARCH_INIT_SELECTION */
+    def_line_insert = 'B';              /* insert before */
+    def_file_types='All Files (*),'     /** @todo make this prettier */
+                   'C/C++ Files (*.c;*.cc;*.cpp;*.cp;*.cxx;*.c++;*.h;*.hh;*.hpp;*.hxx;*.inl;*.xpm),'
+                   'Assembler (*.s;*.asm;*.mac;*.S),'
+                   'Makefiles (*;*.mak;*.kmk)'
+                   'C# Files (*.cs),'
+                   'Ch Files (*.ch;*.chf;*.chs;*.cpp;*.h),'
+                   'D Files (*.d),'
+                   'Java Files (*.java),'
+                   'HTML Files (*.htm;*.html;*.shtml;*.asp;*.jsp;*.php;*.php3;*.rhtml;*.css),'
+                   'CFML Files (*.cfm;*.cfml;*.cfc),'
+                   'XML Files (*.xml;*.dtd;*.xsd;*.xmldoc;*.xsl;*.xslt;*.ent;*.tld;*.xhtml;*.build;*.plist),'
+                   'XML/SGML DTD Files (*.xsd;*.dtd),'
+                   'XML/JSP TagLib Files (*.tld;*.xml),'
+                   'Objective-C (*.m;*.mm;*.h),'
+                   'IDL Files (*.idl),'
+                   'Ada Files (*.ada;*.adb;*.ads),'
+                   'Applescript Files (*.applescript),'
+                   'Basic Files (*.vb;*.vbs;*.bas;*.frm),'
+                   'Cobol Files (*.cob;*.cbl;*.ocb),'
+                   'JCL Files (*.jcl),'
+                   'JavaScript (*.js;*.ds),'
+                   'ActionScript (*.as),'
+                   'Pascal Files (*.pas;*.dpr),'
+                   'Fortran Files (*.for;*.f),'
+                   'PL/I Files (*.pl1),'
+                   'InstallScript (*.rul),'
+                   'Perl Files (*.pl;*.pm;*.perl;*.plx),'
+                   'Python Files (*.py),'
+                   'Ruby Files (*.rb;*.rby),'
+                   'Java Properties (*.properties),'
+                   'Lua Files (*.lua),'
+                   'Tcl Files (*.tcl;*.tlib;*.itk;*.itcl;*.exp),'
+                   'PV-WAVE (*.pro),'
+                   'Slick-C (*.e;*.sh),'
+                   'SQL Files (*.sql),'
+                   'SAS Files (*.sas),'
+                   'Text Files (*.txt),'
+                   'Verilog Files (*.v),'
+                   'VHDL Files (*.vhd),'
+                   'SystemVerilog Files (*.sv;*.svh;*.svi),'
+                   'Vera Files (*.vr;*.vrh),'
+                   'Erlang Files (*.erl;*.hrl),'
+                   ;
+
+    def_updown_col=0;                   /* cursor movement */
+    def_cursorwrap=0;                   /* ditto. */
+    def_click_past_end=1;               /* ditto */
+    def_start_on_first=1;               /* vs A B C; view A. */
+    def_vc_system='Subversion'          /* svn is default version control */
+#if __VERSION__ >= 16.0
+    def_auto_unsurround_block=0;        /* Delete line, not block. */
+#endif
+
+    /* Make it grok:  # include <stuff.h> */
+    for (i = 0; i < aCLikeIncs._length(); i++)
+        replace_def_data("def-":+aCLikeIncs[i]:+"-include",
+                         '^[ \t]*(\#[ \t]*include|include|\#[ \t]*line)[ \t]#({#1:i}[ \t]#|)(<{#0[~>]#}>|"{#0[~"]#}")');
+    replace_def_data("def-m-include", '^[ \t]*(\#[ \t]*include|\#[ \t]*import|include|\#[ \t]*line)[ \t]#({#1:i}[ \t]#|)(<{#0[~>]#}>|"{#0[~"]#}")');
+    replace_def_data("def-e-include", '^[ \t]*(\#[ \t]*include|\#[ \t]*import|\#[ \t]*require|include)[ \t]#(''{#0[~'']#}''|"{#0[~"]#}")');
+
+    /* Replace the default unicode proportional font with the fixed oned. */
+    _str sCodeFont = _default_font(CFG_SBCS_DBCS_SOURCE_WINDOW);
+    _str sUnicodeFont = _default_font(CFG_UNICODE_SOURCE_WINDOW);
+    if (pos("Default Unicode", sUnicodeFont) > 0 && length(sCodeFont) > 5)
+        _default_font(CFG_UNICODE_SOURCE_WINDOW,sCodeFont);
+    if (machine()=='INTELSOLARIS' || machine()=='SPARCSOLARIS')
+    {
+        _default_font(CFG_MENU,'DejaVu Sans,10,0,0,');
+        _default_font(CFG_DIALOG,'DejaVu Sans,10,0,0,');
+    }
+
+    /* Not so important. */
+    int fSearch = 0x400400; /* VSSEARCHFLAG_WRAP | VSSEARCHFLAG_PROMPT_WRAP */;
+    _default_option('S', (_str)fSearch);
+
+
+#if __VERSION__ >= 17.0
+    /*
+     * Language settings via API.
+     */
+    _str sLangId;
+    foreach (sLangId in aMyLangIds)
+    {
+        LanguageSettings.setIndentCaseFromSwitch(sLangId,   true);
+        LanguageSettings.setBeginEndStyle(sLangId,          BES_BEGIN_END_STYLE_2);
+        LanguageSettings.setIndentWithTabs(sLangId,         false);
+        LanguageSettings.setUseAdaptiveFormatting(sLangId,  true);
+
+        /* C/C++ setup, wrap at column 80 not 64. */
+        sTmp = LanguageSettings.getCommentWrapOptions(sLangId);
+        if (length(sTmp) > 10)
+        {
+            typeless ntBlockCommentWrap, ntDocCommentWrap, ntFixedWidth;
+            parse sTmp with ntBlockCommentWrap ntDocCommentWrap nt3 nt4 nt5 ntFixedWidth sRest;
+            if ((int)ntFixedWidth < 80)
+                LanguageSettings.setCommentWrapOptions('c', ntBlockCommentWrap:+' ':+ntDocCommentWrap:+' ':+nt3:+' ':+nt4:+' ':+nt5:+' 80 ':+sRest);
+            //replace_def_data("def-comment-wrap-c",'0 1 0 1 1 64 0 0 80 0 80 0 80 0 0 1 '); - default
+            //replace_def_data("def-comment-wrap-c",'0 1 0 1 1 80 0 0 80 0 80 0 80 0 0 0 '); - disabled
+            //replace_def_data("def-comment-wrap-c",'1 1 0 1 1 80 0 0 80 0 80 0 80 0 0 1 '); - enable block comment wrap.
+        }
+    }
+    LanguageSettings.setIndentWithTabs('mak', true);
+
+#endif
+
+    /** @todo
+     *  def_save_options
+     *   */
+
+    message("Please restart SlickEdit.")
+}
 
 /**
  * Module initiation.
