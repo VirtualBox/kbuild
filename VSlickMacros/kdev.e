@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2584 2012-06-13 15:29:02Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2586 2012-06-13 15:43:04Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3505,7 +3505,12 @@ _command void kdev_load_settings()
         }
     }
     LanguageSettings.setIndentWithTabs('mak', true);
+    LanguageSettings.setLexerName('mak', 'kmk');
 
+    /* Fix .asm and add .mac and .kmk. */
+    replace_def_data("def-lang-for-ext-asm",'masm');
+    replace_def_data("def-lang-for-ext-mac",'masm');
+    replace_def_data("def-lang-for-ext-kmk",'mak');
 #endif
 
     /** @todo
