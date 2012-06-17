@@ -81,6 +81,10 @@ static math_int math_int_from_string (const char *str);
 /** Checks if the @a_cch characters (bytes) in @a a_psz equals @a a_szConst. */
 # define STR_N_EQUALS(a_psz, a_cch, a_szConst) \
     ( (a_cch) == sizeof (a_szConst) - 1 && !strncmp ((a_psz), (a_szConst), sizeof (a_szConst) - 1) )
+
+# ifdef _MSC_VER
+#  include "kmkbuiltin/mscfakes.h"
+# endif
 #endif
 
 

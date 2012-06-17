@@ -1122,8 +1122,10 @@ start_job_command (struct child *child)
   char *argv;
 #else
   char **argv;
+# if !defined(__MSDOS__) && !defined(_AMIGA) && !defined(WINDOWS32) && !defined(VMS)
   char ** volatile volatile_argv;
   int volatile volatile_flags;
+# endif
 #endif
 
   /* If we have a completely empty commandset, stop now.  */
