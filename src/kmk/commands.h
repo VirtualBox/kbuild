@@ -61,3 +61,7 @@ void set_file_variables (struct file *file, int called_early);
 #else
 void set_file_variables (struct file *file);
 #endif
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+struct dep *create_uniqute_deps_chain (struct dep *deps);
+#endif
+
