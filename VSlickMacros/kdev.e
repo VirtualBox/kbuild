@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2588 2012-06-17 14:11:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2589 2012-06-17 15:39:26Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3515,6 +3515,45 @@ _command void kdev_load_settings()
     replace_def_data("def-lang-for-ext-asm",'masm');
     replace_def_data("def-lang-for-ext-mac",'masm');
     replace_def_data("def-lang-for-ext-kmk",'mak');
+
+    /*
+     * Change the codehelp default.
+     */
+    int fOldCodeHelp = def_codehelp_flags;
+    int fNewCodeHelp = fOldCodeHelp \
+                     | VSCODEHELPFLAG_AUTO_FUNCTION_HELP \
+                     | VSCODEHELPFLAG_AUTO_LIST_MEMBERS \
+                     | VSCODEHELPFLAG_SPACE_INSERTS_SPACE \
+                     | VSCODEHELPFLAG_INSERT_OPEN_PAREN \
+                     | VSCODEHELPFLAG_DISPLAY_MEMBER_COMMENTS \
+                     | VSCODEHELPFLAG_DISPLAY_FUNCTION_COMMENTS \
+                     | VSCODEHELPFLAG_REPLACE_IDENTIFIER \
+                     | VSCODEHELPFLAG_PRESERVE_IDENTIFIER \
+                     | VSCODEHELPFLAG_AUTO_PARAMETER_COMPLETION \
+                     | VSCODEHELPFLAG_AUTO_LIST_PARAMS \
+                     | VSCODEHELPFLAG_PARAMETER_TYPE_MATCHING \
+                     | VSCODEHELPFLAG_NO_SPACE_AFTER_PAREN \
+                     | VSCODEHELPFLAG_RESERVED_ON \
+                     | VSCODEHELPFLAG_MOUSE_OVER_INFO \
+                     | VSCODEHELPFLAG_AUTO_LIST_VALUES \
+                     | VSCODEHELPFLAG_FIND_TAG_PREFERS_DEFINITION \
+                     | VSCODEHELPFLAG_FIND_TAG_PREFERS_ALTERNATE \
+                     | VSCODEHELPFLAG_HIGHLIGHT_TAGS \
+                     ;
+    fNewCodeHelp &= ~(  VSCODEHELPFLAG_SPACE_COMPLETION \
+                      | VSCODEHELPFLAG_AUTO_SYNTAX_HELP \
+                      | VSCODEHELPFLAG_NO_SPACE_AFTER_COMMA \
+                      | VSCODEHELPFLAG_STRICT_LIST_SELECT \
+                      | VSCODEHELPFLAG_AUTO_LIST_VALUES \
+                     );
+    def_codehelp_flags = fNewCodeHelp;
+    foreach (sLangId in aMyLangIds)
+    {
+        _str sVarName = 'def-codehelp-' :+ sLangId;
+        int idxVar = find_index(sVarName, MISC_TYPE);
+        if (idxVar != 0)
+            replace_def_data(sVarName, fNewCodeHelp);
+    }
 #endif
 
     /** @todo
