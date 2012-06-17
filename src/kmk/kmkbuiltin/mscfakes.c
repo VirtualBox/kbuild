@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2484 2011-07-21 19:01:08Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2592 2012-06-17 22:50:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -532,13 +532,12 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 }
 
 
-#undef stat
 /*
  * Workaround for directory names with trailing slashes.
- * Added by bird reasons stated.
  */
+#undef stat
 int
-my_other_stat(const char *path, struct stat *st)
+bird_w32_stat(const char *path, struct stat *st)
 {
     int rc = stat(path, st);
     if (    rc != 0
@@ -563,6 +562,13 @@ my_other_stat(const char *path, struct stat *st)
             }
         }
     }
+#ifdef KMK_PRF
+    {
+        int err = errno;
+        fprintf(stderr, "stat(%s,) -> %d/%d\n", path, rc, errno);
+        errno = err;
+    }
+#endif
     return rc;
 }
 

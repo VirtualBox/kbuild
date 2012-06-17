@@ -522,10 +522,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #undef BATCH_MODE_ONLY_SHELL
 #endif
 
-/* bird hacks */
+/* bird hacks - similar in mscfakes.h */
 #include <sys/stat.h>
-extern int my_stat(const char *, struct stat *);
-#define stat(_path, _st) my_stat(_path, _st)
+#include <io.h>
+#include <direct.h>
+#ifndef STAT_REDEFINED_ALREADY
+# define STAT_REDEFINED_ALREADY
+# undef stat
+# define stat(_path, _st) bird_w32_stat(_path, _st)
+extern int bird_w32_stat(const char *, struct stat *);
+#endif
 
 /* cygwin sucks to much in one end or the other. */
 #define BATCH_MODE_ONLY_SHELL
