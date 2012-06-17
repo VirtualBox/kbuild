@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2587 2012-06-14 15:15:49Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2588 2012-06-17 14:11:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3329,48 +3329,48 @@ btnCancel.lbutton_up()
     p_active_form._delete_window("\r");
 }
 
-static _str aCLikeIncs[] = 
-{ 
+static _str aCLikeIncs[] =
+{
     "c", "ansic", "java", "rul", "vera", "ch", "as", "idl", "asm", "s", "imakefile", "rc", "lex", "yacc", "antlr"
 };
 
 static _str aMyLangIds[] =
 {
-    "ansic", 
-    "antlr", 
-    "as", 
-    "asm", 
-    "c", 
-    "csh", 
-    "css", 
-    "ch", 
-    "conf", 
-    "d", 
-    "docbook", 
-    "dtd", 
-    "html", 
-    "idl", 
-    "imakefile", 
-    "ini", 
-    "java", 
-    "js", 
-    "lex", 
-    "mak", 
-    "masm", 
-    "phpscript", 
-    "powershell", 
+    "ansic",
+    "antlr",
+    "as",
+    "asm",
+    "c",
+    "csh",
+    "css",
+    "ch",
+    "conf",
+    "d",
+    "docbook",
+    "dtd",
+    "html",
+    "idl",
+    "imakefile",
+    "ini",
+    "java",
+    "js",
+    "lex",
+    "mak",
+    "masm",
+    "phpscript",
+    "powershell",
     "py",
     "rexx",
-    "rc", 
-    "rul", 
-    "tcl", 
-    "s", 
-    "unixasm", 
-    "vbs", 
-    "xhtml", 
-    "xml", 
-    "xmldoc", 
-    "xsd", 
+    "rc",
+    "rul",
+    "tcl",
+    "s",
+    "unixasm",
+    "vbs",
+    "xhtml",
+    "xml",
+    "xmldoc",
+    "xsd",
     "yacc"
 };
 
@@ -3384,7 +3384,7 @@ using se.lang.api.LanguageSettings;
  */
 _command void kdev_load_settings()
 {
-    typeless nt1; 
+    typeless nt1;
     typeless nt2;
     typeless nt3;
     typeless nt4;
@@ -3491,6 +3491,8 @@ _command void kdev_load_settings()
         LanguageSettings.setIndentWithTabs(sLangId,          false);
         LanguageSettings.setUseAdaptiveFormatting(sLangId,   true);
         LanguageSettings.setSaveStripTrailingSpaces(sLangId, STSO_STRIP_MODIFIED);
+        LanguageSettings.setTabs(sLangId, "8+");
+        LanguageSettings.setSyntaxIndent(sLangId, 4);
 
         /* C/C++ setup, wrap at column 80 not 64. */
         sTmp = LanguageSettings.getCommentWrapOptions(sLangId);
@@ -3507,6 +3509,7 @@ _command void kdev_load_settings()
     }
     LanguageSettings.setIndentWithTabs('mak', true);
     LanguageSettings.setLexerName('mak', 'kmk');
+    LanguageSettings.setSyntaxIndent('mak', 8);
 
     /* Fix .asm and add .mac and .kmk. */
     replace_def_data("def-lang-for-ext-asm",'masm');
