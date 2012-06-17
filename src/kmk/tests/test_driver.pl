@@ -6,7 +6,8 @@
 # Modified 92-02-11 through 92-02-22 by Chris Arthur to further generalize.
 #
 # Copyright (C) 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-# 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+# 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free Software
+# Foundation, Inc.
 # This file is part of GNU Make.
 #
 # GNU Make is free software; you can redistribute it and/or modify it under
@@ -29,7 +30,7 @@
 # this routine controls the whole mess; each test suite sets up a few
 # variables and then calls &toplevel, which does all the real work.
 
-# $Id: test_driver.pl,v 1.24 2007/11/04 21:54:02 psmith Exp $
+# $Id: test_driver.pl,v 1.30 2010/07/28 05:39:50 psmith Exp $
 
 
 # The number of test categories we've run
@@ -53,6 +54,8 @@ $test_passed = 1;
 # Timeout in seconds.  If the test takes longer than this we'll fail it.
 $test_timeout = 5;
 
+# Path to Perl
+$perl_name = $^X;
 
 # %makeENV is the cleaned-out environment.
 %makeENV = ();
@@ -238,8 +241,9 @@ sub toplevel
 sub get_osname
 {
   # Set up an initial value.  In perl5 we can do it the easy way.
-  #
   $osname = defined($^O) ? $^O : '';
+
+  # Find a path to Perl
 
   # See if the filesystem supports long file names with multiple
   # dots.  DOS doesn't.
@@ -275,14 +279,14 @@ sub get_osname
     eval "chop (\$osname = `sh -c 'uname -nmsr 2>&1'`)";
     if ($osname =~ /not found/i)
     {
-	$osname = "(something unixy with no uname)";
+	$osname = "(something posixy with no uname)";
     }
     elsif ($@ ne "" || $?)
     {
         eval "chop (\$osname = `sh -c 'uname -a 2>&1'`)";
         if ($@ ne "" || $?)
         {
-	    $osname = "(something unixy)";
+	    $osname = "(something posixy)";
 	}
     }
     $vos = 0;
@@ -459,16 +463,19 @@ sub run_each_test
       $logext = 'l';
       $diffext = 'd';
       $baseext = 'b';
+      $runext = 'r';
       $extext = '';
     } else {
       $logext = 'log';
       $diffext = 'diff';
       $baseext = 'base';
+      $runext = 'run';
       $extext = '.';
     }
     $log_filename = "$testpath.$logext";
     $diff_filename = "$testpath.$diffext";
     $base_filename = "$testpath.$baseext";
+    $run_filename = "$testpath.$runext";
     $tmp_filename = "$testpath.$tmpfilesuffix";
 
     &setup_for_test;          # suite-defined
@@ -482,6 +489,7 @@ sub run_each_test
     # Run the actual test!
     $tests_run = 0;
     $tests_passed = 0;
+
     $code = do $perl_testname;
 
     $total_tests_run += $tests_run;
@@ -715,6 +723,7 @@ sub compare_output
     print "DIFFERENT OUTPUT\n" if $debug;
 
     &create_file (&get_basefile, $answer);
+    &create_file (&get_runfile, $command_string);
 
     print "\nCreating Difference File ...\n" if $debug;
 
@@ -722,6 +731,8 @@ sub compare_output
 
     local($command) = "diff -c " . &get_basefile . " " . $logfile;
     &run_command_with_output(&get_difffile,$command);
+  } else {
+      &rmfiles ();
   }
 
   $suite_passed = 0;
@@ -815,7 +826,7 @@ sub _run_command
   eval {
       local $SIG{ALRM} = sub { die "timeout\n"; };
       alarm $test_timeout;
-      $code = system @_;
+      $code = system(@_);
       alarm 0;
   };
   if ($@) {
@@ -852,7 +863,7 @@ sub run_command_with_output
 {
   my $filename = shift;
 
-  print "\nrun_command_with_output($filename): @_\n" if $debug;
+  print "\nrun_command_with_output($filename,$runname): @_\n" if $debug;
   &attach_default_output ($filename);
   my $code = _run_command(@_);
   &detach_default_output;
@@ -1223,6 +1234,15 @@ sub get_basefile
 sub get_difffile
 {
   return ($diff_filename . &num_suffix ($num_of_logfiles));
+}
+
+# This subroutine returns a command filename with a number appended
+# to the end corresponding to how many logfiles (and thus command files)
+# have been created in the current running test.
+
+sub get_runfile
+{
+  return ($run_filename . &num_suffix ($num_of_logfiles));
 }
 
 # just like logfile, only a generic tmp filename for use by the test.

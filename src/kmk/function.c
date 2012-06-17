@@ -1,7 +1,7 @@
 /* Builtin function expansion for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -507,23 +507,11 @@ string_glob (char *line)
   struct nameseq *chain;
   unsigned int idx;
 
-#ifndef CONFIG_WITH_ALLOC_CACHES
-  chain = multi_glob (parse_file_seq
-		      (&line, '\0', sizeof (struct nameseq),
-		       /* We do not want parse_file_seq to strip `./'s.
-			  That would break examples like:
-			  $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
-		       0),
-		      sizeof (struct nameseq));
-#else  /* CONFIG_WITH_ALLOC_CACHES */
-  chain = multi_glob (parse_file_seq
-                      (&line, '\0', &nameseq_cache,
-                       /* We do not want parse_file_seq to strip `./'s.
-                          That would break examples like:
-                          $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
-                       0),
-                      &nameseq_cache);
-#endif /* CONFIG_WITH_ALLOC_CACHES */
+  chain = PARSE_FILE_SEQ (&line, struct nameseq, '\0', NULL,
+                          /* We do not want parse_file_seq to strip `./'s.
+                             That would break examples like:
+                             $(patsubst ./%.c,obj/%.o,$(wildcard ./?*.c)).  */
+                          PARSEFS_NOSTRIP|PARSEFS_NOCACHE|PARSEFS_EXISTS);
 
   if (result == 0)
     {
@@ -534,30 +522,26 @@ string_glob (char *line)
   idx = 0;
   while (chain != 0)
     {
-      const char *name = chain->name;
-      unsigned int len = strlen (name);
-
       struct nameseq *next = chain->next;
+      unsigned int len = strlen (chain->name);
+
+      if (idx + len + 1 > length)
+        {
+          length += (len + 1) * 2;
+          result = xrealloc (result, length);
+        }
+      memcpy (&result[idx], chain->name, len);
+      idx += len;
+      result[idx++] = ' ';
+
+      /* Because we used PARSEFS_NOCACHE above, we have to free() NAME.  */
+      free ((char *)chain->name);
 #ifndef CONFIG_WITH_ALLOC_CACHES
       free (chain);
 #else
       alloccache_free (&nameseq_cache, chain);
 #endif
       chain = next;
-
-      /* multi_glob will pass names without globbing metacharacters
-	 through as is, but we want only files that actually exist.  */
-      if (file_exists_p (name))
-	{
-	  if (idx + len + 1 > length)
-	    {
-	      length += (len + 1) * 2;
-	      result = xrealloc (result, length);
-	    }
-	  memcpy (&result[idx], name, len);
-	  idx += len;
-	  result[idx++] = ' ';
-	}
     }
 
   /* Kill the last space and terminate the string.  */
@@ -1338,7 +1322,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
       char *result = 0;
 
       free (var->value);
-      var->value = savestring (p, len);
+      var->value = xstrndup (p, len);
 
       result = allocated_variable_expand (body);
 
@@ -2210,7 +2194,7 @@ int shell_function_pid = 0, shell_function_completed;
 
 
 void
-windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
+windows32_openpipe (int *pipedes, pid_t *pid_p, char **command_argv, char **envp)
 {
   SECURITY_ATTRIBUTES saAttr;
   HANDLE hIn;
@@ -2231,7 +2215,7 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
 		      0,
 		      TRUE,
 		      DUPLICATE_SAME_ACCESS) == FALSE) {
-    fatal (NILF, _("create_child_process: DuplicateHandle(In) failed (e=%ld)\n"),
+    fatal (NILF, _("windows32_openpipe(): DuplicateHandle(In) failed (e=%ld)\n"),
 	   GetLastError());
 
   }
@@ -2242,7 +2226,7 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
 		      0,
 		      TRUE,
 		      DUPLICATE_SAME_ACCESS) == FALSE) {
-    fatal (NILF, _("create_child_process: DuplicateHandle(Err) failed (e=%ld)\n"),
+    fatal (NILF, _("windows32_open_pipe(): DuplicateHandle(Err) failed (e=%ld)\n"),
 	   GetLastError());
   }
 
@@ -2252,23 +2236,26 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
   hProcess = process_init_fd(hIn, hChildOutWr, hErr);
 
   if (!hProcess)
-    fatal (NILF, _("windows32_openpipe (): process_init_fd() failed\n"));
+    fatal (NILF, _("windows32_openpipe(): process_init_fd() failed\n"));
 
   /* make sure that CreateProcess() has Path it needs */
   sync_Path_environment();
+  /* `sync_Path_environment' may realloc `environ', so take note of
+     the new value.  */
+  envp = environ;
 
   if (!process_begin(hProcess, command_argv, envp, command_argv[0], NULL)) {
     /* register process for wait */
     process_register(hProcess);
 
     /* set the pid for returning to caller */
-    *pid_p = (int) hProcess;
+    *pid_p = (pid_t) hProcess;
 
   /* set up to read data from child */
-  pipedes[0] = _open_osfhandle((long) hChildOutRd, O_RDONLY);
+  pipedes[0] = _open_osfhandle((intptr_t) hChildOutRd, O_RDONLY);
 
   /* this will be closed almost right away */
-  pipedes[1] = _open_osfhandle((long) hChildOutWr, O_APPEND);
+  pipedes[1] = _open_osfhandle((intptr_t) hChildOutWr, O_APPEND);
   } else {
     /* reap/cleanup the failed process */
 	process_cleanup(hProcess);
@@ -2283,7 +2270,7 @@ windows32_openpipe (int *pipedes, int *pid_p, char **command_argv, char **envp)
 
     /* set status for return */
     pipedes[0] = pipedes[1] = -1;
-    *pid_p = -1;
+    *pid_p = (pid_t)-1;
   }
 }
 #endif
@@ -2356,7 +2343,7 @@ msdos_openpipe (int* pipedes, int *pidp, char *text)
 #else
 #ifndef _AMIGA
 static char *
-func_shell (char *o, char **argv, const char *funcname UNUSED)
+func_shell (char * volatile o, char **argv, const char *funcname UNUSED)
 {
   char *batch_filename = NULL;
 
@@ -2364,10 +2351,10 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
   FILE *fpipe;
 #endif
   char **command_argv;
-  const char *error_prefix;
+  const char * volatile error_prefix; /* bird: this volatile and the 'o' one, is for shutting up gcc warnings */
   char **envp;
   int pipedes[2];
-  int pid;
+  pid_t pid;
 
 #ifndef __MSDOS__
   /* Construct the argument list.  */
@@ -2457,11 +2444,11 @@ func_shell (char *o, char **argv, const char *funcname UNUSED)
       free (command_argv[0]);
       free (command_argv);
 
-      /* Close the write side of the pipe.  */
-# ifdef _MSC_VER /* Avoid annoying msvcrt when debugging. (bird) */
-      if (pipedes[1] != -1)
-# endif
-      close (pipedes[1]);
+      /* Close the write side of the pipe.  We test for -1, since
+	 pipedes[1] is -1 on MS-Windows, and some versions of MS
+	 libraries barf when `close' is called with -1.  */
+      if (pipedes[1] >= 0)
+	close (pipedes[1]);
 #endif
 
       /* Set up and read from the pipe.  */
@@ -3424,6 +3411,14 @@ func_defined (char *o, char **argv, const char *funcname UNUSED)
 #endif /* CONFIG_WITH_DEFINED*/
 
 
+#ifdef HAVE_DOS_PATHS
+#define IS_ABSOLUTE(n) (n[0] && n[1] == ':')
+#define ROOT_LEN 3
+#else
+#define IS_ABSOLUTE(n) (n[0] == '/')
+#define ROOT_LEN 1
+#endif
+
 /* Return the absolute name of file NAME which does not contain any `.',
    `..' components nor any repeated path separators ('/').   */
 #ifdef KMK
@@ -3435,6 +3430,7 @@ abspath (const char *name, char *apath)
 {
   char *dest;
   const char *start, *end, *apath_limit;
+  unsigned long root_len = ROOT_LEN;
 
   if (name[0] == '\0' || apath == NULL)
     return NULL;
@@ -3461,18 +3457,7 @@ abspath (const char *name, char *apath)
 #else /* !WINDOWS32 && !__OS2__ */
   apath_limit = apath + GET_PATH_MAX;
 
-#ifdef HAVE_DOS_PATHS /* bird added this */
-  if (isalpha(name[0]) && name[1] == ':')
-    {
-      /* drive spec */
-      apath[0] = toupper(name[0]);
-      apath[1] = ':';
-      apath[2] = '/';
-      name += 2;
-    }
-  else
-#endif /* HAVE_DOS_PATHS */
-  if (name[0] != '/')
+  if (!IS_ABSOLUTE(name))
     {
       /* It is unlikely we would make it until here but just to make sure. */
       if (!starting_directory)
@@ -3480,12 +3465,47 @@ abspath (const char *name, char *apath)
 
       strcpy (apath, starting_directory);
 
+#ifdef HAVE_DOS_PATHS
+      if (IS_PATHSEP(name[0]))
+	{
+	  if (IS_PATHSEP(name[1]))
+	    {
+	      /* A UNC.  Don't prepend a drive letter.  */
+	      apath[0] = name[0];
+	      apath[1] = name[1];
+	      root_len = 2;
+	    }
+	  /* We have /foo, an absolute file name except for the drive
+	     letter.  Assume the missing drive letter is the current
+	     drive, which we can get if we remove from starting_directory
+	     everything past the root directory.  */
+	  apath[root_len] = '\0';
+	}
+#endif
+
       dest = strchr (apath, '\0');
     }
   else
     {
-      apath[0] = '/';
-      dest = apath + 1;
+      strncpy (apath, name, root_len);
+      apath[root_len] = '\0';
+      dest = apath + root_len;
+      /* Get past the root, since we already copied it.  */
+      name += root_len;
+#ifdef HAVE_DOS_PATHS
+      if (!IS_PATHSEP(apath[2]))
+	{
+	  /* Convert d:foo into d:./foo and increase root_len.  */
+	  apath[2] = '.';
+	  apath[3] = '/';
+	  dest++;
+	  root_len++;
+	  /* strncpy above copied one character too many.  */
+	  name--;
+	}
+      else
+	apath[2] = '/';	/* make sure it's a forward slash */
+#endif
     }
 
   for (start = end = name; *start != '\0'; start = end)
@@ -3493,11 +3513,11 @@ abspath (const char *name, char *apath)
       unsigned long len;
 
       /* Skip sequence of multiple path-separators.  */
-      while (*start == '/')
+      while (IS_PATHSEP(*start))
 	++start;
 
       /* Find end of path component.  */
-      for (end = start; *end != '\0' && *end != '/'; ++end)
+      for (end = start; *end != '\0' && !IS_PATHSEP(*end); ++end)
         ;
 
       len = end - start;
@@ -3509,12 +3529,12 @@ abspath (const char *name, char *apath)
       else if (len == 2 && start[0] == '.' && start[1] == '.')
 	{
 	  /* Back up to previous component, ignore if at root already.  */
-	  if (dest > apath + 1)
-	    while ((--dest)[-1] != '/');
+	  if (dest > apath + root_len)
+	    for (--dest; !IS_PATHSEP(dest[-1]); --dest);
 	}
       else
 	{
-	  if (dest[-1] != '/')
+	  if (!IS_PATHSEP(dest[-1]))
             *dest++ = '/';
 
 	  if (dest + len >= apath_limit)
@@ -3528,11 +3548,7 @@ abspath (const char *name, char *apath)
 #endif /* !WINDOWS32 && !__OS2__ */
 
   /* Unless it is root strip trailing separator.  */
-#ifdef HAVE_DOS_PATHS /* bird (is this correct? what about UNC?) */
-  if (dest > apath + 1 + (apath[0] != '/') && dest[-1] == '/')
-#else
-  if (dest > apath + 1 && dest[-1] == '/')
-#endif
+  if (dest > apath + root_len && IS_PATHSEP(dest[-1]))
     --dest;
 
   *dest = '\0';
@@ -3549,6 +3565,9 @@ func_realpath (char *o, char **argv, const char *funcname UNUSED)
   const char *path = 0;
   int doneany = 0;
   unsigned int len = 0;
+#ifndef HAVE_REALPATH
+  struct stat st;
+#endif
   PATH_VAR (in);
   PATH_VAR (out);
 
@@ -3563,7 +3582,7 @@ func_realpath (char *o, char **argv, const char *funcname UNUSED)
 #ifdef HAVE_REALPATH
               realpath (in, out)
 #else
-              abspath (in, out)
+              abspath (in, out) && stat (out, &st) == 0
 #endif
              )
             {

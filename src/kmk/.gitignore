@@ -13,6 +13,7 @@
 /stamp-*
 /makebook*
 /.*gdbinit
+/.gdb_history
 /*.dep
 /*.dvi
 /*.toc
@@ -33,6 +34,7 @@
 /README
 /README.DOS
 /README.W32
+/README.OS2
 /aclocal.m4
 /autom4te.cache
 /config.h.in
@@ -56,6 +58,8 @@
 /make
 /.deps
 /.dep_segment
+/ID
+/TAGS
 /_*
 /sun4
 /i386
@@ -74,3 +78,4 @@
 /customs
 /install-sh
 /mkinstalldirs
+/.directive.asc

@@ -1,5 +1,6 @@
 /Makefile
 /Makefile.in
+/version.texi
 /fdl.texi
 /make-stds.texi
 /texinfo.tex
@@ -19,3 +20,4 @@
 /make.dvi
 /make.ps
 /make.pdf
+/stamp-vti

@@ -3,8 +3,8 @@
 @setfilename make.info
 
 @include version.texi
-@set EDITION 0.70
-@set RCSID $Id: make.texi,v 1.52 2008/05/18 15:11:40 psmith Exp $
+@set EDITION 0.71
+@set RCSID $Id: make.texi,v 1.66 2010/07/19 07:10:54 psmith Exp $
 
 @settitle GNU @code{make}
 @setchapternewpage odd
@@ -13,8 +13,8 @@
 @c Combine the program and concept indices:
 @syncodeindex pg cp
 @c FSF publishers: format makebook.texi instead of using this file directly.
-@c ISBN provided by Lisa M. Opus Goldstein <opus@gnu.org>, 5 May 2004
-@set ISBN 1-882114-83-5
+@c ISBN confirmed by Jasimin Huang <jasimin@fsf.org> on 25 Mar 2009
+@set ISBN 1-882114-83-3
 @c %**end of header
 
 @copying
@@ -26,8 +26,8 @@ This is Edition @value{EDITION}, last updated @value{UPDATED},
 of @cite{The GNU Make Manual}, for GNU @code{make} version @value{VERSION}.
 
 Copyright @copyright{} 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
-1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006, 2007
-Free Software Foundation, Inc.
+1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004, 2005, 2006, 2007,
+2008, 2009, 2010 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -38,8 +38,8 @@ and with the Back-Cover Texts as in (a) below.  A copy of the
 license is included in the section entitled ``GNU Free Documentation
 License.''
 
-(a) The FSF's Back-Cover Text is: ``You are free to copy and modify
-this GNU Manual. Buying copies from GNU Press supports the FSF in
+(a) The FSF's Back-Cover Text is: ``You have the freedom to copy and
+modify this GNU manual.  Buying copies from the FSF supports it in
 developing GNU and promoting software freedom.''
 @end quotation
 @end copying
@@ -201,7 +201,7 @@ Writing Recipes in Rules
 * Errors::                      What happens after a recipe execution error.
 * Interrupts::                  What happens when a recipe is interrupted.
 * Recursion::                   Invoking @code{make} from makefiles.
-* Sequences::                   Defining canned recipes.
+* Canned Recipes::              Defining canned recipes.
 * Empty Recipes::               Defining useful, do-nothing recipes.
 
 Recipe Syntax
@@ -233,13 +233,14 @@ How to Use Variables
                                   of a variable.
 * Override Directive::          How to set a variable in the makefile even if
                                   the user has set it with a command argument.
-* Defining::                    An alternate way to set a variable
-                                  to a verbatim string.
+* Multi-Line::                  An alternate way to set a variable
+                                  to a multi-line string.
 * Environment::                 Variable values can come from the environment.
 * Target-specific::             Variable values can be defined on a per-target
                                   basis.
 * Pattern-specific::            Target-specific variable values can be applied
                                   to a group of targets that match a pattern.
+* Suppressing Inheritance::     Suppress inheritance of variables.
 * Special Variables::           Variables with special meaning or behavior.
 
 Advanced Features for Reference to Variables
@@ -523,13 +524,13 @@ A @dfn{prerequisite} is a file that is used as input to create the
 target.  A target often depends on several files.
 
 @cindex tabs in rules
-A @dfn{recipe} is an action that @code{make} carries out.
-A recipe may have more than one command, each on its own line.
-@strong{Please note:} you need to put a tab character at the beginning of
-every command line!  This is an obscurity that catches the unwary.  If
-you prefer to prefix your recipes with a character other than tab,
-you can set the @code{.CMDPREFIX} variable to an alternate character
-(@pxref{Special Variables}).
+A @dfn{recipe} is an action that @code{make} carries out.  A recipe
+may have more than one command, either on the same line or each on its
+own line.  @strong{Please note:} you need to put a tab character at
+the beginning of every recipe line!  This is an obscurity that catches
+the unwary.  If you prefer to prefix your recipes with a character
+other than tab, you can set the @code{.RECIPEPREFIX} variable to an
+alternate character (@pxref{Special Variables}).
 
 Usually a recipe is in a rule with prerequisites and serves to create a
 target file if any of the prerequisites change.  However, the rule that
@@ -628,13 +629,13 @@ on the header file @file{defs.h}.
 A recipe may follow each line that contains a target and
 prerequisites.  These recipes say how to update the target file.  A
 tab character (or whatever character is specified by the
-@code{.CMDPREFIX} variable; @pxref{Special Variables}) must come at
+@code{.RECIPEPREFIX} variable; @pxref{Special Variables}) must come at
 the beginning of every line in the recipe to distinguish recipes from
 other lines in the makefile.  (Bear in mind that @code{make} does not
 know anything about how the recipes work.  It is up to you to supply
 recipes that will update the target file properly.  All @code{make}
-does is execute the commands in the recipe you have specified when the
-target file needs to be updated.)@refill
+does is execute the recipe you have specified when the target file
+needs to be updated.)@refill
 @cindex recipe
 
 The target @samp{clean} is not a file, but merely the name of an
@@ -995,7 +996,7 @@ ignore a part of the makefile (@pxref{Conditionals, ,Conditional Parts of Makefi
 
 @item
 Defining a variable from a verbatim string containing multiple lines
-(@pxref{Defining, ,Defining Variables Verbatim}).
+(@pxref{Multi-Line, ,Defining Multi-Line Variables}).
 @end itemize
 
 @cindex comments, in makefile
@@ -1096,7 +1097,7 @@ include @var{filenames}@dots{}
 
 Extra spaces are allowed and ignored at the beginning of the line, but
 the first character must not be a tab (or the value of
-@code{.CMDPREFIX})---if the line begins with a tab, it will be
+@code{.RECIPEPREFIX})---if the line begins with a tab, it will be
 considered a recipe line.  Whitespace is required between
 @code{include} and the file names, and between file names; extra
 whitespace is ignored there and at the end of the directive.  A
@@ -1170,7 +1171,7 @@ Only after it has tried to find a way to remake a makefile and failed,
 will @code{make} diagnose the missing makefile as a fatal error.
 
 If you want @code{make} to simply ignore a makefile which does not exist
-and cannot be remade, with no error message, use the @w{@code{-include}}
+or cannot be remade, with no error message, use the @w{@code{-include}}
 directive instead of @code{include}, like this:
 
 @example
@@ -1178,7 +1179,10 @@ directive instead of @code{include}, like this:
 @end example
 
 This acts like @code{include} in every way except that there is no
-error (not even a warning) if any of the @var{filenames} do not exist.
+error (not even a warning) if any of the @var{filenames} (or any
+prerequisites of any of the @var{filenames}) do not exist or cannot be
+remade.
+
 For compatibility with some other @code{make} implementations,
 @code{sinclude} is another name for @w{@code{-include}}.
 
@@ -1190,11 +1194,12 @@ For compatibility with some other @code{make} implementations,
 @vindex MAKEFILES
 If the environment variable @code{MAKEFILES} is defined, @code{make}
 considers its value as a list of names (separated by whitespace) of
-additional makefiles to be read before the others.  This works much like
-the @code{include} directive: various directories are searched for those
-files (@pxref{Include, ,Including Other Makefiles}).  In addition, the
-default goal is never taken from one of these makefiles and it is not an
-error if the files listed in @code{MAKEFILES} are not found.@refill
+additional makefiles to be read before the others.  This works much
+like the @code{include} directive: various directories are searched
+for those files (@pxref{Include, ,Including Other Makefiles}).  In
+addition, the default goal is never taken from one of these makefiles
+(or any makefile included by them) and it is not an error if the files
+listed in @code{MAKEFILES} are not found.@refill
 
 @cindex recursion, and @code{MAKEFILES} variable
 The main use of @code{MAKEFILES} is in communication between recursive
@@ -1268,7 +1273,7 @@ that it is not an error if @code{make} cannot find or make any makefile;
 a makefile is not always necessary.@refill
 
 When you use the @samp{-t} or @samp{--touch} option
-(@pxref{Instead of Execution, ,Instead of Executing the Recipe}),
+(@pxref{Instead of Execution, ,Instead of Executing Recipes}),
 you would not want to use an out-of-date makefile to decide which
 targets to touch.  So the @samp{-t} option has no effect on updating
 makefiles; they are really updated even if @samp{-t} is specified.
@@ -1386,6 +1391,22 @@ Variable definitions are parsed as follows:
 
 define @var{immediate}
   @var{deferred}
+endef
+
+define @var{immediate} =
+  @var{deferred}
+endef
+
+define @var{immediate} ?=
+  @var{deferred}
+endef
+
+define @var{immediate} :=
+  @var{immediate}
+endef
+
+define @var{immediate} +=
+  @var{deferred} or @var{immediate}
 endef
 @end example
 
@@ -1747,7 +1768,7 @@ target per rule, but occasionally there is a reason to have more
 @cindex recipes
 @cindex tab character (in commands)
 The @var{recipe} lines start with a tab character (or the first
-character in the value of the @code{.CMDPREFIX} variable;
+character in the value of the @code{.RECIPEPREFIX} variable;
 @pxref{Special Variables}).  The first recipe line may appear on the line
 after the prerequisites, with a tab character, or may appear on the
 same line, with a semicolon.  Either way, the effect is the same.
@@ -1801,12 +1822,12 @@ extra features (@pxref{Recipes, ,Writing Recipes in Rules}).
 There are actually two different types of prerequisites understood by
 GNU @code{make}: normal prerequisites such as described in the
 previous section, and @dfn{order-only} prerequisites.  A normal
-prerequisite makes two statements: first, it imposes an order of
-execution of recipes: any recipes necessary to build any of a
-target's prerequisites will be fully executed before any recipe
-necessary to build the target.  Second, it imposes a dependency
-relationship: if any prerequisite is newer than the target, then the
-target is considered out-of-date and must be rebuilt.
+prerequisite makes two statements: first, it imposes an order in which
+recipes will be invoked: the recipes for all prerequisites of a target
+will be completed before the recipe for the target is run.  Second, it
+imposes a dependency relationship: if any prerequisite is newer than
+the target, then the target is considered out-of-date and must be
+rebuilt.
 
 Normally, this is exactly what you want: if a target's prerequisite is
 updated, then the target should also be updated.
@@ -1948,9 +1969,11 @@ objects = *.o
 
 @noindent
 then the value of the variable @code{objects} is the actual string
-@samp{*.o}.  However, if you use the value of @code{objects} in a target,
-prerequisite, or recipe, wildcard expansion will take place at that time.
-To set @code{objects} to the expansion, instead use:
+@samp{*.o}.  However, if you use the value of @code{objects} in a
+target or prerequisite, wildcard expansion will take place there.  If
+you use the value of @code{objects} in a recipe, the shell may perform
+wildcard expansion when the recipe runs.  To set @code{objects} to the
+expansion, instead use:
 
 @example
 objects := $(wildcard *.o)
@@ -2402,16 +2425,14 @@ file, and the @emph{file name} of a library generally looks like
 @file{lib@var{name}.a}, not like @samp{-l@var{name}}.)@refill
 
 When a prerequisite's name has the form @samp{-l@var{name}}, @code{make}
-handles it specially by searching for the file @file{lib@var{name}.so} in
-the current directory, in directories specified by matching @code{vpath}
+handles it specially by searching for the file @file{lib@var{name}.so},
+and, if it is not found, for the file @file{lib@var{name}.a} in the current
+directory, in directories specified by matching @code{vpath}
 search paths and the @code{VPATH} search path, and then in the
 directories @file{/lib}, @file{/usr/lib}, and @file{@var{prefix}/lib}
 (normally @file{/usr/local/lib}, but MS-DOS/MS-Windows versions of
 @code{make} behave as if @var{prefix} is defined to be the root of the
 DJGPP installation tree).
-
-If that file is not found, then the file @file{lib@var{name}.a} is
-searched for, in the same directories as above.
 
 For example, if there is a @file{/usr/lib/libcurses.a} library on your
 system (and no @file{/usr/lib/libcurses.so} file), then
@@ -2434,8 +2455,7 @@ via the @code{.LIBPATTERNS} variable.  Each word in the value of this
 variable is a pattern string.  When a prerequisite like
 @samp{-l@var{name}} is seen, @code{make} will replace the percent in
 each pattern in the list with @var{name} and perform the above directory
-searches using that library filename.  If no library is found, the next
-word in the list will be used.
+searches using each library filename.
 
 The default value for @code{.LIBPATTERNS} is @samp{lib%.so lib%.a},
 which provides the default behavior described above.
@@ -2853,6 +2873,30 @@ of @code{make} will be run serially, even if the @samp{-j} option is
 given.  Any recursively invoked @code{make} command will still run
 recipes in parallel (unless its makefile also contains this target).
 Any prerequisites on this target are ignored.
+
+@findex .ONESHELL
+@item .ONESHELL
+@cindex recipe execution, single invocation
+
+If @code{.ONESHELL} is mentioned as a target, then when a target is
+built all lines of the recipe will be given to a single invocation of
+the shell rather than each line being invoked separately
+(@pxref{Execution, ,Recipe Execution}).
+
+@findex .POSIX
+@item .POSIX
+@cindex POSIX-conforming mode, setting
+
+If @code{.POSIX} is mentioned as a target, then the makefile will be
+parsed and run in POSIX-conforming mode.  This does @emph{not} mean
+that only POSIX-conforming makefiles will be accepted: all advanced
+GNU @code{make} features are still available.  Rather, this target
+causes @code{make} to behave as required by POSIX in those areas
+where @code{make}'s default behavior differs.
+
+In particular, if this target is mentioned then recipes will be
+invoked as if the shell had been passed the @code{-e} flag: the first
+failing command in a recipe will cause the recipe to fail immediately.
 @end table
 
 Any defined implicit rule suffix also counts as a special target if it
@@ -3167,9 +3211,11 @@ to precisely the targets specified.
 @cindex multiple rules for one target (@code{::})
 @cindex @code{::} rules (double-colon)
 
-@dfn{Double-colon} rules are rules written with @samp{::} instead of
-@samp{:} after the target names.  They are handled differently from
-ordinary rules when the same target appears in more than one rule.
+@dfn{Double-colon} rules are explicit rules written with @samp{::}
+instead of @samp{:} after the target names.  They are handled
+differently from ordinary rules when the same target appears in more
+than one rule.  Pattern rules with double-colons have an entirely
+different meaning (@pxref{Match-Anything Rules}).
 
 When a target appears in multiple rules, all the rules must be the same
 type: all ordinary, or all double-colon.  If they are double-colon, each
@@ -3350,7 +3396,7 @@ brought up to date.
 
 Users use many different shell programs, but recipes in makefiles are
 always interpreted by @file{/bin/sh} unless the makefile specifies
-otherwise.  @xref{Execution, ,Command Execution}.
+otherwise.  @xref{Execution, ,Recipe Execution}.
 
 @menu
 * Recipe Syntax::               Recipe syntax features and pitfalls.
@@ -3360,7 +3406,7 @@ otherwise.  @xref{Execution, ,Command Execution}.
 * Errors::                      What happens after a recipe execution error.
 * Interrupts::                  What happens when a recipe is interrupted.
 * Recursion::                   Invoking @code{make} from makefiles.
-* Sequences::                   Defining canned recipes.
+* Canned Recipes::              Defining canned recipes.
 * Empty Recipes::               Defining useful, do-nothing recipes.
 @end menu
 
@@ -3378,7 +3424,7 @@ syntax: it performs only a very few specific translations on the
 content of the recipe before handing it to the shell.
 
 Each line in the recipe must start with a tab (or the first character
-in the value of the @code{.CMDPREFIX} variable; @pxref{Special
+in the value of the @code{.RECIPEPREFIX} variable; @pxref{Special
 Variables}), except that the first recipe line may be attached to the
 target-and-prerequisites line with a semicolon in between.  @emph{Any}
 line in the makefile that begins with a tab and appears in a ``rule
@@ -3628,12 +3674,12 @@ the makefile:
 @cindex @code{--just-print}
 @cindex @code{--dry-run}
 @cindex @code{--recon}
-When @code{make} is given the flag @samp{-n} or @samp{--just-print}
-it only echoes recipes, it won't execute them.  @xref{Options Summary,
-,Summary of Options}.  In this case and only this case, even the
-recipe lines starting with @samp{@@} are printed.  This flag is useful for
-finding out which recipes @code{make} thinks are necessary without
-actually doing them.
+When @code{make} is given the flag @samp{-n} or @samp{--just-print} it
+only echoes most recipes, without executing them.  @xref{Options
+Summary, ,Summary of Options}.  In this case even the recipe lines
+starting with @samp{@@} are printed.  This flag is useful for finding
+out which recipes @code{make} thinks are necessary without actually
+doing them.
 
 @cindex @code{-s}
 @cindex @code{--silent}
@@ -3653,9 +3699,10 @@ started with @samp{@@}.  A rule in the makefile for the special target
 @vindex @code{SHELL} @r{(recipe execution)}
 
 When it is time to execute recipes to update a target, they are
-executed by invoking a new subshell for each line of the recipe.  (In
-practice, @code{make} may take shortcuts that do not affect the
-results.)
+executed by invoking a new subshell for each line of the recipe,
+unless the @code{.ONESHELL} special target is in effect
+(@pxref{One Shell, ,Using One Shell})  (In practice, @code{make} may
+take shortcuts that do not affect the results.)
 
 @cindex @code{cd} (shell command)
 @cindex shell variables, setting in recipes
@@ -3683,19 +3730,126 @@ problems (in this case it would certainly cause @file{../foo} to be
 truncated, at least).
 
 @menu
+* One Shell::                   One shell for all lines in a recipe
 * Choosing the Shell::          How @code{make} chooses the shell used
                                   to run recipes.
 @end menu
 
-@node Choosing the Shell,  , Execution, Execution
+@node One Shell, Choosing the Shell, Execution, Execution
+@subsection Using One Shell
+@cindex recipe lines, single shell
+@cindex @code{.ONESHELL}, use of
+@findex .ONESHELL
+
+Sometimes you would prefer that all the lines in the recipe be passed
+to a single invocation of the shell.  There are generally two
+situations where this is useful: first, it can improve performance in
+makefiles where recipes consist of many command lines, by avoiding
+extra processes.  Second, you might want newlines to be included in
+your recipe command (for example perhaps you are using a very
+different interpreter as your @code{SHELL}).  If the @code{.ONESHELL}
+special target appears anywhere in the makefile then @emph{all}
+recipe lines for each target will be provided to a single invocation
+of the shell.  Newlines between recipe lines will be preserved.  For
+example:
+
+@example
+.ONESHELL:
+foo : bar/lose
+        cd $(@@D)
+        gobble $(@@F) > ../$@@
+@end example
+
+@noindent
+would now work as expected even though the commands are on different
+recipe lines.
+
+If @code{.ONESHELL} is provided, then only the first line of the
+recipe will be checked for the special prefix characters (@samp{@@},
+@samp{-}, and @samp{+}).  Subsequent lines will include the special
+characters in the recipe line when the @code{SHELL} is invoked.  If
+you want your recipe to start with one of these special characters
+you'll need to arrange for them to not be the first characters on the
+first line, perhaps by adding a comment or similar.  For example, this
+would be a syntax error in Perl because the first @samp{@@} is removed
+by make:
+
+@example
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        @@f = qw(a b c);
+        print "@@f\n";
+@end example
+
+@noindent
+However, either of these alternatives would work properly:
+
+@example
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        # Make sure "@@" is not the first character on the first line
+        @@f = qw(a b c);
+        print "@@f\n";
+@end example
+
+@noindent
+or
+
+@example
+.ONESHELL:
+SHELL = /usr/bin/perl
+.SHELLFLAGS = -e
+show :
+        my @@f = qw(a b c);
+        print "@@f\n";
+@end example
+
+As a special feature, if @code{SHELL} is determined to be a
+POSIX-style shell, the special prefix characters in ``internal''
+recipe lines will @emph{removed} before the recipe is processed.  This
+feature is intended to allow existing makefiles to add the
+@code{.ONESHELL} special target and still run properly without
+extensive modifications.  Since the special prefix characters are not
+legal at the beginning of a line in a POSIX shell script this is not a
+loss in functionality.  For example, this works as expected:
+
+@example
+.ONESHELL:
+foo : bar/lose
+        @@cd $(@@D)
+        @@gobble $(@@F) > ../$@@
+@end example
+
+Even with this special feature, however, makefiles with
+@code{.ONESHELL} will behave differently in ways that could be
+noticeable.  For example, normally if any line in the recipe fails,
+that causes the rule to fail and no more recipe lines are processed.
+Under @code{.ONESHELL} a failure of any but the final recipe line will
+not be noticed by @code{make}.  You can modify @code{.SHELLFLAGS} to
+add the @code{-e} option to the shell which will cause any failure
+anywhere in the command line to cause the shell to fail, but this
+could itself cause your recipe to behave differently.  Ultimately you
+may need to harden your recipe lines to allow them to work with
+@code{.ONESHELL}.
+
+@node Choosing the Shell,  , One Shell, Execution
 @subsection Choosing the Shell
 @cindex shell, choosing the
 @cindex @code{SHELL}, value of
+@cindex @code{.SHELLFLAGS}, value of
 
 @vindex SHELL
+@vindex .SHELLFLAGS
 The program used as the shell is taken from the variable @code{SHELL}.
 If this variable is not set in your makefile, the program
-@file{/bin/sh} is used as the shell.
+@file{/bin/sh} is used as the shell.  The argument(s) passed to the
+shell are taken from the variable @code{.SHELLFLAGS}.  The default
+value of @code{.SHELLFLAGS} is @code{-c} normally, or @code{-ec} in
+POSIX-conforming mode.
 
 @cindex environment, @code{SHELL} in
 Unlike most variables, the variable @code{SHELL} is never set from the
@@ -3785,6 +3939,9 @@ The effect of the above DOS-specific processing is that a Makefile that
 contains @samp{SHELL = /bin/sh} (as many Unix makefiles do), will work
 on MS-DOS unaltered if you have e.g.@: @file{sh.exe} installed in some
 directory along your @code{PATH}.
+
+@vindex SHELL
+@vindex .SHELLFLAGS
 
 @node Parallel, Errors, Execution, Recipes
 @section Parallel Execution
@@ -4013,7 +4170,7 @@ target is updated in some atomic fashion, or exists only to record a
 modification-time (its contents do not matter), or must exist at all
 times to prevent other sorts of trouble.
 
-@node Recursion, Sequences, Interrupts, Recipes
+@node Recursion, Canned Recipes, Interrupts, Recipes
 @section Recursive Use of @code{make}
 @cindex recursion
 @cindex subdirectories, recursion for
@@ -4359,7 +4516,7 @@ supports it (most any UNIX system will; others typically won't), the
 parent @code{make} and all the sub-@code{make}s will communicate to
 ensure that there are only @samp{N} jobs running at the same time
 between them all.  Note that any job that is marked recursive
-(@pxref{Instead of Execution, ,Instead of Executing the Recipes})
+(@pxref{Instead of Execution, ,Instead of Executing Recipes})
 doesn't count against the total jobs (otherwise we could get @samp{N}
 sub-@code{make}s running and have no slots left over for any real work!)
 
@@ -4495,7 +4652,7 @@ automatically turn on @samp{-w} if you also use @samp{-s}, which says to
 be silent, or if you use @samp{--no-print-directory} to explicitly
 disable it.
 
-@node Sequences, Empty Recipes, Recursion, Recipes
+@node Canned Recipes, Empty Recipes, Recursion, Recipes
 @section Defining Canned Recipes
 @cindex canned recipes
 @cindex recipes, canned
@@ -4508,10 +4665,10 @@ directive, and refer to the canned sequence from the recipes for those
 targets.  The canned sequence is actually a variable, so the name must
 not conflict with other variable names.
 
-Here is an example of defining a canned recipes:
+Here is an example of defining a canned recipe:
 
 @example
-define run-yacc
+define run-yacc =
 yacc $(firstword $^)
 mv y.tab.c $@@
 endef
@@ -4525,7 +4682,7 @@ commands.  The @code{define} directive does not expand variable references
 and function calls in the canned sequence; the @samp{$} characters,
 parentheses, variable names, and so on, all become part of the value of the
 variable you are defining.
-@xref{Defining, ,Defining Variables Verbatim},
+@xref{Multi-Line, ,Defining Multi-Line Variables},
 for a complete explanation of @code{define}.
 
 The first command in this example runs Yacc on the first prerequisite of
@@ -4566,7 +4723,7 @@ can use the special prefix characters that affect command lines
 For example, using this canned sequence:
 
 @example
-define frobnicate
+define frobnicate =
 @@echo "frobnicating target $@@"
 frob-step-1 $< -o $@@-step-1
 frob-step-2 $@@-step-1 -o $@@
@@ -4589,7 +4746,7 @@ frob.out: frob.in
 does not echo @emph{any} recipe lines.
 (@xref{Echoing, ,Recipe Echoing}, for a full explanation of @samp{@@}.)
 
-@node Empty Recipes,  , Sequences, Recipes
+@node Empty Recipes,  , Canned Recipes, Recipes
 @section Using Empty Recipes
 @cindex empty recipes
 @cindex recipes, empty
@@ -4684,13 +4841,16 @@ they have particular specialized uses.  @xref{Automatic Variables}.
                                   of a variable.
 * Override Directive::          How to set a variable in the makefile even if
                                   the user has set it with a command argument.
-* Defining::                    An alternate way to set a variable
-                                  to a verbatim string.
+* Multi-Line::                  An alternate way to set a variable
+                                  to a multi-line string.
+* Undefine Directive::          How to undefine a variable so that it appears
+                                  as if it was never set.
 * Environment::                 Variable values can come from the environment.
 * Target-specific::             Variable values can be defined on a per-target
                                   basis.
 * Pattern-specific::            Target-specific variable values can be applied
                                   to a group of targets that match a pattern.
+* Suppressing Inheritance::     Suppress inheritance of variables.
 * Special Variables::           Variables with special meaning or behavior.
 @end menu
 
@@ -4760,7 +4920,7 @@ distinguished in how they are defined and in what they do when expanded.
 The first flavor of variable is a @dfn{recursively expanded} variable.
 Variables of this sort are defined by lines using @samp{=}
 (@pxref{Setting, ,Setting Variables}) or by the @code{define} directive
-(@pxref{Defining, ,Defining Variables Verbatim}).  The value you specify
+(@pxref{Multi-Line, ,Defining Multi-Line Variables}).  The value you specify
 is installed verbatim; if it contains references to other variables,
 these references are expanded whenever this variable is substituted (in
 the course of expanding some other string).  When this happens, it is
@@ -5187,7 +5347,7 @@ variable assignment, or in a @code{define} directive, as in:
 @example
 dir = foo
 $(dir)_sources := $(wildcard $(dir)/*.c)
-define $(dir)_print
+define $(dir)_print =
 lpr $($(dir)_sources)
 endef
 @end example
@@ -5216,7 +5376,7 @@ You can specify an overriding value when you run @code{make}.
 @item
 You can specify a value in the makefile, either
 with an assignment (@pxref{Setting, ,Setting Variables}) or with a
-verbatim definition (@pxref{Defining, ,Defining Variables Verbatim}).@refill
+verbatim definition (@pxref{Multi-Line, ,Defining Multi-Line Variables}).@refill
 
 @item
 Variables in the environment become @code{make} variables.
@@ -5424,7 +5584,7 @@ the reference to @code{includes}, so if that variable gets defined at
 any later point, a reference like @samp{$(CFLAGS)} still uses its
 value.
 
-@node Override Directive, Defining, Appending, Using Variables
+@node Override Directive, Multi-Line, Appending, Using Variables
 @section The @code{override} Directive
 @findex override
 @cindex overriding with @code{override}
@@ -5457,6 +5617,11 @@ override @var{variable} += @var{more text}
 @noindent
 @xref{Appending, ,Appending More Text to Variables}.
 
+Variable assignments marked with the @code{override} flag have a
+higher priority than all other assignments, except another
+@code{override}.  Subsequent assignments or appends to this variable
+which are not marked @code{override} will be ignored.
+
 The @code{override} directive was not invented for escalation in the war
 between makefiles and command arguments.  It was invented so you can alter
 and add to values that the user specifies with command arguments.
@@ -5474,7 +5639,7 @@ You can also use @code{override} directives with @code{define} directives.
 This is done as you might expect:
 
 @example
-override define foo
+override define foo =
 bar
 endef
 @end example
@@ -5484,43 +5649,52 @@ endef
 See the next section for information about @code{define}.
 @end iftex
 @ifnottex
-@xref{Defining, ,Defining Variables Verbatim}.
+@xref{Multi-Line, ,Defining Multi-Line Variables}.
 @end ifnottex
 
-@node Defining, Environment, Override Directive, Using Variables
-@section Defining Variables Verbatim
+@node Multi-Line, Undefine Directive, Override Directive, Using Variables
+@section Defining Multi-Line Variables
 @findex define
 @findex endef
+@cindex multi-line variable definition
+@cindex variables, multi-line
 @cindex verbatim variable definition
 @cindex defining variables verbatim
 @cindex variables, defining verbatim
 
 Another way to set the value of a variable is to use the @code{define}
 directive.  This directive has an unusual syntax which allows newline
-characters to be included in the value, which is convenient for defining
-both canned sequences of commands
-(@pxref{Sequences, ,Defining Canned Command Sequences}), and also
-sections of makefile syntax to use with @code{eval} (@pxref{Eval Function}).
+characters to be included in the value, which is convenient for
+defining both canned sequences of commands (@pxref{Canned Recipes,
+,Defining Canned Recipes}), and also sections of makefile syntax to
+use with @code{eval} (@pxref{Eval Function}).@refill
 
-The @code{define} directive is followed on the same line by the name of the
-variable and nothing more.  The value to give the variable appears on the
-following lines.  The end of the value is marked by a line containing just
-the word @code{endef}.  Aside from this difference in syntax, @code{define}
-works just like @samp{=}: it creates a recursively-expanded variable
-(@pxref{Flavors, ,The Two Flavors of Variables}).
-The variable name may contain function and variable references, which
-are expanded when the directive is read to find the actual variable name
+The @code{define} directive is followed on the same line by the name
+of the variable being defined and an (optional) assignment operator,
+and nothing more.  The value to give the variable appears on the
+following lines.  The end of the value is marked by a line containing
+just the word @code{endef}.  Aside from this difference in syntax,
+@code{define} works just like any other variable definition.  The
+variable name may contain function and variable references, which are
+expanded when the directive is read to find the actual variable name
 to use.
+
+You may omit the variable assignment operator if you prefer.  If
+omitted, @code{make} assumes it to be @samp{=} and creates a
+recursively-expanded variable (@pxref{Flavors, ,The Two Flavors of Variables}).
+When using a @samp{+=} operator, the value is appended to the previous
+value as with any other append operation: with a single space
+separating the old and new values.
 
 You may nest @code{define} directives: @code{make} will keep track of
 nested directives and report an error if they are not all properly
 closed with @code{endef}.  Note that lines beginning with the recipe
 prefix character are considered part of a recipe, so any @code{define}
 or @code{endef} strings appearing on such a line will not be
-considered @code{make} operators.
+considered @code{make} directives.
 
 @example
-define two-lines
+define two-lines =
 echo foo
 echo $(bar)
 endef
@@ -5550,7 +5724,7 @@ precedence over command-line variable definitions, you can use the
 @code{override} directive together with @code{define}:
 
 @example
-override define two-lines
+override define two-lines =
 foo
 $(bar)
 endef
@@ -5559,7 +5733,42 @@ endef
 @noindent
 @xref{Override Directive, ,The @code{override} Directive}.
 
-@node Environment, Target-specific, Defining, Using Variables
+@node Undefine Directive, Environment, Multi-Line, Using Variables
+@section Undefining Variables
+@findex undefine
+@cindex undefining variable
+
+If you want to clear a variable, setting its value to empty is usually
+sufficient. Expanding such a variable will yield the same result (empty
+string) regardless of whether it was set or not. However, if you are
+using the @code{flavor} (@pxref{Flavor Function}) and
+@code{origin} (@pxref{Origin Function}) functions, there is a difference
+between a variable that was never set and a variable with an empty value.
+In such situations you may want to use the @code{undefine} directive to
+make a variable appear as if it was never set. For example:
+
+@example
+foo := foo
+bar = bar
+
+undefine foo
+undefine bar
+
+$(info $(origin foo))
+$(info $(flavor bar))
+@end example
+
+This example will print ``undefined'' for both variables.
+
+If you want to undefine a command-line variable definition, you can use
+the @code{override} directive together with @code{undefine}, similar to
+how this is done for variable definitions:
+
+@example
+override undefine CFLAGS
+@end example
+
+@node Environment, Target-specific, Undefine Directive, Using Variables
 @section Variables from the Environment
 
 @cindex variables, environment
@@ -5625,19 +5834,9 @@ Set a target-specific variable value like this:
 @var{target} @dots{} : @var{variable-assignment}
 @end example
 
-@noindent
-or like this:
-
-@example
-@var{target} @dots{} : override @var{variable-assignment}
-@end example
-
-@noindent
-or like this:
-
-@example
-@var{target} @dots{} : export @var{variable-assignment}
-@end example
+Target-specific variable assignments can be prefixed with any or all of the
+special keywords @code{export}, @code{override}, or @code{private};
+these apply their normal behavior to this instance of the variable only.
 
 Multiple @var{target} values create a target-specific variable value for
 each member of the target list individually.
@@ -5683,7 +5882,7 @@ will cause that prerequisite to be built and the prerequisite will
 inherit the target-specific value from the first target.  It will
 ignore the target-specific values from any other targets.
 
-@node Pattern-specific, Special Variables, Target-specific, Using Variables
+@node Pattern-specific, Suppressing Inheritance, Target-specific, Using Variables
 @section Pattern-specific Variable Values
 @cindex pattern-specific variables
 @cindex variables, pattern-specific
@@ -5692,27 +5891,13 @@ In addition to target-specific variable values
 (@pxref{Target-specific, ,Target-specific Variable Values}), GNU
 @code{make} supports pattern-specific variable values.  In this form,
 the variable is defined for any target that matches the pattern
-specified.  If a target matches more than one pattern, all the
-matching pattern-specific variables are interpreted in the order in
-which they were defined in the makefile, and collected together into
-one set.  Variables defined in this way are searched after any
-target-specific variables defined explicitly for that target, and
-before target-specific variables defined for the parent target.
+specified.
 
 Set a pattern-specific variable value like this:
 
 @example
 @var{pattern} @dots{} : @var{variable-assignment}
 @end example
-
-@noindent
-or like this:
-
-@example
-@var{pattern} @dots{} : override @var{variable-assignment}
-@end example
-
-@noindent
 where @var{pattern} is a %-pattern.  As with target-specific variable
 values, multiple @var{pattern} values create a pattern-specific variable
 value for each pattern individually.  The @var{variable-assignment} can
@@ -5729,7 +5914,68 @@ For example:
 will assign @code{CFLAGS} the value of @samp{-O} for all targets
 matching the pattern @code{%.o}.
 
-@node Special Variables,  , Pattern-specific, Using Variables
+If a target matches more than one pattern, the matching pattern-specific
+variables with longer stems are interpreted first. This results in more
+specific variables taking precedence over the more generic ones, for
+example:
+
+@example
+%.o: %.c
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@@
+
+lib/%.o: CFLAGS := -fPIC -g
+%.o: CFLAGS := -g
+
+all: foo.o lib/bar.o
+@end example
+
+In this example the first definition of the @code{CFLAGS} variable
+will be used to update @file{lib/bar.o} even though the second one
+also applies to this target. Pattern-specific variables which result
+in the same stem length are considered in the order in which they
+were defined in the makefile.
+
+Pattern-specific variables are searched after any target-specific
+variables defined explicitly for that target, and before target-specific
+variables defined for the parent target.
+
+@node Suppressing Inheritance, Special Variables, Pattern-specific, Using Variables
+@section Suppressing Inheritance
+@findex private
+@cindex suppressing inheritance
+@cindex inheritance, suppressing
+
+As described in previous sections, @code{make} variables are inherited
+by prerequisites.  This capability allows you to modify the behavior
+of a prerequisite based on which targets caused it to be rebuilt.  For
+example, you might set a target-specific variable on a @code{debug}
+target, then running @samp{make debug} will cause that variable to be
+inherited by all prerequisites of @code{debug}, while just running
+@samp{make all} (for example) would not have that assignment.
+
+Sometimes, however, you may not want a variable to be inherited.  For
+these situations, @code{make} provides the @code{private} modifier.
+Although this modifier can be used with any variable assignment, it
+makes the most sense with target- and pattern-specific variables.  Any
+variable marked @code{private} will be visible to its local target but
+will not be inherited by prerequisites of that target.  A global
+variable marked @code{private} will be visible in the global scope but
+will not be inherited by any target, and hence will not be visible
+in any recipe.
+
+As an example, consider this makefile:
+@example
+EXTRA_CFLAGS =
+
+prog: private EXTRA_CFLAGS = -L/usr/local/lib
+prog: a.o b.o
+@end example
+
+Due to the @code{private} modifier, @code{a.o} and @code{b.o} will not
+inherit the @code{EXTRA_CFLAGS} variable assignment from the
+@code{progs} target.
+
+@node Special Variables,  , Suppressing Inheritance, Using Variables
 @comment  node-name,  next,  previous,  up
 @section Other Special Variables
 @cindex makefiles, and special variables
@@ -5833,8 +6079,8 @@ will contain the number of times this instance has restarted.  Note
 this is not the same as recursion (counted by the @code{MAKELEVEL}
 variable).  You should not set, modify, or export this variable.
 
-@vindex .CMDPREFIX @r{(change the recipe prefix character)}
-@item .CMDPREFIX
+@vindex .RECIPEPREFIX @r{(change the recipe prefix character)}
+@item .RECIPEPREFIX
 The first character of the value of this variable is used as the
 character make assumes is introducing a recipe line.  If the variable
 is empty (as it is by default) that character is the standard tab
@@ -5842,13 +6088,13 @@ character.  For example, this is a valid makefile:
 
 @example
 @group
-.CMDPREFIX = >
+.RECIPEPREFIX = >
 all:
 > @@echo Hello, world
 @end group
 @end example
 
-The value of @code{.CMDPREFIX} can be changed multiple times; once set
+The value of @code{.RECIPEPREFIX} can be changed multiple times; once set
 it stays in effect for all rules parsed until it is modified.
 
 @vindex .VARIABLES @r{(list of variables)}
@@ -7174,7 +7420,7 @@ client_LIBS = protocol
 .PHONY: all
 all: $(PROGRAMS)
 
-define PROGRAM_template
+define PROGRAM_template =
  $(1): $$($(1)_OBJS) $$($(1)_LIBS:%=-l%)
  ALL_OBJS   += $$($(1)_OBJS)
 endef
@@ -7227,14 +7473,15 @@ function will return the origin of the later definition.
 
 @item environment
 
-if @var{variable} was defined as an environment variable and the
-@samp{-e} option is @emph{not} turned on (@pxref{Options Summary, ,Summary of Options}).
+if @var{variable} was inherited from the environment provided to
+@code{make}.
 
 @item environment override
 
-if @var{variable} was defined as an environment variable and the
-@w{@samp{-e}} option @emph{is} turned on (@pxref{Options Summary,
-,Summary of Options}).@refill
+if @var{variable} was inherited from the environment provided to
+@code{make}, and is overriding a setting for @var{variable} in the
+makefile as a result of the @w{@samp{-e}} option (@pxref{Options
+Summary, ,Summary of Options}).@refill
 
 @item file
 
@@ -7475,7 +7722,7 @@ It will print messages describing the particular errors.
 @item 1
 The exit status is one if you use the @samp{-q} flag and @code{make}
 determines that some target is not already up to date.
-@xref{Instead of Execution, ,Instead of Executing the Recipes}.
+@xref{Instead of Execution, ,Instead of Executing Recipes}.
 @end table
 
 @menu
@@ -7652,7 +7899,7 @@ Perform self tests on the program this makefile builds.
 @end table
 
 @node Instead of Execution, Avoiding Compilation, Goals, Running
-@section Instead of Executing the Recipes
+@section Instead of Executing Recipes
 @cindex execution, instead of
 @cindex recipes, instead of executing
 
@@ -7672,7 +7919,8 @@ what you want.  Certain options specify other activities for @code{make}.
 @cindex @code{-n}
 
 ``No-op''.  The activity is to print what recipe would be used to make
-the targets up to date, but not actually execute it.
+the targets up to date, but not actually execute it.  Some recipes are
+still executed, even with this flag (@pxref{MAKE Variable, ,How the @code{MAKE} Variable Works}).
 
 @item -t
 @itemx --touch
@@ -7714,7 +7962,7 @@ to see what would happen if you were to modify specific files.@refill
 @end table
 
 With the @samp{-n} flag, @code{make} prints the recipe that it would
-normally execute but does not execute it.
+normally execute but usually does not execute it.
 
 With the @samp{-t} flag, @code{make} ignores the recipes in the rules
 and uses (in effect) the command @code{touch} for each target that needs to
@@ -7740,6 +7988,11 @@ the @samp{+} character or the strings @samp{$(MAKE)} or @samp{$@{MAKE@}}
 is run regardless of these options.  Other lines in the same rule are
 not run unless they too begin with @samp{+} or contain @samp{$(MAKE)} or
 @samp{$@{MAKE@}} (@xref{MAKE Variable, ,How the @code{MAKE} Variable Works}.)
+
+@cindex phony targets and recipe execution
+The @samp{-t} flag prevents phony targets (@pxref{Phony Targets}) from
+being updated, unless there are recipe lines beginning with @samp{+}
+or containing @samp{$(MAKE)} or @samp{$@{MAKE@}}.
 
 The @samp{-W} flag provides two features:
 
@@ -8006,6 +8259,15 @@ Give variables taken from the environment precedence
 over variables from makefiles.
 @xref{Environment, ,Variables from the Environment}.
 
+@item --eval=@var{string}
+@cindex @code{--eval}
+@c Extra blank line here makes the table look better.
+
+Evaluate @var{string} as makefile syntax.  This is a command-line
+version of the @code{eval} function (@pxref{Eval Function}).  The
+evaluation is performed after the default rules and variables have
+been defined, but before any makefiles are read.
+
 @item -f @var{file}
 @cindex @code{-f}
 @itemx --file=@var{file}
@@ -8089,8 +8351,9 @@ links is taken as the modification time for this target file.
 @cindex @code{--recon}
 @c Extra blank line here makes the table look better.
 
-Print the recipe that would be executed, but do not execute it.
-@xref{Instead of Execution, ,Instead of Executing the Recipes}.
+Print the recipe that would be executed, but do not execute it (except
+in certain circumstances).
+@xref{Instead of Execution, ,Instead of Executing Recipes}.
 
 @item -o @var{file}
 @cindex @code{-o}
@@ -8127,7 +8390,7 @@ in complex environments.
 ``Question mode''.  Do not run any recipes, or print anything; just
 return an exit status that is zero if the specified targets are already
 up to date, one if any remaking is required, or two if an error is
-encountered.  @xref{Instead of Execution, ,Instead of Executing the
+encountered.  @xref{Instead of Execution, ,Instead of Executing
 Recipes}.@refill
 
 @item -r
@@ -8189,7 +8452,7 @@ or if you set @samp{-k} in @code{MAKEFLAGS} in your environment.@refill
 Touch files (mark them up to date without really changing them)
 instead of running their recipes.  This is used to pretend that the
 recipes were done, in order to fool future invocations of
-@code{make}.  @xref{Instead of Execution, ,Instead of Executing the Recipes}.
+@code{make}.  @xref{Instead of Execution, ,Instead of Executing Recipes}.
 
 @item -v
 @cindex @code{-v}
@@ -8230,7 +8493,7 @@ to modify that file.  Without @samp{-n}, it is almost the same as
 running a @code{touch} command on the given file before running
 @code{make}, except that the modification time is changed only in the
 imagination of @code{make}.
-@xref{Instead of Execution, ,Instead of Executing the Recipes}.
+@xref{Instead of Execution, ,Instead of Executing Recipes}.
 
 @item --warn-undefined-variables
 @cindex @code{--warn-undefined-variables}
@@ -8420,7 +8683,7 @@ for full details on suffix rules.
 @pindex .o
 @pindex .c
 @file{@var{n}.o} is made automatically from @file{@var{n}.c} with
-a recipe of the form @samp{$(CC) -c $(CPPFLAGS) $(CFLAGS)}.@refill
+a recipe of the form @samp{$(CC) $(CPPFLAGS) $(CFLAGS) -c}.@refill
 
 @item Compiling C++ programs
 @cindex C++, rule to compile
@@ -8430,7 +8693,7 @@ a recipe of the form @samp{$(CC) -c $(CPPFLAGS) $(CFLAGS)}.@refill
 @pindex .C
 @file{@var{n}.o} is made automatically from @file{@var{n}.cc},
 @file{@var{n}.cpp}, or @file{@var{n}.C} with a recipe of the form
-@samp{$(CXX) -c $(CPPFLAGS) $(CXXFLAGS)}.  We encourage you to use the
+@samp{$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c}.  We encourage you to use the
 suffix @samp{.cc} for C++ source files instead of @samp{.C}.@refill
 
 @item Compiling Pascal programs
@@ -8438,7 +8701,7 @@ suffix @samp{.cc} for C++ source files instead of @samp{.C}.@refill
 @pindex pc
 @pindex .p
 @file{@var{n}.o} is made automatically from @file{@var{n}.p}
-with the recipe @samp{$(PC) -c $(PFLAGS)}.@refill
+with the recipe @samp{$(PC) $(PFLAGS) -c}.@refill
 
 @item Compiling Fortran and Ratfor programs
 @cindex Fortran, rule to compile
@@ -8453,11 +8716,11 @@ Fortran compiler.  The precise recipe used is as follows:@refill
 
 @table @samp
 @item .f
-@samp{$(FC) -c $(FFLAGS)}.
+@samp{$(FC) $(FFLAGS) -c}.
 @item .F
-@samp{$(FC) -c $(FFLAGS) $(CPPFLAGS)}.
+@samp{$(FC) $(FFLAGS) $(CPPFLAGS) -c}.
 @item .r
-@samp{$(FC) -c $(FFLAGS) $(RFLAGS)}.
+@samp{$(FC) $(FFLAGS) $(RFLAGS) -c}.
 @end table
 
 @item Preprocessing Fortran and Ratfor programs
@@ -8468,9 +8731,9 @@ program.  The precise recipe used is as follows:@refill
 
 @table @samp
 @item .F
-@samp{$(FC) -F $(CPPFLAGS) $(FFLAGS)}.
+@samp{$(FC) $(CPPFLAGS) $(FFLAGS) -F}.
 @item .r
-@samp{$(FC) -F $(FFLAGS) $(RFLAGS)}.
+@samp{$(FC) $(FFLAGS) $(RFLAGS) -F}.
 @end table
 
 @item Compiling Modula-2 programs
@@ -9065,6 +9328,10 @@ in fact any prerequisites at all.  Such a rule is effectively a general
 wildcard.  It provides a way to make any file that matches the target
 pattern.  @xref{Last Resort}.
 
+More than one pattern rule may match a target.  In this case
+@code{make} will choose the ``best fit'' rule.  @xref{Pattern Match,
+,How Patterns Match}.
+
 @c !!! The end of of this paragraph should be rewritten.  --bob
 Pattern rules may have more than one target.  Unlike normal rules,
 this does not act as many different rules with the same prerequisites
@@ -9079,16 +9346,6 @@ file's recipe is run, the other targets are marked as having been
 updated themselves.
 @cindex multiple targets, in pattern rule
 @cindex target, multiple in pattern rule
-
-The order in which pattern rules appear in the makefile is important
-since this is the order in which they are considered.
-Of equally applicable
-rules, only the first one found is used.  The rules you write take precedence
-over those that are built in.  Note however, that a rule whose
-prerequisites actually exist or are mentioned always takes priority over a
-rule with prerequisites that must be made by chaining other implicit rules.
-@cindex pattern rules, order of
-@cindex order of pattern rules
 
 @node Pattern Examples, Automatic Variables, Pattern Intro, Pattern Rules
 @subsection Pattern Rule Examples
@@ -9401,6 +9658,50 @@ names, the directories from the stem are added at the front, while the
 rest of the stem is substituted for the @samp{%}.  The stem
 @samp{src/a} with a prerequisite pattern @samp{c%r} gives the file name
 @file{src/car}.@refill
+
+@cindex pattern rules, order of
+@cindex order of pattern rules
+A pattern rule can be used to build a given file only if there is a
+target pattern that matches the file name, @emph{and} all
+prerequisites in that rule either exist or can be built.  The rules
+you write take precedence over those that are built in. Note however,
+that a rule whose prerequisites actually exist or are mentioned always
+takes priority over a rule with prerequisites that must be made by
+chaining other implicit rules.
+
+@cindex stem, shortest
+It is possible that more than one pattern rule will meet these
+criteria.  In that case, @code{make} will choose the rule with the
+shortest stem (that is, the pattern that matches most specifically).
+If more than one pattern rule has the shortest stem, @code{make} will
+choose the first one found in the makefile.
+
+This algorithm results in more specific rules being preferred over
+more generic ones; for example:
+
+@example
+%.o: %.c
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@@
+
+%.o : %.f
+        $(COMPILE.F) $(OUTPUT_OPTION) $<
+
+lib/%.o: lib/%.c
+        $(CC) -fPIC -c $(CFLAGS) $(CPPFLAGS) $< -o $@@
+@end example
+
+Given these rules and asked to build @file{bar.o} where both
+@file{bar.c} and @file{bar.f} exist, @code{make} will choose the first
+rule and compile @file{bar.c} into @file{bar.o}.  In the same
+situation where @file{bar.c} does not exist, then @code{make} will
+choose the second rule and compile @file{bar.f} into @file{bar.o}.
+
+If @code{make} is asked to build @file{lib/bar.o} and both
+@file{lib/bar.c} and @file{lib/bar.f} exist, then the third rule will
+be chosen since the stem for this rule (@samp{bar}) is shorter than
+the stem for the first rule (@samp{lib/bar}).  If @file{lib/bar.c}
+does not exist then the third rule is not eligible and the second rule
+will be used, even though the stem is longer.
 
 @node Match-Anything Rules, Canceling Rules, Pattern Match, Pattern Rules
 @subsection Match-Anything Pattern Rules
@@ -10083,7 +10384,7 @@ did.  @xref{Automatic Variables}.  The automatic variable
 @item
 The ``what if'' flag (@samp{-W} in GNU @code{make}) was (as far as we know)
 invented by Andrew Hume in @code{mk}.
-@xref{Instead of Execution, ,Instead of Executing the Recipes}.
+@xref{Instead of Execution, ,Instead of Executing Recipes}.
 
 @item
 The concept of doing several things at once (parallelism) exists in
@@ -10101,7 +10402,7 @@ inspired whom, since GNU @code{make} had @code{patsubst} before SunOS
 
 @item
 The special significance of @samp{+} characters preceding recipe lines
-(@pxref{Instead of Execution, ,Instead of Executing the Recipes}) is
+(@pxref{Instead of Execution, ,Instead of Executing Recipes}) is
 mandated by @cite{IEEE Standard 1003.2-1992} (POSIX.2).
 
 @item
@@ -10146,7 +10447,7 @@ directory.  @xref{Options Summary, ,Summary of Options}.
 
 @item
 Make verbatim variable definitions with @code{define}.
-@xref{Defining, ,Defining Variables Verbatim}.
+@xref{Multi-Line, ,Defining Multi-Line Variables}.
 
 @item
 Declare phony targets with the special target @code{.PHONY}.
@@ -10354,10 +10655,17 @@ Here is a summary of the directives GNU @code{make} recognizes:
 
 @table @code
 @item define @var{variable}
+@itemx define @var{variable} =
+@itemx define @var{variable} :=
+@itemx define @var{variable} +=
+@itemx define @var{variable} ?=
 @itemx endef
+Define multi-line variables.@*
+@xref{Multi-Line}.
 
-Define a multi-line, recursively-expanded variable.@*
-@xref{Sequences}.
+@item undefine @var{variable}
+Undefining variables.@*
+@xref{Undefine Directive}.
 
 @item ifdef @var{variable}
 @itemx ifndef @var{variable}
@@ -10369,42 +10677,34 @@ Define a multi-line, recursively-expanded variable.@*
 @itemx ifneq '@var{a}' '@var{b}'
 @itemx else
 @itemx endif
-
 Conditionally evaluate part of the makefile.@*
 @xref{Conditionals}.
 
 @item include @var{file}
 @itemx -include @var{file}
 @itemx sinclude @var{file}
-
 Include another makefile.@*
 @xref{Include, ,Including Other Makefiles}.
 
-@item override @var{variable} = @var{value}
-@itemx override @var{variable} := @var{value}
-@itemx override @var{variable} += @var{value}
-@itemx override @var{variable} ?= @var{value}
-@itemx override define @var{variable}
-@itemx endef
-
+@item override @var{variable-assignment}
 Define a variable, overriding any previous definition, even one from
 the command line.@*
 @xref{Override Directive, ,The @code{override} Directive}.
 
 @item export
-
 Tell @code{make} to export all variables to child processes by default.@*
 @xref{Variables/Recursion, , Communicating Variables to a Sub-@code{make}}.
 
 @item export @var{variable}
-@itemx export @var{variable} = @var{value}
-@itemx export @var{variable} := @var{value}
-@itemx export @var{variable} += @var{value}
-@itemx export @var{variable} ?= @var{value}
+@itemx export @var{variable-assignment}
 @itemx unexport @var{variable}
 Tell @code{make} whether or not to export a particular variable to child
 processes.@*
 @xref{Variables/Recursion, , Communicating Variables to a Sub-@code{make}}.
+
+@item private @var{variable-assignment}
+Do not allow this variable assignment to be inherited by prerequisites.@*
+@xref{Suppressing Inheritance}.
 
 @item vpath @var{pattern} @var{path}
 Specify a search path for files matching a @samp{%} pattern.@*
@@ -10514,54 +10814,64 @@ symlinks.@*
 @xref{File Name Functions, ,Functions for File Names}.
 
 @item $(error @var{text}@dots{})
-
 When this function is evaluated, @code{make} generates a fatal error
 with the message @var{text}.@*
 @xref{Make Control Functions, ,Functions That Control Make}.
 
 @item $(warning @var{text}@dots{})
-
 When this function is evaluated, @code{make} generates a warning with
 the message @var{text}.@*
 @xref{Make Control Functions, ,Functions That Control Make}.
 
 @item $(shell @var{command})
-
 Execute a shell command and return its output.@*
 @xref{Shell Function, , The @code{shell} Function}.
 
 @item $(origin @var{variable})
-
 Return a string describing how the @code{make} variable @var{variable} was
 defined.@*
 @xref{Origin Function, , The @code{origin} Function}.
 
 @item $(flavor @var{variable})
-
 Return a string describing the flavor of the @code{make} variable
 @var{variable}.@*
 @xref{Flavor Function, , The @code{flavor} Function}.
 
 @item $(foreach @var{var},@var{words},@var{text})
-
 Evaluate @var{text} with @var{var} bound to each word in @var{words},
 and concatenate the results.@*
 @xref{Foreach Function, ,The @code{foreach} Function}.
 
-@item $(call @var{var},@var{param},@dots{})
+@item $(if @var{condition},@var{then-part}[,@var{else-part}])
+Evaluate the condition @var{condition}; if it's non-empty substitute
+the expansion of the @var{then-part} otherwise substitute the
+expansion of the @var{else-part}.@*
+@xref{Conditional Functions, ,Functions for Conditionals}.
 
+@item $(or @var{condition1}[,@var{condition2}[,@var{condition3}@dots{}]])
+Evaluate each condition @var{conditionN} one at a time; substitute the
+first non-empty expansion.  If all expansions are empty, substitute
+the empty string.@*
+@xref{Conditional Functions, ,Functions for Conditionals}.
+
+@item $(and @var{condition1}[,@var{condition2}[,@var{condition3}@dots{}]])
+Evaluate each condition @var{conditionN} one at a time; if any
+expansion results in the empty string substitute the empty string.  If
+all expansions result in a non-empty string, substitute the expansion
+of the last @var{condition}.@*
+@xref{Conditional Functions, ,Functions for Conditionals}.
+
+@item $(call @var{var},@var{param},@dots{})
 Evaluate the variable @var{var} replacing any references to @code{$(1)},
 @code{$(2)} with the first, second, etc.@: @var{param} values.@*
 @xref{Call Function, ,The @code{call} Function}.
 
 @item $(eval @var{text})
-
 Evaluate @var{text} then read the results as makefile commands.
 Expands to the empty string.@*
 @xref{Eval Function, ,The @code{eval} Function}.
 
 @item $(value @var{var})
-
 Evaluates to the contents of the variable @var{var}, with no expansion
 performed on it.@*
 @xref{Value Function, ,The @code{value} Function}.
@@ -10746,7 +11056,7 @@ editors) have attempted to indent your recipe lines with spaces
 instead of a tab character.  In this case, @code{make} will use the
 second form of the error above.  Remember that every line in the
 recipe must begin with a tab character (unless you set
-@code{.CMDPREFIX}; @pxref{Special Variables}).  Eight spaces do not
+@code{.RECIPEPREFIX}; @pxref{Special Variables}).  Eight spaces do not
 count.  @xref{Rule Syntax}.
 
 @item recipe commences before first target.  Stop.
@@ -11006,18 +11316,16 @@ infodir = $(prefix)/info
 
 #### End of system configuration section. ####
 
-SRC1 =  tar.c create.c extract.c buffer.c \
-        getoldopt.c update.c gnu.c mangle.c
-SRC2 =  version.c list.c names.c diffarch.c \
-        port.c wildmat.c getopt.c
-SRC3 =  getopt1.c regex.c getdate.y
-SRCS =  $(SRC1) $(SRC2) $(SRC3)
-OBJ1 =  tar.o create.o extract.o buffer.o \
-        getoldopt.o update.o gnu.o mangle.o
-OBJ2 =  version.o list.o names.o diffarch.o \
-        port.o wildmat.o getopt.o
-OBJ3 =  getopt1.o regex.o getdate.o $(RTAPELIB)
-OBJS =  $(OBJ1) $(OBJ2) $(OBJ3)
+@group
+SRCS_C  = tar.c create.c extract.c buffer.c   \
+          getoldopt.c update.c gnu.c mangle.c \
+          version.c list.c names.c diffarch.c \
+          port.c wildmat.c getopt.c getopt1.c \
+          regex.c
+SRCS_Y  = getdate.y
+SRCS    = $(SRCS_C) $(SRCS_Y)
+OBJS    = $(SRCS_C:.c=.o) $(SRCS_Y:.y=.o) $(RTAPELIB)
+@end group
 @group
 AUX =   README COPYING ChangeLog Makefile.in  \
         makefile.pc configure configure.in \

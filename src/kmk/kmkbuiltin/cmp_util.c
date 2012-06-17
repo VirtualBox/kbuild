@@ -362,11 +362,11 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
             blk_sz = length;
 
         bytes_read = read(fd1, b1, blk_sz);
-        if (bytes_read != blk_sz)
+        if (bytes_read != (off_t)blk_sz)
             goto l_read_error;
 
         bytes_read = read(fd2, b2, blk_sz);
-        if (bytes_read != blk_sz)
+        if (bytes_read != (off_t)blk_sz)
             goto l_read_error;
 
         blk_cnt = blk_sz;

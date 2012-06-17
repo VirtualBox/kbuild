@@ -1,4 +1,4 @@
-/* $Id: electric.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * A simple electric heap implementation.
  */
@@ -158,11 +158,11 @@ xmalloc (unsigned int size)
 }
 
 void *
-xcalloc (size_t size, size_t items)
+xcalloc (unsigned size)
 {
     void *result;
-    result = xmalloc (size * items);
-    return memset (result, 0, size * items);
+    result = xmalloc (size);
+    return memset (result, 0, size);
 }
 
 void *

@@ -1,7 +1,7 @@
 /* Variable expansion functions for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -536,8 +536,8 @@ variable_expand_string (char *line, const char *string, long length)
 
       if (*p == '\0')
 	break;
-      else
-	++p;
+
+      ++p;
     }
 
   if (abuf)
@@ -840,7 +840,8 @@ char *
 expand_argument (const char *str, const char *end)
 {
 #ifndef CONFIG_WITH_VALUE_LENGTH
-  char *tmp;
+  char *tmp, *alloc = NULL;
+  char *r;
 #endif
 
   if (str == end)
@@ -850,11 +851,20 @@ expand_argument (const char *str, const char *end)
   if (!end || *end == '\0')
     return allocated_variable_expand (str);
 
-  tmp = alloca (end - str + 1);
+  if (end - str + 1 > 1000)
+    tmp = alloc = xmalloc (end - str + 1);
+  else
+    tmp = alloca (end - str + 1);
+
   memcpy (tmp, str, end - str);
   tmp[end - str] = '\0';
 
-  return allocated_variable_expand (tmp);
+  r = allocated_variable_expand (tmp);
+
+  if (alloc)
+    free (alloc);
+
+  return r;
 #else  /* CONFIG_WITH_VALUE_LENGTH */
   if (!end)
       return allocated_variable_expand_2 (str, ~0U, NULL);
@@ -1094,11 +1104,6 @@ allocated_variable_expand_for_file (const char *line, struct file *file)
   variable_buffer = 0;
 
   value = variable_expand_for_file (line, file);
-
-#if 0
-  /* Waste a little memory and save time.  */
-  value = xrealloc (value, strlen (value))
-#endif
 
   variable_buffer = obuf;
   variable_buffer_length = olen;

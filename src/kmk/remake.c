@@ -1,7 +1,7 @@
 /* Basic dependency engine for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -88,7 +88,6 @@ int
 update_goal_chain (struct dep *goals)
 {
   int t = touch_flag, q = question_flag, n = just_print_flag;
-  unsigned int j = job_slots;
   int status = -1;
 
 #define	MTIME(file) (rebuilding_makefiles ? file_mtime_no_search (file) \
@@ -140,6 +139,9 @@ update_goal_chain (struct dep *goals)
 	    {
 	      unsigned int ocommands_started;
 	      int x;
+
+              file->dontcare = g->dontcare;
+
 	      check_renamed (file);
 	      if (rebuilding_makefiles)
 		{
@@ -213,6 +215,8 @@ update_goal_chain (struct dep *goals)
                  When they are all finished, the goal is finished.  */
 	      any_not_updated |= !file->updated;
 
+              file->dontcare = 0;
+
 	      if (stop)
 		break;
 	    }
@@ -273,7 +277,6 @@ update_goal_chain (struct dep *goals)
       touch_flag = t;
       question_flag = q;
       just_print_flag = n;
-      job_slots = j;
     }
 
   return status;
@@ -305,8 +308,14 @@ update_file (struct file *file, unsigned int depth)
      change is possible below here until then.  */
   if (f->considered == considered)
     {
-      DBF (DB_VERBOSE, _("Pruning file `%s'.\n"));
-      return f->command_state == cs_finished ? f->update_status : 0;
+      /* Check for the case where a target has been tried and failed but
+         the diagnostics hasn't been issued. If we need the diagnostics
+         then we will have to continue. */
+      if (!(f->updated && f->update_status > 0 && !f->dontcare && f->no_diag))
+        {
+          DBF (DB_VERBOSE, _("Pruning file `%s'.\n"));
+          return f->command_state == cs_finished ? f->update_status : 0;
+        }
     }
 
   /* This loop runs until we start commands for a double colon rule, or until
@@ -323,7 +332,7 @@ update_file (struct file *file, unsigned int depth)
 
       /* If we got an error, don't bother with double_colon etc.  */
       if (status != 0 && !keep_going_flag)
-	return status;
+        return status;
 
       if (f->command_state == cs_running
           || f->command_state == cs_deps_running)
@@ -354,65 +363,89 @@ update_file (struct file *file, unsigned int depth)
 /* Show a message stating the target failed to build.  */
 
 static void
-complain (const struct file *file)
+complain (struct file *file)
 {
   const char *msg_noparent
     = _("%sNo rule to make target `%s'%s");
   const char *msg_parent
     = _("%sNo rule to make target `%s', needed by `%s'%s");
 
-#ifdef KMK
-  /* jokes */
-  if (!keep_going_flag && file->parent == 0)
+  /* If this file has no_diag set then it means we tried to update it
+     before in the dontcare mode and failed. The target that actually
+     failed is not necessarily this file but could be one of its direct
+     or indirect dependencies. So traverse this file's dependencies and
+     find the one that actually caused the failure. */
+
+  struct dep *d;
+
+  for (d = file->deps; d != 0; d = d->next)
     {
-      const char *msg_joke = 0;
-      extern struct dep *goals;
+      if (d->file->updated && d->file->update_status > 0 && file->no_diag)
+        {
+          complain (d->file);
+          break;
+        }
+    }
 
-      /* classics */
-      if (!strcmp (file->name, "fire")
-       || !strcmp (file->name, "Fire"))
-        msg_joke = "No matches.\n";
-      else if (!strcmp (file->name, "love")
-            || !strcmp (file->name, "Love")
-            || !strcmp (file->name, "peace")
-            || !strcmp (file->name, "Peace"))
-        msg_joke = "Not war.\n";
-      else if (!strcmp (file->name, "war"))
-        msg_joke = "Don't know how to make war.\n";
+  if (d == 0)
+    {
+      /* Didn't find any dependencies to complain about. */
 
-      /* http://xkcd.com/149/ - GNU Make bug #23273. */
-      else if ((   !strcmp (file->name, "me")
-                && goals != 0
-                && !strcmp (dep_name(goals), "me")
-                && goals->next != 0
-                && !strcmp (dep_name(goals->next), "a")
-                && goals->next->next != 0)
-            || !strncmp (file->name, "me a ", 5))
-        msg_joke =
+#ifdef KMK
+      /* jokes */
+      if (!keep_going_flag && file->parent == 0)
+        {
+          const char *msg_joke = 0;
+          extern struct dep *goals;
+
+          /* classics */
+          if (!strcmp (file->name, "fire")
+           || !strcmp (file->name, "Fire"))
+            msg_joke = "No matches.\n";
+          else if (!strcmp (file->name, "love")
+                || !strcmp (file->name, "Love")
+                || !strcmp (file->name, "peace")
+                || !strcmp (file->name, "Peace"))
+            msg_joke = "Not war.\n";
+          else if (!strcmp (file->name, "war"))
+            msg_joke = "Don't know how to make war.\n";
+
+          /* http://xkcd.com/149/ - GNU Make bug #23273. */
+          else if ((   !strcmp (file->name, "me")
+                    && goals != 0
+                    && !strcmp (dep_name(goals), "me")
+                    && goals->next != 0
+                    && !strcmp (dep_name(goals->next), "a")
+                    && goals->next->next != 0)
+                || !strncmp (file->name, "me a ", 5))
+            msg_joke =
 # ifdef HAVE_UNISTD_H
                    getuid () == 0 ? "Okay.\n" :
 # endif
-                   "What? Make it yourself!\n";
-      if (msg_joke)
-        {
-          fputs (msg_joke, stderr);
-          die (2);
+                       "What? Make it yourself!\n";
+          if (msg_joke)
+            {
+              fputs (msg_joke, stderr);
+              die (2);
+            }
         }
-    }
 #endif /* KMK */
 
-  if (!keep_going_flag)
-    {
+      if (!keep_going_flag)
+        {
+          if (file->parent == 0)
+            fatal (NILF, msg_noparent, "", file->name, "");
+
+          fatal (NILF, msg_parent, "", file->name, file->parent->name, "");
+        }
+
       if (file->parent == 0)
-        fatal (NILF, msg_noparent, "", file->name, "");
+        error (NILF, msg_noparent, "*** ", file->name, ".");
+      else
+        error (NILF, msg_parent, "*** ", file->name, file->parent->name, ".");
 
-      fatal (NILF, msg_parent, "", file->name, file->parent->name, "");
+      file->no_diag = 0;
     }
-
-  if (file->parent == 0)
-    error (NILF, msg_noparent, "*** ", file->name, ".");
-  else
-    error (NILF, msg_parent, "*** ", file->name, file->parent->name, ".");
 }
 
 /* Consider a single `struct file' and update it as appropriate.  */
@@ -420,12 +453,15 @@ complain (const struct file *file)
 static int
 update_file_1 (struct file *file, unsigned int depth)
 {
-  register FILE_TIMESTAMP this_mtime;
+  FILE_TIMESTAMP this_mtime;
   int noexist, must_make, deps_changed;
   int dep_status = 0;
-  register struct dep *d, *lastd;
+  struct file *ofile;
+  struct dep *d, *ad;
+  struct dep amake;
   int running = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  struct file *org_file = file;
   struct file *f2, *f3;
 
   /* Always work on the primary multi target file. */
@@ -434,7 +470,7 @@ update_file_1 (struct file *file, unsigned int depth)
     {
       DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"),
                           file->name, file->multi_head->name));
-      file = file->multi_head;
+      org_file = file = file->multi_head;
     }
   else
 #endif /* CONFIG_WITH_EXPLICIT_MULTITARGET */
@@ -447,15 +483,12 @@ update_file_1 (struct file *file, unsigned int depth)
 	  DBF (DB_VERBOSE,
                _("Recently tried and failed to update file `%s'.\n"));
 
-          /* If the file we tried to make is marked dontcare then no message
+          /* If the file we tried to make is marked no_diag then no message
              was printed about it when it failed during the makefile rebuild.
              If we're trying to build it again in the normal rebuild, print a
              message now.  */
-          if (file->dontcare && !rebuilding_makefiles)
-            {
-              file->dontcare = 0;
+          if (file->no_diag && !file->dontcare)
               complain (file);
-            }
 
 	  return file->update_status;
 	}
@@ -479,10 +512,18 @@ update_file_1 (struct file *file, unsigned int depth)
       abort ();
     }
 
+  /* Determine whether the diagnostics will be issued should this update
+     fail. */
+  file->no_diag = file->dontcare;
+
   ++depth;
 
   /* Notice recursive update of the same file.  */
   start_updating (file);
+
+  /* We might change file if we find a different one via vpath;
+     remember this one to turn off updating.  */
+  ofile = file;
 
   /* Looking at the file's modtime beforehand allows the possibility
      that its name may be changed by a VPATH search, and thus it may
@@ -550,22 +591,32 @@ update_file_1 (struct file *file, unsigned int depth)
       file->cmds = default_file->cmds;
     }
 
-  /* Update all non-intermediate files we depend on, if necessary,
-     and see whether any of them is more recent than this file.
-     For explicit multitarget rules we must iterate all the output
+  /* Update all non-intermediate files we depend on, if necessary, and see
+     whether any of them is more recent than this file.  We need to walk our
+     deps, AND the deps of any also_make targets to ensure everything happens
+     in the correct order.
+
+     bird: For explicit multitarget rules we must iterate all the output
      files to get the correct picture.  The special .MUST_MAKE
-     target variable call is also done from this context.  */
+     target variable call is also done from this context. */
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (f2 = file; f2; f2 = f2->multi_next)
-    {
-      lastd = 0;
-      d = f2->deps;
-#else
-      lastd = 0;
-      d = file->deps;
+ assert (file == org_file);
+ for (f2 = file; f2; file = f2 = f2->multi_next)
+ {
 #endif
-      while (d != 0)
+  amake.file = file;
+  amake.next = file->also_make;
+  ad = &amake;
+  while (ad)
+    {
+      struct dep *lastd = 0;
+
+      /* Find the deps we're scanning */
+      d = ad->file->deps;
+      ad = ad->next;
+
+      while (d)
         {
           FILE_TIMESTAMP mtime;
           int maybe_make;
@@ -580,7 +631,7 @@ update_file_1 (struct file *file, unsigned int depth)
             {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
               /* silently ignore the order-only dep hack. */
-              if (f2->multi_maybe && d->file == file)
+              if (file->multi_maybe && d->file == org_file)
                 {
                   lastd = d;
                   d = d->next;
@@ -589,31 +640,19 @@ update_file_1 (struct file *file, unsigned int depth)
 #endif
 
               error (NILF, _("Circular %s <- %s dependency dropped."),
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                     f2->name, d->file->name);
-#else
                      file->name, d->file->name);
-#endif
               /* We cannot free D here because our the caller will still have
                  a reference to it when we were called recursively via
                  check_dep below.  */
               if (lastd == 0)
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                f2->deps = d->next;
-#else
                 file->deps = d->next;
-#endif
               else
                 lastd->next = d->next;
               d = d->next;
               continue;
             }
 
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-          d->file->parent = f2;
-#else
           d->file->parent = file;
-#endif
           maybe_make = must_make;
 
           /* Inherit dontcare flag from our parent. */
@@ -622,7 +661,6 @@ update_file_1 (struct file *file, unsigned int depth)
               dontcare = d->file->dontcare;
               d->file->dontcare = file->dontcare;
             }
-
 
           dep_status |= check_dep (d->file, depth, this_mtime, &maybe_make);
 
@@ -660,11 +698,13 @@ update_file_1 (struct file *file, unsigned int depth)
           lastd = d;
           d = d->next;
         }
+    }
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-      if (dep_status != 0 && !keep_going_flag)
-        break;
-    }
+    if (dep_status != 0 && !keep_going_flag)
+      break;
+  }
+  file = org_file;
 #endif
 
 #ifdef CONFIG_WITH_DOT_MUST_MAKE
@@ -673,7 +713,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
 # ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   if (!must_make)
-    for (f2 = file; f2 && !must_make; f2 = f2->multi_next)
+    for (f2 = org_file; f2 && !must_make; f2 = f2->multi_next)
       must_make = call_must_make_target_var (f2, depth);
 # else
   if (!must_make)
@@ -687,22 +727,16 @@ update_file_1 (struct file *file, unsigned int depth)
   if (must_make || always_make_flag)
     {
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-      for (f2 = file; f2; f2 = f2->multi_next)
-        for (d = f2->deps; d != 0; d = d->next)
-#else
-        for (d = file->deps; d != 0; d = d->next)
+      for (file = f2 = org_file; f2; file = f2 = f2->multi_next)
 #endif
+        for (d = file->deps; d != 0; d = d->next)
           if (d->file->intermediate)
             {
               int dontcare = 0;
 
               FILE_TIMESTAMP mtime = file_mtime (d->file);
               check_renamed (d->file);
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-              d->file->parent = f2;
-#else
               d->file->parent = file;
-#endif
 
               /* Inherit dontcare flag from our parent. */
               if (rebuilding_makefiles)
@@ -737,16 +771,16 @@ update_file_1 (struct file *file, unsigned int depth)
                 break;
 
               if (!running)
-#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-                d->changed = ((f2->phony && f2->cmds != 0)
-#else
                 d->changed = ((file->phony && file->cmds != 0)
-#endif
           	            || file_mtime (d->file) != mtime);
             }
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+      file = org_file;
+#endif
     }
 
   finish_updating (file);
+  finish_updating (ofile);
 
   DBF (DB_VERBOSE, _("Finished prerequisites of target file `%s'.\n"));
 
@@ -793,13 +827,13 @@ update_file_1 (struct file *file, unsigned int depth)
 
   deps_changed = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  for (f2 = file; f2; f2 = f2->multi_next)
+  for (file = f2 = org_file; f2; file = f2 = f2->multi_next)
 #endif
     for (d = file->deps; d != 0; d = d->next)
       {
         FILE_TIMESTAMP d_mtime = file_mtime (d->file);
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-        if (d->file == file && f2->multi_maybe)
+        if (d->file == file && file->multi_maybe)
           continue;
 #endif
         check_renamed (d->file);
@@ -854,6 +888,9 @@ update_file_1 (struct file *file, unsigned int depth)
               }
           }
       }
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  file = org_file;
+#endif
 
   /* Here depth returns to the value it had when we were called.  */
   depth--;
@@ -1163,7 +1200,7 @@ notice_finished_file (struct file *file)
          really check the target's mtime again.  Otherwise, assume the target
          would have been updated. */
 
-      if (question_flag || just_print_flag || touch_flag)
+      if ((question_flag || just_print_flag || touch_flag) && file->cmds)
         {
           for (i = file->cmds->ncommand_lines; i > 0; --i)
             if (! (file->cmds->lines_flags[i-1] & COMMANDS_RECURSE))
@@ -1270,11 +1307,16 @@ static int
 check_dep (struct file *file, unsigned int depth,
            FILE_TIMESTAMP this_mtime, int *must_make_ptr)
 {
+  struct file *ofile;
   struct dep *d;
   int dep_status = 0;
 
   ++depth;
   start_updating (file);
+
+  /* We might change file if we find a different one via vpath;
+     remember this one to turn off updating.  */
+  ofile = file;
 
   if (file->phony || !file->intermediate)
     {
@@ -1325,23 +1367,16 @@ check_dep (struct file *file, unsigned int depth,
           /* Otherwise, update all non-intermediate files we depend on, if
              necessary, and see whether any of them is more recent than the
              file on whose behalf we are checking.  */
-	  struct dep *lastd;
+	  struct dep *ld;
           int deps_running = 0;
 
-          /* Reset this target's state so that we check it fresh.  It could be
-             that it's already been checked as part of an order-only
-             prerequisite and so wasn't rebuilt then, but should be now.
-
-             bird: What if we're already running the recipe?  We don't wish
-                   it to be started once again do we?  This happens with the
-                   SECONDARY Test #9 here now... If the idea is to re-evaluate
-                   the target regardless of whether it's running or no, then
-                   perhaps saving and restoring is a better idea?
-                   See bug #15919.  */
-          if (file->command_state != cs_running) /* bird */
+          /* If this target is not running, set it's state so that we check it
+             fresh.  It could be it was checked as part of an order-only
+             prerequisite and so wasn't rebuilt then, but should be now.  */
+          if (file->command_state != cs_running)
             set_command_state (file, cs_not_started);
 
-	  lastd = 0;
+	  ld = 0;
 	  d = file->deps;
 	  while (d != 0)
 	    {
@@ -1351,7 +1386,7 @@ check_dep (struct file *file, unsigned int depth,
 		{
 		  error (NILF, _("Circular %s <- %s dependency dropped."),
 			 file->name, d->file->name);
-		  if (lastd == 0)
+		  if (ld == 0)
 		    {
 		      file->deps = d->next;
                       free_dep (d);
@@ -1359,9 +1394,9 @@ check_dep (struct file *file, unsigned int depth,
 		    }
 		  else
 		    {
-		      lastd->next = d->next;
+		      ld->next = d->next;
                       free_dep (d);
-		      d = lastd->next;
+		      d = ld->next;
 		    }
 		  continue;
 		}
@@ -1380,7 +1415,7 @@ check_dep (struct file *file, unsigned int depth,
 		  || d->file->command_state == cs_deps_running)
 		deps_running = 1;
 
-	      lastd = d;
+	      ld = d;
 	      d = d->next;
 	    }
 
@@ -1393,6 +1428,8 @@ check_dep (struct file *file, unsigned int depth,
     }
 
   finish_updating (file);
+  finish_updating (ofile);
+
   return dep_status;
 }
 
@@ -1577,7 +1614,7 @@ f_mtime (struct file *file, int search)
       if (mtime == NONEXISTENT_MTIME && search && !file->ignore_vpath)
 	{
 	  /* If name_mtime failed, search VPATH.  */
-	  const char *name = vpath_search (file->name, &mtime);
+	  const char *name = vpath_search (file->name, &mtime, NULL, NULL);
 	  if (name
 	      /* Last resort, is it a library (-lxxx)?  */
 	      || (file->name[0] == '-' && file->name[1] == 'l'
@@ -1828,30 +1865,31 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
       0
     };
 
-  static char *libpatterns = NULL;
-
-  const char *libname = lib+2;	/* Name without the '-l'.  */
+  const char *file = 0;
+  char *libpatterns;
   FILE_TIMESTAMP mtime;
 
   /* Loop variables for the libpatterns value.  */
   char *p;
   const char *p2;
   unsigned int len;
+  unsigned int liblen;
+
+  /* Information about the earliest (in the vpath sequence) match.  */
+  unsigned int best_vpath = 0, best_path = 0; /* bird: gcc maybe used uninitialized (both) */
+  unsigned int std_dirs = 0;
 
   char **dp;
 
-  /* If we don't have libpatterns, get it.  */
-  if (!libpatterns)
-    {
-      int save = warn_undefined_variables_flag;
-      warn_undefined_variables_flag = 0;
+  libpatterns = xstrdup (variable_expand ("$(.LIBPATTERNS)"));
 
-      libpatterns = xstrdup (variable_expand ("$(strip $(.LIBPATTERNS))"));
+  /* Skip the '-l'.  */
+  lib += 2;
+  liblen = strlen (lib);
 
-      warn_undefined_variables_flag = save;
-    }
-
-  /* Loop through all the patterns in .LIBPATTERNS, and search on each one.  */
+  /* Loop through all the patterns in .LIBPATTERNS, and search on each one.
+     To implement the linker-compatible behavior we have to search through
+     all entries in .LIBPATTERNS and choose the "earliest" one.  */
   p2 = libpatterns;
   while ((p = find_next_token (&p2, &len)) != 0)
     {
@@ -1861,7 +1899,7 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
       char *libbuf = variable_expand ("");
       const size_t libbuf_offset = libbuf - variable_buffer; /* bird */
 
-      /* Expand the pattern using LIBNAME as a replacement.  */
+      /* Expand the pattern using LIB as a replacement.  */
       {
 	char c = p[len];
 	char *p3, *p4;
@@ -1870,16 +1908,13 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 	p3 = find_percent (p);
 	if (!p3)
 	  {
-	    /* Give a warning if there is no pattern, then remove the
-	       pattern so it's ignored next time.  */
+	    /* Give a warning if there is no pattern.  */
 	    error (NILF, _(".LIBPATTERNS element `%s' is not a pattern"), p);
-	    for (; len; --len, ++p)
-	      *p = ' ';
-	    *p = c;
+            p[len] = c;
 	    continue;
 	  }
 	p4 = variable_buffer_output (libbuf, p, p3-p);
-	p4 = variable_buffer_output (p4, libname, strlen (libname));
+	p4 = variable_buffer_output (p4, lib, liblen);
 	p4 = variable_buffer_output (p4, p3+1, len - (p3-p));
 	p[len] = c;
 	libbuf = variable_buffer + libbuf_offset; /* bird - variable_buffer may have been reallocated. */
@@ -1891,48 +1926,81 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
 	{
 	  if (mtime_ptr != 0)
 	    *mtime_ptr = mtime;
-	  return strcache_add (libbuf);
+	  file = strcache_add (libbuf);
+          /* This by definition will have the best index, so stop now.  */
+          break;
 	}
 
       /* Now try VPATH search on that.  */
 
       {
-        const char *file = vpath_search (libbuf, mtime_ptr);
-        if (file)
-          return file;
+        unsigned int vpath_index, path_index;
+        const char* f = vpath_search (libbuf, mtime_ptr ? &mtime : NULL,
+                                      &vpath_index, &path_index);
+        if (f)
+          {
+            /* If we have a better match, record it.  */
+            if (file == 0 ||
+                vpath_index < best_vpath ||
+                (vpath_index == best_vpath && path_index < best_path))
+              {
+                file = f;
+                best_vpath = vpath_index;
+                best_path = path_index;
+
+                if (mtime_ptr != 0)
+                  *mtime_ptr = mtime;
+              }
+          }
       }
 
       /* Now try the standard set of directories.  */
 
       if (!buflen)
-	{
-	  for (dp = dirs; *dp != 0; ++dp)
-	    {
-	      int l = strlen (*dp);
-	      if (l > libdir_maxlen)
-		libdir_maxlen = l;
-	    }
-	  buflen = strlen (libbuf);
-	  buf = xmalloc(libdir_maxlen + buflen + 2);
-	}
+        {
+          for (dp = dirs; *dp != 0; ++dp)
+            {
+              int l = strlen (*dp);
+              if (l > libdir_maxlen)
+                libdir_maxlen = l;
+              std_dirs++;
+            }
+          buflen = strlen (libbuf);
+          buf = xmalloc(libdir_maxlen + buflen + 2);
+        }
       else if (buflen < strlen (libbuf))
-	{
-	  buflen = strlen (libbuf);
-	  buf = xrealloc (buf, libdir_maxlen + buflen + 2);
-	}
+        {
+          buflen = strlen (libbuf);
+          buf = xrealloc (buf, libdir_maxlen + buflen + 2);
+        }
 
-      for (dp = dirs; *dp != 0; ++dp)
-	{
-	  sprintf (buf, "%s/%s", *dp, libbuf);
-	  mtime = name_mtime (buf);
-	  if (mtime != NONEXISTENT_MTIME)
-	    {
-	      if (mtime_ptr != 0)
-		*mtime_ptr = mtime;
-	      return strcache_add (buf);
-	    }
-	}
+      {
+        /* Use the last std_dirs index for standard directories. This
+           was it will always be greater than the VPATH index.  */
+        unsigned int vpath_index = ~((unsigned int)0) - std_dirs;
+
+        for (dp = dirs; *dp != 0; ++dp)
+	  {
+            sprintf (buf, "%s/%s", *dp, libbuf);
+            mtime = name_mtime (buf);
+            if (mtime != NONEXISTENT_MTIME)
+	      {
+                if (file == 0 || vpath_index < best_vpath)
+                  {
+                    file = strcache_add (buf);
+                    best_vpath = vpath_index;
+
+                    if (mtime_ptr != 0)
+                      *mtime_ptr = mtime;
+                  }
+              }
+
+            vpath_index++;
+          }
+      }
+
     }
 
-  return 0;
+  free (libpatterns);
+  return file;
 }

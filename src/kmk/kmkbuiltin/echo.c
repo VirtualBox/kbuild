@@ -38,7 +38,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)echo.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 #include <sys/cdefs.h>
-//__FBSDID("$FreeBSD: src/bin/echo/echo.c,v 1.17 2004/04/06 20:06:46 markm Exp $");
+/*__FBSDID("$FreeBSD: src/bin/echo/echo.c,v 1.17 2004/04/06 20:06:46 markm Exp $");*/
 #endif
 
 #include "config.h"

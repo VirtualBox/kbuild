@@ -1,7 +1,7 @@
 /* Implementation of pattern-matching file search paths for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -147,7 +147,7 @@ build_vpath_lists ()
     }
 }
 
-/* Construct the VPATH listing for the pattern and searchpath given.
+/* Construct the VPATH listing for the PATTERN and DIRPATH given.
 
    This function is called to generate selective VPATH lists and also for
    the general VPATH list (which is in fact just a selective VPATH that
@@ -155,9 +155,9 @@ build_vpath_lists ()
    linked list of all selective VPATH lists or in the GENERAL_VPATH
    variable.
 
-   If SEARCHPATH is nil, remove all previous listings with the same
+   If DIRPATH is nil, remove all previous listings with the same
    pattern.  If PATTERN is nil, remove all VPATH listings.  Existing
-   and readable directories that are not "." given in the searchpath
+   and readable directories that are not "." given in the DIRPATH
    separated by the path element separator (defined in make.h) are
    loaded into the directory hash table if they are not there already
    and put in the VPATH searchpath for the given pattern with trailing
@@ -202,7 +202,8 @@ construct_vpath_list (char *pattern, char *dirpath)
 		lastpath->next = next;
 
 	      /* Free its unused storage.  */
-	      free (path->searchpath);
+              /* MSVC erroneously warns without a cast here.  */
+	      free ((void *)path->searchpath);
 	      free (path);
 	    }
 	  else
@@ -307,7 +308,8 @@ construct_vpath_list (char *pattern, char *dirpath)
     }
   else
     /* There were no entries, so free whatever space we allocated.  */
-    free (vpath);
+    /* MSVC erroneously warns without a cast here.  */
+    free ((void *)vpath);
 }
 
 /* Search the GPATH list for a pathname string that matches the one passed
@@ -330,11 +332,12 @@ gpath_search (const char *file, unsigned int len)
 /* Search the given VPATH list for a directory where the name pointed to by
    FILE exists.  If it is found, we return a cached name of the existing file
    and set *MTIME_PTR (if MTIME_PTR is not NULL) to its modtime (or zero if no
-   stat call was done).  Otherwise we return NULL.  */
+   stat call was done). Also set the matching directory index in PATH_INDEX
+   if it is not NULL. Otherwise we return NULL.  */
 
 static const char *
 selective_vpath_search (struct vpath *path, const char *file,
-                        FILE_TIMESTAMP *mtime_ptr)
+                        FILE_TIMESTAMP *mtime_ptr, unsigned int* path_index)
 {
   int not_target;
   char *name;
@@ -514,6 +517,9 @@ selective_vpath_search (struct vpath *path, const char *file,
 
           /* Store the name we found and return it.  */
 
+          if (path_index)
+            *path_index = i;
+
           return strcache_add_len (name, (p + 1 - name) + flen);
 	}
     }
@@ -525,10 +531,12 @@ selective_vpath_search (struct vpath *path, const char *file,
 /* Search the VPATH list whose pattern matches FILE for a directory where FILE
    exists.  If it is found, return the cached name of an existing file, and
    set *MTIME_PTR (if MTIME_PTR is not NULL) to its modtime (or zero if no
-   stat call was done).  Otherwise we return 0.  */
+   stat call was done). Also set the matching directory index in VPATH_INDEX
+   and PATH_INDEX if they are not NULL.  Otherwise we return 0.  */
 
 const char *
-vpath_search (const char *file, FILE_TIMESTAMP *mtime_ptr)
+vpath_search (const char *file, FILE_TIMESTAMP *mtime_ptr,
+              unsigned int* vpath_index, unsigned int* path_index)
 {
   struct vpath *v;
 
@@ -542,23 +550,40 @@ vpath_search (const char *file, FILE_TIMESTAMP *mtime_ptr)
       || (vpaths == 0 && general_vpath == 0))
     return 0;
 
+  if (vpath_index)
+    {
+      *vpath_index = 0;
+      *path_index = 0;
+    }
+
   for (v = vpaths; v != 0; v = v->next)
-    if (pattern_matches (v->pattern, v->percent, file))
-      {
-        const char *p = selective_vpath_search (v, file, mtime_ptr);
-        if (p)
-          return p;
-      }
+    {
+      if (pattern_matches (v->pattern, v->percent, file))
+        {
+          const char *p = selective_vpath_search (
+            v, file, mtime_ptr, path_index);
+          if (p)
+            return p;
+        }
+
+      if (vpath_index)
+        ++*vpath_index;
+    }
+
 
   if (general_vpath != 0)
     {
-      const char *p = selective_vpath_search (general_vpath, file, mtime_ptr);
+      const char *p = selective_vpath_search (
+        general_vpath, file, mtime_ptr, path_index);
       if (p)
         return p;
     }
 
   return 0;
 }
+
+
+
 
 /* Print the data base of VPATH search paths.  */
 

@@ -1,7 +1,7 @@
 /* Pattern and suffix rule internals for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -94,19 +94,20 @@ count_implicit_rule_limits (void)
 
       for (dep = rule->deps; dep != 0; dep = dep->next)
 	{
-	  unsigned int len = strlen (dep->name);
+          const char *dname = dep_name (dep);
+          unsigned int len = strlen (dname);
 
 #ifdef VMS
-	  const char *p = strrchr (dep->name, ']');
+          const char *p = strrchr (dname, ']');
           const char *p2;
           if (p == 0)
-            p = strrchr (dep->name, ':');
-          p2 = p != 0 ? strchr (dep->name, '%') : 0;
+            p = strrchr (dname, ':');
+          p2 = p != 0 ? strchr (dname, '%') : 0;
 #else
-	  const char *p = strrchr (dep->name, '/');
-	  const char *p2 = p != 0 ? strchr (dep->name, '%') : 0;
+          const char *p = strrchr (dname, '/');
+          const char *p2 = p != 0 ? strchr (dname, '%') : 0;
 #endif
-	  ndeps++;
+          ndeps++;
 
 	  if (len > max_pattern_dep_length)
 	    max_pattern_dep_length = len;
@@ -115,15 +116,15 @@ count_implicit_rule_limits (void)
 	    {
 	      /* There is a slash before the % in the dep name.
 		 Extract the directory name.  */
-	      if (p == dep->name)
+	      if (p == dname)
 		++p;
-	      if (p - dep->name > namelen)
+	      if (p - dname > namelen)
 		{
-		  namelen = p - dep->name;
+		  namelen = p - dname;
 		  name = xrealloc (name, namelen + 1);
 		}
-	      memcpy (name, dep->name, p - dep->name);
-	      name[p - dep->name] = '\0';
+	      memcpy (name, dname, p - dname);
+	      name[p - dname] = '\0';
 
 	      /* In the deps of an implicit rule the `changed' flag
 		 actually indicates that the dependency is in a
@@ -376,15 +377,7 @@ install_pattern_rule (struct pspec *p, int terminal)
   ++r->suffixes[0];
 
   ptr = p->dep;
-#ifndef CONFIG_WITH_ALLOC_CACHES
-  r->deps = (struct dep *) multi_glob (parse_file_seq (&ptr, '\0',
-                                                       sizeof (struct dep), 1),
-				       sizeof (struct dep));
-#else
-  r->deps = (struct dep *) multi_glob (parse_file_seq (&ptr, '\0',
-						       &dep_cache, 1),
-				       &dep_cache);
-#endif
+  r->deps = PARSE_FILE_SEQ (&ptr, struct dep, '\0', NULL, 0);
 
   if (new_pattern_rule (r, 0))
     {
@@ -415,18 +408,12 @@ static void
 freerule (struct rule *rule, struct rule *lastrule)
 {
   struct rule *next = rule->next;
-  struct dep *dep;
 
-  dep = rule->deps;
-  while (dep)
-    {
-      struct dep *t = dep->next;
-      free_dep (dep);
-      dep = t;
-    }
+  free_dep_chain (rule->deps);
 
-  free (rule->targets);
-  free (rule->suffixes);
+  /* MSVC erroneously warns without a cast here.  */
+  free ((void *)rule->targets);
+  free ((void *)rule->suffixes);
   free (rule->lens);
 
   /* We can't free the storage for the commands because there
@@ -499,7 +486,6 @@ static void			/* Useful to call from gdb.  */
 print_rule (struct rule *r)
 {
   unsigned int i;
-  struct dep *d;
 
   for (i = 0; i < r->num; ++i)
     {
@@ -509,9 +495,7 @@ print_rule (struct rule *r)
   if (r->terminal)
     putchar (':');
 
-  for (d = r->deps; d != 0; d = d->next)
-    printf (" %s", dep_name (d));
-  putchar ('\n');
+  print_prereqs (r->deps);
 
   if (r->cmds != 0)
     print_commands (r->cmds);
@@ -558,7 +542,7 @@ print_rule_data_base (void)
       /* This can happen if a fatal error was detected while reading the
          makefiles and thus count_implicit_rule_limits wasn't called yet.  */
       if (num_pattern_rules != 0)
-        fatal (NILF, _("BUG: num_pattern_rules wrong!  %u != %u"),
+        fatal (NILF, _("BUG: num_pattern_rules is wrong!  %u != %u"),
                num_pattern_rules, rules);
     }
 }

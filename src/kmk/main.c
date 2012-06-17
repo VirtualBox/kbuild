@@ -1,7 +1,7 @@
 /* Argument parsing and main program of GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -80,7 +80,6 @@ RETSIGTYPE fatal_error_signal (int sig);
 void print_variable_data_base (void);
 void print_dir_data_base (void);
 void print_rule_data_base (void);
-void print_file_data_base (void);
 void print_vpath_data_base (void);
 
 void verify_file_data_base (void);
@@ -109,7 +108,7 @@ static void print_data_base (void);
 static void print_version (void);
 static void decode_switches (int argc, char **argv, int env);
 static void decode_env_switches (char *envar, unsigned int len);
-static void define_makeflags (int all, int makefile);
+static const char *define_makeflags (int all, int makefile);
 static char *quote_for_env (char *out, const char *in);
 static void initialize_global_hash_tables (void);
 
@@ -263,6 +262,13 @@ int print_version_flag = 0;
 
 static struct stringlist *makefiles = 0;
 
+/* Size of the stack when we started.  */
+
+#ifdef SET_STACK_SIZE
+struct rlimit stack_limit;
+#endif
+
+
 /* Number of job slots (commands that can be run at once).  */
 
 unsigned int job_slots = 1;
@@ -307,6 +313,9 @@ static struct stringlist *old_files = 0;
 /* List of files given with -W switches.  */
 
 static struct stringlist *new_files = 0;
+
+/* List of strings to be eval'd.  */
+static struct stringlist *eval_strings = 0;
 
 /* If nonzero, we should just print usage and exit.  */
 
@@ -379,6 +388,8 @@ static const char *const usage[] =
     N_("\
   -e, --environment-overrides\n\
                               Environment variables override makefiles.\n"),
+    N_("\
+  --eval=STRING               Evaluate STRING as a makefile statement.\n"),
     N_("\
   -f FILE, --file=FILE, --makefile=FILE\n\
                               Read FILE as a makefile.\n"),
@@ -541,6 +552,7 @@ static const struct command_switch switches[] =
     { 'W', filename, &new_files, 0, 0, 0, 0, 0, "what-if" },
     { CHAR_MAX+5, flag, &warn_undefined_variables_flag, 1, 1, 0, 0, 0,
       "warn-undefined-variables" },
+    { CHAR_MAX+6, string, &eval_strings, 1, 0, 0, 0, 0, "eval" },
     { 0, 0, 0, 0, 0, 0, 0, 0, 0 }
   };
 
@@ -592,15 +604,13 @@ char *starting_directory;
 
 unsigned int makelevel;
 
-/* First file defined in the makefile whose name does not
-   start with `.'.  This is the default to remake if the
-   command line does not specify.  */
+/* Pointer to the value of the .DEFAULT_GOAL special variable.
+   The value will be the name of the goal to remake if the command line
+   does not override it.  It can be set by the makefile, or else it's
+   the first target defined in the makefile whose name does not start
+   with '.'.  */
 
-struct file *default_goal_file;
-
-/* Pointer to the value of the .DEFAULT_GOAL special
-   variable.  */
-char ** default_goal_name;
+struct variable * default_goal_var;
 
 /* Pointer to structure for the file .DEFAULT
    whose commands are used for any file that has none of its own.
@@ -618,6 +628,12 @@ int posix_pedantic;
 
 int second_expansion;
 
+/* Nonzero if we have seen the '.ONESHELL' target.
+   This causes the entire recipe to be handed to SHELL
+   as a single string, potentially containing newlines.  */
+
+int one_shell;
+
 #ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
 /* Nonzero if we have seen the '.SECONDTARGETEXPANSION' target.
    This turns on secondary expansion of targets.  */
@@ -626,6 +642,7 @@ int second_target_expansion;
 #endif
 
 #ifndef CONFIG_WITH_EXTENDED_NOTPARALLEL
+
 /* Nonzero if we have seen the `.NOTPARALLEL' target.
    This turns off parallel builds for this invocation of make.  */
 
@@ -662,11 +679,11 @@ int fatal_signal_mask;
 # endif
 #endif
 
-#if !defined HAVE_BSD_SIGNAL && !defined bsd_signal
+#if !HAVE_DECL_BSD_SIGNAL && !defined bsd_signal
 # if !defined HAVE_SIGACTION
 #  define bsd_signal signal
 # else
-typedef RETSIGTYPE (*bsd_signal_ret_t) ();
+typedef RETSIGTYPE (*bsd_signal_ret_t) (int);
 
 static bsd_signal_ret_t
 bsd_signal (int sig, bsd_signal_ret_t func)
@@ -919,24 +936,24 @@ handle_runtime_exceptions( struct _EXCEPTION_POINTERS *exinfo )
   if (! ISDB (DB_VERBOSE))
     {
       sprintf(errmsg,
-              _("%s: Interrupt/Exception caught (code = 0x%lx, addr = 0x%lx)\n"),
-              prg, exrec->ExceptionCode, (DWORD)exrec->ExceptionAddress);
+              _("%s: Interrupt/Exception caught (code = 0x%lx, addr = 0x%p)\n"),
+              prg, exrec->ExceptionCode, exrec->ExceptionAddress);
       fprintf(stderr, errmsg);
       exit(255);
     }
 
   sprintf(errmsg,
-          _("\nUnhandled exception filter called from program %s\nExceptionCode = %lx\nExceptionFlags = %lx\nExceptionAddress = %lx\n"),
+          _("\nUnhandled exception filter called from program %s\nExceptionCode = %lx\nExceptionFlags = %lx\nExceptionAddress = 0x%p\n"),
           prg, exrec->ExceptionCode, exrec->ExceptionFlags,
-          (DWORD)exrec->ExceptionAddress);
+          exrec->ExceptionAddress);
 
   if (exrec->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
       && exrec->NumberParameters >= 2)
     sprintf(&errmsg[strlen(errmsg)],
             (exrec->ExceptionInformation[0]
-             ? _("Access violation: write operation at address %lx\n")
-             : _("Access violation: read operation at address %lx\n")),
-            exrec->ExceptionInformation[1]);
+             ? _("Access violation: write operation at address 0x%p\n")
+             : _("Access violation: read operation at address 0x%p\n")),
+            (PVOID)exrec->ExceptionInformation[1]);
 
   /* turn this on if we want to put stuff in the event log too */
 #ifdef USE_EVENT_LOG
@@ -1010,8 +1027,8 @@ find_and_set_default_shell (const char *token)
     unixy_shell = 0;
     sprintf (sh_path, "%s", search_token);
     default_shell = xstrdup (w32ify (sh_path, 0));
-    DB (DB_VERBOSE,
-        (_("find_and_set_shell setting default_shell = %s\n"), default_shell));
+    DB (DB_VERBOSE, (_("find_and_set_shell() setting default_shell = %s\n"),
+                     default_shell));
     sh_found = 1;
   } else if (!no_default_sh_exe &&
              (token == NULL || !strcmp (search_token, default_shell))) {
@@ -1021,8 +1038,8 @@ find_and_set_default_shell (const char *token)
     /* search token path was found */
     sprintf (sh_path, "%s", search_token);
     default_shell = xstrdup (w32ify (sh_path, 0));
-    DB (DB_VERBOSE,
-        (_("find_and_set_shell setting default_shell = %s\n"), default_shell));
+    DB (DB_VERBOSE, (_("find_and_set_shell() setting default_shell = %s\n"),
+                     default_shell));
     sh_found = 1;
   } else {
     char *p;
@@ -1063,7 +1080,7 @@ find_and_set_default_shell (const char *token)
 
       if (sh_found)
         DB (DB_VERBOSE,
-            (_("find_and_set_shell path search set default_shell = %s\n"),
+            (_("find_and_set_shell() path search set default_shell = %s\n"),
              default_shell));
     }
   }
@@ -1378,11 +1395,15 @@ main (int argc, char **argv, char **envp)
     struct rlimit rlim;
 
     /* Set the stack limit huge so that alloca does not fail.  */
-    if (getrlimit (RLIMIT_STACK, &rlim) == 0)
+    if (getrlimit (RLIMIT_STACK, &rlim) == 0
+        && rlim.rlim_cur > 0 && rlim.rlim_cur < rlim.rlim_max)
       {
+        stack_limit = rlim;
         rlim.rlim_cur = rlim.rlim_max;
         setrlimit (RLIMIT_STACK, &rlim);
       }
+    else
+      stack_limit.rlim_cur = 0;
   }
 #endif
 
@@ -1397,7 +1418,6 @@ main (int argc, char **argv, char **envp)
   init_kbuild (argc, argv);
 #endif
 
-  default_goal_file = 0;
   reading_file = 0;
 
 #if defined (__MSDOS__) && !defined (_POSIX_SOURCE)
@@ -1414,9 +1434,11 @@ main (int argc, char **argv, char **envp)
 
   /* Set up gettext/internationalization support.  */
   setlocale (LC_ALL, "");
+  /* The cast to void shuts up compiler warnings on systems that
+     disable NLS.  */
 #ifdef LOCALEDIR /* bird */
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+  (void)bindtextdomain (PACKAGE, LOCALEDIR);
+  (void)textdomain (PACKAGE);
 #endif
 
 #ifdef	POSIX
@@ -1427,7 +1449,7 @@ main (int argc, char **argv, char **envp)
   fatal_signal_mask = 0;
 #define	ADD_SIG(sig)	fatal_signal_mask |= sigmask (sig)
 #else
-#define	ADD_SIG(sig)
+#define	ADD_SIG(sig)    (void)sig      /* Needed to avoid warnings in MSVC.  */
 #endif
 #endif
 
@@ -1582,34 +1604,36 @@ main (int argc, char **argv, char **envp)
 #endif
 
   /* Initialize the special variables.  */
-  define_variable (".VARIABLES", 10, "", o_default, 0)->special = 1;
-  /* define_variable (".TARGETS", 8, "", o_default, 0)->special = 1; */
-  define_variable (".RECIPEPREFIX", 13, "", o_default, 0)->special = 1;
+  define_variable_cname (".VARIABLES", "", o_default, 0)->special = 1;
+  /* define_variable_cname (".TARGETS", "", o_default, 0)->special = 1; */
+  define_variable_cname (".RECIPEPREFIX", "", o_default, 0)->special = 1;
+  define_variable_cname (".SHELLFLAGS", "-c", o_default, 0);
 
-  /* Set up .FEATURES */
-  define_variable (".FEATURES", 9,
-                   "target-specific order-only second-expansion else-if",
-                   o_default, 0);
+  /* Set up .FEATURES
+     We must do this in multiple calls because define_variable_cname() is
+     a macro and some compilers (MSVC) don't like conditionals in macros.  */
+  {
+    const char *features = "target-specific order-only second-expansion"
+                           " else-if shortest-stem undefine"
 #ifndef NO_ARCHIVES
-  do_variable_definition (NILF, ".FEATURES", "archives",
-                          o_default, f_append, 0);
+                           " archives"
 #endif
 #ifdef MAKE_JOBSERVER
-  do_variable_definition (NILF, ".FEATURES", "jobserver",
-                          o_default, f_append, 0);
+                           " jobserver"
 #endif
 #ifdef MAKE_SYMLINKS
-  do_variable_definition (NILF, ".FEATURES", "check-symlink",
-                          o_default, f_append, 0);
+                           " check-symlink"
 #endif
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  do_variable_definition (NILF, ".FEATURES", "explicit-multitarget",
-                          o_default, f_append, 0);
+                           " explicit-multitarget"
 #endif
 #ifdef CONFIG_WITH_PREPEND_ASSIGNMENT
-  do_variable_definition (NILF, ".FEATURES", "prepend-assignment",
-                          o_default, f_append, 0);
+                           " prepend-assignment"
 #endif
+                           ;
+
+    define_variable_cname (".FEATURES", features, o_default, 0);
+  }
 
 #ifdef KMK
   /* Initialize the default number of jobs to the cpu/core/smt count. */
@@ -1670,14 +1694,13 @@ main (int argc, char **argv, char **envp)
 #else
                 shell_var.name = v->name;
 #endif
-                shell_var.length = 5; /* bird - gotta set the length too! */
+                shell_var.length = 5;
 #ifndef CONFIG_WITH_VALUE_LENGTH
                 shell_var.value = xstrdup (ep + 1);
 #else
-                shell_var.value = savestring (v->value, v->value_length);
+                shell_var.value = xstrndup (v->value, v->value_length);
                 shell_var.value_length = v->value_length;
 #endif
-
               }
 
             /* If MAKE_RESTARTS is set, remember it but don't export it.  */
@@ -1694,9 +1717,8 @@ main (int argc, char **argv, char **envp)
      * either the first mispelled value or an empty string
      */
     if (!unix_path)
-      define_variable("PATH", 4,
-                      windows32_path ? windows32_path : "",
-                      o_env, 1)->export = v_export;
+      define_variable_cname ("PATH", windows32_path ? windows32_path : "",
+                             o_env, 1)->export = v_export;
 #endif
 #else /* For Amiga, read the ENV: device, ignoring all dirs */
     {
@@ -1742,7 +1764,9 @@ main (int argc, char **argv, char **envp)
   decode_env_switches (STRING_SIZE_TUPLE ("MFLAGS"));
 #endif
 #endif /* !KMK */
+
   decode_switches (argc, argv, 0);
+
 #ifdef WINDOWS32
   if (suspend_flag) {
         fprintf(stderr, "%s (pid = %ld)\n", argv[0], GetCurrentProcessId());
@@ -1810,7 +1834,7 @@ main (int argc, char **argv, char **envp)
       && (strchr (argv[0], '/') != 0 || strchr (argv[0], '\\') != 0)
 # endif
       )
-    argv[0] = xstrdup (concat (current_directory, "/", argv[0]));
+    argv[0] = xstrdup (concat (3, current_directory, "/", argv[0]));
 #else  /* !__MSDOS__ */
   if (current_directory[0] != '\0'
       && argv[0] != 0 && argv[0][0] != '/' && strchr (argv[0], '/') != 0
@@ -1819,15 +1843,15 @@ main (int argc, char **argv, char **envp)
       && strchr (argv[0], '\\') != 0
 #endif
       )
-    argv[0] = xstrdup (concat (current_directory, "/", argv[0]));
+    argv[0] = xstrdup (concat (3, current_directory, "/", argv[0]));
 #endif /* !__MSDOS__ */
 #endif /* WINDOWS32 */
 #endif
 
   /* The extra indirection through $(MAKE_COMMAND) is done
      for hysterical raisins.  */
-  (void) define_variable ("MAKE_COMMAND", 12, argv[0], o_default, 0);
-  (void) define_variable ("MAKE", 4, "$(MAKE_COMMAND)", o_default, 1);
+  define_variable_cname ("MAKE_COMMAND", argv[0], o_default, 0);
+  define_variable_cname ("MAKE", "$(MAKE_COMMAND)", o_default, 1);
 #ifdef KMK
   (void) define_variable ("KMK", 3, argv[0], o_default, 1);
 #endif
@@ -1868,8 +1892,7 @@ main (int argc, char **argv, char **envp)
 
       /* Define an unchangeable variable with a name that no POSIX.2
 	 makefile could validly use for its own variable.  */
-      (void) define_variable ("-*-command-variables-*-", 23,
-			      value, o_automatic, 0);
+      define_variable_cname ("-*-command-variables-*-", value, o_automatic, 0);
 
       /* Define the variable; this will not override any user definition.
          Normally a reference to this variable is written into the value of
@@ -1878,11 +1901,11 @@ main (int argc, char **argv, char **envp)
          allow the user's setting of MAKEOVERRIDES to affect MAKEFLAGS, so
          a reference to this hidden variable is written instead. */
 #ifdef KMK
-      (void) define_variable ("KMK_OVERRIDES", 13,
-			      "${-*-command-variables-*-}", o_env, 1);
+      define_variable_cname ("KMK_OVERRIDES", "${-*-command-variables-*-}",
+                             o_env, 1);
 #else
-      (void) define_variable ("MAKEOVERRIDES", 13,
-			      "${-*-command-variables-*-}", o_env, 1);
+      define_variable_cname ("MAKEOVERRIDES", "${-*-command-variables-*-}",
+                             o_env, 1);
 #endif
     }
 
@@ -2053,7 +2076,7 @@ main (int argc, char **argv, char **envp)
 	starting_directory = current_directory;
     }
 
-  (void) define_variable ("CURDIR", 6, current_directory, o_file, 0);
+  define_variable_cname ("CURDIR", current_directory, o_file, 0);
 
   /* Read any stdin makefiles into temporary files.  */
 
@@ -2193,10 +2216,44 @@ main (int argc, char **argv, char **envp)
 
   default_file = enter_file (strcache_add (".DEFAULT"));
 
-  {
-    struct variable *v = define_variable (".DEFAULT_GOAL", 13, "", o_file, 0);
-    default_goal_name = &v->value;
-  }
+  default_goal_var = define_variable_cname (".DEFAULT_GOAL", "", o_file, 0);
+
+  /* Evaluate all strings provided with --eval.
+     Also set up the $(-*-eval-flags-*-) variable.  */
+
+  if (eval_strings)
+    {
+      char *p, *value;
+      unsigned int i;
+      unsigned int len = sizeof ("--eval=") * eval_strings->idx;
+
+      for (i = 0; i < eval_strings->idx; ++i)
+        {
+#ifndef CONFIG_WITH_VALUE_LENGTH
+          p = xstrdup (eval_strings->list[i]);
+          len += 2 * strlen (p);
+          eval_buffer (p);
+#else
+          unsigned int sub_len = strlen(eval_strings->list[i]);
+          p = xstrndup (eval_strings->list[i], sub_len);
+          len += 2 * sub_len;
+          eval_buffer (p, p + sub_len);
+#endif
+          free (p);
+        }
+
+      p = value = alloca (len);
+      for (i = 0; i < eval_strings->idx; ++i)
+        {
+          strcpy (p, "--eval=");
+          p += strlen (p);
+          p = quote_for_env (p, eval_strings->list[i]);
+          *(p++) = ' ';
+        }
+      p[-1] = '\0';
+
+      define_variable_cname ("-*-eval-flags-*-", value, o_automatic, 0);
+    }
 
   /* Read all the makefiles.  */
 
@@ -2259,60 +2316,60 @@ main (int argc, char **argv, char **envp)
   /* If the jobserver-fds option is seen, make sure that -j is reasonable.  */
 
   if (jobserver_fds)
-  {
-    const char *cp;
-    unsigned int ui;
+    {
+      const char *cp;
+      unsigned int ui;
 
-    for (ui=1; ui < jobserver_fds->idx; ++ui)
-      if (!streq (jobserver_fds->list[0], jobserver_fds->list[ui]))
-        fatal (NILF, _("internal error: multiple --jobserver-fds options"));
+      for (ui=1; ui < jobserver_fds->idx; ++ui)
+        if (!streq (jobserver_fds->list[0], jobserver_fds->list[ui]))
+          fatal (NILF, _("internal error: multiple --jobserver-fds options"));
 
-    /* Now parse the fds string and make sure it has the proper format.  */
+      /* Now parse the fds string and make sure it has the proper format.  */
 
-    cp = jobserver_fds->list[0];
+      cp = jobserver_fds->list[0];
 
-    if (sscanf (cp, "%d,%d", &job_fds[0], &job_fds[1]) != 2)
-      fatal (NILF,
-             _("internal error: invalid --jobserver-fds string `%s'"), cp);
+      if (sscanf (cp, "%d,%d", &job_fds[0], &job_fds[1]) != 2)
+        fatal (NILF,
+               _("internal error: invalid --jobserver-fds string `%s'"), cp);
 
-    DB (DB_JOBS,
-	(_("Jobserver client (fds %d,%d)\n"), job_fds[0], job_fds[1]));
+      DB (DB_JOBS,
+          (_("Jobserver client (fds %d,%d)\n"), job_fds[0], job_fds[1]));
 
-    /* The combination of a pipe + !job_slots means we're using the
-       jobserver.  If !job_slots and we don't have a pipe, we can start
-       infinite jobs.  If we see both a pipe and job_slots >0 that means the
-       user set -j explicitly.  This is broken; in this case obey the user
-       (ignore the jobserver pipe for this make) but print a message.  */
+      /* The combination of a pipe + !job_slots means we're using the
+         jobserver.  If !job_slots and we don't have a pipe, we can start
+         infinite jobs.  If we see both a pipe and job_slots >0 that means the
+         user set -j explicitly.  This is broken; in this case obey the user
+         (ignore the jobserver pipe for this make) but print a message.  */
 
-    if (job_slots > 0)
-      error (NILF,
-             _("warning: -jN forced in submake: disabling jobserver mode."));
-
-    /* Create a duplicate pipe, that will be closed in the SIGCHLD
-       handler.  If this fails with EBADF, the parent has closed the pipe
-       on us because it didn't think we were a submake.  If so, print a
-       warning then default to -j1.  */
-
-    else if ((job_rfd = dup (job_fds[0])) < 0)
-      {
-        if (errno != EBADF)
-          pfatal_with_name (_("dup jobserver"));
-
+      if (job_slots > 0)
         error (NILF,
-               _("warning: jobserver unavailable: using -j1.  Add `+' to parent make rule."));
-        job_slots = 1;
-      }
+               _("warning: -jN forced in submake: disabling jobserver mode."));
 
-    if (job_slots > 0)
-      {
-        close (job_fds[0]);
-        close (job_fds[1]);
-        job_fds[0] = job_fds[1] = -1;
-        free (jobserver_fds->list);
-        free (jobserver_fds);
-        jobserver_fds = 0;
-      }
-  }
+      /* Create a duplicate pipe, that will be closed in the SIGCHLD
+         handler.  If this fails with EBADF, the parent has closed the pipe
+         on us because it didn't think we were a submake.  If so, print a
+         warning then default to -j1.  */
+
+      else if ((job_rfd = dup (job_fds[0])) < 0)
+        {
+          if (errno != EBADF)
+            pfatal_with_name (_("dup jobserver"));
+
+          error (NILF,
+                 _("warning: jobserver unavailable: using -j1.  Add `+' to parent make rule."));
+          job_slots = 1;
+        }
+
+      if (job_slots > 0)
+        {
+          close (job_fds[0]);
+          close (job_fds[1]);
+          job_fds[0] = job_fds[1] = -1;
+          free (jobserver_fds->list);
+          free (jobserver_fds);
+          jobserver_fds = 0;
+        }
+    }
 
   /* If we have >1 slot but no jobserver-fds, then we're a top-level make.
      Set up the pipe and install the fds option for our children.  */
@@ -2430,8 +2487,8 @@ main (int argc, char **argv, char **envp)
 
       FILE_TIMESTAMP *makefile_mtimes = 0;
       unsigned int mm_idx = 0;
-      char **nargv = argv;
-      int nargc = argc;
+      char **nargv;
+      int nargc;
       int orig_db_level = db_level;
       int status;
 
@@ -2600,24 +2657,26 @@ main (int argc, char **argv, char **envp)
 	      for (i = 1; i < argc; ++i)
 		if (strneq (argv[i], "-f", 2)) /* XXX */
 		  {
-		    char *p = &argv[i][2];
-		    if (*p == '\0')
+		    if (argv[i][2] == '\0')
                       /* This cast is OK since we never modify argv.  */
 		      argv[++i] = (char *) makefiles->list[j];
 		    else
-		      argv[i] = xstrdup (concat ("-f", makefiles->list[j], ""));
+		      argv[i] = xstrdup (concat (2, "-f", makefiles->list[j]));
 		    ++j;
 		  }
 	    }
 
           /* Add -o option for the stdin temporary file, if necessary.  */
+          nargc = argc;
           if (stdin_nm)
             {
               nargv = xmalloc ((nargc + 2) * sizeof (char *));
               memcpy (nargv, argv, argc * sizeof (char *));
-              nargv[nargc++] = xstrdup (concat ("-o", stdin_nm, ""));
+              nargv[nargc++] = xstrdup (concat (2, "-o", stdin_nm));
               nargv[nargc] = 0;
             }
+          else
+            nargv = argv;
 
 	  if (directories != 0 && directories->idx > 0)
 	    {
@@ -2634,6 +2693,14 @@ main (int argc, char **argv, char **envp)
 	    }
 
           ++restarts;
+
+          /* Reset makeflags in case they were changed.  */
+          {
+            const char *pv = define_makeflags (1, 1);
+            char *p = alloca (sizeof ("MAKEFLAGS=") + strlen (pv) + 1);
+            sprintf (p, "MAKEFLAGS=%s", pv);
+            putenv (p);
+          }
 
 	  if (ISDB (DB_BASIC))
 	    {
@@ -2753,71 +2820,73 @@ main (int argc, char **argv, char **envp)
   if (stdin_nm && unlink (stdin_nm) < 0 && errno != ENOENT)
     perror_with_name (_("unlink (temporary file): "), stdin_nm);
 
-  {
-    int status;
+  /* If there were no command-line goals, use the default.  */
+  if (goals == 0)
+    {
+      char *p;
 
-    /* If there were no command-line goals, use the default.  */
-    if (goals == 0)
-      {
-        if (**default_goal_name != '\0')
-          {
-            if (default_goal_file == 0 ||
-                strcmp (*default_goal_name, default_goal_file->name) != 0)
-              {
-                default_goal_file = lookup_file (*default_goal_name);
+      if (default_goal_var->recursive)
+        p = variable_expand (default_goal_var->value);
+      else
+        {
+          p = variable_buffer_output (variable_buffer, default_goal_var->value,
+                                      strlen (default_goal_var->value));
+          *p = '\0';
+          p = variable_buffer;
+        }
 
-                /* In case user set .DEFAULT_GOAL to a non-existent target
-                   name let's just enter this name into the table and let
-                   the standard logic sort it out. */
-                if (default_goal_file == 0)
-                  {
-                    struct nameseq *ns;
-                    char *p = *default_goal_name;
+      if (*p != '\0')
+        {
+          struct file *f = lookup_file (p);
 
-#ifndef CONFIG_WITH_ALLOC_CACHES
-                    ns = multi_glob (
-                      parse_file_seq (&p, '\0', sizeof (struct nameseq), 1),
-                      sizeof (struct nameseq));
-#else
-                    ns = multi_glob (
-                      parse_file_seq (&p, '\0', &nameseq_cache, 1),
-                      &nameseq_cache);
-#endif
-
-                    /* .DEFAULT_GOAL should contain one target. */
-                    if (ns->next != 0)
-                      fatal (NILF, _(".DEFAULT_GOAL contains more than one target"));
+          /* If .DEFAULT_GOAL is a non-existent target, enter it into the
+             table and let the standard logic sort it out. */
+          if (f == 0)
+            {
+              struct nameseq *ns;
+              ns = PARSE_FILE_SEQ (&p, struct nameseq, '\0', NULL, 0);
+              if (ns)
+                {
+                  /* .DEFAULT_GOAL should contain one target. */
+                  if (ns->next != 0)
+                    fatal (NILF, _(".DEFAULT_GOAL contains more than one target"));
 
 #ifndef CONFIG_WITH_VALUE_LENGTH
-                    default_goal_file = enter_file (strcache_add (ns->name));
+                  f = enter_file (strcache_add (ns->name));
 #else
-                    default_goal_file = enter_file (ns->name);
+                  f = enter_file (ns->name);
 #endif
 
-                    ns->name = 0; /* It was reused by enter_file(). */
-                    free_ns_chain (ns);
-                  }
-              }
+                  ns->name = 0; /* It was reused by enter_file(). */
+                  free_ns_chain (ns);
+                }
+            }
 
-            goals = alloc_dep ();
-            goals->file = default_goal_file;
-          }
-      }
-    else
-      lastgoal->next = 0;
+          if (f)
+            {
+              goals = alloc_dep ();
+              goals->file = f;
+            }
+        }
+    }
+  else
+    lastgoal->next = 0;
 
 
-    if (!goals)
-      {
-        if (read_makefiles == 0)
-          fatal (NILF, _("No targets specified and no makefile found"));
+  if (!goals)
+    {
+      if (read_makefiles == 0)
+        fatal (NILF, _("No targets specified and no makefile found"));
 
-        fatal (NILF, _("No targets"));
-      }
+      fatal (NILF, _("No targets"));
+    }
 
-    /* Update the goals.  */
+  /* Update the goals.  */
 
-    DB (DB_BASIC, (_("Updating goal targets....\n")));
+  DB (DB_BASIC, (_("Updating goal targets....\n")));
+
+  {
+    int status;
 
     switch (update_goal_chain (goals))
     {
@@ -2927,11 +2996,7 @@ handle_non_switch_argument (char *arg, int env)
   if (arg[0] == '-' && arg[1] == '\0')
     /* Ignore plain `-' for compatibility.  */
     return;
-#ifndef CONFIG_WITH_VALUE_LENGTH
-  v = try_variable_definition (0, arg, o_command, 0);
-#else
-  v = try_variable_definition (0, arg, NULL, o_command, 0);
-#endif
+  v = try_variable_definition (0, arg IF_WITH_VALUE_LENGTH_PARAM(NULL), o_command, 0);
   if (v != 0)
     {
       /* It is indeed a variable definition.  If we don't already have this
@@ -2993,7 +3058,7 @@ handle_non_switch_argument (char *arg, int env)
             memcpy (&vp[oldlen + 1], f->name, newlen + 1);
             value = vp;
           }
-        define_variable ("MAKECMDGOALS", 12, value, o_default, 0);
+        define_variable_cname ("MAKECMDGOALS", value, o_default, 0);
       }
     }
 }
@@ -3104,8 +3169,16 @@ decode_switches (int argc, char **argv, int env)
 		    optarg = xstrdup (cs->noarg_value);
                   else if (*optarg == '\0')
                     {
-                      error (NILF, _("the `-%c' option requires a non-empty string argument"),
-                             cs->c);
+                      char opt[2] = "c";
+                      const char *op = opt;
+
+                      if (short_option (cs->c))
+                        opt[0] = cs->c;
+                      else
+                        op = cs->long_name;
+
+                      error (NILF, _("the `%s%s' option requires a non-empty string argument"),
+                             short_option (cs->c) ? "-" : "--", op);
                       bad = 1;
                     }
 
@@ -3122,7 +3195,8 @@ decode_switches (int argc, char **argv, int env)
 		  else if (sl->idx == sl->max - 1)
 		    {
 		      sl->max += 5;
-		      sl->list = xrealloc ((void *)sl->list, /* bird */
+                      /* MSVC erroneously warns without a cast here.  */
+		      sl->list = xrealloc ((void *)sl->list,
                                            sl->max * sizeof (char *));
 		    }
                   if (cs->type == filename)
@@ -3269,7 +3343,7 @@ decode_env_switches (char *envar, unsigned int len)
        definition.  Add a dash and pass it along to decode_switches.  We
        need permanent storage for this in case decode_switches saves
        pointers into the value.  */
-    argv[1] = xstrdup (concat ("-", argv[1], ""));
+    argv[1] = xstrdup (concat (2, "-", argv[1]));
 
   /* Parse those words.  */
   decode_switches (argc, argv, 1);
@@ -3300,16 +3374,17 @@ quote_for_env (char *out, const char *in)
    command switches.  Include options with args if ALL is nonzero.
    Don't include options with the `no_makefile' flag set if MAKEFILE.  */
 
-static void
+static const char *
 define_makeflags (int all, int makefile)
 {
 #ifdef KMK
   static const char ref[] = "$(KMK_OVERRIDES)";
 #else
-  static const char ref[] = "$(MAKEOVERRIDES)";
+  static /*<- bird*/ const char ref[] = "$(MAKEOVERRIDES)";
 #endif
-  static const char posixref[] = "$(-*-command-variables-*-)";
-  register const struct command_switch *cs;
+  static /*<- bird*/ const char posixref[] = "$(-*-command-variables-*-)";
+  static /*<- bird*/ const char evalref[] = "$(-*-eval-flags-*-)";
+  const struct command_switch *cs;
   char *flagstring;
   register char *p;
   unsigned int words;
@@ -3330,7 +3405,7 @@ define_makeflags (int all, int makefile)
   unsigned int flagslen = 0;
 #define	ADD_FLAG(ARG, LEN) \
   do {									      \
-    struct flag *new = alloca (sizeof (struct flag));                         \
+    struct flag *new = alloca (sizeof (struct flag));			      \
     new->cs = cs;							      \
     new->arg = (ARG);							      \
     new->next = flags;							      \
@@ -3338,7 +3413,8 @@ define_makeflags (int all, int makefile)
     if (new->arg == 0)							      \
       ++flagslen;		/* Just a single flag letter.  */	      \
     else								      \
-      flagslen += 1 + 1 + 1 + 1 + 3 * (LEN); /* " -x foo" */		      \
+      /* " -x foo", plus space to expand "foo".  */			      \
+      flagslen += 1 + 1 + 1 + 1 + (3 * (LEN));				      \
     if (!short_option (cs->c))						      \
       /* This switch has no single-letter version, so we use the long.  */    \
       flagslen += 2 + strlen (cs->long_name);				      \
@@ -3427,7 +3503,8 @@ define_makeflags (int all, int makefile)
 	  abort ();
 	}
 
-  flagslen += 4 + sizeof posixref; /* Four more for the possible " -- ".  */
+  /* Four more for the possible " -- ".  */
+  flagslen += 4 + sizeof (posixref) + sizeof (evalref);
 
 #undef	ADD_FLAG
 
@@ -3500,8 +3577,21 @@ define_makeflags (int all, int makefile)
 #ifdef KMK
   /* Since MFLAGS is not parsed for flags, there is no reason to
      override any makefile redefinition.  */
-  (void) define_variable ("MFLAGS", 6, flagstring, o_env, 1);
+  define_variable_cname ("MFLAGS", flagstring, o_env, 1);
 #endif /* !KMK */
+
+  /* Write a reference to -*-eval-flags-*-, which contains all the --eval
+     flag options.  */
+  if (eval_strings)
+    {
+      if (p == &flagstring[1])
+	/* No flags written, so elide the leading dash already written.  */
+	p = flagstring;
+      else
+        *p++ = ' ';
+      memcpy (p, evalref, sizeof (evalref) - 1);
+      p += sizeof (evalref) - 1;
+    }
 
   if (all && command_variables != 0)
     {
@@ -3528,13 +3618,13 @@ define_makeflags (int all, int makefile)
       /* Copy in the string.  */
       if (posix_pedantic)
 	{
-	  memcpy (p, posixref, sizeof posixref - 1);
-	  p += sizeof posixref - 1;
+	  memcpy (p, posixref, sizeof (posixref) - 1);
+	  p += sizeof (posixref) - 1;
 	}
       else
 	{
-	  memcpy (p, ref, sizeof ref - 1);
-	  p += sizeof ref - 1;
+	  memcpy (p, ref, sizeof (ref) - 1);
+	  p += sizeof (ref) - 1;
 	}
     }
   else if (p == &flagstring[1])
@@ -3548,37 +3638,31 @@ define_makeflags (int all, int makefile)
   /* Terminate the string.  */
   *p = '\0';
 
+  /* If there are switches, omit the leading dash unless it is a single long
+     option with two leading dashes.  */
+  if (flagstring[0] == '-' && flagstring[1] != '-')
+    ++flagstring;
+
 #ifdef KMK
-  v = define_variable ("KMK_FLAGS", 9,
-                       /* If there are switches, omit the leading dash
-                          unless it is a single long option with two
-                          leading dashes.  */
-                       &flagstring[(flagstring[0] == '-'
-                                    && flagstring[1] != '-')
-                                   ? 1 : 0],
-                       /* This used to use o_env, but that lost when a
-                          makefile defined MAKEFLAGS.  Makefiles set
-                          MAKEFLAGS to add switches, but we still want
-                          to redefine its value with the full set of
-                          switches.  Of course, an override or command
-                          definition will still take precedence.  */
-                       o_file, 1);
+  v = define_variable_cname ("KMK_FLAGS", flagstring,
+                             /* This used to use o_env, but that lost when a
+                                makefile defined MAKEFLAGS.  Makefiles set
+                                MAKEFLAGS to add switches, but we still want
+                                to redefine its value with the full set of
+                                switches.  Of course, an override or command
+                                definition will still take precedence.  */
+                             o_file, 1);
 #else
-  v = define_variable ("MAKEFLAGS", 9,
-		       /* If there are switches, omit the leading dash
-			  unless it is a single long option with two
-			  leading dashes.  */
-		       &flagstring[(flagstring[0] == '-'
-				    && flagstring[1] != '-')
-				   ? 1 : 0],
-		       /* This used to use o_env, but that lost when a
-			  makefile defined MAKEFLAGS.  Makefiles set
-			  MAKEFLAGS to add switches, but we still want
-			  to redefine its value with the full set of
-			  switches.  Of course, an override or command
-			  definition will still take precedence.  */
-		       o_file, 1);
+  v = define_variable_cname ("MAKEFLAGS", flagstring,
+                             /* This used to use o_env, but that lost when a
+                                makefile defined MAKEFLAGS.  Makefiles set
+                                MAKEFLAGS to add switches, but we still want
+                                to redefine its value with the full set of
+                                switches.  Of course, an override or command
+                                definition will still take precedence.  */
+                             o_file, 1);
 #endif
+
   if (! all)
     /* The first time we are called, set MAKEFLAGS to always be exported.
        We should not do this again on the second call, because that is
@@ -3590,31 +3674,27 @@ define_makeflags (int all, int makefile)
   {
     char val[32];
     sprintf (val, "%u", job_slots);
-    define_variable ("KMK_OPTS_JOBS", sizeof("KMK_OPTS_JOBS") - 1,
-                     val, o_default, 1);
-    define_variable ("KMK_OPTS_KEEP_GOING", sizeof("KMK_OPTS_KEEP_GOING") - 1,
-                     keep_going_flag ? "1" : "0", o_default, 1);
-    define_variable ("KMK_OPTS_JUST_PRINT", sizeof("KMK_OPTS_JUST_PRINT") - 1,
-                     just_print_flag ? "1" : "0", o_default, 1);
-    define_variable ("KMK_OPTS_PRETTY_COMMAND_PRINTING", sizeof("KMK_OPTS_PRETTY_COMMAND_PRINTING") - 1,
-                     pretty_command_printing ? "1" : "0", o_default, 1);
+    define_variable_cname ("KMK_OPTS_JOBS", val, o_default, 1);
+    define_variable_cname ("KMK_OPTS_KEEP_GOING", keep_going_flag ? "1" : "0", o_default, 1);
+    define_variable_cname ("KMK_OPTS_JUST_PRINT", just_print_flag ? "1" : "0", o_default, 1);
+    define_variable_cname ("KMK_OPTS_PRETTY_COMMAND_PRINTING",
+                           pretty_command_printing ? "1" : "0", o_default, 1);
     sprintf (val, "%u", process_priority);
-    define_variable ("KMK_OPTS_PRORITY", sizeof("KMK_OPTS_PRORITY") - 1,
-                     val, o_default, 1);
+    define_variable_cname ("KMK_OPTS_PRORITY", val, o_default, 1);
     sprintf (val, "%u", process_affinity);
-    define_variable ("KMK_OPTS_AFFINITY", sizeof("KMK_OPTS_AFFINITY") - 1,
-                     val, o_default, 1);
-#if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
-    define_variable ("KMK_OPTS_STATISTICS", sizeof("KMK_OPTS_STATISTICS") - 1,
-                     make_expensive_statistics ? "1" : "0", o_default, 1);
+    define_variable_cname ("KMK_OPTS_AFFINITY", val, o_default, 1);
+# if defined (CONFIG_WITH_MAKE_STATS) || defined (CONFIG_WITH_MINIMAL_STATS)
+    define_variable_cname ("KMK_OPTS_STATISTICS", make_expensive_statistics ? "1" : "0",
+                           o_default, 1);
 # endif
-#ifdef CONFIG_WITH_PRINT_TIME_SWITCH
+# ifdef CONFIG_WITH_PRINT_TIME_SWITCH
     sprintf (val, "%u", print_time_min);
-    define_variable ("KMK_OPTS_PRINT_TIME", sizeof("KMK_OPTS_PRINT_TIME") - 1,
-                     val, o_default, 1);
-#endif
+    define_variable_cname ("KMK_OPTS_PRINT_TIME", val, o_default, 1);
+# endif
   }
 #endif
+
+  return v->value;
 }
 
 /* Print version information.  */
@@ -3653,7 +3733,7 @@ print_version (void)
      year, and none of the rest of it should be translated (including the
      word "Copyright", so it hardly seems worth it.  */
 
-  printf ("%sCopyright (C) 2007  Free Software Foundation, Inc.\n", precede);
+  printf ("%sCopyright (C) 2010  Free Software Foundation, Inc.\n", precede);
 
   printf (_("%sLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n\
 %sThis is free software: you are free to change and redistribute it.\n\
@@ -3810,6 +3890,18 @@ clean_jobserver (int status)
                tcnt, master_job_slots);
 
       close (job_fds[0]);
+
+      /* Clean out jobserver_fds so we don't pass this information to any
+         sub-makes.  Also reset job_slots since it will be put on the command
+         line, not in MAKEFLAGS.  */
+      job_slots = default_job_slots;
+      if (jobserver_fds)
+        {
+          /* MSVC erroneously warns without a cast here.  */
+          free ((void *)jobserver_fds->list);
+          free (jobserver_fds);
+          jobserver_fds = 0;
+        }
     }
 }
 
@@ -3873,7 +3965,11 @@ die (int status)
 	 directory.  Must wait until after remove_intermediates(), or unlinks
          of relative pathnames fail.  */
       if (directory_before_chdir != 0)
-	chdir (directory_before_chdir);
+        {
+          /* If it fails we don't care: shut up GCC.  */
+          int _x;
+          _x = chdir (directory_before_chdir);
+        }
 
 #ifdef CONFIG_WITH_PRINT_TIME_SWITCH
       if (print_time_min != -1)

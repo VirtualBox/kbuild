@@ -1,7 +1,8 @@
 /* Interface to `ar' archives for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
+
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -24,8 +25,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "dep.h"
 #include <fnmatch.h>
 
-/* Return nonzero if NAME is an archive-member reference, zero if not.
-   An archive-member reference is a name like `lib(member)'.
+/* Return nonzero if NAME is an archive-member reference, zero if not.  An
+   archive-member reference is a name like `lib(member)' where member is a
+   non-empty string.
    If a name like `lib((entry))' is used, a fatal error is signaled at
    the attempt to use this unsupported feature.  */
 
@@ -39,7 +41,7 @@ ar_name (const char *name)
     return 0;
 
   end = p + strlen (p) - 1;
-  if (*end != ')')
+  if (*end != ')' || end == p + 1)
     return 0;
 
   if (p[1] == '(' && end[-1] == ')')
@@ -195,9 +197,8 @@ ar_glob_match (int desc UNUSED, const char *mem, int truncated UNUSED,
   if (fnmatch (state->pattern, mem, FNM_PATHNAME|FNM_PERIOD) == 0)
     {
       /* We have a match.  Add it to the chain.  */
-      struct nameseq *new = xmalloc (state->size);
-      memset (new, '\0', state->size);
-      new->name = strcache_add (concat (state->arname, mem, ")"));
+      struct nameseq *new = xcalloc (state->size);
+      new->name = strcache_add (concat (4, state->arname, "(", mem, ")"));
       new->next = state->chain;
       state->chain = new;
       ++state->n;
@@ -212,7 +213,7 @@ static int
 glob_pattern_p (const char *pattern, int quote)
 {
   const char *p;
-  int open = 0;
+  int opened = 0;
 
   for (p = pattern; *p != '\0'; ++p)
     switch (*p)
@@ -227,11 +228,11 @@ glob_pattern_p (const char *pattern, int quote)
 	break;
 
       case '[':
-	open = 1;
+	opened = 1;
 	break;
 
       case ']':
-	if (open)
+	if (opened)
 	  return 1;
 	break;
       }
@@ -248,7 +249,6 @@ ar_glob (const char *arname, const char *member_pattern, unsigned int size)
   struct ar_glob_state state;
   struct nameseq *n;
   const char **names;
-  char *name;
   unsigned int i;
 
   if (! glob_pattern_p (member_pattern, 1))
@@ -256,12 +256,7 @@ ar_glob (const char *arname, const char *member_pattern, unsigned int size)
 
   /* Scan the archive for matches.
      ar_glob_match will accumulate them in STATE.chain.  */
-  i = strlen (arname);
-  name = alloca (i + 2);
-  memcpy (name, arname, i);
-  name[i] = '(';
-  name[i + 1] = '\0';
-  state.arname = name;
+  state.arname = arname;
   state.pattern = member_pattern;
   state.size = size;
   state.chain = 0;
@@ -278,7 +273,8 @@ ar_glob (const char *arname, const char *member_pattern, unsigned int size)
     names[i++] = n->name;
 
   /* Sort them alphabetically.  */
-  qsort (names, i, sizeof (*names), alpha_compare);
+  /* MSVC erroneously warns without a cast here.  */
+  qsort ((void *)names, i, sizeof (*names), alpha_compare);
 
   /* Put them back into the chain in the sorted order.  */
   i = 0;

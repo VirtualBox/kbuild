@@ -1,3 +1,7 @@
+2009-09-16  Paul Smith  <psmith@gnu.org>
+
+	* LINGUAS: Added new translation for Italian (it).
+
 2008-05-17  Paul Smith  <psmith@gnu.org>
 
 	* LINGUAS: Added new translation for Lithuanian (lt).
@@ -61,7 +65,8 @@
 
 	* POTFILES.in, LINGUAS, Makevars: Created.
 
-Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the

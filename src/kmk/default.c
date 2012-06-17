@@ -1,7 +1,7 @@
 /* Data base of default implicit rules for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -548,18 +548,14 @@ set_default_suffixes (void)
   suffix_file = enter_file (strcache_add (".SUFFIXES"));
 
   if (no_builtin_rules_flag)
-    define_variable ("SUFFIXES", 8, "", o_default, 0);
+    define_variable_cname ("SUFFIXES", "", o_default, 0);
   else
     {
       char *p = default_suffixes;
-      suffix_file->deps = (struct dep *)
-#ifndef CONFIG_WITH_ALLOC_CACHES
-	multi_glob (parse_file_seq (&p, '\0', sizeof (struct dep), 1),
-		    sizeof (struct dep));
-#else
-        multi_glob (parse_file_seq (&p, '\0', &dep_cache, 1), &dep_cache);
-#endif
-      define_variable ("SUFFIXES", 8, default_suffixes, o_default, 0);
+      suffix_file->deps = enter_prereqs(PARSE_FILE_SEQ (&p, struct dep, '\0',
+                                                        NULL, 0),
+                                        NULL);
+      define_variable_cname ("SUFFIXES", default_suffixes, o_default, 0);
     }
 }
 

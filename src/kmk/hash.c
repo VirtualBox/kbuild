@@ -1,5 +1,5 @@
 /* hash.c -- hash table maintenance
-Copyright (C) 1995, 1999, 2002 Free Software Foundation, Inc.
+Copyright (C) 1995, 1999, 2002, 2010 Free Software Foundation, Inc.
 Written by Greg McGary <gkm@gnu.org> <greg@mcgary.org>
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -50,8 +50,8 @@ hash_init (struct hash_table *ht, unsigned long size,
   ht->ht_vec = (void**) CALLOC (struct token *, ht->ht_size);
   if (ht->ht_vec == 0)
     {
-      fprintf (stderr, _("can't allocate %ld bytes for hash table: memory exhausted"),
-	       ht->ht_size * sizeof(struct token *));
+      fprintf (stderr, _("can't allocate %lu bytes for hash table: memory exhausted"),
+	       ht->ht_size * (unsigned long) sizeof (struct token *));
       exit (1);
     }
 
@@ -251,7 +251,7 @@ void *
 hash_insert (struct hash_table *ht, const void *item)
 {
   void **slot = hash_find_slot (ht, item);
-  const void *old_item = slot ? *slot : 0;
+  const void *old_item = *slot;
   hash_insert_at (ht, item, slot);
   return (void *)((HASH_VACANT (old_item)) ? 0 : old_item);
 }

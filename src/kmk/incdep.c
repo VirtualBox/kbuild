@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -113,19 +113,13 @@ struct incdep_variable_def
     int target_var;
 };
 
-struct incdep_recorded_files
+struct incdep_recorded_file
 {
-    struct incdep_recorded_files *next;
+    struct incdep_recorded_file *next;
 
     /* the parameters */
     struct strcache2_entry *filename_entry; /* dep strcache; converted to a nameseq record. */
-    const char *pattern;                    /* NULL */
-    const char *pattern_percent;            /* NULL */
     struct dep *deps;                       /* All the names are dep strcache entries. */
-    unsigned int cmds_started;              /* 0 */
-    char *commands;                         /* NULL */
-    unsigned int commands_idx;              /* 0 */
-    int two_colon;                          /* 0 */
     const struct floc *flocp;               /* NILF */
 };
 
@@ -148,8 +142,8 @@ struct incdep
   struct incdep_variable_def *recorded_variable_defs_head;
   struct incdep_variable_def *recorded_variable_defs_tail;
 
-  struct incdep_recorded_files *recorded_files_head;
-  struct incdep_recorded_files *recorded_files_tail;
+  struct incdep_recorded_file *recorded_file_head;
+  struct incdep_recorded_file *recorded_file_tail;
 #endif
 
   char name[1];
@@ -231,6 +225,8 @@ static malloc_zone_t *incdep_zone;
 *******************************************************************************/
 static void incdep_flush_it (struct floc *);
 static void eval_include_dep_file (struct incdep *, struct floc *);
+static void incdep_commit_recorded_file (const char *filename, struct dep *deps,
+                                         const struct floc *flocp);
 
 
 /* xmalloc wrapper.
@@ -500,7 +496,7 @@ incdep_freeit (struct incdep *cur)
 #ifdef PARSE_IN_WORKER
   assert (!cur->recorded_variables_in_set_head);
   assert (!cur->recorded_variable_defs_head);
-  assert (!cur->recorded_files_head);
+  assert (!cur->recorded_file_head);
 #endif
 
   incdep_xfree (cur, cur->file_base);
@@ -726,8 +722,8 @@ incdep_init (struct floc *f)
           unsigned rec_size = sizeof (struct incdep_variable_in_set);
           if (rec_size < sizeof (struct incdep_variable_def))
             rec_size = sizeof (struct incdep_variable_def);
-          if (rec_size < sizeof (struct incdep_recorded_files))
-            rec_size = sizeof (struct incdep_recorded_files);
+          if (rec_size < sizeof (struct incdep_recorded_file))
+            rec_size = sizeof (struct incdep_recorded_file);
           alloccache_init (&incdep_rec_caches[i], rec_size, "incdep rec",
                            incdep_cache_allocator, (void *)(size_t)i);
           alloccache_init (&incdep_dep_caches[i], sizeof(struct dep), "incdep dep",
@@ -848,7 +844,7 @@ incdep_flush_recorded_instructions (struct incdep *cur)
 {
   struct incdep_variable_in_set *rec_vis;
   struct incdep_variable_def *rec_vd;
-  struct incdep_recorded_files *rec_f;
+  struct incdep_recorded_file *rec_f;
 
   /* define_variable_in_set */
 
@@ -897,31 +893,20 @@ incdep_flush_recorded_instructions (struct incdep *cur)
 
   /* record_files */
 
-  rec_f = cur->recorded_files_head;
-  cur->recorded_files_head = cur->recorded_files_tail = NULL;
+  rec_f = cur->recorded_file_head;
+  cur->recorded_file_head = cur->recorded_file_tail = NULL;
   if (rec_f)
     do
       {
         void *free_me = rec_f;
         struct dep *dep;
-        struct nameseq *filenames;
 
         for (dep = rec_f->deps; dep; dep = dep->next)
           dep->name = incdep_flush_strcache_entry ((struct strcache2_entry *)dep->name);
 
-        filenames = (struct nameseq *) alloccache_alloc (&nameseq_cache);
-        filenames->next = 0;
-        filenames->name = incdep_flush_strcache_entry (rec_f->filename_entry);
-
-        record_files (filenames,
-                      rec_f->pattern,
-                      rec_f->pattern_percent,
-                      rec_f->deps,
-                      rec_f->cmds_started,
-                      rec_f->commands,
-                      rec_f->commands_idx,
-                      rec_f->two_colon,
-                      rec_f->flocp);
+        incdep_commit_recorded_file (incdep_flush_strcache_entry (rec_f->filename_entry),
+                                     rec_f->deps,
+                                     rec_f->flocp);
 
         rec_f = rec_f->next;
         incdep_free_rec (cur, free_me);
@@ -1073,45 +1058,85 @@ incdep_record_variable_def (struct incdep *cur,
 #endif
 }
 
-/* Record files.*/
+/* Similar to record_files in read.c, only much much simpler. */
 static void
-incdep_record_files (struct incdep *cur,
-                     const char *filename, const char *pattern,
-                     const char *pattern_percent, struct dep *deps,
-                     unsigned int cmds_started, char *commands,
-                     unsigned int commands_idx, int two_colon,
-                     const struct floc *flocp)
+incdep_commit_recorded_file (const char *filename, struct dep *deps,
+                             const struct floc *flocp)
+{
+  struct file *f;
+
+  /* Perform some validations. */
+  if (filename[0] == '.'
+      && (   streq(filename, ".POSIX")
+          || streq(filename, ".EXPORT_ALL_VARIABLES")
+          || streq(filename, ".INTERMEDIATE")
+          || streq(filename, ".LOW_RESOLUTION_TIME")
+          || streq(filename, ".NOTPARALLEL")
+          || streq(filename, ".ONESHELL")
+          || streq(filename, ".PHONY")
+          || streq(filename, ".PRECIOUS")
+          || streq(filename, ".SECONDARY")
+          || streq(filename, ".SECONDTARGETEXPANSION")
+          || streq(filename, ".SILENT")
+          || streq(filename, ".SHELLFLAGS")
+          || streq(filename, ".SUFFIXES")
+         )
+     )
+    {
+      error (flocp, _("reserved filename '%s' used in dependency file, ignored"), filename);
+      return;
+    }
+
+  /* Lookup or create an entry in the database. */
+  f = enter_file (filename);
+  if (f->double_colon)
+    {
+      error (flocp, _("dependency file '%s' has a double colon entry already, ignoring"), filename);
+      return;
+    }
+  f->is_target = 1;
+
+  /* Append dependencies. */
+  deps = enter_prereqs (deps, NULL);
+  if (deps)
+    {
+      struct dep *last = f->deps;
+      if (!last)
+        f->deps = deps;
+      else
+        {
+          while (last->next)
+            last = last->next;
+          last->next = deps;
+        }
+    }
+}
+
+/* Record a file.*/
+static void
+incdep_record_file (struct incdep *cur,
+                    const char *filename,
+                    struct dep *deps,
+                    const struct floc *flocp)
 {
   if (cur->worker_tid == -1)
-    {
-      struct nameseq *filenames = (struct nameseq *) alloccache_alloc (&nameseq_cache);
-      filenames->next = 0;
-      filenames->name = filename;
-      record_files (filenames, pattern, pattern_percent, deps, cmds_started,
-                    commands, commands_idx, two_colon, flocp);
-    }
+    incdep_commit_recorded_file (filename, deps, flocp);
 #ifdef PARSE_IN_WORKER
   else
     {
-      struct incdep_recorded_files *rec =
-        (struct incdep_recorded_files *) incdep_alloc_rec (cur);
+      struct incdep_recorded_file *rec =
+        (struct incdep_recorded_file *) incdep_alloc_rec (cur);
 
       rec->filename_entry = (struct strcache2_entry *)filename;
-      rec->pattern = pattern;
-      rec->pattern_percent = pattern_percent;
       rec->deps = deps;
-      rec->cmds_started = cmds_started;
-      rec->commands = commands;
-      rec->commands_idx = commands_idx;
-      rec->two_colon = two_colon;
       rec->flocp = flocp;
 
       rec->next = NULL;
-      if (cur->recorded_files_tail)
-        cur->recorded_files_tail->next = rec;
+      if (cur->recorded_file_tail)
+        cur->recorded_file_tail->next = rec;
       else
-        cur->recorded_files_head = rec;
-      cur->recorded_files_tail = rec;
+        cur->recorded_file_head = rec;
+      cur->recorded_file_tail = rec;
     }
 #endif
 }
@@ -1530,8 +1555,7 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
                 }
 
               /* enter the file with its dependencies. */
-              incdep_record_files (curdep,
-                                   filename, NULL, NULL, deps, 0, NULL, 0, 0, f);
+              incdep_record_file (curdep, filename, deps, f);
             }
         }
     }
@@ -1629,8 +1653,8 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
        cur->recorded_variables_in_set_tail = NULL;
        cur->recorded_variable_defs_head = NULL;
        cur->recorded_variable_defs_tail = NULL;
-       cur->recorded_files_head = NULL;
-       cur->recorded_files_tail = NULL;
+       cur->recorded_file_head = NULL;
+       cur->recorded_file_tail = NULL;
 #endif
 
        cur->next = NULL;

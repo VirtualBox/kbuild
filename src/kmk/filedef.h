@@ -1,7 +1,7 @@
 /* Definition of target file data structures for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -106,6 +106,9 @@ struct file
                                    pattern-specific variables.  */
     unsigned int considered:1;  /* equal to 'considered' if file has been
                                    considered on current scan of goal chain */
+    unsigned int no_diag:1;     /* True if the file failed to update and no
+                                   diagnostics has been issued (dontcare). */
+
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
     unsigned int multi_maybe:1; /* Nonzero if this file isn't always updated
                                    by the explicit multi target rule. */
@@ -116,12 +119,10 @@ struct file
                                   can receive this is decided at parse time,
                                   and the expanding done in snap_deps. */
 #endif
-
   };
 
 
-extern struct file *default_goal_file, *suffix_file, *default_file;
-extern char **default_goal_name;
+extern struct file *suffix_file, *default_file;
 
 
 struct file *lookup_file (const char *name);
@@ -129,7 +130,8 @@ struct file *lookup_file (const char *name);
 struct file *lookup_file_cached (const char *name);
 #endif
 struct file *enter_file (const char *name);
-struct dep *parse_prereqs (char *prereqs);
+struct dep *split_prereqs (char *prereqstr);
+struct dep *enter_prereqs (struct dep *prereqs, const char *stem);
 void remove_intermediates (int sig);
 void snap_deps (void);
 void rename_file (struct file *file, const char *name);
@@ -138,6 +140,8 @@ void set_command_state (struct file *file, enum cmd_state state);
 void notice_finished_file (struct file *file);
 void init_hash_files (void);
 char *build_target_list (char *old_list);
+void print_prereqs (const struct dep *deps);
+void print_file_data_base (void);
 
 #if FILE_TIMESTAMP_HI_RES
 # define FILE_TIMESTAMP_STAT_MODTIME(fname, st) \

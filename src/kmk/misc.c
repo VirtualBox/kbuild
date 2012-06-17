@@ -1,7 +1,7 @@
 /* Miscellaneous generic support functions for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -164,11 +164,13 @@ collapse_continuations (char *line, unsigned int linelen)
       /* Skip the newline.  */
       ++in;
 
-      /* If the newline is quoted, discard following whitespace
-	 and any preceding whitespace; leave just one space.  */
+      /* If the newline is escaped, discard following whitespace leaving just
+	 one space.  POSIX requires that each backslash/newline/following
+	 whitespace sequence be reduced to a single space.  */
       if (backslash)
 	{
 	  in = next_token (in);
+          /* Removing this loop will fix Savannah bug #16670: do we want to? */
 	  while (out > line && isblank ((unsigned char)out[-1]))
 	    --out;
 	  *out++ = ' ';
@@ -214,31 +216,57 @@ print_spaces (unsigned int n)
 }
 
 
-/* Return a string whose contents concatenate those of s1, s2, s3.
+/* Return a string whose contents concatenate the NUM strings provided
    This string lives in static, re-used memory.  */
 
-char *
-concat (const char *s1, const char *s2, const char *s3)
+const char *
+#if HAVE_ANSI_COMPILER && USE_VARIADIC && HAVE_STDARG_H
+concat (unsigned int num, ...)
+#else
+concat (num, va_alist)
+     unsigned int num;
+     va_dcl
+#endif
 {
-  unsigned int len1, len2, len3;
   static unsigned int rlen = 0;
   static char *result = NULL;
+  unsigned int ri = 0; /* bird: must be unsigned */
 
-  len1 = (s1 && *s1 != '\0') ? strlen (s1) : 0;
-  len2 = (s2 && *s2 != '\0') ? strlen (s2) : 0;
-  len3 = (s3 && *s3 != '\0') ? strlen (s3) : 0;
+#if USE_VARIADIC
+  va_list args;
+#endif
 
-  if (len1 + len2 + len3 + 1 > rlen)
-    result = xrealloc (result, (rlen = len1 + len2 + len3 + 10));
+  VA_START (args, num);
 
-  if (len1)
-    memcpy (result, s1, len1);
-  if (len2)
-    memcpy (result + len1, s2, len2);
-  if (len3)
-    memcpy (result + len1 + len2, s3, len3);
+  while (num-- > 0)
+    {
+      const char *s = va_arg (args, const char *);
+      unsigned int l = s ? strlen (s) : 0;
 
-  result[len1+len2+len3] = '\0';
+      if (l == 0)
+        continue;
+
+      if (ri + l > rlen)
+        {
+          rlen = ((rlen ? rlen : 60) + l) * 2;
+          result = xrealloc (result, rlen);
+        }
+
+      memcpy (result + ri, s, l);
+      ri += l;
+    }
+
+  VA_END (args);
+
+  /* Get some more memory if we don't have enough space for the
+     terminating '\0'.   */
+  if (ri == rlen)
+    {
+      rlen = (rlen ? rlen : 60) * 2;
+      result = xrealloc (result, rlen);
+    }
+
+  result[ri] = '\0';
 
   return result;
 }
@@ -391,13 +419,14 @@ pfatal_with_name (const char *name)
 #if !defined(HAVE_DMALLOC_H) && !defined(ELECTRIC_HEAP) /* bird */
 
 #undef xmalloc
+#undef xcalloc
 #undef xrealloc
 #undef xstrdup
 
 void *
 xmalloc (unsigned int size)
 {
-  /* Make sure we don't allocate 0, for pre-ANSI libraries.  */
+  /* Make sure we don't allocate 0, for pre-ISO implementations.  */
   void *result = malloc (size ? size : 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
@@ -409,6 +438,17 @@ xmalloc (unsigned int size)
   else
     make_stats_allocated += size;
 #endif
+  return result;
+}
+
+
+void *
+xcalloc (unsigned int size)
+{
+  /* Make sure we don't allocate 0, for pre-ISO implementations.  */
+  void *result = calloc (size ? size : 1, 1);
+  if (result == 0)
+    fatal (NILF, _("virtual memory exhausted"));
   return result;
 }
 
@@ -426,7 +466,7 @@ xrealloc (void *ptr, unsigned int size)
     make_stats_allocations++;
 #endif
 
-  /* Some older implementations of realloc() don't conform to ANSI.  */
+  /* Some older implementations of realloc() don't conform to ISO.  */
   if (! size)
     size = 1;
   result = ptr ? realloc (ptr, size) : malloc (size);
@@ -474,13 +514,22 @@ xstrdup (const char *ptr)
 #endif  /* HAVE_DMALLOC_H */
 
 char *
-savestring (const char *str, unsigned int length)
+xstrndup (const char *str, unsigned int length)
 {
-  char *out = xmalloc (length + 1);
+  char *result;
+
+#if defined(HAVE_STRNDUP) && !defined(KMK)
+  result = strndup (str, length);
+  if (result == 0)
+    fatal (NILF, _("virtual memory exhausted"));
+#else
+  result = xmalloc (length + 1);
   if (length > 0)
-    memcpy (out, str, length);
-  out[length] = '\0';
-  return out;
+    strncpy (result, str, length);
+  result[length] = '\0';
+#endif
+
+  return result;
 }
 
 
@@ -777,35 +826,7 @@ find_next_token_eos (const char **ptr, const char *eos, unsigned int *lengthptr)
 #endif /* KMK */
 
 
-/* Allocate a new `struct dep' with all fields initialized to 0.   */
-
-struct dep *
-alloc_dep ()
-{
-#ifndef CONFIG_WITH_ALLOC_CACHES
-  struct dep *d = xmalloc (sizeof (struct dep));
-  memset (d, '\0', sizeof (struct dep));
-  return d;
-#else
-  return (struct dep *) alloccache_calloc (&dep_cache);
-#endif
-}
-
-
-/* Free `struct dep' along with `name' and `stem'.   */
-
-void
-free_dep (struct dep *d)
-{
-#ifndef CONFIG_WITH_ALLOC_CACHES
-  free (d);
-#else
-  alloccache_free (&dep_cache, d);
-#endif
-}
-
-/* Copy a chain of `struct dep', making a new chain
-   with the same contents as the old one.  */
+/* Copy a chain of `struct dep'.  For 2nd expansion deps, dup the name.  */
 
 struct dep *
 copy_dep_chain (const struct dep *d)
@@ -818,9 +839,13 @@ copy_dep_chain (const struct dep *d)
 #ifndef CONFIG_WITH_ALLOC_CACHES
       struct dep *c = xmalloc (sizeof (struct dep));
 #else
-      struct dep *c = (struct dep *) alloccache_alloc (&dep_cache);
+      struct dep *c = alloccache_alloc(&dep_cache);
 #endif
       memcpy (c, d, sizeof (struct dep));
+
+      /** @todo KMK: Check if we need this duplication! */
+      if (c->need_2nd_expansion)
+        c->name = xstrdup (c->name);
 
       c->next = 0;
       if (firstnew == 0)
@@ -843,11 +868,7 @@ free_dep_chain (struct dep *d)
     {
       struct dep *df = d;
       d = d->next;
-#ifndef CONFIG_WITH_ALLOC_CACHES
       free_dep (df);
-#else
-      alloccache_free (&dep_cache, df);
-#endif
     }
 }
 
@@ -893,6 +914,34 @@ strcasecmp (const char *s1, const char *s2)
 
       return (c1 - c2);
     }
+}
+#endif
+
+#if !HAVE_STRNCASECMP && !HAVE_STRNICMP && !HAVE_STRNCMPI
+
+/* If we don't have strncasecmp() (from POSIX), or anything that can
+   substitute for it, define our own version.  */
+
+int
+strncasecmp (const char *s1, const char *s2, int n)
+{
+  while (n-- > 0)
+    {
+      int c1 = (int) *(s1++);
+      int c2 = (int) *(s2++);
+
+      if (isalpha (c1))
+        c1 = tolower (c1);
+      if (isalpha (c2))
+        c2 = tolower (c2);
+
+      if (c1 != '\0' && c1 == c2)
+        continue;
+
+      return (c1 - c2);
+    }
+
+  return 0;
 }
 #endif
 
@@ -1221,12 +1270,14 @@ print_heap_stats (void)
   malloc_statistics_t s;
 
   malloc_zone_statistics (NULL, &s);
-  printf (_("\n# CRT Heap: %zu bytes in use, in %u blocks, avg %zu bytes/block\n"),
-          s.size_in_use, s.blocks_in_use, s.size_in_use / s.blocks_in_use);
-  printf (_("#           %zu bytes max in use (high water mark)\n"),
-          s.max_size_in_use);
-  printf (_("#           %zu bytes reserved,  %zu bytes free (estimate)\n"),
-          s.size_allocated, s.size_allocated - s.size_in_use);
+  printf (_("\n# CRT Heap: %u bytes in use, in %u blocks, avg %u bytes/block\n"),
+          (unsigned)s.size_in_use, (unsigned)s.blocks_in_use,
+          (unsigned)(s.size_in_use / s.blocks_in_use));
+  printf (_("#           %u bytes max in use (high water mark)\n"),
+          (unsigned)s.max_size_in_use);
+  printf (_("#           %u bytes reserved,  %u bytes free (estimate)\n"),
+          (unsigned)s.size_allocated,
+          (unsigned)(s.size_allocated - s.size_in_use));
 # endif /* __APPLE__ */
 
   /* MSC / Windows  */
@@ -1361,7 +1412,7 @@ nano_timestamp (void)
 int
 format_elapsed_nano (char *buf, size_t size, big_int ts)
 {
-  int sz;
+  unsigned sz;
   if (ts < 1000)
     sz = sprintf (buf, "%uns", (unsigned)ts);
   else if (ts < 100000)
@@ -1394,8 +1445,8 @@ format_elapsed_nano (char *buf, size_t size, big_int ts)
         }
     }
   if (sz >= size)
-    fatal (NILF, _("format_elapsed_nano buffer overflow: %d written, %d buffer"),
-           sz, size);
+    fatal (NILF, _("format_elapsed_nano buffer overflow: %u written, %lu buffer"),
+           sz, (unsigned long)size);
   return sz;
 }
 #endif /* CONFIG_WITH_PRINT_TIME_SWITCH */

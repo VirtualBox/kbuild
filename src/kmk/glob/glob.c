@@ -182,7 +182,7 @@ extern void bcopy ();
 # define mempcpy(Dest, Src, Len) __mempcpy (Dest, Src, Len)
 #endif
 
-#if !defined(__GNU_LIBRARY__) && !defined(ELECTRIC_HEAP) && !defined(__APPLE__) /* bird (last two) */
+#if !defined __GNU_LIBRARY__ && !defined __DJGPP__ && !defined ELECTRIC_HEAP && !defined __APPLE__ /* bird (last two) */
 # ifdef	__GNUC__
 __inline
 # endif
@@ -191,9 +191,6 @@ __inline
 #   include <malloc.h>
 static void *
 my_realloc (void *p, unsigned int n)
-#  elif defined(__DJGPP__)
-static void *
-my_realloc (void *p, size_t n)
 #  else
 static char *
 my_realloc (p, n)
@@ -209,7 +206,7 @@ my_realloc (p, n)
 }
 # define	realloc	my_realloc
 # endif /* __SASC */
-#endif /* __GNU_LIBRARY__ */
+#endif /* __GNU_LIBRARY__ || __DJGPP__ */
 
 
 #if !defined __alloca && !defined __GNU_LIBRARY__
@@ -388,7 +385,7 @@ glob (pattern, flags, errfunc, pglob)
 	{
 	  /* Allocate working buffer large enough for our work.  Note that
 	    we have at least an opening and closing brace.  */
-	  size_t firstc;
+	  size_t firstc;  /* bird: correct type. */
 	  char *alt_start;
 	  const char *p;
 	  const char *next;

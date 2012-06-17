@@ -1,7 +1,7 @@
 /* Command processing for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -42,6 +42,79 @@ int remote_kill (int id, int sig);
 int getpid ();
 #endif
 
+#ifndef CONFIG_WITH_STRCACHE2
+
+static unsigned long
+dep_hash_1 (const void *key)
+{
+  const struct dep *d = key;
+  return_STRING_HASH_1 (dep_name (d));
+}
+
+static unsigned long
+dep_hash_2 (const void *key)
+{
+  const struct dep *d = key;
+  return_STRING_HASH_2 (dep_name (d));
+}
+
+static int
+dep_hash_cmp (const void *x, const void *y)
+{
+  const struct dep *dx = x;
+  const struct dep *dy = y;
+  return strcmp (dep_name (dx), dep_name (dy));
+}
+
+
+#else  /* CONFIG_WITH_STRCACHE2 */
+
+/* Exploit the fact that all names are in the string cache. This means equal
+   names shall have the same storage and there is no need for hashing or
+   comparing. Use the address as the first hash, avoiding any touching of
+   the name, and the length as the second. */
+
+static unsigned long
+dep_hash_1 (const void *key)
+{
+  const char *name = dep_name ((struct dep const *) key);
+  assert (strcache2_is_cached (&file_strcache, name));
+  return (size_t) name / sizeof(void *);
+}
+
+static unsigned long
+dep_hash_2 (const void *key)
+{
+  const char *name = dep_name ((struct dep const *) key);
+  return strcache2_get_len (&file_strcache, name);
+}
+
+static int
+dep_hash_cmp (const void *x, const void *y)
+{
+  struct dep *dx = (struct dep *) x;
+  struct dep *dy = (struct dep *) y;
+  const char *dxname = dep_name (dx);
+  const char *dyname = dep_name (dy);
+  int cmp = dxname == dyname ? 0 : 1;
+
+  /* check preconds: both cached and the cache contains no duplicates. */
+  assert (strcache2_is_cached (&file_strcache, dxname));
+  assert (strcache2_is_cached (&file_strcache, dyname));
+  assert (cmp == 0 || strcmp (dxname, dyname) != 0);
+
+  /* If the names are the same but ignore_mtimes are not equal, one of these
+     is an order-only prerequisite and one isn't.  That means that we should
+     remove the one that isn't and keep the one that is.  */
+
+  if (!cmp && dx->ignore_mtime != dy->ignore_mtime)
+    dx->ignore_mtime = dy->ignore_mtime = 0;
+
+  return cmp;
+}
+
+#endif /* CONFIG_WITH_STRCACHE2 */
+
 /* Set FILE's automatic variables up.  */
 
 void
@@ -51,7 +124,7 @@ set_file_variables (struct file *file, int called_early)
 set_file_variables (struct file *file)
 #endif
 {
-  const struct dep *d;
+  struct dep *d;
   const char *at, *percent, *star, *less;
 #ifdef CONFIG_WITH_STRCACHE2
   const char *org_stem = file->stem;
@@ -136,7 +209,8 @@ set_file_variables (struct file *file)
   for (d = file->deps; d != 0; d = d->next)
     if (!d->ignore_mtime)
       {
-        less = dep_name (d);
+        if (!d->need_2nd_expansion)
+          less = dep_name (d);
         break;
       }
 
@@ -212,27 +286,46 @@ set_file_variables (struct file *file)
     char *bp;
     unsigned int len;
 
+    struct hash_table dep_hash;
+    void **slot;
+
     /* Compute first the value for $+, which is supposed to contain
        duplicate dependencies as they were listed in the makefile.  */
 
     plus_len = 0;
+    bar_len = 0;
     for (d = file->deps; d != 0; d = d->next)
       if (! d->ignore_mtime)
+      {
+        if (!d->need_2nd_expansion)
+          {
 #ifndef CONFIG_WITH_STRCACHE2
-	plus_len += strlen (dep_name (d)) + 1;
+            if (d->ignore_mtime)
+              bar_len += strlen (dep_name (d)) + 1;
+            else
+              plus_len += strlen (dep_name (d)) + 1;
 #else
-	plus_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
+            if (d->ignore_mtime)
+              bar_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
+            else
+              plus_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
 #endif
+          }
+      }
+
+    if (bar_len == 0)
+      bar_len++;
     if (plus_len == 0)
       plus_len++;
 
     if (plus_len > plus_max)
       plus_value = xrealloc (plus_value, plus_max = plus_len);
+
     cp = plus_value;
 
     qmark_len = plus_len + 1;	/* Will be this or less.  */
     for (d = file->deps; d != 0; d = d->next)
-      if (! d->ignore_mtime)
+      if (! d->ignore_mtime && ! d->need_2nd_expansion)
         {
           const char *c = dep_name (d);
 
@@ -253,7 +346,7 @@ set_file_variables (struct file *file)
           memcpy (cp, c, len);
           cp += len;
           *cp++ = FILE_LIST_SEPARATOR;
-          if (! d->changed)
+          if (! (d->changed || always_make_flag))
             qmark_len -= len + 1;	/* Don't space in $? for this one.  */
         }
 
@@ -261,23 +354,6 @@ set_file_variables (struct file *file)
 
     cp[cp > plus_value ? -1 : 0] = '\0';
     DEFINE_VARIABLE ("+", 1, plus_value);
-
-    /* Make sure that no dependencies are repeated.  This does not
-       really matter for the purpose of updating targets, but it
-       might make some names be listed twice for $^ and $?.  */
-
-    uniquize_deps (file->deps);
-
-    bar_len = 0;
-    for (d = file->deps; d != 0; d = d->next)
-      if (d->ignore_mtime)
-#ifndef CONFIG_WITH_STRCACHE2
-	bar_len += strlen (dep_name (d)) + 1;
-#else
-	bar_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
-#endif
-    if (bar_len == 0)
-      bar_len++;
 
     /* Compute the values for $^, $?, and $|.  */
 
@@ -291,12 +367,43 @@ set_file_variables (struct file *file)
       bar_value = xrealloc (bar_value, bar_max = bar_len);
     bp = bar_value;
 
+    /* Make sure that no dependencies are repeated in $^, $?, and $|.  It
+       would be natural to combine the next two loops but we can't do it
+       because of a situation where we have two dep entries, the first
+       is order-only and the second is normal (see below).  */
+
+    hash_init (&dep_hash, 500, dep_hash_1, dep_hash_2, dep_hash_cmp);
+
     for (d = file->deps; d != 0; d = d->next)
       {
-	const char *c = dep_name (d);
+        if (d->need_2nd_expansion)
+          continue;
 
+        slot = hash_find_slot (&dep_hash, d);
+        if (HASH_VACANT (*slot))
+          hash_insert_at (&dep_hash, d, slot);
+        else
+          {
+            /* Check if the two prerequisites have different ignore_mtime.
+               If so then we need to "upgrade" one that is order-only.  */
+
+            struct dep* hd = (struct dep*) *slot;
+
+            if (d->ignore_mtime != hd->ignore_mtime)
+              d->ignore_mtime = hd->ignore_mtime = 0;
+          }
+      }
+
+    for (d = file->deps; d != 0; d = d->next)
+      {
+        const char *c;
+
+        if (d->need_2nd_expansion || hash_find_item (&dep_hash, d) != d)
+          continue;
+
+        c = dep_name (d);
 #ifndef	NO_ARCHIVES
-	if (ar_name (c))
+        if (ar_name (c))
 	  {
 	    c = strchr (c, '(') + 1;
 	    len = strlen (c) - 1;
@@ -311,16 +418,16 @@ set_file_variables (struct file *file)
 
         if (d->ignore_mtime)
           {
-	    memcpy (bp, c, len);
+            memcpy (bp, c, len);
 	    bp += len;
 	    *bp++ = FILE_LIST_SEPARATOR;
 	  }
 	else
-	  {
+          {
             memcpy (cp, c, len);
             cp += len;
             *cp++ = FILE_LIST_SEPARATOR;
-            if (d->changed)
+            if (d->changed || always_make_flag)
               {
                 memcpy (qp, c, len);
                 qp += len;
@@ -328,6 +435,8 @@ set_file_variables (struct file *file)
               }
           }
       }
+
+    hash_free (&dep_hash, 0);
 
     /* Kill the last spaces and define the variables.  */
 
@@ -350,7 +459,8 @@ set_file_variables (struct file *file)
       free_dep_chain (file->org_deps);
       file->org_deps = copy_dep_chain (file->deps);
 
-      uniquize_deps (file->deps);
+      /** @todo do uniquize_deps (file->deps); in the $(dep-* ) functions, it'll
+       *        save even more space that way. */
    }
 #endif /* CONFIG_WITH_LAZY_DEPS_VARS */
 #undef	DEFINE_VARIABLE
@@ -362,7 +472,6 @@ set_file_variables (struct file *file)
 void
 chop_commands (struct commands *cmds)
 {
-  const char *p;
   unsigned int nlines, idx;
   char **lines;
 
@@ -372,50 +481,68 @@ chop_commands (struct commands *cmds)
   if (!cmds || cmds->command_lines != 0)
     return;
 
-  /* Chop CMDS->commands up into lines in CMDS->command_lines.
-	 Also set the corresponding CMDS->lines_flags elements,
-	 and the CMDS->any_recurse flag.  */
+  /* Chop CMDS->commands up into lines in CMDS->command_lines.  */
 
-  nlines = 5;
-  lines = xmalloc (5 * sizeof (char *));
-  idx = 0;
-  p = cmds->commands;
-  while (*p != '\0')
+  if (one_shell)
     {
-      const char *end = p;
-    find_end:;
-      end = strchr (end, '\n');
-      if (end == 0)
-        end = p + strlen (p);
-      else if (end > p && end[-1] == '\\')
+      int l = strlen (cmds->commands);
+
+      nlines = 1;
+      lines = xmalloc (nlines * sizeof (char *));
+      lines[0] = xstrdup (cmds->commands);
+
+      /* Strip the trailing newline.  */
+      if (l > 0 && lines[0][l-1] == '\n')
+        lines[0][l-1] = '\0';
+    }
+  else
+    {
+      const char *p;
+
+      nlines = 5;
+      lines = xmalloc (nlines * sizeof (char *));
+      idx = 0;
+      p = cmds->commands;
+      while (*p != '\0')
         {
-          int backslash = 1;
-          const char *b;
-          for (b = end - 2; b >= p && *b == '\\'; --b)
-            backslash = !backslash;
-          if (backslash)
+          const char *end = p;
+        find_end:;
+          end = strchr (end, '\n');
+          if (end == 0)
+            end = p + strlen (p);
+          else if (end > p && end[-1] == '\\')
             {
-              ++end;
-              goto find_end;
+              int backslash = 1;
+              const char *b;
+              for (b = end - 2; b >= p && *b == '\\'; --b)
+                backslash = !backslash;
+              if (backslash)
+                {
+                  ++end;
+                  goto find_end;
+                }
             }
+
+          if (idx == nlines)
+            {
+              nlines += 2;
+              lines = xrealloc (lines, nlines * sizeof (char *));
+            }
+          lines[idx++] = xstrndup (p, end - p);
+          p = end;
+          if (*p != '\0')
+            ++p;
         }
 
-      if (idx == nlines)
+      if (idx != nlines)
         {
-          nlines += 2;
+          nlines = idx;
           lines = xrealloc (lines, nlines * sizeof (char *));
         }
-      lines[idx++] = savestring (p, end - p);
-      p = end;
-      if (*p != '\0')
-        ++p;
     }
 
-  if (idx != nlines)
-    {
-      nlines = idx;
-      lines = xrealloc (lines, nlines * sizeof (char *));
-    }
+  /* Finally, set the corresponding CMDS->lines_flags elements and the
+     CMDS->any_recurse flag.  */
 
   cmds->ncommand_lines = nlines;
   cmds->command_lines = lines;
@@ -426,18 +553,14 @@ chop_commands (struct commands *cmds)
 #else
   cmds->lines_flags = xmalloc (nlines * sizeof (cmds->lines_flags[0]));
 #endif
+
   for (idx = 0; idx < nlines; ++idx)
     {
       int flags = 0;
+      const char *p = lines[idx];
 
-      for (p = lines[idx];
-#ifndef CONFIG_WITH_COMMANDS_FUNC
-            isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+';
-#else
-           isblank ((unsigned char)*p) || *p == '-' || *p == '@' || *p == '+' || *p == '%';
-#endif
-           ++p)
-        switch (*p)
+      while (isblank (*p) || *p == '-' || *p == '@' || *p == '+' IF_WITH_COMMANDS_FUNC(|| *p == '%'))
+        switch (*(p++))
           {
           case '+':
             flags |= COMMANDS_RECURSE;
