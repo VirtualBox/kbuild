@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2593 2012-06-17 22:52:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -42,6 +42,9 @@
 #if K_OS == K_OS_WINDOWS
 # include <Windows.h>
 extern pid_t shfork_do(shinstance *psh); /* shforkA-win.asm */
+#endif
+#if !defined(HAVE_SYS_SIGNAME) && defined(DEBUG)
+extern void init_sys_signame(void);
 #endif
 
 
@@ -587,8 +590,11 @@ int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, str
             g_sig_state[signo].sa.sa_handler = SIG_DFL;
         g_sig_state[signo].sa.sa_flags = psh->sigactions[signo].sh_flags & SA_RESTART;
 
+#if !defined(HAVE_SYS_SIGNAME) && defined(DEBUG)
+        init_sys_signame();
+#endif
         TRACE2((psh, "sh_sigaction: setting signo=%d:%s to {.sa_handler=%p, .sa_flags=%#x}\n",
-                    signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
+                signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
 #ifdef _MSC_VER
         if (signal(signo, g_sig_state[signo].sa.sa_handler) == SIG_ERR)
 #else
