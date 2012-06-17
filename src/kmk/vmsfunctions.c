@@ -1,6 +1,6 @@
 /* VMS functions
 Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
-2007 Free Software Foundation, Inc.
+2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -34,12 +34,10 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 DIR *
 opendir (char *dspec)
 {
-  struct DIR *dir  = (struct DIR *)xmalloc (sizeof (struct DIR));
-  struct NAM *dnam = (struct NAM *)xmalloc (sizeof (struct NAM));
+  struct DIR *dir  = xcalloc (sizeof (struct DIR));
+  struct NAM *dnam = xmalloc (sizeof (struct NAM));
   struct FAB *dfab = &dir->fab;
   char *searchspec = xmalloc (MAXNAMLEN + 1);
-
-  memset (dir, 0, sizeof *dir);
 
   *dfab = cc$rms_fab;
   *dnam = cc$rms_nam;
@@ -91,7 +89,7 @@ readdir (DIR *dir)
 
   if (!((i = sys$search (dfab)) & 1))
     {
-      DB (DB_VERBOSE, (_("sys$search failed with %d\n"), i));
+      DB (DB_VERBOSE, (_("sys$search() failed with %d\n"), i));
       return (NULL);
     }
 
@@ -141,6 +139,10 @@ getwd (char *cwd)
     return (getcwd (buf, 512));
 }
 
+#if 0
+/*
+ * Is this used? I don't see any reference, so I suggest to remove it.
+ */
 int
 vms_stat (char *name, struct stat *buf)
 {
@@ -237,6 +239,7 @@ vms_stat (char *name, struct stat *buf)
 
   return 0;
 }
+#endif
 
 char *
 cvt_time (unsigned long tval)

@@ -206,7 +206,7 @@ char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname)
 
 	(void)funcname;
 	if (rc != 0)
-		fatal (NILF, _("$(%s): failure rc=%d\n"), rc);
+		fatal (NILF, _("$(%s): failure rc=%d\n"), funcname, rc);
 	return o;
 }
 #endif

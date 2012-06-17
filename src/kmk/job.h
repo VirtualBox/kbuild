@@ -1,6 +1,7 @@
 /* Definitions for managing subprocesses in GNU Make.
 Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -53,6 +54,7 @@ struct child
 #ifdef VMS
     int efn;			/* Completion event flag number */
     int cstatus;		/* Completion status */
+    char *comname;              /* Temporary command file name */
 #endif
     char *sh_batch_file;        /* Script file for shell commands */
 #ifdef CONFIG_WITH_KMK_BUILTIN
@@ -73,6 +75,7 @@ struct child
 
 extern struct child *children;
 
+int is_bourne_compatible_shell(const char *path);
 void new_job (struct file *file);
 void reap_children (int block, int err);
 void start_waiting_jobs (void);

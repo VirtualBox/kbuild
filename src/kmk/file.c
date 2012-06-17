@@ -1,7 +1,7 @@
 /* Target file management for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -118,10 +118,20 @@ lookup_file_common (const char *name, int cached)
   while (name[0] == '[' && name[1] == ']' && name[2] != '\0')
       name += 2;
 #endif
-  while (name[0] == '.' && name[1] == '/' && name[2] != '\0')
+  while (name[0] == '.'
+#ifdef HAVE_DOS_PATHS
+	 && (name[1] == '/' || name[1] == '\\')
+#else
+	 && name[1] == '/'
+#endif
+	 && name[2] != '\0')
     {
       name += 2;
-      while (*name == '/')
+      while (*name == '/'
+#ifdef HAVE_DOS_PATHS
+	     || *name == '\\'
+#endif
+	     )
 	/* Skip following slashes: ".//foo" is "foo", not "/foo".  */
 	++name;
     }
@@ -229,8 +239,7 @@ enter_file (const char *name)
     return f;
 
 #ifndef CONFIG_WITH_ALLOC_CACHES
-  new = xmalloc (sizeof (struct file));
-  memset (new, '\0', sizeof (struct file));
+  new = xcalloc (sizeof (struct file));
 #else
   new = alloccache_calloc (&file_cache);
 #endif
@@ -506,17 +515,13 @@ remove_intermediates (int sig)
     }
 }
 
+/* Given a string containing prerequisites (fully expanded), break it up into
+   a struct dep list.  Enter each of these prereqs into the file database.
+ */
 struct dep *
-parse_prereqs (char *p)
+split_prereqs (char *p)
 {
-#ifndef CONFIG_WITH_ALLOC_CACHES
-  struct dep *new = (struct dep *)
-    multi_glob (parse_file_seq (&p, '|', sizeof (struct dep), 1),
-                sizeof (struct dep));
-#else
-  struct dep *new = (struct dep *)
-    multi_glob (parse_file_seq (&p, '|', &dep_cache, 1), &dep_cache);
-#endif
+  struct dep *new = PARSE_FILE_SEQ (&p, struct dep, '|', NULL, 0);
 
   if (*p)
     {
@@ -525,14 +530,7 @@ parse_prereqs (char *p)
       struct dep *ood;
 
       ++p;
-#ifndef CONFIG_WITH_ALLOC_CACHES
-      ood = (struct dep *)
-        multi_glob (parse_file_seq (&p, '\0', sizeof (struct dep), 1),
-                    sizeof (struct dep));
-#else
-      ood = (struct dep *)
-        multi_glob (parse_file_seq (&p, '\0', &dep_cache, 1), &dep_cache);
-#endif
+      ood = PARSE_FILE_SEQ (&p, struct dep, '\0', NULL, 0);
 
       if (! new)
         new = ood;
@@ -551,6 +549,85 @@ parse_prereqs (char *p)
   return new;
 }
 
+/* Given a list of prerequisites, enter them into the file database.
+   If STEM is set then first expand patterns using STEM.  */
+struct dep *
+enter_prereqs (struct dep *deps, const char *stem)
+{
+  struct dep *d1;
+
+  if (deps == 0)
+    return 0;
+
+  /* If we have a stem, expand the %'s.  We use patsubst_expand to translate
+     the prerequisites' patterns into plain prerequisite names.  */
+  if (stem)
+    {
+      const char *pattern = "%";
+      char *buffer = variable_expand ("");
+      struct dep *dp = deps, *dl = 0;
+
+      while (dp != 0)
+        {
+          char *percent;
+          int nl = strlen (dp->name) + 1;
+          char *nm = alloca (nl);
+          memcpy (nm, dp->name, nl);
+          percent = find_percent (nm);
+          if (percent)
+            {
+              char *o;
+
+              /* We have to handle empty stems specially, because that
+                 would be equivalent to $(patsubst %,dp->name,) which
+                 will always be empty.  */
+              if (stem[0] == '\0')
+                {
+                  memmove (percent, percent+1, strlen (percent));
+                  o = variable_buffer_output (buffer, nm, strlen (nm) + 1);
+                }
+              else
+                o = patsubst_expand_pat (buffer, stem, pattern, nm,
+                                         pattern+1, percent+1);
+
+              /* If the name expanded to the empty string, ignore it.  */
+              if (buffer[0] == '\0')
+                {
+                  struct dep *df = dp;
+                  if (dp == deps)
+                    dp = deps = deps->next;
+                  else
+                    dp = dl->next = dp->next;
+                  free_dep (df);
+                  continue;
+                }
+
+              /* Save the name.  */
+              dp->name = strcache_add_len (buffer, o - buffer);
+            }
+          dp->stem = stem;
+          dp->staticpattern = 1;
+          dl = dp;
+          dp = dp->next;
+        }
+    }
+
+  /* Enter them as files, unless they need a 2nd expansion.  */
+  for (d1 = deps; d1 != 0; d1 = d1->next)
+    {
+      if (d1->need_2nd_expansion)
+        continue;
+
+      d1->file = lookup_file (d1->name);
+      if (d1->file == 0)
+        d1->file = enter_file (d1->name);
+      d1->staticpattern = 0;
+      d1->name = 0;
+    }
+
+  return deps;
+}
+
 /* Set the intermediate flag.  */
 
 static void
@@ -565,24 +642,29 @@ static void
 expand_deps (struct file *f)
 {
   struct dep *d;
-  struct dep *old = f->deps;
+  struct dep **dp;
   const char *file_stem = f->stem;
-  unsigned int last_dep_has_cmds = f->updating;
   int initialized = 0;
 
   f->updating = 0;
-  f->deps = 0;
 
-  for (d = old; d != 0; d = d->next)
+  /* Walk through the dependencies.  For any dependency that needs 2nd
+     expansion, expand it then insert the result into the list.  */
+  dp = &f->deps;
+  d = f->deps;
+  while (d != 0)
     {
-      struct dep *new, *d1;
       char *p;
-#ifdef CONFIG_WITH_STRCACHE2
-      unsigned int len;
-#endif
+      struct dep *new, *next;
+      char *name = (char *)d->name;
 
-      if (! d->name)
-        continue;
+      if (! d->name || ! d->need_2nd_expansion)
+        {
+          /* This one is all set already.  */
+          dp = &d->next;
+          d = d->next;
+          continue;
+        }
 
 #ifdef CONFIG_WITH_INCLUDEDEP
       /* Dependencies loaded by includedep are ready for use and we skip
@@ -592,7 +674,7 @@ expand_deps (struct file *f)
 
       if (d->includedep)
         {
-          new = d1 = alloc_dep();
+          struct dep *d1 = new = alloc_dep();
           d1->staticpattern = 0;
           d1->need_2nd_expansion = 0;
           d1->includedep = 1;
@@ -613,190 +695,85 @@ expand_deps (struct file *f)
             }
         }
       else
-        {
-#endif
+      {
+#endif /* CONFIG_WITH_INCLUDEDEP */
 
-      /* Create the dependency list.
-         If we're not doing 2nd expansion, then it's just the name.  We will
-         still need to massage it though.  */
-      if (! d->need_2nd_expansion)
+      /* If it's from a static pattern rule, convert the patterns into
+         "$*" so they'll expand properly.  */
+      if (d->staticpattern)
         {
-          p = variable_expand ("");
+          char *o;
+          d->name = o = variable_expand ("");
+          o = subst_expand (o, name, "%", "$*", 1, 2, 0);
+          *o = '\0';
+          free (name);
 #ifndef CONFIG_WITH_STRCACHE2
-          variable_buffer_output (p, d->name, strlen (d->name) + 1);
+          d->name = name = xstrdup (variable_buffer); /* bird not d->name, can be reallocated */
 #else
-          len = strcache2_get_len (&file_strcache, d->name);
-          variable_buffer_output (p, d->name, len + 1);
+          d->name = strcache2_add (&file_strcache, variable_buffer, o - variable_buffer);
 #endif
-          p = variable_buffer;
+          d->staticpattern = 0;
         }
-      else
+
+      /* We're going to do second expansion so initialize file variables for
+         the file. Since the stem for static pattern rules comes from
+         individual dep lines, we will temporarily set f->stem to d->stem.  */
+      if (!initialized)
         {
-          /* If it's from a static pattern rule, convert the patterns into
-             "$*" so they'll expand properly.  */
-          if (d->staticpattern)
-            {
-              char *o;
-              char *buffer = variable_expand ("");
+          initialize_file_variables (f, 0);
+          initialized = 1;
+        }
 
-              o = subst_expand (buffer, d->name, "%", "$*", 1, 2, 0);
-              buffer = variable_buffer; /* bird - variable_buffer may have been reallocated. */
-
-              d->name = strcache_add_len (variable_buffer,
-                                          o - variable_buffer);
-              d->staticpattern = 0; /* Clear staticpattern so that we don't
-                                       re-expand %s below. */
-            }
-
-          /* We are going to do second expansion so initialize file variables
-             for the file. Since the stem for static pattern rules comes from
-             individual dep lines, we will temporarily set f->stem to d->stem.
-          */
-          if (!initialized)
-            {
-              initialize_file_variables (f, 0);
-              initialized = 1;
-            }
-
-          if (d->stem != 0)
-            f->stem = d->stem;
+      if (d->stem != 0)
+        f->stem = d->stem;
 
 #if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
-          set_file_variables (f, 0 /* real call, f->deps == 0 so we're ok. */);
+      set_file_variables (f, 0 /* real call, f->deps == 0 so we're ok. */);
 #else
-          set_file_variables (f);
+      set_file_variables (f);
 #endif
 
-#if !defined (CONFIG_WITH_VALUE_LENGTH) || !defined (CONFIG_WITH_STRCACHE2)
-          p = variable_expand_for_file (d->name, f);
-#else
-          len = strcache2_get_len (&file_strcache, d->name);
-          p = variable_expand_for_file_2 (NULL, d->name, len, f, &len);
-#endif
+      p = variable_expand_for_file (d->name, f);
 
-          if (d->stem != 0)
-            f->stem = file_stem;
-        }
+      if (d->stem != 0)
+        f->stem = file_stem;
 
-      /* Parse the prerequisites.  */
-      new = parse_prereqs (p);
+      /* At this point we don't need the name anymore: free it.  */
+      free (name);
 
-      /* If this dep list was from a static pattern rule, expand the %s.  We
-         use patsubst_expand to translate the prerequisites' patterns into
-         plain prerequisite names.  */
-      if (new && d->staticpattern)
+      /* Parse the prerequisites and enter them into the file database.  */
+      new = enter_prereqs (split_prereqs (p), d->stem);
+
+      /* If there were no prereqs here (blank!) then throw this one out.  */
+      if (new == 0)
         {
-          const char *pattern = "%";
-          char *buffer = variable_expand ("");
-          struct dep *dp = new, *dl = 0;
-
-          while (dp != 0)
-            {
-              char *percent;
-#ifndef KMK
-              int nl = strlen (dp->name) + 1;
-              char *nm = alloca (nl);
-              memcpy (nm, dp->name, nl);
-              percent = find_percent (nm);
-#else  /* KMK - don't make a stack copy unless it's actually required! */
-              unsigned int nl = strcache2_get_len (&file_strcache, dp->name);
-              char *nm;
-              percent = memchr (dp->name, '%', nl);
-              if (percent)
-                {
-                  nm = alloca (nl + 1);
-                  memcpy (nm, dp->name, nl + 1);
-                  percent = find_percent (nm);
-                }
-#endif /* KMK */
-              if (percent)
-                {
-                  char *o;
-
-                  /* We have to handle empty stems specially, because that
-                     would be equivalent to $(patsubst %,dp->name,) which
-                     will always be empty.  */
-                  if (d->stem[0] == '\0')
-                    {
-                      memmove (percent, percent+1, strlen (percent));
-                      o = variable_buffer_output (buffer, nm, strlen (nm) + 1);
-                    }
-                  else
-                    {
-                      o = patsubst_expand_pat (buffer, d->stem, pattern, nm,
-                                               pattern+1, percent+1);
-                      o = variable_buffer_output (o, "", 1); /* bird fix - patsubst_expand_pat doesn't terminate,
-                                                                the if case does and strcache would appreciate it. */
-                    }
-                  buffer = variable_buffer; /* bird fix - variable_buffer may have been reallocated. */
-
-
-                  /* If the name expanded to the empty string, ignore it.  */
-                  if (buffer[0] == '\0')
-                    {
-                      struct dep *df = dp;
-                      if (dp == new)
-                        dp = new = new->next;
-                      else
-                        dp = dl->next = dp->next;
-                      free_dep (df);
-                      continue;
-                    }
-
-                  /* Save the name.  */
-                  dp->name = strcache_add_len (buffer, o - buffer - 1); /* bird fix - don't include the terminator. */
-                }
-              dl = dp;
-              dp = dp->next;
-            }
-        }
-
-      /* Enter them as files. */
-      for (d1 = new; d1 != 0; d1 = d1->next)
-        {
-          d1->file = lookup_file (d1->name);
-          if (d1->file == 0)
-            d1->file = enter_file (d1->name);
-          d1->name = 0;
-          d1->staticpattern = 0;
-          d1->need_2nd_expansion = 0;
+          *dp = d->next;
+          free_dep (d);
+          d = *dp;
+          continue;
         }
 
 #ifdef CONFIG_WITH_INCLUDEDEP
-        }
+      }
 #endif
 
-      /* Add newly parsed deps to f->deps. If this is the last dependency
-         line and this target has commands then put it in front so the
-         last dependency line (the one with commands) ends up being the
-         first. This is important because people expect $< to hold first
-         prerequisite from the rule with commands. If it is not the last
-         dependency line or the rule does not have commands then link it
-         at the end so it appears in makefile order.  */
-
-      if (new != 0)
-        {
-          if (d->next == 0 && last_dep_has_cmds)
-            {
-              struct dep **d_ptr;
-              for (d_ptr = &new; *d_ptr; d_ptr = &(*d_ptr)->next)
-                ;
-
-              *d_ptr = f->deps;
-              f->deps = new;
-            }
-          else
-            {
-              struct dep **d_ptr;
-              for (d_ptr = &f->deps; *d_ptr; d_ptr = &(*d_ptr)->next)
-                ;
-
-              *d_ptr = new;
-            }
-        }
+      /* Add newly parsed prerequisites.  */
+      next = d->next;
+      *dp = new;
+      for (dp = &new->next, d = new->next; d != 0; dp = &d->next, d = d->next)
+        ;
+      *dp = next;
+      d = *dp;
     }
+}
 
-  free_dep_chain (old);
+/* Reset the updating flag.  */
+
+static void
+reset_updating (const void *item)
+{
+  struct file *f = (struct file *) item;
+  f->updating = 0;
 }
 
 /* For each dependency of each file, make the `struct dep' point
@@ -811,15 +788,10 @@ snap_deps (void)
   struct file *f;
   struct file *f2;
   struct dep *d;
-  struct file **file_slot_0;
-  struct file **file_slot;
-  struct file **file_end;
 
-  /* Perform second expansion and enter each dependency name as a file. */
-
-  /* Expand .SUFFIXES first; it's dependencies are used for $$* calculation. */
-  for (f = lookup_file (".SUFFIXES"); f != 0; f = f->prev)
-    expand_deps (f);
+  /* Remember that we've done this.  Once we start snapping deps we can no
+     longer define new targets.  */
+  snapped_deps = 1;
 
 #ifdef CONFIG_WITH_2ND_TARGET_EXPANSION
   /* Perform 2nd target expansion on files which requires this. This will
@@ -827,6 +799,7 @@ snap_deps (void)
      hash_dump(). */
   if (second_target_expansion)
     {
+      struct file **file_slot_0, **file_end, **file_slot;
 # ifdef KMK /* turn on warnings here. */
       int save = warn_undefined_variables_flag;
       warn_undefined_variables_flag = 1;
@@ -857,35 +830,55 @@ snap_deps (void)
   incdep_flush_and_term ();
 #endif /* CONFIG_WITH_INCLUDEDEP */
 
-  /* For every target that's not .SUFFIXES, expand its dependencies.
-     We must use hash_dump (), because within this loop we might add new files
-     to the table, possibly causing an in-situ table expansion.  */
-  file_slot_0 = (struct file **) hash_dump (&files, 0, 0);
-  file_end = file_slot_0 + files.ht_fill;
-  for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
-    for (f = *file_slot; f != 0; f = f->prev)
-#ifndef CONFIG_WITH_STRCACHE2
-      if (strcmp (f->name, ".SUFFIXES") != 0)
-#else
-      if (f->name != suffixes_strcached)
-#endif
-        expand_deps (f);
-#ifdef KMK
-  /* This is a HACK to work around the still broken test #9 in
-     features/double_colon.  It produces the wrong result if the build is
-     parallel because of changed evaluation order.  Just make these
-     problematic rules execute in single field till a proper fix is
-     forthcomming...  */
+  /* Perform second expansion and enter each dependency name as a file.  We
+     must use hash_dump() here because within these loops we likely add new
+     files to the table, possibly causing an in-situ table expansion.
 
-  for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
-    if (   (f = *file_slot) != 0
-        && f->double_colon
-        && (   f->double_colon != f
-            || f->last != f))
-      for (f2 = f->double_colon; f2 != 0; f2 = f2->prev)
-        f2->command_flags |= COMMANDS_NOTPARALLEL;
+     We only need to do this if second_expansion has been defined; if it
+     hasn't then all deps were expanded as the makefile was read in.  If we
+     ever change make to be able to unset .SECONDARY_EXPANSION this will have
+     to change.  */
+
+  if (second_expansion)
+    {
+      struct file **file_slot_0 = (struct file **) hash_dump (&files, 0, 0);
+      struct file **file_end = file_slot_0 + files.ht_fill;
+      struct file **file_slot;
+      const char *suffixes;
+
+      /* Expand .SUFFIXES: its prerequisites are used for $$* calc.  */
+      f = lookup_file (".SUFFIXES");
+      suffixes = f ? f->name : 0;
+      for (; f != 0; f = f->prev)
+        expand_deps (f);
+
+#ifdef KMK
+      /* This is a HACK to work around the still broken test #9 in
+         features/double_colon.  It produces the wrong result if the build is
+         parallel because of changed evaluation order.  Just make these
+         problematic rules execute in single field till a proper fix is
+         forthcomming...  */
+
+      for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
+        if (   (f = *file_slot) != 0
+            && f->double_colon
+            && (   f->double_colon != f
+                || f->last != f))
+          for (f2 = f->double_colon; f2 != 0; f2 = f2->prev)
+            f2->command_flags |= COMMANDS_NOTPARALLEL;
 #endif /* KMK */
-  free (file_slot_0);
+
+      /* For every target that's not .SUFFIXES, expand its prerequisites.  */
+
+      for (file_slot = file_slot_0; file_slot < file_end; file_slot++)
+        for (f = *file_slot; f != 0; f = f->prev)
+          if (f->name != suffixes)
+            expand_deps (f);
+      free (file_slot_0);
+    }
+  else
+    /* We're not doing second expansion, so reset updating.  */
+    hash_map (&files, reset_updating);
 
   /* Now manage all the special targets.  */
 
@@ -980,12 +973,9 @@ snap_deps (void)
   /* If .POSIX was defined, remove OUTPUT_OPTION to comply.  */
   /* This needs more work: what if the user sets this in the makefile?
   if (posix_pedantic)
-    define_variable (STRING_SIZE_TUPLE("OUTPUT_OPTION"), "", o_default, 1);
+    define_variable_cname ("OUTPUT_OPTION", "", o_default, 1);
   */
 #endif
-
-  /* Remember that we've done this. */
-  snapped_deps = 1;
 }
 
 /* Set the `command_state' member of FILE and all its `also_make's.  */
@@ -1112,12 +1102,34 @@ file_timestamp_sprintf (char *p, FILE_TIMESTAMP ts)
 
 /* Print the data base of files.  */
 
+void
+print_prereqs (const struct dep *deps)
+{
+  const struct dep *ood = 0;
+
+  /* Print all normal dependencies; note any order-only deps.  */
+  for (; deps != 0; deps = deps->next)
+    if (! deps->ignore_mtime)
+      printf (" %s", dep_name (deps));
+    else if (! ood)
+      ood = deps;
+
+  /* Print order-only deps, if we have any.  */
+  if (ood)
+    {
+      printf (" | %s", dep_name (ood));
+      for (ood = ood->next; ood != 0; ood = ood->next)
+        if (ood->ignore_mtime)
+          printf (" %s", dep_name (ood));
+    }
+
+  putchar ('\n');
+}
+
 static void
 print_file (const void *item)
 {
   const struct file *f = item;
-  struct dep *d;
-  struct dep *ood = 0;
 
   putchar ('\n');
   if (!f->is_target)
@@ -1149,23 +1161,7 @@ print_file (const void *item)
 #endif
     printf ("%s:%s", f->name, f->double_colon ? ":" : "");
 
-  /* Print all normal dependencies; note any order-only deps.  */
-  for (d = f->deps; d != 0; d = d->next)
-    if (! d->ignore_mtime)
-      printf (" %s", dep_name (d));
-    else if (! ood)
-      ood = d;
-
-  /* Print order-only deps, if we have any.  */
-  if (ood)
-    {
-      printf (" | %s", dep_name (ood));
-      for (d = ood->next; d != 0; d = d->next)
-        if (d->ignore_mtime)
-          printf (" %s", dep_name (d));
-    }
-
-  putchar ('\n');
+  print_prereqs (f->deps);
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   if (f->multi_head && f->multi_head != f)
@@ -1197,6 +1193,7 @@ print_file (const void *item)
     puts (_("#  File is an intermediate prerequisite."));
   if (f->also_make != 0)
     {
+      const struct dep *d;
       fputs (_("#  Also makes:"), stdout);
       for (d = f->also_make; d != 0; d = d->next)
 	printf (" %s", dep_name (d));
@@ -1290,7 +1287,7 @@ print_file_stats (void)
 #define VERIFY_CACHED(_p,_n) \
     do{\
         if (_p->_n && _p->_n[0] && !strcache_iscached (_p->_n)) \
-          printf ("%s: Field %s not cached: %s\n", _p->name, # _n, _p->_n); \
+          error (NULL, "%s: Field '%s' not cached: %s\n", _p->name, # _n, _p->_n); \
     }while(0)
 
 static void
@@ -1307,7 +1304,8 @@ verify_file (const void *item)
   /* Check the deps.  */
   for (d = f->deps; d != 0; d = d->next)
     {
-      VERIFY_CACHED (d, name);
+      if (! d->need_2nd_expansion)
+        VERIFY_CACHED (d, name);
       VERIFY_CACHED (d, stem);
     }
 }

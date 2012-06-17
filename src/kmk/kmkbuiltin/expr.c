@@ -280,6 +280,9 @@ nexttoken(int pat)
 	return;
 }
 
+#ifdef __GNUC__
+__attribute__((noreturn))
+#endif
 static void
 error(void)
 {

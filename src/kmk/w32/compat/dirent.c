@@ -1,6 +1,6 @@
 /* Directory entry code for Window platforms.
 Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-2006, 2007 Free Software Foundation, Inc.
+2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -16,9 +16,7 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 
-#ifdef KMK
-# include "config.h" /* my_stat */
-#endif
+#include <config.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -141,7 +139,7 @@ readdir(DIR* pDir)
 	pDir->dir_nNumFiles++;
 
 	/* fill in struct dirent values */
-	pDir->dir_sdReturn.d_ino = -1;
+	pDir->dir_sdReturn.d_ino = (ino_t)-1;
 	strcpy(pDir->dir_sdReturn.d_name, wfdFindData.cFileName);
 
 	return &pDir->dir_sdReturn;

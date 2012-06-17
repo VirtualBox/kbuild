@@ -1,7 +1,7 @@
 /* configh.dos -- hand-massaged config.h file for MS-DOS builds         -*-C-*-
 
 Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2004, 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -16,12 +16,16 @@ A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
+/* Include this header to make __DJGPP_MINOR__ available because DJGPP ports
+   of GCC 4.3.0 and later no longer do it automatically.  */
+#include <sys/version.h>
+
 /* Many things are defined already by a system header.  */
 #include <sys/config.h>
 
 #if __DJGPP__ > 2 || __DJGPP_MINOR__ > 1
 
-/* Define to 1 if `sys_siglist' is declared by <signal.h>.  */
+/* Define to 1 if `sys_siglist' is declared by <signal.h> or <unistd.h>. */
 # define SYS_SIGLIST_DECLARED 1
 
 /* Define to 1 if the C library defines the variable `_sys_siglist'.  */
@@ -106,9 +110,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #define PROTOTYPES 1
-
-/* Define to 1 if `sys_siglist' is declared by <signal.h> or <unistd.h>. */
-#define SYS_SIGLIST_DECLARED 1
 
 /* Version number of package */
 #define VERSION "%VERSION%"

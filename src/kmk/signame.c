@@ -1,6 +1,7 @@
 /* Convert between signal names and numbers.
 Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free Software
+Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -228,7 +229,7 @@ signame_init (void)
 
 
 char *
-strsignal (int signal)
+strsignal (int sig)
 {
   static char buf[] = "Signal 12345678901234567890";
 
@@ -245,10 +246,10 @@ strsignal (int signal)
 # endif
 #endif
 
-  if (signal > 0 || signal < NSIG)
-    return (char *) sys_siglist[signal];
+  if (sig > 0 || sig < NSIG)
+    return (char *) sys_siglist[sig];
 
-  sprintf (buf, "Signal %d", signal);
+  sprintf (buf, "Signal %d", sig);
   return buf;
 }
 

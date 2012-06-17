@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 #
 # Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-# 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
+# 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
 # This file is part of GNU Make.
 #
 # GNU Make is free software; you can redistribute it and/or modify it under
@@ -17,10 +17,10 @@
 # You should have received a copy of the GNU General Public License along with
 # this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_INIT([GNU make],[3.81.90],[bug-make@gnu.org])
+AC_INIT([GNU make],[3.82],[bug-make@gnu.org])
 
 AC_PREREQ(2.59)
-AC_REVISION([[$Id: configure.in,v 1.148 2007/07/04 19:35:17 psmith Exp $]])
+AC_REVISION([[$Id: configure.in,v 1.156 2010/07/28 05:39:50 psmith Exp $]])
 
 # Autoconf setup
 AC_CONFIG_AUX_DIR(config)
@@ -148,18 +148,23 @@ if test "$ac_cv_func_gettimeofday" = yes; then
 	    [Define to 1 if you have a standard gettimeofday function])
 fi
 
-AC_CHECK_FUNCS( strdup mkstemp mktemp fdopen \
-	        bsd_signal dup2 getcwd realpath sigsetmask sigaction \
+AC_CHECK_FUNCS( strdup strndup mkstemp mktemp fdopen fileno \
+	        dup2 getcwd realpath sigsetmask sigaction \
                 getgroups seteuid setegid setlinebuf setreuid setregid \
                 getrlimit setrlimit setvbuf pipe strerror strsignal \
 		lstat readlink atexit)
+
+# We need to check declarations, not just existence, because on Tru64 this
+# function is not declared without special flags, which themselves cause
+# other problems.  We'll just use our own.
+AC_CHECK_DECLS([bsd_signal], [], [], [[#include <signal.h>]])
 
 AC_FUNC_SETVBUF_REVERSED
 
 # Rumor has it that strcasecmp lives in -lresolv on some odd systems.
 # It doesn't hurt much to use our own if we can't find it so I don't
 # make the effort here.
-AC_CHECK_FUNCS(strcasecmp strcmpi stricmp)
+AC_CHECK_FUNCS(strcasecmp strncasecmp strcmpi strncmpi stricmp strnicmp)
 
 # strcoll() is used by the GNU glob library
 AC_FUNC_STRCOLL
@@ -348,7 +353,6 @@ rm -f s.conftest conftoast
 
 # Check the system to see if it provides GNU glob.  If not, use our
 # local version.
-
 AC_MSG_CHECKING(if system libc has GNU glob)
 AC_CACHE_VAL(make_cv_sys_gnu_glob, [
  AC_EGREP_CPP(gnu glob,[
@@ -365,9 +369,14 @@ AC_CACHE_VAL(make_cv_sys_gnu_glob, [
 #endif
  ], [AC_MSG_RESULT(yes)
 make_cv_sys_gnu_glob=yes], [AC_MSG_RESULT([no; using local copy])
-AC_SUBST(GLOBINC) GLOBINC='-I$(srcdir)/glob'
-AC_SUBST(GLOBLIB) GLOBLIB=glob/libglob.a
 make_cv_sys_gnu_glob=no])])
+if test "$make_cv_sys_gnu_glob" = no; then
+  GLOBINC='-I$(srcdir)/glob'
+  GLOBLIB=glob/libglob.a
+fi
+AC_SUBST(GLOBINC)
+AC_SUBST(GLOBLIB)
+
 # Tell automake about this, so it can build the right .c files.
 AM_CONDITIONAL(USE_LOCAL_GLOB, test "$make_cv_sys_gnu_glob" = no)
 

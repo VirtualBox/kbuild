@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -119,7 +119,7 @@ int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pP
         argv[argc] = malloc(cch + 1);
         if (!argv[argc])
         {
-            printf("kmk_builtin: out of memory. argc=%d len=%d\n", argc, pszEnd - pszCmd + 1);
+            printf("kmk_builtin: out of memory. argc=%d len=%d\n", argc, (int)(pszEnd - pszCmd + 1));
             break;
         }
         memcpy(argv[argc], pszCmd, cch);

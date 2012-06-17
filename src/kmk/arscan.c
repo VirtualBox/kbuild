@@ -1,7 +1,7 @@
 /* Library function for scanning an archive file.
 Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -66,7 +66,7 @@ VMS_get_member_info (struct dsc$descriptor_s *module, unsigned long *rfa)
 			   &bufdesc.dsc$w_length, 0);
   if (! (status & 1))
     {
-      error (NILF, _("lbr$set_module failed to extract module info, status = %d"),
+      error (NILF, _("lbr$set_module() failed to extract module info, status = %d"),
 	     status);
 
       lbr$close (&VMS_lib_idx);
@@ -81,7 +81,28 @@ VMS_get_member_info (struct dsc$descriptor_s *module, unsigned long *rfa)
    * but that decc$fix_time() isn't documented to work this way.  Let me
    * know if this causes problems in other VMS environments.
    */
-  val = decc$fix_time (&mhd->mhd$l_datim) + timezone - daylight*3600;
+  {
+    /* Modified by M. Gehre at 11-JAN-2008 because old formula is wrong:
+     * val = decc$fix_time (&mhd->mhd$l_datim) + timezone - daylight*3600;
+     * a) daylight specifies, if the timezone has daylight saving enabled, not
+     *    if it is active
+     * b) what we need is the information, if daylight saving was active, if
+     *    the library module was replaced. This information we get using the
+     *    localtime function
+     */
+
+    struct tm *tmp;
+
+    /* Conversion from VMS time to C time */
+    val = decc$fix_time (&mhd->mhd$l_datim);
+
+    /*
+     * Conversion from local time (stored in library) to GMT (needed for gmake)
+     * Note: The tm_gmtoff element is a VMS extension to the ANSI standard.
+     */
+    tmp = localtime (&val);
+    val -= tmp->tm_gmtoff;
+  }
 #endif
 
   for (i = 0; i < module->dsc$w_length; i++)
@@ -151,11 +172,12 @@ ar_scan (const char *archive, ar_member_func_t function, const void *arg)
 
   if (! (status & 1))
     {
-      error (NILF, _("lbr$ini_control failed with status = %d"),status);
+      error (NILF, _("lbr$ini_control() failed with status = %d"), status);
       return -2;
     }
 
-  libdesc.dsc$a_pointer = archive;
+  /* there is no such descriptor with "const char *dsc$a_pointer" */
+  libdesc.dsc$a_pointer = (char *)archive;
   libdesc.dsc$w_length = strlen (archive);
 
   status = lbr$open (&VMS_lib_idx, &libdesc, 0, 0, 0, 0, 0);
@@ -250,6 +272,7 @@ struct ar_hdr
     char ar_fmag[2];		/* Always contains ARFMAG.  */
   };
 # endif
+# define TOCHAR(_m)     (_m)
 #else
 /* These should allow us to read Windows (VC++) libraries (according to Frank
  * Libbrecht <frankl@abzx.belgium.hp.com>)
@@ -266,6 +289,8 @@ struct ar_hdr
 # define ar_date    Date
 # define ar_uid     UserID
 # define ar_gid     GroupID
+/* In Windows the member names have type BYTE so we must cast them.  */
+# define TOCHAR(_m)     ((char *)(_m))
 #endif
 
 /* Cray's <ar.h> apparently defines this.  */
@@ -608,8 +633,8 @@ ar_scan (const char *archive, ar_member_func_t function, const void *arg)
 	}
 
 #ifndef	M_XENIX
-	sscanf (member_header.ar_mode, "%o", &eltmode);
-	eltsize = atol (member_header.ar_size);
+	sscanf (TOCHAR (member_header.ar_mode), "%o", &eltmode);
+	eltsize = atol (TOCHAR (member_header.ar_size));
 #else	/* Xenix.  */
 	eltmode = (unsigned short int) member_header.ar_mode;
 	eltsize = member_header.ar_size;
@@ -619,9 +644,9 @@ ar_scan (const char *archive, ar_member_func_t function, const void *arg)
 	  (*function) (desc, name, ! long_name, member_offset,
 		       member_offset + AR_HDR_SIZE, eltsize,
 #ifndef	M_XENIX
-		       atol (member_header.ar_date),
-		       atoi (member_header.ar_uid),
-		       atoi (member_header.ar_gid),
+		       atol (TOCHAR (member_header.ar_date)),
+		       atoi (TOCHAR (member_header.ar_uid)),
+		       atoi (TOCHAR (member_header.ar_gid)),
 #else	/* Xenix.  */
 		       member_header.ar_date,
 		       member_header.ar_uid,
@@ -790,7 +815,7 @@ ar_member_touch (const char *arname, const char *memname)
   /* Advance member's time to that time */
   for (ui = 0; ui < sizeof ar_hdr.ar_date; ui++)
     ar_hdr.ar_date[ui] = ' ';
-  sprintf (ar_hdr.ar_date, "%ld", (long int) statbuf.st_mtime);
+  sprintf (TOCHAR (ar_hdr.ar_date), "%ld", (long int) statbuf.st_mtime);
 #ifdef AIAMAG
   ar_hdr.ar_date[strlen(ar_hdr.ar_date)] = ' ';
 #endif

@@ -314,7 +314,7 @@
 #define PACKAGE_NAME "GNU make"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU make 3.81.90"
+#define PACKAGE_STRING "GNU make 3.82"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "make"
@@ -323,7 +323,7 @@
 #define PACKAGE_URL "http://www.gnu.org/software/make/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.81.90"
+#define PACKAGE_VERSION "3.82"
 
 /* Define to the character that separates directories in PATH. */
 #define PATH_SEPARATOR_CHAR ':'
@@ -390,7 +390,7 @@
 
 
 /* Version number of package */
-#define VERSION "3.81.90"
+#define VERSION "3.82"
 
 /* Use platform specific coding */
 /* #undef WINDOWS32 */

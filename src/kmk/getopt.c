@@ -4,8 +4,8 @@ NOTE: getopt is now part of the C library, so if you don't know what
 before changing it!
 
 Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1997, 1998, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 
 NOTE: The canonical source of this file is maintained with the GNU C Library.
 Bugs can be reported to bug-glibc@gnu.org.
@@ -679,16 +679,18 @@ _getopt_internal (int argc, char *const *argv, const char *optstring,
 	      else
 		{
 		  if (opterr)
-		   if (argv[optind - 1][1] == '-')
-		    /* --option */
-		    fprintf (stderr,
-		     _("%s: option `--%s' doesn't allow an argument\n"),
-		     argv[0], pfound->name);
-		   else
-		    /* +option or -option */
-		    fprintf (stderr,
-		     _("%s: option `%c%s' doesn't allow an argument\n"),
-		     argv[0], argv[optind - 1][0], pfound->name);
+                    {
+		      if (argv[optind - 1][1] == '-')
+                        /* --option */
+                        fprintf (stderr,
+                         _("%s: option `--%s' doesn't allow an argument\n"),
+                         argv[0], pfound->name);
+		      else
+		        /* +option or -option */
+		        fprintf (stderr,
+		         _("%s: option `%c%s' doesn't allow an argument\n"),
+		         argv[0], argv[optind - 1][0], pfound->name);
+                    }
 
 		  nextchar += strlen (nextchar);
 

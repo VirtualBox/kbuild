@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -273,7 +273,7 @@ int kDepObjOMFParse(const KU8 *pbFile, KSIZE cbFile)
         uData.pv = pHdr + 1;
 
         /* process selected record types. */
-        dprintf(("%#07x: %#04x %#05x\n", (const KU8*)pHdr - pbFile, pHdr->bType, pHdr->cbRec));
+        dprintf(("%#07" KUPTR_PRI ": %#04x %#05x\n", (const KU8*)pHdr - pbFile, pHdr->bType, pHdr->cbRec));
         switch (pHdr->bType)
         {
             /*
@@ -691,7 +691,7 @@ int kDepObjCOFFParseCV8SymbolSection(const KU8 *pbSyms, KSIZE cbSyms)
          */
         if (off + 8 > cbSrcFiles)
         {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrcFiles=%#" KSIZE_PRI "\n",
+            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrcFiles=%#" KX32_PRI "\n",
                     argv0, off, cbSrcFiles);
             return 1;
         }
@@ -700,7 +700,7 @@ int kDepObjCOFFParseCV8SymbolSection(const KU8 *pbSyms, KSIZE cbSyms)
         cbSrc = u16Type == 0x0110 ? 6 + 16 + 2 : 6 + 2;
         if (off + cbSrc > cbSrcFiles)
         {
-            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrc=%#" KX32_PRI " cbSrcFiles=%#" KSIZE_PRI "\n",
+            fprintf(stderr, "%s: CV source file entry at %08" KX32_PRI " is too long; cbSrc=%#" KX32_PRI " cbSrcFiles=%#" KX32_PRI "\n",
                     argv0, off, cbSrc, cbSrcFiles);
             return 1;
         }

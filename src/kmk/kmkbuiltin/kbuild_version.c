@@ -1,4 +1,4 @@
-/* $Id: kbuild_version.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_version.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kbuild_version(), helper function.
  */
@@ -52,7 +52,7 @@ int kbuild_version(const char *argv0)
         tmp = strchr(argv0, '\0');
 
     printf("%.*s - kBuild version %d.%d.%d (r%u)\n",
-           tmp - argv0, argv0,
+           (int)(tmp - argv0), argv0,
            KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
            KBUILD_SVN_REV);
     return 0;

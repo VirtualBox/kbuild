@@ -1,7 +1,7 @@
 /* Definitions of dependency data structures for GNU Make.
 Copyright (C) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software
-Foundation, Inc.
+1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
+2010 Free Software Foundation, Inc.
 This file is part of GNU Make.
 
 GNU Make is free software; you can redistribute it and/or modify it under the
@@ -43,6 +43,8 @@ struct dep
     unsigned int ignore_mtime : 1;
     unsigned int staticpattern : 1;
     unsigned int need_2nd_expansion : 1;
+    unsigned int dontcare : 1;
+
 #ifdef CONFIG_WITH_INCLUDEDEP
     unsigned int includedep : 1;
 #endif
@@ -58,53 +60,61 @@ struct nameseq
   };
 
 
+#define PARSEFS_NONE    (0x0000)
+#define PARSEFS_NOSTRIP (0x0001)
+#define PARSEFS_NOAR    (0x0002)
+#define PARSEFS_NOGLOB  (0x0004)
+#define PARSEFS_EXISTS  (0x0008)
+#define PARSEFS_NOCACHE (0x0010)
+
 #ifndef CONFIG_WITH_ALLOC_CACHES
-struct nameseq *multi_glob (struct nameseq *chain, unsigned int size);
+#define PARSE_FILE_SEQ(_s,_t,_c,_p,_f) \
+            (_t *)parse_file_seq ((_s),sizeof (_t),(_c),(_p),(_f))
 #else
-struct nameseq *multi_glob (struct nameseq *chain, struct alloccache *cache);
+# define PARSE_FILE_SEQ(_s,_t,_c,_p,_f) \
+            (_t *)parse_file_seq ((_s),sizeof (_t),(_c),(_p),(_f), \
+                                  &PARSE_FILE_SEQ_IGNORE_ ## _t ## _cache)
+# define PARSE_FILE_SEQ_IGNORE_struct
 #endif
+
 #ifdef VMS
-struct nameseq *parse_file_seq ();
+void *parse_file_seq ();
 #else
-# ifndef CONFIG_WITH_ALLOC_CACHES
-struct nameseq *parse_file_seq (char **stringp, int stopchar, unsigned int size, int strip);
-# else
-struct nameseq *parse_file_seq (char **stringp, int stopchar, struct alloccache *cache, int strip);
-# endif
+void *parse_file_seq (char **stringp, unsigned int size,
+                      int stopchar, const char *prefix, int flags
+                      IF_WITH_ALLOC_CACHES_PARAM(struct alloccache *cache));
 #endif
+
 char *tilde_expand (const char *name);
 
 #ifndef NO_ARCHIVES
 struct nameseq *ar_glob (const char *arname, const char *member_pattern, unsigned int size);
 #endif
 
-#define dep_name(d) ((d)->name == 0 ? (d)->file->name : (d)->name)
+#define dep_name(d)     ((d)->name == 0 ? (d)->file->name : (d)->name)
 
-struct dep *alloc_dep (void);
-void free_dep (struct dep *d);
+
+#ifndef CONFIG_WITH_ALLOC_CACHES
+#define alloc_dep()     (xcalloc (sizeof (struct dep)))
+#define free_ns(_n)     free (_n)
+#define free_dep(_d)    free_ns (_d)
+#else
+#define alloc_dep()     alloccache_calloc (&dep_cache)
+#define free_ns(_n)     alloccache_free (&nameseq_cache, _n)
+#define free_dep(_d)    alloccache_free (&dep_cache, _d)
+#endif
+
 struct dep *copy_dep_chain (const struct dep *d);
 void free_dep_chain (struct dep *d);
 void free_ns_chain (struct nameseq *n);
 struct dep *read_all_makefiles (const char **makefiles);
-#ifndef CONFIG_WITH_VALUE_LENGTH
-int eval_buffer (char *buffer);
-#else
-int eval_buffer (char *buffer, char *eos);
-#endif
+void eval_buffer (char *buffer IF_WITH_VALUE_LENGTH(COMMA char *eos));
 int update_goal_chain (struct dep *goals);
-void uniquize_deps (struct dep *);
 
 #ifdef CONFIG_WITH_INCLUDEDEP
 /* incdep.c */
 enum incdep_op { incdep_read_it, incdep_queue, incdep_flush };
 void eval_include_dep (const char *name, struct floc *f, enum incdep_op op);
 void incdep_flush_and_term (void);
-
-/* read.c */
-void record_files (struct nameseq *filenames, const char *pattern,
-                   const char *pattern_percent, struct dep *deps,
-                   unsigned int cmds_started, char *commands,
-                   unsigned int commands_idx, int two_colon,
-                   const struct floc *flocp);
 #endif
 
