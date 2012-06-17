@@ -30,8 +30,8 @@ struct file
     const char *vpath;          /* VPATH/vpath pathname */
     struct dep *deps;		/* all dependencies, including duplicates */
 #ifdef CONFIG_WITH_LAZY_DEPS_VARS
-    struct dep *org_deps;	/* original dependencies before
-                                   duplicates were dropped. */
+    struct dep *deps_no_dupes;	/* dependencies without duplicates, created on
+                                   demaned by func_deps. */
 #endif
     struct commands *cmds;	/* Commands to execute for this target.  */
     int command_flags;		/* Flags OR'd in for cmds; see commands.h.  */

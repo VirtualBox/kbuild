@@ -2988,7 +2988,7 @@ func_translate (char *o, char **argv, const char *funcname UNUSED)
 
 /* Implements $^ and $+.
 
-   The first is somes with with FUNCNAME 'deps', the second as 'deps-all'.
+   The first comes with FUNCNAME 'deps', the second as 'deps-all'.
 
    If no second argument is given, or if it's empty, or if it's zero,
    all dependencies will be returned.  If the second argument is non-zero
@@ -3024,9 +3024,16 @@ func_deps (char *o, char **argv, const char *funcname)
   file = lookup_file (argv[0]);
   if (file)
     {
-      struct dep *deps = funcname[4] != '\0' && file->org_deps
-                       ? file->org_deps : file->deps;
+      struct dep *deps;
       struct dep *d;
+      if (funcname[4] == '\0')
+        {
+          deps = file->deps_no_dupes;
+          if (!deps && file->deps)
+            deps = file->deps = create_uniqute_deps_chain (file->deps);
+        }
+      else
+        deps = file->deps;
 
       if (   file->double_colon
           && (   file->double_colon != file

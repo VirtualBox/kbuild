@@ -115,6 +115,50 @@ dep_hash_cmp (const void *x, const void *y)
 
 #endif /* CONFIG_WITH_STRCACHE2 */
 
+#ifdef CONFIG_WITH_LAZY_DEPS_VARS
+/* Create as copy of DEPS without duplicates, similar to what
+   set_file_variables does.  Used by func_deps.  */
+
+struct dep *create_uniqute_deps_chain (struct dep *deps)
+{
+  struct dep *d;
+  struct dep *head = NULL;
+  struct dep **ppnext= &head;
+  struct hash_table dep_hash;
+  void **slot;
+
+  hash_init (&dep_hash, 500, dep_hash_1, dep_hash_2, dep_hash_cmp);
+
+  for (d = deps; d != 0; d = d->next)
+    {
+      if (d->need_2nd_expansion)
+        continue;
+
+      slot = hash_find_slot (&dep_hash, d);
+      if (HASH_VACANT (*slot))
+        {
+          struct dep *n = alloc_dep();
+          *n = *d;
+          n->next = NULL;
+          *ppnext = n;
+          ppnext = &n->next;
+          hash_insert_at (&dep_hash, n, slot);
+        }
+      else
+        {
+          /* Upgrade order only if a normal dep exists.
+             Note! Elected not to upgrade the original, only the sanitized
+                   list, need to check that out later. FIXME TODO */
+          struct dep *d2 = (struct dep *)*slot;
+          if (d->ignore_mtime != d2->ignore_mtime)
+            d->ignore_mtime = d2->ignore_mtime = 0;
+        }
+    }
+
+  return head;
+}
+#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
+
 /* Set FILE's automatic variables up.  */
 
 void
@@ -449,20 +493,6 @@ set_file_variables (struct file *file)
     bp[bp > bar_value ? -1 : 0] = '\0';
     DEFINE_VARIABLE ("|", 1, bar_value);
   }
-#ifdef CONFIG_WITH_LAZY_DEPS_VARS
-  else
-    {
-      /* Make a copy of the current dependency chain for later use in
-         potential $(dep-pluss $@) calls.  Then drop duplicate deps.  */
-
-      /* assert (file->org_deps == NULL); - FIXME? */
-      free_dep_chain (file->org_deps);
-      file->org_deps = copy_dep_chain (file->deps);
-
-      /** @todo do uniquize_deps (file->deps); in the $(dep-* ) functions, it'll
-       *        save even more space that way. */
-   }
-#endif /* CONFIG_WITH_LAZY_DEPS_VARS */
 #undef	DEFINE_VARIABLE
 }
 
