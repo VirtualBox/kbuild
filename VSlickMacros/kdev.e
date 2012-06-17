@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2589 2012-06-17 15:39:26Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2590 2012-06-17 18:34:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3483,6 +3483,20 @@ _command void kdev_load_settings()
     /*
      * Language settings via API.
      */
+    int fNewAff = AFF_BEGIN_END_STYLE \
+                | AFF_INDENT_WITH_TABS \
+                | AFF_SYNTAX_INDENT \
+                /*| AFF_TABS*/ \
+                | AFF_NO_SPACE_BEFORE_PAREN \
+                | AFF_PAD_PARENS \
+                | AFF_INDENT_CASE \
+                | AFF_KEYWORD_CASING \
+                | AFF_TAG_CASING \
+                | AFF_ATTRIBUTE_CASING \
+                | AFF_VALUE_CASING \
+                /*| AFF_HEX_VALUE_CASING*/;
+    def_adaptive_formatting_flags = ~fNewAff;
+    replace_def_data("def-adaptive-formatting-flags", def_adaptive_formatting_flags);
     _str sLangId;
     foreach (sLangId in aMyLangIds)
     {
@@ -3490,6 +3504,7 @@ _command void kdev_load_settings()
         LanguageSettings.setBeginEndStyle(sLangId,           BES_BEGIN_END_STYLE_2);
         LanguageSettings.setIndentWithTabs(sLangId,          false);
         LanguageSettings.setUseAdaptiveFormatting(sLangId,   true);
+        LanguageSettings.setAdaptiveFormattingFlags(sLangId, ~fNewAff);
         LanguageSettings.setSaveStripTrailingSpaces(sLangId, STSO_STRIP_MODIFIED);
         LanguageSettings.setTabs(sLangId, "8+");
         LanguageSettings.setSyntaxIndent(sLangId, 4);
