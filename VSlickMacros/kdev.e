@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2590 2012-06-17 18:34:25Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2597 2012-06-20 07:32:46Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3526,10 +3526,11 @@ _command void kdev_load_settings()
     LanguageSettings.setLexerName('mak', 'kmk');
     LanguageSettings.setSyntaxIndent('mak', 8);
 
-    /* Fix .asm and add .mac and .kmk. */
+    /* Fix .asm and add .mac, .kmk and .cmd. */
     replace_def_data("def-lang-for-ext-asm",'masm');
     replace_def_data("def-lang-for-ext-mac",'masm');
     replace_def_data("def-lang-for-ext-kmk",'mak');
+    replace_def_data("def-lang-for-ext-cmd",'bat');
 
     /*
      * Change the codehelp default.
