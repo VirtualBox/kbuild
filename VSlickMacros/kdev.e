@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2598 2012-06-22 17:53:27Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2601 2012-06-23 20:18:47Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3331,23 +3331,25 @@ btnCancel.lbutton_up()
 
 static _str aCLikeIncs[] =
 {
-    "c", "ansic", "java", "rul", "vera", "ch", "as", "idl", "asm", "s", "imakefile", "rc", "lex", "yacc", "antlr"
+    "c", "ansic", "java", "rul", "vera", "cs", "js", "as", "idl", "asm", "s", "imakefile", "rc", "lex", "yacc", "antlr"
 };
 
 static _str aMyLangIds[] =
 {
+    "applescript",
     "ansic",
     "antlr",
     "as",
     "asm",
     "c",
+    "cs",
     "csh",
     "css",
-    "ch",
     "conf",
     "d",
     "docbook",
     "dtd",
+    "e",
     "html",
     "idl",
     "imakefile",
@@ -3357,6 +3359,7 @@ static _str aMyLangIds[] =
     "lex",
     "mak",
     "masm",
+    "pas",
     "phpscript",
     "powershell",
     "py",
@@ -3530,6 +3533,9 @@ _command void kdev_load_settings()
     LanguageSettings.setIndentWithTabs('mak', true);
     LanguageSettings.setLexerName('mak', 'kmk');
     LanguageSettings.setSyntaxIndent('mak', 8);
+
+    LanguageSettings.setBeautifierProfileName('c', "bird's Style");
+    LanguageSettings.setBeautifierProfileName('m', "bird's Objective-C Style");
 
     /* Fix .asm and add .mac, .kmk and .cmd. */
     replace_def_data("def-lang-for-ext-asm",'masm');
