@@ -1,10 +1,10 @@
-# $Id: WINPSDK.kmk 2430 2010-11-16 15:26:34Z knut.osmundsen@oracle.com $
+# $Id: WINPSDK.kmk 2602 2012-07-12 20:21:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Windows Platform SDK, targeting (KBUILD_TARGET).
 #
 
 #
-# Copyright (c) 2006-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -41,9 +41,6 @@ ifndef PATH_SDK_WINPSDK
  endif
  ifeq ($(PATH_SDK_WINPSDK),)
   PATH_SDK_WINPSDK := $(wildcard $(PATH_DEVTOOLS)/win.x86/sdk/2*)
- endif
- ifeq ($(PATH_SDK_WINPSDK),)
-  PATH_SDK_WINPSDK := $(wildcard $(PATH_DEVTOOLS)/x86.win32/sdk/2*)
  endif
  ifeq ($(PATH_SDK_WINPSDK),)
   PATH_SDK_WINPSDK := $(wildcard $(PATH_DEVTOOLS)/win.amd64/sdk/2*)
