@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2557 2011-12-13 12:48:32Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2604 2012-07-13 15:37:18Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -67,10 +67,21 @@ PATH_TOOL_VCC100X86_ATLMFC_LIB ?= $(PATH_TOOL_VCC100X86_ATLMFC)/lib
 TOOL_VCC100X86_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/cl.exe
 TOOL_VCC100X86_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/cl.exe
 TOOL_VCC100X86_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/ml.exe
-TOOL_VCC100X86_RC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/rc.exe
 TOOL_VCC100X86_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/lib.exe
 TOOL_VCC100X86_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/link.exe
 TOOL_VCC100X86_MT  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/mt.exe
+TOOL_VCC100X86_RC  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,rc.exe,TOOL_VCC100_RC_CACHED)
+TOOL_VCC100X86_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.exe,TOOL_VCC100_MT_CACHED)
+
+# The following in duplicated in VCC100.kmk and VCC100X86.kmk.
+TOOL_VCC100_FN_FIND_SDK_TOOL_SUB = $(eval $2 := $(firstword  \
+       $(if-expr defined(PATH_SDK_WINPSDK71_BIN), $(wildcard $(PATH_SDK_WINPSDK71_BIN)/$1)) \
+       $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(wildcard $(PATH_SDK_WINPSDK_BIN)/$1)) \
+	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$1)) \
+	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$1)) \
+	$1))
+TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($2),$(TOOL_VCC100_FN_FIND_SDK_TOOL_SUB),)$($2)
+
 ## Disabled fast DEP_IDB based dependencies.
 #VCC100X86_OLD_DEPS = 1
 
