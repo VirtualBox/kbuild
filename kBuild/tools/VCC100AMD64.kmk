@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2604 2012-07-13 15:37:18Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2606 2012-07-19 00:43:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -70,17 +70,17 @@ TOOL_VCC100AMD64_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/cl.exe
 TOOL_VCC100AMD64_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/ml64.exe
 TOOL_VCC100AMD64_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/lib.exe
 TOOL_VCC100AMD64_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/link.exe
-TOOL_VCC100AMD64_RC  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,rc.exe,TOOL_VCC100_RC_CACHED)
-TOOL_VCC100AMD64_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.exe,TOOL_VCC100_MT_CACHED)
+TOOL_VCC100AMD64_RC  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC100_RC_CACHED)
+TOOL_VCC100AMD64_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC100_MT_CACHED)
 
 # The following in duplicated in VCC100.kmk and VCC100X86.kmk.
-TOOL_VCC100_FN_FIND_SDK_TOOL_SUB = $(eval $2 := $(firstword  \
-       $(if-expr defined(PATH_SDK_WINPSDK71_BIN), $(wildcard $(PATH_SDK_WINPSDK71_BIN)/$1)) \
-       $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(wildcard $(PATH_SDK_WINPSDK_BIN)/$1)) \
-	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$1)) \
-	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$1)) \
-	$1))
-TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($2),$(TOOL_VCC100_FN_FIND_SDK_TOOL_SUB),)$($2)
+TOOL_VCC100_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(firstword  \
+       $(if-expr defined(PATH_SDK_WINPSDK71_BIN), $(wildcard $(PATH_SDK_WINPSDK71_BIN)/$2)) \
+       $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(wildcard $(PATH_SDK_WINPSDK_BIN)/$2)) \
+	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$2)) \
+	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$2)) \
+	$1))$(warning resolving $3 to $($3))
+TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC100_FN_FIND_SDK_TOOL_SUB),)$($3)
 
 ## Disabled fast DEP_IDB based dependencies.
 #VCC100AMD64_OLD_DEPS = 1
