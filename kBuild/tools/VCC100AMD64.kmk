@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2606 2012-07-19 00:43:40Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2609 2012-07-21 23:10:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -79,7 +79,7 @@ TOOL_VCC100_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(firstword  \
        $(if-expr defined(PATH_SDK_WINPSDK_BIN)  , $(wildcard $(PATH_SDK_WINPSDK_BIN)/$2)) \
 	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/sdk/*/[Bb][Ii][Nn]/$2)) \
 	$(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/sdk/*/[Bb][Ii][Nn]/$2)) \
-	$1))$(warning resolving $3 to $($3))
+	$1))
 TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC100_FN_FIND_SDK_TOOL_SUB),)$($3)
 
 ## Disabled fast DEP_IDB based dependencies.
