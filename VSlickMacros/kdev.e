@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2601 2012-06-23 20:18:47Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2610 2012-07-25 09:54:26Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3584,7 +3584,8 @@ _command void kdev_load_settings()
 #endif
 
     /** @todo
-     *  def_save_options
+     *  - def_save_options
+     *  - Auto restore clipboards
      *   */
 
     message("Please restart SlickEdit.")
