@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2609 2012-07-21 23:10:40Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2611 2012-07-27 08:14:26Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -91,7 +91,7 @@ TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC100_FN_FIND_SDK_
 TOOL_VCC100AMD64_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
 
 TOOL_VCC100AMD64_COBJSUFF         ?= .obj
-TOOL_VCC100AMD64_CFLAGS           ?= -TC -c -nologo
+TOOL_VCC100AMD64_CFLAGS           ?= -TC -nologo
 TOOL_VCC100AMD64_CFLAGS.debug     ?= -Od -Zi
 TOOL_VCC100AMD64_CFLAGS.release   ?= -O2
 TOOL_VCC100AMD64_CFLAGS.profile   ?= -O2
@@ -99,7 +99,7 @@ TOOL_VCC100AMD64_CINCS            ?= $(PATH_TOOL_VCC100AMD64_INC)
 TOOL_VCC100AMD64_CDEFS            ?=
 
 TOOL_VCC100AMD64_CXXOBJSUFF       ?= .obj
-TOOL_VCC100AMD64_CXXFLAGS         ?= -TP -c -nologo
+TOOL_VCC100AMD64_CXXFLAGS         ?= -TP -nologo
 TOOL_VCC100AMD64_CXXFLAGS.debug   ?= -Od -Zi
 TOOL_VCC100AMD64_CXXFLAGS.release ?= -O2
 TOOL_VCC100AMD64_CXXFLAGS.profile ?= -O2
@@ -135,8 +135,28 @@ TOOL_VCC100AMD64_LDFLAGS.release  ?=
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100AMD64_COMPILE_C_DEPEND =
 TOOL_VCC100AMD64_COMPILE_C_DEPORD =
-TOOL_VCC100AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
 TOOL_VCC100AMD64_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_VCC100AMD64_COMPILE_C_USES_KOBJCACHE = 1
+TOOL_VCC100AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb) $(outbase).i
+define TOOL_VCC100AMD64_COMPILE_C_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -r\
+		--kObjCache-cpp $(outbase).i\
+		$(TOOL_VCC100AMD64_CC) -E\
+		$(flags)\
+		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(subst /,\\,$(abspath $(source))) \
+		--kObjCache-cc $(obj)\
+		$(TOOL_VCC100AMD64_CC) -c\
+		$(flags)\
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(outbase).i
+	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100AMD64_PDB,$(outbase)-obj,idb)
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_VCC100AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
 define TOOL_VCC100AMD64_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC100AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -146,6 +166,7 @@ define TOOL_VCC100AMD64_COMPILE_C_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100AMD64_PDB,$(outbase)-obj,idb)
 endef
+endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -163,29 +184,10 @@ endef
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100AMD64_COMPILE_CXX_DEPEND =
 TOOL_VCC100AMD64_COMPILE_CXX_DEPORD =
+TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
 ifdef KBUILD_USE_KOBJCACHE
 TOOL_VCC100AMD64_COMPILE_CXX_USES_KOBJCACHE = 1
 TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb) $(outbase).ii
-TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
-if 1
-define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -r\
-		--named-pipe-compile $(subst /,\\,//./pipe/kObjCache/$(translate $(outbase),:,_)/$(notdir $(source)))\
-		--kObjCache-cpp $(outbase).ii\
-		$(TOOL_VCC100AMD64_CXX) -E\
-		$(flags)\
-		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source))) \
-		--kObjCache-cc $(obj)\
-		windbg $(TOOL_VCC100AMD64_CXX) -c -TP\
-		$(flags)\
-		-Fd$(outbase)-obj.pdb \
-		-FD\
-		-Fo$(obj)\
-		$(subst /,\\,//./pipe/kObjCache/$(translate $(outbase),:,_)/$(notdir $(source)))
-	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100AMD64_PDB,$(outbase)-obj,idb)
-endef
-else
 define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -r\
 		--kObjCache-cpp $(outbase).ii\
@@ -194,7 +196,7 @@ define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(subst /,\\,$(abspath $(source))) \
 		--kObjCache-cc $(obj)\
-		$(TOOL_VCC100AMD64_CXX) -c -TP\
+		$(TOOL_VCC100AMD64_CXX) -c\
 		$(flags)\
 		-Fd$(outbase)-obj.pdb \
 		-FD\
@@ -202,10 +204,8 @@ define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 		$(outbase).ii
 	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100AMD64_PDB,$(outbase)-obj,idb)
 endef
-endif
 else  # !KBUILD_USE_KOBJCACHE
 TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
-TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -216,6 +216,8 @@ define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100AMD64_PDB,$(outbase)-obj,idb)
 endef
 endif # !KBUILD_USE_KOBJCACHE
+
+## @todo configure the assembler template.
 
 ## Compile resource source.
 # @param    $(target)   Normalized main target name.

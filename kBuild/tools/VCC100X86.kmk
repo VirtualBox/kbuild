@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2606 2012-07-19 00:43:40Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2611 2012-07-27 08:14:26Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -92,7 +92,7 @@ TOOL_VCC100X86_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
 
 # General Properties used by kBuild
 TOOL_VCC100X86_COBJSUFF         ?= .obj
-TOOL_VCC100X86_CFLAGS           ?= -TC -c -nologo
+TOOL_VCC100X86_CFLAGS           ?= -TC -nologo
 TOOL_VCC100X86_CFLAGS.debug     ?= -Zi
 TOOL_VCC100X86_CFLAGS.release   ?= -O2
 TOOL_VCC100X86_CFLAGS.profile   ?= -O2
@@ -100,7 +100,7 @@ TOOL_VCC100X86_CINCS            ?= $(PATH_TOOL_VCC100X86_INC)
 TOOL_VCC100X86_CDEFS            ?=
 
 TOOL_VCC100X86_CXXOBJSUFF       ?= .obj
-TOOL_VCC100X86_CXXFLAGS         ?= -TP -c -nologo
+TOOL_VCC100X86_CXXFLAGS         ?= -TP -nologo
 TOOL_VCC100X86_CXXFLAGS.debug   ?= -Zi
 TOOL_VCC100X86_CXXFLAGS.release ?= -O2
 TOOL_VCC100X86_CXXFLAGS.profile ?= -O2
@@ -136,8 +136,28 @@ TOOL_VCC100X86_LDFLAGS.release  ?=
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100X86_COMPILE_C_DEPEND =
 TOOL_VCC100X86_COMPILE_C_DEPORD =
-TOOL_VCC100X86_COMPILE_C_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
 TOOL_VCC100X86_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb)
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_VCC100X86_COMPILE_C_USES_KOBJCACHE = 1
+TOOL_VCC100X86_COMPILE_C_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb) $(outbase).i
+define TOOL_VCC100X86_COMPILE_C_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -r\
+		--kObjCache-cpp $(outbase).i\
+		$(TOOL_VCC100X86_CC) -E\
+		$(flags)\
+		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(subst /,\\,$(abspath $(source))) \
+		--kObjCache-cc $(obj)\
+		$(TOOL_VCC100X86_CC) -c\
+		$(flags)\
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(outbase).i
+	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_VCC100X86_COMPILE_C_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
 define TOOL_VCC100X86_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC100X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -147,6 +167,7 @@ define TOOL_VCC100X86_COMPILE_C_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
 endef
+endif # !KBUILD_USE_KOBJCACHE
 
 
 ## Compile C++ source.
@@ -164,8 +185,28 @@ endef
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100X86_COMPILE_CXX_DEPEND =
 TOOL_VCC100X86_COMPILE_CXX_DEPORD =
-TOOL_VCC100X86_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
 TOOL_VCC100X86_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb)
+ifdef KBUILD_USE_KOBJCACHE
+TOOL_VCC100X86_COMPILE_CXX_USES_KOBJCACHE = 1
+TOOL_VCC100X86_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb) $(outbase).ii
+define TOOL_VCC100X86_COMPILE_CXX_CMDS
+	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -r\
+		--kObjCache-cpp $(outbase).ii\
+		$(TOOL_VCC100X86_CXX) -E\
+		$(flags)\
+		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(subst /,\\,$(abspath $(source))) \
+		--kObjCache-cc $(obj)\
+		$(TOOL_VCC100X86_CXX) -c\
+		$(flags)\
+		-Fd$(outbase)-obj.pdb \
+		-FD\
+		-Fo$(obj)\
+		$(outbase).ii
+	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
+endef
+else  # !KBUILD_USE_KOBJCACHE
+TOOL_VCC100X86_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
 define TOOL_VCC100X86_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
@@ -175,6 +216,7 @@ define TOOL_VCC100X86_COMPILE_CXX_CMDS
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
 endef
+endif # !KBUILD_USE_KOBJCACHE
 
 ## @todo configure the assembler template.
 
