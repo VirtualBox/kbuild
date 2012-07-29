@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2612 2012-07-29 18:18:00Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kObjCache.
 #
@@ -29,7 +29,9 @@ include $(PATH_KBUILD)/subheader.kmk
 PROGRAMS += kObjCache
 kObjCache_TEMPLATE = BIN
 kObjCache_SOURCES = kObjCache.c
-kObjCache_LIBS = $(LIB_KUTIL)
+kObjCache_LIBS = \
+	$(LIB_KDEP) \
+	$(LIB_KUTIL)
 
 include $(KBUILD_PATH)/subfooter.kmk
 
