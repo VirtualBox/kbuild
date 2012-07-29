@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2613 2012-07-29 19:42:30Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2614 2012-07-29 23:17:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -1567,24 +1567,37 @@ static void kOCEntryDestroy(PKOCENTRY pEntry)
  * @param   pEntry          The cache entry.
  * @param   papszArgv       The argument vector.
  * @param   cArgc           The number of entries in the vector.
- * @param   pszIgnorePath   Path to ignore when encountered at the end of arguments.
- *                          (Not quite safe for simple file names, but what the heck.)
+ * @param   pszIgnorePath1  Path to ignore when encountered at the end of
+ *                          arguments. (Not quite safe for simple file names,
+ *                          but what the heck.)
+ * @param   pszIgnorePath2  Path to ignore when encountered at the end of
+ *                          arguments. (Not quite safe for simple file names,
+ *                          but what the heck.)
  * @param   pSum            Where to store the check sum.
  */
 static void kOCEntryCalcArgvSum(PKOCENTRY pEntry, const char * const *papszArgv, unsigned cArgc,
-                                const char *pszIgnorePath, PKOCSUM pSum)
+                                const char *pszIgnorePath1, const char *pszIgnorePath2, PKOCSUM pSum)
 {
-    size_t cchIgnorePath = strlen(pszIgnorePath);
+    size_t cchIgnorePath1 = strlen(pszIgnorePath1);
+    size_t cchIgnorePath2 = pszIgnorePath2 ? strlen(pszIgnorePath2) : ~(size_t)0;
     KOCSUMCTX Ctx;
     unsigned i;
+
+fprintf(stderr, "kOCEntryCalcArgvSum: ign2='%s'\n", pszIgnorePath2);
 
     kOCSumInitWithCtx(pSum, &Ctx);
     for (i = 0; i < cArgc; i++)
     {
         size_t cch = strlen(papszArgv[i]);
-        if (    cch < cchIgnorePath
-            ||  !ArePathsIdenticalN(papszArgv[i] + cch - cchIgnorePath, pszIgnorePath, cch))
+        if (   (   cch < cchIgnorePath1
+                || !ArePathsIdenticalN(papszArgv[i] + cch - cchIgnorePath1, pszIgnorePath1, cch))
+            && (   cch < cchIgnorePath2
+                || !ArePathsIdenticalN(papszArgv[i] + cch - cchIgnorePath2, pszIgnorePath2, cch)) )
+{
             kOCSumUpdate(pSum, &Ctx, papszArgv[i], cch + 1);
+kOCSumInfo(pSum, 0, papszArgv[i]);
+}
+else fprintf(stderr, "kOCEntryCalcArgvSum: Ignoring '%s'\n", papszArgv[i]);
     }
     kOCSumFinalize(pSum, &Ctx);
 
@@ -1760,7 +1773,8 @@ static void kOCEntryRead(PKOCENTRY pEntry)
                 {
                     KOCSUM Sum;
                     kOCEntryCalcArgvSum(pEntry, (const char * const *)pEntry->Old.papszArgvCompile,
-                                        pEntry->Old.cArgvCompile, pEntry->Old.pszObjName, &Sum);
+                                        pEntry->Old.cArgvCompile, pEntry->Old.pszObjName, pEntry->Old.pszCppName,
+                                        &Sum);
                     fBad = !kOCSumIsEqual(&pEntry->Old.SumCompArgv, &Sum);
                 }
                 if (fBad)
@@ -1947,8 +1961,11 @@ static void kOCEntrySetCompileArgv(PKOCENTRY pEntry, const char * const *papszAr
         pEntry->New.papszArgvCompile[i] = xstrdup(papszArgvCompile[i]);
     pEntry->New.papszArgvCompile[i] = NULL; /* for exev/spawnv */
 
-    kOCEntryCalcArgvSum(pEntry, papszArgvCompile, cArgvCompile, pEntry->New.pszObjName, &pEntry->New.SumCompArgv);
+fprintf(stderr, "kOCEntrySetCompileArgv: '%s' '%s'", pEntry->New.pszObjName, pEntry->New.pszCppName);
+    kOCEntryCalcArgvSum(pEntry, papszArgvCompile, cArgvCompile, pEntry->New.pszObjName, pEntry->New.pszCppName,
+                        &pEntry->New.SumCompArgv);
     kOCSumInfo(&pEntry->New.SumCompArgv, 4, "comp-argv");
+fprintf(stderr, "kOCEntrySetCompileArgv: done\n");
 
     /*
      * Compare with the old argument vector.
@@ -4393,7 +4410,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2613 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2614 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
@@ -4445,10 +4462,10 @@ int main(int argc, char **argv)
 
     pEntry = kOCEntryCreate(pszEntryFile);
     kOCEntryRead(pEntry);
+    kOCEntrySetCppName(pEntry, pszPreCompName);
     kOCEntrySetCompileObjName(pEntry, pszObjName);
     kOCEntrySetCompileArgv(pEntry, papszArgvCompile, cArgvCompile);
     kOCEntrySetTarget(pEntry, pszTarget);
-    kOCEntrySetCppName(pEntry, pszPreCompName);
     kOCEntrySetPipedMode(pEntry, fRedirPreCompStdOut, fRedirCompileStdIn, pszNmPipeCompile);
     kOCEntrySetDepFilename(pEntry, pszMakeDepFilename, fMakeDepFixCase, fMakeDepQuiet, fMakeDepGenStubs);
 
