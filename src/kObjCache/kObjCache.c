@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2612 2012-07-29 18:18:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2613 2012-07-29 19:42:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -1066,13 +1066,19 @@ static void kOCDepWriteToFile(PKOCDEP pDepState, const char *pszFilename, const 
                               int fFixCase, int fQuiet, int fGenStubs)
 {
     char *pszObjFileAbs;
+    char *psz;
     FILE *pFile = fopen(pszFilename, "w");
     if (!pFile)
         FatalMsg("Failed to open dependency file '%s': %s\n", pszFilename, strerror(errno));
 
     depOptimize(fFixCase, fQuiet);
 
+    /* Make object file name with unix slashes. */
     pszObjFileAbs = MakePathFromDirAndFile(pszObjFile, pszObjDir);
+    psz = pszObjFileAbs;
+    while ((psz = strchr(psz, '\\')) != NULL)
+        *psz++ = '/';
+
     fprintf(pFile, "%s:", pszObjFileAbs);
     free(pszObjFileAbs);
     depPrint(pFile);
@@ -4387,7 +4393,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2612 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2613 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
