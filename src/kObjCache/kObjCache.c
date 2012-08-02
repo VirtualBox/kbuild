@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2619 2012-08-02 03:48:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2620 2012-08-02 04:02:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -3867,6 +3867,45 @@ static int kOCEntryNeedsCompiling(PCKOCENTRY pEntry)
 
 
 /**
+ * Tries to hardlink a file.
+ *
+ * @returns 1 if it succeeded, 0 if it didn't.
+ * @param   pszLink     The name of the hardlink.
+ * @param   pszLinkTo   The file to hardlinkg @a pszDst to.
+ */
+static int kOCEntryTryHardlink(const char *pszLink, const char *pszLinkTo)
+{
+#ifdef __WIN__
+    typedef BOOL (WINAPI *PFNCREATEHARDLINKA)(LPCSTR, LPCSTR, LPSECURITY_ATTRIBUTES);
+    static PFNCREATEHARDLINKA   s_pfnCreateHardLinkA = NULL;
+    static int                  s_fTried = FALSE;
+
+    /* The API was introduced in Windows 2000, so resolve it dynamically. */
+    if (!s_pfnCreateHardLinkA)
+    {
+        if (!s_fTried)
+        {
+            HMODULE hmod = LoadLibrary("KERNEL32.DLL");
+            if (hmod)
+                *(FARPROC *)&s_pfnCreateHardLinkA = GetProcAddress(hmod, "CreateHardLinkA");
+            s_fTried = TRUE;
+        }
+        if (!s_pfnCreateHardLinkA)
+            return 0;
+    }
+
+    if (!s_pfnCreateHardLinkA(pszLink, pszLinkTo, NULL))
+        return 0;
+#else
+    if (link(pszLinkTo, pszLink) != 0)
+        return 0;
+#endif
+    return 1;
+}
+
+
+
+/**
  * Worker function for kOCEntryCopy.
  *
  * @param   pEntry      The entry we're coping to, which pszTo is relative to.
@@ -3876,60 +3915,63 @@ static int kOCEntryNeedsCompiling(PCKOCENTRY pEntry)
 static void kOCEntryCopyFile(PCKOCENTRY pEntry, const char *pszTo, char *pszSrc)
 {
     char *pszDst = MakePathFromDirAndFile(pszTo, pEntry->pszDir);
-    char *pszBuf = xmalloc(256 * 1024);
-    char *psz;
-    int fdSrc;
-    int fdDst;
-
-    /*
-     * Open the files.
-     */
-    fdSrc = open(pszSrc, O_RDONLY | O_BINARY);
-    if (fdSrc == -1)
-        FatalDie("failed to open '%s': %s\n", pszSrc, strerror(errno));
-
     unlink(pszDst);
-    fdDst = open(pszDst, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
-    if (fdDst == -1)
-        FatalDie("failed to create '%s': %s\n", pszDst, strerror(errno));
-
-    /*
-     * Copy them.
-     */
-    for (;;)
+    if (!kOCEntryTryHardlink(pszDst, pszSrc))
     {
-        /* read a chunk. */
-        long cbRead = read(fdSrc, pszBuf, 256*1024);
-        if (cbRead < 0)
-        {
-            if (errno == EINTR)
-                continue;
-            FatalDie("read '%s' failed: %s\n", pszSrc, strerror(errno));
-        }
-        if (!cbRead)
-            break; /* eof */
+        char *pszBuf = xmalloc(256 * 1024);
+        char *psz;
+        int fdSrc;
+        int fdDst;
 
-        /* write the chunk. */
-        psz = pszBuf;
-        do
+        /*
+         * Open the files.
+         */
+        fdSrc = open(pszSrc, O_RDONLY | O_BINARY);
+        if (fdSrc == -1)
+            FatalDie("failed to open '%s': %s\n", pszSrc, strerror(errno));
+
+        fdDst = open(pszDst, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+        if (fdDst == -1)
+            FatalDie("failed to create '%s': %s\n", pszDst, strerror(errno));
+
+        /*
+         * Copy them.
+         */
+        for (;;)
         {
-            long cbWritten = write(fdDst, psz, cbRead);
-            if (cbWritten < 0)
+            /* read a chunk. */
+            long cbRead = read(fdSrc, pszBuf, 256*1024);
+            if (cbRead < 0)
             {
                 if (errno == EINTR)
                     continue;
-                FatalDie("write '%s' failed: %s\n", pszSrc, strerror(errno));
+                FatalDie("read '%s' failed: %s\n", pszSrc, strerror(errno));
             }
-            psz += cbWritten;
-            cbRead -= cbWritten;
-        } while (cbRead > 0);
-    }
+            if (!cbRead)
+                break; /* eof */
 
-    /* cleanup */
-    if (close(fdDst) != 0)
-        FatalDie("closing '%s' failed: %s\n", pszDst, strerror(errno));
-    close(fdSrc);
-    free(pszBuf);
+            /* write the chunk. */
+            psz = pszBuf;
+            do
+            {
+                long cbWritten = write(fdDst, psz, cbRead);
+                if (cbWritten < 0)
+                {
+                    if (errno == EINTR)
+                        continue;
+                    FatalDie("write '%s' failed: %s\n", pszSrc, strerror(errno));
+                }
+                psz += cbWritten;
+                cbRead -= cbWritten;
+            } while (cbRead > 0);
+        }
+
+        /* cleanup */
+        if (close(fdDst) != 0)
+            FatalDie("closing '%s' failed: %s\n", pszDst, strerror(errno));
+        close(fdSrc);
+        free(pszBuf);
+    }
     free(pszDst);
     free(pszSrc);
 }
@@ -5044,7 +5086,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2619 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2620 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
