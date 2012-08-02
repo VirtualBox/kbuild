@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2618 2012-08-02 03:34:40Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2619 2012-08-02 03:48:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -1353,7 +1353,6 @@ static size_t kOCCppRdOptFmtNewLines(PKOCCPPRD pCppRd, uint32_t cNewLines)
 }
 
 
-
 static size_t kOCCppRdOptFlush(PKOCCPPRD pCppRd, size_t offSrcCur, int fLineDirNext)
 {
     size_t offDelta = 0;
@@ -1476,7 +1475,7 @@ static int kOCCppRdOptParseLine(PKOCCPPRD pCppRd, char *pszCur, char *pszEol,
 static char *kOCCppRdOptHandleLine(PKOCCPPRD pCppRd, char *pszCur, size_t *pcbLeft, int *pfEmptyLine, char *pszEol)
 {
     size_t const offSrcLine = pCppRd->offSrcCur;
-    size_t const cchSrcLine = pszEol - pCppRd->pszBuf - pCppRd->offSrcCur;
+    size_t const cchSrcLine = pszEol - pCppRd->pszBuf - (pCppRd->fOptimize & 2 ? pCppRd->offSrcUnoptimized : pCppRd->offSrcCur);
     size_t const cbLeftAssert = *pcbLeft;
     char *pszNewFile;
     size_t cchNewFile;
@@ -1520,7 +1519,8 @@ static char *kOCCppRdOptHandleLine(PKOCCPPRD pCppRd, char *pszCur, size_t *pcbLe
                  * the file and emit another directive for starting the new one.
                  */
                 size_t cchLineDir;
-                kOCCppRdOptFlush(pCppRd, offSrcLine, 1);
+                if (!(pCppRd->fOptimize & 2))
+                    kOCCppRdOptFlush(pCppRd, offSrcLine, 1);
 
                 cchLineDir = kOCCppRdOptFmtLine(pCppRd, uNewLineNo, NULL, 0) - 1; /* sans \n */
                 kOCCppRdOptInsert(pCppRd, cchSrcLine, pCppRd->pszLineBuf, cchLineDir);
@@ -1536,7 +1536,8 @@ static char *kOCCppRdOptHandleLine(PKOCCPPRD pCppRd, char *pszCur, size_t *pcbLe
             size_t cchLineDir;
 
             kOCCppRdOptSetFile(pCppRd, pszNewFile, cchNewFile); /* save to do this early */
-            kOCCppRdOptFlush(pCppRd, offSrcLine, 1);
+            if (!(pCppRd->fOptimize & 2))
+                kOCCppRdOptFlush(pCppRd, offSrcLine, 1);
 
             cchLineDir = kOCCppRdOptFmtLine(pCppRd, uNewLineNo, pCppRd->pszFileNmBuf, cchNewFile) - 1; /* sans \n */
             kOCCppRdOptInsert(pCppRd, cchSrcLine, pCppRd->pszLineBuf, cchLineDir);
@@ -3836,11 +3837,19 @@ static void kOCEntryCalcRecompile(PKOCENTRY pEntry)
      */
     if (!kOCSumHasEqualInChain(&pEntry->Old.SumHead, &pEntry->New.SumHead))
     {
-        InfoMsg(2, "no checksum match - comparing output\n");
-        if (!kOCEntryCompareOldAndNewOutput(pEntry))
+        if (pEntry->fOptimizeCpp & 2)
+        {
+            InfoMsg(2, "no checksum match - no need to compare output, -O2.\n");
             pEntry->fNeedCompiling = 1;
+        }
         else
-            kOCSumAddChain(&pEntry->New.SumHead, &pEntry->Old.SumHead);
+        {
+            InfoMsg(2, "no checksum match - comparing output\n");
+            if (!kOCEntryCompareOldAndNewOutput(pEntry))
+                pEntry->fNeedCompiling = 1;
+            else
+                kOCSumAddChain(&pEntry->New.SumHead, &pEntry->Old.SumHead);
+        }
     }
 }
 
@@ -5017,6 +5026,8 @@ int main(int argc, char **argv)
             fMakeDepQuiet = 1;
         else if (!strcmp(argv[i], "-O1") || !strcmp(argv[i], "--optimize-1"))
             fOptimizePreprocessorOutput = 1;
+        else if (!strcmp(argv[i], "-O2") || !strcmp(argv[i], "--optimize-2"))
+            fOptimizePreprocessorOutput = 1 | 2;
         else if (!strcmp(argv[i], "-p") || !strcmp(argv[i], "--passthru"))
             fRedirPreCompStdOut = fRedirCompileStdIn = 1;
         else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--redir-stdout"))
@@ -5033,7 +5044,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2618 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2619 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
@@ -5158,8 +5169,8 @@ int main(int argc, char **argv)
     kObjCacheDestroy(pCache);
     if (fOptimizePreprocessorOutput)
     {
-        InfoMsg(1, "g_cbMemMoved=%#x (%d)\n", g_cbMemMoved, g_cbMemMoved);
-        InfoMsg(1, "g_cMemMoves=%#x (%d)\n", g_cMemMoves, g_cMemMoves);
+        InfoMsg(3, "g_cbMemMoved=%#x (%d)\n", g_cbMemMoved, g_cbMemMoved);
+        InfoMsg(3, "g_cMemMoves=%#x (%d)\n", g_cMemMoves, g_cMemMoves);
     }
 
     return 0;
