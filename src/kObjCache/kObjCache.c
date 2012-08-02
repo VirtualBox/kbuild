@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2616 2012-08-02 01:43:58Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2617 2012-08-02 02:03:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -127,6 +127,11 @@ static char g_szErrorPrefix[128];
 
 /** Read buffer shared by the cache components. */
 static char g_szLine[KOBJCACHE_MAX_LINE_LEN + 16];
+
+/** How many times we've moved memory around. */
+static size_t g_cMemMoves = 0;
+/** How much memory we've moved. */
+static size_t g_cbMemMoved = 0;
 
 
 /*******************************************************************************
@@ -1204,6 +1209,8 @@ static char *kOCCppRdOptRemove(PKOCCPPRD pCppRd, char *pszStart, size_t cbRemove
 
     assert(pCppRd->offRead >= offStart);
 
+    g_cMemMoves++;
+    g_cbMemMoved += cbToMove + 1;
     memmove(pszStart, pszStart + cbRemove, cbToMove + 1);
 
     pCppRd->offRead -= cbRemove;
@@ -1220,16 +1227,18 @@ static size_t kOCCppRdOptReplace(PKOCCPPRD pCppRd, size_t offStart, size_t cchRe
 
     if (offDelta)
     {
-        size_t cbLeft = pCppRd->offRead - offStart - cchReplaced;
-        assert(cbLeft <= pCppRd->offRead);
+        size_t cbToMove = pCppRd->offRead - offStart - cchReplaced;
+        assert(cbToMove <= pCppRd->offRead);
 
         if (cchReplacement > cchReplaced)
             while (pCppRd->offRead + offDelta >= pCppRd->cbBufAlloc)
                 kOCCppRdGrowBuffer(pCppRd);
 
+        g_cMemMoves++;
+        g_cbMemMoved += cbToMove + 1;
         memmove(pCppRd->pszBuf + offStart + cchReplacement,
                 pCppRd->pszBuf + offStart + cchReplaced,
-                cbLeft + 1);
+                cbToMove + 1);
 
         pCppRd->offRead += offDelta;
         if (pCppRd->offCur > offStart)
@@ -1244,6 +1253,21 @@ static size_t kOCCppRdOptReplace(PKOCCPPRD pCppRd, size_t offStart, size_t cchRe
 
     return offDelta;
 }
+
+
+static void kOCCppRdOptCommitEx(PKOCCPPRD pCppRd, size_t offCur)
+{
+    pCppRd->cchOptimized = offCur;
+    pCppRd->uOptLineNo = pCppRd->uCurLineNo;
+}
+
+
+static void kOCCppRdOptCommit(PKOCCPPRD pCppRd)
+{
+    pCppRd->cchOptimized = pCppRd->offCur;
+    pCppRd->uOptLineNo = pCppRd->uCurLineNo;
+}
+
 
 
 static char *kOCCppRdOptGetEol(PKOCCPPRD pCppRd, char *pszCur, size_t cbLeft)
@@ -1339,9 +1363,7 @@ static char *kOCCppRdOptFlush(PKOCCPPRD pCppRd, char *pszCur, int fLineDirNext)
         offDelta = kOCCppRdOptReplace(pCppRd, cchOptimized, cchInQuestion, pCppRd->pszLineBuf, cchLineDir);
         pszCur += offDelta;
 
-        pCppRd->cchOptimized = cchOptimized + cchLineDir;
-        pCppRd->uOptLineNo = pCppRd->uCurLineNo;
-
+        kOCCppRdOptCommitEx(pCppRd, cchOptimized + cchLineDir);
         /* pCppRd->offCur is adjusted by the replace call */
     }
 
@@ -1545,10 +1567,7 @@ static void kOCCppRdOpt(PKOCCPPRD pCppRd)
                 pCppRd->offCur = pszCur - pCppRd->pszBuf + 1;
                 pCppRd->uCurLineNo++;
                 if (!fEmptyLine)
-                {
-                    pCppRd->cchOptimized = pCppRd->offCur;
-                    pCppRd->uOptLineNo = pCppRd->uCurLineNo;
-                }
+                    kOCCppRdOptCommit(pCppRd);
                 else
                     pCppRd->cEmptyLines++;
                 fEmptyLine = 1;
@@ -2918,8 +2937,9 @@ static void kOCEntryWaitChild(PCKOCENTRY pEntry, uint32_t *pcMs, pid_t pid, cons
  * @param   paFDs           Where to store the two file descriptors.
  * @param   pszMsg          The operation message for info/error messages.
  * @param   pszPipeName     The pipe name if it is supposed to be named. (Windows only.)
+ * @param   fText           Whether to read text mode or binary mode.
  */
-static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *paFDs, const char *pszPipeName, const char *pszMsg)
+static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *paFDs, const char *pszPipeName, const char *pszMsg, int fText)
 {
     paFDs[0] = paFDs[1] = -1;
 #if defined(__WIN__)
@@ -2941,8 +2961,8 @@ static void kOCEntryCreatePipe(PKOCENTRY pEntry, int *paFDs, const char *pszPipe
         if (paFDs[1 /* write */] == -1)
             FatalDie("%s - _open_osfhandle failed: %d\n", pszMsg, strerror(errno));
     }
-    else if (   _pipe(paFDs, 256*1024, _O_NOINHERIT | _O_BINARY) < 0
-             && _pipe(paFDs,        0, _O_NOINHERIT | _O_BINARY) < 0)
+    else if (   _pipe(paFDs, 256*1024, _O_NOINHERIT | (fText ? _O_BINARY : _O_TEXT)) < 0
+             && _pipe(paFDs,        0, _O_NOINHERIT | (fText ? _O_BINARY : _O_TEXT)) < 0)
 #else
     if (pipe(paFDs) < 0)
 #endif
@@ -2971,7 +2991,7 @@ static void kOCEntrySpawnProducer(PKOCENTRY pEntry, const char * const *papszArg
     int fds[2];
     pid_t pid;
 
-    kOCEntryCreatePipe(pEntry, fds, NULL, pszMsg);
+    kOCEntryCreatePipe(pEntry, fds, NULL, pszMsg, pEntry->fOptimizeCpp);
     pid = kOCEntrySpawnChild(pEntry, &pEntry->New.cMsCpp, papszArgv, cArgv, -1, fds[1 /* write */], pszMsg);
 
     pfnConsumer(pEntry, fds[0 /* read */]);
@@ -2995,7 +3015,7 @@ static void kOCEntrySpawnConsumer(PKOCENTRY pEntry, const char * const *papszArg
     int fds[2];
     pid_t pid;
 
-    kOCEntryCreatePipe(pEntry, fds, pEntry->pszNmPipeCompile, pszMsg);
+    kOCEntryCreatePipe(pEntry, fds, pEntry->pszNmPipeCompile, pszMsg, 0 /*fText*/);
     pid = kOCEntrySpawnChild(pEntry, &pEntry->New.cMsCompile, papszArgv, cArgv, fds[0 /* read */], -1, pszMsg);
 #ifdef __WIN__
     if (pEntry->pszNmPipeCompile && !ConnectNamedPipe((HANDLE)_get_osfhandle(fds[1 /* write */]), NULL))
@@ -3029,14 +3049,14 @@ static void kOCEntrySpawnTee(PKOCENTRY pEntry, const char * const *papszProdArgv
     /*
      * The producer.
      */
-    kOCEntryCreatePipe(pEntry, fds, NULL, pszMsg);
+    kOCEntryCreatePipe(pEntry, fds, NULL, pszMsg, pEntry->fOptimizeCpp);
     pidConsumer = kOCEntrySpawnChild(pEntry, &pEntry->New.cMsCpp, papszProdArgv, cProdArgv, -1, fds[1 /* write */], pszMsg);
     fdIn = fds[0 /* read */];
 
     /*
      * The consumer.
      */
-    kOCEntryCreatePipe(pEntry, fds, pEntry->pszNmPipeCompile, pszMsg);
+    kOCEntryCreatePipe(pEntry, fds, pEntry->pszNmPipeCompile, pszMsg, 0 /*fText*/);
     pidProducer = kOCEntrySpawnChild(pEntry, &pEntry->New.cMsCompile, papszConsArgv, cConsArgv, fds[0 /* read */], -1, pszMsg);
     fdOut = fds[1 /* write */];
 
@@ -4995,7 +5015,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2616 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2617 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
@@ -5118,6 +5138,12 @@ int main(int argc, char **argv)
     kOCEntryWrite(pEntry);
     kObjCacheUnlock(pCache);
     kObjCacheDestroy(pCache);
+    if (fOptimizePreprocessorOutput)
+    {
+        InfoMsg(1, "g_cbMemMoved=%#x (%d)\n", g_cbMemMoved, g_cbMemMoved);
+        InfoMsg(1, "g_cMemMoves=%#x (%d)\n", g_cMemMoves, g_cMemMoves);
+    }
+
     return 0;
 }
 
