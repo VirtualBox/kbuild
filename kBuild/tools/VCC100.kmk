@@ -1,4 +1,4 @@
-# $Id: VCC100.kmk 2621 2012-08-02 04:14:25Z knut.osmundsen@oracle.com $
+# $Id: VCC100.kmk 2622 2012-08-05 02:37:57Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD_TARGET).
 #
@@ -75,6 +75,8 @@ ifneq ($(PATH_TOOL_VCC100),)
  TOOL_VCC100_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100_BIN)/ml64.exe
  TOOL_VCC100_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100_BIN)/lib.exe
  TOOL_VCC100_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100_BIN)/link.exe
+ TOOL_VCC100_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100_BIN)/dumpbin.exe
+ TOOL_VCC100_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100_BIN)/editbin.exe
 else
  # Pathless, relies on the environment.
  TOOL_VCC100_CC  ?= $(EXEC_X86_WIN32) cl.exe
@@ -82,6 +84,8 @@ else
  TOOL_VCC100_AS  ?= $(EXEC_X86_WIN32) ml64.exe
  TOOL_VCC100_AR  ?= $(EXEC_X86_WIN32) lib.exe
  TOOL_VCC100_LD  ?= $(EXEC_X86_WIN32) link.exe
+ TOOL_VCC100_DUMPBIN ?= $(EXEC_X86_WIN32) dumpbin.exe
+ TOOL_VCC100_EDITBIN ?= $(EXEC_X86_WIN32) editbin.exe
 endif
 TOOL_VCC100_RC   ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC100_RC_CACHED)
 TOOL_VCC100_MT   ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC100_MT_CACHED)
