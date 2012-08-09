@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 2620 2012-08-02 04:02:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 2627 2012-08-09 14:12:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -29,6 +29,7 @@
 #if 0
 # define ELECTRIC_HEAP
 # include "../kmk/electric.h"
+# include "../kmk/electric.c"
 #endif
 #include <string.h>
 #include <stdlib.h>
@@ -1300,7 +1301,7 @@ static void kOCCppRdOptSetFile(PKOCCPPRD pCppRd, const char *pchFile, size_t cch
 {
     if (cchFile >= pCppRd->cbFileNmBuf)
     {
-        pCppRd->cbFileNmBuf  = (cchFile + 15) & ~(size_t)15;
+        pCppRd->cbFileNmBuf  = (cchFile + 15 + 1) & ~(size_t)15;
         pCppRd->pszFileNmBuf = xrealloc(pCppRd->pszFileNmBuf, pCppRd->cbFileNmBuf);
     }
     memcpy(pCppRd->pszFileNmBuf, pchFile, cchFile);
@@ -5086,7 +5087,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2620 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 2627 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;
