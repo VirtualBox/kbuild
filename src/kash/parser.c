@@ -808,7 +808,6 @@ xxreadtoken(shinstance *psh)
 	psh->startlinno = psh->plinno;
 	for (;;) {	/* until token or start of word found */
 		c = pgetc_macro(psh);
-trace(psh, "xxreadtoken: c=%#x", c);
 		if (c == ' ' || c == '\t')
 			continue;		/* quick check for white space first */
 		switch (c) {
@@ -854,7 +853,7 @@ trace(psh, "xxreadtoken: c=%#x", c);
 			RETURN(TLP);
 		case ')':
 			RETURN(TRP);
-                default:
+		default:
 			goto breakloop;
 		}
 	}
@@ -1620,7 +1619,7 @@ synerror(shinstance *psh, const char *msg)
 		outfmt(&psh->errout, "%s: %d: ", psh->commandname, psh->startlinno);
 	} else {
 		trace(psh, "synerror: Syntax error: %s\n", msg);
-        }
+	}
 	outfmt(&psh->errout, "Syntax error: %s\n", msg);
 	error(psh, (char *)NULL);
 	/* NOTREACHED */
