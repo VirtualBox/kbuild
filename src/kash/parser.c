@@ -1615,10 +1615,10 @@ SH_NORETURN_1 STATIC void
 synerror(shinstance *psh, const char *msg)
 {
 	if (psh->commandname) {
-		trace(psh, "synerror: %s: %d: Syntax error: %s", psh->commandname, psh->startlinno, msg);
+		TRACE((psh, "synerror: %s: %d: Syntax error: %s", psh->commandname, psh->startlinno, msg));
 		outfmt(&psh->errout, "%s: %d: ", psh->commandname, psh->startlinno);
 	} else {
-		trace(psh, "synerror: Syntax error: %s\n", msg);
+		TRACE((psh, "synerror: Syntax error: %s\n", msg));
 	}
 	outfmt(&psh->errout, "Syntax error: %s\n", msg);
 	error(psh, (char *)NULL);
