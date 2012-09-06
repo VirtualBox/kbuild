@@ -171,12 +171,9 @@ pgetc(shinstance *psh)
 
 
 static int
-preadfd(shinstance *psh)
+preadfd_inner(shinstance *psh, char *buf, int bufsize)
 {
 	int nr;
-	char *buf = psh->parsefile->buf;
-	psh->parsenextc = buf;
-
 retry:
 #ifndef SMALL
 	if (psh->parsefile->fd == 0 && psh->el) {
@@ -189,8 +186,8 @@ retry:
 			nr = 0;
 		else {
 			nr = el_len;
-			if (nr > BUFSIZ - 8)
-				nr = BUFSIZ - 8;
+			if (nr > bufsize)
+				nr = bufsize;
 			memcpy(buf, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
@@ -201,7 +198,7 @@ retry:
 
 	} else
 #endif
-		nr = shfile_read(&psh->fdtab, psh->parsefile->fd, buf, BUFSIZ - 8);
+		nr = shfile_read(&psh->fdtab, psh->parsefile->fd, buf, bufsize);
 
 
 	if (nr <= 0) {
@@ -220,22 +217,51 @@ retry:
                         }
                 }
                 nr = -1;
-	} else {
+	}
+	return nr;
+}
+
+
+
+static int
+preadfd(shinstance *psh)
+{
+	int nr;
+	char *buf = psh->parsefile->buf;
+	psh->parsenextc = buf;
+
 #ifdef SH_DEAL_WITH_CRLF
+	/* Convert CRLF to LF. */
+	nr = preadfd_inner(psh, buf, BUFSIZ - 9);
+	if (nr > 0) {
 		char *cr = memchr(buf, '\r', nr);
 		while (cr) {
 			size_t left = nr - (cr - buf);
+
 			if (left > 1 && cr[1] == '\n') {
 				left--;
 				nr--;
 				memmove(cr, cr + 1, left);
 				cr = memchr(cr, '\r', left);
+			} else if (left == 1) {
+        			/* Special case: \r at buffer end.  Read one more char. Screw \r\r\n sequences. */
+				int nr2 = preadfd_inner(psh, cr + 1, 1);
+				if (nr2 != 1) 
+					break;
+				if (cr[1] == '\n') {
+					*cr = '\n';
+				} else {
+					nr++;
+				}
+				break;
 			} else {
 				cr = memchr(cr + 1, '\r', left);
 			}
 		}
-#endif
 	}
+#else
+	nr = preadfd_inner(psh, buf, BUFSIZ - 8);
+#endif
 	return nr;
 }
 
