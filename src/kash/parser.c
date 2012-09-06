@@ -766,7 +766,7 @@ out:
 	if (!alreadyseen)
 	    TRACE((psh, "token %s %s\n", tokname[t], t == TWORD ? psh->wordtext : ""));
 	else
-	    TRACE((psh, "reread token %s %s\n", tokname[t], t == TWORD ? psh->wordtext : ""));
+	    TRACE((psh, "reread token %s \"%s\"\n", tokname[t], t == TWORD ? psh->wordtext : ""));
 #endif
 	return (t);
 }
@@ -808,6 +808,7 @@ xxreadtoken(shinstance *psh)
 	psh->startlinno = psh->plinno;
 	for (;;) {	/* until token or start of word found */
 		c = pgetc_macro(psh);
+trace(psh, "xxreadtoken: c=%#x", c);
 		if (c == ' ' || c == '\t')
 			continue;		/* quick check for white space first */
 		switch (c) {
@@ -853,7 +854,7 @@ xxreadtoken(shinstance *psh)
 			RETURN(TLP);
 		case ')':
 			RETURN(TRP);
-		default:
+                default:
 			goto breakloop;
 		}
 	}
@@ -1614,8 +1615,12 @@ synexpect(shinstance *psh, int token)
 SH_NORETURN_1 STATIC void
 synerror(shinstance *psh, const char *msg)
 {
-	if (psh->commandname)
+	if (psh->commandname) {
+		trace(psh, "synerror: %s: %d: Syntax error: %s", psh->commandname, psh->startlinno, msg);
 		outfmt(&psh->errout, "%s: %d: ", psh->commandname, psh->startlinno);
+	} else {
+		trace(psh, "synerror: Syntax error: %s\n", msg);
+        }
 	outfmt(&psh->errout, "Syntax error: %s\n", msg);
 	error(psh, (char *)NULL);
 	/* NOTREACHED */
