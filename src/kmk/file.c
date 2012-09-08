@@ -668,34 +668,21 @@ expand_deps (struct file *f)
 
 #ifdef CONFIG_WITH_INCLUDEDEP
       /* Dependencies loaded by includedep are ready for use and we skip
-         the expensive parsing and globbing for them. To avoid wasting
-         lots of time walking the f->deps chain, we will advance D and
-         process all subsequent includedep records. */
+         the expensive parsing and globbing for them.  */
 
       if (d->includedep)
         {
-          struct dep *d1 = new = alloc_dep();
-          d1->staticpattern = 0;
-          d1->need_2nd_expansion = 0;
-          d1->includedep = 1;
-          d1->file = lookup_file (d->name);
-          if (d1->file == 0)
-            d1->file = enter_file (d->name);
+          d->need_2nd_expansion = 0;
+          d->file = lookup_file (name);
+          if (d->file == 0)
+            d->file = enter_file (name);
+          d->name = 0;
+          free(name);
 
-          while (d->next && d->next->includedep)
-            {
-              d = d->next;
-              d1 = d1->next = alloc_dep();
-              d1->staticpattern = 0;
-              d1->need_2nd_expansion = 0;
-              d1->includedep = 1;
-              d1->file = lookup_file (d->name);
-              if (d1->file == 0)
-                d1->file = enter_file (d->name);
-            }
+          dp = &d->next;
+          d = d->next;
+          continue;
         }
-      else
-      {
 #endif /* CONFIG_WITH_INCLUDEDEP */
 
       /* If it's from a static pattern rule, convert the patterns into
@@ -706,8 +693,8 @@ expand_deps (struct file *f)
           d->name = o = variable_expand ("");
           o = subst_expand (o, name, "%", "$*", 1, 2, 0);
           *o = '\0';
-          free (name);
 #ifndef CONFIG_WITH_STRCACHE2
+          free (name);
           d->name = name = xstrdup (variable_buffer); /* bird not d->name, can be reallocated */
 #else
           d->name = strcache2_add (&file_strcache, variable_buffer, o - variable_buffer);
@@ -753,12 +740,12 @@ expand_deps (struct file *f)
           continue;
         }
 
-#ifdef CONFIG_WITH_INCLUDEDEP
-      }
-#endif
-
       /* Add newly parsed prerequisites.  */
       next = d->next;
+#ifdef KMK /* bird: memory leak */
+      assert(new != d);
+      free_dep (d);
+#endif
       *dp = new;
       for (dp = &new->next, d = new->next; d != 0; dp = &d->next, d = d->next)
         ;
