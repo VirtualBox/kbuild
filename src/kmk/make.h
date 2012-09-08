@@ -637,7 +637,9 @@ void alloccache_free (struct alloccache *cache, void *item);
 MY_INLINE void *
 alloccache_alloc (struct alloccache *cache)
 {
-  struct alloccache_free_ent *f = cache->free_head;
+  struct alloccache_free_ent *f;
+# ifndef CONFIG_WITH_ALLOCCACHE_DEBUG
+  f = cache->free_head;
   if (f)
     cache->free_head = f->next;
   else if (cache->free_start != cache->free_end)
@@ -646,6 +648,7 @@ alloccache_alloc (struct alloccache *cache)
       cache->free_start += cache->size;
     }
   else
+# endif
     f = alloccache_alloc_grow (cache);
   MAKE_STATS(cache->alloc_count++;);
   return f;

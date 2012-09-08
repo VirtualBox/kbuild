@@ -1,4 +1,4 @@
-/* $Id: alloccache.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: alloccache.c 2633 2012-09-08 23:18:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * alloccache - Fixed sized allocation cache.
  *
@@ -53,18 +53,22 @@
 void
 alloccache_free (struct alloccache *cache, void *item)
 {
+#ifndef CONFIG_WITH_ALLOCCACHE_DEBUG
   struct alloccache_free_ent *f = (struct alloccache_free_ent *)item;
-#if 0 /*ndef NDEBUG*/
+# if 0 /*ndef NDEBUG*/
   struct alloccache_free_ent *c;
   unsigned int i = 0;
   for (c = cache->free_head; c != NULL; c = c->next, i++)
     MY_ASSERT_MSG (c != f && i < 0x10000000,
                    ("i=%u total_count=%u\n", i, cache->total_count));
-#endif
+# endif
 
   f->next = cache->free_head;
   cache->free_head = f;
   MAKE_STATS(cache->free_count++;);
+#else
+  free(item);
+#endif
 }
 
 /* Default allocator. */
@@ -78,21 +82,25 @@ alloccache_default_grow_alloc(void *ignore, unsigned int size)
 struct alloccache_free_ent *
 alloccache_alloc_grow (struct alloccache *cache)
 {
+#ifndef CONFIG_WITH_ALLOCCACHE_DEBUG
   void *item;
   unsigned int items = (64*1024 - 32) / cache->size;
   cache->free_start  = cache->grow_alloc (cache->grow_arg, items * cache->size);
   cache->free_end    = cache->free_start + items * cache->size;
   cache->total_count+= items;
 
-#ifndef NDEBUG /* skip the first item so the heap can detect free(). */
+# ifndef NDEBUG /* skip the first item so the heap can detect free(). */
   cache->total_count--;
   cache->free_start += cache->size;
-#endif
+# endif
 
   item = cache->free_start;
   cache->free_start += cache->size;
   /* caller counts */
   return (struct alloccache_free_ent *)item;
+#else
+  return (struct alloccache_free_ent *)xmalloc(cache->size);
+#endif
 }
 
 /* List of alloc caches, for printing. */
