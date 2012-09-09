@@ -88,7 +88,7 @@ char *
 savestr(struct shinstance *psh, const char *s)
 {
 	char *p;
-    size_t len = strlen(s);
+	size_t len = strlen(s);
 
 	p = ckmalloc(psh, len + 1);
 	memcpy(p, s, len + 1);
