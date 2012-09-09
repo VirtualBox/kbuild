@@ -68,11 +68,6 @@ extern APIRET
 
 #endif
 
-#if defined(_MSC_VER) || defined(_WIN32)
-    /* On Windows the PATH variable is called "Path". */
-# define PC_MIXED_PATH_VAR_NAME
-#endif
-
 
 
 /*
@@ -363,6 +358,21 @@ setvareq(shinstance *psh, char *s, int flags)
 	struct var *vp, **vpp;
 	int nlen;
 
+fprintf(stderr, "debug: setvareq '%s'\n", s);
+#if defined(_MSC_VER) || defined(_WIN32)
+	/* On Windows PATH is often spelled 'Path', correct this here.  */
+	if (   s[0] == 'P'
+	    && s[1] == 'a'
+	    && s[2] == 't'
+	    && s[3] == 'h'
+	    && (s[4] == '\0' || s[4] == '=') ) {
+		s[1] = 'A';
+		s[2] = 'T';
+		s[3] = 'H';
+fprintf(stderr, "debug: setvareq '%s' FIXED\n", s);
+	}
+#endif
+
 	if (aflag(psh))
 		flags |= VEXPORT;
 	vp = find_var(psh, s, &vpp, &nlen);
@@ -399,19 +409,6 @@ setvareq(shinstance *psh, char *s, int flags)
 	/* not found */
 	if (flags & VNOSET)
 		return;
-
-#ifdef PC_MIXED_PATH_VAR_NAME
-    if (   nlen == 4 
-        && (s[0] == 'p' || s[0] == 'P')
-        && (s[1] == 'a' || s[1] == 'A')
-        && (s[2] == 't' || s[2] == 'T')
-        && (s[3] == 'h' || s[3] == 'H') ) {
-        s[0] = 'P';
-        s[1] = 'A';
-        s[2] = 'T';
-        s[3] = 'H';
-    }
-#endif
 
 	vp = ckmalloc(psh, sizeof (*vp));
 	vp->flags = flags & ~VNOFUNC;
@@ -926,22 +923,6 @@ find_var(shinstance *psh, const char *name, struct var ***vppp, int *lenp)
 	while (*p && *p != '=')
 		hashval = 2 * hashval + (unsigned char)*p++;
 	len = (int)(p - name);
-
-#ifdef PC_MIXED_PATH_VAR_NAME
-    /* On Windows the PATH variable is called "Path". */
-    if (   len == 4 
-        && (name[0] == 'p' || name[0] == 'P') 
-        && (name[1] == 'a' || name[1] == 'A') 
-        && (name[2] == 't' || name[2] == 'T') 
-        && (name[3] == 'h' || name[3] == 'H') )
-    {
-        name = "PATH";
-		hashval = (unsigned char)'P';
-		hashval = hashval * 2 + (unsigned char)'A';
-		hashval = hashval * 2 + (unsigned char)'T';
-		hashval = hashval * 2 + (unsigned char)'H';
-    }
-#endif
 
 	if (lenp)
 		*lenp = len;
