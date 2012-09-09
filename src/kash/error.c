@@ -157,7 +157,11 @@ exverror(shinstance *psh, int cond, const char *msg, va_list ap)
 	if (msg) {
 		va_list va2;
 		TRACE((psh, "exverror(%d, \"", cond));
+# ifdef va_copy /* MSC 2010 still doesn't have va_copy. sigh. */
 		va_copy(va2, ap);
+# else
+		va2 = ap;
+# endif
 		TRACEV((psh, msg, va2));
 		va_end(va2);
 		TRACE((psh, "\") pid=%d\n", sh_getpid(psh)));
