@@ -676,7 +676,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	char **argv;
 	int argc;
 	char **envp;
-	int varflag;
+	int numvars;
 	struct strlist *sp;
 	int mode;
 	int pip[2];
@@ -705,41 +705,29 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	setstackmark(psh, &smark);
 	psh->back_exitstatus = 0;
 
-	/** @todo r=bird: Why is arguments and envvars expanded in this
-	 * particular order?  It would be both faster and simpler to do the
-	 * envvars first and then continue with the arguments... */
 	arglist.lastp = &arglist.list;
-	varflag = 1;
 	/* Expand arguments, ignoring the initial 'name=value' ones */
-	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
-		char *p = argp->narg.text;
-		if (varflag && is_name(*p)) {
-			do {
-				p++;
-			} while (is_in_name(*p));
-			if (*p == '=')
-				continue;
-		}
-		expandarg(psh, argp, &arglist, EXP_FULL | EXP_TILDE);
-		varflag = 0;
+	for (argp = cmd->ncmd.args, numvars = 0 ; argp ; argp = argp->narg.next, numvars++) {
+	    char *p = argp->narg.text;
+	    char ch = *p;
+	    if (is_name(ch)) {
+		    do	ch = *++p;
+		    while (is_in_name(ch));
+		    if (ch == '=')
+			    continue;
+	    }
+	    break;
 	}
+	for (/*continue on argp from above. */ ; argp ; argp = argp->narg.next)
+		expandarg(psh, argp, &arglist, EXP_FULL | EXP_TILDE);
 	*arglist.lastp = NULL;
 
 	expredir(psh, cmd->ncmd.redirect);
 
 	/* Now do the initial 'name=value' ones we skipped above */
 	varlist.lastp = &varlist.list;
-	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
-		char *p = argp->narg.text;
-		if (!is_name(*p))
-			break;
-		do
-			p++;
-		while (is_in_name(*p));
-		if (*p != '=')
-			break;
+	for (argp = cmd->ncmd.args ; numvars > 0 && argp ; argp = argp->narg.next, numvars--)
 		expandarg(psh, argp, &varlist, EXP_VARTILDE);
-	}
 	*varlist.lastp = NULL;
 
 	argc = 0;
