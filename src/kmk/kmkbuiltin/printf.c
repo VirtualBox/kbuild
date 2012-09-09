@@ -637,15 +637,21 @@ mklong(const char *str, int ch)
 	static char copy[64];
 	size_t len;
 
-	len = strlen(str) + 2;
-	if (len > sizeof copy) {
+	len = strlen(str) - 1;
+	if (len > sizeof(copy) - 5) {
 		warnx("format %s too complex\n", str);
 		len = 4;
 	}
-	(void)memmove(copy, str, len - 3);
-	copy[len - 3] = 'j';
-	copy[len - 2] = ch;
-	copy[len - 1] = '\0';
+	(void)memmove(copy, str, len);
+#ifndef _MSC_VER
+	copy[len++] = 'j';
+#else
+	copy[len++] = 'I';
+	copy[len++] = '6';
+	copy[len++] = '4';
+#endif
+	copy[len++] = ch;
+	copy[len] = '\0';
 	return copy;
 }
 
