@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2641 2012-09-09 01:52:11Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -61,6 +61,7 @@ if "$(USER)" == "bird" && "$(KBUILD_TARGET)" != "win"
 kash_CFLAGS += -std=gnu99
 endif
 kash_CFLAGS.win.amd64 = -GS-
+kash_LDFLAGS.win = -DYNAMICBASE:NO
 kash_SOURCES = \
 	main.c \
 	alias.c \
