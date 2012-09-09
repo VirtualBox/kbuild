@@ -358,7 +358,6 @@ setvareq(shinstance *psh, char *s, int flags)
 	struct var *vp, **vpp;
 	int nlen;
 
-fprintf(stderr, "debug: setvareq '%s'\n", s);
 #if defined(_MSC_VER) || defined(_WIN32)
 	/* On Windows PATH is often spelled 'Path', correct this here.  */
 	if (   s[0] == 'P'
@@ -369,7 +368,6 @@ fprintf(stderr, "debug: setvareq '%s'\n", s);
 		s[1] = 'A';
 		s[2] = 'T';
 		s[3] = 'H';
-fprintf(stderr, "debug: setvareq '%s' FIXED\n", s);
 	}
 #endif
 
