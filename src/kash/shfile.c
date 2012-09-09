@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2647 2012-09-09 03:21:35Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2650 2012-09-09 16:06:32Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -569,9 +569,19 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
     if (!rc)
     {
 #ifdef SHFILE_IN_USE
+        /* Get CWD with unix slashes. */
         char buf[SHFILE_MAX_PATH];
         if (getcwd(buf, sizeof(buf)))
         {
+# if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+            char *pszSlash = strchr(buf, '\\');
+            while (pszSlash)
+            {
+                *pszSlash = '/';
+                pszSlash = strchr(pszSlash + 1, '\\');
+            }
+# endif
+
             pfdtab->cwd = sh_strdup(NULL, buf);
             if (!inherit)
             {
@@ -763,6 +773,50 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
 #if K_OS == K_OS_WINDOWS && defined(SHFILE_IN_USE)
 
 /**
+ * Changes the inheritability of a file descriptro, taking console handles into
+ * account.
+ *
+ * @note    This MAY change the native handle for the entry.
+ *
+ * @returns The native handle.
+ * @param   pfd     The file descriptor to change.
+ * @param   set     If set, make child processes inherit the handle, if clear
+ *                  make them not inherit it.
+ */
+static HANDLE shfile_set_inherit_win(shfile *pfd, int set)
+{
+    HANDLE hFile = (HANDLE)pfd->native;
+    if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, set ? HANDLE_FLAG_INHERIT : 0))
+    {
+        /* SetHandleInformation doesn't work for console handles,
+           so we have to duplicate the handle to change the
+           inheritability. */
+        DWORD err = GetLastError();
+        if (   err == ERROR_INVALID_PARAMETER
+            && DuplicateHandle(GetCurrentProcess(),
+                               hFile,
+                               GetCurrentProcess(),
+                               &hFile,
+                               0,
+                               set ? TRUE : FALSE /* bInheritHandle */,
+                               DUPLICATE_SAME_ACCESS))
+        {
+            TRACE2((NULL, "shfile_set_inherit_win: %p -> %p (set=%d)\n", pfd->native, hFile, set));
+            if (!CloseHandle((HANDLE)pfd->native))
+                assert(0);
+            pfd->native = (intptr_t)hFile;
+        }
+        else
+        {
+            err = GetLastError();
+            assert(0);
+            hFile = (HANDLE)pfd->native;
+        }
+    }
+    return hFile;
+}
+
+/**
  * Helper for shfork.
  *
  * @param   pfdtab  The file descriptor table.
@@ -774,7 +828,6 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
 {
     shmtxtmp tmp;
     unsigned i;
-    DWORD fFlag = set ? HANDLE_FLAG_INHERIT : 0;
 
     shmtx_enter(&pfdtab->mtx, &tmp);
     TRACE2((NULL, "shfile_fork_win: set=%d\n", set));
@@ -784,17 +837,10 @@ void shfile_fork_win(shfdtab *pfdtab, int set, intptr_t *hndls)
     {
         if (pfdtab->tab[i].fd == i)
         {
-            HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
+            shfile_set_inherit_win(&pfdtab->tab[i], set);
             if (set)
                 TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
-                        i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
-            if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, fFlag))
-            {
-#if 0  /* Seems to happen for console handles, ignore it. */
-                DWORD err = GetLastError();
-                assert(0);
-#endif
-            }
+                        i, pfdtab->tab[i].native, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
         }
     }
 
@@ -860,17 +906,9 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
             if (    pfdtab->tab[i].fd == i
                 &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
             {
-                HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
+                HANDLE hFile = shfile_set_inherit_win(&pfdtab->tab[i], 1);
                 TRACE2((NULL, "  #%d: native=%#x oflags=%#x shflags=%#x\n",
                         i, hFile, pfdtab->tab[i].oflags, pfdtab->tab[i].shflags));
-
-                if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT))
-                {
-#if 0 /* Seems to fail for console handles, ignore. */
-                    DWORD err = GetLastError();
-                    assert(0);
-#endif
-                }
                 paf[i] = FOPEN;
                 if (pfdtab->tab[i].oflags & _O_APPEND)
                     paf[i] |= FAPPEND;
@@ -913,14 +951,7 @@ void *shfile_exec_win(shfdtab *pfdtab, int prepare, unsigned short *sizep, intpt
         {
             if (    pfdtab->tab[i].fd == i
                 &&  !(pfdtab->tab[i].shflags & SHFILE_FLAGS_CLOSE_ON_EXEC))
-            {
-                HANDLE hFile = (HANDLE)pfdtab->tab[i].native;
-                if (!SetHandleInformation(hFile, HANDLE_FLAG_INHERIT, 0))
-                {
-                    DWORD err = GetLastError();
-                    assert(0);
-                }
-            }
+                shfile_set_inherit_win(&pfdtab->tab[i], 0);
         }
         pvRet = NULL;
     }
