@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2592 2012-06-17 22:50:38Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2645 2012-09-09 02:29:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -477,13 +477,15 @@ int writev(int fd, const struct iovec *vector, int count)
 
 intmax_t strtoimax(const char *nptr, char **endptr, int base)
 {
-    return strtol(nptr, endptr, base); /** @todo fix this. */
+    if (*nptr != '-')
+        return _strtoui64(nptr, endptr, base);
+    return -(intmax_t)_strtoui64(nptr + 1, endptr, base);
 }
 
 
 uintmax_t strtoumax(const char *nptr, char **endptr, int base)
 {
-    return strtoul(nptr, endptr, base); /** @todo fix this. */
+    return _strtoui64(nptr, endptr, base);
 }
 
 
