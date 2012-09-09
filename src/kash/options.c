@@ -260,8 +260,10 @@ SHELLPROC {
 
 	for (i = 0; psh->optlist[i].name; i++)
 		psh->optlist[i].val = 0;
+# if DEBUG == 2
+	debug(psh) = 1;
+# endif
 	optschanged(psh);
-
 }
 #endif
 

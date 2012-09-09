@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2650 2012-09-09 16:06:32Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2652 2012-09-09 17:21:48Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -163,14 +163,14 @@ static PFN_RtlUnicodeStringToAnsiString g_pfnRtlUnicodeStringToAnsiString = NULL
  */
 static void shfile_native_close(intptr_t native, unsigned flags)
 {
-#if K_OS == K_OS_WINDOWS
+# if K_OS == K_OS_WINDOWS
     BOOL fRc = CloseHandle((HANDLE)native);
     assert(fRc); (void)fRc;
-#else
+# else
     int s = errno;
     close(native);
     errno = s;
-#endif
+# endif
     (void)flags;
 }
 
@@ -288,7 +288,7 @@ static int shfile_insert(shfdtab *pfdtab, intptr_t native, unsigned oflags, unsi
     return fd;
 }
 
-#if K_OS != K_OS_WINDOWS
+# if K_OS != K_OS_WINDOWS
 /**
  * Makes a copy of the native file, closes the original, and inserts the copy
  * into the descriptor table.
@@ -317,7 +317,7 @@ static int shfile_copy_insert_and_close(shfdtab *pfdtab, int *pnative, unsigned 
         fd = shfile_insert(pfdtab, native_copy, oflags, shflags, fdMin, who);
     return fd;
 }
-#endif /* !K_OS_WINDOWS */
+# endif /* !K_OS_WINDOWS */
 
 /**
  * Gets a file descriptor and lock the file descriptor table.
@@ -384,13 +384,13 @@ int shfile_make_path(shfdtab *pfdtab, const char *path, char *buf)
         return -1;
     }
     if (    *path == '/'
-#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+# if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
         ||  *path == '\\'
         ||  (   *path
              && path[1] == ':'
              && (   (*path >= 'A' && *path <= 'Z')
                  || (*path >= 'a' && *path <= 'z')))
-#endif
+# endif
         )
     {
         memcpy(buf, path, path_len + 1);
@@ -418,10 +418,10 @@ int shfile_make_path(shfdtab *pfdtab, const char *path, char *buf)
         memcpy(buf + cwd_len, path, path_len + 1);
     }
 
-#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+# if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
     if (!strcmp(buf, "/dev/null"))
         strcpy(buf, "NUL");
-#endif
+# endif
     return 0;
 }
 
@@ -527,6 +527,21 @@ DWORD shfile_query_handle_access_mask(HANDLE h, PACCESS_MASK pMask)
 #endif /* SHFILE_IN_USE */
 
 /**
+ * Converts DOS slashes to UNIX slashes if necessary.
+ *
+ * @param   pszPath             The path to fix.
+ */
+static void shfile_fix_slashes(char *pszPath)
+{
+#if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+    while ((pszPath = strchr(pszPath, '\\')))
+        *pszPath++ = '/';
+#else
+    (void)pszPath;
+#endif
+}
+
+/**
  * Initializes the global variables in this file.
  */
 static void shfile_init_globals(void)
@@ -573,14 +588,7 @@ int shfile_init(shfdtab *pfdtab, shfdtab *inherit)
         char buf[SHFILE_MAX_PATH];
         if (getcwd(buf, sizeof(buf)))
         {
-# if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
-            char *pszSlash = strchr(buf, '\\');
-            while (pszSlash)
-            {
-                *pszSlash = '/';
-                pszSlash = strchr(pszSlash + 1, '\\');
-            }
-# endif
+            shfile_fix_slashes(buf);
 
             pfdtab->cwd = sh_strdup(NULL, buf);
             if (!inherit)
@@ -1389,29 +1397,24 @@ long shfile_write(shfdtab *pfdtab, int fd, const void *buf, size_t len)
     else
         rc = -1;
 
+# ifdef DEBUG
+    if (fd != shthread_get_shell()->tracefd)
+        TRACE2((NULL, "shfile_write(%d,,%d) -> %d [%d]\n", fd, len, rc, errno));
+# endif
+
 #else
     if (fd != shthread_get_shell()->tracefd)
     {
+        int iSavedErrno = errno;
         struct stat s;
         int x;
         x = fstat(fd, &s);
         TRACE2((NULL, "shfile_write(%d) - %lu bytes (%d) - pos %lu - before; %o\n",
                 fd, (long)s.st_size, x, (long)lseek(fd, 0, SEEK_CUR), s.st_mode ));
-        errno = 0;
+        errno = iSavedErrno;
     }
 
     rc = write(fd, buf, len);
-#endif
-
-#ifdef DEBUG
-    if (fd != shthread_get_shell()->tracefd)
-    {
-        struct stat s;
-        int x;
-        TRACE2((NULL, "shfile_write(%d,,%d) -> %d [%d]\n", fd, len, rc, errno));
-        x=fstat(fd, &s);
-        TRACE2((NULL, "shfile_write(%d) - %lu bytes (%d) - pos %lu - after\n", fd, (long)s.st_size, x, (long)lseek(fd, 0, SEEK_CUR) ));
-    }
 #endif
     return rc;
 }
@@ -1600,12 +1603,13 @@ int shfile_chdir(shfdtab *pfdtab, const char *path)
     {
         char *abspath_copy = sh_strdup(psh, abspath);
         char *free_me = abspath_copy;
-        rc = chdir(path);
+        rc = chdir(abspath);
         if (!rc)
         {
             shmtxtmp    tmp;
             shmtx_enter(&pfdtab->mtx, &tmp);
 
+            shfile_fix_slashes(abspath_copy);
             free_me = pfdtab->cwd;
             pfdtab->cwd = abspath_copy;
 

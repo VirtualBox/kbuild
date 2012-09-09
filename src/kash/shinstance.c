@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2648 2012-09-09 03:22:30Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2652 2012-09-09 17:21:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -597,10 +597,21 @@ int sh_sigaction(shinstance *psh, int signo, const struct shsigaction *newp, str
                 signo, sys_signame[signo], g_sig_state[signo].sa.sa_handler, g_sig_state[signo].sa.sa_flags));
 #ifdef _MSC_VER
         if (signal(signo, g_sig_state[signo].sa.sa_handler) == SIG_ERR)
+        {
+            TRACE2((psh, "sh_sigaction: SIG_ERR, errno=%d signo=%d\n", errno, signo));
+            if (   signo != SIGHUP   /* whatever */
+                && signo != SIGQUIT
+                && signo != SIGPIPE
+                && signo != SIGTTIN
+                && signo != SIGTSTP
+                && signo != SIGTTOU
+                && signo != SIGCONT)
+                assert(0);
+        }
 #else
         if (sigaction(signo, &g_sig_state[signo].sa, NULL))
-#endif
             assert(0);
+#endif
 
         shmtx_leave(&g_sh_mtx, &tmp);
     }
@@ -1179,6 +1190,21 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
                 _exit(dwExitCode);
             }
             errno = EINVAL;
+        }
+        else
+        {
+            DWORD dwErr = GetLastError();
+            switch (dwErr)
+            {
+                case ERROR_FILE_NOT_FOUND:          errno = ENOENT; break;
+                case ERROR_PATH_NOT_FOUND:          errno = ENOENT; break;
+                case ERROR_BAD_EXE_FORMAT:          errno = ENOEXEC; break;
+                case ERROR_INVALID_EXE_SIGNATURE:   errno = ENOEXEC; break;
+                default:
+                    errno = EINVAL;
+                    break;
+            }
+            TRACE2((psh, "sh_execve: dwErr=%d -> errno=%d\n", dwErr, errno));
         }
 
         shfile_exec_win(&psh->fdtab, 0 /* done */, NULL, NULL);
