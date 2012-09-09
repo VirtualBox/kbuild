@@ -227,8 +227,21 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
 	errno = e;
 }
 
-
 #ifdef EXEC_HASH_BANG_SCRIPT
+
+/*
+ * Checks if NAME is the (base) name of the shell executable or something
+ * very similar.
+ */
+STATIC int
+is_shell_exe_name(const char *name)
+{
+    return equal(name, "kmk_ash")
+        || equal(name, "kmk_sh")
+	|| equal(name, "kash")
+        || equal(name, "sh");
+}
+
 /*
  * Execute an interpreter introduced by "#!", for systems where this
  * feature has not been built into the kernel.  If the interpreter is
@@ -276,17 +289,27 @@ bad:		  error(psh, "Bad #! line");
 		*ap++ = grabstackstr(psh, outp);
 	}
 
-	/* if no args, maybe shell and no exec is needed. */
-	if (ap == newargs + 1) {
+	/* Special optimizations / builtins. */
+	i = ap - newargs;
+	if (i > 1 && equal(newargs[0], "/usr/bin/env"))  {
+		/* /usr/bin/env <self> -> easy. */
+		if (i == 2 && is_shell_exe_name(newargs[1])) {
+		    TRACE((psh, "hash bang /usr/bin/env self\n"));
+		    return;
+		}
+		/** @todo implement simple /usr/bin/env that locates an exec in the PATH. */
+
+	} else if (i == 1) { /* if no args, maybe shell and no exec is needed. */
 		p = strrchr(newargs[0], '/');
 		if (!p)
 			p = newargs[0];
-		if (equal(p, "kmk_ash") || equal(p, "kmk_sh") || equal(p, "kash") || equal(p, "sh")) {
+		if (is_shell_exe_name(p)) {
 			TRACE((psh, "hash bang self\n"));
 			return;
 		}
 	}
 
+	/* Combine the argument lists and exec. */
 	i = (char *)ap - (char *)newargs;		/* size in bytes */
 	if (i == 0)
 		error(psh, "Bad #! line");
@@ -296,13 +319,14 @@ bad:		  error(psh, "Bad #! line");
 	while ((i -= sizeof (char **)) >= 0)
 		*ap2++ = *ap++;
 	ap = argv;
-	while (*ap2++ = *ap++);
+	while ((*ap2++ = *ap++))
+	    /* nothing*/;
 	TRACE((psh, "hash bang '%s'\n", new[0]));
 	shellexec(psh, new, envp, pathval(psh), 0, 0);
 	/* NOTREACHED */
 }
-#endif
 
+#endif /* EXEC_HASH_BANG_SCRIPT */
 
 
 /*
