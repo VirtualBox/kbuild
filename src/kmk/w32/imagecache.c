@@ -1,4 +1,4 @@
-/* $Id: imagecache.c 2635 2012-09-09 00:57:47Z knut.osmundsen@oracle.com $ */
+/* $Id: imagecache.c 2640 2012-09-09 01:49:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific executable image cache for Windows.
  */
@@ -128,7 +128,10 @@ extern void kmk_cache_exec_image(const char *pszExec)
     pCur->uLastRef = ++g_uNow;
     memcpy(pCur->szName, pszExec, cchName + 1);
     pCur->hmod1 = LoadLibraryEx(pszExec, NULL, LOAD_LIBRARY_AS_DATAFILE);
-    pCur->hmod2 = LoadLibraryEx(pszExec, NULL, DONT_RESOLVE_DLL_REFERENCES);
+    if (pCur->hmod1 != NULL)
+        pCur->hmod2 = LoadLibraryEx(pszExec, NULL, DONT_RESOLVE_DLL_REFERENCES);
+    else
+        pCur->hmod2 = NULL;
 
     *ppCur = pCur;
     g_cCached++;
