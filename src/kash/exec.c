@@ -239,7 +239,7 @@ tryexec(shinstance *psh, char *cmd, char **argv, char **envp, int vforked, int h
  * reading any input.  It would benefit from a rewrite.
  */
 
-#define NEWARGS 5
+#define NEWARGS 16
 
 STATIC void
 execinterp(shinstance *psh, char **argv, char **envp)
@@ -275,22 +275,18 @@ bad:		  error(psh, "Bad #! line");
 		n++, inp--;
 		*ap++ = grabstackstr(psh, outp);
 	}
-	if (ap == newargs + 1) {	/* if no args, maybe no exec is needed */
-		p = newargs[0];
-		for (;;) {
-			if (equal(p, "sh") || equal(p, "ash")) {
-				TRACE((psh, "hash bang self\n"));
-				return;
-			}
-			while (*p != '/') {
-				if (*p == '\0')
-					goto break2;
-				p++;
-			}
-			p++;
+
+	/* if no args, maybe shell and no exec is needed. */
+	if (ap == newargs + 1) {
+		p = strrchr(newargs[0], '/');
+		if (!p)
+			p = newargs[0];
+		if (equal(p, "kmk_ash") || equal(p, "kmk_sh") || equal(p, "kash") || equal(p, "sh")) {
+			TRACE((psh, "hash bang self\n"));
+			return;
 		}
-break2:;
 	}
+
 	i = (char *)ap - (char *)newargs;		/* size in bytes */
 	if (i == 0)
 		error(psh, "Bad #! line");
