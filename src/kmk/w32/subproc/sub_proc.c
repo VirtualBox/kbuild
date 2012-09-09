@@ -34,6 +34,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 static char *make_command_line(char *shell_name, char *exec_path, char **argv);
 extern char *xmalloc (unsigned int);
+#ifdef KMK
+extern void kmk_cache_exec_image(const char *); /* imagecache.c */
+#endif
 
 typedef struct sub_process_t {
 	intptr_t sv_stdin[2];
@@ -454,12 +457,13 @@ process_begin(
          */
 
 #ifdef KMK
-        /* kmk performace: Don't bother looking for shell scripts in .exe files. */
+        /* kmk performance: Don't bother looking for shell scripts in .exe files. */
         exec_path_len = strlen(exec_path);
         if (exec_path_len > 4
             && exec_path[exec_path_len - 4] == '.'
             && !stricmp(exec_path + exec_path_len - 3, "exe")) {
                 exec_handle =  INVALID_HANDLE_VALUE;
+		exec_fname[0] = '\0';
         }
         else {
 #endif /* KMK */
@@ -599,6 +603,14 @@ process_begin(
 		DB (DB_JOBS, ("CreateProcess(%s,%s,...)\n",
 			exec_path ? exec_path : "NULL",
 			command_line ? command_line : "NULL"));
+#ifdef KMK
+		if (exec_fname[0])
+			kmk_cache_exec_image(exec_fname);
+		else if (exec_path)
+			kmk_cache_exec_image(exec_path);
+		else if (argv[0])
+			kmk_cache_exec_image(argv[0]);
+#endif
 		if (CreateProcess(
 			exec_path,
 			command_line,
