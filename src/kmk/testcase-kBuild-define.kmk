@@ -1,10 +1,10 @@
-# $Id: testcase-kBuild-define.kmk 2549 2011-11-09 01:22:04Z knut.osmundsen@oracle.com $
+# $Id: testcase-kBuild-define.kmk 2655 2012-09-09 23:08:19Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the kBuild-define-* directives.
 #
 
 #
-# Copyright (c) 2011 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2011-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -26,31 +26,46 @@
 DEPTH = ../..
 #include $(PATH_KBUILD)/header.kmk
 
-kBuild-define-target MyTarget
+# object definition syntax:
+#      kobject <type> <name> [extends <object> [by overriding|prepending|appending]] [object specific args...]
+#      endkobj [<type> [name]]
+kobject kb-target MyTarget
+.SOURCES = file.c
+endobj
 
-_TEMPLATE = MyTemplate
-_SOURCES  = MySourceFile.c
-
-kBuild-endef-target  MyTarget
-$(if "$(MyTarget_TEMPLATE)" == "MyTemplate",,$(error MyTarget's _TEMPLATE wasn't set correctly in the global space))
-$(if "$(MyTarget_SOURCES)" == "MySourceFile.c",,$(error MyTarget's _TEMPLATE wasn't set correctly in the global space))
-
-
-INDIRECT_NAME = MyTarget$(strip $1)
-kBuild-define-target $(call INDIRECT_NAME, 2)
-
-local _TEMPLATE = MyTemplate2
-_SOURCES  = MySourceFile2.c
-
-kBuild-endef-target  $(call INDIRECT_NAME, 2)
-$(if "$(_TEMPLATE)" == "",,$(error _TEMPLATE has leaked out into the global space))
+# accesses an already defined object.
+# syntax:
+#      kaccess <type> <name>
+#      endkacc [<type> [name]]
+kaccess kb-target MyTarget
+.SOURCES += file2.c
+endkacc
 
 
+# Referencing an object variable, the object must exist.
+# syntax: [<type>@<name>].<property>
+[kb-target@MyTarget].SOURCES += file3.c
+$(info [kb-target@MyTarget].SOURCES is $([kb-target@MyTarget].SOURCES))
+
+
+# Test #1
+kobject target BaseTarget with DUMMY as template
+.SOURCES = BaseTargetSource.c
+kendobj
+$(if "$([target@BaseTarget].SOURCES)" == "BaseTargetSource.c",,$(error [target@BaseTarget].SOURCES is '$([target@BaseTarget].SOURCES)' not 'BaseTargetSource.c'))
+$(if "$(BaseTarget_SOURCES)" == "BaseTargetSource.c",,$(error BaseTarget's _SOURCES wasn't set correctly in the global space))
+
+$(if "$([target@BaseTarget].TEMPLATE)" == "DUMMY",,$(error [target@BaseTarget].TEMPLATE is '$([target@BaseTarget].TEMPLATE)' not 'DUMMY'))
+$(if "$(BaseTarget_TEMPLATE)" == "DUMMY",,$(error BaseTarget's _TEMPLATE wasn't set correctly in the global space))
+
+# Test #2
+kobject target TargetWithLocals
+local .LOCAL_PROP = no global alias
+kendobj
+$(if "$([target@TargetWithLocals].LOCAL_PROP)" == "no global alias",,$(error [target@TargetWithLocals].LOCAL_PROP is '$([target@TargetWithLocals].LOCAL_PROP)' not 'no global alias'))
+$(if "$(TargetWithLocals_LOCAL_PROP)" == "",,$(error TargetWithLocals_LOCAL_PROP's local property 'LOCAL_PROP' was exposed globally.))
 
 
 all_recursive:
 	#$(ECHO) "kBuild-define-xxxx works fine"
-
-
-
 
