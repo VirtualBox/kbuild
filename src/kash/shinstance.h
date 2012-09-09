@@ -1,4 +1,4 @@
-/* $Id: shinstance.h 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.h 2639 2012-09-09 01:48:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance and it's methods.
  */
@@ -38,7 +38,7 @@
 #endif
 #include <errno.h>
 #ifdef _MSC_VER
-# define EWOULDBLOCK    512
+# define EWOULDBLOCK    140
 #endif
 
 #include "shtypes.h"
