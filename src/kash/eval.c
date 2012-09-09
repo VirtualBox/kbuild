@@ -705,6 +705,9 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	setstackmark(psh, &smark);
 	psh->back_exitstatus = 0;
 
+	/** @todo r=bird: Why is arguments and envvars expanded in this
+	 * particular order?  It would be both faster and simpler to do the
+	 * envvars first and then continue with the arguments... */
 	arglist.lastp = &arglist.list;
 	varflag = 1;
 	/* Expand arguments, ignoring the initial 'name=value' ones */

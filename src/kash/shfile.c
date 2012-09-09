@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2652 2012-09-09 17:21:48Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2653 2012-09-09 18:02:54Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -1807,6 +1807,8 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
 #if defined(SHFILE_IN_USE) && K_OS == K_OS_WINDOWS
     shdir  *pdir = NULL;
 
+    TRACE2((NULL, "shfile_opendir: dir='%s'\n", dir));
+    shfile_init_globals();
     if (g_pfnNtQueryDirectoryFile)
     {
         char abspath[SHFILE_MAX_PATH];
@@ -1839,13 +1841,17 @@ shdir *shfile_opendir(shfdtab *pfdtab, const char *dir)
                     CloseHandle(hFile);
             }
             else
-                shfile_dos2errno(GetLastError());
+            {
+                errno = shfile_dos2errno(GetLastError());
+                TRACE2((NULL, "shfile_opendir: CreateFileA(%s) -> %d/%d\n", abspath, GetLastError(), errno));
+            }
         }
     }
     else
         errno = ENOSYS;
     return pdir;
 #else
+    TRACE2((NULL, "shfile_opendir: dir='%s'\n", dir));
     return (shdir *)opendir(dir);
 #endif
 }

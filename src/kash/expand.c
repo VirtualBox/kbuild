@@ -142,6 +142,7 @@ expandarg(shinstance *psh, union node *arg, struct arglist *arglist, int flag)
 	}
 	STPUTC(psh, '\0', psh->expdest);
 	p = grabstackstr(psh, psh->expdest);
+	TRACE2((psh, "expandarg: p='%s'\n", p));
 	psh->exparg.lastp = &psh->exparg.list;
 	/*
 	 * TODO - EXP_REDIR
@@ -1203,6 +1204,7 @@ expmeta(shinstance *psh, char *enddir, char *name)
 		}
 		if (metaflag == 0 || shfile_lstat(&psh->fdtab, psh->expdir, &statb) >= 0)
 			addfname(psh, psh->expdir);
+		TRACE2((psh, "expandarg: return #1 (metaflag=%d)\n", metaflag));
 		return;
 	}
 	endname = p;
@@ -1224,8 +1226,10 @@ expmeta(shinstance *psh, char *enddir, char *name)
 		cp = psh->expdir;
 		enddir[-1] = '\0';
 	}
-	if ((dirp = shfile_opendir(&psh->fdtab, cp)) == NULL)
+	if ((dirp = shfile_opendir(&psh->fdtab, cp)) == NULL) {
+		TRACE2((psh, "expandarg: return #2 (shfile_opendir(,%s) failed)\n", cp));
 		return;
+	}
 	if (enddir != psh->expdir)
 		enddir[-1] = '/';
 	if (*endname == 0) {
