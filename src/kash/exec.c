@@ -264,10 +264,11 @@ execinterp(shinstance *psh, char **argv, char **envp)
 	char *p;
 	char **ap;
 	char *newargs[NEWARGS];
-	int i;
+	intptr_t i;
 	char **ap2;
 	char **new;
 
+	/* Split the string into arguments. */
 	n = psh->parsenleft - 2;
 	inp = psh->parsenextc + 2;
 	ap = newargs;
@@ -289,17 +290,24 @@ bad:		  error(psh, "Bad #! line");
 		*ap++ = grabstackstr(psh, outp);
 	}
 
-	/* Special optimizations / builtins. */
+	/* /usr/bin/env emulation, very common with kash/kmk_ash. */
 	i = ap - newargs;
-	if (i > 1 && equal(newargs[0], "/usr/bin/env"))  {
-		/* /usr/bin/env <self> -> easy. */
-		if (i == 2 && is_shell_exe_name(newargs[1])) {
-		    TRACE((psh, "hash bang /usr/bin/env self\n"));
-		    return;
-		}
-		/** @todo implement simple /usr/bin/env that locates an exec in the PATH. */
+	if (i > 1 && equal(newargs[0], "/usr/bin/env")) {
+		if (   !strchr(newargs[1], '=')
+		    && newargs[1][0] != '-') {
+		    /* shellexec below searches the PATH for us, so just
+		       drop /usr/bin/env. */
+		    TRACE((psh, "hash bang /usr/bin/env utility, dropping /usr/bin/env\n"));
+		    ap--;
+		    i--;
+		    for (n = 0; n < i; n++)
+			    newargs[n] = newargs[n + 1];
+		} /* else: complicated invocation */
+	}
 
-	} else if (i == 1) { /* if no args, maybe shell and no exec is needed. */
+	/* If the interpreter is the shell or a similar shell, there is
+	   no need to exec. */
+	if (i == 1) {
 		p = strrchr(newargs[0], '/');
 		if (!p)
 			p = newargs[0];
@@ -309,7 +317,7 @@ bad:		  error(psh, "Bad #! line");
 		}
 	}
 
-	/* Combine the argument lists and exec. */
+	/* Combine the two argument lists and exec. */
 	i = (char *)ap - (char *)newargs;		/* size in bytes */
 	if (i == 0)
 		error(psh, "Bad #! line");
