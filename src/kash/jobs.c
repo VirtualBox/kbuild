@@ -149,17 +149,17 @@ out:
 		setsignal(psh, SIGTTIN, 0);
 		if (sh_getpgid(psh, 0) != psh->rootpid && sh_setpgid(psh, 0, psh->rootpid) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 		if (sh_tcsetpgrp(psh, psh->ttyfd, psh->rootpid) == -1)
 			error(psh, "Cannot set tty process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 	} else { /* turning job control off */
 		if (sh_getpgid(psh, 0) != psh->initialpgrp && sh_setpgid(psh, 0, psh->initialpgrp) == -1)
 			error(psh, "Cannot set process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 		if (sh_tcsetpgrp(psh, psh->ttyfd, psh->initialpgrp) == -1)
 			error(psh, "Cannot set tty process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 		shfile_close(&psh->fdtab, psh->ttyfd);
 		psh->ttyfd = -1;
 		setsignal(psh, SIGTSTP, 0);
@@ -208,7 +208,7 @@ fgcmd(shinstance *psh, int argc, char **argv)
 
 	if (i >= jp->nprocs) {
 		error(psh, "Cannot set tty process group (%s) at %d",
-		    strerror(errno), __LINE__);
+		    sh_strerror(psh, errno), __LINE__);
 	}
 	restartjob(psh, jp);
 	INTOFF;
@@ -300,7 +300,7 @@ restartjob(shinstance *psh, struct job *jp)
 		if (sh_killpg(psh, jp->ps[i].pid, SIGCONT) != -1)
 			break;
 	if (i >= jp->nprocs)
-		error(psh, "Cannot continue job (%s)", strerror(errno));
+		error(psh, "Cannot continue job (%s)", sh_strerror(psh, errno));
 	for (ps = jp->ps, i = jp->nprocs ; --i >= 0 ; ps++) {
 		if (WIFSTOPPED(ps->status)) {
 			ps->status = -1;
@@ -484,7 +484,7 @@ showjobs(shinstance *psh, struct output *out, int mode)
 	if (mflag(psh) && gotpid != -1 && sh_tcgetpgrp(psh, psh->ttyfd) != sh_getpid(psh)) {
 		if (sh_tcsetpgrp(psh, psh->ttyfd, sh_getpid(psh)) == -1)
 			error(psh, "Cannot set tty process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 		TRACE((psh, "repaired tty process group\n"));
 		silent = 1;
 	}
@@ -853,7 +853,7 @@ forkchild(shinstance *psh, struct job *jp, union node *n, int mode, int vforked)
 		if (mode == FORK_FG) {
 			if (sh_tcsetpgrp(psh, psh->ttyfd, pgrp) == -1)
 				error(psh, "Cannot set tty process group (%s) at %d",
-				    strerror(errno), __LINE__);
+				    sh_strerror(psh, errno), __LINE__);
 		}
 		setsignal(psh, SIGTSTP, vforked);
 		setsignal(psh, SIGTTOU, vforked);
@@ -926,7 +926,7 @@ waitforjob(shinstance *psh, struct job *jp)
 	if (jp->jobctl) {
 		if (sh_tcsetpgrp(psh, psh->ttyfd, mypgrp) == -1)
 			error(psh, "Cannot set tty process group (%s) at %d",
-			    strerror(errno), __LINE__);
+			    sh_strerror(psh, errno), __LINE__);
 	}
 	if (jp->state == JOBSTOPPED && psh->curjob != jp - psh->jobtab)
 		set_curjob(psh, jp, 2);

@@ -137,7 +137,7 @@ exvwarning(shinstance *psh, int sv_errno, const char *msg, va_list ap)
 			outfmt(&psh->errout, ": ");
 	}
 	if (sv_errno >= 0)
-		outfmt(&psh->errout, "%s", strerror(sv_errno));
+		outfmt(&psh->errout, "%s", sh_strerror(psh, sv_errno));
 	out2c(psh, '\n');
 	flushout(&psh->errout);
 }
@@ -155,8 +155,11 @@ exverror(shinstance *psh, int cond, const char *msg, va_list ap)
 
 #ifdef DEBUG
 	if (msg) {
+		va_list va2;
 		TRACE((psh, "exverror(%d, \"", cond));
-		TRACEV((psh, msg, ap));
+		va_copy(va2, ap);
+		TRACEV((psh, msg, va2));
+		va_end(va2);
 		TRACE((psh, "\") pid=%d\n", sh_getpid(psh)));
 	} else
 		TRACE((psh, "exverror(%d, NULL) pid=%d\n", cond, sh_getpid(psh)));

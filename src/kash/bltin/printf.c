@@ -54,6 +54,7 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "shinstance.h"
 
 #ifdef __GNUC__
 #define ESCAPE '\e'
@@ -646,7 +647,7 @@ check_conversion(const char *s, const char *ep)
 			warnx("%s: not completely converted", s);
 		rval = 1;
 	} else if (errno == ERANGE) {
-		warnx("%s: %s", s, strerror(ERANGE));
+		warnx("%s: %s", s, sh_strerror(psh, ERANGE));
 		rval = 1;
 	}
 }

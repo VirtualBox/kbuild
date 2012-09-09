@@ -143,7 +143,7 @@ again:
 					/* FALLTHROUGH*/
 				default:
 					INTON;
-					error(psh, "%d: %s", fd, strerror(errno));
+					error(psh, "%d: %s", fd, sh_strerror(psh, errno));
 					/* NOTREACHED */
 				}
 			}
@@ -376,7 +376,7 @@ copyfd(shinstance *psh, int from, int to)
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
-		error(psh, "%d: %s", from, strerror(errno));
+		error(psh, "%d: %s", from, sh_strerror(psh, errno));
 	}
 	return newfd;
 }
@@ -397,7 +397,7 @@ movefd(shinstance *psh, int from, int to)
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
-		error(psh, "%d: %s", from, strerror(errno));
+		error(psh, "%d: %s", from, sh_strerror(psh, errno));
 	}
 	return newfd;
 }
@@ -418,7 +418,7 @@ movefd_above(shinstance *psh, int from, int to)
 	if (newfd < 0) {
 		if (errno == EMFILE)
 			return EMPTY;
-		error(psh, "%d: %s", from, strerror(errno));
+		error(psh, "%d: %s", from, sh_strerror(psh, errno));
 	}
 	return newfd;
 }
