@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2593 2012-06-17 22:52:26Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2648 2012-09-09 03:22:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1414,5 +1414,17 @@ int sh_setrlimit(shinstance *psh, int resid, const shrlimit *limp)
             resid, limp, (long)limp->rlim_cur, (long)limp->rlim_max, rc, errno));
     (void)psh;
     return rc;
+}
+
+
+/* Wrapper for strerror that makes sure it doesn't return NULL and causes the
+   caller or fprintf routines to crash. */
+const char *sh_strerror(shinstance *psh, int error)
+{
+    char *err = strerror(error);
+    if (!err)
+        return "strerror return NULL!";
+    (void)psh;
+    return err;
 }
 

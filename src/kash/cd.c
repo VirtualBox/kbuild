@@ -391,7 +391,7 @@ find_curdir(shinstance *psh, int noerror)
 		if (errno == ERANGE)
 			continue;
 		if (!noerror)
-			error(psh, "getcwd() failed: %s", strerror(errno));
+			error(psh, "getcwd() failed: %s", sh_strerror(psh, errno));
 		return;
 	}
 #else

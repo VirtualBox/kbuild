@@ -1137,7 +1137,7 @@ typecmd(shinstance *psh, int argc, char **argv)
 				} else {
 					if (!v_flag)
 						out1fmt(psh, ": %s\n",
-						    strerror(errno));
+						    sh_strerror(psh, errno));
 					else
 						err = 126;
 				}

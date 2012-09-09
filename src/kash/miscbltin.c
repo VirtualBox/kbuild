@@ -423,7 +423,7 @@ ulimitcmd(shinstance *psh, int argc, char **argv)
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (sh_setrlimit(psh, l->cmd, &limit) < 0)
-			error(psh, "error setting limit (%s)", strerror(errno));
+			error(psh, "error setting limit (%s)", sh_strerror(psh, errno));
 	} else {
 		if (how & SOFT)
 			val = limit.rlim_cur;
