@@ -888,7 +888,7 @@ set_make_priority_and_affinity (void)
   error = set_thread_priority (find_thread (NULL), iNewPriority);
   if (error != B_OK)
     fprintf (stderr, "warning: set_thread_priority (,%d) failed: %s\n",
-             newPriority, strerror (error));
+             iNewPriority, strerror (error));
 
 # else /*#elif HAVE_NICE */
   int nice_level = 0;

@@ -1,4 +1,4 @@
-/* $Id: osdep.c 2421 2010-10-17 21:27:53Z knut.osmundsen@oracle.com $ */
+/* $Id: osdep.c 2656 2012-09-10 20:39:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * Include all the OS dependent bits when bootstrapping.
  */
@@ -40,6 +40,9 @@
 
 #elif defined(__OpenBSD__)
 # include "openbsd.c"
+
+#elif defined(__HAIKU__)
+# include "haikufakes.c"
 
 #endif
 

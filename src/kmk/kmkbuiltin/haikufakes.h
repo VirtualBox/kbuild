@@ -1,10 +1,10 @@
-/* $Id: haikufakes.h 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $ */
+/* $Id: haikufakes.h 2656 2012-09-10 20:39:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix/BSD fakes for Haiku.
  */
 
 /*
- * Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -35,6 +35,8 @@
 
 #define lutimes(path, tvs) utimes(path, tvs)
 #define lchmod             haiku_lchmod
+
+extern int haiku_lchmod(const char *pszPath, mode_t mode);
 
 #endif
 
