@@ -39,7 +39,7 @@
 #if defined HAVE_WCTYPE_H || defined _LIBC
 # include <wctype.h>
 #endif /* HAVE_WCTYPE_H || _LIBC */
-#if defined HAVE_STDBOOL_H || defined _LIBC
+#if defined HAVE_STDBOOL_H || defined _LIBC || defined(__HAIKU__) /* haiku hack */
 # include <stdbool.h>
 #endif /* HAVE_STDBOOL_H || _LIBC */
 #if defined _LIBC

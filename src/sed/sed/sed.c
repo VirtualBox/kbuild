@@ -406,3 +406,14 @@ to the extent permitted by law.\n\
 
   return return_code;
 }
+
+#ifdef __HAIKU__ /* mbrtowc is busted, just stub it and pray the input won't ever acutally be multibyte... */
+size_t mbrtowc(wchar_t *pwc, const char *pch, size_t n, mbstate_t *ps)
+{
+    if (!n) 
+        return 0;
+    if (pwc)
+        *pwc = *pch;
+    return 1;
+}
+#endif

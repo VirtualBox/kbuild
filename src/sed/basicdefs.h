@@ -59,7 +59,7 @@
 # define bool unsigned
 # define __bool_true_false_are_defined 1
 #else
-# if HAVE_STDBOOL_H
+# if HAVE_STDBOOL_H || defined(__HAIKU__) /* haiku/gcc2 hack */ 
 #  include <stdbool.h>
 # endif
 #endif
