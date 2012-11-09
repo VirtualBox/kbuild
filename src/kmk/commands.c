@@ -339,19 +339,19 @@ set_file_variables (struct file *file)
     plus_len = 0;
     bar_len = 0;
     for (d = file->deps; d != 0; d = d->next)
-      if (! d->ignore_mtime)
       {
         if (!d->need_2nd_expansion)
           {
-#ifndef CONFIG_WITH_STRCACHE2
             if (d->ignore_mtime)
+#ifndef CONFIG_WITH_STRCACHE2
               bar_len += strlen (dep_name (d)) + 1;
+#else
+              bar_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
+#endif
             else
+#ifndef CONFIG_WITH_STRCACHE2
               plus_len += strlen (dep_name (d)) + 1;
 #else
-            if (d->ignore_mtime)
-              bar_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
-            else
               plus_len += strcache2_get_len (&file_strcache, dep_name (d)) + 1;
 #endif
           }
