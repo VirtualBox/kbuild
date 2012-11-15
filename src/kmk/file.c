@@ -360,6 +360,29 @@ rehash_file (struct file *from_file, const char *to_hname)
         }
     }
 
+#ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  /* Merge multi target attributes and considerations.  */
+  if (from_file->multi_head)
+    {
+      if (to_file->multi_head)
+        fatal (NILF, _("can't rename/merge multi target '%s' with multi target '%s'"),
+               from_file->name, to_hname);
+
+      to_file->multi_maybe = from_file->multi_maybe;
+      to_file->multi_next  = from_file->multi_next;
+      to_file->multi_head  = f = from_file->multi_head;
+      if (f == from_file)
+        for (; f != 0; f = f->multi_next)
+            f->multi_head = to_file;
+      else
+        {
+          while (f->multi_next != from_file)
+            f = f->multi_next;
+          f->multi_next = to_file;
+        }
+    }
+#endif
+
   /* Merge the dependencies of the two files.  */
 
   if (to_file->deps == 0)
@@ -1139,7 +1162,10 @@ print_file (const void *item)
                       f2->name);
               multi_maybe = f2->multi_maybe;
             }
-          putchar (':');
+          if (f->deps)
+            printf (": \\\n\t");
+          else
+            putchar (':');
         }
       else
         printf ("%s:%s", f->name, f->double_colon ? ":" : "");
