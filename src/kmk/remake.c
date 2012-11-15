@@ -461,6 +461,7 @@ update_file_1 (struct file *file, unsigned int depth)
   struct dep amake;
   int running = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
+  struct file *req_file = file;
   struct file *org_file = file;
   struct file *f2, *f3;
 
@@ -548,6 +549,16 @@ update_file_1 (struct file *file, unsigned int depth)
             this_mtime = second_mtime;
             f3 = f2;
           }
+      }
+    /** @todo this isn't sufficient, need to introduce a truly optional type and
+     *        make |+ ignore mtime. let's hope that doesn't break too much... */
+    /* If the requested file doesn't exist, always do a remake in the
+       hope that it is recreated even if it's "maybe" target. */
+    else if (f2 == req_file && file_mtime (f2) == NONEXISTENT_MTIME)
+      {
+        this_mtime = NONEXISTENT_MTIME;
+        f3 = f2;
+        break;
       }
   check_renamed (file);
   noexist = this_mtime == NONEXISTENT_MTIME;
