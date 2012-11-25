@@ -1,10 +1,10 @@
-/* $Id: redirect.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2667 2012-11-25 19:52:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
 
 /*
- * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2007-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -49,6 +49,95 @@
 #endif
 
 
+#if defined(_MSC_VER)
+/**
+ * Replaces arguments in need of quoting.
+ *
+ * This will "leak" the original and/or the replacement string, depending on
+ * how you look at it.
+ *
+ * For details on how MSC parses the command line, see "Parsing C Command-Line
+ * Arguments": http://msdn.microsoft.com/en-us/library/a1y7w461.aspx
+ *
+ * @param   argc        The argument count.
+ * @param   argv        The argument vector.
+ */
+static void quoteArguments(int argc, char **argv)
+{
+    int i;
+    for (i = 0; i < argc; i++)
+    {
+        const char *pszOrg    = argv[i];
+        size_t      cchOrg    = strlen(pszOrg);
+        const char *pszQuotes = (const char *)memchr(pszOrg, '"', cchOrg);
+        if (   pszQuotes
+            || cchOrg == 0
+            || memchr(pszOrg, '&', cchOrg)
+            || memchr(pszOrg, '>', cchOrg)
+            || memchr(pszOrg, '<', cchOrg)
+            || memchr(pszOrg, '|', cchOrg)
+            || memchr(pszOrg, '%', cchOrg)
+            )
+        {
+            char   ch;
+            int    fComplicated = pszQuotes || (cchOrg > 0 && pszOrg[cchOrg - 1] == '\\');
+            size_t cchNew       = fComplicated ? cchOrg * 2 + 2 : cchOrg + 2;
+            char  *pszNew       = (char *)malloc(cchNew + 1);
+
+            argv[i] = pszNew;
+
+            *pszNew++ = '"';
+            if (fComplicated)
+            {
+                while ((ch = *pszOrg++) != '\0')
+                {
+                    if (ch == '"')
+                    {
+                        *pszNew++ = '\\';
+                        *pszNew++ = '"';
+                    }
+                    else if (ch == '\\')
+                    {
+                        /* Backslashes are a bit complicated, they depends on
+                           whether a quotation mark follows them or not.  They
+                           only require escaping if one does. */
+                        unsigned cSlashes = 1;
+                        while ((ch = *pszOrg) == '\\')
+                        {
+                            pszOrg++;
+                            cSlashes++;
+                        }
+                        if (ch == '"' || ch == '\0') /* We put a " at the EOS. */
+                        {
+                            while (cSlashes-- > 0)
+                            {
+                                *pszNew++ = '\\';
+                                *pszNew++ = '\\';
+                            }
+                        }
+                        else
+                            while (cSlashes-- > 0)
+                                *pszNew++ = '\\';
+                    }
+                    else
+                        *pszNew++ = ch;
+                }
+            }
+            else
+            {
+                memcpy(pszNew, pszOrg, cchOrg);
+                pszNew += cchOrg;
+            }
+            *pszNew++ = '"';
+            *pszNew = '\0';
+        }
+    }
+
+    /*for (i = 0; i < argc; i++) printf("argv[%u]=%s;;\n", i, argv[i]); */
+}
+#endif /* _MSC_VER */
+
+
 static const char *name(const char *pszName)
 {
     const char *psz = strrchr(pszName, '/');
@@ -86,10 +175,10 @@ static int usage(FILE *pOut,  const char *argv0)
             "The -C switch is for changing the current directory. This takes immediate\n"
             "effect, so be careful where you put it.\n"
             "\n"
-            "This command is really just a quick hack to avoid invoking the shell\n"
+            "This command was originally just a quick hack to avoid invoking the shell\n"
             "on Windows (cygwin) where forking is very expensive and has exhibited\n"
-            "stability issues on SMP machines. This tool may be retired when kBuild\n"
-            "starts using the kmk_kash shell.\n"
+            "stability issues on SMP machines.  It has since grown into something like\n"
+            "/usr/bin/env on steroids.\n"
             ,
             argv0, argv0, argv0);
     return 1;
@@ -153,7 +242,7 @@ int main(int argc, char **argv, char **envp)
             if (*psz == 'V')
             {
                 printf("kmk_redirect - kBuild version %d.%d.%d (r%u)\n"
-                       "Copyright (C) 2007-2009 knut st. osmundsen\n",
+                       "Copyright (C) 2007-2012 knut st. osmundsen\n",
                        KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
                        KBUILD_SVN_REV);
                 return 0;
@@ -557,11 +646,8 @@ int main(int argc, char **argv, char **envp)
         pStdErr = NULL;
     }
 
-    /** @todo
-     * We'll have to find the '--' in the commandline and pass that
-     * on to CreateProcess or spawn. Otherwise, the argument qouting
-     * is gonna be messed up.
-     */
+    /* MSC is a PITA since it refuses to quote the arguments... */
+    quoteArguments(argc - i, &argv[i]);
     rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
     if (rc == -1 && pStdErr)
     {
