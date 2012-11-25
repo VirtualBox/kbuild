@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2636 2012-09-09 00:57:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2667 2012-11-25 19:52:26Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -378,6 +378,8 @@ kmk_redirect_TEMPLATE = BIN-KMK
 kmk_redirect_DEFS = kmk_builtin_redirect=main
 kmk_redirect_SOURCES = \
 	kmkbuiltin/redirect.c
+kmk_redirect_SOURCES.win = \
+	../lib/startuphacks-win.c
 
 kmk_rmdir_TEMPLATE = BIN-KMK
 kmk_rmdir_DEFS = kmk_builtin_rmdir=main
