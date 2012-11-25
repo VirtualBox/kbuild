@@ -1,10 +1,10 @@
-# $Id: Config.kmk 2555 2011-11-30 20:01:57Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2668 2012-11-25 19:53:45Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
 
 #
-# Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2005-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -246,15 +246,12 @@ ifeq ($(KBUILD_TARGET),darwin)
 endif
 
 ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
- ifeq ($(KBUILD_TARGET_ARCH),x86)
-  include $(KBUILD_PATH)/tools/VCC70.kmk	# fixme! template expanding does something bad to _LIBS /me thinks.
-  TEMPLATE_BIN_TOOL             = VCC70
-  TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__
- else ifeq ($(KBUILD_TARGET_ARCH),amd64)
-  TEMPLATE_BIN_TOOL             = VCC80AMD64
-  TEMPLATE_BIN_DEFS             = WINDOWS32 _CONSOLE __WIN__ WIN32 __WIN32__ __WIN64__ WIN64 \
-                                  _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
- endif
+ TEMPLATE_BIN_TOOL              = VCC100
+ TEMPLATE_BIN_TOOL.x86          = VCC100X86
+ TEMPLATE_BIN_TOOL.amd64        = VCC100AMD64
+ TEMPLATE_BIN_DEFS              = WINDOWS32 _CONSOLE __WIN__ _CRT_SECURE_NO_DEPRECATE _CRT_NONSTDC_NO_WARNINGS
+ TEMPLATE_BIN_DEFS.x86          = WIN32 __WIN32__
+ TEMPLATE_BIN_DEFS.amd64        = WIN32 __WIN32__ __WIN64__ WIN64
  TEMPLATE_BIN_CFLAGS            = -W3 -Zi -Zl
  TEMPLATE_BIN_CFLAGS.release    = -O2
  TEMPLATE_BIN_CFLAGS.profile    = -O2 -GH -Gh
@@ -264,7 +261,7 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
 	$(PATH_GNUMAKE_SRC)/glob
  TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
  ifeq ($(KBUILD_TYPE),profile)
-  TEMPLATE_BIN_SDKS              = WINPSDKINCS
+  TEMPLATE_BIN_SDKS             = WINPSDKINCS
   TEMPLATE_BIN_CFLAGS          += -MT
   TEMPLATE_BIN_LIBS             = \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/lib/kPrf2.lib \
@@ -276,12 +273,19 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
 	$(PATH_SDK_WINPSDKINCS_LIB)/AdvAPI32.lib \
 	$(PATH_SDK_WINPSDKINCS_LIB)/User32.lib
  else
-  TEMPLATE_BIN_SDKS              = WINPSDK
-  TEMPLATE_BIN_CFLAGS          += -MD
-  TEMPLATE_BIN_LIBS             = \
-  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
-  	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
-  #	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcprt.lib - avoid this to save space!
+  TEMPLATE_BIN_SDKS             = WINPSDK71
+  ifdef KBUILD_WITH_STATIC_MSVCRT
+   TEMPLATE_BIN_CFLAGS         += -MT
+   TEMPLATE_BIN_LIBS            = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+  else
+   TEMPLATE_BIN_CFLAGS         += -MD
+   TEMPLATE_BIN_LIBS            = \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/oldnames.lib \
+   	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
+  endif
  endif
 endif
 
