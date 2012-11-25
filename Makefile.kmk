@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2440 2011-07-06 12:17:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2669 2012-11-25 20:02:09Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -72,11 +72,8 @@ kBuild_bin_SOURCES.os2 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc063.dll=>libc063.dll
 
 if1of ($(KBUILD_TARGET), nt win)
-kBuild_bin_SOURCES.$(KBUILD_TARGET).x86 = \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr71.dll=>msvcr71.dll
-kBuild_bin_SOURCES.$(KBUILD_TARGET).amd64 = \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/msvcr80.dll=>Microsoft.VC80.CRT/msvcr80.dll \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest=>Microsoft.VC80.CRT/Microsoft.VC80.CRT.manifest
+kBuild_bin_SOURCES.$(KBUILD_TARGET) = \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/msvcr100.dll
 kBuild_bin_SOURCES.profile = \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2.dll \
 	D:/coding/kStuff/svn/trunk/out/win.$(KBUILD_TARGET_ARCH)/release/kStuff/bin/kPrf2WinApiWrappers.dll
