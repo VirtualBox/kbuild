@@ -57,9 +57,9 @@ struct optent {
 /* Those marked [U] are required by posix, but have no effect! */
 
 #ifdef DEBUG
-# define NOPTS 21
-#else
 # define NOPTS 20
+#else
+# define NOPTS 19
 #endif
 
 #ifdef DEFINE_OPTIONS
