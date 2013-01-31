@@ -42,11 +42,12 @@
 /* Define to 1 if you have the `atexit' function. */
 #define HAVE_ATEXIT 1
 
-/* Define to 1 if you have the `bsd_signal' function. */
-#define HAVE_BSD_SIGNAL 1
-
 /* Use case insensitive file names */
 /* #undef HAVE_CASE_INSENSITIVE_FS */
+
+/* Define to 1 if you have the declaration of `bsd_signal', and to 0 if you
+   don't. */
+#define HAVE_DECL_BSD_SIGNAL 1
 
 /* Define if you have the clock_gettime function. */
 /* #undef HAVE_CLOCK_GETTIME */
@@ -237,9 +238,21 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
+/* Define to 1 if you have the `strncasecmp' function. */
+#define HAVE_STRNCASECMP 1
+
+/* Define to 1 if you have the `strncmpi' function. */
+/* #undef HAVE_STRNCMPI */
+
 /* Define to 1 if you have the `strsignal' function. */
 #define HAVE_STRSIGNAL 1
 
+/* Define to 1 if you have the `strndup' function. */
+#define HAVE_STRNDUP 1
+
+/* Define to 1 if you have the `strnicmp' function. */
+#define HAVE_STRNICMP 1
+		
 /* Define to 1 if `n_un.n_name' is member of `struct nlist'. */
 /* #undef HAVE_STRUCT_NLIST_N_UN_N_NAME */
 
