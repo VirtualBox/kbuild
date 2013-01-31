@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2669 2012-11-25 20:02:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2674 2013-01-31 13:28:27Z knut.osmundsen@oracle.com $
 ## @file
 # Top-Level Sub-Makefile for kBuild.
 #
@@ -69,7 +69,9 @@ kBuild_bin_SOURCES.os2 = \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc06.dll=>libc06.dll \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc061.dll=>libc061.dll \
 	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc062.dll=>libc062.dll \
-	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc063.dll=>libc063.dll
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc063.dll=>libc063.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc064.dll=>libc064.dll \
+	kBuild/bin/$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)/libc065.dll=>libc065.dll
 
 if1of ($(KBUILD_TARGET), nt win)
 kBuild_bin_SOURCES.$(KBUILD_TARGET) = \
