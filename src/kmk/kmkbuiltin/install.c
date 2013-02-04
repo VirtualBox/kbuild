@@ -1021,7 +1021,13 @@ install_dir(char *path)
 	int ch;
 
 	for (p = path;; ++p)
-		if (!*p || (p != path && IS_SLASH(*p))) {
+		if (   !*p
+		    || (   p != path
+			&& IS_SLASH(*p)
+#if defined(_MSC_VER) /* stat("C:") fails (VC++ v10). Just skip it since it's unnecessary. */
+		        && (p - path != 2 || p[-1] != ':')
+#endif
+		    )) {
 			ch = *p;
 			*p = '\0';
 			if (stat(path, &sb)) {
