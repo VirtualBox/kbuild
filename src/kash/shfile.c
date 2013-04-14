@@ -1,4 +1,4 @@
-/* $Id: shfile.c 2653 2012-09-09 18:02:54Z knut.osmundsen@oracle.com $ */
+/* $Id: shfile.c 2681 2013-04-14 18:41:58Z knut.osmundsen@oracle.com $ */
 /** @file
  *
  * File management.
@@ -426,6 +426,57 @@ int shfile_make_path(shfdtab *pfdtab, const char *path, char *buf)
 }
 
 # if K_OS == K_OS_WINDOWS
+
+/**
+ * Adjusts the file name if it ends with a trailing directory slash.
+ *
+ * Windows APIs doesn't like trailing slashes.
+ *
+ * @returns 1 if it has a directory slash, 0 if not.
+ *
+ * @param   abspath     The path to adjust (SHFILE_MAX_PATH).
+ */
+static int shfile_trailing_slash_hack(char *abspath)
+{
+    /*
+     * Anything worth adjust here?
+     */
+    size_t path_len = strlen(abspath);
+    if (   path_len == 0
+        || (   abspath[path_len - 1] != '/'
+#  if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+            && abspath[path_len - 1] != '\\'
+#  endif
+           )
+       )
+        return 0;
+
+    /*
+     * Ok, make the adjustment.
+     */
+    if (path_len + 2 <= SHFILE_MAX_PATH)
+    {
+        /* Add a '.' to the end. */
+        abspath[path_len++] = '.';
+        abspath[path_len]   = '\0';
+    }
+    else
+    {
+        /* No space for a dot, remove the slash if it's alone or just remove
+           one and add a dot like above. */
+        if (   abspath[path_len - 2] != '/'
+#  if K_OS == K_OS_WINDOWS || K_OS == K_OS_OS2
+            && abspath[path_len - 2] != '\\'
+#  endif
+           )
+            abspath[--path_len] = '\0';
+        else
+            abspath[path_len - 1] = '.';
+    }
+
+    return 1;
+}
+
 
 /**
  * Converts a DOS(/Windows) error code to errno,
@@ -1554,7 +1605,13 @@ int shfile_stat(shfdtab *pfdtab, const char *path, struct stat *pst)
     if (!rc)
     {
 # if K_OS == K_OS_WINDOWS
+        int dir_slash = shfile_trailing_slash_hack(abspath);
         rc = stat(abspath, pst); /** @todo re-implement stat. */
+        if (!rc && dir_slash && !S_ISDIR(pst->st_mode))
+        {
+            rc = -1;
+            errno = ENOTDIR;
+        }
 # else
         rc = stat(abspath, pst);
 # endif
@@ -1576,7 +1633,13 @@ int shfile_lstat(shfdtab *pfdtab, const char *path, struct stat *pst)
     if (!rc)
     {
 # if K_OS == K_OS_WINDOWS
-        rc = stat(abspath, pst); /** @todo implement lstat. */
+        int dir_slash = shfile_trailing_slash_hack(abspath);
+        rc = stat(abspath, pst); /** @todo re-implement stat. */
+        if (!rc && dir_slash && !S_ISDIR(pst->st_mode))
+        {
+            rc = -1;
+            errno = ENOTDIR;
+        }
 # else
         rc = lstat(abspath, pst);
 # endif
