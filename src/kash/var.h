@@ -107,9 +107,9 @@ extern struct var vhistsize;
 #define mailval(psh)	((psh)->vmail.text + 5)
 #define mpathval(psh)	((psh)->vmpath.text + 9)
 #ifdef _MSC_VER
-#define pathval(psh)	((psh)->vpath.text[5] ? &(psh)->vpath.text[5] : &(psh)->vpath2.text[5])
+# define pathval(psh)	((psh)->vpath.text[5] || !(psh)->vpath2.text ? &(psh)->vpath.text[5] : &(psh)->vpath2.text[5])
 #else
-#define pathval(psh)	((psh)->vpath.text + 5)
+# define pathval(psh)	((psh)->vpath.text + 5)
 #endif
 #define ps1val(psh)	((psh)->vps1.text + 4)
 #define ps2val(psh)	((psh)->vps2.text + 4)
