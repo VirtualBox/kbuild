@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2610 2012-07-25 09:54:26Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2683 2013-05-13 02:50:54Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3443,7 +3443,7 @@ _command void kdev_load_settings()
                    'Tcl Files (*.tcl;*.tlib;*.itk;*.itcl;*.exp),'
                    'PV-WAVE (*.pro),'
                    'Slick-C (*.e;*.sh),'
-                   'SQL Files (*.sql),'
+                   'SQL Files (*.sql;*.pgsql),'
                    'SAS Files (*.sas),'
                    'Text Files (*.txt),'
                    'Verilog Files (*.v),'
@@ -3529,6 +3529,22 @@ _command void kdev_load_settings()
             //replace_def_data("def-comment-wrap-c",'0 1 0 1 1 80 0 0 80 0 80 0 80 0 0 0 '); - disabled
             //replace_def_data("def-comment-wrap-c",'1 1 0 1 1 80 0 0 80 0 80 0 80 0 0 1 '); - enable block comment wrap.
         }
+
+        /* set the encoding to UTF-8 without any friggin useless signatures. */
+        idxExt = name_match('def-lang-for-ext-', 1, MISC_TYPE);
+        while (idxExt > 0)
+        {
+            if (name_info(idxExt) == sLangId)
+            {
+                parse name_name(idxExt) with 'def-lang-for-ext-' auto sExt;
+                sVarName = 'def-encoding-' :+ sExt;
+                idxExtEncoding = find_index(sVarName, MISC_TYPE);
+                if (idxExtEncoding != 0)
+                    delete_name(idxExtEncoding);
+            }
+            idxExt = name_match('def-lang-for-ext-', 0, MISC_TYPE);
+        }
+        replace_def_data('def-encoding-' :+ sLangId, '+futf8 ');
     }
     LanguageSettings.setIndentWithTabs('mak', true);
     LanguageSettings.setLexerName('mak', 'kmk');
@@ -3537,11 +3553,12 @@ _command void kdev_load_settings()
     LanguageSettings.setBeautifierProfileName('c', "bird's Style");
     LanguageSettings.setBeautifierProfileName('m', "bird's Objective-C Style");
 
-    /* Fix .asm and add .mac, .kmk and .cmd. */
-    replace_def_data("def-lang-for-ext-asm",'masm');
-    replace_def_data("def-lang-for-ext-mac",'masm');
-    replace_def_data("def-lang-for-ext-kmk",'mak');
-    replace_def_data("def-lang-for-ext-cmd",'bat');
+    /* Fix .asm and add .mac, .kmk, .cmd, and .pgsql. */
+    replace_def_data("def-lang-for-ext-asm",   'masm');
+    replace_def_data("def-lang-for-ext-mac",   'masm');
+    replace_def_data("def-lang-for-ext-kmk",   'mak');
+    replace_def_data("def-lang-for-ext-cmd",   'bat');
+    replace_def_data("def-lang-for-ext-pgsql", 'plsql');
 
     /*
      * Change the codehelp default.
