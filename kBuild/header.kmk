@@ -1,4 +1,4 @@
-# $Id: header.kmk 2688 2013-07-11 21:30:23Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2689 2013-07-11 21:31:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2688 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2689 $  )
 
 
 #
@@ -1276,7 +1276,7 @@ else if1of ($(KBUILD_TARGET), freebsd netbsd openbsd dragonfly)
  KBUILD_LIB_SEARCH_SUBS := lib/
 
 else ifeq ($(KBUILD_TARGET),linux)
- if ($(realpath /bin),/usr/bin)
+ ifeq ($(realpath /bin),/usr/bin)
   KBUILD_LIB_SEARCH_ROOTS := \
   	/usr/ \
   	/ \
