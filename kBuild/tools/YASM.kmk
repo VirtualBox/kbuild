@@ -1,4 +1,4 @@
-# $Id: YASM.kmk 2692 2013-07-22 13:31:00Z knut.osmundsen@oracle.com $
+# $Id: YASM.kmk 2693 2013-07-22 13:39:17Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - YASM 0.4.0 or later.
 #
@@ -78,7 +78,8 @@ define TOOL_YASM_COMPILE_AS_CMDS
 		-o $(obj)\
 		$(abspath $(source))
 	$(QUIET)$(REDIRECT) -wo $(dep) -- $(TOOL_YASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
-		$(flags) $(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
+		$(patsubst --mapfile%,--mapfile=$(obj).map,$(flags))\
+		$(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
 		-o $(obj) \
 		$(abspath $(source)) \
 		-M
