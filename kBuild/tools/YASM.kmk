@@ -1,4 +1,4 @@
-# $Id: YASM.kmk 2690 2013-07-13 00:18:09Z knut.osmundsen@oracle.com $
+# $Id: YASM.kmk 2691 2013-07-22 11:44:13Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - YASM 0.4.0 or later.
 #
@@ -66,13 +66,14 @@ TOOL_YASM_ASFLAGS ?=
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
 #
-TOOL_YASM_COMPILE_AS_OUTPUT = $(outbase).lst
+TOOL_YASM_COMPILE_AS_OUTPUT = $(outbase).lst $(obj).map
 TOOL_YASM_COMPILE_AS_DEPEND =
 TOOL_YASM_COMPILE_AS_DEPORD =
 define TOOL_YASM_COMPILE_AS_CMDS
 	$(QUIET)$(TOOL_YASM_AS)\
 		$(flags) $(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
+		--mapfile=$(obj).map\
 		-o $(obj)\
 		$(abspath $(source))
 	$(QUIET)$(REDIRECT) -wo $(dep) -- $(TOOL_YASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
@@ -82,7 +83,18 @@ define TOOL_YASM_COMPILE_AS_CMDS
 		-M
  if1of ($(KBUILD_HOST), win nt os2)
 	$(QUIET)$(SED) -e 's/\\\(.\)/\/\1/g' --output "$(dep).tmp" "$(dep)"
-	$(QUIET)$(MV) -f "$(dep).tmp" "$(dep)"
+ else
+	$(QUIET)$(CP) -f -- "$(dep)" "$(dep).tmp"
  endif
+	$(QUIET)$(APPEND) -n "$(dep).tmp" "" ""
+	$(QUIET)$(SED) $(if $(intersects $(KBUILD_HOST), win nt os2), -e 's/\\\(.\)/\/\1/g',)\
+		-e 's/^[^ ]*: / /'\
+		-e 's/ *\\$$(DOLLAR)//'\
+		-e 's/^ *//'\
+		-e 's/  */\n/g'\
+		-e 's/ *\([^ \n][^ \n]*\)/\1:\n/g'\
+		--append "$(dep).tmp"\
+		"$(dep)"
+	$(QUIET)$(MV) -f -- "$(dep).tmp" "$(dep)"
 endef
 
