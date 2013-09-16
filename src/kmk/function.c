@@ -2887,10 +2887,15 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
         return o;
       if (length == 0)
         length = str_len - start;
-      else if (length < 0 && start >= -length)
-        return o;
       else if (length < 0)
-        length = str_len - start + length;
+        {
+          if (str_len <= -length)
+            return o;
+          length += str_len;
+          if (length <= start)
+            return o;
+          length -= start;
+        }
       else if (start + length > str_len)
         length = str_len - start;
 
