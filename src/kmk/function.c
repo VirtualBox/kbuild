@@ -2854,37 +2854,45 @@ func_substr (char *o, char **argv, const char *funcname UNUSED)
             }
         }
       length = math_int_from_string (argv[2]);
-      if (length < 0 || (pad != NULL && length > 16*1024*1024 /* 16MB */))
-        fatal (NILF, _("$(substr ): length=%s is out of bounds\n"), argv[3]);
+      if (pad != NULL && length > 16*1024*1024 /* 16MB */)
+        fatal (NILF, _("$(substr ): length=%s is out of bounds\n"), argv[2]);
+      if (pad != NULL && length < 0)
+        fatal (NILF, _("$(substr ): negative length (%s) and padding doesn't mix.\n"), argv[2]);
       if (length == 0)
         return o;
     }
 
-  /* adjust start and length. */
+  /* Note that negative start is and length are used for referencing from the
+     end of the string. */
   if (pad == NULL)
     {
       if (start > 0)
-        {
-          start--;      /* one-origin */
-          if (start >= str_len)
-            return o;
-          if (length == 0 || start + length > str_len)
-            length = str_len - start;
-        }
+        start--;      /* one-origin */
       else
         {
           start = str_len + start;
           if (start <= 0)
             {
+              if (length < 0)
+                return o;
               start += length;
               if (start <= 0)
                 return o;
               length = start;
               start = 0;
             }
-          else if (length == 0 || start + length > str_len)
-            length = str_len - start;
         }
+
+      if (start >= str_len)
+        return o;
+      if (length == 0)
+        length = str_len - start;
+      else if (length < 0 && start >= -length)
+        return o;
+      else if (length < 0)
+        length = str_len - start + length;
+      else if (start + length > str_len)
+        length = str_len - start;
 
       o = variable_buffer_output (o, str + start, length);
     }
