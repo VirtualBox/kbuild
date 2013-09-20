@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2684 2013-06-19 11:01:48Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2699 2013-09-20 00:33:20Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -310,10 +310,40 @@ int main(int argc, char **argv, char **envp)
                 }
                 else
 #endif /* __OS2__ */
-                if (putenv(psz))
                 {
-                    fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", name(argv[0]), psz, strerror(errno));
-                    return 1;
+                    const char *pchEqual = strchr(psz, '=');
+                    if (pchEqual && pchEqual[1] != '\0')
+                    {
+                        if (putenv(psz))
+                        {
+                            fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", name(argv[0]), psz, strerror(errno));
+                            return 1;
+                        }
+                    }
+                    else
+                    {
+                        size_t cchVar = pchEqual ? (size_t)(pchEqual - psz) : strlen(psz);
+                        char *pszCopy = (char *)malloc(cchVar + 2);
+                        memcpy(pszCopy, psz, cchVar);
+
+#if defined(_MSC_VER) || defined(__OS2__)
+                        pszCopy[cchVar] = '=';
+                        pszCopy[cchVar + 1] = '\0';
+                        if (putenv(pszCopy))
+                        {
+                            fprintf(pStdErr, "%s: error: putenv(\"%s\"): %s\n", name(argv[0]), pszCopy, strerror(errno));
+                            return 1;
+                        }
+#else
+                        pszCopy[cchVar] = '\0';
+                        if (unsetenv(pszCopy))
+                        {
+                            fprintf(pStdErr, "%s: error: unsetenv(\"%s\"): %s\n", name(argv[0]), pszCopy, strerror(errno));
+                            return 1;
+                        }
+#endif
+                        free(pszCopy);
+                    }
                 }
                 continue;
             }
