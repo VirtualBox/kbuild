@@ -5,7 +5,9 @@
 #undef _GNU_SOURCE
 
 #include <sys/types.h>
+#define getline stdio_getline   /* bird */
 #include <stdio.h>
+#undef getline 			/* bird */
 
 #ifdef HAVE_STRINGS_H
 # include <strings.h>
