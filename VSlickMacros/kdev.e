@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2696 2013-09-09 15:20:20Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2701 2013-11-06 19:58:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3591,8 +3591,14 @@ _command void kdev_load_settings()
             }
             idxExt = name_match('def-lang-for-ext-', 0, MISC_TYPE);
         }
-        replace_def_data('def-encoding-' :+ sLangId, '+futf8 ');
+        //replace_def_data('def-encoding-' :+ sLangId, '+futf8 ');
+        idxLangEncoding = find_index('def-encoding-' :+ sLangId, MISC_TYPE);
+        if (idxLangEncoding != 0)
+            delete_name(idxLangEncoding);
+
     }
+    replace_def_data('def-encoding', '+futf8 ');
+
     LanguageSettings.setIndentWithTabs('mak', true);
     LanguageSettings.setLexerName('mak', 'kmk');
     LanguageSettings.setSyntaxIndent('mak', 8);
