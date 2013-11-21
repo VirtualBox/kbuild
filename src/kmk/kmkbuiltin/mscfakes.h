@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2592 2012-06-17 22:50:38Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -38,43 +38,11 @@
 #include <sys/stat.h>
 #include <io.h>
 #include <direct.h>
+#include "nt/ntstat.h"
 #if defined(MSC_DO_64_BIT_IO) && _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
 # define off_t __int64
-# undef stat
-# define stat  _stat64
-# define fstat _fstat64
 # define lseek _lseeki64
-#else
-# ifndef STAT_REDEFINED_ALREADY
-#  define STAT_REDEFINED_ALREADY
-#  undef stat
-#  define stat(_path, _st) bird_w32_stat(_path, _st)
-extern int bird_w32_stat(const char *, struct stat *);
-# endif
 #endif
-
-#ifndef S_ISDIR
-# define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
-#endif
-#ifndef S_ISREG
-# define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
-#endif
-#define S_ISLNK(m)  0
-#define	S_IRWXU (_S_IREAD | _S_IWRITE | _S_IEXEC)
-#define	S_IXUSR _S_IEXEC
-#define	S_IWUSR _S_IWRITE
-#define	S_IRUSR _S_IREAD
-#define S_IRWXG 0000070
-#define S_IRGRP	0000040
-#define S_IWGRP	0000020
-#define S_IXGRP 0000010
-#define S_IRWXO 0000007
-#define S_IROTH	0000004
-#define S_IWOTH	0000002
-#define S_IXOTH 0000001
-#define	S_ISUID 0004000
-#define	S_ISGID 0002000
-#define ALLPERMS 0000777
 
 #undef  PATH_MAX
 #define PATH_MAX   _MAX_PATH
@@ -140,7 +108,6 @@ char *dirname(char *path);
 #define fchmod(fd, mode) 0              /** @todo implement fchmod! */
 #define geteuid()  0
 #define getegid()  0
-#define lstat(path, s) stat(path, s)
 int lchmod(const char *path, mode_t mode);
 int msc_chmod(const char *path, mode_t mode);
 #define chmod msc_chmod
@@ -170,6 +137,13 @@ int snprintf(char *buf, size_t size, const char *fmt, ...);
 int symlink(const char *pszDst, const char *pszLink);
 int utimes(const char *pszPath, const struct timeval *paTimes);
 int writev(int fd, const struct iovec *vector, int count);
+
+
+
+/*
+ * MSC fake internals / helpers.
+ */
+int birdSetErrno(unsigned dwErr);
 
 #endif /* _MSC_VER */
 #endif
