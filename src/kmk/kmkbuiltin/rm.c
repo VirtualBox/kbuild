@@ -498,7 +498,11 @@ rm_file(char **argv)
 			if (S_ISWHT(sb.st_mode)) {
 				rval = undelete(f);
 				operation = "undelete";
+#ifndef _MSC_VER
 			} else if (S_ISDIR(sb.st_mode)) {
+#else
+			} else if (S_ISDIR(sb.st_mode) || sb.st_dirsymlink) {
+#endif
 				rval = rmdir(f);
 				operation = "rmdir";
 			} else {

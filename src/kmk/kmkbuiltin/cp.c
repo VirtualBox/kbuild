@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.50 2004/04/06 20:06:44 markm Exp $");
 #include "kbuild_protection.h"
 
 #if defined(_MSC_VER) || defined(__gnu_linux__) || defined(__linux__)
-extern char *strlcpy(char *, const char *, size_t);
+extern size_t strlcpy(char *, const char *, size_t);
 #endif
 
 

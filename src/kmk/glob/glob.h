@@ -136,6 +136,10 @@ typedef struct
 #else
     int (*gl_stat) __PMT ((__const char *, struct stat *));
 #endif
+#ifdef KMK
+    int (*gl_exists) __PMT ((__const char *));
+    int (*gl_isdir) __PMT ((__const char *));
+#endif
   } glob_t;
 
 #ifdef _LARGEFILE64_SOURCE

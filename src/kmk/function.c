@@ -4420,18 +4420,18 @@ func_which (char *o, char **argv, const char *funcname UNUSED)
                 {
                   const char *src = comp;
                   const char *end = strchr (comp, PATH_SEPARATOR_CHAR);
-                  size_t comp_len = end ? (size_t)(end - comp) : strlen (comp);
-                  if (!comp_len)
+                  size_t src_len = end ? (size_t)(end - comp) : strlen (comp);
+                  if (!src_len)
                     {
-                      comp_len = 1;
+                      src_len = 1;
                       src = ".";
                     }
-                  if (len + comp_len + 2 + 4 < GET_PATH_MAX) /* +4 for .exe */
+                  if (len + src_len + 2 + 4 < GET_PATH_MAX) /* +4 for .exe */
                     {
-                      memcpy (buf, comp, comp_len);
-                      buf [comp_len] = '/';
-                      memcpy (&buf[comp_len + 1], cur, len);
-                      buf[comp_len + 1 + len] = '\0';
+                      memcpy (buf, src, src_len);
+                      buf [src_len] = '/';
+                      memcpy (&buf[src_len + 1], cur, len);
+                      buf[src_len + 1 + len] = '\0';
 
                       if (func_which_test_x (buf))
                         {

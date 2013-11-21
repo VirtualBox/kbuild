@@ -805,10 +805,17 @@ glob (pattern, flags, errfunc, pglob)
 
       /* Return the directory if we don't check for error or if it exists.  */
       if ((flags & GLOB_NOCHECK)
+#ifdef KMK
+	  || (flags & GLOB_ALTDIRFUNC
+	      ? (*pglob->gl_isdir) (dirname)
+	      : __stat (dirname, &st) == 0 && S_ISDIR (st.st_mode))
+#else
 	  || (((flags & GLOB_ALTDIRFUNC)
 	       ? (*pglob->gl_stat) (dirname, &st)
 	       : __stat (dirname, &st)) == 0
-	      && S_ISDIR (st.st_mode)))
+	      && S_ISDIR (st.st_mode))
+#endif
+	  )
 	{
 	  pglob->gl_pathv
 	    = (char **) realloc (pglob->gl_pathv,
@@ -952,9 +959,15 @@ glob (pattern, flags, errfunc, pglob)
 		  size_t dir_len = strlen (dir);
 
 		  /* First check whether this really is a directory.  */
+#ifdef KMK
+		  if (flags & GLOB_ALTDIRFUNC
+		      ? !pglob->gl_isdir (dir)
+		      : __stat (dir, &st) != 0 || !S_ISDIR (st.st_mode))
+#else
 		  if (((flags & GLOB_ALTDIRFUNC)
 		       ? (*pglob->gl_stat) (dir, &st) : __stat (dir, &st)) != 0
 		      || !S_ISDIR (st.st_mode))
+#endif
 		    /* No directory, ignore this entry.  */
 		    continue;
 
@@ -1027,10 +1040,16 @@ glob (pattern, flags, errfunc, pglob)
       __size_t i; /* bird: correct type. */
       struct stat st;
       for (i = oldcount; i < pglob->gl_pathc; ++i)
+#ifdef KMK
+	if (flags & GLOB_ALTDIRFUNC
+	    ? pglob->gl_isdir (pglob->gl_pathv[i])
+	    : __stat (pglob->gl_pathv[i], &st) == 0 && S_ISDIR (st.st_mode) )
+#else
 	if (((flags & GLOB_ALTDIRFUNC)
 	     ? (*pglob->gl_stat) (pglob->gl_pathv[i], &st)
 	     : __stat (pglob->gl_pathv[i], &st)) == 0
 	    && S_ISDIR (st.st_mode))
+#endif
 	  {
  	    size_t len = strlen (pglob->gl_pathv[i]) + 2;
 	    char *new = realloc (pglob->gl_pathv[i], len);
@@ -1260,9 +1279,13 @@ glob_in_dir (pattern, directory, flags, errfunc, pglob)
 	  fullname[dirlen] = '/';
 	  memcpy (&fullname[dirlen + 1], pattern, patlen + 1);
 # endif
+# ifdef KMK
+	  if (flags & GLOB_ALTDIRFUNC ? pglob->gl_exists (fullname) : __stat (fullname, &st) == 0)
+# else
 	  if (((flags & GLOB_ALTDIRFUNC)
 	       ? (*pglob->gl_stat) (fullname, &st)
 	       : __stat (fullname, &st)) == 0)
+# endif
 	    /* We found this file to be existing.  Now tell the rest
 	       of the function to copy this name into the result.  */
 	    flags |= GLOB_NOCHECK;
