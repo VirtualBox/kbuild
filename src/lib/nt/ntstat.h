@@ -1,4 +1,4 @@
-/* $Id: ntstat.h 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.h 2707 2013-11-21 02:25:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat implementation and wrappers.
  */
@@ -93,6 +93,9 @@ int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFol
 #ifndef S_IFLNK
 # define S_IFLNK        _S_IFLNK
 #endif
+#ifndef S_IFIFO
+# define S_IFIFO        _S_IFIFO
+#endif
 
 #ifndef S_ISLNK
 # define S_ISLNK(m)     (((m) & _S_IFMT) == _S_IFLNK)
@@ -104,21 +107,21 @@ int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFol
 # define S_ISREG(m)     (((m) & _S_IFMT) == _S_IFREG)
 #endif
 
-#define	S_IRWXU        (_S_IREAD | _S_IWRITE | _S_IEXEC)
-#define	S_IXUSR        _S_IEXEC
-#define	S_IWUSR        _S_IWRITE
-#define	S_IRUSR        _S_IREAD
-#define S_IRWXG        0000070
-#define S_IRGRP	       0000040
-#define S_IWGRP	       0000020
-#define S_IXGRP        0000010
-#define S_IRWXO        0000007
-#define S_IROTH	       0000004
-#define S_IWOTH	       0000002
-#define S_IXOTH        0000001
-#define	S_ISUID        0004000
-#define	S_ISGID        0002000
-#define ALLPERMS       0000777
+#define	S_IRWXU         (_S_IREAD | _S_IWRITE | _S_IEXEC)
+#define	S_IXUSR         _S_IEXEC
+#define	S_IWUSR         _S_IWRITE
+#define	S_IRUSR         _S_IREAD
+#define S_IRWXG         0000070
+#define S_IRGRP	        0000040
+#define S_IWGRP	        0000020
+#define S_IXGRP         0000010
+#define S_IRWXO         0000007
+#define S_IROTH	        0000004
+#define S_IWOTH	        0000002
+#define S_IXOTH         0000001
+#define	S_ISUID         0004000
+#define	S_ISGID         0002000
+#define ALLPERMS        0000777
 
 #endif
 
