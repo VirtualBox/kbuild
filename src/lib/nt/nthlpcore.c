@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2703 2013-11-21 00:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -33,7 +33,7 @@
 *******************************************************************************/
 #include <errno.h>
 #include "nthlp.h"
-#if 1
+#ifndef NDEBUG
 # include <stdio.h>
 #endif
 
@@ -222,6 +222,8 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
         case STATUS_DUPLICATE_NAME:
             return EEXIST;
         /* EXDEV            = 18 */
+        case STATUS_NOT_SAME_DEVICE:
+            return EXDEV;
         /* ENODEV           = 19 */
         /* ENOTDIR          = 20 */
         case STATUS_NOT_A_DIRECTORY:
@@ -343,7 +345,7 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
         /* EWOULDBLOCK      = 140 */
     }
 
-#if 1
+#ifndef NDEBUG
     __debugbreak();
     fprintf(stderr, "rcNt=%#x (%d)\n", rcNt, rcNt);
 #endif
@@ -409,6 +411,10 @@ int birdSetErrnoFromWin32(DWORD dwErr)
 #ifdef EMLINK
         case ERROR_TOO_MANY_LINKS:          errno = EMLINK; break;
 #endif
+
+        case ERROR_SHARING_VIOLATION:
+            errno = ETXTBSY;
+            break;
     }
 
     return -1;
