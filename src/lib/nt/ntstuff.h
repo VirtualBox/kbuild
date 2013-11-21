@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -200,6 +200,12 @@ typedef struct MY_FILE_ID_FULL_DIR_INFORMATION
 #define MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION  ( (size_t)&((MY_FILE_ID_FULL_DIR_INFORMATION *)0)->FileName )
 
 
+typedef struct MY_FILE_DISPOSITION_INFORMATION
+{
+    BOOLEAN         DeleteFile;
+} MY_FILE_DISPOSITION_INFORMATION;
+
+
 typedef enum MY_FILE_INFORMATION_CLASS
 {
     MyFileDirectoryInformation                     = 1,
@@ -360,6 +366,7 @@ typedef struct MY_RTL_RELATIVE_NAME_U
 extern MY_NTSTATUS (WINAPI * g_pfnNtClose)(HANDLE);
 extern MY_NTSTATUS (WINAPI * g_pfnNtCreateFile)(PHANDLE, MY_ACCESS_MASK, MY_OBJECT_ATTRIBUTES *, MY_IO_STATUS_BLOCK *,
                                                 PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+extern MY_NTSTATUS (WINAPI * g_pfnNtDeleteFile)(MY_OBJECT_ATTRIBUTES *);
 extern MY_NTSTATUS (WINAPI * g_pfnNtQueryInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *,
                                                           PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 extern MY_NTSTATUS (WINAPI * g_pfnNtQueryVolumeInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *,
@@ -367,6 +374,7 @@ extern MY_NTSTATUS (WINAPI * g_pfnNtQueryVolumeInformationFile)(HANDLE, MY_IO_ST
 extern MY_NTSTATUS (WINAPI * g_pfnNtQueryDirectoryFile)(HANDLE, HANDLE, MY_IO_APC_ROUTINE *, PVOID, MY_IO_STATUS_BLOCK *,
                                                         PVOID, ULONG, MY_FILE_INFORMATION_CLASS, BOOLEAN,
                                                         MY_UNICODE_STRING *, BOOLEAN);
+extern MY_NTSTATUS (WINAPI * g_pfnNtSetInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 extern BOOLEAN     (WINAPI * g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
 extern MY_NTSTATUS (WINAPI * g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_ANSI_STRING const *, BOOLEAN);
 

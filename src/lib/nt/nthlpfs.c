@@ -1,4 +1,4 @@
-/* $Id: nthlpfs.c 2710 2013-11-21 14:40:10Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpfs.c 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helpers for file system related functions.
  */
@@ -77,7 +77,7 @@ static int birdIsPathDirSpec(const char *pszPath)
 }
 
 
-static int birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath)
+int birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath)
 {
     MY_NTSTATUS         rcNt;
     WCHAR               wszTmp[4096];
@@ -127,9 +127,9 @@ void birdFreeNtPath(MY_UNICODE_STRING *pNtPath)
 }
 
 
-static MY_NTSTATUS birdOpenFileInternal(MY_UNICODE_STRING *pNtPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs,
-                                        ULONG fShareAccess, ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs,
-                                        HANDLE *phFile)
+MY_NTSTATUS birdOpenFileUniStr(MY_UNICODE_STRING *pNtPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs,
+                               ULONG fShareAccess, ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs,
+                               HANDLE *phFile)
 {
     MY_IO_STATUS_BLOCK      Ios;
     MY_OBJECT_ATTRIBUTES    ObjAttr;
@@ -202,8 +202,8 @@ HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFile
     if (birdDosToNtPath(pszPath, &NtPath) == 0)
     {
         HANDLE hFile;
-        rcNt = birdOpenFileInternal(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
-                                    fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
+        rcNt = birdOpenFileUniStr(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
+                                  fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
         if (MY_NT_SUCCESS(rcNt))
         {
             birdFreeNtPath(&NtPath);
@@ -277,8 +277,8 @@ HANDLE birdOpenParentDir(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG 
                  * Finally, try open the directory.
                  */
                 HANDLE hFile;
-                rcNt = birdOpenFileInternal(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
-                                            fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
+                rcNt = birdOpenFileUniStr(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
+                                          fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
                 if (MY_NT_SUCCESS(rcNt))
                 {
                     birdFreeNtPath(&NtPath);

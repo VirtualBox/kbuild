@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -45,7 +45,8 @@ kUtil_SOURCES.win = \
        nt/nthlpcore.c \
        nt/nthlpfs.c \
        nt/ntdir.c \
-       nt/ntstat.c
+       nt/ntstat.c \
+       nt/ntunlink.c
 kUtil_SOURCES.solaris = \
 	restartable-syscall-wrappers.c
 #kUtil_SOURCES.linux = \

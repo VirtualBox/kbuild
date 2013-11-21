@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2703 2013-11-21 00:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -44,11 +44,13 @@
 MY_NTSTATUS (WINAPI *g_pfnNtClose)(HANDLE);
 MY_NTSTATUS (WINAPI *g_pfnNtCreateFile)(PHANDLE, MY_ACCESS_MASK, MY_OBJECT_ATTRIBUTES *, MY_IO_STATUS_BLOCK *,
                                         PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
+MY_NTSTATUS (WINAPI *g_pfnNtDeleteFile)(MY_OBJECT_ATTRIBUTES *);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryVolumeInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FS_INFORMATION_CLASS);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryDirectoryFile)(HANDLE, HANDLE, MY_IO_APC_ROUTINE *, PVOID, MY_IO_STATUS_BLOCK *,
                                                 PVOID, ULONG, MY_FILE_INFORMATION_CLASS, BOOLEAN,
                                                 MY_UNICODE_STRING *, BOOLEAN);
+MY_NTSTATUS (WINAPI *g_pfnNtSetInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 BOOLEAN     (WINAPI *g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
 MY_NTSTATUS (WINAPI *g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_ANSI_STRING const *, BOOLEAN);
 
@@ -61,9 +63,11 @@ static struct
 {
     { (FARPROC *)&g_pfnNtClose,                         "NtClose" },
     { (FARPROC *)&g_pfnNtCreateFile,                    "NtCreateFile" },
+    { (FARPROC *)&g_pfnNtDeleteFile,                    "NtDeleteFile" },
     { (FARPROC *)&g_pfnNtQueryInformationFile,          "NtQueryInformationFile" },
     { (FARPROC *)&g_pfnNtQueryVolumeInformationFile,    "NtQueryVolumeInformationFile" },
     { (FARPROC *)&g_pfnNtQueryDirectoryFile,            "NtQueryDirectoryFile" },
+    { (FARPROC *)&g_pfnNtSetInformationFile,            "NtSetInformationFile" },
     { (FARPROC *)&g_pfnRtlDosPathNameToNtPathName_U,    "RtlDosPathNameToNtPathName_U" },
     { (FARPROC *)&g_pfnRtlAnsiStringToUnicodeString,    "RtlAnsiStringToUnicodeString" },
 };
@@ -136,6 +140,9 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
     switch (rcNt)
     {
         /* EPERM            =  1 */
+        case STATUS_CANNOT_DELETE:
+            errno = EPERM;
+            break;
         /* ENOENT           =  2 */
         case STATUS_NOT_FOUND:
         case STATUS_OBJECT_NAME_NOT_FOUND:
