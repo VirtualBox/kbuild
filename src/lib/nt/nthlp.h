@@ -1,4 +1,4 @@
-/* $Id: nthlp.h 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlp.h 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helper functions.
  */
@@ -55,7 +55,11 @@ int         birdSetErrnoToBadFileNo(void);
 
 HANDLE      birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs, ULONG fShareAccess,
                          ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs);
+HANDLE      birdOpenParentDir(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs, ULONG fShareAccess,
+                              ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs,
+                              MY_UNICODE_STRING *pNameUniStr);
 void        birdCloseFile(HANDLE hFile);
+void        birdFreeNtPath(MY_UNICODE_STRING *pNtPath);
 
 
 #endif

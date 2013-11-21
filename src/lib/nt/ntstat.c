@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2703 2013-11-21 00:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -132,7 +132,8 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
     unsigned short fMode;
 
     /* File type. */
-    if (fAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
+    if (  (fAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
+        && hFile != INVALID_HANDLE_VALUE)
     {
         MY_FILE_ATTRIBUTE_TAG_INFORMATION   TagInfo;
         MY_IO_STATUS_BLOCK                  Ios;
@@ -356,11 +357,88 @@ static int birdStatInternal(const char *pszPath, BirdStat_T *pStat, int fFollow)
     {
         //fprintf(stderr, "stat: %s -> %u\n", pszPath, GetLastError());
 
-        /* On things like pagefile.sys we may get sharing violation. */
-        if (errno == ETXTBSY)
+        /*
+         * On things like pagefile.sys we may get sharing violation.  We fall
+         * back on directory enumeration for dealing with that.
+         */
+        if (   errno == ETXTBSY
+            && strchr(pszPath, '*') == NULL /* Serious paranoia... */
+            && strchr(pszPath, '?') == NULL)
         {
-            /** @todo Fall back on the parent directory enum if we run into a sharing
-             *        violation. */
+            MY_UNICODE_STRING NameUniStr;
+            hFile = birdOpenParentDir(pszPath,
+                                      FILE_READ_DATA | SYNCHRONIZE,
+                                      FILE_ATTRIBUTE_NORMAL,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                      FILE_OPEN,
+                                      FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+                                      OBJ_CASE_INSENSITIVE,
+                                      &NameUniStr);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                MY_FILE_ID_FULL_DIR_INFORMATION *pBuf;
+                ULONG               cbBuf = sizeof(*pBuf) + NameUniStr.MaximumLength + 1024;
+                MY_IO_STATUS_BLOCK  Ios;
+                MY_NTSTATUS         rcNt;
+
+                pBuf = (MY_FILE_ID_FULL_DIR_INFORMATION *)alloca(cbBuf);
+                Ios.u.Status    = -1;
+                Ios.Information = -1;
+                rcNt = g_pfnNtQueryDirectoryFile(hFile, NULL, NULL, NULL, &Ios, pBuf, cbBuf,
+                                                 MyFileIdFullDirectoryInformation, FALSE, &NameUniStr, TRUE);
+                if (MY_NT_SUCCESS(rcNt))
+                    rcNt = Ios.u.Status;
+                if (MY_NT_SUCCESS(rcNt))
+                {
+                    /*
+                     * Convert the data.
+                     */
+                    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
+                                                                 NULL, &pStat->st_dirsymlink);
+                    pStat->st_padding0[0]   = 0;
+                    pStat->st_padding0[1]   = 0;
+                    pStat->st_size          = pBuf->EndOfFile.QuadPart;
+                    birdNtTimeToTimeSpec(pBuf->CreationTime.QuadPart,   &pStat->st_birthtim);
+                    birdNtTimeToTimeSpec(pBuf->ChangeTime.QuadPart,     &pStat->st_ctim);
+                    birdNtTimeToTimeSpec(pBuf->LastWriteTime.QuadPart,  &pStat->st_mtim);
+                    birdNtTimeToTimeSpec(pBuf->LastAccessTime.QuadPart, &pStat->st_atim);
+                    pStat->st_ino           = pBuf->FileId.QuadPart;
+                    pStat->st_nlink         = 1;
+                    pStat->st_rdev          = 0;
+                    pStat->st_uid           = 0;
+                    pStat->st_gid           = 0;
+                    pStat->st_padding1[0]   = 0;
+                    pStat->st_padding1[1]   = 0;
+                    pStat->st_padding1[2]   = 0;
+                    pStat->st_blksize       = 65536;
+                    pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
+                                            / BIRD_STAT_BLOCK_SIZE;
+
+                    /* Get the serial number, reusing the buffer from above. */
+                    rcNt = g_pfnNtQueryVolumeInformationFile(hFile, &Ios, pBuf, cbBuf, MyFileFsVolumeInformation);
+                    if (MY_NT_SUCCESS(rcNt))
+                        rcNt = Ios.u.Status;
+                    if (MY_NT_SUCCESS(rcNt))
+                    {
+                        MY_FILE_FS_VOLUME_INFORMATION const *pVolInfo = (MY_FILE_FS_VOLUME_INFORMATION const *)pBuf;
+                        pStat->st_dev       = pVolInfo->VolumeSerialNumber
+                                            | (pVolInfo->VolumeCreationTime.QuadPart << 32);
+                        rc = 0;
+                    }
+                    else
+                    {
+                        pStat->st_dev       = 0;
+                        rc = birdSetErrnoFromNt(rcNt);
+                    }
+                }
+
+                birdFreeNtPath(&NameUniStr);
+                birdCloseFile(hFile);
+
+                if (MY_NT_SUCCESS(rcNt))
+                    return 0;
+                birdSetErrnoFromNt(rcNt);
+            }
         }
         rc = -1;
     }
