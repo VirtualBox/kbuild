@@ -1,4 +1,4 @@
-/* $Id: nthlpfs.c 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpfs.c 2710 2013-11-21 14:40:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helpers for file system related functions.
  */
@@ -84,6 +84,8 @@ static int birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath)
     MY_UNICODE_STRING   TmpUniStr;
     MY_ANSI_STRING      Src;
 
+    birdResolveImports();
+
     pNtPath->Length = pNtPath->MaximumLength = 0;
     pNtPath->Buffer = NULL;
 
@@ -132,6 +134,8 @@ static MY_NTSTATUS birdOpenFileInternal(MY_UNICODE_STRING *pNtPath, ACCESS_MASK 
     MY_IO_STATUS_BLOCK      Ios;
     MY_OBJECT_ATTRIBUTES    ObjAttr;
     MY_NTSTATUS             rcNt;
+
+    birdResolveImports();
 
     if (  (fCreateOptions & FILE_OPEN_REPARSE_POINT)
         && g_fHaveOpenReparsePoint == 0)
@@ -186,8 +190,6 @@ HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFile
     MY_UNICODE_STRING   NtPath;
     MY_NTSTATUS         rcNt;
 
-    birdResolveImports();
-
     /*
      * Adjust inputs.
      */
@@ -222,8 +224,6 @@ HANDLE birdOpenParentDir(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG 
 {
     MY_UNICODE_STRING   NtPath;
     MY_NTSTATUS         rcNt;
-
-    birdResolveImports();
 
     /*
      * Adjust inputs.
