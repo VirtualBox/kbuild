@@ -126,12 +126,14 @@ static int	 fts_palloc(FTS *, size_t);
 static void	 fts_padjust(FTS *, FTSENT *);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
 static u_short	 fts_stat(FTS *, FTSENT *, int);
+#ifdef _MSC_VER
+static u_short   fts_stat_dirent(FTS *sp, FTSENT *p, int follow, struct dirent *pDirEnt);
+#endif
 static int	 fts_safe_changedir(const FTS *, const FTSENT *, int,
     const char *);
 
 #ifdef _MSC_VER
-#undef HAVE_STRUCT_DIRENT_D_NAMLEN
-#undef HAVE_FCHDIR
+# undef HAVE_FCHDIR
 #endif
 
 #if defined(__EMX__) || defined(_MSC_VER)
@@ -386,7 +388,7 @@ fts_close(sp)
 #else
 		if (chdir(sp->fts_rdir))
 			saved_errno =  errno;
-        free(sp->fts_rdir);
+		free(sp->fts_rdir);
 		sp->fts_rdir = NULL;
 #endif
 	}
@@ -785,6 +787,8 @@ fts_build(sp, type)
 		oflag = DTF_NODUP|DTF_REWIND;
 	else
 		oflag = DTF_HIDEW|DTF_NODUP|DTF_REWIND;
+#elif defined(_MSC_VER)
+# define __opendir2(path, flag) birdDirOpenExtraInfo(path)
 #else
 #define __opendir2(path, flag) opendir(path)
 #endif
@@ -940,8 +944,13 @@ mem1:				saved_errno = errno;
 				        (size_t)(p->fts_namelen + 1));
 			} else
 				p->fts_accpath = p->fts_name;
+
 			/* Stat it. */
+#ifdef _MSC_VER
+			p->fts_info = fts_stat_dirent(sp, p, 0, dp);
+#else
 			p->fts_info = fts_stat(sp, p, 0);
+#endif
 
 			/* Decrement link count if applicable. */
 			if (nlinks > 0 && (p->fts_info == FTS_D ||
@@ -1010,6 +1019,87 @@ mem1:				saved_errno = errno;
 		head = fts_sort(sp, head, nitems);
 	return (head);
 }
+
+#ifdef _MSC_VER
+/** Special version of fts_stat that takes the information from the directory
+ *  entry returned by readdir().
+ *
+ *  Directory listing returns all the stat information on systems likes
+ *  Windows and OS/2. */
+static u_short
+fts_stat_dirent(FTS *sp, FTSENT *p, int follow, struct dirent *pDirEnt)
+{
+	FTSENT *t;
+	dev_t dev;
+	ino_t ino;
+	struct STAT *sbp, sb;
+	int saved_errno;
+
+	_DIAGASSERT(sp != NULL);
+	_DIAGASSERT(p != NULL);
+
+	/* If user needs stat info, stat buffer already allocated. */
+	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
+
+	/*
+	 * Copy over the stat info from the direntry.
+	 */
+	*sbp = pDirEnt->d_stat;
+
+	/*
+	 * If doing a logical walk, or application requested FTS_FOLLOW, do
+	 * a stat(2) on symlinks.  If that fails, assume non-existent
+	 * symlink and set the errno from the stat call.
+	 */
+	if (S_ISLNK(sbp->st_mode) && (ISSET(FTS_LOGICAL) || follow)) {
+		if (stat(p->fts_accpath, sbp)) {
+			saved_errno = errno;
+			errno = 0;
+			return (FTS_SLNONE);
+		}
+	}
+
+	if (S_ISDIR(sbp->st_mode)) {
+		/*
+		 * Set the device/inode.  Used to find cycles and check for
+		 * crossing mount points.  Also remember the link count, used
+		 * in fts_build to limit the number of stat calls.  It is
+		 * understood that these fields are only referenced if fts_info
+		 * is set to FTS_D.
+		 */
+		dev = p->fts_dev = sbp->st_dev;
+		ino = p->fts_ino = sbp->st_ino;
+		p->fts_nlink = sbp->st_nlink;
+
+		if (ISDOT(p->fts_name))
+			return (FTS_DOT);
+
+		/*
+		 * Cycle detection is done by brute force when the directory
+		 * is first encountered.  If the tree gets deep enough or the
+		 * number of symbolic links to directories is high enough,
+		 * something faster might be worthwhile.
+		 */
+
+#ifdef _MSC_VER
+		if (ino && dev) /** @todo ino emulation on windows... */
+#endif
+		    for (t = p->fts_parent;
+			t->fts_level >= FTS_ROOTLEVEL; t = t->fts_parent)
+			    if (ino == t->fts_ino && dev == t->fts_dev) {
+				    p->fts_cycle = t;
+				    return (FTS_DC);
+			    }
+		return (FTS_D);
+	}
+	if (S_ISLNK(sbp->st_mode))
+		return (FTS_SL);
+	if (S_ISREG(sbp->st_mode))
+		return (FTS_F);
+	return (FTS_DEFAULT);
+}
+
+#endif /* fts_stat_dirent */
 
 static u_short
 fts_stat(sp, p, follow)

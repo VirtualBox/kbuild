@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -196,6 +196,8 @@ typedef struct MY_FILE_ID_FULL_DIR_INFORMATION
     LARGE_INTEGER   FileId;
     WCHAR           FileName[1];
 } MY_FILE_ID_FULL_DIR_INFORMATION;
+/** The sizeof(MY_FILE_NAMES_INFORMATION) without the FileName. */
+#define MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION  ( (size_t)&((MY_FILE_ID_FULL_DIR_INFORMATION *)0)->FileName )
 
 
 typedef enum MY_FILE_INFORMATION_CLASS
