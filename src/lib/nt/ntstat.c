@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2707 2013-11-21 02:25:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -455,7 +455,62 @@ int birdStatOnFd(int fd, BirdStat_T *pStat)
     int     rc;
     HANDLE  hFile = (HANDLE)_get_osfhandle(fd);
     if (hFile != INVALID_HANDLE_VALUE)
-        rc = birdStatHandle(hFile, pStat, NULL);
+    {
+        DWORD fFileType;
+
+        SetLastError(NO_ERROR);
+        fFileType = GetFileType(hFile) & ~FILE_TYPE_REMOTE;
+        switch (fFileType)
+        {
+            case FILE_TYPE_DISK:
+                rc = birdStatHandle(hFile, pStat, NULL);
+                break;
+
+            case FILE_TYPE_CHAR:
+            case FILE_TYPE_PIPE:
+                if (fFileType == FILE_TYPE_PIPE)
+                    pStat->st_mode          = S_IFIFO | 0666;
+                else
+                    pStat->st_mode          = S_IFCHR | 0666;
+                pStat->st_padding0[0]       = 0;
+                pStat->st_padding0[1]       = 0;
+                pStat->st_size              = 0;
+                pStat->st_atim.tv_sec       = 0;
+                pStat->st_atim.tv_nsec      = 0;
+                pStat->st_mtim.tv_sec       = 0;
+                pStat->st_mtim.tv_nsec      = 0;
+                pStat->st_ctim.tv_sec       = 0;
+                pStat->st_ctim.tv_nsec      = 0;
+                pStat->st_birthtim.tv_sec   = 0;
+                pStat->st_birthtim.tv_nsec  = 0;
+                pStat->st_ino               = 0;
+                pStat->st_dev               = 0;
+                pStat->st_rdev              = 0;
+                pStat->st_uid               = 0;
+                pStat->st_gid               = 0;
+                pStat->st_padding1[0]       = 0;
+                pStat->st_padding1[1]       = 0;
+                pStat->st_padding1[2]       = 0;
+                pStat->st_blksize           = 512;
+                pStat->st_blocks            = 0;
+                if (fFileType == FILE_TYPE_PIPE)
+                {
+                    DWORD cbAvail;
+                    if (PeekNamedPipe(hFile, NULL, 0, NULL, &cbAvail, NULL))
+                        pStat->st_size = cbAvail;
+                }
+                rc = 0;
+                break;
+
+            case FILE_TYPE_UNKNOWN:
+            default:
+                if (GetLastError() == NO_ERROR)
+                    rc = birdSetErrnoToBadFileNo();
+                else
+                    rc = birdSetErrnoFromWin32(GetLastError());
+                break;
+        }
+    }
     else
         rc = -1;
     return rc;
