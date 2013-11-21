@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2710 2013-11-21 14:40:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -470,6 +470,8 @@ int birdStatOnFd(int fd, BirdStat_T *pStat)
     if (hFile != INVALID_HANDLE_VALUE)
     {
         DWORD fFileType;
+
+        birdResolveImports();
 
         SetLastError(NO_ERROR);
         fFileType = GetFileType(hFile) & ~FILE_TYPE_REMOTE;
