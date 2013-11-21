@@ -66,8 +66,14 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #ifdef __HAIKU__
 # include "haikufakes.h"
 #endif
-#ifdef _MSC_VER
-# include "mscfakes.h"
+#ifdef KBUILD_OS_WINDOWS
+# ifdef _MSC_VER
+#  include "mscfakes.h"
+# endif
+# include "nt/ntunlink.h"
+  /* Use the special unlink implementation to do rmdir too. */
+# undef  rmdir
+# define rmdir(a_pszPath) 	birdUnlinkForced(a_pszPath)
 #endif
 #if defined(__OS2__) || defined(_MSC_VER)
 # include <direct.h>
@@ -76,7 +82,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include "kmkbuiltin.h"
 #include "kbuild_protection.h"
 
-#if defined(__EMX__) || defined(_MSC_VER)
+#if defined(__EMX__) || defined(KBUILD_OS_WINDOWS)
 # define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
 # define HAVE_DOS_PATHS 1
 # define DEFAULT_PROTECTION_DEPTH 1
@@ -99,6 +105,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 extern void bsd_strmode(mode_t mode, char *p);
 
 static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+#ifdef KBUILD_OS_WINDOWS
+static int fUseNtDeleteFile;
+#endif
 static uid_t uid;
 
 static char *argv0;
@@ -113,6 +122,9 @@ static struct option long_options[] =
     { "enable-full-protection",				no_argument, 0, 265 },
     { "disable-full-protection",			no_argument, 0, 266 },
     { "protection-depth",				required_argument, 0, 267 },
+#ifdef KBUILD_OS_WINDOWS
+    { "nt-delete-file",					no_argument, 0, 268 },
+#endif
     { 0, 0,	0, 0 },
 };
 
@@ -148,6 +160,9 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 	/* reinitialize globals */
 	argv0 = argv[0];
 	dflag = eval = fflag = iflag = Pflag = vflag = Wflag = stdin_ok = 0;
+#ifdef KBUILD_OS_WINDOWS
+	fUseNtDeleteFile = 0;
+#endif
 	uid = 0;
 	kBuildProtectionInit(&g_ProtData);
 
@@ -214,6 +229,11 @@ kmk_builtin_rm(int argc, char *argv[], char **envp)
 			    return 1;
 			}
 			break;
+#ifdef KBUILD_OS_WINDOWS
+		case 268:
+			fUseNtDeleteFile = 1;
+			break;
+#endif
 		case '?':
 		default:
 			kBuildProtectionTerm(&g_ProtData);
@@ -403,12 +423,10 @@ rm_tree(char **argv)
 				if (Pflag)
 					if (!rm_overwrite(p->fts_accpath, NULL))
 						continue;
+#ifdef KBUILD_OS_WINDOWS
+				rval = birdUnlinkForcedFast(p->fts_accpath);
+#else
 				rval = unlink(p->fts_accpath);
-#ifdef _MSC_VER
-				if (rval != 0) {
-    					chmod(p->fts_accpath, 0777);
-					rval = unlink(p->fts_accpath);
-				}
 #endif
 
 				if (rval == 0 || (fflag && errno == ENOENT)) {
@@ -498,25 +516,25 @@ rm_file(char **argv)
 			if (S_ISWHT(sb.st_mode)) {
 				rval = undelete(f);
 				operation = "undelete";
-#ifndef _MSC_VER
 			} else if (S_ISDIR(sb.st_mode)) {
-#else
-			} else if (S_ISDIR(sb.st_mode) || sb.st_dirsymlink) {
-#endif
 				rval = rmdir(f);
 				operation = "rmdir";
 			} else {
 				if (Pflag)
 					if (!rm_overwrite(f, &sb))
 						continue;
+#ifndef KBUILD_OS_WINDOWS
 				rval = unlink(f);
-#ifdef _MSC_VER
-				if (rval != 0) {
-					chmod(f, 0777);
-					rval = unlink(f);
+				operation = "unlink";
+#else
+				if (fUseNtDeleteFile) {
+					rval = birdUnlinkForcedFast(f);
+					operation = "NtDeleteFile";
+				} else {
+					rval = birdUnlinkForced(f);
+					operation = "unlink";
 				}
 #endif
-				operation = "unlink";
 			}
 		}
 		if (rval && (!fflag || errno != ENOENT)) {
