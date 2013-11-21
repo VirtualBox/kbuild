@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2707 2013-11-21 02:25:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -180,6 +180,38 @@ static void birdNtTimeToTimeSpec(__int64 iNtTime, BirdTimeSpec_T *pTimeSpec)
     iNtTime -= BIRD_NT_EPOCH_OFFSET_UNIX_100NS;
     pTimeSpec->tv_sec  = iNtTime / 10000000;
     pTimeSpec->tv_nsec = (iNtTime % 10000000) * 100;
+}
+
+
+/**
+ * Fills in a stat structure from an MY_FILE_ID_FULL_DIR_INFORMATION entry.
+ *
+ * @param   pStat               The stat structure.
+ * @param   pBuf                The MY_FILE_ID_FULL_DIR_INFORMATION entry.
+ * @param   pszPath             Optionally, the path for X bit checks.
+ */
+void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf, const char *pszPath)
+{
+    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
+                                                 NULL, &pStat->st_dirsymlink);
+    pStat->st_padding0[0]   = 0;
+    pStat->st_padding0[1]   = 0;
+    pStat->st_size          = pBuf->EndOfFile.QuadPart;
+    birdNtTimeToTimeSpec(pBuf->CreationTime.QuadPart,   &pStat->st_birthtim);
+    birdNtTimeToTimeSpec(pBuf->ChangeTime.QuadPart,     &pStat->st_ctim);
+    birdNtTimeToTimeSpec(pBuf->LastWriteTime.QuadPart,  &pStat->st_mtim);
+    birdNtTimeToTimeSpec(pBuf->LastAccessTime.QuadPart, &pStat->st_atim);
+    pStat->st_ino           = pBuf->FileId.QuadPart;
+    pStat->st_nlink         = 1;
+    pStat->st_rdev          = 0;
+    pStat->st_uid           = 0;
+    pStat->st_gid           = 0;
+    pStat->st_padding1[0]   = 0;
+    pStat->st_padding1[1]   = 0;
+    pStat->st_padding1[2]   = 0;
+    pStat->st_blksize       = 65536;
+    pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
+                            / BIRD_STAT_BLOCK_SIZE;
 }
 
 
@@ -393,26 +425,7 @@ static int birdStatInternal(const char *pszPath, BirdStat_T *pStat, int fFollow)
                     /*
                      * Convert the data.
                      */
-                    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
-                                                                 NULL, &pStat->st_dirsymlink);
-                    pStat->st_padding0[0]   = 0;
-                    pStat->st_padding0[1]   = 0;
-                    pStat->st_size          = pBuf->EndOfFile.QuadPart;
-                    birdNtTimeToTimeSpec(pBuf->CreationTime.QuadPart,   &pStat->st_birthtim);
-                    birdNtTimeToTimeSpec(pBuf->ChangeTime.QuadPart,     &pStat->st_ctim);
-                    birdNtTimeToTimeSpec(pBuf->LastWriteTime.QuadPart,  &pStat->st_mtim);
-                    birdNtTimeToTimeSpec(pBuf->LastAccessTime.QuadPart, &pStat->st_atim);
-                    pStat->st_ino           = pBuf->FileId.QuadPart;
-                    pStat->st_nlink         = 1;
-                    pStat->st_rdev          = 0;
-                    pStat->st_uid           = 0;
-                    pStat->st_gid           = 0;
-                    pStat->st_padding1[0]   = 0;
-                    pStat->st_padding1[1]   = 0;
-                    pStat->st_padding1[2]   = 0;
-                    pStat->st_blksize       = 65536;
-                    pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
-                                            / BIRD_STAT_BLOCK_SIZE;
+                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf, pszPath);
 
                     /* Get the serial number, reusing the buffer from above. */
                     rcNt = g_pfnNtQueryVolumeInformationFile(hFile, &Ios, pBuf, cbBuf, MyFileFsVolumeInformation);

@@ -1,4 +1,4 @@
-/* $Id: ntdir.h 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.h 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, closedir and friends.
  */
@@ -36,21 +36,20 @@
 
 typedef struct dirent
 {
-    /** File ID if available. */
-    unsigned __int64    d_ino;
-    /** The file size. */
-    unsigned __int64    d_size;
-    /** The name type. */
-    unsigned char       d_type;
-    /** Qualifies the DT_LNK d_type value. */
-    unsigned char       d_dirsymlink;
+    /** Optional stat information.
+     * Only provided if using birdDirOpenExtraInfo(). */
+    BirdStat_T          d_stat;
     /** The record length. */
     unsigned __int16    d_reclen;
     /** The name length. */
     unsigned __int16    d_namlen;
+    /** The name type. */
+    unsigned char       d_type;
     /** The name. */
-    char                d_name[512 - 8 - 8 - 1 - 1 - 2 - 2];
+    char                d_name[512 - sizeof(BirdStat_T) - 2 - 2 - 1];
 } BirdDirEntry_T;
+
+#define d_ino           d_stat.st_ino;
 
 /** @name d_type values.
  * @{ */
@@ -97,6 +96,7 @@ typedef struct BirdDir
 
 
 BirdDir_T      *birdDirOpen(const char *pszPath);
+BirdDir_T      *birdDirOpenExtraInfo(const char *pszPath);
 BirdDirEntry_T *birdDirRead(BirdDir_T *pDir);
 long            birdDirTell(BirdDir_T *pDir);
 void            birdDirSeek(BirdDir_T *pDir, long offDir);
