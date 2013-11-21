@@ -1,4 +1,4 @@
-/* $Id: nthlpfs.c 2703 2013-11-21 00:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpfs.c 2704 2013-11-21 01:26:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helpers for file system related functions.
  */
@@ -33,6 +33,12 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #include "nthlp.h"
+
+
+/*******************************************************************************
+*   Global Variables                                                           *
+*******************************************************************************/
+static int g_fHaveOpenReparsePoint = -1;
 
 
 
@@ -70,7 +76,6 @@ static int birdIsPathDirSpec(const char *pszPath)
     return ch == '/' || ch == '\\' || ch == ':';
 }
 
-#ifndef BIRD_USE_WIN32
 
 static int birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath)
 {
@@ -111,107 +116,53 @@ static int birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath)
 }
 
 
-static void birdFreeNtPath(MY_UNICODE_STRING *pNtPath)
+void birdFreeNtPath(MY_UNICODE_STRING *pNtPath)
 {
     HeapFree(GetProcessHeap(), 0, pNtPath->Buffer);
     pNtPath->Buffer = NULL;
+    pNtPath->Length = 0;
+    pNtPath->MaximumLength = 0;
 }
 
-#endif /* !BIRD_USE_WIN32 */
 
-
-HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs, ULONG fShareAccess,
-                    ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs)
+static MY_NTSTATUS birdOpenFileInternal(MY_UNICODE_STRING *pNtPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs,
+                                        ULONG fShareAccess, ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs,
+                                        HANDLE *phFile)
 {
-    static int          s_fHaveOpenReparsePoint = -1;
-    HANDLE              hFile;
-#ifdef BIRD_USE_WIN32
-    SECURITY_ATTRIBUTES SecAttr;
-    DWORD               dwErr;
-    DWORD               fW32Disp;
-    DWORD               fW32Flags;
-#else
-    MY_UNICODE_STRING   NtPath;
-    MY_NTSTATUS         rcNt;
-#endif
+    MY_IO_STATUS_BLOCK      Ios;
+    MY_OBJECT_ATTRIBUTES    ObjAttr;
+    MY_NTSTATUS             rcNt;
 
-    birdResolveImports();
-
-    if (birdIsPathDirSpec(pszPath))
-        fCreateOptions |= FILE_DIRECTORY_FILE;
     if (  (fCreateOptions & FILE_OPEN_REPARSE_POINT)
-        && s_fHaveOpenReparsePoint == 0)
+        && g_fHaveOpenReparsePoint == 0)
         fCreateOptions &= ~FILE_OPEN_REPARSE_POINT;
 
-#ifdef BIRD_USE_WIN32
-    /* NT -> W32 */
+    Ios.Information = -1;
+    Ios.u.Status = 0;
+    MyInitializeObjectAttributes(&ObjAttr, pNtPath, fObjAttribs, NULL /*hRoot*/, NULL /*pSecAttr*/);
 
-    SecAttr.nLength              = sizeof(SecAttr);
-    SecAttr.lpSecurityDescriptor = NULL;
-    SecAttr.bInheritHandle       = fObjAttribs & OBJ_INHERIT ? TRUE : FALSE;
-
-    fW32Flags = 0;
-    if (!(fObjAttribs & OBJ_CASE_INSENSITIVE))
-        fW32Flags |= FILE_FLAG_POSIX_SEMANTICS;
-    if (fCreateOptions & FILE_OPEN_FOR_BACKUP_INTENT)
-        fW32Flags |= FILE_FLAG_BACKUP_SEMANTICS;
-    if (fCreateOptions & FILE_OPEN_REPARSE_POINT)
-        fW32Flags |= FILE_FLAG_OPEN_REPARSE_POINT;
-    //?? if (fCreateOptions & FILE_DIRECTORY_FILE)
-    //??    fW32Flags |= ;
-
-    switch (fCreateDisposition)
-    {
-        case FILE_OPEN:             fW32Disp = OPEN_EXISTING; break;
-        case FILE_CREATE:           fW32Disp = CREATE_NEW; break;
-        case FILE_OPEN_IF:          fW32Disp = OPEN_ALWAYS; break;
-        case FILE_OVERWRITE_IF:     fW32Disp = CREATE_ALWAYS; break;
-        default:
-# ifndef NDEBUG
-            __debugbreak();
-# endif
-            return INVALID_HANDLE_VALUE;
-    }
-
-    hFile = CreateFileA(pszPath, fDesiredAccess, fShareAccess, &SecAttr, fW32Disp, fW32Flags, NULL /*hTemplateFile*/);
-    if (hFile != INVALID_HANDLE_VALUE)
-        return hFile;
-
-    dwErr = GetLastError();
-
-    /* Deal with FILE_FLAG_OPEN_REPARSE_POINT the first times around. */
-    if (   dwErr == ERROR_INVALID_PARAMETER
-        && s_fHaveOpenReparsePoint < 0
-        && (fCreateOptions & FILE_OPEN_REPARSE_POINT) )
+    rcNt = g_pfnNtCreateFile(phFile,
+                             fDesiredAccess,
+                             &ObjAttr,
+                             &Ios,
+                             NULL,   /* cbFileInitialAlloc */
+                             fFileAttribs,
+                             fShareAccess,
+                             fCreateDisposition,
+                             fCreateOptions,
+                             NULL,   /* pEaBuffer */
+                             0);     /* cbEaBuffer*/
+    if (   rcNt == STATUS_INVALID_PARAMETER
+        && g_fHaveOpenReparsePoint < 0
+        && (fCreateOptions & FILE_OPEN_REPARSE_POINT))
     {
         fCreateOptions &= ~FILE_OPEN_REPARSE_POINT;
-        fW32Flags      &= ~FILE_FLAG_OPEN_REPARSE_POINT;
-        hFile = CreateFileA(pszPath, fDesiredAccess, fFileAttribs, &SecAttr, fW32Disp, fW32Flags, NULL /*hTemplateFile*/);
-        if (hFile != INVALID_HANDLE_VALUE)
-        {
-            s_fHaveOpenReparsePoint = 0;
-            return hFile;
-        }
-    }
-
-    birdSetErrnoFromWin32(dwErr);
-
-#else  /* !BIRD_USE_WIN32 */
-
-    /*
-     * Call the NT API directly.
-     */
-    if (birdDosToNtPath(pszPath, &NtPath) == 0)
-    {
-        MY_IO_STATUS_BLOCK      Ios;
-        MY_OBJECT_ATTRIBUTES    ObjAttr;
 
         Ios.Information = -1;
         Ios.u.Status = 0;
+        MyInitializeObjectAttributes(&ObjAttr, pNtPath, fObjAttribs, NULL /*hRoot*/, NULL /*pSecAttr*/);
 
-        MyInitializeObjectAttributes(&ObjAttr, &NtPath, fObjAttribs, NULL /*hRoot*/, NULL /*pSecAttr*/);
-
-        rcNt = g_pfnNtCreateFile(&hFile,
+        rcNt = g_pfnNtCreateFile(phFile,
                                  fDesiredAccess,
                                  &ObjAttr,
                                  &Ios,
@@ -222,6 +173,35 @@ HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFile
                                  fCreateOptions,
                                  NULL,   /* pEaBuffer */
                                  0);     /* cbEaBuffer*/
+        if (rcNt != STATUS_INVALID_PARAMETER)
+            g_fHaveOpenReparsePoint = 0;
+    }
+    return rcNt;
+}
+
+
+HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs, ULONG fShareAccess,
+                    ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs)
+{
+    MY_UNICODE_STRING   NtPath;
+    MY_NTSTATUS         rcNt;
+
+    birdResolveImports();
+
+    /*
+     * Adjust inputs.
+     */
+    if (birdIsPathDirSpec(pszPath))
+        fCreateOptions |= FILE_DIRECTORY_FILE;
+
+    /*
+     * Call the NT API directly.
+     */
+    if (birdDosToNtPath(pszPath, &NtPath) == 0)
+    {
+        HANDLE hFile;
+        rcNt = birdOpenFileInternal(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
+                                    fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
         if (MY_NT_SUCCESS(rcNt))
         {
             birdFreeNtPath(&NtPath);
@@ -232,18 +212,95 @@ HANDLE birdOpenFile(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFile
         birdSetErrnoFromNt(rcNt);
     }
 
-#endif /* !BIRD_USE_WIN32 */
+    return INVALID_HANDLE_VALUE;
+}
+
+
+HANDLE birdOpenParentDir(const char *pszPath, ACCESS_MASK fDesiredAccess, ULONG fFileAttribs, ULONG fShareAccess,
+                         ULONG fCreateDisposition, ULONG fCreateOptions, ULONG fObjAttribs,
+                         MY_UNICODE_STRING *pNameUniStr)
+{
+    MY_UNICODE_STRING   NtPath;
+    MY_NTSTATUS         rcNt;
+
+    birdResolveImports();
+
+    /*
+     * Adjust inputs.
+     */
+    fCreateOptions |= FILE_DIRECTORY_FILE;
+
+    /*
+     * Convert the path and split off the filename.
+     */
+    if (birdDosToNtPath(pszPath, &NtPath) == 0)
+    {
+        USHORT offName = NtPath.Length / sizeof(WCHAR);
+        USHORT cwcName = offName;
+        WCHAR  wc = 0;
+
+        while (   offName > 0
+               && (wc = NtPath.Buffer[offName - 1]) != '\\'
+               && wc != '/'
+               && wc != ':')
+            offName--;
+        if (offName > 0)
+        {
+            cwcName -= offName;
+
+            /* Make a copy of the file name, if requested. */
+            rcNt = STATUS_SUCCESS;
+            if (pNameUniStr)
+            {
+                pNameUniStr->Length        = cwcName * sizeof(WCHAR);
+                pNameUniStr->MaximumLength = pNameUniStr->Length + sizeof(WCHAR);
+                pNameUniStr->Buffer        = (WCHAR *)HeapAlloc(GetProcessHeap(), 0, pNameUniStr->MaximumLength);
+                if (pNameUniStr->Buffer)
+                {
+                    memcpy(pNameUniStr->Buffer, &NtPath.Buffer[offName],pNameUniStr->Length);
+                    pNameUniStr->Buffer[cwcName] = '\0';
+                }
+                else
+                    rcNt = STATUS_NO_MEMORY;
+            }
+
+            /* Chop, chop. */
+            // Bad idea, breaks \\?\c:\pagefile.sys. //while (   offName > 0
+            // Bad idea, breaks \\?\c:\pagefile.sys. //       && (   (wc = NtPath.Buffer[offName - 1]) == '\\'
+            // Bad idea, breaks \\?\c:\pagefile.sys. //           || wc == '/'))
+            // Bad idea, breaks \\?\c:\pagefile.sys. //    offName--;
+            NtPath.Length = offName * sizeof(WCHAR);
+            NtPath.Buffer[offName] = '\0';
+            if (MY_NT_SUCCESS(rcNt))
+            {
+                /*
+                 * Finally, try open the directory.
+                 */
+                HANDLE hFile;
+                rcNt = birdOpenFileInternal(&NtPath, fDesiredAccess, fFileAttribs, fShareAccess,
+                                            fCreateDisposition, fCreateOptions, fObjAttribs, &hFile);
+                if (MY_NT_SUCCESS(rcNt))
+                {
+                    birdFreeNtPath(&NtPath);
+                    return hFile;
+                }
+            }
+
+            if (pNameUniStr)
+                birdFreeNtPath(pNameUniStr);
+        }
+
+        birdFreeNtPath(&NtPath);
+        birdSetErrnoFromNt(rcNt);
+    }
+
     return INVALID_HANDLE_VALUE;
 }
 
 
 void birdCloseFile(HANDLE hFile)
 {
-#ifdef BIRD_USE_WIN32
-    CloseHandle(hFile);
-#else
     birdResolveImports();
     g_pfnNtClose(hFile);
-#endif
 }
 
