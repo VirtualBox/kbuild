@@ -698,6 +698,9 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 # endif
   int rehash = 0;
 #endif
+#ifdef KMK
+  int ret = 0;
+#endif
 
   if (dir == 0 || dir->dirfiles.ht_vec == 0)
     /* The directory could not be stat'd or opened.  */
@@ -889,7 +892,11 @@ dir_contents_file_exists_p (struct directory_contents *dir,
 #else
       if (filename != 0 && dirfile_key.name == filename)
 #endif
+#ifdef KMK
+        ret = 1; /* Cache the whole dir. Prevents trouble on windows and os2 during 'rebuild'. */
+#else
         return 1;
+#endif
     }
 
   /* If the directory has been completely read in,
@@ -900,7 +907,11 @@ dir_contents_file_exists_p (struct directory_contents *dir,
       closedir (dir->dirstream);
       dir->dirstream = 0;
     }
+#ifdef KMK
+  return ret;
+#else
   return 0;
+#endif
 }
 
 /* Return 1 if the name FILENAME in directory DIRNAME
