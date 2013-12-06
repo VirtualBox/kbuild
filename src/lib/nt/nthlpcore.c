@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2715 2013-12-06 17:41:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -141,8 +141,8 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
     {
         /* EPERM            =  1 */
         case STATUS_CANNOT_DELETE:
-            errno = EPERM;
-            break;
+        case STATUS_DELETE_PENDING:
+            return EPERM;
         /* ENOENT           =  2 */
         case STATUS_NOT_FOUND:
         case STATUS_OBJECT_NAME_NOT_FOUND:
