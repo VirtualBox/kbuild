@@ -1,4 +1,4 @@
-# $Id: testcase-kBuild-define.kmk 2717 2013-12-30 00:58:43Z knut.osmundsen@oracle.com $
+# $Id: testcase-kBuild-define.kmk 2718 2013-12-30 21:30:47Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the kBuild-define-* directives.
 #
@@ -91,7 +91,7 @@ kBuild-endef-target
 [target@OutsideMod]_SOURCES <= file2.c
 [target@OutsideMod]_OTHER   = outside-value
 $(if-expr "$([target@OutsideMod]_SOURCES)" == "file2.c file3.c file4.c",,$(error [target@OutsideMod]_SOURCES is '$([target@OutsideMod]_SOURCES)' not 'file2.c file3.c file4.c'))
-$(if-expr "OutsideMod_SOURCES"             == "file2.c file3.c file4.c",,$(error OutsideMod_SOURCES is '$(OutsideMod_SOURCES)' not 'file2.c file3.c file4.c'))
+$(if-expr "$(OutsideMod_SOURCES)"          == "file2.c file3.c file4.c",,$(error OutsideMod_SOURCES is '$(OutsideMod_SOURCES)' not 'file2.c file3.c file4.c'))
 
 $(if-expr "$([target@OutsideMod]_OTHER)" == "outside-value",,$(error [target@OutsideMod]_OTHER is '$([target@OutsideMod]_OTHER)' not 'outside-value'))
 $(if-expr "$(OutsideMod_OTHER)"          == "outside-value",,$(error OutsideMod_OTHER is '$(OutsideMod_OTHER)' not 'outside-value'))
