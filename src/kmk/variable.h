@@ -142,6 +142,8 @@ extern struct variable_set_list *current_variable_set_list;
 extern struct variable *default_goal_var;
 
 #ifdef KMK
+extern struct variable_set global_variable_set;
+extern struct variable_set_list global_setlist;
 extern unsigned int variable_buffer_length;
 # define VARIABLE_BUFFER_ZONE   5
 #endif
@@ -350,6 +352,10 @@ struct variable *lookup_variable_in_set (const char *name, unsigned int length,
 #ifdef CONFIG_WITH_VALUE_LENGTH
 void append_string_to_variable (struct variable *v, const char *value,
                                 unsigned int value_len, int append);
+struct variable * do_variable_definition_append (const struct floc *flocp, struct variable *v,
+                                                 const char *value, unsigned int value_len,
+                                                 int simple_value, enum variable_origin origin,
+                                                 int append);
 
 struct variable *define_variable_in_set (const char *name, unsigned int length,
                                          const char *value,

@@ -1,10 +1,10 @@
-# $Id: testcase-kBuild-define.kmk 2658 2012-09-10 21:00:10Z knut.osmundsen@oracle.com $
+# $Id: testcase-kBuild-define.kmk 2717 2013-12-30 00:58:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the kBuild-define-* directives.
 #
 
 #
-# Copyright (c) 2011-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2011-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -23,50 +23,79 @@
 #
 #
 
-DEPTH = ../..
+#DEPTH = ../..
 #include $(PATH_KBUILD)/header.kmk
 
+if 0
 # object definition syntax:
-#      kobject <type> <name> [extends <object>] [object specific args...]
-#      endkobj [<type> [name]]
+#      kobject <type> <name> [extends <object> [by <||>]] [object specific args...]
+#      kendobj [<type> [name]]
 kobject kb-target MyTarget
 .TOOL = GCC
 .SOURCES = file.c
-endobj
+kendobj
+else
+# Target definition.
+#      kBuild-define-target <name> [extends <target> [by <||>]] [using <template>]
+#      kBuild-endef-target [name]
+kBuild-define-target MyTarget
+_TOOL = GCC
+_SOURCES = file.c
+kBuild-endef-target
+endif
 
+if 0
 # accesses an already defined object.
 # syntax:
 #      kaccess <type> <name>
-#      endkacc [<type> [name]]
+#      kendacc [<type> [name]]
 kaccess kb-target MyTarget
 .SOURCES += file2.c
-endkacc
+kendacc
+else
+#kBuild-access-target MyTarget
+#_SOURCES += file2.c
+#kBuild-endacc-target
+endif
 
 
 # Referencing an object variable, the object must exist.
 # syntax: [<type>@<name>].<property>
-[kb-target@MyTarget].SOURCES += file3.c
-$(info [kb-target@MyTarget].SOURCES is $([kb-target@MyTarget].SOURCES))
+[target@MyTarget]_SOURCES += file3.c
+$(info [target@MyTarget]_SOURCES is $([target@MyTarget]_SOURCES))
 
 
 # Test #1
-kobject target BaseTarget with DUMMY as template
-.SOURCES = BaseTargetSource.c
-kendobj
-$(if "$([target@BaseTarget].SOURCES)" == "BaseTargetSource.c",,$(error [target@BaseTarget].SOURCES is '$([target@BaseTarget].SOURCES)' not 'BaseTargetSource.c'))
-$(if "$(BaseTarget_SOURCES)" == "BaseTargetSource.c",,$(error BaseTarget's _SOURCES wasn't set correctly in the global space))
+kBuild-define-target BaseTarget using DUMMY
+_SOURCES = BaseTargetSource.c
+kBuild-endef-target BaseTarget
+$(if-expr "$([target@BaseTarget]_SOURCES)" == "BaseTargetSource.c",,$(error [target@BaseTarget]_SOURCES is '$([target@BaseTarget]_SOURCES)' not 'BaseTargetSource.c'))
+$(if-expr "$(BaseTarget_SOURCES)" == "BaseTargetSource.c",,$(error BaseTarget's _SOURCES wasn't set correctly in the global space))
 
-$(if "$([target@BaseTarget].TEMPLATE)" == "DUMMY",,$(error [target@BaseTarget].TEMPLATE is '$([target@BaseTarget].TEMPLATE)' not 'DUMMY'))
-$(if "$(BaseTarget_TEMPLATE)" == "DUMMY",,$(error BaseTarget's _TEMPLATE wasn't set correctly in the global space))
+$(if-expr "$([target@BaseTarget]_TEMPLATE)" == "DUMMY",,$(error [target@BaseTarget]_TEMPLATE is '$([target@BaseTarget]_TEMPLATE)' not 'DUMMY'))
+$(if-expr "$(BaseTarget_TEMPLATE)" == "DUMMY",,$(error BaseTarget's _TEMPLATE wasn't set correctly in the global space))
 
 # Test #2
-kobject target TargetWithLocals
-local .LOCAL_PROP = no global alias
-kendobj
-$(if "$([target@TargetWithLocals].LOCAL_PROP)" == "no global alias",,$(error [target@TargetWithLocals].LOCAL_PROP is '$([target@TargetWithLocals].LOCAL_PROP)' not 'no global alias'))
-$(if "$(TargetWithLocals_LOCAL_PROP)" == "",,$(error TargetWithLocals_LOCAL_PROP's local property 'LOCAL_PROP' was exposed globally.))
+kBuild-define-target TargetWithLocals
+local _LOCAL_PROP = no global alias
+kBuild-endef-target
+$(if-expr "$([target@TargetWithLocals]_LOCAL_PROP)" == "no global alias",,$(error [target@TargetWithLocals]_LOCAL_PROP is '$([target@TargetWithLocals]_LOCAL_PROP)' not 'no global alias'))
+$(if-expr "$(TargetWithLocals_LOCAL_PROP)" == "",,$(error TargetWithLocals_LOCAL_PROP's local property 'LOCAL_PROP' was exposed globally.))
 
+# Test #3
+kBuild-define-target OutsideMod
+_SOURCES = file3.c
+_OTHER   = inside-value
+kBuild-endef-target
+[target@OutsideMod]_SOURCES += file4.c
+[target@OutsideMod]_SOURCES <= file2.c
+[target@OutsideMod]_OTHER   = outside-value
+$(if-expr "$([target@OutsideMod]_SOURCES)" == "file2.c file3.c file4.c",,$(error [target@OutsideMod]_SOURCES is '$([target@OutsideMod]_SOURCES)' not 'file2.c file3.c file4.c'))
+$(if-expr "OutsideMod_SOURCES"             == "file2.c file3.c file4.c",,$(error OutsideMod_SOURCES is '$(OutsideMod_SOURCES)' not 'file2.c file3.c file4.c'))
+
+$(if-expr "$([target@OutsideMod]_OTHER)" == "outside-value",,$(error [target@OutsideMod]_OTHER is '$([target@OutsideMod]_OTHER)' not 'outside-value'))
+$(if-expr "$(OutsideMod_OTHER)"          == "outside-value",,$(error OutsideMod_OTHER is '$(OutsideMod_OTHER)' not 'outside-value'))
 
 all_recursive:
-	#$(ECHO) "kBuild-define-xxxx works fine"
+	@kmk_echo "kBuild-define-xxxx works fine"
 

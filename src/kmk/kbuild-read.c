@@ -1,10 +1,10 @@
-/* $Id: kbuild-read.c 2549 2011-11-09 01:22:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-read.c 2717 2013-12-30 00:58:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality related to read.c.
  */
 
 /*
- * Copyright (c) 2011 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2011-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -36,6 +36,7 @@
 #include "kbuild.h"
 
 #include <assert.h>
+#include <stdarg.h>
 
 
 /*******************************************************************************
@@ -48,23 +49,62 @@
 /*******************************************************************************
 *   Structures and Typedefs                                                    *
 *******************************************************************************/
-/** Indicate which kind of kBuild define we're working on.  */
-enum kBuildDef
+/** kBuild object type.  */
+enum kBuildType
 {
-    kBuildDef_Invalid,
-    kBuildDef_Target,
-    kBuildDef_Template,
-    kBuildDef_Tool,
-    kBuildDef_Sdk,
-    kBuildDef_Unit
+    kBuildType_Invalid,
+    kBuildType_Target,
+    kBuildType_Template,
+    kBuildType_Tool,
+    kBuildType_Sdk,
+    kBuildType_Unit
 };
 
-enum kBuildExtendBy
+enum kBuildSeverity
 {
-    kBuildExtendBy_NoParent,
-    kBuildExtendBy_Overriding,
-    kBuildExtendBy_Appending,
-    kBuildExtendBy_Prepending
+    kBuildSeverity_Warning,
+    kBuildSeverity_Error,
+    kBuildSeverity_Fatal
+};
+
+
+/**
+ * kBuild object data.
+ */
+struct kbuild_object
+{
+    /** The object type. */
+    enum kBuildType             enmType;
+    /** Object name length.  */
+    size_t                      cchName;
+    /** The bare name of the define. */
+    char                       *pszName;
+    /** The file location where this define was declared. */
+    struct floc                 FileLoc;
+
+    /** Pointer to the next element in the global list. */
+    struct kbuild_object       *pGlobalNext;
+
+    /** The variable set associated with this define. */
+    struct variable_set_list   *pVariables;
+
+    /** The parent name, NULL if none. */
+    char                       *pszParent;
+    /** The length of the parent name. */
+    size_t                      cchParent;
+    /** Pointer to the parent.  Resolved lazily, so it can be NULL even if we
+     * have a parent. */
+    struct kbuild_object       *pParent;
+
+    /** The template, NULL if none.  Only applicable to targets.  Only covers the
+     * primary template, not target or type specific templates.
+     * @todo not sure if this is really necessary. */
+    char const                 *pszTemplate;
+
+    /** The variable prefix. */
+    char                       *pszVarPrefix;
+    /** The length of the variable prefix. */
+    size_t                      cchVarPrefix;
 };
 
 
@@ -73,42 +113,14 @@ enum kBuildExtendBy
  */
 struct kbuild_eval_data
 {
-    /** The kind of define. */
-    enum kBuildDef              enmKind;
-    /** The bare name of the define. */
-    char                       *pszName;
-    /** The file location where this define was declared. */
-    struct floc                 FileLoc;
-
-    /** Pointer to the next element in the global list. */
-    struct kbuild_eval_data    *pGlobalNext;
     /** Pointer to the element below us on the stack. */
     struct kbuild_eval_data    *pStackDown;
-
-    /** The variable set associated with this define. */
-    struct variable_set_list   *pVariables;
+    /** Pointer to the object. */
+    struct kbuild_object       *pObj;
     /** The saved current variable set, for restoring in kBuild-endef. */
     struct variable_set_list   *pVariablesSaved;
-
-    /** The parent name, NULL if none. */
-    char                       *pszParent;
-    /** The inheritance method. */
-    enum kBuildExtendBy         enmExtendBy;
-    /** Pointer to the parent. Resolved lazily, so it can be NULL even if we have
-     *  a parent. */
-    struct kbuild_eval_data    *pParent;
-
-    /** The template, NULL if none. Only applicable to targets. */
-    char                       *pszTemplate;
-    /** Pointer to the template. Resolved lazily, so it can be NULL even if we have
-     *  a parent. */
-    struct kbuild_eval_data    *pTemplate;
-
-    /** The variable prefix.  */
-    char                       *pszVarPrefix;
-    /** The length of the variable prefix. */
-    size_t                      cchVarPrefix;
 };
+
 
 
 /*******************************************************************************
@@ -116,56 +128,495 @@ struct kbuild_eval_data
 *******************************************************************************/
 /** Linked list (LIFO) of kBuild defines.
  * @todo use a hash! */
-struct kbuild_eval_data *g_pHeadKbDefs = NULL;
-/** Stack of kBuild defines. */
-struct kbuild_eval_data *g_pTopKbDef = NULL;
+static struct kbuild_object    *g_pHeadKbObjs = NULL;
+/** Stack of kBuild evalutation contexts.
+ * This is for dealing with potential recursive kBuild object definition,
+ * generally believed to only happen via $(eval ) or include similar. */
+struct kbuild_eval_data        *g_pTopKbEvalData = NULL;
+
+/** Cached variable name '_TEMPLATE'.  */
+static const char              *g_pszVarNmTemplate = NULL;
+
+/** Zero if compatibility mode is disabled, non-zero if enabled.
+ * If explicitily enabled, the value will be greater than 1. */
+int                             g_fKbObjCompMode = 1;
 
 
-struct variable_set *
-get_top_kbuild_variable_set(void)
+/*******************************************************************************
+*   Internal Functions                                                         *
+*******************************************************************************/
+static struct kbuild_object *
+eval_kbuild_resolve_parent(struct kbuild_object *pObj, int fQuiet);
+
+static struct kbuild_object *
+parse_kbuild_object_variable_accessor(const char *pchExpr, size_t cchExpr,
+                                      enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+                                      const char **ppchVarNm, size_t *pcchVarNm, enum kBuildType *penmType);
+
+
+/**
+ * Initializes the kBuild object stuff.
+ *
+ * Requires the variable_cache to be initialized.
+ */
+void init_kbuild_object(void)
 {
-    struct kbuild_eval_data *pTop = g_pTopKbDef;
-    assert(pTop != NULL);
-    return pTop->pVariables->set;
+    g_pszVarNmTemplate = strcache2_add(&variable_strcache, STRING_SIZE_TUPLE("_TEMPLATE"));
 }
 
 
-char *
-kbuild_prefix_variable(const char *pszName, unsigned int *pcchName)
+/**
+ * Reports a problem with dynamic severity level.
+ *
+ * @param   enmSeverity         The severity level.
+ * @param   pFileLoc            The file location.
+ * @param   pszFormat           The format string.
+ * @param   ...                 Arguments for the format string.
+ */
+static void kbuild_report_problem(enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+                                  const char *pszFormat, ...)
 {
-    struct kbuild_eval_data *pTop = g_pTopKbDef;
-    char        *pszPrefixed;
-    unsigned int cchPrefixed;
+    char    szBuf[8192];
+    va_list va;
 
-    assert(pTop != NULL);
+    va_start(va, pszFormat);
+#ifdef _MSC_VER
+    _vsnprintf(szBuf, sizeof(szBuf), pszFormat, va);
+#else
+    vsnprintf(szBuf, sizeof(szBuf), pszFormat, va);
+#endif
+    va_end(va);
 
-    cchPrefixed = pTop->cchVarPrefix + *pcchName;
-    pszPrefixed = xmalloc(cchPrefixed + 1);
-    memcpy(pszPrefixed, pTop->pszVarPrefix, pTop->cchVarPrefix);
-    memcpy(&pszPrefixed[pTop->cchVarPrefix], pszName, *pcchName);
-    pszPrefixed[cchPrefixed] = '\0';
-    *pcchName = cchPrefixed;
-    return pszPrefixed;
-}
-
-
-static const char *
-eval_kbuild_kind_to_string(enum kBuildDef enmKind)
-{
-    switch (enmKind)
+    switch (enmSeverity)
     {
-        case kBuildDef_Target:      return "target";
-        case kBuildDef_Template:    return "template";
-        case kBuildDef_Tool:        return "tool";
-        case kBuildDef_Sdk:         return "sdk";
-        case kBuildDef_Unit:        return "unit";
+        case kBuildSeverity_Warning:
+            message(0, "%s", szBuf);
+            break;
+        case kBuildSeverity_Error:
+            error(pFileLoc, "%s", szBuf);
+            break;
         default:
-        case kBuildDef_Invalid:     return "invalid";
+        case kBuildSeverity_Fatal:
+            fatal(pFileLoc, "%s", szBuf);
+            break;
     }
 }
 
+
+/**
+ * Helper function for caching variable name strings.
+ *
+ * @returns The string cache variable name.
+ * @param   pszName             The variable name.
+ * @param   ppszCache           Cache variable, static or global.  Initialize to
+ *                              NULL.
+ */
+static const char *
+kbuild_variable_name(const char *pszName, const char **ppszCache)
+{
+    const char *pszRet = *ppszCache;
+    if (!pszRet)
+        *ppszCache = pszRet = strcache2_add(&variable_strcache, pszName, strlen(pszName));
+    return pszRet;
+}
+
+static struct kbuild_object *
+lookup_kbuild_object(enum kBuildType enmType, const char *pchName, size_t cchName)
+{
+    /* Linear lookup for now. */
+    struct kbuild_object *pCur = g_pHeadKbObjs;
+    while (pCur)
+    {
+        if (   pCur->enmType == enmType
+            && pCur->cchName == cchName
+            && !memcmp(pCur->pszName, pchName, cchName))
+            return pCur;
+        pCur = pCur->pGlobalNext;
+    }
+    return NULL;
+}
+
+
+/** @name Defining and modifying variables
+ * @{
+ */
+
+/**
+ * Checks if the variable name is valid.
+ *
+ * @returns 1 if valid, 0 if not.
+ * @param   pchName             The variable name.
+ * @param   cchName             The length of the variable name.
+ */
+static int
+is_valid_kbuild_object_variable_name(const char *pchName, size_t cchName)
+{
+    if (cchName > 0)
+    {
+        if (!memchr(pchName, '[', cchName))
+        {
+            /** @todo more? */
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static struct variable *
+define_kbuild_object_variable_cached(struct kbuild_object *pObj, const char *pszName,
+                                     const char *pchValue, size_t cchValue,
+                                     int fDuplicateValue, enum variable_origin enmOrigin,
+                                     int fRecursive, const struct floc *pFileLoc)
+{
+    struct variable *pVar;
+    size_t cchName = strcache2_get_len(&variable_strcache, pszName);
+
+
+    pVar = define_variable_in_set(pszName, cchName,
+                                  pchValue, cchValue, fDuplicateValue,
+                                  enmOrigin, fRecursive,
+                                  pObj->pVariables->set,
+                                  pFileLoc);
+
+    /* Single underscore prefixed variables gets a global alias. */
+    if (   pszName[0] == '_'
+        && pszName[1] != '_'
+        && g_fKbObjCompMode)
+    {
+        size_t  cchPrefixed = pObj->cchVarPrefix + cchName;
+        char   *pszPrefixed = xmalloc(cchPrefixed + 1);
+        memcpy(pszPrefixed, pObj->pszVarPrefix, pObj->cchVarPrefix);
+        memcpy(&pszPrefixed[pObj->cchVarPrefix], pszName, cchName);
+        pszPrefixed[cchPrefixed] = '\0';
+
+        /** @todo implement variable aliases or something. */
+        define_variable_in_set(pszPrefixed, cchPrefixed,
+                               pchValue, cchValue, 1 /*duplicate_value*/,
+                               enmOrigin, fRecursive,
+                               &global_variable_set,
+                               pFileLoc);
+    }
+
+    return pVar;
+}
+
+#if 0
+struct variable *
+define_kbuild_object_variable(struct kbuild_object *pObj, const char *pchName, size_t cchName,
+                              const char *pchValue, size_t cchValue,
+                              int fDuplicateValue, enum variable_origin enmOrigin,
+                              int fRecursive, const struct floc *pFileLoc)
+{
+    return define_kbuild_object_variable_cached(pObj, strcache2_add(&variable_strcache, pchName, cchName),
+                                                pchValue, cchValue,
+                                                fDuplicateValue, enmOrigin,
+                                                fRecursive, pFileLoc);
+}
+#endif
+
+/**
+ * Try define a kBuild object variable via a possible accessor
+ * ([type@object]var).
+ *
+ * @returns Pointer to the defined variable on success.
+ * @retval  VAR_NOT_KBUILD_ACCESSOR if it isn't an accessor.
+ *
+ * @param   pchName         The variable name, not cached.
+ * @param   cchName         The variable name length.  This will not be ~0U.
+ * @param   pszValue        The variable value.  If @a fDuplicateValue is clear,
+ *                          this should be assigned as the actual variable
+ *                          value, otherwise it will be duplicated.  In the
+ *                          latter case it might not be properly null
+ *                          terminated.
+ * @param   cchValue        The value length.
+ * @param   fDuplicateValue Whether @a pszValue need to be duplicated on the
+ *                          heap or is already there.
+ * @param   enmOrigin       The variable origin.
+ * @param   fRecursive      Whether it's a recursive variable.
+ * @param   pFileLoc        The location of the variable definition.
+ */
+struct variable *
+try_define_kbuild_object_variable_via_accessor(const char *pchName, size_t cchName,
+                                               const char *pszValue, size_t cchValue, int fDuplicateValue,
+                                               enum variable_origin enmOrigin, int fRecursive,
+                                               struct floc const *pFileLoc)
+{
+    struct kbuild_object   *pObj;
+    const char             *pchVarNm;
+    size_t                  cchVarNm;
+
+    pObj = parse_kbuild_object_variable_accessor(pchName, cchName, kBuildSeverity_Fatal, pFileLoc,
+                                                 &pchVarNm, &cchVarNm, NULL);
+    if (pObj != KOBJ_NOT_KBUILD_ACCESSOR)
+    {
+        assert(pObj != NULL);
+        if (!is_valid_kbuild_object_variable_name(pchVarNm, cchVarNm))
+            fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s' ('%s')"),
+                  (int)cchVarNm, pchVarNm, (int)cchName, pchName);
+        return define_kbuild_object_variable_cached(pObj, strcache2_add(&variable_strcache, pchVarNm, cchVarNm),
+                                                    pszValue, cchValue, fDuplicateValue, enmOrigin, fRecursive, pFileLoc);
+    }
+
+    return VAR_NOT_KBUILD_ACCESSOR;
+}
+
+/**
+ * Define a kBuild object variable in the topmost kBuild object.
+ *
+ * This won't be an variable accessor.
+ *
+ * @returns Pointer to the defined variable on success.
+ *
+ * @param   pchName         The variable name, not cached.
+ * @param   cchName         The variable name length.  This will not be ~0U.
+ * @param   pszValue        The variable value.  If @a fDuplicateValue is clear,
+ *                          this should be assigned as the actual variable
+ *                          value, otherwise it will be duplicated.  In the
+ *                          latter case it might not be properly null
+ *                          terminated.
+ * @param   cchValue        The value length.
+ * @param   fDuplicateValue Whether @a pszValue need to be duplicated on the
+ *                          heap or is already there.
+ * @param   enmOrigin       The variable origin.
+ * @param   fRecursive      Whether it's a recursive variable.
+ * @param   pFileLoc        The location of the variable definition.
+ */
+struct variable *
+define_kbuild_object_variable_in_top_obj(const char *pchName, size_t cchName,
+                                         const char *pszValue, size_t cchValue, int fDuplicateValue,
+                                         enum variable_origin enmOrigin, int fRecursive,
+                                         struct floc const *pFileLoc)
+{
+    assert(g_pTopKbEvalData != NULL);
+
+    if (!is_valid_kbuild_object_variable_name(pchName, cchName))
+        fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
+
+    return define_kbuild_object_variable_cached(g_pTopKbEvalData->pObj, strcache2_add(&variable_strcache, pchName, cchName),
+                                                pszValue, cchValue, fDuplicateValue, enmOrigin, fRecursive, pFileLoc);
+}
+
+/**
+ * Implements appending and prepending to a kBuild object variable.
+ *
+ * The variable is either accessed thru an accessor or by the topmost kBuild
+ * object.
+ *
+ * @returns Pointer to the defined variable on success.
+ *
+ * @param   pchName         The variable name, not cached.
+ * @param   cchName         The variable name length.  This will not be ~0U.
+ * @param   pszValue        The variable value. Must be duplicated.
+ * @param   cchValue        The value length.
+ * @param   fSimpleValue    Whether we've already figured that it's a simple
+ *                          value.  This is for optimizing appending/prepending
+ *                          to an existing simple value variable.
+ * @param   enmOrigin       The variable origin.
+ * @param   fAppend         Append if set, prepend if clear.
+ * @param   pFileLoc        The location of the variable definition.
+ */
+struct variable *
+kbuild_object_variable_pre_append(const char *pchName, size_t cchName,
+                                  const char *pchValue, size_t cchValue, int fSimpleValue,
+                                  enum variable_origin enmOrigin, int fAppend,
+                                  const struct floc *pFileLoc)
+{
+    struct kbuild_object   *pObj;
+    struct variable         VarKey;
+
+    /*
+     * Resolve the relevant kBuild object first.
+     */
+    if (cchName > 3 && pchName[0] == '[')
+    {
+        const char *pchVarNm;
+        size_t      cchVarNm;
+        pObj = parse_kbuild_object_variable_accessor(pchName, cchName, kBuildSeverity_Fatal, pFileLoc,
+                                                     &pchVarNm, &cchVarNm, NULL);
+        if (pObj != KOBJ_NOT_KBUILD_ACCESSOR)
+        {
+            pchName = pchVarNm;
+            cchName = cchVarNm;
+        }
+        else
+            pObj = g_pTopKbEvalData->pObj;
+    }
+    else
+        pObj = g_pTopKbEvalData->pObj;
+
+    /*
+     * Make sure the variable name is valid.  Raise fatal error if not.
+     */
+    if (!is_valid_kbuild_object_variable_name(pchName, cchName))
+        fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s'"), (int)cchName, pchName);
+
+    /*
+     * Get the cached name and look it up in the object's variables.
+     */
+    VarKey.name = strcache2_lookup(&variable_strcache, pchName, cchName);
+    if (VarKey.name)
+    {
+        struct variable *pVar;
+
+        VarKey.length = cchName;
+        pVar = (struct variable *)hash_find_item_strcached(&pObj->pVariables->set->table, &VarKey);
+        if (pVar)
+        {
+            /* Append/prepend to existing variable. */
+            return do_variable_definition_append(pFileLoc, pVar, pchValue, cchValue, fSimpleValue, enmOrigin, fAppend);
+        }
+
+        /*
+         * Not found. Check ancestors if the 'override' directive isn't applied.
+         */
+        if (pObj->pszParent && enmOrigin != o_override)
+        {
+            struct kbuild_object *pParent = pObj;
+            for (;;)
+            {
+                pParent = eval_kbuild_resolve_parent(pParent, 0 /*fQuiet*/);
+                if (!pParent)
+                    break;
+
+                pVar = (struct variable *)hash_find_item_strcached(&pParent->pVariables->set->table, &VarKey);
+                if (pVar)
+                {
+                    if (pVar->value_length != ~0U)
+                        assert(pVar->value_length == strlen(pVar->value));
+                    else
+                        pVar->value_length = strlen(pVar->value);
+
+                    /*
+                     * Combine the two values and define the variable in the
+                     * specified child object.  We must disregard 'origin' a
+                     * little here, so we must do the gritty stuff our selves.
+                     */
+                    if (   pVar->recursive
+                        || fSimpleValue
+                        || !cchValue
+                        || memchr(pchValue, '$', cchValue) == NULL )
+                    {
+                        size_t  cchNewValue;
+                        char   *pszNewValue;
+                        char   *pszTmp;
+
+                        /* Just join up the two values. */
+                        if (pVar->value_length == 0)
+                        {
+                            cchNewValue = cchValue;
+                            pszNewValue = xstrndup(pchValue, cchValue);
+                        }
+                        else if (!cchValue)
+                        {
+                            cchNewValue = pVar->value_length;
+                            pszNewValue = xmalloc(cchNewValue + 1);
+                            memcpy(pszNewValue, pVar->value, cchNewValue + 1);
+                        }
+                        else
+                        {
+                            cchNewValue = pVar->value_length + 1 + cchValue;
+                            pszNewValue = xmalloc(cchNewValue + 1);
+                            if (fAppend)
+                            {
+                                memcpy(pszNewValue, pVar->value, pVar->value_length);
+                                pszTmp = pszNewValue + pVar->value_length;
+                                *pszTmp++ = ' ';
+                                memcpy(pszTmp, pchValue, cchValue);
+                                pszTmp[cchValue] = '\0';
+                            }
+                            else
+                            {
+                                memcpy(pszNewValue, pchValue, cchValue);
+                                pszTmp = pszNewValue + cchValue;
+                                *pszTmp++ = ' ';
+                                memcpy(pszNewValue, pVar->value, pVar->value_length);
+                                pszTmp[pVar->value_length] = '\0';
+                            }
+                        }
+
+                        /* Define the new variable in the child. */
+                        return define_kbuild_object_variable_cached(pObj, VarKey.name,
+                                                                    pszNewValue, cchNewValue, 0 /*fDuplicateValue*/,
+                                                                    enmOrigin, pVar->recursive, pFileLoc);
+
+                    }
+                    else
+                    {
+                        /* Lazy bird: Copy the variable from the ancestor and
+                                      then do a normal append/prepend on it. */
+                        pVar = define_kbuild_object_variable_cached(pObj, VarKey.name,
+                                                                    pVar->value, pVar->value_length, 1 /*fDuplicateValue*/,
+                                                                    enmOrigin, pVar->recursive, pFileLoc);
+                        append_expanded_string_to_variable(pVar, pchValue, cchValue, fAppend);
+                        return pVar;
+                    }
+                }
+            }
+        }
+    }
+    else
+        VarKey.name = strcache2_add(&variable_strcache, pchName, cchName);
+
+    /* Variable not found. */
+    return define_kbuild_object_variable_cached(pObj, VarKey.name,
+                                                pchValue, cchValue, 1 /*fDuplicateValue*/, enmOrigin,
+                                                1 /*fRecursive */, pFileLoc);
+}
+
+/** @} */
+
+
+static const char *
+eval_kbuild_type_to_string(enum kBuildType enmType)
+{
+    switch (enmType)
+    {
+        case kBuildType_Target:      return "target";
+        case kBuildType_Template:    return "template";
+        case kBuildType_Tool:        return "tool";
+        case kBuildType_Sdk:         return "sdk";
+        case kBuildType_Unit:        return "unit";
+        default:
+        case kBuildType_Invalid:     return "invalid";
+    }
+}
+
+/**
+ * Converts a string into an kBuild object type.
+ *
+ * @returns The type on success, kBuildType_Invalid on failure.
+ * @param   pchWord             The pchWord.  Not necessarily zero terminated.
+ * @param   cchWord             The length of the word.
+ */
+static enum kBuildType
+eval_kbuild_type_from_string(const char *pchWord, size_t cchWord)
+{
+    if (cchWord >= 3)
+    {
+        if (*pchWord == 't')
+        {
+            if (WORD_IS(pchWord, cchWord, "target"))
+                return kBuildType_Target;
+            if (WORD_IS(pchWord, cchWord, "template"))
+                return kBuildType_Template;
+            if (WORD_IS(pchWord, cchWord, "tool"))
+                return kBuildType_Tool;
+        }
+        else
+        {
+            if (WORD_IS(pchWord, cchWord, "sdk"))
+                return kBuildType_Sdk;
+            if (WORD_IS(pchWord, cchWord, "unit"))
+                return kBuildType_Unit;
+        }
+    }
+
+    return kBuildType_Invalid;
+}
+
+
 static char *
-allocate_expanded_next_token(const char **ppszCursor, const char *pszEos, unsigned int *pcchToken, int fStrip)
+allocate_expanded_next_token(const char **ppszCursor, const char *pszEos, size_t *pcchToken, int fStrip)
 {
     unsigned int cchToken;
     char *pszToken = find_next_token_eos(ppszCursor, pszEos, &cchToken);
@@ -192,94 +643,120 @@ allocate_expanded_next_token(const char **ppszCursor, const char *pszEos, unsign
             assert(cchToken == strlen(pszToken));
             if (pcchToken)
                 *pcchToken = cchToken;
+            return pszToken;
         }
     }
-    return pszToken;
+
+    if (pcchToken)
+        *pcchToken = 0;
+    return NULL;
 }
 
-static struct kbuild_eval_data *
-eval_kbuild_resolve_parent(struct kbuild_eval_data *pData)
+static struct kbuild_object *
+eval_kbuild_resolve_parent(struct kbuild_object *pObj, int fQuiet)
 {
-    if (   !pData->pParent
-        && pData->pszParent)
+    if (   !pObj->pParent
+        && pObj->pszParent)
     {
-        struct kbuild_eval_data *pCur = g_pHeadKbDefs;
+        struct kbuild_object *pCur = g_pHeadKbObjs;
         while (pCur)
         {
-            if (   pCur->enmKind == pData->enmKind
-                && !strcmp(pCur->pszName, pData->pszParent))
+            if (   pCur->enmType == pObj->enmType
+                && !strcmp(pCur->pszName, pObj->pszParent))
             {
                 if (    pCur->pszParent
-                    &&  (   pCur->pParent == pData
-                         || !strcmp(pCur->pszParent, pData->pszName)) )
-                    fatal(&pData->FileLoc, _("'%s' and '%s' are both trying to be each other children..."),
-                          pData->pszName, pCur->pszName);
+                    &&  (   pCur->pParent == pObj
+                         || !strcmp(pCur->pszParent, pObj->pszName)) )
+                    fatal(&pObj->FileLoc, _("'%s' and '%s' are both trying to be each other children..."),
+                          pObj->pszName, pCur->pszName);
 
-                pData->pParent = pCur;
-                pData->pVariables->next = pData->pVariables;
-                break;
+                pObj->pParent = pCur;
+                pObj->pVariables->next = pObj->pVariables;
+                return pCur;
             }
+
             pCur = pCur->pGlobalNext;
         }
+
+        /* Not found. */
+        if (!fQuiet)
+            error(&pObj->FileLoc, _("Could not locate parent '%s' of '%s'"), pObj->pszParent, pObj->pszName);
     }
-    return pData->pParent;
+    return pObj->pParent;
 }
 
 static int
 eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFileLoc,
-                        const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildDef enmKind)
+                        const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildType enmType)
 {
     unsigned int            cch;
-    unsigned int            cchName;
     char                    ch;
     char                   *psz;
     const char             *pszPrefix;
+    struct kbuild_object   *pObj;
     struct kbuild_eval_data *pData;
 
     if (fIgnoring)
         return 0;
 
     /*
-     * Create a new kBuild eval data item.
+     * Create a new kBuild object.
      */
-    pData = xmalloc(sizeof(*pData));
-    pData->enmKind          = enmKind;
-    pData->pszName          = NULL;
-    pData->FileLoc          = *pFileLoc;
+    pObj = xmalloc(sizeof(*pObj));
+    pObj->enmType           = enmType;
+    pObj->pszName           = NULL;
+    pObj->cchName           = 0;
+    pObj->FileLoc           = *pFileLoc;
 
-    pData->pGlobalNext      = g_pHeadKbDefs;
-    g_pHeadKbDefs           = pData;
+    pObj->pGlobalNext       = g_pHeadKbObjs;
+    g_pHeadKbObjs           = pObj;
 
-    pData->pStackDown       = *ppData;
-    *ppData = g_pTopKbDef   = pData;
-    pData->pVariables       = create_new_variable_set();
-    pData->pVariablesSaved  = NULL;
+    pObj->pVariables        = create_new_variable_set();
 
-    pData->pszParent        = NULL;
-    pData->enmExtendBy      = kBuildExtendBy_NoParent;
-    pData->pParent          = NULL;
+    pObj->pszParent         = NULL;
+    pObj->cchParent         = 0;
+    pObj->pParent           = NULL;
 
-    pData->pszTemplate      = NULL;
-    pData->pTemplate        = NULL;
+    pObj->pszTemplate       = NULL;
 
-    pData->pszVarPrefix     = NULL;
-    pData->cchVarPrefix     = 0;
+    pObj->pszVarPrefix      = NULL;
+    pObj->cchVarPrefix      = 0;
 
     /*
      * The first word is the name.
      */
-    pData->pszName = allocate_expanded_next_token(&pszLine, pszEos, &cchName, 1 /*strip*/);
-    if (!pData->pszName || !*pData->pszName)
+    pObj->pszName = allocate_expanded_next_token(&pszLine, pszEos, &pObj->cchName, 1 /*strip*/);
+    if (!pObj->pszName || !*pObj->pszName)
         fatal(pFileLoc, _("The kBuild define requires a name"));
 
-    psz = pData->pszName;
+    psz = pObj->pszName;
     while ((ch = *psz++) != '\0')
         if (!isgraph(ch))
         {
             error(pFileLoc, _("The 'kBuild-define-%s' name '%s' contains one or more invalid characters"),
-                  eval_kbuild_kind_to_string(enmKind), pData->pszName);
+                  eval_kbuild_type_to_string(enmType), pObj->pszName);
             break;
         }
+
+    /*
+     * Calc the variable prefix.
+     */
+    switch (enmType)
+    {
+        case kBuildType_Target:      pszPrefix = ""; break;
+        case kBuildType_Template:    pszPrefix = "TEMPLATE_"; break;
+        case kBuildType_Tool:        pszPrefix = "TOOL_"; break;
+        case kBuildType_Sdk:         pszPrefix = "SDK_"; break;
+        case kBuildType_Unit:        pszPrefix = "UNIT_"; break;
+        default:
+            fatal(pFileLoc, _("enmType=%d"), enmType);
+            return -1;
+    }
+    cch = strlen(pszPrefix);
+    pObj->cchVarPrefix = cch + pObj->cchName;
+    pObj->pszVarPrefix = xmalloc(pObj->cchVarPrefix + 1);
+    memcpy(pObj->pszVarPrefix, pszPrefix, cch);
+    memcpy(&pObj->pszVarPrefix[cch], pObj->pszName, pObj->cchName);
 
     /*
      * Parse subsequent words.
@@ -290,44 +767,29 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
         if (WORD_IS(psz, cch, "extending"))
         {
             /* Inheritance directive. */
-            if (pData->pszParent != NULL)
+            if (pObj->pszParent != NULL)
                 fatal(pFileLoc, _("'extending' can only occure once"));
-            pData->pszParent = allocate_expanded_next_token(&pszLine, pszEos, &cch, 1 /*strip*/);
-            if (!pData->pszParent || !*pData->pszParent)
+            pObj->pszParent = allocate_expanded_next_token(&pszLine, pszEos, &pObj->cchParent, 1 /*strip*/);
+            if (!pObj->pszParent || !*pObj->pszParent)
                 fatal(pFileLoc, _("'extending' requires a parent name"));
-
-            pData->enmExtendBy = kBuildExtendBy_Overriding;
-
-            /* optionally 'by overriding|prepending|appending' */
-            psz = find_next_token_eos(&pszLine, pszEos, &cch);
-            if (psz && WORD_IS(psz, cch, "by"))
-            {
-                cch = 0;
-                psz = find_next_token_eos(&pszLine, pszEos, &cch);
-                if (WORD_IS(psz, cch, "overriding"))
-                    pData->enmExtendBy = kBuildExtendBy_Overriding;
-                else if (WORD_IS(psz, cch, "appending"))
-                    pData->enmExtendBy = kBuildExtendBy_Appending;
-                else if (WORD_IS(psz, cch, "prepending"))
-                    pData->enmExtendBy = kBuildExtendBy_Prepending;
-                else
-                    fatal(pFileLoc, _("Unknown 'extending by' method '%.*s'"), (int)cch, psz);
-
-                /* next token */
-                psz = find_next_token_eos(&pszLine, pszEos, &cch);
-            }
         }
         else if (WORD_IS(psz, cch, "using"))
         {
+            char   *pszTemplate;
+            size_t  cchTemplate;
+
             /* Template directive. */
-            if (enmKind != kBuildDef_Tool)
+            if (enmType != kBuildType_Target)
                 fatal(pFileLoc, _("'using <template>' can only be used with 'kBuild-define-target'"));
-            if (pData->pszTemplate != NULL)
+            if (pObj->pszTemplate != NULL)
                 fatal(pFileLoc, _("'using' can only occure once"));
 
-            pData->pszTemplate = allocate_expanded_next_token(&pszLine, pszEos, &cch, 1 /*fStrip*/);
-            if (!pData->pszTemplate || !*pData->pszTemplate)
+            pszTemplate = allocate_expanded_next_token(&pszLine, pszEos, &cchTemplate, 1 /*fStrip*/);
+            if (!pszTemplate || !*pszTemplate)
                 fatal(pFileLoc, _("'using' requires a template name"));
+
+            define_kbuild_object_variable_cached(pObj, g_pszVarNmTemplate, pszTemplate, cchTemplate,
+                                                 0 /*fDuplicateValue*/, o_default, 0 /*fRecursive*/, pFileLoc),
 
             /* next token */
             psz = find_next_token_eos(&pszLine, pszEos, &cch);
@@ -337,41 +799,32 @@ eval_kbuild_define_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFi
     }
 
     /*
-     * Calc the variable prefix.
+     * Try resolve the parent.
      */
-    switch (enmKind)
-    {
-        case kBuildDef_Target:      pszPrefix = ""; break;
-        case kBuildDef_Template:    pszPrefix = "TEMPLATE_"; break;
-        case kBuildDef_Tool:        pszPrefix = "TOOL_"; break;
-        case kBuildDef_Sdk:         pszPrefix = "SDK_"; break;
-        case kBuildDef_Unit:        pszPrefix = "UNIT_"; break;
-        default:
-            fatal(pFileLoc, _("enmKind=%d"), enmKind);
-            return -1;
-    }
-    cch = strlen(pszPrefix);
-    pData->cchVarPrefix = cch + cchName;
-    pData->pszVarPrefix = xmalloc(pData->cchVarPrefix + 1);
-    memcpy(pData->pszVarPrefix, pszPrefix, cch);
-    memcpy(&pData->pszVarPrefix[cch], pData->pszName, cchName);
+    eval_kbuild_resolve_parent(pObj, 1 /*fQuiet*/);
 
     /*
-     * Try resolve the parent and change the current variable set.
+     * Create an eval stack entry and change the current variable set.
      */
-    eval_kbuild_resolve_parent(pData);
-    pData->pVariablesSaved = current_variable_set_list;
-    current_variable_set_list = pData->pVariables;
+    pData = xmalloc(sizeof(*pData));
+    pData->pObj             = pObj;
+    pData->pVariablesSaved  = current_variable_set_list;
+    current_variable_set_list = pObj->pVariables;
+
+    pData->pStackDown       = *ppData;
+    *ppData                 = pData;
+    g_pTopKbEvalData        = pData;
 
     return 0;
 }
 
 static int
 eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFileLoc,
-                       const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildDef enmKind)
+                       const char *pszLine, const char *pszEos, int fIgnoring, enum kBuildType enmType)
 {
     struct kbuild_eval_data *pData;
-    unsigned int             cchName;
+    struct kbuild_object    *pObj;
+    size_t                   cchName;
     char                    *pszName;
 
     if (fIgnoring)
@@ -384,16 +837,17 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     if (!pData)
     {
         error(pFileLoc, _("kBuild-endef-%s is missing kBuild-define-%s"),
-              eval_kbuild_kind_to_string(enmKind), eval_kbuild_kind_to_string(enmKind));
+              eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(enmType));
         return 0;
     }
 
     /*
      * ... and does it have a matching kind?
      */
-    if (pData->enmKind != enmKind)
+    pObj = pData->pObj;
+    if (pObj->enmType != enmType)
         error(pFileLoc, _("'kBuild-endef-%s' does not match 'kBuild-define-%s %s'"),
-              eval_kbuild_kind_to_string(enmKind), eval_kbuild_kind_to_string(pData->enmKind), pData->pszName);
+              eval_kbuild_type_to_string(enmType), eval_kbuild_type_to_string(pObj->enmType), pObj->pszName);
 
     /*
      * The endef-kbuild may optionally be followed by the target name.
@@ -402,96 +856,290 @@ eval_kbuild_endef_xxxx(struct kbuild_eval_data **ppData, const struct floc *pFil
     pszName = allocate_expanded_next_token(&pszLine, pszEos, &cchName, 1 /*fStrip*/);
     if (pszName)
     {
-        if (strcmp(pszName, pData->pszName))
+        if (   cchName != pObj->cchName
+            || strcmp(pszName, pObj->pszName))
             error(pFileLoc, _("'kBuild-endef-%s %s' does not match 'kBuild-define-%s %s'"),
-                  eval_kbuild_kind_to_string(enmKind), pszName,
-                  eval_kbuild_kind_to_string(pData->enmKind), pData->pszName);
+                  eval_kbuild_type_to_string(enmType), pszName,
+                  eval_kbuild_type_to_string(pObj->enmType), pObj->pszName);
         free(pszName);
     }
 
     /*
      * Pop a define off the stack.
      */
-    assert(pData == g_pTopKbDef);
-    *ppData = g_pTopKbDef  = pData->pStackDown;
+    assert(pData == g_pTopKbEvalData);
+    *ppData = g_pTopKbEvalData = pData->pStackDown;
     pData->pStackDown      = NULL;
     current_variable_set_list = pData->pVariablesSaved;
     pData->pVariablesSaved = NULL;
+    free(pData);
 
     return 0;
 }
 
-int eval_kbuild_define(struct kbuild_eval_data **kdata, const struct floc *flocp,
-                       const char *word, unsigned int wlen, const char *line, const char *eos, int ignoring)
+int eval_kbuild_read_hook(struct kbuild_eval_data **kdata, const struct floc *flocp,
+                          const char *pchWord, size_t cchWord, const char *line, const char *eos, int ignoring)
 {
-    assert(memcmp(word, "kBuild-define", sizeof("kBuild-define") - 1) == 0);
-    word += sizeof("kBuild-define") - 1;
-    wlen -= sizeof("kBuild-define") - 1;
-    if (   wlen > 1
-        && word[0] == '-')
+    enum kBuildType enmType;
+
+    /*
+     * Skip the 'kBuild-' prefix that the caller already matched.
+     */
+    assert(memcmp(pchWord, "kBuild-", sizeof("kBuild-") - 1) == 0);
+    pchWord += sizeof("kBuild-") - 1;
+    cchWord -= sizeof("kBuild-") - 1;
+
+    /*
+     * String switch.
+     */
+    if (   cchWord >= sizeof("define-") - 1
+        && strneq(pchWord, "define-", sizeof("define-") - 1))
     {
-        if (WORD_IS(word, wlen, "-target"))
-            return eval_kbuild_define_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Target);
-        if (WORD_IS(word, wlen, "-template"))
-            return eval_kbuild_define_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Template);
-        if (WORD_IS(word, wlen, "-tool"))
-            return eval_kbuild_define_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Tool);
-        if (WORD_IS(word, wlen, "-sdk"))
-            return eval_kbuild_define_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Sdk);
-        if (WORD_IS(word, wlen, "-unit"))
-            return eval_kbuild_define_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Unit);
+        enmType = eval_kbuild_type_from_string(pchWord + sizeof("define-") - 1, cchWord - sizeof("define-") + 1);
+        if (enmType != kBuildType_Invalid)
+            return eval_kbuild_define_xxxx(kdata, flocp, line, eos, ignoring, enmType);
+    }
+    else if (   cchWord >= sizeof("endef-") - 1
+             && strneq(pchWord, "endef-", sizeof("endef-") - 1))
+    {
+        enmType = eval_kbuild_type_from_string(pchWord + sizeof("endif-") - 1, cchWord - sizeof("endif-") + 1);
+        if (enmType != kBuildType_Invalid)
+            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos, ignoring, enmType);
+    }
+    else if (WORD_IS(pchWord, cchWord, "endef"))
+    {
+        /* Terminate whatever definition is on top. */
+
     }
 
-    error(flocp, _("Unknown syntax 'kBuild-define%.*s'"), (int)wlen, word);
+    /*
+     * Everything that is prefixed with 'kBuild-' is reserved for language
+     * extensions, at least until legacy assignments/whatever turns up.
+     */
+    error(flocp, _("Unknown syntax 'kBuild-%.*s'"), (int)cchWord, pchWord);
     return 0;
 }
 
-int eval_kbuild_endef(struct kbuild_eval_data **kdata, const struct floc *flocp,
-                      const char *word, unsigned int wlen, const char *line, const char *eos, int ignoring)
+
+/** @name kBuild object variable accessor related functions
+ * @{
+ */
+
+/**
+ * Checks if the given name is an object variable accessor.
+ *
+ * @returns 1 if it is, 0 if it isn't.
+ * @param   pchName             The potential kBuild variable accessor
+ *                              expression.
+ * @param   cchName             Length of the expression.
+ */
+int is_kbuild_object_variable_accessor(const char *pchName, size_t cchName)
 {
-    assert(memcmp(word, "kBuild-endef", sizeof("kBuild-endef") - 1) == 0);
-    word += sizeof("kBuild-endef") - 1;
-    wlen -= sizeof("kBuild-endef") - 1;
-    if (   wlen > 1
-        && word[0] == '-')
+    char const *pchTmp;
+
+    /* See lookup_kbuild_object_variable for the rules. */
+    if (cchName >= 1+1+1+1 && *pchName == '[')
     {
-        if (WORD_IS(word, wlen, "-target"))
-            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Target);
-        if (WORD_IS(word, wlen, "-template"))
-            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Template);
-        if (WORD_IS(word, wlen, "-tool"))
-            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Tool);
-        if (WORD_IS(word, wlen, "-sdk"))
-            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Sdk);
-        if (WORD_IS(word, wlen, "-unit"))
-            return eval_kbuild_endef_xxxx(kdata, flocp, line, eos,  ignoring, kBuildDef_Unit);
+        pchName++;
+        cchName--;
+
+        pchTmp = memchr(pchName, '@', cchName);
+        if (pchTmp)
+        {
+            cchName -= pchTmp + 1 - pchName;
+            pchName  = pchTmp + 1;
+            pchTmp = memchr(pchName, ']', cchName);
+            if (pchTmp)
+            {
+                cchName -= pchTmp + 1 - pchName;
+                if (cchName > 0)
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/**
+ * Parses a kBuild object variable accessor, resolving the object.
+ *
+ * @returns Pointer to the variable if found.
+ * @retval  NULL if the object (or type) couldn't be resolved.
+ * @retval  KOBJ_NOT_KBUILD_ACCESSOR if no a kBuild variable accessor.
+ *
+ * @param   pchExpr             The kBuild variable accessor expression.
+ * @param   cchExpr             Length of the expression.
+ * @param   enmSeverity         The minimum severity level for errors.
+ * @param   pFileLoc            The file location any errors should be reported
+ *                              at. Optional.
+ * @param   ppchVarNm           Where to return the pointer to the start of the
+ *                              variable name within the string @a pchExpr
+ *                              points to. Mandatory.
+ * @param   pcchVarNm           Where to return the length of the variable name.
+ *                              Mandatory.
+ * @param   penmType            Where to return the object type. Optional.
+ */
+static struct kbuild_object *
+parse_kbuild_object_variable_accessor(const char *pchExpr, size_t cchExpr,
+                                      enum kBuildSeverity enmSeverity, const struct floc *pFileLoc,
+                                      const char **ppchVarNm, size_t *pcchVarNm, enum kBuildType *penmType)
+{
+    const char * const pchOrgExpr = pchExpr;
+    size_t       const cchOrgExpr = cchExpr;
+    char const        *pchTmp;
+
+    /*
+     * To accept this as an kBuild accessor, we require:
+     *   1. Open bracket.
+     *   2. At sign separating the type from the name.
+     *   3. Closing bracket.
+     *   4. At least one character following it.
+     */
+    if (cchExpr >= 1+1+1+1 && *pchExpr == '[')
+    {
+        pchExpr++;
+        cchExpr--;
+
+        pchTmp = memchr(pchExpr, '@', cchExpr);
+        if (pchTmp)
+        {
+            const char  * const pchType = pchExpr;
+            size_t        const cchType = pchTmp - pchExpr;
+
+            cchExpr -= cchType + 1;
+            pchExpr  = pchTmp + 1;
+            pchTmp = memchr(pchExpr, ']', cchExpr);
+            if (pchTmp)
+            {
+                const char * const pchObjName = pchExpr;
+                size_t       const cchObjName = pchTmp - pchExpr;
+
+                cchExpr -= cchObjName + 1;
+                pchExpr  = pchTmp + 1;
+                if (cchExpr > 0)
+                {
+                    enum kBuildType enmType;
+
+                    *pcchVarNm = cchExpr;
+                    *ppchVarNm = pchExpr;
+
+                    /*
+                     * It's an kBuild define variable accessor, alright.
+                     */
+                    enmType = eval_kbuild_type_from_string(pchType, cchType);
+                    if (penmType)
+                        *penmType = enmType;
+                    if (enmType != kBuildType_Invalid)
+                    {
+                        struct kbuild_object *pObj = lookup_kbuild_object(enmType, pchObjName, cchObjName);
+                        if (pObj)
+                            return pObj;
+
+                        /* failed. */
+                        kbuild_report_problem(enmSeverity, pFileLoc,
+                                              _("kBuild object '%s' not found in kBuild variable accessor '%.*s'"),
+                                              (int)cchObjName, pchObjName, (int)cchOrgExpr, pchOrgExpr);
+                    }
+                    else
+                        kbuild_report_problem(MAX(enmSeverity, kBuildSeverity_Error), pFileLoc,
+                                              _("Invalid type '%.*s' specified in kBuild variable accessor '%.*s'"),
+                                              (int)cchType, pchType, (int)cchOrgExpr, pchOrgExpr);
+                    return NULL;
+                }
+            }
+        }
     }
 
-    error(flocp, _("Unknown syntax 'kBuild-endef%.*s'"), (int)wlen, word);
-    return 0;
+    *ppchVarNm = NULL;
+    *pcchVarNm = 0;
+    if (penmType)
+        *penmType = kBuildType_Invalid;
+    return KOBJ_NOT_KBUILD_ACCESSOR;
 }
+
+/**
+ * Looks up a variable in a kBuild object.
+ *
+ * The caller has done minimal matching, i.e. starting square brackets and
+ * minimum length.  We do the rest here.
+ *
+ * @returns Pointer to the variable if found.
+ * @retval  NULL if not found.
+ * @retval  VAR_NOT_KBUILD_ACCESSOR if no a kBuild variable accessor.
+ *
+ * @param   pchName             The kBuild variable accessor expression.
+ * @param   cchName             Length of the expression.
+ */
+struct variable *
+lookup_kbuild_object_variable_accessor(const char *pchName, size_t cchName)
+{
+    const char * const     pchOrgName = pchName;
+    size_t       const     cchOrgName = cchName;
+    const char *           pchVarNm;
+    size_t                 cchVarNm;
+    struct kbuild_object  *pObj;
+
+    pObj = parse_kbuild_object_variable_accessor(pchName, cchName, kBuildSeverity_Warning, NULL, &pchVarNm, &cchVarNm, NULL);
+    if (pObj != KOBJ_NOT_KBUILD_ACCESSOR)
+    {
+        if (pObj)
+        {
+            /*
+             * Do the variable lookup.
+             */
+            const char *pszCachedName = strcache2_lookup(&variable_strcache, pchVarNm, cchVarNm);
+            if (pszCachedName)
+            {
+                struct variable  VarKey;
+                struct variable *pVar;
+                VarKey.name   = pszCachedName;
+                VarKey.length = cchName;
+
+                pVar = (struct variable *)hash_find_item_strcached(&pObj->pVariables->set->table, &VarKey);
+                if (pVar)
+                    return pVar;
+
+                /*
+                 * Not found, check ancestors if any.
+                 */
+                if (pObj->pszParent || pObj->pszTemplate)
+                {
+                    struct kbuild_object *pParent = pObj;
+                    for (;;)
+                    {
+                        pParent = eval_kbuild_resolve_parent(pParent, 0 /*fQuiet*/);
+                        if (!pParent)
+                            break;
+                        pVar = (struct variable *)hash_find_item_strcached(&pParent->pVariables->set->table, &VarKey);
+                        if (pVar)
+                            return pVar;
+                    }
+                }
+            }
+        }
+
+        /* Not found one way or the other. */
+        return NULL;
+    }
+
+    /* Not a kBuild object variable accessor. */
+    return VAR_NOT_KBUILD_ACCESSOR;
+}
+
+/** @} */
 
 void print_kbuild_data_base(void)
 {
-    struct kbuild_eval_data *pCur;
+    struct kbuild_object *pCur;
 
     puts(_("\n# kBuild defines"));
 
-    for (pCur = g_pHeadKbDefs; pCur; pCur = pCur->pGlobalNext)
+    for (pCur = g_pHeadKbObjs; pCur; pCur = pCur->pGlobalNext)
     {
         printf("\nkBuild-define-%s %s",
-               eval_kbuild_kind_to_string(pCur->enmKind), pCur->pszName);
+               eval_kbuild_type_to_string(pCur->enmType), pCur->pszName);
         if (pCur->pszParent)
-        {
             printf(" extending %s", pCur->pszParent);
-            switch (pCur->enmExtendBy)
-            {
-                case kBuildExtendBy_Overriding: break;
-                case kBuildExtendBy_Appending:  printf(" by appending"); break;
-                case kBuildExtendBy_Prepending: printf(" by prepending"); break;
-                default:                        printf(" by ?!?");
-            }
-        }
         if (pCur->pszTemplate)
             printf(" using %s", pCur->pszTemplate);
         putchar('\n');
@@ -499,7 +1147,7 @@ void print_kbuild_data_base(void)
         print_variable_set(pCur->pVariables->set, "");
 
         printf("kBuild-endef-%s  %s\n",
-               eval_kbuild_kind_to_string(pCur->enmKind), pCur->pszName);
+               eval_kbuild_type_to_string(pCur->enmType), pCur->pszName);
     }
     /** @todo hash stats. */
 }
