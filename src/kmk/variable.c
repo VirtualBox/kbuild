@@ -200,8 +200,14 @@ variable_hash_cmp (const void *xv, const void *yv)
 # endif
 #endif
 
+
+#ifdef KMK /* Drop the 'static' */
+struct variable_set global_variable_set;
+struct variable_set_list global_setlist
+#else
 static struct variable_set global_variable_set;
 static struct variable_set_list global_setlist
+#endif
   = { 0, &global_variable_set, 0 };
 struct variable_set_list *current_variable_set_list = &global_setlist;
 
@@ -246,53 +252,48 @@ define_variable_in_set (const char *name, unsigned int length,
   struct variable **var_slot;
   struct variable var_key;
 
+  if (env_overrides && origin == o_env)
+    origin = o_env_override;
+
 #ifndef KMK
   if (set == NULL)
     set = &global_variable_set;
-#else
+#else /* KMK */
+  /* Intercept kBuild object variable definitions. */
+  if (name[0] == '[' && length > 3)
+    {
+      v = try_define_kbuild_object_variable_via_accessor (name, length,
+                                                          value, value_len, duplicate_value,
+                                                          origin, recursive, flocp);
+      if (v != VAR_NOT_KBUILD_ACCESSOR)
+        return v;
+    }
   if (set == NULL)
     {
-      /* underscore prefixed variables are automatically local in
-         kBuild-define-* scopes.  They also get a global definition with
-         the current scope prefix. */
-      if (g_pTopKbDef && length > 0 && name[0] == '_')
-        {
-          char         *prefixed_nm;
-          unsigned int  prefixed_nm_len;
-
-          set = get_top_kbuild_variable_set();
-          v = define_variable_in_set(name, length, value, value_len,
-                                     1 /* duplicate_value */,
-                                     origin, recursive, set, flocp);
-
-          prefixed_nm_len = length;
-          prefixed_nm = kbuild_prefix_variable(name, &prefixed_nm_len);
-          define_variable_in_set(prefixed_nm, prefixed_nm_len,
-                                 value, value_len, duplicate_value,
-                                 origin, recursive, &global_variable_set,
-                                 flocp);
-          free(prefixed_nm);
-          return v;
-        }
+      if (g_pTopKbEvalData)
+        return define_kbuild_object_variable_in_top_obj (name, length,
+                                                         value, value_len, duplicate_value,
+                                                         origin, recursive, flocp);
       set = &global_variable_set;
     }
-#endif
+#endif /* KMK */
 
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
   var_key.length = length;
   var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
 
-  if (env_overrides && origin == o_env)
-    origin = o_env_override;
+  /* if (env_overrides && origin == o_env)
+    origin = o_env_override; - bird moved this up */
 
   v = *var_slot;
 #else  /* CONFIG_WITH_STRCACHE2 */
-  var_key.name = name = strcache2_add (&variable_strcache, name, length);
-  var_key.length = length;
+  name = strcache2_add (&variable_strcache, name, length);
   if (   set != &global_variable_set
-      || !(v = strcache2_get_user_val (&variable_strcache, var_key.name)))
+      || !(v = strcache2_get_user_val (&variable_strcache, name)))
     {
+      var_key.name = name;
+      var_key.length = length;
       var_slot = (struct variable **) hash_find_slot_strcached (&set->table, &var_key);
       v = *var_slot;
     }
@@ -466,9 +467,17 @@ undefine_variable_in_set (const char *name, unsigned int length,
   if (set == NULL)
     set = &global_variable_set;
 
+#ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
   var_key.length = length;
   var_slot = (struct variable **) hash_find_slot (&set->table, &var_key);
+#else
+  var_key.name = strcache2_lookup(&variable_strcache, name, length);
+  if (!var_key.name)
+    return;
+  var_key.length = length;
+  var_slot = (struct variable **) hash_find_slot_strcached (&set->table, &var_key);
+#endif
 
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -486,6 +495,10 @@ undefine_variable_in_set (const char *name, unsigned int length,
       if ((int) origin >= (int) v->origin)
 	{
           hash_delete_at (&set->table, var_slot);
+#ifdef CONFIG_WITH_STRCACHE2
+          if (set == &global_variable_set)
+            strcache2_set_user_val (&variable_strcache, v->name, NULL);
+#endif
           free_variable_name_and_value (v);
 	}
     }
@@ -730,7 +743,19 @@ lookup_variable (const char *name, unsigned int length)
   int is_parent = 0;
 #ifdef CONFIG_WITH_STRCACHE2
   const char *cached_name;
+#endif
 
+# ifdef KMK
+  /* Check for kBuild-define- local variable accesses and handle these first. */
+  if (length > 3 && name[0] == '[')
+    {
+      struct variable *v = lookup_kbuild_object_variable_accessor(name, length);
+      if (v != VAR_NOT_KBUILD_ACCESSOR)
+        return v;
+    }
+# endif
+
+#ifdef CONFIG_WITH_STRCACHE2
   /* lookup the name in the string case, if it's not there it won't
      be in any of the sets either. */
   cached_name = strcache2_lookup (&variable_strcache, name, length);
@@ -845,6 +870,16 @@ lookup_variable_in_set (const char *name, unsigned int length,
   return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
 #else  /* CONFIG_WITH_STRCACHE2 */
   const char *cached_name;
+
+# ifdef KMK
+  /* Check for kBuild-define- local variable accesses and handle these first. */
+  if (length > 3 && name[0] == '[' && set == &global_variable_set)
+    {
+      struct variable *v = lookup_kbuild_object_variable_accessor(name, length);
+      if (v != VAR_NOT_KBUILD_ACCESSOR)
+        return v;
+    }
+# endif
 
   /* lookup the name in the string case, if it's not there it won't
      be in any of the sets either.  Optimize lookups in the global set. */
@@ -1901,7 +1936,7 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
   v->value_length = new_value_len;
 }
 
-static struct variable *
+struct variable *
 do_variable_definition_append (const struct floc *flocp, struct variable *v,
                                const char *value, unsigned int value_len,
                                int simple_value, enum variable_origin origin,
@@ -1981,8 +2016,12 @@ do_variable_definition_2 (const struct floc *flocp,
   int append = 0;
   int conditional = 0;
   const size_t varname_len = strlen (varname); /* bird */
+
 #ifdef CONFIG_WITH_VALUE_LENGTH
-  assert (value_len == ~0U || value_len == strlen (value));
+  if (value_len == ~0U)
+    value_len = strlen (value);
+  else
+    assert (value_len == strlen (value));
 #endif
 
   /* Calculate the variable's new value in VALUE.  */
@@ -2051,16 +2090,9 @@ do_variable_definition_2 (const struct floc *flocp,
       {
 #endif
 
-#ifdef CONFIG_WITH_LOCAL_VARIABLES
-          /* If we have += but we're in a target or local variable context,
-             we want to append only with other variables in the context of
-             this target.  */
-        if (target_var || origin == o_local)
-#else
         /* If we have += but we're in a target variable context, we want to
            append only with other variables in the context of this target.  */
         if (target_var)
-#endif
           {
             append = 1;
             v = lookup_variable_in_set (varname, varname_len,
@@ -2071,6 +2103,26 @@ do_variable_definition_2 (const struct floc *flocp,
             if (v && !v->append)
               append = 0;
           }
+#ifdef KMK
+        else if (   g_pTopKbEvalData
+                 || (   varname_len > 3
+                     && varname[0] == '['
+                     && is_kbuild_object_variable_accessor (varname, varname_len)) )
+          {
+            v = kbuild_object_variable_pre_append (varname, varname_len,
+                                                   value, value_len, simple_value,
+                                                   origin, org_flavor == f_append, flocp);
+            if (free_value)
+               free (free_value);
+            return v;
+          }
+#endif
+#ifdef CONFIG_WITH_LOCAL_VARIABLES
+        /* If 'local', restrict it to the current variable context. */
+        else if (origin == o_local)
+          v = lookup_variable_in_set (varname, varname_len,
+                                      current_variable_set_list->set);
+#endif
         else
           v = lookup_variable (varname, varname_len);
 

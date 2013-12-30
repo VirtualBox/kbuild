@@ -1579,6 +1579,9 @@ main (int argc, char **argv, char **envp)
   initialize_global_alloc_caches ();
 #endif
   initialize_global_hash_tables ();
+#ifdef KMK
+  init_kbuild_object ();
+#endif
 
   /* Figure out where we are.  */
 
