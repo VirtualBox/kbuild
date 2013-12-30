@@ -1,4 +1,4 @@
-/* $Id: kbuild-read.c 2717 2013-12-30 00:58:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-read.c 2718 2013-12-30 21:30:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality related to read.c.
  */
@@ -283,18 +283,17 @@ define_kbuild_object_variable_cached(struct kbuild_object *pObj, const char *psz
         && pszName[1] != '_'
         && g_fKbObjCompMode)
     {
-        size_t  cchPrefixed = pObj->cchVarPrefix + cchName;
-        char   *pszPrefixed = xmalloc(cchPrefixed + 1);
+        struct variable *pAlias;
+        size_t           cchPrefixed = pObj->cchVarPrefix + cchName;
+        char            *pszPrefixed = xmalloc(cchPrefixed + 1);
         memcpy(pszPrefixed, pObj->pszVarPrefix, pObj->cchVarPrefix);
         memcpy(&pszPrefixed[pObj->cchVarPrefix], pszName, cchName);
         pszPrefixed[cchPrefixed] = '\0';
 
-        /** @todo implement variable aliases or something. */
-        define_variable_in_set(pszPrefixed, cchPrefixed,
-                               pchValue, cchValue, 1 /*duplicate_value*/,
-                               enmOrigin, fRecursive,
-                               &global_variable_set,
-                               pFileLoc);
+        pAlias = define_variable_alias_in_set(pszPrefixed, cchPrefixed, pVar, enmOrigin,
+                                              &global_variable_set, pFileLoc);
+        if (!pAlias->alias)
+            error(pFileLoc, _("Error defining alias '%s'"), pszPrefixed);
     }
 
     return pVar;
