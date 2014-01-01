@@ -1,4 +1,4 @@
-# $Id: testcase-kBuild-define.kmk 2718 2013-12-30 21:30:47Z knut.osmundsen@oracle.com $
+# $Id: testcase-kBuild-define.kmk 2720 2014-01-01 22:59:50Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - testcase for the kBuild-define-* directives.
 #
@@ -25,6 +25,13 @@
 
 #DEPTH = ../..
 #include $(PATH_KBUILD)/header.kmk
+
+##
+# Test if $($1) == $2 and raises an error if it isn't.
+#
+# @param   1   Something to apply '$' to.
+# @param   2   The expected value.
+TEST_EQ = $(if-expr "$($1)" == "$2",,$(error $1 is '$($1)' not '$2'))
 
 if 0
 # object definition syntax:
@@ -95,6 +102,39 @@ $(if-expr "$(OutsideMod_SOURCES)"          == "file2.c file3.c file4.c",,$(error
 
 $(if-expr "$([target@OutsideMod]_OTHER)" == "outside-value",,$(error [target@OutsideMod]_OTHER is '$([target@OutsideMod]_OTHER)' not 'outside-value'))
 $(if-expr "$(OutsideMod_OTHER)"          == "outside-value",,$(error OutsideMod_OTHER is '$(OutsideMod_OTHER)' not 'outside-value'))
+
+# Test #4
+kBuild-define-target SpecialBase
+_SOURCES = file1.c file2.c
+_DEFS.win.x86 = XXX YYY
+_DEFS.win.amd64 = $(filter-out YYY,$([@self]_DEFS.win.x86))
+# Unnecessary use of [@self].
+[@self]_LIBS = MyLib
+kBuild-endef-target
+
+kBuild-define-target SpecialChild extending SpecialBase
+_SOURCES = file1-child.c $(filter-out file1.c,$([@super]_SOURCES))
+# Rare use of [@super].
+[@super]_SET_BY_CHILD = 42
+kBuild-endef-target
+
+$(call TEST_EQ,[target@SpecialBase]_LIBS,MyLib)
+$(call TEST_EQ,SpecialBase_LIBS,MyLib)
+
+$(call TEST_EQ,[target@SpecialBase]_SET_BY_CHILD,42)
+$(call TEST_EQ,SpecialBase_SET_BY_CHILD,42)
+$(call TEST_EQ,[target@SpecialChild]_SET_BY_CHILD,42)
+#$(call TEST_EQ,SpecialChild_SET_BY_CHILD,42) ## @todo
+
+$(call TEST_EQ,[target@SpecialBase]_DEFS.win.x86,XXX YYY)
+$(call TEST_EQ,[target@SpecialBase]_DEFS.win.amd64,XXX)
+$(call TEST_EQ,SpecialBase_DEFS.win.amd64,XXX)
+$(call TEST_EQ,[target@SpecialChild]_DEFS.win.x86,XXX YYY)
+$(call TEST_EQ,[target@SpecialChild]_DEFS.win.amd64,XXX)
+#$(call TEST_EQ,SpecialChild_DEFS.win.amd64,XXX) ## @todo
+
+$(call TEST_EQ,[target@SpecialChild]_SOURCES,file1-child.c file2.c)
+$(call TEST_EQ,SpecialChild_SOURCES,file1-child.c file2.c)
 
 all_recursive:
 	@kmk_echo "kBuild-define-xxxx works fine"
