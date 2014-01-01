@@ -1,4 +1,4 @@
-/* $Id: kbuild-read.c 2718 2013-12-30 21:30:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-object.c 2719 2014-01-01 17:40:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality related to read.c.
  */
