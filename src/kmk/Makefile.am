@@ -52,7 +52,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		strcache2.c \
 		alloccache.c \
 		kbuild.c \
-		kbuild-read.c \
+		kbuild-object.c \
 		electric.c \
 		../lib/md5.c \
 		../lib/kDep.c \
