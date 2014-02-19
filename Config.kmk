@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2700 2013-09-20 00:33:51Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2721 2014-02-19 15:10:37Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -88,6 +88,14 @@ OTHER_CLEAN += $(KBUILD_SVN_INFO_KMK)
 
 endif
 include $(KBUILD_SVN_INFO_KMK)
+
+
+#
+# Local config, optional.
+#
+ifneq ($(wildcard $(PATH_ROOT)/LocalConfig.kmk),)
+ include $(PATH_ROOT)/LocalConfig.kmk
+endif
 
 
 #
