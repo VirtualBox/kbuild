@@ -1,10 +1,10 @@
-# $Id: subheader.kmk 2434 2011-01-09 17:45:08Z knut.osmundsen@oracle.com $
+# $Id: subheader.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile or sub-makefile.
 #
 
 #
-# Copyright (c) 2006-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
 #
 # This file is part of kBuild.
 #

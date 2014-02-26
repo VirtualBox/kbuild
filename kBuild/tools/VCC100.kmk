@@ -1,10 +1,10 @@
-# $Id: VCC100.kmk 2677 2013-02-01 15:04:53Z knut.osmundsen@oracle.com $
+# $Id: VCC100.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD_TARGET).
 #
 
 #
-# Copyright (c) 2004-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2004-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -35,15 +35,15 @@ TOOL_VCC100 := Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD
 
 # Tool Specific Properties
 ifndef PATH_TOOL_VCC100
- PATH_TOOL_VCC100 := $(wildcard $(PATH_DEVTOOLS_TRG)/vcc/v10*)
+ PATH_TOOL_VCC100 := $(wildcard $(KBUILD_DEVTOOLS_TRG)/vcc/v10*)
  ifeq ($(PATH_TOOL_VCC100),)
-  PATH_TOOL_VCC100 := $(wildcard $(PATH_DEVTOOLS)/win.x86/vcc/v10*)
+  PATH_TOOL_VCC100 := $(wildcard $(KBUILD_DEVTOOLS)/win.x86/vcc/v10*)
  endif
  ifeq ($(PATH_TOOL_VCC100),)
-  PATH_TOOL_VCC100 := $(wildcard $(PATH_DEVTOOLS)/x86.win32/vcc/v10*)
+  PATH_TOOL_VCC100 := $(wildcard $(KBUILD_DEVTOOLS)/x86.win32/vcc/v10*)
  endif
  ifeq ($(PATH_TOOL_VCC100),)
-  PATH_TOOL_VCC100 := $(wildcard $(PATH_DEVTOOLS)/win.amd64/vcc/v10*)
+  PATH_TOOL_VCC100 := $(wildcard $(KBUILD_DEVTOOLS)/win.amd64/vcc/v10*)
  endif
  ifeq ($(PATH_TOOL_VCC100),)
   PATH_TOOL_VCC100 := $(lastword $(sort $(PATH_TOOL_VCC100)))
