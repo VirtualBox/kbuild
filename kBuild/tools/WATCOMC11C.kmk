@@ -1,10 +1,10 @@
-# $Id: WATCOMC11C.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: WATCOMC11C.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Watcom C v11.0c
 #
 
 #
-# Copyright (c) 2008-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2008-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -35,13 +35,13 @@ TOOL_WATCOMC11C = Watcom C/C++ v11.0c (generic)
 
 ifeq ($(PATH_TOOL_WATCOMC11C),)
  ifeq ($(PATH_TOOL_WATCOMC11C),)
-  PATH_TOOL_WATCOMC11C := $(wildcard $(PATH_DEVTOOLS_BLD)/watcom/v11.0c*)
+  PATH_TOOL_WATCOMC11C := $(wildcard $(KBUILD_DEVTOOLS_BLD)/watcom/v11.0c*)
  endif
  ifeq ($(PATH_TOOL_WATCOMC11C),)
-  PATH_TOOL_WATCOMC11C := $(wildcard $(PATH_DEVTOOLS_TRG)/watcom/v11.0c*)
+  PATH_TOOL_WATCOMC11C := $(wildcard $(KBUILD_DEVTOOLS_TRG)/watcom/v11.0c*)
  endif
  ifeq ($(PATH_TOOL_WATCOMC11C),)
-  PATH_TOOL_WATCOMC11C := $(wildcard $(PATH_DEVTOOLS)/common/watcom/v11.0c*)
+  PATH_TOOL_WATCOMC11C := $(wildcard $(KBUILD_DEVTOOLS)/common/watcom/v11.0c*)
  endif
  ifeq ($(PATH_TOOL_WATCOMC11C)$(KBUILD_HOST),os2)
   if1of ($(USER) $(USERNAME) $(LOGNAME), bird)

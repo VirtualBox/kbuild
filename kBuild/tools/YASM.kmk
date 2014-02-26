@@ -1,10 +1,10 @@
-# $Id: YASM.kmk 2694 2013-07-22 13:39:36Z knut.osmundsen@oracle.com $
+# $Id: YASM.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - YASM 0.4.0 or later.
 #
 
 #
-# Copyright (c) 2006-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -35,7 +35,7 @@ TOOL_YASM := YASM v0.4.0+
 
 # Tool Specific Properties
 ifndef PATH_TOOL_YASM
- PATH_TOOL_YASM := $(sort $(wildcard $(PATH_DEVTOOLS_BLD)/yasm/v*.*))
+ PATH_TOOL_YASM := $(sort $(wildcard $(KBUILD_DEVTOOLS_BLD)/yasm/v*.*))
  ifneq ($(PATH_TOOL_YASM),)
   PATH_TOOL_YASM := $(call lastword,$(PATH_TOOL_YASM))
  endif
