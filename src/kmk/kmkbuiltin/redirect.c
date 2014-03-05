@@ -1,10 +1,10 @@
-/* $Id: redirect.c 2699 2013-09-20 00:33:20Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2728 2014-03-05 13:09:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
 
 /*
- * Copyright (c) 2007-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2007-2014 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -72,11 +72,17 @@ static void quoteArguments(int argc, char **argv)
         const char *pszQuotes = (const char *)memchr(pszOrg, '"', cchOrg);
         if (   pszQuotes
             || cchOrg == 0
+            || memchr(pszOrg, ' ', cchOrg)
+            || memchr(pszOrg, '\t', cchOrg)
+            || memchr(pszOrg, '\n', cchOrg)
+            || memchr(pszOrg, '\r', cchOrg)
             || memchr(pszOrg, '&', cchOrg)
             || memchr(pszOrg, '>', cchOrg)
             || memchr(pszOrg, '<', cchOrg)
             || memchr(pszOrg, '|', cchOrg)
             || memchr(pszOrg, '%', cchOrg)
+            || memchr(pszOrg, '\'', cchOrg)
+            || memchr(pszOrg, '=', cchOrg)
             )
         {
             char   ch;
@@ -133,7 +139,7 @@ static void quoteArguments(int argc, char **argv)
         }
     }
 
-    /*for (i = 0; i < argc; i++) printf("argv[%u]=%s;;\n", i, argv[i]); */
+    /*for (i = 0; i < argc; i++) fprintf(stderr, "argv[%u]=%s;;\n", i, argv[i]);*/
 }
 #endif /* _MSC_VER */
 
