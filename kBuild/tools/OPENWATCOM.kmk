@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2731 2014-06-28 14:58:12Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2732 2014-06-28 16:02:41Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -261,7 +261,17 @@ TOOL_OPENWATCOM_LINK_LIBRARY_OUTPUT = ## @todo $(outbase).rsp
 TOOL_OPENWATCOM_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_OPENWATCOM_LINK_LIBRARY_DEPORD =
 define TOOL_OPENWATCOM_LINK_LIBRARY_CMDS
-	$(QUIET)$(APPEND) -tn $(outbase).rsp $(foreach obj,$(call TOOL_OPENWATCOM_FIX_SLASHES,$(objs) $(othersrc)),'+"$(obj)"')
+	$(QUIET)$(APPEND) -tn $(outbase).rsp $(foreach obj,$(call TOOL_OPENWATCOM_FIX_SLASHES,$(objs) $(filter-out %.imp,$(othersrc))),'+"$(obj)"')
+	$(if $(filter %.imp,$(othersrc)),$(SED) \
+		-e 's/;.*$(DOLLAR)$(DOLLAR)//g' \
+		-e 's/^[[:space:]][[:space:]]*//g' \
+		-e 's/[[:space:]][[:space:]]*$(DOLLAR)$(DOLLAR)//g' \
+		-e '/^[[:space:]]*$(DOLLAR)$(DOLLAR)/d' \
+		-e 's/[[:space:]][[:space:]]*/ /g' \
+		-e 's/\([^ ][^ ]*\) \([^ ][^ ]*\) \([^ ][^ ]*\) \([^ ][^ ]*\).*/++\1.\2.\3/' \
+       	$(filter %.imp,$(othersrc)) \
+               --append $(outbase).rsp \
+	)
 	$(QUIET)$(TOOL_OPENWATCOM_ENV_SETUP) $(TOOL_OPENWATCOM_AR) $(flags) $(call TOOL_OPENWATCOM_FIX_SLASHES,$(out)) @$(outbase).rsp
 endef
 
