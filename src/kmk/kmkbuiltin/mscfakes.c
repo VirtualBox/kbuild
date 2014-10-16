@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2733 2014-10-16 18:29:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -109,7 +109,7 @@ msc_fix_path(const char **ppszPath, int *pfMustBeDir)
 
 
 int
-birdSetErrno(DWORD dwErr)
+birdSetErrno(unsigned dwErr)
 {
     switch (dwErr)
     {
@@ -533,4 +533,60 @@ int vasprintf(char **strp, const char *fmt, va_list va)
     return rc;
 }
 
+
+/**
+ * This is a kludge to make pipe handles blocking.
+ *
+ * @returns TRUE if it's now blocking, FALSE if not a pipe or we failed to fix
+ *          the blocking mode.
+ * @param   fd                  The libc file descriptor number.
+ */
+static BOOL makePipeBlocking(int fd)
+{
+    /* Is pipe? */
+    HANDLE hFile = (HANDLE)_get_osfhandle(fd);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        DWORD fType = GetFileType(hFile);
+        fType &= ~FILE_TYPE_REMOTE;
+        if (fType == FILE_TYPE_PIPE)
+        {
+            /* Try fix it. */
+            DWORD fState = 0;
+            if (GetNamedPipeHandleState(hFile, &fState, NULL, NULL, NULL, NULL,  0))
+            {
+                fState &= ~PIPE_NOWAIT;
+                fState |= PIPE_WAIT;
+                if (SetNamedPipeHandleState(hFile, &fState, NULL, NULL))
+                    return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+
+/**
+ * Initializes the msc fake stuff.
+ * @returns 0 on success (non-zero would indicate failure, see rterr.h).
+ */
+int mscfake_init(void)
+{
+    /*
+     * Kludge against _write returning ENOSPC on non-blocking pipes.
+     */
+    makePipeBlocking(STDOUT_FILENO);
+    makePipeBlocking(STDERR_FILENO);
+
+    return 0;
+}
+
+/*
+ * Do this before main is called.
+ */
+#pragma section(".CRT$XIA", read)
+#pragma section(".CRT$XIU", read)
+#pragma section(".CRT$XIZ", read)
+typedef int (__cdecl *PFNCRTINIT)(void);
+static __declspec(allocate(".CRT$XIU")) PFNCRTINIT g_MscFakeInitVectorEntry = mscfake_init;
 
