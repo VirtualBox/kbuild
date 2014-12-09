@@ -1,4 +1,4 @@
-# $Id: VCC100.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: VCC100.kmk 2735 2014-12-09 15:35:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD_TARGET).
 #
@@ -329,8 +329,10 @@ define TOOL_VCC100_LINK_PROGRAM_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		@$(outbase).rsp
+ifndef TOOL_VCC100_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC100_MT) -manifest $(subst /,\\,$(out)).manifest -outputresource:$(subst /,\\,$(out))
+endif
 endef
 
 
@@ -370,8 +372,10 @@ define TOOL_VCC100_LINK_DLL_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		@$(outbase).rsp
+ifndef TOOL_VCC100_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC100_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
+endif
 	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_STAGE_LIB)/
 $(eval _DIRS += $(PATH_STAGE_LIB))
 endef
@@ -411,7 +415,9 @@ define TOOL_VCC100_LINK_SYSMOD_CMDS
 		$(subst /,\\,$(filter %.exp %.res,$(othersrc))) \
 		$(foreach p,$(libpath), /LIBPATH:$(p)) \
 		@$(outbase).rsp
+ifndef TOOL_VCC100_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC100_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
+endif
 endef
 
