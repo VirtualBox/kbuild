@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2701 2013-11-06 19:58:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2737 2014-12-23 21:15:58Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -1211,7 +1211,7 @@ void k_javadoc_funcbox()
     k_javadoc_box_start();
     iCursorLine = p_RLine;
     k_javadoc_box_line(' ');
-    if (file_eq(p_extension, 'asm'))
+    if (file_eq(p_extension, 'asm') || file_eq(p_extension, 'masm'))
         k_javadoc_box_line('@cproto', iPadd);
     k_javadoc_box_line('@returns', iPadd);
     if (fFoundFn)
@@ -1252,7 +1252,7 @@ void k_javadoc_funcbox()
     else
         k_javadoc_box_line('@param', iPadd);
 
-    if (file_eq(p_extension, 'asm'))
+    if (file_eq(p_extension, 'asm') || file_eq(p_extension, 'masm'))
         k_javadoc_box_line('@uses', iPadd);
     if (fkStyleFullHeaders)
     {
@@ -3387,7 +3387,9 @@ static _str aMyLangIds[] =
     "ansic",
     "antlr",
     "as",
+#if __VERSION__ < 19.0
     "asm",
+#endif
     "c",
     "cs",
     "csh",
@@ -3414,7 +3416,9 @@ static _str aMyLangIds[] =
     "rc",
     "rul",
     "tcl",
+#if __VERSION__ < 19.0
     "s",
+#endif
     "unixasm",
     "vbs",
     "xhtml",
