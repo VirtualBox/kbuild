@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2722 2014-02-19 15:28:22Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2738 2014-12-23 21:16:26Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -223,6 +223,9 @@ ifeq ($(KBUILD_TARGET),darwin)
  ifndef KBUILD_MACOSX_VERSION
   export KBUILD_MACOSX_VERSION := $(expr $(firstword $(subst ., ,$(shell uname -r))) - 4)
  endif
+ #ifndef KBUILD_XCODE_VERSION
+ # export KBUILD_XCODE_VERSION := $(shell xcodebuild -version | kmk_sed -e '/Xcode/!d' -e 's/Xcode *//')
+ #endif
  ifndef KBUILD_MACOSX_TARGET_VERSION
   if $(KBUILD_TARGET_ARCH) == amd64
     KBUILD_MACOSX_TARGET_VERSION = 6
@@ -230,28 +233,30 @@ ifeq ($(KBUILD_TARGET),darwin)
     KBUILD_MACOSX_TARGET_VERSION = 4
   endif
  endif
- if $(KBUILD_MACOSX_TARGET_VERSION) == 4
-  TOOL_GCC4MACHO_SUFFIX	        = -4.0
-  TOOL_GXX4MACHO_SUFFIX		= -4.0
- else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
-  TOOL_GCC4MACHO_SUFFIX	        = -4.2
-  TOOL_GXX4MACHO_SUFFIX		= -4.2
- endif
- ifndef KBUILD_MACOSX_SDK
-  KBUILD_MACOSX_SDK            := /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
-  ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
-   KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
+ ifndef KBUILD_MACOSX_WHATEVER_MODE
+  if $(KBUILD_MACOSX_TARGET_VERSION) == 4
+   TOOL_GCC4MACHO_SUFFIX	        = -4.0
+   TOOL_GXX4MACHO_SUFFIX		= -4.0
+  else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
+   TOOL_GCC4MACHO_SUFFIX	        = -4.2
+   TOOL_GXX4MACHO_SUFFIX		= -4.2
   endif
- endif
+  ifndef KBUILD_MACOSX_SDK
+   KBUILD_MACOSX_SDK            := /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
+   ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
+    KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
+   endif
+  endif
+ endif # !KBUILD_MACOSX_WHATEVER_MODE
  TEMPLATE_BIN_TOOL              = GCC4MACHO
- TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) -isysroot $(KBUILD_MACOSX_SDK)
+ TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-isysroot $(KBUILD_MACOSX_SDK))
  ifeq ($(USER),bird)
   TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wno-long-long
   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
  endif
  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
  TEMPLATE_BIN_CFLAGS.release    = -O3
- TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) -Wl,-syslibroot,$(KBUILD_MACOSX_SDK)
+ TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-Wl,-syslibroot,$(KBUILD_MACOSX_SDK))
  if $(KBUILD_MACOSX_TARGET_VERSION) == 4 && $(KBUILD_MACOSX_VERSION) >= 5
   TEMPLATE_BIN_LDFLAGS         += -classic_ld
  endif
