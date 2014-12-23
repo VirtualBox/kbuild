@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2738 2014-12-23 21:16:26Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2739 2014-12-23 21:18:40Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -246,6 +246,9 @@ ifeq ($(KBUILD_TARGET),darwin)
    ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
     KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
    endif
+  endif
+  ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
+   $(error SDK not found ($(KBUILD_MACOSX_SDK)), please adjust KBUILD_MACOSX_TARGET_VERSION or/and KBUILD_MACOSX_SDK in LocalConfig.kmk or simply use KBUILD_MACOSX_WHATEVER_MODE=1.)
   endif
  endif # !KBUILD_MACOSX_WHATEVER_MODE
  TEMPLATE_BIN_TOOL              = GCC4MACHO
