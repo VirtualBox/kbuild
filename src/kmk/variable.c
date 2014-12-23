@@ -1004,9 +1004,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
                         const struct variable_set *set)
 {
   struct variable var_key;
-#ifdef KMK
   struct variable *v;
-#endif
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
   var_key.length = length;
@@ -1019,7 +1017,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
   /* Check for kBuild-define- local variable accesses and handle these first. */
   if (length > 3 && name[0] == '[' && set == &global_variable_set)
     {
-      struct variable *v = lookup_kbuild_object_variable_accessor(name, length);
+      v = lookup_kbuild_object_variable_accessor(name, length);
       if (v != VAR_NOT_KBUILD_ACCESSOR)
         {
           RESOLVE_ALIAS_VARIABLE(v);

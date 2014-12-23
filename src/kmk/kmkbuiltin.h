@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 2736 2014-12-23 21:15:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -50,7 +50,11 @@ extern int kmk_builtin_printf(int argc, char **argv, char **envp);
 extern int kmk_builtin_rm(int argc, char **argv, char **envp);
 extern int kmk_builtin_rmdir(int argc, char **argv, char **envp);
 extern int kmk_builtin_sleep(int argc, char **argv, char **envp);
-extern int kmk_builtin_test(int argc, char **argv, char **envp, char ***ppapszArgvSpawn);
+extern int kmk_builtin_test(int argc, char **argv, char **envp
+#ifndef kmk_builtin_test
+                            , char ***ppapszArgvSpawn
+#endif
+                            );
 extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp);
 extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp);
 
