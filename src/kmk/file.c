@@ -378,8 +378,11 @@ rehash_file (struct file *from_file, const char *to_hname)
         {
           while (f->multi_next != from_file)
             f = f->multi_next;
+          assert(f->multi_next == from_file);
           f->multi_next = to_file;
         }
+      from_file->multi_head = to_file->multi_head;
+      from_file->multi_next = NULL;
     }
 #endif
 
