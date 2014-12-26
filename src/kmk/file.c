@@ -372,8 +372,11 @@ rehash_file (struct file *from_file, const char *to_hname)
       to_file->multi_next  = from_file->multi_next;
       to_file->multi_head  = f = from_file->multi_head;
       if (f == from_file)
-        for (; f != 0; f = f->multi_next)
-            f->multi_head = to_file;
+        {
+          for (; f != 0; f = f->multi_next)
+              f->multi_head = to_file;
+          to_file->multi_head = to_file;
+        }
       else
         {
           while (f->multi_next != from_file)
@@ -381,8 +384,13 @@ rehash_file (struct file *from_file, const char *to_hname)
           assert(f->multi_next == from_file);
           f->multi_next = to_file;
         }
+# ifdef NDEBUG
       from_file->multi_head = to_file->multi_head;
       from_file->multi_next = NULL;
+# else
+      from_file->multi_head = (struct file *)0x2; /* poison */
+      from_file->multi_next = (struct file *)0x8;
+# endif
     }
 #endif
 
