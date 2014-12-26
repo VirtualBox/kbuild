@@ -461,17 +461,31 @@ update_file_1 (struct file *file, unsigned int depth)
   struct dep amake;
   int running = 0;
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
-  struct file *req_file = file;
-  struct file *org_file = file;
+  struct file *org_file;
+  struct file *req_file;
   struct file *f2, *f3;
 
-  /* Always work on the primary multi target file. */
+  /* Secondary target expansion leaves renamed files around, skip any rename
+     files to simplify multi target handling. */
 
-  if (file->multi_head != NULL && file->multi_head != file)
+  check_renamed(file);
+
+  /* Remember the request file and find the primary multi target file. Always
+     work on the primary file in a multi target recipe.  */
+
+  req_file = file;
+  org_file = file;
+  if (file->multi_head != NULL)
     {
-      DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"),
-                          file->name, file->multi_head->name));
-      org_file = file = file->multi_head;
+      if (file->multi_head == file)
+        DBS (DB_VERBOSE, (_("Considering target file `%s'  (multi head).\n"), file->name));
+      else
+        {
+          org_file = file = file->multi_head;
+          DBS (DB_VERBOSE, (_("Considering target file `%s' -> multi head `%s'.\n"),
+                              req_file->name, file->name));
+          assert (file->multi_head == file);
+        }
     }
   else
 #endif /* CONFIG_WITH_EXPLICIT_MULTITARGET */
@@ -537,6 +551,7 @@ update_file_1 (struct file *file, unsigned int depth)
 
 #ifdef CONFIG_WITH_EXPLICIT_MULTITARGET
   this_mtime = file_mtime (file);
+  check_renamed (file);
   f3 = file;
   for (f2 = file->multi_next;
        f2 != NULL && this_mtime != NONEXISTENT_MTIME;
@@ -560,7 +575,7 @@ update_file_1 (struct file *file, unsigned int depth)
         f3 = f2;
         break;
       }
-  check_renamed (file);
+  check_renamed (f3);
   noexist = this_mtime == NONEXISTENT_MTIME;
   if (noexist)
     DBS (DB_BASIC, (_("File `%s' does not exist.\n"), f3->name));
