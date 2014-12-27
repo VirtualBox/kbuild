@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2744 2014-12-27 21:01:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -298,6 +298,42 @@ incdep_alloc_dep (struct incdep *cur)
     cache = &dep_cache;
   return alloccache_calloc (cache);
 }
+
+/* duplicates the dependency list pointed to by srcdep. */
+static struct dep *
+incdep_dup_dep_list (struct incdep *cur, struct dep const *srcdep)
+{
+  struct alloccache *cache;
+  struct dep *retdep;
+  struct dep *dstdep;
+
+  if (cur->worker_tid != -1)
+    cache = &incdep_dep_caches[cur->worker_tid];
+  else
+    cache = &dep_cache;
+
+  if (srcdep)
+    {
+      retdep = dstdep = alloccache_alloc (cache);
+      for (;;)
+        {
+          dstdep->name = srcdep->name; /* string cached */
+          dstdep->includedep = srcdep->includedep;
+          srcdep = srcdep->next;
+          if (!srcdep)
+            {
+              dstdep->next = NULL;
+              break;
+            }
+          dstdep->next = alloccache_alloc (cache);
+          dstdep = dstdep->next;
+        }
+    }
+  else
+    retdep = NULL;
+  return retdep;
+}
+
 
 /* allocate a record. */
 static void *
@@ -755,7 +791,7 @@ incdep_init (struct floc *f)
           rc = pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
           if (rc)
             fatal (f, _("pthread_attr_setdetachstate failed: err=%d"), rc);
-          rc = pthread_create(&incdep_threads[i], &attr,
+          rc = pthread_create (&incdep_threads[i], &attr,
                                incdep_worker_pthread, (void *)(size_t)i);
           if (rc)
             fatal (f, _("pthread_mutex_init failed: err=%d"), rc);
@@ -845,6 +881,12 @@ incdep_flush_recorded_instructions (struct incdep *cur)
   struct incdep_variable_in_set *rec_vis;
   struct incdep_variable_def *rec_vd;
   struct incdep_recorded_file *rec_f;
+
+  /* Display saved error. */
+
+  if (cur->err_msg)
+    error(NILF, "%s(%d): %s", cur->name, cur->err_line_no, cur->err_msg);
+
 
   /* define_variable_in_set */
 
@@ -1316,39 +1358,19 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
          variable [:]= value */
       else
         {
-          const char *colonp;
           const char *equalp;
+          const char *eol;
 
-          /* Look for a colon and an equal sign, optimize for colon.
-             Only one file is support and the colon / equal must be on
-             the same line. */
-          colonp = memchr (cur, ':', file_end - cur);
-#ifdef HAVE_DOS_PATHS
-          while (   colonp
-                 && colonp + 1 < file_end
-                 && (colonp[1] == '/' || colonp[1] == '\\')
-                 && colonp > cur
-                 && isalpha ((unsigned char)colonp[-1])
-                 && (   colonp == cur + 1
-                     || strchr (" \t(", colonp[-2]) != 0))
-              colonp = memchr (colonp + 1, ':', file_end - (colonp + 1));
-#endif
-          endp = NULL;
-          if (   !colonp
-              ||  (endp = memchr (cur, '\n', colonp - cur)))
-            {
-              colonp = NULL;
-              equalp = memchr (cur, '=', (endp ? endp : file_end) - cur);
-              if (   !equalp
-                  || (!endp && memchr (cur, '\n', equalp - cur)))
-                {
-                  incdep_warn (curdep, line_no, "no colon.");
-                  break;
-                }
-            }
-          else
-            equalp = memchr (cur, '=', (colonp + 2 <= file_end
-                                        ? colonp + 2 : file_end) - cur);
+          /* Look for a colon or and equal sign.  In the assignment case, we
+             require it to be on the same line as the variable name to simplify
+             the code.  Because of clang, we cannot make the same assumptions
+             with file dependencies.  So, start with the equal. */
+
+          assert (*cur != '\n');
+          eol = memchr (cur, '\n', file_end - cur);
+          if (!eol)
+            eol = file_end;
+          equalp = memchr (cur, '=', eol - cur);
           if (equalp)
             {
               /* An assignment of some sort. */
@@ -1485,30 +1507,96 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
             }
           else
             {
-              /* file: dependencies */
+              /* Expecting: file: dependencies */
 
               const char *filename;
+              const char *fnnext;
+              const char *fnend;
+              const char *colonp;
               struct dep *deps = 0;
               struct dep **nextdep = &deps;
               struct dep *dep;
 
-              /* extract the filename, ASSUME a single one. */
-              endp = colonp;
-              while (endp > cur && isblank ((unsigned char)endp[-1]))
-                --endp;
-              if (cur == endp)
+
+              /* Locate the next file colon.  If it's not within the bounds of
+                 the current line, check that all new line chars are escaped,
+                 and simplify them while we're at it. */
+
+              colonp = memchr (cur, ':', file_end - cur);
+#ifdef HAVE_DOS_PATHS
+              while (   colonp
+                     && colonp + 1 < file_end
+                     && (colonp[1] == '/' || colonp[1] == '\\')
+                     && colonp > cur
+                     && isalpha ((unsigned char)colonp[-1])
+                     && (   colonp == cur + 1
+                         || strchr (" \t(", colonp[-2]) != 0))
+                  colonp = memchr (colonp + 1, ':', file_end - (colonp + 1));
+#endif
+              if (!colonp)
+                {
+                  incdep_warn (curdep, line_no, "no colon.");
+                  break;
+                }
+              if ((uintptr_t)colonp >= (uintptr_t)eol)
+                {
+                  const char *sol;
+
+                  if (memchr (eol, '=', colonp - eol))
+                    {
+                      incdep_warn (curdep, line_no, "multi line assignment / dependency confusion.");
+                      break;
+                    }
+
+                  sol = cur;
+                  do
+                    {
+                      char *eol2 = (char *)eol - 1;
+                      if ((uintptr_t)eol2 >= (uintptr_t)sol && *eol2 == '\r') /* DOS line endings. */
+                        eol2--;
+                      if ((uintptr_t)eol2 < (uintptr_t)sol || *eol2 != '\\')
+                          incdep_warn (curdep, line_no, "no colon.");
+                      else if (eol2 != sol && eol2[-1] == '\\')
+                          incdep_warn (curdep, line_no, "fancy EOL escape. (includedep)");
+                      else
+                        {
+                          eol2[0] = ' ';
+                          eol2[1] = ' ';
+                          if (eol2 != eol - 1)
+                            eol2[2] = ' ';
+                          line_no++;
+
+                          sol = eol + 1;
+                          eol = memchr (sol, '\n', colonp - sol);
+                          continue;
+                        }
+                      sol = NULL;
+                      break;
+                    }
+                  while (eol != NULL);
+                  if (!sol)
+                    break;
+                }
+
+              /* Extract the first filename after trimming and basic checks. */
+              fnend = colonp;
+              while ((uintptr_t)fnend > (uintptr_t)cur && isblank ((unsigned char)fnend[-1]))
+                --fnend;
+              if (cur == fnend)
                 {
                   incdep_warn (curdep, line_no, "empty filename.");
                   break;
                 }
-              if (   memchr (cur, '$', endp - cur)
-                  || memchr (cur, ' ', endp - cur)
-                  || memchr (cur, '\t', endp - cur))
+              if (memchr (cur, '$', fnend - cur))
                 {
-                  incdep_warn (curdep, line_no, "multiple / fancy file name. (includedep)");
+                  incdep_warn (curdep, line_no, "fancy file name. (includedep)");
                   break;
                 }
-              filename = incdep_dep_strcache (curdep, cur, endp - cur);
+
+              fnnext = cur;
+              while (fnnext != fnend && !isblank ((unsigned char)*fnnext))
+                fnnext++;
+              filename = incdep_dep_strcache (curdep, cur, fnnext - cur);
 
               /* parse any dependencies. */
               cur = colonp + 1;
@@ -1556,6 +1644,26 @@ eval_include_dep_file (struct incdep *curdep, struct floc *f)
 
               /* enter the file with its dependencies. */
               incdep_record_file (curdep, filename, deps, f);
+
+              /* More files? Record them with the same dependency list. */
+              if (fnnext != fnend)
+                for (;;)
+                  {
+                    const char *filename_prev = filename;
+                    const char *fnstart;
+                    while (fnnext != fnend && isblank ((unsigned char)*fnnext))
+                      fnnext++;
+                    if (fnnext == fnend)
+                      break;
+
+                    fnstart = fnnext;
+                    while (fnnext != fnend && !isblank ((unsigned char)*fnnext))
+                      fnnext++;
+
+                    filename = incdep_dep_strcache (curdep, fnstart, fnnext - fnstart);
+                    if (filename != filename_prev) /* clang optimization. */
+                      incdep_record_file (curdep, filename, incdep_dup_dep_list (curdep, deps), f);
+                  }
             }
         }
     }
