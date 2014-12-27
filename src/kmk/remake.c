@@ -1040,10 +1040,11 @@ call_must_make_target_var (struct file *file, unsigned int depth)
                                             var->value, var->value_length,
                                             file, NULL);
 
-          /* stripped string should be non-zero.  */
-          do
-            ch = *str++;
-          while (isspace (ch));
+          /* Stripped string should be non-zero.  */
+
+          ch = *str;
+          while (isspace (ch))
+            ch = *++str;
 
           if (ch != '\0')
             {
