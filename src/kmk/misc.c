@@ -449,6 +449,14 @@ xcalloc (unsigned int size)
   void *result = calloc (size ? size : 1, 1);
   if (result == 0)
     fatal (NILF, _("virtual memory exhausted"));
+
+#ifdef CONFIG_WITH_MAKE_STATS
+  make_stats_allocations++;
+  if (make_expensive_statistics)
+    make_stats_allocated += SIZE_OF_HEAP_BLOCK (result);
+  else
+    make_stats_allocated += size;
+#endif
   return result;
 }
 

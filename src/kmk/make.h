@@ -213,7 +213,7 @@ extern unsigned long make_stats_ht_collisions;
 
 # ifdef __APPLE__
 #  include <malloc/malloc.h>
-#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_good_size(ptr)
+#  define SIZE_OF_HEAP_BLOCK(ptr)   malloc_size(ptr)
 
 # elif defined(__linux__) /* glibc */
 #  include <malloc.h>

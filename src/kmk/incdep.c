@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2744 2014-12-27 21:01:58Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2745 2015-01-03 19:32:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -255,7 +255,7 @@ incdep_xmalloc (struct incdep *cur, size_t size)
 }
 
 #if 0
-/* memset(malloc(sz),'\0',sz) wrapper. */
+/* cmalloc wrapper */
 static void *
 incdep_xcalloc (struct incdep *cur, size_t size)
 {
