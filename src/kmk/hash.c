@@ -21,7 +21,8 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #endif
 
 
-#define	CALLOC(t, n) ((t *) calloc (sizeof (t), (n)))
+/*#define	CALLOC(t, n) ((t *) calloc (sizeof (t), (n)))*/
+#define	CALLOC(t, n) ((t *) xcalloc (sizeof (t) * (n)))
 #define MALLOC(t, n) ((t *) xmalloc (sizeof (t) * (n)))
 #define REALLOC(o, t, n) ((t *) xrealloc ((o), sizeof (t) * (n)))
 #define CLONE(o, t, n) ((t *) memcpy (MALLOC (t, (n)), (o), sizeof (t) * (n)))
