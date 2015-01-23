@@ -1,4 +1,4 @@
-# $Id: header.kmk 2729 2014-03-16 00:21:49Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2751 2015-01-23 12:27:03Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2729 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2751 $  )
 
 
 #
@@ -516,6 +516,7 @@ endif
 # Deprecated legacy names.
 PATH_DEVTOOLS         ?= $(KBUILD_DEVTOOLS)
 PATH_DEVTOOLS_TRG     ?= $(KBUILD_DEVTOOLS_TRG)
+PATH_DEVTOOLS_BLD     ?= $(KBUILD_DEVTOOLS_TRG)
 PATH_DEVTOOLS_TRG_ALT ?= $(KBUILD_DEVTOOLS_TRG_ALT)
 PATH_DEVTOOLS_HST     ?= $(KBUILD_DEVTOOLS_HST)
 PATH_DEVTOOLS_HST_ALT ?= $(KBUILD_DEVTOOLS_HST_ALT)
