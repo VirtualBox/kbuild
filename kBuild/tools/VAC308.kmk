@@ -1,4 +1,4 @@
-# $Id: VAC308.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: VAC308.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - VisualAge for C++ v3.08.
 #
@@ -35,9 +35,9 @@ TOOL_VAC308 := VisualAge for C++ v3.08
 
 # Determin VAC308 location.
 ifndef PATH_TOOL_VAC308
- PATH_TOOL_VAC308 := $(wildcard $(KBUILD_DEVTOOLS_BLD)/vac/v3.0.8*)
+ PATH_TOOL_VAC308 := $(wildcard $(KBUILD_DEVTOOLS_HST)/vac/v3.0.8*)
  ifeq ($(PATH_TOOL_VAC308),)
-  PATH_TOOL_VAC308 := $(wildcard $(KBUILD_DEVTOOLS_BLD)/vac/v308*)
+  PATH_TOOL_VAC308 := $(wildcard $(KBUILD_DEVTOOLS_HST)/vac/v308*)
  endif
  ifeq ($(PATH_TOOL_VAC308),)
   PATH_TOOL_VAC308 := $(wildcard $(KBUILD_DEVTOOLS_TRG)/vac/v3.0.8*)

@@ -1,4 +1,4 @@
-# $Id: JWASM.kmk 2730 2014-03-16 20:30:59Z knut.osmundsen@oracle.com $
+# $Id: JWASM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - JWasm
 #
@@ -36,7 +36,7 @@ TOOL_JWASM := JWasm - MASM clone based on the Open Watcom assembler.
 
 # Tool Specific Properties
 ifndef TOOL_JWASM_AS
- TOOL_JWASM_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_BLD)/jwasm/*/jwasm$(HOSTSUFF_EXE))))
+ TOOL_JWASM_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/jwasm/*/jwasm$(HOSTSUFF_EXE))))
  ifeq ($(TOOL_JWASM_AS),)
   TOOL_JWASM_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/jwasm/*/jwasm$(HOSTSUFF_EXE))))
  endif

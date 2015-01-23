@@ -1,4 +1,4 @@
-# $Id: WGET.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: WGET.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - wget fetchers.
 #
@@ -35,9 +35,9 @@ TOOL_WGET := wget fetcher.
 
 # Tool Specific Properties
 ifndef TOOL_WGET_FETCH
- TOOL_WGET_FETCH := $(wildcard $(KBUILD_DEVTOOLS_BLD)/wget/v*/wget$(HOSTSUFF_EXE))
+ TOOL_WGET_FETCH := $(wildcard $(KBUILD_DEVTOOLS_HST)/wget/v*/wget$(HOSTSUFF_EXE))
  ifneq ($(TOOL_WGET_FETCH),)
-  TOOL_WGET_FETCH := $(wildcard $(KBUILD_DEVTOOLS_BLD)/bin/wget$(HOSTSUFF_EXE))
+  TOOL_WGET_FETCH := $(wildcard $(KBUILD_DEVTOOLS_HST)/bin/wget$(HOSTSUFF_EXE))
  endif
  ifneq ($(TOOL_WGET_FETCH),)
   TOOL_WGET_FETCH := $(lastword $(sort $(TOOL_WGET_FETCH)))

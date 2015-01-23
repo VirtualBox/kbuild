@@ -1,4 +1,4 @@
-# $Id: MASM6PLUS.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: MASM6PLUS.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - MASM v6 and later.
 #
@@ -36,11 +36,11 @@ TOOL_MASM6PLUS := Microsoft Macro Assembler v6 and later.
 # Tool Specific Properties
 ifndef TOOL_MASM6PLUS_AS
  TOOL_MASM6PLUS_AS := $(firstword $(rsort $(wildcard \
-	$(KBUILD_DEVTOOLS_BLD)/masm/*/bin$(if $(eq $(KBUILD_HOST),os2),p,)/ml$(HOSTSUFF_EXE)\
+	$(KBUILD_DEVTOOLS_HST)/masm/*/bin$(if $(eq $(KBUILD_HOST),os2),p,)/ml$(HOSTSUFF_EXE)\
 	)))
  ifeq ($(TOOL_MASM6PLUS_AS),)
   TOOL_MASM6PLUS_AS := $(firstword $(rsort $(wildcard \
-	$(KBUILD_DEVTOOLS_BLD)/vcc/*/bin/ml$(HOSTSUFF_EXE) \
+	$(KBUILD_DEVTOOLS_HST)/vcc/*/bin/ml$(HOSTSUFF_EXE) \
 	)))
  endif
  ifeq ($(TOOL_MASM6PLUS_AS),)

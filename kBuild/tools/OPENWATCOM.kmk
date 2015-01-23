@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2749 2015-01-23 01:01:02Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -35,7 +35,7 @@ TOOL_OPENWATCOM = Open Watcom v1.4 and later (generic)
 
 ifeq ($(PATH_TOOL_OPENWATCOM),)
  ifeq ($(PATH_TOOL_OPENWATCOM),)
-  PATH_TOOL_OPENWATCOM := $(wildcard $(KBUILD_DEVTOOLS_BLD)/openwatcom/v*)
+  PATH_TOOL_OPENWATCOM := $(wildcard $(KBUILD_DEVTOOLS_HST)/openwatcom/v*)
  endif
  ifeq ($(PATH_TOOL_OPENWATCOM),)
   PATH_TOOL_OPENWATCOM := $(wildcard $(KBUILD_DEVTOOLS_TRG)/openwatcom/v*)
