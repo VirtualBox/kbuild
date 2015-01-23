@@ -56,6 +56,9 @@ void execute_file_commands (struct file *file);
 void print_commands (const struct commands *cmds);
 void delete_child_targets (struct child *child);
 void chop_commands (struct commands *cmds);
+#ifdef KMK
+void free_chopped_commands (struct commands *cmd);
+#endif
 #if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)
 void set_file_variables (struct file *file, int called_early);
 #else

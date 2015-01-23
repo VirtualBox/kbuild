@@ -1322,6 +1322,13 @@ notice_finished_file (struct file *file)
        So mark it now as "succeeded".  */
     file->update_status = 0;
 #endif
+
+#ifdef KMK
+    /* We're done with this command, so free the memory held by the chopped
+       command lines. Saves heap for the compilers & linkers. */
+    if (file->cmds && file->cmds->command_lines)
+      free_chopped_commands (file->cmds);
+#endif
 }
 
 /* Check whether another file (whose mtime is THIS_MTIME) needs updating on
