@@ -1,4 +1,4 @@
-# $Id: MASM610.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: MASM610.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - MASM v6.10
 #
@@ -35,7 +35,7 @@ TOOL_MASM610 := Microsoft Macro Assembler v6.10
 
 # Tool Specific Properties
 ifndef TOOL_MASM610_AS
- TOOL_MASM610_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_BLD)/masm/v6.10*/binp/ml$(HOSTSUFF_EXE))))
+ TOOL_MASM610_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/masm/v6.10*/binp/ml$(HOSTSUFF_EXE))))
  ifeq ($(TOOL_MASM610_AS),)
   TOOL_MASM610_AS := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/masm/v6.10*/binp/ml$(HOSTSUFF_EXE))))
  endif

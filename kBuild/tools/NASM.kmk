@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Netwide Assembler v0.98+.
 #
@@ -35,7 +35,7 @@ TOOL_NASM := Netwide Assembler v0.98+
 
 # Tool Specific Properties
 ifndef PATH_TOOL_NASM
- PATH_TOOL_NASM := $(sort $(wildcard $(KBUILD_DEVTOOLS_BLD)/nasm/v*.*))
+ PATH_TOOL_NASM := $(sort $(wildcard $(KBUILD_DEVTOOLS_HST)/nasm/v*.*))
  ifneq ($(PATH_TOOL_NASM),)
   PATH_TOOL_NASM := $(call lastword,$(PATH_TOOL_NASM))
  endif

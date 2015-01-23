@@ -1,4 +1,4 @@
-# $Id: ZIP.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: ZIP.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - The zip/unzip packer/unpacker.
 #
@@ -35,12 +35,12 @@ TOOL_ZIP := The zip/unzip packer/unpacker.
 
 # Tool Specific Properties
 ifndef TOOL_ZIP_UNPACK
- TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/unzip/v*/unzip$(HOSTSUFF_EXE))
+ TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/unzip/v*/unzip$(HOSTSUFF_EXE))
  ifeq ($(TOOL_ZIP_UNPACK),)
-  TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/zip/v*/unzip$(HOSTSUFF_EXE))
+  TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/zip/v*/unzip$(HOSTSUFF_EXE))
  endif
  ifeq ($(TOOL_ZIP_UNPACK),)
-  TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/bin/unzip$(HOSTSUFF_EXE))
+  TOOL_ZIP_UNPACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/bin/unzip$(HOSTSUFF_EXE))
  endif
  ifneq ($(TOOL_ZIP_UNPACK),)
   TOOL_ZIP_UNPACK := $(lastword $(sort $(TOOL_ZIP_UNPACK)))
@@ -51,12 +51,12 @@ else
  TOOL_ZIP_UNPACK := $(TOOL_ZIP_UNPACK)
 endif
 #ifndef TOOL_ZIP_PACK
-# TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/zip/v*/zip$(HOSTSUFF_EXE))
+# TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/zip/v*/zip$(HOSTSUFF_EXE))
 # ifeq ($(TOOL_ZIP_PACK),)
-#  TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/unzip/v*/zip$(HOSTSUFF_EXE))
+#  TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/unzip/v*/zip$(HOSTSUFF_EXE))
 # endif
 # ifeq ($(TOOL_ZIP_PACK),)
-#  TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_BLD)/bin/zip$(HOSTSUFF_EXE))
+#  TOOL_ZIP_PACK := $(wildcard $(KBUILD_DEVTOOLS_HST)/bin/zip$(HOSTSUFF_EXE))
 # endif
 # ifneq ($(TOOL_ZIP_PACK),)
 #  TOOL_ZIP_PACK := $(lastword $(sort $(TOOL_ZIP_PACK)))
