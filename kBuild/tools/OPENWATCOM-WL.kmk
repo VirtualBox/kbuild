@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM-WL.kmk 2663 2012-10-15 13:13:45Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM-WL.kmk 2749 2015-01-23 01:01:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later, using wlink.
 #
@@ -54,7 +54,7 @@ define TOOL_OPENWATCOM-WL_LINK_PROGRAM_CMDS
 		$(foreach p,$(call TOOL_OPENWATCOM_FIX_SLASHES_SQ,$(libpath)),'LIBPath $p') \
         	$(foreach o,$(call TOOL_OPENWATCOM_FIX_SLASHES_SQ,$(filter-out %.res,$(objs)) $(othersrc)),'$(if $(filter %.lib %.a,$l),LIB,)File $o') \
 		$(foreach l,$(call TOOL_OPENWATCOM_FIX_SLASHES_SQ,$(libs)),'Library $l')
-	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP) \
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD) \
 		$(TOOL_OPENWATCOM_WLINK) @$(outbase).rsp
 	$(if $(filter %.res,$(objs)), $(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP) \
 		$(TOOL_OPENWATCOM_RC) \
