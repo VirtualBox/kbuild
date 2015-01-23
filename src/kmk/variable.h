@@ -109,8 +109,9 @@ struct variable
 	v_default		/* Decide in target_environment.  */
       } export ENUM_BITFIELD (2);
 #ifdef CONFIG_WITH_MAKE_STATS
-    unsigned int changes;
-    unsigned int reallocs;
+    unsigned int changes;      /* Variable modification count.  */
+    unsigned int reallocs;     /* Realloc on value count.  */
+    unsigned int references;   /* Lookup count.  */
 #endif
   };
 

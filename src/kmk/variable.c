@@ -444,6 +444,7 @@ define_variable_in_set (const char *name, unsigned int length,
   v->export = v_default;
   MAKE_STATS_2(v->changes = 0);
   MAKE_STATS_2(v->reallocs = 0);
+  MAKE_STATS_2(v->references = 0);
 
   v->exportable = 1;
   if (*name != '_' && (*name < 'A' || *name > 'Z')
@@ -887,7 +888,10 @@ lookup_variable (const char *name, unsigned int length)
     {
       struct variable *v = lookup_kbuild_object_variable_accessor(name, length);
       if (v != VAR_NOT_KBUILD_ACCESSOR)
-        return v;
+        {
+          MAKE_STATS (v->references++);
+          return v;
+        }
     }
 # endif
 
@@ -920,6 +924,7 @@ lookup_variable (const char *name, unsigned int length)
 # ifdef KMK
           RESOLVE_ALIAS_VARIABLE(v);
 # endif
+         MAKE_STATS (v->references++);
 	  return v->special ? lookup_special_var (v) : v;
         }
 
@@ -1004,7 +1009,6 @@ lookup_variable_in_set (const char *name, unsigned int length,
                         const struct variable_set *set)
 {
   struct variable var_key;
-  struct variable *v;
 #ifndef CONFIG_WITH_STRCACHE2
   var_key.name = (char *) name;
   var_key.length = length;
@@ -1012,6 +1016,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
   return (struct variable *) hash_find_item ((struct hash_table *) &set->table, &var_key);
 #else  /* CONFIG_WITH_STRCACHE2 */
   const char *cached_name;
+  struct variable *v;
 
 # ifdef KMK
   /* Check for kBuild-define- local variable accesses and handle these first. */
@@ -1021,6 +1026,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
       if (v != VAR_NOT_KBUILD_ACCESSOR)
         {
           RESOLVE_ALIAS_VARIABLE(v);
+          MAKE_STATS (v->references++);
           return v;
         }
     }
@@ -1048,6 +1054,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
 # ifdef KMK
   RESOLVE_ALIAS_VARIABLE(v);
 # endif
+  MAKE_STATS (if (v) v->references++);
   return v;
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
@@ -2737,6 +2744,7 @@ try_variable_definition (const struct floc *flocp, char *line
 #ifdef CONFIG_WITH_MAKE_STATS
 static unsigned long var_stats_changes, var_stats_changed;
 static unsigned long var_stats_reallocs, var_stats_realloced;
+static unsigned long var_stats_references, var_stats_referenced;
 static unsigned long var_stats_val_len, var_stats_val_alloc_len;
 static unsigned long var_stats_val_rdonly_len;
 #endif
@@ -2813,6 +2821,10 @@ print_variable (const void *item, void *arg)
       printf (_(", %u reallocs"), v->reallocs);
   var_stats_reallocs += v->reallocs;
   var_stats_realloced += (v->reallocs != 0);
+  if (v->references != 0)
+      printf (_(", %u references"), v->references);
+  var_stats_references += v->references;
+  var_stats_referenced += (v->references != 0);
   var_stats_val_len += v->value_length;
   if (v->value_alloc_len)
     var_stats_val_alloc_len += v->value_alloc_len;
@@ -2869,8 +2881,9 @@ print_variable_set (struct variable_set *set, char *prefix)
 {
 #ifdef CONFIG_WITH_MAKE_STATS
   var_stats_changes = var_stats_changed = var_stats_reallocs
-      = var_stats_realloced = var_stats_val_len = var_stats_val_alloc_len
-      = var_stats_val_rdonly_len = 0;
+    = var_stats_realloced = var_stats_references = var_stats_referenced
+    = var_stats_val_len = var_stats_val_alloc_len
+    = var_stats_val_rdonly_len = 0;
 
   hash_map_arg (&set->table, print_variable, prefix);
 
@@ -2899,6 +2912,12 @@ print_variable_set (struct variable_set *set, char *prefix)
                var_stats_realloced,
                (unsigned int)((100.0 * var_stats_realloced) / set->table.ht_fill),
                var_stats_reallocs);
+
+      if (var_stats_referenced)
+        printf(_("#  referenced %5lu (%2u%%),       references %6lu\n"),
+               var_stats_referenced,
+               (unsigned int)((100.0 * var_stats_referenced) / set->table.ht_fill),
+               var_stats_references);
       }
 #else
   hash_map_arg (&set->table, print_variable, prefix);
