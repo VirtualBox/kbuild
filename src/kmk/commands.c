@@ -629,24 +629,27 @@ chop_commands (struct commands *cmds)
     }
 }
 
-#ifdef KMK
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
 /* This is for saving memory in func_commands. */
 void
 free_chopped_commands (struct commands *cmds)
 {
-  if (cmds && cmds->command_lines != 0)
+  if (   cmds
+      && cmds->command_lines != 0
+      && cmds->refs == 0)
     {
       unsigned idx = cmds->ncommand_lines;
       while (idx-- > 0)
         free (cmds->command_lines[idx]);
       free (cmds->command_lines);
       free (cmds->lines_flags);
-      cmds->command_lines = NULL;
-      cmds->lines_flags = NULL;
+      cmds->command_lines = 0;
+      cmds->lines_flags = 0;
+      cmds->ncommand_lines = 0;
     }
 }
 
-#endif /* CONFIG_WITH_COMMANDS_FUNC */
+#endif /* CONFIG_WITH_MEMORY_OPTIMIZATIONS */
 /* Execute the commands to remake FILE.  If they are currently executing,
    return or have already finished executing, just return.  Otherwise,
    fork off a child process to run the first command line in the sequence.  */

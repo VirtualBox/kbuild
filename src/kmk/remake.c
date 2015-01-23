@@ -1323,7 +1323,7 @@ notice_finished_file (struct file *file)
     file->update_status = 0;
 #endif
 
-#ifdef KMK
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
     /* We're done with this command, so free the memory held by the chopped
        command lines. Saves heap for the compilers & linkers. */
     if (file->cmds && file->cmds->command_lines)

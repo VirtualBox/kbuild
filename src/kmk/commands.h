@@ -56,7 +56,7 @@ void execute_file_commands (struct file *file);
 void print_commands (const struct commands *cmds);
 void delete_child_targets (struct child *child);
 void chop_commands (struct commands *cmds);
-#ifdef KMK
+#ifdef CONFIG_WITH_MEMORY_OPTIMIZATIONS
 void free_chopped_commands (struct commands *cmd);
 #endif
 #if defined(CONFIG_WITH_COMMANDS_FUNC) || defined (CONFIG_WITH_DOT_MUST_MAKE)

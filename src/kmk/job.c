@@ -1010,23 +1010,8 @@ free_child (struct child *child)
 
   child->file->cmds->refs--;
   if (   !child->file->intermediate
-      && !child->file->pat_variables
-      && child->file->cmds->refs == 0)
-    {
-      struct commands *cmds = child->file->cmds;
-      unsigned int i;
-
-      for (i = 0; i < cmds->ncommand_lines; ++i)
-        {
-          free (cmds->command_lines[i]);
-          cmds->command_lines[i] = 0;
-        }
-      free (cmds->command_lines);
-      cmds->command_lines = 0;
-      free (cmds->lines_flags);
-      cmds->lines_flags = 0;
-      cmds->ncommand_lines = 0;
-    }
+      && !child->file->pat_variables)
+    free_chopped_commands(child->file->cmds);
 #endif /* CONFIG_WITH_MEMORY_OPTIMIZATIONS */
 
   free (child);
