@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2728 2014-03-05 13:09:47Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2747 2015-01-23 00:52:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -59,10 +59,13 @@
  * For details on how MSC parses the command line, see "Parsing C Command-Line
  * Arguments": http://msdn.microsoft.com/en-us/library/a1y7w461.aspx
  *
- * @param   argc        The argument count.
- * @param   argv        The argument vector.
+ * @param   argc                The argument count.
+ * @param   argv                The argument vector.
+ * @param   fWatcomBrainDamage  Set if we're catering for wcc, wcc386 or similar
+ *                              OpenWatcom tools.  They seem to follow some
+ *                              ancient or home made quoting convention.
  */
-static void quoteArguments(int argc, char **argv)
+static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
 {
     int i;
     for (i = 0; i < argc; i++)
@@ -70,19 +73,20 @@ static void quoteArguments(int argc, char **argv)
         const char *pszOrg    = argv[i];
         size_t      cchOrg    = strlen(pszOrg);
         const char *pszQuotes = (const char *)memchr(pszOrg, '"', cchOrg);
+        const char *pszProblem = NULL;
         if (   pszQuotes
             || cchOrg == 0
-            || memchr(pszOrg, ' ', cchOrg)
-            || memchr(pszOrg, '\t', cchOrg)
-            || memchr(pszOrg, '\n', cchOrg)
-            || memchr(pszOrg, '\r', cchOrg)
-            || memchr(pszOrg, '&', cchOrg)
-            || memchr(pszOrg, '>', cchOrg)
-            || memchr(pszOrg, '<', cchOrg)
-            || memchr(pszOrg, '|', cchOrg)
-            || memchr(pszOrg, '%', cchOrg)
-            || memchr(pszOrg, '\'', cchOrg)
-            || memchr(pszOrg, '=', cchOrg)
+            || (pszProblem = (const char *)memchr(pszOrg, ' ',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '\t', cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '\n', cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '\r', cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '&',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '>',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '<',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '|',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '%',  cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '\'', cchOrg)) != NULL
+            || (pszProblem = (const char *)memchr(pszOrg, '=',  cchOrg)) != NULL
             )
         {
             char   ch;
@@ -91,6 +95,32 @@ static void quoteArguments(int argc, char **argv)
             char  *pszNew       = (char *)malloc(cchNew + 1);
 
             argv[i] = pszNew;
+
+            /* Watcom does not grok "-i=c:\program files\watcom\h", it thing
+               it's a source specification. The quote must follow the equal. */
+            if (fWatcomBrainDamage)
+            {
+                size_t cchUnquoted  = 0;
+                if (pszOrg[0] == '@') /* Response file quoting: @"file name.rsp" */
+                    cchUnquoted = 1;
+                else if (pszOrg[0] == '-' || pszOrg[0] == '/') /* Switch quoting. */
+                {
+                    const char *pszNeedQuoting = (const char *)memchr(pszOrg, '=', cchOrg);
+                    if (   pszNeedQuoting == NULL
+                        || (uintptr_t)pszNeedQuoting > (uintptr_t)(pszProblem ? pszProblem : pszQuotes))
+                        pszNeedQuoting = pszProblem ? pszProblem : pszQuotes;
+                    else
+                        pszNeedQuoting++;
+                    cchUnquoted = pszNeedQuoting - pszOrg;
+                }
+                if (cchUnquoted)
+                {
+                    memcpy(pszNew, pszOrg, cchUnquoted);
+                    pszNew += cchUnquoted;
+                    pszOrg += cchUnquoted;
+                    cchOrg -= cchUnquoted;
+                }
+            }
 
             *pszNew++ = '"';
             if (fComplicated)
@@ -187,7 +217,7 @@ static const char *name(const char *pszName)
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s [-[rwa+tb]<fd> <file>] [-c<fd>] [-Z] [-E <var=val>] [-C <dir>] -- <program> [args]\n"
+            "usage: %s [-[rwa+tb]<fd> <file>] [-c<fd>] [-Z] [-E <var=val>] [-C <dir>] [--wcc-brain-damage] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
@@ -207,6 +237,9 @@ static int usage(FILE *pOut,  const char *argv0)
             "The -C switch is for changing the current directory. This takes immediate\n"
             "effect, so be careful where you put it.\n"
             "\n"
+            "The --wcc-brain-damage switch is to work around wcc and wcc386 (Open Watcom)\n"
+            "not following normal quoting conventions on Windows, OS/2, and DOS.\n"
+            "\n"
             "This command was originally just a quick hack to avoid invoking the shell\n"
             "on Windows (cygwin) where forking is very expensive and has exhibited\n"
             "stability issues on SMP machines.  It has since grown into something like\n"
@@ -225,6 +258,7 @@ int main(int argc, char **argv, char **envp)
 #endif
     FILE *pStdErr = stderr;
     FILE *pStdOut = stdout;
+    int fWatcomBrainDamage = 0;
 
     /*
      * Parse arguments.
@@ -261,6 +295,11 @@ int main(int argc, char **argv, char **envp)
                     psz = "Z";
                 else if (!strcmp(psz, "-close"))
                     psz = "c";
+                else if (!strcmp(psz, "-wcc-brain-damage"))
+                {
+                    fWatcomBrainDamage = 1;
+                    continue;
+                }
             }
 
             /*
@@ -709,7 +748,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* MSC is a PITA since it refuses to quote the arguments... */
-    quoteArguments(argc - i, &argv[i]);
+    quoteArguments(argc - i, &argv[i], fWatcomBrainDamage);
     rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
     if (rc == -1 && pStdErr)
     {
