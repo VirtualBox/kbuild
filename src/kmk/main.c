@@ -1160,6 +1160,7 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
     HANDLE hThread;
     CONTEXT Ctx;
 
+    /*fprintf(stderr, "dbg: ctrl_event sig=%d\n", sig);*/
 #ifndef _M_IX86
     /* only once. */
     if (InterlockedExchange(&g_lTriggered, 1))
@@ -1192,9 +1193,10 @@ static BOOL WINAPI ctrl_event(DWORD CtrlType)
         Ctx.Eip = (uintptr_t)&dispatch_stub;
 #else
         g_Ctx = Ctx;
-        Ctx.Rsp -= 0x20;
+        Ctx.Rsp -= 0x80;
         Ctx.Rsp &= ~(uintptr_t)0xf;
-        Ctx.Rip = (uintptr_t)&dispatch_stub;
+        Ctx.Rsp += 8;   /* (Stack aligned before call instruction, not after.) */
+        Ctx.Rip  = (uintptr_t)&dispatch_stub;
 #endif
 
         SetThreadContext(hThread, &Ctx);
