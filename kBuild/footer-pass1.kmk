@@ -1,4 +1,4 @@
-# $Id: footer-pass1.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: footer-pass1.kmk 2762 2015-01-28 18:17:54Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 1.
 #
@@ -144,6 +144,8 @@ if1of ($(insttype), stage both)
   $(target)_1_STAGE_TARGET := $(addprefix $(PATH_STAGE)/,$(stage))
  endif
 else
+ local inst :=
+ local stage :=
  $(target)_1_STAGE :=
  $(target)_1_STAGE_TARGET :=
 endif
@@ -244,7 +246,7 @@ define def_pass1_bldprog
 ifndef $(target)_INST
 $(target)_INSTTYPE := none
 endif
-$(evalval def_pass1_link_common)
+$(evalvalctx def_pass1_link_common)
 endef
 
 EXT     := EXE
@@ -253,7 +255,7 @@ definst := $(INST_BIN)
 tool_prefix := LD
 bld_trg_base_var := PLATFORM
 $(foreach target, $(_ALL_BLDPROGS), \
-	$(evalval def_pass1_bldprog))
+	$(evalvalctx def_pass1_bldprog))
 
 
 #
@@ -265,7 +267,7 @@ definst := $(INST_LIB)
 tool_prefix := AR
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_LIBRARIES), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 
 
 #
@@ -277,7 +279,7 @@ definst := $(INST_DLL)
 tool_prefix := LD
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_DLLS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 
 
 #
@@ -293,7 +295,7 @@ if1of ($(KBUILD_TARGET), nt os2 win win64 win32)
  tool_prefix := AR
  bld_trg_base_var := TARGET
  $(foreach target, $(_ALL_IMPORT_LIBS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 else
  EXT     := DLL
  EXTPRE  :=
@@ -301,7 +303,7 @@ else
  tool_prefix := LD
  bld_trg_base_var := TARGET
  $(foreach target, $(_ALL_IMPORT_LIBS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 endif
 
 
@@ -314,7 +316,7 @@ definst := $(INST_BIN)
 tool_prefix := LD
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_PROGRAMS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 
 
 #
@@ -326,7 +328,7 @@ definst := $(INST_SYS)
 tool_prefix := LD
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_SYSMODS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 
 
 #
@@ -338,7 +340,7 @@ definst := $(INST_BIN)
 tool_prefix := LD
 bld_trg_base_var := TARGET
 $(foreach target, $(_ALL_MISCBINS), \
-	$(evalval def_pass1_link_common))
+	$(evalvalctx def_pass1_link_common))
 
 
 #
@@ -452,7 +454,7 @@ endef # def_pass1_install
 $(eval-opt-var def_pass1_install)
 
 $(foreach target, $(_ALL_INSTALLS), \
-	$(evalval def_pass1_install))
+	$(evalvalctx def_pass1_install))
 
 ifdef KBUILD_PROFILE_SELF
  $(evalcall def_profile_self, done pass 1)
