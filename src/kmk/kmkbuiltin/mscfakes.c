@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2756 2015-01-28 12:39:20Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2759 2015-01-28 16:14:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -466,55 +466,67 @@ int utimes(const char *pszPath, const struct timeval *paTimes)
 }
 
 
-int writev(int fd, const struct iovec *vector, int count)
+/* We override the libc write function (in our modules only, unfortunately) so
+   we can kludge our way around a ENOSPC problem observed on build servers
+   capturing STDOUT and STDERR via pipes.  Apparently this may happen when the
+   pipe buffer is full, even with the mscfake_init hack in place.
+
+   XXX: Probably need to hook into fwrite as well. */
+ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
 {
-    int size = 0;
-    int i;
-    for (i = 0; i < count; i++)
+    ssize_t cbRet;
+    if (cbSrc < UINT_MAX / 4)
     {
-        int cb = write(fd, vector[i].iov_base, (int)vector[i].iov_len);
-        if (cb < 0)
+#ifndef MSC_WRITE_TEST
+        cbRet = _write(fd, pvSrc, (unsigned int)cbSrc);
+#else
+        cbRet = -1; errno = ENOSPC;
+#endif
+        if (cbRet < 0)
         {
             /* ENOSPC on pipe kludge. */
-            char  *pbCur;
-            size_t cbLeft;
-            int    cbLimit;
-            int    cSinceLastSuccess;
-            int    iErr = errno;
+            int cbLimit;
+            int cSinceLastSuccess;
 
+            if (cbSrc == 0)
+                return 0;
             if (errno != ENOSPC)
                 return -1;
-            if ((int)vector[i].iov_len == 0)
-                continue;
+#ifndef MSC_WRITE_TEST
             if (!isPipeFd(fd))
             {
                 errno = ENOSPC;
                 return -1;
             }
+#endif
 
             /* Likely a full pipe buffer, try write smaller amounts and do some
                sleeping inbetween each unsuccessful one. */
-            pbCur = vector[i].iov_base;
-            cbLeft = vector[i].iov_len;
-            cbLimit = cbLeft / 4;
+            cbLimit = cbSrc / 4;
             if (cbLimit < 4)
                 cbLimit = 4;
             else if (cbLimit > 512)
                 cbLimit = 512;
             cSinceLastSuccess = 0;
+            cbRet = 0;
+#ifdef MSC_WRITE_TEST
+            cbLimit = 4;
+#endif
 
-            while (cbLeft > 0)
+            while (cbSrc > 0)
             {
-                int cbAttempt = cbLeft > cbLimit ? (int)cbLimit : (int)cbLeft;
-                cb = write(fd, pbCur, cbAttempt);
-                if (cb > 0)
+                unsigned int cbAttempt = cbSrc > cbLimit ? (int)cbLimit : (int)cbSrc;
+                ssize_t cbActual = _write(fd, pvSrc, cbAttempt);
+                if (cbActual > 0)
                 {
-                    assert(cb <= cbAttempt);
-                    pbCur  += cb;
-                    cbLeft -= cb;
-                    size   += cb;
+                    assert(cbActual <= (ssize_t)cbAttempt);
+                    pvSrc  = (char *)pvSrc + cbActual;
+                    cbSrc -= cbActual;
+                    cbRet += cbActual;
+#ifndef MSC_WRITE_TEST
                     if (cbLimit < 32)
                         cbLimit = 32;
+#endif
                     cSinceLastSuccess = 0;
                 }
                 else if (errno != ENOSPC)
@@ -537,8 +549,42 @@ int writev(int fd, const struct iovec *vector, int count)
                         Sleep(16);
                 }
             }
-            cb = 0;
         }
+    }
+    else
+    {
+        /*
+         * Type limit exceeded. Split the job up.
+         */
+        cbRet = 0;
+        while (cbSrc > 0)
+        {
+            size_t  cbToWrite = cbSrc > UINT_MAX / 4 ? UINT_MAX / 4 : cbSrc;
+            ssize_t cbWritten = msc_write(fd, pvSrc, cbToWrite);
+            if (cbWritten > 0)
+            {
+                pvSrc  = (char *)pvSrc + (size_t)cbWritten;
+                cbSrc -= (size_t)cbWritten;
+                cbRet += (size_t)cbWritten;
+            }
+            else if (cbWritten == 0 || cbRet > 0)
+                break;
+            else
+                return -1;
+        }
+    }
+    return cbRet;
+}
+
+ssize_t writev(int fd, const struct iovec *vector, int count)
+{
+    int size = 0;
+    int i;
+    for (i = 0; i < count; i++)
+    {
+        int cb = msc_write(fd, vector[i].iov_base, (int)vector[i].iov_len);
+        if (cb < 0)
+            return cb;
         size += cb;
     }
     return size;
@@ -623,7 +669,6 @@ static BOOL isPipeFd(int fd)
     }
     return FALSE;
 }
-
 
 
 /**

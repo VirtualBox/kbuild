@@ -16,6 +16,9 @@ You should have received a copy of the GNU General Public License along with
 GNU Make; see the file COPYING.  If not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 
+#ifndef ___config_h_win
+#define ___config_h_win
+
 /* Suppress some Visual C++ warnings.
    Maybe after the code cleanup for ISO C we can remove some/all of these.  */
 #if _MSC_VER > 1000
@@ -533,8 +536,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define _DIRENT_HAVE_D_NAMLEN 1
 #define _DIRENT_HAVE_D_TYPE   1
 
-
-/* cygwin sucks to much in one end or the other. */
+/* bird: Not sure if this is necessary any more... */
 #define BATCH_MODE_ONLY_SHELL
 
 #include "inlined_memchr.h"
@@ -555,4 +557,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 # endif
 extern char space_map[space_map_size];
 #endif
+
+/* bird: Include mscfakes.h to make sure we have all it's tricks applied. */
+#ifndef ___mscfakes_h
+# include "kmkbuiltin/mscfakes.h"
+#endif
+
+#endif /* bird */
 
