@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2759 2015-01-28 16:14:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -27,14 +27,19 @@
 #define ___mscfakes_h
 #ifdef _MSC_VER
 
+/* Include the config file (kmk's) so we don't need to duplicate stuff from it here. */
+#include "config.h"
+
 #include <io.h>
 #include <direct.h>
 #include <time.h>
 #include <stdarg.h>
 #include <malloc.h>
 #include "getopt.h"
+#ifndef MSCFAKES_NO_WINDOWS_H
+# include <Windows.h>
+#endif
 
-/* Note: Duplicated it config.h.win */
 #include <sys/stat.h>
 #include <io.h>
 #include <direct.h>
@@ -78,12 +83,16 @@ typedef unsigned short nlink_t;
 typedef unsigned short uid_t;
 typedef unsigned short gid_t;
 #endif
+#if defined(_M_AMD64) || defined(_M_X64) || defined(_M_IA64) || defined(_WIN64)
+typedef __int64 ssize_t;
+#else
 typedef long ssize_t;
+#endif
 typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
 
-#ifndef timerisset
+#if !defined(timerisset) && defined(MSCFAKES_NO_WINDOWS_H)
 struct timeval
 {
     long tv_sec;
@@ -137,9 +146,12 @@ int snprintf(char *buf, size_t size, const char *fmt, ...);
 #endif
 int symlink(const char *pszDst, const char *pszLink);
 int utimes(const char *pszPath, const struct timeval *paTimes);
-int writev(int fd, const struct iovec *vector, int count);
+ssize_t writev(int fd, const struct iovec *vector, int count);
 
-
+/* bird write ENOSPC hacks. */
+#undef write
+#define write msc_write
+ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc);
 
 /*
  * MSC fake internals / helpers.
