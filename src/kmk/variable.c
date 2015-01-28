@@ -445,6 +445,8 @@ define_variable_in_set (const char *name, unsigned int length,
   MAKE_STATS_2(v->changes = 0);
   MAKE_STATS_2(v->reallocs = 0);
   MAKE_STATS_2(v->references = 0);
+  MAKE_STATS_2(v->cEvalVals = 0);
+  MAKE_STATS_2(v->cTicksEvalVal = 0);
 
   v->exportable = 1;
   if (*name != '_' && (*name < 'A' || *name > 'Z')
@@ -601,6 +603,9 @@ define_variable_alias_in_set (const char *name, unsigned int length,
       v->export = v_default;
       MAKE_STATS_2(v->changes = 0);
       MAKE_STATS_2(v->reallocs = 0);
+      MAKE_STATS_2(v->references = 0);
+      MAKE_STATS_2(v->cEvalVals = 0);
+      MAKE_STATS_2(v->cTicksEvalVal = 0);
       v->exportable = 1;
       if (*name != '_' && (*name < 'A' || *name > 'Z')
           && (*name < 'a' || *name > 'z'))
@@ -889,7 +894,7 @@ lookup_variable (const char *name, unsigned int length)
       struct variable *v = lookup_kbuild_object_variable_accessor(name, length);
       if (v != VAR_NOT_KBUILD_ACCESSOR)
         {
-          MAKE_STATS (v->references++);
+          MAKE_STATS_2 (v->references++);
           return v;
         }
     }
@@ -924,8 +929,8 @@ lookup_variable (const char *name, unsigned int length)
 # ifdef KMK
           RESOLVE_ALIAS_VARIABLE(v);
 # endif
-         MAKE_STATS (v->references++);
-	  return v->special ? lookup_special_var (v) : v;
+          MAKE_STATS_2 (v->references++);
+	   return v->special ? lookup_special_var (v) : v;
         }
 
       is_parent |= setlist->next_is_parent;
@@ -1026,7 +1031,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
       if (v != VAR_NOT_KBUILD_ACCESSOR)
         {
           RESOLVE_ALIAS_VARIABLE(v);
-          MAKE_STATS (v->references++);
+          MAKE_STATS_2 (v->references++);
           return v;
         }
     }
@@ -1054,7 +1059,7 @@ lookup_variable_in_set (const char *name, unsigned int length,
 # ifdef KMK
   RESOLVE_ALIAS_VARIABLE(v);
 # endif
-  MAKE_STATS (if (v) v->references++);
+  MAKE_STATS_2 (if (v) v->references++);
   return v;
 #endif /* CONFIG_WITH_STRCACHE2 */
 }
@@ -2745,6 +2750,8 @@ try_variable_definition (const struct floc *flocp, char *line
 static unsigned long var_stats_changes, var_stats_changed;
 static unsigned long var_stats_reallocs, var_stats_realloced;
 static unsigned long var_stats_references, var_stats_referenced;
+static unsigned long var_stats_evalvals, var_stats_evalvaled;
+static uintmax_t var_stats_evalval_ticks;
 static unsigned long var_stats_val_len, var_stats_val_alloc_len;
 static unsigned long var_stats_val_rdonly_len;
 #endif
@@ -2817,14 +2824,23 @@ print_variable (const void *item, void *arg)
       printf (_(", %u changes"), v->changes);
   var_stats_changes += v->changes;
   var_stats_changed += (v->changes != 0);
+
   if (v->reallocs != 0)
       printf (_(", %u reallocs"), v->reallocs);
   var_stats_reallocs += v->reallocs;
   var_stats_realloced += (v->reallocs != 0);
+
   if (v->references != 0)
       printf (_(", %u references"), v->references);
   var_stats_references += v->references;
   var_stats_referenced += (v->references != 0);
+
+  if (v->cEvalVals != 0)
+      //printf (_(", %u evalvals (%llu ticks)"), v->cEvalVals, v->cTicksEvalVal);
+      printf (_(", %u evalvals (%llu ms)"), v->cEvalVals, v->cTicksEvalVal / 3299998);
+  var_stats_evalvals += v->cEvalVals;
+  var_stats_evalvaled += (v->cEvalVals != 0);
+
   var_stats_val_len += v->value_length;
   if (v->value_alloc_len)
     var_stats_val_alloc_len += v->value_alloc_len;

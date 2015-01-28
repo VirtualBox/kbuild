@@ -112,6 +112,8 @@ struct variable
     unsigned int changes;      /* Variable modification count.  */
     unsigned int reallocs;     /* Realloc on value count.  */
     unsigned int references;   /* Lookup count.  */
+    unsigned cEvalVals;        /* $(evalval v) or $(evalvalctx v) count */
+    unsigned long long cTicksEvalVal; /* Number of ticks spend in cEvalVal. */
 #endif
   };
 

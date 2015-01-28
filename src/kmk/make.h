@@ -237,6 +237,13 @@ extern unsigned long make_stats_ht_collisions;
 #endif
 
 /* bird - start */
+#ifdef _MSC_VER
+# include <intrin.h>
+# define CURRENT_CLOCK_TICK() __rdtsc()
+#else
+# define CURRENT_CLOCK_TICK() 0
+#endif
+
 #define COMMA ,
 #ifdef CONFIG_WITH_VALUE_LENGTH
 # define IF_WITH_VALUE_LENGTH(a_Expr)           a_Expr
