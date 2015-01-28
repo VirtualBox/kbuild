@@ -2033,6 +2033,10 @@ func_evalval (char *o, char **argv, const char *funcname)
       int var_ctx;
       size_t off;
       const struct floc *reading_file_saved = reading_file;
+#ifdef CONFIG_WITH_MAKE_STATS
+      unsigned long long uStartTick = CURRENT_CLOCK_TICK();
+      MAKE_STATS_2(v->cEvalVals++);
+#endif
 
       /* Make a copy of the value to the variable buffer since
          eval_buffer will make changes to its input. */
@@ -2058,6 +2062,8 @@ func_evalval (char *o, char **argv, const char *funcname)
       if (var_ctx)
         pop_variable_scope ();
       restore_variable_buffer (buf, len);
+
+      MAKE_STATS_2(v->cTicksEvalVal += CURRENT_CLOCK_TICK() - uStartTick);
     }
 
   return o;

@@ -1363,6 +1363,9 @@ main (int argc, char **argv, char **envp)
   struct dep *read_makefiles;
   PATH_VAR (current_directory);
   unsigned int restarts = 0;
+#ifdef CONFIG_WITH_MAKE_STATS
+  unsigned long long uStartTick = CURRENT_CLOCK_TICK();
+#endif
 #ifdef WINDOWS32
   char *unix_path = NULL;
   char *windows32_path = NULL;
@@ -2917,6 +2920,7 @@ main (int argc, char **argv, char **envp)
       error (NILF,
              _("warning:  Clock skew detected.  Your build may be incomplete."));
 
+    MAKE_STATS_2(if (uStartTick) printf("main ticks elapsed: %ull\n", (unsigned long long)(CURRENT_CLOCK_TICK() - uStartTick)) );
     /* Exit.  */
     die (status);
   }
