@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2752 2015-01-23 20:38:01Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2765 2015-01-30 00:27:51Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -192,6 +192,7 @@ kmk_DEFS = \
 	CONFIG_WITH_RDONLY_VARIABLE_VALUE \
 	CONFIG_WITH_LAZY_DEPS_VARS \
 	CONFIG_WITH_MEMORY_OPTIMIZATIONS \
+	CONFIG_WITH_COMPILER \
 	\
 	KBUILD_HOST=\"$(KBUILD_TARGET)\" \
 	KBUILD_HOST_ARCH=\"$(KBUILD_TARGET_ARCH)\" \
@@ -206,14 +207,9 @@ endif
 
 kmk_SOURCES = \
 	main.c \
-	kbuild.c \
-	kbuild-object.c \
 	read.c \
-	expreval.c \
-	incdep.c \
 	hash.c \
 	strcache.c \
-	strcache2.c \
 	variable.c \
 	ar.c \
 	arscan.c \
@@ -226,13 +222,20 @@ kmk_SOURCES = \
 	implicit.c \
 	job.c \
 	misc.c \
-	alloccache.c \
 	remake.c \
 	rule.c \
 	signame.c \
 	version.c \
 	vpath.c \
-	remote-stub.c
+	remote-stub.c \
+       \
+	alloccache.c \
+	expreval.c \
+	incdep.c \
+	strcache2.c \
+       kmk_cc_exec.c \
+	kbuild.c \
+	kbuild-object.c
 
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 

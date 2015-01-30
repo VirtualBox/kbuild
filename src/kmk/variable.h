@@ -112,8 +112,15 @@ struct variable
     unsigned int changes;      /* Variable modification count.  */
     unsigned int reallocs;     /* Realloc on value count.  */
     unsigned int references;   /* Lookup count.  */
-    unsigned cEvalVals;        /* $(evalval v) or $(evalvalctx v) count */
     unsigned long long cTicksEvalVal; /* Number of ticks spend in cEvalVal. */
+#endif
+#if defined (CONFIG_WITH_COMPILER) || defined (CONFIG_WITH_MAKE_STATS)
+    unsigned int evalval_count; /* Times used with $(evalval ) or $(evalctx ). */
+    unsigned int expand_count;  /* Times expanded (not to be confused with exp_count). */
+#endif
+#ifdef CONFIG_WITH_COMPILER
+    struct cceval *evalprog;    /* Pointer to evalval/evalctx "program". */
+    struct ccexpand *expandprog; /* Pointer to variable expand "program". */
 #endif
   };
 

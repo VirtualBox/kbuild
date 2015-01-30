@@ -43,6 +43,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #  include <limits.h>
 # endif
 #endif
+#ifdef CONFIG_WITH_COMPILER
+# include "kmk_cc_exec.h"
+#endif
 #include <assert.h> /* bird */
 
 #if defined (CONFIG_WITH_MATH) || defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_FILE_SIZE) /* bird */
@@ -2033,35 +2036,50 @@ func_evalval (char *o, char **argv, const char *funcname)
       int var_ctx;
       size_t off;
       const struct floc *reading_file_saved = reading_file;
-#ifdef CONFIG_WITH_MAKE_STATS
+# ifdef CONFIG_WITH_MAKE_STATS
       unsigned long long uStartTick = CURRENT_CLOCK_TICK();
-      MAKE_STATS_2(v->cEvalVals++);
-#endif
+#  ifndef CONFIG_WITH_COMPILER
+      MAKE_STATS_2(v->evalval_count++);
+#  endif
+# endif
 
-      /* Make a copy of the value to the variable buffer since
-         eval_buffer will make changes to its input. */
-
-      off = o - variable_buffer;
-      variable_buffer_output (o, v->value, v->value_length + 1);
-      o = variable_buffer + off;
-
-      /* Eval the value.  Pop the current variable buffer setting so that the
-         eval'd code can use its own without conflicting. (really necessary?)  */
-
-      install_variable_buffer (&buf, &len);
       var_ctx = !strcmp (funcname, "evalvalctx");
       if (var_ctx)
         push_new_variable_scope ();
       if (v->fileinfo.filenm)
         reading_file = &v->fileinfo;
 
-      assert (!o[v->value_length]);
-      eval_buffer (o, o + v->value_length);
+# ifdef CONFIG_WITH_COMPILER
+      /* If this variable has been evaluated more than a few times, it make
+         sense to compile it to speed up the processing. */
+
+      v->evalval_count++;
+      if (   v->evalprog
+          || (v->evalval_count == 3 && kmk_cc_compile_variable_for_eval (v)))
+        {
+          install_variable_buffer (&buf, &len); /* Really necessary? */
+          kmk_exec_evalval (v);
+          restore_variable_buffer (buf, len);
+        }
+      else
+# endif
+      {
+        /* Make a copy of the value to the variable buffer first since
+           eval_buffer will make changes to its input. */
+
+        off = o - variable_buffer;
+        variable_buffer_output (o, v->value, v->value_length + 1);
+        o = variable_buffer + off;
+        assert (!o[v->value_length]);
+
+        install_variable_buffer (&buf, &len); /* Really necessary? */
+        eval_buffer (o, o + v->value_length);
+        restore_variable_buffer (buf, len);
+      }
 
       reading_file = reading_file_saved;
       if (var_ctx)
         pop_variable_scope ();
-      restore_variable_buffer (buf, len);
 
       MAKE_STATS_2(v->cTicksEvalVal += CURRENT_CLOCK_TICK() - uStartTick);
     }
@@ -2132,6 +2150,15 @@ func_eval_optimize_variable (char *o, char **argv, const char *funcname)
               *dst = '\0';
               v->value_length = dst - v->value;
             }
+
+# ifdef CONFIG_WITH_COMPILER
+          /* Compile the variable for evalval, evalctx and expansion. */
+
+          if (!v->evalprog)
+            kmk_cc_compile_variable_for_eval (v);
+          if (!v->expandprog)
+            kmk_cc_compile_variable_for_expand (v);
+# endif
         }
       else if (v)
         error (NILF, _("$(%s ): variable `%s' is of the wrong type\n"), funcname, v->name);

@@ -25,6 +25,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "commands.h"
 #include "variable.h"
 #include "rule.h"
+#ifdef CONFIG_WITH_COMPILER
+# include "kmk_cc_exec.h"
+#endif
 
 /* Initially, any errors reported when expanding strings will be reported
    against the file where the error appears.  */
@@ -246,8 +249,20 @@ reference_recursive_variable (char *o, struct variable *v)
 
   v->expanding = 1;
   if (!v->append)
-    /* Expand directly into the variable buffer.  */
-    variable_expand_string_2 (o, v->value, v->value_length, &o);
+    {
+      /* Expand directly into the variable buffer.  */
+# ifdef CONFIG_WITH_COMPILER
+      v->expand_count++;
+      if (   v->expandprog
+          || (v->expand_count == 10 && kmk_cc_compile_variable_for_expand (v)) )
+        o = kmk_exec_expand_to_var_buf (v, o);
+      else
+        variable_expand_string_2 (o, v->value, v->value_length, &o);
+# else
+      MAKE_STATS_2 (v->expand_count++);
+      variable_expand_string_2 (o, v->value, v->value_length, &o);
+# endif
+    }
   else
     {
       /* XXX: Feel free to optimize appending target variables as well.  */
