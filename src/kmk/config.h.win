@@ -221,7 +221,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define HAVE_STDARG_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
-/*#define HAVE_STDINT_H 1*/
+#if _MSC_VER >= 1600
+# define HAVE_STDINT_H 1
+#endif
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -446,10 +448,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define uid_t int
 
 /* Define uintmax_t if not defined in <stdint.h> or <inttypes.h>. */
-#if 0
-#define uintmax_t unsigned long
-#else
-#define uintmax_t unsigned __int64
+#if _MSC_VER < 1600
+# if 0
+#  define uintmax_t unsigned long
+# else
+#  define uintmax_t unsigned __int64
+# endif
 #endif
 
 /* Define as `fork' if `vfork' does not work. */
