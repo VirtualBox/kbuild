@@ -46,6 +46,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
+#ifdef CONFIG_WITH_COMPILER
+# include "kmk_cc_exec.h"
+#endif
 
 #ifdef KMK /* for get_online_cpu_count */
 # if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
@@ -1580,6 +1583,9 @@ main (int argc, char **argv, char **envp)
   /* Set up to access user data (files).  */
   user_access ();
 
+# ifdef CONFIG_WITH_COMPILER
+  kmk_cc_init ();
+# endif
 #ifdef CONFIG_WITH_ALLOC_CACHES
   initialize_global_alloc_caches ();
 #endif
