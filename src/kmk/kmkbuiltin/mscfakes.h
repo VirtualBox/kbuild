@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2759 2015-01-28 16:14:00Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 2766 2015-01-30 03:32:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -91,6 +91,17 @@ typedef long ssize_t;
 typedef unsigned long u_long;
 typedef unsigned int u_int;
 typedef unsigned short u_short;
+
+#if _MSC_VER >= 1600
+# include <stdint.h>
+#else
+typedef unsigned char  uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int   uint32_t;
+typedef signed char    int8_t;
+typedef signed short   int16_t;
+typedef signed int     int32_t;
+#endif
 
 #if !defined(timerisset) && defined(MSCFAKES_NO_WINDOWS_H)
 struct timeval
