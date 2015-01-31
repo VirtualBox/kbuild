@@ -119,8 +119,8 @@ struct variable
     unsigned int expand_count;  /* Times expanded (not to be confused with exp_count). */
 #endif
 #ifdef CONFIG_WITH_COMPILER
-    struct cceval *evalprog;    /* Pointer to evalval/evalctx "program". */
-    struct ccexpand *expandprog; /* Pointer to variable expand "program". */
+    struct kmk_cc_evalprog *evalprog;     /* Pointer to evalval/evalctx "program". */
+    struct kmk_cc_expandprog *expandprog; /* Pointer to variable expand "program". */
 #endif
   };
 
@@ -254,6 +254,12 @@ void append_expanded_string_to_variable (struct variable *v, const char *value,
 int handle_function (char **op, const char **stringp);
 #else
 int handle_function (char **op, const char **stringp, const char *nameend, const char *eol);
+#endif
+#ifdef CONFIG_WITH_COMPILER
+typedef char *(*make_function_ptr_t) (char *, char **, const char *);
+make_function_ptr_t lookup_function_for_compiler (const char *name, unsigned int len,
+                                                  unsigned char *minargsp, unsigned char *maxargsp,
+                                                  char *expargsp, const char **funcnamep);
 #endif
 int pattern_matches (const char *pattern, const char *percent, const char *str);
 char *subst_expand (char *o, const char *text, const char *subst,
