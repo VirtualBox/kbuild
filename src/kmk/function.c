@@ -5788,6 +5788,24 @@ handle_function (char **op, const char **stringp, const char *nameend, const cha
   return handle_function2 (entry_p, op, stringp);
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
+
+#ifdef CONFIG_WITH_COMPILER
+/* Used by the "compiler" to get all info about potential functions. */
+make_function_ptr_t
+lookup_function_for_compiler (const char *name, unsigned int len,
+                              unsigned char *minargsp, unsigned char *maxargsp,
+                              char *expargsp, const char **funcnamep)
+{
+  const struct function_table_entry *entry_p = lookup_function (name, len);
+  if (!entry_p)
+    return 0;
+  *minargsp  = entry_p->minimum_args;
+  *maxargsp  = entry_p->maximum_args;
+  *expargsp  = entry_p->expand_args;
+  *funcnamep = entry_p->name;
+  return entry_p->func_ptr;
+}
+#endif /* CONFIG_WITH_COMPILER */
 
 
 /* User-defined functions.  Expand the first argument as either a builtin
