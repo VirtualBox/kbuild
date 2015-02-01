@@ -1352,6 +1352,7 @@ func_foreach (char *o, char **argv, const char *funcname UNUSED)
       memcpy (var->value, p, len);
       var->value[len] = '\0';
       var->value_length = len;
+      VARIABLE_CHANGED (var);
 
       variable_expand_string_2 (o, body, body_len, &o);
       o = variable_buffer_output (o, " ", 1);
@@ -1744,7 +1745,8 @@ func_sort (char *o, char **argv, const char *funcname UNUSED)
   wordi = 0;
   while ((p = find_next_token (&t, &len)) != 0)
     {
-      ++t;
+      if (*t != '\0') /* bird: Fixes access beyond end of string and overflowing words array. */
+        ++t;
       p[len] = '\0';
       words[wordi++] = p;
     }
@@ -2150,6 +2152,8 @@ func_eval_optimize_variable (char *o, char **argv, const char *funcname)
               *dst = '\0';
               v->value_length = dst - v->value;
             }
+
+          VARIABLE_CHANGED (v);
 
 # ifdef CONFIG_WITH_COMPILER
           /* Compile the variable for evalval, evalctx and expansion. */
@@ -4630,6 +4634,7 @@ func_stack_pop_top (char *o, char **argv, const char *funcname)
 #ifdef CONFIG_WITH_VALUE_LENGTH
               stack_var->value_length = lastitem - stack_var->value;
 #endif
+              VARIABLE_CHANGED (stack_var);
             }
         }
     }

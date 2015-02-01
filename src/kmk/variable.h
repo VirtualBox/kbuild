@@ -115,14 +115,29 @@ struct variable
     unsigned long long cTicksEvalVal; /* Number of ticks spend in cEvalVal. */
 #endif
 #if defined (CONFIG_WITH_COMPILER) || defined (CONFIG_WITH_MAKE_STATS)
-    unsigned int evalval_count; /* Times used with $(evalval ) or $(evalctx ). */
-    unsigned int expand_count;  /* Times expanded (not to be confused with exp_count). */
+    unsigned int evalval_count; /* Times used with $(evalval ) or $(evalctx ) since last change. */
+    unsigned int expand_count;  /* Times expanded since last change (not to be confused with exp_count). */
 #endif
 #ifdef CONFIG_WITH_COMPILER
     struct kmk_cc_evalprog *evalprog;     /* Pointer to evalval/evalctx "program". */
     struct kmk_cc_expandprog *expandprog; /* Pointer to variable expand "program". */
 #endif
   };
+
+/* Update statistics and invalidates optimizations when a variable changes. */
+#ifdef CONFIG_WITH_COMPILER
+# define VARIABLE_CHANGED(v) \
+  do { \
+      MAKE_STATS_2((v)->changes++); \
+      if ((v)->evalprog || (v)->expandprog) kmk_cc_variable_changed(v); \
+      (v)->expand_count = 0; \
+      (v)->evalval_count = 0; \
+    } while (0)
+#else
+# define VARIABLE_CHANGED(v) MAKE_STATS_2((v)->changes++)
+#endif
+
+
 
 /* Structure that represents a variable set.  */
 

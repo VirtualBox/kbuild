@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2769 2015-02-01 00:44:30Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2770 2015-02-01 17:12:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -69,8 +69,6 @@ typedef KMKCCBLOCK *PKMKCCBLOCK;
  */
 typedef struct KMKCCEXPSTATS
 {
-    /** Max expanded size. */
-    uint32_t                    cchMax;
     /** Recent average size. */
     uint32_t                    cchAvg;
 } KMKCCEXPSTATS;
@@ -197,6 +195,8 @@ typedef struct kmk_cc_exp_function_core
     KMKCCEXPCORE            Core;
     /** Number of arguments. */
     uint32_t                cArgs;
+    /** Set if the function could be modifying the input arguments. */
+    uint8_t                 fDirty;
     /** Where to continue after this instruction.  (This is necessary since the
      * instructions are of variable size and may be followed by string data.) */
     PKMKCCEXPCORE           pNext;
@@ -208,7 +208,7 @@ typedef struct kmk_cc_exp_function_core
      * @param   papszArgs   Pointer to a NULL terminated array of argument strings.
      * @param   pszFuncName The name of the function being called.
      */
-    char *                 (*pfnFunction)(char *pchDst, char **papszArgs, const char *pszFuncName);
+    char *                (*pfnFunction)(char *pchDst, char **papszArgs, const char *pszFuncName);
     /** Pointer to the function name in the variable string cache. */
     const char             *pszFuncName;
 } KMKCCEXPFUNCCORE;
@@ -294,6 +294,22 @@ typedef KMKCCEXPPROG *PKMKCCEXPPROG;
 
 
 /*******************************************************************************
+*   Defined Constants And Macros                                               *
+*******************************************************************************/
+#ifndef NDEBUG
+# ifdef _MSC_VER
+#  define KMK_CC_ASSERT(a_TrueExpr)         do { if (!(a_TrueExpr)) __debugbreak(); } while (0)
+# else
+#  define KMK_CC_ASSERT(a_TrueExpr)         assert(a_TrueExpr)
+# endif
+#else
+# define KMK_CC_ASSERT(a_TrueExpr)          do {} while (0)
+#endif
+#define KMK_CC_ASSERT_ALIGNED(a_uValue, a_uAlignment) \
+    KMK_CC_ASSERT( ((a_uValue) & ((a_uAlignment) - 1)) == 0 )
+
+
+/*******************************************************************************
 *   Global Variables                                                           *
 *******************************************************************************/
 
@@ -326,7 +342,7 @@ static void *kmk_cc_block_alloc_first(PKMKCCBLOCK *ppBlockTail, size_t cbFirst, 
     uint32_t        cbBlock;
     PKMKCCBLOCK     pNewBlock;
 
-    assert(((cbFirst + sizeof(void *) - 1) & (sizeof(void *) - 1)) == 0);
+    KMK_CC_ASSERT_ALIGNED(cbFirst, sizeof(void *));
 
     /*
      * Turn the hint into a block size.
@@ -376,7 +392,7 @@ static void kmk_cc_block_realign(PKMKCCBLOCK *ppBlockTail)
     if (pBlockTail->offNext & (sizeof(void *) - 1))
     {
         pBlockTail->offNext = (pBlockTail->offNext + sizeof(void *) - 1) & ~(sizeof(void *) - 1);
-        assert(pBlockTail->cbBlock - pBlockTail->offNext >= sizeof(KMKCCEXPJUMP));
+        KMK_CC_ASSERT(pBlockTail->cbBlock - pBlockTail->offNext >= sizeof(KMKCCEXPJUMP));
     }
 }
 
@@ -440,7 +456,7 @@ static void *kmk_cc_block_byte_alloc(PKMKCCBLOCK *ppBlockTail, uint32_t cb)
     PKMKCCBLOCK pBlockTail = *ppBlockTail;
     uint32_t    cbLeft = pBlockTail->cbBlock - pBlockTail->offNext;
 
-    assert(cbLeft >= sizeof(KMKCCEXPJUMP));
+    KMK_CC_ASSERT(cbLeft >= sizeof(KMKCCEXPJUMP));
     if (cbLeft >= cb + sizeof(KMKCCEXPJUMP))
     {
         void *pvRet = (char *)pBlockTail + pBlockTail->offNext;
@@ -507,7 +523,7 @@ static PKMKCCEXPCORE kmk_cc_block_alloc_exp_grow(PKMKCCBLOCK *ppBlockTail, uint3
     pJump->Core.enmOpCode = kKmkCcExpInstr_Jump;
     pJump->pNext = pRet;
     pOldBlock->offNext += sizeof(*pJump);
-    assert(pOldBlock->offNext <= pOldBlock->cbBlock);
+    KMK_CC_ASSERT(pOldBlock->offNext <= pOldBlock->cbBlock);
 
     return pRet;
 }
@@ -525,8 +541,8 @@ static PKMKCCEXPCORE kmk_cc_block_alloc_exp(PKMKCCBLOCK *ppBlockTail, uint32_t c
     PKMKCCBLOCK pBlockTail = *ppBlockTail;
     uint32_t    cbLeft = pBlockTail->cbBlock - pBlockTail->offNext;
 
-    assert(cbLeft >= sizeof(KMKCCEXPJUMP));
-    assert(((cb + sizeof(void *) - 1) & (sizeof(void *) - 1)) == 0 || cb == sizeof(KMKCCEXPCORE));
+    KMK_CC_ASSERT(cbLeft >= sizeof(KMKCCEXPJUMP));
+    KMK_CC_ASSERT( (cb & (sizeof(void *) - 1)) == 0 || cb == sizeof(KMKCCEXPCORE) /* final */ );
 
     if (cbLeft >= cb + sizeof(KMKCCEXPJUMP))
     {
@@ -591,6 +607,38 @@ static int kmk_cc_exp_emit_return(PKMKCCBLOCK *ppBlockTail)
 
 
 /**
+ * Checks if a function is known to mess up the arguments its given.
+ *
+ * When executing calls to "dirty" functions, all arguments must be duplicated
+ * on the heap.
+ *
+ * @returns 1 if dirty, 0 if clean.
+ * @param   pszFunction         The function name.
+ */
+static uint8_t kmk_cc_is_dirty_function(const char *pszFunction)
+{
+    switch (pszFunction[0])
+    {
+        default:
+            return 0;
+        case 'f':
+            if (pszFunction[1] == 'i')
+            {
+                if (!strcmp(pszFunction, "filter"))
+                    return 1;
+                if (!strcmp(pszFunction, "filter-out"))
+                    return 1;
+            }
+            return 0;
+        case 's':
+            if (!strcmp(pszFunction, "sort"))
+                return 1;
+            return 0;
+    }
+}
+
+
+/**
  * Emits a function call instruction taking arguments that needs expanding.
  *
  * @returns 0 on success, non-zero on failure.
@@ -623,6 +671,7 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
     pInstr->Core.cArgs          = cActualArgs;
     pInstr->Core.pfnFunction    = pfnFunction;
     pInstr->Core.pszFuncName    = pszFunction;
+    pInstr->Core.fDirty         = kmk_cc_is_dirty_function(pszFunction);
 
     /*
      * Parse the arguments.  Plain arguments gets duplicated in the program
@@ -644,20 +693,20 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
             ch = pchArgs[cchThisArg];
             if (ch == chClose)
             {
-                assert(cDepth > 0);
+                KMK_CC_ASSERT(cDepth > 0);
                 if (cDepth > 0)
                     cDepth--;
             }
             else if (ch == chOpen)
                 cDepth++;
-            else if (ch == ',' && cDepth == 0)
+            else if (ch == ',' && cDepth == 0 && iArg + 1 < cActualArgs)
                 break;
             else if (ch == '$')
                 fDollar = 1;
             cchThisArg++;
         }
 
-        pInstr->aArgs[iArg].fPlain = fDollar;
+        pInstr->aArgs[iArg].fPlain = !fDollar;
         if (fDollar)
         {
             /* Compile it. */
@@ -678,7 +727,7 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
         pchArgs += cchThisArg + 1;
         cchArgs -= cchThisArg + 1;
     }
-    assert(iArg == cActualArgs);
+    KMK_CC_ASSERT(iArg == cActualArgs);
 
     /*
      * Realign the allocator and take down the address of the next instruction.
@@ -722,6 +771,7 @@ static int kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *
     pInstr->Core.cArgs          = cActualArgs;
     pInstr->Core.pfnFunction    = pfnFunction;
     pInstr->Core.pszFuncName    = pszFunction;
+    pInstr->Core.fDirty         = kmk_cc_is_dirty_function(pszFunction);
 
     /*
      * Parse the arguments.  Plain arguments gets duplicated in the program
@@ -741,13 +791,13 @@ static int kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *
             ch = pchArgs[cchThisArg];
             if (ch == chClose)
             {
-                assert(cDepth > 0);
+                KMK_CC_ASSERT(cDepth > 0);
                 if (cDepth > 0)
                     cDepth--;
             }
             else if (ch == chOpen)
                 cDepth++;
-            else if (ch == ',' && cDepth == 0)
+            else if (ch == ',' && cDepth == 0 && iArg + 1 < cActualArgs)
                 break;
             cchThisArg++;
         }
@@ -760,7 +810,7 @@ static int kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *
         cchArgs -= cchThisArg + 1;
     }
 
-    assert(iArg == cActualArgs);
+    KMK_CC_ASSERT(iArg == cActualArgs);
     pInstr->apszArgs[iArg] = NULL;
 
     /*
@@ -786,7 +836,7 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
 {
     PKMKCCEXPDYNVAR pInstr;
     int rc;
-    assert(cchNameExpr > 0);
+    KMK_CC_ASSERT(cchNameExpr > 0);
 
     pInstr = (PKMKCCEXPDYNVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
     pInstr->Core.enmOpCode = kKmkCcExpInstr_DynamicVariable;
@@ -1001,7 +1051,9 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                         cchStr--;
 
                         /* First loop: Identify potential function calls and dynamic expansion. */
-                        assert(!func_char_map[chOpen]); assert(!func_char_map[chClose]); assert(!func_char_map['$']);
+                        KMK_CC_ASSERT(!func_char_map[chOpen]);
+                        KMK_CC_ASSERT(!func_char_map[chClose]);
+                        KMK_CC_ASSERT(!func_char_map['$']);
                         while (cchName < cchStr)
                         {
                             ch = pchStr[cchName];
@@ -1197,7 +1249,6 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
 static void kmk_cc_exp_stats_init(PKMKCCEXPSTATS pStats)
 {
     pStats->cchAvg = 0;
-    pStats->cchMax = 0;
 }
 
 
@@ -1218,7 +1269,7 @@ static void kmk_cc_exp_stats_init(PKMKCCEXPSTATS pStats)
  */
 static int kmk_cc_exp_compile_subprog(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr, PKMKCCEXPSUBPROG pSubProg)
 {
-    assert(cchStr);
+    KMK_CC_ASSERT(cchStr > 0);
     pSubProg->pFirstInstr = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
     kmk_cc_exp_stats_init(&pSubProg->Stats);
     return kmk_cc_exp_compile_common(ppBlockTail, pchStr, cchStr);
@@ -1285,15 +1336,13 @@ struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar
  */
 struct kmk_cc_expandprog *kmk_cc_compile_variable_for_expand(struct variable *pVar)
 {
-    assert(!pVar->expandprog);
+    KMK_CC_ASSERT(!pVar->expandprog);
     if (   !pVar->expandprog
         && pVar->value_length > 0
         && pVar->recursive)
     {
-        assert(strlen(pVar->value) == pVar->value_length);
-#if 0 /** @todo test & debug this code. Write interpreters! */
+        KMK_CC_ASSERT(strlen(pVar->value) == pVar->value_length);
         pVar->expandprog = kmk_cc_exp_compile(pVar->value, pVar->value_length);
-#endif
     }
     return pVar->expandprog;
 }
@@ -1474,22 +1523,43 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
             case kKmkCcExpInstr_PlainFunction:
             {
                 PKMKCCEXPPLAINFUNC pInstr = (PKMKCCEXPPLAINFUNC)pInstrCore;
+                uint32_t iArg;
+                if (!pInstr->Core.fDirty)
+                {
 #ifndef NDEBUG
-                uint32_t uCrcBefore = 0;
-                uint32_t uCrcAfter = 0;
-                uint32_t iArg = pInstr->Core.cArgs;
-                while (iArg-- > 0)
-                    uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
+                    uint32_t uCrcBefore = 0;
+                    uint32_t uCrcAfter = 0;
+                    iArg = pInstr->Core.cArgs;
+                    while (iArg-- > 0)
+                        uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
 #endif
 
-                pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
+                    pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
 
 #ifndef NDEBUG
-                iArg = pInstr->Core.cArgs;
-                while (iArg-- > 0)
-                    uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
-                assert(uCrcBefore == uCrcAfter);
+                    iArg = pInstr->Core.cArgs;
+                    while (iArg-- > 0)
+                        uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
+                    KMK_CC_ASSERT(uCrcBefore == uCrcAfter);
 #endif
+                }
+                else
+                {
+                    char **papszShadowArgs = xmalloc((pInstr->Core.cArgs * 2 + 1) * sizeof(papszShadowArgs[0]));
+                    char **papszArgs = &papszShadowArgs[pInstr->Core.cArgs];
+
+                    iArg = pInstr->Core.cArgs;
+                    papszArgs[iArg] = NULL;
+                    while (iArg-- > 0)
+                        papszArgs[iArg] = papszShadowArgs[iArg] = xstrdup(pInstr->apszArgs[iArg]);
+
+                    pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
+
+                    iArg = pInstr->Core.cArgs;
+                    while (iArg-- > 0)
+                        free(papszShadowArgs[iArg]);
+                    free(papszShadowArgs);
+                }
 
                 pInstrCore = pInstr->Core.pNext;
                 break;
@@ -1501,39 +1571,63 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                 char           **papszArgsShadow = xmalloc( (pInstr->Core.cArgs * 2 + 1) * sizeof(char *));
                 char           **papszArgs = &papszArgsShadow[pInstr->Core.cArgs];
                 uint32_t         iArg;
-#ifndef NDEBUG
-                uint32_t         uCrcBefore = 0;
-                uint32_t         uCrcAfter = 0;
-#endif
-                iArg = pInstr->Core.cArgs;
-                papszArgs[iArg] = NULL;
-                while (iArg-- > 0)
-                {
-                    char *pszArg;
-                    if (pInstr->aArgs[iArg].fPlain)
-                        pszArg = (char *)pInstr->aArgs[iArg].u.Plain.pszArg;
-                    else
-                        pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
-                    papszArgsShadow[iArg] = pszArg;
-                    papszArgs[iArg]       = pszArg;
-#ifndef NDEBUG
-                    uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pszArg);
-#endif
-                }
 
-                pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
-
-                iArg = pInstr->Core.cArgs;
-                while (iArg-- > 0)
+                if (!pInstr->Core.fDirty)
                 {
 #ifndef NDEBUG
-                    assert(papszArgsShadow[iArg] == papszArgs[iArg]);
-                    uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
+                    uint32_t    uCrcBefore = 0;
+                    uint32_t    uCrcAfter = 0;
 #endif
-                    if (!pInstr->aArgs[iArg].fPlain)
-                        free(papszArgsShadow);
+                    iArg = pInstr->Core.cArgs;
+                    papszArgs[iArg] = NULL;
+                    while (iArg-- > 0)
+                    {
+                        char *pszArg;
+                        if (!pInstr->aArgs[iArg].fPlain)
+                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
+                        else
+                            pszArg = (char *)pInstr->aArgs[iArg].u.Plain.pszArg;
+                        papszArgsShadow[iArg] = pszArg;
+                        papszArgs[iArg]       = pszArg;
+#ifndef NDEBUG
+                        uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pszArg);
+#endif
+                    }
+                    pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
+
+                    iArg = pInstr->Core.cArgs;
+                    while (iArg-- > 0)
+                    {
+#ifndef NDEBUG
+                        KMK_CC_ASSERT(papszArgsShadow[iArg] == papszArgs[iArg]);
+                        uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
+#endif
+                        if (!pInstr->aArgs[iArg].fPlain)
+                            free(papszArgsShadow[iArg]);
+                    }
+                    KMK_CC_ASSERT(uCrcBefore == uCrcAfter);
                 }
-                assert(uCrcBefore == uCrcAfter);
+                else
+                {
+                    iArg = pInstr->Core.cArgs;
+                    papszArgs[iArg] = NULL;
+                    while (iArg-- > 0)
+                    {
+                        char *pszArg;
+                        if (!pInstr->aArgs[iArg].fPlain)
+                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
+                        else
+                            pszArg = xstrdup(pInstr->aArgs[iArg].u.Plain.pszArg);
+                        papszArgsShadow[iArg] = pszArg;
+                        papszArgs[iArg]       = pszArg;
+                    }
+
+                    pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
+
+                    iArg = pInstr->Core.cArgs;
+                    while (iArg-- > 0)
+                        free(papszArgsShadow[iArg]);
+                }
                 free(papszArgsShadow);
 
                 pInstrCore = pInstr->Core.pNext;
@@ -1568,15 +1662,9 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
 void kmk_cc_exp_stats_update(PKMKCCEXPSTATS pStats, uint32_t cchResult)
 {
     /*
-     * Keep statistics on output size.  The average is simplified and not an
-     * exact average for every expansion that has taken place.
+     * The average is simplified and not an exact average for every
+     * expansion that has taken place.
      */
-    if (cchResult > pStats->cchMax)
-    {
-        if (pStats->cchMax)
-            pStats->cchAvg = cchResult;
-        pStats->cchMax = cchResult;
-    }
     pStats->cchAvg = (pStats->cchAvg * 7 + cchResult) / 8;
 }
 
@@ -1615,7 +1703,8 @@ static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t 
         *pcchResult = cchResult;
     kmk_cc_exp_stats_update(&pSubProg->Stats, cchResult);
 
-    restore_variable_buffer(pchOldVarBuf, cbOldVarBuf);
+    variable_buffer = pchOldVarBuf;
+    variable_buffer_length = cbOldVarBuf;
 
     return pszResult;
 }
@@ -1640,7 +1729,7 @@ static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
     pchDst = kmk_exec_expand_instruction_stream_to_var_buf(pProg->pFirstInstr, pchDst);
 
     cchResult = (uint32_t)(pchDst - variable_buffer);
-    assert(cchResult >= offStart);
+    KMK_CC_ASSERT(cchResult >= offStart);
     cchResult -= offStart;
     kmk_cc_exp_stats_update(&pProg->Stats, cchResult);
 
@@ -1655,7 +1744,7 @@ static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
  */
 void kmk_exec_evalval(struct variable *pVar)
 {
-    assert(pVar->evalprog);
+    KMK_CC_ASSERT(pVar->evalprog);
     assert(0);
 }
 
@@ -1669,7 +1758,7 @@ void kmk_exec_evalval(struct variable *pVar)
  */
 char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
 {
-    assert(pVar->expandprog);
+    KMK_CC_ASSERT(pVar->expandprog);
     return kmk_exec_expand_prog_to_var_buf(pVar->expandprog, pchDst);
 }
 
@@ -1681,7 +1770,7 @@ char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
  */
 void  kmk_cc_variable_changed(struct variable *pVar)
 {
-    assert(pVar->evalprog || pVar->expandprog);
+    KMK_CC_ASSERT(pVar->evalprog || pVar->expandprog);
 #if 0
     if (pVar->evalprog)
     {
@@ -1704,7 +1793,7 @@ void  kmk_cc_variable_changed(struct variable *pVar)
  */
 void  kmk_cc_variable_deleted(struct variable *pVar)
 {
-    assert(pVar->evalprog || pVar->expandprog);
+    KMK_CC_ASSERT(pVar->evalprog || pVar->expandprog);
 #if 0
     if (pVar->evalprog)
     {
