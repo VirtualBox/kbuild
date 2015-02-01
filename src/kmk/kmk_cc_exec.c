@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2771 2015-02-01 20:48:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2772 2015-02-01 20:53:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -745,14 +745,12 @@ static void kmk_cc_block_free_list(PKMKCCBLOCK pBlockTail)
 /**
  * Emits a kKmkCcExpInstr_Return.
  *
- * @returns 0 on success, non-zero on failure.
  * @param   ppBlockTail         Pointer to the allocator tail pointer.
  */
-static int kmk_cc_exp_emit_return(PKMKCCBLOCK *ppBlockTail)
+static void kmk_cc_exp_emit_return(PKMKCCBLOCK *ppBlockTail)
 {
     PKMKCCEXPCORE pCore = kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pCore));
     pCore->enmOpCode = kKmkCcExpInstr_Return;
-    return 0;
 }
 
 
@@ -911,9 +909,9 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
  * @param   pfnFunction     The function implementation.
  * @param   cMaxArgs        Maximum number of arguments the function takes.
  */
-static int kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *pszFunction,
-                                          const char *pchArgs, uint32_t cchArgs, uint32_t cArgs, char chOpen, char chClose,
-                                          make_function_ptr_t pfnFunction, unsigned char cMaxArgs)
+static void kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *pszFunction,
+                                           const char *pchArgs, uint32_t cchArgs, uint32_t cArgs, char chOpen, char chClose,
+                                           make_function_ptr_t pfnFunction, unsigned char cMaxArgs)
 {
     uint32_t iArg;
 
@@ -976,7 +974,6 @@ static int kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char *
      */
     kmk_cc_block_realign(ppBlockTail);
     pInstr->Core.pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
-    return 0;
 }
 
 
@@ -1010,14 +1007,13 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
  * Emits either a kKmkCcExpInstr_PlainVariable or
  * kKmkCcExpInstr_SearchAndReplacePlainVariable instruction.
  *
- * @returns 0 on success, non-zero on failure.
  * @param   ppBlockTail         Pointer to the allocator tail pointer.
  * @param   pchName             The name of the variable.  (Does not need to be
  *                              valid beyond the call.)
  * @param   cchName             The length of the variable name. If zero,
  *                              nothing will be emitted.
  */
-static int kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, const char *pchName, uint32_t cchName)
+static void kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, const char *pchName, uint32_t cchName)
 {
     if (cchName > 0)
     {
@@ -1099,21 +1095,19 @@ static int kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, con
             pInstr->pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
         }
     }
-    return 0;
 }
 
 
 /**
  * Emits a kKmkCcExpInstr_CopyString.
  *
- * @returns 0 on success, non-zero on failure.
  * @param   ppBlockTail         Pointer to the allocator tail pointer.
  * @param   pchStr              The string to emit (ASSUMED presistent thru-out
  *                              the program life time).
  * @param   cchStr              The number of chars to copy. If zero, nothing
  *                              will be emitted.
  */
-static int kmk_cc_exp_emit_copy_string(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr)
+static void kmk_cc_exp_emit_copy_string(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr)
 {
     if (cchStr > 0)
     {
@@ -1122,7 +1116,6 @@ static int kmk_cc_exp_emit_copy_string(PKMKCCBLOCK *ppBlockTail, const char *pch
         pInstr->cchCopy = cchStr;
         pInstr->pachSrc = pchStr;
     }
-    return 0;
 }
 
 
@@ -1160,9 +1153,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
              * the dollars we found (dollar escape: $$ -> $).
              * (kmk_cc_exp_emit_copy_string ignore zero length strings).
              */
-            rc = kmk_cc_exp_emit_copy_string(ppBlockTail, pchStr, offDollar + cDollars / 2);
-            if (rc != 0)
-                return rc;
+            kmk_cc_exp_emit_copy_string(ppBlockTail, pchStr, offDollar + cDollars / 2);
             pchStr += offDollar + cDollars;
             cchStr -= offDollar + cDollars;
 
@@ -1291,11 +1282,15 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                                 return -1; /* not reached */
                             }
                             if (!fExpandArgs || cDollars == 0)
-                                rc = kmk_cc_exp_emit_plain_function(ppBlockTail, pszFunction, pchStr, cchName,
-                                                                    cArgs, chOpen, chClose, pfnFunction, cMaxArgs);
+                                kmk_cc_exp_emit_plain_function(ppBlockTail, pszFunction, pchStr, cchName,
+                                                               cArgs, chOpen, chClose, pfnFunction, cMaxArgs);
                             else
+                            {
                                 rc = kmk_cc_exp_emit_dyn_function(ppBlockTail, pszFunction, pchStr, cchName,
                                                                   cArgs, chOpen, chClose, pfnFunction, cMaxArgs);
+                                if (rc != 0)
+                                    return rc;
+                            }
                         }
                         else
                         {
@@ -1357,9 +1352,13 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                                 return -1; /* not reached */
                             }
                             if (cDollars == 0)
-                                rc = kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, cchName);
+                                kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, cchName);
                             else
+                            {
                                 rc = kmk_cc_exp_emit_dyn_variable(ppBlockTail, pchStr, cchName);
+                                if (rc != 0)
+                                    return rc;
+                            }
                         }
                         pchStr += cchName + 1;
                         cchStr -= cchName + (cDepth == 0);
@@ -1367,12 +1366,10 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                     else
                     {
                         /* Single character variable name. */
-                        rc = kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, 1);
+                        kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, 1);
                         pchStr++;
                         cchStr--;
                     }
-                    if (rc != 0)
-                        return rc;
                 }
                 else
                 {
@@ -1386,9 +1383,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
             /*
              * Nothing more to expand, the remainder is a simple string copy.
              */
-            rc = kmk_cc_exp_emit_copy_string(ppBlockTail, pchStr, cchStr);
-            if (rc != 0)
-                return rc;
+            kmk_cc_exp_emit_copy_string(ppBlockTail, pchStr, cchStr);
             break;
         }
     }
@@ -1396,7 +1391,8 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
     /*
      * Emit final instruction.
      */
-    return kmk_cc_exp_emit_return(ppBlockTail);
+    kmk_cc_exp_emit_return(ppBlockTail);
+    return 0;
 }
 
 
