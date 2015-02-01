@@ -243,7 +243,9 @@ variable_expand_string (char *line, const char *string, long length)
 }
 #endif /* CONFIG_WITH_VALUE_LENGTH */
 void install_variable_buffer (char **bufp, unsigned int *lenp);
+char *install_variable_buffer_with_hint (char **bufp, unsigned int *lenp, unsigned int size_hint);
 void restore_variable_buffer (char *buf, unsigned int len);
+char *ensure_variable_buffer_space(char *ptr, unsigned int size);
 #ifdef CONFIG_WITH_VALUE_LENGTH
 void append_expanded_string_to_variable (struct variable *v, const char *value,
                                          unsigned int value_len, int append);
@@ -325,6 +327,9 @@ char *recursively_expand_for_file (struct variable *v, struct file *file,
                                    unsigned int *value_lenp);
 #define recursively_expand(v)   recursively_expand_for_file (v, NULL, NULL)
 #endif
+#ifdef CONFIG_WITH_COMPILER
+char *reference_recursive_variable (char *o, struct variable *v);
+#endif
 
 /* variable.c */
 struct variable_set_list *create_new_variable_set (void);
@@ -368,6 +373,9 @@ void hash_init_function_table (void);
 struct variable *lookup_variable (const char *name, unsigned int length);
 struct variable *lookup_variable_in_set (const char *name, unsigned int length,
                                          const struct variable_set *set);
+#ifdef CONFIG_WITH_STRCACHE2
+struct variable *lookup_variable_strcached (const char *name);
+#endif
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
 void append_string_to_variable (struct variable *v, const char *value,

@@ -1030,6 +1030,76 @@ lookup_variable (const char *name, unsigned int length)
 
   return 0;
 }
+
+#ifdef CONFIG_WITH_STRCACHE2
+/* Alternative version of lookup_variable that takes a name that's already in
+   the variable string cache. */
+struct variable *
+lookup_variable_strcached (const char *name)
+{
+  struct variable *v;
+#if 1 /*FIX THIS - ndef KMK*/
+  const struct variable_set_list *setlist;
+  struct variable var_key;
+#endif /* KMK */
+  int is_parent = 0;
+
+#ifndef NDEBUG
+  strcache2_verify_entry (&variable_strcache, name);
+#endif
+
+#ifdef KMK
+  /* Check for kBuild-define- local variable accesses and handle these first. */
+  if (strcache2_get_len(&variable_strcache, name) > 3 && name[0] == '[')
+    {
+      v = lookup_kbuild_object_variable_accessor(name, strcache2_get_len(&variable_strcache, name));
+      if (v != VAR_NOT_KBUILD_ACCESSOR)
+        {
+          MAKE_STATS_2 (v->references++);
+          return v;
+        }
+    }
+#endif
+
+#if 1  /*FIX THIS - ndef KMK */
+
+  var_key.name = (char *) name;
+  var_key.length = strcache2_get_len(&variable_strcache, name);
+
+  for (setlist = current_variable_set_list;
+       setlist != 0; setlist = setlist->next)
+    {
+      const struct variable_set *set = setlist->set;
+
+      v = (struct variable *) hash_find_item_strcached ((struct hash_table *) &set->table, &var_key);
+      if (v && (!is_parent || !v->private_var))
+        {
+# ifdef KMK
+          RESOLVE_ALIAS_VARIABLE(v);
+# endif
+          MAKE_STATS_2 (v->references++);
+	   return v->special ? lookup_special_var (v) : v;
+        }
+
+      is_parent |= setlist->next_is_parent;
+    }
+
+#else  /* KMK - need for speed */
+
+  v = lookup_cached_variable (name);
+  assert (lookup_variable_for_assert(name, length) == v);
+#ifdef VMS
+  if (v)
+#endif
+    return v;
+#endif /* KMK - need for speed */
+#ifdef VMS
+# error "Port me (split out the relevant code from lookup_varaible and call it)"
+#endif
+  return 0;
+}
+#endif
+
 
 /* Lookup a variable whose name is a string starting at NAME
    and with LENGTH chars in set SET.  NAME need not be null-terminated.
