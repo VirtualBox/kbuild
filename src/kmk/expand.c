@@ -188,7 +188,19 @@ recursively_expand_for_file (struct variable *v, struct file *file,
     value = allocated_variable_expand (v->value);
 #else  /* CONFIG_WITH_VALUE_LENGTH */
   if (!v->append)
-    value = allocated_variable_expand_2 (v->value, v->value_length, value_lenp);
+    {
+      if (!IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (v))
+        value = allocated_variable_expand_2 (v->value, v->value_length, value_lenp);
+      else
+        {
+          unsigned int len = v->value_length;
+          value = xmalloc (len + 2);
+          memcpy (value, v->value, len + 1);
+          value[len + 1] = '\0'; /* Extra terminator like allocated_variable_expand_2 returns. Why? */
+          if (value_lenp)
+            *value_lenp = len;
+        }
+    }
   else
     {
       value = allocated_variable_append (v);
@@ -310,7 +322,7 @@ reference_variable (char *o, const char *name, unsigned int length)
 
 #ifdef CONFIG_WITH_VALUE_LENGTH
   assert (v->value_length == strlen (v->value));
-  if (!v->recursive)
+  if (!v->recursive || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (v))
     o = variable_buffer_output (o, v->value, v->value_length);
   else
     o = reference_recursive_variable (o, v);
@@ -1002,7 +1014,7 @@ variable_append (const char *name, unsigned int length,
 #endif
 
   /* Either expand it or copy it, depending.  */
-  if (! v->recursive)
+  if (! v->recursive || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (v))
 #ifdef CONFIG_WITH_VALUE_LENGTH
     return variable_buffer_output (buf, v->value, v->value_length);
 #else

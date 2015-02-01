@@ -3824,6 +3824,9 @@ print_data_base ()
 #ifdef CONFIG_WITH_ALLOC_CACHES
   alloccache_print_all ();
 #endif
+#ifdef CONFIG_WITH_COMPILER
+  kmk_cc_print_stats ();
+#endif
 
   when = time ((time_t *) 0);
   printf (_("\n# Finished Make data base on %s\n"), ctime (&when));

@@ -2158,10 +2158,10 @@ func_eval_optimize_variable (char *o, char **argv, const char *funcname)
 # ifdef CONFIG_WITH_COMPILER
           /* Compile the variable for evalval, evalctx and expansion. */
 
-          if (!v->evalprog)
-            kmk_cc_compile_variable_for_eval (v);
-          if (!v->expandprog)
-            kmk_cc_compile_variable_for_expand (v);
+          if (   v->recursive
+              && !IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (v))
+                kmk_cc_compile_variable_for_expand (v);
+          kmk_cc_compile_variable_for_eval (v);
 # endif
         }
       else if (v)
@@ -4104,7 +4104,8 @@ func_comp_vars (char *o, char **argv, const char *funcname)
     return variable_buffer_output (o, argv[2], strlen(argv[2]));
   if (var1->value == var2->value)
     return variable_buffer_output (o, "", 0);       /* eq */
-  if (!var1->recursive && !var2->recursive)
+  if (   (!var1->recursive || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (var1))
+      && (!var2->recursive || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (var2)) )
   {
     if (    var1->value_length == var2->value_length
         &&  !memcmp (var1->value, var2->value, var1->value_length))
@@ -5985,7 +5986,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
                                   current_variable_set_list->set);
       if (v && v->value_length)
         {
-          if (v->recursive)
+          if (v->recursive && !IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR (v))
             {
               v->exp_count = EXP_COUNT_MAX;
               variable_expand_string_2 (o, v->value, v->value_length, &o);

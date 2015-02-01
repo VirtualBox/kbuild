@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2770 2015-02-01 17:12:37Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2771 2015-02-01 20:48:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -41,6 +41,37 @@
 #endif
 #include <stdarg.h>
 #include <assert.h>
+
+/*******************************************************************************
+*   Defined Constants And Macros                                               *
+*******************************************************************************/
+/** @def KMK_CC_WITH_STATS
+ * Enables the collection of extra statistics. */
+#ifndef KMK_CC_WITH_STATS
+# ifdef CONFIG_WITH_MAKE_STATS
+#  define KMK_CC_WITH_STATS
+# endif
+#endif
+
+/** @def KMK_CC_STRICT
+ * Indicates whether assertions and other checks are enabled. */
+#ifndef KMK_CC_STRICT
+# ifndef NDEBUG
+#  define KMK_CC_STRICT
+# endif
+#endif
+
+#ifdef KMK_CC_STRICT
+# ifdef _MSC_VER
+#  define KMK_CC_ASSERT(a_TrueExpr)         do { if (!(a_TrueExpr)) __debugbreak(); } while (0)
+# else
+#  define KMK_CC_ASSERT(a_TrueExpr)         assert(a_TrueExpr)
+# endif
+#else
+# define KMK_CC_ASSERT(a_TrueExpr)          do {} while (0)
+#endif
+#define KMK_CC_ASSERT_ALIGNED(a_uValue, a_uAlignment) \
+    KMK_CC_ASSERT( ((a_uValue) & ((a_uAlignment) - 1)) == 0 )
 
 
 /*******************************************************************************
@@ -263,7 +294,7 @@ typedef struct kmk_cc_exp_dyn_function
 typedef KMKCCEXPDYNFUNC *PKMKCCEXPDYNFUNC;
 /** Calculates the size of an KMKCCEXPPLAINFUNC with a_cArgs. */
 #define KMKCCEXPDYNFUNC_SIZE(a_cArgs)  (  sizeof(KMKCCEXPFUNCCORE) \
-                                          + (a_cArgs) * sizeof(((PKMKCCEXPDYNFUNC)(uintptr_t)42)->aArgs[0]) )
+                                        + (a_cArgs) * sizeof(((PKMKCCEXPDYNFUNC)(uintptr_t)42)->aArgs[0]) )
 
 /**
  * Instruction format for kKmkCcExpInstr_Jump.
@@ -288,30 +319,31 @@ typedef struct kmk_cc_expandprog
     PKMKCCBLOCK             pBlockTail;
     /** Statistics. */
     KMKCCEXPSTATS           Stats;
+#ifdef KMK_CC_STRICT
+    /** The hash of the input string.  Used to check that we get all the change
+     * notifications we require. */
+    uint32_t                uInputHash;
+#endif
 } KMKCCEXPPROG;
 /** Pointer to a string expansion program. */
 typedef KMKCCEXPPROG *PKMKCCEXPPROG;
 
 
 /*******************************************************************************
-*   Defined Constants And Macros                                               *
-*******************************************************************************/
-#ifndef NDEBUG
-# ifdef _MSC_VER
-#  define KMK_CC_ASSERT(a_TrueExpr)         do { if (!(a_TrueExpr)) __debugbreak(); } while (0)
-# else
-#  define KMK_CC_ASSERT(a_TrueExpr)         assert(a_TrueExpr)
-# endif
-#else
-# define KMK_CC_ASSERT(a_TrueExpr)          do {} while (0)
-#endif
-#define KMK_CC_ASSERT_ALIGNED(a_uValue, a_uAlignment) \
-    KMK_CC_ASSERT( ((a_uValue) & ((a_uAlignment) - 1)) == 0 )
-
-
-/*******************************************************************************
 *   Global Variables                                                           *
 *******************************************************************************/
+static uint32_t g_cVarForExpandCompilations = 0;
+static uint32_t g_cVarForExpandExecs = 0;
+#ifdef KMK_CC_WITH_STATS
+static uint32_t g_cBlockAllocated = 0;
+static uint32_t g_cbAllocated = 0;
+static uint32_t g_cBlocksAllocatedExpProgs = 0;
+static uint32_t g_cbAllocatedExpProgs = 0;
+static uint32_t g_cSingleBlockExpProgs = 0;
+static uint32_t g_cTwoBlockExpProgs = 0;
+static uint32_t g_cMultiBlockExpProgs = 0;
+static uint32_t g_cbUnusedMemExpProgs = 0;
+#endif
 
 
 /*******************************************************************************
@@ -327,6 +359,117 @@ static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t 
 void kmk_cc_init(void)
 {
 }
+
+
+/**
+ * Prints stats (for kmk -p).
+ */
+void kmk_cc_print_stats(void)
+{
+    puts(_("\n# The kmk 'compiler' and kmk 'program executor':\n"));
+
+    printf(_("# Variables compiled for string expansion: %6u\n"), g_cVarForExpandCompilations);
+    printf(_("# Variables string expansion runs:         %6u\n"), g_cVarForExpandExecs);
+    printf(_("# String expansion runs per compile:       %6u\n"), g_cVarForExpandExecs / g_cVarForExpandExecs);
+#ifdef KMK_CC_WITH_STATS
+    printf(_("#          Single alloc block exp progs:   %6u (%u%%)\n"
+             "#             Two alloc block exp progs:   %6u (%u%%)\n"
+             "#   Three or more alloc block exp progs:   %6u (%u%%)\n"
+             ),
+           g_cSingleBlockExpProgs, (uint32_t)((uint64_t)g_cSingleBlockExpProgs * 100 / g_cVarForExpandCompilations),
+           g_cTwoBlockExpProgs,    (uint32_t)((uint64_t)g_cTwoBlockExpProgs    * 100 / g_cVarForExpandCompilations),
+           g_cMultiBlockExpProgs,  (uint32_t)((uint64_t)g_cMultiBlockExpProgs  * 100 / g_cVarForExpandCompilations));
+    printf(_("#  Total amount of memory for exp progs: %8u bytes\n"
+             "#                                    in:   %6u blocks\n"
+             "#                        avg block size:   %6u bytes\n"
+             "#                         unused memory: %8u bytes (%u%%)\n"
+             "#           avg unused memory per block:   %6u bytes\n"
+             "\n"),
+           g_cbAllocatedExpProgs, g_cBlocksAllocatedExpProgs, g_cbAllocatedExpProgs / g_cBlocksAllocatedExpProgs,
+           g_cbUnusedMemExpProgs, (uint32_t)((uint64_t)g_cbUnusedMemExpProgs * 100 / g_cbAllocatedExpProgs),
+           g_cbUnusedMemExpProgs / g_cBlocksAllocatedExpProgs);
+
+    printf(_("#   Total amount of block mem allocated: %8u bytes\n"), g_cbAllocated);
+    printf(_("#       Total number of block allocated: %8u\n"), g_cBlockAllocated);
+    printf(_("#                    Average block size: %8u byte\n"), g_cbAllocated / g_cBlockAllocated);
+#endif
+
+    puts("");
+}
+
+
+/*
+ *
+ * Various utility functions.
+ * Various utility functions.
+ * Various utility functions.
+ *
+ */
+
+/**
+ * Counts the number of dollar chars in the string.
+ *
+ * @returns Number of dollar chars.
+ * @param   pchStr      The string to search (does not need to be zero
+ *                      terminated).
+ * @param   cchStr      The length of the string.
+ */
+static uint32_t kmk_cc_count_dollars(const char *pchStr, uint32_t cchStr)
+{
+    uint32_t cDollars = 0;
+    const char *pch;
+    while ((pch = memchr(pchStr, '$', cchStr)) != NULL)
+    {
+        cDollars++;
+        cchStr -= pch - pchStr + 1;
+        pchStr  = pch + 1;
+    }
+    return cDollars;
+}
+
+#ifdef KMK_CC_STRICT
+/**
+ * Used to check that function arguments are left alone.
+ * @returns Updated hash.
+ * @param   uHash       The current hash value.
+ * @param   psz         The string to hash.
+ */
+static uint32_t kmk_cc_debug_string_hash(uint32_t uHash, const char *psz)
+{
+    unsigned char ch;
+    while ((ch = *(unsigned char const *)psz++) != '\0')
+        uHash = (uHash << 6) + (uHash << 16) - uHash + (unsigned char)ch;
+    return uHash;
+}
+
+/**
+ * Used to check that function arguments are left alone.
+ * @returns Updated hash.
+ * @param   uHash       The current hash value.
+ * @param   pch         The string to hash, not terminated.
+ * @param   cch         The number of chars to hash.
+ */
+static uint32_t kmk_cc_debug_string_hash_n(uint32_t uHash, const char *pch, uint32_t cch)
+{
+    while (cch-- > 0)
+    {
+        unsigned char ch = *(unsigned char const *)pch++;
+        uHash = (uHash << 6) + (uHash << 16) - uHash + (unsigned char)ch;
+    }
+    return uHash;
+}
+
+#endif
+
+
+
+/*
+ *
+ * The allocator.
+ * The allocator.
+ * The allocator.
+ *
+ */
 
 
 /**
@@ -348,7 +491,12 @@ static void *kmk_cc_block_alloc_first(PKMKCCBLOCK *ppBlockTail, size_t cbFirst, 
      * Turn the hint into a block size.
      */
     if (cbHint <= 512)
-        cbBlock = 512;
+    {
+        if (cbHint <= 256)
+            cbBlock = 128;
+        else
+            cbBlock = 256;
+    }
     else if (cbHint < 2048)
         cbBlock = 1024;
     else if (cbHint < 3072)
@@ -364,6 +512,11 @@ static void *kmk_cc_block_alloc_first(PKMKCCBLOCK *ppBlockTail, size_t cbFirst, 
     pNewBlock->offNext = sizeof(*pNewBlock) + cbFirst;
     pNewBlock->pNext   = NULL;
     *ppBlockTail = pNewBlock;
+
+#ifdef KMK_CC_WITH_STATS
+    g_cBlockAllocated++;
+    g_cbAllocated += cbBlock;
+#endif
 
     return pNewBlock + 1;
 }
@@ -438,6 +591,11 @@ static void *kmk_cc_block_byte_alloc_grow(PKMKCCBLOCK *ppBlockTail, uint32_t cb)
     pNewBlock->pNext   = pOldBlock;
     *ppBlockTail = pNewBlock;
 
+#ifdef KMK_CC_WITH_STATS
+    g_cBlockAllocated++;
+    g_cbAllocated += cbBlock;
+#endif
+
     return pNewBlock + 1;
 }
 
@@ -505,7 +663,7 @@ static PKMKCCEXPCORE kmk_cc_block_alloc_exp_grow(PKMKCCBLOCK *ppBlockTail, uint3
     PKMKCCEXPJUMP   pJump;
 
     /* Figure the block size. */
-    uint32_t cbBlock = pOldBlock->cbBlock;
+    uint32_t cbBlock = !pOldBlock->pNext ? 128 : pOldBlock->cbBlock;
     while (cbBlock - sizeof(KMKCCEXPJUMP) - sizeof(*pNewBlock) < cb)
         cbBlock *= 2;
 
@@ -515,6 +673,11 @@ static PKMKCCEXPCORE kmk_cc_block_alloc_exp_grow(PKMKCCBLOCK *ppBlockTail, uint3
     pNewBlock->offNext = sizeof(*pNewBlock) + cb;
     pNewBlock->pNext   = pOldBlock;
     *ppBlockTail = pNewBlock;
+
+#ifdef KMK_CC_WITH_STATS
+    g_cBlockAllocated++;
+    g_cbAllocated += cbBlock;
+#endif
 
     pRet = (PKMKCCEXPCORE)(pNewBlock + 1);
 
@@ -570,26 +733,13 @@ static void kmk_cc_block_free_list(PKMKCCBLOCK pBlockTail)
 }
 
 
-/**
- * Counts the number of dollar chars in the string.
+/*
  *
- * @returns Number of dollar chars.
- * @param   pchStr      The string to search (does not need to be zero
- *                      terminated).
- * @param   cchStr      The length of the string.
+ * The string expansion compiler.
+ * The string expansion compiler.
+ * The string expansion compiler.
+ *
  */
-static uint32_t kmk_cc_count_dollars(const char *pchStr, uint32_t cchStr)
-{
-    uint32_t cDollars = 0;
-    const char *pch;
-    while ((pch = memchr(pchStr, '$', cchStr)) != NULL)
-    {
-        cDollars++;
-        cchStr -= pch - pchStr + 1;
-        pchStr  = pch + 1;
-    }
-    return cDollars;
-}
 
 
 /**
@@ -621,15 +771,23 @@ static uint8_t kmk_cc_is_dirty_function(const char *pszFunction)
     {
         default:
             return 0;
-        case 'f':
-            if (pszFunction[1] == 'i')
-            {
-                if (!strcmp(pszFunction, "filter"))
-                    return 1;
-                if (!strcmp(pszFunction, "filter-out"))
-                    return 1;
-            }
+
+        case 'e':
+            if (!strcmp(pszFunction, "eval"))
+                return 1;
+            if (!strcmp(pszFunction, "evalctx"))
+                return 1;
             return 0;
+
+        case 'f':
+            if (!strcmp(pszFunction, "filter"))
+                return 1;
+            if (!strcmp(pszFunction, "filter-out"))
+                return 1;
+            if (!strcmp(pszFunction, "for"))
+                return 1;
+            return 0;
+
         case 's':
             if (!strcmp(pszFunction, "sort"))
                 return 1;
@@ -1294,7 +1452,7 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
     PKMKCCEXPPROG   pProg;
     PKMKCCBLOCK     pBlock;
     pProg = kmk_cc_block_alloc_first(&pBlock, sizeof(*pProg),
-                                     (kmk_cc_count_dollars(pchStr, cchStr) + 8)  * 16);
+                                     (kmk_cc_count_dollars(pchStr, cchStr) + 4)  * 8);
     if (pProg)
     {
         int rc = 0;
@@ -1302,17 +1460,36 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
         pProg->pBlockTail   = pBlock;
         pProg->pFirstInstr  = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(pBlock);
         kmk_cc_exp_stats_init(&pProg->Stats);
+#ifdef KMK_CC_STRICT
+        pProg->uInputHash   = kmk_cc_debug_string_hash_n(0, pchStr, cchStr);
+#endif
 
         /*
          * Join forces with the sub program compilation code.
          */
         if (kmk_cc_exp_compile_common(&pProg->pBlockTail, pchStr, cchStr) == 0)
+        {
+#ifdef KMK_CC_WITH_STATS
+            pBlock = pProg->pBlockTail;
+            if (!pBlock->pNext)
+                g_cSingleBlockExpProgs++;
+            else if (!pBlock->pNext->pNext)
+                g_cTwoBlockExpProgs++;
+            else
+                g_cMultiBlockExpProgs++;
+            for (; pBlock; pBlock = pBlock->pNext)
+            {
+                g_cBlocksAllocatedExpProgs++;
+                g_cbAllocatedExpProgs += pBlock->cbBlock;
+                g_cbUnusedMemExpProgs += pBlock->cbBlock - pBlock->offNext;
+            }
+#endif
             return pProg;
+        }
         kmk_cc_block_free_list(pProg->pBlockTail);
     }
     return NULL;
 }
-
 
 
 /**
@@ -1328,6 +1505,32 @@ struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar
 
 
 /**
+ * Updates the recursive_without_dollar member of a variable structure.
+ *
+ * This avoid compiling string expansion programs without only a CopyString
+ * instruction.  By setting recursive_without_dollar to 1, code calling
+ * kmk_cc_compile_variable_for_expand and kmk_exec_expand_to_var_buf will
+ * instead treat start treating it as a simple variable, which is faster.
+ *
+ * @returns The updated recursive_without_dollar value.
+ * @param   pVar        Pointer to the variable.
+ */
+static int kmk_cc_update_variable_recursive_without_dollar(struct variable *pVar)
+{
+    int fValue;
+    KMK_CC_ASSERT(pVar->recursive_without_dollar == 0);
+
+    if (memchr(pVar->value, '$', pVar->value_length))
+        fValue = -1;
+    else
+        fValue = 1;
+    pVar->recursive_without_dollar = fValue;
+
+    return fValue;
+}
+
+
+/**
  * Compiles a variable for string expansion.
  *
  * @returns Pointer to the string expansion program on success, NULL if no
@@ -1336,33 +1539,23 @@ struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar
  */
 struct kmk_cc_expandprog *kmk_cc_compile_variable_for_expand(struct variable *pVar)
 {
+    KMK_CC_ASSERT(strlen(pVar->value) == pVar->value_length);
     KMK_CC_ASSERT(!pVar->expandprog);
+    KMK_CC_ASSERT(pVar->recursive_without_dollar <= 0);
+
     if (   !pVar->expandprog
-        && pVar->value_length > 0
         && pVar->recursive)
     {
-        KMK_CC_ASSERT(strlen(pVar->value) == pVar->value_length);
-        pVar->expandprog = kmk_cc_exp_compile(pVar->value, pVar->value_length);
+        if (   pVar->recursive_without_dollar < 0
+            || (   pVar->recursive_without_dollar == 0
+                && kmk_cc_update_variable_recursive_without_dollar(pVar) < 0) )
+        {
+            pVar->expandprog = kmk_cc_exp_compile(pVar->value, pVar->value_length);
+            g_cVarForExpandCompilations++;
+        }
     }
     return pVar->expandprog;
 }
-
-
-#ifndef NDEBUG
-/**
- * Used to check that function arguments are left alone.
- * @returns Updated hash.
- * @param   uHash       The current hash value.
- * @param   psz         The string to hash.
- */
-static uint32_t kmk_exec_debug_string_hash(uint32_t uHash, const char *psz)
-{
-    unsigned char ch;
-    while ((ch = *(unsigned char const *)psz++) != '\0')
-        uHash = (uHash << 6) + (uHash << 16) - uHash + (unsigned char)ch;
-    return uHash;
-}
-#endif
 
 
 /**
@@ -1376,7 +1569,7 @@ static char *kmk_exec_expand_worker_reference_variable(struct variable *pVar, ch
 {
     if (pVar->value_length > 0)
     {
-        if (!pVar->recursive)
+        if (!pVar->recursive || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(pVar))
             pchDst = variable_buffer_output(pchDst, pVar->value, pVar->value_length);
         else
             pchDst = reference_recursive_variable(pchDst, pVar);
@@ -1526,20 +1719,20 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                 uint32_t iArg;
                 if (!pInstr->Core.fDirty)
                 {
-#ifndef NDEBUG
+#ifdef KMK_CC_STRICT
                     uint32_t uCrcBefore = 0;
                     uint32_t uCrcAfter = 0;
                     iArg = pInstr->Core.cArgs;
                     while (iArg-- > 0)
-                        uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
+                        uCrcBefore = kmk_cc_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
 #endif
 
                     pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
 
-#ifndef NDEBUG
+#ifdef KMK_CC_STRICT
                     iArg = pInstr->Core.cArgs;
                     while (iArg-- > 0)
-                        uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
+                        uCrcAfter = kmk_cc_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
                     KMK_CC_ASSERT(uCrcBefore == uCrcAfter);
 #endif
                 }
@@ -1574,7 +1767,7 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
 
                 if (!pInstr->Core.fDirty)
                 {
-#ifndef NDEBUG
+#ifdef KMK_CC_STRICT
                     uint32_t    uCrcBefore = 0;
                     uint32_t    uCrcAfter = 0;
 #endif
@@ -1589,8 +1782,8 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                             pszArg = (char *)pInstr->aArgs[iArg].u.Plain.pszArg;
                         papszArgsShadow[iArg] = pszArg;
                         papszArgs[iArg]       = pszArg;
-#ifndef NDEBUG
-                        uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pszArg);
+#ifdef KMK_CC_STRICT
+                        uCrcBefore = kmk_cc_debug_string_hash(uCrcBefore, pszArg);
 #endif
                     }
                     pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
@@ -1598,9 +1791,9 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                     iArg = pInstr->Core.cArgs;
                     while (iArg-- > 0)
                     {
-#ifndef NDEBUG
+#ifdef KMK_CC_STRICT
                         KMK_CC_ASSERT(papszArgsShadow[iArg] == papszArgs[iArg]);
-                        uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
+                        uCrcAfter = kmk_cc_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
 #endif
                         if (!pInstr->aArgs[iArg].fPlain)
                             free(papszArgsShadow[iArg]);
@@ -1732,6 +1925,7 @@ static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
     KMK_CC_ASSERT(cchResult >= offStart);
     cchResult -= offStart;
     kmk_cc_exp_stats_update(&pProg->Stats, cchResult);
+    g_cVarForExpandExecs++;
 
     return pchDst;
 }
@@ -1759,6 +1953,7 @@ void kmk_exec_evalval(struct variable *pVar)
 char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
 {
     KMK_CC_ASSERT(pVar->expandprog);
+    KMK_CC_ASSERT(pVar->expandprog->uInputHash == kmk_cc_debug_string_hash(0, pVar->value));
     return kmk_exec_expand_prog_to_var_buf(pVar->expandprog, pchDst);
 }
 
