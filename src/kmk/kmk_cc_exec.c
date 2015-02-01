@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2768 2015-01-31 04:49:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2769 2015-02-01 00:44:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -64,7 +64,21 @@ typedef struct kmk_cc_block
 } KMKCCBLOCK;
 typedef KMKCCBLOCK *PKMKCCBLOCK;
 
-/** Expansion instructions. */
+/**
+ * String expansion statistics.
+ */
+typedef struct KMKCCEXPSTATS
+{
+    /** Max expanded size. */
+    uint32_t                    cchMax;
+    /** Recent average size. */
+    uint32_t                    cchAvg;
+} KMKCCEXPSTATS;
+typedef KMKCCEXPSTATS *PKMKCCEXPSTATS;
+
+/**
+ * Expansion instructions.
+ */
 typedef enum KMKCCEXPINSTR
 {
     /** Copy a plain string. */
@@ -73,10 +87,13 @@ typedef enum KMKCCEXPINSTR
     kKmkCcExpInstr_PlainVariable,
     /** Insert an expanded variable value, the name is dynamic (sub prog). */
     kKmkCcExpInstr_DynamicVariable,
+    /** Insert an expanded variable value, which name we already know, doing
+     * search an replace on a string. */
+    kKmkCcExpInstr_SearchAndReplacePlainVariable,
     /** Insert the output of function that requires no argument expansion. */
     kKmkCcExpInstr_PlainFunction,
     /** Insert the output of function that requires dynamic expansion of one ore
-     * more arguments. */
+     * more arguments.  (Dynamic is perhaps not such a great name, but whatever.) */
     kKmkCcExpInstr_DynamicFunction,
     /** Jump to a new instruction block. */
     kKmkCcExpInstr_Jump,
@@ -94,17 +111,21 @@ typedef struct kmk_cc_exp_core
 } KMKCCEXPCORE;
 typedef KMKCCEXPCORE *PKMKCCEXPCORE;
 
+/**
+ * String expansion sub program.
+ */
 typedef struct kmk_cc_exp_subprog
 {
     /** Pointer to the first instruction. */
     PKMKCCEXPCORE           pFirstInstr;
-    /** Max expanded size. */
-    uint32_t                cbMax;
-    /** Recent average size. */
-    uint32_t                cbAvg;
+    /** Statistics. */
+    KMKCCEXPSTATS           Stats;
 } KMKCCEXPSUBPROG;
 typedef KMKCCEXPSUBPROG *PKMKCCEXPSUBPROG;
 
+/**
+ * kKmkCcExpInstr_CopyString instruction format.
+ */
 typedef struct kmk_cc_exp_copy_string
 {
     /** The core instruction. */
@@ -116,38 +137,68 @@ typedef struct kmk_cc_exp_copy_string
 } KMKCCEXPCOPYSTRING;
 typedef KMKCCEXPCOPYSTRING *PKMKCCEXPCOPYSTRING;
 
+/**
+ * kKmkCcExpInstr_PlainVariable instruction format.
+ */
 typedef struct kmk_cc_exp_plain_variable
 {
     /** The core instruction. */
     KMKCCEXPCORE            Core;
-    /** The variable strcache entry for this variable. */
-    struct strcache2_entry const *pNameEntry;
+    /** The name of the variable (points into variable_strcache). */
+    const char             *pszName;
 } KMKCCEXPPLAINVAR;
 typedef KMKCCEXPPLAINVAR *PKMKCCEXPPLAINVAR;
 
+/**
+ * kKmkCcExpInstr_DynamicVariable instruction format.
+ */
 typedef struct kmk_cc_exp_dynamic_variable
 {
     /** The core instruction. */
     KMKCCEXPCORE            Core;
-    /** Where to continue after this instruction.  This is necessary since the
-     * subprogram is allocated after us in the instruction block.  Since the sub
-     * program is of variable size, we don't even know if we're still in the same
-     * instruction block.  So, we include a jump here. */
+    /** Where to continue after this instruction.  (This is necessary since the
+     * instructions of the subprogram are emitted after this instruction.) */
     PKMKCCEXPCORE           pNext;
     /** The subprogram that will give us the variable name. */
     KMKCCEXPSUBPROG         SubProg;
 } KMKCCEXPDYNVAR;
 typedef KMKCCEXPDYNVAR *PKMKCCEXPDYNVAR;
 
+/**
+ * kKmkCcExpInstr_SearchAndReplacePlainVariable instruction format.
+ */
+typedef struct kmk_cc_exp_sr_plain_variable
+{
+    /** The core instruction. */
+    KMKCCEXPCORE            Core;
+    /** Where to continue after this instruction.  (This is necessary since the
+     * instruction contains string data of variable size.) */
+    PKMKCCEXPCORE           pNext;
+    /** The name of the variable (points into variable_strcache). */
+    const char             *pszName;
+    /** Search pattern.  */
+    const char             *pszSearchPattern;
+    /** Replacement pattern. */
+    const char             *pszReplacePattern;
+    /** Offset into pszSearchPattern of the significant '%' char. */
+    uint32_t                offPctSearchPattern;
+    /** Offset into pszReplacePattern of the significant '%' char. */
+    uint32_t                offPctReplacePattern;
+} KMKCCEXPSRPLAINVAR;
+typedef KMKCCEXPSRPLAINVAR *PKMKCCEXPSRPLAINVAR;
+
+/**
+ * Instruction format parts common to both kKmkCcExpInstr_PlainFunction and
+ * kKmkCcExpInstr_DynamicFunction.
+ */
 typedef struct kmk_cc_exp_function_core
 {
     /** The core instruction. */
     KMKCCEXPCORE            Core;
     /** Number of arguments. */
     uint32_t                cArgs;
-    /** Where to continue after this instruction.  This is necessary since the
-     * instruction is of variable size and we don't even know if we're still in the
-     * same instruction block.  So, we include a jump here. */
+    /** Where to continue after this instruction.  (This is necessary since the
+     * instructions are of variable size and may be followed by string data.) */
     PKMKCCEXPCORE           pNext;
     /**
      * Pointer to the function table entry.
@@ -163,6 +214,9 @@ typedef struct kmk_cc_exp_function_core
 } KMKCCEXPFUNCCORE;
 typedef KMKCCEXPFUNCCORE *PKMKCCEXPFUNCCORE;
 
+/**
+ * Instruction format for kKmkCcExpInstr_PlainFunction.
+ */
 typedef struct kmk_cc_exp_plain_function
 {
     /** The bits comment to both plain and dynamic functions. */
@@ -177,6 +231,9 @@ typedef KMKCCEXPPLAINFUNC *PKMKCCEXPPLAINFUNC;
 /** Calculates the size of an KMKCCEXPPLAINFUNC with a_cArgs. */
 #define KMKCCEXPPLAINFUNC_SIZE(a_cArgs)  (sizeof(KMKCCEXPFUNCCORE) + (a_cArgs + 1) * sizeof(const char *))
 
+/**
+ * Instruction format for kKmkCcExpInstr_DynamicFunction.
+ */
 typedef struct kmk_cc_exp_dyn_function
 {
     /** The bits comment to both plain and dynamic functions. */
@@ -208,6 +265,9 @@ typedef KMKCCEXPDYNFUNC *PKMKCCEXPDYNFUNC;
 #define KMKCCEXPDYNFUNC_SIZE(a_cArgs)  (  sizeof(KMKCCEXPFUNCCORE) \
                                           + (a_cArgs) * sizeof(((PKMKCCEXPDYNFUNC)(uintptr_t)42)->aArgs[0]) )
 
+/**
+ * Instruction format for kKmkCcExpInstr_Jump.
+ */
 typedef struct kmk_cc_exp_jump
 {
     /** The core instruction. */
@@ -226,10 +286,8 @@ typedef struct kmk_cc_expandprog
     PKMKCCEXPCORE           pFirstInstr;
     /** List of blocks for this program (LIFO). */
     PKMKCCBLOCK             pBlockTail;
-    /** Max expanded size. */
-    uint32_t                cbMax;
-    /** Recent average size. */
-    uint32_t                cbAvg;
+    /** Statistics. */
+    KMKCCEXPSTATS           Stats;
 } KMKCCEXPPROG;
 /** Pointer to a string expansion program. */
 typedef KMKCCEXPPROG *PKMKCCEXPPROG;
@@ -244,6 +302,7 @@ typedef KMKCCEXPPROG *PKMKCCEXPPROG;
 *   Internal Functions                                                         *
 *******************************************************************************/
 static int kmk_cc_exp_compile_subprog(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr, PKMKCCEXPSUBPROG pSubProg);
+static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t *pcch);
 
 
 /**
@@ -740,7 +799,8 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
 
 
 /**
- * Emits a kKmkCcExpInstr_PlainVariable.
+ * Emits either a kKmkCcExpInstr_PlainVariable or
+ * kKmkCcExpInstr_SearchAndReplacePlainVariable instruction.
  *
  * @returns 0 on success, non-zero on failure.
  * @param   ppBlockTail         Pointer to the allocator tail pointer.
@@ -749,13 +809,87 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
  * @param   cchName             The length of the variable name. If zero,
  *                              nothing will be emitted.
  */
-static int kmk_cc_exp_emit_plain_variable(PKMKCCBLOCK *ppBlockTail, const char *pchName, uint32_t cchName)
+static int kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, const char *pchName, uint32_t cchName)
 {
     if (cchName > 0)
     {
-        PKMKCCEXPPLAINVAR pInstr = (PKMKCCEXPPLAINVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
-        pInstr->Core.enmOpCode = kKmkCcExpInstr_PlainVariable;
-        pInstr->pNameEntry = strcache2_get_entry(&variable_strcache, strcache2_add(&variable_strcache, pchName, cchName));
+        /*
+         * Hopefully, we're not expected to do any search and replace on the
+         * expanded variable string later...  Requires both ':' and '='.
+         */
+        const char *pchEqual;
+        const char *pchColon = (const char *)memchr(pchName, ':', cchName);
+        if (   pchColon == NULL
+            || (pchEqual = (const char *)memchr(pchColon + 1, ':', cchName - (pchColon - pchName - 1))) == NULL
+            || pchEqual == pchEqual + 1)
+        {
+            PKMKCCEXPPLAINVAR pInstr = (PKMKCCEXPPLAINVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
+            pInstr->Core.enmOpCode = kKmkCcExpInstr_PlainVariable;
+            pInstr->pszName = strcache2_add(&variable_strcache, pchName, cchName);
+        }
+        else if (pchColon != pchName)
+        {
+            /*
+             * Okay, we need to do search and replace the variable value.
+             * This is performed by patsubst_expand_pat using '%' patterns.
+             */
+            uint32_t            cchName2   = (uint32_t)(pchColon - pchName);
+            uint32_t            cchSearch  = (uint32_t)(pchEqual - pchColon - 1);
+            uint32_t            cchReplace = cchName - cchName2 - cchSearch - 2;
+            const char         *pchPct;
+            char               *psz;
+            PKMKCCEXPSRPLAINVAR pInstr;
+
+            pInstr = (PKMKCCEXPSRPLAINVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
+            pInstr->Core.enmOpCode = kKmkCcExpInstr_SearchAndReplacePlainVariable;
+            pInstr->pszName = strcache2_add(&variable_strcache, pchName, cchName2);
+
+            /* Figure out the search pattern, unquoting percent chars.. */
+            psz = (char *)kmk_cc_block_byte_alloc(ppBlockTail, cchSearch + 2);
+            psz[0] = '%';
+            memcpy(psz + 1, pchColon + 1, cchSearch);
+            psz[1 + cchSearch] = '\0';
+            pchPct = find_percent(psz + 1); /* also performs unquoting */
+            if (pchPct)
+            {
+                pInstr->pszSearchPattern    = psz + 1;
+                pInstr->offPctSearchPattern = (uint32_t)(pchPct - psz - 1);
+            }
+            else
+            {
+                pInstr->pszSearchPattern    = psz;
+                pInstr->offPctSearchPattern = 0;
+            }
+
+            /* Figure out the replacement pattern, unquoting percent chars.. */
+            if (cchReplace == 0)
+            {
+                pInstr->pszReplacePattern    = "%";
+                pInstr->offPctReplacePattern = 0;
+            }
+            else
+            {
+                psz = (char *)kmk_cc_block_byte_alloc(ppBlockTail, cchReplace + 2);
+                psz[0] = '%';
+                memcpy(psz + 1, pchEqual + 1, cchReplace);
+                psz[1 + cchReplace] = '\0';
+                pchPct = find_percent(psz + 1); /* also performs unquoting */
+                if (pchPct)
+                {
+                    pInstr->pszReplacePattern    = psz + 1;
+                    pInstr->offPctReplacePattern = (uint32_t)(pchPct - psz - 1);
+                }
+                else
+                {
+                    pInstr->pszReplacePattern    = psz;
+                    pInstr->offPctReplacePattern = 0;
+                }
+            }
+
+            /* Note down where the next instruction is after realigning the allocator. */
+            kmk_cc_block_realign(ppBlockTail);
+            pInstr->pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
+        }
     }
     return 0;
 }
@@ -836,10 +970,21 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                     if (chOpen == '(' || chOpen == '{')
                     {
                         /* There are several alternative ways of finding the ending
-                           parenthesis / braces.  GNU make only consideres open &
-                           close chars of the one we're processing, and it does not
-                           matter whether the opening paren / braces are preceeded by
-                           any dollar char.  Simple and efficient.  */
+                           parenthesis / braces.
+
+                           GNU make does one thing for functions and variable containing
+                           any '$' chars before the first closing char.  While for
+                           variables where a closing char comes before any '$' char, a
+                           simplified approach is taken.  This means that for example:
+
+                                Given VAR=var, the expressions "$(var())" and
+                                "$($(VAR)())" would be expanded differently.
+                                In the first case the variable "var(" would be
+                                used and in the second "var()".
+
+                           This code will not duplicate this weird behavior, but work
+                           the same regardless of whether there is a '$' char before
+                           the first closing char. */
                         make_function_ptr_t pfnFunction;
                         const char         *pszFunction;
                         unsigned char       cMaxArgs;
@@ -864,6 +1009,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                                 break;
                             cchName++;
                         }
+
                         if (   cchName >= MIN_FUNCTION_LENGTH
                             && cchName <= MAX_FUNCTION_LENGTH
                             && (isblank(ch) || ch == chClose || cchName == cchStr)
@@ -1001,7 +1147,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                                 return -1; /* not reached */
                             }
                             if (cDollars == 0)
-                                rc = kmk_cc_exp_emit_plain_variable(ppBlockTail, pchStr, cchName);
+                                rc = kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, cchName);
                             else
                                 rc = kmk_cc_exp_emit_dyn_variable(ppBlockTail, pchStr, cchName);
                         }
@@ -1011,7 +1157,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                     else
                     {
                         /* Single character variable name. */
-                        rc = kmk_cc_exp_emit_plain_variable(ppBlockTail, pchStr, 1);
+                        rc = kmk_cc_exp_emit_plain_variable_maybe_sr(ppBlockTail, pchStr, 1);
                         pchStr++;
                         cchStr--;
                     }
@@ -1045,6 +1191,17 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
 
 
 /**
+ * Initializes string expansion program statistics.
+ * @param   pStats              Pointer to the statistics structure to init.
+ */
+static void kmk_cc_exp_stats_init(PKMKCCEXPSTATS pStats)
+{
+    pStats->cchAvg = 0;
+    pStats->cchMax = 0;
+}
+
+
+/**
  * Compiles a string expansion sub program.
  *
  * The caller typically make a call to kmk_cc_block_get_next_ptr after this
@@ -1063,8 +1220,7 @@ static int kmk_cc_exp_compile_subprog(PKMKCCBLOCK *ppBlockTail, const char *pchS
 {
     assert(cchStr);
     pSubProg->pFirstInstr = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
-    pSubProg->cbMax = 0;
-    pSubProg->cbAvg = 0;
+    kmk_cc_exp_stats_init(&pSubProg->Stats);
     return kmk_cc_exp_compile_common(ppBlockTail, pchStr, cchStr);
 }
 
@@ -1094,8 +1250,7 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
 
         pProg->pBlockTail   = pBlock;
         pProg->pFirstInstr  = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(pBlock);
-        pProg->cbMax        = 0;
-        pProg->cbAvg        = 0;
+        kmk_cc_exp_stats_init(&pProg->Stats);
 
         /*
          * Join forces with the sub program compilation code.
@@ -1144,6 +1299,355 @@ struct kmk_cc_expandprog *kmk_cc_compile_variable_for_expand(struct variable *pV
 }
 
 
+#ifndef NDEBUG
+/**
+ * Used to check that function arguments are left alone.
+ * @returns Updated hash.
+ * @param   uHash       The current hash value.
+ * @param   psz         The string to hash.
+ */
+static uint32_t kmk_exec_debug_string_hash(uint32_t uHash, const char *psz)
+{
+    unsigned char ch;
+    while ((ch = *(unsigned char const *)psz++) != '\0')
+        uHash = (uHash << 6) + (uHash << 16) - uHash + (unsigned char)ch;
+    return uHash;
+}
+#endif
+
+
+/**
+ * String expansion execution worker for outputting a variable.
+ *
+ * @returns The new variable buffer position.
+ * @param   pVar        The variable to reference.
+ * @param   pchDst      The current variable buffer position.
+ */
+static char *kmk_exec_expand_worker_reference_variable(struct variable *pVar, char *pchDst)
+{
+    if (pVar->value_length > 0)
+    {
+        if (!pVar->recursive)
+            pchDst = variable_buffer_output(pchDst, pVar->value, pVar->value_length);
+        else
+            pchDst = reference_recursive_variable(pchDst, pVar);
+    }
+    else if (pVar->append)
+        pchDst = reference_recursive_variable(pchDst, pVar);
+    return pchDst;
+}
+
+
+/**
+ * Executes a stream string expansion instructions, outputting to the current
+ * varaible buffer.
+ *
+ * @returns The new variable buffer position.
+ * @param   pInstrCore      The instruction to start executing at.
+ * @param   pchDst          The current variable buffer position.
+ */
+static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrCore, char *pchDst)
+{
+    for (;;)
+    {
+        switch (pInstrCore->enmOpCode)
+        {
+            case kKmkCcExpInstr_CopyString:
+            {
+                PKMKCCEXPCOPYSTRING pInstr = (PKMKCCEXPCOPYSTRING)pInstrCore;
+                pchDst = variable_buffer_output(pchDst, pInstr->pachSrc, pInstr->cchCopy);
+
+                pInstrCore = &(pInstr + 1)->Core;
+                break;
+            }
+
+            case kKmkCcExpInstr_PlainVariable:
+            {
+                PKMKCCEXPPLAINVAR pInstr = (PKMKCCEXPPLAINVAR)pInstrCore;
+                struct variable  *pVar = lookup_variable_strcached(pInstr->pszName);
+                if (pVar)
+                    pchDst = kmk_exec_expand_worker_reference_variable(pVar, pchDst);
+                else
+                    warn_undefined(pInstr->pszName, strcache2_get_len(&variable_strcache, pInstr->pszName));
+
+                pInstrCore = &(pInstr + 1)->Core;
+                break;
+            }
+
+            case kKmkCcExpInstr_DynamicVariable:
+            {
+                PKMKCCEXPDYNVAR  pInstr = (PKMKCCEXPDYNVAR)pInstrCore;
+                struct variable *pVar;
+                uint32_t         cchName;
+                char            *pszName = kmk_exec_expand_subprog_to_tmp(&pInstr->SubProg, &cchName);
+                char            *pszColon = (char *)memchr(pszName, ':', cchName);
+                char            *pszEqual;
+                if (   pszColon == NULL
+                    || (pszEqual = (char *)memchr(pszColon + 1, '=', &pszName[cchName] - pszColon - 1)) == NULL
+                    || pszEqual == pszColon + 1)
+                {
+                    pVar = lookup_variable(pszName, cchName);
+                    if (pVar)
+                        pchDst = kmk_exec_expand_worker_reference_variable(pVar, pchDst);
+                    else
+                        warn_undefined(pszName, cchName);
+                }
+                else if (pszColon != pszName)
+                {
+                    /*
+                     * Oh, we have to do search and replace. How tedious.
+                     * Since the variable name is a temporary buffer, we can transform
+                     * the strings into proper search and replacement patterns directly.
+                     */
+                    pVar = lookup_variable(pszName, pszColon - pszName);
+                    if (pVar)
+                    {
+                        char const *pszExpandedVarValue = pVar->recursive ? recursively_expand(pVar) : pVar->value;
+                        char       *pszSearchPat  = pszColon + 1;
+                        char       *pszReplacePat = pszEqual + 1;
+                        const char *pchPctSearchPat;
+                        const char *pchPctReplacePat;
+
+                        *pszEqual = '\0';
+                        pchPctSearchPat = find_percent(pszSearchPat);
+                        pchPctReplacePat = find_percent(pszReplacePat);
+
+                        if (!pchPctReplacePat)
+                        {
+                            if (pszReplacePat[-2] != '\0') /* On the offchance that a pct was unquoted by find_percent. */
+                            {
+                                memmove(pszName + 1, pszSearchPat, pszReplacePat - pszSearchPat);
+                                if (pchPctSearchPat)
+                                    pchPctSearchPat -= pszSearchPat - &pszName[1];
+                                pszSearchPat = &pszName[1];
+                            }
+                            pchPctReplacePat = --pszReplacePat;
+                            *pszReplacePat = '%';
+                        }
+
+                        if (!pchPctSearchPat)
+                        {
+                            pchPctSearchPat = --pszSearchPat;
+                            *pszSearchPat = '%';
+                        }
+
+                        pchDst = patsubst_expand_pat(pchDst, pszExpandedVarValue,
+                                                     pszSearchPat, pszReplacePat,
+                                                     pchPctSearchPat, pchPctReplacePat);
+
+                        if (pVar->recursive)
+                            free((void *)pszExpandedVarValue);
+                    }
+                    else
+                        warn_undefined(pszName, pszColon - pszName);
+                }
+                free(pszName);
+
+                pInstrCore = pInstr->pNext;
+                break;
+            }
+
+
+            case kKmkCcExpInstr_SearchAndReplacePlainVariable:
+            {
+                PKMKCCEXPSRPLAINVAR pInstr = (PKMKCCEXPSRPLAINVAR)pInstrCore;
+                struct variable    *pVar = lookup_variable_strcached(pInstr->pszName);
+                if (pVar)
+                {
+                    char const *pszExpandedVarValue = pVar->recursive ? recursively_expand(pVar) : pVar->value;
+                    pchDst = patsubst_expand_pat(pchDst,
+                                                 pszExpandedVarValue,
+                                                 pInstr->pszSearchPattern,
+                                                 pInstr->pszReplacePattern,
+                                                 &pInstr->pszSearchPattern[pInstr->offPctSearchPattern],
+                                                 &pInstr->pszReplacePattern[pInstr->offPctReplacePattern]);
+                    if (pVar->recursive)
+                        free((void *)pszExpandedVarValue);
+                }
+                else
+                    warn_undefined(pInstr->pszName, strcache2_get_len(&variable_strcache, pInstr->pszName));
+
+                pInstrCore = pInstr->pNext;
+                break;
+            }
+
+            case kKmkCcExpInstr_PlainFunction:
+            {
+                PKMKCCEXPPLAINFUNC pInstr = (PKMKCCEXPPLAINFUNC)pInstrCore;
+#ifndef NDEBUG
+                uint32_t uCrcBefore = 0;
+                uint32_t uCrcAfter = 0;
+                uint32_t iArg = pInstr->Core.cArgs;
+                while (iArg-- > 0)
+                    uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
+#endif
+
+                pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
+
+#ifndef NDEBUG
+                iArg = pInstr->Core.cArgs;
+                while (iArg-- > 0)
+                    uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
+                assert(uCrcBefore == uCrcAfter);
+#endif
+
+                pInstrCore = pInstr->Core.pNext;
+                break;
+            }
+
+            case kKmkCcExpInstr_DynamicFunction:
+            {
+                PKMKCCEXPDYNFUNC pInstr = (PKMKCCEXPDYNFUNC)pInstrCore;
+                char           **papszArgsShadow = xmalloc( (pInstr->Core.cArgs * 2 + 1) * sizeof(char *));
+                char           **papszArgs = &papszArgsShadow[pInstr->Core.cArgs];
+                uint32_t         iArg;
+#ifndef NDEBUG
+                uint32_t         uCrcBefore = 0;
+                uint32_t         uCrcAfter = 0;
+#endif
+                iArg = pInstr->Core.cArgs;
+                papszArgs[iArg] = NULL;
+                while (iArg-- > 0)
+                {
+                    char *pszArg;
+                    if (pInstr->aArgs[iArg].fPlain)
+                        pszArg = (char *)pInstr->aArgs[iArg].u.Plain.pszArg;
+                    else
+                        pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
+                    papszArgsShadow[iArg] = pszArg;
+                    papszArgs[iArg]       = pszArg;
+#ifndef NDEBUG
+                    uCrcBefore = kmk_exec_debug_string_hash(uCrcBefore, pszArg);
+#endif
+                }
+
+                pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
+
+                iArg = pInstr->Core.cArgs;
+                while (iArg-- > 0)
+                {
+#ifndef NDEBUG
+                    assert(papszArgsShadow[iArg] == papszArgs[iArg]);
+                    uCrcAfter = kmk_exec_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
+#endif
+                    if (!pInstr->aArgs[iArg].fPlain)
+                        free(papszArgsShadow);
+                }
+                assert(uCrcBefore == uCrcAfter);
+                free(papszArgsShadow);
+
+                pInstrCore = pInstr->Core.pNext;
+                break;
+            }
+
+            case kKmkCcExpInstr_Jump:
+            {
+                PKMKCCEXPJUMP pInstr = (PKMKCCEXPJUMP)pInstrCore;
+                pInstrCore = pInstr->pNext;
+                break;
+            }
+
+            case kKmkCcExpInstr_Return:
+                return pchDst;
+
+            default:
+                fatal(NULL, _("Unknown string expansion opcode: %d (%#x)"),
+                      (int)pInstrCore->enmOpCode, (int)pInstrCore->enmOpCode);
+                return NULL;
+        }
+    }
+}
+
+
+/**
+ * Updates the string expansion statistics.
+ *
+ * @param   pStats              The statistics structure to update.
+ * @param   cchResult           The result lenght.
+ */
+void kmk_cc_exp_stats_update(PKMKCCEXPSTATS pStats, uint32_t cchResult)
+{
+    /*
+     * Keep statistics on output size.  The average is simplified and not an
+     * exact average for every expansion that has taken place.
+     */
+    if (cchResult > pStats->cchMax)
+    {
+        if (pStats->cchMax)
+            pStats->cchAvg = cchResult;
+        pStats->cchMax = cchResult;
+    }
+    pStats->cchAvg = (pStats->cchAvg * 7 + cchResult) / 8;
+}
+
+
+/**
+ * Execute a string expansion sub-program, outputting to a new heap buffer.
+ *
+ * @returns Pointer to the output buffer (hand to free when done).
+ * @param   pSubProg          The sub-program to execute.
+ * @param   pcchResult        Where to return the size of the result. Optional.
+ */
+static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t *pcchResult)
+{
+    char           *pchOldVarBuf;
+    unsigned int    cbOldVarBuf;
+    char           *pchDst;
+    char           *pszResult;
+    uint32_t        cchResult;
+
+    /*
+     * Temporarily replace the variable buffer while executing the instruction
+     * stream for this sub program.
+     */
+    pchDst = install_variable_buffer_with_hint(&pchOldVarBuf, &cbOldVarBuf,
+                                               pSubProg->Stats.cchAvg ? pSubProg->Stats.cchAvg + 32 : 256);
+
+    pchDst = kmk_exec_expand_instruction_stream_to_var_buf(pSubProg->pFirstInstr, pchDst);
+
+    /* Ensure that it's terminated. */
+    pchDst = variable_buffer_output(pchDst, "\0", 1) - 1;
+
+    /* Grab the result buffer before restoring the previous one. */
+    pszResult = variable_buffer;
+    cchResult = (uint32_t)(pchDst - pszResult);
+    if (pcchResult)
+        *pcchResult = cchResult;
+    kmk_cc_exp_stats_update(&pSubProg->Stats, cchResult);
+
+    restore_variable_buffer(pchOldVarBuf, cbOldVarBuf);
+
+    return pszResult;
+}
+
+
+/**
+ * Execute a string expansion program, outputting to the current variable
+ * buffer.
+ *
+ * @returns New variable buffer position.
+ * @param   pProg               The program to execute.
+ * @param   pchDst              The current varaible buffer position.
+ */
+static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
+{
+    uint32_t cchResult;
+    uint32_t offStart = (uint32_t)(pchDst - variable_buffer);
+
+    if (pProg->Stats.cchAvg >= variable_buffer_length - offStart)
+        pchDst = ensure_variable_buffer_space(pchDst, offStart + pProg->Stats.cchAvg + 32);
+
+    pchDst = kmk_exec_expand_instruction_stream_to_var_buf(pProg->pFirstInstr, pchDst);
+
+    cchResult = (uint32_t)(pchDst - variable_buffer);
+    assert(cchResult >= offStart);
+    cchResult -= offStart;
+    kmk_cc_exp_stats_update(&pProg->Stats, cchResult);
+
+    return pchDst;
+}
+
+
 /**
  * Equivalent of eval_buffer, only it's using the evalprog of the variable.
  *
@@ -1166,8 +1670,7 @@ void kmk_exec_evalval(struct variable *pVar)
 char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
 {
     assert(pVar->expandprog);
-    assert(0);
-    return pchDst;
+    return kmk_exec_expand_prog_to_var_buf(pVar->expandprog, pchDst);
 }
 
 
@@ -1179,6 +1682,18 @@ char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
 void  kmk_cc_variable_changed(struct variable *pVar)
 {
     assert(pVar->evalprog || pVar->expandprog);
+#if 0
+    if (pVar->evalprog)
+    {
+        kmk_cc_block_free_list(pVar->evalprog->pBlockTail);
+        pVar->evalprog = NULL;
+    }
+#endif
+    if (pVar->expandprog)
+    {
+        kmk_cc_block_free_list(pVar->expandprog->pBlockTail);
+        pVar->expandprog = NULL;
+    }
 }
 
 
@@ -1190,6 +1705,18 @@ void  kmk_cc_variable_changed(struct variable *pVar)
 void  kmk_cc_variable_deleted(struct variable *pVar)
 {
     assert(pVar->evalprog || pVar->expandprog);
+#if 0
+    if (pVar->evalprog)
+    {
+        kmk_cc_block_free_list(pVar->evalprog->pBlockTail);
+        pVar->evalprog = NULL;
+    }
+#endif
+    if (pVar->expandprog)
+    {
+        kmk_cc_block_free_list(pVar->expandprog->pBlockTail);
+        pVar->expandprog = NULL;
+    }
 }
 
 
