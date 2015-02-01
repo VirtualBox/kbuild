@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2770 2015-02-01 17:12:37Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2771 2015-02-01 20:48:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -1574,8 +1574,8 @@ kbuild_collect_source_prop(struct variable *pTarget, struct variable *pSource,
         if (pVar) \
         { \
             paVars[iVar].pVar = pVar; \
-            if (    !pVar->recursive \
-                ||  !memchr(pVar->value, '$', pVar->value_length)) \
+            if (   !pVar->recursive \
+                || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(pVar)) \
             { \
                 paVars[iVar].pszExp = pVar->value; \
                 paVars[iVar].cchExp = pVar->value_length; \

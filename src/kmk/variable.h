@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License along with
 this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "hash.h"
+#ifdef CONFIG_WITH_COMPILER
+# include "kmk_cc_exec.h"
+#endif
 
 /* Codes in a variable definition saying where the definition came from.
    Increasing numeric values signify less-overridable definitions.  */
@@ -108,6 +111,9 @@ struct variable
 	v_ifset,		/* Export it if it has a non-default value.  */
 	v_default		/* Decide in target_environment.  */
       } export ENUM_BITFIELD (2);
+#ifdef CONFIG_WITH_COMPILER
+    int recursive_without_dollar : 2; /* 0 if undetermined, 1 if value has no '$' chars, -1 if it has. */
+#endif
 #ifdef CONFIG_WITH_MAKE_STATS
     unsigned int changes;      /* Variable modification count.  */
     unsigned int reallocs;     /* Realloc on value count.  */
@@ -132,9 +138,18 @@ struct variable
       if ((v)->evalprog || (v)->expandprog) kmk_cc_variable_changed(v); \
       (v)->expand_count = 0; \
       (v)->evalval_count = 0; \
+      (v)->recursive_without_dollar = 0; \
     } while (0)
 #else
 # define VARIABLE_CHANGED(v) MAKE_STATS_2((v)->changes++)
+#endif
+
+/* Macro that avoids a lot of CONFIG_WITH_COMPILER checks when
+   accessing recursive_without_dollar. */
+#ifdef CONFIG_WITH_COMPILER
+# define IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(v) ((v)->recursive_without_dollar > 0)
+#else
+# define IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(v) 0
 #endif
 
 

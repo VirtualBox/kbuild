@@ -446,6 +446,7 @@ define_variable_in_set (const char *name, unsigned int length,
 #endif
   v->export = v_default;
 #ifdef CONFIG_WITH_COMPILER
+  v->recursive_without_dollar = 0;
   v->evalprog = 0;
   v->expandprog = 0;
   v->evalval_count = 0;
@@ -613,6 +614,7 @@ define_variable_alias_in_set (const char *name, unsigned int length,
       v->aliased = 0;
       v->export = v_default;
 #ifdef CONFIG_WITH_COMPILER
+      v->recursive_without_dollar = 0;
       v->evalprog = 0;
       v->expandprog = 0;
       v->evalval_count = 0;
@@ -2848,6 +2850,9 @@ try_variable_definition (const struct floc *flocp, char *line
 static unsigned long var_stats_evalvals, var_stats_evalvaled;
 static unsigned long var_stats_expands, var_stats_expanded;
 #endif
+#ifdef CONFIG_WITH_COMPILER
+static unsigned long var_stats_expandprogs, var_stats_evalprogs;
+#endif
 #ifdef CONFIG_WITH_MAKE_STATS
 static unsigned long var_stats_changes, var_stats_changed;
 static unsigned long var_stats_reallocs, var_stats_realloced;
@@ -2921,41 +2926,58 @@ print_variable (const void *item, void *arg)
 
 #if defined (CONFIG_WITH_COMPILER) || defined (CONFIG_WITH_MAKE_STATS)
   if (v->evalval_count != 0)
+    {
 # ifdef CONFIG_WITH_MAKE_STATS
-    printf (_(", %u evalvals (%llu ticks)"), v->evalval_count, v->cTicksEvalVal);
+      printf (_(", %u evalvals (%llu ticks)"), v->evalval_count, v->cTicksEvalVal);
 # else
-    printf (_(", %u evalvals"), v->evalval_count);
+      printf (_(", %u evalvals"), v->evalval_count);
 # endif
+      var_stats_evalvaled++;
+    }
   var_stats_evalvals += v->evalval_count;
-  var_stats_evalvaled += (v->evalval_count != 0);
 
   if (v->expand_count != 0)
-    printf (_(", %u expands"), v->expand_count);
+    {
+      printf (_(", %u expands"), v->expand_count);
+      var_stats_expanded++;
+    }
   var_stats_expands += v->expand_count;
-  var_stats_expanded += (v->expand_count != 0);
+
 # ifdef CONFIG_WITH_COMPILER
   if (v->evalprog != 0)
-    printf (_(", evalprog"));
+    {
+      printf (_(", evalprog"));
+      var_stats_evalprogs++;
+    }
   if (v->expandprog != 0)
-    printf (_(", expandprog"));
+    {
+      printf (_(", expandprog"));
+      var_stats_expandprogs++;
+    }
 # endif
 #endif
 
 #ifdef CONFIG_WITH_MAKE_STATS
   if (v->changes != 0)
-    printf (_(", %u changes"), v->changes);
+    {
+      printf (_(", %u changes"), v->changes);
+      var_stats_changed++;
+    }
   var_stats_changes += v->changes;
-  var_stats_changed += (v->changes != 0);
 
   if (v->reallocs != 0)
-    printf (_(", %u reallocs"), v->reallocs);
+    {
+      printf (_(", %u reallocs"), v->reallocs);
+      var_stats_realloced++;
+    }
   var_stats_reallocs += v->reallocs;
-  var_stats_realloced += (v->reallocs != 0);
 
   if (v->references != 0)
-    printf (_(", %u references"), v->references);
+    {
+      printf (_(", %u references"), v->references);
+      var_stats_referenced++;
+    }
   var_stats_references += v->references;
-  var_stats_referenced += (v->references != 0);
 
   var_stats_val_len += v->value_length;
   if (v->value_alloc_len)
@@ -3015,6 +3037,9 @@ print_variable_set (struct variable_set *set, char *prefix)
   var_stats_expands = var_stats_expanded = var_stats_evalvals
     = var_stats_evalvaled = 0;
 #endif
+#ifdef CONFIG_WITH_COMPILER
+  var_stats_expandprogs = var_stats_evalprogs = 0;
+#endif
 #ifdef CONFIG_WITH_MAKE_STATS
   var_stats_changes = var_stats_changed = var_stats_reallocs
     = var_stats_realloced = var_stats_references = var_stats_referenced
@@ -3068,6 +3093,14 @@ print_variable_set (struct variable_set *set, char *prefix)
                var_stats_expanded,
                (unsigned int)((100.0 * var_stats_expanded) / set->table.ht_fill),
                var_stats_expands);
+#endif
+#ifdef CONFIG_WITH_COMPILER
+      if (var_stats_expandprogs || var_stats_evalprogs)
+        printf(_("#  eval progs %5lu (%2u%%),     expand progs %6lu (%2u%%)\n"),
+               var_stats_evalprogs,
+               (unsigned int)((100.0 * var_stats_evalprogs) / set->table.ht_fill),
+               var_stats_expandprogs,
+               (unsigned int)((100.0 * var_stats_expandprogs) / set->table.ht_fill));
 #endif
       }
 
