@@ -2287,10 +2287,19 @@ record_target_var (struct nameseq *filenames, char *defn,
           assert (v != 0);
 
           v->origin = origin;
+#ifndef CONFIG_WITH_VALUE_LENGTH
           if (v->flavor == f_simple)
             v->value = allocated_variable_expand (v->value);
           else
             v->value = xstrdup (v->value);
+#else
+          v->value_length = strlen (v->value);
+          if (v->flavor == f_simple)
+            v->value = allocated_variable_expand_2 (v->value, v->value_length, &v->value_length);
+          else
+            v->value = (char *)memcpy (xmalloc (v->value_length + 1), v->value, v->value_length + 1);
+          v->value_alloc_len = v->value_length + 1;
+#endif
 
           fname = p->target;
         }
@@ -2361,6 +2370,7 @@ record_target_var (struct nameseq *filenames, char *defn,
               v->origin = gv->origin;
               v->recursive = gv->recursive;
               v->append = 0;
+              VARIABLE_CHANGED (v);
             }
         }
     }

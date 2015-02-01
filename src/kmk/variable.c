@@ -383,11 +383,7 @@ define_variable_in_set (const char *name, unsigned int length,
             v->fileinfo.filenm = 0;
 	  v->origin = origin;
 	  v->recursive = recursive;
-         MAKE_STATS_2(v->changes++);
-#ifdef CONFIG_WITH_COMPILER
-         if (v->evalprog || v->expandprog)
-           kmk_cc_variable_changed (v);
-#endif
+         VARIABLE_CHANGED (v);
 	}
       return v;
     }
@@ -599,11 +595,7 @@ define_variable_alias_in_set (const char *name, unsigned int length,
 
       if (v->value != 0 && !v->rdonly_val)
           free (v->value);
-      MAKE_STATS_2(v->changes++);
-#ifdef CONFIG_WITH_COMPILER
-      if (v->evalprog || v->expandprog)
-        kmk_cc_variable_changed (v);
-#endif
+      VARIABLE_CHANGED (v);
     }
   else
     {
@@ -760,6 +752,7 @@ lookup_special_var (struct variable *var)
       var->value_length = p - var->value - 1;
       var->value_alloc_len = max;
 #endif
+      VARIABLE_CHANGED (var);
 
       /* Remember how many variables are in our current count.  Since we never
          remove variables from the list, this is a reliable way to know whether
@@ -2212,6 +2205,7 @@ void append_string_to_variable (struct variable *v, const char *value, unsigned 
   else
     memcpy (v->value, value, value_len + 1);
   v->value_length = new_value_len;
+  VARIABLE_CHANGED (v);
 }
 
 struct variable *
@@ -2424,11 +2418,6 @@ do_variable_definition_2 (const struct floc *flocp,
 # endif
             if (free_value)
                free (free_value);
-            MAKE_STATS_2(v->changes++);
-# ifdef CONFIG_WITH_COMPILER
-            if (v->evalprog || v->expandprog)
-              kmk_cc_variable_changed (v);
-# endif
             return v;
 #else /* !CONFIG_WITH_VALUE_LENGTH */
 

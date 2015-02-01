@@ -254,7 +254,7 @@ reference_recursive_variable (char *o, struct variable *v)
 # ifdef CONFIG_WITH_COMPILER
       v->expand_count++;
       if (   v->expandprog
-          || (v->expand_count == 10 && kmk_cc_compile_variable_for_expand (v)) )
+          || (v->expand_count == 3 && kmk_cc_compile_variable_for_expand (v)) )
         o = kmk_exec_expand_to_var_buf (v, o);
       else
         variable_expand_string_2 (o, v->value, v->value_length, &o);
@@ -1073,6 +1073,7 @@ append_expanded_string_to_variable (struct variable *v, const char *value,
       v->value = variable_buffer;
       v->value_length = p - v->value;
       v->value_alloc_len = variable_buffer_length;
+      VARIABLE_CHANGED(v);
 
       /* Restore the variable buffer, but without freeing the current. */
       variable_buffer = NULL;

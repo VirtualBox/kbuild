@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2540 2011-08-02 20:13:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2770 2015-02-01 17:12:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -569,6 +569,7 @@ kbuild_simplify_variable(struct variable *pVar)
         pVar->value_alloc_len = value_len + 1;
     }
     pVar->recursive = 0;
+    VARIABLE_CHANGED(pVar);
     return pVar;
 }
 
@@ -2620,6 +2621,8 @@ func_kbuild_expand_template(char *o, char **argv, const char *pszFuncName)
                 off--;
             pDefTemplate->value_length = off;
             pDefTemplate->value[off] = '\0';
+
+            VARIABLE_CHANGED(pDefTemplate);
         }
 
         if (!pDefTemplate->value_length)
