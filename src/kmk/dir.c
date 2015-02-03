@@ -1310,7 +1310,11 @@ print_dir_data_base (void)
 
 /* Hooks for globbing.  */
 
+#if defined(KMK) && !defined(__OS2__)
+# include "glob/glob.h"
+#else
 #include <glob.h>
+#endif
 
 /* Structure describing state of iterating through a directory hash table.  */
 
