@@ -1,4 +1,4 @@
-# $Id: JWASM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
+# $Id: JWASM.kmk 2774 2015-02-03 19:56:24Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - JWasm
 #
@@ -52,7 +52,7 @@ TOOL_JWASM_COMPILE_AS_OUTPUT = $(outbase).lst
 TOOL_JWASM_COMPILE_AS_DEPEND =
 TOOL_JWASM_COMPILE_AS_DEPORD =
 define TOOL_JWASM_COMPILE_AS_CMDS
-	$(TOOL_JWASM_AS) -c \
+	$(QUIET)$(TOOL_JWASM_AS) -c \
 			$(strip $(flags)) \
 			$(addprefix -D,$(defs)) \
 			$(addprefix -I,$(incs)) \

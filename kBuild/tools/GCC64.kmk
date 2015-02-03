@@ -1,4 +1,4 @@
-# $Id: GCC64.kmk 2541 2011-08-03 09:51:30Z knut.osmundsen@oracle.com $
+# $Id: GCC64.kmk 2774 2015-02-03 19:56:24Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 64-bit GCC v3.2.x or later Using The System GCC.
 #
@@ -263,9 +263,9 @@ define TOOL_GCC64_LINK_PROGRAM_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_MAP,$(outbase).map)
  ifeq ($(ld_debug),split)
-	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
-	$(CHMOD) a-x $(outbase).debug
-	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(QUIET)$(CHMOD) a-x $(outbase).debug
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
  endif
 endef
 
@@ -297,9 +297,9 @@ define TOOL_GCC64_LINK_DLL_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_MAP,$(outbase).map)
  ifeq ($(ld_debug),split)
-	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
-	$(CHMOD) a-x $(outbase).debug
-	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(QUIET)$(CHMOD) a-x $(outbase).debug
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
  endif
 endef
 
@@ -329,9 +329,9 @@ define TOOL_GCC64_LINK_SYSMOD_CMDS
 		$(foreach lib,$(libs), $(if $(findstring $(lib),$(subst /,x,$(lib))), -l$(patsubst lib%,%,$(lib)), $(lib)))\
 		$(call TOOL_GCC64_LD_SYSMOD_MAP,$(outbase).map)
  ifeq ($(ld_debug),split)
-	$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
-	$(CHMOD) a-x $(outbase).debug
-	$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --only-keep-debug $(out) $(outbase).debug
+	$(QUIET)$(CHMOD) a-x $(outbase).debug
+	$(QUIET)$(TOOL_GCC64_OBJCOPY) --strip-debug --strip-unneeded --add-gnu-debuglink=$(outbase).debug $(out)
  endif
 endef
 
