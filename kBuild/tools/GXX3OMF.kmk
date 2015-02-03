@@ -1,4 +1,4 @@
-# $Id: GXX3OMF.kmk 2774 2015-02-03 19:56:24Z knut.osmundsen@oracle.com $
+# $Id: GXX3OMF.kmk 2775 2015-02-03 20:00:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF, for building C++ code.
 #
@@ -216,11 +216,11 @@ TOOL_GXX3OMF_LINK_LIBRARY_OUTPUT = $(outbase).rsp
 TOOL_GXX3OMF_LINK_LIBRARY_DEPEND = $(othersrc)
 TOOL_GXX3OMF_LINK_LIBRARY_DEPORD =
 define TOOL_GXX3OMF_LINK_LIBRARY_CMDS
-	$(if $(filter %.def %.imp,$(othersrc))\
-		,$(QUIET)$(APPEND) -n $(outbase).rsp $(filter %.def %.imp,$(othersrc))\
+	$(if $(filter %.def %.imp %.dll,$(othersrc))\
+		,$(QUIET)$(APPEND) -n $(outbase).rsp $(filter %.def %.imp %.dll,$(othersrc))\
 		 $(NL)$(TAB)$(QUIET)$(QUIET)$(TOOL_GXX3OMF_AR_IMP) -o $(out) @$(outbase).rsp\
 		 $(NL)$(TAB)$(QUIET)$(RM) -f $(outbase).rsp)
-	$(QUIET)$(APPEND) -n $(outbase).rsp $(flags) $(out) $(objs) $(filter-out %.def %.imp,$(othersrc))
+	$(QUIET)$(APPEND) -n $(outbase).rsp $(flags) $(out) $(objs) $(filter-out %.def %.imp %.dll,$(othersrc))
 	$(QUIET)$(TOOL_GXX3OMF_AR) @$(outbase).rsp
 endef
 
