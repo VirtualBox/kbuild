@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2772 2015-02-01 20:53:48Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2777 2015-02-03 21:06:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -324,6 +324,8 @@ typedef struct kmk_cc_expandprog
      * notifications we require. */
     uint32_t                uInputHash;
 #endif
+    /** Reference count. */
+    uint32_t volatile       cRefs;
 } KMKCCEXPPROG;
 /** Pointer to a string expansion program. */
 typedef KMKCCEXPPROG *PKMKCCEXPPROG;
@@ -1456,6 +1458,7 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
         pProg->pBlockTail   = pBlock;
         pProg->pFirstInstr  = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(pBlock);
         kmk_cc_exp_stats_init(&pProg->Stats);
+        pProg->cRefs        = 1;
 #ifdef KMK_CC_STRICT
         pProg->uInputHash   = kmk_cc_debug_string_hash_n(0, pchStr, cchStr);
 #endif
@@ -1915,7 +1918,13 @@ static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
     if (pProg->Stats.cchAvg >= variable_buffer_length - offStart)
         pchDst = ensure_variable_buffer_space(pchDst, offStart + pProg->Stats.cchAvg + 32);
 
+    KMK_CC_ASSERT(pProg->cRefs > 0);
+    pProg->cRefs++;
+
     pchDst = kmk_exec_expand_instruction_stream_to_var_buf(pProg->pFirstInstr, pchDst);
+
+    pProg->cRefs--;
+    KMK_CC_ASSERT(pProg->cRefs > 0);
 
     cchResult = (uint32_t)(pchDst - variable_buffer);
     KMK_CC_ASSERT(cchResult >= offStart);
@@ -1961,7 +1970,10 @@ char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
  */
 void  kmk_cc_variable_changed(struct variable *pVar)
 {
-    KMK_CC_ASSERT(pVar->evalprog || pVar->expandprog);
+    PKMKCCEXPPROG pProg = pVar->expandprog;
+
+    KMK_CC_ASSERT(pVar->evalprog || pProg);
+
 #if 0
     if (pVar->evalprog)
     {
@@ -1969,9 +1981,13 @@ void  kmk_cc_variable_changed(struct variable *pVar)
         pVar->evalprog = NULL;
     }
 #endif
-    if (pVar->expandprog)
+
+    if (pProg)
     {
-        kmk_cc_block_free_list(pVar->expandprog->pBlockTail);
+        if (pProg->cRefs == 1)
+            kmk_cc_block_free_list(pProg->pBlockTail);
+        else
+            fatal(NULL, _("Modifying a variable (%s) while its expansion program is running is not supported"), pVar->name);
         pVar->expandprog = NULL;
     }
 }
@@ -1984,7 +2000,10 @@ void  kmk_cc_variable_changed(struct variable *pVar)
  */
 void  kmk_cc_variable_deleted(struct variable *pVar)
 {
-    KMK_CC_ASSERT(pVar->evalprog || pVar->expandprog);
+    PKMKCCEXPPROG pProg = pVar->expandprog;
+
+    KMK_CC_ASSERT(pVar->evalprog || pProg);
+
 #if 0
     if (pVar->evalprog)
     {
@@ -1992,9 +2011,13 @@ void  kmk_cc_variable_deleted(struct variable *pVar)
         pVar->evalprog = NULL;
     }
 #endif
-    if (pVar->expandprog)
+
+    if (pProg)
     {
-        kmk_cc_block_free_list(pVar->expandprog->pBlockTail);
+        if (pProg->cRefs == 1)
+            kmk_cc_block_free_list(pProg->pBlockTail);
+        else
+            fatal(NULL, _("Deleting a variable (%s) while its expansion program is running is not supported"), pVar->name);
         pVar->expandprog = NULL;
     }
 }
