@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2747 2015-01-23 00:52:55Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2778 2015-02-17 10:56:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -86,7 +86,8 @@ static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
             || (pszProblem = (const char *)memchr(pszOrg, '|',  cchOrg)) != NULL
             || (pszProblem = (const char *)memchr(pszOrg, '%',  cchOrg)) != NULL
             || (pszProblem = (const char *)memchr(pszOrg, '\'', cchOrg)) != NULL
-            || (pszProblem = (const char *)memchr(pszOrg, '=',  cchOrg)) != NULL
+            || (   !fWatcomBrainDamage
+                && pszProblem = (const char *)memchr(pszOrg, '=',  cchOrg)) != NULL
             )
         {
             char   ch;
