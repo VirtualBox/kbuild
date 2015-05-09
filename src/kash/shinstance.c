@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2652 2012-09-09 17:21:48Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2781 2015-05-09 18:52:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -1134,21 +1134,81 @@ int sh_execve(shinstance *psh, const char *exe, const char * const *argv, const 
         }
         *p = '\0';
 
-        /* Create the command line. */
+        /* Figure the size of the command line. Double quotes makes this
+           tedious and we overestimate to simplify. */
         cmdline_size = 2;
         for (i = 0; argv[i]; i++)
-            cmdline_size += strlen(argv[i]) + 3;
+        {
+            const char *arg = argv[i];
+            cmdline_size += strlen(arg) + 3;
+            arg = strchr(arg, '"');
+            if (arg)
+            {
+                do
+                    cmdline_size++;
+                while ((arg = strchr(arg + 1, '"')) != NULL);
+                arg = argv[i] - 1;
+                while ((arg = strchr(arg + 1, '\\')) != NULL);
+                    cmdline_size++;
+            }
+        }
+
+        /* Create the command line. */
         cmdline = p = sh_malloc(psh, cmdline_size);
         for (i = 0; argv[i]; i++)
         {
-            size_t len = strlen(argv[i]);
-            int quoted = !!strpbrk(argv[i], " \t"); /** @todo Do this quoting business right. */
+            const char *arg = argv[i];
+            const char *cur = arg;
+            size_t len = strlen(arg);
+            int quoted = 0;
+            char ch;
+            while ((ch = *cur++) != '\0')
+                if (ch <= 0x20 || strchr("&><|%", ch) != NULL)
+                {
+                    quoted = 1;
+                    break;
+                }
+
             if (i != 0)
                 *(p++) = ' ';
             if (quoted)
                 *(p++) = '"';
-            memcpy(p, argv[i], len);
-            p += len;
+            if (memchr(arg, '"', len) == NULL)
+            {
+                memcpy(p, arg, len);
+                p += len;
+            }
+            else
+            {   /* MS CRT style: double quotes must be escaped; backslashes
+                   must be escaped if followed by double quotes. */
+                while ((ch = *arg++) != '\0')
+                    if (ch != '\\' && ch != '"')
+                        *p++ = ch;
+                    else if (ch == '"')
+                    {
+                        *p++ = '\\';
+                        *p++ = '"';
+                    }
+                    else
+                    {
+                        unsigned slashes = 1;
+                        *p++ = '\\';
+                        while (*arg == '\\')
+                        {
+                            *p++ = '\\';
+                            slashes++;
+                            arg++;
+                        }
+                        if (*arg == '"')
+                        {
+                            while (slashes-- > 0)
+                                *p++ = '\\';
+                            *p++ = '\\';
+                            *p++ = '"';
+                            arg++;
+                        }
+                    }
+            }
             if (quoted)
                 *(p++) = '"';
         }
