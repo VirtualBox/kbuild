@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2737 2014-12-23 21:15:58Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2783 2015-05-15 12:15:24Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
