@@ -1,4 +1,4 @@
-/* $Id: kkeys.e 2558 2012-02-13 12:36:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kkeys.e 2783 2015-05-15 12:15:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * Bird's key additions to Visual Slickedit.
  */
