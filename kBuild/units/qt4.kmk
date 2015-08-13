@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2787 2015-08-13 09:16:00Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -79,19 +79,35 @@ ifndef PATH_SDK_QT4
    else
     # The Unices. Includes and esp. libs are tricky, so override the PATH_SDK_QT4_LIB* stuff if it doesn't work.
     # Try find the general root of thing by looking for the qt3to4 program, if not found, then look for rcc.
-    PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard \
-	/usr/bin/qt3to4 \
-    	/usr/local/bin/qt3to4 \
-	/usr/qt/4/bin/qt3to4 \
-	/usr/share/qt4/bin/qt3to4 \
+    PATH_SDK_QT4 := $(patsubst %/bin/qt3to4-qt4,%,$(firstword $(wildcard \
+    	/usr/bin/qt3to4-qt4 \
+    	/usr/local/bin/qt3to4-qt4 \
+    	/usr/qt/4/bin/qt3to4-qt4 \
+    	/usr/share/qt4/bin/qt3to4-qt4 \
     	)))
+    ifeq ($(PATH_SDK_QT4),)
+     PATH_SDK_QT4 := $(patsubst %/bin/qt3to4,%,$(firstword $(wildcard \
+     	/usr/bin/qt3to4 \
+     	/usr/local/bin/qt3to4 \
+     	/usr/qt/4/bin/qt3to4 \
+     	/usr/share/qt4/bin/qt3to4 \
+       	)))
+    endif
+    ifeq ($(PATH_SDK_QT4),)
+     PATH_SDK_QT4 := $(patsubst %/bin/rcc-qt4,%,$(firstword $(wildcard \
+     	/usr/bin/rcc-qt4 \
+     	/usr/local/bin/rcc-qt4 \
+     	/usr/qt/4/bin/rcc-qt4 \
+     	/usr/share/qt4/bin/rcc-qt4 \
+     	)))
+    endif
     ifeq ($(PATH_SDK_QT4),)
      PATH_SDK_QT4 := $(patsubst %/bin/rcc,%,$(firstword $(wildcard \
      	/usr/bin/rcc \
-	/usr/local/bin/rcc \
+     	/usr/local/bin/rcc \
      	/usr/qt/4/bin/rcc \
      	/usr/share/qt4/bin/rcc \
-	)))
+     	)))
     endif
     ifneq ($(PATH_SDK_QT4),)
      export PATH_SDK_QT4
