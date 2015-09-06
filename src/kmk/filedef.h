@@ -73,6 +73,10 @@ struct file
     struct file *multi_next;
 #endif
 
+#ifdef CONFIG_WITH_COMPILER
+    struct kmk_cc_evalprog *evalprog; /* Pointer to evalval/evalctx "program". */
+#endif
+
     short int update_status;	/* Status of the last attempt to update,
 				   or -1 if none has been made.  */
 
@@ -118,6 +122,9 @@ struct file
                                   second expansion of its name. Whether it
                                   can receive this is decided at parse time,
                                   and the expanding done in snap_deps. */
+#endif
+#if defined (CONFIG_WITH_COMPILER) || defined (CONFIG_WITH_MAKE_STATS)
+    unsigned int eval_count:14; /* Times evaluated as a makefile. */
 #endif
   };
 

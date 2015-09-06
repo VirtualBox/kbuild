@@ -1208,6 +1208,18 @@ print_file (const void *item)
     puts (_("#  Command line target."));
   if (f->dontcare)
     puts (_("#  A default, MAKEFILES, or -include/sinclude makefile."));
+#if defined (CONFIG_WITH_COMPILER) || defined (CONFIG_WITH_MAKE_STATS)
+  if (f->eval_count > 0)
+    {
+# ifdef CONFIG_WITH_COMPILER
+      if (f->evalprog)
+        printf (_("#  Makefile evaluated %u times - compiled\n"), f->eval_count);
+      else
+# endif
+        printf (_("#  Makefile evaluated %u times\n"), f->eval_count);
+    }
+#endif
+
   puts (f->tried_implicit
         ? _("#  Implicit rule search has been done.")
         : _("#  Implicit rule search has not been done."));

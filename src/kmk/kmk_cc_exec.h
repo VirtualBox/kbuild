@@ -1,4 +1,4 @@
-/* $Id: kmk_cc_exec.h 2773 2015-02-03 12:59:54Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.h 2788 2015-09-06 15:43:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -27,16 +27,19 @@
 #define ___kmk_cc_and_exech
 #ifdef CONFIG_WITH_COMPILER
 
+#include <stdio.h>
 
 
 void  kmk_cc_init(void);
 void  kmk_cc_print_stats(void);
 
 struct variable;
-extern struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar);
 extern struct kmk_cc_expandprog *kmk_cc_compile_variable_for_expand(struct variable *pVar);
+extern struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar);
+extern struct kmk_cc_evalprog   *kmk_cc_compile_file_for_eval(FILE *pFile, const char *pszFilename);
 extern char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst);
-extern void kmk_exec_evalval(struct variable *pVar);
+extern void kmk_exec_eval_file(struct kmk_cc_evalprog *pProg);
+extern void kmk_exec_eval_variable(struct variable *pVar);
 extern void kmk_cc_variable_changed(struct variable *pVar);
 extern void kmk_cc_variable_deleted(struct variable *pVar);
 

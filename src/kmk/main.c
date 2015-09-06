@@ -3841,11 +3841,7 @@ print_stats ()
   when = time ((time_t *) 0);
   printf (_("\n# Make statistics, printed on %s"), ctime (&when));
 
-  print_variable_stats ();
-  print_file_stats ();
-# ifdef KMK
-  print_kbuild_define_stats ();
-# endif
+  /* Aallocators: */
 # ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
 # else
@@ -3855,6 +3851,16 @@ print_stats ()
   alloccache_print_all ();
 # endif
   print_heap_stats ();
+
+  /* Make stuff: */
+  print_variable_stats ();
+  print_file_stats ();
+# ifdef KMK
+  print_kbuild_define_stats ();
+# endif
+# ifdef CONFIG_WITH_COMPILER
+  kmk_cc_print_stats ();
+# endif
 
   when = time ((time_t *) 0);
   printf (_("\n# Finished Make statistics on %s\n"), ctime (&when));

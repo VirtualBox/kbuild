@@ -497,6 +497,28 @@ eval_makefile (const char *filename, int flags)
   do_variable_definition (&ebuf.floc, "MAKEFILE_LIST", filename, o_file,
                           f_append, 0);
 
+#ifdef CONFIG_WITH_COMPILER
+  /* Execute compiled version if repeatedly evaluating this file.
+     ASSUMES file content is unmodified since compilation. */
+  deps->file->eval_count++;
+  if (   deps->file->evalprog
+      || (   deps->file->eval_count == 3
+          && (deps->file->evalprog = kmk_cc_compile_file_for_eval (ebuf.fp, filename)) != NULL) )
+    {
+      curfile = reading_file;
+      reading_file = &ebuf.floc;
+
+      kmk_exec_eval_file (deps->file->evalprog);
+
+      reading_file = curfile;
+      fclose (ebuf.fp);
+      alloca (0);
+      return 1;
+    }
+#elif defined (CONFIG_WITH_MAKE_STATS)
+  deps->file->eval_count++;
+#endif
+
 #ifdef KMK
   /* Buffer the entire file or at least 256KB (footer.kmk) of it. */
   {

@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2777 2015-02-03 21:06:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2788 2015-09-06 15:43:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -25,9 +25,9 @@
  */
 
 
-/*******************************************************************************
-*   Header Files                                                               *
-*******************************************************************************/
+/*********************************************************************************************************************************
+*   Header Files                                                                                                                 *
+*********************************************************************************************************************************/
 #include "make.h"
 
 #include "dep.h"
@@ -42,9 +42,10 @@
 #include <stdarg.h>
 #include <assert.h>
 
-/*******************************************************************************
-*   Defined Constants And Macros                                               *
-*******************************************************************************/
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
 /** @def KMK_CC_WITH_STATS
  * Enables the collection of extra statistics. */
 #ifndef KMK_CC_WITH_STATS
@@ -74,9 +75,50 @@
     KMK_CC_ASSERT( ((a_uValue) & ((a_uAlignment) - 1)) == 0 )
 
 
-/*******************************************************************************
-*   Structures and Typedefs                                                    *
-*******************************************************************************/
+/** @def KMK_CC_OFFSETOF
+ * Offsetof for simple stuff.  */
+#if defined(__GNUC__)
+# define KMK_CC_OFFSETOF(a_Struct, a_Member)        __builtin_offsetof(a_Struct, a_Member)
+#else
+# define KMK_CC_OFFSETOF(a_Struct, a_Member)        ( (uintptr_t)&( ((a_Struct *)(void *)0)->a_Member) )
+#endif
+
+/** def KMK_CC_SIZEOF_MEMBER   */
+#define KMK_CC_SIZEOF_MEMBER(a_Struct, a_Member)    ( sizeof( ((a_Struct *)(void *)0x1000)->a_Member) )
+
+/** @def KMK_CC_SIZEOF_VAR_STRUCT
+ * Size of a struct with a variable sized array as the final member. */
+#define KMK_CC_SIZEOF_VAR_STRUCT(a_Struct, a_FinalArrayMember, a_cArray) \
+    ( KMK_CC_OFFSETOF(a_Struct, a_FinalArrayMember) + KMK_CC_SIZEOF_MEMBER(a_Struct, a_FinalArrayMember) * (a_cArray) )
+
+
+
+/** @def KMK_CC_STATIC_ASSERT_EX
+ * Compile time assertion with text.
+ */
+#ifdef _MSC_VER_
+# if _MSC_VER >= 1600
+#  define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl) static_assert(a_Expr, a_szExpl)
+# else
+#  define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl) typedef int RTASSERTVAR[(a_Expr) ? 1 : 0]
+# endif
+#elif defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__)
+# define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)     static_assert(a_Expr, a_szExpl)
+#elif !defined(__GNUC__) && !defined(__IBMC__) && !defined(__IBMCPP__)
+# define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)  typedef int KMK_CC_STATIC_ASSERT_EX_TYPE[(a_Expr) ? 1 : 0]
+#else
+# define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)  extern int KMK_CC_STATIC_ASSERT_EX_VAR[(aExpr) ? 1 : 0]
+extern int KMK_CC_STATIC_ASSERT_EX_VAR[1];
+#endif
+/** @def KMK_CC_STATIC_ASSERT
+ * Compile time assertion, simple variant.
+ */
+#define KMK_CC_STATIC_ASSERT(a_Expr)                KMK_CC_STATIC_ASSERT_EX(a_Expr, #a_Expr)
+
+
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
 /**
  * Block of expand instructions.
  *
@@ -94,6 +136,10 @@ typedef struct kmk_cc_block
     uint32_t                    offNext;
 } KMKCCBLOCK;
 typedef KMKCCBLOCK *PKMKCCBLOCK;
+
+
+/** @name String Expansion
+ * @{*/
 
 /**
  * String expansion statistics.
@@ -130,19 +176,20 @@ typedef enum KMKCCEXPINSTR
     kKmkCcExpInstr_Return,
     /** The end of valid instructions (exclusive). */
     kKmkCcExpInstr_End
-} KMKCCEXPANDINSTR;
+} KMKCCEXPINSTR;
 
 /** Instruction core. */
 typedef struct kmk_cc_exp_core
 {
-    /** The instruction opcode number (KMKCCEXPANDINSTR). */
-    KMKCCEXPANDINSTR        enmOpCode;
+    /** The instruction opcode number (KMKCCEXPINSTR). */
+    KMKCCEXPINSTR           enmOpCode;
 } KMKCCEXPCORE;
 typedef KMKCCEXPCORE *PKMKCCEXPCORE;
 
 /**
- * String expansion sub program.
+ * String expansion subprogram.
  */
+#pragma pack(1) /* save some precious bytes */
 typedef struct kmk_cc_exp_subprog
 {
     /** Pointer to the first instruction. */
@@ -150,7 +197,48 @@ typedef struct kmk_cc_exp_subprog
     /** Statistics. */
     KMKCCEXPSTATS           Stats;
 } KMKCCEXPSUBPROG;
+#pragma pack()
 typedef KMKCCEXPSUBPROG *PKMKCCEXPSUBPROG;
+KMK_CC_STATIC_ASSERT(sizeof(KMKCCEXPSUBPROG) == 12 || sizeof(void *) != 8);
+
+
+/**
+ * String expansion subprogram or plain string.
+ */
+#pragma pack(1) /* save some precious bytes */
+typedef struct kmk_cc_exp_subprog_or_string
+{
+    /** Either a plain string pointer or a subprogram.   */
+    union
+    {
+        /** Subprogram for expanding this argument. */
+        KMKCCEXPSUBPROG     Subprog;
+        /** Pointer to the plain string. */
+        struct
+        {
+            /** Pointer to the string. */
+            const char     *psz;
+            /** String length. */
+            uint32_t        cch;
+        } Plain;
+    } u;
+    /** Set if subprogram (u.Subprog), clear if plain string (u.Plain). */
+    uint8_t                 fSubprog;
+    /** Set if the plain string is kept in the variable_strcache.
+     * @remarks Here rather than in u.Plain to make use of alignment padding. */
+    uint8_t                 fPlainIsInVarStrCache;
+    /** Context/user specific. */
+    uint8_t                 bUser;
+    /** Context/user specific #2. */
+    uint8_t                 bUser2;
+} KMKCCEXPSUBPROGORPLAIN;
+#pragma pack()
+typedef KMKCCEXPSUBPROGORPLAIN *PKMKCCEXPSUBPROGORPLAIN;
+KMK_CC_STATIC_ASSERT(  sizeof(void *) == 8
+                     ? sizeof(KMKCCEXPSUBPROGORPLAIN) == 16
+                     : sizeof(void *) == 4
+                     ? sizeof(KMKCCEXPSUBPROGORPLAIN) == 12
+                     : 1);
 
 /**
  * kKmkCcExpInstr_CopyString instruction format.
@@ -185,11 +273,11 @@ typedef struct kmk_cc_exp_dynamic_variable
 {
     /** The core instruction. */
     KMKCCEXPCORE            Core;
+    /** The subprogram that will give us the variable name. */
+    KMKCCEXPSUBPROG         Subprog;
     /** Where to continue after this instruction.  (This is necessary since the
      * instructions of the subprogram are emitted after this instruction.) */
     PKMKCCEXPCORE           pNext;
-    /** The subprogram that will give us the variable name. */
-    KMKCCEXPSUBPROG         SubProg;
 } KMKCCEXPDYNVAR;
 typedef KMKCCEXPDYNVAR *PKMKCCEXPDYNVAR;
 
@@ -225,7 +313,7 @@ typedef struct kmk_cc_exp_function_core
     /** The core instruction. */
     KMKCCEXPCORE            Core;
     /** Number of arguments. */
-    uint32_t                cArgs;
+    uint32_t                cArgs; /**< @todo uint16_t to save 7 bytes of unecessary alignment padding on 64-bit systems, or merge fDirty into this member. */
     /** Set if the function could be modifying the input arguments. */
     uint8_t                 fDirty;
     /** Where to continue after this instruction.  (This is necessary since the
@@ -251,7 +339,7 @@ typedef KMKCCEXPFUNCCORE *PKMKCCEXPFUNCCORE;
 typedef struct kmk_cc_exp_plain_function
 {
     /** The bits comment to both plain and dynamic functions. */
-    KMKCCEXPFUNCCORE        Core;
+    KMKCCEXPFUNCCORE        FnCore;
     /** Variable sized argument list (cArgs + 1 in length, last entry is NULL).
      * The string pointers are to memory following this instruction, to memory in
      * the next block or to memory in the variable / makefile we're working on
@@ -259,8 +347,9 @@ typedef struct kmk_cc_exp_plain_function
     const char             *apszArgs[1];
 } KMKCCEXPPLAINFUNC;
 typedef KMKCCEXPPLAINFUNC *PKMKCCEXPPLAINFUNC;
-/** Calculates the size of an KMKCCEXPPLAINFUNC with a_cArgs. */
-#define KMKCCEXPPLAINFUNC_SIZE(a_cArgs)  (sizeof(KMKCCEXPFUNCCORE) + (a_cArgs + 1) * sizeof(const char *))
+/** Calculates the size of an KMKCCEXPPLAINFUNC structure with the apszArgs
+ * member holding a_cArgs entries plus a NULL terminator. */
+#define KMKCCEXPPLAINFUNC_SIZE(a_cArgs) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEXPDYNFUNC, aArgs, (a_cArgs) + 1)
 
 /**
  * Instruction format for kKmkCcExpInstr_DynamicFunction.
@@ -268,33 +357,16 @@ typedef KMKCCEXPPLAINFUNC *PKMKCCEXPPLAINFUNC;
 typedef struct kmk_cc_exp_dyn_function
 {
     /** The bits comment to both plain and dynamic functions. */
-    KMKCCEXPFUNCCORE        Core;
-    /** Variable sized argument list (cArgs + 1 in length, last entry is NULL).
-     * The string pointers are to memory following this instruction, to memory in
-     * the next block or to memory in the variable / makefile we're working on
-     * (if zero terminated appropriately). */
-    struct
-    {
-        /** Set if plain string argument, clear if sub program. */
-        uint8_t             fPlain;
-        union
-        {
-            /** Sub program for expanding this argument. */
-            KMKCCEXPSUBPROG     SubProg;
-            struct
-            {
-                /** Pointer to the plain argument string.
-                 * This is allocated in the same manner as the
-                 * string pointed to by KMKCCEXPPLAINFUNC::apszArgs. */
-                const char      *pszArg;
-            } Plain;
-        } u;
-    }                       aArgs[1];
+    KMKCCEXPFUNCCORE        FnCore;
+    /** Variable sized argument list (FnCore.cArgs in length).
+     * The subprograms / strings are allocated after this array (or in the next
+     * block). */
+    KMKCCEXPSUBPROGORPLAIN  aArgs[1];
 } KMKCCEXPDYNFUNC;
 typedef KMKCCEXPDYNFUNC *PKMKCCEXPDYNFUNC;
-/** Calculates the size of an KMKCCEXPPLAINFUNC with a_cArgs. */
-#define KMKCCEXPDYNFUNC_SIZE(a_cArgs)  (  sizeof(KMKCCEXPFUNCCORE) \
-                                        + (a_cArgs) * sizeof(((PKMKCCEXPDYNFUNC)(uintptr_t)42)->aArgs[0]) )
+/** Calculates the size of an KMKCCEXPDYNFUNC structure with the apszArgs
+ * member holding a_cArgs entries (no zero terminator). */
+#define KMKCCEXPDYNFUNC_SIZE(a_cArgs)  KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEXPDYNFUNC, aArgs, a_cArgs)
 
 /**
  * Instruction format for kKmkCcExpInstr_Jump.
@@ -330,10 +402,427 @@ typedef struct kmk_cc_expandprog
 /** Pointer to a string expansion program. */
 typedef KMKCCEXPPROG *PKMKCCEXPPROG;
 
+/** @} */
 
-/*******************************************************************************
-*   Global Variables                                                           *
-*******************************************************************************/
+
+/** @name Makefile Evaluation
+ * @{  */
+
+/** Pointer to a makefile evaluation program. */
+typedef struct kmk_cc_evalprog *PKMKCCEVALPROG;
+
+/**
+ * Makefile evaluation instructions.
+ */
+typedef enum KMKCCEVALINSTR
+{
+    /** Jump instruction - KMKCCEVALJUMP. */
+    kKmkCcEvalInstr_jump = 0,
+
+    /** [local|override|export] variable  = value - KMKCCEVALASSIGN.
+     * @note Can be used for target-specific variables. */
+    kKmkCcEvalInstr_assign_recursive,
+    /** [local|override|export] variable := value - KMKCCEVALASSIGN.
+     * @note Can be used for target-specific variables. */
+    kKmkCcEvalInstr_assign_simple,
+    /** [local|override|export] variable += value - KMKCCEVALASSIGN.
+     * @note Can be used for target-specific variables. */
+    kKmkCcEvalInstr_assign_append,
+    /** [local|override|export] variable -= value - KMKCCEVALASSIGN.
+     * @note Can be used for target-specific variables. */
+    kKmkCcEvalInstr_assign_prepend,
+    /** [local|override|export] variable ?= value - KMKCCEVALASSIGN.
+     * @note Can be used for target-specific variables. */
+    kKmkCcEvalInstr_assign_if_new,
+    /** [local|override|export] define variable ... endef - KMKCCEVALASSIGNDEF. */
+    kKmkCcEvalInstr_assign_define,
+
+    /** export variable1 [variable2...] - KMKCCEVALEXPORT. */
+    kKmkCcEvalInstr_export,
+    /** unexport variable1 [variable2...] - KMKCCEVALEXPORT. */
+    kKmkCcEvalInstr_unexport,
+    /** export - KMKCCEVALCORE. */
+    kKmkCcEvalInstr_export_all,
+    /** unexport - KMKCCEVALCORE. */
+    kKmkCcEvalInstr_unexport_all,
+
+    /** [else] ifdef variable - KMKCCEVALIFDEFPLAIN. */
+    kKmkCcEvalInstr_ifdef_plain,
+    /** [else] ifndef variable - KMKCCEVALIFDEFPLAIN. */
+    kKmkCcEvalInstr_ifndef_plain,
+    /** [else] ifdef variable - KMKCCEVALIFDEFDYNAMIC. */
+    kKmkCcEvalInstr_ifdef_dynamic,
+    /** [else] ifndef variable - KMKCCEVALIFDEFDYNAMIC. */
+    kKmkCcEvalInstr_ifndef_dynamic,
+    /** [else] ifeq (a,b) - KMKCCEVALIFEQ. */
+    kKmkCcEvalInstr_ifeq,
+    /** [else] ifeq (a,b) - KMKCCEVALIFEQ. */
+    kKmkCcEvalInstr_ifneq,
+    /** [else] if1of (set-a,set-b) - KMKCCEVALIF1OF. */
+    kKmkCcEvalInstr_if1of,
+    /** [else] ifn1of (set-a,set-b) - KMKCCEVALIF1OF. */
+    kKmkCcEvalInstr_ifn1of,
+    /** [else] if expr - KMKCCEVALIFEXPR. */
+    kKmkCcEvalInstr_if,
+
+    /** include file1 [file2...] - KMKCCEVALINCLUDE. */
+    kKmkCcEvalInstr_include,
+    /** [sinclude|-include] file1 [file2...]  - KMKCCEVALINCLUDE. */
+    kKmkCcEvalInstr_include_silent,
+    /** includedep file1 [file2...] - KMKCCEVALINCLUDE. */
+    kKmkCcEvalInstr_includedep,
+    /** includedep-queue file1 [file2...] - KMKCCEVALINCLUDE. */
+    kKmkCcEvalInstr_includedep_queue,
+    /** includedep-flush file1 [file2...] - KMKCCEVALINCLUDE. */
+    kKmkCcEvalInstr_includedep_flush,
+
+    /** Recipe without commands (defines dependencies) - KMKCCEVALRECIPE. */
+    kKmkCcEvalInstr_recipe_no_commands,
+    /** Recipe with commands (defines dependencies) - KMKCCEVALRECIPE. */
+    kKmkCcEvalInstr_recipe_start_normal,
+    /** Recipe with commands (defines dependencies) - KMKCCEVALRECIPE. */
+    kKmkCcEvalInstr_recipe_start_double_colon,
+    /** Recipe with commands (defines dependencies) - KMKCCEVALRECIPE. */
+    kKmkCcEvalInstr_recipe_start_pattern,
+    /** Adds more commands to the current recipe - KMKCCEVALRECIPECOMMANDS. */
+    kKmkCcEvalInstr_recipe_commands,
+    /** Adds more commands to the current recipe - KMKCCEVALRECIPECOMMANDS. */
+    kKmkCcEvalInstr_recipe_vari,
+    /** Special instruction for indicating the end of the recipe commands - KMKCCEVALCORE. */
+    kKmkCcEvalInstr_recipe_end,
+    /** Cancel previously defined pattern rule - KMKCCEVALRECIPE.  */
+    kKmkCcEvalInstr_recipe_cancel_pattern,
+
+    /** vpath pattern directories - KMKCCEVALVPATH. */
+    kKmkCcEvalInstr_vpath,
+    /** vpath pattern directories - KMKCCEVALVPATH. */
+    kKmkCcEvalInstr_vpath_clear_pattern,
+    /** vpath - KMKCCEVALCORE. */
+    kKmkCcEvalInstr_vpath_clear_all,
+
+    /** The end of valid instructions (exclusive). */
+    kKmkCcEvalInstr_End
+} KMKCCEVALINSTR;
+
+/**
+ * Instruction core common to all instructions.
+ */
+typedef struct kmk_cc_eval_core
+{
+    /** The instruction opcode number (KMKCCEVALINSTR). */
+    KMKCCEVALINSTR          enmOpCode;
+    /** The line number in the source this statement is associated with. */
+    unsigned                iLine;
+} KMKCCEVALCORE;
+/** Pointer to an instruction core structure. */
+typedef KMKCCEVALCORE *PKMKCCEVALCORE;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_jump.
+ */
+typedef struct kmk_cc_eval_jump
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** Where to jump to (new instruction block or endif, typically). */
+    PKMKCCEVALCORE          pNext;
+} KMKCCEVALJUMP;
+typedef KMKCCEVALJUMP *PKMKCCEVALJUMP;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_assign_recursive,
+ * kKmkCcEvalInstr_assign_simple, kKmkCcEvalInstr_assign_append,
+ * kKmkCcEvalInstr_assign_prepend and kKmkCcEvalInstr_assign_if_new.
+ */
+typedef struct kmk_cc_eval_assign
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** Whether the 'export' directive was used. */
+    uint8_t                 fExport;
+    /** Whether the 'override' directive was used. */
+    uint8_t                 fOverride;
+    /** Whether the 'local' directive was used. */
+    uint8_t                 fLocal;
+    /** The variable name.
+     * @remarks Plain text names are in variable_strcache. */
+    KMKCCEXPSUBPROGORPLAIN  Variable;
+    /** The value or value expression. */
+    KMKCCEXPSUBPROGORPLAIN  Value;
+    /** Pointer to the next instruction. */
+    PKMKCCEVALCORE          pNext;
+} KMKCCEVALASSIGN;
+typedef KMKCCEVALASSIGN *PKMKCCEVALASSIGN;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_assign_define.
+ */
+typedef struct kmk_cc_eval_assign_define
+{
+    /** The assignment core structure. */
+    KMKCCEVALASSIGN         AssignCore;
+    /** Makefile evaluation program compiled from the define.
+     * NULL if it does not compile.
+     * @todo Let's see if this is actually doable... */
+    PKMKCCEVALPROG          pEvalProg;
+} KMKCCEVALASSIGNDEF;
+typedef KMKCCEVALASSIGNDEF *PKMKCCEVALASSIGNDEF;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_export and kKmkCcEvalInstr_unexport.
+ */
+typedef struct kmk_cc_eval_export
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** The number of variables named in aVars. */
+    uint32_t                cVars;
+    /** Pointer to the next instruction. */
+    PKMKCCEVALCORE          pNext;
+    /** The variable names.
+     * Expressions will be expanded and split on space.
+     * @remarks Plain text names are in variable_strcache. */
+    KMKCCEXPSUBPROGORPLAIN  aVars[1];
+} KMKCCEVALEXPORT;
+typedef KMKCCEVALEXPORT *PKMKCCEVALEXPORT;
+/** Calculates the size of an KMKCCEVALEXPORT structure for @a a_cVars. */
+#define KMKCCEVALEXPORT_SIZE(a_cVars) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALVPATH, aVars, a_cVars)
+
+/**
+ * Core structure for all conditionals (kKmkCcEvalInstr_if*).
+ */
+typedef struct kmk_cc_eval_if_core
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** Condition true: Pointer to the next instruction. */
+    PKMKCCEVALCORE          pNextTrue;
+    /** Condition false: Pointer to the next instruction (i.e. 'else if*'
+     * or whatever follows 'else' / 'endif'. */
+    PKMKCCEVALCORE          pNextFalse;
+    /** Pointer to the previous conditional for 'else if*' directives.
+     * This is to assist the compilation process. */
+    PKMKCCEVALCORE          pPrevCond;
+} KMKCCEVALIFCORE;
+typedef KMKCCEVALIFCORE *PKMKCCEVALIFCORE;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_ifdef_plain and
+ * kKmkCcEvalInstr_ifndef_plain.
+ * The variable name is known at compilation time.
+ */
+typedef struct kmk_cc_eval_ifdef_plain
+{
+    /** The 'if' core structure. */
+    KMKCCEVALIFCORE         IfCore;
+    /** The name of the variable (points into variable_strcache). */
+    const char             *pszName;
+} KMKCCEVALIFDEFPLAIN;
+typedef KMKCCEVALIFDEFPLAIN *PKMKCCEVALIFDEFPLAIN;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_ifdef_dynamic and
+ * kKmkCcEvalInstr_ifndef_dynamic.
+ * The variable name is dynamically expanded at run time.
+ */
+typedef struct kmk_cc_eval_ifdef_dynamic
+{
+    /** The 'if' core structure. */
+    KMKCCEVALIFCORE         IfCore;
+    /** The subprogram that will give us the variable name. */
+    KMKCCEXPSUBPROG         NameSubProg;
+} KMKCCEVALIFDEFDYNAMIC;
+KMK_CC_STATIC_ASSERT(sizeof(KMKCCEVALIFDEFDYNAMIC) == 48 || sizeof(void *) != 8);
+typedef KMKCCEVALIFDEFDYNAMIC *PKMKCCEVALIFDEFDYNAMIC;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_ifeq and kKmkCcEvalInstr_ifneq.
+ */
+typedef struct kmk_cc_eval_ifeq
+{
+    /** The 'if' core structure. */
+    KMKCCEVALIFCORE         IfCore;
+    /** The left hand side string expression (dynamic or plain). */
+    KMKCCEXPSUBPROGORPLAIN  Left;
+    /** The rigth hand side string expression (dynamic or plain). */
+    KMKCCEXPSUBPROGORPLAIN  Right;
+} KMKCCEVALIFEQ;
+typedef KMKCCEVALIFEQ *PKMKCCEVALIFEQ;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_if1of and kKmkCcEvalInstr_ifn1of.
+ *
+ * @todo This can be optimized further by pre-hashing plain text items.  One of
+ *       the sides are usually plain text.
+ */
+typedef struct kmk_cc_eval_if1of
+{
+    /** The 'if' core structure. */
+    KMKCCEVALIFCORE         IfCore;
+    /** The left hand side string expression (dynamic or plain). */
+    KMKCCEXPSUBPROGORPLAIN  Left;
+    /** The rigth hand side string expression (dynamic or plain). */
+    KMKCCEXPSUBPROGORPLAIN  Right;
+} KMKCCEVALIF1OF;
+typedef KMKCCEVALIF1OF *PKMKCCEVALIF1OF;
+
+/**
+ * Instruction format for kKmkCcEvalInstr_if.
+ *
+ * @todo Parse and compile the expression.  At least strip whitespace in it.
+ */
+typedef struct kmk_cc_eval_if_expr
+{
+    /** The 'if' core structure. */
+    KMKCCEVALIFCORE         IfCore;
+    /** The expression string length. */
+    uint16_t                cchExpr;
+    /** The expression string. */
+    char                    szExpr[1];
+} KMKCCEVALIFEXPR;
+typedef KMKCCEVALIFEXPR *PKMKCCEVALIFEXPR;
+/** Calculates the size of an KMKCCEVALIFEXPR structure for @a a_cchExpr long
+ * expression string (terminator is automatically added).  */
+#define KMKCCEVALIFEXPR_SIZE(a_cchExpr) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALIFEXPR, szExpr, (a_cchExpr) + 1)
+
+/**
+ * Instruction format for kKmkCcEvalInstr_include,
+ * kKmkCcEvalInstr_include_silent, kKmkCcEvalInstr_includedep,
+ * kKmkCcEvalInstr_includedep_queue, kKmkCcEvalInstr_includedep_flush.
+ */
+typedef struct kmk_cc_eval_include
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** The number of files. */
+    uint32_t                cFiles;
+    /** Pointer to the next instruction (subprogs and strings after this one). */
+    PKMKCCEVALCORE          pNext;
+    /** The files to be included.
+     * Expressions will be expanded and split on space.
+     * @todo Plain text file name could be replaced by file string cache entries. */
+    KMKCCEXPSUBPROGORPLAIN  aFiles[1];
+} KMKCCEVALINCLUDE;
+typedef KMKCCEVALINCLUDE *PKMKCCEVALINCLUDE;
+/** Calculates the size of an KMKCCEVALINCLUDE structure for @a a_cFiles files. */
+#define KMKCCEVALINCLUDE_SIZE(a_cFiles) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALINCLUDE, aFiles, a_cFiles)
+
+/**
+ * Instruction format for kKmkCcEvalInstr_recipe_no_commands,
+ * kKmkCcEvalInstr_recipe_start_normal,
+ * kKmkCcEvalInstr_recipe_start_double_colon, kKmkCcEvalInstr_includedep_queue,
+ * kKmkCcEvalInstr_recipe_start_pattern.
+ */
+typedef struct kmk_cc_eval_recipe
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** The total number of files and dependencies in aFilesAndDeps. */
+    uint16_t                cFilesAndDeps;
+
+    /** Number of targets (from index 0).
+     * This is always 1 if this is an explicit multitarget or pattern recipe,
+     * indicating the main target. */
+    uint16_t                cTargets;
+    /** Explicit multitarget & patterns: First always made target. */
+    uint16_t                iFirstAlwaysMadeTargets;
+    /** Explicit multitarget & patterns: Number of always targets. */
+    uint16_t                cAlwaysMadeTargets;
+    /** Explicit multitarget: First maybe made target. */
+    uint16_t                iFirstMaybeTarget;
+    /** Explicit multitarget: Number of maybe made targets. */
+    uint16_t                cMaybeTargets;
+
+    /** First dependency. */
+    uint16_t                iFirstDep;
+    /** Number of ordinary dependnecies. */
+    uint16_t                cDeps;
+    /** First order only dependency. */
+    uint16_t                iFirstOrderOnlyDep;
+    /** Number of ordinary dependnecies. */
+    uint16_t                cOrderOnlyDeps;
+
+    /** Pointer to the next instruction (subprogs and strings after this one). */
+    PKMKCCEVALCORE          pNext;
+    /** The .MUST_MAKE variable value, if present.
+     * If not present, this is a zero length plain string. */
+    KMKCCEXPSUBPROGORPLAIN  MustMake;
+    /** The target files and dependencies.
+     * This is sorted into several sections, as defined by the above indexes and
+     * counts.  Expressions will be expanded and split on space.
+     *
+     * The KMKCCEXPSUBPROGORPLAIN::bUser member is used to indicate secondary
+     * expansion for a plain text entry.
+     *
+     * @todo Plain text file name could be replaced by file string cache entries. */
+    KMKCCEXPSUBPROGORPLAIN  aFilesAndDeps[1];
+} KMKCCEVALRECIPE;
+typedef KMKCCEVALRECIPE *PKMKCCEVALRECIPE;
+/** Calculates the size of an KMKCCEVALRECIPE structure for @a a_cFiles
+ *  files. */
+#define KMKCCEVALRECIPE_SIZE(a_cFilesAndDeps) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALRECIPE, aFilesAndDeps, a_cFilesAndDeps)
+
+/**
+ * Instruction format for kKmkCcEvalInstr_recipe_commands.
+ */
+typedef struct kmk_cc_eval_recipe_commands
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** The number of search directories. */
+    uint32_t                cCommands;
+    /** Pointer to the next instruction (subprogs and strings after this one). */
+    PKMKCCEVALCORE          pNext;
+    /** Commands to add to the current recipe.
+     * Expressions will be expanded and split on space. */
+    KMKCCEXPSUBPROGORPLAIN  aCommands[1];
+} KMKCCEVALRECIPECOMMANDS;
+typedef KMKCCEVALRECIPECOMMANDS *PKMKCCEVALRECIPECOMMANDS;
+/** Calculates the size of an KMKCCEVALRECIPECOMMANDS structure for
+ * @a a_cCommands commands. */
+#define KMKCCEVALRECIPECOMMANDS_SIZE(a_cCommands) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALRECIPECOMMANDS, aCommands, a_cCommands)
+
+/**
+ * Instruction format for kKmkCcEvalInstr_vpath and
+ * kKmkCcEvalInstr_vpath_clear_pattern.
+ */
+typedef struct kmk_cc_eval_vpath
+{
+    /** The core instruction. */
+    KMKCCEVALCORE           Core;
+    /** The number of search directories.
+     * This will be zero for kKmkCcEvalInstr_vpath_clear_pattern. */
+    uint32_t                cDirs;
+    /** Pointer to the next instruction (subprogs and strings after this one). */
+    PKMKCCEVALCORE          pNext;
+    /** The pattern. */
+    KMKCCEXPSUBPROGORPLAIN  Pattern;
+    /** The directory. Expressions will be expanded and split on space. */
+    KMKCCEXPSUBPROGORPLAIN  aDirs[1];
+} KMKCCEVALVPATH;
+typedef KMKCCEVALVPATH *PKMKCCEVALVPATH;
+/** Calculates the size of an KMKCCEVALVPATH structure for @a a_cFiles files. */
+#define KMKCCEVALVPATH_SIZE(a_cFiles) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALVPATH, aDirs, a_cDirs)
+
+
+/**
+ * Makefile evaluation program.
+ */
+typedef struct kmk_cc_evalprog
+{
+    /** Pointer to the first instruction for this program. */
+    PKMKCCEVALCORE          pFirstInstr;
+    /** List of blocks for this program (LIFO). */
+    PKMKCCBLOCK             pBlockTail;
+
+} KMKCCEVALPROG;
+
+/** @} */
+
+
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
 static uint32_t g_cVarForExpandCompilations = 0;
 static uint32_t g_cVarForExpandExecs = 0;
 #ifdef KMK_CC_WITH_STATS
@@ -348,9 +837,9 @@ static uint32_t g_cbUnusedMemExpProgs = 0;
 #endif
 
 
-/*******************************************************************************
-*   Internal Functions                                                         *
-*******************************************************************************/
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
 static int kmk_cc_exp_compile_subprog(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr, PKMKCCEXPSUBPROG pSubProg);
 static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t *pcch);
 
@@ -372,7 +861,7 @@ void kmk_cc_print_stats(void)
 
     printf(_("# Variables compiled for string expansion: %6u\n"), g_cVarForExpandCompilations);
     printf(_("# Variables string expansion runs:         %6u\n"), g_cVarForExpandExecs);
-    printf(_("# String expansion runs per compile:       %6u\n"), g_cVarForExpandExecs / g_cVarForExpandExecs);
+    printf(_("# String expansion runs per compile:       %6u\n"), g_cVarForExpandExecs / g_cVarForExpandCompilations);
 #ifdef KMK_CC_WITH_STATS
     printf(_("#          Single alloc block exp progs:   %6u (%u%%)\n"
              "#             Two alloc block exp progs:   %6u (%u%%)\n"
@@ -734,8 +1223,7 @@ static void kmk_cc_block_free_list(PKMKCCBLOCK pBlockTail)
     }
 }
 
-
-/*
+   /*
  *
  * The string expansion compiler.
  * The string expansion compiler.
@@ -825,11 +1313,11 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
      */
     uint32_t            cActualArgs = cArgs <= cMaxArgs || !cMaxArgs ? cArgs : cMaxArgs;
     PKMKCCEXPDYNFUNC    pInstr  = (PKMKCCEXPDYNFUNC)kmk_cc_block_alloc_exp(ppBlockTail, KMKCCEXPDYNFUNC_SIZE(cActualArgs));
-    pInstr->Core.Core.enmOpCode = kKmkCcExpInstr_DynamicFunction;
-    pInstr->Core.cArgs          = cActualArgs;
-    pInstr->Core.pfnFunction    = pfnFunction;
-    pInstr->Core.pszFuncName    = pszFunction;
-    pInstr->Core.fDirty         = kmk_cc_is_dirty_function(pszFunction);
+    pInstr->FnCore.Core.enmOpCode = kKmkCcExpInstr_DynamicFunction;
+    pInstr->FnCore.cArgs          = cActualArgs;
+    pInstr->FnCore.pfnFunction    = pfnFunction;
+    pInstr->FnCore.pszFuncName    = pszFunction;
+    pInstr->FnCore.fDirty         = kmk_cc_is_dirty_function(pszFunction);
 
     /*
      * Parse the arguments.  Plain arguments gets duplicated in the program
@@ -864,20 +1352,21 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
             cchThisArg++;
         }
 
-        pInstr->aArgs[iArg].fPlain = !fDollar;
+        pInstr->aArgs[iArg].fSubprog = fDollar;
         if (fDollar)
         {
             /* Compile it. */
             int rc;
             kmk_cc_block_realign(ppBlockTail);
-            rc = kmk_cc_exp_compile_subprog(ppBlockTail, pchArgs, cchThisArg, &pInstr->aArgs[iArg].u.SubProg);
+            rc = kmk_cc_exp_compile_subprog(ppBlockTail, pchArgs, cchThisArg, &pInstr->aArgs[iArg].u.Subprog);
             if (rc != 0)
                 return rc;
         }
         else
         {
             /* Duplicate it. */
-            pInstr->aArgs[iArg].u.Plain.pszArg = kmk_cc_block_strdup(ppBlockTail, pchArgs, cchThisArg);
+            pInstr->aArgs[iArg].u.Plain.psz = kmk_cc_block_strdup(ppBlockTail, pchArgs, cchThisArg);
+            pInstr->aArgs[iArg].u.Plain.cch = cchThisArg;
         }
         iArg++;
         if (ch != ',')
@@ -891,7 +1380,7 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
      * Realign the allocator and take down the address of the next instruction.
      */
     kmk_cc_block_realign(ppBlockTail);
-    pInstr->Core.pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
+    pInstr->FnCore.pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
     return 0;
 }
 
@@ -925,11 +1414,11 @@ static void kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char 
      */
     uint32_t            cActualArgs = cArgs <= cMaxArgs || !cMaxArgs ? cArgs : cMaxArgs;
     PKMKCCEXPPLAINFUNC  pInstr  = (PKMKCCEXPPLAINFUNC)kmk_cc_block_alloc_exp(ppBlockTail, KMKCCEXPPLAINFUNC_SIZE(cActualArgs));
-    pInstr->Core.Core.enmOpCode = kKmkCcExpInstr_PlainFunction;
-    pInstr->Core.cArgs          = cActualArgs;
-    pInstr->Core.pfnFunction    = pfnFunction;
-    pInstr->Core.pszFuncName    = pszFunction;
-    pInstr->Core.fDirty         = kmk_cc_is_dirty_function(pszFunction);
+    pInstr->FnCore.Core.enmOpCode = kKmkCcExpInstr_PlainFunction;
+    pInstr->FnCore.cArgs          = cActualArgs;
+    pInstr->FnCore.pfnFunction    = pfnFunction;
+    pInstr->FnCore.pszFuncName    = pszFunction;
+    pInstr->FnCore.fDirty         = kmk_cc_is_dirty_function(pszFunction);
 
     /*
      * Parse the arguments.  Plain arguments gets duplicated in the program
@@ -975,7 +1464,7 @@ static void kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char 
      * Realign the allocator and take down the address of the next instruction.
      */
     kmk_cc_block_realign(ppBlockTail);
-    pInstr->Core.pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
+    pInstr->FnCore.pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
 }
 
 
@@ -998,7 +1487,7 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
     pInstr = (PKMKCCEXPDYNVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
     pInstr->Core.enmOpCode = kKmkCcExpInstr_DynamicVariable;
 
-    rc = kmk_cc_exp_compile_subprog(ppBlockTail, pchNameExpr, cchNameExpr, &pInstr->SubProg);
+    rc = kmk_cc_exp_compile_subprog(ppBlockTail, pchNameExpr, cchNameExpr, &pInstr->Subprog);
 
     pInstr->pNext = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(*ppBlockTail);
     return rc;
@@ -1409,7 +1898,7 @@ static void kmk_cc_exp_stats_init(PKMKCCEXPSTATS pStats)
 
 
 /**
- * Compiles a string expansion sub program.
+ * Compiles a string expansion subprogram.
  *
  * The caller typically make a call to kmk_cc_block_get_next_ptr after this
  * function returns to figure out where to continue executing.
@@ -1421,7 +1910,7 @@ static void kmk_cc_exp_stats_init(PKMKCCEXPSTATS pStats)
  *                              lifetime of the program).
  * @param   cchStr              The length of the string to compile. Expected to
  *                              be at least on char long.
- * @param   pSubProg            The sub program structure to initialize.
+ * @param   pSubProg            The subprogram structure to initialize.
  */
 static int kmk_cc_exp_compile_subprog(PKMKCCBLOCK *ppBlockTail, const char *pchStr, uint32_t cchStr, PKMKCCEXPSUBPROG pSubProg)
 {
@@ -1464,7 +1953,7 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
 #endif
 
         /*
-         * Join forces with the sub program compilation code.
+         * Join forces with the subprogram compilation code.
          */
         if (kmk_cc_exp_compile_common(&pProg->pBlockTail, pchStr, cchStr) == 0)
         {
@@ -1487,18 +1976,6 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
         }
         kmk_cc_block_free_list(pProg->pBlockTail);
     }
-    return NULL;
-}
-
-
-/**
- * Compiles a variable direct evaluation as is, setting v->evalprog on success.
- *
- * @returns Pointer to the program on success, NULL if no program was created.
- * @param   pVar        Pointer to the variable.
- */
-struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar)
-{
     return NULL;
 }
 
@@ -1620,7 +2097,7 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                 PKMKCCEXPDYNVAR  pInstr = (PKMKCCEXPDYNVAR)pInstrCore;
                 struct variable *pVar;
                 uint32_t         cchName;
-                char            *pszName = kmk_exec_expand_subprog_to_tmp(&pInstr->SubProg, &cchName);
+                char            *pszName = kmk_exec_expand_subprog_to_tmp(&pInstr->Subprog, &cchName);
                 char            *pszColon = (char *)memchr(pszName, ':', cchName);
                 char            *pszEqual;
                 if (   pszColon == NULL
@@ -1716,20 +2193,20 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
             {
                 PKMKCCEXPPLAINFUNC pInstr = (PKMKCCEXPPLAINFUNC)pInstrCore;
                 uint32_t iArg;
-                if (!pInstr->Core.fDirty)
+                if (!pInstr->FnCore.fDirty)
                 {
 #ifdef KMK_CC_STRICT
                     uint32_t uCrcBefore = 0;
                     uint32_t uCrcAfter = 0;
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     while (iArg-- > 0)
                         uCrcBefore = kmk_cc_debug_string_hash(uCrcBefore, pInstr->apszArgs[iArg]);
 #endif
 
-                    pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
+                    pchDst = pInstr->FnCore.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->FnCore.pszFuncName);
 
 #ifdef KMK_CC_STRICT
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     while (iArg-- > 0)
                         uCrcAfter = kmk_cc_debug_string_hash(uCrcAfter, pInstr->apszArgs[iArg]);
                     KMK_CC_ASSERT(uCrcBefore == uCrcAfter);
@@ -1737,92 +2214,92 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
                 }
                 else
                 {
-                    char **papszShadowArgs = xmalloc((pInstr->Core.cArgs * 2 + 1) * sizeof(papszShadowArgs[0]));
-                    char **papszArgs = &papszShadowArgs[pInstr->Core.cArgs];
+                    char **papszShadowArgs = xmalloc((pInstr->FnCore.cArgs * 2 + 1) * sizeof(papszShadowArgs[0]));
+                    char **papszArgs = &papszShadowArgs[pInstr->FnCore.cArgs];
 
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     papszArgs[iArg] = NULL;
                     while (iArg-- > 0)
                         papszArgs[iArg] = papszShadowArgs[iArg] = xstrdup(pInstr->apszArgs[iArg]);
 
-                    pchDst = pInstr->Core.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->Core.pszFuncName);
+                    pchDst = pInstr->FnCore.pfnFunction(pchDst, (char **)&pInstr->apszArgs[0], pInstr->FnCore.pszFuncName);
 
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     while (iArg-- > 0)
                         free(papszShadowArgs[iArg]);
                     free(papszShadowArgs);
                 }
 
-                pInstrCore = pInstr->Core.pNext;
+                pInstrCore = pInstr->FnCore.pNext;
                 break;
             }
 
             case kKmkCcExpInstr_DynamicFunction:
             {
                 PKMKCCEXPDYNFUNC pInstr = (PKMKCCEXPDYNFUNC)pInstrCore;
-                char           **papszArgsShadow = xmalloc( (pInstr->Core.cArgs * 2 + 1) * sizeof(char *));
-                char           **papszArgs = &papszArgsShadow[pInstr->Core.cArgs];
+                char           **papszArgsShadow = xmalloc( (pInstr->FnCore.cArgs * 2 + 1) * sizeof(char *));
+                char           **papszArgs = &papszArgsShadow[pInstr->FnCore.cArgs];
                 uint32_t         iArg;
 
-                if (!pInstr->Core.fDirty)
+                if (!pInstr->FnCore.fDirty)
                 {
 #ifdef KMK_CC_STRICT
                     uint32_t    uCrcBefore = 0;
                     uint32_t    uCrcAfter = 0;
 #endif
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     papszArgs[iArg] = NULL;
                     while (iArg-- > 0)
                     {
                         char *pszArg;
-                        if (!pInstr->aArgs[iArg].fPlain)
-                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
+                        if (pInstr->aArgs[iArg].fSubprog)
+                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.Subprog, NULL);
                         else
-                            pszArg = (char *)pInstr->aArgs[iArg].u.Plain.pszArg;
+                            pszArg = (char *)pInstr->aArgs[iArg].u.Plain.psz;
                         papszArgsShadow[iArg] = pszArg;
                         papszArgs[iArg]       = pszArg;
 #ifdef KMK_CC_STRICT
                         uCrcBefore = kmk_cc_debug_string_hash(uCrcBefore, pszArg);
 #endif
                     }
-                    pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
+                    pchDst = pInstr->FnCore.pfnFunction(pchDst, papszArgs, pInstr->FnCore.pszFuncName);
 
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     while (iArg-- > 0)
                     {
 #ifdef KMK_CC_STRICT
                         KMK_CC_ASSERT(papszArgsShadow[iArg] == papszArgs[iArg]);
                         uCrcAfter = kmk_cc_debug_string_hash(uCrcAfter, papszArgsShadow[iArg]);
 #endif
-                        if (!pInstr->aArgs[iArg].fPlain)
+                        if (pInstr->aArgs[iArg].fSubprog)
                             free(papszArgsShadow[iArg]);
                     }
                     KMK_CC_ASSERT(uCrcBefore == uCrcAfter);
                 }
                 else
                 {
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     papszArgs[iArg] = NULL;
                     while (iArg-- > 0)
                     {
                         char *pszArg;
-                        if (!pInstr->aArgs[iArg].fPlain)
-                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.SubProg, NULL);
+                        if (pInstr->aArgs[iArg].fSubprog)
+                            pszArg = kmk_exec_expand_subprog_to_tmp(&pInstr->aArgs[iArg].u.Subprog, NULL);
                         else
-                            pszArg = xstrdup(pInstr->aArgs[iArg].u.Plain.pszArg);
+                            pszArg = xstrdup(pInstr->aArgs[iArg].u.Plain.psz);
                         papszArgsShadow[iArg] = pszArg;
                         papszArgs[iArg]       = pszArg;
                     }
 
-                    pchDst = pInstr->Core.pfnFunction(pchDst, papszArgs, pInstr->Core.pszFuncName);
+                    pchDst = pInstr->FnCore.pfnFunction(pchDst, papszArgs, pInstr->FnCore.pszFuncName);
 
-                    iArg = pInstr->Core.cArgs;
+                    iArg = pInstr->FnCore.cArgs;
                     while (iArg-- > 0)
                         free(papszArgsShadow[iArg]);
                 }
                 free(papszArgsShadow);
 
-                pInstrCore = pInstr->Core.pNext;
+                pInstrCore = pInstr->FnCore.pNext;
                 break;
             }
 
@@ -1862,10 +2339,10 @@ void kmk_cc_exp_stats_update(PKMKCCEXPSTATS pStats, uint32_t cchResult)
 
 
 /**
- * Execute a string expansion sub-program, outputting to a new heap buffer.
+ * Execute a string expansion subprogram, outputting to a new heap buffer.
  *
  * @returns Pointer to the output buffer (hand to free when done).
- * @param   pSubProg          The sub-program to execute.
+ * @param   pSubProg          The subprogram to execute.
  * @param   pcchResult        Where to return the size of the result. Optional.
  */
 static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t *pcchResult)
@@ -1878,7 +2355,7 @@ static char *kmk_exec_expand_subprog_to_tmp(PKMKCCEXPSUBPROG pSubProg, uint32_t 
 
     /*
      * Temporarily replace the variable buffer while executing the instruction
-     * stream for this sub program.
+     * stream for this subprogram.
      */
     pchDst = install_variable_buffer_with_hint(&pchOldVarBuf, &cbOldVarBuf,
                                                pSubProg->Stats.cchAvg ? pSubProg->Stats.cchAvg + 32 : 256);
@@ -1937,18 +2414,6 @@ static char *kmk_exec_expand_prog_to_var_buf(PKMKCCEXPPROG pProg, char *pchDst)
 
 
 /**
- * Equivalent of eval_buffer, only it's using the evalprog of the variable.
- *
- * @param   pVar        Pointer to the variable. Must have a program.
- */
-void kmk_exec_evalval(struct variable *pVar)
-{
-    KMK_CC_ASSERT(pVar->evalprog);
-    assert(0);
-}
-
-
-/**
  * Expands a variable into a variable buffer using its expandprog.
  *
  * @returns The new variable buffer position.
@@ -1961,6 +2426,121 @@ char *kmk_exec_expand_to_var_buf(struct variable *pVar, char *pchDst)
     KMK_CC_ASSERT(pVar->expandprog->uInputHash == kmk_cc_debug_string_hash(0, pVar->value));
     return kmk_exec_expand_prog_to_var_buf(pVar->expandprog, pchDst);
 }
+
+
+
+
+
+/*
+ *
+ * Makefile evaluation programs.
+ * Makefile evaluation programs.
+ * Makefile evaluation programs.
+ *
+ */
+/*#define KMK_CC_EVAL_ENABLE*/
+
+
+/**
+ * Compiles a variable direct evaluation as is, setting v->evalprog on success.
+ *
+ * @returns Pointer to the program on success, NULL if no program was created.
+ * @param   pVar        Pointer to the variable.
+ */
+struct kmk_cc_evalprog   *kmk_cc_compile_variable_for_eval(struct variable *pVar)
+{
+    return NULL;
+}
+
+
+/**
+ * Compiles a makefile for
+ *
+ * @returns Pointer to the program on success, NULL if no program was created.
+ * @param   pVar        Pointer to the variable.
+ */
+struct kmk_cc_evalprog   *kmk_cc_compile_file_for_eval(FILE *pFile, const char *pszFilename)
+{
+#ifdef KMK_CC_EVAL_ENABLE
+    /*
+     * Read the entire file into a zero terminate memory buffer.
+     */
+    size_t      cchContent = 0;
+    char       *pszContent = NULL;
+    struct stat st;
+    if (!fstat(fileno(pFile), &st))
+    {
+        if (   st.st_size > (off_t)16*1024*1024
+            && st.st_size < 0)
+            fatal(NULL, _("Makefile too large to compile: %ld bytes (%#lx) - max 16MB"), (long)st.st_size, (long)st.st_size);
+        cchContent = (size_t)st.st_size;
+        pszContent = (char *)xmalloc(cchContent + 1);
+
+        cchContent = fread(pszContent, 1, cchContent, pFile);
+        if (ferror(pFile))
+            fatal(NULL, _("Read error: %s"), strerror(errno));
+    }
+    else
+    {
+        size_t cbAllocated = 2048;
+        do
+        {
+            cbAllocated *= 2;
+            if (cbAllocated > 16*1024*1024)
+                fatal(NULL, _("Makefile too large to compile: max 16MB"));
+            pszContent = (char *)xrealloc(pszContent, cbAllocated);
+            cchContent += fread(&pszContent[cchContent], 1, cbAllocated - 1 - cchContent, pFile);
+            if (ferror(pFile))
+                fatal(NULL, _("Read error: %s"), strerror(errno));
+        } while (!feof(pFile));
+    }
+    pszContent[cchContent] = '\0';
+
+    /*
+     * Call common function to do the compilation.
+     */
+    //kmk_cc_eval_compile_common()
+
+    free(pszContent);
+    return NULL;
+#else
+    return NULL;
+#endif
+}
+
+
+/**
+ * Equivalent of eval_buffer, only it's using the evalprog of the variable.
+ *
+ * @param   pVar        Pointer to the variable. Must have a program.
+ */
+void kmk_exec_eval_variable(struct variable *pVar)
+{
+    KMK_CC_ASSERT(pVar->evalprog);
+    assert(0);
+}
+
+
+/**
+ * Worker for eval_makefile.
+ *
+ * @param   pEvalProg   The program pointer.
+ */
+void kmk_exec_eval_file(struct kmk_cc_evalprog *pEvalProg)
+{
+    KMK_CC_ASSERT(pEvalProg);
+    assert(0);
+}
+
+
+
+/*
+ *
+ * Program destruction hooks.
+ * Program destruction hooks.
+ * Program destruction hooks.
+ *
+ */
 
 
 /**
@@ -2021,6 +2601,11 @@ void  kmk_cc_variable_deleted(struct variable *pVar)
         pVar->expandprog = NULL;
     }
 }
+
+
+
+
+
 
 
 #endif /* CONFIG_WITH_COMPILER */
