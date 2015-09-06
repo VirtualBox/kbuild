@@ -2060,7 +2060,7 @@ func_evalval (char *o, char **argv, const char *funcname)
           || (v->evalval_count == 3 && kmk_cc_compile_variable_for_eval (v)))
         {
           install_variable_buffer (&buf, &len); /* Really necessary? */
-          kmk_exec_evalval (v);
+          kmk_exec_eval_variable (v);
           restore_variable_buffer (buf, len);
         }
       else
