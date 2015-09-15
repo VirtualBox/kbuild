@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2762 2015-01-28 18:17:54Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2795 2015-09-15 23:35:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -128,6 +128,7 @@ endif
 # @param    $(out)
 # @param    $($(target)_2_OUTPUT)   Output files from the link.
 # @param    $($(target)_2_OUTPUT_MAYBE)	Output files that the link may perhaps create.
+# @param    $($(target)_2_OUTPUT_MAYBE_PRECIOUS)	Output files that the link may perhaps create but shouldn't be deleted.
 # @param    $($(target)_2_DEPEND)   Dependencies.
 # @param    $($(target)_2_DEPORD)   Dependencies which should only affect build order.
 # @param    $(cmds)                 The link commands.
@@ -141,7 +142,7 @@ $(out) \
 + $($(target)_2_OUTPUT) \
 + $($(target)_2_OUTPUT_DEBUG_FILES) \
 + $($(target)_2_OUTPUT_DEBUG_DIRS) \
-+| $($(target)_2_OUTPUT_MAYBE) : \
++| $($(target)_2_OUTPUT_MAYBE) $($(target)_2_OUTPUT_MAYBE_PRECIOUS) : \
 		$$$$($(target)_2_DEPEND) \
 		$(value _DEP_LINK_CMDS) \
 		| \
@@ -606,6 +607,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_2_OUTPUT := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT)
 $(target)_2_OUTPUT_MAYBE := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE)
+$(target)_2_OUTPUT_MAYBE_PRECIOUS := $(TOOL_$(tool)_LINK_LIBRARY_OUTPUT_MAYBE_PRECIOUS)
 $(target)_2_DEPEND := $(TOOL_$(tool)_LINK_LIBRARY_DEPEND) $(deps) $($(target)_2_OBJS)
 $(target)_2_DEPORD := $(TOOL_$(tool)_LINK_LIBRARY_DEPORD) $(dirdep) $(orderdeps)
 
@@ -616,7 +618,7 @@ $(eval $(def_link_rule))
 local target_type_mode := a+r,u+w
 $(evalval def_target_install_only)
 
-_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
+_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $($(target)_2_OUTPUT_MAYBE_PRECIOUS) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _OBJS += $($(target)_2_OBJS)
@@ -928,6 +930,7 @@ ifneq ($(post_cmds),)
 endif
 $(target)_2_OUTPUT              := $(TOOL_$(tool)_$(tool_do)_OUTPUT)
 $(target)_2_OUTPUT_MAYBE        := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE)
+$(target)_2_OUTPUT_MAYBE_PRECIOUS := $(TOOL_$(tool)_$(tool_do)_OUTPUT_MAYBE_PRECIOUS)
 if1of ($(ld_debug), split)
  $(target)_2_OUTPUT_DEBUG_FILES := $(filter-out %/,$(TOOL_$(tool)_$(tool_do)_OUTPUT_DEBUG))
  $(target)_2_OUTPUT_DEBUG_DIRS  := $(filter     %/,$(TOOL_$(tool)_$(tool_do)_OUTPUT_DEBUG))
@@ -947,7 +950,7 @@ $(evalval def_target_install_only)
 
 # Update globals.
 _OBJS += $($(target)_2_OBJS)
-_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $(out)
+_OUT_FILES += $($(target)_2_OUTPUT) $($(target)_2_OUTPUT_MAYBE) $($(target)_2_OUTPUT_MAYBE_PRECIOUS) $(out)
 _CLEAN_FILES += $($(target)_CLEAN) $($(target)_CLEAN.$(bld_trg)) $($(target)_CLEAN.$(bld_trg).$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_arch)) $($(target)_CLEAN.$(bld_trg_cpu)) $($(target)_CLEAN.$(bld_type))
 _DIRS += $($(target)_BLDDIRS) $($(target)_BLDDIRS.$(bld_trg)) $($(target)_BLDDIRS.$(bld_trg).$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_arch)) $($(target)_BLDDIRS.$(bld_trg_cpu)) $($(target)_BLDDIRS.$(bld_type))
 _INSTALLS_FILES += $(INSTARGET_$(target))

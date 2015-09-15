@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2794 2015-09-15 23:06:37Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2795 2015-09-15 23:35:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -330,7 +330,8 @@ endef
 TOOL_VCC100AMD64_LINK_DLL_DEPEND = $(objs) $(foreach lib,$(libs),$(if $(findstring $(lib),$(subst /,x,$(lib))),, $(lib))) $(othersrc)
 TOOL_VCC100AMD64_LINK_DLL_DEPORD = $(call DIRDEP,$(PATH_STAGE_LIB))
 TOOL_VCC100AMD64_LINK_DLL_OUTPUT = $(outbase).map $(outbase).lib $(outbase).exp $(outbase).rsp
-TOOL_VCC100AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
+TOOL_VCC100AMD64_LINK_DLL_OUTPUT_MAYBE = $(outbase).ilk $(out).manifest $(PATH_STAGE_LIB)/$(notdir $(outbase)).exp
+TOOL_VCC100AMD64_LINK_DLL_OUTPUT_MAYBE_PRECIOUS = $(PATH_STAGE_LIB)/$(notdir $(outbase)).lib
 TOOL_VCC100AMD64_LINK_DLL_OUTPUT_DEBUG = $(outbase).pdb
 TOOL_VCC100AMD64_LINK_DLL_DEBUG_INSTALL_FN = $(2).pdb=>$(basename $(3)).pdb
 define TOOL_VCC100AMD64_LINK_DLL_CMDS
@@ -353,8 +354,8 @@ ifndef TOOL_VCC100AMD64_NO_AUTO_MANIFEST
 	$(QUIET)$(TEST) -f $(out).manifest -- \
 		$(TOOL_VCC100AMD64_MT) -manifest $(subst /,\\,$(out)).manifest '-outputresource:$(subst /,\\,$(out));#2'
 endif
-	$(QUIET)$(TEST) -f $(outbase).lib -- $(KLIBTWEAKER) --clear-timstamps $(outbase).lib
-	$(QUIET)$(CP) --changed --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_STAGE_LIB)/
+	$(QUIET)$(TEST) -f $(outbase).lib -- $(KLIBTWEAKER_EXT) --clear-timestamps $(outbase).lib
+	$(QUIET)$(CP) --changed -v --ignore-non-existing $(outbase).exp $(outbase).lib $(PATH_STAGE_LIB)/
 $(eval _DIRS += $(PATH_STAGE_LIB))
 endef
 
