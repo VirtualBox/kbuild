@@ -1,4 +1,4 @@
-# $Id: header.kmk 2763 2015-01-28 18:25:31Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2793 2015-09-15 23:03:02Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2763 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2793 $  )
 
 
 #
@@ -640,6 +640,9 @@ DEP_PRE     := $(KBUILD_BIN_PATH)/kDepPre$(HOSTSUFF_EXE)
 
 KOBJCACHE_EXT := $(KBUILD_BIN_PATH)/kObjCache$(HOSTSUFF_EXE)
 KOBJCACHE   := $(KOBJCACHE_EXT)
+
+KLIBTWEAKER_EXT := $(KBUILD_BIN_PATH)/kLibTweaker$(HOSTSUFF_EXE)
+KLIBTWEAKER     := $(KLIBTWEAK_EXT)
 
 APPEND_EXT  := $(KBUILD_BIN_PATH)/kmk_append$(HOSTSUFF_EXE)
 APPEND_INT  := kmk_builtin_append
