@@ -502,7 +502,11 @@ eval_makefile (const char *filename, int flags)
      ASSUMES file content is unmodified since compilation. */
   deps->file->eval_count++;
   if (   deps->file->evalprog
+# ifdef CONFIG_WITH_COMPILE_EVERYTHING
+      || (   deps->file->eval_count == 1
+# else
       || (   deps->file->eval_count == 3
+# endif
           && (deps->file->evalprog = kmk_cc_compile_file_for_eval (ebuf.fp, filename)) != NULL) )
     {
       curfile = reading_file;

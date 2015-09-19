@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 2799 2015-09-19 20:36:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -74,8 +74,9 @@ typedef signed int     int32_t;
 # define STRCACHE2_MOD_IT(cache, hash)  ((hash) % (cache)->hash_div)
 #endif
 
-# if defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64) \
- || defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)
+# if (   defined(__amd64__) || defined(__x86_64__) || defined(__AMD64__) || defined(_M_X64) || defined(__amd64) \
+      || defined(__i386__) || defined(__x86__) || defined(__X86__) || defined(_M_IX86) || defined(__i386)) \
+  && !defined(GCC_ADDRESS_SANITIZER)
 #  define strcache2_get_unaligned_16bits(ptr)   ( *((const uint16_t *)(ptr)))
 # else
    /* (endian doesn't matter) */

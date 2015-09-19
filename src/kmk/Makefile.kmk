@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2765 2015-01-30 00:27:51Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2799 2015-09-19 20:36:31Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -54,12 +54,9 @@ TEMPLATE_BIN-KMK_DEPS.win     = \
 TEMPLATE_BIN-KMK_CFLAGS.win.amd64 = $(TEMPLATE_BIN-THREADED_CFLAGS.win.amd64) -wd4244 -wd4267
 TEMPLATE_BIN-KMK_CLEAN.win = $(TEMPLATE_BIN-KMK_DEPS.win)
 TEMPLATE_BIN-KMK_INCS = $(kmk_0_OUTDIR) . $(TEMPLATE_BIN-THREADED_INCS)
-TEMPLATE_BIN-KMK_INCS.darwin = glob
-TEMPLATE_BIN-KMK_INCS.dragonfly = glob
-TEMPLATE_BIN-KMK_INCS.freebsd = glob
-TEMPLATE_BIN-KMK_INCS.haiku = glob
-TEMPLATE_BIN-KMK_INCS.openbsd = glob
-TEMPLATE_BIN-KMK_INCS.solaris = glob
+ifneq ($(KBUILD_TARGET),os2)
+ TEMPLATE_BIN-KMK_INCS += glob
+endif
 TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 ifeq ($(KBUILD_TARGET),win)
@@ -67,6 +64,13 @@ ifeq ($(KBUILD_TARGET),win)
 else
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) -include $(kmk_DEFPATH)/electric.h -DELECTRIC_HEAP=1
 endif
+endif
+# GCC sanitizers.
+ifdef GCC_SANITIZERS
+ TEMPLATE_BIN-KMK_CFLAGS  ?= $(TEMPLATE_BIN-THREADED_CFLAGS)
+ TEMPLATE_BIN-KMK_CFLAGS  += -fsanitize=address -fsanitize=undefined -static-libubsan -D GCC_ADDRESS_SANITIZER
+ TEMPLATE_BIN-KMK_LDFLAGS ?= $(TEMPLATE_BIN-THREADED_LDFLAGS)
+ TEMPLATE_BIN-KMK_LDFLAGS += -fsanitize=address -fsanitize=undefined
 endif
 
 
@@ -88,42 +92,39 @@ kmkmissing_SOURCES = \
 	getopt.c \
 	getopt1.c \
 	electric.c
+ifneq ($(KBUILD_TARGET),os2)
+kmkmissing_SOURCES += \
+	glob/glob.c
+endif
 
 kmkmissing_SOURCES.darwin = \
 	kmkbuiltin/darwin.c \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.dragonfly = \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.freebsd = \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.haiku = \
 	kmkbuiltin/haikufakes.c \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.linux += \
 	kmkbuiltin/strlcpy.c
 
 kmkmissing_SOURCES.openbsd = \
-	kmkbuiltin/openbsd.c \
-	glob/glob.c
+	kmkbuiltin/openbsd.c
 
 kmkmissing_SOURCES.solaris = \
 	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/solfakes.c \
-	glob/glob.c \
 	glob/fnmatch.c
 
 kmkmissing_SOURCES.win += \
 	kmkbuiltin/strlcpy.c \
 	kmkbuiltin/mscfakes.c \
-	glob/glob.c \
 	glob/fnmatch.c \
 	getloadavg.c \
 	w32/subproc/misc.c \
@@ -203,6 +204,12 @@ kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT CONFIG_WITH_FAST_IS_SPACE
 kmk_DEFS.debug = CONFIG_WITH_MAKE_STATS
 ifdef CONFIG_WITH_MAKE_STATS
  kmk_DEFS += CONFIG_WITH_MAKE_STATS
+endif
+ifdef CONFIG_WITH_EVAL_COMPILER
+ kmk_DEFS += CONFIG_WITH_EVAL_COMPILER
+endif
+ifdef CONFIG_WITH_COMPILER
+ kmk_DEFS += CONFIG_WITH_COMPILE_EVERYTHING
 endif
 
 kmk_SOURCES = \
