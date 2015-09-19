@@ -1,4 +1,4 @@
-/* $Id: electric.h 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
+/* $Id: electric.h 2798 2015-09-19 20:35:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * A simple electric heap implementation, wrapper header.
  */
@@ -36,12 +36,30 @@ void *xcalloc (unsigned int);
 void *xmalloc (unsigned int);
 void *xrealloc (void *, unsigned int);
 char *xstrdup (const char *);
+#ifdef __GNUC__
+void *xmalloc_size_t (size_t size);
+void *xcalloc_size_t (size_t size, size_t items);
+void *xrealloc_size_t (void *ptr, size_t size);
+#endif
 
+
+#undef  free
 #define free(a)         xfree(a)
-#define calloc(a,b)     xcalloc((a) * (b))
-#define malloc(a)       xmalloc(a)
-#define realloc(a,b)    xrealloc((a),(b))
+#undef  strdup
 #define strdup(a)       xstrdup(a)
+
+#undef  calloc
+#undef  malloc
+#undef  realloc
+#ifdef __GNUC__
+# define calloc(a,b)     xcalloc_size_t(a,b)
+# define malloc(a)       xmalloc_size_t(a)
+# define realloc(a,b)    xrealloc_size_t(a,b)
+#else
+# define calloc(a,b)     xcalloc((a) * (b))
+# define malloc(a)       xmalloc(a)
+# define realloc(a,b)    xrealloc((a),(b))
+#endif
 
 #endif
 
