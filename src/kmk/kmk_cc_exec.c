@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2790 2015-09-14 00:41:11Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2797 2015-09-19 15:35:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -109,7 +109,7 @@
 #elif !defined(__GNUC__) && !defined(__IBMC__) && !defined(__IBMCPP__)
 # define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)  typedef int KMK_CC_STATIC_ASSERT_EX_TYPE[(a_Expr) ? 1 : 0]
 #else
-# define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)  extern int KMK_CC_STATIC_ASSERT_EX_VAR[(aExpr) ? 1 : 0]
+# define KMK_CC_STATIC_ASSERT_EX(a_Expr, a_szExpl)  extern int KMK_CC_STATIC_ASSERT_EX_VAR[(a_Expr) ? 1 : 0]
 extern int KMK_CC_STATIC_ASSERT_EX_VAR[1];
 #endif
 /** @def KMK_CC_STATIC_ASSERT
@@ -2026,13 +2026,13 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                         cchStr--;
 
                         /* First loop: Identify potential function calls and dynamic expansion. */
-                        KMK_CC_ASSERT(!func_char_map[chOpen]);
-                        KMK_CC_ASSERT(!func_char_map[chClose]);
-                        KMK_CC_ASSERT(!func_char_map['$']);
+                        KMK_CC_ASSERT(!func_char_map[(unsigned char)chOpen]);
+                        KMK_CC_ASSERT(!func_char_map[(unsigned char)chClose]);
+                        KMK_CC_ASSERT(!func_char_map[(unsigned char)'$']);
                         while (cchName < cchStr)
                         {
                             ch = pchStr[cchName];
-                            if (!func_char_map[(int)ch])
+                            if (!func_char_map[(unsigned char)ch])
                                 break;
                             cchName++;
                         }
@@ -2091,7 +2091,7 @@ static int kmk_cc_exp_compile_common(PKMKCCBLOCK *ppBlockTail, const char *pchSt
                             }
                             if (cArgs < cMinArgs)
                             {
-                                fatal(NULL, _("Function '%.*s' takes a minimum of %d arguments: %d given"),
+                                fatal(NULL, _("Function '%s' takes a minimum of %d arguments: %d given"),
                                       pszFunction, (int)cMinArgs, (int)cArgs);
                                 return -1; /* not reached */
                             }
@@ -2277,8 +2277,6 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
                                      (kmk_cc_count_dollars(pchStr, cchStr) + 4)  * 8);
     if (pProg)
     {
-        int rc = 0;
-
         pProg->pBlockTail   = pBlock;
         pProg->pFirstInstr  = (PKMKCCEXPCORE)kmk_cc_block_get_next_ptr(pBlock);
         kmk_cc_exp_stats_init(&pProg->Stats);
@@ -2813,6 +2811,7 @@ static size_t kmk_cc_eval_detect_eol_style(char *pchFirst, char *pchSecond, cons
 }
 
 
+#if 0
 /**
  * Checks whether we've got an EOL escape sequence or not.
  *
@@ -2834,6 +2833,7 @@ static unsigned kmk_cc_eval_is_eol_escape_seq(const char *pszContent, size_t off
     /* Odd number -> escaped EOL; Even number -> real EOL; */
     return (offEol - offFirstBackslash) & 1;
 }
+#endif
 
 
 
@@ -3146,7 +3146,6 @@ static void kmk_cc_eval_compile_string_exp_subprog(PKMKCCEVALCOMPILER pCompiler,
  * @{
  */
 #if defined(KBUILD_ARCH_X86) || defined(KBUILD_ARCH_AMD64) /* Unaligned access is reasonably cheap. */
-# define KMK_CC_WORD_COMP_CONST_0(a_pchLine, a_pszWord) (1)
 # define KMK_CC_WORD_COMP_CONST_2(a_pchLine, a_pszWord) \
         (   *(uint16_t const *)(a_pchLine)     == *(uint16_t const *)(a_pszWord) )
 # define KMK_CC_WORD_COMP_CONST_3(a_pchLine, a_pszWord) \
@@ -3173,7 +3172,6 @@ static void kmk_cc_eval_compile_string_exp_subprog(PKMKCCEVALCOMPILER pCompiler,
         (   *(uint64_t const *)(a_pchLine)     == *(uint64_t const *)(a_pszWord) \
          && ((uint64_t const *)(a_pchLine))[1] == ((uint64_t const *)(a_pszWord))[1] )
 #else
-# define KMK_CC_WORD_COMP_CONST_0(a_pchLine, a_pszWord) (1)
 # define KMK_CC_WORD_COMP_CONST_2(a_pchLine, a_pszWord) \
         (   (a_pchLine)[0] == (a_pszWord)[0] \
          && (a_pchLine)[1] == (a_pszWord)[1] )
@@ -3245,6 +3243,12 @@ static void kmk_cc_eval_compile_string_exp_subprog(PKMKCCEVALCOMPILER pCompiler,
          && (a_pchLine)[14] == (a_pszWord)[14] \
          && (a_pchLine)[15] == (a_pszWord)[15])
 #endif
+/** See if a starting of a given length starts with a constant word. */
+#define KMK_CC_WORD_COMP_IS_EOL(a_pCompiler, a_pchLine, a_cchLine) \
+    (   (a_cchLine) == 0 \
+     || KMK_CC_EVAL_IS_SPACE((a_pchLine)[0]) \
+     || ((a_pchLine)[0] == '\\' && (a_pchLine)[1] == (a_pCompiler)->chFirstEol) ) \
+
 /** See if a starting of a given length starts with a constant word. */
 #define KMK_CC_WORD_COMP_CONST(a_pCompiler, a_pchLine, a_cchLine, a_pszWord, a_cchWord) \
     (    (a_cchLine) >= (a_cchWord) \
@@ -3700,6 +3704,7 @@ static const char *kmk_cc_eval_skip_var_name(PKMKCCEVALCOMPILER pCompiler, const
 }
 
 
+#if 0  /* unused atm */
 /**
  * Prepares for copying a command line.
  *
@@ -3820,6 +3825,7 @@ static void kmk_cc_eval_copy_prepped_command_line(PKMKCCEVALCOMPILER pCompiler, 
         KMK_CC_ASSERT(pszDst == &pszDstStart[cchPrepped]);
     }
 }
+#endif /* unused atm */
 
 
 /**
@@ -3896,7 +3902,6 @@ static size_t kmk_cc_eval_prep_normal_line_ex(PKMKCCEVALCOMPILER pCompiler, cons
     unsigned        iEscEol  = pCompiler->iEscEol;
     unsigned const  cEscEols = pCompiler->cEscEols;
 
-    KMK_CC_ASSERT(cchLeft >= 0);
     KMK_CC_ASSERT(iEscEol <= cEscEols);
 
     if (cchLeft > 0)
@@ -4322,6 +4327,8 @@ static int kmk_cc_eval_do_ifeq(PKMKCCEVALCOMPILER pCompiler, const char *pchWord
         {
 //            unsigned cCounts;
 
+
+
             /* Skip the parenthesis. */
             pchWord++;
             cchLeft--;
@@ -4467,7 +4474,7 @@ static int kmk_cc_eval_do_else(PKMKCCEVALCOMPILER pCompiler, const char *pchWord
             pchWord += 2;
             cchLeft -= 2;
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "", 0))
+            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_if(pCompiler, pchWord, cchLeft, 1 /* in else */);
 
             if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
@@ -4795,7 +4802,7 @@ int kmk_cc_eval_try_handle_keyword(PKMKCCEVALCOMPILER pCompiler, char ch, const 
         /* 'if...' */
         if (ch2 == 'f')
         {
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "", 0))
+            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_if(pCompiler, pchWord, cchLeft, 0 /* in else */);
 
             if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
@@ -4821,13 +4828,13 @@ int kmk_cc_eval_try_handle_keyword(PKMKCCEVALCOMPILER pCompiler, char ch, const 
         {
             pchWord += 5;
             cchLeft -= 5;
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "", 0))
+            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_include(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_include);
             if (cchLeft >= 3 && KMK_CC_WORD_COMP_CONST_3(pchWord, "dep"))
             {
                 pchWord += 3;
                 cchLeft -= 3;
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "", 0))
+                if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                     return kmk_cc_eval_do_include(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_includedep);
                 if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-queue", 6))
                     return kmk_cc_eval_do_include(pCompiler, pchWord + 6, cchLeft - 6, kKmkCcEvalInstr_includedep_queue);
@@ -4919,14 +4926,14 @@ static int kmk_cc_eval_compile_worker(PKMKCCEVALPROG pEvalProg, const char *pszC
                     /* Frequent: Blank line. */
                     if (&pszContent[offNext] == pchTmp)
                     {
-fprintf(stderr, "#%03u: <empty>\n", Compiler.iLine, &pszContent[off]);
+fprintf(stderr, "#%03u: <empty>\n", Compiler.iLine);
                         Compiler.iLine++;
                         off = offNext += cchEolSeq;
                         continue;
                     }
                     if (pszContent[offNext] == '#')
                     {
-fprintf(stderr, "#%03u: <comment>\n", Compiler.iLine, &pszContent[off]);
+fprintf(stderr, "#%03u: <comment>\n", Compiler.iLine);
                         Compiler.iLine++;
                         offNext = pchTmp - pszContent;
                         off = offNext += cchEolSeq;
@@ -4958,7 +4965,7 @@ fprintf(stderr, "#%03u: <comment>\n", Compiler.iLine, &pszContent[off]);
                     if (offFirstWord == offNext)
                     {
                         size_t offEol = off + cchLine;
-                        while (offFirstWord < off + cchLine && KMK_CC_EVAL_IS_SPACE(pszContent[offFirstWord]))
+                        while (offFirstWord < offEol && KMK_CC_EVAL_IS_SPACE(pszContent[offFirstWord]))
                             offFirstWord++;
                     }
 
@@ -5138,8 +5145,6 @@ static PKMKCCEVALPROG kmk_cc_eval_compile(const char *pszContent, size_t cchCont
     pEvalProg = kmk_cc_block_alloc_first(&pBlock, sizeof(*pEvalProg), cchContent / 32); /** @todo adjust */
     if (pEvalProg)
     {
-        int rc = 0;
-
         pEvalProg->pBlockTail   = pBlock;
         pEvalProg->pFirstInstr  = (PKMKCCEVALCORE)kmk_cc_block_get_next_ptr(pBlock);
         pEvalProg->pszFilename  = pszFilename ? pszFilename : "<unknown>";
