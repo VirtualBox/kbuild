@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2799 2015-09-19 20:36:31Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2801 2015-09-20 19:13:24Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -208,7 +208,7 @@ endif
 ifdef CONFIG_WITH_EVAL_COMPILER
  kmk_DEFS += CONFIG_WITH_EVAL_COMPILER
 endif
-ifdef CONFIG_WITH_COMPILER
+ifdef CONFIG_WITH_COMPILE_EVERYTHING
  kmk_DEFS += CONFIG_WITH_COMPILE_EVERYTHING
 endif
 

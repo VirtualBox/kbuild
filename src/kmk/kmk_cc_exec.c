@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2799 2015-09-19 20:36:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2801 2015-09-20 19:13:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -120,12 +120,16 @@ extern int KMK_CC_STATIC_ASSERT_EX_VAR[1];
 #define KMK_CC_STATIC_ASSERT(a_Expr)                KMK_CC_STATIC_ASSERT_EX(a_Expr, #a_Expr)
 
 
-/** @def KMK_CC_IS_SPACE_CH
- * Checks if it's a space char. */
-#define KMK_CC_IS_SPACE_CH(a_ch)                    isspace((unsigned char)(a_ch))
-
 /** Aligns a size for the block allocator. */
 #define KMK_CC_BLOCK_ALIGN_SIZE(a_cb)               ( ((a_cb) + (sizeof(void *) - 1U)) & ~(uint32_t)(sizeof(void *) - 1U) )
+
+/** How to declare a no-return function.
+ * Place between scope (if any) and return type.  */
+#ifdef _MSC_VER
+# define KMK_CC_FN_NO_RETURN                        declspec(noreturn)
+#elif defined(__GNUC__)
+# define KMK_CC_FN_NO_RETURN                        __attribute__((__noreturn__))
+#endif
 
 
 /** @defgroup grp_kmk_cc_evalprog Makefile Evaluation
@@ -176,28 +180,43 @@ extern int KMK_CC_STATIC_ASSERT_EX_VAR[1];
  * variable name or a recipe.
  * All space characters, backslash (EOL escape), variable expansion dollar,
  * variable assignment operator chars, recipe colon and recipe percent. */
-#define KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE       UINT16_C(8)
-#define KMK_CC_EVAL_IS_SPACE_OR_VAR_OR_RECIPE(a_ch) (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE)
+#define KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE          UINT16_C(8)
+#define KMK_CC_EVAL_IS_SPACE_VAR_OR_RECIPE(a_ch)    (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE)
+/** Dollar character (possible variable expansion). */
+#define KMK_CC_EVAL_CH_DOLLAR                       UINT16_C(16)
+#define KMK_CC_EVAL_IS_DOLLAR(a_ch)                 (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_DOLLAR)
+/** Dollar character (possible variable expansion). */
+#define KMK_CC_EVAL_CH_BACKSLASH                    UINT16_C(32)
+#define KMK_CC_EVAL_IS_BACKSLASH(a_ch)              (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_BACKSLASH)
 /** Possible EOL character. */
-#define KMK_CC_EVAL_CH_EOL_CANDIDATE                UINT16_C(16)
+#define KMK_CC_EVAL_CH_EOL_CANDIDATE                UINT16_C(64)
 #define KMK_CC_EVAL_IS_EOL_CANDIDATE(a_ch)          (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_EOL_CANDIDATE)
 /** First character in a keyword. */
-#define KMK_CC_EVAL_CH_1ST_IN_KEYWORD               UINT16_C(32)
+#define KMK_CC_EVAL_CH_1ST_IN_KEYWORD               UINT16_C(128)
 #define KMK_CC_EVAL_IS_1ST_IN_KEYWORD(a_ch)         (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_1ST_IN_KEYWORD)
 /** Second character in a keyword. */
-#define KMK_CC_EVAL_CH_2ND_IN_KEYWORD               UINT16_C(64)
+#define KMK_CC_EVAL_CH_2ND_IN_KEYWORD               UINT16_C(256)
 #define KMK_CC_EVAL_IS_2ND_IN_KEYWORD(a_ch)         (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_2ND_IN_KEYWORD)
 /** First character in a variable qualifier keyword or 'define'. */
-#define KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD      UINT16_C(128)
+#define KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD      UINT16_C(512)
 #define KMK_CC_EVAL_IS_1ST_IN_VARIABLE_KEYWORD(a_ch) (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD)
 /** Used when parsing variable names, looking for the end of a nested
  *  variable reference.  Matches parentheses and backslash (escaped eol). */
-#define KMK_CC_EVAL_CH_PAREN_OR_SLASH               UINT16_C(256)
+#define KMK_CC_EVAL_CH_PAREN_OR_SLASH               UINT16_C(1024)
 #define KMK_CC_EVAL_IS_PAREN_OR_SLASH(a_ch)         (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_PAREN_OR_SLASH)
 /** Used when parsing ifeq/ifneq (,) sequences.
  * Matches parentheses, comma and dollar (for non-plain string detection). */
-#define KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR        UINT16_C(512)
+#define KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR        UINT16_C(2048)
 #define KMK_CC_EVAL_IS_PAREN_COMMA_OR_DOLLAR(a_ch)  (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR)
+
+/** Test of space or dollar characters. */
+#define KMK_CC_EVAL_IS_SPACE_OR_DOLLAR(a_ch)        (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & (KMK_CC_EVAL_CH_SPACE | KMK_CC_EVAL_CH_DOLLAR))
+/** Test of space, dollar or backslash (possible EOL escape) characters. */
+#define KMK_CC_EVAL_IS_SPACE_DOLLAR_OR_SLASH(a_ch)  (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & (KMK_CC_EVAL_CH_SPACE | KMK_CC_EVAL_CH_DOLLAR | KMK_CC_EVAL_CH_BACKSLASH))
+/** Test of space, dollar, backslash (possible EOL escape) or variable
+ * assingment characters. */
+#define KMK_CC_EVAL_IS_SPACE_DOLLAR_SLASH_OR_ASSIGN(a_ch)   \
+    (KMK_CC_EVAL_BM_GET(g_abEvalCcChars, a_ch) & (KMK_CC_EVAL_CH_SPACE | KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE | KMK_CC_EVAL_CH_DOLLAR))
 /** @} */
 
 /** Sets a bitmap entry.
@@ -281,7 +300,7 @@ typedef enum KMKCCEXPINSTR
 typedef struct kmk_cc_exp_core
 {
     /** The instruction opcode number (KMKCCEXPINSTR). */
-    KMKCCEXPINSTR           enmOpCode;
+    KMKCCEXPINSTR           enmOpcode;
 } KMKCCEXPCORE;
 typedef KMKCCEXPCORE *PKMKCCEXPCORE;
 
@@ -607,7 +626,7 @@ typedef enum KMKCCEVALINSTR
 typedef struct kmk_cc_eval_core
 {
     /** The instruction opcode number (KMKCCEVALINSTR). */
-    KMKCCEVALINSTR          enmOpCode;
+    KMKCCEVALINSTR          enmOpcode;
     /** The line number in the source this statement is associated with. */
     unsigned                iLine;
 } KMKCCEVALCORE;
@@ -635,12 +654,14 @@ typedef struct kmk_cc_eval_assign
 {
     /** The core instruction. */
     KMKCCEVALCORE           Core;
-    /** Whether the 'export' directive was used. */
+    /** Whether the 'export' qualifier was used. */
     uint8_t                 fExport;
-    /** Whether the 'override' directive was used. */
+    /** Whether the 'override' qualifier was used. */
     uint8_t                 fOverride;
-    /** Whether the 'local' directive was used. */
+    /** Whether the 'local' qualifier was used. */
     uint8_t                 fLocal;
+    /** Whether the 'private' qualifier was used. */
+    uint8_t                 fPrivate;
     /** The variable name.
      * @remarks Plain text names are in variable_strcache. */
     KMKCCEXPSUBPROGORPLAIN  Variable;
@@ -1004,6 +1025,46 @@ static const char * const g_apszEvalKeywords[] =
 };
 
 
+/** This is parallel to KMKCCEVALINSTR.   */
+static const char * const g_apszEvalInstrNms[] =
+{
+    "jump",
+    "assign_recursive",
+    "assign_simple",
+    "assign_append",
+    "assign_prepend",
+    "assign_if_new",
+    "assign_define",
+    "export",
+    "unexport",
+    "export_all",
+    "unexport_all",
+    "ifdef_plain",
+    "ifndef_plain",
+    "ifdef_dynamic",
+    "ifndef_dynamic",
+    "ifeq",
+    "ifneq",
+    "if1of",
+    "ifn1of",
+    "if",
+    "include",
+    "include_silent",
+    "includedep",
+    "includedep_queue",
+    "includedep_flush",
+    "recipe_no_commands",
+    "recipe_start_normal",
+    "recipe_start_double_colon",
+    "recipe_start_pattern",
+    "recipe_commands",
+    "recipe_end",
+    "recipe_cancel_pattern",
+    "vpath",
+    "vpath_clear_pattern",
+    "vpath_clear_all",
+};
+
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
@@ -1028,14 +1089,14 @@ void kmk_cc_init(void)
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\t', KMK_CC_EVAL_CH_BLANK);
 
     /* space chars and zero terminator. */
-#define MY_SPACE_BITS KMK_CC_EVAL_CH_SPACE | KMK_CC_EVAL_CH_SPACE_OR_BACKSLASH | KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE
+#define MY_SPACE_BITS KMK_CC_EVAL_CH_SPACE | KMK_CC_EVAL_CH_SPACE_OR_BACKSLASH | KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, ' ',  MY_SPACE_BITS);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\t', MY_SPACE_BITS);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\n', MY_SPACE_BITS | KMK_CC_EVAL_CH_EOL_CANDIDATE);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\v', MY_SPACE_BITS);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\f', MY_SPACE_BITS);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\r', MY_SPACE_BITS | KMK_CC_EVAL_CH_EOL_CANDIDATE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\\', KMK_CC_EVAL_CH_SPACE_OR_BACKSLASH | KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\\', KMK_CC_EVAL_CH_SPACE_OR_BACKSLASH | KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE);
 #undef MY_SPACE_BITS
 
     /* keywords  */
@@ -1056,12 +1117,8 @@ void kmk_cc_init(void)
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'u', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* undefine */
 
     /* Assignment punctuation and recipe stuff. */
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '=', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, ':', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '<', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '?', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '+', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE);
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '%', KMK_CC_EVAL_CH_SPACE_OR_VAR_OR_RECIPE); /* uncertain... */
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '=', KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE);
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, ':', KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE);
 
     /* For locating the end of variable expansion.  */
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '(', KMK_CC_EVAL_CH_PAREN_OR_SLASH);
@@ -1075,6 +1132,16 @@ void kmk_cc_init(void)
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, ')', KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, ',', KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR);
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '$', KMK_CC_EVAL_CH_PAREN_COMMA_OR_DOLLAR);
+
+    /* Misc. */
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '$',  KMK_CC_EVAL_CH_DOLLAR);
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '\\', KMK_CC_EVAL_CH_BACKSLASH);
+
+    /*
+     * Check that the eval instruction names match up.
+     */
+    KMK_CC_ASSERT(strcmp(g_apszEvalInstrNms[kKmkCcEvalInstr_ifneq], "ifneq") == 0);
+    KMK_CC_ASSERT(strcmp(g_apszEvalInstrNms[kKmkCcEvalInstr_vpath_clear_all], "vpath_clear_all") == 0);
 }
 
 
@@ -1437,7 +1504,7 @@ static PKMKCCEXPCORE kmk_cc_block_alloc_exp_grow(PKMKCCBLOCK *ppBlockTail, uint3
 
     /* Emit jump. */
     pJump = (PKMKCCEXPJUMP)((char *)pOldBlock + pOldBlock->offNext);
-    pJump->Core.enmOpCode = kKmkCcExpInstr_Jump;
+    pJump->Core.enmOpcode = kKmkCcExpInstr_Jump;
     pJump->pNext = pRet;
     pOldBlock->offNext += sizeof(*pJump);
     KMK_CC_ASSERT(pOldBlock->offNext <= pOldBlock->cbBlock);
@@ -1507,7 +1574,7 @@ static PKMKCCEVALCORE kmk_cc_block_alloc_eval_grow(PKMKCCBLOCK *ppBlockTail, uin
 
     /* Emit jump. */
     pJump = (PKMKCCEVALJUMP)((char *)pOldBlock + pOldBlock->offNext);
-    pJump->Core.enmOpCode = kKmkCcEvalInstr_jump;
+    pJump->Core.enmOpcode = kKmkCcEvalInstr_jump;
     pJump->pNext = pRet;
     pOldBlock->offNext += sizeof(*pJump);
     KMK_CC_ASSERT(pOldBlock->offNext <= pOldBlock->cbBlock);
@@ -1574,7 +1641,7 @@ static void kmk_cc_block_free_list(PKMKCCBLOCK pBlockTail)
 static void kmk_cc_exp_emit_return(PKMKCCBLOCK *ppBlockTail)
 {
     PKMKCCEXPCORE pCore = kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pCore));
-    pCore->enmOpCode = kKmkCcExpInstr_Return;
+    pCore->enmOpcode = kKmkCcExpInstr_Return;
     kmk_cc_block_realign(ppBlockTail);
 }
 
@@ -1648,7 +1715,7 @@ static int kmk_cc_exp_emit_dyn_function(PKMKCCBLOCK *ppBlockTail, const char *ps
      */
     uint32_t            cActualArgs = cArgs <= cMaxArgs || !cMaxArgs ? cArgs : cMaxArgs;
     PKMKCCEXPDYNFUNC    pInstr  = (PKMKCCEXPDYNFUNC)kmk_cc_block_alloc_exp(ppBlockTail, KMKCCEXPDYNFUNC_SIZE(cActualArgs));
-    pInstr->FnCore.Core.enmOpCode = kKmkCcExpInstr_DynamicFunction;
+    pInstr->FnCore.Core.enmOpcode = kKmkCcExpInstr_DynamicFunction;
     pInstr->FnCore.cArgs          = cActualArgs;
     pInstr->FnCore.pfnFunction    = pfnFunction;
     pInstr->FnCore.pszFuncName    = pszFunction;
@@ -1749,7 +1816,7 @@ static void kmk_cc_exp_emit_plain_function(PKMKCCBLOCK *ppBlockTail, const char 
      */
     uint32_t            cActualArgs = cArgs <= cMaxArgs || !cMaxArgs ? cArgs : cMaxArgs;
     PKMKCCEXPPLAINFUNC  pInstr  = (PKMKCCEXPPLAINFUNC)kmk_cc_block_alloc_exp(ppBlockTail, KMKCCEXPPLAINFUNC_SIZE(cActualArgs));
-    pInstr->FnCore.Core.enmOpCode = kKmkCcExpInstr_PlainFunction;
+    pInstr->FnCore.Core.enmOpcode = kKmkCcExpInstr_PlainFunction;
     pInstr->FnCore.cArgs          = cActualArgs;
     pInstr->FnCore.pfnFunction    = pfnFunction;
     pInstr->FnCore.pszFuncName    = pszFunction;
@@ -1820,7 +1887,7 @@ static int kmk_cc_exp_emit_dyn_variable(PKMKCCBLOCK *ppBlockTail, const char *pc
     KMK_CC_ASSERT(cchNameExpr > 0);
 
     pInstr = (PKMKCCEXPDYNVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
-    pInstr->Core.enmOpCode = kKmkCcExpInstr_DynamicVariable;
+    pInstr->Core.enmOpcode = kKmkCcExpInstr_DynamicVariable;
 
     rc = kmk_cc_exp_compile_subprog(ppBlockTail, pchNameExpr, cchNameExpr, &pInstr->Subprog);
 
@@ -1854,7 +1921,7 @@ static void kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, co
             || pchEqual == pchEqual + 1)
         {
             PKMKCCEXPPLAINVAR pInstr = (PKMKCCEXPPLAINVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
-            pInstr->Core.enmOpCode = kKmkCcExpInstr_PlainVariable;
+            pInstr->Core.enmOpcode = kKmkCcExpInstr_PlainVariable;
             pInstr->pszName = strcache2_add(&variable_strcache, pchName, cchName);
         }
         else if (pchColon != pchName)
@@ -1871,7 +1938,7 @@ static void kmk_cc_exp_emit_plain_variable_maybe_sr(PKMKCCBLOCK *ppBlockTail, co
             PKMKCCEXPSRPLAINVAR pInstr;
 
             pInstr = (PKMKCCEXPSRPLAINVAR)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
-            pInstr->Core.enmOpCode = kKmkCcExpInstr_SearchAndReplacePlainVariable;
+            pInstr->Core.enmOpcode = kKmkCcExpInstr_SearchAndReplacePlainVariable;
             pInstr->pszName = strcache2_add(&variable_strcache, pchName, cchName2);
 
             /* Figure out the search pattern, unquoting percent chars.. */
@@ -1938,7 +2005,7 @@ static void kmk_cc_exp_emit_copy_string(PKMKCCBLOCK *ppBlockTail, const char *pc
     if (cchStr > 0)
     {
         PKMKCCEXPCOPYSTRING pInstr = (PKMKCCEXPCOPYSTRING)kmk_cc_block_alloc_exp(ppBlockTail, sizeof(*pInstr));
-        pInstr->Core.enmOpCode = kKmkCcExpInstr_CopyString;
+        pInstr->Core.enmOpcode = kKmkCcExpInstr_CopyString;
         pInstr->cchCopy = cchStr;
         pInstr->pachSrc = pchStr;
     }
@@ -2401,7 +2468,7 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
 {
     for (;;)
     {
-        switch (pInstrCore->enmOpCode)
+        switch (pInstrCore->enmOpcode)
         {
             case kKmkCcExpInstr_CopyString:
             {
@@ -2648,7 +2715,7 @@ static char *kmk_exec_expand_instruction_stream_to_var_buf(PKMKCCEXPCORE pInstrC
 
             default:
                 fatal(NULL, _("Unknown string expansion opcode: %d (%#x)"),
-                      (int)pInstrCore->enmOpCode, (int)pInstrCore->enmOpCode);
+                      (int)pInstrCore->enmOpcode, (int)pInstrCore->enmOpcode);
                 return NULL;
         }
     }
@@ -2905,13 +2972,14 @@ typedef enum kmk_cc_eval_token
 typedef struct kmk_cc_eval_word
 {
     /** The token word (lexeme).   */
-    const char         *pszWord;
+    const char         *pchWord;
     /** The length of the word (lexeme). */
     uint32_t            cchWord;
     /** The token classification. */
     KMKCCEVALTOKEN      enmToken;
 } KMKCCEVALWORD;
 typedef KMKCCEVALWORD *PKMKCCEVALWORD;
+typedef KMKCCEVALWORD const *PCKMKCCEVALWORD;
 
 
 /**
@@ -3065,7 +3133,7 @@ static void kmk_cc_eval_delete_compiler(PKMKCCEVALCOMPILER pCompiler)
         free(pCompiler->paEscEols);
 }
 
-static void kmk_cc_eval_fatal(PKMKCCEVALCOMPILER pCompiler, const char *pchWhere, const char *pszMsg, ...)
+static void KMK_CC_FN_NO_RETURN kmk_cc_eval_fatal(PKMKCCEVALCOMPILER pCompiler, const char *pchWhere, const char *pszMsg, ...)
 {
     va_list  va;
     unsigned iLine = pCompiler->iLine;
@@ -3116,7 +3184,8 @@ static void kmk_cc_eval_fatal(PKMKCCEVALCOMPILER pCompiler, const char *pchWhere
 }
 
 
-static void kmk_cc_eval_fatal_eol(PKMKCCEVALCOMPILER pCompiler, const char *pchEol, unsigned iLine, size_t offLine)
+static KMK_CC_FN_NO_RETURN void
+kmk_cc_eval_fatal_eol(PKMKCCEVALCOMPILER pCompiler, const char *pchEol, unsigned iLine, size_t offLine)
 {
     pCompiler->iLine   = iLine;
     pCompiler->offLine = offLine;
@@ -3124,6 +3193,15 @@ static void kmk_cc_eval_fatal_eol(PKMKCCEVALCOMPILER pCompiler, const char *pchE
     for (;;)
         kmk_cc_eval_fatal(pCompiler, pchEol, "Missing 2nd EOL character: found %#x instead of %#x\n",
                                    pchEol, pCompiler->chSecondEol);
+}
+
+
+static void kmk_cc_eval_warn(PKMKCCEVALCOMPILER pCompiler, const char *pchWhere, const char *pszMsg, ...)
+{
+    /** @todo warnings.   */
+    (void)pchWhere;
+    (void)pCompiler;
+    (void)pszMsg;
 }
 
 
@@ -3154,8 +3232,8 @@ static void kmk_cc_eval_compile_string_exp_subprog(PKMKCCEVALCOMPILER pCompiler,
  * @param   cchString   The length of the string.
  * @param   fPlain      Whether it's plain or not.  If not, we'll compile it.
  */
-static void kmk_cc_eval_do_subprogram_or_plain(PKMKCCEVALCOMPILER pCompiler, PKMKCCEXPSUBPROGORPLAIN pOperand,
-                                               const char *pszString, size_t cchString, int fPlain)
+static void kmk_cc_eval_init_subprogram_or_plain(PKMKCCEVALCOMPILER pCompiler, PKMKCCEXPSUBPROGORPLAIN pOperand,
+                                                 const char *pszString, size_t cchString, int fPlain)
 {
     pOperand->fPlainIsInVarStrCache  = 0;
     pOperand->bUser                  = 0;
@@ -3168,6 +3246,44 @@ static void kmk_cc_eval_do_subprogram_or_plain(PKMKCCEVALCOMPILER pCompiler, PKM
     }
     else
         kmk_cc_eval_compile_string_exp_subprog(pCompiler, pszString, cchString, &pOperand->u.Subprog);
+}
+
+/**
+ * Initializes an array of subprogram-or-plain (spp) operands from a word array.
+ *
+ * The words will be duplicated and the caller must therefore call
+ * kmk_cc_block_realign() when done (it's not done here as the caller may
+ * initialize several string operands and we don't want any unnecessary
+ * fragmentation).
+ *
+ * @param   pCompiler   The compiler state.
+ * @param   cWords      The number of words to copy.
+ * @param   paSrc       The source words.
+ * @param   paDst       The destination subprogram-or-plain array.
+ */
+static void kmk_cc_eval_init_spp_array_from_duplicated_words(PKMKCCEVALCOMPILER pCompiler, unsigned cWords,
+                                                             PKMKCCEVALWORD paSrc, PKMKCCEXPSUBPROGORPLAIN paDst)
+{
+    unsigned i;
+    for (i = 0; i < cWords; i++)
+    {
+        const char *pszCopy = kmk_cc_block_strdup(pCompiler->ppBlockTail, paSrc[i].pchWord, paSrc[i].cchWord);
+        paDst[i].fPlainIsInVarStrCache  = 0;
+        paDst[i].bUser                  = 0;
+        paDst[i].bUser2                 = 0;
+        if (paSrc[i].enmToken == kKmkCcEvalToken_WordWithDollar)
+        {
+            paDst[i].fSubprog    = 1;
+            kmk_cc_eval_compile_string_exp_subprog(pCompiler, pszCopy, paSrc[i].cchWord, &paDst[i].u.Subprog);
+        }
+        else
+        {
+            paDst[i].fSubprog    = 0;
+            paDst[i].u.Plain.cch = paSrc[i].cchWord;
+            paDst[i].u.Plain.psz = pszCopy;
+        }
+        KMK_CC_EVAL_DPRINTF(("  %s\n", pszCopy));
+    }
 }
 
 
@@ -3309,129 +3425,31 @@ static void kmk_cc_eval_do_subprogram_or_plain(PKMKCCEVALCOMPILER pCompiler, PKM
      || KMK_CC_EVAL_IS_SPACE(a_ch) \
      || ((a_ch) == '\\' && (a_ch2) == (a_pCompiler)->chFirstEol) )
 
-/**
- * Used to skip spaces after a word.
- *
- * We ASSUME that the first char is a space or that we've reached the end of the
- * string (a_cchLeft == 0).
- *
- * @param   a_pCompiler     The compiler instance data.
- * @param   a_pchWord       The current input position, this will be moved to
- *                          the start of the next word or end of the input.
- * @param   a_cchLeft       The number of chars left to parse.  This will be
- *                          updated.
- */
-#define KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(a_pCompiler, a_pchWord, a_cchLeft) \
-    do { \
-        /* Skip the first char which is known to be a space, end of line or end of input. */ \
-        if ((a_cchLeft) > 0) \
-        { \
-            char const chSkipBlanksFirst = *(a_pchWord); \
-            KMK_CC_ASSERT(KMK_CC_EVAL_IS_SPACE_AFTER_WORD(a_pCompiler, chSkipBlanksFirst, (a_pchWord)[1], a_cchLeft)); \
-            if (chSkipBlanksFirst != '\\') \
-            { \
-                (a_pchWord) += 1; \
-                (a_cchLeft) -= 1; \
-                \
-                /* Another space or escaped EOL? Then there are probably more then, so call worker function. */ \
-                if ((a_cchLeft) > 0) \
-                { \
-                    char const chSkipBlanksSecond = *(a_pchWord); \
-                    if (KMK_CC_EVAL_IS_SPACE_OR_BACKSLASH(chSkipBlanksSecond)) \
-                        (a_pchWord) = kmk_cc_eval_skip_spaces_after_word_slow(a_pchWord, &(a_cchLeft), \
-                                                                              chSkipBlanksSecond, a_pCompiler); \
-                } \
-            } \
-            else /* escape sequences can be complicated. */ \
-                (a_pchWord) = kmk_cc_eval_skip_spaces_after_word_slow(a_pchWord, &(a_cchLeft), \
-                                                                      chSkipBlanksFirst, a_pCompiler); \
-        } \
-    } while (0)
-
-
-//static int kmk_cc_eval_skip_esc_eol_slow(const char *pchWord, size_t cchLeft, PKMKCCEVALCOMPILER pCompiler,
-//                                                  const char **ppchWord, size_t *pcchLeft)
-//{
-//    KMK_CC_ASSERT(pchWord[0] == '\\');
-//    if (pCompiler->cEscEols)
-//    {
-//        size_t cchMin = 1 + pCompiler->chFirstEol;
-//        if (cchLeft >= cchMin)
-//        {
-//            /* The simple case, no extra backslashes. */
-//            if (pchWord[1] == pCompiler->chFirstEol)
-//            {
-//                *pcchLeft  = cchLeft - cchMin;
-//                *pchWord   = pchWord + cchMin;
-//                return 1;
-//            }
-//
-//            /* The unlikly case,  */
-//
-//        }
-//    }
-//    return 0;
-//}
-
 
 /**
- * The slow path of KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD.
- *
- * This is called to handles escaped EOL sequences, as these can involve
- * multiple backslashes and therefore doesn't led themselves well to inlined
- * code.
- *
- * The other case this is used for is to handle more than once space, since it's
- * likely that when there are two there might be more.  No point in inlining
- * that, better do some loop unrolling instead.
+ * Common path for space skipping worker functions when escaped EOLs may be
+ * involed.
  *
  * @returns Points to the first non-space character or end of input.
- * @param   pchWord             The current position. There is some kind of char
- * @param   pcchLeft            Pointer to the cchLeft variable, this is both
- *                              input and output.
- * @param   ch                  The current character.
- * @param   pCompiler           The compiler instance data.
+ * @param   pchWord         The current position. There is some kind of char
+ * @param   cchLeft         The current number of chars left to parse in the
+ *                          current line.
+ * @param   pcchLeft        Where to store the updated @a cchLeft value.
+ * @param   pCompiler       The compiler instance data.
  */
-static const char *kmk_cc_eval_skip_spaces_after_word_slow(const char *pchWord, size_t *pcchLeft, char ch,
-                                                                    PKMKCCEVALCOMPILER pCompiler)
+static const char *kmk_cc_eval_skip_spaces_with_esc_eol(const char *pchWord, size_t cchLeft, size_t *pcchLeft,
+                                                        PKMKCCEVALCOMPILER pCompiler)
 {
-    size_t cchLeft = *pcchLeft;
-
-    /*
-     * Skip the pending space or EOL found by the caller.  We need to
-     * confirm the EOL.
-     *
-     * Note! We only need to care about simple backslash+EOL sequences here
-     *       since we're either at the end of a validated word, or we've already
-     *       skipped one space.  In the former case, someone else has already
-     *       validated the escape esequence, in the latter case multiple
-     *       backslashes would indicate a new word that that we should return.
-     */
-    if (ch != '\\')
-    {
-        pchWord += 1;
-        cchLeft -= 1;
-    }
-    else if (   cchLeft >= pCompiler->cchEscEolSeq
-             && pchWord[1] == pCompiler->chFirstEol)
-    {
-        KMK_CC_ASSERT(pCompiler->cchEolSeq == 1 || pchWord[2] == pCompiler->chSecondEol);
-        pchWord += pCompiler->cchEscEolSeq;
-        cchLeft -= pCompiler->cchEscEolSeq;
-        pCompiler->iEscEol++;
-    }
-    else
-        return pchWord;
-
     /*
      * Skip further spaces. We unrolls 4 loops here.
      * ASSUMES cchEscEolSeq is either 2 or 3!
      */
     KMK_CC_ASSERT(pCompiler->cchEscEolSeq == 2 || pCompiler->cchEscEolSeq == 3);
+    KMK_CC_ASSERT(pCompiler->iEscEol < pCompiler->cEscEols);
     while (cchLeft >= 4)
     {
         /* First char. */
-        ch = pchWord[0];
+        char ch = pchWord[0];
         if (KMK_CC_EVAL_IS_SPACE(ch))
         { /* maybe likely */ }
         else if (   ch == '\\'
@@ -3513,7 +3531,7 @@ static const char *kmk_cc_eval_skip_spaces_after_word_slow(const char *pchWord, 
     while (cchLeft > 0)
     {
         /* First char. */
-        ch = *pchWord;
+        char ch = *pchWord;
         if (KMK_CC_EVAL_IS_SPACE(ch))
         {
             pchWord += 1;
@@ -3536,74 +3554,307 @@ static const char *kmk_cc_eval_skip_spaces_after_word_slow(const char *pchWord, 
 }
 
 
-#if 0
 /**
- * Used to shed trailing spaces in a string by decrementing @ a_cchLeft.
+ * Common path for space skipping worker functions when no escaped EOLs need
+ * considering.
+ *
+ * @returns Points to the first non-space character or end of input.
+ * @param   pchWord         The current position. There is some kind of char
+ * @param   cchLeft         The current number of chars left to parse in the
+ *                          current line.
+ * @param   pcchLeft        Where to store the updated @a cchLeft value.
+ * @param   pCompiler       The compiler instance data.
+ */
+static const char *kmk_cc_eval_skip_spaces_without_esc_eol(const char *pchWord, size_t cchLeft, size_t *pcchLeft,
+                                                           PKMKCCEVALCOMPILER pCompiler)
+{
+    /*
+     * 4x loop unroll.
+     */
+    while (cchLeft >= 4)
+    {
+        if (KMK_CC_EVAL_IS_SPACE(pchWord[0]))
+        {
+            if (KMK_CC_EVAL_IS_SPACE(pchWord[1]))
+            {
+                if (KMK_CC_EVAL_IS_SPACE(pchWord[2]))
+                {
+                    if (KMK_CC_EVAL_IS_SPACE(pchWord[3]))
+                    {
+                        pchWord += 4;
+                        cchLeft -= 4;
+                    }
+                    else
+                    {
+                        *pcchLeft = cchLeft - 3;
+                        return pchWord + 3;
+                    }
+                }
+                else
+                {
+                    *pcchLeft = cchLeft - 2;
+                    return pchWord + 2;
+                }
+            }
+            else
+            {
+                *pcchLeft = cchLeft - 1;
+                return pchWord + 1;
+            }
+        }
+        else
+        {
+            *pcchLeft = cchLeft;
+            return pchWord;
+        }
+    }
+
+    /*
+     * The last 3. Not entirely sure if this yield good code.
+     */
+    switch (cchLeft & 3)
+    {
+        case 3:
+            if (!KMK_CC_EVAL_IS_SPACE(*pchWord))
+                break;
+            pchWord++;
+            cchLeft--;
+        case 2:
+            if (!KMK_CC_EVAL_IS_SPACE(*pchWord))
+                break;
+            pchWord++;
+            cchLeft--;
+        case 1:
+            if (!KMK_CC_EVAL_IS_SPACE(*pchWord))
+                break;
+            pchWord++;
+            cchLeft--;
+        case 0:
+            break;
+    }
+
+    *pcchLeft = cchLeft;
+    return pchWord;
+}
+
+
+/**
+ * Used to skip spaces after a word.
+ *
+ * We ASSUME that the first char is a space or that we've reached the end of the
+ * string (a_cchLeft == 0).
  *
  * @param   a_pCompiler     The compiler instance data.
- * @param   a_pchWord       The current input position, this will not be
- *                          changed.
+ * @param   a_pchWord       The current input position, this will be moved to
+ *                          the start of the next word or end of the input.
  * @param   a_cchLeft       The number of chars left to parse.  This will be
- *                          updated if there are trailing spaces.
+ *                          updated.
  */
-#define KMK_CC_EVAL_SHED_TRAILING_SPACES(a_pCompiler, a_pchWord, a_cchLeft) \
+#define KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(a_pCompiler, a_pchWord, a_cchLeft) \
+    do { \
+        /* Skip the first char which is known to be a space, end of line or end of input. */ \
+        if ((a_cchLeft) > 0) \
+        { \
+            char const chSkipBlanksFirst = *(a_pchWord); \
+            KMK_CC_ASSERT(KMK_CC_EVAL_IS_SPACE_AFTER_WORD(a_pCompiler, chSkipBlanksFirst, (a_pchWord)[1], a_cchLeft)); \
+            if (chSkipBlanksFirst != '\\') \
+            { \
+                (a_pchWord) += 1; \
+                (a_cchLeft) -= 1; \
+                \
+                /* Another space or escaped EOL? Then there are probably more then, so call worker function. */ \
+                if ((a_cchLeft) > 0) \
+                { \
+                    char const chSkipBlanksSecond = *(a_pchWord); \
+                    if (KMK_CC_EVAL_IS_SPACE_OR_BACKSLASH(chSkipBlanksSecond)) \
+                        (a_pchWord) = kmk_cc_eval_skip_spaces_after_word_slow(a_pchWord, &(a_cchLeft), \
+                                                                              chSkipBlanksSecond, a_pCompiler); \
+                } \
+            } \
+            else /* escape sequences can be complicated. */ \
+                (a_pchWord) = kmk_cc_eval_skip_spaces_after_word_slow(a_pchWord, &(a_cchLeft), \
+                                                                      chSkipBlanksFirst, a_pCompiler); \
+        } \
+    } while (0)
+
+/**
+ * The slow path of KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD.
+ *
+ * This is called to handles escaped EOL sequences, as these can involve
+ * multiple backslashes and therefore doesn't led themselves well to inlined
+ * code.
+ *
+ * The other case this is used for is to handle more than once space, since it's
+ * likely that when there are two there might be more.  No point in inlining
+ * that, better do some loop unrolling instead.
+ *
+ * @returns Points to the first non-space character or end of input.
+ * @param   pchWord             The current position. There is some kind of char
+ * @param   pcchLeft            Pointer to the cchLeft variable, this is both
+ *                              input and output.
+ * @param   ch                  The current character.
+ * @param   pCompiler           The compiler instance data.
+ */
+static const char *kmk_cc_eval_skip_spaces_after_word_slow(const char *pchWord, size_t *pcchLeft, char ch,
+                                                           PKMKCCEVALCOMPILER pCompiler)
+{
+    size_t cchLeft = *pcchLeft;
+
+    /*
+     * It's all very simple when we don't have to consider escaped EOLs.
+     */
+    if (pCompiler->iEscEol >= pCompiler->cEscEols)
+    {
+        if (ch != '\\')
+        {
+            pchWord += 1;
+            cchLeft -= 1;
+        }
+        else
+            return pchWord;
+        return kmk_cc_eval_skip_spaces_without_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+    }
+
+    /*
+     * Skip the pending space or EOL found by the caller.  We need to
+     * confirm the EOL.
+     *
+     * Note! We only need to care about simple backslash+EOL sequences here
+     *       since we're either at the end of a validated word, or we've already
+     *       skipped one space.  In the former case, someone else has already
+     *       validated the escape esequence, in the latter case multiple
+     *       backslashes would indicate a new word that that we should return.
+     */
+    if (ch != '\\')
+    {
+        pchWord += 1;
+        cchLeft -= 1;
+    }
+    else if (   cchLeft >= pCompiler->cchEscEolSeq
+             && pchWord[1] == pCompiler->chFirstEol)
+    {
+        KMK_CC_ASSERT(pCompiler->cchEolSeq == 1 || pchWord[2] == pCompiler->chSecondEol);
+        pchWord += pCompiler->cchEscEolSeq;
+        cchLeft -= pCompiler->cchEscEolSeq;
+        pCompiler->iEscEol++;
+
+        if (pCompiler->iEscEol < pCompiler->cEscEols)
+        { /* likely */ }
+        else return kmk_cc_eval_skip_spaces_without_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+    }
+    else
+        return pchWord;
+    return kmk_cc_eval_skip_spaces_with_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+}
+
+
+/**
+ * Skip zero or more spaces.
+ *
+ * This macro deals with a single space, if there are more or we're hittin some
+ * possible escaped EOL sequence, work is deferred to a worker function.
+ *
+ * @param   a_pCompiler The compiler state.
+ * @param   a_pchWord   The current input position. Advanced past spaces.
+ * @param   a_cchLeft   The amount of input left to parse. Will be updated.
+ */
+#define KMK_CC_EVAL_SKIP_SPACES(a_pCompiler, a_pchWord, a_cchLeft) \
     do { \
         if ((a_cchLeft) > 0) \
         { \
-            char const chShedTrailing1 = (a_pchWord)[(a_cchLeft) - 1]; \
-            if (KMK_CC_EVAL_IS_SPACE(chShedTrailing1)) \
+            char chSkipSpaces = *(a_pchWord); \
+            if (KMK_CC_EVAL_IS_SPACE_OR_BACKSLASH(chSkipSpaces)) \
             { \
-                /* If there are two or more, or any of these are potential EOL chars, call worker. */ \
-                if (!KMK_CC_EVAL_IS_EOL_CANDIDATE(chShedTrailing1)) \
+                if (chSkipSpaces != '\\') \
                 { \
+                    (a_pchWord) += 1; \
                     (a_cchLeft) -= 1; \
-                    if ((a_cchLeft) > 0) \
-                    { \
-                        char const chShedTrailing2 = (a_pchWord)[(a_cchLeft) - 1]; \
-                        if (KMK_CC_EVAL_IS_SPACE(chShedTrailing)) \
-                            (a_cchLeft) = kmk_cc_eval_shed_trailing_spaces_slow(a_pchWord, (a_cchLeft), \
-                                                                                         chShedTrailing2, a_pCompiler); \
-                    } \
+                    chSkipSpaces = *(a_pchWord); \
+                    if (KMK_CC_EVAL_IS_SPACE_OR_BACKSLASH(chSkipSpaces)) \
+                        (a_pchWord) = kmk_cc_eval_skip_spaces_slow(a_pchWord, &(a_cchLeft), chSkipSpaces, a_pCompiler); \
                 } \
                 else \
-                    (a_cchWord) = kmk_cc_eval_shed_trailing_spaces_slow(a_pchWord, (a_cchLeft), \
-                                                                                 chShedTrailing1, a_pCompiler); \
+                    (a_pchWord) = kmk_cc_eval_skip_spaces_slow(a_pchWord, &(a_cchLeft), chSkipSpaces, a_pCompiler); \
             } \
         } \
     } while (0)
 
 
-
 /**
- * The slow path of KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD.
- *
- * It's called when a space or backslash is encountered as the 2nd character.
- * A second space is likely to be followed by more spaces, while an escaped
- * newline (if it checks out) is very likely to be followed by more spaces or
- * tabs before we get to anything worthwhile.  Also, checking for an esacped
- * end-of-line character is a bit tedious. (It could be worse, though, as we
- * know that any EOL sequence inside the text area we're currently working on
- * must be escaped.)
+ * Worker for KMK_CC_EVAL_SKIP_SPACES.
  *
  * @returns Points to the first non-space character or end of input.
  * @param   pchWord             The current position. There is some kind of char
- * @param   cchLeft             The number of chars left to parse at @a pchWord.
- * @param   ch                  The current tail character.
+ * @param   pcchLeft            Pointer to the cchLeft variable, this is both
+ *                              input and output.
+ * @param   ch                  The current character.
  * @param   pCompiler           The compiler instance data.
  */
-static size_t kmk_cc_eval_shed_trailing_spaces_slow(const char *pchWord, size_t cchLeft, char ch,
-                                                    PKMKCCEVALCOMPILER pCompiler)
+static const char *kmk_cc_eval_skip_spaces_slow(const char *pchWord, size_t *pcchLeft, char ch, PKMKCCEVALCOMPILER pCompiler)
 {
-    for (;;)
-    {
-        if (KMK_CC_EVAL_IS_EOL_CANDIDATE(chShedTrailing1))
-        {
-
-        }
-
-    }
-}
+    size_t cchLeft = *pcchLeft;
+#ifdef KMK_CC_STRICT
+    size_t offWordCcStrict = pchWord - pCompiler->pszContent;
 #endif
+    KMK_CC_ASSERT(cchLeft > 0);
+    KMK_CC_ASSERT(cchLeft <= pCompiler->cchLine);
+    KMK_CC_ASSERT(*pchWord == ch);
+    KMK_CC_ASSERT(KMK_CC_EVAL_IS_SPACE_OR_BACKSLASH(ch));
+    KMK_CC_ASSERT(offWordCcStrict >= pCompiler->offLine);
+    KMK_CC_ASSERT(offWordCcStrict < pCompiler->offLine + pCompiler->cchLine);
+    KMK_CC_ASSERT(   pCompiler->iEscEol >= pCompiler->cEscEols
+                  || offWordCcStrict <= pCompiler->paEscEols[pCompiler->iEscEol].offEsc);
+    KMK_CC_ASSERT(   pCompiler->iEscEol >= pCompiler->cEscEols
+                  || pCompiler->iEscEol == 0
+                  || offWordCcStrict >= pCompiler->paEscEols[pCompiler->iEscEol - 1].offEol + pCompiler->cchEolSeq);
+
+    /*
+     * If we don't need to consider escaped EOLs, things are much much simpler.
+     */
+    if (pCompiler->iEscEol >= pCompiler->cEscEols)
+    {
+        if (ch != '\\')
+        {
+            pchWord++;
+            cchLeft--;
+        }
+        else
+            return pchWord;
+        return kmk_cc_eval_skip_spaces_without_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+    }
+
+    /*
+     * Possible escaped EOL complications.
+     */
+    if (ch != '\\')
+    {
+        pchWord++;
+        cchLeft--;
+    }
+    else
+    {
+        size_t          cchSkip;
+        size_t          offWord;
+        unsigned        iEscEol = pCompiler->iEscEol;
+        if (iEscEol >= pCompiler->cEscEols)
+            return pchWord;
+
+        offWord = pchWord - pCompiler->pszContent;
+        if (offWord < pCompiler->paEscEols[iEscEol].offEsc)
+            return pchWord;
+        KMK_CC_ASSERT(offWord == pCompiler->paEscEols[iEscEol].offEsc);
+
+        cchSkip  = pCompiler->paEscEols[iEscEol].offEol + pCompiler->cchEolSeq - offWord;
+        pchWord += cchSkip;
+        cchLeft -= cchSkip;
+        pCompiler->iEscEol = ++iEscEol;
+
+        if (iEscEol < pCompiler->cEscEols)
+        { /* likely */ }
+        else return kmk_cc_eval_skip_spaces_without_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+    }
+    return kmk_cc_eval_skip_spaces_with_esc_eol(pchWord, cchLeft, pcchLeft, pCompiler);
+}
 
 
 /**
@@ -3646,87 +3897,83 @@ static const char *kmk_cc_eval_skip_var_name(PKMKCCEVALCOMPILER pCompiler, const
     while (off < offLineEnd)
     {
         char ch = pszContent[off];
-        if (!KMK_CC_EVAL_IS_SPACE_OR_VAR_OR_RECIPE(ch))
+        if (!KMK_CC_EVAL_IS_SPACE_DOLLAR_OR_SLASH(ch))
             off++;
-        else
+        else if (KMK_CC_EVAL_IS_SPACE(ch))
+            break;
+        else if (ch == '$')
         {
-            if (KMK_CC_EVAL_IS_SPACE(ch))
-                break;
-
-            if (ch == '$')
+            off++;
+            if (off < offLineEnd)
             {
-                off++;
-                if (off < offLineEnd)
+                char const chOpen = pszContent[off];
+                if (chOpen == '(' || chOpen == '{')
                 {
-                    char const chOpen = pszContent[off];
-                    if (chOpen == '(' || chOpen == '{')
+                    /*
+                     * Got a $(VAR) or ${VAR} to deal with here.  This may
+                     * include nested variable references and span multiple
+                     * lines (at least for function calls).
+                     *
+                     * We scan forward till we've found the corresponding
+                     * closing parenthesis, considering any open parentheses
+                     * of the same kind as worth counting, even if there are
+                     * no dollar preceeding them, just like GNU make does.
+                     */
+                    size_t const offStart = off - 1;
+                    char const   chClose  = chOpen == '(' ? ')' : '}';
+                    unsigned     cOpen    = 1;
+                    off++;
+                    for (;;)
                     {
-                        /*
-                         * Got a $(VAR) or ${VAR} to deal with here.  This may
-                         * include nested variable references and span multiple
-                         * lines (at least for function calls).
-                         *
-                         * We scan forward till we've found the corresponding
-                         * closing parenthesis, considering any open parentheses
-                         * of the same kind as worth counting, even if there are
-                         * no dollar preceeding them, just like GNU make does.
-                         */
-                        size_t const offStart = off - 1;
-                        char const   chClose  = chOpen == '(' ? ')' : '}';
-                        unsigned     cOpen    = 1;
-                        for (;;)
+                        if (off < offLineEnd)
                         {
-                            if (off < offLineEnd)
+                            ch = pszContent[off];
+                            if (!(KMK_CC_EVAL_IS_PAREN_OR_SLASH(ch)))
+                                off++;
+                            else
                             {
-                                ch = pszContent[off];
-                                if (!(KMK_CC_EVAL_IS_PAREN_OR_SLASH(ch)))
-                                    off++;
-                                else
+                                off++;
+                                if (ch == chClose)
                                 {
-                                    off++;
-                                    if (ch == chClose)
-                                    {
-                                        if (--cOpen == 0)
-                                            break;
-                                    }
-                                    else if (ch == chOpen)
-                                        cOpen++;
-                                    else if (   ch == '\\'
-                                             && iEscEol < pCompiler->cEscEols
-                                             && off == pCompiler->paEscEols[iEscEol].offEsc)
-                                    {
-                                        off = pCompiler->paEscEols[iEscEol].offEsc + pCompiler->cchEolSeq;
-                                        iEscEol++;
-                                        pCompiler->iEscEol = iEscEol;
-                                    }
+                                    if (--cOpen == 0)
+                                        break;
+                                }
+                                else if (ch == chOpen)
+                                    cOpen++;
+                                else if (   ch == '\\'
+                                         && iEscEol < pCompiler->cEscEols
+                                         && off == pCompiler->paEscEols[iEscEol].offEsc)
+                                {
+                                    off = pCompiler->paEscEols[iEscEol].offEol + pCompiler->cchEolSeq;
+                                    pCompiler->iEscEol = ++iEscEol;
                                 }
                             }
-                            else if (cOpen == 1)
-                                kmk_cc_eval_fatal(pCompiler, &pszContent[offStart],
-                                                  "Variable reference is missing '%c'", chClose);
-                            else
-                                kmk_cc_eval_fatal(pCompiler, &pszContent[offStart],
-                                                  "%u variable references are missing '%c'", cOpen, chClose);
                         }
+                        else if (cOpen == 1)
+                            kmk_cc_eval_fatal(pCompiler, &pszContent[offStart],
+                                              "Variable reference is missing '%c'", chClose);
+                        else
+                            kmk_cc_eval_fatal(pCompiler, &pszContent[offStart],
+                                              "%u variable references are missing '%c'", cOpen, chClose);
                     }
-                    /* Single char variable name. */
-                    else if (!KMK_CC_EVAL_IS_SPACE(chOpen))
-                    {  /* likely */ }
-                    else
-                        kmk_cc_eval_fatal(pCompiler, &pszContent[off], "Expected variable name after '$', not end of line");
                 }
+                /* Single char variable name. */
+                else if (!KMK_CC_EVAL_IS_SPACE(chOpen))
+                {  /* likely */ }
                 else
                     kmk_cc_eval_fatal(pCompiler, &pszContent[off], "Expected variable name after '$', not end of line");
-                fPlain = 0;
             }
-            /* Deal with potential escaped EOL. */
-            else if (   ch != '\\'
-                     || iEscEol >= pCompiler->cEscEols
-                     || off != pCompiler->paEscEols[iEscEol].offEsc )
-                off++;
             else
-                break;
+                kmk_cc_eval_fatal(pCompiler, &pszContent[off], "Expected variable name after '$', not end of line");
+            fPlain = 0;
         }
+        /* Deal with potential escaped EOL. */
+        else if (   ch != '\\'
+                 || iEscEol >= pCompiler->cEscEols
+                 || off != pCompiler->paEscEols[iEscEol].offEsc )
+            off++;
+        else
+            break;
     }
 
     *pcchLeft = offLineEnd - off;
@@ -3857,6 +4104,137 @@ static void kmk_cc_eval_copy_prepped_command_line(PKMKCCEVALCOMPILER pCompiler, 
     }
 }
 #endif /* unused atm */
+
+
+/**
+ * Helper for ensuring that we've got sufficient number of words allocated.
+ */
+#define KMK_CC_EVAL_ENSURE_WORDS(a_pCompiler, a_cRequiredWords) \
+    do { \
+        if ((a_cRequiredWords) < (a_pCompiler)->cWordsAllocated) \
+        { /* likely */ } \
+        else \
+        { \
+            unsigned cEnsureWords = ((a_cRequiredWords) + 3 /*15*/) & ~(unsigned)3/*15*/; \
+            KMK_CC_ASSERT((a_cRequiredWords) < 0x8000); \
+            (a_pCompiler)->paWords = (PKMKCCEVALWORD)xmalloc(cEnsureWords * sizeof((a_pCompiler)->paWords)[0]); \
+        } \
+    } while (0)
+
+/**
+ * Parses the remainder of the line into simple words.
+ *
+ * The resulting words are classified as either kKmkCcEvalToken_WordPlain or
+ * kKmkCcEvalToken_WordWithDollar.
+ *
+ * @returns Number of words.
+ * @param   pCompiler   The compiler state.
+ * @param   pchWord     Where to start, we expect this to be at a word.
+ * @param   cchLeft     The number of chars left to parse on this line.
+ *                      This is expected to be non-zero.
+ */
+static unsigned kmk_cc_eval_parse_words(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft)
+{
+    unsigned iEscEol  = pCompiler->iEscEol;
+    unsigned cEscEols = pCompiler->cEscEols;
+    unsigned cWords   = 0;
+
+    /* Precoditions. */
+    KMK_CC_ASSERT(cchLeft > 0);
+    KMK_CC_ASSERT(!KMK_CC_EVAL_IS_SPACE(*pchWord));
+
+    /*
+     * If we don't have to deal with escaped EOLs, the find-end-of word search
+     * becomes a little bit simpler.  Since this function will be used a lot
+     * for simple lines with single words, this could maybe save a nano second
+     * or two.
+     */
+    if (iEscEol >= cEscEols)
+    {
+        do
+        {
+            size_t          cchSkipAfter = 0;
+            size_t          cchWord      = 1;
+            KMKCCEVALTOKEN  enmToken     = kKmkCcEvalToken_WordPlain;
+
+            /* Find the end of the current word. */
+            while (cchWord < cchLeft)
+            {
+                char ch = pchWord[cchWord];
+                if (!KMK_CC_EVAL_IS_SPACE_OR_DOLLAR(ch))
+                { /* likely */ }
+                else if (ch == '$')
+                    enmToken = kKmkCcEvalToken_WordWithDollar;
+                else
+                    break;
+                cchWord++;
+            }
+
+            /* Add the word. */
+            KMK_CC_EVAL_ENSURE_WORDS(pCompiler, cWords + 1);
+            pCompiler->paWords[cWords].pchWord  = pchWord;
+            pCompiler->paWords[cWords].cchWord  = cchWord;
+            pCompiler->paWords[cWords].enmToken = enmToken;
+            cWords++;
+
+            /* Skip the work and any trailing blanks. */
+            cchWord += cchSkipAfter;
+            pchWord += cchWord;
+            cchLeft -= cchWord;
+            KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+        } while (cchLeft > 0);
+    }
+    /*
+     * Have to deal with escaped EOLs.
+     */
+    else
+    {
+        const char *pszContent = pCompiler->pszContent;
+        do
+        {
+            size_t          cchSkipAfter = 0;
+            size_t          cchWord      = 1;
+            KMKCCEVALTOKEN  enmToken     = kKmkCcEvalToken_WordPlain;
+
+            /* Find the end of the current word. */
+            while (cchWord < cchLeft)
+            {
+                char ch = pchWord[cchWord];
+                if (!KMK_CC_EVAL_IS_SPACE_DOLLAR_OR_SLASH(ch))
+                { /* likely */ }
+                else if (ch == '$')
+                    enmToken = kKmkCcEvalToken_WordWithDollar;
+                else if (ch != '\\')
+                    break;
+                else if ((size_t)(&pchWord[cchWord] - pszContent) == pCompiler->paEscEols[iEscEol].offEsc)
+                {
+                    cchSkipAfter = pCompiler->paEscEols[iEscEol].offEol - pCompiler->paEscEols[iEscEol].offEsc
+                                 + pCompiler->cchEolSeq;
+                    iEscEol++;
+                    break;
+                }
+                cchWord++;
+            }
+
+            /* Add the word. */
+            KMK_CC_EVAL_ENSURE_WORDS(pCompiler, cWords + 1);
+            pCompiler->paWords[cWords].pchWord  = pchWord;
+            pCompiler->paWords[cWords].cchWord  = cchWord;
+            pCompiler->paWords[cWords].enmToken = enmToken;
+            cWords++;
+
+            /* Skip the work and any trailing blanks. */
+            cchWord += cchSkipAfter;
+            pchWord += cchWord;
+            cchLeft -= cchWord;
+            KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+        } while (cchLeft > 0);
+    }
+    pCompiler->cWords = cWords;
+    return cWords;
+}
+
+
 
 
 /**
@@ -4153,10 +4531,8 @@ static size_t kmk_cc_eval_prep_normal_line_ex(PKMKCCEVALCOMPILER pCompiler, cons
  *                                  word.
  * @param   cchLeft                 The number of chars left on the current line
  *                                  starting at @a pchWord.
- * @param   fStripTrailingSpaces    Whether to strip trailing spaces.
  */
-static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const char * const pchWord, size_t cchLeft,
-                                           int fStripTrailingSpaces)
+static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const char * const pchWord, size_t cchLeft)
 {
     size_t          cchRet;
     unsigned        iEscEol  = pCompiler->iEscEol;
@@ -4173,9 +4549,6 @@ static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const c
     if (iEscEol >= cEscEols)
     {
         cchRet = cchLeft;
-        if (fStripTrailingSpaces)
-            while (cchRet > 0 && KMK_CC_IS_SPACE_CH(pchWord[cchRet - 1]))
-                cchRet--;
 
         KMK_CC_EVAL_ENSURE_STRCOPY_SEGS(pCompiler, 1);
         pCompiler->cStrCopySegs = 1;
@@ -4202,7 +4575,7 @@ static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const c
         KMK_CC_ASSERT(offWord + cchLeft <= pCompiler->offLine + pCompiler->cchLine);
         KMK_CC_ASSERT(offWord + cchLeft <= pCompiler->cchContent);
         KMK_CC_ASSERT(offWord <  pCompiler->paEscEols[iEscEol].offEsc);
-        KMK_CC_ASSERT(offWord >= (iEscEol ? pCompiler->paEscEols[cEscEols - 1].offEol + pCompiler->cchEolSeq : pCompiler->offLine));
+        KMK_CC_ASSERT(offWord >= (iEscEol ? pCompiler->paEscEols[iEscEol - 1].offEol + pCompiler->cchEolSeq : pCompiler->offLine));
 
         /* Make sure we've got more than enough segments to fill in. */
         KMK_CC_EVAL_ENSURE_STRCOPY_SEGS(pCompiler, cEscEols - iEscEol + 2);
@@ -4220,6 +4593,7 @@ static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const c
         cchRet        = offEsc - offWord;
         pCompiler->paStrCopySegs[cSegs].cchSrcAndPrependSpace = cchRet;
         pCompiler->paStrCopySegs[cSegs].pchSrc                = pchWord;
+        cSegs++;
 
         offWord = pCompiler->paEscEols[iEscEol].offEol + pCompiler->cchEolSeq;
         iEscEol++;
@@ -4262,9 +4636,6 @@ static size_t kmk_cc_eval_prep_normal_line(PKMKCCEVALCOMPILER pCompiler, const c
 
         if (offWord < offEsc)
         {
-            if (fStripTrailingSpaces)
-                while (KMK_CC_EVAL_IS_SPACE(pszContent[offEsc - 1]))
-                    offEsc--;
             cchSeg = offEsc - offWord;
             pCompiler->paStrCopySegs[cSegs].cchSrcAndPrependSpace = fPendingSpace ? -(ssize_t)cchSeg : (ssize_t)cchSeg;
             cchRet += cchSeg + fPendingSpace;
@@ -4330,12 +4701,14 @@ static int kmk_cc_eval_do_if(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, 
     KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
     if (cchLeft)
     {
-        size_t           cchExpr = kmk_cc_eval_prep_normal_line(pCompiler, pchWord, cchLeft, 1 /*fStripTrailingSpaces*/);
-        PKMKCCEVALIFEXPR pInstr  = (PKMKCCEVALIFEXPR)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
-                                                                             KMKCCEVALIFEXPR_SIZE(cchExpr));
+        PKMKCCEVALIFEXPR pInstr;
+        size_t           cchExpr = kmk_cc_eval_prep_normal_line(pCompiler, pchWord, cchLeft);
+        kmk_cc_eval_strip_right_v(pCompiler->paStrCopySegs, &pCompiler->cStrCopySegs, &cchExpr);
+
+        pInstr = (PKMKCCEVALIFEXPR)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, KMKCCEVALIFEXPR_SIZE(cchExpr));
         kmk_cc_eval_strcpyv(pInstr->szExpr, pCompiler->paStrCopySegs, pCompiler->cStrCopySegs, cchExpr);
         pInstr->cchExpr = cchExpr;
-        pInstr->IfCore.Core.enmOpCode = kKmkCcEvalInstr_if;
+        pInstr->IfCore.Core.enmOpcode = kKmkCcEvalInstr_if;
         pInstr->IfCore.Core.iLine     = pCompiler->iLine;
         kmk_cc_eval_do_if_core(pCompiler, &pInstr->IfCore, fInElse);
     }
@@ -4368,6 +4741,10 @@ static int kmk_cc_eval_do_ifdef(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
         unsigned const      iSavedEscEol = pCompiler->iEscEol;
         const char * const  pchVarNm     = pchWord;
         int                 fPlain;
+/** @todo this isn't quite right. It is a variable name, correct. However, it
+ *        doesn't need to subscribe entirely to the rules of a variable name.
+ *        Just find the end of the word, taking variable refs into account,
+ *        and consider it what we need. */
         pchWord = kmk_cc_eval_skip_var_name(pCompiler, pchWord, cchLeft, &cchLeft, &fPlain);
         KMK_CC_ASSERT(pCompiler->iEscEol == iSavedEscEol || !fPlain);
         if (fPlain)
@@ -4375,7 +4752,7 @@ static int kmk_cc_eval_do_ifdef(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
             size_t const            cchVarNm = pchWord - pchVarNm;
             PKMKCCEVALIFDEFPLAIN    pInstr;
             pInstr = (PKMKCCEVALIFDEFPLAIN)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
-            pInstr->IfCore.Core.enmOpCode = fPositiveStmt ? kKmkCcEvalInstr_ifdef_plain : kKmkCcEvalInstr_ifndef_plain;
+            pInstr->IfCore.Core.enmOpcode = fPositiveStmt ? kKmkCcEvalInstr_ifdef_plain : kKmkCcEvalInstr_ifndef_plain;
             pInstr->IfCore.Core.iLine     = pCompiler->iLine;
             pInstr->pszName = strcache2_add(&variable_strcache, pchVarNm, cchVarNm);
             kmk_cc_eval_do_if_core(pCompiler, &pInstr->IfCore, fInElse);
@@ -4387,7 +4764,7 @@ static int kmk_cc_eval_do_ifdef(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
             size_t                  cchCopy;
             char                   *pszCopy;
             pCompiler->iEscEol = iSavedEscEol;
-            cchCopy = kmk_cc_eval_prep_normal_line(pCompiler, pchVarNm, cchVarNm, 0 /*fStripTrailingSpaces*/);
+            cchCopy = kmk_cc_eval_prep_normal_line(pCompiler, pchVarNm, cchVarNm);
 
             pInstr = (PKMKCCEVALIFDEFDYNAMIC)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
 
@@ -4395,7 +4772,7 @@ static int kmk_cc_eval_do_ifdef(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
             pszCopy = kmk_cc_eval_strdup_prepped(pCompiler, cchCopy);
             kmk_cc_block_realign(pCompiler->ppBlockTail);
 
-            pInstr->IfCore.Core.enmOpCode = fPositiveStmt ? kKmkCcEvalInstr_ifdef_dynamic : kKmkCcEvalInstr_ifndef_dynamic;
+            pInstr->IfCore.Core.enmOpcode = fPositiveStmt ? kKmkCcEvalInstr_ifdef_dynamic : kKmkCcEvalInstr_ifndef_dynamic;
             pInstr->IfCore.Core.iLine     = pCompiler->iLine;
             kmk_cc_eval_compile_string_exp_subprog(pCompiler, pszCopy, cchCopy, &pInstr->NameSubprog);
 
@@ -4597,10 +4974,10 @@ static int kmk_cc_eval_do_ifeq(PKMKCCEVALCOMPILER pCompiler, const char *pchWord
         /*
          * Initialize the instruction.
          */
-        pInstr->IfCore.Core.enmOpCode = fPositiveStmt ? kKmkCcEvalInstr_ifeq : kKmkCcEvalInstr_ifneq;
+        pInstr->IfCore.Core.enmOpcode = fPositiveStmt ? kKmkCcEvalInstr_ifeq : kKmkCcEvalInstr_ifneq;
         pInstr->IfCore.Core.iLine     = pCompiler->iLine;
-        kmk_cc_eval_do_subprogram_or_plain(pCompiler, &pInstr->Left, Left.pszCopy, Left.cchCopy, Left.fPlain);
-        kmk_cc_eval_do_subprogram_or_plain(pCompiler, &pInstr->Right, Right.pszCopy, Right.cchCopy, Right.fPlain);
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Left, Left.pszCopy, Left.cchCopy, Left.fPlain);
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Right, Right.pszCopy, Right.cchCopy, Right.fPlain);
         kmk_cc_eval_do_if_core(pCompiler, &pInstr->IfCore, fInElse);
 
         /*
@@ -4738,10 +5115,10 @@ static int kmk_cc_eval_do_if1of(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
         /*
          * Initialize the instruction.
          */
-        pInstr->IfCore.Core.enmOpCode = fPositiveStmt ? kKmkCcEvalInstr_if1of : kKmkCcEvalInstr_ifn1of;
+        pInstr->IfCore.Core.enmOpcode = fPositiveStmt ? kKmkCcEvalInstr_if1of : kKmkCcEvalInstr_ifn1of;
         pInstr->IfCore.Core.iLine     = pCompiler->iLine;
-        kmk_cc_eval_do_subprogram_or_plain(pCompiler, &pInstr->Left, Left.pszCopy, Left.cchCopy, Left.fPlain);
-        kmk_cc_eval_do_subprogram_or_plain(pCompiler, &pInstr->Right, Right.pszCopy, Right.cchCopy, Right.fPlain);
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Left, Left.pszCopy, Left.cchCopy, Left.fPlain);
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Right, Right.pszCopy, Right.cchCopy, Right.fPlain);
         kmk_cc_eval_do_if_core(pCompiler, &pInstr->IfCore, fInElse);
 
         /*
@@ -4779,7 +5156,7 @@ static int kmk_cc_eval_do_else(PKMKCCEVALCOMPILER pCompiler, const char *pchWord
         {
             /* Emit a jump instruction that will take us from the 'True' block to the 'endif'. */
             PKMKCCEVALJUMP  pInstr = (PKMKCCEVALJUMP)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
-            pInstr->Core.enmOpCode = kKmkCcEvalInstr_jump;
+            pInstr->Core.enmOpcode = kKmkCcEvalInstr_jump;
             pInstr->Core.iLine     = pCompiler->iLine;
             pInstr->pNext          = NULL;
             pIfCore->pTrueEndJump  = pInstr;
@@ -4895,27 +5272,87 @@ static int kmk_cc_eval_do_endif(PKMKCCEVALCOMPILER pCompiler, const char *pchWor
 }
 
 
-static int kmk_cc_eval_do_include(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, KMKCCEVALINSTR enmInst)
+/**
+ * Parses a 'include file...', 'sinclude file...', '-include file...',
+ * 'includedep file...', 'includedep-queue file...' and
+ * 'includedep-flush file...'
+ *
+ * @returns 1 to indicate we've handled a keyword (see
+ *          kmk_cc_eval_try_handle_keyword).
+ * @param   pCompiler   The compiler state.
+ * @param   pchWord     First char after the include directive.
+ * @param   cchLeft     The number of chars left to parse on this line.
+ * @param   enmOpcode   The opcode for the include directive we're parsing.
+ */
+static int kmk_cc_eval_do_include(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, KMKCCEVALINSTR enmOpcode)
 {
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+    if (cchLeft)
+    {
+        /*
+         * Split what's left up into words.
+         */
+        unsigned cWords = kmk_cc_eval_parse_words(pCompiler, pchWord, cchLeft);
+        KMK_CC_EVAL_DPRINTF(("%s: cWords=%d\n", g_apszEvalInstrNms[enmOpcode], cWords));
+        if (cWords)
+        {
+            PKMKCCEVALINCLUDE pInstr = (PKMKCCEVALINCLUDE)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
+                                                                                  KMKCCEVALINCLUDE_SIZE(cWords));
+            pInstr->Core.enmOpcode = enmOpcode;
+            pInstr->Core.iLine     = 0;
+            pInstr->cFiles         = cWords;
+            kmk_cc_eval_init_spp_array_from_duplicated_words(pCompiler, cWords, pCompiler->paWords, pInstr->aFiles);
+            kmk_cc_block_realign(pCompiler->ppBlockTail);
+        }
+        else
+            KMK_CC_ASSERT(0);
+    }
+    else
+        KMK_CC_EVAL_DPRINTF(("%s: include without args\n", g_apszEvalInstrNms[enmOpcode]));
     return 1;
 }
 
 
 static int kmk_cc_eval_do_vpath(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft)
 {
+    kmk_cc_eval_fatal(pCompiler, NULL, "vpath directive is not implemented\n");
     return 1;
 }
 
 
 static void kmk_cc_eval_handle_command(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft)
 {
+    kmk_cc_eval_fatal(pCompiler, pchWord, "command handling not implemented yet");
+}
 
+
+static int kmk_cc_eval_handle_recipe_cont_colon(PKMKCCEVALCOMPILER pCompiler, const char *pchWord0, size_t cchWord0,
+                                                const char *pchColon, size_t cchLeft, unsigned fQualifiers)
+{
+    kmk_cc_eval_fatal(pCompiler, pchWord0, "recipe handling not implemented yet");
+    return 1;
+}
+
+
+static int kmk_cc_eval_handle_recipe_cont_2nd_word(PKMKCCEVALCOMPILER pCompiler, const char *pchWord0, size_t cchWord0,
+                                                   const char *pchWord, size_t cchLeft, unsigned fQualifiers)
+{
+    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet");
+    return 1;
 }
 
 
 static void kmk_cc_eval_handle_recipe(PKMKCCEVALCOMPILER pCompiler, const char *pszEqual, const char *pchWord, size_t cchLeft)
 {
+    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet");
+}
 
+static void kmk_cc_eval_end_of_recipe(PKMKCCEVALCOMPILER pCompiler)
+{
+    if (pCompiler->pRecipe)
+    {
+        /** @todo do stuff here. */
+    }
 }
 
 
@@ -4932,10 +5369,9 @@ static void kmk_cc_eval_handle_recipe(PKMKCCEVALCOMPILER pCompiler, const char *
  * @param   cchLeft     The number of chars left to parse on this line.
  * @param   fQualifiers The qualifiers.
  */
-static int kmk_cc_eval_do_var_undefine(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft,
-                                                unsigned fQualifiers)
+static int kmk_cc_eval_do_var_undefine(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
-
+    kmk_cc_eval_fatal(pCompiler, pchWord, "undefine handling not implemented yet");
     return 1;
 }
 
@@ -4957,14 +5393,265 @@ static int kmk_cc_eval_do_var_undefine(PKMKCCEVALCOMPILER pCompiler, const char 
 static int kmk_cc_eval_do_var_define(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
 
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+    kmk_cc_eval_fatal(pCompiler, pchWord, "define handling not implemented yet");
     return 1;
 }
 
 
-static int kmk_cc_eval_try_handle_assignment(PKMKCCEVALCOMPILER pCompiler, const char *pchTmp,
-                                             const char *pchWord, size_t cchLeft, unsigned fQualifiers)
+static int kmk_cc_eval_handle_assignment_or_recipe(PKMKCCEVALCOMPILER pCompiler, const char *pchTmp,
+                                                   const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
-    return 0;
+    /*
+     * We're currently at a word which may or may not be a variable name
+     * followed by an assignment operator, alternatively it must be a recipe.
+     * We need to figure this out and deal with it in the most efficient
+     * manner as this is a very common occurence.
+     */
+    unsigned const  iEscEolVarNm = pCompiler->iEscEol;
+    int             fPlainVarNm  = 1;
+    const char     *pchVarNm     = pchWord;
+    size_t          cchVarNm;
+    size_t          cch = 0;
+    char            ch;
+
+    /*
+     * The variable name.  Complicate by there being no requirement of a space
+     * preceeding the assignment operator, as well as that the variable name
+     * may include variable references with spaces (function++) in them.
+     */
+    for (;;)
+    {
+        if (cch < cchLeft)
+        { /*likely*/ }
+        else
+            kmk_cc_eval_fatal(pCompiler, &pchWord[cch], "Neither recipe nor variable assignment");
+
+        ch = pchWord[cch];
+        if (!KMK_CC_EVAL_IS_SPACE_DOLLAR_SLASH_OR_ASSIGN(ch))
+            cch++;
+        /* Space? */
+        else if (KMK_CC_EVAL_IS_SPACE(ch))
+        {
+            cchVarNm = cch;
+            pchWord += cch;
+            cchLeft -= cch;
+            KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+            break;
+        }
+        /* Variable expansion may contain spaces, so handle specially. */
+        else if (ch == '$')
+        {
+            cch++;
+            if (cch < cchLeft)
+            {
+                char const chOpen = pchWord[cch];
+                if (chOpen == '(' || chOpen == '{')
+                {
+                    /*
+                     * Got a $(VAR) or ${VAR} to deal with here.  This may
+                     * include nested variable references and span multiple
+                     * lines (at least for function calls).
+                     *
+                     * We scan forward till we've found the corresponding
+                     * closing parenthesis, considering any open parentheses
+                     * of the same kind as worth counting, even if there are
+                     * no dollar preceeding them, just like GNU make does.
+                     */
+                    size_t const cchStart = cch - 1;
+                    char const   chClose  = chOpen == '(' ? ')' : '}';
+                    unsigned     cOpen    = 1;
+                    cch++;
+                    for (;;)
+                    {
+                        if (cch < cchLeft)
+                        {
+                            ch = pchWord[cch];
+                            if (!(KMK_CC_EVAL_IS_PAREN_OR_SLASH(ch)))
+                                cch++;
+                            else
+                            {
+                                cch++;
+                                if (ch == chClose)
+                                {
+                                    if (--cOpen == 0)
+                                        break;
+                                }
+                                else if (ch == chOpen)
+                                    cOpen++;
+                                else if (   ch == '\\'
+                                         && pCompiler->iEscEol < pCompiler->cEscEols
+                                         &&    (size_t)(&pchWord[cch] - pCompiler->pszContent)
+                                            == pCompiler->paEscEols[pCompiler->iEscEol].offEsc)
+                                {
+                                    cch += pCompiler->paEscEols[pCompiler->iEscEol].offEol
+                                         - pCompiler->paEscEols[pCompiler->iEscEol].offEsc
+                                         + pCompiler->cchEolSeq;
+                                    pCompiler->iEscEol++;
+                                }
+                            }
+                        }
+                        else if (cOpen == 1)
+                            kmk_cc_eval_fatal(pCompiler, &pchWord[cchStart], "Variable reference is missing '%c'", chClose);
+                        else
+                            kmk_cc_eval_fatal(pCompiler, &pchWord[cchStart],
+                                              "%u variable references are missing '%c'", cOpen, chClose);
+                    }
+                }
+                /* Single char variable name. */
+                else if (!KMK_CC_EVAL_IS_SPACE(chOpen))
+                {  /* likely */ }
+                else
+                    kmk_cc_eval_fatal(pCompiler, &pchWord[cch], "Expected variable name after '$', not end of line");
+            }
+            else
+                kmk_cc_eval_fatal(pCompiler, &pchWord[cch], "Neither recipe nor variable assignment");
+            fPlainVarNm = 0;
+        }
+        /* Check out potential recipe. */
+        else if (ch == ':')
+        {
+            if (   cch + 1 < cchLeft
+                && pchWord[cch + 1] != '=')
+            {
+                cchVarNm = cch;
+                pchWord += cch;
+                cchLeft -= cch;
+                break;
+            }
+#ifdef HAVE_DOS_PATHS
+            /* Don't confuse the first colon in:
+                    C:/Windows/System32/Kernel32.dll: C:/Windows/System32/NtDll.dll
+               for a recipe, it is only the second one which counts. */
+            else if (   cch == 1
+                     && isalpha((unsigned char)pchWord[0]))
+                cch++;
+#endif
+            else
+                return kmk_cc_eval_handle_recipe_cont_colon(pCompiler, pchWord, cch, pchWord + cch, cchLeft - cch, fQualifiers);
+        }
+        /* Check out assignment operator. */
+        else if (ch == '=')
+        {
+            if (cch)
+            {
+                char chPrev = pchWord[cch - 1];
+                if (chPrev == ':' || chPrev == '+' || chPrev == '?' || chPrev == '<')
+                    cch--;
+                cchVarNm = cch;
+                pchWord += cch;
+                cchLeft -= cch;
+                break;
+            }
+            else
+                kmk_cc_eval_fatal(pCompiler, pchWord, "Empty variable name.");
+        }
+        /* Check out potential escaped EOL sequence. */
+        else if (ch == '\\')
+        {
+            unsigned const iEscEol = pCompiler->iEscEol;
+            if (iEscEol >= pCompiler->cEscEols)
+                cch++;
+            else
+            {
+                size_t offCur = &pchWord[cch] - pCompiler->pszContent;
+                if (offCur < pCompiler->paEscEols[iEscEol].offEol)
+                    cch++;
+                else
+                {
+                    cchVarNm = cch;
+                    KMK_CC_ASSERT(offCur == pCompiler->paEscEols[iEscEol].offEol);
+                    cch = pCompiler->paEscEols[iEscEol].offEol + pCompiler->cchEolSeq - offCur;
+                    pCompiler->iEscEol = iEscEol + 1;
+                    pchWord += cch;
+                    cchLeft -= cch;
+                    KMK_CC_EVAL_SKIP_SPACES(pCompiler, pchWord, cchLeft);
+                    break;
+                }
+            }
+        }
+        else
+            KMK_CC_ASSERT(0);
+    }
+
+    /*
+     * Check for assignment operator.
+     */
+    if (cchLeft)
+    {
+        size_t              cchValue;
+        PKMKCCEVALASSIGN    pInstr;
+        KMKCCEVALINSTR      enmOpCode;
+        int                 fPlainValue;
+        char               *pszValue;
+
+        ch = *pchWord;
+        if (ch == '=')
+        {
+            enmOpCode = kKmkCcEvalInstr_assign_recursive;
+            pchWord++;
+            cchLeft--;
+        }
+        else if (cchLeft >= 2 && pchWord[1] == '=')
+        {
+            if (ch == ':')
+                enmOpCode = kKmkCcEvalInstr_assign_simple;
+            else if (ch == '+')
+                enmOpCode = kKmkCcEvalInstr_assign_append;
+            else if (ch == '<')
+                enmOpCode = kKmkCcEvalInstr_assign_prepend;
+            else if (ch == '?')
+                enmOpCode = kKmkCcEvalInstr_assign_if_new;
+            else
+                return kmk_cc_eval_handle_recipe_cont_2nd_word(pCompiler, pchVarNm, cchVarNm, pchWord, cchLeft, fQualifiers);
+            pchWord += 2;
+            cchLeft -= 2;
+        }
+        else
+            return kmk_cc_eval_handle_recipe_cont_2nd_word(pCompiler, pchVarNm, cchVarNm, pchWord, cchLeft, fQualifiers);
+
+        /*
+         * Skip leading spaces, if any and prep the value for copying.
+         */
+        KMK_CC_EVAL_SKIP_SPACES(pCompiler, pchWord, cchLeft);
+        cchValue    = kmk_cc_eval_prep_normal_line(pCompiler, pchWord, cchLeft);
+        fPlainValue = memchr(pchWord, '$', cchLeft) == NULL;
+
+        /*
+         * Emit the instruction.
+         */
+        kmk_cc_eval_end_of_recipe(pCompiler);
+
+        pInstr = (PKMKCCEVALASSIGN)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
+        pInstr->Core.enmOpcode = enmOpCode;
+        pInstr->Core.iLine     = pCompiler->iLine;
+        pInstr->fExport        = (fQualifiers & KMK_CC_EVAL_QUALIFIER_EXPORT)   != 0;
+        pInstr->fOverride      = (fQualifiers & KMK_CC_EVAL_QUALIFIER_OVERRIDE) != 0;
+        pInstr->fPrivate       = (fQualifiers & KMK_CC_EVAL_QUALIFIER_PRIVATE)  != 0;
+        pInstr->fLocal         = (fQualifiers & KMK_CC_EVAL_QUALIFIER_LOCAL)    != 0;
+
+        /* We copy the value before messing around with the variable name since
+           we have to do more iEolEsc saves & restores the other way around. */
+        pszValue = kmk_cc_eval_strdup_prepped(pCompiler, cchValue);
+        if (fPlainVarNm)
+            pchVarNm = strcache2_add(&variable_strcache, pchVarNm, cchVarNm);
+        else
+        {
+            pCompiler->iEscEol = iEscEolVarNm;
+            cchVarNm = kmk_cc_eval_prep_normal_line_ex(pCompiler, pchVarNm, cchVarNm);
+            pchVarNm = kmk_cc_eval_strdup_prepped(pCompiler, cchVarNm);
+        }
+        kmk_cc_block_realign(pCompiler->ppBlockTail);
+        KMK_CC_EVAL_DPRINTF(("%s: '%s' '%s'\n", g_apszEvalInstrNms[enmOpCode], pchVarNm, pszValue));
+
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Variable, pchVarNm, cchVarNm, fPlainVarNm);
+        kmk_cc_eval_init_subprogram_or_plain(pCompiler, &pInstr->Value, pszValue, cchValue, fPlainValue);
+
+        pInstr->pNext = (PKMKCCEVALCORE)kmk_cc_block_get_next_ptr(*pCompiler->ppBlockTail);
+    }
+    else
+        kmk_cc_eval_fatal(pCompiler, pchWord, "Neither recipe nor variable assignment");
+    return 1;
 }
 
 
@@ -4977,13 +5664,22 @@ static int kmk_cc_eval_try_handle_assignment(PKMKCCEVALCOMPILER pCompiler, const
  * @returns 1 to indicate we've handled a keyword (see
  *          kmk_cc_eval_try_handle_keyword).
  * @param   pCompiler   The compiler state.
- * @param   pchWord     First char after 'define'.
+ * @param   pchWord     First char after 'local'.
  * @param   cchLeft     The number of chars left to parse on this line.
  * @param   fQualifiers The qualifiers.
  */
 static int kmk_cc_eval_do_var_local(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft)
 {
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+    if (cchLeft)
+    {
+        /*
+         * Find the end of the variable name.
+         */
 
+    }
+    else
+        kmk_cc_eval_fatal(pCompiler, pchWord, "Expected variable name, assignment operator and value after 'local'");
     return 1;
 }
 
@@ -5004,7 +5700,7 @@ static int kmk_cc_eval_do_var_local(PKMKCCEVALCOMPILER pCompiler, const char *pc
  */
 static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
-
+    kmk_cc_eval_fatal(pCompiler, pchWord, "export not implemented yet");
     return 1;
 }
 
@@ -5033,16 +5729,26 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
                 if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))   /* final */
                     return kmk_cc_eval_do_var_define(pCompiler, pchWord + 6, cchLeft - 6, fQualifiers);
 
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))   /* special */
-                    return kmk_cc_eval_handle_var_export(pCompiler, pchWord + 6, cchLeft - 6, fQualifiers);
-
                 if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8)) /* final */
                     return kmk_cc_eval_do_var_undefine(pCompiler, pchWord + 6, cchLeft - 6, fQualifiers);
 
+                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))
+                {
+                    if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_EXPORT))
+                        fQualifiers |= KMK_CC_EVAL_QUALIFIER_EXPORT;
+                    else
+                        kmk_cc_eval_warn(pCompiler, pchWord, "'export' qualifier repeated");
+                    pchWord += 6;
+                    cchLeft -= 6;
+                    continue;
+                }
+
                 if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8))
                 {
-                    /** @todo warn if repeated. */
-                    fQualifiers |= KMK_CC_EVAL_QUALIFIER_OVERRIDE;
+                    if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_OVERRIDE))
+                        fQualifiers |= KMK_CC_EVAL_QUALIFIER_OVERRIDE;
+                    else
+                        kmk_cc_eval_warn(pCompiler, pchWord, "'override' qualifier repeated");
                     pchWord += 8;
                     cchLeft -= 8;
                     continue;
@@ -5050,8 +5756,10 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
 
                 if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7))
                 {
-                    /** @todo warn if repeated. */
-                    fQualifiers |= KMK_CC_EVAL_QUALIFIER_PRIVATE;
+                    if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_PRIVATE))
+                        fQualifiers |= KMK_CC_EVAL_QUALIFIER_PRIVATE;
+                    else
+                        kmk_cc_eval_warn(pCompiler, pchWord, "'private' qualifier repeated");
                     pchWord += 7;
                     cchLeft -= 7;
                     continue;
@@ -5066,7 +5774,7 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
             {
                 const char *pchEqual = (const char *)memchr(pchWord, '=', cchLeft);
                 if (pchEqual)
-                    return kmk_cc_eval_try_handle_assignment(pCompiler, pchEqual, pchWord, cchLeft, fQualifiers);
+                    return kmk_cc_eval_handle_assignment_or_recipe(pCompiler, pchEqual, pchWord, cchLeft, fQualifiers);
             }
             return 0;
         }
@@ -5439,8 +6147,9 @@ static int kmk_cc_eval_compile_worker(PKMKCCEVALPROG pEvalProg, const char *pszC
                         || !kmk_cc_eval_try_handle_keyword(&Compiler, ch, pchWord, cchLeft) )
                     {
                         pchTmp = (const char *)memchr(pchWord, '=', cchLeft);
-                        if (   !pchTmp
-                            || !kmk_cc_eval_try_handle_assignment(&Compiler, pchTmp, pchWord, cchLeft, 0) )
+                        if (pchTmp)
+                            kmk_cc_eval_handle_assignment_or_recipe(&Compiler, pchTmp, pchWord, cchLeft, 0);
+                        else
                             kmk_cc_eval_handle_recipe(&Compiler, pchTmp, pchWord, cchLeft);
                     }
                     /* else: handled a keyword expression */
