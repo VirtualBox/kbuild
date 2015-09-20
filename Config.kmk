@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2739 2014-12-23 21:18:40Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2800 2015-09-20 19:12:56Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -254,7 +254,7 @@ ifeq ($(KBUILD_TARGET),darwin)
  TEMPLATE_BIN_TOOL              = GCC4MACHO
  TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-isysroot $(KBUILD_MACOSX_SDK))
  ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wno-long-long
+  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wno-long-long -Wshadow
   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
  endif
  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
@@ -319,7 +319,7 @@ ifndef TEMPLATE_BIN_TOOL
  endif
  TEMPLATE_BIN_CFLAGS            = -g
  ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter
+  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wshadow
   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
  endif
  TEMPLATE_BIN_LDFLAGS           = -g
