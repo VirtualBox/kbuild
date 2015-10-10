@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2801 2015-09-20 19:13:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2802 2015-10-10 18:28:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -555,14 +555,17 @@ typedef enum KMKCCEVALINSTR
     /** [local|override|export] define variable ... endef - KMKCCEVALASSIGNDEF. */
     kKmkCcEvalInstr_assign_define,
 
-    /** export variable1 [variable2...] - KMKCCEVALEXPORT. */
+    /** export variable1 [variable2...] - KMKCCEVALVARIABLES. */
     kKmkCcEvalInstr_export,
-    /** unexport variable1 [variable2...] - KMKCCEVALEXPORT. */
+    /** unexport variable1 [variable2...] - KMKCCEVALVARIABLES. */
     kKmkCcEvalInstr_unexport,
     /** export - KMKCCEVALCORE. */
     kKmkCcEvalInstr_export_all,
     /** unexport - KMKCCEVALCORE. */
     kKmkCcEvalInstr_unexport_all,
+    /** [local|override] undefine - KMKCCEVALVARIABLES. */
+    kKmkCcEvalInstr_undefine,
+
 
     /** [else] ifdef variable - KMKCCEVALIFDEFPLAIN. */
     kKmkCcEvalInstr_ifdef_plain,
@@ -687,24 +690,27 @@ typedef struct kmk_cc_eval_assign_define
 typedef KMKCCEVALASSIGNDEF *PKMKCCEVALASSIGNDEF;
 
 /**
- * Instruction format for kKmkCcEvalInstr_export and kKmkCcEvalInstr_unexport.
+ * Instruction format for kKmkCcEvalInstr_export, kKmkCcEvalInstr_unexport and
+ * kKmkCcEvalInstr_undefine.
  */
-typedef struct kmk_cc_eval_export
+typedef struct kmk_cc_eval_variables
 {
     /** The core instruction. */
     KMKCCEVALCORE           Core;
     /** The number of variables named in aVars. */
     uint32_t                cVars;
+    /** Whether the 'local' qualifier was used (undefine only). */
+    uint8_t                 fLocal;
     /** Pointer to the next instruction. */
     PKMKCCEVALCORE          pNext;
     /** The variable names.
      * Expressions will be expanded and split on space.
      * @remarks Plain text names are in variable_strcache. */
     KMKCCEXPSUBPROGORPLAIN  aVars[1];
-} KMKCCEVALEXPORT;
-typedef KMKCCEVALEXPORT *PKMKCCEVALEXPORT;
-/** Calculates the size of an KMKCCEVALEXPORT structure for @a a_cVars. */
-#define KMKCCEVALEXPORT_SIZE(a_cVars) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALVPATH, aVars, a_cVars)
+} KMKCCEVALVARIABLES;
+typedef KMKCCEVALVARIABLES *PKMKCCEVALVARIABLES;
+/** Calculates the size of an KMKCCEVALVARIABLES structure for @a a_cVars. */
+#define KMKCCEVALVARIABLES_SIZE(a_cVars) KMK_CC_SIZEOF_VAR_STRUCT(KMKCCEVALVARIABLES, aVars, a_cVars)
 
 /**
  * Core structure for all conditionals (kKmkCcEvalInstr_if*).
@@ -1114,7 +1120,7 @@ void kmk_cc_init(void)
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'l', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* local */
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'o', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* override */
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'p', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* private */
-    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'u', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* undefine */
+    KMK_CC_EVAL_BM_OR(g_abEvalCcChars, 'u', KMK_CC_EVAL_CH_1ST_IN_VARIABLE_KEYWORD); /* undefine, unexport */
 
     /* Assignment punctuation and recipe stuff. */
     KMK_CC_EVAL_BM_OR(g_abEvalCcChars, '=', KMK_CC_EVAL_CH_SPACE_VAR_OR_RECIPE);
@@ -3390,14 +3396,20 @@ static void kmk_cc_eval_init_spp_array_from_duplicated_words(PKMKCCEVALCOMPILER 
          && (a_pchLine)[14] == (a_pszWord)[14] \
          && (a_pchLine)[15] == (a_pszWord)[15])
 #endif
+
+/** See if the given string match a constant string. */
+#define KMK_CC_STRCMP_CONST(a_pchLeft, a_cchLeft, a_pszConst, a_cchConst) \
+    (   (a_cchLeft) == (a_cchConst) \
+     && KMK_CC_WORD_COMP_CONST_##a_cchConst(a_pchLeft, a_pszConst) )
+
 /** See if a starting of a given length starts with a constant word. */
-#define KMK_CC_WORD_COMP_IS_EOL(a_pCompiler, a_pchLine, a_cchLine) \
+#define KMK_CC_EVAL_WORD_COMP_IS_EOL(a_pCompiler, a_pchLine, a_cchLine) \
     (   (a_cchLine) == 0 \
      || KMK_CC_EVAL_IS_SPACE((a_pchLine)[0]) \
      || ((a_pchLine)[0] == '\\' && (a_pchLine)[1] == (a_pCompiler)->chFirstEol) ) \
 
 /** See if a starting of a given length starts with a constant word. */
-#define KMK_CC_WORD_COMP_CONST(a_pCompiler, a_pchLine, a_cchLine, a_pszWord, a_cchWord) \
+#define KMK_CC_EVAL_WORD_COMP_CONST(a_pCompiler, a_pchLine, a_cchLine, a_pszWord, a_cchWord) \
     (    (a_cchLine) >= (a_cchWord) \
       && (   (a_cchLine) == (a_cchWord) \
           || KMK_CC_EVAL_IS_SPACE((a_pchLine)[a_cchWord]) \
@@ -5186,25 +5198,25 @@ static int kmk_cc_eval_do_else(PKMKCCEVALCOMPILER pCompiler, const char *pchWord
             pchWord += 2;
             cchLeft -= 2;
 
-            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
+            if (KMK_CC_EVAL_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_if(pCompiler, pchWord, cchLeft, 1 /* in else */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
                 return kmk_cc_eval_do_ifeq( pCompiler, pchWord + 2, cchLeft - 2, 1 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "def", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "def", 3))
                 return kmk_cc_eval_do_ifdef(pCompiler, pchWord + 3, cchLeft - 3, 1 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "neq", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "neq", 3))
                 return kmk_cc_eval_do_ifeq( pCompiler, pchWord + 3, cchLeft - 3, 1 /* in else */, 0 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "1of", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "1of", 3))
                 return kmk_cc_eval_do_if1of(pCompiler, pchWord + 3, cchLeft - 3, 1 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "ndef", 4))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "ndef", 4))
                 return kmk_cc_eval_do_ifdef(pCompiler, pchWord + 4, cchLeft - 4, 1 /* in else */, 0 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "n1of", 4))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "n1of", 4))
                 return kmk_cc_eval_do_if1of(pCompiler, pchWord + 4, cchLeft - 4, 1 /* in else */, 0 /* positive */);
 
             pchWord -= 2;
@@ -5299,7 +5311,7 @@ static int kmk_cc_eval_do_include(PKMKCCEVALCOMPILER pCompiler, const char *pchW
             PKMKCCEVALINCLUDE pInstr = (PKMKCCEVALINCLUDE)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
                                                                                   KMKCCEVALINCLUDE_SIZE(cWords));
             pInstr->Core.enmOpcode = enmOpcode;
-            pInstr->Core.iLine     = 0;
+            pInstr->Core.iLine     = pCompiler->iLine;
             pInstr->cFiles         = cWords;
             kmk_cc_eval_init_spp_array_from_duplicated_words(pCompiler, cWords, pCompiler->paWords, pInstr->aFiles);
             kmk_cc_block_realign(pCompiler->ppBlockTail);
@@ -5329,7 +5341,7 @@ static void kmk_cc_eval_handle_command(PKMKCCEVALCOMPILER pCompiler, const char 
 static int kmk_cc_eval_handle_recipe_cont_colon(PKMKCCEVALCOMPILER pCompiler, const char *pchWord0, size_t cchWord0,
                                                 const char *pchColon, size_t cchLeft, unsigned fQualifiers)
 {
-    kmk_cc_eval_fatal(pCompiler, pchWord0, "recipe handling not implemented yet");
+    kmk_cc_eval_fatal(pCompiler, pchWord0, "recipe handling not implemented yet (#1)");
     return 1;
 }
 
@@ -5337,14 +5349,14 @@ static int kmk_cc_eval_handle_recipe_cont_colon(PKMKCCEVALCOMPILER pCompiler, co
 static int kmk_cc_eval_handle_recipe_cont_2nd_word(PKMKCCEVALCOMPILER pCompiler, const char *pchWord0, size_t cchWord0,
                                                    const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
-    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet");
+    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet (#2)");
     return 1;
 }
 
 
 static void kmk_cc_eval_handle_recipe(PKMKCCEVALCOMPILER pCompiler, const char *pszEqual, const char *pchWord, size_t cchLeft)
 {
-    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet");
+    kmk_cc_eval_fatal(pCompiler, pchWord, "recipe handling not implemented yet (#3)");
 }
 
 static void kmk_cc_eval_end_of_recipe(PKMKCCEVALCOMPILER pCompiler)
@@ -5357,7 +5369,48 @@ static void kmk_cc_eval_end_of_recipe(PKMKCCEVALCOMPILER pCompiler)
 
 
 /**
- * Parses a 'undefine variable [..]' expression.
+ * Common worker for handling export (non-assign), undefine and unexport.
+ *
+ * For instructions using the KMKCCEVALVARIABLES structure.
+ *
+ * @returns 1 to indicate we've handled a keyword (see
+ *          kmk_cc_eval_try_handle_keyword).
+ * @param   pCompiler   The compiler state.
+ * @param   pchWord     First non-space chare after the keyword.
+ * @param   cchLeft     The number of chars left to parse on this line.
+ * @param   fQualifiers The qualifiers.
+ */
+static int kmk_cc_eval_do_with_variable_list(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft,
+                                             KMKCCEVALINSTR enmOpcode, unsigned fQualifiers)
+{
+    if (cchLeft)
+    {
+        /*
+         * Parse the variable name list.  GNU make is using normal word
+         * handling here, so we can share code with the include directives.
+         */
+        unsigned cWords = kmk_cc_eval_parse_words(pCompiler, pchWord, cchLeft);
+        KMK_CC_EVAL_DPRINTF(("%s: cWords=%d\n", g_apszEvalInstrNms[enmOpcode], cWords));
+        if (cWords)
+        {
+            PKMKCCEVALVARIABLES pInstr = (PKMKCCEVALVARIABLES)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
+                                                                                      KMKCCEVALVARIABLES_SIZE(cWords));
+            pInstr->Core.enmOpcode = enmOpcode;
+            pInstr->Core.iLine     = pCompiler->iLine;
+            pInstr->cVars         = cWords;
+            kmk_cc_eval_init_spp_array_from_duplicated_words(pCompiler, cWords, pCompiler->paWords, pInstr->aVars);
+            kmk_cc_block_realign(pCompiler->ppBlockTail);
+        }
+        else
+            KMK_CC_ASSERT(0);
+    }
+    /* else: NOP */
+    return 1;
+}
+
+
+/**
+ * Parses a '[qualifiers] undefine variable [..]' expression.
  *
  * A 'undefine' directive is final, any qualifiers must preceed it.  So, we just
  * have to extract the variable names now.
@@ -5371,7 +5424,45 @@ static void kmk_cc_eval_end_of_recipe(PKMKCCEVALCOMPILER pCompiler)
  */
 static int kmk_cc_eval_do_var_undefine(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
-    kmk_cc_eval_fatal(pCompiler, pchWord, "undefine handling not implemented yet");
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+    if (!cchLeft)
+        kmk_cc_eval_fatal(pCompiler, pchWord, "undefine requires a variable name");
+
+    /** @todo GNU make doesn't actually do the list thing for undefine, it seems
+     *        to assume everything after it is a single variable...  Going with
+     *        simple common code for now. */
+    return kmk_cc_eval_do_with_variable_list(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_undefine, fQualifiers);
+}
+
+
+/**
+ * Parses a '[qualifiers] unexport variable [..]' expression.
+ *
+ * A 'unexport' directive is final, any qualifiers must preceed it.  So, we just
+ * have to extract the variable names now.
+ *
+ * @returns 1 to indicate we've handled a keyword (see
+ *          kmk_cc_eval_try_handle_keyword).
+ * @param   pCompiler   The compiler state.
+ * @param   pchWord     First char after 'define'.
+ * @param   cchLeft     The number of chars left to parse on this line.
+ * @param   fQualifiers The qualifiers.
+ */
+static int kmk_cc_eval_do_var_unexport(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
+{
+    /*
+     * Join paths with undefine and export, unless it's an unexport all directive.
+     */
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+    if (cchLeft)
+        return kmk_cc_eval_do_with_variable_list(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_unexport, fQualifiers);
+
+    /*
+     * We're unexporting all variables.
+     */
+    PKMKCCEVALCORE pInstr = kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
+    pInstr->enmOpcode = kKmkCcEvalInstr_unexport_all;
+    pInstr->iLine     = pCompiler->iLine;
     return 1;
 }
 
@@ -5399,8 +5490,8 @@ static int kmk_cc_eval_do_var_define(PKMKCCEVALCOMPILER pCompiler, const char *p
 }
 
 
-static int kmk_cc_eval_handle_assignment_or_recipe(PKMKCCEVALCOMPILER pCompiler, const char *pchTmp,
-                                                   const char *pchWord, size_t cchLeft, unsigned fQualifiers)
+static int kmk_cc_eval_handle_assignment_or_recipe(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft,
+                                                   unsigned fQualifiers)
 {
     /*
      * We're currently at a word which may or may not be a variable name
@@ -5617,6 +5708,7 @@ static int kmk_cc_eval_handle_assignment_or_recipe(PKMKCCEVALCOMPILER pCompiler,
         cchValue    = kmk_cc_eval_prep_normal_line(pCompiler, pchWord, cchLeft);
         fPlainValue = memchr(pchWord, '$', cchLeft) == NULL;
 
+
         /*
          * Emit the instruction.
          */
@@ -5656,7 +5748,8 @@ static int kmk_cc_eval_handle_assignment_or_recipe(PKMKCCEVALCOMPILER pCompiler,
 
 
 /**
- * Parses a 'local [override] variable = value' expression.
+ * Parses a 'local [override] variable = value', 'local define variable', and
+ * 'local undefine variable [...]' expressions.
  *
  * The 'local' directive must be first and it does not permit any qualifiers at
  * the moment.  Should any be added later, they will have to come after 'local'.
@@ -5674,33 +5767,20 @@ static int kmk_cc_eval_do_var_local(PKMKCCEVALCOMPILER pCompiler, const char *pc
     if (cchLeft)
     {
         /*
-         * Find the end of the variable name.
+         * Check for 'local define' and 'local undefine'
          */
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))   /* final */
+            return kmk_cc_eval_do_var_define(pCompiler, pchWord + 6, cchLeft + 6, KMK_CC_EVAL_QUALIFIER_LOCAL);
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8))   /* final */
+            return kmk_cc_eval_do_var_undefine(pCompiler, pchWord + 8, cchLeft + 8, KMK_CC_EVAL_QUALIFIER_LOCAL);
 
+        /*
+         * Simpler to just join paths with the rest here, even if we could
+         * probably optimize the parsing a little if we liked.
+         */
+        return kmk_cc_eval_handle_assignment_or_recipe(pCompiler, pchWord, cchLeft, KMK_CC_EVAL_QUALIFIER_LOCAL);
     }
-    else
-        kmk_cc_eval_fatal(pCompiler, pchWord, "Expected variable name, assignment operator and value after 'local'");
-    return 1;
-}
-
-
-/**
- * Parses 'export [variable]' and 'export [qualifiers] variable = value'
- * expressions.
- *
- * When we find the 'export' directive at the start of a line, we need to
- * continue parsing with till we can tell the difference between the two forms.
- *
- * @returns 1 to indicate we've handled a keyword (see
- *          kmk_cc_eval_try_handle_keyword).
- * @param   pCompiler   The compiler state.
- * @param   pchWord     First char after 'define'.
- * @param   cchLeft     The number of chars left to parse on this line.
- * @param   fQualifiers The qualifiers.
- */
-static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
-{
-    kmk_cc_eval_fatal(pCompiler, pchWord, "export not implemented yet");
+    kmk_cc_eval_fatal(pCompiler, pchWord, "Expected variable name, assignment operator and value after 'local'");
     return 1;
 }
 
@@ -5726,13 +5806,16 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
             char ch = *pchWord;
             if (KMK_CC_EVAL_IS_1ST_IN_VARIABLE_KEYWORD(ch))
             {
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))   /* final */
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))   /* final */
                     return kmk_cc_eval_do_var_define(pCompiler, pchWord + 6, cchLeft - 6, fQualifiers);
 
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8)) /* final */
-                    return kmk_cc_eval_do_var_undefine(pCompiler, pchWord + 6, cchLeft - 6, fQualifiers);
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8)) /* final */
+                    return kmk_cc_eval_do_var_undefine(pCompiler, pchWord + 8, cchLeft -86, fQualifiers);
 
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "unexport", 8)) /* final */
+                    return kmk_cc_eval_do_var_unexport(pCompiler, pchWord + 8, cchLeft - 8, fQualifiers);
+
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))
                 {
                     if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_EXPORT))
                         fQualifiers |= KMK_CC_EVAL_QUALIFIER_EXPORT;
@@ -5743,7 +5826,7 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
                     continue;
                 }
 
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8))
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8))
                 {
                     if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_OVERRIDE))
                         fQualifiers |= KMK_CC_EVAL_QUALIFIER_OVERRIDE;
@@ -5754,7 +5837,7 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
                     continue;
                 }
 
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7))
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7))
                 {
                     if (!(fQualifiers & KMK_CC_EVAL_QUALIFIER_PRIVATE))
                         fQualifiers |= KMK_CC_EVAL_QUALIFIER_PRIVATE;
@@ -5774,7 +5857,7 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
             {
                 const char *pchEqual = (const char *)memchr(pchWord, '=', cchLeft);
                 if (pchEqual)
-                    return kmk_cc_eval_handle_assignment_or_recipe(pCompiler, pchEqual, pchWord, cchLeft, fQualifiers);
+                    return kmk_cc_eval_handle_assignment_or_recipe(pCompiler, pchWord, cchLeft, fQualifiers);
             }
             return 0;
         }
@@ -5782,6 +5865,119 @@ static int kmk_cc_eval_try_handle_var_with_keywords(PKMKCCEVALCOMPILER pCompiler
             kmk_cc_eval_fatal(pCompiler, NULL,
                               "Expected assignment operator or variable directive after variable qualifier(s)\n");
     }
+}
+
+
+/**
+ * Parses 'export [variable]' and 'export [qualifiers] variable = value'
+ * expressions.
+ *
+ * When we find the 'export' directive at the start of a line, we need to
+ * continue parsing with till we can tell the difference between the two forms.
+ *
+ * @returns 1 to indicate we've handled a keyword (see
+ *          kmk_cc_eval_try_handle_keyword).
+ * @param   pCompiler   The compiler state.
+ * @param   pchWord     First char after 'define'.
+ * @param   cchLeft     The number of chars left to parse on this line.
+ */
+static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft)
+{
+    KMK_CC_EVAL_SKIP_SPACES_AFTER_WORD(pCompiler, pchWord, cchLeft);
+
+    if (cchLeft)
+    {
+        /*
+         * We need to figure out whether this is an assignment or a export statement,
+         * in the latter case join paths with 'export' and 'undefine'.
+         */
+        const char *pchEqual = (const char *)memchr(pchWord, '=', cchLeft);
+        if (!pchEqual)
+            return kmk_cc_eval_do_with_variable_list(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_export, 0 /*fQualifiers*/);
+
+        /*
+         * Found an '=', could be an assignment.  Let's take the easy way out
+         * and just parse the whole statement into words like we would do if
+         * it wasn't an assignment, and then check the words out for
+         * assignment keywords and operators.
+         */
+        unsigned iSavedEscEol = pCompiler->iEscEol;
+        unsigned cWords       = kmk_cc_eval_parse_words(pCompiler, pchWord, cchLeft);
+        if (cWords)
+        {
+            PKMKCCEVALWORD pWord = pCompiler->paWords;
+            unsigned       iWord = 0;
+            while (iWord < cWords)
+            {
+                /* Trailing assignment operator or terminal assignment directive ('undefine'
+                   and 'unexport' makes no sense here but GNU make ignores that). */
+                if (   (   pWord->cchWord > 1
+                        && pWord->pchWord[pWord->cchWord - 1] == '=')
+                    || KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "define", 6)
+                    || KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "undefine", 8)
+                    || KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "unexport", 8) )
+                {
+                    pCompiler->iEscEol = iSavedEscEol;
+                    return kmk_cc_eval_try_handle_var_with_keywords(pCompiler, pchWord, cchLeft, KMK_CC_EVAL_QUALIFIER_EXPORT);
+                }
+
+                /* If not a variable assignment qualifier, it must be a variable name
+                   followed by an assignment operator. */
+                if (iWord + 1 < cWords)
+                {
+                    if (   !KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "export", 6)
+                        && !KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "private", 7)
+                        && !KMK_CC_STRCMP_CONST(pWord->pchWord, pWord->cchWord, "override", 8))
+                    {
+                        pWord++;
+                        if (   pWord->cchWord > 0
+                            && (   pWord->pchWord[0] == '='
+                                || (   pWord->cchWord > 1
+                                    && pWord->pchWord[1] == '='
+                                    && (   pWord->pchWord[0] == ':'
+                                        || pWord->pchWord[0] == '+'
+                                        || pWord->pchWord[0] == '?'
+                                        || pWord->pchWord[0] == '<') ) ) )
+                        {
+                            pCompiler->iEscEol = iSavedEscEol;
+                            return kmk_cc_eval_try_handle_var_with_keywords(pCompiler, pchWord, cchLeft,
+                                                                            KMK_CC_EVAL_QUALIFIER_EXPORT);
+                        }
+                        break;
+                    }
+                }
+                else
+                    break;
+                /* next */
+                pWord++;
+                iWord++;
+            }
+
+            /*
+             * It's not an assignment.
+             * (This is the same as kmk_cc_eval_do_with_variable_list does.)
+             */
+            PKMKCCEVALVARIABLES pInstr = (PKMKCCEVALVARIABLES)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
+                                                                                      KMKCCEVALVARIABLES_SIZE(cWords));
+            pInstr->Core.enmOpcode = kKmkCcEvalInstr_export;
+            pInstr->Core.iLine     = pCompiler->iLine;
+            pInstr->cVars          = cWords;
+            kmk_cc_eval_init_spp_array_from_duplicated_words(pCompiler, cWords, pCompiler->paWords, pInstr->aVars);
+            kmk_cc_block_realign(pCompiler->ppBlockTail);
+        }
+        else
+            KMK_CC_ASSERT(0);
+    }
+    else
+    {
+        /*
+         * We're exporting all variables.
+         */
+        PKMKCCEVALCORE pInstr = kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
+        pInstr->enmOpcode = kKmkCcEvalInstr_export_all;
+        pInstr->iLine     = pCompiler->iLine;
+    }
+    return 1;
 }
 
 
@@ -5810,21 +6006,23 @@ int kmk_cc_eval_try_handle_keyword(PKMKCCEVALCOMPILER pCompiler, char ch, const 
      */
     if (KMK_CC_EVAL_IS_1ST_IN_VARIABLE_KEYWORD(ch))
     {
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "local", 5))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "local", 5))
             return kmk_cc_eval_do_var_local(pCompiler, pchWord + 5, cchLeft - 5);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6))
             return kmk_cc_eval_do_var_define(pCompiler, pchWord + 6, cchLeft - 6, 0);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))
-            return kmk_cc_eval_handle_var_export(pCompiler, pchWord + 6, cchLeft - 6, 0);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6))
+            return kmk_cc_eval_handle_var_export(pCompiler, pchWord + 6, cchLeft - 6);
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8))
             return kmk_cc_eval_do_var_undefine(pCompiler, pchWord + 8, cchLeft - 8, 0);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "unexport", 8))
+            return kmk_cc_eval_do_var_unexport(pCompiler, pchWord + 8, cchLeft - 8, 0);
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8))
         {
             if (kmk_cc_eval_try_handle_var_with_keywords(pCompiler, pchWord + 8, cchLeft - 8, KMK_CC_EVAL_QUALIFIER_OVERRIDE))
                 return 1;
             pCompiler->iEscEol = iSavedEscEol;
         }
-        else if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7))
+        else if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7))
         {
             if (kmk_cc_eval_try_handle_var_with_keywords(pCompiler, pchWord + 7, cchLeft - 7, KMK_CC_EVAL_QUALIFIER_PRIVATE))
                 return 1;
@@ -5844,25 +6042,25 @@ int kmk_cc_eval_try_handle_keyword(PKMKCCEVALCOMPILER pCompiler, char ch, const 
         /* 'if...' */
         if (ch2 == 'f')
         {
-            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
+            if (KMK_CC_EVAL_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_if(pCompiler, pchWord, cchLeft, 0 /* in else */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "eq", 2))
                 return kmk_cc_eval_do_ifeq( pCompiler, pchWord + 2, cchLeft - 2, 0 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "def", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "def", 3))
                 return kmk_cc_eval_do_ifdef(pCompiler, pchWord + 3, cchLeft - 3, 0 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "neq", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "neq", 3))
                 return kmk_cc_eval_do_ifeq( pCompiler, pchWord + 3, cchLeft - 3, 0 /* in else */, 0 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "1of", 3))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "1of", 3))
                 return kmk_cc_eval_do_if1of(pCompiler, pchWord + 3, cchLeft - 3, 0 /* in else */, 1 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "ndef", 4))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "ndef", 4))
                 return kmk_cc_eval_do_ifdef(pCompiler, pchWord + 4, cchLeft - 4, 0 /* in else */, 0 /* positive */);
 
-            if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "n1of", 4))
+            if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "n1of", 4))
                 return kmk_cc_eval_do_if1of(pCompiler, pchWord + 4, cchLeft - 4, 0 /* in else */, 0 /* positive */);
         }
         /* include... */
@@ -5870,45 +6068,45 @@ int kmk_cc_eval_try_handle_keyword(PKMKCCEVALCOMPILER pCompiler, char ch, const 
         {
             pchWord += 5;
             cchLeft -= 5;
-            if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
+            if (KMK_CC_EVAL_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                 return kmk_cc_eval_do_include(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_include);
             if (cchLeft >= 3 && KMK_CC_WORD_COMP_CONST_3(pchWord, "dep"))
             {
                 pchWord += 3;
                 cchLeft -= 3;
-                if (KMK_CC_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
+                if (KMK_CC_EVAL_WORD_COMP_IS_EOL(pCompiler, pchWord, cchLeft))
                     return kmk_cc_eval_do_include(pCompiler, pchWord, cchLeft, kKmkCcEvalInstr_includedep);
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-queue", 6))
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-queue", 6))
                     return kmk_cc_eval_do_include(pCompiler, pchWord + 6, cchLeft - 6, kKmkCcEvalInstr_includedep_queue);
-                if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-flush", 6))
+                if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-flush", 6))
                     return kmk_cc_eval_do_include(pCompiler, pchWord + 6, cchLeft - 6, kKmkCcEvalInstr_includedep_flush);
             }
         }
     }
     else if (ch == 'e') /* A few directives starts with 'e'. */
     {
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "else", 4))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "else", 4))
             return kmk_cc_eval_do_else(pCompiler, pchWord + 4, cchLeft - 4);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "endif", 5))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "endif", 5))
             return kmk_cc_eval_do_endif(pCompiler, pchWord + 5, cchLeft - 5);
         /* export and endef are handled elsewhere, though stray endef's may end up here... */
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "export", 6));
 
     }
     else /* the rest. */
     {
-        if (   KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "sinclude", 8)
-            || KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-include", 8))
+        if (   KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "sinclude", 8)
+            || KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "-include", 8))
             return kmk_cc_eval_do_include(pCompiler, pchWord + 8, cchLeft - 8, kKmkCcEvalInstr_include_silent);
-        if (KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "vpath", 5))
+        if (KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "vpath", 5))
             return kmk_cc_eval_do_vpath(pCompiler, pchWord + 5, cchLeft - 5);
 
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "local", 5));
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6));
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7));
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8));
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "unexport", 8));
-        KMK_CC_ASSERT(!KMK_CC_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "local", 5));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "define", 6));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "private", 7));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "override", 8));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "unexport", 8));
+        KMK_CC_ASSERT(!KMK_CC_EVAL_WORD_COMP_CONST(pCompiler, pchWord, cchLeft, "undefine", 8));
     }
 
     pCompiler->iEscEol = iSavedEscEol;
@@ -6148,7 +6346,7 @@ static int kmk_cc_eval_compile_worker(PKMKCCEVALPROG pEvalProg, const char *pszC
                     {
                         pchTmp = (const char *)memchr(pchWord, '=', cchLeft);
                         if (pchTmp)
-                            kmk_cc_eval_handle_assignment_or_recipe(&Compiler, pchTmp, pchWord, cchLeft, 0);
+                            kmk_cc_eval_handle_assignment_or_recipe(&Compiler, pchWord, cchLeft, 0 /*fQualifiers*/);
                         else
                             kmk_cc_eval_handle_recipe(&Compiler, pchTmp, pchWord, cchLeft);
                     }
