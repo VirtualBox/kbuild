@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 2803 2015-11-15 19:44:38Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Netwide Assembler v0.98+.
 #
@@ -76,7 +76,7 @@ define TOOL_NASM_COMPILE_AS_CMDS
 		-l $(outbase).lst\
 		-o $(obj)\
 		$(abspath $(source))
-	$(QUIET)$(REDIRECT) -wo $(dep) -- $(TOOL_NASM_AS)\
+	$(QUIET)$(REDIRECT) -wo $(dep) -- $(TOOL_NASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\
