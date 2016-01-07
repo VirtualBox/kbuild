@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2759 2015-01-28 16:14:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2804 2016-01-07 20:47:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -54,7 +54,6 @@
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
 /*#define DEBUG*/
-#define DEBUG
 #ifdef DEBUG
 # define dprintf(a)             printf a
 # define dump(pb, cb, offBase)  depHexDump(pb,cb,offBase)
