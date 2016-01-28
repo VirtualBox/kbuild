@@ -1,10 +1,10 @@
-# $Id: qt3.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: qt3.kmk 2805 2016-01-28 11:08:44Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 3.3.x unit.
 #
 
 #
-# Copyright (c) 2008-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2008-2016 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -38,8 +38,8 @@ endif
 UNIT_qt3 = qt3
 
 
-ifndef UNIT_qt4
- # Add our target properties (same as qt4).
+if !defined(UNIT_qt4) && !defined(UNIT_qt5)
+ # Add our target properties (same as qt4 & qt5).
  PROPS_SINGLE += QTTOOL MOCTOOL UICTOOL LRCTOOL QT_TRANSLATIONS_INST QT_TRANSLATIONS_TEMPLATE QT_PREFIX
  PROPS_ACCUMULATE_R += MOCDEFS MOCFLAGS UICFLAGS LRCFLAGS QT_TRANSLATIONS QT_MOCSRCS QT_MOCHDRS
 endif
