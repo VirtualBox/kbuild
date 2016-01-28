@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2806 2016-01-28 11:29:19Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2807 2016-01-28 13:21:41Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -127,39 +127,39 @@ ifndef PATH_SDK_QT5
 
      # Now for the libraries (mostly for helping out finding the KBUILD_TARGET libs).
      ifeq ($(PATH_SDK_QT5_LIB.x86),)
-      PATH_SDK_QT5_LIB.x86   := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
-	$(PATH_SDK_QT5)/lib32/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib32/qt5/libQtCore$(SUFF_DLL) \
-	/usr/lib32/libQtCore$(SUFF_DLL) \
-	/usr/lib32/qt5/libQtCore$(SUFF_DLL) \
-	/usr/lib/i386-linux-gnu/libQtCore$(SUFF_DLL) \
-	/usr/local/lib32/libQtCore$(SUFF_DLL) \
-	/usr/local/lib32/qt5/libQtCore$(SUFF_DLL) \
-	/usr/local/lib/i386-linux-gnu/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/qt5/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/i386-linux-gnu/libQtCore$(SUFF_DLL) \
+      PATH_SDK_QT5_LIB.x86   := $(patsubst %/libQt5Core$(SUFF_DLL),%,$(firstword $(wildcard \
+	$(PATH_SDK_QT5)/lib32/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib32/qt5/libQt5Core$(SUFF_DLL) \
+	/usr/lib32/libQt5Core$(SUFF_DLL) \
+	/usr/lib32/qt5/libQt5Core$(SUFF_DLL) \
+	/usr/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib32/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib32/qt5/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
 	)))
       ifneq ($(PATH_SDK_QT5_LIB.x86),)
        export PATH_SDK_QT5_LIB.x86
       endif
      endif
      ifeq ($(PATH_SDK_QT5_LIB.amd64),)
-      PATH_SDK_QT5_LIB.amd64 := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
-	$(PATH_SDK_QT5)/lib64/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib64/qt5/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/amd64/libQtCore$(SUFF_DLL) \
-	/usr/lib64/libQtCore$(SUFF_DLL) \
-	/usr/lib64/qt5/libQtCore$(SUFF_DLL) \
-	/usr/lib/amd64/libQtCore$(SUFF_DLL) \
-	/usr/lib/x86_64-linux-gnu/libQtCore$(SUFF_DLL) \
-	/usr/local/lib64/libQtCore$(SUFF_DLL) \
-	/usr/local/lib64/qt5/libQtCore$(SUFF_DLL) \
-	/usr/local/lib/amd64/libQtCore$(SUFF_DLL) \
-	/usr/local/lib/x86_64-linux-gnu/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/qt5/libQtCore$(SUFF_DLL) \
-	$(PATH_SDK_QT5)/lib/x86_64-linux-gnu/libQtCore$(SUFF_DLL) \
+      PATH_SDK_QT5_LIB.amd64 := $(patsubst %/libQt5Core$(SUFF_DLL),%,$(firstword $(wildcard \
+	$(PATH_SDK_QT5)/lib64/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib64/qt5/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/amd64/libQt5Core$(SUFF_DLL) \
+	/usr/lib64/libQt5Core$(SUFF_DLL) \
+	/usr/lib64/qt5/libQt5Core$(SUFF_DLL) \
+	/usr/lib/amd64/libQt5Core$(SUFF_DLL) \
+	/usr/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib64/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib64/qt5/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib/amd64/libQt5Core$(SUFF_DLL) \
+	/usr/local/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
+	$(PATH_SDK_QT5)/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
 	)))
       ifneq ($(PATH_SDK_QT5_LIB.amd64),)
        export PATH_SDK_QT5_LIB.amd64
@@ -170,13 +170,13 @@ ifndef PATH_SDK_QT5
      ifeq ($(PATH_SDK_QT5_LIB),)
       PATH_SDK_QT5_LIB := $(PATH_SDK_QT5_LIB.$(KBUILD_TARGET_ARCH))
       ifeq ($(PATH_SDK_QT5_LIB),)
-       PATH_SDK_QT5_LIB := $(patsubst %/libQtCore$(SUFF_DLL),%,$(firstword $(wildcard \
-       	$(PATH_SDK_QT5)/lib/libQtCore$(SUFF_DLL) \
-       	$(PATH_SDK_QT5)/lib/qt5/libQtCore$(SUFF_DLL) \
-       	/usr/lib/libQtCore$(SUFF_DLL) \
-       	/usr/lib/qt5/libQtCore$(SUFF_DLL) \
-       	/usr/local/lib/libQtCore$(SUFF_DLL) \
-       	/usr/local/lib/qt5/libQtCore$(SUFF_DLL) \
+       PATH_SDK_QT5_LIB := $(patsubst %/libQt5Core$(SUFF_DLL),%,$(firstword $(wildcard \
+       	$(PATH_SDK_QT5)/lib/libQt5Core$(SUFF_DLL) \
+       	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
+       	/usr/lib/libQt5Core$(SUFF_DLL) \
+       	/usr/lib/qt5/libQt5Core$(SUFF_DLL) \
+       	/usr/local/lib/libQt5Core$(SUFF_DLL) \
+       	/usr/local/lib/qt5/libQt5Core$(SUFF_DLL) \
        	)))
       endif
       ifneq ($(PATH_SDK_QT5_LIB),)
@@ -983,12 +983,12 @@ ifeq ($(bld_trg),darwin)
  $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/5/Headers) )
 else
  ifeq ($(bld_trg),win)
-  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)4$(SUFF_LIB)) )
+  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt5$(module)$(qt_infix)$(SUFF_LIB)) )
   ifeq ($(tool_do),LINK_PROGRAM)
    $(eval $(target)_LIBS   += $(PATH_SDK_QT5_LIB)/$(qt_prefix)qtmain$(qt_infix)$(SUFF_LIB) )
   endif
  else
-  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/lib$(qt_prefix)Qt$(module)$(qt_infix)$(SUFF_DLL)) )
+  $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/lib$(qt_prefix)Qt5$(module)$(qt_infix)$(SUFF_DLL)) )
  endif
  $(eval $(target)_INCS     += $(addprefix $(PATH_SDK_QT5_INC)/Qt,$(qt_modules)) $(PATH_SDK_QT5_INC) )
 endif
