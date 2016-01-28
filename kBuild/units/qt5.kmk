@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2805 2016-01-28 11:08:44Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2806 2016-01-28 11:29:19Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -66,12 +66,12 @@ SDK_QT5 = Qt5
 #       PATH_SDK_QT5_LIB.x86   - The lib directory for X86.
 #       PATH_SDK_QT5_LIB       - The lib directory for KBUILD_TARGET.
 ifndef PATH_SDK_QT5
- PATH_SDK_QT5 := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/qt/v4*)))
+ PATH_SDK_QT5 := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_TRG)/qt/v5*)))
  ifeq ($(PATH_SDK_QT5),)
   # If target == host, try look for Qt in the various platform specific places.
   ifeq ($(KBUILD_TARGET),$(KBUILD_HOST))
    ifeq ($(KBUILD_TARGET),darwin)
-    PATH_SDK_QT5 := $(patsubst %/Frameworks/QtCore.framework/Versions/4,%,$(firstword $(wildcard /Library/Frameworks/QtCore.framework/Versions/4)))
+    PATH_SDK_QT5 := $(patsubst %/Frameworks/QtCore.framework/Versions/5,%,$(firstword $(wildcard /Library/Frameworks/QtCore.framework/Versions/5)))
    else ifeq ($(KBUILD_TARGET),win)
     # No idea here yet...
    else ifeq ($(KBUILD_TARGET),ose)
@@ -82,14 +82,14 @@ ifndef PATH_SDK_QT5
     PATH_SDK_QT5 := $(patsubst %/bin/qt4to5-qt5,%,$(firstword $(wildcard \
     	/usr/bin/qt4to5-qt5 \
     	/usr/local/bin/qt4to5-qt5 \
-    	/usr/qt/4/bin/qt4to5-qt5 \
+    	/usr/qt/5/bin/qt4to5-qt5 \
     	/usr/share/qt5/bin/qt4to5-qt5 \
     	)))
     ifeq ($(PATH_SDK_QT5),)
      PATH_SDK_QT5 := $(patsubst %/bin/qt4to5,%,$(firstword $(wildcard \
      	/usr/bin/qt4to5 \
      	/usr/local/bin/qt4to5 \
-     	/usr/qt/4/bin/qt4to5 \
+     	/usr/qt/5/bin/qt4to5 \
      	/usr/share/qt5/bin/qt4to5 \
        	)))
     endif
@@ -97,7 +97,7 @@ ifndef PATH_SDK_QT5
      PATH_SDK_QT5 := $(patsubst %/bin/rcc-qt5,%,$(firstword $(wildcard \
      	/usr/bin/rcc-qt5 \
      	/usr/local/bin/rcc-qt5 \
-     	/usr/qt/4/bin/rcc-qt5 \
+     	/usr/qt/5/bin/rcc-qt5 \
      	/usr/share/qt5/bin/rcc-qt5 \
      	)))
     endif
@@ -105,7 +105,7 @@ ifndef PATH_SDK_QT5
      PATH_SDK_QT5 := $(patsubst %/bin/rcc,%,$(firstword $(wildcard \
      	/usr/bin/rcc \
      	/usr/local/bin/rcc \
-     	/usr/qt/4/bin/rcc \
+     	/usr/qt/5/bin/rcc \
      	/usr/share/qt5/bin/rcc \
      	)))
     endif
@@ -233,9 +233,9 @@ if !defined(PATH_TOOL_QT5_BIN) && defined(PATH_TOOL_QT5)
  PATH_TOOL_QT5_BIN := $(PATH_TOOL_QT5)/bin
 endif
 ifndef PATH_TOOL_QT5_BIN
- PATH_TOOL_QT5_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/qt/v4*/bin)))
+ PATH_TOOL_QT5_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST)/qt/v5*/bin)))
  if "$(PATH_TOOL_QT5_BIN)" == "" && "$(KBUILD_DEVTOOLS_HST_ALT)" != ""
-  PATH_TOOL_QT5_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/qt/v4*/bin)))
+  PATH_TOOL_QT5_BIN := $(firstword $(rsort $(wildcard $(KBUILD_DEVTOOLS_HST_ALT)/qt/v5*/bin)))
  endif
  ifeq ($(PATH_TOOL_QT5_BIN),)
   ifdef TOOL_QT5_BIN_SUFF
@@ -245,7 +245,7 @@ ifndef PATH_TOOL_QT5_BIN
   ifneq ($(TOOL_QT5_BIN_SUFF),)
    PATH_TOOL_QT5_BIN := $(patsubst %/moc$(TOOL_QT5_BIN_SUFF),%,$(firstword $(wildcard \
 	 /usr/lib/qt5/bin/moc$(TOOL_QT5_BIN_SUFF) \
-	 /usr/qt/4/bin/moc$(TOOL_QT5_BIN_SUFF) \
+	 /usr/qt/5/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 /usr/share/qt5/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 /usr/local/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 /usr/bin/moc$(TOOL_QT5_BIN_SUFF) \
@@ -253,7 +253,7 @@ ifndef PATH_TOOL_QT5_BIN
   else
    PATH_TOOL_QT5_BIN := $(patsubst %/moc-qt5,%,$(firstword $(wildcard \
 	/usr/lib/qt5/bin/moc-qt5 \
-	/usr/qt/4/bin/moc-qt5 \
+	/usr/qt/5/bin/moc-qt5 \
 	/usr/share/qt5/bin/moc-qt5 \
 	/usr/local/bin/moc-qt5 \
 	/usr/bin/moc-qt5 \
@@ -264,7 +264,7 @@ ifndef PATH_TOOL_QT5_BIN
     # If no luck, try looking for moc in the qt5 specific locations.
     PATH_TOOL_QT5_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
 	/usr/lib/qt5/bin/moc \
-	/usr/qt/4/bin/moc \
+	/usr/qt/5/bin/moc \
 	/usr/share/qt5/bin/moc \
 	)))
    endif
@@ -273,7 +273,7 @@ ifndef PATH_TOOL_QT5_BIN
   ifeq ($(PATH_TOOL_QT5_BIN),)
    PATH_TOOL_QT5_BIN := $(patsubst %/qt4to5,%,$(firstword $(wildcard \
 	/usr/lib/qt5/bin/qt4to5 \
-	/usr/qt/4/bin/qt4to5 \
+	/usr/qt/5/bin/qt4to5 \
 	/usr/share/qt5/bin/qt4to5 \
 	/usr/local/bin/qt4to5 \
 	/usr/bin/qt4to5 \
@@ -282,7 +282,7 @@ ifndef PATH_TOOL_QT5_BIN
   ifeq ($(PATH_TOOL_QT5_BIN),)
    PATH_TOOL_QT5_BIN := $(patsubst %/rcc$(TOOL_QT5_BIN_SUFF),%,$(firstword $(wildcard \
 	/usr/lib/qt5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
-	/usr/qt/4/bin/rcc$(TOOL_QT5_BIN_SUFF) \
+	/usr/qt/5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
 	/usr/share/qt5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
 	/usr/local/bin/rcc$(TOOL_QT5_BIN_SUFF) \
 	/usr/bin/rcc$(TOOL_QT5_BIN_SUFF) \
@@ -291,7 +291,7 @@ ifndef PATH_TOOL_QT5_BIN
   if "$(PATH_TOOL_QT5_BIN)" == "" && "$(TOOL_QT5_BIN_SUFF)" != ""
    PATH_TOOL_QT5_BIN := $(patsubst %/rcc,%,$(firstword $(wildcard \
 	/usr/lib/qt5/bin/rcc \
-	/usr/qt/4/bin/rcc \
+	/usr/qt/5/bin/rcc \
 	/usr/share/qt5/bin/rcc \
 	/usr/local/bin/rcc \
 	/usr/bin/rcc \
@@ -980,7 +980,7 @@ ifeq ($(bld_trg),darwin)
  $(eval $(target)_CXXFLAGS += -F$(PATH_SDK_QT5_LIB) )
  $(eval $(target)_OBJCXXFLAGS += -F$(PATH_SDK_QT5_LIB) )
  $(eval $(target)_LDFLAGS  += -F$(PATH_SDK_QT5_LIB) $(foreach module,$(qt_modules), -framework $(qt_prefix)Qt$(module)$(qt_infix)) )
- $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/4/Headers) )
+ $(eval $(target)_INCS     += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt$(module)$(qt_infix).framework/Versions/5/Headers) )
 else
  ifeq ($(bld_trg),win)
   $(eval $(target)_LIBS    += $(foreach module,$(qt_modules), $(PATH_SDK_QT5_LIB)/$(qt_prefix)Qt$(module)$(qt_infix)4$(SUFF_LIB)) )
