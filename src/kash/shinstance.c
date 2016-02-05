@@ -1,4 +1,4 @@
-/* $Id: shinstance.c 2784 2015-05-24 17:29:04Z knut.osmundsen@oracle.com $ */
+/* $Id: shinstance.c 2809 2016-02-05 09:13:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * The shell instance methods.
  */
@@ -181,7 +181,7 @@ static void sh_destroy(shinstance *psh)
 }
 
 /**
- * Clones a string vector like enviorn or argv.
+ * Clones a string vector like environ or argv.
  *
  * @returns 0 on success, -1 and errno on failure.
  * @param   psh     The shell to associate the allocations with.
@@ -199,7 +199,7 @@ static int sh_clone_string_vector(shinstance *psh, char ***dstp, char **src)
        items++;
 
    /* alloc clone array. */
-   *dstp = dst = sh_malloc(psh, sizeof(*dst) * items + 1);
+   *dstp = dst = sh_malloc(psh, sizeof(*dst) * (items + 1));
    if (!dst)
        return -1;
 
