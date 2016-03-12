@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2802 2015-10-10 18:28:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2810 2016-03-12 13:23:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -126,7 +126,7 @@ extern int KMK_CC_STATIC_ASSERT_EX_VAR[1];
 /** How to declare a no-return function.
  * Place between scope (if any) and return type.  */
 #ifdef _MSC_VER
-# define KMK_CC_FN_NO_RETURN                        declspec(noreturn)
+# define KMK_CC_FN_NO_RETURN                        __declspec(noreturn)
 #elif defined(__GNUC__)
 # define KMK_CC_FN_NO_RETURN                        __attribute__((__noreturn__))
 #endif
@@ -5450,6 +5450,8 @@ static int kmk_cc_eval_do_var_undefine(PKMKCCEVALCOMPILER pCompiler, const char 
  */
 static int kmk_cc_eval_do_var_unexport(PKMKCCEVALCOMPILER pCompiler, const char *pchWord, size_t cchLeft, unsigned fQualifiers)
 {
+    PKMKCCEVALCORE pInstr;
+
     /*
      * Join paths with undefine and export, unless it's an unexport all directive.
      */
@@ -5460,7 +5462,7 @@ static int kmk_cc_eval_do_var_unexport(PKMKCCEVALCOMPILER pCompiler, const char 
     /*
      * We're unexporting all variables.
      */
-    PKMKCCEVALCORE pInstr = kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
+    pInstr = kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, sizeof(*pInstr));
     pInstr->enmOpcode = kKmkCcEvalInstr_unexport_all;
     pInstr->iLine     = pCompiler->iLine;
     return 1;
@@ -5887,6 +5889,9 @@ static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const cha
 
     if (cchLeft)
     {
+        unsigned iSavedEscEol;
+        unsigned cWords;
+
         /*
          * We need to figure out whether this is an assignment or a export statement,
          * in the latter case join paths with 'export' and 'undefine'.
@@ -5901,10 +5906,11 @@ static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const cha
          * it wasn't an assignment, and then check the words out for
          * assignment keywords and operators.
          */
-        unsigned iSavedEscEol = pCompiler->iEscEol;
-        unsigned cWords       = kmk_cc_eval_parse_words(pCompiler, pchWord, cchLeft);
+        iSavedEscEol = pCompiler->iEscEol;
+        cWords       = kmk_cc_eval_parse_words(pCompiler, pchWord, cchLeft);
         if (cWords)
         {
+            PKMKCCEVALVARIABLES pInstr;
             PKMKCCEVALWORD pWord = pCompiler->paWords;
             unsigned       iWord = 0;
             while (iWord < cWords)
@@ -5957,8 +5963,7 @@ static int kmk_cc_eval_handle_var_export(PKMKCCEVALCOMPILER pCompiler, const cha
              * It's not an assignment.
              * (This is the same as kmk_cc_eval_do_with_variable_list does.)
              */
-            PKMKCCEVALVARIABLES pInstr = (PKMKCCEVALVARIABLES)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail,
-                                                                                      KMKCCEVALVARIABLES_SIZE(cWords));
+            pInstr = (PKMKCCEVALVARIABLES)kmk_cc_block_alloc_eval(pCompiler->ppBlockTail, KMKCCEVALVARIABLES_SIZE(cWords));
             pInstr->Core.enmOpcode = kKmkCcEvalInstr_export;
             pInstr->Core.iLine     = pCompiler->iLine;
             pInstr->cVars          = cWords;
