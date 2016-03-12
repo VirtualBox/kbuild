@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2810 2016-03-12 13:23:30Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2811 2016-03-12 13:26:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -1045,6 +1045,7 @@ static const char * const g_apszEvalInstrNms[] =
     "unexport",
     "export_all",
     "unexport_all",
+    "undefine",
     "ifdef_plain",
     "ifndef_plain",
     "ifdef_dynamic",
