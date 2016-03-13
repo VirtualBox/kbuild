@@ -1,10 +1,10 @@
-/* $Id: redirect.c 2779 2015-02-24 03:50:12Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2812 2016-03-13 11:22:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
 
 /*
- * Copyright (c) 2007-2014 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2007-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #if defined(_MSC_VER)
+# include <ctype.h>
 # include <io.h>
 # include <direct.h>
 # include <process.h>
@@ -49,7 +50,46 @@
 #endif
 
 
+/*********************************************************************************************************************************
+*   Global Variables                                                                                                             *
+*********************************************************************************************************************************/
+/** Number of times the '-v' switch was seen. */
+static unsigned g_cVerbosity = 0;
+
+
 #if defined(_MSC_VER)
+
+/**
+ * Checks if this is an Watcom option where we must just pass thru the string
+ * as-is.
+ *
+ * This is currnetly only used for -d (defining macros).
+ *
+ * @returns 1 if pass-thru, 0 if not.
+ * @param   pszArg          The argument to consider.
+ */
+static int isWatcomPassThruOption(const char *pszArg)
+{
+    char ch = *pszArg++;
+    if (ch != '-' && ch != '/')
+        return 0;
+    ch = *pszArg++;
+    switch (ch)
+    {
+        /* Example: -d+VAR="string-value" */
+        case 'd':
+            if (ch == '+')
+                ch = *pszArg++;
+            if (!isalpha(ch) && ch != '_')
+                return 0;
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+
+
 /**
  * Replaces arguments in need of quoting.
  *
@@ -64,13 +104,15 @@
  * @param   fWatcomBrainDamage  Set if we're catering for wcc, wcc386 or similar
  *                              OpenWatcom tools.  They seem to follow some
  *                              ancient or home made quoting convention.
+ * @param   pStdErr             For verbose debug info.
  */
-static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
+static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage, FILE *pStdErr)
 {
     int i;
     for (i = 0; i < argc; i++)
     {
-        const char *pszOrg    = argv[i];
+        const char *pszOrgOrg = argv[i];
+        const char *pszOrg    = pszOrgOrg;
         size_t      cchOrg    = strlen(pszOrg);
         const char *pszQuotes = (const char *)memchr(pszOrg, '"', cchOrg);
         const char *pszProblem = NULL;
@@ -93,12 +135,13 @@ static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
             char   ch;
             int    fComplicated = pszQuotes || (cchOrg > 0 && pszOrg[cchOrg - 1] == '\\');
             size_t cchNew       = fComplicated ? cchOrg * 2 + 2 : cchOrg + 2;
-            char  *pszNew       = (char *)malloc(cchNew + 1);
+            char  *pszNew       = (char *)malloc(cchNew + 1 /*term*/ + 3 /*passthru hack*/);
 
             argv[i] = pszNew;
 
-            /* Watcom does not grok "-i=c:\program files\watcom\h", it thing
-               it's a source specification. The quote must follow the equal. */
+            /* Watcom does not grok stuff like "-i=c:\program files\watcom\h",
+               it think it's a source specification. In that case the quote
+               must follow the equal sign. */
             if (fWatcomBrainDamage)
             {
                 size_t cchUnquoted  = 0;
@@ -106,13 +149,18 @@ static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
                     cchUnquoted = 1;
                 else if (pszOrg[0] == '-' || pszOrg[0] == '/') /* Switch quoting. */
                 {
-                    const char *pszNeedQuoting = (const char *)memchr(pszOrg, '=', cchOrg);
-                    if (   pszNeedQuoting == NULL
-                        || (uintptr_t)pszNeedQuoting > (uintptr_t)(pszProblem ? pszProblem : pszQuotes))
-                        pszNeedQuoting = pszProblem ? pszProblem : pszQuotes;
+                    if (isWatcomPassThruOption(pszOrg))
+                        cchUnquoted = strlen(pszOrg) + 1;
                     else
-                        pszNeedQuoting++;
-                    cchUnquoted = pszNeedQuoting - pszOrg;
+                    {
+                        const char *pszNeedQuoting = (const char *)memchr(pszOrg, '=', cchOrg); /* For -i=dir and similar. */
+                        if (   pszNeedQuoting == NULL
+                            || (uintptr_t)pszNeedQuoting > (uintptr_t)(pszProblem ? pszProblem : pszQuotes))
+                            pszNeedQuoting = pszProblem ? pszProblem : pszQuotes;
+                        else
+                            pszNeedQuoting++;
+                        cchUnquoted = pszNeedQuoting - pszOrg;
+                    }
                 }
                 if (cchUnquoted)
                 {
@@ -168,19 +216,29 @@ static void quoteArguments(int argc, char **argv, int fWatcomBrainDamage)
             *pszNew++ = '"';
             *pszNew = '\0';
         }
+
+        if (g_cVerbosity > 0)
+        {
+            if (argv[i] == pszOrgOrg)
+                fprintf(pStdErr, "kmk_redirect: debug: argv[%i]=%s<eos>\n", i, pszOrgOrg);
+            else
+            {
+                fprintf(pStdErr, "kmk_redirect: debug: argv[%i]=%s<eos>\n", i, argv[i]);
+                fprintf(pStdErr, "kmk_redirect: debug:(orig[%i]=%s<eos>)\n", i, pszOrgOrg);
+            }
+        }
     }
 
     /*for (i = 0; i < argc; i++) fprintf(stderr, "argv[%u]=%s;;\n", i, argv[i]);*/
 }
-#endif /* _MSC_VER */
 
 
-#ifdef _MSC_VER
 /** Used by safeCloseFd. */
 static void __cdecl ignore_invalid_parameter(const wchar_t *a, const wchar_t *b, const wchar_t *c, unsigned d, uintptr_t e)
 {
 }
-#endif
+
+#endif /* _MSC_VER */
 
 
 /**
@@ -218,7 +276,7 @@ static const char *name(const char *pszName)
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
-            "usage: %s [-[rwa+tb]<fd> <file>] [-c<fd>] [-Z] [-E <var=val>] [-C <dir>] [--wcc-brain-damage] -- <program> [args]\n"
+            "usage: %s [-[rwa+tb]<fd> <file>] [-c<fd>] [-Z] [-E <var=val>] [-C <dir>] [--wcc-brain-damage] [-v] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
@@ -241,6 +299,8 @@ static int usage(FILE *pOut,  const char *argv0)
             "The --wcc-brain-damage switch is to work around wcc and wcc386 (Open Watcom)\n"
             "not following normal quoting conventions on Windows, OS/2, and DOS.\n"
             "\n"
+            "The -v switch is for making the thing more verbose.\n"
+            "\n"
             "This command was originally just a quick hack to avoid invoking the shell\n"
             "on Windows (cygwin) where forking is very expensive and has exhibited\n"
             "stability issues on SMP machines.  It has since grown into something like\n"
@@ -256,6 +316,8 @@ int main(int argc, char **argv, char **envp)
     int i;
 #if defined(_MSC_VER)
     intptr_t rc;
+#else
+    int j;
 #endif
     FILE *pStdErr = stderr;
     FILE *pStdOut = stdout;
@@ -465,6 +527,15 @@ int main(int argc, char **argv, char **envp)
 #endif
                     free(pszCopy);
                 }
+                continue;
+            }
+
+            /*
+             * Verbose operation switch?
+             */
+            if (*psz == 'v')
+            {
+                g_cVerbosity++;
                 continue;
             }
 
@@ -749,7 +820,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* MSC is a PITA since it refuses to quote the arguments... */
-    quoteArguments(argc - i, &argv[i], fWatcomBrainDamage);
+    quoteArguments(argc - i, &argv[i], fWatcomBrainDamage, pStdErr);
     rc = _spawnvp(_P_WAIT, argv[i], &argv[i]);
     if (rc == -1 && pStdErr)
     {
@@ -758,6 +829,9 @@ int main(int argc, char **argv, char **envp)
     }
     return rc;
 #else
+    if (g_cVerbosity > 0)
+        for (j = i; j < argc; j++)
+            fprintf(pStdErr, "kmk_redirect: debug: argv[%i]=%s<eos>\n", j - i, argv[j]);
     execvp(argv[i], &argv[i]);
     fprintf(pStdErr, "%s: error: _execvp(_P_WAIT, \"%s\", ...) failed: %s\n", name(argv[0]), argv[i], strerror(errno));
     return 1;
