@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2800 2015-09-20 19:12:56Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2814 2016-04-15 09:10:48Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -280,7 +280,7 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
 	. \
 	$(PATH_GNUMAKE_SRC)/w32/include \
 	$(PATH_GNUMAKE_SRC)/glob
- TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG
+ TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG /OPT:REF /OPT:ICF
  ifeq ($(KBUILD_TYPE),profile)
   TEMPLATE_BIN_SDKS             = WINPSDKINCS
   TEMPLATE_BIN_CFLAGS          += -MT
