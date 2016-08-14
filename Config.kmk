@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2814 2016-04-15 09:10:48Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2819 2016-08-14 12:29:48Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -48,12 +48,21 @@ ifneq ($(wildcard $(PATH_ROOT)/SvnInfo.kmk),)
 KBUILD_SVN_INFO_KMK := $(PATH_ROOT)/SvnInfo.kmk
 KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
 
-else ifneq ($(wildcard $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/../.svn/entries),)
+else ifneq ($(wildcard $(PATH_ROOT)/.svn/ $(PATH_ROOT)/../.svn/),)
 # Generate from svn info
 KBUILD_SVN_INFO_KMK := $(PATH_OBJ)/SvnInfo.kmk
 KBUILD_SVN_INFO_DEP := $(KBUILD_SVN_INFO_KMK)
 
-$(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(wildcard $(PATH_ROOT)/.svn $(PATH_ROOT)/.svn/entries $(PATH_ROOT)/.svn/all-wcprops $(PATH_ROOT)/.svn/format $(PATH_ROOT)/.svn/props $(PATH_ROOT)/.svn/prop-base )
+$(PATH_OBJ)/SvnInfo.ts +| $(KBUILD_SVN_INFO_KMK): $(wildcard $(addprefix $(PATH_ROOT)/.svn/ $(PATH_ROOT)/../.svn/,\
+		. \
+		pristine \
+		wc.db \
+		tmp \
+		entries \
+		all-wcprops \
+		format \
+		props \
+		prop-base ) )
 	$(call MSG_GENERATE,,$(KBUILD_SVN_INFO_KMK))
 	@$(RM) -f $@ $@.tmp
 	@$(MKDIR) -p $(@D)
