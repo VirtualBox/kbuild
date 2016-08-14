@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2801 2015-09-20 19:13:24Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2816 2016-08-14 12:16:45Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -193,11 +193,11 @@ kmk_DEFS = \
 	CONFIG_WITH_RDONLY_VARIABLE_VALUE \
 	CONFIG_WITH_LAZY_DEPS_VARS \
 	CONFIG_WITH_MEMORY_OPTIMIZATIONS \
-	CONFIG_WITH_COMPILER \
 	\
 	KBUILD_HOST=\"$(KBUILD_TARGET)\" \
 	KBUILD_HOST_ARCH=\"$(KBUILD_TARGET_ARCH)\" \
 	KBUILD_HOST_CPU=\"$(KBUILD_TARGET_CPU)\"
+# kmk_DEFS += CONFIG_WITH_COMPILER  # experimental, doesn't work 101% right it seems.
 kmk_DEFS.x86 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.amd64 = CONFIG_WITH_OPTIMIZATION_HACKS
 kmk_DEFS.win = CONFIG_NEW_WIN32_CTRL_EVENT CONFIG_WITH_FAST_IS_SPACE
