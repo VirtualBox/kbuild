@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2771 2015-02-01 20:48:36Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2815 2016-08-14 12:03:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -1961,7 +1961,7 @@ dep     := $(obj)$(SUFF_DEP)
 char *
 func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 {
-    static int s_fNoCompileCmdsDepsDefined = -1;
+    static int s_fNoCompileDepsDefined = -1;
     struct variable *pTarget    = kbuild_get_variable_n(ST("target"));
     struct variable *pSource    = kbuild_get_variable_n(ST("source"));
     struct variable *pDefPath   = kbuild_get_variable_n(ST("defpath"));
@@ -2052,14 +2052,14 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     /*
     # dependencies
-    ifndef NO_COMPILE_CMDS_DEPS
+    ifndef NO_COMPILE_DEPS
     _DEPFILES_INCLUDED += $(dep)
     $(if $(wildcard $(dep)),$(eval include $(dep)))
     endif
      */
-    if (s_fNoCompileCmdsDepsDefined == -1)
-        s_fNoCompileCmdsDepsDefined = kbuild_lookup_variable_n(ST("NO_COMPILE_CMDS_DEPS")) != NULL;
-    if (!s_fNoCompileCmdsDepsDefined)
+    if (s_fNoCompileDepsDefined == -1)
+        s_fNoCompileDepsDefined = kbuild_lookup_variable_n(ST("NO_COMPILE_DEPS")) != NULL;
+    if (!s_fNoCompileDepsDefined)
     {
         pVar = kbuild_query_recursive_variable_n("_DEPFILES_INCLUDED", sizeof("_DEPFILES_INCLUDED") - 1);
         if (pVar)
