@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2812 2016-03-13 11:22:53Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2822 2016-08-14 12:52:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -26,6 +26,9 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#ifdef __APPLE__
+# define _POSIX_C_SOURCE 1 /* 10.4 sdk and unsetenv */
+#endif
 #include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
