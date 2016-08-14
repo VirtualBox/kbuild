@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_COMPILER
-/* $Id: kmk_cc_exec.c 2811 2016-03-12 13:26:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kmk_cc_exec.c 2817 2016-08-14 12:18:20Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_cc - Make "Compiler".
  */
@@ -2390,7 +2390,7 @@ static PKMKCCEXPPROG kmk_cc_exp_compile(const char *pchStr, uint32_t cchStr)
 /**
  * Updates the recursive_without_dollar member of a variable structure.
  *
- * This avoid compiling string expansion programs without only a CopyString
+ * This avoid compiling string expansion programs with only a CopyString
  * instruction.  By setting recursive_without_dollar to 1, code calling
  * kmk_cc_compile_variable_for_expand and kmk_exec_expand_to_var_buf will
  * instead treat start treating it as a simple variable, which is faster.
