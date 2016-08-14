@@ -1,4 +1,4 @@
-/* $Id: kdev.e 2785 2015-07-11 14:58:52Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 2820 2016-08-14 12:33:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -190,9 +190,9 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
     if (sLexer)
     {
         /* multiline */
-#if __VERSION__>=14.0
-        _str aComments[];
-        GetComments(aComments, "mlcomment", sLexer)
+#if __VERSION__ >= 14.0
+        _str aComments[] = null;
+        GetComments(aComments, "mlcomment", sLexer);
         for (i = 0; i < aComments._length(); i++)
             if (!pos("documentation", aComments[i]) > 0)
             {
@@ -214,7 +214,7 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
         }
 
         /* failed, try single line. */
-#if __VERSION__>=14.0
+#if __VERSION__ >= 14.0
         GetComments(aComments, "linecomment", sLexer)
         for (i = 0; i < aComments._length(); i++)
             if (!pos("documentation", aComments[i]) > 0)
