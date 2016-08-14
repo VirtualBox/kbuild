@@ -3841,7 +3841,10 @@ print_stats ()
   when = time ((time_t *) 0);
   printf (_("\n# Make statistics, printed on %s"), ctime (&when));
 
-  /* Aallocators: */
+  /* Allocators: */
+#ifdef CONFIG_WITH_COMPILER
+  kmk_cc_print_stats ();
+#endif
 # ifndef CONFIG_WITH_STRCACHE2
   strcache_print_stats ("#");
 # else
