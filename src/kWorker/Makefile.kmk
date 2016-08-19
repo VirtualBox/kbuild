@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2831 2016-08-18 22:10:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2832 2016-08-19 21:15:32Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -23,8 +23,12 @@
 #
 #
 
+## @todo fixme!!!
+KBUILD_WITH_STATIC_MSVCRT = 1
+
 SUB_DEPTH = ../..
 include $(PATH_KBUILD)/subheader.kmk
+
 
 PROGRAMS += kWorker
 kWorker_TEMPLATE = BIN
