@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2831 2016-08-18 22:10:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2832 2016-08-19 21:15:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  */
@@ -38,6 +38,7 @@
 /* lib/nt_fullpath.c */
 extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #include <Windows.h>
+#include <winternl.h>
 
 
 /*********************************************************************************************************************************
@@ -48,7 +49,9 @@ typedef enum KWLOCATION
     KWLOCATION_INVALID = 0,
     KWLOCATION_EXE_DIR,
     KWLOCATION_IMPORTER_DIR,
-    KWLOCATION_SYSTEM32
+    KWLOCATION_SYSTEM32,
+    KWLOCATION_UNKNOWN_NATIVE,
+    KWLOCATION_UNKNOWN,
 } KWLOCATION;
 
 typedef enum KWMODSTATE
@@ -72,6 +75,8 @@ typedef struct KWMODULE
     KU32                uHashPath;
     /** Number of references. */
     KU32                cRefs;
+    /** UTF-16 version of pszPath. */
+    const wchar_t      *pwszPath;
     /** The offset of the filename in pszPath. */
     KU16                offFilename;
     /** Set if executable. */
@@ -80,6 +85,8 @@ typedef struct KWMODULE
     KBOOL               fNative;
     /** Loader module handle. */
     PKLDRMOD            pLdrMod;
+    /** The windows module handle. */
+    HMODULE             hOurMod;
 
     union
     {
@@ -105,6 +112,32 @@ typedef struct KWMODULE
     } u;
 } KWMODULE;
 
+
+typedef struct KWDYNLOAD *PKWDYNLOAD;
+typedef struct KWDYNLOAD
+{
+    /** Pointer to the next in the list. */
+    PKWDYNLOAD          pNext;
+
+    /** The normalized path to the image. */
+    const char         *pszPath;
+    /** The module name (within pszPath). */
+    const char         *pszModName;
+    /** UTF-16 version of pszPath. */
+    const wchar_t      *pwszPath;
+    /** The hash of the path. */
+    KU32                uHashPath;
+
+    /** The module handle we present to the application.
+     * This is the LoadLibraryEx return value for special modules and the
+     * KWMODULE.hOurMod value for the others. */
+    HMODULE             hmod;
+
+    /** The module for non-special resource stuff, NULL if special. */
+    PKWMODULE           pMod;
+} KWDYNLOAD;
+
+
 typedef enum KWTOOLTYPE
 {
     KWTOOLTYPE_INVALID = 0,
@@ -125,6 +158,8 @@ typedef struct KWTOOL
     KU32                uHashPath;
     /** The kind of tool. */
     KWTOOLTYPE          enmType;
+    /** UTF-16 version of pszPath. */
+    wchar_t const      *pwszPath;
 
     union
     {
@@ -132,6 +167,9 @@ typedef struct KWTOOL
         {
             /** The executable. */
             PKWMODULE   pExe;
+            /** List of dynamically loaded modules.
+             * These will be kept loaded till the tool is destroyed (if we ever do that). */
+            PKWDYNLOAD  pDynLoadHead;
         } Sandboxed;
     } u;
 } KWTOOL;
@@ -146,10 +184,39 @@ typedef struct KWSANDBOX
     jmp_buf     JmpBuf;
     /** The thread ID of the main thread (owner of JmpBuf). */
     DWORD       idMainThread;
+    /** Copy of the NT TIB of the main thread. */
+    NT_TIB      TibMainThread;
     /** The exit code in case of longjmp.   */
     int         rcExitCode;
 
+    /** The command line.   */
+    const char *pszCmdLine;
+    /** The UTF-16 command line. */
+    wchar_t    *pwszCmdLine;
+    /** Number of arguments in papszArgs. */
+    int         cArgs;
+    /** The argument vector. */
+    char      **papszArgs;
+    /** The argument vector. */
+    wchar_t   **papwszArgs;
 
+    /** The _pgmptr msvcrt variable.  */
+    char       *pgmptr;
+    /** The _wpgmptr msvcrt variable. */
+    wchar_t    *wpgmptr;
+
+    /** The _initenv msvcrt variable. */
+    char      **initenv;
+    /** The _winitenv msvcrt variable. */
+    wchar_t   **winitenv;
+
+    /** The _environ msvcrt variable. */
+    char      **environ;
+    /** The _wenviron msvcrt variable. */
+    wchar_t   **wenviron;
+
+
+    UNICODE_STRING  SavedCommandLine;
 } KWSANDBOX;
 
 /** Replacement function entry. */
@@ -161,17 +228,33 @@ typedef struct KWREPLACEMENTFUNCTION
     KSIZE       cchFunction;
     /** The module name (optional). */
     const char *pszModule;
-    /** The replacement function. */
+    /** The replacement function or data address. */
     KUPTR       pfnReplacement;
 } KWREPLACEMENTFUNCTION;
 typedef KWREPLACEMENTFUNCTION const *PCKWREPLACEMENTFUNCTION;
+
+#if 0
+/** Replacement function entry. */
+typedef struct KWREPLACEMENTDATA
+{
+    /** The function name. */
+    const char *pszFunction;
+    /** The length of the function name. */
+    KSIZE       cchFunction;
+    /** The module name (optional). */
+    const char *pszModule;
+    /** Function providing the replacement. */
+    KUPTR     (*pfnMakeReplacement)(PKWMODULE pMod, const char *pchSymbol, KSIZE cchSymbol);
+} KWREPLACEMENTDATA;
+typedef KWREPLACEMENTDATA const *PCKWREPLACEMENTDATA;
+#endif
 
 
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
-/** The currently active sandbox. */
-static PKWSANDBOX   g_pSandbox;
+/** The sandbox data. */
+static KWSANDBOX    g_Sandbox;
 
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
@@ -179,15 +262,18 @@ static PKWMODULE    g_apModules[127];
 /** Tool hash table. */
 static PKWTOOL      g_apTools[63];
 
+static int          g_cVerbose = 2;
+
+/* Further down. */
+extern KWREPLACEMENTFUNCTION const g_aSandboxReplacements[];
+extern KU32                  const g_cSandboxReplacements;
+
 /** Create a larget BSS blob that with help of /IMAGEBASE:0x10000 should
  * cover the default executable link address of 0x400000. */
 #pragma section("DefLdBuf", write, execute, read)
 __declspec(allocate("DefLdBuf"))
 static KU8          g_abDefLdBuf[16*1024*1024];
 
-/* Further down. */
-extern KWREPLACEMENTFUNCTION const g_aSandboxReplacements[];
-extern KU32                  const g_cSandboxReplacements;
 
 
 /*********************************************************************************************************************************
@@ -195,6 +281,96 @@ extern KU32                  const g_cSandboxReplacements;
 *********************************************************************************************************************************/
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
+
+
+
+/**
+ * Debug printing.
+ * @param   pszFormat           Debug format string.
+ * @param   ...                 Format argument.
+ */
+static void kwDbgPrintfV(const char *pszFormat, va_list va)
+{
+    if (g_cVerbose >= 2)
+    {
+        fprintf(stderr, "debug: ");
+        vfprintf(stderr, pszFormat, va);
+    }
+}
+
+
+/**
+ * Debug printing.
+ * @param   pszFormat           Debug format string.
+ * @param   ...                 Format argument.
+ */
+static void kwDbgPrintf(const char *pszFormat, ...)
+{
+    if (g_cVerbose >= 2)
+    {
+        va_list va;
+        va_start(va, pszFormat);
+        kwDbgPrintfV(pszFormat, va);
+        va_end(va);
+    }
+}
+
+
+/**
+ * Debugger printing.
+ * @param   pszFormat           Debug format string.
+ * @param   ...                 Format argument.
+ */
+static void kwDebuggerPrintfV(const char *pszFormat, va_list va)
+{
+    if (IsDebuggerPresent())
+    {
+        char szTmp[2048];
+        _vsnprintf(szTmp, sizeof(szTmp), pszFormat, va);
+        OutputDebugStringA(szTmp);
+    }
+}
+
+
+/**
+ * Debugger printing.
+ * @param   pszFormat           Debug format string.
+ * @param   ...                 Format argument.
+ */
+static void kwDebuggerPrintf(const char *pszFormat, ...)
+{
+    va_list va;
+    va_start(va, pszFormat);
+    kwDebuggerPrintfV(pszFormat, va);
+    va_end(va);
+}
+
+
+
+/**
+ * Error printing.
+ * @param   pszFormat           Message format string.
+ * @param   ...                 Format argument.
+ */
+static void kwErrPrintfV(const char *pszFormat, va_list va)
+{
+    fprintf(stderr, "error: ");
+    vfprintf(stderr, pszFormat, va);
+}
+
+
+/**
+ * Error printing.
+ * @param   pszFormat           Message format string.
+ * @param   ...                 Format argument.
+ */
+static void kwErrPrintf(const char *pszFormat, ...)
+{
+    va_list va;
+    va_start(va, pszFormat);
+    kwErrPrintfV(pszFormat, va);
+    va_end(va);
+}
 
 
 /**
@@ -246,6 +422,114 @@ static KU32 kwStrHash(const char *pszString)
     return uHash;
 }
 
+
+
+/**
+ * Converts the given string to unicode.
+ *
+ * @returns Length of the resulting string in wchar_t's.
+ * @param   pszSrc              The source string.
+ * @param   pwszDst             The destination buffer.
+ * @param   cwcDst              The size of the destination buffer in wchar_t's.
+ */
+static size_t kwStrToUtf16(const char *pszSrc, wchar_t *pwszDst, size_t cwcDst)
+{
+    /* Just to the quick ASCII stuff for now. correct ansi code page stuff later some time.  */
+    size_t offDst = 0;
+    while (offDst < cwcDst)
+    {
+        char ch = *pszSrc++;
+        pwszDst[offDst++] = ch;
+        if (!ch)
+            return offDst - 1;
+        kHlpAssert((unsigned)ch < 127);
+    }
+
+    pwszDst[offDst - 1] = '\0';
+    return offDst;
+}
+
+
+/**
+ * Converts the given UTF-16 to a normal string.
+ *
+ * @returns Length of the resulting string.
+ * @param   pwszSrc             The source UTF-16 string.
+ * @param   pszDst              The destination buffer.
+ * @param   cbDst               The size of the destination buffer in bytes.
+ */
+static size_t kwUtf16ToStr(const wchar_t *pwszSrc, char *pszDst, size_t cbDst)
+{
+    /* Just to the quick ASCII stuff for now. correct ansi code page stuff later some time.  */
+    size_t offDst = 0;
+    while (offDst < cbDst)
+    {
+        wchar_t wc = *pwszSrc++;
+        pszDst[offDst++] = (char)wc;
+        if (!wc)
+            return offDst - 1;
+        kHlpAssert((unsigned)wc < 127);
+    }
+
+    pszDst[offDst - 1] = '\0';
+    return offDst;
+}
+
+
+
+/** UTF-16 string length.  */
+static KSIZE kwUtf16Len(wchar_t const *pwsz)
+{
+    KSIZE cwc = 0;
+    while (*pwsz != '\0')
+        cwc++, pwsz++;
+    return cwc;
+}
+
+/**
+ * Copy out the UTF-16 string following the convension of GetModuleFileName
+ */
+static DWORD kwUtf16CopyStyle1(wchar_t const *pwszSrc, wchar_t *pwszDst, KSIZE cwcDst)
+{
+    KSIZE cwcSrc = kwUtf16Len(pwszSrc);
+    if (cwcSrc + 1 <= cwcDst)
+    {
+        kHlpMemCopy(pwszDst, pwszSrc, (cwcSrc + 1) * sizeof(wchar_t));
+        return (DWORD)cwcSrc;
+    }
+    if (cwcDst > 0)
+    {
+        size_t cwcDstTmp = cwcDst - 1;
+        pwszDst[cwcDstTmp] = '\0';
+        if (cwcDstTmp > 0)
+            kHlpMemCopy(pwszDst, pwszSrc, cwcDstTmp);
+    }
+    SetLastError(ERROR_INSUFFICIENT_BUFFER);
+    return (DWORD)cwcDst;
+}
+
+
+/**
+ * Copy out the ANSI string following the convension of GetModuleFileName
+ */
+static DWORD kwStrCopyStyle1(char const *pszSrc, char *pszDst, KSIZE cbDst)
+{
+    KSIZE cchSrc = kHlpStrLen(pszSrc);
+    if (cchSrc + 1 <= cbDst)
+    {
+        kHlpMemCopy(pszDst, pszSrc, cchSrc + 1);
+        return (DWORD)cchSrc;
+    }
+    if (cbDst > 0)
+    {
+        size_t cbDstTmp = cbDst - 1;
+        pszDst[cbDstTmp] = '\0';
+        if (cbDstTmp > 0)
+            kHlpMemCopy(pszDst, pszSrc, cbDstTmp);
+    }
+    SetLastError(ERROR_INSUFFICIENT_BUFFER);
+    return (DWORD)cbDst;
+}
 
 
 
@@ -355,16 +639,21 @@ static PKWMODULE kwLdrModuleCreateNative(const char *pszPath, KU32 uHashPath)
          * Create the entry.
          */
         KSIZE     cbPath = kHlpStrLen(pszPath) + 1;
-        PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath);
+        PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + 1 + cbPath * 2 * sizeof(wchar_t));
         if (pMod)
         {
             pMod->pszPath       = (char *)kHlpMemCopy(pMod + 1, pszPath, cbPath);
+            pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
+            kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
             pMod->uHashPath     = uHashPath;
             pMod->cRefs         = 1;
             pMod->offFilename   = (KU16)(kHlpGetFilename(pszPath) - pszPath);
             pMod->fExe          = K_FALSE;
             pMod->fNative       = K_TRUE;
             pMod->pLdrMod       = pLdrMod;
+            pMod->hOurMod       = (HMODULE)(KUPTR)pLdrMod->aSegments[0].MapAddress;
+            kwDbgPrintf("New module: %p LB %#010x %s (native)\n",
+                        (KUPTR)pMod->pLdrMod->aSegments[0].MapAddress, kLdrModSize(pMod->pLdrMod), pMod->pszPath);
             return kwLdrModuleLink(pMod);
         }
         //kLdrModClose(pLdrMod);
@@ -423,18 +712,24 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                  * Create the entry.
                  */
                 KSIZE     cbPath = kHlpStrLen(pszPath) + 1;
-                PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + sizeof(pMod) * cImports);
+                PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod)
+                                                         + sizeof(pMod) * cImports
+                                                         + cbPath
+                                                         + cbPath * 2 * sizeof(wchar_t));
                 if (pMod)
                 {
                     KBOOL fFixed;
 
                     pMod->cRefs         = 1;
                     pMod->offFilename   = (KU16)(kHlpGetFilename(pszPath) - pszPath);
+                    pMod->uHashPath     = uHashPath;
                     pMod->fExe          = fExe;
                     pMod->fNative       = K_FALSE;
                     pMod->pLdrMod       = pLdrMod;
                     pMod->u.Manual.cImpMods = (KU32)cImports;
                     pMod->pszPath       = (char *)kHlpMemCopy(&pMod->u.Manual.apImpMods[cImports + 1], pszPath, cbPath);
+                    pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
+                    kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
 
                     /*
                      * Figure out where to load it and get memory there.
@@ -458,8 +753,12 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                             /*
                              * Link the module (unless it's an executable image) and process the imports.
                              */
+                            pMod->hOurMod = (HMODULE)pMod->u.Manual.pvLoad;
                             if (!fExe)
                                 kwLdrModuleLink(pMod);
+                            kwDbgPrintf("New module: %p LB %#010x %s (kLdr)\n",
+                                        pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage, pMod->pszPath);
+                            kwDebuggerPrintf("TODO: .reload /f %s=%p\n", pMod->pszPath, pMod->u.Manual.pvLoad);
 
                             for (iImp = 0; iImp < cImports; iImp++)
                             {
@@ -488,16 +787,23 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
 
                             kwLdrModuleRelease(pMod);
                             return NULL;
-
-                            //kHlpPageFree(pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
                         }
+
                         kHlpPageFree(pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage);
+                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->u.Manual.cbImage);
                     }
+                    else if (fFixed)
+                        kwErrPrintf("Failed to allocate %#x bytes at %p\n",
+                                    pMod->u.Manual.cbImage, (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress);
+                    else
+                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->u.Manual.cbImage);
                 }
             }
         }
         kLdrModClose(pLdrMod);
     }
+    else
+        kwErrPrintf("kLdrOpen failed with %#x (%d) for %s\n", rc, rc, pszPath);
     return NULL;
 }
 
@@ -531,13 +837,13 @@ static int kwLdrModuleGetImportCallback(PKLDRMOD pMod, KU32 iImport, KU32 iSymbo
                 if (   !g_aSandboxReplacements[i].pszModule
                     || kHlpStrICompAscii(g_aSandboxReplacements[i].pszModule, &pImpMod->pszPath[pImpMod->offFilename]) == 0)
                 {
-                    printf("replacing %s!%s\n", &pImpMod->pszPath[pImpMod->offFilename], g_aSandboxReplacements[i].pszFunction);
+                    kwDbgPrintf("replacing %s!%s\n", &pImpMod->pszPath[pImpMod->offFilename], g_aSandboxReplacements[i].pszFunction);
                     *puValue = g_aSandboxReplacements[i].pfnReplacement;
                 }
             }
     }
 
-    printf("iImport=%u (%s) %*.*s rc=%d\n", iImport, &pImpMod->pszPath[pImpMod->offFilename], cchSymbol, cchSymbol, pchSymbol, rc);
+    //printf("iImport=%u (%s) %*.*s rc=%d\n", iImport, &pImpMod->pszPath[pImpMod->offFilename], cchSymbol, cchSymbol, pchSymbol, rc);
     return rc;
 
 }
@@ -567,8 +873,12 @@ static KBOOL kwLdrModuleCanLoadNatively(const char *pszFilename, KWLOCATION enmL
 {
     if (enmLocation == KWLOCATION_SYSTEM32)
         return K_TRUE;
+    if (enmLocation == KWLOCATION_UNKNOWN_NATIVE)
+        return K_TRUE;
     return kHlpStrICompAscii(pszFilename, "msvcrt.dll") == 0
-        || kHlpStrNICompAscii(pszFilename, "msvc", 4)   == 0;
+        || kHlpStrNICompAscii(pszFilename, "msvc", 4)   == 0
+        || kHlpStrNICompAscii(pszFilename, "msdis", 5)  == 0
+        || kHlpStrNICompAscii(pszFilename, "mspdb", 5)  == 0;
 }
 
 
@@ -697,6 +1007,53 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
 }
 
 
+/**
+ * Does module initialization starting at @a pMod.
+ *
+ * This is initially used on the executable.  Later it is used by the
+ * LoadLibrary interceptor.
+ *
+ * @returns 0 on success, error on failure.
+ * @param   pMod                The module to initialize.
+ */
+static int kwLdrModuleInitTree(PKWMODULE pMod)
+{
+    int rc = 0;
+    if (!pMod->fNative)
+    {
+        /* Need to copy bits? */
+        if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_BITS)
+        {
+            kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
+            pMod->u.Manual.enmState = KWMODSTATE_NEEDS_INIT;
+        }
+
+        if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_INIT)
+        {
+            /* Must do imports first, but mark our module as being initialized to avoid
+               endless recursion should there be a dependency loop. */
+            KSIZE iImp;
+            pMod->u.Manual.enmState = KWMODSTATE_BEING_INITED;
+
+            for (iImp = 0; iImp < pMod->u.Manual.cImpMods; iImp++)
+            {
+                rc = kwLdrModuleInitTree(pMod->u.Manual.apImpMods[iImp]);
+                if (rc != 0)
+                    return rc;
+            }
+
+            rc = kLdrModCallInit(pMod->pLdrMod, pMod->u.Manual.pvLoad, (KUPTR)pMod->u.Manual.pvLoad);
+            if (rc == 0)
+                pMod->u.Manual.enmState = KWMODSTATE_READY;
+            else
+                pMod->u.Manual.enmState = KWMODSTATE_INIT_FAILED;
+        }
+    }
+    return rc;
+}
+
+
+
 
 /**
  * Creates a tool entry and inserts it.
@@ -709,10 +1066,12 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
 static PKWTOOL kwToolEntryCreate(const char *pszTool, KU32 uHashPath, unsigned idxHashTab)
 {
     KSIZE   cbTool = kHlpStrLen(pszTool) + 1;
-    PKWTOOL pTool  = (PKWTOOL)kHlpAllocZ(sizeof(*pTool) + cbTool);
+    PKWTOOL pTool  = (PKWTOOL)kHlpAllocZ(sizeof(*pTool) + cbTool + 1 + cbTool * 2 * sizeof(wchar_t));
     if (pTool)
     {
         pTool->pszPath   = (char *)kHlpMemCopy(pTool + 1, pszTool, cbTool);
+        pTool->pwszPath  = (wchar_t *)(pTool->pszPath + cbTool + (cbTool & 1));
+        kwStrToUtf16(pTool->pszPath, (wchar_t *)pTool->pwszPath, cbTool * 2);
         pTool->uHashPath = uHashPath;
         pTool->enmType   = KWTOOLTYPE_SANDBOXED;
 
@@ -768,48 +1127,147 @@ static PKWTOOL kwToolLookup(const char *pszExe)
 
 
 
+/**
+ * Parses the argument string passed in as pszSrc.
+ *
+ * @returns size of the processed arguments.
+ * @param   pszSrc  Pointer to the commandline that's to be parsed.
+ * @param   pcArgs  Where to return the number of arguments.
+ * @param   argv    Pointer to argument vector to put argument pointers in. NULL allowed.
+ * @param   pchPool Pointer to memory pchPool to put the arguments into. NULL allowed.
+ *
+ * @remarks Lifted from startuphacks-win.c
+ */
+static int parse_args(const char *pszSrc, int *pcArgs, char **argv, char *pchPool)
+{
+    int   bs;
+    char  chQuote;
+    char *pfFlags;
+    int   cbArgs;
+    int   cArgs;
+
+#define PUTC(c) do { ++cbArgs; if (pchPool != NULL) *pchPool++ = (c); } while (0)
+#define PUTV    do { ++cArgs;  if (argv != NULL) *argv++ = pchPool; } while (0)
+#define WHITE(c) ((c) == ' ' || (c) == '\t')
+
+#define _ARG_DQUOTE   0x01          /* Argument quoted (")                  */
+#define _ARG_RESPONSE 0x02          /* Argument read from response file     */
+#define _ARG_WILDCARD 0x04          /* Argument expanded from wildcard      */
+#define _ARG_ENV      0x08          /* Argument from environment            */
+#define _ARG_NONZERO  0x80          /* Always set, to avoid end of string   */
+
+    cArgs  = 0;
+    cbArgs = 0;
+
+#if 0
+    /* argv[0] */
+    PUTC((char)_ARG_NONZERO);
+    PUTV;
+    for (;;)
+    {
+        PUTC(*pszSrc);
+        if (*pszSrc == 0)
+            break;
+        ++pszSrc;
+    }
+    ++pszSrc;
+#endif
+
+    for (;;)
+    {
+        while (WHITE(*pszSrc))
+            ++pszSrc;
+        if (*pszSrc == 0)
+            break;
+        pfFlags = pchPool;
+        PUTC((char)_ARG_NONZERO);
+        PUTV;
+        bs = 0; chQuote = 0;
+        for (;;)
+        {
+            if (!chQuote ? (*pszSrc == '"' /*|| *pszSrc == '\''*/) : *pszSrc == chQuote)
+            {
+                while (bs >= 2)
+                {
+                    PUTC('\\');
+                    bs -= 2;
+                }
+                if (bs & 1)
+                    PUTC(*pszSrc);
+                else
+                {
+                    chQuote = chQuote ? 0 : *pszSrc;
+                    if (pfFlags != NULL)
+                        *pfFlags |= _ARG_DQUOTE;
+                }
+                bs = 0;
+            }
+            else if (*pszSrc == '\\')
+                ++bs;
+            else
+            {
+                while (bs != 0)
+                {
+                    PUTC('\\');
+                    --bs;
+                }
+                if (*pszSrc == 0 || (WHITE(*pszSrc) && !chQuote))
+                    break;
+                PUTC(*pszSrc);
+            }
+            ++pszSrc;
+        }
+        PUTC(0);
+    }
+
+    *pcArgs = cArgs;
+    return cbArgs;
+}
+
+
+
+
 /*
  *
- * Kernel32 API replacements.
- * Kernel32 API replacements.
- * Kernel32 API replacements.
+ * Process and thread related APIs.
+ * Process and thread related APIs.
+ * Process and thread related APIs.
  *
  */
 
 /** ExitProcess replacement.  */
 static void WINAPI kwSandbox_Kernel32_ExitProcess(UINT uExitCode)
 {
-    if (g_pSandbox->idMainThread == GetCurrentThreadId())
+    if (g_Sandbox.idMainThread == GetCurrentThreadId())
     {
-        g_pSandbox->rcExitCode = (int)uExitCode;
-        longjmp(g_pSandbox->JmpBuf, 1);
+        PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
+
+        g_Sandbox.rcExitCode = (int)uExitCode;
+
+        /* Before we jump, restore the TIB as we're not interested in any
+           exception chain stuff installed by the sandboxed executable. */
+        *pTib = g_Sandbox.TibMainThread;
+
+        longjmp(g_Sandbox.JmpBuf, 1);
     }
     __debugbreak();
 }
+
 
 /** ExitProcess replacement.  */
 static BOOL WINAPI kwSandbox_Kernel32_TerminateProcess(HANDLE hProcess, UINT uExitCode)
 {
     if (hProcess == GetCurrentProcess())
         kwSandbox_Kernel32_ExitProcess(uExitCode);
-__debugbreak();
+    __debugbreak();
     return TerminateProcess(hProcess, uExitCode);
 }
 
 
-
-/*
- *
- * MS Visual C++ CRT replacements.
- * MS Visual C++ CRT replacements.
- * MS Visual C++ CRT replacements.
- *
- */
-
 /** Normal CRT exit(). */
 static void __cdecl kwSandbox_msvcrt_exit(int rcExitCode)
 {
-    fprintf(stderr, "kwSandbox_msvcrt_exit\n");
+    kwDbgPrintf("kwSandbox_msvcrt_exit: %d\n", rcExitCode);
     kwSandbox_Kernel32_ExitProcess(rcExitCode);
 }
 
@@ -818,7 +1276,7 @@ static void __cdecl kwSandbox_msvcrt_exit(int rcExitCode)
 static void __cdecl kwSandbox_msvcrt__exit(int rcExitCode)
 {
     /* Quick. */
-    fprintf(stderr, "kwSandbox_msvcrt__exit\n");
+    kwDbgPrintf("kwSandbox_msvcrt__exit %d\n", rcExitCode);
     kwSandbox_Kernel32_ExitProcess(rcExitCode);
 }
 
@@ -826,7 +1284,7 @@ static void __cdecl kwSandbox_msvcrt__exit(int rcExitCode)
 /** Return to caller CRT _cexit(). */
 static void __cdecl kwSandbox_msvcrt__cexit(int rcExitCode)
 {
-    fprintf(stderr, "kwSandbox_msvcrt__cexit\n");
+    kwDbgPrintf("kwSandbox_msvcrt__cexit: %d\n", rcExitCode);
     kwSandbox_Kernel32_ExitProcess(rcExitCode);
 }
 
@@ -834,32 +1292,624 @@ static void __cdecl kwSandbox_msvcrt__cexit(int rcExitCode)
 /** Quick return to caller CRT _c_exit(). */
 static void __cdecl kwSandbox_msvcrt__c_exit(int rcExitCode)
 {
-    fprintf(stderr, "kwSandbox_msvcrt__c_exit\n");
+    kwDbgPrintf("kwSandbox_msvcrt__c_exit: %d\n", rcExitCode);
     kwSandbox_Kernel32_ExitProcess(rcExitCode);
 }
 
 
-/** Runtime error and exit. */
+/** Runtime error and exit _amsg_exit(). */
 static void __cdecl kwSandbox_msvcrt__amsg_exit(int iMsgNo)
 {
-    fprintf(stderr, "\nRuntime error #%u!\n", iMsgNo);
+    kwDbgPrintf("\nRuntime error #%u!\n", iMsgNo);
     kwSandbox_Kernel32_ExitProcess(255);
 }
 
 
 /** The CRT internal __getmainargs() API. */
 static int __cdecl kwSandbox_msvcrt___getmainargs(int *pargc, char ***pargv, char ***penvp,
-                                                  int dowildcard, /*_startupinfo*/ void *startinfo)
+                                                  int dowildcard, int const *piNewMode)
 {
-    /** @todo startinfo points at a newmode (setmode) value.   */
+    *pargc = g_Sandbox.cArgs;
+    *pargv = g_Sandbox.papszArgs;
+    *penvp = g_Sandbox.environ;
 
-    *pargc = 2;
-    *pargv = (char **)kHlpAllocZ(sizeof(char *) * 3);
-    (*pargv)[0] = "nasm.exe";
-    (*pargv)[1] = "-h";
-    *penvp = (char **)kHlpAllocZ(sizeof(char *) * 1);
+    /** @todo startinfo points at a newmode (setmode) value.   */
     return 0;
 }
+
+
+/** The CRT internal __wgetmainargs() API. */
+static int __cdecl kwSandbox_msvcrt___wgetmainargs(int *pargc, wchar_t ***pargv, wchar_t ***penvp,
+                                                   int dowildcard, int const *piNewMode)
+{
+    *pargc = g_Sandbox.cArgs;
+    *pargv = g_Sandbox.papwszArgs;
+    *penvp = g_Sandbox.wenviron;
+
+    /** @todo startinfo points at a newmode (setmode) value.   */
+    return 0;
+}
+
+
+
+/** Kernel32 - GetCommandLineA()  */
+static LPCSTR /*LPSTR*/ WINAPI kwSandbox_Kernel32_GetCommandLineA(VOID)
+{
+    return g_Sandbox.pszCmdLine;
+}
+
+
+/** Kernel32 - GetCommandLineW()  */
+static LPCWSTR /*LPWSTR*/ WINAPI kwSandbox_Kernel32_GetCommandLineW(VOID)
+{
+    return g_Sandbox.pwszCmdLine;
+}
+
+
+/** Kernel32 - GetStartupInfoA()  */
+static VOID WINAPI kwSandbox_Kernel32_GetStartupInfoA(LPSTARTUPINFOA pStartupInfo)
+{
+    __debugbreak();
+}
+
+
+/** Kernel32 - GetStartupInfoW()  */
+static VOID WINAPI kwSandbox_Kernel32_GetStartupInfoW(LPSTARTUPINFOW lpStartupInfo)
+{
+    __debugbreak();
+}
+
+
+/** CRT - __p___argc().  */
+static int * __cdecl kwSandbox_msvcrt___p___argc(void)
+{
+    return &g_Sandbox.cArgs;
+}
+
+
+/** CRT - __p___argv().  */
+static char *** __cdecl kwSandbox_msvcrt___p___argv(void)
+{
+    return &g_Sandbox.papszArgs;
+}
+
+
+/** CRT - __p___sargv().  */
+static wchar_t *** __cdecl kwSandbox_msvcrt___p___wargv(void)
+{
+    return &g_Sandbox.papwszArgs;
+}
+
+
+/** CRT - __p__acmdln().  */
+static char ** __cdecl kwSandbox_msvcrt___p__acmdln(void)
+{
+    return (char **)&g_Sandbox.pszCmdLine;
+}
+
+
+/** CRT - __p__acmdln().  */
+static wchar_t ** __cdecl kwSandbox_msvcrt___p__wcmdln(void)
+{
+    return &g_Sandbox.pwszCmdLine;
+}
+
+
+/** CRT - __p__pgmptr().  */
+static char ** __cdecl kwSandbox_msvcrt___p__pgmptr(void)
+{
+    return &g_Sandbox.pgmptr;
+}
+
+
+/** CRT - __p__wpgmptr().  */
+static wchar_t ** __cdecl kwSandbox_msvcrt___p__wpgmptr(void)
+{
+    return &g_Sandbox.wpgmptr;
+}
+
+
+/** CRT - _get_pgmptr().  */
+static errno_t __cdecl kwSandbox_msvcrt__get_pgmptr(char **ppszValue)
+{
+    *ppszValue = g_Sandbox.pgmptr;
+    return 0;
+}
+
+
+/** CRT - _get_wpgmptr().  */
+static errno_t __cdecl kwSandbox_msvcrt__get_wpgmptr(wchar_t **ppwszValue)
+{
+    *ppwszValue = g_Sandbox.wpgmptr;
+    return 0;
+}
+
+/** Just in case. */
+static void kwSandbox_msvcrt__wincmdln(void)
+{
+    __debugbreak();
+}
+
+
+/** Just in case. */
+static void kwSandbox_msvcrt__wwincmdln(void)
+{
+    __debugbreak();
+}
+
+/** CreateThread interceptor. */
+static HANDLE WINAPI kwSandbox_Kernel32_CreateThread(LPSECURITY_ATTRIBUTES pSecAttr, SIZE_T cbStack,
+                                                     PTHREAD_START_ROUTINE pfnThreadProc, PVOID pvUser,
+                                                     DWORD fFlags, PDWORD pidThread)
+{
+    __debugbreak();
+    return NULL;
+}
+
+
+/** _beginthread - create a new thread. */
+static uintptr_t __cdecl kwSandbox_msvcrt__beginthread(void (__cdecl *pfnThreadProc)(void *), unsigned cbStack, void *pvUser)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** _beginthreadex - create a new thread. */
+static uintptr_t __cdecl kwSandbox_msvcrt__beginthreadex(void *pvSecAttr, unsigned cbStack,
+                                                         unsigned (__stdcall *pfnThreadProc)(void *), void *pvUser,
+                                                         unsigned fCreate, unsigned *pidThread)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/*
+ *
+ * Environment related APIs.
+ * Environment related APIs.
+ * Environment related APIs.
+ *
+ */
+
+/** Kernel32 - GetEnvironmentVariableA()  */
+static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableA(LPCSTR pwszVar, LPSTR pszValue, DWORD cbValue)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** Kernel32 - GetEnvironmentVariableW()  */
+static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableW(LPCWSTR pwszVar, LPWSTR pwszValue, DWORD cbValue)
+{
+    kwDbgPrintf("GetEnvironmentVariableW: '%ls'\n", pwszVar);
+    //__debugbreak();
+    //SetLastError(ERROR_ENVVAR_NOT_FOUND);
+    //return 0;
+    return GetEnvironmentVariableW(pwszVar, pwszValue, cbValue);
+}
+
+
+/** Kernel32 - SetEnvironmentVariableA()  */
+static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableA(LPCSTR pszVar, LPCSTR pszValue)
+{
+    __debugbreak();
+    return FALSE;
+}
+
+
+/** Kernel32 - SetEnvironmentVariableW()  */
+static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableW(LPCWSTR pwszVar, LPCWSTR pwszValue)
+{
+    kwDbgPrintf("SetEnvironmentVariableW: '%ls' = '%ls'\n", pwszVar, pwszValue);
+    return SetEnvironmentVariableW(pwszVar, pwszValue);
+    //__debugbreak();
+    //return FALSE;
+}
+
+
+/** Kernel32 - ExpandEnvironmentStringsA()  */
+static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsA(LPCSTR pszSrc, LPSTR pwszDst, DWORD cbDst)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** Kernel32 - ExpandEnvironmentStringsW()  */
+static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsW(LPCWSTR pwszSrc, LPWSTR pwszDst, DWORD cbDst)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** CRT - _putenv(). */
+static int __cdecl kwSandbox_msvcrt__putenv(const char *pszVarEqualValue)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** CRT - _wputenv(). */
+static int __cdecl kwSandbox_msvcrt__wputenv(const wchar_t *pwszVarEqualValue)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** CRT - _putenv_s(). */
+static errno_t __cdecl kwSandbox_msvcrt__putenv_s(const char *pszVar, const char *pszValue)
+{
+    __debugbreak();
+    return 0;
+}
+
+
+/** CRT - _wputenv_s(). */
+static errno_t __cdecl kwSandbox_msvcrt__wputenv_s(const wchar_t *pwszVar, const wchar_t *pwszValue)
+{
+    kwDbgPrintf("_wputenv_s: '%ls' = '%ls'\n", pwszVar, pwszValue);
+    //__debugbreak();
+    return SetEnvironmentVariableW(pwszVar, pwszValue) ? 0 : -1;
+}
+
+
+/** CRT - get pointer to the __initenv variable (initial environment).   */
+static char *** __cdecl kwSandbox_msvcrt___p___initenv(void)
+{
+    return &g_Sandbox.initenv;
+}
+
+
+/** CRT - get pointer to the __winitenv variable (initial environment).   */
+static wchar_t *** __cdecl kwSandbox_msvcrt___p___winitenv(void)
+{
+    return &g_Sandbox.winitenv;
+}
+
+
+/** CRT - get pointer to the _environ variable (current environment).   */
+static char *** __cdecl kwSandbox_msvcrt___p__environ(void)
+{
+    return &g_Sandbox.environ;
+}
+
+
+/** CRT - get pointer to the _wenviron variable (current environment).   */
+static wchar_t *** __cdecl kwSandbox_msvcrt___p__wenviron(void)
+{
+    return &g_Sandbox.wenviron;
+}
+
+
+/** CRT - get the _environ variable (current environment).
+ * @remarks Not documented or prototyped?  */
+static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviron)
+{
+    __debugbreak(); /** @todo check the callers expecations! */
+    *ppapszEnviron = g_Sandbox.environ;
+    return 0;
+}
+
+
+/** CRT - get the _wenviron variable (current environment).
+ * @remarks Not documented or prototyped? */
+static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszEnviron)
+{
+    __debugbreak(); /** @todo check the callers expecations! */
+    *ppapwszEnviron = g_Sandbox.wenviron;
+    return 0;
+}
+
+
+
+/*
+ *
+ * Loader related APIs
+ * Loader related APIs
+ * Loader related APIs
+ *
+ */
+
+
+/** Kernel32 - LoadLibraryExA()   */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
+{
+    PKWDYNLOAD  pDynLoad;
+    PKWMODULE   pMod;
+    int         rc;
+
+    if (   (fFlags & LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE)
+        || (hFile != NULL && hFile != INVALID_HANDLE_VALUE) )
+    {
+        __debugbreak();
+        return LoadLibraryExA(pszFilename, hFile, fFlags);
+    }
+
+    /*
+     * Deal with resource / data DLLs.
+     */
+    if (fFlags & (  DONT_RESOLVE_DLL_REFERENCES
+                  | LOAD_LIBRARY_AS_DATAFILE
+                  | LOAD_LIBRARY_AS_IMAGE_RESOURCE) )
+    {
+        HMODULE hmod;
+        char    szNormPath[4096];
+        KU32    uHashPath;
+
+        /* currently, only deal with those that has a path. */
+        if (kHlpIsFilenameOnly(pszFilename))
+        {
+            __debugbreak();
+            return LoadLibraryExA(pszFilename, hFile, fFlags);
+        }
+
+        /* Normalize the path. */
+        rc = kwPathNormalize(pszFilename, szNormPath, sizeof(szNormPath));
+        if (rc != 0)
+        {
+            __debugbreak();
+            return LoadLibraryExA(pszFilename, hFile, fFlags);
+        }
+
+        /* Try look it up. */
+        uHashPath = kwStrHash(szNormPath);
+        for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad != NULL; pDynLoad = pDynLoad->pNext)
+            if (   pDynLoad->uHashPath == uHashPath
+                && kHlpStrComp(pDynLoad->pszPath, szNormPath) == 0)
+            {
+                if (pDynLoad->pMod == NULL)
+                    return pDynLoad->hmod;
+                __debugbreak();
+            }
+
+        /* Then try load it. */
+        hmod = LoadLibraryExA(szNormPath, hFile, fFlags);
+        if (hmod)
+        {
+            KSIZE cbNormPath = kHlpStrLen(szNormPath) + 1;
+            pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad) + cbNormPath + cbNormPath * 2 * sizeof(wchar_t));
+            if (pDynLoad)
+            {
+                pDynLoad->pszPath           = (char *)kHlpMemCopy(pDynLoad + 1, szNormPath, cbNormPath);
+                pDynLoad->pwszPath          = (wchar_t *)(pDynLoad->pszPath + cbNormPath + (cbNormPath & 1));
+                kwStrToUtf16(pDynLoad->pszPath, (wchar_t *)pDynLoad->pwszPath, cbNormPath * 2);
+                pDynLoad->pszModName        = kHlpGetFilename(pDynLoad->pszPath);
+                pDynLoad->uHashPath         = uHashPath;
+                pDynLoad->pMod              = NULL; /* indicates special  */
+                pDynLoad->hmod              = hmod;
+
+                pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
+                g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
+            }
+            else
+                __debugbreak();
+        }
+        return hmod;
+    }
+
+    /*
+     * Normal library loading.
+     * We start by being very lazy and reusing the code for resolving imports.
+     */
+    if (!kHlpIsFilenameOnly(pszFilename))
+        pMod = kwLdrModuleTryLoadDll(pszFilename, KWLOCATION_UNKNOWN, g_Sandbox.pTool->u.Sandboxed.pExe);
+    else
+    {
+__debugbreak();
+        rc = kwLdrModuleResolveAndLookup(pszFilename, g_Sandbox.pTool->u.Sandboxed.pExe, NULL /*pImporter*/, &pMod);
+        if (rc != 0)
+            pMod = NULL;
+    }
+    if (!pMod)
+    {
+        __debugbreak();
+        SetLastError(ERROR_MOD_NOT_FOUND);
+        return NULL;
+    }
+
+    /*
+     * Make sure it's initialized.
+     */
+    rc = kwLdrModuleInitTree(pMod);
+    if (rc == 0)
+    {
+        /*
+         * Create an dynamic loading entry for it.
+         */
+        pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad));
+        if (pDynLoad)
+        {
+            pDynLoad->pszPath           = pMod->pszPath;
+            pDynLoad->pwszPath          = pMod->pwszPath;
+            pDynLoad->pszModName        = kHlpGetFilename(pDynLoad->pszPath);
+            pDynLoad->uHashPath         = pMod->uHashPath;
+            pDynLoad->pMod              = pMod;
+            pDynLoad->hmod              = pMod->hOurMod;
+
+            pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
+            g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
+
+            return pDynLoad->hmod;
+        }
+    }
+
+    __debugbreak();
+    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    kwLdrModuleRelease(pMod);
+    return NULL;
+}
+
+
+/** Kernel32 - LoadLibraryExW()   */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExW(LPCWSTR pwszFilename, HANDLE hFile, DWORD fFlags)
+{
+    char szTmp[4096];
+    KSIZE cchTmp = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
+    if (cchTmp < sizeof(szTmp))
+        return kwSandbox_Kernel32_LoadLibraryExA(szTmp, hFile, fFlags);
+
+    __debugbreak();
+    SetLastError(ERROR_FILENAME_EXCED_RANGE);
+    return NULL;
+}
+
+/** Kernel32 - LoadLibraryA()   */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryA(LPCSTR pszFilename)
+{
+    return kwSandbox_Kernel32_LoadLibraryExA(pszFilename, NULL /*hFile*/, 0 /*fFlags*/);
+}
+
+
+/** Kernel32 - LoadLibraryW()   */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryW(LPCWSTR pwszFilename)
+{
+    char szTmp[4096];
+    KSIZE cchTmp = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
+    if (cchTmp < sizeof(szTmp))
+        return kwSandbox_Kernel32_LoadLibraryExA(szTmp, NULL /*hFile*/, 0 /*fFlags*/);
+    __debugbreak();
+    SetLastError(ERROR_FILENAME_EXCED_RANGE);
+    return NULL;
+}
+
+
+/** Kernel32 - FreeLibrary()   */
+static BOOL WINAPI kwSandbox_Kernel32_FreeLibrary(HMODULE hmod)
+{
+    /* Ignored, we like to keep everything loaded. */
+    return TRUE;
+}
+
+
+/** Kernel32 - GetModuleHandleA()   */
+static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleA(LPCSTR pszModule)
+{
+    if (pszModule == NULL)
+        return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+    __debugbreak();
+    return NULL;
+}
+
+
+/** Kernel32 - GetModuleHandleW()   */
+static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleW(LPCWSTR pwszModule)
+{
+    if (pwszModule == NULL)
+        return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+    __debugbreak();
+    return NULL;
+}
+
+
+static PKWMODULE kwSandboxLocateModuleByHandle(PKWSANDBOX pSandbox, HMODULE hmod)
+{
+    PKWDYNLOAD pDynLoad;
+
+    /* The executable. */
+    if (   hmod == NULL
+        || pSandbox->pTool->u.Sandboxed.pExe->hOurMod == hmod)
+        return kwLdrModuleRetain(pSandbox->pTool->u.Sandboxed.pExe);
+
+    /* Dynamically loaded images. */
+    for (pDynLoad = pSandbox->pTool->u.Sandboxed.pDynLoadHead; pDynLoad != NULL; pDynLoad = pDynLoad->pNext)
+        if (pDynLoad->hmod == hmod)
+        {
+            if (pDynLoad->pMod)
+                return kwLdrModuleRetain(pDynLoad->pMod);
+            __debugbreak();
+            return NULL;
+        }
+
+    return NULL;
+}
+
+
+/** Used to debug dynamically resolved procedures. */
+static UINT WINAPI kwSandbox_BreakIntoDebugger(void *pv1, void *pv2, void *pv3, void *pv4)
+{
+    __debugbreak();
+    return -1;
+}
+
+
+/** Kernel32 - GetProcAddress()   */
+static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR pszProc)
+{
+    /*
+     * Try locate the module.
+     */
+    PKWMODULE pMod = kwSandboxLocateModuleByHandle(&g_Sandbox, hmod);
+    if (pMod)
+    {
+        KLDRADDR uValue;
+        int rc = kLdrModQuerySymbol(pMod->pLdrMod,
+                                    pMod->fNative ? NULL : pMod->u.Manual.pvBits,
+                                    pMod->fNative ? KLDRMOD_BASEADDRESS_MAP : (KUPTR)pMod->u.Manual.pvLoad,
+                                    KU32_MAX /*iSymbol*/,
+                                    pszProc,
+                                    strlen(pszProc),
+                                    NULL /*pszVersion*/,
+                                    NULL /*pfnGetForwarder*/, NULL /*pvUser*/,
+                                    &uValue,
+                                    NULL /*pfKind*/);
+        if (rc == 0)
+        {
+            static int s_cDbgGets = 0;
+            s_cDbgGets++;
+            kwDbgPrintf("GetProcAddress(%s, %s) -> %p [%d]\n", pMod->pszPath, pszProc, (KUPTR)uValue, s_cDbgGets);
+            kwLdrModuleRelease(pMod);
+            //if (s_cGets >= 3)
+            //    return (FARPROC)kwSandbox_BreakIntoDebugger;
+            return (FARPROC)(KUPTR)uValue;
+        }
+
+        __debugbreak();
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        kwLdrModuleRelease(pMod);
+        return NULL;
+    }
+
+    __debugbreak();
+    return GetProcAddress(hmod, pszProc);
+}
+
+
+/** Kernel32 - GetModuleFileNameA()   */
+static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameA(HMODULE hmod, LPSTR pszFilename, DWORD cbFilename)
+{
+    PKWMODULE pMod = kwSandboxLocateModuleByHandle(&g_Sandbox, hmod);
+    if (pMod != NULL)
+    {
+        DWORD cbRet = kwStrCopyStyle1(pMod->pszPath, pszFilename, cbFilename);
+        kwLdrModuleRelease(pMod);
+        return cbRet;
+    }
+    __debugbreak();
+    return 0;
+}
+
+
+/** Kernel32 - GetModuleFileNameW()   */
+static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameW(HMODULE hmod, LPWSTR pwszFilename, DWORD cbFilename)
+{
+    PKWMODULE pMod = kwSandboxLocateModuleByHandle(&g_Sandbox, hmod);
+    if (pMod)
+    {
+        DWORD cwcRet = kwUtf16CopyStyle1(pMod->pwszPath, pwszFilename, cbFilename);
+        kwLdrModuleRelease(pMod);
+        return cwcRet;
+    }
+
+    __debugbreak();
+    return 0;
+}
+
 
 
 /**
@@ -868,14 +1918,85 @@ static int __cdecl kwSandbox_msvcrt___getmainargs(int *pargc, char ***pargv, cha
 KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 {
 #define TUPLE(a_sz) a_sz, sizeof(a_sz) - 1
-    { TUPLE("ExitProcess"),            NULL,       (KUPTR)kwSandbox_Kernel32_ExitProcess },
-    { TUPLE("TerminateProcess"),       NULL,       (KUPTR)kwSandbox_Kernel32_TerminateProcess },
-    { TUPLE("exit"),                   NULL,       (KUPTR)kwSandbox_msvcrt_exit },
-    { TUPLE("_exit"),                  NULL,       (KUPTR)kwSandbox_msvcrt__exit },
-    { TUPLE("_cexit"),                 NULL,       (KUPTR)kwSandbox_msvcrt__cexit },
-    { TUPLE("_c_exit"),                NULL,       (KUPTR)kwSandbox_msvcrt__c_exit },
-    { TUPLE("_amsg_exit"),             NULL,       (KUPTR)kwSandbox_msvcrt__amsg_exit },
-    { TUPLE("__getmainargs"),          NULL,       (KUPTR)kwSandbox_msvcrt___getmainargs},
+    /*
+     * Kernel32.dll and friends.
+     */
+    { TUPLE("ExitProcess"),                 NULL,       (KUPTR)kwSandbox_Kernel32_ExitProcess },
+    { TUPLE("TerminateProcess"),            NULL,       (KUPTR)kwSandbox_Kernel32_TerminateProcess },
+
+    { TUPLE("LoadLibraryA"),                NULL,       (KUPTR)kwSandbox_Kernel32_LoadLibraryA },
+    { TUPLE("LoadLibraryW"),                NULL,       (KUPTR)kwSandbox_Kernel32_LoadLibraryW },
+    { TUPLE("LoadLibraryExA"),              NULL,       (KUPTR)kwSandbox_Kernel32_LoadLibraryExA },
+    { TUPLE("LoadLibraryExW"),              NULL,       (KUPTR)kwSandbox_Kernel32_LoadLibraryExW },
+    { TUPLE("FreeLibrary"),                 NULL,       (KUPTR)kwSandbox_Kernel32_FreeLibrary },
+    { TUPLE("GetModuleHandleA"),            NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleHandleA },
+    { TUPLE("GetModuleHandleW"),            NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleHandleW },
+    { TUPLE("GetProcAddress"),              NULL,       (KUPTR)kwSandbox_Kernel32_GetProcAddress },
+    { TUPLE("GetModuleFileNameA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleFileNameA },
+    { TUPLE("GetModuleFileNameW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleFileNameW },
+
+    { TUPLE("GetCommandLineA"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineA },
+    { TUPLE("GetCommandLineW"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineW },
+    { TUPLE("GetStartupInfoA"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetStartupInfoA },
+    { TUPLE("GetStartupInfoW"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetStartupInfoW },
+
+    { TUPLE("CreateThread"),                NULL,       (KUPTR)kwSandbox_Kernel32_CreateThread },
+
+    { TUPLE("GetEnvironmentVariableA"),     NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentVariableA },
+    { TUPLE("GetEnvironmentVariableW"),     NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentVariableW },
+    { TUPLE("SetEnvironmentVariableA"),     NULL,       (KUPTR)kwSandbox_Kernel32_SetEnvironmentVariableA },
+    { TUPLE("SetEnvironmentVariableW"),     NULL,       (KUPTR)kwSandbox_Kernel32_SetEnvironmentVariableW },
+    { TUPLE("ExpandEnvironmentStringsA"),   NULL,       (KUPTR)kwSandbox_Kernel32_ExpandEnvironmentStringsA },
+    { TUPLE("ExpandEnvironmentStringsW"),   NULL,       (KUPTR)kwSandbox_Kernel32_ExpandEnvironmentStringsW },
+
+    /*
+     * MS Visual C++ CRTs.
+     */
+    { TUPLE("exit"),                        NULL,       (KUPTR)kwSandbox_msvcrt_exit },
+    { TUPLE("_exit"),                       NULL,       (KUPTR)kwSandbox_msvcrt__exit },
+    { TUPLE("_cexit"),                      NULL,       (KUPTR)kwSandbox_msvcrt__cexit },
+    { TUPLE("_c_exit"),                     NULL,       (KUPTR)kwSandbox_msvcrt__c_exit },
+    { TUPLE("_amsg_exit"),                  NULL,       (KUPTR)kwSandbox_msvcrt__amsg_exit },
+
+    { TUPLE("_beginthread"),                NULL,       (KUPTR)kwSandbox_msvcrt__beginthread },
+    { TUPLE("_beginthreadex"),              NULL,       (KUPTR)kwSandbox_msvcrt__beginthreadex },
+
+    { TUPLE("__argc"),                      NULL,       (KUPTR)&g_Sandbox.cArgs },
+    { TUPLE("__argv"),                      NULL,       (KUPTR)&g_Sandbox.papszArgs },
+    { TUPLE("__wargv"),                     NULL,       (KUPTR)&g_Sandbox.papwszArgs },
+    { TUPLE("__p___argc"),                  NULL,       (KUPTR)kwSandbox_msvcrt___p___argc },
+    { TUPLE("__p___argv"),                  NULL,       (KUPTR)kwSandbox_msvcrt___p___argv },
+    { TUPLE("__p___wargv"),                 NULL,       (KUPTR)kwSandbox_msvcrt___p___wargv },
+    { TUPLE("_acmdln"),                     NULL,       (KUPTR)&g_Sandbox.pszCmdLine },
+    { TUPLE("_wcmdln"),                     NULL,       (KUPTR)&g_Sandbox.pwszCmdLine },
+    { TUPLE("__p__acmdln"),                 NULL,       (KUPTR)kwSandbox_msvcrt___p__acmdln },
+    { TUPLE("__p__wcmdln"),                 NULL,       (KUPTR)kwSandbox_msvcrt___p__wcmdln },
+    { TUPLE("_pgmptr"),                     NULL,       (KUPTR)&g_Sandbox.pgmptr  },
+    { TUPLE("_wpgmptr"),                    NULL,       (KUPTR)&g_Sandbox.wpgmptr },
+    { TUPLE("_get_pgmptr"),                 NULL,       (KUPTR)kwSandbox_msvcrt__get_pgmptr },
+    { TUPLE("_get_wpgmptr"),                NULL,       (KUPTR)kwSandbox_msvcrt__get_wpgmptr },
+    { TUPLE("__p__pgmptr"),                 NULL,       (KUPTR)kwSandbox_msvcrt___p__pgmptr },
+    { TUPLE("__p__wpgmptr"),                NULL,       (KUPTR)kwSandbox_msvcrt___p__wpgmptr },
+    { TUPLE("_wincmdln"),                   NULL,       (KUPTR)kwSandbox_msvcrt__wincmdln },
+    { TUPLE("_wwincmdln"),                  NULL,       (KUPTR)kwSandbox_msvcrt__wwincmdln },
+    { TUPLE("__getmainargs"),               NULL,       (KUPTR)kwSandbox_msvcrt___getmainargs},
+    { TUPLE("__wgetmainargs"),              NULL,       (KUPTR)kwSandbox_msvcrt___wgetmainargs},
+
+    { TUPLE("_putenv"),                     NULL,       (KUPTR)kwSandbox_msvcrt__putenv},
+    { TUPLE("_wputenv"),                    NULL,       (KUPTR)kwSandbox_msvcrt__wputenv},
+    { TUPLE("_putenv_s"),                   NULL,       (KUPTR)kwSandbox_msvcrt__putenv_s},
+    { TUPLE("_wputenv_s"),                  NULL,       (KUPTR)kwSandbox_msvcrt__wputenv_s},
+    { TUPLE("__initenv"),                   NULL,       (KUPTR)&g_Sandbox.initenv },
+    { TUPLE("__winitenv"),                  NULL,       (KUPTR)&g_Sandbox.winitenv },
+    { TUPLE("__p___initenv"),               NULL,       (KUPTR)kwSandbox_msvcrt___p___initenv},
+    { TUPLE("__p___winitenv"),              NULL,       (KUPTR)kwSandbox_msvcrt___p___winitenv},
+    { TUPLE("_environ"),                    NULL,       (KUPTR)&g_Sandbox.environ },
+    { TUPLE("_wenviron"),                   NULL,       (KUPTR)&g_Sandbox.wenviron },
+    { TUPLE("_get_environ"),                NULL,       (KUPTR)kwSandbox_msvcrt__get_environ },
+    { TUPLE("_get_wenviron"),               NULL,       (KUPTR)kwSandbox_msvcrt__get_wenviron },
+    { TUPLE("__p__environ"),                NULL,       (KUPTR)kwSandbox_msvcrt___p__environ },
+    { TUPLE("__p__wenviron"),               NULL,       (KUPTR)kwSandbox_msvcrt___p__wenviron },
+    /// @todo terminate
 };
 /** Number of entries in g_aReplacements. */
 KU32 const                  g_cSandboxReplacements = K_ELEMENTS(g_aSandboxReplacements);
@@ -901,113 +2022,151 @@ static void kwSandboxResetModuleState(PKWMODULE pMod)
     }
 }
 
-
-/**
- * Does module initialization starting at @a pMod.
- *
- * This is initially used on the executable.  Later it is used by the
- * LoadLibrary interceptor.
- *
- * @returns 0 on success, error on failure.
- * @param   pMod                The module to initialize.
- */
-static int kwSandboxInitModuleTree(PKWMODULE pMod)
-{
-    int rc = 0;
-    if (!pMod->fNative)
-    {
-        /* Need to copy bits? */
-        if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_BITS)
-        {
-            kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
-            pMod->u.Manual.enmState = KWMODSTATE_NEEDS_INIT;
-        }
-
-        if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_INIT)
-        {
-            /* Must do imports first, but mark our module as being initialized to avoid
-               endless recursion should there be a dependency loop. */
-            KSIZE iImp;
-            pMod->u.Manual.enmState = KWMODSTATE_BEING_INITED;
-
-            for (iImp = 0; iImp < pMod->u.Manual.cImpMods; iImp++)
-            {
-                rc = kwSandboxInitModuleTree(pMod->u.Manual.apImpMods[iImp]);
-                if (rc != 0)
-                    return rc;
-            }
-
-            rc = kLdrModCallInit(pMod->pLdrMod, pMod->u.Manual.pvLoad, (KUPTR)pMod->u.Manual.pvLoad);
-            if (rc == 0)
-                pMod->u.Manual.enmState = KWMODSTATE_READY;
-            else
-                pMod->u.Manual.enmState = KWMODSTATE_INIT_FAILED;
-        }
-    }
-    return rc;
-}
-
-
-static void *kwSandboxGetProcessEnvironmentBlock(void)
+static PPEB kwSandboxGetProcessEnvironmentBlock(void)
 {
 #if K_ARCH == K_ARCH_X86_32
-    return (void *)__readfsdword(0x030 /* offset of ProcessEnvironmentBlock in TEB */);
+    return (PPEB)__readfsdword(0x030 /* offset of ProcessEnvironmentBlock in TEB */);
 #elif K_ARCH == K_ARCH_AMD64
-    return (void *)__readgsqword(0x060 /* offset of ProcessEnvironmentBlock in TEB */);
+    return (PPEB)__readgsqword(0x060 /* offset of ProcessEnvironmentBlock in TEB */);
 #else
 # error "Port me!"
 #endif
 }
 
 
+
+
+static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool, const char *pszCmdLine)
+{
+    PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
+    wchar_t *pwcPool;
+    KSIZE cbStrings;
+    KSIZE cwc;
+    int i;
+
+    /* Simple stuff. */
+    g_Sandbox.rcExitCode    = 256;
+    g_Sandbox.pTool         = pTool;
+    g_Sandbox.idMainThread  = GetCurrentThreadId();
+    g_Sandbox.TibMainThread = *(PNT_TIB)NtCurrentTeb();
+    g_Sandbox.pszCmdLine    = pszCmdLine;
+    g_Sandbox.pgmptr        = (char *)pTool->pszPath;
+    g_Sandbox.wpgmptr       = (wchar_t *)pTool->pwszPath;
+
+    /*
+     * Convert the command line to argc and argv.
+     */
+    cbStrings = parse_args(pszCmdLine, &pSandbox->cArgs, NULL /*papszArgs*/, NULL /*pchPool*/);
+    pSandbox->papszArgs = (char **)kHlpAlloc(sizeof(char *) * (pSandbox->cArgs + 2) + cbStrings);
+    if (!pSandbox->papszArgs)
+        return KERR_NO_MEMORY;
+    parse_args(pSandbox->pszCmdLine, &pSandbox->cArgs, pSandbox->papszArgs, (char *)&pSandbox->papszArgs[pSandbox->cArgs + 2]);
+    pSandbox->papszArgs[pSandbox->cArgs + 0] = NULL;
+    pSandbox->papszArgs[pSandbox->cArgs + 1] = NULL;
+
+    /*
+     * Convert command line and argv to UTF-16.
+     * We assume each ANSI char requires a surrogate pair in the UTF-16 variant.
+     */
+    pSandbox->papwszArgs = (wchar_t **)kHlpAlloc(sizeof(wchar_t *) * (pSandbox->cArgs + 2) + cbStrings * 2 * sizeof(wchar_t));
+    if (!pSandbox->papwszArgs)
+        return KERR_NO_MEMORY;
+    pwcPool = (wchar_t *)&pSandbox->papwszArgs[pSandbox->cArgs + 2];
+    for (i = 0; i < pSandbox->cArgs; i++)
+    {
+        *pwcPool++ = pSandbox->papszArgs[i][-1]; /* flags */
+        pSandbox->papwszArgs[i] = pwcPool;
+        pwcPool += kwStrToUtf16(pSandbox->papszArgs[i], pwcPool, (strlen(pSandbox->papszArgs[i]) + 1) * 2);
+        pwcPool++;
+    }
+    pSandbox->papwszArgs[pSandbox->cArgs + 0] = NULL;
+    pSandbox->papwszArgs[pSandbox->cArgs + 1] = NULL;
+
+    /*
+     * Convert the commandline string to UTF-16, same pessimistic approach as above.
+     */
+    cbStrings = (kHlpStrLen(pSandbox->pszCmdLine) + 1) * 2 * sizeof(wchar_t);
+    pSandbox->pwszCmdLine = kHlpAlloc(cbStrings);
+    if (!pSandbox->pwszCmdLine)
+        return KERR_NO_MEMORY;
+    cwc = kwStrToUtf16(pSandbox->pszCmdLine, pSandbox->pwszCmdLine, cbStrings / sizeof(wchar_t));
+
+    pSandbox->SavedCommandLine = pPeb->ProcessParameters->CommandLine;
+    pPeb->ProcessParameters->CommandLine.Buffer = pSandbox->pwszCmdLine;
+    pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
+
+    return 0;
+}
+
+
+static void kwSandboxCleanup(PKWSANDBOX pSandbox)
+{
+    PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
+    pPeb->ProcessParameters->CommandLine = pSandbox->SavedCommandLine;
+    /** @todo lots more to do here!   */
+}
+
+
 static int kwSandboxExec(PKWTOOL pTool, const char *pszCmdLine, int *prcExitCode)
 {
     int rc;
-    KWSANDBOX Sandbox;
+
+    *prcExitCode            = 256;
+kwDbgPrintf("GetCommandLineA: '%s'\n", GetCommandLineA());
 
     /*
      * Initialize the sandbox environment.
      */
-    Sandbox.pTool = pTool;
-    Sandbox.rcExitCode = *prcExitCode = 256;
-    Sandbox.idMainThread = GetCurrentThreadId();
-    g_pSandbox = &Sandbox;
-
-    /*
-     * Do module initialization.
-     */
-    kwSandboxResetModuleState(pTool->u.Sandboxed.pExe);
-    rc = kwSandboxInitModuleTree(pTool->u.Sandboxed.pExe);
+    rc = kwSandboxInit(&g_Sandbox, pTool, pszCmdLine);
     if (rc == 0)
     {
+
         /*
-         * Call the main function.
+         * Do module initialization.
          */
-        KUPTR uAddrMain;
-        rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &uAddrMain);
+        kwSandboxResetModuleState(pTool->u.Sandboxed.pExe);
+        rc = kwLdrModuleInitTree(pTool->u.Sandboxed.pExe);
         if (rc == 0)
         {
-            int rcExitCode;
-            int (*pfnWin64Entrypoint)(void *pvPeb, void *, void *, void *);
-            *(KUPTR *)&pfnWin64Entrypoint = uAddrMain;
+            /*
+             * Call the main function.
+             */
+            KUPTR uAddrMain;
+            rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &uAddrMain);
+            if (rc == 0)
+            {
+                int rcExitCode;
+                int (*pfnWin64Entrypoint)(void *pvPeb, void *, void *, void *);
+                *(KUPTR *)&pfnWin64Entrypoint = uAddrMain;
 
                 __try
                 {
-                    if (setjmp(Sandbox.JmpBuf) == 0)
+                    if (setjmp(g_Sandbox.JmpBuf) == 0)
                     {
-                        *(KU64*)(Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
-                        rcExitCode = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock, NULL, NULL, NULL);
+#if K_ARCH == K_ARCH_AMD64
+                        *(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+#else
+# error "Port me!"
+#endif
+                        rcExitCode = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock(), NULL, NULL, NULL);
                     }
                     else
-                        rcExitCode = Sandbox.rcExitCode;
+                        rcExitCode = g_Sandbox.rcExitCode;
                 }
                 __except (EXCEPTION_EXECUTE_HANDLER)
                 {
                     rcExitCode = 512;
                 }
-            *prcExitCode = rcExitCode;
+                *prcExitCode = rcExitCode;
+
+                /*
+                 * Restore the TIB and later some other stuff.
+                 */
+                *(PNT_TIB)NtCurrentTeb() = g_Sandbox.TibMainThread;
+            }
         }
     }
+
     return rc;
 }
 
@@ -1019,20 +2178,30 @@ static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
     if (pTool)
     {
         int rc;
-        int rcExitExit;
+        int rcExitCode;
         switch (pTool->enmType)
         {
             case KWTOOLTYPE_SANDBOXED:
-                rc = kwSandboxExec(pTool, pszCmdLine, &rcExitExit);
+                kwDbgPrintf("Sandboxing tool %s\n", pTool->pszPath);
+                rc = kwSandboxExec(pTool, pszCmdLine, &rcExitCode);
+                break;
+
+            case KWTOOLTYPE_WATCOM:
+                kwDbgPrintf("TODO: Watcom style tool %s\n", pTool->pszPath);
+                rc = rcExitCode = 2;
+                break;
+
+            case KWTOOLTYPE_EXEC:
+                kwDbgPrintf("TODO: Direct exec tool %s\n", pTool->pszPath);
+                rc = rcExitCode = 2;
                 break;
 
             default:
                 kHlpAssertFailed();
-            case KWTOOLTYPE_WATCOM:
-            case KWTOOLTYPE_EXEC:
-                rc = 2;
+                rc = rcExitCode = 2;
                 break;
         }
+        kwDbgPrintf("rcExitCode=%d (rc=%d)\n", rcExitCode, rc);
     }
     else
         rc = 1;
@@ -1042,8 +2211,18 @@ static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
 
 int main(int argc, char **argv)
 {
-    int rc = kwExecCmdLine(argv[1], argv[2]);
-    rc = kwExecCmdLine(argv[1], argv[2]);
+    int i;
+    int rc;
+    argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
+    //rc = kwExecCmdLine(argv[1], argv[2]);
+    //rc = kwExecCmdLine(argv[1], argv[2]);
+// run 2: 34/1024 = 0x0 (0.033203125)
+// run 1: 37/1024 = 0x0 (0.0361328125)
+// kmk 1: 44/1024 = 0x0 (0.04296875)
+// cmd 1: 48/1024 = 0x0 (0.046875)
+    g_cVerbose = 0;
+    for (i = 0; i < 1024 && rc == 0; i++)
+        rc = kwExecCmdLine(argv[1], argv[2]);
     return rc;
 }
 
