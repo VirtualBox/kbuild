@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2832 2016-08-19 21:15:32Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2833 2016-08-22 21:00:38Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -33,6 +33,7 @@ include $(PATH_KBUILD)/subheader.kmk
 PROGRAMS += kWorker
 kWorker_TEMPLATE = BIN
 kWorker_INCS = kStuff/include
+kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
 kWorker_SOURCES = kWorker.c
 kWorker_LIBS = \
@@ -52,6 +53,7 @@ kWorker_LDFLAGS.win = \
 #
 LIBRARIES += kStuff
 kStuff_TEMPLATE = LIB
+kStuff_DEFS.debug = K_STRICT
 kStuff_INCS = kStuff/include
 
 # kLdr
