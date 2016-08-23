@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2834 2016-08-23 00:53:11Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2835 2016-08-23 02:08:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -222,7 +222,7 @@ typedef struct KWFSHASHA *PKWFSHASHA;
  */
 typedef struct KWFSHASHA
 {
-    /** Next entry with the same hash. */
+    /** Next entry with the same hash table slot. */
     PKWFSHASHA          pNext;
     /** Path hash value. */
     KU32                uHashPath;
@@ -243,7 +243,7 @@ typedef struct KWFSHASHW *PKWFSHASHW;
  */
 typedef struct KWFSHASHW
 {
-    /** Next entry with the same hash. */
+    /** Next entry with the same hash table slot. */
     PKWFSHASHW          pNext;
     /** Path hash value. */
     KU32                uHashPath;
@@ -254,6 +254,32 @@ typedef struct KWFSHASHW
     /** Pointer to the matching FS object. */
     PKWFSOBJ            pFsObj;
 } KWFSHASHW;
+
+
+
+/** Pointer to a normalized path hash table entry. */
+typedef struct KWFSNORMHASHA *PKWFSNORMHASHA;
+/**
+ * Normalized path hash table entry.
+ *
+ * Note! This looks like it's duplicating KWFSHASHW/KWFSHASHA/KWFSOBJ, but
+ *       it also handles paths that not cachable.
+ */
+typedef struct KWFSNORMHASHA
+{
+    /** Next entry with the same hash table slot. */
+    PKWFSNORMHASHA      pNext;
+    /** The input path. */
+    const char         *pszPath;
+    /** The length of the input path. */
+    KU16                cchPath;
+    /** The length of the normalized path. */
+    KU16                cchNormPath;
+    /** The hash. */
+    KU32                uHashPath;
+    /** The normalized path (variable size). */
+    char                szNormPath[1];
+} KWFSNORMHASHA;
 
 
 /** Handle type.   */
@@ -436,6 +462,8 @@ static KWFSOBJ      g_FsRoot =
 static PKWFSHASHA   g_apFsAnsiPaths[1021];
 /** File system hash table for UTF-16 filename strings. */
 static PKWFSHASHW   g_apFsUtf16Paths[1021];
+/** Cached normalized path results. */
+static PKWFSNORMHASHA g_apFsNormalizedPathsA[1021];
 /** Special file system object returned if the path is invalid. */
 static KWFSOBJ      g_FsPathNotFound =
 {
@@ -621,30 +649,6 @@ KHLP_DECL(void) kHlpAssertMsg2(const char *pszFormat, ...)
 
 
 /**
- * Normalizes the path so we get a consistent hash.
- *
- * @returns status code.
- * @param   pszPath             The path.
- * @param   pszNormPath         The output buffer.
- * @param   cbNormPath          The size of the output buffer.
- */
-static int kwPathNormalize(const char *pszPath, char *pszNormPath, KSIZE cbNormPath)
-{
-    char *pchSlash;
-    nt_fullpath(pszPath, pszNormPath, cbNormPath);
-
-    pchSlash = kHlpStrChr(pszNormPath, '/');
-    while (pchSlash)
-    {
-        *pchSlash = '\\';
-        pchSlash = kHlpStrChr(pchSlash + 1, '/');
-    }
-
-    return 0;
-}
-
-
-/**
  * Hashes a string.
  *
  * @returns 32-bit string hash.
@@ -819,6 +823,85 @@ static DWORD kwStrCopyStyle1(char const *pszSrc, char *pszDst, KSIZE cbDst)
     }
     SetLastError(ERROR_INSUFFICIENT_BUFFER);
     return (DWORD)cbDst;
+}
+
+
+/**
+ * Normalizes the path so we get a consistent hash.
+ *
+ * @returns status code.
+ * @param   pszPath             The path.
+ * @param   pszNormPath         The output buffer.
+ * @param   cbNormPath          The size of the output buffer.
+ */
+static int kwPathNormalize(const char *pszPath, char *pszNormPath, KSIZE cbNormPath)
+{
+    char           *pchSlash;
+    KSIZE           cchNormPath;
+
+    /*
+     * We hash these to speed stuff up (nt_fullpath isn't cheap and we're
+     * gonna have many repeat queries and assume nobody do case changes to
+     * anything essential while kmk is running).
+     */
+    KU32            uHashPath;
+    KU32            cchPath    = (KU32)kwStrHashEx(pszPath, &uHashPath);
+    KU32 const      idxHashTab = uHashPath % K_ELEMENTS(g_apFsNormalizedPathsA);
+    PKWFSNORMHASHA  pHashEntry = g_apFsNormalizedPathsA[idxHashTab];
+    if (pHashEntry)
+    {
+        do
+        {
+            if (   pHashEntry->uHashPath == uHashPath
+                && pHashEntry->cchPath   == cchPath
+                && kHlpMemComp(pHashEntry->pszPath, pszPath, cchPath) == 0)
+            {
+                if (cbNormPath > pHashEntry->cchNormPath)
+                {
+                    KWFS_LOG(("kwPathNormalize(%s) - hit\n", pszPath));
+                    kHlpMemCopy(pszNormPath, pHashEntry->szNormPath, pHashEntry->cchNormPath + 1);
+                    return 0;
+                }
+                return KERR_BUFFER_OVERFLOW;
+            }
+            pHashEntry = pHashEntry->pNext;
+        } while (pHashEntry);
+    }
+
+    /*
+     * Do it the slow way.
+     */
+    nt_fullpath(pszPath, pszNormPath, cbNormPath);
+    /** @todo nt_fullpath overflow handling?!?!?   */
+
+    pchSlash = kHlpStrChr(pszNormPath, '/');
+    while (pchSlash)
+    {
+        *pchSlash = '\\';
+        pchSlash = kHlpStrChr(pchSlash + 1, '/');
+    }
+
+    /*
+     * Create a new hash table entry (ignore failures).
+     */
+    cchNormPath = kHlpStrLen(pszNormPath);
+    if (cchNormPath < KU16_MAX && cchPath < KU16_MAX)
+    {
+        pHashEntry = (PKWFSNORMHASHA)kHlpAlloc(sizeof(*pHashEntry) + cchNormPath + 1 + cchPath + 1);
+        if (pHashEntry)
+        {
+            pHashEntry->cchNormPath = (KU16)cchNormPath;
+            pHashEntry->cchPath     = (KU16)cchPath;
+            pHashEntry->uHashPath   = uHashPath;
+            pHashEntry->pszPath     = (char *)kHlpMemCopy(&pHashEntry->szNormPath[cchNormPath + 1], pszPath, cchPath + 1);
+            kHlpMemCopy(pHashEntry->szNormPath, pszNormPath, cchNormPath + 1);
+
+            pHashEntry->pNext = g_apFsNormalizedPathsA[idxHashTab];
+            g_apFsNormalizedPathsA[idxHashTab] = pHashEntry;
+        }
+    }
+
+    return 0;
 }
 
 
@@ -1361,6 +1444,43 @@ static KBOOL kwLdrModuleCanLoadNatively(const char *pszFilename, KWLOCATION enmL
 
 
 /**
+ * Check if the path leads to a regular file (that exists).
+ *
+ * @returns K_TRUE / K_FALSE
+ * @param   pszPath             Path to the file to check out.
+ */
+static KBOOL kwLdrModuleIsRegularFile(const char *pszPath)
+{
+    /* For stuff with .DLL extensions, we can use the GetFileAttribute cache to speed this up! */
+    KSIZE cchPath = kHlpStrLen(pszPath);
+    if (   cchPath > 3
+        && pszPath[cchPath - 4] == '.'
+        && (pszPath[cchPath - 3] == 'd' || pszPath[cchPath - 3] == 'D')
+        && (pszPath[cchPath - 2] == 'l' || pszPath[cchPath - 2] == 'L')
+        && (pszPath[cchPath - 1] == 'l' || pszPath[cchPath - 1] == 'L') )
+    {
+        PKWFSOBJ pFsObj = kwFsLookupA(pszPath);
+        if (pFsObj)
+        {
+            if (!(pFsObj->fAttribs & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE))) /* also checks invalid */
+                return K_TRUE;
+        }
+    }
+    else
+    {
+        BirdStat_T Stat;
+        int rc = birdStatFollowLink(pszPath, &Stat);
+        if (rc == 0)
+        {
+            if (S_ISREG(Stat.st_mode))
+                return K_TRUE;
+        }
+    }
+    return K_FALSE;
+}
+
+
+/**
  * Worker for kwLdrModuleResolveAndLookup that checks out one possibility.
  *
  * If the file exists, we consult the module hash table before trying to load it
@@ -1379,47 +1499,42 @@ static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocati
     /*
      * Does the file exists and is it a regular file?
      */
-    BirdStat_T  Stat;
-    int rc = birdStatFollowLink(pszPath, &Stat);
-    if (rc == 0)
+    if (kwLdrModuleIsRegularFile(pszPath))
     {
-        if (S_ISREG(Stat.st_mode))
+        /*
+         * Yes! Normalize it and look it up in the hash table.
+         */
+        char szNormPath[1024];
+        int rc = kwPathNormalize(pszPath, szNormPath, sizeof(szNormPath));
+        if (rc == 0)
         {
-            /*
-             * Yes! Normalize it and look it up in the hash table.
-             */
-            char szNormPath[1024];
-            rc = kwPathNormalize(pszPath, szNormPath, sizeof(szNormPath));
-            if (rc == 0)
+            const char *pszName;
+            KU32 const  uHashPath = kwStrHash(szNormPath);
+            unsigned    idxHash   = uHashPath % K_ELEMENTS(g_apModules);
+            PKWMODULE   pMod      = g_apModules[idxHash];
+            if (pMod)
             {
-                const char *pszName;
-                KU32 const  uHashPath = kwStrHash(szNormPath);
-                unsigned    idxHash   = uHashPath % K_ELEMENTS(g_apModules);
-                PKWMODULE   pMod      = g_apModules[idxHash];
-                if (pMod)
+                do
                 {
-                    do
-                    {
-                        if (   pMod->uHashPath == uHashPath
-                            && kHlpStrComp(pMod->pszPath, szNormPath) == 0)
-                            return kwLdrModuleRetain(pMod);
-                        pMod = pMod->pNext;
-                    } while (pMod);
-                }
-
-                /*
-                 * Not in the hash table, so we have to load it from scratch.
-                 */
-                pszName = kHlpGetFilename(szNormPath);
-                if (kwLdrModuleCanLoadNatively(pszName, enmLocation))
-                    pMod = kwLdrModuleCreateNative(szNormPath, uHashPath,
-                                                   kwLdrModuleShouldDoNativeReplacements(pszName, enmLocation));
-                else
-                    pMod = kwLdrModuleCreateNonNative(szNormPath, uHashPath, K_FALSE /*fExe*/, pExeMod);
-                if (pMod)
-                    return pMod;
-                return (PKWMODULE)~(KUPTR)0;
+                    if (   pMod->uHashPath == uHashPath
+                        && kHlpStrComp(pMod->pszPath, szNormPath) == 0)
+                        return kwLdrModuleRetain(pMod);
+                    pMod = pMod->pNext;
+                } while (pMod);
             }
+
+            /*
+             * Not in the hash table, so we have to load it from scratch.
+             */
+            pszName = kHlpGetFilename(szNormPath);
+            if (kwLdrModuleCanLoadNatively(pszName, enmLocation))
+                pMod = kwLdrModuleCreateNative(szNormPath, uHashPath,
+                                               kwLdrModuleShouldDoNativeReplacements(pszName, enmLocation));
+            else
+                pMod = kwLdrModuleCreateNonNative(szNormPath, uHashPath, K_FALSE /*fExe*/, pExeMod);
+            if (pMod)
+                return pMod;
+            return (PKWMODULE)~(KUPTR)0;
         }
     }
     return NULL;
@@ -3179,26 +3294,173 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
 /** Kernel32 - SetFilePointer */
 static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove, PLONG pcbMoveHi, DWORD dwMoveMethod)
 {
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    if (idxHandle < g_Sandbox.cHandles)
+    {
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle != NULL)
+        {
+            KI64 offMove = pcbMoveHi ? ((KI64)*pcbMoveHi << 32) | cbMove : cbMove;
+            switch (pHandle->enmType)
+            {
+                case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                {
+                    PKWFSOBJ    pFsObj  = pHandle->u.pFsObj;
+                    switch (dwMoveMethod)
+                    {
+                        case FILE_BEGIN:
+                            break;
+                        case FILE_CURRENT:
+                            offMove += pHandle->offFile;
+                            break;
+                        case FILE_END:
+                            offMove += pFsObj->cbCached;
+                            break;
+                        default:
+                            KWFS_LOG(("SetFilePointer(%p) - invalid seek method %u! [cached]\n", hFile));
+                            SetLastError(ERROR_INVALID_PARAMETER);
+                            return INVALID_SET_FILE_POINTER;
+                    }
+                    if (offMove >= 0)
+                    {
+                        if (offMove >= (KSSIZE)pFsObj->cbCached)
+                            offMove = (KSSIZE)pFsObj->cbCached;
+                        pHandle->offFile = (KU32)offMove;
+                    }
+                    else
+                    {
+                        KWFS_LOG(("SetFilePointer(%p) - negative seek! [cached]\n", hFile));
+                        SetLastError(ERROR_NEGATIVE_SEEK);
+                        return INVALID_SET_FILE_POINTER;
+                    }
+                    if (pcbMoveHi)
+                        *pcbMoveHi = (KU64)offMove >> 32;
+                    KWFS_LOG(("SetFilePointer(%p) -> %#llx [cached]\n", hFile, offMove));
+                    return (KU32)offMove;
+                }
+                default:
+                    kHlpAssertFailed();
+            }
+        }
+    }
     KWFS_LOG(("SetFilePointer(%p)\n", hFile));
     return SetFilePointer(hFile, cbMove, pcbMoveHi, dwMoveMethod);
 }
 
 
 /** Kernel32 - SetFilePointerEx */
-static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEGER pcbMove, PLARGE_INTEGER poffNew,
+static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEGER offMove, PLARGE_INTEGER poffNew,
                                                        DWORD dwMoveMethod)
 {
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    if (idxHandle < g_Sandbox.cHandles)
+    {
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle != NULL)
+        {
+            KI64 offMyMove = offMove.QuadPart;
+            switch (pHandle->enmType)
+            {
+                case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                {
+                    PKWFSOBJ    pFsObj  = pHandle->u.pFsObj;
+                    switch (dwMoveMethod)
+                    {
+                        case FILE_BEGIN:
+                            break;
+                        case FILE_CURRENT:
+                            offMyMove += pHandle->offFile;
+                            break;
+                        case FILE_END:
+                            offMyMove += pFsObj->cbCached;
+                            break;
+                        default:
+                            KWFS_LOG(("SetFilePointerEx(%p) - invalid seek method %u! [cached]\n", hFile));
+                            SetLastError(ERROR_INVALID_PARAMETER);
+                            return FALSE;
+                    }
+                    if (offMyMove >= 0)
+                    {
+                        if (offMyMove >= (KSSIZE)pFsObj->cbCached)
+                            offMyMove = (KSSIZE)pFsObj->cbCached;
+                        pHandle->offFile = (KU32)offMyMove;
+                    }
+                    else
+                    {
+                        KWFS_LOG(("SetFilePointerEx(%p) - negative seek! [cached]\n", hFile));
+                        SetLastError(ERROR_NEGATIVE_SEEK);
+                        return INVALID_SET_FILE_POINTER;
+                    }
+                    if (poffNew)
+                        poffNew->QuadPart = offMyMove;
+                    KWFS_LOG(("SetFilePointerEx(%p) -> TRUE, %#llx [cached]\n", hFile, offMyMove));
+                    return TRUE;
+                }
+                default:
+                    kHlpAssertFailed();
+            }
+        }
+    }
     KWFS_LOG(("SetFilePointerEx(%p)\n", hFile));
-    return SetFilePointerEx(hFile, pcbMove, poffNew, dwMoveMethod);
+    return SetFilePointerEx(hFile, offMove, poffNew, dwMoveMethod);
 }
 
 
 /** Kernel32 - ReadFile */
-static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DWORD cbToWrite, LPDWORD pcbActuallyWritten,
+static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DWORD cbToRead, LPDWORD pcbActuallyRead,
                                                LPOVERLAPPED pOverlapped)
 {
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    if (idxHandle < g_Sandbox.cHandles)
+    {
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle != NULL)
+        {
+            switch (pHandle->enmType)
+            {
+                case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                {
+                    PKWFSOBJ    pFsObj     = pHandle->u.pFsObj;
+                    KSIZE       cbActually = pFsObj->cbCached - pHandle->offFile;
+                    if (cbActually > cbToRead)
+                        cbActually = cbToRead;
+
+                    kHlpMemCopy(pvBuffer, &pFsObj->pbCached[pHandle->offFile], cbActually);
+                    pHandle->offFile += (KU32)cbActually;
+
+                    kHlpAssert(!pOverlapped); kHlpAssert(pcbActuallyRead);
+                    *pcbActuallyRead = (KU32)cbActually;
+
+                    KWFS_LOG(("ReadFile(%p,,%#x) -> TRUE, %#x bytes [cached]\n", hFile, cbToRead, (KU32)cbActually));
+                    return TRUE;
+                }
+                default:
+                    kHlpAssertFailed();
+            }
+        }
+    }
+
     KWFS_LOG(("ReadFile(%p)\n", hFile));
-    return ReadFile(hFile, pvBuffer, cbToWrite, pcbActuallyWritten, pOverlapped);
+    return ReadFile(hFile, pvBuffer, cbToRead, pcbActuallyRead, pOverlapped);
+}
+
+
+/** Kernel32 - ReadFileEx */
+static BOOL WINAPI kwSandbox_Kernel32_ReadFileEx(HANDLE hFile, LPVOID pvBuffer, DWORD cbToRead, LPOVERLAPPED pOverlapped,
+                                                 LPOVERLAPPED_COMPLETION_ROUTINE pfnCompletionRoutine)
+{
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    if (idxHandle < g_Sandbox.cHandles)
+    {
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle != NULL)
+        {
+            kHlpAssertFailed();
+        }
+    }
+
+    KWFS_LOG(("ReadFile(%p)\n", hFile));
+    return ReadFileEx(hFile, pvBuffer, cbToRead, pOverlapped, pfnCompletionRoutine);
 }
 
 
@@ -3337,6 +3599,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("CreateFileA"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileA },
     { TUPLE("CreateFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileW },
     { TUPLE("ReadFile"),                    NULL,       (KUPTR)kwSandbox_Kernel32_ReadFile },
+    { TUPLE("ReadFileEx"),                  NULL,       (KUPTR)kwSandbox_Kernel32_ReadFileEx },
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
     { TUPLE("SetFilePointerEx"),            NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointerEx },
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
@@ -3415,11 +3678,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 
     { TUPLE("CreateFileA"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileA },
     { TUPLE("CreateFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileW },
-#if 0
     { TUPLE("ReadFile"),                    NULL,       (KUPTR)kwSandbox_Kernel32_ReadFile },
+    { TUPLE("ReadFileEx"),                  NULL,       (KUPTR)kwSandbox_Kernel32_ReadFileEx },
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
     { TUPLE("SetFilePointerEx"),            NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointerEx },
-#endif
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
@@ -3700,11 +3962,13 @@ int main(int argc, char **argv)
     int rc = 0;
     int i;
     argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
-#if 1
+#if 0
     rc = kwExecCmdLine(argv[1], argv[2]);
-    //rc = kwExecCmdLine(argv[1], argv[2]);
+    rc = kwExecCmdLine(argv[1], argv[2]);
     K_NOREF(i);
 #else
+// run 4: 32.67/1024 = 0x0 (0.031904296875)
+// run 3: 32.77/1024 = 0x0 (0.032001953125)
 // run 2: 34/1024 = 0x0 (0.033203125)
 // run 1: 37/1024 = 0x0 (0.0361328125)
 // kmk 1: 44/1024 = 0x0 (0.04296875)
