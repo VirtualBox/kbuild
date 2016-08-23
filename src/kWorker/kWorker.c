@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2833 2016-08-22 21:00:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2834 2016-08-23 00:53:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -71,6 +71,14 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #else
 # define KWFS_LOG(a) do { } while (0)
 #endif
+
+/** Converts a windows handle to a handle table index.
+ * @note We currently just mask off the 31th bit, and do no shifting or anything
+ *     else to create an index of the handle.
+ * @todo consider shifting by 2 or 3. */
+#define KW_HANDLE_TO_INDEX(a_hHandle)   ((KUPTR)(a_hHandle) & ~(KUPTR)KU32_C(0x8000000))
+/** Maximum handle value we can deal with.   */
+#define KW_HANDLE_MAX                   0x20000
 
 
 /*********************************************************************************************************************************
@@ -248,6 +256,34 @@ typedef struct KWFSHASHW
 } KWFSHASHW;
 
 
+/** Handle type.   */
+typedef enum KWHANDLETYPE
+{
+    KWHANDLETYPE_INVALID = 0,
+    KWHANDLETYPE_FSOBJ_READ_CACHE
+    //KWHANDLETYPE_TEMP_FILE_CACHE,
+    //KWHANDLETYPE_CONSOLE_CACHE
+} KWHANDLETYPE;
+
+/** Handle data. */
+typedef struct KWHANDLE
+{
+    KWHANDLETYPE        enmType;
+    /** The current file offset. */
+    KU32                offFile;
+    /** The handle. */
+    HANDLE              hHandle;
+
+    /** Type specific data. */
+    union
+    {
+        /** The file system object.   */
+        PKWFSOBJ            pFsObj;
+    } u;
+} KWHANDLE;
+typedef KWHANDLE *PKWHANDLE;
+
+
 typedef enum KWTOOLTYPE
 {
     KWTOOLTYPE_INVALID = 0,
@@ -325,6 +361,13 @@ typedef struct KWSANDBOX
     /** The _wenviron msvcrt variable. */
     wchar_t   **wenviron;
 
+
+    /** Handle table. */
+    PKWHANDLE      *papHandles;
+    /** Size of the handle table. */
+    KU32            cHandles;
+    /** Number of active handles in the table. */
+    KU32            cActiveHandles;
 
     UNICODE_STRING  SavedCommandLine;
 } KWSANDBOX;
@@ -438,6 +481,7 @@ static KU8          g_abDefLdBuf[16*1024*1024];
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
 static PKWFSOBJ kwFsLookupA(const char *pszPath);
+static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle);
 
 
 
@@ -2916,13 +2960,134 @@ static KBOOL kwFsIsCachablePathExtensionW(const wchar_t *pwszPath, KBOOL fAttrQu
 }
 
 
+static KBOOL kwFsObjCacheFileCommon(PKWFSOBJ pFsObj, HANDLE hFile)
+{
+    LARGE_INTEGER cbFile;
+    if (GetFileSizeEx(hFile, &cbFile))
+    {
+        if (   cbFile.QuadPart >= 0
+            && cbFile.QuadPart < 16*1024*1024)
+        {
+            KU32 cbCache = (KU32)cbFile.QuadPart;
+            KU8 *pbCache = (KU8 *)kHlpAlloc(cbCache);
+            if (pbCache)
+            {
+                if (ReadFile(hFile, pbCache, cbCache, NULL, NULL))
+                {
+                    LARGE_INTEGER offZero;
+                    offZero.QuadPart = 0;
+                    if (SetFilePointerEx(hFile, offZero, NULL /*poffNew*/, FILE_BEGIN))
+                    {
+                        pFsObj->hCached  = hFile;
+                        pFsObj->cbCached = cbCache;
+                        pFsObj->pbCached = pbCache;
+                        return K_TRUE;
+                    }
+                    else
+                        KWFS_LOG(("Failed to seek to start of cached file! err=%u\n", GetLastError()));
+                }
+                else
+                    KWFS_LOG(("Failed to read %#x bytes into cache! err=%u\n", cbCache, GetLastError()));
+                kHlpFree(pbCache);
+            }
+            else
+                KWFS_LOG(("Failed to allocate %#x bytes for cache!\n", cbCache));
+        }
+        else
+            KWFS_LOG(("File to big to cache! %#llx\n", cbFile.QuadPart));
+    }
+    else
+        KWFS_LOG(("File to get file size! err=%u\n", GetLastError()));
+    CloseHandle(hFile);
+    return K_FALSE;
+}
+
+
+static KBOOL kwFsObjCacheFileA(PKWFSOBJ pFsObj, const char *pszFilename)
+{
+    HANDLE hFile;
+    kHlpAssert(pFsObj->hCached == INVALID_HANDLE_VALUE);
+
+    hFile = CreateFileA(pszFilename, GENERIC_READ, FILE_SHARE_READ, NULL /*pSecAttrs*/,
+                        FILE_OPEN_IF, FILE_ATTRIBUTE_NORMAL, NULL /*hTemplateFile*/);
+    if (hFile != INVALID_HANDLE_VALUE)
+        return kwFsObjCacheFileCommon(pFsObj, hFile);
+    return K_FALSE;
+}
+
+
+static KBOOL kwFsObjCacheFileW(PKWFSOBJ pFsObj, const wchar_t *pwszFilename)
+{
+    HANDLE hFile;
+    kHlpAssert(pFsObj->hCached == INVALID_HANDLE_VALUE);
+
+    hFile = CreateFileW(pwszFilename, GENERIC_READ, FILE_SHARE_READ, NULL /*pSecAttrs*/,
+                        FILE_OPEN_IF, FILE_ATTRIBUTE_NORMAL, NULL /*hTemplateFile*/);
+    if (hFile != INVALID_HANDLE_VALUE)
+        return kwFsObjCacheFileCommon(pFsObj, hFile);
+    return K_FALSE;
+}
+
+
+/** Kernel32 - Common code for CreateFileW and CreateFileA.   */
+static KBOOL kwFsObjCacheCreateFile(PKWFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL fInheritHandle,
+                                    const char *pszFilename, const wchar_t *pwszFilename, HANDLE *phFile)
+{
+    *phFile = INVALID_HANDLE_VALUE;
+
+    /*
+     * At the moment we only handle existing files.
+     */
+    if (!(pFsObj->fAttribs & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE))) /* also checks invalid */
+    {
+        if (   pFsObj->hCached != INVALID_HANDLE_VALUE
+            || (pwszFilename != NULL && kwFsObjCacheFileW(pFsObj, pwszFilename))
+            || (pszFilename  != NULL && kwFsObjCacheFileA(pFsObj, pszFilename)) )
+        {
+            HANDLE hProcSelf = GetCurrentProcess();
+            if (DuplicateHandle(hProcSelf, pFsObj->hCached,
+                                hProcSelf, phFile,
+                                dwDesiredAccess, fInheritHandle,
+                                0 /*dwOptions*/))
+            {
+                /*
+                 * Create handle table entry for the duplicate handle.
+                 */
+                PKWHANDLE pHandle = (PKWHANDLE)kHlpAlloc(sizeof(*pHandle));
+                if (pHandle)
+                {
+                    pHandle->enmType  = KWHANDLETYPE_FSOBJ_READ_CACHE;
+                    pHandle->offFile  = 0;
+                    pHandle->hHandle  = *phFile;
+                    pHandle->u.pFsObj = pFsObj;
+                    if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle))
+                        return K_TRUE;
+
+                    kHlpFree(pHandle);
+                }
+                else
+                    KWFS_LOG(("Out of memory for handle!\n"));
+
+                CloseHandle(*phFile);
+                *phFile = INVALID_HANDLE_VALUE;
+            }
+            else
+                KWFS_LOG(("DuplicateHandle failed! err=%u\n", GetLastError()));
+        }
+    }
+    /** @todo Deal with non-existing files if it becomes necessary (it's not for VS2010). */
+
+    /* Do fallback, please. */
+    return K_FALSE;
+}
+
 /** Kernel32 - CreateFileA */
 static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dwDesiredAccess, DWORD dwShareMode,
                                                     LPSECURITY_ATTRIBUTES pSecAttrs, DWORD dwCreationDisposition,
                                                     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
     HANDLE hFile;
-    if (dwCreationDisposition == FILE_OPEN)
+    if (dwCreationDisposition == FILE_OPEN_IF)
     {
         if (   dwDesiredAccess == GENERIC_READ
             || dwDesiredAccess == FILE_GENERIC_READ)
@@ -2930,16 +3095,27 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
             if (dwShareMode & FILE_SHARE_READ)
             {
                 if (   !pSecAttrs
-                    || (   pSecAttrs->bInheritHandle == FALSE
-                        && pSecAttrs->nLength == 0) ) /** @todo This one might not make a lot of sense... */
+                    || (   pSecAttrs->nLength == sizeof(*pSecAttrs)
+                        && pSecAttrs->lpSecurityDescriptor == NULL ) )
                 {
                     const char *pszExt = kHlpGetExt(pszFilename);
                     if (kwFsIsCachableExtensionA(pszExt, K_FALSE /*fAttrQuery*/))
                     {
-                        /** @todo later.   */
+                        PKWFSOBJ pFsObj = kwFsLookupA(pszFilename);
+                        if (pFsObj)
+                        {
+                            if (kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
+                                                       pszFilename, NULL /*pwszFilename*/, &hFile))
+                            {
+                                KWFS_LOG(("CreateFileA(%s) -> %p [cached]\n", pszFilename, hFile));
+                                return hFile;
+                            }
+                        }
+
+                        /* fallback */
                         hFile = CreateFileA(pszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
                                             dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-                        KWFS_LOG(("CreateFileA(%s) - cachable -> %p\n", pszFilename, hFile));
+                        KWFS_LOG(("CreateFileA(%s) -> %p (err=%u) [fallback]\n", pszFilename, hFile, GetLastError()));
                         return hFile;
                     }
                 }
@@ -2960,7 +3136,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
                                                     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
     HANDLE hFile;
-    if (dwCreationDisposition == FILE_OPEN)
+    if (dwCreationDisposition == FILE_OPEN_IF)
     {
         if (   dwDesiredAccess == GENERIC_READ
             || dwDesiredAccess == FILE_GENERIC_READ)
@@ -2968,23 +3144,31 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
             if (dwShareMode & FILE_SHARE_READ)
             {
                 if (   !pSecAttrs
-                    || (   pSecAttrs->bInheritHandle == FALSE
-                        && pSecAttrs->nLength == 0) ) /** @todo This one might not make a lot of sense... */
+                    || (   pSecAttrs->nLength == sizeof(*pSecAttrs)
+                        && pSecAttrs->lpSecurityDescriptor == NULL ) )
                 {
                     if (kwFsIsCachablePathExtensionW(pwszFilename, K_FALSE /*fAttrQuery*/))
                     {
-                        /** @todo later.   */
-
-                        hFile = CreateFileW(pwszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
-                                            dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-
-                        KWFS_LOG(("CreateFileW(%ls) - cachable -> %p\n", pwszFilename, hFile));
-                        return hFile;
+                        /** @todo rewrite to pure UTF-16. */
+                        char szTmp[2048];
+                        KSIZE cch = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
+                        if (cch < sizeof(szTmp))
+                            return kwSandbox_Kernel32_CreateFileA(szTmp, dwDesiredAccess, dwShareMode, pSecAttrs,
+                                                                  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
                     }
                 }
+                else
+                    KWFS_LOG(("CreateFileW: incompatible security attributes (nLength=%#x pDesc=%p)\n",
+                              pSecAttrs->nLength, pSecAttrs->lpSecurityDescriptor));
             }
+            else
+                KWFS_LOG(("CreateFileW: incompatible sharing mode %#x\n", dwShareMode));
         }
+        else
+            KWFS_LOG(("CreateFileW: incompatible desired access %#x\n", dwDesiredAccess));
     }
+    else
+        KWFS_LOG(("CreateFileW: incompatible disposition %u\n", dwCreationDisposition));
     hFile = CreateFileW(pwszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
                         dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     KWFS_LOG(("CreateFileW(%ls) -> %p\n", pwszFilename, hFile));
@@ -3021,8 +3205,29 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
 /** Kernel32 - CloseHandle */
 static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
 {
-    KWFS_LOG(("CloseHandle(%p)\n", hObject));
-    return CloseHandle(hObject);
+    BOOL        fRet;
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hObject);
+    if (   idxHandle < g_Sandbox.cHandles
+        && g_Sandbox.papHandles[idxHandle] != NULL)
+    {
+        fRet = CloseHandle(hObject);
+        if (fRet)
+        {
+            PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+            g_Sandbox.papHandles[idxHandle] = NULL;
+            g_Sandbox.cActiveHandles--;
+            kHlpFree(pHandle);
+            KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle]\n", hObject));
+        }
+        else
+            KWFS_LOG(("CloseHandle(%p) -> FALSE [intercepted handle] err=%u!\n", hObject, GetLastError()));
+    }
+    else
+    {
+        KWFS_LOG(("CloseHandle(%p)\n", hObject));
+        fRet = CloseHandle(hObject);
+    }
+    return fRet;
 }
 
 
@@ -3208,14 +3413,14 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("CreateThread"),                NULL,       (KUPTR)kwSandbox_Kernel32_CreateThread },
 #endif
 
-#if 0
     { TUPLE("CreateFileA"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileA },
     { TUPLE("CreateFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileW },
+#if 0
     { TUPLE("ReadFile"),                    NULL,       (KUPTR)kwSandbox_Kernel32_ReadFile },
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
     { TUPLE("SetFilePointerEx"),            NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointerEx },
-    { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
 #endif
+    { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
@@ -3270,6 +3475,48 @@ static PPEB kwSandboxGetProcessEnvironmentBlock(void)
 #endif
 }
 
+
+/**
+ * Enters the given handle into the handle table.
+ *
+ * @returns K_TRUE on success, K_FALSE on failure.
+ * @param   pSandbox            The sandbox.
+ * @param   pHandle             The handle.
+ */
+static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle)
+{
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(pHandle->hHandle);
+    kHlpAssertReturn(idxHandle < KW_HANDLE_MAX, K_FALSE);
+
+    /*
+     * Grow handle table.
+     */
+    if (idxHandle >= pSandbox->cHandles)
+    {
+        void *pvNew;
+        KU32  cHandles = pSandbox->cHandles ? pSandbox->cHandles * 2 : 32;
+        while (cHandles <= idxHandle)
+            cHandles *= 2;
+        pvNew = kHlpRealloc(pSandbox->papHandles, cHandles * sizeof(pSandbox->papHandles[0]));
+        if (!pvNew)
+        {
+            KW_LOG(("Out of memory growing handle table to %u handles\n", cHandles));
+            return K_FALSE;
+        }
+        pSandbox->papHandles = (PKWHANDLE *)pvNew;
+        kHlpMemSet(&pSandbox->papHandles[pSandbox->cHandles], 0,
+                   (cHandles - pSandbox->cHandles) * sizeof(pSandbox->papHandles[0]));
+        pSandbox->cHandles = cHandles;
+    }
+
+    /*
+     * Check that the entry is unused then insert it.
+     */
+    kHlpAssertReturn(pSandbox->papHandles[idxHandle] == NULL, K_FALSE);
+    pSandbox->papHandles[idxHandle] = pHandle;
+    pSandbox->cActiveHandles++;
+    return K_TRUE;
+}
 
 
 
@@ -3453,9 +3700,9 @@ int main(int argc, char **argv)
     int rc = 0;
     int i;
     argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
-#if 0
+#if 1
     rc = kwExecCmdLine(argv[1], argv[2]);
-    rc = kwExecCmdLine(argv[1], argv[2]);
+    //rc = kwExecCmdLine(argv[1], argv[2]);
     K_NOREF(i);
 #else
 // run 2: 34/1024 = 0x0 (0.033203125)
