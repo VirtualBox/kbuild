@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2815 2016-08-14 12:03:44Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2837 2016-08-24 12:11:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -382,6 +382,7 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
     const char *pszIterator;
     const char *pszInCur;
     unsigned int cchInCur;
+    unsigned int cchMaxRelative = 0;
     unsigned int cRelativePaths;
 
     /*
@@ -389,7 +390,7 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
      */
     cRelativePaths = 0;
     pszIterator = *ppsz;
-    while ((pszInCur = find_next_token(&pszIterator, &cchInCur)))
+    while ((pszInCur = find_next_token(&pszIterator, &cchInCur)) != NULL)
     {
         /* is relative? */
 #ifdef HAVE_DOS_PATHS
@@ -397,7 +398,11 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
 #else
         if (pszInCur[0] != '/')
 #endif
+        {
             cRelativePaths++;
+            if (cchInCur > cchMaxRelative)
+                cchMaxRelative = cchInCur;
+        }
     }
 
     /*
@@ -405,10 +410,28 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
      */
     if (cRelativePaths)
     {
-        const size_t cchOut = *pcch + cRelativePaths * (pDefPath->value_length + 1) + 1;
-        char *pszOut = xmalloc(cchOut);
-        char *pszOutCur = pszOut;
+        size_t const cchAbsPathBuf = MAX(GET_PATH_MAX, pDefPath->value_length + cchInCur + 1 + 16);
+        char *pszAbsPathOut = (char *)alloca(cchAbsPathBuf);
+        char *pszAbsPathIn  = (char *)alloca(cchAbsPathBuf);
+        size_t cchAbsDefPath;
+        size_t cchOut;
+        char *pszOut;
+        char *pszOutCur;
         const char *pszInNextCopy = *ppsz;
+
+        /* make defpath absolute and have a trailing slash first. */
+        if (abspath(pDefPath->value, pszAbsPathIn) == NULL)
+            memcpy(pszAbsPathIn, pDefPath->value, pDefPath->value_length);
+        cchAbsDefPath = strlen(pszAbsPathIn);
+#ifdef HAVE_DOS_PATHS
+        if (pszAbsPathIn[cchAbsDefPath - 1] != '/' && pszAbsPathIn[cchAbsDefPath - 1] != '\\')
+#else
+        if (pszAbsPathIn[cchAbsDefPath - 1] != '/')
+#endif
+            pszAbsPathIn[cchAbsDefPath++] = '/';
+
+        cchOut = *pcch + cRelativePaths * cchAbsDefPath + 1;
+        pszOutCur = pszOut = xmalloc(cchOut);
 
         cRelativePaths = 0;
         pszIterator = *ppsz;
@@ -421,38 +444,35 @@ kbuild_apply_defpath(struct variable *pDefPath, char **ppsz, unsigned int *pcch,
             if (pszInCur[0] != '/')
 #endif
             {
-                PATH_VAR(szAbsPathIn);
-                PATH_VAR(szAbsPathOut);
-
-                if (pDefPath->value_length + cchInCur + 1 >= GET_PATH_MAX)
-                    continue;
+                const char *pszToCopy;
+                size_t      cchToCopy;
 
                 /* Create the abspath input. */
-                memcpy(szAbsPathIn, pDefPath->value, pDefPath->value_length);
-                szAbsPathIn[pDefPath->value_length] = '/';
-                memcpy(&szAbsPathIn[pDefPath->value_length + 1], pszInCur, cchInCur);
-                szAbsPathIn[pDefPath->value_length + 1 + cchInCur] = '\0';
+                memcpy(&pszAbsPathIn[cchAbsDefPath], pszInCur, cchInCur);
+                pszAbsPathIn[cchAbsDefPath + cchInCur] = '\0';
 
-                if (abspath(szAbsPathIn, szAbsPathOut) != NULL)
+                pszToCopy = abspath(pszAbsPathIn, pszAbsPathOut);
+                if (!pszToCopy)
+                    pszToCopy = pszAbsPathIn;
+
+                /* copy leading input */
+                if (pszInCur != pszInNextCopy)
                 {
-                    const size_t cchAbsPathOut = strlen(szAbsPathOut);
-                    assert(cchAbsPathOut <= pDefPath->value_length + 1 + cchInCur);
-
-                    /* copy leading input */
-                    if (pszInCur != pszInNextCopy)
-                    {
-                        const size_t cchCopy = pszInCur - pszInNextCopy;
-                        memcpy(pszOutCur, pszInNextCopy, cchCopy);
-                        pszOutCur += cchCopy;
-                    }
-                    pszInNextCopy = pszInCur + cchInCur;
-
-                    /* copy out the abspath. */
-                    memcpy(pszOutCur, szAbsPathOut, cchAbsPathOut);
-                    pszOutCur += cchAbsPathOut;
+                    const size_t cchCopy = pszInCur - pszInNextCopy;
+                    memcpy(pszOutCur, pszInNextCopy, cchCopy);
+                    pszOutCur += cchCopy;
                 }
+                pszInNextCopy = pszInCur + cchInCur;
+
+                /* copy out the abspath. */
+                cchToCopy = strlen(pszToCopy);
+                assert(cchToCopy <= cchAbsDefPath + cchInCur);
+                memcpy(pszOutCur, pszToCopy, cchToCopy);
+                pszOutCur += cchToCopy;
             }
+            /* else: Copy absolute paths as bulk when we hit then next relative one or the end. */
         }
+
         /* the final copy (includes the nil). */
         cchInCur = *ppsz + *pcch - pszInNextCopy;
         memcpy(pszOutCur, pszInNextCopy, cchInCur);
@@ -2024,6 +2044,8 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
 
     if (pDefPath && !pDefPath->value_length)
         pDefPath = NULL;
+
+
     pDefs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                             ST("DEFS"),  ST("defs"), 1/* left-to-right */);
     pIncs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
