@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2836 2016-08-23 16:27:34Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -23,36 +23,52 @@
 #
 #
 
-## @todo fixme!!!
-KBUILD_WITH_STATIC_MSVCRT = 1
 
 SUB_DEPTH = ../..
 include $(PATH_KBUILD)/subheader.kmk
 
 
 PROGRAMS += kWorker
-kWorker_TEMPLATE = BIN
+kWorker_TEMPLATE = BIN-STATIC-THREADED
 kWorker_INCS = kStuff/include
 kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
 kWorker_SOURCES = kWorker.c
 kWorker_LIBS = \
 	$(kStuff_1_TARGET) \
-	$(LIB_KDEP) \
-	$(LIB_KUTIL)
+	$(kWorkerLib_1_TARGET)
 include $(KBUILD_PATH)/sdks/WINDDK71.kmk
 kWorker_LIBS.win = \
-	$(TEMPLATE_BIN_LIBS) \
+	$(TEMPLATE_BIN-STATIC-THREADED_LIBS) \
 	$(PATH_SDK_WINDDK71_LIB_WNET)/ntdll.lib
 kWorker_LDFLAGS.win = \
 	/BASE:0x10000 /DYNAMICBASE:NO /FIXED /SECTION:DefLdBuf,EWR
 
 
 #
+# Stuff from ../libs.  Need to rebuilt it with static CRT.
+#
+LIBRARIES += kWorkerLib
+kWorkerLib_TEMPLATE = LIB-STATIC-THREADED
+kWorkerLib_DEFPATH = ../lib # Need fix from r2837.
+kWorkerLib_DEFPATH := $(PATH_SUB_CURRENT)/../lib
+kWorkerLib_SOURCES = \
+	crc32.c \
+	md5.c
+kWorkerLib_SOURCES.win = \
+	nt_fullpath.c \
+	quoted_spawn.c \
+       nt/nthlpcore.c \
+       nt/nthlpfs.c \
+       nt/ntdir.c \
+       nt/ntstat.c \
+       nt/ntunlink.c
+
+#
 # kStuff library.
 #
 LIBRARIES += kStuff
-kStuff_TEMPLATE = LIB
+kStuff_TEMPLATE = LIB-STATIC-THREADED
 kStuff_DEFS.debug = K_STRICT
 kStuff_INCS = kStuff/include
 

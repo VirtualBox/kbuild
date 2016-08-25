@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2819 2016-08-14 12:29:48Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -384,6 +384,32 @@ TEMPLATE_LIB_INST    = lib/
 TEMPLATE_LIB_TOOL    = $(TEMPLATE_BIN_TOOL)
 
 
-LIB_KDEP = $(PATH_OBJ)/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
+#
+# Template for static threaded binaries (windows).
+#
+TEMPLATE_BIN-STATIC-THREADED = Threaded command line binary
+TEMPLATE_BIN-STATIC-THREADED_EXTENDS  = BIN-THREADED
+ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
+ TEMPLATE_BIN-STATIC-THREADED_CFLAGS  = $(filter-out -MD,$(TEMPLATE_BIN-THREADED_CFLAGS)) -MT
+ TEMPLATE_BIN-STATIC-THREADED_LIBS    = $(filter-out %/msvcrt.lib,$(TEMPLATE_BIN-THREADED_LIBS)) \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcmt.lib \
+ 	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/libcpmt.lib
+else
+ TEMPLATE_BIN-STATIC-THREADED_CFLAGS  = $(TEMPLATE_BIN-THREADED_CFLAGS) -static
+ TEMPLATE_BIN-STATIC-THREADED_LDFLAGS = $(TEMPLATE_BIN-THREADED_LDFLAGS) -static
+endif
+
+#
+# Template for static threaded libraries.
+#
+TEMPLATE_LIB-STATIC-THREADED = Threaded command line library
+TEMPLATE_LIB-STATIC-THREADED_EXTENDS  = BIN-STATIC-THREADED
+TEMPLATE_LIB-STATIC-THREADED_INST     = lib/
+
+
+#
+# Library macros.
+#
+LIB_KDEP  = $(PATH_OBJ)/kDep/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kDep$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 LIB_KUTIL = $(PATH_OBJ)/kUtil/$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBPREF)kUtil$(TOOL_$(TEMPLATE_LIB_TOOL)_ARLIBSUFF)
 
