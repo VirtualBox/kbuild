@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2836 2016-08-23 16:27:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -4921,12 +4921,13 @@ int main(int argc, char **argv)
     K_NOREF(i);
 #else
 // Skylake (W10/amd64, only stdandard MS defender):
-//     run 4: 32.67/1024 = 0x0 (0.031904296875)
-//     run 3: 32.77/1024 = 0x0 (0.032001953125)
-//     run 2: 34/1024 = 0x0 (0.033203125)
-//     run 1: 37/1024 = 0x0 (0.0361328125)
-//     kmk 1: 44/1024 = 0x0 (0.04296875)
-//     cmd 1: 48/1024 = 0x0 (0.046875)
+//     cmd 1:  48    /1024 = 0x0 (0.046875)        [for /l %i in (1,1,1024) do ...]
+//     kmk 1:  44    /1024 = 0x0 (0.04296875)      [all: ; 1024 x cl.exe]
+//     run 1:  37    /1024 = 0x0 (0.0361328125)    [just process creation gain]
+//     run 2:  34    /1024 = 0x0 (0.033203125)     [get file attribs]
+//     run 3:  32.77 /1024 = 0x0 (0.032001953125)  [read caching of headers]
+//     run 4:  32.67 /1024 = 0x0 (0.031904296875)  [loader tweaking]
+//     run 5:  29.144/1024 = 0x0 (0.0284609375)    [with temp files in memory]
 // Dell (W7/amd64, infected by mcafee):
 //     kmk 1: 285.278/1024 = 0x0 (0.278591796875)
 //     run 1: 134.503/1024 = 0x0 (0.1313505859375) [w/o temp files in memory]
