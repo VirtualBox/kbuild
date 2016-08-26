@@ -1,4 +1,4 @@
-/* $Id: submit.c 2841 2016-08-26 20:04:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2842 2016-08-26 20:05:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
