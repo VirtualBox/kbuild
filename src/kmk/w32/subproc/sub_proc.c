@@ -26,6 +26,12 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <process.h>  /* for msvc _beginthreadex, _endthreadex */
 #include <signal.h>
 #include <windows.h>
+#ifdef KMK
+# include <assert.h>
+# include "make.h"
+# include "kmkbuiltin.h"
+#endif
+
 
 #include "sub_proc.h"
 #include "proc.h"
@@ -33,12 +39,17 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "debug.h"
 
 static char *make_command_line(char *shell_name, char *exec_path, char **argv);
+#ifndef KMK
 extern char *xmalloc (unsigned int);
-#ifdef KMK
+#else
 extern void kmk_cache_exec_image(const char *); /* imagecache.c */
 #endif
 
 typedef struct sub_process_t {
+#ifdef KMK
+	enum { kRegular = 0, kSubmit, kSubProcFreed } enmType;
+	intptr_t clue;
+#endif
 	intptr_t sv_stdin[2];
 	intptr_t sv_stdout[2];
 	intptr_t sv_stderr[2];
@@ -63,6 +74,7 @@ static sub_process *proc_array[MAXIMUM_WAIT_OBJECTS];
 static int proc_index = 0;
 static int fake_exits_pending = 0;
 
+#ifndef KMK /* Inefficient! */
 /*
  * When a process has been waited for, adjust the wait state
  * array so that we don't wait for it again
@@ -87,6 +99,7 @@ process_adjust_wait_state(sub_process* pproc)
 		proc_array[proc_index] = NULL;
 	}
 }
+#endif /* !KMK */
 
 /*
  * Waits for any of the registered child processes to finish.
@@ -111,6 +124,9 @@ process_wait_for_any_private(void)
 
 	/* wait for someone to exit */
 	if (!fake_exits_pending) {
+#ifdef KMK
+l_wait_again:
+#endif
 		retval = WaitForMultipleObjects(proc_index, handles, FALSE, INFINITE);
 		which = retval - WAIT_OBJECT_0;
 	} else {
@@ -122,7 +138,23 @@ process_wait_for_any_private(void)
 	/* return pointer to process */
 	if (retval != WAIT_FAILED) {
 		sub_process* pproc = proc_array[which];
+#ifdef KMK
+		if (pproc->enmType == kSubmit) {
+		    /* Try get the result from kSubmit.c.  This may not succeed if the whole
+		       result hasn't arrived yet, in which we just restart the wait. */
+		    if (kSubmitSubProcGetResult(pproc->clue, &pproc->exit_code, &pproc->signal) != 0) {
+			goto l_wait_again;
+		    }
+		}
+#endif
+#ifndef KMK /* Inefficient! */
 		process_adjust_wait_state(pproc);
+#else
+		proc_index--;
+		if ((int)which < proc_index)
+			proc_array[which] = proc_array[proc_index];
+		proc_array[proc_index] = NULL;
+#endif
 		return pproc;
 	} else
 		return NULL;
@@ -132,11 +164,21 @@ process_wait_for_any_private(void)
  * Terminate a process.
  */
 BOOL
-process_kill(HANDLE proc, int signal)
+ process_kill(HANDLE proc, int signal)
 {
 	sub_process* pproc = (sub_process*) proc;
 	pproc->signal = signal;
+#ifdef KMK
+	if (pproc->enmType == kRegular) {
+#endif
 	return (TerminateProcess((HANDLE) pproc->pid, signal));
+#ifdef KMK
+	} else if (pproc->enmType == kSubmit) {
+		return kSubmitSubProcKill(pproc->clue, signal) == 0;
+	}
+	assert(0);
+	return FALSE;
+#endif
 }
 
 /*
@@ -148,9 +190,37 @@ process_kill(HANDLE proc, int signal)
 void
 process_register(HANDLE proc)
 {
+#ifdef KMK
+	assert(((sub_process *)proc)->enmType == kRegular);
+#endif
 	if (proc_index < MAXIMUM_WAIT_OBJECTS)
 		proc_array[proc_index++] = (sub_process *) proc;
 }
+
+#ifdef KMK
+/**
+ * Interface used by kmkbuiltin/kSubmit.c to register stuff going down in a
+ * worker process.
+ *
+ * @returns 0 on success, -1 if there are too many sub-processes already.
+ * @param   hEvent              The event semaphore to wait on.
+ * @param   clue                The clue to base.
+ */
+int
+process_kmk_register_submit(HANDLE hEvent, intptr_t clue)
+{
+	if (proc_index < MAXIMUM_WAIT_OBJECTS) {
+		sub_process *pSubProc = (sub_process *)xcalloc(sizeof(*pSubProc));
+		pSubProc->enmType = kSubmit;
+		pSubProc->clue    = clue;
+		pSubProc->pid     = (intptr_t)hEvent;
+
+		proc_array[proc_index++] = pSubProc;
+		return 0;
+	}
+	return -1;
+}
+#endif
 
 /*
  * Return the number of processes that we are still waiting for.
@@ -196,7 +266,9 @@ process_wait_for_any(void)
 		 * will have to use process_last_err()
 		 */
 #ifdef KMK
-		(void) process_file_io_private(pproc, FALSE);
+		if (pproc->enmType == kRegular) {
+		    (void)process_file_io_private(pproc, FALSE);
+		}
 #else
 		(void) process_file_io(pproc);
 #endif
@@ -444,6 +516,8 @@ process_begin(
 	char *envblk=NULL;
 #ifdef KMK
         size_t exec_path_len;
+
+	assert (pproc->enmType == kRegular);
 #endif
 
 
@@ -782,6 +856,9 @@ process_pipe_io(
 	HANDLE ready_hand;
 	bool_t child_dead = FALSE;
 	BOOL GetExitCodeResult;
+#ifdef KMK
+	assert (pproc->enmType == kRegular);
+#endif
 
 	/*
 	 *  Create stdin thread, if needed
@@ -917,6 +994,7 @@ process_pipe_io(
 
 }
 
+#ifndef KMK /* unused */
 /*
  * Purpose: collects output from child process and returns results
  *
@@ -942,6 +1020,7 @@ process_file_io(
 
 	return process_file_io_private(proc, TRUE);
 }
+#endif /* !KMK - unused */
 
 /* private function, avoid some kernel calls. (bird) */
 static long
@@ -1023,6 +1102,10 @@ process_cleanup(
 	sub_process *pproc = (sub_process *)proc;
 	int i;
 
+#ifdef KMK
+	if (pproc->enmType == kRegular) {
+#endif
+
 	if (pproc->using_pipes) {
 		for (i= 0; i <= 1; i++) {
 			if ((HANDLE)pproc->sv_stdin[i])
@@ -1035,6 +1118,15 @@ process_cleanup(
 	}
 	if ((HANDLE)pproc->pid)
 		CloseHandle((HANDLE)pproc->pid);
+#ifdef KMK
+	} else if (pproc->enmType == kSubmit) {
+	    /* nothing to do. */
+	} else {
+	    assert(0);
+	    return;
+	}
+	pproc->enmType = kSubProcFreed;
+#endif
 
 	free(pproc);
 }

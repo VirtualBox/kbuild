@@ -1313,13 +1313,13 @@ start_job_command (struct child *child)
       set_command_state (child->file, cs_running);
       child->pid = 0;
       if (p2 != argv)
-        rc = kmk_builtin_command (*p2, &argv_spawn, &child->pid);
+        rc = kmk_builtin_command (*p2, &argv_spawn, &child->pid, child);
       else
         {
           int argc = 1;
           while (argv[argc])
             argc++;
-          rc = kmk_builtin_command_parsed (argc, argv, &argv_spawn, &child->pid);
+          rc = kmk_builtin_command_parsed (argc, argv, &argv_spawn, &child->pid, child);
         }
 
 # ifndef VMS

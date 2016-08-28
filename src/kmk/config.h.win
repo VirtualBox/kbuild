@@ -442,7 +442,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.  */
 #define gid_t int
 
 /* Define to `int' if <sys/types.h> does not define. */
-#define pid_t int
+/* Note (bird)! sub_proc.c needs this to be pointer sized. */
+#define pid_t intptr_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #define uid_t int

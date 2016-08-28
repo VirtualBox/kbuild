@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2816 2016-08-14 12:16:45Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -128,7 +128,6 @@ kmkmissing_SOURCES.win += \
 	glob/fnmatch.c \
 	getloadavg.c \
 	w32/subproc/misc.c \
-	w32/subproc/sub_proc.c \
 	w32/subproc/w32err.c \
 	w32/pathstuff.c \
 	w32/imagecache.c
@@ -244,6 +243,9 @@ kmk_SOURCES = \
 	kbuild.c \
 	kbuild-object.c
 
+kmk_SOURCES.win = \
+	w32/subproc/sub_proc.c
+
 kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 
 #kmk_LIBS.solaris = malloc
@@ -275,6 +277,7 @@ kmk_SOURCES += \
 	kmkbuiltin/printf.c \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
+	kmkbuiltin/kSubmit.c \
 	kmkbuiltin/sleep.c \
 	kmkbuiltin/test.c \
 
@@ -459,6 +462,9 @@ kmk_gmake_SOURCES = \
 	vpath.c \
 	remote-stub.c
 
+kmk_gmake_SOURCES.win = \
+	w32/subproc/sub_proc.c
+
 
 #
 # kmk_fmake - Faster GNU Make.
@@ -509,6 +515,9 @@ kmk_fgmake_SOURCES = \
 	vpath.c \
 	remote-stub.c
 
+kmk_fgmake_SOURCES.win = \
+	w32/subproc/sub_proc.c
+
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
@@ -544,6 +553,16 @@ $(kmk_0_OUTDIR)/pwd.h: | $(call DIRDEP,$(kmk_0_OUTDIR))
 
 $(kmk_0_OUTDIR)/grp.h: | $(call DIRDEP,$(kmk_0_OUTDIR))
 	$(ECHO_EXT) > $@
+
+
+ifeq ($(KBUILD_TARGET),win)
+ #
+ # tstFileInfo
+ #
+ PROGRAMS.win += tstFileInfo
+ tstFileInfo_TEMPLATE = BIN
+ tstFileInfo_SOURCES = w32/tstFileInfo.c
+endif
 
 
 #

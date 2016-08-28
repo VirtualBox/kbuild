@@ -1,10 +1,10 @@
-/* $Id: kmkbuiltin.h 2736 2014-12-23 21:15:40Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
 
 /*
- * Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -23,16 +23,19 @@
  *
  */
 
+#ifndef ___kmk_kmkbuiltin_h___
+#define ___kmk_kmkbuiltin_h___
+
 #ifdef _MSC_VER
 # ifndef pid_t /* see config.h.win */
-#  define pid_t int
+#  define pid_t intptr_t /* Note! sub_proc.c needs it to be pointer sized. */
 # endif
 #else
 # include <sys/types.h>
 #endif
 
-int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
-int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
+int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
+int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
 
 extern int kmk_builtin_append(int argc, char **argv, char **envp);
 extern int kmk_builtin_cp(int argc, char **argv, char **envp);
@@ -55,10 +58,17 @@ extern int kmk_builtin_test(int argc, char **argv, char **envp
                             , char ***ppapszArgvSpawn
 #endif
                             );
+#ifdef KBUILD_OS_WINDOWS
+extern int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
+extern int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo);
+extern int kSubmitSubProcKill(intptr_t pvUser, int iSignal);
+#endif
 extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp);
 extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp);
 
 extern char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname);
 
 extern int kbuild_version(const char *);
+
+#endif
 

@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -42,7 +42,7 @@
 extern char **environ;
 #endif
 
-int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
+int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
 {
     int         argc;
     char      **argv;
@@ -154,7 +154,7 @@ int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pP
      * Execute the command if parsing was successful.
      */
     if (!*pszCmd)
-        rc = kmk_builtin_command_parsed(argc, argv, ppapszArgvToSpawn, pPidSpawned);
+        rc = kmk_builtin_command_parsed(argc, argv, pChild, ppapszArgvToSpawn, pPidSpawned);
     else
         rc = 1;
 
@@ -166,10 +166,10 @@ int kmk_builtin_command(const char *pszCmd, char ***ppapszArgvToSpawn, pid_t *pP
 }
 
 
-int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
+int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned)
 {
     const char *pszCmd = argv[0];
-    int         iumask;
+    int         iUmask;
     int         rc;
 
     /*
@@ -183,10 +183,10 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
     pszCmd += sizeof("kmk_builtin_") - 1;
 
     /*
-     * String switch on the command.
+     * String switch on the command (frequent stuff at the top).
      */
-    iumask = umask(0);
-    umask(iumask);
+    iUmask = umask(0);
+    umask(iUmask);
     if (!strcmp(pszCmd, "append"))
         rc = kmk_builtin_append(argc, argv, environ);
     else if (!strcmp(pszCmd, "printf"))
@@ -197,6 +197,10 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
         rc = kmk_builtin_install(argc, argv, environ);
     else if (!strcmp(pszCmd, "kDepIDB"))
         rc = kmk_builtin_kDepIDB(argc, argv, environ);
+#ifdef KBUILD_OS_WINDOWS
+    else if (!strcmp(pszCmd, "kSubmit"))
+        rc = kmk_builtin_kSubmit(argc, argv, environ, pChild, pPidSpawned);
+#endif
     else if (!strcmp(pszCmd, "mkdir"))
         rc = kmk_builtin_mkdir(argc, argv, environ);
     else if (!strcmp(pszCmd, "mv"))
@@ -238,7 +242,7 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
      * Cleanup.
      */
     g_progname = "kmk";                 /* paranoia, make sure it's not pointing at a freed argv[0]. */
-    umask(iumask);
+    umask(iUmask);
 
 
     /*
@@ -260,7 +264,7 @@ int kmk_builtin_command_parsed(int argc, char **argv, char ***ppapszArgvToSpawn,
         assert(!*pPidSpawned);
 
         *ppapszArgvToSpawn = NULL;
-        rc = kmk_builtin_command_parsed(argc_new, argv_new, ppapszArgvToSpawn, pPidSpawned);
+        rc = kmk_builtin_command_parsed(argc_new, argv_new, pChild, ppapszArgvToSpawn, pPidSpawned);
 
         free(argv_new[0]);
         free(argv_new);

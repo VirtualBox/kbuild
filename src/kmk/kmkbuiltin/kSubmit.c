@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2842 2016-08-26 20:05:37Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -49,6 +49,9 @@
 #else
 # include <unistd.h>
 #endif
+#ifdef KBUILD_OS_WINDOWS
+# include "sub_proc.h"
+#endif
 
 #include "kbuild.h"
 #include "kmkbuiltin.h"
@@ -78,6 +81,21 @@ typedef struct WORKERINSTANCE
     unsigned                cBits;
     /** The process ID of the kWorker process. */
     pid_t                   pid;
+    union
+    {
+        struct
+        {
+            /** The exit code. */
+            int32_t         rcExit;
+            /** Set to 1 if the worker is exiting. */
+            uint8_t         bWorkerExiting;
+            uint8_t         abUnused[3];
+        } s;
+        uint8_t             ab[8];
+    } Result;
+    /** Number of result bytes read alread.  */
+    size_t                  cbResultRead;
+
 #ifdef KBUILD_OS_WINDOWS
     /** The process handle. */
     HANDLE                  hProcess;
@@ -85,8 +103,6 @@ typedef struct WORKERINSTANCE
     HANDLE                  hPipe;
     /** For overlapped read (have valid event semaphore). */
     OVERLAPPED              OverlappedRead;
-    /** The 32-bit exit code read bufffer. */
-    uint32_t                u32ReadResult;
 #else
     /** The socket descriptor we use to talk to the kWorker process. */
     int                     fdSocket;
@@ -125,6 +141,8 @@ static PWORKERINSTANCE      g_apPidHash[61];
  * Also indicates how many worker instances we've spawned. */
 static unsigned             g_uWorkerSeqNo = 0;
 #endif
+/** Set if we've registred the atexit handler already. */
+static int                  g_fAtExitRegistered = 0;
 
 /** @var g_cArchBits
  * The bit count of the architecture this binary is compiled for. */
@@ -147,6 +165,7 @@ static char const           g_szAltArch[]  = "amd64";
 #else
 # error "Port me!"
 #endif
+
 
 
 /**
@@ -218,6 +237,29 @@ static void kSubmitListAppend(PWORKERLIST pList, PWORKERINSTANCE pWorker)
     }
 
     pList->cEntries++;
+}
+
+
+/**
+ * Remove worker from the process ID hash table.
+ *
+ * @param   pWorker             The worker.
+ */
+static void kSubmitPidHashRemove(PWORKERINSTANCE pWorker)
+{
+    size_t idxHash = KWORKER_PID_HASH(pWorker->pid);
+    if (g_apPidHash[idxHash] == pWorker)
+        g_apPidHash[idxHash] = pWorker->pNext;
+    else
+    {
+        PWORKERINSTANCE pPrev = g_apPidHash[idxHash];
+        while (pPrev && pPrev->pNext != pWorker)
+            pPrev = pPrev->pNext;
+        assert(pPrev != NULL);
+        if (pPrev)
+            pPrev->pNext = pWorker->pNext;
+    }
+    pWorker->pid = -1;
 }
 
 
@@ -383,8 +425,6 @@ static int kSubmitSpawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
  */
 static int kSubmitRespawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
 {
-    size_t idxHash;
-
     /*
      * Clean up after the old worker.
      */
@@ -393,9 +433,12 @@ static int kSubmitRespawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
 
     /* Close the pipe handle first, breaking the pipe in case it's not already
        busted up.  Close the event semaphore too before waiting for the process. */
-    if (!CloseHandle(pWorker->hPipe))
-        warnx("CloseHandle(pWorker->hPipe): %u", GetLastError());
-    pWorker->hPipe = INVALID_HANDLE_VALUE;
+    if (pWorker->hPipe != INVALID_HANDLE_VALUE)
+    {
+        if (!CloseHandle(pWorker->hPipe))
+            warnx("CloseHandle(pWorker->hPipe): %u", GetLastError());
+        pWorker->hPipe = INVALID_HANDLE_VALUE;
+    }
 
     if (!CloseHandle(pWorker->OverlappedRead.hEvent))
         warnx("CloseHandle(pWorker->OverlappedRead.hEvent): %u", GetLastError());
@@ -420,9 +463,12 @@ static int kSubmitRespawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
     pid_t   pidWait;
     int     rc;
 
-    if (close(pWorker->fdSocket) != 0)
-        warn("close(pWorker->fdSocket)");
-    pWorker->fdSocket = -1;
+    if (pWorker->fdSocket != -1)
+    {
+        if (close(pWorker->fdSocket) != 0)
+            warn("close(pWorker->fdSocket)");
+        pWorker->fdSocket = -1;
+    }
 
     kill(pWorker->pid, SIGTERM);
     pidWait = waitpid(pWorker->pid, &rc, 0);
@@ -433,19 +479,7 @@ static int kSubmitRespawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
     /*
      * Unlink it from the hash table.
      */
-    idxHash = KWORKER_PID_HASH(pWorker->pid);
-    if (g_apPidHash[idxHash] == pWorker)
-        g_apPidHash[idxHash] = pWorker->pNext;
-    else
-    {
-        PWORKERINSTANCE pPrev = g_apPidHash[idxHash];
-        while (pPrev && pPrev->pNext != pWorker)
-            pPrev = pPrev->pNext;
-        assert(pPrev != NULL);
-        if (pPrev)
-            pPrev->pNext = pWorker->pNext;
-    }
-    pWorker->pid = -1;
+    kSubmitPidHashRemove(pWorker);
 
     /*
      * Respawn it.
@@ -597,12 +631,36 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
  *                              on the idle list.
  * @param   pvMsg               The message to send.
  * @param   cbMsg               The size of the message.
+ * @param   fNoRespawning       Set if
  * @param   cVerbosity          The verbosity level.
  */
-static int kSubmitSendJobMessage(PWORKERINSTANCE pWorker, void const *pvMsg, uint32_t cbMsg, int cVerbosity)
+static int kSubmitSendJobMessage(PWORKERINSTANCE pWorker, void const *pvMsg, uint32_t cbMsg, int fNoRespawning, int cVerbosity)
 {
-    int cRetries = 1;
-    for (;; cRetries--)
+    int cRetries;
+
+    /*
+     * Respawn the worker if it stopped by itself and we closed the pipe already.
+     */
+#ifdef KBUILD_OS_WINDOWS
+    if (pWorker->hPipe == INVALID_HANDLE_VALUE)
+#else
+    if (pWorker->fdSocket == -1)
+#endif
+    {
+        if (!fNoRespawning)
+        {
+            if (cVerbosity > 0)
+                fprintf(stderr,  "kSubmit: Respawning worker (#1)...\n");
+            if (kSubmitRespawnWorker(pWorker, cVerbosity) != 0)
+                return 2;
+        }
+
+    }
+
+    /*
+     * Restart-on-broken-pipe loop. Necessary?
+     */
+    for (cRetries = !fNoRespawning ? 1 : 0; ; cRetries--)
     {
         /*
          * Try write the message.
@@ -649,10 +707,373 @@ static int kSubmitSendJobMessage(PWORKERINSTANCE pWorker, void const *pvMsg, uin
         /*
          * Broken connection. Try respawn the worker.
          */
+        if (cVerbosity > 0)
+            fprintf(stderr,  "kSubmit: Respawning worker (#2)...\n");
         if (kSubmitRespawnWorker(pWorker, cVerbosity) != 0)
             return 2;
     }
 }
+
+
+/**
+ * Closes the connection on a worker that said it is going to exit now.
+ *
+ * This is a way of dealing with imperfect resource management in the worker, it
+ * will monitor it a little and trigger a respawn when it looks bad.
+ *
+ * This function just closes the pipe / socket connection to the worker.  The
+ * kSubmitSendJobMessage function will see this a trigger a respawn the next
+ * time the worker is engaged.  This will usually mean there's a little delay in
+ * which the process can terminate without us having to actively wait for it.
+ *
+ * @param   pWorker             The worker instance.
+ */
+static void kSubmitCloseConnectOnExitingWorker(PWORKERINSTANCE pWorker)
+{
+#ifdef KBUILD_OS_WINDOWS
+    if (!CloseHandle(pWorker->hPipe))
+        warnx("CloseHandle(pWorker->hPipe): %u", GetLastError());
+    pWorker->hPipe = INVALID_HANDLE_VALUE;
+#else
+    if (close(pWorker->fdSocket) != 0)
+        warn("close(pWorker->fdSocket)");
+    pWorker->fdSocket = -1;
+#endif
+}
+
+
+#ifdef KBUILD_OS_WINDOWS
+
+/**
+ * Handles read failure.
+ *
+ * @returns Exit code.
+ * @param   pWorker             The worker instance.
+ * @param   dwErr               The error code.
+ */
+static int kSubmitWinReadFailed(PWORKERINSTANCE pWorker, DWORD dwErr)
+{
+    DWORD dwExitCode;
+
+    if (pWorker->cbResultRead == 0)
+        errx(1, "ReadFile failed: %u", dwErr);
+    else
+        errx(1, "ReadFile failed: %u (read %u bytes)", dwErr, pWorker->cbResultRead);
+    assert(dwErr != 0);
+
+    /* Complete the result. */
+    pWorker->Result.s.rcExit         = 127;
+    pWorker->Result.s.bWorkerExiting = 1;
+    pWorker->cbResultRead            = sizeof(pWorker->Result);
+
+    if (GetExitCodeProcess(pWorker->hProcess, &dwExitCode))
+    {
+        if (dwExitCode != 0)
+            pWorker->Result.s.rcExit = dwExitCode;
+    }
+
+    return dwErr != 0 ? (int)(dwErr & 0x7fffffff) : 0x7fffffff;
+
+}
+
+
+/**
+ * Used by
+ * @returns 0 if we got the whole result, -1 if I/O is pending, windows last
+ *          error on ReadFile failure.
+ * @param   pWorker             The worker instance.
+ */
+static int kSubmitReadMoreResultWin(PWORKERINSTANCE pWorker)
+{
+    /*
+     * Set up the result read, telling the sub_proc.c unit about it.
+     */
+    while (pWorker->cbResultRead < sizeof(pWorker->Result))
+    {
+        DWORD cbRead = 0;
+
+        BOOL fRc = ResetEvent(pWorker->OverlappedRead.hEvent);
+        assert(fRc); (void)fRc;
+
+        pWorker->OverlappedRead.Offset     = 0;
+        pWorker->OverlappedRead.OffsetHigh = 0;
+
+        if (!ReadFile(pWorker->hPipe, &pWorker->Result.ab[pWorker->cbResultRead],
+                     sizeof(pWorker->Result) - pWorker->cbResultRead,
+                     &cbRead,
+                     &pWorker->OverlappedRead))
+        {
+            DWORD dwErr = GetLastError();
+            if (dwErr == ERROR_IO_PENDING)
+                return 1;
+            return kSubmitWinReadFailed(pWorker, GetLastError());
+        }
+
+        pWorker->cbResultRead += cbRead;
+        assert(pWorker->cbResultRead <= sizeof(pWorker->Result));
+    }
+    return 0;
+}
+
+#endif /* KBUILD_OS_WINDOWS */
+
+/**
+ * Marks the worker active.
+ *
+ * On windows this involves setting up the async result read and telling
+ * sub_proc.c about the process.
+ *
+ * @returns Exit code.
+ * @param   pWorker             The worker instance to mark as active.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pChild              The kmk child to associate the job with.
+ * @param   pPidSpawned         If @a *pPidSpawned is non-zero if the child is
+ *                              running, otherwise the worker is already done
+ *                              and we've returned the exit code of the job.
+ */
+static int kSubmitMarkActive(PWORKERINSTANCE pWorker, int cVerbosity, struct child *pChild, pid_t *pPidSpawned)
+{
+#ifdef KBUILD_OS_WINDOWS
+    int rc;
+#endif
+
+    pWorker->cbResultRead = 0;
+
+#ifdef KBUILD_OS_WINDOWS
+    /*
+     * Setup the async result read on windows.  If we're slow and the worker
+     * very fast, this may actually get the result immediately.
+     */
+l_again:
+    rc = kSubmitReadMoreResultWin(pWorker);
+    if (rc == -1)
+    {
+        if (process_kmk_register_submit(pWorker->OverlappedRead.hEvent, (intptr_t)pWorker) == 0)
+        { /* likely */ }
+        else
+        {
+            /* We need to do the waiting here because sub_proc.c has too much to do. */
+            warnx("Too many processes for sub_proc.c to handle!");
+            WaitForSingleObject(pWorker->OverlappedRead.hEvent, INFINITE);
+            goto l_again;
+        }
+    }
+    else
+    {
+        assert(rc == 0 || pWorker->Result.s.rcExit != 0);
+        if (pWorker->Result.s.bWorkerExiting)
+            kSubmitCloseConnectOnExitingWorker(pWorker);
+        *pPidSpawned = 0;
+        return pWorker->Result.s.rcExit;
+    }
+#endif
+
+    /*
+     * Mark it busy and move it to the active instance.
+     */
+    pWorker->pBusyWith = pChild;
+    *pPidSpawned = pWorker->pid;
+
+    kSubmitListUnlink(&g_IdleList, pWorker);
+    kSubmitListAppend(&g_BusyList, pWorker);
+    return 0;
+}
+
+
+#ifdef KBUILD_OS_WINDOWS
+
+/**
+ * Retrieve the worker child result.
+ *
+ * If incomplete, we restart the ReadFile operation like kSubmitMarkActive does.
+ *
+ * @returns 0 on success, -1 if ReadFile was restarted.
+ * @param   pvUser              The worker instance.
+ * @param   prcExit             Where to return the exit code.
+ * @param   piSigNo             Where to return the signal number.
+ */
+int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
+{
+    PWORKERINSTANCE pWorker = (PWORKERINSTANCE)pvUser;
+
+    /*
+     * Get the overlapped result.  There should be one since we're here
+     * because of a satisfied WaitForMultipleObject.
+     */
+    DWORD cbRead = 0;
+    if (GetOverlappedResult(pWorker->hPipe, &pWorker->OverlappedRead, &cbRead, TRUE))
+    {
+        pWorker->cbResultRead += cbRead;
+        assert(pWorker->cbResultRead <= sizeof(pWorker->Result));
+
+        /* More to be read? */
+        while (pWorker->cbResultRead < sizeof(pWorker->Result))
+        {
+            int rc = kSubmitReadMoreResultWin(pWorker);
+            if (rc == -1)
+                return -1;
+            assert(rc == 0 || pWorker->Result.s.rcExit != 0);
+        }
+        assert(pWorker->cbResultRead == sizeof(pWorker->Result));
+    }
+    else
+    {
+        DWORD dwErr = GetLastError();
+        kSubmitWinReadFailed(pWorker, dwErr);
+    }
+
+    /*
+     * Okay, we've got a result.
+     */
+    *prcExit = pWorker->Result.s.rcExit;
+    switch (pWorker->Result.s.rcExit)
+    {
+        default:                                *piSigNo = 0; break;
+        case CONTROL_C_EXIT:                    *piSigNo = SIGINT; break;
+        case STATUS_INTEGER_DIVIDE_BY_ZERO:     *piSigNo = SIGFPE; break;
+        case STATUS_ACCESS_VIOLATION:           *piSigNo = SIGSEGV; break;
+        case STATUS_PRIVILEGED_INSTRUCTION:
+        case STATUS_ILLEGAL_INSTRUCTION:        *piSigNo = SIGILL; break;
+    }
+    return 0;
+}
+
+
+int kSubmitSubProcKill(intptr_t pvUser, int iSignal)
+{
+    return -1;
+}
+
+#endif /* KBUILD_OS_WINDOWS */
+
+
+/**
+ * atexit callback that trigger worker termination.
+ */
+static void kSubmitAtExitCallback(void)
+{
+    PWORKERINSTANCE pWorker;
+    DWORD           msStartTick;
+    DWORD           cKillRaids = 0;
+
+    /*
+     * Tell all the workers to exit by breaking the connection.
+     */
+    for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+        kSubmitCloseConnectOnExitingWorker(pWorker);
+    for (pWorker = g_BusyList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+        kSubmitCloseConnectOnExitingWorker(pWorker);
+
+    /*
+     * Wait a little while for them to stop.
+     */
+    Sleep(0);
+    msStartTick = GetTickCount();
+    for (;;)
+    {
+        /*
+         * Collect handles of running processes.
+         */
+        PWORKERINSTANCE apWorkers[MAXIMUM_WAIT_OBJECTS];
+        HANDLE          ahHandles[MAXIMUM_WAIT_OBJECTS];
+        DWORD           cHandles;
+
+        for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+            if (pWorker->hProcess != INVALID_HANDLE_VALUE)
+            {
+                if (cHandles < MAXIMUM_WAIT_OBJECTS)
+                {
+                    apWorkers[cHandles] = pWorker;
+                    ahHandles[cHandles] = pWorker->hProcess;
+                }
+                cHandles++;
+            }
+        for (pWorker = g_BusyList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+            if (pWorker->hProcess != INVALID_HANDLE_VALUE)
+            {
+                if (cHandles < MAXIMUM_WAIT_OBJECTS)
+                {
+                    apWorkers[cHandles] = pWorker;
+                    ahHandles[cHandles] = pWorker->hProcess;
+                }
+                cHandles++;
+            }
+        if (cHandles == 0)
+            return;
+
+        /*
+         * Wait for the processes.
+         */
+        for (;;)
+        {
+            DWORD cMsElapsed = GetTickCount() - msStartTick;
+            DWORD dwWait = WaitForMultipleObjects(cHandles <= MAXIMUM_WAIT_OBJECTS ? cHandles : MAXIMUM_WAIT_OBJECTS,
+                                                  ahHandles, FALSE /*bWaitAll*/,
+                                                  cMsElapsed < 1000 ? 1000 - cMsElapsed + 16 : 16);
+            if (   dwWait >= WAIT_OBJECT_0
+                && dwWait <= WAIT_OBJECT_0 + MAXIMUM_WAIT_OBJECTS)
+            {
+                size_t idx = dwWait - WAIT_OBJECT_0;
+                CloseHandle(apWorkers[idx]->hProcess);
+                apWorkers[idx]->hProcess = INVALID_HANDLE_VALUE;
+
+                if (cHandles <= MAXIMUM_WAIT_OBJECTS)
+                {
+                    /* Restart the wait with the worker removed, or quit if it was the last worker. */
+                    cHandles--;
+                    if (!cHandles)
+                        return;
+                    if (idx != cHandles)
+                    {
+                        apWorkers[idx] = apWorkers[cHandles];
+                        ahHandles[idx] = ahHandles[cHandles];
+                    }
+                    continue;
+                }
+                /* else: Reconstruct the wait array so we get maximum coverage. */
+            }
+            else if (dwWait == WAIT_TIMEOUT)
+            {
+                /* Terminate the whole bunch. */
+                cKillRaids++;
+                if (cKillRaids <= 2)
+                {
+                    fprintf(stderr, "kmk/kSubmit: Killing %u lingering worker processe(s)!\n", cHandles);
+                    for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+                        if (pWorker->hProcess != INVALID_HANDLE_VALUE)
+                            TerminateProcess(pWorker->hProcess, WAIT_TIMEOUT);
+                    for (pWorker = g_BusyList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
+                        if (pWorker->hProcess != INVALID_HANDLE_VALUE)
+                            TerminateProcess(pWorker->hProcess, WAIT_TIMEOUT);
+                }
+                else
+                {
+                    fprintf(stderr, "kmk/kSubmit: Giving up on the last %u worker processe(s). :-(\n", cHandles);
+                    break;
+                }
+            }
+            else
+            {
+                /* Some kind of wait error.  Could be a bad handle, check each and remove
+                   bad ones as well as completed ones. */
+                size_t idx;
+                fprintf(stderr, "kmk/kSubmit: WaitForMultipleObjects unexpectedly returned %#u (err=%u)\n",
+                        dwWait, GetLastError());
+                for (idx = 0; idx < cHandles; idx++)
+                {
+                    dwWait = WaitForSingleObject(ahHandles[idx], 0 /*ms*/);
+                    if (dwWait != WAIT_TIMEOUT)
+                    {
+                        CloseHandle(apWorkers[idx]->hProcess);
+                        apWorkers[idx]->hProcess = INVALID_HANDLE_VALUE;
+                    }
+                }
+            }
+            break;
+        } /* wait loop */
+    } /* outer wait loop */
+}
+
 
 
 /**
@@ -880,7 +1301,7 @@ static int usage(FILE *pOut,  const char *argv0)
 }
 
 
-int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild)
+int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned)
 {
     int             rcExit = 0;
     int             iArg;
@@ -1052,11 +1473,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                         return 0;
 
                     case 'V':
-                        printf("kmk_submit - kBuild version %d.%d.%d (r%u)\n"
-                               "Copyright (C) 2007-2016 knut st. osmundsen\n",
-                               KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH,
-                               KBUILD_SVN_REV);
-                        return 0;
+                        return kbuild_version(argv[0]);
                 }
             } while ((chOpt = *pszArg++) != '\0');
         }
@@ -1077,12 +1494,13 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {
-            rcExit = kSubmitSendJobMessage(pWorker, pvMsg, cbMsg, cVerbosity);
+            rcExit = kSubmitSendJobMessage(pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
-            {
-                pWorker->pBusyWith = pChild;
-                /** @todo integrate with sub_proc.c / whatever. */
-            }
+                rcExit = kSubmitMarkActive(pWorker, cVerbosity, pChild, pPidSpawned);
+
+            if (!g_fAtExitRegistered)
+                if (atexit(kSubmitAtExitCallback) == 0)
+                    g_fAtExitRegistered = 1;
         }
         else
             rcExit = 1;
