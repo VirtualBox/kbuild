@@ -38,13 +38,18 @@ EXTERN_DECL(long process_begin, (HANDLE proc, char **argv, char **envp,
 	char *exec_path, char *as_user));
 EXTERN_DECL(long process_pipe_io, (HANDLE proc, char *stdin_data,
 	int stdin_data_len));
+#ifndef KMK /* unused */
 EXTERN_DECL(long process_file_io, (HANDLE proc));
+#endif
 EXTERN_DECL(void process_cleanup, (HANDLE proc));
 EXTERN_DECL(HANDLE process_wait_for_any, (VOID_DECL));
 EXTERN_DECL(void process_register, (HANDLE proc));
 EXTERN_DECL(HANDLE process_easy, (char** argv, char** env));
 EXTERN_DECL(BOOL process_kill, (HANDLE proc, int signal));
 EXTERN_DECL(int process_used_slots, (VOID_DECL));
+#ifdef KMK
+EXTERN_DECL(int process_kmk_register_submit, (HANDLE hEvent, intptr_t clue));
+#endif
 
 /* support routines */
 EXTERN_DECL(long process_errno, (HANDLE proc));
