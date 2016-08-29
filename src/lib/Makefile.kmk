@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -38,7 +38,8 @@ kUtil_TEMPLATE = LIB
 kUtil_DEFS.win = __WIN__
 kUtil_SOURCES = \
 	crc32.c \
-	md5.c
+	md5.c \
+	kbuild_version.c
 kUtil_SOURCES.win = \
 	nt_fullpath.c \
 	quote_argv.c \
@@ -53,6 +54,8 @@ kUtil_SOURCES.solaris = \
 #kUtil_SOURCES.linux = \
 #	restartable-syscall-wrappers.c
 kUtil_NOINST = 1
+
+kbuild_version.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 LIBRARIES.win += kWinStartup
 kWinStartup_TEMPLATE = LIB

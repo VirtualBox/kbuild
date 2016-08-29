@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -54,7 +54,8 @@ kWorkerLib_DEFPATH = ../lib # Need fix from r2837.
 kWorkerLib_DEFPATH := $(PATH_SUB_CURRENT)/../lib
 kWorkerLib_SOURCES = \
 	crc32.c \
-	md5.c
+	md5.c \
+       kbuild_version.c
 kWorkerLib_SOURCES.win = \
 	nt_fullpath.c \
 	quoted_spawn.c \
@@ -63,6 +64,7 @@ kWorkerLib_SOURCES.win = \
        nt/ntdir.c \
        nt/ntstat.c \
        nt/ntunlink.c
+kbuild_version.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 #
 # kStuff library.

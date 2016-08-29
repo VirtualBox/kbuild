@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -51,6 +51,7 @@
 #endif
 #ifdef KBUILD_OS_WINDOWS
 # include "sub_proc.h"
+# include "quote_argv.h"
 #endif
 
 #include "kbuild.h"
@@ -365,7 +366,7 @@ static int kSubmitSpawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
                                                               TRUE /*bInitialState*/, NULL /*pwszName*/);
                 if (pWorker->OverlappedRead.hEvent != NULL)
                 {
-                    char        szHandleArg[16];
+                    char        szHandleArg[32];
                     const char *apszArgs[4] = { szExecutable, "--pipe", szHandleArg, NULL };
                     _snprintf(szHandleArg, sizeof(szHandleArg), "%p", hWorkerPipe);
 
@@ -556,11 +557,19 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(unsigned cBitsWorker
 static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArgs, char **papszEnvVars,
                                       const char *pszCwd, uint32_t *pcbMsg)
 {
-    size_t   i;
     size_t   cbTmp;
+    uint32_t i;
     uint32_t cbMsg;
+    uint32_t cArgs;
+    uint32_t cEnvVars;
     uint8_t *pbMsg;
     uint8_t *pbCursor;
+
+    /*
+     * Adjust input.
+     */
+    if (!pszExecutable)
+        pszExecutable = papszArgs[0];
 
     /*
      * Calculate the message length first.
@@ -568,16 +577,18 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     cbMsg  = sizeof(cbMsg);
     cbMsg += sizeof("JOB");
     cbMsg += strlen(pszExecutable) + 1;
+    cbMsg += strlen(pszCwd) + 1;
 
+    cbMsg += sizeof(cArgs);
     for (i = 0; papszArgs[i] != NULL; i++)
-        cbMsg += strlen(papszArgs[i]) + 1;
-    cbMsg += 1;
+        cbMsg += 1 + strlen(papszArgs[i]) + 1;
+    cArgs  = i;
 
+    cbMsg += sizeof(cArgs);
     for (i = 0; papszEnvVars[i] != NULL; i++)
         cbMsg += strlen(papszEnvVars[i]) + 1;
-    cbMsg += 1;
+    cEnvVars = i;
 
-    cbMsg += strlen(pszCwd) + 1;
 
     /*
      * Compose the message.
@@ -593,25 +604,30 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     memcpy(pbCursor, pszExecutable, cbTmp);
     pbCursor += cbTmp;
 
+    cbTmp = strlen(pszCwd) + 1;
+    memcpy(pbCursor, pszCwd, cbTmp);
+    pbCursor += cbTmp;
+
+    memcpy(pbCursor, &cArgs, sizeof(cArgs));
+    pbCursor += sizeof(cArgs);
     for (i = 0; papszArgs[i] != NULL; i++)
     {
+        *pbCursor++ = 0; /* Argument expansion flags (MSC, EMX). */
         cbTmp = strlen(papszArgs[i]) + 1;
         memcpy(pbCursor, papszArgs[i], cbTmp);
         pbCursor += cbTmp;
     }
-    *pbCursor++ = '\0';
+    assert(i == cArgs);
 
+    memcpy(pbCursor, &cEnvVars, sizeof(cEnvVars));
+    pbCursor += sizeof(cEnvVars);
     for (i = 0; papszEnvVars[i] != NULL; i++)
     {
         cbTmp = strlen(papszEnvVars[i]) + 1;
         memcpy(pbCursor, papszEnvVars[i], cbTmp);
         pbCursor += cbTmp;
     }
-    *pbCursor++ = '\0';
-
-    cbTmp = strlen(pszCwd) + 1;
-    memcpy(pbCursor, pszCwd, cbTmp);
-    pbCursor += cbTmp;
+    assert(i == cEnvVars);
 
     assert(pbCursor - pbMsg == (size_t)cbMsg);
 
@@ -779,7 +795,7 @@ static int kSubmitWinReadFailed(PWORKERINSTANCE pWorker, DWORD dwErr)
 
 /**
  * Used by
- * @returns 0 if we got the whole result, -1 if I/O is pending, windows last
+ * @returns 0 if we got the whole result, -1 if I/O is pending, and windows last
  *          error on ReadFile failure.
  * @param   pWorker             The worker instance.
  */
@@ -805,8 +821,8 @@ static int kSubmitReadMoreResultWin(PWORKERINSTANCE pWorker)
         {
             DWORD dwErr = GetLastError();
             if (dwErr == ERROR_IO_PENDING)
-                return 1;
-            return kSubmitWinReadFailed(pWorker, GetLastError());
+                return -1;
+            return kSubmitWinReadFailed(pWorker, dwErr);
         }
 
         pWorker->cbResultRead += cbRead;
@@ -848,7 +864,7 @@ l_again:
     rc = kSubmitReadMoreResultWin(pWorker);
     if (rc == -1)
     {
-        if (process_kmk_register_submit(pWorker->OverlappedRead.hEvent, (intptr_t)pWorker) == 0)
+        if (process_kmk_register_submit(pWorker->OverlappedRead.hEvent, (intptr_t)pWorker, pPidSpawned) == 0)
         { /* likely */ }
         else
         {
@@ -872,7 +888,9 @@ l_again:
      * Mark it busy and move it to the active instance.
      */
     pWorker->pBusyWith = pChild;
+#ifndef KBUILD_OS_WINDOWS
     *pPidSpawned = pWorker->pid;
+#endif
 
     kSubmitListUnlink(&g_IdleList, pWorker);
     kSubmitListAppend(&g_BusyList, pWorker);
@@ -976,7 +994,7 @@ static void kSubmitAtExitCallback(void)
          */
         PWORKERINSTANCE apWorkers[MAXIMUM_WAIT_OBJECTS];
         HANDLE          ahHandles[MAXIMUM_WAIT_OBJECTS];
-        DWORD           cHandles;
+        DWORD           cHandles = 0;
 
         for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
             if (pWorker->hProcess != INVALID_HANDLE_VALUE)
@@ -1328,7 +1346,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         return err(1, "getcwd_fs failed\n");
 
     papszEnv = pChild->environment;
-    if (papszEnv)
+    if (!papszEnv)
         pChild->environment = papszEnv = target_environment(pChild->file);
     cEnvVars = 0;
     while (papszEnv[cEnvVars] != NULL)
@@ -1494,6 +1512,14 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {
+#ifdef KBUILD_OS_WINDOWS
+            /* Quote the argv elements, but first we need unquoted pszExecute. */
+            char *pszFreeExec = NULL;
+            if (!pszExecutable)
+                pszExecutable = pszFreeExec = xstrdup(argv[0]);
+            quote_argv(argc, argv, fWatcomBrainDamage, 1 /*fFreeOrLeak*/);
+#endif
+
             rcExit = kSubmitSendJobMessage(pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
                 rcExit = kSubmitMarkActive(pWorker, cVerbosity, pChild, pPidSpawned);
@@ -1501,6 +1527,10 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
             if (!g_fAtExitRegistered)
                 if (atexit(kSubmitAtExitCallback) == 0)
                     g_fAtExitRegistered = 1;
+
+#ifdef KBUILD_OS_WINDOWS
+            free(pszFreeExec);
+#endif
         }
         else
             rcExit = 1;
