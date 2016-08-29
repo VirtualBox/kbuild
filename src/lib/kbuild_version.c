@@ -1,10 +1,10 @@
-/* $Id: kbuild_version.c 2591 2012-06-17 20:45:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild_version.c 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kbuild_version(), helper function.
  */
 
 /*
- * Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2007-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -26,8 +26,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include "config.h"
-#include "kmkbuiltin.h"
+#include "kbuild_version.h"
 #include <string.h>
 #include <stdio.h>
 

@@ -1311,15 +1311,16 @@ start_job_command (struct child *child)
         p2++;
       assert (*p2);
       set_command_state (child->file, cs_running);
+      child->deleted = 0;
       child->pid = 0;
       if (p2 != argv)
-        rc = kmk_builtin_command (*p2, &argv_spawn, &child->pid, child);
+        rc = kmk_builtin_command (*p2, child, &argv_spawn, &child->pid);
       else
         {
           int argc = 1;
           while (argv[argc])
             argc++;
-          rc = kmk_builtin_command_parsed (argc, argv, &argv_spawn, &child->pid, child);
+          rc = kmk_builtin_command_parsed (argc, argv, child, &argv_spawn, &child->pid);
         }
 
 # ifndef VMS
@@ -1327,15 +1328,18 @@ start_job_command (struct child *child)
       free ((char *) argv);
 # endif
 
-      /* synchronous command execution? */
-      if (!rc && !argv_spawn)
-        goto next_command;
-
-      /* spawned a child? */
-      if (!rc && child->pid)
+      if (!rc)
         {
-          ++job_counter;
-          return;
+          /* spawned a child? */
+          if (child->pid)
+            {
+              ++job_counter;
+              return;
+            }
+
+          /* synchronous command execution? */
+          if (!argv_spawn)
+            goto next_command;
         }
 
       /* failure? */

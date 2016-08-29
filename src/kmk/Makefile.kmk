@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -87,7 +87,6 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/fts.c \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
-	kmkbuiltin/kbuild_version.c \
 	kmkbuiltin/kbuild_protection.c \
 	getopt.c \
 	getopt1.c \

@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -38,11 +38,14 @@
 #include <setjmp.h>
 #include <ctype.h>
 
-#include <nt/ntstat.h>
+#include "nt/ntstat.h"
+#include "kbuild_version.h"
 /* lib/nt_fullpath.c */
 extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
+
 #include <Windows.h>
 #include <winternl.h>
+
 
 
 /*********************************************************************************************************************************
@@ -424,7 +427,7 @@ typedef struct KWSANDBOX
     int         rcExitCode;
 
     /** The command line.   */
-    const char *pszCmdLine;
+    char       *pszCmdLine;
     /** The UTF-16 command line. */
     wchar_t    *pwszCmdLine;
     /** Number of arguments in papszArgs. */
@@ -553,6 +556,9 @@ static KU32         g_uFsCacheGeneration = 0;
 /** Verbosity level. */
 static int          g_cVerbose = 2;
 
+/** Whether we should restart the worker. */
+static KBOOL        g_fRestart = K_FALSE;
+
 /* Further down. */
 extern KWREPLACEMENTFUNCTION const g_aSandboxReplacements[];
 extern KU32                  const g_cSandboxReplacements;
@@ -658,7 +664,7 @@ static void kwErrPrintfV(const char *pszFormat, va_list va)
 {
     DWORD const dwSavedErr = GetLastError();
 
-    fprintf(stderr, "error: ");
+    fprintf(stderr, "kWorker: error: ");
     vfprintf(stderr, pszFormat, va);
 
     SetLastError(dwSavedErr);
@@ -4712,43 +4718,53 @@ static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle)
 
 
 
-static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool, const char *pszCmdLine)
+static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
+                         KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+                         KU32 cEnvVars, const char **papszEnvVars)
 {
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
+    char *psz;
     wchar_t *pwcPool;
     KSIZE cbStrings;
     KSIZE cwc;
-    int i;
+    KU32 i;
 
     /* Simple stuff. */
     g_Sandbox.rcExitCode    = 256;
     g_Sandbox.pTool         = pTool;
     g_Sandbox.idMainThread  = GetCurrentThreadId();
     g_Sandbox.TibMainThread = *(PNT_TIB)NtCurrentTeb();
-    g_Sandbox.pszCmdLine    = pszCmdLine;
     g_Sandbox.pgmptr        = (char *)pTool->pszPath;
     g_Sandbox.wpgmptr       = (wchar_t *)pTool->pwszPath;
+    g_Sandbox.cArgs         = cArgs;
+    g_Sandbox.papszArgs     = (char **)papszArgs;
 
     /*
-     * Convert the command line to argc and argv.
+     * Create a command line from the given argv.
+     * ASSUME that it's correctly quoted by quote_argv.c already.
      */
-    cbStrings = parse_args(pszCmdLine, &pSandbox->cArgs, NULL /*papszArgs*/, NULL /*pchPool*/);
-    pSandbox->papszArgs = (char **)kHlpAlloc(sizeof(char *) * (pSandbox->cArgs + 2) + cbStrings);
-    if (!pSandbox->papszArgs)
+    pSandbox->pszCmdLine = psz = (char *)kHlpAlloc(cbArgs + 1);
+    if (!psz)
         return KERR_NO_MEMORY;
-    parse_args(pSandbox->pszCmdLine, &pSandbox->cArgs, pSandbox->papszArgs, (char *)&pSandbox->papszArgs[pSandbox->cArgs + 2]);
-    pSandbox->papszArgs[pSandbox->cArgs + 0] = NULL;
-    pSandbox->papszArgs[pSandbox->cArgs + 1] = NULL;
+    psz = kHlpStrPCopy(psz, papszArgs[0]);
+    for (i = 1; i < cArgs; i++)
+    {
+        *psz++ = ' ';
+        psz = kHlpStrPCopy(psz, papszArgs[i]);
+    }
+    kHlpAssert((KSIZE)(&psz[1] - pSandbox->pszCmdLine) == cbArgs);
+    psz[0] = '\0';
+    psz[1] = '\0';
 
     /*
      * Convert command line and argv to UTF-16.
      * We assume each ANSI char requires a surrogate pair in the UTF-16 variant.
      */
-    pSandbox->papwszArgs = (wchar_t **)kHlpAlloc(sizeof(wchar_t *) * (pSandbox->cArgs + 2) + cbStrings * 2 * sizeof(wchar_t));
+    pSandbox->papwszArgs = (wchar_t **)kHlpAlloc(sizeof(wchar_t *) * (pSandbox->cArgs + 2) + cbArgs * 2 * sizeof(wchar_t));
     if (!pSandbox->papwszArgs)
         return KERR_NO_MEMORY;
     pwcPool = (wchar_t *)&pSandbox->papwszArgs[pSandbox->cArgs + 2];
-    for (i = 0; i < pSandbox->cArgs; i++)
+    for (i = 0; i < cArgs; i++)
     {
         *pwcPool++ = pSandbox->papszArgs[i][-1]; /* flags */
         pSandbox->papwszArgs[i] = pwcPool;
@@ -4761,7 +4777,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool, const char *pszCmdL
     /*
      * Convert the commandline string to UTF-16, same pessimistic approach as above.
      */
-    cbStrings = (kHlpStrLen(pSandbox->pszCmdLine) + 1) * 2 * sizeof(wchar_t);
+    cbStrings = (cbArgs + 1) * 2 * sizeof(wchar_t);
     pSandbox->pwszCmdLine = kHlpAlloc(cbStrings);
     if (!pSandbox->pwszCmdLine)
         return KERR_NO_MEMORY;
@@ -4808,16 +4824,16 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 }
 
 
-static int kwSandboxExec(PKWTOOL pTool, const char *pszCmdLine, int *prcExitCode)
+static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+                         KU32 cEnvVars, const char **papszEnvVars)
 {
+    int rcExit = 42;
     int rc;
-
-    *prcExitCode            = 256;
 
     /*
      * Initialize the sandbox environment.
      */
-    rc = kwSandboxInit(&g_Sandbox, pTool, pszCmdLine);
+    rc = kwSandboxInit(&g_Sandbox, pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
     if (rc == 0)
     {
         /*
@@ -4834,7 +4850,6 @@ static int kwSandboxExec(PKWTOOL pTool, const char *pszCmdLine, int *prcExitCode
             rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &uAddrMain);
             if (rc == 0)
             {
-                int rcExitCode;
                 int (*pfnWin64Entrypoint)(void *pvPeb, void *, void *, void *);
                 *(KUPTR *)&pfnWin64Entrypoint = uAddrMain;
 
@@ -4847,31 +4862,37 @@ static int kwSandboxExec(PKWTOOL pTool, const char *pszCmdLine, int *prcExitCode
 #else
 # error "Port me!"
 #endif
-                        rcExitCode = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock(), NULL, NULL, NULL);
+                        rcExit = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock(), NULL, NULL, NULL);
                     }
                     else
-                        rcExitCode = g_Sandbox.rcExitCode;
+                        rcExit = g_Sandbox.rcExitCode;
                 }
                 __except (EXCEPTION_EXECUTE_HANDLER)
                 {
-                    rcExitCode = 512;
+                    rcExit = 512;
                 }
-                *prcExitCode = rcExitCode;
 
                 /*
                  * Restore the TIB and later some other stuff.
                  */
                 *(PNT_TIB)NtCurrentTeb() = g_Sandbox.TibMainThread;
             }
+            else
+                rcExit = 42 + 5;
         }
+        else
+            rcExit = 42 + 4;
 
         kwSandboxCleanup(&g_Sandbox);
     }
+    else
+        rcExit = 42 + 3;
 
-    return rc;
+    return rcExit;
 }
 
 
+#if 0
 static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
 {
     int rc;
@@ -4908,18 +4929,461 @@ static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
         rc = 1;
     return rc;
 }
+#endif
+
+
+/**
+ * Part 2 of the "JOB" command handler.
+ *
+ * @returns The exit code of the job.
+ * @param   pszExecutable   The executable to execute.
+ * @param   pszCwd          The current working directory of the job.
+ * @param   cArgs           The number of arguments.
+ * @param   papszArgs       The argument vector.
+ * @param   cbArgs          The size of the argument strings and terminators.
+ * @param   cEnvVars        The number of environment variables.
+ * @param   papszEnvVars    The enviornment vector.
+ */
+static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCwd,
+                                    KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+                                    KU32 cEnvVars, const char **papszEnvVars)
+{
+    int rcExit;
+    PKWTOOL pTool;
+
+    /*
+     * Lookup the tool.
+     */
+    pTool = kwToolLookup(pszExecutable);
+    if (pTool)
+    {
+        /*
+         * Change the directory if we're going to execute the job inside
+         * this process.  Then invoke the tool type specific handler.
+         */
+        switch (pTool->enmType)
+        {
+            case KWTOOLTYPE_SANDBOXED:
+            case KWTOOLTYPE_WATCOM:
+                /** @todo cache this   */
+                if (SetCurrentDirectoryA(pszCwd))
+                {
+                    if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
+                    {
+                        KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
+                        rcExit = kwSandboxExec(pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
+                    }
+                    else
+                    {
+                        kwErrPrintf("TODO: Watcom style tool %s\n", pTool->pszPath);
+                        rcExit = 42 + 2;
+                    }
+                }
+                else
+                {
+                    kwErrPrintf("SetCurrentDirectory failed with %u on '%s'\n", GetLastError(), pszCwd);
+                    rcExit = 42 + 1;
+                }
+                break;
+
+            case KWTOOLTYPE_EXEC:
+                kwErrPrintf("TODO: Direct exec tool %s\n", pTool->pszPath);
+                rcExit = 42 + 2;
+                break;
+
+            default:
+                kHlpAssertFailed();
+                kwErrPrintf("Internal tool type corruption!!\n");
+                rcExit = 42 + 2;
+                g_fRestart = K_TRUE;
+                break;
+        }
+    }
+    else
+        rcExit = 42 + 1;
+    return rcExit;
+}
+
+
+/**
+ * Handles a "JOB" command.
+ *
+ * @returns The exit code of the job.
+ * @param   pszMsg              Points to the "JOB" command part of the message.
+ * @param   cbMsg               Number of message bytes at @a pszMsg.  There are
+ *                              4 more zero bytes after the message body to
+ *                              simplify parsing.
+ */
+static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
+{
+    int rcExit = 42;
+
+    /*
+     * Unpack the message.
+     */
+    const char     *pszExecutable;
+    size_t          cbTmp;
+
+    pszMsg += sizeof("JOB");
+    cbMsg  -= sizeof("JOB");
+
+    /* Executable name. */
+    pszExecutable = pszMsg;
+    cbTmp = strlen(pszMsg) + 1;
+    pszMsg += cbTmp;
+    if (   cbTmp < cbMsg
+        && cbTmp > 2)
+    {
+        const char *pszCwd;
+        cbMsg -= cbTmp;
+
+        /* Current working directory. */
+        pszCwd = pszMsg;
+        cbTmp = strlen(pszMsg) + 1;
+        pszMsg += cbTmp;
+        if (   cbTmp + sizeof(KU32) < cbMsg
+            && cbTmp >= 2)
+        {
+            KU32    cArgs;
+            cbMsg  -= cbTmp;
+
+            /* Argument count. */
+            kHlpMemCopy(&cArgs, pszMsg, sizeof(cArgs));
+            pszMsg += sizeof(cArgs);
+            cbMsg  -= sizeof(cArgs);
+
+            if (cArgs > 0 && cArgs < 4096)
+            {
+                /* The argument vector. */
+                char const **papszArgs = kHlpAlloc((cArgs + 1) * sizeof(papszArgs[0]));
+                if (papszArgs)
+                {
+                    KU32 cbArgs;
+                    KU32 i;
+                    for (i = 0; i < cArgs; i++)
+                    {
+                        papszArgs[i] = pszMsg + 1; /* First byte is expansion flags for MSC & EMX. */
+                        cbTmp = 1 + strlen(pszMsg + 1) + 1;
+                        pszMsg += cbTmp;
+                        if (cbTmp < cbMsg)
+                            cbMsg -= cbTmp;
+                        else
+                        {
+                            cbMsg = 0;
+                            break;
+                        }
+
+                    }
+                    papszArgs[cArgs] = 0;
+                    cbArgs = (KU32)(pszMsg - papszArgs[0]) - cArgs + 1;
+
+                    /* Environment variable count. */
+                    if (sizeof(KU32) < cbMsg)
+                    {
+                        KU32    cEnvVars;
+                        kHlpMemCopy(&cEnvVars, pszMsg, sizeof(cEnvVars));
+                        pszMsg += sizeof(cEnvVars);
+                        cbMsg  -= sizeof(cEnvVars);
+
+                        if (cEnvVars >= 0 && cEnvVars < 4096)
+                        {
+                            /* The argument vector. */
+                            char const **papszEnvVars = kHlpAlloc((cEnvVars + 1) * sizeof(papszEnvVars[0]));
+                            if (papszEnvVars)
+                            {
+                                KU32 i;
+                                for (i = 0; i < cEnvVars; i++)
+                                {
+                                    papszEnvVars[i] = pszMsg;
+                                    cbTmp = strlen(pszMsg) + 1;
+                                    pszMsg += cbTmp;
+                                    if (cbTmp < cbMsg)
+                                        cbMsg -= cbTmp;
+                                    else
+                                    {
+                                        if (   cbTmp == cbMsg
+                                            && i + 1 == cEnvVars)
+                                            cbMsg = 0;
+                                        else
+                                            cbMsg = KSIZE_MAX;
+                                        break;
+                                    }
+                                }
+                                papszEnvVars[cEnvVars] = 0;
+                                if (cbMsg != KSIZE_MAX)
+                                {
+                                    if (cbMsg == 0)
+                                    {
+                                        /*
+                                         * The next step.
+                                         */
+                                        rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
+                                                                          cArgs, papszArgs, cbArgs,
+                                                                          cEnvVars, papszEnvVars);
+                                    }
+                                    else
+                                        kwErrPrintf("Message has %u bytes unknown trailing bytes\n", cbMsg);
+                                }
+                                else
+                                    kwErrPrintf("Detected bogus message unpacking environment variables!\n");
+                                kHlpFree((void *)papszEnvVars);
+                            }
+                            else
+                                kwErrPrintf("Error allocating papszEnvVars for %u variables\n", cEnvVars);
+                        }
+                        else
+                            kwErrPrintf("Bogus environment variable count: %u (%#x)\n", cEnvVars, cEnvVars);
+                    }
+                    else
+                        kwErrPrintf("Detected bogus message unpacking arguments and environment variable count!\n");
+                    kHlpFree((void *)papszArgs);
+                }
+                else
+                    kwErrPrintf("Error allocating argv for %u arguments\n", cArgs);
+            }
+            else
+                kwErrPrintf("Bogus argument count: %u (%#x)\n", cArgs, cArgs);
+        }
+        else
+            kwErrPrintf("Detected bogus message unpacking CWD path and argument count!\n");
+    }
+    else
+        kwErrPrintf("Detected bogus message unpacking executable path!\n");
+    return rcExit;
+}
+
+
+/**
+ * Wrapper around WriteFile / write that writes the whole @a cbToWrite.
+ *
+ * @retval  0 on success.
+ * @retval  -1 on error (fully bitched).
+ *
+ * @param   hPipe               The pipe handle.
+ * @param   pvBuf               The buffer to write out out.
+ * @param   cbToWrite           The number of bytes to write.
+ */
+static int kSubmitWriteIt(HANDLE hPipe, const void *pvBuf, KU32 cbToWrite)
+{
+    KU8 const  *pbBuf  = (KU8 const *)pvBuf;
+    KU32        cbLeft = cbToWrite;
+    for (;;)
+    {
+        DWORD cbActuallyWritten = 0;
+        if (WriteFile(hPipe, pbBuf, cbLeft, &cbActuallyWritten, NULL /*pOverlapped*/))
+        {
+            cbLeft -= cbActuallyWritten;
+            if (!cbLeft)
+                return 0;
+            pbBuf  += cbActuallyWritten;
+        }
+        else
+        {
+            DWORD dwErr = GetLastError();
+            if (cbLeft == cbToWrite)
+                kwErrPrintf("WriteFile failed: %u\n", dwErr);
+            else
+                kwErrPrintf("WriteFile failed %u byte(s) in: %u\n", cbToWrite - cbLeft, dwErr);
+            return -1;
+        }
+    }
+}
+
+
+/**
+ * Wrapper around ReadFile / read that reads the whole @a cbToRead.
+ *
+ * @retval  0 on success.
+ * @retval  1 on shut down (fShutdownOkay must be K_TRUE).
+ * @retval  -1 on error (fully bitched).
+ * @param   hPipe               The pipe handle.
+ * @param   pvBuf               The buffer to read into.
+ * @param   cbToRead            The number of bytes to read.
+ * @param   fShutdownOkay       Whether connection shutdown while reading the
+ *                              first byte is okay or not.
+ */
+static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShutdown)
+{
+    KU8 *pbBuf  = (KU8 *)pvBuf;
+    KU32 cbLeft = cbToRead;
+    for (;;)
+    {
+        DWORD cbActuallyRead = 0;
+        if (ReadFile(hPipe, pbBuf, cbLeft, &cbActuallyRead, NULL /*pOverlapped*/))
+        {
+            cbLeft -= cbActuallyRead;
+            if (!cbLeft)
+                return 0;
+            pbBuf  += cbActuallyRead;
+        }
+        else
+        {
+            DWORD dwErr = GetLastError();
+            if (cbLeft == cbToRead)
+            {
+                if (   fMayShutdown
+                    && dwErr == ERROR_BROKEN_PIPE)
+                    return 1;
+                kwErrPrintf("ReadFile failed: %u\n", dwErr);
+            }
+            else
+                kwErrPrintf("ReadFile failed %u byte(s) in: %u\n", cbToRead - cbLeft, dwErr);
+            return -1;
+        }
+    }
+}
 
 
 int main(int argc, char **argv)
 {
+#if 1
+    KSIZE   cbMsgBuf = 0;
+    KU8    *pbMsgBuf = NULL;
+    int     i;
+    HANDLE  hPipe = INVALID_HANDLE_VALUE;
+
+    /*
+     * Parse arguments.
+     */
+    for (i = 1; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--pipe") == 0)
+        {
+            i++;
+            if (i < argc)
+            {
+                char *pszEnd = NULL;
+                unsigned __int64 u64Value = _strtoui64(argv[i], &pszEnd, 16);
+                if (   *argv[i]
+                    && pszEnd != NULL
+                    && *pszEnd == '\0'
+                    && u64Value != 0
+                    && u64Value != (uintptr_t)INVALID_HANDLE_VALUE
+                    && (uintptr_t)u64Value == u64Value)
+                    hPipe = (HANDLE)(uintptr_t)u64Value;
+                else
+                {
+                    kwErrPrintf("Invalid --pipe argument: %s\n", argv[i]);
+                    return 2;
+                }
+            }
+            else
+            {
+                kwErrPrintf("--pipe takes an argument!\n");
+                return 2;
+            }
+        }
+        else if (   strcmp(argv[i], "--help") == 0
+                 || strcmp(argv[i], "-h") == 0
+                 || strcmp(argv[i], "-?") == 0)
+        {
+            printf("usage: kWorker --pipe <pipe-handle>\n"
+                   "usage: kWorker <--help|-h>\n"
+                   "usage: kWorker <--version|-V>\n"
+                   "\n"
+                   "This is an internal kmk program that is used via the builtin_kSubmit.\n");
+            return 0;
+        }
+        else if (   strcmp(argv[i], "--version") == 0
+                 || strcmp(argv[i], "-V") == 0)
+            return kbuild_version(argv[0]);
+        else
+        {
+            kwErrPrintf("Unknown argument '%s'\n", argv[i]);
+            return 2;
+        }
+    }
+
+    if (hPipe == INVALID_HANDLE_VALUE)
+    {
+        kwErrPrintf("Missing --pipe <pipe-handle> argument!\n");
+        return 2;
+    }
+
+    /*
+     * Serve the pipe.
+     */
+    for (;;)
+    {
+        KU32 cbMsg = 0;
+        int rc = kSubmitReadIt(hPipe, &cbMsg, sizeof(cbMsg), K_TRUE /*fShutdownOkay*/);
+        if (rc == 0)
+        {
+            /* Make sure the message length is within sane bounds.  */
+            if (   cbMsg > 4
+                && cbMsg <= 256*1024*1024)
+            {
+                /* Reallocate the message buffer if necessary.  We add 4 zero bytes.  */
+                if (cbMsg + 4 <= cbMsgBuf)
+                { /* likely */ }
+                else
+                {
+                    cbMsgBuf = K_ALIGN_Z(cbMsg + 4, 2048);
+                    pbMsgBuf = kHlpRealloc(pbMsgBuf, cbMsgBuf);
+                    if (!pbMsgBuf)
+                    {
+                        kwErrPrintf("Failed to allocate %u bytes for a message buffer!\n", cbMsgBuf);
+                        return 1;
+                    }
+                }
+
+                /* Read the whole message into the buffer, making sure there is are a 4 zero bytes following it. */
+                *(KU32 *)pbMsgBuf = cbMsg;
+                rc = kSubmitReadIt(hPipe, &pbMsgBuf[sizeof(cbMsg)], cbMsg - sizeof(cbMsg), K_FALSE /*fShutdownOkay*/);
+                if (rc == 0)
+                {
+                    const char *psz;
+
+                    pbMsgBuf[cbMsg]     = '\0';
+                    pbMsgBuf[cbMsg + 1] = '\0';
+                    pbMsgBuf[cbMsg + 2] = '\0';
+                    pbMsgBuf[cbMsg + 3] = '\0';
+
+                    /* The first string after the header is the command. */
+                    psz = (const char *)&pbMsgBuf[sizeof(cbMsg)];
+                    if (strcmp(psz, "JOB") == 0)
+                    {
+                        struct
+                        {
+                            KI32 rcExitCode;
+                            KU8  bExiting;
+                            KU8  abZero[3];
+                        } Reply;
+                        Reply.rcExitCode = kSubmitHandleJob(psz, cbMsg - sizeof(cbMsg));
+                        Reply.bExiting   = g_fRestart;
+                        Reply.abZero[0]  = 0;
+                        Reply.abZero[1]  = 0;
+                        Reply.abZero[2]  = 0;
+                        rc = kSubmitWriteIt(hPipe, &Reply, sizeof(Reply));
+                        if (   rc == 0
+                            && !g_fRestart)
+                            continue;
+                    }
+                    else
+                    {
+                        kwErrPrintf("Unknown command: '%s'\n", psz);
+                        rc = -1;
+                    }
+                }
+            }
+            else
+            {
+                kwErrPrintf("Bogus message length: %u (%#x)\n", cbMsg, cbMsg);
+                rc = -1;
+            }
+        }
+        return rc > 0 ? 0 : 1;
+    }
+
+#else
     int rc = 0;
     int i;
     argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
-#if 0
+# if 0
     rc = kwExecCmdLine(argv[1], argv[2]);
     rc = kwExecCmdLine(argv[1], argv[2]);
     K_NOREF(i);
-#else
+# else
 // Skylake (W10/amd64, only stdandard MS defender):
 //     cmd 1:  48    /1024 = 0x0 (0.046875)        [for /l %i in (1,1,1024) do ...]
 //     kmk 1:  44    /1024 = 0x0 (0.04296875)      [all: ; 1024 x cl.exe]
@@ -4935,7 +5399,9 @@ int main(int argc, char **argv)
     g_cVerbose = 0;
     for (i = 0; i < 1024 && rc == 0; i++)
         rc = kwExecCmdLine(argv[1], argv[2]);
-#endif
+# endif
     return rc;
+
+#endif
 }
 

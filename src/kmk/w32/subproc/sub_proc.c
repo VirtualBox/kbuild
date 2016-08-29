@@ -205,9 +205,10 @@ process_register(HANDLE proc)
  * @returns 0 on success, -1 if there are too many sub-processes already.
  * @param   hEvent              The event semaphore to wait on.
  * @param   clue                The clue to base.
+ * @param   pPid                Where to return the pid that job.c expects.
  */
 int
-process_kmk_register_submit(HANDLE hEvent, intptr_t clue)
+process_kmk_register_submit(HANDLE hEvent, intptr_t clue, pid_t *pPid)
 {
 	if (proc_index < MAXIMUM_WAIT_OBJECTS) {
 		sub_process *pSubProc = (sub_process *)xcalloc(sizeof(*pSubProc));
@@ -216,6 +217,7 @@ process_kmk_register_submit(HANDLE hEvent, intptr_t clue)
 		pSubProc->pid     = (intptr_t)hEvent;
 
 		proc_array[proc_index++] = pSubProc;
+		*pPid = (HANDLE)pSubProc;
 		return 0;
 	}
 	return -1;
