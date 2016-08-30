@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -3814,6 +3814,8 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     KU32        cbActually = pFsObj->cbCached - pHandle->offFile;
                     if (cbActually > cbToRead)
                         cbActually = cbToRead;
+                    else if (cbActually < cbToRead)
+                        ((KU8 *)pvBuffer)[cbActually] = '\0'; // hack hack hack
 
                     kHlpMemCopy(pvBuffer, &pFsObj->pbCached[pHandle->offFile], cbActually);
                     pHandle->offFile += cbActually;
@@ -5241,6 +5243,7 @@ int main(int argc, char **argv)
     KU8    *pbMsgBuf = NULL;
     int     i;
     HANDLE  hPipe = INVALID_HANDLE_VALUE;
+
 
     /*
      * Parse arguments.

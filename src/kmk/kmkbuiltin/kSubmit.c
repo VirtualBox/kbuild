@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -187,8 +187,8 @@ static void kSubmitListUnlink(PWORKERLIST pList, PWORKERINSTANCE pWorker)
     }
     else
     {
-        assert(pList->pHead == pWorker);
-        pList->pHead = pPrev;
+        assert(pList->pTail == pWorker);
+        pList->pTail = pPrev;
     }
 
     if (pPrev)
@@ -198,9 +198,12 @@ static void kSubmitListUnlink(PWORKERLIST pList, PWORKERINSTANCE pWorker)
     }
     else
     {
-        assert(pList->pTail == pWorker);
-        pList->pTail = pNext;
+        assert(pList->pHead == pWorker);
+        pList->pHead = pNext;
     }
+
+    assert(!pList->pHead || pList->pHead->pPrev == NULL);
+    assert(!pList->pTail || pList->pTail->pNext == NULL);
 
     assert(pList->cEntries > 0);
     pList->cEntries--;
@@ -234,8 +237,11 @@ static void kSubmitListAppend(PWORKERLIST pList, PWORKERINSTANCE pWorker)
     {
         assert(pList->pHead == NULL);
         pList->pHead = pWorker;
-        pList->pTail = pWorker;
     }
+    pList->pTail = pWorker;
+
+    assert(pList->pHead->pPrev == NULL);
+    assert(pList->pTail->pNext == NULL);
 
     pList->cEntries++;
 }
@@ -953,6 +959,7 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
         case STATUS_PRIVILEGED_INSTRUCTION:
         case STATUS_ILLEGAL_INSTRUCTION:        *piSigNo = SIGILL; break;
     }
+
     return 0;
 }
 
@@ -960,6 +967,19 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
 int kSubmitSubProcKill(intptr_t pvUser, int iSignal)
 {
     return -1;
+}
+
+
+/**
+ * Called by process_cleanup when it's done with the worker.
+ *
+ * @param   pvUser              The worker instance.
+ */
+void kSubmitSubProcCleanup(intptr_t pvUser)
+{
+    PWORKERINSTANCE pWorker = (PWORKERINSTANCE)pvUser;
+    kSubmitListUnlink(&g_BusyList, pWorker);
+    kSubmitListAppend(&g_IdleList, pWorker);
 }
 
 #endif /* KBUILD_OS_WINDOWS */
@@ -1514,10 +1534,13 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         {
 #ifdef KBUILD_OS_WINDOWS
             /* Quote the argv elements, but first we need unquoted pszExecute. */
-            char *pszFreeExec = NULL;
+            int const cArgs = argc - iArg;
+            int iArg2;
+            char **papszArgsOrg = (char **)xmalloc(sizeof(argv[0]) * cArgs);
             if (!pszExecutable)
-                pszExecutable = pszFreeExec = xstrdup(argv[0]);
-            quote_argv(argc, argv, fWatcomBrainDamage, 1 /*fFreeOrLeak*/);
+                pszExecutable = argv[iArg];
+            memcpy(papszArgsOrg, &argv[iArg], sizeof(argv[0]) * cArgs);
+            quote_argv(cArgs, &argv[iArg], fWatcomBrainDamage, 0 /*fFreeOrLeak*/);
 #endif
 
             rcExit = kSubmitSendJobMessage(pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
@@ -1529,7 +1552,13 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     g_fAtExitRegistered = 1;
 
 #ifdef KBUILD_OS_WINDOWS
-            free(pszFreeExec);
+            for (iArg2 = 0; iArg2 < cArgs; iArg2++)
+                if (argv[iArg2 + iArg] != papszArgsOrg[iArg2])
+                {
+                    free(argv[iArg2 + iArg]);
+                    argv[iArg2 + iArg] = papszArgsOrg[iArg2];
+                }
+            free(papszArgsOrg);
 #endif
         }
         else
