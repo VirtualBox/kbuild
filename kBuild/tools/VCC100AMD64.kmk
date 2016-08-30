@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2795 2015-09-15 23:35:37Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2847 2016-08-30 12:50:46Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -74,6 +74,11 @@ TOOL_VCC100AMD64_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/dumpb
 TOOL_VCC100AMD64_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/editbin.exe
 TOOL_VCC100AMD64_RC  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,rc.exe,[Rr][Cc].[Ee][Xx][Ee],TOOL_VCC100_RC_CACHED)
 TOOL_VCC100AMD64_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.exe,[Mm][Tt].[Ee][Xx][Ee],TOOL_VCC100_MT_CACHED)
+ifdef TOOL_VCC100AMD64_USE_KSUBMIT
+ ifeq ($(KBUILD_HOST).$(KBUILD_HOST_ARCH),win.amd64)
+  TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --
+ endif
+endif
 
 # The following in duplicated in VCC100.kmk and VCC100X86.kmk.
 TOOL_VCC100_FN_FIND_SDK_TOOL_SUB = $(eval $3 := $(firstword  \
@@ -163,7 +168,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_VCC100AMD64_COMPILE_C_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
 TOOL_VCC100AMD64_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC100AMD64_COMPILE_C_CMDS
-	$(QUIET)$(TOOL_VCC100AMD64_CC) -c\
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) $(TOOL_VCC100AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-FD\
@@ -211,7 +216,7 @@ else  # !KBUILD_USE_KOBJCACHE
 TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
 TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb)
 define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC100AMD64_CXX) -c\
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) $(TOOL_VCC100AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-FD\
