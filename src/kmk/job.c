@@ -463,9 +463,15 @@ child_error (const char *target_name,
              target_name, exit_code);
 #else
   if (exit_sig == 0)
+# if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+    error (NILF, ignored ? _("[%s] Error %d (%#x) (ignored)") :
+           _("*** [%s] Error %d (%#x)"),
+           target_name, exit_code, exit_code);
+# else
     error (NILF, ignored ? _("[%s] Error %d (ignored)") :
 	   _("*** [%s] Error %d"),
 	   target_name, exit_code);
+# endif
   else
     error (NILF, "*** [%s] %s%s",
 	   target_name, strsignal (exit_sig),

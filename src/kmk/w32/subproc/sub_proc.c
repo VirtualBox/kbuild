@@ -217,7 +217,7 @@ process_kmk_register_submit(HANDLE hEvent, intptr_t clue, pid_t *pPid)
 		pSubProc->pid     = (intptr_t)hEvent;
 
 		proc_array[proc_index++] = pSubProc;
-		*pPid = (HANDLE)pSubProc;
+		*pPid = (intptr_t)pSubProc;
 		return 0;
 	}
 	return -1;
@@ -1122,7 +1122,7 @@ process_cleanup(
 		CloseHandle((HANDLE)pproc->pid);
 #ifdef KMK
 	} else if (pproc->enmType == kSubmit) {
-	    /* nothing to do. */
+	    kSubmitSubProcCleanup(pproc->clue);
 	} else {
 	    assert(0);
 	    return;
