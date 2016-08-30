@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2849 2016-08-30 14:28:46Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -42,6 +42,7 @@ kUtil_SOURCES = \
 	kbuild_version.c
 kUtil_SOURCES.win = \
 	nt_fullpath.c \
+	nt_fullpath_cached.c \
 	quote_argv.c \
 	quoted_spawn.c \
        nt/nthlpcore.c \
