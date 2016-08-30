@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2710 2013-11-21 14:40:10Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2850 2016-08-30 16:06:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -524,6 +524,35 @@ int birdStatOnFd(int fd, BirdStat_T *pStat)
                 else
                     rc = birdSetErrnoFromWin32(GetLastError());
                 break;
+        }
+    }
+    else
+        rc = -1;
+    return rc;
+}
+
+
+/**
+ * Special case that only gets the file size and nothing else.
+ */
+int birdStatOnFdJustSize(int fd, __int64 *pcbFile)
+{
+    int     rc;
+    HANDLE  hFile = (HANDLE)_get_osfhandle(fd);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        LARGE_INTEGER cbLocal;
+        if (GetFileSizeEx(hFile, &cbLocal))
+        {
+            *pcbFile = cbLocal.QuadPart;
+            rc = 0;
+        }
+        else
+        {
+            BirdStat_T Stat;
+            rc = birdStatOnFd(fd, &Stat);
+            if (rc == 0)
+                *pcbFile = Stat.st_size;
         }
     }
     else

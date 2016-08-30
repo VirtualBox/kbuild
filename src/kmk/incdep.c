@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2745 2015-01-03 19:32:00Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2850 2016-08-30 16:06:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -501,7 +501,11 @@ incdep_read_file (struct incdep *cur, struct floc *f)
       error (f, "%s: %s", cur->name, strerror (err));
       return -1;
     }
+#ifdef KBUILD_OS_WINDOWS /* fewer kernel calls */
+  if (!birdStatOnFdJustSize (fd, &st.st_size))
+#else
   if (!fstat (fd, &st))
+#endif
     {
       cur->file_base = incdep_xmalloc (cur, st.st_size + 1);
       if (read (fd, cur->file_base, st.st_size) == st.st_size)
