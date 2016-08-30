@@ -93,7 +93,7 @@ convert_Path_to_windows32(char *Path, char to_delim)
 }
 
 #if 1 /* bird */
-extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
+extern void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cchFull);
 #endif
 
 /*
@@ -107,7 +107,7 @@ w32ify(const char *filename, int resolve)
 
 #if 1 /* bird */
     if (resolve) {
-        nt_fullpath(filename, w32_path, sizeof(w32_path));
+        nt_fullpath_cached(filename, w32_path, sizeof(w32_path));
     } else {
         w32_path[0] = '\0';
         strncat(w32_path, filename, sizeof(w32_path));
