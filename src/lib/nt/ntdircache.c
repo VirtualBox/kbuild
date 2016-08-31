@@ -1,4 +1,4 @@
-/* $Id: ntdircache.c 2852 2016-08-31 20:46:34Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdircache.c 2853 2016-08-31 20:56:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -48,358 +48,10 @@
 //#include <Windows.h>
 //#include <winternl.h>
 
-
-
-/*********************************************************************************************************************************
-*   Defined Constants And Macros                                                                                                 *
-*********************************************************************************************************************************/
-/** @def KFSCACHE_CFG_UTF16
- * Whether to compile in the UTF-16 names support. */
-#define KFSCACHE_CFG_UTF16                  1
-/** @def KFSCACHE_CFG_SHORT_NAMES
- * Whether to compile in the short name support. */
-#define KFSCACHE_CFG_SHORT_NAMES            1
-/** @def KFSCACHE_CFG_PATH_HASH_TAB_SIZE
- * Size of the path hash table. */
-#define KFSCACHE_CFG_PATH_HASH_TAB_SIZE     16381
-/** The max length paths we consider. */
-#define KFSCACHE_CFG_MAX_PATH               1024
-/** The max ANSI name length. */
-#define KFSCACHE_CFG_MAX_ANSI_NAME          (256*3 + 16)
-/** The max UTF-16 name length. */
-#define KFSCACHE_CFG_MAX_UTF16_NAME         (256*2 + 16)
+#include "kFsCache.h"
 
 
 
-/** Special KFSOBJ::uCacheGen number indicating that it does not apply. */
-#define KFSWOBJ_CACHE_GEN_IGNORE            KU32_MAX
-
-/** @def KW_LOG
- * Generic logging.
- * @param a     Argument list for kFsCacheDbgPrintf  */
-#ifndef NDEBUG
-# define KFSCACHE_LOG(a) kFsCacheDbgPrintf a
-#else
-# define KFSCACHE_LOG(a) do { } while (0)
-#endif
-
-
-/** @name KFSOBJ_TYPE_XXX - KFSOBJ::bObjType
- * @{  */
-/** Directory, type KFSDIR. */
-#define KFSOBJ_TYPE_DIR         KU8_C(0x01)
-/** Regular file - type KFSOBJ. */
-#define KFSOBJ_TYPE_FILE        KU8_C(0x02)
-/** Other file - type KFSOBJ. */
-#define KFSOBJ_TYPE_OTHER       KU8_C(0x03)
-/** Caching of a negative result - type KFSOBJ.
- * @remarks We will allocate enough space for the largest cache node, so this
- *          can metamorph into any other object should it actually turn up.  */
-#define KFSOBJ_TYPE_MISSING     KU8_C(0x04)
-///** Invalidated entry flag. */
-//#define KFSOBJ_TYPE_F_INVALID   KU8_C(0x20)
-/** @} */
-
-/** @name KFSOBJ_F_XXX - KFSOBJ::fFlags
- * @{ */
-/** Whether the file system update the modified timestamp of directories
- * when something is removed from it or added to it.
- * @remarks They say NTFS is the only windows filesystem doing this.  */
-#define KFSOBJ_F_WORKING_DIR_MTIME      KU32_C(0x00000001)
-/** NTFS file system volume. */
-#define KFSOBJ_F_NTFS                   KU32_C(0x80000000)
-/** @} */
-
-
-#define IS_ALPHA(ch) ( ((ch) >= 'A' && (ch) <= 'Z') || ((ch) >= 'a' && (ch) <= 'z') )
-#define IS_SLASH(ch) ((ch) == '\\' || (ch) == '/')
-
-
-/*********************************************************************************************************************************
-*   Structures and Typedefs                                                                                                      *
-*********************************************************************************************************************************/
-/** Pointer to a core object.  */
-typedef struct KFSOBJ *PKFSOBJ;
-/** Pointer to a directory object.  */
-typedef struct KFSDIR *PKFSDIR;
-/** Pointer to a directory hash table entry. */
-typedef struct KFSOBJHASH *PKFSOBJHASH;
-
-
-/**
- * Directory hash table entry.
- *
- * There can be two of these per directory entry when the short name differs
- * from the long name.
- */
-typedef struct KFSOBJHASH
-{
-    /** Pointer to the next entry with the same hash. */
-    PKFSOBJHASH         pNext;
-    /** Pointer to the object. */
-    PKFSOBJ             pObj;
-} KFSOBJHASH;
-
-
-/**
- * Base cache node.
- */
-typedef struct KFSOBJ
-{
-    /** Magic value (KFSOBJ_MAGIC). */
-    KU32                u32Magic;
-    /** Number of references. */
-    KU32 volatile       cRefs;
-    /** The cache generation, see KFSWOBJ_CACHE_GEN_IGNORE. */
-    KU32                uCacheGen;
-    /** The object type, KFSOBJ_TYPE_XXX.   */
-    KU8                 bObjType;
-    /** Set if the Stats member is valid, clear if not. */
-    KBOOL               fHaveStats;
-    /** Unused flags. */
-    KBOOL               abUnused[2];
-    /** Flags, KFSOBJ_F_XXX. */
-    KU32                fFlags;
-
-    /** Pointer to the parent (directory).
-     * This is only NULL for a root. */
-    PKFSDIR             pParent;
-
-    /** The directory name.  (Allocated after the structure.) */
-    const char         *pszName;
-    /** The length of pszName. */
-    KU16                cchName;
-    /** The length of the parent path (up to where pszName starts).
-     * @note This is valuable when constructing an absolute path to this node by
-     *       means of the parent pointer (no need for recursion). */
-    KU16                cchParent;
-#ifdef KFSCACHE_CFG_UTF16
-    /** The length of pwszName (in wchar_t's). */
-    KU16                cwcName;
-    /** The length of the parent UTF-16 path (in wchar_t's).
-     * @note This is valuable when constructing an absolute path to this node by
-     *       means of the parent pointer (no need for recursion). */
-    KU16                cwcParent;
-    /** The UTF-16 object name.  (Allocated after the structure.) */
-    const wchar_t      *pwszName;
-#endif
-
-#ifdef KFSCACHE_CFG_SHORT_NAMES
-    /** The short object name.  (Allocated after the structure, could be same
-     *  as pszName.) */
-    const char         *pszShortName;
-    /** The length of pszShortName. */
-    KU16                cchShortName;
-    /** The length of the short parent path (up to where pszShortName starts). */
-    KU16                cchShortParent;
-# ifdef KFSCACHE_CFG_UTF16
-    /** The length of pwszShortName (in wchar_t's). */
-    KU16                cwcShortName;
-    /** The length of the short parent UTF-16 path (in wchar_t's). */
-    KU16                cwcShortParent;
-    /** The UTF-16 short object name.  (Allocated after the structure, possibly
-     *  same as pwszName.) */
-    const wchar_t      *pwszShortName;
-# endif
-#endif
-
-    /** Stats - only valid when fHaveStats is set. */
-    BirdStat_T          Stats;
-} KFSOBJ;
-
-/** The magic for a KFSOBJ structure (Thelonious Sphere Monk). */
-#define KFSOBJ_MAGIC                KU32_C(0x19171010)
-
-
-/**
- * Directory node in the cache.
- */
-typedef struct KFSDIR
-{
-    /** The core object information. */
-    KFSOBJ             Obj;
-
-    /** Child objects. */
-    PKFSOBJ            *papChildren;
-    /** The number of child objects. */
-    KU32                cChildren;
-
-    /** The size of the hash table.
-     * @remarks The hash table is optional and only used when there are a lot of
-     *          entries in the directory. */
-    KU32                cHashTab;
-    /** Pointer to the hash table.
-     * @todo this isn't quite there yet, structure wise. sigh.  */
-    PKFSOBJHASH         paHashTab;
-
-    /** Handle to the directory (we generally keep it open). */
-    HANDLE              hDir;
-    /** The device number we queried/inherited when opening it. */
-    KU64                uDevNo;
-
-    /** Set if populated. */
-    KBOOL               fPopulated;
-} KFSDIR;
-
-
-/**
- * Lookup errors.
- */
-typedef enum KFSLOOKUPERROR
-{
-    /** Lookup was a success. */
-    KFSLOOKUPERROR_SUCCESS = 0,
-    /** A path component was not found. */
-    KFSLOOKUPERROR_PATH_COMP_NOT_FOUND,
-    /** A path component is not a directory. */
-    KFSLOOKUPERROR_PATH_COMP_NOT_DIR,
-    /** The final path entry is not a directory (trailing slash). */
-    KFSLOOKUPERROR_NOT_DIR,
-    /** Not found. */
-    KFSLOOKUPERROR_NOT_FOUND,
-    /** The path is too long. */
-    KFSLOOKUPERROR_PATH_TOO_LONG,
-    /** Unsupported path type. */
-    KFSLOOKUPERROR_UNSUPPORTED,
-    /** We're out of memory. */
-    KFSLOOKUPERROR_OUT_OF_MEMORY,
-
-    /** Error opening directory. */
-    KFSLOOKUPERROR_DIR_OPEN_ERROR,
-    /** Error reading directory. */
-    KFSLOOKUPERROR_DIR_READ_ERROR,
-    /** UTF-16 to ANSI conversion error. */
-    KFSLOOKUPERROR_ANSI_CONVERSION_ERROR,
-    /** ANSI to UTF-16 conversion error. */
-    KFSLOOKUPERROR_UTF16_CONVERSION_ERROR,
-    /** Internal error. */
-    KFSLOOKUPERROR_INTERNAL_ERROR
-} KFSLOOKUPERROR;
-
-
-/** Pointer to an ANSI path hash table entry. */
-typedef struct KFSHASHA *PKFSHASHA;
-/**
- * ANSI file system path hash table entry.
- * The path hash table allows us to skip parsing and walking a path.
- */
-typedef struct KFSHASHA
-{
-    /** Next entry with the same hash table slot. */
-    PKFSHASHA           pNext;
-    /** Path hash value. */
-    KU32                uHashPath;
-    /** The path length. */
-    KU32                cchPath;
-    /** The cache generation ID. */
-    KU32                uCacheGen;
-    /** The lookup error (when pFsObj is NULL). */
-    KFSLOOKUPERROR      enmError;
-    /** The path.  (Allocated after the structure.) */
-    const char         *pszPath;
-    /** Pointer to the matching FS object.
-     * This is NULL for negative path entries? */
-    PKFSOBJ             pFsObj;
-} KFSHASHA;
-
-
-#ifdef KFSCACHE_CFG_UTF16
-/** Pointer to an UTF-16 path hash table entry. */
-typedef struct KFSHASHW *PKFSHASHW;
-/**
- * UTF-16 file system path hash table entry. The path hash table allows us
- * to skip parsing and walking a path.
- */
-typedef struct KFSHASHW
-{
-    /** Next entry with the same hash table slot. */
-    PKFSHASHW           pNext;
-    /** Path hash value. */
-    KU32                uHashPath;
-    /** The path length (in wchar_t units). */
-    KU32                cwcPath;
-    /** The cache generation ID. */
-    KU32                uCacheGen;
-    /** The lookup error (when pFsObj is NULL). */
-    KFSLOOKUPERROR      enmError;
-    /** The path.  (Allocated after the structure.) */
-    const wchar_t      *pwszPath;
-    /** Pointer to the matching FS object.
-     * This is NULL for negative path entries? */
-    PKFSOBJ             pFsObj;
-} KFSHASHW;
-#endif
-
-
-/** @name KFSCACHE_F_XXX
- * @{ */
-/** Whether to cache missing directory entries (KFSOBJ_TYPE_MISSING). */
-#define KFSCACHE_F_MISSING_OBJECTS  KU32_C(0x00000001)
-/** Whether to cache missing paths. */
-#define KFSCACHE_F_MISSING_PATHS    KU32_C(0x00000002)
-/** @} */
-
-
-/** Pointer to a cache.   */
-typedef struct KFSCACHE *PKFSCACHE;
-/**
- * Directory cache instance.
- */
-typedef struct KFSCACHE
-{
-    /** Magic value (KFSCACHE_MAGIC). */
-    KU32                u32Magic;
-    /** Cache flags. */
-    KU32                fFlags;
-
-    /** The current cache generation for objects that already exists. */
-    KU32                uGeneration;
-    /** The current cache generation for missing objects, negative results, ++. */
-    KU32                uGenerationMissing;
-
-    /** Number of cache objects. */
-    KSIZE               cObjects;
-    /** Memory occupied by the cache object structures. */
-    KSIZE               cbObjects;
-    /** Number of lookups. */
-    KSIZE               cLookups;
-    /** Number of hits in the path hash tables. */
-    KSIZE               cPathHashHits;
-    /** Number of hits walking the file system hierarchy. */
-    KSIZE               cWalkHits;
-
-    /** The root directory. */
-    KFSDIR              RootDir;
-
-    /** File system hash table for ANSI filename strings. */
-    PKFSHASHA           apAnsiPaths[KFSCACHE_CFG_PATH_HASH_TAB_SIZE];
-    /** Number of paths in the apAnsiPaths hash table. */
-    KSIZE               cAnsiPaths;
-    /** Number of collisions in the apAnsiPaths hash table. */
-    KSIZE               cAnsiPathCollisions;
-    /** Amount of memory used by the path entries. */
-    KSIZE               cbAnsiPaths;
-
-#ifdef KFSCACHE_CFG_UTF16
-    /** Number of paths in the apUtf16Paths hash table. */
-    KSIZE               cUtf16Paths;
-    /** Number of collisions in the apUtf16Paths hash table. */
-    KSIZE               cUtf16PathCollisions;
-    /** Amount of memory used by the UTF-16 path entries. */
-    KSIZE               cbUtf16Paths;
-    /** File system hash table for UTF-16 filename strings. */
-    PKFSHASHW           apUtf16Paths[KFSCACHE_CFG_PATH_HASH_TAB_SIZE];
-#endif
-} KFSCACHE;
-
-/** Magic value for KFSCACHE::u32Magic (Jon Batiste).  */
-#define KFSCACHE_MAGIC              KU32_C(0x19861111)
-
-
-/*********************************************************************************************************************************
-*   Internal Functions                                                                                                           *
-*********************************************************************************************************************************/
-KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj);
 
 
 /**
@@ -424,7 +76,7 @@ K_INLINE PKFSOBJ kFsCacheObjRetainInternal(PKFSOBJ pObj)
  * @param   pszFormat           Debug format string.
  * @param   ...                 Format argument.
  */
-static void kFsCacheDbgPrintfV(const char *pszFormat, va_list va)
+void kFsCacheDbgPrintfV(const char *pszFormat, va_list va)
 {
     if (1)
     {
@@ -443,7 +95,7 @@ static void kFsCacheDbgPrintfV(const char *pszFormat, va_list va)
  * @param   pszFormat           Debug format string.
  * @param   ...                 Format argument.
  */
-static void kFsCacheDbgPrintf(const char *pszFormat, ...)
+void kFsCacheDbgPrintf(const char *pszFormat, ...)
 {
     if (1)
     {
@@ -926,7 +578,7 @@ static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsOb
         else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
             pHashEntry->uCacheGen = pCache->uGenerationMissing;
         else
-            pHashEntry->uCacheGen = KFSWOBJ_CACHE_GEN_IGNORE;
+            pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
 
         pHashEntry->pNext = pCache->apAnsiPaths[idxHashTab];
         pCache->apAnsiPaths[idxHashTab] = pHashEntry;
@@ -968,7 +620,7 @@ static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsOb
         else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
             pHashEntry->uCacheGen = pCache->uGenerationMissing;
         else
-            pHashEntry->uCacheGen = KFSWOBJ_CACHE_GEN_IGNORE;
+            pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
 
         pHashEntry->pNext = pCache->apUtf16Paths[idxHashTab];
         pCache->apUtf16Paths[idxHashTab] = pHashEntry;
@@ -1025,12 +677,12 @@ static KBOOL kFsCacheDirAddChild(PKFSCACHE pCache, PKFSDIR pParent, PKFSOBJ pChi
  * @param   bObjType        The objct type.
  * @param   penmError       Where to explain failures.
  */
-static PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
-                                    char const *pszName, KU16 cchName, wchar_t const *pwszName, KU16 cwcName,
+PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
+                             char const *pszName, KU16 cchName, wchar_t const *pwszName, KU16 cwcName,
 #ifdef KFSCACHE_CFG_SHORT_NAMES
-                                    char const *pszShortName, KU16 cchShortName, wchar_t const *pwszShortName, KU16 cwcShortName,
+                             char const *pszShortName, KU16 cchShortName, wchar_t const *pwszShortName, KU16 cwcShortName,
 #endif
-                                    KU8 bObjType, KFSLOOKUPERROR *penmError)
+                             KU8 bObjType, KFSLOOKUPERROR *penmError)
 {
     /*
      * Allocate the object.
@@ -1148,11 +800,11 @@ static PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
  * @param   bObjType        The objct type.
  * @param   penmError       Where to explain failures.
  */
-static PKFSOBJ kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t const *pwszName, KU32 cwcName,
+PKFSOBJ kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t const *pwszName, KU32 cwcName,
 #ifdef KFSCACHE_CFG_SHORT_NAMES
-                                     wchar_t const *pwszShortName, KU32 cwcShortName,
+                              wchar_t const *pwszShortName, KU32 cwcShortName,
 #endif
-                                     KU8 bObjType, KFSLOOKUPERROR *penmError)
+                              KU8 bObjType, KFSLOOKUPERROR *penmError)
 {
     /* Convert names to ANSI first so we know their lengths. */
     char szName[KFSCACHE_CFG_MAX_ANSI_NAME];
@@ -2005,7 +1657,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
     /* Done already? */
     if (offEnd >= cchPath)
     {
-        if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+        if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
             || pChild->uCacheGen == (pChild->bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing)
             || kFsCacheRefreshObj(pCache, pChild, penmError))
             return kFsCacheObjRetainInternal(pChild);
@@ -2018,7 +1670,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
     else
     {
         kHlpAssert(pChild->bObjType == KFSOBJ_TYPE_MISSING);
-        kHlpAssert(pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
+        kHlpAssert(pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
         return pChild;
     }
 
@@ -2055,7 +1707,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
          * Do we need to populate or refresh this directory first?
          */
         if (   pParent->fPopulated
-            && (   pParent->Obj.uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pParent->Obj.uCacheGen == pCache->uGeneration) )
         { /* likely */ }
         else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
@@ -2093,7 +1745,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
             || off >= cchPath)
         {
             if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
-                || pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pChild->uCacheGen == pCache->uGenerationMissing
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
@@ -2113,7 +1765,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
             return NULL;
         }
-        else if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                  || pChild->uCacheGen == pCache->uGenerationMissing)
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
@@ -2193,7 +1845,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
     /* Done already? */
     if (offEnd >= cwcPath)
     {
-        if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+        if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
             || pChild->uCacheGen == (pChild->bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing)
             || kFsCacheRefreshObj(pCache, pChild, penmError))
             return kFsCacheObjRetainInternal(pChild);
@@ -2206,7 +1858,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
     else
     {
         kHlpAssert(pChild->bObjType == KFSOBJ_TYPE_MISSING);
-        kHlpAssert(pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
+        kHlpAssert(pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
         return pChild;
     }
 
@@ -2243,7 +1895,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
          * Do we need to populate or refresh this directory first?
          */
         if (   pParent->fPopulated
-            && (   pParent->Obj.uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pParent->Obj.uCacheGen == pCache->uGeneration) )
         { /* likely */ }
         else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
@@ -2281,7 +1933,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
             || off >= cwcPath)
         {
             if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
-                || pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                 || pChild->uCacheGen == pCache->uGenerationMissing
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
@@ -2301,7 +1953,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
             return NULL;
         }
-        else if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                  || pChild->uCacheGen == pCache->uGenerationMissing)
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
@@ -2486,7 +2138,7 @@ PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *p
                 && pHashEntry->cchPath   == cchPath
                 && kHlpMemComp(pHashEntry->pszPath, pszPath, cchPath) == 0)
             {
-                if (   pHashEntry->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                     || pHashEntry->uCacheGen == pCache->uGeneration
                     || (pHashEntry = kFsCacheRefreshPathA(pCache, pHashEntry, idxHashTab)) )
                 {
@@ -2575,7 +2227,7 @@ PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERRO
                 && pHashEntry->cwcPath   == cwcPath
                 && kHlpMemComp(pHashEntry->pwszPath, pwszPath, cwcPath) == 0)
             {
-                if (   pHashEntry->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
                     || pHashEntry->uCacheGen == pCache->uGeneration
                     || (pHashEntry = kFsCacheRefreshPathW(pCache, pHashEntry, idxHashTab)) )
                 {
@@ -2706,7 +2358,7 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
         /* Dummy root dir entry. */
         pCache->RootDir.Obj.u32Magic        = KFSOBJ_MAGIC;
         pCache->RootDir.Obj.cRefs           = 1;
-        pCache->RootDir.Obj.uCacheGen       = KFSWOBJ_CACHE_GEN_IGNORE;
+        pCache->RootDir.Obj.uCacheGen       = KFSOBJ_CACHE_GEN_IGNORE;
         pCache->RootDir.Obj.bObjType        = KFSOBJ_TYPE_DIR;
         pCache->RootDir.Obj.fHaveStats      = K_FALSE;
         pCache->RootDir.Obj.pParent         = NULL;
