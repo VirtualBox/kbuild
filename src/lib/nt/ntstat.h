@@ -1,4 +1,4 @@
-/* $Id: ntstat.h 2850 2016-08-30 16:06:31Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.h 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat implementation and wrappers.
  */
@@ -81,6 +81,11 @@ int birdStatOnFdJustSize(int fd, __int64 *pcbFile);
 int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFollowLink);
 #ifdef ___nt_ntstuff_h
 void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf, const char *pszPath);
+void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath);
+void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath);
+MY_NTSTATUS birdQueryVolumeDeviceNumber(HANDLE hFile, MY_FILE_FS_VOLUME_INFORMATION *pVolInfo, size_t cbVolInfo,
+                                        unsigned __int64 *puDevNo);
+unsigned __int64 birdVolumeInfoToDeviceNumber(MY_FILE_FS_VOLUME_INFORMATION const *pVolInfo);
 #endif
 
 #define STAT_REDEFINED_ALREADY

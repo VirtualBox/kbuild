@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -199,6 +199,48 @@ typedef struct MY_FILE_ID_FULL_DIR_INFORMATION
 /** The sizeof(MY_FILE_NAMES_INFORMATION) without the FileName. */
 #define MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION  ( (size_t)&((MY_FILE_ID_FULL_DIR_INFORMATION *)0)->FileName )
 
+typedef struct MY_FILE_BOTH_DIR_INFORMATION
+{
+    ULONG           NextEntryOffset;
+    ULONG           FileIndex;
+    LARGE_INTEGER   CreationTime;
+    LARGE_INTEGER   LastAccessTime;
+    LARGE_INTEGER   LastWriteTime;
+    LARGE_INTEGER   ChangeTime;
+    LARGE_INTEGER   EndOfFile;
+    LARGE_INTEGER   AllocationSize;
+    ULONG           FileAttributes;
+    ULONG           FileNameLength;
+    ULONG           EaSize;
+    CCHAR           ShortNameLength;
+    WCHAR           ShortName[12];
+    WCHAR           FileName[1];
+} MY_FILE_BOTH_DIR_INFORMATION;
+/** The sizeof(MY_FILE_BOTH_DIR_INFORMATION) without the FileName. */
+#define MIN_SIZEOF_MY_FILE_BOTH_DIR_INFORMATION  ( (size_t)&((MY_FILE_BOTH_DIR_INFORMATION *)0)->FileName )
+
+
+typedef struct MY_FILE_ID_BOTH_DIR_INFORMATION
+{
+    ULONG           NextEntryOffset;
+    ULONG           FileIndex;
+    LARGE_INTEGER   CreationTime;
+    LARGE_INTEGER   LastAccessTime;
+    LARGE_INTEGER   LastWriteTime;
+    LARGE_INTEGER   ChangeTime;
+    LARGE_INTEGER   EndOfFile;
+    LARGE_INTEGER   AllocationSize;
+    ULONG           FileAttributes;
+    ULONG           FileNameLength;
+    ULONG           EaSize;
+    CCHAR           ShortNameLength;
+    WCHAR           ShortName[12];
+    LARGE_INTEGER   FileId;
+    WCHAR           FileName[1];
+} MY_FILE_ID_BOTH_DIR_INFORMATION;
+/** The sizeof(MY_FILE_NAMES_INFORMATION) without the FileName. */
+#define MIN_SIZEOF_MY_FILE_ID_BOTH_DIR_INFORMATION  ( (size_t)&((MY_FILE_ID_BOTH_DIR_INFORMATION *)0)->FileName )
+
 
 typedef struct MY_FILE_DISPOSITION_INFORMATION
 {
@@ -275,6 +317,14 @@ typedef struct MY_FILE_FS_VOLUME_INFORMATION
     BOOLEAN         SupportsObjects;
     WCHAR           VolumeLabel[1];
 } MY_FILE_FS_VOLUME_INFORMATION;
+
+typedef struct _MY_FILE_FS_ATTRIBUTE_INFORMATION
+{
+    ULONG           FileSystemAttributes;
+    LONG            MaximumComponentNameLength;
+    ULONG           FileSystemNameLength;
+    WCHAR           FileSystemName[1];
+} MY_FILE_FS_ATTRIBUTE_INFORMATION;
 
 typedef enum MY_FSINFOCLASS
 {
@@ -357,6 +407,11 @@ typedef struct MY_RTL_RELATIVE_NAME_U
 #define MY_NT_SUCCESS(a_ntRc)               ((MY_NTSTATUS)(a_ntRc) >= 0)
 #define MY_NT_FAILURE(a_ntRc)               ((MY_NTSTATUS)(a_ntRc) <  0)
 #define MY_STATUS_NO_MORE_FILES             ((MY_NTSTATUS)0x80000006)
+#define MY_STATUS_OBJECT_NAME_INVALID       ((MY_NTSTATUS)0xc0000033)
+#define MY_STATUS_OBJECT_NAME_NOT_FOUND     ((MY_NTSTATUS)0xc0000034)
+#define MY_STATUS_OBJECT_PATH_INVALID       ((MY_NTSTATUS)0xc0000039)
+#define MY_STATUS_OBJECT_PATH_NOT_FOUND     ((MY_NTSTATUS)0xc000003a)
+#define MY_STATUS_OBJECT_PATH_SYNTAX_BAD    ((MY_NTSTATUS)0xc000003b)
 /** @}  */
 
 
