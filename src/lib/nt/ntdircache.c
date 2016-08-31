@@ -1,4 +1,4 @@
-/* $Id: ntdircache.c 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdircache.c 2852 2016-08-31 20:46:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -38,6 +38,8 @@
 #include "ntstat.h"
 
 #include <stdio.h>
+#include <mbstring.h>
+#include <wchar.h>
 //#include <intrin.h>
 //#include <setjmp.h>
 //#include <ctype.h>
@@ -833,7 +835,7 @@ static wchar_t const *kwFsPathGetExtW(wchar_t const *pwszPath, KSIZE *pcwcExt)
  * @param   pszPath             The path.
  * @param   cchPath             The length of the path.
  */
-static KBOOL kFsCacheHasDotDot(const char *pszPath, KSIZE cchPath)
+static KBOOL kFsCacheHasDotDotA(const char *pszPath, KSIZE cchPath)
 {
     const char *pchDot = (const char *)kHlpMemChr(pszPath, '.', cchPath);
     while (pchDot)
@@ -854,6 +856,41 @@ static KBOOL kFsCacheHasDotDot(const char *pszPath, KSIZE cchPath)
                     return K_TRUE;
             }
             pchDot = (const char *)kHlpMemChr(pchDot + 2, '.', &pszPath[cchPath] - pchDot - 2);
+        }
+    }
+
+    return K_FALSE;
+}
+
+
+/**
+ * Looks for '..' in the path.
+ *
+ * @returns K_TRUE if '..' component found, K_FALSE if not.
+ * @param   pwszPath            The path.
+ * @param   cwcPath             The length of the path (in wchar_t's).
+ */
+static KBOOL kFsCacheHasDotDotW(const wchar_t *pwszPath, KSIZE cwcPath)
+{
+    const wchar_t *pwcDot = wmemchr(pwszPath, '.', cwcPath);
+    while (pwcDot)
+    {
+        if (pwcDot[1] != '.')
+            pwcDot = wmemchr(pwcDot + 1, '.', &pwszPath[cwcPath] - pwcDot - 1);
+        else
+        {
+            wchar_t wch;
+            if (   (wch = pwcDot[2]) == '\0'
+                && IS_SLASH(wch))
+            {
+                if (pwcDot == pwszPath)
+                    return K_TRUE;
+                wch = pwcDot[-1];
+                if (   IS_SLASH(wch)
+                    || wch == ':')
+                    return K_TRUE;
+            }
+            pwcDot = wmemchr(pwcDot + 2, '.', &pwszPath[cwcPath] - pwcDot - 2);
         }
     }
 
@@ -899,6 +936,49 @@ static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsOb
         if (pHashEntry->pNext)
             pCache->cAnsiPathCollisions++;
     }
+    return pHashEntry;
+}
+
+
+/**
+ * Creates an UTF-16 hash table entry for the given path.
+ *
+ * @returns The hash table entry or NULL if out of memory.
+ * @param   pCache              The hash
+ * @param   pFsObj              The resulting object.
+ * @param   pwszPath            The path.
+ * @param   cwcPath             The length of the path (in wchar_t's).
+ * @param   uHashPath           The hash of the path.
+ * @param   idxHashTab          The hash table index of the path.
+ * @param   enmError            The lookup error.
+ */
+static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsObj, const wchar_t *pwszPath, KU32 cwcPath,
+                                                 KU32 uHashPath, KU32 idxHashTab, KFSLOOKUPERROR enmError)
+{
+    PKFSHASHW pHashEntry = (PKFSHASHW)kHlpAlloc(sizeof(*pHashEntry) + (cwcPath + 1) * sizeof(wchar_t));
+    if (pHashEntry)
+    {
+        pHashEntry->uHashPath   = uHashPath;
+        pHashEntry->cwcPath     = cwcPath;
+        pHashEntry->pwszPath    = (const wchar_t *)kHlpMemCopy(pHashEntry + 1, pwszPath, (cwcPath + 1) * sizeof(wchar_t));
+        pHashEntry->pFsObj      = pFsObj;
+        pHashEntry->enmError    = enmError;
+        if (pFsObj)
+            pHashEntry->uCacheGen = pCache->uGeneration;
+        else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
+            pHashEntry->uCacheGen = pCache->uGenerationMissing;
+        else
+            pHashEntry->uCacheGen = KFSWOBJ_CACHE_GEN_IGNORE;
+
+        pHashEntry->pNext = pCache->apUtf16Paths[idxHashTab];
+        pCache->apUtf16Paths[idxHashTab] = pHashEntry;
+
+        pCache->cbUtf16Paths += sizeof(*pHashEntry) + (cwcPath + 1) * sizeof(wchar_t);
+        pCache->cUtf16Paths++;
+        if (pHashEntry->pNext)
+            pCache->cAnsiPathCollisions++;
+    }
+    return pHashEntry;
 }
 
 
@@ -1148,6 +1228,42 @@ static PKFSOBJ kFsCacheCreateMissingA(PKFSCACHE pCache, PKFSDIR pParent, const c
 
 
 /**
+ * Creates a missing object, UTF-16 version.
+ *
+ * This is used for caching negative results.
+ *
+ * @returns Pointer to the newly created object on success (already linked into
+ *          pParent).  No reference.
+ *
+ *          NULL on failure.
+ *
+ * @param   pCache              The cache.
+ * @param   pParent             The parent directory.
+ * @param   pwcName             The name.
+ * @param   cwcName             The length of the name.
+ * @param   penmError           Where to return failure explanations.
+ */
+static PKFSOBJ kFsCacheCreateMissingW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwcName, KU32 cwcName,
+                                      KFSLOOKUPERROR *penmError)
+{
+    /** @todo check that it actually doesn't exists before we add it.  We should not
+     *        trust the directory enumeration here, or maybe we should?? */
+    PKFSOBJ pMissing = kFsCacheCreateObjectW(pCache, pParent, pwcName, cwcName,
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                             NULL, 0,
+#endif
+                                             KFSOBJ_TYPE_MISSING, penmError);
+    if (pMissing)
+    {
+        KBOOL fRc = kFsCacheDirAddChild(pCache, pParent, pMissing, penmError);
+        kFsCacheObjRelease(pCache, pMissing);
+        return fRc ? pMissing : NULL;
+    }
+    return NULL;
+}
+
+
+/**
  * Does the initial directory populating or refreshes it if it has been
  * invalidated.
  *
@@ -1165,9 +1281,11 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
      *        older windows versions (XP, w2K) might not correctly support the
      *        ones with file ID on all file systems. */
 #ifdef KFSCACHE_CFG_SHORT_NAMES
-    MY_FILE_INFORMATION_CLASS   enmInfoClass = MyFileIdBothDirectoryInformation;
+    MY_FILE_INFORMATION_CLASS const enmInfoClassWithId = MyFileIdBothDirectoryInformation;
+    MY_FILE_INFORMATION_CLASS       enmInfoClass = MyFileIdBothDirectoryInformation;
 #else
-    MY_FILE_INFORMATION_CLASS   enmInfoClass = MyFileIdFullDirectoryInformation;
+    MY_FILE_INFORMATION_CLASS const enmInfoClassWithId = MyFileIdFullDirectoryInformation;
+    MY_FILE_INFORMATION_CLASS       enmInfoClass = MyFileIdFullDirectoryInformation;
 #endif
     MY_NTSTATUS                 rcNt;
     MY_IO_STATUS_BLOCK          Ios;
@@ -1272,13 +1390,19 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
 
             /* ASSUME only the FileName member differs between the two structures. */
             uPtr.pb = &uBuf.abBuf[offBuf];
-#ifdef KFSCACHE_CFG_SHORT_NAMES
-            pwszFilename = enmInfoClass == MyFileIdBothDirectoryInformation
-                         ? &uPtr.pWithId->FileName[0] :  &uPtr.pNoId->FileName[0];
-#else
-            pwszFilename = enmInfoClass == MyFileIdFullDirectoryInformation
-                         ? &uPtr.pWithId->FileName[0] :  &uPtr.pNoId->FileName[0];
-#endif
+            if (enmInfoClass == enmInfoClassWithId)
+            {
+                pwszFilename = &uPtr.pWithId->FileName[0];
+                cbMinCur  = (KU32)((uintptr_t)&uPtr.pWithId->FileName[0] - (uintptr_t)uPtr.pWithId);
+                cbMinCur += uPtr.pNoId->FileNameLength;
+            }
+            else
+            {
+                pwszFilename = &uPtr.pNoId->FileName[0];
+                cbMinCur  = (KU32)((uintptr_t)&uPtr.pNoId->FileName[0] - (uintptr_t)uPtr.pNoId);
+                cbMinCur += uPtr.pNoId->FileNameLength;
+            }
+
             /*
              * Create the entry (not linked yet).
              */
@@ -1295,12 +1419,12 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
             kHlpAssert(pCur->cRefs == 1);
 
 #ifdef KFSCACHE_CFG_SHORT_NAMES
-            if (enmInfoClass == MyFileIdBothDirectoryInformation)
+            if (enmInfoClass == enmInfoClassWithId)
                 birdStatFillFromFileIdBothDirInfo(&pCur->Stats, uPtr.pWithId, pCur->pszName);
             else
                 birdStatFillFromFileBothDirInfo(&pCur->Stats, uPtr.pNoId, pCur->pszName);
 #else
-            if (enmInfoClass == MyFileIdBothDirectoryInformation)
+            if (enmInfoClass == enmInfoClassWithId)
                 birdStatFillFromFileIdFullDirInfo(&pCur->Stats, uPtr.pWithId, pCur->pszName);
             else
                 birdStatFillFromFileFullDirInfo(&pCur->Stats, uPtr.pNoId, pCur->pszName);
@@ -1380,118 +1504,6 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
     return K_FALSE;
 }
 
-
-/**
- * Refreshes a path hash that has expired.
- *
- * @returns pHash on success, NULL if removed.
- * @param   pCache              The cache.
- * @param   pHashEntry          The path hash.
- * @param   idxHashTab          The hash table entry.
- */
-static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU32 idxHashTab)
-{
-    /** @todo implement once we've start inserting uCacheGen nodes. */
-    __debugbreak();
-    K_NOREF(pCache);
-    K_NOREF(idxHashTab);
-    return pHashEntry;
-}
-
-
-/**
- * Look up a child node, ANSI version.
- *
- * @returns Pointer to the child if found, NULL if not.
- * @param   pCache              The cache.
- * @param   pParent             The parent directory to search.
- * @param   pchName             The child name to search for (not terminated).
- * @param   cchName             The length of the child name.
- */
-static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char *pchName, KU32 cchName)
-{
-    /* Check for '.' first. */
-    if (cchName != 1 || *pchName != '.')
-    {
-        KU32        cLeft;
-        PKFSOBJ    *ppCur;
-
-        if (pParent->paHashTab != NULL)
-        {
-            /** @todo directory hash table lookup.   */
-        }
-
-        /* Linear search. */
-        cLeft = pParent->cChildren;
-        ppCur = pParent->papChildren;
-        while (cLeft-- > 0)
-        {
-            PKFSOBJ pCur = *ppCur++;
-            if (   (   pCur->cchName == cchName
-                    && _memicmp(pCur->pszName, pchName, cchName) == 0)
-#ifdef KFSCACHE_CFG_SHORT_NAMES
-                || (   pCur->cchShortName == cchName
-                    && pCur->pszShortName != pCur->pszName
-                    && _memicmp(pCur->pszName, pchName, cchName) == 0)
-#endif
-               )
-                return pCur;
-        }
-        return NULL;
-    }
-    return &pParent->Obj;
-}
-
-
-/**
- * Looks up a UNC share, ANSI version.
- *
- * We keep both the server and share in the root directory entry.  This means we
- * have to clean up the entry name before we can insert it.
- *
- * @returns Pointer to the share root directory or an update-to-date missing
- *          node.
- * @param   pCache              The cache.
- * @param   pszPath             The path.
- * @param   poff                Where to return the root dire.
- * @param   penmError           Where to return details as to why the lookup
- *                              failed.
- */
-static PKFSOBJ kFswCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU32 *poff, KFSLOOKUPERROR *penmError)
-{
-#if 0 /* later */
-    KU32 offStartServer;
-    KU32 offEndServer;
-    KU32 offStartShare;
-
-    KU32 offEnd = 2;
-    while (IS_SLASH(pszPath[offEnd]))
-        offEnd++;
-
-    offStartServer = offEnd;
-    while (   (ch = pszPath[offEnd]) != '\0'
-           && !IS_SLASH(ch))
-        offEnd++;
-    offEndServer = offEnd;
-
-    if (ch != '\0')
-    { /* likely */ }
-    else
-    {
-        *penmError = KFSLOOKUPERROR_NOT_FOUND;
-        return NULL;
-    }
-
-    while (IS_SLASH(pszPath[offEnd]))
-        offEnd++;
-    offStartServer = offEnd;
-    while (   (ch = pszPath[offEnd]) != '\0'
-           && !IS_SLASH(ch))
-        offEnd++;
-#endif
-    *penmError = KFSLOOKUPERROR_UNSUPPORTED;
-    return NULL;
-}
 
 
 /**
@@ -1680,6 +1692,255 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KFSLOOKUPER
 
 
 /**
+ * Look up a child node, ANSI version.
+ *
+ * @returns Pointer to the child if found, NULL if not.
+ * @param   pCache              The cache.
+ * @param   pParent             The parent directory to search.
+ * @param   pchName             The child name to search for (not terminated).
+ * @param   cchName             The length of the child name.
+ */
+static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char *pchName, KU32 cchName)
+{
+    /* Check for '.' first. */
+    if (cchName != 1 || *pchName != '.')
+    {
+        KU32        cLeft;
+        PKFSOBJ    *ppCur;
+
+        if (pParent->paHashTab != NULL)
+        {
+            /** @todo directory hash table lookup.   */
+        }
+
+        /* Linear search. */
+        cLeft = pParent->cChildren;
+        ppCur = pParent->papChildren;
+        while (cLeft-- > 0)
+        {
+            PKFSOBJ pCur = *ppCur++;
+            if (   (   pCur->cchName == cchName
+                    && _mbsnicmp(pCur->pszName, pchName, cchName) == 0)
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                || (   pCur->cchShortName == cchName
+                    && pCur->pszShortName != pCur->pszName
+                    && _mbsnicmp(pCur->pszShortName, pchName, cchName) == 0)
+#endif
+               )
+                return pCur;
+        }
+        return NULL;
+    }
+    return &pParent->Obj;
+}
+
+
+/**
+ * For use when kFsCacheIAreEqualW hit's something non-trivial.
+ *
+ * @returns K_TRUE if equal, K_FALSE if different.
+ * @param   pwcName1            The first string.
+ * @param   pwcName2            The second string.
+ * @param   cwcName             The length of the two strings (in wchar_t's).
+ */
+KBOOL kFsCacheIAreEqualSlowW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU16 cwcName)
+{
+    MY_UNICODE_STRING UniStr1 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName1 };
+    MY_UNICODE_STRING UniStr2 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName2 };
+    return g_pfnRtlEqualUnicodeString(&UniStr1, &UniStr2, TRUE /*fCaseInsensitive*/);
+}
+
+
+/**
+ * Compares two UTF-16 strings in a case-insensitive fashion.
+ *
+ * You would think we should be using _wscnicmp here instead, however it is
+ * locale dependent and defaults to ASCII upper/lower handling setlocale hasn't
+ * been called.
+ *
+ * @returns K_TRUE if equal, K_FALSE if different.
+ * @param   pwcName1            The first string.
+ * @param   pwcName2            The second string.
+ * @param   cwcName             The length of the two strings (in wchar_t's).
+ */
+K_INLINE KBOOL kFsCacheIAreEqualW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU32 cwcName)
+{
+    while (cwcName > 0)
+    {
+        wchar_t wc1 = *pwcName1;
+        wchar_t wc2 = *pwcName2;
+        if (wc1 == wc2)
+        { /* not unlikely */ }
+        else if (  (KU16)wc1 < (KU16)0xc0 /* U+00C0 is the first upper/lower letter after 'z'. */
+                && (KU16)wc2 < (KU16)0xc0)
+        {
+            /* ASCII upper case. */
+            if ((KU16)wc1 - (KU16)0x61 < (KU16)26)
+                wc1 &= ~(wchar_t)0x20;
+            if ((KU16)wc2 - (KU16)0x61 < (KU16)26)
+                wc2 &= ~(wchar_t)0x20;
+            if (wc1 != wc2)
+                return K_FALSE;
+        }
+        else
+            return kFsCacheIAreEqualSlowW(pwcName1, pwcName2, (KU16)cwcName);
+
+        pwcName2++;
+        pwcName1++;
+        cwcName--;
+    }
+
+    return K_TRUE;
+}
+
+
+/**
+ * Look up a child node, UTF-16 version.
+ *
+ * @returns Pointer to the child if found, NULL if not.
+ * @param   pCache              The cache.
+ * @param   pParent             The parent directory to search.
+ * @param   pwcName             The child name to search for (not terminated).
+ * @param   cwcName             The length of the child name (in wchar_t's).
+ */
+static PKFSOBJ kFsCacheFindChildW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwcName, KU32 cwcName)
+{
+    /* Check for '.' first. */
+    if (cwcName != 1 || *pwcName != '.')
+    {
+        KU32        cLeft;
+        PKFSOBJ    *ppCur;
+
+        if (pParent->paHashTab != NULL)
+        {
+            /** @todo directory hash table lookup.   */
+        }
+
+        /* Linear search. */
+        cLeft = pParent->cChildren;
+        ppCur = pParent->papChildren;
+        while (cLeft-- > 0)
+        {
+            PKFSOBJ pCur = *ppCur++;
+            if (   (   pCur->cwcName == cwcName
+                    && kFsCacheIAreEqualW(pCur->pwszName, pwcName, cwcName))
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                || (   pCur->cwcShortName == cwcName
+                    && pCur->pwszShortName != pCur->pwszName
+                    && kFsCacheIAreEqualW(pCur->pwszShortName, pwcName, cwcName))
+#endif
+               )
+                return pCur;
+        }
+        return NULL;
+    }
+    return &pParent->Obj;
+}
+
+
+/**
+ * Looks up a UNC share, ANSI version.
+ *
+ * We keep both the server and share in the root directory entry.  This means we
+ * have to clean up the entry name before we can insert it.
+ *
+ * @returns Pointer to the share root directory or an update-to-date missing
+ *          node.
+ * @param   pCache              The cache.
+ * @param   pszPath             The path.
+ * @param   poff                Where to return the root dire.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+static PKFSOBJ kFswCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU32 *poff, KFSLOOKUPERROR *penmError)
+{
+#if 0 /* later */
+    KU32 offStartServer;
+    KU32 offEndServer;
+    KU32 offStartShare;
+
+    KU32 offEnd = 2;
+    while (IS_SLASH(pszPath[offEnd]))
+        offEnd++;
+
+    offStartServer = offEnd;
+    while (   (ch = pszPath[offEnd]) != '\0'
+           && !IS_SLASH(ch))
+        offEnd++;
+    offEndServer = offEnd;
+
+    if (ch != '\0')
+    { /* likely */ }
+    else
+    {
+        *penmError = KFSLOOKUPERROR_NOT_FOUND;
+        return NULL;
+    }
+
+    while (IS_SLASH(pszPath[offEnd]))
+        offEnd++;
+    offStartServer = offEnd;
+    while (   (ch = pszPath[offEnd]) != '\0'
+           && !IS_SLASH(ch))
+        offEnd++;
+#endif
+    *penmError = KFSLOOKUPERROR_UNSUPPORTED;
+    return NULL;
+}
+
+
+/**
+ * Looks up a UNC share, UTF-16 version.
+ *
+ * We keep both the server and share in the root directory entry.  This means we
+ * have to clean up the entry name before we can insert it.
+ *
+ * @returns Pointer to the share root directory or an update-to-date missing
+ *          node.
+ * @param   pCache              The cache.
+ * @param   pwszPath            The path.
+ * @param   poff                Where to return the root dire.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+static PKFSOBJ kFswCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 *poff, KFSLOOKUPERROR *penmError)
+{
+#if 0 /* later */
+    KU32 offStartServer;
+    KU32 offEndServer;
+    KU32 offStartShare;
+
+    KU32 offEnd = 2;
+    while (IS_SLASH(pwszPath[offEnd]))
+        offEnd++;
+
+    offStartServer = offEnd;
+    while (   (ch = pwszPath[offEnd]) != '\0'
+           && !IS_SLASH(ch))
+        offEnd++;
+    offEndServer = offEnd;
+
+    if (ch != '\0')
+    { /* likely */ }
+    else
+    {
+        *penmError = KFSLOOKUPERROR_NOT_FOUND;
+        return NULL;
+    }
+
+    while (IS_SLASH(pwszPath[offEnd]))
+        offEnd++;
+    offStartServer = offEnd;
+    while (   (ch = pwszPath[offEnd]) != '\0'
+           && !IS_SLASH(ch))
+        offEnd++;
+#endif
+    *penmError = KFSLOOKUPERROR_UNSUPPORTED;
+    return NULL;
+}
+
+
+/**
  * Walk the file system tree for the given absolute path, entering it into the
  * hash table.
  *
@@ -1700,7 +1961,6 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
     PKFSDIR     pParent = &pCache->RootDir;
     PKFSOBJ     pChild;
     KU32        off;
-    char        ch;
     KU32        cchSlashes;
     KU32        offEnd;
 
@@ -1775,6 +2035,7 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
         /*
          * Find the end of the component, counting trailing slashes.
          */
+        char ch;
         cchSlashes = 0;
         offEnd     = off + 1;
         while ((ch = pszPath[offEnd]) != '\0')
@@ -1869,8 +2130,196 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
 
 
 /**
+ * Walk the file system tree for the given absolute path, UTF-16 version.
+ *
+ * This will create any missing nodes while walking.
+ *
+ * The caller will have to do the path hash table insertion of the result.
+ *
+ * @returns Pointer to the tree node corresponding to @a pszPath.
+ *          NULL on lookup failure, see @a penmError for details.
+ * @param   pCache              The cache.
+ * @param   pwszPath            The path to walk.
+ * @param   cwcPath             The length of the path (in wchar_t's).
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 cwcPath, KFSLOOKUPERROR *penmError)
+{
+    PKFSDIR     pParent = &pCache->RootDir;
+    PKFSOBJ     pChild;
+    KU32        off;
+    KU32        cwcSlashes;
+    KU32        offEnd;
+
+    KFSCACHE_LOG(("kFsCacheLookupAbsoluteW(%ls)\n", pwszPath));
+
+    /*
+     * The root "directory" needs special handling, so we keep it outside the
+     * main search loop. (Special: Cannot enumerate it, UNCs, ++.)
+     */
+    cwcSlashes = 0;
+    off        = 0;
+    if (   pwszPath[1] == ':'
+        && IS_ALPHA(pwszPath[0]))
+    {
+        /* Drive letter. */
+        offEnd = 2;
+        kHlpAssert(IS_SLASH(pwszPath[2]));
+        pChild = kFswCacheLookupDrive(pCache, toupper(pwszPath[0]), penmError);
+    }
+    else if (   IS_SLASH(pwszPath[0])
+             && IS_SLASH(pwszPath[1]) )
+        pChild = kFswCacheLookupUncShareW(pCache, pwszPath, &offEnd, penmError);
+    else
+    {
+        *penmError = KFSLOOKUPERROR_UNSUPPORTED;
+        return NULL;
+    }
+    if (pChild)
+    { /* likely */ }
+    else
+        return NULL;
+
+    /* Count slashes trailing the root spec. */
+    if (offEnd < cwcPath)
+    {
+        kHlpAssert(IS_SLASH(pwszPath[offEnd]));
+        do
+            cwcSlashes++;
+        while (IS_SLASH(pwszPath[offEnd + cwcSlashes]));
+    }
+
+    /* Done already? */
+    if (offEnd >= cwcPath)
+    {
+        if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+            || pChild->uCacheGen == (pChild->bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing)
+            || kFsCacheRefreshObj(pCache, pChild, penmError))
+            return kFsCacheObjRetainInternal(pChild);
+        return NULL;
+    }
+
+    /* Check that we've got a valid result and not a cached negative one. */
+    if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+    { /* likely */ }
+    else
+    {
+        kHlpAssert(pChild->bObjType == KFSOBJ_TYPE_MISSING);
+        kHlpAssert(pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
+        return pChild;
+    }
+
+    /* Next component. */
+    pParent = (PKFSDIR)pChild;
+    off     = offEnd + cwcSlashes;
+
+
+    /*
+     * Walk loop.
+     */
+    for (;;)
+    {
+        /*
+         * Find the end of the component, counting trailing slashes.
+         */
+        wchar_t wc;
+        cwcSlashes = 0;
+        offEnd     = off + 1;
+        while ((wc = pwszPath[offEnd]) != '\0')
+        {
+            if (!IS_SLASH(wc))
+                offEnd++;
+            else
+            {
+                do
+                    cwcSlashes++;
+                while (IS_SLASH(pwszPath[offEnd + cwcSlashes]));
+                break;
+            }
+        }
+
+        /*
+         * Do we need to populate or refresh this directory first?
+         */
+        if (   pParent->fPopulated
+            && (   pParent->Obj.uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                || pParent->Obj.uCacheGen == pCache->uGeneration) )
+        { /* likely */ }
+        else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
+        { /* likely */ }
+        else
+            return NULL;
+
+        /*
+         * Search the current node for the name.
+         *
+         * If we don't find it, we may insert a missing node depending on
+         * the cache configuration.
+         */
+        pChild = kFsCacheFindChildW(pCache, pParent, &pwszPath[off], offEnd - off);
+        if (pChild != NULL)
+        { /* probably likely */ }
+        else
+        {
+            if (pCache->fFlags & KFSCACHE_F_MISSING_OBJECTS)
+                pChild = kFsCacheCreateMissingW(pCache, pParent, &pwszPath[off], offEnd - off, penmError);
+            if (cwcSlashes == 0 || offEnd + cwcSlashes >= cwcPath)
+            {
+                if (pChild)
+                    return pChild;
+                *penmError = KFSLOOKUPERROR_NOT_FOUND;
+            }
+            else
+                *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+
+        /* Advance off and check if we're done already. */
+        off = offEnd + cwcSlashes;
+        if (   cwcSlashes == 0
+            || off >= cwcPath)
+        {
+            if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
+                || pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                || pChild->uCacheGen == pCache->uGenerationMissing
+                || kFsCacheRefreshMissing(pCache, pChild, penmError) )
+            { /* likely */ }
+            else
+                return NULL;
+            return pChild;
+        }
+
+        /*
+         * Check that it's a directory.  If a missing entry, we may have to
+         * refresh it and re-examin it.
+         */
+        if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+            pParent = (PKFSDIR)pChild;
+        else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
+            return NULL;
+        }
+        else if (   pChild->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                 || pChild->uCacheGen == pCache->uGenerationMissing)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+        else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
+            pParent = (PKFSDIR)pChild;
+        else
+            return NULL;
+    }
+
+    return NULL;
+}
+
+
+/**
  * This deals with paths that are relative and paths that contains '..'
- * elements.
+ * elements, ANSI version.
  *
  * @returns Pointer to object corresponding to @a pszPath on success.
  *          NULL if this isn't a path we care to cache.
@@ -1918,6 +2367,91 @@ static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 c
 
 
 /**
+ * This deals with paths that are relative and paths that contains '..'
+ * elements, UTF-16 version.
+ *
+ * @returns Pointer to object corresponding to @a pszPath on success.
+ *          NULL if this isn't a path we care to cache.
+ *
+ * @param   pCache              The cache.
+ * @param   pwszPath            The path.
+ * @param   cwcPath             The length of the path (in wchar_t's).
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 wcwPath, KFSLOOKUPERROR *penmError)
+{
+    /*
+     * We just call GetFullPathNameA here to do the job as getcwd and _getdcwd
+     * ends up calling it anyway.
+     */
+    wchar_t wszFull[KFSCACHE_CFG_MAX_PATH];
+    UINT cwcFull = GetFullPathNameW(pwszPath, KFSCACHE_CFG_MAX_PATH, wszFull, NULL);
+    if (   cwcFull >= 3
+        && cwcFull < KFSCACHE_CFG_MAX_PATH)
+    {
+        PKFSOBJ pFsObj;
+        KFSCACHE_LOG(("kFsCacheLookupSlowA(%ls)\n", pwszPath));
+        pFsObj = kFsCacheLookupAbsoluteW(pCache, wszFull, cwcFull, penmError);
+
+#if 0 /* No need to do this until it's actually queried. */
+        /* Cache the resulting path. */
+        if (   pFsObj
+            || (pCache->fFlags & KFSCACHE_F_MISSING_PATHS)
+            || *penmError == KFSLOOKUPERROR_UNSUPPORTED)
+        {
+            KU32 uHashPath = kFsCacheStrHash(szFull);
+            kFsCacheCreatePathHashTabEntryA(pCache, pFsObj, pszPath, cchPath, uHashPath,
+                                            uHashPath % K_ELEMENTS(pCache->apAnsiPaths), *penmError);
+        }
+#endif
+        return pFsObj;
+    }
+
+    /* The path is too long! */
+    kHlpAssertMsgFailed(("'%ls' -> cwcFull=%u\n", pwszPath, cwcFull));
+    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    return NULL;
+}
+
+
+/**
+ * Refreshes a path hash that has expired, ANSI version.
+ *
+ * @returns pHash on success, NULL if removed.
+ * @param   pCache              The cache.
+ * @param   pHashEntry          The path hash.
+ * @param   idxHashTab          The hash table entry.
+ */
+static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU32 idxHashTab)
+{
+    /** @todo implement once we've start inserting uCacheGen nodes. */
+    __debugbreak();
+    K_NOREF(pCache);
+    K_NOREF(idxHashTab);
+    return pHashEntry;
+}
+
+
+/**
+ * Refreshes a path hash that has expired, UTF-16 version.
+ *
+ * @returns pHash on success, NULL if removed.
+ * @param   pCache              The cache.
+ * @param   pHashEntry          The path hash.
+ * @param   idxHashTab          The hash table entry.
+ */
+static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU32 idxHashTab)
+{
+    /** @todo implement once we've start inserting uCacheGen nodes. */
+    __debugbreak();
+    K_NOREF(pCache);
+    K_NOREF(idxHashTab);
+    return pHashEntry;
+}
+
+
+/**
  * Looks up a KFSOBJ for the given ANSI path.
  *
  * This will first try the hash table.  If not in the hash table, the file
@@ -1935,7 +2469,7 @@ static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 c
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
-static PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError)
+PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError)
 {
     /*
      * Do hash table lookup of the path.
@@ -1985,7 +2519,7 @@ static PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPE
                     && IS_ALPHA(pszPath[0]) )
                 || (   IS_SLASH(pszPath[0]) /* UNC */
                     && IS_SLASH(pszPath[1]) ) )
-            && !kFsCacheHasDotDot(pszPath, cchPath) )
+            && !kFsCacheHasDotDotA(pszPath, cchPath) )
             pFsObj = kFsCacheLookupAbsoluteA(pCache, pszPath, cchPath, penmError);
         else
             pFsObj = kFsCacheLookupSlowA(pCache, pszPath, cchPath, penmError);
@@ -1994,6 +2528,95 @@ static PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPE
                 && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
             || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
             kFsCacheCreatePathHashTabEntryA(pCache, pFsObj, pszPath, cchPath, uHashPath, idxHashTab, *penmError);
+
+        pCache->cLookups++;
+        if (pFsObj)
+            pCache->cWalkHits++;
+        return pFsObj;
+    }
+
+    *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    return NULL;
+}
+
+
+/**
+ * Looks up a KFSOBJ for the given UTF-16 path.
+ *
+ * This will first try the hash table.  If not in the hash table, the file
+ * system cache tree is walked, missing bits filled in and finally a hash table
+ * entry is created.
+ *
+ * Only drive letter paths are cachable.  We don't do any UNC paths at this
+ * point.
+ *
+ * @returns Reference to object corresponding to @a pszPath on success, this
+ *          must be released by kwFsCacheRelease.
+ *          NULL if not a path we care to cache.
+ * @param   pCache              The cache.
+ * @param   pwszPath            The path to lookup.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError)
+{
+    /*
+     * Do hash table lookup of the path.
+     */
+    KU32        uHashPath;
+    KU32        cwcPath    = (KU32)kFsCacheUtf16HashEx(pwszPath, &uHashPath);
+    KU32        idxHashTab = uHashPath % K_ELEMENTS(pCache->apAnsiPaths);
+    PKFSHASHW   pHashEntry = pCache->apUtf16Paths[idxHashTab];
+    if (pHashEntry)
+    {
+        do
+        {
+            if (   pHashEntry->uHashPath == uHashPath
+                && pHashEntry->cwcPath   == cwcPath
+                && kHlpMemComp(pHashEntry->pwszPath, pwszPath, cwcPath) == 0)
+            {
+                if (   pHashEntry->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE
+                    || pHashEntry->uCacheGen == pCache->uGeneration
+                    || (pHashEntry = kFsCacheRefreshPathW(pCache, pHashEntry, idxHashTab)) )
+                {
+                    pCache->cLookups++;
+                    pCache->cPathHashHits++;
+                    KFSCACHE_LOG(("kFsCacheLookupW(%ls) - hit %p\n", pwszPath, pHashEntry->pFsObj));
+                    *penmError = pHashEntry->enmError;
+                    if (pHashEntry->pFsObj)
+                        return kFsCacheObjRetainInternal(pHashEntry->pFsObj);
+                    return NULL;
+                }
+                break;
+            }
+            pHashEntry = pHashEntry->pNext;
+        } while (pHashEntry);
+    }
+
+    /*
+     * Create an entry for it by walking the file system cache and filling in the blanks.
+     */
+    if (   cwcPath > 0
+        && cwcPath < KFSCACHE_CFG_MAX_PATH)
+    {
+        PKFSOBJ pFsObj;
+
+        /* Is absolute without any '..' bits? */
+        if (   cwcPath >= 3
+            && (   (   pwszPath[1] == ':'    /* Drive letter */
+                    && IS_SLASH(pwszPath[2])
+                    && IS_ALPHA(pwszPath[0]) )
+                || (   IS_SLASH(pwszPath[0]) /* UNC */
+                    && IS_SLASH(pwszPath[1]) ) )
+            && !kFsCacheHasDotDotW(pwszPath, cwcPath) )
+            pFsObj = kFsCacheLookupAbsoluteW(pCache, pwszPath, cwcPath, penmError);
+        else
+            pFsObj = kFsCacheLookupSlowW(pCache, pwszPath, cwcPath, penmError);
+        if (   pFsObj
+            || (   (pCache->fFlags & KFSCACHE_F_MISSING_PATHS)
+                && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
+            || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
+            kFsCacheCreatePathHashTabEntryW(pCache, pFsObj, pwszPath, cwcPath, uHashPath, idxHashTab, *penmError);
 
         pCache->cLookups++;
         if (pFsObj)
