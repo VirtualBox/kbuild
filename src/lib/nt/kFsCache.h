@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2853 2016-08-31 20:56:48Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2855 2016-08-31 21:21:22Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -94,6 +94,8 @@
 
 
 
+/** Pointer to a cache. */
+typedef struct KFSCACHE *PKFSCACHE;
 /** Pointer to a core object.  */
 typedef struct KFSOBJ *PKFSOBJ;
 /** Pointer to a directory object.  */
@@ -115,6 +117,22 @@ typedef struct KFSOBJHASH
     /** Pointer to the object. */
     PKFSOBJ             pObj;
 } KFSOBJHASH;
+
+
+/** Pointer to a user data item. */
+typedef struct KFSUSERDATA *PKFSUSERDATA;
+/**
+ * User data item associated with a cache node.
+ */
+typedef struct KFSUSERDATA
+{
+    /** Pointer to the next piece of user data. */
+    PKFSUSERDATA    pNext;
+    /** The key identifying this user. */
+    KUPTR           uKey;
+    /** The destructor. */
+    void (*pfnDestructor)(PKFSCACHE pCache, PKFSOBJ pObj, PKFSUSERDATA pData);
+} KFSUSERDATA;
 
 
 /**
@@ -178,6 +196,9 @@ typedef struct KFSOBJ
     const wchar_t      *pwszShortName;
 # endif
 #endif
+
+    /** Pointer to the first user data item */
+    PKFSUSERDATA        pUserDataHead;
 
     /** Stats - only valid when fHaveStats is set. */
     BirdStat_T          Stats;
@@ -316,8 +337,6 @@ typedef struct KFSHASHW
 /** @} */
 
 
-/** Pointer to a cache.   */
-typedef struct KFSCACHE *PKFSCACHE;
 /**
  * Directory cache instance.
  */
