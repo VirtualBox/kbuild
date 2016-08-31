@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2854 2016-08-31 20:57:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2855 2016-08-31 21:21:22Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -694,7 +694,10 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
                         + (cwcShortName > 0 ? (cwcShortName + 1) * sizeof(wchar_t)  + cchShortName + 1 : 0)
 #endif
                           ;
-    PKFSOBJ pObj = (PKFSOBJ)kHlpAlloc(cbObj);
+    PKFSOBJ pObj;
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+
+    pObj = (PKFSOBJ)kHlpAlloc(cbObj);
     if (pObj)
     {
         KU8 *pbExtra = (KU8 *)(pObj + 1);
@@ -714,6 +717,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         pObj->abUnused[1]   = K_FALSE;
         pObj->fFlags        = pParent->Obj.fFlags;
         pObj->pParent       = pParent;
+        pObj->pUserDataHead = NULL;
 
 #ifdef KFSCACHE_CFG_UTF16
         pObj->cwcParent = pParent->Obj.cwcParent + pParent->Obj.cwcName + !!pParent->Obj.cwcName;
@@ -2130,6 +2134,7 @@ PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *p
     KU32        cchPath    = (KU32)kFsCacheStrHashEx(pszPath, &uHashPath);
     KU32        idxHashTab = uHashPath % K_ELEMENTS(pCache->apAnsiPaths);
     PKFSHASHA   pHashEntry = pCache->apAnsiPaths[idxHashTab];
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
     if (pHashEntry)
     {
         do
@@ -2219,6 +2224,7 @@ PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERRO
     KU32        cwcPath    = (KU32)kFsCacheUtf16HashEx(pwszPath, &uHashPath);
     KU32        idxHashTab = uHashPath % K_ELEMENTS(pCache->apAnsiPaths);
     PKFSHASHW   pHashEntry = pCache->apUtf16Paths[idxHashTab];
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
     if (pHashEntry)
     {
         do
@@ -2292,26 +2298,81 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
 {
     kHlpAssert(pObj->cRefs == 0);
     kHlpAssert(pObj->pParent == NULL);
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
+    /*
+     * Invalidate the structure.
+     */
+    pObj->u32Magic = ~KFSOBJ_MAGIC;
+
+    /*
+     * Destroy any user data first.
+     */
+    while (pObj->pUserDataHead != NULL)
+    {
+        PKFSUSERDATA pUserData = pObj->pUserDataHead;
+        pObj->pUserDataHead = pUserData->pNext;
+        pUserData->pfnDestructor(pCache, pObj, pUserData);
+        kHlpFree(pUserData);
+    }
+
+    /*
+     * Do type specific destruction
+     */
     switch (pObj->bObjType)
     {
         case KFSOBJ_TYPE_MISSING:
-        //case KFSOBJ_TYPE_MISSING | KFSOBJ_TYPE_F_INVALID:
             /* nothing else to do here */
-            pCache->cbObjects -= sizeof(*pObj);
+            pCache->cbObjects -= sizeof(KFSDIR);
             break;
 
         case KFSOBJ_TYPE_DIR:
-        //case KFSOBJ_TYPE_DIR | KFSOBJ_TYPE_F_INVALID:
-        case KFSOBJ_TYPE_FILE:
-        //case KFSOBJ_TYPE_FILE | KFSOBJ_TYPE_F_INVALID:
-            kHlpAssertFailed();
+        {
+            PKFSDIR pDir = (PKFSDIR)pObj;
+            KU32    cChildren = pDir->cChildren;
+            pCache->cbObjects -= sizeof(*pDir)
+                               + K_ALIGN_Z(cChildren, 16) * sizeof(pDir->papChildren)
+                               + pDir->cHashTab * sizeof(pDir->paHashTab);
+
+            pDir->cChildren   = 0;
+            while (cChildren-- > 0)
+                kFsCacheObjRelease(pCache, pDir->papChildren[cChildren]);
+            kHlpFree(pDir->papChildren);
+            pDir->papChildren = NULL;
+
+            kHlpFree(pDir->paHashTab);
+            pDir->paHashTab = NULL;
             break;
+        }
+
+        case KFSOBJ_TYPE_FILE:
+        case KFSOBJ_TYPE_OTHER:
+            pCache->cbObjects -= sizeof(*pObj);
+            break;
+
         default:
-            kHlpAssertFailed();
+            return 0;
     }
+
+    /*
+     * Common bits.
+     */
+    pCache->cbObjects -= pObj->cchName + 1;
+#ifdef KFSCACHE_CFG_UTF16
+    pCache->cbObjects -= (pObj->cwcName + 1) * sizeof(wchar_t);
+#endif
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+    if (pObj->pszName != pObj->pszShortName)
+    {
+        pCache->cbObjects -= pObj->cchShortName + 1;
+# ifdef KFSCACHE_CFG_UTF16
+        pCache->cbObjects -= (pObj->cwcShortName + 1) * sizeof(wchar_t);
+# endif
+    }
+#endif
     pCache->cObjects--;
-    free(pObj);
+
+    kHlpFree(pObj);
     return 0;
 }
 
@@ -2325,7 +2386,11 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
  */
 KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
 {
-    KU32 cRefs = --pObj->cRefs;
+    KU32 cRefs;
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+
+    cRefs = --pObj->cRefs;
     if (cRefs)
         return cRefs;
     return kFsCacheObjDestroy(pCache, pObj);
@@ -2340,7 +2405,11 @@ KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
  */
 KU32 kFsCacheObjRetain(PKFSOBJ pObj)
 {
-    KU32 cRefs = ++pObj->cRefs;
+    KU32 cRefs;
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+
+    cRefs = ++pObj->cRefs;
     kHlpAssert(cRefs < 16384);
     return cRefs;
 }
