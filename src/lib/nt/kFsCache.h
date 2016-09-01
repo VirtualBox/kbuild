@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -407,6 +407,7 @@ void        kFsCacheDbgPrintf(const char *pszFormat, ...);
 #endif
 
 
+KBOOL       kFsCacheDirEnsurePopuplated(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR *penmError);
 KBOOL       kFsCacheDirAddChild(PKFSCACHE pCache, PKFSDIR pParent, PKFSOBJ pChild, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
                                  char const *pszName, KU16 cchName, wchar_t const *pwszName, KU16 cwcName,
