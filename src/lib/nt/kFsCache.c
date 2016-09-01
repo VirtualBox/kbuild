@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -2219,7 +2219,7 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
  * point.
  *
  * @returns Reference to object corresponding to @a pszPath on success, this
- *          must be released by kwFsCacheRelease.
+ *          must be released by kFsCacheObjRelease.
  *          NULL if not a path we care to cache.
  * @param   pCache              The cache.
  * @param   pszPath             The path to lookup.
@@ -2245,7 +2245,7 @@ PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *p
                 && kHlpMemComp(pHashEntry->pszPath, pszPath, cchPath) == 0)
             {
                 if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                    || pHashEntry->uCacheGen == pCache->uGeneration
+                    || pHashEntry->uCacheGen == (pHashEntry->pFsObj ? pCache->uGeneration : pCache->uGenerationMissing)
                     || (pHashEntry = kFsCacheRefreshPathA(pCache, pHashEntry, idxHashTab)) )
                 {
                     pCache->cLookups++;
@@ -2309,7 +2309,7 @@ PKFSOBJ kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *p
  * point.
  *
  * @returns Reference to object corresponding to @a pszPath on success, this
- *          must be released by kwFsCacheRelease.
+ *          must be released by kFsCacheObjRelease.
  *          NULL if not a path we care to cache.
  * @param   pCache              The cache.
  * @param   pwszPath            The path to lookup.
@@ -2335,7 +2335,7 @@ PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERRO
                 && kHlpMemComp(pHashEntry->pwszPath, pwszPath, cwcPath) == 0)
             {
                 if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                    || pHashEntry->uCacheGen == pCache->uGeneration
+                    || pHashEntry->uCacheGen == (pHashEntry->pFsObj ? pCache->uGeneration : pCache->uGenerationMissing)
                     || (pHashEntry = kFsCacheRefreshPathW(pCache, pHashEntry, idxHashTab)) )
                 {
                     pCache->cLookups++;
@@ -2384,6 +2384,60 @@ PKFSOBJ kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERRO
     }
 
     *penmError = KFSLOOKUPERROR_PATH_TOO_LONG;
+    return NULL;
+}
+
+
+/**
+ * Wrapper around kFsCacheLookupA that drops KFSOBJ_TYPE_MISSING and returns
+ * KFSLOOKUPERROR_NOT_FOUND instead.
+ *
+ * @returns Reference to object corresponding to @a pszPath on success, this
+ *          must be released by kFsCacheObjRelease.
+ *          NULL if not a path we care to cache.
+ * @param   pCache              The cache.
+ * @param   pszPath             The path to lookup.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+PKFSOBJ kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError)
+{
+    PKFSOBJ pObj = kFsCacheLookupA(pCache, pszPath, penmError);
+    if (pObj)
+    {
+        if (pObj->bObjType != KFSOBJ_TYPE_MISSING)
+            return pObj;
+
+        kFsCacheObjRelease(pCache, pObj);
+        *penmError = KFSLOOKUPERROR_NOT_FOUND;
+    }
+    return NULL;
+}
+
+
+/**
+ * Wrapper around kFsCacheLookupW that drops KFSOBJ_TYPE_MISSING and returns
+ * KFSLOOKUPERROR_NOT_FOUND instead.
+ *
+ * @returns Reference to object corresponding to @a pszPath on success, this
+ *          must be released by kFsCacheObjRelease.
+ *          NULL if not a path we care to cache.
+ * @param   pCache              The cache.
+ * @param   pwszPath            The path to lookup.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+PKFSOBJ kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError)
+{
+    PKFSOBJ pObj = kFsCacheLookupW(pCache, pwszPath, penmError);
+    if (pObj)
+    {
+        if (pObj->bObjType != KFSOBJ_TYPE_MISSING)
+            return pObj;
+
+        kFsCacheObjRelease(pCache, pObj);
+        *penmError = KFSLOOKUPERROR_NOT_FOUND;
+    }
     return NULL;
 }
 
@@ -2488,14 +2542,18 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
  */
 KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
 {
-    KU32 cRefs;
-    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
-    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    if (pObj)
+    {
+        KU32 cRefs;
+        kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+        kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
-    cRefs = --pObj->cRefs;
-    if (cRefs)
-        return cRefs;
-    return kFsCacheObjDestroy(pCache, pObj);
+        cRefs = --pObj->cRefs;
+        if (cRefs)
+            return cRefs;
+        return kFsCacheObjDestroy(pCache, pObj);
+    }
+    return 0;
 }
 
 
@@ -2573,6 +2631,226 @@ PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey)
 }
 
 
+/**
+ * Gets the full path to @a pObj, ANSI version.
+ *
+ * @returns K_TRUE on success, K_FALSE on buffer overflow (nothing stored).
+ * @param   pObj                The object to get the full path to.
+ * @param   pszPath             Where to return the path
+ * @param   cbPath              The size of the output buffer.
+ * @param   chSlash             The slash to use.
+ */
+KBOOL kFsCacheObjGetFullPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash)
+{
+    KSIZE off = pObj->cchParent;
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    if (off > 0)
+    {
+        KSIZE offEnd = off + pObj->cchName;
+        if (offEnd < cbPath)
+        {
+            PKFSDIR pAncestor;
+
+            pszPath[off + pObj->cchName] = '\0';
+            memcpy(&pszPath[off], pObj->pszName, pObj->cchName);
+
+            for (pAncestor = pObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+            {
+                kHlpAssert(off > 1);
+                kHlpAssert(pAncestor != NULL);
+                kHlpAssert(pAncestor->Obj.cchName > 0);
+                pszPath[--off] = chSlash;
+                off -= pAncestor->Obj.cchName;
+                kHlpAssert(pAncestor->Obj.cchParent == off);
+                memcpy(&pszPath[off], pAncestor->Obj.pszName, pAncestor->Obj.cchName);
+            }
+            return K_TRUE;
+        }
+    }
+    else
+    {
+        KBOOL const fDriveLetter = pObj->cchName == 2 && pObj->pszName[2] == ':';
+        off = pObj->cchName;
+        if (off + fDriveLetter < cbPath)
+        {
+            memcpy(pszPath, pObj->pszName, off);
+            if (fDriveLetter)
+                pszPath[off++] = chSlash;
+            pszPath[off] = '\0';
+            return K_TRUE;
+        }
+    }
+
+    return K_FALSE;
+}
+
+
+/**
+ * Gets the full path to @a pObj, UTF-16 version.
+ *
+ * @returns K_TRUE on success, K_FALSE on buffer overflow (nothing stored).
+ * @param   pObj                The object to get the full path to.
+ * @param   pszPath             Where to return the path
+ * @param   cbPath              The size of the output buffer.
+ * @param   wcSlash             The slash to use.
+ */
+KBOOL kFsCacheObjGetFullPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash)
+{
+    KSIZE off = pObj->cwcParent;
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    if (off > 0)
+    {
+        KSIZE offEnd = off + pObj->cwcName;
+        if (offEnd < cwcPath)
+        {
+            PKFSDIR pAncestor;
+
+            pwszPath[off + pObj->cwcName] = '\0';
+            memcpy(&pwszPath[off], pObj->pwszName, pObj->cwcName * sizeof(wchar_t));
+
+            for (pAncestor = pObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+            {
+                kHlpAssert(off > 1);
+                kHlpAssert(pAncestor != NULL);
+                kHlpAssert(pAncestor->Obj.cwcName > 0);
+                pwszPath[--off] = wcSlash;
+                off -= pAncestor->Obj.cwcName;
+                kHlpAssert(pAncestor->Obj.cwcParent == off);
+                memcpy(&pwszPath[off], pAncestor->Obj.pwszName, pAncestor->Obj.cwcName * sizeof(wchar_t));
+            }
+            return K_TRUE;
+        }
+    }
+    else
+    {
+        KBOOL const fDriveLetter = pObj->cchName == 2 && pObj->pszName[2] == ':';
+        off = pObj->cwcName;
+        if (off + fDriveLetter < cwcPath)
+        {
+            memcpy(pwszPath, pObj->pwszName, off * sizeof(wchar_t));
+            if (fDriveLetter)
+                pwszPath[off++] = wcSlash;
+            pwszPath[off] = '\0';
+            return K_TRUE;
+        }
+    }
+
+    return K_FALSE;
+}
+
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+
+/**
+ * Gets the full short path to @a pObj, ANSI version.
+ *
+ * @returns K_TRUE on success, K_FALSE on buffer overflow (nothing stored).
+ * @param   pObj                The object to get the full path to.
+ * @param   pszPath             Where to return the path
+ * @param   cbPath              The size of the output buffer.
+ * @param   chSlash             The slash to use.
+ */
+KBOOL kFsCacheObjGetFullShortPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash)
+{
+    KSIZE off = pObj->cchShortParent;
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    if (off > 0)
+    {
+        KSIZE offEnd = off + pObj->cchShortName;
+        if (offEnd < cbPath)
+        {
+            PKFSDIR pAncestor;
+
+            pszPath[off + pObj->cchShortName] = '\0';
+            memcpy(&pszPath[off], pObj->pszShortName, pObj->cchShortName);
+
+            for (pAncestor = pObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+            {
+                kHlpAssert(off > 1);
+                kHlpAssert(pAncestor != NULL);
+                kHlpAssert(pAncestor->Obj.cchShortName > 0);
+                pszPath[--off] = chSlash;
+                off -= pAncestor->Obj.cchShortName;
+                kHlpAssert(pAncestor->Obj.cchShortParent == off);
+                memcpy(&pszPath[off], pAncestor->Obj.pszShortName, pAncestor->Obj.cchShortName);
+            }
+            return K_TRUE;
+        }
+    }
+    else
+    {
+        KBOOL const fDriveLetter = pObj->cchShortName == 2 && pObj->pszShortName[2] == ':';
+        off = pObj->cchShortName;
+        if (off + fDriveLetter < cbPath)
+        {
+            memcpy(pszPath, pObj->pszShortName, off);
+            if (fDriveLetter)
+                pszPath[off++] = chSlash;
+            pszPath[off] = '\0';
+            return K_TRUE;
+        }
+    }
+
+    return K_FALSE;
+}
+
+
+/**
+ * Gets the full short path to @a pObj, UTF-16 version.
+ *
+ * @returns K_TRUE on success, K_FALSE on buffer overflow (nothing stored).
+ * @param   pObj                The object to get the full path to.
+ * @param   pszPath             Where to return the path
+ * @param   cbPath              The size of the output buffer.
+ * @param   wcSlash             The slash to use.
+ */
+KBOOL kFsCacheObjGetFullShortPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash)
+{
+    KSIZE off = pObj->cwcShortParent;
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+    if (off > 0)
+    {
+        KSIZE offEnd = off + pObj->cwcShortName;
+        if (offEnd < cwcPath)
+        {
+            PKFSDIR pAncestor;
+
+            pwszPath[off + pObj->cwcShortName] = '\0';
+            memcpy(&pwszPath[off], pObj->pwszShortName, pObj->cwcShortName * sizeof(wchar_t));
+
+            for (pAncestor = pObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+            {
+                kHlpAssert(off > 1);
+                kHlpAssert(pAncestor != NULL);
+                kHlpAssert(pAncestor->Obj.cwcShortName > 0);
+                pwszPath[--off] = wcSlash;
+                off -= pAncestor->Obj.cwcShortName;
+                kHlpAssert(pAncestor->Obj.cwcShortParent == off);
+                memcpy(&pwszPath[off], pAncestor->Obj.pwszShortName, pAncestor->Obj.cwcShortName * sizeof(wchar_t));
+            }
+            return K_TRUE;
+        }
+    }
+    else
+    {
+        KBOOL const fDriveLetter = pObj->cchShortName == 2 && pObj->pszShortName[2] == ':';
+        off = pObj->cwcShortName;
+        if (off + fDriveLetter < cwcPath)
+        {
+            memcpy(pwszPath, pObj->pwszShortName, off * sizeof(wchar_t));
+            if (fDriveLetter)
+                pwszPath[off++] = wcSlash;
+            pwszPath[off] = '\0';
+            return K_TRUE;
+        }
+    }
+
+    return K_FALSE;
+}
+
+#endif /* KFSCACHE_CFG_SHORT_NAMES */
+
+
 
 PKFSCACHE kFsCacheCreate(KU32 fFlags)
 {
@@ -2620,6 +2898,7 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
             pCache->u32Magic        = KFSCACHE_MAGIC;
             pCache->fFlags          = fFlags;
             pCache->uGeneration     = 1;
+            pCache->uGenerationMissing = KU32_MAX / 2;
             pCache->cObjects        = 1;
             pCache->cbObjects       = sizeof(pCache->RootDir) + pCache->RootDir.cHashTab * sizeof(pCache->RootDir.paHashTab[0]);
             pCache->cPathHashHits   = 0;

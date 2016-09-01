@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -426,11 +426,18 @@ PKFSOBJ     kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, cons
                                          KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
                                          KFSLOOKUPERROR *penmError);
+PKFSOBJ     kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
+PKFSOBJ     kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError);
+
 
 KU32        kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj);
 KU32        kFsCacheObjRetain(PKFSOBJ pObj);
-PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pPathObj, KUPTR uKey, KSIZE cbUserData);
-PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pPathObj, KUPTR uKey);
+PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData);
+PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey);
+KBOOL       kFsCacheObjGetFullPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash);
+KBOOL       kFsCacheObjGetFullPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash);
+KBOOL       kFsCacheObjGetFullShortPathA(PKFSOBJ pObj, char *pszPath, KSIZE cbPath, char chSlash);
+KBOOL       kFsCacheObjGetFullShortPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE cwcPath, wchar_t wcSlash);
 
 PKFSCACHE   kFsCacheCreate(KU32 fFlags);
 void        kFsCacheDestroy(PKFSCACHE);

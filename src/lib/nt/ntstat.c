@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -207,9 +207,8 @@ void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_IN
     pStat->st_rdev          = 0;
     pStat->st_uid           = 0;
     pStat->st_gid           = 0;
-    pStat->st_padding1[0]   = 0;
-    pStat->st_padding1[1]   = 0;
-    pStat->st_padding1[2]   = 0;
+    pStat->st_padding1      = 0;
+    pStat->st_attribs       = pBuf->FileAttributes;
     pStat->st_blksize       = 65536;
     pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                             / BIRD_STAT_BLOCK_SIZE;
@@ -240,9 +239,8 @@ void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_IN
     pStat->st_rdev          = 0;
     pStat->st_uid           = 0;
     pStat->st_gid           = 0;
-    pStat->st_padding1[0]   = 0;
-    pStat->st_padding1[1]   = 0;
-    pStat->st_padding1[2]   = 0;
+    pStat->st_padding1      = 0;
+    pStat->st_attribs       = pBuf->FileAttributes;
     pStat->st_blksize       = 65536;
     pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                             / BIRD_STAT_BLOCK_SIZE;
@@ -273,9 +271,8 @@ void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMA
     pStat->st_rdev          = 0;
     pStat->st_uid           = 0;
     pStat->st_gid           = 0;
-    pStat->st_padding1[0]   = 0;
-    pStat->st_padding1[1]   = 0;
-    pStat->st_padding1[2]   = 0;
+    pStat->st_padding1      = 0;
+    pStat->st_attribs       = pBuf->FileAttributes;
     pStat->st_blksize       = 65536;
     pStat->st_blocks        = (pBuf->AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                             / BIRD_STAT_BLOCK_SIZE;
@@ -313,9 +310,8 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
             pStat->st_rdev          = 0;
             pStat->st_uid           = 0;
             pStat->st_gid           = 0;
-            pStat->st_padding1[0]   = 0;
-            pStat->st_padding1[1]   = 0;
-            pStat->st_padding1[2]   = 0;
+            pStat->st_padding1      = 0;
+            pStat->st_attribs       = pAll->StandardInformation.FileAttributes;
             pStat->st_blksize       = 65536;
             pStat->st_blocks        = (pAll->StandardInformation.AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                                     / BIRD_STAT_BLOCK_SIZE;
@@ -388,9 +384,8 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
         pStat->st_rdev          = 0;
         pStat->st_uid           = 0;
         pStat->st_gid           = 0;
-        pStat->st_padding1[0]   = 0;
-        pStat->st_padding1[1]   = 0;
-        pStat->st_padding1[2]   = 0;
+        pStat->st_padding1      = 0;
+        pStat->st_attribs       = BasicInfo.FileAttributes;
         pStat->st_blksize       = 65536;
         pStat->st_blocks        = (StdInfo.AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                                 / BIRD_STAT_BLOCK_SIZE;
@@ -607,9 +602,8 @@ int birdStatOnFd(int fd, BirdStat_T *pStat)
                 pStat->st_rdev              = 0;
                 pStat->st_uid               = 0;
                 pStat->st_gid               = 0;
-                pStat->st_padding1[0]       = 0;
-                pStat->st_padding1[1]       = 0;
-                pStat->st_padding1[2]       = 0;
+                pStat->st_padding1          = 0;
+                pStat->st_attribs           = fFileType == FILE_TYPE_PIPE ? FILE_ATTRIBUTE_NORMAL : FILE_ATTRIBUTE_DEVICE;
                 pStat->st_blksize           = 512;
                 pStat->st_blocks            = 0;
                 if (fFileType == FILE_TYPE_PIPE)

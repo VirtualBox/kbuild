@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2852 2016-08-31 20:46:34Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -35,6 +35,7 @@
 #define timeval timeval_Windows
 #define WIN32_NO_STATUS
 #include <Windows.h>
+#include <winternl.h>
 #undef WIN32_NO_STATUS
 #include <ntstatus.h>
 #undef timeval
