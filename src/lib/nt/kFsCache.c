@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2855 2016-08-31 21:21:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -651,7 +651,7 @@ static KBOOL kFsCacheDirAddChild(PKFSCACHE pCache, PKFSDIR pParent, PKFSOBJ pChi
         pParent->papChildren = (PKFSOBJ *)pvNew;
         pCache->cbObjects += 16 * sizeof(pParent->papChildren[0]);
     }
-    pParent->papChildren[pParent->cChildren++] = pChild;
+    pParent->papChildren[pParent->cChildren++] = kFsCacheObjRetainInternal(pChild);
     return K_TRUE;
 }
 
@@ -687,9 +687,9 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
     /*
      * Allocate the object.
      */
-    KBOOL const fDirish = bObjType != KFSOBJ_TYPE_FILE && bObjType == KFSOBJ_TYPE_OTHER;
-    KSIZE const cbObj   = (fDirish ? sizeof(KFSDIR) : sizeof(KFSOBJ))
-                        + (cwcName + 1) * sizeof(wchar_t)                           + cchName + 1
+    KBOOL const fDirish = bObjType != KFSOBJ_TYPE_FILE && bObjType != KFSOBJ_TYPE_OTHER;
+    KSIZE const cbObj   = fDirish ? sizeof(KFSDIR) : sizeof(KFSOBJ);
+    KSIZE const cbNames = (cwcName + 1) * sizeof(wchar_t)                           + cchName + 1
 #ifdef KFSCACHE_CFG_SHORT_NAMES
                         + (cwcShortName > 0 ? (cwcShortName + 1) * sizeof(wchar_t)  + cchShortName + 1 : 0)
 #endif
@@ -697,12 +697,12 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
     PKFSOBJ pObj;
     kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
 
-    pObj = (PKFSOBJ)kHlpAlloc(cbObj);
+    pObj = (PKFSOBJ)kHlpAlloc(cbObj + cbNames);
     if (pObj)
     {
-        KU8 *pbExtra = (KU8 *)(pObj + 1);
+        KU8 *pbExtra = (KU8 *)pObj + cbObj;
 
-        pCache->cbObjects += cbObj;
+        pCache->cbObjects += cbObj + cbNames;
         pCache->cObjects++;
 
         /*
@@ -722,6 +722,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
 #ifdef KFSCACHE_CFG_UTF16
         pObj->cwcParent = pParent->Obj.cwcParent + pParent->Obj.cwcName + !!pParent->Obj.cwcName;
         pObj->pwszName  = (wchar_t *)kHlpMemCopy(pbExtra, pwszName, cwcName * sizeof(wchar_t));
+        pObj->cwcName   = cwcName;
         pbExtra += cwcName * sizeof(wchar_t);
         *pbExtra++ = '\0';
         *pbExtra++ = '\0';
@@ -730,6 +731,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         if (cwcShortName)
         {
             pObj->pwszShortName = (wchar_t *)kHlpMemCopy(pbExtra, pwszShortName, cwcShortName * sizeof(wchar_t));
+            pObj->cwcShortName  = cwcShortName;
             pbExtra += cwcShortName * sizeof(wchar_t);
             *pbExtra++ = '\0';
             *pbExtra++ = '\0';
@@ -737,12 +739,13 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         else
         {
             pObj->pwszShortName = pObj->pwszName;
-            pObj->cwcShortName  = pObj->cwcName;
+            pObj->cwcShortName  = cwcName;
         }
 # endif
 #endif
         pObj->cchParent = pParent->Obj.cchParent + pParent->Obj.cchName + !!pParent->Obj.cchName;
         pObj->pszName   = (char *)kHlpMemCopy(pbExtra, pszName, cchName);
+        pObj->cchName   = cchName;
         pbExtra += cchName;
         *pbExtra++ = '\0';
 # ifdef KFSCACHE_CFG_SHORT_NAMES
@@ -750,13 +753,14 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         if (cchShortName)
         {
             pObj->pszShortName = (char *)kHlpMemCopy(pbExtra, pszShortName, cchShortName);
+            pObj->cchShortName = cchShortName;
             pbExtra += cchShortName;
             *pbExtra++ = '\0';
         }
         else
         {
             pObj->pszShortName = pObj->pszName;
-            pObj->cchShortName = pObj->cchName;
+            pObj->cchShortName = cchName;
         }
 #endif
         kHlpAssert(pbExtra - (KU8 *)pObj == cbObj);
@@ -1086,6 +1090,7 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                 birdStatFillFromFileFullDirInfo(&pCur->Stats, uPtr.pNoId, pCur->pszName);
 #endif
             pCur->Stats.st_dev = pDir->uDevNo;
+            pCur->fHaveStats   = K_TRUE;
 
             /*
              * If we're updating we have to check the data.
@@ -1136,7 +1141,16 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
     }
 
     if (rcNt == MY_STATUS_NO_MORE_FILES)
+    {
+        /*
+         * Mark the directory as fully populated and up to date.
+         */
+        pDir->fPopulated = K_TRUE;
+        if (pDir->Obj.uCacheGen != KFSOBJ_CACHE_GEN_IGNORE)
+            pDir->Obj.uCacheGen = pCache->uGeneration;
         return K_TRUE;
+    }
+
     kHlpAssertMsgFailed(("%#x\n", rcNt));
     *penmError = KFSLOOKUPERROR_DIR_READ_ERROR;
     return K_TRUE;
@@ -1265,9 +1279,18 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KFSLOOKUPER
                 kHlpAssert(pDir->hDir == INVALID_HANDLE_VALUE);
                 pDir->hDir = hDir;
 
-                /* Get the device number. */
-                rcNt = birdQueryVolumeDeviceNumber(hDir, &uBuf.VolInfo, sizeof(uBuf), &pDir->uDevNo);
-                kHlpAssertMsg(MY_NT_SUCCESS(rcNt), ("%#x\n", rcNt));
+                if (birdStatHandle(hDir, &pDir->Obj.Stats, pDir->Obj.pszName) == 0)
+                {
+                    pDir->Obj.fHaveStats = K_TRUE;
+                    pDir->uDevNo = pDir->Obj.Stats.st_dev;
+                }
+                else
+                {
+                    /* Just in case. */
+                    pDir->Obj.fHaveStats = K_FALSE;
+                    rcNt = birdQueryVolumeDeviceNumber(hDir, &uBuf.VolInfo, sizeof(uBuf), &pDir->uDevNo);
+                    kHlpAssertMsg(MY_NT_SUCCESS(rcNt), ("%#x\n", rcNt));
+                }
 
                 /* Get the file system. */
                 pDir->Obj.fFlags &= ~(KFSOBJ_F_NTFS | KFSOBJ_F_WORKING_DIR_MTIME);
@@ -1597,6 +1620,255 @@ static PKFSOBJ kFswCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPat
 
 
 /**
+ * Walks an full path relative to the given directory, ANSI version.
+ *
+ * This will create any missing nodes while walking.
+ *
+ * The caller will have to do the path hash table insertion of the result.
+ *
+ * @returns Pointer to the tree node corresponding to @a pszPath.
+ *          NULL on lookup failure, see @a penmError for details.
+ * @param   pCache              The cache.
+ * @param   pParent             The directory to start the lookup in.
+ * @param   pszPath             The path to walk.
+ * @param   cchPath             The length of the path.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath,
+                                     KFSLOOKUPERROR *penmError)
+{
+    /*
+     * Walk loop.
+     */
+    KU32 off = 0;
+    for (;;)
+    {
+        PKFSOBJ pChild;
+
+        /*
+         * Find the end of the component, counting trailing slashes.
+         */
+        char    ch;
+        KU32    cchSlashes = 0;
+        KU32    offEnd     = off + 1;
+        while ((ch = pszPath[offEnd]) != '\0')
+        {
+            if (!IS_SLASH(ch))
+                offEnd++;
+            else
+            {
+                do
+                    cchSlashes++;
+                while (IS_SLASH(pszPath[offEnd + cchSlashes]));
+                break;
+            }
+        }
+
+        /*
+         * Do we need to populate or refresh this directory first?
+         */
+        if (   pParent->fPopulated
+            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                || pParent->Obj.uCacheGen == pCache->uGeneration) )
+        { /* likely */ }
+        else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
+        { /* likely */ }
+        else
+            return NULL;
+
+        /*
+         * Search the current node for the name.
+         *
+         * If we don't find it, we may insert a missing node depending on
+         * the cache configuration.
+         */
+        pChild = kFsCacheFindChildA(pCache, pParent, &pszPath[off], offEnd - off);
+        if (pChild != NULL)
+        { /* probably likely */ }
+        else
+        {
+            if (pCache->fFlags & KFSCACHE_F_MISSING_OBJECTS)
+                pChild = kFsCacheCreateMissingA(pCache, pParent, &pszPath[off], offEnd - off, penmError);
+            if (cchSlashes == 0 || offEnd + cchSlashes >= cchPath)
+            {
+                if (pChild)
+                    return kFsCacheObjRetainInternal(pChild);
+                *penmError = KFSLOOKUPERROR_NOT_FOUND;
+            }
+            else
+                *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+
+        /* Advance off and check if we're done already. */
+        off = offEnd + cchSlashes;
+        if (   cchSlashes == 0
+            || off >= cchPath)
+        {
+            if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
+                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                || pChild->uCacheGen == pCache->uGenerationMissing
+                || kFsCacheRefreshMissing(pCache, pChild, penmError) )
+            { /* likely */ }
+            else
+                return NULL;
+            return kFsCacheObjRetainInternal(pChild);
+        }
+
+        /*
+         * Check that it's a directory.  If a missing entry, we may have to
+         * refresh it and re-examin it.
+         */
+        if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+            pParent = (PKFSDIR)pChild;
+        else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
+            return NULL;
+        }
+        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                 || pChild->uCacheGen == pCache->uGenerationMissing)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+        else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
+            pParent = (PKFSDIR)pChild;
+        else
+            return NULL;
+    }
+
+    return NULL;
+
+}
+
+
+/**
+ * Walks an full path relative to the given directory, UTF-16 version.
+ *
+ * This will create any missing nodes while walking.
+ *
+ * The caller will have to do the path hash table insertion of the result.
+ *
+ * @returns Pointer to the tree node corresponding to @a pszPath.
+ *          NULL on lookup failure, see @a penmError for details.
+ * @param   pCache              The cache.
+ * @param   pParent             The directory to start the lookup in.
+ * @param   pszPath             The path to walk.  No dot-dot bits allowed!
+ * @param   cchPath             The length of the path.
+ * @param   penmError           Where to return details as to why the lookup
+ *                              failed.
+ */
+PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
+                                     KFSLOOKUPERROR *penmError)
+{
+    /*
+     * Walk loop.
+     */
+    KU32 off = 0;
+    for (;;)
+    {
+        PKFSOBJ pChild;
+
+        /*
+         * Find the end of the component, counting trailing slashes.
+         */
+        wchar_t wc;
+        KU32    cwcSlashes = 0;
+        KU32    offEnd     = off + 1;
+        while ((wc = pwszPath[offEnd]) != '\0')
+        {
+            if (!IS_SLASH(wc))
+                offEnd++;
+            else
+            {
+                do
+                    cwcSlashes++;
+                while (IS_SLASH(pwszPath[offEnd + cwcSlashes]));
+                break;
+            }
+        }
+
+        /*
+         * Do we need to populate or refresh this directory first?
+         */
+        if (   pParent->fPopulated
+            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                || pParent->Obj.uCacheGen == pCache->uGeneration) )
+        { /* likely */ }
+        else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
+        { /* likely */ }
+        else
+            return NULL;
+
+        /*
+         * Search the current node for the name.
+         *
+         * If we don't find it, we may insert a missing node depending on
+         * the cache configuration.
+         */
+        pChild = kFsCacheFindChildW(pCache, pParent, &pwszPath[off], offEnd - off);
+        if (pChild != NULL)
+        { /* probably likely */ }
+        else
+        {
+            if (pCache->fFlags & KFSCACHE_F_MISSING_OBJECTS)
+                pChild = kFsCacheCreateMissingW(pCache, pParent, &pwszPath[off], offEnd - off, penmError);
+            if (cwcSlashes == 0 || offEnd + cwcSlashes >= cwcPath)
+            {
+                if (pChild)
+                    return kFsCacheObjRetainInternal(pChild);
+                *penmError = KFSLOOKUPERROR_NOT_FOUND;
+            }
+            else
+                *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+
+        /* Advance off and check if we're done already. */
+        off = offEnd + cwcSlashes;
+        if (   cwcSlashes == 0
+            || off >= cwcPath)
+        {
+            if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
+                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                || pChild->uCacheGen == pCache->uGenerationMissing
+                || kFsCacheRefreshMissing(pCache, pChild, penmError) )
+            { /* likely */ }
+            else
+                return NULL;
+            return kFsCacheObjRetainInternal(pChild);
+        }
+
+        /*
+         * Check that it's a directory.  If a missing entry, we may have to
+         * refresh it and re-examin it.
+         */
+        if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+            pParent = (PKFSDIR)pChild;
+        else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
+            return NULL;
+        }
+        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                 || pChild->uCacheGen == pCache->uGenerationMissing)
+        {
+            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            return NULL;
+        }
+        else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
+            pParent = (PKFSDIR)pChild;
+        else
+            return NULL;
+    }
+
+    return NULL;
+
+}
+
+/**
  * Walk the file system tree for the given absolute path, entering it into the
  * hash table.
  *
@@ -1607,16 +1879,14 @@ static PKFSOBJ kFswCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPat
  * @returns Pointer to the tree node corresponding to @a pszPath.
  *          NULL on lookup failure, see @a penmError for details.
  * @param   pCache              The cache.
- * @param   pszPath             The path to walk.
+ * @param   pszPath             The path to walk. No dot-dot bits allowed!
  * @param   cchPath             The length of the path.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
 static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU32 cchPath, KFSLOOKUPERROR *penmError)
 {
-    PKFSDIR     pParent = &pCache->RootDir;
     PKFSOBJ     pChild;
-    KU32        off;
     KU32        cchSlashes;
     KU32        offEnd;
 
@@ -1627,7 +1897,6 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
      * main search loop. (Special: Cannot enumerate it, UNCs, ++.)
      */
     cchSlashes = 0;
-    off        = 0;
     if (   pszPath[1] == ':'
         && IS_ALPHA(pszPath[0]))
     {
@@ -1678,110 +1947,12 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
         return pChild;
     }
 
-    /* Next component. */
-    pParent = (PKFSDIR)pChild;
-    off     = offEnd + cchSlashes;
-
-
     /*
-     * Walk loop.
+     * Now that we've found a valid root directory, lookup the
+     * remainder of the path starting with it.
      */
-    for (;;)
-    {
-        /*
-         * Find the end of the component, counting trailing slashes.
-         */
-        char ch;
-        cchSlashes = 0;
-        offEnd     = off + 1;
-        while ((ch = pszPath[offEnd]) != '\0')
-        {
-            if (!IS_SLASH(ch))
-                offEnd++;
-            else
-            {
-                do
-                    cchSlashes++;
-                while (IS_SLASH(pszPath[offEnd + cchSlashes]));
-                break;
-            }
-        }
-
-        /*
-         * Do we need to populate or refresh this directory first?
-         */
-        if (   pParent->fPopulated
-            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pParent->Obj.uCacheGen == pCache->uGeneration) )
-        { /* likely */ }
-        else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
-        { /* likely */ }
-        else
-            return NULL;
-
-        /*
-         * Search the current node for the name.
-         *
-         * If we don't find it, we may insert a missing node depending on
-         * the cache configuration.
-         */
-        pChild = kFsCacheFindChildA(pCache, pParent, &pszPath[off], offEnd - off);
-        if (pChild != NULL)
-        { /* probably likely */ }
-        else
-        {
-            if (pCache->fFlags & KFSCACHE_F_MISSING_OBJECTS)
-                pChild = kFsCacheCreateMissingA(pCache, pParent, &pszPath[off], offEnd - off, penmError);
-            if (cchSlashes == 0 || offEnd + cchSlashes >= cchPath)
-            {
-                if (pChild)
-                    return pChild;
-                *penmError = KFSLOOKUPERROR_NOT_FOUND;
-            }
-            else
-                *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
-            return NULL;
-        }
-
-        /* Advance off and check if we're done already. */
-        off = offEnd + cchSlashes;
-        if (   cchSlashes == 0
-            || off >= cchPath)
-        {
-            if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
-                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pChild->uCacheGen == pCache->uGenerationMissing
-                || kFsCacheRefreshMissing(pCache, pChild, penmError) )
-            { /* likely */ }
-            else
-                return NULL;
-            return pChild;
-        }
-
-        /*
-         * Check that it's a directory.  If a missing entry, we may have to
-         * refresh it and re-examin it.
-         */
-        if (pChild->bObjType == KFSOBJ_TYPE_DIR)
-            pParent = (PKFSDIR)pChild;
-        else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
-        {
-            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
-            return NULL;
-        }
-        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                 || pChild->uCacheGen == pCache->uGenerationMissing)
-        {
-            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
-            return NULL;
-        }
-        else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
-            pParent = (PKFSDIR)pChild;
-        else
-            return NULL;
-    }
-
-    return NULL;
+    return kFsCacheLookupRelativeToDirA(pCache, (PKFSDIR)pChild, &pszPath[offEnd + cchSlashes],
+                                        cchPath - offEnd - cchSlashes, penmError);
 }
 
 
@@ -1866,110 +2037,12 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
         return pChild;
     }
 
-    /* Next component. */
-    pParent = (PKFSDIR)pChild;
-    off     = offEnd + cwcSlashes;
-
-
     /*
-     * Walk loop.
+     * Now that we've found a valid root directory, lookup the
+     * remainder of the path starting with it.
      */
-    for (;;)
-    {
-        /*
-         * Find the end of the component, counting trailing slashes.
-         */
-        wchar_t wc;
-        cwcSlashes = 0;
-        offEnd     = off + 1;
-        while ((wc = pwszPath[offEnd]) != '\0')
-        {
-            if (!IS_SLASH(wc))
-                offEnd++;
-            else
-            {
-                do
-                    cwcSlashes++;
-                while (IS_SLASH(pwszPath[offEnd + cwcSlashes]));
-                break;
-            }
-        }
-
-        /*
-         * Do we need to populate or refresh this directory first?
-         */
-        if (   pParent->fPopulated
-            && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pParent->Obj.uCacheGen == pCache->uGeneration) )
-        { /* likely */ }
-        else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
-        { /* likely */ }
-        else
-            return NULL;
-
-        /*
-         * Search the current node for the name.
-         *
-         * If we don't find it, we may insert a missing node depending on
-         * the cache configuration.
-         */
-        pChild = kFsCacheFindChildW(pCache, pParent, &pwszPath[off], offEnd - off);
-        if (pChild != NULL)
-        { /* probably likely */ }
-        else
-        {
-            if (pCache->fFlags & KFSCACHE_F_MISSING_OBJECTS)
-                pChild = kFsCacheCreateMissingW(pCache, pParent, &pwszPath[off], offEnd - off, penmError);
-            if (cwcSlashes == 0 || offEnd + cwcSlashes >= cwcPath)
-            {
-                if (pChild)
-                    return pChild;
-                *penmError = KFSLOOKUPERROR_NOT_FOUND;
-            }
-            else
-                *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
-            return NULL;
-        }
-
-        /* Advance off and check if we're done already. */
-        off = offEnd + cwcSlashes;
-        if (   cwcSlashes == 0
-            || off >= cwcPath)
-        {
-            if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
-                || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pChild->uCacheGen == pCache->uGenerationMissing
-                || kFsCacheRefreshMissing(pCache, pChild, penmError) )
-            { /* likely */ }
-            else
-                return NULL;
-            return pChild;
-        }
-
-        /*
-         * Check that it's a directory.  If a missing entry, we may have to
-         * refresh it and re-examin it.
-         */
-        if (pChild->bObjType == KFSOBJ_TYPE_DIR)
-            pParent = (PKFSDIR)pChild;
-        else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
-        {
-            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
-            return NULL;
-        }
-        else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                 || pChild->uCacheGen == pCache->uGenerationMissing)
-        {
-            *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
-            return NULL;
-        }
-        else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
-            pParent = (PKFSDIR)pChild;
-        else
-            return NULL;
-    }
-
-    return NULL;
+    return kFsCacheLookupRelativeToDirW(pCache, (PKFSDIR)pChild, &pwszPath[offEnd + cwcSlashes],
+                                        cwcPath - offEnd - cwcSlashes, penmError);
 }
 
 
@@ -2312,7 +2385,8 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
     {
         PKFSUSERDATA pUserData = pObj->pUserDataHead;
         pObj->pUserDataHead = pUserData->pNext;
-        pUserData->pfnDestructor(pCache, pObj, pUserData);
+        if (pUserData->pfnDestructor)
+            pUserData->pfnDestructor(pCache, pObj, pUserData);
         kHlpFree(pUserData);
     }
 
@@ -2412,6 +2486,62 @@ KU32 kFsCacheObjRetain(PKFSOBJ pObj)
     cRefs = ++pObj->cRefs;
     kHlpAssert(cRefs < 16384);
     return cRefs;
+}
+
+
+/**
+ * Associates an item of user data with the given object.
+ *
+ * If the data needs cleaning up before being free, set the
+ * PKFSUSERDATA::pfnDestructor member of the returned structure.
+ *
+ * @returns Pointer to the user data on success.
+ *          NULL if out of memory or key already in use.
+ *
+ * @param   pCache              The cache.
+ * @param   pObj                The object.
+ * @param   uKey                The user data key.
+ * @param   cbUserData          The size of the user data.
+ */
+PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData)
+{
+    kHlpAssert(cbUserData >= sizeof(*pNew));
+    if (kFsCacheObjGetUserData(pCache, pObj, uKey) == NULL)
+    {
+        PKFSUSERDATA pNew = (PKFSUSERDATA)kHlpAllocZ(cbUserData);
+        if (pNew)
+        {
+            pNew->uKey          = uKey;
+            pNew->pfnDestructor = NULL;
+            pNew->pNext         = pObj->pUserDataHead;
+            pObj->pUserDataHead = pNew;
+            return pNew;
+        }
+    }
+
+    return NULL;
+}
+
+
+/**
+ * Retrieves an item of user data associated with the given object.
+ *
+ * @returns Pointer to the associated user data if found, otherwise NULL.
+ * @param   pCache              The cache.
+ * @param   pObj                The object.
+ * @param   uKey                The user data key.
+ */
+PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey)
+{
+    PKFSUSERDATA pCur;
+
+    kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+    kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+
+    for (pCur = pObj->pUserDataHead; pCur; pCur = pCur->pNext)
+        if (pCur->uKey == uKey)
+            return pCur;
+    return NULL;
 }
 
 
