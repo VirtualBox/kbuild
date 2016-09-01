@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2859 2016-09-01 16:34:31Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -423,6 +423,9 @@ extern MY_NTSTATUS (WINAPI * g_pfnNtClose)(HANDLE);
 extern MY_NTSTATUS (WINAPI * g_pfnNtCreateFile)(PHANDLE, MY_ACCESS_MASK, MY_OBJECT_ATTRIBUTES *, MY_IO_STATUS_BLOCK *,
                                                 PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 extern MY_NTSTATUS (WINAPI * g_pfnNtDeleteFile)(MY_OBJECT_ATTRIBUTES *);
+extern MY_NTSTATUS (WINAPI * g_pfnNtReadFile)(HANDLE hFile, HANDLE hEvent, MY_IO_APC_ROUTINE *pfnApc, PVOID pvApcCtx,
+                                              MY_IO_STATUS_BLOCK *, PVOID pvBuf, ULONG cbToRead, PLARGE_INTEGER poffFile,
+                                              PULONG  puKey);
 extern MY_NTSTATUS (WINAPI * g_pfnNtQueryInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *,
                                                           PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 extern MY_NTSTATUS (WINAPI * g_pfnNtQueryVolumeInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *,

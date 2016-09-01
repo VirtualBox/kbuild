@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -234,7 +234,8 @@ static __ptr_t dir_glob_opendir(const char *pszDir)
 static struct dirent *dir_glob_readdir(__ptr_t pvDir)
 {
     KMKNTOPENDIR *pDir = (KMKNTOPENDIR *)pvDir;
-    while (pDir->idxNext < pDir->pDir->cChildren)
+    KU32 const    cChildren = pDir->pDir->cChildren;
+    while (pDir->idxNext < cChildren)
     {
         PKFSOBJ pEntry = pDir->pDir->papChildren[pDir->idxNext++];
 
@@ -266,6 +267,22 @@ static struct dirent *dir_glob_readdir(__ptr_t pvDir)
             return &pDir->DirEnt;
         }
     }
+
+    /*
+     * Fake the '.' and '..' directories because they're not part of papChildren above.
+     */
+    if (pDir->idxNext < cChildren + 2)
+    {
+        pDir->idxNext++;
+        pDir->DirEnt.d_type    = DT_DIR;
+        pDir->DirEnt.d_namlen  = pDir->idxNext - cChildren;
+        pDir->DirEnt.d_reclen  = offsetof(struct dirent, d_name) + pDir->DirEnt.d_namlen;
+        pDir->DirEnt.d_name[0] = '.';
+        pDir->DirEnt.d_name[1] = '.';
+        pDir->DirEnt.d_name[pDir->DirEnt.d_namlen] = '\0';
+        return &pDir->DirEnt;
+    }
+
     return NULL;
 }
 
@@ -456,30 +473,36 @@ void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
  */
 int stat_only_mtime(const char *pszPath, struct stat *pStat)
 {
-    if (commands_started == 0)
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+    if (pPathObj)
     {
-        KFSLOOKUPERROR  enmError;
-        PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
-        if (pPathObj)
+        if (pPathObj->bObjType != KFSOBJ_TYPE_MISSING)
         {
-            if (pPathObj->bObjType != KFSOBJ_TYPE_MISSING)
-            {
-                kHlpAssert(pPathObj->fHaveStats); /* currently always true. */
-                pStat->st_mtime = pPathObj->Stats.st_mtime;
-                kFsCacheObjRelease(g_pFsCache, pPathObj);
-                return 0;
-            }
-
+            kHlpAssert(pPathObj->fHaveStats); /* currently always true. */
+            pStat->st_mtime = pPathObj->Stats.st_mtime;
             kFsCacheObjRelease(g_pFsCache, pPathObj);
-            errno = ENOENT;
+            return 0;
         }
-        else
-            errno =    enmError == KFSLOOKUPERROR_NOT_DIR
-                    || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
-                  ? ENOTDIR : ENOENT;
-        return -1;
+
+        kFsCacheObjRelease(g_pFsCache, pPathObj);
+        errno = ENOENT;
     }
-    /** @todo implement cache refreshing.   */
-    return birdStatFollowLink(pszPath, pStat);
+    else
+        errno =    enmError == KFSLOOKUPERROR_NOT_DIR
+                || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
+              ? ENOTDIR : ENOENT;
+    return -1;
+}
+
+
+/**
+ * Invalidate missing bits of the directory cache.
+ *
+ * This is called each time a make job completes.
+ */
+void dir_cache_invalid_missing(void)
+{
+    kFsCacheInvalidateMissing(g_pFsCache);
 }
 

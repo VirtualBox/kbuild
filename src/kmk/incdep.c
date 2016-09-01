@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2850 2016-08-30 16:06:31Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -30,6 +30,11 @@
 #ifdef __OS2__
 # define INCL_BASE
 # define INCL_ERRORS
+#endif
+#ifdef KBUILD_OS_WINDOWS
+# ifdef KMK
+#  define INCDEP_USE_KFSCACHE
+# endif
 #endif
 
 #include "make.h"
@@ -62,6 +67,11 @@
 # include <process.h>
 # include <Windows.h>
 # define PARSE_IN_WORKER
+#endif
+
+#ifdef INCDEP_USE_KFSCACHE
+# include "nt/kFsCache.h"
+extern PKFSCACHE g_pFsCache; /* dir-nt-bird.c for now */
 #endif
 
 #ifdef __OS2__
@@ -145,8 +155,12 @@ struct incdep
   struct incdep_recorded_file *recorded_file_head;
   struct incdep_recorded_file *recorded_file_tail;
 #endif
-
+#ifdef INCDEP_USE_KFSCACHE
+  /** Pointer to the fs cache object for this file (it exists and is a file). */
+  PKFSOBJ pFileObj;
+#else
   char name[1];
+#endif
 };
 
 
@@ -483,6 +497,24 @@ incdep_wait_todo (void)
 static int
 incdep_read_file (struct incdep *cur, struct floc *f)
 {
+#ifdef INCDEP_USE_KFSCACHE
+  size_t const cbFile = (size_t)cur->pFileObj->Stats.st_size;
+
+  assert(cur->pFileObj->fFlags);
+  cur->file_base = incdep_xmalloc (cur, cbFile + 1);
+  if (cur->file_base)
+    {
+      if (kFsCacheFileSimpleOpenReadClose (g_pFsCache, cur->pFileObj, 0, cur->file_base, cbFile))
+        {
+          cur->file_end = cur->file_base + cbFile;
+          cur->file_base[cbFile] = '\0';
+          return 0;
+        }
+      incdep_xfree (cur, cur->file_base);
+    }
+  error (f, "%s/%s: error reading file", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName);
+
+#else /* !INCDEP_USE_KFSCACHE */
   int fd;
   struct stat st;
 
@@ -525,6 +557,7 @@ incdep_read_file (struct incdep *cur, struct floc *f)
     error (f, "%s: fstat: %s", cur->name, strerror (errno));
 
   close (fd);
+#endif /* !INCDEP_USE_KFSCACHE */
   cur->file_base = cur->file_end = NULL;
   return -1;
 }
@@ -540,6 +573,9 @@ incdep_freeit (struct incdep *cur)
 #endif
 
   incdep_xfree (cur, cur->file_base);
+#ifdef INCDEP_USE_KFSCACHE
+  /** @todo release object ref some day... */
+#endif
   cur->next = NULL;
   free (cur);
 }
@@ -889,7 +925,11 @@ incdep_flush_recorded_instructions (struct incdep *cur)
   /* Display saved error. */
 
   if (cur->err_msg)
+#ifdef INCDEP_USE_KFSCACHE
+    error(NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName, cur->err_line_no, cur->err_msg);
+#else
     error(NILF, "%s(%d): %s", cur->name, cur->err_line_no, cur->err_msg);
+#endif
 
 
   /* define_variable_in_set */
@@ -966,7 +1006,11 @@ static void
 incdep_warn (struct incdep *cur, unsigned int line_no, const char *msg)
 {
   if (cur->worker_tid == -1)
+#ifdef INCDEP_USE_KFSCACHE
+    error (NILF, "%s/%s(%d): %s", cur->pFileObj->pParent->Obj.pszName, cur->pFileObj->pszName, line_no, msg);
+#else
     error (NILF, "%s(%d): %s", cur->name, line_no, msg);
+#endif
 #ifdef PARSE_IN_WORKER
   else
     {
@@ -1753,10 +1797,26 @@ eval_include_dep (const char *names, struct floc *f, enum incdep_op op)
 
   while ((name = find_next_token (&names_iterator, &name_len)) != 0)
     {
+#ifdef INCDEP_USE_KFSCACHE
+       KFSLOOKUPERROR enmError;
+       PKFSOBJ pFileObj = kFsCacheLookupWithLengthA (g_pFsCache, name, name_len, &enmError);
+       if (!pFileObj)
+         continue;
+       if (pFileObj->bObjType != KFSOBJ_TYPE_FILE)
+         {
+           kFsCacheObjRelease (g_pFsCache, pFileObj);
+           continue;
+         }
+
+       cur = xmalloc (sizeof (*cur));            /* not incdep_xmalloc here */
+       cur->pFileObj = pFileObj;
+#else
        cur = xmalloc (sizeof (*cur) + name_len); /* not incdep_xmalloc here */
-       cur->file_base = cur->file_end = NULL;
        memcpy (cur->name, name, name_len);
        cur->name[name_len] = '\0';
+#endif
+
+       cur->file_base = cur->file_end = NULL;
        cur->worker_tid = -1;
 #ifdef PARSE_IN_WORKER
        cur->err_line_no = 0;
