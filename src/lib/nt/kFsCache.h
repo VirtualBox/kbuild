@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2855 2016-08-31 21:21:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -230,7 +230,11 @@ typedef struct KFSDIR
     PKFSOBJHASH         paHashTab;
 
     /** Handle to the directory (we generally keep it open). */
+#ifndef DECLARE_HANDLE
+    KUPTR               hDir;
+#else
     HANDLE              hDir;
+#endif
     /** The device number we queried/inherited when opening it. */
     KU64                uDevNo;
 
@@ -417,9 +421,15 @@ PKFSOBJ     kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t con
                                   KU8 bObjType, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError);
+PKFSOBJ     kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath,
+                                         KFSLOOKUPERROR *penmError);
+PKFSOBJ     kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
+                                         KFSLOOKUPERROR *penmError);
 
 KU32        kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj);
 KU32        kFsCacheObjRetain(PKFSOBJ pObj);
+PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pPathObj, KUPTR uKey, KSIZE cbUserData);
+PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pPathObj, KUPTR uKey);
 
 PKFSCACHE   kFsCacheCreate(KU32 fFlags);
 void        kFsCacheDestroy(PKFSCACHE);

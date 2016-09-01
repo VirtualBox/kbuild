@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2804 2016-01-07 20:47:06Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -43,10 +43,10 @@
 #else
 # include <io.h>
 #endif
-#include "../../lib/k/kDefs.h"
-#include "../../lib/k/kTypes.h"
-#include "../../lib/k/kLdrFmts/pe.h"
-#include "../../lib/kDep.h"
+#include "k/kDefs.h"
+#include "k/kTypes.h"
+#include "k/kLdrFmts/pe.h"
+#include "kDep.h"
 #include "kmkbuiltin.h"
 
 

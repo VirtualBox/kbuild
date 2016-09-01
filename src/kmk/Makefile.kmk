@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2845 2016-08-30 08:20:03Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -220,7 +220,6 @@ kmk_SOURCES = \
 	arscan.c \
 	commands.c \
 	default.c \
-	dir.c \
 	expand.c \
 	file.c \
 	function.c \
@@ -241,6 +240,11 @@ kmk_SOURCES = \
        kmk_cc_exec.c \
 	kbuild.c \
 	kbuild-object.c
+ifeq ($(KBUILD_TARGET),win)
+ kmk_SOURCES += dir-nt-bird.c
+else
+ kmk_SOURCES += dir.c
+endif
 
 kmk_SOURCES.win = \
 	w32/subproc/sub_proc.c
