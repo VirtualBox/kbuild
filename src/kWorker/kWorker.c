@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2859 2016-09-01 16:34:31Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2860 2016-09-01 16:55:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -46,6 +46,7 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #include "nt/ntstuff.h"
 
 #include "nt/kFsCache.h"
+#include "quote_argv.h"
 
 
 /*********************************************************************************************************************************
@@ -4307,50 +4308,89 @@ static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle)
 }
 
 
+/**
+ * Creates a correctly quoted ANSI command line string from the given argv.
+ *
+ * @returns Pointer to the command line.
+ * @param   cArgs               Number of arguments.
+ * @param   papszArgs           The argument vector.
+ * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
+ * @param   pcbCmdLine          Where to return the command line length,
+ *                              including one terminator.
+ */
+static char *kwSandboxInitCmdLineFromArgv(KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange, KSIZE *pcbCmdLine)
+{
+    KU32    i;
+    KSIZE   cbCmdLine;
+    char   *pszCmdLine;
+
+    /* Make a copy of the argument vector that we'll be quoting. */
+    char **papszQuotedArgs = alloca(sizeof(papszArgs[0]) * (cArgs + 1));
+    kHlpMemCopy(papszQuotedArgs, papszArgs, sizeof(papszArgs[0]) * (cArgs + 1));
+
+    /* Quote the arguments that need it. */
+    quote_argv(cArgs, papszQuotedArgs, fWatcomBrainDamange, 0 /*leak*/);
+
+    /* figure out cmd line length. */
+    cbCmdLine = 0;
+    for (i = 0; i < cArgs; i++)
+        cbCmdLine += strlen(papszQuotedArgs[i]) + 1;
+    *pcbCmdLine = cbCmdLine;
+
+    pszCmdLine = (char *)kHlpAlloc(cbCmdLine + 1);
+    if (pszCmdLine)
+    {
+        char *psz = kHlpStrPCopy(pszCmdLine, papszQuotedArgs[0]);
+        if (papszQuotedArgs[0] != papszArgs[0])
+            free(papszQuotedArgs[0]);
+
+        for (i = 1; i < cArgs; i++)
+        {
+            *psz++ = ' ';
+            psz = kHlpStrPCopy(psz, papszQuotedArgs[i]);
+            if (papszQuotedArgs[i] != papszArgs[i])
+                free(papszQuotedArgs[i]);
+        }
+        kHlpAssert((KSIZE)(&psz[1] - pszCmdLine) == cbCmdLine);
+
+        *psz++ = '\0';
+        *psz++ = '\0';
+    }
+
+    return pszCmdLine;
+}
+
+
 
 static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
-                         KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+                         KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
                          KU32 cEnvVars, const char **papszEnvVars)
 {
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
-    char *psz;
     wchar_t *pwcPool;
     KSIZE cbStrings;
     KSIZE cwc;
+    KSIZE cbCmdLine;
     KU32 i;
 
     /* Simple stuff. */
-    g_Sandbox.rcExitCode    = 256;
-    g_Sandbox.pTool         = pTool;
-    g_Sandbox.idMainThread  = GetCurrentThreadId();
-    g_Sandbox.TibMainThread = *(PNT_TIB)NtCurrentTeb();
-    g_Sandbox.pgmptr        = (char *)pTool->pszPath;
-    g_Sandbox.wpgmptr       = (wchar_t *)pTool->pwszPath;
-    g_Sandbox.cArgs         = cArgs;
-    g_Sandbox.papszArgs     = (char **)papszArgs;
-
-    /*
-     * Create a command line from the given argv.
-     * ASSUME that it's correctly quoted by quote_argv.c already.
-     */
-    pSandbox->pszCmdLine = psz = (char *)kHlpAlloc(cbArgs + 1);
-    if (!psz)
+    pSandbox->rcExitCode    = 256;
+    pSandbox->pTool         = pTool;
+    pSandbox->idMainThread  = GetCurrentThreadId();
+    pSandbox->TibMainThread = *(PNT_TIB)NtCurrentTeb();
+    pSandbox->pgmptr        = (char *)pTool->pszPath;
+    pSandbox->wpgmptr       = (wchar_t *)pTool->pwszPath;
+    pSandbox->cArgs         = cArgs;
+    pSandbox->papszArgs     = (char **)papszArgs;
+    pSandbox->pszCmdLine    = kwSandboxInitCmdLineFromArgv(cArgs, papszArgs, fWatcomBrainDamange, &cbCmdLine);
+    if (!pSandbox->pszCmdLine)
         return KERR_NO_MEMORY;
-    psz = kHlpStrPCopy(psz, papszArgs[0]);
-    for (i = 1; i < cArgs; i++)
-    {
-        *psz++ = ' ';
-        psz = kHlpStrPCopy(psz, papszArgs[i]);
-    }
-    kHlpAssert((KSIZE)(&psz[1] - pSandbox->pszCmdLine) == cbArgs);
-    psz[0] = '\0';
-    psz[1] = '\0';
 
     /*
      * Convert command line and argv to UTF-16.
      * We assume each ANSI char requires a surrogate pair in the UTF-16 variant.
      */
-    pSandbox->papwszArgs = (wchar_t **)kHlpAlloc(sizeof(wchar_t *) * (pSandbox->cArgs + 2) + cbArgs * 2 * sizeof(wchar_t));
+    pSandbox->papwszArgs = (wchar_t **)kHlpAlloc(sizeof(wchar_t *) * (pSandbox->cArgs + 2) + cbCmdLine * 2 * sizeof(wchar_t));
     if (!pSandbox->papwszArgs)
         return KERR_NO_MEMORY;
     pwcPool = (wchar_t *)&pSandbox->papwszArgs[pSandbox->cArgs + 2];
@@ -4367,7 +4407,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     /*
      * Convert the commandline string to UTF-16, same pessimistic approach as above.
      */
-    cbStrings = (cbArgs + 1) * 2 * sizeof(wchar_t);
+    cbStrings = (cbCmdLine + 1) * 2 * sizeof(wchar_t);
     pSandbox->pwszCmdLine = kHlpAlloc(cbStrings);
     if (!pSandbox->pwszCmdLine)
         return KERR_NO_MEMORY;
@@ -4414,7 +4454,7 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 }
 
 
-static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
                          KU32 cEnvVars, const char **papszEnvVars)
 {
     int rcExit = 42;
@@ -4423,7 +4463,7 @@ static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KU32
     /*
      * Initialize the sandbox environment.
      */
-    rc = kwSandboxInit(&g_Sandbox, pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
+    rc = kwSandboxInit(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
     if (rc == 0)
     {
         /*
@@ -4530,12 +4570,12 @@ static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
  * @param   pszCwd          The current working directory of the job.
  * @param   cArgs           The number of arguments.
  * @param   papszArgs       The argument vector.
- * @param   cbArgs          The size of the argument strings and terminators.
+ * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
  * @param   cEnvVars        The number of environment variables.
  * @param   papszEnvVars    The enviornment vector.
  */
 static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCwd,
-                                    KU32 cArgs, const char **papszArgs, KU32 cbArgs,
+                                    KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
                                     KU32 cEnvVars, const char **papszEnvVars)
 {
     int rcExit;
@@ -4579,7 +4619,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
                 if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
                 {
                     KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                    rcExit = kwSandboxExec(pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
+                    rcExit = kwSandboxExec(pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
                 }
                 else
                 {
@@ -4661,7 +4701,6 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                 char const **papszArgs = kHlpAlloc((cArgs + 1) * sizeof(papszArgs[0]));
                 if (papszArgs)
                 {
-                    KU32 cbArgs;
                     KU32 i;
                     for (i = 0; i < cArgs; i++)
                     {
@@ -4678,7 +4717,6 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
 
                     }
                     papszArgs[cArgs] = 0;
-                    cbArgs = (KU32)(pszMsg - papszArgs[0]) - cArgs + 1;
 
                     /* Environment variable count. */
                     if (sizeof(KU32) < cbMsg)
@@ -4717,11 +4755,12 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                 {
                                     if (cbMsg == 0)
                                     {
+                                        KBOOL fWatcomBrainDamange = K_FALSE; /** @todo fix fWatcomBrainDamange */
                                         /*
                                          * The next step.
                                          */
                                         rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
-                                                                          cArgs, papszArgs, cbArgs,
+                                                                          cArgs, papszArgs, fWatcomBrainDamange,
                                                                           cEnvVars, papszEnvVars);
                                     }
                                     else
@@ -4852,7 +4891,6 @@ static int kwTestRun(int argc, char **argv)
     int         cRepeats;
     char        szCwd[MAX_PATH];
     const char *pszCwd = getcwd(szCwd, sizeof(szCwd));
-    KU32        cbArgs;
     KU32        cEnvVars;
 
     /*
@@ -4897,17 +4935,15 @@ static int kwTestRun(int argc, char **argv)
     /*
      * Do the job.
      */
-    cbArgs = 0;
-    for (j = i; j < argc; j++)
-        cbArgs += (KU32)strlen(argv[j]) + 1;
-
     cEnvVars = 0;
     while (environ[cEnvVars] != NULL)
         cEnvVars++;
 
     for (j = 0; j < cRepeats; j++)
     {
-        rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd, argc - i, &argv[i], cbArgs, cEnvVars, environ);
+        rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd,
+                                          argc - i, &argv[i], K_FALSE /* fWatcomBrainDamange*/,
+                                          cEnvVars, environ);
     }
 
     return rcExit;
