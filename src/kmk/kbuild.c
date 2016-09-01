@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2837 2016-08-24 12:11:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -28,6 +28,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#define NO_MEMCOPY_HACK
 #include "make.h"
 #include "filedef.h"
 #include "variable.h"

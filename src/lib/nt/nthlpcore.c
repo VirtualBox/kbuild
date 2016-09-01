@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2859 2016-09-01 16:34:31Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -45,6 +45,9 @@ MY_NTSTATUS (WINAPI *g_pfnNtClose)(HANDLE);
 MY_NTSTATUS (WINAPI *g_pfnNtCreateFile)(PHANDLE, MY_ACCESS_MASK, MY_OBJECT_ATTRIBUTES *, MY_IO_STATUS_BLOCK *,
                                         PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 MY_NTSTATUS (WINAPI *g_pfnNtDeleteFile)(MY_OBJECT_ATTRIBUTES *);
+MY_NTSTATUS (WINAPI *g_pfnNtReadFile)(HANDLE hFile, HANDLE hEvent, MY_IO_APC_ROUTINE *pfnApc, PVOID pvApcCtx,
+                                      MY_IO_STATUS_BLOCK *, PVOID pvBuf, ULONG cbToRead, PLARGE_INTEGER poffFile,
+                                      PULONG puKey);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryVolumeInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FS_INFORMATION_CLASS);
 MY_NTSTATUS (WINAPI *g_pfnNtQueryDirectoryFile)(HANDLE, HANDLE, MY_IO_APC_ROUTINE *, PVOID, MY_IO_STATUS_BLOCK *,
@@ -68,6 +71,7 @@ static struct
     { (FARPROC *)&g_pfnNtClose,                         "NtClose" },
     { (FARPROC *)&g_pfnNtCreateFile,                    "NtCreateFile" },
     { (FARPROC *)&g_pfnNtDeleteFile,                    "NtDeleteFile" },
+    { (FARPROC *)&g_pfnNtReadFile,                      "NtReadFile" },
     { (FARPROC *)&g_pfnNtQueryInformationFile,          "NtQueryInformationFile" },
     { (FARPROC *)&g_pfnNtQueryVolumeInformationFile,    "NtQueryVolumeInformationFile" },
     { (FARPROC *)&g_pfnNtQueryDirectoryFile,            "NtQueryDirectoryFile" },
