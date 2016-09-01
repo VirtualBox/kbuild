@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2859 2016-09-01 16:34:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -4377,8 +4377,10 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pPeb->ProcessParameters->CommandLine.Buffer = pSandbox->pwszCmdLine;
     pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
 
-
-/** @todo cache generation increment.   */
+    /*
+     * Invalidate the missing cache entries.
+     */
+    kFsCacheInvalidateMissing(g_pFsCache);
     return 0;
 }
 

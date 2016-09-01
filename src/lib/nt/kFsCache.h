@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2859 2016-09-01 16:34:31Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -238,6 +238,11 @@ typedef struct KFSDIR
     /** The device number we queried/inherited when opening it. */
     KU64                uDevNo;
 
+    /** The last write time sampled the last time the directory was refreshed.
+     * @remarks May differ from st_mtim because it will be updated when the
+     *          parent directory is refreshed. */
+    KI64                iLastWrite;
+
     /** Set if populated. */
     KBOOL               fPopulated;
 } KFSDIR;
@@ -291,7 +296,9 @@ typedef struct KFSHASHA
     /** Path hash value. */
     KU32                uHashPath;
     /** The path length. */
-    KU32                cchPath;
+    KU16                cchPath;
+    /** Set if aboslute path.   */
+    KBOOL               fAbsolute;
     /** The cache generation ID. */
     KU32                uCacheGen;
     /** The lookup error (when pFsObj is NULL). */
@@ -318,7 +325,9 @@ typedef struct KFSHASHW
     /** Path hash value. */
     KU32                uHashPath;
     /** The path length (in wchar_t units). */
-    KU32                cwcPath;
+    KU16                cwcPath;
+    /** Set if aboslute path.   */
+    KBOOL               fAbsolute;
     /** The cache generation ID. */
     KU32                uCacheGen;
     /** The lookup error (when pFsObj is NULL). */
@@ -441,5 +450,7 @@ KBOOL       kFsCacheObjGetFullShortPathW(PKFSOBJ pObj, wchar_t *pwszPath, KSIZE 
 
 PKFSCACHE   kFsCacheCreate(KU32 fFlags);
 void        kFsCacheDestroy(PKFSCACHE);
+void        kFsCacheInvalidateMissing(PKFSCACHE pFsCache);
+void        kFsCacheInvalidateAll(PKFSCACHE pFsCache);
 
 #endif
