@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -211,11 +211,15 @@ static __ptr_t dir_glob_opendir(const char *pszDir)
     {
         if (pDirObj->bObjType == KFSOBJ_TYPE_DIR)
         {
-            KMKNTOPENDIR *pDir = xmalloc(sizeof(*pDir));
-            pDir->pDir    = (PKFSDIR)pDirObj;
-            pDir->idxNext = 0;
-            return pDir;
+            if (kFsCacheDirEnsurePopuplated(g_pFsCache, (PKFSDIR)pDirObj, NULL))
+            {
+                KMKNTOPENDIR *pDir = xmalloc(sizeof(*pDir));
+                pDir->pDir    = (PKFSDIR)pDirObj;
+                pDir->idxNext = 0;
+                return pDir;
+            }
         }
+        kFsCacheObjRelease(g_pFsCache, pDirObj);
     }
     return NULL;
 }
@@ -329,8 +333,13 @@ static int dir_glob_lstat(const char *pszPath, struct stat *pStat)
             return 0;
         }
         kFsCacheObjRelease(g_pFsCache, pPathObj);
+        errno = ENOENT;
     }
-    errno = ENOENT;
+    else
+        errno =    enmError == KFSLOOKUPERROR_NOT_DIR
+                || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
+              ? ENOTDIR : ENOENT;
+
     return -1;
 }
 
@@ -435,5 +444,42 @@ void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
     }
 
     nt_fullpath(pszPath, pszFull, cbFull);
+}
+
+
+/**
+ * Special stat call used by remake.c
+ *
+ * @returns 0 on success, -1 + errno on failure.
+ * @param   pszPath             The path to stat.
+ * @param   pStat               Where to return the mtime field only.
+ */
+int stat_only_mtime(const char *pszPath, struct stat *pStat)
+{
+    if (commands_started == 0)
+    {
+        KFSLOOKUPERROR  enmError;
+        PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+        if (pPathObj)
+        {
+            if (pPathObj->bObjType != KFSOBJ_TYPE_MISSING)
+            {
+                kHlpAssert(pPathObj->fHaveStats); /* currently always true. */
+                pStat->st_mtime = pPathObj->Stats.st_mtime;
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                return 0;
+            }
+
+            kFsCacheObjRelease(g_pFsCache, pPathObj);
+            errno = ENOENT;
+        }
+        else
+            errno =    enmError == KFSLOOKUPERROR_NOT_DIR
+                    || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
+                  ? ENOTDIR : ENOENT;
+        return -1;
+    }
+    /** @todo implement cache refreshing.   */
+    return birdStatFollowLink(pszPath, pStat);
 }
 

@@ -1783,7 +1783,12 @@ name_mtime (const char *name)
   struct stat st;
   int e;
 
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+  extern int stat_only_mtime(const char *pszPath, struct stat *pStat);
+  e = stat_only_mtime (name, &st);
+#else
   EINTRLOOP (e, stat (name, &st));
+#endif
   if (e == 0)
     mtime = FILE_TIMESTAMP_STAT_MODTIME (name, st);
   else if (errno == ENOENT || errno == ENOTDIR)

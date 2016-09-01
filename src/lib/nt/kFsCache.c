@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2857 2016-09-01 03:39:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -493,11 +493,14 @@ static KBOOL kFsCacheHasDotDotA(const char *pszPath, KSIZE cchPath)
     while (pchDot)
     {
         if (pchDot[1] != '.')
-            pchDot = (const char *)kHlpMemChr(pchDot + 1, '.', &pszPath[cchPath] - pchDot - 1);
+        {
+            pchDot++;
+            pchDot = (const char *)kHlpMemChr(pchDot, '.', &pszPath[cchPath] - pchDot);
+        }
         else
         {
             char ch;
-            if (   (ch = pchDot[2]) == '\0'
+            if (   (ch = pchDot[2]) != '\0'
                 && IS_SLASH(ch))
             {
                 if (pchDot == pszPath)
@@ -528,11 +531,14 @@ static KBOOL kFsCacheHasDotDotW(const wchar_t *pwszPath, KSIZE cwcPath)
     while (pwcDot)
     {
         if (pwcDot[1] != '.')
-            pwcDot = wmemchr(pwcDot + 1, '.', &pwszPath[cwcPath] - pwcDot - 1);
+        {
+            pwcDot++;
+            pwcDot = wmemchr(pwcDot, '.', &pwszPath[cwcPath] - pwcDot);
+        }
         else
         {
             wchar_t wch;
-            if (   (wch = pwcDot[2]) == '\0'
+            if (   (wch = pwcDot[2]) != '\0'
                 && IS_SLASH(wch))
             {
                 if (pwcDot == pwszPath)
@@ -1154,6 +1160,28 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
     kHlpAssertMsgFailed(("%#x\n", rcNt));
     *penmError = KFSLOOKUPERROR_DIR_READ_ERROR;
     return K_TRUE;
+}
+
+
+/**
+ * Does the initial directory populating or refreshes it if it has been
+ * invalidated.
+ *
+ * This assumes the parent directory is opened.
+ *
+ * @returns K_TRUE on success, K_FALSE on error.
+ * @param   pCache              The cache.
+ * @param   pDir                The directory.
+ * @param   penmError           Where to store K_FALSE explanation.  Optional.
+ */
+KBOOL kFsCacheDirEnsurePopuplated(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR *penmError)
+{
+    KFSLOOKUPERROR enmIgnored;
+    if (   pDir->fPopulated
+        && (   pDir->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+            || pDir->Obj.uCacheGen == pCache->uGeneration) )
+        return K_TRUE;
+    return kFsCachePopuplateOrRefreshDir(pCache, pDir, penmError ? penmError : &enmIgnored);
 }
 
 

@@ -528,7 +528,11 @@ eval_makefile (const char *filename, int flags)
   {
     void *stream_buf = NULL;
     struct stat st;
+# ifdef KBUILD_OS_WINDOWS
+    if (!birdStatOnFdJustSize(fileno(ebuf.fp), &st.st_size))
+# else
     if (!fstat (fileno (ebuf.fp), &st))
+# endif
       {
         int stream_buf_size = 256*1024;
         if (st.st_size < stream_buf_size)
