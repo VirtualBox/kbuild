@@ -1,4 +1,4 @@
-/* $Id: ntstat.h 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.h 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat implementation and wrappers.
  */
@@ -62,7 +62,8 @@ typedef struct BirdStat
     unsigned __int16    st_rdev;
     __int16             st_uid;
     __int16             st_gid;
-    unsigned __int16    st_padding1[3];
+    unsigned __int16    st_padding1;
+    unsigned __int32    st_attribs;
     unsigned __int32    st_blksize;
     __int64             st_blocks;
 } BirdStat_T;

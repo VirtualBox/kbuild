@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2844 2016-08-29 16:31:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -30,7 +30,6 @@ include $(PATH_KBUILD)/subheader.kmk
 
 PROGRAMS += kWorker
 kWorker_TEMPLATE = BIN-STATIC-THREADED
-kWorker_INCS = kStuff/include
 kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
 kWorker_SOURCES = kWorker.c
@@ -63,7 +62,8 @@ kWorkerLib_SOURCES.win = \
        nt/nthlpfs.c \
        nt/ntdir.c \
        nt/ntstat.c \
-       nt/ntunlink.c
+       nt/ntunlink.c \
+       nt/kFsCache.c
 kbuild_version.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 #
@@ -73,6 +73,7 @@ LIBRARIES += kStuff
 kStuff_TEMPLATE = LIB-STATIC-THREADED
 kStuff_DEFS.debug = K_STRICT
 kStuff_INCS = kStuff/include
+kStuff_DEFPATH = $(PATH_ROOT)/src/lib
 
 # kLdr
 kStuff_SOURCES += \

@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -43,17 +43,14 @@
 /* lib/nt_fullpath.c */
 extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 
-#include <Windows.h>
-#include <winternl.h>
+#include "nt/ntstuff.h"
 
+#include "nt/kFsCache.h"
 
 
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
-/** Special KWFSOBJ::uCacheGen number indicating that it does not apply. */
-#define KFSWOBJ_CACHE_GEN_IGNORE        KU32_MAX
-
 /** String constant comma length.   */
 #define TUPLE(a_sz)                     a_sz, sizeof(a_sz) - 1
 
@@ -94,6 +91,12 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #else
 # define KWFS_TEMP_FILE_MAX             (64*1024*1024)
 #endif
+
+
+/** User data key for tools. */
+#define KW_DATA_KEY_TOOL                (~(KUPTR)16381)
+/** User data key for a cached file. */
+#define KW_DATA_KEY_CACHED_FILE         (~(KUPTR)65521)
 
 
 /*********************************************************************************************************************************
@@ -193,32 +196,13 @@ typedef struct KWDYNLOAD
 } KWDYNLOAD;
 
 
-typedef struct KWFSOBJ *PKWFSOBJ;
-typedef struct KWFSOBJ
+/**
+ * A cached file.
+ */
+typedef struct KFSWCACHEDFILE
 {
-    /** The object name.  (Allocated after the structure.) */
-    const char         *pszName;
-    /** The UTF-16 object name.  (Allocated after the structure.) */
-    const wchar_t      *pwszName;
-    /** The length of pszName. */
-    KU16                cchName;
-    /** The length of UTF-16 (in wchar_t's). */
-    KU16                cwcName;
-
-    /** The number of child objects. */
-    KU32                cChildren;
-    /** Child objects. */
-    PKWFSOBJ           *papChildren;
-    /** Pointer to the parent. */
-    PKWFSOBJ            pParent;
-
-    /** The cache generation, KFSWOBJ_CACHE_GEN_IGNORE. */
-    KU32                uCacheGen;
-    /** The GetFileAttributes result for the file.
-     * FILE_ATTRIBUTE_XXX or INVALID_FILE_ATTRIBUTES. */
-    KU32                fAttribs;
-    /** The GetLastError() for INVALI_FILE_ATTRIBUTES. */
-    KU32                uLastError;
+    /** The user data core. */
+    KFSUSERDATA         Core;
 
     /** Cached file handle. */
     HANDLE              hCached;
@@ -226,75 +210,13 @@ typedef struct KWFSOBJ
     KU32                cbCached;
     /** Cached file content. */
     KU8                *pbCached;
-} KWFSOBJ;
 
-
-/** Pointer to an ANSI path hash table entry. */
-typedef struct KWFSHASHA *PKWFSHASHA;
-/**
- * ANSI file system path hash table entry.
- * The path hash table allows us to skip parsing and walking a path.
- */
-typedef struct KWFSHASHA
-{
-    /** Next entry with the same hash table slot. */
-    PKWFSHASHA          pNext;
-    /** Path hash value. */
-    KU32                uHashPath;
-    /** The path length. */
-    KU32                cchPath;
-    /** The path.  (Allocated after the structure.) */
-    const char         *pszPath;
-    /** Pointer to the matching FS object. */
-    PKWFSOBJ            pFsObj;
-} KWFSHASHA;
-
-
-/** Pointer to an UTF-16 path hash table entry. */
-typedef struct KWFSHASHW *PKWFSHASHW;
-/**
- * UTF-16 file system path hash table entry. The path hash table allows us
- * to skip parsing and walking a path.
- */
-typedef struct KWFSHASHW
-{
-    /** Next entry with the same hash table slot. */
-    PKWFSHASHW          pNext;
-    /** Path hash value. */
-    KU32                uHashPath;
-    /** The path length (in wchar_t units). */
-    KU32                cwcPath;
-    /** The path.  (Allocated after the structure.) */
-    const wchar_t      *pwszPath;
-    /** Pointer to the matching FS object. */
-    PKWFSOBJ            pFsObj;
-} KWFSHASHW;
-
-
-
-/** Pointer to a normalized path hash table entry. */
-typedef struct KWFSNORMHASHA *PKWFSNORMHASHA;
-/**
- * Normalized path hash table entry.
- *
- * Note! This looks like it's duplicating KWFSHASHW/KWFSHASHA/KWFSOBJ, but
- *       it also handles paths that not cachable.
- */
-typedef struct KWFSNORMHASHA
-{
-    /** Next entry with the same hash table slot. */
-    PKWFSNORMHASHA      pNext;
-    /** The input path. */
-    const char         *pszPath;
-    /** The length of the input path. */
-    KU16                cchPath;
-    /** The length of the normalized path. */
-    KU16                cchNormPath;
-    /** The hash. */
-    KU32                uHashPath;
-    /** The normalized path (variable size). */
-    char                szNormPath[1];
-} KWFSNORMHASHA;
+    /** Circular self reference. Prevents the object from ever going away and
+     * keeps it handy for debugging. */
+    PKFSOBJ             pFsObj;
+} KFSWCACHEDFILE;
+/** Pointe to a cached filed. */
+typedef KFSWCACHEDFILE *PKFSWCACHEDFILE;
 
 
 typedef struct KWFSTEMPFILESEG *PKWFSTEMPFILESEG;
@@ -357,7 +279,7 @@ typedef struct KWHANDLE
     union
     {
         /** The file system object.   */
-        PKWFSOBJ            pFsObj;
+        PKFSWCACHEDFILE     pCachedFile;
         /** Temporary file handle or mapping handle. */
         PKWFSTEMPFILE       pTempFile;
     } u;
@@ -382,19 +304,21 @@ typedef enum KWTOOLHINT
     KWTOOLHINT_END
 } KWTOOLHINT;
 
-typedef struct KWTOOL *PKWTOOL;
+
+/**
+ * A kWorker tool.
+ */
 typedef struct KWTOOL
 {
-    /** Pointer to the next in the hash collision chain. */
-    PKWTOOL             pNext;
+    /** The user data core structure. */
+    KFSUSERDATA         Core;
+
     /** The normalized path to the program. */
     const char         *pszPath;
-    /** The hash of the program path. */
-    KU32                uHashPath;
-    /** The kind of tool. */
-    KWTOOLTYPE          enmType;
     /** UTF-16 version of pszPath. */
     wchar_t const      *pwszPath;
+    /** The kind of tool. */
+    KWTOOLTYPE          enmType;
 
     union
     {
@@ -410,6 +334,8 @@ typedef struct KWTOOL
         } Sandboxed;
     } u;
 } KWTOOL;
+/** Pointer to a tool. */
+typedef struct KWTOOL *PKWTOOL;
 
 
 typedef struct KWSANDBOX *PKWSANDBOX;
@@ -506,52 +432,10 @@ static KWSANDBOX    g_Sandbox;
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
 
-/** Tool hash table. */
-static PKWTOOL      g_apTools[63];
-
-/** Special file system root (parent to the drive letters). */
-static KWFSOBJ      g_FsRoot =
-{
-    /* .pszName     = */ "",
-    /* .pwszName    = */ L"",
-    /* .cchName     = */ 0,
-    /* .cwcName     = */ 0,
-    /* .cChildren   = */ 0,
-    /* .papChildren = */ NULL,
-    /* .pParent     = */ NULL,
-    /* .uCacheGen   = */ KFSWOBJ_CACHE_GEN_IGNORE,
-    /* .fAttribs    = */ FILE_ATTRIBUTE_DIRECTORY,
-    /* .uLastError  = */ ERROR_PATH_NOT_FOUND,
-    /* .hCached     = */ INVALID_HANDLE_VALUE,
-    /* .cbCached    = */ 0,
-    /* .pbCached    = */ NULL,
-};
-/** File system hash table for ANSI filename strings. */
-static PKWFSHASHA   g_apFsAnsiPaths[1021];
-/** File system hash table for UTF-16 filename strings. */
-static PKWFSHASHW   g_apFsUtf16Paths[1021];
-/** Cached normalized path results. */
-static PKWFSNORMHASHA g_apFsNormalizedPathsA[1021];
-/** Special file system object returned if the path is invalid. */
-static KWFSOBJ      g_FsPathNotFound =
-{
-    /* .pszName     = */ "",
-    /* .pwszName    = */ L"",
-    /* .cchName     = */ 0,
-    /* .cwcName     = */ 0,
-    /* .cChildren   = */ 0,
-    /* .papChildren = */ NULL,
-    /* .pParent     = */ NULL,
-    /* .uCacheGen   = */ KFSWOBJ_CACHE_GEN_IGNORE,
-    /* .fAttribs    = */ FILE_ATTRIBUTE_DIRECTORY,
-    /* .uLastError  = */ ERROR_PATH_NOT_FOUND,
-    /* .hCached     = */ INVALID_HANDLE_VALUE,
-    /* .cbCached    = */ 0,
-    /* .pbCached    = */ NULL,
-};
-/** The cache generation number, incremented for each sandboxed execution.
- * This is used to invalid negative results from parts of the file system. */
-static KU32         g_uFsCacheGeneration = 0;
+/** The file system cache. */
+static PKFSCACHE    g_pFsCache;
+/** The current directory (referenced). */
+static PKFSOBJ      g_pCurDirObj = NULL;
 
 /** Verbosity level. */
 static int          g_cVerbose = 2;
@@ -579,7 +463,6 @@ static KU8          g_abDefLdBuf[16*1024*1024];
 *********************************************************************************************************************************/
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
-static PKWFSOBJ kwFsLookupA(const char *pszPath);
 static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle);
 
 
@@ -682,6 +565,23 @@ static void kwErrPrintf(const char *pszFormat, ...)
     va_start(va, pszFormat);
     kwErrPrintfV(pszFormat, va);
     va_end(va);
+}
+
+
+/**
+ * Error printing.
+ * @return  rc;
+ * @param   rc                  Return value
+ * @param   pszFormat           Message format string.
+ * @param   ...                 Format argument.
+ */
+static int kwErrPrintfRc(int rc, const char *pszFormat, ...)
+{
+    va_list va;
+    va_start(va, pszFormat);
+    kwErrPrintfV(pszFormat, va);
+    va_end(va);
+    return rc;
 }
 
 
@@ -907,72 +807,18 @@ static DWORD kwStrCopyStyle1(char const *pszSrc, char *pszDst, KSIZE cbDst)
  */
 static int kwPathNormalize(const char *pszPath, char *pszNormPath, KSIZE cbNormPath)
 {
-    char           *pchSlash;
-    KSIZE           cchNormPath;
-
-    /*
-     * We hash these to speed stuff up (nt_fullpath isn't cheap and we're
-     * gonna have many repeat queries and assume nobody do case changes to
-     * anything essential while kmk is running).
-     */
-    KU32            uHashPath;
-    KU32            cchPath    = (KU32)kwStrHashEx(pszPath, &uHashPath);
-    KU32 const      idxHashTab = uHashPath % K_ELEMENTS(g_apFsNormalizedPathsA);
-    PKWFSNORMHASHA  pHashEntry = g_apFsNormalizedPathsA[idxHashTab];
-    if (pHashEntry)
+    KFSLOOKUPERROR enmError;
+    PKFSOBJ pFsObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+    if (pFsObj)
     {
-        do
-        {
-            if (   pHashEntry->uHashPath == uHashPath
-                && pHashEntry->cchPath   == cchPath
-                && kHlpMemComp(pHashEntry->pszPath, pszPath, cchPath) == 0)
-            {
-                if (cbNormPath > pHashEntry->cchNormPath)
-                {
-                    KWFS_LOG(("kwPathNormalize(%s) - hit\n", pszPath));
-                    kHlpMemCopy(pszNormPath, pHashEntry->szNormPath, pHashEntry->cchNormPath + 1);
-                    return 0;
-                }
-                return KERR_BUFFER_OVERFLOW;
-            }
-            pHashEntry = pHashEntry->pNext;
-        } while (pHashEntry);
+        KBOOL fRc;
+        fRc = kFsCacheObjGetFullPathA(pFsObj, pszNormPath, cbNormPath, '\\');
+        kFsCacheObjRelease(g_pFsCache, pFsObj);
+        if (fRc)
+            return 0;
+        return KERR_BUFFER_OVERFLOW;
     }
-
-    /*
-     * Do it the slow way.
-     */
-    nt_fullpath(pszPath, pszNormPath, cbNormPath);
-    /** @todo nt_fullpath overflow handling?!?!?   */
-
-    pchSlash = kHlpStrChr(pszNormPath, '/');
-    while (pchSlash)
-    {
-        *pchSlash = '\\';
-        pchSlash = kHlpStrChr(pchSlash + 1, '/');
-    }
-
-    /*
-     * Create a new hash table entry (ignore failures).
-     */
-    cchNormPath = kHlpStrLen(pszNormPath);
-    if (cchNormPath < KU16_MAX && cchPath < KU16_MAX)
-    {
-        pHashEntry = (PKWFSNORMHASHA)kHlpAlloc(sizeof(*pHashEntry) + cchNormPath + 1 + cchPath + 1);
-        if (pHashEntry)
-        {
-            pHashEntry->cchNormPath = (KU16)cchNormPath;
-            pHashEntry->cchPath     = (KU16)cchPath;
-            pHashEntry->uHashPath   = uHashPath;
-            pHashEntry->pszPath     = (char *)kHlpMemCopy(&pHashEntry->szNormPath[cchNormPath + 1], pszPath, cchPath + 1);
-            kHlpMemCopy(pHashEntry->szNormPath, pszNormPath, cchNormPath + 1);
-
-            pHashEntry->pNext = g_apFsNormalizedPathsA[idxHashTab];
-            g_apFsNormalizedPathsA[idxHashTab] = pHashEntry;
-        }
-    }
-
-    return 0;
+    return KERR_FILE_NOT_FOUND;
 }
 
 
@@ -1060,10 +906,11 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
         {
             KSIZE idx = pMod->u.Manual.cImpMods;
             while (idx-- > 0)
-            {
-                kwLdrModuleRelease(pMod->u.Manual.apImpMods[idx]);
-                pMod->u.Manual.apImpMods[idx] = NULL;
-            }
+                if (pMod->u.Manual.apImpMods[idx])
+                {
+                    kwLdrModuleRelease(pMod->u.Manual.apImpMods[idx]);
+                    pMod->u.Manual.apImpMods[idx] = NULL;
+                }
         }
 
         /* Free our resources. */
@@ -1565,11 +1412,13 @@ static KBOOL kwLdrModuleIsRegularFile(const char *pszPath)
         && (pszPath[cchPath - 2] == 'l' || pszPath[cchPath - 2] == 'L')
         && (pszPath[cchPath - 1] == 'l' || pszPath[cchPath - 1] == 'L') )
     {
-        PKWFSOBJ pFsObj = kwFsLookupA(pszPath);
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszPath, &enmError);
         if (pFsObj)
         {
-            if (!(pFsObj->fAttribs & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE))) /* also checks invalid */
-                return K_TRUE;
+            KBOOL fRc = pFsObj->bObjType == KFSOBJ_TYPE_FILE;
+            kFsCacheObjRelease(g_pFsCache, pFsObj);
+            return fRc;
         }
     }
     else
@@ -1761,35 +1610,42 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
  * Creates a tool entry and inserts it.
  *
  * @returns Pointer to the tool entry.  NULL on failure.
- * @param   pszTool             The normalized path to the tool.
- * @param   uHashPath           The hash of the tool path.
- * @param   idxHashTab          The hash table index of the tool.
+ * @param   pToolFsObj          The file object of the tool.  The created tool
+ *                              will be associated with it.
+ *
+ *                              A reference is donated by the caller and must be
+ *                              released.
  */
-static PKWTOOL kwToolEntryCreate(const char *pszTool, KU32 uHashPath, unsigned idxHashTab)
+static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj)
 {
-    KSIZE   cbTool = kHlpStrLen(pszTool) + 1;
-    PKWTOOL pTool  = (PKWTOOL)kHlpAllocZ(sizeof(*pTool) + cbTool + 1 + cbTool * 2 * sizeof(wchar_t));
+    KSIZE   cwcPath = pToolFsObj->cwcParent + pToolFsObj->cwcName + 1;
+    KSIZE   cbPath  = pToolFsObj->cchParent + pToolFsObj->cchName + 1;
+    PKWTOOL pTool   = (PKWTOOL)kFsCacheObjAddUserData(g_pFsCache, pToolFsObj, KW_DATA_KEY_TOOL,
+                                                      sizeof(*pTool) + cwcPath * sizeof(wchar_t) + cbPath);
     if (pTool)
     {
-        pTool->pszPath   = (char *)kHlpMemCopy(pTool + 1, pszTool, cbTool);
-        pTool->pwszPath  = (wchar_t *)(pTool->pszPath + cbTool + (cbTool & 1));
-        kwStrToUtf16(pTool->pszPath, (wchar_t *)pTool->pwszPath, cbTool * 2);
-        pTool->uHashPath = uHashPath;
-        pTool->enmType   = KWTOOLTYPE_SANDBOXED;
+        KBOOL fRc;
+        pTool->pwszPath = (wchar_t const *)(pTool + 1);
+        fRc = kFsCacheObjGetFullPathW(pToolFsObj, (wchar_t *)pTool->pwszPath, cwcPath, '\\');
+        kHlpAssert(fRc); K_NOREF(fRc);
 
-        pTool->u.Sandboxed.pExe = kwLdrModuleCreateNonNative(pszTool, uHashPath, K_TRUE /*fExe*/, NULL);
+        pTool->pszPath = (char const *)&pTool->pwszPath[cwcPath];
+        fRc = kFsCacheObjGetFullPathA(pToolFsObj, (char *)pTool->pszPath, cbPath, '\\');
+        kHlpAssert(fRc);
+
+        pTool->enmType = KWTOOLTYPE_SANDBOXED;
+        pTool->u.Sandboxed.pExe = kwLdrModuleCreateNonNative(pTool->pszPath, kwStrHash(pTool->pszPath), K_TRUE /*fExe*/, NULL);
         if (!pTool->u.Sandboxed.pExe)
             pTool->enmType = KWTOOLTYPE_EXEC;
-        else if (kHlpStrICompAscii(pTool->u.Sandboxed.pExe->pLdrMod->pszName, "cl.exe") == 0)
+        else if (kHlpStrICompAscii(pToolFsObj->pszName, "cl.exe") == 0)
             pTool->u.Sandboxed.enmHint = KWTOOLHINT_VISUAL_CPP_CL;
         else
             pTool->u.Sandboxed.enmHint = KWTOOLHINT_NONE;
 
-        /* Link the tool. */
-        pTool->pNext = g_apTools[idxHashTab];
-        g_apTools[idxHashTab] = pTool;
+        kFsCacheObjRelease(g_pFsCache, pToolFsObj);
         return pTool;
     }
+    kFsCacheObjRelease(g_pFsCache, pToolFsObj);
     return NULL;
 }
 
@@ -1803,30 +1659,27 @@ static PKWTOOL kwToolEntryCreate(const char *pszTool, KU32 uHashPath, unsigned i
 static PKWTOOL kwToolLookup(const char *pszExe)
 {
     /*
-     * Normalize the path and look up the tool in the g_apTools hash table.
+     * We associate the tools instances with the file system objects.
      */
-    char szNormPath[4096];
-    int rc = kwPathNormalize(pszExe, szNormPath, sizeof(szNormPath));
-    if (rc == 0)
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pToolFsObj = kFsCacheLookupA(g_pFsCache, pszExe, &enmError);
+    if (pToolFsObj)
     {
-        KU32     uHashPath = kwStrHash(szNormPath);
-        unsigned idxHash   = uHashPath % K_ELEMENTS(g_apTools);
-        PKWTOOL  pTool     = g_apTools[idxHash];
-        if (pTool)
+        if (pToolFsObj->bObjType == KFSOBJ_TYPE_FILE)
         {
-            do
+            PKWTOOL pTool = (PKWTOOL)kFsCacheObjGetUserData(g_pFsCache, pToolFsObj, KW_DATA_KEY_TOOL);
+            if (pTool)
             {
-                if (   pTool->uHashPath == uHashPath
-                    && kHlpStrComp(pTool->pszPath, szNormPath) == 0)
-                    return pTool;
-                pTool = pTool->pNext;
-            } while (pTool);
-        }
+                kFsCacheObjRelease(g_pFsCache, pToolFsObj);
+                return pTool;
+            }
 
-        /*
-         * Not found, create new entry.
-         */
-       return kwToolEntryCreate(szNormPath, uHashPath, idxHash);
+            /*
+             * Need to create a new tool.
+             */
+            return kwToolEntryCreate(pToolFsObj);
+        }
+        kFsCacheObjRelease(g_pFsCache, pToolFsObj);
     }
     return NULL;
 }
@@ -1841,9 +1694,6 @@ static PKWTOOL kwToolLookup(const char *pszExe)
  *
  */
 
-
-#define IS_ALPHA(ch) ( ((ch) >= 'A' && (ch) <= 'Z') || ((ch) >= 'a' && (ch) <= 'z') )
-#define IS_SLASH(ch) ((ch) == '\\' || (ch) == '/')
 
 
 /**
@@ -1879,386 +1729,6 @@ static wchar_t const *kwFsPathGetExtW(wchar_t const *pwszPath, KSIZE *pcwcExt)
         }
     }
 }
-
-
-/**
- * Looks for '..' in the path.
- *
- * @returns K_TRUE if '..' component found, K_FALSE if not.
- * @param   pszPath             The path.
- * @param   cchPath             The length of the path.
- */
-static KBOOL kwFsHasDotDot(const char *pszPath, KSIZE cchPath)
-{
-    const char *pchDot = (const char *)kHlpMemChr(pszPath, '.', cchPath);
-    while (pchDot)
-    {
-        if (pchDot[1] != '.')
-            pchDot = (const char *)kHlpMemChr(pchDot + 1, '.', &pszPath[cchPath] - pchDot - 1);
-        else
-        {
-            char ch;
-            if (   (ch = pchDot[2]) == '\0'
-                && IS_SLASH(ch))
-            {
-                if (pchDot == pszPath)
-                    return K_TRUE;
-                ch = pchDot[-1];
-                if (   IS_SLASH(ch)
-                    || ch == ':')
-                    return K_TRUE;
-            }
-            pchDot = (const char *)kHlpMemChr(pchDot + 2, '.', &pszPath[cchPath] - pchDot - 2);
-        }
-    }
-
-    return K_FALSE;
-}
-
-
-static void kwFsCreateHashTabEntryA(PKWFSOBJ pFsObj, const char *pszPath, KU32 cchPath, KU32 uHashPath, KU32 idxHashTab)
-{
-    PKWFSHASHA pHashEntry = (PKWFSHASHA)kHlpAlloc(sizeof(*pHashEntry) + cchPath + 1);
-    if (pHashEntry)
-    {
-        pHashEntry->uHashPath   = uHashPath;
-        pHashEntry->cchPath     = cchPath;
-        pHashEntry->pszPath     = (const char *)kHlpMemCopy(pHashEntry + 1, pszPath, cchPath + 1);
-        pHashEntry->pFsObj      = pFsObj;
-
-        pHashEntry->pNext = g_apFsAnsiPaths[idxHashTab];
-        g_apFsAnsiPaths[idxHashTab] = pHashEntry;
-    }
-}
-
-
-/**
- * Refreshes a node that hash expired.
- *
- * This is for files and directories in the output directory tree.  The plan is
- * to invalid negative results for each tool execution, in case a include file
- * or directory has been created since the last time we were active.  Assuming
- * that we'll be stopped together with kmk, there is no need to invalidate
- * positive results.
- *
- * @param   pNode               The FS node.
- */
-static void kwFsRefreshNode(PKWFSOBJ pNode)
-{
-    /** @todo implement once we've start inserting uCacheGen nodes. */
-    __debugbreak();
-}
-
-
-/**
- * Links the child in under the parent.
- *
- * @returns K_TRUE on success, K_FALSE if out of memory.
- * @param   pParent             The parent node.
- * @param   pChild              The child node.
- */
-static KBOOL kwFsLinkChild(PKWFSOBJ pParent, PKWFSOBJ pChild)
-{
-    if ((pParent->cChildren % 16) == 0)
-    {
-        void *pvNew = kHlpRealloc(pParent->papChildren, (pParent->cChildren + 16) * sizeof(pParent->papChildren[0]));
-        if (!pvNew)
-            return K_FALSE;
-        pParent->papChildren = (PKWFSOBJ *)pvNew;
-    }
-    pParent->papChildren[pParent->cChildren++] = pChild;
-    return K_TRUE;
-}
-
-
-/**
- * Creates a child node for an ANSI path.
- *
- * @returns Pointer to the child tree node on success.
- *          NULL on failure (out of memory).
- * @param   pParent             The parent node.
- * @param   pchPath             The path.
- * @param   offName             The offset of the child name into pchPath.
- * @param   cchName             The length of the child name.
- */
-static PKWFSOBJ kwFsCreateChildA(PKWFSOBJ pParent, const char *pchPath, KU32 offName, KU32 cchName)
-{
-    char        szTmp[2048];
-    DWORD const dwSavedErr = GetLastError();
-    DWORD       dwAttr;
-    DWORD       dwErr;
-    PKWFSOBJ    pChild;
-
-    /*
-     * Get attributes.
-     */
-    if (pchPath[offName + cchName])
-    {
-        if (cchName + offName >= sizeof(szTmp))
-            return NULL;
-        memcpy(szTmp, pchPath, offName + cchName);
-        if (offName != 0 || cchName != 2 || pchPath[1] != ':')
-            szTmp[offName + cchName] = '\0';
-        else
-        {
-            /* Change 'E:' to 'E:\\.' so that it's actually absolute. */
-            szTmp[2] = '\\';
-            szTmp[3] = '.';
-            szTmp[4] = '\0';
-        }
-        pchPath = szTmp;
-    }
-
-    SetLastError(NO_ERROR);
-    dwAttr = GetFileAttributesA(pchPath);
-    dwErr  = GetLastError();
-
-    /*
-     * Create the entry.
-     */
-    pChild = (PKWFSOBJ)kHlpAlloc(sizeof(*pChild) + cchName + 1 + (cchName + 1) * sizeof(wchar_t) * 2);
-    SetLastError(dwSavedErr);
-    if (pChild)
-    {
-        pChild->pwszName    = (const wchar_t *)(pChild + 1);
-        pChild->pszName     = (const char *)kHlpMemCopy((void *)&pChild->pwszName[(cchName + 1) * 2],
-                                                        &pchPath[offName], cchName);
-        ((char *)pChild->pszName)[cchName] = '\0';
-        pChild->cwcName     = (KU16)kwStrToUtf16(pChild->pszName, (wchar_t *)pChild->pwszName, (cchName + 1) * 2);
-
-        pChild->cchName     = cchName;
-        pChild->cChildren   = 0;
-        pChild->papChildren = NULL;
-        pChild->pParent     = pParent;
-
-        pChild->uCacheGen   = pParent->uCacheGen == KFSWOBJ_CACHE_GEN_IGNORE ? KFSWOBJ_CACHE_GEN_IGNORE : g_uFsCacheGeneration;
-        pChild->fAttribs    = dwAttr;
-        pChild->uLastError  = dwErr;
-
-        pChild->hCached     = INVALID_HANDLE_VALUE;
-        pChild->cbCached    = 0;
-        pChild->pbCached    = NULL;
-
-        if (kwFsLinkChild(pParent, pChild))
-            return pChild;
-
-        kHlpFree(pChild);
-    }
-    return NULL;
-}
-
-
-/**
- * Look up a child node, ANSI version.
- *
- * @returns Pointer to the child if found, NULL if not.
- * @param   pParent             The parent to search the children of.
- * @param   pchName             The child name to search for (not terminated).
- * @param   cchName             The length of the child name.
- */
-static PKWFSOBJ kwFsFindChildA(PKWFSOBJ pParent, const char *pchName, KU32 cchName)
-{
-    /* Check for '.' first. */
-    if (cchName != 1 || *pchName != '.')
-    {
-        KU32        cLeft = pParent->cChildren;
-        PKWFSOBJ   *ppCur = pParent->papChildren;
-        while (cLeft-- > 0)
-        {
-            PKWFSOBJ pCur = *ppCur++;
-            if (   pCur->cchName == cchName
-                && _memicmp(pCur->pszName, pchName, cchName) == 0)
-            {
-                if (   pCur->uCacheGen != KFSWOBJ_CACHE_GEN_IGNORE
-                    && pCur->uCacheGen != g_uFsCacheGeneration)
-                    kwFsRefreshNode(pCur);
-                return pCur;
-            }
-        }
-        return NULL;
-    }
-    return pParent;
-}
-
-
-/**
- * Walk the file system tree for the given absolute path, entering it into the
- * hash table.
- *
- * This will create any missing nodes while walking.
- *
- * @returns Pointer to the tree node corresponding to @a pszPath.
- *          NULL if we ran out of memory.
- * @param   pszPath             The path to walk.
- * @param   cchPath             The length of the path.
- * @param   uHashPath           The hash of the path.
- * @param   idxHashTab          Index into the hash table.
- */
-static PKWFSOBJ kwFsLookupAbsoluteA(const char *pszPath, KU32 cchPath, KU32 uHashPath, KU32 idxHashTab)
-{
-    PKWFSOBJ    pParent = &g_FsRoot;
-    KU32        off;
-    KWFS_LOG(("kwFsLookupAbsoluteA(%s)\n", pszPath));
-
-    kHlpAssert(IS_ALPHA(pszPath[0]));
-    kHlpAssert(pszPath[1] == ':');
-    kHlpAssert(IS_SLASH(pszPath[2]));
-
-    off = 0;
-    for (;;)
-    {
-        PKWFSOBJ    pChild;
-
-        /* Find the end of the component. */
-        char        ch;
-        KU32        cchSlashes = 0;
-        KU32        offEnd = off + 1;
-        while ((ch = pszPath[offEnd]) != '\0')
-        {
-            if (!IS_SLASH(ch))
-                offEnd++;
-            else
-            {
-                do
-                    cchSlashes++;
-                while (IS_SLASH(pszPath[offEnd + cchSlashes]));
-                break;
-            }
-        }
-
-        /* Search the current node for the name. */
-        pChild = kwFsFindChildA(pParent, &pszPath[off], offEnd - off);
-        if (!pChild)
-        {
-            pChild = kwFsCreateChildA(pParent, pszPath, off, offEnd - off);
-            if (!pChild)
-                break;
-        }
-        off = offEnd + cchSlashes;
-        if (   cchSlashes == 0
-            || off >= cchPath)
-        {
-            kwFsCreateHashTabEntryA(pChild, pszPath, cchPath, uHashPath, idxHashTab);
-            return pChild;
-        }
-
-        /* Check that it's a directory (won't match INVALID_FILE_ATTRIBUTES). */
-        if (!(pChild->fAttribs & FILE_ATTRIBUTE_DIRECTORY))
-            return &g_FsPathNotFound;
-
-        pParent = pChild;
-    }
-
-    return NULL;
-}
-
-
-/**
- * This deals with paths that are relative and paths that contains '..'
- * elements.
- *
- * @returns Pointer to object corresponding to @a pszPath on success.
- *          NULL if this isn't a path we care to cache.
- * @param   pszPath             The path.
- * @param   cchPath             The length of the path.
- * @param   uHashPath           The hash of the path.
- * @param   idxHashTab          The path table index.
- */
-static PKWFSOBJ kwFsLookupSlowA(const char *pszPath, KU32 cchPath, KU32 uHashPath, KU32 idxHashTab)
-{
-    /* Turns out getcwd/_getdcwd uses GetFullPathName internall, so just call it directly here. */
-    char szFull[2048];
-    UINT cchFull = GetFullPathNameA(pszPath, sizeof(szFull), szFull, NULL);
-    if (   cchFull >= 3
-        && cchFull < sizeof(szFull))
-    {
-        KWFS_LOG(("kwFsLookupSlowA(%s)\n", pszPath));
-        if (   szFull[1] == ':'
-            && IS_SLASH(szFull[2])
-            && IS_ALPHA(szFull[0]) )
-        {
-            KU32     uHashPath2  = kwStrHash(szFull);
-            PKWFSOBJ pFsObj = kwFsLookupAbsoluteA(szFull, cchFull, uHashPath2, uHashPath2 % K_ELEMENTS(g_apFsAnsiPaths));
-            if (pFsObj)
-            {
-                kwFsCreateHashTabEntryA(pFsObj, pszPath, cchPath, uHashPath, idxHashTab);
-                return pFsObj;
-            }
-        }
-
-        /* It's worth remembering uncacheable paths in the hash table. */
-        kwFsCreateHashTabEntryA(NULL /*pFsObj*/, pszPath, cchPath, uHashPath, idxHashTab);
-    }
-    return NULL;
-}
-
-
-/**
- * Looks up a KWFSOBJ for the given ANSI path.
- *
- * This will first try the hash table.  If not in the hash table, the file
- * system cache tree is walked, missing bits filled in and finally a hash table
- * entry is created.
- *
- * Only drive letter paths are cachable.  We don't do any UNC paths at this
- * point.
- *
- *
- * @returns Pointer to object corresponding to @a pszPath on success.
- *          NULL if not a path we care to cache.
- * @param   pszPath             The path to lookup.
- */
-static PKWFSOBJ kwFsLookupA(const char *pszPath)
-{
-    /*
-     * Do hash table lookup of the path.
-     */
-    KU32        uHashPath;
-    KU32        cchPath    = (KU32)kwStrHashEx(pszPath, &uHashPath);
-    KU32        idxHashTab = uHashPath % K_ELEMENTS(g_apFsAnsiPaths);
-    PKWFSHASHA  pHashEntry = g_apFsAnsiPaths[idxHashTab];
-    if (pHashEntry)
-    {
-        do
-        {
-            if (   pHashEntry->uHashPath == uHashPath
-                && pHashEntry->cchPath   == cchPath
-                && kHlpMemComp(pHashEntry->pszPath, pszPath, cchPath) == 0)
-            {
-                KWFS_LOG(("kwFsLookupA(%s) - hit %p\n", pszPath, pHashEntry->pFsObj));
-                return pHashEntry->pFsObj;
-            }
-            pHashEntry = pHashEntry->pNext;
-        } while (pHashEntry);
-    }
-
-    /*
-     * Create an entry for it by walking the file system cache and filling in the blanks.
-     */
-    if (   cchPath > 0
-        && cchPath < 1024)
-    {
-        /* Is absolute without any '..' bits? */
-        if (   cchPath >= 3
-            && pszPath[1] == ':'
-            && IS_SLASH(pszPath[2])
-            && IS_ALPHA(pszPath[0])
-            && !kwFsHasDotDot(pszPath, cchPath) )
-            return kwFsLookupAbsoluteA(pszPath, cchPath, uHashPath, idxHashTab);
-
-        /* Not UNC? */
-        if (   cchPath < 2
-            || !IS_SLASH(pszPath[0])
-            || !IS_SLASH(pszPath[1]) )
-            return kwFsLookupSlowA(pszPath, cchPath, uHashPath, idxHashTab);
-
-
-        /* It's worth remembering uncacheable paths in the hash table. */
-        kwFsCreateHashTabEntryA(NULL /*pFsObj*/, pszPath, cchPath, uHashPath, idxHashTab);
-    }
-    return NULL;
-}
-
 
 
 
@@ -3063,6 +2533,36 @@ static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameW(HMODULE hmod, LPWSTR p
  *
  */
 
+
+/**
+ * Converts a lookup error to a windows error code.
+ *
+ * @returns The windows error code.
+ * @param   enmError            The lookup error.
+ */
+static DWORD kwFsLookupErrorToWindowsError(KFSLOOKUPERROR enmError)
+{
+    switch (enmError)
+    {
+        case KFSLOOKUPERROR_NOT_FOUND:
+        case KFSLOOKUPERROR_NOT_DIR:
+            return ERROR_FILE_NOT_FOUND;
+
+        case KFSLOOKUPERROR_PATH_COMP_NOT_FOUND:
+        case KFSLOOKUPERROR_PATH_COMP_NOT_DIR:
+            return ERROR_PATH_NOT_FOUND;
+
+        case KFSLOOKUPERROR_PATH_TOO_LONG:
+            return ERROR_FILENAME_EXCED_RANGE;
+
+        case KFSLOOKUPERROR_OUT_OF_MEMORY:
+            return ERROR_NOT_ENOUGH_MEMORY;
+
+        default:
+            return ERROR_PATH_NOT_FOUND;
+    }
+}
+
 #ifdef WITH_TEMP_MEMORY_FILES
 
 /**
@@ -3402,95 +2902,133 @@ static KBOOL kwFsIsCachablePathExtensionW(const wchar_t *pwszPath, KBOOL fAttrQu
 }
 
 
-static KBOOL kwFsObjCacheFileCommon(PKWFSOBJ pFsObj, HANDLE hFile)
-{
-    LARGE_INTEGER cbFile;
-    if (GetFileSizeEx(hFile, &cbFile))
-    {
-        if (   cbFile.QuadPart >= 0
-            && cbFile.QuadPart < 16*1024*1024)
-        {
-            KU32 cbCache = (KU32)cbFile.QuadPart;
-            KU8 *pbCache = (KU8 *)kHlpAlloc(cbCache);
-            if (pbCache)
-            {
-                DWORD cbActually = 0;
-                if (   ReadFile(hFile, pbCache, cbCache, &cbActually, NULL)
-                    && cbActually == cbCache)
-                {
-                    LARGE_INTEGER offZero;
-                    offZero.QuadPart = 0;
-                    if (SetFilePointerEx(hFile, offZero, NULL /*poffNew*/, FILE_BEGIN))
-                    {
-                        pFsObj->hCached  = hFile;
-                        pFsObj->cbCached = cbCache;
-                        pFsObj->pbCached = pbCache;
-                        return K_TRUE;
-                    }
 
-                    KWFS_LOG(("Failed to seek to start of cached file! err=%u\n", GetLastError()));
+/**
+ * Creates a new
+ *
+ * @returns
+ * @param   pFsObj          .
+ * @param   pwszFilename    .
+ */
+static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
+{
+    HANDLE                  hFile;
+    MY_IO_STATUS_BLOCK      Ios;
+    MY_OBJECT_ATTRIBUTES    ObjAttr;
+    MY_UNICODE_STRING       UniStr;
+    MY_NTSTATUS             rcNt;
+
+    /*
+     * Open the file relative to the parent directory.
+     */
+    kHlpAssert(pFsObj->bObjType == KFSOBJ_TYPE_FILE);
+    kHlpAssert(pFsObj->pParent);
+    kHlpAssertReturn(pFsObj->pParent->hDir != INVALID_HANDLE_VALUE, NULL);
+
+    Ios.Information = -1;
+    Ios.u.Status    = -1;
+
+    UniStr.Buffer        = (wchar_t *)pFsObj->pwszName;
+    UniStr.Length        = (USHORT)(pFsObj->cwcName * sizeof(wchar_t));
+    UniStr.MaximumLength = UniStr.Length + sizeof(wchar_t);
+
+    MyInitializeObjectAttributes(&ObjAttr, &UniStr, OBJ_CASE_INSENSITIVE, pFsObj->pParent->hDir, NULL /*pSecAttr*/);
+
+    rcNt = g_pfnNtCreateFile(&hFile,
+                             GENERIC_READ | SYNCHRONIZE,
+                             &ObjAttr,
+                             &Ios,
+                             NULL, /*cbFileInitialAlloc */
+                             FILE_ATTRIBUTE_NORMAL,
+                             FILE_SHARE_READ,
+                             FILE_OPEN,
+                             FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
+                             NULL, /*pEaBuffer*/
+                             0);   /*cbEaBuffer*/
+    if (MY_NT_SUCCESS(rcNt))
+    {
+        /*
+         * Read the whole file into memory.
+         */
+        LARGE_INTEGER cbFile;
+        if (GetFileSizeEx(hFile, &cbFile))
+        {
+            if (   cbFile.QuadPart >= 0
+                && cbFile.QuadPart < 16*1024*1024)
+            {
+                KU32 cbCache = (KU32)cbFile.QuadPart;
+                KU8 *pbCache = (KU8 *)kHlpAlloc(cbCache);
+                if (pbCache)
+                {
+                    DWORD cbActually = 0;
+                    if (   ReadFile(hFile, pbCache, cbCache, &cbActually, NULL)
+                        && cbActually == cbCache)
+                    {
+                        LARGE_INTEGER offZero;
+                        offZero.QuadPart = 0;
+                        if (SetFilePointerEx(hFile, offZero, NULL /*poffNew*/, FILE_BEGIN))
+                        {
+                            /*
+                             * Create the cached file object.
+                             */
+                            PKFSWCACHEDFILE pCachedFile;
+                            pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjAddUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE,
+                                                                                  sizeof(*pCachedFile));
+                            if (pCachedFile)
+                            {
+                                pCachedFile->hCached  = hFile;
+                                pCachedFile->cbCached = cbCache;
+                                pCachedFile->pbCached = pbCache;
+                                pCachedFile->pFsObj   = pFsObj;
+                                kFsCacheObjRetain(pFsObj);
+                                return pCachedFile;
+                            }
+
+                            KWFS_LOG(("Failed to allocate KFSWCACHEDFILE structure!\n"));
+                        }
+                        else
+                            KWFS_LOG(("Failed to seek to start of cached file! err=%u\n", GetLastError()));
+                    }
+                    else
+                        KWFS_LOG(("Failed to read %#x bytes into cache! err=%u cbActually=%#x\n",
+                                  cbCache, GetLastError(), cbActually));
+                    kHlpFree(pbCache);
                 }
                 else
-                    KWFS_LOG(("Failed to read %#x bytes into cache! err=%u cbActually=%#x\n",
-                              cbCache, GetLastError(), cbActually));
-                kHlpFree(pbCache);
+                    KWFS_LOG(("Failed to allocate %#x bytes for cache!\n", cbCache));
             }
             else
-                KWFS_LOG(("Failed to allocate %#x bytes for cache!\n", cbCache));
+                KWFS_LOG(("File to big to cache! %#llx\n", cbFile.QuadPart));
         }
         else
-            KWFS_LOG(("File to big to cache! %#llx\n", cbFile.QuadPart));
+            KWFS_LOG(("File to get file size! err=%u\n", GetLastError()));
+        g_pfnNtClose(hFile);
     }
     else
-        KWFS_LOG(("File to get file size! err=%u\n", GetLastError()));
-    CloseHandle(hFile);
-    return K_FALSE;
+        KWFS_LOG(("Error opening '%ls' for caching: %#x\n", pFsObj->pwszName, rcNt));
+    return NULL;
 }
 
 
-static KBOOL kwFsObjCacheFileA(PKWFSOBJ pFsObj, const char *pszFilename)
-{
-    HANDLE hFile;
-    kHlpAssert(pFsObj->hCached == INVALID_HANDLE_VALUE);
-
-    hFile = CreateFileA(pszFilename, GENERIC_READ, FILE_SHARE_READ, NULL /*pSecAttrs*/,
-                        FILE_OPEN_IF, FILE_ATTRIBUTE_NORMAL, NULL /*hTemplateFile*/);
-    if (hFile != INVALID_HANDLE_VALUE)
-        return kwFsObjCacheFileCommon(pFsObj, hFile);
-    return K_FALSE;
-}
-
-
-static KBOOL kwFsObjCacheFileW(PKWFSOBJ pFsObj, const wchar_t *pwszFilename)
-{
-    HANDLE hFile;
-    kHlpAssert(pFsObj->hCached == INVALID_HANDLE_VALUE);
-
-    hFile = CreateFileW(pwszFilename, GENERIC_READ, FILE_SHARE_READ, NULL /*pSecAttrs*/,
-                        FILE_OPEN_IF, FILE_ATTRIBUTE_NORMAL, NULL /*hTemplateFile*/);
-    if (hFile != INVALID_HANDLE_VALUE)
-        return kwFsObjCacheFileCommon(pFsObj, hFile);
-    return K_FALSE;
-}
-
-
-/** Kernel32 - Common code for CreateFileW and CreateFileA.   */
-static KBOOL kwFsObjCacheCreateFile(PKWFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL fInheritHandle,
-                                    const char *pszFilename, const wchar_t *pwszFilename, HANDLE *phFile)
+/**
+ * Kernel32 - Common code for CreateFileW and CreateFileA.
+ */
+static KBOOL kwFsObjCacheCreateFile(PKFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL fInheritHandle, HANDLE *phFile)
 {
     *phFile = INVALID_HANDLE_VALUE;
+    kHlpAssert(pFsObj->fHaveStats);
 
     /*
      * At the moment we only handle existing files.
      */
-    if (!(pFsObj->fAttribs & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE))) /* also checks invalid */
+    if (pFsObj->bObjType == KFSOBJ_TYPE_FILE)
     {
-        if (   pFsObj->hCached != INVALID_HANDLE_VALUE
-            || (pwszFilename != NULL && kwFsObjCacheFileW(pFsObj, pwszFilename))
-            || (pszFilename  != NULL && kwFsObjCacheFileA(pFsObj, pszFilename)) )
+        PKFSWCACHEDFILE pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjGetUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE);
+        if (   pCachedFile != NULL
+            || (pCachedFile = kwFsObjCacheNewFile(pFsObj)) != NULL)
         {
             HANDLE hProcSelf = GetCurrentProcess();
-            if (DuplicateHandle(hProcSelf, pFsObj->hCached,
+            if (DuplicateHandle(hProcSelf, pCachedFile->hCached,
                                 hProcSelf, phFile,
                                 dwDesiredAccess, fInheritHandle,
                                 0 /*dwOptions*/))
@@ -3505,7 +3043,7 @@ static KBOOL kwFsObjCacheCreateFile(PKWFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL
                     pHandle->offFile            = 0;
                     pHandle->hHandle            = *phFile;
                     pHandle->dwDesiredAccess    = dwDesiredAccess;
-                    pHandle->u.pFsObj           = pFsObj;
+                    pHandle->u.pCachedFile      = pCachedFile;
                     if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle))
                         return K_TRUE;
 
@@ -3548,11 +3086,14 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
                     const char *pszExt = kHlpGetExt(pszFilename);
                     if (kwFsIsCachableExtensionA(pszExt, K_FALSE /*fAttrQuery*/))
                     {
-                        PKWFSOBJ pFsObj = kwFsLookupA(pszFilename);
+                        KFSLOOKUPERROR enmError;
+                        PKFSOBJ pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszFilename, &enmError);
                         if (pFsObj)
                         {
-                            if (kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
-                                                       pszFilename, NULL /*pwszFilename*/, &hFile))
+                            KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
+                                                               &hFile);
+                            kFsCacheObjRelease(g_pFsCache, pFsObj);
+                            if (fRc)
                             {
                                 KWFS_LOG(("CreateFileA(%s) -> %p [cached]\n", pszFilename, hFile));
                                 return hFile;
@@ -3652,7 +3193,7 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
             switch (pHandle->enmType)
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
-                    cbFile = pHandle->u.pFsObj->cbCached;
+                    cbFile = pHandle->u.pCachedFile->cbCached;
                     break;
 #ifdef WITH_TEMP_MEMORY_FILES
                 case KWHANDLETYPE_TEMP_FILE:
@@ -3732,7 +3273,7 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
             switch (pHandle->enmType)
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
-                    cbFile = pHandle->u.pFsObj->cbCached;
+                    cbFile = pHandle->u.pCachedFile->cbCached;
                     break;
 #ifdef WITH_TEMP_MEMORY_FILES
                 case KWHANDLETYPE_TEMP_FILE:
@@ -3810,14 +3351,14 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
                 {
-                    PKWFSOBJ    pFsObj     = pHandle->u.pFsObj;
-                    KU32        cbActually = pFsObj->cbCached - pHandle->offFile;
+                    PKFSWCACHEDFILE pCachedFile = pHandle->u.pCachedFile;
+                    KU32            cbActually = pCachedFile->cbCached - pHandle->offFile;
                     if (cbActually > cbToRead)
                         cbActually = cbToRead;
                     else if (cbActually < cbToRead)
                         ((KU8 *)pvBuffer)[cbActually] = '\0'; // hack hack hack
 
-                    kHlpMemCopy(pvBuffer, &pFsObj->pbCached[pHandle->offFile], cbActually);
+                    kHlpMemCopy(pvBuffer, &pCachedFile->pbCached[pHandle->offFile], cbActually);
                     pHandle->offFile += cbActually;
 
                     kHlpAssert(!pOverlapped); kHlpAssert(pcbActuallyRead);
@@ -4168,8 +3709,8 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileSize(HANDLE hFile, LPDWORD pcbHigh
             switch (pHandle->enmType)
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
-                    KWFS_LOG(("GetFileSize(%p) -> %#x [cached]\n", hFile, pHandle->u.pFsObj->cbCached));
-                    return pHandle->u.pFsObj->cbCached;
+                    KWFS_LOG(("GetFileSize(%p) -> %#x [cached]\n", hFile, pHandle->u.pCachedFile->cbCached));
+                    return pHandle->u.pCachedFile->cbCached;
 
                 case KWHANDLETYPE_TEMP_FILE:
                     KWFS_LOG(("GetFileSize(%p) -> %#x [temp]\n", hFile, pHandle->u.pTempFile->cbFile));
@@ -4200,8 +3741,8 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileSizeEx(HANDLE hFile, PLARGE_INTEGER
             switch (pHandle->enmType)
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
-                    KWFS_LOG(("GetFileSizeEx(%p) -> TRUE, %#x [cached]\n", hFile, pHandle->u.pFsObj->cbCached));
-                    pcbFile->QuadPart = pHandle->u.pFsObj->cbCached;
+                    KWFS_LOG(("GetFileSizeEx(%p) -> TRUE, %#x [cached]\n", hFile, pHandle->u.pCachedFile->cbCached));
+                    pcbFile->QuadPart = pHandle->u.pCachedFile->cbCached;
                     return TRUE;
 
                 case KWHANDLETYPE_TEMP_FILE:
@@ -4416,14 +3957,22 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesA(LPCSTR pszFilename)
     const char *pszExt = kHlpGetExt(pszFilename);
     if (kwFsIsCachableExtensionA(pszExt, K_TRUE /*fAttrQuery*/))
     {
-        PKWFSOBJ pFsObj = kwFsLookupA(pszFilename);
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszFilename, &enmError);
         if (pFsObj)
         {
-            if (pFsObj->fAttribs == INVALID_FILE_ATTRIBUTES)
-                SetLastError(pFsObj->uLastError);
-            KWFS_LOG(("GetFileAttributesA(%s) -> %#x [cached]\n", pszFilename, pFsObj->fAttribs));
-            return pFsObj->fAttribs;
+            kHlpAssert(pFsObj->fHaveStats);
+            fRet = pFsObj->Stats.st_attribs;
+            kFsCacheObjRelease(g_pFsCache, pFsObj);
         }
+        else
+        {
+            SetLastError(kwFsLookupErrorToWindowsError(enmError));
+            fRet = INVALID_FILE_ATTRIBUTES;
+        }
+
+        KWFS_LOG(("GetFileAttributesA(%s) -> %#x [cached]\n", pszFilename, fRet));
+        return fRet;
     }
 
     fRet = GetFileAttributesA(pszFilename);
@@ -4438,11 +3987,22 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesW(LPCWSTR pwszFilename)
     DWORD fRet;
     if (kwFsIsCachablePathExtensionW(pwszFilename, K_TRUE /*fAttrQuery*/))
     {
-        /** @todo rewrite to pure UTF-16. */
-        char szTmp[2048];
-        KSIZE cch = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
-        if (cch < sizeof(szTmp))
-            return kwSandbox_Kernel32_GetFileAttributesA(szTmp);
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pFsObj = kFsCacheLookupNoMissingW(g_pFsCache, pwszFilename, &enmError);
+        if (pFsObj)
+        {
+            kHlpAssert(pFsObj->fHaveStats);
+            fRet = pFsObj->Stats.st_attribs;
+            kFsCacheObjRelease(g_pFsCache, pFsObj);
+        }
+        else
+        {
+            SetLastError(kwFsLookupErrorToWindowsError(enmError));
+            fRet = INVALID_FILE_ATTRIBUTES;
+        }
+
+        KWFS_LOG(("GetFileAttributesW(%ls) -> %#x [cached]\n", pwszFilename, fRet));
+        return fRet;
     }
 
     fRet = GetFileAttributesW(pwszFilename);
@@ -4459,18 +4019,46 @@ static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, L
     DWORD cwcRet;
     if (kwFsIsCachablePathExtensionW(pwszLongPath, K_TRUE /*fAttrQuery*/))
     {
-        /** @todo proper implementation later, for now just copy it over as it. */
-        KSIZE cwcLongPath = kwUtf16Len(pwszLongPath);
-        cwcRet = kwUtf16CopyStyle1(pwszLongPath, pwszShortPath, cwcShortPath);
-        KWFS_LOG(("GetShortPathNameW(%ls) -> '%*.*ls' & %#x [cached]\n",
-                  pwszLongPath, K_MIN(cwcShortPath, cwcRet), K_MIN(cwcShortPath, cwcRet), pwszShortPath, cwcRet));
+        KFSLOOKUPERROR enmError;
+        PKFSOBJ pObj = kFsCacheLookupW(g_pFsCache, pwszLongPath, &enmError);
+        if (pObj)
+        {
+            if (pObj->bObjType != KFSOBJ_TYPE_MISSING)
+            {
+                if (kFsCacheObjGetFullShortPathW(pObj, pwszShortPath, cwcShortPath, '\\'))
+                {
+                    cwcRet = (DWORD)kwUtf16Len(pwszShortPath);
+
+                    /* Should preserve trailing slash on directory paths. */
+                    if (pObj->bObjType == KFSOBJ_TYPE_DIR)
+                    {
+                        if (   cwcRet + 1 < cwcShortPath
+                            && pwszShortPath[cwcRet - 1] != '\\')
+                        {
+                            KSIZE cwcIn = kwUtf16Len(pwszLongPath);
+                            if (   cwcIn > 0
+                                && (pwszLongPath[cwcIn - 1] == '\\' || pwszLongPath[cwcIn - 1] == '/') )
+                            {
+                                pwszShortPath[cwcRet++] = '\\';
+                                pwszShortPath[cwcRet]   = '\0';
+                            }
+                        }
+                    }
+
+                    KWFS_LOG(("GetShortPathNameW(%ls) -> '%*.*ls' & %#x [cached]\n",
+                              pwszLongPath, K_MIN(cwcShortPath, cwcRet), K_MIN(cwcShortPath, cwcRet), pwszShortPath, cwcRet));
+                    kFsCacheObjRelease(g_pFsCache, pObj);
+                    return cwcRet;
+                }
+
+                /* fall back for complicated cases. */
+            }
+            kFsCacheObjRelease(g_pFsCache, pObj);
+        }
     }
-    else
-    {
-        cwcRet = GetShortPathNameW(pwszLongPath, pwszShortPath, cwcShortPath);
-        KWFS_LOG(("GetShortPathNameW(%ls) -> '%*.*ls' & %#x\n",
-                  pwszLongPath, K_MIN(cwcShortPath, cwcRet), K_MIN(cwcShortPath, cwcRet), pwszShortPath, cwcRet));
-    }
+    cwcRet = GetShortPathNameW(pwszLongPath, pwszShortPath, cwcShortPath);
+    KWFS_LOG(("GetShortPathNameW(%ls) -> '%*.*ls' & %#x\n",
+              pwszLongPath, K_MIN(cwcShortPath, cwcRet), K_MIN(cwcShortPath, cwcRet), pwszShortPath, cwcRet));
     return cwcRet;
 }
 
@@ -4790,9 +4378,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
 
 
-    g_uFsCacheGeneration++;
-    if (g_uFsCacheGeneration == KFSWOBJ_CACHE_GEN_IGNORE)
-        g_uFsCacheGeneration++;
+/** @todo cache generation increment.   */
     return 0;
 }
 
@@ -4967,26 +4553,39 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
         {
             case KWTOOLTYPE_SANDBOXED:
             case KWTOOLTYPE_WATCOM:
-                /** @todo cache this   */
-                if (SetCurrentDirectoryA(pszCwd))
+            {
+                /* Change dir. */
+                KFSLOOKUPERROR  enmError;
+                PKFSOBJ         pNewCurDir = kFsCacheLookupA(g_pFsCache, pszCwd, &enmError);
+                if (   pNewCurDir           == g_pCurDirObj
+                    && pNewCurDir->bObjType == KFSOBJ_TYPE_DIR)
+                    kFsCacheObjRelease(g_pFsCache, pNewCurDir);
+                else if (SetCurrentDirectoryA(pszCwd))
                 {
-                    if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
-                    {
-                        KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                        rcExit = kwSandboxExec(pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
-                    }
-                    else
-                    {
-                        kwErrPrintf("TODO: Watcom style tool %s\n", pTool->pszPath);
-                        rcExit = 42 + 2;
-                    }
+                    kFsCacheObjRelease(g_pFsCache, g_pCurDirObj);
+                    g_pCurDirObj = pNewCurDir;
                 }
                 else
                 {
                     kwErrPrintf("SetCurrentDirectory failed with %u on '%s'\n", GetLastError(), pszCwd);
+                    kFsCacheObjRelease(g_pFsCache, pNewCurDir);
                     rcExit = 42 + 1;
+                    break;
+                }
+
+                /* Call specific handler. */
+                if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
+                {
+                    KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
+                    rcExit = kwSandboxExec(pTool, cArgs, papszArgs, cbArgs, cEnvVars, papszEnvVars);
+                }
+                else
+                {
+                    kwErrPrintf("TODO: Watcom style tool %s\n", pTool->pszPath);
+                    rcExit = 42 + 2;
                 }
                 break;
+            }
 
             case KWTOOLTYPE_EXEC:
                 kwErrPrintf("TODO: Direct exec tool %s\n", pTool->pszPath);
@@ -5236,6 +4835,84 @@ static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShu
 }
 
 
+/**
+ * Handles what comes after --test.
+ *
+ * @returns Exit code.
+ * @param   argc                Number of arguments after --test.
+ * @param   argv                Arguments after --test.
+ */
+static int kwTestRun(int argc, char **argv)
+{
+    int         i;
+    int         j;
+    int         rcExit;
+    int         cRepeats;
+    char        szCwd[MAX_PATH];
+    const char *pszCwd = getcwd(szCwd, sizeof(szCwd));
+    KU32        cbArgs;
+    KU32        cEnvVars;
+
+    /*
+     * Parse arguments.
+     */
+    /* Repeat count. */
+    i = 0;
+    if (i >= argc)
+        return kwErrPrintfRc(2, "--test takes an repeat count argument or '--'!\n");
+    if (strcmp(argv[i], "--") != 0)
+    {
+        cRepeats = atoi(argv[i]);
+        if (cRepeats <= 0)
+            return kwErrPrintfRc(2, "The repeat count '%s' is zero, negative or invalid!\n", argv[i]);
+        i++;
+
+        /* Optional directory change. */
+        if (   i < argc
+            && strcmp(argv[i], "--chdir") == 0)
+        {
+            i++;
+            if (i >= argc)
+                return kwErrPrintfRc(2, "--chdir takes an argument!\n");
+            pszCwd = argv[i++];
+        }
+
+        /* Check for '--'. */
+        if (i >= argc)
+            return kwErrPrintfRc(2, "Missing '--'\n");
+        if (strcmp(argv[i], "--") != 0)
+            return kwErrPrintfRc(2, "Expected '--' found '%s'\n", argv[i]);
+        i++;
+    }
+    else
+    {
+        cRepeats = 1;
+        i++;
+    }
+    if (i >= argc)
+        return kwErrPrintfRc(2, "Nothing to execute after '--'!\n");
+
+    /*
+     * Do the job.
+     */
+    cbArgs = 0;
+    for (j = i; j < argc; j++)
+        cbArgs += (KU32)strlen(argv[j]) + 1;
+
+    cEnvVars = 0;
+    while (environ[cEnvVars] != NULL)
+        cEnvVars++;
+
+    for (j = 0; j < cRepeats; j++)
+    {
+        rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd, argc - i, &argv[i], cbArgs, cEnvVars, environ);
+    }
+
+    return rcExit;
+}
+
+
+
 int main(int argc, char **argv)
 {
 #if 1
@@ -5244,6 +4921,12 @@ int main(int argc, char **argv)
     int     i;
     HANDLE  hPipe = INVALID_HANDLE_VALUE;
 
+    /*
+     * Create the cache.
+     */
+    g_pFsCache = kFsCacheCreate(KFSCACHE_F_MISSING_OBJECTS | KFSCACHE_F_MISSING_PATHS);
+    if (!g_pFsCache)
+        return kwErrPrintfRc(3, "kFsCacheCreate failed!\n");
 
     /*
      * Parse arguments.
@@ -5265,17 +4948,13 @@ int main(int argc, char **argv)
                     && (uintptr_t)u64Value == u64Value)
                     hPipe = (HANDLE)(uintptr_t)u64Value;
                 else
-                {
-                    kwErrPrintf("Invalid --pipe argument: %s\n", argv[i]);
-                    return 2;
-                }
+                    return kwErrPrintfRc(2, "Invalid --pipe argument: %s\n", argv[i]);
             }
             else
-            {
-                kwErrPrintf("--pipe takes an argument!\n");
-                return 2;
-            }
+                return kwErrPrintfRc(2, "--pipe takes an argument!\n");
         }
+        else if (strcmp(argv[i], "--test") == 0)
+            return kwTestRun(argc - i - 1, &argv[i + 1]);
         else if (   strcmp(argv[i], "--help") == 0
                  || strcmp(argv[i], "-h") == 0
                  || strcmp(argv[i], "-?") == 0)
@@ -5283,6 +4962,7 @@ int main(int argc, char **argv)
             printf("usage: kWorker --pipe <pipe-handle>\n"
                    "usage: kWorker <--help|-h>\n"
                    "usage: kWorker <--version|-V>\n"
+                   "usage: kWorker --test [<times> [--chdir <dir>]] -- args\n"
                    "\n"
                    "This is an internal kmk program that is used via the builtin_kSubmit.\n");
             return 0;
@@ -5291,17 +4971,11 @@ int main(int argc, char **argv)
                  || strcmp(argv[i], "-V") == 0)
             return kbuild_version(argv[0]);
         else
-        {
-            kwErrPrintf("Unknown argument '%s'\n", argv[i]);
-            return 2;
-        }
+            return kwErrPrintfRc(2, "Unknown argument '%s'\n", argv[i]);
     }
 
     if (hPipe == INVALID_HANDLE_VALUE)
-    {
-        kwErrPrintf("Missing --pipe <pipe-handle> argument!\n");
-        return 2;
-    }
+        return kwErrPrintfRc(2, "Missing --pipe <pipe-handle> argument!\n");
 
     /*
      * Serve the pipe.
@@ -5324,10 +4998,7 @@ int main(int argc, char **argv)
                     cbMsgBuf = K_ALIGN_Z(cbMsg + 4, 2048);
                     pbMsgBuf = kHlpRealloc(pbMsgBuf, cbMsgBuf);
                     if (!pbMsgBuf)
-                    {
-                        kwErrPrintf("Failed to allocate %u bytes for a message buffer!\n", cbMsgBuf);
-                        return 1;
-                    }
+                        return kwErrPrintfRc(1, "Failed to allocate %u bytes for a message buffer!\n", cbMsgBuf);
                 }
 
                 /* Read the whole message into the buffer, making sure there is are a 4 zero bytes following it. */
@@ -5363,17 +5034,11 @@ int main(int argc, char **argv)
                             continue;
                     }
                     else
-                    {
-                        kwErrPrintf("Unknown command: '%s'\n", psz);
-                        rc = -1;
-                    }
+                        rc = kwErrPrintfRc(-1, "Unknown command: '%s'\n", psz);
                 }
             }
             else
-            {
-                kwErrPrintf("Bogus message length: %u (%#x)\n", cbMsg, cbMsg);
-                rc = -1;
-            }
+                rc = kwErrPrintfRc(-1, "Bogus message length: %u (%#x)\n", cbMsg, cbMsg);
         }
         return rc > 0 ? 0 : 1;
     }

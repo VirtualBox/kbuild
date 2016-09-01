@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -51,7 +51,6 @@
 #endif
 #ifdef KBUILD_OS_WINDOWS
 # include "sub_proc.h"
-# include "quote_argv.h"
 #endif
 
 #include "kbuild.h"
@@ -1532,16 +1531,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {
-#ifdef KBUILD_OS_WINDOWS
-            /* Quote the argv elements, but first we need unquoted pszExecute. */
-            int const cArgs = argc - iArg;
-            int iArg2;
-            char **papszArgsOrg = (char **)xmalloc(sizeof(argv[0]) * cArgs);
             if (!pszExecutable)
                 pszExecutable = argv[iArg];
-            memcpy(papszArgsOrg, &argv[iArg], sizeof(argv[0]) * cArgs);
-            quote_argv(cArgs, &argv[iArg], fWatcomBrainDamage, 0 /*fFreeOrLeak*/);
-#endif
 
             rcExit = kSubmitSendJobMessage(pWorker, pvMsg, cbMsg, 0 /*fNoRespawning*/, cVerbosity);
             if (rcExit == 0)
@@ -1550,16 +1541,6 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
             if (!g_fAtExitRegistered)
                 if (atexit(kSubmitAtExitCallback) == 0)
                     g_fAtExitRegistered = 1;
-
-#ifdef KBUILD_OS_WINDOWS
-            for (iArg2 = 0; iArg2 < cArgs; iArg2++)
-                if (argv[iArg2 + iArg] != papszArgsOrg[iArg2])
-                {
-                    free(argv[iArg2 + iArg]);
-                    argv[iArg2 + iArg] = papszArgsOrg[iArg2];
-                }
-            free(papszArgsOrg);
-#endif
         }
         else
             rcExit = 1;
