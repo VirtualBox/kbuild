@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2860 2016-09-01 16:55:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2865 2016-09-02 22:17:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -163,6 +163,16 @@ typedef struct KWMODULE
             void               *pvBits;
             /** The state. */
             KWMODSTATE          enmState;
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
+            /** The number of entries in the table. */
+            KU32                cFunctions;
+            /** The function table address (in the copy). */
+            PRUNTIME_FUNCTION   paFunctions;
+            /** Set if we've already registered a function table already. */
+            KBOOL               fRegisteredFunctionTable;
+#endif
+            /** Set if we share memory with other executables. */
+            KBOOL               fUseLdBuf;
             /** Number of imported modules. */
             KSIZE               cImpMods;
             /** Import array (variable size). */
@@ -429,6 +439,9 @@ typedef KWREPLACEMENTDATA const *PCKWREPLACEMENTDATA;
 *********************************************************************************************************************************/
 /** The sandbox data. */
 static KWSANDBOX    g_Sandbox;
+
+/** The module currently occupying g_abDefLdBuf. */
+static PKWMODULE    g_pModInLdBuf = NULL;
 
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
@@ -1218,6 +1231,10 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     pMod->fNative       = K_FALSE;
                     pMod->pLdrMod       = pLdrMod;
                     pMod->u.Manual.cImpMods = (KU32)cImports;
+                    pMod->u.Manual.fUseLdBuf = K_FALSE;
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
+                    pMod->u.Manual.fRegisteredFunctionTable = K_FALSE;
+#endif
                     pMod->pszPath       = (char *)kHlpMemCopy(&pMod->u.Manual.apImpMods[cImports + 1], pszPath, cbPath);
                     pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
                     kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
@@ -1230,9 +1247,12 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     pMod->u.Manual.pvLoad = fFixed ? (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress : NULL;
                     pMod->u.Manual.cbImage = kLdrModSize(pLdrMod);
                     if (   !fFixed
+                        || pLdrMod->enmType != KLDRTYPE_EXECUTABLE_FIXED /* only allow fixed executables */
                         || (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf >= sizeof(g_abDefLdBuf)
                         || sizeof(g_abDefLdBuf) - (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf < pMod->u.Manual.cbImage)
                         rc = kHlpPageAlloc(&pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage, KPROT_EXECUTE_READWRITE, fFixed);
+                    else
+                        pMod->u.Manual.fUseLdBuf = K_TRUE;
                     if (rc == 0)
                     {
                         rc = kHlpPageAlloc(&pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage, KPROT_READWRITE, K_FALSE);
@@ -1270,6 +1290,37 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                                     kwLdrModuleGetImportCallback, pMod);
                                 if (rc == 0)
                                 {
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
+                                    /*
+                                     * Find the function table.  No validation here because the
+                                     * loader did that already, right...
+                                     */
+                                    KU8                        *pbImg = (KU8 *)pMod->u.Manual.pvCopy;
+                                    IMAGE_NT_HEADERS const     *pNtHdrs;
+                                    IMAGE_DATA_DIRECTORY const *pXcptDir;
+                                    if (((PIMAGE_DOS_HEADER)pbImg)->e_magic == IMAGE_DOS_SIGNATURE)
+                                        pNtHdrs = (PIMAGE_NT_HEADERS)&pbImg[((PIMAGE_DOS_HEADER)pbImg)->e_lfanew];
+                                    else
+                                        pNtHdrs = (PIMAGE_NT_HEADERS)pbImg;
+                                    pXcptDir = &pNtHdrs->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
+                                    kHlpAssert(pNtHdrs->Signature == IMAGE_NT_SIGNATURE);
+                                    if (pXcptDir->Size > 0)
+                                    {
+                                        pMod->u.Manual.cFunctions  = pXcptDir->Size / sizeof(pMod->u.Manual.paFunctions[0]);
+                                        kHlpAssert(   pMod->u.Manual.cFunctions * sizeof(pMod->u.Manual.paFunctions[0])
+                                                   == pXcptDir->Size);
+                                        pMod->u.Manual.paFunctions = (PRUNTIME_FUNCTION)&pbImg[pXcptDir->VirtualAddress];
+                                    }
+                                    else
+                                    {
+                                        pMod->u.Manual.cFunctions  = 0;
+                                        pMod->u.Manual.paFunctions = NULL;
+                                    }
+#endif
+
+                                    /*
+                                     * Final finish.
+                                     */
                                     pMod->u.Manual.pvBits = pMod->u.Manual.pvCopy;
                                     pMod->u.Manual.enmState = KWMODSTATE_NEEDS_BITS;
                                     return pMod;
@@ -1576,9 +1627,33 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
         /* Need to copy bits? */
         if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_BITS)
         {
+            if (pMod->u.Manual.fUseLdBuf)
+            {
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
+                if (g_pModInLdBuf != NULL && g_pModInLdBuf != pMod && pMod->u.Manual.fRegisteredFunctionTable)
+                {
+                    BOOLEAN fRc = RtlDeleteFunctionTable(pMod->u.Manual.paFunctions);
+                    kHlpAssert(fRc); K_NOREF(fRc);
+                }
+#endif
+                g_pModInLdBuf = pMod;
+            }
+
             kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
             pMod->u.Manual.enmState = KWMODSTATE_NEEDS_INIT;
         }
+
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
+        /* Need to register function table? */
+        if (   !pMod->u.Manual.fRegisteredFunctionTable
+            && pMod->u.Manual.cFunctions > 0)
+        {
+            pMod->u.Manual.fRegisteredFunctionTable = RtlAddFunctionTable(pMod->u.Manual.paFunctions,
+                                                                          pMod->u.Manual.cFunctions,
+                                                                          (KUPTR)pMod->u.Manual.pvLoad) != FALSE;
+            kHlpAssert(pMod->u.Manual.fRegisteredFunctionTable);
+        }
+#endif
 
         if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_INIT)
         {
@@ -4065,6 +4140,31 @@ static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, L
 
 
 
+/*
+ *
+ * Misc function only intercepted while debugging.
+ * Misc function only intercepted while debugging.
+ * Misc function only intercepted while debugging.
+ *
+ */
+
+#ifndef NDEBUG
+
+/** CRT - memcpy   */
+static void * __cdecl kwSandbox_msvcrt_memcpy(void *pvDst, void const *pvSrc, size_t cb)
+{
+    KU8 const *pbSrc = (KU8 const *)pvSrc;
+    KU8       *pbDst = (KU8 *)pvDst;
+    KSIZE      cbLeft = cb;
+    while (cbLeft-- > 0)
+        *pbDst++ = *pbSrc++;
+    return pvDst;
+}
+
+#endif /* NDEBUG */
+
+
+
 /**
  * Functions that needs replacing for sandboxed execution.
  */
@@ -4171,6 +4271,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("_get_wenviron"),               NULL,       (KUPTR)kwSandbox_msvcrt__get_wenviron },
     { TUPLE("__p__environ"),                NULL,       (KUPTR)kwSandbox_msvcrt___p__environ },
     { TUPLE("__p__wenviron"),               NULL,       (KUPTR)kwSandbox_msvcrt___p__wenviron },
+
+#ifndef NDEBUG
+    { TUPLE("memcpy"),                      NULL,       (KUPTR)kwSandbox_msvcrt_memcpy },
+#endif
 };
 /** Number of entries in g_aReplacements. */
 KU32 const                  g_cSandboxReplacements = K_ELEMENTS(g_aSandboxReplacements);
@@ -4454,7 +4558,7 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 }
 
 
-static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
+static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
                          KU32 cEnvVars, const char **papszEnvVars)
 {
     int rcExit = 42;
@@ -4522,46 +4626,6 @@ static int kwSandboxExec(PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KBOO
 }
 
 
-#if 0
-static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
-{
-    int rc;
-    PKWTOOL pTool = kwToolLookup(pszExe);
-    if (pTool)
-    {
-        int rc;
-        int rcExitCode;
-        switch (pTool->enmType)
-        {
-            case KWTOOLTYPE_SANDBOXED:
-                KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                rc = kwSandboxExec(pTool, pszCmdLine, &rcExitCode);
-                break;
-
-            case KWTOOLTYPE_WATCOM:
-                KW_LOG(("TODO: Watcom style tool %s\n", pTool->pszPath));
-                rc = rcExitCode = 2;
-                break;
-
-            case KWTOOLTYPE_EXEC:
-                KW_LOG(("TODO: Direct exec tool %s\n", pTool->pszPath));
-                rc = rcExitCode = 2;
-                break;
-
-            default:
-                kHlpAssertFailed();
-                rc = rcExitCode = 2;
-                break;
-        }
-        KW_LOG(("rcExitCode=%d (rc=%d)\n", rcExitCode, rc));
-    }
-    else
-        rc = 1;
-    return rc;
-}
-#endif
-
-
 /**
  * Part 2 of the "JOB" command handler.
  *
@@ -4619,7 +4683,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
                 if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
                 {
                     KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                    rcExit = kwSandboxExec(pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
+                    rcExit = kwSandboxExec(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
                 }
                 else
                 {
@@ -4949,11 +5013,10 @@ static int kwTestRun(int argc, char **argv)
     return rcExit;
 }
 
-
+#if 1
 
 int main(int argc, char **argv)
 {
-#if 1
     KSIZE   cbMsgBuf = 0;
     KU8    *pbMsgBuf = NULL;
     int     i;
@@ -5080,8 +5143,38 @@ int main(int argc, char **argv)
         }
         return rc > 0 ? 0 : 1;
     }
+}
 
 #else
+
+static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
+{
+    int rc;
+    PKWTOOL pTool = kwToolLookup(pszExe);
+    if (pTool)
+    {
+        int rcExitCode;
+        switch (pTool->enmType)
+        {
+            case KWTOOLTYPE_SANDBOXED:
+                KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
+                rc = kwSandboxExec(&g_Sandbox, pTool, pszCmdLine, &rcExitCode);
+                break;
+            default:
+                kHlpAssertFailed();
+                KW_LOG(("TODO: Direct exec tool %s\n", pTool->pszPath));
+                rc = rcExitCode = 2;
+                break;
+        }
+        KW_LOG(("rcExitCode=%d (rc=%d)\n", rcExitCode, rc));
+    }
+    else
+        rc = 1;
+    return rc;
+}
+
+int main(int argc, char **argv)
+{
     int rc = 0;
     int i;
     argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
@@ -5107,7 +5200,7 @@ int main(int argc, char **argv)
         rc = kwExecCmdLine(argv[1], argv[2]);
 # endif
     return rc;
+}
 
 #endif
-}
 
