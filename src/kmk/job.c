@@ -681,14 +681,6 @@ reap_children (int block, int err)
               /* If we have started jobs in this second, remove one.  */
               if (job_counter)
                 --job_counter;
-
-# if defined(KMK) && defined(KBUILD_OS_WINDOWS)
-              /* Invalidate negative directory cache entries now that a
-                 job has completed and possibly created new files that
-                 was missing earlier. */
-              extern void dir_cache_invalid_missing(void);
-              dir_cache_invalid_missing ();
-# endif
 	    }
 	  else
 	    {
