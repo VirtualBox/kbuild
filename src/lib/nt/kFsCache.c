@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2863 2016-09-02 16:32:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2864 2016-09-02 16:42:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -1453,6 +1453,7 @@ KBOOL kFsCacheDirEnsurePopuplated(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR
 {
     KFSLOOKUPERROR enmIgnored;
     if (   pDir->fPopulated
+        && !pDir->fNeedRePopulating
         && (   pDir->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
             || pDir->Obj.uCacheGen == pCache->uGeneration) )
         return K_TRUE;
@@ -1532,10 +1533,17 @@ static KBOOL kFsCacheRefreshMissing(PKFSCACHE pCache, PKFSOBJ pMissing, KFSLOOKU
              * because we need to check the file name casing.  We might
              * just as well update the parent directory...
              */
-            KFSCACHE_LOG(("Birth of %s/%s with attribs %#x...\n",
-                          pMissing->pParent->Obj.pszName, pMissing->pszName, BasicInfo.FileAttributes));
-            /** @todo   */
-            __debugbreak();
+            KU8 const   bObjType = BasicInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY ? KFSOBJ_TYPE_DIR
+                                 : BasicInfo.FileAttributes & (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_REPARSE_POINT)
+                                 ? KFSOBJ_TYPE_OTHER : KFSOBJ_TYPE_FILE;
+
+            KFSCACHE_LOG(("Birth of %s/%s as %d with attribs %#x...\n",
+                          pMissing->pParent->Obj.pszName, pMissing->pszName, bObjType, BasicInfo.FileAttributes));
+            pMissing->bObjType  = bObjType;
+            pMissing->uCacheGen = pCache->uGenerationMissing;
+/**
+ * @todo refresh missing object names when it appears.
+ */
         }
     }
 
