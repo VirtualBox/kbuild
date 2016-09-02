@@ -1,4 +1,4 @@
-/* $Id: nthlp.h 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlp.h 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helper functions.
  */
@@ -32,6 +32,7 @@
 #define ___nt_nthlp_h
 
 #include "ntstuff.h"
+#include "nttypes.h"
 
 
 /** Lazy resolving of the NTDLL imports. */
@@ -64,6 +65,14 @@ MY_NTSTATUS birdOpenFileUniStr(MY_UNICODE_STRING *pNtPath, ACCESS_MASK fDesiredA
 void        birdCloseFile(HANDLE hFile);
 int         birdDosToNtPath(const char *pszPath, MY_UNICODE_STRING *pNtPath);
 void        birdFreeNtPath(MY_UNICODE_STRING *pNtPath);
+
+
+static __inline void birdNtTimeToTimeSpec(__int64 iNtTime, BirdTimeSpec_T *pTimeSpec)
+{
+    iNtTime -= BIRD_NT_EPOCH_OFFSET_UNIX_100NS;
+    pTimeSpec->tv_sec  = iNtTime / 10000000;
+    pTimeSpec->tv_nsec = (iNtTime % 10000000) * 100;
+}
 
 
 #endif

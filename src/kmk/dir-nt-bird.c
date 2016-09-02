@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -503,6 +503,6 @@ int stat_only_mtime(const char *pszPath, struct stat *pStat)
  */
 void dir_cache_invalid_missing(void)
 {
-    kFsCacheInvalidateMissing(g_pFsCache);
+    kFsCacheInvalidateAll(g_pFsCache);
 }
 

@@ -268,6 +268,12 @@ process_wait_for_any(void)
 		 * will have to use process_last_err()
 		 */
 #ifdef KMK
+		/* Invalidate negative directory cache entries now that a
+		   job has completed and possibly created new files that
+		   was missing earlier. */
+		extern void dir_cache_invalid_missing(void);
+		dir_cache_invalid_missing();
+
 		if (pproc->enmType == kRegular) {
 		    (void)process_file_io_private(pproc, FALSE);
 		}

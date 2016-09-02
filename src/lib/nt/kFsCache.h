@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -245,6 +245,8 @@ typedef struct KFSDIR
 
     /** Set if populated. */
     KBOOL               fPopulated;
+    /** Set if it needs re-populated. */
+    KBOOL               fNeedRePopulating;
 } KFSDIR;
 
 

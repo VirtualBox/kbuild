@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -172,14 +172,6 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
         fMode |= S_IXOTH | S_IXGRP | S_IXUSR;
 
     return fMode;
-}
-
-
-static void birdNtTimeToTimeSpec(__int64 iNtTime, BirdTimeSpec_T *pTimeSpec)
-{
-    iNtTime -= BIRD_NT_EPOCH_OFFSET_UNIX_100NS;
-    pTimeSpec->tv_sec  = iNtTime / 10000000;
-    pTimeSpec->tv_nsec = (iNtTime % 10000000) * 100;
 }
 
 
