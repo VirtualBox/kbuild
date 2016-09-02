@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2863 2016-09-02 16:32:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -61,6 +61,29 @@
 #else
 # define KFSCACHE_LOG2(a) do { } while (0)
 #endif
+
+
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+/**
+ * Used by the code re-populating a directory.
+ */
+typedef struct KFSDIRREPOP
+{
+    /** The old papChildren array. */
+    PKFSOBJ    *papOldChildren;
+    /** Number of children in the array. */
+    KU32        cOldChildren;
+    /** The index into papOldChildren we expect to find the next entry.  */
+    KU32        iNextOldChild;
+    /** Add this to iNextOldChild . */
+    KI32        cNextOldChildInc;
+    /** Pointer to the cache (name changes). */
+    PKFSCACHE   pCache;
+} KFSDIRREPOP;
+/** Pointer to directory re-population data. */
+typedef KFSDIRREPOP *PKFSDIRREPOP;
 
 
 
@@ -226,6 +249,65 @@ static KU32 kFsCacheUtf16HashN(const wchar_t *pwcString, KSIZE cwcString)
         uHash = uChar + (uHash << 6) + (uHash << 16) - uHash;
     }
     return uHash;
+}
+
+
+/**
+ * For use when kFsCacheIAreEqualW hit's something non-trivial.
+ *
+ * @returns K_TRUE if equal, K_FALSE if different.
+ * @param   pwcName1            The first string.
+ * @param   pwcName2            The second string.
+ * @param   cwcName             The length of the two strings (in wchar_t's).
+ */
+KBOOL kFsCacheIAreEqualSlowW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU16 cwcName)
+{
+    MY_UNICODE_STRING UniStr1 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName1 };
+    MY_UNICODE_STRING UniStr2 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName2 };
+    return g_pfnRtlEqualUnicodeString(&UniStr1, &UniStr2, TRUE /*fCaseInsensitive*/);
+}
+
+
+/**
+ * Compares two UTF-16 strings in a case-insensitive fashion.
+ *
+ * You would think we should be using _wscnicmp here instead, however it is
+ * locale dependent and defaults to ASCII upper/lower handling setlocale hasn't
+ * been called.
+ *
+ * @returns K_TRUE if equal, K_FALSE if different.
+ * @param   pwcName1            The first string.
+ * @param   pwcName2            The second string.
+ * @param   cwcName             The length of the two strings (in wchar_t's).
+ */
+K_INLINE KBOOL kFsCacheIAreEqualW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU32 cwcName)
+{
+    while (cwcName > 0)
+    {
+        wchar_t wc1 = *pwcName1;
+        wchar_t wc2 = *pwcName2;
+        if (wc1 == wc2)
+        { /* not unlikely */ }
+        else if (  (KU16)wc1 < (KU16)0xc0 /* U+00C0 is the first upper/lower letter after 'z'. */
+                && (KU16)wc2 < (KU16)0xc0)
+        {
+            /* ASCII upper case. */
+            if ((KU16)wc1 - (KU16)0x61 < (KU16)26)
+                wc1 &= ~(wchar_t)0x20;
+            if ((KU16)wc2 - (KU16)0x61 < (KU16)26)
+                wc2 &= ~(wchar_t)0x20;
+            if (wc1 != wc2)
+                return K_FALSE;
+        }
+        else
+            return kFsCacheIAreEqualSlowW(pwcName1, pwcName2, (KU16)cwcName);
+
+        pwcName2++;
+        pwcName1++;
+        cwcName--;
+    }
+
+    return K_TRUE;
 }
 
 
@@ -404,12 +486,13 @@ static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsOb
  */
 static KBOOL kFsCacheDirAddChild(PKFSCACHE pCache, PKFSDIR pParent, PKFSOBJ pChild, KFSLOOKUPERROR *penmError)
 {
-    if ((pParent->cChildren % 16) == 0)
+    if (pParent->cChildren >= pParent->cChildrenAllocated)
     {
-        void *pvNew = kHlpRealloc(pParent->papChildren, (pParent->cChildren + 16) * sizeof(pParent->papChildren[0]));
+        void *pvNew = kHlpRealloc(pParent->papChildren, (pParent->cChildrenAllocated + 16) * sizeof(pParent->papChildren[0]));
         if (!pvNew)
             return K_FALSE;
         pParent->papChildren = (PKFSOBJ *)pvNew;
+        pParent->cChildrenAllocated += 16;
         pCache->cbObjects += 16 * sizeof(pParent->papChildren[0]);
     }
     pParent->papChildren[pParent->cChildren++] = kFsCacheObjRetainInternal(pChild);
@@ -532,14 +615,15 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         if (fDirish)
         {
             PKFSDIR pDirObj = (PKFSDIR)pObj;
-            pDirObj->cChildren      = 0;
-            pDirObj->papChildren    = NULL;
-            pDirObj->cHashTab       = 0;
-            pDirObj->paHashTab      = NULL;
-            pDirObj->hDir           = INVALID_HANDLE_VALUE;
-            pDirObj->uDevNo         = pParent->uDevNo;
-            pDirObj->iLastWrite     = 0;
-            pDirObj->fPopulated     = K_FALSE;
+            pDirObj->cChildren          = 0;
+            pDirObj->cChildrenAllocated = 0;
+            pDirObj->papChildren        = NULL;
+            pDirObj->cHashTab           = 0;
+            pDirObj->paHashTab          = NULL;
+            pDirObj->hDir               = INVALID_HANDLE_VALUE;
+            pDirObj->uDevNo             = pParent->uDevNo;
+            pDirObj->iLastWrite         = 0;
+            pDirObj->fPopulated         = K_FALSE;
         }
     }
     else
@@ -684,6 +768,288 @@ static PKFSOBJ kFsCacheCreateMissingW(PKFSCACHE pCache, PKFSDIR pParent, const w
     return NULL;
 }
 
+/**
+ * Worker for kFsCacheDirFindOldChild that refreshes the file ID value on an
+ * object found by name.
+ *
+ * @returns Pointer to the existing object if found, NULL if not.
+ * @param   pDirRePop       Repopulation data.
+ * @param   pCur            The object to check the names of.
+ * @param   idFile          The file ID.
+ */
+static PKFSOBJ kFsCacheDirRefreshOldChildFileId(PKFSDIRREPOP pDirRePop, PKFSOBJ pCur, KI64 idFile)
+{
+    KFSCACHE_LOG(("Refreshing %s/%s/ - %s changed file ID from %#llx -> %#llx...\n",
+                  pCur->pParent->Obj.pParent->Obj.pszName, pCur->pParent->Obj.pszName, pCur->pszName,
+                  pCur->Stats.st_ino, idFile));
+    pCur->Stats.st_ino = idFile;
+    /** @todo inform user data items...  */
+    return pCur;
+}
+
+
+/**
+ * Worker for kFsCacheDirFindOldChild that checks the names after an old object
+ * has been found the file ID.
+ *
+ * @returns Pointer to the existing object if found, NULL if not.
+ * @param   pDirRePop       Repopulation data.
+ * @param   pCur            The object to check the names of.
+ * @param   pwcName         The file name.
+ * @param   cwcName         The length of the filename (in wchar_t's).
+ * @param   pwcShortName    The short name, if present.
+ * @param   cwcShortName    The length of the short name (in wchar_t's).
+ */
+static PKFSOBJ kFsCacheDirRefreshOldChildName(PKFSDIRREPOP pDirRePop, PKFSOBJ pCur, wchar_t const *pwcName, KU32 cwcName
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                              , wchar_t const *pwcShortName, KU32 cwcShortName
+#endif
+                                              )
+{
+    __debugbreak();
+    /** @todo implement this.  It's not entirely straight forward, especially if
+     *        the name increases!  Also, it's something that may happend during
+     *        individual object refresh and we might want to share code... */
+
+    return pCur;
+}
+
+
+/**
+ * Worker for kFsCacheDirFindOldChild that checks the names after an old object
+ * has been found the file ID.
+ *
+ * @returns Pointer to the existing object if found, NULL if not.
+ * @param   pDirRePop       Repopulation data.
+ * @param   pCur            The object to check the names of.
+ * @param   pwcName         The file name.
+ * @param   cwcName         The length of the filename (in wchar_t's).
+ * @param   pwcShortName    The short name, if present.
+ * @param   cwcShortName    The length of the short name (in wchar_t's).
+ */
+K_INLINE PKFSOBJ kFsCacheDirCheckOldChildName(PKFSDIRREPOP pDirRePop, PKFSOBJ pCur, wchar_t const *pwcName, KU32 cwcName
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                              , wchar_t const *pwcShortName, KU32 cwcShortName
+#endif
+                                              )
+{
+    if (   pCur->cwcName == cwcName
+        && kHlpMemComp(pCur->pwszName, pwcName, cwcName * sizeof(wchar_t)) == 0)
+    {
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+        if (cwcShortName == 0
+            ?    pCur->pwszShortName == pCur->pwszName
+              || (   pCur->cwcShortName == cwcName
+                  && kHlpMemComp(pCur->pwszShortName, pCur->pwszName, cwcName * sizeof(wchar_t)) == 0)
+            :    pCur->cwcShortName == cwcShortName
+              && kHlpMemComp(pCur->pwszShortName, pwcShortName, cwcShortName * sizeof(wchar_t)) == 0 )
+#endif
+        {
+            return pCur;
+        }
+    }
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+    return kFsCacheDirRefreshOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#else
+    return kFsCacheDirRefreshOldChildName(pDirRePop, pCur, pwcName, cwcName);
+#endif
+}
+
+
+/**
+ * Worker for kFsCachePopuplateOrRefreshDir that locates an old child object
+ * while re-populating a directory.
+ *
+ * @returns Pointer to the existing object if found, NULL if not.
+ * @param   pDirRePop       Repopulation data.
+ * @param   idFile          The file ID, 0 if none.
+ * @param   pwcName         The file name.
+ * @param   cwcName         The length of the filename (in wchar_t's).
+ * @param   pwcShortName    The short name, if present.
+ * @param   cwcShortName    The length of the short name (in wchar_t's).
+ */
+static PKFSOBJ kFsCacheDirFindOldChildSlow(PKFSDIRREPOP pDirRePop, KI64 idFile, wchar_t const *pwcName, KU32 cwcName
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                           , wchar_t const *pwcShortName, KU32 cwcShortName
+#endif
+                                           )
+{
+    KU32        cOldChildren  = pDirRePop->cOldChildren;
+    KU32 const  iNextOldChild = K_MIN(pDirRePop->iNextOldChild, cOldChildren - 1);
+    KU32        iCur;
+    KI32        cInc;
+    KI32        cDirLefts;
+
+    kHlpAssertReturn(cOldChildren > 0, NULL);
+
+    /*
+     * Search by file ID first, if we've got one.
+     * ASSUMES that KU32 wraps around when -1 is added to 0.
+     */
+    if (   idFile != 0
+        && idFile != KI64_MAX
+        && idFile != KI64_MIN)
+    {
+        cInc = pDirRePop->cNextOldChildInc;
+        kHlpAssert(cInc == -1 || cInc == 1);
+        for (cDirLefts = 2; cDirLefts > 0; cDirLefts--)
+        {
+            for (iCur = iNextOldChild; iCur < cOldChildren; iCur += cInc)
+            {
+                PKFSOBJ pCur = pDirRePop->papOldChildren[iCur];
+                if (pCur->Stats.st_ino == idFile)
+                {
+                    /* Remove it and check the name. */
+                    pDirRePop->cOldChildren = --cOldChildren;
+                    if (iCur < cOldChildren)
+                        pDirRePop->papOldChildren[iCur] = pDirRePop->papOldChildren[cOldChildren];
+                    else
+                        cInc = -1;
+                    pDirRePop->cNextOldChildInc = cInc;
+                    pDirRePop->iNextOldChild    = iCur + cInc;
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                    return kFsCacheDirCheckOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#else
+                    return kFsCacheDirCheckOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#endif
+                }
+            }
+            cInc = -cInc;
+        }
+    }
+
+    /*
+     * Search by name.
+     * ASSUMES that KU32 wraps around when -1 is added to 0.
+     */
+    cInc = pDirRePop->cNextOldChildInc;
+    kHlpAssert(cInc == -1 || cInc == 1);
+    for (cDirLefts = 2; cDirLefts > 0; cDirLefts--)
+    {
+        for (iCur = iNextOldChild; iCur < cOldChildren; iCur += cInc)
+        {
+            PKFSOBJ pCur = pDirRePop->papOldChildren[iCur];
+            if (   (   pCur->cwcName == cwcName
+                    && kFsCacheIAreEqualW(pCur->pwszName, pwcName, cwcName))
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                || (   pCur->cwcShortName == cwcName
+                    && pCur->pwszShortName != pCur->pwszName
+                    && kFsCacheIAreEqualW(pCur->pwszShortName, pwcName, cwcName))
+#endif
+               )
+            {
+                /* Do this first so the compiler can share the rest with the above file ID return. */
+                if (pCur->Stats.st_ino == idFile)
+                { /* likely */ }
+                else
+                    pCur = kFsCacheDirRefreshOldChildFileId(pDirRePop, pCur, idFile);
+
+                /* Remove it and check the name. */
+                pDirRePop->cOldChildren = --cOldChildren;
+                if (iCur < cOldChildren)
+                    pDirRePop->papOldChildren[iCur] = pDirRePop->papOldChildren[cOldChildren];
+                else
+                    cInc = -1;
+                pDirRePop->cNextOldChildInc = cInc;
+                pDirRePop->iNextOldChild    = iCur + cInc;
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                return kFsCacheDirCheckOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#else
+                return kFsCacheDirCheckOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#endif
+            }
+        }
+        cInc = -cInc;
+    }
+
+    return NULL;
+}
+
+
+
+/**
+ * Worker for kFsCachePopuplateOrRefreshDir that locates an old child object
+ * while re-populating a directory.
+ *
+ * @returns Pointer to the existing object if found, NULL if not.
+ * @param   pDirRePop       Repopulation data.
+ * @param   idFile          The file ID, 0 if none.
+ * @param   pwcName         The file name.
+ * @param   cwcName         The length of the filename (in wchar_t's).
+ * @param   pwcShortName    The short name, if present.
+ * @param   cwcShortName    The length of the short name (in wchar_t's).
+ */
+K_INLINE PKFSOBJ kFsCacheDirFindOldChild(PKFSDIRREPOP pDirRePop, KI64 idFile, wchar_t const *pwcName, KU32 cwcName
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                         , wchar_t const *pwcShortName, KU32 cwcShortName
+#endif
+                                         )
+{
+    /*
+     * We only check the iNextOldChild element here, hoping that the compiler
+     * will actually inline this code, letting the slow version of the function
+     * do the rest.
+     */
+    KU32 cOldChildren = pDirRePop->cOldChildren;
+    if (cOldChildren > 0)
+    {
+        KU32 const  iNextOldChild = K_MIN(pDirRePop->iNextOldChild, cOldChildren);
+        PKFSOBJ     pCur          = pDirRePop->papOldChildren[iNextOldChild];
+
+        if (   pCur->Stats.st_ino == idFile
+            && idFile != 0
+            && idFile != KI64_MAX
+            && idFile != KI64_MIN)
+            pCur = kFsCacheDirCheckOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+        else if (   pCur->cwcName == cwcName
+                 && kHlpMemComp(pCur->pwszName,  pwcName, cwcName * sizeof(wchar_t)) == 0)
+        {
+            if (pCur->Stats.st_ino == idFile)
+            { /* likely */ }
+            else
+                pCur = kFsCacheDirRefreshOldChildFileId(pDirRePop, pCur, idFile);
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+            if (cwcShortName == 0
+                ?    pCur->pwszShortName == pCur->pwszName
+                  || (   pCur->cwcShortName == cwcName
+                      && kHlpMemComp(pCur->pwszShortName, pCur->pwszName, cwcName * sizeof(wchar_t)) == 0)
+                :    pCur->cwcShortName == cwcShortName
+                  && kHlpMemComp(pCur->pwszShortName, pwcShortName, cwcShortName * sizeof(wchar_t)) == 0 )
+             { /* likely */ }
+             else
+                 pCur = kFsCacheDirRefreshOldChildName(pDirRePop, pCur, pwcName, cwcName, pwcShortName, cwcShortName);
+#endif
+        }
+        else
+            pCur = NULL;
+        if (pCur)
+        {
+            /*
+             * Got a match.  Remove the child from the array, replacing it with
+             * the last element.  (This means we're reversing the second half of
+             * the elements, which is why we need cNextOldChildInc.)
+             */
+            pDirRePop->cOldChildren = --cOldChildren;
+            if (iNextOldChild < cOldChildren)
+                pDirRePop->papOldChildren[iNextOldChild] = pDirRePop->papOldChildren[cOldChildren];
+            pDirRePop->iNextOldChild = iNextOldChild + pDirRePop->cNextOldChildInc;
+            return pCur;
+        }
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+        return kFsCacheDirFindOldChildSlow(pDirRePop, idFile, pwcName, cwcName, pwcShortName, cwcShortName);
+#else
+        return kFsCacheDirFindOldChildSlow(pDirRePop, idFile, pwcName, cwcName);
+#endif
+    }
+
+    return NULL;
+}
+
+
 
 /**
  * Does the initial directory populating or refreshes it if it has been
@@ -698,8 +1064,11 @@ static PKFSOBJ kFsCacheCreateMissingW(PKFSCACHE pCache, PKFSDIR pParent, const w
  */
 static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR *penmError)
 {
-    KBOOL                       fRefreshing  = K_FALSE;
-    /** @todo will have to make this more flexible wrt information classes since
+    KBOOL                       fRefreshing = K_FALSE;
+    KFSDIRREPOP                 DirRePop    = { NULL, 0, 0, 0, NULL };
+    MY_UNICODE_STRING           UniStrStar  = { 1 * sizeof(wchar_t), 2 * sizeof(wchar_t), L"*" };
+
+    /** @todo May have to make this more flexible wrt information classes since
      *        older windows versions (XP, w2K) might not correctly support the
      *        ones with file ID on all file systems. */
 #ifdef KFSCACHE_CFG_SHORT_NAMES
@@ -719,6 +1088,7 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
         /* Buffer padding. We're using a 56KB buffer here to avoid size troubles with CIFS and such. */
         KU8                                 abBuf[56*1024];
     } uBuf;
+
 
     /*
      * Open the directory.
@@ -762,10 +1132,32 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
             return K_FALSE;
         }
     }
+    /*
+     * When re-populating, we replace papChildren in the directory and pick
+     * from the old one as we go along.
+     */
     else if (pDir->fPopulated)
     {
-        /** @todo refreshing directories. */
-        __debugbreak();
+        KU32  cAllocated = K_ALIGN_Z(pDir->cChildren, 16);
+        void *pvNew      = kHlpAlloc(sizeof(pDir->papChildren[0]) * cAllocated);
+        if (pvNew)
+        {
+            DirRePop.papOldChildren     = pDir->papChildren;
+            DirRePop.cOldChildren       = pDir->cChildren;
+            DirRePop.iNextOldChild      = 0;
+            DirRePop.cNextOldChildInc   = 1;
+            DirRePop.pCache             = pCache;
+
+            pDir->cChildren             = 0;
+            pDir->cChildrenAllocated    = cAllocated;
+            pDir->papChildren           = (PKFSOBJ *)pvNew;
+        }
+        else
+        {
+            *penmError = KFSLOOKUPERROR_OUT_OF_MEMORY;
+            return K_FALSE;
+        }
+
         fRefreshing = K_TRUE;
     }
     if (!fRefreshing)
@@ -775,6 +1167,10 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
 
     /*
      * Enumerate the directory content.
+     *
+     * Note! The "*" filter is necessary because kFsCacheRefreshObj may have
+     *       previously quried a single file name and just passing NULL would
+     *       restart that single file name query.
      */
     Ios.Information = -1;
     Ios.u.Status    = -1;
@@ -787,7 +1183,7 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                                      sizeof(uBuf),
                                      enmInfoClass,
                                      FALSE,     /* fReturnSingleEntry */
-                                     NULL,      /* Filter / restart pos. */
+                                     &UniStrStar, /* Filter / restart pos. */
                                      TRUE);     /* fRestartScan */
     while (MY_NT_SUCCESS(rcNt))
     {
@@ -811,45 +1207,105 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
             PKFSOBJ     pCur;
             KU32        offNext;
             KU32        cbMinCur;
-            wchar_t    *pwszFilename;
+            wchar_t    *pwchFilename;
 
             /* ASSUME only the FileName member differs between the two structures. */
             uPtr.pb = &uBuf.abBuf[offBuf];
             if (enmInfoClass == enmInfoClassWithId)
             {
-                pwszFilename = &uPtr.pWithId->FileName[0];
+                pwchFilename = &uPtr.pWithId->FileName[0];
                 cbMinCur  = (KU32)((uintptr_t)&uPtr.pWithId->FileName[0] - (uintptr_t)uPtr.pWithId);
                 cbMinCur += uPtr.pNoId->FileNameLength;
             }
             else
             {
-                pwszFilename = &uPtr.pNoId->FileName[0];
+                pwchFilename = &uPtr.pNoId->FileName[0];
                 cbMinCur  = (KU32)((uintptr_t)&uPtr.pNoId->FileName[0] - (uintptr_t)uPtr.pNoId);
                 cbMinCur += uPtr.pNoId->FileNameLength;
             }
 
             /* We need to skip the '.' and '..' entries. */
-            if (   *pwszFilename != '.'
+            if (   *pwchFilename != '.'
                 ||  uPtr.pNoId->FileNameLength > 4
                 ||  !(   uPtr.pNoId->FileNameLength == 2
                       ||  (   uPtr.pNoId->FileNameLength == 4
-                           && pwszFilename[1] == '.') )
+                           && pwchFilename[1] == '.') )
                )
             {
+                KBOOL       fRc;
+                KU8 const   bObjType = uPtr.pNoId->FileAttributes & FILE_ATTRIBUTE_DIRECTORY ? KFSOBJ_TYPE_DIR
+                                     : uPtr.pNoId->FileAttributes & (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_REPARSE_POINT)
+                                     ? KFSOBJ_TYPE_OTHER : KFSOBJ_TYPE_FILE;
+
                 /*
-                 * Create the entry (not linked yet).
+                 * If refreshing, we must first see if this directory entry already
+                 * exists.
                  */
-                pCur = kFsCacheCreateObjectW(pCache, pDir, pwszFilename, uPtr.pNoId->FileNameLength / sizeof(wchar_t),
+                if (!fRefreshing)
+                    pCur = NULL;
+                else
+                {
+                    pCur = kFsCacheDirFindOldChild(&DirRePop,
+                                                   enmInfoClass == enmInfoClassWithId ? uPtr.pWithId->FileId.QuadPart : 0,
+                                                   pwchFilename, uPtr.pWithId->FileNameLength / sizeof(wchar_t)
 #ifdef KFSCACHE_CFG_SHORT_NAMES
-                                             uPtr.pNoId->ShortName, uPtr.pNoId->ShortNameLength / sizeof(wchar_t),
+                                                   , uPtr.pWithId->ShortName, uPtr.pWithId->ShortNameLength / sizeof(wchar_t)
 #endif
-                                             uPtr.pNoId->FileAttributes & FILE_ATTRIBUTE_DIRECTORY ? KFSOBJ_TYPE_DIR
-                                             : uPtr.pNoId->FileAttributes & (FILE_ATTRIBUTE_DEVICE | FILE_ATTRIBUTE_REPARSE_POINT)
-                                             ? KFSOBJ_TYPE_OTHER : KFSOBJ_TYPE_FILE,
-                                             penmError);
+                                                   );
+                    if (pCur)
+                    {
+                        if (pCur->bObjType == bObjType)
+                        {
+                            if (pCur->bObjType == KFSOBJ_TYPE_DIR)
+                            {
+                                PKFSDIR pCurDir = (PKFSDIR)pCur;
+                                if (   !pCurDir->fPopulated
+                                    ||  (   pCurDir->iLastWrite == uPtr.pWithId->LastWriteTime.QuadPart
+                                         && (pCur->fFlags & KFSOBJ_F_WORKING_DIR_MTIME) ) )
+                                { /* kind of likely */ }
+                                else
+                                {
+                                    KFSCACHE_LOG(("Refreshing %s/%s/ - %s/ needs re-populating...\n",
+                                                  pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pCur->pszName));
+                                    pCurDir->fNeedRePopulating = K_TRUE;
+                                }
+                            }
+                        }
+                        else if (pCur->bObjType == KFSOBJ_TYPE_MISSING)
+                        {
+                            KFSCACHE_LOG(("Refreshing %s/%s/ - %s appeared as %u, was missing.\n",
+                                          pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pCur->pszName, bObjType));
+                            pCur->bObjType = bObjType;
+                        }
+                        else
+                        {
+                            KFSCACHE_LOG(("Refreshing %s/%s/ - %s changed type from %u to %u! Dropping old object.\n",
+                                          pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pCur->pszName,
+                                          pCur->bObjType, bObjType));
+                            kFsCacheObjRelease(pCache, pCur);
+                            pCur = NULL;
+                        }
+                    }
+                    else
+                        KFSCACHE_LOG(("Refreshing %s/%s/ - %*.*ls added.\n", pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName,
+                                      uPtr.pNoId->FileNameLength / sizeof(wchar_t), uPtr.pNoId->FileNameLength / sizeof(wchar_t),
+                                      pwchFilename));
+                }
+
                 if (!pCur)
-                    return K_FALSE;
-                kHlpAssert(pCur->cRefs == 1);
+                {
+                    /*
+                     * Create the entry (not linked yet).
+                     */
+                    pCur = kFsCacheCreateObjectW(pCache, pDir, pwchFilename, uPtr.pNoId->FileNameLength / sizeof(wchar_t),
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                                 uPtr.pNoId->ShortName, uPtr.pNoId->ShortNameLength / sizeof(wchar_t),
+#endif
+                                                 bObjType, penmError);
+                    if (!pCur)
+                        return K_FALSE;
+                    kHlpAssert(pCur->cRefs == 1);
+                }
 
 #ifdef KFSCACHE_CFG_SHORT_NAMES
                 if (enmInfoClass == enmInfoClassWithId)
@@ -866,24 +1322,16 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                 pCur->fHaveStats   = K_TRUE;
 
                 /*
-                 * If we're updating we have to check the data.
+                 * Add the entry to the directory.
                  */
-                if (fRefreshing)
+                fRc = kFsCacheDirAddChild(pCache, pDir, pCur, penmError);
+                kFsCacheObjRelease(pCache, pCur);
+                if (fRc)
+                { /* likely */ }
+                else
                 {
-                    __debugbreak();
-                }
-
-                /*
-                 * If we've still got pCur, add it to the directory.
-                 */
-                if (pCur)
-                {
-                    KBOOL fRc = kFsCacheDirAddChild(pCache, pDir, pCur, penmError);
-                    kFsCacheObjRelease(pCache, pCur);
-                    if (fRc)
-                    { /* likely */ }
-                    else
-                        return K_FALSE;
+                    rcNt = STATUS_NO_MEMORY;
+                    break;
                 }
             }
             /*
@@ -928,19 +1376,60 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                                          sizeof(uBuf),
                                          enmInfoClass,
                                          FALSE,     /* fReturnSingleEntry */
-                                         NULL,      /* Filter / restart pos. */
+                                         &UniStrStar, /* Filter / restart pos. */
                                          FALSE);    /* fRestartScan */
     }
 
     if (rcNt == MY_STATUS_NO_MORE_FILES)
     {
         /*
+         * If refreshing, add missing children objects and ditch the rest.
+         * We ignore errors while adding missing children (lazy bird).
+         */
+        if (!fRefreshing)
+        { /* more likely */ }
+        else
+        {
+            while (DirRePop.cOldChildren > 0)
+            {
+                KFSLOOKUPERROR enmErrorIgn;
+                PKFSOBJ pOldChild = DirRePop.papOldChildren[--DirRePop.cOldChildren];
+                if (pOldChild->bObjType == KFSOBJ_TYPE_MISSING)
+                    kFsCacheDirAddChild(pCache, pDir, pOldChild, &enmErrorIgn);
+                else
+                {
+                    KFSCACHE_LOG(("Refreshing %s/%s/ - %s was removed.\n",
+                                  pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pOldChild->pszName));
+                    kHlpAssert(pOldChild->bObjType != KFSOBJ_TYPE_DIR);
+                }
+                kFsCacheObjRelease(pCache, pOldChild);
+            }
+            kHlpFree(DirRePop.papOldChildren);
+        }
+
+        /*
          * Mark the directory as fully populated and up to date.
          */
-        pDir->fPopulated = K_TRUE;
+        pDir->fPopulated        = K_TRUE;
+        pDir->fNeedRePopulating = K_FALSE;
         if (pDir->Obj.uCacheGen != KFSOBJ_CACHE_GEN_IGNORE)
             pDir->Obj.uCacheGen = pCache->uGeneration;
         return K_TRUE;
+    }
+
+    /*
+     * If we failed during refresh, add back remaining old children.
+     */
+    if (!fRefreshing)
+    {
+        while (DirRePop.cOldChildren > 0)
+        {
+            KFSLOOKUPERROR enmErrorIgn;
+            PKFSOBJ pOldChild = DirRePop.papOldChildren[--DirRePop.cOldChildren];
+            kFsCacheDirAddChild(pCache, pDir, pOldChild, &enmErrorIgn);
+            kFsCacheObjRelease(pCache, pOldChild);
+        }
+        kHlpFree(DirRePop.papOldChildren);
     }
 
     kHlpAssertMsgFailed(("%#x\n", rcNt));
@@ -1068,6 +1557,16 @@ static KBOOL kFsCacheRefreshMissingIntermediateDir(PKFSCACHE pCache, PKFSOBJ pMi
 }
 
 
+/**
+ * Generic object refresh.
+ *
+ * This does not refresh the content of directories.
+ *
+ * @returns K_TRUE on success.  K_FALSE and *penmError on failure.
+ * @param   pCache              The cache.
+ * @param   pObj                The object.
+ * @param   penmError           Where to return error info.
+ */
 static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *penmError)
 {
     KBOOL fRc;
@@ -1130,7 +1629,8 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                                              / BIRD_STAT_BLOCK_SIZE;
             }
 #else
-            /* This alternative lets us keep the inode number up to date. */
+            /* This alternative lets us keep the inode number up to date and
+               detect name case changes. */
             MY_UNICODE_STRING    UniStr;
 # ifdef KFSCACHE_CFG_SHORT_NAMES
             MY_FILE_INFORMATION_CLASS enmInfoClass = MyFileIdBothDirectoryInformation;
@@ -1199,6 +1699,18 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                                              / BIRD_STAT_BLOCK_SIZE;
             }
 #endif
+            if (MY_NT_SUCCESS(rcNt))
+            {
+                pObj->uCacheGen = pCache->uGeneration;
+                fRc = K_TRUE;
+            }
+            else
+            {
+                /* ouch! */
+                kHlpAssertMsgFailed(("%#x\n", rcNt));
+                __debugbreak();
+                fRc = K_FALSE;
+            }
         }
         else
         {
@@ -1226,7 +1738,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                 pObj->Stats.st_blocks        = (uBuf.FullInfo.AllocationSize.QuadPart + BIRD_STAT_BLOCK_SIZE - 1)
                                              / BIRD_STAT_BLOCK_SIZE;
 
-                if (   pDir->iLastWrite -= uBuf.FullInfo.LastWriteTime.QuadPart
+                if (   pDir->iLastWrite == uBuf.FullInfo.LastWriteTime.QuadPart
                     && (pObj->fFlags & KFSOBJ_F_WORKING_DIR_MTIME) )
                     KFSCACHE_LOG(("Refreshing %s/%s/ - no re-populating necessary.\n",
                                   pObj->pParent->Obj.pszName, pObj->pszName));
@@ -1245,19 +1757,18 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
 #endif
                 }
             }
-
-        }
-        if (MY_NT_SUCCESS(rcNt))
-        {
-            pObj->uCacheGen = pCache->uGeneration;
-            fRc = K_TRUE;
-        }
-        else
-        {
-            /* ouch! */
-            kHlpAssertMsgFailed(("%#x\n", rcNt));
-            __debugbreak();
-            fRc = K_FALSE;
+            if (MY_NT_SUCCESS(rcNt))
+            {
+                pObj->uCacheGen = pCache->uGeneration;
+                fRc = K_TRUE;
+            }
+            else
+            {
+                /* ouch! */
+                kHlpAssertMsgFailed(("%#x\n", rcNt));
+                __debugbreak();
+                fRc = K_FALSE;
+            }
         }
     }
 
@@ -1501,65 +2012,6 @@ static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char 
         return NULL;
     }
     return &pParent->Obj;
-}
-
-
-/**
- * For use when kFsCacheIAreEqualW hit's something non-trivial.
- *
- * @returns K_TRUE if equal, K_FALSE if different.
- * @param   pwcName1            The first string.
- * @param   pwcName2            The second string.
- * @param   cwcName             The length of the two strings (in wchar_t's).
- */
-KBOOL kFsCacheIAreEqualSlowW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU16 cwcName)
-{
-    MY_UNICODE_STRING UniStr1 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName1 };
-    MY_UNICODE_STRING UniStr2 = { cwcName * sizeof(wchar_t), cwcName * sizeof(wchar_t), (wchar_t *)pwcName2 };
-    return g_pfnRtlEqualUnicodeString(&UniStr1, &UniStr2, TRUE /*fCaseInsensitive*/);
-}
-
-
-/**
- * Compares two UTF-16 strings in a case-insensitive fashion.
- *
- * You would think we should be using _wscnicmp here instead, however it is
- * locale dependent and defaults to ASCII upper/lower handling setlocale hasn't
- * been called.
- *
- * @returns K_TRUE if equal, K_FALSE if different.
- * @param   pwcName1            The first string.
- * @param   pwcName2            The second string.
- * @param   cwcName             The length of the two strings (in wchar_t's).
- */
-K_INLINE KBOOL kFsCacheIAreEqualW(const wchar_t *pwcName1, const wchar_t *pwcName2, KU32 cwcName)
-{
-    while (cwcName > 0)
-    {
-        wchar_t wc1 = *pwcName1;
-        wchar_t wc2 = *pwcName2;
-        if (wc1 == wc2)
-        { /* not unlikely */ }
-        else if (  (KU16)wc1 < (KU16)0xc0 /* U+00C0 is the first upper/lower letter after 'z'. */
-                && (KU16)wc2 < (KU16)0xc0)
-        {
-            /* ASCII upper case. */
-            if ((KU16)wc1 - (KU16)0x61 < (KU16)26)
-                wc1 &= ~(wchar_t)0x20;
-            if ((KU16)wc2 - (KU16)0x61 < (KU16)26)
-                wc2 &= ~(wchar_t)0x20;
-            if (wc1 != wc2)
-                return K_FALSE;
-        }
-        else
-            return kFsCacheIAreEqualSlowW(pwcName1, pwcName2, (KU16)cwcName);
-
-        pwcName2++;
-        pwcName1++;
-        cwcName--;
-    }
-
-    return K_TRUE;
 }
 
 
@@ -2700,6 +3152,9 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
     kHlpAssert(pObj->pParent == NULL);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
+    KFSCACHE_LOG(("Destroying %s/%s, type=%d\n", pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType));
+__debugbreak();
+
     /*
      * Invalidate the structure.
      */
@@ -3242,6 +3697,7 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
 # endif
 #endif
         pCache->RootDir.cChildren           = 0;
+        pCache->RootDir.cChildrenAllocated  = 0;
         pCache->RootDir.papChildren         = NULL;
         pCache->RootDir.hDir                = INVALID_HANDLE_VALUE;
         pCache->RootDir.cHashTab            = 251;
