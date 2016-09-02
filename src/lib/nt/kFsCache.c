@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2864 2016-09-02 16:42:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2866 2016-09-02 23:04:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -806,6 +806,94 @@ static PKFSOBJ kFsCacheDirRefreshOldChildName(PKFSDIRREPOP pDirRePop, PKFSOBJ pC
 #endif
                                               )
 {
+    /*
+     * Convert the names to ANSI first, that way we know all the lengths.
+     */
+    char szName[KFSCACHE_CFG_MAX_ANSI_NAME];
+    int  cchName = WideCharToMultiByte(CP_ACP, 0, pwcName, cwcName, szName, sizeof(szName) - 1, NULL, NULL);
+    if (cchName >= 0)
+    {
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+        char szShortName[12*3 + 1];
+        int  cchShortName = 0;
+        if (   cwcShortName == 0
+            || (cchShortName = WideCharToMultiByte(CP_ACP, 0, pwcShortName, cwcShortName,
+                                                   szShortName, sizeof(szShortName) - 1, NULL, NULL)) > 0)
+#endif
+        {
+            /*
+             * Shortening is easy for non-directory objects, for
+             * directory object we're only good when the length doesn't change
+             * on any of the components (cchParent et al).
+             *
+             * This deals with your typical xxxx.ext.tmp -> xxxx.ext renames.
+             */
+            if (   cchName <= pCur->cchName
+#ifdef KFSCACHE_CFG_UTF16
+                && cwcName <= pCur->cwcName
+#endif
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                && (   cchShortName == 0
+                    || (   cchShortName <= pCur->cchShortName
+                        && pCur->pszShortName != pCur->pszName
+# ifdef KFSCACHE_CFG_UTF16
+                        && cwcShortName <= pCur->cwcShortName
+                        && pCur->pwszShortName != pCur->pwszName
+# endif
+                       )
+                   )
+#endif
+               )
+            {
+                if (   pCur->bObjType != KFSOBJ_TYPE_DIR
+                    || (   cchName == pCur->cchName
+#ifdef KFSCACHE_CFG_UTF16
+                        && cwcName == pCur->cwcName
+#endif
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                        && (   cchShortName == 0
+                            || (   cchShortName == pCur->cchShortName
+# ifdef KFSCACHE_CFG_UTF16
+                                && cwcShortName == pCur->cwcShortName
+                                )
+# endif
+                           )
+#endif
+                       )
+                   )
+                {
+                    KFSCACHE_LOG(("Refreshing %ls - name changed to '%*.*ls'\n", pCur->pwszName, cwcName, cwcName, pwcName));
+                    *(char *)kHlpMemPCopy((void *)pCur->pszName, szName, cchName) = '\0';
+                    pCur->cchName = cchName;
+#ifdef KFSCACHE_CFG_UTF16
+                    *(wchar_t *)kHlpMemPCopy((void *)pCur->pwszName, pwcName, cwcName * sizeof(wchar_t)) = '\0';
+                    pCur->cwcName = cwcName;
+#endif
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                    *(char *)kHlpMemPCopy((void *)pCur->pszShortName, szShortName, cchShortName) = '\0';
+                    pCur->cchShortName = cchShortName;
+# ifdef KFSCACHE_CFG_UTF16
+                    *(wchar_t *)kHlpMemPCopy((void *)pCur->pwszShortName, pwcShortName, cwcShortName * sizeof(wchar_t)) = '\0';
+                    pCur->cwcShortName = cwcShortName;
+# endif
+#endif
+                    return pCur;
+                }
+            }
+        }
+    }
+
+
+    fprintf(stderr,
+            "kFsCacheDirRefreshOldChildName - not implemented!\n"
+            "  Old name:  %#x '%ls'\n"
+            "  New name:  %#x '%*.*ls'\n"
+            "  Old short: %#x '%ls'\n"
+            "  New short: %#x '%*.*ls'\n",
+            pCur->cwcName, pCur->pwszName,
+            cwcName, cwcName, cwcName, pwcName,
+            pCur->cwcShortName, pCur->pwszShortName,
+            cwcShortName, cwcShortName, cwcShortName, pwcShortName);
     __debugbreak();
     /** @todo implement this.  It's not entirely straight forward, especially if
      *        the name increases!  Also, it's something that may happend during
@@ -1691,6 +1779,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                 {
                     KFSCACHE_LOG(("Refreshing %s/%s, ID changed %#llx -> %#llx and names too...\n",
                                   pObj->pParent->Obj.pszName, pObj->pszName, pObj->Stats.st_ino, uBuf.WithId.FileId.QuadPart));
+                    fprintf(stderr, "kFsCacheRefreshObj - ID + name change not implemented!!\n");
                     __debugbreak();
                     pObj->Stats.st_ino = uBuf.WithId.FileId.QuadPart;
                     /** @todo implement as needed.   */
@@ -1716,6 +1805,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
             {
                 /* ouch! */
                 kHlpAssertMsgFailed(("%#x\n", rcNt));
+                fprintf(stderr, "kFsCacheRefreshObj - rcNt=%#x on non-dir - not implemented!\n", rcNt);
                 __debugbreak();
                 fRc = K_FALSE;
             }
@@ -1774,6 +1864,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
             {
                 /* ouch! */
                 kHlpAssertMsgFailed(("%#x\n", rcNt));
+                fprintf(stderr, "kFsCacheRefreshObj - rcNt=%#x on dir - not implemented!\n", rcNt);
                 __debugbreak();
                 fRc = K_FALSE;
             }
@@ -2732,6 +2823,7 @@ static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU
         }
         else
         {
+            fprintf(stderr, "kFsCacheRefreshPathA - refresh failure handling not implemented!\n");
             __debugbreak();
             /** @todo just remove this entry.   */
             return NULL;
@@ -2780,6 +2872,7 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
         }
         else
         {
+            fprintf(stderr, "kFsCacheRefreshPathW - refresh failure handling not implemented!\n");
             __debugbreak();
             /** @todo just remove this entry.   */
             return NULL;
@@ -3161,7 +3254,6 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
     KFSCACHE_LOG(("Destroying %s/%s, type=%d\n", pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType));
-__debugbreak();
 
     /*
      * Invalidate the structure.
