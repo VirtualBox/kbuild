@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2865 2016-09-02 22:17:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2867 2016-09-03 22:08:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -208,6 +208,20 @@ typedef struct KWDYNLOAD
 
 
 /**
+ * GetModuleHandle cache for system modules frequently queried.
+ */
+typedef struct KWGETMODULEHANDLECACHE
+{
+    const char     *pszName;
+    KU8             cchName;
+    KU8             cwcName;
+    const wchar_t  *pwszName;
+    HANDLE          hmod;
+} KWGETMODULEHANDLECACHE;
+typedef KWGETMODULEHANDLECACHE *PKWGETMODULEHANDLECACHE;
+
+
+/**
  * A cached file.
  */
 typedef struct KFSWCACHEDFILE
@@ -360,6 +374,9 @@ typedef struct KWSANDBOX
     DWORD       idMainThread;
     /** Copy of the NT TIB of the main thread. */
     NT_TIB      TibMainThread;
+    /** The NT_TIB::ExceptionList value inside the try case.
+     * We restore this prior to the longjmp.  */
+    void       *pOutXcptListHead;
     /** The exit code in case of longjmp.   */
     int         rcExitCode;
 
@@ -445,6 +462,15 @@ static PKWMODULE    g_pModInLdBuf = NULL;
 
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
+
+/** GetModuleHandle cache. */
+static KWGETMODULEHANDLECACHE g_aGetModuleHandleCache[] =
+{
+#define MOD_CACHE_STRINGS(str) str, sizeof(str) - 1, (sizeof(L##str) / sizeof(wchar_t)) - 1, L##str
+    { MOD_CACHE_STRINGS("KERNEL32.DLL"),    NULL },
+    { MOD_CACHE_STRINGS("mscoree.dll"),     NULL },
+};
+
 
 /** The file system cache. */
 static PKFSCACHE    g_pFsCache;
@@ -966,7 +992,7 @@ static PKWMODULE kwLdrModuleLink(PKWMODULE pMod)
  */
 static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
 {
-    KSIZE const                 cbImage = kLdrModSize(pMod->pLdrMod);
+    KSIZE const                 cbImage = (KSIZE)kLdrModSize(pMod->pLdrMod);
     KU8 const * const           pbImage = (KU8 const *)pMod->hOurMod;
     IMAGE_DOS_HEADER const     *pMzHdr  = (IMAGE_DOS_HEADER const *)pbImage;
     IMAGE_NT_HEADERS const     *pNtHdrs;
@@ -980,7 +1006,7 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
     /* MZ header. */
     if (pMzHdr->e_magic == IMAGE_DOS_SIGNATURE)
     {
-        kHlpAssertReturnVoid(pMzHdr->e_lfanew <= cbImage - sizeof(*pNtHdrs));
+        kHlpAssertReturnVoid((KU32)pMzHdr->e_lfanew <= cbImage - sizeof(*pNtHdrs));
         pNtHdrs = (IMAGE_NT_HEADERS const *)&pbImage[pMzHdr->e_lfanew];
     }
     else
@@ -1114,6 +1140,53 @@ static void kwLdrModuleDoNativeImportReplacements(PKWMODULE pMod)
 
 
 /**
+ * Creates a module from a native kLdr module handle.
+ *
+ * @returns Module w/ 1 reference on success, NULL on failure.
+ * @param   pLdrMod             The native kLdr module.
+ * @param   pszPath             The normalized path to the module.
+ * @param   cbPath              The module path length with terminator.
+ * @param   uHashPath           The module path hash.
+ * @param   fDoReplacements     Whether to do import replacements on this
+ *                              module.
+ */
+static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const char *pszPath, KSIZE cbPath, KU32 uHashPath,
+                                                      KBOOL fDoReplacements)
+{
+    /*
+     * Create the entry.
+     */
+    PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + cbPath * 2 * sizeof(wchar_t));
+    if (pMod)
+    {
+        pMod->pwszPath      = (wchar_t *)(pMod + 1);
+        kwStrToUtf16(pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
+        pMod->pszPath       = (char *)kHlpMemCopy((char *)&pMod->pwszPath[cbPath * 2], pszPath, cbPath);
+        pMod->uHashPath     = uHashPath;
+        pMod->cRefs         = 1;
+        pMod->offFilename   = (KU16)(kHlpGetFilename(pszPath) - pszPath);
+        pMod->fExe          = K_FALSE;
+        pMod->fNative       = K_TRUE;
+        pMod->pLdrMod       = pLdrMod;
+        pMod->hOurMod       = (HMODULE)(KUPTR)pLdrMod->aSegments[0].MapAddress;
+
+        if (fDoReplacements)
+        {
+            DWORD const dwSavedErr = GetLastError();
+            kwLdrModuleDoNativeImportReplacements(pMod);
+            SetLastError(dwSavedErr);
+        }
+
+        KW_LOG(("New module: %p LB %#010x %s (native)\n",
+                (KUPTR)pMod->pLdrMod->aSegments[0].MapAddress, kLdrModSize(pMod->pLdrMod), pMod->pszPath));
+        return kwLdrModuleLink(pMod);
+    }
+    return NULL;
+}
+
+
+
+/**
  * Creates a module using the native loader.
  *
  * @returns Module w/ 1 reference on success, NULL on failure.
@@ -1131,36 +1204,11 @@ static PKWMODULE kwLdrModuleCreateNative(const char *pszPath, KU32 uHashPath, KB
     int rc = kLdrModOpenNative(pszPath, &pLdrMod);
     if (rc == 0)
     {
-        /*
-         * Create the entry.
-         */
-        KSIZE     cbPath = kHlpStrLen(pszPath) + 1;
-        PKWMODULE pMod   = (PKWMODULE)kHlpAllocZ(sizeof(*pMod) + cbPath + 1 + cbPath * 2 * sizeof(wchar_t));
+        PKWMODULE pMod = kwLdrModuleCreateForNativekLdrModule(pLdrMod, pszPath, kHlpStrLen(pszPath) + 1,
+                                                              uHashPath, fDoReplacements);
         if (pMod)
-        {
-            pMod->pszPath       = (char *)kHlpMemCopy(pMod + 1, pszPath, cbPath);
-            pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
-            kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
-            pMod->uHashPath     = uHashPath;
-            pMod->cRefs         = 1;
-            pMod->offFilename   = (KU16)(kHlpGetFilename(pszPath) - pszPath);
-            pMod->fExe          = K_FALSE;
-            pMod->fNative       = K_TRUE;
-            pMod->pLdrMod       = pLdrMod;
-            pMod->hOurMod       = (HMODULE)(KUPTR)pLdrMod->aSegments[0].MapAddress;
-
-            if (fDoReplacements)
-            {
-                DWORD const dwSavedErr = GetLastError();
-                kwLdrModuleDoNativeImportReplacements(pMod);
-                SetLastError(dwSavedErr);
-            }
-
-            KW_LOG(("New module: %p LB %#010x %s (native)\n",
-                    (KUPTR)pMod->pLdrMod->aSegments[0].MapAddress, kLdrModSize(pMod->pLdrMod), pMod->pszPath));
-            return kwLdrModuleLink(pMod);
-        }
-        //kLdrModClose(pLdrMod);
+            return pMod;
+        kLdrModClose(pLdrMod);
     }
     return NULL;
 }
@@ -1245,7 +1293,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     fFixed = pLdrMod->enmType == KLDRTYPE_EXECUTABLE_FIXED
                           || pLdrMod->enmType == KLDRTYPE_SHARED_LIBRARY_FIXED;
                     pMod->u.Manual.pvLoad = fFixed ? (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress : NULL;
-                    pMod->u.Manual.cbImage = kLdrModSize(pLdrMod);
+                    pMod->u.Manual.cbImage = (KSIZE)kLdrModSize(pLdrMod);
                     if (   !fFixed
                         || pLdrMod->enmType != KLDRTYPE_EXECUTABLE_FIXED /* only allow fixed executables */
                         || (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf >= sizeof(g_abDefLdBuf)
@@ -1928,6 +1976,7 @@ static void WINAPI kwSandbox_Kernel32_ExitProcess(UINT uExitCode)
         /* Before we jump, restore the TIB as we're not interested in any
            exception chain stuff installed by the sandboxed executable. */
         *pTib = g_Sandbox.TibMainThread;
+        pTib->ExceptionList = g_Sandbox.pOutXcptListHead;
 
         longjmp(g_Sandbox.JmpBuf, 1);
     }
@@ -2038,14 +2087,24 @@ static LPCWSTR /*LPWSTR*/ WINAPI kwSandbox_Kernel32_GetCommandLineW(VOID)
 /** Kernel32 - GetStartupInfoA()  */
 static VOID WINAPI kwSandbox_Kernel32_GetStartupInfoA(LPSTARTUPINFOA pStartupInfo)
 {
-    __debugbreak();
+    KW_LOG(("GetStartupInfoA\n"));
+    GetStartupInfoA(pStartupInfo);
+    pStartupInfo->lpReserved  = NULL;
+    pStartupInfo->lpTitle     = NULL;
+    pStartupInfo->lpReserved2 = NULL;
+    pStartupInfo->cbReserved2 = 0;
 }
 
 
 /** Kernel32 - GetStartupInfoW()  */
-static VOID WINAPI kwSandbox_Kernel32_GetStartupInfoW(LPSTARTUPINFOW lpStartupInfo)
+static VOID WINAPI kwSandbox_Kernel32_GetStartupInfoW(LPSTARTUPINFOW pStartupInfo)
 {
-    __debugbreak();
+    KW_LOG(("GetStartupInfoW\n"));
+    GetStartupInfoW(pStartupInfo);
+    pStartupInfo->lpReserved  = NULL;
+    pStartupInfo->lpTitle     = NULL;
+    pStartupInfo->lpReserved2 = NULL;
+    pStartupInfo->cbReserved2 = 0;
 }
 
 
@@ -2305,8 +2364,136 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszE
  *
  */
 
+/**
+ * Kernel32 - LoadLibraryExA() worker that loads resource files and such.
+ */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_Resource(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
+{
+    HMODULE     hmod;
+    PKWDYNLOAD  pDynLoad;
+    KU32        uHashPath;
+    char        szNormPath[4096];
 
-/** Kernel32 - LoadLibraryExA()   */
+    /* Normalize the path. */
+    int rc = kwPathNormalize(pszFilename, szNormPath, sizeof(szNormPath));
+    if (rc != 0)
+    {
+        __debugbreak();
+        return LoadLibraryExA(pszFilename, hFile, fFlags);
+    }
+
+    /* Try look it up. */
+    uHashPath = kwStrHash(szNormPath);
+    for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad != NULL; pDynLoad = pDynLoad->pNext)
+        if (   pDynLoad->uHashPath == uHashPath
+            && kHlpStrComp(pDynLoad->pszPath, szNormPath) == 0)
+        {
+            if (pDynLoad->pMod == NULL)
+                return pDynLoad->hmod;
+            __debugbreak();
+        }
+
+    /* Then try load it. */
+    hmod = LoadLibraryExA(szNormPath, hFile, fFlags);
+    if (hmod)
+    {
+        KSIZE cbNormPath = kHlpStrLen(szNormPath) + 1;
+        pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad) + cbNormPath + cbNormPath * 2 * sizeof(wchar_t));
+        if (pDynLoad)
+        {
+            pDynLoad->pszPath           = (char *)kHlpMemCopy(pDynLoad + 1, szNormPath, cbNormPath);
+            pDynLoad->pwszPath          = (wchar_t *)(pDynLoad->pszPath + cbNormPath + (cbNormPath & 1));
+            kwStrToUtf16(pDynLoad->pszPath, (wchar_t *)pDynLoad->pwszPath, cbNormPath * 2);
+            pDynLoad->pszModName        = kHlpGetFilename(pDynLoad->pszPath);
+            pDynLoad->uHashPath         = uHashPath;
+            pDynLoad->pMod              = NULL; /* indicates special  */
+            pDynLoad->hmod              = hmod;
+
+            pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
+            g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
+        }
+        else
+            __debugbreak();
+    }
+    return hmod;
+}
+
+
+/**
+ * Kernel32 - LoadLibraryExA() worker that deals with the api-ms-xxx modules.
+ */
+static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
+{
+    HMODULE     hmod;
+    PKWDYNLOAD  pDynLoad;
+    KU32        uHashPath;
+    char        szNormPath[256];
+    KSIZE       cbFilename = kHlpStrLen(pszFilename) + 1;
+
+    /* Lower case it. */
+    if (cbFilename <= sizeof(szNormPath))
+    {
+        kHlpMemCopy(szNormPath, pszFilename, cbFilename);
+        _strlwr(szNormPath);
+    }
+    else
+    {
+        SetLastError(ERROR_FILENAME_EXCED_RANGE);
+        return NULL;
+    }
+
+    /* Try look it up. */
+    uHashPath = kwStrHash(szNormPath);
+    for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad != NULL; pDynLoad = pDynLoad->pNext)
+        if (   pDynLoad->uHashPath == uHashPath
+            && kHlpStrComp(pDynLoad->pszPath, szNormPath) == 0)
+        {
+            if (pDynLoad->pMod != NULL)
+                return pDynLoad->hmod;
+            __debugbreak();
+        }
+
+    /* Then try load it and make a kLdr module for it. */
+    hmod = LoadLibraryExA(szNormPath, hFile, fFlags);
+    if (hmod)
+    {
+        PKLDRMOD pLdrMod;
+        int rc = kLdrModOpenNativeByHandle((KUPTR)hmod, &pLdrMod);
+        if (rc == 0)
+        {
+            PKWMODULE pMod = kwLdrModuleCreateForNativekLdrModule(pLdrMod, szNormPath, cbFilename, uHashPath,
+                                                                  K_FALSE /*fDoReplacements*/);
+            if (pMod)
+            {
+                pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad) + cbFilename + cbFilename * sizeof(wchar_t));
+                if (pDynLoad)
+                {
+                    pDynLoad->pwszPath      = (wchar_t *)(pDynLoad + 1);
+                    kwStrToUtf16(szNormPath, (wchar_t *)pDynLoad->pwszPath, cbFilename);
+                    pDynLoad->pszPath       = (char *)kHlpMemCopy((char *)&pDynLoad->pwszPath[cbFilename], szNormPath, cbFilename);
+                    pDynLoad->pszModName    = pDynLoad->pszPath;
+                    pDynLoad->uHashPath     = uHashPath;
+                    pDynLoad->pMod          = pMod;
+                    pDynLoad->hmod          = hmod;
+
+                    pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
+                    g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
+                    return hmod;
+                }
+
+                __debugbreak();
+            }
+            else
+                __debugbreak();
+        }
+        else
+            __debugbreak();
+    }
+    return hmod;
+}
+
+
+/** Kernel32 - LoadLibraryExA() */
 static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
 {
     PKWDYNLOAD  pDynLoad;
@@ -2327,10 +2514,6 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
                   | LOAD_LIBRARY_AS_DATAFILE
                   | LOAD_LIBRARY_AS_IMAGE_RESOURCE) )
     {
-        HMODULE hmod;
-        char    szNormPath[4096];
-        KU32    uHashPath;
-
         /* currently, only deal with those that has a path. */
         if (kHlpIsFilenameOnly(pszFilename))
         {
@@ -2338,48 +2521,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
             return LoadLibraryExA(pszFilename, hFile, fFlags);
         }
 
-        /* Normalize the path. */
-        rc = kwPathNormalize(pszFilename, szNormPath, sizeof(szNormPath));
-        if (rc != 0)
-        {
-            __debugbreak();
-            return LoadLibraryExA(pszFilename, hFile, fFlags);
-        }
-
-        /* Try look it up. */
-        uHashPath = kwStrHash(szNormPath);
-        for (pDynLoad = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead; pDynLoad != NULL; pDynLoad = pDynLoad->pNext)
-            if (   pDynLoad->uHashPath == uHashPath
-                && kHlpStrComp(pDynLoad->pszPath, szNormPath) == 0)
-            {
-                if (pDynLoad->pMod == NULL)
-                    return pDynLoad->hmod;
-                __debugbreak();
-            }
-
-        /* Then try load it. */
-        hmod = LoadLibraryExA(szNormPath, hFile, fFlags);
-        if (hmod)
-        {
-            KSIZE cbNormPath = kHlpStrLen(szNormPath) + 1;
-            pDynLoad = (PKWDYNLOAD)kHlpAlloc(sizeof(*pDynLoad) + cbNormPath + cbNormPath * 2 * sizeof(wchar_t));
-            if (pDynLoad)
-            {
-                pDynLoad->pszPath           = (char *)kHlpMemCopy(pDynLoad + 1, szNormPath, cbNormPath);
-                pDynLoad->pwszPath          = (wchar_t *)(pDynLoad->pszPath + cbNormPath + (cbNormPath & 1));
-                kwStrToUtf16(pDynLoad->pszPath, (wchar_t *)pDynLoad->pwszPath, cbNormPath * 2);
-                pDynLoad->pszModName        = kHlpGetFilename(pDynLoad->pszPath);
-                pDynLoad->uHashPath         = uHashPath;
-                pDynLoad->pMod              = NULL; /* indicates special  */
-                pDynLoad->hmod              = hmod;
-
-                pDynLoad->pNext = g_Sandbox.pTool->u.Sandboxed.pDynLoadHead;
-                g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
-            }
-            else
-                __debugbreak();
-        }
-        return hmod;
+        return kwSandbox_Kernel32_LoadLibraryExA_Resource(pszFilename, hFile, fFlags);
     }
 
     /*
@@ -2388,6 +2530,9 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
      */
     if (!kHlpIsFilenameOnly(pszFilename))
         pMod = kwLdrModuleTryLoadDll(pszFilename, KWLOCATION_UNKNOWN, g_Sandbox.pTool->u.Sandboxed.pExe);
+    /* Special case: api-ms-win-core-synch-l1-2-0 and friends (32-bit yasm, built with VS2015). */
+    else if (strnicmp(pszFilename, TUPLE("api-ms-")) == 0)
+        return kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(pszFilename, hFile, fFlags);
     else
     {
 __debugbreak();
@@ -2479,8 +2624,28 @@ static BOOL WINAPI kwSandbox_Kernel32_FreeLibrary(HMODULE hmod)
 /** Kernel32 - GetModuleHandleA()   */
 static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleA(LPCSTR pszModule)
 {
+    KSIZE i;
+    KSIZE cchModule;
+
+    /*
+     * The executable.
+     */
     if (pszModule == NULL)
         return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+
+    /*
+     * Cache of system modules we've seen queried.
+     */
+    cchModule = kHlpStrLen(pszModule);
+    for (i = 0; i < K_ELEMENTS(g_aGetModuleHandleCache); i++)
+        if (   g_aGetModuleHandleCache[i].cchName == cchModule
+            && stricmp(pszModule, g_aGetModuleHandleCache[i].pszName) == 0)
+        {
+            if (g_aGetModuleHandleCache[i].hmod != NULL)
+                return g_aGetModuleHandleCache[i].hmod;
+            return g_aGetModuleHandleCache[i].hmod = GetModuleHandleA(pszModule);
+        }
+
     __debugbreak();
     return NULL;
 }
@@ -2489,8 +2654,28 @@ static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleA(LPCSTR pszModule)
 /** Kernel32 - GetModuleHandleW()   */
 static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleW(LPCWSTR pwszModule)
 {
+    KSIZE i;
+    KSIZE cwcModule;
+
+    /*
+     * The executable.
+     */
     if (pwszModule == NULL)
         return (HMODULE)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod;
+
+    /*
+     * Cache of system modules we've seen queried.
+     */
+    cwcModule = kwUtf16Len(pwszModule);
+    for (i = 0; i < K_ELEMENTS(g_aGetModuleHandleCache); i++)
+        if (   g_aGetModuleHandleCache[i].cwcName == cwcModule
+            && _wcsicmp(pwszModule, g_aGetModuleHandleCache[i].pwszName) == 0)
+        {
+            if (g_aGetModuleHandleCache[i].hmod != NULL)
+                return g_aGetModuleHandleCache[i].hmod;
+            return g_aGetModuleHandleCache[i].hmod = GetModuleHandleW(pwszModule);
+        }
+
     __debugbreak();
     return NULL;
 }
@@ -2530,6 +2715,8 @@ static UINT WINAPI kwSandbox_BreakIntoDebugger(void *pv1, void *pv2, void *pv3, 
 /** Kernel32 - GetProcAddress()   */
 static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR pszProc)
 {
+    KSIZE i;
+
     /*
      * Try locate the module.
      */
@@ -2563,6 +2750,13 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
         kwLdrModuleRelease(pMod);
         return NULL;
     }
+
+    /*
+     * Hmm... could be a cached module-by-name.
+     */
+    for (i = 0; i < K_ELEMENTS(g_aGetModuleHandleCache); i++)
+        if (g_aGetModuleHandleCache[i].hmod == hmod)
+            return GetProcAddress(hmod, pszProc);
 
     __debugbreak();
     return GetProcAddress(hmod, pszProc);
@@ -4481,7 +4675,6 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->rcExitCode    = 256;
     pSandbox->pTool         = pTool;
     pSandbox->idMainThread  = GetCurrentThreadId();
-    pSandbox->TibMainThread = *(PNT_TIB)NtCurrentTeb();
     pSandbox->pgmptr        = (char *)pTool->pszPath;
     pSandbox->wpgmptr       = (wchar_t *)pTool->pwszPath;
     pSandbox->cArgs         = cArgs;
@@ -4584,32 +4777,55 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
             rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &uAddrMain);
             if (rc == 0)
             {
-                int (*pfnWin64Entrypoint)(void *pvPeb, void *, void *, void *);
-                *(KUPTR *)&pfnWin64Entrypoint = uAddrMain;
-
-                __try
-                {
-                    if (setjmp(g_Sandbox.JmpBuf) == 0)
-                    {
 #if K_ARCH == K_ARCH_AMD64
-                        *(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                int (*pfnWin64Entrypoint)(void *pvPeb, void *, void *, void *);
+#elif K_ARCH == K_ARCH_X86_32
+                int (__cdecl *pfnWin32Entrypoint)(void *pvPeb);
 #else
 # error "Port me!"
 #endif
+
+                /* Save the NT TIB first (should do that here, not in some other function). */
+                PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
+                g_Sandbox.TibMainThread = *pTib;
+
+                /* Make the call in a guarded fashion. */
+#if K_ARCH == K_ARCH_AMD64
+                /* AMD64 */
+                *(KUPTR *)&pfnWin64Entrypoint = uAddrMain;
+                __try
+                {
+                    pSandbox->pOutXcptListHead = pTib->ExceptionList;
+                    if (setjmp(g_Sandbox.JmpBuf) == 0)
+                    {
+                        *(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
                         rcExit = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock(), NULL, NULL, NULL);
                     }
                     else
                         rcExit = g_Sandbox.rcExitCode;
                 }
+#elif K_ARCH == K_ARCH_X86_32
+                /* x86 (see _tmainCRTStartup) */
+                *(KUPTR *)&pfnWin32Entrypoint = uAddrMain;
+                __try
+                {
+                    pSandbox->pOutXcptListHead = pTib->ExceptionList;
+                    if (setjmp(g_Sandbox.JmpBuf) == 0)
+                    {
+                        //*(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                        rcExit = pfnWin32Entrypoint(kwSandboxGetProcessEnvironmentBlock());
+                    }
+                    else
+                        rcExit = g_Sandbox.rcExitCode;
+                }
+#endif
                 __except (EXCEPTION_EXECUTE_HANDLER)
                 {
                     rcExit = 512;
                 }
 
-                /*
-                 * Restore the TIB and later some other stuff.
-                 */
-                *(PNT_TIB)NtCurrentTeb() = g_Sandbox.TibMainThread;
+                /* Now, restore the NT TIB. */
+                *pTib = g_Sandbox.TibMainThread;
             }
             else
                 rcExit = 42 + 5;
