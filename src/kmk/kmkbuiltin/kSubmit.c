@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2875 2016-09-04 20:09:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1140,12 +1140,13 @@ static void kSubmitAtExitCallback(void)
  * @param   cVerbosity          The verbosity level.
  * @param   pszValue            The var=value string to apply.
  */
-static int kSubmitOptEnvSet(char **papszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+static int kSubmitOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
                             int cVerbosity, const char *pszValue)
 {
     const char *pszEqual = strchr(pszValue, '=');
     if (pszEqual)
     {
+        char   **papszEnv = *ppapszEnv;
         unsigned iEnvVar;
         unsigned cEnvVars = *pcEnvVars;
         size_t const cchVar = pszValue - pszEqual;
@@ -1165,7 +1166,7 @@ static int kSubmitOptEnvSet(char **papszEnv, unsigned *pcEnvVars, unsigned *pcAl
             if ((cEnvVars + 2) > *pcAllocatedEnvVars)
             {
                 *pcAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
-                papszEnv = (char **)xrealloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
+                *ppapszEnv = papszEnv = (char **)xrealloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
             }
             papszEnv[cEnvVars++] = xstrdup(pszValue);
             papszEnv[cEnvVars]   = NULL;
@@ -1396,6 +1397,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
         if (*pszArg == '-')
         {
             char chOpt = *++pszArg;
+            pszArg++;
             if (chOpt != '-')
             {
                 if (chOpt != '\0')
@@ -1408,8 +1410,6 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
             }
             else
             {
-                pszArg++;
-
                 /* '--' indicates where the bits to execute start. */
                 if (*pszArg == '\0')
                 {
@@ -1417,7 +1417,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     break;
                 }
 
-                if (strcmp(pszArg, "watcom-brain-damage") == 0)
+                if (   strcmp(pszArg, "wcc-brain-damage") == 0
+                    || strcmp(pszArg, "watcom-brain-damage") == 0)
                 {
                     fWatcomBrainDamage = 1;
                     continue;
@@ -1486,7 +1487,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                         break;
 
                     case 'E':
-                        rcExit = kSubmitOptEnvSet(papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                        rcExit = kSubmitOptEnvSet(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         pChild->environment = papszEnv;
                         if (rcExit == 0)
                             break;
