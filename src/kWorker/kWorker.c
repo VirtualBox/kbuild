@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2867 2016-09-03 22:08:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -4715,9 +4715,10 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
 
     /*
-     * Invalidate the missing cache entries.
+     * Invalidate the volatile parts of cache (kBuild output directory,
+     * temporary directory, whatever).
      */
-    kFsCacheInvalidateMissing(g_pFsCache);
+    kFsCacheInvalidateCustomBoth(g_pFsCache);
     return 0;
 }
 
@@ -5233,17 +5234,29 @@ static int kwTestRun(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    KSIZE   cbMsgBuf = 0;
-    KU8    *pbMsgBuf = NULL;
-    int     i;
-    HANDLE  hPipe = INVALID_HANDLE_VALUE;
+    KSIZE           cbMsgBuf = 0;
+    KU8            *pbMsgBuf = NULL;
+    int             i;
+    HANDLE          hPipe = INVALID_HANDLE_VALUE;
+    const char     *pszTmp;
+    KFSLOOKUPERROR  enmIgnored;
 
     /*
-     * Create the cache.
+     * Create the cache and mark the temporary directory as using the custom revision.
      */
     g_pFsCache = kFsCacheCreate(KFSCACHE_F_MISSING_OBJECTS | KFSCACHE_F_MISSING_PATHS);
     if (!g_pFsCache)
         return kwErrPrintfRc(3, "kFsCacheCreate failed!\n");
+
+    pszTmp = getenv("TEMP");
+    if (pszTmp && *pszTmp != '\0')
+        kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, pszTmp, &enmIgnored));
+    pszTmp = getenv("TMP");
+    if (pszTmp && *pszTmp != '\0')
+        kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, pszTmp, &enmIgnored));
+    pszTmp = getenv("TMPDIR");
+    if (pszTmp && *pszTmp != '\0')
+        kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, pszTmp, &enmIgnored));
 
     /*
      * Parse arguments.
@@ -5270,16 +5283,24 @@ int main(int argc, char **argv)
             else
                 return kwErrPrintfRc(2, "--pipe takes an argument!\n");
         }
+        else if (strcmp(argv[i], "--volatile") == 0)
+        {
+            i++;
+            if (i < argc)
+                kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, argv[i], &enmIgnored));
+            else
+                return kwErrPrintfRc(2, "--volatile takes an argument!\n");
+        }
         else if (strcmp(argv[i], "--test") == 0)
             return kwTestRun(argc - i - 1, &argv[i + 1]);
         else if (   strcmp(argv[i], "--help") == 0
                  || strcmp(argv[i], "-h") == 0
                  || strcmp(argv[i], "-?") == 0)
         {
-            printf("usage: kWorker --pipe <pipe-handle>\n"
+            printf("usage: kWorker [--volatile dir] --pipe <pipe-handle>\n"
                    "usage: kWorker <--help|-h>\n"
                    "usage: kWorker <--version|-V>\n"
-                   "usage: kWorker --test [<times> [--chdir <dir>]] -- args\n"
+                   "usage: kWorker [--volatile dir] --test [<times> [--chdir <dir>]] -- args\n"
                    "\n"
                    "This is an internal kmk program that is used via the builtin_kSubmit.\n");
             return 0;

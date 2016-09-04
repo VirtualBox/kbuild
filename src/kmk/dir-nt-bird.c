@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -113,7 +113,7 @@ int dir_file_exists_p(const char *pszDir, const char *pszName)
                 else
                 {
                     PKFSOBJ pNameObj = kFsCacheLookupRelativeToDirA(g_pFsCache, (PKFSDIR)pDirObj,
-                                                                    pszName, strlen(pszName), &enmError);
+                                                                    pszName, strlen(pszName), &enmError, NULL);
                     if (pNameObj)
                     {
                         fRc = pNameObj->bObjType == KFSOBJ_TYPE_MISSING;
