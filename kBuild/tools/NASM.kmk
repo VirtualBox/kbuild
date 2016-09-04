@@ -1,4 +1,4 @@
-# $Id: NASM.kmk 2808 2016-01-30 15:13:32Z knut.osmundsen@oracle.com $
+# $Id: NASM.kmk 2873 2016-09-04 19:13:12Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Netwide Assembler v0.98+.
 #
@@ -50,6 +50,13 @@ else
  TOOL_NASM_AS ?= nasm$(HOSTSUFF_EXE)
 endif
 
+# kSubmit
+ifdef TOOL_NASM_USE_KSUBMIT
+ ifeq ($(KBUILD_HOST),win)
+  TOOL_NASM_KSUBMIT ?= kmk_builtin_kSubmit $1 --
+ endif
+endif
+
 # General Properties used by kBuild
 TOOL_NASM_ASFLAGS ?=
 
@@ -71,16 +78,30 @@ TOOL_NASM_COMPILE_AS_OUTPUT = $(outbase).lst
 TOOL_NASM_COMPILE_AS_DEPEND =
 TOOL_NASM_COMPILE_AS_DEPORD =
 define TOOL_NASM_COMPILE_AS_CMDS
-	$(QUIET)$(TOOL_NASM_AS)\
+ifdef TOOL_NASM_KSUBMIT
+	$(QUIET)$(call TOOL_NASM_KSUBMIT, -C $(PATH_OUT_BASE)) $(TOOL_NASM_AS)\
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\
 		$(abspath $(source))
-	$(QUIET)$(REDIRECT) -C $(PATH_OUT_BASE) -wo $(dep) -- $(TOOL_NASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
+	$(QUIET)$(call TOOL_NASM_KSUBMIT, -C $(PATH_OUT_BASE)) $(TOOL_NASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
 		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
 		-o $(obj)\
 		$(abspath $(source)) \
-		-M -MP
+		-MF "$(dep)" -MP
+else
+	$(QUIET)$(REDIRECT) -C $(PATH_OUT_BASE) $(TOOL_NASM_AS)\
+		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
+		-l $(outbase).lst\
+		-o $(obj)\
+		$(abspath $(source))
+	$(QUIET)$(REDIRECT) -C $(PATH_OUT_BASE) -- $(TOOL_NASM_AS) -DKBUILD_GENERATING_MAKEFILE_DEPENDENCIES\
+		$(flags) $(addsuffix /,$(addprefix -i, $(incs))) $(addprefix -D, $(defs))\
+		-l $(outbase).lst\
+		-o $(obj)\
+		$(abspath $(source)) \
+		-MF "$(dep)" -MP
+endif
 endef
 
