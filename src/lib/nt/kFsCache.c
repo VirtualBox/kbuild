@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2866 2016-09-02 23:04:26Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -398,25 +398,30 @@ static KBOOL kFsCacheHasDotDotW(const wchar_t *pwszPath, KSIZE cwcPath)
  * @param   uHashPath           The hash of the path.
  * @param   fAbsolute           Whether it can be refreshed using an absolute
  *                              lookup or requires the slow treatment.
+ * @parma   idxMissingGen       The missing generation index.
  * @param   idxHashTab          The hash table index of the path.
  * @param   enmError            The lookup error.
  */
 static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsObj, const char *pszPath, KU32 cchPath,
-                                                 KU32 uHashPath, KU32 idxHashTab, BOOL fAbsolute, KFSLOOKUPERROR enmError)
+                                                 KU32 uHashPath, KU32 idxHashTab, BOOL fAbsolute, KU32 idxMissingGen,
+                                                 KFSLOOKUPERROR enmError)
 {
     PKFSHASHA pHashEntry = (PKFSHASHA)kHlpAlloc(sizeof(*pHashEntry) + cchPath + 1);
     if (pHashEntry)
     {
-        pHashEntry->uHashPath   = uHashPath;
-        pHashEntry->cchPath     = (KU16)cchPath;
-        pHashEntry->fAbsolute   = fAbsolute;
-        pHashEntry->pFsObj      = pFsObj;
-        pHashEntry->enmError    = enmError;
-        pHashEntry->pszPath     = (const char *)kHlpMemCopy(pHashEntry + 1, pszPath, cchPath + 1);
+        pHashEntry->uHashPath       = uHashPath;
+        pHashEntry->cchPath         = (KU16)cchPath;
+        pHashEntry->fAbsolute       = fAbsolute;
+        pHashEntry->idxMissingGen   = (KU8)idxMissingGen;
+        pHashEntry->pFsObj          = pFsObj;
+        pHashEntry->enmError        = enmError;
+        pHashEntry->pszPath         = (const char *)kHlpMemCopy(pHashEntry + 1, pszPath, cchPath + 1);
         if (pFsObj)
-            pHashEntry->uCacheGen = pCache->uGeneration;
+            pHashEntry->uCacheGen = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                  ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                  : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
         else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
-            pHashEntry->uCacheGen = pCache->uGenerationMissing;
+            pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
         else
             pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
 
@@ -443,25 +448,30 @@ static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsOb
  * @param   uHashPath           The hash of the path.
  * @param   fAbsolute           Whether it can be refreshed using an absolute
  *                              lookup or requires the slow treatment.
+ * @parma   idxMissingGen       The missing generation index.
  * @param   idxHashTab          The hash table index of the path.
  * @param   enmError            The lookup error.
  */
 static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsObj, const wchar_t *pwszPath, KU32 cwcPath,
-                                                 KU32 uHashPath, KU32 idxHashTab, BOOL fAbsolute, KFSLOOKUPERROR enmError)
+                                                 KU32 uHashPath, KU32 idxHashTab, BOOL fAbsolute, KU32 idxMissingGen,
+                                                 KFSLOOKUPERROR enmError)
 {
     PKFSHASHW pHashEntry = (PKFSHASHW)kHlpAlloc(sizeof(*pHashEntry) + (cwcPath + 1) * sizeof(wchar_t));
     if (pHashEntry)
     {
-        pHashEntry->uHashPath   = uHashPath;
-        pHashEntry->cwcPath     = cwcPath;
-        pHashEntry->fAbsolute   = fAbsolute;
-        pHashEntry->pFsObj      = pFsObj;
-        pHashEntry->enmError    = enmError;
-        pHashEntry->pwszPath    = (const wchar_t *)kHlpMemCopy(pHashEntry + 1, pwszPath, (cwcPath + 1) * sizeof(wchar_t));
+        pHashEntry->uHashPath       = uHashPath;
+        pHashEntry->cwcPath         = cwcPath;
+        pHashEntry->fAbsolute       = fAbsolute;
+        pHashEntry->idxMissingGen   = (KU8)idxMissingGen;
+        pHashEntry->pFsObj          = pFsObj;
+        pHashEntry->enmError        = enmError;
+        pHashEntry->pwszPath        = (const wchar_t *)kHlpMemCopy(pHashEntry + 1, pwszPath, (cwcPath + 1) * sizeof(wchar_t));
         if (pFsObj)
-            pHashEntry->uCacheGen = pCache->uGeneration;
+            pHashEntry->uCacheGen = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                  ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                  : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
         else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
-            pHashEntry->uCacheGen = pCache->uGenerationMissing;
+            pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
         else
             pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
 
@@ -554,12 +564,14 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
          */
         pObj->u32Magic      = KFSOBJ_MAGIC;
         pObj->cRefs         = 1;
-        pObj->uCacheGen     = bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing;
+        pObj->uCacheGen     = bObjType != KFSOBJ_TYPE_MISSING
+                            ? pCache->auGenerations[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                            : pCache->auGenerationsMissing[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
         pObj->bObjType      = bObjType;
         pObj->fHaveStats    = K_FALSE;
         pObj->abUnused[0]   = K_FALSE;
         pObj->abUnused[1]   = K_FALSE;
-        pObj->fFlags        = pParent->Obj.fFlags;
+        pObj->fFlags        = pParent->Obj.fFlags & KFSOBJ_F_INHERITED_MASK;
         pObj->pParent       = pParent;
         pObj->pUserDataHead = NULL;
 
@@ -1501,7 +1513,7 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
         pDir->fPopulated        = K_TRUE;
         pDir->fNeedRePopulating = K_FALSE;
         if (pDir->Obj.uCacheGen != KFSOBJ_CACHE_GEN_IGNORE)
-            pDir->Obj.uCacheGen = pCache->uGeneration;
+            pDir->Obj.uCacheGen = pCache->auGenerations[pDir->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
         return K_TRUE;
     }
 
@@ -1543,7 +1555,7 @@ KBOOL kFsCacheDirEnsurePopuplated(PKFSCACHE pCache, PKFSDIR pDir, KFSLOOKUPERROR
     if (   pDir->fPopulated
         && !pDir->fNeedRePopulating
         && (   pDir->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-            || pDir->Obj.uCacheGen == pCache->uGeneration) )
+            || pDir->Obj.uCacheGen == pCache->auGenerations[pDir->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
         return K_TRUE;
     return kFsCachePopuplateOrRefreshDir(pCache, pDir, penmError ? penmError : &enmIgnored);
 }
@@ -1589,7 +1601,7 @@ static KBOOL kFsCacheRefreshMissing(PKFSCACHE pCache, PKFSOBJ pMissing, KFSLOOKU
     if (!kFsCacheDirIsModified(pMissing->pParent))
     {
         KFSCACHE_LOG(("Parent of missing not written to %s/%s\n", pMissing->pParent->Obj.pszName, pMissing->pszName));
-        pMissing->uCacheGen = pCache->uGenerationMissing;
+        pMissing->uCacheGen = pCache->auGenerationsMissing[pMissing->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
     }
     else
     {
@@ -1611,7 +1623,7 @@ static KBOOL kFsCacheRefreshMissing(PKFSCACHE pCache, PKFSOBJ pMissing, KFSLOOKU
             /*
              * Probably more likely that a missing node stays missing.
              */
-            pMissing->uCacheGen = pCache->uGenerationMissing;
+            pMissing->uCacheGen = pCache->auGenerationsMissing[pMissing->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
             KFSCACHE_LOG(("Still missing %s/%s\n", pMissing->pParent->Obj.pszName, pMissing->pszName));
         }
         else
@@ -1628,7 +1640,7 @@ static KBOOL kFsCacheRefreshMissing(PKFSCACHE pCache, PKFSOBJ pMissing, KFSLOOKU
             KFSCACHE_LOG(("Birth of %s/%s as %d with attribs %#x...\n",
                           pMissing->pParent->Obj.pszName, pMissing->pszName, bObjType, BasicInfo.FileAttributes));
             pMissing->bObjType  = bObjType;
-            pMissing->uCacheGen = pCache->uGenerationMissing;
+            pMissing->uCacheGen = pCache->auGenerations[pMissing->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
 /**
  * @todo refresh missing object names when it appears.
  */
@@ -1798,7 +1810,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
 #endif
             if (MY_NT_SUCCESS(rcNt))
             {
-                pObj->uCacheGen = pCache->uGeneration;
+                pObj->uCacheGen = pCache->auGenerations[pObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
                 fRc = K_TRUE;
             }
             else
@@ -1857,7 +1869,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
             }
             if (MY_NT_SUCCESS(rcNt))
             {
-                pObj->uCacheGen = pCache->uGeneration;
+                pObj->uCacheGen = pCache->auGenerations[pObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
                 fRc = K_TRUE;
             }
             else
@@ -2275,14 +2287,19 @@ static PKFSOBJ kFswCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPat
  * @param   cchPath             The length of the path.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
 PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath,
-                                     KFSLOOKUPERROR *penmError)
+                                     KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
     /*
      * Walk loop.
      */
     KU32 off = 0;
+    if (ppLastAncestor)
+        *ppLastAncestor = NULL;
     for (;;)
     {
         PKFSOBJ pChild;
@@ -2311,7 +2328,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
          */
         if (   pParent->fPopulated
             && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pParent->Obj.uCacheGen == pCache->uGeneration) )
+                || pParent->Obj.uCacheGen == pCache->auGenerations[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
         { /* likely */ }
         else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
@@ -2339,6 +2356,8 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
             }
             else
                 *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
 
@@ -2349,7 +2368,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
         {
             if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
                 || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pChild->uCacheGen == pCache->uGenerationMissing
+                || pChild->uCacheGen == pCache->auGenerationsMissing[pChild->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
             else
@@ -2366,18 +2385,26 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
         else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
         else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                 || pChild->uCacheGen == pCache->uGenerationMissing)
+                 || pChild->uCacheGen == pCache->auGenerationsMissing[pChild->fFlags & KFSOBJ_F_USE_CUSTOM_GEN])
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
         else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
             pParent = (PKFSDIR)pChild;
         else
+        {
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
+        }
     }
 
     return NULL;
@@ -2400,14 +2427,19 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
  * @param   cchPath             The length of the path.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
 PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
-                                     KFSLOOKUPERROR *penmError)
+                                     KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
     /*
      * Walk loop.
      */
     KU32 off = 0;
+    if (ppLastAncestor)
+        *ppLastAncestor = NULL;
     for (;;)
     {
         PKFSOBJ pChild;
@@ -2436,7 +2468,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
          */
         if (   pParent->fPopulated
             && (   pParent->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pParent->Obj.uCacheGen == pCache->uGeneration) )
+                || pParent->Obj.uCacheGen == pCache->auGenerations[pParent->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN]) )
         { /* likely */ }
         else if (kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
@@ -2464,6 +2496,8 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
             }
             else
                 *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
 
@@ -2474,7 +2508,7 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
         {
             if (   pChild->bObjType != KFSOBJ_TYPE_MISSING
                 || pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                || pChild->uCacheGen == pCache->uGenerationMissing
+                || pChild->uCacheGen == pCache->auGenerationsMissing[pChild->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
             else
@@ -2491,18 +2525,26 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
         else if (pChild->bObjType != KFSOBJ_TYPE_MISSING)
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_DIR;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
         else if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                 || pChild->uCacheGen == pCache->uGenerationMissing)
+                 || pChild->uCacheGen == pCache->auGenerationsMissing[pChild->fFlags & KFSOBJ_F_USE_CUSTOM_GEN])
         {
             *penmError = KFSLOOKUPERROR_PATH_COMP_NOT_FOUND;
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
         }
         else if (kFsCacheRefreshMissingIntermediateDir(pCache, pChild, penmError))
             pParent = (PKFSDIR)pChild;
         else
+        {
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
+        }
     }
 
     return NULL;
@@ -2524,10 +2566,14 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
  * @param   cchPath             The length of the path.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
-static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU32 cchPath, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU32 cchPath,
+                                       KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
-    PKFSOBJ     pChild;
+    PKFSOBJ     pRoot;
     KU32        cchSlashes;
     KU32        offEnd;
 
@@ -2544,17 +2590,17 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
         /* Drive letter. */
         offEnd = 2;
         kHlpAssert(IS_SLASH(pszPath[2]));
-        pChild = kFswCacheLookupDrive(pCache, toupper(pszPath[0]), penmError);
+        pRoot = kFswCacheLookupDrive(pCache, toupper(pszPath[0]), penmError);
     }
     else if (   IS_SLASH(pszPath[0])
              && IS_SLASH(pszPath[1]) )
-        pChild = kFswCacheLookupUncShareA(pCache, pszPath, &offEnd, penmError);
+        pRoot = kFswCacheLookupUncShareA(pCache, pszPath, &offEnd, penmError);
     else
     {
         *penmError = KFSLOOKUPERROR_UNSUPPORTED;
         return NULL;
     }
-    if (pChild)
+    if (pRoot)
     { /* likely */ }
     else
         return NULL;
@@ -2571,29 +2617,32 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
     /* Done already? */
     if (offEnd >= cchPath)
     {
-        if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-            || pChild->uCacheGen == (pChild->bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing)
-            || kFsCacheRefreshObj(pCache, pChild, penmError))
-            return kFsCacheObjRetainInternal(pChild);
+        if (   pRoot->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+            || pRoot->uCacheGen == (  pRoot->bObjType != KFSOBJ_TYPE_MISSING
+                                    ? pCache->auGenerations[       pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                    : pCache->auGenerationsMissing[pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN])
+            || kFsCacheRefreshObj(pCache, pRoot, penmError))
+            return kFsCacheObjRetainInternal(pRoot);
         return NULL;
     }
 
     /* Check that we've got a valid result and not a cached negative one. */
-    if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+    if (pRoot->bObjType == KFSOBJ_TYPE_DIR)
     { /* likely */ }
     else
     {
-        kHlpAssert(pChild->bObjType == KFSOBJ_TYPE_MISSING);
-        kHlpAssert(pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
-        return pChild;
+        kHlpAssert(pRoot->bObjType == KFSOBJ_TYPE_MISSING);
+        kHlpAssert(   pRoot->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                   || pRoot->uCacheGen == pCache->auGenerationsMissing[pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]);
+        return pRoot;
     }
 
     /*
      * Now that we've found a valid root directory, lookup the
      * remainder of the path starting with it.
      */
-    return kFsCacheLookupRelativeToDirA(pCache, (PKFSDIR)pChild, &pszPath[offEnd + cchSlashes],
-                                        cchPath - offEnd - cchSlashes, penmError);
+    return kFsCacheLookupRelativeToDirA(pCache, (PKFSDIR)pRoot, &pszPath[offEnd + cchSlashes],
+                                        cchPath - offEnd - cchSlashes, penmError, ppLastAncestor);
 }
 
 
@@ -2611,11 +2660,15 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
  * @param   cwcPath             The length of the path (in wchar_t's).
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
-static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 cwcPath, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 cwcPath,
+                                       KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
     PKFSDIR     pParent = &pCache->RootDir;
-    PKFSOBJ     pChild;
+    PKFSOBJ     pRoot;
     KU32        off;
     KU32        cwcSlashes;
     KU32        offEnd;
@@ -2634,17 +2687,17 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
         /* Drive letter. */
         offEnd = 2;
         kHlpAssert(IS_SLASH(pwszPath[2]));
-        pChild = kFswCacheLookupDrive(pCache, toupper(pwszPath[0]), penmError);
+        pRoot = kFswCacheLookupDrive(pCache, toupper(pwszPath[0]), penmError);
     }
     else if (   IS_SLASH(pwszPath[0])
              && IS_SLASH(pwszPath[1]) )
-        pChild = kFswCacheLookupUncShareW(pCache, pwszPath, &offEnd, penmError);
+        pRoot = kFswCacheLookupUncShareW(pCache, pwszPath, &offEnd, penmError);
     else
     {
         *penmError = KFSLOOKUPERROR_UNSUPPORTED;
         return NULL;
     }
-    if (pChild)
+    if (pRoot)
     { /* likely */ }
     else
         return NULL;
@@ -2661,29 +2714,32 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
     /* Done already? */
     if (offEnd >= cwcPath)
     {
-        if (   pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-            || pChild->uCacheGen == (pChild->bObjType != KFSOBJ_TYPE_MISSING ? pCache->uGeneration : pCache->uGenerationMissing)
-            || kFsCacheRefreshObj(pCache, pChild, penmError))
-            return kFsCacheObjRetainInternal(pChild);
+        if (   pRoot->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+            || pRoot->uCacheGen == (pRoot->bObjType != KFSOBJ_TYPE_MISSING
+                                    ? pCache->auGenerations[       pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                    : pCache->auGenerationsMissing[pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN])
+            || kFsCacheRefreshObj(pCache, pRoot, penmError))
+            return kFsCacheObjRetainInternal(pRoot);
         return NULL;
     }
 
     /* Check that we've got a valid result and not a cached negative one. */
-    if (pChild->bObjType == KFSOBJ_TYPE_DIR)
+    if (pRoot->bObjType == KFSOBJ_TYPE_DIR)
     { /* likely */ }
     else
     {
-        kHlpAssert(pChild->bObjType == KFSOBJ_TYPE_MISSING);
-        kHlpAssert(pChild->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE || pChild->uCacheGen == pCache->uGenerationMissing);
-        return pChild;
+        kHlpAssert(pRoot->bObjType == KFSOBJ_TYPE_MISSING);
+        kHlpAssert(   pRoot->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                   || pRoot->uCacheGen == pCache->auGenerationsMissing[pRoot->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]);
+        return pRoot;
     }
 
     /*
      * Now that we've found a valid root directory, lookup the
      * remainder of the path starting with it.
      */
-    return kFsCacheLookupRelativeToDirW(pCache, (PKFSDIR)pChild, &pwszPath[offEnd + cwcSlashes],
-                                        cwcPath - offEnd - cwcSlashes, penmError);
+    return kFsCacheLookupRelativeToDirW(pCache, (PKFSDIR)pRoot, &pwszPath[offEnd + cwcSlashes],
+                                        cwcPath - offEnd - cwcSlashes, penmError, ppLastAncestor);
 }
 
 
@@ -2699,8 +2755,12 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
  * @param   cchPath             The length of the path.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
-static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 cchPath, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 cchPath,
+                                   KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
     /*
      * We just call GetFullPathNameA here to do the job as getcwd and _getdcwd
@@ -2713,7 +2773,7 @@ static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 c
     {
         PKFSOBJ pFsObj;
         KFSCACHE_LOG2(("kFsCacheLookupSlowA(%s)\n", pszPath));
-        pFsObj = kFsCacheLookupAbsoluteA(pCache, szFull, cchFull, penmError);
+        pFsObj = kFsCacheLookupAbsoluteA(pCache, szFull, cchFull, penmError, ppLastAncestor);
 
 #if 0 /* No need to do this until it's actually queried. */
         /* Cache the resulting path. */
@@ -2748,8 +2808,12 @@ static PKFSOBJ kFsCacheLookupSlowA(PKFSCACHE pCache, const char *pszPath, KU32 c
  * @param   cwcPath             The length of the path (in wchar_t's).
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
+ * @param   ppLastAncestor      Where to return the last parent element found
+ *                              (referenced) in case of error an path/file not
+ *                              found problem.  Optional.
  */
-static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 wcwPath, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 wcwPath,
+                                   KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
 {
     /*
      * We just call GetFullPathNameA here to do the job as getcwd and _getdcwd
@@ -2762,7 +2826,7 @@ static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU
     {
         PKFSOBJ pFsObj;
         KFSCACHE_LOG2(("kFsCacheLookupSlowA(%ls)\n", pwszPath));
-        pFsObj = kFsCacheLookupAbsoluteW(pCache, wszFull, cwcFull, penmError);
+        pFsObj = kFsCacheLookupAbsoluteW(pCache, wszFull, cwcFull, penmError, ppLastAncestor);
 
 #if 0 /* No need to do this until it's actually queried. */
         /* Cache the resulting path. */
@@ -2795,12 +2859,15 @@ static PKFSOBJ kFsCacheLookupSlowW(PKFSCACHE pCache, const wchar_t *pwszPath, KU
  */
 static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU32 idxHashTab)
 {
+    PKFSOBJ pLastAncestor = NULL;
     if (!pHashEntry->pFsObj)
     {
         if (pHashEntry->fAbsolute)
-            pHashEntry->pFsObj = kFsCacheLookupAbsoluteA(pCache, pHashEntry->pszPath, pHashEntry->cchPath, &pHashEntry->enmError);
+            pHashEntry->pFsObj = kFsCacheLookupAbsoluteA(pCache, pHashEntry->pszPath, pHashEntry->cchPath,
+                                                         &pHashEntry->enmError, &pLastAncestor);
         else
-            pHashEntry->pFsObj = kFsCacheLookupSlowA(pCache, pHashEntry->pszPath, pHashEntry->cchPath, &pHashEntry->enmError);
+            pHashEntry->pFsObj = kFsCacheLookupSlowA(pCache, pHashEntry->pszPath, pHashEntry->cchPath,
+                                                     &pHashEntry->enmError, &pLastAncestor);
     }
     else
     {
@@ -2815,10 +2882,10 @@ static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU
                 kFsCacheObjRelease(pCache, pHashEntry->pFsObj);
                 if (pHashEntry->fAbsolute)
                     pHashEntry->pFsObj = kFsCacheLookupAbsoluteA(pCache, pHashEntry->pszPath, pHashEntry->cchPath,
-                                                                 &pHashEntry->enmError);
+                                                                 &pHashEntry->enmError, &pLastAncestor);
                 else
                     pHashEntry->pFsObj = kFsCacheLookupSlowA(pCache, pHashEntry->pszPath, pHashEntry->cchPath,
-                                                             &pHashEntry->enmError);
+                                                             &pHashEntry->enmError, &pLastAncestor);
             }
         }
         else
@@ -2829,7 +2896,16 @@ static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU
             return NULL;
         }
     }
-    pHashEntry->uCacheGen = pCache->uGenerationMissing;
+
+    if (pLastAncestor && !pHashEntry->pFsObj)
+        pHashEntry->idxMissingGen = pLastAncestor->fFlags & KFSOBJ_F_USE_CUSTOM_GEN;
+    pHashEntry->uCacheGen = !pHashEntry->pFsObj
+                          ? pCache->auGenerationsMissing[pHashEntry->idxMissingGen]
+                          : pHashEntry->pFsObj->bObjType == KFSOBJ_TYPE_MISSING
+                          ? pCache->auGenerationsMissing[pHashEntry->pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                          : pCache->auGenerations[       pHashEntry->pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
+    if (pLastAncestor)
+        kFsCacheObjRelease(pCache, pLastAncestor);
     return pHashEntry;
 }
 
@@ -2844,12 +2920,15 @@ static PKFSHASHA kFsCacheRefreshPathA(PKFSCACHE pCache, PKFSHASHA pHashEntry, KU
  */
 static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU32 idxHashTab)
 {
+    PKFSOBJ pLastAncestor = NULL;
     if (!pHashEntry->pFsObj)
     {
         if (pHashEntry->fAbsolute)
-            pHashEntry->pFsObj = kFsCacheLookupAbsoluteW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath, &pHashEntry->enmError);
+            pHashEntry->pFsObj = kFsCacheLookupAbsoluteW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath,
+                                                         &pHashEntry->enmError, &pLastAncestor);
         else
-            pHashEntry->pFsObj = kFsCacheLookupSlowW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath, &pHashEntry->enmError);
+            pHashEntry->pFsObj = kFsCacheLookupSlowW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath,
+                                                     &pHashEntry->enmError, &pLastAncestor);
     }
     else
     {
@@ -2864,10 +2943,10 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
                 kFsCacheObjRelease(pCache, pHashEntry->pFsObj);
                 if (pHashEntry->fAbsolute)
                     pHashEntry->pFsObj = kFsCacheLookupAbsoluteW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath,
-                                                                 &pHashEntry->enmError);
+                                                                 &pHashEntry->enmError, &pLastAncestor);
                 else
                     pHashEntry->pFsObj = kFsCacheLookupSlowW(pCache, pHashEntry->pwszPath, pHashEntry->cwcPath,
-                                                             &pHashEntry->enmError);
+                                                             &pHashEntry->enmError, &pLastAncestor);
             }
         }
         else
@@ -2878,7 +2957,15 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
             return NULL;
         }
     }
-    pHashEntry->uCacheGen = pCache->uGenerationMissing;
+    if (pLastAncestor && !pHashEntry->pFsObj)
+        pHashEntry->idxMissingGen = pLastAncestor->fFlags & KFSOBJ_F_USE_CUSTOM_GEN;
+    pHashEntry->uCacheGen = !pHashEntry->pFsObj
+                          ? pCache->auGenerationsMissing[pHashEntry->idxMissingGen]
+                          : pHashEntry->pFsObj->bObjType == KFSOBJ_TYPE_MISSING
+                          ? pCache->auGenerationsMissing[pHashEntry->pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                          : pCache->auGenerations[       pHashEntry->pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
+    if (pLastAncestor)
+        kFsCacheObjRelease(pCache, pLastAncestor);
     return pHashEntry;
 }
 
@@ -2921,8 +3008,13 @@ static PKFSOBJ kFsCacheLookupHashedA(PKFSCACHE pCache, const char *pchPath, KU32
                 && pHashEntry->cchPath   == cchPath
                 && kHlpMemComp(pHashEntry->pszPath, pchPath, cchPath) == 0)
             {
+                PKFSOBJ pFsObj;
                 if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                    || pHashEntry->uCacheGen == (pHashEntry->pFsObj ? pCache->uGeneration : pCache->uGenerationMissing)
+                    || pHashEntry->uCacheGen == (  (pFsObj = pHashEntry->pFsObj) != NULL
+                                                 ? pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                                   ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                                   : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                                 : pCache->auGenerationsMissing[pHashEntry->idxMissingGen])
                     || (pHashEntry = kFsCacheRefreshPathA(pCache, pHashEntry, idxHashTab)) )
                 {
                     pCache->cLookups++;
@@ -2947,6 +3039,7 @@ static PKFSOBJ kFsCacheLookupHashedA(PKFSCACHE pCache, const char *pchPath, KU32
     {
         PKFSOBJ pFsObj;
         KBOOL   fAbsolute;
+        PKFSOBJ pLastAncestor = NULL;
 
         /* Is absolute without any '..' bits? */
         if (   cchPath >= 3
@@ -2957,19 +3050,22 @@ static PKFSOBJ kFsCacheLookupHashedA(PKFSCACHE pCache, const char *pchPath, KU32
                     && IS_SLASH(pchPath[1]) ) )
             && !kFsCacheHasDotDotA(pchPath, cchPath) )
         {
-            pFsObj = kFsCacheLookupAbsoluteA(pCache, pchPath, cchPath, penmError);
+            pFsObj = kFsCacheLookupAbsoluteA(pCache, pchPath, cchPath, penmError, &pLastAncestor);
             fAbsolute = K_TRUE;
         }
         else
         {
-            pFsObj = kFsCacheLookupSlowA(pCache, pchPath, cchPath, penmError);
+            pFsObj = kFsCacheLookupSlowA(pCache, pchPath, cchPath, penmError, &pLastAncestor);
             fAbsolute = K_FALSE;
         }
         if (   pFsObj
             || (   (pCache->fFlags & KFSCACHE_F_MISSING_PATHS)
                 && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
             || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
-            kFsCacheCreatePathHashTabEntryA(pCache, pFsObj, pchPath, cchPath, uHashPath, idxHashTab, fAbsolute, *penmError);
+            kFsCacheCreatePathHashTabEntryA(pCache, pFsObj, pchPath, cchPath, uHashPath, idxHashTab, fAbsolute,
+                                            pLastAncestor ? pLastAncestor->bObjType & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
+        if (pLastAncestor)
+            kFsCacheObjRelease(pCache, pLastAncestor);
 
         pCache->cLookups++;
         if (pFsObj)
@@ -3020,8 +3116,13 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
                 && pHashEntry->cwcPath   == cwcPath
                 && kHlpMemComp(pHashEntry->pwszPath, pwcPath, cwcPath) == 0)
             {
+                PKFSOBJ pFsObj;
                 if (   pHashEntry->uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
-                    || pHashEntry->uCacheGen == (pHashEntry->pFsObj ? pCache->uGeneration : pCache->uGenerationMissing)
+                    || pHashEntry->uCacheGen == ((pFsObj = pHashEntry->pFsObj) != NULL
+                                                 ? pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                                   ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                                   : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                                 : pCache->auGenerationsMissing[pHashEntry->idxMissingGen])
                     || (pHashEntry = kFsCacheRefreshPathW(pCache, pHashEntry, idxHashTab)) )
                 {
                     pCache->cLookups++;
@@ -3046,6 +3147,7 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
     {
         PKFSOBJ pFsObj;
         KBOOL   fAbsolute;
+        PKFSOBJ pLastAncestor = NULL;
 
         /* Is absolute without any '..' bits? */
         if (   cwcPath >= 3
@@ -3056,19 +3158,22 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
                     && IS_SLASH(pwcPath[1]) ) )
             && !kFsCacheHasDotDotW(pwcPath, cwcPath) )
         {
-            pFsObj = kFsCacheLookupAbsoluteW(pCache, pwcPath, cwcPath, penmError);
+            pFsObj = kFsCacheLookupAbsoluteW(pCache, pwcPath, cwcPath, penmError, &pLastAncestor);
             fAbsolute = K_TRUE;
         }
         else
         {
-            pFsObj = kFsCacheLookupSlowW(pCache, pwcPath, cwcPath, penmError);
+            pFsObj = kFsCacheLookupSlowW(pCache, pwcPath, cwcPath, penmError, &pLastAncestor);
             fAbsolute = K_FALSE;
         }
         if (   pFsObj
             || (   (pCache->fFlags & KFSCACHE_F_MISSING_PATHS)
                 && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
             || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
-            kFsCacheCreatePathHashTabEntryW(pCache, pFsObj, pwcPath, cwcPath, uHashPath, idxHashTab, fAbsolute, *penmError);
+            kFsCacheCreatePathHashTabEntryW(pCache, pFsObj, pwcPath, cwcPath, uHashPath, idxHashTab, fAbsolute,
+                                            pLastAncestor ? pLastAncestor->bObjType & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
+        if (pLastAncestor)
+            kFsCacheObjRelease(pCache, pLastAncestor);
 
         pCache->cLookups++;
         if (pFsObj)
@@ -3738,28 +3843,120 @@ KBOOL kFsCacheFileSimpleOpenReadClose(PKFSCACHE pCache, PKFSOBJ pFileObj, KU64 o
 void kFsCacheInvalidateMissing(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
-    pCache->uGenerationMissing++;
+    pCache->auGenerationsMissing[0]++;
     kHlpAssert(pCache->uGenerationMissing < KU32_MAX);
-    KFSCACHE_LOG(("Invalidate missing %#x\n", pCache->uGenerationMissing));
+    KFSCACHE_LOG(("Invalidate missing %#x\n", pCache->auGenerationsMissing[0]));
 }
 
 
 /**
- * Invalidate all cache entries of missing files.
+ * Invalidate all cache entries (regular, custom & missing).
  *
  * @param   pCache      The cache.
  */
 void kFsCacheInvalidateAll(PKFSCACHE pCache)
 {
     kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
-    pCache->uGenerationMissing++;
-    kHlpAssert(pCache->uGenerationMissing < KU32_MAX);
-    pCache->uGeneration++;
-    kHlpAssert(pCache->uGeneration < KU32_MAX);
-    KFSCACHE_LOG(("Invalidate all %#x/%#x\n", pCache->uGenerationMissing, pCache->uGeneration));
 
+    pCache->auGenerationsMissing[0]++;
+    kHlpAssert(pCache->auGenerationsMissing[0] < KU32_MAX);
+    pCache->auGenerationsMissing[1]++;
+    kHlpAssert(pCache->auGenerationsMissing[1] < KU32_MAX);
+
+    pCache->auGenerations[0]++;
+    kHlpAssert(pCache->auGenerations[0] < KU32_MAX);
+    pCache->auGenerations[1]++;
+    kHlpAssert(pCache->auGenerations[1] < KU32_MAX);
+
+    KFSCACHE_LOG(("Invalidate all - default: %#x/%#x,  custom: %#x/%#x\n",
+                  pCache->auGenerationsMissing[0], pCache->auGenerations[0],
+                  pCache->auGenerationsMissing[1], pCache->auGenerations[1]));
 }
 
+
+/**
+ * Invalidate all cache entries with custom generation handling set.
+ *
+ * @see     kFsCacheSetupCustomRevisionForTree, KFSOBJ_F_USE_CUSTOM_GEN
+ * @param   pCache      The cache.
+ */
+void kFsCacheInvalidateCustomMissing(PKFSCACHE pCache)
+{
+    kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    pCache->auGenerationsMissing[1]++;
+    kHlpAssert(pCache->auGenerationsMissing[1] < KU32_MAX);
+    KFSCACHE_LOG(("Invalidate missing custom %#x\n", pCache->auGenerationsMissing[1]));
+}
+
+
+/**
+ * Invalidate all cache entries with custom generation handling set, both
+ * missing and regular present entries.
+ *
+ * @see     kFsCacheSetupCustomRevisionForTree, KFSOBJ_F_USE_CUSTOM_GEN
+ * @param   pCache      The cache.
+ */
+void kFsCacheInvalidateCustomBoth(PKFSCACHE pCache)
+{
+    kHlpAssert(pCache->u32Magic == KFSOBJ_MAGIC);
+    pCache->auGenerations[1]++;
+    kHlpAssert(pCache->auGenerations[1] < KU32_MAX);
+    pCache->auGenerationsMissing[1]++;
+    kHlpAssert(pCache->auGenerationsMissing[1] < KU32_MAX);
+    KFSCACHE_LOG(("Invalidate both custom %#x/%#x\n", pCache->auGenerationsMissing[1], pCache->auGenerations[1]));
+}
+
+
+
+/**
+ * Applies the given flags to all the objects in a tree.
+ *
+ * @param   pRoot               Where to start applying the flag changes.
+ * @param   fAndMask            The AND mask.
+ * @param   fOrMask             The OR mask.
+ */
+static void kFsCacheApplyFlagsToTree(PKFSDIR pRoot, KU32 fAndMask, KU32 fOrMask)
+{
+    PKFSOBJ    *ppCur = ((PKFSDIR)pRoot)->papChildren;
+    KU32        cLeft = ((PKFSDIR)pRoot)->cChildren;
+    while (cLeft-- > 0)
+    {
+        PKFSOBJ pCur = *ppCur++;
+        if (pCur->bObjType != KFSOBJ_TYPE_DIR)
+            pCur->fFlags = (fAndMask & pCur->fFlags) | fOrMask;
+        else
+            kFsCacheApplyFlagsToTree((PKFSDIR)pCur, fAndMask, fOrMask);
+    }
+
+    pRoot->Obj.fFlags = (fAndMask & pRoot->Obj.fFlags) | fOrMask;
+}
+
+
+/**
+ * Sets up using custom revisioning for the specified directory tree or file.
+ *
+ * There are some restrictions of the current implementation:
+ *      - If the root of the sub-tree is ever deleted from the cache (i.e.
+ *        deleted in real life and reflected in the cache), the setting is lost.
+ *      - It is not automatically applied to the lookup paths caches.
+ *
+ * @returns K_TRUE on success, K_FALSE on failure.
+ * @param   pCache              The cache.
+ * @param   pRoot               The root of the subtree.  A non-directory is
+ *                              fine, like a missing node.
+ */
+KBOOL kFsCacheSetupCustomRevisionForTree(PKFSCACHE pCache, PKFSOBJ pRoot)
+{
+    if (pRoot)
+    {
+        if (pRoot->bObjType == KFSOBJ_TYPE_DIR)
+            kFsCacheApplyFlagsToTree((PKFSDIR)pRoot, KU32_MAX, KFSOBJ_F_USE_CUSTOM_GEN);
+        else
+            pRoot->fFlags |= KFSOBJ_F_USE_CUSTOM_GEN;
+        return K_TRUE;
+    }
+    return K_FALSE;
+}
 
 
 PKFSCACHE kFsCacheCreate(KU32 fFlags)
@@ -3808,8 +4005,10 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
             /* The cache itself. */
             pCache->u32Magic        = KFSCACHE_MAGIC;
             pCache->fFlags          = fFlags;
-            pCache->uGeneration     = KU32_MAX / 2;
-            pCache->uGenerationMissing = 1;
+            pCache->auGenerations[0]        = KU32_MAX / 4;
+            pCache->auGenerations[1]        = KU32_MAX / 32;
+            pCache->auGenerationsMissing[0] = KU32_MAX / 256;
+            pCache->auGenerationsMissing[1] = 1;
             pCache->cObjects        = 1;
             pCache->cbObjects       = sizeof(pCache->RootDir) + pCache->RootDir.cHashTab * sizeof(pCache->RootDir.paHashTab[0]);
             pCache->cPathHashHits   = 0;

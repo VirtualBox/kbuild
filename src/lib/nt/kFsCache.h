@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2863 2016-09-02 16:32:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -79,12 +79,19 @@
 
 /** @name KFSOBJ_F_XXX - KFSOBJ::fFlags
  * @{ */
+ /** Use custom generation.
+  * @remarks This is given the value 1, as we use it as an index into
+  *          KFSCACHE::auGenerations, 0 being the default. */
+#define KFSOBJ_F_USE_CUSTOM_GEN         KU32_C(0x00000001)
+
 /** Whether the file system update the modified timestamp of directories
  * when something is removed from it or added to it.
  * @remarks They say NTFS is the only windows filesystem doing this.  */
-#define KFSOBJ_F_WORKING_DIR_MTIME      KU32_C(0x00000001)
+#define KFSOBJ_F_WORKING_DIR_MTIME      KU32_C(0x00000002)
 /** NTFS file system volume. */
 #define KFSOBJ_F_NTFS                   KU32_C(0x80000000)
+/** Flags that are automatically inherited. */
+#define KFSOBJ_F_INHERITED_MASK         KU32_C(0xffffffff)
 /** @} */
 
 
@@ -303,6 +310,8 @@ typedef struct KFSHASHA
     KU16                cchPath;
     /** Set if aboslute path.   */
     KBOOL               fAbsolute;
+    /** Index into KFSCACHE:auGenerationsMissing when pFsObj is NULL. */
+    KU8                 idxMissingGen;
     /** The cache generation ID. */
     KU32                uCacheGen;
     /** The lookup error (when pFsObj is NULL). */
@@ -332,6 +341,8 @@ typedef struct KFSHASHW
     KU16                cwcPath;
     /** Set if aboslute path.   */
     KBOOL               fAbsolute;
+    /** Index into KFSCACHE:auGenerationsMissing when pFsObj is NULL. */
+    KU8                 idxMissingGen;
     /** The cache generation ID. */
     KU32                uCacheGen;
     /** The lookup error (when pFsObj is NULL). */
@@ -364,10 +375,20 @@ typedef struct KFSCACHE
     /** Cache flags. */
     KU32                fFlags;
 
-    /** The current cache generation for objects that already exists. */
-    KU32                uGeneration;
-    /** The current cache generation for missing objects, negative results, ++. */
-    KU32                uGenerationMissing;
+    /** The default and custom cache generations for stuff that exists, indexed by
+     *  KFSOBJ_F_USE_CUSTOM_GEN.
+     *
+     * The custom generation can be used to invalidate parts of the file system that
+     * are known to be volatile without triggering refreshing of the more static
+     * parts.  Like the 'out' directory in a kBuild setup or a 'TEMP' directory are
+     * expected to change and you need to invalidate the caching of these frequently
+     * to stay on top of things.  Whereas the sources, headers, compilers, sdk,
+     * ddks, windows directory and such generally doesn't change all that often.
+     */
+    KU32                auGenerations[2];
+    /** The current cache generation for missing objects, negative results, ++.
+     * This comes with a custom variant too.  Indexed by KFSOBJ_F_USE_CUSTOM_GEN. */
+    KU32                auGenerationsMissing[2];
 
     /** Number of cache objects. */
     KSIZE               cObjects;
@@ -436,9 +457,9 @@ PKFSOBJ     kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t con
 PKFSOBJ     kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath,
-                                         KFSLOOKUPERROR *penmError);
+                                         KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor);
 PKFSOBJ     kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
-                                         KFSLOOKUPERROR *penmError);
+                                         KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor);
 PKFSOBJ     kFsCacheLookupWithLengthA(PKFSCACHE pCache, const char *pchPath, KSIZE cchPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupWithLengthW(PKFSCACHE pCache, const wchar_t *pwcPath, KSIZE cwcPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
@@ -458,7 +479,10 @@ KBOOL       kFsCacheFileSimpleOpenReadClose(PKFSCACHE pCache, PKFSOBJ pFileObj, 
 
 PKFSCACHE   kFsCacheCreate(KU32 fFlags);
 void        kFsCacheDestroy(PKFSCACHE);
-void        kFsCacheInvalidateMissing(PKFSCACHE pFsCache);
-void        kFsCacheInvalidateAll(PKFSCACHE pFsCache);
+void        kFsCacheInvalidateMissing(PKFSCACHE pCache);
+void        kFsCacheInvalidateAll(PKFSCACHE pCache);
+void        kFsCacheInvalidateCustomMissing(PKFSCACHE pCache);
+void        kFsCacheInvalidateCustomBoth(PKFSCACHE pCache);
+KBOOL       kFsCacheSetupCustomRevisionForTree(PKFSCACHE pCache, PKFSOBJ pRoot);
 
 #endif

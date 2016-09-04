@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -306,6 +306,16 @@ static int kSubmitSpawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
     size_t          cchExectuable;
     size_t const    cbExecutableBuf = GET_PATH_MAX;
     PATH_VAR(szExecutable);
+#define TUPLE(a_sz)     a_sz, sizeof(a_sz) - 1
+    struct variable *pVarVolatile = lookup_variable(TUPLE("PATH_OUT"));
+    if (pVarVolatile)
+    { /* likely */ }
+    else
+    {
+        pVarVolatile = lookup_variable(TUPLE("PATH_OUT_BASE"));
+        if (!pVarVolatile)
+            warn("Neither PATH_OUT_BASE nor PATH_OUT was found.");
+    }
 
     /*
      * Construct the executable path.
@@ -372,7 +382,12 @@ static int kSubmitSpawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
                 if (pWorker->OverlappedRead.hEvent != NULL)
                 {
                     char        szHandleArg[32];
-                    const char *apszArgs[4] = { szExecutable, "--pipe", szHandleArg, NULL };
+                    const char *apszArgs[6] =
+                    {
+                        szExecutable, "--pipe", szHandleArg,
+                        pVarVolatile ? "--volatile" : NULL, pVarVolatile ? pVarVolatile->value : NULL,
+                        NULL
+                    };
                     _snprintf(szHandleArg, sizeof(szHandleArg), "%p", hWorkerPipe);
 
                     /*
