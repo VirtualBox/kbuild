@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2871 2016-09-04 18:32:57Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2874 2016-09-04 19:45:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -330,6 +330,19 @@ typedef struct KWVIRTALLOC
     KSIZE               cbAlloc;
 } KWVIRTALLOC;
 
+
+/** Pointer to a FlsAlloc/TlsAlloc tracker entry. */
+typedef struct KWLOCALSTORAGE *PKWLOCALSTORAGE;
+/**
+ * Tracking an FlsAlloc/TlsAlloc index.
+ */
+typedef struct KWLOCALSTORAGE
+{
+    PKWLOCALSTORAGE     pNext;
+    KU32                idx;
+} KWLOCALSTORAGE;
+
+
 typedef enum KWTOOLTYPE
 {
     KWTOOLTYPE_INVALID = 0,
@@ -439,6 +452,10 @@ typedef struct KWSANDBOX
 
     /** Head of the virtual alloc allocations. */
     PKWVIRTALLOC    pVirtualAllocHead;
+    /** Head of the FlsAlloc indexes. */
+    PKWLOCALSTORAGE pFlsAllocHead;
+    /** Head of the TlsAlloc indexes. */
+    PKWLOCALSTORAGE pTlsAllocHead;
 
     UNICODE_STRING  SavedCommandLine;
 } KWSANDBOX;
@@ -4360,14 +4377,14 @@ static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, L
 }
 
 
+
 /*
  *
- * Virtual memory management.
- * Virtual memory management.
- * Virtual memory management.
+ * Virtual memory leak prevension.
+ * Virtual memory leak prevension.
+ * Virtual memory leak prevension.
  *
  */
-
 
 /** Kernel32 - VirtualAlloc - for c1[xx].dll 78GB leaks.   */
 static PVOID WINAPI kwSandbox_Kernel32_VirtualAlloc(PVOID pvAddr, SIZE_T cb, DWORD fAllocType, DWORD fProt)
@@ -4429,6 +4446,74 @@ static BOOL WINAPI kwSandbox_Kernel32_VirtualFree(PVOID pvAddr, SIZE_T cb, DWORD
                     kHlpFree(pTracker);
                 else
                     KW_LOG(("VirtualFree: pvAddr=%p not found!\n", pvAddr));
+            }
+        }
+    }
+    return fRc;
+}
+
+
+
+/*
+ *
+ * Thread/Fiber local storage leak prevention.
+ * Thread/Fiber local storage leak prevention.
+ * Thread/Fiber local storage leak prevention.
+ *
+ * Note! The FlsAlloc/Free causes problems for statically linked VS2010
+ *       code like VBoxBs3ObjConverter.exe.  One thing is that we're
+ *       leaking these indexes, but more importantely we crash during
+ *       worker exit since the callback is triggered multiple times.
+ */
+
+
+/** Kernel32 - FlsAlloc  */
+DWORD WINAPI kwSandbox_Kernel32_FlsAlloc(PFLS_CALLBACK_FUNCTION pfnCallback)
+{
+    DWORD idxFls = FlsAlloc(pfnCallback);
+    KW_LOG(("FlsAlloc(%p) -> %#x\n", pfnCallback, idxFls));
+    if (idxFls != FLS_OUT_OF_INDEXES)
+    {
+        PKWLOCALSTORAGE pTracker = (PKWLOCALSTORAGE)kHlpAlloc(sizeof(*pTracker));
+        if (pTracker)
+        {
+            pTracker->idx = idxFls;
+            pTracker->pNext = g_Sandbox.pFlsAllocHead;
+            g_Sandbox.pFlsAllocHead = pTracker;
+        }
+    }
+
+    return idxFls;
+}
+
+/** Kernel32 - FlsFree */
+BOOL WINAPI kwSandbox_Kernel32_FlsFree(DWORD idxFls)
+{
+    BOOL fRc = FlsFree(idxFls);
+    KW_LOG(("FlsFree(%#x) -> %d\n", idxFls, fRc));
+    if (fRc)
+    {
+        PKWLOCALSTORAGE pTracker = g_Sandbox.pFlsAllocHead;
+        if (pTracker)
+        {
+            if (pTracker->idx == idxFls)
+                g_Sandbox.pFlsAllocHead = pTracker->pNext;
+            else
+            {
+                PKWLOCALSTORAGE pPrev;
+                do
+                {
+                    pPrev = pTracker;
+                    pTracker = pTracker->pNext;
+                } while (pTracker && pTracker->idx != idxFls);
+                if (pTracker)
+                    pPrev->pNext = pTracker->pNext;
+            }
+            if (pTracker)
+            {
+                pTracker->idx   = FLS_OUT_OF_INDEXES;
+                pTracker->pNext = NULL;
+                kHlpFree(pTracker);
             }
         }
     }
@@ -4522,6 +4607,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 
     { TUPLE("VirtualAlloc"),                NULL,       (KUPTR)kwSandbox_Kernel32_VirtualAlloc },
     { TUPLE("VirtualFree"),                 NULL,       (KUPTR)kwSandbox_Kernel32_VirtualFree },
+
+    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
+    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
 
     /*
      * MS Visual C++ CRTs.
@@ -4925,6 +5013,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
 static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 {
     PKWVIRTALLOC pTracker;
+    PKWLOCALSTORAGE pLocalStorage;
 #ifdef WITH_TEMP_MEMORY_FILES
     PKWFSTEMPFILE pTempFile;
 #endif
@@ -4960,6 +5049,31 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
         kHlpFree(pTracker);
         pTracker = pNext;
     }
+
+    /* Free left behind FlsAlloc leaks. */
+    pLocalStorage = g_Sandbox.pFlsAllocHead;
+    g_Sandbox.pFlsAllocHead = NULL;
+    while (pLocalStorage)
+    {
+        PKWLOCALSTORAGE pNext = pLocalStorage->pNext;
+        KW_LOG(("Freeing leaded FlsAlloc index %#x\n", pLocalStorage->idx));
+        FlsFree(pLocalStorage->idx);
+        kHlpFree(pLocalStorage);
+        pLocalStorage = pNext;
+    }
+
+    /* Free left behind TlsAlloc leaks. */
+    pLocalStorage = g_Sandbox.pTlsAllocHead;
+    g_Sandbox.pTlsAllocHead = NULL;
+    while (pLocalStorage)
+    {
+        PKWLOCALSTORAGE pNext = pLocalStorage->pNext;
+        KW_LOG(("Freeing leaded TlsAlloc index %#x\n", pLocalStorage->idx));
+        TlsFree(pLocalStorage->idx);
+        kHlpFree(pLocalStorage);
+        pLocalStorage = pNext;
+    }
+
 }
 
 
