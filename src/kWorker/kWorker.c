@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2869 2016-09-04 13:48:28Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2871 2016-09-04 18:32:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -397,6 +397,8 @@ typedef struct KWSANDBOX
     void       *pOutXcptListHead;
     /** The exit code in case of longjmp.   */
     int         rcExitCode;
+    /** Set if we're running. */
+    KBOOL       fRunning;
 
     /** The command line.   */
     char       *pszCmdLine;
@@ -4667,6 +4669,99 @@ static PPEB kwSandboxGetProcessEnvironmentBlock(void)
 }
 
 
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
+typedef struct _EXCEPTION_REGISTRATION_RECORD
+{
+    struct _EXCEPTION_REGISTRATION_RECORD * volatile PrevStructure;
+    KU32 (__cdecl * volatile ExceptionHandler)(PEXCEPTION_RECORD, struct _EXCEPTION_REGISTRATION_RECORD*, PCONTEXT,
+                                               struct _EXCEPTION_REGISTRATION_RECORD * volatile *);
+};
+
+/**
+ * Vectored exception handler that emulates x86 chained exception handler.
+ *
+ * This is necessary because the RtlIsValidHandler check fails for self loaded
+ * code and prevents cl.exe from working.  (On AMD64 we can register function
+ * tables, but on X86 cooking your own handling seems to be the only viabke
+ * alternative.)
+ *
+ * @returns EXCEPTION_CONTINUE_SEARCH or EXCEPTION_CONTINUE_EXECUTION.
+ * @param   pXcptPtrs           The exception details.
+ */
+static LONG CALLBACK kwSandboxVecXcptEmulateChained(PEXCEPTION_POINTERS pXcptPtrs)
+{
+    PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
+    KW_LOG(("kwSandboxVecXcptEmulateChained: %#x\n", pXcptPtrs->ExceptionRecord->ExceptionCode));
+    if (g_Sandbox.fRunning)
+    {
+        PEXCEPTION_RECORD                                 pXcptRec = pXcptPtrs->ExceptionRecord;
+        PCONTEXT                                          pXcptCtx = pXcptPtrs->ContextRecord;
+        struct _EXCEPTION_REGISTRATION_RECORD * volatile *ppRegRec = &pTib->ExceptionList;
+        struct _EXCEPTION_REGISTRATION_RECORD *           pRegRec  = *ppRegRec;
+        while (((KUPTR)pRegRec & (sizeof(void *) - 3)) == 0 && pRegRec != NULL)
+        {
+#if 1
+            /* This is a more robust version that isn't subject to calling
+               convension cleanup disputes and such. */
+            KU32 uSavedEdi;
+            KU32 uSavedEsi;
+            KU32 uSavedEbx;
+            KU32 rcHandler;
+            __asm
+            {
+                mov     [uSavedEdi], edi
+                mov     [uSavedEsi], esi
+                mov     [uSavedEbx], ebx
+                mov     esi, esp
+                mov     edi, esp
+                mov     ecx, [pXcptRec]
+                mov     edx, [pRegRec]
+                mov     eax, [pXcptCtx]
+                mov     ebx, [ppRegRec]
+                sub     esp, 16
+                and     esp, 0fffffff0h
+                mov     [esp     ], ecx
+                mov     [esp +  4], edx
+                mov     [esp +  8], eax
+                mov     [esp + 12], ebx
+                call    dword ptr [edx + 4]
+                mov     esp, esi
+                cmp     esp, edi
+                je      stack_ok
+                int     3
+            stack_ok:
+                mov     edi, [uSavedEdi]
+                mov     esi, [uSavedEsi]
+                mov     ebx, [uSavedEbx]
+                mov     [rcHandler], eax
+            }
+#else
+            KU32 rcHandler = pRegRec->ExceptionHandler(pXcptPtrs->ExceptionRecord, pRegRec, pXcptPtrs->ContextRecord, ppRegRec);
+#endif
+            if (rcHandler == ExceptionContinueExecution)
+            {
+                kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE));
+                return EXCEPTION_CONTINUE_EXECUTION;
+            }
+            if (rcHandler == ExceptionContinueSearch)
+                kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & 8 /*EXCEPTION_STACK_INVALID*/));
+            else if (rcHandler == ExceptionNestedException)
+                kHlpAssertMsgFailed(("Nested exceptions.\n"));
+            else
+                kHlpAssertMsgFailed(("Invalid return %#x (%d).\n", rcHandler, rcHandler));
+
+            /*
+             * Next.
+             */
+            ppRegRec = &pRegRec->PrevStructure;
+            pRegRec = pRegRec->PrevStructure;
+        }
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif /* WINDOWS + X86 */
+
+
 /**
  * Enters the given handle into the handle table.
  *
@@ -4904,7 +4999,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
 
                 /* Save the NT TIB first (should do that here, not in some other function). */
                 PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
-                g_Sandbox.TibMainThread = *pTib;
+                pSandbox->TibMainThread = *pTib;
 
                 /* Make the call in a guarded fashion. */
 #if K_ARCH == K_ARCH_AMD64
@@ -4913,13 +5008,15 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
                 __try
                 {
                     pSandbox->pOutXcptListHead = pTib->ExceptionList;
-                    if (setjmp(g_Sandbox.JmpBuf) == 0)
+                    if (setjmp(pSandbox->JmpBuf) == 0)
                     {
-                        *(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                        *(KU64*)(pSandbox->JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                        pSandbox->fRunning = K_TRUE;
                         rcExit = pfnWin64Entrypoint(kwSandboxGetProcessEnvironmentBlock(), NULL, NULL, NULL);
+                        pSandbox->fRunning = K_FALSE;
                     }
                     else
-                        rcExit = g_Sandbox.rcExitCode;
+                        rcExit = pSandbox->rcExitCode;
                 }
 #elif K_ARCH == K_ARCH_X86_32
                 /* x86 (see _tmainCRTStartup) */
@@ -4927,22 +5024,25 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
                 __try
                 {
                     pSandbox->pOutXcptListHead = pTib->ExceptionList;
-                    if (setjmp(g_Sandbox.JmpBuf) == 0)
+                    if (setjmp(pSandbox->JmpBuf) == 0)
                     {
-                        //*(KU64*)(g_Sandbox.JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                        //*(KU64*)(pSandbox->JmpBuf) = 0; /** @todo find other way to prevent longjmp from doing unwind! */
+                        pSandbox->fRunning = K_TRUE;
                         rcExit = pfnWin32Entrypoint(kwSandboxGetProcessEnvironmentBlock());
+                        pSandbox->fRunning = K_FALSE;
                     }
                     else
-                        rcExit = g_Sandbox.rcExitCode;
+                        rcExit = pSandbox->rcExitCode;
                 }
 #endif
                 __except (EXCEPTION_EXECUTE_HANDLER)
                 {
                     rcExit = 512;
                 }
+                pSandbox->fRunning = K_FALSE;
 
                 /* Now, restore the NT TIB. */
-                *pTib = g_Sandbox.TibMainThread;
+                *pTib = pSandbox->TibMainThread;
             }
             else
                 rcExit = 42 + 5;
@@ -5356,6 +5456,9 @@ int main(int argc, char **argv)
     HANDLE          hPipe = INVALID_HANDLE_VALUE;
     const char     *pszTmp;
     KFSLOOKUPERROR  enmIgnored;
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
+    PVOID           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/, kwSandboxVecXcptEmulateChained);
+#endif
 
     /*
      * Create the cache and mark the temporary directory as using the custom revision.
