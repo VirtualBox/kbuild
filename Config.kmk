@@ -1,4 +1,4 @@
-# $Id: Config.kmk 2838 2016-08-25 21:46:25Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 2870 2016-09-04 13:52:39Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -207,7 +207,9 @@ TEMPLATE_DOC_GID    ?= $(firstword $(MY_INST_DOC_GID)  $(MY_INST_GID))
 #
 TEMPLATE_BIN = Command line binary
 
-TEMPLATE_BIN_INCS               = $(PATH_ROOT)/src/lib
+TEMPLATE_BIN_INCS               = \
+	$(PATH_ROOT)/src/lib \
+	$(PATH_ROOT)/src/lib/kStuff/include
 TEMPLATE_BIN_DEFS.profile       = NDEBUG
 TEMPLATE_BIN_DEFS.release       = NDEBUG
 if defined(NIX_INSTALL_DIR) && !defined(KBUILD_BOOTSTRAP)
@@ -289,7 +291,7 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
 	. \
 	$(PATH_GNUMAKE_SRC)/w32/include \
 	$(PATH_GNUMAKE_SRC)/glob
- TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG /OPT:REF /OPT:ICF
+ TEMPLATE_BIN_LDFLAGS           = /SUBSYSTEM:console /INCREMENTAL:no /NOD /DEBUG /OPT:REF /OPT:ICF /LargeAddressAware
  ifeq ($(KBUILD_TYPE),profile)
   TEMPLATE_BIN_SDKS             = WINPSDKINCS
   TEMPLATE_BIN_CFLAGS          += -MT
