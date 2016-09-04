@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2869 2016-09-04 13:48:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -93,6 +93,12 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 # define KWFS_TEMP_FILE_MAX             (64*1024*1024)
 #endif
 
+/** Marks unfinished code.  */
+#if 1
+# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); __debugbreak(); } while (0)
+#else
+# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); } while (0)
+#endif
 
 /** User data key for tools. */
 #define KW_DATA_KEY_TOOL                (~(KUPTR)16381)
@@ -312,6 +318,18 @@ typedef struct KWHANDLE
 typedef KWHANDLE *PKWHANDLE;
 
 
+/** Pointer to a VirtualAlloc tracker entry. */
+typedef struct KWVIRTALLOC *PKWVIRTALLOC;
+/**
+ * Tracking an VirtualAlloc allocation.
+ */
+typedef struct KWVIRTALLOC
+{
+    PKWVIRTALLOC        pNext;
+    void               *pvAlloc;
+    KSIZE               cbAlloc;
+} KWVIRTALLOC;
+
 typedef enum KWTOOLTYPE
 {
     KWTOOLTYPE_INVALID = 0,
@@ -416,6 +434,9 @@ typedef struct KWSANDBOX
 
     /** Head of the list of temporary file. */
     PKWFSTEMPFILE   pTempFileHead;
+
+    /** Head of the virtual alloc allocations. */
+    PKWVIRTALLOC    pVirtualAllocHead;
 
     UNICODE_STRING  SavedCommandLine;
 } KWSANDBOX;
@@ -1980,7 +2001,7 @@ static void WINAPI kwSandbox_Kernel32_ExitProcess(UINT uExitCode)
 
         longjmp(g_Sandbox.JmpBuf, 1);
     }
-    __debugbreak();
+    KWFS_TODO();
 }
 
 
@@ -1989,7 +2010,7 @@ static BOOL WINAPI kwSandbox_Kernel32_TerminateProcess(HANDLE hProcess, UINT uEx
 {
     if (hProcess == GetCurrentProcess())
         kwSandbox_Kernel32_ExitProcess(uExitCode);
-    __debugbreak();
+    KWFS_TODO();
     return TerminateProcess(hProcess, uExitCode);
 }
 
@@ -2175,14 +2196,14 @@ static errno_t __cdecl kwSandbox_msvcrt__get_wpgmptr(wchar_t **ppwszValue)
 /** Just in case. */
 static void kwSandbox_msvcrt__wincmdln(void)
 {
-    __debugbreak();
+    KWFS_TODO();
 }
 
 
 /** Just in case. */
 static void kwSandbox_msvcrt__wwincmdln(void)
 {
-    __debugbreak();
+    KWFS_TODO();
 }
 
 /** CreateThread interceptor. */
@@ -2190,7 +2211,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateThread(LPSECURITY_ATTRIBUTES pSecA
                                                      PTHREAD_START_ROUTINE pfnThreadProc, PVOID pvUser,
                                                      DWORD fFlags, PDWORD pidThread)
 {
-    __debugbreak();
+    KWFS_TODO();
     return NULL;
 }
 
@@ -2198,7 +2219,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateThread(LPSECURITY_ATTRIBUTES pSecA
 /** _beginthread - create a new thread. */
 static uintptr_t __cdecl kwSandbox_msvcrt__beginthread(void (__cdecl *pfnThreadProc)(void *), unsigned cbStack, void *pvUser)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2208,7 +2229,7 @@ static uintptr_t __cdecl kwSandbox_msvcrt__beginthreadex(void *pvSecAttr, unsign
                                                          unsigned (__stdcall *pfnThreadProc)(void *), void *pvUser,
                                                          unsigned fCreate, unsigned *pidThread)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2224,7 +2245,7 @@ static uintptr_t __cdecl kwSandbox_msvcrt__beginthreadex(void *pvSecAttr, unsign
 /** Kernel32 - GetEnvironmentVariableA()  */
 static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableA(LPCSTR pwszVar, LPSTR pszValue, DWORD cbValue)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2233,7 +2254,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableA(LPCSTR pwszVar, L
 static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableW(LPCWSTR pwszVar, LPWSTR pwszValue, DWORD cbValue)
 {
     KW_LOG(("GetEnvironmentVariableW: '%ls'\n", pwszVar));
-    //__debugbreak();
+    //KWFS_TODO();
     //SetLastError(ERROR_ENVVAR_NOT_FOUND);
     //return 0;
     return GetEnvironmentVariableW(pwszVar, pwszValue, cbValue);
@@ -2243,7 +2264,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableW(LPCWSTR pwszVar, 
 /** Kernel32 - SetEnvironmentVariableA()  */
 static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableA(LPCSTR pszVar, LPCSTR pszValue)
 {
-    __debugbreak();
+    KWFS_TODO();
     return FALSE;
 }
 
@@ -2253,7 +2274,7 @@ static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableW(LPCWSTR pwszVar, L
 {
     KW_LOG(("SetEnvironmentVariableW: '%ls' = '%ls'\n", pwszVar, pwszValue));
     return SetEnvironmentVariableW(pwszVar, pwszValue);
-    //__debugbreak();
+    //KWFS_TODO();
     //return FALSE;
 }
 
@@ -2261,7 +2282,7 @@ static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableW(LPCWSTR pwszVar, L
 /** Kernel32 - ExpandEnvironmentStringsA()  */
 static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsA(LPCSTR pszSrc, LPSTR pwszDst, DWORD cbDst)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2269,7 +2290,7 @@ static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsA(LPCSTR pszSrc, 
 /** Kernel32 - ExpandEnvironmentStringsW()  */
 static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsW(LPCWSTR pwszSrc, LPWSTR pwszDst, DWORD cbDst)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2277,7 +2298,7 @@ static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsW(LPCWSTR pwszSrc
 /** CRT - _putenv(). */
 static int __cdecl kwSandbox_msvcrt__putenv(const char *pszVarEqualValue)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2285,7 +2306,7 @@ static int __cdecl kwSandbox_msvcrt__putenv(const char *pszVarEqualValue)
 /** CRT - _wputenv(). */
 static int __cdecl kwSandbox_msvcrt__wputenv(const wchar_t *pwszVarEqualValue)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2293,7 +2314,7 @@ static int __cdecl kwSandbox_msvcrt__wputenv(const wchar_t *pwszVarEqualValue)
 /** CRT - _putenv_s(). */
 static errno_t __cdecl kwSandbox_msvcrt__putenv_s(const char *pszVar, const char *pszValue)
 {
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2302,7 +2323,7 @@ static errno_t __cdecl kwSandbox_msvcrt__putenv_s(const char *pszVar, const char
 static errno_t __cdecl kwSandbox_msvcrt__wputenv_s(const wchar_t *pwszVar, const wchar_t *pwszValue)
 {
     KW_LOG(("_wputenv_s: '%ls' = '%ls'\n", pwszVar, pwszValue));
-    //__debugbreak();
+    //KWFS_TODO();
     return SetEnvironmentVariableW(pwszVar, pwszValue) ? 0 : -1;
 }
 
@@ -2339,7 +2360,7 @@ static wchar_t *** __cdecl kwSandbox_msvcrt___p__wenviron(void)
  * @remarks Not documented or prototyped?  */
 static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviron)
 {
-    __debugbreak(); /** @todo check the callers expecations! */
+    KWFS_TODO(); /** @todo check the callers expecations! */
     *ppapszEnviron = g_Sandbox.environ;
     return 0;
 }
@@ -2349,7 +2370,7 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviro
  * @remarks Not documented or prototyped? */
 static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszEnviron)
 {
-    __debugbreak(); /** @todo check the callers expecations! */
+    KWFS_TODO(); /** @todo check the callers expecations! */
     *ppapwszEnviron = g_Sandbox.wenviron;
     return 0;
 }
@@ -2378,7 +2399,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_Resource(LPCSTR pszFilen
     int rc = kwPathNormalize(pszFilename, szNormPath, sizeof(szNormPath));
     if (rc != 0)
     {
-        __debugbreak();
+        KWFS_TODO();
         return LoadLibraryExA(pszFilename, hFile, fFlags);
     }
 
@@ -2390,7 +2411,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_Resource(LPCSTR pszFilen
         {
             if (pDynLoad->pMod == NULL)
                 return pDynLoad->hmod;
-            __debugbreak();
+            KWFS_TODO();
         }
 
     /* Then try load it. */
@@ -2413,7 +2434,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_Resource(LPCSTR pszFilen
             g_Sandbox.pTool->u.Sandboxed.pDynLoadHead = pDynLoad;
         }
         else
-            __debugbreak();
+            KWFS_TODO();
     }
     return hmod;
 }
@@ -2450,7 +2471,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(LPCSTR 
         {
             if (pDynLoad->pMod != NULL)
                 return pDynLoad->hmod;
-            __debugbreak();
+            KWFS_TODO();
         }
 
     /* Then try load it and make a kLdr module for it. */
@@ -2481,13 +2502,13 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(LPCSTR 
                     return hmod;
                 }
 
-                __debugbreak();
+                KWFS_TODO();
             }
             else
-                __debugbreak();
+                KWFS_TODO();
         }
         else
-            __debugbreak();
+            KWFS_TODO();
     }
     return hmod;
 }
@@ -2503,7 +2524,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
     if (   (fFlags & LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE)
         || (hFile != NULL && hFile != INVALID_HANDLE_VALUE) )
     {
-        __debugbreak();
+        KWFS_TODO();
         return LoadLibraryExA(pszFilename, hFile, fFlags);
     }
 
@@ -2517,7 +2538,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
         /* currently, only deal with those that has a path. */
         if (kHlpIsFilenameOnly(pszFilename))
         {
-            __debugbreak();
+            KWFS_TODO();
             return LoadLibraryExA(pszFilename, hFile, fFlags);
         }
 
@@ -2535,14 +2556,14 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
         return kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(pszFilename, hFile, fFlags);
     else
     {
-__debugbreak();
+        KWFS_TODO();
         rc = kwLdrModuleResolveAndLookup(pszFilename, g_Sandbox.pTool->u.Sandboxed.pExe, NULL /*pImporter*/, &pMod);
         if (rc != 0)
             pMod = NULL;
     }
     if (!pMod)
     {
-        __debugbreak();
+        KWFS_TODO();
         SetLastError(ERROR_MOD_NOT_FOUND);
         return NULL;
     }
@@ -2573,7 +2594,7 @@ __debugbreak();
         }
     }
 
-    __debugbreak();
+    KWFS_TODO();
     SetLastError(ERROR_NOT_ENOUGH_MEMORY);
     kwLdrModuleRelease(pMod);
     return NULL;
@@ -2588,7 +2609,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExW(LPCWSTR pwszFilename, HA
     if (cchTmp < sizeof(szTmp))
         return kwSandbox_Kernel32_LoadLibraryExA(szTmp, hFile, fFlags);
 
-    __debugbreak();
+    KWFS_TODO();
     SetLastError(ERROR_FILENAME_EXCED_RANGE);
     return NULL;
 }
@@ -2607,7 +2628,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryW(LPCWSTR pwszFilename)
     KSIZE cchTmp = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
     if (cchTmp < sizeof(szTmp))
         return kwSandbox_Kernel32_LoadLibraryExA(szTmp, NULL /*hFile*/, 0 /*fFlags*/);
-    __debugbreak();
+    KWFS_TODO();
     SetLastError(ERROR_FILENAME_EXCED_RANGE);
     return NULL;
 }
@@ -2646,7 +2667,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleA(LPCSTR pszModule)
             return g_aGetModuleHandleCache[i].hmod = GetModuleHandleA(pszModule);
         }
 
-    __debugbreak();
+    KWFS_TODO();
     return NULL;
 }
 
@@ -2676,7 +2697,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_GetModuleHandleW(LPCWSTR pwszModule)
             return g_aGetModuleHandleCache[i].hmod = GetModuleHandleW(pwszModule);
         }
 
-    __debugbreak();
+    KWFS_TODO();
     return NULL;
 }
 
@@ -2696,7 +2717,7 @@ static PKWMODULE kwSandboxLocateModuleByHandle(PKWSANDBOX pSandbox, HMODULE hmod
         {
             if (pDynLoad->pMod)
                 return kwLdrModuleRetain(pDynLoad->pMod);
-            __debugbreak();
+            KWFS_TODO();
             return NULL;
         }
 
@@ -2707,7 +2728,7 @@ static PKWMODULE kwSandboxLocateModuleByHandle(PKWSANDBOX pSandbox, HMODULE hmod
 /** Used to debug dynamically resolved procedures. */
 static UINT WINAPI kwSandbox_BreakIntoDebugger(void *pv1, void *pv2, void *pv3, void *pv4)
 {
-    __debugbreak();
+    KWFS_TODO();
     return -1;
 }
 
@@ -2745,7 +2766,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
             return (FARPROC)(KUPTR)uValue;
         }
 
-        __debugbreak();
+        KWFS_TODO();
         SetLastError(ERROR_PROC_NOT_FOUND);
         kwLdrModuleRelease(pMod);
         return NULL;
@@ -2758,7 +2779,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
         if (g_aGetModuleHandleCache[i].hmod == hmod)
             return GetProcAddress(hmod, pszProc);
 
-    __debugbreak();
+    KWFS_TODO();
     return GetProcAddress(hmod, pszProc);
 }
 
@@ -2773,7 +2794,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameA(HMODULE hmod, LPSTR ps
         kwLdrModuleRelease(pMod);
         return cbRet;
     }
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -2789,7 +2810,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameW(HMODULE hmod, LPWSTR p
         return cwcRet;
     }
 
-    __debugbreak();
+    KWFS_TODO();
     return 0;
 }
 
@@ -3764,10 +3785,13 @@ static KBOOL kwFsTempFileEnsureSpace(PKWFSTEMPFILE pTempFile, KU32 offFile, KU32
                 { /* likely */ }
                 else
                 {
-                    cbNewSeg = 64*1024*1024;
+                    cbNewSeg = 64*1024;
                     rc = kHlpPageAlloc((void **)&pTempFile->paSegs[cSegs].pbData, cbNewSeg, KPROT_READWRITE, K_FALSE);
                     if (rc != 0)
+                    {
+                        kHlpAssertFailed();
                         return K_FALSE;
+                    }
                 }
                 pTempFile->paSegs[cSegs].offData     = pTempFile->cbFileAllocated;
                 pTempFile->paSegs[cSegs].cbDataAlloc = cbNewSeg;
@@ -3846,6 +3870,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
                         return TRUE;
                     }
 
+                    kHlpAssertFailed();
                     *pcbActuallyWritten = 0;
                     SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     return FALSE;
@@ -4281,7 +4306,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesW(LPCWSTR pwszFilename)
 }
 
 
-/** Kernel32 - GetShortPathNameW - cl1[xx].dll of VS2010 does this to the
+/** Kernel32 - GetShortPathNameW - c1[xx].dll of VS2010 does this to the
  * directory containing each include file.  We cache the result to speed
  * things up a little. */
 static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, LPWSTR pwszShortPath, DWORD cwcShortPath)
@@ -4330,6 +4355,82 @@ static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, L
     KWFS_LOG(("GetShortPathNameW(%ls) -> '%*.*ls' & %#x\n",
               pwszLongPath, K_MIN(cwcShortPath, cwcRet), K_MIN(cwcShortPath, cwcRet), pwszShortPath, cwcRet));
     return cwcRet;
+}
+
+
+/*
+ *
+ * Virtual memory management.
+ * Virtual memory management.
+ * Virtual memory management.
+ *
+ */
+
+
+/** Kernel32 - VirtualAlloc - for c1[xx].dll 78GB leaks.   */
+static PVOID WINAPI kwSandbox_Kernel32_VirtualAlloc(PVOID pvAddr, SIZE_T cb, DWORD fAllocType, DWORD fProt)
+{
+    PVOID pvMem = VirtualAlloc(pvAddr, cb, fAllocType, fProt);
+    KW_LOG(("VirtualAlloc: pvAddr=%p cb=%p type=%#x prot=%#x -> %p (last=%d)\n",
+            pvAddr, cb, fAllocType, fProt, pvMem, GetLastError()));
+    if (   g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL
+        && pvMem)
+    {
+        PKWVIRTALLOC pTracker = g_Sandbox.pVirtualAllocHead;
+        while (   pTracker
+               && (KUPTR)pvMem - (KUPTR)pTracker->pvAlloc >= pTracker->cbAlloc)
+            pTracker = pTracker->pNext;
+        if (!pTracker)
+        {
+            DWORD dwErr = GetLastError();
+            PKWVIRTALLOC pTracker = (PKWVIRTALLOC)kHlpAlloc(sizeof(*pTracker));
+            if (pTracker)
+            {
+                pTracker->pvAlloc = pvMem;
+                pTracker->cbAlloc = cb;
+                pTracker->pNext   = g_Sandbox.pVirtualAllocHead;
+                g_Sandbox.pVirtualAllocHead = pTracker;
+            }
+            SetLastError(dwErr);
+        }
+    }
+    return pvMem;
+}
+
+
+/** Kernel32 - VirtualFree.   */
+static BOOL WINAPI kwSandbox_Kernel32_VirtualFree(PVOID pvAddr, SIZE_T cb, DWORD dwFreeType)
+{
+    BOOL fRc = VirtualFree(pvAddr, cb, dwFreeType);
+    KW_LOG(("VirtualFree: pvAddr=%p cb=%p type=%#x -> %d\n", pvAddr, cb, dwFreeType, fRc));
+    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
+    {
+        if (dwFreeType & MEM_RELEASE)
+        {
+            PKWVIRTALLOC pTracker = g_Sandbox.pVirtualAllocHead;
+            if (pTracker)
+            {
+                if (pTracker->pvAlloc == pvAddr)
+                    g_Sandbox.pVirtualAllocHead = pTracker->pNext;
+                else
+                {
+                    PKWVIRTALLOC pPrev;
+                    do
+                    {
+                        pPrev = pTracker;
+                        pTracker = pTracker->pNext;
+                    } while (pTracker && pTracker->pvAlloc != pvAddr);
+                    if (pTracker)
+                        pPrev->pNext = pTracker->pNext;
+                }
+                if (pTracker)
+                    kHlpFree(pTracker);
+                else
+                    KW_LOG(("VirtualFree: pvAddr=%p not found!\n", pvAddr));
+            }
+        }
+    }
+    return fRc;
 }
 
 
@@ -4416,6 +4517,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
+
+    { TUPLE("VirtualAlloc"),                NULL,       (KUPTR)kwSandbox_Kernel32_VirtualAlloc },
+    { TUPLE("VirtualFree"),                 NULL,       (KUPTR)kwSandbox_Kernel32_VirtualFree },
 
     /*
      * MS Visual C++ CRTs.
@@ -4725,6 +4829,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
 
 static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 {
+    PKWVIRTALLOC pTracker;
 #ifdef WITH_TEMP_MEMORY_FILES
     PKWFSTEMPFILE pTempFile;
 #endif
@@ -4749,6 +4854,17 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
     }
 #endif
 
+    /* Free left behind VirtualAlloc leaks. */
+    pTracker = g_Sandbox.pVirtualAllocHead;
+    g_Sandbox.pVirtualAllocHead = NULL;
+    while (pTracker)
+    {
+        PKWVIRTALLOC pNext = pTracker->pNext;
+        KW_LOG(("Freeing VirtualFree leak %p LB %#x\n", pTracker->pvAlloc, pTracker->cbAlloc));
+        VirtualFree(pTracker->pvAlloc, 0, MEM_RELEASE);
+        kHlpFree(pTracker);
+        pTracker = pNext;
+    }
 }
 
 

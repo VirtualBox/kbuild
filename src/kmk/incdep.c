@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 2869 2016-09-04 13:48:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -500,7 +500,7 @@ incdep_read_file (struct incdep *cur, struct floc *f)
 #ifdef INCDEP_USE_KFSCACHE
   size_t const cbFile = (size_t)cur->pFileObj->Stats.st_size;
 
-  assert(cur->pFileObj->fFlags);
+  assert(cur->pFileObj->fHaveStats);
   cur->file_base = incdep_xmalloc (cur, cbFile + 1);
   if (cur->file_base)
     {
