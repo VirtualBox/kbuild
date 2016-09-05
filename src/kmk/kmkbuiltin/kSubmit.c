@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2876 2016-09-05 10:10:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2877 2016-09-05 15:05:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1131,6 +1131,14 @@ static void kSubmitAtExitCallback(void)
 }
 
 
+/** The environment variable compare function.
+ * We must use case insensitive compare on windows (Path vs PATH).  */
+#ifdef KBUILD_OS_WINDOWS
+# define KSUBMIT_ENV_NCMP   _strnicmp
+#else
+# define KSUBMIT_ENV_NCMP   strncmp
+#endif
+
 
 /**
  * Handles the --set var=value option.
@@ -1153,10 +1161,12 @@ static int kSubmitOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pc
         char   **papszEnv = *ppapszEnv;
         unsigned iEnvVar;
         unsigned cEnvVars = *pcEnvVars;
-        size_t const cchVar = pszValue - pszEqual;
+        size_t const cchVar = pszEqual - pszValue;
         for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-            if (   strncmp(papszEnv[iEnvVar], pszValue, cchVar) == 0
-                && papszEnv[iEnvVar][cchVar] == '=')
+        {
+            char *pszCur = papszEnv[iEnvVar];
+            if (   KSUBMIT_ENV_NCMP(pszCur, pszValue, cchVar) == 0
+                && pszCur[cchVar] == '=')
             {
                 if (cVerbosity > 0)
                     fprintf(stderr, "kSubmit: replacing '%s' with '%s'\n", papszEnv[iEnvVar], pszValue);
@@ -1164,6 +1174,7 @@ static int kSubmitOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pc
                 papszEnv[iEnvVar] = xstrdup(pszValue);
                 break;
             }
+        }
         if (iEnvVar == cEnvVars)
         {
             /* Append new variable. We probably need to resize the vector. */
@@ -1182,7 +1193,7 @@ static int kSubmitOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pc
         {
             /* Check for duplicates. */
             for (iEnvVar++; iEnvVar < cEnvVars; iEnvVar++)
-                if (   strncmp(papszEnv[iEnvVar], pszValue, cchVar) == 0
+                if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszValue, cchVar) == 0
                     && papszEnv[iEnvVar][cchVar] == '=')
                 {
                     if (cVerbosity > 0)
@@ -1223,7 +1234,7 @@ static int kSubmitOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosi
         unsigned     iEnvVar;
 
         for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-            if (   strncmp(papszEnv[iEnvVar], pszVarToRemove, cchVar) == 0
+            if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszVarToRemove, cchVar) == 0
                 && papszEnv[iEnvVar][cchVar] == '=')
             {
                 if (cVerbosity > 0)
