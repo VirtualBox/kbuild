@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2750 2015-01-23 12:24:02Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2882 2016-09-05 23:54:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -107,7 +107,7 @@ ifneq ($(PATH_TOOL_OPENWATCOM),)
  	$2 --
  else
   PATH_TOOL_OPENWATCOM_BIN   = $(PATH_TOOL_OPENWATCOM)/binnt
-  TOOL_OPENWATCOM_ENV_SETUP ?= $(REDIRECT) \
+  TOOL_OPENWATCOM_ENV_SETUP ?= $(if-expr defined(TOOL_OPENWATCOM_USE_KSUBMIT),kmk_builtin_kSubmit --32-bit,$(REDIRECT)) \
  	-E 'PATH=$(PATH_TOOL_OPENWATCOM_BIN);$(PATH_TOOL_OPENWATCOM)/binw;$(PATH)' \
  	-E 'WATCOM=$(PATH_TOOL_OPENWATCOM)' \
  	-E 'EDPATH=$(PATH_TOOL_OPENWATCOM)/EDDAT' \
