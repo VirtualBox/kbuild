@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2876 2016-09-05 10:10:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2877 2016-09-05 15:05:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -30,6 +30,7 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+//#undef NDEBUG
 #include <k/kHlp.h>
 #include <k/kLdr.h>
 
@@ -37,6 +38,7 @@
 #include <intrin.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "nt/ntstat.h"
 #include "kbuild_version.h"
@@ -437,10 +439,16 @@ typedef struct KWSANDBOX
     /** The _winitenv msvcrt variable. */
     wchar_t   **winitenv;
 
+    /** Size of the array we've allocated (ASSUMES nobody messes with it!). */
+    KSIZE       cEnvVarsAllocated;
     /** The _environ msvcrt variable. */
     char      **environ;
     /** The _wenviron msvcrt variable. */
     wchar_t   **wenviron;
+    /** The shadow _environ msvcrt variable. */
+    char      **papszEnvVars;
+    /** The shadow _wenviron msvcrt variable. */
+    wchar_t   **papwszEnvVars;
 
 
     /** Handle table. */
@@ -799,6 +807,72 @@ static KSIZE kwStrToUtf16(const char *pszSrc, wchar_t *pwszDst, KSIZE cwcDst)
 
 
 /**
+ * Converts the given string to UTF-16, allocating the buffer.
+ *
+ * @returns Pointer to the new heap allocation containing the UTF-16 version of
+ *          the source string.
+ * @param   pchSrc              The source string.
+ * @param   cchSrc              The length of the source string.
+ */
+static wchar_t *kwStrToUtf16AllocN(const char *pchSrc, KSIZE cchSrc)
+{
+    DWORD const dwErrSaved = GetLastError();
+    KSIZE       cwcBuf     = cchSrc + 1;
+    wchar_t    *pwszBuf    = (wchar_t *)kHlpAlloc(cwcBuf * sizeof(pwszBuf));
+    if (pwszBuf)
+    {
+        if (cchSrc > 0)
+        {
+            int cwcRet = MultiByteToWideChar(CP_ACP, 0, pchSrc, (int)cchSrc, pwszBuf, (int)cwcBuf - 1);
+            if (cwcRet > 0)
+            {
+                kHlpAssert(cwcRet < (KSSIZE)cwcBuf);
+                pwszBuf[cwcRet] = '\0';
+            }
+            else
+            {
+                kHlpFree(pwszBuf);
+
+                /* Figure the length and allocate the right buffer size. */
+                SetLastError(NO_ERROR);
+                cwcRet = MultiByteToWideChar(CP_ACP, 0, pchSrc, (int)cchSrc, pwszBuf, 0);
+                if (cwcRet)
+                {
+                    cwcBuf = cwcRet + 2;
+                    pwszBuf = (wchar_t *)kHlpAlloc(cwcBuf * sizeof(pwszBuf));
+                    if (pwszBuf)
+                    {
+                        SetLastError(NO_ERROR);
+                        cwcRet = MultiByteToWideChar(CP_ACP, 0, pchSrc, (int)cchSrc, pwszBuf, (int)cwcBuf - 1);
+                        if (cwcRet)
+                        {
+                            kHlpAssert(cwcRet < (KSSIZE)cwcBuf);
+                            pwszBuf[cwcRet] = '\0';
+                        }
+                        else
+                        {
+                            kwErrPrintf("MultiByteToWideChar(,,%*.*s,,) -> dwErr=%d\n", cchSrc, cchSrc, pchSrc, GetLastError());
+                            kHlpFree(pwszBuf);
+                            pwszBuf = NULL;
+                        }
+                    }
+                }
+                else
+                {
+                    kwErrPrintf("MultiByteToWideChar(,,%*.*s,,NULL,0) -> dwErr=%d\n", cchSrc, cchSrc, pchSrc, GetLastError());
+                    pwszBuf = NULL;
+                }
+            }
+        }
+        else
+            pwszBuf[0] = '\0';
+    }
+    SetLastError(dwErrSaved);
+    return pwszBuf;
+}
+
+
+/**
  * Converts the given UTF-16 to a normal string.
  *
  * @returns Length of the resulting string.
@@ -821,6 +895,72 @@ static KSIZE kwUtf16ToStr(const wchar_t *pwszSrc, char *pszDst, KSIZE cbDst)
 
     pszDst[offDst - 1] = '\0';
     return offDst;
+}
+
+
+/**
+ * Converts the given UTF-16 to ASSI, allocating the buffer.
+ *
+ * @returns Pointer to the new heap allocation containing the ANSI version of
+ *          the source string.
+ * @param   pwcSrc              The source string.
+ * @param   cwcSrc              The length of the source string.
+ */
+static char *kwUtf16ToStrAllocN(const wchar_t *pwcSrc, KSIZE cwcSrc)
+{
+    DWORD const dwErrSaved = GetLastError();
+    KSIZE       cbBuf      = cwcSrc + (cwcSrc >> 1) + 1;
+    char       *pszBuf     = (char *)kHlpAlloc(cbBuf);
+    if (pszBuf)
+    {
+        if (cwcSrc > 0)
+        {
+            int cchRet = WideCharToMultiByte(CP_ACP, 0, pwcSrc, (int)cwcSrc, pszBuf, (int)cbBuf - 1, NULL, NULL);
+            if (cchRet > 0)
+            {
+                kHlpAssert(cchRet < (KSSIZE)cbBuf);
+                pszBuf[cchRet] = '\0';
+            }
+            else
+            {
+                kHlpFree(pszBuf);
+
+                /* Figure the length and allocate the right buffer size. */
+                SetLastError(NO_ERROR);
+                cchRet = WideCharToMultiByte(CP_ACP, 0, pwcSrc, (int)cwcSrc, pszBuf, 0, NULL, NULL);
+                if (cchRet)
+                {
+                    cbBuf = cchRet + 2;
+                    pszBuf = (char *)kHlpAlloc(cbBuf);
+                    if (pszBuf)
+                    {
+                        SetLastError(NO_ERROR);
+                        cchRet = WideCharToMultiByte(CP_ACP, 0, pwcSrc, (int)cwcSrc, pszBuf, (int)cbBuf - 1, NULL, NULL);
+                        if (cchRet)
+                        {
+                            kHlpAssert(cchRet < (KSSIZE)cbBuf);
+                            pszBuf[cchRet] = '\0';
+                        }
+                        else
+                        {
+                            kwErrPrintf("WideCharToMultiByte(,,%*.*ls,,) -> dwErr=%d\n", cwcSrc, cwcSrc, pwcSrc, GetLastError());
+                            kHlpFree(pszBuf);
+                            pszBuf = NULL;
+                        }
+                    }
+                }
+                else
+                {
+                    kwErrPrintf("WideCharToMultiByte(,,%*.*ls,,NULL,0) -> dwErr=%d\n", cwcSrc, cwcSrc, pwcSrc, GetLastError());
+                    pszBuf = NULL;
+                }
+            }
+        }
+        else
+            pszBuf[0] = '\0';
+    }
+    SetLastError(dwErrSaved);
+    return pszBuf;
 }
 
 
@@ -2481,29 +2621,481 @@ static uintptr_t __cdecl kwSandbox_msvcrt__beginthreadex(void *pvSecAttr, unsign
  *
  */
 
-/** Kernel32 - GetEnvironmentVariableA()  */
-static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableA(LPCSTR pwszVar, LPSTR pszValue, DWORD cbValue)
+/** Kernel32 - GetEnvironmentStringsA (Watcom uses this one). */
+static LPCH WINAPI kwSandbox_Kernel32_GetEnvironmentStringsA(void)
 {
-    KWFS_TODO();
+    char *pszzEnv;
+
+    /* Figure how space much we need first.  */
+    char *pszCur;
+    KSIZE cbNeeded = 1;
+    KSIZE iVar = 0;
+    while ((pszCur = g_Sandbox.papszEnvVars[iVar++]) != NULL)
+        cbNeeded += kHlpStrLen(pszCur) + 1;
+
+    /* Allocate it. */
+    pszzEnv = kHlpAlloc(cbNeeded);
+    if (pszzEnv)
+    {
+        char *psz = pszzEnv;
+        iVar = 0;
+        while ((pszCur = g_Sandbox.papszEnvVars[iVar++]) != NULL)
+        {
+            KSIZE cbCur = kHlpStrLen(pszCur) + 1;
+            kHlpAssert((KUPTR)(&psz[cbCur] - pszzEnv) < cbNeeded);
+            psz = (char *)kHlpMemPCopy(psz, pszCur, cbCur);
+        }
+        *psz++ = '\0';
+        kHlpAssert(psz - pszzEnv == cbNeeded);
+    }
+
+    KW_LOG(("GetEnvironmentStringsA -> %p [%u]\n", pszzEnv, cbNeeded));
+#if 0
+    fprintf(stderr, "GetEnvironmentStringsA: %p LB %#x\n", pszzEnv, cbNeeded);
+    pszCur = pszzEnv;
+    iVar = 0;
+    while (*pszCur)
+    {
+        fprintf(stderr, "  %u:%p=%s<eos>\n\n", iVar, pszCur, pszCur);
+        iVar++;
+        pszCur += kHlpStrLen(pszCur) + 1;
+    }
+    fprintf(stderr, "  %u:%p=<eos>\n\n", iVar, pszCur);
+    pszCur++;
+    fprintf(stderr, "ended at %p, after %u bytes (exepcted %u)\n", pszCur, pszCur - pszzEnv, cbNeeded);
+#endif
+    return pszzEnv;
+}
+
+
+/** Kernel32 - GetEnvironmentStrings */
+static LPCH WINAPI kwSandbox_Kernel32_GetEnvironmentStrings(void)
+{
+    KW_LOG(("GetEnvironmentStrings!\n"));
+    return kwSandbox_Kernel32_GetEnvironmentStringsA();
+}
+
+
+/** Kernel32 - GetEnvironmentStringsW */
+static LPWCH WINAPI kwSandbox_Kernel32_GetEnvironmentStringsW(void)
+{
+    wchar_t *pwszzEnv;
+
+    /* Figure how space much we need first.  */
+    wchar_t *pwszCur;
+    KSIZE    cwcNeeded = 1;
+    KSIZE    iVar = 0;
+    while ((pwszCur = g_Sandbox.papwszEnvVars[iVar++]) != NULL)
+        cwcNeeded += kwUtf16Len(pwszCur) + 1;
+
+    /* Allocate it. */
+    pwszzEnv = kHlpAlloc(cwcNeeded * sizeof(wchar_t));
+    if (pwszzEnv)
+    {
+        wchar_t *pwsz = pwszzEnv;
+        iVar = 0;
+        while ((pwszCur = g_Sandbox.papwszEnvVars[iVar++]) != NULL)
+        {
+            KSIZE cwcCur = kwUtf16Len(pwszCur) + 1;
+            kHlpAssert((KUPTR)(&pwsz[cwcCur] - pwszzEnv) < cwcNeeded);
+            pwsz = (wchar_t *)kHlpMemPCopy(pwsz, pwszCur, cwcCur * sizeof(wchar_t));
+        }
+        *pwsz++ = '\0';
+        kHlpAssert(pwsz - pwszzEnv == cwcNeeded);
+    }
+
+    KW_LOG(("GetEnvironmentStringsW -> %p [%u]\n", pwszzEnv, cwcNeeded));
+    return pwszzEnv;
+}
+
+
+/** Kernel32 - FreeEnvironmentStringsA   */
+static BOOL WINAPI kwSandbox_Kernel32_FreeEnvironmentStringsA(LPCH pszzEnv)
+{
+    KW_LOG(("FreeEnvironmentStringsA: %p -> TRUE\n", pszzEnv));
+    kHlpFree(pszzEnv);
+    return TRUE;
+}
+
+
+/** Kernel32 - FreeEnvironmentStringsW   */
+static BOOL WINAPI kwSandbox_Kernel32_FreeEnvironmentStringsW(LPWCH pwszzEnv)
+{
+    KW_LOG(("FreeEnvironmentStringsW: %p -> TRUE\n", pwszzEnv));
+    kHlpFree(pwszzEnv);
+    return TRUE;
+}
+
+
+/**
+ * Grows the environment vectors (KWSANDBOX::environ, KWSANDBOX::papszEnvVars,
+ * KWSANDBOX::wenviron, and KWSANDBOX::papwszEnvVars).
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   pSandbox            The sandbox.
+ * @param   cMin                Minimum size, including terminator.
+ */
+static int kwSandboxGrowEnv(PKWSANDBOX pSandbox, KSIZE cMin)
+{
+    void       *pvNew;
+    KSIZE const cOld = pSandbox->cEnvVarsAllocated;
+    KSIZE       cNew = cOld + 256;
+    while (cNew < cMin)
+        cNew += 256;
+
+
+    pvNew = kHlpRealloc(pSandbox->environ, cNew * sizeof(pSandbox->environ[0]));
+    if (pvNew)
+    {
+        pSandbox->environ = (char **)pvNew;
+        pSandbox->environ[cOld] = NULL;
+
+        pvNew = kHlpRealloc(pSandbox->papszEnvVars, cNew * sizeof(pSandbox->papszEnvVars[0]));
+        if (pvNew)
+        {
+            pSandbox->papszEnvVars = (char **)pvNew;
+            pSandbox->papszEnvVars[cOld] = NULL;
+
+            pvNew = kHlpRealloc(pSandbox->wenviron, cNew * sizeof(pSandbox->wenviron[0]));
+            if (pvNew)
+            {
+                pSandbox->wenviron = (wchar_t **)pvNew;
+                pSandbox->wenviron[cOld] = NULL;
+
+                pvNew = kHlpRealloc(pSandbox->papwszEnvVars, cNew * sizeof(pSandbox->papwszEnvVars[0]));
+                if (pvNew)
+                {
+                    pSandbox->papwszEnvVars = (wchar_t **)pvNew;
+                    pSandbox->papwszEnvVars[cOld] = NULL;
+
+                    pSandbox->cEnvVarsAllocated = cNew;
+                    KW_LOG(("kwSandboxGrowEnv: cNew=%d - crt: %p / %p; shadow: %p, %p\n",
+                            cNew, pSandbox->environ, pSandbox->wenviron, pSandbox->papszEnvVars, pSandbox->papwszEnvVars));
+                    return 0;
+                }
+            }
+        }
+    }
+    kwErrPrintf("kwSandboxGrowEnv ran out of memory! cNew=%u\n", cNew);
+    return KERR_NO_MEMORY;
+}
+
+
+/**
+ * Sets an environment variable, ANSI style.
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   pSandbox            The sandbox.
+ * @param   pchVar              The variable name.
+ * @param   cchVar              The length of the name.
+ * @param   pszValue            The value.
+ */
+static int kwSandboxDoSetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cchVar, const char *pszValue)
+{
+    /* Allocate and construct the new strings. */
+    KSIZE  cchTmp = kHlpStrLen(pszValue);
+    char  *pszNew = (char *)kHlpAlloc(cchVar + 1 + cchTmp + 1);
+    if (pszNew)
+    {
+        wchar_t *pwszNew;
+        kHlpMemCopy(pszNew, pchVar, cchVar);
+        pszNew[cchVar] = '=';
+        kHlpMemCopy(&pszNew[cchVar + 1], pszValue, cchTmp);
+        cchTmp += cchVar + 1;
+        pszNew[cchTmp] = '\0';
+
+        pwszNew = kwStrToUtf16AllocN(pszNew, cchTmp);
+        if (pwszNew)
+        {
+            /* Look it up. */
+            KSIZE   iVar = 0;
+            char   *pszEnv;
+            while ((pszEnv = pSandbox->papszEnvVars[iVar]) != NULL)
+            {
+                if (   _strnicmp(pszEnv, pchVar, cchVar) == 0
+                    && pszEnv[cchVar] == '=')
+                {
+                    KW_LOG(("kwSandboxDoSetEnvA: Replacing iVar=%d: %p='%s' and %p='%ls'\n"
+                            "                              iVar=%d: %p='%s' and %p='%ls'\n",
+                            iVar, pSandbox->papszEnvVars[iVar], pSandbox->papszEnvVars[iVar],
+                            pSandbox->papwszEnvVars[iVar], pSandbox->papwszEnvVars[iVar],
+                            iVar, pszNew, pszNew, pwszNew, pwszNew));
+
+                    kHlpFree(pSandbox->papszEnvVars[iVar]);
+                    pSandbox->papszEnvVars[iVar]  = pszNew;
+                    pSandbox->environ[iVar]       = pszNew;
+
+                    kHlpFree(pSandbox->papwszEnvVars[iVar]);
+                    pSandbox->papwszEnvVars[iVar] = pwszNew;
+                    pSandbox->wenviron[iVar]      = pwszNew;
+                    return 0;
+                }
+                iVar++;
+            }
+
+            /* Not found, do we need to grow the table first? */
+            if (iVar + 1 >= pSandbox->cEnvVarsAllocated)
+                kwSandboxGrowEnv(pSandbox, iVar + 2);
+            if (iVar + 1 < pSandbox->cEnvVarsAllocated)
+            {
+                KW_LOG(("kwSandboxDoSetEnvA: Adding iVar=%d: %p='%s' and %p='%ls'\n", iVar, pszNew, pszNew, pwszNew, pwszNew));
+
+                pSandbox->papszEnvVars[iVar + 1]  = NULL;
+                pSandbox->papszEnvVars[iVar]      = pszNew;
+                pSandbox->environ[iVar + 1]       = NULL;
+                pSandbox->environ[iVar]           = pszNew;
+
+                pSandbox->papwszEnvVars[iVar + 1] = NULL;
+                pSandbox->papwszEnvVars[iVar]     = pwszNew;
+                pSandbox->wenviron[iVar + 1]      = NULL;
+                pSandbox->wenviron[iVar]          = pwszNew;
+                return 0;
+            }
+
+            kHlpFree(pwszNew);
+        }
+        kHlpFree(pszNew);
+    }
+    KW_LOG(("Out of memory!\n"));
+    return 0;
+}
+
+
+/**
+ * Sets an environment variable, UTF-16 style.
+ *
+ * @returns 0 on success, non-zero on failure.
+ * @param   pSandbox            The sandbox.
+ * @param   pwcVar              The variable name.
+ * @param   cwcVar              The length of the name.
+ * @param   pwszValue           The value.
+ */
+static int kwSandboxDoSetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwchVar, KSIZE cwcVar, const wchar_t *pwszValue)
+{
+    /* Allocate and construct the new strings. */
+    KSIZE    cwcTmp = kwUtf16Len(pwszValue);
+    wchar_t *pwszNew = (wchar_t *)kHlpAlloc((cwcVar + 1 + cwcTmp + 1) * sizeof(wchar_t));
+    if (pwszNew)
+    {
+        char *pszNew;
+        kHlpMemCopy(pwszNew, pwchVar, cwcVar * sizeof(wchar_t));
+        pwszNew[cwcVar] = '=';
+        kHlpMemCopy(&pwszNew[cwcVar + 1], pwszValue, cwcTmp * sizeof(wchar_t));
+        cwcTmp += cwcVar + 1;
+        pwszNew[cwcVar] = '\0';
+
+        pszNew = kwUtf16ToStrAllocN(pwszNew, cwcVar);
+        if (pszNew)
+        {
+            /* Look it up. */
+            KSIZE    iVar = 0;
+            wchar_t *pwszEnv;
+            while ((pwszEnv = pSandbox->papwszEnvVars[iVar]) != NULL)
+            {
+                if (   _wcsnicmp(pwszEnv, pwchVar, cwcVar) == 0
+                    && pwszEnv[cwcVar] == '=')
+                {
+                    KW_LOG(("kwSandboxDoSetEnvW: Replacing iVar=%d: %p='%s' and %p='%ls'\n"
+                            "                              iVar=%d: %p='%s' and %p='%ls'\n",
+                            iVar, pSandbox->papszEnvVars[iVar], pSandbox->papszEnvVars[iVar],
+                            pSandbox->papwszEnvVars[iVar], pSandbox->papwszEnvVars[iVar],
+                            iVar, pszNew, pszNew, pwszNew, pwszNew));
+
+                    kHlpFree(pSandbox->papszEnvVars[iVar]);
+                    pSandbox->papszEnvVars[iVar]  = pszNew;
+                    pSandbox->environ[iVar]       = pszNew;
+
+                    kHlpFree(pSandbox->papwszEnvVars[iVar]);
+                    pSandbox->papwszEnvVars[iVar] = pwszNew;
+                    pSandbox->wenviron[iVar]      = pwszNew;
+                    return 0;
+                }
+                iVar++;
+            }
+
+            /* Not found, do we need to grow the table first? */
+            if (iVar + 1 >= pSandbox->cEnvVarsAllocated)
+                kwSandboxGrowEnv(pSandbox, iVar + 2);
+            if (iVar + 1 < pSandbox->cEnvVarsAllocated)
+            {
+                KW_LOG(("kwSandboxDoSetEnvW: Adding iVar=%d: %p='%s' and %p='%ls'\n", iVar, pszNew, pszNew, pwszNew, pwszNew));
+
+                pSandbox->papszEnvVars[iVar + 1]  = NULL;
+                pSandbox->papszEnvVars[iVar]      = pszNew;
+                pSandbox->environ[iVar + 1]       = NULL;
+                pSandbox->environ[iVar]           = pszNew;
+
+                pSandbox->papwszEnvVars[iVar + 1] = NULL;
+                pSandbox->papwszEnvVars[iVar]     = pwszNew;
+                pSandbox->wenviron[iVar + 1]      = NULL;
+                pSandbox->wenviron[iVar]          = pwszNew;
+                return 0;
+            }
+
+            kHlpFree(pwszNew);
+        }
+        kHlpFree(pszNew);
+    }
+    KW_LOG(("Out of memory!\n"));
+    return 0;
+}
+
+
+/** ANSI unsetenv worker. */
+static int kwSandboxDoUnsetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cchVar)
+{
+    KSIZE   iVar   = 0;
+    char   *pszEnv;
+    while ((pszEnv = pSandbox->papszEnvVars[iVar]) != NULL)
+    {
+        if (   _strnicmp(pszEnv, pchVar, cchVar) == 0
+            && pszEnv[cchVar] == '=')
+        {
+            KSIZE cVars = iVar;
+            while (pSandbox->papszEnvVars[cVars])
+                cVars++;
+            kHlpAssert(pSandbox->papwszEnvVars[iVar] != NULL);
+            kHlpAssert(pSandbox->papwszEnvVars[cVars] == NULL);
+
+            KW_LOG(("kwSandboxDoUnsetEnvA: Removing iVar=%d: %p='%s' and %p='%ls'; new cVars=%d\n", iVar,
+                    pSandbox->papszEnvVars[iVar], pSandbox->papszEnvVars[iVar],
+                    pSandbox->papwszEnvVars[iVar], pSandbox->papwszEnvVars[iVar], cVars - 1));
+
+            kHlpFree(pSandbox->papszEnvVars[iVar]);
+            pSandbox->papszEnvVars[iVar]    = pSandbox->papszEnvVars[cVars];
+            pSandbox->environ[iVar]         = pSandbox->papszEnvVars[cVars];
+            pSandbox->papszEnvVars[cVars]   = NULL;
+            pSandbox->environ[cVars]        = NULL;
+
+            kHlpFree(pSandbox->papwszEnvVars[iVar]);
+            pSandbox->papwszEnvVars[iVar]   = pSandbox->papwszEnvVars[cVars];
+            pSandbox->wenviron[iVar]        = pSandbox->papwszEnvVars[cVars];
+            pSandbox->papwszEnvVars[cVars]  = NULL;
+            pSandbox->wenviron[cVars]       = NULL;
+            return 0;
+        }
+        iVar++;
+    }
+    return KERR_ENVVAR_NOT_FOUND;
+}
+
+
+/** UTF-16 unsetenv worker. */
+static int kwSandboxDoUnsetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwcVar, KSIZE cwcVar)
+{
+    KSIZE    iVar   = 0;
+    wchar_t *pwszEnv;
+    while ((pwszEnv = pSandbox->papwszEnvVars[iVar]) != NULL)
+    {
+        if (   _wcsnicmp(pwszEnv, pwcVar, cwcVar) == 0
+            && pwszEnv[cwcVar] == '=')
+        {
+            KSIZE cVars = iVar;
+            while (pSandbox->papwszEnvVars[cVars])
+                cVars++;
+            kHlpAssert(pSandbox->papszEnvVars[iVar] != NULL);
+            kHlpAssert(pSandbox->papszEnvVars[cVars] == NULL);
+
+            KW_LOG(("kwSandboxDoUnsetEnvA: Removing iVar=%d: %p='%s' and %p='%ls'; new cVars=%d\n", iVar,
+                    pSandbox->papszEnvVars[iVar], pSandbox->papszEnvVars[iVar],
+                    pSandbox->papwszEnvVars[iVar], pSandbox->papwszEnvVars[iVar], cVars - 1));
+
+            kHlpFree(pSandbox->papszEnvVars[iVar]);
+            pSandbox->papszEnvVars[iVar]    = pSandbox->papszEnvVars[cVars];
+            pSandbox->environ[iVar]         = pSandbox->papszEnvVars[cVars];
+            pSandbox->papszEnvVars[cVars]   = NULL;
+            pSandbox->environ[cVars]        = NULL;
+
+            kHlpFree(pSandbox->papwszEnvVars[iVar]);
+            pSandbox->papwszEnvVars[iVar]   = pSandbox->papwszEnvVars[cVars];
+            pSandbox->wenviron[iVar]        = pSandbox->papwszEnvVars[cVars];
+            pSandbox->papwszEnvVars[cVars]  = NULL;
+            pSandbox->wenviron[cVars]       = NULL;
+            return 0;
+        }
+        iVar++;
+    }
+    return KERR_ENVVAR_NOT_FOUND;
+}
+
+
+
+/** ANSI getenv worker. */
+static char *kwSandboxDoGetEnvA(PKWSANDBOX pSandbox, const char *pchVar, KSIZE cchVar)
+{
+    KSIZE   iVar   = 0;
+    char   *pszEnv;
+    while ((pszEnv = pSandbox->papszEnvVars[iVar++]) != NULL)
+        if (   _strnicmp(pszEnv, pchVar, cchVar) == 0
+            && pszEnv[cchVar] == '=')
+            return &pszEnv[cchVar + 1];
+    return NULL;
+}
+
+
+/** UTF-16 getenv worker. */
+static wchar_t *kwSandboxDoGetEnvW(PKWSANDBOX pSandbox, const wchar_t *pwcVar, KSIZE cwcVar)
+{
+    KSIZE    iVar   = 0;
+    wchar_t *pwszEnv;
+    while ((pwszEnv = pSandbox->papwszEnvVars[iVar++]) != NULL)
+        if (   _wcsnicmp(pwszEnv, pwcVar, cwcVar) == 0
+            && pwszEnv[cwcVar] == '=')
+            return &pwszEnv[cwcVar + 1];
+    return NULL;
+}
+
+
+/** Kernel32 - GetEnvironmentVariableA()  */
+static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableA(LPCSTR pszVar, LPSTR pszValue, DWORD cbValue)
+{
+    char *pszFoundValue = kwSandboxDoGetEnvA(&g_Sandbox, pszVar, kHlpStrLen(pszVar));
+    if (pszFoundValue)
+    {
+        DWORD cchRet = kwStrCopyStyle1(pszFoundValue, pszValue, cbValue);
+        KW_LOG(("GetEnvironmentVariableA: '%s' -> %u (%s)\n", pszVar, cchRet, pszFoundValue));
+        return cchRet;
+    }
+    KW_LOG(("GetEnvironmentVariableA: '%s' -> 0\n", pszVar));
+    SetLastError(ERROR_ENVVAR_NOT_FOUND);
     return 0;
 }
 
 
 /** Kernel32 - GetEnvironmentVariableW()  */
-static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableW(LPCWSTR pwszVar, LPWSTR pwszValue, DWORD cbValue)
+static DWORD WINAPI kwSandbox_Kernel32_GetEnvironmentVariableW(LPCWSTR pwszVar, LPWSTR pwszValue, DWORD cwcValue)
 {
-    KW_LOG(("GetEnvironmentVariableW: '%ls'\n", pwszVar));
-    //KWFS_TODO();
-    //SetLastError(ERROR_ENVVAR_NOT_FOUND);
-    //return 0;
-    return GetEnvironmentVariableW(pwszVar, pwszValue, cbValue);
+    wchar_t *pwszFoundValue = kwSandboxDoGetEnvW(&g_Sandbox, pwszVar, kwUtf16Len(pwszVar));
+    if (pwszFoundValue)
+    {
+        DWORD cchRet = kwUtf16CopyStyle1(pwszFoundValue, pwszValue, cwcValue);
+        KW_LOG(("GetEnvironmentVariableW: '%ls' -> %u (%ls)\n", pwszVar, cchRet, pwszFoundValue));
+        return cchRet;
+    }
+    KW_LOG(("GetEnvironmentVariableW: '%ls' -> 0\n", pwszVar));
+    SetLastError(ERROR_ENVVAR_NOT_FOUND);
+    return 0;
 }
 
 
 /** Kernel32 - SetEnvironmentVariableA()  */
 static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableA(LPCSTR pszVar, LPCSTR pszValue)
 {
-    KWFS_TODO();
+    int rc;
+    if (pszValue)
+        rc = kwSandboxDoSetEnvA(&g_Sandbox, pszVar, kHlpStrLen(pszVar), pszValue);
+    else
+    {
+        kwSandboxDoUnsetEnvA(&g_Sandbox, pszVar, kHlpStrLen(pszVar));
+        rc = 0; //??
+    }
+    if (rc == 0)
+    {
+        KW_LOG(("SetEnvironmentVariableA(%s,%s) -> TRUE\n", pszVar, pszValue));
+        return TRUE;
+    }
+    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    KW_LOG(("SetEnvironmentVariableA(%s,%s) -> FALSE!\n", pszVar, pszValue));
     return FALSE;
 }
 
@@ -2511,10 +3103,22 @@ static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableA(LPCSTR pszVar, LPC
 /** Kernel32 - SetEnvironmentVariableW()  */
 static BOOL WINAPI kwSandbox_Kernel32_SetEnvironmentVariableW(LPCWSTR pwszVar, LPCWSTR pwszValue)
 {
-    KW_LOG(("SetEnvironmentVariableW: '%ls' = '%ls'\n", pwszVar, pwszValue));
-    return SetEnvironmentVariableW(pwszVar, pwszValue);
-    //KWFS_TODO();
-    //return FALSE;
+    int rc;
+    if (pwszValue)
+        rc = kwSandboxDoSetEnvW(&g_Sandbox, pwszVar, kwUtf16Len(pwszVar), pwszValue);
+    else
+    {
+        kwSandboxDoUnsetEnvW(&g_Sandbox, pwszVar, kwUtf16Len(pwszVar));
+        rc = 0; //??
+    }
+    if (rc == 0)
+    {
+        KW_LOG(("SetEnvironmentVariableA(%ls,%ls) -> TRUE\n", pwszVar, pwszValue));
+        return TRUE;
+    }
+    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+    KW_LOG(("SetEnvironmentVariableA(%ls,%ls) -> FALSE!\n", pwszVar, pwszValue));
+    return FALSE;
 }
 
 
@@ -2537,39 +3141,112 @@ static DWORD WINAPI kwSandbox_Kernel32_ExpandEnvironmentStringsW(LPCWSTR pwszSrc
 /** CRT - _putenv(). */
 static int __cdecl kwSandbox_msvcrt__putenv(const char *pszVarEqualValue)
 {
-    KWFS_TODO();
-    return 0;
+    int rc;
+    char const *pszEqual = kHlpStrChr(pszVarEqualValue, '=');
+    if (pszEqual)
+    {
+        rc = kwSandboxDoSetEnvA(&g_Sandbox, pszVarEqualValue, pszEqual - pszVarEqualValue, pszEqual + 1);
+        if (rc == 0)
+        { }
+        else
+            rc = -1;
+    }
+    else
+    {
+        kwSandboxDoUnsetEnvA(&g_Sandbox, pszVarEqualValue, kHlpStrLen(pszVarEqualValue));
+        rc = 0;
+    }
+    KW_LOG(("_putenv(%s) -> %d\n", pszVarEqualValue, rc));
+    return rc;
 }
 
 
 /** CRT - _wputenv(). */
 static int __cdecl kwSandbox_msvcrt__wputenv(const wchar_t *pwszVarEqualValue)
 {
-    KWFS_TODO();
-    return 0;
+    int rc;
+    wchar_t const *pwszEqual = wcschr(pwszVarEqualValue, '=');
+    if (pwszEqual)
+    {
+        rc = kwSandboxDoSetEnvW(&g_Sandbox, pwszVarEqualValue, pwszEqual - pwszVarEqualValue, pwszEqual + 1);
+        if (rc == 0)
+        { }
+        else
+            rc = -1;
+    }
+    else
+    {
+        kwSandboxDoUnsetEnvW(&g_Sandbox, pwszVarEqualValue, kwUtf16Len(pwszVarEqualValue));
+        rc = 0;
+    }
+    KW_LOG(("_wputenv(%ls) -> %d\n", pwszVarEqualValue, rc));
+    return rc;
 }
 
 
 /** CRT - _putenv_s(). */
 static errno_t __cdecl kwSandbox_msvcrt__putenv_s(const char *pszVar, const char *pszValue)
 {
-    KWFS_TODO();
-    return 0;
+    char const *pszEqual = kHlpStrChr(pszVar, '=');
+    if (pszEqual == NULL)
+    {
+        if (pszValue)
+        {
+            int rc = kwSandboxDoSetEnvA(&g_Sandbox, pszVar, kHlpStrLen(pszVar), pszValue);
+            if (rc == 0)
+            {
+                KW_LOG(("_putenv_s(%s,%s) -> 0\n", pszVar, pszValue));
+                return 0;
+            }
+        }
+        else
+        {
+            kwSandboxDoUnsetEnvA(&g_Sandbox, pszVar, kHlpStrLen(pszVar));
+            KW_LOG(("_putenv_s(%ls,NULL) -> 0\n", pszVar));
+            return 0;
+        }
+        KW_LOG(("_putenv_s(%s,%s) -> ENOMEM\n", pszVar, pszValue));
+        return ENOMEM;
+    }
+    KW_LOG(("_putenv_s(%s,%s) -> EINVAL\n", pszVar, pszValue));
+    return EINVAL;
 }
 
 
 /** CRT - _wputenv_s(). */
 static errno_t __cdecl kwSandbox_msvcrt__wputenv_s(const wchar_t *pwszVar, const wchar_t *pwszValue)
 {
-    KW_LOG(("_wputenv_s: '%ls' = '%ls'\n", pwszVar, pwszValue));
-    //KWFS_TODO();
-    return SetEnvironmentVariableW(pwszVar, pwszValue) ? 0 : -1;
+    wchar_t const *pwszEqual = wcschr(pwszVar, '=');
+    if (pwszEqual == NULL)
+    {
+        if (pwszValue)
+        {
+            int rc = kwSandboxDoSetEnvW(&g_Sandbox, pwszVar, kwUtf16Len(pwszVar), pwszValue);
+            if (rc == 0)
+            {
+                KW_LOG(("_wputenv_s(%ls,%ls) -> 0\n", pwszVar, pwszValue));
+                return 0;
+            }
+        }
+        else
+        {
+            kwSandboxDoUnsetEnvW(&g_Sandbox, pwszVar, kwUtf16Len(pwszVar));
+            KW_LOG(("_wputenv_s(%ls,NULL) -> 0\n", pwszVar));
+            return 0;
+        }
+        KW_LOG(("_wputenv_s(%ls,%ls) -> ENOMEM\n", pwszVar, pwszValue));
+        return ENOMEM;
+    }
+    KW_LOG(("_wputenv_s(%ls,%ls) -> EINVAL\n", pwszVar, pwszValue));
+    return EINVAL;
 }
 
 
 /** CRT - get pointer to the __initenv variable (initial environment).   */
 static char *** __cdecl kwSandbox_msvcrt___p___initenv(void)
 {
+    KW_LOG(("__p___initenv\n"));
+    KWFS_TODO();
     return &g_Sandbox.initenv;
 }
 
@@ -2577,6 +3254,8 @@ static char *** __cdecl kwSandbox_msvcrt___p___initenv(void)
 /** CRT - get pointer to the __winitenv variable (initial environment).   */
 static wchar_t *** __cdecl kwSandbox_msvcrt___p___winitenv(void)
 {
+    KW_LOG(("__p___winitenv\n"));
+    KWFS_TODO();
     return &g_Sandbox.winitenv;
 }
 
@@ -2584,6 +3263,7 @@ static wchar_t *** __cdecl kwSandbox_msvcrt___p___winitenv(void)
 /** CRT - get pointer to the _environ variable (current environment).   */
 static char *** __cdecl kwSandbox_msvcrt___p__environ(void)
 {
+    KW_LOG(("__p__environ\n"));
     return &g_Sandbox.environ;
 }
 
@@ -2591,6 +3271,7 @@ static char *** __cdecl kwSandbox_msvcrt___p__environ(void)
 /** CRT - get pointer to the _wenviron variable (current environment).   */
 static wchar_t *** __cdecl kwSandbox_msvcrt___p__wenviron(void)
 {
+    KW_LOG(("__p__wenviron\n"));
     return &g_Sandbox.wenviron;
 }
 
@@ -2599,7 +3280,7 @@ static wchar_t *** __cdecl kwSandbox_msvcrt___p__wenviron(void)
  * @remarks Not documented or prototyped?  */
 static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviron)
 {
-    KWFS_TODO(); /** @todo check the callers expecations! */
+    KWFS_TODO(); /** @todo check the callers expectations! */
     *ppapszEnviron = g_Sandbox.environ;
     return 0;
 }
@@ -2609,7 +3290,7 @@ static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_environ(char ***ppapszEnviro
  * @remarks Not documented or prototyped? */
 static KUPTR /*void*/ __cdecl kwSandbox_msvcrt__get_wenviron(wchar_t ***ppapwszEnviron)
 {
-    KWFS_TODO(); /** @todo check the callers expecations! */
+    KWFS_TODO(); /** @todo check the callers expectations! */
     *ppapwszEnviron = g_Sandbox.wenviron;
     return 0;
 }
@@ -2983,7 +3664,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
                                     pMod->fNative ? KLDRMOD_BASEADDRESS_MAP : (KUPTR)pMod->u.Manual.pvLoad,
                                     KU32_MAX /*iSymbol*/,
                                     pszProc,
-                                    strlen(pszProc),
+                                    kHlpStrLen(pszProc),
                                     NULL /*pszVersion*/,
                                     NULL /*pfnGetForwarder*/, NULL /*pvUser*/,
                                     &uValue,
@@ -4790,6 +5471,11 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 
     { TUPLE("CreateThread"),                NULL,       (KUPTR)kwSandbox_Kernel32_CreateThread },
 
+    { TUPLE("GetEnvironmentStrings"),       NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentStrings },
+    { TUPLE("GetEnvironmentStringsA"),      NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentStringsA },
+    { TUPLE("GetEnvironmentStringsW"),      NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentStringsW },
+    { TUPLE("FreeEnvironmentStringsA"),     NULL,       (KUPTR)kwSandbox_Kernel32_FreeEnvironmentStringsA },
+    { TUPLE("FreeEnvironmentStringsW"),     NULL,       (KUPTR)kwSandbox_Kernel32_FreeEnvironmentStringsW },
     { TUPLE("GetEnvironmentVariableA"),     NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentVariableA },
     { TUPLE("GetEnvironmentVariableW"),     NULL,       (KUPTR)kwSandbox_Kernel32_GetEnvironmentVariableW },
     { TUPLE("SetEnvironmentVariableA"),     NULL,       (KUPTR)kwSandbox_Kernel32_SetEnvironmentVariableA },
@@ -5133,7 +5819,7 @@ static char *kwSandboxInitCmdLineFromArgv(KU32 cArgs, const char **papszArgs, KB
     /* figure out cmd line length. */
     cbCmdLine = 0;
     for (i = 0; i < cArgs; i++)
-        cbCmdLine += strlen(papszQuotedArgs[i]) + 1;
+        cbCmdLine += kHlpStrLen(papszQuotedArgs[i]) + 1;
     *pcbCmdLine = cbCmdLine;
 
     pszCmdLine = (char *)kHlpAlloc(cbCmdLine + 1);
@@ -5171,6 +5857,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     KSIZE cwc;
     KSIZE cbCmdLine;
     KU32 i;
+    int rc;
 
     /* Simple stuff. */
     pSandbox->rcExitCode    = 256;
@@ -5196,7 +5883,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     {
         *pwcPool++ = pSandbox->papszArgs[i][-1]; /* flags */
         pSandbox->papwszArgs[i] = pwcPool;
-        pwcPool += kwStrToUtf16(pSandbox->papszArgs[i], pwcPool, (strlen(pSandbox->papszArgs[i]) + 1) * 2);
+        pwcPool += kwStrToUtf16(pSandbox->papszArgs[i], pwcPool, (kHlpStrLen(pSandbox->papszArgs[i]) + 1) * 2);
         pwcPool++;
     }
     pSandbox->papwszArgs[pSandbox->cArgs + 0] = NULL;
@@ -5214,6 +5901,48 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->SavedCommandLine = pPeb->ProcessParameters->CommandLine;
     pPeb->ProcessParameters->CommandLine.Buffer = pSandbox->pwszCmdLine;
     pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
+
+    /*
+     * Setup the enviornment.
+     */
+    rc = kwSandboxGrowEnv(pSandbox, cEnvVars + 2);
+    if (rc == 0)
+    {
+        KU32 iDst = 0;
+        for (i = 0; i < cEnvVars; i++)
+        {
+            const char *pszVar   = papszEnvVars[i];
+            KSIZE       cchVar   = kHlpStrLen(pszVar);
+            if (   cchVar > 0
+                && kHlpMemChr(pszVar, '=', cchVar) != NULL)
+            {
+                char       *pszCopy  = kHlpDup(pszVar, cchVar + 1);
+                wchar_t    *pwszCopy = kwStrToUtf16AllocN(pszVar, cchVar + 1);
+                if (pszCopy && pwszCopy)
+                {
+                    pSandbox->papszEnvVars[iDst]  = pszCopy;
+                    pSandbox->environ[iDst]       = pszCopy;
+                    pSandbox->papwszEnvVars[iDst] = pwszCopy;
+                    pSandbox->wenviron[iDst]      = pwszCopy;
+                    iDst++;
+                }
+                else
+                {
+                    kHlpFree(pszCopy);
+                    kHlpFree(pwszCopy);
+                    return kwErrPrintfRc(KERR_NO_MEMORY, "Out of memory setting up env vars!\n");
+                }
+            }
+            else
+                kwErrPrintf("kwSandboxInit: Skipping bad env var '%s'\n", pszVar);
+        }
+        pSandbox->papszEnvVars[iDst]  = NULL;
+        pSandbox->environ[iDst]       = NULL;
+        pSandbox->papwszEnvVars[iDst] = NULL;
+        pSandbox->wenviron[iDst]      = NULL;
+    }
+    else
+        return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: %d\n", rc);
 
     /*
      * Invalidate the volatile parts of cache (kBuild output directory,
@@ -5288,6 +6017,20 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
         pLocalStorage = pNext;
     }
 
+    /* Free the environment. */
+    if (pSandbox->papszEnvVars)
+    {
+        KU32 i;
+        for (i = 0; pSandbox->papszEnvVars[i]; i++)
+            kHlpFree(pSandbox->papszEnvVars[i]);
+        pSandbox->environ[0]      = NULL;
+        pSandbox->papszEnvVars[0] = NULL;
+
+        for (i = 0; pSandbox->papwszEnvVars[i]; i++)
+            kHlpFree(pSandbox->papwszEnvVars[i]);
+        pSandbox->wenviron[0]      = NULL;
+        pSandbox->papwszEnvVars[0] = NULL;
+    }
 }
 
 
@@ -5483,14 +6226,14 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
      * Unpack the message.
      */
     const char     *pszExecutable;
-    size_t          cbTmp;
+    KSIZE           cbTmp;
 
     pszMsg += sizeof("JOB");
     cbMsg  -= sizeof("JOB");
 
     /* Executable name. */
     pszExecutable = pszMsg;
-    cbTmp = strlen(pszMsg) + 1;
+    cbTmp = kHlpStrLen(pszMsg) + 1;
     pszMsg += cbTmp;
     if (   cbTmp < cbMsg
         && cbTmp > 2)
@@ -5500,7 +6243,7 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
 
         /* Current working directory. */
         pszCwd = pszMsg;
-        cbTmp = strlen(pszMsg) + 1;
+        cbTmp = kHlpStrLen(pszMsg) + 1;
         pszMsg += cbTmp;
         if (   cbTmp + sizeof(KU32) < cbMsg
             && cbTmp >= 2)
@@ -5523,7 +6266,7 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                     for (i = 0; i < cArgs; i++)
                     {
                         papszArgs[i] = pszMsg + 1; /* First byte is expansion flags for MSC & EMX. */
-                        cbTmp = 1 + strlen(pszMsg + 1) + 1;
+                        cbTmp = 1 + kHlpStrLen(pszMsg + 1) + 1;
                         pszMsg += cbTmp;
                         if (cbTmp < cbMsg)
                             cbMsg -= cbTmp;
@@ -5554,7 +6297,7 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                 for (i = 0; i < cEnvVars; i++)
                                 {
                                     papszEnvVars[i] = pszMsg;
-                                    cbTmp = strlen(pszMsg) + 1;
+                                    cbTmp = kHlpStrLen(pszMsg) + 1;
                                     pszMsg += cbTmp;
                                     if (cbTmp < cbMsg)
                                         cbMsg -= cbTmp;
