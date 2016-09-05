@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2879 2016-09-05 20:14:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -70,7 +70,10 @@ typedef struct KMKNTOPENDIR
 /*********************************************************************************************************************************
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
-PKFSCACHE g_pFsCache = NULL;
+/** The cache.*/
+PKFSCACHE   g_pFsCache = NULL;
+/** Number of times dir_cache_invalid_missing was called. */
+static KU32 g_cInvalidates = 0;
 
 
 void hash_init_directories(void)
@@ -444,7 +447,7 @@ void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
         }
         else
         {
-            if (pPathObj->cchName + 1 < cbFull)
+            if ((size_t)pPathObj->cchName + 1 < cbFull)
             {
                 memcpy(pszFull, pPathObj->pszName, pPathObj->cchName);
                 pszFull[pPathObj->cchName] = '/';
@@ -473,26 +476,32 @@ void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
  */
 int stat_only_mtime(const char *pszPath, struct stat *pStat)
 {
-    KFSLOOKUPERROR  enmError;
-    PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
-    if (pPathObj)
+    /* Currently a little expensive, so just hit the file system once the
+       jobs starts comming in. */
+    if (g_cInvalidates == 0)
     {
-        if (pPathObj->bObjType != KFSOBJ_TYPE_MISSING)
+        KFSLOOKUPERROR  enmError;
+        PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+        if (pPathObj)
         {
-            kHlpAssert(pPathObj->fHaveStats); /* currently always true. */
-            pStat->st_mtime = pPathObj->Stats.st_mtime;
-            kFsCacheObjRelease(g_pFsCache, pPathObj);
-            return 0;
-        }
+            if (pPathObj->bObjType != KFSOBJ_TYPE_MISSING)
+            {
+                kHlpAssert(pPathObj->fHaveStats); /* currently always true. */
+                pStat->st_mtime = pPathObj->Stats.st_mtime;
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                return 0;
+            }
 
-        kFsCacheObjRelease(g_pFsCache, pPathObj);
-        errno = ENOENT;
+            kFsCacheObjRelease(g_pFsCache, pPathObj);
+            errno = ENOENT;
+        }
+        else
+            errno =    enmError == KFSLOOKUPERROR_NOT_DIR
+                    || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
+                  ? ENOTDIR : ENOENT;
+        return -1;
     }
-    else
-        errno =    enmError == KFSLOOKUPERROR_NOT_DIR
-                || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR
-              ? ENOTDIR : ENOENT;
-    return -1;
+    return birdStatModTimeOnly(pszPath, &pStat->st_mtim, 1 /*fFollowLink*/);
 }
 
 
@@ -503,6 +512,7 @@ int stat_only_mtime(const char *pszPath, struct stat *pStat)
  */
 void dir_cache_invalid_missing(void)
 {
+    g_cInvalidates++;
     kFsCacheInvalidateAll(g_pFsCache);
 }
 

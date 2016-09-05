@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2877 2016-09-05 15:05:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2879 2016-09-05 20:14:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -790,15 +790,16 @@ static void kSubmitCloseConnectOnExitingWorker(PWORKERINSTANCE pWorker)
  * @returns Exit code.
  * @param   pWorker             The worker instance.
  * @param   dwErr               The error code.
+ * @param   pszWhere            Where it failed.
  */
-static int kSubmitWinReadFailed(PWORKERINSTANCE pWorker, DWORD dwErr)
+static int kSubmitWinReadFailed(PWORKERINSTANCE pWorker, DWORD dwErr, const char *pszWhere)
 {
     DWORD dwExitCode;
 
     if (pWorker->cbResultRead == 0)
-        errx(1, "ReadFile failed: %u", dwErr);
+        errx(1, "%s/ReadFile failed: %u", pszWhere, dwErr);
     else
-        errx(1, "ReadFile failed: %u (read %u bytes)", dwErr, pWorker->cbResultRead);
+        errx(1, "%s/ReadFile failed: %u (read %u bytes)", pszWhere, dwErr, pWorker->cbResultRead);
     assert(dwErr != 0);
 
     /* Complete the result. */
@@ -823,7 +824,7 @@ static int kSubmitWinReadFailed(PWORKERINSTANCE pWorker, DWORD dwErr)
  *          error on ReadFile failure.
  * @param   pWorker             The worker instance.
  */
-static int kSubmitReadMoreResultWin(PWORKERINSTANCE pWorker)
+static int kSubmitReadMoreResultWin(PWORKERINSTANCE pWorker, const char *pszWhere)
 {
     /*
      * Set up the result read, telling the sub_proc.c unit about it.
@@ -846,7 +847,7 @@ static int kSubmitReadMoreResultWin(PWORKERINSTANCE pWorker)
             DWORD dwErr = GetLastError();
             if (dwErr == ERROR_IO_PENDING)
                 return -1;
-            return kSubmitWinReadFailed(pWorker, dwErr);
+            return kSubmitWinReadFailed(pWorker, dwErr, pszWhere);
         }
 
         pWorker->cbResultRead += cbRead;
@@ -885,7 +886,7 @@ static int kSubmitMarkActive(PWORKERINSTANCE pWorker, int cVerbosity, struct chi
      * very fast, this may actually get the result immediately.
      */
 l_again:
-    rc = kSubmitReadMoreResultWin(pWorker);
+    rc = kSubmitReadMoreResultWin(pWorker, "kSubmitMarkActive");
     if (rc == -1)
     {
         if (process_kmk_register_submit(pWorker->OverlappedRead.hEvent, (intptr_t)pWorker, pPidSpawned) == 0)
@@ -951,7 +952,7 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
         /* More to be read? */
         while (pWorker->cbResultRead < sizeof(pWorker->Result))
         {
-            int rc = kSubmitReadMoreResultWin(pWorker);
+            int rc = kSubmitReadMoreResultWin(pWorker, "kSubmitSubProcGetResult/more");
             if (rc == -1)
                 return -1;
             assert(rc == 0 || pWorker->Result.s.rcExit != 0);
@@ -961,7 +962,7 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
     else
     {
         DWORD dwErr = GetLastError();
-        kSubmitWinReadFailed(pWorker, dwErr);
+        kSubmitWinReadFailed(pWorker, dwErr, "kSubmitSubProcGetResult/result");
     }
 
     /*
