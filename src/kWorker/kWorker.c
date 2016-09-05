@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2877 2016-09-05 15:05:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2878 2016-09-05 19:54:49Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -31,6 +31,7 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 //#undef NDEBUG
+#define PSAPI_VERSION 1
 #include <k/kHlp.h>
 #include <k/kLdr.h>
 
@@ -46,6 +47,7 @@
 extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 
 #include "nt/ntstuff.h"
+#include <psapi.h>
 
 #include "nt/kFsCache.h"
 #include "quote_argv.h"
@@ -5953,18 +5955,23 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
 }
 
 
-static void kwSandboxCleanup(PKWSANDBOX pSandbox)
+/**
+ * Does sandbox cleanup between jobs.
+ *
+ * We postpone whatever isn't externally visible (i.e. files) and doesn't
+ * influence the result, so that kmk can get on with things ASAP.
+ *
+ * @param   pSandbox            The sandbox.
+ */
+static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
 {
-    PKWVIRTALLOC pTracker;
-    PKWLOCALSTORAGE pLocalStorage;
+    PROCESS_MEMORY_COUNTERS     MemInfo;
+    PKWVIRTALLOC                pTracker;
+    PKWLOCALSTORAGE             pLocalStorage;
 #ifdef WITH_TEMP_MEMORY_FILES
-    PKWFSTEMPFILE pTempFile;
-#endif
-    PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
-    pPeb->ProcessParameters->CommandLine = pSandbox->SavedCommandLine;
-    /** @todo lots more to do here!   */
+    PKWFSTEMPFILE               pTempFile;
 
-#ifdef WITH_TEMP_MEMORY_FILES
+    /* The temporary files aren't externally visible, they're all in memory. */
     pTempFile = pSandbox->pTempFileHead;
     pSandbox->pTempFileHead = NULL;
     while (pTempFile)
@@ -6017,6 +6024,7 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
         pLocalStorage = pNext;
     }
 
+
     /* Free the environment. */
     if (pSandbox->papszEnvVars)
     {
@@ -6031,6 +6039,32 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
         pSandbox->wenviron[0]      = NULL;
         pSandbox->papwszEnvVars[0] = NULL;
     }
+
+    /*
+     * Check the memory usage.  If it's getting high, trigger a respawn
+     * after the next job.
+     */
+    MemInfo.WorkingSetSize = 0;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &MemInfo, sizeof(MemInfo)))
+    {
+#if K_ARCH_BITS >= 64
+        if (MemInfo.WorkingSetSize >= 512*1024*1024)
+#else
+        if (MemInfo.WorkingSetSize >= 384*1024*1024)
+#endif
+        {
+            KW_LOG(("WorkingSetSize = %#x - > restart next time.\n", MemInfo.WorkingSetSize));
+            //fprintf(stderr, "WorkingSetSize = %#x - > restart next time.\n", MemInfo.WorkingSetSize);
+            g_fRestart = K_TRUE;
+        }
+    }
+}
+
+
+static void kwSandboxCleanup(PKWSANDBOX pSandbox)
+{
+    PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
+    pPeb->ProcessParameters->CommandLine = pSandbox->SavedCommandLine;
 }
 
 
@@ -6114,6 +6148,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
         else
             rcExit = 42 + 4;
 
+        /* Clean up essential bits only, the rest is done after we've replied to kmk. */
         kwSandboxCleanup(&g_Sandbox);
     }
     else
@@ -6513,6 +6548,7 @@ static int kwTestRun(int argc, char **argv)
                                           argc - i, &argv[i], fWatcomBrainDamange,
                                           cEnvVars, environ);
         KW_LOG(("rcExit=%d\n", rcExit));
+        kwSandboxCleanupLate(&g_Sandbox);
     }
 
     return rcExit;
@@ -6660,7 +6696,10 @@ int main(int argc, char **argv)
                         rc = kSubmitWriteIt(hPipe, &Reply, sizeof(Reply));
                         if (   rc == 0
                             && !g_fRestart)
+                        {
+                            kwSandboxCleanupLate(&g_Sandbox);
                             continue;
+                        }
                     }
                     else
                         rc = kwErrPrintfRc(-1, "Unknown command: '%s'\n", psz);
@@ -6669,6 +6708,8 @@ int main(int argc, char **argv)
             else
                 rc = kwErrPrintfRc(-1, "Bogus message length: %u (%#x)\n", cbMsg, cbMsg);
         }
+        FlushFileBuffers(hPipe);
+        CloseHandle(hPipe);
         return rc > 0 ? 0 : 1;
     }
 }

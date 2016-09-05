@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2860 2016-09-01 16:55:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2878 2016-09-05 19:54:49Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -39,7 +39,8 @@ kWorker_LIBS = \
 include $(KBUILD_PATH)/sdks/WINDDK71.kmk
 kWorker_LIBS.win = \
 	$(TEMPLATE_BIN-STATIC-THREADED_LIBS) \
-	$(PATH_SDK_WINDDK71_LIB_WNET)/ntdll.lib
+	$(PATH_SDK_WINDDK71_LIB_WNET)/ntdll.lib \
+	$(PATH_SDK_WINDDK71_LIB_WNET)/psapi.lib
 kWorker_LDFLAGS.win = \
 	/BASE:0x10000 /DYNAMICBASE:NO /FIXED /SECTION:DefLdBuf,EWR
 
