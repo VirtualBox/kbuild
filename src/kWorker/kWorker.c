@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2878 2016-09-05 19:54:49Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2881 2016-09-05 23:50:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -51,11 +51,23 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 
 #include "nt/kFsCache.h"
 #include "quote_argv.h"
+#include "md5.h"
 
 
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
 *********************************************************************************************************************************/
+/** @def WITH_TEMP_MEMORY_FILES
+ * Enables temporary memory files for cl.exe.  */
+#define WITH_TEMP_MEMORY_FILES
+
+/** @def WITH_HASH_MD5_CACHE
+ * Enables caching of MD5 sums for cl.exe.
+ * This prevents wasting time on rehashing common headers each time
+ * they are included. */
+#define WITH_HASH_MD5_CACHE
+
+
 /** String constant comma length.   */
 #define TUPLE(a_sz)                     a_sz, sizeof(a_sz) - 1
 
@@ -68,7 +80,6 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 # define KW_LOG(a) do { } while (0)
 #endif
 
-
 /** @def KWFS_LOG
  * FS cache logging.
  * @param a     Argument list for kwDbgPrintf  */
@@ -78,6 +89,15 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 # define KWFS_LOG(a) do { } while (0)
 #endif
 
+/** @def KWCRYPT_LOG
+ * FS cache logging.
+ * @param a     Argument list for kwDbgPrintf  */
+#ifndef NDEBUG
+# define KWCRYPT_LOG(a) kwDbgPrintf a
+#else
+# define KWCRYPT_LOG(a) do { } while (0)
+#endif
+
 /** Converts a windows handle to a handle table index.
  * @note We currently just mask off the 31th bit, and do no shifting or anything
  *     else to create an index of the handle.
@@ -85,10 +105,6 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #define KW_HANDLE_TO_INDEX(a_hHandle)   ((KUPTR)(a_hHandle) & ~(KUPTR)KU32_C(0x8000000))
 /** Maximum handle value we can deal with.   */
 #define KW_HANDLE_MAX                   0x20000
-
-/** @def WITH_TEMP_MEMORY_FILES
- * Enables temporary memory files for cl.exe.  */
-#define WITH_TEMP_MEMORY_FILES
 
 /** Max temporary file size (memory backed).  */
 #if K_ARCH_BITS >= 64
@@ -237,17 +253,59 @@ typedef struct KFSWCACHEDFILE
 
     /** Cached file handle. */
     HANDLE              hCached;
-    /** The file size. */
-    KU32                cbCached;
     /** Cached file content. */
     KU8                *pbCached;
+    /** The file size. */
+    KU32                cbCached;
+#ifdef WITH_HASH_MD5_CACHE
+    /** Set if we've got a valid MD5 hash in abMd5Digest. */
+    KBOOL               fValidMd5;
+    /** The MD5 digest if fValidMd5 is set. */
+    KU8                 abMd5Digest[16];
+#endif
 
     /** Circular self reference. Prevents the object from ever going away and
      * keeps it handy for debugging. */
     PKFSOBJ             pFsObj;
+    /** The file path (for debugging).   */
+    char                szPath[1];
 } KFSWCACHEDFILE;
-/** Pointe to a cached filed. */
+/** Pointer to a cached filed. */
 typedef KFSWCACHEDFILE *PKFSWCACHEDFILE;
+
+
+#ifdef WITH_HASH_MD5_CACHE
+/** Pointer to a MD5 hash instance. */
+typedef struct KWHASHMD5 *PKWHASHMD5;
+/**
+ * A MD5 hash instance.
+ */
+typedef struct KWHASHMD5
+{
+    /** The magic value. */
+    KUPTR               uMagic;
+    /** Pointer to the next hash handle. */
+    PKWHASHMD5          pNext;
+    /** The cached file we've associated this handle with. */
+    PKFSWCACHEDFILE     pCachedFile;
+    /** The number of bytes we've hashed. */
+    KU32                cbHashed;
+    /** Set if this has gone wrong. */
+    KBOOL               fGoneBad;
+    /** Set if we're in fallback mode (file not cached). */
+    KBOOL               fFallbackMode;
+    /** Set if we've already finalized the digest. */
+    KBOOL               fFinal;
+    /** The MD5 fallback context. */
+    struct MD5Context   Md5Ctx;
+    /** The finalized digest. */
+    KU8                 abDigest[16];
+
+} KWHASHMD5;
+/** Magic value for KWHASHMD5::uMagic (Les McCann). */
+# define KWHASHMD5_MAGIC    KUPTR_C(0x19350923)
+#endif /* WITH_HASH_MD5_CACHE */
+
 
 
 typedef struct KWFSTEMPFILESEG *PKWFSTEMPFILESEG;
@@ -471,6 +529,28 @@ typedef struct KWSANDBOX
     PKWLOCALSTORAGE pTlsAllocHead;
 
     UNICODE_STRING  SavedCommandLine;
+
+#ifdef WITH_HASH_MD5_CACHE
+    /** The special MD5 hash instance. */
+    PKWHASHMD5      pHashHead;
+    /** ReadFile sets these while CryptHashData claims and clears them.
+     *
+     * This is part of the heuristics we use for MD5 caching for header files. The
+     * observed pattern is that c1.dll/c1xx.dll first reads a chunk of a source or
+     * header, then passes the same buffer and read byte count to CryptHashData.
+     */
+    struct
+    {
+        /** The cached file last read from. */
+        PKFSWCACHEDFILE pCachedFile;
+        /** The file offset of the last cached read. */
+        KU32            offRead;
+        /** The number of bytes read last. */
+        KU32            cbRead;
+        /** The buffer pointer of the last read. */
+        void           *pvRead;
+    } LastHashRead;
+#endif
 } KWSANDBOX;
 
 /** Replacement function entry. */
@@ -4179,14 +4259,16 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                              * Create the cached file object.
                              */
                             PKFSWCACHEDFILE pCachedFile;
+                            KU32            cbPath = pFsObj->cchParent + pFsObj->cchName + 2;
                             pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjAddUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE,
-                                                                                  sizeof(*pCachedFile));
+                                                                                  sizeof(*pCachedFile) + cbPath);
                             if (pCachedFile)
                             {
                                 pCachedFile->hCached  = hFile;
                                 pCachedFile->cbCached = cbCache;
                                 pCachedFile->pbCached = pbCache;
                                 pCachedFile->pFsObj   = pFsObj;
+                                kFsCacheObjGetFullPathA(pFsObj, pCachedFile->szPath, cbPath, '/');
                                 kFsCacheObjRetain(pFsObj);
                                 return pCachedFile;
                             }
@@ -4564,6 +4646,16 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                         cbActually = cbToRead;
                     else if (cbActually < cbToRead)
                         ((KU8 *)pvBuffer)[cbActually] = '\0'; // hack hack hack
+
+#ifdef WITH_HASH_MD5_CACHE
+                    if (g_Sandbox.pHashHead)
+                    {
+                        g_Sandbox.LastHashRead.pCachedFile = pCachedFile;
+                        g_Sandbox.LastHashRead.offRead     = pHandle->offFile;
+                        g_Sandbox.LastHashRead.cbRead      = cbActually;
+                        g_Sandbox.LastHashRead.pvRead      = pvBuffer;
+                    }
+#endif
 
                     kHlpMemCopy(pvBuffer, &pCachedFile->pbCached[pHandle->offFile], cbActually);
                     pHandle->offFile += cbActually;
@@ -5421,6 +5513,395 @@ BOOL WINAPI kwSandbox_Kernel32_FlsFree(DWORD idxFls)
 
 /*
  *
+ * Header file hashing.
+ * Header file hashing.
+ * Header file hashing.
+ *
+ * c1.dll / c1XX.dll hashes the input files.  The Visual C++ 2010 profiler
+ * indicated that ~12% of the time was spent doing MD5 caluclation when
+ * rebuiling openssl.  The hashing it done right after reading the source
+ * via ReadFile, same buffers and sizes.
+ */
+
+#ifdef WITH_HASH_MD5_CACHE
+
+/** Advapi32 - CryptCreateHash */
+static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID idAlg, HCRYPTKEY hKey, DWORD dwFlags,
+                                                      HCRYPTHASH *phHash)
+{
+    BOOL fRc;
+
+    /*
+     * Only do this for cl.exe when it request normal MD5.
+     */
+    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
+    {
+        if (idAlg == CALG_MD5)
+        {
+            if (hKey == 0)
+            {
+                if (dwFlags == 0)
+                {
+                    PKWHASHMD5 pHash = (PKWHASHMD5)kHlpAllocZ(sizeof(*pHash));
+                    if (pHash)
+                    {
+                        pHash->uMagic        = KWHASHMD5_MAGIC;
+                        pHash->cbHashed      = 0;
+                        pHash->fGoneBad      = K_FALSE;
+                        pHash->fFallbackMode = K_FALSE;
+                        pHash->fFinal        = K_FALSE;
+
+                        /* link it. */
+                        pHash->pNext         = g_Sandbox.pHashHead;
+                        g_Sandbox.pHashHead  = pHash;
+
+                        *phHash = (KUPTR)pHash;
+                        KWCRYPT_LOG(("CryptCreateHash(hProv=%p, idAlg=CALG_MD5, 0, 0, *phHash=%p) -> %d [cached]\n",
+                                     hProv, *phHash, TRUE));
+                        return TRUE;
+                    }
+
+                    kwErrPrintf("CryptCreateHash: out of memory!\n");
+                }
+                else
+                    kwErrPrintf("CryptCreateHash: dwFlags=%p is not supported with CALG_MD5\n", hKey);
+            }
+            else
+                kwErrPrintf("CryptCreateHash: hKey=%p is not supported with CALG_MD5\n", hKey);
+        }
+        else
+            kwErrPrintf("CryptCreateHash: idAlg=%#x is not supported\n", idAlg);
+    }
+
+    /*
+     * Fallback.
+     */
+    fRc = CryptCreateHash(hProv, idAlg, hKey, dwFlags, phHash);
+    KWCRYPT_LOG(("CryptCreateHash(hProv=%p, idAlg=%#x (%d), hKey=%p, dwFlags=%#x, *phHash=%p) -> %d\n",
+                 hProv, idAlg, idAlg, hKey, dwFlags, *phHash, fRc));
+    return fRc;
+}
+
+
+/** Advapi32 - CryptHashData */
+static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE *pbData, DWORD cbData, DWORD dwFlags)
+{
+    BOOL        fRc;
+    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    while (pHash && (KUPTR)pHash != hHash)
+        pHash = pHash->pNext;
+    KWCRYPT_LOG(("CryptHashData(hHash=%p/%p, pbData=%p, cbData=%#x, dwFlags=%#x)\n",
+                 hHash, pHash, pbData, cbData, dwFlags));
+    if (pHash)
+    {
+        /*
+         * Validate the state.
+         */
+        if (   pHash->uMagic == KWHASHMD5_MAGIC
+            && !pHash->fFinal)
+        {
+            if (!pHash->fFallbackMode)
+            {
+                /*
+                 * Does this match the previous ReadFile call to a cached file?
+                 * If it doesn't, try falling back.
+                 */
+                if (   g_Sandbox.LastHashRead.cbRead == cbData
+                    && g_Sandbox.LastHashRead.pvRead == (void *)pbData)
+                {
+                    PKFSWCACHEDFILE pCachedFile = g_Sandbox.LastHashRead.pCachedFile;
+                    if (   pCachedFile
+                        && kHlpMemComp(pbData, &pCachedFile->pbCached[g_Sandbox.LastHashRead.offRead], K_MIN(cbData, 64)) == 0)
+                    {
+
+                        if (g_Sandbox.LastHashRead.offRead == pHash->cbHashed)
+                        {
+                            if (   pHash->pCachedFile == NULL
+                                && pHash->cbHashed == 0)
+                                pHash->pCachedFile = pCachedFile;
+                            if (pHash->pCachedFile == pCachedFile)
+                            {
+                                pHash->cbHashed += cbData;
+                                g_Sandbox.LastHashRead.pCachedFile = NULL;
+                                g_Sandbox.LastHashRead.pvRead      = NULL;
+                                g_Sandbox.LastHashRead.cbRead      = 0;
+                                g_Sandbox.LastHashRead.offRead     = 0;
+                                KWCRYPT_LOG(("CryptHashData(hHash=%p/%p/%s, pbData=%p, cbData=%#x, dwFlags=%#x) -> 1 [cached]\n",
+                                             hHash, pCachedFile, pCachedFile->szPath, pbData, cbData, dwFlags));
+                                return TRUE;
+                            }
+
+                            /* Note! it's possible to fall back here too, if necessary. */
+                            kwErrPrintf("CryptHashData: Expected pCachedFile=%p, last read was made to %p!!\n",
+                                        pHash->pCachedFile, g_Sandbox.LastHashRead.pCachedFile);
+                        }
+                        else
+                            kwErrPrintf("CryptHashData: Expected last read at %#x, instead it was made at %#x\n",
+                                        pHash->cbHashed, g_Sandbox.LastHashRead.offRead);
+                    }
+                    else if (!pCachedFile)
+                        kwErrPrintf("CryptHashData: Last pCachedFile is NULL when buffer address and size matches!\n");
+                    else
+                        kwErrPrintf("CryptHashData: First 64 bytes of the buffer doesn't match the cache.\n");
+                }
+                else if (g_Sandbox.LastHashRead.cbRead != 0 && pHash->cbHashed != 0)
+                    kwErrPrintf("CryptHashData: Expected cbRead=%#x and pbData=%p, got %#x and %p instead\n",
+                                g_Sandbox.LastHashRead.cbRead, g_Sandbox.LastHashRead.pvRead, cbData, pbData);
+                if (pHash->cbHashed == 0)
+                    pHash->fFallbackMode = K_TRUE;
+                if (pHash->fFallbackMode)
+                {
+                    /* Initiate fallback mode (file that we don't normally cache, like .c/.cpp). */
+                    pHash->fFallbackMode = K_TRUE;
+                    MD5Init(&pHash->Md5Ctx);
+                    MD5Update(&pHash->Md5Ctx, pbData, cbData);
+                    pHash->cbHashed = cbData;
+                    KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> 1 [fallback!]\n",
+                                 hHash, pbData, cbData, dwFlags));
+                    return TRUE;
+                }
+                pHash->fGoneBad = K_TRUE;
+                SetLastError(ERROR_INVALID_PARAMETER);
+                fRc = FALSE;
+            }
+            else
+            {
+                /* fallback. */
+                MD5Update(&pHash->Md5Ctx, pbData, cbData);
+                pHash->cbHashed += cbData;
+                fRc = TRUE;
+                KWCRYPT_LOG(("CryptHashData(hHash=%p/fallback, pbData=%p, cbData=%#x, dwFlags=%#x) -> 1 [fallback]\n",
+                             hHash, pbData, cbData, dwFlags));
+            }
+        }
+        /*
+         * Bad handle state.
+         */
+        else
+        {
+            if (pHash->uMagic != KWHASHMD5_MAGIC)
+                kwErrPrintf("CryptHashData: Invalid cached hash handle!!\n");
+            else
+                kwErrPrintf("CryptHashData: Hash is already finalized!!\n");
+            SetLastError(NTE_BAD_HASH);
+            fRc = FALSE;
+        }
+    }
+    else
+    {
+
+        fRc = CryptHashData(hHash, pbData, cbData, dwFlags);
+        KWCRYPT_LOG(("CryptHashData(hHash=%p, pbData=%p, cbData=%#x, dwFlags=%#x) -> %d\n", hHash, pbData, cbData, dwFlags, fRc));
+    }
+    return fRc;
+}
+
+
+/** Advapi32 - CryptGetHashParam */
+static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD dwParam,
+                                                        BYTE *pbData, DWORD *pcbData, DWORD dwFlags)
+{
+    BOOL        fRc;
+    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    while (pHash && (KUPTR)pHash != hHash)
+        pHash = pHash->pNext;
+    if (pHash)
+    {
+        if (pHash->uMagic == KWHASHMD5_MAGIC)
+        {
+            if (dwFlags == 0)
+            {
+                DWORD cbRet;
+                void *pvRet;
+                union
+                {
+                    DWORD dw;
+                } uBuf;
+
+                switch (dwParam)
+                {
+                    case HP_HASHVAL:
+                    {
+                        /* Check the hash progress. */
+                        PKFSWCACHEDFILE pCachedFile = pHash->pCachedFile;
+                        if (pCachedFile)
+                        {
+                            if (   pCachedFile->cbCached == pHash->cbHashed
+                                && !pHash->fGoneBad)
+                            {
+                                if (pCachedFile->fValidMd5)
+                                    KWCRYPT_LOG(("Already calculated hash for %p/%s! [hit]\n", pCachedFile, pCachedFile->szPath));
+                                else
+                                {
+                                    MD5Init(&pHash->Md5Ctx);
+                                    MD5Update(&pHash->Md5Ctx, pCachedFile->pbCached, pCachedFile->cbCached);
+                                    MD5Final(pCachedFile->abMd5Digest, &pHash->Md5Ctx);
+                                    pCachedFile->fValidMd5 = K_TRUE;
+                                    KWCRYPT_LOG(("Calculated hash for %p/%s.\n", pCachedFile, pCachedFile->szPath));
+                                }
+                                pvRet = pCachedFile->abMd5Digest;
+                            }
+                            else
+                            {
+                                /* This actually happens (iprt/string.h + common/alloc/alloc.cpp), at least
+                                   from what I can tell, so just deal with it. */
+                                KWCRYPT_LOG(("CryptGetHashParam/HP_HASHVAL: Not at end of cached file! cbCached=%#x cbHashed=%#x fGoneBad=%d (%p/%p/%s)\n",
+                                             pHash->pCachedFile->cbCached, pHash->cbHashed, pHash->fGoneBad,
+                                             pHash, pCachedFile, pCachedFile->szPath));
+                                pHash->fFallbackMode = K_TRUE;
+                                pHash->pCachedFile   = NULL;
+                                MD5Init(&pHash->Md5Ctx);
+                                MD5Update(&pHash->Md5Ctx, pCachedFile->pbCached, pHash->cbHashed);
+                                MD5Final(pHash->abDigest, &pHash->Md5Ctx);
+                                pvRet = pHash->abDigest;
+                            }
+                            pHash->fFinal = K_TRUE;
+                            cbRet = 16;
+                            break;
+                        }
+                        else if (pHash->fFallbackMode)
+                        {
+                            if (!pHash->fFinal)
+                            {
+                                pHash->fFinal = K_TRUE;
+                                MD5Final(pHash->abDigest, &pHash->Md5Ctx);
+                            }
+                            pvRet = pHash->abDigest;
+                            cbRet = 16;
+                            break;
+                        }
+                        else
+                        {
+                            kwErrPrintf("CryptGetHashParam/HP_HASHVAL: pCachedFile is NULL!!\n");
+                            SetLastError(ERROR_INVALID_SERVER_STATE);
+                        }
+                        return FALSE;
+                    }
+
+                    case HP_HASHSIZE:
+                        uBuf.dw = 16;
+                        pvRet = &uBuf;
+                        cbRet = sizeof(DWORD);
+                        break;
+
+                    case HP_ALGID:
+                        uBuf.dw = CALG_MD5;
+                        pvRet = &uBuf;
+                        cbRet = sizeof(DWORD);
+                        break;
+
+                    default:
+                        kwErrPrintf("CryptGetHashParam: Unknown dwParam=%#x\n", dwParam);
+                        SetLastError(NTE_BAD_TYPE);
+                        return FALSE;
+                }
+
+                /*
+                 * Copy out cbRet from pvRet.
+                 */
+                if (pbData)
+                {
+                    if (*pcbData >= cbRet)
+                    {
+                        *pcbData = cbRet;
+                        kHlpMemCopy(pbData, pvRet, cbRet);
+                        if (cbRet == 4)
+                            KWCRYPT_LOG(("CryptGetHashParam/%#x/%p/%p: TRUE, cbRet=%#x data=%#x [cached]\n",
+                                         dwParam, pHash, pHash->pCachedFile, cbRet, (DWORD *)pbData));
+                        else if (cbRet == 16)
+                            KWCRYPT_LOG(("CryptGetHashParam/%#x/%p/%p: TRUE, cbRet=%#x data=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x [cached]\n",
+                                         dwParam, pHash, pHash->pCachedFile, cbRet,
+                                         pbData[0],  pbData[1],  pbData[2],  pbData[3],
+                                         pbData[4],  pbData[5],  pbData[6],  pbData[7],
+                                         pbData[8],  pbData[9],  pbData[10], pbData[11],
+                                         pbData[12], pbData[13], pbData[14], pbData[15]));
+                        else
+                            KWCRYPT_LOG(("CryptGetHashParam/%#x%/p%/%p: TRUE, cbRet=%#x [cached]\n",
+                                         dwParam, pHash, pHash->pCachedFile, cbRet));
+                        return TRUE;
+                    }
+
+                    kHlpMemCopy(pbData, pvRet, *pcbData);
+                }
+                SetLastError(ERROR_MORE_DATA);
+                *pcbData = cbRet;
+                KWCRYPT_LOG(("CryptGetHashParam/%#x: ERROR_MORE_DATA\n"));
+            }
+            else
+            {
+                kwErrPrintf("CryptGetHashParam: dwFlags is not zero: %#x!\n", dwFlags);
+                SetLastError(NTE_BAD_FLAGS);
+            }
+        }
+        else
+        {
+            kwErrPrintf("CryptGetHashParam: Invalid cached hash handle!!\n");
+            SetLastError(NTE_BAD_HASH);
+        }
+        fRc = FALSE;
+    }
+    /*
+     * Regular handle.
+     */
+    else
+    {
+        fRc = CryptGetHashParam(hHash, dwParam, pbData, pcbData, dwFlags);
+        KWCRYPT_LOG(("CryptGetHashParam(hHash=%p, dwParam=%#x (%d), pbData=%p, *pcbData=%#x, dwFlags=%#x) -> %d\n",
+                     hHash, dwParam, pbData, *pcbData, dwFlags, fRc));
+    }
+
+    return fRc;
+}
+
+
+/** Advapi32 - CryptDestroyHash */
+static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
+{
+    BOOL        fRc;
+    PKWHASHMD5  pPrev = NULL;
+    PKWHASHMD5  pHash = g_Sandbox.pHashHead;
+    while (pHash && (KUPTR)pHash != hHash)
+    {
+        pPrev = pHash;
+        pHash = pHash->pNext;
+    }
+    if (pHash)
+    {
+        if (pHash->uMagic == KWHASHMD5_MAGIC)
+        {
+            pHash->uMagic = 0;
+            if (!pPrev)
+                g_Sandbox.pHashHead = pHash->pNext;
+            else
+                pPrev->pNext = pHash->pNext;
+            kHlpFree(pHash);
+            KWCRYPT_LOG(("CryptDestroyHash(hHash=%p) -> 1 [cached]\n", hHash));
+            fRc = TRUE;
+        }
+        else
+        {
+            kwErrPrintf("CryptDestroyHash: Invalid cached hash handle!!\n");
+            KWCRYPT_LOG(("CryptDestroyHash(hHash=%p) -> FALSE! [cached]\n", hHash));
+            SetLastError(ERROR_INVALID_HANDLE);
+            fRc = FALSE;
+        }
+    }
+    /*
+     * Regular handle.
+     */
+    else
+    {
+        fRc = CryptDestroyHash(hHash);
+        KWCRYPT_LOG(("CryptDestroyHash(hHash=%p) -> %d\n", hHash, fRc));
+    }
+    return fRc;
+}
+
+#endif /* WITH_HASH_MD5_CACHE */
+
+
+/*
+ *
  * Misc function only intercepted while debugging.
  * Misc function only intercepted while debugging.
  * Misc function only intercepted while debugging.
@@ -5512,6 +5993,13 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 
     { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
     { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
+
+#ifdef WITH_HASH_MD5_CACHE
+    { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
+    { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
+    { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
+    { TUPLE("CryptDestroyHash"),            NULL,       (KUPTR)kwSandbox_Advapi32_CryptDestroyHash },
+#endif
 
     /*
      * MS Visual C++ CRTs.
@@ -5607,6 +6095,13 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
+
+#ifdef WITH_HASH_MD5_CACHE
+    { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
+    { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
+    { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
+    { TUPLE("CryptDestroyHash"),            NULL,       (KUPTR)kwSandbox_Advapi32_CryptDestroyHash },
+#endif
 
     /*
      * MS Visual C++ CRTs.
@@ -5968,6 +6463,9 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     PROCESS_MEMORY_COUNTERS     MemInfo;
     PKWVIRTALLOC                pTracker;
     PKWLOCALSTORAGE             pLocalStorage;
+#ifdef WITH_HASH_MD5_CACHE
+    PKWHASHMD5                  pHash;
+#endif
 #ifdef WITH_TEMP_MEMORY_FILES
     PKWFSTEMPFILE               pTempFile;
 
@@ -6006,7 +6504,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     while (pLocalStorage)
     {
         PKWLOCALSTORAGE pNext = pLocalStorage->pNext;
-        KW_LOG(("Freeing leaded FlsAlloc index %#x\n", pLocalStorage->idx));
+        KW_LOG(("Freeing leaked FlsAlloc index %#x\n", pLocalStorage->idx));
         FlsFree(pLocalStorage->idx);
         kHlpFree(pLocalStorage);
         pLocalStorage = pNext;
@@ -6018,7 +6516,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     while (pLocalStorage)
     {
         PKWLOCALSTORAGE pNext = pLocalStorage->pNext;
-        KW_LOG(("Freeing leaded TlsAlloc index %#x\n", pLocalStorage->idx));
+        KW_LOG(("Freeing leaked TlsAlloc index %#x\n", pLocalStorage->idx));
         TlsFree(pLocalStorage->idx);
         kHlpFree(pLocalStorage);
         pLocalStorage = pNext;
@@ -6039,6 +6537,21 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
         pSandbox->wenviron[0]      = NULL;
         pSandbox->papwszEnvVars[0] = NULL;
     }
+
+#ifdef WITH_HASH_MD5_CACHE
+    /*
+     * Hash handles.
+     */
+    pHash = pSandbox->pHashHead;
+    pSandbox->pHashHead = NULL;
+    while (pHash)
+    {
+        PKWHASHMD5 pNext = pHash->pNext;
+        KWCRYPT_LOG(("Freeing leaked hash instance %#p\n", pHash));
+        kHlpFree(pNext);
+        pHash = pNext;
+    }
+#endif
 
     /*
      * Check the memory usage.  If it's getting high, trigger a respawn
