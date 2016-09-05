@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2872 2016-09-04 18:42:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2879 2016-09-05 20:14:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -413,17 +413,24 @@ static PKFSHASHA kFsCacheCreatePathHashTabEntryA(PKFSCACHE pCache, PKFSOBJ pFsOb
         pHashEntry->cchPath         = (KU16)cchPath;
         pHashEntry->fAbsolute       = fAbsolute;
         pHashEntry->idxMissingGen   = (KU8)idxMissingGen;
-        pHashEntry->pFsObj          = pFsObj;
         pHashEntry->enmError        = enmError;
         pHashEntry->pszPath         = (const char *)kHlpMemCopy(pHashEntry + 1, pszPath, cchPath + 1);
         if (pFsObj)
-            pHashEntry->uCacheGen = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
-                                  ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
-                                  : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
-        else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
-            pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
+        {
+            pHashEntry->pFsObj      = kFsCacheObjRetainInternal(pFsObj);
+            pHashEntry->uCacheGen   = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                    ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                    : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
+            pFsObj->abUnused[0] += 1; // for debugging
+        }
         else
-            pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
+        {
+            pHashEntry->pFsObj      = NULL;
+            if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
+                pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
+            else
+                pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
+        }
 
         pHashEntry->pNext = pCache->apAnsiPaths[idxHashTab];
         pCache->apAnsiPaths[idxHashTab] = pHashEntry;
@@ -463,17 +470,24 @@ static PKFSHASHW kFsCacheCreatePathHashTabEntryW(PKFSCACHE pCache, PKFSOBJ pFsOb
         pHashEntry->cwcPath         = cwcPath;
         pHashEntry->fAbsolute       = fAbsolute;
         pHashEntry->idxMissingGen   = (KU8)idxMissingGen;
-        pHashEntry->pFsObj          = pFsObj;
         pHashEntry->enmError        = enmError;
         pHashEntry->pwszPath        = (const wchar_t *)kHlpMemCopy(pHashEntry + 1, pwszPath, (cwcPath + 1) * sizeof(wchar_t));
         if (pFsObj)
-            pHashEntry->uCacheGen = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
-                                  ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
-                                  : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
-        else if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
-            pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
+        {
+            pHashEntry->pFsObj      = kFsCacheObjRetainInternal(pFsObj);
+            pHashEntry->uCacheGen   = pFsObj->bObjType != KFSOBJ_TYPE_MISSING
+                                    ? pCache->auGenerations[       pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN]
+                                    : pCache->auGenerationsMissing[pFsObj->fFlags & KFSOBJ_F_USE_CUSTOM_GEN];
+            pFsObj->abUnused[0] += 1; // for debugging
+        }
         else
-            pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
+        {
+            pHashEntry->pFsObj      = NULL;
+            if (enmError != KFSLOOKUPERROR_UNSUPPORTED)
+                pHashEntry->uCacheGen = pCache->auGenerationsMissing[idxMissingGen];
+            else
+                pHashEntry->uCacheGen = KFSOBJ_CACHE_GEN_IGNORE;
+        }
 
         pHashEntry->pNext = pCache->apUtf16Paths[idxHashTab];
         pCache->apUtf16Paths[idxHashTab] = pHashEntry;
@@ -3363,6 +3377,12 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
     KFSCACHE_LOG(("Destroying %s/%s, type=%d\n", pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType));
+    if (pObj->abUnused[1] != 0)
+    {
+        fprintf(stderr, "Destroying %s/%s, type=%d, path hash entries: %d!\n", pObj->pParent ? pObj->pParent->Obj.pszName : "",
+                pObj->pszName, pObj->bObjType, pObj->abUnused[0]);
+        __debugbreak();
+    }
 
     /*
      * Invalidate the structure.
