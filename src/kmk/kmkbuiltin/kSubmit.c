@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2875 2016-09-04 20:09:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2876 2016-09-05 10:10:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -568,14 +568,15 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(unsigned cBitsWorker
  * Composes a JOB mesage for a worker.
  *
  * @returns Pointer to the message.
- * @param   pszExecutable   The executable to run.
- * @param   papszArgs       The argument vector.
- * @param   papszEnvVars    The environment vector.
- * @param   pszCwd          The current directory.
- * @param   pcbMsg          Where to return the message length.
+ * @param   pszExecutable       The executable to run.
+ * @param   papszArgs           The argument vector.
+ * @param   papszEnvVars        The environment vector.
+ * @param   pszCwd              The current directory.
+ * @param   fWatcomBrainDamage  The wcc/wcc386 workaround.
+ * @param   pcbMsg              Where to return the message length.
  */
 static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArgs, char **papszEnvVars,
-                                      const char *pszCwd, uint32_t *pcbMsg)
+                                      const char *pszCwd, int fWatcomBrainDamage, uint32_t *pcbMsg)
 {
     size_t   cbTmp;
     uint32_t i;
@@ -609,6 +610,7 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
         cbMsg += strlen(papszEnvVars[i]) + 1;
     cEnvVars = i;
 
+    cbMsg += 1;
 
     /*
      * Compose the message.
@@ -648,6 +650,8 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
         pbCursor += cbTmp;
     }
     assert(i == cEnvVars);
+
+    *pbCursor++ = fWatcomBrainDamage != 0;
 
     assert(pbCursor - pbMsg == (size_t)cbMsg);
 
@@ -1543,7 +1547,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     if (iArg < argc)
     {
         uint32_t        cbMsg;
-        void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnv, szCwd, &cbMsg);
+        void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnv, szCwd,
+                                                           fWatcomBrainDamage, &cbMsg);
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {
