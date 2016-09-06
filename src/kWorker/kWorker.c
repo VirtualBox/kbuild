@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2885 2016-09-06 03:50:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2888 2016-09-06 15:02:20Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -5443,6 +5443,28 @@ static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, L
 }
 
 
+#ifdef WITH_TEMP_MEMORY_FILES
+/** Kernel32 - DeleteFileW
+ * Skip deleting the in-memory files. */
+static BOOL WINAPI kwSandbox_Kernel32_DeleteFileW(LPCWSTR pwszFilename)
+{
+    BOOL fRc;
+    if (   g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL
+        && kwFsIsClTempFileW(pwszFilename))
+    {
+        KWFS_LOG(("DeleteFileW(%s) -> TRUE [temp]\n", pwszFilename));
+        fRc = TRUE;
+    }
+    else
+    {
+        fRc = DeleteFileW(pwszFilename);
+        KWFS_LOG(("DeleteFileW(%s) -> %d (%d)\n", pwszFilename, fRc, GetLastError()));
+    }
+    return fRc;
+}
+#endif /* WITH_TEMP_MEMORY_FILES */
+
+
 
 /*
  *
@@ -6065,6 +6087,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
+#ifdef WITH_TEMP_MEMORY_FILES
+    { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
+#endif
 
     { TUPLE("VirtualAlloc"),                NULL,       (KUPTR)kwSandbox_Kernel32_VirtualAlloc },
     { TUPLE("VirtualFree"),                 NULL,       (KUPTR)kwSandbox_Kernel32_VirtualFree },
@@ -6173,6 +6198,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
     { TUPLE("GetShortPathNameW"),           NULL,       (KUPTR)kwSandbox_Kernel32_GetShortPathNameW },
+#ifdef WITH_TEMP_MEMORY_FILES
+    { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
+#endif
 
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
