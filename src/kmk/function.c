@@ -5439,6 +5439,46 @@ func_set_umask (char *o, char **argv UNUSED, const char *funcname UNUSED)
   return o;
 }
 
+
+/* Controls the cache in dir-bird-nt.c. */
+
+char *
+func_dircache_ctl (char *o, char **argv UNUSED, const char *funcname UNUSED)
+{
+# ifdef KBUILD_OS_WINDOWS
+  const char *cmd = argv[0];
+  while (isblank ((unsigned char)*cmd))
+    cmd++;
+  if (strcmp (cmd, "invalidate") == 0)
+    {
+      if (argv[1] != NULL)
+        error (reading_file, "$(dircache-ctl invalidate) takes no parameters");
+      dir_cache_invalid_all ();
+    }
+  else if (strcmp (cmd, "invalidate-missing") == 0)
+    {
+      if (argv[1] != NULL)
+        error (reading_file, "$(dircache-ctl invalidate-missing) takes no parameters");
+      dir_cache_invalid_missing ();
+    }
+  else if (strcmp (cmd, "volatile") == 0)
+    {
+      size_t i;
+      for (i = 1; argv[i] != NULL; i++)
+        {
+          const char *dir = argv[i];
+          while (isblank ((unsigned char)*dir))
+            dir++;
+          if (*dir)
+            dir_cache_volatile_dir (dir);
+        }
+    }
+  else
+    error (reading_file, "Unknown $(dircache-ctl ) command: '%s'", cmd);
+# endif
+  return o;
+}
+
 #endif /* KMK */
 
 
@@ -5627,6 +5667,7 @@ static struct function_table_entry function_table_init[] =
   { STRING_SIZE_TUPLE("kb-exp-tmpl"),   6,  6,  1,  func_kbuild_expand_template},
 #endif
 #ifdef KMK
+  { STRING_SIZE_TUPLE("dircache-ctl"),  1,  0,  1,  func_dircache_ctl},
   { STRING_SIZE_TUPLE("breakpoint"),    0,  0,  0,  func_breakpoint},
   { STRING_SIZE_TUPLE("set-umask"),     1,  3,  1,  func_set_umask},
   { STRING_SIZE_TUPLE("get-umask"),     0,  0,  0,  func_get_umask},

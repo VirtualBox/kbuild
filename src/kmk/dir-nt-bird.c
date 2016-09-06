@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2879 2016-09-05 20:14:21Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -74,6 +74,11 @@ typedef struct KMKNTOPENDIR
 PKFSCACHE   g_pFsCache = NULL;
 /** Number of times dir_cache_invalid_missing was called. */
 static KU32 g_cInvalidates = 0;
+/** Set by dir_cache_volatile_dir to indicate that the user has marked the
+ * volatile parts of the file system with custom revisioning and we only need to
+ * flush these.  This is very handy when using a separate output directory
+ * from the sources.  */
+static KBOOL g_fFsCacheIsUsingCustomRevision = K_FALSE;
 
 
 void hash_init_directories(void)
@@ -504,15 +509,79 @@ int stat_only_mtime(const char *pszPath, struct stat *pStat)
     return birdStatModTimeOnly(pszPath, &pStat->st_mtim, 1 /*fFollowLink*/);
 }
 
+/**
+ * Do cache invalidation after a job completes.
+ */
+void dir_cache_invalid_after_job(void)
+{
+    g_cInvalidates++;
+    if (g_fFsCacheIsUsingCustomRevision)
+        kFsCacheInvalidateCustomBoth(g_pFsCache);
+    else
+        kFsCacheInvalidateAll(g_pFsCache);
+}
+
+/**
+ * Invalidate the whole directory cache
+ *
+ * Used by $(dircache-ctl invalidate)
+ */
+void dir_cache_invalid_all(void)
+{
+    g_cInvalidates++;
+    kFsCacheInvalidateAll(g_pFsCache);
+}
 
 /**
  * Invalidate missing bits of the directory cache.
  *
- * This is called each time a make job completes.
+ * Used by $(dircache-ctl invalidate-missing)
  */
 void dir_cache_invalid_missing(void)
 {
     g_cInvalidates++;
     kFsCacheInvalidateAll(g_pFsCache);
+}
+
+/**
+ * Invalidate the volatile bits of the directory cache.
+ *
+ * Used by $(dircache-ctl invalidate-missing)
+ */
+void dir_cache_invalid_volatile(void)
+{
+    g_cInvalidates++;
+    if (g_fFsCacheIsUsingCustomRevision)
+        kFsCacheInvalidateCustomBoth(g_pFsCache);
+    else
+        kFsCacheInvalidateAll(g_pFsCache);
+}
+
+/**
+ * Used by $(dircache-ctl ) to mark a directory subtree or file as volatile.
+ *
+ * The first call changes the rest of the cache to be considered non-volatile.
+ *
+ * @returns 0 on success, -1 on failure.
+ * @param   pszDir      The directory (or file for what that is worth).
+ */
+int dir_cache_volatile_dir(const char *pszDir)
+{
+    KFSLOOKUPERROR enmError;
+    PKFSOBJ pObj = kFsCacheLookupA(g_pFsCache, pszDir, &enmError);
+    if (pObj)
+    {
+        KBOOL fRc = kFsCacheSetupCustomRevisionForTree(g_pFsCache, pObj);
+        kFsCacheObjRelease(g_pFsCache, pObj);
+        if (fRc)
+        {
+            g_fFsCacheIsUsingCustomRevision = K_TRUE;
+            return 0;
+        }
+        error(reading_file, "failed to mark '%s' as volatile", pszDir);
+    }
+    else
+        error(reading_file, "failed to mark '%s' as volatile (not found)", pszDir);
+    return -1;
 }
 

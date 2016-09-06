@@ -271,8 +271,7 @@ process_wait_for_any(void)
 		/* Invalidate negative directory cache entries now that a
 		   job has completed and possibly created new files that
 		   was missing earlier. */
-		extern void dir_cache_invalid_missing(void);
-		dir_cache_invalid_missing();
+		dir_cache_invalid_after_job ();
 
 		if (pproc->enmType == kRegular) {
 		    (void)process_file_io_private(pproc, FALSE);

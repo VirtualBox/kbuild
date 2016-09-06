@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -30,7 +30,6 @@ LIBRARIES += kDep
 kDep_TEMPLATE = LIB
 kDep_DEFS.win += NEED_ISBLANK=1 __WIN32__=1
 kDep_SOURCES = kDep.c
-kDep_SOURCES.win = nt_fullpath.c
 kDep_NOINST = 1
 
 LIBRARIES += kUtil
