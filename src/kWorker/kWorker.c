@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2884 2016-09-06 03:11:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2885 2016-09-06 03:50:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -7404,6 +7404,9 @@ int main(int argc, char **argv)
 //    r2881 building src/VBox/Runtime:
 //     without: 2m01.016388s = 120.016388 s
 //     with:    1m15.165069s = 75.165069 s => 120.016388s - 75.165069s = 44.851319s => 44.85/120.02 = 37% speed up.
+//    r2884 building vbox/debug (r110512):
+//     without: 11m14.446609s = 674.446609 s
+//     with:     9m01.017344s = 540.017344 s => 674.446609s - 540.017344s = 134.429265s => 134.43/674.45 = 20% speed up
 //
 // Dell (W7/amd64, infected by mcafee):
 //     kmk 1: 285.278/1024 = 0x0 (0.278591796875)
