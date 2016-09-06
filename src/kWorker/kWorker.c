@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2883 2016-09-06 02:35:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2884 2016-09-06 03:11:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -7334,7 +7334,22 @@ int main(int argc, char **argv)
             else
                 rc = kwErrPrintfRc(-1, "Bogus message length: %u (%#x)\n", cbMsg, cbMsg);
         }
-        FlushFileBuffers(hPipe);
+
+        /*
+         * If we're exitting because we're restarting, we need to delay till
+         * kmk/kSubmit has read the result.  Windows documentation says it
+         * immediately discards pipe buffers once the pipe is broken by the
+         * server (us).  So, We flush the buffer and queues a 1 byte read
+         * waiting for kSubmit to close the pipe when it receives the
+         * bExiting = K_TRUE result.
+         */
+        if (g_fRestart)
+        {
+            KU8 b;
+            FlushFileBuffers(hPipe);
+            ReadFile(hPipe, &b, 1, &cbMsg, NULL);
+        }
+
         CloseHandle(hPipe);
         return rc > 0 ? 0 : 1;
     }

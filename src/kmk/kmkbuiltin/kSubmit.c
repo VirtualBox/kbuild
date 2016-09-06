@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2879 2016-09-05 20:14:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2884 2016-09-06 03:11:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -978,6 +978,8 @@ int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo)
         case STATUS_PRIVILEGED_INSTRUCTION:
         case STATUS_ILLEGAL_INSTRUCTION:        *piSigNo = SIGILL; break;
     }
+    if (pWorker->Result.s.bWorkerExiting)
+        kSubmitCloseConnectOnExitingWorker(pWorker);
 
     return 0;
 }
