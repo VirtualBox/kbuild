@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2881 2016-09-05 23:50:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2883 2016-09-06 02:35:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -172,14 +172,14 @@ typedef struct KWMODULE
     PKLDRMOD            pLdrMod;
     /** The windows module handle. */
     HMODULE             hOurMod;
+    /** The of the loaded image bits. */
+    KSIZE               cbImage;
 
     union
     {
         /** Data for a manually loaded image. */
         struct
         {
-            /** The of the loaded image bits. */
-            KSIZE               cbImage;
             /** Where we load the image. */
             void               *pvLoad;
             /** Virgin copy of the image. */
@@ -1224,8 +1224,8 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
 
         if (!pMod->fNative)
         {
-            kHlpPageFree(pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
-            kHlpPageFree(pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage);
+            kHlpPageFree(pMod->u.Manual.pvCopy, pMod->cbImage);
+            kHlpPageFree(pMod->u.Manual.pvLoad, pMod->cbImage);
         }
 
         kHlpFree(pMod);
@@ -1434,6 +1434,7 @@ static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const ch
         pMod->fNative       = K_TRUE;
         pMod->pLdrMod       = pLdrMod;
         pMod->hOurMod       = (HMODULE)(KUPTR)pLdrMod->aSegments[0].MapAddress;
+        pMod->cbImage       = (KSIZE)kLdrModSize(pLdrMod);
 
         if (fDoReplacements)
         {
@@ -1558,17 +1559,17 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     fFixed = pLdrMod->enmType == KLDRTYPE_EXECUTABLE_FIXED
                           || pLdrMod->enmType == KLDRTYPE_SHARED_LIBRARY_FIXED;
                     pMod->u.Manual.pvLoad = fFixed ? (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress : NULL;
-                    pMod->u.Manual.cbImage = (KSIZE)kLdrModSize(pLdrMod);
+                    pMod->cbImage = (KSIZE)kLdrModSize(pLdrMod);
                     if (   !fFixed
                         || pLdrMod->enmType != KLDRTYPE_EXECUTABLE_FIXED /* only allow fixed executables */
                         || (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf >= sizeof(g_abDefLdBuf)
-                        || sizeof(g_abDefLdBuf) - (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf < pMod->u.Manual.cbImage)
-                        rc = kHlpPageAlloc(&pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage, KPROT_EXECUTE_READWRITE, fFixed);
+                        || sizeof(g_abDefLdBuf) - (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf < pMod->cbImage)
+                        rc = kHlpPageAlloc(&pMod->u.Manual.pvLoad, pMod->cbImage, KPROT_EXECUTE_READWRITE, fFixed);
                     else
                         pMod->u.Manual.fUseLdBuf = K_TRUE;
                     if (rc == 0)
                     {
-                        rc = kHlpPageAlloc(&pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage, KPROT_READWRITE, K_FALSE);
+                        rc = kHlpPageAlloc(&pMod->u.Manual.pvCopy, pMod->cbImage, KPROT_READWRITE, K_FALSE);
                         if (rc == 0)
                         {
 
@@ -1581,7 +1582,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                             if (!fExe)
                                 kwLdrModuleLink(pMod);
                             KW_LOG(("New module: %p LB %#010x %s (kLdr)\n",
-                                    pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage, pMod->pszPath));
+                                    pMod->u.Manual.pvLoad, pMod->cbImage, pMod->pszPath));
                             kwDebuggerPrintf("TODO: .reload /f %s=%p\n", pMod->pszPath, pMod->u.Manual.pvLoad);
 
                             for (iImp = 0; iImp < cImports; iImp++)
@@ -1644,14 +1645,14 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                             return NULL;
                         }
 
-                        kHlpPageFree(pMod->u.Manual.pvLoad, pMod->u.Manual.cbImage);
-                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->u.Manual.cbImage);
+                        kHlpPageFree(pMod->u.Manual.pvLoad, pMod->cbImage);
+                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->cbImage);
                     }
                     else if (fFixed)
                         kwErrPrintf("Failed to allocate %#x bytes at %p\n",
-                                    pMod->u.Manual.cbImage, (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress);
+                                    pMod->cbImage, (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress);
                     else
-                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->u.Manual.cbImage);
+                        kwErrPrintf("Failed to allocate %#x bytes\n", pMod->cbImage);
                 }
             }
         }
@@ -1962,7 +1963,7 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
                 g_pModInLdBuf = pMod;
             }
 
-            kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->u.Manual.cbImage);
+            kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->cbImage);
             pMod->u.Manual.enmState = KWMODSTATE_NEEDS_INIT;
         }
 
@@ -3811,6 +3812,82 @@ static DWORD WINAPI kwSandbox_Kernel32_GetModuleFileNameW(HMODULE hmod, LPWSTR p
 }
 
 
+/** NtDll - RtlPcToFileHeader
+ * This is necessary for msvcr100.dll!CxxThrowException.  */
+static PVOID WINAPI kwSandbox_ntdll_RtlPcToFileHeader(PVOID pvPC, PVOID *ppvImageBase)
+{
+    PVOID pvRet;
+
+    /*
+     * Do a binary lookup of the module table for the current tool.
+     * This will give us a
+     */
+    if (g_Sandbox.fRunning)
+    {
+        KUPTR const     uPC     = (KUPTR)pvPC;
+        PKWMODULE      *papMods = g_Sandbox.pTool->u.Sandboxed.papModules;
+        KU32            iEnd    = g_Sandbox.pTool->u.Sandboxed.cModules;
+        KU32            i;
+        if (iEnd)
+        {
+            KU32        iStart  = 0;
+            i = iEnd / 2;
+            for (;;)
+            {
+                KUPTR const uHModThis = (KUPTR)papMods[i]->hOurMod;
+                if (uPC < uHModThis)
+                {
+                    iEnd = i;
+                    if (iStart < i)
+                    { }
+                    else
+                        break;
+                }
+                else if (uPC != uHModThis)
+                {
+                    iStart = ++i;
+                    if (i < iEnd)
+                    { }
+                    else
+                        break;
+                }
+                else
+                {
+                    /* This isn't supposed to happen. */
+                    break;
+                }
+
+                i = iStart + (iEnd - iStart) / 2;
+            }
+
+            /* For reasons of simplicity (= copy & paste), we end up with the
+               module after the one we're interested in here.  */
+            i--;
+            if (i < g_Sandbox.pTool->u.Sandboxed.cModules
+                && papMods[i]->pLdrMod)
+            {
+                KSIZE uRvaPC = uPC - (KUPTR)papMods[i]->hOurMod;
+                if (uRvaPC < papMods[i]->cbImage)
+                {
+                    *ppvImageBase = papMods[i]->hOurMod;
+                    pvRet = papMods[i]->hOurMod;
+                    KW_LOG(("RtlPcToFileHeader(PC=%p) -> %p, *ppvImageBase=%p [our]\n", pvPC, pvRet, *ppvImageBase));
+                    return pvRet;
+                }
+            }
+        }
+        else
+            i = 0;
+    }
+
+    /*
+     * Call the regular API.
+     */
+    pvRet = RtlPcToFileHeader(pvPC, ppvImageBase);
+    KW_LOG(("RtlPcToFileHeader(PC=%p) -> %p, *ppvImageBase=%p \n", pvPC, pvRet, *ppvImageBase));
+    return pvRet;
+}
+
 
 /*
  *
@@ -4644,8 +4721,8 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     KU32            cbActually = pCachedFile->cbCached - pHandle->offFile;
                     if (cbActually > cbToRead)
                         cbActually = cbToRead;
-                    else if (cbActually < cbToRead)
-                        ((KU8 *)pvBuffer)[cbActually] = '\0'; // hack hack hack
+                    else if (cbActually < cbToRead)                                            // debug debug debug
+                        kHlpMemSet((KU8 *)pvBuffer + cbActually, '\0', cbToRead - cbActually); // debug debug debug
 
 #ifdef WITH_HASH_MD5_CACHE
                     if (g_Sandbox.pHashHead)
@@ -5946,6 +6023,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("GetProcAddress"),              NULL,       (KUPTR)kwSandbox_Kernel32_GetProcAddress },
     { TUPLE("GetModuleFileNameA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleFileNameA },
     { TUPLE("GetModuleFileNameW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetModuleFileNameW },
+    { TUPLE("RtlPcToFileHeader"),           NULL,       (KUPTR)kwSandbox_ntdll_RtlPcToFileHeader },
 
     { TUPLE("GetCommandLineA"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineA },
     { TUPLE("GetCommandLineW"),             NULL,       (KUPTR)kwSandbox_Kernel32_GetCommandLineW },
@@ -6102,6 +6180,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
     { TUPLE("CryptDestroyHash"),            NULL,       (KUPTR)kwSandbox_Advapi32_CryptDestroyHash },
 #endif
+
+    { TUPLE("RtlPcToFileHeader"),           NULL,       (KUPTR)kwSandbox_ntdll_RtlPcToFileHeader },
 
     /*
      * MS Visual C++ CRTs.
@@ -6548,7 +6628,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     {
         PKWHASHMD5 pNext = pHash->pNext;
         KWCRYPT_LOG(("Freeing leaked hash instance %#p\n", pHash));
-        kHlpFree(pNext);
+        kHlpFree(pHash);
         pHash = pNext;
     }
 #endif
@@ -6576,8 +6656,41 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
 
 static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 {
+    /*
+     * Restore the parent command line string.
+     */
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
     pPeb->ProcessParameters->CommandLine = pSandbox->SavedCommandLine;
+
+    /*
+     * Kill all open handles.
+     */
+    if (pSandbox->cActiveHandles > 0)
+    {
+        KU32 i = pSandbox->cHandles;
+        while (i-- > 0)
+            if (pSandbox->papHandles[i] == NULL)
+            { /* likely */ }
+            else
+            {
+                PKWHANDLE pHandle = pSandbox->papHandles[i];
+                pSandbox->papHandles[i] = NULL;
+                switch (pHandle->enmType)
+                {
+                    case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                        break;
+                    case KWHANDLETYPE_TEMP_FILE:
+                    case KWHANDLETYPE_TEMP_FILE_MAPPING:
+                        pHandle->u.pTempFile->cActiveHandles--;
+                        break;
+                    default:
+                        kHlpAssertFailed();
+                }
+                kHlpFree(pHandle);
+                if (--pSandbox->cActiveHandles == 0)
+                    break;
+            }
+    }
 }
 
 
@@ -7273,6 +7386,10 @@ int main(int argc, char **argv)
 //     run 3:  32.77 /1024 = 0x0 (0.032001953125)  [read caching of headers]
 //     run 4:  32.67 /1024 = 0x0 (0.031904296875)  [loader tweaking]
 //     run 5:  29.144/1024 = 0x0 (0.0284609375)    [with temp files in memory]
+//    r2881 building src/VBox/Runtime:
+//     without: 2m01.016388s = 120.016388 s
+//     with:    1m15.165069s = 75.165069 s => 120.016388s - 75.165069s = 44.851319s => 44.85/120.02 = 37% speed up.
+//
 // Dell (W7/amd64, infected by mcafee):
 //     kmk 1: 285.278/1024 = 0x0 (0.278591796875)
 //     run 1: 134.503/1024 = 0x0 (0.1313505859375) [w/o temp files in memory]
