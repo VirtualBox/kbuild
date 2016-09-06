@@ -978,6 +978,12 @@ extern char *expr_eval_to_string(char *o, const char *expr);
 #ifdef KMK
 extern char *abspath(const char *name, char *apath);
 extern char *func_breakpoint(char *o, char **argv, const char *funcname);
+# ifdef KBUILD_OS_WINDOWS
+extern void dir_cache_invalid_after_job (void);
+extern void dir_cache_invalid_all (void);
+extern void dir_cache_invalid_missing (void);
+extern int dir_cache_volatile_dir (const char *dir);
+# endif
 #endif
 
 #if defined (CONFIG_WITH_NANOTS) || defined (CONFIG_WITH_PRINT_TIME_SWITCH)

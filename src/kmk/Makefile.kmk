@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -258,7 +258,7 @@ kmk_DEFS.freebsd.x86 = CONFIG_WITHOUT_THREADS
 # kmkbuiltin commands
 #
 kmk_DEFS += CONFIG_WITH_KMK_BUILTIN
-kmk_LIBS += $(LIB_KUTIL) $(LIB_KDEP)
+kmk_LIBS += $(LIB_KUTIL) #$(LIB_KDEP)
 kmk_SOURCES += \
 	kmkbuiltin.c \
 	kmkbuiltin/append.c \
@@ -273,6 +273,7 @@ kmk_SOURCES += \
 	kmkbuiltin/install.c \
 	kmkbuiltin/kDepIDB.c \
 	kmkbuiltin/kDepObj.c \
+	../lib/kDep.c \
 	kmkbuiltin/md5sum.c \
 	kmkbuiltin/mkdir.c \
 	kmkbuiltin/mv.c \
@@ -282,7 +283,7 @@ kmk_SOURCES += \
 	kmkbuiltin/rmdir.c \
 	kmkbuiltin/kSubmit.c \
 	kmkbuiltin/sleep.c \
-	kmkbuiltin/test.c \
+	kmkbuiltin/test.c
 
 ## @todo kmkbuiltin/redirect.c
 
@@ -417,14 +418,14 @@ kmk_test_SOURCES = \
 kDepIDB_TEMPLATE = BIN-KMK
 kDepIDB_DEFS = kmk_builtin_kDepIDB=main
 kDepIDB_INCS = .
-kDepIDB_LIBS = $(LIB_KDEP)
+kDepIDB_LIBS = $(LIB_KDEP) $(LIB_KUTIL)
 kDepIDB_SOURCES = \
 	kmkbuiltin/kDepIDB.c
 
 kDepObj_TEMPLATE = BIN-KMK
 kDepObj_DEFS = kmk_builtin_kDepObj=main
 kDepObj_INCS = .
-kDepObj_LIBS = $(LIB_KDEP)
+kDepObj_LIBS = $(LIB_KDEP) $(LIB_KUTIL)
 kDepObj_SOURCES = \
 	kmkbuiltin/kDepObj.c
 

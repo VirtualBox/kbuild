@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -32,6 +32,9 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
+#ifdef KMK /* For when it gets compiled and linked into kmk. */
+# include "make.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +48,8 @@
 # define USE_WIN_MMAP
 # include <io.h>
 # include <Windows.h>
- extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull); /* nt_fullpath.c */
+# include "nt_fullpath.h"
+# include "nt/ntstat.h"
 #else
 # include <dirent.h>
 # include <unistd.h>
@@ -194,7 +198,9 @@ void depOptimize(int fFixCase, int fQuiet)
         char        szFilename[PATH_MAX + 1];
 #endif
         char       *pszFilename;
+#ifndef KMK
         struct stat s;
+#endif
 
         /*
          * Skip some fictive names like <built-in> and <command line>.
@@ -219,7 +225,7 @@ void depOptimize(int fFixCase, int fQuiet)
         if (fFixCase)
         {
 #if K_OS == K_OS_WINDOWS
-            nt_fullpath(pszFilename, szFilename, sizeof(szFilename));
+            nt_fullpath_cached(pszFilename, szFilename, sizeof(szFilename));
             fixslash(szFilename);
 #else
             strcpy(szFilename, pszFilename);
@@ -232,7 +238,13 @@ void depOptimize(int fFixCase, int fQuiet)
         /*
          * Check that the file exists before we start depending on it.
          */
-        if (stat(pszFilename, &s))
+#ifdef KMK
+        if (!file_exists_p(pszFilename))
+#elif K_OS == K_OS_WINDOWS
+        if (birdStatModTimeOnly(pszFilename, &s.st_mtim, 1 /*fFollowLink*/) != 0)
+#else
+        if (stat(pszFilename, &s) != 0)
+#endif
         {
             if (   !fQuiet
                 || errno != ENOENT

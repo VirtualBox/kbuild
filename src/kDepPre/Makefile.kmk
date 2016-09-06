@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kDepPre, the precompiler based dependency generator.
 #
@@ -28,7 +28,7 @@ include $(KBUILD_PATH)/subheader.kmk
 
 PROGRAMS += kDepPre
 kDepPre_TEMPLATE        = BIN
-kDepPre_LIBS            = $(LIB_KDEP)
+kDepPre_LIBS            = $(LIB_KDEP) $(LIB_KUTIL)
 kDepPre_DEFS.linux      = HAVE_FGETC_UNLOCKED=1
 if1of ($(KBUILD_TARGET), win nt)
 kDepPre_DEFS           += NEED_ISBLANK=1 __WIN32__=1
