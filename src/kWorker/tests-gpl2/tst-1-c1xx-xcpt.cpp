@@ -1,4 +1,4 @@
-/* $Id: tst-1-c1xx-xcpt.cpp 2865 2016-09-02 22:17:13Z knut.osmundsen@oracle.com $ */
+/* $Id: tst-1-c1xx-xcpt.cpp 2889 2016-09-07 14:41:02Z knut.osmundsen@oracle.com $ */
 
 /*
  * kWorker testcase.
