@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2888 2016-09-06 15:02:20Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2892 2016-09-08 03:03:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2526,6 +2526,14 @@ static void __cdecl kwSandbox_msvcrt_terminate(void)
 }
 
 
+/** Kernel32 - SetConsoleCtrlHandler(). */
+static BOOL WINAPI kwSandbox_Kernel32_SetConsoleCtrlHandler(PHANDLER_ROUTINE pfnHandler, BOOL fAdd)
+{
+    KW_LOG(("SetConsoleCtrlHandler(%p, %d) - ignoring\n"));
+    return TRUE;
+}
+
+
 /** The CRT internal __getmainargs() API. */
 static int __cdecl kwSandbox_msvcrt___getmainargs(int *pargc, char ***pargv, char ***penvp,
                                                   int dowildcard, int const *piNewMode)
@@ -4179,7 +4187,6 @@ static KBOOL kwFsIsCachableExtensionA(const char *pszExt, KBOOL fAttrQuery)
             && (chThird  == 'x' || chThird  == 'X')
             && pszExt[3] == '\0')
             return K_TRUE;
-
     }
     /* Misc starting with i. */
     else if (chFirst == 'i' || chFirst == 'I')
@@ -4201,6 +4208,18 @@ static KBOOL kwFsIsCachableExtensionA(const char *pszExt, KBOOL fAttrQuery)
                     && pszExt[3] == '\0')
                     return K_TRUE;
             }
+        }
+    }
+    /* Assembly header: .mac */
+    else if (chFirst == 'm' || chFirst == 'M')
+    {
+        char const  chSecond = pszExt[1];
+        if (chSecond == 'a' || chSecond == 'A')
+        {
+            char const chThird = pszExt[2];
+            if (  (chThird == 'c' || chThird == 'C')
+                && pszExt[3] == '\0')
+                return K_TRUE;
         }
     }
     else if (fAttrQuery)
@@ -4464,6 +4483,20 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
                                 KWFS_LOG(("CreateFileA(%s) -> %p [cached]\n", pszFilename, hFile));
                                 return hFile;
                             }
+                        }
+                        /* These are for nasm and yasm header searching.  Cache will already
+                           have checked the directories for the file, no need to call
+                           CreateFile to do it again. */
+                        else if (enmError == KFSLOOKUPERROR_NOT_FOUND)
+                        {
+                            KWFS_LOG(("CreateFileA(%s) -> INVALID_HANDLE_VALUE, ERROR_FILE_NOT_FOUND\n", pszFilename));
+                            return INVALID_HANDLE_VALUE;
+                        }
+                        else if (   enmError == KFSLOOKUPERROR_PATH_COMP_NOT_FOUND
+                                 || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR)
+                        {
+                            KWFS_LOG(("CreateFileA(%s) -> INVALID_HANDLE_VALUE, ERROR_PATH_NOT_FOUND\n", pszFilename));
+                            return INVALID_HANDLE_VALUE;
                         }
 
                         /* fallback */
@@ -6097,6 +6130,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
     { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
 
+    { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
+
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
     { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
@@ -6201,6 +6236,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 #ifdef WITH_TEMP_MEMORY_FILES
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
 #endif
+    { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
 
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
@@ -6210,6 +6246,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 #endif
 
     { TUPLE("RtlPcToFileHeader"),           NULL,       (KUPTR)kwSandbox_ntdll_RtlPcToFileHeader },
+
 
     /*
      * MS Visual C++ CRTs.
@@ -6228,6 +6265,49 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 };
 /** Number of entries in g_aSandboxNativeReplacements. */
 KU32 const                  g_cSandboxNativeReplacements = K_ELEMENTS(g_aSandboxNativeReplacements);
+
+
+/**
+ * Control handler.
+ *
+ * @returns TRUE if handled, FALSE if not.
+ * @param   dwCtrlType          The signal.
+ */
+static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
+{
+    switch (dwCtrlType)
+    {
+        case CTRL_C_EVENT:
+            fprintf(stderr, "kWorker: Ctrl-C\n");
+            exit(9);
+            break;
+
+        case CTRL_BREAK_EVENT:
+            fprintf(stderr, "kWorker: Ctrl-Break\n");
+            exit(10);
+            break;
+
+        case CTRL_CLOSE_EVENT:
+            fprintf(stderr, "kWorker: console closed\n");
+            exit(11);
+            break;
+
+        case CTRL_LOGOFF_EVENT:
+            fprintf(stderr, "kWorker: logoff event\n");
+            exit(11);
+            break;
+
+        case CTRL_SHUTDOWN_EVENT:
+            fprintf(stderr, "kWorker: shutdown event\n");
+            exit(11);
+            break;
+
+        default:
+            fprintf(stderr, "kwSandboxCtrlHandler: %#x\n", dwCtrlType);
+            break;
+    }
+    return TRUE;
+}
 
 
 /**
@@ -7221,6 +7301,12 @@ int main(int argc, char **argv)
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
     PVOID           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/, kwSandboxVecXcptEmulateChained);
 #endif
+
+    /*
+     * Register our Control-C and Control-Break handlers.
+     */
+    if (!SetConsoleCtrlHandler(kwSandboxCtrlHandler, TRUE /*fAdd*/))
+        return kwErrPrintfRc(3, "SetConsoleCtrlHandler failed: %u\n", GetLastError());
 
     /*
      * Create the cache and mark the temporary directory as using the custom revision.
