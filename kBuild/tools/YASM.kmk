@@ -1,4 +1,4 @@
-# $Id: YASM.kmk 2873 2016-09-04 19:13:12Z knut.osmundsen@oracle.com $
+# $Id: YASM.kmk 2891 2016-09-08 03:02:58Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - YASM 0.4.0 or later.
 #
@@ -78,7 +78,16 @@ TOOL_YASM_COMPILE_AS_OUTPUT_MAYBE = $(obj).map
 TOOL_YASM_COMPILE_AS_DEPEND =
 TOOL_YASM_COMPILE_AS_DEPORD =
 define TOOL_YASM_COMPILE_AS_CMDS
+ifdef TOOL_YASM_KSUBMIT # yasm 1.3.0 w/ patches.
 	$(QUIET)$(TOOL_YASM_KSUBMIT) $(TOOL_YASM_AS)\
+		$(patsubst --mapfile%,--mapfile=$(obj).map,$(flags))\
+		$(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
+		-l $(outbase).lst\
+		-o $(obj)\
+		-MD="$(dep)" -MP --makedep-dos2unix-slash\
+		$(abspath $(source))
+else
+	$(QUIET)$(TOOL_YASM_AS)\
 		$(patsubst --mapfile%,--mapfile=$(obj).map,$(flags))\
 		$(addsuffix /,$(addprefix -I, $(incs))) $(addprefix -D, $(defs))\
 		-l $(outbase).lst\
@@ -105,5 +114,6 @@ define TOOL_YASM_COMPILE_AS_CMDS
 		--append "$(dep).tmp"\
 		"$(dep)"
 	$(QUIET)$(MV) -f -- "$(dep).tmp" "$(dep)"
+endif
 endef
 
