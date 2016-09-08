@@ -58,6 +58,12 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
   } while (0)
 #endif
 
+#ifdef KMK
+/* Incremented every time a variable is modified, so that target_environment
+   knows when to regenerate the table of exported global variables.  */
+static size_t global_variable_generation = 0;
+#endif
+
 
 /* Chain of all pattern-specific variables.  */
 
@@ -216,6 +222,9 @@ variable_hash_cmp (const void *xv, const void *yv)
 #define	SMALL_SCOPE_VARIABLE_BUCKETS	13
 # endif
 #endif
+#ifndef ENVIRONMENT_VARIABLE_BUCKETS    /* added by bird. */
+# define ENVIRONMENT_VARIABLE_BUCKETS   256
+#endif
 
 
 #ifdef KMK /* Drop the 'static' */
@@ -268,6 +277,11 @@ define_variable_in_set (const char *name, unsigned int length,
   struct variable *v;
   struct variable **var_slot;
   struct variable var_key;
+
+#ifdef KMK
+  if (set == NULL || set == &global_variable_set)
+    global_variable_generation++;
+#endif
 
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -514,6 +528,10 @@ undefine_variable_in_set (const char *name, unsigned int length,
   var_key.length = length;
   var_slot = (struct variable **) hash_find_slot_strcached (&set->table, &var_key);
 #endif
+#ifdef KMK
+  if (set == &global_variable_set)
+    global_variable_generation++;
+#endif
 
   if (env_overrides && origin == o_env)
     origin = o_env_override;
@@ -562,6 +580,11 @@ define_variable_alias_in_set (const char *name, unsigned int length,
 {
   struct variable     *v;
   struct variable     **var_slot;
+
+#ifdef KMK
+  if (set == NULL || set == &global_variable_set)
+    global_variable_generation++;
+#endif
 
   /* Look it up the hash table slot for it. */
   name = strcache2_add (&variable_strcache, name, length);
@@ -1958,6 +1981,85 @@ define_automatic_variables (void)
 
 int export_all_variables;
 
+#ifdef KMK
+/* Cached table containing the exports of the global_variable_set.  When
+   there are many global variables, it can be so expensive to construct the
+   child environment that we have a majority of job slot idle.  */
+static size_t             global_variable_set_exports_generation = ~(size_t)0;
+static struct hash_table  global_variable_set_exports;
+
+static void update_global_variable_set_exports(void)
+{
+  struct variable **v_slot;
+  struct variable **v_end;
+
+  /* Re-initialize the table. */
+  if (global_variable_set_exports_generation != ~(size_t)0)
+    hash_free (&global_variable_set_exports, 0);
+  hash_init_strcached (&global_variable_set_exports, ENVIRONMENT_VARIABLE_BUCKETS,
+                       &variable_strcache, offsetof (struct variable, name));
+
+  /* do pretty much the same as target_environment. */
+  v_slot = (struct variable **) global_variable_set.table.ht_vec;
+  v_end = v_slot + global_variable_set.table.ht_size;
+  for ( ; v_slot < v_end; v_slot++)
+    if (! HASH_VACANT (*v_slot))
+      {
+        struct variable **new_slot;
+        struct variable *v = *v_slot;
+
+        switch (v->export)
+          {
+          case v_default:
+            if (v->origin == o_default || v->origin == o_automatic)
+              /* Only export default variables by explicit request.  */
+              continue;
+
+            /* The variable doesn't have a name that can be exported.  */
+            if (! v->exportable)
+              continue;
+
+            if (! export_all_variables
+                && v->origin != o_command
+                && v->origin != o_env && v->origin != o_env_override)
+              continue;
+            break;
+
+          case v_export:
+            break;
+
+          case v_noexport:
+            {
+              /* If this is the SHELL variable and it's not exported,
+                 then add the value from our original environment, if
+                 the original environment defined a value for SHELL.  */
+              extern struct variable shell_var;
+              if (streq (v->name, "SHELL") && shell_var.value)
+                {
+                  v = &shell_var;
+                  break;
+                }
+              continue;
+            }
+
+          case v_ifset:
+            if (v->origin == o_default)
+              continue;
+            break;
+          }
+
+        assert (strcache2_is_cached (&variable_strcache, v->name));
+        new_slot = (struct variable **) hash_find_slot_strcached (&global_variable_set_exports, v);
+        if (HASH_VACANT (*new_slot))
+          hash_insert_at (&global_variable_set_exports, v, new_slot);
+      }
+
+  /* done */
+  global_variable_set_exports_generation = global_variable_generation;
+}
+
+#endif
+
 /* Create a new environment for FILE's commands.
    If FILE is nil, this is for the `shell' function.
    The child's MAKELEVEL variable is incremented.  */
@@ -1977,16 +2079,21 @@ target_environment (struct file *file)
   const char *cached_name;
 #endif
 
+#ifdef KMK
+  if (global_variable_set_exports_generation != global_variable_generation)
+    update_global_variable_set_exports();
+#endif
+
   if (file == 0)
     set_list = current_variable_set_list;
   else
     set_list = file->variables;
 
 #ifndef CONFIG_WITH_STRCACHE2
-  hash_init (&table, VARIABLE_BUCKETS,
+  hash_init (&table, ENVIRONMENT_VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  hash_init_strcached (&table, VARIABLE_BUCKETS,
+  hash_init_strcached (&table, ENVIRONMENT_VARIABLE_BUCKETS,
                        &variable_strcache, offsetof (struct variable, name));
 #endif /* CONFIG_WITH_STRCACHE2 */
 
@@ -1995,6 +2102,13 @@ target_environment (struct file *file)
   for (s = set_list; s != 0; s = s->next)
     {
       struct variable_set *set = s->set;
+#ifdef KMK
+      if (set == &global_variable_set)
+        {
+          assert(s->next == NULL);
+          break;
+        }
+#endif
       v_slot = (struct variable **) set->table.ht_vec;
       v_end = v_slot + set->table.ht_size;
       for ( ; v_slot < v_end; v_slot++)
@@ -2072,6 +2186,22 @@ target_environment (struct file *file)
 	      hash_insert_at (&table, v, new_slot);
 	  }
     }
+
+#ifdef KMK
+  /* Add the global exports to table. */
+  v_slot = (struct variable **) global_variable_set_exports.ht_vec;
+  v_end = v_slot + global_variable_set_exports.ht_size;
+  for ( ; v_slot < v_end; v_slot++)
+    if (! HASH_VACANT (*v_slot))
+      {
+        struct variable **new_slot;
+        struct variable *v = *v_slot;
+	assert (strcache2_is_cached (&variable_strcache, v->name));
+	new_slot = (struct variable **) hash_find_slot_strcached (&table, v);
+	if (HASH_VACANT (*new_slot))
+	  hash_insert_at (&table, v, new_slot);
+      }
+#endif
 
 #ifndef CONFIG_WITH_STRCACHE2
   makelevel_key.name = MAKELEVEL_NAME;
