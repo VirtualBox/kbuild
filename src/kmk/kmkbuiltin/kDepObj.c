@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2896 2016-09-08 15:32:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -751,13 +751,27 @@ int kDepObjCOFFParseCV8SymbolSection(const KU8 *pbSyms, KU32 cbSyms)
  */
 int kDepObjCOFFParse(const KU8 *pbFile, KSIZE cbFile)
 {
-    IMAGE_FILE_HEADER const    *pFileHdr = (IMAGE_FILE_HEADER const *)pbFile;
-    IMAGE_SECTION_HEADER const *paSHdrs  = (IMAGE_SECTION_HEADER const *)((KU8 const *)(pFileHdr + 1) + pFileHdr->SizeOfOptionalHeader);
-    unsigned                    cSHdrs   = pFileHdr->NumberOfSections;
-    unsigned                    iSHdr;
-    KPCUINT                     u;
-    int                         rcRet    = 2;
-    int                         rc;
+    IMAGE_FILE_HEADER const            *pFileHdr   = (IMAGE_FILE_HEADER const *)pbFile;
+    ANON_OBJECT_HEADER_BIGOBJ const    *pBigObjHdr = (ANON_OBJECT_HEADER_BIGOBJ const *)pbFile;
+    IMAGE_SECTION_HEADER const         *paSHdrs;
+    KU32                                cSHdrs;
+    unsigned                            iSHdr;
+    KPCUINT                             u;
+    int                                 rcRet      = 2;
+    int                                 rc;
+
+    if (   pBigObjHdr->Sig1 == 0
+        && pBigObjHdr->Sig2 == KU16_MAX)
+    {
+        paSHdrs = (IMAGE_SECTION_HEADER const *)(pBigObjHdr + 1);
+        cSHdrs  = pBigObjHdr->NumberOfSections;
+    }
+    else
+    {
+        paSHdrs = (IMAGE_SECTION_HEADER const *)((KU8 const *)(pFileHdr + 1) + pFileHdr->SizeOfOptionalHeader);
+        cSHdrs  = pFileHdr->NumberOfSections;
+    }
+
 
     dprintf(("COFF file!\n"));
 
@@ -794,60 +808,127 @@ int kDepObjCOFFParse(const KU8 *pbFile, KSIZE cbFile)
  */
 KBOOL kDepObjCOFFTest(const KU8 *pbFile, KSIZE cbFile)
 {
-    IMAGE_FILE_HEADER const    *pFileHdr = (IMAGE_FILE_HEADER const *)pbFile;
-    IMAGE_SECTION_HEADER const *paSHdrs  = (IMAGE_SECTION_HEADER const *)((KU8 const *)(pFileHdr + 1) + pFileHdr->SizeOfOptionalHeader);
-    unsigned                    cSHdrs   = pFileHdr->NumberOfSections;
-    unsigned                    iSHdr;
-    KSIZE                       cbHdrs   = (const KU8 *)&paSHdrs[cSHdrs] - (const KU8 *)pbFile;
+    IMAGE_FILE_HEADER const         *pFileHdr   = (IMAGE_FILE_HEADER const *)pbFile;
+    ANON_OBJECT_HEADER_BIGOBJ const *pBigObjHdr = (ANON_OBJECT_HEADER_BIGOBJ const *)pbFile;
+    IMAGE_SECTION_HEADER const      *paSHdrs;
+    KU32                             cSHdrs;
+    KU32                             iSHdr;
+    KSIZE                            cbHdrs;
 
     if (cbFile <= sizeof(*pFileHdr))
         return K_FALSE;
-    if (    pFileHdr->Machine != IMAGE_FILE_MACHINE_I386
-        &&  pFileHdr->Machine != IMAGE_FILE_MACHINE_AMD64)
-        return K_FALSE;
-    if (pFileHdr->SizeOfOptionalHeader != 0)
-        return K_FALSE; /* COFF files doesn't have an optional header */
 
-    if (    pFileHdr->NumberOfSections <= 1
-        ||  pFileHdr->NumberOfSections > cbFile)
-        return K_FALSE;
+    /*
+     * Deal with -bigobj output first.
+     */
+    if (   pBigObjHdr->Sig1 == 0
+        && pBigObjHdr->Sig2 == KU16_MAX)
+    {
+        static const KU8 s_abClsId[16] = { ANON_OBJECT_HEADER_BIGOBJ_CLS_ID_BYTES };
 
+        paSHdrs = (IMAGE_SECTION_HEADER const *)(pBigObjHdr + 1);
+        cSHdrs  = pBigObjHdr->NumberOfSections;
+        cbHdrs  = sizeof(IMAGE_SECTION_HEADER) * cSHdrs;
+
+        if (cbFile <= sizeof(*pBigObjHdr))
+            return K_FALSE;
+
+        if (pBigObjHdr->Version != 2)
+            return K_FALSE;
+        if (memcmp(&pBigObjHdr->ClassID[0], s_abClsId, sizeof(pBigObjHdr->ClassID)) != 0)
+            return K_FALSE;
+
+        if (   pBigObjHdr->Machine != IMAGE_FILE_MACHINE_I386
+            && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_AMD64
+            && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_ARM
+            && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_ARMNT
+            && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_ARM64
+            && pBigObjHdr->Machine != IMAGE_FILE_MACHINE_EBC)
+        {
+            fprintf(stderr, "kDepObj: error: bigobj Machine not supported: %#x\n", pBigObjHdr->Machine);
+            return K_FALSE;
+        }
+        if (pBigObjHdr->Flags != 0)
+        {
+            fprintf(stderr, "kDepObj: error: bigobj Flags field is non-zero: %#x\n", pBigObjHdr->Flags);
+            return K_FALSE;
+        }
+        if (pBigObjHdr->SizeOfData != 0)
+        {
+            fprintf(stderr, "kDepObj: error: bigobj SizeOfData field is non-zero: %#x\n", pBigObjHdr->SizeOfData);
+            return K_FALSE;
+        }
+
+        if (   pBigObjHdr->PointerToSymbolTable != 0
+            && (   pBigObjHdr->PointerToSymbolTable < cbHdrs
+                || pBigObjHdr->PointerToSymbolTable > cbFile))
+            return K_FALSE;
+        if (   pBigObjHdr->PointerToSymbolTable == 0
+            && pBigObjHdr->NumberOfSymbols != 0)
+            return K_FALSE;
+    }
+    /*
+     * Look for normal COFF object.
+     */
+    else
+    {
+        paSHdrs = (IMAGE_SECTION_HEADER const *)((KU8 const *)(pFileHdr + 1) + pFileHdr->SizeOfOptionalHeader);
+        cSHdrs  = pFileHdr->NumberOfSections;
+        cbHdrs  = (const KU8 *)&paSHdrs[cSHdrs] - (const KU8 *)pbFile;
+
+        if (   pFileHdr->Machine != IMAGE_FILE_MACHINE_I386
+            && pFileHdr->Machine != IMAGE_FILE_MACHINE_AMD64
+            && pFileHdr->Machine != IMAGE_FILE_MACHINE_ARM
+            && pFileHdr->Machine != IMAGE_FILE_MACHINE_ARMNT
+            && pFileHdr->Machine != IMAGE_FILE_MACHINE_ARM64
+            && pFileHdr->Machine != IMAGE_FILE_MACHINE_EBC)
+               return K_FALSE;
+
+        if (pFileHdr->SizeOfOptionalHeader != 0)
+            return K_FALSE; /* COFF files doesn't have an optional header */
+
+        if (   pFileHdr->PointerToSymbolTable != 0
+            && (   pFileHdr->PointerToSymbolTable < cbHdrs
+                || pFileHdr->PointerToSymbolTable > cbFile))
+            return K_FALSE;
+        if (   pFileHdr->PointerToSymbolTable == 0
+            && pFileHdr->NumberOfSymbols != 0)
+            return K_FALSE;
+        if (  pFileHdr->Characteristics
+            & (  IMAGE_FILE_DLL
+               | IMAGE_FILE_SYSTEM
+               | IMAGE_FILE_UP_SYSTEM_ONLY
+               | IMAGE_FILE_NET_RUN_FROM_SWAP
+               | IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP
+               | IMAGE_FILE_EXECUTABLE_IMAGE
+               | IMAGE_FILE_RELOCS_STRIPPED))
+            return K_FALSE;
+    }
+    if (   cSHdrs <= 1
+        || cSHdrs > cbFile)
+        return K_FALSE;
     if (cbHdrs >= cbFile)
         return K_FALSE;
 
-    if (    pFileHdr->PointerToSymbolTable != 0
-        &&  (   pFileHdr->PointerToSymbolTable < cbHdrs
-             || pFileHdr->PointerToSymbolTable > cbFile))
-        return K_FALSE;
-    if (    pFileHdr->PointerToSymbolTable == 0
-        &&  pFileHdr->NumberOfSymbols != 0)
-        return K_FALSE;
-    if (    pFileHdr->Characteristics
-        &   (  IMAGE_FILE_DLL
-             | IMAGE_FILE_SYSTEM
-             | IMAGE_FILE_UP_SYSTEM_ONLY
-             | IMAGE_FILE_NET_RUN_FROM_SWAP
-             | IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP
-             | IMAGE_FILE_EXECUTABLE_IMAGE
-             | IMAGE_FILE_RELOCS_STRIPPED))
-        return K_FALSE;
-
+    /*
+     * Check the section headers.
+     */
     for (iSHdr = 0; iSHdr < cSHdrs; iSHdr++)
     {
-        if (    paSHdrs[iSHdr].PointerToRawData != 0
-            &&  (   paSHdrs[iSHdr].PointerToRawData < cbHdrs
-                 || paSHdrs[iSHdr].PointerToRawData >= cbFile
-                 || paSHdrs[iSHdr].PointerToRawData + paSHdrs[iSHdr].SizeOfRawData > cbFile))
+        if (   paSHdrs[iSHdr].PointerToRawData != 0
+            && (   paSHdrs[iSHdr].PointerToRawData < cbHdrs
+                || paSHdrs[iSHdr].PointerToRawData >= cbFile
+                || paSHdrs[iSHdr].PointerToRawData + paSHdrs[iSHdr].SizeOfRawData > cbFile))
             return K_FALSE;
-        if (    paSHdrs[iSHdr].PointerToRelocations != 0
-            &&  (   paSHdrs[iSHdr].PointerToRelocations < cbHdrs
-                 || paSHdrs[iSHdr].PointerToRelocations >= cbFile
-                 || paSHdrs[iSHdr].PointerToRelocations + paSHdrs[iSHdr].NumberOfRelocations * 10 > cbFile)) /* IMAGE_RELOCATION */
+        if (   paSHdrs[iSHdr].PointerToRelocations != 0
+            && (   paSHdrs[iSHdr].PointerToRelocations < cbHdrs
+                || paSHdrs[iSHdr].PointerToRelocations >= cbFile
+                || paSHdrs[iSHdr].PointerToRelocations + paSHdrs[iSHdr].NumberOfRelocations * 10 > cbFile)) /* IMAGE_RELOCATION */
             return K_FALSE;
-        if (    paSHdrs[iSHdr].PointerToLinenumbers != 0
-            &&  (   paSHdrs[iSHdr].PointerToLinenumbers < cbHdrs
-                 || paSHdrs[iSHdr].PointerToLinenumbers >= cbFile
-                 || paSHdrs[iSHdr].PointerToLinenumbers + paSHdrs[iSHdr].NumberOfLinenumbers *  6 > cbFile)) /* IMAGE_LINENUMBER */
+        if (   paSHdrs[iSHdr].PointerToLinenumbers != 0
+            && (   paSHdrs[iSHdr].PointerToLinenumbers < cbHdrs
+                || paSHdrs[iSHdr].PointerToLinenumbers >= cbFile
+                || paSHdrs[iSHdr].PointerToLinenumbers + paSHdrs[iSHdr].NumberOfLinenumbers *  6 > cbFile)) /* IMAGE_LINENUMBER */
             return K_FALSE;
     }
 
@@ -881,7 +962,7 @@ static int kDepObjProcessFile(FILE *pInput)
         rc = kDepObjCOFFParse(pbFile, cbFile);
     else
     {
-        fprintf(stderr, "%s: error: Doesn't recognize the header of the OMF file.\n", argv0);
+        fprintf(stderr, "%s: error: Doesn't recognize the header of the OMF/COFF file.\n", argv0);
         rc = 1;
     }
 
