@@ -1,4 +1,4 @@
-/* $Id: quote_argv.c 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: quote_argv.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * quote_argv - Correctly quote argv for spawn, windows specific.
  */
@@ -113,6 +113,8 @@ void quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
             || (pszProblem = (const char *)memchr(pszOrg, '\'', cchOrg)) != NULL
             || (   !fWatcomBrainDamage
                 && (pszProblem = (const char *)memchr(pszOrg, '=',  cchOrg)) != NULL)
+            || (   fWatcomBrainDamage
+                && (pszProblem = (const char *)memchr(pszOrg, '\\', cchOrg)) != NULL)
             )
         {
             char   ch;

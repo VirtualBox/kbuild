@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2856 2016-09-01 02:42:08Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -27,7 +27,6 @@
 *   Header Files                                                               *
 *******************************************************************************/
 #define MSCFAKES_NO_WINDOWS_H
-#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -35,9 +34,6 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdarg.h>
-#ifdef HAVE_ALLOCA_H
-# include <alloca.h>
-#endif
 #if !defined(_MSC_VER)
 # include <unistd.h>
 #else
@@ -53,8 +49,7 @@
 /*******************************************************************************
 *   Defined Constants And Macros                                               *
 *******************************************************************************/
-/*#define DEBUG*/
-#ifdef DEBUG
+#if 0
 # define dprintf(a)             printf a
 # define dump(pb, cb, offBase)  depHexDump(pb,cb,offBase)
 #else
@@ -575,7 +570,7 @@ KBOOL kDepObjOMFTest(const KU8 *pbFile, KSIZE cbFile)
  * @param   pbSyms      Pointer to the start of the symbol section.
  * @param   cbSyms      Size of the symbol section.
  */
-int kDepObjCOFFParseCV8SymbolSection(const KU8 *pbSyms, KSIZE cbSyms)
+int kDepObjCOFFParseCV8SymbolSection(const KU8 *pbSyms, KU32 cbSyms)
 {
     char const *    pchStrTab  = NULL;
     KU32            cbStrTab   = 0;
@@ -764,7 +759,7 @@ int kDepObjCOFFParse(const KU8 *pbFile, KSIZE cbFile)
     int                         rcRet    = 2;
     int                         rc;
 
-    printf("COFF file!\n");
+    dprintf(("COFF file!\n"));
 
     for (iSHdr = 0; iSHdr < cSHdrs; iSHdr++)
     {
@@ -783,7 +778,7 @@ int kDepObjCOFFParse(const KU8 *pbFile, KSIZE cbFile)
             if (rcRet != 2)
                 return rc;
         }
-        printf("#%d: %.8s\n", iSHdr, paSHdrs[iSHdr].Name);
+        dprintf(("#%d: %.8s\n", iSHdr, paSHdrs[iSHdr].Name));
     }
     return rcRet;
 }

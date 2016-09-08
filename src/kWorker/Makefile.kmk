@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2878 2016-09-05 19:54:49Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -32,7 +32,12 @@ PROGRAMS += kWorker
 kWorker_TEMPLATE = BIN-STATIC-THREADED
 kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
-kWorker_SOURCES = kWorker.c
+kWorker_SOURCES = \
+	kWorker.c \
+       ../kmk/kmkbuiltin/kDepObj.c
+kWorker_INCS = \
+	../kmk/ \
+	../kmk/kmkbuiltin
 kWorker_LIBS = \
 	$(kStuff_1_TARGET) \
 	$(kWorkerLib_1_TARGET)
@@ -55,9 +60,11 @@ kWorkerLib_DEFPATH := $(PATH_SUB_CURRENT)/../lib
 kWorkerLib_SOURCES = \
 	crc32.c \
 	md5.c \
-       kbuild_version.c
+       kbuild_version.c \
+       kDep.c
 kWorkerLib_SOURCES.win = \
 	nt_fullpath.c \
+	nt_fullpath_cached.c \
 	quoted_spawn.c \
        nt/nthlpcore.c \
        nt/nthlpfs.c \
