@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2884 2016-09-06 03:11:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -573,10 +573,14 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(unsigned cBitsWorker
  * @param   papszEnvVars        The environment vector.
  * @param   pszCwd              The current directory.
  * @param   fWatcomBrainDamage  The wcc/wcc386 workaround.
+ * @param   papszPostCmdArgs    The post command and it's arguments.
+ * @param   cPostCmdArgs        Number of post command argument, including the
+ *                              command.  Zero if no post command scheduled.
  * @param   pcbMsg              Where to return the message length.
  */
 static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArgs, char **papszEnvVars,
-                                      const char *pszCwd, int fWatcomBrainDamage, uint32_t *pcbMsg)
+                                      const char *pszCwd, int fWatcomBrainDamage,
+                                      char **papszPostCmdArgs, uint32_t cPostCmdArgs, uint32_t *pcbMsg)
 {
     size_t   cbTmp;
     uint32_t i;
@@ -612,24 +616,32 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
 
     cbMsg += 1;
 
+    cbMsg += sizeof(cPostCmdArgs);
+    for (i = 0; i < cPostCmdArgs; i++)
+        cbMsg += strlen(papszPostCmdArgs[i]) + 1;
+
     /*
      * Compose the message.
      */
     pbMsg = pbCursor = xmalloc(cbMsg);
 
+    /* header */
     memcpy(pbCursor, &cbMsg, sizeof(cbMsg));
     pbCursor += sizeof(cbMsg);
     memcpy(pbCursor, "JOB", sizeof("JOB"));
     pbCursor += sizeof("JOB");
 
+    /* executable. */
     cbTmp = strlen(pszExecutable) + 1;
     memcpy(pbCursor, pszExecutable, cbTmp);
     pbCursor += cbTmp;
 
+    /* cwd */
     cbTmp = strlen(pszCwd) + 1;
     memcpy(pbCursor, pszCwd, cbTmp);
     pbCursor += cbTmp;
 
+    /* argument */
     memcpy(pbCursor, &cArgs, sizeof(cArgs));
     pbCursor += sizeof(cArgs);
     for (i = 0; papszArgs[i] != NULL; i++)
@@ -641,6 +653,7 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     }
     assert(i == cArgs);
 
+    /* environment */
     memcpy(pbCursor, &cEnvVars, sizeof(cEnvVars));
     pbCursor += sizeof(cEnvVars);
     for (i = 0; papszEnvVars[i] != NULL; i++)
@@ -651,11 +664,25 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
     }
     assert(i == cEnvVars);
 
+    /* flags */
     *pbCursor++ = fWatcomBrainDamage != 0;
+
+    /* post command */
+    memcpy(pbCursor, &cPostCmdArgs, sizeof(cPostCmdArgs));
+    pbCursor += sizeof(cPostCmdArgs);
+    for (i = 0; i < cPostCmdArgs; i++)
+    {
+        cbTmp = strlen(papszPostCmdArgs[i]) + 1;
+        memcpy(pbCursor, papszPostCmdArgs[i], cbTmp);
+        pbCursor += cbTmp;
+    }
+    assert(i == cPostCmdArgs);
 
     assert(pbCursor - pbMsg == (size_t)cbMsg);
 
-    /* done */
+    /*
+     * Done.
+     */
     *pcbMsg = cbMsg;
     return pbMsg;
 }
@@ -1338,7 +1365,8 @@ static int usage(FILE *pOut,  const char *argv0)
     fprintf(pOut,
             "usage: %s [-Z|--zap-env] [-E|--set <var=val>] [-U|--unset <var=val>]\n"
             "           [-C|--chdir <dir>] [--wcc-brain-damage]\n"
-            "           [-3|--32-bit] [-6|--64-bit] [-v] -- <program> [args]\n"
+            "           [-3|--32-bit] [-6|--64-bit] [-v]\n"
+            "           [-P|--post-cmd <cmd> [args]] -- <program> [args]\n"
             "   or: %s --help\n"
             "   or: %s --version\n"
             "\n"
@@ -1361,6 +1389,10 @@ static int usage(FILE *pOut,  const char *argv0)
             "    quoting conventions on Windows, OS/2, and DOS.\n"
             "  -v,--verbose\n"
             "    More verbose execution.\n"
+            "  -P|--post-cmd <cmd> ...\n"
+            "    For running a built-in command on the output, specifying the command\n"
+            "    and all it's parameters.  Currently supported commands:\n"
+            "        kDepObj\n"
             "  -V,--version\n"
             "    Show the version number.\n"
             "  -h,--help\n"
@@ -1382,6 +1414,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     char          **papszEnv            = NULL;
     const char     *pszExecutable       = NULL;
     const char     *pszCwd              = NULL;
+    int             iPostCmd            = argc;
+    int             cPostCmdArgs        = 0;
     unsigned        cBitsWorker         = g_cArchBits;
     int             fWatcomBrainDamage  = 0;
     int             cVerbosity          = 0;
@@ -1456,6 +1490,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     chOpt = 'Z';
                 else if (strcmp(pszArg, "chdir") == 0)
                     chOpt = 'C';
+                else if (strcmp(pszArg, "post-cmd") == 0)
+                    chOpt = 'P';
                 else if (strcmp(pszArg, "32-bit") == 0)
                     chOpt = '3';
                 else if (strcmp(pszArg, "64-bit") == 0)
@@ -1488,7 +1524,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                             pszValue = argv[iArg];
                         else
                         {
-                            errx(1, "Option -%c requires an value!", chOpt);
+                            errx(1, "Option -%c requires a value!", chOpt);
                             return usage(stderr, argv[0]);
                         }
                         break;
@@ -1522,6 +1558,20 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                         if (rcExit == 0)
                             break;
                         return rcExit;
+
+                    case 'P':
+                        if (cPostCmdArgs > 0)
+                            return errx(1, "The -P option can only be used once!");
+                        if (*pszArg != '\0')
+                            return errx(1, "The cmd part of the -P needs to be a separate argument!");
+                        iPostCmd = ++iArg;
+                        if (iArg >= argc)
+                            return errx(1, "The -P option requires a command following it!");
+                        while (iArg < argc && strcmp(argv[iArg], "--") != 0)
+                            iArg++;
+                        cPostCmdArgs = iArg - iPostCmd;
+                        iArg--;
+                        break;
 
                     case '3':
                         cBitsWorker = 32;
@@ -1562,7 +1612,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     {
         uint32_t        cbMsg;
         void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnv, szCwd,
-                                                           fWatcomBrainDamage, &cbMsg);
+                                                           fWatcomBrainDamage, &argv[iPostCmd], cPostCmdArgs, &cbMsg);
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {

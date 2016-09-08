@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2892 2016-09-08 03:03:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -52,6 +52,8 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #include "nt/kFsCache.h"
 #include "quote_argv.h"
 #include "md5.h"
+
+#include "../kmk/kmkbuiltin.h"
 
 
 /*********************************************************************************************************************************
@@ -6893,20 +6895,47 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
 
 
 /**
+ * Does the post command part of a job (optional).
+ *
+ * @returns The exit code of the job.
+ * @param   cPostCmdArgs        Number of post command arguments (includes cmd).
+ * @param   papszPostCmdArgs    The post command and its argument.
+ */
+static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdArgs)
+{
+    const char *pszCmd = papszPostCmdArgs[0];
+
+    /* Allow the kmk builtin prefix. */
+    static const char s_szKmkBuiltinPrefix[] = "kmk_builtin_";
+    if (kHlpStrNComp(pszCmd, s_szKmkBuiltinPrefix, sizeof(s_szKmkBuiltinPrefix) - 1) == 0)
+        pszCmd += sizeof(s_szKmkBuiltinPrefix) - 1;
+
+    /* Command switch. */
+    if (kHlpStrComp(pszCmd, "kDepObj") == 0)
+        return kmk_builtin_kDepObj(cPostCmdArgs, (char **)papszPostCmdArgs, NULL);
+
+    return kwErrPrintfRc(42 + 5 , "Unknown post command: '%s'\n", pszCmd);
+}
+
+
+/**
  * Part 2 of the "JOB" command handler.
  *
  * @returns The exit code of the job.
- * @param   pszExecutable   The executable to execute.
- * @param   pszCwd          The current working directory of the job.
- * @param   cArgs           The number of arguments.
- * @param   papszArgs       The argument vector.
+ * @param   pszExecutable       The executable to execute.
+ * @param   pszCwd              The current working directory of the job.
+ * @param   cArgs               The number of arguments.
+ * @param   papszArgs           The argument vector.
  * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
- * @param   cEnvVars        The number of environment variables.
- * @param   papszEnvVars    The enviornment vector.
+ * @param   cEnvVars            The number of environment variables.
+ * @param   papszEnvVars        The enviornment vector.
+ * @param   cPostCmdArgs        Number of post command arguments (includes cmd).
+ * @param   papszPostCmdArgs    The post command and its argument.
  */
 static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCwd,
                                     KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
-                                    KU32 cEnvVars, const char **papszEnvVars)
+                                    KU32 cEnvVars, const char **papszEnvVars,
+                                    KU32 cPostCmdArgs, const char **papszPostCmdArgs)
 {
     int rcExit;
     PKWTOOL pTool;
@@ -6971,6 +7000,12 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
                 g_fRestart = K_TRUE;
                 break;
         }
+
+        /*
+         * Do the post command, if present.
+         */
+        if (cPostCmdArgs && rcExit == 0)
+            rcExit = kSubmitHandleJobPostCmd(cPostCmdArgs, papszPostCmdArgs);
     }
     else
         rcExit = 42 + 1;
@@ -7062,7 +7097,6 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                             char const **papszEnvVars = kHlpAlloc((cEnvVars + 1) * sizeof(papszEnvVars[0]));
                             if (papszEnvVars)
                             {
-                                KU32 i;
                                 for (i = 0; i < cEnvVars; i++)
                                 {
                                     papszEnvVars[i] = pszMsg;
@@ -7077,21 +7111,60 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                     }
                                 }
                                 papszEnvVars[cEnvVars] = 0;
+
+                                /* Flags (currently just watcom argument brain damanage). */
                                 if (cbMsg >= sizeof(KU8))
                                 {
                                     KBOOL fWatcomBrainDamange = *pszMsg++;
                                     cbMsg--;
-                                    if (cbMsg == 0)
+
+                                    /* Post command argument count (can be zero). */
+                                    if (cbMsg >= sizeof(KU32))
                                     {
-                                        /*
-                                         * The next step.
-                                         */
-                                        rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
-                                                                          cArgs, papszArgs, fWatcomBrainDamange,
-                                                                          cEnvVars, papszEnvVars);
+                                        KU32 cPostCmdArgs;
+                                        kHlpMemCopy(&cPostCmdArgs, pszMsg, sizeof(cPostCmdArgs));
+                                        pszMsg += sizeof(cPostCmdArgs);
+                                        cbMsg  -= sizeof(cPostCmdArgs);
+
+                                        if (cPostCmdArgs >= 0 && cPostCmdArgs < 32)
+                                        {
+                                            char const *apszPostCmdArgs[32+1];
+                                            for (i = 0; i < cPostCmdArgs; i++)
+                                            {
+                                                apszPostCmdArgs[i] = pszMsg;
+                                                cbTmp = kHlpStrLen(pszMsg) + 1;
+                                                pszMsg += cbTmp;
+                                                if (   cbTmp < cbMsg
+                                                    || (cbTmp == cbMsg && i + 1 == cPostCmdArgs))
+                                                    cbMsg -= cbTmp;
+                                                else
+                                                {
+                                                    cbMsg = KSIZE_MAX;
+                                                    break;
+                                                }
+                                            }
+                                            if (cbMsg == 0)
+                                            {
+                                                apszPostCmdArgs[cPostCmdArgs] = NULL;
+
+                                                /*
+                                                 * The next step.
+                                                 */
+                                                rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
+                                                                                  cArgs, papszArgs, fWatcomBrainDamange,
+                                                                                  cEnvVars, papszEnvVars,
+                                                                                  cPostCmdArgs, apszPostCmdArgs);
+                                            }
+                                            else if (cbMsg == KSIZE_MAX)
+                                                kwErrPrintf("Detected bogus message unpacking post command and its arguments!\n");
+                                            else
+                                                kwErrPrintf("Message has %u bytes unknown trailing bytes\n", cbMsg);
+                                        }
+                                        else
+                                            kwErrPrintf("Bogus post command argument count: %u %#x\n", cPostCmdArgs, cPostCmdArgs);
                                     }
                                     else
-                                        kwErrPrintf("Message has %u bytes unknown trailing bytes\n", cbMsg);
+                                        kwErrPrintf("Detected bogus message looking for the post command argument count!\n");
                                 }
                                 else
                                     kwErrPrintf("Detected bogus message unpacking environment variables!\n");
@@ -7280,7 +7353,8 @@ static int kwTestRun(int argc, char **argv)
     {
         rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd,
                                           argc - i, &argv[i], fWatcomBrainDamange,
-                                          cEnvVars, environ);
+                                          cEnvVars, environ,
+                                          0, NULL);
         KW_LOG(("rcExit=%d\n", rcExit));
         kwSandboxCleanupLate(&g_Sandbox);
     }
