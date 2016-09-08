@@ -1,4 +1,4 @@
-# $Id: OPENWATCOM.kmk 2882 2016-09-05 23:54:45Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 2895 2016-09-08 13:28:37Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
@@ -53,6 +53,13 @@ ifeq ($(PATH_TOOL_OPENWATCOM),)
 else
  # Resolve any fancy stuff once and for all.
  PATH_TOOL_OPENWATCOM := $(PATH_TOOL_OPENWATCOM)
+endif
+
+# Clear the feature indicator if not available on the current host.
+ifdef TOOL_OPENWATCOM_USE_KSUBMIT
+ ifneq ($(KBUILD_HOST),win)
+  override TOOL_OPENWATCOM_USE_KSUBMIT :=
+ endif
 endif
 
 ifneq ($(PATH_TOOL_OPENWATCOM),)
@@ -148,7 +155,7 @@ else
 endif
 
 if $(KBUILD_KMK_REVISION) >= 2747
- TOOL_OPENWATCOM_ENV_SETUP_BD ?= $(call TOOL_OPENWATCOM_ENV_SETUP,$1,$2 --wcc-brain-damage)
+ TOOL_OPENWATCOM_ENV_SETUP_BD ?= $(call TOOL_OPENWATCOM_ENV_SETUP,$1, --wcc-brain-damage $2)
 else
  TOOL_OPENWATCOM_ENV_SETUP_BD ?= $(call TOOL_OPENWATCOM_ENV_SETUP,$1,$2)
 endif
@@ -207,23 +214,47 @@ TOOL_OPENWATCOM_LDFLAGS.win      ?= -bt=nt
 
 TOOL_OPENWATCOM_COMPILE_AS_DEPEND =
 TOOL_OPENWATCOM_COMPILE_AS_DEPORD =
-TOOL_OPENWATCOM_COMPILE_AS_OUTPUT = $(obj).err
+TOOL_OPENWATCOM_COMPILE_AS_OUTPUT_MAYBE = $(obj).err
+ifdef TOOL_OPENWATCOM_USE_KSUBMIT
 define TOOL_OPENWATCOM_COMPILE_AS_CMDS
-	$(QUIET) $(call TOOL_OPENWATCOM_ENV_SETUP_BD) $(TOOL_OPENWATCOM_AS) \
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD,, -P $(DEP_OBJ_INT) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)") \
+		$(TOOL_OPENWATCOM_AS) \
 		$(flags) \
 		$(addsuffix , $(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs)))) \
 		$(addprefix -d, $(defs)) \
 		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
 		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
 		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
-	$(QUIET)$(APPEND) -n $(obj).err
-## @todo dependencies
 endef
+else
+define TOOL_OPENWATCOM_COMPILE_AS_CMDS
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD) $(TOOL_OPENWATCOM_AS) \
+		$(flags) \
+		$(addsuffix , $(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs)))) \
+		$(addprefix -d, $(defs)) \
+		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
+		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
+		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
+	$(QUIET)$(DEP_OBJ) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)"
+endef
+endif
 
 
 TOOL_OPENWATCOM_COMPILE_C_DEPEND =
 TOOL_OPENWATCOM_COMPILE_C_DEPORD =
-TOOL_OPENWATCOM_COMPILE_C_OUTPUT = $(obj).err
+TOOL_OPENWATCOM_COMPILE_C_OUTPUT_MAYBE = $(obj).err
+ifdef TOOL_OPENWATCOM_USE_KSUBMIT
+define TOOL_OPENWATCOM_COMPILE_C_CMDS
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD,, -P $(DEP_OBJ_INT) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)") \
+		$(TOOL_OPENWATCOM_CC) \
+		$(flags) \
+		$(addsuffix , $(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs)))) \
+		$(addprefix -d, $(defs)) \
+		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
+		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
+		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
+endef
+else
 define TOOL_OPENWATCOM_COMPILE_C_CMDS
 	$(QUIET) $(call TOOL_OPENWATCOM_ENV_SETUP_BD) $(TOOL_OPENWATCOM_CC) \
 		$(flags) \
@@ -232,30 +263,42 @@ define TOOL_OPENWATCOM_COMPILE_C_CMDS
 		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
 		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
 		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
-	$(QUIET)$(APPEND) -n $(obj).err
-## @todo dependencies
+	$(QUIET)$(DEP_OBJ) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)"
 endef
+endif
 
 TOOL_OPENWATCOM_COMPILE_CXX_DEPEND =
 TOOL_OPENWATCOM_COMPILE_CXX_DEPORD =
-TOOL_OPENWATCOM_COMPILE_CXX_OUTPUT = $(obj).err
+TOOL_OPENWATCOM_COMPILE_CXX_OUTPUT_MAYBE = $(obj).err
+ifdef TOOL_OPENWATCOM_USE_KSUBMIT
 define TOOL_OPENWATCOM_COMPILE_CXX_CMDS
-	$(QUIET) $(call TOOL_OPENWATCOM_ENV_SETUP_BD) $(TOOL_OPENWATCOM_CXX) \
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD,, -P $(DEP_OBJ_INT) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)") \
+		$(TOOL_OPENWATCOM_CXX) \
 		$(flags) \
 		$(addsuffix , $(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs)))) \
 		$(addprefix -d, $(defs)) \
 		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
 		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
 		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
-	$(QUIET)$(APPEND) -n $(obj).err
-## @todo dependencies
 endef
+else
+define TOOL_OPENWATCOM_COMPILE_CXX_CMDS
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP_BD) $(TOOL_OPENWATCOM_CXX) \
+		$(flags) \
+		$(addsuffix , $(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs)))) \
+		$(addprefix -d, $(defs)) \
+		-fo=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)) \
+		-fr=$(call TOOL_OPENWATCOM_FIX_SLASHES,$(obj)).err \
+		$(call TOOL_OPENWATCOM_FIX_SLASHES,$(abspath $(source)))
+	$(QUIET)$(DEP_OBJ) -s -f -q -o "$(dep)" -t "$(obj)" "$(obj)"
+endef
+endif
 
 TOOL_OPENWATCOM_COMPILE_RC_OUTPUT =
 TOOL_OPENWATCOM_COMPILE_RC_DEPEND =
 TOOL_OPENWATCOM_COMPILE_RC_DEPORD =
 define TOOL_OPENWATCOM_COMPILE_RC_CMDS
-	$(QUIET) $(call TOOL_OPENWATCOM_ENV_SETUP) \
+	$(QUIET)$(call TOOL_OPENWATCOM_ENV_SETUP) \
 		$(TOOL_OPENWATCOM_RC) -r\
 		$(flags) \
 		$(addprefix -i=, $(call TOOL_OPENWATCOM_FIX_SLASHES,$(incs))) \
