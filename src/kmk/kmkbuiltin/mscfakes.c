@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2759 2015-01-28 16:14:00Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 2901 2016-09-09 15:10:24Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -633,11 +633,11 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 
 #ifdef va_copy
         va_copy(va2, va);
-        rc = snprintf(psz, cb, fmt, va2);
+        rc = vsnprintf(psz, cb, fmt, va2);
         va_end(vaCopy);
 #else
         va2 = va;
-        rc = snprintf(psz, cb, fmt, va2);
+        rc = vsnprintf(psz, cb, fmt, va2);
 #endif
         if (rc < 0 || (size_t)rc < cb)
             break;
