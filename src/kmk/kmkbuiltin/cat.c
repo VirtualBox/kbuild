@@ -80,6 +80,14 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #include "kmkbuiltin.h"
 
 
+#ifdef KBUILD_OS_WINDOWS
+/* This is a trick to seriuosly speed up console output windows. */
+# undef write
+# define write maybe_con_write
+extern ssize_t maybe_con_write(int, void const *, size_t);
+#endif
+
+
 int bflag, eflag, nflag, sflag, tflag, vflag;
 /*int rval;*/
 const char *filename;
@@ -119,6 +127,8 @@ kmk_builtin_cat(int argc, char *argv[], char **envp)
 
 #ifdef kmk_builtin_cat /* kmk did this already. */
 	setlocale(LC_CTYPE, "");
+#else
+	fflush(stdout);
 #endif
 
 	while ((ch = getopt_long(argc, argv, "benstuv", long_options, NULL)) != -1)
@@ -287,7 +297,7 @@ cook_cat(FILE *fp)
 static int
 raw_cat(int rfd)
 {
-	int off, wfd;
+	int off, wfd = fileno(stdout);
 	ssize_t nr, nw;
 	static size_t bsize;
 	static char *buf = NULL;
@@ -297,8 +307,8 @@ raw_cat(int rfd)
 	if (buf == NULL) {
 		if (fstat(wfd, &sbuf))
 			return err(1, "%s", filename);
-#ifdef _MSC_VER
-		bsize = 1024;
+#ifdef KBUILD_OS_WINDOWS
+		bsize = 16384;
 #else
 		bsize = MAX(sbuf.st_blksize, 1024);
 #endif

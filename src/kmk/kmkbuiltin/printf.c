@@ -75,6 +75,13 @@ __RCSID("$NetBSD: printf.c,v 1.31 2005/03/22 23:55:46 dsl Exp $");
 
 #include "../kmkbuiltin.h"
 
+#ifdef KBUILD_OS_WINDOWS
+/* This is a trick to speed up console output on windows. */
+# undef fwrite
+# define fwrite maybe_con_fwrite
+extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+#endif
+
 
 #ifdef __GNUC__
 #define ESCAPE '\e'
@@ -112,6 +119,7 @@ static char	*mklong(const char *, int);
 static void      check_conversion(const char *, const char *);
 static int	 usage(FILE *);
 
+static int	flush_buffer(void);
 static void	b_count(int);
 static void	b_output(int);
 static int	wrap_putchar(int ch);
@@ -125,6 +133,10 @@ static int	wrap_printf(const char *, ...);
 #define kmk_builtin_printf printfcmd
 #include "../../bin/sh/bltin/bltin.h"
 #endif /* SHELL */
+
+/* Buffer the output because windows doesn't do line buffering of stdout. */
+static char 	g_achBuf[256];
+static size_t	g_cchBuf;
 
 #define PF(f, func) { \
 	if (fieldwidth != -1) { \
@@ -155,7 +167,7 @@ int kmk_builtin_printf(int argc, char *argv[], char **envp)
 	int rc;
 	int ch;
 
-	/* kmk: reset getopt and set progname */
+	/* kmk: reset getopt, set progname and reset buffer. */
 	g_progname = argv[0];
 	opterr = 1;
 	optarg = NULL;
@@ -224,6 +236,7 @@ static int common_printf(int argc, char *argv[])
 	b_fmt = NULL;
 	rval = 0;
 	gargv = NULL;
+	g_cchBuf = 0;
 
 	format = *argv;
 	gargv = ++argv;
@@ -271,6 +284,7 @@ static int common_printf(int argc, char *argv[])
 
 			ch = *fmt;
 			if (!ch) {
+				flush_buffer();
 				warnx("missing format character");
 				return (1);
 			}
@@ -353,19 +367,24 @@ static int common_printf(int argc, char *argv[])
 				break;
 			}
 			default:
+				flush_buffer();
 				warnx("%s: invalid directive", start);
 				return 1;
 			}
 			*fmt++ = ch;
 			*fmt = nextch;
 			/* escape if a \c was encountered */
-			if (rval & 0x100)
+			if (rval & 0x100) {
+				flush_buffer();
 				return rval & ~0x100;
+			}
 		}
 	} while (gargv != argv && *gargv);
 
+	flush_buffer();
 	return rval;
 }
+
 
 /* helper functions for conv_escape_str */
 
@@ -407,34 +426,103 @@ static int wrap_putchar(int ch)
 		return ch;
 	}
 #endif
-	return putchar(ch);
+	/* Buffered output. */
+	if (g_cchBuf + 1 < sizeof(g_achBuf)) {
+		g_achBuf[g_cchBuf++] = ch;
+	} else {
+		int rc = flush_buffer();
+		g_achBuf[g_cchBuf++] = ch;
+		if (rc)
+			return -1;
+	}
+	return 0;
 }
 
 static int wrap_printf(const char * fmt, ...)
 {
-	int rc;
+	ssize_t cchRet;
 	va_list va;
-
-#ifndef kmk_builtin_printf
-	if (g_o) {
-		char *str;
-
-		va_start(va, fmt);
-		rc = vasprintf(&str, fmt, va);
-		va_end(va);
-		if (rc >= 0) {
-			g_o = variable_buffer_output(g_o, str, rc);
-			free(str);
-		}
-		return rc;
-	}
-#endif
+	char *pszTmp;
 
 	va_start(va, fmt);
-	rc = vprintf(fmt, va);
+	cchRet = vasprintf(&pszTmp, fmt, va);
 	va_end(va);
-	return rc;
+	if (cchRet >= 0) {
+#ifndef kmk_builtin_printf
+		if (g_o) {
+			g_o = variable_buffer_output(g_o, pszTmp, cchRet);
+		} else
+#endif
+		{
+			if (cchRet + g_cchBuf <= sizeof(g_achBuf)) {
+				/* We've got space in the buffer. */
+				memcpy(&g_achBuf[g_cchBuf], pszTmp, cchRet);
+				g_cchBuf += cchRet;
+			} else {
+				/* Try write out complete lines. */
+				const char *pszLeft = pszTmp;
+				ssize_t     cchLeft = cchRet;
+
+				while (cchLeft > 0) {
+					const char *pchNewLine = strchr(pszLeft, '\n');
+					ssize_t     cchLine    = pchNewLine ? pchNewLine - pszLeft + 1 : cchLeft;
+					if (g_cchBuf + cchLine <= sizeof(g_achBuf)) {
+						memcpy(&g_achBuf[g_cchBuf], pszLeft, cchLine);
+						g_cchBuf += cchLine;
+					} else {
+						if (flush_buffer() < 0) {
+							return -1;
+						}
+						if (fwrite(pszLeft, cchLine, 1, stdout) < 1) {
+							return -1;
+						}
+					}
+					pszLeft += cchLine;
+					cchLeft -= cchLine;
+				}
+			}
+		}
+		free(pszTmp);
+	}
+	return (int)cchRet;
 }
+
+/**
+ * Flushes the g_abBuf/g_cchBuf.
+ */
+static int flush_buffer(void)
+{
+    if (g_cchBuf > 0) {
+		ssize_t cchToWrite = g_cchBuf;
+		ssize_t cchWritten = fwrite(g_achBuf, 1, g_cchBuf, stdout);
+		g_cchBuf = 0;
+		if (cchWritten >= cchToWrite) {
+			/* likely */
+		} else {
+			ssize_t off = cchWritten;
+			if (cchWritten >= 0) {
+				off = cchWritten;
+			} else if (errno == EINTR) {
+				cchWritten = 0;
+			} else {
+				return -1;
+			}
+
+			while (off < cchToWrite) {
+				cchWritten = fwrite(&g_achBuf[off], 1, cchToWrite - off, stdout);
+				if (cchWritten > 0) {
+					off += cchWritten;
+				} else if (errno == EINTR) {
+					/* nothing */
+				} else {
+					return -1;
+				}
+			}
+		}
+    }
+    return 0;
+}
+
 
 
 /*
