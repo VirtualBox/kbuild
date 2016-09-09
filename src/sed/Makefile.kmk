@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2829 2016-08-15 10:52:09Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2909 2016-09-09 22:54:17Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -87,6 +87,8 @@ kmk_sed_SOURCES.win = \
 	lib/mkstemp.c \
 	lib/getline.c \
 	../lib/startuphacks-win.c
+
+kmk_sed_LIBS.win = $(LIB_KUTIL) # for stdout optimizations.
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
