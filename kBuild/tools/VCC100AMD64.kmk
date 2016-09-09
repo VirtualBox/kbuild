@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2895 2016-09-08 13:28:37Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2902 2016-09-09 17:15:22Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -68,7 +68,8 @@ PATH_TOOL_VCC100AMD64_ATLMFC_LIB ?= $(PATH_TOOL_VCC100AMD64_ATLMFC)/lib/amd64
 TOOL_VCC100AMD64_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/cl.exe
 TOOL_VCC100AMD64_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/cl.exe
 TOOL_VCC100AMD64_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/ml64.exe
-TOOL_VCC100AMD64_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/lib.exe
+#TOOL_VCC100AMD64_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/lib.exe - just an exec wrapper for the below
+TOOL_VCC100AMD64_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/link.exe /LIB
 TOOL_VCC100AMD64_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/link.exe
 TOOL_VCC100AMD64_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/dumpbin.exe
 TOOL_VCC100AMD64_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100AMD64_BIN)/editbin.exe
@@ -81,6 +82,7 @@ ifdef TOOL_VCC100AMD64_USE_KSUBMIT
   else
    TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
   endif
+  TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) --
  endif
 endif
 
@@ -301,7 +303,7 @@ define TOOL_VCC100AMD64_LINK_LIBRARY_CMDS
 			$(filter-out %.def,$(othersrc))) \
 			$(addprefix /DEF:,$(filter %.def,$(othersrc))) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100AMD64_AR) $(flags) /OUT:$(out) @$(outbase).rsp
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT_DD) $(TOOL_VCC100AMD64_AR) $(flags) /OUT:$(out) @$(outbase).rsp
 endef
 
 
@@ -331,7 +333,7 @@ define TOOL_VCC100AMD64_LINK_PROGRAM_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT_DD) $(TOOL_VCC100AMD64_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -373,7 +375,7 @@ define TOOL_VCC100AMD64_LINK_DLL_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT_DD) $(TOOL_VCC100AMD64_LD) $(flags) \
 		/OUT:$(out) \
 		/IMPLIB:$(outbase).lib \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
@@ -419,7 +421,7 @@ define TOOL_VCC100AMD64_LINK_SYSMOD_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100AMD64_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT_DD) $(TOOL_VCC100AMD64_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \

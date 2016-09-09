@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2895 2016-09-08 13:28:37Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2902 2016-09-09 17:15:22Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -67,7 +67,8 @@ PATH_TOOL_VCC100X86_ATLMFC_LIB ?= $(PATH_TOOL_VCC100X86_ATLMFC)/lib
 TOOL_VCC100X86_CC  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/cl.exe
 TOOL_VCC100X86_CXX ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/cl.exe
 TOOL_VCC100X86_AS  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/ml.exe
-TOOL_VCC100X86_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/lib.exe
+#TOOL_VCC100X86_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/lib.exe - just an exec wrapper for the below
+TOOL_VCC100X86_AR  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/link.exe /LIB
 TOOL_VCC100X86_LD  ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/link.exe
 TOOL_VCC100X86_DUMPBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/dumpbin.exe
 TOOL_VCC100X86_EDITBIN ?= $(EXEC_X86_WIN32) $(PATH_TOOL_VCC100X86_BIN)/editbin.exe
@@ -76,6 +77,7 @@ TOOL_VCC100X86_MT  ?= $(EXEC_X86_WIN32) $(call TOOL_VCC100_FN_FIND_SDK_TOOL,mt.e
 ifdef TOOL_VCC100X86_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   TOOL_VCC100X86_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
+  TOOL_VCC100X86_KSUBMIT_DD = $(TOOL_VCC100X86_KSUBMIT) --
  endif
 endif
 
@@ -298,7 +300,7 @@ define TOOL_VCC100X86_LINK_LIBRARY_CMDS
 			$(filter-out %.def,$(othersrc))) \
 			$(addprefix /DEF:,$(filter %.def,$(othersrc))) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100X86_AR) $(flags) /OUT:$(out) @$(outbase).rsp
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT_DD) $(TOOL_VCC100X86_AR) $(flags) /OUT:$(out) @$(outbase).rsp
 endef
 
 
@@ -328,7 +330,7 @@ define TOOL_VCC100X86_LINK_PROGRAM_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT_DD) $(TOOL_VCC100X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
@@ -370,7 +372,7 @@ define TOOL_VCC100X86_LINK_DLL_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT_DD) $(TOOL_VCC100X86_LD) $(flags) \
 		/OUT:$(out) \
 		/IMPLIB:$(outbase).lib \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
@@ -416,7 +418,7 @@ define TOOL_VCC100X86_LINK_SYSMOD_CMDS
 		    $(subst /,\\,$(objs)) \
 		    $(subst /,\\,$(libs)) \
 			,\"$(arg)\")
-	$(QUIET)$(TOOL_VCC100X86_LD) $(flags) \
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT_DD) $(TOOL_VCC100X86_LD) $(flags) \
 		/OUT:$(out) \
 		/MAPINFO:EXPORTS /INCREMENTAL:NO \
 		/MAP:$(outbase).map \
