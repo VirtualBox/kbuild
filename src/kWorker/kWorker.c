@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2905 2016-09-09 17:46:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2637,42 +2637,50 @@ static void __cdecl kwSandbox_msvcrt_terminate(void)
 /** CRT - _onexit   */
 static _onexit_t __cdecl kwSandbox_msvcrt__onexit(_onexit_t pfnFunc)
 {
-    PKWEXITCALLACK pCallback;
-    KW_LOG(("_onexit(%p)\n", pfnFunc));
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-
-    pCallback = kHlpAlloc(sizeof(*pCallback));
-    if (pCallback)
+    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
     {
-        pCallback->pfnCallback = pfnFunc;
-        pCallback->fAtExit     = K_FALSE;
-        pCallback->pNext       = g_Sandbox.pExitCallbackHead;
-        g_Sandbox.pExitCallbackHead = pCallback;
-        return pfnFunc;
-    }
+        PKWEXITCALLACK pCallback;
+        KW_LOG(("_onexit(%p)\n", pfnFunc));
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
-    return NULL;
+        pCallback = kHlpAlloc(sizeof(*pCallback));
+        if (pCallback)
+        {
+            pCallback->pfnCallback = pfnFunc;
+            pCallback->fAtExit     = K_FALSE;
+            pCallback->pNext       = g_Sandbox.pExitCallbackHead;
+            g_Sandbox.pExitCallbackHead = pCallback;
+            return pfnFunc;
+        }
+        return NULL;
+    }
+    KW_LOG(("_onexit(%p) - IGNORED\n", pfnFunc));
+    return pfnFunc;
 }
 
 
 /** CRT - atexit   */
 static int __cdecl kwSandbox_msvcrt_atexit(int (__cdecl *pfnFunc)(void))
 {
-    PKWEXITCALLACK pCallback;
-    KW_LOG(("_onexit(%p)\n", pfnFunc));
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-
-    pCallback = kHlpAlloc(sizeof(*pCallback));
-    if (pCallback)
+    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
     {
-        pCallback->pfnCallback = (_onexit_t)pfnFunc;
-        pCallback->fAtExit     = K_TRUE;
-        pCallback->pNext       = g_Sandbox.pExitCallbackHead;
-        g_Sandbox.pExitCallbackHead = pCallback;
-        return 0;
-    }
+        PKWEXITCALLACK pCallback;
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+        KW_LOG(("atexit(%p)\n", pfnFunc));
 
-    return -1;
+        pCallback = kHlpAlloc(sizeof(*pCallback));
+        if (pCallback)
+        {
+            pCallback->pfnCallback = (_onexit_t)pfnFunc;
+            pCallback->fAtExit     = K_TRUE;
+            pCallback->pNext       = g_Sandbox.pExitCallbackHead;
+            g_Sandbox.pExitCallbackHead = pCallback;
+            return 0;
+        }
+        return -1;
+    }
+    KW_LOG(("atexit(%p) - IGNORED!\n", pfnFunc));
+    return 0;
 }
 
 

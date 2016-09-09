@@ -1,4 +1,4 @@
-/* $Id: maybe_con_fwrite.c 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_fwrite.c 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
@@ -87,14 +87,19 @@ size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *p
                         cwcToWrite = MultiByteToWideChar(s_uConsoleCp, 0 /*dwFlags*/, pvBuf, (int)cbToWrite, pawcTmp, (int)(cwcTmp - 1));
                         if (cwcToWrite > 0)
                         {
+                            int rc;
+                            pawcTmp[cwcToWrite] = '\0';
+
                             /* Let the CRT do the rest.  At least the Visual C++ 2010 CRT
                                sources indicates _cputws will do the right thing we want.  */
-                            pawcTmp[cwcToWrite] = '\0';
                             fflush(pFile);
-                            if (_cputws(pawcTmp) >= 0)
+                            rc = _cputws(pawcTmp);
+                            free(pawcTmp);
+                            if (rc >= 0)
                                 return cUnits;
                             return 0;
                         }
+                        free(pawcTmp);
                     }
                 }
             }
