@@ -1,6 +1,6 @@
-/* $Id: msc_buffered_printf.c 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 2907 2016-09-09 22:33:26Z knut.osmundsen@oracle.com $ */
 /** @file
- * printf and vprintf console optimizations for Windows/MSC.
+ * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
 
 /*
@@ -41,6 +41,7 @@
 
 #undef printf
 #undef vprintf
+#undef fprintf
 #undef puts
 #undef fputs
 #pragma warning(disable: 4273) /* inconsistent dll linkage*/
@@ -100,7 +101,52 @@ int __cdecl vprintf(const char *pszFormat, va_list va)
     /*
      * Fallback.
      */
-    return fprintf(stdout, pszFormat, va);
+    return vfprintf(stdout, pszFormat, va);
+}
+
+
+/**
+ * Replaces fprintf for MSC to speed up console output.
+ *
+ * @returns chars written on success, -1 and errno on failure.
+ * @param   pFile               The output file/stream.
+ * @param   pszFormat           The format string.
+ * @param   va                  Format arguments.
+ */
+__declspec(dllexport)
+int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
+{
+    va_list va;
+    int cchRet;
+
+    /*
+     * If it's a TTY, try format into a stack buffer and output using our
+     * console optimized fwrite wrapper.
+     */
+    if (*pszFormat != '\0')
+    {
+        int fd = fileno(pFile);
+        if (fd >= 0)
+        {
+            if (isatty(fd))
+            {
+                char szTmp[8192];
+                va_start(va, pszFormat);
+                cchRet = vsnprintf(szTmp, sizeof(szTmp), pszFormat, va);
+                va_end(va);
+                if (cchRet >= sizeof(szTmp) - 1)
+                    return (int)maybe_con_fwrite(szTmp, cchRet, 1, pFile);
+            }
+        }
+    }
+
+    /*
+     * Fallback.
+     */
+    va_start(va, pszFormat);
+    cchRet = vfprintf(pFile, pszFormat, va);
+    va_end(va);
+    return cchRet;
 }
 
 
@@ -199,6 +245,7 @@ int __cdecl fputs(const char *pszString, FILE *pFile)
 
 void * const __imp_printf  = (void *)(uintptr_t)printf;
 void * const __imp_vprintf = (void *)(uintptr_t)vprintf;
+void * const __imp_fprintf = (void *)(uintptr_t)fprintf;
 void * const __imp_puts    = (void *)(uintptr_t)puts;
 void * const __imp_fputs   = (void *)(uintptr_t)fputs;
 

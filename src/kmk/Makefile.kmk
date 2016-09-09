@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2899 2016-09-09 09:03:57Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2907 2016-09-09 22:33:26Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -57,7 +57,7 @@ TEMPLATE_BIN-KMK_INCS = $(kmk_0_OUTDIR) . $(TEMPLATE_BIN-THREADED_INCS)
 ifneq ($(KBUILD_TARGET),os2)
  TEMPLATE_BIN-KMK_INCS += glob
 endif
-TEMPLATE_BIN-KMK_LIBS = $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
+TEMPLATE_BIN-KMK_LIBS = $(LIB_KUTIL) $(TEMPLATE_BIN-THREADED_LIBS) $(kmkmissing_1_TARGET) $(LIB_KUTIL)
 ifdef ELECTRIC_HEAP # for electric heap (see electric.c) - windows only.
 ifeq ($(KBUILD_TARGET),win)
  TEMPLATE_BIN-KMK_CFLAGS = $(TEMPLATE_BIN-THREADED_CFLAGS) /FI$(kmk_DEFPATH)/electric.h -DELECTRIC_HEAP=1
