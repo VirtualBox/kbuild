@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 2907 2016-09-09 22:33:26Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 2908 2016-09-09 22:48:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -89,11 +89,11 @@ int __cdecl vprintf(const char *pszFormat, va_list va)
         {
             if (isatty(fd))
             {
-                char szTmp[8192];
+                char *pszTmp = (char *)alloca(16384);
                 va_list va2 = va;
-                int cchRet = vsnprintf(szTmp, sizeof(szTmp), pszFormat, va2);
-                if (cchRet >= sizeof(szTmp) - 1)
-                    return (int)maybe_con_fwrite(szTmp, cchRet, 1, stdout);
+                int cchRet = vsnprintf(pszTmp, 16384, pszFormat, va2);
+                if (cchRet < 16384 - 1)
+                    return (int)maybe_con_fwrite(pszTmp, cchRet, 1, stdout);
             }
         }
     }
@@ -130,12 +130,15 @@ int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
         {
             if (isatty(fd))
             {
-                char szTmp[8192];
-                va_start(va, pszFormat);
-                cchRet = vsnprintf(szTmp, sizeof(szTmp), pszFormat, va);
-                va_end(va);
-                if (cchRet >= sizeof(szTmp) - 1)
-                    return (int)maybe_con_fwrite(szTmp, cchRet, 1, pFile);
+                char *pszTmp = (char *)alloca(16384);
+                if (pszTmp)
+                {
+                    va_start(va, pszFormat);
+                    cchRet = vsnprintf(pszTmp, 16384, pszFormat, va);
+                    va_end(va);
+                    if (cchRet < 16384 - 1)
+                        return (int)maybe_con_fwrite(pszTmp, cchRet, 1, pFile);
+                }
             }
         }
     }
