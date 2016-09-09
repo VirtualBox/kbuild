@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2902 2016-09-09 17:15:22Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2905 2016-09-09 17:46:33Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -6096,7 +6096,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
          */
         if (offLastIncompleteLine < cwcToWrite)
         {
-            memcpy(&pLineBuf->pwcBuf, &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
+            memcpy(&pLineBuf->pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
             pLineBuf->cwcBuf = cchLastIncompleteLine;
         }
     }
