@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -38,6 +38,8 @@ kUtil_DEFS.win = __WIN__
 kUtil_SOURCES = \
 	crc32.c \
 	md5.c \
+	maybe_con_write.c \
+	maybe_con_fwrite.c \
 	kbuild_version.c
 kUtil_SOURCES.win = \
 	nt_fullpath.c \

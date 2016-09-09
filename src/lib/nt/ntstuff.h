@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -73,6 +73,59 @@ typedef struct MY_STRING
     PCHAR               Buffer;
 } MY_STRING;
 typedef MY_STRING MY_ANSI_STRING;
+
+typedef struct MY_CURDIR
+{
+    UNICODE_STRING      DosPath;
+    HANDLE              Handle;
+} MY_CURDIR;
+typedef MY_CURDIR *PMY_CURDIR;
+
+typedef struct MY_RTL_DRIVE_LETTER_CURDIR
+{
+    USHORT              Flags;
+    USHORT              Length;
+    ULONG               TimeStamp;
+    MY_ANSI_STRING      DosPath;
+} MY_RTL_DRIVE_LETTER_CURDIR;
+typedef MY_RTL_DRIVE_LETTER_CURDIR *PRTL_DRIVE_LETTER_CURDIR;
+
+typedef struct MY_RTL_USER_PROCESS_PARAMETERS
+{
+    ULONG               MaximumLength;
+    ULONG               Length;
+    ULONG               Flags;
+    ULONG               DebugFlags;
+    HANDLE              ConsoleHandle;
+    ULONG               ConsoleFlags;
+    HANDLE              StandardInput;
+    HANDLE              StandardOutput;
+    HANDLE              StandardError;
+    MY_CURDIR           CurrentDirectory;
+    MY_UNICODE_STRING   DllPath;
+    MY_UNICODE_STRING   ImagePathName;
+    MY_UNICODE_STRING   CommandLine;
+    PWSTR               Environment;
+    ULONG               StartingX;
+    ULONG               StartingY;
+    ULONG               CountX;
+    ULONG               CountY;
+    ULONG               CountCharsX;
+    ULONG               CountCharsY;
+    ULONG               FillAttribute;
+    ULONG               WindowFlags;
+    ULONG               ShowWindowFlags;
+    MY_UNICODE_STRING   WindowTitle;
+    MY_UNICODE_STRING   DesktopInfo;
+    MY_UNICODE_STRING   ShellInfo;
+    MY_UNICODE_STRING   RuntimeInfo;
+    MY_RTL_DRIVE_LETTER_CURDIR CurrentDirectories[0x20];
+    SIZE_T              EnvironmentSize;        /* >= Vista+ */
+    SIZE_T              EnvironmentVersion;     /* >= Windows 7. */
+    PVOID               PackageDependencyData;  /* >= Windows 8 or Windows 8.1. */
+    ULONG               ProcessGroupId;         /* >= Windows 8 or Windows 8.1. */
+} MY_RTL_USER_PROCESS_PARAMETERS;
+typedef MY_RTL_USER_PROCESS_PARAMETERS *PMY_RTL_USER_PROCESS_PARAMETERS;
 
 typedef struct MY_OBJECT_ATTRIBUTES
 {

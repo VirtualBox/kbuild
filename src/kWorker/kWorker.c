@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2898 2016-09-08 15:38:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -68,6 +68,11 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
  * This prevents wasting time on rehashing common headers each time
  * they are included. */
 #define WITH_HASH_MD5_CACHE
+
+/** @def WITH_CONSOLE_OUTPUT_BUFFERING
+ * Enables buffering of all console output as well as removal of annoying
+ * source file echo by cl.exe. */
+#define WITH_CONSOLE_OUTPUT_BUFFERING
 
 
 /** String constant comma length.   */
@@ -275,8 +280,8 @@ typedef struct KFSWCACHEDFILE
 /** Pointer to a cached filed. */
 typedef KFSWCACHEDFILE *PKFSWCACHEDFILE;
 
-
 #ifdef WITH_HASH_MD5_CACHE
+
 /** Pointer to a MD5 hash instance. */
 typedef struct KWHASHMD5 *PKWHASHMD5;
 /**
@@ -306,9 +311,9 @@ typedef struct KWHASHMD5
 } KWHASHMD5;
 /** Magic value for KWHASHMD5::uMagic (Les McCann). */
 # define KWHASHMD5_MAGIC    KUPTR_C(0x19350923)
+
 #endif /* WITH_HASH_MD5_CACHE */
-
-
+#ifdef WITH_TEMP_MEMORY_FILES
 
 typedef struct KWFSTEMPFILESEG *PKWFSTEMPFILESEG;
 typedef struct KWFSTEMPFILESEG
@@ -344,6 +349,52 @@ typedef struct KWFSTEMPFILE
     PKWFSTEMPFILESEG    paSegs;
 } KWFSTEMPFILE;
 
+#endif /* WITH_TEMP_MEMORY_FILES */
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+
+/**
+ * Console line buffer.
+ */
+typedef struct KWCONSOLEOUTPUTLINE
+{
+    /** The main output handle. */
+    HANDLE              hOutput;
+    /** Our backup handle. */
+    HANDLE              hBackup;
+    /** Set if this is a console handle. */
+    KBOOL               fIsConsole;
+    /** Amount of pending console output in wchar_t's. */
+    KU32                cwcBuf;
+    /** The allocated buffer size.   */
+    KU32                cwcBufAlloc;
+    /** Pending console output. */
+    wchar_t            *pwcBuf;
+} KWCONSOLEOUTPUTLINE;
+/** Pointer to a console line buffer. */
+typedef KWCONSOLEOUTPUTLINE *PKWCONSOLEOUTPUTLINE;
+
+/**
+ * Combined console buffer of complete lines.
+ */
+typedef struct KWCONSOLEOUTPUT
+{
+    /** The console output handle.
+     * INVALID_HANDLE_VALUE if we haven't got a console and shouldn't be doing any
+     * combined output buffering. */
+    HANDLE              hOutput;
+    /** The current code page for the console. */
+    KU32                uCodepage;
+    /** Amount of pending console output in wchar_t's. */
+    KU32                cwcBuf;
+    /** Number of times we've flushed it in any way (for cl.exe hack). */
+    KU32                cFlushes;
+    /** Pending console output. */
+    wchar_t             wszBuf[8192];
+} KWCONSOLEOUTPUT;
+/** Pointer to a combined console buffer. */
+typedef KWCONSOLEOUTPUT *PKWCONSOLEOUTPUT;
+
+#endif /* WITH_CONSOLE_OUTPUT_BUFFERING */
 
 /** Handle type.   */
 typedef enum KWHANDLETYPE
@@ -553,6 +604,15 @@ typedef struct KWSANDBOX
         void           *pvRead;
     } LastHashRead;
 #endif
+
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+    /** Standard output (and whatever else) line buffer. */
+    KWCONSOLEOUTPUTLINE StdOut;
+    /** Standard error line buffer. */
+    KWCONSOLEOUTPUTLINE StdErr;
+    /** Combined buffer of completed lines. */
+    KWCONSOLEOUTPUT     Combined;
+#endif
 } KWSANDBOX;
 
 /** Replacement function entry. */
@@ -639,6 +699,9 @@ static KU8          g_abDefLdBuf[16*1024*1024];
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
 static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle);
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, const char *pchBuffer, KU32 cchToWrite);
+#endif
 
 
 
@@ -5012,6 +5075,23 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
         }
     }
 
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+    /*
+     * Check for stdout and stderr.
+     */
+    if (   g_Sandbox.StdErr.hOutput == hFile
+        || g_Sandbox.StdOut.hOutput == hFile)
+    {
+        PKWCONSOLEOUTPUTLINE pLineBuf = g_Sandbox.StdErr.hOutput == hFile ? &g_Sandbox.StdErr : &g_Sandbox.StdOut;
+        if (pLineBuf->fIsConsole)
+        {
+            kwSandboxConsoleWriteA(&g_Sandbox, pLineBuf, (const char *)pvBuffer, cbToWrite);
+            KWFS_LOG(("WriteFile(console) -> TRUE\n", hFile));
+            return TRUE;
+        }
+    }
+#endif
+
     KWFS_LOG(("WriteFile(%p)\n", hFile));
     return WriteFile(hFile, pvBuffer, cbToWrite, pcbActuallyWritten, pOverlapped);
 }
@@ -5498,6 +5578,461 @@ static BOOL WINAPI kwSandbox_Kernel32_DeleteFileW(LPCWSTR pwszFilename)
     return fRc;
 }
 #endif /* WITH_TEMP_MEMORY_FILES */
+
+
+
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+
+/*
+ *
+ * Console output buffering.
+ * Console output buffering.
+ * Console output buffering.
+ *
+ */
+
+
+/**
+ * Write a wide char string to the console.
+ *
+ * @param   pSandbox            The sandbox which output buffer to flush.
+ */
+static void kwSandboxConsoleWriteIt(PKWSANDBOX pSandbox, wchar_t const *pwcBuf, KU32 cwcToWrite)
+{
+    if (cwcToWrite > 0)
+    {
+        DWORD cwcWritten = 0;
+        if (WriteConsoleW(pSandbox->Combined.hOutput, pwcBuf, cwcToWrite, &cwcWritten, NULL))
+        {
+            if (cwcWritten == cwcToWrite)
+            { /* likely */ }
+            else
+            {
+                DWORD off = 0;
+                do
+                {
+                    off += cwcWritten;
+                    cwcWritten = 0;
+                }
+                while (   off < cwcToWrite
+                       && WriteConsoleW(pSandbox->Combined.hOutput, &pwcBuf[off], cwcToWrite - off, &cwcWritten, NULL));
+                kHlpAssert(off == cwcWritten);
+            }
+        }
+        else
+            kHlpAssertFailed();
+        pSandbox->Combined.cFlushes++;
+    }
+}
+
+
+/**
+ * Flushes the combined console output buffer.
+ *
+ * @param   pSandbox            The sandbox which output buffer to flush.
+ */
+static void kwSandboxConsoleFlushCombined(PKWSANDBOX pSandbox)
+{
+    if (pSandbox->Combined.cwcBuf > 0)
+    {
+        kwSandboxConsoleWriteIt(pSandbox, pSandbox->Combined.wszBuf, pSandbox->Combined.cwcBuf);
+        pSandbox->Combined.cwcBuf = 0;
+    }
+}
+
+
+/**
+ * For handling combined buffer overflow cases line by line.
+ *
+ * @param   pSandbox            The sandbox.
+ * @param   pwcBuf              What to add to the combined buffer.  Usually a
+ *                              line, unless we're really low on buffer space.
+ * @param   cwcBuf              The length of what to add.
+ * @param   fBrokenLine         Whether this is a broken line.
+ */
+static void kwSandboxConsoleAddToCombined(PKWSANDBOX pSandbox, wchar_t const *pwcBuf, KU32 cwcBuf, KBOOL fBrokenLine)
+{
+    if (fBrokenLine)
+        kwSandboxConsoleFlushCombined(pSandbox);
+    if (pSandbox->Combined.cwcBuf + cwcBuf > K_ELEMENTS(pSandbox->Combined.wszBuf))
+    {
+        kwSandboxConsoleFlushCombined(pSandbox);
+        kwSandboxConsoleWriteIt(pSandbox, pwcBuf, cwcBuf);
+    }
+    else
+    {
+        memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuf, cwcBuf * sizeof(wchar_t));
+        pSandbox->Combined.cwcBuf += cwcBuf;
+    }
+}
+
+
+/**
+ * Called to final flush a line buffer via the combined buffer (if applicable).
+ *
+ * @param   pSandbox            The sandbox.
+ * @param   pLineBuf            The line buffer.
+ */
+static void kwSandboxConsoleFinalFlushLineBuf(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf)
+{
+    if (pLineBuf->cwcBuf > 0)
+    {
+        if (pLineBuf->fIsConsole)
+        {
+            if (pLineBuf->cwcBuf < pLineBuf->cwcBufAlloc)
+            {
+                pLineBuf->pwcBuf[pLineBuf->cwcBuf++] = '\n';
+                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_FALSE /*fBrokenLine*/);
+            }
+            else
+            {
+                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
+                kwSandboxConsoleAddToCombined(pSandbox, L"\n", 1, K_TRUE /*fBrokenLine*/);
+            }
+            pLineBuf->cwcBuf = 0;
+        }
+        else
+        {
+            kHlpAssertFailed();
+        }
+    }
+}
+
+
+/**
+ * Called at the end of sandboxed execution to flush both stream buffers.
+ *
+ * @param   pSandbox            The sandbox.
+ */
+static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
+{
+    /*
+     * First do the cl.exe source file supression trick, if applicable.
+     */
+    if (   pSandbox->Combined.cwcBuf >= 3
+        && pSandbox->StdOut.cwcBuf == 0
+        && pSandbox->StdErr.cwcBuf == 0
+        && pSandbox->Combined.cFlushes == 0
+        && pSandbox->pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
+    {
+        KI32    off = pSandbox->Combined.cwcBuf - 1;
+        if (pSandbox->Combined.wszBuf[off] == '\n')
+        {
+            KBOOL fOk = K_TRUE;
+            while (off-- > 0)
+            {
+                wchar_t const wc = pSandbox->Combined.wszBuf[off];
+                if (iswalnum(wc) || wc == '.' || wc == ' ' || wc == '_' || wc == '-')
+                { /* likely */ }
+                else
+                {
+                    fOk = K_FALSE;
+                    break;
+                }
+            }
+            if (fOk)
+            {
+                pSandbox->Combined.cwcBuf = 0;
+                return;
+            }
+        }
+    }
+
+    /*
+     * Flush the two line buffer, the the combined buffer.
+     */
+    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdErr);
+    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdOut);
+    kwSandboxConsoleFlushCombined(pSandbox);
+}
+
+
+/**
+ * Writes a string to the given output stream.
+ *
+ * @param   pSandbox            The sandbox.
+ * @param   pLineBuf            The line buffer for the output stream.
+ * @param   pwcBuffer           The buffer to write.
+ * @param   cwcToWrite          The number of wchar_t's in the buffer.
+ */
+static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, wchar_t const *pwcBuffer, KU32 cwcToWrite)
+{
+    if (cwcToWrite > 0)
+    {
+        /*
+         * First, find the start of the last incomplete line so we can figure
+         * out how much line buffering we need to do.
+         */
+        KU32 cchLastIncompleteLine;
+        KU32 offLastIncompleteLine = cwcToWrite;
+        while (   offLastIncompleteLine > 0
+               && pwcBuffer[offLastIncompleteLine - 1] != '\n')
+            offLastIncompleteLine--;
+        cchLastIncompleteLine = cwcToWrite - offLastIncompleteLine;
+
+        /* Was there anything to line buffer? */
+        if (offLastIncompleteLine < cwcToWrite)
+        {
+            /* Need to grow the line buffer? */
+            KU32 cwcNeeded = offLastIncompleteLine != 0 ? offLastIncompleteLine : cchLastIncompleteLine + pLineBuf->cwcBuf;
+            if (cwcNeeded > pLineBuf->cwcBufAlloc)
+            {
+                void *pvNew;
+                KU32  cwcNew = !pLineBuf->cwcBufAlloc ? 1024 : pLineBuf->cwcBufAlloc * 2;
+                while (cwcNew < cwcNeeded)
+                    cwcNew *= 2;
+                pvNew = kHlpRealloc(pLineBuf->pwcBuf, cwcNew * sizeof(wchar_t));
+                if (pvNew)
+                {
+                    pLineBuf->pwcBuf = (wchar_t *)pvNew;
+                    pLineBuf->cwcBufAlloc = cwcNew;
+                }
+                else
+                {
+                    pvNew = kHlpRealloc(pLineBuf->pwcBuf, cwcNeeded * sizeof(wchar_t));
+                    if (pvNew)
+                    {
+                        pLineBuf->pwcBuf = (wchar_t *)pvNew;
+                        pLineBuf->cwcBufAlloc = cwcNeeded;
+                    }
+                    else
+                    {
+                        /* This isn't perfect, but it will have to do for now. */
+                        if (pLineBuf->cwcBuf > 0)
+                        {
+                            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
+                            pLineBuf->cwcBuf = 0;
+                        }
+                        kwSandboxConsoleAddToCombined(pSandbox, pwcBuffer, cwcToWrite, K_TRUE /*fBrokenLine*/);
+                        return;
+                    }
+                }
+            }
+
+            /*
+             * Handle the case where we only add to the line buffer.
+             */
+            if (offLastIncompleteLine == 0)
+            {
+                memcpy(&pLineBuf->pwcBuf[pLineBuf->cwcBuf], pwcBuffer, cwcToWrite * sizeof(wchar_t));
+                pLineBuf->cwcBuf += cwcToWrite;
+                return;
+            }
+        }
+
+        /*
+         * If there is sufficient combined buffer to handle this request, this are rather simple.
+         */
+        if (pLineBuf->cwcBuf + cchLastIncompleteLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+        {
+            if (pLineBuf->cwcBuf > 0)
+            {
+                memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                       pLineBuf->pwcBuf, pLineBuf->cwcBuf * sizeof(wchar_t));
+                pSandbox->Combined.cwcBuf += pLineBuf->cwcBuf;
+                pLineBuf->cwcBuf = 0;
+            }
+
+            memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                   pwcBuffer, offLastIncompleteLine * sizeof(wchar_t));
+            pSandbox->Combined.cwcBuf += offLastIncompleteLine;
+        }
+        else
+        {
+            /*
+             * Do line-by-line processing of the input, flusing the combined buffer
+             * when it becomes necessary.  We may have to write lines
+             */
+            KU32 off = 0;
+            KU32 offNextLine = 0;
+
+            /* If there is buffered chars, we handle the first line outside the
+               main loop.  We must try our best outputting it as a complete line. */
+            if (pLineBuf->cwcBuf > 0)
+            {
+                while (offNextLine < cwcToWrite && pwcBuffer[offNextLine] != '\n')
+                    offNextLine++;
+                offNextLine++;
+                kHlpAssert(offNextLine <= offLastIncompleteLine);
+
+                if (pLineBuf->cwcBuf + offNextLine + pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+                {
+                    memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                           pLineBuf->pwcBuf, pLineBuf->cwcBuf * sizeof(wchar_t));
+                    pSandbox->Combined.cwcBuf += pLineBuf->cwcBuf;
+                    pLineBuf->cwcBuf = 0;
+
+                    memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuffer, offNextLine * sizeof(wchar_t));
+                    pSandbox->Combined.cwcBuf += offNextLine;
+                }
+                else
+                {
+                    KU32 cwcLeft = pLineBuf->cwcBufAlloc - pLineBuf->cwcBuf;
+                    if (cwcLeft > 0)
+                    {
+                        KU32 cwcCopy = K_MIN(cwcLeft, offNextLine);
+                        memcpy(&pLineBuf->pwcBuf[pLineBuf->cwcBuf], pwcBuffer, cwcCopy * sizeof(wchar_t));
+                        pLineBuf->cwcBuf += cwcCopy;
+                        off += cwcCopy;
+                    }
+                    if (pLineBuf->cwcBuf > 0)
+                    {
+                        kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
+                        pLineBuf->cwcBuf = 0;
+                    }
+                    if (off < offNextLine)
+                        kwSandboxConsoleAddToCombined(pSandbox, &pwcBuffer[off], offNextLine - off, K_TRUE /*fBrokenLine*/);
+                }
+                off = offNextLine;
+            }
+
+            /* Deal with the remaining lines */
+            while (off < offLastIncompleteLine)
+            {
+                while (offNextLine < offLastIncompleteLine && pwcBuffer[offNextLine] != '\n')
+                    offNextLine++;
+                offNextLine++;
+                kHlpAssert(offNextLine <= offLastIncompleteLine);
+                kwSandboxConsoleAddToCombined(pSandbox, &pwcBuffer[off], offNextLine - off, K_FALSE /*fBrokenLine*/);
+                off = offNextLine;
+            }
+        }
+
+        /*
+         * Buffer any remaining incomplete line chars.
+         */
+        if (offLastIncompleteLine < cwcToWrite)
+        {
+            memcpy(&pLineBuf->pwcBuf, &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
+            pLineBuf->cwcBuf = cchLastIncompleteLine;
+        }
+    }
+}
+
+
+/**
+ * Worker for WriteConsoleA and WriteFile.
+ *
+ * @param   pSandbox            The sandbox.
+ * @param   pLineBuf            The line buffer.
+ * @param   pchBuffer           What to write.
+ * @param   cchToWrite          How much to write.
+ */
+static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, const char *pchBuffer, KU32 cchToWrite)
+{
+    /*
+     * Convert it to wide char and use the 'W' to do the work.
+     */
+    int         cwcRet;
+    KU32        cwcBuf = cchToWrite * 2 + 1;
+    wchar_t    *pwcBufFree = NULL;
+    wchar_t    *pwcBuf;
+
+    if (cwcBuf <= 4096)
+        pwcBuf = alloca(cwcBuf * sizeof(wchar_t));
+    else
+        pwcBuf = pwcBufFree = kHlpAlloc(cwcBuf * sizeof(wchar_t));
+
+    cwcRet = MultiByteToWideChar(pSandbox->Combined.uCodepage, 0/*dwFlags*/, pchBuffer, cchToWrite, pwcBuf, cwcBuf);
+    if (cwcRet > 0)
+         kwSandboxConsoleWriteW(pSandbox, pLineBuf, pwcBuf, cwcRet);
+    else
+    {
+        DWORD cchWritten;
+        kHlpAssertFailed();
+
+        /* Flush the line buffer and combined buffer before calling WriteConsoleA. */
+        if (pLineBuf->cwcBuf > 0)
+        {
+            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBroken*/);
+            pLineBuf->cwcBuf = 0;
+        }
+        kwSandboxConsoleFlushCombined(pSandbox);
+
+        if (WriteConsoleA(pLineBuf->hBackup, pchBuffer, cchToWrite, &cchWritten, NULL /*pvReserved*/))
+        {
+            if (cchWritten >= cchToWrite)
+            { /* likely */ }
+            else
+            {
+                KU32 off = 0;
+                do
+                {
+                    off += cchWritten;
+                    cchWritten = 0;
+                } while (   off < cchToWrite
+                         && WriteConsoleA(pLineBuf->hBackup, &pchBuffer[off], cchToWrite - off, &cchWritten, NULL));
+            }
+        }
+    }
+
+    if (pwcBufFree)
+        kHlpFree(pwcBufFree);
+}
+
+
+/** Kernel32 - WriteConsoleA  */
+BOOL WINAPI kwSandbox_Kernel32_WriteConsoleA(HANDLE hConOutput, CONST VOID *pvBuffer, DWORD cbToWrite, PDWORD pcbWritten,
+                                             PVOID pvReserved)
+{
+    BOOL                    fRc;
+    PKWCONSOLEOUTPUTLINE    pLineBuf;
+
+    if (hConOutput == g_Sandbox.StdErr.hOutput)
+        pLineBuf = &g_Sandbox.StdErr;
+    else
+        pLineBuf = &g_Sandbox.StdOut;
+    if (pLineBuf->fIsConsole)
+    {
+        kwSandboxConsoleWriteA(&g_Sandbox, pLineBuf, (char const *)pvBuffer, cbToWrite);
+
+        KWFS_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> TRUE [cached]\n",
+                  hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved));
+        if (pcbWritten)
+            *pcbWritten = cbToWrite;
+        fRc = TRUE;
+    }
+    else
+    {
+        fRc = WriteConsoleA(hConOutput, pvBuffer, cbToWrite, pcbWritten, pvReserved);
+        KWFS_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> %d !fallback!\n",
+                  hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved, fRc));
+    }
+    return fRc;
+}
+
+
+/** Kernel32 - WriteConsoleW  */
+BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBuffer, DWORD cwcToWrite, PDWORD pcwcWritten,
+                                             PVOID pvReserved)
+{
+    BOOL                    fRc;
+    PKWCONSOLEOUTPUTLINE    pLineBuf;
+
+    if (hConOutput == g_Sandbox.StdErr.hOutput)
+        pLineBuf = &g_Sandbox.StdErr;
+    else
+        pLineBuf = &g_Sandbox.StdOut;
+    if (pLineBuf->fIsConsole)
+    {
+        kwSandboxConsoleWriteW(&g_Sandbox, pLineBuf, (wchar_t const *)pvBuffer, cwcToWrite);
+
+        KWFS_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> TRUE [cached]\n",
+                  hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved));
+        if (pcwcWritten)
+            *pcwcWritten = cwcToWrite;
+        fRc = TRUE;
+    }
+    else
+    {
+        fRc = WriteConsoleW(hConOutput, pvBuffer, cwcToWrite, pcwcWritten, pvReserved);
+        KWFS_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> %d !fallback!\n",
+                  hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved, fRc));
+    }
+    return fRc;
+}
+
+#endif /* WITH_CONSOLE_OUTPUT_BUFFERING */
 
 
 
@@ -6126,6 +6661,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
 #endif
 
+    { TUPLE("WriteConsoleA"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleA },
+    { TUPLE("WriteConsoleW"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleW },
+
     { TUPLE("VirtualAlloc"),                NULL,       (KUPTR)kwSandbox_Kernel32_VirtualAlloc },
     { TUPLE("VirtualFree"),                 NULL,       (KUPTR)kwSandbox_Kernel32_VirtualFree },
 
@@ -6239,6 +6777,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("DeleteFileW"),                 NULL,       (KUPTR)kwSandbox_Kernel32_DeleteFileW },
 #endif
     { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
+
+    { TUPLE("WriteConsoleA"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleA },
+    { TUPLE("WriteConsoleW"),               NULL,       (KUPTR)kwSandbox_Kernel32_WriteConsoleW },
 
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
@@ -6552,6 +7093,12 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->idMainThread  = GetCurrentThreadId();
     pSandbox->pgmptr        = (char *)pTool->pszPath;
     pSandbox->wpgmptr       = (wchar_t *)pTool->pwszPath;
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+    pSandbox->StdOut.cwcBuf = 0;
+    pSandbox->StdErr.cwcBuf = 0;
+    pSandbox->Combined.cwcBuf = 0;
+    pSandbox->Combined.cFlushes = 0;
+#endif
     pSandbox->cArgs         = cArgs;
     pSandbox->papszArgs     = (char **)papszArgs;
     pSandbox->pszCmdLine    = kwSandboxInitCmdLineFromArgv(cArgs, papszArgs, fWatcomBrainDamange, &cbCmdLine);
@@ -6884,7 +7431,13 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
         else
             rcExit = 42 + 4;
 
-        /* Clean up essential bits only, the rest is done after we've replied to kmk. */
+        /*
+         * Flush and clean up the essential bits only, postpone whatever we
+         * can till after we've replied to kmk.
+         */
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+        kwSandboxConsoleFlushAll(&g_Sandbox);
+#endif
         kwSandboxCleanup(&g_Sandbox);
     }
     else
@@ -7375,6 +7928,11 @@ int main(int argc, char **argv)
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
     PVOID           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/, kwSandboxVecXcptEmulateChained);
 #endif
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+    HANDLE                          hCurProc       = GetCurrentProcess();
+    PPEB                            pPeb           = kwSandboxGetProcessEnvironmentBlock();
+    PMY_RTL_USER_PROCESS_PARAMETERS pProcessParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
+#endif
 
     /*
      * Register our Control-C and Control-Break handlers.
@@ -7398,6 +7956,40 @@ int main(int argc, char **argv)
     pszTmp = getenv("TMPDIR");
     if (pszTmp && *pszTmp != '\0')
         kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, pszTmp, &enmIgnored));
+
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+    /*
+     * Get and duplicate the console handles.
+     */
+    g_Sandbox.StdOut.hOutput = pProcessParams->StandardOutput;
+    if (!DuplicateHandle(hCurProc, pProcessParams->StandardOutput, hCurProc, &g_Sandbox.StdOut.hBackup,
+                         GENERIC_WRITE, FALSE /*fInherit*/, DUPLICATE_SAME_ACCESS))
+        kHlpAssertFailedStmt(g_Sandbox.StdOut.hBackup = pProcessParams->StandardOutput);
+    g_Sandbox.StdOut.fIsConsole = GetFileType(g_Sandbox.StdOut.hOutput) == FILE_TYPE_CHAR;
+
+    g_Sandbox.StdErr.hOutput = pProcessParams->StandardError;
+    if (!DuplicateHandle(hCurProc, pProcessParams->StandardError, hCurProc, &g_Sandbox.StdErr.hBackup,
+                         GENERIC_WRITE, FALSE /*fInherit*/, DUPLICATE_SAME_ACCESS))
+        kHlpAssertFailedStmt(g_Sandbox.StdErr.hBackup = pProcessParams->StandardError);
+    g_Sandbox.StdErr.fIsConsole = GetFileType(g_Sandbox.StdErr.hOutput) == FILE_TYPE_CHAR;
+
+    if (g_Sandbox.StdErr.fIsConsole)
+    {
+        g_Sandbox.Combined.hOutput   = g_Sandbox.StdErr.hBackup;
+        g_Sandbox.Combined.uCodepage = GetConsoleCP();
+    }
+    else if (g_Sandbox.StdOut.fIsConsole)
+    {
+        g_Sandbox.Combined.hOutput   = g_Sandbox.StdOut.hBackup;
+        g_Sandbox.Combined.uCodepage = GetConsoleCP();
+    }
+    else
+    {
+        g_Sandbox.Combined.hOutput   = INVALID_HANDLE_VALUE;
+        g_Sandbox.Combined.uCodepage = CP_ACP;
+    }
+#endif
+
 
     /*
      * Parse arguments.
