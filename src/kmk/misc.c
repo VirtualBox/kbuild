@@ -291,6 +291,30 @@ message (prefix, fmt, va_alist)
 
   if (fmt != 0)
     {
+#ifdef KBUILD_OS_WINDOWS
+      char szMsg[16384];
+      int cchMsg = 0;
+      int cchUser;
+      if (prefix)
+        {
+          if (makelevel == 0)
+            cchMsg = snprintf (szMsg, sizeof(szMsg), "%s: ", program);
+          else
+            cchMsg = snprintf (szMsg, sizeof(szMsg), "%s[%u]: ", program, makelevel);
+        }
+      VA_START (args, fmt);
+      cchMsg += cchUser = vsnprintf (&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+      VA_END (args);
+      if (   cchMsg < sizeof(szMsg)
+          && cchUser >= 0)
+        {
+          extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+          szMsg[cchMsg++] = '\n';
+          maybe_con_fwrite(szMsg, cchMsg, 1, stdout);
+        }
+      else
+        {
+#endif
       if (prefix)
 	{
 	  if (makelevel == 0)
@@ -302,6 +326,9 @@ message (prefix, fmt, va_alist)
       VA_PRINTF (stdout, fmt, args);
       VA_END (args);
       putchar ('\n');
+#ifdef KBUILD_OS_WINDOWS
+        }
+#endif
     }
 
   fflush (stdout);
@@ -322,8 +349,35 @@ error (flocp, fmt, va_alist)
 #if USE_VARIADIC
   va_list args;
 #endif
+#ifdef KMK
+  char szMsg[16384];
+  int cchMsg = 0;
+  int cchUser;
+#endif
 
   log_working_directory (1);
+
+#ifdef KMK /* Try avoid getting the error split by child output.  */
+  if (flocp && flocp->filenm)
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s:%lu: ", flocp->filenm, flocp->lineno);
+  else if (makelevel == 0)
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s: ", program);
+  else
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s[%u]: ", program, makelevel);
+
+  VA_START (args, fmt);
+  cchMsg += cchUser = vsnprintf (&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+  VA_END (args);
+  if (   cchMsg < sizeof(szMsg)
+      && cchUser >= 0)
+    {
+      extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+      szMsg[cchMsg++] = '\n';
+      maybe_con_fwrite(szMsg, cchMsg, 1, stderr);
+    }
+  else
+    {
+#endif /* KMK */
 
   if (flocp && flocp->filenm)
     fprintf (stderr, "%s:%lu: ", flocp->filenm, flocp->lineno);
@@ -337,6 +391,9 @@ error (flocp, fmt, va_alist)
   VA_END (args);
 
   putc ('\n', stderr);
+#ifdef KMK
+    }
+#endif
   fflush (stderr);
 }
 
@@ -355,9 +412,38 @@ fatal (flocp, fmt, va_alist)
 #if USE_VARIADIC
   va_list args;
 #endif
+#ifdef KMK
+  char szMsg[16384];
+  int cchMsg = 0;
+  int cchUser;
+  const char *pszStop = _(".  Stop.\n");
+  int         cchStop = (int)strlen(pszStop);
+#endif
 
   log_working_directory (1);
 
+#ifdef KMK /* Try avoid getting the error split by child output.  */
+  if (flocp && flocp->filenm)
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s:%lu: *** ", flocp->filenm, flocp->lineno);
+  else if (makelevel == 0)
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s: *** ", program);
+  else
+    cchMsg = snprintf (szMsg, sizeof(szMsg), "%s[%u]: *** ", program, makelevel);
+
+  VA_START (args, fmt);
+  cchMsg += cchUser = vsnprintf (&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+  VA_END (args);
+  if (   cchMsg + cchStop <= sizeof(szMsg)
+      && cchUser >= 0)
+    {
+      extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+      memcpy(&szMsg[cchMsg], pszStop, cchStop);
+      cchMsg += cchStop;
+      maybe_con_fwrite(szMsg, cchMsg, 1, stderr);
+    }
+  else
+    {
+#endif /* KMK */
   if (flocp && flocp->filenm)
     fprintf (stderr, "%s:%lu: *** ", flocp->filenm, flocp->lineno);
   else if (makelevel == 0)
@@ -370,6 +456,9 @@ fatal (flocp, fmt, va_alist)
   VA_END (args);
 
   fputs (_(".  Stop.\n"), stderr);
+#ifdef KMK
+    }
+#endif
 
   die (2);
 }
