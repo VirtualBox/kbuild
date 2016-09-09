@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 2899 2016-09-09 09:03:57Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -36,6 +36,7 @@
 
 #include "kbuild_version.h"
 
+struct child;
 int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
 int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char ***ppapszArgvToSpawn, pid_t *pPidSpawned);
 

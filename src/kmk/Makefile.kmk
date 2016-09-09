@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2899 2016-09-09 09:03:57Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -281,7 +281,7 @@ kmk_SOURCES += \
 	kmkbuiltin/printf.c \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
-	kmkbuiltin/kSubmit.c \
+	$(if-expr $(KBUILD_TARGET) == win,kmkbuiltin/kSubmit.c) \
 	kmkbuiltin/sleep.c \
 	kmkbuiltin/test.c
 
