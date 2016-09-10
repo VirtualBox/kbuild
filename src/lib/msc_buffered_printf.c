@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 2908 2016-09-09 22:48:40Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 2910 2016-09-10 00:57:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -238,7 +238,7 @@ __declspec(dllexport)
 int __cdecl fputs(const char *pszString, FILE *pFile)
 {
     size_t cchString = strlen(pszString);
-    size_t cch = maybe_con_fwrite(pszString, cchString, 1, stdout);
+    size_t cch = maybe_con_fwrite(pszString, cchString, 1, pFile);
     if (cch == cchString)
         return 0;
     return -1;
