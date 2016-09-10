@@ -1,10 +1,10 @@
-/* $Id: err.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 2911 2016-09-10 11:16:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
 
 /*
- * Copyright (c) 2005-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * This file is part of kBuild.
  *
@@ -33,6 +33,13 @@
 #include <errno.h>
 #include "err.h"
 
+#ifdef KBUILD_OS_WINDOWS
+/* This is a trick to speed up console output on windows. */
+# undef fwrite
+# define fwrite maybe_con_fwrite
+extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);
+#endif
+
 
 /** The current program name. */
 const char *g_progname = "kmk";
@@ -42,6 +49,34 @@ int err(int eval, const char *fmt, ...)
 {
     va_list args;
     int error = errno;
+
+    /* stderr is unbuffered, so try format the whole message and print it in
+       one go so it won't be split by other output. */
+    char szMsg[4096];
+    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
+    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    {
+        int cchMsg2;
+        va_start(args, fmt);
+        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+        va_end(args);
+
+        if (   cchMsg < sizeof(szMsg) - 1
+            && cchMsg2 >= 0)
+        {
+            cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
+            if (   cchMsg < sizeof(szMsg) - 1
+                && cchMsg2 >= 0)
+            {
+                fwrite(szMsg, cchMsg, 1, stderr);
+                return eval;
+            }
+
+        }
+
+    }
+
+    /* fallback */
     fprintf(stderr, "%s: ", g_progname);
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -55,6 +90,29 @@ int err(int eval, const char *fmt, ...)
 int errx(int eval, const char *fmt, ...)
 {
     va_list args;
+
+    /* stderr is unbuffered, so try format the whole message and print it in
+       one go so it won't be split by other output. */
+    char szMsg[4096];
+    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
+    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    {
+        int cchMsg2;
+        va_start(args, fmt);
+        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+        va_end(args);
+
+        if (   cchMsg < sizeof(szMsg) - 1
+            && cchMsg2 >= 0)
+        {
+            szMsg[cchMsg++] = '\n';
+            fwrite(szMsg, cchMsg, 1, stderr);
+            return eval;
+        }
+
+    }
+
+    /* fallback */
     fprintf(stderr, "%s: ", g_progname);
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -68,6 +126,33 @@ void warn(const char *fmt, ...)
 {
     int error = errno;
     va_list args;
+
+    /* stderr is unbuffered, so try format the whole message and print it in
+       one go so it won't be split by other output. */
+    char szMsg[4096];
+    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
+    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    {
+        int cchMsg2;
+        va_start(args, fmt);
+        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+        va_end(args);
+
+        if (   cchMsg < sizeof(szMsg) - 1
+            && cchMsg2 >= 0)
+        {
+            cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
+            if (   cchMsg < sizeof(szMsg) - 1
+                && cchMsg2 >= 0)
+            {
+                fwrite(szMsg, cchMsg, 1, stderr);
+                return;
+            }
+
+        }
+    }
+
+    /* fallback */
     fprintf(stderr, "%s: ", g_progname);
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -78,6 +163,29 @@ void warn(const char *fmt, ...)
 void warnx(const char *fmt, ...)
 {
     va_list args;
+
+    /* stderr is unbuffered, so try format the whole message and print it in
+       one go so it won't be split by other output. */
+    char szMsg[4096];
+    int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
+    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    {
+        int cchMsg2;
+        va_start(args, fmt);
+        cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
+        va_end(args);
+
+        if (   cchMsg < sizeof(szMsg) - 1
+            && cchMsg2 >= 0)
+        {
+            szMsg[cchMsg++] = '\n';
+            fwrite(szMsg, cchMsg, 1, stderr);
+            return;
+        }
+
+    }
+
+    /* fallback */
     fprintf(stderr, "%s: ", g_progname);
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
