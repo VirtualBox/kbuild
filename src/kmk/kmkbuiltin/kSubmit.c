@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1161,205 +1161,6 @@ static void kSubmitAtExitCallback(void)
 }
 
 
-/** The environment variable compare function.
- * We must use case insensitive compare on windows (Path vs PATH).  */
-#ifdef KBUILD_OS_WINDOWS
-# define KSUBMIT_ENV_NCMP   _strnicmp
-#else
-# define KSUBMIT_ENV_NCMP   strncmp
-#endif
-
-
-/**
- * Handles the --set var=value option.
- *
- * @returns 0 on success, non-zero exit code on error.
- * @param   papszEnv            The environment vector.
- * @param   pcEnvVars           Pointer to the variable holding the number of
- *                              environment variables held by @a papszEnv.
- * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
- *                              environment vector.
- * @param   cVerbosity          The verbosity level.
- * @param   pszValue            The var=value string to apply.
- */
-static int kSubmitOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
-                            int cVerbosity, const char *pszValue)
-{
-    const char *pszEqual = strchr(pszValue, '=');
-    if (pszEqual)
-    {
-        char   **papszEnv = *ppapszEnv;
-        unsigned iEnvVar;
-        unsigned cEnvVars = *pcEnvVars;
-        size_t const cchVar = pszEqual - pszValue;
-        for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-        {
-            char *pszCur = papszEnv[iEnvVar];
-            if (   KSUBMIT_ENV_NCMP(pszCur, pszValue, cchVar) == 0
-                && pszCur[cchVar] == '=')
-            {
-                if (cVerbosity > 0)
-                    fprintf(stderr, "kSubmit: replacing '%s' with '%s'\n", papszEnv[iEnvVar], pszValue);
-                free(papszEnv[iEnvVar]);
-                papszEnv[iEnvVar] = xstrdup(pszValue);
-                break;
-            }
-        }
-        if (iEnvVar == cEnvVars)
-        {
-            /* Append new variable. We probably need to resize the vector. */
-            if ((cEnvVars + 2) > *pcAllocatedEnvVars)
-            {
-                *pcAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
-                *ppapszEnv = papszEnv = (char **)xrealloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
-            }
-            papszEnv[cEnvVars++] = xstrdup(pszValue);
-            papszEnv[cEnvVars]   = NULL;
-            *pcEnvVars = cEnvVars;
-            if (cVerbosity > 0)
-                fprintf(stderr, "kSubmit: added '%s'\n", papszEnv[iEnvVar]);
-        }
-        else
-        {
-            /* Check for duplicates. */
-            for (iEnvVar++; iEnvVar < cEnvVars; iEnvVar++)
-                if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszValue, cchVar) == 0
-                    && papszEnv[iEnvVar][cchVar] == '=')
-                {
-                    if (cVerbosity > 0)
-                        fprintf(stderr, "kSubmit: removing duplicate '%s'\n", papszEnv[iEnvVar]);
-                    free(papszEnv[iEnvVar]);
-                    cEnvVars--;
-                    if (iEnvVar != cEnvVars)
-                        papszEnv[iEnvVar] = papszEnv[cEnvVars];
-                    papszEnv[cEnvVars] = NULL;
-                    iEnvVar--;
-                }
-        }
-    }
-    else
-        return errx(1, "Missing '=': -E %s", pszValue);
-
-    return 0;
-}
-
-
-/**
- * Handles the --unset var option.
- *
- * @returns 0 on success, non-zero exit code on error.
- * @param   papszEnv            The environment vector.
- * @param   pcEnvVars           Pointer to the variable holding the number of
- *                              environment variables held by @a papszEnv.
- * @param   cVerbosity          The verbosity level.
- * @param   pszVarToRemove      The name of the variable to remove.
- */
-static int kSubmitOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, const char *pszVarToRemove)
-{
-    if (strchr(pszVarToRemove, '=') == NULL)
-    {
-        unsigned     cRemoved = 0;
-        size_t const cchVar   = strlen(pszVarToRemove);
-        unsigned     cEnvVars = *pcEnvVars;
-        unsigned     iEnvVar;
-
-        for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
-            if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszVarToRemove, cchVar) == 0
-                && papszEnv[iEnvVar][cchVar] == '=')
-            {
-                if (cVerbosity > 0)
-                    fprintf(stderr, !cRemoved ? "kSubmit: removing '%s'\n"
-                            : "kSubmit: removing duplicate '%s'\n", papszEnv[iEnvVar]);
-                free(papszEnv[iEnvVar]);
-                cEnvVars--;
-                if (iEnvVar != cEnvVars)
-                    papszEnv[iEnvVar] = papszEnv[cEnvVars];
-                papszEnv[cEnvVars] = NULL;
-                cRemoved++;
-                iEnvVar--;
-            }
-        *pcEnvVars = cEnvVars;
-
-        if (cVerbosity > 0 && !cRemoved)
-            fprintf(stderr, "kSubmit: not found '%s'\n", pszVarToRemove);
-    }
-    else
-        return errx(1, "Found invalid variable name character '=' in: -U %s", pszVarToRemove);
-    return 0;
-}
-
-
-
-/**
- * Handles the --chdir dir option.
- *
- * @returns 0 on success, non-zero exit code on error.
- * @param   pszCwd              The CWD buffer.  Contains current CWD on input,
- *                              modified by @a pszValue on output.
- * @param   cbCwdBuf            The size of the CWD buffer.
- * @param   pszValue            The --chdir value to apply.
- */
-static int kSubmitOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue)
-{
-    size_t cchNewCwd = strlen(pszValue);
-    size_t offDst;
-    if (cchNewCwd)
-    {
-#ifdef HAVE_DOS_PATHS
-        if (*pszValue == '/' || *pszValue == '\\')
-        {
-            if (pszValue[1] == '/' || pszValue[1] == '\\')
-                offDst = 0; /* UNC */
-            else if (pszCwd[1] == ':' && isalpha(pszCwd[0]))
-                offDst = 2; /* Take drive letter from CWD. */
-            else
-                return errx(1, "UNC relative CWD not implemented: cur='%s' new='%s'", pszCwd, pszValue);
-        }
-        else if (   pszValue[1] == ':'
-                 && isalpha(pszValue[0]))
-        {
-            if (pszValue[2] == '/'|| pszValue[2] == '\\')
-                offDst = 0; /* DOS style absolute path. */
-            else if (   pszCwd[1] == ':'
-                     && tolower(pszCwd[0]) == tolower(pszValue[0]) )
-            {
-                pszValue += 2; /* Same drive as CWD, append drive relative path from value. */
-                cchNewCwd -= 2;
-                offDst = strlen(pszCwd);
-            }
-            else
-            {
-                /* Get current CWD on the specified drive and append value. */
-                int iDrive = tolower(pszValue[0]) - 'a' + 1;
-                if (!_getdcwd(iDrive, pszCwd, cbCwdBuf))
-                    return err(1, "_getdcwd(%d,,) failed", iDrive);
-                pszValue += 2;
-                cchNewCwd -= 2;
-            }
-        }
-#else
-        if (*pszValue == '/')
-            offDst = 0;
-#endif
-        else
-            offDst = strlen(pszCwd); /* Relative path, append to the existing CWD value. */
-
-        /* Do the copying. */
-#ifdef HAVE_DOS_PATHS
-        if (offDst > 0 && pszCwd[offDst - 1] != '/' && pszCwd[offDst - 1] != '\\')
-#else
-        if (offDst > 0 && pszCwd[offDst - 1] != '/')
-#endif
-             pszCwd[offDst++] = '/';
-        if (offDst + cchNewCwd >= cbCwdBuf)
-            return errx(1, "Too long CWD: %*.*s%s", offDst, offDst, pszCwd, pszValue);
-        memcpy(&pszCwd[offDst], pszValue, cchNewCwd + 1);
-    }
-    /* else: relative, no change - quitely ignore. */
-    return 0;
-}
-
-
 static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
@@ -1400,7 +1201,7 @@ static int usage(FILE *pOut,  const char *argv0)
             "\n"
             ,
             argv0, argv0, argv0);
-    return 1;
+    return 2;
 }
 
 
@@ -1413,7 +1214,6 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     unsigned        cEnvVars;
     char          **papszEnv            = NULL;
     const char     *pszExecutable       = NULL;
-    const char     *pszCwd              = NULL;
     int             iPostCmd            = argc;
     int             cPostCmdArgs        = 0;
     unsigned        cBitsWorker         = g_cArchBits;
@@ -1502,7 +1302,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     chOpt = 'e';
                 else
                 {
-                    errx(1, "Unknown option: '%s'", pszArg - 2);
+                    errx(2, "Unknown option: '%s'", pszArg - 2);
                     return usage(stderr, argv[0]);
                 }
                 pszArg = "";
@@ -1541,20 +1341,20 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                         break;
 
                     case 'E':
-                        rcExit = kSubmitOptEnvSet(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                        rcExit = kBuiltinOptEnvSet(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         pChild->environment = papszEnv;
                         if (rcExit == 0)
                             break;
                         return rcExit;
 
                     case 'U':
-                        rcExit = kSubmitOptEnvUnset(papszEnv, &cEnvVars, cVerbosity, pszValue);
+                        rcExit = kBuiltinOptEnvUnset(papszEnv, &cEnvVars, cVerbosity, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;
 
                     case 'C':
-                        rcExit = kSubmitOptChDir(szCwd, cbCwdBuf, pszValue);
+                        rcExit = kBuiltinOptChDir(szCwd, cbCwdBuf, pszValue);
                         if (rcExit == 0)
                             break;
                         return rcExit;

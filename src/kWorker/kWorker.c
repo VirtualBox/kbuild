@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -2637,7 +2637,7 @@ static void __cdecl kwSandbox_msvcrt_terminate(void)
 /** CRT - _onexit   */
 static _onexit_t __cdecl kwSandbox_msvcrt__onexit(_onexit_t pfnFunc)
 {
-    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
+    //if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
     {
         PKWEXITCALLACK pCallback;
         KW_LOG(("_onexit(%p)\n", pfnFunc));
@@ -2662,7 +2662,7 @@ static _onexit_t __cdecl kwSandbox_msvcrt__onexit(_onexit_t pfnFunc)
 /** CRT - atexit   */
 static int __cdecl kwSandbox_msvcrt_atexit(int (__cdecl *pfnFunc)(void))
 {
-    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
+    //if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
     {
         PKWEXITCALLACK pCallback;
         kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
@@ -7491,6 +7491,11 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
 #endif
     PKWEXITCALLACK              pExitCallback;
 
+
+    /*
+     * First stuff that may cause code to run.
+     */
+
     /* Do exit callback first. */
     pExitCallback = g_Sandbox.pExitCallbackHead;
     g_Sandbox.pExitCallbackHead = NULL;
@@ -7511,48 +7516,6 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
         }
         kHlpFree(pExitCallback);
         pExitCallback = pNext;
-    }
-
-
-#ifdef WITH_TEMP_MEMORY_FILES
-    /* The temporary files aren't externally visible, they're all in memory. */
-    pTempFile = pSandbox->pTempFileHead;
-    pSandbox->pTempFileHead = NULL;
-    while (pTempFile)
-    {
-        PKWFSTEMPFILE pNext = pTempFile->pNext;
-        KU32          iSeg  = pTempFile->cSegs;
-        while (iSeg-- > 0)
-            kHlpPageFree(pTempFile->paSegs[iSeg].pbData, pTempFile->paSegs[iSeg].cbDataAlloc);
-        kHlpFree(pTempFile->paSegs);
-        pTempFile->pNext = NULL;
-        kHlpFree(pTempFile);
-
-        pTempFile = pNext;
-    }
-#endif
-
-    /* Free left behind VirtualAlloc leaks. */
-    pTracker = g_Sandbox.pVirtualAllocHead;
-    g_Sandbox.pVirtualAllocHead = NULL;
-    while (pTracker)
-    {
-        PKWVIRTALLOC pNext = pTracker->pNext;
-        KW_LOG(("Freeing VirtualFree leak %p LB %#x\n", pTracker->pvAlloc, pTracker->cbAlloc));
-        VirtualFree(pTracker->pvAlloc, 0, MEM_RELEASE);
-        kHlpFree(pTracker);
-        pTracker = pNext;
-    }
-
-    /* Free left behind HeapCreate leaks. */
-    pHeap = g_Sandbox.pHeapHead;
-    g_Sandbox.pHeapHead = NULL;
-    while (pHeap != NULL)
-    {
-        PKWHEAP pNext = pHeap->pNext;
-        KW_LOG(("Freeing HeapCreate leak %p\n", pHeap->hHeap));
-        HeapDestroy(pHeap->hHeap);
-        pHeap = pNext;
     }
 
     /* Free left behind FlsAlloc leaks. */
@@ -7579,6 +7542,51 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
         pLocalStorage = pNext;
     }
 
+
+    /*
+     * Then free resources associated with the sandbox run.
+     */
+
+#ifdef WITH_TEMP_MEMORY_FILES
+    /* The temporary files aren't externally visible, they're all in memory. */
+    pTempFile = pSandbox->pTempFileHead;
+    pSandbox->pTempFileHead = NULL;
+    while (pTempFile)
+    {
+        PKWFSTEMPFILE pNext = pTempFile->pNext;
+        KU32          iSeg  = pTempFile->cSegs;
+        while (iSeg-- > 0)
+            kHlpPageFree(pTempFile->paSegs[iSeg].pbData, pTempFile->paSegs[iSeg].cbDataAlloc);
+        kHlpFree(pTempFile->paSegs);
+        pTempFile->pNext = NULL;
+        kHlpFree(pTempFile);
+
+        pTempFile = pNext;
+    }
+#endif
+
+    /* Free left behind HeapCreate leaks. */
+    pHeap = g_Sandbox.pHeapHead;
+    g_Sandbox.pHeapHead = NULL;
+    while (pHeap != NULL)
+    {
+        PKWHEAP pNext = pHeap->pNext;
+        KW_LOG(("Freeing HeapCreate leak %p\n", pHeap->hHeap));
+        HeapDestroy(pHeap->hHeap);
+        pHeap = pNext;
+    }
+
+    /* Free left behind VirtualAlloc leaks. */
+    pTracker = g_Sandbox.pVirtualAllocHead;
+    g_Sandbox.pVirtualAllocHead = NULL;
+    while (pTracker)
+    {
+        PKWVIRTALLOC pNext = pTracker->pNext;
+        KW_LOG(("Freeing VirtualFree leak %p LB %#x\n", pTracker->pvAlloc, pTracker->cbAlloc));
+        VirtualFree(pTracker->pvAlloc, 0, MEM_RELEASE);
+        kHlpFree(pTracker);
+        pTracker = pNext;
+    }
 
     /* Free the environment. */
     if (pSandbox->papszEnvVars)
@@ -8183,7 +8191,8 @@ static int kwTestRun(int argc, char **argv)
 
         /* Optional directory change. */
         if (   i < argc
-            && strcmp(argv[i], "--chdir") == 0)
+            && (   strcmp(argv[i], "--chdir") == 0
+                || strcmp(argv[i], "-C")      == 0 ) )
         {
             i++;
             if (i >= argc)

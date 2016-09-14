@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2907 2016-09-09 22:33:26Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -88,6 +88,7 @@ kmkmissing_SOURCES = \
 	kmkbuiltin/setmode.c \
 	kmkbuiltin/strmode.c \
 	kmkbuiltin/kbuild_protection.c \
+	kmkbuiltin/common-env-and-cwd-opt.c \
 	getopt.c \
 	getopt1.c \
 	electric.c
@@ -279,6 +280,7 @@ kmk_SOURCES += \
 	kmkbuiltin/mv.c \
 	kmkbuiltin/ln.c \
 	kmkbuiltin/printf.c \
+	kmkbuiltin/redirect.c \
 	kmkbuiltin/rm.c \
 	kmkbuiltin/rmdir.c \
 	$(if-expr $(KBUILD_TARGET) == win,kmkbuiltin/kSubmit.c) \
@@ -394,7 +396,6 @@ kmk_rm_SOURCES = \
 	kmkbuiltin/rm.c
 
 kmk_redirect_TEMPLATE = BIN-KMK
-kmk_redirect_DEFS = kmk_builtin_redirect=main
 kmk_redirect_SOURCES = \
 	kmkbuiltin/redirect.c
 kmk_redirect_SOURCES.win = \

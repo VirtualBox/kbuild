@@ -1,4 +1,4 @@
-# $Id: header.kmk 2895 2016-09-08 13:28:37Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 2895 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 2912 $  )
 
 
 #
@@ -701,7 +701,11 @@ PRINTF_INT  := kmk_builtin_printf
 PRINTF      := $(PRINTF_INT)
 
 REDIRECT_EXT:= $(KBUILD_BIN_PATH)/kmk_redirect$(HOSTSUFF_EXE)
+if $(KBUILD_KMK_REVISION) > 2911
+REDIRECT_INT:= kmk_builtin_redirect
+else
 REDIRECT_INT:= $(REDIRECT_EXT)
+endif
 REDIRECT    := $(REDIRECT_INT)
 
 RM_EXT      := $(KBUILD_BIN_PATH)/kmk_rm$(HOSTSUFF_EXE)

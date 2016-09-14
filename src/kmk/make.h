@@ -983,6 +983,7 @@ extern void dir_cache_invalid_after_job (void);
 extern void dir_cache_invalid_all (void);
 extern void dir_cache_invalid_missing (void);
 extern int dir_cache_volatile_dir (const char *dir);
+extern int dir_cache_deleted_directory(const char *pszDir);
 # endif
 #endif
 
