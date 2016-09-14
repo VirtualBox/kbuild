@@ -1,4 +1,4 @@
-/* $Id: quote_argv.h 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: quote_argv.h 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * quote_argv - Correctly quote argv for spawn, windows specific.
  */
@@ -33,7 +33,7 @@
 #define ___quote_argv_h___
 
 #include "mytypes.h"
-extern void quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak);
+extern int quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak);
 
 #endif
 

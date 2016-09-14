@@ -5473,6 +5473,18 @@ func_dircache_ctl (char *o, char **argv UNUSED, const char *funcname UNUSED)
             dir_cache_volatile_dir (dir);
         }
     }
+  else if (strcmp (cmd, "deleted") == 0)
+    {
+      size_t i;
+      for (i = 1; argv[i] != NULL; i++)
+        {
+          const char *dir = argv[i];
+          while (isblank ((unsigned char)*dir))
+            dir++;
+          if (*dir)
+            dir_cache_deleted_directory (dir);
+        }
+    }
   else
     error (reading_file, "Unknown $(dircache-ctl ) command: '%s'", cmd);
 # endif

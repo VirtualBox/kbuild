@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 2899 2016-09-09 09:03:57Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -45,6 +45,7 @@ extern int kmk_builtin_cp(int argc, char **argv, char **envp);
 extern int kmk_builtin_cat(int argc, char **argv, char **envp);
 extern int kmk_builtin_chmod(int argc, char **argv, char **envp);
 extern int kmk_builtin_cmp(int argc, char **argv, char **envp);
+extern int kmk_builtin_dircache(int argc, char **argv, char **envp);
 extern int kmk_builtin_echo(int argc, char **argv, char **envp);
 extern int kmk_builtin_expr(int argc, char **argv, char **envp);
 extern int kmk_builtin_install(int argc, char **argv, char **envp);
@@ -53,6 +54,7 @@ extern int kmk_builtin_md5sum(int argc, char **argv, char **envp);
 extern int kmk_builtin_mkdir(int argc, char **argv, char **envp);
 extern int kmk_builtin_mv(int argc, char **argv, char **envp);
 extern int kmk_builtin_printf(int argc, char **argv, char **envp);
+extern int kmk_builtin_redirect(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
 extern int kmk_builtin_rm(int argc, char **argv, char **envp);
 extern int kmk_builtin_rmdir(int argc, char **argv, char **envp);
 extern int kmk_builtin_sleep(int argc, char **argv, char **envp);
@@ -71,6 +73,12 @@ extern int kmk_builtin_kDepIDB(int argc, char **argv, char **envp);
 extern int kmk_builtin_kDepObj(int argc, char **argv, char **envp);
 
 extern char *kmk_builtin_func_printf(char *o, char **argv, const char *funcname);
+
+/* common-env-and-cwd-opt.c: */
+extern int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+                             int cVerbosity, const char *pszValue);
+extern int kBuiltinOptEnvUnset(char **papszEnv, unsigned *pcEnvVars, int cVerbosity, const char *pszVarToRemove);
+extern int kBuiltinOptChDir(char *pszCwd, size_t cbCwdBuf, const char *pszValue);
 
 #endif
 

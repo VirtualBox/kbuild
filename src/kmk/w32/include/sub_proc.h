@@ -49,6 +49,7 @@ EXTERN_DECL(BOOL process_kill, (HANDLE proc, int signal));
 EXTERN_DECL(int process_used_slots, (VOID_DECL));
 #ifdef KMK
 EXTERN_DECL(int process_kmk_register_submit, (HANDLE hEvent, intptr_t clue, pid_t *pPid));
+EXTERN_DECL(int process_kmk_register_redirect, (HANDLE hProcess, pid_t *pPid));
 #endif
 
 /* support routines */

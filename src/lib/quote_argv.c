@@ -1,4 +1,4 @@
-/* $Id: quote_argv.c 2894 2016-09-08 13:27:56Z knut.osmundsen@oracle.com $ */
+/* $Id: quote_argv.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * quote_argv - Correctly quote argv for spawn, windows specific.
  */
@@ -79,6 +79,7 @@ static int isWatcomPassThruOption(const char *pszArg)
  * For details on how MSC parses the command line, see "Parsing C Command-Line
  * Arguments": http://msdn.microsoft.com/en-us/library/a1y7w461.aspx
  *
+ * @returns 0 on success, -1 if out of memory.
  * @param   argc                The argument count.
  * @param   argv                The argument vector.
  * @param   fWatcomBrainDamage  Set if we're catering for wcc, wcc386 or similar
@@ -89,7 +90,7 @@ static int isWatcomPassThruOption(const char *pszArg)
  *                              depends on which argv you're working on.
  *                              Suggest doing the latter if it's main()'s argv.
  */
-void quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
+int quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
 {
     int i;
     for (i = 0; i < argc; i++)
@@ -121,6 +122,8 @@ void quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
             int    fComplicated = pszQuotes || (cchOrg > 0 && pszOrg[cchOrg - 1] == '\\');
             size_t cchNew       = fComplicated ? cchOrg * 2 + 2 : cchOrg + 2;
             char  *pszNew       = (char *)malloc(cchNew + 1 /*term*/ + 3 /*passthru hack*/);
+            if (!pszNew)
+                return -1;
 
             argv[i] = pszNew;
 
@@ -207,5 +210,6 @@ void quote_argv(int argc, char **argv, int fWatcomBrainDamage, int fFreeOrLeak)
     }
 
     /*for (i = 0; i < argc; i++) fprintf(stderr, "argv[%u]=%s;;\n", i, argv[i]);*/
+    return 0;
 }
 

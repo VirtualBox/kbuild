@@ -393,9 +393,15 @@ rm_tree(char **argv)
 					if (rval == 0 && vflag)
 						(void)printf("%s\n",
 						    p->fts_path);
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+					if (rval == 0) {
+					    extern int dir_cache_deleted_directory(const char *pszDir);
+					    dir_cache_deleted_directory(p->fts_accpath);
+					}
+#endif
 					continue;
 				}
-				operation = "mkdir";
+				operation = "rmdir";
 				break;
 
 #ifdef FTS_W

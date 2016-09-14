@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 2843 2016-08-28 15:31:02Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -205,8 +205,8 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
         rc = kmk_builtin_mkdir(argc, argv, environ);
     else if (!strcmp(pszCmd, "mv"))
         rc = kmk_builtin_mv(argc, argv, environ);
-    /*else if (!strcmp(pszCmd, "redirect"))
-        rc = kmk_builtin_redirect(argc, argv, environ, pPidSpawned);*/
+    else if (!strcmp(pszCmd, "redirect"))
+        rc = kmk_builtin_redirect(argc, argv, environ, pChild, pPidSpawned);
     else if (!strcmp(pszCmd, "rm"))
         rc = kmk_builtin_rm(argc, argv, environ);
     else if (!strcmp(pszCmd, "rmdir"))
@@ -232,6 +232,12 @@ int kmk_builtin_command_parsed(int argc, char **argv, struct child *pChild, char
         rc = kmk_builtin_cat(argc, argv, environ);
     else if (!strcmp(pszCmd, "sleep"))
         rc = kmk_builtin_sleep(argc, argv, environ);
+    else if (!strcmp(pszCmd, "dircache"))
+#ifdef KBUILD_OS_WINDOWS
+        rc = kmk_builtin_dircache(argc, argv, environ);
+#else
+        rc = 0;
+#endif
     else
     {
         printf("kmk_builtin: Unknown command '%s'!\n", pszCmd);

@@ -198,6 +198,7 @@ process_register(HANDLE proc)
 }
 
 #ifdef KMK
+
 /**
  * Interface used by kmkbuiltin/kSubmit.c to register stuff going down in a
  * worker process.
@@ -222,7 +223,30 @@ process_kmk_register_submit(HANDLE hEvent, intptr_t clue, pid_t *pPid)
 	}
 	return -1;
 }
-#endif
+
+/**
+ * Interface used by kmkbuiltin/kRedirect.c to register a spawned process.
+ *
+ * @returns 0 on success, -1 if there are too many sub-processes already.
+ * @param   hProcess            The process handle.
+ * @param   pPid                Where to return the pid that job.c expects.
+ */
+int
+process_kmk_register_redirect(HANDLE hProcess, pid_t *pPid)
+{
+	if (proc_index < MAXIMUM_WAIT_OBJECTS) {
+		sub_process *pSubProc = (sub_process *)xcalloc(sizeof(*pSubProc));
+		pSubProc->enmType = kRegular;
+		pSubProc->pid     = (intptr_t)hProcess;
+
+		proc_array[proc_index++] = pSubProc;
+		*pPid = (intptr_t)pSubProc;
+		return 0;
+	}
+	return -1;
+}
+
+#endif /* KMK */
 
 /*
  * Return the number of processes that we are still waiting for.

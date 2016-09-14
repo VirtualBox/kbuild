@@ -1,4 +1,4 @@
-# $Id: footer-pass2-fetches.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-fetches.kmk 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Fetches.
 #
@@ -361,6 +361,9 @@ $(out): $(comp-vars _TARGET_$(target)_DIGEST_PREV,_TARGET_$(target)_DIGEST,FORCE
 	%$$(if $$(_TARGET_$(target)_DIGEST),$$(if $$(eq $$(file-size $(out).lst),-1)\
 		,$$(call MSG_REFETCH,$(target)),$$(call MSG_FETCH,$(target))),$$(call MSG_UNFETCH,$(target)))
 	$$(QUIET)$(TEST_EXT) -f $(out).lst -- $$(MAKE) -f $(MAKEFILE) --no-print-directory $(out)_unfetched
+if $(KBUILD_KMK_REVISION) > 2911
+	$$(QUIET)kmk_builtin_dircache deleted "$(dir $(out))"
+endif
 	$$(QUIET)$$(if  $$(_TARGET_$(target)_DIGEST),$$(MAKE) -f $(MAKEFILE) --no-print-directory $(out).lst,$$(RMDIR) -p --ignore-fail-on-non-empty --ignore-fail-on-not-exist -- $$(dir $$@))
 	$$(QUIET2)$$(if $$(_TARGET_$(target)_DIGEST),$$(APPEND) $$@ "_TARGET_$(target)_DIGEST_PREV := $(_TARGET_$(target)_DIGEST)")
 

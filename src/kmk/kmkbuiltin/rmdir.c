@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD: src/bin/rmdir/rmdir.c,v 1.20 2005/01/26 06:51:28 ssouhlal Ex
 #ifdef _MSC_VER
 # include "mscfakes.h"
 #endif
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+extern int dir_cache_deleted_directory(const char *pszDir);
+#endif
 
 static int rm_path(char *);
 static int usage(FILE *);
@@ -134,8 +137,13 @@ kmk_builtin_rmdir(int argc, char *argv[], char **envp)
 			if (!ignore_fail_on_not_exist || errno != ENOENT)
 				continue;
 			/* (only ignored doesn't exist errors fall thru) */
-		} else if (vflag) {
-			printf("%s\n", *argv);
+		} else {
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+			dir_cache_deleted_directory(*argv);
+#endif
+			if (vflag) {
+				printf("%s\n", *argv);
+			}
 		}
 		if (pflag)
 			errors |= rm_path(*argv);
@@ -177,13 +185,19 @@ rm_path(char *path)
 #endif
 
 		if (rmdir(path) < 0) {
-			if (ignore_fail_on_non_empty && (errno == ENOTEMPTY || errno == EPERM || errno == EACCES || errno == EINVAL || errno == EEXIST))
+			if (   ignore_fail_on_non_empty
+			    && (   errno == ENOTEMPTY || errno == EPERM || errno == EACCES || errno == EINVAL || errno == EEXIST))
 				break;
 			if (!ignore_fail_on_not_exist || errno != ENOENT) {
 				warn("rmdir: %s", path);
 				return (1);
 			}
 		}
+#if defined(KMK) && defined(KBUILD_OS_WINDOWS)
+		else {
+			dir_cache_deleted_directory(path);
+		}
+#endif
 		if (vflag)
 			printf("%s\n", path);
 	}

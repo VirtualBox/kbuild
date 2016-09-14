@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2868 2016-09-04 01:28:12Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -456,15 +456,23 @@ PKFSOBJ     kFsCacheCreateObjectW(PKFSCACHE pCache, PKFSDIR pParent, wchar_t con
                                   KU8 bObjType, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError);
-PKFSOBJ     kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath,
+PKFSOBJ     kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath, KU32 fFlags,
                                          KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor);
-PKFSOBJ     kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath,
+PKFSOBJ     kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath, KU32 fFlags,
                                          KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor);
 PKFSOBJ     kFsCacheLookupWithLengthA(PKFSCACHE pCache, const char *pchPath, KSIZE cchPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupWithLengthW(PKFSCACHE pCache, const wchar_t *pwcPath, KSIZE cwcPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupNoMissingA(PKFSCACHE pCache, const char *pszPath, KFSLOOKUPERROR *penmError);
 PKFSOBJ     kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSLOOKUPERROR *penmError);
 
+/** @name KFSCACHE_LOOKUP_F_XXX - lookup flags
+ * @{ */
+/** No inserting new cache entries.
+ * This effectively prevent directories from being repopulated too.  */
+#define KFSCACHE_LOOKUP_F_NO_INSERT     KU32_C(1)
+/** No refreshing cache entries. */
+#define KFSCACHE_LOOKUP_F_NO_REFRESH    KU32_C(2)
+/** @} */
 
 KU32        kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj);
 KU32        kFsCacheObjRetain(PKFSOBJ pObj);
@@ -484,5 +492,6 @@ void        kFsCacheInvalidateAll(PKFSCACHE pCache);
 void        kFsCacheInvalidateCustomMissing(PKFSCACHE pCache);
 void        kFsCacheInvalidateCustomBoth(PKFSCACHE pCache);
 KBOOL       kFsCacheSetupCustomRevisionForTree(PKFSCACHE pCache, PKFSOBJ pRoot);
+KBOOL       kFsCacheInvalidateDeletedDirectoryA(PKFSCACHE pCache, const char *pszDir);
 
 #endif
