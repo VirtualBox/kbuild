@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2915 2016-09-14 16:31:28Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -353,7 +353,7 @@ typedef struct KWFSTEMPFILE
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
 
 /**
- * Console line buffer.
+ * Console line buffer or output full buffer.
  */
 typedef struct KWCONSOLEOUTPUTLINE
 {
@@ -361,14 +361,34 @@ typedef struct KWCONSOLEOUTPUTLINE
     HANDLE              hOutput;
     /** Our backup handle. */
     HANDLE              hBackup;
-    /** Set if this is a console handle. */
+    /** Set if this is a console handle and we're in line buffered mode.
+     * When clear, we may buffer multiple lines, though try flush on line
+     * boundraries when ever possible. */
     KBOOL               fIsConsole;
-    /** Amount of pending console output in wchar_t's. */
-    KU32                cwcBuf;
-    /** The allocated buffer size.   */
-    KU32                cwcBufAlloc;
-    /** Pending console output. */
-    wchar_t            *pwcBuf;
+    KU8                 abPadding[3];
+    union
+    {
+        /** Line buffer mode (fIsConsole == K_TRUE). */
+        struct
+        {
+            /** Amount of pending console output in wchar_t's. */
+            KU32                cwcBuf;
+            /** The allocated buffer size.   */
+            KU32                cwcBufAlloc;
+            /** Pending console output. */
+            wchar_t            *pwcBuf;
+        } Con;
+        /** Fully buffered mode (fIsConsole == K_FALSE). */
+        struct
+        {
+            /** Amount of pending output (in chars). */
+            KU32                cchBuf;
+            /** The allocated buffer size (in chars).   */
+            KU32                cchBufAlloc;
+            /** Pending output. */
+            char               *pchBuf;
+        } Fully;
+    } u;
 } KWCONSOLEOUTPUTLINE;
 /** Pointer to a console line buffer. */
 typedef KWCONSOLEOUTPUTLINE *PKWCONSOLEOUTPUTLINE;
@@ -5115,6 +5135,135 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFileEx(HANDLE hFile, LPVOID pvBuffer, 
     return ReadFileEx(hFile, pvBuffer, cbToRead, pOverlapped, pfnCompletionRoutine);
 }
 
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+
+/**
+ * Write something to a handle, making sure everything is actually written.
+ *
+ * @param   hHandle         Where to write it to.
+ * @param   pchBuf          What to write
+ * @param   cchToWrite      How much to write.
+ */
+static void kwSandboxOutBufWriteIt(HANDLE hFile, char const *pchBuf, KU32 cchToWrite)
+{
+    if (cchToWrite > 0)
+    {
+        DWORD cchWritten = 0;
+        if (WriteFile(hFile, pchBuf, cchToWrite, &cchWritten, NULL))
+        {
+            if (cchWritten == cchToWrite)
+            { /* likely */ }
+            else
+            {
+                do
+                {
+                    pchBuf += cchWritten;
+                    cchToWrite -= cchWritten;
+                    cchWritten = 0;
+                } while (   cchToWrite > 0
+                         && WriteFile(hFile, pchBuf, cchToWrite, &cchWritten, NULL));
+            }
+        }
+        else
+            kHlpAssertFailed();
+    }
+}
+
+
+/**
+ * Worker for WriteFile when the output isn't going to the console.
+ *
+ * @param   pSandbox            The sandbox.
+ * @param   pOutBuf             The output buffer.
+ * @param   pchBuffer           What to write.
+ * @param   cchToWrite          How much to write.
+ */
+static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutBuf, const char *pchBuffer, KU32 cchToWrite)
+{
+    if (pOutBuf->u.Fully.cchBufAlloc > 0)
+    { /* likely */ }
+    else
+    {
+        /* No realloc, max size is 64KB. */
+        pOutBuf->u.Fully.cchBufAlloc = 0x10000;
+        pOutBuf->u.Fully.pchBuf = (char *)kHlpAlloc(pOutBuf->u.Fully.cchBufAlloc);
+        if (!pOutBuf->u.Fully.pchBuf)
+        {
+            while (   !pOutBuf->u.Fully.pchBuf
+                   && pOutBuf->u.Fully.cchBufAlloc > 64)
+            {
+                pOutBuf->u.Fully.cchBufAlloc /= 2;
+                pOutBuf->u.Fully.pchBuf = (char *)kHlpAlloc(pOutBuf->u.Fully.cchBufAlloc);
+            }
+            if (!pOutBuf->u.Fully.pchBuf)
+            {
+                pOutBuf->u.Fully.cchBufAlloc = sizeof(pOutBuf->abPadding);
+                pOutBuf->u.Fully.pchBuf      = pOutBuf->abPadding;
+            }
+        }
+    }
+
+    /*
+     * Special case: Output ends with newline and fits in the buffer.
+     */
+    if (   cchToWrite > 1
+        && pchBuffer[cchToWrite - 1] == '\n'
+        && cchToWrite <= pOutBuf->u.Fully.cchBufAlloc - pOutBuf->u.Fully.cchBuf)
+    {
+        memcpy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchToWrite);
+        pOutBuf->u.Fully.cchBuf += cchToWrite;
+    }
+    else
+    {
+        /*
+         * Work thru the text line by line, flushing the buffer when
+         * appropriate.  The buffer is not a line buffer here, it's a
+         * full buffer.
+         */
+        while (cchToWrite > 0)
+        {
+            char const *pchNewLine = (char *)memchr(pchBuffer, '\n', cchToWrite);
+            KU32        cchLine    = pchNewLine ? (KU32)(pchNewLine - pchBuffer) + 1 : cchToWrite;
+            if (cchLine <= pOutBuf->u.Fully.cchBufAlloc - pOutBuf->u.Fully.cchBuf)
+            {
+                memcpy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchLine);
+                pOutBuf->u.Fully.cchBuf += cchLine;
+            }
+            /*
+             * Option one: Flush the buffer and the current line.
+             *
+             * We choose this one when the line won't ever fit, or when we have
+             * an incomplete line in the buffer.
+             */
+            else if (   cchLine >= pOutBuf->u.Fully.cchBufAlloc
+                     || pOutBuf->u.Fully.cchBuf == 0
+                     || pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf - 1] != '\n')
+            {
+                if (pOutBuf->u.Fully.cchBuf > 0)
+                {
+                    kwSandboxOutBufWriteIt(pOutBuf->hBackup, pOutBuf->u.Fully.pchBuf, pOutBuf->u.Fully.cchBuf);
+                    pOutBuf->u.Fully.cchBuf = 0;
+                }
+                kwSandboxOutBufWriteIt(pOutBuf->hBackup, pchBuffer, cchLine);
+            }
+            /*
+             * Option two: Only flush the lines in the buffer.
+             */
+            else
+            {
+                kwSandboxOutBufWriteIt(pOutBuf->hBackup, pOutBuf->u.Fully.pchBuf, pOutBuf->u.Fully.cchBuf);
+                memcpy(&pOutBuf->u.Fully.pchBuf[0], pchBuffer, cchLine);
+                pOutBuf->u.Fully.cchBuf = cchLine;
+            }
+
+            /* advance */
+            pchBuffer  += cchLine;
+            cchToWrite -= cchLine;
+        }
+    }
+}
+#endif  /* WITH_CONSOLE_OUTPUT_BUFFERING */
+
 #ifdef WITH_TEMP_MEMORY_FILES
 
 static KBOOL kwFsTempFileEnsureSpace(PKWFSTEMPFILE pTempFile, KU32 offFile, KU32 cbNeeded)
@@ -5271,6 +5420,9 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
             KWFS_LOG(("WriteFile(console) -> TRUE\n", hFile));
             return TRUE;
         }
+        kwSandboxOutBufWrite(&g_Sandbox, pLineBuf, (const char *)pvBuffer, cbToWrite);
+        KWFS_LOG(("WriteFile(stdout/err) -> TRUE\n", hFile));
+        return TRUE;
     }
 #endif
 
@@ -5814,9 +5966,8 @@ static void kwSandboxConsoleWriteIt(PKWSANDBOX pSandbox, wchar_t const *pwcBuf, 
                 {
                     off += cwcWritten;
                     cwcWritten = 0;
-                }
-                while (   off < cwcToWrite
-                       && WriteConsoleW(pSandbox->Combined.hOutput, &pwcBuf[off], cwcToWrite - off, &cwcWritten, NULL));
+                } while (   off < cwcToWrite
+                         && WriteConsoleW(pSandbox->Combined.hOutput, &pwcBuf[off], cwcToWrite - off, &cwcWritten, NULL));
                 kHlpAssert(off == cwcWritten);
             }
         }
@@ -5876,26 +6027,27 @@ static void kwSandboxConsoleAddToCombined(PKWSANDBOX pSandbox, wchar_t const *pw
  */
 static void kwSandboxConsoleFinalFlushLineBuf(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf)
 {
-    if (pLineBuf->cwcBuf > 0)
+    if (pLineBuf->fIsConsole)
     {
-        if (pLineBuf->fIsConsole)
+        if (pLineBuf->u.Con.cwcBuf > 0)
         {
-            if (pLineBuf->cwcBuf < pLineBuf->cwcBufAlloc)
+            if (pLineBuf->u.Con.cwcBuf < pLineBuf->u.Con.cwcBufAlloc)
             {
-                pLineBuf->pwcBuf[pLineBuf->cwcBuf++] = '\n';
-                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_FALSE /*fBrokenLine*/);
+                pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf++] = '\n';
+                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf, K_FALSE /*fBrokenLine*/);
             }
             else
             {
-                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
+                kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf, K_TRUE /*fBrokenLine*/);
                 kwSandboxConsoleAddToCombined(pSandbox, L"\n", 1, K_TRUE /*fBrokenLine*/);
             }
-            pLineBuf->cwcBuf = 0;
+            pLineBuf->u.Con.cwcBuf = 0;
         }
-        else
-        {
-            kHlpAssertFailed();
-        }
+    }
+    else if (pLineBuf->u.Fully.cchBuf > 0)
+    {
+        kwSandboxOutBufWriteIt(pLineBuf->hBackup, pLineBuf->u.Fully.pchBuf, pLineBuf->u.Fully.cchBuf);
+        pLineBuf->u.Fully.cchBuf = 0;
     }
 }
 
@@ -5909,32 +6061,73 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
 {
     /*
      * First do the cl.exe source file supression trick, if applicable.
+     * The output ends up on CONOUT$ if either StdOut or StdErr is a console
+     * handle.
      */
-    if (   pSandbox->Combined.cwcBuf >= 3
-        && pSandbox->StdOut.cwcBuf == 0
-        && pSandbox->StdErr.cwcBuf == 0
-        && pSandbox->Combined.cFlushes == 0
-        && pSandbox->pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
+    if (   pSandbox->pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL
+        && pSandbox->Combined.cFlushes == 0)
     {
-        KI32    off = pSandbox->Combined.cwcBuf - 1;
-        if (pSandbox->Combined.wszBuf[off] == '\n')
+        if (   pSandbox->StdOut.fIsConsole
+            || pSandbox->StdErr.fIsConsole)
         {
-            KBOOL fOk = K_TRUE;
-            while (off-- > 0)
+            if (   pSandbox->Combined.cwcBuf >= 3
+                && (pSandbox->StdOut.fIsConsole ? pSandbox->StdOut.u.Con.cwcBuf : pSandbox->StdOut.u.Fully.cchBuf) == 0
+                && (pSandbox->StdErr.fIsConsole ? pSandbox->StdErr.u.Con.cwcBuf : pSandbox->StdErr.u.Fully.cchBuf) == 0 )
             {
-                wchar_t const wc = pSandbox->Combined.wszBuf[off];
-                if (iswalnum(wc) || wc == '.' || wc == ' ' || wc == '_' || wc == '-')
-                { /* likely */ }
-                else
+                KI32    off = pSandbox->Combined.cwcBuf - 1;
+                if (pSandbox->Combined.wszBuf[off] == '\n')
                 {
-                    fOk = K_FALSE;
-                    break;
+                    KBOOL fOk = K_TRUE;
+                    while (off-- > 0)
+                    {
+                        wchar_t const wc = pSandbox->Combined.wszBuf[off];
+                        if (iswalnum(wc) || wc == '.' || wc == ' ' || wc == '_' || wc == '-')
+                        { /* likely */ }
+                        else
+                        {
+                            fOk = K_FALSE;
+                            break;
+                        }
+                    }
+                    if (fOk)
+                    {
+                        pSandbox->Combined.cwcBuf = 0;
+                        return;
+                    }
                 }
             }
-            if (fOk)
+        }
+        /*
+         * Otherwise, it goes to standard error.
+         */
+        else if (   pSandbox->StdOut.u.Fully.cchBuf == 0
+                 && pSandbox->StdErr.u.Fully.cchBuf >= 3)
+        {
+            char const *pchBuf = pSandbox->StdErr.u.Fully.pchBuf;
+            KI32        off    = pSandbox->StdErr.u.Fully.cchBuf - 1;
+            kHlpAssert(pSandbox->Combined.cFlushes == 0 && pSandbox->Combined.cwcBuf == 0); /* unused! */
+
+            if (pchBuf[off] == '\n')
             {
-                pSandbox->Combined.cwcBuf = 0;
-                return;
+                KBOOL fOk = K_TRUE;
+                if (pchBuf[off - 1] == '\r')
+                    off--;
+                while (off-- > 0)
+                {
+                    char const ch = pchBuf[off];
+                    if (isalnum(ch) || ch == '.' || ch == ' ' || ch == '_' || ch == '-')
+                    { /* likely */ }
+                    else
+                    {
+                        fOk = K_FALSE;
+                        break;
+                    }
+                }
+                if (fOk)
+                {
+                    pSandbox->StdErr.u.Fully.cchBuf = 0;
+                    return;
+                }
             }
         }
     }
@@ -5958,6 +6151,7 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
  */
 static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, wchar_t const *pwcBuffer, KU32 cwcToWrite)
 {
+    kHlpAssert(pLineBuf->fIsConsole);
     if (cwcToWrite > 0)
     {
         /*
@@ -5975,34 +6169,35 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
         if (offLastIncompleteLine < cwcToWrite)
         {
             /* Need to grow the line buffer? */
-            KU32 cwcNeeded = offLastIncompleteLine != 0 ? offLastIncompleteLine : cchLastIncompleteLine + pLineBuf->cwcBuf;
-            if (cwcNeeded > pLineBuf->cwcBufAlloc)
+            KU32 cwcNeeded = offLastIncompleteLine != 0 ? offLastIncompleteLine : cchLastIncompleteLine + pLineBuf->u.Con.cwcBuf;
+            if (cwcNeeded > pLineBuf->u.Con.cwcBufAlloc)
             {
                 void *pvNew;
-                KU32  cwcNew = !pLineBuf->cwcBufAlloc ? 1024 : pLineBuf->cwcBufAlloc * 2;
+                KU32  cwcNew = !pLineBuf->u.Con.cwcBufAlloc ? 1024 : pLineBuf->u.Con.cwcBufAlloc * 2;
                 while (cwcNew < cwcNeeded)
                     cwcNew *= 2;
-                pvNew = kHlpRealloc(pLineBuf->pwcBuf, cwcNew * sizeof(wchar_t));
+                pvNew = kHlpRealloc(pLineBuf->u.Con.pwcBuf, cwcNew * sizeof(wchar_t));
                 if (pvNew)
                 {
-                    pLineBuf->pwcBuf = (wchar_t *)pvNew;
-                    pLineBuf->cwcBufAlloc = cwcNew;
+                    pLineBuf->u.Con.pwcBuf = (wchar_t *)pvNew;
+                    pLineBuf->u.Con.cwcBufAlloc = cwcNew;
                 }
                 else
                 {
-                    pvNew = kHlpRealloc(pLineBuf->pwcBuf, cwcNeeded * sizeof(wchar_t));
+                    pvNew = kHlpRealloc(pLineBuf->u.Con.pwcBuf, cwcNeeded * sizeof(wchar_t));
                     if (pvNew)
                     {
-                        pLineBuf->pwcBuf = (wchar_t *)pvNew;
-                        pLineBuf->cwcBufAlloc = cwcNeeded;
+                        pLineBuf->u.Con.pwcBuf = (wchar_t *)pvNew;
+                        pLineBuf->u.Con.cwcBufAlloc = cwcNeeded;
                     }
                     else
                     {
                         /* This isn't perfect, but it will have to do for now. */
-                        if (pLineBuf->cwcBuf > 0)
+                        if (pLineBuf->u.Con.cwcBuf > 0)
                         {
-                            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
-                            pLineBuf->cwcBuf = 0;
+                            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf,
+                                                          K_TRUE /*fBrokenLine*/);
+                            pLineBuf->u.Con.cwcBuf = 0;
                         }
                         kwSandboxConsoleAddToCombined(pSandbox, pwcBuffer, cwcToWrite, K_TRUE /*fBrokenLine*/);
                         return;
@@ -6015,8 +6210,8 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
              */
             if (offLastIncompleteLine == 0)
             {
-                memcpy(&pLineBuf->pwcBuf[pLineBuf->cwcBuf], pwcBuffer, cwcToWrite * sizeof(wchar_t));
-                pLineBuf->cwcBuf += cwcToWrite;
+                memcpy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcToWrite * sizeof(wchar_t));
+                pLineBuf->u.Con.cwcBuf += cwcToWrite;
                 return;
             }
         }
@@ -6024,14 +6219,14 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
         /*
          * If there is sufficient combined buffer to handle this request, this are rather simple.
          */
-        if (pLineBuf->cwcBuf + cchLastIncompleteLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+        if (pLineBuf->u.Con.cwcBuf + cchLastIncompleteLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
         {
-            if (pLineBuf->cwcBuf > 0)
+            if (pLineBuf->u.Con.cwcBuf > 0)
             {
                 memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
-                       pLineBuf->pwcBuf, pLineBuf->cwcBuf * sizeof(wchar_t));
-                pSandbox->Combined.cwcBuf += pLineBuf->cwcBuf;
-                pLineBuf->cwcBuf = 0;
+                       pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
+                pSandbox->Combined.cwcBuf += pLineBuf->u.Con.cwcBuf;
+                pLineBuf->u.Con.cwcBuf = 0;
             }
 
             memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
@@ -6049,37 +6244,38 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
 
             /* If there is buffered chars, we handle the first line outside the
                main loop.  We must try our best outputting it as a complete line. */
-            if (pLineBuf->cwcBuf > 0)
+            if (pLineBuf->u.Con.cwcBuf > 0)
             {
                 while (offNextLine < cwcToWrite && pwcBuffer[offNextLine] != '\n')
                     offNextLine++;
                 offNextLine++;
                 kHlpAssert(offNextLine <= offLastIncompleteLine);
 
-                if (pLineBuf->cwcBuf + offNextLine + pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+                if (pLineBuf->u.Con.cwcBuf + offNextLine + pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf))
                 {
                     memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
-                           pLineBuf->pwcBuf, pLineBuf->cwcBuf * sizeof(wchar_t));
-                    pSandbox->Combined.cwcBuf += pLineBuf->cwcBuf;
-                    pLineBuf->cwcBuf = 0;
+                           pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
+                    pSandbox->Combined.cwcBuf += pLineBuf->u.Con.cwcBuf;
+                    pLineBuf->u.Con.cwcBuf = 0;
 
                     memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuffer, offNextLine * sizeof(wchar_t));
                     pSandbox->Combined.cwcBuf += offNextLine;
                 }
                 else
                 {
-                    KU32 cwcLeft = pLineBuf->cwcBufAlloc - pLineBuf->cwcBuf;
+                    KU32 cwcLeft = pLineBuf->u.Con.cwcBufAlloc - pLineBuf->u.Con.cwcBuf;
                     if (cwcLeft > 0)
                     {
                         KU32 cwcCopy = K_MIN(cwcLeft, offNextLine);
-                        memcpy(&pLineBuf->pwcBuf[pLineBuf->cwcBuf], pwcBuffer, cwcCopy * sizeof(wchar_t));
-                        pLineBuf->cwcBuf += cwcCopy;
+                        memcpy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcCopy * sizeof(wchar_t));
+                        pLineBuf->u.Con.cwcBuf += cwcCopy;
                         off += cwcCopy;
                     }
-                    if (pLineBuf->cwcBuf > 0)
+                    if (pLineBuf->u.Con.cwcBuf > 0)
                     {
-                        kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBrokenLine*/);
-                        pLineBuf->cwcBuf = 0;
+                        kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf,
+                                                      K_TRUE /*fBrokenLine*/);
+                        pLineBuf->u.Con.cwcBuf = 0;
                     }
                     if (off < offNextLine)
                         kwSandboxConsoleAddToCombined(pSandbox, &pwcBuffer[off], offNextLine - off, K_TRUE /*fBrokenLine*/);
@@ -6104,8 +6300,8 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
          */
         if (offLastIncompleteLine < cwcToWrite)
         {
-            memcpy(&pLineBuf->pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
-            pLineBuf->cwcBuf = cchLastIncompleteLine;
+            memcpy(&pLineBuf->u.Con.pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
+            pLineBuf->u.Con.cwcBuf = cchLastIncompleteLine;
         }
     }
 }
@@ -6128,6 +6324,7 @@ static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
     KU32        cwcBuf = cchToWrite * 2 + 1;
     wchar_t    *pwcBufFree = NULL;
     wchar_t    *pwcBuf;
+    kHlpAssert(pLineBuf->fIsConsole);
 
     if (cwcBuf <= 4096)
         pwcBuf = alloca(cwcBuf * sizeof(wchar_t));
@@ -6143,10 +6340,10 @@ static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
         kHlpAssertFailed();
 
         /* Flush the line buffer and combined buffer before calling WriteConsoleA. */
-        if (pLineBuf->cwcBuf > 0)
+        if (pLineBuf->u.Con.cwcBuf > 0)
         {
-            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->pwcBuf, pLineBuf->cwcBuf, K_TRUE /*fBroken*/);
-            pLineBuf->cwcBuf = 0;
+            kwSandboxConsoleAddToCombined(pSandbox, pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf, K_TRUE /*fBroken*/);
+            pLineBuf->u.Con.cwcBuf = 0;
         }
         kwSandboxConsoleFlushCombined(pSandbox);
 
@@ -6214,8 +6411,10 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBu
 
     if (hConOutput == g_Sandbox.StdErr.hOutput)
         pLineBuf = &g_Sandbox.StdErr;
-    else
+    else if (hConOutput == g_Sandbox.StdOut.hOutput)
         pLineBuf = &g_Sandbox.StdOut;
+    else
+        pLineBuf = g_Sandbox.StdErr.fIsConsole ? &g_Sandbox.StdErr : &g_Sandbox.StdOut;
     if (pLineBuf->fIsConsole)
     {
         kwSandboxConsoleWriteW(&g_Sandbox, pLineBuf, (wchar_t const *)pvBuffer, cwcToWrite);
@@ -7376,8 +7575,14 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->pgmptr        = (char *)pTool->pszPath;
     pSandbox->wpgmptr       = (wchar_t *)pTool->pwszPath;
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
-    pSandbox->StdOut.cwcBuf = 0;
-    pSandbox->StdErr.cwcBuf = 0;
+    if (pSandbox->StdOut.fIsConsole)
+        pSandbox->StdOut.u.Con.cwcBuf = 0;
+    else
+        pSandbox->StdOut.u.Fully.cchBuf = 0;
+    if (pSandbox->StdErr.fIsConsole)
+        pSandbox->StdErr.u.Con.cwcBuf = 0;
+    else
+        pSandbox->StdErr.u.Fully.cchBuf = 0;
     pSandbox->Combined.cwcBuf = 0;
     pSandbox->Combined.cFlushes = 0;
 #endif
@@ -8209,6 +8414,14 @@ static int kwTestRun(int argc, char **argv)
             i++;
         }
 
+        /* Trigger breakpoint */
+        if (   i < argc
+            && strcmp(argv[i], "--breakpoint") == 0)
+        {
+            __debugbreak();
+            i++;
+        }
+
         /* Check for '--'. */
         if (i >= argc)
             return kwErrPrintfRc(2, "Missing '--'\n");
@@ -8362,7 +8575,7 @@ int main(int argc, char **argv)
             printf("usage: kWorker [--volatile dir] --pipe <pipe-handle>\n"
                    "usage: kWorker <--help|-h>\n"
                    "usage: kWorker <--version|-V>\n"
-                   "usage: kWorker [--volatile dir] --test [<times> [--chdir <dir>]] -- args\n"
+                   "usage: kWorker [--volatile dir] --test [<times> [--chdir <dir>] [--breakpoint] -- args\n"
                    "\n"
                    "This is an internal kmk program that is used via the builtin_kSubmit.\n");
             return 0;
