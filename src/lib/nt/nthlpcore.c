@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2862 2016-09-02 02:39:56Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2913 2016-09-14 14:06:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -61,6 +61,7 @@ MY_NTSTATUS (WINAPI *g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_
 BOOLEAN     (WINAPI *g_pfnRtlEqualUnicodeString)(MY_UNICODE_STRING const *, MY_UNICODE_STRING const *, BOOLEAN);
 BOOLEAN     (WINAPI *g_pfnRtlEqualString)(MY_ANSI_STRING const *, MY_ANSI_STRING const *, BOOLEAN);
 UCHAR       (WINAPI *g_pfnRtlUpperChar)(UCHAR uch);
+ULONG       (WINAPI *g_pfnRtlNtStatusToDosError)(MY_NTSTATUS rcNt);
 
 
 static struct
@@ -84,6 +85,7 @@ static struct
     { (FARPROC *)&g_pfnRtlEqualUnicodeString,           "RtlEqualUnicodeString" },
     { (FARPROC *)&g_pfnRtlEqualString,                  "RtlEqualString" },
     { (FARPROC *)&g_pfnRtlUpperChar,                    "RtlUpperChar" },
+    { (FARPROC *)&g_pfnRtlNtStatusToDosError,           "RtlNtStatusToDosError" },
 };
 /** Set to 1 if we've successfully resolved the imports, otherwise 0. */
 int g_fResolvedNtImports = 0;
@@ -155,7 +157,6 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
     {
         /* EPERM            =  1 */
         case STATUS_CANNOT_DELETE:
-        case STATUS_DELETE_PENDING:
             return EPERM;
         /* ENOENT           =  2 */
         case STATUS_NOT_FOUND:
@@ -172,6 +173,7 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
         case STATUS_BAD_NETWORK_PATH:
         case STATUS_DFS_EXIT_PATH_FOUND:
         case RPC_NT_OBJECT_NOT_FOUND:
+        case STATUS_DELETE_PENDING:
             return ENOENT;
         /* ESRCH            =  3 */
         case STATUS_PROCESS_NOT_IN_JOB:
@@ -377,6 +379,13 @@ int birdErrnoFromNtStatus(MY_NTSTATUS rcNt)
 int birdSetErrnoFromNt(MY_NTSTATUS rcNt)
 {
     errno = birdErrnoFromNtStatus(rcNt);
+#if 0
+    {
+        ULONG rcWin32;
+        _doserrno = rcWin32 = g_pfnRtlNtStatusToDosError(rcNt);
+        SetLastError(rcWin32);
+    }
+#endif
     return -1;
 }
 
