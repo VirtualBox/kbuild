@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2913 2016-09-14 14:06:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -507,6 +507,7 @@ extern BOOLEAN     (WINAPI * g_pfnRtlEqualUnicodeString)(MY_UNICODE_STRING const
 extern BOOLEAN     (WINAPI * g_pfnRtlEqualString)(MY_ANSI_STRING const *pAnsiStr1, MY_ANSI_STRING const *pAnsiStr2,
                                                   BOOLEAN fCaseInsensitive);
 extern UCHAR       (WINAPI * g_pfnRtlUpperChar)(UCHAR uch);
+extern ULONG       (WINAPI * g_pfnRtlNtStatusToDosError)(MY_NTSTATUS rcNt);
 
 
 /** @} */
