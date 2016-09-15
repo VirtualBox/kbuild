@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2927 2016-09-15 23:08:29Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2928 2016-09-15 23:15:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -9073,10 +9073,11 @@ int main(int argc, char **argv)
  * software.  Build times jumping from 35-40 min to 77-82 min after the machine
  * got "infected".
  *
- * There was also a desire to speed up the rebuilding of the Boot Sector Kit
- * \#3, do does a lot of very small assembler and compiler jobs.  As some of us
- * OS/2 users recalled, the Watcom make program can run its own toolchain from
- * within the same process, saving a lot of overhead.
+ * Speeing up builting of Boot Sector Kit \#3 was also hightly desirable. It is
+ * mainly a bunch of tiny assembly and C files being compiler a million times.
+ * As some of us OS/2 users maybe recalls, the Watcom make program can run its
+ * own toolchain from within the same process, saving a lot of process creation
+ * and teardown overhead.
  *
  *
  * @section sec_kWorker_kSubmit     About kSubmit
