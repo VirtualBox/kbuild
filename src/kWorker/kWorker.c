@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2924 2016-09-15 20:51:38Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2926 2016-09-15 23:02:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -9125,7 +9125,7 @@ int main(int argc, char **argv)
  * it's entrypoint in a lightly sandbox'ed environment.
  *
  *
- * @subsection sec_kWorker_How_Works_Loading   Image loading
+ * @subsection ssec_kWorker_Loaing      Image loading
  *
  * kWorker will manually load all the executable images into memory, fix them
  * up, and make a copy of the virgin image so it can be restored using memcpy
@@ -9139,6 +9139,8 @@ int main(int argc, char **argv)
  *      - Intercept thread creation (only linker is allowed to create threads).
  *      - Intercept file reading for caching (header files, ++) as file system
  *        access is made even slower by anti-virus software.
+ *      - Intercept crypto hash APIs to cache MD5 digests of header files
+ *        (c1.dll / c1xx.dll spends a noticable bit of time doing MD5).
  *      - Intercept temporary files (%TEMP%/_CL_XXXXXXyy) to keep the entirely
  *        in memory as writing files grows expensive with encryption and
  *        anti-virus software active.
@@ -9176,6 +9178,49 @@ int main(int argc, char **argv)
  * for each job run, but so far this hasn't been necessary.
  *
  *
+ * @subsection ssec_kWorker_Optimizing  Optimizing the Compiler
+ *
+ * The Visual Studio 2010 C/C++ compiler does a poor job at processing header
+ * files and uses a whole bunch of temporary files (in %TEMP%) for passing
+ * intermediate representation between the first (c1/c1xx.dll) and second pass
+ * (c2.dll).
+ *
+ *
+ * @subsubsection sssec_kWorker_Headers     Cache Headers Files and Searches
+ *
+ * The preprocessor part will open and process header files exactly as they are
+ * encountered in the source files.  If string.h is included by the main source
+ * and five other header files, it will be searched for (include path), opened,
+ * read, MD5-summed, and pre-processed six times.  The last five times is just a
+ * waste of time because of the guards or \#pragma once.  A smart compiler would
+ * make a little extra effort and realize this.
+ *
+ * kWorker will cache help the preprocessor by remembering places where the
+ * header was not found with help of kFsCache, and cache the file in memory when
+ * found.  The first part is taken care of by intercepting GetFileAttributesW,
+ * and the latter by intercepting CreateFileW, ReadFile and CloseFile.  Once
+ * cached, the file is kept open and the CreateFileW call returns a duplicate of
+ * that handle.  An internal handle table is used by ReadFile and CloseFile to
+ * keep track of intercepted handles (also used for temporary file, temporary
+ * file mappings, console buffering, and standard out/err buffering).
+ *
+ *
+ * @subsubsection sssec_kWorker_Temp_Files  Temporary Files In Memory
+ *
+ * The issues of the temporary files is pretty severe on the Dell machine used
+ * for benchmarking with full AV and encryption.  The synthetic benchmark
+ * improved by 30% when kWorker implemented measures to keep them entirely in
+ * memory.
+ *
+ * kWorker implement these by recognizing the filename pattern in CreateFileW
+ * and creating/opening the given file as needed.  The handle returned is a
+ * duplicate of the current process, thus giving us a good chance of catching
+ * API calls we're not intercepting.
+ *
+ * In addition to CreateFileW, we also need to intercept GetFileType, ReadFile,
+ * WriteFile, SetFilePointer+Ex, SetEndOfFile, and CloseFile.  The 2nd pass
+ * additionally requires GetFileSize+Ex, CreateFileMappingW, MapViewOfFile and
+ * UnmapViewOfFile.
  *
  *
  * @section sec_kWorker_Numbers     Some measurements.
