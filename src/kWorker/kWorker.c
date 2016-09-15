@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2921 2016-09-15 15:24:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2923 2016-09-15 16:14:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -9137,6 +9137,13 @@ int main(int argc, char **argv)
  *     - with:     9m01.017344s = 541.017344 s => 674.446609s - 541.017344s = 133.429265 => 133.43/674.45 = 19% speed up
  *  - r2896 building vbox/debug (r110577):
  *     - with:     8m31.182384s = 511.182384 s => 674.446609s - 511.182384s = 163.264225 = 163.26/674.45 = 24% speed up
+ *  - r2920 building vbox/debug (r110702) on Skylake (W10/amd64, only standard
+ *     MS Defender as AV):
+ *     - without: 10m24.990389s = 624.990389s
+ *     - with:    08m04.738184s = 484.738184s
+ *          - delta: 624.99s - 484.74s = 140.25s
+ *          - saved: 140.25/624.99 = 22% faster
+ *
  *
  * @subsection subsec_kWorker_Early_Numbers     Early Experiments
  *
