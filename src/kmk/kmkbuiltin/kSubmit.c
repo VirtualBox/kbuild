@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2917 2016-09-15 12:13:34Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2918 2016-09-15 12:17:19Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1122,7 +1122,7 @@ static void kSubmitAtExitCallback(void)
             {
                 /* Terminate the whole bunch. */
                 cKillRaids++;
-                if (cKillRaids == 1)
+                if (cKillRaids == 1 && getenv("KMK_KSUBMIT_NO_KILL") == NULL)
                 {
                     fprintf(stderr, "kmk/kSubmit: Killing %u lingering worker processe(s)!\n", cHandles);
                     for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
