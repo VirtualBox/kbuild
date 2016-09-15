@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2923 2016-09-15 16:14:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2924 2016-09-15 20:51:38Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -784,6 +784,10 @@ extern KU32                  const g_cSandboxReplacements;
 
 extern KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[];
 extern KU32                  const g_cSandboxNativeReplacements;
+
+extern KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[];
+extern KU32                  const g_cSandboxGetProcReplacements;
+
 
 /** Create a larget BSS blob that with help of /IMAGEBASE:0x10000 should
  * cover the default executable link address of 0x400000.
@@ -4087,10 +4091,30 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
                                     NULL /*pfKind*/);
         if (rc == 0)
         {
-            static int s_cDbgGets = 0;
-            s_cDbgGets++;
-            KW_LOG(("GetProcAddress(%s, %s) -> %p [%d]\n", pMod->pszPath, pszProc, (KUPTR)uValue, s_cDbgGets));
+            //static int s_cDbgGets = 0;
+            KU32 cchProc = kHlpStrLen(pszProc);
+            KU32 i = g_cSandboxGetProcReplacements;
+            while (i-- > 0)
+                if (   g_aSandboxGetProcReplacements[i].cchFunction == cchProc
+                    && kHlpMemComp(g_aSandboxGetProcReplacements[i].pszFunction, pszProc, cchProc) == 0)
+                {
+                    if (   !g_aSandboxGetProcReplacements[i].pszModule
+                        || kHlpStrICompAscii(g_aSandboxGetProcReplacements[i].pszModule, &pMod->pszPath[pMod->offFilename]) == 0)
+                    {
+                        if (   pMod->fExe
+                            || !g_aSandboxGetProcReplacements[i].fOnlyExe)
+                        {
+                            uValue = g_aSandboxGetProcReplacements[i].pfnReplacement;
+                            KW_LOG(("GetProcAddress(%s, %s) -> %p replaced\n", pMod->pszPath, pszProc, (KUPTR)uValue));
+                        }
+                        kwLdrModuleRelease(pMod);
+                        return (FARPROC)(KUPTR)uValue;
+                    }
+                }
+
+            KW_LOG(("GetProcAddress(%s, %s) -> %p\n", pMod->pszPath, pszProc, (KUPTR)uValue));
             kwLdrModuleRelease(pMod);
+            //s_cDbgGets++;
             //if (s_cGets >= 3)
             //    return (FARPROC)kwSandbox_BreakIntoDebugger;
             return (FARPROC)(KUPTR)uValue;
@@ -7529,6 +7553,21 @@ KU32 const                  g_cSandboxNativeReplacements = K_ELEMENTS(g_aSandbox
 
 
 /**
+ * Functions that needs replacing when queried by GetProcAddress.
+ */
+KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[] =
+{
+    /*
+     * Kernel32.dll and friends.
+     */
+    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
+    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
+};
+/** Number of entries in g_aSandboxGetProcReplacements. */
+KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandboxGetProcReplacements);
+
+
+/**
  * Control handler.
  *
  * @returns TRUE if handled, FALSE if not.
@@ -8306,6 +8345,18 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
 {
     int rcExit;
     PKWTOOL pTool;
+
+    KW_LOG(("\n\nkSubmitHandleJobUnpacked: '%s' in '%s' cArgs=%u cEnvVars=%u cPostCmdArgs=%u\n",
+            pszExecutable, pszCwd, cArgs, cEnvVars, cPostCmdArgs));
+#ifdef KW_LOG_ENABLED
+    {
+        KU32 i;
+        for (i = 0; i < cArgs; i++)
+            KW_LOG(("  papszArgs[%u]=%s\n", i, papszArgs[i]));
+        for (i = 0; i < cPostCmdArgs; i++)
+            KW_LOG(("  papszPostCmdArgs[%u]=%s\n", i, papszPostCmdArgs[i]));
+    }
+#endif
 
     /*
      * Lookup the tool.
