@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2902 2016-09-09 17:15:22Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2919 2016-09-15 13:42:36Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -79,10 +79,12 @@ ifdef TOOL_VCC100AMD64_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   ifneq ($(substr $(PATH_TOOL_VCC100AMD64_BIN),-9),x86_amd64)
    TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
+   TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) --
   else
-   TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
+   # "fatal error C1902: Program database manager mismatch; please check your installation" when mixing with the 32-bit compiler.
+   #TOOL_VCC100AMD64_KSUBMIT ?= kmk_builtin_kSubmit --32-bit
+   #TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) --
   endif
-  TOOL_VCC100AMD64_KSUBMIT_DD = $(TOOL_VCC100AMD64_KSUBMIT) --
  endif
 endif
 
