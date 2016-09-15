@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2920 2016-09-15 14:15:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2921 2016-09-15 15:24:55Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -8742,7 +8742,6 @@ static int kwTestRun(int argc, char **argv)
     return rcExit;
 }
 
-#if 1
 
 int main(int argc, char **argv)
 {
@@ -9005,79 +9004,163 @@ int main(int argc, char **argv)
         }
 
         CloseHandle(hPipe);
-# ifdef WITH_LOG_FILE
+#ifdef WITH_LOG_FILE
         if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
             CloseHandle(g_hLogFile);
-# endif
+#endif
         return rc > 0 ? 0 : 1;
     }
 }
 
-#else
 
-static int kwExecCmdLine(const char *pszExe, const char *pszCmdLine)
-{
-    int rc;
-    PKWTOOL pTool = kwToolLookup(pszExe);
-    if (pTool)
-    {
-        int rcExitCode;
-        switch (pTool->enmType)
-        {
-            case KWTOOLTYPE_SANDBOXED:
-                KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                rc = kwSandboxExec(&g_Sandbox, pTool, pszCmdLine, &rcExitCode);
-                break;
-            default:
-                kHlpAssertFailed();
-                KW_LOG(("TODO: Direct exec tool %s\n", pTool->pszPath));
-                rc = rcExitCode = 2;
-                break;
-        }
-        KW_LOG(("rcExitCode=%d (rc=%d)\n", rcExitCode, rc));
-    }
-    else
-        rc = 1;
-    return rc;
-}
-
-int main(int argc, char **argv)
-{
-    int rc = 0;
-    int i;
-    argv[2] = "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp";
-# if 0
-    rc = kwExecCmdLine(argv[1], argv[2]);
-    rc = kwExecCmdLine(argv[1], argv[2]);
-    K_NOREF(i);
-# else
-// Skylake (W10/amd64, only stdandard MS defender):
-//     cmd 1:  48    /1024 = 0x0 (0.046875)        [for /l %i in (1,1,1024) do ...]
-//     kmk 1:  44    /1024 = 0x0 (0.04296875)      [all: ; 1024 x cl.exe]
-//     run 1:  37    /1024 = 0x0 (0.0361328125)    [just process creation gain]
-//     run 2:  34    /1024 = 0x0 (0.033203125)     [get file attribs]
-//     run 3:  32.77 /1024 = 0x0 (0.032001953125)  [read caching of headers]
-//     run 4:  32.67 /1024 = 0x0 (0.031904296875)  [loader tweaking]
-//     run 5:  29.144/1024 = 0x0 (0.0284609375)    [with temp files in memory]
-//    r2881 building src/VBox/Runtime:
-//     without: 2m01.016388s = 120.016388 s
-//     with:    1m15.165069s = 75.165069 s => 120.016388s - 75.165069s = 44.851319s => 44.85/120.02 = 37% speed up.
-//    r2884 building vbox/debug (r110512):
-//     without: 11m14.446609s = 674.446609 s
-//     with:     9m01.017344s = 541.017344 s => 674.446609s - 541.017344s = 133.429265 => 133.43/674.45 = 19% speed up
-//    r2896 building vbox/debug (r110577):
-//     with:     8m31.182384s = 511.182384 s => 674.446609s - 511.182384s = 163.264225 = 163.26/674.45 = 24% speed up
-//
-// Dell (W7/amd64, infected by mcafee):
-//     kmk 1: 285.278/1024 = 0x0 (0.278591796875)
-//     run 1: 134.503/1024 = 0x0 (0.1313505859375) [w/o temp files in memory]
-//     run 2:  78.161/1024 = 0x0 (0.0763291015625) [with temp files in memory]
-    g_cVerbose = 0;
-    for (i = 0; i < 1024 && rc == 0; i++)
-        rc = kwExecCmdLine(argv[1], argv[2]);
-# endif
-    return rc;
-}
-
-#endif
+/** @page pg_kWorker    kSubmit / kWorker
+ *
+ * @section sec_kWorker_Motivation  Motivation / Inspiration
+ *
+ * The kSubmit / kWorker combo was conceived as a way to speed up VirtualBox
+ * builds on machines "infested" by Anti Virus protection and disk encryption
+ * software.  Build times jumping from 35-40 min to 77-82 min after the machine
+ * got "infected".
+ *
+ * There was also a desire to speed up the rebuilding of the Boot Sector Kit
+ * \#3, do does a lot of very small assembler and compiler jobs.  As some of us
+ * OS/2 users recalled, the Watcom make program can run its own toolchain from
+ * within the same process, saving a lot of overhead.
+ *
+ *
+ * @section sec_kWorker_kSubmit     About kSubmit
+ *
+ * When wanting to execute a job in a kWorker instance, it must be submitted
+ * using the kmk_builtin_kSubmit command in kmk.  As the name suggest, this is
+ * built into kmk and does not exist as an external program.  The reason for
+ * this is that it keep track of the kWorker instances.
+ *
+ * The kSubmit command has the --32-bit and --64-bit options for selecting
+ * between 32-bit and 64-bit worker instance.  We generally assume the user of
+ * the command knows which bit count the executable has, so kSubmit is spared
+ * the extra work of finding out.
+ *
+ * The kSubmit command shares a environment and current directory manipulation
+ * with the kRedirect command, but not the file redirection.  So long no file
+ * operation is involed, kSubmit is a drop in kRedirect replacement.  This is
+ * hand for tools like OpenWatcom, NASM and YASM which all require enviornment
+ * and/or current directory changes to work.
+ *
+ * Unlike the kRedirect command, the kSubmit command can also specify an
+ * internall post command to be executed after the main command succeeds.
+ * Currently only kmk_builtin_kDepObj is supported.  kDepObj gathers dependency
+ * information from Microsoft COFF object files and Watcom OMF object files and
+ * is scheduled to replace kDepIDB.
+ *
+ *
+ * @section sec_kWorker_Interaction kSubmit / kWorker interaction
+ *
+ * The kmk_builtin_kSubmit communicates with the kWorker instances over pipes.
+ * A job request is written by kSubmit and kWorker read, unpacks it and executes
+ * it.  When the job is completed, kWorker writes a short reply with the exit
+ * code and an internal status indicating whether it is going to restart.
+ *
+ * The kWorker intance will reply to kSubmit before completing all the internal
+ * cleanup work, so as not to delay the next job execution unnecessarily.  This
+ * includes checking its own memory consumption and checking whether it needs
+ * restarting.  So, a decision to restart unfortunately have to wait till after
+ * the next job has completed.  This is a little bit unfortunate if the next job
+ * requires a lot of memory and kWorker has already leaked/used a lot.
+ *
+ *
+ * @section sec_kWorker_How_Works   How kWorker Works
+ *
+ * kWorker will load the executable specified by kSubmit into memory and call
+ * it's entrypoint in a lightly sandbox'ed environment.
+ *
+ *
+ * @subsection sec_kWorker_How_Works_Loading   Image loading
+ *
+ * kWorker will manually load all the executable images into memory, fix them
+ * up, and make a copy of the virgin image so it can be restored using memcpy
+ * the next time it is used.
+ *
+ * Imported functions are monitored and replacements used for a few of them.
+ * These replacements are serve the following purposes:
+ *      - Provide a different command line.
+ *      - Provide a different environment.
+ *      - Intercept process termination.
+ *      - Intercept thread creation (only linker is allowed to create threads).
+ *      - Intercept file reading for caching (header files, ++) as file system
+ *        access is made even slower by anti-virus software.
+ *      - Intercept temporary files (%TEMP%/_CL_XXXXXXyy) to keep the entirely
+ *        in memory as writing files grows expensive with encryption and
+ *        anti-virus software active.
+ *      - Intercept some file system queries to use the kFsCache instead of
+ *        going to the kernel and slowly worm thru the AV filter driver.
+ *      - Intercept standard output/error and console writes to aggressivly
+ *        buffer the output.  The MS CRT does not buffer either when it goes to
+ *        the console, resulting in terrible performance and mixing up output
+ *        with other compile jobs.
+ *        This also allows us to filter out the annoying source file announcements
+ *        by cl.exe.
+ *      - Intercept VirtualAlloc and VirtualFree to prevent
+ *        CL.EXE/C1.DLL/C1XX.DLL from leaking some 72MB internal allocat area.
+ *      - Intercept FlsAlloc/FlsFree to make sure the allocations are freed and
+ *        the callbacks run after each job.
+ *      - Intercept HeapCreate/HeapFree to reduce leaks from statically linked
+ *        executables and tools using custom heaps (like the microsoft linker).
+ *        [exectuable images only]
+ *      - Intercept atexit and _onexit registration to be able run them after
+ *        each job instead of crashing as kWorker exits.  This also helps avoid
+ *        some leaks. [executable image only]
+ *
+ * DLLs falls into two categories, system DLLs which we always load using the
+ * native loader, and tool DLLs which can be handled like the executable or
+ * optionally using the native loader.  We maintain a hardcoded white listing of
+ * tool DLLs we trust to load using the native loader.
+ *
+ * Imports of natively loaded DLLs are processed too, but we only replace a
+ * subset of the functions compared to natively loaded excutable and DLL images.
+ *
+ * DLLs are never unloaded and we cache LoadLibrary requests (hash the input).
+ * This is to speed up job execution.
+ *
+ * It was thought that we needed to restore (memcpy) natively loaded tool DLLs
+ * for each job run, but so far this hasn't been necessary.
+ *
+ *
+ *
+ *
+ * @section sec_kWorker_Numbers     Some measurements.
+ *
+ *  - r2881 building src/VBox/Runtime:
+ *     - without: 2m01.016388s = 120.016388 s
+ *     - with:    1m15.165069s = 75.165069 s => 120.016388s - 75.165069s = 44.851319s => 44.85/120.02 = 37% speed up.
+ *  - r2884 building vbox/debug (r110512):
+ *     - without: 11m14.446609s = 674.446609 s
+ *     - with:     9m01.017344s = 541.017344 s => 674.446609s - 541.017344s = 133.429265 => 133.43/674.45 = 19% speed up
+ *  - r2896 building vbox/debug (r110577):
+ *     - with:     8m31.182384s = 511.182384 s => 674.446609s - 511.182384s = 163.264225 = 163.26/674.45 = 24% speed up
+ *
+ * @subsection subsec_kWorker_Early_Numbers     Early Experiments
+ *
+ * These are some early experiments doing 1024 compilations of
+ * VBoxBS2Linker.cpp using a hard coded command line and looping in kWorker's
+ * main function:
+ *
+ * Skylake (W10/amd64, only stdandard MS defender):
+ *  - cmd 1:  48    /1024 = 0x0 (0.046875)        [for /l %i in (1,1,1024) do ...]
+ *  - kmk 1:  44    /1024 = 0x0 (0.04296875)      [all: ; 1024 x cl.exe]
+ *  - run 1:  37    /1024 = 0x0 (0.0361328125)    [just process creation gain]
+ *  - run 2:  34    /1024 = 0x0 (0.033203125)     [get file attribs]
+ *  - run 3:  32.77 /1024 = 0x0 (0.032001953125)  [read caching of headers]
+ *  - run 4:  32.67 /1024 = 0x0 (0.031904296875)  [loader tweaking]
+ *  - run 5:  29.144/1024 = 0x0 (0.0284609375)    [with temp files in memory]
+ *
+ * Dell (W7/amd64, infected by mcafee):
+ *  - kmk 1: 285.278/1024 = 0x0 (0.278591796875)
+ *  - run 1: 134.503/1024 = 0x0 (0.1313505859375) [w/o temp files in memory]
+ *  - run 2:  78.161/1024 = 0x0 (0.0763291015625) [with temp files in memory]
+ *
+ * The command line:
+ * @code{.cpp}
+   "\"E:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/bin/amd64/cl.exe\" -c -c -TP -nologo -Zi -Zi -Zl -GR- -EHsc -GF -Zc:wchar_t- -Oy- -MT -W4 -Wall -wd4065 -wd4996 -wd4127 -wd4706 -wd4201 -wd4214 -wd4510 -wd4512 -wd4610 -wd4514 -wd4820 -wd4365 -wd4987 -wd4710 -wd4061 -wd4986 -wd4191 -wd4574 -wd4917 -wd4711 -wd4611 -wd4571 -wd4324 -wd4505 -wd4263 -wd4264 -wd4738 -wd4242 -wd4244 -WX -RTCsu -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -IE:/vbox/svn/trunk/tools/win.x86/sdk/v7.1/Include -IE:/vbox/svn/trunk/include -IE:/vbox/svn/trunk/out/win.amd64/debug -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/include -IE:/vbox/svn/trunk/tools/win.x86/vcc/v10sp1/atlmfc/include -DVBOX -DVBOX_WITH_64_BITS_GUESTS -DVBOX_WITH_REM -DVBOX_WITH_RAW_MODE -DDEBUG -DDEBUG_bird -DDEBUG_USERNAME=bird -DRT_OS_WINDOWS -D__WIN__ -DRT_ARCH_AMD64 -D__AMD64__ -D__WIN64__ -DVBOX_WITH_DEBUGGER -DRT_LOCK_STRICT -DRT_LOCK_STRICT_ORDER -DIN_RING3 -DLOG_DISABLED -DIN_BLD_PROG -D_CRT_SECURE_NO_DEPRECATE -FdE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker-obj.pdb -FD -FoE:/vbox/svn/trunk/out/win.amd64/debug/obj/VBoxBs2Linker/VBoxBs2Linker.obj E:\\vbox\\svn\\trunk\\src\\VBox\\ValidationKit\\bootsectors\\VBoxBs2Linker.cpp"
+ * @endcode
+ */
 
