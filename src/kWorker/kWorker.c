@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2915 2016-09-14 16:31:28Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2916 2016-09-15 11:41:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -31,6 +31,9 @@
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
 //#undef NDEBUG
+//#define K_STRICT 1
+//#define KW_LOG_ENABLED
+
 #define PSAPI_VERSION 1
 #include <k/kHlp.h>
 #include <k/kLdr.h>
@@ -74,14 +77,24 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
  * source file echo by cl.exe. */
 #define WITH_CONSOLE_OUTPUT_BUFFERING
 
+/** @def WITH_STD_OUT_ERR_BUFFERING
+ * Enables buffering of standard output and standard error buffer as well as
+ * removal of annoying source file echo by cl.exe. */
+#define WITH_STD_OUT_ERR_BUFFERING
 
-/** String constant comma length.   */
-#define TUPLE(a_sz)                     a_sz, sizeof(a_sz) - 1
+/** @def WITH_LOG_FILE
+ * Log to file instead of stderr. */
+#define WITH_LOG_FILE
+
+#ifndef NDEBUG
+# define KW_LOG_ENABLED
+#endif
+
 
 /** @def KW_LOG
  * Generic logging.
  * @param a     Argument list for kwDbgPrintf  */
-#ifndef NDEBUG
+#ifdef KW_LOG_ENABLED
 # define KW_LOG(a) kwDbgPrintf a
 #else
 # define KW_LOG(a) do { } while (0)
@@ -90,16 +103,25 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 /** @def KWFS_LOG
  * FS cache logging.
  * @param a     Argument list for kwDbgPrintf  */
-#ifndef NDEBUG
+#ifdef KW_LOG_ENABLED
 # define KWFS_LOG(a) kwDbgPrintf a
 #else
 # define KWFS_LOG(a) do { } while (0)
 #endif
 
+/** @def KWOUT_LOG
+ * Output related logging.
+ * @param a     Argument list for kwDbgPrintf  */
+#ifdef KW_LOG_ENABLED
+# define KWOUT_LOG(a) kwDbgPrintf a
+#else
+# define KWOUT_LOG(a) do { } while (0)
+#endif
+
 /** @def KWCRYPT_LOG
  * FS cache logging.
  * @param a     Argument list for kwDbgPrintf  */
-#ifndef NDEBUG
+#ifdef KW_LOG_ENABLED
 # define KWCRYPT_LOG(a) kwDbgPrintf a
 #else
 # define KWCRYPT_LOG(a) do { } while (0)
@@ -122,15 +144,18 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 
 /** Marks unfinished code.  */
 #if 1
-# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); __debugbreak(); } while (0)
+# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); fflush(stderr); __debugbreak(); } while (0)
 #else
-# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); } while (0)
+# define KWFS_TODO()    do { kwErrPrintf("\nHit TODO on line %u in %s!\n", __LINE__, __FUNCTION__); fflush(stderr); } while (0)
 #endif
 
 /** User data key for tools. */
 #define KW_DATA_KEY_TOOL                (~(KUPTR)16381)
 /** User data key for a cached file. */
 #define KW_DATA_KEY_CACHED_FILE         (~(KUPTR)65521)
+
+/** String constant comma length.   */
+#define TUPLE(a_sz)                     a_sz, sizeof(a_sz) - 1
 
 
 /*********************************************************************************************************************************
@@ -355,7 +380,7 @@ typedef struct KWFSTEMPFILE
 /**
  * Console line buffer or output full buffer.
  */
-typedef struct KWCONSOLEOUTPUTLINE
+typedef struct KWOUTPUTSTREAMBUF
 {
     /** The main output handle. */
     HANDLE              hOutput;
@@ -365,7 +390,9 @@ typedef struct KWCONSOLEOUTPUTLINE
      * When clear, we may buffer multiple lines, though try flush on line
      * boundraries when ever possible. */
     KBOOL               fIsConsole;
-    KU8                 abPadding[3];
+    /** Compressed GetFileType result. */
+    KU8                 fFileType;
+    KU8                 abPadding[2];
     union
     {
         /** Line buffer mode (fIsConsole == K_TRUE). */
@@ -383,15 +410,17 @@ typedef struct KWCONSOLEOUTPUTLINE
         {
             /** Amount of pending output (in chars). */
             KU32                cchBuf;
+#ifdef WITH_STD_OUT_ERR_BUFFERING
             /** The allocated buffer size (in chars).   */
             KU32                cchBufAlloc;
             /** Pending output. */
             char               *pchBuf;
+#endif
         } Fully;
     } u;
-} KWCONSOLEOUTPUTLINE;
+} KWOUTPUTSTREAMBUF;
 /** Pointer to a console line buffer. */
-typedef KWCONSOLEOUTPUTLINE *PKWCONSOLEOUTPUTLINE;
+typedef KWOUTPUTSTREAMBUF *PKWOUTPUTSTREAMBUF;
 
 /**
  * Combined console buffer of complete lines.
@@ -422,14 +451,16 @@ typedef enum KWHANDLETYPE
     KWHANDLETYPE_INVALID = 0,
     KWHANDLETYPE_FSOBJ_READ_CACHE,
     KWHANDLETYPE_TEMP_FILE,
-    KWHANDLETYPE_TEMP_FILE_MAPPING
-    //KWHANDLETYPE_CONSOLE_CACHE
+    KWHANDLETYPE_TEMP_FILE_MAPPING,
+    KWHANDLETYPE_OUTPUT_BUF
 } KWHANDLETYPE;
 
 /** Handle data. */
 typedef struct KWHANDLE
 {
     KWHANDLETYPE        enmType;
+    /** Number of references   */
+    KU32                cRefs;
     /** The current file offset. */
     KU32                offFile;
     /** Handle access. */
@@ -444,6 +475,10 @@ typedef struct KWHANDLE
         PKFSWCACHEDFILE     pCachedFile;
         /** Temporary file handle or mapping handle. */
         PKWFSTEMPFILE       pTempFile;
+#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+        /** Buffered output stream. */
+        PKWOUTPUTSTREAMBUF  pOutBuf;
+#endif
     } u;
 } KWHANDLE;
 typedef KWHANDLE *PKWHANDLE;
@@ -617,6 +652,10 @@ typedef struct KWSANDBOX
     KU32            cHandles;
     /** Number of active handles in the table. */
     KU32            cActiveHandles;
+    /** Number of handles in the handle table that will not be freed.   */
+    KU32            cFixedHandles;
+    /** Total number of leaked handles. */
+    KU32            cLeakedHandles;
 
     /** Head of the list of temporary file. */
     PKWFSTEMPFILE   pTempFileHead;
@@ -635,7 +674,7 @@ typedef struct KWSANDBOX
      * This is only done from images we forcibly restore.  */
     PKWEXITCALLACK  pExitCallbackHead;
 
-    UNICODE_STRING  SavedCommandLine;
+    MY_UNICODE_STRING SavedCommandLine;
 
 #ifdef WITH_HASH_MD5_CACHE
     /** The special MD5 hash instance. */
@@ -660,10 +699,14 @@ typedef struct KWSANDBOX
 #endif
 
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
-    /** Standard output (and whatever else) line buffer. */
-    KWCONSOLEOUTPUTLINE StdOut;
-    /** Standard error line buffer. */
-    KWCONSOLEOUTPUTLINE StdErr;
+    /** The internal standard output handle. */
+    KWHANDLE            HandleStdOut;
+    /** The internal standard error handle. */
+    KWHANDLE            HandleStdErr;
+    /** Standard output (and whatever else) buffer. */
+    KWOUTPUTSTREAMBUF   StdOut;
+    /** Standard error buffer. */
+    KWOUTPUTSTREAMBUF   StdErr;
     /** Combined buffer of completed lines. */
     KWCONSOLEOUTPUT     Combined;
 #endif
@@ -748,6 +791,10 @@ extern KU32                  const g_cSandboxNativeReplacements;
 __declspec(allocate("DefLdBuf"))
 static KU8          g_abDefLdBuf[16*1024*1024];
 
+#ifdef WITH_LOG_FILE
+/** Log file handle.   */
+static HANDLE g_hLogFile = INVALID_HANDLE_VALUE;
+#endif
 
 
 /*********************************************************************************************************************************
@@ -755,9 +802,9 @@ static KU8          g_abDefLdBuf[16*1024*1024];
 *********************************************************************************************************************************/
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
 static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
-static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle);
+static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, HANDLE hHandle);
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
-static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, const char *pchBuffer, KU32 cchToWrite);
+static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pchBuffer, KU32 cchToWrite);
 #endif
 
 
@@ -772,9 +819,32 @@ static void kwDbgPrintfV(const char *pszFormat, va_list va)
     if (g_cVerbose >= 2)
     {
         DWORD const dwSavedErr = GetLastError();
+#ifdef WITH_LOG_FILE
+        DWORD       dwIgnored;
+        char        szTmp[2048];
+        int         cchPrefix = _snprintf(szTmp, sizeof(szTmp), "%x:%x: ", GetCurrentProcessId(), GetCurrentThreadId());
+        int         cch = vsnprintf(&szTmp[cchPrefix], sizeof(szTmp) - cchPrefix, pszFormat, va);
+        if (cch < (int)sizeof(szTmp) - 1 - cchPrefix)
+            cch += cchPrefix;
+        else
+        {
+            cch = sizeof(szTmp) - 1;
+            szTmp[cch] = '\0';
+        }
 
+        if (g_hLogFile == INVALID_HANDLE_VALUE)
+        {
+            wchar_t wszFilename[128];
+            _snwprintf(wszFilename, K_ELEMENTS(wszFilename), L"kWorker-%x-%x.log", GetTickCount(), GetCurrentProcessId());
+            g_hLogFile = CreateFileW(wszFilename, GENERIC_WRITE, FILE_SHARE_READ, NULL /*pSecAttrs*/, CREATE_ALWAYS,
+                                     FILE_ATTRIBUTE_NORMAL, NULL /*hTemplateFile*/);
+        }
+
+        WriteFile(g_hLogFile, szTmp, cch, &dwIgnored, NULL /*pOverlapped*/);
+#else
         fprintf(stderr, "debug: ");
         vfprintf(stderr, pszFormat, va);
+#endif
 
         SetLastError(dwSavedErr);
     }
@@ -4264,11 +4334,12 @@ static HANDLE kwFsTempFileCreateHandle(PKWFSTEMPFILE pTempFile, DWORD dwDesiredA
         if (pHandle)
         {
             pHandle->enmType            = !fMapping ? KWHANDLETYPE_TEMP_FILE : KWHANDLETYPE_TEMP_FILE_MAPPING;
+            pHandle->cRefs              = 1;
             pHandle->offFile            = 0;
             pHandle->hHandle            = hFile;
             pHandle->dwDesiredAccess    = dwDesiredAccess;
             pHandle->u.pTempFile        = pTempFile;
-            if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle))
+            if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle, hFile))
             {
                 pTempFile->cActiveHandles++;
                 kHlpAssert(pTempFile->cActiveHandles >= 1);
@@ -4684,11 +4755,12 @@ static KBOOL kwFsObjCacheCreateFile(PKFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL 
                 if (pHandle)
                 {
                     pHandle->enmType            = KWHANDLETYPE_FSOBJ_READ_CACHE;
+                    pHandle->cRefs              = 1;
                     pHandle->offFile            = 0;
                     pHandle->hHandle            = *phFile;
                     pHandle->dwDesiredAccess    = dwDesiredAccess;
                     pHandle->u.pCachedFile      = pCachedFile;
-                    if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle))
+                    if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle, pHandle->hHandle))
                         return K_TRUE;
 
                     kHlpFree(pHandle);
@@ -4772,8 +4844,16 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
         }
     }
 
+    /*
+     * Okay, normal.
+     */
     hFile = CreateFileA(pszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
                         dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        kHlpAssert(   KW_HANDLE_TO_INDEX(hFile) >= g_Sandbox.cHandles
+                   || g_Sandbox.papHandles[KW_HANDLE_TO_INDEX(hFile)] == NULL);
+    }
     KWFS_LOG(("CreateFileA(%s) -> %p\n", pszFilename, hFile));
     return hFile;
 }
@@ -4833,8 +4913,17 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
     }
     else
         KWFS_LOG(("CreateFileW: incompatible disposition %u\n", dwCreationDisposition));
+
+    /*
+     * Okay, normal.
+     */
     hFile = CreateFileW(pwszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
                         dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        kHlpAssert(   KW_HANDLE_TO_INDEX(hFile) >= g_Sandbox.cHandles
+                   || g_Sandbox.papHandles[KW_HANDLE_TO_INDEX(hFile)] == NULL);
+    }
     KWFS_LOG(("CreateFileW(%ls) -> %p\n", pwszFilename, hFile));
     return hFile;
 }
@@ -4861,8 +4950,9 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
                 case KWHANDLETYPE_TEMP_FILE:
                     cbFile = pHandle->u.pTempFile->cbFile;
                     break;
-                case KWHANDLETYPE_TEMP_FILE_MAPPING:
 #endif
+                case KWHANDLETYPE_TEMP_FILE_MAPPING:
+                case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
                     SetLastError(ERROR_INVALID_FUNCTION);
@@ -4942,8 +5032,9 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
                 case KWHANDLETYPE_TEMP_FILE:
                     cbFile = pHandle->u.pTempFile->cbFile;
                     break;
-                case KWHANDLETYPE_TEMP_FILE_MAPPING:
 #endif
+                case KWHANDLETYPE_TEMP_FILE_MAPPING:
+                case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
                     SetLastError(ERROR_INVALID_FUNCTION);
@@ -5099,9 +5190,10 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     KWFS_LOG(("ReadFile(%p,,%#x) -> TRUE, %#x bytes [temp]\n", hFile, cbToRead, (KU32)cbActually));
                     return TRUE;
                 }
+#endif /* WITH_TEMP_MEMORY_FILES */
 
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
-#endif /* WITH_TEMP_MEMORY_FILES */
+                case KWHANDLETYPE_OUTPUT_BUF:
                 default:
                     kHlpAssertFailed();
                     SetLastError(ERROR_INVALID_FUNCTION);
@@ -5135,7 +5227,7 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFileEx(HANDLE hFile, LPVOID pvBuffer, 
     return ReadFileEx(hFile, pvBuffer, cbToRead, pOverlapped, pfnCompletionRoutine);
 }
 
-#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
+#ifdef WITH_STD_OUT_ERR_BUFFERING
 
 /**
  * Write something to a handle, making sure everything is actually written.
@@ -5178,7 +5270,7 @@ static void kwSandboxOutBufWriteIt(HANDLE hFile, char const *pchBuf, KU32 cchToW
  * @param   pchBuffer           What to write.
  * @param   cchToWrite          How much to write.
  */
-static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutBuf, const char *pchBuffer, KU32 cchToWrite)
+static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pOutBuf, const char *pchBuffer, KU32 cchToWrite)
 {
     if (pOutBuf->u.Fully.cchBufAlloc > 0)
     { /* likely */ }
@@ -5222,7 +5314,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutB
          */
         while (cchToWrite > 0)
         {
-            char const *pchNewLine = (char *)memchr(pchBuffer, '\n', cchToWrite);
+            char const *pchNewLine = (const char *)memchr(pchBuffer, '\n', cchToWrite);
             KU32        cchLine    = pchNewLine ? (KU32)(pchNewLine - pchBuffer) + 1 : cchToWrite;
             if (cchLine <= pOutBuf->u.Fully.cchBufAlloc - pOutBuf->u.Fully.cchBuf)
             {
@@ -5239,6 +5331,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutB
                      || pOutBuf->u.Fully.cchBuf == 0
                      || pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf - 1] != '\n')
             {
+                KWOUT_LOG(("kwSandboxOutBufWrite: flushing %u bytes, writing %u bytes\n", pOutBuf->u.Fully.cchBuf, cchLine));
                 if (pOutBuf->u.Fully.cchBuf > 0)
                 {
                     kwSandboxOutBufWriteIt(pOutBuf->hBackup, pOutBuf->u.Fully.pchBuf, pOutBuf->u.Fully.cchBuf);
@@ -5251,6 +5344,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutB
              */
             else
             {
+                KWOUT_LOG(("kwSandboxOutBufWrite: flushing %u bytes\n", pOutBuf->u.Fully.cchBuf));
                 kwSandboxOutBufWriteIt(pOutBuf->hBackup, pOutBuf->u.Fully.pchBuf, pOutBuf->u.Fully.cchBuf);
                 memcpy(&pOutBuf->u.Fully.pchBuf[0], pchBuffer, cchLine);
                 pOutBuf->u.Fully.cchBuf = cchLine;
@@ -5262,10 +5356,10 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pOutB
         }
     }
 }
-#endif  /* WITH_CONSOLE_OUTPUT_BUFFERING */
+
+#endif  /* WITH_STD_OUT_ERR_BUFFERING */
 
 #ifdef WITH_TEMP_MEMORY_FILES
-
 static KBOOL kwFsTempFileEnsureSpace(PKWFSTEMPFILE pTempFile, KU32 offFile, KU32 cbNeeded)
 {
     KU32 cbMinFile = offFile + cbNeeded;
@@ -5320,8 +5414,10 @@ static KBOOL kwFsTempFileEnsureSpace(PKWFSTEMPFILE pTempFile, KU32 offFile, KU32
     kHlpAssertMsgFailed(("Out of bounds offFile=%#x + cbNeeded=%#x = %#x\n", offFile, cbNeeded, offFile + cbNeeded));
     return K_FALSE;
 }
+#endif /* WITH_TEMP_MEMORY_FILES */
 
 
+#if defined(WITH_TEMP_MEMORY_FILES) || defined(WITH_STD_OUT_ERR_BUFFERING)
 /** Kernel32 - WriteFile */
 static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, DWORD cbToWrite, LPDWORD pcbActuallyWritten,
                                                 LPOVERLAPPED pOverlapped)
@@ -5335,6 +5431,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
         {
             switch (pHandle->enmType)
             {
+# ifdef WITH_TEMP_MEMORY_FILES
                 case KWHANDLETYPE_TEMP_FILE:
                 {
                     PKWFSTEMPFILE   pTempFile  = pHandle->u.pTempFile;
@@ -5389,12 +5486,41 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
                     SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     return FALSE;
                 }
+# endif
 
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
                     kHlpAssertFailed();
                     SetLastError(ERROR_ACCESS_DENIED);
                     *pcbActuallyWritten = 0;
                     return FALSE;
+
+# if defined(WITH_STD_OUT_ERR_BUFFERING) || defined(WITH_CONSOLE_OUTPUT_BUFFERING)
+                /*
+                 * Standard output & error.
+                 */
+                case KWHANDLETYPE_OUTPUT_BUF:
+                {
+                    PKWOUTPUTSTREAMBUF pOutBuf = pHandle->u.pOutBuf;
+                    if (pOutBuf->fIsConsole)
+                    {
+                        kwSandboxConsoleWriteA(&g_Sandbox, pOutBuf, (const char *)pvBuffer, cbToWrite);
+                        KWOUT_LOG(("WriteFile(%p [console]) -> TRUE\n", hFile));
+                    }
+                    else
+                    {
+#  ifdef WITH_STD_OUT_ERR_BUFFERING
+                        kwSandboxOutBufWrite(&g_Sandbox, pOutBuf, (const char *)pvBuffer, cbToWrite);
+                        KWOUT_LOG(("WriteFile(%p [std%s], 's*.*', %#x) -> TRUE\n", hFile,
+                                   pOutBuf == &g_Sandbox.StdErr ? "err" : "out", cbToWrite, cbToWrite, pvBuffer, cbToWrite));
+#  else
+                        kHlpAssertFailed();
+#  endif
+                    }
+                    if (pcbActuallyWritten)
+                        *pcbActuallyWritten = cbToWrite;
+                    return TRUE;
+                }
+# endif
 
                 default:
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
@@ -5406,27 +5532,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
         }
     }
 
-#ifdef WITH_CONSOLE_OUTPUT_BUFFERING
-    /*
-     * Check for stdout and stderr.
-     */
-    if (   g_Sandbox.StdErr.hOutput == hFile
-        || g_Sandbox.StdOut.hOutput == hFile)
-    {
-        PKWCONSOLEOUTPUTLINE pLineBuf = g_Sandbox.StdErr.hOutput == hFile ? &g_Sandbox.StdErr : &g_Sandbox.StdOut;
-        if (pLineBuf->fIsConsole)
-        {
-            kwSandboxConsoleWriteA(&g_Sandbox, pLineBuf, (const char *)pvBuffer, cbToWrite);
-            KWFS_LOG(("WriteFile(console) -> TRUE\n", hFile));
-            return TRUE;
-        }
-        kwSandboxOutBufWrite(&g_Sandbox, pLineBuf, (const char *)pvBuffer, cbToWrite);
-        KWFS_LOG(("WriteFile(stdout/err) -> TRUE\n", hFile));
-        return TRUE;
-    }
-#endif
-
-    KWFS_LOG(("WriteFile(%p)\n", hFile));
+    KWFS_LOG(("WriteFile(%p,,%#x)\n", hFile, cbToWrite));
     return WriteFile(hFile, pvBuffer, cbToWrite, pcbActuallyWritten, pOverlapped);
 }
 
@@ -5450,6 +5556,9 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFileEx(HANDLE hFile, LPCVOID pvBuffer
     return WriteFileEx(hFile, pvBuffer, cbToWrite, pOverlapped, pfnCompletionRoutine);
 }
 
+#endif /* WITH_TEMP_MEMORY_FILES || WITH_STD_OUT_ERR_BUFFERING */
+
+#ifdef WITH_TEMP_MEMORY_FILES
 
 /** Kernel32 - SetEndOfFile; */
 static BOOL WINAPI kwSandbox_Kernel32_SetEndOfFile(HANDLE hFile)
@@ -5482,6 +5591,11 @@ static BOOL WINAPI kwSandbox_Kernel32_SetEndOfFile(HANDLE hFile)
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
                     kHlpAssertFailed();
                     SetLastError(ERROR_ACCESS_DENIED);
+                    return FALSE;
+
+                case KWHANDLETYPE_OUTPUT_BUF:
+                    kHlpAssertFailed();
+                    SetLastError(pHandle->u.pOutBuf->fIsConsole ? ERROR_INVALID_OPERATION : ERROR_ACCESS_DENIED);
                     return FALSE;
 
                 default:
@@ -5517,6 +5631,24 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileType(HANDLE hFile)
                 case KWHANDLETYPE_TEMP_FILE:
                     KWFS_LOG(("GetFileType(%p) -> FILE_TYPE_DISK [temp]\n", hFile));
                     return FILE_TYPE_DISK;
+
+                case KWHANDLETYPE_OUTPUT_BUF:
+                {
+                    PKWOUTPUTSTREAMBUF pOutBuf = pHandle->u.pOutBuf;
+                    DWORD fRet;
+                    if (pOutBuf->fFileType != KU8_MAX)
+                    {
+                        fRet = (pOutBuf->fFileType & 0xf) | ((pOutBuf->fFileType & (FILE_TYPE_REMOTE >> 8)) << 8);
+                        KWFS_LOG(("GetFileType(%p) -> %#x [outbuf]\n", hFile, fRet));
+                    }
+                    else
+                    {
+                        fRet = GetFileType(hFile);
+                        KWFS_LOG(("GetFileType(%p) -> %#x [outbuf, fallback]\n", hFile, fRet));
+                    }
+                    return fRet;
+                }
+
             }
         }
     }
@@ -5548,6 +5680,10 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileSize(HANDLE hFile, LPDWORD pcbHigh
                 case KWHANDLETYPE_TEMP_FILE:
                     KWFS_LOG(("GetFileSize(%p) -> %#x [temp]\n", hFile, pHandle->u.pTempFile->cbFile));
                     return pHandle->u.pTempFile->cbFile;
+
+                case KWHANDLETYPE_OUTPUT_BUF:
+                    /* do default */
+                    break;
 
                 default:
                     kHlpAssertFailed();
@@ -5583,6 +5719,10 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileSizeEx(HANDLE hFile, PLARGE_INTEGER
                     KWFS_LOG(("GetFileSizeEx(%p) -> TRUE, %#x [temp]\n", hFile, pHandle->u.pTempFile->cbFile));
                     pcbFile->QuadPart = pHandle->u.pTempFile->cbFile;
                     return TRUE;
+
+                case KWHANDLETYPE_OUTPUT_BUF:
+                    /* do default */
+                    break;
 
                 default:
                     kHlpAssertFailed();
@@ -5653,8 +5793,9 @@ static HANDLE WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwD
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
                 case KWHANDLETYPE_TEMP_FILE:
+                case KWHANDLETYPE_OUTPUT_BUF:
                     kHlpAssertFailed();
-                    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                    SetLastError(ERROR_INVALID_OPERATION);
                     return NULL;
 
                 case KWHANDLETYPE_TEMP_FILE_MAPPING:
@@ -5748,8 +5889,62 @@ static BOOL WINAPI kwSandbox_Kernel32_UnmapViewOfFile(LPCVOID pvBase)
 
 /** @todo UnmapViewOfFileEx */
 
-
 #endif /* WITH_TEMP_MEMORY_FILES */
+
+
+/** Kernel32 - DuplicateHandle */
+static BOOL WINAPI kwSandbox_Kernel32_DuplicateHandle(HANDLE hSrcProc, HANDLE hSrc, HANDLE hDstProc, PHANDLE phNew,
+                                                      DWORD dwDesiredAccess, BOOL fInheritHandle, DWORD dwOptions)
+{
+    BOOL fRet;
+
+    /*
+     * We must catch our handles being duplicated.
+     */
+    if (hSrcProc == GetCurrentProcess())
+    {
+        KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hSrc);
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+        if (idxHandle < g_Sandbox.cHandles)
+        {
+            PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+            if (pHandle)
+            {
+                fRet = DuplicateHandle(hSrcProc, hSrc, hDstProc, phNew, dwDesiredAccess, fInheritHandle, dwOptions);
+                if (fRet)
+                {
+                    if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle, *phNew))
+                    {
+                        pHandle->cRefs++;
+                        KWFS_LOG(("DuplicateHandle(%p, %p, %p, , %#x, %d, %#x) -> TRUE, %p [intercepted handle] enmType=%d cRef=%d\n",
+                                  hSrcProc, hSrc, hDstProc, dwDesiredAccess, fInheritHandle, dwOptions, *phNew,
+                                  pHandle->enmType, pHandle->cRefs));
+                    }
+                    else
+                    {
+                        fRet = FALSE;
+                        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                        KWFS_LOG(("DuplicateHandle(%p, %p, %p, , %#x, %d, %#x) -> !FALSE!, %p [intercepted handle] enmType=%d\n",
+                                  hSrcProc, hSrc, hDstProc, dwDesiredAccess, fInheritHandle, dwOptions, *phNew, pHandle->enmType));
+                    }
+                }
+                else
+                    KWFS_LOG(("DuplicateHandle(%p, %p, %p, , %#x, %d, %#x) -> FALSE [intercepted handle] enmType=%d\n",
+                              hSrcProc, hSrc, hDstProc, dwDesiredAccess, fInheritHandle, dwOptions, pHandle->enmType));
+                return fRet;
+            }
+        }
+    }
+
+    /*
+     * Not one of ours, just do what the caller asks and log it.
+     */
+    fRet = DuplicateHandle(hSrcProc, hSrc, hDstProc, phNew, dwDesiredAccess, fInheritHandle, dwOptions);
+    KWFS_LOG(("DuplicateHandle(%p, %p, %p, , %#x, %d, %#x) -> %d, %p\n", hSrcProc, hSrc, hDstProc, dwDesiredAccess,
+              fInheritHandle, dwOptions, fRet, *phNew));
+    return fRet;
+}
+
 
 /** Kernel32 - CloseHandle */
 static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
@@ -5757,33 +5952,52 @@ static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
     BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hObject);
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    if (   idxHandle < g_Sandbox.cHandles
-        && g_Sandbox.papHandles[idxHandle] != NULL)
+    if (idxHandle < g_Sandbox.cHandles)
     {
-        fRet = CloseHandle(hObject);
-        if (fRet)
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle)
         {
-            PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
-            g_Sandbox.papHandles[idxHandle] = NULL;
-            g_Sandbox.cActiveHandles--;
-#ifdef WITH_TEMP_MEMORY_FILES
-            if (pHandle->enmType == KWHANDLETYPE_TEMP_FILE)
+            /* Prevent the closing of the standard output and error handles. */
+            if (   pHandle->enmType != KWHANDLETYPE_OUTPUT_BUF
+                || idxHandle != KW_HANDLE_TO_INDEX(pHandle->hHandle))
             {
-                kHlpAssert(pHandle->u.pTempFile->cActiveHandles > 0);
-                pHandle->u.pTempFile->cActiveHandles--;
-            }
+                fRet = CloseHandle(hObject);
+                if (fRet)
+                {
+                    PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+                    g_Sandbox.papHandles[idxHandle] = NULL;
+                    g_Sandbox.cActiveHandles--;
+                    kHlpAssert(g_Sandbox.cActiveHandles >= g_Sandbox.cFixedHandles);
+                    if (--pHandle->cRefs == 0)
+                    {
+#ifdef WITH_TEMP_MEMORY_FILES
+                        if (pHandle->enmType == KWHANDLETYPE_TEMP_FILE)
+                        {
+                            kHlpAssert(pHandle->u.pTempFile->cActiveHandles > 0);
+                            pHandle->u.pTempFile->cActiveHandles--;
+                        }
 #endif
-            kHlpFree(pHandle);
-            KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle]\n", hObject));
+                        kHlpFree(pHandle);
+                        KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle, freed]\n", hObject));
+                    }
+                    else
+                        KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle, not freed]\n", hObject));
+                }
+                else
+                    KWFS_LOG(("CloseHandle(%p) -> FALSE [intercepted handle] err=%u!\n", hObject, GetLastError()));
+            }
+            else
+            {
+                KWFS_LOG(("CloseHandle(%p) -> TRUE [intercepted handle] Ignored closing of std%s!\n",
+                          hObject, hObject == g_Sandbox.StdErr.hOutput ? "err" : "out"));
+                fRet = TRUE;
+            }
+            return fRet;
         }
-        else
-            KWFS_LOG(("CloseHandle(%p) -> FALSE [intercepted handle] err=%u!\n", hObject, GetLastError()));
     }
-    else
-    {
-        KWFS_LOG(("CloseHandle(%p)\n", hObject));
-        fRet = CloseHandle(hObject);
-    }
+
+    fRet = CloseHandle(hObject);
+    KWFS_LOG(("CloseHandle(%p) -> %d\n", hObject, fRet));
     return fRet;
 }
 
@@ -5987,6 +6201,7 @@ static void kwSandboxConsoleFlushCombined(PKWSANDBOX pSandbox)
 {
     if (pSandbox->Combined.cwcBuf > 0)
     {
+        KWOUT_LOG(("kwSandboxConsoleFlushCombined: %u wchars\n", pSandbox->Combined.cwcBuf));
         kwSandboxConsoleWriteIt(pSandbox, pSandbox->Combined.wszBuf, pSandbox->Combined.cwcBuf);
         pSandbox->Combined.cwcBuf = 0;
     }
@@ -6024,13 +6239,16 @@ static void kwSandboxConsoleAddToCombined(PKWSANDBOX pSandbox, wchar_t const *pw
  *
  * @param   pSandbox            The sandbox.
  * @param   pLineBuf            The line buffer.
+ * @param   pszName             The line buffer name (for logging)
  */
-static void kwSandboxConsoleFinalFlushLineBuf(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf)
+static void kwSandboxConsoleFinalFlushLineBuf(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pszName)
 {
     if (pLineBuf->fIsConsole)
     {
         if (pLineBuf->u.Con.cwcBuf > 0)
         {
+            KWOUT_LOG(("kwSandboxConsoleFinalFlushLineBuf: %s: %u wchars\n", pszName, pLineBuf->u.Con.cwcBuf));
+
             if (pLineBuf->u.Con.cwcBuf < pLineBuf->u.Con.cwcBufAlloc)
             {
                 pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf++] = '\n';
@@ -6044,11 +6262,15 @@ static void kwSandboxConsoleFinalFlushLineBuf(PKWSANDBOX pSandbox, PKWCONSOLEOUT
             pLineBuf->u.Con.cwcBuf = 0;
         }
     }
+#ifdef WITH_STD_OUT_ERR_BUFFERING
     else if (pLineBuf->u.Fully.cchBuf > 0)
     {
+        KWOUT_LOG(("kwSandboxConsoleFinalFlushLineBuf: %s: %u bytes\n", pszName, pLineBuf->u.Fully.cchBuf));
+
         kwSandboxOutBufWriteIt(pLineBuf->hBackup, pLineBuf->u.Fully.pchBuf, pLineBuf->u.Fully.cchBuf);
         pLineBuf->u.Fully.cchBuf = 0;
     }
+#endif
 }
 
 
@@ -6091,20 +6313,25 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
                     }
                     if (fOk)
                     {
+                        KWOUT_LOG(("kwSandboxConsoleFlushAll: Dropping '%*.*ls in combined console buffer\n",
+                                   pSandbox->Combined.cwcBuf, pSandbox->Combined.cwcBuf, pSandbox->Combined.wszBuf));
                         pSandbox->Combined.cwcBuf = 0;
                         return;
                     }
                 }
+                KWOUT_LOG(("kwSandboxConsoleFlushAll: Unable to drop '%*.*ls in combined console buffer\n",
+                           pSandbox->Combined.cwcBuf, pSandbox->Combined.cwcBuf, pSandbox->Combined.wszBuf));
             }
         }
+#ifdef WITH_STD_OUT_ERR_BUFFERING
         /*
-         * Otherwise, it goes to standard error.
+         * Otherwise, it goes to standard output (redirected).
          */
-        else if (   pSandbox->StdOut.u.Fully.cchBuf == 0
-                 && pSandbox->StdErr.u.Fully.cchBuf >= 3)
+        else if (   pSandbox->StdErr.u.Fully.cchBuf == 0
+                 && pSandbox->StdOut.u.Fully.cchBuf >= 3)
         {
-            char const *pchBuf = pSandbox->StdErr.u.Fully.pchBuf;
-            KI32        off    = pSandbox->StdErr.u.Fully.cchBuf - 1;
+            char const *pchBuf = pSandbox->StdOut.u.Fully.pchBuf;
+            KI32        off    = pSandbox->StdOut.u.Fully.cchBuf - 1;
             kHlpAssert(pSandbox->Combined.cFlushes == 0 && pSandbox->Combined.cwcBuf == 0); /* unused! */
 
             if (pchBuf[off] == '\n')
@@ -6125,18 +6352,23 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
                 }
                 if (fOk)
                 {
-                    pSandbox->StdErr.u.Fully.cchBuf = 0;
+                    KWOUT_LOG(("kwSandboxConsoleFlushAll: Dropping '%*.*s in stdout buffer\n",
+                               pSandbox->StdOut.u.Fully.cchBuf, pSandbox->StdOut.u.Fully.cchBuf, pchBuf));
+                    pSandbox->StdOut.u.Fully.cchBuf = 0;
                     return;
                 }
             }
+            KWOUT_LOG(("kwSandboxConsoleFlushAll: Unable to drop '%*.*s in stdout buffer\n",
+                       pSandbox->StdOut.u.Fully.cchBuf, pSandbox->StdOut.u.Fully.cchBuf, pchBuf));
         }
+#endif
     }
 
     /*
      * Flush the two line buffer, the the combined buffer.
      */
-    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdErr);
-    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdOut);
+    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdErr, "StdErr");
+    kwSandboxConsoleFinalFlushLineBuf(pSandbox, &pSandbox->StdOut, "StdOut");
     kwSandboxConsoleFlushCombined(pSandbox);
 }
 
@@ -6149,7 +6381,7 @@ static void kwSandboxConsoleFlushAll(PKWSANDBOX pSandbox)
  * @param   pwcBuffer           The buffer to write.
  * @param   cwcToWrite          The number of wchar_t's in the buffer.
  */
-static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, wchar_t const *pwcBuffer, KU32 cwcToWrite)
+static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, wchar_t const *pwcBuffer, KU32 cwcToWrite)
 {
     kHlpAssert(pLineBuf->fIsConsole);
     if (cwcToWrite > 0)
@@ -6315,7 +6547,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
  * @param   pchBuffer           What to write.
  * @param   cchToWrite          How much to write.
  */
-static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLineBuf, const char *pchBuffer, KU32 cchToWrite)
+static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pchBuffer, KU32 cchToWrite)
 {
     /*
      * Convert it to wide char and use the 'W' to do the work.
@@ -6373,8 +6605,8 @@ static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWCONSOLEOUTPUTLINE pLi
 BOOL WINAPI kwSandbox_Kernel32_WriteConsoleA(HANDLE hConOutput, CONST VOID *pvBuffer, DWORD cbToWrite, PDWORD pcbWritten,
                                              PVOID pvReserved)
 {
-    BOOL                    fRc;
-    PKWCONSOLEOUTPUTLINE    pLineBuf;
+    BOOL                fRc;
+    PKWOUTPUTSTREAMBUF  pLineBuf;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
     if (hConOutput == g_Sandbox.StdErr.hOutput)
@@ -6385,8 +6617,8 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleA(HANDLE hConOutput, CONST VOID *pvBu
     {
         kwSandboxConsoleWriteA(&g_Sandbox, pLineBuf, (char const *)pvBuffer, cbToWrite);
 
-        KWFS_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> TRUE [cached]\n",
-                  hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved));
+        KWOUT_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> TRUE [cached]\n",
+                   hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved));
         if (pcbWritten)
             *pcbWritten = cbToWrite;
         fRc = TRUE;
@@ -6394,8 +6626,8 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleA(HANDLE hConOutput, CONST VOID *pvBu
     else
     {
         fRc = WriteConsoleA(hConOutput, pvBuffer, cbToWrite, pcbWritten, pvReserved);
-        KWFS_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> %d !fallback!\n",
-                  hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved, fRc));
+        KWOUT_LOG(("WriteConsoleA: %p, %p LB %#x (%*.*s), %p, %p -> %d !fallback!\n",
+                   hConOutput, pvBuffer, cbToWrite, cbToWrite, cbToWrite, pvBuffer, pcbWritten, pvReserved, fRc));
     }
     return fRc;
 }
@@ -6405,8 +6637,8 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleA(HANDLE hConOutput, CONST VOID *pvBu
 BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBuffer, DWORD cwcToWrite, PDWORD pcwcWritten,
                                              PVOID pvReserved)
 {
-    BOOL                    fRc;
-    PKWCONSOLEOUTPUTLINE    pLineBuf;
+    BOOL                fRc;
+    PKWOUTPUTSTREAMBUF  pLineBuf;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
 
     if (hConOutput == g_Sandbox.StdErr.hOutput)
@@ -6419,8 +6651,8 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBu
     {
         kwSandboxConsoleWriteW(&g_Sandbox, pLineBuf, (wchar_t const *)pvBuffer, cwcToWrite);
 
-        KWFS_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> TRUE [cached]\n",
-                  hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved));
+        KWOUT_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> TRUE [cached]\n",
+                   hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved));
         if (pcwcWritten)
             *pcwcWritten = cwcToWrite;
         fRc = TRUE;
@@ -6428,8 +6660,8 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBu
     else
     {
         fRc = WriteConsoleW(hConOutput, pvBuffer, cwcToWrite, pcwcWritten, pvReserved);
-        KWFS_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> %d !fallback!\n",
-                  hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved, fRc));
+        KWOUT_LOG(("WriteConsoleW: %p, %p LB %#x (%*.*ls), %p, %p -> %d !fallback!\n",
+                   hConOutput, pvBuffer, cwcToWrite, cwcToWrite, cwcToWrite, pvBuffer, pcwcWritten, pvReserved, fRc));
     }
     return fRc;
 }
@@ -7127,6 +7359,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 #endif
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
     { TUPLE("SetFilePointerEx"),            NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointerEx },
+    { TUPLE("DuplicateHandle"),             NULL,       (KUPTR)kwSandbox_Kernel32_DuplicateHandle },
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
@@ -7250,6 +7483,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 #endif
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
     { TUPLE("SetFilePointerEx"),            NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointerEx },
+    { TUPLE("DuplicateHandle"),             NULL,       (KUPTR)kwSandbox_Kernel32_DuplicateHandle },
     { TUPLE("CloseHandle"),                 NULL,       (KUPTR)kwSandbox_Kernel32_CloseHandle },
     { TUPLE("GetFileAttributesA"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesA },
     { TUPLE("GetFileAttributesW"),          NULL,       (KUPTR)kwSandbox_Kernel32_GetFileAttributesW },
@@ -7465,10 +7699,12 @@ static LONG CALLBACK kwSandboxVecXcptEmulateChained(PEXCEPTION_POINTERS pXcptPtr
  * @returns K_TRUE on success, K_FALSE on failure.
  * @param   pSandbox            The sandbox.
  * @param   pHandle             The handle.
+ * @param   hHandle             The handle value to enter it under (for the
+ *                              duplicate handle API).
  */
-static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle)
+static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, HANDLE hHandle)
 {
-    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(pHandle->hHandle);
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hHandle);
     kHlpAssertReturn(idxHandle < KW_HANDLE_MAX, K_FALSE);
 
     /*
@@ -7561,6 +7797,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
                          KU32 cEnvVars, const char **papszEnvVars)
 {
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
+    PMY_RTL_USER_PROCESS_PARAMETERS pProcParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
     wchar_t *pwcPool;
     KSIZE cbStrings;
     KSIZE cwc;
@@ -7576,14 +7813,14 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->wpgmptr       = (wchar_t *)pTool->pwszPath;
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     if (pSandbox->StdOut.fIsConsole)
-        pSandbox->StdOut.u.Con.cwcBuf = 0;
+        pSandbox->StdOut.u.Con.cwcBuf   = 0;
     else
         pSandbox->StdOut.u.Fully.cchBuf = 0;
     if (pSandbox->StdErr.fIsConsole)
-        pSandbox->StdErr.u.Con.cwcBuf = 0;
+        pSandbox->StdErr.u.Con.cwcBuf   = 0;
     else
         pSandbox->StdErr.u.Fully.cchBuf = 0;
-    pSandbox->Combined.cwcBuf = 0;
+    pSandbox->Combined.cwcBuf   = 0;
     pSandbox->Combined.cFlushes = 0;
 #endif
     pSandbox->cArgs         = cArgs;
@@ -7619,9 +7856,9 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
         return KERR_NO_MEMORY;
     cwc = kwStrToUtf16(pSandbox->pszCmdLine, pSandbox->pwszCmdLine, cbStrings / sizeof(wchar_t));
 
-    pSandbox->SavedCommandLine = pPeb->ProcessParameters->CommandLine;
-    pPeb->ProcessParameters->CommandLine.Buffer = pSandbox->pwszCmdLine;
-    pPeb->ProcessParameters->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
+    pSandbox->SavedCommandLine = pProcParams->CommandLine;
+    pProcParams->CommandLine.Buffer = pSandbox->pwszCmdLine;
+    pProcParams->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
 
     /*
      * Setup the enviornment.
@@ -7696,7 +7933,6 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
 #endif
     PKWEXITCALLACK              pExitCallback;
 
-
     /*
      * First stuff that may cause code to run.
      */
@@ -7751,6 +7987,54 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     /*
      * Then free resources associated with the sandbox run.
      */
+
+    /* Open handles, except fixed handles (stdout and stderr). */
+    if (pSandbox->cActiveHandles > pSandbox->cFixedHandles)
+    {
+        KU32 idxHandle = pSandbox->cHandles;
+        while (idxHandle-- > 0)
+            if (pSandbox->papHandles[idxHandle] == NULL)
+            { /* likely */ }
+            else
+            {
+                PKWHANDLE pHandle = pSandbox->papHandles[idxHandle];
+                if (   pHandle->enmType != KWHANDLETYPE_OUTPUT_BUF
+                    || idxHandle != KW_HANDLE_TO_INDEX(pHandle->hHandle) )
+                {
+                    pSandbox->papHandles[idxHandle] = NULL;
+                    pSandbox->cLeakedHandles++;
+
+                    switch (pHandle->enmType)
+                    {
+                        case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                            KWFS_LOG(("Closing leaked read cache handle: %#x/%p cRefs=%d\n",
+                                      idxHandle, pHandle->hHandle, pHandle->cRefs));
+                            break;
+                        case KWHANDLETYPE_OUTPUT_BUF:
+                            KWFS_LOG(("Closing leaked output buf handle: %#x/%p cRefs=%d\n",
+                                      idxHandle, pHandle->hHandle, pHandle->cRefs));
+                            break;
+                        case KWHANDLETYPE_TEMP_FILE:
+                            KWFS_LOG(("Closing leaked temp file  handle: %#x/%p cRefs=%d\n",
+                                      idxHandle, pHandle->hHandle, pHandle->cRefs));
+                            pHandle->u.pTempFile->cActiveHandles--;
+                            break;
+                        case KWHANDLETYPE_TEMP_FILE_MAPPING:
+                            KWFS_LOG(("Closing leaked temp mapping handle: %#x/%p cRefs=%d\n",
+                                      idxHandle, pHandle->hHandle, pHandle->cRefs));
+                            pHandle->u.pTempFile->cActiveHandles--;
+                            break;
+                        default:
+                            kHlpAssertFailed();
+                    }
+                    if (--pHandle->cRefs == 0)
+                        kHlpFree(pHandle);
+                    if (--pSandbox->cActiveHandles == pSandbox->cFixedHandles)
+                        break;
+                }
+            }
+        kHlpAssert(pSandbox->cActiveHandles == pSandbox->cFixedHandles);
+    }
 
 #ifdef WITH_TEMP_MEMORY_FILES
     /* The temporary files aren't externally visible, they're all in memory. */
@@ -7830,6 +8114,7 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     MemInfo.WorkingSetSize = 0;
     if (GetProcessMemoryInfo(GetCurrentProcess(), &MemInfo, sizeof(MemInfo)))
     {
+        /** @todo make the limit dynamic and user configurable. */
 #if K_ARCH_BITS >= 64
         if (MemInfo.WorkingSetSize >= 512*1024*1024)
 #else
@@ -7837,50 +8122,43 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
 #endif
         {
             KW_LOG(("WorkingSetSize = %#x - > restart next time.\n", MemInfo.WorkingSetSize));
-            //fprintf(stderr, "WorkingSetSize = %#x - > restart next time.\n", MemInfo.WorkingSetSize);
             g_fRestart = K_TRUE;
         }
+    }
+
+    /*
+     * The CRT has a max of 8192 handles, so we better restart after a while if
+     * someone is leaking handles or we risk running out of descriptors.
+     *
+     * Note! We only detect leaks for handles we intercept.  In the case of CL.EXE
+     *       doing _dup2(1, 2) (stderr ==> stdout), there isn't actually a leak.
+     */
+    if (pSandbox->cLeakedHandles > 6000)
+    {
+        KW_LOG(("LeakedHandles = %#x - > restart next time.\n", pSandbox->cLeakedHandles));
+        g_fRestart = K_TRUE;
     }
 }
 
 
+/**
+ * Does essential cleanups and restoring, anything externally visible.
+ *
+ * All cleanups that aren't externally visible are postponed till after we've
+ * informed kmk of the result, so it can be done in the dead time between jobs.
+ *
+ * @param   pSandbox            The sandbox.
+ */
 static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 {
     /*
      * Restore the parent command line string.
      */
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
-    pPeb->ProcessParameters->CommandLine = pSandbox->SavedCommandLine;
-
-    /*
-     * Kill all open handles.
-     */
-    if (pSandbox->cActiveHandles > 0)
-    {
-        KU32 i = pSandbox->cHandles;
-        while (i-- > 0)
-            if (pSandbox->papHandles[i] == NULL)
-            { /* likely */ }
-            else
-            {
-                PKWHANDLE pHandle = pSandbox->papHandles[i];
-                pSandbox->papHandles[i] = NULL;
-                switch (pHandle->enmType)
-                {
-                    case KWHANDLETYPE_FSOBJ_READ_CACHE:
-                        break;
-                    case KWHANDLETYPE_TEMP_FILE:
-                    case KWHANDLETYPE_TEMP_FILE_MAPPING:
-                        pHandle->u.pTempFile->cActiveHandles--;
-                        break;
-                    default:
-                        kHlpAssertFailed();
-                }
-                kHlpFree(pHandle);
-                if (--pSandbox->cActiveHandles == 0)
-                    break;
-            }
-    }
+    PMY_RTL_USER_PROCESS_PARAMETERS pProcParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
+    pProcParams->CommandLine    = pSandbox->SavedCommandLine;
+    pProcParams->StandardOutput = pSandbox->StdOut.hOutput;
+    pProcParams->StandardError  = pSandbox->StdErr.hOutput; /* CL.EXE messes with this one. */
 }
 
 
@@ -8454,6 +8732,10 @@ static int kwTestRun(int argc, char **argv)
         kwSandboxCleanupLate(&g_Sandbox);
     }
 
+# ifdef WITH_LOG_FILE
+    if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
+        CloseHandle(g_hLogFile);
+# endif
     return rcExit;
 }
 
@@ -8474,6 +8756,7 @@ int main(int argc, char **argv)
     HANDLE                          hCurProc       = GetCurrentProcess();
     PPEB                            pPeb           = kwSandboxGetProcessEnvironmentBlock();
     PMY_RTL_USER_PROCESS_PARAMETERS pProcessParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
+    DWORD                           dwType;
 #endif
 
     /*
@@ -8503,18 +8786,56 @@ int main(int argc, char **argv)
     /*
      * Get and duplicate the console handles.
      */
+    /* Standard output. */
     g_Sandbox.StdOut.hOutput = pProcessParams->StandardOutput;
     if (!DuplicateHandle(hCurProc, pProcessParams->StandardOutput, hCurProc, &g_Sandbox.StdOut.hBackup,
                          GENERIC_WRITE, FALSE /*fInherit*/, DUPLICATE_SAME_ACCESS))
         kHlpAssertFailedStmt(g_Sandbox.StdOut.hBackup = pProcessParams->StandardOutput);
-    g_Sandbox.StdOut.fIsConsole = GetFileType(g_Sandbox.StdOut.hOutput) == FILE_TYPE_CHAR;
+    dwType = GetFileType(g_Sandbox.StdOut.hOutput);
+    g_Sandbox.StdOut.fIsConsole = dwType == FILE_TYPE_CHAR;
+    g_Sandbox.StdOut.fFileType  = (dwType & ~FILE_TYPE_REMOTE) < 0xf
+                                ? (KU8)((dwType & ~FILE_TYPE_REMOTE) | (dwType >> 8)) : KU8_MAX;
+    g_Sandbox.HandleStdOut.enmType         = KWHANDLETYPE_OUTPUT_BUF;
+    g_Sandbox.HandleStdOut.cRefs           = 0x10001;
+    g_Sandbox.HandleStdOut.dwDesiredAccess = GENERIC_WRITE;
+    g_Sandbox.HandleStdOut.u.pOutBuf       = &g_Sandbox.StdOut;
+    g_Sandbox.HandleStdOut.hHandle         = g_Sandbox.StdOut.hOutput;
+    if (g_Sandbox.StdOut.hOutput != INVALID_HANDLE_VALUE)
+    {
+        if (kwSandboxHandleTableEnter(&g_Sandbox, &g_Sandbox.HandleStdOut, g_Sandbox.StdOut.hOutput))
+            g_Sandbox.cFixedHandles++;
+        else
+            return kwErrPrintfRc(3, "kwSandboxHandleTableEnter failed for StdOut (%p)!\n", g_Sandbox.StdOut.hOutput);
+    }
+    KWOUT_LOG(("StdOut: hOutput=%p (%p) fIsConsole=%d dwType=%#x\n",
+               g_Sandbox.StdOut.hOutput, g_Sandbox.StdOut.hBackup, g_Sandbox.StdOut.fIsConsole, dwType));
 
+    /* Standard error. */
     g_Sandbox.StdErr.hOutput = pProcessParams->StandardError;
     if (!DuplicateHandle(hCurProc, pProcessParams->StandardError, hCurProc, &g_Sandbox.StdErr.hBackup,
                          GENERIC_WRITE, FALSE /*fInherit*/, DUPLICATE_SAME_ACCESS))
         kHlpAssertFailedStmt(g_Sandbox.StdErr.hBackup = pProcessParams->StandardError);
-    g_Sandbox.StdErr.fIsConsole = GetFileType(g_Sandbox.StdErr.hOutput) == FILE_TYPE_CHAR;
+    dwType = GetFileType(g_Sandbox.StdErr.hOutput);
+    g_Sandbox.StdErr.fIsConsole = dwType == FILE_TYPE_CHAR;
+    g_Sandbox.StdErr.fFileType  = (dwType & ~FILE_TYPE_REMOTE) < 0xf
+                                ? (KU8)((dwType & ~FILE_TYPE_REMOTE) | (dwType >> 8)) : KU8_MAX;
+    g_Sandbox.HandleStdErr.enmType         = KWHANDLETYPE_OUTPUT_BUF;
+    g_Sandbox.HandleStdErr.cRefs           = 0x10001;
+    g_Sandbox.HandleStdErr.dwDesiredAccess = GENERIC_WRITE;
+    g_Sandbox.HandleStdErr.u.pOutBuf       = &g_Sandbox.StdErr;
+    g_Sandbox.HandleStdErr.hHandle         = g_Sandbox.StdErr.hOutput;
+    if (   g_Sandbox.StdErr.hOutput != INVALID_HANDLE_VALUE
+        && g_Sandbox.StdErr.hOutput != g_Sandbox.StdOut.hOutput)
+    {
+        if (kwSandboxHandleTableEnter(&g_Sandbox, &g_Sandbox.HandleStdErr, g_Sandbox.StdErr.hOutput))
+            g_Sandbox.cFixedHandles++;
+        else
+            return kwErrPrintfRc(3, "kwSandboxHandleTableEnter failed for StdErr (%p)!\n", g_Sandbox.StdErr.hOutput);
+    }
+    KWOUT_LOG(("StdErr: hOutput=%p (%p) fIsConsole=%d dwType=%#x\n",
+               g_Sandbox.StdErr.hOutput, g_Sandbox.StdErr.hBackup, g_Sandbox.StdErr.fIsConsole, dwType));
 
+    /* Combined console buffer. */
     if (g_Sandbox.StdErr.fIsConsole)
     {
         g_Sandbox.Combined.hOutput   = g_Sandbox.StdErr.hBackup;
@@ -8530,7 +8851,8 @@ int main(int argc, char **argv)
         g_Sandbox.Combined.hOutput   = INVALID_HANDLE_VALUE;
         g_Sandbox.Combined.uCodepage = CP_ACP;
     }
-#endif
+    KWOUT_LOG(("Combined: hOutput=%p uCodepage=%d\n", g_Sandbox.Combined.hOutput, g_Sandbox.Combined.uCodepage));
+#endif /* WITH_CONSOLE_OUTPUT_BUFFERING */
 
 
     /*
@@ -8673,6 +8995,10 @@ int main(int argc, char **argv)
         }
 
         CloseHandle(hPipe);
+# ifdef WITH_LOG_FILE
+        if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
+            CloseHandle(g_hLogFile);
+# endif
         return rc > 0 ? 0 : 1;
     }
 }
