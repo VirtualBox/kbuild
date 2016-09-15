@@ -1,4 +1,4 @@
-/* $Id: redirect.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 2916 2016-09-15 11:41:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -386,11 +386,17 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
 #endif
     int         aFdTries[32];
     int         cTries;
+    int         fdOpened;
+
+#ifdef KBUILD_OS_WINDOWS
+    if (strcmp(pszFilename, "/dev/null") == 0)
+        pszFilename = "nul";
+#endif
 
     /* Open it first. */
-    int fdOpened = open(pszFilename, fOpen | fNoInherit, fMode);
+    fdOpened = open(pszFilename, fOpen | fNoInherit, fMode);
     if (fdOpened < 0)
-        return err(9, "open(%s,%#x,) failed", pszFilename, fOpen);
+        return err(-1, "open(%s,%#x,) failed", pszFilename, fOpen);
 
     /* Check for conflicts. */
     if (!kRedirectHasConflict(fdOpened, cOrders, paOrders))
@@ -433,7 +439,7 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
         }
         else
         {
-            err(9, "open(%s,%#x,) #%u failed", pszFilename, cTries + 1, fOpen);
+            err(-1, "open(%s,%#x,) #%u failed", pszFilename, cTries + 1, fOpen);
             break;
         }
         aFdTries[cTries++] = fdOpened;
@@ -443,7 +449,7 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
      * Give up.
      */
     if (fdOpened >= 0)
-        errx(9, "failed to find a conflict free file descriptor for '%s'!", pszFilename);
+        errx(-1, "failed to find a conflict free file descriptor for '%s'!", pszFilename);
 
     while (cTries-- > 0)
         close(aFdTries[cTries]);
@@ -1579,6 +1585,8 @@ int main(int argc, char **argv, char **envp)
                     }
 #endif
                 }
+                else
+                    rcExit = 9;
             }
         }
         else

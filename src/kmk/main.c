@@ -915,6 +915,7 @@ set_make_priority_and_affinity (void)
 
 
 #ifdef WINDOWS32
+# ifndef KMK
 /*
  * HANDLE runtime exceptions by avoiding a requestor on the GUI. Capture
  * exception and print it to stderr instead.
@@ -989,6 +990,7 @@ handle_runtime_exceptions( struct _EXCEPTION_POINTERS *exinfo )
   return (255); /* not reached */
 #endif
 }
+# endif /* !KMK */
 
 /*
  * On WIN32 systems we don't have the luxury of a /bin directory that
@@ -1376,7 +1378,9 @@ main (int argc, char **argv, char **envp)
   char *windows32_path = NULL;
 
 # ifndef ELECTRIC_HEAP /* Drop this because it prevents JIT debugging. */
+#  ifndef KMK /* Don't want none of this crap. */
   SetUnhandledExceptionFilter(handle_runtime_exceptions);
+#  endif
 # endif /* !ELECTRIC_HEAP */
 
   /* start off assuming we have no shell */
