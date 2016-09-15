@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2926 2016-09-15 23:02:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2927 2016-09-15 23:08:29Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -9185,6 +9185,10 @@ int main(int argc, char **argv)
  * intermediate representation between the first (c1/c1xx.dll) and second pass
  * (c2.dll).
  *
+ * kWorker helps the compiler as best as it can.  Given a little knowledge about
+ * stable and volatile file system areas, it can do a lot of caching that a
+ * normal compiler driver cannot easily do when given a single file.
+ *
  *
  * @subsubsection sssec_kWorker_Headers     Cache Headers Files and Searches
  *
@@ -9203,6 +9207,12 @@ int main(int argc, char **argv)
  * that handle.  An internal handle table is used by ReadFile and CloseFile to
  * keep track of intercepted handles (also used for temporary file, temporary
  * file mappings, console buffering, and standard out/err buffering).
+ *
+ * PS. The header search optimization also comes in handy when cl.exe goes on
+ *     thru the whole PATH looking for c1/c1xx.exe and c2.exe after finding
+ *     c1/c1xx.dll and c2.dll.  My guess is that the compiler team can
+ *     optionally compile the three pass DLLs as executables during development
+ *     and problem analysis.
  *
  *
  * @subsubsection sssec_kWorker_Temp_Files  Temporary Files In Memory
