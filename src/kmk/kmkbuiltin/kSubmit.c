@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2917 2016-09-15 12:13:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1095,7 +1095,7 @@ static void kSubmitAtExitCallback(void)
             DWORD cMsElapsed = GetTickCount() - msStartTick;
             DWORD dwWait = WaitForMultipleObjects(cHandles <= MAXIMUM_WAIT_OBJECTS ? cHandles : MAXIMUM_WAIT_OBJECTS,
                                                   ahHandles, FALSE /*bWaitAll*/,
-                                                  cMsElapsed < 1000 ? 1000 - cMsElapsed + 16 : 16);
+                                                  cMsElapsed < 5000 ? 5000 - cMsElapsed + 16 : 16);
             if (   dwWait >= WAIT_OBJECT_0
                 && dwWait <= WAIT_OBJECT_0 + MAXIMUM_WAIT_OBJECTS)
             {
@@ -1122,7 +1122,7 @@ static void kSubmitAtExitCallback(void)
             {
                 /* Terminate the whole bunch. */
                 cKillRaids++;
-                if (cKillRaids <= 2)
+                if (cKillRaids == 1)
                 {
                     fprintf(stderr, "kmk/kSubmit: Killing %u lingering worker processe(s)!\n", cHandles);
                     for (pWorker = g_IdleList.pHead; pWorker != NULL; pWorker = pWorker->pNext)
@@ -1135,7 +1135,7 @@ static void kSubmitAtExitCallback(void)
                 else
                 {
                     fprintf(stderr, "kmk/kSubmit: Giving up on the last %u worker processe(s). :-(\n", cHandles);
-                    break;
+                    return;
                 }
             }
             else
