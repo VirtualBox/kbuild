@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2916 2016-09-15 11:41:42Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2920 2016-09-15 14:15:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -786,9 +786,12 @@ extern KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[];
 extern KU32                  const g_cSandboxNativeReplacements;
 
 /** Create a larget BSS blob that with help of /IMAGEBASE:0x10000 should
- * cover the default executable link address of 0x400000. */
-#pragma section("DefLdBuf", write, execute, read)
-__declspec(allocate("DefLdBuf"))
+ * cover the default executable link address of 0x400000.
+ * @remarks Early main() makes it read+write+executable.  Attempts as having
+ *          it as a separate section failed because the linker insists on
+ *          writing out every zero in the uninitialized section, resulting in
+ *          really big binaries. */
+__declspec(align(0x1000))
 static KU8          g_abDefLdBuf[16*1024*1024];
 
 #ifdef WITH_LOG_FILE
@@ -8781,6 +8784,13 @@ int main(int argc, char **argv)
     pszTmp = getenv("TMPDIR");
     if (pszTmp && *pszTmp != '\0')
         kFsCacheSetupCustomRevisionForTree(g_pFsCache, kFsCacheLookupA(g_pFsCache, pszTmp, &enmIgnored));
+
+    /*
+     * Make g_abDefLdBuf executable.
+     */
+    if (!VirtualProtect(g_abDefLdBuf, sizeof(g_abDefLdBuf), PAGE_EXECUTE_READWRITE, &dwType))
+        return kwErrPrintfRc(3, "VirtualProtect(%p, %#x, PAGE_EXECUTE_READWRITE,NULL) failed: %u\n",
+                             g_abDefLdBuf, sizeof(g_abDefLdBuf), GetLastError());
 
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     /*
