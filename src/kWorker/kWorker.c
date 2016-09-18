@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2934 2016-09-18 16:47:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2935 2016-09-18 20:00:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -99,6 +99,16 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 #else
 # define KW_LOG(a) do { } while (0)
 #endif
+
+/** @def KWLDR_LOG
+ * Loader related logging.
+ * @param a     Argument list for kwDbgPrintf  */
+#ifdef KW_LOG_ENABLED
+# define KWLDR_LOG(a) kwDbgPrintf a
+#else
+# define KWLDR_LOG(a) do { } while (0)
+#endif
+
 
 /** @def KWFS_LOG
  * FS cache logging.
@@ -213,9 +223,9 @@ typedef struct KWMODULE
         struct
         {
             /** Where we load the image. */
-            void               *pvLoad;
+            KU8                *pbLoad;
             /** Virgin copy of the image. */
-            void               *pvCopy;
+            KU8                *pbCopy;
             /** Ldr pvBits argument.  This is NULL till we've successfully resolved
              *  the imports. */
             void               *pvBits;
@@ -231,6 +241,32 @@ typedef struct KWMODULE
 #endif
             /** Set if we share memory with other executables. */
             KBOOL               fUseLdBuf;
+            /** Set after the first whole image copy is done. */
+            KBOOL               fCanDoQuick;
+            /** Number of quick copy chunks. */
+            KU8                 cQuickCopyChunks;
+            /** Number of quick zero chunks. */
+            KU8                 cQuickZeroChunks;
+            /** Quicker image copy instructions that skips non-writable parts when
+             * possible.  Need to check fCanDoQuick, fUseLdBuf and previous executable
+             * image. */
+            struct
+            {
+                /** The copy destination.   */
+                KU8            *pbDst;
+                /** The copy source.   */
+                KU8 const      *pbSrc;
+                /** How much to copy. */
+                KSIZE           cbToCopy;
+            } aQuickCopyChunks[3];
+            /** For handling BSS and zero alignment padding when using aQuickCopyChunks. */
+            struct
+            {
+                /** Where to start zeroing. */
+                KU8            *pbDst;
+                /** How much to zero. */
+                KSIZE           cbToZero;
+            } aQuickZeroChunks[3];
             /** Number of imported modules. */
             KSIZE               cImpMods;
             /** Import array (variable size). */
@@ -754,6 +790,9 @@ static KWSANDBOX    g_Sandbox;
 
 /** The module currently occupying g_abDefLdBuf. */
 static PKWMODULE    g_pModInLdBuf = NULL;
+
+/** The module that previuosly occupied g_abDefLdBuf. */
+static PKWMODULE    g_pModPrevInLdBuf = NULL;
 
 /** Module hash table. */
 static PKWMODULE    g_apModules[127];
@@ -1423,8 +1462,8 @@ static void kwLdrModuleRelease(PKWMODULE pMod)
 
         if (!pMod->fNative)
         {
-            kHlpPageFree(pMod->u.Manual.pvCopy, pMod->cbImage);
-            kHlpPageFree(pMod->u.Manual.pvLoad, pMod->cbImage);
+            kHlpPageFree(pMod->u.Manual.pbCopy, pMod->cbImage);
+            kHlpPageFree(pMod->u.Manual.pbLoad, pMod->cbImage);
         }
 
         kHlpFree(pMod);
@@ -1680,6 +1719,116 @@ static PKWMODULE kwLdrModuleCreateNative(const char *pszPath, KU32 uHashPath, KB
 
 
 /**
+ * Sets up the quick zero & copy tables for the non-native module.
+ *
+ * This is a worker for kwLdrModuleCreateNonNative.
+ *
+ * @param   pMod                The module.
+ */
+static void kwLdrModuleCreateNonNativeSetupQuickZeroAndCopy(PKWMODULE pMod)
+{
+    PCKLDRSEG   paSegs = pMod->pLdrMod->aSegments;
+    KU32        cSegs  = pMod->pLdrMod->cSegments;
+    KU32        iSeg;
+
+    KWLDR_LOG(("Setting up quick zero & copy for %s:\n", pMod->pszPath));
+    pMod->u.Manual.cQuickCopyChunks = 0;
+    pMod->u.Manual.cQuickZeroChunks = 0;
+
+    for (iSeg = 0; iSeg < cSegs; iSeg++)
+        switch (paSegs[iSeg].enmProt)
+        {
+            case KPROT_READWRITE:
+            case KPROT_WRITECOPY:
+            case KPROT_EXECUTE_READWRITE:
+            case KPROT_EXECUTE_WRITECOPY:
+                if (paSegs[iSeg].cbMapped)
+                {
+                    KU32 iChunk = pMod->u.Manual.cQuickCopyChunks;
+                    if (iChunk < K_ELEMENTS(pMod->u.Manual.aQuickCopyChunks))
+                    {
+                        /*
+                         * Check for trailing zero words.
+                         */
+                        KSIZE cbTrailingZeros;
+                        if (   paSegs[iSeg].cbMapped >= 64 * 2 * sizeof(KSIZE)
+                            && (paSegs[iSeg].cbMapped & 7) == 0
+                            && pMod->u.Manual.cQuickZeroChunks < K_ELEMENTS(pMod->u.Manual.aQuickZeroChunks) )
+                        {
+                            KSIZE const *pauNatural   = (KSIZE const *)&pMod->u.Manual.pbCopy[(KSIZE)paSegs[iSeg].RVA];
+                            KSIZE        cNatural     = paSegs[iSeg].cbMapped / sizeof(KSIZE);
+                            KSIZE        idxFirstZero = cNatural;
+                            while (idxFirstZero > 0)
+                                if (pauNatural[--idxFirstZero] == 0)
+                                { /* likely */ }
+                                else
+                                {
+                                    idxFirstZero++;
+                                    break;
+                                }
+                            cbTrailingZeros = (cNatural - idxFirstZero) * sizeof(KSIZE);
+                            if (cbTrailingZeros < 128)
+                                cbTrailingZeros = 0;
+                        }
+                        else
+                            cbTrailingZeros = 0;
+
+                        /*
+                         * Add quick copy entry.
+                         */
+                        if (cbTrailingZeros < paSegs[iSeg].cbMapped)
+                        {
+                            pMod->u.Manual.aQuickCopyChunks[iChunk].pbDst    = &pMod->u.Manual.pbLoad[(KSIZE)paSegs[iSeg].RVA];
+                            pMod->u.Manual.aQuickCopyChunks[iChunk].pbSrc    = &pMod->u.Manual.pbCopy[(KSIZE)paSegs[iSeg].RVA];
+                            pMod->u.Manual.aQuickCopyChunks[iChunk].cbToCopy = paSegs[iSeg].cbMapped - cbTrailingZeros;
+                            pMod->u.Manual.cQuickCopyChunks = iChunk + 1;
+                            KWLDR_LOG(("aQuickCopyChunks[%u]: %#p LB %#" KSIZE_PRI " <- %p (%*.*s)\n", iChunk,
+                                       pMod->u.Manual.aQuickCopyChunks[iChunk].pbDst,
+                                       pMod->u.Manual.aQuickCopyChunks[iChunk].cbToCopy,
+                                       pMod->u.Manual.aQuickCopyChunks[iChunk].pbSrc,
+                                       paSegs[iSeg].cchName, paSegs[iSeg].cchName, paSegs[iSeg].pchName));
+                        }
+
+                        /*
+                         * Add quick zero entry.
+                         */
+                        if (cbTrailingZeros)
+                        {
+                            KU32 iZero = pMod->u.Manual.cQuickZeroChunks;
+                            pMod->u.Manual.aQuickZeroChunks[iZero].pbDst    = pMod->u.Manual.aQuickCopyChunks[iChunk].pbDst
+                                                                            + pMod->u.Manual.aQuickCopyChunks[iChunk].cbToCopy;
+                            pMod->u.Manual.aQuickZeroChunks[iZero].cbToZero = cbTrailingZeros;
+                            pMod->u.Manual.cQuickZeroChunks = iZero + 1;
+                            KWLDR_LOG(("aQuickZeroChunks[%u]: %#p LB %#" KSIZE_PRI " <- zero (%*.*s)\n", iZero,
+                                       pMod->u.Manual.aQuickZeroChunks[iZero].pbDst,
+                                       pMod->u.Manual.aQuickZeroChunks[iZero].cbToZero,
+                                       paSegs[iSeg].cchName, paSegs[iSeg].cchName, paSegs[iSeg].pchName));
+                        }
+                    }
+                    else
+                    {
+                        /*
+                         * We're out of quick copy table entries, so just copy the whole darn thing.
+                         * We cannot 104% guarantee that the segments are in mapping order, so this is simpler.
+                         */
+                        kHlpAssertFailed();
+                        pMod->u.Manual.aQuickCopyChunks[0].pbDst    = pMod->u.Manual.pbLoad;
+                        pMod->u.Manual.aQuickCopyChunks[0].pbSrc    = pMod->u.Manual.pbCopy;
+                        pMod->u.Manual.aQuickCopyChunks[0].cbToCopy = pMod->cbImage;
+                        pMod->u.Manual.cQuickCopyChunks = 1;
+                        KWLDR_LOG(("Quick copy not possible!\n"));
+                        return;
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+}
+
+
+/**
  * Creates a module using the our own loader.
  *
  * @returns Module w/ 1 reference on success, NULL on failure.
@@ -1744,10 +1893,13 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                     pMod->fNative       = K_FALSE;
                     pMod->pLdrMod       = pLdrMod;
                     pMod->u.Manual.cImpMods = (KU32)cImports;
-                    pMod->u.Manual.fUseLdBuf = K_FALSE;
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
                     pMod->u.Manual.fRegisteredFunctionTable = K_FALSE;
 #endif
+                    pMod->u.Manual.fUseLdBuf = K_FALSE;
+                    pMod->u.Manual.fCanDoQuick = K_FALSE;
+                    pMod->u.Manual.cQuickZeroChunks = 0;
+                    pMod->u.Manual.cQuickCopyChunks = 0;
                     pMod->pszPath       = (char *)kHlpMemCopy(&pMod->u.Manual.apImpMods[cImports + 1], pszPath, cbPath);
                     pMod->pwszPath      = (wchar_t *)(pMod->pszPath + cbPath + (cbPath & 1));
                     kwStrToUtf16(pMod->pszPath, (wchar_t *)pMod->pwszPath, cbPath * 2);
@@ -1757,32 +1909,31 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                      */
                     fFixed = pLdrMod->enmType == KLDRTYPE_EXECUTABLE_FIXED
                           || pLdrMod->enmType == KLDRTYPE_SHARED_LIBRARY_FIXED;
-                    pMod->u.Manual.pvLoad = fFixed ? (void *)(KUPTR)pLdrMod->aSegments[0].LinkAddress : NULL;
+                    pMod->u.Manual.pbLoad = fFixed ? (KU8 *)(KUPTR)pLdrMod->aSegments[0].LinkAddress : NULL;
                     pMod->cbImage = (KSIZE)kLdrModSize(pLdrMod);
                     if (   !fFixed
                         || pLdrMod->enmType != KLDRTYPE_EXECUTABLE_FIXED /* only allow fixed executables */
-                        || (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf >= sizeof(g_abDefLdBuf)
-                        || sizeof(g_abDefLdBuf) - (KUPTR)pMod->u.Manual.pvLoad - (KUPTR)g_abDefLdBuf < pMod->cbImage)
-                        rc = kHlpPageAlloc(&pMod->u.Manual.pvLoad, pMod->cbImage, KPROT_EXECUTE_READWRITE, fFixed);
+                        || (KUPTR)pMod->u.Manual.pbLoad - (KUPTR)g_abDefLdBuf >= sizeof(g_abDefLdBuf)
+                        || sizeof(g_abDefLdBuf) - (KUPTR)pMod->u.Manual.pbLoad - (KUPTR)g_abDefLdBuf < pMod->cbImage)
+                        rc = kHlpPageAlloc((void **)&pMod->u.Manual.pbLoad, pMod->cbImage, KPROT_EXECUTE_READWRITE, fFixed);
                     else
                         pMod->u.Manual.fUseLdBuf = K_TRUE;
                     if (rc == 0)
                     {
-                        rc = kHlpPageAlloc(&pMod->u.Manual.pvCopy, pMod->cbImage, KPROT_READWRITE, K_FALSE);
+                        rc = kHlpPageAlloc(&pMod->u.Manual.pbCopy, pMod->cbImage, KPROT_READWRITE, K_FALSE);
                         if (rc == 0)
                         {
-
                             KI32 iImp;
 
                             /*
                              * Link the module (unless it's an executable image) and process the imports.
                              */
-                            pMod->hOurMod = (HMODULE)pMod->u.Manual.pvLoad;
+                            pMod->hOurMod = (HMODULE)pMod->u.Manual.pbLoad;
                             if (!fExe)
                                 kwLdrModuleLink(pMod);
                             KW_LOG(("New module: %p LB %#010x %s (kLdr)\n",
-                                    pMod->u.Manual.pvLoad, pMod->cbImage, pMod->pszPath));
-                            kwDebuggerPrintf("TODO: .reload /f %s=%p\n", pMod->pszPath, pMod->u.Manual.pvLoad);
+                                    pMod->u.Manual.pbLoad, pMod->cbImage, pMod->pszPath));
+                            kwDebuggerPrintf("TODO: .reload /f %s=%p\n", pMod->pszPath, pMod->u.Manual.pbLoad);
 
                             for (iImp = 0; iImp < cImports; iImp++)
                             {
@@ -1799,7 +1950,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
 
                             if (rc == 0)
                             {
-                                rc = kLdrModGetBits(pLdrMod, pMod->u.Manual.pvCopy, (KUPTR)pMod->u.Manual.pvLoad,
+                                rc = kLdrModGetBits(pLdrMod, pMod->u.Manual.pbCopy, (KUPTR)pMod->u.Manual.pbLoad,
                                                     kwLdrModuleGetImportCallback, pMod);
                                 if (rc == 0)
                                 {
@@ -1808,7 +1959,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                      * Find the function table.  No validation here because the
                                      * loader did that already, right...
                                      */
-                                    KU8                        *pbImg = (KU8 *)pMod->u.Manual.pvCopy;
+                                    KU8                        *pbImg = (KU8 *)pMod->u.Manual.pbCopy;
                                     IMAGE_NT_HEADERS const     *pNtHdrs;
                                     IMAGE_DATA_DIRECTORY const *pXcptDir;
                                     if (((PIMAGE_DOS_HEADER)pbImg)->e_magic == IMAGE_DOS_SIGNATURE)
@@ -1831,10 +1982,12 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                     }
 #endif
 
+                                    kwLdrModuleCreateNonNativeSetupQuickZeroAndCopy(pMod);
+
                                     /*
                                      * Final finish.
                                      */
-                                    pMod->u.Manual.pvBits = pMod->u.Manual.pvCopy;
+                                    pMod->u.Manual.pvBits = pMod->u.Manual.pbCopy;
                                     pMod->u.Manual.enmState = KWMODSTATE_NEEDS_BITS;
                                     return pMod;
                                 }
@@ -1844,7 +1997,7 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                             return NULL;
                         }
 
-                        kHlpPageFree(pMod->u.Manual.pvLoad, pMod->cbImage);
+                        kHlpPageFree(pMod->u.Manual.pbLoad, pMod->cbImage);
                         kwErrPrintf("Failed to allocate %#x bytes\n", pMod->cbImage);
                     }
                     else if (fFixed)
@@ -1878,7 +2031,7 @@ static int kwLdrModuleGetImportCallback(PKLDRMOD pMod, KU32 iImport, KU32 iSymbo
                                 NULL /*pfnGetForwarder*/, NULL /*pvUSer*/,
                                 puValue, pfKind);
     else
-        rc = kLdrModQuerySymbol(pImpMod->pLdrMod, pImpMod->u.Manual.pvBits, (KUPTR)pImpMod->u.Manual.pvLoad,
+        rc = kLdrModQuerySymbol(pImpMod->pLdrMod, pImpMod->u.Manual.pvBits, (KUPTR)pImpMod->u.Manual.pbLoad,
                                 iSymbol, pchSymbol, cchSymbol, pszVersion,
                                 NULL /*pfnGetForwarder*/, NULL /*pvUSer*/,
                                 puValue, pfKind);
@@ -1919,7 +2072,7 @@ static int kwLdrModuleGetImportCallback(PKLDRMOD pMod, KU32 iImport, KU32 iSymbo
 static int kwLdrModuleQueryMainEntrypoint(PKWMODULE pMod, KUPTR *puAddrMain)
 {
     KLDRADDR uLdrAddrMain;
-    int rc = kLdrModQueryMainEntrypoint(pMod->pLdrMod,  pMod->u.Manual.pvBits, (KUPTR)pMod->u.Manual.pvLoad, &uLdrAddrMain);
+    int rc = kLdrModQueryMainEntrypoint(pMod->pLdrMod, pMod->u.Manual.pvBits, (KUPTR)pMod->u.Manual.pbLoad, &uLdrAddrMain);
     if (rc == 0)
     {
         *puAddrMain = (KUPTR)uLdrAddrMain;
@@ -2151,7 +2304,9 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
     int rc = 0;
     if (!pMod->fNative)
     {
-        /* Need to copy bits? */
+        /*
+         * Need to copy bits?
+         */
         if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_BITS)
         {
             if (pMod->u.Manual.fUseLdBuf)
@@ -2163,29 +2318,69 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
                     kHlpAssert(fRc); K_NOREF(fRc);
                 }
 #endif
+                g_pModPrevInLdBuf = g_pModInLdBuf;
                 g_pModInLdBuf = pMod;
             }
 
-            kHlpMemCopy(pMod->u.Manual.pvLoad, pMod->u.Manual.pvCopy, pMod->cbImage);
+            /* Do quick zeroing and copying when we can. */
+            pMod->u.Manual.fCanDoQuick = K_FALSE;
+            if (   pMod->u.Manual.fCanDoQuick
+                && (   !pMod->u.Manual.fUseLdBuf
+                    || g_pModPrevInLdBuf == pMod))
+            {
+                /* Zero first. */
+                kHlpAssert(pMod->u.Manual.cQuickZeroChunks <= 3);
+                switch (pMod->u.Manual.cQuickZeroChunks)
+                {
+                    case 3: kHlpMemSet(pMod->u.Manual.aQuickZeroChunks[2].pbDst, 0, pMod->u.Manual.aQuickZeroChunks[2].cbToZero);
+                    case 2: kHlpMemSet(pMod->u.Manual.aQuickZeroChunks[1].pbDst, 0, pMod->u.Manual.aQuickZeroChunks[1].cbToZero);
+                    case 1: kHlpMemSet(pMod->u.Manual.aQuickZeroChunks[0].pbDst, 0, pMod->u.Manual.aQuickZeroChunks[0].cbToZero);
+                    case 0: break;
+                }
+
+                /* Then copy. */
+                kHlpAssert(pMod->u.Manual.cQuickCopyChunks > 0);
+                kHlpAssert(pMod->u.Manual.cQuickCopyChunks <= 3);
+                switch (pMod->u.Manual.cQuickCopyChunks)
+                {
+                    case 3: kHlpMemCopy(pMod->u.Manual.aQuickCopyChunks[2].pbDst, pMod->u.Manual.aQuickCopyChunks[2].pbSrc,
+                                        pMod->u.Manual.aQuickCopyChunks[2].cbToCopy);
+                    case 2: kHlpMemCopy(pMod->u.Manual.aQuickCopyChunks[1].pbDst, pMod->u.Manual.aQuickCopyChunks[1].pbSrc,
+                                        pMod->u.Manual.aQuickCopyChunks[1].cbToCopy);
+                    case 1: kHlpMemCopy(pMod->u.Manual.aQuickCopyChunks[0].pbDst, pMod->u.Manual.aQuickCopyChunks[0].pbSrc,
+                                        pMod->u.Manual.aQuickCopyChunks[0].cbToCopy);
+                    case 0: break;
+                }
+            }
+            /* Must copy the whole image. */
+            else
+            {
+                kHlpMemCopy(pMod->u.Manual.pbLoad, pMod->u.Manual.pbCopy, pMod->cbImage);
+                pMod->u.Manual.fCanDoQuick = K_TRUE;
+            }
             pMod->u.Manual.enmState = KWMODSTATE_NEEDS_INIT;
         }
 
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_AMD64)
-        /* Need to register function table? */
+        /*
+         * Need to register function table?
+         */
         if (   !pMod->u.Manual.fRegisteredFunctionTable
             && pMod->u.Manual.cFunctions > 0)
         {
             pMod->u.Manual.fRegisteredFunctionTable = RtlAddFunctionTable(pMod->u.Manual.paFunctions,
                                                                           pMod->u.Manual.cFunctions,
-                                                                          (KUPTR)pMod->u.Manual.pvLoad) != FALSE;
+                                                                          (KUPTR)pMod->u.Manual.pbLoad) != FALSE;
             kHlpAssert(pMod->u.Manual.fRegisteredFunctionTable);
         }
 #endif
 
         if (pMod->u.Manual.enmState == KWMODSTATE_NEEDS_INIT)
         {
-            /* Must do imports first, but mark our module as being initialized to avoid
-               endless recursion should there be a dependency loop. */
+            /*
+             * Must do imports first, but mark our module as being initialized to avoid
+             * endless recursion should there be a dependency loop.
+             */
             KSIZE iImp;
             pMod->u.Manual.enmState = KWMODSTATE_BEING_INITED;
 
@@ -2196,7 +2391,7 @@ static int kwLdrModuleInitTree(PKWMODULE pMod)
                     return rc;
             }
 
-            rc = kLdrModCallInit(pMod->pLdrMod, pMod->u.Manual.pvLoad, (KUPTR)pMod->u.Manual.pvLoad);
+            rc = kLdrModCallInit(pMod->pLdrMod, pMod->u.Manual.pbLoad, (KUPTR)pMod->hOurMod);
             if (rc == 0)
                 pMod->u.Manual.enmState = KWMODSTATE_READY;
             else
@@ -4080,7 +4275,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
         KLDRADDR uValue;
         int rc = kLdrModQuerySymbol(pMod->pLdrMod,
                                     pMod->fNative ? NULL : pMod->u.Manual.pvBits,
-                                    pMod->fNative ? KLDRMOD_BASEADDRESS_MAP : (KUPTR)pMod->u.Manual.pvLoad,
+                                    pMod->fNative ? KLDRMOD_BASEADDRESS_MAP : (KUPTR)pMod->u.Manual.pbLoad,
                                     KU32_MAX /*iSymbol*/,
                                     pszProc,
                                     kHlpStrLen(pszProc),
@@ -8270,6 +8465,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
 #endif
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
+                kwErrPrintf("Caught exception %#x!\n", GetExceptionCode());
                 rcExit = 512;
             }
             pSandbox->fRunning = K_FALSE;
