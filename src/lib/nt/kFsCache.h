@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2930 2016-09-18 15:57:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -47,7 +47,7 @@
 #define KFSCACHE_CFG_SHORT_NAMES            1
 /** @def KFSCACHE_CFG_PATH_HASH_TAB_SIZE
  * Size of the path hash table. */
-#define KFSCACHE_CFG_PATH_HASH_TAB_SIZE     16381
+#define KFSCACHE_CFG_PATH_HASH_TAB_SIZE     99991
 /** The max length paths we consider. */
 #define KFSCACHE_CFG_MAX_PATH               1024
 /** The max ANSI name length. */
@@ -111,20 +111,6 @@ typedef struct KFSDIR *PKFSDIR;
 typedef struct KFSOBJHASH *PKFSOBJHASH;
 
 
-/**
- * Directory hash table entry.
- *
- * There can be two of these per directory entry when the short name differs
- * from the long name.
- */
-typedef struct KFSOBJHASH
-{
-    /** Pointer to the next entry with the same hash. */
-    PKFSOBJHASH         pNext;
-    /** Pointer to the object. */
-    PKFSOBJ             pObj;
-} KFSOBJHASH;
-
 
 /** Pointer to a user data item. */
 typedef struct KFSUSERDATA *PKFSUSERDATA;
@@ -162,6 +148,17 @@ typedef struct KFSOBJ
     /** Flags, KFSOBJ_F_XXX. */
     KU32                fFlags;
 
+    /** Hash value of the name inserted into the parent hash table.
+     * This is 0 if not inserted.  Names are only hashed and inserted as they are
+     * first found thru linear searching of its siblings, and which name it is
+     * dependens on the lookup function (W or A) and whether the normal name or
+     * short name seems to have matched.
+     *
+     * @note It was ruled out as too much work to hash and track all four names,
+     *       so instead this minimalist approach was choosen in stead. */
+    KU32                uNameHash;
+    /** Pointer to the next child with the same name hash value. */
+    PKFSOBJ             pNextNameHash;
     /** Pointer to the parent (directory).
      * This is only NULL for a root. */
     PKFSDIR             pParent;
@@ -230,13 +227,16 @@ typedef struct KFSDIR
     /** The allocated size of papChildren. */
     KU32                cChildrenAllocated;
 
-    /** Pointer to the hash table.
-     * @todo this isn't quite there yet, structure wise. sigh.  */
-    PKFSOBJHASH         paHashTab;
-    /** The size of the hash table.
-     * @remarks The hash table is optional and only used when there are a lot of
-     *          entries in the directory. */
-    KU32                cHashTab;
+    /** Pointer to the child hash table. */
+    PKFSOBJ            *papHashTab;
+    /** The mask shift of the hash table.
+     * Hash table size is a power of two, this is the size minus one.
+     *
+     * @remarks The hash table is optional and populated by lookup hits.  The
+     *          assumption being that a lookup is repeated and will choose a good
+     *          name to hash on.  We've got up to 4 different hashes, so this
+     *          was the easy way out. */
+    KU32                fHashTabMask;
 
     /** Handle to the directory (we generally keep it open). */
 #ifndef DECLARE_HANDLE
@@ -400,6 +400,18 @@ typedef struct KFSCACHE
     KSIZE               cPathHashHits;
     /** Number of hits walking the file system hierarchy. */
     KSIZE               cWalkHits;
+    /** Number of child searches. */
+    KSIZE               cChildSearches;
+    /** Number of cChildLookups resolved thru hash table hits. */
+    KSIZE               cChildHashHits;
+    /** The number of child hash tables. */
+    KSIZE               cChildHashTabs;
+    /** The sum of all child hash table sizes. */
+    KSIZE               cChildHashEntriesTotal;
+    /** Number of children inserted into the hash tables. */
+    KSIZE               cChildHashed;
+    /** Number of collisions in the child hash tables */
+    KSIZE               cChildHashCollisions;
 
     /** The root directory. */
     KFSDIR              RootDir;
