@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2932 2016-09-18 16:20:11Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2933 2016-09-18 16:23:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -5136,8 +5136,6 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     KU32            cbActually = pCachedFile->cbCached - pHandle->offFile;
                     if (cbActually > cbToRead)
                         cbActually = cbToRead;
-                    else if (cbActually < cbToRead)                                            // debug debug debug
-                        kHlpMemSet((KU8 *)pvBuffer + cbActually, '\0', cbToRead - cbActually); // debug debug debug
 
 #ifdef WITH_HASH_MD5_CACHE
                     if (g_Sandbox.pHashHead)
