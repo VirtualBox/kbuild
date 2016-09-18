@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2933 2016-09-18 16:23:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2934 2016-09-18 16:47:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -4503,6 +4503,90 @@ static HANDLE kwFsTempFileCreateW(const wchar_t *pwszFilename, DWORD dwDesiredAc
 
 #endif /* WITH_TEMP_MEMORY_FILES */
 
+/**
+ * Worker for kwFsIsCacheableExtensionA and kwFsIsCacheableExtensionW
+ *
+ * @returns K_TRUE if cacheable, K_FALSE if not.
+ * @param   wcFirst             The first extension character.
+ * @param   wcSecond            The second extension character.
+ * @param   wcThird             The third extension character.
+ * @param   fAttrQuery          Set if it's for an attribute query, clear if for
+ *                              file creation.
+ */
+static KBOOL kwFsIsCacheableExtensionCommon(wchar_t wcFirst, wchar_t wcSecond, wchar_t wcThird, KBOOL fAttrQuery)
+{
+    /* C++ header without an extension or a directory. */
+    if (wcFirst == '\0')
+    {
+        /** @todo exclude temporary files...  */
+        return K_TRUE;
+    }
+
+    /* C Header: .h */
+    if (wcFirst == 'h' || wcFirst == 'H')
+    {
+        if (wcSecond == '\0')
+            return K_TRUE;
+
+        /* C++ Header: .hpp, .hxx */
+        if (   (wcSecond == 'p' || wcSecond == 'P')
+            && (wcThird  == 'p' || wcThird  == 'P'))
+            return K_TRUE;
+        if (   (wcSecond == 'x' || wcSecond == 'X')
+            && (wcThird  == 'x' || wcThird  == 'X'))
+            return K_TRUE;
+    }
+    /* Misc starting with i. */
+    else if (wcFirst == 'i' || wcFirst == 'I')
+    {
+        if (wcSecond != '\0')
+        {
+            if (wcSecond == 'n' || wcSecond == 'N')
+            {
+                /* C++ inline header: .inl */
+                if (wcThird == 'l' || wcThird == 'L')
+                    return K_TRUE;
+
+                /* Assembly include file: .inc */
+                if (wcThird == 'c' || wcThird == 'C')
+                    return K_TRUE;
+            }
+        }
+    }
+    /* Assembly header: .mac */
+    else if (wcFirst == 'm' || wcFirst == 'M')
+    {
+        if (wcSecond == 'a' || wcSecond == 'A')
+        {
+            if (wcThird == 'c' || wcThird == 'C')
+                return K_TRUE;
+        }
+    }
+    else if (fAttrQuery)
+    {
+        /* Dynamic link library: .dll */
+        if (wcFirst == 'd' || wcFirst == 'D')
+        {
+            if (wcSecond == 'l' || wcSecond == 'L')
+            {
+                if (wcThird == 'l' || wcThird == 'L')
+                    return K_TRUE;
+            }
+        }
+        /* Executable file: .exe */
+        else if (wcFirst == 'e' || wcFirst == 'E')
+        {
+            if (wcSecond == 'x' || wcSecond == 'X')
+            {
+                if (wcThird == 'e' || wcThird == 'e')
+                    return K_TRUE;
+            }
+        }
+    }
+
+    return K_FALSE;
+}
+
 
 /**
  * Checks if the file extension indicates that the file/dir is something we
@@ -4513,97 +4597,22 @@ static HANDLE kwFsTempFileCreateW(const wchar_t *pwszFilename, DWORD dwDesiredAc
  * @param   fAttrQuery          Set if it's for an attribute query, clear if for
  *                              file creation.
  */
-static KBOOL kwFsIsCachableExtensionA(const char *pszExt, KBOOL fAttrQuery)
+static KBOOL kwFsIsCacheableExtensionA(const char *pszExt, KBOOL fAttrQuery)
 {
-    char const chFirst = *pszExt;
-
-    /* C++ header without an extension or a directory. */
-    if (chFirst == '\0')
+    wchar_t const wcFirst = *pszExt;
+    if (wcFirst)
     {
-        /** @todo exclude temporary files...  */
-        return K_TRUE;
-    }
-
-    /* C Header: .h */
-    if (chFirst == 'h' || chFirst == 'H')
-    {
-        char        chThird;
-        char const  chSecond = pszExt[1];
-        if (chSecond == '\0')
-            return K_TRUE;
-        chThird = pszExt[2];
-
-        /* C++ Header: .hpp, .hxx */
-        if (   (chSecond == 'p' || chSecond == 'P')
-            && (chThird  == 'p' || chThird  == 'P')
-            && pszExt[3] == '\0')
-            return K_TRUE;
-        if (   (chSecond == 'x' || chSecond == 'X')
-            && (chThird  == 'x' || chThird  == 'X')
-            && pszExt[3] == '\0')
-            return K_TRUE;
-    }
-    /* Misc starting with i. */
-    else if (chFirst == 'i' || chFirst == 'I')
-    {
-        char const chSecond = pszExt[1];
-        if (chSecond != '\0')
+        wchar_t const wcSecond = pszExt[1];
+        if (wcSecond)
         {
-            if (chSecond == 'n' || chSecond == 'N')
-            {
-                char const chThird = pszExt[2];
-
-                /* C++ inline header: .inl */
-                if (   (chThird == 'l' || chThird == 'L')
-                    && pszExt[3] == '\0')
-                    return K_TRUE;
-
-                /* Assembly include file: .inc */
-                if (   (chThird == 'c' || chThird == 'C')
-                    && pszExt[3] == '\0')
-                    return K_TRUE;
-            }
+            wchar_t const wcThird = pszExt[2];
+            if (pszExt[3] == '\0')
+                return kwFsIsCacheableExtensionCommon(wcFirst, wcSecond, wcThird, fAttrQuery);
+            return K_FALSE;
         }
+        return kwFsIsCacheableExtensionCommon(wcFirst, 0, 0, fAttrQuery);
     }
-    /* Assembly header: .mac */
-    else if (chFirst == 'm' || chFirst == 'M')
-    {
-        char const  chSecond = pszExt[1];
-        if (chSecond == 'a' || chSecond == 'A')
-        {
-            char const chThird = pszExt[2];
-            if (  (chThird == 'c' || chThird == 'C')
-                && pszExt[3] == '\0')
-                return K_TRUE;
-        }
-    }
-    else if (fAttrQuery)
-    {
-        /* Dynamic link library: .dll */
-        if (chFirst == 'd' || chFirst == 'D')
-        {
-            char const chSecond = pszExt[1];
-            if (chSecond == 'l' || chSecond == 'L')
-            {
-                char const chThird = pszExt[2];
-                if (chThird == 'l' || chThird == 'L')
-                    return K_TRUE;
-            }
-        }
-        /* Executable file: .exe */
-        else if (chFirst == 'e' || chFirst == 'E')
-        {
-            char const chSecond = pszExt[1];
-            if (chSecond == 'x' || chSecond == 'X')
-            {
-                char const chThird = pszExt[2];
-                if (chThird == 'e' || chThird == 'e')
-                    return K_TRUE;
-            }
-        }
-    }
-
-    return K_FALSE;
+    return kwFsIsCacheableExtensionCommon(0, 0, 0, fAttrQuery);
 }
 
 
@@ -4616,25 +4625,16 @@ static KBOOL kwFsIsCachableExtensionA(const char *pszExt, KBOOL fAttrQuery)
  * @param   fAttrQuery          Set if it's for an attribute query, clear if for
  *                              file creation.
  */
-static KBOOL kwFsIsCachablePathExtensionW(const wchar_t *pwszPath, KBOOL fAttrQuery)
+static KBOOL kwFsIsCacheablePathExtensionW(const wchar_t *pwszPath, KBOOL fAttrQuery)
 {
-    /*
-     * Extract the extension, check that it's in the applicable range, roughly
-     * convert it to ASCII/ANSI, and feed it to kwFsIsCachableExtensionA for
-     * the actual check.  This avoids a lot of code duplication.
-     */
-    wchar_t         wc;
-    char            szExt[4];
     KSIZE           cwcExt;
     wchar_t const  *pwszExt = kwFsPathGetExtW(pwszPath, &cwcExt);
     switch (cwcExt)
     {
-        case 3: if ((wchar_t)(szExt[2] = (char)(wc = pwszExt[2])) == wc) { /*likely*/ } else break;
-        case 2: if ((wchar_t)(szExt[1] = (char)(wc = pwszExt[1])) == wc) { /*likely*/ } else break;
-        case 1: if ((wchar_t)(szExt[0] = (char)(wc = pwszExt[0])) == wc) { /*likely*/ } else break;
-        case 0:
-            szExt[cwcExt] = '\0';
-            return kwFsIsCachableExtensionA(szExt, fAttrQuery);
+        case 3: kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], pwszExt[2], fAttrQuery);
+        case 2: kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], 0,          fAttrQuery);
+        case 1: kwFsIsCacheableExtensionCommon(pwszExt[0], 0,          0,          fAttrQuery);
+        case 0: kwFsIsCacheableExtensionCommon(0,          0,          0,          fAttrQuery);
     }
     return K_FALSE;
 }
@@ -4826,7 +4826,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
                         && pSecAttrs->lpSecurityDescriptor == NULL ) )
                 {
                     const char *pszExt = kHlpGetExt(pszFilename);
-                    if (kwFsIsCachableExtensionA(pszExt, K_FALSE /*fAttrQuery*/))
+                    if (kwFsIsCacheableExtensionA(pszExt, K_FALSE /*fAttrQuery*/))
                     {
                         KFSLOOKUPERROR enmError;
                         PKFSOBJ pFsObj;
@@ -4917,7 +4917,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
                     || (   pSecAttrs->nLength == sizeof(*pSecAttrs)
                         && pSecAttrs->lpSecurityDescriptor == NULL ) )
                 {
-                    if (kwFsIsCachablePathExtensionW(pwszFilename, K_FALSE /*fAttrQuery*/))
+                    if (kwFsIsCacheablePathExtensionW(pwszFilename, K_FALSE /*fAttrQuery*/))
                     {
                         /** @todo rewrite in pure UTF-16. */
                         char szTmp[2048];
@@ -5326,7 +5326,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pOutBuf
         && pchBuffer[cchToWrite - 1] == '\n'
         && cchToWrite <= pOutBuf->u.Fully.cchBufAlloc - pOutBuf->u.Fully.cchBuf)
     {
-        memcpy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchToWrite);
+        kHlpMemCopy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchToWrite);
         pOutBuf->u.Fully.cchBuf += cchToWrite;
     }
     else
@@ -5342,7 +5342,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pOutBuf
             KU32        cchLine    = pchNewLine ? (KU32)(pchNewLine - pchBuffer) + 1 : cchToWrite;
             if (cchLine <= pOutBuf->u.Fully.cchBufAlloc - pOutBuf->u.Fully.cchBuf)
             {
-                memcpy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchLine);
+                kHlpMemCopy(&pOutBuf->u.Fully.pchBuf[pOutBuf->u.Fully.cchBuf], pchBuffer, cchLine);
                 pOutBuf->u.Fully.cchBuf += cchLine;
             }
             /*
@@ -5370,7 +5370,7 @@ static void kwSandboxOutBufWrite(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pOutBuf
             {
                 KWOUT_LOG(("kwSandboxOutBufWrite: flushing %u bytes\n", pOutBuf->u.Fully.cchBuf));
                 kwSandboxOutBufWriteIt(pOutBuf->hBackup, pOutBuf->u.Fully.pchBuf, pOutBuf->u.Fully.cchBuf);
-                memcpy(&pOutBuf->u.Fully.pchBuf[0], pchBuffer, cchLine);
+                kHlpMemCopy(&pOutBuf->u.Fully.pchBuf[0], pchBuffer, cchLine);
                 pOutBuf->u.Fully.cchBuf = cchLine;
             }
 
@@ -6031,7 +6031,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesA(LPCSTR pszFilename)
 {
     DWORD       fRet;
     const char *pszExt = kHlpGetExt(pszFilename);
-    if (kwFsIsCachableExtensionA(pszExt, K_TRUE /*fAttrQuery*/))
+    if (kwFsIsCacheableExtensionA(pszExt, K_TRUE /*fAttrQuery*/))
     {
         KFSLOOKUPERROR enmError;
         PKFSOBJ pFsObj;
@@ -6064,7 +6064,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesA(LPCSTR pszFilename)
 static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesW(LPCWSTR pwszFilename)
 {
     DWORD fRet;
-    if (kwFsIsCachablePathExtensionW(pwszFilename, K_TRUE /*fAttrQuery*/))
+    if (kwFsIsCacheablePathExtensionW(pwszFilename, K_TRUE /*fAttrQuery*/))
     {
         KFSLOOKUPERROR enmError;
         PKFSOBJ pFsObj;
@@ -6099,7 +6099,7 @@ static DWORD WINAPI kwSandbox_Kernel32_GetFileAttributesW(LPCWSTR pwszFilename)
 static DWORD WINAPI kwSandbox_Kernel32_GetShortPathNameW(LPCWSTR pwszLongPath, LPWSTR pwszShortPath, DWORD cwcShortPath)
 {
     DWORD cwcRet;
-    if (kwFsIsCachablePathExtensionW(pwszLongPath, K_TRUE /*fAttrQuery*/))
+    if (kwFsIsCacheablePathExtensionW(pwszLongPath, K_TRUE /*fAttrQuery*/))
     {
         KFSLOOKUPERROR enmError;
         PKFSOBJ pObj;
@@ -6252,7 +6252,7 @@ static void kwSandboxConsoleAddToCombined(PKWSANDBOX pSandbox, wchar_t const *pw
     }
     else
     {
-        memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuf, cwcBuf * sizeof(wchar_t));
+        kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuf, cwcBuf * sizeof(wchar_t));
         pSandbox->Combined.cwcBuf += cwcBuf;
     }
 }
@@ -6466,7 +6466,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
              */
             if (offLastIncompleteLine == 0)
             {
-                memcpy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcToWrite * sizeof(wchar_t));
+                kHlpMemCopy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcToWrite * sizeof(wchar_t));
                 pLineBuf->u.Con.cwcBuf += cwcToWrite;
                 return;
             }
@@ -6479,14 +6479,14 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
         {
             if (pLineBuf->u.Con.cwcBuf > 0)
             {
-                memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
-                       pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
+                kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                            pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
                 pSandbox->Combined.cwcBuf += pLineBuf->u.Con.cwcBuf;
                 pLineBuf->u.Con.cwcBuf = 0;
             }
 
-            memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
-                   pwcBuffer, offLastIncompleteLine * sizeof(wchar_t));
+            kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                        pwcBuffer, offLastIncompleteLine * sizeof(wchar_t));
             pSandbox->Combined.cwcBuf += offLastIncompleteLine;
         }
         else
@@ -6509,12 +6509,12 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
 
                 if (pLineBuf->u.Con.cwcBuf + offNextLine + pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf))
                 {
-                    memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
-                           pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
+                    kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
+                                pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
                     pSandbox->Combined.cwcBuf += pLineBuf->u.Con.cwcBuf;
                     pLineBuf->u.Con.cwcBuf = 0;
 
-                    memcpy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuffer, offNextLine * sizeof(wchar_t));
+                    kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf], pwcBuffer, offNextLine * sizeof(wchar_t));
                     pSandbox->Combined.cwcBuf += offNextLine;
                 }
                 else
@@ -6523,7 +6523,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
                     if (cwcLeft > 0)
                     {
                         KU32 cwcCopy = K_MIN(cwcLeft, offNextLine);
-                        memcpy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcCopy * sizeof(wchar_t));
+                        kHlpMemCopy(&pLineBuf->u.Con.pwcBuf[pLineBuf->u.Con.cwcBuf], pwcBuffer, cwcCopy * sizeof(wchar_t));
                         pLineBuf->u.Con.cwcBuf += cwcCopy;
                         off += cwcCopy;
                     }
@@ -6556,7 +6556,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
          */
         if (offLastIncompleteLine < cwcToWrite)
         {
-            memcpy(&pLineBuf->u.Con.pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
+            kHlpMemCopy(&pLineBuf->u.Con.pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
             pLineBuf->u.Con.cwcBuf = cchLastIncompleteLine;
         }
     }
