@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2930 2016-09-18 15:57:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -40,7 +40,9 @@
 #include <stdio.h>
 #include <mbstring.h>
 #include <wchar.h>
-//#include <intrin.h>
+#ifdef _MSC_VER
+# include <intrin.h>
+#endif
 //#include <setjmp.h>
 //#include <ctype.h>
 
@@ -199,12 +201,12 @@ static KSIZE kFsCacheStrHashEx(const char *pszString, KU32 *puHash)
  * @param   pchString           Pointer to the substring (not terminated).
  * @param   cchString           The length of the substring.
  */
-static KU32 kFsCacheStrHashN(const char *pszString, KSIZE cchString)
+static KU32 kFsCacheStrHashN(const char *pchString, KSIZE cchString)
 {
     KU32 uHash = 0;
     while (cchString-- > 0)
     {
-        KU32 uChar = (unsigned char)*pszString++;
+        KU32 uChar = (unsigned char)*pchString++;
         uHash = uChar + (uHash << 6) + (uHash << 16) - uHash;
     }
     return uHash;
@@ -587,6 +589,8 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         pObj->abUnused[1]   = K_FALSE;
         pObj->fFlags        = pParent->Obj.fFlags & KFSOBJ_F_INHERITED_MASK;
         pObj->pParent       = pParent;
+        pObj->uNameHash     = 0;
+        pObj->pNextNameHash = NULL;
         pObj->pUserDataHead = NULL;
 
 #ifdef KFSCACHE_CFG_UTF16
@@ -636,7 +640,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         kHlpAssert(pbExtra - (KU8 *)pObj == cbObj);
 
         /*
-         * Type specific initilization.
+         * Type specific initialization.
          */
         if (fDirish)
         {
@@ -644,8 +648,8 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
             pDirObj->cChildren          = 0;
             pDirObj->cChildrenAllocated = 0;
             pDirObj->papChildren        = NULL;
-            pDirObj->cHashTab           = 0;
-            pDirObj->paHashTab          = NULL;
+            pDirObj->fHashTabMask       = 0;
+            pDirObj->papHashTab         = NULL;
             pDirObj->hDir               = INVALID_HANDLE_VALUE;
             pDirObj->uDevNo             = pParent->uDevNo;
             pDirObj->iLastWrite         = 0;
@@ -1515,6 +1519,23 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
                     KFSCACHE_LOG(("Refreshing %s/%s/ - %s was removed.\n",
                                   pDir->Obj.pParent->Obj.pszName, pDir->Obj.pszName, pOldChild->pszName));
                     kHlpAssert(pOldChild->bObjType != KFSOBJ_TYPE_DIR);
+                    /* Remove from hash table. */
+                    if (pOldChild->uNameHash != 0)
+                    {
+                        KU32    idx = pOldChild->uNameHash & pDir->fHashTabMask;
+                        PKFSOBJ pPrev = pDir->papHashTab[idx];
+                        if (pPrev == pOldChild)
+                            pDir->papHashTab[idx] = pOldChild->pNextNameHash;
+                        else
+                        {
+                            while (pPrev && pPrev->pNextNameHash != pOldChild)
+                                pPrev = pPrev->pNextNameHash;
+                            kHlpAssert(pPrev);
+                            if (pPrev)
+                                pPrev->pNextNameHash = pOldChild->pNextNameHash;
+                        }
+                        pOldChild->uNameHash = 0;
+                    }
                 }
                 kFsCacheObjRelease(pCache, pOldChild);
             }
@@ -1919,12 +1940,13 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
-static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags, KFSLOOKUPERROR *penmError)
 {
-    KU32 const          uHash = chLetter - 'A';
+    KU32 const          uNameHash = chLetter - 'A';
+    PKFSOBJ             pCur      = pCache->RootDir.papHashTab[uNameHash];
+
     KU32                cLeft;
     PKFSOBJ            *ppCur;
-
     MY_UNICODE_STRING   NtPath;
     wchar_t             wszTmp[8];
     char                szTmp[4];
@@ -1932,19 +1954,32 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags
     /*
      * Custom drive letter hashing.
      */
-    if (pCache->RootDir.paHashTab)
+    kHlpAssert((uNameHash & pCache->RootDir.fHashTabMask) == uNameHash);
+    while (pCur)
     {
-        /** @todo PKFSOBJHASH pHash = */
+        if (   pCur->uNameHash == uNameHash
+            && pCur->cchName == 2
+            && pCur->pszName[0] == chLetter
+            && pCur->pszName[1] == ':')
+        {
+            if (pCur->bObjType == KFSOBJ_TYPE_DIR)
+                return pCur;
+            if (   (fFlags & KFSCACHE_LOOKUP_F_NO_REFRESH)
+                || kFsCacheRefreshMissingIntermediateDir(pCache, pCur, penmError))
+                return pCur;
+            return NULL;
+        }
+        pCur = pCur->pNextNameHash;
     }
 
     /*
-     * Special cased lookup.
+     * Make 100% sure it's not there.
      */
     cLeft = pCache->RootDir.cChildren;
     ppCur = pCache->RootDir.papChildren;
     while (cLeft-- > 0)
     {
-        PKFSOBJ pCur = *ppCur++;
+        pCur = *ppCur++;
         if (   pCur->cchName == 2
             && pCur->pszName[0] == chLetter
             && pCur->pszName[1] == ':')
@@ -2058,7 +2093,13 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags
                  */
                 fRc = kFsCacheDirAddChild(pCache, &pCache->RootDir, &pDir->Obj, penmError);
                 kFsCacheObjRelease(pCache, &pDir->Obj);
-                return fRc ? &pDir->Obj : NULL;
+                if (fRc)
+                {
+                    pDir->Obj.pNextNameHash = pCache->RootDir.papHashTab[uNameHash];
+                    pCache->RootDir.papHashTab[uNameHash] = &pDir->Obj;
+                    return &pDir->Obj;
+                }
+                return NULL;
             }
 
             g_pfnNtClose(hDir);
@@ -2109,6 +2150,82 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags
 
 
 /**
+ * Slow path that allocates the child hash table and enters the given one.
+ *
+ * Allocation fialures are ignored.
+ *
+ * @param   pCache              The cache (for stats).
+ * @param   pDir                The directory.
+ * @param   uNameHash           The name hash  to enter @a pChild under.
+ * @param   pChild              The child to enter into the hash table.
+ */
+static void kFsCacheDirAllocHashTabAndEnterChild(PKFSCACHE pCache, PKFSDIR pDir, KU32 uNameHash, PKFSOBJ pChild)
+{
+    if (uNameHash != 0) /* paranoia ^ 4! */
+    {
+        /*
+         * Double the current number of children and round up to a multiple of
+         * two so we can avoid division.
+         */
+        KU32 cbHashTab;
+        KU32 cEntries;
+        kHlpAssert(pDir->cChildren > 0);
+        if (pDir->cChildren <= KU32_MAX / 4)
+        {
+#if defined(_MSC_VER) && 1
+            KU32 cEntriesRaw = pDir->cChildren * 2;
+            KU32 cEntriesShift;
+            kHlpAssert(sizeof(cEntries) == (unsigned long));
+            if (_BitScanReverse(&cEntriesShift, cEntriesRaw))
+            {
+                if (   K_BIT32(cEntriesShift) < cEntriesRaw
+                    && cEntriesShift < 31U)
+                    cEntriesShift++;
+                cEntries = K_BIT32(cEntriesShift);
+            }
+            else
+            {
+                kHlpAssertFailed();
+                cEntries = KU32_MAX / 2 + 1;
+            }
+#else
+            cEntries = pDir->cChildren * 2 - 1;
+            cEntries |= cEntries >> 1;
+            cEntries |= cEntries >> 2;
+            cEntries |= cEntries >> 4;
+            cEntries |= cEntries >> 8;
+            cEntries |= cEntries >> 16;
+            cEntries++;
+#endif
+        }
+        else
+            cEntries = KU32_MAX / 2 + 1;
+        kHlpAssert((cEntries & (cEntries -  1)) == 0);
+
+        cbHashTab = cEntries * sizeof(pDir->papHashTab[0]);
+        pDir->papHashTab = (PKFSOBJ *)kHlpAllocZ(cbHashTab);
+        if (pDir->papHashTab)
+        {
+            KU32 idx;
+            pDir->fHashTabMask = cEntries - 1;
+            pCache->cbObjects += cbHashTab;
+            pCache->cChildHashTabs++;
+            pCache->cChildHashEntriesTotal += cEntries;
+
+            /*
+             * Insert it.
+             */
+            pChild->uNameHash     = uNameHash;
+            idx = uNameHash & (pDir->fHashTabMask);
+            pChild->pNextNameHash = pDir->papHashTab[idx];
+            pDir->papHashTab[idx] = pChild;
+            pCache->cChildHashed++;
+        }
+    }
+}
+
+
+/**
  * Look up a child node, ANSI version.
  *
  * @returns Pointer to the child if found, NULL if not.
@@ -2119,18 +2236,52 @@ static PKFSOBJ kFswCacheLookupDrive(PKFSCACHE pCache, char chLetter, KU32 fFlags
  */
 static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char *pchName, KU32 cchName)
 {
-    /* Check for '.' first. */
+    /*
+     * Check for '.' first ('..' won't appear).
+     */
     if (cchName != 1 || *pchName != '.')
     {
-        KU32        cLeft;
         PKFSOBJ    *ppCur;
+        KU32        cLeft;
+        KU32        uNameHash;
 
-        if (pParent->paHashTab != NULL)
+        /*
+         * Do hash table lookup.
+         *
+         * This caches previous lookups, which should be useful when looking up
+         * intermediate directories at least.
+         */
+        if (pParent->papHashTab != NULL)
         {
-            /** @todo directory hash table lookup.   */
+            PKFSOBJ pCur;
+            uNameHash = kFsCacheStrHashN(pchName, cchName);
+            pCur = pParent->papHashTab[uNameHash & pParent->fHashTabMask];
+            while (pCur)
+            {
+                if (   pCur->uNameHash == uNameHash
+                    && (   (   pCur->cchName == cchName
+                            && _mbsnicmp(pCur->pszName, pchName, cchName) == 0)
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                        || (   pCur->cchShortName == cchName
+                            && pCur->pszShortName != pCur->pszName
+                            && _mbsnicmp(pCur->pszShortName, pchName, cchName) == 0)
+#endif
+                        )
+                   )
+                {
+                    pCache->cChildHashHits++;
+                    pCache->cChildSearches++;
+                    return pCur;
+                }
+                pCur = pCur->pNextNameHash;
+            }
         }
+        else
+            uNameHash = 0;
 
-        /* Linear search. */
+        /*
+         * Do linear search.
+         */
         cLeft = pParent->cChildren;
         ppCur = pParent->papChildren;
         while (cLeft-- > 0)
@@ -2144,8 +2295,37 @@ static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char 
                     && _mbsnicmp(pCur->pszShortName, pchName, cchName) == 0)
 #endif
                )
+            {
+                /*
+                 * Consider entering it into the parent hash table.
+                 * Note! We hash the input, not the name we found.
+                 */
+                if (   pCur->uNameHash == 0
+                    && pParent->cChildren >= 2)
+                {
+                    if (pParent->papHashTab)
+                    {
+                        if (uNameHash != 0)
+                        {
+                            KU32 idxNameHash = uNameHash & pParent->fHashTabMask;
+                            pCur->uNameHash     = uNameHash;
+                            pCur->pNextNameHash = pParent->papHashTab[idxNameHash];
+                            pParent->papHashTab[idxNameHash] = pCur;
+                            if (pCur->pNextNameHash)
+                                pCache->cChildHashCollisions++;
+                            pCache->cChildHashed++;
+                        }
+                    }
+                    else
+                        kFsCacheDirAllocHashTabAndEnterChild(pCache, pParent, kFsCacheStrHashN(pchName, cchName), pCur);
+                }
+
+                pCache->cChildSearches++;
                 return pCur;
+            }
         }
+
+        pCache->cChildSearches++;
         return NULL;
     }
     return &pParent->Obj;
@@ -2163,18 +2343,52 @@ static PKFSOBJ kFsCacheFindChildA(PKFSCACHE pCache, PKFSDIR pParent, const char 
  */
 static PKFSOBJ kFsCacheFindChildW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwcName, KU32 cwcName)
 {
-    /* Check for '.' first. */
+    /*
+     * Check for '.' first ('..' won't appear).
+     */
     if (cwcName != 1 || *pwcName != '.')
     {
-        KU32        cLeft;
         PKFSOBJ    *ppCur;
+        KU32        cLeft;
+        KU32        uNameHash;
 
-        if (pParent->paHashTab != NULL)
+        /*
+         * Do hash table lookup.
+         *
+         * This caches previous lookups, which should be useful when looking up
+         * intermediate directories at least.
+         */
+        if (pParent->papHashTab != NULL)
         {
-            /** @todo directory hash table lookup.   */
+            PKFSOBJ pCur;
+            uNameHash = kFsCacheUtf16HashN(pwcName, cwcName);
+            pCur = pParent->papHashTab[uNameHash & pParent->fHashTabMask];
+            while (pCur)
+            {
+                if (   pCur->uNameHash == uNameHash
+                    && (   (   pCur->cwcName == cwcName
+                            && kFsCacheIAreEqualW(pCur->pwszName, pwcName, cwcName))
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                         || (   pCur->cwcShortName == cwcName
+                             && pCur->pwszShortName != pCur->pwszName
+                             && kFsCacheIAreEqualW(pCur->pwszShortName, pwcName, cwcName))
+#endif
+                       )
+                   )
+                {
+                    pCache->cChildHashHits++;
+                    pCache->cChildSearches++;
+                    return pCur;
+                }
+                pCur = pCur->pNextNameHash;
+            }
         }
+        else
+            uNameHash = 0;
 
-        /* Linear search. */
+        /*
+         * Do linear search.
+         */
         cLeft = pParent->cChildren;
         ppCur = pParent->papChildren;
         while (cLeft-- > 0)
@@ -2188,8 +2402,36 @@ static PKFSOBJ kFsCacheFindChildW(PKFSCACHE pCache, PKFSDIR pParent, const wchar
                     && kFsCacheIAreEqualW(pCur->pwszShortName, pwcName, cwcName))
 #endif
                )
+            {
+                /*
+                 * Consider entering it into the parent hash table.
+                 * Note! We hash the input, not the name we found.
+                 */
+                if (   pCur->uNameHash == 0
+                    && pParent->cChildren >= 4)
+                {
+                    if (pParent->papHashTab)
+                    {
+                        if (uNameHash != 0)
+                        {
+                            KU32 idxNameHash = uNameHash & pParent->fHashTabMask;
+                            pCur->uNameHash     = uNameHash;
+                            pCur->pNextNameHash = pParent->papHashTab[idxNameHash];
+                            pParent->papHashTab[idxNameHash] = pCur;
+                            if (pCur->pNextNameHash)
+                                pCache->cChildHashCollisions++;
+                            pCache->cChildHashed++;
+                        }
+                    }
+                    else
+                        kFsCacheDirAllocHashTabAndEnterChild(pCache, pParent, kFsCacheUtf16HashN(pwcName, cwcName), pCur);
+                }
+
+                pCache->cChildSearches++;
                 return pCur;
+            }
         }
+        pCache->cChildSearches++;
         return NULL;
     }
     return &pParent->Obj;
@@ -2211,8 +2453,8 @@ static PKFSOBJ kFsCacheFindChildW(PKFSCACHE pCache, PKFSDIR pParent, const wchar
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
-static PKFSOBJ kFswCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU32 fFlags,
-                                        KU32 *poff, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU32 fFlags,
+                                       KU32 *poff, KFSLOOKUPERROR *penmError)
 {
 #if 0 /* later */
     KU32 offStartServer;
@@ -2264,8 +2506,8 @@ static PKFSOBJ kFswCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, K
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
-static PKFSOBJ kFswCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 fFlags,
-                                        KU32 *poff, KFSLOOKUPERROR *penmError)
+static PKFSOBJ kFsCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 fFlags,
+                                       KU32 *poff, KFSLOOKUPERROR *penmError)
 {
 #if 0 /* later */
     KU32 offStartServer;
@@ -2634,11 +2876,11 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
         /* Drive letter. */
         offEnd = 2;
         kHlpAssert(IS_SLASH(pszPath[2]));
-        pRoot = kFswCacheLookupDrive(pCache, toupper(pszPath[0]), fFlags, penmError);
+        pRoot = kFsCacheLookupDrive(pCache, toupper(pszPath[0]), fFlags, penmError);
     }
     else if (   IS_SLASH(pszPath[0])
              && IS_SLASH(pszPath[1]) )
-        pRoot = kFswCacheLookupUncShareA(pCache, pszPath, fFlags, &offEnd, penmError);
+        pRoot = kFsCacheLookupUncShareA(pCache, pszPath, fFlags, &offEnd, penmError);
     else
     {
         *penmError = KFSLOOKUPERROR_UNSUPPORTED;
@@ -2733,11 +2975,11 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
         /* Drive letter. */
         offEnd = 2;
         kHlpAssert(IS_SLASH(pwszPath[2]));
-        pRoot = kFswCacheLookupDrive(pCache, toupper(pwszPath[0]), fFlags, penmError);
+        pRoot = kFsCacheLookupDrive(pCache, toupper(pwszPath[0]), fFlags, penmError);
     }
     else if (   IS_SLASH(pwszPath[0])
              && IS_SLASH(pwszPath[1]) )
-        pRoot = kFswCacheLookupUncShareW(pCache, pwszPath, fFlags, &offEnd, penmError);
+        pRoot = kFsCacheLookupUncShareW(pCache, pwszPath, fFlags, &offEnd, penmError);
     else
     {
         *penmError = KFSLOOKUPERROR_UNSUPPORTED;
@@ -3420,7 +3662,7 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
             KU32    cChildren = pDir->cChildren;
             pCache->cbObjects -= sizeof(*pDir)
                                + K_ALIGN_Z(cChildren, 16) * sizeof(pDir->papChildren)
-                               + pDir->cHashTab * sizeof(pDir->paHashTab);
+                               + (pDir->fHashTabMask + !!pDir->fHashTabMask) * sizeof(pDir->papHashTab[0]);
 
             pDir->cChildren   = 0;
             while (cChildren-- > 0)
@@ -3428,8 +3670,8 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
             kHlpFree(pDir->papChildren);
             pDir->papChildren = NULL;
 
-            kHlpFree(pDir->paHashTab);
-            pDir->paHashTab = NULL;
+            kHlpFree(pDir->papHashTab);
+            pDir->papHashTab = NULL;
             break;
         }
 
@@ -4082,29 +4324,35 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
         pCache->RootDir.cChildrenAllocated  = 0;
         pCache->RootDir.papChildren         = NULL;
         pCache->RootDir.hDir                = INVALID_HANDLE_VALUE;
-        pCache->RootDir.cHashTab            = 251;
-        pCache->RootDir.paHashTab           = (PKFSOBJHASH)kHlpAllocZ(  pCache->RootDir.cHashTab
-                                                                      * sizeof(pCache->RootDir.paHashTab[0]));
-        if (pCache->RootDir.paHashTab)
+        pCache->RootDir.fHashTabMask        = 255; /* 256: 26 drive letters and 102 UNCs before we're half ways. */
+        pCache->RootDir.papHashTab          = (PKFSOBJ *)kHlpAllocZ(256 * sizeof(pCache->RootDir.papHashTab[0]));
+        if (pCache->RootDir.papHashTab)
         {
             /* The cache itself. */
-            pCache->u32Magic        = KFSCACHE_MAGIC;
-            pCache->fFlags          = fFlags;
+            pCache->u32Magic                = KFSCACHE_MAGIC;
+            pCache->fFlags                  = fFlags;
             pCache->auGenerations[0]        = KU32_MAX / 4;
             pCache->auGenerations[1]        = KU32_MAX / 32;
             pCache->auGenerationsMissing[0] = KU32_MAX / 256;
             pCache->auGenerationsMissing[1] = 1;
-            pCache->cObjects        = 1;
-            pCache->cbObjects       = sizeof(pCache->RootDir) + pCache->RootDir.cHashTab * sizeof(pCache->RootDir.paHashTab[0]);
-            pCache->cPathHashHits   = 0;
-            pCache->cWalkHits       = 0;
-            pCache->cAnsiPaths      = 0;
-            pCache->cAnsiPathCollisions = 0;
-            pCache->cbAnsiPaths     = 0;
+            pCache->cObjects                = 1;
+            pCache->cbObjects               = sizeof(pCache->RootDir)
+                                            + (pCache->RootDir.fHashTabMask + 1) * sizeof(pCache->RootDir.papHashTab[0]);
+            pCache->cPathHashHits           = 0;
+            pCache->cWalkHits               = 0;
+            pCache->cChildSearches          = 0;
+            pCache->cChildHashHits          = 0;
+            pCache->cChildHashed            = 0;
+            pCache->cChildHashTabs          = 1;
+            pCache->cChildHashEntriesTotal  = pCache->RootDir.fHashTabMask + 1;
+            pCache->cChildHashCollisions    = 0;
+            pCache->cAnsiPaths              = 0;
+            pCache->cAnsiPathCollisions     = 0;
+            pCache->cbAnsiPaths             = 0;
 #ifdef KFSCACHE_CFG_UTF16
-            pCache->cUtf16Paths     = 0;
-            pCache->cUtf16PathCollisions = 0;
-            pCache->cbUtf16Paths    = 0;
+            pCache->cUtf16Paths             = 0;
+            pCache->cUtf16PathCollisions    = 0;
+            pCache->cbUtf16Paths            = 0;
 #endif
             return pCache;
         }
