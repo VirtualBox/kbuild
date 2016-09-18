@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2931 2016-09-18 15:57:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -412,9 +412,46 @@ void dir_setup_glob(glob_t *pGlob)
 }
 
 
+/**
+ * Print statitstics.
+ */
+void print_dir_stats(void)
+{
+    FILE *pOut = stdout;
+    KU32 cMisses;
+
+    fputs("\n"
+          "# NT dir cache stats:\n", pOut);
+    fprintf(pOut, "#  %u objects, taking up %u (%#x) bytes, avg %u bytes\n",
+            g_pFsCache->cObjects, g_pFsCache->cbObjects, g_pFsCache->cbObjects, g_pFsCache->cbObjects / g_pFsCache->cObjects);
+    fprintf(pOut, "#  %u A path hashes, taking up %u (%#x) bytes, avg %u bytes, %u collision\n",
+            g_pFsCache->cAnsiPaths, g_pFsCache->cbAnsiPaths, g_pFsCache->cbAnsiPaths,
+            g_pFsCache->cbAnsiPaths / K_MAX(g_pFsCache->cAnsiPaths, 1), g_pFsCache->cAnsiPathCollisions);
+#ifdef KFSCACHE_CFG_UTF16
+    fprintf(pOut, "#  %u W path hashes, taking up %u (%#x) bytes, avg %u bytes, %u collisions\n",
+            g_pFsCache->cUtf16Paths, g_pFsCache->cbUtf16Paths, g_pFsCache->cbUtf16Paths,
+            g_pFsCache->cbUtf16Paths / K_MAX(g_pFsCache->cUtf16Paths, 1), g_pFsCache->cUtf16PathCollisions);
+#endif
+    fprintf(pOut, "#  %u child hash tables, total of %u entries, %u children inserted, %u collisions\n",
+            g_pFsCache->cChildHashTabs, g_pFsCache->cChildHashEntriesTotal,
+            g_pFsCache->cChildHashed, g_pFsCache->cChildHashCollisions);
+
+    cMisses = g_pFsCache->cLookups - g_pFsCache->cPathHashHits - g_pFsCache->cWalkHits;
+    fprintf(pOut, "#  %u lookups: %u (%" KU64_PRI " %%) path hash hits, %u (%" KU64_PRI "%%) walks hits, %u (%" KU64_PRI "%%) misses\n",
+            g_pFsCache->cLookups,
+            g_pFsCache->cPathHashHits, g_pFsCache->cPathHashHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
+            g_pFsCache->cWalkHits, g_pFsCache->cWalkHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
+            cMisses, cMisses * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1));
+    fprintf(pOut, "#  %u child searches, %u (%" KU64_PRI "%%) hash hits\n",
+            g_pFsCache->cChildSearches,
+            g_pFsCache->cChildHashHits, g_pFsCache->cChildHashHits * (KU64)100 / K_MAX(g_pFsCache->cChildSearches, 1));
+}
+
+
 void print_dir_data_base(void)
 {
     /** @todo. */
+
 }
 
 

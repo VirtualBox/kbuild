@@ -1329,6 +1329,15 @@ print_dir_data_base (void)
 #endif
 }
 
+#ifdef CONFIG_WITH_PRINT_STATS_SWITCH
+/* Print stats */
+
+void print_dir_stats (void)
+{
+  /** @todo normal dir stats.  */
+}
+#endif
+
 /* Hooks for globbing.  */
 
 #if defined(KMK) && !defined(__OS2__)

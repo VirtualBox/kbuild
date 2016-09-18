@@ -89,6 +89,7 @@ void verify_file_data_base (void);
 
 #ifdef CONFIG_WITH_PRINT_STATS_SWITCH
 void print_variable_stats (void);
+void print_dir_stats (void);
 void print_file_stats (void);
 #endif
 
@@ -3862,6 +3863,7 @@ print_stats ()
   /* Make stuff: */
   print_variable_stats ();
   print_file_stats ();
+  print_dir_stats ();
 # ifdef KMK
   print_kbuild_define_stats ();
 # endif
