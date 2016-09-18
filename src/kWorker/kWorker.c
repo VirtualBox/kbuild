@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2935 2016-09-18 20:00:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2936 2016-09-18 20:47:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -7035,9 +7035,9 @@ BOOL WINAPI kwSandbox_Kernel32_HeapDestroy(HANDLE hHeap)
  * Thread/Fiber local storage leak prevention.
  * Thread/Fiber local storage leak prevention.
  *
- * Note! The FlsAlloc/Free causes problems for statically linked VS2010
- *       code like VBoxBs3ObjConverter.exe.  One thing is that we're
- *       leaking these indexes, but more importantely we crash during
+ * Note! The FlsAlloc/Free & TlsAlloc/Free causes problems for statically
+ *       linked VS2010 code like VBoxBs3ObjConverter.exe.  One thing is that
+ *       we're leaking these indexes, but more importantely we crash during
  *       worker exit since the callback is triggered multiple times.
  */
 
@@ -7091,6 +7091,64 @@ BOOL WINAPI kwSandbox_Kernel32_FlsFree(DWORD idxFls)
             if (pTracker)
             {
                 pTracker->idx   = FLS_OUT_OF_INDEXES;
+                pTracker->pNext = NULL;
+                kHlpFree(pTracker);
+            }
+        }
+    }
+    return fRc;
+}
+
+
+/** Kernel32 - TlsAlloc  */
+DWORD WINAPI kwSandbox_Kernel32_TlsAlloc(VOID)
+{
+    DWORD idxTls = TlsAlloc();
+    KW_LOG(("TlsAlloc() -> %#x\n", idxTls));
+    if (idxTls != TLS_OUT_OF_INDEXES)
+    {
+        PKWLOCALSTORAGE pTracker = (PKWLOCALSTORAGE)kHlpAlloc(sizeof(*pTracker));
+        if (pTracker)
+        {
+            kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+            pTracker->idx = idxTls;
+            pTracker->pNext = g_Sandbox.pTlsAllocHead;
+            g_Sandbox.pTlsAllocHead = pTracker;
+        }
+    }
+
+    return idxTls;
+}
+
+/** Kernel32 - TlsFree */
+BOOL WINAPI kwSandbox_Kernel32_TlsFree(DWORD idxTls)
+{
+    BOOL fRc = TlsFree(idxTls);
+    KW_LOG(("TlsFree(%#x) -> %d\n", idxTls, fRc));
+    if (fRc)
+    {
+        PKWLOCALSTORAGE pTracker;
+        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+        pTracker = g_Sandbox.pTlsAllocHead;
+        if (pTracker)
+        {
+            if (pTracker->idx == idxTls)
+                g_Sandbox.pTlsAllocHead = pTracker->pNext;
+            else
+            {
+                PKWLOCALSTORAGE pPrev;
+                do
+                {
+                    pPrev = pTracker;
+                    pTracker = pTracker->pNext;
+                } while (pTracker && pTracker->idx != idxTls);
+                if (pTracker)
+                    pPrev->pNext = pTracker->pNext;
+            }
+            if (pTracker)
+            {
+                pTracker->idx   = TLS_OUT_OF_INDEXES;
                 pTracker->pNext = NULL;
                 kHlpFree(pTracker);
             }
@@ -7598,6 +7656,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
 
     { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
     { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
+    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc },
+    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree },
 
     { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
 
@@ -7754,6 +7814,8 @@ KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[] =
      */
     { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
     { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
+    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc },
+    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree },
 };
 /** Number of entries in g_aSandboxGetProcReplacements. */
 KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandboxGetProcReplacements);
