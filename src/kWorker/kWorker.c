@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2928 2016-09-15 23:15:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2932 2016-09-18 16:20:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -3123,7 +3123,6 @@ static int kwSandboxGrowEnv(PKWSANDBOX pSandbox, KSIZE cMin)
     while (cNew < cMin)
         cNew += 256;
 
-
     pvNew = kHlpRealloc(pSandbox->environ, cNew * sizeof(pSandbox->environ[0]));
     if (pvNew)
     {
@@ -4092,7 +4091,7 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
         if (rc == 0)
         {
             //static int s_cDbgGets = 0;
-            KU32 cchProc = kHlpStrLen(pszProc);
+            KU32 cchProc = (KU32)kHlpStrLen(pszProc);
             KU32 i = g_cSandboxGetProcReplacements;
             while (i-- > 0)
                 if (   g_aSandboxGetProcReplacements[i].cchFunction == cchProc
@@ -7845,7 +7844,6 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     KSIZE cwc;
     KSIZE cbCmdLine;
     KU32 i;
-    int rc;
 
     /* Simple stuff. */
     pSandbox->rcExitCode    = 256;
@@ -7903,10 +7901,10 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pProcParams->CommandLine.Length = (USHORT)cwc * sizeof(wchar_t);
 
     /*
-     * Setup the enviornment.
+     * Setup the environment.
      */
-    rc = kwSandboxGrowEnv(pSandbox, cEnvVars + 2);
-    if (rc == 0)
+    if (   cEnvVars + 2 <= pSandbox->cEnvVarsAllocated
+        || kwSandboxGrowEnv(pSandbox, cEnvVars + 2) == 0)
     {
         KU32 iDst = 0;
         for (i = 0; i < cEnvVars; i++)
@@ -7942,7 +7940,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
         pSandbox->wenviron[iDst]      = NULL;
     }
     else
-        return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: %d\n", rc);
+        return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: kwSandboxGrowEnv failed\n");
 
     /*
      * Invalidate the volatile parts of cache (kBuild output directory,
@@ -8334,7 +8332,7 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
  * @param   papszArgs           The argument vector.
  * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
  * @param   cEnvVars            The number of environment variables.
- * @param   papszEnvVars        The enviornment vector.
+ * @param   papszEnvVars        The environment vector.
  * @param   cPostCmdArgs        Number of post command arguments (includes cmd).
  * @param   papszPostCmdArgs    The post command and its argument.
  */
@@ -9095,7 +9093,7 @@ int main(int argc, char **argv)
  * The kSubmit command shares a environment and current directory manipulation
  * with the kRedirect command, but not the file redirection.  So long no file
  * operation is involed, kSubmit is a drop in kRedirect replacement.  This is
- * hand for tools like OpenWatcom, NASM and YASM which all require enviornment
+ * hand for tools like OpenWatcom, NASM and YASM which all require environment
  * and/or current directory changes to work.
  *
  * Unlike the kRedirect command, the kSubmit command can also specify an
