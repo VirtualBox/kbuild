@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2940 2016-09-19 18:34:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2941 2016-09-19 20:01:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -490,6 +490,7 @@ typedef enum KWHANDLETYPE
 {
     KWHANDLETYPE_INVALID = 0,
     KWHANDLETYPE_FSOBJ_READ_CACHE,
+    KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING,
     KWHANDLETYPE_TEMP_FILE,
     KWHANDLETYPE_TEMP_FILE_MAPPING,
     KWHANDLETYPE_OUTPUT_BUF
@@ -522,6 +523,30 @@ typedef struct KWHANDLE
     } u;
 } KWHANDLE;
 typedef KWHANDLE *PKWHANDLE;
+
+/**
+ * Tracking one of our memory mappings.
+ */
+typedef struct KWMEMMAPPING
+{
+    /** Number of references. */
+    KU32                cRefs;
+    /** The mapping type (KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING or
+     *  KWHANDLETYPE_TEMP_FILE_MAPPING). */
+    KWHANDLETYPE        enmType;
+    /** The mapping address. */
+    PVOID               pvMapping;
+    /** Type specific data. */
+    union
+    {
+        /** The file system object.   */
+        PKFSWCACHEDFILE     pCachedFile;
+        /** Temporary file handle or mapping handle. */
+        PKWFSTEMPFILE       pTempFile;
+    } u;
+} KWMEMMAPPING;
+/** Pointer to a memory mapping tracker. */
+typedef KWMEMMAPPING *PKWMEMMAPPING;
 
 
 /** Pointer to a VirtualAlloc tracker entry. */
@@ -696,6 +721,13 @@ typedef struct KWSANDBOX
     KU32            cFixedHandles;
     /** Total number of leaked handles. */
     KU32            cLeakedHandles;
+
+    /** Number of active memory mappings in paMemMappings. */
+    KU32            cMemMappings;
+    /** The allocated size of paMemMappings. */
+    KU32            cMemMappingsAlloc;
+    /** Memory mappings (MapViewOfFile / UnmapViewOfFile). */
+    PKWMEMMAPPING   paMemMappings;
 
     /** Head of the list of temporary file. */
     PKWFSTEMPFILE   pTempFileHead;
@@ -5043,12 +5075,52 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
 
 
 /**
+ * Kernel32 - Common code for kwFsObjCacheCreateFile and CreateFileMappingW/A.
+ */
+static KBOOL kwFsObjCacheCreateFileHandle(PKFSWCACHEDFILE pCachedFile, DWORD dwDesiredAccess, BOOL fInheritHandle,
+                                          KBOOL fIsFileHandle, HANDLE *phFile)
+{
+    HANDLE hProcSelf = GetCurrentProcess();
+    if (DuplicateHandle(hProcSelf, pCachedFile->hCached,
+                        hProcSelf, phFile,
+                        dwDesiredAccess, fInheritHandle,
+                        0 /*dwOptions*/))
+    {
+        /*
+         * Create handle table entry for the duplicate handle.
+         */
+        PKWHANDLE pHandle = (PKWHANDLE)kHlpAlloc(sizeof(*pHandle));
+        if (pHandle)
+        {
+            pHandle->enmType            = fIsFileHandle ? KWHANDLETYPE_FSOBJ_READ_CACHE : KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING;
+            pHandle->cRefs              = 1;
+            pHandle->offFile            = 0;
+            pHandle->hHandle            = *phFile;
+            pHandle->dwDesiredAccess    = dwDesiredAccess;
+            pHandle->u.pCachedFile      = pCachedFile;
+            if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle, pHandle->hHandle))
+                return K_TRUE;
+
+            kHlpFree(pHandle);
+        }
+        else
+            KWFS_LOG(("Out of memory for handle!\n"));
+
+        CloseHandle(*phFile);
+        *phFile = INVALID_HANDLE_VALUE;
+    }
+    else
+        KWFS_LOG(("DuplicateHandle failed! err=%u\n", GetLastError()));
+    return K_FALSE;
+}
+
+
+/**
  * Kernel32 - Common code for CreateFileW and CreateFileA.
  */
 static KBOOL kwFsObjCacheCreateFile(PKFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL fInheritHandle, HANDLE *phFile)
 {
     *phFile = INVALID_HANDLE_VALUE;
-    kHlpAssert(pFsObj->fHaveStats);
 
     /*
      * At the moment we only handle existing files.
@@ -5056,40 +5128,12 @@ static KBOOL kwFsObjCacheCreateFile(PKFSOBJ pFsObj, DWORD dwDesiredAccess, BOOL 
     if (pFsObj->bObjType == KFSOBJ_TYPE_FILE)
     {
         PKFSWCACHEDFILE pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjGetUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE);
+        kHlpAssert(pFsObj->fHaveStats);
         if (   pCachedFile != NULL
             || (pCachedFile = kwFsObjCacheNewFile(pFsObj)) != NULL)
         {
-            HANDLE hProcSelf = GetCurrentProcess();
-            if (DuplicateHandle(hProcSelf, pCachedFile->hCached,
-                                hProcSelf, phFile,
-                                dwDesiredAccess, fInheritHandle,
-                                0 /*dwOptions*/))
-            {
-                /*
-                 * Create handle table entry for the duplicate handle.
-                 */
-                PKWHANDLE pHandle = (PKWHANDLE)kHlpAlloc(sizeof(*pHandle));
-                if (pHandle)
-                {
-                    pHandle->enmType            = KWHANDLETYPE_FSOBJ_READ_CACHE;
-                    pHandle->cRefs              = 1;
-                    pHandle->offFile            = 0;
-                    pHandle->hHandle            = *phFile;
-                    pHandle->dwDesiredAccess    = dwDesiredAccess;
-                    pHandle->u.pCachedFile      = pCachedFile;
-                    if (kwSandboxHandleTableEnter(&g_Sandbox, pHandle, pHandle->hHandle))
-                        return K_TRUE;
-
-                    kHlpFree(pHandle);
-                }
-                else
-                    KWFS_LOG(("Out of memory for handle!\n"));
-
-                CloseHandle(*phFile);
-                *phFile = INVALID_HANDLE_VALUE;
-            }
-            else
-                KWFS_LOG(("DuplicateHandle failed! err=%u\n", GetLastError()));
+            if (kwFsObjCacheCreateFileHandle(pCachedFile, dwDesiredAccess, fInheritHandle, K_TRUE /*fIsFileHandle*/, phFile))
+                return K_TRUE;
         }
     }
     /** @todo Deal with non-existing files if it becomes necessary (it's not for VS2010). */
@@ -6090,7 +6134,7 @@ static BOOL WINAPI kwSandbox_Kernel32_GetFileSizeEx(HANDLE hFile, PLARGE_INTEGER
 }
 
 
-/** Kernel32 - CreateFileMapping  */
+/** Kernel32 - CreateFileMappingW  */
 static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECURITY_ATTRIBUTES pSecAttrs,
                                                            DWORD fProtect, DWORD dwMaximumSizeHigh,
                                                            DWORD dwMaximumSizeLow, LPCWSTR pwszName)
@@ -6125,6 +6169,33 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
                     return INVALID_HANDLE_VALUE;
                 }
 
+                /* moc.exe benefits from this. */
+                case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                {
+                    PKFSWCACHEDFILE pCachedFile = pHandle->u.pCachedFile;
+                    if (   (   fProtect == PAGE_READONLY
+                            || fProtect == PAGE_EXECUTE_READ)
+                        && dwMaximumSizeHigh == 0
+                        &&  (   dwMaximumSizeLow == 0
+                             || dwMaximumSizeLow == pCachedFile->cbCached)
+                        && pwszName == NULL)
+                    {
+                        if (kwFsObjCacheCreateFileHandle(pCachedFile, GENERIC_READ, FALSE /*fInheritHandle*/,
+                                                         K_FALSE /*fIsFileHandle*/, &hMapping))
+                        { /* likely */ }
+                        else
+                            hMapping = NULL;
+                        KWFS_LOG(("CreateFileMappingW(%p, %u) -> %p [temp]\n", hFile, fProtect, hMapping));
+                        return hMapping;
+                    }
+                    kHlpAssertMsgFailed(("fProtect=%#x cb=%#x'%08x name=%p\n",
+                                         fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName));
+                    SetLastError(ERROR_ACCESS_DENIED);
+                    return INVALID_HANDLE_VALUE;
+
+
+                }
+
                 /** @todo read cached memory mapped files too for moc.   */
             }
         }
@@ -6135,6 +6206,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
               hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName, hMapping));
     return hMapping;
 }
+
 
 /** Kernel32 - MapViewOfFile  */
 static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDesiredAccess,
@@ -6148,11 +6220,43 @@ static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDe
         PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
         if (pHandle != NULL)
         {
+            KU32 idxMapping;
+
+            /*
+             * Ensure one free entry in the mapping tracking table first,
+             * since this is common to both temporary and cached files.
+             */
+            if (g_Sandbox.cMemMappings + 1 <= g_Sandbox.cMemMappingsAlloc)
+            { /* likely */ }
+            else
+            {
+                void *pvNew;
+                KU32 cNew = g_Sandbox.cMemMappingsAlloc;
+                if (cNew)
+                    cNew *= 2;
+                else
+                    cNew = 32;
+                pvNew = kHlpRealloc(g_Sandbox.paMemMappings, cNew * sizeof(g_Sandbox.paMemMappings));
+                if (pvNew)
+                    g_Sandbox.paMemMappings = (PKWMEMMAPPING)pvNew;
+                else
+                {
+                    kwErrPrintf("Failed to grow paMemMappings from %#x to %#x!\n", g_Sandbox.cMemMappingsAlloc, cNew);
+                    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                    return NULL;
+                }
+                g_Sandbox.cMemMappingsAlloc = cNew;
+            }
+
+            /*
+             * Type specific work.
+             */
             switch (pHandle->enmType)
             {
                 case KWHANDLETYPE_FSOBJ_READ_CACHE:
                 case KWHANDLETYPE_TEMP_FILE:
                 case KWHANDLETYPE_OUTPUT_BUF:
+                default:
                     kHlpAssertFailed();
                     SetLastError(ERROR_INVALID_OPERATION);
                     return NULL;
@@ -6205,8 +6309,9 @@ static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDe
                         pTempFile->cMappings++;
                         kHlpAssert(pTempFile->cMappings == 1);
 
-                        KWFS_LOG(("CreateFileMappingW(%p) -> %p [temp]\n", hSection, pTempFile->paSegs[0].pbData));
-                        return pTempFile->paSegs[0].pbData;
+                        pvRet = pTempFile->paSegs[0].pbData;
+                        KWFS_LOG(("CreateFileMappingW(%p) -> %p [temp]\n", hSection, pvRet));
+                        break;
                     }
 
                     kHlpAssertMsgFailed(("dwDesiredAccess=%#x offFile=%#x'%08x cbToMap=%#x (cbFile=%#x)\n",
@@ -6214,7 +6319,47 @@ static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDe
                     SetLastError(ERROR_NOT_ENOUGH_MEMORY);
                     return NULL;
                 }
+
+                /*
+                 * This is simple in comparison to the above temporary file code.
+                 */
+                case KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING:
+                {
+                    PKFSWCACHEDFILE pCachedFile = pHandle->u.pCachedFile;
+                    if (   dwDesiredAccess == FILE_MAP_READ
+                        && offFileHigh == 0
+                        && offFileLow  == 0
+                        && (cbToMap == 0 || cbToMap == pCachedFile->cbCached) )
+                    {
+                        pvRet = pCachedFile->pbCached;
+                        KWFS_LOG(("CreateFileMappingW(%p) -> %p [cached]\n", hSection, pvRet));
+                        break;
+                    }
+                    kHlpAssertMsgFailed(("dwDesiredAccess=%#x offFile=%#x'%08x cbToMap=%#x (cbFile=%#x)\n",
+                                         dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pCachedFile->cbCached));
+                    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                    return NULL;
+                }
             }
+
+            /*
+             * Insert into the mapping tracking table.  This is common
+             * and we should only get here with a non-NULL pvRet.
+             *
+             * Note! We could look for duplicates and do ref counting, but it's
+             *       easier to just append for now.
+             */
+            kHlpAssert(pvRet != NULL);
+            idxMapping = g_Sandbox.cMemMappings;
+            kHlpAssert(idxMapping < g_Sandbox.cMemMappingsAlloc);
+
+            g_Sandbox.paMemMappings[idxMapping].cRefs         = 1;
+            g_Sandbox.paMemMappings[idxMapping].pvMapping     = pvRet;
+            g_Sandbox.paMemMappings[idxMapping].enmType       = pHandle->enmType;
+            g_Sandbox.paMemMappings[idxMapping].u.pCachedFile = pHandle->u.pCachedFile;
+            g_Sandbox.cMemMappings++;
+
+            return pvRet;
         }
     }
 
@@ -6229,20 +6374,33 @@ static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDe
 /** Kernel32 - UnmapViewOfFile  */
 static BOOL WINAPI kwSandbox_Kernel32_UnmapViewOfFile(LPCVOID pvBase)
 {
-    /* Is this one of our temporary mappings? */
-    PKWFSTEMPFILE pCur = g_Sandbox.pTempFileHead;
+    /*
+     * Consult the memory mapping tracker.
+     */
+    PKWMEMMAPPING   paMemMappings = g_Sandbox.paMemMappings;
+    KU32            idxMapping    = g_Sandbox.cMemMappings;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
-    while (pCur)
-    {
-        if (   pCur->cMappings > 0
-            && pCur->paSegs[0].pbData == (KU8 *)pvBase)
+    while (idxMapping-- > 0)
+        if (paMemMappings[idxMapping].pvMapping == pvBase)
         {
-            pCur->cMappings--;
-            KWFS_LOG(("UnmapViewOfFile(%p) -> TRUE [temp]\n", pvBase));
+            /* Type specific stuff. */
+            if (paMemMappings[idxMapping].enmType == KWHANDLETYPE_TEMP_FILE_MAPPING)
+            {
+                KWFS_LOG(("UnmapViewOfFile(%p) -> TRUE [temp]\n", pvBase));
+                paMemMappings[idxMapping].u.pTempFile->cMappings--;
+            }
+            else
+                KWFS_LOG(("UnmapViewOfFile(%p) -> TRUE [cached]\n", pvBase));
+
+            /* Deref and probably free it. */
+            if (--paMemMappings[idxMapping].cRefs == 0)
+            {
+                g_Sandbox.cMemMappings--;
+                if (idxMapping != g_Sandbox.cMemMappings)
+                    paMemMappings[idxMapping] = paMemMappings[g_Sandbox.cMemMappings];
+            }
             return TRUE;
         }
-        pCur = pCur->pNext;
-    }
 
     KWFS_LOG(("UnmapViewOfFile(%p)\n", pvBase));
     return UnmapViewOfFile(pvBase);
@@ -8590,6 +8748,10 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
                             KWFS_LOG(("Closing leaked read cache handle: %#x/%p cRefs=%d\n",
                                       idxHandle, pHandle->hHandle, pHandle->cRefs));
                             break;
+                        case KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING:
+                            KWFS_LOG(("Closing leaked read mapping handle: %#x/%p cRefs=%d\n",
+                                      idxHandle, pHandle->hHandle, pHandle->cRefs));
+                            break;
                         case KWHANDLETYPE_OUTPUT_BUF:
                             KWFS_LOG(("Closing leaked output buf handle: %#x/%p cRefs=%d\n",
                                       idxHandle, pHandle->hHandle, pHandle->cRefs));
@@ -8615,6 +8777,9 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
             }
         kHlpAssert(pSandbox->cActiveHandles == pSandbox->cFixedHandles);
     }
+
+    /* Reset memory mappings - This assumes none of the DLLs keeps any of our mappings open! */
+    g_Sandbox.cMemMappings = 0;
 
 #ifdef WITH_TEMP_MEMORY_FILES
     /* The temporary files aren't externally visible, they're all in memory. */
@@ -8813,6 +8978,17 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
                 kwErrPrintf("Caught exception %#x!\n", GetExceptionCode());
+#ifdef WITH_HISTORY
+                {
+                    KU32 cPrinted = 0;
+                    while (cPrinted++ < 5)
+                    {
+                        KU32 idx = (g_iHistoryNext + K_ELEMENTS(g_apszHistory) - cPrinted) % K_ELEMENTS(g_apszHistory);
+                        if (g_apszHistory[idx])
+                            kwErrPrintf("cmd[%d]: %s\n", 1 - cPrinted, g_apszHistory[idx]);
+                    }
+                }
+#endif
                 rcExit = 512;
             }
             pSandbox->fRunning = K_FALSE;
