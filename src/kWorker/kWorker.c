@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2938 2016-09-19 16:50:47Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2940 2016-09-19 18:34:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -814,6 +814,10 @@ static KWGETMODULEHANDLECACHE g_aGetModuleHandleCache[] =
 static PKFSCACHE    g_pFsCache;
 /** The current directory (referenced). */
 static PKFSOBJ      g_pCurDirObj = NULL;
+#ifdef KBUILD_OS_WINDOWS
+/** The windows system32 directory (referenced). */
+static PKFSDIR      g_pWinSys32 = NULL;
+#endif
 
 /** Verbosity level. */
 static int          g_cVerbose = 2;
@@ -2113,18 +2117,75 @@ static KBOOL kwLdrModuleShouldDoNativeReplacements(const char *pszFilename, KWLO
 
 
 /**
+ * Lazily initializes the g_pWinSys32 variable.
+ */
+static PKFSDIR kwLdrResolveWinSys32(void)
+{
+    KFSLOOKUPERROR  enmError;
+    PKFSDIR         pWinSys32;
+
+    /* Get the path first. */
+    char            szSystem32[MAX_PATH];
+    if (GetSystemDirectoryA(szSystem32, sizeof(szSystem32)) >= sizeof(szSystem32))
+    {
+        kwErrPrintf("GetSystemDirectory failed: %u\n", GetLastError());
+        strcpy(szSystem32, "C:\\Windows\\System32");
+    }
+
+    /* Look it up and verify it. */
+    pWinSys32 = (PKFSDIR)kFsCacheLookupA(g_pFsCache, szSystem32, &enmError);
+    if (pWinSys32)
+    {
+        if (pWinSys32->Obj.bObjType == KFSOBJ_TYPE_DIR)
+        {
+            g_pWinSys32 = pWinSys32;
+            return pWinSys32;
+        }
+
+        kwErrPrintf("System directory '%s' isn't of 'DIR' type: %u\n", szSystem32, g_pWinSys32->Obj.bObjType);
+    }
+    else
+        kwErrPrintf("Failed to lookup system directory '%s': %u\n", szSystem32, enmError);
+    return NULL;
+}
+
+
+/**
  * Whether we can load this DLL natively or not.
  *
  * @returns K_TRUE/K_FALSE.
  * @param   pszFilename         The filename (no path).
  * @param   enmLocation         The location.
+ * @param   pszFullPath         The full filename and path.
  */
-static KBOOL kwLdrModuleCanLoadNatively(const char *pszFilename, KWLOCATION enmLocation)
+static KBOOL kwLdrModuleCanLoadNatively(const char *pszFilename, KWLOCATION enmLocation, const char *pszFullPath)
 {
     if (enmLocation == KWLOCATION_SYSTEM32)
         return K_TRUE;
     if (enmLocation == KWLOCATION_UNKNOWN_NATIVE)
         return K_TRUE;
+
+    /* If the location is unknown, we must check if it's some dynamic loading
+       of a SYSTEM32 DLL with a full path.  We do not want to load these ourselves! */
+    if (enmLocation == KWLOCATION_UNKNOWN)
+    {
+        PKFSDIR pWinSys32 = g_pWinSys32;
+        if (!pWinSys32)
+            pWinSys32 = kwLdrResolveWinSys32();
+        if (pWinSys32)
+        {
+            KFSLOOKUPERROR enmError;
+            PKFSOBJ pFsObj = kFsCacheLookupA(g_pFsCache, pszFullPath, &enmError);
+            if (pFsObj)
+            {
+                KBOOL fInWinSys32 = pFsObj->pParent == pWinSys32;
+                kFsCacheObjRelease(g_pFsCache, pFsObj);
+                if (fInWinSys32)
+                    return K_TRUE;
+            }
+        }
+    }
+
     return kHlpStrNICompAscii(pszFilename, TUPLE("msvc"))   == 0
         || kHlpStrNICompAscii(pszFilename, TUPLE("msdis"))  == 0
         || kHlpStrNICompAscii(pszFilename, TUPLE("mspdb"))  == 0;
@@ -2217,7 +2278,7 @@ static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocati
              * Not in the hash table, so we have to load it from scratch.
              */
             pszName = kHlpGetFilename(szNormPath);
-            if (kwLdrModuleCanLoadNatively(pszName, enmLocation))
+            if (kwLdrModuleCanLoadNatively(pszName, enmLocation, szNormPath))
                 pMod = kwLdrModuleCreateNative(szNormPath, uHashPath,
                                                kwLdrModuleShouldDoNativeReplacements(pszName, enmLocation));
             else
@@ -4840,10 +4901,10 @@ static KBOOL kwFsIsCacheablePathExtensionW(const wchar_t *pwszPath, KBOOL fAttrQ
     wchar_t const  *pwszExt = kwFsPathGetExtW(pwszPath, &cwcExt);
     switch (cwcExt)
     {
-        case 3: kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], pwszExt[2], fAttrQuery);
-        case 2: kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], 0,          fAttrQuery);
-        case 1: kwFsIsCacheableExtensionCommon(pwszExt[0], 0,          0,          fAttrQuery);
-        case 0: kwFsIsCacheableExtensionCommon(0,          0,          0,          fAttrQuery);
+        case 3: return kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], pwszExt[2], fAttrQuery);
+        case 2: return kwFsIsCacheableExtensionCommon(pwszExt[0], pwszExt[1], 0,          fAttrQuery);
+        case 1: return kwFsIsCacheableExtensionCommon(pwszExt[0], 0,          0,          fAttrQuery);
+        case 0: return kwFsIsCacheableExtensionCommon(0,          0,          0,          fAttrQuery);
     }
     return K_FALSE;
 }
@@ -4905,6 +4966,7 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                 && cbFile.QuadPart < 16*1024*1024)
             {
                 KU32 cbCache = (KU32)cbFile.QuadPart;
+#if 0
                 KU8 *pbCache = (KU8 *)kHlpAlloc(cbCache);
                 if (pbCache)
                 {
@@ -4916,6 +4978,16 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                         offZero.QuadPart = 0;
                         if (SetFilePointerEx(hFile, offZero, NULL /*poffNew*/, FILE_BEGIN))
                         {
+#else
+                HANDLE hMapping = CreateFileMappingW(hFile, NULL /*pSecAttrs*/,  PAGE_READONLY,
+                                                     0 /*cbMaxLow*/, 0 /*cbMaxHigh*/, NULL /*pwszName*/);
+                if (hMapping != NULL)
+                {
+                    KU8 *pbCache = (KU8 *)MapViewOfFile(hMapping, FILE_MAP_READ, 0 /*offFileHigh*/, 0 /*offFileLow*/, cbCache);
+                    CloseHandle(hMapping);
+                    if (pbCache)
+                    {
+#endif
                             /*
                              * Create the cached file object.
                              */
@@ -4931,10 +5003,19 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                                 pCachedFile->pFsObj   = pFsObj;
                                 kFsCacheObjGetFullPathA(pFsObj, pCachedFile->szPath, cbPath, '/');
                                 kFsCacheObjRetain(pFsObj);
+                                KWFS_LOG(("Cached '%s': %p LB %#x, hCached=%p\n", pCachedFile->szPath, pbCache, cbCache, hFile));
                                 return pCachedFile;
                             }
 
                             KWFS_LOG(("Failed to allocate KFSWCACHEDFILE structure!\n"));
+#if 1
+                    }
+                    else
+                        KWFS_LOG(("Failed to cache file: MapViewOfFile failed: %u\n", GetLastError()));
+                }
+                else
+                    KWFS_LOG(("Failed to cache file: CreateFileMappingW failed: %u\n", GetLastError()));
+#else
                         }
                         else
                             KWFS_LOG(("Failed to seek to start of cached file! err=%u\n", GetLastError()));
@@ -4946,6 +5027,7 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                 }
                 else
                     KWFS_LOG(("Failed to allocate %#x bytes for cache!\n", cbCache));
+#endif
             }
             else
                 KWFS_LOG(("File to big to cache! %#llx\n", cbFile.QuadPart));
@@ -5023,6 +5105,10 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileA(LPCSTR pszFilename, DWORD dw
                                                     DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
     HANDLE hFile;
+
+    /*
+     * Check for include files and similar that we do read-only caching of.
+     */
     if (dwCreationDisposition == FILE_OPEN_IF)
     {
         if (   dwDesiredAccess == GENERIC_READ
@@ -5102,7 +5188,9 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
     HANDLE hFile;
 
 #ifdef WITH_TEMP_MEMORY_FILES
-    /* First check for temporary files (cl.exe only). */
+    /*
+     * Check for temporary files (cl.exe only).
+     */
     if (   g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL
         && !(dwFlagsAndAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_DEVICE | FILE_FLAG_BACKUP_SEMANTICS))
         && !(dwDesiredAccess & (GENERIC_EXECUTE | FILE_EXECUTE))
@@ -5114,7 +5202,9 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
     }
 #endif
 
-    /* Then check for include files and similar. */
+    /*
+     * Check for include files and similar that we do read-only caching of.
+     */
     if (dwCreationDisposition == FILE_OPEN_IF)
     {
         if (   dwDesiredAccess == GENERIC_READ
@@ -5128,12 +5218,42 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileW(LPCWSTR pwszFilename, DWORD 
                 {
                     if (kwFsIsCacheablePathExtensionW(pwszFilename, K_FALSE /*fAttrQuery*/))
                     {
-                        /** @todo rewrite in pure UTF-16. */
-                        char szTmp[2048];
-                        KSIZE cch = kwUtf16ToStr(pwszFilename, szTmp, sizeof(szTmp));
-                        if (cch < sizeof(szTmp))
-                            return kwSandbox_Kernel32_CreateFileA(szTmp, dwDesiredAccess, dwShareMode, pSecAttrs,
-                                                                  dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+                        KFSLOOKUPERROR enmError;
+                        PKFSOBJ pFsObj;
+                        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+                        pFsObj = kFsCacheLookupNoMissingW(g_pFsCache, pwszFilename, &enmError);
+                        if (pFsObj)
+                        {
+                            KBOOL fRc = kwFsObjCacheCreateFile(pFsObj, dwDesiredAccess, pSecAttrs && pSecAttrs->bInheritHandle,
+                                                               &hFile);
+                            kFsCacheObjRelease(g_pFsCache, pFsObj);
+                            if (fRc)
+                            {
+                                KWFS_LOG(("CreateFileW(%ls) -> %p [cached]\n", pwszFilename, hFile));
+                                return hFile;
+                            }
+                        }
+                        /* These are for nasm and yasm style header searching.  Cache will
+                           already have checked the directories for the file, no need to call
+                           CreateFile to do it again. */
+                        else if (enmError == KFSLOOKUPERROR_NOT_FOUND)
+                        {
+                            KWFS_LOG(("CreateFileW(%ls) -> INVALID_HANDLE_VALUE, ERROR_FILE_NOT_FOUND\n", pwszFilename));
+                            return INVALID_HANDLE_VALUE;
+                        }
+                        else if (   enmError == KFSLOOKUPERROR_PATH_COMP_NOT_FOUND
+                                 || enmError == KFSLOOKUPERROR_PATH_COMP_NOT_DIR)
+                        {
+                            KWFS_LOG(("CreateFileW(%ls) -> INVALID_HANDLE_VALUE, ERROR_PATH_NOT_FOUND\n", pwszFilename));
+                            return INVALID_HANDLE_VALUE;
+                        }
+
+                        /* fallback */
+                        hFile = CreateFileW(pwszFilename, dwDesiredAccess, dwShareMode, pSecAttrs,
+                                            dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+                        KWFS_LOG(("CreateFileW(%ls) -> %p (err=%u) [fallback]\n", pwszFilename, hFile, GetLastError()));
+                        return hFile;
                     }
                 }
                 else
@@ -5975,6 +6095,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
                                                            DWORD fProtect, DWORD dwMaximumSizeHigh,
                                                            DWORD dwMaximumSizeLow, LPCWSTR pwszName)
 {
+    HANDLE      hMapping;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     if (idxHandle < g_Sandbox.cHandles)
@@ -5994,7 +6115,7 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
                              || dwMaximumSizeLow == pTempFile->cbFile)
                         && pwszName == NULL)
                     {
-                        HANDLE hMapping = kwFsTempFileCreateHandle(pHandle->u.pTempFile, GENERIC_READ, K_TRUE /*fMapping*/);
+                        hMapping = kwFsTempFileCreateHandle(pHandle->u.pTempFile, GENERIC_READ, K_TRUE /*fMapping*/);
                         KWFS_LOG(("CreateFileMappingW(%p, %u) -> %p [temp]\n", hFile, fProtect, hMapping));
                         return hMapping;
                     }
@@ -6003,18 +6124,23 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
                     SetLastError(ERROR_ACCESS_DENIED);
                     return INVALID_HANDLE_VALUE;
                 }
+
+                /** @todo read cached memory mapped files too for moc.   */
             }
         }
     }
 
-    KWFS_LOG(("CreateFileMappingW(%p)\n", hFile));
-    return CreateFileMappingW(hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName);
+    hMapping = CreateFileMappingW(hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName);
+    KWFS_LOG(("CreateFileMappingW(%p, %p, %#x, %#x, %#x, %p) -> %p\n",
+              hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName, hMapping));
+    return hMapping;
 }
 
 /** Kernel32 - MapViewOfFile  */
-static HANDLE WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDesiredAccess,
-                                                      DWORD offFileHigh, DWORD offFileLow, SIZE_T cbToMap)
+static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDesiredAccess,
+                                                     DWORD offFileHigh, DWORD offFileLow, SIZE_T cbToMap)
 {
+    PVOID       pvRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hSection);
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     if (idxHandle < g_Sandbox.cHandles)
@@ -6092,8 +6218,10 @@ static HANDLE WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwD
         }
     }
 
-    KWFS_LOG(("MapViewOfFile(%p)\n", hSection));
-    return MapViewOfFile(hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap);
+    pvRet = MapViewOfFile(hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap);
+    KWFS_LOG(("MapViewOfFile(%p, %#x, %#x, %#x, %#x) -> %p\n",
+              hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvRet));
+    return pvRet;
 }
 /** @todo MapViewOfFileEx */
 
