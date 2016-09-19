@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2934 2016-09-18 16:47:16Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2938 2016-09-19 16:50:47Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -48,6 +48,8 @@ kWorker_LIBS.win = \
 	$(PATH_SDK_WINDDK71_LIB_WNET)/psapi.lib
 kWorker_LDFLAGS.win = \
 	/BASE:0x10000 /DYNAMICBASE:NO /FIXED
+#kWorker_LDFLAGS.win.x86 = \
+#	/SAFESEH:NO - doesn't help anyone.
 
 
 #

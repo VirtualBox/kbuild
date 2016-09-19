@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2936 2016-09-18 20:47:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2938 2016-09-19 16:50:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -86,10 +86,14 @@ extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
  * Log to file instead of stderr. */
 #define WITH_LOG_FILE
 
+/** @def WITH_HISTORY
+ * Keep history of the last jobs.  For debugging.  */
+#define WITH_HISTORY
+
+
 #ifndef NDEBUG
 # define KW_LOG_ENABLED
 #endif
-
 
 /** @def KW_LOG
  * Generic logging.
@@ -843,6 +847,14 @@ static HANDLE g_hLogFile = INVALID_HANDLE_VALUE;
 #endif
 
 
+#ifdef WITH_HISTORY
+/** The job history. */
+static char     *g_apszHistory[32];
+/** Index of the next history entry. */
+static unsigned  g_iHistoryNext = 0;
+#endif
+
+
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
@@ -852,6 +864,7 @@ static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, H
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
 static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pchBuffer, KU32 cchToWrite);
 #endif
+
 
 
 
@@ -4295,8 +4308,9 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
                     if (   !g_aSandboxGetProcReplacements[i].pszModule
                         || kHlpStrICompAscii(g_aSandboxGetProcReplacements[i].pszModule, &pMod->pszPath[pMod->offFilename]) == 0)
                     {
-                        if (   pMod->fExe
-                            || !g_aSandboxGetProcReplacements[i].fOnlyExe)
+                        if (   !g_aSandboxGetProcReplacements[i].fOnlyExe
+                            || (KUPTR)_ReturnAddress() - (KUPTR)g_Sandbox.pTool->u.Sandboxed.pExe->hOurMod
+                               < g_Sandbox.pTool->u.Sandboxed.pExe->cbImage)
                         {
                             uValue = g_aSandboxGetProcReplacements[i].pfnReplacement;
                             KW_LOG(("GetProcAddress(%s, %s) -> %p replaced\n", pMod->pszPath, pszProc, (KUPTR)uValue));
@@ -7554,6 +7568,223 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
 
 /*
  *
+ * Structured exception handling.
+ * Structured exception handling.
+ * Structured exception handling.
+ *
+ */
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
+
+# define EH_NONCONTINUABLE      KU32_C(0x00000001)
+# define EH_UNWINDING           KU32_C(0x00000002)
+# define EH_EXIT_UNWIND         KU32_C(0x00000004)
+# define EH_STACK_INVALID       KU32_C(0x00000008)
+# define EH_NESTED_CALL         KU32_C(0x00000010)
+
+typedef KU32 (__cdecl * volatile PFNXCPTHANDLER)(PEXCEPTION_RECORD, struct _EXCEPTION_REGISTRATION_RECORD*, PCONTEXT,
+                                                 struct _EXCEPTION_REGISTRATION_RECORD * volatile *);
+typedef struct _EXCEPTION_REGISTRATION_RECORD
+{
+    struct _EXCEPTION_REGISTRATION_RECORD * volatile    pPrevRegRec;
+    PFNXCPTHANDLER                                      pfnXcptHandler;
+};
+
+
+/**
+ * Calls @a pfnHandler.
+ */
+static KU32 kwSandboxXcptCallHandler(PEXCEPTION_RECORD pXcptRec, struct _EXCEPTION_REGISTRATION_RECORD *pRegRec,
+                                     PCONTEXT pXcptCtx, struct _EXCEPTION_REGISTRATION_RECORD * volatile * ppRegRec,
+                                     PFNXCPTHANDLER pfnHandler)
+{
+# if 1
+    /* This is a more robust version that isn't subject to calling
+       convension cleanup disputes and such. */
+    KU32 uSavedEdi;
+    KU32 uSavedEsi;
+    KU32 uSavedEbx;
+    KU32 rcHandler;
+
+    __asm
+    {
+        mov     [uSavedEdi], edi
+        mov     [uSavedEsi], esi
+        mov     [uSavedEbx], ebx
+        mov     esi, esp
+        mov     edi, esp
+        mov     edi, [pXcptRec]
+        mov     edx, [pRegRec]
+        mov     eax, [pXcptCtx]
+        mov     ebx, [ppRegRec]
+        mov     ecx, [pfnHandler]
+        sub     esp, 16
+        and     esp, 0fffffff0h
+        mov     [esp     ], edi
+        mov     [esp +  4], edx
+        mov     [esp +  8], eax
+        mov     [esp + 12], ebx
+        mov     edi, esi
+        call    ecx
+        mov     esp, esi
+        cmp     esp, edi
+        je      stack_ok
+        int     3
+    stack_ok:
+        mov     edi, [uSavedEdi]
+        mov     esi, [uSavedEsi]
+        mov     ebx, [uSavedEbx]
+        mov     [rcHandler], eax
+    }
+    return rcHandler;
+# else
+    return pfnHandler(pXcptRec, pRegRec, pXctpCtx, ppRegRec);
+# endif
+}
+
+
+/**
+ * Vectored exception handler that emulates x86 chained exception handler.
+ *
+ * This is necessary because the RtlIsValidHandler check fails for self loaded
+ * code and prevents cl.exe from working.  (On AMD64 we can register function
+ * tables, but on X86 cooking your own handling seems to be the only viabke
+ * alternative.)
+ *
+ * @returns EXCEPTION_CONTINUE_SEARCH or EXCEPTION_CONTINUE_EXECUTION.
+ * @param   pXcptPtrs           The exception details.
+ */
+static LONG CALLBACK kwSandboxVecXcptEmulateChained(PEXCEPTION_POINTERS pXcptPtrs)
+{
+    PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
+    KW_LOG(("kwSandboxVecXcptEmulateChained: %#x\n", pXcptPtrs->ExceptionRecord->ExceptionCode));
+    if (g_Sandbox.fRunning)
+    {
+        HANDLE const                                      hCurProc = GetCurrentProcess();
+        PEXCEPTION_RECORD                                 pXcptRec = pXcptPtrs->ExceptionRecord;
+        PCONTEXT                                          pXcptCtx = pXcptPtrs->ContextRecord;
+        struct _EXCEPTION_REGISTRATION_RECORD *           pRegRec  = pTib->ExceptionList;
+        while (((KUPTR)pRegRec & (sizeof(void *) - 3)) == 0 && pRegRec != NULL)
+        {
+            /* Read the exception record in a safe manner. */
+            struct _EXCEPTION_REGISTRATION_RECORD   RegRec;
+            DWORD                                   cbActuallyRead = 0;
+            if (   ReadProcessMemory(hCurProc, pRegRec, &RegRec, sizeof(RegRec), &cbActuallyRead)
+                && cbActuallyRead == sizeof(RegRec))
+            {
+                struct _EXCEPTION_REGISTRATION_RECORD * volatile    pDispRegRec = NULL;
+                KU32                                                rcHandler;
+                KW_LOG(("kwSandboxVecXcptEmulateChained: calling %p, pRegRec=%p, pPrevRegRec=%p\n",
+                        RegRec.pfnXcptHandler, pRegRec, RegRec.pPrevRegRec));
+                rcHandler = kwSandboxXcptCallHandler(pXcptRec, pRegRec, pXcptCtx, &pDispRegRec, RegRec.pfnXcptHandler);
+                KW_LOG(("kwSandboxVecXcptEmulateChained: rcHandler=%#x pDispRegRec=%p\n", rcHandler, pDispRegRec));
+                if (rcHandler == ExceptionContinueExecution)
+                {
+                    kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE));
+                    KW_LOG(("kwSandboxVecXcptEmulateChained: returning EXCEPTION_CONTINUE_EXECUTION!\n"));
+                    return EXCEPTION_CONTINUE_EXECUTION;
+                }
+
+                if (rcHandler == ExceptionContinueSearch)
+                    kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & 8 /*EXCEPTION_STACK_INVALID*/));
+                else if (rcHandler == ExceptionNestedException)
+                    kHlpAssertMsgFailed(("Nested exceptions.\n"));
+                else
+                    kHlpAssertMsgFailed(("Invalid return %#x (%d).\n", rcHandler, rcHandler));
+            }
+            else
+            {
+                KW_LOG(("kwSandboxVecXcptEmulateChained: Bad xcpt chain entry at %p! Stopping search.\n", pRegRec));
+                break;
+            }
+
+            /*
+             * Next.
+             */
+            pRegRec = RegRec.pPrevRegRec;
+        }
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+
+/** NtDll,Kernel32 - RtlUnwind */
+static VOID WINAPI kwSandbox_ntdll_RtlUnwind(struct _EXCEPTION_REGISTRATION_RECORD *pStopXcptRec, PVOID pvTargetIp,
+                                             PEXCEPTION_RECORD pXcptRec, PVOID pvReturnValue)
+{
+    PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
+    KW_LOG(("kwSandbox_ntdll_RtlUnwind: pStopXcptRec=%p pvTargetIp=%p pXctpRec=%p pvReturnValue=%p%s\n",
+            pStopXcptRec, pvTargetIp, pXcptRec, pvReturnValue, g_Sandbox.fRunning ? "" : " [sandbox not running]"));
+    if (g_Sandbox.fRunning)
+    {
+        HANDLE const                                      hCurProc = GetCurrentProcess();
+        PCONTEXT                                          pXcptCtx = NULL;
+        struct _EXCEPTION_REGISTRATION_RECORD *           pRegRec  = pTib->ExceptionList;
+
+        /*
+         * Update / create an exception record.
+         */
+        if (pXcptRec)
+            pXcptRec->ExceptionFlags |= EH_UNWINDING;
+        else
+        {
+            pXcptRec = (PEXCEPTION_RECORD)alloca(sizeof(*pXcptRec));
+            kHlpMemSet(pXcptRec, 0, sizeof(*pXcptRec));
+            pXcptRec->ExceptionCode  = STATUS_UNWIND;
+            pXcptRec->ExceptionFlags = EH_UNWINDING;
+        }
+        if (!pStopXcptRec)
+            pXcptRec->ExceptionFlags |= EH_EXIT_UNWIND;
+
+        /*
+         * Walk the chain till we find pStopXctpRec.
+         */
+        while (   ((KUPTR)pRegRec & (sizeof(void *) - 3)) == 0
+               && pRegRec != NULL
+               && pRegRec != pStopXcptRec)
+        {
+            /* Read the exception record in a safe manner. */
+            struct _EXCEPTION_REGISTRATION_RECORD   RegRec;
+            DWORD                                   cbActuallyRead = 0;
+            if (   ReadProcessMemory(hCurProc, pRegRec, &RegRec, sizeof(RegRec), &cbActuallyRead)
+                && cbActuallyRead == sizeof(RegRec))
+            {
+                struct _EXCEPTION_REGISTRATION_RECORD * volatile    pDispRegRec = NULL;
+                KU32                                                rcHandler;
+                KW_LOG(("kwSandbox_ntdll_RtlUnwind: calling %p, pRegRec=%p, pPrevRegRec=%p\n",
+                        RegRec.pfnXcptHandler, pRegRec, RegRec.pPrevRegRec));
+                rcHandler = kwSandboxXcptCallHandler(pXcptRec, pRegRec, pXcptCtx, &pDispRegRec, RegRec.pfnXcptHandler);
+                KW_LOG(("kwSandbox_ntdll_RtlUnwind: rcHandler=%#x pDispRegRec=%p\n", rcHandler, pDispRegRec));
+
+                if (rcHandler == ExceptionContinueSearch)
+                    kHlpAssert(!(pXcptRec->ExceptionFlags & 8 /*EXCEPTION_STACK_INVALID*/));
+                else if (rcHandler == ExceptionCollidedUnwind)
+                    kHlpAssertMsgFailed(("Implement collided unwind!\n"));
+                else
+                    kHlpAssertMsgFailed(("Invalid return %#x (%d).\n", rcHandler, rcHandler));
+            }
+            else
+            {
+                KW_LOG(("kwSandbox_ntdll_RtlUnwind: Bad xcpt chain entry at %p! Stopping search.\n", pRegRec));
+                break;
+            }
+
+            /*
+             * Pop next.
+             */
+            pTib->ExceptionList = RegRec.pPrevRegRec;
+            pRegRec = RegRec.pPrevRegRec;
+        }
+        return;
+    }
+
+    RtlUnwind(pStopXcptRec, pvTargetIp, pXcptRec, pvReturnValue);
+}
+
+#endif /* WINDOWS + X86 */
+
+
+/*
+ *
  * Misc function only intercepted while debugging.
  * Misc function only intercepted while debugging.
  * Misc function only intercepted while debugging.
@@ -7654,12 +7885,17 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("HeapCreate"),                  NULL,       (KUPTR)kwSandbox_Kernel32_HeapCreate,       K_TRUE /*fOnlyExe*/ },
     { TUPLE("HeapDestroy"),                 NULL,       (KUPTR)kwSandbox_Kernel32_HeapDestroy,      K_TRUE /*fOnlyExe*/ },
 
-    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
-    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
-    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc },
-    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree },
+    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc,         K_TRUE /*fOnlyExe*/ },
+    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree,          K_TRUE /*fOnlyExe*/ },
+    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc,         K_TRUE /*fOnlyExe*/ },
+    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree,          K_TRUE /*fOnlyExe*/ },
 
     { TUPLE("SetConsoleCtrlHandler"),       NULL,       (KUPTR)kwSandbox_Kernel32_SetConsoleCtrlHandler },
+
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
+    { TUPLE("RtlUnwind"),                   NULL,       (KUPTR)kwSandbox_ntdll_RtlUnwind },
+#endif
+
 
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
@@ -7784,6 +8020,9 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
 
     { TUPLE("RtlPcToFileHeader"),           NULL,       (KUPTR)kwSandbox_ntdll_RtlPcToFileHeader },
 
+#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
+    { TUPLE("RtlUnwind"),                   NULL,       (KUPTR)kwSandbox_ntdll_RtlUnwind },
+#endif
 
     /*
      * MS Visual C++ CRTs.
@@ -7812,10 +8051,10 @@ KWREPLACEMENTFUNCTION const g_aSandboxGetProcReplacements[] =
     /*
      * Kernel32.dll and friends.
      */
-    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc },
-    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree },
-    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc },
-    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree },
+    { TUPLE("FlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_FlsAlloc, K_TRUE /*fOnlyExe*/ },
+    { TUPLE("FlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_FlsFree,  K_TRUE /*fOnlyExe*/ },
+    { TUPLE("TlsAlloc"),                    NULL,       (KUPTR)kwSandbox_Kernel32_TlsAlloc, K_TRUE /*fOnlyExe*/ },
+    { TUPLE("TlsFree"),                     NULL,       (KUPTR)kwSandbox_Kernel32_TlsFree,  K_TRUE /*fOnlyExe*/ },
 };
 /** Number of entries in g_aSandboxGetProcReplacements. */
 KU32 const                  g_cSandboxGetProcReplacements = K_ELEMENTS(g_aSandboxGetProcReplacements);
@@ -7894,99 +8133,6 @@ static PPEB kwSandboxGetProcessEnvironmentBlock(void)
 # error "Port me!"
 #endif
 }
-
-
-#if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
-typedef struct _EXCEPTION_REGISTRATION_RECORD
-{
-    struct _EXCEPTION_REGISTRATION_RECORD * volatile PrevStructure;
-    KU32 (__cdecl * volatile ExceptionHandler)(PEXCEPTION_RECORD, struct _EXCEPTION_REGISTRATION_RECORD*, PCONTEXT,
-                                               struct _EXCEPTION_REGISTRATION_RECORD * volatile *);
-};
-
-/**
- * Vectored exception handler that emulates x86 chained exception handler.
- *
- * This is necessary because the RtlIsValidHandler check fails for self loaded
- * code and prevents cl.exe from working.  (On AMD64 we can register function
- * tables, but on X86 cooking your own handling seems to be the only viabke
- * alternative.)
- *
- * @returns EXCEPTION_CONTINUE_SEARCH or EXCEPTION_CONTINUE_EXECUTION.
- * @param   pXcptPtrs           The exception details.
- */
-static LONG CALLBACK kwSandboxVecXcptEmulateChained(PEXCEPTION_POINTERS pXcptPtrs)
-{
-    PNT_TIB pTib = (PNT_TIB)NtCurrentTeb();
-    KW_LOG(("kwSandboxVecXcptEmulateChained: %#x\n", pXcptPtrs->ExceptionRecord->ExceptionCode));
-    if (g_Sandbox.fRunning)
-    {
-        PEXCEPTION_RECORD                                 pXcptRec = pXcptPtrs->ExceptionRecord;
-        PCONTEXT                                          pXcptCtx = pXcptPtrs->ContextRecord;
-        struct _EXCEPTION_REGISTRATION_RECORD * volatile *ppRegRec = &pTib->ExceptionList;
-        struct _EXCEPTION_REGISTRATION_RECORD *           pRegRec  = *ppRegRec;
-        while (((KUPTR)pRegRec & (sizeof(void *) - 3)) == 0 && pRegRec != NULL)
-        {
-#if 1
-            /* This is a more robust version that isn't subject to calling
-               convension cleanup disputes and such. */
-            KU32 uSavedEdi;
-            KU32 uSavedEsi;
-            KU32 uSavedEbx;
-            KU32 rcHandler;
-            __asm
-            {
-                mov     [uSavedEdi], edi
-                mov     [uSavedEsi], esi
-                mov     [uSavedEbx], ebx
-                mov     esi, esp
-                mov     edi, esp
-                mov     ecx, [pXcptRec]
-                mov     edx, [pRegRec]
-                mov     eax, [pXcptCtx]
-                mov     ebx, [ppRegRec]
-                sub     esp, 16
-                and     esp, 0fffffff0h
-                mov     [esp     ], ecx
-                mov     [esp +  4], edx
-                mov     [esp +  8], eax
-                mov     [esp + 12], ebx
-                call    dword ptr [edx + 4]
-                mov     esp, esi
-                cmp     esp, edi
-                je      stack_ok
-                int     3
-            stack_ok:
-                mov     edi, [uSavedEdi]
-                mov     esi, [uSavedEsi]
-                mov     ebx, [uSavedEbx]
-                mov     [rcHandler], eax
-            }
-#else
-            KU32 rcHandler = pRegRec->ExceptionHandler(pXcptPtrs->ExceptionRecord, pRegRec, pXcptPtrs->ContextRecord, ppRegRec);
-#endif
-            if (rcHandler == ExceptionContinueExecution)
-            {
-                kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & EXCEPTION_NONCONTINUABLE));
-                return EXCEPTION_CONTINUE_EXECUTION;
-            }
-            if (rcHandler == ExceptionContinueSearch)
-                kHlpAssert(!(pXcptPtrs->ExceptionRecord->ExceptionFlags & 8 /*EXCEPTION_STACK_INVALID*/));
-            else if (rcHandler == ExceptionNestedException)
-                kHlpAssertMsgFailed(("Nested exceptions.\n"));
-            else
-                kHlpAssertMsgFailed(("Invalid return %#x (%d).\n", rcHandler, rcHandler));
-
-            /*
-             * Next.
-             */
-            ppRegRec = &pRegRec->PrevStructure;
-            pRegRec = pRegRec->PrevStructure;
-        }
-    }
-    return EXCEPTION_CONTINUE_SEARCH;
-}
-#endif /* WINDOWS + X86 */
 
 
 /**
@@ -8197,11 +8343,22 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     else
         return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: kwSandboxGrowEnv failed\n");
 
+
     /*
      * Invalidate the volatile parts of cache (kBuild output directory,
      * temporary directory, whatever).
      */
     kFsCacheInvalidateCustomBoth(g_pFsCache);
+
+#ifdef WITH_HISTORY
+    /*
+     * Record command line in debug history.
+     */
+    kHlpFree(g_apszHistory[g_iHistoryNext]);
+    g_apszHistory[g_iHistoryNext] = kHlpStrDup(pSandbox->pszCmdLine);
+    g_iHistoryNext = (g_iHistoryNext + 1) % K_ELEMENTS(g_apszHistory);
+#endif
+
     return 0;
 }
 
