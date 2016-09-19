@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2930 2016-09-18 15:57:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2940 2016-09-19 18:34:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -2456,6 +2456,22 @@ static PKFSOBJ kFsCacheFindChildW(PKFSCACHE pCache, PKFSDIR pParent, const wchar
 static PKFSOBJ kFsCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU32 fFlags,
                                        KU32 *poff, KFSLOOKUPERROR *penmError)
 {
+    /*
+     * Special case: Long path prefix w/ drive letter following it.
+     * Note! Must've been converted from wide char to ANSI.
+     */
+    if (   IS_SLASH(pszPath[0])
+        && IS_SLASH(pszPath[1])
+        && pszPath[2] == '?'
+        && IS_SLASH(pszPath[3])
+        && IS_ALPHA(pszPath[4])
+        && pszPath[5] == ':'
+        && IS_SLASH(pszPath[6]) )
+    {
+        *poff = 4 + 2;
+        return kFsCacheLookupDrive(pCache, pszPath[4], fFlags, penmError);
+    }
+
 #if 0 /* later */
     KU32 offStartServer;
     KU32 offEndServer;
@@ -2502,13 +2518,29 @@ static PKFSOBJ kFsCacheLookupUncShareA(PKFSCACHE pCache, const char *pszPath, KU
  * @param   pCache              The cache.
  * @param   pwszPath            The path.
  * @param   fFlags              Lookup flags, KFSCACHE_LOOKUP_F_XXX.
- * @param   poff                Where to return the root dire.
+ * @param   poff                Where to return the root dir.
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  */
 static PKFSOBJ kFsCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPath, KU32 fFlags,
                                        KU32 *poff, KFSLOOKUPERROR *penmError)
 {
+    /*
+     * Special case: Long path prefix w/ drive letter following it.
+     */
+    if (   IS_SLASH(pwszPath[0])
+        && IS_SLASH(pwszPath[1])
+        && pwszPath[2] == '?'
+        && IS_SLASH(pwszPath[3])
+        && IS_ALPHA(pwszPath[4])
+        && pwszPath[5] == ':'
+        && IS_SLASH(pwszPath[6]) )
+    {
+        *poff = 4 + 2;
+        return kFsCacheLookupDrive(pCache, (char)pwszPath[4], fFlags, penmError);
+    }
+
+
 #if 0 /* later */
     KU32 offStartServer;
     KU32 offEndServer;
