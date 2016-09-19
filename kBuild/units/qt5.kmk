@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2807 2016-01-28 13:21:41Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2942 2016-09-19 20:02:13Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -307,23 +307,28 @@ else
  PATH_TOOL_QT5_BIN := $(PATH_TOOL_QT5_BIN)
 endif
 ifneq ($(PATH_TOOL_QT5_BIN),)
- TOOL_QT5_MOC       ?= $(PATH_TOOL_QT5_BIN)/moc$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT5_UIC       ?= $(PATH_TOOL_QT5_BIN)/uic$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT5_MOC       ?= $(PATH_TOOL_QT5_BIN)/moc$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+ TOOL_QT5_UIC       ?= $(PATH_TOOL_QT5_BIN)/uic$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
  ifndef TOOL_QT5_RCC
-  TOOL_QT5_RCC      := $(PATH_TOOL_QT5_BIN)/rcc$(HOST_SUFF_EXE)
+  TOOL_QT5_RCC      := $(PATH_TOOL_QT5_BIN)/rcc$(HOSTSUFF_EXE)
   ifeq ($(wildcard $(TOOL_QT5_RCC)),)
-   TOOL_QT5_RCC     := $(PATH_TOOL_QT5_BIN)/rcc$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
+   TOOL_QT5_RCC     := $(PATH_TOOL_QT5_BIN)/rcc$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
   endif
  endif
- TOOL_QT5_LRC       ?= $(PATH_TOOL_QT5_BIN)/lrelease$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT5_LUPDATE   ?= $(PATH_TOOL_QT5_BIN)/lupdate$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT5_LRC       ?= $(PATH_TOOL_QT5_BIN)/lrelease$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+ TOOL_QT5_LUPDATE   ?= $(PATH_TOOL_QT5_BIN)/lupdate$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
 else
  # Pathless, relies on the environment.
- TOOL_QT5_MOC       ?= moc$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT5_UIC       ?= uic$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT5_RCC       ?= rcc$(HOST_SUFF_EXE)
- TOOL_QT5_LRC       ?= lrelease$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
- TOOL_QT5_LUPDATE   ?= lupdate$(TOOL_QT5_BIN_SUFF)$(HOST_SUFF_EXE)
+ TOOL_QT5_MOC       ?= moc$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+ TOOL_QT5_UIC       ?= uic$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+ TOOL_QT5_RCC       ?= rcc$(HOSTSUFF_EXE)
+ TOOL_QT5_LRC       ?= lrelease$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+ TOOL_QT5_LUPDATE   ?= lupdate$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
+endif
+ifdef TOOL_QT5_USE_KSUBMIT
+ ifeq ($(KBUILD_HOST),win)
+  TOOL_QT5_MOC_KSUBMIT ?= kmk_builtin_kSubmit --$(SP)
+ endif
 endif
 
 # General Properties used by kBuild and/or units/qt.kmk
@@ -351,7 +356,7 @@ TOOL_QT5_MOC_CPP_DEPORD =
 TOOL_QT5_MOC_CPP_OUTPUT =
 TOOL_QT5_MOC_CPP_OUTPUT_MAYBE =
 define TOOL_QT5_MOC_CPP_CMDS
-	$(QUIET)$(TOOL_QT5_MOC)\
+	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
 		$(addprefix -I, $(incs))\
 		$(addprefix -D, $(defs))\
@@ -374,7 +379,7 @@ TOOL_QT5_MOC_HPP_DEPORD =
 TOOL_QT5_MOC_HPP_OUTPUT =
 TOOL_QT5_MOC_HPP_OUTPUT_MAYBE =
 define TOOL_QT5_MOC_HPP_CMDS
-	$(QUIET)$(TOOL_QT5_MOC)\
+	$(QUIET)$(TOOL_QT5_MOC_KSUBMIT)$(TOOL_QT5_MOC)\
 		$(flags)\
 		$(addprefix -I, $(incs))\
 		$(addprefix -D, $(defs))\
