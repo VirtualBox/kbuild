@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2950 2016-09-20 16:44:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -202,7 +202,7 @@ void depOptimize(int fFixCase, int fQuiet)
         char        szFilename[PATH_MAX + 1];
 #endif
         char       *pszFilename;
-#ifndef KMK
+#if !defined(KWORKER) && !defined(KMK)
         struct stat s;
 #endif
 
@@ -243,7 +243,7 @@ void depOptimize(int fFixCase, int fQuiet)
          * Check that the file exists before we start depending on it.
          */
 #ifdef KWORKER
-        if (kwFsPathExists(pszFilename))
+        if (!kwFsPathExists(pszFilename))
 #elif defined(KMK)
         if (!file_exists_p(pszFilename))
 #elif K_OS == K_OS_WINDOWS
