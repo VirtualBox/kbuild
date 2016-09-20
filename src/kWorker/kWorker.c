@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2949 2016-09-20 16:39:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -70,6 +70,13 @@
  * This prevents wasting time on rehashing common headers each time
  * they are included. */
 #define WITH_HASH_MD5_CACHE
+
+/** @def WITH_CRYPT_CTX_REUSE
+ * Enables reusing crypt contexts.  The Visual C++ compiler always creates a
+ * context which is only used for MD5 and maybe some random bytes (VS 2010).
+ * So, only create it once and add a reference to it instead of creating new
+ * ones.  Saves registry access among other things. */
+#define WITH_CRYPT_CTX_REUSE
 
 /** @def WITH_CONSOLE_OUTPUT_BUFFERING
  * Enables buffering of all console output as well as removal of annoying
@@ -768,6 +775,30 @@ typedef struct KWSANDBOX
         void           *pvRead;
     } LastHashRead;
 #endif
+
+#ifdef WITH_CRYPT_CTX_REUSE
+    /** Reusable crypt contexts.  */
+    struct
+    {
+        /** The creation provider type.  */
+        KU32            dwProvType;
+        /** The creation flags. */
+        KU32            dwFlags;
+        /** The length of the container name. */
+        KU32            cwcContainer;
+        /** The length of the provider name. */
+        KU32            cwcProvider;
+        /** The container name string. */
+        wchar_t        *pwszContainer;
+        /** The provider name string. */
+        wchar_t        *pwszProvider;
+        /** The context handle. */
+        HCRYPTPROV      hProv;
+    }                   aCryptCtxs[4];
+    /** Number of reusable crypt conexts in aCryptCtxs. */
+    KU32                cCryptCtxs;
+#endif
+
 
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     /** The internal standard output handle. */
@@ -7542,7 +7573,7 @@ BOOL WINAPI kwSandbox_Kernel32_TlsFree(DWORD idxTls)
 
 #ifdef WITH_HASH_MD5_CACHE
 
-/** Advapi32 - CryptCreateHash */
+/** AdvApi32 - CryptCreateHash */
 static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID idAlg, HCRYPTKEY hKey, DWORD dwFlags,
                                                       HCRYPTHASH *phHash)
 {
@@ -7601,7 +7632,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptCreateHash(HCRYPTPROV hProv, ALG_ID i
 }
 
 
-/** Advapi32 - CryptHashData */
+/** AdvApi32 - CryptHashData */
 static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE *pbData, DWORD cbData, DWORD dwFlags)
 {
     BOOL        fRc;
@@ -7716,7 +7747,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptHashData(HCRYPTHASH hHash, CONST BYTE
 }
 
 
-/** Advapi32 - CryptGetHashParam */
+/** AdvApi32 - CryptGetHashParam */
 static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD dwParam,
                                                         BYTE *pbData, DWORD *pcbData, DWORD dwFlags)
 {
@@ -7874,7 +7905,7 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptGetHashParam(HCRYPTHASH hHash, DWORD 
 }
 
 
-/** Advapi32 - CryptDestroyHash */
+/** AdvApi32 - CryptDestroyHash */
 static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
 {
     BOOL        fRc;
@@ -7920,6 +7951,124 @@ static BOOL WINAPI kwSandbox_Advapi32_CryptDestroyHash(HCRYPTHASH hHash)
 
 #endif /* WITH_HASH_MD5_CACHE */
 
+
+/*
+ *
+ * Reuse crypt context.
+ * Reuse crypt context.
+ * Reuse crypt context.
+ *
+ *
+ * This saves a little bit of time and registry accesses each time CL, C1 or C1XX runs.
+ *
+ */
+
+#ifdef WITH_CRYPT_CTX_REUSE
+
+/** AdvApi32 - CryptAcquireContextW.  */
+static BOOL WINAPI kwSandbox_Advapi32_CryptAcquireContextW(HCRYPTPROV *phProv, LPCWSTR pwszContainer, LPCWSTR pwszProvider,
+                                                           DWORD dwProvType,  DWORD dwFlags)
+{
+    BOOL fRet;
+
+    /*
+     * Lookup reusable context based on the input.
+     */
+    KSIZE const cwcContainer = pwszContainer ? kwUtf16Len(pwszContainer) : 0;
+    KSIZE const cwcProvider  = pwszProvider  ? kwUtf16Len(pwszProvider) : 0;
+    KU32        iCtx = g_Sandbox.cCryptCtxs;
+    while (iCtx-- > 0)
+    {
+        if (   g_Sandbox.aCryptCtxs[iCtx].cwcContainer == cwcContainer
+            && g_Sandbox.aCryptCtxs[iCtx].cwcProvider  == cwcProvider
+            && g_Sandbox.aCryptCtxs[iCtx].dwProvType   == dwProvType
+            && g_Sandbox.aCryptCtxs[iCtx].dwFlags      == dwFlags
+            && kHlpMemComp(g_Sandbox.aCryptCtxs[iCtx].pwszContainer, pwszContainer, cwcContainer * sizeof(wchar_t)) == 0
+            && kHlpMemComp(g_Sandbox.aCryptCtxs[iCtx].pwszProvider,  pwszProvider,  cwcProvider  * sizeof(wchar_t)) == 0)
+        {
+            if (CryptContextAddRef(g_Sandbox.aCryptCtxs[iCtx].hProv, NULL, 0))
+            {
+                *phProv = g_Sandbox.aCryptCtxs[iCtx].hProv;
+                KWCRYPT_LOG(("CryptAcquireContextW(,%ls, %ls, %#x, %#x) -> TRUE, %p [reused]\n",
+                             pwszContainer, pwszProvider, dwProvType, dwFlags, *phProv));
+                return TRUE;
+            }
+        }
+    }
+
+    /*
+     * Create it and enter it into the reused array if possible.
+     */
+    fRet = CryptAcquireContextW(phProv, pwszContainer, pwszProvider, dwProvType, dwFlags);
+    if (fRet)
+    {
+        iCtx = g_Sandbox.cCryptCtxs;
+        if (iCtx < K_ELEMENTS(g_Sandbox.aCryptCtxs))
+        {
+            /* Try duplicate the input strings. */
+            g_Sandbox.aCryptCtxs[iCtx].pwszContainer = kHlpDup(pwszContainer ? pwszContainer : L"",
+                                                               (cwcContainer + 1) * sizeof(wchar_t));
+            if (g_Sandbox.aCryptCtxs[iCtx].pwszContainer)
+            {
+                g_Sandbox.aCryptCtxs[iCtx].pwszProvider  = kHlpDup(pwszProvider ? pwszProvider : L"",
+                                                                   (cwcProvider + 1) * sizeof(wchar_t));
+                if (g_Sandbox.aCryptCtxs[iCtx].pwszProvider)
+                {
+                    /* Add a couple of references just to be on the safe side and all that. */
+                    HCRYPTPROV hProv = *phProv;
+                    if (CryptContextAddRef(hProv, NULL, 0))
+                    {
+                        if (CryptContextAddRef(hProv, NULL, 0))
+                        {
+                            /* Okay, finish the entry and return success */
+                            g_Sandbox.aCryptCtxs[iCtx].hProv      = hProv;
+                            g_Sandbox.aCryptCtxs[iCtx].dwProvType = dwProvType;
+                            g_Sandbox.aCryptCtxs[iCtx].dwFlags    = dwFlags;
+                            g_Sandbox.cCryptCtxs = iCtx + 1;
+
+                            KWCRYPT_LOG(("CryptAcquireContextW(,%ls, %ls, %#x, %#x) -> TRUE, %p [new]\n",
+                                         pwszContainer, pwszProvider, dwProvType, dwFlags, *phProv));
+                            return TRUE;
+                        }
+                        CryptReleaseContext(hProv, 0);
+                    }
+                    KWCRYPT_LOG(("CryptAcquireContextW: CryptContextAddRef failed!\n"));
+
+                    kHlpFree(g_Sandbox.aCryptCtxs[iCtx].pwszProvider);
+                    g_Sandbox.aCryptCtxs[iCtx].pwszProvider = NULL;
+                }
+                kHlpFree(g_Sandbox.aCryptCtxs[iCtx].pwszContainer);
+                g_Sandbox.aCryptCtxs[iCtx].pwszContainer = NULL;
+            }
+        }
+        else
+            KWCRYPT_LOG(("CryptAcquireContextW: Too many crypt contexts to keep and reuse!\n"));
+    }
+
+    KWCRYPT_LOG(("CryptAcquireContextW(,%ls, %ls, %#x, %#x) -> %d, %p\n",
+                 pwszContainer, pwszProvider, dwProvType, dwFlags, *phProv));
+    return fRet;
+}
+
+
+/** AdvApi32 - CryptReleaseContext */
+static BOOL WINAPI kwSandbox_Advapi32_CryptReleaseContext(HCRYPTPROV hProv, DWORD dwFlags)
+{
+    BOOL fRet = CryptReleaseContext(hProv, dwFlags);
+    KWCRYPT_LOG(("CryptReleaseContext(%p,%#x) -> %d\n", hProv, dwFlags, fRet));
+    return fRet;
+}
+
+
+/** AdvApi32 - CryptContextAddRef  */
+static BOOL WINAPI kwSandbox_Advapi32_CryptContextAddRef(HCRYPTPROV hProv, DWORD *pdwReserved, DWORD dwFlags)
+{
+    BOOL fRet = CryptContextAddRef(hProv, pdwReserved, dwFlags);
+    KWCRYPT_LOG(("CryptContextAddRef(%p,%p,%#x) -> %d\n", hProv, pdwReserved, dwFlags, fRet));
+    return fRet;
+}
+
+#endif /* WITH_CRYPT_CTX_REUSE */
 
 /*
  *
@@ -8251,12 +8400,17 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("RtlUnwind"),                   NULL,       (KUPTR)kwSandbox_ntdll_RtlUnwind },
 #endif
 
-
 #ifdef WITH_HASH_MD5_CACHE
     { TUPLE("CryptCreateHash"),             NULL,       (KUPTR)kwSandbox_Advapi32_CryptCreateHash },
     { TUPLE("CryptHashData"),               NULL,       (KUPTR)kwSandbox_Advapi32_CryptHashData },
     { TUPLE("CryptGetHashParam"),           NULL,       (KUPTR)kwSandbox_Advapi32_CryptGetHashParam },
     { TUPLE("CryptDestroyHash"),            NULL,       (KUPTR)kwSandbox_Advapi32_CryptDestroyHash },
+#endif
+
+#ifdef WITH_CRYPT_CTX_REUSE
+    { TUPLE("CryptAcquireContextW"),        NULL,       (KUPTR)kwSandbox_Advapi32_CryptAcquireContextW },
+    { TUPLE("CryptReleaseContext"),         NULL,       (KUPTR)kwSandbox_Advapi32_CryptReleaseContext },
+    { TUPLE("CryptContextAddRef"),          NULL,       (KUPTR)kwSandbox_Advapi32_CryptContextAddRef },
 #endif
 
     /*
