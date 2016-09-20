@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2941 2016-09-19 20:01:17Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2946 2016-09-20 01:46:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -8859,12 +8859,66 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     MemInfo.WorkingSetSize = 0;
     if (GetProcessMemoryInfo(GetCurrentProcess(), &MemInfo, sizeof(MemInfo)))
     {
-        /** @todo make the limit dynamic and user configurable. */
+        /* The first time thru, we figure out approximately when to restart
+           based on installed RAM and CPU threads. */
+        static KU64 s_cbMaxWorkingSet = 0;
+        if (s_cbMaxWorkingSet != 0)
+        { /* likely */ }
+        else
+        {
+            SYSTEM_INFO SysInfo;
+            MEMORYSTATUSEX GlobalMemInfo;
+            const char    *pszValue;
+
+            /* Calculate a reasonable estimate. */
+            kHlpMemSet(&SysInfo, 0, sizeof(SysInfo));
+            GetNativeSystemInfo(&SysInfo);
+
+            kHlpMemSet(&GlobalMemInfo, 0, sizeof(GlobalMemInfo));
+            GlobalMemInfo.dwLength = sizeof(GlobalMemInfo);
+            if (!GlobalMemoryStatusEx(&GlobalMemInfo))
 #if K_ARCH_BITS >= 64
-        if (MemInfo.WorkingSetSize >= 512*1024*1024)
+                GlobalMemInfo.ullTotalPhys = KU64_C(0x000200000000); /* 8GB */
 #else
-        if (MemInfo.WorkingSetSize >= 384*1024*1024)
+                GlobalMemInfo.ullTotalPhys = KU64_C(0x000080000000); /* 2GB */
 #endif
+            s_cbMaxWorkingSet = GlobalMemInfo.ullTotalPhys / (K_MAX(SysInfo.dwNumberOfProcessors, 1) * 4);
+            KW_LOG(("Raw estimate of s_cbMaxWorkingSet=%" KU64_PRI "\n", s_cbMaxWorkingSet));
+
+            /* User limit. */
+            pszValue = getenv("KWORKER_MEMORY_LIMIT");
+            if (pszValue != NULL)
+            {
+                char         *pszNext;
+                unsigned long ulValue = strtol(pszValue, &pszNext, 0);
+                if (*pszNext == '\0' || *pszNext == 'M')
+                    s_cbMaxWorkingSet = ulValue * (KU64)1048576;
+                else if (*pszNext == 'K')
+                    s_cbMaxWorkingSet = ulValue * (KU64)1024;
+                else if (*pszNext == 'G')
+                    s_cbMaxWorkingSet = ulValue * (KU64)1073741824;
+                else
+                    kwErrPrintf("Unable to grok KWORKER_MEMORY_LIMIT: %s\n", pszValue);
+                KW_LOG(("User s_cbMaxWorkingSet=%" KU64_PRI "\n", s_cbMaxWorkingSet));
+            }
+
+            /* Clamp it a little. */
+            if (s_cbMaxWorkingSet < 168*1024*1024)
+                s_cbMaxWorkingSet = 168*1024*1024;
+#if K_ARCH_BITS < 64
+            else
+                s_cbMaxWorkingSet = K_MIN(s_cbMaxWorkingSet,
+                                          SysInfo.dwProcessorType != PROCESSOR_ARCHITECTURE_AMD64
+                                          ?  512*1024*1024 /* Only got 2 or 3 GB VA */
+                                          : 1536*1024*1024 /* got 4GB VA */);
+#endif
+            if (s_cbMaxWorkingSet > GlobalMemInfo.ullTotalPhys)
+                s_cbMaxWorkingSet = GlobalMemInfo.ullTotalPhys;
+            KW_LOG(("Final s_cbMaxWorkingSet=%" KU64_PRI "\n", s_cbMaxWorkingSet));
+        }
+
+        /* Finally the check. */
+        if (MemInfo.WorkingSetSize >= s_cbMaxWorkingSet)
         {
             KW_LOG(("WorkingSetSize = %#x - > restart next time.\n", MemInfo.WorkingSetSize));
             g_fRestart = K_TRUE;
