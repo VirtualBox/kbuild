@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2938 2016-09-19 16:50:47Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -30,6 +30,7 @@ include $(PATH_KBUILD)/subheader.kmk
 
 PROGRAMS += kWorker
 kWorker_TEMPLATE = BIN-STATIC-THREADED
+kWorker_DEFS := KWORKER
 kWorker_DEFS.debug = K_STRICT
 kWorker_DEFS.release = NASSERT
 kWorker_SOURCES = \
@@ -59,6 +60,7 @@ LIBRARIES += kWorkerLib
 kWorkerLib_TEMPLATE = LIB-STATIC-THREADED
 kWorkerLib_DEFPATH = ../lib # Need fix from r2837.
 kWorkerLib_DEFPATH := $(PATH_SUB_CURRENT)/../lib
+kWorkerLib_DEFS := KWORKER
 kWorkerLib_SOURCES = \
 	crc32.c \
 	md5.c \

@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2886 2016-09-06 14:31:46Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -57,6 +57,10 @@
 #endif
 
 #include "kDep.h"
+
+#ifdef KWORKER
+extern int kwFsPathExists(const char *pszPath);
+#endif
 
 
 /*******************************************************************************
@@ -238,7 +242,9 @@ void depOptimize(int fFixCase, int fQuiet)
         /*
          * Check that the file exists before we start depending on it.
          */
-#ifdef KMK
+#ifdef KWORKER
+        if (kwFsPathExists(pszFilename))
+#elif defined(KMK)
         if (!file_exists_p(pszFilename))
 #elif K_OS == K_OS_WINDOWS
         if (birdStatModTimeOnly(pszFilename, &s.st_mtim, 1 /*fFollowLink*/) != 0)
