@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2930 2016-09-18 15:57:25Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2945 2016-09-20 01:46:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -487,6 +487,10 @@ PKFSOBJ     kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, 
 /** @} */
 
 KU32        kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj);
+KU32        kFsCacheObjReleaseTagged(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere);
+#ifndef NDEBUG /* enable to debug object release. */
+# define kFsCacheObjRelease(a_pCache, a_pObj) kFsCacheObjReleaseTagged(a_pCache, a_pObj, __FUNCTION__)
+#endif
 KU32        kFsCacheObjRetain(PKFSOBJ pObj);
 PKFSUSERDATA kFsCacheObjAddUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey, KSIZE cbUserData);
 PKFSUSERDATA kFsCacheObjGetUserData(PKFSCACHE pCache, PKFSOBJ pObj, KUPTR uKey);
