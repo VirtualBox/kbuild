@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2946 2016-09-20 01:46:56Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -46,13 +46,12 @@
 
 #include "nt/ntstat.h"
 #include "kbuild_version.h"
-/* lib/nt_fullpath.c */
-extern void nt_fullpath(const char *pszPath, char *pszFull, size_t cchFull);
 
 #include "nt/ntstuff.h"
 #include <psapi.h>
 
 #include "nt/kFsCache.h"
+#include "nt_fullpath.h"
 #include "quote_argv.h"
 #include "md5.h"
 
@@ -2799,6 +2798,76 @@ static PKWTOOL kwToolLookup(const char *pszExe)
  *
  */
 
+
+/**
+ * This is for kDep.
+ */
+int kwFsPathExists(const char *pszPath)
+{
+    BirdTimeSpec_T  TsIgnored;
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pFsObj = kFsCacheLookupNoMissingA(g_pFsCache, pszPath, &enmError);
+    if (pFsObj)
+    {
+        kFsCacheObjRelease(g_pFsCache, pFsObj);
+        return 1;
+    }
+    return birdStatModTimeOnly(pszPath, &TsIgnored, 1) == 0;
+}
+
+
+/* duplicated in dir-nt-bird.c */
+void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
+{
+    KFSLOOKUPERROR  enmError;
+    PKFSOBJ         pPathObj = kFsCacheLookupA(g_pFsCache, pszPath, &enmError);
+    if (pPathObj)
+    {
+        KSIZE off = pPathObj->cchParent;
+        if (off > 0)
+        {
+            KSIZE offEnd = off + pPathObj->cchName;
+            if (offEnd < cbFull)
+            {
+                PKFSDIR pAncestor;
+
+                pszFull[off + pPathObj->cchName] = '\0';
+                memcpy(&pszFull[off], pPathObj->pszName, pPathObj->cchName);
+
+                for (pAncestor = pPathObj->pParent; off > 0; pAncestor = pAncestor->Obj.pParent)
+                {
+                    kHlpAssert(off > 1);
+                    kHlpAssert(pAncestor != NULL);
+                    kHlpAssert(pAncestor->Obj.cchName > 0);
+                    pszFull[--off] = '/';
+                    off -= pAncestor->Obj.cchName;
+                    kHlpAssert(pAncestor->Obj.cchParent == off);
+                    memcpy(&pszFull[off], pAncestor->Obj.pszName, pAncestor->Obj.cchName);
+                }
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                return;
+            }
+        }
+        else
+        {
+            if ((size_t)pPathObj->cchName + 1 < cbFull)
+            {
+                memcpy(pszFull, pPathObj->pszName, pPathObj->cchName);
+                pszFull[pPathObj->cchName] = '/';
+                pszFull[pPathObj->cchName + 1] = '\0';
+
+                kFsCacheObjRelease(g_pFsCache, pPathObj);
+                return;
+            }
+        }
+
+        /* do fallback. */
+        kHlpAssertFailed();
+        kFsCacheObjRelease(g_pFsCache, pPathObj);
+    }
+
+    nt_fullpath(pszPath, pszFull, cbFull);
+}
 
 
 /**

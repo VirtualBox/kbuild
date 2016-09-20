@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2944 2016-09-20 01:46:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -88,6 +88,11 @@ typedef struct KFSDIRREPOP
 typedef KFSDIRREPOP *PKFSDIRREPOP;
 
 
+
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
+static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *penmError);
 
 
 /**
@@ -1256,8 +1261,23 @@ static KBOOL kFsCachePopuplateOrRefreshDir(PKFSCACHE pCache, PKFSDIR pDir, KFSLO
      */
     else if (pDir->fPopulated)
     {
-        KU32  cAllocated = K_ALIGN_Z(pDir->cChildren, 16);
-        void *pvNew      = kHlpAlloc(sizeof(pDir->papChildren[0]) * cAllocated);
+        KU32  cAllocated;
+        void *pvNew;
+
+        /* Make sure we really need to do this first. */
+        if (!pDir->fNeedRePopulating)
+        {
+            if (   pDir->Obj.uCacheGen == KFSOBJ_CACHE_GEN_IGNORE
+                || pDir->Obj.uCacheGen == pCache->auGenerations[pDir->Obj.fFlags & KFSOBJ_F_USE_CUSTOM_GEN])
+                return K_TRUE;
+            if (   kFsCacheRefreshObj(pCache, &pDir->Obj, penmError)
+                && !pDir->fNeedRePopulating)
+                return K_TRUE;
+        }
+
+        /* Yes we do need to. */
+        cAllocated = K_ALIGN_Z(pDir->cChildren, 16);
+        pvNew      = kHlpAlloc(sizeof(pDir->papChildren[0]) * cAllocated);
         if (pvNew)
         {
             DirRePop.papOldChildren     = pDir->papChildren;
@@ -1607,16 +1627,26 @@ static KBOOL kFsCacheDirIsModified(PKFSDIR pDir)
     if (   pDir->hDir != INVALID_HANDLE_VALUE
         && (pDir->Obj.fFlags & KFSOBJ_F_WORKING_DIR_MTIME) )
     {
-        MY_IO_STATUS_BLOCK          Ios;
-        MY_FILE_BASIC_INFORMATION   BasicInfo;
-        MY_NTSTATUS                 rcNt;
+        if (!pDir->fNeedRePopulating)
+        {
+            MY_IO_STATUS_BLOCK          Ios;
+            MY_FILE_BASIC_INFORMATION   BasicInfo;
+            MY_NTSTATUS                 rcNt;
 
-        Ios.Information = -1;
-        Ios.u.Status    = -1;
+            Ios.Information = -1;
+            Ios.u.Status    = -1;
 
-        rcNt = g_pfnNtQueryInformationFile(pDir->hDir, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
-        if (MY_NT_SUCCESS(rcNt))
-            return BasicInfo.LastWriteTime.QuadPart != pDir->iLastWrite;
+            rcNt = g_pfnNtQueryInformationFile(pDir->hDir, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
+            if (MY_NT_SUCCESS(rcNt))
+            {
+                if (BasicInfo.LastWriteTime.QuadPart != pDir->iLastWrite)
+                {
+                    pDir->fNeedRePopulating = K_TRUE;
+                    return K_TRUE;
+                }
+                return K_FALSE;
+            }
+        }
     }
     /* The cache root never changes. */
     else if (!pDir->Obj.pParent)

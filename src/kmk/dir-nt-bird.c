@@ -1,4 +1,4 @@
-/* $Id: dir-nt-bird.c 2931 2016-09-18 15:57:48Z knut.osmundsen@oracle.com $ */
+/* $Id: dir-nt-bird.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * Reimplementation of dir.c for NT using kFsCache.
  *
@@ -455,7 +455,7 @@ void print_dir_data_base(void)
 }
 
 
-
+/* duplicated in kWorker.c */
 void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
 {
     KFSLOOKUPERROR  enmError;
@@ -477,7 +477,7 @@ void nt_fullpath_cached(const char *pszPath, char *pszFull, size_t cbFull)
                 {
                     kHlpAssert(off > 1);
                     kHlpAssert(pAncestor != NULL);
-                    kHlpAssert(pAncestor->ObjcchName > 0);
+                    kHlpAssert(pAncestor->Obj.cchName > 0);
                     pszFull[--off] = '/';
                     off -= pAncestor->Obj.cchName;
                     kHlpAssert(pAncestor->Obj.cchParent == off);
