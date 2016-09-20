@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2940 2016-09-19 18:34:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2944 2016-09-20 01:46:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -1113,7 +1113,7 @@ K_INLINE PKFSOBJ kFsCacheDirFindOldChild(PKFSDIRREPOP pDirRePop, KI64 idFile, wc
     KU32 cOldChildren = pDirRePop->cOldChildren;
     if (cOldChildren > 0)
     {
-        KU32 const  iNextOldChild = K_MIN(pDirRePop->iNextOldChild, cOldChildren);
+        KU32 const  iNextOldChild = K_MIN(pDirRePop->iNextOldChild, cOldChildren - 1);
         PKFSOBJ     pCur          = pDirRePop->papOldChildren[iNextOldChild];
 
         if (   pCur->Stats.st_ino == idFile
@@ -3646,14 +3646,16 @@ PKFSOBJ kFsCacheLookupNoMissingW(PKFSCACHE pCache, const wchar_t *pwszPath, KFSL
  * @returns 0
  * @param   pCache              The cache.
  * @param   pObj                The object.
+ * @param   pszWhere            Where it was released from.
  */
-KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
+KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
 {
     kHlpAssert(pObj->cRefs == 0);
     kHlpAssert(pObj->pParent == NULL);
     kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
 
-    KFSCACHE_LOG(("Destroying %s/%s, type=%d\n", pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType));
+    KFSCACHE_LOG(("Destroying %s/%s, type=%d, pObj=%p, pszWhere=%s\n",
+                  pObj->pParent ? pObj->pParent->Obj.pszName : "", pObj->pszName, pObj->bObjType, pObj, pszWhere));
     if (pObj->abUnused[1] != 0)
     {
         fprintf(stderr, "Destroying %s/%s, type=%d, path hash entries: %d!\n", pObj->pParent ? pObj->pParent->Obj.pszName : "",
@@ -3746,6 +3748,7 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj)
  * @param   pCache              The cache.
  * @param   pObj                The object.
  */
+#undef kFsCacheObjRelease
 KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
 {
     if (pObj)
@@ -3757,7 +3760,32 @@ KU32 kFsCacheObjRelease(PKFSCACHE pCache, PKFSOBJ pObj)
         cRefs = --pObj->cRefs;
         if (cRefs)
             return cRefs;
-        return kFsCacheObjDestroy(pCache, pObj);
+        return kFsCacheObjDestroy(pCache, pObj, "kFsCacheObjRelease");
+    }
+    return 0;
+}
+
+
+/**
+ * Debug version of kFsCacheObjRelease
+ *
+ * @returns New reference count.
+ * @param   pCache              The cache.
+ * @param   pObj                The object.
+ * @param   pszWhere            Where it's invoked from.
+ */
+KU32 kFsCacheObjReleaseTagged(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
+{
+    if (pObj)
+    {
+        KU32 cRefs;
+        kHlpAssert(pCache->u32Magic == KFSCACHE_MAGIC);
+        kHlpAssert(pObj->u32Magic == KFSOBJ_MAGIC);
+
+        cRefs = --pObj->cRefs;
+        if (cRefs)
+            return cRefs;
+        return kFsCacheObjDestroy(pCache, pObj, pszWhere);
     }
     return 0;
 }
