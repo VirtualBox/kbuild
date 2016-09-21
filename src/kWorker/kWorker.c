@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2957 2016-09-21 19:53:10Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2959 2016-09-21 20:53:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -95,6 +95,12 @@
 /** @def WITH_HISTORY
  * Keep history of the last jobs.  For debugging.  */
 #define WITH_HISTORY
+
+/** @def WITH_PCH_CACHING
+ * Enables read caching of precompiled header files. */
+#if K_ARCH_BITS >= 64
+# define WITH_PCH_CACHING
+#endif
 
 
 #ifndef NDEBUG
@@ -683,6 +689,8 @@ typedef struct KWSANDBOX
     int         rcExitCode;
     /** Set if we're running. */
     KBOOL       fRunning;
+    /** Whether to disable caching of ".pch" files. */
+    KBOOL       fNoPchCaching;
 
     /** The command line.   */
     char       *pszCmdLine;
@@ -4964,14 +4972,14 @@ static KBOOL kwFsIsCacheableExtensionCommon(wchar_t wcFirst, wchar_t wcSecond, w
                 return K_TRUE;
         }
     }
-#if 0 /* compiler does write+copy mapping, so forget it. */
+#ifdef WITH_PCH_CACHING
     /* Precompiled header: .pch */
     else if (wcFirst == 'p' || wcFirst == 'P')
     {
         if (wcSecond == 'c' || wcSecond == 'C')
         {
             if (wcThird == 'h' || wcThird == 'H')
-                return K_TRUE;
+                return !g_Sandbox.fNoPchCaching;
         }
     }
 #endif
@@ -5106,10 +5114,14 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
         if (GetFileSizeEx(hFile, &cbFile))
         {
             if (   cbFile.QuadPart >= 0
+#ifdef WITH_PCH_CACHING
                 && (   cbFile.QuadPart < 16*1024*1024
-                    || (   cbFile.QuadPart < 64*1024*1024
+                    || (   cbFile.QuadPart < 96*1024*1024
                         && pFsObj->cchName > 4
-                        && kHlpStrICompAscii(&pFsObj->pszName[pFsObj->cchName - 4], ".pch") == 0) ))
+                        && !g_Sandbox.fNoPchCaching
+                        && kHlpStrICompAscii(&pFsObj->pszName[pFsObj->cchName - 4], ".pch") == 0) )
+#endif
+               )
             {
                 KU32 cbCache = (KU32)cbFile.QuadPart;
 #if 0
@@ -5714,7 +5726,7 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
         }
     }
 
-    KWFS_LOG(("ReadFile(%p)\n", hFile));
+    KWFS_LOG(("ReadFile(%p,%p,%#x,,)\n", hFile, pvBuffer, cbToRead));
     return ReadFile(hFile, pvBuffer, cbToRead, pcbActuallyRead, pOverlapped);
 }
 
@@ -6299,15 +6311,19 @@ static HANDLE WINAPI kwSandbox_Kernel32_CreateFileMappingW(HANDLE hFile, LPSECUR
                         { /* likely */ }
                         else
                             hMapping = NULL;
-                        KWFS_LOG(("CreateFileMappingW(%p, %u) -> %p [temp]\n", hFile, fProtect, hMapping));
+                        KWFS_LOG(("CreateFileMappingW(%p, %u) -> %p [cached]\n", hFile, fProtect, hMapping));
                         return hMapping;
                     }
-                    kHlpAssertMsgFailed(("fProtect=%#x cb=%#x'%08x name=%p\n",
-                                         fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName));
-                    SetLastError(ERROR_ACCESS_DENIED);
-                    return INVALID_HANDLE_VALUE;
 
+                    /* Do fallback (for .pch). */
+                    kHlpAssertMsg(fProtect == PAGE_WRITECOPY,
+                                  ("fProtect=%#x cb=%#x'%08x name=%p\n",
+                                   fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName));
 
+                    hMapping = CreateFileMappingW(hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName);
+                    KWFS_LOG(("CreateFileMappingW(%p, %p, %#x, %#x, %#x, %p) -> %p [cached-fallback]\n",
+                              hFile, pSecAttrs, fProtect, dwMaximumSizeHigh, dwMaximumSizeLow, pwszName, hMapping));
+                    return hMapping;
                 }
 
                 /** @todo read cached memory mapped files too for moc.   */
@@ -8759,7 +8775,7 @@ static char *kwSandboxInitCmdLineFromArgv(KU32 cArgs, const char **papszArgs, KB
 
 static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
                          KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
-                         KU32 cEnvVars, const char **papszEnvVars)
+                         KU32 cEnvVars, const char **papszEnvVars, KBOOL fNoPchCaching)
 {
     PPEB pPeb = kwSandboxGetProcessEnvironmentBlock();
     PMY_RTL_USER_PROCESS_PARAMETERS pProcParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
@@ -8787,6 +8803,7 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     pSandbox->Combined.cwcBuf   = 0;
     pSandbox->Combined.cFlushes = 0;
 #endif
+    pSandbox->fNoPchCaching = fNoPchCaching;
     pSandbox->cArgs         = cArgs;
     pSandbox->papszArgs     = (char **)papszArgs;
     pSandbox->pszCmdLine    = kwSandboxInitCmdLineFromArgv(cArgs, papszArgs, fWatcomBrainDamange, &cbCmdLine);
@@ -9199,7 +9216,7 @@ static void kwSandboxCleanup(PKWSANDBOX pSandbox)
 
 
 static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
-                         KU32 cEnvVars, const char **papszEnvVars)
+                         KU32 cEnvVars, const char **papszEnvVars, KBOOL fNoPchCaching)
 {
     int rcExit = 42;
     int rc;
@@ -9207,7 +9224,7 @@ static int kwSandboxExec(PKWSANDBOX pSandbox, PKWTOOL pTool, KU32 cArgs, const c
     /*
      * Initialize the sandbox environment.
      */
-    rc = kwSandboxInit(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
+    rc = kwSandboxInit(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars, fNoPchCaching);
     if (rc == 0)
     {
         /*
@@ -9341,12 +9358,14 @@ static int kSubmitHandleJobPostCmd(KU32 cPostCmdArgs, const char **papszPostCmdA
  * @param   fWatcomBrainDamange Whether to apply watcom rules while quoting.
  * @param   cEnvVars            The number of environment variables.
  * @param   papszEnvVars        The environment vector.
+ * @param   fNoPchCaching       Whether to disable precompiled header file
+ *                              caching.  Avoid trouble when creating them.
  * @param   cPostCmdArgs        Number of post command arguments (includes cmd).
  * @param   papszPostCmdArgs    The post command and its argument.
  */
 static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCwd,
                                     KU32 cArgs, const char **papszArgs, KBOOL fWatcomBrainDamange,
-                                    KU32 cEnvVars, const char **papszEnvVars,
+                                    KU32 cEnvVars, const char **papszEnvVars, KBOOL fNoPchCaching,
                                     KU32 cPostCmdArgs, const char **papszPostCmdArgs)
 {
     int rcExit;
@@ -9402,7 +9421,8 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
                 if (pTool->enmType == KWTOOLTYPE_SANDBOXED)
                 {
                     KW_LOG(("Sandboxing tool %s\n", pTool->pszPath));
-                    rcExit = kwSandboxExec(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange, cEnvVars, papszEnvVars);
+                    rcExit = kwSandboxExec(&g_Sandbox, pTool, cArgs, papszArgs, fWatcomBrainDamange,
+                                           cEnvVars, papszEnvVars, fNoPchCaching);
                 }
                 else
                 {
@@ -9536,11 +9556,12 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                 }
                                 papszEnvVars[cEnvVars] = 0;
 
-                                /* Flags (currently just watcom argument brain damanage). */
-                                if (cbMsg >= sizeof(KU8))
+                                /* Flags (currently just watcom argument brain damage and no precompiled header caching). */
+                                if (cbMsg >= sizeof(KU8) * 2)
                                 {
                                     KBOOL fWatcomBrainDamange = *pszMsg++;
-                                    cbMsg--;
+                                    KBOOL fNoPchCaching = *pszMsg++;
+                                    cbMsg -= 2;
 
                                     /* Post command argument count (can be zero). */
                                     if (cbMsg >= sizeof(KU32))
@@ -9576,7 +9597,7 @@ static int kSubmitHandleJob(const char *pszMsg, KSIZE cbMsg)
                                                  */
                                                 rcExit = kSubmitHandleJobUnpacked(pszExecutable, pszCwd,
                                                                                   cArgs, papszArgs, fWatcomBrainDamange,
-                                                                                  cEnvVars, papszEnvVars,
+                                                                                  cEnvVars, papszEnvVars, fNoPchCaching,
                                                                                   cPostCmdArgs, apszPostCmdArgs);
                                             }
                                             else if (cbMsg == KSIZE_MAX)
@@ -9717,6 +9738,7 @@ static int kwTestRun(int argc, char **argv)
     const char *pszCwd = getcwd(szCwd, sizeof(szCwd));
     KU32        cEnvVars;
     KBOOL       fWatcomBrainDamange = K_FALSE;
+    KBOOL       fNoPchCaching = K_FALSE;
 
     /*
      * Parse arguments.
@@ -9749,6 +9771,14 @@ static int kwTestRun(int argc, char **argv)
                 || strcmp(argv[i], "--watcom-brain-damage") == 0) )
         {
             fWatcomBrainDamange = K_TRUE;
+            i++;
+        }
+
+        /* Optional watcom flag directory change. */
+        if (   i < argc
+            && strcmp(argv[i], "--no-pch-caching") == 0)
+        {
+            fNoPchCaching = K_TRUE;
             i++;
         }
 
@@ -9786,7 +9816,7 @@ static int kwTestRun(int argc, char **argv)
     {
         rcExit = kSubmitHandleJobUnpacked(argv[i], pszCwd,
                                           argc - i, &argv[i], fWatcomBrainDamange,
-                                          cEnvVars, environ,
+                                          cEnvVars, environ, fNoPchCaching,
                                           0, NULL);
         KW_LOG(("rcExit=%d\n", rcExit));
         kwSandboxCleanupLate(&g_Sandbox);

@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2918 2016-09-15 12:17:19Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 2959 2016-09-21 20:53:32Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -573,13 +573,14 @@ static PWORKERINSTANCE kSubmitSelectWorkSpawnNewIfNecessary(unsigned cBitsWorker
  * @param   papszEnvVars        The environment vector.
  * @param   pszCwd              The current directory.
  * @param   fWatcomBrainDamage  The wcc/wcc386 workaround.
+ * @param   fNoPchCaching       Whether to disable precompiled header caching.
  * @param   papszPostCmdArgs    The post command and it's arguments.
  * @param   cPostCmdArgs        Number of post command argument, including the
  *                              command.  Zero if no post command scheduled.
  * @param   pcbMsg              Where to return the message length.
  */
 static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArgs, char **papszEnvVars,
-                                      const char *pszCwd, int fWatcomBrainDamage,
+                                      const char *pszCwd, int fWatcomBrainDamage, int fNoPchCaching,
                                       char **papszPostCmdArgs, uint32_t cPostCmdArgs, uint32_t *pcbMsg)
 {
     size_t   cbTmp;
@@ -614,7 +615,8 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
         cbMsg += strlen(papszEnvVars[i]) + 1;
     cEnvVars = i;
 
-    cbMsg += 1;
+    cbMsg += 1; /* fWatcomBrainDamage */
+    cbMsg += 1; /* fNoPchCaching */
 
     cbMsg += sizeof(cPostCmdArgs);
     for (i = 0; i < cPostCmdArgs; i++)
@@ -666,6 +668,7 @@ static void *kSubmitComposeJobMessage(const char *pszExecutable, char **papszArg
 
     /* flags */
     *pbCursor++ = fWatcomBrainDamage != 0;
+    *pbCursor++ = fNoPchCaching != 0;
 
     /* post command */
     memcpy(pbCursor, &cPostCmdArgs, sizeof(cPostCmdArgs));
@@ -1165,7 +1168,7 @@ static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
             "usage: %s [-Z|--zap-env] [-E|--set <var=val>] [-U|--unset <var=val>]\n"
-            "           [-C|--chdir <dir>] [--wcc-brain-damage]\n"
+            "           [-C|--chdir <dir>] [--wcc-brain-damage] [--no-pch-caching]\n"
             "           [-3|--32-bit] [-6|--64-bit] [-v]\n"
             "           [-P|--post-cmd <cmd> [args]] -- <program> [args]\n"
             "   or: %s --help\n"
@@ -1188,6 +1191,8 @@ static int usage(FILE *pOut,  const char *argv0)
             "  --wcc-brain-damage\n"
             "    Works around wcc and wcc386 (Open Watcom) not following normal\n"
             "    quoting conventions on Windows, OS/2, and DOS.\n"
+            "  --no-pch-caching\n"
+            "    Do not cache precompiled header files because they're being created.\n"
             "  -v,--verbose\n"
             "    More verbose execution.\n"
             "  -P|--post-cmd <cmd> ...\n"
@@ -1218,6 +1223,7 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     int             cPostCmdArgs        = 0;
     unsigned        cBitsWorker         = g_cArchBits;
     int             fWatcomBrainDamage  = 0;
+    int             fNoPchCaching       = 0;
     int             cVerbosity          = 0;
     size_t const    cbCwdBuf            = GET_PATH_MAX;
     PATH_VAR(szCwd);
@@ -1273,6 +1279,12 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     || strcmp(pszArg, "watcom-brain-damage") == 0)
                 {
                     fWatcomBrainDamage = 1;
+                    continue;
+                }
+
+                if (strcmp(pszArg, "no-pch-caching") == 0)
+                {
+                    fNoPchCaching = 1;
                     continue;
                 }
 
@@ -1412,7 +1424,8 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
     {
         uint32_t        cbMsg;
         void           *pvMsg   = kSubmitComposeJobMessage(pszExecutable, &argv[iArg], papszEnv, szCwd,
-                                                           fWatcomBrainDamage, &argv[iPostCmd], cPostCmdArgs, &cbMsg);
+                                                           fWatcomBrainDamage, fNoPchCaching,
+                                                           &argv[iPostCmd], cPostCmdArgs, &cbMsg);
         PWORKERINSTANCE pWorker = kSubmitSelectWorkSpawnNewIfNecessary(cBitsWorker, cVerbosity);
         if (pWorker)
         {
