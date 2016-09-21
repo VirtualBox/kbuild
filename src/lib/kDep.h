@@ -1,4 +1,4 @@
-/* $Id: kDep.h 2851 2016-08-31 17:30:52Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.h 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -47,7 +47,7 @@ typedef struct DEP
 
 
 extern PDEP depAdd(const char *pszFilename, size_t cchFilename);
-extern void depOptimize(int fFixCase, int fQuiet);
+extern void depOptimize(int fFixCase, int fQuiet, const char *pszIgnoredExt);
 extern void depPrint(FILE *pOutput);
 extern void depPrintStubs(FILE *pOutput);
 extern void depCleanup(void);

@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2896 2016-09-08 15:32:09Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -973,7 +973,7 @@ static int kDepObjProcessFile(FILE *pInput)
 
 static void usage(const char *a_argv0)
 {
-    printf("usage: %s -o <output> -t <target> [-fqs] <OMF-file>\n"
+    printf("usage: %s -o <output> -t <target> [-fqs] [-e <ignore-ext>] <OMF or COFF file>\n"
            "   or: %s --help\n"
            "   or: %s --version\n",
            a_argv0, a_argv0, a_argv0);
@@ -991,6 +991,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
     const char *pszTarget = NULL;
     int         fStubs = 0;
     int         fFixCase = 0;
+    const char *pszIgnoreExt = NULL;
     /* Argument parsing. */
     int         fInput = 0;             /* set when we've found input argument. */
     int         fQuiet = 0;
@@ -1009,39 +1010,66 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
     {
         if (argv[i][0] == '-')
         {
+            const char *pszValue;
             const char *psz = &argv[i][1];
-            if (*psz == '-')
+            char chOpt;
+            chOpt = *psz++;
+            if (chOpt == '-')
             {
-                if (!strcmp(psz, "-quiet"))
-                    psz = "q";
-                else if (!strcmp(psz, "-help"))
-                    psz = "?";
-                else if (!strcmp(psz, "-version"))
-                    psz = "V";
+                /* Convert long to short option. */
+                if (!strcmp(psz, "quiet"))
+                    chOpt = 'q';
+                else if (!strcmp(psz, "help"))
+                    chOpt = '?';
+                else if (!strcmp(psz, "version"))
+                    chOpt = 'V';
+                else
+                {
+                    fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
+                    usage(argv[0]);
+                    return 2;
+                }
+                psz = "";
             }
 
-            switch (*psz)
+            /*
+             * Requires value?
+             */
+            switch (chOpt)
+            {
+                case 'o':
+                case 't':
+                case 'e':
+                    if (*psz)
+                        pszValue = psz;
+                    else if (++i < argc)
+                        pszValue = argv[i];
+                    else
+                    {
+                        fprintf(stderr, "%s: syntax error: The '-%c' option takes a value.\n", chOpt);
+                        return 2;
+                    }
+                    break;
+
+                default:
+                    pszValue = NULL;
+                    break;
+            }
+
+
+            switch (chOpt)
             {
                 /*
                  * Output file.
                  */
                 case 'o':
                 {
-                    pszOutput = &argv[i][2];
                     if (pOutput)
                     {
                         fprintf(stderr, "%s: syntax error: only one output file!\n", argv[0]);
-                        return 1;
+                        return 2;
                     }
-                    if (!*pszOutput)
-                    {
-                        if (++i >= argc)
-                        {
-                            fprintf(stderr, "%s: syntax error: The '-o' argument is missing the filename.\n", argv[0]);
-                            return 1;
-                        }
-                        pszOutput = argv[i];
-                    }
+                    pszOutput = pszValue;
                     if (pszOutput[0] == '-' && !pszOutput[1])
                         pOutput = stdout;
                     else
@@ -1064,16 +1092,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                         fprintf(stderr, "%s: syntax error: only one target!\n", argv[0]);
                         return 1;
                     }
-                    pszTarget = &argv[i][2];
-                    if (!*pszTarget)
-                    {
-                        if (++i >= argc)
-                        {
-                            fprintf(stderr, "%s: syntax error: The '-t' argument is missing the target name.\n", argv[0]);
-                            return 1;
-                        }
-                        pszTarget = argv[i];
-                    }
+                    pszTarget = pszValue;
                     break;
                 }
 
@@ -1105,6 +1124,20 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 }
 
                 /*
+                 * Extension to ignore.
+                 */
+                case 'e':
+                {
+                    if (pszIgnoreExt)
+                    {
+                        fprintf(stderr, "%s: syntax error: The '-e' option can only be used once!\n");
+                        return 2;
+                    }
+                    pszIgnoreExt = pszValue;
+                    break;
+                }
+
+                /*
                  * The mandatory version & help.
                  */
                 case '?':
@@ -1120,7 +1153,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 default:
                     fprintf(stderr, "%s: syntax error: Invalid argument '%s'.\n", argv[0], argv[i]);
                     usage(argv[0]);
-                    return 1;
+                    return 2;
             }
         }
         else
@@ -1178,7 +1211,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
      */
     if (!i)
     {
-        depOptimize(fFixCase, fQuiet);
+        depOptimize(fFixCase, fQuiet, pszIgnoreExt);
         fprintf(pOutput, "%s:", pszTarget);
         depPrint(pOutput);
         if (fStubs)
