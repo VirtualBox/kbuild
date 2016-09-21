@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2956 2016-09-21 19:37:20Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2960 2016-09-21 20:57:40Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -233,9 +233,9 @@ TOOL_VCC100X86-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(ta
 TOOL_VCC100X86-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
 ifdef TOOL_VCC100X86_KSUBMIT
  define TOOL_VCC100X86-PCH_COMPILE_CXX_CMDS
-	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CXX) -c -Yc\
-		$(filter-out $(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
 		-Fo$(obj)\
