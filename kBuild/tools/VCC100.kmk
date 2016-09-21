@@ -1,4 +1,4 @@
-# $Id: VCC100.kmk 2954 2016-09-21 19:04:45Z knut.osmundsen@oracle.com $
+# $Id: VCC100.kmk 2956 2016-09-21 19:37:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD_TARGET).
 #
@@ -197,9 +197,9 @@ TOOL_VCC100_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMMON_
 define TOOL_VCC100_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(if-expr defined($(target)_VCC_PCH_HDR)\
-		,-FI$($(target)_VCC_PCH_HDR) -Yu$($(target)_VCC_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
-		-Fd$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),$($(target)_VCC_COMMON_OBJ_PDB),$(outbase)-obj.pdb) \
+		$(if-expr defined($(target)_PCH_HDR)\
+		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
+		-Fd$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),$($(target)_1_VCC_COMMON_OBJ_PDB),$(outbase)-obj.pdb) \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
