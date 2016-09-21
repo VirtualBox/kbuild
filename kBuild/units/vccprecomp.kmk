@@ -1,4 +1,4 @@
-# $Id: vccprecomp.kmk 2954 2016-09-21 19:04:45Z knut.osmundsen@oracle.com $
+# $Id: vccprecomp.kmk 2956 2016-09-21 19:37:20Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Unit - Target Level Precompiled Headers for Visual C++.
 #
@@ -53,8 +53,8 @@ endef
 # footer-pass2-compiling-targets.kmk and is really the LD tool, but that'll
 # have to do for now.  The '-PCH' variant of the VCC tool, is defined together
 # with $(tool) and allow us to bypass the options and dependencies triggered
-# by _1_VCC_PCH_FILE and _1_VCC_COMMON_OBJ_PDB, and also make sure we don't get
-# circular dependencies by way of kDepObj and the debug info.
+# by _1_VCC_PCH_FILE, _1_VCC_COMMON_OBJ_PDB and _PCH_HDR, and also make sure we
+# don't get circular dependencies by way of kDepObj and the debug info.
 #
 define def_unit_vccprecomp_target_pre_2
  local source := $($(target)_PCH_HDR)
