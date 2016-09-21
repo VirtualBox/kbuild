@@ -1,4 +1,4 @@
-# $Id: VCC100.kmk 2953 2016-09-21 18:54:27Z knut.osmundsen@oracle.com $
+# $Id: VCC100.kmk 2954 2016-09-21 19:04:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting $(KBUILD_TARGET).
 #
@@ -107,6 +107,8 @@ TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC100_FN_FIND_SDK_
 # @param    $(2)        The extension.
 TOOL_VCC100_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
 
+
+# General Properties used by kBuild
 TOOL_VCC100_COBJSUFF         ?= .obj
 TOOL_VCC100_CFLAGS           ?= -TC -nologo -Zi
 TOOL_VCC100_CFLAGS.debug     ?=
@@ -187,18 +189,62 @@ endef
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC100_COMPILE_CXX_DEPEND =
+TOOL_VCC100_COMPILE_CXX_DEPEND = $($(target)_1_VCC_PCH_FILE)
 TOOL_VCC100_COMPILE_CXX_DEPORD =
 TOOL_VCC100_COMPILE_CXX_OUTPUT =
-TOOL_VCC100_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100_PDB, $(outbase)-obj,idb)
+TOOL_VCC100_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB)\
+	,,$(call TOOL_VCC100_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100_PDB, $(outbase)-obj,idb))
 define TOOL_VCC100_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
+		$(if-expr defined($(target)_VCC_PCH_HDR)\
+		,-FI$($(target)_VCC_PCH_HDR) -Yu$($(target)_VCC_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
+		-Fd$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),$($(target)_VCC_COMMON_OBJ_PDB),$(outbase)-obj.pdb) \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
 endef
+
+
+#
+# Helper tool for creating the precompiled C++ header.
+#
+# It only have the C++ compile bits and it's purpose is to skip bits
+# related _1_VCC_PCH_FILE and add -Yc.
+#
+TOOL_VCC100-PCH                         := Helper for creating precompiled header using CXX handling.
+TOOL_VCC100-PCH_EXTENDS                 := VCC100
+TOOL_VCC100-PCH_CXXOBJSUFF              := .obj
+TOOL_VCC100-PCH_CXXINCS                  = $(TOOL_VCC100_CXXINCS)
+TOOL_VCC100-PCH_COMPILE_CXX_DEPEND       = $(NO_SUCH_VARIABLE)
+TOOL_VCC100-PCH_COMPILE_CXX_DEPORD       = $(NO_SUCH_VARIABLE)
+TOOL_VCC100-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
+TOOL_VCC100-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
+ifdef TOOL_VCC100_KSUBMIT
+ define TOOL_VCC100-PCH_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC100_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+		-- $(TOOL_VCC100_CXX) -c -Yc\
+		$(filter-out $(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+               -Fp$($(target)_1_VCC_PCH_FILE) \
+		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
+		-Fo$(obj)\
+               -TP \
+		$(subst /,\\,$(abspath $(source)))
+ endef
+else
+ define TOOL_VCC100-PCH_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC100_CXX) -c -Yc\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+               -Fp$($(target)_1_VCC_PCH_FILE) \
+		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
+		-Fo$(obj)\
+               -TP \
+		$(subst /,\\,$(abspath $(source)))
+	$(QUIET)$(DEP_OBJ) -f -s -q  -e .pch -o $(dep) -t $(obj) $(obj)
+
+ endef
+endif # !TOOL_VCC100_KSUBMIT
+
 
 ## @todo configure the assembler template.
 
@@ -249,8 +295,6 @@ define TOOL_VCC100_LINK_LIBRARY_CMDS
 			,\"$(arg)\")
 	$(QUIET)$(TOOL_VCC100_AR) $(flags) /OUT:$(out) @$(outbase).rsp
 endef
-
-
 
 
 ## Link program

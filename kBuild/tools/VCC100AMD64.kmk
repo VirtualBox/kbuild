@@ -1,4 +1,4 @@
-# $Id: VCC100AMD64.kmk 2953 2016-09-21 18:54:27Z knut.osmundsen@oracle.com $
+# $Id: VCC100AMD64.kmk 2954 2016-09-21 19:04:45Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting AMD64.
 #
@@ -105,6 +105,8 @@ TOOL_VCC100_FN_FIND_SDK_TOOL = $(if-expr !defined($3),$(TOOL_VCC100_FN_FIND_SDK_
 # @param    $(2)        The extension.
 TOOL_VCC100AMD64_PDB = $(dir $(1))$(tolower $(notdir $(1))).$(2)
 
+
+# General Properties used by kBuild
 TOOL_VCC100AMD64_COBJSUFF         ?= .obj
 TOOL_VCC100AMD64_CFLAGS           ?= -TC -nologo -Zi
 TOOL_VCC100AMD64_CFLAGS.debug     ?=
@@ -191,17 +193,20 @@ endif # !TOOL_VCC100AMD64_KSUBMIT
 #
 # @param    $(outbase)  Output basename (full). Use this for list files and such.
 # @param    $(objsuff)  Object suffix.
-TOOL_VCC100AMD64_COMPILE_CXX_DEPEND =
+TOOL_VCC100AMD64_COMPILE_CXX_DEPEND = $($(target)_1_VCC_PCH_FILE)
 TOOL_VCC100AMD64_COMPILE_CXX_DEPORD =
 TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT =
-TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb)
+TOOL_VCC100AMD64_COMPILE_CXX_OUTPUT_MAYBE = $(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB)\
+	,,$(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100AMD64_PDB, $(outbase)-obj,idb))
 ifdef TOOL_VCC100AMD64_KSUBMIT
  TOOL_VCC100AMD64_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
+		$(if-expr defined($(target)_VCC_PCH_HDR)\
+		,-FI$($(target)_VCC_PCH_HDR) -Yu$($(target)_VCC_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
+		-Fd$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),$($(target)_VCC_COMMON_OBJ_PDB),$(outbase)-obj.pdb) \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
  endef
@@ -209,12 +214,55 @@ else
  define TOOL_VCC100AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		-Fd$(outbase)-obj.pdb \
+		$(if-expr defined($(target)_VCC_PCH_HDR)\
+		,-FI$($(target)_VCC_PCH_HDR) -Yu$($(target)_VCC_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE),)\
+		-Fd$(if-expr defined($(target)_1_VCC_COMMON_OBJ_PDB),$($(target)_VCC_COMMON_OBJ_PDB),$(outbase)-obj.pdb) \
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
 	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
  endef
 endif # !TOOL_VCC100AMD64_KSUBMIT
+
+
+#
+# Helper tool for creating the precompiled C++ header.
+#
+# It only have the C++ compile bits and it's purpose is to skip bits
+# related _1_VCC_PCH_FILE and add -Yc.
+#
+TOOL_VCC100AMD64-PCH                         := Helper for creating precompiled header using CXX handling.
+TOOL_VCC100AMD64-PCH_EXTENDS                 := VCC100AMD64
+TOOL_VCC100AMD64-PCH_CXXOBJSUFF              := .obj
+TOOL_VCC100AMD64-PCH_CXXINCS                  = $(TOOL_VCC100AMD64_CXXINCS)
+TOOL_VCC100AMD64-PCH_COMPILE_CXX_DEPEND       = $(NO_SUCH_VARIABLE)
+TOOL_VCC100AMD64-PCH_COMPILE_CXX_DEPORD       = $(NO_SUCH_VARIABLE)
+TOOL_VCC100AMD64-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
+TOOL_VCC100AMD64-PCH_COMPILE_CXX_OUTPUT_MAYBE = $(NO_SUCH_VARIABLE)
+ifdef TOOL_VCC100AMD64_KSUBMIT
+ define TOOL_VCC100AMD64-PCH_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC100AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
+		-- $(TOOL_VCC100AMD64_CXX) -c -Yc\
+		$(filter-out $(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+               -Fp$($(target)_1_VCC_PCH_FILE) \
+		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
+		-Fo$(obj)\
+               -TP \
+		$(subst /,\\,$(abspath $(source)))
+ endef
+else
+ define TOOL_VCC100AMD64-PCH_COMPILE_CXX_CMDS
+	$(QUIET)$(TOOL_VCC100AMD64_CXX) -c -Yc\
+		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
+               -Fp$($(target)_1_VCC_PCH_FILE) \
+		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
+		-Fo$(obj)\
+               -TP \
+		$(subst /,\\,$(abspath $(source)))
+	$(QUIET)$(DEP_OBJ) -f -s -q  -e .pch -o $(dep) -t $(obj) $(obj)
+
+ endef
+endif # !TOOL_VCC100AMD64_KSUBMIT
+
 
 ## @todo configure the assembler template.
 
