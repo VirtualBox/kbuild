@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2949 2016-09-20 16:39:06Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2957 2016-09-21 19:53:10Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -4964,6 +4964,17 @@ static KBOOL kwFsIsCacheableExtensionCommon(wchar_t wcFirst, wchar_t wcSecond, w
                 return K_TRUE;
         }
     }
+#if 0 /* compiler does write+copy mapping, so forget it. */
+    /* Precompiled header: .pch */
+    else if (wcFirst == 'p' || wcFirst == 'P')
+    {
+        if (wcSecond == 'c' || wcSecond == 'C')
+        {
+            if (wcThird == 'h' || wcThird == 'H')
+                return K_TRUE;
+        }
+    }
+#endif
     else if (fAttrQuery)
     {
         /* Dynamic link library: .dll */
@@ -5095,7 +5106,10 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
         if (GetFileSizeEx(hFile, &cbFile))
         {
             if (   cbFile.QuadPart >= 0
-                && cbFile.QuadPart < 16*1024*1024)
+                && (   cbFile.QuadPart < 16*1024*1024
+                    || (   cbFile.QuadPart < 64*1024*1024
+                        && pFsObj->cchName > 4
+                        && kHlpStrICompAscii(&pFsObj->pszName[pFsObj->cchName - 4], ".pch") == 0) ))
             {
                 KU32 cbCache = (KU32)cbFile.QuadPart;
 #if 0
@@ -5504,7 +5518,7 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
             return (KU32)offMove;
         }
     }
-    KWFS_LOG(("SetFilePointer(%p)\n", hFile));
+    KWFS_LOG(("SetFilePointer(%p, %d, %p=%d, %d)\n", hFile, cbMove, pcbMoveHi ? *pcbMoveHi : 0, dwMoveMethod));
     return SetFilePointer(hFile, cbMove, pcbMoveHi, dwMoveMethod);
 }
 
