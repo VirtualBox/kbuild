@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 2795 2015-09-15 23:35:37Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 2952 2016-09-21 18:52:08Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -83,7 +83,7 @@ $(obj) + $($(target)_$(source)_OUTPUT_) +| $($(target)_$(source)_OUTPUT_MAYBE_) 
 		$$$$($(target)_INTERMEDIATES.$(bld_trg_cpu)) \
 		$$$$($(target)_INTERMEDIATES.$(bld_type))
 	%$$(call MSG_COMPILE,$(target),$(source),$$@,$(type))
-ifdef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
+ifndef TOOL_$(tool)_COMPILE_$(type)_DONT_PURGE_OUTPUT
 	$$(QUIET)$$(RM) -f -- $(dep) $(obj) $($(target)_$(source)_OUTPUT_) $($(target)_OUTPUT_MAYBE_)
 endif
 endif
@@ -490,6 +490,7 @@ local units       := \
 	$($(target)_USES.$(bld_type))\
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
+$(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
 
 # source -> object
 $(evalval def_target_sources)
@@ -694,6 +695,7 @@ local units       := \
 	$($(target)_USES.$(bld_type))\
 	$($(target)_USES)
 $(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre))
+$(foreach unit,$(units),$(evalvalctx def_unit_$(unit)_target_pre_2))
 
 # source -> object
 $(evalval def_target_sources)
