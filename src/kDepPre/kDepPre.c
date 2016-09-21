@@ -1,4 +1,4 @@
-/* $Id: kDepPre.c 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepPre.c 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepPre - Dependency Generator using Precompiler output.
  */
@@ -464,7 +464,7 @@ int main(int argc, char *argv[])
      */
     if (!i)
     {
-        depOptimize(fFixCase, 0 /* fQuiet */);
+        depOptimize(fFixCase, 0 /* fQuiet */, NULL /*pszIgnoredExt*/);
         fprintf(pOutput, "%s:", pszTarget);
         depPrint(pOutput);
         if (fStubs)
