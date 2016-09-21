@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2902 2016-09-09 17:15:22Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2951 2016-09-21 11:14:43Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -149,49 +149,28 @@ TOOL_VCC100X86_LDFLAGS.release  ?=
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100X86_COMPILE_C_DEPEND =
 TOOL_VCC100X86_COMPILE_C_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_VCC100X86_COMPILE_C_USES_KOBJCACHE = 1
-TOOL_VCC100X86_COMPILE_C_OUTPUT = $(outbase).i
-TOOL_VCC100X86_COMPILE_C_OUTPUT_MAYBE =
-define TOOL_VCC100X86_COMPILE_C_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -O2 -r\
-		--make-dep-fix-case --make-dep-gen-stubs --make-dep-quiet --make-dep-file $(dep)\
-		--kObjCache-cpp $(outbase).i\
-		$(TOOL_VCC100X86_CC) -E\
-		$(subst -Zi,-Z7,$(flags))\
-		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source))) \
-		--kObjCache-cc $(obj)\
-		$(TOOL_VCC100X86_CC) -c\
-		$(subst -Zi,-Z7,$(flags))\
-		-Fo$(obj)\
-		$(outbase).i
-endef
-else  # !KBUILD_USE_KOBJCACHE
-TOOL_VCC100X86_COMPILE_C_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
-TOOL_VCC100X86_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb)
- ifdef TOOL_VCC100X86_KSUBMIT
-define TOOL_VCC100X86_COMPILE_C_CMDS
+TOOL_VCC100X86_COMPILE_C_OUTPUT =
+TOOL_VCC100X86_COMPILE_C_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
+ifdef TOOL_VCC100X86_KSUBMIT
+ TOOL_VCC100X86_COMPILE_C_DONT_PURGE_OUTPUT = 1 # speed
+ define TOOL_VCC100X86_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
-		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-endef
- else
-define TOOL_VCC100X86_COMPILE_C_CMDS
+ endef
+else
+ define TOOL_VCC100X86_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC100X86_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
-		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
-endef
- endif # !TOOL_VCC100X86_KSUBMIT
-endif # !KBUILD_USE_KOBJCACHE
+	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
+ endef
+endif # !TOOL_VCC100X86_KSUBMIT
 
 
 ## Compile C++ source.
@@ -209,49 +188,28 @@ endif # !KBUILD_USE_KOBJCACHE
 # @param    $(objsuff)  Object suffix.
 TOOL_VCC100X86_COMPILE_CXX_DEPEND =
 TOOL_VCC100X86_COMPILE_CXX_DEPORD =
-ifdef KBUILD_USE_KOBJCACHE
-TOOL_VCC100X86_COMPILE_CXX_USES_KOBJCACHE = 1
-TOOL_VCC100X86_COMPILE_CXX_OUTPUT = $(outbase).ii
-TOOL_VCC100X86_COMPILE_CXX_OUTPUT_MAYBE =
-define TOOL_VCC100X86_COMPILE_CXX_CMDS
-	$(QUIET)$(KOBJCACHE) -f $(outbase).koc -d $(PATH_OBJCACHE) -t $(bld_trg).$(bld_trg_arch) -O2 -r\
-		--make-dep-fix-case --make-dep-gen-stubs --make-dep-quiet --make-dep-file $(dep)\
-		--kObjCache-cpp $(outbase).ii\
-		$(TOOL_VCC100X86_CXX) -E\
-		$(subst -Zi,-Z7,$(flags))\
-		$(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
-		$(subst /,\\,$(abspath $(source))) \
-		--kObjCache-cc $(obj)\
-		$(TOOL_VCC100X86_CXX) -c\
-		$(subst -Zi,-Z7,$(flags))\
-		-Fo$(obj)\
-		$(outbase).ii
-endef
-else  # !KBUILD_USE_KOBJCACHE
-TOOL_VCC100X86_COMPILE_CXX_OUTPUT = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
-TOOL_VCC100X86_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb)
- ifdef TOOL_VCC100X86_KSUBMIT
-define TOOL_VCC100X86_COMPILE_CXX_CMDS
+TOOL_VCC100X86_COMPILE_CXX_OUTPUT =
+TOOL_VCC100X86_COMPILE_CXX_OUTPUT_MAYBE = $(call TOOL_VCC100X86_PDB, $(outbase)-obj,pdb) $(call TOOL_VCC100X86_PDB, $(outbase)-obj,idb)
+ifdef TOOL_VCC100X86_KSUBMIT
+ TOOL_VCC100X86_COMPILE_CXX_DONT_PURGE_OUTPUT = 1 # speed
+ define TOOL_VCC100X86_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100X86_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
 		-- $(TOOL_VCC100X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
-		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-endef
- else
-define TOOL_VCC100X86_COMPILE_CXX_CMDS
+ endef
+else
+ define TOOL_VCC100X86_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC100X86_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
-		-FD\
 		-Fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
-	$(QUIET)$(DEP_IDB) -f -s -q -o $(dep) -t $(obj) $(call TOOL_VCC100X86_PDB,$(outbase)-obj,idb)
-endef
- endif # !TOOL_VCC100X86_KSUBMIT
-endif # !KBUILD_USE_KOBJCACHE
+	$(QUIET)$(DEP_OBJ) -f -s -q -o $(dep) -t $(obj) $(obj)
+ endef
+endif # !TOOL_VCC100X86_KSUBMIT
 
 ## @todo configure the assembler template.
 
