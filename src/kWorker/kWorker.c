@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2961 2016-09-22 19:41:00Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2962 2016-09-22 23:30:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -7206,7 +7206,9 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
         if (offLastIncompleteLine < cwcToWrite)
         {
             /* Need to grow the line buffer? */
-            KU32 cwcNeeded = offLastIncompleteLine != 0 ? offLastIncompleteLine : cchLastIncompleteLine + pLineBuf->u.Con.cwcBuf;
+            KU32 cwcNeeded = offLastIncompleteLine == 0
+                           ? pLineBuf->u.Con.cwcBuf + cchLastIncompleteLine /* incomplete line, append to line buffer */
+                           : cchLastIncompleteLine; /* Only the final incomplete line (if any) goes to the line buffer. */
             if (cwcNeeded > pLineBuf->u.Con.cwcBufAlloc)
             {
                 void *pvNew;
@@ -7254,9 +7256,10 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
         }
 
         /*
-         * If there is sufficient combined buffer to handle this request, this are rather simple.
+         * If there is sufficient combined buffer to handle this request, this is rather simple.
          */
-        if (pLineBuf->u.Con.cwcBuf + cchLastIncompleteLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+        kHlpAssert(pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf));
+        if (pSandbox->Combined.cwcBuf + pLineBuf->u.Con.cwcBuf + offLastIncompleteLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
         {
             if (pLineBuf->u.Con.cwcBuf > 0)
             {
@@ -7279,7 +7282,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
             KU32 off = 0;
             KU32 offNextLine = 0;
 
-            /* If there is buffered chars, we handle the first line outside the
+            /* If there are buffered chars, we handle the first line outside the
                main loop.  We must try our best outputting it as a complete line. */
             if (pLineBuf->u.Con.cwcBuf > 0)
             {
@@ -7288,7 +7291,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
                 offNextLine++;
                 kHlpAssert(offNextLine <= offLastIncompleteLine);
 
-                if (pLineBuf->u.Con.cwcBuf + offNextLine + pSandbox->Combined.cwcBuf <= K_ELEMENTS(pSandbox->Combined.wszBuf))
+                if (pSandbox->Combined.cwcBuf + pLineBuf->u.Con.cwcBuf + offNextLine <= K_ELEMENTS(pSandbox->Combined.wszBuf))
                 {
                     kHlpMemCopy(&pSandbox->Combined.wszBuf[pSandbox->Combined.cwcBuf],
                                 pLineBuf->u.Con.pwcBuf, pLineBuf->u.Con.cwcBuf * sizeof(wchar_t));
@@ -7335,7 +7338,7 @@ static void kwSandboxConsoleWriteW(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLine
         /*
          * Buffer any remaining incomplete line chars.
          */
-        if (offLastIncompleteLine < cwcToWrite)
+        if (cchLastIncompleteLine)
         {
             kHlpMemCopy(&pLineBuf->u.Con.pwcBuf[0], &pwcBuffer[offLastIncompleteLine], cchLastIncompleteLine * sizeof(wchar_t));
             pLineBuf->u.Con.cwcBuf = cchLastIncompleteLine;
