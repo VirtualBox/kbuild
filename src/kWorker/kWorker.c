@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2959 2016-09-21 20:53:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2961 2016-09-22 19:41:00Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -95,6 +95,14 @@
 /** @def WITH_HISTORY
  * Keep history of the last jobs.  For debugging.  */
 #define WITH_HISTORY
+
+/** @def WITH_FIXED_VIRTUAL_ALLOCS
+ * Whether to pre allocate memory for known fixed VirtualAlloc calls (currently
+ * there is only one, but an important one, from cl.exe).
+ */
+#if K_ARCH == K_ARCH_X86_32
+# define WITH_FIXED_VIRTUAL_ALLOCS
+#endif
 
 /** @def WITH_PCH_CACHING
  * Enables read caching of precompiled header files. */
@@ -337,6 +345,8 @@ typedef struct KFSWCACHEDFILE
 
     /** Cached file handle. */
     HANDLE              hCached;
+    /** Cached file section handle. */
+    HANDLE              hSection;
     /** Cached file content. */
     KU8                *pbCached;
     /** The file size. */
@@ -571,6 +581,8 @@ typedef struct KWVIRTALLOC
     PKWVIRTALLOC        pNext;
     void               *pvAlloc;
     KSIZE               cbAlloc;
+    /** This is KU32_MAX if not a preallocated chunk. */
+    KU32                idxPreAllocated;
 } KWVIRTALLOC;
 
 
@@ -895,6 +907,9 @@ static int          g_cVerbose = 2;
 /** Whether we should restart the worker. */
 static KBOOL        g_fRestart = K_FALSE;
 
+/** Whether control-C/SIGINT or Control-Break/SIGBREAK have been seen. */
+static KBOOL volatile g_fCtrlC = K_FALSE;
+
 /* Further down. */
 extern KWREPLACEMENTFUNCTION const g_aSandboxReplacements[];
 extern KU32                  const g_cSandboxReplacements;
@@ -918,6 +933,37 @@ static KU8          g_abDefLdBuf[16*1024*1024];
 #ifdef WITH_LOG_FILE
 /** Log file handle.   */
 static HANDLE g_hLogFile = INVALID_HANDLE_VALUE;
+#endif
+
+
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+/** Virtual address space reserved for CL.EXE heap manager.
+ *
+ * Visual C++ 2010 reserves a 78MB chunk of memory from cl.exe at a fixed
+ * address.  It's among other things used for precompiled headers, which
+ * seemingly have addresses hardcoded into them and won't work if mapped
+ * elsewhere.  Thus, we have to make sure the area is available when cl.exe asks
+ * for it.  (The /Zm option may affect this allocation.)
+ */
+static struct
+{
+    /** The memory address we need.   */
+    KUPTR const     uFixed;
+    /** How much we need to fix. */
+    KSIZE const     cbFixed;
+    /** What we actually got, NULL if given back. */
+    void           *pvReserved;
+    /** Whether it is in use or not. */
+    KBOOL           fInUse;
+} g_aFixedVirtualAllocs[] =
+{
+# if K_ARCH == K_ARCH_X86_32
+    /* Visual C++ 2010 reserves 0x04b00000, Visual C++ 2015 reserves 0x05300000. We get 0x06800000. */
+    { KUPTR_C(        0x11000000), KSIZE_C(        0x06800000), NULL },
+# else
+    { KUPTR_C(0x000006BB00000000), KSIZE_C(0x000000002EE00000), NULL },
+# endif
+};
 #endif
 
 
@@ -4473,6 +4519,69 @@ static UINT WINAPI kwSandbox_BreakIntoDebugger(void *pv1, void *pv2, void *pv3, 
 }
 
 
+#ifndef NDEBUG
+/*
+ * This wraps up to three InvokeCompilerPassW functions and dumps their arguments to the log.
+ */
+# if K_ARCH == K_ARCH_X86_32
+static char g_szInvokeCompilePassW[] = "_InvokeCompilerPassW@16";
+# else
+static char g_szInvokeCompilePassW[] = "InvokeCompilerPassW";
+# endif
+typedef KIPTR __stdcall FNINVOKECOMPILERPASSW(int cArgs, wchar_t **papwszArgs, KUPTR fFlags, void **phCluiInstance);
+typedef FNINVOKECOMPILERPASSW *PFNINVOKECOMPILERPASSW;
+typedef struct KWCXINTERCEPTORENTRY
+{
+    PFNINVOKECOMPILERPASSW  pfnOrg;
+    PKWMODULE               pModule;
+    PFNINVOKECOMPILERPASSW  pfnWrap;
+} KWCXINTERCEPTORENTRY;
+
+static KIPTR kwSandbox_Cx_InvokeCompilerPassW_Common(int cArgs, wchar_t **papwszArgs, KUPTR fFlags, void **phCluiInstance,
+                                                     KWCXINTERCEPTORENTRY *pEntry)
+{
+    int i;
+    KIPTR rcExit;
+    KW_LOG(("%s!InvokeCompilerPassW(%d, %p, %#x, %p)\n",
+            &pEntry->pModule->pszPath[pEntry->pModule->offFilename], cArgs, papwszArgs, fFlags, phCluiInstance));
+    for (i = 0; i < cArgs; i++)
+        KW_LOG((" papwszArgs[%u]='%ls'\n", i, papwszArgs[i]));
+
+    rcExit = pEntry->pfnOrg(cArgs, papwszArgs, fFlags, phCluiInstance);
+
+    KW_LOG(("%s!InvokeCompilerPassW returns %d\n", &pEntry->pModule->pszPath[pEntry->pModule->offFilename], rcExit));
+    return rcExit;
+}
+
+static FNINVOKECOMPILERPASSW kwSandbox_Cx_InvokeCompilerPassW_0;
+static FNINVOKECOMPILERPASSW kwSandbox_Cx_InvokeCompilerPassW_1;
+static FNINVOKECOMPILERPASSW kwSandbox_Cx_InvokeCompilerPassW_2;
+
+static KWCXINTERCEPTORENTRY g_aCxInterceptorEntries[] =
+{
+    { NULL, NULL, kwSandbox_Cx_InvokeCompilerPassW_0 },
+    { NULL, NULL, kwSandbox_Cx_InvokeCompilerPassW_1 },
+    { NULL, NULL, kwSandbox_Cx_InvokeCompilerPassW_2 },
+};
+
+static KIPTR __stdcall kwSandbox_Cx_InvokeCompilerPassW_0(int cArgs, wchar_t **papwszArgs, KUPTR fFlags, void **phCluiInstance)
+{
+    return kwSandbox_Cx_InvokeCompilerPassW_Common(cArgs, papwszArgs, fFlags, phCluiInstance, &g_aCxInterceptorEntries[0]);
+}
+
+static KIPTR __stdcall kwSandbox_Cx_InvokeCompilerPassW_1(int cArgs, wchar_t **papwszArgs, KUPTR fFlags, void **phCluiInstance)
+{
+    return kwSandbox_Cx_InvokeCompilerPassW_Common(cArgs, papwszArgs, fFlags, phCluiInstance, &g_aCxInterceptorEntries[1]);
+}
+
+static KIPTR __stdcall kwSandbox_Cx_InvokeCompilerPassW_2(int cArgs, wchar_t **papwszArgs, KUPTR fFlags, void **phCluiInstance)
+{
+    return kwSandbox_Cx_InvokeCompilerPassW_Common(cArgs, papwszArgs, fFlags, phCluiInstance, &g_aCxInterceptorEntries[2]);
+}
+
+#endif /* !NDEBUG */
+
+
 /** Kernel32 - GetProcAddress()   */
 static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR pszProc)
 {
@@ -4521,6 +4630,30 @@ static FARPROC WINAPI kwSandbox_Kernel32_GetProcAddress(HMODULE hmod, LPCSTR psz
                     }
                 }
 
+#ifndef NDEBUG
+            /* Intercept the compiler pass method, dumping arguments. */
+            if (kHlpStrComp(pszProc, g_szInvokeCompilePassW) == 0)
+            {
+                KU32 i;
+                for (i = 0; i < K_ELEMENTS(g_aCxInterceptorEntries); i++)
+                    if ((KUPTR)g_aCxInterceptorEntries[i].pfnOrg == uValue)
+                    {
+                        uValue = (KUPTR)g_aCxInterceptorEntries[i].pfnWrap;
+                        KW_LOG(("GetProcAddress: intercepting InvokeCompilerPassW\n"));
+                        break;
+                    }
+                if (i >= K_ELEMENTS(g_aCxInterceptorEntries))
+                    while (i-- > 0)
+                        if (g_aCxInterceptorEntries[i].pfnOrg == NULL)
+                        {
+                            g_aCxInterceptorEntries[i].pfnOrg  = (PFNINVOKECOMPILERPASSW)(KUPTR)uValue;
+                            g_aCxInterceptorEntries[i].pModule = pMod;
+                            uValue = (KUPTR)g_aCxInterceptorEntries[i].pfnWrap;
+                            KW_LOG(("GetProcAddress: intercepting InvokeCompilerPassW (new)\n"));
+                            break;
+                        }
+            }
+#endif
             KW_LOG(("GetProcAddress(%s, %s) -> %p\n", pMod->pszPath, pszProc, (KUPTR)uValue));
             kwLdrModuleRelease(pMod);
             //s_cDbgGets++;
@@ -5124,68 +5257,41 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                )
             {
                 KU32 cbCache = (KU32)cbFile.QuadPart;
-#if 0
-                KU8 *pbCache = (KU8 *)kHlpAlloc(cbCache);
-                if (pbCache)
-                {
-                    DWORD cbActually = 0;
-                    if (   ReadFile(hFile, pbCache, cbCache, &cbActually, NULL)
-                        && cbActually == cbCache)
-                    {
-                        LARGE_INTEGER offZero;
-                        offZero.QuadPart = 0;
-                        if (SetFilePointerEx(hFile, offZero, NULL /*poffNew*/, FILE_BEGIN))
-                        {
-#else
                 HANDLE hMapping = CreateFileMappingW(hFile, NULL /*pSecAttrs*/,  PAGE_READONLY,
                                                      0 /*cbMaxLow*/, 0 /*cbMaxHigh*/, NULL /*pwszName*/);
                 if (hMapping != NULL)
                 {
                     KU8 *pbCache = (KU8 *)MapViewOfFile(hMapping, FILE_MAP_READ, 0 /*offFileHigh*/, 0 /*offFileLow*/, cbCache);
-                    CloseHandle(hMapping);
                     if (pbCache)
                     {
-#endif
-                            /*
-                             * Create the cached file object.
-                             */
-                            PKFSWCACHEDFILE pCachedFile;
-                            KU32            cbPath = pFsObj->cchParent + pFsObj->cchName + 2;
-                            pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjAddUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE,
-                                                                                  sizeof(*pCachedFile) + cbPath);
-                            if (pCachedFile)
-                            {
-                                pCachedFile->hCached  = hFile;
-                                pCachedFile->cbCached = cbCache;
-                                pCachedFile->pbCached = pbCache;
-                                pCachedFile->pFsObj   = pFsObj;
-                                kFsCacheObjGetFullPathA(pFsObj, pCachedFile->szPath, cbPath, '/');
-                                kFsCacheObjRetain(pFsObj);
-                                KWFS_LOG(("Cached '%s': %p LB %#x, hCached=%p\n", pCachedFile->szPath, pbCache, cbCache, hFile));
-                                return pCachedFile;
-                            }
+                        /*
+                         * Create the cached file object.
+                         */
+                        PKFSWCACHEDFILE pCachedFile;
+                        KU32            cbPath = pFsObj->cchParent + pFsObj->cchName + 2;
+                        pCachedFile = (PKFSWCACHEDFILE)kFsCacheObjAddUserData(g_pFsCache, pFsObj, KW_DATA_KEY_CACHED_FILE,
+                                                                              sizeof(*pCachedFile) + cbPath);
+                        if (pCachedFile)
+                        {
+                            pCachedFile->hCached  = hFile;
+                            pCachedFile->hSection = hMapping;
+                            pCachedFile->cbCached = cbCache;
+                            pCachedFile->pbCached = pbCache;
+                            pCachedFile->pFsObj   = pFsObj;
+                            kFsCacheObjGetFullPathA(pFsObj, pCachedFile->szPath, cbPath, '/');
+                            kFsCacheObjRetain(pFsObj);
+                            KWFS_LOG(("Cached '%s': %p LB %#x, hCached=%p\n", pCachedFile->szPath, pbCache, cbCache, hFile));
+                            return pCachedFile;
+                        }
 
-                            KWFS_LOG(("Failed to allocate KFSWCACHEDFILE structure!\n"));
-#if 1
+                        KWFS_LOG(("Failed to allocate KFSWCACHEDFILE structure!\n"));
                     }
                     else
                         KWFS_LOG(("Failed to cache file: MapViewOfFile failed: %u\n", GetLastError()));
+                    CloseHandle(hMapping);
                 }
                 else
                     KWFS_LOG(("Failed to cache file: CreateFileMappingW failed: %u\n", GetLastError()));
-#else
-                        }
-                        else
-                            KWFS_LOG(("Failed to seek to start of cached file! err=%u\n", GetLastError()));
-                    }
-                    else
-                        KWFS_LOG(("Failed to read %#x bytes into cache! err=%u cbActually=%#x\n",
-                                  cbCache, GetLastError(), cbActually));
-                    kHlpFree(pbCache);
-                }
-                else
-                    KWFS_LOG(("Failed to allocate %#x bytes for cache!\n", cbCache));
-#endif
             }
             else
                 KWFS_LOG(("File to big to cache! %#llx\n", cbFile.QuadPart));
@@ -5207,7 +5313,7 @@ static KBOOL kwFsObjCacheCreateFileHandle(PKFSWCACHEDFILE pCachedFile, DWORD dwD
                                           KBOOL fIsFileHandle, HANDLE *phFile)
 {
     HANDLE hProcSelf = GetCurrentProcess();
-    if (DuplicateHandle(hProcSelf, pCachedFile->hCached,
+    if (DuplicateHandle(hProcSelf, fIsFileHandle ? pCachedFile->hCached : pCachedFile->hSection,
                         hProcSelf, phFile,
                         dwDesiredAccess, fInheritHandle,
                         0 /*dwOptions*/))
@@ -5525,7 +5631,8 @@ static DWORD WINAPI kwSandbox_Kernel32_SetFilePointer(HANDLE hFile, LONG cbMove,
             }
             if (pcbMoveHi)
                 *pcbMoveHi = (KU64)offMove >> 32;
-            KWFS_LOG(("SetFilePointer(%p) -> %#llx [cached]\n", hFile, offMove));
+            KWFS_LOG(("SetFilePointer(%p,%#x,?,%u) -> %#llx [%s]\n", hFile, cbMove, dwMoveMethod, offMove,
+                      pHandle->enmType == KWHANDLETYPE_FSOBJ_READ_CACHE ? "cached" : "temp"));
             SetLastError(NO_ERROR);
             return (KU32)offMove;
         }
@@ -5607,7 +5714,8 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
             }
             if (poffNew)
                 poffNew->QuadPart = offMyMove;
-            KWFS_LOG(("SetFilePointerEx(%p) -> TRUE, %#llx [cached]\n", hFile, offMyMove));
+            KWFS_LOG(("SetFilePointerEx(%p,%#llx,,%u) -> TRUE, %#llx [%s]\n", hFile, offMove.QuadPart, dwMoveMethod, offMyMove,
+                      pHandle->enmType == KWHANDLETYPE_FSOBJ_READ_CACHE ? "cached" : "temp"));
             return TRUE;
         }
     }
@@ -5946,7 +6054,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
                                                 LPOVERLAPPED pOverlapped)
 {
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_fCtrlC);
     if (idxHandle < g_Sandbox.cHandles)
     {
         PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
@@ -6498,8 +6606,56 @@ static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFile(HANDLE hSection, DWORD dwDe
               hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvRet));
     return pvRet;
 }
-/** @todo MapViewOfFileEx */
 
+
+/** Kernel32 - MapViewOfFileEx  */
+static PVOID WINAPI kwSandbox_Kernel32_MapViewOfFileEx(HANDLE hSection, DWORD dwDesiredAccess,
+                                                       DWORD offFileHigh, DWORD offFileLow, SIZE_T cbToMap, PVOID pvMapAddr)
+{
+    PVOID       pvRet;
+    KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hSection);
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+    if (idxHandle < g_Sandbox.cHandles)
+    {
+        PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
+        if (pHandle != NULL)
+        {
+            switch (pHandle->enmType)
+            {
+                case KWHANDLETYPE_TEMP_FILE_MAPPING:
+                    KWFS_LOG(("MapViewOfFileEx(%p, %#x, %#x, %#x, %#x, %p) - temporary file!\n",
+                              hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvMapAddr));
+                    if (!pvMapAddr)
+                        return kwSandbox_Kernel32_MapViewOfFile(hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap);
+                    kHlpAssertFailed();
+                    SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                    return NULL;
+
+                case KWHANDLETYPE_FSOBJ_READ_CACHE_MAPPING:
+                    KWFS_LOG(("MapViewOfFileEx(%p, %#x, %#x, %#x, %#x, %p) - read cached file!\n",
+                              hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvMapAddr));
+                    if (!pvMapAddr)
+                        return kwSandbox_Kernel32_MapViewOfFile(hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap);
+                    /* We can use fallback here as the handle is an actual section handle. */
+                    break;
+
+                case KWHANDLETYPE_FSOBJ_READ_CACHE:
+                case KWHANDLETYPE_TEMP_FILE:
+                case KWHANDLETYPE_OUTPUT_BUF:
+                default:
+                    kHlpAssertFailed();
+                    SetLastError(ERROR_INVALID_OPERATION);
+                    return NULL;
+            }
+        }
+    }
+
+    pvRet = MapViewOfFileEx(hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvMapAddr);
+    KWFS_LOG(("MapViewOfFileEx(%p, %#x, %#x, %#x, %#x, %p) -> %p\n",
+              hSection, dwDesiredAccess, offFileHigh, offFileLow, cbToMap, pvMapAddr, pvRet));
+    return pvRet;
+
+}
 
 /** Kernel32 - UnmapViewOfFile  */
 static BOOL WINAPI kwSandbox_Kernel32_UnmapViewOfFile(LPCVOID pvBase)
@@ -6600,7 +6756,7 @@ static BOOL WINAPI kwSandbox_Kernel32_CloseHandle(HANDLE hObject)
 {
     BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hObject);
-    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+    kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_fCtrlC);
     if (idxHandle < g_Sandbox.cHandles)
     {
         PKWHANDLE pHandle = g_Sandbox.papHandles[idxHandle];
@@ -7327,36 +7483,133 @@ BOOL WINAPI kwSandbox_Kernel32_WriteConsoleW(HANDLE hConOutput, CONST VOID *pvBu
  *
  */
 
-/** Kernel32 - VirtualAlloc - for c1[xx].dll 78GB leaks.   */
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+
+/** For debug logging.  */
+# ifndef NDEBUG
+static void kwSandboxLogFixedAllocation(KU32 idxFixed, const char *pszWhere)
+{
+    MEMORY_BASIC_INFORMATION MemInfo = { NULL, NULL, 0, 0, 0, 0, 0};
+    SIZE_T cbMemInfo = VirtualQuery(g_aFixedVirtualAllocs[idxFixed].pvReserved, &MemInfo, sizeof(MemInfo));
+    kHlpAssert(cbMemInfo == sizeof(MemInfo));
+    if (cbMemInfo != 0)
+        KW_LOG(("%s: #%u %p LB %#x: base=%p alloc=%p region=%#x state=%#x prot=%#x type=%#x\n",
+                pszWhere, idxFixed, g_aFixedVirtualAllocs[idxFixed].pvReserved, g_aFixedVirtualAllocs[idxFixed].cbFixed,
+                MemInfo.BaseAddress,
+                MemInfo.AllocationBase,
+                MemInfo.RegionSize,
+                MemInfo.State,
+                MemInfo.Protect,
+                MemInfo.Type));
+}
+# else
+#  define kwSandboxLogFixedAllocation(idxFixed, pszWhere) do { } while (0)
+# endif
+
+/**
+ * Used by both kwSandbox_Kernel32_VirtualFree and kwSandboxCleanupLate
+ *
+ * @param   idxFixed        The fixed allocation index to "free".
+ */
+static void kwSandboxResetFixedAllocation(KU32 idxFixed)
+{
+    BOOL fRc;
+    kwSandboxLogFixedAllocation(idxFixed, "kwSandboxResetFixedAllocation[pre]");
+    fRc = VirtualFree(g_aFixedVirtualAllocs[idxFixed].pvReserved, g_aFixedVirtualAllocs[idxFixed].cbFixed, MEM_DECOMMIT);
+    kHlpAssert(fRc); K_NOREF(fRc);
+    kwSandboxLogFixedAllocation(idxFixed, "kwSandboxResetFixedAllocation[pst]");
+    g_aFixedVirtualAllocs[idxFixed].fInUse = K_FALSE;
+}
+
+#endif /* WITH_FIXED_VIRTUAL_ALLOCS */
+
+
+/** Kernel32 - VirtualAlloc - for managing  cl.exe / c1[xx].dll heap with fixed
+ * location (~78MB in 32-bit 2010 compiler). */
 static PVOID WINAPI kwSandbox_Kernel32_VirtualAlloc(PVOID pvAddr, SIZE_T cb, DWORD fAllocType, DWORD fProt)
 {
-    PVOID pvMem = VirtualAlloc(pvAddr, cb, fAllocType, fProt);
-    KW_LOG(("VirtualAlloc: pvAddr=%p cb=%p type=%#x prot=%#x -> %p (last=%d)\n",
-            pvAddr, cb, fAllocType, fProt, pvMem, GetLastError()));
-    if (   g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL
-        && pvMem)
+    PVOID pvMem;
+    if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
     {
-        PKWVIRTALLOC pTracker;
-        kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+        KU32 idxPreAllocated = KU32_MAX;
 
-        pTracker = g_Sandbox.pVirtualAllocHead;
-        while (   pTracker
-               && (KUPTR)pvMem - (KUPTR)pTracker->pvAlloc >= pTracker->cbAlloc)
-            pTracker = pTracker->pNext;
-        if (!pTracker)
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+        /*
+         * Look for a pre-reserved CL.exe heap allocation.
+         */
+        pvMem = NULL;
+        if (   pvAddr != 0
+            && (fAllocType & MEM_RESERVE))
         {
-            DWORD dwErr = GetLastError();
-            PKWVIRTALLOC pTracker = (PKWVIRTALLOC)kHlpAlloc(sizeof(*pTracker));
-            if (pTracker)
+            KU32 idxFixed = K_ELEMENTS(g_aFixedVirtualAllocs);
+            kHlpAssert(!(fAllocType & ~(MEM_RESERVE | MEM_TOP_DOWN)));
+            while (idxFixed-- > 0)
+                if (   g_aFixedVirtualAllocs[idxFixed].uFixed == (KUPTR)pvAddr
+                    && g_aFixedVirtualAllocs[idxFixed].pvReserved)
+                {
+                    if (g_aFixedVirtualAllocs[idxFixed].cbFixed >= cb)
+                    {
+                        if (!g_aFixedVirtualAllocs[idxFixed].fInUse)
+                        {
+                            g_aFixedVirtualAllocs[idxFixed].fInUse = K_TRUE;
+                            pvMem                           = pvAddr;
+                            idxPreAllocated                 = idxFixed;
+                            KW_LOG(("VirtualAlloc: pvAddr=%p cb=%p type=%#x prot=%#x -> %p [pre allocated]\n",
+                                    pvAddr, cb, fAllocType, fProt, pvMem));
+                            kwSandboxLogFixedAllocation(idxFixed, "kwSandbox_Kernel32_VirtualAlloc");
+                            SetLastError(NO_ERROR);
+                            break;
+                        }
+                        kwErrPrintf("VirtualAlloc: Fixed allocation at %p is already in use!\n", pvAddr);
+                    }
+                    else
+                        kwErrPrintf("VirtualAlloc: Fixed allocation at %p LB %#x not large enough: %#x\n",
+                                     pvAddr, g_aFixedVirtualAllocs[idxFixed].cbFixed, cb);
+                }
+        }
+        if (!pvMem)
+#endif
+        {
+            pvMem = VirtualAlloc(pvAddr, cb, fAllocType, fProt);
+            KW_LOG(("VirtualAlloc: pvAddr=%p cb=%p type=%#x prot=%#x -> %p (last=%d)\n",
+                    pvAddr, cb, fAllocType, fProt, pvMem, GetLastError()));
+            if (pvAddr && pvAddr != pvMem)
+                kwErrPrintf("VirtualAlloc %p LB %#x (%#x,%#x) failed: %p / %u\n",
+                            pvAddr, cb, fAllocType, fProt, pvMem, GetLastError());
+        }
+
+        if (pvMem)
+        {
+            /* 
+             * Track it.
+             */
+            PKWVIRTALLOC pTracker;
+            kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
+
+            pTracker = g_Sandbox.pVirtualAllocHead;
+            while (   pTracker
+                   && (KUPTR)pvMem - (KUPTR)pTracker->pvAlloc >= pTracker->cbAlloc)
+                pTracker = pTracker->pNext;
+            if (!pTracker)
             {
-                pTracker->pvAlloc = pvMem;
-                pTracker->cbAlloc = cb;
-                pTracker->pNext   = g_Sandbox.pVirtualAllocHead;
-                g_Sandbox.pVirtualAllocHead = pTracker;
+                DWORD dwErr = GetLastError();
+                PKWVIRTALLOC pTracker = (PKWVIRTALLOC)kHlpAlloc(sizeof(*pTracker));
+                if (pTracker)
+                {
+                    pTracker->pvAlloc           = pvMem;
+                    pTracker->cbAlloc           = cb;
+                    pTracker->idxPreAllocated   = idxPreAllocated;
+                    pTracker->pNext             = g_Sandbox.pVirtualAllocHead;
+                    g_Sandbox.pVirtualAllocHead = pTracker;
+                }
+                SetLastError(dwErr);
             }
-            SetLastError(dwErr);
         }
     }
+    else
+        pvMem = VirtualAlloc(pvAddr, cb, fAllocType, fProt);
+    KW_LOG(("VirtualAlloc: pvAddr=%p cb=%p type=%#x prot=%#x -> %p (last=%d)\n",
+            pvAddr, cb, fAllocType, fProt, pvMem, GetLastError()));
     return pvMem;
 }
 
@@ -7364,8 +7617,7 @@ static PVOID WINAPI kwSandbox_Kernel32_VirtualAlloc(PVOID pvAddr, SIZE_T cb, DWO
 /** Kernel32 - VirtualFree.   */
 static BOOL WINAPI kwSandbox_Kernel32_VirtualFree(PVOID pvAddr, SIZE_T cb, DWORD dwFreeType)
 {
-    BOOL fRc = VirtualFree(pvAddr, cb, dwFreeType);
-    KW_LOG(("VirtualFree: pvAddr=%p cb=%p type=%#x -> %d\n", pvAddr, cb, dwFreeType, fRc));
+    BOOL fRc;
     if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_CL)
     {
         kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
@@ -7388,12 +7640,57 @@ static BOOL WINAPI kwSandbox_Kernel32_VirtualFree(PVOID pvAddr, SIZE_T cb, DWORD
                         pPrev->pNext = pTracker->pNext;
                 }
                 if (pTracker)
-                    kHlpFree(pTracker);
-                else
-                    KW_LOG(("VirtualFree: pvAddr=%p not found!\n", pvAddr));
+                {
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+                    if (pTracker->idxPreAllocated != KU32_MAX)
+                    {
+                        kwSandboxResetFixedAllocation(pTracker->idxPreAllocated);
+                        KW_LOG(("VirtualFree: pvAddr=%p cb=%p type=%#x -> TRUE [pre allocated #%u]\n",
+                                pvAddr, cb, dwFreeType, pTracker->idxPreAllocated));
+                        kHlpFree(pTracker);
+                        return TRUE;
+                    }
+#endif
+
+                    fRc = VirtualFree(pvAddr, cb, dwFreeType);
+                    if (fRc)
+                        kHlpFree(pTracker);
+                    else
+                    {
+                        pTracker->pNext = g_Sandbox.pVirtualAllocHead;
+                        g_Sandbox.pVirtualAllocHead = pTracker;
+                    }
+                    KW_LOG(("VirtualFree: pvAddr=%p cb=%p type=%#x -> %d\n", pvAddr, cb, dwFreeType, fRc));
+                    return fRc;
+                }
+
+                KW_LOG(("VirtualFree: pvAddr=%p not found!\n", pvAddr));
             }
         }
     }
+
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+    /*
+     * Protect our fixed allocations (this isn't just paranoia, btw.).
+     */
+    if (dwFreeType & MEM_RELEASE)
+    {
+        KU32 idxFixed = K_ELEMENTS(g_aFixedVirtualAllocs);
+        while (idxFixed-- > 0)
+            if (g_aFixedVirtualAllocs[idxFixed].pvReserved == pvAddr)
+            {
+                KW_LOG(("VirtualFree: Damn it! Don't free g_aFixedVirtualAllocs[#%u]: %p LB %#x\n",
+                        idxFixed, g_aFixedVirtualAllocs[idxFixed].pvReserved, g_aFixedVirtualAllocs[idxFixed].cbFixed));
+                return TRUE;
+            }
+    }
+#endif
+
+    /*
+     * Not tracker or not actually free the virtual range.
+     */
+    fRc = VirtualFree(pvAddr, cb, dwFreeType);
+    KW_LOG(("VirtualFree: pvAddr=%p cb=%p type=%#x -> %d\n", pvAddr, cb, dwFreeType, fRc));
     return fRc;
 }
 
@@ -8397,6 +8694,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxReplacements[] =
     { TUPLE("GetFileSizeEx"),               NULL,       (KUPTR)kwSandbox_Kernel32_GetFileSizeEx },
     { TUPLE("CreateFileMappingW"),          NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileMappingW },
     { TUPLE("MapViewOfFile"),               NULL,       (KUPTR)kwSandbox_Kernel32_MapViewOfFile },
+    { TUPLE("MapViewOfFileEx"),             NULL,       (KUPTR)kwSandbox_Kernel32_MapViewOfFileEx },
     { TUPLE("UnmapViewOfFile"),             NULL,       (KUPTR)kwSandbox_Kernel32_UnmapViewOfFile },
 #endif
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
@@ -8533,6 +8831,7 @@ KWREPLACEMENTFUNCTION const g_aSandboxNativeReplacements[] =
     { TUPLE("GetFileSizeEx"),               NULL,       (KUPTR)kwSandbox_Kernel32_GetFileSizeEx },
     { TUPLE("CreateFileMappingW"),          NULL,       (KUPTR)kwSandbox_Kernel32_CreateFileMappingW },
     { TUPLE("MapViewOfFile"),               NULL,       (KUPTR)kwSandbox_Kernel32_MapViewOfFile },
+    { TUPLE("MapViewOfFileEx"),             NULL,       (KUPTR)kwSandbox_Kernel32_MapViewOfFileEx },
     { TUPLE("UnmapViewOfFile"),             NULL,       (KUPTR)kwSandbox_Kernel32_UnmapViewOfFile },
 #endif
     { TUPLE("SetFilePointer"),              NULL,       (KUPTR)kwSandbox_Kernel32_SetFilePointer },
@@ -8611,26 +8910,31 @@ static BOOL WINAPI kwSandboxCtrlHandler(DWORD dwCtrlType)
     {
         case CTRL_C_EVENT:
             fprintf(stderr, "kWorker: Ctrl-C\n");
+            g_fCtrlC = K_TRUE;
             exit(9);
             break;
 
         case CTRL_BREAK_EVENT:
             fprintf(stderr, "kWorker: Ctrl-Break\n");
+            g_fCtrlC = K_TRUE;
             exit(10);
             break;
 
         case CTRL_CLOSE_EVENT:
             fprintf(stderr, "kWorker: console closed\n");
+            g_fCtrlC = K_TRUE;
             exit(11);
             break;
 
         case CTRL_LOGOFF_EVENT:
             fprintf(stderr, "kWorker: logoff event\n");
+            g_fCtrlC = K_TRUE;
             exit(11);
             break;
 
         case CTRL_SHUTDOWN_EVENT:
             fprintf(stderr, "kWorker: shutdown event\n");
+            g_fCtrlC = K_TRUE;
             exit(11);
             break;
 
@@ -9071,7 +9375,13 @@ static void kwSandboxCleanupLate(PKWSANDBOX pSandbox)
     {
         PKWVIRTALLOC pNext = pTracker->pNext;
         KW_LOG(("Freeing VirtualFree leak %p LB %#x\n", pTracker->pvAlloc, pTracker->cbAlloc));
-        VirtualFree(pTracker->pvAlloc, 0, MEM_RELEASE);
+
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+        if (pTracker->idxPreAllocated != KU32_MAX)
+            kwSandboxResetFixedAllocation(pTracker->idxPreAllocated);
+        else
+#endif
+            VirtualFree(pTracker->pvAlloc, 0, MEM_RELEASE);
         kHlpFree(pTracker);
         pTracker = pNext;
     }
@@ -9832,20 +10142,46 @@ static int kwTestRun(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-    KSIZE           cbMsgBuf = 0;
-    KU8            *pbMsgBuf = NULL;
-    int             i;
-    HANDLE          hPipe = INVALID_HANDLE_VALUE;
-    const char     *pszTmp;
-    KFSLOOKUPERROR  enmIgnored;
+    KSIZE                           cbMsgBuf = 0;
+    KU8                            *pbMsgBuf = NULL;
+    int                             i;
+    HANDLE                          hPipe = INVALID_HANDLE_VALUE;
+    const char                     *pszTmp;
+    KFSLOOKUPERROR                  enmIgnored;
 #if defined(KBUILD_OS_WINDOWS) && defined(KBUILD_ARCH_X86)
-    PVOID           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/, kwSandboxVecXcptEmulateChained);
+    PVOID                           pvVecXcptHandler = AddVectoredExceptionHandler(0 /*called last*/,
+                                                                                   kwSandboxVecXcptEmulateChained);
 #endif
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
     HANDLE                          hCurProc       = GetCurrentProcess();
     PPEB                            pPeb           = kwSandboxGetProcessEnvironmentBlock();
     PMY_RTL_USER_PROCESS_PARAMETERS pProcessParams = (PMY_RTL_USER_PROCESS_PARAMETERS)pPeb->ProcessParameters;
     DWORD                           dwType;
+#endif
+
+
+#ifdef WITH_FIXED_VIRTUAL_ALLOCS
+    /*
+     * Reserve memory for cl.exe
+     */
+    for (i = 0; i < K_ELEMENTS(g_aFixedVirtualAllocs); i++)
+    {
+        g_aFixedVirtualAllocs[i].fInUse     = K_FALSE;
+        g_aFixedVirtualAllocs[i].pvReserved = VirtualAlloc((void *)g_aFixedVirtualAllocs[i].uFixed,
+                                                           g_aFixedVirtualAllocs[i].cbFixed,
+                                                           MEM_RESERVE, PAGE_READWRITE);
+        if (   !g_aFixedVirtualAllocs[i].pvReserved
+            || g_aFixedVirtualAllocs[i].pvReserved != (void *)g_aFixedVirtualAllocs[i].uFixed)
+        {
+            kwErrPrintf("Failed to reserve %p LB %#x: %u\n", g_aFixedVirtualAllocs[i].uFixed, g_aFixedVirtualAllocs[i].cbFixed,
+                        GetLastError());
+            if (g_aFixedVirtualAllocs[i].pvReserved)
+            {
+                VirtualFree(g_aFixedVirtualAllocs[i].pvReserved, g_aFixedVirtualAllocs[i].cbFixed, MEM_RELEASE);
+                g_aFixedVirtualAllocs[i].pvReserved = NULL;
+            }
+        }
+    }
 #endif
 
     /*
