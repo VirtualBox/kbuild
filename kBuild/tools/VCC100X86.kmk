@@ -1,4 +1,4 @@
-# $Id: VCC100X86.kmk 2960 2016-09-21 20:57:40Z knut.osmundsen@oracle.com $
+# $Id: VCC100X86.kmk 2964 2016-09-23 11:08:04Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 10.0 (aka Visual 2010 and MSC v16), targeting x86.
 #
@@ -227,6 +227,10 @@ TOOL_VCC100X86-PCH                         := Helper for creating precompiled he
 TOOL_VCC100X86-PCH_EXTENDS                 := VCC100X86
 TOOL_VCC100X86-PCH_CXXOBJSUFF              := .obj
 TOOL_VCC100X86-PCH_CXXINCS                  = $(TOOL_VCC100X86_CXXINCS)
+TOOL_VCC100X86-PCH_CXXFLAGS.debug           = $(TOOL_VCC100X86_CXXFLAGS.debug)
+TOOL_VCC100X86-PCH_CXXFLAGS.dbgopt          = $(TOOL_VCC100X86_CXXFLAGS.dbgopt)
+TOOL_VCC100X86-PCH_CXXFLAGS.release         = $(TOOL_VCC100X86_CXXFLAGS.release)
+TOOL_VCC100X86-PCH_CXXFLAGS.profile         = $(TOOL_VCC100X86_CXXFLAGS.profile)
 TOOL_VCC100X86-PCH_COMPILE_CXX_DEPEND       = $(NO_SUCH_VARIABLE)
 TOOL_VCC100X86-PCH_COMPILE_CXX_DEPORD       = $(NO_SUCH_VARIABLE)
 TOOL_VCC100X86-PCH_COMPILE_CXX_OUTPUT       = $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
