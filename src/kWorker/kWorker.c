@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2962 2016-09-22 23:30:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2965 2016-09-23 18:54:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -958,8 +958,9 @@ static struct
 } g_aFixedVirtualAllocs[] =
 {
 # if K_ARCH == K_ARCH_X86_32
-    /* Visual C++ 2010 reserves 0x04b00000, Visual C++ 2015 reserves 0x05300000. We get 0x06800000. */
-    { KUPTR_C(        0x11000000), KSIZE_C(        0x06800000), NULL },
+    /* Visual C++ 2010 reserves 0x04b00000 by default, and Visual C++ 2015 reserves
+       0x05300000.  We get 0x0f000000 to handle large precompiled header files. */
+    { KUPTR_C(        0x11000000), KSIZE_C(        0x0f000000), NULL },
 # else
     { KUPTR_C(0x000006BB00000000), KSIZE_C(0x000000002EE00000), NULL },
 # endif
