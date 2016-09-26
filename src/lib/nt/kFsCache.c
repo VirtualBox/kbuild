@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2969 2016-09-26 18:16:30Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -1981,6 +1981,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                     KFSCACHE_LOG(("Refreshing %s/%s, ID changed %#llx -> %#llx and names too...\n",
                                   pObj->pParent->Obj.pszName, pObj->pszName, pObj->Stats.st_ino, uBuf.WithId.FileId.QuadPart));
                     fprintf(stderr, "kFsCacheRefreshObj - ID + name change not implemented!!\n");
+                    fflush(stderr);
                     __debugbreak();
                     pObj->Stats.st_ino = uBuf.WithId.FileId.QuadPart;
                     /** @todo implement as needed.   */
@@ -2066,6 +2067,7 @@ static KBOOL kFsCacheRefreshObj(PKFSCACHE pCache, PKFSOBJ pObj, KFSLOOKUPERROR *
                 /* ouch! */
                 kHlpAssertMsgFailed(("%#x\n", rcNt));
                 fprintf(stderr, "kFsCacheRefreshObj - rcNt=%#x on dir - not implemented!\n", rcNt);
+                fflush(stderr);
                 __debugbreak();
                 fRc = K_FALSE;
             }
@@ -3397,6 +3399,7 @@ static PKFSHASHW kFsCacheRefreshPathW(PKFSCACHE pCache, PKFSHASHW pHashEntry, KU
         else
         {
             fprintf(stderr, "kFsCacheRefreshPathW - refresh failure handling not implemented!\n");
+            fflush(stderr);
             __debugbreak();
             /** @todo just remove this entry.   */
             return NULL;
@@ -3810,6 +3813,7 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
     {
         fprintf(stderr, "Destroying %s/%s, type=%d, path hash entries: %d!\n", pObj->pParent ? pObj->pParent->Obj.pszName : "",
                 pObj->pszName, pObj->bObjType, pObj->abUnused[0]);
+        fflush(stderr);
         __debugbreak();
     }
 
