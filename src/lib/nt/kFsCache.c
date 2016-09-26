@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -596,6 +596,7 @@ PKFSOBJ kFsCacheCreateObject(PKFSCACHE pCache, PKFSDIR pParent,
         pObj->pParent       = pParent;
         pObj->uNameHash     = 0;
         pObj->pNextNameHash = NULL;
+        pObj->pNameAlloc    = NULL;
         pObj->pUserDataHead = NULL;
 
 #ifdef KFSCACHE_CFG_UTF16
@@ -803,11 +804,135 @@ static PKFSOBJ kFsCacheCreateMissingW(PKFSCACHE pCache, PKFSDIR pParent, const w
     return NULL;
 }
 
+
+/**
+ * Does the growing of names.
+ *
+ * @returns pCur
+ * @param   pCache          The cache.
+ * @param   pCur            The object.
+ * @param   pchName         The name (not necessarily terminated).
+ * @param   cchName         Name length.
+ * @param   pwcName         The UTF-16 name (not necessarily terminated).
+ * @param   cwcName         The length of the UTF-16 name in wchar_t's.
+ * @param   pchShortName    The short name.
+ * @param   cchShortName    The length of the short name.  This is 0 if no short
+ *                          name.
+ * @param   pwcShortName    The short UTF-16 name.
+ * @param   cwcShortName    The length of the short UTF-16 name.  This is 0 if
+ *                          no short name.
+ */
+static PKFSOBJ kFsCacheRefreshGrowNames(PKFSCACHE pCache, PKFSOBJ pCur,
+                                        const char *pchName, KU32 cchName,
+                                        wchar_t const *pwcName, KU32 cwcName
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                        , const char *pchShortName, KU32 cchShortName,
+                                        wchar_t const *pwcShortName, KU32 cwcShortName
+#endif
+                                        )
+{
+    PKFSOBJNAMEALLOC    pNameAlloc;
+    char               *pch;
+    KU32                cbNeeded;
+
+    pCache->cNameGrowths++;
+
+    /*
+     * Figure out our requirements.
+     */
+    cbNeeded = sizeof(KU32) + cchName + 1;
+#ifdef KFSCACHE_CFG_UTF16
+    cbNeeded += (cwcName + 1) * sizeof(wchar_t);
+#endif
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+    cbNeeded += cchShortName + !!cchShortName;
+# ifdef KFSCACHE_CFG_UTF16
+    cbNeeded += (cwcShortName + !!cwcShortName) * sizeof(wchar_t);
+# endif
+#endif
+    cbNeeded = K_ALIGN_Z(cbNeeded, 8); /* Memory will likely be 8 or 16 byte aligned, so we might just claim it. */
+
+    /*
+     * Allocate memory.
+     */
+    pNameAlloc = pCur->pNameAlloc;
+    if (!pNameAlloc)
+    {
+        pNameAlloc = (PKFSOBJNAMEALLOC)kHlpAlloc(cbNeeded);
+        if (!pNameAlloc)
+            return pCur;
+        pCache->cbObjects += cbNeeded;
+        pCur->pNameAlloc = pNameAlloc;
+        pNameAlloc->cb = cbNeeded;
+    }
+    else if (pNameAlloc->cb < cbNeeded)
+    {
+        pNameAlloc = (PKFSOBJNAMEALLOC)kHlpRealloc(pNameAlloc, cbNeeded);
+        if (!pNameAlloc)
+            return pCur;
+        pCache->cbObjects += cbNeeded - pNameAlloc->cb;
+        pCur->pNameAlloc = pNameAlloc;
+        pNameAlloc->cb = cbNeeded;
+    }
+
+    /*
+     * Copy out the new names, starting with the wide char ones to avoid misaligning them.
+     */
+    pch = &pNameAlloc->abSpace[0];
+
+#ifdef KFSCACHE_CFG_UTF16
+    pCur->pwszName = (wchar_t *)pch;
+    pCur->cwcName  = cwcName;
+    pch = kHlpMemPCopy(pch, pwcName, cwcName * sizeof(wchar_t));
+    *pch++ = '\0';
+    *pch++ = '\0';
+
+# ifdef KFSCACHE_CFG_SHORT_NAMES
+    if (cwcShortName == 0)
+    {
+        pCur->pwszShortName = pCur->pwszName;
+        pCur->cwcShortName  = pCur->cwcName;
+    }
+    else
+    {
+        pCur->pwszShortName = (wchar_t *)pch;
+        pCur->cwcShortName  = cwcShortName;
+        pch = kHlpMemPCopy(pch, pwcShortName, cwcShortName * sizeof(wchar_t));
+        *pch++ = '\0';
+        *pch++ = '\0';
+    }
+# endif
+#endif
+
+    pCur->pszName = pch;
+    pCur->cchName = cchName;
+    pch = kHlpMemPCopy(pch, pchName, cchShortName);
+    *pch++ = '\0';
+
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+    if (cchShortName == 0)
+    {
+        pCur->pszShortName = pCur->pszName;
+        pCur->cchShortName = pCur->cchName;
+    }
+    else
+    {
+        pCur->pszShortName = pch;
+        pCur->cchShortName = cchShortName;
+        pch = kHlpMemPCopy(pch, pchShortName, cchShortName);
+        *pch++ = '\0';
+    }
+#endif
+
+    return pCur;
+}
+
+
 /**
  * Worker for kFsCacheDirFindOldChild that refreshes the file ID value on an
  * object found by name.
  *
- * @returns Pointer to the existing object if found, NULL if not.
+ * @returns pCur.
  * @param   pDirRePop       Repopulation data.
  * @param   pCur            The object to check the names of.
  * @param   idFile          The file ID.
@@ -827,7 +952,7 @@ static PKFSOBJ kFsCacheDirRefreshOldChildFileId(PKFSDIRREPOP pDirRePop, PKFSOBJ 
  * Worker for kFsCacheDirFindOldChild that checks the names after an old object
  * has been found the file ID.
  *
- * @returns Pointer to the existing object if found, NULL if not.
+ * @returns pCur.
  * @param   pDirRePop       Repopulation data.
  * @param   pCur            The object to check the names of.
  * @param   pwcName         The file name.
@@ -841,11 +966,15 @@ static PKFSOBJ kFsCacheDirRefreshOldChildName(PKFSDIRREPOP pDirRePop, PKFSOBJ pC
 #endif
                                               )
 {
+    char szName[KFSCACHE_CFG_MAX_ANSI_NAME];
+    int  cchName;
+
+    pDirRePop->pCache->cNameChanges++;
+
     /*
      * Convert the names to ANSI first, that way we know all the lengths.
      */
-    char szName[KFSCACHE_CFG_MAX_ANSI_NAME];
-    int  cchName = WideCharToMultiByte(CP_ACP, 0, pwcName, cwcName, szName, sizeof(szName) - 1, NULL, NULL);
+    cchName = WideCharToMultiByte(CP_ACP, 0, pwcName, cwcName, szName, sizeof(szName) - 1, NULL, NULL);
     if (cchName >= 0)
     {
 #ifdef KFSCACHE_CFG_SHORT_NAMES
@@ -915,34 +1044,25 @@ static PKFSOBJ kFsCacheDirRefreshOldChildName(PKFSDIRREPOP pDirRePop, PKFSOBJ pC
                     return pCur;
                 }
             }
+
+            return kFsCacheRefreshGrowNames(pDirRePop->pCache, pCur, szName, cchName, pwcName, cwcName,
+#ifdef KFSCACHE_CFG_SHORT_NAMES
+                                            szShortName, cchShortName, pwcShortName, cwcShortName
+#endif
+                                            );
         }
     }
 
-
-    fprintf(stderr,
-            "kFsCacheDirRefreshOldChildName - not implemented!\n"
-            "  Old name:  %#x '%ls'\n"
-            "  New name:  %#x '%*.*ls'\n"
-            "  Old short: %#x '%ls'\n"
-            "  New short: %#x '%*.*ls'\n",
-            pCur->cwcName, pCur->pwszName,
-            cwcName, cwcName, cwcName, pwcName,
-            pCur->cwcShortName, pCur->pwszShortName,
-            cwcShortName, cwcShortName, cwcShortName, pwcShortName);
-    __debugbreak();
-    /** @todo implement this.  It's not entirely straight forward, especially if
-     *        the name increases!  Also, it's something that may happend during
-     *        individual object refresh and we might want to share code... */
-
+    fprintf(stderr, "kFsCacheDirRefreshOldChildName: WideCharToMultiByte error\n");
     return pCur;
 }
 
 
 /**
  * Worker for kFsCacheDirFindOldChild that checks the names after an old object
- * has been found the file ID.
+ * has been found by the file ID.
  *
- * @returns Pointer to the existing object if found, NULL if not.
+ * @returns pCur.
  * @param   pDirRePop       Repopulation data.
  * @param   pCur            The object to check the names of.
  * @param   pwcName         The file name.
@@ -3766,6 +3886,12 @@ KU32 kFsCacheObjDestroy(PKFSCACHE pCache, PKFSOBJ pObj, const char *pszWhere)
 #endif
     pCache->cObjects--;
 
+    if (pObj->pNameAlloc)
+    {
+        pCache->cbObjects -= pObj->pNameAlloc->cb;
+        kHlpFree(pObj->pNameAlloc);
+    }
+
     kHlpFree(pObj);
     return 0;
 }
@@ -4436,6 +4562,8 @@ PKFSCACHE kFsCacheCreate(KU32 fFlags)
             pCache->cChildHashTabs          = 1;
             pCache->cChildHashEntriesTotal  = pCache->RootDir.fHashTabMask + 1;
             pCache->cChildHashCollisions    = 0;
+            pCache->cNameChanges            = 0;
+            pCache->cNameGrowths            = 0;
             pCache->cAnsiPaths              = 0;
             pCache->cAnsiPathCollisions     = 0;
             pCache->cbAnsiPaths             = 0;
