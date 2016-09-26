@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2948 2016-09-20 15:36:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2968 2016-09-26 18:14:50Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -76,7 +76,10 @@ kWorkerLib_SOURCES.win = \
        nt/ntstat.c \
        nt/ntunlink.c \
        nt/kFsCache.c \
-       quote_argv.c
+       quote_argv.c \
+	maybe_con_write.c \
+	maybe_con_fwrite.c \
+	msc_buffered_printf.c
 kbuild_version.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 #

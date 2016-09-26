@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2965 2016-09-23 18:54:16Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2968 2016-09-26 18:14:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -43,6 +43,7 @@
 #include <setjmp.h>
 #include <ctype.h>
 #include <errno.h>
+#include <process.h>
 
 #include "nt/ntstat.h"
 #include "kbuild_version.h"
@@ -976,6 +977,17 @@ static unsigned  g_iHistoryNext = 0;
 #endif
 
 
+/** Number of jobs executed. */
+static KU32     g_cJobs;
+/** Number of tools. */
+static KU32     g_cTools;
+/** Number of modules. */
+static KU32     g_cModules;
+/** Number of non-native modules. */
+static KU32     g_cNonNativeModules;
+
+
+
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
@@ -1817,6 +1829,7 @@ static PKWMODULE kwLdrModuleCreateForNativekLdrModule(PKLDRMOD pLdrMod, const ch
 
         KW_LOG(("New module: %p LB %#010x %s (native)\n",
                 (KUPTR)pMod->pLdrMod->aSegments[0].MapAddress, kLdrModSize(pMod->pLdrMod), pMod->pszPath));
+        g_cModules++;
         return kwLdrModuleLink(pMod);
     }
     return NULL;
@@ -2123,6 +2136,8 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                      */
                                     pMod->u.Manual.pvBits = pMod->u.Manual.pbCopy;
                                     pMod->u.Manual.enmState = KWMODSTATE_NEEDS_BITS;
+                                    g_cModules++;
+                                    g_cNonNativeModules++;
                                     return pMod;
                                 }
                             }
@@ -2833,6 +2848,7 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj)
             pTool->enmType = KWTOOLTYPE_EXEC;
 
         kFsCacheObjRelease(g_pFsCache, pToolFsObj);
+        g_cTools++;
         return pTool;
     }
     kFsCacheObjRelease(g_pFsCache, pToolFsObj);
@@ -9696,6 +9712,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
             KW_LOG(("  papszPostCmdArgs[%u]=%s\n", i, papszPostCmdArgs[i]));
     }
 #endif
+    g_cJobs++;
 
     /*
      * Lookup the tool.
@@ -10036,6 +10053,96 @@ static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShu
 
 
 /**
+ * Prints statistics.
+ */
+static void kwPrintStats(void)
+{
+    PROCESS_MEMORY_COUNTERS_EX MemInfo;
+    MEMORYSTATUSEX MemStatus;
+    IO_COUNTERS IoCounters;
+    DWORD cHandles;
+    KSIZE cMisses;
+    char  szBuf[16*1024];
+    int   off = 0;
+    char  szPrf[24];
+    extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *pFile);
+
+    sprintf(szPrf, "%5d/%u:", getpid(), K_ARCH_BITS);
+
+    szBuf[off++] = '\n';
+
+    off += sprintf(&szBuf[off], "%s %10" KU32_PRI " jobs,  %" KU32_PRI" tools,  %" KU32_PRI " modules,  %" KU32_PRI" non-native ones\n",
+                   szPrf, g_cJobs, g_cTools, g_cModules, g_cNonNativeModules);
+
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes for the cache\n",
+                   szPrf, g_pFsCache->cbObjects + g_pFsCache->cbAnsiPaths + g_pFsCache->cbUtf16Paths + sizeof(*g_pFsCache));
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " objects, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes\n",
+                   szPrf, g_pFsCache->cObjects, g_pFsCache->cbObjects,
+                   g_pFsCache->cbObjects / g_pFsCache->cObjects);
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " A path hashes, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes, %" KSIZE_PRI_U " collision\n",
+                   szPrf, g_pFsCache->cAnsiPaths, g_pFsCache->cbAnsiPaths,
+                   g_pFsCache->cbAnsiPaths / K_MAX(g_pFsCache->cAnsiPaths, 1), g_pFsCache->cAnsiPathCollisions);
+#ifdef KFSCACHE_CFG_UTF16
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " W path hashes, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes, %" KSIZE_PRI_U " collisions\n",
+                   szPrf, g_pFsCache->cUtf16Paths, g_pFsCache->cbUtf16Paths,
+                   g_pFsCache->cbUtf16Paths / K_MAX(g_pFsCache->cUtf16Paths, 1), g_pFsCache->cUtf16PathCollisions);
+#endif
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " child hash tables, total of %" KSIZE_PRI_U " entries, %" KSIZE_PRI_U " children inserted, %" KSIZE_PRI_U " collisions\n",
+                   szPrf, g_pFsCache->cChildHashTabs, g_pFsCache->cChildHashEntriesTotal,
+                   g_pFsCache->cChildHashed, g_pFsCache->cChildHashCollisions);
+
+    cMisses = g_pFsCache->cLookups - g_pFsCache->cPathHashHits - g_pFsCache->cWalkHits;
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " lookups: %" KSIZE_PRI_U " (%" KU64_PRI " %%) path hash hits, %" KSIZE_PRI_U " (%" KU64_PRI "%%) walks hits, %" KSIZE_PRI_U " (%" KU64_PRI "%%) misses\n",
+                   szPrf, g_pFsCache->cLookups,
+                   g_pFsCache->cPathHashHits, g_pFsCache->cPathHashHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
+                   g_pFsCache->cWalkHits, g_pFsCache->cWalkHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
+                   cMisses, cMisses * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1));
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " child searches, %" KSIZE_PRI_U " (%" KU64_PRI "%%) hash hits\n",
+                   szPrf, g_pFsCache->cChildSearches,
+                   g_pFsCache->cChildHashHits, g_pFsCache->cChildHashHits * (KU64)100 / K_MAX(g_pFsCache->cChildSearches, 1));
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " name changes, growing %" KSIZE_PRI_U " times (%" KU64_PRI "%%)\n",
+                   szPrf, g_pFsCache->cNameChanges, g_pFsCache->cNameGrowths,
+                   g_pFsCache->cNameGrowths * 100 / K_MAX(g_pFsCache->cNameChanges, 1) );
+
+
+    /*
+     * Process & Memory details.
+     */
+    if (!GetProcessHandleCount(GetCurrentProcess(), &cHandles))
+        cHandles = 0;
+    MemInfo.cb = sizeof(MemInfo);
+    if (!GetProcessMemoryInfo(GetCurrentProcess(), (PPROCESS_MEMORY_COUNTERS)&MemInfo, sizeof(MemInfo)))
+        memset(&MemInfo, 0, sizeof(MemInfo));
+    off += sprintf(&szBuf[off], "%s %10" KU32_PRI " handles; %" KU32_PRI " page faults; %" KSIZE_PRI_U " bytes page file, peaking at %" KSIZE_PRI_U " bytes\n",
+                   szPrf, cHandles, MemInfo.PageFaultCount, MemInfo.PagefileUsage, MemInfo.PeakPagefileUsage);
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes working set, peaking at %" KSIZE_PRI_U " bytes; %" KSIZE_PRI_U " byte private\n",
+                   szPrf, MemInfo.WorkingSetSize, MemInfo.PeakWorkingSetSize, MemInfo.PrivateUsage);
+    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes non-paged pool, peaking at %" KSIZE_PRI_U " bytes; %7" KSIZE_PRI_U " bytes paged pool, peaking at %" KSIZE_PRI_U " bytes\n",
+                   szPrf, MemInfo.QuotaNonPagedPoolUsage, MemInfo.QuotaPeakNonPagedPoolUsage,
+                   MemInfo.QuotaPagedPoolUsage, MemInfo.QuotaPeakPagedPoolUsage);
+
+    if (!GetProcessIoCounters(GetCurrentProcess(), &IoCounters))
+        memset(&IoCounters, 0, sizeof(IoCounters));
+    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " reads\n",
+                   szPrf, IoCounters.ReadTransferCount, IoCounters.ReadOperationCount);
+    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " writes\n",
+                   szPrf, IoCounters.WriteTransferCount, IoCounters.WriteOperationCount);
+    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " other I/O operations\n",
+                   szPrf, IoCounters.OtherTransferCount, IoCounters.OtherOperationCount);
+
+    MemStatus.dwLength = sizeof(MemStatus);
+    if (!GlobalMemoryStatusEx(&MemStatus))
+        memset(&MemStatus, 0, sizeof(MemStatus));
+    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes used VA, %#" KX64_PRI " bytes available\n", szPrf,
+                   MemStatus.ullTotalVirtual - MemStatus.ullAvailVirtual, MemStatus.ullAvailVirtual);
+    off += sprintf(&szBuf[off], "%s %9u%% system memory load\n", szPrf, MemStatus.dwMemoryLoad);
+
+    maybe_con_fwrite(szBuf, off, 1, stdout);
+    fflush(stdout);
+}
+
+
+/**
  * Handles what comes after --test.
  *
  * @returns Exit code.
@@ -10135,6 +10242,9 @@ static int kwTestRun(int argc, char **argv)
         KW_LOG(("rcExit=%d\n", rcExit));
         kwSandboxCleanupLate(&g_Sandbox);
     }
+
+    if (getenv("KWORKER_STATS") != NULL)
+        kwPrintStats();
 
 # ifdef WITH_LOG_FILE
     if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
@@ -10435,6 +10545,8 @@ int main(int argc, char **argv)
         if (g_hLogFile != INVALID_HANDLE_VALUE && g_hLogFile != NULL)
             CloseHandle(g_hLogFile);
 #endif
+        if (getenv("KWORKER_STATS") != NULL)
+            kwPrintStats();
         return rc > 0 ? 0 : 1;
     }
 }
