@@ -1,4 +1,4 @@
-/* $Id: msc_buffered_printf.c 2910 2016-09-10 00:57:29Z knut.osmundsen@oracle.com $ */
+/* $Id: msc_buffered_printf.c 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * printf, vprintf, fprintf, puts, fputs console optimizations for Windows/MSC.
  */
@@ -46,6 +46,12 @@
 #undef fputs
 #pragma warning(disable: 4273) /* inconsistent dll linkage*/
 
+#ifndef KWORKER
+# define DLL_IMPORT __declspec(dllexport)
+#else
+# define DLL_IMPORT
+#endif
+
 extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *pFile);
 
 
@@ -56,7 +62,7 @@ extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, 
  * @param   pszFormat           The format string.
  * @param   ...                 Format arguments.
  */
-__declspec(dllexport)
+DLL_IMPORT
 int __cdecl printf(const char *pszFormat, ...)
 {
     int cchRet;
@@ -75,7 +81,7 @@ int __cdecl printf(const char *pszFormat, ...)
  * @param   pszFormat           The format string.
  * @param   va                  Format arguments.
  */
-__declspec(dllexport)
+DLL_IMPORT
 int __cdecl vprintf(const char *pszFormat, va_list va)
 {
     /*
@@ -113,7 +119,7 @@ int __cdecl vprintf(const char *pszFormat, va_list va)
  * @param   pszFormat           The format string.
  * @param   va                  Format arguments.
  */
-__declspec(dllexport)
+DLL_IMPORT
 int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
 {
     va_list va;
@@ -159,7 +165,7 @@ int __cdecl fprintf(FILE *pFile, const char *pszFormat, ...)
  * @returns Units written; 0 & errno on failure.
  * @param   pszString           The string to write. (newline is appended)
  */
-__declspec(dllexport)
+DLL_IMPORT
 int __cdecl puts(const char *pszString)
 {
     size_t cchString = strlen(pszString);
@@ -234,7 +240,7 @@ int __cdecl puts(const char *pszString)
  * @param   pszString           The string to write (no newline added).
  * @param   pFile               The output file.
  */
-__declspec(dllexport)
+DLL_IMPORT
 int __cdecl fputs(const char *pszString, FILE *pFile)
 {
     size_t cchString = strlen(pszString);

@@ -1,4 +1,4 @@
-/* $Id: kFsCache.h 2945 2016-09-20 01:46:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.h 2967 2016-09-26 18:14:13Z knut.osmundsen@oracle.com $ */
 /** @file
  * kFsCache.c - NT directory content cache.
  */
@@ -129,6 +129,21 @@ typedef struct KFSUSERDATA
 
 
 /**
+ * Storage for name strings for the unlikely event that they should grow in
+ * length after the KFSOBJ was created.
+ */
+typedef struct KFSOBJNAMEALLOC
+{
+    /** Size of the allocation. */
+    KU32        cb;
+    /** The space for names. */
+    char        abSpace[1];
+} KFSOBJNAMEALLOC;
+/** Name growth allocation. */
+typedef KFSOBJNAMEALLOC *PKFSOBJNAMEALLOC;
+
+
+/**
  * Base cache node.
  */
 typedef struct KFSOBJ
@@ -200,6 +215,9 @@ typedef struct KFSOBJ
     const wchar_t      *pwszShortName;
 # endif
 #endif
+
+    /** Allocation for handling name length increases. */
+    PKFSOBJNAMEALLOC    pNameAlloc;
 
     /** Pointer to the first user data item */
     PKFSUSERDATA        pUserDataHead;
@@ -410,8 +428,13 @@ typedef struct KFSCACHE
     KSIZE               cChildHashEntriesTotal;
     /** Number of children inserted into the hash tables. */
     KSIZE               cChildHashed;
-    /** Number of collisions in the child hash tables */
+    /** Number of collisions in the child hash tables. */
     KSIZE               cChildHashCollisions;
+    /** Number times a object name changed. */
+    KSIZE               cNameChanges;
+    /** Number times a object name grew and needed KFSOBJNAMEALLOC.
+     *  (Subset of cNameChanges) */
+    KSIZE               cNameGrowths;
 
     /** The root directory. */
     KFSDIR              RootDir;
