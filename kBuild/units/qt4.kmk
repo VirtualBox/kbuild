@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2975 2016-09-27 14:14:15Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2976 2016-09-27 14:29:14Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -245,7 +245,7 @@ ifndef PATH_TOOL_QT4_BIN
   ifdef TOOL_QT4_BIN_SUFF
    TOOL_QT4_BIN_SUFF := $(TOOL_QT4_BIN_SUFF)
   endif
-  # Try looking for moc-qt4 / moc-$(suffix) first.
+  # Try looking for moc-$(suffix) first, if specified.
   ifneq ($(TOOL_QT4_BIN_SUFF),)
    PATH_TOOL_QT4_BIN := $(patsubst %/moc$(TOOL_QT4_BIN_SUFF),%,$(firstword $(wildcard \
 	 $(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt4/bin/moc$(TOOL_QT4_BIN_SUFF)) \
@@ -256,7 +256,19 @@ ifndef PATH_TOOL_QT4_BIN
 	 /usr/bin/moc$(TOOL_QT4_BIN_SUFF) \
 	 )))
   else
-   PATH_TOOL_QT4_BIN := $(patsubst %/moc-qt4,%,$(firstword $(wildcard \
+   # No suffix given, so before we check out -qt4 look at qt4 specific locations to avoid choosers and symlinks.
+   PATH_TOOL_QT4_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt4/bin/moc-qt4) \
+	$(if $(intersects $(KBUILD_HOST_ARCH), $(KBUILD_ARCHES_64)),/usr/lib64/qt4/bin/moc,) \
+	/usr/lib/qt4/bin/moc \
+	/usr/local/lib/qt4/bin/moc \
+	/usr/qt/4/bin/moc \
+	/usr/local/qt/4/bin/moc \
+	/usr/share/qt4/bin/moc \
+	/usr/local/share/qt4/bin/moc \
+	))) \
+   ifeq ($(PATH_TOOL_QT4_BIN),)
+    PATH_TOOL_QT4_BIN := $(patsubst %/moc-qt4,%,$(firstword $(wildcard \
 	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt4/bin/moc-qt4) \
 	/usr/lib/qt4/bin/moc-qt4 \
 	/usr/qt/4/bin/moc-qt4 \
@@ -264,16 +276,9 @@ ifndef PATH_TOOL_QT4_BIN
 	/usr/local/bin/moc-qt4 \
 	/usr/bin/moc-qt4 \
 	)))
-   ifneq ($(PATH_TOOL_QT4_BIN),)
-    TOOL_QT4_BIN_SUFF := -qt4
-   else
-    # If no luck, try looking for moc in the qt4 specific locations.
-    PATH_TOOL_QT4_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
-	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt4/bin/moc) \
-	/usr/lib/qt4/bin/moc \
-	/usr/qt/4/bin/moc \
-	/usr/share/qt4/bin/moc \
-	)))
+    ifneq ($(PATH_TOOL_QT4_BIN),)
+     TOOL_QT4_BIN_SUFF := -qt4
+    endif
    endif
   endif
   # If still no go, try looking for qt3to4 and rcc.
