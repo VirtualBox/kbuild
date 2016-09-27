@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2805 2016-01-28 11:08:44Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2973 2016-09-27 11:26:08Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -103,6 +103,7 @@ ifndef PATH_SDK_QT4
     endif
     ifeq ($(PATH_SDK_QT4),)
      PATH_SDK_QT4 := $(patsubst %/bin/rcc,%,$(firstword $(wildcard \
+       /usr/lib/*/qt4/bin/rcc
      	/usr/bin/rcc \
      	/usr/local/bin/rcc \
      	/usr/qt/4/bin/rcc \
