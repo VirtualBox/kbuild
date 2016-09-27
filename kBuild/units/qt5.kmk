@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2942 2016-09-19 20:02:13Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2972 2016-09-27 11:25:53Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -115,10 +115,11 @@ ifndef PATH_SDK_QT5
      # Locate the include files.
      ifeq ($(PATH_SDK_QT5_INC),)
       PATH_SDK_QT5_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard \
-	$(PATH_SDK_QT5)/include/QtCore/qglobal.h \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_TARGET_DOT_ARCH),/usr/include/$(type)/qt5/QtCore/qglobal.h) \
 	$(PATH_SDK_QT5)/include/qt5/QtCore/qglobal.h \
 	/usr/include/qt5/QtCore/qtglobal.h \
 	/usr/local/include/qt5/QtCore/qtglobal.h \
+	$(PATH_SDK_QT5)/include/QtCore/qglobal.h \
 	)))
       ifneq ($(PATH_SDK_QT5_INC),)
        export PATH_SDK_QT5_INC
@@ -132,10 +133,10 @@ ifndef PATH_SDK_QT5
 	$(PATH_SDK_QT5)/lib32/qt5/libQt5Core$(SUFF_DLL) \
 	/usr/lib32/libQt5Core$(SUFF_DLL) \
 	/usr/lib32/qt5/libQt5Core$(SUFF_DLL) \
-	/usr/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET).x86),/usr/lib/$(type)/libQt5Core$(SUFF_DLL)) \
 	/usr/local/lib32/libQt5Core$(SUFF_DLL) \
 	/usr/local/lib32/qt5/libQt5Core$(SUFF_DLL) \
-	/usr/local/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET).x86),/usr/local/lib/$(type)/libQt5Core$(SUFF_DLL)) \
 	$(PATH_SDK_QT5)/lib/libQt5Core$(SUFF_DLL) \
 	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
 	$(PATH_SDK_QT5)/lib/i386-linux-gnu/libQt5Core$(SUFF_DLL) \
@@ -152,11 +153,11 @@ ifndef PATH_SDK_QT5
 	/usr/lib64/libQt5Core$(SUFF_DLL) \
 	/usr/lib64/qt5/libQt5Core$(SUFF_DLL) \
 	/usr/lib/amd64/libQt5Core$(SUFF_DLL) \
-	/usr/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET).amd64),/usr/lib/$(type)/libQt5Core$(SUFF_DLL)) \
 	/usr/local/lib64/libQt5Core$(SUFF_DLL) \
 	/usr/local/lib64/qt5/libQt5Core$(SUFF_DLL) \
 	/usr/local/lib/amd64/libQt5Core$(SUFF_DLL) \
-	/usr/local/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET).amd64),/usr/local/lib/$(type)/libQt5Core$(SUFF_DLL)) \
 	$(PATH_SDK_QT5)/lib/libQt5Core$(SUFF_DLL) \
 	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
 	$(PATH_SDK_QT5)/lib/x86_64-linux-gnu/libQt5Core$(SUFF_DLL) \
@@ -175,8 +176,10 @@ ifndef PATH_SDK_QT5
        	$(PATH_SDK_QT5)/lib/qt5/libQt5Core$(SUFF_DLL) \
        	/usr/lib/libQt5Core$(SUFF_DLL) \
        	/usr/lib/qt5/libQt5Core$(SUFF_DLL) \
+       	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_TARGET_DOT_ARCH),/usr/lib/$(type)/libQt5Core$(SUFF_DLL)) \
        	/usr/local/lib/libQt5Core$(SUFF_DLL) \
        	/usr/local/lib/qt5/libQt5Core$(SUFF_DLL) \
+       	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_TARGET_DOT_ARCH),/usr/local/lib/$(type)/libQt5Core$(SUFF_DLL)) \
        	)))
       endif
       ifneq ($(PATH_SDK_QT5_LIB),)
@@ -244,6 +247,7 @@ ifndef PATH_TOOL_QT5_BIN
   # Try looking for moc-qt5 / moc-$(suffix) first.
   ifneq ($(TOOL_QT5_BIN_SUFF),)
    PATH_TOOL_QT5_BIN := $(patsubst %/moc$(TOOL_QT5_BIN_SUFF),%,$(firstword $(wildcard \
+	 $(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/moc$(TOOL_QT5_BIN_SUFF)) \
 	 /usr/lib/qt5/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 /usr/qt/5/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 /usr/share/qt5/bin/moc$(TOOL_QT5_BIN_SUFF) \
@@ -252,6 +256,7 @@ ifndef PATH_TOOL_QT5_BIN
 	 )))
   else
    PATH_TOOL_QT5_BIN := $(patsubst %/moc-qt5,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/moc-qt5) \
 	/usr/lib/qt5/bin/moc-qt5 \
 	/usr/qt/5/bin/moc-qt5 \
 	/usr/share/qt5/bin/moc-qt5 \
@@ -263,6 +268,7 @@ ifndef PATH_TOOL_QT5_BIN
    else
     # If no luck, try looking for moc in the qt5 specific locations.
     PATH_TOOL_QT5_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/moc) \
 	/usr/lib/qt5/bin/moc \
 	/usr/qt/5/bin/moc \
 	/usr/share/qt5/bin/moc \
@@ -272,6 +278,7 @@ ifndef PATH_TOOL_QT5_BIN
   # If still no go, try looking for qt4to5 and rcc.
   ifeq ($(PATH_TOOL_QT5_BIN),)
    PATH_TOOL_QT5_BIN := $(patsubst %/qt4to5,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/qt4to5) \
 	/usr/lib/qt5/bin/qt4to5 \
 	/usr/qt/5/bin/qt4to5 \
 	/usr/share/qt5/bin/qt4to5 \
@@ -281,6 +288,7 @@ ifndef PATH_TOOL_QT5_BIN
   endif
   ifeq ($(PATH_TOOL_QT5_BIN),)
    PATH_TOOL_QT5_BIN := $(patsubst %/rcc$(TOOL_QT5_BIN_SUFF),%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/rcc$(TOOL_QT5_BIN_SUFF)) \
 	/usr/lib/qt5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
 	/usr/qt/5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
 	/usr/share/qt5/bin/rcc$(TOOL_QT5_BIN_SUFF) \
@@ -290,6 +298,7 @@ ifndef PATH_TOOL_QT5_BIN
   endif
   if "$(PATH_TOOL_QT5_BIN)" == "" && "$(TOOL_QT5_BIN_SUFF)" != ""
    PATH_TOOL_QT5_BIN := $(patsubst %/rcc,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.KBUILD_HOST_DOT_ARCH),/usr/lib/$(type)/qt5/bin/rcc) \
 	/usr/lib/qt5/bin/rcc \
 	/usr/qt/5/bin/rcc \
 	/usr/share/qt5/bin/rcc \
