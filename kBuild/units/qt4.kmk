@@ -1,4 +1,4 @@
-# $Id: qt4.kmk 2976 2016-09-27 14:29:14Z knut.osmundsen@oracle.com $
+# $Id: qt4.kmk 2977 2016-09-27 14:29:39Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 4 unit.
 #
@@ -266,7 +266,7 @@ ifndef PATH_TOOL_QT4_BIN
 	/usr/local/qt/4/bin/moc \
 	/usr/share/qt4/bin/moc \
 	/usr/local/share/qt4/bin/moc \
-	))) \
+	)))
    ifeq ($(PATH_TOOL_QT4_BIN),)
     PATH_TOOL_QT4_BIN := $(patsubst %/moc-qt4,%,$(firstword $(wildcard \
 	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt4/bin/moc-qt4) \
