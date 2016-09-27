@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2979 2016-09-27 14:36:32Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2980 2016-09-27 14:40:53Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -257,7 +257,7 @@ ifndef PATH_TOOL_QT5_BIN
 	 )))
   else
    # No suffix given, so before we check out -qt5 look at qt5 specific locations to avoid choosers and symlinks.
-   PATH_TOOL_QT4_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
+   PATH_TOOL_QT5_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
 	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt5/bin/moc) \
 	$(if $(intersects $(KBUILD_HOST_ARCH), $(KBUILD_ARCHES_64)),/usr/lib64/qt5/bin/moc,) \
 	/usr/lib/qt5/bin/moc \
