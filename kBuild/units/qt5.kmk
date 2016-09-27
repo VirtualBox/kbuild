@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2975 2016-09-27 14:14:15Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2978 2016-09-27 14:32:29Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -256,7 +256,19 @@ ifndef PATH_TOOL_QT5_BIN
 	 /usr/bin/moc$(TOOL_QT5_BIN_SUFF) \
 	 )))
   else
-   PATH_TOOL_QT5_BIN := $(patsubst %/moc-qt5,%,$(firstword $(wildcard \
+   # No suffix given, so before we check out -qt5 look at qt5 specific locations to avoid choosers and symlinks.
+   PATH_TOOL_QT4_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt5/bin/moc) \
+	$(if $(intersects $(KBUILD_HOST_ARCH), $(KBUILD_ARCHES_64)),/usr/lib64/qt5/bin/moc,) \
+	/usr/lib/qt5/bin/moc \
+	/usr/local/lib/qt5/bin/moc \
+	/usr/qt/5/bin/moc \
+	/usr/local/qt/5/bin/moc \
+	/usr/share/qt5/bin/moc \
+	/usr/local/share/qt5/bin/moc \
+	)))
+   ifeq ($(PATH_TOOL_QT5_BIN),)
+    PATH_TOOL_QT5_BIN := $(patsubst %/moc-qt5,%,$(firstword $(wildcard \
 	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt5/bin/moc-qt5) \
 	/usr/lib/qt5/bin/moc-qt5 \
 	/usr/qt/5/bin/moc-qt5 \
@@ -264,16 +276,9 @@ ifndef PATH_TOOL_QT5_BIN
 	/usr/local/bin/moc-qt5 \
 	/usr/bin/moc-qt5 \
 	)))
-   ifneq ($(PATH_TOOL_QT5_BIN),)
-    TOOL_QT5_BIN_SUFF := -qt5
-   else
-    # If no luck, try looking for moc in the qt5 specific locations.
-    PATH_TOOL_QT5_BIN := $(patsubst %/moc,%,$(firstword $(wildcard \
-	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_HOST_DOT_ARCH)),/usr/lib/$(type)/qt5/bin/moc) \
-	/usr/lib/qt5/bin/moc \
-	/usr/qt/5/bin/moc \
-	/usr/share/qt5/bin/moc \
-	)))
+    ifneq ($(PATH_TOOL_QT5_BIN),)
+     TOOL_QT5_BIN_SUFF := -qt5
+    endif
    endif
   endif
   # If still no go, try looking for qt4to5 and rcc.
