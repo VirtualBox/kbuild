@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2978 2016-09-27 14:32:29Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2979 2016-09-27 14:36:32Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -336,7 +336,7 @@ else
  # Pathless, relies on the environment.
  TOOL_QT5_MOC       ?= moc$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
  TOOL_QT5_UIC       ?= uic$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
- TOOL_QT5_RCC       ?= rcc$(HOSTSUFF_EXE)
+ TOOL_QT5_RCC       ?= rcc$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
  TOOL_QT5_LRC       ?= lrelease$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
  TOOL_QT5_LUPDATE   ?= lupdate$(TOOL_QT5_BIN_SUFF)$(HOSTSUFF_EXE)
 endif
