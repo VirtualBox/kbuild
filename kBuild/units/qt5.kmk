@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2974 2016-09-27 14:05:27Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 2975 2016-09-27 14:14:15Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -103,6 +103,7 @@ ifndef PATH_SDK_QT5
     endif
     ifeq ($(PATH_SDK_QT5),)
      PATH_SDK_QT5 := $(patsubst %/bin/rcc,%,$(firstword $(wildcard \
+       /usr/lib/*/qt5/bin/rcc \
      	/usr/bin/rcc \
      	/usr/local/bin/rcc \
      	/usr/qt/5/bin/rcc \
