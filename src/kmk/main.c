@@ -1234,16 +1234,33 @@ get_online_cpu_count(void)
 {
 # ifdef WINDOWS32
     /* Windows: Count the active CPUs. */
-    int cpus, i;
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    for (i = cpus = 0; i < sizeof(si.dwActiveProcessorMask) * 8; i++)
+    int cpus;
+
+    /* Process groups (W7+). */
+    typedef DWORD (WINAPI *PFNGETACTIVEPROCESSORCOUNT)(DWORD);
+    PFNGETACTIVEPROCESSORCOUNT pfnGetActiveProcessorCount;
+    pfnGetActiveProcessorCount = (PFNGETACTIVEPROCESSORCOUNT)GetProcAddress(GetModuleHandleW(L"kernel32.dll"),
+                                                                            "GetActiveProcessorCount");
+    if (pfnGetActiveProcessorCount)
+      cpus = pfnGetActiveProcessorCount(ALL_PROCESSOR_GROUPS);
+    /* Legacy (<= Vista). */
+    else
       {
-        if (si.dwActiveProcessorMask & 1)
-          cpus++;
-        si.dwActiveProcessorMask >>= 1;
+        int i;
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        for (i = cpus = 0; i < sizeof(si.dwActiveProcessorMask) * 8; i++)
+          {
+            if (si.dwActiveProcessorMask & 1)
+              cpus++;
+            si.dwActiveProcessorMask >>= 1;
+          }
       }
-    return cpus ? cpus : 1;
+    if (!cpus)
+      cpus = 1;
+    if (cpus > 64)
+      cpus = 64; /* (wait for multiple objects limit) */
+    return cpus;
 
 # elif defined(__OS2__)
     /* OS/2: Count the active CPUs. */
