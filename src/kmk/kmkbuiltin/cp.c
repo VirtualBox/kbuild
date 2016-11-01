@@ -221,11 +221,9 @@ kmk_builtin_cp(int argc, char *argv[], char **envp)
 		case 'p':
 			pflag = 1;
 			break;
-#if 0 /* only one -R */
 		case 'r':
 			rflag = 1;
 			break;
-#endif
 		case 'v':
 			vflag = 1;
 			break;
@@ -695,6 +693,7 @@ usage(FILE *fp)
 "   -f  Force. Overrides -i and -n.\n"
 "   -i  Iteractive. Overrides -n and -f.\n"
 "   -n  Don't overwrite any files. Overrides -i and -f.\n"
+"   -v  Verbose.\n"
 "   --ignore-non-existing\n"
 "       Don't fail if the specified source file doesn't exist.\n"
 "   --changed\n"
