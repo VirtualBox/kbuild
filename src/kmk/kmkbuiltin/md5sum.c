@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 2414 2010-09-12 18:42:06Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 2984 2016-11-01 18:24:11Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -299,26 +299,45 @@ static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgre
 {
     int cb;
     int rc = 0;
-    char abBuf[32*1024];
     struct MD5Context Ctx;
     unsigned uPercent = 0;
-    double cbFile = 0.0;
     double off = 0.0;
+    double cbFile = size_file(pvFile);
 
-    if (fProgress)
+    /* Get a decent sized buffer assuming we'll be spending more time reading
+       from the storage than doing MD5 sums.  (2MB was choosen based on recent
+       SATA storage benchmarks which used that block size for sequential
+       tests.) We align the buffer address on a 16K boundrary to avoid most
+       transfer alignment issues. */
+    char        *pabBufAligned;
+    size_t const cbBufAlign = 16*1024 - 1;
+    size_t const cbBufMax = 2048*1024;
+    size_t       cbBuf    = cbFile >= cbBufMax ? cbBufMax : ((size_t)cbFile + cbBufAlign) & ~(size_t)cbBufAlign;
+    char        *pabBuf   = (char *)malloc(cbBuf + cbBufAlign);
+    if (pabBuf)
+        pabBufAligned = (char *)(((uintptr_t)pabBuf + cbBufAlign) & ~(uintptr_t)cbBufAlign );
+    else
     {
-        cbFile = size_file(pvFile);
-        if (cbFile < 1024*1024)
-            fProgress = 0;
+        do
+        {
+            cbBuf /= 2;
+            pabBuf = (char *)malloc(cbBuf);
+        } while (!pabBuf && cbBuf > 4096);
+        if (!pabBuf)
+            return ENOMEM;
+        pabBufAligned = pabBuf;
     }
+
+    if (cbFile < cbBuf * 4)
+        fProgress = 0;
 
     MD5Init(&Ctx);
     for (;;)
     {
         /* process a chunk. */
-        cb = read_file(pvFile, abBuf, sizeof(abBuf));
+        cb = read_file(pvFile, pabBufAligned, cbBuf);
         if (cb > 0)
-            MD5Update(&Ctx, (unsigned char *)&abBuf[0], cb);
+            MD5Update(&Ctx, (unsigned char *)pabBufAligned, cb);
         else if (!cb)
             break;
         else
@@ -348,6 +367,7 @@ static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgre
     if (fProgress)
         printf("\b\b\b\b    \b\b\b\b");
 
+    free(pabBuf);
     return rc;
 }
 
@@ -571,7 +591,7 @@ static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet,
     void *pvFile;
 
     /*
-     * Calcuate and print the MD5 sum for one file.
+     * Calculate and print the MD5 sum for one file.
      */
     pvFile = open_file(pszFilename, fText);
     if (pvFile)
