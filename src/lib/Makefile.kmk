@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2986 2016-11-01 18:26:38Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2994 2016-11-01 22:41:41Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -52,6 +52,7 @@ kUtil_SOURCES.win = \
        nt/ntdir.c \
        nt/ntstat.c \
        nt/ntunlink.c \
+       nt/fts-nt.c \
        nt/kFsCache.c \
        kStuff/kHlp/CRT/kHlpCRTString.cpp \
        kStuff/kHlp/CRT/kHlpCRTAlloc.cpp
