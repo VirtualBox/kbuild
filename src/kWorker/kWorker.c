@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 2968 2016-09-26 18:14:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 2987 2016-11-01 18:27:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -985,7 +985,32 @@ static KU32     g_cTools;
 static KU32     g_cModules;
 /** Number of non-native modules. */
 static KU32     g_cNonNativeModules;
+/** Number of read-cached files. */
+static KU32     g_cReadCachedFiles;
+/** Total size of read-cached files. */
+static KSIZE    g_cbReadCachedFiles;
 
+/** Total number of ReadFile calls. */
+static KSIZE    g_cReadFileCalls;
+/** Total bytes read via ReadFile. */
+static KSIZE    g_cbReadFileTotal;
+/** Total number of read from read-cached files. */
+static KSIZE    g_cReadFileFromReadCached;
+/** Total bytes read from read-cached files. */
+static KSIZE    g_cbReadFileFromReadCached;
+/** Total number of read from in-memory temporary files. */
+static KSIZE    g_cReadFileFromInMemTemp;
+/** Total bytes read from in-memory temporary files. */
+static KSIZE    g_cbReadFileFromInMemTemp;
+
+/** Total number of WriteFile calls. */
+static KSIZE    g_cWriteFileCalls;
+/** Total bytes written via WriteFile. */
+static KSIZE    g_cbWriteFileTotal;
+/** Total number of written to from in-memory temporary files. */
+static KSIZE    g_cWriteFileToInMemTemp;
+/** Total bytes written to in-memory temporary files. */
+static KSIZE    g_cbWriteFileToInMemTemp;
 
 
 /*********************************************************************************************************************************
@@ -5133,6 +5158,17 @@ static KBOOL kwFsIsCacheableExtensionCommon(wchar_t wcFirst, wchar_t wcSecond, w
         }
     }
 #endif
+#if 0 /* Experimental - need to flush these afterwards as they're highly unlikely to be used after the link is done.  */
+    /* Linker - Object file: .obj */
+    if ((wcFirst == 'o' || wcFirst == 'O') && g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
+    {
+        if (wcSecond == 'b' || wcSecond == 'B')
+        {
+            if (wcThird == 'j' || wcThird == 'J')
+                return K_TRUE;
+        }
+    }
+#endif
     else if (fAttrQuery)
     {
         /* Dynamic link library: .dll */
@@ -5149,8 +5185,48 @@ static KBOOL kwFsIsCacheableExtensionCommon(wchar_t wcFirst, wchar_t wcSecond, w
         {
             if (wcSecond == 'x' || wcSecond == 'X')
             {
-                if (wcThird == 'e' || wcThird == 'e')
+                if (wcThird == 'e' || wcThird == 'E')
                     return K_TRUE;
+            }
+        }
+        /* Response file: .rsp */
+        else if (wcFirst == 'r' || wcFirst == 'R')
+        {
+            if (wcSecond == 's' || wcSecond == 'S')
+            {
+                if (wcThird == 'p' || wcThird == 'P')
+                    return !g_Sandbox.fNoPchCaching;
+            }
+        }
+        /* Linker: */
+        if (g_Sandbox.pTool->u.Sandboxed.enmHint == KWTOOLHINT_VISUAL_CPP_LINK)
+        {
+            /* Object file: .obj */
+            if (wcFirst == 'o' || wcFirst == 'O')
+            {
+                if (wcSecond == 'b' || wcSecond == 'B')
+                {
+                    if (wcThird == 'j' || wcThird == 'J')
+                        return K_TRUE;
+                }
+            }
+            /* Library file: .lib */
+            else if (wcFirst == 'l' || wcFirst == 'L')
+            {
+                if (wcSecond == 'i' || wcSecond == 'I')
+                {
+                    if (wcThird == 'b' || wcThird == 'B')
+                        return K_TRUE;
+                }
+            }
+            /* Linker definition file: .def */
+            else if (wcFirst == 'd' || wcFirst == 'D')
+            {
+                if (wcSecond == 'e' || wcSecond == 'E')
+                {
+                    if (wcThird == 'f' || wcThird == 'F')
+                        return K_TRUE;
+                }
             }
         }
     }
@@ -5297,6 +5373,10 @@ static PKFSWCACHEDFILE kwFsObjCacheNewFile(PKFSOBJ pFsObj)
                             pCachedFile->pFsObj   = pFsObj;
                             kFsCacheObjGetFullPathA(pFsObj, pCachedFile->szPath, cbPath, '/');
                             kFsCacheObjRetain(pFsObj);
+
+                            g_cReadCachedFiles++;
+                            g_cbReadCachedFiles += cbCache;
+
                             KWFS_LOG(("Cached '%s': %p LB %#x, hCached=%p\n", pCachedFile->szPath, pbCache, cbCache, hFile));
                             return pCachedFile;
                         }
@@ -5745,7 +5825,9 @@ static BOOL WINAPI kwSandbox_Kernel32_SetFilePointerEx(HANDLE hFile, LARGE_INTEG
 static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DWORD cbToRead, LPDWORD pcbActuallyRead,
                                                LPOVERLAPPED pOverlapped)
 {
+    BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    g_cReadFileCalls++;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread);
     if (idxHandle < g_Sandbox.cHandles)
     {
@@ -5776,6 +5858,10 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
 
                     kHlpAssert(!pOverlapped); kHlpAssert(pcbActuallyRead);
                     *pcbActuallyRead = cbActually;
+
+                    g_cbReadFileFromReadCached += cbActually;
+                    g_cbReadFileTotal          += cbActually;
+                    g_cReadFileFromReadCached++;
 
                     KWFS_LOG(("ReadFile(%p,,%#x) -> TRUE, %#x bytes [cached]\n", hFile, cbToRead, cbActually));
                     return TRUE;
@@ -5835,6 +5921,10 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
                     kHlpAssert(!pOverlapped); kHlpAssert(pcbActuallyRead);
                     *pcbActuallyRead = cbActually;
 
+                    g_cbReadFileTotal         += cbActually;
+                    g_cbReadFileFromInMemTemp += cbActually;
+                    g_cReadFileFromInMemTemp++;
+
                     KWFS_LOG(("ReadFile(%p,,%#x) -> TRUE, %#x bytes [temp]\n", hFile, cbToRead, (KU32)cbActually));
                     return TRUE;
                 }
@@ -5851,8 +5941,11 @@ static BOOL WINAPI kwSandbox_Kernel32_ReadFile(HANDLE hFile, LPVOID pvBuffer, DW
         }
     }
 
-    KWFS_LOG(("ReadFile(%p,%p,%#x,,)\n", hFile, pvBuffer, cbToRead));
-    return ReadFile(hFile, pvBuffer, cbToRead, pcbActuallyRead, pOverlapped);
+    fRet = ReadFile(hFile, pvBuffer, cbToRead, pcbActuallyRead, pOverlapped);
+    if (fRet && pcbActuallyRead)
+        g_cbReadFileTotal += *pcbActuallyRead;
+    KWFS_LOG(("ReadFile(%p,%p,%#x,,) -> %d, %#x\n", hFile, pvBuffer, cbToRead, fRet, pcbActuallyRead ? *pcbActuallyRead : 0));
+    return fRet;
 }
 
 
@@ -6070,7 +6163,9 @@ static KBOOL kwFsTempFileEnsureSpace(PKWFSTEMPFILE pTempFile, KU32 offFile, KU32
 static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, DWORD cbToWrite, LPDWORD pcbActuallyWritten,
                                                 LPOVERLAPPED pOverlapped)
 {
+    BOOL        fRet;
     KUPTR const idxHandle = KW_HANDLE_TO_INDEX(hFile);
+    g_cWriteFileCalls++;
     kHlpAssert(GetCurrentThreadId() == g_Sandbox.idMainThread || g_fCtrlC);
     if (idxHandle < g_Sandbox.cHandles)
     {
@@ -6125,6 +6220,11 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
                             pTempFile->cbFile = pHandle->offFile;
 
                         *pcbActuallyWritten = cbToWrite;
+
+                        g_cbWriteFileTotal += cbToWrite;
+                        g_cbWriteFileToInMemTemp += cbToWrite;
+                        g_cWriteFileToInMemTemp++;
+
                         KWFS_LOG(("WriteFile(%p,,%#x) -> TRUE [temp]\n", hFile, cbToWrite));
                         return TRUE;
                     }
@@ -6166,6 +6266,7 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
                     }
                     if (pcbActuallyWritten)
                         *pcbActuallyWritten = cbToWrite;
+                    g_cbWriteFileTotal += cbToWrite;
                     return TRUE;
                 }
 # endif
@@ -6180,8 +6281,11 @@ static BOOL WINAPI kwSandbox_Kernel32_WriteFile(HANDLE hFile, LPCVOID pvBuffer, 
         }
     }
 
-    KWFS_LOG(("WriteFile(%p,,%#x)\n", hFile, cbToWrite));
-    return WriteFile(hFile, pvBuffer, cbToWrite, pcbActuallyWritten, pOverlapped);
+    fRet = WriteFile(hFile, pvBuffer, cbToWrite, pcbActuallyWritten, pOverlapped);
+    if (fRet && pcbActuallyWritten)
+        g_cbWriteFileTotal += *pcbActuallyWritten;
+    KWFS_LOG(("WriteFile(%p,,%#x) -> %d, %#x\n", hFile, cbToWrite, fRet, pcbActuallyWritten ? *pcbActuallyWritten : 0));
+    return fRet;
 }
 
 
@@ -10053,6 +10157,35 @@ static int kSubmitReadIt(HANDLE hPipe, void *pvBuf, KU32 cbToRead, KBOOL fMayShu
 
 
 /**
+ * Decimal formatting of a 64-bit unsigned value into a large enough buffer.
+ *
+ * @returns pszBuf
+ * @param   pszBuf              The buffer (sufficiently large).
+ * @param   uValue              The value.
+ */
+static const char *kwFmtU64(char *pszBuf, KU64 uValue)
+{
+    char  szTmp[64];
+    char *psz = &szTmp[63];
+    int   cch = 4;
+
+    *psz-- = '\0';
+    do
+    {
+        if (--cch == 0)
+        {
+            *psz-- = ' ';
+            cch = 3;
+        }
+        *psz-- = (uValue % 10) + '0';
+        uValue /= 10;
+    } while (uValue != 0);
+
+    return strcpy(pszBuf, psz + 1);
+}
+
+
+/**
  * Prints statistics.
  */
 static void kwPrintStats(void)
@@ -10065,44 +10198,83 @@ static void kwPrintStats(void)
     char  szBuf[16*1024];
     int   off = 0;
     char  szPrf[24];
+    char  sz1[64];
+    char  sz2[64];
+    char  sz3[64];
+    char  sz4[64];
     extern size_t maybe_con_fwrite(void const *pvBuf, size_t cbUnit, size_t cUnits, FILE *pFile);
 
     sprintf(szPrf, "%5d/%u:", getpid(), K_ARCH_BITS);
 
     szBuf[off++] = '\n';
 
-    off += sprintf(&szBuf[off], "%s %10" KU32_PRI " jobs,  %" KU32_PRI" tools,  %" KU32_PRI " modules,  %" KU32_PRI" non-native ones\n",
-                   szPrf, g_cJobs, g_cTools, g_cModules, g_cNonNativeModules);
+    off += sprintf(&szBuf[off], "%s %14s jobs, %s tools, %s modules, %s non-native ones\n", szPrf,
+                   kwFmtU64(sz1, g_cJobs), kwFmtU64(sz2, g_cTools), kwFmtU64(sz3, g_cModules), kwFmtU64(sz4, g_cNonNativeModules));
+    off += sprintf(&szBuf[off], "%s %14s bytes in %s read-cached files, avg %s bytes\n", szPrf,
+                   kwFmtU64(sz1, g_cbReadCachedFiles), kwFmtU64(sz2, g_cReadCachedFiles),
+                   kwFmtU64(sz3, g_cbReadCachedFiles / K_MAX(g_cReadCachedFiles, 1)));
 
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes for the cache\n",
-                   szPrf, g_pFsCache->cbObjects + g_pFsCache->cbAnsiPaths + g_pFsCache->cbUtf16Paths + sizeof(*g_pFsCache));
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " objects, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes\n",
-                   szPrf, g_pFsCache->cObjects, g_pFsCache->cbObjects,
-                   g_pFsCache->cbObjects / g_pFsCache->cObjects);
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " A path hashes, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes, %" KSIZE_PRI_U " collision\n",
-                   szPrf, g_pFsCache->cAnsiPaths, g_pFsCache->cbAnsiPaths,
-                   g_pFsCache->cbAnsiPaths / K_MAX(g_pFsCache->cAnsiPaths, 1), g_pFsCache->cAnsiPathCollisions);
+    off += sprintf(&szBuf[off], "%s %14s bytes read in %s calls\n",
+                   szPrf, kwFmtU64(sz1, g_cbReadFileTotal), kwFmtU64(sz2, g_cReadFileCalls));
+
+    off += sprintf(&szBuf[off], "%s %14s bytes read (%u%%) in %s calls (%u%%) from read cached files\n", szPrf,
+                   kwFmtU64(sz1, g_cbReadFileFromReadCached), (unsigned)(g_cbReadFileFromReadCached * (KU64)100 / g_cbReadFileTotal),
+                   kwFmtU64(sz2, g_cReadFileFromReadCached), (unsigned)(g_cReadFileFromReadCached * (KU64)100 / g_cReadFileCalls));
+
+    off += sprintf(&szBuf[off], "%s %14s bytes read (%u%%) in %s calls (%u%%) from in-memory temporary files\n", szPrf,
+                   kwFmtU64(sz1, g_cbReadFileFromInMemTemp), (unsigned)(g_cbReadFileFromInMemTemp * (KU64)100 / K_MAX(g_cbReadFileTotal, 1)),
+                   kwFmtU64(sz2, g_cReadFileFromInMemTemp), (unsigned)(g_cReadFileFromInMemTemp * (KU64)100 / K_MAX(g_cReadFileCalls, 1)));
+
+    off += sprintf(&szBuf[off], "%s %14s bytes written in %s calls\n", szPrf,
+                   kwFmtU64(sz1, g_cbWriteFileTotal), kwFmtU64(sz2, g_cWriteFileCalls));
+    off += sprintf(&szBuf[off], "%s %14s bytes written (%u%%) in %s calls (%u%%) to in-memory temporary files\n", szPrf,
+                   kwFmtU64(sz1, g_cbWriteFileToInMemTemp),
+                   (unsigned)(g_cbWriteFileToInMemTemp * (KU64)100 / K_MAX(g_cbWriteFileTotal, 1)),
+                   kwFmtU64(sz2, g_cWriteFileToInMemTemp),
+                   (unsigned)(g_cWriteFileToInMemTemp * (KU64)100 / K_MAX(g_cWriteFileCalls, 1)));
+
+    off += sprintf(&szBuf[off], "%s %14s bytes for the cache\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cbObjects + g_pFsCache->cbAnsiPaths + g_pFsCache->cbUtf16Paths + sizeof(*g_pFsCache)));
+    off += sprintf(&szBuf[off], "%s %14s objects, taking up %s bytes, avg %s bytes\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cObjects),
+                   kwFmtU64(sz2, g_pFsCache->cbObjects),
+                   kwFmtU64(sz3, g_pFsCache->cbObjects / g_pFsCache->cObjects));
+    off += sprintf(&szBuf[off], "%s %14s A path hashes, taking up %s bytes, avg %s bytes, %s collision\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cAnsiPaths),
+                   kwFmtU64(sz2, g_pFsCache->cbAnsiPaths),
+                   kwFmtU64(sz3, g_pFsCache->cbAnsiPaths / K_MAX(g_pFsCache->cAnsiPaths, 1)),
+                   kwFmtU64(sz4, g_pFsCache->cAnsiPathCollisions));
 #ifdef KFSCACHE_CFG_UTF16
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " W path hashes, taking up %" KSIZE_PRI_U " bytes, avg %" KSIZE_PRI_U " bytes, %" KSIZE_PRI_U " collisions\n",
-                   szPrf, g_pFsCache->cUtf16Paths, g_pFsCache->cbUtf16Paths,
-                   g_pFsCache->cbUtf16Paths / K_MAX(g_pFsCache->cUtf16Paths, 1), g_pFsCache->cUtf16PathCollisions);
+    off += sprintf(&szBuf[off], "%s %14s W path hashes, taking up %s bytes, avg %s bytes, %s collisions\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cUtf16Paths),
+                   kwFmtU64(sz2, g_pFsCache->cbUtf16Paths),
+                   kwFmtU64(sz3, g_pFsCache->cbUtf16Paths / K_MAX(g_pFsCache->cUtf16Paths, 1)),
+                   kwFmtU64(sz4, g_pFsCache->cUtf16PathCollisions));
 #endif
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " child hash tables, total of %" KSIZE_PRI_U " entries, %" KSIZE_PRI_U " children inserted, %" KSIZE_PRI_U " collisions\n",
-                   szPrf, g_pFsCache->cChildHashTabs, g_pFsCache->cChildHashEntriesTotal,
-                   g_pFsCache->cChildHashed, g_pFsCache->cChildHashCollisions);
+    off += sprintf(&szBuf[off], "%s %14s child hash tables, total of %s entries, %s children inserted, %s collisions\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cChildHashTabs),
+                   kwFmtU64(sz2, g_pFsCache->cChildHashEntriesTotal),
+                   kwFmtU64(sz3, g_pFsCache->cChildHashed),
+                   kwFmtU64(sz4, g_pFsCache->cChildHashCollisions));
 
     cMisses = g_pFsCache->cLookups - g_pFsCache->cPathHashHits - g_pFsCache->cWalkHits;
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " lookups: %" KSIZE_PRI_U " (%" KU64_PRI " %%) path hash hits, %" KSIZE_PRI_U " (%" KU64_PRI "%%) walks hits, %" KSIZE_PRI_U " (%" KU64_PRI "%%) misses\n",
-                   szPrf, g_pFsCache->cLookups,
-                   g_pFsCache->cPathHashHits, g_pFsCache->cPathHashHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
-                   g_pFsCache->cWalkHits, g_pFsCache->cWalkHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1),
-                   cMisses, cMisses * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1));
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " child searches, %" KSIZE_PRI_U " (%" KU64_PRI "%%) hash hits\n",
-                   szPrf, g_pFsCache->cChildSearches,
-                   g_pFsCache->cChildHashHits, g_pFsCache->cChildHashHits * (KU64)100 / K_MAX(g_pFsCache->cChildSearches, 1));
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " name changes, growing %" KSIZE_PRI_U " times (%" KU64_PRI "%%)\n",
-                   szPrf, g_pFsCache->cNameChanges, g_pFsCache->cNameGrowths,
-                   g_pFsCache->cNameGrowths * 100 / K_MAX(g_pFsCache->cNameChanges, 1) );
+    off += sprintf(&szBuf[off], "%s %14s lookups: %s (%u%%) path hash hits, %s (%u%%) walks hits, %s (%u%%) misses\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cLookups),
+                   kwFmtU64(sz2, g_pFsCache->cPathHashHits),
+                   (unsigned)(g_pFsCache->cPathHashHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1)),
+                   kwFmtU64(sz3, g_pFsCache->cWalkHits),
+                   (unsigned)(g_pFsCache->cWalkHits * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1)),
+                   kwFmtU64(sz4, cMisses),
+                   (unsigned)(cMisses * (KU64)100 / K_MAX(g_pFsCache->cLookups, 1)));
+
+    off += sprintf(&szBuf[off], "%s %14s child searches, %s (%u%%) hash hits\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cChildSearches),
+                   kwFmtU64(sz2, g_pFsCache->cChildHashHits),
+                   (unsigned)(g_pFsCache->cChildHashHits * (KU64)100 / K_MAX(g_pFsCache->cChildSearches, 1)));
+    off += sprintf(&szBuf[off], "%s %14s name changes, growing %s times (%u%%)\n", szPrf,
+                   kwFmtU64(sz1, g_pFsCache->cNameChanges),
+                   kwFmtU64(sz2, g_pFsCache->cNameGrowths),
+                   (unsigned)(g_pFsCache->cNameGrowths * 100 / K_MAX(g_pFsCache->cNameChanges, 1)) );
 
 
     /*
@@ -10113,29 +10285,41 @@ static void kwPrintStats(void)
     MemInfo.cb = sizeof(MemInfo);
     if (!GetProcessMemoryInfo(GetCurrentProcess(), (PPROCESS_MEMORY_COUNTERS)&MemInfo, sizeof(MemInfo)))
         memset(&MemInfo, 0, sizeof(MemInfo));
-    off += sprintf(&szBuf[off], "%s %10" KU32_PRI " handles; %" KU32_PRI " page faults; %" KSIZE_PRI_U " bytes page file, peaking at %" KSIZE_PRI_U " bytes\n",
-                   szPrf, cHandles, MemInfo.PageFaultCount, MemInfo.PagefileUsage, MemInfo.PeakPagefileUsage);
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes working set, peaking at %" KSIZE_PRI_U " bytes; %" KSIZE_PRI_U " byte private\n",
-                   szPrf, MemInfo.WorkingSetSize, MemInfo.PeakWorkingSetSize, MemInfo.PrivateUsage);
-    off += sprintf(&szBuf[off], "%s %10" KSIZE_PRI_U " bytes non-paged pool, peaking at %" KSIZE_PRI_U " bytes; %7" KSIZE_PRI_U " bytes paged pool, peaking at %" KSIZE_PRI_U " bytes\n",
-                   szPrf, MemInfo.QuotaNonPagedPoolUsage, MemInfo.QuotaPeakNonPagedPoolUsage,
-                   MemInfo.QuotaPagedPoolUsage, MemInfo.QuotaPeakPagedPoolUsage);
+    off += sprintf(&szBuf[off], "%s %14s handles; %s page faults; %s bytes page file, peaking at %s bytes\n", szPrf,
+                   kwFmtU64(sz1, cHandles),
+                   kwFmtU64(sz2, MemInfo.PageFaultCount),
+                   kwFmtU64(sz3, MemInfo.PagefileUsage),
+                   kwFmtU64(sz4, MemInfo.PeakPagefileUsage));
+    off += sprintf(&szBuf[off], "%s %14s bytes working set, peaking at %s bytes; %s byte private\n", szPrf,
+                   kwFmtU64(sz1, MemInfo.WorkingSetSize),
+                   kwFmtU64(sz2, MemInfo.PeakWorkingSetSize),
+                   kwFmtU64(sz3, MemInfo.PrivateUsage));
+    off += sprintf(&szBuf[off], "%s %14s bytes non-paged pool, peaking at %s bytes; %s bytes paged pool, peaking at %s bytes\n",
+                   szPrf,
+                   kwFmtU64(sz1, MemInfo.QuotaNonPagedPoolUsage),
+                   kwFmtU64(sz2, MemInfo.QuotaPeakNonPagedPoolUsage),
+                   kwFmtU64(sz3, MemInfo.QuotaPagedPoolUsage),
+                   kwFmtU64(sz4, MemInfo.QuotaPeakPagedPoolUsage));
 
     if (!GetProcessIoCounters(GetCurrentProcess(), &IoCounters))
         memset(&IoCounters, 0, sizeof(IoCounters));
-    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " reads\n",
-                   szPrf, IoCounters.ReadTransferCount, IoCounters.ReadOperationCount);
-    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " writes\n",
-                   szPrf, IoCounters.WriteTransferCount, IoCounters.WriteOperationCount);
-    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes in %" KU64_PRI " other I/O operations\n",
-                   szPrf, IoCounters.OtherTransferCount, IoCounters.OtherOperationCount);
+    off += sprintf(&szBuf[off], "%s %14s bytes in %s reads [src: OS]\n", szPrf,
+                   kwFmtU64(sz1, IoCounters.ReadTransferCount),
+                   kwFmtU64(sz2, IoCounters.ReadOperationCount));
+    off += sprintf(&szBuf[off], "%s %14s bytes in %s writes [src: OS]\n", szPrf,
+                   kwFmtU64(sz1, IoCounters.WriteTransferCount),
+                   kwFmtU64(sz2, IoCounters.WriteOperationCount));
+    off += sprintf(&szBuf[off], "%s %14s bytes in %s other I/O operations [src: OS]\n", szPrf,
+                   kwFmtU64(sz1, IoCounters.OtherTransferCount),
+                   kwFmtU64(sz2, IoCounters.OtherOperationCount));
 
     MemStatus.dwLength = sizeof(MemStatus);
     if (!GlobalMemoryStatusEx(&MemStatus))
         memset(&MemStatus, 0, sizeof(MemStatus));
-    off += sprintf(&szBuf[off], "%s %10" KU64_PRI " bytes used VA, %#" KX64_PRI " bytes available\n", szPrf,
-                   MemStatus.ullTotalVirtual - MemStatus.ullAvailVirtual, MemStatus.ullAvailVirtual);
-    off += sprintf(&szBuf[off], "%s %9u%% system memory load\n", szPrf, MemStatus.dwMemoryLoad);
+    off += sprintf(&szBuf[off], "%s %14s bytes used VA, %#" KX64_PRI " bytes available\n", szPrf,
+                   kwFmtU64(sz1, MemStatus.ullTotalVirtual - MemStatus.ullAvailVirtual),
+                   MemStatus.ullAvailVirtual);
+    off += sprintf(&szBuf[off], "%s %14u %% system memory load\n", szPrf, MemStatus.dwMemoryLoad);
 
     maybe_con_fwrite(szBuf, off, 1, stdout);
     fflush(stdout);
