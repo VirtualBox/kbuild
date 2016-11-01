@@ -1,4 +1,4 @@
-/* $Id: fts-nt.h 2992 2016-11-01 22:06:08Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.h 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
@@ -52,8 +52,10 @@ typedef uint64_t fts_ino_t;
 typedef uint32_t fts_nlink_t;
 #ifdef _WINNT_
 typedef HANDLE fts_fd_t;
+# define NT_FTS_INVALID_HANDLE_VALUE	INVALID_HANDLE_VALUE
 #else
 typedef void * fts_fd_t;
+# define NT_FTS_INVALID_HANDLE_VALUE	((void *)~(uintptr_t)0)
 #endif
 #define FTSCALL __cdecl
 
@@ -97,7 +99,7 @@ typedef struct _ftsent {
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
 	fts_fd_t fts_symfd;		/* NT: Normally -1; -2 we followed this symlinked dir */
-	fts_fd_t fts_dirfd;		/* NT: Handle to the directory */
+	fts_fd_t fts_dirfd;		/* NT: Handle to the directory (NT_FTS_)INVALID_HANDLE_VALUE if not valid */
 	size_t fts_pathlen;		/* strlen(fts_path) */
 	size_t fts_namelen;		/* strlen(fts_name) */
 

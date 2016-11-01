@@ -1,4 +1,4 @@
-/* $Id: nthlpfs.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpfs.c 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT helpers for file system related functions.
  */
@@ -174,7 +174,7 @@ int birdDosToNtPathW(const wchar_t *pwszPath, MY_UNICODE_STRING *pNtPath)
 
 
 /**
- * Converts UNIX slashes to DOS ones and trims trailing ones.
+ * Converts UNIX slashes to DOS ones.
  *
  * @returns 0
  * @param   pNtPath     The relative NT path to fix up.
@@ -193,6 +193,7 @@ static int birdFixRelativeNtPathSlashesAndReturn0(MY_UNICODE_STRING *pNtPath)
         pwcHit = pwcStart;
     }
 
+#if 0
     /* Strip trailing slashes (NT doesn't like them). */
     while (   pNtPath->Length >= sizeof(wchar_t)
            && pNtPath->Buffer[(pNtPath->Length - sizeof(wchar_t)) / sizeof(wchar_t)] == '\\')
@@ -209,6 +210,7 @@ static int birdFixRelativeNtPathSlashesAndReturn0(MY_UNICODE_STRING *pNtPath)
         pNtPath->Buffer[0] = '.';
         pNtPath->Buffer[1] = '\0';
     }
+#endif
 
     return 0;
 }

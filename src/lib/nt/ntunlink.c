@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -82,12 +82,17 @@ static MY_NTSTATUS birdMakeWritable(MY_UNICODE_STRING *pNtPath)
 }
 
 
-static int birdUnlinkInternal(const char *pszFile, int fReadOnlyToo, int fFast)
+static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, int fReadOnlyToo, int fFast)
 {
     MY_UNICODE_STRING   NtPath;
     int                 rc;
 
-    rc = birdDosToNtPath(pszFile, &NtPath);
+    if (hRoot == INVALID_HANDLE_VALUE)
+        hRoot = NULL;
+    if (hRoot == NULL)
+        rc = birdDosToNtPath(pszFile, &NtPath);
+    else
+        rc = birdDosToRelativeNtPath(pszFile, &NtPath);
     if (rc == 0)
     {
         MY_NTSTATUS rcNt;
@@ -95,7 +100,7 @@ static int birdUnlinkInternal(const char *pszFile, int fReadOnlyToo, int fFast)
         {
             /* This uses FILE_DELETE_ON_CLOSE. Probably only suitable when in a hurry... */
             MY_OBJECT_ATTRIBUTES ObjAttr;
-            MyInitializeObjectAttributes(&ObjAttr, &NtPath, OBJ_CASE_INSENSITIVE, NULL /*hRoot*/, NULL /*pSecAttr*/);
+            MyInitializeObjectAttributes(&ObjAttr, &NtPath, OBJ_CASE_INSENSITIVE, hRoot, NULL /*pSecAttr*/);
             rcNt = g_pfnNtDeleteFile(&ObjAttr);
 
             /* In case some file system does things differently than NTFS. */
@@ -112,7 +117,7 @@ static int birdUnlinkInternal(const char *pszFile, int fReadOnlyToo, int fFast)
             int    fMayTryAgain = 1;
             for (;;)
             {
-                rcNt = birdOpenFileUniStr(NULL /*hRoot*/,
+                rcNt = birdOpenFileUniStr(hRoot,
                                           &NtPath,
                                           DELETE,
                                           FILE_ATTRIBUTE_NORMAL,
@@ -156,18 +161,36 @@ static int birdUnlinkInternal(const char *pszFile, int fReadOnlyToo, int fFast)
 
 int birdUnlink(const char *pszFile)
 {
-    return birdUnlinkInternal(pszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkEx(void *hRoot, const char *pszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkForced(const char *pszFile)
 {
-    return birdUnlinkInternal(pszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkForcedEx(void *hRoot, const char *pszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkForcedFast(const char *pszFile)
 {
-    return birdUnlinkInternal(pszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+}
+
+
+int birdUnlinkForcedFastEx(void *hRoot, const char *pszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
 }
 

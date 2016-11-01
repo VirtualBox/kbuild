@@ -1,4 +1,4 @@
-/* $Id: ntunlink.h 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.h 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -34,8 +34,11 @@
 #include "nttypes.h"
 
 int birdUnlink(const char *pszFile);
+int birdUnlinkEx(void *hRoot, const char *pszFile);
 int birdUnlinkForced(const char *pszFile);
+int birdUnlinkForcedEx(void *hRoot, const char *pszFile);
 int birdUnlinkForcedFast(const char *pszFile);
+int birdUnlinkForcedFastEx(void *hRoot, const char *pszFile);
 
 #undef  unlink
 #define unlink(a_pszPath)     birdUnlinkForced(a_pszPath)
