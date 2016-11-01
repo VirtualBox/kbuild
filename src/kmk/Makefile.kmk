@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2991 2016-11-01 21:56:13Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -530,6 +530,16 @@ kmk_fgmake_SOURCES.win = \
 PROGRAMS.win += tstFileInfo
 tstFileInfo_TEMPLATE = BIN
 tstFileInfo_SOURCES = w32/tstFileInfo.c
+
+#
+# tstFileInfo
+#
+PROGRAMS.win += tstFtsFake
+tstFtsFake_TEMPLATE = BIN-KMK
+tstFtsFake_NOINST = 1
+tstFtsFake_DEFS = USE_OLD_FTS
+tstFtsFake_SOURCES = ../lib/nt/tstNtFts.c
+
 
 
 include $(FILE_KBUILD_SUB_FOOTER)

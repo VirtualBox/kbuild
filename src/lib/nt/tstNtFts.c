@@ -3,7 +3,11 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#include "fts-nt.h"
+#ifndef USE_OLD_FTS
+# include "fts-nt.h"
+#else
+# include "kmkbuiltin/ftsfake.h"
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +37,10 @@ static int usage(const char *argv0)
            "    FTS_NOSTAT\n"
            "  -x, --one-file-system\n"
            "    FTS_XDEV\n"
+           "  -q, --quiet\n"
+           "    Quiet operation, no output.\n"
+           "  -v, --verbose\n"
+           "    Verbose operation (default).\n"
            );
     return 0;
 }
@@ -86,11 +94,16 @@ int main(int argc, char **argv)
                     chOpt = 's';
                 else if (strcmp(pszArg, "one-file-system") == 0)
                     chOpt = 'x';
+                else if (strcmp(pszArg, "quiet") == 0)
+                    chOpt = 'q';
+                else if (strcmp(pszArg, "verbose") == 0)
+                    chOpt = 'v';
                 else
                 {
                     fprintf(stderr, "syntax error: Unknown option: --%s\n", pszArg);
                     return 2;
                 }
+                pszArg = "";
             }
             do
             {
@@ -131,6 +144,9 @@ int main(int argc, char **argv)
                         fFollowLinks = 0;
                         break;
 
+                    case 'q':
+                        cVerbosity = 0;
+                        break;
                     case 'v':
                         cVerbosity++;
                         break;
@@ -145,6 +161,14 @@ int main(int argc, char **argv)
         else
             papszFtsArgs[cFtsArgs++] = pszArg;
     }
+
+#ifdef USE_OLD_FTS
+    if (papszFtsArgs[0] == NULL)
+    {
+        fprintf(stderr, "Nothing to do\n");
+        return 1;
+    }
+#endif
 
     /*
      * Do the traversal.
@@ -180,7 +204,8 @@ int main(int argc, char **argv)
                         break;
                 }
 
-                printf("%8s %s\n", pszState, pFtsEnt->fts_accpath);
+                if (cVerbosity > 0)
+                    printf("%8s %s\n", pszState, pFtsEnt->fts_accpath);
                 if (   pFtsEnt->fts_info == FTS_SL
                     && pFtsEnt->fts_number == 0
                     && fFollowLinks
