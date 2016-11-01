@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2993 2016-11-01 22:41:26Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -45,12 +45,24 @@
 
 static int birdIsExecutableExtension(const char *pszExt)
 {
-    return  !strcmp(pszExt, "exe")
-         || !strcmp(pszExt, "cmd")
-         || !strcmp(pszExt, "bat")
-         || !strcmp(pszExt, "vbs")
-         || !strcmp(pszExt, "com")
-         ;
+    switch (pszExt[0])
+    {
+        default:
+            return 0;
+
+        case 'e': /* exe */
+            return pszExt[1] == 'x' && pszExt[2] == 'e' && pszExt[3] == '\0';
+
+        case 'b': /* bat */
+            return pszExt[1] == 'a' && pszExt[2] == 't' && pszExt[3] == '\0';
+
+        case 'v': /* vbs */
+            return pszExt[1] == 'v' && pszExt[2] == 's' && pszExt[3] == '\0';
+
+        case 'c': /* com and cmd */
+            return (pszExt[1] == 'o' && pszExt[2] == 'm' && pszExt[3] == '\0')
+                || (pszExt[1] == 'm' && pszExt[2] == 'd' && pszExt[3] == '\0');
+    }
 }
 
 
@@ -78,12 +90,16 @@ static int birdIsFileExecutable(const char *pszName)
     if (cchExt != 3)
         return 0;
 
-    /* Copy the extension out and lower case it. */
+    /* Copy the extension out and lower case it.  Fail immediately on non-alpha chars. */
     for (i = 0; i < cchExt; i++, pszExt++)
     {
         ch = *pszExt;
-        if (ch >= 'A' && ch <= 'Z')
+        if (ch >= 'a' && ch <= 'z')
+        { /* likely */ }
+        else if (ch >= 'A' && ch <= 'Z')
             ch += 'a' - 'A';
+        else
+            return 0;
         szExt[i] = ch;
     }
     szExt[i] = '\0';
@@ -112,15 +128,17 @@ static int birdIsFileExecutableW(WCHAR const *pwcName, size_t cwcName)
     else
         return 0;
 
-    /* Copy the extension out and lower case it. */
+    /* Copy the extension out and lower case it.  Fail immediately on non-alpha chars. */
     pwc = &pwcName[cwcName - cchExt];
     for (i = 0; i < cchExt; i++, pwc++)
     {
         WCHAR wc = *pwc;
-        if (wc >= 'A' && wc <= 'Z')
+        if (wc >= 'a' && wc <= 'z')
+        { /* likely */ }
+        else if (wc >= 'A' && wc <= 'Z')
             wc += 'a' - 'A';
-        else if (wc > 255)
-            wc = 255;
+        else
+            return 0;
         szExt[i] = (char)wc;
     }
     szExt[i] = '\0';
@@ -169,9 +187,9 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
     if (!(fAttribs & FILE_ATTRIBUTE_READONLY))
         fMode |= S_IWOTH | S_IWGRP | S_IWUSR;
     if (   (fAttribs & FILE_ATTRIBUTE_DIRECTORY)
-        || (pszName
-            ? birdIsFileExecutable(pszName)
-            : birdIsFileExecutableW(pwszName, cbNameW)) )
+        || (pwszName
+            ? birdIsFileExecutableW(pwszName, cbNameW)
+            : birdIsFileExecutable(pszName)) )
         fMode |= S_IXOTH | S_IXGRP | S_IXUSR;
 
     return fMode;
