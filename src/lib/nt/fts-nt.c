@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 2989 2016-11-01 21:27:14Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 2990 2016-11-01 21:55:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -175,7 +175,7 @@ fts_open(char * const *argv, int options,
 		/* NT: We need to do some small input transformations to make this and
 		       the API user code happy.  1. Lone drive letters get a dot
 		       appended so it won't matter if a slash is appended afterwards.
-			   2. DOS slashes are converted to UNIX ones. */
+		       2. DOS slashes are converted to UNIX ones. */
 		char *slash;
 		len = strlen(*argv);
 		if (len == 2 && argv[0][1] == ':') {
@@ -260,7 +260,6 @@ fts_load(FTS *sp, FTSENT *p)
 	 */
 	len = p->fts_pathlen = p->fts_namelen;
 	memmove(sp->fts_path, p->fts_name, len + 1);
-/** @todo check for ':' and '\\'? */
 	if ((cp = strrchr(p->fts_name, '/')) && (cp != p->fts_name || cp[1])) {
 		len = strlen(++cp);
 		memmove(p->fts_name, cp, len + 1);
@@ -509,12 +508,10 @@ fts_set(FTS *sp, FTSENT *p, int instr)
 	return (0);
 }
 
-#if 0
 FTSENT * FTSCALL
 fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
-	int fd, rc, serrno;
 
 	if (instr != 0 && instr != FTS_NAMEONLY) {
 		errno = EINVAL;
@@ -547,40 +544,22 @@ fts_children(FTS *sp, int instr)
 		return (NULL);
 
 	/* Free up any previous child list. */
-	if (sp->fts_child != NULL)
+	if (sp->fts_child != NULL) {
 		fts_lfree(sp->fts_child);
+		sp->fts_child = NULL; /* (bird - double free for _open(".") failure in original) */
+	}
 
+	/* NT: Some BSD utility sets FTS_NAMEONLY? We don't really need this
+	       optimization, but since it only hurts that utility, it can stay.  */
 	if (instr == FTS_NAMEONLY) {
+		assert(0); /* don't specify FTS_NAMEONLY on NT. */
 		SET(FTS_NAMEONLY);
 		instr = BNAMES;
 	} else
 		instr = BCHILD;
 
-	/*
-	 * If using chdir on a relative path and called BEFORE fts_read does
-	 * its chdir to the root of a traversal, we can lose -- we need to
-	 * chdir into the subdirectory, and we don't know where the current
-	 * directory is, so we can't get back so that the upcoming chdir by
-	 * fts_read will work.
-	 */
-	if (p->fts_level != FTS_ROOTLEVEL || p->fts_accpath[0] == '/' ||
-	    ISSET(FTS_NOCHDIR))
-		return (sp->fts_child = fts_build(sp, instr));
-
-	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
-		return (NULL);
-	sp->fts_child = fts_build(sp, instr);
-	serrno = (sp->fts_child == NULL) ? errno : 0;
-	rc = fchdir(fd);
-	if (rc < 0 && serrno == 0)
-		serrno = errno;
-	(void)_close(fd);
-	errno = serrno;
-	if (rc < 0)
-		return (NULL);
-	return (sp->fts_child);
+	return (sp->fts_child = fts_build(sp, instr));
 }
-#endif /* PORTME */
 
 #ifndef fts_get_clientptr
 #error "fts_get_clientptr not defined"
