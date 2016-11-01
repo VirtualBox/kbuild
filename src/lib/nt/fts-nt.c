@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 2990 2016-11-01 21:55:39Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 2992 2016-11-01 22:06:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -94,7 +94,7 @@ static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
 static int	 fts_stat(FTS *, FTSENT *, int, HANDLE);
-static int   fts_process_stats(FTSENT *, BirdStat_T const *);
+static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
@@ -126,7 +126,7 @@ struct _fts_private {
 
 
 FTS * FTSCALL
-fts_open(char * const *argv, int options,
+nt_fts_open(char * const *argv, int options,
     int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
@@ -270,7 +270,7 @@ fts_load(FTS *sp, FTSENT *p)
 }
 
 int FTSCALL
-fts_close(FTS *sp)
+nt_fts_close(FTS *sp)
 {
 	FTSENT *freep, *p;
 	/*int saved_errno;*/
@@ -322,7 +322,7 @@ fts_free_entry(FTSENT *tmp)
 }
 
 FTSENT * FTSCALL
-fts_read(FTS *sp)
+nt_fts_read(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -497,7 +497,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int FTSCALL
-fts_set(FTS *sp, FTSENT *p, int instr)
+nt_fts_set(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -509,7 +509,7 @@ fts_set(FTS *sp, FTSENT *p, int instr)
 }
 
 FTSENT * FTSCALL
-fts_children(FTS *sp, int instr)
+nt_fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
 
@@ -583,7 +583,7 @@ FTS *
 }
 
 void FTSCALL
-fts_set_clientptr(FTS *sp, void *clientptr)
+nt_fts_set_clientptr(FTS *sp, void *clientptr)
 {
 
 	sp->fts_clientptr = clientptr;
