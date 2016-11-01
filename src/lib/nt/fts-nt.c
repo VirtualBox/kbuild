@@ -77,24 +77,10 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #endif /* LIBC_SCCS and not lint */
 #endif
 
-//#include <sys/cdefs.h>
-//__FBSDID("$FreeBSD$");
-
-//#include "namespace.h"
-//#include <sys/param.h>
-//#include <sys/mount.h>
-//#include <sys/stat.h>
-
-//#include <dirent.h>
 #include <errno.h>
-//#include <fcntl.h>
 #include "fts-nt.h"
 #include <stdlib.h>
 #include <string.h>
-//#include <unistd.h>
-//#include "un-namespace.h"
-//
-//#include "gen-private.h"
 #include <assert.h>
 #include "nthlp.h"
 #include "ntdir.h"
@@ -109,16 +95,12 @@ static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
 static int	 fts_stat(FTS *, FTSENT *, int, HANDLE);
 static int   fts_process_stats(FTSENT *, BirdStat_T const *);
-static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
-static int	 fts_ufslinks(FTS *, const FTSENT *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
 #define	CLR(opt)	(sp->fts_options &= ~(opt))
 #define	ISSET(opt)	(sp->fts_options & (opt))
 #define	SET(opt)	(sp->fts_options |= (opt))
-
-#define	FCHDIR(sp, fd)	(!ISSET(FTS_NOCHDIR) && fchdir(fd))
 
 /* fts_build flags */
 #define	BCHILD		1		/* fts_children */
@@ -130,10 +112,8 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
 #define MAX(a, b)  ( (a) >= (b) ? (a) : (b) )
 
 #define AT_SYMLINK_NOFOLLOW 1
-#define fstatat(hDir, pszPath, pStat, fFlags) birdStatAt((hDir), (pszPath), (pStat), (fFlags) != 0)
+#define fstatat(hDir, pszPath, pStat, fFlags) birdStatAt((hDir), (pszPath), (pStat), (fFlags) != AT_SYMLINK_NOFOLLOW)
 #define FTS_NT_DUMMY_SYMFD_VALUE 	((HANDLE)~(intptr_t)(2)) /* current process */
-#define fchdir(fd) todo_fchdir(fd)
-extern int todo_fchdir(fts_fd_t fd);
 
 /*
  * Internal representation of an FTS, including extra implementation
@@ -142,31 +122,8 @@ extern int todo_fchdir(fts_fd_t fd);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
-#if 0 /* Not needed on NT, see comment on fts_ufslinks */
-	struct statfs	ftsp_statfs;
-	dev_t		ftsp_dev;
-	int		ftsp_linksreliable;
-#endif
 };
 
-#if 0 /* Not needed on NT, see comment on fts_ufslinks */
-/*
- * The "FTS_NOSTAT" option can avoid a lot of calls to stat(2) if it
- * knows that a directory could not possibly have subdirectories.  This
- * is decided by looking at the link count: a subdirectory would
- * increment its parent's link count by virtue of its own ".." entry.
- * This assumption only holds for UFS-like filesystems that implement
- * links and directories this way, so we must punt for others.
- */
-
-static const char *ufslike_filesystems[] = {
-	"ufs",
-	"zfs",
-	"nfs",
-	"ext2fs",
-	0
-};
-#endif
 
 FTS * FTSCALL
 fts_open(char * const *argv, int options,
@@ -196,13 +153,10 @@ fts_open(char * const *argv, int options,
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	SET(FTS_NOCHDIR); /* NT: FTS_NOCHDIR is always on (for external consumes) */
 
 	/* Shush, GCC. */
 	tmp = NULL;
-
-	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
-	if (ISSET(FTS_LOGICAL))
-		SET(FTS_NOCHDIR);
 
 	/*
 	 * Start out with 1K of path space, and enough, in any case,
@@ -448,14 +402,7 @@ fts_read(FTS *sp)
 		 * FTS_STOP or the fts_info field of the node.
 		 */
 		if (sp->fts_child != NULL) {
-			if (fts_safe_changedir(sp, p, -1, p->fts_accpath)) {
-				p->fts_errno = errno;
-				p->fts_flags |= FTS_DONTCHDIR;
-				for (p = sp->fts_child; p != NULL;
-				    p = p->fts_link)
-					p->fts_accpath =
-					    p->fts_parent->fts_accpath;
-			}
+			/* nothing to do */
 		} else if ((sp->fts_child = fts_build(sp, BREAD)) == NULL) {
 			if (ISSET(FTS_STOP))
 				return (NULL);
@@ -474,10 +421,6 @@ next:	tmp = p;
 		 * the root of the tree), and load the paths for the next root.
 		 */
 		if (p->fts_level == FTS_ROOTLEVEL) {
-			/*NT: No fchdir: if (FCHDIR(sp, sp->fts_rfd)) {
-				SET(FTS_STOP);
-				return (NULL);
-			} */
 			fts_free_entry(tmp);
 			fts_load(sp, p);
 			return (sp->fts_cur = p);
@@ -793,7 +736,7 @@ mem1:				saved_errno = errno;
 			/* Did realloc() change the pointer? */
 			if (oldaddr != sp->fts_path) {
 				doadjust = 1;
-				if (ISSET(FTS_NOCHDIR))
+				if (1 /*ISSET(FTS_NOCHDIR)*/)
 					cp = sp->fts_path + len;
 			}
 			maxlen = sp->fts_pathlen - len;
@@ -1089,88 +1032,5 @@ fts_maxarglen(char * const *argv)
 		if ((len = strlen(*argv)) > max)
 			max = len;
 	return (max + 1);
-}
-
-/*
- * Change to dir specified by fd or p->fts_accpath without getting
- * tricked by someone changing the world out from underneath us.
- * Assumes p->fts_dev and p->fts_ino are filled in.
- */
-static int
-fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
-{
-#if 0
-	int ret, oerrno, newfd;
-	struct stat sb;
-
-	newfd = fd;
-#endif
-	if (ISSET(FTS_NOCHDIR))
-		return (0);
-	assert(0);
-	return -1;
-#if 0
-	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_DIRECTORY |
-	    O_CLOEXEC, 0)) < 0)
-		return (-1);
-	if (_fstat(newfd, &sb)) {
-		ret = -1;
-		goto bail;
-	}
-	if (p->fts_dev != sb.st_dev || p->fts_ino != sb.st_ino) {
-		errno = ENOENT;		/* disinformation */
-		ret = -1;
-		goto bail;
-	}
-	ret = fchdir(newfd);
-bail:
-	oerrno = errno;
-	if (fd < 0)
-		(void)_close(newfd);
-	errno = oerrno;
-	return (ret);
-#endif
-}
-
-/*
- * Check if the filesystem for "ent" has UFS-style links.
- *
- * bird: NT does not, which is why they need this check.
- *       See comment on r129052 (2004-05-08 15:09:02Z).
- */
-static int
-fts_ufslinks(FTS *sp, const FTSENT *ent)
-{
-#if 0
-	struct _fts_private *priv;
-	const char **cpp;
-
-	priv = (struct _fts_private *)sp;
-	/*
-	 * If this node's device is different from the previous, grab
-	 * the filesystem information, and decide on the reliability
-	 * of the link information from this filesystem for stat(2)
-	 * avoidance.
-	 */
-	if (priv->ftsp_dev != ent->fts_dev) {
-		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
-			priv->ftsp_dev = ent->fts_dev;
-			priv->ftsp_linksreliable = 0;
-			for (cpp = ufslike_filesystems; *cpp; cpp++) {
-				if (strcmp(priv->ftsp_statfs.f_fstypename,
-				    *cpp) == 0) {
-					priv->ftsp_linksreliable = 1;
-					break;
-				}
-			}
-		} else {
-			priv->ftsp_linksreliable = 0;
-		}
-	}
-	return (priv->ftsp_linksreliable);
-#else
-	(void)sp; (void)ent;
-	return 0;
-#endif
 }
 
