@@ -1,10 +1,10 @@
-# $Id: Makefile.kmk 2906 2016-09-09 22:15:57Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2986 2016-11-01 18:26:38Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
 
 #
-# Copyright (c) 2006-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
 #
 # This file is part of kBuild.
 #
@@ -78,6 +78,12 @@ tstNtStat_TEMPLATE = BIN
 tstNtStat_SOURCES = nt/tstNtStat.c
 tstNtStat_LIBS = $(LIB_KUTIL)
 tstNtStat_NOINST = 1
+
+PROGRAMS.win += tstNtFts
+tstNtFts_TEMPLATE = BIN
+tstNtFts_SOURCES = nt/tstNtFts.c nt/fts-nt.c
+tstNtFts_LIBS = $(LIB_KUTIL)
+tstNtFts_NOINST = 1
 
 include $(FILE_KBUILD_SUB_FOOTER)
 
