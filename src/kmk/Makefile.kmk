@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2991 2016-11-01 21:56:13Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 2994 2016-11-01 22:41:41Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -556,8 +556,13 @@ $(kmk_0_OUTDIR)/config.h: $(kmk_config.h.$(KBUILD_TARGET))
 #
 # Some missing headers.
 #
+if1of ($(KBUILD_TARGET), win nt)
+$(kmk_0_OUTDIR)/fts.h: $(MAKEFILE) | $(call DIRDEP,$(kmk_0_OUTDIR))
+	$(APPEND) -t "$@" "#include <nt/fts-nt.h>"
+else
 $(kmk_0_OUTDIR)/fts.h: $(kmk_DEFPATH)/kmkbuiltin/ftsfake.h | $(call DIRDEP,$(kmk_0_OUTDIR))
 	$(CP) $^ $@
+endif
 
 $(kmk_0_OUTDIR)/unistd.h: | $(call DIRDEP,$(kmk_0_OUTDIR))
 	$(ECHO_EXT) > $@
