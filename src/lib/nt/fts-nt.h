@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: fts-nt.h 2989 2016-11-01 21:27:14Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
