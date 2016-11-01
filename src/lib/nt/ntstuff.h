@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2913 2016-09-14 14:06:32Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -39,6 +39,8 @@
 #undef WIN32_NO_STATUS
 #include <ntstatus.h>
 #undef timeval
+
+#include <k/kTypes.h>
 
 
 /** @defgroup grp_nt_ntstuff NT Stuff
@@ -466,6 +468,14 @@ typedef struct MY_RTL_RELATIVE_NAME_U
 # define FILE_OPEN_FOR_FREE_SPACE_QUERY     0x00800000U
 #endif
 
+#ifndef DUPLICATE_CLOSE_SOURCE /* For the misnomer NtDuplicateObject. */
+# define DUPLICATE_CLOSE_SOURCE             0x00000001U
+# define DUPLICATE_SAME_ACCESS              0x00000002U
+#endif
+#ifndef DUPLICATE_SAME_ATTRIBUTES
+# define DUPLICATE_SAME_ATTRIBUTES          0x00000004U
+#endif
+
 
 /** @name NT status codes and associated macros.
  * @{ */
@@ -479,6 +489,47 @@ typedef struct MY_RTL_RELATIVE_NAME_U
 #define MY_STATUS_OBJECT_PATH_SYNTAX_BAD    ((MY_NTSTATUS)0xc000003b)
 /** @}  */
 
+/** The pseudohandle for the current process. */
+#define MY_NT_CURRENT_PROCESS               ((HANDLE)~(uintptr_t)0)
+/** The pseudohandle for the current thread. */
+#define MY_NT_CURRENT_THREAD                ((HANDLE)~(uintptr_t)1)
+
+typedef struct MY_CLIENT_ID
+{
+    HANDLE UniqueProcess;
+    HANDLE UniqueThread;
+} MY_CLIENT_ID;
+
+/** Partial TEB.   */
+typedef struct MY_PARTIAL_TEB
+{
+    NT_TIB          NtTib;
+    PVOID           EnvironmentPointer;
+    MY_CLIENT_ID    ClientId;
+    PVOID           ActiveRpcHandle;
+    PVOID           ThreadLocalStoragePointer;
+    PPEB            ProcessEnvironmentBlock;
+    KU32            LastErrorValue;
+    KU32            CountOfOwnedCriticalSections;
+    PVOID           CsrClientThread;
+    PVOID           Win32ThreadInfo;
+} MY_PARTIAL_TEB;
+
+/** Internal macro for reading uintptr_t sized TEB members. */
+#if K_ARCH == K_ARCH_AMD64
+# define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readgsqword(a_offTebMember) )
+#elif K_ARCH == K_ARCH_X86
+# define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readfsdword(a_offTebMember) )
+#else
+# else "Port me!"
+#endif
+/** Get the PEB pointer.
+ * @remark Needs stddef.h. */
+#define MY_NT_CURRENT_PEB()  ( (PPEB)MY_NT_READ_TEB_WORKER(offsetof(MY_PARTIAL_TEB, ProcessEnvironmentBlock)) )
+/** Get the TEB pointer.
+ * @remark Needs stddef.h. */
+#define MY_NT_CURRENT_TEB()  ( (PTEB)MY_NT_READ_TEB_WORKER(offsetof(NT_TIB, Self)) )
+
 
 /*******************************************************************************
 *   Global Variables                                                           *
@@ -487,6 +538,8 @@ extern MY_NTSTATUS (WINAPI * g_pfnNtClose)(HANDLE);
 extern MY_NTSTATUS (WINAPI * g_pfnNtCreateFile)(PHANDLE, MY_ACCESS_MASK, MY_OBJECT_ATTRIBUTES *, MY_IO_STATUS_BLOCK *,
                                                 PLARGE_INTEGER, ULONG, ULONG, ULONG, ULONG, PVOID, ULONG);
 extern MY_NTSTATUS (WINAPI * g_pfnNtDeleteFile)(MY_OBJECT_ATTRIBUTES *);
+extern MY_NTSTATUS (WINAPI * g_pfnNtDuplicateObject)(HANDLE hSrcProc, HANDLE hSrc, HANDLE hDstProc, HANDLE *phRet,
+                                                     MY_ACCESS_MASK fDesiredAccess, ULONG fAttribs, ULONG fOptions);
 extern MY_NTSTATUS (WINAPI * g_pfnNtReadFile)(HANDLE hFile, HANDLE hEvent, MY_IO_APC_ROUTINE *pfnApc, PVOID pvApcCtx,
                                               MY_IO_STATUS_BLOCK *, PVOID pvBuf, ULONG cbToRead, PLARGE_INTEGER poffFile,
                                               PULONG  puKey);
@@ -508,6 +561,8 @@ extern BOOLEAN     (WINAPI * g_pfnRtlEqualString)(MY_ANSI_STRING const *pAnsiStr
                                                   BOOLEAN fCaseInsensitive);
 extern UCHAR       (WINAPI * g_pfnRtlUpperChar)(UCHAR uch);
 extern ULONG       (WINAPI * g_pfnRtlNtStatusToDosError)(MY_NTSTATUS rcNt);
+extern VOID        (WINAPI * g_pfnRtlAcquirePebLock)(VOID);
+extern VOID        (WINAPI * g_pfnRtlReleasePebLock)(VOID);
 
 
 /** @} */

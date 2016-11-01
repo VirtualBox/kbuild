@@ -1,10 +1,10 @@
-/* $Id: ntdir.c 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, telldir, seekdir, and closedir.
  */
 
 /*
- * Copyright (c) 2005-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2016 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <malloc.h>
+#include <assert.h>
 
 #include "ntstuff.h"
 #include "nthlp.h"
@@ -42,52 +43,25 @@
 
 
 /**
- * Internal worker for birdStatModTimeOnly.
- */
-static BirdDir_T *birdDirOpenInternal(const char *pszPath, const char *pszFilter, int fMinimalInfo)
-{
-    HANDLE hFile = birdOpenFile(pszPath,
-                                FILE_READ_DATA | SYNCHRONIZE,
-                                FILE_ATTRIBUTE_NORMAL,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                FILE_OPEN,
-                                FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
-                                OBJ_CASE_INSENSITIVE);
-    if (hFile != INVALID_HANDLE_VALUE)
-    {
-        /*
-         * Allocate a handle.
-         */
-        BirdDir_T *pDir = (BirdDir_T *)birdMemAlloc(sizeof(*pDir));
-        if (pDir)
-        {
-            pDir->uMagic     = BIRD_DIR_MAGIC;
-            pDir->pvHandle   = (void *)hFile;
-            pDir->uDev       = 0;
-            pDir->offPos     = 0;
-            pDir->fHaveData  = 0;
-            pDir->fFirst     = 1;
-            pDir->iInfoClass = fMinimalInfo ? MyFileNamesInformation : MyFileIdFullDirectoryInformation;
-            pDir->offBuf     = 0;
-            pDir->cbBuf      = 0;
-            pDir->pabBuf     = NULL;
-            return pDir;
-        }
-
-        birdCloseFile(hFile);
-        birdSetErrnoToNoMem();
-    }
-
-    return NULL;
-}
-
-
-/**
  * Implements opendir.
  */
 BirdDir_T *birdDirOpen(const char *pszPath)
 {
-    return birdDirOpenInternal(pszPath, NULL, 1 /*fMinimalInfo*/);
+    HANDLE hDir = birdOpenFile(pszPath,
+                               FILE_READ_DATA | SYNCHRONIZE,
+                               FILE_ATTRIBUTE_NORMAL,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               FILE_OPEN,
+                               FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+                               OBJ_CASE_INSENSITIVE);
+    if (hDir != INVALID_HANDLE_VALUE)
+    {
+        BirdDir_T *pDir = birdDirOpenFromHandle((void *)hDir, NULL, BIRDDIR_F_CLOSE_HANDLE);
+        if (pDir)
+            return pDir;
+        birdCloseFile(hDir);
+    }
+    return NULL;
 }
 
 
@@ -96,7 +70,76 @@ BirdDir_T *birdDirOpen(const char *pszPath)
  */
 BirdDir_T *birdDirOpenExtraInfo(const char *pszPath)
 {
-    return birdDirOpenInternal(pszPath, NULL, 0 /*fMinimalInfo*/);
+    HANDLE hDir = birdOpenFile(pszPath,
+                               FILE_READ_DATA | SYNCHRONIZE,
+                               FILE_ATTRIBUTE_NORMAL,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               FILE_OPEN,
+                               FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+                               OBJ_CASE_INSENSITIVE);
+    if (hDir != INVALID_HANDLE_VALUE)
+    {
+        BirdDir_T *pDir = birdDirOpenFromHandle((void *)hDir, NULL, BIRDDIR_F_CLOSE_HANDLE | BIRDDIR_F_EXTRA_INFO);
+        if (pDir)
+            return pDir;
+        birdCloseFile(hDir);
+    }
+    return NULL;
+}
+
+
+BirdDir_T *birdDirOpenExW(void *hRoot, const wchar_t *pwszPath, const wchar_t *pwszFilter, unsigned fFlags)
+{
+    HANDLE hDir = birdOpenFileExW((HANDLE)hRoot,
+                                  pwszPath,
+                                  FILE_READ_DATA | SYNCHRONIZE,
+                                  FILE_ATTRIBUTE_NORMAL,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                  FILE_OPEN,
+                                  FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+                                  OBJ_CASE_INSENSITIVE);
+    if (hDir != INVALID_HANDLE_VALUE)
+    {
+        BirdDir_T *pDir = birdDirOpenFromHandle((void *)hDir, pwszFilter, fFlags | BIRDDIR_F_CLOSE_HANDLE);
+        if (pDir)
+            return pDir;
+        birdCloseFile(hDir);
+    }
+    return NULL;
+}
+
+
+/**
+ * Internal worker for birdStatModTimeOnly.
+ */
+BirdDir_T *birdDirOpenFromHandle(void *pvHandle, const void *pvReserved, unsigned fFlags)
+{
+    if (!pvReserved)
+    {
+        /*
+         * Allocate and initialize the directory enum handle.
+         */
+        BirdDir_T *pDir = (BirdDir_T *)birdMemAlloc(sizeof(*pDir));
+        if (pDir)
+        {
+            pDir->uMagic        = BIRD_DIR_MAGIC;
+            pDir->fFlags        = fFlags;
+            pDir->pvHandle      = pvHandle;
+            pDir->uDev          = 0;
+            pDir->offPos        = 0;
+            pDir->fHaveData     = 0;
+            pDir->fFirst        = 1;
+            pDir->iInfoClass    = fFlags & BIRDDIR_F_EXTRA_INFO ? MyFileIdFullDirectoryInformation : MyFileNamesInformation;
+            pDir->offBuf        = 0;
+            pDir->cbBuf         = 0;
+            pDir->pabBuf        = NULL;
+            return pDir;
+        }
+    }
+    else
+        assert(pvReserved == NULL);
+    birdSetErrnoToNoMem();
+    return NULL;
 }
 
 
@@ -157,7 +200,7 @@ static int birdDirReadMore(BirdDir_T *pDir)
                                      (MY_FILE_INFORMATION_CLASS)pDir->iInfoClass,
                                      FALSE,     /* fReturnSingleEntry */
                                      NULL,      /* Filter / restart pos. */
-                                     FALSE);    /* fRestartScan */
+                                     pDir->fFlags & BIRDDIR_F_RESTART_SCAN ? TRUE : FALSE); /* fRestartScan */
     if (!MY_NT_SUCCESS(rcNt))
     {
         int rc;
@@ -172,6 +215,7 @@ static int birdDirReadMore(BirdDir_T *pDir)
 
     pDir->offBuf    = 0;
     pDir->fHaveData = 1;
+    pDir->fFlags    &= ~BIRDDIR_F_RESTART_SCAN;
 
     return 0;
 }
@@ -354,7 +398,8 @@ int             birdDirClose(BirdDir_T *pDir)
         return birdSetErrnoToBadFileNo();
 
     pDir->uMagic++;
-    birdCloseFile((HANDLE)pDir->pvHandle);
+    if (pDir->fFlags & BIRDDIR_F_CLOSE_HANDLE)
+        birdCloseFile((HANDLE)pDir->pvHandle);
     pDir->pvHandle = (void *)INVALID_HANDLE_VALUE;
     birdMemFree(pDir->pabBuf);
     pDir->pabBuf = NULL;

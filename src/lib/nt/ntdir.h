@@ -1,4 +1,4 @@
-/* $Id: ntdir.h 2708 2013-11-21 10:26:40Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.h 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, closedir and friends.
  */
@@ -64,10 +64,24 @@ typedef struct dirent
 #define DT_WHT              14
 /** @}  */
 
+/** @name BIRDDIR_F_XXX - birdDirOpenFromHandle & BirdDir_T::fFlags
+ * @{ */
+/** birdDirClose should also close pvHandle.  */
+#define BIRDDIR_F_CLOSE_HANDLE  1U
+/** birdDirClose should not close the handle.  */
+#define BIRDDIR_F_KEEP_HANDLE   0U
+/** Provide extra info (stat). */
+#define BIRDDIR_F_EXTRA_INFO    2U
+/** Whether to restart the scan. */
+#define BIRDDIR_F_RESTART_SCAN  4U
+/** @} */
+
 typedef struct BirdDir
 {
     /** Magic value. */
     unsigned            uMagic;
+    /** Flags. */
+    unsigned            fFlags;
     /** The directory handle. */
     void               *pvHandle;
     /** The device number (st_dev). */
@@ -97,6 +111,8 @@ typedef struct BirdDir
 
 BirdDir_T      *birdDirOpen(const char *pszPath);
 BirdDir_T      *birdDirOpenExtraInfo(const char *pszPath);
+BirdDir_T      *birdDirOpenExW(void *hRoot, const wchar_t *pwszPath, const wchar_t *pwszFilter, unsigned fFlags);
+BirdDir_T      *birdDirOpenFromHandle(void *hDir, const void *pvReserved, unsigned fFlags);
 BirdDirEntry_T *birdDirRead(BirdDir_T *pDir);
 long            birdDirTell(BirdDir_T *pDir);
 void            birdDirSeek(BirdDir_T *pDir, long offDir);

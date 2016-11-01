@@ -1,3 +1,12 @@
+/* $Id: $ */
+/** @file
+ * Header for the NT port of BSD fts.h.
+ *
+ * @copyright   Copyright (c) 1989, 1993 The Regents of the University of California.  All rights reserved.
+ * @copyright   NT modifications Copyright (C) 2016 knut st. osmundsen <bird-klibc-spam-xiv@anduin.net>
+ * @licenses    BSD3
+ */
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -28,23 +37,35 @@
  *
  *	@(#)fts.h	8.3 (Berkeley) 8/14/94
  * $FreeBSD$
+ *
  */
 
-#ifndef	_FTS_H_
-#define	_FTS_H_
+#ifndef	INCLUDED_FTS_NT_H
+#define	INCLUDED_FTS_NT_H
 
-#include <sys/_types.h>
+#include <sys/types.h>
+#include <stdint.h>
+#include "ntstat.h" /* ensure correct stat structure */
+
+typedef uint64_t fts_dev_t;
+typedef uint64_t fts_ino_t;
+typedef uint32_t fts_nlink_t;
+#ifdef _WINNT_
+typedef HANDLE fts_fd_t;
+#else
+typedef void * fts_fd_t;
+#endif
+#define FTSCALL __cdecl
 
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */
 	struct _ftsent **fts_array;	/* sort array */
-	__dev_t fts_dev;		/* starting device # */
+	fts_dev_t fts_dev;		/* starting device # */
 	char *fts_path;			/* path for this descent */
-	int fts_rfd;			/* fd for root */
-	__size_t fts_pathlen;		/* sizeof(path) */
-	__size_t fts_nitems;		/* elements in the sort array */
-	int (*fts_compar)		/* compare function */
+	size_t fts_pathlen;		/* sizeof(path) */
+	size_t fts_nitems;		/* elements in the sort array */
+	int (FTSCALL *fts_compar)	/* compare function */
 	    (const struct _ftsent * const *, const struct _ftsent * const *);
 
 #define	FTS_COMFOLLOW	0x001		/* follow command line symlinks */
@@ -54,7 +75,9 @@ typedef struct {
 #define	FTS_PHYSICAL	0x010		/* physical walk */
 #define	FTS_SEEDOT	0x020		/* return dot and dot-dot */
 #define	FTS_XDEV	0x040		/* don't cross devices */
+#if 0 /* No whiteout on NT. */
 #define	FTS_WHITEOUT	0x080		/* return whiteout information */
+#endif
 #define	FTS_OPTIONMASK	0x0ff		/* valid user option mask */
 
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
@@ -67,19 +90,20 @@ typedef struct _ftsent {
 	struct _ftsent *fts_cycle;	/* cycle node */
 	struct _ftsent *fts_parent;	/* parent directory */
 	struct _ftsent *fts_link;	/* next file in directory */
-	long long fts_number;		/* local numeric value */
+	int64_t fts_number;		/* local numeric value */
 #define	fts_bignum	fts_number	/* XXX non-std, should go away */
 	void *fts_pointer;		/* local address value */
 	char *fts_accpath;		/* access path */
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
-	int fts_symfd;			/* fd for symlink */
-	__size_t fts_pathlen;		/* strlen(fts_path) */
-	__size_t fts_namelen;		/* strlen(fts_name) */
+	fts_fd_t fts_symfd;		/* NT: Normally -1; -2 we followed this symlinked dir */
+	fts_fd_t fts_dirfd;		/* NT: Handle to the directory */
+	size_t fts_pathlen;		/* strlen(fts_path) */
+	size_t fts_namelen;		/* strlen(fts_name) */
 
-	__ino_t fts_ino;		/* inode */
-	__dev_t fts_dev;		/* device */
-	__nlink_t fts_nlink;		/* link count */
+	fts_ino_t fts_ino;		/* inode */
+	fts_dev_t fts_dev;		/* device */
+	fts_nlink_t fts_nlink;		/* link count */
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
@@ -98,7 +122,7 @@ typedef struct _ftsent {
 #define	FTS_NSOK	11		/* no stat(2) requested */
 #define	FTS_SL		12		/* symbolic link */
 #define	FTS_SLNONE	13		/* symbolic link without target */
-#define	FTS_W		14		/* whiteout object */
+//#define	FTS_W		14		/* whiteout object */
 	int fts_info;			/* user status for FTSENT structure */
 
 #define	FTS_DONTCHDIR	 0x01		/* don't chdir .. to the parent */
@@ -115,22 +139,27 @@ typedef struct _ftsent {
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */
 	FTS *fts_fts;			/* back pointer to main FTS */
+	BirdStat_T fts_stat;		/* NT: We always got stat info. */
 } FTSENT;
 
-#include <sys/cdefs.h>
 
-__BEGIN_DECLS
-FTSENT	*fts_children(FTS *, int);
-int	 fts_close(FTS *);
-void	*fts_get_clientptr(FTS *);
+#ifdef __cplusplus
+extern "C" {
+#endif
+FTSENT	*FTSCALL fts_children(FTS *, int);
+int	 FTSCALL fts_close(FTS *);
+void	*FTSCALL fts_get_clientptr(FTS *);
 #define	 fts_get_clientptr(fts)	((fts)->fts_clientptr)
-FTS	*fts_get_stream(FTSENT *);
+FTS	*FTSCALL fts_get_stream(FTSENT *);
 #define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
-FTS	*fts_open(char * const *, int,
-	    int (*)(const FTSENT * const *, const FTSENT * const *));
-FTSENT	*fts_read(FTS *);
-int	 fts_set(FTS *, FTSENT *, int);
-void	 fts_set_clientptr(FTS *, void *);
-__END_DECLS
+FTS	*FTSCALL fts_open(char * const *, int,
+	    int (FTSCALL*)(const FTSENT * const *, const FTSENT * const *));
+FTSENT	*FTSCALL fts_read(FTS *);
+int	 FTSCALL fts_set(FTS *, FTSENT *, int);
+void	 FTSCALL fts_set_clientptr(FTS *, void *);
+#ifdef __cplusplus
+}
+#endif
 
-#endif /* !_FTS_H_ */
+#endif /* !INCLUDED_FTS_NT_H */
+

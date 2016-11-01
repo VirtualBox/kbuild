@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2880 2016-09-05 20:36:26Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -92,7 +92,10 @@ static int birdIsFileExecutable(const char *pszName)
 }
 
 
-static int birdIsFileExecutableW(WCHAR const *pwcName, ULONG cwcName)
+/**
+ * @a pwcName could be the full path.
+ */
+static int birdIsFileExecutableW(WCHAR const *pwcName, size_t cwcName)
 {
     char            szExt[8];
     unsigned        cchExt;
@@ -127,7 +130,7 @@ static int birdIsFileExecutableW(WCHAR const *pwcName, ULONG cwcName)
 
 
 static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const char *pszName,
-                                         MY_FILE_NAME_INFORMATION *pNameInfo, __int16 *pfIsDirSymlink)
+                                         const wchar_t *pwszName, size_t cbNameW, __int16 *pfIsDirSymlink)
 {
     unsigned short fMode;
 
@@ -168,7 +171,7 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
     if (   (fAttribs & FILE_ATTRIBUTE_DIRECTORY)
         || (pszName
             ? birdIsFileExecutable(pszName)
-            : birdIsFileExecutableW(pNameInfo->FileName, pNameInfo->FileNameLength)) )
+            : birdIsFileExecutableW(pwszName, cbNameW)) )
         fMode |= S_IXOTH | S_IXGRP | S_IXUSR;
 
     return fMode;
@@ -185,8 +188,8 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
  */
 void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf, const char *pszPath)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
-                                                 NULL, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
+                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -217,8 +220,8 @@ void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_IN
  */
 void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
-                                                 NULL, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
+                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -249,8 +252,8 @@ void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_IN
  */
 void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes, pszPath,
-                                                 NULL, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
+                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -271,7 +274,7 @@ void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMA
 }
 
 
-int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
+int birdStatHandle2(HANDLE hFile, BirdStat_T *pStat, const char *pszPath, const wchar_t *pwszPath)
 {
     int                      rc;
     MY_NTSTATUS              rcNt;
@@ -289,7 +292,8 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
         if (MY_NT_SUCCESS(rcNt))
         {
             pStat->st_mode          = birdFileInfoToMode(hFile, pAll->BasicInformation.FileAttributes, pszPath,
-                                                         &pAll->NameInformation, &pStat->st_dirsymlink);
+                                                         pAll->NameInformation.FileNamepAll->NameInformation.FileNameLength,
+                                                         &pStat->st_dirsymlink);
             pStat->st_padding0[0]   = 0;
             pStat->st_padding0[1]   = 0;
             pStat->st_size          = pAll->StandardInformation.EndOfFile.QuadPart;
@@ -351,7 +355,7 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
         rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &InternalInfo, sizeof(InternalInfo), MyFileInternalInformation);
     if (MY_NT_SUCCESS(rcNt))
         rcNt = Ios.u.Status;
-    if (MY_NT_SUCCESS(rcNt) && !pszPath)
+    if (MY_NT_SUCCESS(rcNt) && !pszPath && !pwszPath)
     {
         cbNameInfo = 0x10020;
         pNameInfo  = (MY_FILE_NAME_INFORMATION *)alloca(cbNameInfo);
@@ -363,7 +367,10 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
     if (MY_NT_SUCCESS(rcNt))
     {
         pStat->st_mode          = birdFileInfoToMode(hFile, BasicInfo.FileAttributes, pszPath,
-                                                     pNameInfo, &pStat->st_dirsymlink);
+                                                     pNameInfo ? pNameInfo->FileName : pwszPath,
+                                                     pNameInfo ? pNameInfo->FileNameLength
+                                                     : pwszPath ? wcslen(pwszPath) * sizeof(wchar_t) : 0,
+                                                     &pStat->st_dirsymlink);
         pStat->st_padding0[0]   = 0;
         pStat->st_padding0[1]   = 0;
         pStat->st_size          = StdInfo.EndOfFile.QuadPart;
@@ -409,6 +416,12 @@ int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
 
 #endif
     return rc;
+}
+
+
+int birdStatHandle(HANDLE hFile, BirdStat_T *pStat, const char *pszPath)
+{
+    return birdStatHandle2(hFile, pStat, pszPath, NULL);
 }
 
 
@@ -459,19 +472,19 @@ MY_NTSTATUS birdQueryVolumeDeviceNumber(HANDLE hFile, MY_FILE_FS_VOLUME_INFORMAT
 }
 
 
-static int birdStatInternal(const char *pszPath, BirdStat_T *pStat, int fFollow)
+static int birdStatInternal(HANDLE hRoot, const char *pszPath, BirdStat_T *pStat, int fFollow)
 {
     int rc;
-    HANDLE hFile = birdOpenFile(pszPath,
-                                FILE_READ_ATTRIBUTES,
-                                FILE_ATTRIBUTE_NORMAL,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                FILE_OPEN,
-                                FILE_OPEN_FOR_BACKUP_INTENT | (fFollow ? 0 : FILE_OPEN_REPARSE_POINT),
-                                OBJ_CASE_INSENSITIVE);
+    HANDLE hFile = birdOpenFileEx(hRoot, pszPath,
+                                  FILE_READ_ATTRIBUTES,
+                                  FILE_ATTRIBUTE_NORMAL,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                  FILE_OPEN,
+                                  FILE_OPEN_FOR_BACKUP_INTENT | (fFollow ? 0 : FILE_OPEN_REPARSE_POINT),
+                                  OBJ_CASE_INSENSITIVE);
     if (hFile != INVALID_HANDLE_VALUE)
     {
-        rc = birdStatHandle(hFile, pStat, pszPath);
+        rc = birdStatHandle2(hFile, pStat, pszPath, NULL);
         birdCloseFile(hFile);
 
 #if 0
@@ -499,7 +512,7 @@ static int birdStatInternal(const char *pszPath, BirdStat_T *pStat, int fFollow)
             && strchr(pszPath, '?') == NULL)
         {
             MY_UNICODE_STRING NameUniStr;
-            hFile = birdOpenParentDir(pszPath,
+            hFile = birdOpenParentDir(hRoot, pszPath,
                                       FILE_READ_DATA | SYNCHRONIZE,
                                       FILE_ATTRIBUTE_NORMAL,
                                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -551,6 +564,84 @@ static int birdStatInternal(const char *pszPath, BirdStat_T *pStat, int fFollow)
 }
 
 
+static int birdStatInternalW(HANDLE hRoot, const wchar_t *pwszPath, BirdStat_T *pStat, int fFollow)
+{
+    int rc;
+    HANDLE hFile = birdOpenFileExW(hRoot, pwszPath,
+                                   FILE_READ_ATTRIBUTES,
+                                   FILE_ATTRIBUTE_NORMAL,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   FILE_OPEN,
+                                   FILE_OPEN_FOR_BACKUP_INTENT | (fFollow ? 0 : FILE_OPEN_REPARSE_POINT),
+                                   OBJ_CASE_INSENSITIVE);
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
+        birdCloseFile(hFile);
+    }
+    else
+    {
+        /*
+         * On things like pagefile.sys we may get sharing violation.  We fall
+         * back on directory enumeration for dealing with that.
+         */
+        if (   errno == ETXTBSY
+            && wcschr(pwszPath, '*') == NULL /* Serious paranoia... */
+            && wcschr(pwszPath, '?') == NULL)
+        {
+            MY_UNICODE_STRING NameUniStr;
+            hFile = birdOpenParentDirW(hRoot, pwszPath,
+                                       FILE_READ_DATA | SYNCHRONIZE,
+                                       FILE_ATTRIBUTE_NORMAL,
+                                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                       FILE_OPEN,
+                                       FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+                                       OBJ_CASE_INSENSITIVE,
+                                       &NameUniStr);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                MY_FILE_ID_FULL_DIR_INFORMATION *pBuf;
+                ULONG               cbBuf = sizeof(*pBuf) + NameUniStr.MaximumLength + 1024;
+                MY_IO_STATUS_BLOCK  Ios;
+                MY_NTSTATUS         rcNt;
+
+                pBuf = (MY_FILE_ID_FULL_DIR_INFORMATION *)alloca(cbBuf);
+                Ios.u.Status    = -1;
+                Ios.Information = -1;
+                rcNt = g_pfnNtQueryDirectoryFile(hFile, NULL, NULL, NULL, &Ios, pBuf, cbBuf,
+                                                 MyFileIdFullDirectoryInformation, FALSE, &NameUniStr, TRUE);
+                if (MY_NT_SUCCESS(rcNt))
+                    rcNt = Ios.u.Status;
+                if (MY_NT_SUCCESS(rcNt))
+                {
+                    /*
+                     * Convert the data.
+                     */
+                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf, NULL);
+
+                    /* Get the serial number, reusing the buffer from above. */
+                    rcNt = birdQueryVolumeDeviceNumber(hFile, (MY_FILE_FS_VOLUME_INFORMATION *)pBuf, cbBuf, &pStat->st_dev);
+                    if (MY_NT_SUCCESS(rcNt))
+                        rc = 0;
+                    else
+                        rc = birdSetErrnoFromNt(rcNt);
+                }
+
+                birdFreeNtPath(&NameUniStr);
+                birdCloseFile(hFile);
+
+                if (MY_NT_SUCCESS(rcNt))
+                    return 0;
+                birdSetErrnoFromNt(rcNt);
+            }
+        }
+        rc = -1;
+    }
+
+    return rc;
+}
+
+
 /**
  * Implements UNIX fstat().
  */
@@ -569,7 +660,7 @@ int birdStatOnFd(int fd, BirdStat_T *pStat)
         switch (fFileType)
         {
             case FILE_TYPE_DISK:
-                rc = birdStatHandle(hFile, pStat, NULL);
+                rc = birdStatHandle2(hFile, pStat, NULL, NULL);
                 break;
 
             case FILE_TYPE_CHAR:
@@ -656,7 +747,16 @@ int birdStatOnFdJustSize(int fd, __int64 *pcbFile)
  */
 int birdStatFollowLink(const char *pszPath, BirdStat_T *pStat)
 {
-    return birdStatInternal(pszPath, pStat, 1 /*fFollow*/);
+    return birdStatInternal(NULL, pszPath, pStat, 1 /*fFollow*/);
+}
+
+
+/**
+ * Implements UNIX stat().
+ */
+int birdStatFollowLinkW(const wchar_t *pwszPath, BirdStat_T *pStat)
+{
+    return birdStatInternalW(NULL, pwszPath, pStat, 1 /*fFollow*/);
 }
 
 
@@ -665,7 +765,46 @@ int birdStatFollowLink(const char *pszPath, BirdStat_T *pStat)
  */
 int birdStatOnLink(const char *pszPath, BirdStat_T *pStat)
 {
-    return birdStatInternal(pszPath, pStat, 0 /*fFollow*/);
+    return birdStatInternal(NULL, pszPath, pStat, 0 /*fFollow*/);
+}
+
+
+/**
+ * Implements UNIX lstat().
+ */
+int birdStatOnLinkW(const wchar_t *pwszPath, BirdStat_T *pStat)
+{
+    return birdStatInternalW(NULL, pwszPath, pStat, 0 /*fFollow*/);
+}
+
+
+/**
+ * Implements an API like UNIX fstatat().
+ *
+ * @returns 0 on success, -1 and errno on failure.
+ * @param   hRoot               NT handle pwszPath is relative to.
+ * @param   pszPath             The path.
+ * @param   pStat               Where to return stats.
+ * @param   fFollowLink         Whether to follow links.
+ */
+int birdStatAt(HANDLE hRoot, const char *pszPath, BirdStat_T *pStat, int fFollowLink)
+{
+    return birdStatInternal(hRoot, pszPath, pStat, fFollowLink != 0);
+}
+
+
+/**
+ * Implements an API like UNIX fstatat().
+ *
+ * @returns 0 on success, -1 and errno on failure.
+ * @param   hRoot               NT handle pwszPath is relative to.
+ * @param   pwszPath            The path.
+ * @param   pStat               Where to return stats.
+ * @param   fFollowLink         Whether to follow links.
+ */
+int birdStatAtW(HANDLE hRoot, const wchar_t *pwszPath, BirdStat_T *pStat, int fFollowLink)
+{
+    return birdStatInternalW(hRoot, pwszPath, pStat, fFollowLink != 0);
 }
 
 

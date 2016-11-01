@@ -1,4 +1,4 @@
-/* $Id: ntstat.h 2858 2016-09-01 15:12:24Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.h 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat implementation and wrappers.
  */
@@ -76,7 +76,11 @@ typedef struct BirdStat
 #define st_birthtime    st_birthtim.tv_sec
 
 int birdStatFollowLink(const char *pszPath, BirdStat_T *pStat);
+int birdStatFollowLinkW(const wchar_t *pwszPath, BirdStat_T *pStat);
 int birdStatOnLink(const char *pszPath, BirdStat_T *pStat);
+int birdStatOnLinkW(const wchar_t *pwszPath, BirdStat_T *pStat);
+int birdStatAt(void *hRoot, const char *pszPath, BirdStat_T *pStat, int fFollowLink);
+int birdStatAtW(void *hRoot, const wchar_t *pwszPath, BirdStat_T *pStat, int fFollowLink);
 int birdStatOnFd(int fd, BirdStat_T *pStat);
 int birdStatOnFdJustSize(int fd, __int64 *pcbFile);
 int birdStatModTimeOnly(const char *pszPath, BirdTimeSpec_T *pTimeSpec, int fFollowLink);
