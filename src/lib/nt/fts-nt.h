@@ -1,4 +1,4 @@
-/* $Id: fts-nt.h 2989 2016-11-01 21:27:14Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.h 2992 2016-11-01 22:06:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
@@ -146,17 +146,27 @@ typedef struct _ftsent {
 #ifdef __cplusplus
 extern "C" {
 #endif
-FTSENT	*FTSCALL fts_children(FTS *, int);
-int	 FTSCALL fts_close(FTS *);
-void	*FTSCALL fts_get_clientptr(FTS *);
+
+FTSENT	*FTSCALL nt_fts_children(FTS *, int);
+int	 FTSCALL nt_fts_close(FTS *);
+void	*FTSCALL nt_fts_get_clientptr(FTS *);
 #define	 fts_get_clientptr(fts)	((fts)->fts_clientptr)
-FTS	*FTSCALL fts_get_stream(FTSENT *);
+FTS	*FTSCALL nt_fts_get_stream(FTSENT *);
 #define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
-FTS	*FTSCALL fts_open(char * const *, int,
+FTS	*FTSCALL nt_fts_open(char * const *, int,
 	    int (FTSCALL*)(const FTSENT * const *, const FTSENT * const *));
-FTSENT	*FTSCALL fts_read(FTS *);
-int	 FTSCALL fts_set(FTS *, FTSENT *, int);
-void	 FTSCALL fts_set_clientptr(FTS *, void *);
+FTSENT	*FTSCALL nt_fts_read(FTS *);
+int	 FTSCALL nt_fts_set(FTS *, FTSENT *, int);
+void	 FTSCALL nt_fts_set_clientptr(FTS *, void *);
+
+/* API mappings. */
+#define fts_children(a_pFts, a_iInstr)                  nt_fts_children(a_pFts, a_iInstr)
+#define fts_close(a_pFts)                               nt_fts_close(a_pFts)
+#define fts_open(a_papszArgs, a_fOptions, a_pfnCompare) nt_fts_open(a_papszArgs, a_fOptions, a_pfnCompare)
+#define fts_read(a_pFts)                                nt_fts_read(a_pFts)
+#define fts_set(a_pFts, a_pFtsEntry, a_iInstr)          nt_fts_set(a_pFts, a_pFtsEntry, a_iInstr)
+#define fts_set_clientptr(a_pFts, a_pvUser)             nt_fts_set_clientptr(a_pFts, a_pvUser)
+
 #ifdef __cplusplus
 }
 #endif
