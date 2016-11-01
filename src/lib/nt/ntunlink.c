@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 2713 2013-11-21 21:11:00Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -45,7 +45,8 @@ static MY_NTSTATUS birdMakeWritable(MY_UNICODE_STRING *pNtPath)
     MY_NTSTATUS rcNt;
     HANDLE      hFile;
 
-    rcNt = birdOpenFileUniStr(pNtPath,
+    rcNt = birdOpenFileUniStr(NULL /*hRoot*/,
+                              pNtPath,
                               FILE_WRITE_ATTRIBUTES | FILE_READ_ATTRIBUTES | SYNCHRONIZE,
                               FILE_ATTRIBUTE_NORMAL,
                               FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -111,7 +112,8 @@ static int birdUnlinkInternal(const char *pszFile, int fReadOnlyToo, int fFast)
             int    fMayTryAgain = 1;
             for (;;)
             {
-                rcNt = birdOpenFileUniStr(&NtPath,
+                rcNt = birdOpenFileUniStr(NULL /*hRoot*/,
+                                          &NtPath,
                                           DELETE,
                                           FILE_ATTRIBUTE_NORMAL,
                                           FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
