@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3000 2016-11-05 19:39:06Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3001 2016-11-05 20:03:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -84,6 +84,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #include <assert.h>
 #include "nthlp.h"
 #include "ntdir.h"
+#include <stdio.h>//debug
 
 static FTSENT	*fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname);
 static FTSENT	*fts_alloc_ansi(FTS *sp, char const *name, size_t namelen);
@@ -115,8 +116,6 @@ static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
 #define MAXPATHLEN 260
 #define MAX(a, b)  ( (a) >= (b) ? (a) : (b) )
 
-#define AT_SYMLINK_NOFOLLOW 1
-#define fstatat(hDir, pszPath, pStat, fFlags) birdStatAt((hDir), (pszPath), (pStat), (fFlags) != AT_SYMLINK_NOFOLLOW)
 #define FTS_NT_DUMMY_SYMFD_VALUE 	((HANDLE)~(intptr_t)(2)) /* current process */
 
 /*
@@ -312,7 +311,7 @@ fts_load(FTS *sp, FTSENT *p)
 	 * place and the user can access the first node.  From fts_open it's
 	 * known that the path will fit.
 	 */
-    if (!(sp->fts_options & FTS_NO_ANSI)) {
+	if (!(sp->fts_options & FTS_NO_ANSI)) {
 		char *cp;
 		len = p->fts_pathlen = p->fts_namelen;
 		memmove(sp->fts_path, p->fts_name, len + 1);
@@ -710,28 +709,32 @@ fts_build(FTS *sp, int type)
 	if (cur->fts_dirfd == INVALID_HANDLE_VALUE) {
 		if (cur->fts_parent->fts_dirfd != INVALID_HANDLE_VALUE) {
 			/* (This works fine for symlinks too, since we follow them.) */
-			cur->fts_dirfd = birdOpenFileEx(cur->fts_parent->fts_dirfd,
-											cur->fts_name,
-											FILE_READ_DATA | SYNCHRONIZE,
-											FILE_ATTRIBUTE_NORMAL,
-											FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-											FILE_OPEN,
-											FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
-											OBJ_CASE_INSENSITIVE);
+			cur->fts_dirfd = birdOpenFileExW(cur->fts_parent->fts_dirfd,
+			                                 cur->fts_wcsname,
+			                                 FILE_READ_DATA | SYNCHRONIZE,
+			                                 FILE_ATTRIBUTE_NORMAL,
+			                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			                                 FILE_OPEN,
+			                                 FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+			                                 OBJ_CASE_INSENSITIVE);
 		} else {
-			cur->fts_dirfd = birdOpenFile(cur->fts_accpath,
-										  FILE_READ_DATA | SYNCHRONIZE,
-										  FILE_ATTRIBUTE_NORMAL,
-										  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-										  FILE_OPEN,
-										  FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
-										  OBJ_CASE_INSENSITIVE);
+			cur->fts_dirfd = birdOpenFileW(cur->fts_wcsaccpath,
+			                               FILE_READ_DATA | SYNCHRONIZE,
+			                               FILE_ATTRIBUTE_NORMAL,
+			                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			                               FILE_OPEN,
+			                               FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
+			                               OBJ_CASE_INSENSITIVE);
 		}
+		if (cur->fts_dirfd != INVALID_HANDLE_VALUE) { /* likely */ }
+		else goto l_open_err;
+
 	} else {
 		fDirOpenFlags |= BIRDDIR_F_RESTART_SCAN;
 	}
 	dirp = birdDirOpenFromHandle(cur->fts_dirfd, NULL, fDirOpenFlags);
 	if (dirp == NULL) {
+l_open_err:
 		if (type == BREAD) {
 			cur->fts_info = FTS_DNR;
 			cur->fts_errno = errno;
@@ -865,12 +868,12 @@ static int
 fts_stat(FTS *sp, FTSENT *p, int follow, HANDLE dfd)
 {
 	int saved_errno;
-	const char *path;
+	const wchar_t *wcspath;
 
 	if (dfd == INVALID_HANDLE_VALUE) {
-		path = p->fts_accpath;
+		wcspath = p->fts_wcsaccpath;
 	} else {
-		path = p->fts_name;
+		wcspath = p->fts_wcsname;
 	}
 
 	/*
@@ -879,9 +882,9 @@ fts_stat(FTS *sp, FTSENT *p, int follow, HANDLE dfd)
 	 * fail, set the errno from the stat call.
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (fstatat(dfd, path, &p->fts_stat, 0)) {
+		if (birdStatAtW(dfd, wcspath, &p->fts_stat, 1 /*fFollowLink*/)) {
 			saved_errno = errno;
-			if (fstatat(dfd, path, &p->fts_stat, AT_SYMLINK_NOFOLLOW)) {
+			if (birdStatAtW(dfd, wcspath, &p->fts_stat, 0 /*fFollowLink*/)) {
 				p->fts_errno = saved_errno;
 				goto err;
 			}
@@ -889,7 +892,7 @@ fts_stat(FTS *sp, FTSENT *p, int follow, HANDLE dfd)
 			if (S_ISLNK(p->fts_stat.st_mode))
 				return (FTS_SLNONE);
 		}
-	} else if (fstatat(dfd, path, &p->fts_stat, AT_SYMLINK_NOFOLLOW)) {
+	} else if (birdStatAtW(dfd, wcspath, &p->fts_stat, 0 /*fFollowLink*/)) {
 		p->fts_errno = errno;
 err:		memset(&p->fts_stat, 0, sizeof(struct stat));
 		return (FTS_NS);
@@ -1008,7 +1011,7 @@ fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, siz
 		/* Copy the names and guarantee NUL termination. */
 		p->fts_wcsname = (wchar_t *)(p + 1);
 		memcpy(p->fts_wcsname, wcsname, cwcname * sizeof(wchar_t));
-		p->fts_wcsname[cwcname];
+		p->fts_wcsname[cwcname] = '\0';
 		p->fts_cwcname = cwcname;
 		if (!(sp->fts_options & FTS_NO_ANSI)) {
 			p->fts_name = (char *)(p->fts_wcsname + cwcname + 1);
