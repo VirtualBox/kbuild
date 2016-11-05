@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -555,6 +555,7 @@ extern MY_NTSTATUS (WINAPI * g_pfnNtQueryFullAttributesFile)(MY_OBJECT_ATTRIBUTE
 extern MY_NTSTATUS (WINAPI * g_pfnNtSetInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 extern BOOLEAN     (WINAPI * g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
 extern MY_NTSTATUS (WINAPI * g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_ANSI_STRING const *, BOOLEAN);
+extern MY_NTSTATUS (WINAPI * g_pfnRtlUnicodeStringToAnsiString)(MY_ANSI_STRING *, MY_UNICODE_STRING *, BOOLEAN);
 extern BOOLEAN     (WINAPI * g_pfnRtlEqualUnicodeString)(MY_UNICODE_STRING const *pUniStr1, MY_UNICODE_STRING const *pUniStr2,
                                                          BOOLEAN fCaseInsensitive);
 extern BOOLEAN     (WINAPI * g_pfnRtlEqualString)(MY_ANSI_STRING const *pAnsiStr1, MY_ANSI_STRING const *pAnsiStr2,

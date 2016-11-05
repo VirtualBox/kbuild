@@ -1,4 +1,4 @@
-/* $Id: nthlpcore.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: nthlpcore.c 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT core helpers functions and globals.
  */
@@ -60,13 +60,13 @@ MY_NTSTATUS (WINAPI *g_pfnNtQueryFullAttributesFile)(MY_OBJECT_ATTRIBUTES *, MY_
 MY_NTSTATUS (WINAPI *g_pfnNtSetInformationFile)(HANDLE, MY_IO_STATUS_BLOCK *, PVOID, LONG, MY_FILE_INFORMATION_CLASS);
 BOOLEAN     (WINAPI *g_pfnRtlDosPathNameToNtPathName_U)(PCWSTR, MY_UNICODE_STRING *, PCWSTR *, MY_RTL_RELATIVE_NAME_U *);
 MY_NTSTATUS (WINAPI *g_pfnRtlAnsiStringToUnicodeString)(MY_UNICODE_STRING *, MY_ANSI_STRING const *, BOOLEAN);
+MY_NTSTATUS (WINAPI *g_pfnRtlUnicodeStringToAnsiString)(MY_ANSI_STRING *, MY_UNICODE_STRING *, BOOLEAN);
 BOOLEAN     (WINAPI *g_pfnRtlEqualUnicodeString)(MY_UNICODE_STRING const *, MY_UNICODE_STRING const *, BOOLEAN);
 BOOLEAN     (WINAPI *g_pfnRtlEqualString)(MY_ANSI_STRING const *, MY_ANSI_STRING const *, BOOLEAN);
 UCHAR       (WINAPI *g_pfnRtlUpperChar)(UCHAR uch);
 ULONG       (WINAPI *g_pfnRtlNtStatusToDosError)(MY_NTSTATUS rcNt);
 VOID        (WINAPI *g_pfnRtlAcquirePebLock)(VOID);
 VOID        (WINAPI *g_pfnRtlReleasePebLock)(VOID);
-
 
 static struct
 {
@@ -87,6 +87,7 @@ static struct
     { (FARPROC *)&g_pfnNtSetInformationFile,            "NtSetInformationFile" },
     { (FARPROC *)&g_pfnRtlDosPathNameToNtPathName_U,    "RtlDosPathNameToNtPathName_U" },
     { (FARPROC *)&g_pfnRtlAnsiStringToUnicodeString,    "RtlAnsiStringToUnicodeString" },
+    { (FARPROC *)&g_pfnRtlUnicodeStringToAnsiString,    "RtlUnicodeStringToAnsiString" },
     { (FARPROC *)&g_pfnRtlEqualUnicodeString,           "RtlEqualUnicodeString" },
     { (FARPROC *)&g_pfnRtlEqualString,                  "RtlEqualString" },
     { (FARPROC *)&g_pfnRtlUpperChar,                    "RtlUpperChar" },
