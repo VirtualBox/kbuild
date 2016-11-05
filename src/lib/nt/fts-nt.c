@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 2992 2016-11-01 22:06:08Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -85,13 +85,17 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 #include "nthlp.h"
 #include "ntdir.h"
 
-static FTSENT	*fts_alloc(FTS *, char *, size_t);
+static FTSENT	*fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname);
+static FTSENT	*fts_alloc_ansi(FTS *sp, char const *name, size_t namelen);
+static FTSENT	*fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
 static void	 fts_load(FTS *, FTSENT *);
 static size_t	 fts_maxarglen(char * const *);
+static size_t	 fts_maxarglenw(wchar_t * const *);
 static void	 fts_padjust(FTS *, FTSENT *);
-static int	 fts_palloc(FTS *, size_t);
+static void	 fts_padjustw(FTS *, FTSENT *);
+static int	 fts_palloc(FTS *, size_t, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
 static int	 fts_stat(FTS *, FTSENT *, int, HANDLE);
 static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
@@ -125,8 +129,8 @@ struct _fts_private {
 };
 
 
-FTS * FTSCALL
-nt_fts_open(char * const *argv, int options,
+static FTS * FTSCALL
+nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
     int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
 	struct _fts_private *priv;
@@ -134,6 +138,8 @@ nt_fts_open(char * const *argv, int options,
 	FTSENT *p, *root;
 	FTSENT *parent, *tmp;
 	size_t len, nitems;
+
+    birdResolveImports();
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -162,11 +168,12 @@ nt_fts_open(char * const *argv, int options,
 	 * Start out with 1K of path space, and enough, in any case,
 	 * to hold the user's paths.
 	 */
-	if (fts_palloc(sp, MAX(fts_maxarglen(argv), MAXPATHLEN)))
+	if (fts_palloc(sp, MAX(argv ? fts_maxarglen(argv) : 1, MAXPATHLEN),
+				   MAX(wcsargv ? fts_maxarglenw(wcsargv) : 1, MAXPATHLEN)) )
 		goto mem1;
 
 	/* Allocate/initialize root's parent. */
-	if ((parent = fts_alloc(sp, "", 0)) == NULL)
+	if ((parent = fts_alloc(sp, NULL, 0, NULL, 0)) == NULL)
 		goto mem2;
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
 
@@ -176,29 +183,53 @@ nt_fts_open(char * const *argv, int options,
 		       the API user code happy.  1. Lone drive letters get a dot
 		       appended so it won't matter if a slash is appended afterwards.
 		       2. DOS slashes are converted to UNIX ones. */
-		char *slash;
-		len = strlen(*argv);
-		if (len == 2 && argv[0][1] == ':') {
-			char tmp[4];
-			tmp[0] = argv[0][0];
-			tmp[1] = ':';
-			tmp[2] = '.';
-			tmp[3] = '\0';
-			p = fts_alloc(sp, tmp, 3);
+		wchar_t *wcslash;
+
+		if (wcsargv) {
+			len = wcslen(*wcsargv);
+			if (len == 2 && wcsargv[0][1] == ':') {
+				wchar_t wcsdrive[4];
+				wcsdrive[0] = wcsargv[0][0];
+				wcsdrive[1] = ':';
+				wcsdrive[2] = '.';
+				wcsdrive[3] = '\0';
+				p = fts_alloc_utf16(sp, wcsdrive, 3);
+			} else {
+				p = fts_alloc_utf16(sp, *wcsargv, len);
+			}
 		} else {
-			p = fts_alloc(sp, *argv, len);
+			len = strlen(*argv);
+			if (len == 2 && argv[0][1] == ':') {
+				char szdrive[4];
+				szdrive[0] = argv[0][0];
+				szdrive[1] = ':';
+				szdrive[2] = '.';
+				szdrive[3] = '\0';
+				p = fts_alloc_ansi(sp, szdrive, 3);
+			} else {
+				p = fts_alloc_ansi(sp, *argv, len);
+			}
 		}
-#if 1 /* bird */
 		if (p != NULL) { /* likely */ } else { goto mem3; }
-#endif
-		slash = strchr(p->fts_name, '\\');
-		while (slash != NULL) {
-			*slash++ = '/';
-			slash = strchr(p->fts_name, '\\');
+
+		wcslash = wcschr(p->fts_wcsname, '\\');
+		while (wcslash != NULL) {
+			*wcslash++ = '/';
+			wcslash = wcschr(p->fts_wcsname, '\\');
 		}
+
+		if (p->fts_name) {
+			char *slash = strchr(p->fts_name, '\\');
+			while (slash != NULL) {
+				*slash++ = '/';
+				slash = strchr(p->fts_name, '\\');
+			}
+		}
+
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
+		p->fts_wcsaccpath = p->fts_wcsname;
 		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOW), INVALID_HANDLE_VALUE);
 
 		/* Command-line "." and ".." are real directories. */
@@ -230,26 +261,49 @@ nt_fts_open(char * const *argv, int options,
 	 * finished the node before the root(s); set p->fts_info to FTS_INIT
 	 * so that everything about the "current" node is ignored.
 	 */
-	if ((sp->fts_cur = fts_alloc(sp, "", 0)) == NULL)
+	if ((sp->fts_cur = fts_alloc(sp, NULL, 0, NULL, 0)) == NULL)
 		goto mem3;
 	sp->fts_cur->fts_link = root;
 	sp->fts_cur->fts_info = FTS_INIT;
 
 	return (sp);
 
-mem3:	fts_lfree(root);
+mem3:
+	fts_lfree(root);
 	free(parent);
-mem2:	free(sp->fts_path);
-mem1:	free(sp);
+mem2:
+	free(sp->fts_path);
+	free(sp->fts_wcspath);
+mem1:
+	free(sp);
 	return (NULL);
 }
 
 
+FTS * FTSCALL
+nt_fts_open(char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
+	return nt_fts_open_common(argv, NULL, options, compar);
+}
+
+
+FTS * FTSCALL
+nt_fts_openw(wchar_t * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
+	return nt_fts_open_common(NULL, argv, options, compar);
+}
+
+
+/**
+ * Called by fts_read for FTS_ROOTLEVEL entries only.
+ */
 static void
 fts_load(FTS *sp, FTSENT *p)
 {
 	size_t len;
-	char *cp;
+	wchar_t *pwc;
 
 	/*
 	 * Load the stream structure for the next traversal.  Since we don't
@@ -258,14 +312,29 @@ fts_load(FTS *sp, FTSENT *p)
 	 * place and the user can access the first node.  From fts_open it's
 	 * known that the path will fit.
 	 */
-	len = p->fts_pathlen = p->fts_namelen;
-	memmove(sp->fts_path, p->fts_name, len + 1);
-	if ((cp = strrchr(p->fts_name, '/')) && (cp != p->fts_name || cp[1])) {
-		len = strlen(++cp);
-		memmove(p->fts_name, cp, len + 1);
-		p->fts_namelen = len;
+    if (!(sp->fts_options & FTS_NO_ANSI)) {
+		char *cp;
+		len = p->fts_pathlen = p->fts_namelen;
+		memmove(sp->fts_path, p->fts_name, len + 1);
+		cp = strrchr(p->fts_name, '/');
+		if (cp != NULL && (cp != p->fts_name || cp[1])) {
+			len = strlen(++cp);
+			memmove(p->fts_name, cp, len + 1);
+			p->fts_namelen = len;
+		}
+		p->fts_accpath = p->fts_path = sp->fts_path;
 	}
-	p->fts_accpath = p->fts_path = sp->fts_path;
+
+	len = p->fts_cwcpath = p->fts_cwcname;
+	memmove(sp->fts_wcspath, p->fts_wcsname, (len + 1) * sizeof(wchar_t));
+	pwc = wcsrchr(p->fts_wcsname, '/');
+	if (pwc != NULL && (pwc != p->fts_wcsname || pwc[1])) {
+		len = wcslen(++pwc);
+		memmove(p->fts_wcsname, pwc, (len + 1) * sizeof(wchar_t));
+		p->fts_cwcname = len;
+	}
+	p->fts_wcsaccpath = p->fts_wcspath = sp->fts_wcspath;
+
 	sp->fts_dev = p->fts_dev;
 }
 
@@ -295,6 +364,7 @@ nt_fts_close(FTS *sp)
 	if (sp->fts_array)
 		free(sp->fts_array);
 	free(sp->fts_path);
+	free(sp->fts_wcspath);
 
 	/* Free up the stream pointer. */
 	free(sp);
@@ -305,9 +375,8 @@ nt_fts_close(FTS *sp)
  * Special case of "/" at the end of the path so that slashes aren't
  * appended which would cause paths to be written as "....//foo".
  */
-#define	NAPPEND(p)							\
-	(p->fts_path[p->fts_pathlen - 1] == '/'				\
-	    ? p->fts_pathlen - 1 : p->fts_pathlen)
+#define	NAPPEND(p)  ( p->fts_pathlen - (p->fts_path[p->fts_pathlen - 1]    ==  '/') )
+#define	NAPPENDW(p) ( p->fts_cwcpath - (p->fts_wcspath[p->fts_cwcpath - 1] == L'/') )
 
 static void
 fts_free_entry(FTSENT *tmp)
@@ -326,7 +395,7 @@ nt_fts_read(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
-	char *t;
+	wchar_t *pwc;
 
 	/* If finished or unrecoverable error, return NULL. */
 	if (sp->fts_cur == NULL || ISSET(FTS_STOP))
@@ -446,9 +515,15 @@ next:	tmp = p;
 
 		fts_free_entry(tmp);
 
-name:		t = sp->fts_path + NAPPEND(p->fts_parent);
-		*t++ = '/';
-		memmove(t, p->fts_name, p->fts_namelen + 1);
+name:
+		if (!(sp->fts_options & FTS_NO_ANSI)) {
+			char *t = sp->fts_path + NAPPEND(p->fts_parent);
+			*t++ = '/';
+			memmove(t, p->fts_name, p->fts_namelen + 1);
+		}
+		pwc = sp->fts_wcspath + NAPPENDW(p->fts_parent);
+		*pwc++ = '/';
+		memmove(pwc, p->fts_wcsname, (p->fts_cwcname + 1) * sizeof(wchar_t));
 		return (sp->fts_cur = p);
 	}
 
@@ -467,7 +542,9 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 	}
 
 	/* NUL terminate the pathname. */
-	sp->fts_path[p->fts_pathlen] = '\0';
+	if (!(sp->fts_options & FTS_NO_ANSI))
+		sp->fts_path[p->fts_pathlen] = '\0';
+	sp->fts_wcspath[ p->fts_cwcpath] = '\0';
 
 	/*
 	 * Return to the parent directory.  If at a root node or came through
@@ -477,9 +554,8 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 	 * NT: We're doing no fchdir, but we need to close the directory handle
 	 *     and clear fts_symfd now.
 	 */
-	if (p->fts_flags & FTS_SYMFOLLOW) {
+	if (p->fts_flags & FTS_SYMFOLLOW)
 		p->fts_symfd = INVALID_HANDLE_VALUE;
-	}
     if (p->fts_dirfd != INVALID_HANDLE_VALUE) {
 		birdCloseFile(p->fts_dirfd);
 		p->fts_dirfd = INVALID_HANDLE_VALUE;
@@ -613,11 +689,9 @@ fts_build(FTS *sp, int type)
 	FTSENT *p, *head;
 	FTSENT *cur, *tail;
 	DIR *dirp;
-	void *oldaddr;
-	char *cp;
-	int saved_errno, doadjust;
+	int saved_errno, doadjust, doadjust_utf16;
 	long level;
-	size_t dnamlen, len, maxlen, nitems;
+	size_t len, cwcdir, maxlen, cwcmax, nitems;
 	unsigned fDirOpenFlags;
 
 	/* Set current node pointer. */
@@ -675,26 +749,38 @@ fts_build(FTS *sp, int type)
 	 * If not changing directories set a pointer so that can just append
 	 * each new name into the path.
 	 */
-	len = NAPPEND(cur);
-	cp = sp->fts_path + len;
-	*cp++ = '/';
-	len++;
-	maxlen = sp->fts_pathlen - len;
+    if (sp->fts_options & FTS_NO_ANSI) {
+		len = maxlen = 0;
+	} else {
+		len = NAPPEND(cur);
+		sp->fts_path[len] = '/'; /// @todo unnecessary?
+		len++;
+		maxlen = sp->fts_pathlen - len;
+	}
+
+	cwcdir = NAPPENDW(cur);
+	sp->fts_wcspath[cwcdir] = '/'; /// @todo unnecessary?
+	cwcdir++;
+	cwcmax = sp->fts_cwcpath - len;
 
 	level = cur->fts_level + 1;
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
-	doadjust = 0;
+	doadjust = doadjust_utf16 = 0;
 	for (head = tail = NULL, nitems = 0; dirp && (dp = birdDirRead(dirp));) {
-		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
-		if ((p = fts_alloc(sp, dp->d_name, dnamlen)) == NULL)
+		if ((p = fts_alloc_ansi(sp, dp->d_name, dp->d_namlen)) == NULL)
 			goto mem1;
-		if (dnamlen >= maxlen) {	/* include space for NUL */
-			oldaddr = sp->fts_path;
-			if (fts_palloc(sp, dnamlen + len + 1)) {
+
+		if (p->fts_namelen >= maxlen
+		 || p->fts_cwcname >= cwcmax) {  /* include space for NUL */
+			void *oldaddr = sp->fts_path;
+			wchar_t *oldwcspath = sp->fts_wcspath;
+			if (fts_palloc(sp,
+						   p->fts_namelen >= maxlen ? len + p->fts_namelen + 1 : 0,
+						   p->fts_cwcname >= cwcmax ? cwcdir + p->fts_cwcname + 1 : 0)) {
 				/*
 				 * No more memory for path or structures.  Save
 				 * errno, free up the current structure and the
@@ -713,18 +799,18 @@ mem1:				saved_errno = errno;
 				return (NULL);
 			}
 			/* Did realloc() change the pointer? */
-			if (oldaddr != sp->fts_path) {
-				doadjust = 1;
-				if (1 /*ISSET(FTS_NOCHDIR)*/)
-					cp = sp->fts_path + len;
-			}
+			doadjust       |= oldaddr != sp->fts_path;
+			doadjust_utf16 |= oldwcspath != sp->fts_wcspath;
 			maxlen = sp->fts_pathlen - len;
+			cwcmax = sp->fts_cwcpath - cwcdir;
 		}
 
 		p->fts_level = level;
 		p->fts_parent = sp->fts_cur;
-		p->fts_pathlen = len + dnamlen;
+		p->fts_pathlen = len + p->fts_namelen;
+		p->fts_cwcpath = cwcdir + p->fts_cwcname;
 		p->fts_accpath = p->fts_path;
+		p->fts_wcsaccpath = p->fts_wcspath;
 		p->fts_stat = dp->d_stat;
 		p->fts_info = fts_process_stats(p, &dp->d_stat);
 
@@ -747,11 +833,14 @@ mem1:				saved_errno = errno;
 	 */
 	if (doadjust)
 		fts_padjust(sp, head);
+	if (doadjust_utf16)
+		fts_padjustw(sp, head);
 
 	/*
 	 * Reset the path back to original state.
 	 */
-	sp->fts_path[cur->fts_pathlen] = '\0';
+	sp->fts_path[cur->fts_pathlen] = '\0';   // @todo necessary?
+	sp->fts_wcspath[cur->fts_cwcpath] = '\0';   // @todo necessary?
 
 	/* If didn't find anything, return NULL. */
 	if (!nitems) {
@@ -902,42 +991,123 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 }
 
 static FTSENT *
-fts_alloc(FTS *sp, char *name, size_t namelen)
+fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname)
 {
 	FTSENT *p;
 	size_t len;
-
-	struct ftsent_withstat {
-		FTSENT	ent;
-		struct	stat statbuf;
-	};
 
 	/*
 	 * The file name is a variable length array.  Allocate the FTSENT
 	 * structure and the file name.
 	 */
-	len = sizeof(FTSENT) + namelen + 1;
-	if ((p = malloc(len)) == NULL)
-		return (NULL);
+	len = sizeof(FTSENT) + (cwcname + 1) * sizeof(wchar_t);
+	if (!(sp->fts_options & FTS_NO_ANSI))
+	    len += namelen + 1;
+	p = malloc(len);
+	if (p) {
+		/* Copy the names and guarantee NUL termination. */
+		p->fts_wcsname = (wchar_t *)(p + 1);
+		memcpy(p->fts_wcsname, wcsname, cwcname * sizeof(wchar_t));
+		p->fts_wcsname[cwcname];
+		p->fts_cwcname = cwcname;
+		if (!(sp->fts_options & FTS_NO_ANSI)) {
+			p->fts_name = (char *)(p->fts_wcsname + cwcname + 1);
+			memcpy(p->fts_name, name, namelen);
+			p->fts_name[namelen] = '\0';
+			p->fts_namelen = namelen;
+		} else {
+			p->fts_name = NULL;
+			p->fts_namelen = 0;
+		}
 
-	p->fts_name = (char *)(p + 1);
-	p->fts_statp = &p->fts_stat;
-
-	/* Copy the name and guarantee NUL termination. */
-	memcpy(p->fts_name, name, namelen);
-	p->fts_name[namelen] = '\0';
-	p->fts_namelen = namelen;
-	p->fts_path = sp->fts_path;
-	p->fts_errno = 0;
-	p->fts_flags = 0;
-	p->fts_instr = FTS_NOINSTR;
-	p->fts_number = 0;
-	p->fts_pointer = NULL;
-	p->fts_fts = sp;
-	p->fts_symfd = INVALID_HANDLE_VALUE;
-	p->fts_dirfd = INVALID_HANDLE_VALUE;
+		p->fts_path = sp->fts_path;
+		p->fts_wcspath = sp->fts_wcspath;
+		p->fts_statp = &p->fts_stat;
+		p->fts_errno = 0;
+		p->fts_flags = 0;
+		p->fts_instr = FTS_NOINSTR;
+		p->fts_number = 0;
+		p->fts_pointer = NULL;
+		p->fts_fts = sp;
+		p->fts_symfd = INVALID_HANDLE_VALUE;
+		p->fts_dirfd = INVALID_HANDLE_VALUE;
+	}
 	return (p);
 }
+
+
+/**
+ * Converts the ANSI name to UTF-16 and calls fts_alloc.
+ *
+ * @returns Pointer to allocated and mostly initialized FTSENT structure on
+ *          success.  NULL on failure, caller needs to record it.
+ * @param   sp                  Pointer to FTS instance.
+ * @param   name                The ANSI name.
+ * @param   namelen             The ANSI name length.
+ */
+static FTSENT *
+fts_alloc_ansi(FTS *sp, char const *name, size_t namelen)
+{
+	MY_UNICODE_STRING UniStr;
+	MY_ANSI_STRING AnsiStr;
+	MY_NTSTATUS rcNt;
+	FTSENT *pRet;
+
+	UniStr.Buffer = NULL;
+	UniStr.MaximumLength = UniStr.Length = 0;
+
+	AnsiStr.Buffer = (char *)name;
+	AnsiStr.Length = AnsiStr.MaximumLength = (USHORT)namelen;
+
+	rcNt = g_pfnRtlAnsiStringToUnicodeString(&UniStr, &AnsiStr, TRUE /*fAllocate*/);
+	if (NT_SUCCESS(rcNt)) {
+		pRet = fts_alloc(sp, name, namelen, UniStr.Buffer, UniStr.Length / sizeof(wchar_t));
+		HeapFree(GetProcessHeap(), 0, UniStr.Buffer);
+	} else {
+		pRet = NULL;
+	}
+	return pRet;
+}
+
+
+/**
+ * Converts the UTF-16 name to ANSI (if necessary) and calls fts_alloc.
+ *
+ * @returns Pointer to allocated and mostly initialized FTSENT structure on
+ *          success.  NULL on failure, caller needs to record it.
+ * @param   sp                  Pointer to FTS instance.
+ * @param   wcsname             The UTF-16 name.
+ * @param   cwcname		The UTF-16 name length.
+ */
+static FTSENT *
+fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname)
+{
+    FTSENT *pRet;
+
+    if (sp->fts_options & FTS_NO_ANSI) {
+		pRet = fts_alloc(sp, NULL, 0, wcsname, cwcname);
+    } else {
+		MY_UNICODE_STRING UniStr;
+		MY_ANSI_STRING AnsiStr;
+		MY_NTSTATUS rcNt;
+
+		UniStr.Buffer = (wchar_t *)wcsname;
+		UniStr.MaximumLength = UniStr.Length = (USHORT)(cwcname * sizeof(wchar_t));
+
+		AnsiStr.Buffer = NULL;
+		AnsiStr.Length = AnsiStr.MaximumLength = 0;
+
+		rcNt = g_pfnRtlUnicodeStringToAnsiString(&AnsiStr, &UniStr, TRUE /*fAllocate*/);
+		if (NT_SUCCESS(rcNt)) {
+			pRet = fts_alloc(sp, AnsiStr.Buffer, AnsiStr.Length, wcsname, cwcname);
+			HeapFree(GetProcessHeap(), 0, AnsiStr.Buffer);
+		} else {
+			pRet = NULL;
+		}
+	}
+    return pRet;
+}
+
 
 static void
 fts_lfree(FTSENT *head)
@@ -959,19 +1129,42 @@ fts_lfree(FTSENT *head)
  * plus 256 bytes so don't realloc the path 2 bytes at a time.
  */
 static int
-fts_palloc(FTS *sp, size_t more)
+fts_palloc(FTS *sp, size_t more, size_t cwcmore)
 {
 	void *ptr;
 
-	sp->fts_pathlen += more + 256;
-	ptr = realloc(sp->fts_path, sp->fts_pathlen);
-	if (ptr) {
-		/*likely */
-	} else {
-		free(sp->fts_path);
-	}
-	sp->fts_path = ptr;
-	return (ptr == NULL);
+	/** @todo Isn't more and cwcmore minimum buffer sizes rather than what needs
+	 *  	  to be added to the buffer??  This code makes no sense when looking at
+	 *  	  the way the caller checks things out! */
+
+    if (more) {
+		sp->fts_pathlen += more + 256;
+		ptr = realloc(sp->fts_path, sp->fts_pathlen);
+		if (ptr) {
+			sp->fts_path = ptr;
+		} else {
+			free(sp->fts_path);
+			sp->fts_path = NULL;
+			free(sp->fts_wcspath);
+			sp->fts_wcspath = NULL;
+			return 1;
+		}
+    }
+
+    if (cwcmore) {
+		sp->fts_cwcpath += cwcmore + 256;
+		ptr = realloc(sp->fts_wcspath, sp->fts_cwcpath);
+		if (ptr) {
+			sp->fts_wcspath = ptr;
+		} else {
+			free(sp->fts_path);
+			sp->fts_path = NULL;
+			free(sp->fts_wcspath);
+			sp->fts_wcspath = NULL;
+			return 1;
+		}
+    }
+	return 0;
 }
 
 /*
@@ -1002,6 +1195,34 @@ fts_padjust(FTS *sp, FTSENT *head)
 	}
 }
 
+/*
+ * When the UTF-16 path is realloc'd, have to fix all of the pointers in
+ * structures already returned.
+ */
+static void
+fts_padjustw(FTS *sp, FTSENT *head)
+{
+	FTSENT *p;
+	wchar_t *addr = sp->fts_wcspath;
+
+#define	ADJUSTW(p) \
+		do {	\
+			if ((p)->fts_wcsaccpath != (p)->fts_wcsname) \
+				(p)->fts_wcsaccpath = addr + ((p)->fts_wcsaccpath - (p)->fts_wcspath); \
+			(p)->fts_wcspath = addr;						\
+		} while (0)
+
+	/* Adjust the current set of children. */
+	for (p = sp->fts_child; p; p = p->fts_link)
+		ADJUSTW(p);
+
+	/* Adjust the rest of the tree, including the current level. */
+	for (p = head; p->fts_level >= FTS_ROOTLEVEL;) {
+		ADJUSTW(p);
+		p = p->fts_link ? p->fts_link : p->fts_parent;
+	}
+}
+
 static size_t
 fts_maxarglen(char * const *argv)
 {
@@ -1011,5 +1232,18 @@ fts_maxarglen(char * const *argv)
 		if ((len = strlen(*argv)) > max)
 			max = len;
 	return (max + 1);
+}
+
+/** Returns the max string size (including term). */
+static size_t
+fts_maxarglenw(wchar_t * const *argv)
+{
+	size_t max = 0;
+	for (; *argv; ++argv) {
+		size_t len = wcslen(*argv);
+		if (len > max)
+			max = len;
+	}
+	return max + 1;
 }
 

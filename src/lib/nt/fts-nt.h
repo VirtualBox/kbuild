@@ -1,4 +1,4 @@
-/* $Id: fts-nt.h 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.h 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
@@ -66,6 +66,8 @@ typedef struct {
 	fts_dev_t fts_dev;		/* starting device # */
 	char *fts_path;			/* path for this descent */
 	size_t fts_pathlen;		/* sizeof(path) */
+	wchar_t *fts_wcspath;		/* NT: UTF-16 path for this descent. */
+	size_t fts_cwcpath;		/* NT: size of fts_wcspath buffer */
 	size_t fts_nitems;		/* elements in the sort array */
 	int (FTSCALL *fts_compar)	/* compare function */
 	    (const struct _ftsent * const *, const struct _ftsent * const *);
@@ -84,6 +86,7 @@ typedef struct {
 
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
 #define	FTS_STOP	0x200		/* (private) unrecoverable error */
+#define FTS_NO_ANSI     0x40000000      /* NT: No ansi name or access path. */
 	int fts_options;		/* fts_open options, global flags */
 	void *fts_clientptr;		/* thunk for sort function */
 } FTS;
@@ -96,16 +99,20 @@ typedef struct _ftsent {
 #define	fts_bignum	fts_number	/* XXX non-std, should go away */
 	void *fts_pointer;		/* local address value */
 	char *fts_accpath;		/* access path */
+	wchar_t *fts_wcsaccpath;	/* NT: UTF-16 access path */
 	char *fts_path;			/* root path */
+	wchar_t *fts_wcspath;		/* NT: UTF-16 root path */
 	int fts_errno;			/* errno for this node */
 	fts_fd_t fts_symfd;		/* NT: Normally -1; -2 we followed this symlinked dir */
 	fts_fd_t fts_dirfd;		/* NT: Handle to the directory (NT_FTS_)INVALID_HANDLE_VALUE if not valid */
 	size_t fts_pathlen;		/* strlen(fts_path) */
+	size_t fts_cwcpath;		/* NT: length of fts_wcspath. */
 	size_t fts_namelen;		/* strlen(fts_name) */
+	size_t fts_cwcname;		/* NT: length of fts_wcsname. */
 
+	fts_nlink_t fts_nlink;		/* link count */
 	fts_ino_t fts_ino;		/* inode */
 	fts_dev_t fts_dev;		/* device */
-	fts_nlink_t fts_nlink;		/* link count */
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
@@ -140,6 +147,7 @@ typedef struct _ftsent {
 
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */
+	wchar_t *fts_wcsname;		/* NT: UTF-16 file name. */
 	FTS *fts_fts;			/* back pointer to main FTS */
 	BirdStat_T fts_stat;		/* NT: We always got stat info. */
 } FTSENT;
@@ -155,8 +163,8 @@ void	*FTSCALL nt_fts_get_clientptr(FTS *);
 #define	 fts_get_clientptr(fts)	((fts)->fts_clientptr)
 FTS	*FTSCALL nt_fts_get_stream(FTSENT *);
 #define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
-FTS	*FTSCALL nt_fts_open(char * const *, int,
-	    int (FTSCALL*)(const FTSENT * const *, const FTSENT * const *));
+FTS	*FTSCALL nt_fts_open(char * const *, int, int (FTSCALL*)(const FTSENT * const *, const FTSENT * const *));
+FTS	*FTSCALL nt_fts_openw(wchar_t * const *, int, int (FTSCALL*)(const FTSENT * const *, const FTSENT * const *));
 FTSENT	*FTSCALL nt_fts_read(FTS *);
 int	 FTSCALL nt_fts_set(FTS *, FTSENT *, int);
 void	 FTSCALL nt_fts_set_clientptr(FTS *, void *);
