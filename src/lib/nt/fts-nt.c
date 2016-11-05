@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 2999 2016-11-05 19:37:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -139,7 +139,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 	FTSENT *parent, *tmp;
 	size_t len, nitems;
 
-    birdResolveImports();
+	birdResolveImports();
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
