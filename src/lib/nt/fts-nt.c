@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 2999 2016-11-05 19:37:47Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3000 2016-11-05 19:39:06Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -556,11 +556,11 @@ name:
 	 */
 	if (p->fts_flags & FTS_SYMFOLLOW)
 		p->fts_symfd = INVALID_HANDLE_VALUE;
-    if (p->fts_dirfd != INVALID_HANDLE_VALUE) {
+	if (p->fts_dirfd != INVALID_HANDLE_VALUE) {
 		birdCloseFile(p->fts_dirfd);
 		p->fts_dirfd = INVALID_HANDLE_VALUE;
-    }
-    fts_free_entry(tmp);
+	}
+	fts_free_entry(tmp);
 	p->fts_info = p->fts_errno ? FTS_ERR : FTS_DP;
 	return (sp->fts_cur = p);
 }
@@ -707,7 +707,7 @@ fts_build(FTS *sp, int type)
 	 *     members of the directory.
 	 */
 	fDirOpenFlags = BIRDDIR_F_EXTRA_INFO | BIRDDIR_F_KEEP_HANDLE;
-    if (cur->fts_dirfd == INVALID_HANDLE_VALUE) {
+	if (cur->fts_dirfd == INVALID_HANDLE_VALUE) {
 		if (cur->fts_parent->fts_dirfd != INVALID_HANDLE_VALUE) {
 			/* (This works fine for symlinks too, since we follow them.) */
 			cur->fts_dirfd = birdOpenFileEx(cur->fts_parent->fts_dirfd,
@@ -727,7 +727,7 @@ fts_build(FTS *sp, int type)
 										  FILE_DIRECTORY_FILE | FILE_OPEN_FOR_BACKUP_INTENT | FILE_SYNCHRONOUS_IO_NONALERT,
 										  OBJ_CASE_INSENSITIVE);
 		}
-    } else {
+	} else {
 		fDirOpenFlags |= BIRDDIR_F_RESTART_SCAN;
 	}
 	dirp = birdDirOpenFromHandle(cur->fts_dirfd, NULL, fDirOpenFlags);
@@ -749,7 +749,7 @@ fts_build(FTS *sp, int type)
 	 * If not changing directories set a pointer so that can just append
 	 * each new name into the path.
 	 */
-    if (sp->fts_options & FTS_NO_ANSI) {
+	if (sp->fts_options & FTS_NO_ANSI) {
 		len = maxlen = 0;
 	} else {
 		len = NAPPEND(cur);
@@ -1002,7 +1002,7 @@ fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, siz
 	 */
 	len = sizeof(FTSENT) + (cwcname + 1) * sizeof(wchar_t);
 	if (!(sp->fts_options & FTS_NO_ANSI))
-	    len += namelen + 1;
+		len += namelen + 1;
 	p = malloc(len);
 	if (p) {
 		/* Copy the names and guarantee NUL termination. */
@@ -1082,11 +1082,11 @@ fts_alloc_ansi(FTS *sp, char const *name, size_t namelen)
 static FTSENT *
 fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname)
 {
-    FTSENT *pRet;
+	FTSENT *pRet;
 
-    if (sp->fts_options & FTS_NO_ANSI) {
+	if (sp->fts_options & FTS_NO_ANSI) {
 		pRet = fts_alloc(sp, NULL, 0, wcsname, cwcname);
-    } else {
+	} else {
 		MY_UNICODE_STRING UniStr;
 		MY_ANSI_STRING AnsiStr;
 		MY_NTSTATUS rcNt;
@@ -1105,7 +1105,7 @@ fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname)
 			pRet = NULL;
 		}
 	}
-    return pRet;
+	return pRet;
 }
 
 
@@ -1137,7 +1137,7 @@ fts_palloc(FTS *sp, size_t more, size_t cwcmore)
 	 *  	  to be added to the buffer??  This code makes no sense when looking at
 	 *  	  the way the caller checks things out! */
 
-    if (more) {
+	if (more) {
 		sp->fts_pathlen += more + 256;
 		ptr = realloc(sp->fts_path, sp->fts_pathlen);
 		if (ptr) {
@@ -1149,9 +1149,9 @@ fts_palloc(FTS *sp, size_t more, size_t cwcmore)
 			sp->fts_wcspath = NULL;
 			return 1;
 		}
-    }
+	}
 
-    if (cwcmore) {
+	if (cwcmore) {
 		sp->fts_cwcpath += cwcmore + 256;
 		ptr = realloc(sp->fts_wcspath, sp->fts_cwcpath);
 		if (ptr) {
@@ -1163,7 +1163,7 @@ fts_palloc(FTS *sp, size_t more, size_t cwcmore)
 			sp->fts_wcspath = NULL;
 			return 1;
 		}
-    }
+	}
 	return 0;
 }
 
