@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 2993 2016-11-01 22:41:26Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3003 2016-11-05 23:18:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -188,7 +188,7 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
         fMode |= S_IWOTH | S_IWGRP | S_IWUSR;
     if (   (fAttribs & FILE_ATTRIBUTE_DIRECTORY)
         || (pwszName
-            ? birdIsFileExecutableW(pwszName, cbNameW)
+            ? birdIsFileExecutableW(pwszName, cbNameW / sizeof(wchar_t))
             : birdIsFileExecutable(pszName)) )
         fMode |= S_IXOTH | S_IXGRP | S_IXUSR;
 
