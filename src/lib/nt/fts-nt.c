@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3001 2016-11-05 20:03:21Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3002 2016-11-05 20:04:45Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -748,21 +748,16 @@ l_open_err:
 	 * We really wouldn't have to do the maxlen calculations here, we
 	 * could do them in fts_read before returning the path, but it's a
 	 * lot easier here since the length is part of the dirent structure.
-	 *
-	 * If not changing directories set a pointer so that can just append
-	 * each new name into the path.
 	 */
 	if (sp->fts_options & FTS_NO_ANSI) {
 		len = maxlen = 0;
 	} else {
 		len = NAPPEND(cur);
-		sp->fts_path[len] = '/'; /// @todo unnecessary?
 		len++;
 		maxlen = sp->fts_pathlen - len;
 	}
 
 	cwcdir = NAPPENDW(cur);
-	sp->fts_wcspath[cwcdir] = '/'; /// @todo unnecessary?
 	cwcdir++;
 	cwcmax = sp->fts_cwcpath - len;
 
@@ -838,12 +833,6 @@ mem1:				saved_errno = errno;
 		fts_padjust(sp, head);
 	if (doadjust_utf16)
 		fts_padjustw(sp, head);
-
-	/*
-	 * Reset the path back to original state.
-	 */
-	sp->fts_path[cur->fts_pathlen] = '\0';   // @todo necessary?
-	sp->fts_wcspath[cur->fts_cwcpath] = '\0';   // @todo necessary?
 
 	/* If didn't find anything, return NULL. */
 	if (!nitems) {
