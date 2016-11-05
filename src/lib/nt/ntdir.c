@@ -1,4 +1,4 @@
-/* $Id: ntdir.c 2985 2016-11-01 18:26:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.c 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, telldir, seekdir, and closedir.
  */
@@ -241,6 +241,8 @@ static int birdDirCopyNameToEntry(WCHAR const *pwcName, ULONG cbName, BirdDirEnt
 
 /**
  * Implements readdir_r().
+ *
+ * @remarks birdDirReadReentrantW is a copy of this.  Keep them in sync!
  */
 int birdDirReadReentrant(BirdDir_T *pDir, BirdDirEntry_T *pEntry, BirdDirEntry_T **ppResult)
 {
@@ -370,7 +372,160 @@ int birdDirReadReentrant(BirdDir_T *pDir, BirdDirEntry_T *pEntry, BirdDirEntry_T
 BirdDirEntry_T *birdDirRead(BirdDir_T *pDir)
 {
     BirdDirEntry_T *pRet = NULL;
-    birdDirReadReentrant(pDir, &pDir->DirEntry, &pRet);
+    birdDirReadReentrant(pDir, &pDir->u.DirEntry, &pRet);
+    return pRet;
+}
+
+
+static int birdDirCopyNameToEntryW(WCHAR const *pwcName, ULONG cbName, BirdDirEntryW_T *pEntry)
+{
+    ULONG cwcName = cbName / sizeof(wchar_t);
+    if (cwcName < sizeof(pEntry->d_name))
+    {
+        memcpy(pEntry->d_name, pwcName, cbName);
+        pEntry->d_name[cwcName] = '\0';
+        pEntry->d_namlen = (unsigned __int16)cwcName;
+        pEntry->d_reclen = (unsigned __int16)((size_t)&pEntry->d_name[cwcName + 1] - (size_t)pEntry);
+        return 0;
+    }
+    return -1;
+}
+
+
+/**
+ * Implements readdir_r(), UTF-16 version.
+ *
+ * @remarks This is a copy of birdDirReadReentrant where only the name handling
+ *          and entry type differs.  Remember to keep them in sync!
+ */
+int birdDirReadReentrantW(BirdDir_T *pDir, BirdDirEntryW_T *pEntry, BirdDirEntryW_T **ppResult)
+{
+    int fSkipEntry;
+
+    *ppResult = NULL;
+
+    if (!pDir || pDir->uMagic != BIRD_DIR_MAGIC)
+        return birdSetErrnoToBadFileNo();
+
+    do
+    {
+        ULONG offNext;
+        ULONG cbMinCur;
+
+        /*
+         * Read more?
+         */
+        if (!pDir->fHaveData)
+        {
+            if (birdDirReadMore(pDir) != 0)
+                return -1;
+            if (!pDir->fHaveData)
+                return 0;
+        }
+
+        /*
+         * Convert the NT data to the unixy output structure.
+         */
+        fSkipEntry = 0;
+        switch (pDir->iInfoClass)
+        {
+            case MyFileNamesInformation:
+            {
+                MY_FILE_NAMES_INFORMATION *pInfo = (MY_FILE_NAMES_INFORMATION *)&pDir->pabBuf[pDir->offBuf];
+                if (   pDir->offBuf          >= pDir->cbBuf - MIN_SIZEOF_MY_FILE_NAMES_INFORMATION
+                    || pInfo->FileNameLength >= pDir->cbBuf
+                    || pDir->offBuf + pInfo->FileNameLength + MIN_SIZEOF_MY_FILE_NAMES_INFORMATION > pDir->cbBuf)
+                {
+                    fSkipEntry = 1;
+                    pDir->fHaveData = 0;
+                    continue;
+                }
+
+                memset(&pEntry->d_stat, 0, sizeof(pEntry->d_stat));
+                pEntry->d_stat.st_mode  = S_IFMT;
+                pEntry->d_type          = DT_UNKNOWN;
+                pEntry->d_reclen        = 0;
+                pEntry->d_namlen        = 0;
+                if (birdDirCopyNameToEntryW(pInfo->FileName, pInfo->FileNameLength, pEntry) != 0)
+                    fSkipEntry = 1;
+
+                cbMinCur = MIN_SIZEOF_MY_FILE_NAMES_INFORMATION + pInfo->FileNameLength;
+                offNext  = pInfo->NextEntryOffset;
+                break;
+            }
+
+            case MyFileIdFullDirectoryInformation:
+            {
+                MY_FILE_ID_FULL_DIR_INFORMATION *pInfo = (MY_FILE_ID_FULL_DIR_INFORMATION *)&pDir->pabBuf[pDir->offBuf];
+                if (   pDir->offBuf          >= pDir->cbBuf - MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION
+                    || pInfo->FileNameLength >= pDir->cbBuf
+                    || pDir->offBuf + pInfo->FileNameLength + MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION > pDir->cbBuf)
+                {
+                    fSkipEntry = 1;
+                    pDir->fHaveData = 0;
+                    continue;
+                }
+
+                pEntry->d_type          = DT_UNKNOWN;
+                pEntry->d_reclen        = 0;
+                pEntry->d_namlen        = 0;
+                if (birdDirCopyNameToEntryW(pInfo->FileName, pInfo->FileNameLength, pEntry) != 0)
+                    fSkipEntry = 1;
+                birdStatFillFromFileIdFullDirInfo(&pEntry->d_stat, pInfo, NULL);
+                pEntry->d_stat.st_dev   = pDir->uDev;
+                switch (pEntry->d_stat.st_mode & S_IFMT)
+                {
+                    case S_IFREG:       pEntry->d_type = DT_REG; break;
+                    case S_IFDIR:       pEntry->d_type = DT_DIR; break;
+                    case S_IFLNK:       pEntry->d_type = DT_LNK; break;
+                    case S_IFIFO:       pEntry->d_type = DT_FIFO; break;
+                    case S_IFCHR:       pEntry->d_type = DT_CHR; break;
+                    default:
+#ifndef NDEBUG
+                        __debugbreak();
+#endif
+                        pEntry->d_type = DT_UNKNOWN;
+                        break;
+                }
+
+                cbMinCur = MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION + pInfo->FileNameLength;
+                offNext  = pInfo->NextEntryOffset;
+                break;
+            }
+
+            default:
+                return birdSetErrnoToBadFileNo();
+        }
+
+        /*
+         * Advance.
+         */
+        if (   offNext >= cbMinCur
+            && offNext < pDir->cbBuf)
+            pDir->offBuf += offNext;
+        else
+        {
+            pDir->fHaveData = 0;
+            pDir->offBuf    = pDir->cbBuf;
+        }
+        pDir->offPos++;
+    } while (fSkipEntry);
+
+
+    /*
+     * Successful return.
+     */
+    *ppResult = pEntry;
+    return 0;
+}
+
+/**
+ * Implements readdir().
+ */
+BirdDirEntryW_T *birdDirReadW(BirdDir_T *pDir)
+{
+    BirdDirEntryW_T *pRet = NULL;
+    birdDirReadReentrantW(pDir, &pDir->u.DirEntryW, &pRet);
     return pRet;
 }
 

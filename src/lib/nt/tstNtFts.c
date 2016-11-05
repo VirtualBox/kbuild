@@ -70,7 +70,6 @@ int main(int argc, char **argv)
             pszArg++;
             if (chOpt == '-')
             {
-                chOpt = *pszArg++;
                 if (!chOpt)
                 {
                     fDoneOptions = 1;
@@ -98,9 +97,11 @@ int main(int argc, char **argv)
                     chOpt = 'q';
                 else if (strcmp(pszArg, "verbose") == 0)
                     chOpt = 'v';
+                else if (strcmp(pszArg, "no-ansi") == 0)
+                    chOpt = 'w';
                 else
                 {
-                    fprintf(stderr, "syntax error: Unknown option: --%s\n", pszArg);
+                    fprintf(stderr, "syntax error: Unknown option: %s (%s)\n", argv[i], pszArg);
                     return 2;
                 }
                 pszArg = "";
@@ -136,6 +137,9 @@ int main(int argc, char **argv)
                         break;
                     case 'x':
                         fFtsFlags |= FTS_XDEV;
+                        break;
+                    case 'w':
+                        fFtsFlags |= FTS_NO_ANSI;
                         break;
                     case 'L':
                         fFollowLinks = 1;
@@ -205,7 +209,12 @@ int main(int argc, char **argv)
                 }
 
                 if (cVerbosity > 0)
-                    printf("%8s %s\n", pszState, pFtsEnt->fts_accpath);
+                {
+                    if (fFtsFlags & FTS_NO_ANSI)
+                        printf("%8s %ls\n", pszState, pFtsEnt->fts_wcsaccpath);
+                    else
+                        printf("%8s %s\n", pszState, pFtsEnt->fts_accpath);
+                }
                 if (   pFtsEnt->fts_info == FTS_SL
                     && pFtsEnt->fts_number == 0
                     && fFollowLinks

@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3002 2016-11-05 20:04:45Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -89,6 +89,7 @@ static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
 static FTSENT	*fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname);
 static FTSENT	*fts_alloc_ansi(FTS *sp, char const *name, size_t namelen);
 static FTSENT	*fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname);
+static void 	 nt_fts_free_alloc_cache(FTS *sp);
 static FTSENT	*fts_build(FTS *, int);
 static void	 fts_lfree(FTSENT *);
 static void	 fts_load(FTS *, FTSENT *);
@@ -116,7 +117,15 @@ static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
 #define MAXPATHLEN 260
 #define MAX(a, b)  ( (a) >= (b) ? (a) : (b) )
 
-#define FTS_NT_DUMMY_SYMFD_VALUE 	((HANDLE)~(intptr_t)(2)) /* current process */
+#define FTS_WITH_ALLOC_CACHE
+/** Number of size buckets for the FTSENT allocation cache. */
+#define FTS_NUM_FREE_BUCKETS 	64
+/** Shift for converting size to free bucket index. */
+#define FTS_FREE_BUCKET_SHIFT   4
+/** The FTSENT allocation alignment. */
+#define FTS_ALIGN_FTSENT	(1U << FTS_FREE_BUCKET_SHIFT)
+/** Enables allocation statistics. */
+//#define FTS_WITH_STATISTICS
 
 /*
  * Internal representation of an FTS, including extra implementation
@@ -125,6 +134,21 @@ static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
+#ifdef FTS_WITH_ALLOC_CACHE
+	/** Number of free entries in the above buckets. */
+	size_t		numfree;
+# ifdef FTS_WITH_STATISTICS
+	size_t		allocs;
+	size_t		hits;
+	size_t		misses;
+# endif
+	/** Free FTSENT buckets (by size).
+	 * This is to avoid hitting the heap, which is a little sluggish on windows. */
+	struct
+	{
+		FTSENT		*head;
+	} freebuckets[FTS_NUM_FREE_BUCKETS];
+#endif
 };
 
 
@@ -337,6 +361,7 @@ fts_load(FTS *sp, FTSENT *p)
 	sp->fts_dev = p->fts_dev;
 }
 
+
 int FTSCALL
 nt_fts_close(FTS *sp)
 {
@@ -364,11 +389,62 @@ nt_fts_close(FTS *sp)
 		free(sp->fts_array);
 	free(sp->fts_path);
 	free(sp->fts_wcspath);
+#ifdef FTS_WITH_ALLOC_CACHE
+# ifdef FTS_WITH_STATISTICS
+	{
+		struct _fts_private *priv = (struct _fts_private *)sp;
+		fprintf(stderr, "numfree=%u allocs=%u  hits=%u (%uppt)  misses=%u (%uppt)  other=%u\n",
+			priv->numfree, priv->allocs,
+			priv->hits,   (unsigned)((double)priv->hits   * 1000.0 / priv->allocs),
+			priv->misses, (unsigned)((double)priv->misses * 1000.0 / priv->allocs),
+			priv->allocs - priv->misses - priv->hits);
+        }
+# endif
+#endif
+	nt_fts_free_alloc_cache(sp);
 
 	/* Free up the stream pointer. */
 	free(sp);
 	return (0);
 }
+
+
+/**
+ * Frees a FTSENT structure by way of the allocation cache.
+ */
+static void
+fts_free_entry(FTS *sp, FTSENT *tmp)
+{
+	if (tmp != NULL) {
+		struct _fts_private *priv = (struct _fts_private *)sp;
+#ifdef FTS_WITH_ALLOC_CACHE
+		size_t idx;
+#endif
+
+		if (tmp->fts_dirfd == INVALID_HANDLE_VALUE) {
+			/* There are probably more files than directories out there. */
+		} else {
+			birdCloseFile(tmp->fts_dirfd);
+			tmp->fts_dirfd = INVALID_HANDLE_VALUE;
+		}
+
+#ifdef FTS_WITH_ALLOC_CACHE
+		idx = (tmp->fts_alloc_size - sizeof(FTSENT)) >> FTS_FREE_BUCKET_SHIFT;
+		if (idx < FTS_NUM_FREE_BUCKETS) {
+			tmp->fts_link = priv->freebuckets[idx].head;
+			priv->freebuckets[idx].head = tmp;
+		} else {
+			tmp->fts_link = priv->freebuckets[FTS_NUM_FREE_BUCKETS - 1].head;
+			priv->freebuckets[FTS_NUM_FREE_BUCKETS - 1].head = tmp;
+		}
+
+		priv->numfree++;
+#else
+		free(tmp);
+#endif
+	}
+}
+
 
 /*
  * Special case of "/" at the end of the path so that slashes aren't
@@ -376,18 +452,6 @@ nt_fts_close(FTS *sp)
  */
 #define	NAPPEND(p)  ( p->fts_pathlen - (p->fts_path[p->fts_pathlen - 1]    ==  '/') )
 #define	NAPPENDW(p) ( p->fts_cwcpath - (p->fts_wcspath[p->fts_cwcpath - 1] == L'/') )
-
-static void
-fts_free_entry(FTSENT *tmp)
-{
-    if (tmp != NULL) {
-		if (tmp->fts_dirfd != INVALID_HANDLE_VALUE) {
-			birdCloseFile(tmp->fts_dirfd);
-			tmp->fts_dirfd = INVALID_HANDLE_VALUE;
-		}
-		free(tmp);
-    }
-}
 
 FTSENT * FTSCALL
 nt_fts_read(FTS *sp)
@@ -419,15 +483,13 @@ nt_fts_read(FTS *sp)
 	 * keep a pointer to current location.  If unable to get that
 	 * pointer, follow fails.
 	 *
-	 * NT: Since we don't change directory, we just set fts_symfd to a
-	 *     placeholder value handle value here in case a API client
-	 *     checks it. Ditto FTS_SYMFOLLOW.
+	 * NT: Since we don't change directory, we just set FTS_SYMFOLLOW
+	 *     here in case a API client checks it.
 	 */
 	if (instr == FTS_FOLLOW &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, INVALID_HANDLE_VALUE);
 		if (p->fts_info == FTS_D /*&& !ISSET(FTS_NOCHDIR)*/) {
-			p->fts_symfd = FTS_NT_DUMMY_SYMFD_VALUE;
 			p->fts_flags |= FTS_SYMFOLLOW;
 		}
 		return (p);
@@ -438,9 +500,6 @@ nt_fts_read(FTS *sp)
 		/* If skipped or crossed mount point, do post-order visit. */
 		if (instr == FTS_SKIP ||
 		    (ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev)) {
-			if (p->fts_flags & FTS_SYMFOLLOW) {
-				p->fts_symfd = INVALID_HANDLE_VALUE;
-			}
 			if (sp->fts_child) {
 				fts_lfree(sp->fts_child);
 				sp->fts_child = NULL;
@@ -488,7 +547,7 @@ next:	tmp = p;
 		 * the root of the tree), and load the paths for the next root.
 		 */
 		if (p->fts_level == FTS_ROOTLEVEL) {
-			fts_free_entry(tmp);
+			fts_free_entry(sp, tmp);
 			fts_load(sp, p);
 			return (sp->fts_cur = p);
 		}
@@ -499,20 +558,19 @@ next:	tmp = p;
 		 * get back if necessary.
 		 */
 		if (p->fts_instr == FTS_SKIP) {
-			fts_free_entry(tmp);
+			fts_free_entry(sp, tmp);
 			goto next;
 		}
 		if (p->fts_instr == FTS_FOLLOW) {
 			p->fts_info = fts_stat(sp, p, 1, INVALID_HANDLE_VALUE);
-			/* NT: See above regarding fts_symfd. */
-			if (p->fts_info == FTS_D /*&& !ISSET(FTS_NOCHDIR)*/) {
-				p->fts_symfd = FTS_NT_DUMMY_SYMFD_VALUE;
+			/* NT: See above regarding fts_flags. */
+			if (p->fts_info == FTS_D) {
 				p->fts_flags |= FTS_SYMFOLLOW;
 			}
 			p->fts_instr = FTS_NOINSTR;
 		}
 
-		fts_free_entry(tmp);
+		fts_free_entry(sp, tmp);
 
 name:
 		if (!(sp->fts_options & FTS_NO_ANSI)) {
@@ -534,8 +592,8 @@ name:
 		 * Done; free everything up and set errno to 0 so the user
 		 * can distinguish between error and EOF.
 		 */
-		fts_free_entry(tmp);
-		fts_free_entry(p);
+		fts_free_entry(sp, tmp);
+		fts_free_entry(sp, p);
 		errno = 0;
 		return (sp->fts_cur = NULL);
 	}
@@ -550,16 +608,13 @@ name:
 	 * a symlink, go back through the file descriptor.  Otherwise, cd up
 	 * one directory.
 	 *
-	 * NT: We're doing no fchdir, but we need to close the directory handle
-	 *     and clear fts_symfd now.
+	 * NT: We're doing no fchdir, but we need to close the directory handle.
 	 */
-	if (p->fts_flags & FTS_SYMFOLLOW)
-		p->fts_symfd = INVALID_HANDLE_VALUE;
 	if (p->fts_dirfd != INVALID_HANDLE_VALUE) {
 		birdCloseFile(p->fts_dirfd);
 		p->fts_dirfd = INVALID_HANDLE_VALUE;
 	}
-	fts_free_entry(tmp);
+	fts_free_entry(sp, tmp);
 	p->fts_info = p->fts_errno ? FTS_ERR : FTS_DP;
 	return (sp->fts_cur = p);
 }
@@ -684,9 +739,8 @@ nt_fts_set_clientptr(FTS *sp, void *clientptr)
 static FTSENT *
 fts_build(FTS *sp, int type)
 {
-	BirdDirEntry_T *dp;
-	FTSENT *p, *head;
-	FTSENT *cur, *tail;
+	BirdDirEntryW_T *dp;
+	FTSENT *p, *head, *cur, **tailp;
 	DIR *dirp;
 	int saved_errno, doadjust, doadjust_utf16;
 	long level;
@@ -750,7 +804,8 @@ l_open_err:
 	 * lot easier here since the length is part of the dirent structure.
 	 */
 	if (sp->fts_options & FTS_NO_ANSI) {
-		len = maxlen = 0;
+		len = 0;
+		maxlen = 0x10000;
 	} else {
 		len = NAPPEND(cur);
 		len++;
@@ -765,26 +820,38 @@ l_open_err:
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = doadjust_utf16 = 0;
-	for (head = tail = NULL, nitems = 0; dirp && (dp = birdDirRead(dirp));) {
-		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
+	nitems = 0;
+	head = NULL;
+	tailp = &head;
+	while ((dp = birdDirReadW(dirp)) != NULL) {
+		if (ISSET(FTS_SEEDOT) || !ISDOT(dp->d_name))  {
+			/* assume dirs have two or more entries */
+		} else {
 			continue;
+		}
 
-		if ((p = fts_alloc_ansi(sp, dp->d_name, dp->d_namlen)) == NULL)
+		if ((p = fts_alloc_utf16(sp, dp->d_name, dp->d_namlen)) != NULL) {
+			/* likely */
+		} else {
 			goto mem1;
+		}
 
-		if (p->fts_namelen >= maxlen
-		 || p->fts_cwcname >= cwcmax) {  /* include space for NUL */
+		/* include space for NUL */
+		if (p->fts_namelen < maxlen && p->fts_cwcname < cwcmax) {
+		    /* likely */
+		} else {
 			void *oldaddr = sp->fts_path;
 			wchar_t *oldwcspath = sp->fts_wcspath;
 			if (fts_palloc(sp,
-						   p->fts_namelen >= maxlen ? len + p->fts_namelen + 1 : 0,
-						   p->fts_cwcname >= cwcmax ? cwcdir + p->fts_cwcname + 1 : 0)) {
+			               p->fts_namelen >= maxlen ? len + p->fts_namelen + 1 : 0,
+			               p->fts_cwcname >= cwcmax ? cwcdir + p->fts_cwcname + 1 : 0)) {
+mem1:
 				/*
 				 * No more memory for path or structures.  Save
 				 * errno, free up the current structure and the
 				 * structures already allocated.
 				 */
-mem1:				saved_errno = errno;
+				saved_errno = errno;
 				if (p)
 					free(p);
 				fts_lfree(head);
@@ -814,12 +881,8 @@ mem1:				saved_errno = errno;
 
 		/* We walk in directory order so "ls -f" doesn't get upset. */
 		p->fts_link = NULL;
-		if (head == NULL)
-			head = tail = p;
-		else {
-			tail->fts_link = p;
-			tail = p;
-		}
+		*tailp = p;
+		tailp = &p->fts_link;
 		++nitems;
 	}
 
@@ -909,7 +972,7 @@ fts_process_stats(FTSENT *p, BirdStat_T const *sbp)
 		ino = p->fts_ino = sbp->st_ino;
 		p->fts_nlink = sbp->st_nlink;
 
-		if (ISDOT(p->fts_name))
+		if (ISDOT(p->fts_wcsname))
 			return (FTS_DOT);
 
 		/*
@@ -985,9 +1048,17 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 static FTSENT *
 fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, size_t cwcname)
 {
+	struct _fts_private *priv = (struct _fts_private *)sp;
 	FTSENT *p;
 	size_t len;
+#ifdef FTS_WITH_ALLOC_CACHE
+	size_t aligned;
+	size_t idx;
+#endif
 
+#if defined(FTS_WITH_STATISTICS) && defined(FTS_WITH_ALLOC_CACHE)
+	priv->allocs++;
+#endif
 	/*
 	 * The file name is a variable length array.  Allocate the FTSENT
 	 * structure and the file name.
@@ -995,35 +1066,72 @@ fts_alloc(FTS *sp, char const *name, size_t namelen, wchar_t const *wcsname, siz
 	len = sizeof(FTSENT) + (cwcname + 1) * sizeof(wchar_t);
 	if (!(sp->fts_options & FTS_NO_ANSI))
 		len += namelen + 1;
+
+	/*
+	 * To speed things up we cache entries.  This code is a little insane,
+	 * but that's preferable to slow code.
+	 */
+#ifdef FTS_WITH_ALLOC_CACHE
+	aligned = (len + FTS_ALIGN_FTSENT + 1) & ~(size_t)(FTS_ALIGN_FTSENT - 1);
+	idx     = ((aligned - sizeof(FTSENT)) >> FTS_FREE_BUCKET_SHIFT);
+	if (   idx < FTS_NUM_FREE_BUCKETS
+	    && (p = priv->freebuckets[idx].head)
+	    && p->fts_alloc_size >= len) {
+		priv->freebuckets[idx].head = p->fts_link;
+		priv->numfree--;
+# ifdef FTS_WITH_STATISTICS
+		priv->hits++;
+# endif
+
+	} else {
+# ifdef FTS_WITH_STATISTICS
+		priv->misses++;
+# endif
+		p = malloc(aligned);
+		if (p) {
+			p->fts_alloc_size = (unsigned)aligned;
+		} else {
+			nt_fts_free_alloc_cache(sp);
+			p = malloc(len);
+			if (!p)
+				return NULL;
+			p->fts_alloc_size = (unsigned)len;
+		}
+	}
+#else  /* !FTS_WITH_ALLOC_CACHE */
 	p = malloc(len);
 	if (p) {
-		/* Copy the names and guarantee NUL termination. */
-		p->fts_wcsname = (wchar_t *)(p + 1);
-		memcpy(p->fts_wcsname, wcsname, cwcname * sizeof(wchar_t));
-		p->fts_wcsname[cwcname] = '\0';
-		p->fts_cwcname = cwcname;
-		if (!(sp->fts_options & FTS_NO_ANSI)) {
-			p->fts_name = (char *)(p->fts_wcsname + cwcname + 1);
-			memcpy(p->fts_name, name, namelen);
-			p->fts_name[namelen] = '\0';
-			p->fts_namelen = namelen;
-		} else {
-			p->fts_name = NULL;
-			p->fts_namelen = 0;
-		}
-
-		p->fts_path = sp->fts_path;
-		p->fts_wcspath = sp->fts_wcspath;
-		p->fts_statp = &p->fts_stat;
-		p->fts_errno = 0;
-		p->fts_flags = 0;
-		p->fts_instr = FTS_NOINSTR;
-		p->fts_number = 0;
-		p->fts_pointer = NULL;
-		p->fts_fts = sp;
-		p->fts_symfd = INVALID_HANDLE_VALUE;
-		p->fts_dirfd = INVALID_HANDLE_VALUE;
+		p->fts_alloc_size = (unsigned)len;
+	} else {
+		return NULL;
 	}
+#endif /* !FTS_WITH_ALLOC_CACHE */
+
+	/* Copy the names and guarantee NUL termination. */
+	p->fts_wcsname = (wchar_t *)(p + 1);
+	memcpy(p->fts_wcsname, wcsname, cwcname * sizeof(wchar_t));
+	p->fts_wcsname[cwcname] = '\0';
+	p->fts_cwcname = cwcname;
+	if (!(sp->fts_options & FTS_NO_ANSI)) {
+		p->fts_name = (char *)(p->fts_wcsname + cwcname + 1);
+		memcpy(p->fts_name, name, namelen);
+		p->fts_name[namelen] = '\0';
+		p->fts_namelen = namelen;
+	} else {
+		p->fts_name = NULL;
+		p->fts_namelen = 0;
+	}
+
+	p->fts_path = sp->fts_path;
+	p->fts_wcspath = sp->fts_wcspath;
+	p->fts_statp = &p->fts_stat;
+	p->fts_errno = 0;
+	p->fts_flags = 0;
+	p->fts_instr = FTS_NOINSTR;
+	p->fts_number = 0;
+	p->fts_pointer = NULL;
+	p->fts_fts = sp;
+	p->fts_dirfd = INVALID_HANDLE_VALUE;
 	return (p);
 }
 
@@ -1067,7 +1175,7 @@ fts_alloc_ansi(FTS *sp, char const *name, size_t namelen)
  *
  * @returns Pointer to allocated and mostly initialized FTSENT structure on
  *          success.  NULL on failure, caller needs to record it.
- * @param   sp                  Pointer to FTS instance.
+ * @param   sp                  Pointer to the FTS instance.
  * @param   wcsname             The UTF-16 name.
  * @param   cwcname		The UTF-16 name length.
  */
@@ -1098,6 +1206,34 @@ fts_alloc_utf16(FTS *sp, wchar_t const *wcsname, size_t cwcname)
 		}
 	}
 	return pRet;
+}
+
+
+/**
+ * Frees up the FTSENT allocation cache.
+ *
+ * Used by nt_fts_close, but also called by fts_alloc on alloc failure.
+ *
+ * @param   sp                  Pointer to the FTS instance.
+ */
+static void nt_fts_free_alloc_cache(FTS *sp)
+{
+#ifdef FTS_WITH_ALLOC_CACHE
+	struct _fts_private *priv = (struct _fts_private *)sp;
+	unsigned i = K_ELEMENTS(priv->freebuckets);
+	while (i-- > 0) {
+		FTSENT *cur = priv->freebuckets[i].head;
+		priv->freebuckets[i].head = NULL;
+		while (cur) {
+			FTSENT *freeit = cur;
+			cur = cur->fts_link;
+			free(freeit);
+		}
+	}
+	priv->numfree = 0;
+#else
+	(void)sp;
+#endif
 }
 
 

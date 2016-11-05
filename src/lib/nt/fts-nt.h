@@ -1,4 +1,4 @@
-/* $Id: fts-nt.h 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.h 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * Header for the NT port of BSD fts.h.
  *
@@ -82,11 +82,11 @@ typedef struct {
 #if 0 /* No whiteout on NT. */
 #define	FTS_WHITEOUT	0x080		/* return whiteout information */
 #endif
-#define	FTS_OPTIONMASK	0x0ff		/* valid user option mask */
+#define FTS_NO_ANSI     0x40000000      /* NT: No ansi name or access path. */
+#define	FTS_OPTIONMASK	0x400000ff	/* valid user option mask */
 
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
 #define	FTS_STOP	0x200		/* (private) unrecoverable error */
-#define FTS_NO_ANSI     0x40000000      /* NT: No ansi name or access path. */
 	int fts_options;		/* fts_open options, global flags */
 	void *fts_clientptr;		/* thunk for sort function */
 } FTS;
@@ -103,16 +103,16 @@ typedef struct _ftsent {
 	char *fts_path;			/* root path */
 	wchar_t *fts_wcspath;		/* NT: UTF-16 root path */
 	int fts_errno;			/* errno for this node */
-	fts_fd_t fts_symfd;		/* NT: Normally -1; -2 we followed this symlinked dir */
+	size_t fts_alloc_size;		/* internal - size of the allocation for this entry. */
 	fts_fd_t fts_dirfd;		/* NT: Handle to the directory (NT_FTS_)INVALID_HANDLE_VALUE if not valid */
 	size_t fts_pathlen;		/* strlen(fts_path) */
 	size_t fts_cwcpath;		/* NT: length of fts_wcspath. */
 	size_t fts_namelen;		/* strlen(fts_name) */
 	size_t fts_cwcname;		/* NT: length of fts_wcsname. */
 
-	fts_nlink_t fts_nlink;		/* link count */
 	fts_ino_t fts_ino;		/* inode */
 	fts_dev_t fts_dev;		/* device */
+	fts_nlink_t fts_nlink;		/* link count */
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
