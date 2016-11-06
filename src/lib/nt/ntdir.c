@@ -1,4 +1,4 @@
-/* $Id: ntdir.c 3005 2016-11-06 00:07:37Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.c 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, telldir, seekdir, and closedir.
  */
@@ -292,6 +292,50 @@ static int birdDirCopyNameToEntry(WCHAR const *pwcName, ULONG cbName, BirdDirEnt
 }
 
 
+/**
+ * Deals with mount points.
+ *
+ * @param   pDir        The directory handle.
+ * @param   pInfo       The NT entry information.
+ * @param   pEntryStat  The stats for the mount point directory that needs
+ *                      updating (a d_stat member).
+ */
+static void birdDirUpdateMountPointInfo(BirdDir_T *pDir, MY_FILE_ID_FULL_DIR_INFORMATION *pInfo,
+                                        BirdStat_T *pEntryStat)
+{
+    /*
+     * Try open the root directory of the mount.
+     * (Can't use birdStatAtW here because the name isn't terminated.)
+     */
+    HANDLE              hRoot = INVALID_HANDLE_VALUE;
+    MY_NTSTATUS         rcNt;
+    MY_UNICODE_STRING   Name;
+    Name.Buffer = pInfo->FileName;
+    Name.Length = Name.MaximumLength = (USHORT)pInfo->FileNameLength;
+
+    rcNt = birdOpenFileUniStr((HANDLE)pDir->pvHandle, &Name,
+                              FILE_READ_ATTRIBUTES,
+                              FILE_ATTRIBUTE_NORMAL,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              FILE_OPEN,
+                              FILE_OPEN_FOR_BACKUP_INTENT,
+                              OBJ_CASE_INSENSITIVE,
+                              &hRoot);
+    if (MY_NT_SUCCESS(rcNt))
+    {
+        int         iSavedErrno = errno;
+        BirdStat_T  RootStat;
+        if (birdStatHandle(hRoot, &RootStat, NULL) == 0)
+        {
+            RootStat.st_ismountpoint = 2;
+            *pEntryStat = RootStat;
+        }
+        birdCloseFile(hRoot);
+        errno = iSavedErrno;
+    }
+    /* else: don't mind failures, we've got some info. */
+}
+
 
 /**
  * Implements readdir_r().
@@ -371,7 +415,7 @@ int birdDirReadReentrant(BirdDir_T *pDir, BirdDirEntry_T *pEntry, BirdDirEntry_T
                 pEntry->d_namlen        = 0;
                 if (birdDirCopyNameToEntry(pInfo->FileName, pInfo->FileNameLength, pEntry) != 0)
                     fSkipEntry = 1;
-                birdStatFillFromFileIdFullDirInfo(&pEntry->d_stat, pInfo, pEntry->d_name);
+                birdStatFillFromFileIdFullDirInfo(&pEntry->d_stat, pInfo);
                 pEntry->d_stat.st_dev   = pDir->uDev;
                 switch (pEntry->d_stat.st_mode & S_IFMT)
                 {
@@ -387,6 +431,11 @@ int birdDirReadReentrant(BirdDir_T *pDir, BirdDirEntry_T *pEntry, BirdDirEntry_T
                         pEntry->d_type = DT_UNKNOWN;
                         break;
                 }
+
+                if (pEntry->d_stat.st_ismountpoint != 1)
+                { /* likely. */ }
+                else
+                    birdDirUpdateMountPointInfo(pDir, pInfo, &pEntry->d_stat);
 
                 cbMinCur = MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION + pInfo->FileNameLength;
                 offNext  = pInfo->NextEntryOffset;
@@ -525,7 +574,7 @@ int birdDirReadReentrantW(BirdDir_T *pDir, BirdDirEntryW_T *pEntry, BirdDirEntry
                 pEntry->d_namlen        = 0;
                 if (birdDirCopyNameToEntryW(pInfo->FileName, pInfo->FileNameLength, pEntry) != 0)
                     fSkipEntry = 1;
-                birdStatFillFromFileIdFullDirInfo(&pEntry->d_stat, pInfo, NULL);
+                birdStatFillFromFileIdFullDirInfo(&pEntry->d_stat, pInfo);
                 pEntry->d_stat.st_dev   = pDir->uDev;
                 switch (pEntry->d_stat.st_mode & S_IFMT)
                 {
@@ -541,6 +590,11 @@ int birdDirReadReentrantW(BirdDir_T *pDir, BirdDirEntryW_T *pEntry, BirdDirEntry
                         pEntry->d_type = DT_UNKNOWN;
                         break;
                 }
+
+                if (pEntry->d_stat.st_ismountpoint != 1)
+                { /* likely. */ }
+                else
+                    birdDirUpdateMountPointInfo(pDir, pInfo, &pEntry->d_stat);
 
                 cbMinCur = MIN_SIZEOF_MY_FILE_ID_FULL_DIR_INFORMATION + pInfo->FileNameLength;
                 offNext  = pInfo->NextEntryOffset;

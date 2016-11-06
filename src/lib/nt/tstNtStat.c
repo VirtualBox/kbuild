@@ -1,4 +1,4 @@
-/* $Id: tstNtStat.c 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: tstNtStat.c 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * Manual lstat/stat testcase.
  */
@@ -130,7 +130,8 @@ int main(int argc, char **argv)
             char szBuf[256];
             printf("%s:\n", argv[i]);
             printf("  st_mode:          %o\n", st.st_mode);
-            printf("  st_dirsymlink:    %d\n", st.st_dirsymlink);
+            printf("  st_isdirsymlink:  %d\n", st.st_isdirsymlink);
+            printf("  st_ismountpoint:  %d\n", st.st_ismountpoint);
             printf("  st_size:          %I64u (%#I64x)\n", st.st_size, st.st_size);
             printf("  st_atim:          %s\n", FormatTimeSpec(szBuf, &st.st_atim));
             printf("  st_mtim:          %s\n", FormatTimeSpec(szBuf, &st.st_mtim));
