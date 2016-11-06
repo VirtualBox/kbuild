@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3008 2016-11-06 16:50:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -68,43 +68,48 @@ static int birdIsExecutableExtension(const char *pszExt)
 
 static int birdIsFileExecutable(const char *pszName)
 {
-    const char     *pszExt = NULL;
-    char            szExt[8];
-    size_t          cchExt;
-    unsigned        i;
-    char            ch;
-
-    /* Look for a 3 char extension. */
-    ch = *pszName++;
-    if (!ch)
-        return 0;
-
-    while ((ch = *pszName++) != '\0')
-        if (ch == '.')
-            pszExt = pszName;
-
-    if (!pszExt)
-        return 0;
-    pszExt++;
-    cchExt = pszName - pszExt;
-    if (cchExt != 3)
-        return 0;
-
-    /* Copy the extension out and lower case it.  Fail immediately on non-alpha chars. */
-    for (i = 0; i < cchExt; i++, pszExt++)
+    if (pszName)
     {
-        ch = *pszExt;
-        if (ch >= 'a' && ch <= 'z')
-        { /* likely */ }
-        else if (ch >= 'A' && ch <= 'Z')
-            ch += 'a' - 'A';
-        else
-            return 0;
-        szExt[i] = ch;
-    }
-    szExt[i] = '\0';
+        const char     *pszExt = NULL;
+        char            szExt[8];
+        size_t          cchExt;
+        unsigned        i;
+        char            ch;
 
-    return birdIsExecutableExtension(szExt);
+        /* Look for a 3 char extension. */
+        ch = *pszName++;
+        if (!ch)
+            return 0;
+
+        while ((ch = *pszName++) != '\0')
+            if (ch == '.')
+                pszExt = pszName;
+
+        if (!pszExt)
+            return 0;
+        pszExt++;
+        cchExt = pszName - pszExt;
+        if (cchExt != 3)
+            return 0;
+
+        /* Copy the extension out and lower case it.  Fail immediately on non-alpha chars. */
+        for (i = 0; i < cchExt; i++, pszExt++)
+        {
+            ch = *pszExt;
+            if (ch >= 'a' && ch <= 'z')
+            { /* likely */ }
+            else if (ch >= 'A' && ch <= 'Z')
+                ch += 'a' - 'A';
+            else
+                return 0;
+            szExt[i] = ch;
+        }
+        szExt[i] = '\0';
+
+        return birdIsExecutableExtension(szExt);
+    }
+
+    return 0;
 }
 
 
@@ -388,7 +393,10 @@ int birdStatHandle2(HANDLE hFile, BirdStat_T *pStat, const char *pszPath, const 
         }
     }
 
-    if (MY_NT_SUCCESS(rcNt) && !pszPath && !pwszPath)
+    if (   MY_NT_SUCCESS(rcNt)
+        && !pszPath
+        && !pwszPath
+        && !(BasicInfo.FileAttributes & FILE_ATTRIBUTE_DIRECTORY))
     {
         cbNameInfo = 0x10020;
         pNameInfo  = (MY_FILE_NAME_INFORMATION *)alloca(cbNameInfo);
