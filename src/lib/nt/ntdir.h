@@ -1,4 +1,4 @@
-/* $Id: ntdir.h 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.h 3005 2016-11-06 00:07:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, closedir and friends.
  */
@@ -89,6 +89,8 @@ typedef struct direntw
 #define BIRDDIR_F_EXTRA_INFO    2U
 /** Whether to restart the scan. */
 #define BIRDDIR_F_RESTART_SCAN  4U
+/** Set if the BirdDir_T structure is statically allocated. */
+#define BIRDDIR_F_STATIC_ALLOC  8U
 /** @} */
 
 typedef struct BirdDir
@@ -132,6 +134,7 @@ BirdDir_T      *birdDirOpen(const char *pszPath);
 BirdDir_T      *birdDirOpenExtraInfo(const char *pszPath);
 BirdDir_T      *birdDirOpenExW(void *hRoot, const wchar_t *pwszPath, const wchar_t *pwszFilter, unsigned fFlags);
 BirdDir_T      *birdDirOpenFromHandle(void *hDir, const void *pvReserved, unsigned fFlags);
+BirdDir_T      *birdDirOpenFromHandleWithReuse(BirdDir_T *pDir, void *pvHandle, const void *pvReserved, unsigned fFlags);
 BirdDirEntry_T *birdDirRead(BirdDir_T *pDir);
 BirdDirEntryW_T *birdDirReadW(BirdDir_T *pDir);
 long            birdDirTell(BirdDir_T *pDir);

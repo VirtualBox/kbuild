@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3005 2016-11-06 00:07:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -117,15 +117,18 @@ static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
 #define MAXPATHLEN 260
 #define MAX(a, b)  ( (a) >= (b) ? (a) : (b) )
 
+/** Enables BirdDir_T reuse. (Saves malloc and free calls.) */
+#define FTS_WITH_DIRHANDLE_REUSE
+/** Enables allocation statistics. */
+//#define FTS_WITH_STATISTICS
+/** Enables FTSENT allocation cache. */
 #define FTS_WITH_ALLOC_CACHE
 /** Number of size buckets for the FTSENT allocation cache. */
-#define FTS_NUM_FREE_BUCKETS 	64
+#define FTS_NUM_FREE_BUCKETS    64
 /** Shift for converting size to free bucket index. */
 #define FTS_FREE_BUCKET_SHIFT   4
 /** The FTSENT allocation alignment. */
-#define FTS_ALIGN_FTSENT	(1U << FTS_FREE_BUCKET_SHIFT)
-/** Enables allocation statistics. */
-//#define FTS_WITH_STATISTICS
+#define FTS_ALIGN_FTSENT        (1U << FTS_FREE_BUCKET_SHIFT)
 
 /*
  * Internal representation of an FTS, including extra implementation
@@ -134,6 +137,10 @@ static int	 fts_process_stats(FTSENT *, BirdStat_T const *);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
+#ifdef FTS_WITH_DIRHANDLE_REUSE
+	/** Statically allocate directory handle. */
+	BirdDir_T	dirhandle;
+#endif
 #ifdef FTS_WITH_ALLOC_CACHE
 	/** Number of free entries in the above buckets. */
 	size_t		numfree;
@@ -402,6 +409,9 @@ nt_fts_close(FTS *sp)
 # endif
 #endif
 	nt_fts_free_alloc_cache(sp);
+#ifdef FTS_WITH_DIRHANDLE_REUSE
+	birdDirClose(&((struct _fts_private *)sp)->dirhandle);
+#endif
 
 	/* Free up the stream pointer. */
 	free(sp);
@@ -460,19 +470,24 @@ nt_fts_read(FTS *sp)
 	int instr;
 	wchar_t *pwc;
 
-	/* If finished or unrecoverable error, return NULL. */
-	if (sp->fts_cur == NULL || ISSET(FTS_STOP))
-		return (NULL);
-
 	/* Set current node pointer. */
 	p = sp->fts_cur;
+
+	/* If finished or unrecoverable error, return NULL. */
+	if (p != NULL && !ISSET(FTS_STOP)) {
+		/* likely */
+	} else {
+		return (NULL);
+	}
 
 	/* Save and zero out user instructions. */
 	instr = p->fts_instr;
 	p->fts_instr = FTS_NOINSTR;
 
 	/* Any type of file may be re-visited; re-stat and re-turn. */
-	if (instr == FTS_AGAIN) {
+	if (instr != FTS_AGAIN) {
+		/* likely */
+	} else {
 		p->fts_info = fts_stat(sp, p, 0, INVALID_HANDLE_VALUE);
 		return (p);
 	}
@@ -486,8 +501,10 @@ nt_fts_read(FTS *sp)
 	 * NT: Since we don't change directory, we just set FTS_SYMFOLLOW
 	 *     here in case a API client checks it.
 	 */
-	if (instr == FTS_FOLLOW &&
-	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
+	if (   instr != FTS_FOLLOW
+	    || (p->fts_info != FTS_SL && p->fts_info != FTS_SLNONE)) {
+	    /* likely */
+	} else {
 		p->fts_info = fts_stat(sp, p, 1, INVALID_HANDLE_VALUE);
 		if (p->fts_info == FTS_D /*&& !ISSET(FTS_NOCHDIR)*/) {
 			p->fts_flags |= FTS_SYMFOLLOW;
@@ -498,8 +515,8 @@ nt_fts_read(FTS *sp)
 	/* Directory in pre-order. */
 	if (p->fts_info == FTS_D) {
 		/* If skipped or crossed mount point, do post-order visit. */
-		if (instr == FTS_SKIP ||
-		    (ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev)) {
+		if (  instr == FTS_SKIP
+		    || (ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev)) {
 			if (sp->fts_child) {
 				fts_lfree(sp->fts_child);
 				sp->fts_child = NULL;
@@ -527,15 +544,20 @@ nt_fts_read(FTS *sp)
 		 * If haven't read do so.  If the read fails, fts_build sets
 		 * FTS_STOP or the fts_info field of the node.
 		 */
-		if (sp->fts_child != NULL) {
-			/* nothing to do */
-		} else if ((sp->fts_child = fts_build(sp, BREAD)) == NULL) {
-			if (ISSET(FTS_STOP))
-				return (NULL);
-			return (p);
+		if (sp->fts_child == NULL) {
+			p = fts_build(sp, BREAD);
+			if (p != NULL) {
+			    /* likely */
+			} else {
+			    if (ISSET(FTS_STOP))
+				    return (NULL);
+			    return sp->fts_cur;
+			}
+
+		} else {
+			p = sp->fts_child;
+			sp->fts_child = NULL;
 		}
-		p = sp->fts_child;
-		sp->fts_child = NULL;
 		goto name;
 	}
 
@@ -546,7 +568,9 @@ next:	tmp = p;
 		 * If reached the top, return to the original directory (or
 		 * the root of the tree), and load the paths for the next root.
 		 */
-		if (p->fts_level == FTS_ROOTLEVEL) {
+		if (p->fts_level != FTS_ROOTLEVEL) {
+			/* likely */
+		} else {
 			fts_free_entry(sp, tmp);
 			fts_load(sp, p);
 			return (sp->fts_cur = p);
@@ -557,11 +581,15 @@ next:	tmp = p;
 		 * ignore.  If followed, get a file descriptor so we can
 		 * get back if necessary.
 		 */
-		if (p->fts_instr == FTS_SKIP) {
+		if (p->fts_instr != FTS_SKIP) {
+			/* likely */
+		} else {
 			fts_free_entry(sp, tmp);
 			goto next;
 		}
-		if (p->fts_instr == FTS_FOLLOW) {
+		if (p->fts_instr != FTS_FOLLOW) {
+			/* likely */
+		} else {
 			p->fts_info = fts_stat(sp, p, 1, INVALID_HANDLE_VALUE);
 			/* NT: See above regarding fts_flags. */
 			if (p->fts_info == FTS_D) {
@@ -587,7 +615,9 @@ name:
 	/* Move up to the parent node. */
 	p = tmp->fts_parent;
 
-	if (p->fts_level == FTS_ROOTPARENTLEVEL) {
+	if (p->fts_level != FTS_ROOTPARENTLEVEL) {
+		/* likely */
+	} else {
 		/*
 		 * Done; free everything up and set errno to 0 so the user
 		 * can distinguish between error and EOF.
@@ -786,7 +816,12 @@ fts_build(FTS *sp, int type)
 	} else {
 		fDirOpenFlags |= BIRDDIR_F_RESTART_SCAN;
 	}
+#ifdef FTS_WITH_DIRHANDLE_REUSE
+	dirp = birdDirOpenFromHandleWithReuse(&((struct _fts_private *)sp)->dirhandle, cur->fts_dirfd, NULL, 
+					      fDirOpenFlags | BIRDDIR_F_STATIC_ALLOC);
+#else
 	dirp = birdDirOpenFromHandle(cur->fts_dirfd, NULL, fDirOpenFlags);
+#endif
 	if (dirp == NULL) {
 l_open_err:
 		if (type == BREAD) {
@@ -855,7 +890,9 @@ mem1:
 				if (p)
 					free(p);
 				fts_lfree(head);
+#ifndef FTS_WITH_DIRHANDLE_REUSE
 				birdDirClose(dirp);
+#endif
 				birdCloseFile(cur->fts_dirfd);
 				cur->fts_dirfd = INVALID_HANDLE_VALUE;
 				cur->fts_info = FTS_ERR;
@@ -886,7 +923,9 @@ mem1:
 		++nitems;
 	}
 
+#ifndef FTS_WITH_DIRHANDLE_REUSE
 	birdDirClose(dirp);
+#endif
 
 	/*
 	 * If realloc() changed the address of the path, adjust the
