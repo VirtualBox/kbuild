@@ -1,4 +1,4 @@
-/* $Id: ntdir.c 3004 2016-11-05 23:18:51Z knut.osmundsen@oracle.com $ */
+/* $Id: ntdir.c 3005 2016-11-06 00:07:37Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT opendir, readdir, telldir, seekdir, and closedir.
  */
@@ -114,7 +114,7 @@ BirdDir_T *birdDirOpenExW(void *hRoot, const wchar_t *pwszPath, const wchar_t *p
  */
 BirdDir_T *birdDirOpenFromHandle(void *pvHandle, const void *pvReserved, unsigned fFlags)
 {
-    if (!pvReserved)
+    if (!pvReserved && !(fFlags & BIRDDIR_F_STATIC_ALLOC))
     {
         /*
          * Allocate and initialize the directory enum handle.
@@ -137,8 +137,56 @@ BirdDir_T *birdDirOpenFromHandle(void *pvHandle, const void *pvReserved, unsigne
         }
     }
     else
+    {
+        assert(!(fFlags & BIRDDIR_F_STATIC_ALLOC));
         assert(pvReserved == NULL);
-    birdSetErrnoToNoMem();
+    }
+    birdSetErrnoToInvalidArg();
+    return NULL;
+}
+
+
+/**
+ * Special API that takes a preallocated BirdDir_T and can be called again
+ * without involving birdDirClose.
+ *
+ *
+ */
+BirdDir_T *birdDirOpenFromHandleWithReuse(BirdDir_T *pDir, void *pvHandle, const void *pvReserved, unsigned fFlags)
+{
+    if (!pvReserved)
+    {
+        /*
+         * Allocate and initialize the directory enum handle.
+         */
+        if (pDir)
+        {
+            if (pDir->uMagic == BIRD_DIR_MAGIC)
+            {
+                if (   (pDir->fFlags & BIRDDIR_F_CLOSE_HANDLE)
+                    && pDir->pvHandle != INVALID_HANDLE_VALUE)
+                    birdCloseFile((HANDLE)pDir->pvHandle);
+            }
+            else
+            {
+                pDir->cbBuf     = 0;
+                pDir->pabBuf    = NULL;
+                pDir->uMagic    = BIRD_DIR_MAGIC;
+            }
+            pDir->pvHandle      = pvHandle;
+            pDir->fFlags        = fFlags;
+            pDir->uDev          = 0;
+            pDir->offPos        = 0;
+            pDir->fHaveData     = 0;
+            pDir->fFirst        = 1;
+            pDir->iInfoClass    = fFlags & BIRDDIR_F_EXTRA_INFO ? MyFileIdFullDirectoryInformation : MyFileNamesInformation;
+            pDir->offBuf        = 0;
+            return pDir;
+        }
+    }
+    else
+        assert(pvReserved == NULL);
+    birdSetErrnoToInvalidArg();
     return NULL;
 }
 
@@ -173,13 +221,19 @@ static int birdDirReadMore(BirdDir_T *pDir)
         else
             pDir->uDev = 0;
 
-        /*
-         * Allocate a buffer.
-         */
-        pDir->cbBuf = 0x20000;
-        pDir->pabBuf = birdMemAlloc(pDir->cbBuf);
         if (!pDir->pabBuf)
-            return birdSetErrnoToNoMem();
+        {
+            /*
+             * Allocate a buffer.
+             *
+             * Better not exceed 64KB or CIFS may throw a fit.  Also, on win10/64
+             * here there is a noticable speedup when going one byte below 64KB.
+             */
+            pDir->cbBuf = 0xffe0;
+            pDir->pabBuf = birdMemAlloc(pDir->cbBuf);
+            if (!pDir->pabBuf)
+                return birdSetErrnoToNoMem();
+        }
 
         pDir->fFirst = 0;
     }
@@ -547,7 +601,7 @@ void birdDirSeek(BirdDir_T *pDir, long offDir);
 /**
  * Implements closedir().
  */
-int             birdDirClose(BirdDir_T *pDir)
+int birdDirClose(BirdDir_T *pDir)
 {
     if (!pDir || pDir->uMagic != BIRD_DIR_MAGIC)
         return birdSetErrnoToBadFileNo();
@@ -558,7 +612,8 @@ int             birdDirClose(BirdDir_T *pDir)
     pDir->pvHandle = (void *)INVALID_HANDLE_VALUE;
     birdMemFree(pDir->pabBuf);
     pDir->pabBuf = NULL;
-    birdMemFree(pDir);
+    if (!(pDir->fFlags & BIRDDIR_F_STATIC_ALLOC))
+        birdMemFree(pDir);
 
     return 0;
 }
