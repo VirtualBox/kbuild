@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3005 2016-11-06 00:07:37Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3006 2016-11-06 00:15:34Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -770,7 +770,8 @@ static FTSENT *
 fts_build(FTS *sp, int type)
 {
 	BirdDirEntryW_T *dp;
-	FTSENT *p, *head, *cur, **tailp;
+	FTSENT *p, *cur;
+	FTSENT * volatile head,* volatile *tailp; /* volatile is to prevent aliasing trouble */
 	DIR *dirp;
 	int saved_errno, doadjust, doadjust_utf16;
 	long level;
