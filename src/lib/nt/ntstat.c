@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3003 2016-11-05 23:18:25Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -147,39 +147,40 @@ static int birdIsFileExecutableW(WCHAR const *pwcName, size_t cwcName)
 }
 
 
-static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const char *pszName,
-                                         const wchar_t *pwszName, size_t cbNameW, __int16 *pfIsDirSymlink)
+static unsigned short birdFileInfoToMode(ULONG fAttribs, ULONG uReparseTag,
+                                         const char *pszName, const wchar_t *pwszName, size_t cbNameW,
+                                         unsigned __int8 *pfIsDirSymlink, unsigned __int8 *pfIsMountPoint)
 {
     unsigned short fMode;
 
     /* File type. */
-    if (  (fAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
-        && hFile != INVALID_HANDLE_VALUE)
+    *pfIsDirSymlink = 0;
+    *pfIsMountPoint = 0;
+    if (!(fAttribs & FILE_ATTRIBUTE_REPARSE_POINT))
     {
-        MY_FILE_ATTRIBUTE_TAG_INFORMATION   TagInfo;
-        MY_IO_STATUS_BLOCK                  Ios;
-        MY_NTSTATUS                         rcNt;
-        Ios.Information = 0;
-        Ios.u.Status    = -1;
-        rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &TagInfo, sizeof(TagInfo), MyFileAttributeTagInformation);
-        if (   !MY_NT_SUCCESS(rcNt)
-            || !MY_NT_SUCCESS(Ios.u.Status)
-            || TagInfo.ReparseTag != IO_REPARSE_TAG_SYMLINK)
-            fAttribs &= ~FILE_ATTRIBUTE_REPARSE_POINT;
-    }
-
-    if (fAttribs & FILE_ATTRIBUTE_REPARSE_POINT)
-    {
-        *pfIsDirSymlink = !!(fAttribs & FILE_ATTRIBUTE_DIRECTORY);
-        fMode = S_IFLNK;
-    }
-    else
-    {
-        *pfIsDirSymlink = 0;
         if (fAttribs & FILE_ATTRIBUTE_DIRECTORY)
             fMode = S_IFDIR;
         else
             fMode = S_IFREG;
+    }
+    else
+    {
+        switch (uReparseTag)
+        {
+            case IO_REPARSE_TAG_SYMLINK:
+                *pfIsDirSymlink = !!(fAttribs & FILE_ATTRIBUTE_DIRECTORY);
+                fMode = S_IFLNK;
+                break;
+
+            case IO_REPARSE_TAG_MOUNT_POINT:
+                *pfIsMountPoint = 1;
+            default:
+                if (fAttribs & FILE_ATTRIBUTE_DIRECTORY)
+                    fMode = S_IFDIR;
+                else
+                    fMode = S_IFREG;
+                break;
+        }
     }
 
     /* Access mask. */
@@ -201,13 +202,12 @@ static unsigned short birdFileInfoToMode(HANDLE hFile, ULONG fAttribs, const cha
  *
  * @param   pStat               The stat structure.
  * @param   pBuf                The MY_FILE_ID_FULL_DIR_INFORMATION entry.
- * @param   pszPath             Optionally, the path for X bit checks.
  * @remarks Caller sets st_dev.
  */
-void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf, const char *pszPath)
+void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_INFORMATION const *pBuf)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
-                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(pBuf->FileAttributes, pBuf->EaSize, NULL /*pszPath*/, pBuf->FileName,
+                                                 pBuf->FileNameLength, &pStat->st_isdirsymlink, &pStat->st_ismountpoint);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -233,13 +233,12 @@ void birdStatFillFromFileIdFullDirInfo(BirdStat_T *pStat, MY_FILE_ID_FULL_DIR_IN
  *
  * @param   pStat               The stat structure.
  * @param   pBuf                The MY_FILE_ID_BOTH_DIR_INFORMATION entry.
- * @param   pszPath             Optionally, the path for X bit checks.
  * @remarks Caller sets st_dev.
  */
-void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath)
+void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_INFORMATION const *pBuf)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
-                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(pBuf->FileAttributes, pBuf->EaSize, NULL /*pszPath*/, pBuf->FileName,
+                                                 pBuf->FileNameLength, &pStat->st_isdirsymlink, &pStat->st_ismountpoint);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -265,13 +264,12 @@ void birdStatFillFromFileIdBothDirInfo(BirdStat_T *pStat, MY_FILE_ID_BOTH_DIR_IN
  *
  * @param   pStat               The stat structure.
  * @param   pBuf                The MY_FILE_BOTH_DIR_INFORMATION entry.
- * @param   pszPath             Optionally, the path for X bit checks.
  * @remarks Caller sets st_dev.
  */
-void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMATION const *pBuf, const char *pszPath)
+void birdStatFillFromFileBothDirInfo(BirdStat_T *pStat, MY_FILE_BOTH_DIR_INFORMATION const *pBuf)
 {
-    pStat->st_mode          = birdFileInfoToMode(INVALID_HANDLE_VALUE, pBuf->FileAttributes,
-                                                 pszPath, pBuf->FileName, pBuf->FileNameLength, &pStat->st_dirsymlink);
+    pStat->st_mode          = birdFileInfoToMode(pBuf->FileAttributes, pBuf->EaSize, NULL /*pszPath*/, pBuf->FileName,
+                                                 pBuf->FileNameLength, &pStat->st_isdirsymlink, &pStat->st_ismountpoint);
     pStat->st_padding0[0]   = 0;
     pStat->st_padding0[1]   = 0;
     pStat->st_size          = pBuf->EndOfFile.QuadPart;
@@ -309,9 +307,9 @@ int birdStatHandle2(HANDLE hFile, BirdStat_T *pStat, const char *pszPath, const 
             rcNt = Ios.u.Status;
         if (MY_NT_SUCCESS(rcNt))
         {
-            pStat->st_mode          = birdFileInfoToMode(hFile, pAll->BasicInformation.FileAttributes, pszPath,
+            pStat->st_mode          = birdFileInfoToMode(pAll->BasicInformation.FileAttributes, pszPath,
                                                          pAll->NameInformation.FileNamepAll->NameInformation.FileNameLength,
-                                                         &pStat->st_dirsymlink);
+                                                         hFile, &pStat->st_isdirsymlink, &pStat->st_ismountpoint);
             pStat->st_padding0[0]   = 0;
             pStat->st_padding0[1]   = 0;
             pStat->st_size          = pAll->StandardInformation.EndOfFile.QuadPart;
@@ -353,26 +351,43 @@ int birdStatHandle2(HANDLE hFile, BirdStat_T *pStat, const char *pszPath, const 
     else
         rc = birdSetErrnoToNoMem();
 #else
-    ULONG                           cbNameInfo = 0;
-    MY_FILE_NAME_INFORMATION       *pNameInfo  = NULL;
-    MY_FILE_STANDARD_INFORMATION    StdInfo;
-    MY_FILE_BASIC_INFORMATION       BasicInfo;
-    MY_FILE_INTERNAL_INFORMATION    InternalInfo;
-    MY_IO_STATUS_BLOCK              Ios;
+    ULONG                               cbNameInfo = 0;
+    MY_FILE_NAME_INFORMATION           *pNameInfo  = NULL;
+    MY_FILE_STANDARD_INFORMATION        StdInfo;
+    MY_FILE_BASIC_INFORMATION           BasicInfo;
+    MY_FILE_INTERNAL_INFORMATION        InternalInfo;
+    MY_FILE_ATTRIBUTE_TAG_INFORMATION   TagInfo;
+    MY_IO_STATUS_BLOCK                  Ios;
 
     Ios.Information = 0;
     Ios.u.Status    = -1;
     rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &StdInfo, sizeof(StdInfo), MyFileStandardInformation);
     if (MY_NT_SUCCESS(rcNt))
         rcNt = Ios.u.Status;
+
     if (MY_NT_SUCCESS(rcNt))
         rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &BasicInfo, sizeof(BasicInfo), MyFileBasicInformation);
     if (MY_NT_SUCCESS(rcNt))
         rcNt = Ios.u.Status;
+
     if (MY_NT_SUCCESS(rcNt))
         rcNt = g_pfnNtQueryInformationFile(hFile, &Ios, &InternalInfo, sizeof(InternalInfo), MyFileInternalInformation);
     if (MY_NT_SUCCESS(rcNt))
         rcNt = Ios.u.Status;
+
+    if (MY_NT_SUCCESS(rcNt))
+    {
+        if (!(BasicInfo.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT))
+            TagInfo.ReparseTag = 0;
+        else
+        {
+            MY_NTSTATUS rcNt2 = g_pfnNtQueryInformationFile(hFile, &Ios, &TagInfo, sizeof(TagInfo), MyFileAttributeTagInformation);
+            if (   !MY_NT_SUCCESS(rcNt2)
+                || !MY_NT_SUCCESS(Ios.u.Status))
+                TagInfo.ReparseTag = 0;
+        }
+    }
+
     if (MY_NT_SUCCESS(rcNt) && !pszPath && !pwszPath)
     {
         cbNameInfo = 0x10020;
@@ -384,11 +399,11 @@ int birdStatHandle2(HANDLE hFile, BirdStat_T *pStat, const char *pszPath, const 
 
     if (MY_NT_SUCCESS(rcNt))
     {
-        pStat->st_mode          = birdFileInfoToMode(hFile, BasicInfo.FileAttributes, pszPath,
+        pStat->st_mode          = birdFileInfoToMode(BasicInfo.FileAttributes, TagInfo.ReparseTag, pszPath,
                                                      pNameInfo ? pNameInfo->FileName : pwszPath,
                                                      pNameInfo ? pNameInfo->FileNameLength
                                                      : pwszPath ? wcslen(pwszPath) * sizeof(wchar_t) : 0,
-                                                     &pStat->st_dirsymlink);
+                                                     &pStat->st_isdirsymlink, &pStat->st_ismountpoint);
         pStat->st_padding0[0]   = 0;
         pStat->st_padding0[1]   = 0;
         pStat->st_size          = StdInfo.EndOfFile.QuadPart;
@@ -505,6 +520,30 @@ static int birdStatInternal(HANDLE hRoot, const char *pszPath, BirdStat_T *pStat
         rc = birdStatHandle2(hFile, pStat, pszPath, NULL);
         birdCloseFile(hFile);
 
+        if (rc || !pStat->st_ismountpoint)
+        { /* very likely */ }
+        else
+        {
+            /*
+             * If we hit a mount point (NTFS volume mounted under an empty NTFS directory),
+             * we should return information about what's mounted there rather than the
+             * directory it is mounted at as this is what UNIX does.
+             */
+            hFile = birdOpenFileEx(hRoot, pszPath,
+                                   FILE_READ_ATTRIBUTES,
+                                   FILE_ATTRIBUTE_NORMAL,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   FILE_OPEN,
+                                   FILE_OPEN_FOR_BACKUP_INTENT,
+                                   OBJ_CASE_INSENSITIVE);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                rc = birdStatHandle2(hFile, pStat, pszPath, NULL);
+                pStat->st_ismountpoint = 2;
+                birdCloseFile(hFile);
+            }
+        }
+
 #if 0
         {
             static char s_szPrev[256];
@@ -557,7 +596,7 @@ static int birdStatInternal(HANDLE hRoot, const char *pszPath, BirdStat_T *pStat
                     /*
                      * Convert the data.
                      */
-                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf, pszPath);
+                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf);
 
                     /* Get the serial number, reusing the buffer from above. */
                     rcNt = birdQueryVolumeDeviceNumber(hFile, (MY_FILE_FS_VOLUME_INFORMATION *)pBuf, cbBuf, &pStat->st_dev);
@@ -596,6 +635,25 @@ static int birdStatInternalW(HANDLE hRoot, const wchar_t *pwszPath, BirdStat_T *
     {
         rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
         birdCloseFile(hFile);
+
+        /*
+         * If we hit a mount point (NTFS volume mounted under an empty NTFS directory),
+         * we should return information about what's mounted there rather than the
+         * directory it is mounted at as this is what UNIX does.
+         */
+        hFile = birdOpenFileExW(hRoot, pwszPath,
+                                FILE_READ_ATTRIBUTES,
+                                FILE_ATTRIBUTE_NORMAL,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                FILE_OPEN,
+                                FILE_OPEN_FOR_BACKUP_INTENT,
+                                OBJ_CASE_INSENSITIVE);
+        if (hFile != INVALID_HANDLE_VALUE)
+        {
+            rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
+            pStat->st_ismountpoint = 2;
+            birdCloseFile(hFile);
+        }
     }
     else
     {
@@ -635,7 +693,7 @@ static int birdStatInternalW(HANDLE hRoot, const wchar_t *pwszPath, BirdStat_T *
                     /*
                      * Convert the data.
                      */
-                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf, NULL);
+                    birdStatFillFromFileIdFullDirInfo(pStat, pBuf);
 
                     /* Get the serial number, reusing the buffer from above. */
                     rcNt = birdQueryVolumeDeviceNumber(hFile, (MY_FILE_FS_VOLUME_INFORMATION *)pBuf, cbBuf, &pStat->st_dev);
