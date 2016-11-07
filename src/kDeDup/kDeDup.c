@@ -1,4 +1,4 @@
-/* $Id: kDeDup.c 3012 2016-11-07 11:53:11Z knut.osmundsen@oracle.com $ */
+/* $Id: kDeDup.c 3013 2016-11-07 11:54:02Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDeDup - Utility that finds duplicate files, optionally hardlinking them.
  */

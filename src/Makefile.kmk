@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2846 2016-08-30 12:48:33Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3013 2016-11-07 11:54:02Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for the source directory.
 #
@@ -35,6 +35,7 @@ include $(PATH_SUB_CURRENT)/kObjCache/Makefile.kmk
 include $(PATH_SUB_CURRENT)/misc/Makefile.kmk
 ifeq ($(KBUILD_TARGET),win)
  include $(PATH_SUB_CURRENT)/kLibTweaker/Makefile.kmk
+ include $(PATH_SUB_CURRENT)/kDeDup/Makefile.kmk
  include $(PATH_SUB_CURRENT)/kWorker/Makefile.kmk
 endif
 
