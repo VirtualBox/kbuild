@@ -1,4 +1,4 @@
-/* $Id: fts-nt.c 3006 2016-11-06 00:15:34Z knut.osmundsen@oracle.com $ */
+/* $Id: fts-nt.c 3009 2016-11-07 02:21:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * Source for the NT port of BSD fts.c.
  *
@@ -178,7 +178,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 	}
 
 	/* fts_open() requires at least one path */
-	if (*argv == NULL) {
+	if (wcsargv ? *wcsargv == NULL : *argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
 	}
@@ -208,7 +208,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 	parent->fts_level = FTS_ROOTPARENTLEVEL;
 
 	/* Allocate/initialize root(s). */
-	for (root = NULL, nitems = 0; *argv != NULL; ++argv, ++nitems) {
+	for (root = NULL, nitems = 0; wcsargv ? *wcsargv != NULL : *argv != NULL; ++nitems) {
 		/* NT: We need to do some small input transformations to make this and
 		       the API user code happy.  1. Lone drive letters get a dot
 		       appended so it won't matter if a slash is appended afterwards.
@@ -227,6 +227,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 			} else {
 				p = fts_alloc_utf16(sp, *wcsargv, len);
 			}
+			wcsargv++;
 		} else {
 			len = strlen(*argv);
 			if (len == 2 && argv[0][1] == ':') {
@@ -239,6 +240,7 @@ nt_fts_open_common(char * const *argv, wchar_t * const *wcsargv, int options,
 			} else {
 				p = fts_alloc_ansi(sp, *argv, len);
 			}
+			argv++;
 		}
 		if (p != NULL) { /* likely */ } else { goto mem3; }
 
