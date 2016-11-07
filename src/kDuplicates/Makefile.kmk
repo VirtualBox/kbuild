@@ -1,6 +1,6 @@
-# $Id: Makefile.kmk 3010 2016-11-07 02:23:03Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3012 2016-11-07 11:53:11Z knut.osmundsen@oracle.com $
 ## @file
-# Sub-makefile for kDuplicates.
+# Sub-makefile for kDeDup.
 #
 
 #
@@ -26,10 +26,10 @@
 SUB_DEPTH = ../..
 include $(KBUILD_PATH)/subheader.kmk
 
-PROGRAMS += kDuplicates
-kDuplicates_TEMPLATE        = BIN
-kDuplicates_LIBS            = $(LIB_KUTIL)
-kDuplicates_SOURCES         = kDuplicates.c
+PROGRAMS += kDeDup
+kDeDup_TEMPLATE        = BIN
+kDeDup_LIBS            = $(LIB_KUTIL)
+kDeDup_SOURCES         = kDeDup.c
 
 include $(FILE_KBUILD_SUB_FOOTER)
 

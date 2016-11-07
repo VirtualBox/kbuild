@@ -1,6 +1,6 @@
-/* $Id: kDuplicates.c 3011 2016-11-07 02:23:23Z knut.osmundsen@oracle.com $ */
+/* $Id: kDeDup.c 3012 2016-11-07 11:53:11Z knut.osmundsen@oracle.com $ */
 /** @file
- * kDuplicate - Utility that finds duplicate files.
+ * kDeDup - Utility that finds duplicate files, optionally hardlinking them.
  */
 
 /*
@@ -216,7 +216,7 @@ static void *kDupAlloc(KSIZE cb)
     void *pvRet = malloc(cb);
     if (pvRet)
         return pvRet;
-    fprintf(stderr, "kDuplicate: error: out of memory! (cb=%#z)\n", cb);
+    fprintf(stderr, "kDeDup: error: out of memory! (cb=%#z)\n", cb);
     return NULL;
 }
 
@@ -281,7 +281,7 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
             }
             else if (rcNt != STATUS_END_OF_FILE)
             {
-                fprintf(stderr, "kDuplicate: warning: Error reading '%ls': %#x\n", pFileNode->wszPath, rcNt);
+                fprintf(stderr, "kDeDup: warning: Error reading '%ls': %#x\n", pFileNode->wszPath, rcNt);
                 break;
             }
 
@@ -300,7 +300,7 @@ static void kDupHashFile(PKDUPFILENODE pFileNode, FTSENT *pFtsEnt)
         birdCloseFile(hFile);
     }
     else
-        fprintf(stderr, "kDuplicate: warning: Failed to open '%ls': %s (%d)\n", pFileNode->wszPath, strerror(errno), errno);
+        fprintf(stderr, "kDeDup: warning: Failed to open '%ls': %s (%d)\n", pFileNode->wszPath, strerror(errno), errno);
 
     /*
      * Hashing failed.  We fake the digests by repeating the node pointer value
@@ -485,7 +485,7 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
                         rcExit = nt_fts_set(pFts, pFtsEnt, FTS_SKIP);
                         if (rcExit == 0)
                             continue;
-                        fprintf(stderr, "kDuplicate: internal error: nt_fts_set failed!\n");
+                        fprintf(stderr, "kDeDup: internal error: nt_fts_set failed!\n");
                         rcExit = 1;
                         break;
 
@@ -503,28 +503,28 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
                             rcExit = nt_fts_set(pFts, pFtsEnt, FTS_FOLLOW);
                             if (rcExit == 0)
                                 continue;
-                            fprintf(stderr, "kDuplicate: internal error: nt_fts_set failed!\n");
+                            fprintf(stderr, "kDeDup: internal error: nt_fts_set failed!\n");
                             rcExit = 1;
                         }
                         break;
 
                     case FTS_DC:
-                        fprintf(stderr, "kDuplicate: warning: Ignoring cycle '%ls'!\n", pFtsEnt->fts_wcsaccpath);
+                        fprintf(stderr, "kDeDup: warning: Ignoring cycle '%ls'!\n", pFtsEnt->fts_wcsaccpath);
                         continue;
 
                     case FTS_NS:
-                        fprintf(stderr, "kDuplicate: warning: Failed to stat '%ls': %s (%d)\n",
+                        fprintf(stderr, "kDeDup: warning: Failed to stat '%ls': %s (%d)\n",
                                 pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         continue;
 
                     case FTS_DNR:
-                        fprintf(stderr, "kDuplicate: error: Error reading directory '%ls': %s (%d)\n",
+                        fprintf(stderr, "kDeDup: error: Error reading directory '%ls': %s (%d)\n",
                                 pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         rcExit = 1;
                         break;
 
                     case FTS_ERR:
-                        fprintf(stderr, "kDuplicate: error: Error on '%ls': %s (%d)\n",
+                        fprintf(stderr, "kDeDup: error: Error on '%ls': %s (%d)\n",
                                 pFtsEnt->fts_wcsaccpath, strerror(pFtsEnt->fts_errno), pFtsEnt->fts_errno);
                         rcExit = 1;
                         break;
@@ -537,7 +537,7 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
 
                     /* Not supposed to get here. */
                     default:
-                        fprintf(stderr, "kDuplicate: internal error: fts_info=%d - '%ls'\n",
+                        fprintf(stderr, "kDeDup: internal error: fts_info=%d - '%ls'\n",
                                 pFtsEnt->fts_info, pFtsEnt->fts_wcsaccpath);
                         rcExit = 1;
                         break;
@@ -547,7 +547,7 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
                 break;
             else
             {
-                fprintf(stderr, "kDuplicate: error: nt_fts_read failed: %s (%d)\n", strerror(errno), errno);
+                fprintf(stderr, "kDeDup: error: nt_fts_read failed: %s (%d)\n", strerror(errno), errno);
                 rcExit = 1;
                 break;
             }
@@ -555,13 +555,13 @@ static int kDupReadAll(wchar_t **papwszFtsArgs, unsigned fFtsOptions)
 
         if (nt_fts_close(pFts) != 0)
         {
-            fprintf(stderr, "kDuplicate: error: nt_fts_close failed: %s (%d)\n", strerror(errno), errno);
+            fprintf(stderr, "kDeDup: error: nt_fts_close failed: %s (%d)\n", strerror(errno), errno);
             rcExit = 1;
         }
     }
     else
     {
-        fprintf(stderr, "kDuplicate: error: nt_fts_openw failed: %s (%d)\n", strerror(errno), errno);
+        fprintf(stderr, "kDeDup: error: nt_fts_openw failed: %s (%d)\n", strerror(errno), errno);
         rcExit = 1;
     }
 
@@ -611,18 +611,18 @@ static int kDupHardlinkDuplicates(void)
                                 }
                                 else
                                 {
-                                    fprintf(stderr, "kDuplicate: fatal: failed to delete '%ls' after hardlinking: %s (%d)\n",
+                                    fprintf(stderr, "kDeDup: fatal: failed to delete '%ls' after hardlinking: %s (%d)\n",
                                             wszBackup, strerror(errno), errno);
                                     return 8;
                                 }
                             }
                             else
                             {
-                                fprintf(stderr, "kDuplicate: error: failed to hard link '%ls' to '%ls': %u\n",
+                                fprintf(stderr, "kDeDup: error: failed to hard link '%ls' to '%ls': %u\n",
                                         pDupFile->wszPath, wszBackup, GetLastError());
                                 if (!MoveFileW(wszBackup, pDupFile->wszPath))
                                 {
-                                    fprintf(stderr, "kDuplicate: fatal: Restore back '%ls' to '%ls' after hardlinking faild: %u\n",
+                                    fprintf(stderr, "kDeDup: fatal: Restore back '%ls' to '%ls' after hardlinking faild: %u\n",
                                             wszBackup, pDupFile->wszPath, GetLastError());
                                     return 8;
                                 }
@@ -631,14 +631,14 @@ static int kDupHardlinkDuplicates(void)
                         }
                         else
                         {
-                            fprintf(stderr, "kDuplicate: error: failed to rename '%ls' to '%ls': %u\n",
+                            fprintf(stderr, "kDeDup: error: failed to rename '%ls' to '%ls': %u\n",
                                     pDupFile->wszPath, wszBackup, GetLastError());
                             rcExit = 1;
                         }
                     }
                     else
                     {
-                        fprintf(stderr, "kDuplicate: error: too long backup path: '%ls'\n", pDupFile->wszPath);
+                        fprintf(stderr, "kDeDup: error: too long backup path: '%ls'\n", pDupFile->wszPath);
                         rcExit = 1;
                     }
                 }
@@ -751,7 +751,7 @@ int wmain(int argc, wchar_t **argv)
                 }
                 else
                 {
-                    fprintf(stderr, "kDuplicate: syntax error: Unknown option '--%ls'\n", pwszArg);
+                    fprintf(stderr, "kDeDup: syntax error: Unknown option '--%ls'\n", pwszArg);
                     return 2;
                 }
             }
@@ -792,14 +792,14 @@ int wmain(int argc, wchar_t **argv)
 
                     case 'h':
                     case '?':
-                        return usage("kDuplicate", stdout);
+                        return usage("kDeDup", stdout);
 
                     case 'V':
                         printf("0.0.1\n");
                         return 0;
 
                     default:
-                        fprintf(stderr, "kDuplicate: syntax error: Unknown option '-%lc'\n", wcOpt);
+                        fprintf(stderr, "kDeDup: syntax error: Unknown option '-%lc'\n", wcOpt);
                         return 2;
                 }
 
