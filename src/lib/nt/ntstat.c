@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3008 2016-11-06 16:50:03Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3014 2016-11-07 15:22:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -57,7 +57,7 @@ static int birdIsExecutableExtension(const char *pszExt)
             return pszExt[1] == 'a' && pszExt[2] == 't' && pszExt[3] == '\0';
 
         case 'v': /* vbs */
-            return pszExt[1] == 'v' && pszExt[2] == 's' && pszExt[3] == '\0';
+            return pszExt[1] == 'b' && pszExt[2] == 's' && pszExt[3] == '\0';
 
         case 'c': /* com and cmd */
             return (pszExt[1] == 'o' && pszExt[2] == 'm' && pszExt[3] == '\0')
