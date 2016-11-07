@@ -1,4 +1,4 @@
-/* $Id: kDuplicates.c 3010 2016-11-07 02:23:03Z knut.osmundsen@oracle.com $ */
+/* $Id: kDuplicates.c 3011 2016-11-07 02:23:23Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDuplicate - Utility that finds duplicate files.
  */
@@ -607,7 +607,7 @@ static int kDupHardlinkDuplicates(void)
                                 if (birdUnlinkForcedW(wszBackup) == 0)
                                 {
                                     if (g_cVerbosity >= 1)
-                                        printf("Hardlined '%ls' to '%ls'.\n", pDupFile->wszPath, pTargetFile->wszPath);
+                                        printf("Hardlinked '%ls' to '%ls'.\n", pDupFile->wszPath, pTargetFile->wszPath);
                                 }
                                 else
                                 {
