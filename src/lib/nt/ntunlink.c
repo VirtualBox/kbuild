@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 2997 2016-11-01 23:28:02Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 3009 2016-11-07 02:21:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -82,7 +82,7 @@ static MY_NTSTATUS birdMakeWritable(MY_UNICODE_STRING *pNtPath)
 }
 
 
-static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, int fReadOnlyToo, int fFast)
+static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, const wchar_t *pwszFile, int fReadOnlyToo, int fFast)
 {
     MY_UNICODE_STRING   NtPath;
     int                 rc;
@@ -90,9 +90,19 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, int fReadOnlyTo
     if (hRoot == INVALID_HANDLE_VALUE)
         hRoot = NULL;
     if (hRoot == NULL)
-        rc = birdDosToNtPath(pszFile, &NtPath);
+    {
+        if (pwszFile)
+            rc = birdDosToNtPathW(pwszFile, &NtPath);
+        else
+            rc = birdDosToNtPath(pszFile, &NtPath);
+    }
     else
-        rc = birdDosToRelativeNtPath(pszFile, &NtPath);
+    {
+        if (pwszFile)
+            rc = birdDosToRelativeNtPathW(pwszFile, &NtPath);
+        else
+            rc = birdDosToRelativeNtPath(pszFile, &NtPath);
+    }
     if (rc == 0)
     {
         MY_NTSTATUS rcNt;
@@ -161,36 +171,72 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, int fReadOnlyTo
 
 int birdUnlink(const char *pszFile)
 {
-    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, NULL /*pwszFile*/, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkW(const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal(NULL /*hRoot*/, NULL /*pwszFile*/, pwszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkEx(void *hRoot, const char *pszFile)
 {
-    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, NULL /*pwszFile*/, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkExW(void *hRoot, const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, NULL /*pszFile*/, pwszFile, 0 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkForced(const char *pszFile)
 {
-    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, NULL /*pwszFile*/, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkForcedW(const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal(NULL /*hRoot*/, NULL /*pszFile*/, pwszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkForcedEx(void *hRoot, const char *pszFile)
 {
-    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, NULL /*pwszFile*/, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
+}
+
+
+int birdUnlinkForcedExW(void *hRoot, const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, NULL /*pszFile*/, pwszFile, 1 /*fReadOnlyToo*/, 0 /*fFast*/);
 }
 
 
 int birdUnlinkForcedFast(const char *pszFile)
 {
-    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+    return birdUnlinkInternal(NULL /*hRoot*/, pszFile, NULL /*pwszFile*/, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+}
+
+
+int birdUnlinkForcedFastW(const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal(NULL /*hRoot*/, NULL /*pszFile*/, pwszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
 }
 
 
 int birdUnlinkForcedFastEx(void *hRoot, const char *pszFile)
 {
-    return birdUnlinkInternal((HANDLE)hRoot, pszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+    return birdUnlinkInternal((HANDLE)hRoot, pszFile, NULL /*pwszFile*/, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
+}
+
+
+int birdUnlinkForcedFastExW(void *hRoot, const wchar_t *pwszFile)
+{
+    return birdUnlinkInternal((HANDLE)hRoot, NULL /*pszFile*/, pwszFile, 1 /*fReadOnlyToo*/, 1 /*fFast*/);
 }
 
