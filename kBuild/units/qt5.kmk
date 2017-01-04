@@ -1,4 +1,4 @@
-# $Id: qt5.kmk 2980 2016-09-27 14:40:53Z knut.osmundsen@oracle.com $
+# $Id: qt5.kmk 3016 2017-01-04 12:51:53Z knut.osmundsen@oracle.com $
 ## @file
 # Qt 5 unit.
 #
@@ -113,15 +113,26 @@ ifndef PATH_SDK_QT5
     ifneq ($(PATH_SDK_QT5),)
      export PATH_SDK_QT5
 
-     # Locate the include files.
+     # Locate the include files. Check for qglobalstatic.h (since 5.1) first.
      ifeq ($(PATH_SDK_QT5_INC),)
-      PATH_SDK_QT5_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard \
+      PATH_SDK_QT5_INC := $(patsubst %/QtCore/qglobalstatic.h,%,$(firstword $(wildcard \
+	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET_DOT_ARCH)),/usr/include/$(type)/qt5/QtCore/qglobalstatic.h) \
+	$(PATH_SDK_QT5)/include/qt5/QtCore/qglobalstatic.h \
+	/usr/include/qt5/QtCore/qtglobalstatic.h \
+	/usr/local/include/qt5/QtCore/qtglobalstatic.h \
+	$(PATH_SDK_QT5)/include/QtCore/qglobalstatic.h \
+        /usr/include/qt/QtCore/qglobalstatic.h \
+        /usr/local/include/qt/QtCore/qglobalstatic.h \
+	)))
+      ifeq ($(PATH_SDK_QT5_INC),)
+       PATH_SDK_QT5_INC := $(patsubst %/QtCore/qglobal.h,%,$(firstword $(wildcard \
 	$(foreach type,$(KBUILD_OSARCH_2_GNU_SYSTEM_TYPES.$(KBUILD_TARGET_DOT_ARCH)),/usr/include/$(type)/qt5/QtCore/qglobal.h) \
 	$(PATH_SDK_QT5)/include/qt5/QtCore/qglobal.h \
 	/usr/include/qt5/QtCore/qtglobal.h \
 	/usr/local/include/qt5/QtCore/qtglobal.h \
 	$(PATH_SDK_QT5)/include/QtCore/qglobal.h \
 	)))
+      endif
       ifneq ($(PATH_SDK_QT5_INC),)
        export PATH_SDK_QT5_INC
       endif
