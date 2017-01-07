@@ -1,4 +1,4 @@
-/* $Id: ntstat.c 3014 2016-11-07 15:22:54Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstat.c 3019 2017-01-07 00:07:08Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT stat, lstat and fstat.
  */
@@ -644,23 +644,28 @@ static int birdStatInternalW(HANDLE hRoot, const wchar_t *pwszPath, BirdStat_T *
         rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
         birdCloseFile(hFile);
 
-        /*
-         * If we hit a mount point (NTFS volume mounted under an empty NTFS directory),
-         * we should return information about what's mounted there rather than the
-         * directory it is mounted at as this is what UNIX does.
-         */
-        hFile = birdOpenFileExW(hRoot, pwszPath,
-                                FILE_READ_ATTRIBUTES,
-                                FILE_ATTRIBUTE_NORMAL,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                FILE_OPEN,
-                                FILE_OPEN_FOR_BACKUP_INTENT,
-                                OBJ_CASE_INSENSITIVE);
-        if (hFile != INVALID_HANDLE_VALUE)
+        if (rc || !pStat->st_ismountpoint)
+        { /* very likely */ }
+        else
         {
-            rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
-            pStat->st_ismountpoint = 2;
-            birdCloseFile(hFile);
+            /*
+             * If we hit a mount point (NTFS volume mounted under an empty NTFS directory),
+             * we should return information about what's mounted there rather than the
+             * directory it is mounted at as this is what UNIX does.
+             */
+            hFile = birdOpenFileExW(hRoot, pwszPath,
+                                    FILE_READ_ATTRIBUTES,
+                                    FILE_ATTRIBUTE_NORMAL,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                    FILE_OPEN,
+                                    FILE_OPEN_FOR_BACKUP_INTENT,
+                                    OBJ_CASE_INSENSITIVE);
+            if (hFile != INVALID_HANDLE_VALUE)
+            {
+                rc = birdStatHandle2(hFile, pStat, NULL, pwszPath);
+                pStat->st_ismountpoint = 2;
+                birdCloseFile(hFile);
+            }
         }
     }
     else
