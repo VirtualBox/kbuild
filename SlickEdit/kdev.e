@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3015 2016-11-29 10:14:56Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3018 2017-01-07 00:06:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -190,45 +190,71 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
     if (sLexer)
     {
         /* multiline */
-#if __VERSION__ >= 14.0
+#if __VERSION__ >= 21.0
+        COMMENT_TYPE aComments[];
+        GetComments(aComments, "M", sLexer);
+        for (i = 0; i < aComments._length(); i++)
+            if (!aComments[i].isDocumentation)
+            {
+                sLeft   = aComments[i].delim1;
+                sRight  = aComments[i].delim2;
+                iColumn = aComments[i].startcol;
+                if (sLeft != '' && sRight != '')
+                    return true;
+            }
+#else
+# if __VERSION__ >= 14.0
         _str aComments[] = null;
         GetComments(aComments, "mlcomment", sLexer);
         for (i = 0; i < aComments._length(); i++)
-            if (!pos("documentation", aComments[i]) > 0)
+            if (pos("documentation", aComments[i]) <= 0)
             {
                 sLine = aComments[i];
                 break;
             }
         if (sLine != '')
-#else
+# else
         rc = _ini_get_value(slick_path_search("user.vlx"), sLexer, 'mlcomment', sLine);
         if (rc)
             rc = _ini_get_value(slick_path_search("vslick.vlx"), sLexer, 'mlcomment', sLine);
         if (!rc)
-#endif
+# endif
         {
             sLeft  = strip(word(sLine, 1));
             sRight = strip(word(sLine, 2));
             if (sLeft != '' && sRight != '')
                 return true;
         }
+#endif
 
         /* failed, try single line. */
-#if __VERSION__ >= 14.0
+#if __VERSION__ >= 21.0
+        GetComments(aComments, "L", sLexer);
+        for (i = 0; i < aComments._length(); i++)
+            if (!aComments[i].isDocumentation)
+            {
+                sLeft   = aComments[i].delim1;
+                sRight  = '';
+                iColumn = aComments[i].startcol;
+                if (sLeft != '')
+                    return true;
+            }
+#else
+# if __VERSION__ >= 14.0
         GetComments(aComments, "linecomment", sLexer)
         for (i = 0; i < aComments._length(); i++)
-            if (!pos("documentation", aComments[i]) > 0)
+            if (pos("documentation", aComments[i]) <= 0)
             {
                 sLine = aComments[i];
                 break;
             }
         if (sLine != '')
-#else
+# else
         rc = _ini_get_value(slick_path_search("user.vlx"), sLexer, 'linecomment', sLine);
         if (rc)
             rc = _ini_get_value(slick_path_search("vslick.vlx"), sLexer, 'linecomment', sLine);
         if (!rc)
-#endif
+# endif
         {
             sLeft = strip(word(sLine, 1));
             sRight = '';
@@ -239,6 +265,7 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
             if (sLeft != '')
                 return true;
         }
+#endif
     }
 
     /*
