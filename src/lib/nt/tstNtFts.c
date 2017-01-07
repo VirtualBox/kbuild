@@ -138,9 +138,11 @@ int main(int argc, char **argv)
                     case 'x':
                         fFtsFlags |= FTS_XDEV;
                         break;
+#ifdef FTS_NO_ANSI
                     case 'w':
                         fFtsFlags |= FTS_NO_ANSI;
                         break;
+#endif
                     case 'L':
                         fFollowLinks = 1;
                         break;
@@ -210,9 +212,11 @@ int main(int argc, char **argv)
 
                 if (cVerbosity > 0)
                 {
+#ifdef FTS_NO_ANSI
                     if (fFtsFlags & FTS_NO_ANSI)
                         printf("%8s %ls\n", pszState, pFtsEnt->fts_wcsaccpath);
                     else
+#endif
                         printf("%8s %s\n", pszState, pFtsEnt->fts_accpath);
                 }
                 if (   pFtsEnt->fts_info == FTS_SL
