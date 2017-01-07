@@ -1,4 +1,4 @@
-/* $Id: ntstuff.h 2998 2016-11-05 19:37:35Z knut.osmundsen@oracle.com $ */
+/* $Id: ntstuff.h 3021 2017-01-07 16:52:16Z knut.osmundsen@oracle.com $ */
 /** @file
  * Definitions, types, prototypes and globals for NT.
  */
@@ -518,10 +518,10 @@ typedef struct MY_PARTIAL_TEB
 /** Internal macro for reading uintptr_t sized TEB members. */
 #if K_ARCH == K_ARCH_AMD64
 # define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readgsqword(a_offTebMember) )
-#elif K_ARCH == K_ARCH_X86
+#elif K_ARCH == K_ARCH_X86_32
 # define MY_NT_READ_TEB_WORKER(a_offTebMember) ( __readfsdword(a_offTebMember) )
 #else
-# else "Port me!"
+# error "Port me!"
 #endif
 /** Get the PEB pointer.
  * @remark Needs stddef.h. */
