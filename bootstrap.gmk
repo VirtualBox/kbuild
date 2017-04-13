@@ -1,4 +1,4 @@
-# $Id: bootstrap.gmk 2421 2010-10-17 21:27:53Z knut.osmundsen@oracle.com $
+# $Id: bootstrap.gmk 3028 2017-04-13 13:31:34Z knut.osmundsen@oracle.com $
 ## @file
 # GNU Make Compatible bootstrap Makefile.
 #
@@ -36,7 +36,7 @@
 #   - echo done > some-file works.
 #   - Recent GNU make that implements CURDIR, $(error) and ifdef.
 #
-# Tip: kBuild/env.sh --full (g(nu))make -f bootstrap.kmk
+# Tip: kBuild/env.sh --full (g(nu))make -f bootstrap.gmk
 #
 # Note to self on bootstrapping solaris.sparc64:
 #   SED_MAKE_DEFS="SED=gsed" AUTOPOINT=true ACLOCAL=aclocal-1.10 AUTOMAKE=automake-1.10 nice ./kBuild/env.sh --full gmake -f bootstrap.gmk
