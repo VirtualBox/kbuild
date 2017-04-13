@@ -56,6 +56,8 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		electric.c \
 		../lib/md5.c \
 		../lib/kDep.c \
+		../lib/kbuild_version.c \
+		../lib/maybe_con_fwrite.c \
 		\
 		kmkbuiltin.c \
 		kmkbuiltin/append.c \
@@ -75,6 +77,7 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/mkdir.c \
 		kmkbuiltin/mv.c \
 		kmkbuiltin/printf.c \
+		kmkbuiltin/redirect.c \
 		kmkbuiltin/rm.c \
 		kmkbuiltin/rmdir.c \
 		kmkbuiltin/sleep.c \
@@ -86,9 +89,14 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/strlcpy.c \
 		kmkbuiltin/osdep.c \
 		kmkbuiltin/kbuild_protection.c \
-		kmkbuiltin/kbuild_version.c
+		kmkbuiltin/common-env-and-cwd-opt.c
 
-kmk_redirect_SOURCES = kmkbuiltin/redirect.c
+kmk_redirect_SOURCES = kmkbuiltin/redirect.c \
+		kmkbuiltin/common-env-and-cwd-opt.c \
+		kmkbuiltin/err.c \
+		../lib/kbuild_version.c
+kmk_redirect_CFLAGS = -UKMK
+
 
 EXTRA_kmk_SOURCES = vmsjobs.c remote-stub.c remote-cstms.c
 
@@ -171,7 +179,7 @@ DEFS = \
 	-DCONFIG_WITH_KMK_BUILTIN \
     @DEFS@
 
-AM_CPPFLAGS =	$(GLOBINC) -I$(srcdir)/../lib
+AM_CPPFLAGS =	$(GLOBINC) -I$(srcdir)/../lib -I$(srcdir)/../lib/kStuff/include
 # Only process if target is MS-Windows
 if WINDOWSENV
     AM_CPPFLAGS +=	$(W32INC)
