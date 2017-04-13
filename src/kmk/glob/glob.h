@@ -137,6 +137,7 @@ typedef struct
     int (*gl_stat) __PMT ((__const char *, struct stat *));
 #endif
 #ifdef KMK
+# define GLOB_WITH_EXTENDED_KMK_MEMBERS
     int (*gl_exists) __PMT ((__const char *));
     int (*gl_isdir) __PMT ((__const char *));
 #endif
