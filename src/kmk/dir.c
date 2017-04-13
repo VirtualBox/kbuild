@@ -1475,7 +1475,7 @@ dir_setup_glob (glob_t *gl)
 #ifdef __EMX__ /* The FreeBSD implementation actually uses gl_lstat!! */
   gl->gl_lstat = local_stat;
 #endif
-#if defined(KMK) && !defined(__OS2__)
+#ifdef GLOB_WITH_EXTENDED_KMK_MEMBERS
   gl->gl_exists = file_exists_p;
   gl->gl_isdir = dir_exists_p;
 #endif
