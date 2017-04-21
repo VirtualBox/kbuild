@@ -1,4 +1,4 @@
-# $Id: header.kmk 3030 2017-04-20 19:05:15Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3031 2017-04-21 08:14:58Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3030 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3031 $  )
 
 
 #
@@ -1645,9 +1645,11 @@ else
 endif
 
 
+##
+# An internal define used by subheader.kmk, subfooter.kmk, and
+# KB_FN_PASS_0_ON_TARGET.
 #
-# An internal define used by subheader.kmk and subfooter.kmk.
-# We keep them here to avoid redefining them for each sub-makefile.
+# @param target    The target to process.
 #
 define def_subfooter_header_target_pass
  ifndef $(target)_PATH
@@ -1666,6 +1668,13 @@ define def_subfooter_header_target_pass
   $(call KB_FN_ASSIGN_DEPRECATED,PATH_$(target),$($(target)_0_OUTDIR), $(target)_0_OUTDIR)
  endif
 endef
+
+##
+# Function to call to set _0_OUTDIR, _DEFPATH, and _MAKEFILE earlier than subfooter.
+# Can be used to avoid exploiting double expansion.
+#
+# @param 1     The target name.
+KB_FN_DO_PASS0_ON_TARGET = $(foreach target,$1,$(if-expr defined($(target)_0_OUTDIR),,$(evalval def_subfooter_header_target_pass)))
 
 
 #
