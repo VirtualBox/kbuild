@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3029 2017-04-13 13:32:42Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3032 2017-04-21 15:58:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -789,7 +789,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
 #endif
                             KBOOL *pfIsChildExitCode)
 {
-    int     rcExit;
+    int     rcExit = 0;
     int     i;
 #ifdef _MSC_VER
     char  **papszArgsOriginal = papszArgs;
