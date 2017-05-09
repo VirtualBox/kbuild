@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.c 3034 2017-05-09 15:38:03Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command execution.
  */
@@ -146,7 +146,7 @@ int kmk_builtin_command(const char *pszCmd, struct child *pChild, char ***ppapsz
          * Next
          */
         pszCmd = pszNext;
-        if (isspace(*pszCmd) && *pszCmd)
+        while (isspace(*pszCmd) && *pszCmd)
             pszCmd++;
     }
 
