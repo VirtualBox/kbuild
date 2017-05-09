@@ -1,4 +1,4 @@
-# $Id: header.kmk 3031 2017-04-21 08:14:58Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3035 2017-05-09 15:57:48Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3031 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3035 $  )
 
 
 #
@@ -585,21 +585,25 @@ if1of ($(KBUILD_HOST), win nt)
 # Win, Win32, Win64, NT.
 EXEC_X86_WIN32      :=
 HOSTSUFF_EXE        := .exe
+HOST_PATH_SEP       := $(SEMICOLON)
 
 # OS/2.
 else ifeq ($(KBUILD_HOST),os2)
 EXEC_X86_WIN32      := innopec.exe
 HOSTSUFF_EXE        := .exe
+HOST_PATH_SEP       := $(SEMICOLON)
 
 else if1of ($(KBUILD_HOST), freebsd dragonfly linux openbsd netbsd)
 # Unix (like) systems with wine.
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
+HOST_PATH_SEP       := $(COLON)
 
 else
 # Unix (like) systems without wine.
 EXEC_X86_WIN32      := false
 HOSTSUFF_EXE        :=
+HOST_PATH_SEP       := $(COLON)
 endif
 
 
