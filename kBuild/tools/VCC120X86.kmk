@@ -1,4 +1,4 @@
-# $Id: VCC120X86.kmk 3036 2017-05-09 15:59:50Z knut.osmundsen@oracle.com $
+# $Id: VCC120X86.kmk 3037 2017-05-10 09:24:06Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 12.0 (aka Visual 2013 and MSC v18), targeting x86.
 #
@@ -59,7 +59,7 @@ else
  PATH_TOOL_VCC120X86 := $(PATH_TOOL_VCC120X86)
 endif
 
-ifeq ($(KBUILD_HOST).$(KBUILD_HOST_ARCH),win.amd64)
+if "$(KBUILD_HOST).$(KBUILD_HOST_ARCH)" == "win.amd64" && exists("$(PATH_TOOL_VCC120AMD64)/bin/amd64_x86") # Missing in express edition.
  PATH_TOOL_VCC120X86_BIN_DLL ?= $(PATH_TOOL_VCC120AMD64)/bin/amd64
  PATH_TOOL_VCC120X86_BIN     ?= $(PATH_TOOL_VCC120AMD64)/bin/amd64_x86
 else
