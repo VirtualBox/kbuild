@@ -461,6 +461,8 @@ static const char *const usage[] =
                                 3 = normal / nice 0;\n\
                                 4 = high / nice -10;\n\
                                 5 = realtime / nice -19;\n"),
+    N_("\
+  --nice                      Alias for --priority=1\n"),
 #endif /* KMK */
 #ifdef CONFIG_PRETTY_COMMAND_PRINTING
     N_("\
@@ -534,6 +536,7 @@ static const struct command_switch switches[] =
       (char *) &process_priority, (char *) &process_priority, "priority" },
     { CHAR_MAX+15, positive_int, (char *) &process_affinity, 1, 1, 0,
       (char *) &process_affinity, (char *) &process_affinity, "affinity" },
+    { CHAR_MAX+17, flag, (char *) &process_priority, 1, 1, 0, 0, 0, "nice" },
 #endif
     { 'q', flag, &question_flag, 1, 1, 1, 0, 0, "question" },
     { 'r', flag, &no_builtin_rules_flag, 1, 1, 0, 0, 0, "no-builtin-rules" },
