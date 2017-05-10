@@ -1,4 +1,4 @@
-/* $Id: common-env-and-cwd-opt.c 2912 2016-09-14 13:36:15Z knut.osmundsen@oracle.com $ */
+/* $Id: common-env-and-cwd-opt.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - Commmon environment and CWD option handling code.
  */
@@ -45,10 +45,80 @@
 
 
 /**
- * Handles the --set var=value option.
+ * Common worker for kBuiltinOptEnvSet and kBuiltinOptEnvAppendPrepend that adds
+ * a new variable to the environment.
  *
  * @returns 0 on success, non-zero exit code on error.
  * @param   papszEnv            The environment vector.
+ * @param   pcEnvVars           Pointer to the variable holding the number of
+ *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
+ *                              environment vector.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pszValue            The var=value string to apply.
+ */
+static int kBuiltinOptEnvAddVar(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+                                int cVerbosity, const char *pszValue)
+{
+    /* Append new variable. We probably need to resize the vector. */
+    char   **papszEnv = *ppapszEnv;
+    unsigned cEnvVars = *pcEnvVars;
+    if ((cEnvVars + 2) > *pcAllocatedEnvVars)
+    {
+        *pcAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
+        papszEnv = (char **)realloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
+        if (!papszEnv)
+            return errx(1, "out of memory!");
+        *ppapszEnv = papszEnv;
+    }
+    papszEnv[cEnvVars] = strdup(pszValue);
+    if (!papszEnv[cEnvVars])
+        return errx(1, "out of memory!");
+    papszEnv[++cEnvVars]   = NULL;
+    *pcEnvVars = cEnvVars;
+    if (cVerbosity > 0)
+        warnx("added '%s'", papszEnv[cEnvVars - 1]);
+    return 0;
+}
+
+
+/**
+ * Common worker for kBuiltinOptEnvSet and kBuiltinOptEnvAppendPrepend that
+ * remove duplicates.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   papszEnv            The environment vector.
+ * @param   cEnvVars            Number of environment variables.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pszValue            The var=value string to apply.
+ * @param   cchVar              The length of the variable part of @a pszValue.
+ * @param   iEnvVar             Where to start searching after.
+ */
+static int kBuiltinOptEnvRemoveDuplicates(char **papszEnv, unsigned cEnvVars, int cVerbosity,
+                                          const char *pszValue, size_t cchVar, unsigned iEnvVar)
+{
+    for (iEnvVar++; iEnvVar < cEnvVars; iEnvVar++)
+        if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszValue, cchVar) == 0
+            && papszEnv[iEnvVar][cchVar] == '=')
+        {
+            if (cVerbosity > 0)
+                warnx("removing duplicate '%s'", papszEnv[iEnvVar]);
+            free(papszEnv[iEnvVar]);
+            cEnvVars--;
+            if (iEnvVar != cEnvVars)
+                papszEnv[iEnvVar] = papszEnv[cEnvVars];
+            papszEnv[cEnvVars] = NULL;
+            iEnvVar--;
+        }
+    return 0;
+}
+
+
+/**
+ * Handles the --set var=value option.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   ppapszEnv           The environment vector pointer.
  * @param   pcEnvVars           Pointer to the variable holding the number of
  *                              environment variables held by @a papszEnv.
  * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
@@ -77,50 +147,108 @@ int kBuiltinOptEnvSet(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAlloca
                 papszEnv[iEnvVar] = strdup(pszValue);
                 if (!papszEnv[iEnvVar])
                     return errx(1, "out of memory!");
-                break;
-            }
-        }
-        if (iEnvVar == cEnvVars)
-        {
-            /* Append new variable. We probably need to resize the vector. */
-            if ((cEnvVars + 2) > *pcAllocatedEnvVars)
-            {
-                *pcAllocatedEnvVars = (cEnvVars + 2 + 0xf) & ~(unsigned)0xf;
-                papszEnv = (char **)realloc(papszEnv, *pcAllocatedEnvVars * sizeof(papszEnv[0]));
-                if (!papszEnv)
-                    return errx(1, "out of memory!");
-                *ppapszEnv = papszEnv;
-            }
-            papszEnv[cEnvVars] = strdup(pszValue);
-            if (!papszEnv[cEnvVars])
-                return errx(1, "out of memory!");
-            papszEnv[++cEnvVars]   = NULL;
-            *pcEnvVars = cEnvVars;
-            if (cVerbosity > 0)
-                warnx("added '%s'", papszEnv[iEnvVar]);
-        }
-        else
-        {
-            /* Check for duplicates. */
-            for (iEnvVar++; iEnvVar < cEnvVars; iEnvVar++)
-                if (   KSUBMIT_ENV_NCMP(papszEnv[iEnvVar], pszValue, cchVar) == 0
-                    && papszEnv[iEnvVar][cchVar] == '=')
-                {
-                    if (cVerbosity > 0)
-                        warnx("removing duplicate '%s'", papszEnv[iEnvVar]);
-                    free(papszEnv[iEnvVar]);
-                    cEnvVars--;
-                    if (iEnvVar != cEnvVars)
-                        papszEnv[iEnvVar] = papszEnv[cEnvVars];
-                    papszEnv[cEnvVars] = NULL;
-                    iEnvVar--;
-                }
-        }
-    }
-    else
-        return errx(1, "Missing '=': -E %s", pszValue);
 
-    return 0;
+                return kBuiltinOptEnvRemoveDuplicates(papszEnv, cEnvVars, cVerbosity, pszValue, cchVar, iEnvVar);
+            }
+        }
+        return kBuiltinOptEnvAddVar(ppapszEnv, pcEnvVars, pcAllocatedEnvVars, cVerbosity, pszValue);
+    }
+    return errx(1, "Missing '=': -E %s", pszValue);
+}
+
+
+/**
+ * Common worker for kBuiltinOptEnvAppend and kBuiltinOptEnvPrepend.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   ppapszEnv           The environment vector pointer.
+ * @param   pcEnvVars           Pointer to the variable holding the number of
+ *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
+ *                              environment vector.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pszValue            The var=value string to apply.
+ */
+static int kBuiltinOptEnvAppendPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars,
+                                       int cVerbosity, const char *pszValue, int fAppend)
+{
+    const char *pszEqual = strchr(pszValue, '=');
+    if (pszEqual)
+    {
+        char   **papszEnv = *ppapszEnv;
+        unsigned iEnvVar;
+        unsigned cEnvVars = *pcEnvVars;
+        size_t const cchVar = pszEqual - pszValue;
+        for (iEnvVar = 0; iEnvVar < cEnvVars; iEnvVar++)
+        {
+            char *pszCur = papszEnv[iEnvVar];
+            if (   KSUBMIT_ENV_NCMP(pszCur, pszValue, cchVar) == 0
+                && pszCur[cchVar] == '=')
+            {
+                size_t cchOldValue = strlen(papszEnv[iEnvVar]) - cchVar - 1;
+                size_t cchNewValue = strlen(pszValue)          - cchVar - 1;
+                char *pszNew = malloc(cchVar + 1 + cchOldValue + cchNewValue);
+                if (!papszEnv[iEnvVar])
+                    return errx(1, "out of memory!");
+                if (fAppend)
+                {
+                    memcpy(pszNew, papszEnv[iEnvVar], cchVar + 1 + cchOldValue);
+                    memcpy(&pszNew[cchVar + 1 + cchOldValue], &pszValue[cchVar + 1], cchNewValue + 1);
+                }
+                else
+                {
+                    memcpy(pszNew, papszEnv[iEnvVar], cchVar + 1); /* preserve variable name case  */
+                    memcpy(&pszNew[cchVar + 1], &pszValue[cchVar + 1], cchNewValue);
+                    memcpy(&pszNew[cchVar + 1 + cchNewValue], &papszEnv[iEnvVar][cchVar + 1], cchOldValue + 1);
+                }
+
+                if (cVerbosity > 0)
+                    warnx("replacing '%s' with '%s'", papszEnv[iEnvVar], pszNew);
+                free(papszEnv[iEnvVar]);
+                papszEnv[iEnvVar] = pszNew;
+
+                return kBuiltinOptEnvRemoveDuplicates(papszEnv, cEnvVars, cVerbosity, pszValue, cchVar, iEnvVar);
+            }
+        }
+        return kBuiltinOptEnvAddVar(ppapszEnv, pcEnvVars, pcAllocatedEnvVars, cVerbosity, pszValue);
+    }
+    return errx(1, "Missing '=': -E %s", pszValue);
+}
+
+
+/**
+ * Handles the --append var=value option.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   ppapszEnv           The environment vector pointer.
+ * @param   pcEnvVars           Pointer to the variable holding the number of
+ *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
+ *                              environment vector.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pszValue            The var=value string to apply.
+ */
+int kBuiltinOptEnvAppend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity, const char *pszValue)
+{
+    return kBuiltinOptEnvAppendPrepend(ppapszEnv, pcEnvVars, pcAllocatedEnvVars, cVerbosity, pszValue, 1 /*fAppend*/);
+}
+
+
+/**
+ * Handles the --prepend var=value option.
+ *
+ * @returns 0 on success, non-zero exit code on error.
+ * @param   ppapszEnv           The environment vector pointer.
+ * @param   pcEnvVars           Pointer to the variable holding the number of
+ *                              environment variables held by @a papszEnv.
+ * @param   pcAllocatedEnvVars  Pointer to the variable holding max size of the
+ *                              environment vector.
+ * @param   cVerbosity          The verbosity level.
+ * @param   pszValue            The var=value string to apply.
+ */
+int kBuiltinOptEnvPrepend(char ***ppapszEnv, unsigned *pcEnvVars, unsigned *pcAllocatedEnvVars, int cVerbosity, const char *pszValue)
+{
+    return kBuiltinOptEnvAppendPrepend(ppapszEnv, pcEnvVars, pcAllocatedEnvVars, cVerbosity, pszValue, 0 /*fAppend*/);
 }
 
 

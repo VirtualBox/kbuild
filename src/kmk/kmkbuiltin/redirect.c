@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3032 2017-04-21 15:58:56Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -1138,6 +1138,10 @@ int main(int argc, char **argv, char **envp)
                 else if (   strcmp(pszArg, "set") == 0
                          || strcmp(pszArg, "env") == 0)
                     chOpt = 'E';
+                else if (strcmp(pszArg, "append") == 0)
+                    chOpt = 'A';
+                else if (strcmp(pszArg, "prepend") == 0)
+                    chOpt = 'D';
                 else if (strcmp(pszArg, "unset") == 0)
                     chOpt = 'U';
                 else if (   strcmp(pszArg, "zap-env") == 0
@@ -1178,6 +1182,8 @@ int main(int argc, char **argv, char **envp)
              * Get option value first, if the option takes one.
              */
             if (   chOpt == 'E'
+                || chOpt == 'A'
+                || chOpt == 'D'
                 || chOpt == 'U'
                 || chOpt == 'C'
                 || chOpt == 'c'
@@ -1267,6 +1273,25 @@ int main(int argc, char **argv, char **envp)
                 }
                 /* Simple unset. */
                 chOpt = 'U';
+            }
+
+            /*
+             * Append or prepend value to and environment variable.
+             */
+            if (chOpt == 'A' || chOpt == 'D')
+            {
+#ifdef KBUILD_OS_OS2
+                if (   strcmp(pszValue, "BEGINLIBPATH") == 0
+                    || strcmp(pszValue, "ENDLIBPATH") == 0
+                    || strcmp(pszValue, "LIBPATHSTRICT") == 0)
+                    rcExit = errx(2, "error: '%s' cannot currently be appended or prepended to. Please use -E/--set for now.", pszValue);
+                else
+#endif
+                if (chOpt == 'A')
+                    rcExit = kBuiltinOptEnvAppend(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                else
+                    rcExit = kBuiltinOptEnvPrepend(&papszEnvVars, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                continue;
             }
 
             /*
