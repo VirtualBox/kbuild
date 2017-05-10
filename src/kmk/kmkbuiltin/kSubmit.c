@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 2959 2016-09-21 20:53:32Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -1168,6 +1168,7 @@ static int usage(FILE *pOut,  const char *argv0)
 {
     fprintf(pOut,
             "usage: %s [-Z|--zap-env] [-E|--set <var=val>] [-U|--unset <var=val>]\n"
+            "           [-A|--append <var=val>] [-D|--prepend <var=val>]\n"
             "           [-C|--chdir <dir>] [--wcc-brain-damage] [--no-pch-caching]\n"
             "           [-3|--32-bit] [-6|--64-bit] [-v]\n"
             "           [-P|--post-cmd <cmd> [args]] -- <program> [args]\n"
@@ -1181,6 +1182,10 @@ static int usage(FILE *pOut,  const char *argv0)
             "    Sets an enviornment variable putenv fashion. Position dependent.\n"
             "  -U, --unset <var>\n"
             "    Removes an environment variable. Position dependent.\n"
+            "  -A, --append <var>=<value>\n"
+            "    Appends the given value to the environment variable.\n"
+            "  -D,--prepend <var>=<value>\n"
+            "    Prepends the given value to the environment variable.\n"
             "  -C, --chdir <dir>\n"
             "    Specifies the current directory for the program.  Relative paths\n"
             "    are relative to the previous -C option.  Default is getcwd value.\n"
@@ -1295,6 +1300,10 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                     chOpt = 'V';
                 else if (strcmp(pszArg, "set") == 0)
                     chOpt = 'E';
+                else if (strcmp(pszArg, "append") == 0)
+                    chOpt = 'A';
+                else if (strcmp(pszArg, "prepend") == 0)
+                    chOpt = 'D';
                 else if (strcmp(pszArg, "unset") == 0)
                     chOpt = 'U';
                 else if (   strcmp(pszArg, "zap-env") == 0
@@ -1326,9 +1335,11 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
                 const char *pszValue = NULL;
                 switch (chOpt)
                 {
+                    case 'A':
+                    case 'C':
                     case 'E':
                     case 'U':
-                    case 'C':
+                    case 'D':
                     case 'e':
                         if (*pszArg != '\0')
                             pszValue = pszArg + (*pszArg == ':' || *pszArg == '=');
@@ -1354,6 +1365,20 @@ int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild
 
                     case 'E':
                         rcExit = kBuiltinOptEnvSet(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                        pChild->environment = papszEnv;
+                        if (rcExit == 0)
+                            break;
+                        return rcExit;
+
+                    case 'A':
+                        rcExit = kBuiltinOptEnvAppend(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
+                        pChild->environment = papszEnv;
+                        if (rcExit == 0)
+                            break;
+                        return rcExit;
+
+                    case 'D':
+                        rcExit = kBuiltinOptEnvPrepend(&papszEnv, &cEnvVars, &cAllocatedEnvVars, cVerbosity, pszValue);
                         pChild->environment = papszEnv;
                         if (rcExit == 0)
                             break;
