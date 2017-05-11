@@ -1,4 +1,4 @@
-# $Id: VCC120AMD64.kmk 3037 2017-05-10 09:24:06Z knut.osmundsen@oracle.com $
+# $Id: VCC120AMD64.kmk 3044 2017-05-11 13:29:49Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 12.0 (aka Visual 2013 and MSC v18), targeting AMD64.
 #
@@ -57,7 +57,9 @@ else
 endif
 if "$(KBUILD_HOST).$(KBUILD_HOST_ARCH)" == "win.amd64" && exists("$(PATH_TOOL_VCC120AMD64)/bin/amd64") # Missing in express edition.
 PATH_TOOL_VCC120AMD64_BIN ?= $(PATH_TOOL_VCC120AMD64)/bin/amd64
+#$(error works now: $(PATH_TOOL_VCC120AMD64)/bin/amd64)
 else
+#$(error no joy: $(PATH_TOOL_VCC120AMD64)/bin/amd64)
 PATH_TOOL_VCC120AMD64_BIN_DLL ?= $(PATH_TOOL_VCC120AMD64)/bin
 PATH_TOOL_VCC120AMD64_BIN ?= $(PATH_TOOL_VCC120AMD64)/bin/x86_amd64
 endif
@@ -80,6 +82,9 @@ ifdef TOOL_VCC120AMD64_USE_KSUBMIT
  ifeq ($(KBUILD_HOST),win)
   ifneq ($(substr $(PATH_TOOL_VCC120AMD64_BIN),-9),x86_amd64)
    TOOL_VCC120AMD64_KSUBMIT ?= kmk_builtin_kSubmit --64-bit
+   ifdef PATH_TOOL_VCC120AMD64_BIN_DLL
+    TOOL_VCC120AMD64_KSUBMIT += --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)'
+   endif
    TOOL_VCC120AMD64_KSUBMIT_DD = $(TOOL_VCC120AMD64_KSUBMIT) --
   else
    # "fatal error C1902: Program database manager mismatch; please check your installation" when mixing with the 32-bit compiler.
@@ -88,7 +93,7 @@ ifdef TOOL_VCC120AMD64_USE_KSUBMIT
   endif
  endif
 else ifdef PATH_TOOL_VCC120AMD64_BIN_DLL
- TOOL_VCC120AMD64_KSUBMIT_DD  = $(REDIRECT) -E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)' --
+ TOOL_VCC120AMD64_KSUBMIT_DD  = $(REDIRECT) --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)' --
 endif
 
 # The following in duplicated in VCC120.kmk and VCC120X86.kmk.
@@ -165,7 +170,6 @@ ifdef TOOL_VCC120AMD64_KSUBMIT
  TOOL_VCC120AMD64_COMPILE_C_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC120AMD64_COMPILE_C_CMDS
 	$(QUIET)$(TOOL_VCC120AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL),-E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)',)\
 		-- $(TOOL_VCC120AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
@@ -175,7 +179,7 @@ ifdef TOOL_VCC120AMD64_KSUBMIT
 else
  define TOOL_VCC120AMD64_COMPILE_C_CMDS
 	$(QUIET)$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL)\
-		,$(REDIRECT) -E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)' -- ,)$(TOOL_VCC120AMD64_CC) -c\
+		,$(REDIRECT) --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)' -- ,)$(TOOL_VCC120AMD64_CC) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		-Fd$(outbase)-obj.pdb \
 		-Fo$(obj)\
@@ -207,7 +211,6 @@ ifdef TOOL_VCC120AMD64_KSUBMIT
  TOOL_VCC120AMD64_COMPILE_CXX_DONT_PURGE_OUTPUT := 1 # speed
  define TOOL_VCC120AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(TOOL_VCC120AMD64_KSUBMIT) -P $(DEP_OBJ_INT) -f -s -q -o $(dep) -t $(obj) $(obj)\
-		$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL),-E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)',)\
 		-- $(TOOL_VCC120AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
@@ -219,7 +222,7 @@ ifdef TOOL_VCC120AMD64_KSUBMIT
 else
  define TOOL_VCC120AMD64_COMPILE_CXX_CMDS
 	$(QUIET)$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL)\
-		,$(REDIRECT) -E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)' -- ,)$(TOOL_VCC120AMD64_CXX) -c\
+		,$(REDIRECT) --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)' -- ,)$(TOOL_VCC120AMD64_CXX) -c\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
 		$(if-expr defined($(target)_PCH_HDR)\
 		,-FI$($(target)_PCH_HDR) -Yu$($(target)_PCH_HDR) -Fp$($(target)_1_VCC_PCH_FILE) -FS,)\
@@ -254,7 +257,6 @@ ifdef TOOL_VCC120AMD64_KSUBMIT
  define TOOL_VCC120AMD64-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
 	$(QUIET)$(TOOL_VCC120AMD64_KSUBMIT) --no-pch-caching -P $(DEP_OBJ_INT) -f -s -q -e .pch -o $(dep) -t $(obj) $(obj)\
-		$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL),-E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)',)\
 		-- $(TOOL_VCC120AMD64_CXX) -c -Yc\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
@@ -267,7 +269,7 @@ else
  define TOOL_VCC120AMD64-PCH_COMPILE_CXX_CMDS
 	$(QUIET)$(RM) -f -- $($(target)_1_VCC_PCH_FILE) $($(target)_1_VCC_COMMON_OBJ_PDB)
 	$(QUIET)$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL)\
-		,$(REDIRECT) -E 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)' -- ,)$(TOOL_VCC120AMD64_CXX) -c -Yc\
+		,$(REDIRECT) --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)' -- ,)$(TOOL_VCC120AMD64_CXX) -c -Yc\
 		$(flags) $(addprefix -I, $(incs)) $(addprefix -D, $(defs))\
                -Fp$($(target)_1_VCC_PCH_FILE) \
 		-Fd$($(target)_1_VCC_COMMON_OBJ_PDB) \
@@ -301,7 +303,7 @@ TOOL_VCC120AMD64_COMPILE_RC_OUTPUT =
 ## @todo Fix kmk_redirect so we can use it for setting PATH without spawning a shell or two
 define TOOL_VCC120AMD64_COMPILE_RC_CMDS
 	$(QUIET)$(if-expr defined(PATH_TOOL_VCC120AMD64_BIN_DLL)\
-		,PATH='$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)$(PATH)',)$(TOOL_VCC120AMD64_RC) \
+		,$(REDIRECT) --prepend 'PATH=$(PATH_TOOL_VCC120AMD64_BIN_DLL)$(HOST_PATH_SEP)' -- ,)$(TOOL_VCC120AMD64_RC) \
 		$(flags) $(addprefix /i, $(subst /,\\,$(incs))) $(addprefix /d, $(defs))\
 		/fo$(obj)\
 		$(subst /,\\,$(abspath $(source)))
