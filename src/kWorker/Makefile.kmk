@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2968 2016-09-26 18:14:50Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3042 2017-05-11 10:23:12Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kWorker.
 #
@@ -151,6 +151,25 @@ kStuff_SOURCES += \
 kStuff_SOURCES.darwin += \
 	kStuff/kHlp/Bare/kHlpSys-darwin.c
 
+
+#
+# A couple of dummy DLLs we use for grabbing LDR TLS entries.
+#
+DLLS += kWorkerTls1K kWorkerTls64K kWorkerTls512K
+kWorkerTls1K_TEMPLATE   = BIN-STATIC-THREADED
+kWorkerTls1K_DEFS       = KWORKER_BASE=0x10000 TLS_SIZE=1024
+kWorkerTls1K_SOURCES    = kWorkerTlsXxxK.c
+kWorkerTls1K_LDFLAGS    = /Entry:DummyDllEntry
+
+kWorkerTls64K_TEMPLATE  = BIN-STATIC-THREADED
+kWorkerTls64K_DEFS      = KWORKER_BASE=0x10000 TLS_SIZE=65536
+kWorkerTls64K_SOURCES   = kWorkerTlsXxxK.c
+kWorkerTls64K_LDFLAGS   = /Entry:DummyDllEntry
+
+kWorkerTls512K_TEMPLATE = BIN-STATIC-THREADED
+kWorkerTls512K_DEFS     = KWORKER_BASE=0x10000 TLS_SIZE=524288
+kWorkerTls512K_SOURCES  = kWorkerTlsXxxK.c
+kWorkerTls512K_LDFLAGS  = /Entry:DummyDllEntry
 
 
 include $(KBUILD_PATH)/subfooter.kmk
