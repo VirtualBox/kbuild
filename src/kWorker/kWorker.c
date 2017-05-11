@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3042 2017-05-11 10:23:12Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3043 2017-05-11 13:28:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -1034,7 +1034,8 @@ static KSIZE    g_cbWriteFileToInMemTemp;
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
 static FNKLDRMODGETIMPORT kwLdrModuleGetImportCallback;
-static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod);
+static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter,
+                                       const char *pszSearchPath, PKWMODULE *ppMod);
 static KBOOL kwSandboxHandleTableEnter(PKWSANDBOX pSandbox, PKWHANDLE pHandle, HANDLE hHandle);
 #ifdef WITH_CONSOLE_OUTPUT_BUFFERING
 static void kwSandboxConsoleWriteA(PKWSANDBOX pSandbox, PKWOUTPUTSTREAMBUF pLineBuf, const char *pchBuffer, KU32 cchToWrite);
@@ -2201,8 +2202,10 @@ static int kwLdrModuleCreateNonNativeSetupTls(PKWMODULE pMod)
  *                              into the global module table.
  * @param   pExeMod             The executable module of the process (for
  *                              resolving imports).  NULL if fExe is set.
+ * @param   pszSearchPath       The PATH to search for imports.  Can be NULL.
  */
-static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath, KBOOL fExe, PKWMODULE pExeMod)
+static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath, KBOOL fExe,
+                                            PKWMODULE pExeMod, const char *pszSearchPath)
 {
     /*
      * Open the module and check the type.
@@ -2310,7 +2313,8 @@ static PKWMODULE kwLdrModuleCreateNonNative(const char *pszPath, KU32 uHashPath,
                                 rc = kLdrModGetImport(pMod->pLdrMod, NULL /*pvBits*/, iImp, szName, sizeof(szName));
                                 if (rc == 0)
                                 {
-                                    rc = kwLdrModuleResolveAndLookup(szName, pExeMod, pMod, &pMod->u.Manual.apImpMods[iImp]);
+                                    rc = kwLdrModuleResolveAndLookup(szName, pExeMod, pMod, pszSearchPath,
+                                                                     &pMod->u.Manual.apImpMods[iImp]);
                                     if (rc == 0)
                                         continue;
                                 }
@@ -2605,8 +2609,9 @@ static KBOOL kwLdrModuleIsRegularFile(const char *pszPath)
  *                              the heuristics for determining if we can use the
  *                              native loader or need to sandbox the DLL.
  * @param   pExe                The executable (optional).
+ * @param   pszSearchPath       The PATH to search (optional).
  */
-static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocation, PKWMODULE pExeMod)
+static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocation, PKWMODULE pExeMod, const char *pszSearchPath)
 {
     /*
      * Does the file exists and is it a regular file?
@@ -2643,7 +2648,7 @@ static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocati
                 pMod = kwLdrModuleCreateNative(szNormPath, uHashPath,
                                                kwLdrModuleShouldDoNativeReplacements(pszName, enmLocation));
             else
-                pMod = kwLdrModuleCreateNonNative(szNormPath, uHashPath, K_FALSE /*fExe*/, pExeMod);
+                pMod = kwLdrModuleCreateNonNative(szNormPath, uHashPath, K_FALSE /*fExe*/, pExeMod, pszSearchPath);
             if (pMod)
                 return pMod;
             return (PKWMODULE)~(KUPTR)0;
@@ -2665,9 +2670,11 @@ static PKWMODULE kwLdrModuleTryLoadDll(const char *pszPath, KWLOCATION enmLocati
  * @param   pszName             The name of the import module.
  * @param   pExe                The executable (optional).
  * @param   pImporter           The module doing the importing (optional).
+ * @param   pszSearchPath       The PATH to search (optional).
  * @param   ppMod               Where to return the module pointer w/ reference.
  */
-static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter, PKWMODULE *ppMod)
+static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWMODULE pImporter,
+                                       const char *pszSearchPath, PKWMODULE *ppMod)
 {
     KSIZE const cchName = kHlpStrLen(pszName);
     char        szPath[1024];
@@ -2686,7 +2693,7 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
         psz = (char *)kHlpMemPCopy(kHlpMemPCopy(szPath, pImporter->pszPath, pImporter->offFilename), pszName, cchName + 1);
         if (fNeedSuffix)
             kHlpMemCopy(psz - 1, ".dll", sizeof(".dll"));
-        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_IMPORTER_DIR, pExe);
+        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_IMPORTER_DIR, pExe, pszSearchPath);
     }
 
     /* Application directory first. */
@@ -2697,7 +2704,7 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
         psz = (char *)kHlpMemPCopy(kHlpMemPCopy(szPath, pExe->pszPath, pExe->offFilename), pszName, cchName + 1);
         if (fNeedSuffix)
             kHlpMemCopy(psz - 1, ".dll", sizeof(".dll"));
-        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_EXE_DIR, pExe);
+        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_EXE_DIR, pExe, pszSearchPath);
     }
 
     /* The windows directory. */
@@ -2711,7 +2718,44 @@ static int kwLdrModuleResolveAndLookup(const char *pszName, PKWMODULE pExe, PKWM
         psz = (char *)kHlpMemPCopy(&szPath[cchDir], pszName, cchName + 1);
         if (fNeedSuffix)
             kHlpMemCopy(psz - 1, ".dll", sizeof(".dll"));
-        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_SYSTEM32, pExe);
+        pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_SYSTEM32, pExe, pszSearchPath);
+    }
+
+    /* The path. */
+    if (   pMod == NULL
+        && pszSearchPath)
+    {
+        const char *pszCur = pszSearchPath;
+        while (*pszCur != '\0')
+        {
+            /* Find the end of the component */
+            KSIZE cch = 0;
+            while (pszCur[cch] != ';' && pszCur[cch] != '\0')
+                cch++;
+
+            if (   cch > 0 /* wrong, but whatever */
+                && cch + 1 + cchName + cchSuffix < sizeof(szPath))
+            {
+                char *pszDst = kHlpMemPCopy(szPath, pszCur, cch);
+                if (   szPath[cch - 1] != ':'
+                    && szPath[cch - 1] != '/'
+                    && szPath[cch - 1] != '\\')
+                    *pszDst++ = '\\';
+                pszDst = kHlpMemPCopy(pszDst, pszName, cchName);
+                if (fNeedSuffix)
+                    pszDst = kHlpMemPCopy(pszDst, ".dll", 4);
+                *pszDst = '\0';
+
+                pMod = kwLdrModuleTryLoadDll(szPath, KWLOCATION_SYSTEM32, pExe, pszSearchPath);
+                if (pMod)
+                    break;
+            }
+
+            /* Advance */
+            pszCur += cch;
+            while (*pszCur == ';')
+                pszCur++;
+        }
     }
 
     /* Return. */
@@ -3088,8 +3132,9 @@ static int kwToolAddModuleAndImports(PKWTOOL pTool, PKWMODULE pMod)
  *
  *                              A reference is donated by the caller and must be
  *                              released.
+ * @param   pszSearchPath       The PATH environment variable value, or NULL.
  */
-static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj)
+static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj, const char *pszSearchPath)
 {
     KSIZE   cwcPath = pToolFsObj->cwcParent + pToolFsObj->cwcName + 1;
     KSIZE   cbPath  = pToolFsObj->cchParent + pToolFsObj->cchName + 1;
@@ -3107,7 +3152,8 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj)
         kHlpAssert(fRc);
 
         pTool->enmType = KWTOOLTYPE_SANDBOXED;
-        pTool->u.Sandboxed.pExe = kwLdrModuleCreateNonNative(pTool->pszPath, kwStrHash(pTool->pszPath), K_TRUE /*fExe*/, NULL);
+        pTool->u.Sandboxed.pExe = kwLdrModuleCreateNonNative(pTool->pszPath, kwStrHash(pTool->pszPath), K_TRUE /*fExe*/,
+                                                             NULL /*pEexeMod*/, pszSearchPath);
         if (pTool->u.Sandboxed.pExe)
         {
             int rc = kwLdrModuleQueryMainEntrypoint(pTool->u.Sandboxed.pExe, &pTool->u.Sandboxed.uMainAddr);
@@ -3146,8 +3192,10 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj)
  *
  * @returns Pointer to the tool entry.  NULL on failure.
  * @param   pszExe              The executable for the tool (not normalized).
+ * @param   cEnvVars            Number of environment varibles.
+ * @param   papszEnvVars        Environment variables.  For getting the PATH.
  */
-static PKWTOOL kwToolLookup(const char *pszExe)
+static PKWTOOL kwToolLookup(const char *pszExe, KU32 cEnvVars, const char **papszEnvVars)
 {
     /*
      * We associate the tools instances with the file system objects.
@@ -3167,6 +3215,7 @@ static PKWTOOL kwToolLookup(const char *pszExe)
     {
         if (pToolFsObj->bObjType == KFSOBJ_TYPE_FILE)
         {
+            const char *pszSearchPath;
             PKWTOOL pTool = (PKWTOOL)kFsCacheObjGetUserData(g_pFsCache, pToolFsObj, KW_DATA_KEY_TOOL);
             if (pTool)
             {
@@ -3177,12 +3226,17 @@ static PKWTOOL kwToolLookup(const char *pszExe)
             /*
              * Need to create a new tool.
              */
-            return kwToolEntryCreate(pToolFsObj);
+            pszSearchPath = NULL;
+            while (cEnvVars-- > 0)
+                if (_strnicmp(papszEnvVars[cEnvVars], "PATH=", 5) == 0)
+                {
+                    pszSearchPath = &papszEnvVars[cEnvVars][5];
+                    break;
+                }
+            return kwToolEntryCreate(pToolFsObj, pszSearchPath);
         }
         kFsCacheObjRelease(g_pFsCache, pToolFsObj);
     }
-    else
-        pToolFsObj = kFsCacheLookupA(g_pFsCache, pszExe, &enmError);
     return NULL;
 }
 
@@ -4638,6 +4692,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA_VirtualApiModule(PKWDYNL
 static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
 {
     KSIZE       cchFilename = kHlpStrLen(pszFilename);
+    const char *pszSearchPath;
     PKWDYNLOAD  pDynLoad;
     PKWMODULE   pMod;
     int         rc;
@@ -4712,11 +4767,12 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
      * Normal library loading.
      * We start by being very lazy and reusing the code for resolving imports.
      */
+    pszSearchPath = kwSandboxDoGetEnvA(&g_Sandbox, "PATH", 4);
     if (!kHlpIsFilenameOnly(pszFilename))
-        pMod = kwLdrModuleTryLoadDll(pszFilename, KWLOCATION_UNKNOWN, g_Sandbox.pTool->u.Sandboxed.pExe);
+        pMod = kwLdrModuleTryLoadDll(pszFilename, KWLOCATION_UNKNOWN, g_Sandbox.pTool->u.Sandboxed.pExe, pszSearchPath);
     else
     {
-        rc = kwLdrModuleResolveAndLookup(pszFilename, g_Sandbox.pTool->u.Sandboxed.pExe, NULL /*pImporter*/, &pMod);
+        rc = kwLdrModuleResolveAndLookup(pszFilename, g_Sandbox.pTool->u.Sandboxed.pExe, NULL /*pImporter*/, pszSearchPath, &pMod);
         if (rc != 0)
             pMod = NULL;
     }
@@ -4757,7 +4813,7 @@ static HMODULE WINAPI kwSandbox_Kernel32_LoadLibraryExA(LPCSTR pszFilename, HAND
 /** Kernel32 - LoadLibraryExA() for native overloads */
 static HMODULE WINAPI kwSandbox_Kernel32_Native_LoadLibraryExA(LPCSTR pszFilename, HANDLE hFile, DWORD fFlags)
 {
-    char szTmp[512];
+    char szPath[1024];
     KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA(%s, %p, %#x)\n", pszFilename, hFile, fFlags));
 
     /*
@@ -4767,14 +4823,54 @@ static HMODULE WINAPI kwSandbox_Kernel32_Native_LoadLibraryExA(LPCSTR pszFilenam
     {
         KSIZE cchFilename = kHlpStrLen(pszFilename);
         KSIZE cchExePath  = g_Sandbox.pTool->u.Sandboxed.pExe->offFilename;
-        if (cchExePath + cchFilename + 1 <= sizeof(szTmp))
+        if (cchExePath + cchFilename + 1 <= sizeof(szPath))
         {
-            kHlpMemCopy(szTmp, g_Sandbox.pTool->u.Sandboxed.pExe->pszPath, cchExePath);
-            kHlpMemCopy(&szTmp[cchExePath], pszFilename, cchFilename + 1);
-            if (kwFsPathExists(szTmp))
+            kHlpMemCopy(szPath, g_Sandbox.pTool->u.Sandboxed.pExe->pszPath, cchExePath);
+            kHlpMemCopy(&szPath[cchExePath], pszFilename, cchFilename + 1);
+            if (kwFsPathExists(szPath))
             {
-                KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szTmp));
-                pszFilename = szTmp;
+                KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
+                pszFilename = szPath;
+            }
+        }
+
+        if (pszFilename != szPath)
+        {
+            KSIZE cchSuffix = 0;
+            KBOOL fNeedSuffix = K_FALSE;
+            const char *pszCur = kwSandboxDoGetEnvA(&g_Sandbox, "PATH", 4);
+            while (*pszCur != '\0')
+            {
+                /* Find the end of the component */
+                KSIZE cch = 0;
+                while (pszCur[cch] != ';' && pszCur[cch] != '\0')
+                    cch++;
+
+                if (   cch > 0 /* wrong, but whatever */
+                    && cch + 1 + cchFilename + cchSuffix < sizeof(szPath))
+                {
+                    char *pszDst = kHlpMemPCopy(szPath, pszCur, cch);
+                    if (   szPath[cch - 1] != ':'
+                        && szPath[cch - 1] != '/'
+                        && szPath[cch - 1] != '\\')
+                        *pszDst++ = '\\';
+                    pszDst = kHlpMemPCopy(pszDst, pszFilename, cchFilename);
+                    if (fNeedSuffix)
+                        pszDst = kHlpMemPCopy(pszDst, ".dll", 4);
+                    *pszDst = '\0';
+
+                    if (kwFsPathExists(szPath))
+                    {
+                        KWLDR_LOG(("kwSandbox_Kernel32_Native_LoadLibraryExA: %s -> %s\n", pszFilename, szPath));
+                        pszFilename = szPath;
+                        break;
+                    }
+                }
+
+                /* Advance */
+                pszCur += cch;
+                while (*pszCur == ';')
+                    pszCur++;
             }
         }
     }
@@ -9674,8 +9770,9 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
         {
             const char *pszVar   = papszEnvVars[i];
             KSIZE       cchVar   = kHlpStrLen(pszVar);
+            const char *pszEqual;
             if (   cchVar > 0
-                && kHlpMemChr(pszVar, '=', cchVar) != NULL)
+                && (pszEqual = kHlpMemChr(pszVar, '=', cchVar)) != NULL)
             {
                 char       *pszCopy  = kHlpDup(pszVar, cchVar + 1);
                 wchar_t    *pwszCopy = kwStrToUtf16AllocN(pszVar, cchVar + 1);
@@ -9685,6 +9782,16 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
                     pSandbox->environ[iDst]       = pszCopy;
                     pSandbox->papwszEnvVars[iDst] = pwszCopy;
                     pSandbox->wenviron[iDst]      = pwszCopy;
+
+                    /* When we see the path, we must tell the system or native exec and module loading won't work . */
+                    if (   (pszEqual - pszVar) == 4
+                        && (  pszCopy[0] == 'P' || pszCopy[0] == 'p')
+                        && (  pszCopy[1] == 'A' || pszCopy[1] == 'a')
+                        && (  pszCopy[2] == 'T' || pszCopy[2] == 't')
+                        && (  pszCopy[3] == 'H' || pszCopy[3] == 'h'))
+                        if (!SetEnvironmentVariableW(L"Path", &pwszCopy[5]))
+                            kwErrPrintf("kwSandboxInit: SetEnvironmentVariableW(Path,) failed: %u\n", GetLastError());
+
                     iDst++;
                 }
                 else
@@ -9704,7 +9811,6 @@ static int kwSandboxInit(PKWSANDBOX pSandbox, PKWTOOL pTool,
     }
     else
         return kwErrPrintfRc(KERR_NO_MEMORY, "Error setting up environment variables: kwSandboxGrowEnv failed\n");
-
 
     /*
      * Invalidate the volatile parts of cache (kBuild output directory,
@@ -10215,7 +10321,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
     /*
      * Lookup the tool.
      */
-    pTool = kwToolLookup(pszExecutable);
+    pTool = kwToolLookup(pszExecutable, cEnvVars, papszEnvVars);
     if (pTool)
     {
         /*
