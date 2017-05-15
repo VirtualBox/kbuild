@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 2861 2016-09-01 22:42:55Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3046 2017-05-15 12:15:05Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -612,8 +612,14 @@ kbuild_lookup_variable_n(const char *pszName, size_t cchName)
         MY_ASSERT_MSG(strlen(pVar->value) == pVar->value_length,
                       ("%u != %u %.*s\n", pVar->value_length, (unsigned int)strlen(pVar->value), (int)cchName, pVar->name));
 
-        /* Make sure the variable is simple, convert it if necessary. */
-        if (pVar->recursive)
+        /* Make sure the variable is simple, convert it if necessary.
+           Note! Must NOT do this for the dynamic INCS of sdks/ReorderCompilerIncs.kmk */
+        if (!pVar->recursive)
+        { /* likely */ }
+        else if (   cchName < sizeof("SDK_ReorderCompilerIncs_INCS.") - 1U
+                 || pszName[0] != 'S'
+                 || pszName[4] != 'R'
+                 || memcmp(pszName, "SDK_ReorderCompilerIncs_INCS.", sizeof("SDK_ReorderCompilerIncs_INCS.") - 1U) == 0)
             kbuild_simplify_variable(pVar);
     }
     return pVar;
