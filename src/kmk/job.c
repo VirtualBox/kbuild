@@ -464,9 +464,30 @@ child_error (const char *target_name,
 #else
   if (exit_sig == 0)
 # if defined(KMK) && defined(KBUILD_OS_WINDOWS)
-    error (NILF, ignored ? _("[%s] Error %d (%#x) (ignored)") :
-           _("*** [%s] Error %d (%#x)"),
-           target_name, exit_code, exit_code);
+    {
+      const char *name = NULL;
+      switch ((unsigned)exit_code)
+        {
+        case 0xc0000005U: name = "STATUS_ACCESS_VIOLATION"; break;
+        case 0xc000013aU: name = "STATUS_CONTROL_C_EXIT"; break;
+        case 0xc0000374U: name = "STATUS_HEAP_CORRUPTION"; break;
+        case 0xc0000409U: name = "STATUS_STACK_BUFFER_OVERRUN"; break;
+        case 0xc0000417U: name = "STATUS_INVALID_CRUNTIME_PARAMETER"; break;
+        case 0x80000003U: name = "STATUS_BREAKPOINT"; break;
+        case 0x40000015U: name = "STATUS_FATAL_APP_EXIT"; break;
+        case 0x40010004U: name = "DBG_TERMINATE_PROCESS"; break;
+        case 0x40010005U: name = "DBG_CONTROL_C"; break;
+        case 0x40010008U: name = "DBG_CONTROL_BREAK"; break;
+        }
+      if (name)
+        error(NILF, ignored ? _("[%s] Error %d (%s) (ignored)") :
+               _("*** [%s] Error %d (%s)"),
+               target_name, exit_code, name);
+      else
+        error(NILF, ignored ? _("[%s] Error %d (%#x) (ignored)") :
+               _("*** [%s] Error %d (%#x)"),
+               target_name, exit_code, exit_code);
+    }
 # else
     error (NILF, ignored ? _("[%s] Error %d (ignored)") :
 	   _("*** [%s] Error %d"),
@@ -840,9 +861,13 @@ reap_children (int block, int err)
 #ifdef KMK
             {
               child_error (c->file->name, exit_code, exit_sig, coredump, 0);
-              if ((  c->file->cmds->lines_flags[c->command_line - 1]
-                   & (COMMANDS_SILENT | COMMANDS_RECURSE))
-                  == COMMANDS_SILENT)
+              if (   (  c->file->cmds->lines_flags[c->command_line - 1]
+                      & (COMMANDS_SILENT | COMMANDS_RECURSE))
+                     == COMMANDS_SILENT
+# ifdef KBUILD_OS_WINDOWS /* show commands for NT statuses */
+                  || (exit_code & 0xc0000000)
+# endif
+                  || exit_sig != 0)
                 message (0, "The failing command:\n%s", c->file->cmds->command_lines[c->command_line - 1]);
             }
 #else  /* !KMK */
