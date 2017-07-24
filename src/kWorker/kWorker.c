@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3043 2017-05-11 13:28:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3051 2017-07-24 10:59:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -11123,11 +11123,44 @@ int main(int argc, char **argv)
         }
         else if (strcmp(argv[i], "--test") == 0)
             return kwTestRun(argc - i - 1, &argv[i + 1]);
+        else if (strcmp(argv[i], "--priority") == 0)
+        {
+            i++;
+            if (i < argc)
+            {
+                char *pszEnd = NULL;
+                unsigned long uValue = strtoul(argv[i], &pszEnd, 16);
+                if (   *argv[i]
+                    && pszEnd != NULL
+                    && *pszEnd == '\0'
+                    && uValue >= 1
+                    && uValue <= 5)
+                {
+                    DWORD dwClass, dwPriority;
+                    switch (uValue)
+                    {
+                        case 1: dwClass = IDLE_PRIORITY_CLASS;         dwPriority = THREAD_PRIORITY_IDLE; break;
+                        case 2: dwClass = BELOW_NORMAL_PRIORITY_CLASS; dwPriority = THREAD_PRIORITY_BELOW_NORMAL; break;
+                        case 3: dwClass = NORMAL_PRIORITY_CLASS;       dwPriority = THREAD_PRIORITY_NORMAL; break;
+                        case 4: dwClass = HIGH_PRIORITY_CLASS;         dwPriority = 0xffffffff; break;
+                        case 5: dwClass = REALTIME_PRIORITY_CLASS;     dwPriority = 0xffffffff; break;
+                    }
+                    SetPriorityClass(GetCurrentProcess(), dwClass);
+                    if (dwPriority != 0xffffffff)
+                        SetThreadPriority(GetCurrentThread(), dwPriority);
+                }
+                else
+                    return kwErrPrintfRc(2, "Invalid --priority argument: %s\n", argv[i]);
+            }
+            else
+                return kwErrPrintfRc(2, "--priority takes an argument!\n");
+
+        }
         else if (   strcmp(argv[i], "--help") == 0
                  || strcmp(argv[i], "-h") == 0
                  || strcmp(argv[i], "-?") == 0)
         {
-            printf("usage: kWorker [--volatile dir] --pipe <pipe-handle>\n"
+            printf("usage: kWorker [--volatile dir] [--priority <1-5>] --pipe <pipe-handle>\n"
                    "usage: kWorker <--help|-h>\n"
                    "usage: kWorker <--version|-V>\n"
                    "usage: kWorker [--volatile dir] --test [<times> [--chdir <dir>] [--breakpoint] -- args\n"
