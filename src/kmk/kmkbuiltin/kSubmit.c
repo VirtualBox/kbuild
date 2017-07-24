@@ -1,4 +1,4 @@
-/* $Id: kSubmit.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kSubmit.c 3051 2017-07-24 10:59:59Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - submit job to a kWorker.
  */
@@ -382,13 +382,26 @@ static int kSubmitSpawnWorker(PWORKERINSTANCE pWorker, int cVerbosity)
                 if (pWorker->OverlappedRead.hEvent != NULL)
                 {
                     char        szHandleArg[32];
-                    const char *apszArgs[6] =
-                    {
-                        szExecutable, "--pipe", szHandleArg,
-                        pVarVolatile ? "--volatile" : NULL, pVarVolatile ? pVarVolatile->value : NULL,
-                        NULL
-                    };
+                    extern int process_priority; /* main.c */
+                    char        szPriorityArg[32];
+                    const char *apszArgs[10];
+                    int         cArgs = 0;
+                    apszArgs[cArgs++] = szExecutable;
+                    apszArgs[cArgs++] = "--pipe";
                     _snprintf(szHandleArg, sizeof(szHandleArg), "%p", hWorkerPipe);
+                    apszArgs[cArgs++] = szHandleArg;
+                    if (pVarVolatile)
+                    {
+                        apszArgs[cArgs++] = "--volatile";
+                        apszArgs[cArgs++] = pVarVolatile->value;
+                    }
+                    if (process_priority != 0)
+                    {
+                        apszArgs[cArgs++] = "--priority";
+                        _snprintf(szPriorityArg, sizeof(szPriorityArg), "%u", process_priority);
+                        apszArgs[cArgs++] = szPriorityArg;
+                    }
+                    apszArgs[cArgs] = NULL;
 
                     /*
                      * Create the worker process.

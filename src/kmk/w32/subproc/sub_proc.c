@@ -547,6 +547,7 @@ process_begin(
 	char *envblk=NULL;
 #ifdef KMK
         size_t exec_path_len;
+	extern int process_priority;
 
 	assert (pproc->enmType == kRegular);
 #endif
@@ -715,6 +716,14 @@ process_begin(
 			kmk_cache_exec_image(exec_path);
 		else if (argv[0])
 			kmk_cache_exec_image(argv[0]);
+
+		switch (process_priority) {
+		case 1: flags |= CREATE_SUSPENDED | IDLE_PRIORITY_CLASS; break;
+		case 2: flags |= CREATE_SUSPENDED | BELOW_NORMAL_PRIORITY_CLASS; break;
+		case 3: flags |= CREATE_SUSPENDED | NORMAL_PRIORITY_CLASS; break;
+		case 4: flags |= CREATE_SUSPENDED | HIGH_PRIORITY_CLASS; break;
+		case 5: flags |= CREATE_SUSPENDED | REALTIME_PRIORITY_CLASS; break;
+		}
 #endif
 		if (CreateProcess(
 			exec_path,
@@ -740,6 +749,16 @@ process_begin(
 			free( command_line );
 			return(-1);
 		}
+#ifdef KMK
+		switch (process_priority) {
+		case 1: SetThreadPriority(procInfo.hThread, THREAD_PRIORITY_IDLE); break;
+		case 2: SetThreadPriority(procInfo.hThread, THREAD_PRIORITY_BELOW_NORMAL); break;
+		case 3: SetThreadPriority(procInfo.hThread, THREAD_PRIORITY_NORMAL); break;
+		case 4: SetThreadPriority(procInfo.hThread, THREAD_PRIORITY_HIGHEST); break;
+		case 5: SetThreadPriority(procInfo.hThread, THREAD_PRIORITY_TIME_CRITICAL); break;
+		}
+		ResumeThread(procInfo.hThread);
+#endif
 	}
 
 	pproc->pid = (pid_t)procInfo.hProcess;
