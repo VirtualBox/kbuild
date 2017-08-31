@@ -2793,6 +2793,11 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
        * shell after this function returns.  */
       default_shell = xstrdup (shell);
     }
+#  ifdef KMK
+  if (is_kmk_shell)
+  { /* done above already */ }
+  else
+#   endif
   if (unixy_shell)
     {
       sh_chars = sh_chars_sh;
