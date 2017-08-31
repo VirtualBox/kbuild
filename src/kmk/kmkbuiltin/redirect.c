@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3053 2017-08-31 15:18:36Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -639,7 +639,7 @@ static void kRedirectRestoreFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
             }
 #ifndef KBUILD_OS_WINDOWS
             else
-                fprintf(*ppWorkingStdErr, "%s: dup2(%d,%d) failed: %s",
+                fprintf(*ppWorkingStdErr, "%s: dup2(%d,%d) failed: %s\n",
                         g_progname, paOrders[i].fdSaved, paOrders[i].fdTarget, strerror(errno));
 #endif
         }
@@ -647,10 +647,10 @@ static void kRedirectRestoreFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders,
 #ifndef KBUILD_OS_WINDOWS
         if (paOrders[i].fSaved != -1)
         {
-            if (fcntl(paOrders[i].fdTarget, F_SETFD, paOrders[i].fSaved & FD_CLOEXEC) == -1)
+            if (fcntl(paOrders[i].fdTarget, F_SETFD, paOrders[i].fSaved & FD_CLOEXEC) != -1)
                 paOrders[i].fSaved = -1;
             else
-                fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_SETFD,%s) failed: %s",
+                fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_SETFD,%s) failed: %s\n",
                         g_progname, paOrders[i].fdTarget, paOrders[i].fSaved & FD_CLOEXEC ? "FD_CLOEXEC" : "0", strerror(errno));
         }
 #endif
@@ -702,13 +702,13 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
                                  || errno == EBADF)
                             rcExit = 0;
                         else
-                            fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_SETFD,FD_CLOEXEC) failed: %s",
+                            fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_SETFD,FD_CLOEXEC) failed: %s\n",
                                     g_progname, fdTarget, strerror(errno));
                     }
                     else if (errno == EBADF)
                         rcExit = 0;
                     else
-                        fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_GETFD,0) failed: %s", g_progname, fdTarget, strerror(errno));
+                        fprintf(*ppWorkingStdErr, "%s: fcntl(%d,F_GETFD,0) failed: %s\n", g_progname, fdTarget, strerror(errno));
                 }
 # endif
                 else
@@ -726,10 +726,10 @@ static int kRedirectExecFdOrders(unsigned cOrders, REDIRECTORDERS *paOrders, FIL
                     else
                     {
                         if (paOrders[i].enmOrder == kRedirectOrder_Open)
-                            fprintf(*ppWorkingStdErr, "%s: dup2(%d [%s],%d) failed: %s", g_progname, paOrders[i].fdSource,
+                            fprintf(*ppWorkingStdErr, "%s: dup2(%d [%s],%d) failed: %s\n", g_progname, paOrders[i].fdSource,
                                     paOrders[i].pszFilename, paOrders[i].fdTarget, strerror(errno));
                         else
-                            fprintf(*ppWorkingStdErr, "%s: dup2(%d,%d) failed: %s",
+                            fprintf(*ppWorkingStdErr, "%s: dup2(%d,%d) failed: %s\n",
                                     g_progname, paOrders[i].fdSource, paOrders[i].fdTarget, strerror(errno));
                         rcExit = 10;
                     }
@@ -899,7 +899,7 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                     rcExit = err(10, "_spawnvpe(%s) failed", pszExecutable);
 
 # elif defined(KBUILD_OS_OS2)
-                *pPidSpawned = _spawnve(_P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
+                *pPidSpawned = _spawnvpe(P_NOWAIT, pszExecutable, papszArgs, papszEnvVars);
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
                 if (*pPidSpawned != -1)
                 {
@@ -931,7 +931,11 @@ static int kRedirectDoSpawn(const char *pszExecutable, int cArgs, char **papszAr
                  */
 # if defined(KBUILD_OS_WINDOWS) || defined(KBUILD_OS_OS2)
                 errno  = 0;
+#  if defined(KBUILD_OS_WINDOWS)
                 rcExit = (int)_spawnvpe(_P_WAIT, pszExecutable, papszArgs, papszEnvVars);
+#  else
+                rcExit = (int)_spawnvpe(P_WAIT, pszExecutable, papszArgs, papszEnvVars);
+#  endif
                 kRedirectRestoreFdOrders(cOrders, paOrders, &pWorkingStdErr);
                 if (rcExit != -1 || errno == 0)
                 {
@@ -1222,7 +1226,7 @@ int main(int argc, char **argv, char **envp)
                     if (apszSavedLibPaths[ulVar] == NULL)
                     {
                         /* The max length is supposed to be 1024 bytes. */
-                        apszSavedLibPaths[ulVar] = calloc(1024 * 2);
+                        apszSavedLibPaths[ulVar] = calloc(1024, 2);
                         if (apszSavedLibPaths[ulVar])
                         {
                             rc = DosQueryExtLIBPATH(apszSavedLibPaths[ulVar], ulVar);
@@ -1676,7 +1680,7 @@ int main(int argc, char **argv, char **envp)
             if (rc != 0)
                 warnx("DosSetExtLIBPATH('%s',%u) failed with %u when restoring the original values!",
                       apszSavedLibPaths[ulLibPath], ulLibPath, rc);
-            free(apszSavedLibPaths[ulLibPath])
+            free(apszSavedLibPaths[ulLibPath]);
         }
 #endif
 
