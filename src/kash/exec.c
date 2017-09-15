@@ -121,32 +121,48 @@ shellexec(shinstance *psh, char **argv, char **envp, const char *path, int idx, 
 {
 	char *cmdname;
 	int e;
+	const char *argv0 = argv[0];
+	int argv0len = (int)strlen(argv0);
+	char kmkcmd[48];
 #ifdef PC_EXE_EXTS
-        int has_ext = (int)strlen(argv[0]) - 4;
+        int has_ext = argv0len - 4;
         has_ext = has_ext > 0
-            && argv[0][has_ext] == '.'
+            && argv0[has_ext] == '.'
             /* use strstr and upper/lower permuated extensions to avoid multiple strcasecmp calls. */
             && strstr("exe;" "Exe;" "EXe;" "EXE;" "ExE;" "eXe;" "eXE;" "exE;"
                       "cmd;" "Cmd;" "CMd;" "CMD;" "CmD;" "cMd;" "cMD;" "cmD;"
                       "com;" "Com;" "COm;" "COM;" "CoM;" "cOm;" "cOM;" "coM;"
                       "bat;" "Bat;" "BAt;" "BAT;" "BaT;" "bAt;" "bAT;" "baT;"
                       "btm;" "Btm;" "BTm;" "BTM;" "BtM;" "bTm;" "bTM;" "btM;",
-                      argv[0] + has_ext + 1)
+		      argv0 + has_ext + 1)
                != NULL;
 #else
 	const int has_ext = 1;
 #endif
-	TRACE((psh, "shellexec: argv[0]=%s idx=%d\n", argv[0], idx));
-	if (strchr(argv[0], '/') != NULL) {
-		cmdname = stalloc(psh, strlen(argv[0]) + 5);
-		strcpy(cmdname, argv[0]);
+	TRACE((psh, "shellexec: argv[0]=%s idx=%d\n", argv0, idx));
+	if (strchr(argv0, '/') != NULL) {
+		cmdname = stalloc(psh, argv0len + 5);
+		strcpy(cmdname, argv0);
 		tryexec(psh, cmdname, argv, envp, vforked, has_ext);
 		TRACE((psh, "shellexec: cmdname=%s\n", cmdname));
 		stunalloc(psh, cmdname);
 		e = errno;
 	} else {
+		/* Before we search the PATH, transform kmk_builtin_% to kmk_% so we don't
+		   need to be too careful mixing internal and external kmk command. */
+		if (   argv0len > 12
+		    && argv0len < 42
+		    && strncmp(argv0, "kmk_builtin_", 12) == 0
+		    && strpbrk(argv0 + 12, "./\\-:;<>") == NULL) {
+			memcpy(kmkcmd, "kmk_", 4);
+			memcpy(&kmkcmd[4], argv0 + 12, argv0len + 1 - 8);
+			TRACE((psh, "shellexec: dropped '_builtin' from %s to %s\n", argv0, kmkcmd));
+			argv0len -= 8;
+			argv0 = kmkcmd;
+		}
+
 		e = ENOENT;
-		while ((cmdname = padvance(psh, &path, argv[0])) != NULL) {
+		while ((cmdname = padvance(psh, &path, argv0)) != NULL) {
 			if (--idx < 0 && psh->pathopt == NULL) {
 				tryexec(psh, cmdname, argv, envp, vforked, has_ext);
 				if (errno != ENOENT && errno != ENOTDIR)
@@ -552,9 +568,10 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 	struct stat statb;
 	int e;
 	int (*bltin)(shinstance*,int,char **);
-
+	int argv0len = (int)strlen(name);
+	char kmkcmd[48];
 #ifdef PC_EXE_EXTS
-        int has_ext = (int)(strlen(name) - 4);
+        int has_ext = argv0len - 4;
         has_ext = has_ext > 0
             && name[has_ext] == '.'
             /* use strstr and upper/lower permuated extensions to avoid multiple strcasecmp calls. */
@@ -637,6 +654,19 @@ find_command(shinstance *psh, char *name, struct cmdentry *entry, int act, const
 			prev = psh->builtinloc;
 		else
 			prev = cmdp->param.index;
+	}
+
+	/* Before we search the PATH, transform kmk_builtin_% to kmk_% so we don't
+	   need to be too careful mixing internal and external kmk command. */
+	if (   argv0len > 12
+	    && argv0len < (int)sizeof(kmkcmd)
+	    && strncmp(name, "kmk_builtin_", 12) == 0
+	    && strpbrk(name + 12, "./\\-:;<>") == NULL) {
+	        memcpy(kmkcmd, "kmk_", 4);
+		memcpy(&kmkcmd[4], name + 12, argv0len + 1 - 8);
+		TRACE((psh, "find_command: dropped '_builtin' from %s to %s\n", name, kmkcmd));
+		argv0len -= 8;
+		name = kmkcmd;
 	}
 
 	e = ENOENT;
