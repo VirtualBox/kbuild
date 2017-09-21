@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3059 2017-09-21 13:34:15Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -63,6 +63,7 @@ extern int kmk_builtin_test(int argc, char **argv, char **envp
                             , char ***ppapszArgvSpawn
 #endif
                             );
+extern int kmk_builtin_touch(int argc, char **argv, char **envp);
 #ifdef KBUILD_OS_WINDOWS
 extern int kmk_builtin_kSubmit(int argc, char **argv, char **envp, struct child *pChild, pid_t *pPidSpawned);
 extern int kSubmitSubProcGetResult(intptr_t pvUser, int *prcExit, int *piSigNo);
