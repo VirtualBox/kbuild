@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 2901 2016-09-09 15:10:24Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -36,12 +36,18 @@
 #include <io.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/timeb.h>
 #include "err.h"
 #include "mscfakes.h"
+
+#include "nt/ntutimes.h"
+#undef utimes
+#undef lutimes
 
 #define timeval windows_timeval
 #include <Windows.h>
 #undef timeval
+
 
 /*******************************************************************************
 *   Internal Functions                                                         *
@@ -459,13 +465,6 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
 #endif
 
 
-int utimes(const char *pszPath, const struct timeval *paTimes)
-{
-    /** @todo implement me! */
-    return 0;
-}
-
-
 /* We override the libc write function (in our modules only, unfortunately) so
    we can kludge our way around a ENOSPC problem observed on build servers
    capturing STDOUT and STDERR via pipes.  Apparently this may happen when the
@@ -647,6 +646,59 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 
     *strp = psz;
     return rc;
+}
+
+
+int utimes(const char *pszPath, const struct timeval *paTimes)
+{
+    BirdTimeVal_T aTimes[2];
+    aTimes[0].tv_sec  = paTimes[0].tv_sec;
+    aTimes[0].tv_usec = paTimes[0].tv_usec;
+    aTimes[1].tv_sec  = paTimes[1].tv_sec;
+    aTimes[1].tv_usec = paTimes[1].tv_usec;
+    return birdUtimes(pszPath, aTimes);
+}
+
+
+int lutimes(const char *pszPath, const struct timeval *paTimes)
+{
+    BirdTimeVal_T aTimes[2];
+    aTimes[0].tv_sec  = paTimes[0].tv_sec;
+    aTimes[0].tv_usec = paTimes[0].tv_usec;
+    aTimes[1].tv_sec  = paTimes[1].tv_sec;
+    aTimes[1].tv_usec = paTimes[1].tv_usec;
+    return birdUtimes(pszPath, aTimes);
+}
+
+
+int gettimeofday(struct timeval *pNow, void *pvIgnored)
+{
+    struct __timeb64 Now;
+    int rc = _ftime64_s(&Now);
+    if (rc == 0)
+    {
+        pNow->tv_sec  = Now.time;
+        pNow->tv_usec = Now.millitm * 1000;
+        return 0;
+    }
+    errno = rc;
+    return -1;
+}
+
+
+struct tm *localtime_r(const __time64_t *pNow, struct tm *pResult)
+{
+    int rc = _localtime64_s(pResult, pNow);
+    if (rc == 0)
+        return pResult;
+    errno = rc;
+    return NULL;
+}
+
+
+__time64_t timegm(struct tm *pNow)
+{
+    return _mkgmtime64(pNow);
 }
 
 

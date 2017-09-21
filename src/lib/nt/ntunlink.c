@@ -1,10 +1,10 @@
-/* $Id: ntunlink.c 3009 2016-11-07 02:21:59Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
 
 /*
- * Copyright (c) 2005-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2017 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,9 +32,7 @@
 /*******************************************************************************
 *   Header Files                                                               *
 *******************************************************************************/
-#include <stdio.h>
-#include <errno.h>
-#include <malloc.h>
+#include "ntunlink.h"
 
 #include "ntstuff.h"
 #include "nthlp.h"
