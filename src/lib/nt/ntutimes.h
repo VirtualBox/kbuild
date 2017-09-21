@@ -1,10 +1,10 @@
-/* $Id: ntunlink.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: ntutimes.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
- * MSC + NT unlink and variations.
+ * MSC + NT utimes and lutimes.
  */
 
 /*
- * Copyright (c) 2005-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2017 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,27 +28,18 @@
  * GPL version 2 or later, or LGPL version 2.1 or later.
  */
 
-#ifndef ___nt_ntunlink_h
-#define ___nt_ntunlink_h
+#ifndef ___nt_ntutimes_h
+#define ___nt_ntutimes_h
 
 #include "nttypes.h"
-#include <wchar.h>
 
-int birdUnlink(const char *pszFile);
-int birdUnlinkW(const wchar_t *pwszFile);
-int birdUnlinkEx(void *hRoot, const char *pszFile);
-int birdUnlinkExW(void *hRoot, const wchar_t *pwszFile);
-int birdUnlinkForced(const char *pszFile);
-int birdUnlinkForcedW(const wchar_t *pwszFile);
-int birdUnlinkForcedEx(void *hRoot, const char *pszFile);
-int birdUnlinkForcedExW(void *hRoot, const wchar_t *pszFile);
-int birdUnlinkForcedFast(const char *pszFile);
-int birdUnlinkForcedFastW(const wchar_t *pwszFile);
-int birdUnlinkForcedFastEx(void *hRoot, const char *pszFile);
-int birdUnlinkForcedFastExW(void *hRoot, const wchar_t *pwszFile);
+int birdUtimes(const char *pszFile, BirdTimeVal_T paTimes[2]);
+int birdLUtimes(const char *pszFile, BirdTimeVal_T paTimes[2]);
 
-#undef  unlink
-#define unlink(a_pszPath)     birdUnlinkForced(a_pszPath)
+#undef  utimes
+#define utimes(a_pszPath, a_paTimes)    birdUtimes(a_pszPath, a_paTimes)
+#undef  lutimes
+#define lutimes(a_pszPath, a_paTimes)   birdLUtimes(a_pszPath, a_paTimes)
 
 #endif
 

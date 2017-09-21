@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 2766 2015-01-30 03:32:38Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -27,6 +27,8 @@
 #define ___mscfakes_h
 #ifdef _MSC_VER
 
+#define timeval windows_timeval
+
 /* Include the config file (kmk's) so we don't need to duplicate stuff from it here. */
 #include "config.h"
 
@@ -49,6 +51,8 @@
 # define off_t __int64
 # define lseek _lseeki64
 #endif
+
+#undef timeval
 
 #undef  PATH_MAX
 #define PATH_MAX   _MAX_PATH
@@ -103,13 +107,11 @@ typedef signed short   int16_t;
 typedef signed int     int32_t;
 #endif
 
-#if !defined(timerisset) && defined(MSCFAKES_NO_WINDOWS_H)
 struct timeval
 {
-    long tv_sec;
+    __time64_t tv_sec;
     long tv_usec;
 };
-#endif
 
 struct iovec
 {
@@ -133,7 +135,6 @@ int lchmod(const char *path, mode_t mode);
 int msc_chmod(const char *path, mode_t mode);
 #define chmod msc_chmod
 #define lchown(path, uid, gid) chown(path, uid, gid)
-#define lutimes(path, tvs) utimes(path, tvs)
 int link(const char *pszDst, const char *pszLink);
 int mkdir_msc(const char *path, mode_t mode);
 #define mkdir(path, mode) mkdir_msc(path, mode)
@@ -157,7 +158,14 @@ int snprintf(char *buf, size_t size, const char *fmt, ...);
 #endif
 int symlink(const char *pszDst, const char *pszLink);
 int utimes(const char *pszPath, const struct timeval *paTimes);
+int lutimes(const char *pszPath, const struct timeval *paTimes);
 ssize_t writev(int fd, const struct iovec *vector, int count);
+
+int gettimeofday(struct timeval *pNow, void *pvIgnored);
+struct tm *localtime_r(const __time64_t *pNow, struct tm *pResult);
+__time64_t timegm(struct tm *pNow);
+#undef mktime
+#define mktime _mktime64
 
 /* bird write ENOSPC hacks. */
 #undef write

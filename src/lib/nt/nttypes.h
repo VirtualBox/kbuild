@@ -1,10 +1,10 @@
-/* $Id: nttypes.h 2702 2013-11-21 00:11:08Z knut.osmundsen@oracle.com $ */
+/* $Id: nttypes.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT basic & common types, various definitions.
  */
 
 /*
- * Copyright (c) 2005-2013 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+ * Copyright (c) 2005-2017 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,6 +33,13 @@
 
 #include <sys/types.h>
 
+typedef struct BirdTimeVal
+{
+    __int64       tv_sec;
+    __int32       tv_usec;
+    __int32       tv_padding0;
+} BirdTimeVal_T;
+
 typedef struct BirdTimeSpec
 {
     __int64       tv_sec;
@@ -45,5 +52,4 @@ typedef struct BirdTimeSpec
 #define BIRD_NT_EPOCH_OFFSET_UNIX_100NS 116444736000000000LL
 
 #endif
-
 

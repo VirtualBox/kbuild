@@ -1,4 +1,4 @@
-/* $Id: touch.c 3059 2017-09-21 13:34:15Z knut.osmundsen@oracle.com $ */
+/* $Id: touch.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_touch - Simple touch implementation.
  */
@@ -37,6 +37,7 @@
 #if defined(_MSC_VER)
 # include <ctype.h>
 # include <io.h>
+# include <sys/timeb.h>
 #else
 # include <unistd.h>
 #endif
@@ -46,6 +47,13 @@
 #include "err.h"
 #include "kbuild_version.h"
 #include "kmkbuiltin.h"
+
+#ifdef _MSC_VER
+# include "nt/ntstat.h"
+# undef FILE_TIMESTAMP_HI_RES
+# define FILE_TIMESTAMP_HI_RES 1
+#endif
+
 
 /*********************************************************************************************************************************
 *   Defined Constants And Macros                                                                                                 *
@@ -98,9 +106,10 @@ typedef struct KMKTOUCHOPTS
     /** Number of files. */
     int             cFiles;
     /** The specified files.   */
-    const char    **papszFiles;
+    char          **papszFiles;
 } KMKTOUCHOPTS;
 typedef KMKTOUCHOPTS *PKMKTOUCHOPTS;
+
 
 
 static int touch_error(const char *pszMsg, ...)
@@ -216,7 +225,6 @@ static int touch_parse_adjust(const char *pszValue, int *piAdjustValue)
 static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
 {
     const char * const  pszTsIn = pszTs;
-    KBOOL               fIsZulu = K_FALSE;
     struct tm           ExpTime;
 
     /*
@@ -243,7 +251,7 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
         || pszTs[2] != '-')
         return touch_error("Malformed timestamp '%s' given to -d: expected to two digit month at position 6 followed by a dash",
                            pszTsIn);
-    ExpTime.tm_mon = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]);
+    ExpTime.tm_mon = TWO_CHARS_TO_INT(pszTs[0], pszTs[1]) - 1;
     pszTs += 3;
 
     /* day */
@@ -300,9 +308,10 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     }
 
     /* zulu time indicator */
+    ExpTime.tm_isdst = -1;
     if (*pszTs == 'Z' || *pszTs == 'z')
     {
-        fIsZulu = K_TRUE;
+        ExpTime.tm_isdst = 0;
         pszTs++;
         if (*pszTs != '\0')
             return touch_error("Malformed timestamp '%s' given to -d: Unexpected character(s) after zulu time indicator at end of timestamp",
@@ -314,13 +323,21 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     /*
      * Convert to UTC seconds using either timegm or mktime.
      */
-    ExpTime.tm_isdst = fIsZulu ? 0 : -1;
     ExpTime.tm_yday  = -1;
     ExpTime.tm_wday  = -1;
-    pDst->tv_sec  = fIsZulu ? timegm(&ExpTime) : mktime(&ExpTime);
-    if (pDst->tv_sec != -1)
-        return 0;
-    return touch_error("%s failed on '%s': %s", fIsZulu ? "timegm" : "mktime", pszTs, strerror(errno));
+    if (ExpTime.tm_isdst == 0)
+    {
+        pDst->tv_sec = timegm(&ExpTime);
+        if (pDst->tv_sec == -1)
+            return touch_error("timegm failed on '%s': %s", pszTs, strerror(errno));
+    }
+    else
+    {
+        pDst->tv_sec = mktime(&ExpTime);
+        if (pDst->tv_sec == -1)
+            return touch_error("mktime failed on '%s': %s", pszTs, strerror(errno));
+    }
+    return 0;
 }
 
 
@@ -420,7 +437,7 @@ static int touch_parse_ts(const char *pszTs, struct timeval *pDst)
             pExpTime->tm_year += 100;
     }
 
-    pExpTime->tm_mon  = TWO_CHARS_TO_INT(pszTs[cchTsNoSec - 8], pszTs[cchTsNoSec - 7]);
+    pExpTime->tm_mon  = TWO_CHARS_TO_INT(pszTs[cchTsNoSec - 8], pszTs[cchTsNoSec - 7]) - 1;
     pExpTime->tm_mday = TWO_CHARS_TO_INT(pszTs[cchTsNoSec - 6], pszTs[cchTsNoSec - 5]);
     pExpTime->tm_hour = TWO_CHARS_TO_INT(pszTs[cchTsNoSec - 4], pszTs[cchTsNoSec - 3]);
     pExpTime->tm_min  = TWO_CHARS_TO_INT(pszTs[cchTsNoSec - 2], pszTs[cchTsNoSec - 1]);
@@ -893,7 +910,7 @@ int main(int argc, char **argv, char **envp)
     Opts.fCreate        = K_TRUE;
     Opts.fDereference   = K_TRUE;
     Opts.cFiles         = 0;
-    Opts.papszFiles     = (const char **)calloc(argc, sizeof(const char *));
+    Opts.papszFiles     = (char **)calloc(argc, sizeof(char *));
     if (Opts.papszFiles)
     {
         rc = gettimeofday(&Opts.NewATime, NULL);
