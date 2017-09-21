@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2994 2016-11-01 22:41:41Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3059 2017-09-21 13:34:15Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -285,7 +285,8 @@ kmk_SOURCES += \
 	kmkbuiltin/rmdir.c \
 	$(if-expr $(KBUILD_TARGET) == win,kmkbuiltin/kSubmit.c) \
 	kmkbuiltin/sleep.c \
-	kmkbuiltin/test.c
+	kmkbuiltin/test.c \
+	kmkbuiltin/touch.c
 
 ## @todo kmkbuiltin/redirect.c
 
@@ -317,6 +318,7 @@ PROGRAMS += \
 	kmk_rmdir \
 	kmk_sleep \
 	kmk_test \
+	kmk_touch \
 	kDepIDB \
 	kDepObj \
 
@@ -415,6 +417,11 @@ kmk_test_TEMPLATE = BIN-KMK
 kmk_test_DEFS = kmk_builtin_test=main
 kmk_test_SOURCES = \
 	kmkbuiltin/test.c
+
+kmk_touch_TEMPLATE = BIN-KMK
+kmk_touch_DEFS = kmk_builtin_touch=main
+kmk_touch_SOURCES = \
+	kmkbuiltin/touch.c
 
 kDepIDB_TEMPLATE = BIN-KMK
 kDepIDB_DEFS = kmk_builtin_kDepIDB=main
