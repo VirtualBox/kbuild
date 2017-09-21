@@ -1,4 +1,4 @@
-# $Id: header.kmk 3058 2017-09-16 16:14:10Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3061 2017-09-21 15:14:07Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3058 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3061 $  )
 
 
 #
@@ -768,6 +768,14 @@ TEST        := $(TEST_INT)
 TIME_EXT    := $(KBUILD_BIN_PATH)/kmk_time$(HOSTSUFF_EXE)
 TIME_INT    := $(TIME_EXT)
 TIME        := $(TIME_INT)
+
+TOUCH_EXT   := $(KBUILD_BIN_PATH)/kmk_touch$(HOSTSUFF_EXE)
+if $(KBUILD_KMK_REVISION) >= 3060
+TOUCH_INT   := kmk_touch_append
+else
+TOUCH_INT   := $(TOUCH_EXT)
+endif
+TOUCH       := $(TOUCH_INT)
 
 # Our default shell is the Almquist shell from *BSD.
 ASH         := $(KBUILD_BIN_PATH)/kmk_ash$(HOSTSUFF_EXE)
