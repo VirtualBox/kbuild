@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 2546 2011-10-01 19:49:54Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -329,22 +329,28 @@ if test -z "$KBUILD_HOST_ARCH"; then
         x86|i86pc|ia32|i[3456789]86|BePC)
             KBUILD_HOST_ARCH='x86'
             ;;
-        sparc32|sparc|sparcv8|sparcv7|sparcv8e)
-            KBUILD_HOST_ARCH='sparc32'
+        alpha)
+            KBUILD_HOST_ARCH='alpha'
             ;;
-        sparc64|sparcv9)
-            KBUILD_HOST_ARCH='sparc64'
+        aarch32|arm|arm1|arm2|arm3|arm6|armv1|armv2|armv3*|armv4*|armv5*|armv6*|armv7*)
+            KBUILD_HOST_ARCH='arm32'
             ;;
-        s390)
-            KBUILD_HOST_ARCH='s390'
+        aarch64*)
+            KBUILD_HOST_ARCH='arm64'
             ;;
-        s390x)
-            KBUILD_HOST_ARCH='s390x'
+        hppa32|parisc32|parisc)
+            KBUILD_HOST_ARCH='hppa32'
+            ;;
+        hppa64|parisc64)
+            KBUILD_HOST_ARCH='hppa64'
+            ;;
+        ia64)
+            KBUILD_HOST_ARCH='ia64'
             ;;
         ppc32|ppc|powerpc)
             KBUILD_HOST_ARCH='ppc32'
             ;;
-        ppc64|powerpc64)
+        ppc64|ppc64le|powerpc64|powerpc64le)
             KBUILD_HOST_ARCH='ppc64'
             ;;
         mips32|mips)
@@ -353,20 +359,23 @@ if test -z "$KBUILD_HOST_ARCH"; then
         mips64)
             KBUILD_HOST_ARCH='mips64'
             ;;
-        ia64)
-            KBUILD_HOST_ARCH='ia64'
+        s390)
+            KBUILD_HOST_ARCH='s390'
             ;;
-        hppa32|parisc32|parisc)
-            KBUILD_HOST_ARCH='hppa32'
+        s390x)
+            KBUILD_HOST_ARCH='s390x'
             ;;
-        hppa64|parisc64)
-            KBUILD_HOST_ARCH='hppa64'
+	sh|sh2|sh2a|sh3|sh3|sh4|sh4a|sh4al|sh4al-dsp|shmedia)
+	    KBUILD_HOST_ARCH='sh32'
+	    ;;
+        sh64)
+	    KBUILD_HOST_ARCH='sh64'
+	    ;;
+        sparc32|sparc|sparcv8|sparcv7|sparcv8e)
+            KBUILD_HOST_ARCH='sparc32'
             ;;
-        arm|armv4l|armv5tel|armv5tejl)
-            KBUILD_HOST_ARCH='arm'
-            ;;
-        alpha)
-            KBUILD_HOST_ARCH='alpha'
+        sparc64|sparcv9)
+            KBUILD_HOST_ARCH='sparc64'
             ;;
 
         *)  echo "$0: unknown cpu/arch - $KBUILD_HOST_ARCH" 1>&${ERR_REDIR}

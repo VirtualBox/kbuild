@@ -73,6 +73,10 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #ifndef __HAIKU__
 # include <sysexits.h>
 #endif
+#ifdef __NetBSD__
+# include <util.h>
+# define strtofflags(a, b, c)	string_to_flags(a, b, c)
+#endif
 #include <unistd.h>
 #if defined(__EMX__) || defined(_MSC_VER)
 # include <process.h>

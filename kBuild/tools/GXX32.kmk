@@ -1,4 +1,4 @@
-# $Id: GXX32.kmk 2775 2015-02-03 20:00:15Z knut.osmundsen@oracle.com $
+# $Id: GXX32.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Generic 32-bit GCC v3.2.x or later using the system GCC, for building C++ code.
 #
@@ -46,7 +46,7 @@ TOOL_GXX32_LDFLAGS.dll ?= -shared
 else
 TOOL_GXX32_LDFLAGS.dll ?= $(TOOL_GXX32_LDFLAGS.$(KBUILD_TARGET))
 endif
-TOOL_GXX32_LDFLAGS.sysmod ?= -r -m elf_i386$(if-expr "$(KBUILD_TARGET)" == "freebsd",_fbsd,)
+TOOL_GXX32_LDFLAGS.sysmod ?= -r -m elf_i386$(if-expr "$(KBUILD_TARGET)" == "freebsd" || "$(KBUILD_TARGET)" == "gnukfbsd",_fbsd,)
 TOOL_GXX32_LD_SONAME ?= -Wl,-soname=$(firstword $($(1)_SONAME.$(KBUILD_TARGET).$(KBUILD_TYPE)) $($(1)_SONAME.$(KBUILD_TARGET)) $($(1)_SONAME.$(KBUILD_TYPE)) $($(1)_SONAME) $(notdir $(2)))
 ifeq ($(KBUILD_TARGET),os2)
 TOOL_GXX32_LD_MAP ?= -Zmap=$(1)

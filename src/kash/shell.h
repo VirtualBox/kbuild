@@ -61,10 +61,12 @@
 # define BSD 1
 #endif
 
+#if 0
 #ifndef DO_SHAREDVFORK
 # if __NetBSD_Version__ >= 104000000
 #  define DO_SHAREDVFORK
 # endif
+#endif
 #endif
 
 typedef void *pointer;
