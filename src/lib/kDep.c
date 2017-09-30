@@ -1,4 +1,4 @@
-/* $Id: kDep.c 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 3063 2017-09-30 11:34:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -129,7 +129,7 @@ static void fixcase(char *pszFilename)
          * Find the next slash (or end of string) and terminate the string there.
          */
         while (*psz != '/' && *psz)
-            *psz++;
+            psz++;
         chSlash = *psz;
         *psz = '\0';
 
