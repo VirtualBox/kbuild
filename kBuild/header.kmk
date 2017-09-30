@@ -1,4 +1,4 @@
-# $Id: header.kmk 3061 2017-09-21 15:14:07Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3061 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3062 $  )
 
 
 #
@@ -196,10 +196,11 @@ KBUILD_BLD_TYPES := release profile debug
 # this keyword namespace is shared between OSes, architectures, cpus and
 # build types. (PORTME)
 #
-KBUILD_OSES      := darwin dos dragonfly freebsd haiku l4 linux netbsd nt openbsd os2 solaris win os-agnostic
-KBUILD_ARCHES    := x86 amd64 sparc32 sparc64 s390 s390x ppc32 ppc64 mips32 mips64 ia64 hppa32 hppa64 arm alpha noarch
-KBUILD_ARCHES_64 := amd64 sparc64 s390x ppc64 mips64 ia64 hppa64 alpha
-KBUILD_ARCHES_32 := x86 sparc32 s390 ppc32 mips32 hppa32 arm
+KBUILD_OSES      := darwin dos dragonfly freebsd gnukfbsd gnuknbsd haiku l4 linux netbsd nt openbsd os2 solaris win os-agnostic
+KBUILD_ARCHES    := x86 amd64 noarch alpha arm32 arm64 hppa32 hppa64 ia64 mips32 mips64 ppc32 ppc64 s390 s390x sh32 sh64 sparc32 sparc64
+KBUILD_ARCHES_64 := amd64 alpha arm64 hppa64 ia64 mips64 ppc64 s390x sh64 sparc64
+KBUILD_ARCHES_32 := x86 arm32 hppa32 mips32 ppc32 s390 sh32 sparc32
+
 
 
 #
@@ -601,7 +602,7 @@ EXEC_X86_WIN32      := innopec.exe
 HOSTSUFF_EXE        := .exe
 HOST_PATH_SEP       := $(SEMICOLON)
 
-else if1of ($(KBUILD_HOST), freebsd dragonfly linux openbsd netbsd)
+else if1of ($(KBUILD_HOST), dragonfly freebsd gnukfbsd gnuknbsd linux openbsd netbsd)
 # Unix (like) systems with wine.
 EXEC_X86_WIN32      := wine
 HOSTSUFF_EXE        :=
@@ -647,7 +648,7 @@ SUFF_OBJ    := .o
 SUFF_LIB    := .a
 SUFF_DLL    := .so
 SUFF_EXE    :=
- if1of ($(KBUILD_TARGET), dragonfly freebsd linux netbsd openbsd) ## @todo check netbsd and openbsd.
+ if1of ($(KBUILD_TARGET), dragonfly freebsd gnukfbsd gnuknbsd linux netbsd openbsd) ## @todo check netbsd, gnuknbsd and openbsd.
 SUFF_SYS    := .ko
  else
 SUFF_SYS    :=
@@ -1381,14 +1382,22 @@ ifeq ($(KBUILD_TARGET),darwin)
 	/Developer/usr/
  KBUILD_LIB_SEARCH_SUBS  := lib/
 
-else if1of ($(KBUILD_TARGET), freebsd netbsd openbsd dragonfly)
+else if1of ($(KBUILD_TARGET), freebsd openbsd dragonfly)
  KBUILD_LIB_SEARCH_ROOTS := \
 	/ \
 	/usr/ \
 	/usr/local/
  KBUILD_LIB_SEARCH_SUBS := lib/
 
-else ifeq ($(KBUILD_TARGET),linux)
+else ifeq ($(KBUILD_TARGET),netbsd)
+ KBUILD_LIB_SEARCH_ROOTS := \
+	/ \
+	/usr/ \
+	/usr/pkg/ \
+	/usr/local/
+ KBUILD_LIB_SEARCH_SUBS := lib/
+
+else if1of ($(KBUILD_TARGET), gnukfbsd gnuknbsd linux)
  ifeq ($(realpath /bin),/usr/bin)
   KBUILD_LIB_SEARCH_ROOTS := \
   	/usr/ \

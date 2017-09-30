@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2909 2016-09-09 22:54:17Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-Makefile for kmk_sed.
 #
@@ -73,6 +73,10 @@ kmk_sed_SOURCES.freebsd = \
 kmk_sed_SOURCES.haiku = \
 	lib/strverscmp.c \
 	lib/obstack.c
+kmk_sed_SOURCES.netbsd = \
+	lib/strverscmp.c \
+	lib/obstack.c \
+	lib/getline.c
 kmk_sed_SOURCES.openbsd = \
 	lib/strverscmp.c \
 	lib/obstack.c \

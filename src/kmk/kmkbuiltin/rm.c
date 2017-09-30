@@ -66,6 +66,10 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #ifdef __HAIKU__
 # include "haikufakes.h"
 #endif
+#ifdef __NetBSD__
+# include <util.h>
+# define fflagstostr(flags)    	flags_to_string(flags, "")
+#endif
 #ifdef KBUILD_OS_WINDOWS
 # ifdef _MSC_VER
 #  include "mscfakes.h"

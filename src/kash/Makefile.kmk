@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 2652 2012-09-09 17:21:48Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -52,6 +52,9 @@ kash_DEFS.dragonfly = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_DEFS.freebsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
+kash_DEFS.gnukfbsd = HAVE_SYSCTL_H
+kash_DEFS.netbsd = \
+	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_DEFS.openbsd = \
 	HAVE_SYS_SIGNAME HAVE_SYSCTL_H HAVE_SETPROGNAME
 kash_INCS = $(kash_0_OUTDIR) . # (the last is because of error.h)
@@ -99,6 +102,12 @@ kash_SOURCES = \
 	shheap.c \
 	shthread.c \
 	shfile.c
+kash_SOURCES.gnukfbsd = \
+	sys_signame.c \
+	strlcpy.c
+kash_SOURCES.gnuknbsd = \
+	sys_signame.c \
+	strlcpy.c
 kash_SOURCES.haiku = \
 	sys_signame.c \
 	strlcpy.c
@@ -107,7 +116,7 @@ kash_SOURCES.linux = \
 	strlcpy.c
 kash_SOURCES.solaris = \
 	sys_signame.c \
-        strlcpy.c
+	strlcpy.c
 kash_SOURCES.win = \
 	sys_signame.c \
 	strlcpy.c \
