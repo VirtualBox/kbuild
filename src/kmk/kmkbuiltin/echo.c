@@ -72,20 +72,22 @@ static void
 errexit(const char *prog, const char *reason)
 {
 	char *errstr = strerror(errno);
+	ssize_t cchIgn = 0; /* this is to shut up irrelevant warnings on linux. */
 #ifdef _MSC_VER
 	int doserrno = _doserrno;
-       char szDosErr[48];
-       sprintf(szDosErr, " (doserrno=%d)", doserrno);
+	char szDosErr[48];
+	sprintf(szDosErr, " (doserrno=%d)", doserrno);
 #endif
-	write(STDERR_FILENO, prog, strlen(prog));
-	write(STDERR_FILENO, ": ", 2);
-	write(STDERR_FILENO, reason, strlen(reason));
-	write(STDERR_FILENO, ": ", 2);
-	write(STDERR_FILENO, errstr, strlen(errstr));
+	cchIgn += write(STDERR_FILENO, prog, strlen(prog));
+	cchIgn += write(STDERR_FILENO, ": ", 2);
+	cchIgn += write(STDERR_FILENO, reason, strlen(reason));
+	cchIgn += write(STDERR_FILENO, ": ", 2);
+	cchIgn += write(STDERR_FILENO, errstr, strlen(errstr));
 #ifdef _MSC_VER
-	write(STDERR_FILENO, szDosErr, strlen(szDosErr));
+	cchIgn += write(STDERR_FILENO, szDosErr, strlen(szDosErr));
 #endif
-	write(STDERR_FILENO, "\n", 1);
+	cchIgn += write(STDERR_FILENO, "\n", 1);
+	(void)cchIgn;
 }
 
 int

@@ -1,4 +1,4 @@
-/* $Id: kbuild-object.c 2720 2014-01-01 22:59:50Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild-object.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild objects.
  */
@@ -276,6 +276,7 @@ eval_kbuild_type_from_string(const char *pchWord, size_t cchWord)
 
 
 
+#if 0 /* unused */
 /**
  * Helper function for caching variable name strings.
  *
@@ -292,6 +293,7 @@ kbuild_variable_name(const char *pszName, const char **ppszCache)
         *ppszCache = pszRet = strcache2_add(&variable_strcache, pszName, strlen(pszName));
     return pszRet;
 }
+#endif
 
 static struct kbuild_object *
 lookup_kbuild_object(enum kBuildType enmType, const char *pchName, size_t cchName)
@@ -558,7 +560,7 @@ try_define_kbuild_object_variable_via_accessor(const char *pchName, size_t cchNa
     {
         assert(pObj != NULL);
         if (!is_valid_kbuild_object_variable_name(pchVarNm, cchVarNm))
-            fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s' ('%s')"),
+            fatal(pFileLoc, _("Invalid kBuild object variable name: '%.*s' ('%.*s')"),
                   (int)cchVarNm, pchVarNm, (int)cchName, pchName);
         return define_kbuild_object_variable_cached(pObj, strcache2_add(&variable_strcache, pchVarNm, cchVarNm),
                                                     pszValue, cchValue, fDuplicateValue, enmOrigin, fRecursive,
@@ -1321,8 +1323,8 @@ parse_kbuild_object_variable_accessor(const char *pchExpr, size_t cchExpr,
 struct variable *
 lookup_kbuild_object_variable_accessor(const char *pchName, size_t cchName)
 {
-    const char * const     pchOrgName = pchName;
-    size_t       const     cchOrgName = cchName;
+    /*const char * const     pchOrgName = pchName;*/
+    /*size_t       const     cchOrgName = cchName;*/
     const char *           pchVarNm;
     size_t                 cchVarNm;
     struct kbuild_object  *pObj;

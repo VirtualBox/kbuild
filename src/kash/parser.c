@@ -913,7 +913,7 @@ readtoken1(shinstance *psh, int firstc, char const *syntax, char *eofmark, int s
 	int len;
 	char line[EOFMARKLEN + 1];
 	struct nodelist *bqlist;
-	int quotef;
+	int quotef = 0;
 	int *dblquotep = NULL;
 	size_t maxnest = 32;
 	int dblquote;
@@ -922,8 +922,20 @@ readtoken1(shinstance *psh, int firstc, char const *syntax, char *eofmark, int s
 	int parenlevel;	/* levels of parens in arithmetic */
 	int oldstyle;
 	char const *prevsyntax;	/* syntax before arithmetic */
+
+	psh->startlinno = psh->plinno;
+	dblquote = 0;
+	varnest = 0;
+	if (syntax == DQSYNTAX) {
+		SETDBLQUOTE();
+	}
+	quotef = 0;
+	bqlist = NULL;
+	arinest = 0;
+	parenlevel = 0;
+
 #if __GNUC__
-	/* Avoid longjmp clobbering */
+	/* Try avoid longjmp clobbering */
 	(void) &maxnest;
 	(void) &dblquotep;
 	(void) &out;
@@ -936,17 +948,6 @@ readtoken1(shinstance *psh, int firstc, char const *syntax, char *eofmark, int s
 	(void) &prevsyntax;
 	(void) &syntax;
 #endif
-
-	psh->startlinno = psh->plinno;
-	dblquote = 0;
-	varnest = 0;
-	if (syntax == DQSYNTAX) {
-		SETDBLQUOTE();
-	}
-	quotef = 0;
-	bqlist = NULL;
-	arinest = 0;
-	parenlevel = 0;
 
 	STARTSTACKSTR(psh, out);
 	loop: {	/* for each line, until end of word */

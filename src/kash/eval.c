@@ -678,7 +678,7 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	char **envp;
 	int numvars;
 	struct strlist *sp;
-	int mode;
+	int mode = 0;
 	int pip[2];
 	struct cmdentry cmdentry;
 	struct job *jp;
@@ -692,11 +692,13 @@ evalcommand(shinstance *psh, union node *cmd, int flags, struct backcmd *backcmd
 	const char *path = pathval(psh);
 	volatile int temp_path;
 #if __GNUC__
-	/* Avoid longjmp clobbering */
+	/* Try avoid longjmp clobbering */
 	(void) &argv;
 	(void) &argc;
 	(void) &lastarg;
 	(void) &flags;
+	(void) &path;
+	(void) &mode;
 #endif
 
 	psh->vforked = 0;

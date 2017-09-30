@@ -2705,7 +2705,9 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
   int i;
   char *p;
   char *ap;
+#ifndef NDEBUG
   char *end;
+#endif
   int instring, word_has_equals, seen_nonequals, last_argument_was_empty;
   char **new_argv = 0;
   char *argstr = 0;
@@ -2839,7 +2841,9 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
 
   /* All the args can fit in a buffer as big as LINE is.   */
   ap = new_argv[0] = argstr = xmalloc (i);
+#ifndef NDEBUG
   end = ap + i;
+#endif
 
   /* I is how many complete arguments have been found.  */
   i = 0;
@@ -3149,7 +3153,9 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     unsigned int shell_len = strlen (shell);
     unsigned int line_len = strlen (line);
     unsigned int sflags_len = strlen (shellflags);
+# ifdef WINDOWS32
     char *command_ptr = NULL; /* used for batch_mode_shell mode */
+# endif
     char *new_line;
 
 # ifdef __EMX__ /* is this necessary? */
@@ -3230,7 +3236,9 @@ construct_command_argv_internal (char *line, char **restp, char *shell,
     memcpy (ap, shellflags, sflags_len);
     ap += sflags_len;
     *(ap++) = ' ';
+#ifdef WINDOWS32
     command_ptr = ap;
+#endif
     for (p = line; *p != '\0'; ++p)
       {
 	if (restp != NULL && *p == '\n')

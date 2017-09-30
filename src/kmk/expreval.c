@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_IF_CONDITIONALS
-/* $Id: expreval.c 3038 2017-05-10 10:54:56Z knut.osmundsen@oracle.com $ */
+/* $Id: expreval.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * expreval - Expressions evaluator, C / BSD make / nmake style.
  */
@@ -1396,7 +1396,7 @@ static EXPRRET expr_op_equal(PEXPR pThis)
     }
 
     expr_pop_and_delete_var(pThis);
-    return kExprRet_Ok;
+    return rc;
 }
 
 
