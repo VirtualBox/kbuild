@@ -1,4 +1,4 @@
-/* $Id: kDepObj.c 2955 2016-09-21 19:05:53Z knut.osmundsen@oracle.com $ */
+/* $Id: kDepObj.c 3064 2017-09-30 11:38:48Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDepObj - Extract dependency information from an object file.
  */
@@ -52,9 +52,11 @@
 #if 0
 # define dprintf(a)             printf a
 # define dump(pb, cb, offBase)  depHexDump(pb,cb,offBase)
+# define WITH_DPRINTF
 #else
 # define dprintf(a)             do {} while (0)
 # define dump(pb, cb, offBase)  do {} while (0)
+# undef  WITH_DPRINTF
 #endif
 
 /** @name OMF defines
@@ -386,13 +388,16 @@ int kDepObjOMFParse(const KU8 *pbFile, KSIZE cbFile)
                     KU16 uSeg = kDepObjOMFGetIndex(&uData, &cbRecLeft);
                     if (uSeg == KU16_MAX)
                         return kDepErr(1, "%#07lx - Bad LINNUM32 record\n", (long)((const KU8 *)pHdr - pbFile));
+                    K_NOREF(uGrp);
 
                     if (uLinNumType == KU8_MAX)
                     {
+#ifdef WITH_DPRINTF
                         static const char * const s_apsz[5] =
                         {
                             "source file", "listing file", "source & listing file", "file names table", "path table"
                         };
+#endif
                         KU16 uLine;
                         KU8  uReserved;
                         KU16 uSeg2;
@@ -403,16 +408,17 @@ int kDepObjOMFParse(const KU8 *pbFile, KSIZE cbFile)
                         cbRecLeft  -= 2+1+1+2+2+4;
                         uLine       = *uData.pu16++;
                         uLinNumType = *uData.pu8++;
-                        uReserved   = *uData.pu8++;
-                        cLinNums    = *uData.pu16++;
-                        uSeg2       = *uData.pu16++;
-                        cbLinNames  = *uData.pu32++;
+                        uReserved   = *uData.pu8++;  K_NOREF(uReserved);
+                        cLinNums    = *uData.pu16++; K_NOREF(cLinNums);
+                        uSeg2       = *uData.pu16++; K_NOREF(uSeg2);
+                        cbLinNames  = *uData.pu32++; K_NOREF(cbLinNames);
 
                         dprintf(("LINNUM32: uGrp=%#x uSeg=%#x uSeg2=%#x uLine=%#x (MBZ) uReserved=%#x\n",
                                  uGrp, uSeg, uSeg2, uLine, uReserved));
                         dprintf(("LINNUM32: cLinNums=%#x (%u) cbLinNames=%#x (%u) uLinNumType=%#x (%s)\n",
                                  cLinNums, cLinNums, cbLinNames, cbLinNames, uLinNumType,
                                  uLinNumType < K_ELEMENTS(s_apsz) ? s_apsz[uLinNumType] : "??"));
+
                         if (uLine != 0)
                             return kDepErr(1, "%#07lx - Bad LINNUM32 record, line %#x (MBZ)\n", (long)((const KU8 *)pHdr - pbFile), uLine);
                         cLinFiles = iLinFile = KU32_MAX;
@@ -478,8 +484,8 @@ int kDepObjOMFParse(const KU8 *pbFile, KSIZE cbFile)
                                 return kDepErr(1, "%#07lx - Bad LINNUM32 record, incomplete file/path table header\n", (long)((const KU8 *)pHdr - pbFile));
                             cbRecLeft -= 4+4+4;
 
-                            iFirstCol = *uData.pu32++;
-                            cCols     = *uData.pu32++;
+                            iFirstCol = *uData.pu32++;  K_NOREF(iFirstCol);
+                            cCols     = *uData.pu32++;  K_NOREF(cCols);
                             cLinFiles = *uData.pu32++;
                             dprintf(("%s table header: cLinFiles=%#" KX32_PRI " (%" KU32_PRI ") iFirstCol=%" KU32_PRI " cCols=%" KU32_PRI"\n",
                                      uLinNumType == 3 ? "file names" : "path", cLinFiles, cLinFiles, iFirstCol, cCols));
@@ -1046,7 +1052,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                         pszValue = argv[i];
                     else
                     {
-                        fprintf(stderr, "%s: syntax error: The '-%c' option takes a value.\n", chOpt);
+                        fprintf(stderr, "%s: syntax error: The '-%c' option takes a value.\n", argv[0], chOpt);
                         return 2;
                     }
                     break;
@@ -1130,7 +1136,7 @@ int kmk_builtin_kDepObj(int argc, char *argv[], char **envp)
                 {
                     if (pszIgnoreExt)
                     {
-                        fprintf(stderr, "%s: syntax error: The '-e' option can only be used once!\n");
+                        fprintf(stderr, "%s: syntax error: The '-e' option can only be used once!\n", argv[0]);
                         return 2;
                     }
                     pszIgnoreExt = pszValue;
