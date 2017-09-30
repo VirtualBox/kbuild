@@ -1,4 +1,4 @@
-/* $Id: maybe_con_write.c 2900 2016-09-09 14:42:06Z knut.osmundsen@oracle.com $ */
+/* $Id: maybe_con_write.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * maybe_con_write - Optimized console output on windows.
  */
@@ -97,7 +97,7 @@ ssize_t maybe_con_write(int fd, void *pvBuf, size_t cbToWrite)
      * Semi regular write handling.
      */
     cbWritten = write(fd, pvBuf, (to_write_t)cbToWrite);
-    if (cbWritten == cbToWrite)
+    if (cbWritten == (ssize_t)cbToWrite)
     { /* likely */ }
     else if (cbWritten >= 0 || errno == EINTR)
     {

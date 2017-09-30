@@ -433,7 +433,7 @@ fatal (flocp, fmt, va_alist)
   VA_START (args, fmt);
   cchMsg += cchUser = vsnprintf (&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
   VA_END (args);
-  if (   cchMsg + cchStop <= sizeof(szMsg)
+  if (   cchMsg + cchStop <= (int)sizeof(szMsg)
       && cchUser >= 0)
     {
       extern size_t maybe_con_fwrite(void const *, size_t, size_t, FILE *);

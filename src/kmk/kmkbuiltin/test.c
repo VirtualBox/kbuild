@@ -277,7 +277,7 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 # endif
 #else /* in kmk */
 			/* let job.c spawn the process, make a job.c style argv_spawn copy. */
-			char *buf, *cur, **argv_new;
+			char *cur, **argv_new;
 			size_t sz = 0;
 			int argc_new = 0;
 			while (argv_spawn[argc_new]) {
@@ -287,7 +287,7 @@ int kmk_builtin_test(int argc, char **argv, char **envp
 			}
 
 			argv_new = xmalloc((argc_new + 1) * sizeof(char *));
-			buf = cur = xmalloc(sz);
+			cur = xmalloc(sz);
 			for (i = 0; i < argc_new; i++) {
 				size_t len = strlen(argv_spawn[i]) + 1;
 				argv_new[i] = memcpy(cur, argv_spawn[i], len);

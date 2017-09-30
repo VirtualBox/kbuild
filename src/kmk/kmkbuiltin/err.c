@@ -1,4 +1,4 @@
-/* $Id: err.c 2911 2016-09-10 11:16:59Z knut.osmundsen@oracle.com $ */
+/* $Id: err.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
 /** @file
  * Override err.h so we get the program name right.
  */
@@ -54,18 +54,18 @@ int err(int eval, const char *fmt, ...)
        one go so it won't be split by other output. */
     char szMsg[4096];
     int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
     {
         int cchMsg2;
         va_start(args, fmt);
         cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
         va_end(args);
 
-        if (   cchMsg < sizeof(szMsg) - 1
+        if (   cchMsg < (int)sizeof(szMsg) - 1
             && cchMsg2 >= 0)
         {
             cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
-            if (   cchMsg < sizeof(szMsg) - 1
+            if (   cchMsg < (int)sizeof(szMsg) - 1
                 && cchMsg2 >= 0)
             {
                 fwrite(szMsg, cchMsg, 1, stderr);
@@ -95,14 +95,14 @@ int errx(int eval, const char *fmt, ...)
        one go so it won't be split by other output. */
     char szMsg[4096];
     int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
     {
         int cchMsg2;
         va_start(args, fmt);
         cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
         va_end(args);
 
-        if (   cchMsg < sizeof(szMsg) - 1
+        if (   cchMsg < (int)sizeof(szMsg) - 1
             && cchMsg2 >= 0)
         {
             szMsg[cchMsg++] = '\n';
@@ -131,18 +131,18 @@ void warn(const char *fmt, ...)
        one go so it won't be split by other output. */
     char szMsg[4096];
     int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
     {
         int cchMsg2;
         va_start(args, fmt);
         cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
         va_end(args);
 
-        if (   cchMsg < sizeof(szMsg) - 1
+        if (   cchMsg < (int)sizeof(szMsg) - 1
             && cchMsg2 >= 0)
         {
             cchMsg += cchMsg2 = snprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, ": %s\n", strerror(error));
-            if (   cchMsg < sizeof(szMsg) - 1
+            if (   cchMsg < (int)sizeof(szMsg) - 1
                 && cchMsg2 >= 0)
             {
                 fwrite(szMsg, cchMsg, 1, stderr);
@@ -168,14 +168,14 @@ void warnx(const char *fmt, ...)
        one go so it won't be split by other output. */
     char szMsg[4096];
     int cchMsg = snprintf(szMsg, sizeof(szMsg), "%s: ", g_progname);
-    if (cchMsg < sizeof(szMsg) - 1 && cchMsg > 0)
+    if (cchMsg < (int)sizeof(szMsg) - 1 && cchMsg > 0)
     {
         int cchMsg2;
         va_start(args, fmt);
         cchMsg += cchMsg2 = vsnprintf(&szMsg[cchMsg], sizeof(szMsg) - cchMsg, fmt, args);
         va_end(args);
 
-        if (   cchMsg < sizeof(szMsg) - 1
+        if (   cchMsg < (int)sizeof(szMsg) - 1
             && cchMsg2 >= 0)
         {
             szMsg[cchMsg++] = '\n';
