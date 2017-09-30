@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3066 2017-09-30 13:00:21Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -2002,7 +2002,7 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
     struct variable *pOutBase   = kbuild_get_object_base(pTarget, pSource, "outbase");
     struct variable *pObjSuff   = kbuild_get_object_suffix(pTarget, pSource, pTool, pType, pBldTrg, pBldTrgArch, "objsuff");
     struct variable *pDeps, *pOrderDeps, *pDirDep, *pDep, *pVar, *pOutput, *pOutputMaybe;
-#if 0 /** @todo figure out why this isn't used */
+#if 0 /* not used */
     struct variable *pDefs, *pIncs, *pFlags;
 #endif
     struct variable *pObj       = kbuild_set_object_name_and_dep_and_dirdep_and_PATH_target_source(pTarget, pSource, pOutBase, pObjSuff, "obj", &pDep, &pDirDep);
@@ -2057,14 +2057,12 @@ func_kbuild_source_one(char *o, char **argv, const char *pszFuncName)
         pDefPath = NULL;
 
 
-#if 0 /** @todo figure out why this isn't used */
-    pDefs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
+    /*pDefs  =*/ kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                             ST("DEFS"),  ST("defs"), 1/* left-to-right */);
-    pIncs      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
+    /*pIncs  =*/ kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                             ST("INCS"),  ST("incs"), -1/* right-to-left */);
-    pFlags     = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
+    /*pFlags =*/ kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, NULL,
                                             ST("FLAGS"), ST("flags"), 1/* left-to-right */);
-#endif
     pDeps      = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
                                             ST("DEPS"),  ST("deps"), 1/* left-to-right */);
     pOrderDeps = kbuild_collect_source_prop(pTarget, pSource, pTool, &Sdks, pType, pBldType, pBldTrg, pBldTrgArch, pBldTrgCpu, pDefPath,
