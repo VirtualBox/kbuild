@@ -223,10 +223,10 @@ variable_buffer_output (char *ptr, const char *string, unsigned int length)
 # ifndef _MSC_VER
   switch (length)
     {
-      case 4: ptr[3] = string[3];
-      case 3: ptr[2] = string[2];
-      case 2: ptr[1] = string[1];
-      case 1: ptr[0] = string[0];
+      case 4: ptr[3] = string[3]; /* fall thru */
+      case 3: ptr[2] = string[2]; /* fall thru */
+      case 2: ptr[1] = string[1]; /* fall thru */
+      case 1: ptr[0] = string[0]; /* fall thru */
       case 0:
           break;
       default:
