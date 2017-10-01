@@ -1,4 +1,4 @@
-/* $Id: kbuild.c 3066 2017-09-30 13:00:21Z knut.osmundsen@oracle.com $ */
+/* $Id: kbuild.c 3068 2017-10-01 13:10:47Z knut.osmundsen@oracle.com $ */
 /** @file
  * kBuild specific make functionality.
  */
@@ -66,14 +66,14 @@
         else \
             switch (len) \
             { \
-                case 8: dst[7] = src[7]; \
-                case 7: dst[6] = src[6]; \
-                case 6: dst[5] = src[5]; \
-                case 5: dst[4] = src[4]; \
-                case 4: dst[3] = src[3]; \
-                case 3: dst[2] = src[2]; \
-                case 2: dst[1] = src[1]; \
-                case 1: dst[0] = src[0]; \
+                case 8: dst[7] = src[7]; /* fall thru */ \
+                case 7: dst[6] = src[6]; /* fall thru */ \
+                case 6: dst[5] = src[5]; /* fall thru */ \
+                case 5: dst[4] = src[4]; /* fall thru */ \
+                case 4: dst[3] = src[3]; /* fall thru */ \
+                case 3: dst[2] = src[2]; /* fall thru */ \
+                case 2: dst[1] = src[1]; /* fall thru */ \
+                case 1: dst[0] = src[0]; /* fall thru */ \
                 case 0: break; \
             } \
     } while (0)
