@@ -82,6 +82,8 @@ kmk_SOURCES =	ar.c arscan.c commands.c default.c dir.c expand.c file.c \
 		kmkbuiltin/rmdir.c \
 		kmkbuiltin/sleep.c \
 		kmkbuiltin/test.c \
+		kmkbuiltin/touch.c \
+               \
 		kmkbuiltin/err.c \
 		kmkbuiltin/fts.c \
 		kmkbuiltin/setmode.c \
