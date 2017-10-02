@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3018 2017-01-07 00:06:39Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3069 2017-10-02 06:28:54Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -66,6 +66,7 @@ def  'C-S-G' = k_box_globals
 def  'C-S-H' = k_box_headers
 def  'C-S-I' = k_box_intfuncs
 def  'C-S-K' = k_box_consts
+def  'C-S-N' = k_noref
 def  'C-S-M' = k_javadoc_moduleheader
 def  'C-S-O' = k_oneliner
 def  'C-S-P' = k_mark_modified_line
@@ -1561,8 +1562,6 @@ void k_box_exported()
     k_box_end();
 }
 
-
-
 /** oneliner comment */
 void k_oneliner()
 {
@@ -1600,7 +1599,6 @@ void k_mark_modified_line()
     down();
 }
 
-
 /**
  * Inserts a signature. Form: "//Initials ISO-date:"
  * @remark    defeventtab
@@ -1616,6 +1614,48 @@ void k_signature()
     k_insert_comment(sSig, KIC_CURSOR_AT_END);
 }
 
+/* Insert a list of NOREF() macro invocations. */
+void k_noref()
+{
+    typeless org_pos;
+    _save_pos2(org_pos);
+
+    _str sNoRefs = '';
+    boolean fFoundFn = !k_func_goto_nearest_function();
+    if (fFoundFn)
+    {
+        _str sArgs = k_func_getparams();
+        int  cArgs = k_func_countparams(sArgs);
+        int  i;
+        int  offLine = 4;
+        for (i = 0; i < cArgs; i++)
+        {
+            _str sName, sType, sDefault;
+            if (!k_func_enumparams(sArgs, i, sType, sName, sDefault))
+            {
+                sThis = 'NOREF(' sName ');';
+                if (length(sNoRefs) == 0)
+                {
+                    sNoRefs = sThis;
+                    offLine += length(sThis);
+                }
+                else if (offLine + length(sThis) < 130)
+                {
+                    sNoRefs = sNoRefs ' ' sThis;
+                    offLine += 1 + length(sThis);
+                }
+                else
+                {
+                    sNoRefs = sNoRefs "\n    " sThis;
+                    offLine = 4 + length(sThis);
+                }
+            }
+        }
+    }
+
+    _restore_pos2(org_pos);
+    _insert_text(sNoRefs);
+}
 
 /*******************************************************************************
 *   kLIB Logging                                                               *
