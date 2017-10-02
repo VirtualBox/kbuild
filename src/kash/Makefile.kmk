@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3073 2017-10-02 08:45:19Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -144,6 +144,10 @@ kash_main.c_DEFS = KBUILD_SVN_REV=$(KBUILD_SVN_REV)
 
 
 if1of ($(KBUILD_TARGET), win os2)
+ KASH_USE_PREGENERATED_CODE = 1
+endif
+
+ifdef KASH_USE_PREGENERATED_CODE
 
 #
 # Use the pregenerated code.
@@ -163,7 +167,7 @@ endef
 $(foreach src, arith.h arith.c arith_lex.c builtins.h builtins.c nodes.h nodes.c token.h init.c,\
 $(eval $(def_copy_generated)))
 
-else
+else # !KASH_USE_PREGENERATED_CODE
 
 #
 # Generate the code on the fly.
@@ -217,7 +221,7 @@ $$(kash_0_OUTDIR)/init.c: \
 	$(BOOTSTRAP_SHELL) $+
 	$(MV) init.c $@
 
-endif
+endif # !KASH_USE_PREGENERATED_CODE
 
 #
 # For debugging file handle inheritance on Windows.
