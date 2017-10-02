@@ -1,4 +1,4 @@
-/* $Id: touch.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: touch.c 3072 2017-10-02 08:33:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_touch - Simple touch implementation.
  */
@@ -167,6 +167,24 @@ static int touch_usage(void)
 }
 
 
+#if K_OS == K_OS_SOLARIS
+/**
+ * Solaris doesn't have lutimes because System V doesn't believe in stuff like file modes on symbolic links.
+ */
+static int lutimes(const char *pszFile, struct timeval aTimes[2])
+{
+    struct stat Stat;
+    if (stat(pszFile, &Stat) != -1)
+    {
+        if (!S_ISLNK(Stat.st_mode))
+            return utimes(pszFile, aTimes);
+        return 0;
+    }
+    return -1;
+}
+#endif 
+
+
 /**
  * Parses adjustment value: [-][[hh]mm]SS
  */
@@ -327,7 +345,11 @@ static int touch_parse_d_ts(const char *pszTs, struct timeval *pDst)
     ExpTime.tm_wday  = -1;
     if (ExpTime.tm_isdst == 0)
     {
+#if K_OS == K_OS_SOLARIS
+        pDst->tv_sec = mktime(&ExpTime) - timezone; /* best we can do for now */
+#else
         pDst->tv_sec = timegm(&ExpTime);
+#endif
         if (pDst->tv_sec == -1)
             return touch_error("timegm failed on '%s': %s", pszTs, strerror(errno));
     }
