@@ -1,4 +1,4 @@
-/* $Id: kFsCache.c 3007 2016-11-06 16:46:43Z knut.osmundsen@oracle.com $ */
+/* $Id: kFsCache.c 3082 2017-10-02 19:23:17Z knut.osmundsen@oracle.com $ */
 /** @file
  * ntdircache.c - NT directory content cache.
  */
@@ -2747,8 +2747,8 @@ static PKFSOBJ kFsCacheLookupUncShareW(PKFSCACHE pCache, const wchar_t *pwszPath
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  * @param   ppLastAncestor      Where to return the last parent element found
- *                              (referenced) in case of error an path/file not
- *                              found problem.  Optional.
+ *                              (referenced) in case of error like an path/file
+ *                              not found problem.  Optional.
  */
 PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const char *pszPath, KU32 cchPath, KU32 fFlags,
                                      KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
@@ -2794,7 +2794,11 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
                  || kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
         else
+        {
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
+        }
 
         /*
          * Search the current node for the name.
@@ -2835,7 +2839,11 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
             else
+            {
+                if (ppLastAncestor)
+                    *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
                 return NULL;
+            }
             return kFsCacheObjRetainInternal(pChild);
         }
 
@@ -2871,8 +2879,8 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
         }
     }
 
+    /* not reached */
     return NULL;
-
 }
 
 
@@ -2893,8 +2901,8 @@ PKFSOBJ kFsCacheLookupRelativeToDirA(PKFSCACHE pCache, PKFSDIR pParent, const ch
  * @param   penmError           Where to return details as to why the lookup
  *                              failed.
  * @param   ppLastAncestor      Where to return the last parent element found
- *                              (referenced) in case of error an path/file not
- *                              found problem.  Optional.
+ *                              (referenced) in case of error like an path/file
+ *                              not found problem.  Optional.
  */
 PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wchar_t *pwszPath, KU32 cwcPath, KU32 fFlags,
                                      KFSLOOKUPERROR *penmError, PKFSOBJ *ppLastAncestor)
@@ -2940,7 +2948,11 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
                  || kFsCachePopuplateOrRefreshDir(pCache, pParent, penmError))
         { /* likely */ }
         else
+        {
+            if (ppLastAncestor)
+                *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
             return NULL;
+        }
 
         /*
          * Search the current node for the name.
@@ -2981,7 +2993,11 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
                 || kFsCacheRefreshMissing(pCache, pChild, penmError) )
             { /* likely */ }
             else
+            {
+                if (ppLastAncestor)
+                    *ppLastAncestor = kFsCacheObjRetainInternal(&pParent->Obj);
                 return NULL;
+            }
             return kFsCacheObjRetainInternal(pChild);
         }
 
@@ -3019,7 +3035,6 @@ PKFSOBJ kFsCacheLookupRelativeToDirW(PKFSCACHE pCache, PKFSDIR pParent, const wc
     }
 
     return NULL;
-
 }
 
 /**
@@ -3096,6 +3111,8 @@ static PKFSOBJ kFsCacheLookupAbsoluteA(PKFSCACHE pCache, const char *pszPath, KU
             || (fFlags & KFSCACHE_LOOKUP_F_NO_REFRESH)
             || kFsCacheRefreshObj(pCache, pRoot, penmError))
             return kFsCacheObjRetainInternal(pRoot);
+        if (ppLastAncestor)
+            *ppLastAncestor = kFsCacheObjRetainInternal(pRoot);
         return NULL;
     }
 
@@ -3195,6 +3212,8 @@ static PKFSOBJ kFsCacheLookupAbsoluteW(PKFSCACHE pCache, const wchar_t *pwszPath
             || (fFlags & KFSCACHE_LOOKUP_F_NO_REFRESH)
             || kFsCacheRefreshObj(pCache, pRoot, penmError))
             return kFsCacheObjRetainInternal(pRoot);
+        if (ppLastAncestor)
+            *ppLastAncestor = kFsCacheObjRetainInternal(pRoot);
         return NULL;
     }
 
@@ -3513,7 +3532,7 @@ static PKFSOBJ kFsCacheLookupHashedA(PKFSCACHE pCache, const char *pchPath, KU32
                 && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
             || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
             kFsCacheCreatePathHashTabEntryA(pCache, pFsObj, pchPath, cchPath, uHashPath, idxHashTab, fAbsolute,
-                                            pLastAncestor ? pLastAncestor->bObjType & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
+                                            pLastAncestor ? pLastAncestor->fFlags & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
         if (pLastAncestor)
             kFsCacheObjRelease(pCache, pLastAncestor);
 
@@ -3621,7 +3640,7 @@ static PKFSOBJ kFsCacheLookupHashedW(PKFSCACHE pCache, const wchar_t *pwcPath, K
                 && *penmError != KFSLOOKUPERROR_PATH_TOO_LONG)
             || *penmError == KFSLOOKUPERROR_UNSUPPORTED )
             kFsCacheCreatePathHashTabEntryW(pCache, pFsObj, pwcPath, cwcPath, uHashPath, idxHashTab, fAbsolute,
-                                            pLastAncestor ? pLastAncestor->bObjType & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
+                                            pLastAncestor ? pLastAncestor->fFlags & KFSOBJ_F_USE_CUSTOM_GEN : 0, *penmError);
         if (pLastAncestor)
             kFsCacheObjRelease(pCache, pLastAncestor);
 
