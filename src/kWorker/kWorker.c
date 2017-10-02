@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3051 2017-07-24 10:59:59Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3080 2017-10-02 12:45:07Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -3190,7 +3190,7 @@ static PKWTOOL kwToolEntryCreate(PKFSOBJ pToolFsObj, const char *pszSearchPath)
 /**
  * Looks up the given tool, creating a new tool table entry if necessary.
  *
- * @returns Pointer to the tool entry.  NULL on failure.
+ * @returns Pointer to the tool entry.  NULL on failure (fully bitched).
  * @param   pszExe              The executable for the tool (not normalized).
  * @param   cEnvVars            Number of environment varibles.
  * @param   papszEnvVars        Environment variables.  For getting the PATH.
@@ -3233,10 +3233,21 @@ static PKWTOOL kwToolLookup(const char *pszExe, KU32 cEnvVars, const char **paps
                     pszSearchPath = &papszEnvVars[cEnvVars][5];
                     break;
                 }
-            return kwToolEntryCreate(pToolFsObj, pszSearchPath);
+
+            pTool = kwToolEntryCreate(pToolFsObj, pszSearchPath);
+            if (pTool)
+                return pTool;
+
+            kwErrPrintf("kwToolLookup(%s) -> NULL: kwToolEntryCreate failed\n", pszExe);
         }
-        kFsCacheObjRelease(g_pFsCache, pToolFsObj);
+        else
+        {
+            kFsCacheObjRelease(g_pFsCache, pToolFsObj);
+            kwErrPrintf("kwToolLookup(%s) -> NULL: not file (%d)\n", pszExe, pToolFsObj->bObjType);
+        }
     }
+    else
+        kwErrPrintf("kwToolLookup(%s) -> NULL: enmError=%d\n", pszExe, enmError);
     return NULL;
 }
 
@@ -10387,10 +10398,7 @@ static int kSubmitHandleJobUnpacked(const char *pszExecutable, const char *pszCw
             rcExit = kSubmitHandleJobPostCmd(cPostCmdArgs, papszPostCmdArgs);
     }
     else
-    {
-        kwErrPrintf("kwToolLookup(%s) -> NULL\n", pszExecutable);
         rcExit = 42 + 1;
-    }
     return rcExit;
 }
 
