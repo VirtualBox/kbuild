@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3079 2017-10-02 09:59:23Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -360,6 +360,9 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
   TEMPLATE_BIN_DEFS.x86        += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
   TEMPLATE_BIN_DEFS.sparc32    += _FILE_OFFSET_BITS=64 _LARGEFILE_SOURCE
+ endif
+ ifeq ($(KBUILD_TARGET),netbsd)
+  TEMPLATE_BIN_LIBS            += util
  endif
 endif
 if1of ($(KBUILD_TARGET), darwin win)
