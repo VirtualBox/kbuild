@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3056 2017-09-15 04:51:24Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3071 2017-10-02 08:14:40Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -46,6 +46,7 @@
 #else
 # include <unistd.h>
 # include <spawn.h>
+# include <sys/wait.h>
 #endif
 
 #include <k/kDefs.h>
@@ -383,7 +384,8 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
 #elif defined(O_CLOEXEC)
     int const   fNoInherit = O_CLOEXEC;
 #else
-# error "port me"
+    int const   fNoInherit = 0;
+# define USE_FD_CLOEXEC
 #endif
     int         aFdTries[32];
     unsigned    cTries;
@@ -405,7 +407,9 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
         if (fdOpened != fdTarget)
             return fdOpened;
 #ifndef _MSC_VER /* Stupid, stupid MSVCRT!  No friggin way of making a handle inheritable (or not). */
-        if (fcntl(fdOpened, F_SETFD, FD_CLOEXEC) != -1)
+# ifndef USE_FD_CLOEXEC
+        if (fcntl(fdOpened, F_SETFD, 0) != -1)
+# endif
             return fdOpened;
 #endif
     }
@@ -427,8 +431,13 @@ static int kRedirectOpenWithoutConflict(const char *pszFilename, int fOpen, mode
                 )
             {
 #ifndef _MSC_VER
-                if (   fdOpened != fdTarget
+# ifdef USE_FD_CLOEXEC
+                if (   fdOpened == fdTarget
                     || fcntl(fdOpened, F_SETFD, FD_CLOEXEC) != -1)
+# else
+                if (   fdOpened != fdTarget
+                    || fcntl(fdOpened, F_SETFD, 0) != -1)
+# endif
 #endif
                 {
                     while (cTries-- > 0)
