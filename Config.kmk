@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3085 2017-10-03 11:01:54Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3087 2017-10-03 13:31:19Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -223,61 +223,13 @@ endif
 
 
 ifeq ($(KBUILD_TARGET),os2)
-TEMPLATE_BIN_TOOL               = GCC3OMF
-TEMPLATE_BIN_CFLAGS             = -g
-TEMPLATE_BIN_CFLAGS.profile     = -pg
-TEMPLATE_BIN_CFLAGS.release     = -O3
-TEMPLATE_BIN_LDFLAGS            = -Zhigh-mem -Zstack=1024 -g
-endif
-
-ifeq ($(KBUILD_TARGET),darwin)
- ifndef KBUILD_MACOSX_VERSION
-  export KBUILD_MACOSX_VERSION := $(expr $(firstword $(subst ., ,$(shell uname -r))) - 4)
- endif
- #ifndef KBUILD_XCODE_VERSION
- # export KBUILD_XCODE_VERSION := $(shell xcodebuild -version | kmk_sed -e '/Xcode/!d' -e 's/Xcode *//')
- #endif
- ifndef KBUILD_MACOSX_TARGET_VERSION
-  if $(KBUILD_TARGET_ARCH) == amd64
-    KBUILD_MACOSX_TARGET_VERSION = 6
-  else
-    KBUILD_MACOSX_TARGET_VERSION = 5
-  endif
- endif
- ifndef KBUILD_MACOSX_WHATEVER_MODE
-  if $(KBUILD_MACOSX_TARGET_VERSION) == 4
-   TOOL_GCC4MACHO_SUFFIX	        = -4.0
-   TOOL_GXX4MACHO_SUFFIX		= -4.0
-  else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
-   TOOL_GCC4MACHO_SUFFIX	        = -4.2
-   TOOL_GXX4MACHO_SUFFIX		= -4.2
-  endif
-  ifndef KBUILD_MACOSX_SDK
-   KBUILD_MACOSX_SDK            := /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
-   ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
-    KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
-   endif
-  endif
-  ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
-   $(error SDK not found ($(KBUILD_MACOSX_SDK)), please adjust KBUILD_MACOSX_TARGET_VERSION or/and KBUILD_MACOSX_SDK in LocalConfig.kmk or simply use KBUILD_MACOSX_WHATEVER_MODE=1.)
-  endif
- endif # !KBUILD_MACOSX_WHATEVER_MODE
- TEMPLATE_BIN_TOOL              = GCC4MACHO
- TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-isysroot $(KBUILD_MACOSX_SDK))
- ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wno-long-long -Wshadow
-  TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
- endif
- TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
+ TEMPLATE_BIN_TOOL              = GCC3OMF
+ TEMPLATE_BIN_CFLAGS            = -g
+ TEMPLATE_BIN_CFLAGS.profile    = -pg
  TEMPLATE_BIN_CFLAGS.release    = -O3
- TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-Wl,-syslibroot,$(KBUILD_MACOSX_SDK))
- if $(KBUILD_MACOSX_TARGET_VERSION) == 4 && $(KBUILD_MACOSX_VERSION) >= 5
-  TEMPLATE_BIN_LDFLAGS         += -classic_ld
- endif
- TEMPLATE_BIN_LDFLAGS.profile   = -pg
-endif
+ TEMPLATE_BIN_LDFLAGS           = -Zhigh-mem -Zstack=1024 -g
 
-ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
+else if1of ($(KBUILD_TARGET), win nt)
  TEMPLATE_BIN_TOOL              = VCC100
  TEMPLATE_BIN_TOOL.x86          = VCC100X86
  TEMPLATE_BIN_TOOL.amd64        = VCC100AMD64
@@ -319,42 +271,92 @@ ifeq ($(filter-out win nt,$(KBUILD_TARGET)),)
    	$(PATH_TOOL_$(TEMPLATE_BIN_TOOL)_LIB)/msvcrt.lib
   endif
  endif
-endif
 
-ifndef TEMPLATE_BIN_TOOL
- # Use GCC3 when we're certain that the system is using GNU ld and ar.
- ifeq ($(filter-out linux freebsd openbsd netbsd,$(KBUILD_TARGET)),)
-  TEMPLATE_BIN_TOOL              = GCC3
- else
-  TEMPLATE_BIN_TOOL              = GCC3PLAIN
+else # !os2, !win, !nt
+
+ ifeq ($(KBUILD_TARGET),darwin)
+  ifndef KBUILD_MACOSX_VERSION
+   export KBUILD_MACOSX_VERSION := $(expr $(firstword $(subst ., ,$(shell uname -r))) - 4)
+  endif
+  #ifndef KBUILD_XCODE_VERSION
+  # export KBUILD_XCODE_VERSION := $(shell xcodebuild -version | kmk_sed -e '/Xcode/!d' -e 's/Xcode *//')
+  #endif
+  ifndef KBUILD_MACOSX_TARGET_VERSION
+   if $(KBUILD_TARGET_ARCH) == amd64
+     KBUILD_MACOSX_TARGET_VERSION = 6
+   else
+     KBUILD_MACOSX_TARGET_VERSION = 5
+   endif
+  endif
+  ifndef KBUILD_MACOSX_WHATEVER_MODE
+   if $(KBUILD_MACOSX_TARGET_VERSION) == 4
+    TOOL_GCC4MACHO_SUFFIX	        = -4.0
+    TOOL_GXX4MACHO_SUFFIX		= -4.0
+   else if $(KBUILD_MACOSX_TARGET_VERSION) >= 5
+    TOOL_GCC4MACHO_SUFFIX	        = -4.2
+    TOOL_GXX4MACHO_SUFFIX		= -4.2
+   endif
+   ifndef KBUILD_MACOSX_SDK
+    KBUILD_MACOSX_SDK            := /Developer/SDKs/MacOSX10.$(KBUILD_MACOSX_TARGET_VERSION)$(if-expr $(KBUILD_MACOSX_TARGET_VERSION)==4,u,).sdk
+    ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
+     KBUILD_MACOSX_SDK           := /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform$(KBUILD_MACOSX_SDK)
+    endif
+   endif
+   ifeq ($(wildcard $(KBUILD_MACOSX_SDK)),)
+    $(error SDK not found ($(KBUILD_MACOSX_SDK)), please adjust KBUILD_MACOSX_TARGET_VERSION or/and KBUILD_MACOSX_SDK in LocalConfig.kmk or simply use KBUILD_MACOSX_WHATEVER_MODE=1.)
+   endif
+  endif # !KBUILD_MACOSX_WHATEVER_MODE
+  TEMPLATE_BIN_TOOL              = GCC4MACHO
+  TEMPLATE_BIN_CFLAGS            = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-isysroot $(KBUILD_MACOSX_SDK))
+  ifeq ($(USER),bird)
+   TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wno-long-long -Wshadow
+   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
+  endif
+  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg
+  TEMPLATE_BIN_CFLAGS.release    = -O3
+  TEMPLATE_BIN_LDFLAGS           = -g -mmacosx-version-min=10.$(KBUILD_MACOSX_TARGET_VERSION) $(if $(KBUILD_MACOSX_WHATEVER_MODE),,-Wl,-syslibroot,$(KBUILD_MACOSX_SDK))
+  if $(KBUILD_MACOSX_TARGET_VERSION) == 4 && $(KBUILD_MACOSX_VERSION) >= 5
+   TEMPLATE_BIN_LDFLAGS         += -classic_ld
+  endif
+  TEMPLATE_BIN_LDFLAGS.profile   = -pg
+
+ else # !darwin
+  # Use GCC3 when we're certain that the system is using GNU ld and ar.
+  ifeq ($(filter-out linux freebsd openbsd netbsd,$(KBUILD_TARGET)),)
+   TEMPLATE_BIN_TOOL              = GCC3
+  else
+   TEMPLATE_BIN_TOOL              = GCC3PLAIN
+  endif
+  TEMPLATE_BIN_CFLAGS            = -g
+  ifeq ($(USER),bird)
+   TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wshadow
+   TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
+  endif
+  TEMPLATE_BIN_LDFLAGS           = -g
+  TEMPLATE_BIN_LDFLAGS.profile   = -pg -p
+  TEMPLATE_BIN_CFLAGS.release    = -O3
+  TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg -p
+  ifeq ($(KBUILD_TARGET),freebsd)
+   TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
+  endif
+  ifeq ($(KBUILD_TARGET),linux)
+   TEMPLATE_BIN_LIBS            += rt
+  endif
  endif
- TEMPLATE_BIN_CFLAGS            = -g
- ifeq ($(USER),bird)
-  TEMPLATE_BIN_CFLAGS          += -Wall $(GCC_Wextra) -pedantic -Wno-unused-parameter -Wshadow
-  TEMPLATE_BIN_DEFS            += NO_ENUM_BITFIELDS
- endif
- TEMPLATE_BIN_LDFLAGS           = -g
- TEMPLATE_BIN_LDFLAGS.profile   = -pg -p
- TEMPLATE_BIN_CFLAGS.release    = -O3
- TEMPLATE_BIN_CFLAGS.profile    = -O3 -pg -p
- ifeq ($(KBUILD_TARGET),freebsd)
-  TEMPLATE_BIN_INCS            += $(PATH_GNUMAKE_SRC)/glob /usr/local/include
- endif
- ifeq ($(KBUILD_TARGET),linux)
-  TEMPLATE_BIN_LIBS            += rt
- endif
-  TEMPLATE_BIN_CFLAGS.x86      += -m32
-  TEMPLATE_BIN_CFLAGS.sparc32  += -m32
-  TEMPLATE_BIN_CFLAGS.amd64    += -m64
-  TEMPLATE_BIN_CFLAGS.sparc64  += -m64
-  TEMPLATE_BIN_CXXFLAGS.x86    += -m32
-  TEMPLATE_BIN_CXXFLAGS.sparc32+= -m32
-  TEMPLATE_BIN_CXXFLAGS.amd64  += -m64
-  TEMPLATE_BIN_CXXFLAGS.sparc64+= -m64
-  TEMPLATE_BIN_LDFLAGS.x86     += -m32
-  TEMPLATE_BIN_LDFLAGS.sparc32 += -m32
-  TEMPLATE_BIN_LDFLAGS.amd64   += -m64
-  TEMPLATE_BIN_LDFLAGS.sparc64 += -m64
+
+ # Make sure we get the right bit count in the output.
+ TEMPLATE_BIN_CFLAGS.x86       += -m32
+ TEMPLATE_BIN_CFLAGS.sparc32   += -m32
+ TEMPLATE_BIN_CFLAGS.amd64     += -m64
+ TEMPLATE_BIN_CFLAGS.sparc64   += -m64
+ TEMPLATE_BIN_CXXFLAGS.x86     += -m32
+ TEMPLATE_BIN_CXXFLAGS.sparc32 += -m32
+ TEMPLATE_BIN_CXXFLAGS.amd64   += -m64
+ TEMPLATE_BIN_CXXFLAGS.sparc64 += -m64
+ TEMPLATE_BIN_LDFLAGS.x86      += -m32
+ TEMPLATE_BIN_LDFLAGS.sparc32  += -m32
+ TEMPLATE_BIN_LDFLAGS.amd64    += -m64
+ TEMPLATE_BIN_LDFLAGS.sparc64  += -m64
  ifeq ($(KBUILD_TARGET),solaris)
   TEMPLATE_BIN_LIBS            += rt dl
   TEMPLATE_BIN_LDFLAGS         += -Wl,-i
@@ -365,6 +367,8 @@ ifndef TEMPLATE_BIN_TOOL
   TEMPLATE_BIN_LIBS            += util
  endif
 endif
+
+# On systems where it's possible, do split out the debug info from the binaries.
 if1of ($(KBUILD_TARGET), darwin win)
  TEMPLATE_BIN_LD_DEBUG = split
 endif
