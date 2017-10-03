@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3079 2017-10-02 09:59:23Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3085 2017-10-03 11:01:54Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -241,7 +241,7 @@ ifeq ($(KBUILD_TARGET),darwin)
   if $(KBUILD_TARGET_ARCH) == amd64
     KBUILD_MACOSX_TARGET_VERSION = 6
   else
-    KBUILD_MACOSX_TARGET_VERSION = 4
+    KBUILD_MACOSX_TARGET_VERSION = 5
   endif
  endif
  ifndef KBUILD_MACOSX_WHATEVER_MODE

@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3071 2017-10-02 08:14:40Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3085 2017-10-03 11:01:54Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -44,8 +44,17 @@
 # include <io.h>
 # include "quote_argv.h"
 #else
+# ifdef __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__
+#  if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1050
+#   define USE_POSIX_SPAWN
+#  endif
+# elif !defined(KBUILD_OS_WINDOWS) && !defined(KBUILD_OS_OS2)
+#  define USE_POSIX_SPAWN
+# endif
 # include <unistd.h>
-# include <spawn.h>
+# ifdef USE_POSIX_SPAWN
+#  include <spawn.h>
+# endif
 # include <sys/wait.h>
 #endif
 
@@ -69,10 +78,6 @@
 # ifndef LIBPATHSTRICT
 #  define LIBPATHSTRICT 3
 # endif
-#endif
-
-#if !defined(KBUILD_OS_WINDOWS) && !defined(KBUILD_OS_OS2)
-# define USE_POSIX_SPAWN
 #endif
 
 
