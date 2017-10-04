@@ -246,7 +246,7 @@ init_hash_global_variable_set (void)
   hash_init (&global_variable_set.table, VARIABLE_BUCKETS,
 	     variable_hash_1, variable_hash_2, variable_hash_cmp);
 #else  /* CONFIG_WITH_STRCACHE2 */
-  strcache2_init (&variable_strcache, "variable", 65536, 0, 0, 0);
+  strcache2_init (&variable_strcache, "variable", 262144, 0, 0, 0);
   hash_init_strcached (&global_variable_set.table, VARIABLE_BUCKETS,
                        &variable_strcache, offsetof (struct variable, name));
 #endif /* CONFIG_WITH_STRCACHE2 */
