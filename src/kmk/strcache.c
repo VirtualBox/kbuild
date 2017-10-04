@@ -259,7 +259,7 @@ void strcache_init (void)
 {
   strcache2_init(&file_strcache,
                  "file",        /* name */
-                 65536,         /* hash size */
+                 131072,        /* hash size */
                  0,             /* default segment size*/
 #ifdef HAVE_CASE_INSENSITIVE_FS
                  1,             /* case insensitive */
