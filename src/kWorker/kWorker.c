@@ -1,4 +1,4 @@
-/* $Id: kWorker.c 3080 2017-10-02 12:45:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kWorker.c 3089 2017-10-04 13:10:41Z knut.osmundsen@oracle.com $ */
 /** @file
  * kWorker - experimental process reuse worker for Windows.
  *
@@ -3243,7 +3243,9 @@ static PKWTOOL kwToolLookup(const char *pszExe, KU32 cEnvVars, const char **paps
         else
         {
             kFsCacheObjRelease(g_pFsCache, pToolFsObj);
-            kwErrPrintf("kwToolLookup(%s) -> NULL: not file (%d)\n", pszExe, pToolFsObj->bObjType);
+            kwErrPrintf("kwToolLookup(%s) -> NULL: not file (bObjType=%d fFlags=%#x uCacheGen=%u auGenerationsMissing=[%u,%u])\n",
+                        pszExe, pToolFsObj->bObjType, pToolFsObj->fFlags, pToolFsObj->uCacheGen,
+                        g_pFsCache->auGenerationsMissing[0], g_pFsCache->auGenerationsMissing[1]);
         }
     }
     else
