@@ -1,4 +1,4 @@
-/* $Id: strcache2.c 3084 2017-10-02 22:24:58Z knut.osmundsen@oracle.com $ */
+/* $Id: strcache2.c 3091 2017-10-04 14:31:04Z knut.osmundsen@oracle.com $ */
 /** @file
  * strcache2 - New string cache.
  */
@@ -497,9 +497,11 @@ strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
 #endif
   if (!((size_t)xs & 3))
     {
-      int result;
       /* aligned */
-      while (length >= 8)
+      int result;
+      unsigned reminder = length & 7;
+      length >>= 3;
+      while (length-- > 0)
         {
           result  = *(int32_t*)xs - *(int32_t*)ys;
           result |= *(int32_t*)(xs + 4) - *(int32_t*)(ys + 4);
@@ -507,9 +509,8 @@ strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
             return result;
           xs += 8;
           ys += 8;
-          length -= 8;
         }
-      switch (length)
+      switch (reminder)
         {
           case 7:
               result  = *(int32_t*)xs - *(int32_t*)ys;
@@ -548,7 +549,9 @@ strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
     {
       /* unaligned */
       int result;
-      while (length >= 8)
+      unsigned reminder = length & 7;
+      length >>= 3;
+      while (length-- > 0)
         {
 #if defined(__i386__) || defined(__x86_64__)
           result  = (  ((int32_t)xs[3] << 24)
@@ -575,10 +578,10 @@ strcache2_memcmp_inlined (const char *xs, const char *ys, unsigned int length)
             return result;
           xs += 8;
           ys += 8;
-          length -= 8;
         }
+
       result = 0;
-      switch (length)
+      switch (reminder)
         {
           case 7: result |= xs[6] - ys[6]; /* fall thru */
           case 6: result |= xs[5] - ys[5]; /* fall thru */
