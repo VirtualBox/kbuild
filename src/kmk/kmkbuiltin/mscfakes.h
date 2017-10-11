@@ -1,4 +1,4 @@
-/* $Id: mscfakes.h 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.h 3092 2017-10-11 17:55:09Z knut.osmundsen@oracle.com $ */
 /** @file
  * Unix fakes for MSC.
  */
@@ -47,9 +47,11 @@
 #include <direct.h>
 #include "nt/ntstat.h"
 #include "nt/ntunlink.h"
-#if defined(MSC_DO_64_BIT_IO) && _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
-# define off_t __int64
-# define lseek _lseeki64
+#ifdef MSC_DO_64_BIT_IO
+# if _MSC_VER >= 1400 /* We want 64-bit file lengths here when possible. */
+#  define off_t __int64
+#  define lseek _lseeki64
+# endif
 #endif
 
 #undef timeval

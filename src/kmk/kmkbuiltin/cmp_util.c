@@ -35,6 +35,9 @@
 /*__COPYRIGHT("@(#) Copyright (c) 1987, 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n");*/
 
+#ifdef _MSC_VER
+# define MSC_DO_64_BIT_IO
+#endif
 #include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -54,7 +57,6 @@
 #  define O_BINARY 0
 # endif
 #else
-# define MSC_DO_64_BIT_IO
 # include "mscfakes.h"
 #endif
 #include "err.h"
