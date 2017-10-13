@@ -1,4 +1,4 @@
-# $Id: header.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
+# $Id: header.kmk 3093 2017-10-13 13:07:39Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at top of a makefile.
 #
@@ -79,7 +79,7 @@ endif
 # The revision in which this file was last modified.
 # This can be useful when using development versions of kBuild.
 #
-KMK_REVISION := $(patsubst %:,,  $Rev: 3062 $  )
+KMK_REVISION := $(patsubst %:,,  $Rev: 3093 $  )
 
 
 #
@@ -772,7 +772,7 @@ TIME        := $(TIME_INT)
 
 TOUCH_EXT   := $(KBUILD_BIN_PATH)/kmk_touch$(HOSTSUFF_EXE)
 if $(KBUILD_KMK_REVISION) >= 3060
-TOUCH_INT   := kmk_touch_append
+TOUCH_INT   := kmk_builtin_touch
 else
 TOUCH_INT   := $(TOUCH_EXT)
 endif
