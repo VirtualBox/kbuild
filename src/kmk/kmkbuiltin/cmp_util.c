@@ -361,7 +361,7 @@ c_regular(int fd1, const char *file1, off_t skip1, off_t len1,
     for (blk_sz = CMP_BUF_SIZE; length != 0; length -= blk_sz)
     {
         if ((off_t)blk_sz > length)
-            blk_sz = length;
+            blk_sz = (size_t)length;
 
         bytes_read = read(fd1, b1, blk_sz);
         if (bytes_read != (off_t)blk_sz)
