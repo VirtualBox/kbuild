@@ -1,4 +1,4 @@
-/* $Id: ntutimes.c 3094 2017-10-14 03:32:50Z knut.osmundsen@oracle.com $ */
+/* $Id: ntutimes.c 3097 2017-10-14 03:52:44Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT utimes and lutimes
  */
@@ -43,7 +43,7 @@ static int birdUtimesInternal(const char *pszPath, BirdTimeVal_T paTimes[2], int
 {
     HANDLE hFile = birdOpenFileEx(NULL,
                                   pszPath,
-                                  FILE_WRITE_ATTRIBUTES,
+                                  FILE_WRITE_ATTRIBUTES | SYNCHRONIZE,
                                   FILE_ATTRIBUTE_NORMAL,
                                   FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                                   FILE_OPEN,
@@ -55,7 +55,7 @@ static int birdUtimesInternal(const char *pszPath, BirdTimeVal_T paTimes[2], int
         MY_IO_STATUS_BLOCK          Ios;
         MY_NTSTATUS                 rcNt;
 
-        memset(&Info, 0, sizeof(0));
+        memset(&Info, 0, sizeof(Info));
         if (paTimes)
         {
             Info.LastAccessTime.QuadPart = birdNtTimeFromTimeVal(&paTimes[0]);
