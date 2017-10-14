@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3094 2017-10-14 03:32:50Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -651,23 +651,31 @@ int vasprintf(char **strp, const char *fmt, va_list va)
 
 int utimes(const char *pszPath, const struct timeval *paTimes)
 {
-    BirdTimeVal_T aTimes[2];
-    aTimes[0].tv_sec  = paTimes[0].tv_sec;
-    aTimes[0].tv_usec = paTimes[0].tv_usec;
-    aTimes[1].tv_sec  = paTimes[1].tv_sec;
-    aTimes[1].tv_usec = paTimes[1].tv_usec;
-    return birdUtimes(pszPath, aTimes);
+    if (paTimes)
+    {
+        BirdTimeVal_T aTimes[2];
+        aTimes[0].tv_sec  = paTimes[0].tv_sec;
+        aTimes[0].tv_usec = paTimes[0].tv_usec;
+        aTimes[1].tv_sec  = paTimes[1].tv_sec;
+        aTimes[1].tv_usec = paTimes[1].tv_usec;
+        return birdUtimes(pszPath, aTimes);
+    }
+    return birdUtimes(pszPath, NULL);
 }
 
 
 int lutimes(const char *pszPath, const struct timeval *paTimes)
 {
-    BirdTimeVal_T aTimes[2];
-    aTimes[0].tv_sec  = paTimes[0].tv_sec;
-    aTimes[0].tv_usec = paTimes[0].tv_usec;
-    aTimes[1].tv_sec  = paTimes[1].tv_sec;
-    aTimes[1].tv_usec = paTimes[1].tv_usec;
-    return birdUtimes(pszPath, aTimes);
+    if (paTimes)
+    {
+        BirdTimeVal_T aTimes[2];
+        aTimes[0].tv_sec  = paTimes[0].tv_sec;
+        aTimes[0].tv_usec = paTimes[0].tv_usec;
+        aTimes[1].tv_sec  = paTimes[1].tv_sec;
+        aTimes[1].tv_usec = paTimes[1].tv_usec;
+        return birdUtimes(pszPath, aTimes);
+    }
+    return birdUtimes(pszPath, NULL);
 }
 
 
