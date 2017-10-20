@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD: src/bin/mv/mv.c,v 1.46 2005/09/05 04:36:08 csjp Exp $");
 # include <sys/param.h>
 # include <sys/time.h>
 # include <sys/wait.h>
-# ifndef __HAIKU__
+# if !defined(__HAIKU__) && !defined(__gnu_hurd__)
 #  include <sys/mount.h>
 # endif
 #endif

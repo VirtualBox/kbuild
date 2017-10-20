@@ -45,7 +45,9 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <sys/stat.h>
 #if !defined(_MSC_VER) && !defined(__HAIKU__)
 # include <sys/param.h>
-# include <sys/mount.h>
+# ifndef __gnu_hurd__
+#  include <sys/mount.h>
+# endif
 #endif
 
 #include "err.h"
@@ -680,7 +682,7 @@ check(char *path, char *name, struct stat *sp)
                     )
 			return (1);
 		bsd_strmode(sp->st_mode, modep);
-#if defined(SF_APPEND) && K_OS != K_OS_GNU_KFBSD
+#if defined(SF_APPEND) && K_OS != K_OS_GNU_KFBSD && K_OS != K_OS_GNU_HURD
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			exit(err(1, "fflagstostr"));
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",

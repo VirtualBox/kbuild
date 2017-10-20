@@ -60,6 +60,7 @@ __RCSID("$NetBSD: __fts13.c,v 1.44 2005/01/19 00:59:48 mycroft Exp $");
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
+#include "kmkbuiltin.h" /* MAXPATHLEN for GNU/hurd */
 
 #ifdef __sun__
 # include "solfakes.h"
