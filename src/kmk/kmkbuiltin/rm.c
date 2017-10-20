@@ -85,6 +85,7 @@ static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #endif
 #include "kmkbuiltin.h"
 #include "kbuild_protection.h"
+#include "k/kDefs.h"	/* for K_OS */
 
 #if defined(__EMX__) || defined(KBUILD_OS_WINDOWS)
 # define IS_SLASH(ch)   ( (ch) == '/' || (ch) == '\\' )
@@ -347,7 +348,7 @@ rm_tree(char **argv)
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
 			}
-#ifdef UF_APPEND
+#if defined(UF_APPEND) && K_OS != K_OS_GNU_KFBSD
 			else if (!uid &&
 				 (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 				 !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
