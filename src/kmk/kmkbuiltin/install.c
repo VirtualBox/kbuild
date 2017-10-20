@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 # ifdef USE_MMAP
 #  include <sys/mman.h>
 # endif
-# ifndef __HAIKU__
+# if !defined(__HAIKU__) && !defined(__gnu_hurd__)
 #  include <sys/mount.h>
 # endif
 # include <sys/wait.h>
@@ -214,7 +214,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 			dodir = 1;
 			break;
 		case 'f':
-#if defined(UF_IMMUTABLE) && K_OS != K_OS_GNU_KFBSD
+#if defined(UF_IMMUTABLE) && K_OS != K_OS_GNU_KFBSD && K_OS != K_OS_GNU_HURD
 			flags = optarg;
 			if (strtofflags(&flags, &fset, NULL))
 				return errx(EX_USAGE, "%s: invalid flag", flags);
