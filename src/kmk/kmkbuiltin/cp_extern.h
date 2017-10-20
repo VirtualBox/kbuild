@@ -30,6 +30,8 @@
  * $FreeBSD: src/bin/cp/extern.h,v 1.19 2004/04/06 20:06:44 markm Exp $
  */
 
+#include "kmkbuiltin.h" /* for PATH_MAX on GNU/hurd */
+
 typedef struct {
 	char	*p_end;			/* pointer to NULL at end of path */
 	char	*target_end;		/* pointer to end of target base */
