@@ -1,4 +1,4 @@
-/* $Id: kmkbuiltin.h 3059 2017-09-21 13:34:15Z knut.osmundsen@oracle.com $ */
+/* $Id: kmkbuiltin.h 3106 2017-10-20 16:46:51Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command handling.
  */
@@ -32,6 +32,11 @@
 # endif
 #else
 # include <sys/types.h>
+#endif
+
+/* For the GNU/hurd weirdo. */
+#if !defined(PATH_MAX) && !defined(_MAX_PATH)
+# define PATH_MAX 2048
 #endif
 
 #include "kbuild_version.h"
