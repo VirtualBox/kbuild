@@ -1,5 +1,5 @@
 #ifdef CONFIG_WITH_INCLUDEDEP
-/* $Id: incdep.c 2869 2016-09-04 13:48:28Z knut.osmundsen@oracle.com $ */
+/* $Id: incdep.c 3100 2017-10-20 09:49:58Z knut.osmundsen@oracle.com $ */
 /** @file
  * incdep - Simple dependency files.
  */
@@ -678,7 +678,7 @@ incdep_are_threads_enabled (void)
   if (getenv ("KMK_THREADS_ENABLED"))
     return 1;
 
-#if defined (__gnu_linux__) || defined (__linux__)
+#if defined (__gnu_linux__) || defined (__linux__) || defined(__GLIBC__)
   /* Try detect fakeroot. */
   if (getenv ("FAKEROOTKEY")
    || getenv ("FAKEROOTUID")
