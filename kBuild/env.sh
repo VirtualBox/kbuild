@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3099 2017-10-20 09:49:02Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -262,6 +262,14 @@ if test -z "$KBUILD_HOST"; then
 
         freebsd|FreeBSD|FREEBSD)
             KBUILD_HOST=freebsd
+            ;;
+
+        GNU/kFreeBSD)
+            KBUILD_HOST=gnukfbsd
+            ;;
+
+        GNU/kNetBSD|GNU/NetBSD)
+            KBUILD_HOST=gnuknbsd
             ;;
 
         Haiku)
