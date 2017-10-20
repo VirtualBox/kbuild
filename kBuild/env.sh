@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3099 2017-10-20 09:49:02Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3103 2017-10-20 13:13:54Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -264,6 +264,10 @@ if test -z "$KBUILD_HOST"; then
             KBUILD_HOST=freebsd
             ;;
 
+        GNU)
+            KBUILD_HOST=gnuhurd
+            ;;
+
         GNU/kFreeBSD)
             KBUILD_HOST=gnukfbsd
             ;;
@@ -360,6 +364,9 @@ if test -z "$KBUILD_HOST_ARCH"; then
             ;;
         ppc64|ppc64le|powerpc64|powerpc64le)
             KBUILD_HOST_ARCH='ppc64'
+            ;;
+        m68k)
+            KBUILD_HOST_ARCH='m68k'
             ;;
         mips32|mips)
             KBUILD_HOST_ARCH='mips32'
