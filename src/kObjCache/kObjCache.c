@@ -1,4 +1,4 @@
-/* $Id: kObjCache.c 3065 2017-09-30 12:52:35Z knut.osmundsen@oracle.com $ */
+/* $Id: kObjCache.c 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kObjCache - Object Cache.
  */
@@ -42,7 +42,11 @@
 #include <limits.h>
 #include <ctype.h>
 #ifndef PATH_MAX
-# define PATH_MAX _MAX_PATH /* windows */
+# ifdef _MAX_PATH
+#  define PATH_MAX _MAX_PATH /* windows */
+# else
+#  define PATH_MAX 4096 /* gnu hurd */
+# endif
 #endif
 #if defined(__OS2__) || defined(__WIN__)
 # include <process.h>
@@ -5094,7 +5098,7 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-V") || !strcmp(argv[i], "--version"))
         {
-            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 3065 $)\n"
+            printf("kObjCache - kBuild version %d.%d.%d ($Revision: 3110 $)\n"
                    "Copyright (c) 2007-2012 knut st. osmundsen\n",
                    KBUILD_VERSION_MAJOR, KBUILD_VERSION_MINOR, KBUILD_VERSION_PATCH);
             return 0;

@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3062 2017-09-30 11:26:21Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kmk / GNU Make.
 #
@@ -106,6 +106,9 @@ kmkmissing_SOURCES.dragonfly = \
 
 kmkmissing_SOURCES.freebsd = \
 	glob/fnmatch.c
+
+kmkmissing_SOURCES.gnuhurd += \
+	kmkbuiltin/strlcpy.c
 
 kmkmissing_SOURCES.gnukfbsd += \
 	kmkbuiltin/strlcpy.c

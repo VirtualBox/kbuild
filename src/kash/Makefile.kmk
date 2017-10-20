@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3073 2017-10-02 08:45:19Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for kash.
 #
@@ -102,6 +102,9 @@ kash_SOURCES = \
 	shheap.c \
 	shthread.c \
 	shfile.c
+kash_SOURCES.gnuhurd = \
+	sys_signame.c \
+	strlcpy.c
 kash_SOURCES.gnukfbsd = \
 	sys_signame.c \
 	strlcpy.c
