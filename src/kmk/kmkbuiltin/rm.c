@@ -348,7 +348,7 @@ rm_tree(char **argv)
 				(void)fts_set(fts, p, FTS_SKIP);
 				p->fts_number = SKIPPED;
 			}
-#if defined(UF_APPEND) && K_OS != K_OS_GNU_KFBSD
+#ifdef UF_APPEND
 			else if (!uid &&
 				 (p->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 				 !(p->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
@@ -680,7 +680,7 @@ check(char *path, char *name, struct stat *sp)
                     )
 			return (1);
 		bsd_strmode(sp->st_mode, modep);
-#ifdef SF_APPEND
+#if defined(SF_APPEND) && K_OS != K_OS_GNU_KFBSD
 		if ((flagsp = fflagstostr(sp->st_flags)) == NULL)
 			exit(err(1, "fflagstostr"));
 		(void)fprintf(stderr, "override %s%s%s/%s %s%sfor %s? ",
