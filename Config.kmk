@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3087 2017-10-03 13:31:19Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -379,7 +379,7 @@ endif
 TEMPLATE_BIN-THREADED = Threaded command line binary
 TEMPLATE_BIN-THREADED_EXTENDS = BIN
 TEMPLATE_BIN-THREADED_EXTENDS_BY = appending
-if1of ($(KBUILD_TARGET), dragonfly freebsd gnukfbsd gnuknbsd linux netbsd openbsd)
+if1of ($(KBUILD_TARGET), dragonfly freebsd gnuhurd gnukfbsd gnuknbsd linux netbsd openbsd)
  TEMPLATE_BIN-THREADED_LIBS = pthread
 endif
 

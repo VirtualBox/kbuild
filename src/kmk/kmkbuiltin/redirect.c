@@ -1,4 +1,4 @@
-/* $Id: redirect.c 3085 2017-10-03 11:01:54Z knut.osmundsen@oracle.com $ */
+/* $Id: redirect.c 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kmk_redirect - Do simple program <-> file redirection (++).
  */
@@ -62,6 +62,11 @@
 #include <k/kTypes.h>
 #include "err.h"
 #include "kbuild_version.h"
+#if defined(__gnu_hurd__) && !defined(kmk_builtin_redirect) /* need constant */
+# undef GET_PATH_MAX
+# undef PATH_MAX
+# define GET_PATH_MAX PATH_MAX
+#endif
 #include "kmkbuiltin.h"
 #ifdef KMK
 # ifdef KBUILD_OS_WINDOWS
