@@ -1,4 +1,4 @@
-/* $Id: kDep.c 3063 2017-09-30 11:34:07Z knut.osmundsen@oracle.com $ */
+/* $Id: kDep.c 3105 2017-10-20 16:40:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * kDep - Common Dependency Managemnt Code.
  */
@@ -60,6 +60,15 @@
 
 #ifdef KWORKER
 extern int kwFsPathExists(const char *pszPath);
+#endif
+
+
+/*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+/* For the GNU/hurd weirdo. */
+#if !defined(PATH_MAX) && !defined(_MAX_PATH)
+# define PATH_MAX 2048
 #endif
 
 
