@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD: src/bin/cp/utils.c,v 1.43 2004/04/06 20:06:44 markm Exp $");
 #else
 # include <sys/time.h>
 #endif
-#include "kmkbuiltin.h" /* for PATH_MAX on GNU/hurd */
 #include "cp_extern.h"
 #include "cmp_extern.h"
 
