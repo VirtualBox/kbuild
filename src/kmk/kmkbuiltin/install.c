@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 # include "haikufakes.h"
 #endif
 #include "kmkbuiltin.h"
+#include "k/kDefs.h"	/* for K_OS */
 
 
 extern void * bsd_setmode(const char *p);
@@ -213,7 +214,7 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 			dodir = 1;
 			break;
 		case 'f':
-#ifdef UF_IMMUTABLE
+#if defined(UF_IMMUTABLE) && K_OS != K_OS_GNU_KFBSD
 			flags = optarg;
 			if (strtofflags(&flags, &fset, NULL))
 				return errx(EX_USAGE, "%s: invalid flag", flags);
