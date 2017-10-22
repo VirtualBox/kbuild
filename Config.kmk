@@ -1,4 +1,4 @@
-# $Id: Config.kmk 3110 2017-10-20 19:14:56Z knut.osmundsen@oracle.com $
+# $Id: Config.kmk 3111 2017-10-22 11:38:15Z knut.osmundsen@oracle.com $
 ## @file
 # Build Configuration.
 #
@@ -346,14 +346,17 @@ else # !os2, !win, !nt
 
  # Make sure we get the right bit count in the output.
  TEMPLATE_BIN_CFLAGS.x86       += -m32
+ TEMPLATE_BIN_CFLAGS.x32       += -mx32
  TEMPLATE_BIN_CFLAGS.sparc32   += -m32
  TEMPLATE_BIN_CFLAGS.amd64     += -m64
  TEMPLATE_BIN_CFLAGS.sparc64   += -m64
  TEMPLATE_BIN_CXXFLAGS.x86     += -m32
+ TEMPLATE_BIN_CXXFLAGS.x32     += -mx32
  TEMPLATE_BIN_CXXFLAGS.sparc32 += -m32
  TEMPLATE_BIN_CXXFLAGS.amd64   += -m64
  TEMPLATE_BIN_CXXFLAGS.sparc64 += -m64
  TEMPLATE_BIN_LDFLAGS.x86      += -m32
+ TEMPLATE_BIN_LDFLAGS.x32      += -mx32
  TEMPLATE_BIN_LDFLAGS.sparc32  += -m32
  TEMPLATE_BIN_LDFLAGS.amd64    += -m64
  TEMPLATE_BIN_LDFLAGS.sparc64  += -m64
