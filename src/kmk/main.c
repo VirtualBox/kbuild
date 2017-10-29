@@ -1409,11 +1409,18 @@ main (int argc, char **argv, char **envp)
 #  endif
 # endif /* !ELECTRIC_HEAP */
 
+# ifdef KMK
+  /* Clear the SEM_NOGPFAULTERRORBOX flag so WER will generate dumps when we run
+     under cygwin.  To void popups, set WER registry value DontShowUI to 1. */
+  if (getenv("KMK_NO_SET_ERROR_MODE") == NULL)
+    SetErrorMode(GetErrorMode() & ~SEM_NOGPFAULTERRORBOX);
+# endif
+
   /* start off assuming we have no shell */
   unixy_shell = 0;
   no_default_sh_exe = 1;
 #endif
-# ifdef CONFIG_WITH_FAST_IS_SPACE /* bird */
+#ifdef CONFIG_WITH_FAST_IS_SPACE /* bird */
   memset (space_map, '\0', sizeof(space_map));
   set_space_map_entry (' ');
   set_space_map_entry ('\f');
@@ -1421,7 +1428,7 @@ main (int argc, char **argv, char **envp)
   set_space_map_entry ('\r');
   set_space_map_entry ('\t');
   set_space_map_entry ('\v');
-# endif /* CONFIG_WITH_FAST_IS_SPACE */
+#endif /* CONFIG_WITH_FAST_IS_SPACE */
 
 #ifdef CONFIG_WITH_PRINT_TIME_SWITCH
   make_start_ts = nano_timestamp ();

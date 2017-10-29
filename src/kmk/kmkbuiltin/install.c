@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #endif
 #include "kmkbuiltin.h"
 #include "k/kDefs.h"	/* for K_OS */
+#include "dos2unix.h"
 
 
 extern void * bsd_setmode(const char *p);
@@ -101,11 +102,6 @@ extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 
 #ifndef MAXBSIZE
 # define MAXBSIZE 0x20000
-#endif
-
-/* Bootstrap aid - this doesn't exist in most older releases */
-#ifndef MAP_FAILED
-#define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
 
 #define MAX_CMP_SIZE	(16 * 1024 * 1024)
@@ -136,6 +132,7 @@ static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static const char *suffix = BACKUP_SUFFIX;
 static int ignore_perm_errors;
 static int hard_link_files_when_possible;
+static int dos2unix;
 
 static struct option long_options[] =
 {
@@ -145,11 +142,13 @@ static struct option long_options[] =
     { "no-ignore-perm-errors",				no_argument, 0, 264 },
     { "hard-link-files-when-possible",			no_argument, 0, 265 },
     { "no-hard-link-files-when-possible",		no_argument, 0, 266 },
+    { "dos2unix",					no_argument, 0, 267 },
+    { "unix2dos",					no_argument, 0, 268 },
     { 0, 0,	0, 0 },
 };
 
 
-static int	copy(int, const char *, int, const char *, off_t);
+static int	copy(int, const char *, int *, const char *);
 static int	compare(int, const char *, size_t, int, const char *, size_t);
 static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
@@ -159,6 +158,8 @@ static u_long	numeric_id(const char *, const char *);
 static int	strip(const char *);
 static int	usage(FILE *);
 static char    *last_slash(const char *);
+static KBOOL	needs_dos2unix_conversion(const char *pszFilename);
+static KBOOL	needs_unix2dos_conversion(const char *pszFilename);
 
 int
 kmk_builtin_install(int argc, char *argv[], char ** envp)
@@ -172,21 +173,22 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 	const char *group, *owner, *to_name;
 	(void)envp;
 
-        /* reinitialize globals */
-        mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-        suffix = BACKUP_SUFFIX;
-        gid = 0;
-        uid = 0;
-        dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = mode_given = 0;
+	/* reinitialize globals */
+	mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+	suffix = BACKUP_SUFFIX;
+	gid = 0;
+	uid = 0;
+	dobackup = docompare = dodir = dopreserve = dostrip = nommap = safecopy = verbose = mode_given = 0;
 	ignore_perm_errors = geteuid() != 0;
-        hard_link_files_when_possible = 0;
+	hard_link_files_when_possible = 0;
+	dos2unix = 0;
 
-        /* reset getopt and set progname. */
-        g_progname = argv[0];
-        opterr = 1;
-        optarg = NULL;
-        optopt = 0;
-        optind = 0; /* init */
+	/* reset getopt and set progname. */
+	g_progname = argv[0];
+	opterr = 1;
+	optarg = NULL;
+	optopt = 0;
+	optind = 0; /* init */
 
 	iflags = 0;
 	group = owner = NULL;
@@ -263,6 +265,12 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
                 case 266:
                         hard_link_files_when_possible = 0;
                         break;
+		case 267:
+			dos2unix = 1;
+			break;
+		case 268:
+			dos2unix = -1;
+			break;
 		case '?':
 		default:
 			return usage(stderr);
@@ -279,6 +287,18 @@ kmk_builtin_install(int argc, char *argv[], char ** envp)
 	/* must have at least two arguments, except when creating directories */
 	if (argc == 0 || (argc == 1 && !dodir))
 		return usage(stderr);
+
+	/*   and unix2dos doesn't combine well with a couple of other options. */
+	if (dos2unix != 0) {
+		if (docompare) {
+			warnx("-C/-p and --dos2unix/unix2dos may not be specified together");
+			return usage(stderr);
+		}
+		if (dostrip) {
+			warnx("-s and --dos2unix/unix2dos may not be specified together");
+			return usage(stderr);
+		}
+	}
 
 	/* need to make a temp copy so we can compare stripped version */
 	if (docompare && dostrip)
@@ -477,6 +497,10 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			why_not = "uid mismatch";
 		} else if (gid != (gid_t)-1 && gid != from_sb.st_gid) {
 			why_not = "gid mismatch";
+		} else if (dos2unix > 0 && needs_dos2unix_conversion(from_name)) {
+			why_not = "dos2unix";
+		} else if (dos2unix < 0 && needs_unix2dos_conversion(from_name)) {
+			why_not = "unix2dos";
 		} else {
 			int rcLink = link(from_name, to_name);
 			if (rcLink != 0 && errno == EEXIST) {
@@ -543,8 +567,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				    from_name, to_name);
 		}
 		if (!devnull) {
-			rc = copy(from_fd, from_name, to_fd,
-			          tempcopy ? tempfile : to_name, from_sb.st_size);
+			rc = copy(from_fd, from_name, &to_fd, tempcopy ? tempfile : to_name);
 			if (rc)
     				goto l_done;
 		}
@@ -879,18 +902,43 @@ create_newfile(const char *path, int target, struct stat *sbp)
 }
 
 /*
+ * Write error handler.
+ */
+static int write_error(int *ptr_to_fd, const char *to_name, int nw)
+{
+    int serrno = errno;
+    (void)close(*ptr_to_fd);
+    *ptr_to_fd = -1;
+    (void)unlink(to_name);
+    errno = nw > 0 ? EIO : serrno;
+    return err(EX_OSERR, "%s", to_name);
+}
+
+/*
+ * Read error handler.
+ */
+static int read_error(const char *from_name, int *ptr_to_fd, const char *to_name)
+{
+    int serrno = errno;
+    (void)close(*ptr_to_fd);
+    *ptr_to_fd = -1;
+    (void)unlink(to_name);
+    errno = serrno;
+    return err(EX_OSERR, "%s", from_name);
+}
+
+/*
  * copy --
  *	copy from one file to another
  */
 static int
-copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
-    off_t size)
+copy(int from_fd, const char *from_name, int *ptr_to_fd, const char *to_name)
 {
+	KBOOL fPendingCr = K_FALSE;
+	KSIZE cchDst;
 	int nr, nw;
-	int serrno;
 	char buf[MAXBSIZE];
-
-	(void)size;
+	int to_fd = *ptr_to_fd;
 
 	/* Rewind file descriptors. */
 	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
@@ -898,20 +946,63 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
 		return err(EX_OSERR, "lseek: %s", to_name);
 
-	while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
-		if ((nw = write(to_fd, buf, nr)) != nr) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errno = nw > 0 ? EIO : serrno;
-			return err(EX_OSERR, "%s", to_name);
+	if (dos2unix == 0) {
+		/*
+		 * Copy bytes, no conversion.
+		 */
+		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
+			if ((nw = write(to_fd, buf, nr)) != nr)
+				return write_error(ptr_to_fd, to_name, nw);
+	} else if (dos2unix > 0) {
+		/*
+		 * CRLF -> LF is a reduction, so we can work with full buffers.
+		 */
+		while ((nr = read(from_fd, buf, sizeof(buf))) > 0) {
+			if (   fPendingCr
+				&& buf[0] != '\n'
+				&& (nw = write(to_fd, "\r", 1)) != 1)
+				return write_error(ptr_to_fd, to_name, nw);
+
+			fPendingCr = dos2unix_convert_to_unix(buf, nr, buf, &cchDst);
+
+			nw = write(to_fd, buf, cchDst);
+			if (nw != (int)cchDst)
+				return write_error(ptr_to_fd, to_name, nw);
 		}
-	if (nr != 0) {
-		serrno = errno;
-		(void)unlink(to_name);
-		errno = serrno;
-		return err(EX_OSERR, "%s", from_name);
+	} else {
+		/*
+		 * LF -> CRLF is an expansion, so we work with half buffers, reading
+		 * into the upper half of the buffer and expanding into the full buffer.
+		 * The conversion will never expand to more than the double size.
+		 *
+		 * Note! We do not convert valid CRLF line endings.  This gives us
+		 *       valid DOS text, but no round-trip conversion.
+		 */
+		char * const pchSrc = &buf[sizeof(buf) / 2];
+		while ((nr = read(from_fd, pchSrc, sizeof(buf) / 2)) > 0) {
+			if (   fPendingCr
+				&& pchSrc[0] != '\n'
+				&& (nw = write(to_fd, "\r", 1))!= 1)
+				return write_error(ptr_to_fd, to_name, nw);
+
+			fPendingCr = dos2unix_convert_to_dos(pchSrc, nr, buf, &cchDst);
+
+			nw = write(to_fd, buf, cchDst);
+			if (nw != (int)cchDst)
+				return write_error(ptr_to_fd, to_name, nw);
+		}
 	}
-	return EX_OK;
+
+	/* Check for read error. */
+	if (nr != 0)
+		return read_error(from_name, ptr_to_fd, to_name);
+
+	/* When converting, we might have a pending final CR to write. */
+    if (   fPendingCr
+		&& (nw = write(to_fd, "\r", 1))!= 1)
+		return write_error(ptr_to_fd, to_name, nw);
+
+    return EX_OK;
 }
 
 /*
@@ -1008,8 +1099,8 @@ usage(FILE *pf)
 {
 	fprintf(pf,
 "usage: %s [-bCcpSsv] [--[no-]hard-link-files-when-possible]\n"
-"            [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
-"            [-g group] [-m mode] [-o owner] file1 file2\n"
+"            [--[no-]ignore-perm-errors] [-B suffix] [-f flags] [-g group]\n"
+"            [-m mode] [-o owner] [--dos2unix|--unix2dos] file1 file2\n"
 "   or: %s [-bCcpSsv] [--[no-]ignore-perm-errors] [-B suffix] [-f flags]\n"
 "            [-g group] [-m mode] [-o owner] file1 ... fileN directory\n"
 "   or: %s -d [-v] [-g group] [-m mode] [-o owner] directory ...\n"
@@ -1041,5 +1132,33 @@ last_slash(const char *path)
 #else
     return strrchr(path, '/');
 #endif
+}
+
+/**
+ * Checks if @a pszFilename actually needs dos2unix conversion.
+ *
+ * @returns boolean.
+ * @param	pszFilename		The name of the file to check.
+ */
+static KBOOL needs_dos2unix_conversion(const char *pszFilename)
+{
+	KU32 fStyle = 0;
+	int iErr = dos2unix_analyze_file(pszFilename, &fStyle, NULL, NULL);
+	return iErr != 0
+		|| (fStyle & (DOS2UNIX_STYLE_MASK | DOS2UNIX_F_BINARY)) != DOS2UNIX_STYLE_UNIX;
+}
+
+/**
+ * Checks if @a pszFilename actually needs unix2dos conversion.
+ *
+ * @returns boolean.
+ * @param	pszFilename		The name of the file to check.
+ */
+static KBOOL needs_unix2dos_conversion(const char *pszFilename)
+{
+	KU32 fStyle = 0;
+	int iErr = dos2unix_analyze_file(pszFilename, &fStyle, NULL, NULL);
+	return iErr != 0
+		|| (fStyle & (DOS2UNIX_STYLE_MASK | DOS2UNIX_F_BINARY)) != DOS2UNIX_STYLE_DOS;
 }
 

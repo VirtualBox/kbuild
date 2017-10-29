@@ -1,4 +1,4 @@
-# $Id: Makefile.kmk 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $
+# $Id: Makefile.kmk 3114 2017-10-29 18:02:04Z knut.osmundsen@oracle.com $
 ## @file
 # Sub-makefile for various libraries and stuff.
 #
@@ -40,6 +40,7 @@ kUtil_SOURCES = \
 	md5.c \
 	maybe_con_write.c \
 	maybe_con_fwrite.c \
+       dos2unix.c \
 	kbuild_version.c
 kUtil_SOURCES.win = \
 	msc_buffered_printf.c \
