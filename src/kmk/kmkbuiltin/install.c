@@ -96,10 +96,6 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 extern void * bsd_setmode(const char *p);
 extern mode_t bsd_getmode(const void *bbox, mode_t omode);
 
-#ifndef __unused
-# define __unused
-#endif
-
 #ifndef MAXBSIZE
 # define MAXBSIZE 0x20000
 #endif
@@ -149,7 +145,7 @@ static struct option long_options[] =
 
 
 static int	copy(int, const char *, int *, const char *);
-static int	compare(int, const char *, size_t, int, const char *, size_t);
+static int	compare(int, size_t, int, size_t);
 static int	create_newfile(const char *, int, struct stat *);
 static int	create_tempfile(const char *, char *, size_t);
 static int	install(const char *, const char *, u_long, u_int);
@@ -537,9 +533,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (devnull)
 			files_match = to_sb.st_size == 0;
 		else
-			files_match = !(compare(from_fd, from_name,
-			    (size_t)from_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size));
+			files_match = !compare(from_fd, (size_t)from_sb.st_size,
+					       to_fd, (size_t)to_sb.st_size);
 
 		/* Close "to" file unless we match. */
 		if (!files_match) {
@@ -617,8 +612,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			goto l_done;
 		}
 
-		if (compare(temp_fd, tempfile, (size_t)temp_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size) == 0) {
+		if (compare(temp_fd, (size_t)temp_sb.st_size,
+			    to_fd, (size_t)to_sb.st_size) == 0) {
 			/*
 			 * If target has more than one link we need to
 			 * replace it in order to snap the extra links.
@@ -795,8 +790,7 @@ l_done:
  *	compare two files; non-zero means files differ
  */
 static int
-compare(int from_fd, const char *from_name __unused, size_t from_len,
-	int to_fd, const char *to_name __unused, size_t to_len)
+compare(int from_fd, size_t from_len, int to_fd, size_t to_len)
 {
 	char buf1[MAXBSIZE];
 	char buf2[MAXBSIZE];
