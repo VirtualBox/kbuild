@@ -49,9 +49,6 @@ __FBSDID("$FreeBSD: src/usr.bin/xinstall/xinstall.c,v 1.66 2005/01/25 14:34:57 s
 #include "config.h"
 #ifndef _MSC_VER
 # include <sys/param.h>
-# ifdef USE_MMAP
-#  include <sys/mman.h>
-# endif
 # if !defined(__HAIKU__) && !defined(__gnu_hurd__)
 #  include <sys/mount.h>
 # endif
@@ -160,9 +157,6 @@ static int	install(const char *, const char *, u_long, u_int);
 static int	install_dir(char *);
 static u_long	numeric_id(const char *, const char *);
 static int	strip(const char *);
-#ifdef USE_MMAP
-static int	trymmap(int);
-#endif
 static int	usage(FILE *);
 static char    *last_slash(const char *);
 
@@ -781,61 +775,33 @@ static int
 compare(int from_fd, const char *from_name __unused, size_t from_len,
 	int to_fd, const char *to_name __unused, size_t to_len)
 {
-	char *p, *q;
+	char buf1[MAXBSIZE];
+	char buf2[MAXBSIZE];
+	int n1, n2;
 	int rv;
-	int done_compare;
 
-	rv = 0;
 	if (from_len != to_len)
 		return 1;
 
 	if (from_len <= MAX_CMP_SIZE) {
-#ifdef USE_MMAP
-		done_compare = 0;
-		if (trymmap(from_fd) && trymmap(to_fd)) {
-			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
-			if (p == (char *)MAP_FAILED)
-				goto out;
-			q = mmap(NULL, from_len, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
-			if (q == (char *)MAP_FAILED) {
-				munmap(p, from_len);
-				goto out;
-			}
-
-			rv = memcmp(p, q, from_len);
-			munmap(p, from_len);
-			munmap(q, from_len);
-			done_compare = 1;
+		rv = 0;
+		lseek(from_fd, 0, SEEK_SET);
+		lseek(to_fd, 0, SEEK_SET);
+		while (rv == 0) {
+			n1 = read(from_fd, buf1, sizeof(buf1));
+			if (n1 == 0)
+				break;		/* EOF */
+			else if (n1 > 0) {
+				n2 = read(to_fd, buf2, n1);
+				if (n2 == n1)
+					rv = memcmp(buf1, buf2, n1);
+				else
+					rv = 1;	/* out of sync */
+			} else
+				rv = 1;		/* read failure */
 		}
-	out:
-#else
-	(void)p; (void)q;
-	done_compare = 0;
-#endif
-		if (!done_compare) {
-			char buf1[MAXBSIZE];
-			char buf2[MAXBSIZE];
-			int n1, n2;
-
-			rv = 0;
-			lseek(from_fd, 0, SEEK_SET);
-			lseek(to_fd, 0, SEEK_SET);
-			while (rv == 0) {
-				n1 = read(from_fd, buf1, sizeof(buf1));
-				if (n1 == 0)
-					break;		/* EOF */
-				else if (n1 > 0) {
-					n2 = read(to_fd, buf2, n1);
-					if (n2 == n1)
-						rv = memcmp(buf1, buf2, n1);
-					else
-						rv = 1;	/* out of sync */
-				} else
-					rv = 1;		/* read failure */
-			}
-			lseek(from_fd, 0, SEEK_SET);
-			lseek(to_fd, 0, SEEK_SET);
-		}
+		lseek(from_fd, 0, SEEK_SET);
+		lseek(to_fd, 0, SEEK_SET);
 	} else
 		rv = 1;	/* don't bother in this case */
 
@@ -922,8 +888,9 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 {
 	int nr, nw;
 	int serrno;
-	char *p, buf[MAXBSIZE];
-	int done_copy;
+	char buf[MAXBSIZE];
+
+	(void)size;
 
 	/* Rewind file descriptors. */
 	if (lseek(from_fd, (off_t)0, SEEK_SET) == (off_t)-1)
@@ -931,41 +898,18 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (lseek(to_fd, (off_t)0, SEEK_SET) == (off_t)-1)
 		return err(EX_OSERR, "lseek: %s", to_name);
 
-	/*
-	 * Mmap and write if less than 8M (the limit is so we don't totally
-	 * trash memory on big files.  This is really a minor hack, but it
-	 * wins some CPU back.
-	 */
-	done_copy = 0;
-#ifdef USE_MMAP
-	if (size <= 8 * 1048576 && trymmap(from_fd) &&
-	    (p = mmap(NULL, (size_t)size, PROT_READ, MAP_SHARED,
-		    from_fd, (off_t)0)) != (char *)MAP_FAILED) {
-		if ((nw = write(to_fd, p, size)) != size) {
+	while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
+		if ((nw = write(to_fd, buf, nr)) != nr) {
 			serrno = errno;
 			(void)unlink(to_name);
 			errno = nw > 0 ? EIO : serrno;
-			err(EX_OSERR, "%s", to_name);
+			return err(EX_OSERR, "%s", to_name);
 		}
-		done_copy = 1;
-	}
-#else
-	(void)p; (void)size;
-#endif
-	if (!done_copy) {
-		while ((nr = read(from_fd, buf, sizeof(buf))) > 0)
-			if ((nw = write(to_fd, buf, nr)) != nr) {
-				serrno = errno;
-				(void)unlink(to_name);
-				errno = nw > 0 ? EIO : serrno;
-				return err(EX_OSERR, "%s", to_name);
-			}
-		if (nr != 0) {
-			serrno = errno;
-			(void)unlink(to_name);
-			errno = serrno;
-			return err(EX_OSERR, "%s", from_name);
-		}
+	if (nr != 0) {
+		serrno = errno;
+		(void)unlink(to_name);
+		errno = serrno;
+		return err(EX_OSERR, "%s", from_name);
 	}
 	return EX_OK;
 }
@@ -1074,31 +1018,6 @@ usage(FILE *pf)
 			g_progname, g_progname, g_progname, g_progname, g_progname);
 	return EX_USAGE;
 }
-
-#ifdef USE_MMAP
-/*
- * trymmap --
- *	return true (1) if mmap should be tried, false (0) if not.
- */
-static int
-trymmap(int fd)
-{
-/*
- * The ifdef is for bootstrapping - f_fstypename doesn't exist in
- * pre-Lite2-merge systems.
- */
-#ifdef MFSNAMELEN
-	struct statfs stfs;
-
-	if (nommap || fstatfs(fd, &stfs) != 0)
-		return (0);
-	if (strcmp(stfs.f_fstypename, "ufs") == 0 ||
-	    strcmp(stfs.f_fstypename, "cd9660") == 0)
-		return (1);
-#endif
-	return (0);
-}
-#endif
 
 /* figures out where the last slash or colon is. */
 static char *
