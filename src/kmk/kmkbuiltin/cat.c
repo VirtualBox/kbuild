@@ -80,14 +80,6 @@ __FBSDID("$FreeBSD: src/bin/cat/cat.c,v 1.32 2005/01/10 08:39:20 imp Exp $");
 #include "kmkbuiltin.h"
 
 
-#ifdef KBUILD_OS_WINDOWS
-/* This is a trick to seriuosly speed up console output windows. */
-# undef write
-# define write maybe_con_write
-extern ssize_t maybe_con_write(int, void const *, size_t);
-#endif
-
-
 int bflag, eflag, nflag, sflag, tflag, vflag;
 /*int rval;*/
 const char *filename;

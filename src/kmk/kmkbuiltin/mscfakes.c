@@ -1,4 +1,4 @@
-/* $Id: mscfakes.c 3094 2017-10-14 03:32:50Z knut.osmundsen@oracle.com $ */
+/* $Id: mscfakes.c 3117 2017-10-30 17:49:42Z knut.osmundsen@oracle.com $ */
 /** @file
  * Fake Unix stuff for MSC.
  */
@@ -47,6 +47,8 @@
 #define timeval windows_timeval
 #include <Windows.h>
 #undef timeval
+
+extern ssize_t maybe_con_write(int, void const *, size_t);
 
 
 /*******************************************************************************
@@ -473,9 +475,14 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
    XXX: Probably need to hook into fwrite as well. */
 ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
 {
+#define MSC_WRITE_MAX_CHUNK (UINT_MAX / 32)
     ssize_t cbRet;
-    if (cbSrc < UINT_MAX / 4)
+    if (cbSrc <= MSC_WRITE_MAX_CHUNK)
     {
+        /* Console output optimization: */
+        if (cbSrc > 0 && isatty(fd))
+            return maybe_con_write(fd, pvSrc, cbSrc);
+
 #ifndef MSC_WRITE_TEST
         cbRet = _write(fd, pvSrc, (unsigned int)cbSrc);
 #else
@@ -484,7 +491,7 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
         if (cbRet < 0)
         {
             /* ENOSPC on pipe kludge. */
-            int cbLimit;
+            unsigned int cbLimit;
             int cSinceLastSuccess;
 
             if (cbSrc == 0)
@@ -501,7 +508,7 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
 
             /* Likely a full pipe buffer, try write smaller amounts and do some
                sleeping inbetween each unsuccessful one. */
-            cbLimit = cbSrc / 4;
+            cbLimit = (unsigned)(cbSrc / 4);
             if (cbLimit < 4)
                 cbLimit = 4;
             else if (cbLimit > 512)
@@ -512,13 +519,18 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
             cbLimit = 4;
 #endif
 
-            while (cbSrc > 0)
+            while ((ssize_t)cbSrc > 0)
             {
-                unsigned int cbAttempt = cbSrc > cbLimit ? (int)cbLimit : (int)cbSrc;
+                unsigned int cbAttempt = cbSrc > cbLimit ? cbLimit : (unsigned int)cbSrc;
                 ssize_t cbActual = _write(fd, pvSrc, cbAttempt);
                 if (cbActual > 0)
                 {
-                    assert(cbActual <= (ssize_t)cbAttempt);
+                    /* For some reason, it seems like we cannot trust _write to return
+                       a number that's less or equal to the number of bytes we passed
+                       in to the call.  (Also reason for signed check in loop.) */
+                    if (cbActual > cbAttempt)
+                        cbActual = cbAttempt;
+
                     pvSrc  = (char *)pvSrc + cbActual;
                     cbSrc -= cbActual;
                     cbRet += cbActual;
@@ -558,7 +570,7 @@ ssize_t msc_write(int fd, const void *pvSrc, size_t cbSrc)
         cbRet = 0;
         while (cbSrc > 0)
         {
-            size_t  cbToWrite = cbSrc > UINT_MAX / 4 ? UINT_MAX / 4 : cbSrc;
+            size_t  cbToWrite = cbSrc > MSC_WRITE_MAX_CHUNK ? MSC_WRITE_MAX_CHUNK : cbSrc;
             ssize_t cbWritten = msc_write(fd, pvSrc, cbToWrite);
             if (cbWritten > 0)
             {
