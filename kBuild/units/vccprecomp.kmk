@@ -1,10 +1,10 @@
-# $Id: vccprecomp.kmk 2956 2016-09-21 19:37:20Z knut.osmundsen@oracle.com $
+# $Id: vccprecomp.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Unit - Target Level Precompiled Headers for Visual C++.
 #
 
 #
-# Copyright (c) 2016 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2016-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

@@ -1,10 +1,10 @@
-# $Id: VAC308.kmk 3055 2017-08-31 15:34:33Z knut.osmundsen@oracle.com $
+# $Id: VAC308.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - VisualAge for C++ v3.08.
 #
 
 #
-# Copyright (c) 2004-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

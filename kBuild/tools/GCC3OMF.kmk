@@ -1,10 +1,10 @@
-# $Id: GCC3OMF.kmk 2776 2015-02-03 20:38:12Z knut.osmundsen@oracle.com $
+# $Id: GCC3OMF.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - GCC v3 targeting OS/2 OMF.
 #
 
 #
-# Copyright (c) 2004-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

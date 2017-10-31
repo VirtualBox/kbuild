@@ -1,10 +1,10 @@
-# $Id: WINDDKWXP.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: WINDDKWXP.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows Vista and Server 2008 DDKs, Targeting Windows XP (x86).
 #
 
 #
-# Copyright (c) 2006-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

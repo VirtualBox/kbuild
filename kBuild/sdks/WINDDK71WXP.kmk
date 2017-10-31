@@ -1,10 +1,10 @@
-# $Id: WINDDK71WXP.kmk 2602 2012-07-12 20:21:45Z knut.osmundsen@oracle.com $
+# $Id: WINDDK71WXP.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - The Microsoft Windows 7 DDK, v7.1, Targeting Windows XP (x86).
 #
 
 #
-# Copyright (c) 2006-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

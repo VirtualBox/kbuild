@@ -1,10 +1,10 @@
-# $Id: subfooter.kmk 2763 2015-01-28 18:25:31Z knut.osmundsen@oracle.com $
+# $Id: subfooter.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - File included at bottom of a makefile or sub-makefile.
 #
 
 #
-# Copyright (c) 2006-2015 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2006-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #
