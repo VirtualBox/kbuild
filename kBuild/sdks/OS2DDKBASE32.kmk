@@ -1,10 +1,10 @@
-# $Id: OS2DDKBASE32.kmk 2413 2010-09-11 17:43:04Z knut.osmundsen@oracle.com $
+# $Id: OS2DDKBASE32.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 #
 # kBuild SDK - The OS/2 DDK, 32-bit base headers and libraries.
 
 #
-# Copyright (c) 2007-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2007-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

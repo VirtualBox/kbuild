@@ -1,11 +1,11 @@
-# $Id: WATCOMC11C-16.kmk 2749 2015-01-23 01:01:02Z knut.osmundsen@oracle.com $
+# $Id: WATCOMC11C-16.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Watcom C v11.0c, 16-bit targets.
 #
 # @remarks wrc is untested, so are DLLs, and programs.
 
 #
-# Copyright (c) 2008-2010 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2008-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

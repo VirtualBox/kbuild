@@ -1,4 +1,4 @@
-# $Id: ReorderCompilerIncs.kmk 2603 2012-07-12 20:26:28Z knut.osmundsen@oracle.com $
+# $Id: ReorderCompilerIncs.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild SDK - Pseudo SDK that inserts the compiler includes a bit earlier.
 #
@@ -8,7 +8,7 @@
 #
 
 #
-# Copyright (c) 2006-2012 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2006-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

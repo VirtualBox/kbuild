@@ -1,10 +1,10 @@
-# $Id: VCC120AMD64.kmk 3044 2017-05-11 13:29:49Z knut.osmundsen@oracle.com $
+# $Id: VCC120AMD64.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Visual C++ 12.0 (aka Visual 2013 and MSC v18), targeting AMD64.
 #
 
 #
-# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

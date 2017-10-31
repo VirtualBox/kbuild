@@ -1,10 +1,10 @@
-# $Id: LLVMGXX42MACHO.kmk 2547 2011-11-04 21:58:53Z knut.osmundsen@oracle.com $
+# $Id: LLVMGXX42MACHO.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - LLVM GCC v4.2.x targeting Darwin (Mac OS X) Mach-O, for building C++ code.
 #
 
 #
-# Copyright (c) 2004-2011 knut st. osmundsen <bird-kBuild-spamx@anduin.net>
+# Copyright (c) 2004-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #

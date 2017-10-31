@@ -1,10 +1,10 @@
-# $Id: OPENWATCOM.kmk 2897 2016-09-08 15:38:43Z knut.osmundsen@oracle.com $
+# $Id: OPENWATCOM.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Tool Config - Open Watcom v1.4 and later.
 #
 
 #
-# Copyright (c) 2008-2014 knut st. osmundsen <bird-kBuild-spam-xiv@anduin.net>
+# Copyright (c) 2008-2017 knut st. osmundsen <bird-kBuild-spam-xviiv@anduin.net>
 #
 # This file is part of kBuild.
 #
