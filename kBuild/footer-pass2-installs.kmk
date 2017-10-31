@@ -1,4 +1,4 @@
-# $Id: footer-pass2-installs.kmk 2726 2014-02-26 23:23:54Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-installs.kmk 3120 2017-10-31 10:51:11Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Installs.
 #
@@ -42,7 +42,7 @@
 define def_install_src_rule_staging
 $$(call KB_FN_ASSERT_ABSPATH, stagedst)
 $$(call KB_FN_ASSERT_ABSPATH, srcsrc)
-$(stagedst) : $(srcsrc) | $(dir $(stagedst))
+$(stagedst) : $(srcsrc) $(top_deps) | $(dir $(stagedst)) $(top_orderdeps)
 	%$$(call MSG_INST_FILE,$(srcsrc),$(stagedst))
 	$(top_pre_file_cmds)
 	$$(QUIET)$(stagecmd)
@@ -53,7 +53,7 @@ $(eval-opt-var def_install_src_rule_staging)
 define def_install_src_rule_installing
 $$(call KB_FN_ASSERT_ABSPATH, instdst)
 $$(call KB_FN_ASSERT_ABSPATH, srcsrc)
-$(instdst) : $(srcsrc) | $(dir $(instdst))
+$(instdst) : $(srcsrc) $(top_deps) | $(dir $(instdst)) $(top_orderdeps)
 	%$$(call MSG_INST_FILE,$(srcsrc),$(instdst))
 	$(top_pre_file_cmds)
 	$$(QUIET)$(instcmd)
@@ -245,7 +245,7 @@ $(eval-opt-var def_install_src)
 #
 define def_install_symlink_rule_staging
 $$(call KB_FN_ASSERT_ABSPATH, stagedst)
-$(stagedst) : | $(dir $(stagedst))
+$(stagedst) : $(top_deps) | $(dir $(stagedst)) $(top_orderdeps)
 	%$$(call MSG_INST_SYM,$(stagedst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
 	$(top_pre_sym_cmds)
@@ -256,7 +256,7 @@ $(eval-opt-var def_install_symlink_rule_staging)
 
 define def_install_symlink_rule_installing
 $$(call KB_FN_ASSERT_ABSPATH, instdst)
-$(instdst) : | $(dir $(instdst))
+$(instdst) : $(top_deps) | $(dir $(instdst)) $(top_orderdeps)
 	%$$(call MSG_INST_SYM,$(instdst),$(symdst))
 	$$(QUIET)$$(RM) -f -- $$@
 	$(top_pre_sym_cmds)
@@ -336,7 +336,7 @@ $(optmize def_install_symlink)
 #
 define def_install_directory_rule
 $$(call KB_FN_ASSERT_ABSPATH, insdst)
-$(insdst):
+$(insdst): $(top_deps) | $(top_orderdeps)
 	%$$(call MSG_INST_DIR,$(insdst))
 	$(top_pre_dir_cmds)
 	$$(QUIET)$$(INSTALL) -d \
@@ -491,6 +491,36 @@ ifneq ($(insttype),none)
  else
    local top_instfun := _INSTALL_FILE
  endif
+ local top_deps := \
+	$($(target)_DEPS.$(bld_trg_cpu)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_DEPS.$(bld_trg_arch)) \
+	$($(target)_DEPS.$(bld_trg)) \
+	$($(target)_DEPS.$(bld_type)) \
+	$($(target)_DEPS)
+ local top_orderdeps := \
+	$($(target)_ORDERDEPS.$(bld_trg_cpu)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg).$(bld_type)) \
+	$($(target)_ORDERDEPS.$(bld_trg_arch)) \
+	$($(target)_ORDERDEPS.$(bld_trg)) \
+	$($(target)_ORDERDEPS.$(bld_type)) \
+	$($(target)_ORDERDEPS)
+ ifdef $(target)_DEFPATH
+  local top_defpath := $($(target)_DEFPATH)
+ else ifdef $(target)_PATH
+  local top_defpath := $($(target)_PATH)
+ else
+  local top_defpath :=
+ endif
+ ifneq ($(top_defpath),)
+  local top_deps      := $(abspathex $(top_deps),$(top_defpath))
+  local top_orderdeps := $(abspathex $(top_orderdeps),$(top_defpath))
+ endif
+
  # The user have to use double expansion and can only use the above locals. Not 100% optimal...
  local top_pre_file_cmds  := $(evalcall def_fn_prop_get_first_defined,PRE_XFILE_CMDS)
  local top_post_file_cmds := $(evalcall def_fn_prop_get_first_defined,POST_XFILE_CMDS)
