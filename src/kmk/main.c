@@ -2073,6 +2073,7 @@ main (int argc, char **argv, char **envp)
     strcpy (default_shell + len, "/kmk_ash.exe");
     no_default_sh_exe = 0;
     batch_mode_shell = 1;
+    unixy_shell = 1;
   }
 #else /* !KMK */
    no_default_sh_exe = !find_and_set_default_shell(NULL);
