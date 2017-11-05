@@ -1413,7 +1413,7 @@ main (int argc, char **argv, char **envp)
   /* Clear the SEM_NOGPFAULTERRORBOX flag so WER will generate dumps when we run
      under cygwin.  To void popups, set WER registry value DontShowUI to 1. */
   if (getenv("KMK_NO_SET_ERROR_MODE") == NULL)
-    SetErrorMode(GetErrorMode() & ~SEM_NOGPFAULTERRORBOX);
+    SetErrorMode(SetErrorMode(0) & ~SEM_NOGPFAULTERRORBOX);
 # endif
 
   /* start off assuming we have no shell */
