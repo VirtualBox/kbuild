@@ -1,4 +1,4 @@
-/* $Id: ntunlink.c 3060 2017-09-21 15:11:07Z knut.osmundsen@oracle.com $ */
+/* $Id: ntunlink.c 3126 2017-11-16 16:05:25Z knut.osmundsen@oracle.com $ */
 /** @file
  * MSC + NT unlink and variations.
  */
@@ -127,7 +127,7 @@ static int birdUnlinkInternal(HANDLE hRoot, const char *pszFile, const wchar_t *
             {
                 rcNt = birdOpenFileUniStr(hRoot,
                                           &NtPath,
-                                          DELETE,
+                                          DELETE | SYNCHRONIZE,
                                           FILE_ATTRIBUTE_NORMAL,
                                           FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
                                           FILE_OPEN,
