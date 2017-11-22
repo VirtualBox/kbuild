@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: env.sh 3111 2017-10-22 11:38:15Z knut.osmundsen@oracle.com $
+# $Id: env.sh 3127 2017-11-22 20:15:12Z knut.osmundsen@oracle.com $
 ## @file
 # Environment setup script.
 #
@@ -339,8 +339,20 @@ if test -z "$KBUILD_HOST_ARCH"; then
             KBUILD_HOST_ARCH='amd64'
             # Try detect debian x32.
             if test "$KBUILD_HOST" = "linux"; then 
-                case "`uname -v`" in 
-                    *Debian*+x32+*) KBUILD_HOST_ARCH=x32 ;;
+                if test -z "${DEB_HOST_ARCH}"; then
+                    DEB_HOST_ARCH=`dpkg-architecture -qDEB_HOST_ARCH 2> /dev/null`;
+                    if test -z "${DEB_HOST_ARCH}"; then
+                        DEB_HOST_ARCH=`dpkg --print-architecture 2> /dev/null`;
+                    fi
+                fi
+                case "${DEB_HOST_ARCH}" in
+                    "x32")
+                        KBUILD_HOST_ARCH=x32
+                        ;;
+                    "") case "`uname -v`" in
+                            *Debian*+x32+*) KBUILD_HOST_ARCH=x32 ;;
+                        esac
+                        ;;
                 esac
             fi
             ;;
