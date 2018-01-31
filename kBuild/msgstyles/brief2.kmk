@@ -1,4 +1,4 @@
-# $Id: brief2.kmk 3121 2017-10-31 10:58:59Z knut.osmundsen@oracle.com $
+# $Id: brief2.kmk 3130 2018-01-31 19:28:35Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild Message Style - 'brief'
 #
@@ -34,17 +34,17 @@
 # Indent the messages, drop the kBuild: prefix, and shorten paths.
 ifndef KBUILD_VERBOSE
  ifndef MSG_L1
-  MSG_L1 = @$(PRINTF) "  %-7s %s\n" \
+  MSG_L1 = %@$(PRINTF) "  %-7s %s\n" \
 	"$(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))" \
 	"$(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$2))))"
  endif
  ifndef MSG_L1I
-  MSG_L1I = @$(PRINTF) "  %-7s %s\n" "$1" "$2"
+  MSG_L1I = %@$(PRINTF) "  %-7s %s\n" "$1" "$2"
  endif
 else
- MSG_L1 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1 $2))))"
- MSG_L1I?= @$(ECHO) "  $1 $2"
- MSG_L2 ?= @$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
+ MSG_L1 ?= %@$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1 $2))))"
+ MSG_L1I?= %@$(ECHO) "  $1 $2"
+ MSG_L2 ?= %@$(ECHO) "  $(subst $(PATH_ROOT)/,{R}/,$(subst $(PATH_OUT)/,{O}/,$(subst $(CURDIR)/,{C}/,$(subst $(PATH_TARGET)/,{T}/,$1))))"
 endif
 
 ## Fetch starting.
