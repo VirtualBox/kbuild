@@ -1,4 +1,4 @@
-/* $Id: md5sum.c 2984 2016-11-01 18:24:11Z knut.osmundsen@oracle.com $ */
+/* $Id: md5sum.c 3131 2018-02-09 13:19:39Z knut.osmundsen@oracle.com $ */
 /** @file
  * md5sum.
  */
@@ -40,6 +40,7 @@
 #include "err.h"
 #include "kmkbuiltin.h"
 #include "../../lib/md5.h"
+#include <k/kTypes.h>
 
 /*#define MD5SUM_USE_STDIO*/
 
@@ -60,6 +61,7 @@ static int usage(FILE *pOut)
             " -C, --check-file  This is followed by an MD5 sum and the file to check.\n"
             " -b, --binary      Read files in binary mode. (default)\n"
             " -t, --text        Read files in text mode.\n"
+            " -m, --manifest    Output in kBuild fetch 'manifest' format.\n"
             " -p, --progress    Show progress indicator on large files.\n"
             " -o, --output      Name of the output list file. Useful with -p.\n"
             " -q, --status      Be quiet.\n"
@@ -261,7 +263,7 @@ static int read_file(void *pvFile, void *pvBuf, size_t cbBuf)
  * @returns File size.
  * @param   pvFile          The opaque pointer returned by open_file
  */
-static double size_file(void *pvFile)
+static KU64 size_file(void *pvFile)
 {
 #if defined(_MSC_VER)
     __int64 cb;
@@ -271,7 +273,7 @@ static double size_file(void *pvFile)
     cb = _filelengthi64(*(int *)pvFile);
 # endif
     if (cb >= 0)
-        return (double)cb;
+        return cb;
 
 #elif defined(MD5SUM_USE_STDIO)
     struct stat st;
@@ -294,15 +296,16 @@ static double size_file(void *pvFile)
  * @param   pvFile      The file stream.
  * @param   pDigest     Where to store the MD5 digest.
  * @param   fProgress   Whether to show a progress bar.
+ * @param   pcbFile     Where to return the file size. Optional.
  */
-static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgress)
+static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgress, KU64 *pcbFile)
 {
     int cb;
     int rc = 0;
     struct MD5Context Ctx;
     unsigned uPercent = 0;
-    double off = 0.0;
-    double cbFile = size_file(pvFile);
+    KU64 off = 0;
+    KU64 const cbFile = size_file(pvFile);
 
     /* Get a decent sized buffer assuming we'll be spending more time reading
        from the storage than doing MD5 sums.  (2MB was choosen based on recent
@@ -345,13 +348,13 @@ static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgre
             rc = -cb;
             break;
         }
+        off += cb;
 
         /* update the progress indicator. */
         if (fProgress)
         {
             unsigned uNewPercent;
-            off += cb;
-            uNewPercent = (unsigned)((off / cbFile) * 100);
+            uNewPercent = (unsigned)(((double)off / cbFile) * 100);
             if (uNewPercent != uPercent)
             {
                 if (uPercent)
@@ -363,6 +366,9 @@ static int calc_md5sum(void *pvFile, unsigned char pDigest[16], unsigned fProgre
         }
     }
     MD5Final(pDigest, &Ctx);
+
+    if (pcbFile)
+        *pcbFile = off;
 
     if (fProgress)
         printf("\b\b\b\b    \b\b\b\b");
@@ -385,7 +391,7 @@ static int check_md5sum(void *pvFile, unsigned char Digest[16], unsigned fProgre
     unsigned char DigestFile[16];
     int rc;
 
-    rc = calc_md5sum(pvFile, DigestFile, fProgress);
+    rc = calc_md5sum(pvFile, DigestFile, fProgress, NULL);
     if (!rc)
         rc = memcmp(Digest, DigestFile, 16) ? -1 : 0;
     return rc;
@@ -582,10 +588,12 @@ static int check_files(const char *pszFilename, int fText, int fBinaryTextOpt, i
  * @param   pszFilename     The file to process.
  * @param   fText           The mode to open the file in.
  * @param   fQuiet          Whether to be quiet or verbose about errors.
+ * @param   fManifest       Whether to format the output like a fetch manifest.
  * @param   fProgress       Whether to show an progress indicator on large files.
  * @param   pOutput         Where to write the list. Progress is always written to stdout.
  */
-static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet, unsigned fProgress, FILE *pOutput)
+static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet, unsigned fProgress,
+                       unsigned fManifest, FILE *pOutput)
 {
     int rc;
     void *pvFile;
@@ -597,11 +605,12 @@ static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet,
     if (pvFile)
     {
         unsigned char Digest[16];
+        KU64 cbFile = 0;
 
         if (fProgress && pOutput)
             fprintf(stdout, "%s: ", pszFilename);
 
-        rc = calc_md5sum(pvFile, Digest, fProgress);
+        rc = calc_md5sum(pvFile, Digest, fProgress, &cbFile);
         close_file(pvFile);
 
         if (fProgress && pOutput)
@@ -615,12 +624,20 @@ static int md5sum_file(const char *pszFilename, unsigned fText, unsigned fQuiet,
         {
             char szDigest[36];
             digest_to_string(Digest, szDigest);
-            if (pOutput)
+            if (!fManifest)
             {
-                fprintf(pOutput, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
-                fflush(pOutput);
+                if (pOutput)
+                    fprintf(pOutput, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
+                fprintf(stdout, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
             }
-            fprintf(stdout, "%s %s%s\n", szDigest, fText ? "" : "*", pszFilename);
+            else
+            {
+                if (pOutput)
+                    fprintf(pOutput, "%s_SIZE := %" KU64_PRI "\n%s_MD5  := %s\n", pszFilename, cbFile, pszFilename, szDigest);
+                fprintf(stdout, "%s_SIZE := %" KU64_PRI "\n%s_MD5  := %s\n", pszFilename, cbFile, pszFilename, szDigest);
+            }
+            if (pOutput)
+                fflush(pOutput);
             fflush(stdout);
         }
         else
@@ -653,6 +670,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
     int fBinaryTextOpt = 0;
     int fQuiet = 0;
     int fChecking = 0;
+    int fManifest  = 0;
     int fProgress = 0;
     int fNoMoreOptions = 0;
     const char *pszOutput = NULL;
@@ -690,6 +708,8 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                     psz = "c";
                 else if (!strcmp(psz, "-check-file"))
                     psz = "C";
+                else if (!strcmp(psz, "-manifest"))
+                    psz = "m";
                 else if (!strcmp(psz, "-output"))
                     psz = "o";
                 else if (!strcmp(psz, "-progress"))
@@ -721,6 +741,10 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                     case 't':
                         fText = 1;
                         fBinaryTextOpt = 1;
+                        break;
+
+                    case 'm':
+                        fManifest = 1;
                         break;
 
                     case 'p':
@@ -821,7 +845,7 @@ int kmk_builtin_md5sum(int argc, char **argv, char **envp)
                 pszOutput = NULL;
             }
 
-            rc |= md5sum_file(argv[i], fText, fQuiet, fProgress && !fQuiet, pOutput);
+            rc |= md5sum_file(argv[i], fText, fQuiet, fProgress && !fQuiet && !fManifest, fManifest, pOutput);
         }
         i++;
     }
