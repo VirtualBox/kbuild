@@ -1,4 +1,4 @@
-/* $Id: common-env-and-cwd-opt.c 3039 2017-05-10 10:55:51Z knut.osmundsen@oracle.com $ */
+/* $Id: common-env-and-cwd-opt.c 3133 2018-02-23 21:33:27Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - Commmon environment and CWD option handling code.
  */
@@ -185,26 +185,26 @@ static int kBuiltinOptEnvAppendPrepend(char ***ppapszEnv, unsigned *pcEnvVars, u
             if (   KSUBMIT_ENV_NCMP(pszCur, pszValue, cchVar) == 0
                 && pszCur[cchVar] == '=')
             {
-                size_t cchOldValue = strlen(papszEnv[iEnvVar]) - cchVar - 1;
-                size_t cchNewValue = strlen(pszValue)          - cchVar - 1;
-                char *pszNew = malloc(cchVar + 1 + cchOldValue + cchNewValue);
-                if (!papszEnv[iEnvVar])
+                size_t cchOldValue = strlen(pszCur)   - cchVar - 1;
+                size_t cchNewValue = strlen(pszValue) - cchVar - 1;
+                char  *pszNew      = malloc(cchVar + 1 + cchOldValue + cchNewValue + 1);
+                if (!pszNew)
                     return errx(1, "out of memory!");
                 if (fAppend)
                 {
-                    memcpy(pszNew, papszEnv[iEnvVar], cchVar + 1 + cchOldValue);
+                    memcpy(pszNew, pszCur, cchVar + 1 + cchOldValue);
                     memcpy(&pszNew[cchVar + 1 + cchOldValue], &pszValue[cchVar + 1], cchNewValue + 1);
                 }
                 else
                 {
-                    memcpy(pszNew, papszEnv[iEnvVar], cchVar + 1); /* preserve variable name case  */
+                    memcpy(pszNew, pszCur, cchVar + 1); /* preserve variable name case  */
                     memcpy(&pszNew[cchVar + 1], &pszValue[cchVar + 1], cchNewValue);
-                    memcpy(&pszNew[cchVar + 1 + cchNewValue], &papszEnv[iEnvVar][cchVar + 1], cchOldValue + 1);
+                    memcpy(&pszNew[cchVar + 1 + cchNewValue], &pszCur[cchVar + 1], cchOldValue + 1);
                 }
 
                 if (cVerbosity > 0)
-                    warnx("replacing '%s' with '%s'", papszEnv[iEnvVar], pszNew);
-                free(papszEnv[iEnvVar]);
+                    warnx("replacing '%s' with '%s'", pszCur, pszNew);
+                free(pszCur);
                 papszEnv[iEnvVar] = pszNew;
 
                 return kBuiltinOptEnvRemoveDuplicates(papszEnv, cEnvVars, cVerbosity, pszValue, cchVar, iEnvVar);
