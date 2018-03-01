@@ -1,4 +1,4 @@
-/* $Id: append.c 2771 2015-02-01 20:48:36Z knut.osmundsen@oracle.com $ */
+/* $Id: append.c 3134 2018-03-01 18:42:56Z knut.osmundsen@oracle.com $ */
 /** @file
  * kMk Builtin command - append text to file.
  */
@@ -56,6 +56,7 @@ static int usage(FILE *pf)
             "  -d  Enclose the output in define ... endef, taking the name from\n"
             "      the first argument following the file name.\n"
             "  -c  Output the command for specified target(s). [builtin only]\n"
+            "  -i  look for --insert-command=trg and --insert-variable=var. [builtin only]\n"
             "  -n  Insert a newline between the strings.\n"
             "  -N  Suppress the trailing newline.\n"
             "  -t  Truncate the file instead of appending\n"
@@ -81,6 +82,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     int fDefine = 0;
     int fVariables = 0;
     int fCommands = 0;
+    int fLookForInserts = 0;
 
     g_progname = argv[0];
 
@@ -91,7 +93,7 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
     while (i < argc
        &&  argv[i][0] == '-'
        &&  argv[i][1] != '\0' /* '-' is a file */
-       &&  strchr("-cdnNtv", argv[i][1]) /* valid option char */
+       &&  strchr("-cdinNtv", argv[i][1]) /* valid option char */
        )
     {
         char *psz = &argv[i][1];
@@ -122,6 +124,19 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
                         }
                         fDefine = 1;
                         break;
+                    case 'i':
+                        if (fVariables || fCommands)
+                        {
+                            errx(1, fVariables ? "Option '-i' clashes with '-v'." : "Option '-i' clashes with '-c'.");
+                            return usage(stderr);
+                        }
+#ifndef kmk_builtin_append
+                        fLookForInserts = 1;
+                        break;
+#else
+                        errx(1, "Option '-C' isn't supported in external mode.");
+                        return usage(stderr);
+#endif
                     case 'n':
                         fNewline = 1;
                         break;
@@ -215,6 +230,35 @@ int kmk_builtin_append(int argc, char **argv, char **envp)
         else if (fVariables)
         {
             struct variable *pVar = lookup_variable(psz, cch);
+            if (!pVar)
+                continue;
+            if (   !pVar->recursive
+                || IS_VARIABLE_RECURSIVE_WITHOUT_DOLLAR(pVar))
+                fwrite(pVar->value, 1, pVar->value_length, pFile);
+            else
+            {
+                char *pszExpanded = allocated_variable_expand(pVar->value);
+                fwrite(pszExpanded, 1, strlen(pszExpanded), pFile);
+                free(pszExpanded);
+            }
+        }
+        else if (fLookForInserts && strncmp(psz, "--insert-command=", 17) == 0)
+        {
+            char *pszOldBuf;
+            unsigned cchOldBuf;
+            char *pchEnd;
+
+            install_variable_buffer(&pszOldBuf, &cchOldBuf);
+
+            psz += 17;
+            pchEnd = func_commands(variable_buffer, (char **)&psz, "commands");
+            fwrite(variable_buffer, 1, pchEnd - variable_buffer, pFile);
+
+            restore_variable_buffer(pszOldBuf, cchOldBuf);
+        }
+        else if (fLookForInserts && strncmp(psz, "--insert-variable=", 18) == 0)
+        {
+            struct variable *pVar = lookup_variable(psz + 18, cch);
             if (!pVar)
                 continue;
             if (   !pVar->recursive
