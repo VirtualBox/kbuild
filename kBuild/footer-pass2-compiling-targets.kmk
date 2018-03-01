@@ -1,4 +1,4 @@
-# $Id: footer-pass2-compiling-targets.kmk 3128 2017-12-25 13:33:14Z knut.osmundsen@oracle.com $
+# $Id: footer-pass2-compiling-targets.kmk 3135 2018-03-01 18:45:26Z knut.osmundsen@oracle.com $
 ## @file
 # kBuild - Footer - Target lists - Pass 2 - Compiling Targets.
 #
@@ -49,6 +49,12 @@ else
 endif
 
 
+## Temporary for the compile rule below.
+if "$(KBUILD_KMK_REVISION)" >= 3134
+ KBUILD_HAVE_OPTIMIZED_APPEND := 1
+endif
+
+
 ## Generates the rules for building a specific object, and the aliases
 # for building a source file.
 # @param    $(obj)    The object file.
@@ -91,10 +97,17 @@ endif
 $($(target)_$(source)_CMDS_)
 
 ifndef NO_COMPILE_CMDS_DEPS
-	%$$(QUIET2)$$(APPEND) '$(dep)'
-	%$$(QUIET2)$$(APPEND) '$(dep)' 'define $(target)_$(subst :,_,$(source))_CMDS_PREV_'
+ ifdef KBUILD_HAVE_OPTIMIZED_APPEND
+	%$$(QUIET2)$$(APPEND) -in '$(dep)' \
+		'' \
+		'define $(target)_$(subst :,_,$(source))_CMDS_PREV_' \
+		'--insert-command=$(obj)' \
+		'endef'
+ else
+	%$$(QUIET2)$$(APPEND) -n '$(dep)' '' 'define $(target)_$(subst :,_,$(source))_CMDS_PREV_'
 	%$$(QUIET2)$$(APPEND) -c '$(dep)' '$(obj)'
 	%$$(QUIET2)$$(APPEND) '$(dep)' 'endef'
+ endif
 endif
 
 $(basename $(notdir $(obj))).o: $(obj)
