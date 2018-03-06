@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3132 2018-02-16 12:11:00Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3136 2018-03-06 20:24:16Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -195,7 +195,11 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
         COMMENT_TYPE aComments[];
         GetComments(aComments, "M", sLexer);
         for (i = 0; i < aComments._length(); i++)
+# if __VERSION__ >= 22.0
+            if (aComments[i].type != 'doc_comment')
+# else
             if (!aComments[i].isDocumentation)
+# endif
             {
                 sLeft   = aComments[i].delim1;
                 sRight  = aComments[i].delim2;
@@ -232,7 +236,11 @@ static boolean k_commentconfig(_str &sLeft, _str &sRight, int &iColumn, _str sEx
 #if __VERSION__ >= 21.0
         GetComments(aComments, "L", sLexer);
         for (i = 0; i < aComments._length(); i++)
+# if __VERSION__ >= 22.0
+            if (aComments[i].type != 'doc_comment')
+# else
             if (!aComments[i].isDocumentation)
+# endif
             {
                 sLeft   = aComments[i].delim1;
                 sRight  = '';
@@ -3532,6 +3540,11 @@ using se.lang.api.LanguageSettings;
 int def_auto_unsurround_block;
 #endif
 
+#if __VERSION__ >= 21.0
+int def_gui_find_default;
+#endif
+
+
 /**
  * Loads the standard bird settings.
  */
@@ -3720,8 +3733,13 @@ _command void kdev_load_settings()
     /*
      * Change the codehelp default.
      */
-    int fOldCodeHelp = def_codehelp_flags;
-    int fNewCodeHelp = fOldCodeHelp \
+# if __VERSION__ >= 22.0
+    VSCodeHelpFlags fOldCodeHelp, fNewCodeHelp;
+# else
+    int             fOldCodeHelp, fNewCodeHelp;
+# endif
+    fOldCodeHelp = def_codehelp_flags;
+    fNewCodeHelp = fOldCodeHelp \
                      | VSCODEHELPFLAG_AUTO_FUNCTION_HELP \
                      | VSCODEHELPFLAG_AUTO_LIST_MEMBERS \
                      | VSCODEHELPFLAG_SPACE_INSERTS_SPACE \
@@ -3759,8 +3777,14 @@ _command void kdev_load_settings()
     }
 #endif
 
+# if __VERSION__ >= 21.0
+    /* Old style search dialog, not mini. */
+    def_gui_find_default = 1;
+# endif
+
+    _fso_strip_spaces(STSO_STRIP_MODIFIED);
+
     /** @todo
-     *  - def_save_options
      *  - Auto restore clipboards
      *   */
 
