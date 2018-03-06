@@ -1,0 +1,7 @@
+<profile n="colorcoding_profiles.def" version="1">
+	<p n="idchars" v="a-zA-Z 0-9_"/>
+	<p n="case_sensitive" v="0"/>
+	<p n="comment,;">
+		<attrs match_fun="match_comment"/>
+	</p>
+</profile>

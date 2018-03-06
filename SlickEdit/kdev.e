@@ -1,4 +1,4 @@
-/* $Id: kdev.e 3136 2018-03-06 20:24:16Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
+/* $Id: kdev.e 3137 2018-03-06 22:29:41Z knut.osmundsen@oracle.com $  -*- tab-width: 4 c-indent-level: 4 -*- */
 /** @file
  * Visual SlickEdit Documentation Macros.
  */
@@ -3560,8 +3560,15 @@ _command void kdev_load_settings()
     _str sRest;
     _str sTmp;
 
+#if __VERSION__ >= 21.0
     /*
-     * Generl stuff.
+     * Load the color profile (was lexer).
+     */
+    cload(_strip_filename(__FILE__, 'N') '/user.vlx');
+#endif
+
+    /*
+     * General stuff.
      */
     _default_option('A', '0');          /* ALT menu */
     def_alt_menu = 0;
